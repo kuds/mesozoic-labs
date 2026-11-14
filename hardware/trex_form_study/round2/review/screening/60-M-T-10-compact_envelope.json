@@ -1,0 +1,226 @@
+{
+ "module": "designlab.envelope",
+ "fast_walk": {
+  "spec": {
+   "speed": 0.43794929064947863,
+   "stride": 0.31282296624730926,
+   "period": 0.7142903823029213,
+   "froude": 0.05,
+   "duty": 0.56,
+   "stride_rel": 0.8,
+   "cadence_hz": 2.7999817014921335
+  },
+  "generator": "turning.generate (yaw 0, CoM to 1e-6 m)",
+  "ik_ok": true,
+  "ik_fail_frames": 0,
+  "min_cop_margin_single_mm": 28.387403260082035,
+  "reference_cop_on_pad": true,
+  "groups": {
+   "hip_roll": {
+    "actuator": "cubemars_ak45_36_v3",
+    "rms": 2.7923718913959505,
+    "peak": 5.11148429996217,
+    "speed": 1.0136519049522068,
+    "cont_ratio": 0.612362256885077,
+    "peak_ratio": 0.3803187723186139,
+    "speed_ratio": 0.2782903019022131,
+    "worst": 0.612362256885077
+   },
+   "hip_pitch": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "rms": 4.6262306443169,
+    "peak": 9.635308737487023,
+    "speed": 6.566445493498577,
+    "cont_ratio": 0.7729708678892064,
+    "peak_ratio": 0.5735302819932752,
+    "speed_ratio": 0.8688033236088204,
+    "worst": 0.8688033236088204
+   },
+   "hip_yaw": {
+    "actuator": "cubemars_ak45_36_v3",
+    "rms": 3.2166029127234967,
+    "peak": 7.83941376470106,
+    "speed": 4.0282975702061893e-07,
+    "cont_ratio": 0.7053953755972581,
+    "peak_ratio": 0.5832897146354957,
+    "speed_ratio": 1.1059379866873415e-07,
+    "worst": 0.7053953755972581
+   },
+   "knee": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "rms": 2.2558124874799796,
+    "peak": 4.641872979952601,
+    "speed": 8.197272837624997,
+    "cont_ratio": 0.37691102547702254,
+    "peak_ratio": 0.2763019630924167,
+    "speed_ratio": 1.0845773246588584,
+    "worst": 1.0845773246588584
+   },
+   "ankle_a": {
+    "actuator": "myactuator_rmd_x4_p12_10_e",
+    "rms": 1.2316957590000162,
+    "peak": 2.8065531536002166,
+    "speed": 6.099199186179323,
+    "cont_ratio": 0.5402174381579019,
+    "peak_ratio": 0.5011702060000387,
+    "speed_ratio": 0.2814265599050118,
+    "worst": 0.5402174381579019
+   },
+   "ankle_b": {
+    "actuator": "myactuator_rmd_x4_p12_10_e",
+    "rms": 1.2317058421666642,
+    "peak": 2.8069865662881686,
+    "speed": 6.099016528777254,
+    "cont_ratio": 0.5402218605994142,
+    "peak_ratio": 0.5012476011228872,
+    "speed_ratio": 0.2814181318076934,
+    "worst": 0.5402218605994142
+   },
+   "neck": {
+    "actuator": "feetech_sts3250",
+    "rms": 0.7413273536991584,
+    "peak": 0.9045271619656062,
+    "speed": 0.8787361294143566,
+    "cont_ratio": 0.9053815929623418,
+    "peak_ratio": 0.7870496174989388,
+    "speed_ratio": 0.21444463796025923,
+    "worst": 0.9053815929623418
+   },
+   "tail": {
+    "actuator": "feetech_sts3215_c018",
+    "rms": 0.1230368834339306,
+    "peak": 0.22350601736863518,
+    "speed": 1.055296951001726,
+    "cont_ratio": 0.2504241349400395,
+    "peak_ratio": 0.3241073979888701,
+    "speed_ratio": 0.4292201891310887,
+    "worst": 0.4292201891310887
+   }
+  },
+  "worst_group": "knee",
+  "worst_ratio": 1.0845773246588584,
+  "drives_ok": false
+ },
+ "stopping": {
+  "com_height_m": 0.336766213778509,
+  "pad_front_reach_m": 0.042065518699957234,
+  "zmp_shift_needed_m": 0.05149330485909923,
+  "ratio": 1.2241214764612325,
+  "max_one_foot_decel_ms2": 1.2253685837914505,
+  "one_foot": false
+ },
+ "push_recovery": {
+  "com_height_m": 0.336766213778509,
+  "omega": 5.397221560396166,
+  "pad_front_reach_m": 0.042065518699957234,
+  "max_step_m": 0.13497936766878377,
+  "max_step_over_H": 0.3451904296875001,
+  "swing": {
+   "hip_pitch": {
+    "excursion_rad": 0.005607578264557378,
+    "drive_speed_rad_s": 8.691739674931762,
+    "time_s": 0.0012903235656563546
+   },
+   "knee": {
+    "excursion_rad": 0.6088179148894132,
+    "drive_speed_rad_s": 8.691739674931762,
+    "time_s": 0.14009115267115796
+   }
+  },
+  "swing_time_s": 0.22009115267115797,
+  "capture_offset_m": 0.0832162303173002,
+  "max_push_dv_ms": 0.4491364324434257,
+  "max_push_impulse_ns": 4.940450543424535,
+  "max_push_froude": 0.22931869409489533
+ },
+ "session_heat": {
+  "session": {
+   "standing": 0.25,
+   "nominal": 0.5,
+   "brisk": 0.1,
+   "turning": 0.15
+  },
+  "groups": {
+   "hip_roll": {
+    "actuator": "cubemars_ak45_36_v3",
+    "session_rms": 2.197644809471823,
+    "sustained": 4.56,
+    "ratio": 0.4819396511999612,
+    "turning_rms_used": 2.518182202323181
+   },
+   "hip_pitch": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "session_rms": 3.348840061001712,
+    "sustained": 5.984999999999999,
+    "ratio": 0.5595388573102277,
+    "turning_rms_used": 3.57081147077535
+   },
+   "hip_yaw": {
+    "actuator": "cubemars_ak45_36_v3",
+    "session_rms": 2.4634696778313243,
+    "sustained": 4.56,
+    "ratio": 0.5402345784717817,
+    "turning_rms_used": 2.817333525069115
+   },
+   "knee": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "session_rms": 1.854055026677595,
+    "sustained": 5.984999999999999,
+    "ratio": 0.30978363018840355,
+    "turning_rms_used": 2.1587081685618177
+   },
+   "ankle_a": {
+    "actuator": "myactuator_rmd_x4_p12_10_e",
+    "session_rms": 1.108904741116323,
+    "sustained": 2.28,
+    "ratio": 0.4863617285597909,
+    "turning_rms_used": 1.236229715686807
+   },
+   "ankle_b": {
+    "actuator": "myactuator_rmd_x4_p12_10_e",
+    "session_rms": 1.1152369013794947,
+    "sustained": 2.28,
+    "ratio": 0.48913899183311177,
+    "turning_rms_used": 1.247202200871075
+   },
+   "neck": {
+    "actuator": "feetech_sts3250",
+    "session_rms": 0.7321652624765793,
+    "sustained": 0.818801,
+    "ratio": 0.8941919495415606,
+    "turning_rms_used": 0.7338625880992666
+   },
+   "tail": {
+    "actuator": "feetech_sts3215_c018",
+    "session_rms": 0.0777394900171319,
+    "sustained": 0.4913140000000001,
+    "ratio": 0.15822771184442513,
+    "turning_rms_used": 0.08588027328904194
+   }
+  },
+  "worst_group": "neck",
+  "worst_ratio": 0.8941919495415606,
+  "turning_included": true
+ },
+ "summary": {
+  "fast_walk_drives_ok": false,
+  "fast_walk_reference_cop_on_pad": true,
+  "fast_walk_worst": [
+   "knee",
+   1.0845773246588584
+  ],
+  "fast_walk_ik_ok": true,
+  "fast_walk_speed_ms": 0.43794929064947863,
+  "stop_one_foot": false,
+  "stop_max_one_foot_decel_ms2": 1.2253685837914505,
+  "push_max_dv_ms": 0.4491364324434257,
+  "push_max_impulse_ns": 4.940450543424535,
+  "push_max_step_over_H": 0.3451904296875001,
+  "push_swing_time_s": 0.22009115267115797,
+  "session_worst": [
+   "neck",
+   0.8941919495415606
+  ],
+  "session_turning_included": true
+ }
+}

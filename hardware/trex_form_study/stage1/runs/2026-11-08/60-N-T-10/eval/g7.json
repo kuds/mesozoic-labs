@@ -1,0 +1,54 @@
+{
+ "gate": "G7",
+ "rule": "STAGE1_PLAN.md section 3 step 8: the panels' measures run on the nominal reference itself reproduce Stage 0's.  The reference is played kinematically on the plant's model (its frames interpolated in time at the 2 ms physics step, the root carried one stride per period; no physics) into a metrics.Recorder: the CoM, feet, soles and lowest points from the frames' kinematics at 100 Hz, each foot's load the weight shared over the reference's support flags at every physics step; over 10 s from the second stride, metrics.window's cadence and LOOK_RULE's sway against Stage 0's: the reference's own (refs.json: cadence_steps_s, 2 / period; sway = 2 x gait.generate's sway_amp / H, the peak-to-peak lateral CoM of the stride, as round two reported it) within half a unit of the plan's last digit (0.0005 H, 0.005 steps/s), and equal to the plan's figures when rounded to their digits (sway 0.168 / 0.169 / 0.164 H, cadence 1.96 / 1.97 / 1.76 steps/s); duty, stride, toe clearance and the head and tail amplitudes are reported beside them",
+ "body": "60-N-T-10",
+ "reference": "nominal",
+ "seconds": 10.0,
+ "window_s": [
+  1.019760932537567,
+  11.019760932537567
+ ],
+ "H_m": 0.40468919988052376,
+ "measured": {
+  "sway_H": 0.16766862286915205,
+  "sway_max_H": 0.16767378445863348,
+  "cadence_steps_s": 1.9612367328103366,
+  "duty": [
+   0.5922,
+   0.6016
+  ],
+  "stride_H": 0.5500000047458996,
+  "toe_clearance_H": 0.05004148376816749,
+  "speed_m_s": 0.21778202736695565,
+  "head_amplitude_rad": 0.04996628071171568,
+  "tail_amplitude_rad": 0.11999566222214614
+ },
+ "stage0": {
+  "sway_H": 0.16769340217797962,
+  "cadence_steps_s": 1.9612439898273137,
+  "speed_m_s": 0.21826592177876797,
+  "source": "refs.json references.nominal: info.sway_amp (gait.generate: half the CoM path's lateral peak to peak) and cadence_steps_s, the records round two's reports read (decision 9)"
+ },
+ "plan": {
+  "sway_H": 0.168,
+  "cadence_steps_s": 1.96
+ },
+ "tolerance": {
+  "sway_H": 0.0005,
+  "cadence_steps_s": 0.005
+ },
+ "difference": {
+  "sway_H": -2.4779308827577173e-05,
+  "cadence_steps_s": -7.257016977124664e-06
+ },
+ "within": {
+  "sway_H": true,
+  "cadence_steps_s": true
+ },
+ "plan_rounding": {
+  "sway_H": true,
+  "cadence_steps_s": true
+ },
+ "pass_": true,
+ "reference_sha256": "566e111748573b5020d9543a2970c27dbbb688e6b5541b02c1459c700a794937"
+}

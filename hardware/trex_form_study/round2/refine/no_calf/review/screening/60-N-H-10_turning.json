@@ -1,0 +1,6174 @@
+{
+ "id": "60-N-H-10",
+ "record": "round2",
+ "rev": 2,
+ "overrides": [
+  [
+   "calf_fairing",
+   0
+  ],
+  [
+   "hip_spacing_add_m",
+   0.004
+  ]
+ ],
+ "H": 0.4014828397317346,
+ "mass": 10.794009199999998,
+ "layout": "tandem",
+ "bus": 24.0,
+ "selection": {
+  "joints": {
+   "hip_roll": "cubemars_ak45_36_v3",
+   "hip_yaw": "cubemars_ak45_36_v3",
+   "hip_pitch": "myactuator_rmd_x4_p36_36_e_l",
+   "knee": "myactuator_rmd_x4_p36_36_e_l",
+   "ankle_a": "myactuator_rmd_x4_p12_10_e",
+   "ankle_b": "myactuator_rmd_x4_p12_10_e"
+  },
+  "neck": "feetech_sts3250",
+  "tail": "feetech_sts3215_c018"
+ },
+ "xml_sha256": "3dabb090191d52549a75d8c6e897a3f0bc0d619506e3adaeda5fe0c1a7011386",
+ "record_xml_sha256": "3dabb090191d52549a75d8c6e897a3f0bc0d619506e3adaeda5fe0c1a7011386",
+ "spec": {
+  "froude": 0.012,
+  "duty": 0.6,
+  "lift_frac": 0.1,
+  "head_amp": 0.05,
+  "tail_amp": 0.12,
+  "sway_gain": 1.0,
+  "stride_rel": 0.55,
+  "crouch": 0.03,
+  "zmp_iters": 6,
+  "zmp_gain": 0.5,
+  "n": 160
+ },
+ "cases": {
+  "walk_0.35": {
+   "yaw_rate": 0.35,
+   "in_place": false,
+   "role": "target"
+  },
+  "in_place_0.50": {
+   "yaw_rate": 0.5,
+   "in_place": true,
+   "role": "target"
+  },
+  "walk_0.50": {
+   "yaw_rate": 0.5,
+   "in_place": false,
+   "role": "stretch"
+  }
+ },
+ "mu": 0.8,
+ "dcof_a326_product_class_context": 0.42,
+ "fn_min_frac_qp_allocation": 0.1,
+ "com_tol": 1e-06,
+ "com_iters": 12,
+ "phase_tol": 1e-09,
+ "near_flag_band": 0.02,
+ "split": "exact QP; CoP box and friction pyramid in each foot's axes",
+ "straight": {
+  "as_sized": {
+   "hip_roll": {
+    "rms": 2.2450684876188935,
+    "hold": 2.695245523837831,
+    "double_support": 0.05258798101575057,
+    "peak": 3.773590102979237,
+    "speed": 0.9003263789784334,
+    "cont": 2.695245523837831,
+    "peak_req": 4.716987628724047,
+    "speed_req": 1.0353753358251983
+   },
+   "hip_pitch": {
+    "rms": 2.8744964835006903,
+    "hold": 3.678970820709038,
+    "double_support": 1.6817488843458324,
+    "peak": 7.013136241995754,
+    "speed": 5.25598369391888,
+    "cont": 3.678970820709038,
+    "peak_req": 8.766420302494693,
+    "speed_req": 6.044381248006712
+   },
+   "hip_yaw": {
+    "rms": 2.580056679962318,
+    "hold": 3.2341306973638617,
+    "double_support": 0.12737972711299045,
+    "peak": 6.452302839829563,
+    "speed": 3.4391116406405046e-07,
+    "cont": 3.2341306973638617,
+    "peak_req": 8.065378549786953,
+    "speed_req": 3.95497838673658e-07
+   },
+   "knee": {
+    "rms": 2.5661820376729496,
+    "hold": 2.7930741577349645,
+    "double_support": 0.752929276613892,
+    "peak": 4.748032256739276,
+    "speed": 5.840177066324247,
+    "cont": 2.7930741577349645,
+    "peak_req": 5.935040320924095,
+    "speed_req": 6.7162036262728835
+   },
+   "ankle_a": {
+    "rms": 1.1839528752097954,
+    "hold": 1.7262235717433565,
+    "double_support": 0.7981793895801015,
+    "peak": 2.474497108629623,
+    "speed": 4.539697466791706,
+    "cont": 1.7262235717433565,
+    "peak_req": 3.093121385787029,
+    "speed_req": 5.220652086810461
+   },
+   "ankle_b": {
+    "rms": 1.1897516973092357,
+    "hold": 1.7261437303848217,
+    "double_support": 0.7990540936177535,
+    "peak": 2.4745137311287837,
+    "speed": 4.539593458675279,
+    "cont": 1.7261437303848217,
+    "peak_req": 3.0931421639109797,
+    "speed_req": 5.220532477476571
+   },
+   "neck": {
+    "rms": 0.618853488771091,
+    "hold": 0.6122061034997364,
+    "double_support": 0.6155783058683044,
+    "peak": 0.7313687041451955,
+    "speed": 0.7912479726613004,
+    "cont": 0.618853488771091,
+    "peak_req": 0.9142108801814943,
+    "speed_req": 0.9099351685604954
+   },
+   "tail": {
+    "rms": 0.1026919004286934,
+    "hold": 0.05498530943963617,
+    "double_support": 5.963991329394101e-07,
+    "peak": 0.25309187775261605,
+    "speed": 0.950230160210049,
+    "cont": 0.1026919004286934,
+    "peak_req": 0.31636484719077007,
+    "speed_req": 1.0927646842415564
+   }
+  },
+  "same_method": {
+   "hip_roll": {
+    "rms": 2.23448290773638,
+    "hold": 2.695245523837831,
+    "peak": 3.7735901029791514,
+    "speed": 0.9003263789784383,
+    "cont": 2.695245523837831,
+    "peak_req": 4.716987628723939,
+    "speed_req": 1.035375335825204
+   },
+   "hip_pitch": {
+    "rms": 2.8610376304189282,
+    "hold": 3.678970820709038,
+    "peak": 7.013136241995469,
+    "speed": 5.255983693918838,
+    "cont": 3.678970820709038,
+    "peak_req": 8.766420302494337,
+    "speed_req": 6.044381248006663
+   },
+   "hip_yaw": {
+    "rms": 2.5714388790569402,
+    "hold": 3.2341306973638617,
+    "peak": 6.452302839829748,
+    "speed": 3.439111641683293e-07,
+    "cont": 3.2341306973638617,
+    "peak_req": 8.065378549787185,
+    "speed_req": 3.954978387935787e-07
+   },
+   "knee": {
+    "rms": 2.5683366914114516,
+    "hold": 2.7930741577349645,
+    "peak": 4.7480322567391475,
+    "speed": 5.840177066324276,
+    "cont": 2.7930741577349645,
+    "peak_req": 5.935040320923934,
+    "speed_req": 6.716203626272916
+   },
+   "ankle_a": {
+    "rms": 1.2361710770852747,
+    "hold": 1.7262235717433565,
+    "peak": 2.4744971086295195,
+    "speed": 4.539697466791697,
+    "cont": 1.7262235717433565,
+    "peak_req": 3.0931213857868993,
+    "speed_req": 5.220652086810452
+   },
+   "ankle_b": {
+    "rms": 1.2361049969360833,
+    "hold": 1.7261437303848217,
+    "peak": 2.474513731127093,
+    "speed": 4.5395934586753,
+    "cont": 1.7261437303848217,
+    "peak_req": 3.0931421639088663,
+    "speed_req": 5.220532477476595
+   },
+   "neck": {
+    "rms": 0.618853488771091,
+    "hold": 0.6122061034997364,
+    "peak": 0.7313687041452045,
+    "speed": 0.7912479726613004,
+    "cont": 0.618853488771091,
+    "peak_req": 0.9142108801815056,
+    "speed_req": 0.9099351685604954
+   },
+   "tail": {
+    "rms": 0.1026919004286934,
+    "hold": 0.05498530943963617,
+    "peak": 0.25309187775261993,
+    "speed": 0.950230160210049,
+    "cont": 0.1026919004286934,
+    "peak_req": 0.3163648471907749,
+    "speed_req": 1.0927646842415564
+   }
+  },
+  "holds": {
+   "left": {
+    "margin": 0.03128368897280451,
+    "feasible": true,
+    "roll_deg": -6
+   },
+   "right": {
+    "margin": 0.03128366728136374,
+    "feasible": true,
+    "roll_deg": -6
+   }
+  },
+  "as_sized_nominal": {
+   "joints": {
+    "neck_pitch": {
+     "rms": 0.618853488771091,
+     "peak": 0.6868217038809513,
+     "speed_peak": 0.6179626529613457,
+     "pos_power_mean": 0.1247595677599312,
+     "neg_power_mean": -0.11832819796774138
+    },
+    "tail_yaw": {
+     "rms": 0.1026919004286934,
+     "peak": 0.18637741003352545,
+     "speed_peak": 0.7421273368350833,
+     "pos_power_mean": 0.03417867274679039,
+     "neg_power_mean": -0.0015749830850843548
+    },
+    "left_hip_roll": {
+     "rms": 2.2454057878181817,
+     "peak": 3.31617211977476,
+     "speed_peak": 0.9003066032034983,
+     "pos_power_mean": 0.38319952627409243,
+     "neg_power_mean": -0.3819665835397751
+    },
+    "left_hip_pitch": {
+     "rms": 2.864437930706067,
+     "peak": 5.878973974859385,
+     "speed_peak": 3.918131210896701,
+     "pos_power_mean": 1.5934902080386806,
+     "neg_power_mean": -0.19445540859981764
+    },
+    "left_hip_yaw": {
+     "rms": 2.569175837329923,
+     "peak": 5.512815422298648,
+     "speed_peak": 2.3198727810255624e-07,
+     "pos_power_mean": 2.1963180596180587e-08,
+     "neg_power_mean": -1.9896637761688303e-08
+    },
+    "left_knee": {
+     "rms": 2.5682807082055126,
+     "peak": 4.3318062357544775,
+     "speed_peak": 4.348349173094198,
+     "pos_power_mean": 0.592126396532968,
+     "neg_power_mean": -1.081745513134369
+    },
+    "left_ankle_pitch": {
+     "rms": 2.322582956841965,
+     "peak": 4.142757697550379,
+     "speed_peak": 3.306116382456287,
+     "pos_power_mean": 0.013704583784432461,
+     "neg_power_mean": -1.0339436414346015
+    },
+    "left_ankle_roll": {
+     "rms": 0.46035729321108504,
+     "peak": 2.652608740069832,
+     "speed_peak": 0.9003065786053457,
+     "pos_power_mean": 0.1234881385367558,
+     "neg_power_mean": -0.04235063002556576
+    },
+    "right_hip_roll": {
+     "rms": 2.2447311367358416,
+     "peak": 3.3112483342243806,
+     "speed_peak": 0.9003263789784334,
+     "pos_power_mean": 0.3956195428879892,
+     "neg_power_mean": -0.3696133613530165
+    },
+    "right_hip_pitch": {
+     "rms": 2.8845199615270505,
+     "peak": 5.8784015250197275,
+     "speed_peak": 3.918026759894901,
+     "pos_power_mean": 1.6115962878207717,
+     "neg_power_mean": -0.19598762883472629
+    },
+    "right_hip_yaw": {
+     "rms": 2.590891827251081,
+     "peak": 5.516997881677025,
+     "speed_peak": 2.3170277190104248e-07,
+     "pos_power_mean": 2.1982219716342816e-08,
+     "neg_power_mean": -2.0537733450802088e-08
+    },
+    "right_knee": {
+     "rms": 2.564081649403929,
+     "peak": 4.332862801222188,
+     "speed_peak": 4.3477288569994545,
+     "pos_power_mean": 0.5846208025404406,
+     "neg_power_mean": -1.0813933263569475
+    },
+    "right_ankle_pitch": {
+     "rms": 2.342575730680431,
+     "peak": 4.142140628131671,
+     "speed_peak": 3.3061090408846843,
+     "pos_power_mean": 0.01741969800107534,
+     "neg_power_mean": -1.0424242728171333
+    },
+    "right_ankle_roll": {
+     "rms": 0.418368934162942,
+     "peak": 2.1437660491087382,
+     "speed_peak": 0.9003263543539624,
+     "pos_power_mean": 0.11525663504982438,
+     "neg_power_mean": -0.04450943707162462
+    }
+   },
+   "min_cop_margin": -0.021809487175840674,
+   "min_cop_margin_single": 0.030345045931144964,
+   "max_friction_ratio": 0.22674697817836098,
+   "gait": {
+    "speed": 0.21739953977232748,
+    "stride": 0.22081556185245405,
+    "period": 1.015713106309719,
+    "froude": 0.012,
+    "duty": 0.6,
+    "stride_rel": 0.55,
+    "cadence_hz": 1.9690599516495209,
+    "sway_amp": 0.03329161740463168,
+    "lift": 0.040148283973173465,
+    "omega": 5.447925275085638,
+    "zmp_error_history_m": [
+     0.02316482572899685,
+     0.009374355259051113,
+     0.004202412353839514,
+     0.001960808604501211,
+     0.001544528114839012,
+     0.0012982412843590043,
+     0.0011403720702485509
+    ],
+    "accuracy": "r2"
+   },
+   "ik_ok": true,
+   "ik_fail_frames": 0
+  }
+ },
+ "runs": {
+  "straight": {
+   "joints": {
+    "neck_pitch": {
+     "rms": 0.618853488771091,
+     "peak": 0.6868217038809484,
+     "speed_peak": 0.6179626529613457,
+     "pos_power_mean": 0.1247595677599312,
+     "neg_power_mean": -0.11832819796774138
+    },
+    "tail_yaw": {
+     "rms": 0.1026919004286934,
+     "peak": 0.1863774100335354,
+     "speed_peak": 0.7421273368350833,
+     "pos_power_mean": 0.034178672746790394,
+     "neg_power_mean": -0.0015749830850843717
+    },
+    "left_hip_roll": {
+     "rms": 2.23448290773638,
+     "peak": 3.3161721197747083,
+     "speed_peak": 0.9003066032035016,
+     "pos_power_mean": 0.3831995338546009,
+     "neg_power_mean": -0.3696228330143799
+    },
+    "left_hip_pitch": {
+     "rms": 2.8610376304189282,
+     "peak": 5.878973974859501,
+     "speed_peak": 3.918131210896727,
+     "pos_power_mean": 1.5891198331562415,
+     "neg_power_mean": -0.19609402820691121
+    },
+    "left_hip_yaw": {
+     "rms": 2.5703233712345566,
+     "peak": 5.512815422298791,
+     "speed_peak": 2.3198727807600392e-07,
+     "pos_power_mean": 2.1958634022580768e-08,
+     "neg_power_mean": -1.9961989765189967e-08
+    },
+    "left_knee": {
+     "rms": 2.567838446745173,
+     "peak": 4.331806235755562,
+     "speed_peak": 4.348349173094224,
+     "pos_power_mean": 0.5876453809922644,
+     "neg_power_mean": -1.0817455322021547
+    },
+    "left_ankle_pitch": {
+     "rms": 2.3228531869815354,
+     "peak": 4.142757697549658,
+     "speed_peak": 3.3061163824562705,
+     "pos_power_mean": 0.01742539966322254,
+     "neg_power_mean": -1.0339436281702303
+    },
+    "left_ankle_roll": {
+     "rms": 0.46662837206075614,
+     "peak": 2.652608733401414,
+     "speed_peak": 0.900306578605349,
+     "pos_power_mean": 0.12808524133726196,
+     "neg_power_mean": -0.04235063047249826
+    },
+    "right_hip_roll": {
+     "rms": 2.2344307311775222,
+     "peak": 3.311248334224423,
+     "speed_peak": 0.9003263789784383,
+     "pos_power_mean": 0.383113370645699,
+     "neg_power_mean": -0.36961336885672935
+    },
+    "right_hip_pitch": {
+     "rms": 2.860632018214611,
+     "peak": 5.878401525019813,
+     "speed_peak": 3.918026759894853,
+     "pos_power_mean": 1.589011181149213,
+     "neg_power_mean": -0.1959876214979
+    },
+    "right_hip_yaw": {
+     "rms": 2.5714388790569402,
+     "peak": 5.516997881677066,
+     "speed_peak": 2.31702771935834e-07,
+     "pos_power_mean": 2.198221971418471e-08,
+     "neg_power_mean": -1.9970178698546765e-08
+    },
+    "right_knee": {
+     "rms": 2.5683366914114516,
+     "peak": 4.332862801222335,
+     "speed_peak": 4.347728856999468,
+     "pos_power_mean": 0.5874364157568233,
+     "neg_power_mean": -1.081393345512002
+    },
+    "right_ankle_pitch": {
+     "rms": 2.3227297539953122,
+     "peak": 4.142140628132771,
+     "speed_peak": 3.3061090408846803,
+     "pos_power_mean": 0.017419650050107198,
+     "neg_power_mean": -1.0339549351741826
+    },
+    "right_ankle_roll": {
+     "rms": 0.46665408108381384,
+     "peak": 2.6525521769089235,
+     "speed_peak": 0.9003263543539667,
+     "pos_power_mean": 0.12809243671249437,
+     "neg_power_mean": -0.042352492580854925
+    }
+   },
+   "min_cop_margin": -0.021809487057169816,
+   "min_cop_margin_single": 0.030345045931140374,
+   "max_friction_ratio": 0.22674696468240563,
+   "gait": {
+    "speed": 0.21739953977232748,
+    "stride": 0.22081556185245402,
+    "period": 1.015713106309719,
+    "froude": 0.012,
+    "duty": 0.6,
+    "stride_rel": 0.55,
+    "cadence_hz": 1.969059951649521,
+    "yaw_rate": 0.0,
+    "in_place": false,
+    "radius": null,
+    "heading_per_stride": 0.0,
+    "origin": [
+     -1.1299430054035989e-10,
+     0.0
+    ],
+    "foot_yaw_vs_trunk_amp": 0.0,
+    "swing_yaw_rate_peak": 0.0,
+    "sway_amp": 0.03329161740463167,
+    "lean_inward": 0.0,
+    "lift": 0.040148283973173465,
+    "omega": 5.447925275085638,
+    "zmp_error_history_m": [
+     0.023164825728980286,
+     0.009374355259051637,
+     0.004202412353834974,
+     0.0019608086044995044,
+     0.001544528114841551,
+     0.0012982412843660176,
+     0.0011403720702635432
+    ],
+    "zmp_error_exact_final_m": 0.0011403720702635432,
+    "zmp_error_exact_final_frame": 145,
+    "com_tol": 1e-06,
+    "com_iters": 12,
+    "phase_tol": 1e-09,
+    "unwrap": "exact"
+   },
+   "ik_ok": true,
+   "ik_fail_frames": 0,
+   "ik_fail_frame_list": [],
+   "foot_error_max": 6.808636066063121e-08,
+   "com_error_max": 9.978783850399823e-07,
+   "feet": {
+    "left": {
+     "r_eff": 0.03469489033061339,
+     "single_support": {
+      "frames": 64,
+      "fn_min": 96.44265718761486,
+      "ft_over_fn_max": 0.20649563952256844,
+      "mz_abs_max": 1.654273128608426,
+      "util_max": 0.539283334240362,
+      "util_cop_max": 0.5387147104196368,
+      "mu_req_max": 0.45549336603578927,
+      "mu_req_cop_max": 0.45506252566851146,
+      "mu_req_centroid_max": 0.45626711190068425,
+      "r_cop_min": 0.034641253847978795,
+      "frames_cop_outside": 0,
+      "cop_margin_min": 0.030345045931140374,
+      "util_max_frame": 87,
+      "util_max_support": [
+       "left"
+      ]
+     },
+     "double_support_qp_allocation": {
+      "frames": 32,
+      "fn_min": 19.615566431917543,
+      "ft_over_fn_max": 0.22674696468240563,
+      "mz_abs_max": 1.4873797229688859,
+      "util_max": 1.896058383030906,
+      "util_cop_max": 3.923468936301002,
+      "mu_req_max": 1.5216476545932178,
+      "mu_req_cop_max": 3.1411450919121107,
+      "mu_req_centroid_max": 1.5850094331639815,
+      "r_cop_min": 0.012369310711022978,
+      "frames_cop_outside": 8,
+      "cop_margin_min": -0.0218094870571698,
+      "util_max_frame": 64,
+      "util_max_support": [
+       "left",
+       "right"
+      ]
+     }
+    },
+    "right": {
+     "r_eff": 0.03469489033061341,
+     "single_support": {
+      "frames": 64,
+      "fn_min": 96.44125294359561,
+      "ft_over_fn_max": 0.20652559146476138,
+      "mz_abs_max": 1.6570481549907414,
+      "util_max": 0.5402000077796472,
+      "util_cop_max": 0.5396302716479953,
+      "mu_req_max": 0.4561925700028027,
+      "mu_req_cop_max": 0.4557608157761781,
+      "mu_req_centroid_max": 0.45696668359578796,
+      "r_cop_min": 0.034641221492493726,
+      "frames_cop_outside": 0,
+      "cop_margin_min": 0.030345163156560315,
+      "util_max_frame": 7,
+      "util_max_support": [
+       "right"
+      ]
+     },
+     "double_support_qp_allocation": {
+      "frames": 32,
+      "fn_min": 19.61296178739333,
+      "ft_over_fn_max": 0.22671457686751714,
+      "mz_abs_max": 1.4863533941509188,
+      "util_max": 1.8948986902736655,
+      "util_cop_max": 3.9181793629884365,
+      "mu_req_max": 1.5207158688983577,
+      "mu_req_cop_max": 3.136911418270817,
+      "mu_req_centroid_max": 1.5837114779535666,
+      "r_cop_min": 0.012392797876301159,
+      "frames_cop_outside": 8,
+      "cop_margin_min": -0.021809487057169816,
+      "util_max_frame": 144,
+      "util_max_support": [
+       "left",
+       "right"
+      ]
+     }
+    }
+   },
+   "mu_assumed": 0.8,
+   "split": {
+    "method": "exact",
+    "double_support_frames": 32,
+    "solved": {
+     "equality_optimum": 24,
+     "exact_qp": 8
+    }
+   },
+   "double_support": {
+    "frames": 32,
+    "min_mu_max": 0.2018026624822873,
+    "min_mu_lower_max": 0.20024577407914237,
+    "min_mu_max_frame": 64,
+    "infeasible_frames": 0,
+    "note": "smallest mu for which some split of the total contact wrench keeps both CoPs on their pads with ||(F_t, M_z/r_eff)|| <= mu F_n per foot (M_z about the pad-area centroid); the counterpart of the single-support mu_req"
+   },
+   "range_use": {
+    "left_hip_roll": 0.348811033205197,
+    "left_hip_yaw": 2.6101133129748615e-08,
+    "left_hip_pitch": 0.38673379827559906,
+    "left_knee": 0.5038757545296652,
+    "left_ankle_pitch": 0.4423947973084244,
+    "left_ankle_roll": 0.39241240125312055,
+    "right_hip_roll": 0.3491867666539352,
+    "right_hip_yaw": 2.6130274444638624e-08,
+    "right_hip_pitch": 0.38686867336007585,
+    "right_knee": 0.5040522508994328,
+    "right_ankle_pitch": 0.4425058502751917,
+    "right_ankle_roll": 0.39283510136997557
+   },
+   "checks": {
+    "vertical_force_mean_over_weight": 0.9999999984157643,
+    "path_frame_force_mean_n": [
+     -2.8417956683401967e-07,
+     6.845906064256724e-11
+    ],
+    "path_frame_force_expected_n": [
+     -0.0,
+     0.0
+    ],
+    "trunk_yaw_rate_mean": 0.0,
+    "moment_about_turn_axis_mean_nm": null,
+    "moment_about_turn_axis_rms_nm": null
+   },
+   "groups": {
+    "hip_roll": {
+     "rms": 2.23448290773638,
+     "rms_stacked": 2.2344568196092474,
+     "peak": 3.3161721197747083,
+     "speed": 0.9003263789784383
+    },
+    "hip_pitch": {
+     "rms": 2.8610376304189282,
+     "rms_stacked": 2.8608348315052856,
+     "peak": 5.878973974859501,
+     "speed": 3.918131210896727
+    },
+    "hip_yaw": {
+     "rms": 2.5714388790569402,
+     "rms_stacked": 2.570881185648239,
+     "peak": 5.516997881677066,
+     "speed": 2.3198727807600392e-07
+    },
+    "knee": {
+     "rms": 2.5683366914114516,
+     "rms_stacked": 2.5680875811616106,
+     "peak": 4.332862801222335,
+     "speed": 4.348349173094224
+    },
+    "ankle_a": {
+     "rms": 1.2361710770852747,
+     "rms_stacked": 1.18460608201956,
+     "peak": 2.265840559768187,
+     "speed": 3.468711364430653
+    },
+    "ankle_b": {
+     "rms": 1.2361049969360833,
+     "rms_stacked": 1.1845951026763024,
+     "peak": 2.2643084770808892,
+     "speed": 3.4685992078601307
+    },
+    "neck": {
+     "rms": 0.618853488771091,
+     "rms_stacked": 0.618853488771091,
+     "peak": 0.6868217038809484,
+     "speed": 0.6179626529613457
+    },
+    "tail": {
+     "rms": 0.1026919004286934,
+     "rms_stacked": 0.1026919004286934,
+     "peak": 0.1863774100335354,
+     "speed": 0.7421273368350833
+    }
+   }
+  },
+  "straight_brisk": {
+   "joints": {
+    "neck_pitch": {
+     "rms": 0.6227449537461975,
+     "peak": 0.7313687041452045,
+     "speed_peak": 0.7912479726613004,
+     "pos_power_mean": 0.1613146952442523,
+     "neg_power_mean": -0.15019742861587418
+    },
+    "tail_yaw": {
+     "rms": 0.1373044630306082,
+     "peak": 0.25309187775261993,
+     "speed_peak": 0.950230160210049,
+     "pos_power_mean": 0.05247008852198727,
+     "neg_power_mean": -0.0024484007624013
+    },
+    "left_hip_roll": {
+     "rms": 2.3294779811547253,
+     "peak": 3.7735901029791514,
+     "speed_peak": 0.8402762471748254,
+     "pos_power_mean": 0.40898378556916837,
+     "neg_power_mean": -0.3949225698801543
+    },
+    "left_hip_pitch": {
+     "rms": 3.3576365528804706,
+     "peak": 7.013041349376883,
+     "speed_peak": 5.255983693918838,
+     "pos_power_mean": 2.8578895829939164,
+     "neg_power_mean": -0.4450805593937992
+    },
+    "left_hip_yaw": {
+     "rms": 2.7344949365931126,
+     "peak": 6.446450221716847,
+     "speed_peak": 3.439111641683293e-07,
+     "pos_power_mean": 3.3856077610388654e-08,
+     "neg_power_mean": -2.9012029548846835e-08
+    },
+    "left_knee": {
+     "rms": 2.5895404036813625,
+     "peak": 4.746596029980406,
+     "speed_peak": 5.840177066324276,
+     "pos_power_mean": 0.6632748447562126,
+     "neg_power_mean": -1.6787979445203969
+    },
+    "left_ankle_pitch": {
+     "rms": 2.3926730328253276,
+     "peak": 4.463634066345958,
+     "speed_peak": 4.412992538520571,
+     "pos_power_mean": 0.02582399325371676,
+     "neg_power_mean": -1.5234290521719587
+    },
+    "left_ankle_roll": {
+     "rms": 0.382868421779904,
+     "peak": 2.0829359710675233,
+     "speed_peak": 0.8402762253405645,
+     "pos_power_mean": 0.09361499053041607,
+     "neg_power_mean": -0.03798953652289018
+    },
+    "right_hip_roll": {
+     "rms": 2.3294032106273037,
+     "peak": 3.767403441255094,
+     "speed_peak": 0.8402931874479892,
+     "pos_power_mean": 0.4088867243159678,
+     "neg_power_mean": -0.394898258871351
+    },
+    "right_hip_pitch": {
+     "rms": 3.3572507457224225,
+     "peak": 7.013136241995469,
+     "speed_peak": 5.255893532707064,
+     "pos_power_mean": 2.857638906317917,
+     "neg_power_mean": -0.44495644809704193
+    },
+    "right_hip_yaw": {
+     "rms": 2.7360866024098884,
+     "peak": 6.452302839829748,
+     "speed_peak": 3.434929052491788e-07,
+     "pos_power_mean": 3.398093365486819e-08,
+     "neg_power_mean": -2.9036119114733307e-08
+    },
+    "right_knee": {
+     "rms": 2.590184782108652,
+     "peak": 4.7480322567391475,
+     "speed_peak": 5.839426496158266,
+     "pos_power_mean": 0.6631422871613936,
+     "neg_power_mean": -1.6784101728775955
+    },
+    "right_ankle_pitch": {
+     "rms": 2.3925562341612796,
+     "peak": 4.463552223551467,
+     "speed_peak": 4.41299424061548,
+     "pos_power_mean": 0.025814406309574416,
+     "neg_power_mean": -1.523440930113946
+    },
+    "right_ankle_roll": {
+     "rms": 0.38290143720953035,
+     "peak": 2.0831539655550992,
+     "speed_peak": 0.8402931655870317,
+     "pos_power_mean": 0.09362020071897584,
+     "neg_power_mean": -0.03799223151212174
+    }
+   },
+   "min_cop_margin": -0.021521771589781535,
+   "min_cop_margin_single": 0.030039473154001142,
+   "max_friction_ratio": 0.2446156748574244,
+   "gait": {
+    "speed": 0.31378920702313506,
+    "stride": 0.24891936063367545,
+    "period": 0.7932693510880479,
+    "froude": 0.025,
+    "duty": 0.58,
+    "stride_rel": 0.62,
+    "cadence_hz": 2.5212117388082635,
+    "yaw_rate": 0.0,
+    "in_place": false,
+    "radius": null,
+    "heading_per_stride": 0.0,
+    "origin": [
+     -1.1299430054035989e-10,
+     0.0
+    ],
+    "foot_yaw_vs_trunk_amp": 0.0,
+    "swing_yaw_rate_peak": 0.0,
+    "sway_amp": 0.023591079842158608,
+    "lean_inward": 0.0,
+    "lift": 0.04416311237049081,
+    "omega": 5.447925275085638,
+    "zmp_error_history_m": [
+     0.03995078407044855,
+     0.014400294876099711,
+     0.006756215294948627,
+     0.0031539352493897793,
+     0.0020969301587227362,
+     0.0016773859694349878,
+     0.0014060790876909426
+    ],
+    "zmp_error_exact_final_m": 0.0014060790876909426,
+    "zmp_error_exact_final_frame": 67,
+    "com_tol": 1e-06,
+    "com_iters": 12,
+    "phase_tol": 1e-09,
+    "unwrap": "exact"
+   },
+   "ik_ok": true,
+   "ik_fail_frames": 0,
+   "ik_fail_frame_list": [],
+   "foot_error_max": 6.113634704969597e-08,
+   "com_error_max": 9.938734320701586e-07,
+   "feet": {
+    "left": {
+     "r_eff": 0.03469489033061341,
+     "single_support": {
+      "frames": 68,
+      "fn_min": 90.02822310547194,
+      "ft_over_fn_max": 0.2445899154716876,
+      "mz_abs_max": 2.720818864278134,
+      "util_max": 0.8664756276615563,
+      "util_cop_max": 0.8665305565910802,
+      "mu_req_max": 0.7137474805303929,
+      "mu_req_cop_max": 0.7137901575079343,
+      "mu_req_centroid_max": 0.7137306427847587,
+      "r_cop_min": 0.03453859238118733,
+      "frames_cop_outside": 0,
+      "cop_margin_min": 0.030039473154001142,
+      "util_max_frame": 87,
+      "util_max_support": [
+       "left"
+      ]
+     },
+     "double_support_qp_allocation": {
+      "frames": 24,
+      "fn_min": 19.19729797764421,
+      "ft_over_fn_max": 0.23897075711133717,
+      "mz_abs_max": 1.4195692899716643,
+      "util_max": 1.858523098544602,
+      "util_cop_max": 2.729285789106104,
+      "mu_req_max": 1.5035716516137714,
+      "mu_req_cop_max": 2.186600635285803,
+      "mu_req_centroid_max": 1.4287583755704374,
+      "r_cop_min": 0.016859814907365548,
+      "frames_cop_outside": 5,
+      "cop_margin_min": -0.021521771589781535,
+      "util_max_frame": 159,
+      "util_max_support": [
+       "left",
+       "right"
+      ]
+     }
+    },
+    "right": {
+     "r_eff": 0.03469489033061341,
+     "single_support": {
+      "frames": 68,
+      "fn_min": 90.02679625759654,
+      "ft_over_fn_max": 0.2446156748574244,
+      "mz_abs_max": 2.7251817498594315,
+      "util_max": 0.8678878212777765,
+      "util_cop_max": 0.8679437065278182,
+      "mu_req_max": 0.714850207595056,
+      "mu_req_cop_max": 0.7148936312635819,
+      "mu_req_centroid_max": 0.7148327388601492,
+      "r_cop_min": 0.034538613164439,
+      "frames_cop_outside": 0,
+      "cop_margin_min": 0.030040733614272435,
+      "util_max_frame": 7,
+      "util_max_support": [
+       "right"
+      ]
+     },
+     "double_support_qp_allocation": {
+      "frames": 24,
+      "fn_min": 19.193052192882078,
+      "ft_over_fn_max": 0.2389450920991524,
+      "mz_abs_max": 1.4189708068313958,
+      "util_max": 1.8591511965512004,
+      "util_cop_max": 2.7302347684623216,
+      "mu_req_max": 1.504035540926436,
+      "mu_req_cop_max": 2.1873530039093407,
+      "mu_req_centroid_max": 1.4279377978079002,
+      "r_cop_min": 0.016865926835847565,
+      "frames_cop_outside": 5,
+      "cop_margin_min": -0.021515889034942344,
+      "util_max_frame": 79,
+      "util_max_support": [
+       "left",
+       "right"
+      ]
+     }
+    }
+   },
+   "mu_assumed": 0.8,
+   "split": {
+    "method": "exact",
+    "double_support_frames": 24,
+    "solved": {
+     "equality_optimum": 18,
+     "exact_qp": 6
+    }
+   },
+   "double_support": {
+    "frames": 24,
+    "min_mu_max": 0.19886404728668824,
+    "min_mu_lower_max": 0.1968946130793582,
+    "min_mu_max_frame": 148,
+    "infeasible_frames": 0,
+    "note": "smallest mu for which some split of the total contact wrench keeps both CoPs on their pads with ||(F_t, M_z/r_eff)|| <= mu F_n per foot (M_z about the pad-area centroid); the counterpart of the single-support mu_req"
+   },
+   "range_use": {
+    "left_hip_roll": 0.2778708624925847,
+    "left_hip_yaw": 2.0803881146551107e-08,
+    "left_hip_pitch": 0.4384618223999279,
+    "left_knee": 0.5681104759942002,
+    "left_ankle_pitch": 0.49010030940596616,
+    "left_ankle_roll": 0.31260471163579806,
+    "right_hip_roll": 0.2782449749824192,
+    "right_hip_yaw": 2.0832480795459465e-08,
+    "right_hip_pitch": 0.4385790542277789,
+    "right_knee": 0.5682627215960604,
+    "right_ankle_pitch": 0.49019892402272863,
+    "right_ankle_roll": 0.31302558817405207
+   },
+   "checks": {
+    "vertical_force_mean_over_weight": 0.9999999980883769,
+    "path_frame_force_mean_n": [
+     -3.7395648949667404e-07,
+     6.50228537679709e-11
+    ],
+    "path_frame_force_expected_n": [
+     -0.0,
+     0.0
+    ],
+    "trunk_yaw_rate_mean": 0.0,
+    "moment_about_turn_axis_mean_nm": null,
+    "moment_about_turn_axis_rms_nm": null
+   },
+   "groups": {
+    "hip_roll": {
+     "rms": 2.3294779811547253,
+     "rms_stacked": 2.329440596191013,
+     "peak": 3.7735901029791514,
+     "speed": 0.8402931874479892
+    },
+    "hip_pitch": {
+     "rms": 3.3576365528804706,
+     "rms_stacked": 3.3574436548431317,
+     "peak": 7.013136241995469,
+     "speed": 5.255983693918838
+    },
+    "hip_yaw": {
+     "rms": 2.7360866024098884,
+     "rms_stacked": 2.735290885275299,
+     "peak": 6.452302839829748,
+     "speed": 3.439111641683293e-07
+    },
+    "knee": {
+     "rms": 2.590184782108652,
+     "rms_stacked": 2.5898626129358173,
+     "peak": 4.7480322567391475,
+     "speed": 5.840177066324276
+    },
+    "ankle_a": {
+     "rms": 1.293304053989236,
+     "rms_stacked": 1.2115315703377119,
+     "peak": 2.4744971086295195,
+     "speed": 4.539697466791697
+    },
+    "ankle_b": {
+     "rms": 1.2932468079742676,
+     "rms_stacked": 1.211525518813684,
+     "peak": 2.474513731127093,
+     "speed": 4.5395934586753
+    },
+    "neck": {
+     "rms": 0.6227449537461975,
+     "rms_stacked": 0.6227449537461975,
+     "peak": 0.7313687041452045,
+     "speed": 0.7912479726613004
+    },
+    "tail": {
+     "rms": 0.1373044630306082,
+     "rms_stacked": 0.1373044630306082,
+     "peak": 0.25309187775261993,
+     "speed": 0.950230160210049
+    }
+   }
+  },
+  "walk_0.35_left": {
+   "joints": {
+    "neck_pitch": {
+     "rms": 0.619996549556368,
+     "peak": 0.6881904647483456,
+     "speed_peak": 0.6179626529613457,
+     "pos_power_mean": 0.12498324784493724,
+     "neg_power_mean": -0.11855725108513249
+    },
+    "tail_yaw": {
+     "rms": 0.10239427740708866,
+     "peak": 0.1874923048603681,
+     "speed_peak": 0.7421273368350833,
+     "pos_power_mean": 0.03406443468853481,
+     "neg_power_mean": -0.0015704937056812828
+    },
+    "left_hip_roll": {
+     "rms": 2.2383456505744217,
+     "peak": 3.6352161697052474,
+     "speed_peak": 1.066081254944104,
+     "pos_power_mean": 0.5463628098986878,
+     "neg_power_mean": -0.5388919179648918
+    },
+    "left_hip_pitch": {
+     "rms": 2.862213581626935,
+     "peak": 5.941327950901251,
+     "speed_peak": 3.3834848965723667,
+     "pos_power_mean": 1.199744494084182,
+     "neg_power_mean": -0.17177200741150697
+    },
+    "left_hip_yaw": {
+     "rms": 2.5683649350993694,
+     "peak": 5.733728343359753,
+     "speed_peak": 1.6987219468682333,
+     "pos_power_mean": 0.6456890818965164,
+     "neg_power_mean": -0.04946794199855574
+    },
+    "left_knee": {
+     "rms": 2.58990590474609,
+     "peak": 4.509083965916199,
+     "speed_peak": 4.3735777969215235,
+     "pos_power_mean": 0.4551217810838146,
+     "neg_power_mean": -1.2658558527649988
+    },
+    "left_ankle_pitch": {
+     "rms": 2.3202931592220666,
+     "peak": 4.147343306830579,
+     "speed_peak": 3.385056140201409,
+     "pos_power_mean": 0.018900521312749063,
+     "neg_power_mean": -1.0892751105796148
+    },
+    "left_ankle_roll": {
+     "rms": 0.45241332913529575,
+     "peak": 2.5820210359216693,
+     "speed_peak": 0.8343448625395564,
+     "pos_power_mean": 0.1178265662534442,
+     "neg_power_mean": -0.03187522728574619
+    },
+    "right_hip_roll": {
+     "rms": 2.226456419254404,
+     "peak": 3.5057150044220537,
+     "speed_peak": 1.1966255311835787,
+     "pos_power_mean": 0.4326732825088378,
+     "neg_power_mean": -0.3876051458328244
+    },
+    "right_hip_pitch": {
+     "rms": 2.8607389313611096,
+     "peak": 5.8131372254426195,
+     "speed_peak": 4.518747445482472,
+     "pos_power_mean": 1.991670177236672,
+     "neg_power_mean": -0.24640248447938098
+    },
+    "right_hip_yaw": {
+     "rms": 2.560507436660609,
+     "peak": 5.293974440719272,
+     "speed_peak": 1.8477350801196437,
+     "pos_power_mean": 0.03007451755848955,
+     "neg_power_mean": -0.657627410278445
+    },
+    "right_knee": {
+     "rms": 2.5507923160928136,
+     "peak": 4.178658600378077,
+     "speed_peak": 4.632767441022915,
+     "pos_power_mean": 0.7978393820633036,
+     "neg_power_mean": -0.9709972321732316
+    },
+    "right_ankle_pitch": {
+     "rms": 2.324300799590943,
+     "peak": 4.126565180197133,
+     "speed_peak": 3.2070803966154653,
+     "pos_power_mean": 0.01646862576357981,
+     "neg_power_mean": -0.9625142340276873
+    },
+    "right_ankle_roll": {
+     "rms": 0.478480123480194,
+     "peak": 2.674874210353349,
+     "speed_peak": 0.9968804345028471,
+     "pos_power_mean": 0.13868138732445146,
+     "neg_power_mean": -0.055142960260566434
+    }
+   },
+   "min_cop_margin": -0.02180948705716983,
+   "min_cop_margin_single": 0.030219158982544177,
+   "max_friction_ratio": 0.22984211157463239,
+   "gait": {
+    "speed": 0.21739953977232748,
+    "stride": 0.22081556185245402,
+    "period": 1.015713106309719,
+    "froude": 0.012,
+    "duty": 0.6,
+    "stride_rel": 0.55,
+    "cadence_hz": 1.969059951649521,
+    "yaw_rate": 0.35,
+    "in_place": false,
+    "radius": 0.62114154220665,
+    "heading_per_stride": 0.3554995872084016,
+    "origin": [
+     -1.1299430054035989e-10,
+     0.0
+    ],
+    "foot_yaw_vs_trunk_amp": 0.10664987616252047,
+    "swing_yaw_rate_peak": 1.640625,
+    "sway_amp": 0.033514123275332375,
+    "lean_inward": 0.003510535517163048,
+    "lift": 0.040148283973173465,
+    "omega": 5.447925275085638,
+    "zmp_error_history_m": [
+     0.02593585273587746,
+     0.010571985207164456,
+     0.004753449032124066,
+     0.0021420540947842846,
+     0.0016351149420994482,
+     0.0013677900222393367,
+     0.001195445627358828
+    ],
+    "zmp_error_exact_final_m": 0.001195445627358828,
+    "zmp_error_exact_final_frame": 65,
+    "com_tol": 1e-06,
+    "com_iters": 12,
+    "phase_tol": 1e-09,
+    "unwrap": "exact"
+   },
+   "ik_ok": true,
+   "ik_fail_frames": 0,
+   "ik_fail_frame_list": [],
+   "foot_error_max": 5.95886960466738e-08,
+   "com_error_max": 9.925078326087652e-07,
+   "feet": {
+    "left": {
+     "r_eff": 0.03469489033061341,
+     "single_support": {
+      "frames": 64,
+      "fn_min": 96.82038095708312,
+      "ft_over_fn_max": 0.19221386591475031,
+      "mz_abs_max": 1.900777384281258,
+      "util_max": 0.6199512139296598,
+      "util_cop_max": 0.6193540940947766,
+      "mu_req_max": 0.5161896416739872,
+      "mu_req_cop_max": 0.5157306829651935,
+      "mu_req_centroid_max": 0.5168853788110176,
+      "r_cop_min": 0.034628266390413096,
+      "frames_cop_outside": 0,
+      "cop_margin_min": 0.030219158982544177,
+      "util_max_frame": 87,
+      "util_max_support": [
+       "left"
+      ]
+     },
+     "double_support_qp_allocation": {
+      "frames": 32,
+      "fn_min": 20.790715113667893,
+      "ft_over_fn_max": 0.2229090301443035,
+      "mz_abs_max": 1.4181003515929367,
+      "util_max": 1.9649696145002284,
+      "util_cop_max": 3.237904097220187,
+      "mu_req_max": 1.5824240364702002,
+      "mu_req_cop_max": 2.592452358424894,
+      "mu_req_centroid_max": 1.5726470417099818,
+      "r_cop_min": 0.01694622542076595,
+      "frames_cop_outside": 8,
+      "cop_margin_min": -0.021809487057169806,
+      "util_max_frame": 159,
+      "util_max_support": [
+       "left",
+       "right"
+      ]
+     }
+    },
+    "right": {
+     "r_eff": 0.03469489033061339,
+     "single_support": {
+      "frames": 64,
+      "fn_min": 95.41365085767197,
+      "ft_over_fn_max": 0.21916699464715214,
+      "mz_abs_max": 1.3870565114052646,
+      "util_max": 0.4512076678215957,
+      "util_cop_max": 0.45065473218004526,
+      "mu_req_max": 0.391849282526359,
+      "mu_req_cop_max": 0.3914977454607491,
+      "mu_req_centroid_max": 0.39267900142586004,
+      "r_cop_min": 0.03464977788696229,
+      "frames_cop_outside": 0,
+      "cop_margin_min": 0.03032262572350781,
+      "util_max_frame": 7,
+      "util_max_support": [
+       "right"
+      ]
+     },
+     "double_support_qp_allocation": {
+      "frames": 32,
+      "fn_min": 18.46086176526655,
+      "ft_over_fn_max": 0.22984211157463239,
+      "mz_abs_max": 1.6006828007637446,
+      "util_max": 1.948425459825784,
+      "util_cop_max": 2.40717360563134,
+      "mu_req_max": 1.561294957405781,
+      "mu_req_cop_max": 1.9283983812667853,
+      "mu_req_centroid_max": 1.5984099866559245,
+      "r_cop_min": 0.014733576589352317,
+      "frames_cop_outside": 7,
+      "cop_margin_min": -0.02180948705716983,
+      "util_max_frame": 144,
+      "util_max_support": [
+       "left",
+       "right"
+      ]
+     }
+    }
+   },
+   "mu_assumed": 0.8,
+   "split": {
+    "method": "exact",
+    "double_support_frames": 32,
+    "solved": {
+     "equality_optimum": 24,
+     "exact_qp": 8
+    }
+   },
+   "double_support": {
+    "frames": 32,
+    "min_mu_max": 0.2132869626088344,
+    "min_mu_lower_max": 0.21191390682315234,
+    "min_mu_max_frame": 64,
+    "infeasible_frames": 0,
+    "note": "smallest mu for which some split of the total contact wrench keeps both CoPs on their pads with ||(F_t, M_z/r_eff)|| <= mu F_n per foot (M_z about the pad-area centroid); the counterpart of the single-support mu_req"
+   },
+   "range_use": {
+    "left_hip_roll": 0.3836415366204373,
+    "left_hip_yaw": 0.4760779153259331,
+    "left_hip_pitch": 0.3416940695485494,
+    "left_knee": 0.4967468382282912,
+    "left_ankle_pitch": 0.45927741622091706,
+    "left_ankle_roll": 0.4144238146660801,
+    "right_hip_roll": 0.34834096713806556,
+    "right_hip_yaw": 0.5227888175888462,
+    "right_hip_pitch": 0.4424897983246665,
+    "right_knee": 0.5268261237271618,
+    "right_ankle_pitch": 0.43032219804679367,
+    "right_ankle_roll": 0.37375344365713137
+   },
+   "checks": {
+    "vertical_force_mean_over_weight": 0.9999999988423379,
+    "path_frame_force_mean_n": [
+     -0.0539403588884244,
+     0.8166630616160416
+    ],
+    "path_frame_force_expected_n": [
+     -0.0539402512475698,
+     0.8166725172541298
+    ],
+    "trunk_yaw_rate_mean": 0.35000000000000014,
+    "moment_about_turn_axis_mean_nm": 1.0403598774400002e-05,
+    "moment_about_turn_axis_rms_nm": 3.5922779008056303
+   },
+   "groups": {
+    "hip_roll": {
+     "rms": 2.2383456505744217,
+     "rms_stacked": 2.2324089497989132,
+     "peak": 3.6352161697052474,
+     "speed": 1.1966255311835787
+    },
+    "hip_pitch": {
+     "rms": 2.862213581626935,
+     "rms_stacked": 2.861476351488405,
+     "peak": 5.941327950901251,
+     "speed": 4.518747445482472
+    },
+    "hip_yaw": {
+     "rms": 2.5683649350993694,
+     "rms_stacked": 2.56443919532539,
+     "peak": 5.733728343359753,
+     "speed": 1.8477350801196437
+    },
+    "knee": {
+     "rms": 2.58990590474609,
+     "rms_stacked": 2.570423509392645,
+     "peak": 4.509083965916199,
+     "speed": 4.632767441022915
+    },
+    "ankle_a": {
+     "rms": 1.2304343518149687,
+     "rms_stacked": 1.181069684395148,
+     "peak": 2.2364781211853524,
+     "speed": 3.863271916487308
+    },
+    "ankle_b": {
+     "rms": 1.2408771950133384,
+     "rms_stacked": 1.1874398093237921,
+     "peak": 2.2937072432753762,
+     "speed": 3.040274649075987
+    },
+    "neck": {
+     "rms": 0.619996549556368,
+     "rms_stacked": 0.619996549556368,
+     "peak": 0.6881904647483456,
+     "speed": 0.6179626529613457
+    },
+    "tail": {
+     "rms": 0.10239427740708866,
+     "rms_stacked": 0.10239427740708866,
+     "peak": 0.1874923048603681,
+     "speed": 0.7421273368350833
+    }
+   }
+  },
+  "walk_0.35_right": {
+   "joints": {
+    "neck_pitch": {
+     "rms": 0.6199966935669401,
+     "peak": 0.6881817401224409,
+     "speed_peak": 0.6179626529613457,
+     "pos_power_mean": 0.1249836928379577,
+     "neg_power_mean": -0.11855643252334894
+    },
+    "tail_yaw": {
+     "rms": 0.10239373743353475,
+     "peak": 0.1874807425927311,
+     "speed_peak": 0.7421273368350833,
+     "pos_power_mean": 0.03406493051783206,
+     "neg_power_mean": -0.001570483109168457
+    },
+    "left_hip_roll": {
+     "rms": 2.226337773896348,
+     "peak": 3.500445212835869,
+     "speed_peak": 1.196371792807204,
+     "pos_power_mean": 0.4325611086371353,
+     "neg_power_mean": -0.38779017587262843
+    },
+    "left_hip_pitch": {
+     "rms": 2.8611431761911246,
+     "peak": 5.813619403891325,
+     "speed_peak": 4.518937143067999,
+     "pos_power_mean": 1.9919392456159417,
+     "neg_power_mean": -0.2464361519165358
+    },
+    "left_hip_yaw": {
+     "rms": 2.5594137488245146,
+     "peak": 5.290430297767301,
+     "speed_peak": 1.847460232023598,
+     "pos_power_mean": 0.030160252040238783,
+     "neg_power_mean": -0.6574252861162002
+    },
+    "left_knee": {
+     "rms": 2.5502764767043966,
+     "peak": 4.177483624743315,
+     "speed_peak": 4.633527675604133,
+     "pos_power_mean": 0.797873928336874,
+     "neg_power_mean": -0.971427693799772
+    },
+    "left_ankle_pitch": {
+     "rms": 2.3244292157281192,
+     "peak": 4.126644157899847,
+     "speed_peak": 3.2070495365847616,
+     "pos_power_mean": 0.01647579224205733,
+     "neg_power_mean": -0.9624105933311213
+    },
+    "left_ankle_roll": {
+     "rms": 0.47844933233164333,
+     "peak": 2.6748395612655864,
+     "speed_peak": 0.9968556143529806,
+     "pos_power_mean": 0.13866912623878463,
+     "neg_power_mean": -0.055138722790861315
+    },
+    "right_hip_roll": {
+     "rms": 2.2381230278224833,
+     "peak": 3.6299660722031604,
+     "speed_peak": 1.0663634844490204,
+     "pos_power_mean": 0.5460115500891302,
+     "neg_power_mean": -0.5389589708662835
+    },
+    "right_hip_pitch": {
+     "rms": 2.861809643889394,
+     "peak": 5.94054700199695,
+     "speed_peak": 3.3835117404826365,
+     "pos_power_mean": 1.199778306191933,
+     "neg_power_mean": -0.17161753167935884
+    },
+    "right_hip_yaw": {
+     "rms": 2.569496799574859,
+     "peak": 5.738504187328264,
+     "speed_peak": 1.6989507222637,
+     "pos_power_mean": 0.6458419438733822,
+     "neg_power_mean": -0.04932205872020657
+    },
+    "right_knee": {
+     "rms": 2.5903600040758437,
+     "peak": 4.509687151261266,
+     "speed_peak": 4.373172481208114,
+     "pos_power_mean": 0.45488606505038087,
+     "neg_power_mean": -1.2657092210054184
+    },
+    "right_ankle_pitch": {
+     "rms": 2.3201755450203123,
+     "peak": 4.147235063497113,
+     "speed_peak": 3.3849806462424583,
+     "pos_power_mean": 0.018894156513957837,
+     "neg_power_mean": -1.0891874139833604
+    },
+    "right_ankle_roll": {
+     "rms": 0.45244347839894883,
+     "peak": 2.5821512736472703,
+     "speed_peak": 0.8343493108338567,
+     "pos_power_mean": 0.11783426280906928,
+     "neg_power_mean": -0.03187830398641356
+    }
+   },
+   "min_cop_margin": -0.021809487057169823,
+   "min_cop_margin_single": 0.030218926607846603,
+   "max_friction_ratio": 0.22987313466032197,
+   "gait": {
+    "speed": 0.21739953977232748,
+    "stride": 0.22081556185245402,
+    "period": 1.015713106309719,
+    "froude": 0.012,
+    "duty": 0.6,
+    "stride_rel": 0.55,
+    "cadence_hz": 1.969059951649521,
+    "yaw_rate": -0.35,
+    "in_place": false,
+    "radius": 0.62114154220665,
+    "heading_per_stride": -0.3554995872084016,
+    "origin": [
+     -1.1299430054035989e-10,
+     0.0
+    ],
+    "foot_yaw_vs_trunk_amp": 0.10664987616252047,
+    "swing_yaw_rate_peak": 1.640625,
+    "sway_amp": 0.03351442244532692,
+    "lean_inward": 0.0035093206963574238,
+    "lift": 0.040148283973173465,
+    "omega": 5.447925275085638,
+    "zmp_error_history_m": [
+     0.02591695415938302,
+     0.010573870751801058,
+     0.004753905140645323,
+     0.0021420947853545026,
+     0.0016346572714341179,
+     0.0013674850861042308,
+     0.001195232703313885
+    ],
+    "zmp_error_exact_final_m": 0.001195232703313885,
+    "zmp_error_exact_final_frame": 145,
+    "com_tol": 1e-06,
+    "com_iters": 12,
+    "phase_tol": 1e-09,
+    "unwrap": "exact"
+   },
+   "ik_ok": true,
+   "ik_fail_frames": 0,
+   "ik_fail_frame_list": [],
+   "foot_error_max": 5.97391599128404e-08,
+   "com_error_max": 9.910459294221076e-07,
+   "feet": {
+    "left": {
+     "r_eff": 0.03469489033061339,
+     "single_support": {
+      "frames": 64,
+      "fn_min": 95.4165946159357,
+      "ft_over_fn_max": 0.2191476117378591,
+      "mz_abs_max": 1.3850208287931223,
+      "util_max": 0.45053937867796373,
+      "util_cop_max": 0.4499875768778288,
+      "mu_req_max": 0.39132377772852034,
+      "mu_req_cop_max": 0.39097284466829224,
+      "mu_req_centroid_max": 0.3921531715104337,
+      "r_cop_min": 0.03464974627599722,
+      "frames_cop_outside": 0,
+      "cop_margin_min": 0.030322681231169258,
+      "util_max_frame": 87,
+      "util_max_support": [
+       "left"
+      ]
+     },
+     "double_support_qp_allocation": {
+      "frames": 32,
+      "fn_min": 18.46363985862999,
+      "ft_over_fn_max": 0.22987313466032197,
+      "mz_abs_max": 1.6014869546635004,
+      "util_max": 1.949383515359728,
+      "util_cop_max": 2.4068375965566458,
+      "mu_req_max": 1.562064484415363,
+      "mu_req_cop_max": 1.928130249914978,
+      "mu_req_centroid_max": 1.5995272329375776,
+      "r_cop_min": 0.014726249377153128,
+      "frames_cop_outside": 7,
+      "cop_margin_min": -0.02180948705716978,
+      "util_max_frame": 64,
+      "util_max_support": [
+       "left",
+       "right"
+      ]
+     }
+    },
+    "right": {
+     "r_eff": 0.03469489033061342,
+     "single_support": {
+      "frames": 64,
+      "fn_min": 96.82183384961589,
+      "ft_over_fn_max": 0.19222178520836344,
+      "mz_abs_max": 1.904264683893191,
+      "util_max": 0.62110775459407,
+      "util_cop_max": 0.6205047217499863,
+      "mu_req_max": 0.5170813387705658,
+      "mu_req_cop_max": 0.5166177713928649,
+      "mu_req_centroid_max": 0.5177827960024053,
+      "r_cop_min": 0.0346282343052369,
+      "frames_cop_outside": 0,
+      "cop_margin_min": 0.030218926607846603,
+      "util_max_frame": 7,
+      "util_max_support": [
+       "right"
+      ]
+     },
+     "double_support_qp_allocation": {
+      "frames": 32,
+      "fn_min": 20.787865114032726,
+      "ft_over_fn_max": 0.22287621809105215,
+      "mz_abs_max": 1.4183448183792613,
+      "util_max": 1.965362884110476,
+      "util_cop_max": 3.2388112747840987,
+      "mu_req_max": 1.582709649771924,
+      "mu_req_cop_max": 2.5931715872118546,
+      "mu_req_centroid_max": 1.5708988601144565,
+      "r_cop_min": 0.016949685417779418,
+      "frames_cop_outside": 8,
+      "cop_margin_min": -0.021809487057169823,
+      "util_max_frame": 79,
+      "util_max_support": [
+       "left",
+       "right"
+      ]
+     }
+    }
+   },
+   "mu_assumed": 0.8,
+   "split": {
+    "method": "exact",
+    "double_support_frames": 32,
+    "solved": {
+     "equality_optimum": 24,
+     "exact_qp": 8
+    }
+   },
+   "double_support": {
+    "frames": 32,
+    "min_mu_max": 0.21461856930412496,
+    "min_mu_lower_max": 0.21240824745325623,
+    "min_mu_max_frame": 144,
+    "infeasible_frames": 0,
+    "note": "smallest mu for which some split of the total contact wrench keeps both CoPs on their pads with ||(F_t, M_z/r_eff)|| <= mu F_n per foot (M_z about the pad-area centroid); the counterpart of the single-support mu_req"
+   },
+   "range_use": {
+    "left_hip_roll": 0.3479548842357768,
+    "left_hip_yaw": 0.5227064762237239,
+    "left_hip_pitch": 0.44235790947560377,
+    "left_knee": 0.5266628998639153,
+    "left_ankle_pitch": 0.4302056704694357,
+    "left_ankle_roll": 0.3733347290466545,
+    "right_hip_roll": 0.3840212618252745,
+    "right_hip_yaw": 0.47612983790219787,
+    "right_hip_pitch": 0.3418313070136876,
+    "right_knee": 0.4969349378025505,
+    "right_ankle_pitch": 0.45937784911243357,
+    "right_ankle_roll": 0.41484836407345826
+   },
+   "checks": {
+    "vertical_force_mean_over_weight": 0.9999999988424417,
+    "path_frame_force_mean_n": [
+     -0.053940404167735545,
+     -0.8166646629427948
+    ],
+    "path_frame_force_expected_n": [
+     -0.053940297889492846,
+     -0.8166741251142331
+    ],
+    "trunk_yaw_rate_mean": -0.35000000000000014,
+    "moment_about_turn_axis_mean_nm": -1.0416197565721319e-05,
+    "moment_about_turn_axis_rms_nm": 3.5919169815731693
+   },
+   "groups": {
+    "hip_roll": {
+     "rms": 2.2381230278224833,
+     "rms_stacked": 2.2322381785045953,
+     "peak": 3.6299660722031604,
+     "speed": 1.196371792807204
+    },
+    "hip_pitch": {
+     "rms": 2.861809643889394,
+     "rms_stacked": 2.8614764294436688,
+     "peak": 5.94054700199695,
+     "speed": 4.518937143067999
+    },
+    "hip_yaw": {
+     "rms": 2.569496799574859,
+     "rms_stacked": 2.5644602298239487,
+     "peak": 5.738504187328264,
+     "speed": 1.847460232023598
+    },
+    "knee": {
+     "rms": 2.5903600040758437,
+     "rms_stacked": 2.570396375887151,
+     "peak": 4.509687151261266,
+     "speed": 4.633527675604133
+    },
+    "ankle_a": {
+     "rms": 1.24094323733447,
+     "rms_stacked": 1.1874516139033073,
+     "peak": 2.2937086163330167,
+     "speed": 3.040300556627539
+    },
+    "ankle_b": {
+     "rms": 1.2303728207299758,
+     "rms_stacked": 1.1810630023361157,
+     "peak": 2.236442517289118,
+     "speed": 3.863102237744967
+    },
+    "neck": {
+     "rms": 0.6199966935669401,
+     "rms_stacked": 0.6199966935669401,
+     "peak": 0.6881817401224409,
+     "speed": 0.6179626529613457
+    },
+    "tail": {
+     "rms": 0.10239373743353475,
+     "rms_stacked": 0.10239373743353475,
+     "peak": 0.1874807425927311,
+     "speed": 0.7421273368350833
+    }
+   }
+  },
+  "in_place_0.50_left": {
+   "joints": {
+    "neck_pitch": {
+     "rms": 0.6206006669243083,
+     "peak": 0.7120709419348675,
+     "speed_peak": 0.6179626529613457,
+     "pos_power_mean": 0.12203359957802669,
+     "neg_power_mean": -0.12064500258515834
+    },
+    "tail_yaw": {
+     "rms": 0.09689895941938073,
+     "peak": 0.1811799731267789,
+     "speed_peak": 0.7421273368350833,
+     "pos_power_mean": 0.032745362847769355,
+     "neg_power_mean": -0.0015633713172410325
+    },
+    "left_hip_roll": {
+     "rms": 2.193066494724831,
+     "peak": 3.370210905149173,
+     "speed_peak": 1.6394682842651451,
+     "pos_power_mean": 0.5563272168209078,
+     "neg_power_mean": -0.5223474169194758
+    },
+    "left_hip_pitch": {
+     "rms": 2.7543787497389145,
+     "peak": 5.306265304719802,
+     "speed_peak": 2.2857254662054047,
+     "pos_power_mean": 0.1654608377767492,
+     "neg_power_mean": -0.6865228025610631
+    },
+    "left_hip_yaw": {
+     "rms": 2.489814191603567,
+     "peak": 5.015729916680705,
+     "speed_peak": 2.4421214496077366,
+     "pos_power_mean": 0.9068226410060527,
+     "neg_power_mean": -0.05025891291886615
+    },
+    "left_knee": {
+     "rms": 2.528386484637158,
+     "peak": 3.9556845361335324,
+     "speed_peak": 3.430588272961284,
+     "pos_power_mean": 0.36886806826458923,
+     "neg_power_mean": -0.9154558036027514
+    },
+    "left_ankle_pitch": {
+     "rms": 2.3390443234924683,
+     "peak": 3.865318801596734,
+     "speed_peak": 1.2511029293797864,
+     "pos_power_mean": 0.044499638886045925,
+     "neg_power_mean": -0.15539915856237896
+    },
+    "left_ankle_roll": {
+     "rms": 0.5162227996444954,
+     "peak": 2.5594828290856806,
+     "speed_peak": 0.9193575578433855,
+     "pos_power_mean": 0.11365272958739556,
+     "neg_power_mean": -0.08025947630759962
+    },
+    "right_hip_roll": {
+     "rms": 2.1921575151782573,
+     "peak": 3.336618688818315,
+     "speed_peak": 1.610045620895577,
+     "pos_power_mean": 0.521488330501071,
+     "neg_power_mean": -0.5354144447303256
+    },
+    "right_hip_pitch": {
+     "rms": 2.7688505193374393,
+     "peak": 5.2729072812015385,
+     "speed_peak": 2.282357710040963,
+     "pos_power_mean": 0.6705464272218025,
+     "neg_power_mean": -0.1741581268710899
+    },
+    "right_hip_yaw": {
+     "rms": 2.491456229397446,
+     "peak": 4.945568666484916,
+     "speed_peak": 2.443081044774113,
+     "pos_power_mean": 0.0505204562386581,
+     "neg_power_mean": -0.9086618179033236
+    },
+    "right_knee": {
+     "rms": 2.5279986399977794,
+     "peak": 4.132631502369583,
+     "speed_peak": 3.4030437647831784,
+     "pos_power_mean": 0.881769253023797,
+     "neg_power_mean": -0.37851074410489394
+    },
+    "right_ankle_pitch": {
+     "rms": 2.347381603994228,
+     "peak": 3.856175305134638,
+     "speed_peak": 1.2283679366310922,
+     "pos_power_mean": 0.14361206267601884,
+     "neg_power_mean": -0.050504526375367634
+    },
+    "right_ankle_roll": {
+     "rms": 0.5212946566997402,
+     "peak": 2.664787186970721,
+     "speed_peak": 0.9233461923285341,
+     "pos_power_mean": 0.09998726063483926,
+     "neg_power_mean": -0.0958755273797945
+    }
+   },
+   "min_cop_margin": -0.005605143511553504,
+   "min_cop_margin_single": 0.030475591880254442,
+   "max_friction_ratio": 0.18673286166338018,
+   "gait": {
+    "speed": 0.0,
+    "stride": 0.0,
+    "period": 1.015713106309719,
+    "froude": 0.012,
+    "duty": 0.6,
+    "stride_rel": 0.55,
+    "cadence_hz": 1.969059951649521,
+    "yaw_rate": 0.5,
+    "in_place": true,
+    "radius": 0.0,
+    "heading_per_stride": 0.5078565531548594,
+    "origin": [
+     -1.1299430054035989e-10,
+     0.0
+    ],
+    "foot_yaw_vs_trunk_amp": 0.15235696594645784,
+    "swing_yaw_rate_peak": 2.34375,
+    "sway_amp": 0.033793820124626936,
+    "lean_inward": -6.950937999140872e-06,
+    "lift": 0.040148283973173465,
+    "omega": 5.447925275085638,
+    "zmp_error_history_m": [
+     0.018424468127382767,
+     0.007535001570057524,
+     0.0030863870948883965,
+     0.0017150423848166123,
+     0.0013108535510352143,
+     0.0010760965176723342,
+     0.0009307877630419445
+    ],
+    "zmp_error_exact_final_m": 0.0009307877630419445,
+    "zmp_error_exact_final_frame": 79,
+    "com_tol": 1e-06,
+    "com_iters": 12,
+    "phase_tol": 1e-09,
+    "unwrap": "exact"
+   },
+   "ik_ok": true,
+   "ik_fail_frames": 0,
+   "ik_fail_frame_list": [],
+   "foot_error_max": 3.5803195745117366e-08,
+   "com_error_max": 9.973618002732148e-07,
+   "feet": {
+    "left": {
+     "r_eff": 0.03469489033061341,
+     "single_support": {
+      "frames": 64,
+      "fn_min": 97.87493901571655,
+      "ft_over_fn_max": 0.1765415583065214,
+      "mz_abs_max": 0.8845487599789186,
+      "util_max": 0.2820769777954431,
+      "util_cop_max": 0.2816383303971343,
+      "mu_req_max": 0.28194590879668835,
+      "mu_req_cop_max": 0.28164123468271807,
+      "mu_req_centroid_max": 0.2831911783135131,
+      "r_cop_min": 0.034718057266311865,
+      "frames_cop_outside": 0,
+      "cop_margin_min": 0.030475591880254442,
+      "util_max_frame": 83,
+      "util_max_support": [
+       "left"
+      ]
+     },
+     "double_support_qp_allocation": {
+      "frames": 32,
+      "fn_min": 26.802920741538642,
+      "ft_over_fn_max": 0.17503093993374372,
+      "mz_abs_max": 1.5922053496151172,
+      "util_max": 1.6360073997560847,
+      "util_cop_max": 2.781031744253331,
+      "mu_req_max": 1.309651135781573,
+      "mu_req_cop_max": 2.2248266322413794,
+      "mu_req_centroid_max": 1.2945727278517432,
+      "r_cop_min": 0.013178830066505338,
+      "frames_cop_outside": 6,
+      "cop_margin_min": -0.005605143511553504,
+      "util_max_frame": 159,
+      "util_max_support": [
+       "left",
+       "right"
+      ]
+     }
+    },
+    "right": {
+     "r_eff": 0.0346948903306134,
+     "single_support": {
+      "frames": 64,
+      "fn_min": 98.01736900756828,
+      "ft_over_fn_max": 0.1768989101852242,
+      "mz_abs_max": 0.6958682399103752,
+      "util_max": 0.221172618858506,
+      "util_cop_max": 0.2208718236014003,
+      "mu_req_max": 0.24423505524993383,
+      "mu_req_cop_max": 0.24404269158539343,
+      "mu_req_centroid_max": 0.2452418327342948,
+      "r_cop_min": 0.034712956479818445,
+      "frames_cop_outside": 0,
+      "cop_margin_min": 0.030700273825089195,
+      "util_max_frame": 60,
+      "util_max_support": [
+       "right"
+      ]
+     },
+     "double_support_qp_allocation": {
+      "frames": 32,
+      "fn_min": 28.413263768086203,
+      "ft_over_fn_max": 0.18673286166338018,
+      "mz_abs_max": 1.4559303536971075,
+      "util_max": 1.7016518971973786,
+      "util_cop_max": 39.75605000478403,
+      "mu_req_max": 1.3639783446288019,
+      "mu_req_cop_max": 31.804854439363222,
+      "mu_req_centroid_max": 1.3116032419959298,
+      "r_cop_min": 0.0012349005225889445,
+      "frames_cop_outside": 3,
+      "cop_margin_min": -0.003923254655627196,
+      "util_max_frame": 144,
+      "util_max_support": [
+       "left",
+       "right"
+      ]
+     }
+    }
+   },
+   "mu_assumed": 0.8,
+   "split": {
+    "method": "exact",
+    "double_support_frames": 32,
+    "solved": {
+     "equality_optimum": 22,
+     "exact_qp": 10
+    }
+   },
+   "double_support": {
+    "frames": 32,
+    "min_mu_max": 0.17396658408753163,
+    "min_mu_lower_max": 0.17219317669457257,
+    "min_mu_max_frame": 64,
+    "infeasible_frames": 0,
+    "note": "smallest mu for which some split of the total contact wrench keeps both CoPs on their pads with ||(F_t, M_z/r_eff)|| <= mu F_n per foot (M_z about the pad-area centroid); the counterpart of the single-support mu_req"
+   },
+   "range_use": {
+    "left_hip_roll": 0.38583975562891737,
+    "left_hip_yaw": 0.6863572723515381,
+    "left_hip_pitch": 0.345538344007524,
+    "left_knee": 0.5271762896871401,
+    "left_ankle_pitch": 0.29723211190953436,
+    "left_ankle_roll": 0.39521461080162007,
+    "right_hip_roll": 0.38035681815732525,
+    "right_hip_yaw": 0.6860907870321976,
+    "right_hip_pitch": 0.34607685167784286,
+    "right_knee": 0.5265134562723829,
+    "right_ankle_pitch": 0.2963535465094724,
+    "right_ankle_roll": 0.39708973348285587
+   },
+   "checks": {
+    "vertical_force_mean_over_weight": 0.9999999998521426,
+    "path_frame_force_mean_n": [
+     -0.10939242239255312,
+     1.878135525326119e-05
+    ],
+    "path_frame_force_expected_n": [
+     -0.10938857828096168,
+     1.8779497422562596e-05
+    ],
+    "trunk_yaw_rate_mean": 0.49999999999999983,
+    "moment_about_turn_axis_mean_nm": -6.059000037250684e-07,
+    "moment_about_turn_axis_rms_nm": 0.5246679894127105
+   },
+   "groups": {
+    "hip_roll": {
+     "rms": 2.193066494724831,
+     "rms_stacked": 2.192612052055398,
+     "peak": 3.370210905149173,
+     "speed": 1.6394682842651451
+    },
+    "hip_pitch": {
+     "rms": 2.7688505193374393,
+     "rms_stacked": 2.76162411412637,
+     "peak": 5.306265304719802,
+     "speed": 2.2857254662054047
+    },
+    "hip_yaw": {
+     "rms": 2.491456229397446,
+     "rms_stacked": 2.490635345821811,
+     "peak": 5.015729916680705,
+     "speed": 2.443081044774113
+    },
+    "knee": {
+     "rms": 2.528386484637158,
+     "rms_stacked": 2.528192569754771,
+     "peak": 4.132631502369583,
+     "speed": 3.430588272961284
+    },
+    "ankle_a": {
+     "rms": 1.2407440425158565,
+     "rms_stacked": 1.2015363538166581,
+     "peak": 2.8807663142104554,
+     "speed": 1.5498224118553097
+    },
+    "ankle_b": {
+     "rms": 1.2421919404382071,
+     "rms_stacked": 1.198416079856787,
+     "peak": 2.434096063113307,
+     "speed": 1.5470054201766676
+    },
+    "neck": {
+     "rms": 0.6206006669243083,
+     "rms_stacked": 0.6206006669243083,
+     "peak": 0.7120709419348675,
+     "speed": 0.6179626529613457
+    },
+    "tail": {
+     "rms": 0.09689895941938073,
+     "rms_stacked": 0.09689895941938073,
+     "peak": 0.1811799731267789,
+     "speed": 0.7421273368350833
+    }
+   }
+  },
+  "in_place_0.50_right": {
+   "joints": {
+    "neck_pitch": {
+     "rms": 0.6206007258416558,
+     "peak": 0.7120623283531593,
+     "speed_peak": 0.6179626529613457,
+     "pos_power_mean": 0.12203423073180764,
+     "neg_power_mean": -0.12064396484092606
+    },
+    "tail_yaw": {
+     "rms": 0.0968994012069697,
+     "peak": 0.18119398263733266,
+     "speed_peak": 0.7421273368350833,
+     "pos_power_mean": 0.032746037772371894,
+     "neg_power_mean": -0.0015633596094034648
+    },
+    "left_hip_roll": {
+     "rms": 2.1922113004615134,
+     "peak": 3.3412547926865184,
+     "speed_peak": 1.6096725457142123,
+     "pos_power_mean": 0.5213557036444609,
+     "neg_power_mean": -0.5357962903108013
+    },
+    "left_hip_pitch": {
+     "rms": 2.76930179083025,
+     "peak": 5.273537105817707,
+     "speed_peak": 2.2824628155227247,
+     "pos_power_mean": 0.670803413961649,
+     "neg_power_mean": -0.1742333224168537
+    },
+    "left_hip_yaw": {
+     "rms": 2.490551267679118,
+     "peak": 4.942071476508135,
+     "speed_peak": 2.4427811939718365,
+     "pos_power_mean": 0.050847348444009996,
+     "neg_power_mean": -0.9084832971464939
+    },
+    "left_knee": {
+     "rms": 2.52753936385293,
+     "peak": 4.132310165709919,
+     "speed_peak": 3.4033291004939104,
+     "pos_power_mean": 0.8816856908427851,
+     "neg_power_mean": -0.378723081525565
+    },
+    "left_ankle_pitch": {
+     "rms": 2.3475188915641243,
+     "peak": 3.856255939359655,
+     "speed_peak": 1.2286659568257037,
+     "pos_power_mean": 0.14376987806660896,
+     "neg_power_mean": -0.050523972934802173
+    },
+    "left_ankle_roll": {
+     "rms": 0.5212736461667365,
+     "peak": 2.664462575472094,
+     "speed_peak": 0.9233365374641984,
+     "pos_power_mean": 0.09998525029506591,
+     "neg_power_mean": -0.09586975919316283
+    },
+    "right_hip_roll": {
+     "rms": 2.1930194582363973,
+     "peak": 3.365573983390049,
+     "speed_peak": 1.63984559974128,
+     "pos_power_mean": 0.5558992893485553,
+     "neg_power_mean": -0.5225495952675218
+    },
+    "right_hip_pitch": {
+     "rms": 2.7539213882780387,
+     "peak": 5.305604890587743,
+     "speed_peak": 2.2856076156586407,
+     "pos_power_mean": 0.16539488988375195,
+     "neg_power_mean": -0.6862582064911001
+    },
+    "right_hip_yaw": {
+     "rms": 2.4907215702346073,
+     "peak": 5.019244920928597,
+     "speed_peak": 2.4424201898848925,
+     "pos_power_mean": 0.9069959101695313,
+     "neg_power_mean": -0.04992734635520561
+    },
+    "right_knee": {
+     "rms": 2.528851595463562,
+     "peak": 3.9559958258629564,
+     "speed_peak": 3.43028086073331,
+     "pos_power_mean": 0.3686751214883274,
+     "neg_power_mean": -0.9155073867140043
+    },
+    "right_ankle_pitch": {
+     "rms": 2.3388962499263974,
+     "peak": 3.863540884459823,
+     "speed_peak": 1.250796962745273,
+     "pos_power_mean": 0.044519308320682315,
+     "neg_power_mean": -0.15526926123596235
+    },
+    "right_ankle_roll": {
+     "rms": 0.5162266609521865,
+     "peak": 2.558625133897457,
+     "speed_peak": 0.9193717173779065,
+     "pos_power_mean": 0.11365572883949482,
+     "neg_power_mean": -0.08026073287452326
+    }
+   },
+   "min_cop_margin": -0.005599098758995398,
+   "min_cop_margin_single": 0.030475564344259628,
+   "max_friction_ratio": 0.18677635641742185,
+   "gait": {
+    "speed": 0.0,
+    "stride": 0.0,
+    "period": 1.015713106309719,
+    "froude": 0.012,
+    "duty": 0.6,
+    "stride_rel": 0.55,
+    "cadence_hz": 1.969059951649521,
+    "yaw_rate": -0.5,
+    "in_place": true,
+    "radius": 0.0,
+    "heading_per_stride": -0.5078565531548594,
+    "origin": [
+     -1.1299430054035989e-10,
+     0.0
+    ],
+    "foot_yaw_vs_trunk_amp": 0.15235696594645784,
+    "swing_yaw_rate_peak": 2.34375,
+    "sway_amp": 0.03379381223049603,
+    "lean_inward": -8.240490448255256e-06,
+    "lift": 0.040148283973173465,
+    "omega": 5.447925275085638,
+    "zmp_error_history_m": [
+     0.018436147134659554,
+     0.007539016911349061,
+     0.0030878365674165964,
+     0.00171546236433525,
+     0.0013111499886582529,
+     0.0010763106183246166,
+     0.0009309465052337934
+    ],
+    "zmp_error_exact_final_m": 0.0009309465052337934,
+    "zmp_error_exact_final_frame": 159,
+    "com_tol": 1e-06,
+    "com_iters": 12,
+    "phase_tol": 1e-09,
+    "unwrap": "exact"
+   },
+   "ik_ok": true,
+   "ik_fail_frames": 0,
+   "ik_fail_frame_list": [],
+   "foot_error_max": 3.570848349539044e-08,
+   "com_error_max": 9.9915798471948e-07,
+   "feet": {
+    "left": {
+     "r_eff": 0.03469489033061339,
+     "single_support": {
+      "frames": 64,
+      "fn_min": 98.0186030077952,
+      "ft_over_fn_max": 0.17688167879105338,
+      "mz_abs_max": 0.6941869397270481,
+      "util_max": 0.22063478125014105,
+      "util_cop_max": 0.22033473138415063,
+      "mu_req_max": 0.24392026793596602,
+      "mu_req_cop_max": 0.24372859010942863,
+      "mu_req_centroid_max": 0.24492571251660902,
+      "r_cop_min": 0.03471295138744092,
+      "frames_cop_outside": 0,
+      "cop_margin_min": 0.030700316211325553,
+      "util_max_frame": 140,
+      "util_max_support": [
+       "left"
+      ]
+     },
+     "double_support_qp_allocation": {
+      "frames": 32,
+      "fn_min": 28.416343923122156,
+      "ft_over_fn_max": 0.18677635641742185,
+      "mz_abs_max": 1.4566250223522286,
+      "util_max": 1.700952389824695,
+      "util_cop_max": 46.55951224075624,
+      "mu_req_max": 1.363413665352619,
+      "mu_req_cop_max": 37.24762226243869,
+      "mu_req_centroid_max": 1.3111900337612283,
+      "r_cop_min": 0.001054537622954899,
+      "frames_cop_outside": 4,
+      "cop_margin_min": -0.0039288059161844266,
+      "util_max_frame": 64,
+      "util_max_support": [
+       "left",
+       "right"
+      ]
+     }
+    },
+    "right": {
+     "r_eff": 0.03469489033061342,
+     "single_support": {
+      "frames": 64,
+      "fn_min": 97.87375492917421,
+      "ft_over_fn_max": 0.17655940631498185,
+      "mz_abs_max": 0.8861808651086667,
+      "util_max": 0.2826133086345451,
+      "util_cop_max": 0.2821807217794805,
+      "mu_req_max": 0.28229559998715176,
+      "mu_req_cop_max": 0.2819901349941992,
+      "mu_req_centroid_max": 0.2835419446908056,
+      "r_cop_min": 0.034718060724610346,
+      "frames_cop_outside": 0,
+      "cop_margin_min": 0.030475564344259628,
+      "util_max_frame": 4,
+      "util_max_support": [
+       "right"
+      ]
+     },
+     "double_support_qp_allocation": {
+      "frames": 32,
+      "fn_min": 26.800010866255494,
+      "ft_over_fn_max": 0.1749570481655429,
+      "mz_abs_max": 1.5922485968115014,
+      "util_max": 1.6360667345023054,
+      "util_cop_max": 2.78247036492985,
+      "mu_req_max": 1.309695546493599,
+      "mu_req_cop_max": 2.225977574710997,
+      "mu_req_centroid_max": 1.2945874279901004,
+      "r_cop_min": 0.013165510695526059,
+      "frames_cop_outside": 5,
+      "cop_margin_min": -0.005599098758995398,
+      "util_max_frame": 79,
+      "util_max_support": [
+       "left",
+       "right"
+      ]
+     }
+    }
+   },
+   "mu_assumed": 0.8,
+   "split": {
+    "method": "exact",
+    "double_support_frames": 32,
+    "solved": {
+     "equality_optimum": 22,
+     "exact_qp": 10
+    }
+   },
+   "double_support": {
+    "frames": 32,
+    "min_mu_max": 0.1729788027361528,
+    "min_mu_lower_max": 0.17128605991473422,
+    "min_mu_max_frame": 144,
+    "infeasible_frames": 0,
+    "note": "smallest mu for which some split of the total contact wrench keeps both CoPs on their pads with ||(F_t, M_z/r_eff)|| <= mu F_n per foot (M_z about the pad-area centroid); the counterpart of the single-support mu_req"
+   },
+   "range_use": {
+    "left_hip_roll": 0.3799688907738021,
+    "left_hip_yaw": 0.6860233229515534,
+    "left_hip_pitch": 0.34595234134732733,
+    "left_knee": 0.5263366970766994,
+    "left_ankle_pitch": 0.2962776576027387,
+    "left_ankle_roll": 0.39666900610926,
+    "right_hip_roll": 0.38622807278046545,
+    "right_hip_yaw": 0.6864233423328324,
+    "right_hip_pitch": 0.3456623944699332,
+    "right_knee": 0.5273526379308924,
+    "right_ankle_pitch": 0.2973079441309487,
+    "right_ankle_roll": 0.39563564750766955
+   },
+   "checks": {
+    "vertical_force_mean_over_weight": 0.9999999998521524,
+    "path_frame_force_mean_n": [
+     -0.1093924194727824,
+     -2.2259341187258474e-05
+    ],
+    "path_frame_force_expected_n": [
+     -0.10938857535580039,
+     -2.226229692658139e-05
+    ],
+    "trunk_yaw_rate_mean": -0.49999999999999983,
+    "moment_about_turn_axis_mean_nm": 5.939502674578989e-07,
+    "moment_about_turn_axis_rms_nm": 0.5247547394892067
+   },
+   "groups": {
+    "hip_roll": {
+     "rms": 2.1930194582363973,
+     "rms_stacked": 2.19261541658297,
+     "peak": 3.365573983390049,
+     "speed": 1.63984559974128
+    },
+    "hip_pitch": {
+     "rms": 2.76930179083025,
+     "rms_stacked": 2.7616222969036577,
+     "peak": 5.305604890587743,
+     "speed": 2.2856076156586407
+    },
+    "hip_yaw": {
+     "rms": 2.4907215702346073,
+     "rms_stacked": 2.4906364204124625,
+     "peak": 5.019244920928597,
+     "speed": 2.4427811939718365
+    },
+    "knee": {
+     "rms": 2.528851595463562,
+     "rms_stacked": 2.5281955647956385,
+     "peak": 4.132310165709919,
+     "speed": 3.43028086073331
+    },
+    "ankle_a": {
+     "rms": 1.2422758058530101,
+     "rms_stacked": 1.1984367283869226,
+     "peak": 2.4342673595811957,
+     "speed": 1.5473790029121828
+    },
+    "ankle_b": {
+     "rms": 1.2406493503859375,
+     "rms_stacked": 1.201508887404607,
+     "peak": 2.8806314237029422,
+     "speed": 1.5494390592946505
+    },
+    "neck": {
+     "rms": 0.6206007258416558,
+     "rms_stacked": 0.6206007258416558,
+     "peak": 0.7120623283531593,
+     "speed": 0.6179626529613457
+    },
+    "tail": {
+     "rms": 0.0968994012069697,
+     "rms_stacked": 0.0968994012069697,
+     "peak": 0.18119398263733266,
+     "speed": 0.7421273368350833
+    }
+   }
+  },
+  "walk_0.50_left": {
+   "joints": {
+    "neck_pitch": {
+     "rms": 0.621184462916575,
+     "peak": 0.6893746639640819,
+     "speed_peak": 0.6179626529613457,
+     "pos_power_mean": 0.12521618242693405,
+     "neg_power_mean": -0.11879421072379415
+    },
+    "tail_yaw": {
+     "rms": 0.10209086898497184,
+     "peak": 0.18742591674185566,
+     "speed_peak": 0.7421273368350833,
+     "pos_power_mean": 0.03394568992136007,
+     "neg_power_mean": -0.0015692444567346204
+    },
+    "left_hip_roll": {
+     "rms": 2.2390775712314412,
+     "peak": 3.748005295628195,
+     "speed_peak": 1.5108491220789781,
+     "pos_power_mean": 0.6259715671770432,
+     "neg_power_mean": -0.6154344182122945
+    },
+    "left_hip_pitch": {
+     "rms": 2.8634655035092953,
+     "peak": 5.965194495568946,
+     "speed_peak": 3.1878749238706354,
+     "pos_power_mean": 1.0407486026808022,
+     "neg_power_mean": -0.169646712211147
+    },
+    "left_hip_yaw": {
+     "rms": 2.5628725910294174,
+     "peak": 5.815611519049687,
+     "speed_peak": 2.401328380706038,
+     "pos_power_mean": 0.9166459257226386,
+     "neg_power_mean": -0.0721564354861918
+    },
+    "left_knee": {
+     "rms": 2.600731424021727,
+     "peak": 4.58957419072194,
+     "speed_peak": 4.384468212932322,
+     "pos_power_mean": 0.4133240021881729,
+     "neg_power_mean": -1.3626084832951058
+    },
+    "left_ankle_pitch": {
+     "rms": 2.318854104026636,
+     "peak": 4.144670523076103,
+     "speed_peak": 3.4214131341334326,
+     "pos_power_mean": 0.01959226268548047,
+     "neg_power_mean": -1.1077565117093333
+    },
+    "left_ankle_roll": {
+     "rms": 0.44459133595457473,
+     "peak": 2.525309308519478,
+     "speed_peak": 0.8336596576675336,
+     "pos_power_mean": 0.11359855782943193,
+     "neg_power_mean": -0.028053006992412748
+    },
+    "right_hip_roll": {
+     "rms": 2.22263533954294,
+     "peak": 3.6070474819281344,
+     "speed_peak": 1.7429330753162717,
+     "pos_power_mean": 0.5070822064069841,
+     "neg_power_mean": -0.4386246282016987
+    },
+    "right_hip_pitch": {
+     "rms": 2.8609586151688617,
+     "peak": 5.7857936012739355,
+     "speed_peak": 4.7863192554326695,
+     "pos_power_mean": 2.1649416912934014,
+     "neg_power_mean": -0.2764417690418659
+    },
+    "right_hip_yaw": {
+     "rms": 2.5527148376074265,
+     "peak": 5.2129337671387,
+     "speed_peak": 2.7122499441273678,
+     "pos_power_mean": 0.03789070895459723,
+     "neg_power_mean": -0.9463667371137067
+    },
+    "right_knee": {
+     "rms": 2.544830209950288,
+     "peak": 4.128704243477648,
+     "speed_peak": 4.86277446964814,
+     "pos_power_mean": 0.9033076267781945,
+     "neg_power_mean": -0.9334931785921278
+    },
+    "right_ankle_pitch": {
+     "rms": 2.3245113374346893,
+     "peak": 4.115167178902666,
+     "speed_peak": 3.1493813747776938,
+     "pos_power_mean": 0.016693589181204428,
+     "neg_power_mean": -0.9276187480664777
+    },
+    "right_ankle_roll": {
+     "rms": 0.4834619345385704,
+     "peak": 2.6811157517872255,
+     "speed_peak": 1.037664716130184,
+     "pos_power_mean": 0.14362664734313504,
+     "neg_power_mean": -0.061453476065527715
+    }
+   },
+   "min_cop_margin": -0.021809487057169806,
+   "min_cop_margin_single": 0.030182767773033373,
+   "max_friction_ratio": 0.23133346702297863,
+   "gait": {
+    "speed": 0.21739953977232748,
+    "stride": 0.22081556185245402,
+    "period": 1.015713106309719,
+    "froude": 0.012,
+    "duty": 0.6,
+    "stride_rel": 0.55,
+    "cadence_hz": 1.969059951649521,
+    "yaw_rate": 0.5,
+    "in_place": false,
+    "radius": 0.43479907954465497,
+    "heading_per_stride": 0.5078565531548594,
+    "origin": [
+     -1.1299430054035989e-10,
+     0.0
+    ],
+    "foot_yaw_vs_trunk_amp": 0.15235696594645784,
+    "swing_yaw_rate_peak": 2.34375,
+    "sway_amp": 0.03374676799566998,
+    "lean_inward": 0.004992074244265882,
+    "lift": 0.040148283973173465,
+    "omega": 5.447925275085638,
+    "zmp_error_history_m": [
+     0.027383163047392276,
+     0.011037849004484547,
+     0.004960965541285516,
+     0.0022287975267128056,
+     0.0016641366734596616,
+     0.0013906967251765,
+     0.0012141337631017034
+    ],
+    "zmp_error_exact_final_m": 0.0012141337631017034,
+    "zmp_error_exact_final_frame": 65,
+    "com_tol": 1e-06,
+    "com_iters": 12,
+    "phase_tol": 1e-09,
+    "unwrap": "exact"
+   },
+   "ik_ok": true,
+   "ik_fail_frames": 0,
+   "ik_fail_frame_list": [],
+   "foot_error_max": 5.546451531056946e-08,
+   "com_error_max": 9.982952382017316e-07,
+   "feet": {
+    "left": {
+     "r_eff": 0.034694890330613425,
+     "single_support": {
+      "frames": 64,
+      "fn_min": 96.71274559644165,
+      "ft_over_fn_max": 0.19233169415644305,
+      "mz_abs_max": 1.990639464135251,
+      "util_max": 0.6490592999692467,
+      "util_cop_max": 0.6484652280714392,
+      "mu_req_max": 0.53832767882021,
+      "mu_req_cop_max": 0.5378692807312083,
+      "mu_req_centroid_max": 0.5389815176989452,
+      "r_cop_min": 0.03462613791144573,
+      "frames_cop_outside": 0,
+      "cop_margin_min": 0.030182767773033373,
+      "util_max_frame": 87,
+      "util_max_support": [
+       "left"
+      ]
+     },
+     "double_support_qp_allocation": {
+      "frames": 32,
+      "fn_min": 21.159056055047277,
+      "ft_over_fn_max": 0.22056892916332727,
+      "mz_abs_max": 1.48660696398661,
+      "util_max": 2.024611640405998,
+      "util_cop_max": 3.373399255310256,
+      "mu_req_max": 1.6282382563143183,
+      "mu_req_cop_max": 2.700454683113834,
+      "mu_req_centroid_max": 1.5622301917363601,
+      "r_cop_min": 0.017080187127491275,
+      "frames_cop_outside": 8,
+      "cop_margin_min": -0.02180948705716979,
+      "util_max_frame": 159,
+      "util_max_support": [
+       "left",
+       "right"
+      ]
+     }
+    },
+    "right": {
+     "r_eff": 0.0346948903306134,
+     "single_support": {
+      "frames": 64,
+      "fn_min": 94.86008633362565,
+      "ft_over_fn_max": 0.224047845078686,
+      "mz_abs_max": 1.2737574506080858,
+      "util_max": 0.4138041232037977,
+      "util_cop_max": 0.4133215283890411,
+      "mu_req_max": 0.3646565978078332,
+      "mu_req_cop_max": 0.3641639797440736,
+      "mu_req_centroid_max": 0.36560135769384317,
+      "r_cop_min": 0.03465150102748753,
+      "frames_cop_outside": 0,
+      "cop_margin_min": 0.03035030347161908,
+      "util_max_frame": 7,
+      "util_max_support": [
+       "right"
+      ]
+     },
+     "double_support_qp_allocation": {
+      "frames": 32,
+      "fn_min": 18.037007936152484,
+      "ft_over_fn_max": 0.23133346702297863,
+      "mz_abs_max": 1.6527415885296481,
+      "util_max": 1.9795916880198834,
+      "util_cop_max": 2.707778795461151,
+      "mu_req_max": 1.5855697715698587,
+      "mu_req_cop_max": 2.168697836099683,
+      "mu_req_centroid_max": 1.608308086997146,
+      "r_cop_min": 0.012256373881031799,
+      "frames_cop_outside": 8,
+      "cop_margin_min": -0.021809487057169806,
+      "util_max_frame": 144,
+      "util_max_support": [
+       "left",
+       "right"
+      ]
+     }
+    }
+   },
+   "mu_assumed": 0.8,
+   "split": {
+    "method": "exact",
+    "double_support_frames": 32,
+    "solved": {
+     "equality_optimum": 23,
+     "exact_qp": 9
+    }
+   },
+   "double_support": {
+    "frames": 32,
+    "min_mu_max": 0.21826470721740224,
+    "min_mu_lower_max": 0.21603046149370914,
+    "min_mu_max_frame": 64,
+    "infeasible_frames": 0,
+    "note": "smallest mu for which some split of the total contact wrench keeps both CoPs on their pads with ||(F_t, M_z/r_eff)|| <= mu F_n per foot (M_z about the pad-area centroid); the counterpart of the single-support mu_req"
+   },
+   "range_use": {
+    "left_hip_roll": 0.4089204056846481,
+    "left_hip_yaw": 0.6705787417308378,
+    "left_hip_pitch": 0.3266593366424672,
+    "left_knee": 0.49910979126029814,
+    "left_ankle_pitch": 0.46755665104442157,
+    "left_ankle_roll": 0.42466590743959987,
+    "right_hip_roll": 0.35891613111496745,
+    "right_hip_yaw": 0.7678862117211701,
+    "right_hip_pitch": 0.4683560458062521,
+    "right_knee": 0.5411360089939051,
+    "right_ankle_pitch": 0.42699038783921345,
+    "right_ankle_roll": 0.3666097408258623
+   },
+   "checks": {
+    "vertical_force_mean_over_weight": 0.9999999993336194,
+    "path_frame_force_mean_n": [
+     -0.10926560955806905,
+     1.1598178173042366
+    ],
+    "path_frame_force_expected_n": [
+     -0.10926559673829471,
+     1.1598350806048867
+    ],
+    "trunk_yaw_rate_mean": 0.49999999999999983,
+    "moment_about_turn_axis_mean_nm": 1.348778369718584e-05,
+    "moment_about_turn_axis_rms_nm": 2.539519371085024
+   },
+   "groups": {
+    "hip_roll": {
+     "rms": 2.2390775712314412,
+     "rms_stacked": 2.2308716034968095,
+     "peak": 3.748005295628195,
+     "speed": 1.7429330753162717
+    },
+    "hip_pitch": {
+     "rms": 2.8634655035092953,
+     "rms_stacked": 2.862212333798514,
+     "peak": 5.965194495568946,
+     "speed": 4.7863192554326695
+    },
+    "hip_yaw": {
+     "rms": 2.5628725910294174,
+     "rms_stacked": 2.55779875674289,
+     "peak": 5.815611519049687,
+     "speed": 2.7122499441273678
+    },
+    "knee": {
+     "rms": 2.600731424021727,
+     "rms_stacked": 2.5729326397488244,
+     "peak": 4.58957419072194,
+     "speed": 4.86277446964814
+    },
+    "ankle_a": {
+     "rms": 1.2271460664701466,
+     "rms_stacked": 1.1792170038005314,
+     "peak": 2.2195846515747166,
+     "speed": 3.9994794685824857
+    },
+    "ankle_b": {
+     "rms": 1.2423067996085515,
+     "rms_stacked": 1.1884468060843134,
+     "peak": 2.3003191910453724,
+     "speed": 3.0648916144378746
+    },
+    "neck": {
+     "rms": 0.621184462916575,
+     "rms_stacked": 0.621184462916575,
+     "peak": 0.6893746639640819,
+     "speed": 0.6179626529613457
+    },
+    "tail": {
+     "rms": 0.10209086898497184,
+     "rms_stacked": 0.10209086898497184,
+     "peak": 0.18742591674185566,
+     "speed": 0.7421273368350833
+    }
+   }
+  },
+  "walk_0.50_right": {
+   "joints": {
+    "neck_pitch": {
+     "rms": 0.6211846702015861,
+     "peak": 0.6893657596689993,
+     "speed_peak": 0.6179626529613457,
+     "pos_power_mean": 0.12521681794335587,
+     "neg_power_mean": -0.11879304056540282
+    },
+    "tail_yaw": {
+     "rms": 0.10209013743117604,
+     "peak": 0.18741413075516686,
+     "speed_peak": 0.7421273368350833,
+     "pos_power_mean": 0.033946436938221226,
+     "neg_power_mean": -0.001569273905136895
+    },
+    "left_hip_roll": {
+     "rms": 2.2224424747107707,
+     "peak": 3.601707940654679,
+     "speed_peak": 1.7425480527050705,
+     "pos_power_mean": 0.5069268922120472,
+     "neg_power_mean": -0.43892104505166873
+    },
+    "left_hip_pitch": {
+     "rms": 2.8613608469929273,
+     "peak": 5.786245175049325,
+     "speed_peak": 4.7865468097310515,
+     "pos_power_mean": 2.1652889875899897,
+     "neg_power_mean": -0.2764367567659171
+    },
+    "left_hip_yaw": {
+     "rms": 2.5516313778916815,
+     "peak": 5.210231686526898,
+     "speed_peak": 2.7118454115093744,
+     "pos_power_mean": 0.03784948151673694,
+     "neg_power_mean": -0.945942235014571
+    },
+    "left_knee": {
+     "rms": 2.5443158305319664,
+     "peak": 4.127750584089425,
+     "speed_peak": 4.863595915588552,
+     "pos_power_mean": 0.9032517314427091,
+     "neg_power_mean": -0.9339421800430527
+    },
+    "left_ankle_pitch": {
+     "rms": 2.324640857486617,
+     "peak": 4.115231250061412,
+     "speed_peak": 3.1493303442567027,
+     "pos_power_mean": 0.016705180249595157,
+     "neg_power_mean": -0.927479610393469
+    },
+    "left_ankle_roll": {
+     "rms": 0.48342067439401043,
+     "peak": 2.681081089480959,
+     "speed_peak": 1.0376331744430436,
+     "pos_power_mean": 0.14361018489030122,
+     "neg_power_mean": -0.06144746293601372
+    },
+    "right_hip_roll": {
+     "rms": 2.2387810798038053,
+     "peak": 3.7426846456855984,
+     "speed_peak": 1.5112526606089527,
+     "pos_power_mean": 0.6255317709035715,
+     "neg_power_mean": -0.6155351194321287
+    },
+    "right_hip_pitch": {
+     "rms": 2.8630614877399734,
+     "peak": 5.964317303153817,
+     "speed_peak": 3.1879561467701545,
+     "pos_power_mean": 1.0408264319475127,
+     "neg_power_mean": -0.1694644172201609
+    },
+    "right_hip_yaw": {
+     "rms": 2.56400656872608,
+     "peak": 5.8206158081104675,
+     "speed_peak": 2.4016498695980917,
+     "pos_power_mean": 0.9168586374652069,
+     "neg_power_mean": -0.07196141015709268
+    },
+    "right_knee": {
+     "rms": 2.6011583725734595,
+     "peak": 4.589846308265608,
+     "speed_peak": 4.384124796380863,
+     "pos_power_mean": 0.41309960289387365,
+     "neg_power_mean": -1.3625610361086864
+    },
+    "right_ankle_pitch": {
+     "rms": 2.3187391748790644,
+     "peak": 4.144491419659459,
+     "speed_peak": 3.421291238479833,
+     "pos_power_mean": 0.019585423315864863,
+     "neg_power_mean": -1.1076265943260493
+    },
+    "right_ankle_roll": {
+     "rms": 0.44462403588969723,
+     "peak": 2.5252781365947117,
+     "speed_peak": 0.833603554433354,
+     "pos_power_mean": 0.11360539632844394,
+     "neg_power_mean": -0.028054627803747605
+    }
+   },
+   "min_cop_margin": -0.021809487057169796,
+   "min_cop_margin_single": 0.030182445891270768,
+   "max_friction_ratio": 0.23136311274245186,
+   "gait": {
+    "speed": 0.21739953977232748,
+    "stride": 0.22081556185245402,
+    "period": 1.015713106309719,
+    "froude": 0.012,
+    "duty": 0.6,
+    "stride_rel": 0.55,
+    "cadence_hz": 1.969059951649521,
+    "yaw_rate": -0.5,
+    "in_place": false,
+    "radius": 0.43479907954465497,
+    "heading_per_stride": -0.5078565531548594,
+    "origin": [
+     -1.1299430054035989e-10,
+     0.0
+    ],
+    "foot_yaw_vs_trunk_amp": 0.15235696594645784,
+    "swing_yaw_rate_peak": 2.34375,
+    "sway_amp": 0.03374715228239619,
+    "lean_inward": 0.004990775901113473,
+    "lift": 0.040148283973173465,
+    "omega": 5.447925275085638,
+    "zmp_error_history_m": [
+     0.027361430223999058,
+     0.011040851548904735,
+     0.004961850291145172,
+     0.0022294242256942834,
+     0.0016636696421195685,
+     0.0013903833792915476,
+     0.0012142266735120687
+    ],
+    "zmp_error_exact_final_m": 0.0012142266735120687,
+    "zmp_error_exact_final_frame": 0,
+    "com_tol": 1e-06,
+    "com_iters": 12,
+    "phase_tol": 1e-09,
+    "unwrap": "exact"
+   },
+   "ik_ok": true,
+   "ik_fail_frames": 0,
+   "ik_fail_frame_list": [],
+   "foot_error_max": 5.561862919854004e-08,
+   "com_error_max": 9.991159555113869e-07,
+   "feet": {
+    "left": {
+     "r_eff": 0.03469489033061342,
+     "single_support": {
+      "frames": 64,
+      "fn_min": 94.86353328314814,
+      "ft_over_fn_max": 0.22402646186223443,
+      "mz_abs_max": 1.272130499500236,
+      "util_max": 0.41327149104786637,
+      "util_cop_max": 0.41280721857504005,
+      "mu_req_max": 0.3643803467523415,
+      "mu_req_cop_max": 0.36392284165542726,
+      "mu_req_centroid_max": 0.3653076014789273,
+      "r_cop_min": 0.0346514669604559,
+      "frames_cop_outside": 0,
+      "cop_margin_min": 0.030350280914334185,
+      "util_max_frame": 87,
+      "util_max_support": [
+       "left"
+      ]
+     },
+     "double_support_qp_allocation": {
+      "frames": 32,
+      "fn_min": 18.03994384319507,
+      "ft_over_fn_max": 0.23136311274245186,
+      "mz_abs_max": 1.6534820152502778,
+      "util_max": 1.9803504624641957,
+      "util_cop_max": 2.707741629296007,
+      "mu_req_max": 1.5861782018809816,
+      "mu_req_cop_max": 2.168668068530248,
+      "mu_req_centroid_max": 1.6092466152381655,
+      "r_cop_min": 0.01224859648492004,
+      "frames_cop_outside": 8,
+      "cop_margin_min": -0.021809487057169747,
+      "util_max_frame": 64,
+      "util_max_support": [
+       "left",
+       "right"
+      ]
+     }
+    },
+    "right": {
+     "r_eff": 0.03469489033061341,
+     "single_support": {
+      "frames": 64,
+      "fn_min": 96.71569951415049,
+      "ft_over_fn_max": 0.19234037086617364,
+      "mz_abs_max": 1.9944175044021604,
+      "util_max": 0.6503134173292149,
+      "util_cop_max": 0.6497191902673355,
+      "mu_req_max": 0.5392981993005019,
+      "mu_req_cop_max": 0.5388396221998137,
+      "mu_req_centroid_max": 0.5399510336985309,
+      "r_cop_min": 0.034626116652204685,
+      "frames_cop_outside": 0,
+      "cop_margin_min": 0.030182445891270768,
+      "util_max_frame": 7,
+      "util_max_support": [
+       "right"
+      ]
+     },
+     "double_support_qp_allocation": {
+      "frames": 32,
+      "fn_min": 21.156352314282152,
+      "ft_over_fn_max": 0.2205280216609656,
+      "mz_abs_max": 1.4868739149284305,
+      "util_max": 2.0249989913952597,
+      "util_cop_max": 3.375573520011129,
+      "mu_req_max": 1.6285227618656457,
+      "mu_req_cop_max": 2.7021878007351594,
+      "mu_req_centroid_max": 1.5603603181369097,
+      "r_cop_min": 0.017076778140572176,
+      "frames_cop_outside": 8,
+      "cop_margin_min": -0.021809487057169796,
+      "util_max_frame": 79,
+      "util_max_support": [
+       "left",
+       "right"
+      ]
+     }
+    }
+   },
+   "mu_assumed": 0.8,
+   "split": {
+    "method": "exact",
+    "double_support_frames": 32,
+    "solved": {
+     "equality_optimum": 23,
+     "exact_qp": 9
+    }
+   },
+   "double_support": {
+    "frames": 32,
+    "min_mu_max": 0.21774915550084337,
+    "min_mu_lower_max": 0.21550802373774552,
+    "min_mu_max_frame": 144,
+    "infeasible_frames": 0,
+    "note": "smallest mu for which some split of the total contact wrench keeps both CoPs on their pads with ||(F_t, M_z/r_eff)|| <= mu F_n per foot (M_z about the pad-area centroid); the counterpart of the single-support mu_req"
+   },
+   "range_use": {
+    "left_hip_roll": 0.35852209738531465,
+    "left_hip_yaw": 0.7677572380117031,
+    "left_hip_pitch": 0.4682277417741458,
+    "left_knee": 0.54097917442011,
+    "left_ankle_pitch": 0.4268756130401466,
+    "left_ankle_roll": 0.366193645474148,
+    "right_hip_roll": 0.40930520770261103,
+    "right_hip_yaw": 0.6706461576099171,
+    "right_hip_pitch": 0.3267971790401412,
+    "right_knee": 0.4993019116800959,
+    "right_ankle_pitch": 0.46765081100718586,
+    "right_ankle_roll": 0.42509028152611383
+   },
+   "checks": {
+    "vertical_force_mean_over_weight": 0.9999999993338264,
+    "path_frame_force_mean_n": [
+     -0.10926574855431728,
+     -1.1598212971296902
+    ],
+    "path_frame_force_expected_n": [
+     -0.10926574113699974,
+     -1.1598385747444784
+    ],
+    "trunk_yaw_rate_mean": -0.49999999999999983,
+    "moment_about_turn_axis_mean_nm": -1.3516309563321727e-05,
+    "moment_about_turn_axis_rms_nm": 2.539315097026369
+   },
+   "groups": {
+    "hip_roll": {
+     "rms": 2.2387810798038053,
+     "rms_stacked": 2.2306267366690946,
+     "peak": 3.7426846456855984,
+     "speed": 1.7425480527050705
+    },
+    "hip_pitch": {
+     "rms": 2.8630614877399734,
+     "rms_stacked": 2.8622112936752164,
+     "peak": 5.964317303153817,
+     "speed": 4.7865468097310515
+    },
+    "hip_yaw": {
+     "rms": 2.56400656872608,
+     "rms_stacked": 2.5578264574743814,
+     "peak": 5.8206158081104675,
+     "speed": 2.7118454115093744
+    },
+    "knee": {
+     "rms": 2.6011583725734595,
+     "rms_stacked": 2.5728940830030855,
+     "peak": 4.589846308265608,
+     "speed": 4.863595915588552
+    },
+    "ankle_a": {
+     "rms": 1.2423717679151216,
+     "rms_stacked": 1.1884591772018758,
+     "peak": 2.3003101552743512,
+     "speed": 3.0648787265693853
+    },
+    "ankle_b": {
+     "rms": 1.2270852151202334,
+     "rms_stacked": 1.179210720740352,
+     "peak": 2.219519228792679,
+     "speed": 3.9992715919309307
+    },
+    "neck": {
+     "rms": 0.6211846702015861,
+     "rms_stacked": 0.6211846702015861,
+     "peak": 0.6893657596689993,
+     "speed": 0.6179626529613457
+    },
+    "tail": {
+     "rms": 0.10209013743117604,
+     "rms_stacked": 0.10209013743117604,
+     "peak": 0.18741413075516686,
+     "speed": 0.7421273368350833
+    }
+   }
+  }
+ },
+ "requirements": {
+  "walk_0.35": {
+   "hip_roll": {
+    "rms": 2.2383456505744217,
+    "hold": 2.695245523837831,
+    "peak": 3.6352161697052474,
+    "speed": 1.1966255311835787,
+    "cont": 2.695245523837831,
+    "peak_req": 4.544020212131559,
+    "speed_req": 1.3761193608611155,
+    "rms_motor": "walk_0.35_left:left",
+    "rms_stacked": 2.232323565784741
+   },
+   "hip_pitch": {
+    "rms": 2.862213581626935,
+    "hold": 3.678970820709038,
+    "peak": 5.941327950901251,
+    "speed": 4.518937143067999,
+    "cont": 3.678970820709038,
+    "peak_req": 7.426659938626564,
+    "speed_req": 5.196777714528199,
+    "rms_motor": "walk_0.35_left:left",
+    "rms_stacked": 2.861476390466037
+   },
+   "hip_yaw": {
+    "rms": 2.569496799574859,
+    "hold": 3.2341306973638617,
+    "peak": 5.738504187328264,
+    "speed": 1.8477350801196437,
+    "cont": 3.2341306973638617,
+    "peak_req": 7.17313023416033,
+    "speed_req": 2.1248953421375902,
+    "rms_motor": "walk_0.35_right:right",
+    "rms_stacked": 2.564449712596236
+   },
+   "knee": {
+    "rms": 2.5903600040758437,
+    "hold": 2.7930741577349645,
+    "peak": 4.509687151261266,
+    "speed": 4.633527675604133,
+    "cont": 2.7930741577349645,
+    "peak_req": 5.637108939076583,
+    "speed_req": 5.328556826944752,
+    "rms_motor": "walk_0.35_right:right",
+    "rms_stacked": 2.5704099426757008
+   },
+   "ankle_a": {
+    "rms": 1.24094323733447,
+    "hold": 1.7262235717433565,
+    "peak": 2.2937086163330167,
+    "speed": 3.863271916487308,
+    "cont": 1.7262235717433565,
+    "peak_req": 2.867135770416271,
+    "speed_req": 4.442762703960404,
+    "rms_motor": "walk_0.35_right:left",
+    "rms_stacked": 1.1842649481342475
+   },
+   "ankle_b": {
+    "rms": 1.2408771950133384,
+    "hold": 1.7261437303848217,
+    "peak": 2.2937072432753762,
+    "speed": 3.863102237744967,
+    "cont": 1.7261437303848217,
+    "peak_req": 2.8671340540942203,
+    "speed_req": 4.442567573406712,
+    "rms_motor": "walk_0.35_left:right",
+    "rms_stacked": 1.1842556979500085
+   },
+   "neck": {
+    "rms": 0.6199966935669401,
+    "hold": 0.6122061034997364,
+    "peak": 0.6881904647483456,
+    "speed": 0.6179626529613457,
+    "cont": 0.6199966935669401,
+    "peak_req": 0.860238080935432,
+    "speed_req": 0.7106570509055474,
+    "rms_motor": "walk_0.35_right:-",
+    "rms_stacked": 0.6199966215616582
+   },
+   "tail": {
+    "rms": 0.10239427740708866,
+    "hold": 0.05498530943963617,
+    "peak": 0.1874923048603681,
+    "speed": 0.7421273368350833,
+    "cont": 0.10239427740708866,
+    "peak_req": 0.23436538107546012,
+    "speed_req": 0.8534464373603456,
+    "rms_motor": "walk_0.35_left:-",
+    "rms_stacked": 0.10239400742066765
+   }
+  },
+  "in_place_0.50": {
+   "hip_roll": {
+    "rms": 2.193066494724831,
+    "hold": 2.695245523837831,
+    "peak": 3.370210905149173,
+    "speed": 1.63984559974128,
+    "cont": 2.695245523837831,
+    "peak_req": 4.2127636314364665,
+    "speed_req": 1.8858224397024719,
+    "rms_motor": "in_place_0.50_left:left",
+    "rms_stacked": 2.1926137343198295
+   },
+   "hip_pitch": {
+    "rms": 2.76930179083025,
+    "hold": 3.678970820709038,
+    "peak": 5.306265304719802,
+    "speed": 2.2857254662054047,
+    "cont": 3.678970820709038,
+    "peak_req": 6.632831630899752,
+    "speed_req": 2.628584286136215,
+    "rms_motor": "in_place_0.50_right:left",
+    "rms_stacked": 2.7616232055151633
+   },
+   "hip_yaw": {
+    "rms": 2.491456229397446,
+    "hold": 3.2341306973638617,
+    "peak": 5.019244920928597,
+    "speed": 2.443081044774113,
+    "cont": 3.2341306973638617,
+    "peak_req": 6.274056151160746,
+    "speed_req": 2.80954320149023,
+    "rms_motor": "in_place_0.50_left:right",
+    "rms_stacked": 2.4906358831171946
+   },
+   "knee": {
+    "rms": 2.528851595463562,
+    "hold": 2.7930741577349645,
+    "peak": 4.132631502369583,
+    "speed": 3.430588272961284,
+    "cont": 2.7930741577349645,
+    "peak_req": 5.165789377961979,
+    "speed_req": 3.9451765139054764,
+    "rms_motor": "in_place_0.50_right:right",
+    "rms_stacked": 2.528194067275648
+   },
+   "ankle_a": {
+    "rms": 1.2422758058530101,
+    "hold": 1.7262235717433565,
+    "peak": 2.8807663142104554,
+    "speed": 1.5498224118553097,
+    "cont": 1.7262235717433565,
+    "peak_req": 3.600957892763069,
+    "speed_req": 1.782295773633606,
+    "rms_motor": "in_place_0.50_right:left",
+    "rms_stacked": 1.1999875419123691
+   },
+   "ankle_b": {
+    "rms": 1.2421919404382071,
+    "hold": 1.7261437303848217,
+    "peak": 2.8806314237029422,
+    "speed": 1.5494390592946505,
+    "cont": 1.7261437303848217,
+    "peak_req": 3.600789279628678,
+    "speed_req": 1.781854918188848,
+    "rms_motor": "in_place_0.50_left:right",
+    "rms_stacked": 1.1999634800633654
+   },
+   "neck": {
+    "rms": 0.6206007258416558,
+    "hold": 0.6122061034997364,
+    "peak": 0.7120709419348675,
+    "speed": 0.6179626529613457,
+    "cont": 0.6206007258416558,
+    "peak_req": 0.8900886774185844,
+    "speed_req": 0.7106570509055474,
+    "rms_motor": "in_place_0.50_right:-",
+    "rms_stacked": 0.6206006963829828
+   },
+   "tail": {
+    "rms": 0.0968994012069697,
+    "hold": 0.05498530943963617,
+    "peak": 0.18119398263733266,
+    "speed": 0.7421273368350833,
+    "cont": 0.0968994012069697,
+    "peak_req": 0.22649247829666583,
+    "speed_req": 0.8534464373603456,
+    "rms_motor": "in_place_0.50_right:-",
+    "rms_stacked": 0.096899180313427
+   }
+  },
+  "walk_0.50": {
+   "hip_roll": {
+    "rms": 2.2390775712314412,
+    "hold": 2.695245523837831,
+    "peak": 3.748005295628195,
+    "speed": 1.7429330753162717,
+    "cont": 2.695245523837831,
+    "peak_req": 4.685006619535244,
+    "speed_req": 2.0043730366137122,
+    "rms_motor": "walk_0.50_left:left",
+    "rms_stacked": 2.2307491734427964
+   },
+   "hip_pitch": {
+    "rms": 2.8634655035092953,
+    "hold": 3.678970820709038,
+    "peak": 5.965194495568946,
+    "speed": 4.7865468097310515,
+    "cont": 3.678970820709038,
+    "peak_req": 7.456493119461182,
+    "speed_req": 5.504528831190709,
+    "rms_motor": "walk_0.50_left:left",
+    "rms_stacked": 2.862211813736913
+   },
+   "hip_yaw": {
+    "rms": 2.56400656872608,
+    "hold": 3.2341306973638617,
+    "peak": 5.8206158081104675,
+    "speed": 2.7122499441273678,
+    "cont": 3.2341306973638617,
+    "peak_req": 7.275769760138084,
+    "speed_req": 3.1190874357464726,
+    "rms_motor": "walk_0.50_right:right",
+    "rms_stacked": 2.5578126071461353
+   },
+   "knee": {
+    "rms": 2.6011583725734595,
+    "hold": 2.7930741577349645,
+    "peak": 4.589846308265608,
+    "speed": 4.863595915588552,
+    "cont": 2.7930741577349645,
+    "peak_req": 5.73730788533201,
+    "speed_req": 5.593135302926834,
+    "rms_motor": "walk_0.50_right:right",
+    "rms_stacked": 2.5729133614481796
+   },
+   "ankle_a": {
+    "rms": 1.2423717679151216,
+    "hold": 1.7262235717433565,
+    "peak": 2.3003101552743512,
+    "speed": 3.9994794685824857,
+    "cont": 1.7262235717433565,
+    "peak_req": 2.875387694092939,
+    "speed_req": 4.599401388869858,
+    "rms_motor": "walk_0.50_right:left",
+    "rms_stacked": 1.1838471096234644
+   },
+   "ankle_b": {
+    "rms": 1.2423067996085515,
+    "hold": 1.7261437303848217,
+    "peak": 2.3003191910453724,
+    "speed": 3.9992715919309307,
+    "cont": 1.7261437303848217,
+    "peak_req": 2.8753989888067153,
+    "speed_req": 4.59916233072057,
+    "rms_motor": "walk_0.50_left:right",
+    "rms_stacked": 1.1838377707272618
+   },
+   "neck": {
+    "rms": 0.6211846702015861,
+    "hold": 0.6122061034997364,
+    "peak": 0.6893746639640819,
+    "speed": 0.6179626529613457,
+    "cont": 0.6211846702015861,
+    "peak_req": 0.8617183299551023,
+    "speed_req": 0.7106570509055474,
+    "rms_motor": "walk_0.50_right:-",
+    "rms_stacked": 0.6211845665590892
+   },
+   "tail": {
+    "rms": 0.10209086898497184,
+    "hold": 0.05498530943963617,
+    "peak": 0.18742591674185566,
+    "speed": 0.7421273368350833,
+    "cont": 0.10209086898497184,
+    "peak_req": 0.2342823959273196,
+    "speed_req": 0.8534464373603456,
+    "rms_motor": "walk_0.50_left:-",
+    "rms_stacked": 0.1020905032087292
+   }
+  }
+ },
+ "verdict": {
+  "walk_0.35": {
+   "hip_roll": {
+    "actuator": "cubemars_ak45_36_v3",
+    "bus": 24.0,
+    "limits": {
+     "cont": 4.56,
+     "peak_req": 16.799999999999997,
+     "speed_req": 4.1887902047863905
+    },
+    "required": {
+     "cont": 2.695245523837831,
+     "peak_req": 4.544020212131559,
+     "speed_req": 1.3761193608611155
+    },
+    "ratio_to_limit": {
+     "cont": 0.5910626148767173,
+     "peak_req": 0.27047739357925954,
+     "speed_req": 0.3285242978482594
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 2.695245523837831,
+     "peak_req": 4.716987628723939,
+     "speed_req": 1.035375335825204
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 0.9633309581863008,
+     "speed_req": 1.3291019336136063
+    },
+    "increase_over_10pct": [
+     "speed_req"
+    ],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 0.9633309581862788,
+     "speed_req": 1.3291019336136136
+    },
+    "like_for_like": {
+     "rms": 1.0017286965251189,
+     "peak": 1.096208531525865,
+     "speed": 1.3291019336136063,
+     "turn_rms": 2.2383456505744217,
+     "turn_peak": 3.6352161697052474,
+     "turn_speed": 1.1966255311835787,
+     "straight_rms": 2.23448290773638,
+     "straight_peak": 3.3161721197747083,
+     "straight_speed": 0.9003263789784383
+    }
+   },
+   "hip_pitch": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "bus": 24.0,
+    "limits": {
+     "cont": 5.984999999999999,
+     "peak_req": 21.0,
+     "speed_req": 8.691739674931762
+    },
+    "required": {
+     "cont": 3.678970820709038,
+     "peak_req": 7.426659938626564,
+     "speed_req": 5.196777714528199
+    },
+    "ratio_to_limit": {
+     "cont": 0.6146985498260716,
+     "peak_req": 0.35365047326793164,
+     "speed_req": 0.5978984540363605
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 3.678970820709038,
+     "peak_req": 8.766420302494337,
+     "speed_req": 6.044381248006663
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 0.8471713290444713,
+     "speed_req": 0.8597700080950404
+    },
+    "increase_over_10pct": [],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 0.8471713290444369,
+     "speed_req": 0.8597700080950336
+    },
+    "like_for_like": {
+     "rms": 1.0004110226288196,
+     "peak": 1.0106062684251362,
+     "speed": 1.1533399214657154,
+     "turn_rms": 2.862213581626935,
+     "turn_peak": 5.941327950901251,
+     "turn_speed": 4.518937143067999,
+     "straight_rms": 2.8610376304189282,
+     "straight_peak": 5.878973974859501,
+     "straight_speed": 3.918131210896727
+    }
+   },
+   "hip_yaw": {
+    "actuator": "cubemars_ak45_36_v3",
+    "bus": 24.0,
+    "limits": {
+     "cont": 4.56,
+     "peak_req": 16.799999999999997,
+     "speed_req": 4.1887902047863905
+    },
+    "required": {
+     "cont": 3.2341306973638617,
+     "peak_req": 7.17313023416033,
+     "speed_req": 2.1248953421375902
+    },
+    "ratio_to_limit": {
+     "cont": 0.7092391880183908,
+     "peak_req": 0.42697203774763876,
+     "speed_req": 0.5072813958812126
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 3.2341306973638617,
+     "peak_req": 8.065378549787185,
+     "speed_req": 3.954978387935787e-07
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 0.8893730393286502,
+     "speed_req": null
+    },
+    "increase_over_10pct": [
+     "speed_req"
+    ],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 0.8893730393286758,
+     "speed_req": null
+    },
+    "like_for_like": {
+     "rms": 0.9992447498955164,
+     "peak": 1.0401497898679388,
+     "speed": null,
+     "turn_rms": 2.569496799574859,
+     "turn_peak": 5.738504187328264,
+     "turn_speed": 1.8477350801196437,
+     "straight_rms": 2.5714388790569402,
+     "straight_peak": 5.516997881677066,
+     "straight_speed": 2.3198727807600392e-07
+    }
+   },
+   "knee": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "bus": 24.0,
+    "limits": {
+     "cont": 5.984999999999999,
+     "peak_req": 21.0,
+     "speed_req": 8.691739674931762
+    },
+    "required": {
+     "cont": 2.7930741577349645,
+     "peak_req": 5.637108939076583,
+     "speed_req": 5.328556826944752
+    },
+    "ratio_to_limit": {
+     "cont": 0.4666790572656583,
+     "peak_req": 0.2684337590036468,
+     "speed_req": 0.6130598736537269
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 2.7930741577349645,
+     "peak_req": 5.935040320923934,
+     "speed_req": 6.716203626272916
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 0.9498012876514088,
+     "speed_req": 0.7933882180254526
+    },
+    "increase_over_10pct": [],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 0.949801287651383,
+     "speed_req": 0.7933882180254564
+    },
+    "like_for_like": {
+     "rms": 1.008574932071032,
+     "peak": 1.040810050571887,
+     "speed": 1.0655831652790153,
+     "turn_rms": 2.5903600040758437,
+     "turn_peak": 4.509687151261266,
+     "turn_speed": 4.633527675604133,
+     "straight_rms": 2.5683366914114516,
+     "straight_peak": 4.332862801222335,
+     "straight_speed": 4.348349173094224
+    }
+   },
+   "ankle_a": {
+    "actuator": "myactuator_rmd_x4_p12_10_e",
+    "bus": 24.0,
+    "limits": {
+     "cont": 2.28,
+     "peak_req": 7.0,
+     "speed_req": 24.923301718479024
+    },
+    "required": {
+     "cont": 1.7262235717433565,
+     "peak_req": 2.867135770416271,
+     "speed_req": 4.442762703960404
+    },
+    "ratio_to_limit": {
+     "cont": 0.7571156016418231,
+     "peak_req": 0.40959082434518157,
+     "speed_req": 0.17825738957637308
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 1.7262235717433565,
+     "peak_req": 3.0931213857868993,
+     "speed_req": 5.220652086810452
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 0.9269392994374397,
+     "speed_req": 0.8509976589293661
+    },
+    "increase_over_10pct": [],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 0.9269392994374008,
+     "speed_req": 0.8509976589293645
+    },
+    "like_for_like": {
+     "rms": 1.0038604367450883,
+     "peak": 1.012299213395527,
+     "speed": 1.113748453129486,
+     "turn_rms": 1.24094323733447,
+     "turn_peak": 2.2937086163330167,
+     "turn_speed": 3.863271916487308,
+     "straight_rms": 1.2361710770852747,
+     "straight_peak": 2.265840559768187,
+     "straight_speed": 3.468711364430653
+    }
+   },
+   "ankle_b": {
+    "actuator": "myactuator_rmd_x4_p12_10_e",
+    "bus": 24.0,
+    "limits": {
+     "cont": 2.28,
+     "peak_req": 7.0,
+     "speed_req": 24.923301718479024
+    },
+    "required": {
+     "cont": 1.7261437303848217,
+     "peak_req": 2.8671340540942203,
+     "speed_req": 4.442567573406712
+    },
+    "ratio_to_limit": {
+     "cont": 0.7570805835021148,
+     "peak_req": 0.4095905791563172,
+     "speed_req": 0.17824956033464995
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 1.7261437303848217,
+     "peak_req": 3.0931421639088663,
+     "speed_req": 5.220532477476595
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 0.9269325178610495,
+     "speed_req": 0.8509797788968222
+    },
+    "increase_over_10pct": [],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 0.9269325178604161,
+     "speed_req": 0.8509797788968261
+    },
+    "like_for_like": {
+     "rms": 1.0038606737203424,
+     "peak": 1.0129835517077548,
+     "speed": 1.113735547477166,
+     "turn_rms": 1.2408771950133384,
+     "turn_peak": 2.2937072432753762,
+     "turn_speed": 3.863102237744967,
+     "straight_rms": 1.2361049969360833,
+     "straight_peak": 2.2643084770808892,
+     "straight_speed": 3.4685992078601307
+    }
+   },
+   "neck": {
+    "actuator": "feetech_sts3250",
+    "bus": null,
+    "limits": {
+     "cont": 0.818801,
+     "peak_req": 1.4365789999999998,
+     "speed_req": 4.71238898038469
+    },
+    "required": {
+     "cont": 0.6199966935669401,
+     "peak_req": 0.860238080935432,
+     "speed_req": 0.7106570509055474
+    },
+    "ratio_to_limit": {
+     "cont": 0.7572007039157745,
+     "peak_req": 0.5988101461426292,
+     "speed_req": 0.15080610999296876
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 0.618853488771091,
+     "peak_req": 0.9142108801815056,
+     "speed_req": 0.9099351685604954
+    },
+    "ratio_to_straight": {
+     "cont": 1.0018472947419579,
+     "peak_req": 0.9409624186102904,
+     "speed_req": 0.7809974550492392
+    },
+    "increase_over_10pct": [],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0018472947419579,
+     "peak_req": 0.940962418610302,
+     "speed_req": 0.7809974550492392
+    },
+    "like_for_like": {
+     "rms": 1.0018472947419579,
+     "peak": 1.0019928911093852,
+     "speed": 1.0,
+     "turn_rms": 0.6199966935669401,
+     "turn_peak": 0.6881904647483456,
+     "turn_speed": 0.6179626529613457,
+     "straight_rms": 0.618853488771091,
+     "straight_peak": 0.6868217038809484,
+     "straight_speed": 0.6179626529613457
+    }
+   },
+   "tail": {
+    "actuator": "feetech_sts3215_c018",
+    "bus": null,
+    "limits": {
+     "cont": 0.4913140000000001,
+     "peak_req": 0.8620059999999999,
+     "speed_req": 2.827433388230814
+    },
+    "required": {
+     "cont": 0.10239427740708866,
+     "peak_req": 0.23436538107546012,
+     "speed_req": 0.8534464373603456
+    },
+    "ratio_to_limit": {
+     "cont": 0.20840903659795698,
+     "peak_req": 0.2718837004330134,
+     "speed_req": 0.30184493148903696
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 0.1026919004286934,
+     "peak_req": 0.3163648471907749,
+     "speed_req": 1.0927646842415564
+    },
+    "ratio_to_straight": {
+     "cont": 0.9971017867975731,
+     "peak_req": 0.7408072772830311,
+     "speed_req": 0.7809974550492434
+    },
+    "increase_over_10pct": [],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 0.9971017867975731,
+     "peak_req": 0.7408072772830423,
+     "speed_req": 0.7809974550492434
+    },
+    "like_for_like": {
+     "rms": 0.9971017867975731,
+     "peak": 1.0059819203766815,
+     "speed": 1.0,
+     "turn_rms": 0.10239427740708866,
+     "turn_peak": 0.1874923048603681,
+     "turn_speed": 0.7421273368350833,
+     "straight_rms": 0.1026919004286934,
+     "straight_peak": 0.1863774100335354,
+     "straight_speed": 0.7421273368350833
+    }
+   }
+  },
+  "in_place_0.50": {
+   "hip_roll": {
+    "actuator": "cubemars_ak45_36_v3",
+    "bus": 24.0,
+    "limits": {
+     "cont": 4.56,
+     "peak_req": 16.799999999999997,
+     "speed_req": 4.1887902047863905
+    },
+    "required": {
+     "cont": 2.695245523837831,
+     "peak_req": 4.2127636314364665,
+     "speed_req": 1.8858224397024719
+    },
+    "ratio_to_limit": {
+     "cont": 0.5910626148767173,
+     "peak_req": 0.2507597399664564,
+     "speed_req": 0.4502069446083993
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 2.695245523837831,
+     "peak_req": 4.716987628723939,
+     "speed_req": 1.035375335825204
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 0.8931046598008828,
+     "speed_req": 1.8213901514270219
+    },
+    "increase_over_10pct": [
+     "speed_req"
+    ],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 0.8931046598008624,
+     "speed_req": 1.8213901514270319
+    },
+    "like_for_like": {
+     "rms": 0.9814648781298999,
+     "peak": 1.0162955309382844,
+     "speed": 1.8213901514270219,
+     "turn_rms": 2.193066494724831,
+     "turn_peak": 3.370210905149173,
+     "turn_speed": 1.63984559974128,
+     "straight_rms": 2.23448290773638,
+     "straight_peak": 3.3161721197747083,
+     "straight_speed": 0.9003263789784383
+    }
+   },
+   "hip_pitch": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "bus": 24.0,
+    "limits": {
+     "cont": 5.984999999999999,
+     "peak_req": 21.0,
+     "speed_req": 8.691739674931762
+    },
+    "required": {
+     "cont": 3.678970820709038,
+     "peak_req": 6.632831630899752,
+     "speed_req": 2.628584286136215
+    },
+    "ratio_to_limit": {
+     "cont": 0.6146985498260716,
+     "peak_req": 0.3158491252809406,
+     "speed_req": 0.30242326443777806
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 3.678970820709038,
+     "peak_req": 8.766420302494337,
+     "speed_req": 6.044381248006663
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 0.7566180267460473,
+     "speed_req": 0.43488062355482276
+    },
+    "increase_over_10pct": [],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 0.7566180267460166,
+     "speed_req": 0.4348806235548192
+    },
+    "like_for_like": {
+     "rms": 0.9679361646231666,
+     "peak": 0.9025835677128702,
+     "speed": 0.5833713429117857,
+     "turn_rms": 2.76930179083025,
+     "turn_peak": 5.306265304719802,
+     "turn_speed": 2.2857254662054047,
+     "straight_rms": 2.8610376304189282,
+     "straight_peak": 5.878973974859501,
+     "straight_speed": 3.918131210896727
+    }
+   },
+   "hip_yaw": {
+    "actuator": "cubemars_ak45_36_v3",
+    "bus": 24.0,
+    "limits": {
+     "cont": 4.56,
+     "peak_req": 16.799999999999997,
+     "speed_req": 4.1887902047863905
+    },
+    "required": {
+     "cont": 3.2341306973638617,
+     "peak_req": 6.274056151160746,
+     "speed_req": 2.80954320149023
+    },
+    "ratio_to_limit": {
+     "cont": 0.7092391880183908,
+     "peak_req": 0.3734557232833778,
+     "speed_req": 0.6707290325210985
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 3.2341306973638617,
+     "peak_req": 8.065378549787185,
+     "speed_req": 3.954978387935787e-07
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 0.7778997740070482,
+     "speed_req": null
+    },
+    "increase_over_10pct": [
+     "speed_req"
+    ],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 0.7778997740070707,
+     "speed_req": null
+    },
+    "like_for_like": {
+     "rms": 0.9688957609255611,
+     "peak": 0.9097782940244376,
+     "speed": null,
+     "turn_rms": 2.491456229397446,
+     "turn_peak": 5.019244920928597,
+     "turn_speed": 2.443081044774113,
+     "straight_rms": 2.5714388790569402,
+     "straight_peak": 5.516997881677066,
+     "straight_speed": 2.3198727807600392e-07
+    }
+   },
+   "knee": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "bus": 24.0,
+    "limits": {
+     "cont": 5.984999999999999,
+     "peak_req": 21.0,
+     "speed_req": 8.691739674931762
+    },
+    "required": {
+     "cont": 2.7930741577349645,
+     "peak_req": 5.165789377961979,
+     "speed_req": 3.9451765139054764
+    },
+    "ratio_to_limit": {
+     "cont": 0.4666790572656583,
+     "peak_req": 0.24598997037914186,
+     "speed_req": 0.45389952546369255
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 2.7930741577349645,
+     "peak_req": 5.935040320923934,
+     "speed_req": 6.716203626272916
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 0.8703882532608974,
+     "speed_req": 0.5874116887213572
+    },
+    "increase_over_10pct": [],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 0.8703882532608739,
+     "speed_req": 0.5874116887213601
+    },
+    "like_for_like": {
+     "rms": 0.984626199485477,
+     "peak": 0.9537877592624754,
+     "speed": 0.7889403855118943,
+     "turn_rms": 2.528851595463562,
+     "turn_peak": 4.132631502369583,
+     "turn_speed": 3.430588272961284,
+     "straight_rms": 2.5683366914114516,
+     "straight_peak": 4.332862801222335,
+     "straight_speed": 4.348349173094224
+    }
+   },
+   "ankle_a": {
+    "actuator": "myactuator_rmd_x4_p12_10_e",
+    "bus": 24.0,
+    "limits": {
+     "cont": 2.28,
+     "peak_req": 7.0,
+     "speed_req": 24.923301718479024
+    },
+    "required": {
+     "cont": 1.7262235717433565,
+     "peak_req": 3.600957892763069,
+     "speed_req": 1.782295773633606
+    },
+    "ratio_to_limit": {
+     "cont": 0.7571156016418231,
+     "peak_req": 0.5144225561090099,
+     "speed_req": 0.0715112224602308
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 1.7262235717433565,
+     "peak_req": 3.0931213857868993,
+     "speed_req": 5.220652086810452
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 1.164182533963818,
+     "speed_req": 0.34139332481787665
+    },
+    "increase_over_10pct": [
+     "peak_req"
+    ],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 1.1641825339637693,
+     "speed_req": 0.341393324817876
+    },
+    "like_for_like": {
+     "rms": 1.0049384174091256,
+     "peak": 1.2713896844115016,
+     "speed": 0.44680062681136173,
+     "turn_rms": 1.2422758058530101,
+     "turn_peak": 2.8807663142104554,
+     "turn_speed": 1.5498224118553097,
+     "straight_rms": 1.2361710770852747,
+     "straight_peak": 2.265840559768187,
+     "straight_speed": 3.468711364430653
+    }
+   },
+   "ankle_b": {
+    "actuator": "myactuator_rmd_x4_p12_10_e",
+    "bus": 24.0,
+    "limits": {
+     "cont": 2.28,
+     "peak_req": 7.0,
+     "speed_req": 24.923301718479024
+    },
+    "required": {
+     "cont": 1.7261437303848217,
+     "peak_req": 3.600789279628678,
+     "speed_req": 1.781854918188848
+    },
+    "ratio_to_limit": {
+     "cont": 0.7570805835021148,
+     "peak_req": 0.5143984685183826,
+     "speed_req": 0.07149353397538485
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 1.7261437303848217,
+     "peak_req": 3.0931421639088663,
+     "speed_req": 5.220532477476595
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 1.1641202016651855,
+     "speed_req": 0.34131670014054355
+    },
+    "increase_over_10pct": [
+     "peak_req"
+    ],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 1.1641202016643901,
+     "speed_req": 0.34131670014054516
+    },
+    "like_for_like": {
+     "rms": 1.0049242932576208,
+     "peak": 1.2721903631331217,
+     "speed": 0.4467045531762489,
+     "turn_rms": 1.2421919404382071,
+     "turn_peak": 2.8806314237029422,
+     "turn_speed": 1.5494390592946505,
+     "straight_rms": 1.2361049969360833,
+     "straight_peak": 2.2643084770808892,
+     "straight_speed": 3.4685992078601307
+    }
+   },
+   "neck": {
+    "actuator": "feetech_sts3250",
+    "bus": null,
+    "limits": {
+     "cont": 0.818801,
+     "peak_req": 1.4365789999999998,
+     "speed_req": 4.71238898038469
+    },
+    "required": {
+     "cont": 0.6206007258416558,
+     "peak_req": 0.8900886774185844,
+     "speed_req": 0.7106570509055474
+    },
+    "ratio_to_limit": {
+     "cont": 0.7579384073073382,
+     "peak_req": 0.6195890914586559,
+     "speed_req": 0.15080610999296876
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 0.618853488771091,
+     "peak_req": 0.9142108801815056,
+     "speed_req": 0.9099351685604954
+    },
+    "ratio_to_straight": {
+     "cont": 1.0028233452703554,
+     "peak_req": 0.9736141810540123,
+     "speed_req": 0.7809974550492392
+    },
+    "increase_over_10pct": [],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0028233452703554,
+     "peak_req": 0.9736141810540244,
+     "speed_req": 0.7809974550492392
+    },
+    "like_for_like": {
+     "rms": 1.0028233452703554,
+     "peak": 1.0367624347210433,
+     "speed": 1.0,
+     "turn_rms": 0.6206007258416558,
+     "turn_peak": 0.7120709419348675,
+     "turn_speed": 0.6179626529613457,
+     "straight_rms": 0.618853488771091,
+     "straight_peak": 0.6868217038809484,
+     "straight_speed": 0.6179626529613457
+    }
+   },
+   "tail": {
+    "actuator": "feetech_sts3215_c018",
+    "bus": null,
+    "limits": {
+     "cont": 0.4913140000000001,
+     "peak_req": 0.8620059999999999,
+     "speed_req": 2.827433388230814
+    },
+    "required": {
+     "cont": 0.0968994012069697,
+     "peak_req": 0.22649247829666583,
+     "speed_req": 0.8534464373603456
+    },
+    "ratio_to_limit": {
+     "cont": 0.1972249950275581,
+     "peak_req": 0.26275046611817765,
+     "speed_req": 0.30184493148903696
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 0.1026919004286934,
+     "peak_req": 0.3163648471907749,
+     "speed_req": 1.0927646842415564
+    },
+    "ratio_to_straight": {
+     "cont": 0.9435934168367459,
+     "peak_req": 0.7159217602962251,
+     "speed_req": 0.7809974550492434
+    },
+    "increase_over_10pct": [],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 0.9435934168367459,
+     "peak_req": 0.715921760296236,
+     "speed_req": 0.7809974550492434
+    },
+    "like_for_like": {
+     "rms": 0.9435934168367459,
+     "peak": 0.9721885426175304,
+     "speed": 1.0,
+     "turn_rms": 0.0968994012069697,
+     "turn_peak": 0.18119398263733266,
+     "turn_speed": 0.7421273368350833,
+     "straight_rms": 0.1026919004286934,
+     "straight_peak": 0.1863774100335354,
+     "straight_speed": 0.7421273368350833
+    }
+   }
+  },
+  "walk_0.50": {
+   "hip_roll": {
+    "actuator": "cubemars_ak45_36_v3",
+    "bus": 24.0,
+    "limits": {
+     "cont": 4.56,
+     "peak_req": 16.799999999999997,
+     "speed_req": 4.1887902047863905
+    },
+    "required": {
+     "cont": 2.695245523837831,
+     "peak_req": 4.685006619535244,
+     "speed_req": 2.0043730366137122
+    },
+    "ratio_to_limit": {
+     "cont": 0.5910626148767173,
+     "peak_req": 0.2788694416390027,
+     "speed_req": 0.4785088148657773
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 2.695245523837831,
+     "peak_req": 4.716987628723939,
+     "speed_req": 1.035375335825204
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 0.9932200353899705,
+     "speed_req": 1.9358902682535004
+    },
+    "increase_over_10pct": [
+     "speed_req"
+    ],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 0.9932200353899479,
+     "speed_req": 1.935890268253511
+    },
+    "like_for_like": {
+     "rms": 1.0020562535874198,
+     "peak": 1.1302203746537813,
+     "speed": 1.9358902682535006,
+     "turn_rms": 2.2390775712314412,
+     "turn_peak": 3.748005295628195,
+     "turn_speed": 1.7429330753162717,
+     "straight_rms": 2.23448290773638,
+     "straight_peak": 3.3161721197747083,
+     "straight_speed": 0.9003263789784383
+    }
+   },
+   "hip_pitch": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "bus": 24.0,
+    "limits": {
+     "cont": 5.984999999999999,
+     "peak_req": 21.0,
+     "speed_req": 8.691739674931762
+    },
+    "required": {
+     "cont": 3.678970820709038,
+     "peak_req": 7.456493119461182,
+     "speed_req": 5.504528831190709
+    },
+    "ratio_to_limit": {
+     "cont": 0.6146985498260716,
+     "peak_req": 0.35507110092672295,
+     "speed_req": 0.633305763524714
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 3.678970820709038,
+     "peak_req": 8.766420302494337,
+     "speed_req": 6.044381248006663
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 0.850574449110039,
+     "speed_req": 0.9106852472295673
+    },
+    "increase_over_10pct": [],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 0.8505744491100046,
+     "speed_req": 0.91068524722956
+    },
+    "like_for_like": {
+     "rms": 1.0008485987966582,
+     "peak": 1.0146659129770184,
+     "speed": 1.2216402545221485,
+     "turn_rms": 2.8634655035092953,
+     "turn_peak": 5.965194495568946,
+     "turn_speed": 4.7865468097310515,
+     "straight_rms": 2.8610376304189282,
+     "straight_peak": 5.878973974859501,
+     "straight_speed": 3.918131210896727
+    }
+   },
+   "hip_yaw": {
+    "actuator": "cubemars_ak45_36_v3",
+    "bus": 24.0,
+    "limits": {
+     "cont": 4.56,
+     "peak_req": 16.799999999999997,
+     "speed_req": 4.1887902047863905
+    },
+    "required": {
+     "cont": 3.2341306973638617,
+     "peak_req": 7.275769760138084,
+     "speed_req": 3.1190874357464726
+    },
+    "ratio_to_limit": {
+     "cont": 0.7092391880183908,
+     "peak_req": 0.4330815333415527,
+     "speed_req": 0.7446272750023135
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 3.2341306973638617,
+     "peak_req": 8.065378549787185,
+     "speed_req": 3.954978387935787e-07
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 0.9020989796356259,
+     "speed_req": null
+    },
+    "increase_over_10pct": [
+     "speed_req"
+    ],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 0.902098979635652,
+     "speed_req": null
+    },
+    "like_for_like": {
+     "rms": 0.9971096686795115,
+     "peak": 1.0550331779973616,
+     "speed": null,
+     "turn_rms": 2.56400656872608,
+     "turn_peak": 5.8206158081104675,
+     "turn_speed": 2.7122499441273678,
+     "straight_rms": 2.5714388790569402,
+     "straight_peak": 5.516997881677066,
+     "straight_speed": 2.3198727807600392e-07
+    }
+   },
+   "knee": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "bus": 24.0,
+    "limits": {
+     "cont": 5.984999999999999,
+     "peak_req": 21.0,
+     "speed_req": 8.691739674931762
+    },
+    "required": {
+     "cont": 2.7930741577349645,
+     "peak_req": 5.73730788533201,
+     "speed_req": 5.593135302926834
+    },
+    "ratio_to_limit": {
+     "cont": 0.4666790572656583,
+     "peak_req": 0.2732051373967624,
+     "speed_req": 0.6435000945850056
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 2.7930741577349645,
+     "peak_req": 5.935040320923934,
+     "speed_req": 6.716203626272916
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 0.9666838934699701,
+     "speed_req": 0.8327822701871658
+    },
+    "increase_over_10pct": [],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 0.9666838934699439,
+     "speed_req": 0.8327822701871698
+    },
+    "like_for_like": {
+     "rms": 1.0127793529842735,
+     "peak": 1.059310326413007,
+     "speed": 1.1184924949639417,
+     "turn_rms": 2.6011583725734595,
+     "turn_peak": 4.589846308265608,
+     "turn_speed": 4.863595915588552,
+     "straight_rms": 2.5683366914114516,
+     "straight_peak": 4.332862801222335,
+     "straight_speed": 4.348349173094224
+    }
+   },
+   "ankle_a": {
+    "actuator": "myactuator_rmd_x4_p12_10_e",
+    "bus": 24.0,
+    "limits": {
+     "cont": 2.28,
+     "peak_req": 7.0,
+     "speed_req": 24.923301718479024
+    },
+    "required": {
+     "cont": 1.7262235717433565,
+     "peak_req": 2.875387694092939,
+     "speed_req": 4.599401388869858
+    },
+    "ratio_to_limit": {
+     "cont": 0.7571156016418231,
+     "peak_req": 0.4107696705847056,
+     "speed_req": 0.18454221839555465
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 1.7262235717433565,
+     "peak_req": 3.0931213857868993,
+     "speed_req": 5.220652086810452
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 0.9296071299708892,
+     "speed_req": 0.8810013217486505
+    },
+    "increase_over_10pct": [],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 0.9296071299708503,
+     "speed_req": 0.8810013217486489
+    },
+    "like_for_like": {
+     "rms": 1.0050160458732518,
+     "peak": 1.015212718899202,
+     "speed": 1.153015932543281,
+     "turn_rms": 1.2423717679151216,
+     "turn_peak": 2.3003101552743512,
+     "turn_speed": 3.9994794685824857,
+     "straight_rms": 1.2361710770852747,
+     "straight_peak": 2.265840559768187,
+     "straight_speed": 3.468711364430653
+    }
+   },
+   "ankle_b": {
+    "actuator": "myactuator_rmd_x4_p12_10_e",
+    "bus": 24.0,
+    "limits": {
+     "cont": 2.28,
+     "peak_req": 7.0,
+     "speed_req": 24.923301718479024
+    },
+    "required": {
+     "cont": 1.7261437303848217,
+     "peak_req": 2.8753989888067153,
+     "speed_req": 4.59916233072057
+    },
+    "ratio_to_limit": {
+     "cont": 0.7570805835021148,
+     "peak_req": 0.41077128411524505,
+     "speed_req": 0.1845326266427448
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 1.7261437303848217,
+     "peak_req": 3.0931421639088663,
+     "speed_req": 5.220532477476595
+    },
+    "ratio_to_straight": {
+     "cont": 1.0,
+     "peak_req": 0.9296045368871813,
+     "speed_req": 0.8809757147500074
+    },
+    "increase_over_10pct": [],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0,
+     "peak_req": 0.9296045368865461,
+     "speed_req": 0.8809757147500115
+    },
+    "like_for_like": {
+     "rms": 1.0050172134954882,
+     "peak": 1.015903625468429,
+     "speed": 1.1529932841096928,
+     "turn_rms": 1.2423067996085515,
+     "turn_peak": 2.3003191910453724,
+     "turn_speed": 3.9992715919309307,
+     "straight_rms": 1.2361049969360833,
+     "straight_peak": 2.2643084770808892,
+     "straight_speed": 3.4685992078601307
+    }
+   },
+   "neck": {
+    "actuator": "feetech_sts3250",
+    "bus": null,
+    "limits": {
+     "cont": 0.818801,
+     "peak_req": 1.4365789999999998,
+     "speed_req": 4.71238898038469
+    },
+    "required": {
+     "cont": 0.6211846702015861,
+     "peak_req": 0.8617183299551023,
+     "speed_req": 0.7106570509055474
+    },
+    "ratio_to_limit": {
+     "cont": 0.7586515773693316,
+     "peak_req": 0.5998405447630116,
+     "speed_req": 0.15080610999296876
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 0.618853488771091,
+     "peak_req": 0.9142108801815056,
+     "speed_req": 0.9099351685604954
+    },
+    "ratio_to_straight": {
+     "cont": 1.0037669359109929,
+     "peak_req": 0.9425815735030614,
+     "speed_req": 0.7809974550492392
+    },
+    "increase_over_10pct": [],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 1.0037669359109929,
+     "peak_req": 0.942581573503073,
+     "speed_req": 0.7809974550492392
+    },
+    "like_for_like": {
+     "rms": 1.0037669359109929,
+     "peak": 1.0037170637862893,
+     "speed": 1.0,
+     "turn_rms": 0.6211846702015861,
+     "turn_peak": 0.6893746639640819,
+     "turn_speed": 0.6179626529613457,
+     "straight_rms": 0.618853488771091,
+     "straight_peak": 0.6868217038809484,
+     "straight_speed": 0.6179626529613457
+    }
+   },
+   "tail": {
+    "actuator": "feetech_sts3215_c018",
+    "bus": null,
+    "limits": {
+     "cont": 0.4913140000000001,
+     "peak_req": 0.8620059999999999,
+     "speed_req": 2.827433388230814
+    },
+    "required": {
+     "cont": 0.10209086898497184,
+     "peak_req": 0.2342823959273196,
+     "speed_req": 0.8534464373603456
+    },
+    "ratio_to_limit": {
+     "cont": 0.2077914917648832,
+     "peak_req": 0.2717874306296239,
+     "speed_req": 0.30184493148903696
+    },
+    "meets": true,
+    "over_limit": [],
+    "near_limit": [],
+    "straight_required": {
+     "cont": 0.1026919004286934,
+     "peak_req": 0.3163648471907749,
+     "speed_req": 1.0927646842415564
+    },
+    "ratio_to_straight": {
+     "cont": 0.9941472361382687,
+     "peak_req": 0.7405449689106647,
+     "speed_req": 0.7809974550492434
+    },
+    "increase_over_10pct": [],
+    "near_increase_flag": [],
+    "ratio_to_as_sized": {
+     "cont": 0.9941472361382687,
+     "peak_req": 0.740544968910676,
+     "speed_req": 0.7809974550492434
+    },
+    "like_for_like": {
+     "rms": 0.9941472361382687,
+     "peak": 1.0056257177741208,
+     "speed": 1.0,
+     "turn_rms": 0.10209086898497184,
+     "turn_peak": 0.18742591674185566,
+     "turn_speed": 0.7421273368350833,
+     "straight_rms": 0.1026919004286934,
+     "straight_peak": 0.1863774100335354,
+     "straight_speed": 0.7421273368350833
+    }
+   }
+  }
+ },
+ "gates": {
+  "walk_0.35": {
+   "role": "target",
+   "drives_within_limits": true,
+   "ik_ok": true,
+   "interference_free": true,
+   "pass": true
+  },
+  "in_place_0.50": {
+   "role": "target",
+   "drives_within_limits": true,
+   "ik_ok": true,
+   "interference_free": true,
+   "pass": true
+  },
+  "walk_0.50": {
+   "role": "stretch",
+   "drives_within_limits": true,
+   "ik_ok": true,
+   "interference_free": true,
+   "pass": true
+  }
+ },
+ "clearance": {
+  "cases": {
+   "walk_0.35": {
+    "interference_free": true,
+    "interference_pairs": [
+     0,
+     0
+    ],
+    "min_gap_mm": 1.52,
+    "deepest": {
+     "geoms": [
+      "hw_pelvis_plate_l",
+      "cl_left_thigh_upper_4"
+     ],
+     "bodies": [
+      "trunk",
+      "left_thigh"
+     ],
+     "class": "shell-hardware",
+     "at": {
+      "gait": "walk_0.35_left",
+      "frame": 125,
+      "phase": 0.781,
+      "support": [
+       "left"
+      ]
+     }
+    },
+    "frames_in_contact": [
+     0,
+     0
+    ],
+    "same_body_pair_straight_walk_mm": 2.0,
+    "swing_clearance_ok": true,
+    "lateral_gap_mm": 55.44,
+    "range_margins": {
+     "left_hip_yaw": {
+      "min": -0.1428233745977799,
+      "max": 0.15681194286711717,
+      "usable": [
+       -0.3,
+       0.3
+      ],
+      "margin_min": 0.15717662540222008,
+      "margin_max": 0.14318805713288282
+     },
+     "left_hip_roll": {
+      "min": -0.1726386914791968,
+      "max": 0.1282927171686075,
+      "usable": [
+       -0.45,
+       0.2018
+      ],
+      "margin_min": 0.2773613085208032,
+      "margin_max": 0.07350728283139252
+     },
+     "right_hip_yaw": {
+      "min": -0.15683664527665386,
+      "max": 0.14283895137065936,
+      "usable": [
+       -0.3,
+       0.3
+      ],
+      "margin_min": 0.14316335472334613,
+      "margin_max": 0.15716104862934063
+     },
+     "right_hip_roll": {
+      "min": -0.12813506341490477,
+      "max": 0.17280956782137355,
+      "usable": [
+       -0.2018,
+       0.45
+      ],
+      "margin_min": 0.07366493658509524,
+      "margin_max": 0.2771904321786265
+     }
+    }
+   },
+   "in_place_0.50": {
+    "interference_free": true,
+    "interference_pairs": [
+     0,
+     0
+    ],
+    "min_gap_mm": 1.5,
+    "deepest": {
+     "geoms": [
+      "hw_pelvis_plate_r",
+      "cl_right_thigh_upper_4"
+     ],
+     "bodies": [
+      "trunk",
+      "right_thigh"
+     ],
+     "class": "shell-hardware",
+     "at": {
+      "gait": "in_place_0.50_right",
+      "frame": 49,
+      "phase": 0.306,
+      "support": [
+       "right"
+      ]
+     }
+    },
+    "frames_in_contact": [
+     0,
+     0
+    ],
+    "same_body_pair_straight_walk_mm": 1.99,
+    "swing_clearance_ok": true,
+    "lateral_gap_mm": 44.62,
+    "range_margins": {
+     "left_hip_yaw": {
+      "min": -0.18654904917089715,
+      "max": 0.2059071817054614,
+      "usable": [
+       -0.3,
+       0.3
+      ],
+      "margin_min": 0.11345095082910284,
+      "margin_max": 0.09409281829453858
+     },
+     "left_hip_roll": {
+      "min": -0.17362789003301282,
+      "max": 0.13579626884535528,
+      "usable": [
+       -0.45,
+       0.2018
+      ],
+      "margin_min": 0.2763721099669872,
+      "margin_max": 0.06600373115464472
+     },
+     "right_hip_yaw": {
+      "min": -0.20592700269984973,
+      "max": 0.18656206056655725,
+      "usable": [
+       -0.3,
+       0.3
+      ],
+      "margin_min": 0.09407299730015026,
+      "margin_max": 0.11343793943344274
+     },
+     "right_hip_roll": {
+      "min": -0.13564352983771977,
+      "max": 0.17380263275120947,
+      "usable": [
+       -0.2018,
+       0.45
+      ],
+      "margin_min": 0.06615647016228024,
+      "margin_max": 0.2761973672487905
+     }
+    }
+   },
+   "walk_0.50": {
+    "interference_free": true,
+    "interference_pairs": [
+     0,
+     0
+    ],
+    "min_gap_mm": 1.18,
+    "deepest": {
+     "geoms": [
+      "hw_pelvis_plate_l",
+      "cl_left_thigh_upper_4"
+     ],
+     "bodies": [
+      "trunk",
+      "left_thigh"
+     ],
+     "class": "shell-hardware",
+     "at": {
+      "gait": "walk_0.50_left",
+      "frame": 129,
+      "phase": 0.806,
+      "support": [
+       "left"
+      ]
+     }
+    },
+    "frames_in_contact": [
+     0,
+     0
+    ],
+    "same_body_pair_straight_walk_mm": 2.0,
+    "swing_clearance_ok": true,
+    "lateral_gap_mm": 50.03,
+    "range_margins": {
+     "left_hip_yaw": {
+      "min": -0.2011736225192513,
+      "max": 0.23032717140351094,
+      "usable": [
+       -0.3,
+       0.3
+      ],
+      "margin_min": 0.09882637748074868,
+      "margin_max": 0.06967282859648904
+     },
+     "left_hip_roll": {
+      "min": -0.18401418255809165,
+      "max": 0.1537534589087046,
+      "usable": [
+       -0.45,
+       0.2018
+      ],
+      "margin_min": 0.26598581744190836,
+      "margin_max": 0.048046541091295414
+     },
+     "right_hip_yaw": {
+      "min": -0.23036586351635102,
+      "max": 0.20119384728297512,
+      "usable": [
+       -0.3,
+       0.3
+      ],
+      "margin_min": 0.06963413648364897,
+      "margin_max": 0.09880615271702486
+     },
+     "right_hip_roll": {
+      "min": -0.1536056830631415,
+      "max": 0.18418734346617496,
+      "usable": [
+       -0.2018,
+       0.45
+      ],
+      "margin_min": 0.048194316936858494,
+      "margin_max": 0.265812656533825
+     }
+    }
+   }
+  },
+  "runs": {
+   "straight": {
+    "interference_pairs": 0,
+    "tight_pairs": 2,
+    "interference_by_class": {
+     "hardware-hardware": 0,
+     "shell-hardware": 0,
+     "shell-shell": 0
+    },
+    "min_mm": 1.99,
+    "worst": {
+     "geoms": [
+      "hw_pelvis_plate_r",
+      "cl_right_thigh_upper_4"
+     ],
+     "bodies": [
+      "trunk",
+      "right_thigh"
+     ],
+     "class": "shell-hardware",
+     "at": {
+      "gait": "straight",
+      "frame": 32,
+      "phase": 0.2,
+      "support": [
+       "right"
+      ]
+     }
+    },
+    "frames_in_contact": 0,
+    "contact_frames": [],
+    "pairs_in_contact": [],
+    "body_pairs": {
+     "trunk/right_thigh": 1.99,
+     "trunk/left_thigh": 2.0,
+     "left_roll/right_roll": 4.0,
+     "left_shank/left_foot": 14.97,
+     "right_shank/right_foot": 14.98,
+     "trunk/right_femur": 15.41,
+     "trunk/left_femur": 15.42,
+     "right_thigh/right_shank": 18.64,
+     "left_thigh/left_shank": 18.66
+    },
+    "mid_swing_min_frac_H": 0.05,
+    "lateral_gap_mm": 67.06,
+    "max_step_mm": 5.8
+   },
+   "walk_0.35_left": {
+    "interference_pairs": 0,
+    "tight_pairs": 6,
+    "interference_by_class": {
+     "hardware-hardware": 0,
+     "shell-hardware": 0,
+     "shell-shell": 0
+    },
+    "min_mm": 1.52,
+    "worst": {
+     "geoms": [
+      "hw_pelvis_plate_l",
+      "cl_left_thigh_upper_4"
+     ],
+     "bodies": [
+      "trunk",
+      "left_thigh"
+     ],
+     "class": "shell-hardware",
+     "at": {
+      "gait": "walk_0.35_left",
+      "frame": 125,
+      "phase": 0.781,
+      "support": [
+       "left"
+      ]
+     }
+    },
+    "frames_in_contact": 0,
+    "contact_frames": [],
+    "pairs_in_contact": [],
+    "body_pairs": {
+     "trunk/left_thigh": 1.52,
+     "trunk/right_thigh": 2.02,
+     "left_roll/right_roll": 4.0,
+     "trunk/right_femur": 7.79,
+     "trunk/left_femur": 14.47,
+     "right_shank/right_foot": 14.75,
+     "left_shank/left_foot": 15.2,
+     "right_thigh/right_shank": 16.73,
+     "left_thigh/left_shank": 19.27
+    },
+    "mid_swing_min_frac_H": 0.05,
+    "lateral_gap_mm": 55.44,
+    "max_step_mm": 6.7
+   },
+   "walk_0.35_right": {
+    "interference_pairs": 0,
+    "tight_pairs": 6,
+    "interference_by_class": {
+     "hardware-hardware": 0,
+     "shell-hardware": 0,
+     "shell-shell": 0
+    },
+    "min_mm": 1.52,
+    "worst": {
+     "geoms": [
+      "hw_pelvis_plate_r",
+      "cl_right_thigh_upper_4"
+     ],
+     "bodies": [
+      "trunk",
+      "right_thigh"
+     ],
+     "class": "shell-hardware",
+     "at": {
+      "gait": "walk_0.35_right",
+      "frame": 45,
+      "phase": 0.281,
+      "support": [
+       "right"
+      ]
+     }
+    },
+    "frames_in_contact": 0,
+    "contact_frames": [],
+    "pairs_in_contact": [],
+    "body_pairs": {
+     "trunk/right_thigh": 1.52,
+     "trunk/left_thigh": 2.02,
+     "left_roll/right_roll": 4.0,
+     "trunk/left_femur": 7.81,
+     "trunk/right_femur": 14.46,
+     "left_shank/left_foot": 14.75,
+     "right_shank/right_foot": 15.2,
+     "left_thigh/left_shank": 16.75,
+     "right_thigh/right_shank": 19.25
+    },
+    "mid_swing_min_frac_H": 0.05,
+    "lateral_gap_mm": 55.44,
+    "max_step_mm": 6.7
+   },
+   "in_place_0.50_left": {
+    "interference_pairs": 0,
+    "tight_pairs": 10,
+    "interference_by_class": {
+     "hardware-hardware": 0,
+     "shell-hardware": 0,
+     "shell-shell": 0
+    },
+    "min_mm": 1.51,
+    "worst": {
+     "geoms": [
+      "hw_pelvis_plate_l",
+      "cl_left_thigh_upper_4"
+     ],
+     "bodies": [
+      "trunk",
+      "left_thigh"
+     ],
+     "class": "shell-hardware",
+     "at": {
+      "gait": "in_place_0.50_left",
+      "frame": 129,
+      "phase": 0.806,
+      "support": [
+       "left"
+      ]
+     }
+    },
+    "frames_in_contact": 0,
+    "contact_frames": [],
+    "pairs_in_contact": [],
+    "body_pairs": {
+     "trunk/left_thigh": 1.51,
+     "trunk/right_thigh": 1.58,
+     "left_roll/right_roll": 4.0,
+     "trunk/left_femur": 11.72,
+     "trunk/right_femur": 11.81,
+     "left_thigh/left_shank": 16.79,
+     "right_thigh/right_shank": 16.84,
+     "right_shank/right_foot": 17.45,
+     "left_shank/left_foot": 17.47
+    },
+    "mid_swing_min_frac_H": 0.05,
+    "lateral_gap_mm": 44.62,
+    "max_step_mm": 3.5
+   },
+   "in_place_0.50_right": {
+    "interference_pairs": 0,
+    "tight_pairs": 10,
+    "interference_by_class": {
+     "hardware-hardware": 0,
+     "shell-hardware": 0,
+     "shell-shell": 0
+    },
+    "min_mm": 1.5,
+    "worst": {
+     "geoms": [
+      "hw_pelvis_plate_r",
+      "cl_right_thigh_upper_4"
+     ],
+     "bodies": [
+      "trunk",
+      "right_thigh"
+     ],
+     "class": "shell-hardware",
+     "at": {
+      "gait": "in_place_0.50_right",
+      "frame": 49,
+      "phase": 0.306,
+      "support": [
+       "right"
+      ]
+     }
+    },
+    "frames_in_contact": 0,
+    "contact_frames": [],
+    "pairs_in_contact": [],
+    "body_pairs": {
+     "trunk/right_thigh": 1.5,
+     "trunk/left_thigh": 1.58,
+     "left_roll/right_roll": 4.0,
+     "trunk/right_femur": 11.7,
+     "trunk/left_femur": 11.83,
+     "right_thigh/right_shank": 16.77,
+     "left_thigh/left_shank": 16.86,
+     "left_shank/left_foot": 17.46,
+     "right_shank/right_foot": 17.47
+    },
+    "mid_swing_min_frac_H": 0.05,
+    "lateral_gap_mm": 44.62,
+    "max_step_mm": 3.5
+   },
+   "walk_0.50_left": {
+    "interference_pairs": 0,
+    "tight_pairs": 9,
+    "interference_by_class": {
+     "hardware-hardware": 0,
+     "shell-hardware": 0,
+     "shell-shell": 0
+    },
+    "min_mm": 1.18,
+    "worst": {
+     "geoms": [
+      "hw_pelvis_plate_l",
+      "cl_left_thigh_upper_4"
+     ],
+     "bodies": [
+      "trunk",
+      "left_thigh"
+     ],
+     "class": "shell-hardware",
+     "at": {
+      "gait": "walk_0.50_left",
+      "frame": 129,
+      "phase": 0.806,
+      "support": [
+       "left"
+      ]
+     }
+    },
+    "frames_in_contact": 0,
+    "contact_frames": [],
+    "pairs_in_contact": [],
+    "body_pairs": {
+     "trunk/left_thigh": 1.18,
+     "trunk/right_thigh": 1.88,
+     "trunk/right_femur": 3.7,
+     "left_roll/right_roll": 4.0,
+     "trunk/left_femur": 13.58,
+     "right_shank/right_foot": 14.67,
+     "left_shank/left_foot": 15.01,
+     "right_thigh/right_shank": 15.54,
+     "left_thigh/left_shank": 19.1
+    },
+    "mid_swing_min_frac_H": 0.05,
+    "lateral_gap_mm": 50.03,
+    "max_step_mm": 7.1
+   },
+   "walk_0.50_right": {
+    "interference_pairs": 0,
+    "tight_pairs": 9,
+    "interference_by_class": {
+     "hardware-hardware": 0,
+     "shell-hardware": 0,
+     "shell-shell": 0
+    },
+    "min_mm": 1.18,
+    "worst": {
+     "geoms": [
+      "hw_pelvis_plate_r",
+      "cl_right_thigh_upper_4"
+     ],
+     "bodies": [
+      "trunk",
+      "right_thigh"
+     ],
+     "class": "shell-hardware",
+     "at": {
+      "gait": "walk_0.50_right",
+      "frame": 49,
+      "phase": 0.306,
+      "support": [
+       "right"
+      ]
+     }
+    },
+    "frames_in_contact": 0,
+    "contact_frames": [],
+    "pairs_in_contact": [],
+    "body_pairs": {
+     "trunk/right_thigh": 1.18,
+     "trunk/left_thigh": 1.89,
+     "trunk/left_femur": 3.72,
+     "left_roll/right_roll": 4.0,
+     "trunk/right_femur": 13.56,
+     "left_shank/left_foot": 14.67,
+     "right_shank/right_foot": 15.01,
+     "left_thigh/left_shank": 15.55,
+     "right_thigh/right_shank": 19.09
+    },
+    "mid_swing_min_frac_H": 0.05,
+    "lateral_gap_mm": 50.03,
+    "max_step_mm": 7.1
+   },
+   "probe_walk_0.40_left": {
+    "interference_pairs": 0,
+    "tight_pairs": 7,
+    "interference_by_class": {
+     "hardware-hardware": 0,
+     "shell-hardware": 0,
+     "shell-shell": 0
+    },
+    "min_mm": 1.42,
+    "worst": {
+     "geoms": [
+      "hw_pelvis_plate_l",
+      "cl_left_thigh_upper_4"
+     ],
+     "bodies": [
+      "trunk",
+      "left_thigh"
+     ],
+     "class": "shell-hardware",
+     "at": {
+      "gait": "probe_walk_0.40_left",
+      "frame": 126,
+      "phase": 0.787,
+      "support": [
+       "left"
+      ]
+     }
+    },
+    "frames_in_contact": 0,
+    "contact_frames": [],
+    "pairs_in_contact": [],
+    "body_pairs": {
+     "trunk/left_thigh": 1.42,
+     "trunk/right_thigh": 1.98,
+     "left_roll/right_roll": 4.0,
+     "trunk/right_femur": 6.42,
+     "trunk/left_femur": 14.2,
+     "right_shank/right_foot": 14.72,
+     "left_shank/left_foot": 15.13,
+     "right_thigh/right_shank": 16.34,
+     "left_thigh/left_shank": 19.25
+    },
+    "mid_swing_min_frac_H": 0.05,
+    "lateral_gap_mm": 53.66,
+    "max_step_mm": 6.8
+   },
+   "probe_walk_0.45_left": {
+    "interference_pairs": 0,
+    "tight_pairs": 7,
+    "interference_by_class": {
+     "hardware-hardware": 0,
+     "shell-hardware": 0,
+     "shell-shell": 0
+    },
+    "min_mm": 1.3,
+    "worst": {
+     "geoms": [
+      "hw_pelvis_plate_l",
+      "cl_left_thigh_upper_4"
+     ],
+     "bodies": [
+      "trunk",
+      "left_thigh"
+     ],
+     "class": "shell-hardware",
+     "at": {
+      "gait": "probe_walk_0.45_left",
+      "frame": 128,
+      "phase": 0.8,
+      "support": [
+       "left"
+      ]
+     }
+    },
+    "frames_in_contact": 0,
+    "contact_frames": [],
+    "pairs_in_contact": [],
+    "body_pairs": {
+     "trunk/left_thigh": 1.3,
+     "trunk/right_thigh": 1.94,
+     "left_roll/right_roll": 4.0,
+     "trunk/right_femur": 5.07,
+     "trunk/left_femur": 13.9,
+     "right_shank/right_foot": 14.7,
+     "left_shank/left_foot": 15.07,
+     "right_thigh/right_shank": 15.94,
+     "left_thigh/left_shank": 19.21
+    },
+    "mid_swing_min_frac_H": 0.05,
+    "lateral_gap_mm": 51.86,
+    "max_step_mm": 7.0
+   },
+   "probe_in_place_0.35_left": {
+    "interference_pairs": 0,
+    "tight_pairs": 5,
+    "interference_by_class": {
+     "hardware-hardware": 0,
+     "shell-hardware": 0,
+     "shell-shell": 0
+    },
+    "min_mm": 1.75,
+    "worst": {
+     "geoms": [
+      "hw_pelvis_plate_l",
+      "cl_left_thigh_upper_4"
+     ],
+     "bodies": [
+      "trunk",
+      "left_thigh"
+     ],
+     "class": "shell-hardware",
+     "at": {
+      "gait": "probe_in_place_0.35_left",
+      "frame": 124,
+      "phase": 0.775,
+      "support": [
+       "left"
+      ]
+     }
+    },
+    "frames_in_contact": 0,
+    "contact_frames": [],
+    "pairs_in_contact": [],
+    "body_pairs": {
+     "trunk/left_thigh": 1.75,
+     "trunk/right_thigh": 1.8,
+     "left_roll/right_roll": 4.0,
+     "trunk/left_femur": 14.48,
+     "trunk/right_femur": 14.67,
+     "right_shank/right_foot": 17.48,
+     "left_shank/left_foot": 17.5,
+     "left_thigh/left_shank": 17.75,
+     "right_thigh/right_shank": 17.78
+    },
+    "mid_swing_min_frac_H": 0.05,
+    "lateral_gap_mm": 49.89,
+    "max_step_mm": 3.3
+   },
+   "probe_in_place_0.40_left": {
+    "interference_pairs": 0,
+    "tight_pairs": 6,
+    "interference_by_class": {
+     "hardware-hardware": 0,
+     "shell-hardware": 0,
+     "shell-shell": 0
+    },
+    "min_mm": 1.68,
+    "worst": {
+     "geoms": [
+      "hw_pelvis_plate_l",
+      "cl_left_thigh_upper_4"
+     ],
+     "bodies": [
+      "trunk",
+      "left_thigh"
+     ],
+     "class": "shell-hardware",
+     "at": {
+      "gait": "probe_in_place_0.40_left",
+      "frame": 126,
+      "phase": 0.787,
+      "support": [
+       "left"
+      ]
+     }
+    },
+    "frames_in_contact": 0,
+    "contact_frames": [],
+    "pairs_in_contact": [],
+    "body_pairs": {
+     "trunk/left_thigh": 1.68,
+     "trunk/right_thigh": 1.74,
+     "left_roll/right_roll": 4.0,
+     "trunk/left_femur": 14.1,
+     "trunk/right_femur": 14.21,
+     "left_thigh/left_shank": 17.46,
+     "right_shank/right_foot": 17.47,
+     "left_shank/left_foot": 17.49,
+     "right_thigh/right_shank": 17.5
+    },
+    "mid_swing_min_frac_H": 0.05,
+    "lateral_gap_mm": 48.15,
+    "max_step_mm": 3.3
+   },
+   "probe_in_place_0.45_left": {
+    "interference_pairs": 0,
+    "tight_pairs": 10,
+    "interference_by_class": {
+     "hardware-hardware": 0,
+     "shell-hardware": 0,
+     "shell-shell": 0
+    },
+    "min_mm": 1.6,
+    "worst": {
+     "geoms": [
+      "hw_pelvis_plate_l",
+      "cl_left_thigh_upper_4"
+     ],
+     "bodies": [
+      "trunk",
+      "left_thigh"
+     ],
+     "class": "shell-hardware",
+     "at": {
+      "gait": "probe_in_place_0.45_left",
+      "frame": 127,
+      "phase": 0.794,
+      "support": [
+       "left"
+      ]
+     }
+    },
+    "frames_in_contact": 0,
+    "contact_frames": [],
+    "pairs_in_contact": [],
+    "body_pairs": {
+     "trunk/left_thigh": 1.6,
+     "trunk/right_thigh": 1.66,
+     "left_roll/right_roll": 4.0,
+     "trunk/left_femur": 12.89,
+     "trunk/right_femur": 12.99,
+     "left_thigh/left_shank": 17.14,
+     "right_thigh/right_shank": 17.18,
+     "right_shank/right_foot": 17.46,
+     "left_shank/left_foot": 17.48
+    },
+    "mid_swing_min_frac_H": 0.05,
+    "lateral_gap_mm": 46.39,
+    "max_step_mm": 3.4
+   }
+  },
+  "home_interference_free": true,
+  "straight_min_gap_mm": 1.99,
+  "interference_onset": {
+   "in_place": {
+    "onset_rad_s": null,
+    "above_rad_s": 0.5,
+    "points": [
+     [
+      0.35,
+      1.75
+     ],
+     [
+      0.4,
+      1.68
+     ],
+     [
+      0.45,
+      1.6
+     ],
+     [
+      0.5,
+      1.51
+     ]
+    ],
+    "note": "no interference up to the largest rate run"
+   },
+   "walk": {
+    "onset_rad_s": null,
+    "above_rad_s": 0.5,
+    "points": [
+     [
+      0.0,
+      1.99
+     ],
+     [
+      0.35,
+      1.52
+     ],
+     [
+      0.4,
+      1.42
+     ],
+     [
+      0.45,
+      1.3
+     ],
+     [
+      0.5,
+      1.18
+     ]
+    ],
+    "note": "no interference up to the largest rate run"
+   }
+  },
+  "straight_range_margins": {
+   "left_hip_yaw": {
+    "min": -3.029303379408405e-09,
+    "max": 7.830339938924584e-09,
+    "usable": [
+     -0.3,
+     0.3
+    ],
+    "margin_min": 0.2999999969706966,
+    "margin_max": 0.29999999216966006
+   },
+   "left_hip_roll": {
+    "min": -0.15696496494233866,
+    "max": 0.06677661847412916,
+    "usable": [
+     -0.45,
+     0.2018
+    ],
+    "margin_min": 0.2930350350576614,
+    "margin_max": 0.13502338152587084
+   },
+   "right_hip_yaw": {
+    "min": -7.839082333391587e-09,
+    "max": 3.0201117216640397e-09,
+    "usable": [
+     -0.3,
+     0.3
+    ],
+    "margin_min": 0.29999999216091766,
+    "margin_max": 0.2999999969798883
+   },
+   "right_hip_roll": {
+    "min": -0.06659395375637352,
+    "max": 0.15713404499427086,
+    "usable": [
+     -0.2018,
+     0.45
+    ],
+    "margin_min": 0.13520604624362648,
+    "margin_max": 0.29286595500572915
+   }
+  },
+  "joint_range_usable": {
+   "left_hip_roll": {
+    "home": -0.0463,
+    "limits": [
+     -0.45,
+     0.45
+    ],
+    "first_new_interference": [
+     -0.1809,
+     0.2018
+    ],
+    "limited_by": [
+     [
+      "hw_left_toe_2",
+      "hw_right_toe_1"
+     ],
+     [
+      "cl_pelvis_lateral_l_5",
+      "cl_left_thigh_upper_1"
+     ]
+    ]
+   },
+   "left_hip_pitch": {
+    "home": -0.0162,
+    "limits": [
+     -1.0,
+     1.0
+    ],
+    "first_new_interference": [
+     -0.9016,
+     null
+    ],
+    "limited_by": [
+     [
+      "cl_rib_hoop_2_0",
+      "cl_left_thigh_lower_4"
+     ],
+     null
+    ]
+   },
+   "left_hip_yaw": {
+    "home": 0.0,
+    "limits": [
+     -0.3,
+     0.3
+    ],
+    "first_new_interference": [
+     null,
+     null
+    ],
+    "limited_by": [
+     null,
+     null
+    ]
+   },
+   "left_knee": {
+    "home": 0.0659,
+    "limits": [
+     -1.1,
+     1.1
+    ],
+    "first_new_interference": [
+     null,
+     0.8046
+    ],
+    "limited_by": [
+     null,
+     [
+      "cl_left_thigh_upper_8",
+      "hw_left_ankle_motor_a"
+     ]
+    ]
+   },
+   "left_ankle_pitch": {
+    "home": -0.0498,
+    "limits": [
+     -0.8,
+     0.8
+    ],
+    "first_new_interference": [
+     null,
+     null
+    ],
+    "limited_by": [
+     null,
+     null
+    ]
+   },
+   "left_ankle_roll": {
+    "home": 0.0463,
+    "limits": [
+     -0.4,
+     0.4
+    ],
+    "first_new_interference": [
+     null,
+     null
+    ],
+    "limited_by": [
+     null,
+     null
+    ]
+   },
+   "right_hip_roll": {
+    "home": 0.0463,
+    "limits": [
+     -0.45,
+     0.45
+    ],
+    "first_new_interference": [
+     -0.2018,
+     0.1809
+    ],
+    "limited_by": [
+     [
+      "cl_pelvis_lateral_r_5",
+      "cl_right_thigh_upper_1"
+     ],
+     [
+      "hw_left_toe_2",
+      "hw_right_toe_1"
+     ]
+    ]
+   },
+   "right_hip_pitch": {
+    "home": -0.0162,
+    "limits": [
+     -1.0,
+     1.0
+    ],
+    "first_new_interference": [
+     -0.9016,
+     null
+    ],
+    "limited_by": [
+     [
+      "cl_rib_hoop_2_0",
+      "cl_right_thigh_lower_4"
+     ],
+     null
+    ]
+   },
+   "right_hip_yaw": {
+    "home": -0.0,
+    "limits": [
+     -0.3,
+     0.3
+    ],
+    "first_new_interference": [
+     null,
+     null
+    ],
+    "limited_by": [
+     null,
+     null
+    ]
+   },
+   "right_knee": {
+    "home": 0.0659,
+    "limits": [
+     -1.1,
+     1.1
+    ],
+    "first_new_interference": [
+     null,
+     0.8046
+    ],
+    "limited_by": [
+     null,
+     [
+      "cl_right_thigh_upper_8",
+      "hw_right_ankle_motor_a"
+     ]
+    ]
+   },
+   "right_ankle_pitch": {
+    "home": -0.0498,
+    "limits": [
+     -0.8,
+     0.8
+    ],
+    "first_new_interference": [
+     null,
+     null
+    ],
+    "limited_by": [
+     null,
+     null
+    ]
+   },
+   "right_ankle_roll": {
+    "home": -0.0463,
+    "limits": [
+     -0.4,
+     0.4
+    ],
+    "first_new_interference": [
+     null,
+     null
+    ],
+    "limited_by": [
+     null,
+     null
+    ]
+   },
+   "neck_pitch": {
+    "home": 0.0,
+    "limits": [
+     -0.35,
+     0.35
+    ],
+    "first_new_interference": [
+     null,
+     null
+    ],
+    "limited_by": [
+     null,
+     null
+    ]
+   },
+   "tail_yaw": {
+    "home": 0.0,
+    "limits": [
+     -0.45,
+     0.45
+    ],
+    "first_new_interference": [
+     null,
+     null
+    ],
+    "limited_by": [
+     null,
+     null
+    ]
+   }
+  },
+  "verification": {
+   "distance_calls": 2058819,
+   "capsule_box_exact": 88680,
+   "verified": 19021,
+   "consensus": 15117,
+   "exact": 292,
+   "corrected": 15002,
+   "cache_hits": 3321,
+   "sign_flip_fixed": 1
+  },
+  "gate_set": "r2",
+  "timing_s": {
+   "setup": 0.088,
+   "home": 0.123,
+   "gaits": 12.024,
+   "joint_sweeps": 7.558,
+   "tail_combos": 0.084,
+   "battery": 0.107,
+   "total": 19.988
+  },
+  "note": "clearance.screen on each turning run (left and right) and on the screen's straight nominal walk; the proxies are mid-surface hulls, so the outer skins sit closer than these gaps"
+ },
+ "envelope": {
+  "targets": {
+   "hip_roll": {
+    "actuator": "cubemars_ak45_36_v3",
+    "required": {
+     "cont": 2.695245523837831,
+     "peak_req": 4.716987628724047,
+     "speed_req": 1.8858224397024719
+    },
+    "meets": true,
+    "ratio_to_limit": {
+     "cont": 0.5910626148767173,
+     "peak_req": 0.28077307313833616,
+     "speed_req": 0.4502069446083993
+    }
+   },
+   "hip_pitch": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "required": {
+     "cont": 3.678970820709038,
+     "peak_req": 8.766420302494693,
+     "speed_req": 6.044381248006712
+    },
+    "meets": true,
+    "ratio_to_limit": {
+     "cont": 0.6146985498260716,
+     "peak_req": 0.4174485858330806,
+     "speed_req": 0.6954167375076342
+    }
+   },
+   "hip_yaw": {
+    "actuator": "cubemars_ak45_36_v3",
+    "required": {
+     "cont": 3.2341306973638617,
+     "peak_req": 8.065378549787185,
+     "speed_req": 2.80954320149023
+    },
+    "meets": true,
+    "ratio_to_limit": {
+     "cont": 0.7092391880183908,
+     "peak_req": 0.4800820565349516,
+     "speed_req": 0.6707290325210985
+    }
+   },
+   "knee": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "required": {
+     "cont": 2.7930741577349645,
+     "peak_req": 5.935040320924095,
+     "speed_req": 6.716203626272916
+    },
+    "meets": true,
+    "ratio_to_limit": {
+     "cont": 0.4666790572656583,
+     "peak_req": 0.28262096766305217,
+     "speed_req": 0.772711088626299
+    }
+   },
+   "ankle_a": {
+    "actuator": "myactuator_rmd_x4_p12_10_e",
+    "required": {
+     "cont": 1.7262235717433565,
+     "peak_req": 3.600957892763069,
+     "speed_req": 5.220652086810461
+    },
+    "meets": true,
+    "ratio_to_limit": {
+     "cont": 0.7571156016418231,
+     "peak_req": 0.5144225561090099,
+     "speed_req": 0.20946871910392528
+    }
+   },
+   "ankle_b": {
+    "actuator": "myactuator_rmd_x4_p12_10_e",
+    "required": {
+     "cont": 1.7261437303848217,
+     "peak_req": 3.600789279628678,
+     "speed_req": 5.220532477476595
+    },
+    "meets": true,
+    "ratio_to_limit": {
+     "cont": 0.7570805835021148,
+     "peak_req": 0.5143984685183826,
+     "speed_req": 0.209463920007272
+    }
+   },
+   "neck": {
+    "actuator": "feetech_sts3250",
+    "required": {
+     "cont": 0.6206007258416558,
+     "peak_req": 0.9142108801815056,
+     "speed_req": 0.9099351685604954
+    },
+    "meets": true,
+    "ratio_to_limit": {
+     "cont": 0.7579384073073382,
+     "peak_req": 0.6363805124406703,
+     "speed_req": 0.1930942399594131
+    }
+   },
+   "tail": {
+    "actuator": "feetech_sts3215_c018",
+    "required": {
+     "cont": 0.1026919004286934,
+     "peak_req": 0.3163648471907749,
+     "speed_req": 1.0927646842415564
+    },
+    "meets": true,
+    "ratio_to_limit": {
+     "cont": 0.20901480606840714,
+     "peak_req": 0.3670100291538283,
+     "speed_req": 0.3864864469628842
+    }
+   }
+  },
+  "targets_and_stretch": {
+   "hip_roll": {
+    "actuator": "cubemars_ak45_36_v3",
+    "required": {
+     "cont": 2.695245523837831,
+     "peak_req": 4.716987628724047,
+     "speed_req": 2.0043730366137122
+    },
+    "meets": true,
+    "ratio_to_limit": {
+     "cont": 0.5910626148767173,
+     "peak_req": 0.28077307313833616,
+     "speed_req": 0.4785088148657773
+    }
+   },
+   "hip_pitch": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "required": {
+     "cont": 3.678970820709038,
+     "peak_req": 8.766420302494693,
+     "speed_req": 6.044381248006712
+    },
+    "meets": true,
+    "ratio_to_limit": {
+     "cont": 0.6146985498260716,
+     "peak_req": 0.4174485858330806,
+     "speed_req": 0.6954167375076342
+    }
+   },
+   "hip_yaw": {
+    "actuator": "cubemars_ak45_36_v3",
+    "required": {
+     "cont": 3.2341306973638617,
+     "peak_req": 8.065378549787185,
+     "speed_req": 3.1190874357464726
+    },
+    "meets": true,
+    "ratio_to_limit": {
+     "cont": 0.7092391880183908,
+     "peak_req": 0.4800820565349516,
+     "speed_req": 0.7446272750023135
+    }
+   },
+   "knee": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "required": {
+     "cont": 2.7930741577349645,
+     "peak_req": 5.935040320924095,
+     "speed_req": 6.716203626272916
+    },
+    "meets": true,
+    "ratio_to_limit": {
+     "cont": 0.4666790572656583,
+     "peak_req": 0.28262096766305217,
+     "speed_req": 0.772711088626299
+    }
+   },
+   "ankle_a": {
+    "actuator": "myactuator_rmd_x4_p12_10_e",
+    "required": {
+     "cont": 1.7262235717433565,
+     "peak_req": 3.600957892763069,
+     "speed_req": 5.220652086810461
+    },
+    "meets": true,
+    "ratio_to_limit": {
+     "cont": 0.7571156016418231,
+     "peak_req": 0.5144225561090099,
+     "speed_req": 0.20946871910392528
+    }
+   },
+   "ankle_b": {
+    "actuator": "myactuator_rmd_x4_p12_10_e",
+    "required": {
+     "cont": 1.7261437303848217,
+     "peak_req": 3.600789279628678,
+     "speed_req": 5.220532477476595
+    },
+    "meets": true,
+    "ratio_to_limit": {
+     "cont": 0.7570805835021148,
+     "peak_req": 0.5143984685183826,
+     "speed_req": 0.209463920007272
+    }
+   },
+   "neck": {
+    "actuator": "feetech_sts3250",
+    "required": {
+     "cont": 0.6211846702015861,
+     "peak_req": 0.9142108801815056,
+     "speed_req": 0.9099351685604954
+    },
+    "meets": true,
+    "ratio_to_limit": {
+     "cont": 0.7586515773693316,
+     "peak_req": 0.6363805124406703,
+     "speed_req": 0.1930942399594131
+    }
+   },
+   "tail": {
+    "actuator": "feetech_sts3215_c018",
+    "required": {
+     "cont": 0.1026919004286934,
+     "peak_req": 0.3163648471907749,
+     "speed_req": 1.0927646842415564
+    },
+    "meets": true,
+    "ratio_to_limit": {
+     "cont": 0.20901480606840714,
+     "peak_req": 0.3670100291538283,
+     "speed_req": 0.3864864469628842
+    }
+   }
+  }
+ },
+ "flags": [
+  "walk_0.35 (target): hip_roll speed_req 1.38, 1.33x the straight-walk requirement (1.33x the requirement as sized)",
+  "walk_0.35 (target): hip_yaw speed_req 2.12, new: the straight walk needs none",
+  "in_place_0.50 (target): hip_roll speed_req 1.89, 1.82x the straight-walk requirement (1.82x the requirement as sized)",
+  "in_place_0.50 (target): hip_yaw speed_req 2.81, new: the straight walk needs none",
+  "in_place_0.50 (target): ankle_a peak_req 3.6, 1.16x the straight-walk requirement (1.16x the requirement as sized)",
+  "in_place_0.50 (target): ankle_b peak_req 3.6, 1.16x the straight-walk requirement (1.16x the requirement as sized)",
+  "walk_0.50 (stretch): hip_roll speed_req 2, 1.94x the straight-walk requirement (1.94x the requirement as sized)",
+  "walk_0.50 (stretch): hip_yaw speed_req 3.12, new: the straight walk needs none"
+ ],
+ "validation": {
+  "omega0_vs_gait_generate": {
+   "gait_accuracy": "r2",
+   "reproduction": {
+    "rms": {
+     "max_rel_diff": 8.080497460327562e-14,
+     "at": "right_ankle_roll",
+     "max_rel_diff_without_ankles": 1.90515825012292e-15,
+     "at_without_ankles": "right_knee"
+    },
+    "peak": {
+     "max_rel_diff": 4.0602138076960124e-13,
+     "at": "right_ankle_roll",
+     "max_rel_diff_without_ankles": 2.415330052786314e-13,
+     "at_without_ankles": "left_knee"
+    },
+    "speed_peak": {
+     "max_rel_diff": 2.8187391821479793e-14,
+     "at": "left_knee",
+     "max_rel_diff_without_ankles": 2.8187391821479793e-14,
+     "at_without_ankles": "left_knee"
+    },
+    "max_abs_qpos_diff": 2.1649348980190553e-15,
+    "zmp_error_final_m": [
+     0.0011403720702545508,
+     0.0011403720702485509
+    ],
+    "note": "gait.generate's settings (gait_accuracy), phase rule, unwrap and split: must equal gait.generate"
+   },
+   "same_settings_exact_unwrap": {
+    "rms": {
+     "max_rel_diff": 0.22973154137325058,
+     "at": "right_ankle_roll",
+     "max_rel_diff_without_ankles": 0.003942802386383583,
+     "at_without_ankles": "tail_yaw"
+    },
+    "peak": {
+     "max_rel_diff": 0.2224374748568472,
+     "at": "left_ankle_pitch",
+     "max_rel_diff_without_ankles": 0.021376471154833047,
+     "at_without_ankles": "tail_yaw"
+    },
+    "speed_peak": {
+     "max_rel_diff": 0.0014031581377843335,
+     "at": "left_hip_pitch",
+     "max_rel_diff_without_ankles": 0.0014031581377843335,
+     "at_without_ankles": "left_hip_pitch"
+    },
+    "max_abs_qpos_diff": 0.000313005934924164,
+    "zmp_error_final_m": 0.02205204500639051,
+    "min_cop_margin_single_m": 0.012738452337894633,
+    "note": "round one's CoM settings (2e-4 m, 4 passes) with the exact stride-boundary unwrap only"
+   },
+   "tight_tolerance_gait_unwrap": {
+    "zmp_error_final_m": 0.009174930038363241,
+    "zmp_error_exact_derivatives_m": 0.018608717229022076,
+    "zmp_error_exact_frame": 158,
+    "min_cop_margin_single_m": 0.026780361798376753,
+    "note": "the screen's CoM tolerance (1e-6 m) with gait.generate's approximate unwrap; ZMP error by the loop's own measure and with exact derivatives of the same poses"
+   },
+   "screen_settings": {
+    "rms": {
+     "max_rel_diff": 0.10347096249266387,
+     "at": "right_ankle_roll",
+     "max_rel_diff_without_ankles": 0.008281427631304492,
+     "at_without_ankles": "right_hip_pitch"
+    },
+    "peak": {
+     "max_rel_diff": 0.1918100357192916,
+     "at": "right_ankle_roll",
+     "max_rel_diff_without_ankles": 2.5034957508082035e-13,
+     "at_without_ankles": "left_knee"
+    },
+    "speed_peak": {
+     "max_rel_diff": 1.2241272865908988e-14,
+     "at": "right_hip_pitch",
+     "max_rel_diff_without_ankles": 1.2241272865908988e-14,
+     "at_without_ankles": "right_hip_pitch"
+    }
+   },
+   "zmp_error_final_m": {
+    "gait_generate": 0.0011403720702485509,
+    "screen": 0.0011403720702635432
+   },
+   "min_cop_margin_single_m": {
+    "gait_generate": 0.030345045931144964,
+    "screen": 0.030345045931140374
+   },
+   "double_support_frames": {
+    "gait_generate": 31,
+    "screen": 32,
+    "expected": 32
+   },
+   "note": "generate() at yaw rate 0 against gait.generate(sizing.NOMINAL) + gait.inverse_dynamics on the same model; 'screen_settings' is the screen's straight walk (CoM 1e-6 m, exact unwrap, event phase rule, exact foot-axis split)"
+  },
+  "straight_left_right_asymmetry": {
+   "gait_generate": {
+    "rms": {
+     "max_rel_diff": 0.09120819777887246,
+     "at": "left_ankle_roll",
+     "max_rel_diff_without_ankles": 0.008381665993442259,
+     "at_without_ankles": "left_hip_yaw"
+    },
+    "peak": {
+     "max_rel_diff": 0.19182726923673563,
+     "at": "left_ankle_roll",
+     "max_rel_diff_without_ankles": 0.0014847798523538738,
+     "at_without_ankles": "left_hip_roll"
+    },
+    "speed_peak": {
+     "max_rel_diff": 0.0001426555389300472,
+     "at": "left_knee",
+     "max_rel_diff_without_ankles": 0.0001426555389300472,
+     "at_without_ankles": "left_knee"
+    }
+   },
+   "screen": {
+    "rms": {
+     "max_rel_diff": 0.0004338068586692531,
+     "at": "left_hip_yaw",
+     "max_rel_diff_without_ankles": 0.0004338068586692531,
+     "at_without_ankles": "left_hip_yaw"
+    },
+    "peak": {
+     "max_rel_diff": 0.0014847798523255067,
+     "at": "left_hip_roll",
+     "max_rel_diff_without_ankles": 0.0014847798523255067,
+     "at_without_ankles": "left_hip_roll"
+    },
+    "speed_peak": {
+     "max_rel_diff": 0.00014265553893290595,
+     "at": "left_knee",
+     "max_rel_diff_without_ankles": 0.00014265553893290595,
+     "at_without_ankles": "left_knee"
+    }
+   }
+  },
+  "mirror_at_round_one_rules": {
+   "walk_0_35": {
+    "rms": {
+     "max_rel_diff": 0.2709730298979932,
+     "at": "left_ankle_roll",
+     "max_rel_diff_without_ankles": 0.00804910884639237,
+     "at_without_ankles": "right_hip_yaw"
+    },
+    "peak": {
+     "max_rel_diff": 0.49503752442364,
+     "at": "left_ankle_roll",
+     "max_rel_diff_without_ankles": 0.0016274427320226948,
+     "at_without_ankles": "left_hip_roll"
+    },
+    "speed_peak": {
+     "max_rel_diff": 0.011594919615471681,
+     "at": "right_knee",
+     "max_rel_diff_without_ankles": 0.011594919615471681,
+     "at_without_ankles": "right_knee"
+    },
+    "min_cop_margin_single_m": [
+     -0.028493723204378412,
+     0.00405524287940649
+    ],
+    "zmp_error_final_m": [
+     0.05990382541609779,
+     0.03485961059729283
+    ],
+    "note": "left vs right 0.35 rad/s turn with gait.generate's CoM tolerance and phase rule and statics' world-axis double-support split"
+   }
+  },
+  "mirror_left_vs_right_turn": {
+   "walk_0.35": {
+    "rms": {
+     "max_rel_diff": 0.0004405004418285817,
+     "at": "left_hip_yaw",
+     "max_rel_diff_without_ankles": 0.0004405004418285817,
+     "at_without_ankles": "left_hip_yaw"
+    },
+    "peak": {
+     "max_rel_diff": 0.0015032002257849137,
+     "at": "right_hip_roll",
+     "max_rel_diff_without_ankles": 0.0015032002257849137,
+     "at_without_ankles": "right_hip_roll"
+    },
+    "speed_peak": {
+     "max_rel_diff": 0.0002646653875832249,
+     "at": "left_hip_roll",
+     "max_rel_diff_without_ankles": 0.0002646653875832249,
+     "at_without_ankles": "left_hip_roll"
+    },
+    "single_support_mz_max_nm": [
+     1.900777384281258,
+     1.904264683893191
+    ],
+    "min_cop_margin_single_m": [
+     0.030219158982544177,
+     0.030218926607846603
+    ],
+    "double_support_min_mu_max": [
+     0.2132869626088344,
+     0.21461856930412496
+    ]
+   },
+   "in_place_0.50": {
+    "rms": {
+     "max_rel_diff": 0.00036430351825900777,
+     "at": "left_hip_yaw",
+     "max_rel_diff_without_ankles": 0.00036430351825900777,
+     "at_without_ankles": "left_hip_yaw"
+    },
+    "peak": {
+     "max_rel_diff": 0.0013875337727464422,
+     "at": "right_hip_roll",
+     "max_rel_diff_without_ankles": 0.0013875337727464422,
+     "at_without_ankles": "right_hip_roll"
+    },
+    "speed_peak": {
+     "max_rel_diff": 0.0002445575238681597,
+     "at": "left_ankle_pitch",
+     "max_rel_diff_without_ankles": 0.00023171714920545262,
+     "at_without_ankles": "right_hip_roll"
+    },
+    "single_support_mz_max_nm": [
+     0.8845487599789186,
+     0.8861808651086667
+    ],
+    "min_cop_margin_single_m": [
+     0.030475591880254442,
+     0.030475564344259628
+    ],
+    "double_support_min_mu_max": [
+     0.17396658408753163,
+     0.1729788027361528
+    ]
+   },
+   "walk_0.50": {
+    "rms": {
+     "max_rel_diff": 0.0004422678594095736,
+     "at": "left_hip_yaw",
+     "max_rel_diff_without_ankles": 0.0004422678594095736,
+     "at_without_ankles": "left_hip_yaw"
+    },
+    "peak": {
+     "max_rel_diff": 0.0014803080081999258,
+     "at": "right_hip_roll",
+     "max_rel_diff_without_ankles": 0.0014803080081999258,
+     "at_without_ankles": "right_hip_roll"
+    },
+    "speed_peak": {
+     "max_rel_diff": 0.0002670225439417531,
+     "at": "left_hip_roll",
+     "max_rel_diff_without_ankles": 0.0002670225439417531,
+     "at_without_ankles": "left_hip_roll"
+    },
+    "single_support_mz_max_nm": [
+     1.990639464135251,
+     1.9944175044021604
+    ],
+    "min_cop_margin_single_m": [
+     0.030182767773033373,
+     0.030182445891270768
+    ],
+    "double_support_min_mu_max": [
+     0.21826470721740224,
+     0.21774915550084337
+    ]
+   }
+  },
+  "ik_fail_frames": {
+   "straight": 0,
+   "straight_brisk": 0,
+   "walk_0.35_left": 0,
+   "walk_0.35_right": 0,
+   "in_place_0.50_left": 0,
+   "in_place_0.50_right": 0,
+   "walk_0.50_left": 0,
+   "walk_0.50_right": 0
+  },
+  "ik_ok_all": true,
+  "signs": {
+   "neck_pitch": 1.0,
+   "tail_yaw": -1.0,
+   "left_hip_roll": -1.0,
+   "left_hip_pitch": 1.0,
+   "left_hip_yaw": -1.0,
+   "left_knee": 1.0,
+   "left_ankle_pitch": 1.0,
+   "left_ankle_roll": -1.0,
+   "right_hip_roll": -1.0,
+   "right_hip_pitch": 1.0,
+   "right_hip_yaw": -1.0,
+   "right_knee": 1.0,
+   "right_ankle_pitch": 1.0,
+   "right_ankle_roll": -1.0
+  },
+  "sized_requirements_max_rel_diff": 0.0,
+  "xml_sha256_matches_record": true
+ },
+ "timing": {
+  "sized_requirements_s": 30.922874550000415,
+  "screen_runs_s": 176.70534928999768,
+  "clearance_s": 106.22192323200215,
+  "validation_s": 65.12408181299907,
+  "total_s": 378.97603197399803
+ },
+ "png": "60-N-H-10_turning.png"
+}

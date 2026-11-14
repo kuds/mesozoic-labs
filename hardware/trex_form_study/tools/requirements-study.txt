@@ -1,0 +1,20 @@
+# The form study's Python packages, pinned to the versions used from 8 to 14 Nov 2026 (Python 3.13.18, x86_64 Linux).
+# The plant, fits, panels, margin ledger, look ladder and -X records name these (plant.json `provenance.versions`).
+# One exception: Stage 1's PPO training sessions and their R3/R4 evaluation rows ran in a second venv (torch
+# 2.9.0+cpu, stable-baselines3 2.9.0, gymnasium 1.3.0): requirements-stage1-ppo.txt. Install with tools/setup_venv.sh.
+#
+# torch from PyPI pulls its CUDA libraries (the venv is about 6 GB). `TORCH=cpu bash tools/setup_venv.sh` installs the
+# CPU-only wheel of the same version from download.pytorch.org instead (1.4 GB in all). Training here is CPU-only either
+# way (designlab/stage1/train.py puts PPO on the CPU), but the two builds have not been compared bit for bit.
+mujoco==3.10.0
+numpy==2.5.4
+scipy==1.18.1
+gymnasium==1.4.0
+stable_baselines3==2.9.2
+torch==2.15.0
+matplotlib==3.11.2
+pillow==13.0.0
+PyOpenGL==3.1.10
+glfw==2.11.0
+pytest==9.2.0
+ruff==0.16.9

@@ -1,0 +1,1251 @@
+{
+ "parts": [
+  {
+   "id": "jetson_orin_nano_super_devkit",
+   "category": "compute",
+   "vendor": "NVIDIA",
+   "model": "Jetson Orin Nano Super Developer Kit (P3766: Orin Nano 8GB module with heatsink/fan + P3768 reference carrier)",
+   "dims_mm": [
+    103,
+    90.5,
+    34.77
+   ],
+   "mass_g": 174,
+   "power_typ_w": null,
+   "power_max_w": 25,
+   "voltage": "19 V DC via included supply (NVIDIA quick start); DC jack 5.5 x 2.5 mm. Acceptable input range not captured.",
+   "price_usd": 399,
+   "price_source": "SparkFun DEV-22098, USD 399 (accessed 2026-11-07). NVIDIA datasheet (Dec 2024) launch price was USD 249.",
+   "key_specs": "67 TOPS (sparse INT8); 1024-core Ampere GPU with 32 tensor cores; 6-core Cortex-A78AE at 1.7 GHz; 8 GB 128-bit LPDDR5 at 102 GB/s. Power modes: 7 W, 15 W, 25 W and MAXN SUPER (uncapped, throttles at TDP). NVIDIA says the default mode is typically 25 W. Carrier I/O: 2x MIPI CSI-2 22-pin (CAM0 2-lane; CAM1 2- or 4-lane); M.2 Key-M 2280 (PCIe3 x4); M.2 Key-M 2230 (PCIe3 x2); M.2 Key-E with Wi-Fi fitted; 4x USB 3.2 Gen2 Type-A (VBUS 3 A per stacked pair); USB-C (device/recovery only); GbE; DP 1.2; 40-pin header (UART/SPI/I2S/I2C/GPIO); 12-pin button header; 4-pin fan header.",
+   "sources": [
+    "https://dam-cdn.nvd.orangelogic.com/AssetLink/2ug686w80406gxf6q8uv7r3l7265m2n8.pdf | accessed 2026-11-07 | NVIDIA datasheet: 103 x 90.5 x 34.77 mm (height includes feet, carrier, module and thermal solution), 7-25 W, USD 249, I/O list",
+    "https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-orin/ | accessed 2026-11-07 | family spec table: 67 TOPS, 7-15-25 W, gives a conflicting 100 x 79 x 21 mm",
+    "https://developer.nvidia.com/blog/nvidia-jetpack-6-2-brings-super-mode-to-nvidia-jetson-orin-nano-and-jetson-orin-nx-modules/ | accessed 2026-11-07 | power modes",
+    "https://docs.nvidia.com/jetson/orin-nano-devkit/user-guide/latest/hardware_layout.html | accessed 2026-11-07 | connectors",
+    "https://docs.nvidia.com/jetson/orin-nano-devkit/user-guide/latest/quick_start.html | accessed 2026-11-07 | included 19 V supply; default mode typically 25 W",
+    "https://forums.developer.nvidia.com/t/jetson-orin-devkit-weight/242644 | accessed 2026-11-07 | NVIDIA moderator: Orin Nano devkit 0.174 kg (Feb 2023)",
+    "https://www.sparkfun.com/nvidia-jetson-orin-nano-developer-kit.html | accessed 2026-11-07 | USD 399",
+    "https://nvidianews.nvidia.com/news/nvidia-announces-jetson-orin-nano-2-robotics-computer-to-redefine-entry-level-edge-ai | accessed 2026-11-07 | Orin Nano 2 announcement"
+   ],
+   "verification": "partially_sourced",
+   "notes": "Two NVIDIA pages give different dimensions: the dedicated datasheet says 103 x 90.5 x 34.77 mm and the family page says 100 x 79 x 21 mm. I used the datasheet, because 21 mm cannot include a fan heatsink. The 174 g mass is from an NVIDIA moderator forum post (Feb 2023, original Orin Nano devkit), not a datasheet. NVIDIA describes the Super kit as the same hardware upgraded in software. A 6S bus (up to 25.2 V full) needs a regulator to feed the 19 V jack. Watch item: NVIDIA announced Jetson Orin Nano 2 on 2026-08-25 (78 TOPS, 8 GB, same form factor), with module and devkit expected in H1 2027. It cannot be bought yet."
+  },
+  {
+   "id": "jetson_orin_nx_16gb",
+   "category": "compute",
+   "vendor": "NVIDIA",
+   "model": "Jetson Orin NX 16GB module (900-13767-0000-000 / -001)",
+   "dims_mm": [
+    69.6,
+    45
+   ],
+   "mass_g": null,
+   "power_typ_w": null,
+   "power_max_w": 40,
+   "voltage": "Powered via carrier (module input not captured)",
+   "price_usd": 1099,
+   "price_source": "Seeed product datasheet SKU 206001695, USD 1099 excl. VAT, price updated 2026-10-22 (accessed 2026-11-07). An Arrow listing seen in search results showed USD 699, but the page failed to load, so that figure is unverified.",
+   "key_specs": "Super mode (JetPack 6.2+): 157 TOPS sparse / 78 TOPS dense (100/50 in original mode). Reference power modes 10/15/25/40 W plus MAXN SUPER (uncapped). 1024-core Ampere GPU (max 1173 MHz); 8-core A78AE (max 2 GHz); 16 GB 128-bit LPDDR5 at 102.4 GB/s; 2x NVDLA v2; PVA v2. Up to 4 cameras (8 virtual channels) on 8 lanes MIPI CSI-2. PCIe 1 x4 + 3 x1 Gen4; 3x USB 3.2 Gen2 + 3x USB 2.0; 1x CAN; 260-pin SO-DIMM.",
+   "sources": [
+    "https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-orin/ | accessed 2026-11-07 | 69.6 x 45 mm, 260-pin SO-DIMM, 10-15-25-40 W, 157 TOPS, I/O",
+    "https://developer.nvidia.com/blog/nvidia-jetpack-6-2-brings-super-mode-to-nvidia-jetson-orin-nano-and-jetson-orin-nx-modules/ | accessed 2026-11-07 | power modes and TOPS original vs Super",
+    "https://files.seeedstudio.com/Bazaar/product_pdf/206001695.pdf | accessed 2026-11-07 | USD 1099"
+   ],
+   "verification": "partially_sourced",
+   "notes": "No module mass in any fetched source. A Waveshare figure of 26 g appeared only in a search snippet and was not verified. NVIDIA's blog advises checking thermal design for the new modes and recommends custom power modes. Module prices appear to have risen sharply in 2026 (USD 1099 at Seeed versus the historical ~USD 699); confirm with a distributor."
+  },
+  {
+   "id": "seeed_recomputer_j401",
+   "category": "carrier",
+   "vendor": "Seeed Studio",
+   "model": "reComputer J401 carrier for Orin Nano/NX (SKU 102110770, no adapter)",
+   "dims_mm": [
+    100,
+    80
+   ],
+   "mass_g": null,
+   "voltage": "9-19 V DC",
+   "price_usd": 111,
+   "price_source": "Seeed product page USD 111.00, 10+ USD 101.00 (accessed 2026-11-07)",
+   "key_specs": "1x GbE; 4x USB 3.2 Type-A (10 Gbps); 1x USB 2.0 Type-C (device mode); 2x CSI (2-lane, 15-pin); HDMI 2.1; M.2 Key-M (2280 NVMe); M.2 Key-E; 1x CAN; 40-pin header; 12-pin control/UART header; 4-pin 5 V PWM fan connector; RTC (CR1220 not included); -10 to 60 C.",
+   "sources": [
+    "https://www.seeedstudio.com/reComputer-J401-Carrier-Board-for-Jetson-Orin-NX-Orin-Nano-without-Power-Adapter-p-5637.html | accessed 2026-11-07 | specs and price",
+    "https://files.seeedstudio.com/wiki/reComputer-J4012/reComputer-J401-datasheet.pdf | accessed 2026-11-07 | PCB 100 x 80 mm; 9-19 V; CAN header J16 note"
+   ],
+   "verification": "partially_sourced",
+   "notes": "The CAN header J16 is TTL/CMOS level, taken straight from the SoM; the datasheet says it needs an external CAN transceiver and supports CAN FD frame formats. Same footprint as the NVIDIA devkit carrier. Mass and height are not stated. A 6S pack (25.2 V full) exceeds the 19 V maximum input, so a pre-regulator is needed."
+  },
+  {
+   "id": "seeed_recomputer_super_j401",
+   "category": "carrier",
+   "vendor": "Seeed Studio",
+   "model": "reComputer Super J401 carrier for Orin Nano/NX in Super mode (SKU 100090211)",
+   "dims_mm": [
+    71,
+    136,
+    8.5
+   ],
+   "mass_g": 155.8,
+   "voltage": "12-19 V, 5525 barrel DC jack",
+   "price_usd": 159,
+   "price_source": "Seeed product page USD 159.00, 10+ USD 149.00 (accessed 2026-11-07)",
+   "key_specs": "2x RJ45 GbE; mini-PCIe (LTE); M.2 Key-E; M.2 Key-M; 4x USB 3.2 Type-A (5 Gbps); 1x USB 2.0 Type-C (device/debug); 4x MIPI CSI (2-lane, 15-pin); 1x CAN (4-pin header); HDMI 2.1; 5 V PWM and 12 V PWM fan headers; 40-pin and 12-pin headers. Seeed claims up to 157 TOPS in Super MAXN with JP7.2. Operating range -20 to 65 C in 25 W mode and -20 to 60 C in MAXN.",
+   "sources": [
+    "https://www.seeedstudio.com/reComputer-Super-J401-Carrier-Board-p-6642.html | accessed 2026-11-07 | spec table (W x D x H 71 x 136 x 8.5 mm, 155.8 g) and price"
+   ],
+   "verification": "sourced",
+   "notes": "Dimensions as Seeed states them; the 8.5 mm height looks like it excludes connectors and module. The spec does not say whether the CAN header has an on-board transceiver. A 6S input needs regulation below 19 V."
+  },
+  {
+   "id": "seeed_a603",
+   "category": "carrier",
+   "vendor": "Seeed Studio",
+   "model": "A603 carrier for Jetson Orin NX/Nano",
+   "dims_mm": [
+    87,
+    52,
+    26
+   ],
+   "mass_g": 50,
+   "voltage": "+9 to +20 V DC input at 7 A (a pin-table note says 3 A)",
+   "price_usd": 199,
+   "price_source": "Seeed product page USD 199.00 (accessed 2026-11-07)",
+   "key_specs": "1x GbE; 2x USB 3.0 Type-A; 1x USB 3.0 20-pin 0.5 mm ZIF; 1x USB 2.0 Micro-AB; M.2 Key-M 2242 NVMe; M.2 Key-E 2230 PCIe; 1x CAN (CAN_H/CAN_L on 14-pin header); 1x 15-pin CSI; HDMI; 5 V PWM fan; RTC; -25 to 65 C.",
+   "sources": [
+    "https://files.seeedstudio.com/products/NVIDIA/A603-Carrier-Board-for-Jetsson-Orin-NX-Nano-Datasheet.pdf | accessed 2026-11-07 | 87 x 52 x 26 mm, 50 g, 9-20 V at 7 A, I/O",
+    "https://www.seeedstudio.com/A603-Carrier-Board-for-Jetson-Orin-NX-Nano-p-5635.html | accessed 2026-11-07 | price"
+   ],
+   "verification": "sourced",
+   "notes": "The CAN pins are differential, so a transceiver is on board (inferred from the pinout). Only one CSI camera port. Forum reports of USB drop-outs with MIPI cameras appeared in search only and are unverified. A 6S input exceeds 20 V, so regulate it first."
+  },
+  {
+   "id": "connecttech_hadron_dm",
+   "category": "carrier",
+   "vendor": "Connect Tech",
+   "model": "Hadron-DM NGX024 carrier for Orin NX / Orin Nano",
+   "dims_mm": [
+    82.6,
+    58.8
+   ],
+   "mass_g": 56,
+   "voltage": "+9 to +60 V DC (+12 to +48 V nominal)",
+   "price_usd": 410,
+   "price_source": "WDL Systems USD 410.00, in stock (accessed 2026-11-07). Connect Tech itself is quote-only.",
+   "key_specs": "2x USB 3.1 Gen1 (1 host, 1 host/device); 1x GbE on a positive-locking pin header; 2x 4-lane MIPI CSI-2 (22-pin FPC); 1x 2242/2230 NVMe; M.2 E-key (Wi-Fi/BT); 2x RS-232; 3.3 V console UART; 4x GPIO (2 PWM capable); 3.3 V I2C; 3.3 V SPI; 3.3 V/5 V outputs (500 mA each); 5 V 4-pin fan; RTC connector; -25 to +85 C; latching connectors.",
+   "sources": [
+    "https://connecttech.com/ftp/pdf/NGX024_Hadron_DM.pdf | accessed 2026-11-07 | spec sheet (2026-05-14 rev)",
+    "https://connecttech.com/product/hadron-dm-carrier-for-nvidia-jetson-orin-nx/ | accessed 2026-11-07 | specs; Request Quote",
+    "https://www.wdlsystems.com/connect-tech-ngx024 | accessed 2026-11-07 | USD 410"
+   ],
+   "verification": "sourced",
+   "notes": "The only carrier here that can run directly from a 6S or 12S bus (12S full charge 50.4 V is below 60 V). The spec sheet lists no CAN port, so CAN would need USB-CAN. Very small and light."
+  },
+  {
+   "id": "auvidea_jnx42",
+   "category": "carrier",
+   "vendor": "Auvidea",
+   "model": "JNX42 (JNX42-LM SKU 70784-LM / JNX42-M2 SKU 70784-M2)",
+   "dims_mm": [
+    80,
+    104.6
+   ],
+   "mass_g": null,
+   "voltage": "12 V; 12-48 V with the 38515 add-on power module. Module supply 5 V, 8 A max.",
+   "price_usd": null,
+   "price_source": "Not obtained. A 215 EUR excl. VAT figure appeared only in a search snippet; the rebotnix store page redirected to login.",
+   "key_specs": "1x CAN with TJA1051 transceiver; 2x CSI-2 (22-pin, 4 lanes each); Gigabit RJ45; HDMI 2.0 (4Kp60); M.2 Key-M 2280 (PCIe x4 NVMe, mandatory for Orin); M.2 Key-E 2230; M.2 Key-B (LTE, dual nano-SIM); micro-USB OTG; 2x USB 2.0 Type-A; 3x USB 3.0 with Orin NX (M2 version); 2x UART; SPI; 3x I2C; I2S; on-board MCU for watchdog and system management; 5 V fan connector; optional PoE.",
+   "sources": [
+    "https://openzeka.com/wp-content/uploads/2023/07/JNX42.pdf | accessed 2026-11-07 | Auvidea datasheet D70784 v1.8.1 Feb 2023: size 80 x 104.6 mm (80 x 112.6 mm with side wings), I/O, power"
+   ],
+   "verification": "partially_sourced",
+   "notes": "Datasheet is from Feb 2023; check the current revision for Super mode support. No mass or price was obtained."
+  },
+  {
+   "id": "jetson_agx_orin_devkit_64gb",
+   "category": "compute",
+   "vendor": "NVIDIA",
+   "model": "Jetson AGX Orin Developer Kit (64GB, 945-13730-0050-000)",
+   "dims_mm": [
+    110,
+    110,
+    71.65
+   ],
+   "mass_g": 872.5,
+   "power_typ_w": null,
+   "power_max_w": 60,
+   "voltage": "USB-C supply included (port above the DC jack); DC jack 5.5 mm OD / 2.5 mm ID, center positive. Input range not captured.",
+   "price_usd": 3499,
+   "price_source": "SparkFun DEV-22099, USD 3499 (accessed 2026-11-07)",
+   "key_specs": "275 TOPS; 2048-core Ampere GPU with 64 tensor cores; 12-core A78AE at 2.2 GHz; 64 GB 256-bit LPDDR5 at 204.8 GB/s; 64 GB eMMC; module power 15-60 W. I/O: 16-lane MIPI CSI-2 connector; x16 PCIe slot (x8 Gen4); M.2 Key-M (x4 Gen4); M.2 Key-E; 2x USB-C 3.2 Gen2; 2x USB-A 3.2 Gen2 + 2x Gen1; 10GbE RJ45; DP 1.4a; 40-pin header (UART/SPI/I2S/I2C/CAN/PWM/DMIC/GPIO); 12-pin automation header; microSD.",
+   "sources": [
+    "https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-orin/ | accessed 2026-11-07 | 110 x 110 x 71.65 mm (height includes feet, carrier, module and thermal solution), 15-60 W, specs",
+    "https://docs.nvidia.com/jetson/agx-orin-devkit/user-guide/latest/hardware_layout.html | accessed 2026-11-07 | connectors, DC jack",
+    "https://docs.nvidia.com/jetson/agx-orin-devkit/user-guide/latest/quick_start.html | accessed 2026-11-07 | USB-C supply included",
+    "https://forums.developer.nvidia.com/t/jetson-orin-devkit-weight/242644 | accessed 2026-11-07 | NVIDIA moderator: 872.5 g",
+    "https://forums.developer.nvidia.com/t/jetson-orin-devkit-weight-board-vs-case/311119 | accessed 2026-11-07 | production AGX Orin module 0.306 kg +/-2%",
+    "https://www.sparkfun.com/nvidia-jetson-agx-orin-64gb-developer-kit.html | accessed 2026-11-07 | USD 3499"
+   ],
+   "verification": "partially_sourced",
+   "notes": "The mass comes from an NVIDIA moderator forum post (Feb 2023), which does not say which memory version was weighed. NVIDIA moderator gives the production module as 306 g. 15-60 W is module power, not wall power. NVIDIA's family page now lists only the 64GB devkit; I could not confirm a current 32GB devkit SKU. The AGX Orin 32GB module is still listed. SparkFun previously sold the kit at USD 1999 (search snippet), so 2026 pricing is much higher."
+  },
+  {
+   "id": "luxonis_oak_d_lite",
+   "category": "camera",
+   "vendor": "Luxonis",
+   "model": "OAK-D Lite (SKU A00483; auto-focus or fixed-focus RGB)",
+   "dims_mm": [
+    91,
+    28,
+    17.5
+   ],
+   "mass_g": 61,
+   "fov_deg": "Stereo OV7251 (global shutter): HFOV 73 x VFOV 58 (DFOV 86). RGB IMX214 13 MP: HFOV 69 x VFOV 54 (DFOV 81). Ideal depth range ~0.8-12 m. Baseline 75 mm.",
+   "power_typ_w": 3,
+   "power_max_w": 5,
+   "voltage": "5 V via USB2/USB3 (USB-C)",
+   "price_usd": 269,
+   "price_source": "shop.luxonis.com US USD 269 (accessed 2026-11-07)",
+   "key_specs": "RVC2 (4 TOPS, 1.4 TOPS AI); BMI270 6-axis IMU; no IR projector. Depth error below 2% under 4 m, 4% at 4-7 m, 6% at 7-10 m. -20 to 50 C ambient at full VPU load.",
+   "sources": [
+    "https://docs.luxonis.com/hardware/products/OAK-D%20Lite | accessed 2026-11-07 | sensors, FOV, range, power breakdown, IMU",
+    "https://shop.luxonis.com/products/oak-d-lite-1 | accessed 2026-11-07 | 91 x 28 x 17.5 mm, 61 g, USD 269"
+   ],
+   "verification": "sourced",
+   "notes": "Luxonis gives power as a breakdown: base plus streaming 2.5-3 W, AI up to 1 W, stereo up to 0.5 W, encoder up to 0.5 W. The 5 W maximum is my sum of those. Older listings showed USD 149-169; a price-change page exists but returned 404."
+  },
+  {
+   "id": "luxonis_oak_d_pro_w",
+   "category": "camera",
+   "vendor": "Luxonis",
+   "model": "OAK-D Pro W (IMX378 variant SKU A00573)",
+   "dims_mm": [
+    97,
+    29.5,
+    23.1
+   ],
+   "mass_g": 91,
+   "fov_deg": "Stereo OV9282 (global shutter): HFOV 127 x VFOV 79.5 (DFOV 150). RGB IMX378: HFOV 95 x VFOV 72 (DFOV 120). Ideal depth range ~0.7-12 m. Baseline 75 mm.",
+   "power_typ_w": 3,
+   "power_max_w": 15,
+   "voltage": "5 V via USB-C; Luxonis recommends an external 15 W+ supply with a Y-adapter",
+   "price_usd": 529,
+   "price_source": "checkout.luxonis.com USD 529.00 (OV9782 variant USD 579) (accessed 2026-11-07)",
+   "key_specs": "Active stereo: IR dot projector up to 1 W, plus IR flood LED up to 1 W for night vision. BNO086 9-axis IMU. RVC2. Depth error below 2% under 3.5 m, 4% at 3.5-6.5 m, 6% at 6.5-9 m. 1/4-20 tripod mount and 75 mm M4 VESA mount.",
+   "sources": [
+    "https://docs.luxonis.com/hardware/products/OAK-D%20Pro%20W | accessed 2026-11-07 | sensors, FOV, range, power, IMU",
+    "https://checkout.luxonis.com/products/oak-d-pro-w | accessed 2026-11-07 | 97 x 29.5 x 23.1 mm, 91 g, prices"
+   ],
+   "verification": "sourced",
+   "notes": "Typical 3 W is the docs' base consumption (2.5-3 W). The 15 W maximum is the Luxonis statement for Pro devices. The widest FOV option, with IR for textureless floors and walls."
+  },
+  {
+   "id": "luxonis_oak_d_w",
+   "category": "camera",
+   "vendor": "Luxonis",
+   "model": "OAK-D W (IMX378 variant SKU A00572)",
+   "dims_mm": [
+    97,
+    29.5,
+    22.9
+   ],
+   "mass_g": 91,
+   "fov_deg": "Stereo OV9282: HFOV 127 x VFOV 79.5 (DFOV 150). RGB IMX378: HFOV 95 x VFOV 72 (DFOV 120). Ideal depth range ~0.7-12 m.",
+   "power_typ_w": 3,
+   "power_max_w": 5,
+   "voltage": "5 V via USB-C",
+   "price_usd": 429,
+   "price_source": "checkout.luxonis.com USD 429.00 (OV9782 variant USD 479) (accessed 2026-11-07)",
+   "key_specs": "Passive stereo with no projector and no IR; BNO086 IMU; RVC2.",
+   "sources": [
+    "https://docs.luxonis.com/hardware/products/OAK-D%20W | accessed 2026-11-07 | sensors, FOV, range, power",
+    "https://checkout.luxonis.com/products/oak-d-w | accessed 2026-11-07 | 97 x 29.5 x 22.9 mm, 91 g, prices"
+   ],
+   "verification": "sourced",
+   "notes": "The 5 W maximum is my sum of the documented subsystem powers."
+  },
+  {
+   "id": "realsense_d435i",
+   "category": "camera",
+   "vendor": "RealSense (spun out of Intel)",
+   "model": "RealSense Depth Camera D435i",
+   "dims_mm": [
+    90,
+    25,
+    25
+   ],
+   "mass_g": 75,
+   "fov_deg": "Depth HD (16:9): H87 x V58 (D95). Depth VGA: H75 x V62. RGB OV2740: H69 x V42 (D77). Range 0.2 m to over 3 m (varies with lighting). Min-Z 280 mm at 1280x720, 195 mm at 848x480. Baseline 50 mm.",
+   "power_typ_w": 3.04,
+   "power_max_w": 3.4,
+   "voltage": "5 V via USB-C 3.1 Gen1",
+   "price_usd": 399,
+   "price_source": "store.realsenseai.com USD 399.00, out of stock; tariff surcharge applies since 2026-02-03 (accessed 2026-11-07)",
+   "key_specs": "Global-shutter stereo pair, up to 1280x720 depth at up to 90 fps; RGB up to 1920x1080; 6-DoF IMU (BMI055/BMI085).",
+   "sources": [
+    "https://www.realsenseai.com/wp-content/uploads/2026/03/RealSense-D400-Series-Datasheet-Mar-2026.pdf | accessed 2026-11-07 | Table 3-49 FOVs and baseline; Table 3-52 90 x 25 x 25 mm, 75 g; Table 4-12 Min-Z; Table 7-8 power 3402.97 mW / TDP 3042.97 mW at max operating mode; range bullets",
+    "https://store.realsenseai.com/buy-realsense-depth-camera-d435i.html | accessed 2026-11-07 | price"
+   ],
+   "verification": "sourced",
+   "notes": "The datasheet power figures are the all-components sum at depth 1280x720 at 30 fps plus color 1080p at 30 fps."
+  },
+  {
+   "id": "realsense_d455",
+   "category": "camera",
+   "vendor": "RealSense",
+   "model": "RealSense Depth Camera D455",
+   "dims_mm": [
+    124,
+    29,
+    26
+   ],
+   "mass_g": 116,
+   "fov_deg": "Depth HD: H87 x V58 (D95). RGB OV9782 (global shutter): H90 x V65 (D98). Range 0.4 m to over 6 m. Min-Z 520 mm at 1280x720, 350 mm at 848x480. Baseline 95 mm.",
+   "power_typ_w": 3.1,
+   "power_max_w": 3.46,
+   "voltage": "5 V via USB-C 3.1 Gen1",
+   "price_usd": 499,
+   "price_source": "store.realsenseai.com USD 499.00, in stock (accessed 2026-11-07)",
+   "key_specs": "Global-shutter depth and RGB, up to 90 fps; RGB up to 1280x800; 6-DoF IMU. D456 variant is IP65.",
+   "sources": [
+    "https://www.realsenseai.com/wp-content/uploads/2026/03/RealSense-D400-Series-Datasheet-Mar-2026.pdf | accessed 2026-11-07 | Table 3-49, Table 3-53 (124 x 29 x 26 mm, 116 g), Table 4-12, Table 7-9 (3461.47 mW / TDP 3101.47 mW)",
+    "https://store.realsenseai.com/buy-realsense-depth-camera-d455.html | accessed 2026-11-07 | price"
+   ],
+   "verification": "sourced",
+   "notes": "Better at long range than the D435i because of the 95 mm baseline, but its minimum range is larger (0.52 m at HD)."
+  },
+  {
+   "id": "slamtec_rplidar_c1",
+   "category": "lidar",
+   "vendor": "SLAMTEC",
+   "model": "RPLIDAR C1 (C1M1), DTOF 2D",
+   "dims_mm": [
+    55.6,
+    55.6,
+    41.3
+   ],
+   "mass_g": 110,
+   "fov_deg": "360 deg 2D scan plane (pitch angle 0-1.5 deg). White target (70%) 0.05-12 m; black target (10%) 0.05-6 m.",
+   "power_typ_w": 1.15,
+   "power_max_w": 1.3,
+   "voltage": "5 V (4.8-5.2 V); 230 mA typ, 260 mA max",
+   "price_usd": 79.99,
+   "price_source": "Waveshare SKU 26535, USD 79.99 (accessed 2026-11-07)",
+   "key_specs": "5 kHz sample rate; 8-12 Hz scan (10 Hz typ); 0.72 deg angular resolution; +/-30 mm accuracy; 15 mm resolution; IP54; 40,000 lux ambient tolerance; TTL UART at 460800.",
+   "sources": [
+    "https://www.slamtec.com/en/C1/Spec | accessed 2026-11-07 | dims, weight, range, rates",
+    "https://cdn.shopify.com/s/files/1/0058/3145/8904/files/SLAMTEC_rplidar_datasheet_C1_v1.1_en.pdf | accessed 2026-11-07 | power 4.8-5.2 V, 230/260 mA; 110 g",
+    "https://www.waveshare.com/rplidar-c1.htm | accessed 2026-11-07 | price; 1.15 W"
+   ],
+   "verification": "sourced",
+   "notes": "Maximum power is my calculation: 5 V x 260 mA."
+  },
+  {
+   "id": "slamtec_rplidar_a1m8",
+   "category": "lidar",
+   "vendor": "SLAMTEC",
+   "model": "RPLIDAR A1 (A1M8), triangulation 2D",
+   "dims_mm": [
+    96.8,
+    70.3,
+    55
+   ],
+   "mass_g": 170,
+   "fov_deg": "360 deg 2D; range 0.15-12 m",
+   "power_typ_w": 0.5,
+   "power_max_w": null,
+   "voltage": "5 V; system current 100 mA",
+   "price_usd": 109.99,
+   "price_source": "Waveshare SKU 22342, USD 109.99 (accessed 2026-11-07)",
+   "key_specs": "8 kHz sampling; 5.5 Hz rotation; angular resolution 1 deg or better; UART at 3.3 V logic; 0-40 C. Accuracy 1% (up to 3 m), 2% (3-5 m), 2.5% (5-25 m).",
+   "sources": [
+    "https://www.slamtec.com/en/Lidar/A1Spec | accessed 2026-11-07 | dims, 170 g, range, 5 V/100 mA/0.5 W",
+    "https://www.waveshare.com/rplidar-a1.htm | accessed 2026-11-07 | price; lists 248 g"
+   ],
+   "verification": "sourced",
+   "notes": "Waveshare lists 248 g, probably including kit or adapter, versus 170 g from Slamtec. The 0.5 W / 100 mA figure is as Slamtec states it; older datasheets give motor power separately (not checked, because the Slamtec PDF returned 403). A legacy part: larger, heavier and slower than the C1."
+  },
+  {
+   "id": "ldrobot_stl19p",
+   "category": "lidar",
+   "vendor": "LDROBOT (sold by Waveshare as D500 LiDAR Kit)",
+   "model": "STL-19P DTOF 2D LiDAR",
+   "dims_mm": [
+    54,
+    46.29,
+    35
+   ],
+   "mass_g": 45,
+   "fov_deg": "360 deg 2D; pitch error 0.5-2 deg. White (80%) 0.03-12 m; black (4%) 0.03-8 m.",
+   "power_typ_w": 1.45,
+   "power_max_w": null,
+   "voltage": "5 V (4.5-5.5 V); 290 mA working",
+   "price_usd": 95.99,
+   "price_source": "Waveshare D500 LiDAR Kit SKU 25978, USD 95.99 (accessed 2026-11-07)",
+   "key_specs": "5000 Hz ranging; 6-13 Hz scan (10 Hz typ, PWM speed control); 0.72 deg at 10 Hz. Accuracy +/-10 mm (0.03-0.5 m), +/-20 mm (0.5-2 m), +/-30 mm (2-12 m). 60 klux; IP5X; -10 to 45 C; UART at 230400; BLDC motor; ZH1.5T-4P connector.",
+   "sources": [
+    "https://files.waveshare.com/wiki/D500-LiDAR-Kit/LDROBOT_STL-19P_Datasheet_EN_v1.0(1).pdf | accessed 2026-11-07 | LDROBOT datasheet: all specs, 45 g without cable",
+    "https://www.waveshare.com/d500-lidar-kit.htm | accessed 2026-11-07 | price, 1.45 W"
+   ],
+   "verification": "sourced",
+   "notes": "The lightest 2D LiDAR found here. The datasheet lists starting current as TBD. Typical power is my calculation: 5 V x 290 mA."
+  },
+  {
+   "id": "ldrobot_ld19",
+   "category": "lidar",
+   "vendor": "LDROBOT (Waveshare)",
+   "model": "DTOF LiDAR LD19",
+   "dims_mm": [
+    38.59,
+    38.59,
+    33.5
+   ],
+   "mass_g": 47,
+   "fov_deg": "360 deg 2D; range 0.02-12 m",
+   "power_typ_w": 0.9,
+   "power_max_w": null,
+   "voltage": "5 V, 180 mA",
+   "price_usd": 95.99,
+   "price_source": "Waveshare SKU 22098, USD 95.99 (accessed 2026-11-07)",
+   "key_specs": "4500 Hz; 5-13 Hz scan (10 typ); angular resolution 1 deg or better; +/-45 mm average accuracy (0.3-12 m) on the product page, 10 mm in the wiki; 30 klux; UART at 230400; -10 to 40 C.",
+   "sources": [
+    "https://www.waveshare.com/wiki/DTOF_LIDAR_LD19 | accessed 2026-11-07 | 38.59 x 38.59 x 33.50 mm, 5 V/180 mA/0.9 W",
+    "https://www.waveshare.com/dtof-lidar-ld19.htm | accessed 2026-11-07 | 47 g, price; lists 54.00 x 46.29 x 34.80 mm"
+   ],
+   "verification": "partially_sourced",
+   "notes": "Waveshare's wiki and product page disagree on dimensions (38.59 x 38.59 x 33.5 mm versus 54 x 46.29 x 34.8 mm) and on accuracy. Neither is an LDROBOT datasheet. Prefer the STL-19P, which has an LDROBOT datasheet."
+  },
+  {
+   "id": "unitree_l2",
+   "category": "lidar",
+   "vendor": "Unitree",
+   "model": "4D LiDAR L2",
+   "dims_mm": [
+    75,
+    75,
+    65
+   ],
+   "mass_g": 230,
+   "fov_deg": "360 x 90 deg, or 360 x 96 deg in negative-angle mode. 30 m at 90% reflectivity, 15 m at 10%. Near blind zone 0.05 m.",
+   "power_typ_w": 10,
+   "power_max_w": 13,
+   "voltage": "12 V, 1 A supply requirement (user manual); DC3.5-1.35 power plug",
+   "price_usd": 419,
+   "price_source": "unitree.com/L2 USD 419 (accessed 2026-11-07)",
+   "key_specs": "128,000 samples/s (64,000 effective); 5.55 Hz circumferential (adjustable) and 216 Hz vertical scan; 4.5 mm distance resolution; accuracy 2.0 cm or better; built-in 6-axis IMU; ENET UDP and TTL UART; non-repetitive scan; over 100 klux; Class 1 eye safe.",
+   "sources": [
+    "https://www.unitree.com/L2/ | accessed 2026-11-07 | specs, price, power 10 W, 13 W peak in self-heating",
+    "https://oss-global-cdn.unitree.com/static/Unitree%204D%20LiDAR%20L2%20User%20Manual.pdf | accessed 2026-11-07 | 230 g, 12 V 1 A, FOV modes"
+   ],
+   "verification": "sourced",
+   "notes": "When ambient is between -10 C and 30 C the L2 can enter self-heating, with peak power up to 13 W. Point cloud is densest near the top of the dome, so mount it to avoid a blind cone near the body."
+  },
+  {
+   "id": "unitree_l1",
+   "category": "lidar",
+   "vendor": "Unitree",
+   "model": "4D LiDAR L1 (PM Precision Measurement / RM Remote Measurement)",
+   "dims_mm": [
+    75,
+    75,
+    65
+   ],
+   "mass_g": 230,
+   "fov_deg": "360 x 90 deg. PM: 20 m at 90%, 10 m at 10%. RM: 30 m at 90%, 15 m at 10%.",
+   "power_typ_w": 6,
+   "power_max_w": null,
+   "voltage": "DC 12 V (manual)",
+   "price_usd": 249,
+   "price_source": "unitree.com: L1 PM USD 249, L1 RM USD 309 (accessed 2026-11-07)",
+   "key_specs": "43,200 samples/s (21,600 effective); 11 Hz circumferential and 180 Hz vertical scan; 8 mm resolution; +/-2.0 cm; TTL UART; -10 to 60 C.",
+   "sources": [
+    "https://www.unitree.com/L2/ | accessed 2026-11-07 | L1 PM/RM comparison table and prices",
+    "https://www.unitree.com/LiDAR/ | accessed 2026-11-07 | L1 power 6 W; from USD 249",
+    "https://oss-global-cdn.unitree.com/static/52b72f707b304d229d4321eea223738f.pdf | accessed 2026-11-07 | L1 manual v1.1: 230 g, 75 x 75 x 65 mm, 12 V"
+   ],
+   "verification": "sourced",
+   "notes": "About one third the point rate of the L2. UART only, no Ethernet."
+  },
+  {
+   "id": "livox_mid360",
+   "category": "lidar",
+   "vendor": "Livox",
+   "model": "Mid-360",
+   "dims_mm": [
+    65,
+    65,
+    60
+   ],
+   "mass_g": 265,
+   "fov_deg": "Horizontal 360 deg x vertical -7 to +52 deg (59 deg). 40 m at 10% and 70 m at 80% reflectivity (100 klx). Blind zone 0.1 m.",
+   "power_typ_w": 6.5,
+   "power_max_w": 14,
+   "voltage": "9-27 V DC",
+   "price_usd": 999,
+   "price_source": "AIFIT Lab Shopify listing USD 999 without connector, marked discontinue soon; Mid-360S successor USD 899 (accessed 2026-11-07). DJI store page failed to load.",
+   "key_specs": "200,000 points/s; 10 Hz; range precision 2 cm or better at 10 m; 100BASE-TX Ethernet; PTPv2/GPS sync; built-in ICM40609 IMU; IP67; -20 to 55 C.",
+   "sources": [
+    "https://www.livoxtech.com/mid-360/specs | accessed 2026-11-07 | all specs",
+    "https://aifitlab.com/products/livox-mid-360-lidar | accessed 2026-11-07 (via .json) | price and discontinuation flag"
+   ],
+   "verification": "sourced",
+   "notes": "Peak 14 W occurs in self-heating mode (-20 to 0 C). Accepts a 12 V or unregulated 6S bus directly (9-27 V), but not 12S. Being phased out in favour of the Mid-360S."
+  },
+  {
+   "id": "pololu_vl53l1x_3415",
+   "category": "tof",
+   "vendor": "Pololu",
+   "model": "VL53L1X ToF carrier with voltage regulator, 400 cm max (#3415)",
+   "dims_mm": [
+    13,
+    18,
+    2
+   ],
+   "mass_g": 0.5,
+   "fov_deg": "27 deg full FoV (programmable ROI). Range 4 cm to 4 m (long mode, dark); short mode about 1.3 m.",
+   "power_typ_w": 0.1,
+   "power_max_w": 0.2,
+   "voltage": "2.6-5.5 V; 20 mA typical, 40 mA peak",
+   "price_usd": 22.95,
+   "price_source": "pololu.com USD 22.95 at qty 1 (accessed 2026-11-07)",
+   "key_specs": "Single zone with configurable ROI; 50 Hz max in short mode and 30 Hz in medium/long; I2C; 940 nm Class 1; mass without headers.",
+   "sources": [
+    "https://www.pololu.com/product/3415 | accessed 2026-11-07 | all specs and price"
+   ],
+   "verification": "sourced",
+   "notes": "Power values are my calculation at 5 V VIN (20 mA typical, 40 mA peak)."
+  },
+  {
+   "id": "pololu_vl53l5cx_3417",
+   "category": "tof",
+   "vendor": "Pololu",
+   "model": "VL53L5CX ToF 8x8-zone carrier with regulator, 400 cm max (#3417)",
+   "dims_mm": [
+    13,
+    18,
+    3
+   ],
+   "mass_g": 0.5,
+   "fov_deg": "65 deg diagonal (45 x 45 deg); 4x4 or 8x8 zones; 20 mm to 4 m",
+   "power_typ_w": 0.5,
+   "power_max_w": 0.75,
+   "voltage": "2.5-5.5 V; 100 mA typical, 150 mA peak",
+   "price_usd": 19.95,
+   "price_source": "pololu.com USD 19.95 at qty 1 (accessed 2026-11-07)",
+   "key_specs": "Multi-zone, multi-target; I2C; the ST API needs over 90 KB of program memory.",
+   "sources": [
+    "https://www.pololu.com/product/3417 | accessed 2026-11-07 | specs and price"
+   ],
+   "verification": "sourced",
+   "notes": "Power values are my calculation at 5 V. A 15 Hz maximum at 8x8 appeared only in a search snippet and is unverified."
+  },
+  {
+   "id": "pololu_vl53l8cx_3419",
+   "category": "tof",
+   "vendor": "Pololu",
+   "model": "VL53L8CX ToF 8x8-zone carrier with regulators, 400 cm max (#3419)",
+   "dims_mm": [
+    13,
+    23,
+    3
+   ],
+   "mass_g": 0.7,
+   "fov_deg": "65 deg diagonal (45 x 45 deg); 8x8 zones; 20 mm to 4 m. In 5000 lux: about 2.8 m versus about 1.7 m for the VL53L5CX.",
+   "power_typ_w": 0.5,
+   "power_max_w": 0.75,
+   "voltage": "3.2-5.5 V; 100 mA typical, 150 mA peak",
+   "price_usd": 24.95,
+   "price_source": "pololu.com USD 24.95 at qty 1 (accessed 2026-11-07)",
+   "key_specs": "I2C up to 1 MHz or SPI up to 3 MHz; better ambient-light performance than the L5CX; pin-compatible power and I2C pins; 2 mounting holes (M2).",
+   "sources": [
+    "https://www.pololu.com/product/3419 | accessed 2026-11-07 | specs and price"
+   ],
+   "verification": "sourced",
+   "notes": "Pololu warns that its level shifter is sensitive to load: keep wires short (under 8 cm). Power values are my calculation at 5 V."
+  },
+  {
+   "id": "microstrain_3dm_cv7",
+   "category": "imu",
+   "vendor": "MicroStrain by HBK",
+   "model": "3DM-CV7 series (-AR, -AHRS, -INS)",
+   "dims_mm": [
+    38,
+    24,
+    8.6
+   ],
+   "mass_g": 8.3,
+   "power_typ_w": 0.23,
+   "power_max_w": 0.28,
+   "voltage": "3.2-5.2 V DC",
+   "price_usd": null,
+   "price_source": "Not obtained. HBK and MicroStrain pages returned 403. An X-On listing of USD 672.056 for the -AHRS appeared only in a search snippet (page 403), so it is unverified.",
+   "key_specs": "Gyro bias instability 1.5 deg/h; ARW 0.14 deg/sqrt(h); gyro noise 8.5 deg/h/sqrt(Hz); accel bias instability 18 ug, noise 30 ug/sqrt(Hz). Ranges +/-4/8/16 g and +/-250/500/1000 deg/s. 1-1000 Hz output (IMU and EKF); UART (TTL) and USB; GPIO 3 V (5 V tolerant); external clock sync; -40 to 85 C. AHRS and INS variants add a magnetometer.",
+   "sources": [
+    "https://metromatics.com.au/wp-content/uploads/2024/04/3DM-CV7-AR.pdf | accessed 2026-11-07 | MicroStrain datasheet 8400-0141 Rev E (third-party host)"
+   ],
+   "verification": "partially_sourced",
+   "notes": "Datasheet obtained from a distributor host because the manufacturer URLs were blocked. Price is quote-based."
+  },
+  {
+   "id": "adafruit_bno085_4754",
+   "category": "imu",
+   "vendor": "Adafruit (CEVA BNO085)",
+   "model": "9-DOF Orientation IMU Fusion Breakout BNO085 (#4754)",
+   "dims_mm": [
+    25.6,
+    22.7,
+    4.6
+   ],
+   "mass_g": 2.5,
+   "power_typ_w": null,
+   "power_max_w": null,
+   "voltage": "3.3 V or 5 V logic (level shifting on board)",
+   "price_usd": 29.5,
+   "price_source": "adafruit.com USD 29.50 (10-99 USD 26.55; 100+ USD 23.60) (accessed 2026-11-07)",
+   "key_specs": "On-chip sensor fusion (SH-2 firmware): quaternions, linear acceleration, gravity. I2C/SPI plus a simple UART-RVC mode. 2x STEMMA QT connectors.",
+   "sources": [
+    "https://www.adafruit.com/product/4754 | accessed 2026-11-07 | dims, mass, price, interfaces"
+   ],
+   "verification": "partially_sourced",
+   "notes": "Current draw is not stated on the Adafruit page. Low-cost option for body attitude; it is not a tactical-grade sensor."
+  },
+  {
+   "id": "gensace_gtech_3300_6s_60c_ec5",
+   "category": "battery",
+   "vendor": "Gens ace",
+   "model": "G-Tech 3300mAh 6S 60C 22.2V LiPo, EC5 (incumbent)",
+   "dims_mm": [
+    138,
+    42,
+    43
+   ],
+   "mass_g": 506,
+   "capacity_wh": 73.26,
+   "max_continuous_current_a": 198,
+   "voltage": "22.2 V nominal (6S1P)",
+   "price_usd": 107.19,
+   "price_source": "genstattu.com USD 107.19, stock over 100 (accessed 2026-11-07)",
+   "key_specs": "60C continuous / 120C burst; EC5 discharge plug; G-Tech smart balance plug; mass +/-20 g.",
+   "sources": [
+    "https://genstattu.com/gens-ace-g-tech-3300mah-6s-60c-22-2v-lipo-battery-pack-with-ec5-plug/ | accessed 2026-11-07 | 506 g, 138 x 42 x 43 mm, 60C/120C, price",
+    "https://www.buddyrc.com/collections/gens-ace-batteries/products/gens-ace-3300mah-22-2v-60c-6s1p-lipo-battery-pack-ec5-plug-1 | accessed 2026-11-07 | same 506 g and 138 x 42 x 43 mm"
+   ],
+   "verification": "sourced",
+   "notes": "Confirmed: the incumbent 138 x 42 x 43 mm and 506 g match the official US Gens ace/Tattu store and BuddyRC. The Wh and amp values are my calculations: 22.2 V x 3.3 Ah, and 60C x 3.3 Ah. C-ratings are vendor marketing values. About 145 Wh/kg by my calculation. Over 20 min it supports roughly 220 W average at 100% depth of discharge, or about 176 W using 80% (my calculation). The XT90 version differs (about 482 g per search snippets, unverified)."
+  },
+  {
+   "id": "gensace_gtech_5000_6s_60c_ec5",
+   "category": "battery",
+   "vendor": "Gens ace",
+   "model": "G-Tech 5000mAh 6S 60C 22.2V LiPo, EC5",
+   "dims_mm": [
+    165,
+    45,
+    47
+   ],
+   "mass_g": 755,
+   "capacity_wh": 111,
+   "max_continuous_current_a": 300,
+   "voltage": "22.2 V nominal (6S)",
+   "price_usd": 136.99,
+   "price_source": "genstattu.com USD 136.99 (accessed 2026-11-07)",
+   "key_specs": "60C / 120C burst; EC5; G-Tech balance; mass +/-20 g.",
+   "sources": [
+    "https://genstattu.com/gens-ace-5000mah-6s-60c-22-2v-g-tech-lipo-battery-pack-with-ec5-plug/ | accessed 2026-11-07 | 755 g, 165 x 45 x 47 mm, price"
+   ],
+   "verification": "sourced",
+   "notes": "Wh and amps are my calculations (about 147 Wh/kg). Other retailers in search snippets list 735-740 g and 155-164 mm."
+  },
+  {
+   "id": "tattu_plus_10000_6s_25c",
+   "category": "battery",
+   "vendor": "Tattu (Grepow)",
+   "model": "Tattu Plus 10000mAh 6S 25C 22.2V smart LiPo, EC5 (AS150+XT150 version also sold)",
+   "dims_mm": [
+    186,
+    70,
+    63
+   ],
+   "mass_g": 1517,
+   "capacity_wh": 222,
+   "max_continuous_current_a": 250,
+   "voltage": "22.2 V (6S1P)",
+   "price_usd": 227.99,
+   "price_source": "genstattu.com USD 227.99 (accessed 2026-11-07)",
+   "key_specs": "Smart BMS with status indication, storage self-discharge, over/under-voltage and temperature alerts; charge plug MOLEX-436450-9P; mass +/-20 g.",
+   "sources": [
+    "https://genstattu.com/tattu-plus-22-2v-25c-10000mah-6s-lipo-smart-battery-pack-with-ec5-plug.html | accessed 2026-11-07 | 1517 g, 186 x 70 x 63 mm, EC5, price",
+    "https://www.genstattu.com/tattu-plus-22-2v-25c-6s-liPo-battery-10000-mah-with-as150-xt150-plug.html | accessed 2026-11-07 | AS150/XT150 version, same mass and dims"
+   ],
+   "verification": "sourced",
+   "notes": "Wh and amps are my calculations (about 146 Wh/kg). Heavy for a removable cassette in a small T. rex. Its 222 Wh is far above the 15-20 min need at modest power."
+  },
+  {
+   "id": "gensace_5000_12s_60c",
+   "category": "battery",
+   "vendor": "Gens ace",
+   "model": "5000mAh 12S 60C 44.4V LiPo, no discharge plug (GEA12S500060)",
+   "dims_mm": [
+    324,
+    52,
+    47
+   ],
+   "mass_g": 1542,
+   "capacity_wh": 222,
+   "max_continuous_current_a": 300,
+   "voltage": "44.4 V nominal (12 cells, built as 6S x 2); 50.4 V full charge by my calculation",
+   "price_usd": 294.99,
+   "price_source": "genstattu.com USD 294.99, stock over 100 (accessed 2026-11-07)",
+   "key_specs": "60C / 120C burst; JST-XHR balance; no discharge plug fitted; mass +/-20 g.",
+   "sources": [
+    "https://genstattu.com/gens-ace-5000mah-12s-44-4v-60c-lipo-battery-pack-with-no-plug/ | accessed 2026-11-07 | 1542 g, 324 x 52 x 47 mm, price"
+   ],
+   "verification": "sourced",
+   "notes": "Wh and amps are my calculations. A 324 mm long pack is awkward for a cassette. Two 6S packs in series (next entry) are more compact. A 50.4 V full charge exceeds the Pololu D36V50F12's 50 V maximum input."
+  },
+  {
+   "id": "gensace_3300_6s_x2_series",
+   "category": "battery",
+   "vendor": "Gens ace",
+   "model": "2x G-Tech 3300mAh 6S 60C in series (12S equivalent), derived",
+   "dims_mm": [
+    138,
+    84,
+    43
+   ],
+   "mass_g": 1012,
+   "capacity_wh": 146.5,
+   "max_continuous_current_a": 198,
+   "voltage": "44.4 V nominal, 50.4 V full (my calculation)",
+   "price_usd": 214.38,
+   "price_source": "My calculation: 2 x USD 107.19 at genstattu.com (accessed 2026-11-07)",
+   "key_specs": "Two EC5 packs side by side; needs a series harness and per-pack balance charging.",
+   "sources": [
+    "https://genstattu.com/gens-ace-g-tech-3300mah-6s-60c-22-2v-lipo-battery-pack-with-ec5-plug/ | accessed 2026-11-07 | per-pack data"
+   ],
+   "verification": "partially_sourced",
+   "notes": "Every number here is derived from the single-pack data. The envelope assumes the packs sit side by side with no wiring or spacer allowance. Same energy density as a single pack."
+  },
+  {
+   "id": "flywoo_explorer_p45b_6s2p",
+   "category": "battery",
+   "vendor": "Flywoo",
+   "model": "Explorer LiPack Molicel P45B 21700 6S2P 9000mAh",
+   "dims_mm": [],
+   "mass_g": 860.7,
+   "capacity_wh": 199.8,
+   "max_continuous_current_a": 45,
+   "voltage": "22.2 V as labelled (6 x 3.6 V cells = 21.6 V nominal)",
+   "price_usd": 99.99,
+   "price_source": "Defiance RC USD 99.99 (accessed 2026-11-07)",
+   "key_specs": "Molicel INR-21700-P45B cells; XT60 discharge; JST-XH2.54-7P balance; shock-absorbing foam.",
+   "sources": [
+    "https://www.defiancerc.com/products/flywoo-explorer-molicell-p45b-21700-6s2p-9000mah-lionpack-battery | accessed 2026-11-07 | 860.7 g, XT60, 45 A, price"
+   ],
+   "verification": "partially_sourced",
+   "notes": "Dimensions are not stated. The listing conflicts with itself: it says 45 A discharge performance, mentions a 35 A peak in the description, and has a typo reading 6S1P 9000mAh. In theory, two cells in parallel at 45 A each give 90 A (my calculation), but the XT60 connector would limit the pack. Wh is my calculation (about 232 Wh/kg, or 194 Wh using 3.6 V cells). Flywoo's own site returned 403."
+  },
+  {
+   "id": "flywoo_explorer_p45b_6s1p",
+   "category": "battery",
+   "vendor": "Flywoo",
+   "model": "Explorer LiPack Molicel P45B 21700 6S1P 4500mAh",
+   "dims_mm": [],
+   "mass_g": 433.7,
+   "capacity_wh": 99.9,
+   "max_continuous_current_a": 45,
+   "voltage": "22.2 V as labelled",
+   "price_usd": 59.99,
+   "price_source": "Defiance RC USD 59.99 (accessed 2026-11-07)",
+   "key_specs": "P45B cells; XT60; JST-XH 7-pin balance.",
+   "sources": [
+    "https://www.defiancerc.com/products/flywoo-explorer-molicell-p45b-21700-6s1p-4500mah-lionpack-battery | accessed 2026-11-07 | 433.7 g, XT60, 45 A, price"
+   ],
+   "verification": "partially_sourced",
+   "notes": "Dimensions not stated. Wh is my calculation (about 230 Wh/kg). Lighter than the incumbent LiPo with about 36% more energy (my calculation), but 45 A continuous versus 198 A rated for the LiPo."
+  },
+  {
+   "id": "lumenier_nav_6s_5000_21700",
+   "category": "battery",
+   "vendor": "Lumenier",
+   "model": "NAV 5000mAh 6S 21700 Li-ion, XT60 (SKU 22802)",
+   "dims_mm": [
+    85,
+    45,
+    65
+   ],
+   "mass_g": 499,
+   "capacity_wh": 111,
+   "max_continuous_current_a": 35,
+   "voltage": "22.2 V (6S1P)",
+   "price_usd": 95.99,
+   "price_source": "lumenier.com USD 95.99 (accessed 2026-11-07)",
+   "key_specs": "Cell: 21.45 x 70.65 mm, about 72 g, 5000 mAh, 3.6 V, under 15 mOhm; 35 A continuous with an 80 C cutoff (20 A without a temperature cutoff); 90 A burst; XT60.",
+   "sources": [
+    "https://www.lumenier.com/products/lumenier-nav-5000mah-6s-21700-lithium-ion-battery-xt60 | accessed 2026-11-07 | L 85, W 45, H 65 mm; 499 g; cell specs; price"
+   ],
+   "verification": "partially_sourced",
+   "notes": "The page says 72.0 Wh, which contradicts 22.2 V x 5 Ah = 111 Wh (my calculation); I used 111 Wh. The cell maker is not named. Very compact. A realistic continuous rating is 20-35 A."
+  },
+  {
+   "id": "dantech_tn6s3p_50s",
+   "category": "battery",
+   "vendor": "Dan-Tech Energy (Berlin)",
+   "model": "Li-Ion Drone Battery 15000mAh 21.6V 75A (TN6S3P-50S-01)",
+   "dims_mm": [
+    75,
+    72,
+    150
+   ],
+   "mass_g": 1400,
+   "capacity_wh": 324,
+   "max_continuous_current_a": 75,
+   "voltage": "21.6 V nominal; 25.2 V charge; 16.8 V cut-off",
+   "price_usd": null,
+   "price_source": "shop.danenergy.com EUR 265.00 for XT90 without BMS; EUR 315.00 with 60 A smart BMS and AS150U (accessed 2026-11-07). Not converted to USD.",
+   "key_specs": "6S3P Samsung INR21700-50S (a Molicel P50B variant also exists); 75 A continuous and 90 A max continuous; 12 A max charge. 75 x 80 x 150 mm with BMS. The smart BMS adds telemetry over CAN, RS485 and UART. Designed to UN 38.3 and IEC 62133-2; rated 1,000 cycles.",
+   "sources": [
+    "https://shop.danenergy.com/products/li-ion-drone-battery-15000mah-21-6v-75a-6s3p-50s | accessed 2026-11-07 | 324 Wh, 75 A, 1.4 kg, prices",
+    "https://shop.danenergy.com/cdn/shop/files/drone-series-a.pdf?v=17979842379531034863 | accessed 2026-11-07 | series datasheet: dims, currents, cells; 6S1P TN6S1P-50S: 25 x 72 x 150 mm, 0.5 kg, 108 Wh, 25 A"
+   ],
+   "verification": "sourced",
+   "notes": "About 231 Wh/kg by my calculation. Probably oversized at 324 Wh. The 6S1P sibling (108 Wh, 0.5 kg, 25 A continuous) matches the incumbent energy class better. A BMS with CAN telemetry suits robotics. Large packs face air-transport restrictions; I did not source the thresholds."
+  },
+  {
+   "id": "molicel_p45b_cell",
+   "category": "battery",
+   "vendor": "Molicel (E-One Moli Energy)",
+   "model": "INR-21700-P45B cell (for custom 6S2P/6S3P packs)",
+   "dims_mm": [
+    21.4,
+    70
+   ],
+   "mass_g": 70,
+   "capacity_wh": 16.2,
+   "max_continuous_current_a": 45,
+   "voltage": "3.6 V nominal; 4.20 V charge; 2.5 V end of discharge",
+   "price_usd": null,
+   "price_source": "Not collected",
+   "key_specs": "4.5 Ah typical (4.35 Ah rated); 45 A max continuous discharge; 9 A max continuous charge; discharge from -40 to 60 C; mass 70.0 g maximum.",
+   "sources": [
+    "https://www.kronium.cz/uploads/p45b-datasheet.pdf | accessed 2026-11-07 | Molicel cell specification (third-party host): dims 21.40 +/-0.15 x 70.00 +/-0.15 mm, 70.0 g max, 45 A, 9 A"
+   ],
+   "verification": "sourced",
+   "notes": "Wh is my calculation (3.6 V x 4.5 Ah). Cells alone for 6S2P: 840 g and 194.4 Wh. For 6S3P: 1260 g and 291.6 Wh (my calculations, before BMS, holders and wiring)."
+  },
+  {
+   "id": "makita_bl1860b",
+   "category": "battery",
+   "vendor": "Makita",
+   "model": "BL1860B 18V LXT 6.0Ah (tool-platform, hot-swappable slide pack)",
+   "dims_mm": [
+    113,
+    75,
+    62
+   ],
+   "mass_g": 660,
+   "capacity_wh": 108,
+   "max_continuous_current_a": null,
+   "voltage": "18 V nominal (LXT)",
+   "price_usd": null,
+   "price_source": "World of Power UK GBP 128.34 incl. VAT, out of stock (accessed 2026-11-07). No US price obtained.",
+   "key_specs": "6.0 Ah; 55 min charge on the Makita rapid charger; LED fuel gauge; Star Protection.",
+   "sources": [
+    "https://www.worldofpower.co.uk/makita-bl1860b-18v-6-0ah-li-ion-battery.html | accessed 2026-11-07 | 113 x 75 x 62 mm (L x W x H), 0.66 kg",
+    "https://makitatools.com/products/details/BL1860B | accessed 2026-11-07 | 18 V, 6.0 Ah, 55 min, shipping weight 2.02 lb"
+   ],
+   "verification": "partially_sourced",
+   "notes": "Wh is my calculation (about 164 Wh/kg). Makita does not publish a continuous current rating. An 18 V (5S-class) pack is about 4 V below a 6S bus, which affects motor headroom; Makita's own 36 V (18V x2) approach is an option. Dimensions and mass come from a retailer."
+  },
+  {
+   "id": "milwaukee_m18_forge_xc80",
+   "category": "battery",
+   "vendor": "Milwaukee",
+   "model": "M18 REDLITHIUM FORGE XC8.0 (48-11-1881); predecessor HIGH OUTPUT XC8.0 48-11-1880 is no longer available",
+   "dims_mm": [],
+   "mass_g": 1110,
+   "capacity_wh": 144,
+   "max_continuous_current_a": null,
+   "voltage": "18 V",
+   "price_usd": null,
+   "price_source": "Not obtained; the Acme Tools page returned 403",
+   "key_specs": "8 Ah; Power Level PWR4; recharge 45 min on Super Charger, 83 min Rapid, 153 min standard; fuel gauge; 3-year warranty.",
+   "sources": [
+    "https://www.milwaukeetool.com/products/details/m18-redlithium-forge-xc8-0-battery-pack/48-11-1881 | accessed 2026-11-07 | weight 2.4476 lb, 8 Ah, 18 V",
+    "https://www.milwaukeetool.com/products/details/m18-redlithium-high-output-xc8-0-battery/48-11-1880 | accessed 2026-11-07 | weight 2.53 lb; page says no longer available"
+   ],
+   "verification": "partially_sourced",
+   "notes": "Mass is my conversion of 2.4476 lb to grams. Milwaukee lists assembled dimensions of 7.05 x 3.46 x 6.69 in, which look like packaging, so I left dims empty (retailer snippets give 5.46 x 3.3 x 3.22 in for the 48-11-1880, unverified). No continuous current is stated. Wh is my calculation (about 130 Wh/kg)."
+  },
+  {
+   "id": "pololu_d36v50f12",
+   "category": "dcdc",
+   "vendor": "Pololu",
+   "model": "D36V50F12 12V 4.5A step-down regulator (#4095)",
+   "dims_mm": [
+    25.4,
+    25.4,
+    9.5
+   ],
+   "mass_g": 7,
+   "power_max_w": 54,
+   "max_continuous_current_a": 4.5,
+   "voltage": "Input 13.3-50 V; output 12 V +/-4%",
+   "price_usd": 39.95,
+   "price_source": "pololu.com USD 39.95 (accessed 2026-11-07)",
+   "key_specs": "Typical max continuous output 2.3-6.5 A depending on input (4.5 A at 36 V in); 90-95% efficiency; about 500 kHz; 2-4 mA quiescent; EN and PG pins; reverse-voltage protection to 40 V; OV/UV/OC/short/OT protection; three M2 mounting holes.",
+   "sources": [
+    "https://www.pololu.com/product/4095 | accessed 2026-11-07 | features, size, price",
+    "https://www.pololu.com/product/4095/specs | accessed 2026-11-07 | 7.0 g; 4.5 A at 36 V in"
+   ],
+   "verification": "sourced",
+   "notes": "The 54 W figure is my calculation (12 V x 4.5 A). The 50 V maximum input is below a fully charged 12S pack (50.4 V by my calculation), so do not use it on 12S. Fine on 6S."
+  },
+  {
+   "id": "pololu_d42v110f12",
+   "category": "dcdc",
+   "vendor": "Pololu",
+   "model": "D42V110F12 12V 9A step-down regulator (#5677)",
+   "dims_mm": [
+    31.8,
+    43.2,
+    9
+   ],
+   "mass_g": 15,
+   "power_max_w": 108,
+   "max_continuous_current_a": 9,
+   "voltage": "Input 12-60 V; output 12 V +/-3%",
+   "price_usd": 69.95,
+   "price_source": "pololu.com USD 69.95 (accessed 2026-11-07)",
+   "key_specs": "Typical max continuous output 6-12 A (9 A at 42 V in); over 90% efficiency; about 800 kHz; under 0.3 mA quiescent; EN and PG pins; soft-start; reverse-voltage, OC and OT protection; 4x M2 holes.",
+   "sources": [
+    "https://www.pololu.com/product/5677 | accessed 2026-11-07 | features, size, price",
+    "https://www.pololu.com/product/5677/specs | accessed 2026-11-07 | 15 g; 9 A at 42 V in"
+   ],
+   "verification": "sourced",
+   "notes": "108 W is my calculation. Safe on both 6S and 12S buses. Note the user asked for D42V110F12; this 12 V version is rated 9 A, while the 11 A rating belongs to lower-voltage versions."
+  },
+  {
+   "id": "pololu_d24v10f5",
+   "category": "dcdc",
+   "vendor": "Pololu",
+   "model": "D24V10F5 5V 1A step-down regulator (#2831)",
+   "dims_mm": [
+    18,
+    13,
+    3.5
+   ],
+   "mass_g": 1,
+   "power_max_w": 5,
+   "max_continuous_current_a": 1,
+   "voltage": "Input 5.1-36 V; output 5 V +/-4%",
+   "price_usd": 13.95,
+   "price_source": "pololu.com USD 13.95 at qty 1 (accessed 2026-11-07)",
+   "key_specs": "80-93% efficiency; 500 kHz; 200 uA quiescent; SHDN and PG pins; OC/short/OT protection; no reverse-voltage protection.",
+   "sources": [
+    "https://www.pololu.com/product/2831 | accessed 2026-11-07 | 0.7 x 0.5 x 0.14 in (18 x 13 x 3.5 mm), features, price",
+    "https://www.pololu.com/product/2831/specs | accessed 2026-11-07 | 1.0 g; 5.1-36 V"
+   ],
+   "verification": "sourced",
+   "notes": "Dimensions verified: 18 x 13 x 3.5 mm. The 36 V maximum suits 6S (25.2 V) but not 12S."
+  },
+  {
+   "id": "meanwell_ddr_120c_24",
+   "category": "dcdc",
+   "vendor": "Mean Well",
+   "model": "DDR-120C-24 (48 V-input class, 120 W, isolated DIN-rail DC-DC)",
+   "dims_mm": [
+    32,
+    125.2,
+    102
+   ],
+   "mass_g": 510,
+   "power_max_w": 120,
+   "max_continuous_current_a": 5,
+   "voltage": "Input 33.6-67.2 V DC (UVLO on at 33.6 V or above, off at 33 V or below); output 24 V (adjustable 24-28 V)",
+   "price_usd": 88.66,
+   "price_source": "TRC Electronics USD 88.66 at qty 1, import tariff included (accessed 2026-11-07)",
+   "key_specs": "91% typical efficiency (DDR-120C-12: 12 V, 10 A, 89.5%; DDR-120C-48: 92%); 180 W peak for 3 s; 50 mVp-p ripple; reverse polarity protection via internal MOSFET; OVP; -40 to 70 C; EN50155 railway; 4 kVdc I/O isolation. For a 6S bus use DDR-120B (16.8-33.6 V input; B-12 89%, B-24 89.5%, B-48 91%).",
+   "sources": [
+    "https://www.meanwell.com/Upload/PDF/DDR-120/DDR-120-SPEC.PDF | accessed 2026-11-07 | spec rev 2026-09-10: all electrical, dims 32 x 125.2 x 102 mm (W x H x D), packing 510 g",
+    "https://www.trcelectronics.com/products/mean-well-ddr-120c-24 | accessed 2026-11-07 | price"
+   ],
+   "verification": "sourced",
+   "notes": "Mass is Mean Well's PACKING value (510 g), which is heavy. Works across the whole 12S range (36-50.4 V by my calculation)."
+  },
+  {
+   "id": "meanwell_sd_200c_24",
+   "category": "dcdc",
+   "vendor": "Mean Well",
+   "model": "SD-200C-24 (36-72 V input, 200 W enclosed DC-DC)",
+   "dims_mm": [
+    215,
+    115,
+    50
+   ],
+   "mass_g": 1100,
+   "power_max_w": 201.6,
+   "max_continuous_current_a": 8.4,
+   "voltage": "Input 36-72 V DC (C type); output 24 V",
+   "price_usd": null,
+   "price_source": "Not collected",
+   "key_specs": "86% typical efficiency (SD-200C-12: 16.7 A, 84%). The B type accepts 19-36 V input.",
+   "sources": [
+    "https://www.meanwell.com/Upload/PDF/SD-200/SD-200-SPEC.PDF | accessed 2026-11-07 | ratings, efficiency, dims, packing 1.1 kg"
+   ],
+   "verification": "partially_sourced",
+   "notes": "Bulky and heavy for a robot; DDR-120 or the Pololu D42V110 are better fits. Minimum input of 36 V is reached at 3.0 V/cell on 12S, so it drops out late in discharge."
+  },
+  {
+   "id": "fort_wireless_estop",
+   "category": "estop",
+   "vendor": "FORT Robotics (sold via Clearpath)",
+   "model": "Wireless E-Stop handset (WES-001-2401 at 2.4 GHz; WES-001-901/903 at 900 MHz) plus FORT Vehicle Safety Controller (VSC) receiver",
+   "dims_mm": [
+    163,
+    47,
+    47
+   ],
+   "mass_g": 310,
+   "voltage": "Handset: Li-ion 10.4 Wh, charges at 5 V DC 2 A via USB. Receiver supply not captured.",
+   "price_usd": null,
+   "price_source": "Quote only; the Clearpath store listing shows USD 0.00 (accessed 2026-11-07)",
+   "key_specs": "Constant heartbeat to the receiver; triggers a stop on link loss. Designed to meet SIL 2 (IEC 61508) and Cat 3 PLd (ISO 13849). 900 MHz up to 2 km line of sight; 2.4 GHz up to 200 m line of sight. IP65; MIL-STD-810 design; -20 to 60 C; up to 12 h battery. One-to-many and many-to-one pairing.",
+   "sources": [
+    "https://store.neweagle.net/wp-content/uploads/2026/06/FORT-Wireless-E-Stop-Data-Sheet-013026.pdf | accessed 2026-11-07 | handset datasheet: dims, 310 g, battery, safety rating, range",
+    "https://store.clearpathrobotics.com/products/wireless-e-stop | accessed 2026-11-07 (via .json) | requires VSC; quotes 500+ m line of sight at 2.4 GHz"
+   ],
+   "verification": "partially_sourced",
+   "notes": "Dimensions and mass are for the handset; the robot-side VSC receiver is separate. A reseller snippet said about 1 lb for the VSC, but that is unverified. The two sources disagree on 2.4 GHz range (200 m versus 500+ m). Wire the VSC relay into the hardware stop chain (contactor coil or driver STO) rather than through software."
+  },
+  {
+   "id": "te_kilovac_lev100",
+   "category": "other",
+   "vendor": "TE Connectivity (KILOVAC)",
+   "model": "LEV100 contactor: LEV100A4ANG (12 V coil) / A5ANG (24 V) / A6ANG (48 V), SPST-NO",
+   "dims_mm": [],
+   "mass_g": 190,
+   "power_typ_w": 6,
+   "max_continuous_current_a": 100,
+   "voltage": "Contacts 900 VDC max switching. Coil nominal 12/24/48 V (max 16/28/52 V); pick-up 8/16/33 V; drop-out 1.2/2.4/4.8 V.",
+   "price_usd": null,
+   "price_source": "Not obtained; distributor pages blocked",
+   "key_specs": "100 A continuous; 200 A for 3 min. Make/break 50 A at +400 Vdc: 50,000 cycles (polarity sensitive). Coil 5.5 W (12 V) or 6.0 W (24/48 V); operate 25 ms max, release 10 ms; 1 million mechanical cycles; -40 to 85 C; M5 load terminals; flying coil leads.",
+   "sources": [
+    "https://www.zoro.com/static/cms/enhanced_pdf/Waldom%20Electronics_ddecontrolleractionshowdocdociddatasheet7f617734509xxlev100xxdcaa3d.pdf | accessed 2026-11-07 | TE LEV100 datasheet: ratings, coil data, 6.7 oz (190 g), outline drawing"
+   ],
+   "verification": "partially_sourced",
+   "notes": "Drawing callouts include 57.96 mm, 52.52 mm, 46.3 mm, 40.77 mm and a 39.5 mm diameter body, but I could not confirm which axis each belongs to, so dims are left empty. Hot switching is polarity sensitive: observe the marked + terminal. Oversized relative to the ~50 V/50 A target but light. The Albright SW80P (100 A, IP66, 48 V DC rating without blowouts) was checked, but its weight could not be read from the PDF."
+  },
+  {
+   "id": "meanwell_rsp_750_24",
+   "category": "power_supply",
+   "vendor": "Mean Well",
+   "model": "RSP-750-24",
+   "dims_mm": [
+    250,
+    127,
+    41
+   ],
+   "mass_g": 1640,
+   "power_max_w": 751.2,
+   "max_continuous_current_a": 31.3,
+   "voltage": "Input 90-264 VAC (127-370 VDC); output 24 V (adjustable 20-26.4 V)",
+   "price_usd": 206.29,
+   "price_source": "TRC Electronics USD 206.29 at qty 1, tariff included (accessed 2026-11-07)",
+   "key_specs": "90.5% efficiency; PFC 0.97 at 230 VAC; overload 105-125% with constant-current limiting and auto-recovery; OVP 27.6-32.4 V (shutdown, re-power to recover); OTP; remote ON-OFF; PV output programming (40-110%); DC-OK.",
+   "sources": [
+    "https://www.meanwell.com/Upload/PDF/RSP-750/RSP-750-SPEC.PDF | accessed 2026-11-07 | all specs; packing 1.64 kg",
+    "https://www.trcelectronics.com/products/mean-well-rsp-750-24 | accessed 2026-11-07 | price"
+   ],
+   "verification": "sourced",
+   "notes": "Auto-recovering current limit tolerates actuator inrush better than the LRS-600. Neither supply can sink regenerated current, so add a brake/shunt circuit or keep a battery in parallel when tethered."
+  },
+  {
+   "id": "meanwell_rsp_750_48",
+   "category": "power_supply",
+   "vendor": "Mean Well",
+   "model": "RSP-750-48",
+   "dims_mm": [
+    250,
+    127,
+    41
+   ],
+   "mass_g": 1640,
+   "power_max_w": 753.6,
+   "max_continuous_current_a": 15.7,
+   "voltage": "Input 90-264 VAC; output 48 V (adjustable 43-55 V)",
+   "price_usd": 206.29,
+   "price_source": "TRC Electronics USD 206.29 at qty 1, tariff included (accessed 2026-11-07)",
+   "key_specs": "92% efficiency; constant-current limiting with auto-recovery; OVP 56.6-66.2 V; remote ON-OFF; PV/PC.",
+   "sources": [
+    "https://www.meanwell.com/Upload/PDF/RSP-750/RSP-750-SPEC.PDF | accessed 2026-11-07 | specs",
+    "https://www.trcelectronics.com/products/mean-well-rsp-750-48 | accessed 2026-11-07 | price"
+   ],
+   "verification": "sourced",
+   "notes": "Can be set to about 50 V to mimic a charged 12S bus (adjustment range 43-55 V)."
+  },
+  {
+   "id": "meanwell_lrs_600_24",
+   "category": "power_supply",
+   "vendor": "Mean Well",
+   "model": "LRS-600-24",
+   "dims_mm": [
+    225,
+    124,
+    41
+   ],
+   "mass_g": 950,
+   "power_max_w": 600,
+   "max_continuous_current_a": 25,
+   "voltage": "Input 90-132 or 180-264 VAC by switch; output 24 V (adjustable 22.8-26.4 V)",
+   "price_usd": 66.8,
+   "price_source": "TRC Electronics USD 66.80 at qty 1 (accessed 2026-11-07)",
+   "key_specs": "91% efficiency; overload 105-150% constant-current limiting, then shutdown after 3 s with re-power required to recover; OVP 27.6-32.4 V; fan on at 50 C or above.",
+   "sources": [
+    "https://www.meanwell.com/Upload/PDF/LRS-600/LRS-600-SPEC.PDF | accessed 2026-11-07 | specs; packing 0.95 kg",
+    "https://www.trcelectronics.com/products/mean-well-lrs-600-24 | accessed 2026-11-07 | price"
+   ],
+   "verification": "sourced",
+   "notes": "Cheap and light, but the 3 s overload latch-off can trip on sustained actuator stall."
+  },
+  {
+   "id": "meanwell_lrs_600_48",
+   "category": "power_supply",
+   "vendor": "Mean Well",
+   "model": "LRS-600-48",
+   "dims_mm": [
+    225,
+    124,
+    41
+   ],
+   "mass_g": 950,
+   "power_max_w": 600,
+   "max_continuous_current_a": 12.5,
+   "voltage": "Output 48 V (adjustable 45.6-52.8 V)",
+   "price_usd": 66.8,
+   "price_source": "TRC Electronics USD 66.80 at qty 1 (accessed 2026-11-07)",
+   "key_specs": "92% efficiency; OVP 55.2-64.8 V; overload shutdown after 3 s.",
+   "sources": [
+    "https://www.meanwell.com/Upload/PDF/LRS-600/LRS-600-SPEC.PDF | accessed 2026-11-07 | specs",
+    "https://www.trcelectronics.com/products/mean-well-lrs-600-48 | accessed 2026-11-07 | price"
+   ],
+   "verification": "sourced",
+   "notes": "Same caveats as the LRS-600-24."
+  },
+  {
+   "id": "peak_pcan_usb_fd",
+   "category": "can_interface",
+   "vendor": "PEAK-System (HMS)",
+   "model": "PCAN-USB FD (IPEH-004022 USB-A / IPEH-004023 USB-C)",
+   "dims_mm": [
+    75,
+    43,
+    22
+   ],
+   "mass_g": 68,
+   "power_max_w": 0.85,
+   "voltage": "5 V via USB, 170 mA max",
+   "price_usd": 368,
+   "price_source": "Grid Connect GC-CAN-USB-FD USD 368.00, in stock, USB-A or USB-C (accessed 2026-11-07)",
+   "key_specs": "CAN FD data rate 25 kbit/s to 12 Mbit/s; nominal 25 kbit/s to 1 Mbit/s; ISO and non-ISO FD; NXP TJA1044GT; 500 V galvanic isolation; D-Sub 9 (CiA 106); termination by solder jumper; 1 us timestamps; -40 to 85 C; Linux drivers plus PCAN-Basic for Linux.",
+   "sources": [
+    "https://www.peak-system.com/products/hardware/external-pc-interfaces/pcan-usb-fd/?&L=1 | accessed 2026-11-07 | specs",
+    "https://www.peak-system.com/produktcd/Pdf/English/PCAN-USB-FD_UserMan_eng.pdf | accessed 2026-11-07 | 75 x 43 x 22 mm without cable, 68 g max with cable, 170 mA",
+    "https://www.gridconnect.com/products/can-usb-fd-adapter-pcan-usb-fd | accessed 2026-11-07 | price"
+   ],
+   "verification": "sourced",
+   "notes": "0.85 W is my calculation. The USB-C version showed out of stock on PEAK's site. Isolation is useful when sharing ground with motor drives."
+  },
+  {
+   "id": "canable_2_0",
+   "category": "can_interface",
+   "vendor": "Openlight Labs",
+   "model": "CANable 2.0 (PF-CANABLE-2.0)",
+   "dims_mm": [],
+   "mass_g": null,
+   "voltage": "USB-C bus powered",
+   "price_usd": 35,
+   "price_source": "openlightlabs.com USD 35.00 (accessed 2026-11-07)",
+   "key_specs": "CAN 2.0A/B up to 1 Mbit/s; CAN FD via slcan (beta); SocketCAN through slcand; 4-pin screw terminal (CANH, CANL, 5 V output, GND); termination switch; bootloader button; Python library.",
+   "sources": [
+    "https://openlightlabs.com/products/canable-2-0 | accessed 2026-11-07 (via .json) | features, price"
+   ],
+   "verification": "partially_sourced",
+   "notes": "Not isolated. Dimensions and mass not stated. canable.io failed with a TLS protocol error. Search snippets (unverified) say the candleLight/gs_usb firmware does not support FD frames on this board, so CAN FD on Jetson would rely on beta slcan. For FD actuators the PCAN-USB FD is the safer choice."
+  },
+  {
+   "id": "seeed_respeaker_xvf3800",
+   "category": "microphone",
+   "vendor": "Seeed Studio",
+   "model": "reSpeaker XVF3800 USB 4-Mic Array (SKU 101991441)",
+   "dims_mm": [
+    108,
+    108,
+    18
+   ],
+   "mass_g": null,
+   "voltage": "USB 5 V or external 5 V",
+   "price_usd": 60.99,
+   "price_source": "Seeed USD 60.99 (10+ USD 54.99); cased version USD 62.99 (accessed 2026-11-07)",
+   "key_specs": "XMOS XVF3800; 4 PDM MEMS mics; -26 dBFS sensitivity; AOP 120 dBL; SNR 64 dBA; 16 kHz max sample rate; AEC, noise suppression, AGC, DoA, de-reverberation, beamforming; 360 deg pickup up to 5 m; USB and I2S; speaker connector supporting a 5 W amplifier; 3.5 mm jack; 12 RGB LEDs.",
+   "sources": [
+    "https://www.seeedstudio.com/ReSpeaker-XVF3800-USB-Mic-Array-p-6488.html | accessed 2026-11-07 | spec table and comparison table; price"
+   ],
+   "verification": "partially_sourced",
+   "notes": "Mass and power draw are not stated. The 108 x 108 x 18 mm figure is Seeed's listed dimension; it is unclear whether it includes a case."
+  },
+  {
+   "id": "seeed_respeaker_mic_array_v2",
+   "category": "microphone",
+   "vendor": "Seeed Studio",
+   "model": "ReSpeaker Mic Array v2.0 (XMOS XVF-3000, USB)",
+   "dims_mm": [
+    70
+   ],
+   "mass_g": null,
+   "power_typ_w": 0.85,
+   "power_max_w": 0.9,
+   "voltage": "5 V; 180 mA with LEDs on, 170 mA with LEDs off",
+   "price_usd": null,
+   "price_source": "Not obtained",
+   "key_specs": "4 mics; XVF-3000 DSP (beamforming, AEC, DoA); circular PCB 70 mm diameter.",
+   "sources": [
+    "https://wiki.seeedstudio.com/ReSpeaker_Mic_Array_v2.0/ | accessed 2026-11-07 | 70 mm diameter; 5 V 180/170 mA"
+   ],
+   "verification": "partially_sourced",
+   "notes": "dims_mm holds the diameter only. Power values are my calculations (5 V x 170/180 mA). Lifecycle status was not verified; the XVF3800 is the current successor."
+  }
+ ],
+ "failed_lookups": [
+  "https://www.arrow.com/en/products/900-13767-0000-000/nvidia: connection failed (curl 000). Orin NX 16GB price USD 699 not verified.",
+  "https://openzeka.com/wp-content/uploads/2025/08/jetson-orin-nx-datasheet-1.pdf: downloaded, but the PDF text uses an obfuscated font and cannot be read.",
+  "https://wiki.seeedstudio.com/reComputer_J401_Carrier_Board_Hardware_Interfaces_Usage/: 404. The J401 datasheet PDF was used instead.",
+  "https://www.mouser.com/datasheet/2/744/A603_Carrier_Board_for_Jetsson_Orin_NX_Nano_Datash-3237054.pdf: returned a JavaScript bot challenge instead of the PDF. The Seeed-hosted copy was used.",
+  "https://shop.luxonis.com/products/oak-d-lite-1.json (and the oak-d-pro-w / oak-d-w .json endpoints): 404. HTML pages used instead.",
+  "https://shop.luxonis.com/pages/pricing-change-oak-lite-oak-1: 404.",
+  "https://docs-old.luxonis.com/projects/hardware/en/latest/pages/DM9098prow/: connection failed.",
+  "https://bucket-download.slamtec.com/54d7d52b58db5cdd565a3a107c7bfab92617eed6/LD108_SLAMTEC_rplidar_datasheet_A1M8_v3.0_cn.pdf: 403.",
+  "https://www.slamtec.com/en/C1/Download: redirected to the Slamtec home page.",
+  "https://core-electronics.com.au/rplidar-c1-dtof-lidar-360-laser-range-scanner-12m-ip54.html.plain.md: Cloudflare challenge.",
+  "https://store.dji.com/product/livox-mid-360: HTTP 406 and redirect to account login; Shopify .json endpoints 404. No official Livox price.",
+  "https://www.microstrain.com/sites/default/files/8400-0141_3DM_CV7_Datasheet.pdf: 403 (redirect to hbkworld).",
+  "https://www.hbkworld.com/en/products/transducers/inertial-sensors/attitude-and-heading/3dm-cv7-ahrs: 403.",
+  "https://www.mouser.lt/datasheet/3/3764/1/PD%20-%203DM-CV7%20Series.pdf: bot challenge.",
+  "https://www.xonelec.com/mpn/lord/3dmcv7ahrs: 403. CV7 price unverified.",
+  "https://www.imrbatteries.com/content/molicel_p45b.pdf: 404. kronium.cz copy used.",
+  "https://www.flywoo.net/products/flywoo-explorer-molicell-p45b-21700-6s1p-4500mah-lionpack-battery: 403; .json did not return JSON. Defiance RC listing used.",
+  "https://genstattu.com/gensace-3300mah-6s-60c-22-2v-lipo-battery-pack-with-ec5-plug/: 404. The correct URL was found and used.",
+  "https://www.gensace.de/gens-ace-5000mah-22-2v-60c-6s1p-lipo-battery-pack-2439.html: 404.",
+  "https://www.toolsource.com/batteries-and-chargers-c-294_297/18v-lxt-lithiumion-60ah-battery-p-243761.html: 403. No US Makita price.",
+  "https://www.acmetools.com/milwaukee-m18-redlithium-forge-xc8.0-battery-pack-48-11-1881/045242688102.html: 403. No Milwaukee price.",
+  "https://makitatools.com/products/details/BL1860B: loaded, but shows only shipping weight (2.02 lb) and no bare dims, mass or price.",
+  "https://www.milwaukeetool.com/products/details/m18-redlithium-high-output-xc8-0-battery/48-11-1880: loaded; product marked no longer available. Its assembled dims look like packaging.",
+  "https://intellaparts.com/mm5/graphics/pdf/SW80.pdf: 403. The SW80P PDF from cdn.shopify.com was used, but its weight value was not extractable.",
+  "https://canable.io/ (also /index.html and /getting-started.html): TLS handshake failure (tlsv1 alert protocol version). Openlight Labs store used instead.",
+  "https://store.rebotnix.com/product/jnx42/: redirected to a login page. No JNX42 price.",
+  "https://www.peak-system.com/products/hardware/external-pc-interfaces/pcan-usb-fd/: price not rendered in static HTML. Grid Connect price used.",
+  "FORT Vehicle Safety Controller (receiver) datasheet: not retrieved. Receiver dims, mass and power unverified.",
+  "TE LEV100 price: distributor pages (DigiKey, RS) not attempted or blocked. Price unverified."
+ ],
+ "summary": "I found specs for 52 parts across compute, carriers, cameras, LiDAR/ToF, IMU, batteries, DC-DC, safety/power, CAN and microphones. Every number has its URL in the sources field, accessed 2026-11-07. Values I calculated (Wh, C-rating amps, W) are marked as my calculations in the notes. Fields with no figure in any source I could read are null and explained in the notes. Labels: 29 sourced, 23 partially_sourced, none fully unverified.\n\nMain results:\n\n1. Incumbent battery confirmed. The Gens ace G-Tech 3300 mAh 6S 60C EC5 is 138 x 42 x 43 mm and 506 g on both genstattu.com and BuddyRC (USD 107.19). By my calculation it holds 73.3 Wh, enough for about 220 W average over 20 min, or about 176 W using 80% of capacity.\n\n2. Batteries:\n- 6S 5000 mAh LiPo: 755 g.\n- Tattu Plus 6S 10000 mAh: 1517 g.\n- Gens ace 12S 5000 mAh: 1542 g and 324 mm long.\n- Two 3300 packs in series (12S): 1012 g, 146.5 Wh (my calculation).\n- 21700 Li-ion packs reach about 220-230 Wh/kg against about 145 for LiPo, but with much lower continuous current:\n  - Flywoo 6S1P P45B: 433.7 g, 45 A.\n  - Flywoo 6S2P P45B: 860.7 g.\n  - Lumenier NAV 6S 5000 mAh: 499 g, 20-35 A.\n  - Dan-Tech 6S3P-50S: 1.4 kg, 324 Wh, 75 A, with an optional BMS that reports over CAN.\n- Molicel P45B cell (21.4 x 70 mm, 70 g max, 45 A) is included for custom packs.\n- Tool packs: Makita BL1860B (18 V 6 Ah, 0.66 kg, retailer data) and Milwaukee M18 FORGE XC8.0 (2.45 lb). Neither maker publishes a continuous current rating.\n\n3. Compute:\n- Orin Nano Super devkit: 103 x 90.5 x 34.77 mm per NVIDIA's datasheet, but NVIDIA's family page says 100 x 79 x 21 mm. Mass 174 g comes from an NVIDIA forum post. Modes 7/15/25 W plus MAXN SUPER. Ships with a 19 V supply. USD 399 at SparkFun (launch price USD 249).\n- Orin NX 16GB: 69.6 x 45 mm SO-DIMM, 157 TOPS in Super mode, 10/15/25/40 W plus MAXN SUPER. Now USD 1099 at Seeed.\n- AGX Orin 64GB devkit: 110 x 110 x 71.65 mm, 872.5 g (forum), 15-60 W, USD 3499. I could not confirm a current 32GB devkit SKU.\n- Jetson Orin Nano 2 (78 TOPS, same form factor) is announced for H1 2027 and cannot be bought yet.\n\n4. Carriers:\n- Only the Connect Tech Hadron-DM (82.6 x 58.8 mm, 56 g, 9-60 V input, USD 410) can run directly from a 6S or 12S bus. It has no CAN port.\n- Seeed J401 (100 x 80 mm, 9-19 V, USD 111): its CAN header is TTL level, so it needs an external transceiver.\n- Seeed A603 (87 x 52 x 26 mm, 50 g, 9-20 V, CAN with transceiver, USD 199).\n- Seeed Super J401 (71 x 136 x 8.5 mm, 155.8 g, 12-19 V, USD 159).\n- Auvidea JNX42 (80 x 104.6 mm, CAN with TJA1051 transceiver, 12 V or 12-48 V with an add-on).\n- All of these except the Hadron-DM need a regulated input when fed from 6S (25.2 V full).\n\n5. Regulators on a 12S bus (50.4 V full): the Pololu D36V50F12 (50 V max) and D24V10F5 (36 V max) cannot be used. The D42V110F12 (12-60 V in, 12 V at 9 A, 15 g, USD 69.95) and Mean Well DDR-120C (33.6-67.2 V in, 91% efficient, USD 88.66) can.\n\n6. Cameras:\n- OAK-D Pro W: widest field of view (stereo 127 x 79.5 deg), with IR, 91 g, USD 529.\n- RealSense D435i (75 g, 3.4 W, USD 399, out of stock) and D455 (116 g, USD 499).\n- OAK-D Lite: now USD 269.\n\n7. Ranging:\n- STL-19P (45 g, 1.45 W, USD 96) and RPLIDAR C1 (110 g, USD 80) are the light 2D options.\n- Unitree L2 (230 g, 360 x 96 deg, 10-13 W, USD 419) and Livox Mid-360 (265 g, 6.5 W, about USD 999 and being discontinued) cover 3D.\n- Pololu ToF boards cost USD 20-25 and weigh about 0.5 g.\n\n8. Safety and tether:\n- The FORT wireless e-stop is designed to PLd Cat 3 but is quote-only and needs a separate receiver whose specs I could not get.\n- TE LEV100 contactor: 100 A continuous, 190 g, 12/24/48 V coils.\n- Bench supplies: the Mean Well RSP-750 (current limit recovers by itself, remote on/off, USD 206) suits motor surges better than the LRS-600 (USD 67), which shuts off after 3 s of overload. Neither can absorb current fed back from the motors.\n\n9. CAN and voice: the PCAN-USB FD (isolated, 12 Mbit/s data, 68 g, USD 368) is the reliable CAN FD option on Jetson. The USD 35 CANable 2.0 only supports CAN FD through beta firmware. ReSpeaker XVF3800: USD 60.99.\n\nPrices are higher in 2026 for Jetson, OAK and RealSense parts, and RealSense adds a tariff surcharge."
+}

@@ -1,0 +1,55 @@
+{
+ "plate": "candidate_plate",
+ "png": "round2/review/plates/75-M-H-10_four_views.png",
+ "mujoco": "3.10.0",
+ "title": "75-M-H-10",
+ "subtitle": "Hybrid, selective covers with exposed structure \u00b7 balanced width \u00b7 10\u00b0 chest-up \u00b7 75 cm height class",
+ "scale_px_per_m": 595.3521233675807,
+ "measurements": {
+  "id": "75-M-H-10",
+  "xml": "round2/review/mjcf/75-M-H-10.xml",
+  "xml_sha256": "131092f7e25310cd392bf4b1cfb068576ca35ab34d5bf116720016a3bb57db4d",
+  "mass_kg": 15.033466000000002,
+  "crown_m": 0.7507975896209028,
+  "hip_pitch_axis_m": 0.500059538985958,
+  "length_m": 1.759043024951823,
+  "max_width_m": 0.2896393510422437,
+  "torso_width_m": 0.20116000137867682,
+  "thigh_width_m": 0.27323100464770067,
+  "thigh_width_source": "thigh fairings",
+  "foot_centre_spacing_m": 0.16817949572499433,
+  "torso_inclination_deg": 10.0,
+  "torso_inclination_source": "ledger metrics",
+  "ledger_checks": {
+   "crown_m": {
+    "model": 0.7507975896209028,
+    "ledger": 0.7507971126971413,
+    "ok": true
+   },
+   "hip_height_m": {
+    "model": 0.500059538985958,
+    "ledger": 0.5018535496646683,
+    "ok": true,
+    "model_zero_roll": 0.5018539740407423,
+    "stance_hip_roll_deg": 1.1016030343862286,
+    "explained": "ledger H is the design hip height; the stance solve rolls the hips"
+   },
+   "mass_kg": {
+    "model": 15.033466000000002,
+    "ledger": 15.033481354414873,
+    "ok": true
+   },
+   "foot_centre_spacing_m": {
+    "model": 0.16817949572499433,
+    "ledger": 0.16817952778792808,
+    "ok": true
+   },
+   "xml_sha256": {
+    "model": "131092f7e25310cd392bf4b1cfb068576ca35ab34d5bf116720016a3bb57db4d",
+    "ledger": "131092f7e25310cd392bf4b1cfb068576ca35ab34d5bf116720016a3bb57db4d",
+    "ok": true
+   }
+  }
+ },
+ "notes": "side/front/top orthographic at scale_px_per_m; three-quarter perspective, not to scale"
+}

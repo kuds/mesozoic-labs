@@ -1,0 +1,8131 @@
+{
+ "id": "75-M-T-10",
+ "candidate": {
+  "height": 75,
+  "width": "M",
+  "family": "T",
+  "posture": 10,
+  "proportion": "base",
+  "leg_layout": "tandem",
+  "battery_pos": "tailbase",
+  "overrides": [
+   [
+    "rev",
+    2
+   ],
+   [
+    "cover_wall_scale",
+    0.75
+   ]
+  ]
+ },
+ "B": 0.5058614998506548,
+ "H": 0.5058614998506548,
+ "selection": {
+  "leg": "myactuator_rmd_x4_p36_36_e_l",
+  "neck": "robotis_xm540_w270_t",
+  "tail": "feetech_sts3215_c018",
+  "bus": 24.0,
+  "camera": "luxonis_oak_d_lite",
+  "lidar": null,
+  "tof": "st_vl53l5cx_carrier",
+  "compute": "rpi5_8gb_ai_hat_plus_13tops",
+  "battery": "lipo_6s_3300",
+  "joints": {
+   "hip_roll": "myactuator_rmd_x4_p36_36_e_l",
+   "hip_yaw": "cubemars_ak45_36_v3",
+   "hip_pitch": "myactuator_rmd_x6_p20_60_e",
+   "knee": "myactuator_rmd_x4_p36_36_e_l",
+   "ankle_a": "myactuator_rmd_x4_p36_36_e_l",
+   "ankle_b": "myactuator_rmd_x4_p36_36_e_l"
+  },
+  "mass_guess": 13.9157618
+ },
+ "hip": {
+  "layout": "tandem",
+  "y_roll": 0.0,
+  "z_roll": 0.010117229997013095,
+  "y_leg": 0.09903922999701312,
+  "pelvis_half": 0.036500000000000005,
+  "half_upper": 0.04425000000000001,
+  "foot_spacing": 0.17827061399462363
+ },
+ "mass_kg": 13.919824786270464,
+ "mass_by_category": {
+  "leg_actuator": 5.218000000000001,
+  "battery": 0.6776800000000001,
+  "power": 0.3,
+  "compute": 0.22,
+  "control": 0.18,
+  "sensors": 0.19924857893164788,
+  "harness": 0.33197033838379386,
+  "expression_actuator": 0.22,
+  "bearings": 0.5212098822982684,
+  "structure": 2.3651033410981257,
+  "linkage": 0.6899767063670561,
+  "cover": 1.330084622676505,
+  "cover_support": 0.31922030944236107,
+  "fasteners": 0.17700000000000007,
+  "cosmetic": 0.0,
+  "foot": 0.33514151989647717,
+  "integration_reserve": 0.8351894871762279
+ },
+ "mass_by_volume_class": {
+  "A": 6.723248578931649,
+  "B": 5.85849158466231,
+  "C": 1.338084622676505
+ },
+ "mass_by_basis": {
+  "sourced": 6.07,
+  "estimate": 6.419740163593959,
+  "partially_sourced; envelope, power and price from the survey, mass a survey estimate": 0.1,
+  "derived": 1.330084622676505
+ },
+ "geometry_checks": {
+  "hip_spacing_added_for_pelvis_plate_m": 0.004172000000000009,
+  "camera_fit": {
+   "fits": true,
+   "station": 0.1700000000000001,
+   "drop_m": 0.009000000000000005,
+   "centre_z_m": 0.7265879766459262,
+   "skull_length_m": 0.23775490492980772,
+   "inset_m": 0.002672
+  },
+  "pelvis_narrowed_for_thighs": [
+   [
+    -0.12,
+    0.014728842485812195
+   ],
+   [
+    0.02,
+    0.01321125798626023
+   ],
+   [
+    0.16,
+    0.0
+   ]
+  ],
+  "pelvis_thigh_conflicts": [
+   [
+    0.16,
+    0.004554770002986902
+   ]
+  ],
+  "trunk_widened_for_hardware": [
+   [
+    "tof_l",
+    "ventral",
+    0.44,
+    0.01988838312119065
+   ],
+   [
+    "tail_motor",
+    "dorsal",
+    -0.58,
+    0.009472465013441081
+   ],
+   [
+    "pelvis_plate_l",
+    "half_width",
+    -0.4,
+    0.0024724650134410817
+   ],
+   [
+    "pelvis_plate_l",
+    "half_width",
+    0.16,
+    0.0024724650134410817
+   ]
+  ],
+  "designed_profile": {
+   "x": [
+    -0.29339966991337973,
+    -0.2023445999402619,
+    -0.14164121995818335,
+    -0.060703379982078566,
+    0.010117229997013095,
+    0.08093783997610476,
+    0.1517584499551964,
+    0.2225790599342881,
+    0.29339966991337973,
+    0.3642202798924714,
+    0.42492365987455,
+    0.480568424858122
+   ],
+   "dorsal": [
+    0.0758792249775982,
+    0.09611368497162441,
+    0.1264653749626637,
+    0.1375943279593781,
+    0.1375943279593781,
+    0.13051226696146892,
+    0.1229243444637091,
+    0.11735986796535192,
+    0.11381883746639733,
+    0.11027780696744274,
+    0.10117229997013095,
+    0.0758792249775982
+   ],
+   "ventral": [
+    -0.048056842485812205,
+    -0.05564476498357202,
+    -0.06576199498058512,
+    -0.0758792249775982,
+    -0.1062309149686375,
+    -0.1365826049596768,
+    -0.09864299247087768,
+    -0.10876022246789077,
+    -0.14417052745743658,
+    -0.1517584499551964,
+    -0.12899468246191698,
+    -0.07840853247685149
+   ],
+   "half": [
+    0.039457196988351075,
+    0.045527534986558926,
+    0.054633041983870714,
+    0.0581740724828253,
+    0.056656487983273336,
+    0.045527534986558926,
+    0.06171510298177988,
+    0.07992611697640345,
+    0.09105506997311785,
+    0.08903162397371524,
+    0.07689094797729952,
+    0.05058614998506548
+   ]
+  }
+ },
+ "notes": [],
+ "rows": [
+  {
+   "name": "left_hip_roll_motor",
+   "body": "trunk",
+   "category": "leg_actuator",
+   "mass_kg": 0.36,
+   "com_body": [
+    0.04222385466574601,
+    0.0,
+    0.0064617675583714465
+   ],
+   "inertia_body": [
+    [
+     0.0001624076839479174,
+     0.0,
+     4.65984884769208e-06
+    ],
+    [
+     0.0,
+     0.00021567000000000003,
+     0.0
+    ],
+    [
+     4.65984884769208e-06,
+     0.0,
+     0.00021526231605208262
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "myactuator_rmd_x4_p36_36_e_l",
+   "cost_nom": 269,
+   "cost_high": 290.52000000000004,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "cylinder",
+   "size": [
+    0.06,
+    0.067
+   ],
+   "meta": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "axis": [
+     0.9961946980917455,
+     0.0,
+     -0.08715574274765817
+    ]
+   }
+  },
+  {
+   "name": "right_hip_roll_motor",
+   "body": "trunk",
+   "category": "leg_actuator",
+   "mass_kg": 0.36,
+   "com_body": [
+    -0.04046030527586888,
+    0.0,
+    0.013695694206427075
+   ],
+   "inertia_body": [
+    [
+     0.0001624076839479174,
+     0.0,
+     4.65984884769208e-06
+    ],
+    [
+     0.0,
+     0.00021567000000000003,
+     0.0
+    ],
+    [
+     4.65984884769208e-06,
+     0.0,
+     0.00021526231605208262
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "myactuator_rmd_x4_p36_36_e_l",
+   "cost_nom": 269,
+   "cost_high": 290.52000000000004,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "cylinder",
+   "size": [
+    0.06,
+    0.067
+   ],
+   "meta": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "axis": [
+     0.9961946980917455,
+     0.0,
+     -0.08715574274765817
+    ]
+   }
+  },
+  {
+   "name": "battery",
+   "body": "trunk",
+   "category": "battery",
+   "mass_kg": 0.506,
+   "com_body": [
+    -0.158,
+    0.0,
+    -0.011445421957259078
+   ],
+   "inertia_body": [
+    [
+     0.00015234816666666665,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0008809881666666667,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0008774040000000001
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "lipo_6s_3300",
+   "cost_nom": 107.19,
+   "cost_high": 123.26849999999999,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.138,
+    0.042,
+    0.043
+   ],
+   "meta": {}
+  },
+  {
+   "name": "battery_cassette",
+   "body": "trunk",
+   "category": "battery",
+   "mass_kg": 0.17168000000000003,
+   "com_body": [
+    -0.158,
+    0.0,
+    -0.011445421957259078
+   ],
+   "inertia_body": [
+    [
+     9.460998666666667e-05,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0004036339866666667,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0004052792533333334
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "tray, latch, pads, leads: 28 % of pack + 30 g",
+   "cost_nom": 90,
+   "cost_high": 160,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.158,
+    0.058,
+    0.056999999999999995
+   ],
+   "meta": {}
+  },
+  {
+   "name": "power_distribution",
+   "body": "trunk",
+   "category": "power",
+   "mass_kg": 0.3,
+   "com_body": [
+    0.1836563907938475,
+    0.0,
+    -0.05127691672271161
+   ],
+   "inertia_body": [
+    [
+     0.00019162461398739795,
+     0.0,
+     -3.931948431113348e-05
+    ],
+    [
+     0.0,
+     0.000365,
+     0.0
+    ],
+    [
+     -3.9319484311133475e-05,
+     0.0,
+     0.0004183753860126021
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "estimate",
+   "source": "PR #662 power bay 0.30 kg (24 V); 48 V bay with contactor and 48->12 V converter estimated",
+   "cost_nom": 260,
+   "cost_high": 420,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.11,
+    0.07,
+    0.05
+   ],
+   "meta": {}
+  },
+  {
+   "name": "compute",
+   "body": "trunk",
+   "category": "compute",
+   "mass_kg": 0.1,
+   "com_body": [
+    0.3151190513671792,
+    0.0,
+    -0.0055820196175733194
+   ],
+   "inertia_body": [
+    [
+     3.50882181760518e-05,
+     0.0,
+     -8.63526868985831e-06
+    ],
+    [
+     0.0,
+     6.770833333333334e-05,
+     0.0
+    ],
+    [
+     -8.63526868985831e-06,
+     0.0,
+     8.488678182394823e-05
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "partially_sourced; envelope, power and price from the survey, mass a survey estimate",
+   "source": "rpi5_8gb_ai_hat_plus_13tops",
+   "cost_nom": 290.0,
+   "cost_high": 319.0,
+   "power_nom_w": 8.0,
+   "power_max_w": 18.0,
+   "shape": "box",
+   "size": [
+    0.085,
+    0.056,
+    0.03
+   ],
+   "meta": {}
+  },
+  {
+   "name": "compute_tray",
+   "body": "trunk",
+   "category": "compute",
+   "mass_kg": 0.12,
+   "com_body": [
+    0.3151190513671792,
+    0.0,
+    -0.0055820196175733194
+   ],
+   "inertia_body": [
+    [
+     9.563807806542731e-05,
+     0.0,
+     -1.1147073802206344e-05
+    ],
+    [
+     0.0,
+     0.00014004000000000002,
+     0.0
+    ],
+    [
+     -1.1147073802206344e-05,
+     0.0,
+     0.00015992192193457273
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "NVMe, fan duct, mounts, leads (PR #662: 0.35 kg installed with module)",
+   "cost_nom": 120,
+   "cost_high": 200,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.10200000000000001,
+    0.076,
+    0.06
+   ],
+   "meta": {}
+  },
+  {
+   "name": "control_stack",
+   "body": "trunk",
+   "category": "control",
+   "mass_kg": 0.18,
+   "com_body": [
+    0.0,
+    0.0,
+    0.0661172299970131
+   ],
+   "inertia_body": [
+    [
+     7.8735e-05,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.00013686,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.00018487499999999998
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "estimate",
+   "source": "PR #662 control allocation 0.18 kg (Teensy 4.1, CAN x2, IMU)",
+   "cost_nom": 260,
+   "cost_high": 420,
+   "power_nom_w": 4.0,
+   "power_max_w": 6.0,
+   "shape": "box",
+   "size": [
+    0.09,
+    0.065,
+    0.032
+   ],
+   "meta": {}
+  },
+  {
+   "name": "imu",
+   "body": "trunk",
+   "category": "sensors",
+   "mass_kg": 0.02,
+   "com_body": [
+    0.0,
+    0.0,
+    0.0871172299970131
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "estimate",
+   "source": "IMU breakout",
+   "cost_nom": 40,
+   "cost_high": 400,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "torso_harness",
+   "body": "trunk",
+   "category": "harness",
+   "mass_kg": 0.1264406838842347,
+   "com_body": [
+    0.1264653749626637,
+    0.0,
+    0.0
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "PR #662 0.08 kg at 360 mm hip, scaled with B^1.6",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "tof_l",
+   "body": "trunk",
+   "category": "sensors",
+   "mass_kg": 0.0125,
+   "com_body": [
+    0.27813601624017736,
+    0.015175844995519642,
+    -0.09055303614921797
+   ],
+   "inertia_body": [
+    [
+     6.211016528604185e-07,
+     3.228290552142778e-08,
+     -1.6791848016301644e-07
+    ],
+    [
+     3.2282905521427776e-08,
+     4.908981057896057e-07,
+     -3.934791720631141e-08
+    ],
+    [
+     -1.679184801630164e-07,
+     -3.9347917206311404e-08,
+     6.880002413499757e-07
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "st_vl53l5cx_carrier",
+   "cost_nom": 19.95,
+   "cost_high": 23.939999999999998,
+   "power_nom_w": 0.5,
+   "power_max_w": 0.75,
+   "shape": "box",
+   "size": [
+    0.008,
+    0.02,
+    0.02
+   ],
+   "meta": {}
+  },
+  {
+   "name": "tof_r",
+   "body": "trunk",
+   "category": "sensors",
+   "mass_kg": 0.0125,
+   "com_body": [
+    0.27813601624017736,
+    -0.015175844995519642,
+    -0.09055303614921797
+   ],
+   "inertia_body": [
+    [
+     6.211016528604185e-07,
+     -3.228290552142778e-08,
+     -1.6791848016301644e-07
+    ],
+    [
+     -3.2282905521427776e-08,
+     4.908981057896057e-07,
+     3.934791720631141e-08
+    ],
+    [
+     -1.679184801630164e-07,
+     3.9347917206311404e-08,
+     6.880002413499757e-07
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "st_vl53l5cx_carrier",
+   "cost_nom": 19.95,
+   "cost_high": 23.939999999999998,
+   "power_nom_w": 0.5,
+   "power_max_w": 0.75,
+   "shape": "box",
+   "size": [
+    0.008,
+    0.02,
+    0.02
+   ],
+   "meta": {}
+  },
+  {
+   "name": "neck_motor",
+   "body": "trunk",
+   "category": "expression_actuator",
+   "mass_kg": 0.165,
+   "com_body": [
+    0.45525931215369286,
+    0.0,
+    0.07607094581635648
+   ],
+   "inertia_body": [
+    [
+     5.1015937500000007e-05,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     7.3046875e-05,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     8.53909375e-05
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "robotis_xm540_w270_t",
+   "cost_nom": 482.89,
+   "cost_high": 521.5212,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.0625,
+    0.037500000000000006,
+    0.048
+   ],
+   "meta": {
+    "actuator": "robotis_xm540_w270_t",
+    "axis": [
+     0.0,
+     1.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "name": "neck_fork_bearings",
+   "body": "trunk",
+   "category": "bearings",
+   "mass_kg": 0.1417705579119967,
+   "com_body": [
+    0.4635550559836975,
+    0.0,
+    0.08772844640318311
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "PR #662 neck fork 0.08 kg, scaled with B^2",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "tail_motor",
+   "body": "trunk",
+   "category": "expression_actuator",
+   "mass_kg": 0.055,
+   "com_body": [
+    -0.2529307499253274,
+    0.0,
+    0.05585168999103929
+   ],
+   "inertia_body": [
+    [
+     1.8065850000000006e-05,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     1.0746495833333335e-05,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.4869845833333337e-05
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "feetech_sts3215_c018",
+   "cost_nom": 22,
+   "cost_high": 23.76,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.04920000000000001,
+    0.0287,
+    0.03900000000000001
+   ],
+   "meta": {
+    "actuator": "feetech_sts3215_c018",
+    "axis": [
+     0.0,
+     0.0,
+     1.0
+    ]
+   }
+  },
+  {
+   "name": "tail_fork_bearings",
+   "body": "trunk",
+   "category": "bearings",
+   "mass_kg": 0.1417705579119967,
+   "com_body": [
+    -0.2529307499253274,
+    0.0,
+    0.030351689991039283
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "PR #662 tail fork 0.08 kg, scaled with B^2",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "pelvis_plate_l",
+   "body": "trunk",
+   "category": "structure",
+   "mass_kg": 0.21905118183432964,
+   "com_body": [
+    -0.02529307499253274,
+    0.036500000000000005,
+    0.010117229997013095
+   ],
+   "inertia_body": [
+    [
+     9.479439893880614e-05,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0015076653353464167,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.001413199513180362
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "pelvis twin-plate beam rule (2 x body weight)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.27822382491786013,
+    0.003,
+    0.072
+   ],
+   "meta": {}
+  },
+  {
+   "name": "pelvis_plate_r",
+   "body": "trunk",
+   "category": "structure",
+   "mass_kg": 0.21905118183432964,
+   "com_body": [
+    -0.02529307499253274,
+    -0.036500000000000005,
+    0.010117229997013095
+   ],
+   "inertia_body": [
+    [
+     9.479439893880614e-05,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0015076653353464167,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.001413199513180362
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "pelvis twin-plate beam rule (2 x body weight)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.27822382491786013,
+    0.003,
+    0.072
+   ],
+   "meta": {}
+  },
+  {
+   "name": "spine_beam",
+   "body": "trunk",
+   "category": "linkage",
+   "mass_kg": 0.46186419248986743,
+   "com_body": [
+    0.23156023014850544,
+    0.0,
+    0.05416520286598825
+   ],
+   "inertia_body": [
+    [
+     2.5804544689677062e-05,
+     0.0,
+     -0.00012487179598106958
+    ],
+    [
+     0.0,
+     0.007222387264526836,
+     0.0
+    ],
+    [
+     -0.00012487179598106958,
+     0.0,
+     0.007220220546510998
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "spine twin-plate rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.010117229997013095,
+    0.2062982038595163
+   ],
+   "meta": {
+    "fromto": [
+     0.02529307499253274,
+     0.0,
+     0.05058614998506548,
+     0.4378273853044781,
+     0.0,
+     0.05774425574691103
+    ]
+   }
+  },
+  {
+   "name": "trays_crossmembers",
+   "body": "trunk",
+   "category": "structure",
+   "mass_kg": 0.398315236,
+   "com_body": [
+    0.2023445999402619,
+    0.0,
+    -0.010117229997013095
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "trays/crossmembers 0.12 kg + 2 % of mass",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_chest_dorsal",
+   "body": "trunk",
+   "category": "cover",
+   "mass_kg": 0.07881596945572339,
+   "com_body": [
+    0.33081436920331103,
+    3.747461840729239e-06,
+    0.1135595415323881
+   ],
+   "inertia_body": [
+    [
+     0.00020393124423176965,
+     -5.068222357536545e-09,
+     -4.011943365839817e-05
+    ],
+    [
+     -5.068222357536545e-09,
+     0.0005274399906633077,
+     -9.373194221181478e-09
+    ],
+    [
+     -4.011943365839817e-05,
+     -9.373194221181478e-09,
+     0.0006588797861941734
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 581 cm2",
+   "cost_nom": 35.591724382517455,
+   "cost_high": 58.146759012027935,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.058062212293525595
+   ],
+   "meta": {
+    "region": "chest_dorsal"
+   }
+  },
+  {
+   "name": "cover_chest_dorsal_support",
+   "body": "trunk",
+   "category": "cover_support",
+   "mass_kg": 0.018915832669373613,
+   "com_body": [
+    0.33081436920331103,
+    3.747461840729239e-06,
+    0.1135595415323881
+   ],
+   "inertia_body": [
+    [
+     4.8943498615624716e-05,
+     -1.2163733658087709e-09,
+     -9.628664078015561e-06
+    ],
+    [
+     -1.2163733658087709e-09,
+     0.00012658559775919384,
+     -2.2495666130835545e-09
+    ],
+    [
+     -9.628664078015561e-06,
+     -2.2495666130835545e-09,
+     0.0001581311486866016
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_chest_dorsal_fasteners",
+   "body": "trunk",
+   "category": "fasteners",
+   "mass_kg": 0.009000000000000001,
+   "com_body": [
+    0.33081436920331103,
+    3.747461840729239e-06,
+    0.1135595415323881
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "3 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_chest_lateral_l",
+   "body": "trunk",
+   "category": "cover",
+   "mass_kg": 0.0675966584955631,
+   "com_body": [
+    0.3489605251444781,
+    0.07529473793015848,
+    -0.004484515578467844
+   ],
+   "inertia_body": [
+    [
+     0.00017182117470465792,
+     2.7694707508452848e-05,
+     -6.388419760100378e-05
+    ],
+    [
+     2.7694707508452848e-05,
+     0.0006218415551137446,
+     8.177350065748135e-07
+    ],
+    [
+     -6.388419760100378e-05,
+     8.177350065748135e-07,
+     0.0004687876110851582
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 498 cm2",
+   "cost_nom": 33.087574176209685,
+   "cost_high": 54.14011868193549,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.04979716119722646
+   ],
+   "meta": {
+    "region": "chest_lateral"
+   }
+  },
+  {
+   "name": "cover_chest_lateral_l_support",
+   "body": "trunk",
+   "category": "cover_support",
+   "mass_kg": 0.01622319803893514,
+   "com_body": [
+    0.3489605251444781,
+    0.07529473793015848,
+    -0.004484515578467844
+   ],
+   "inertia_body": [
+    [
+     4.1237081929117894e-05,
+     6.646729802028683e-06,
+     -1.5332207424240905e-05
+    ],
+    [
+     6.646729802028683e-06,
+     0.00014924197322729868,
+     1.962564015779552e-07
+    ],
+    [
+     -1.5332207424240905e-05,
+     1.962564015779552e-07,
+     0.00011250902666043795
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_chest_lateral_l_fasteners",
+   "body": "trunk",
+   "category": "fasteners",
+   "mass_kg": 0.009000000000000001,
+   "com_body": [
+    0.3489605251444781,
+    0.07529473793015848,
+    -0.004484515578467844
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "3 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_chest_lateral_r",
+   "body": "trunk",
+   "category": "cover",
+   "mass_kg": 0.06759667811229426,
+   "com_body": [
+    0.3489589542580493,
+    -0.07529182683769266,
+    -0.0044846565345829205
+   ],
+   "inertia_body": [
+    [
+     0.0001718181828742058,
+     -2.771923815654705e-05,
+     -6.389952100544958e-05
+    ],
+    [
+     -2.771923815654705e-05,
+     0.000621828857175202,
+     -8.230262444878591e-07
+    ],
+    [
+     -6.389952100544958e-05,
+     -8.230262444878591e-07,
+     0.00046877857862006635
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 498 cm2",
+   "cost_nom": 33.08757855466408,
+   "cost_high": 54.14012568746253,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.04979717564849589
+   ],
+   "meta": {
+    "region": "chest_lateral"
+   }
+  },
+  {
+   "name": "cover_chest_lateral_r_support",
+   "body": "trunk",
+   "category": "cover_support",
+   "mass_kg": 0.016223202746950622,
+   "com_body": [
+    0.3489589542580493,
+    -0.07529182683769266,
+    -0.0044846565345829205
+   ],
+   "inertia_body": [
+    [
+     4.1236363889809394e-05,
+     -6.652617157571292e-06,
+     -1.53358850413079e-05
+    ],
+    [
+     -6.652617157571292e-06,
+     0.00014923892572204847,
+     -1.9752629867708618e-07
+    ],
+    [
+     -1.53358850413079e-05,
+     -1.9752629867708618e-07,
+     0.00011250685886881592
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_chest_lateral_r_fasteners",
+   "body": "trunk",
+   "category": "fasteners",
+   "mass_kg": 0.009000000000000001,
+   "com_body": [
+    0.3489589542580493,
+    -0.07529182683769266,
+    -0.0044846565345829205
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "3 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_abdomen_upper",
+   "body": "trunk",
+   "category": "cover",
+   "mass_kg": 0.08884609180755312,
+   "com_body": [
+    0.1609476321087393,
+    -1.07608225993273e-05,
+    0.025438529951134208
+   ],
+   "inertia_body": [
+    [
+     0.0006031538185834075,
+     -2.5778296504860855e-08,
+     3.500134579987056e-05
+    ],
+    [
+     -2.5778296504860855e-08,
+     0.000507905737828752,
+     -1.2490929075856013e-07
+    ],
+    [
+     3.500134579987056e-05,
+     -1.2490929075856013e-07,
+     0.00038974019798174034
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 655 cm2",
+   "cost_nom": 37.830447691445855,
+   "cost_high": 61.72871630631337,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.06545121096148125
+   ],
+   "meta": {
+    "region": "abdomen_upper"
+   }
+  },
+  {
+   "name": "cover_abdomen_upper_support",
+   "body": "trunk",
+   "category": "cover_support",
+   "mass_kg": 0.021323062033812748,
+   "com_body": [
+    0.1609476321087393,
+    -1.07608225993273e-05,
+    0.025438529951134208
+   ],
+   "inertia_body": [
+    [
+     0.0001447569164600178,
+     -6.186791161166605e-09,
+     8.400322991968934e-06
+    ],
+    [
+     -6.186791161166605e-09,
+     0.00012189737707890047,
+     -2.997822978205443e-08
+    ],
+    [
+     8.400322991968934e-06,
+     -2.997822978205443e-08,
+     9.353764751561769e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_abdomen_upper_fasteners",
+   "body": "trunk",
+   "category": "fasteners",
+   "mass_kg": 0.009000000000000001,
+   "com_body": [
+    0.1609476321087393,
+    -1.07608225993273e-05,
+    0.025438529951134208
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "3 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_pelvis_dorsal",
+   "body": "trunk",
+   "category": "cover",
+   "mass_kg": 0.06916018109610064,
+   "com_body": [
+    -0.08303966232770961,
+    -3.0243647231294523e-06,
+    0.10515532715223432
+   ],
+   "inertia_body": [
+    [
+     9.319632020014193e-05,
+     8.315028753890519e-08,
+     -0.00010162871356711998
+    ],
+    [
+     8.315028753890519e-08,
+     0.0009748717198380195,
+     1.133525321363421e-08
+    ],
+    [
+     -0.00010162871356711998,
+     1.133525321363421e-08,
+     0.0009953924085228524
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 509 cm2",
+   "cost_nom": 33.43655242064966,
+   "cost_high": 54.698483873039464,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.05094897829451072
+   ],
+   "meta": {
+    "region": "pelvis_dorsal"
+   }
+  },
+  {
+   "name": "cover_pelvis_dorsal_support",
+   "body": "trunk",
+   "category": "cover_support",
+   "mass_kg": 0.016598443463064154,
+   "com_body": [
+    -0.08303966232770961,
+    -3.0243647231294523e-06,
+    0.10515532715223432
+   ],
+   "inertia_body": [
+    [
+     2.2367116848034064e-05,
+     1.9956069009337244e-08,
+     -2.4390891256108793e-05
+    ],
+    [
+     1.9956069009337244e-08,
+     0.00023396921276112466,
+     2.7204607712722102e-09
+    ],
+    [
+     -2.4390891256108793e-05,
+     2.7204607712722102e-09,
+     0.00023889417804548457
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_pelvis_dorsal_fasteners",
+   "body": "trunk",
+   "category": "fasteners",
+   "mass_kg": 0.009000000000000001,
+   "com_body": [
+    -0.08303966232770961,
+    -3.0243647231294523e-06,
+    0.10515532715223432
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "3 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_pelvis_lateral_l",
+   "body": "trunk",
+   "category": "cover",
+   "mass_kg": 0.031986169824807065,
+   "com_body": [
+    -0.07545944168653959,
+    0.04584960622884285,
+    0.0512694353142816
+   ],
+   "inertia_body": [
+    [
+     2.3382969822403606e-05,
+     7.181953730409627e-07,
+     -2.6832861887893375e-05
+    ],
+    [
+     7.181953730409627e-07,
+     0.0004415750459497186,
+     7.63119070035413e-07
+    ],
+    [
+     -2.6832861887893375e-05,
+     7.63119070035413e-07,
+     0.00041915281676637367
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 236 cm2",
+   "cost_nom": 25.139313104896935,
+   "cost_high": 41.4229009678351,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.02356359752534702
+   ],
+   "meta": {
+    "region": "pelvis_lateral"
+   }
+  },
+  {
+   "name": "cover_pelvis_lateral_l_support",
+   "body": "trunk",
+   "category": "cover_support",
+   "mass_kg": 0.007676680757953695,
+   "com_body": [
+    -0.07545944168653959,
+    0.04584960622884285,
+    0.0512694353142816
+   ],
+   "inertia_body": [
+    [
+     5.611912757376865e-06,
+     1.7236688952983104e-07,
+     -6.43988685309441e-06
+    ],
+    [
+     1.7236688952983104e-07,
+     0.00010597801102793247,
+     1.8314857680849913e-07
+    ],
+    [
+     -6.43988685309441e-06,
+     1.8314857680849913e-07,
+     0.00010059667602392968
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_pelvis_lateral_l_fasteners",
+   "body": "trunk",
+   "category": "fasteners",
+   "mass_kg": 0.009000000000000001,
+   "com_body": [
+    -0.07545944168653959,
+    0.04584960622884285,
+    0.0512694353142816
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "3 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_pelvis_lateral_r",
+   "body": "trunk",
+   "category": "cover",
+   "mass_kg": 0.03198604810462076,
+   "com_body": [
+    -0.07546012141422281,
+    -0.045850545756015514,
+    0.05126945233721615
+   ],
+   "inertia_body": [
+    [
+     2.3383092321298748e-05,
+     -7.060121441618321e-07,
+     -2.6833560016492928e-05
+    ],
+    [
+     -7.060121441618321e-07,
+     0.0004415715828547956,
+     -7.627304910957174e-07
+    ],
+    [
+     -2.6833560016492928e-05,
+     -7.627304910957174e-07,
+     0.00041914875573585177
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 236 cm2",
+   "cost_nom": 25.139285936951353,
+   "cost_high": 41.422857499122166,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.023563507856421466
+   ],
+   "meta": {
+    "region": "pelvis_lateral"
+   }
+  },
+  {
+   "name": "cover_pelvis_lateral_r_support",
+   "body": "trunk",
+   "category": "cover_support",
+   "mass_kg": 0.007676651545108982,
+   "com_body": [
+    -0.07546012141422281,
+    -0.045850545756015514,
+    0.05126945233721615
+   ],
+   "inertia_body": [
+    [
+     5.611942157111699e-06,
+     -1.694429145988397e-07,
+     -6.440054403958303e-06
+    ],
+    [
+     -1.694429145988397e-07,
+     0.00010597717988515094,
+     -1.8305531786297215e-07
+    ],
+    [
+     -6.440054403958303e-06,
+     -1.8305531786297215e-07,
+     0.00010059570137660441
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_pelvis_lateral_r_fasteners",
+   "body": "trunk",
+   "category": "fasteners",
+   "mass_kg": 0.009000000000000001,
+   "com_body": [
+    -0.07546012141422281,
+    -0.045850545756015514,
+    0.05126945233721615
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "3 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_pelvis_ventral",
+   "body": "trunk",
+   "category": "cover",
+   "mass_kg": 0.09049587723959923,
+   "com_body": [
+    -0.1067406092738209,
+    2.5062596155798675e-05,
+    -0.025159341278694108
+   ],
+   "inertia_body": [
+    [
+     0.0001825003893686646,
+     -4.159188407654786e-08,
+     -2.1305572305220223e-05
+    ],
+    [
+     -4.159188407654786e-08,
+     0.0007476887358658269,
+     3.816959006326147e-08
+    ],
+    [
+     -2.1305572305220223e-05,
+     3.816959006326147e-08,
+     0.0007307979261704112
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 667 cm2",
+   "cost_nom": 38.19867979987855,
+   "cost_high": 62.31788767980568,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.06666657623143507
+   ],
+   "meta": {
+    "region": "pelvis_ventral"
+   }
+  },
+  {
+   "name": "cover_pelvis_ventral_support",
+   "body": "trunk",
+   "category": "cover_support",
+   "mass_kg": 0.021719010537503816,
+   "com_body": [
+    -0.1067406092738209,
+    2.5062596155798675e-05,
+    -0.025159341278694108
+   ],
+   "inertia_body": [
+    [
+     4.380009344847951e-05,
+     -9.982052178371487e-09,
+     -5.113337353252854e-06
+    ],
+    [
+     -9.982052178371487e-09,
+     0.00017944529660779846,
+     9.160701615182754e-09
+    ],
+    [
+     -5.113337353252854e-06,
+     9.160701615182754e-09,
+     0.0001753915022808987
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_pelvis_ventral_fasteners",
+   "body": "trunk",
+   "category": "fasteners",
+   "mass_kg": 0.009000000000000001,
+   "com_body": [
+    -0.1067406092738209,
+    2.5062596155798675e-05,
+    -0.025159341278694108
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "3 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_pubic_boot",
+   "body": "trunk",
+   "category": "cover",
+   "mass_kg": 0.022363002293962545,
+   "com_body": [
+    0.0870000931890844,
+    -1.67413117675474e-05,
+    -0.09953689912361675
+   ],
+   "inertia_body": [
+    [
+     1.3513834073629625e-05,
+     6.6036366220047454e-09,
+     4.399553810053734e-07
+    ],
+    [
+     6.6036366220047454e-09,
+     4.428738027075288e-05,
+     -3.911528334569114e-09
+    ],
+    [
+     4.399553810053734e-07,
+     -3.911528334569114e-09,
+     4.505578370022571e-05
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 165 cm2",
+   "cost_nom": 22.99142211201244,
+   "cost_high": 37.986275379219904,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.016474394664929972
+   ],
+   "meta": {
+    "region": "pubic_boot"
+   }
+  },
+  {
+   "name": "cover_pubic_boot_support",
+   "body": "trunk",
+   "category": "cover_support",
+   "mass_kg": 0.0053671205505510106,
+   "com_body": [
+    0.0870000931890844,
+    -1.67413117675474e-05,
+    -0.09953689912361675
+   ],
+   "inertia_body": [
+    [
+     3.24332017767111e-06,
+     1.5848727892811388e-09,
+     1.0558929144128962e-07
+    ],
+    [
+     1.5848727892811388e-09,
+     1.0628971264980692e-05,
+     -9.387668002965873e-10
+    ],
+    [
+     1.0558929144128962e-07,
+     -9.387668002965873e-10,
+     1.081338808805417e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_pubic_boot_fasteners",
+   "body": "trunk",
+   "category": "fasteners",
+   "mass_kg": 0.009000000000000001,
+   "com_body": [
+    0.0870000931890844,
+    -1.67413117675474e-05,
+    -0.09953689912361675
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "3 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_left_arm",
+   "body": "trunk",
+   "category": "cover",
+   "mass_kg": 0.010660115064716844,
+   "com_body": [
+    0.4650219577336562,
+    0.06857251955091975,
+    -0.0947210043968455
+   ],
+   "inertia_body": [
+    [
+     3.4700000648101557e-06,
+     -5.87087272979045e-07,
+     2.5963326519584423e-06
+    ],
+    [
+     -5.87087272979045e-07,
+     1.003858415370238e-05,
+     3.0202945487745937e-07
+    ],
+    [
+     2.5963326519584423e-06,
+     3.0202945487745937e-07,
+     7.99766451703909e-06
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 79 cm2",
+   "cost_nom": 14.379337682444799,
+   "cost_high": 23.80694029191168,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.007853102210570517
+   ],
+   "meta": {
+    "region": "arm"
+   }
+  },
+  {
+   "name": "cover_left_arm_support",
+   "body": "trunk",
+   "category": "cover_support",
+   "mass_kg": 0.0025584276155320427,
+   "com_body": [
+    0.4650219577336562,
+    0.06857251955091975,
+    -0.0947210043968455
+   ],
+   "inertia_body": [
+    [
+     8.328000155544374e-07,
+     -1.4090094551497082e-07,
+     6.231198364700262e-07
+    ],
+    [
+     -1.4090094551497082e-07,
+     2.4092601968885714e-06,
+     7.248706917059026e-08
+    ],
+    [
+     6.231198364700262e-07,
+     7.248706917059026e-08,
+     1.9194394840893817e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_left_arm_fasteners",
+   "body": "trunk",
+   "category": "fasteners",
+   "mass_kg": 0.006,
+   "com_body": [
+    0.4650219577336562,
+    0.06857251955091975,
+    -0.0947210043968455
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "2 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_right_arm",
+   "body": "trunk",
+   "category": "cover",
+   "mass_kg": 0.010659938644772788,
+   "com_body": [
+    0.46502391519172204,
+    -0.06856062926678155,
+    -0.0947220107808666
+   ],
+   "inertia_body": [
+    [
+     3.474263910045565e-06,
+     5.877546010335413e-07,
+     2.596097921946268e-06
+    ],
+    [
+     5.877546010335413e-07,
+     1.0039671366143116e-05,
+     -3.0123900499801255e-07
+    ],
+    [
+     2.596097921946268e-06,
+     -3.0123900499801255e-07,
+     8.001681971929117e-06
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 79 cm2",
+   "cost_nom": 14.379298305513286,
+   "cost_high": 23.80687728882126,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.007852972245383064
+   ],
+   "meta": {
+    "region": "arm"
+   }
+  },
+  {
+   "name": "cover_right_arm_support",
+   "body": "trunk",
+   "category": "cover_support",
+   "mass_kg": 0.002558385274745469,
+   "com_body": [
+    0.46502391519172204,
+    -0.06856062926678155,
+    -0.0947220107808666
+   ],
+   "inertia_body": [
+    [
+     8.338233384109354e-07,
+     1.410611042480499e-07,
+     6.230635012671042e-07
+    ],
+    [
+     1.410611042480499e-07,
+     2.4095211278743473e-06,
+     -7.2297361199523e-08
+    ],
+    [
+     6.230635012671042e-07,
+     -7.2297361199523e-08,
+     1.920403673262988e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_right_arm_fasteners",
+   "body": "trunk",
+   "category": "fasteners",
+   "mass_kg": 0.006,
+   "com_body": [
+    0.46502391519172204,
+    -0.06856062926678155,
+    -0.0947220107808666
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "2 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "camera",
+   "body": "head",
+   "category": "sensors",
+   "mass_kg": 0.101,
+   "com_body": [
+    0.14246185631065295,
+    0.0,
+    0.09293037840790319
+   ],
+   "inertia_body": [
+    [
+     7.626653884600668e-05,
+     0.0,
+     3.491250877049165e-07
+    ],
+    [
+     0.0,
+     9.176270833333335e-06,
+     0.0
+    ],
+    [
+     3.4912508770491693e-07,
+     0.0,
+     7.230656532066002e-05
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "luxonis_oak_d_lite",
+   "cost_nom": 294,
+   "cost_high": 329,
+   "power_nom_w": 3,
+   "power_max_w": 5,
+   "shape": "box",
+   "size": [
+    0.0175,
+    0.091,
+    0.028
+   ],
+   "meta": {}
+  },
+  {
+   "name": "camera_cable",
+   "body": "head",
+   "category": "harness",
+   "mass_kg": 0.051936434198735906,
+   "com_body": [
+    0.14246185631065295,
+    0.0,
+    0.09293037840790319
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "USB/flex camera lead through the neck with a service loop",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "neck_spar",
+   "body": "head",
+   "category": "linkage",
+   "mass_kg": 0.06422988775008173,
+   "com_body": [
+    0.053658980054461264,
+    0.0,
+    0.0221667017884572
+   ],
+   "inertia_body": [
+    [
+     1.5163932685046808e-05,
+     0.0,
+     -3.223131940261331e-05
+    ],
+    [
+     0.0,
+     9.318635304595025e-05,
+     0.0
+    ],
+    [
+     -3.22313194026133e-05,
+     0.0,
+     7.987148860534592e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "neck spar rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.007587922497759821,
+    0.05805728902268399
+   ],
+   "meta": {
+    "fromto": [
+     0.0,
+     0.0,
+     0.0,
+     0.10731796010892253,
+     0.0,
+     0.0443334035769144
+    ]
+   }
+  },
+  {
+   "name": "skull_mount",
+   "body": "head",
+   "category": "structure",
+   "mass_kg": 0.21265583686799502,
+   "com_body": [
+    0.17847068388819803,
+    0.0,
+    0.039357920441932454
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "PR #662 skull mount 0.12 kg, scaled with B^2",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "tooth_0",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.177224005084538,
+    0.04065452901930537,
+    0.02152958294147341
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.004755098098596153
+   ],
+   "meta": {
+    "fromto": [
+     0.17755570396020348,
+     0.04065452901930537,
+     0.026273097860091778,
+     0.17689230620887256,
+     0.04065452901930537,
+     0.016786068022855042
+    ]
+   }
+  },
+  {
+   "name": "tooth_1",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.196166698741349,
+    0.031652728052924066,
+    0.01975423248841828
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.0049453020225400015
+   ],
+   "meta": {
+    "fromto": [
+     0.1965116655720411,
+     0.031652728052924066,
+     0.024687488003781385,
+     0.19582173191065694,
+     0.031652728052924066,
+     0.014820976973055178
+    ]
+   }
+  },
+  {
+   "name": "tooth_2",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.21513620426150223,
+    0.027866763178167005,
+    0.01836230954474079
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.0051355059464838464
+   ],
+   "meta": {
+    "fromto": [
+     0.21549443904722093,
+     0.027866763178167005,
+     0.02348530565684863,
+     0.21477796947578354,
+     0.027866763178167005,
+     0.013239313432632953
+    ]
+   }
+  },
+  {
+   "name": "tooth_3",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.2341369040105458,
+    0.025954083960352127,
+    0.017416484857560144
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.005325709870427692
+   ],
+   "meta": {
+    "fromto": [
+     0.23450840675129112,
+     0.025954083960352127,
+     0.022729221566412716,
+     0.23376540126980047,
+     0.025954083960352127,
+     0.012103748148707572
+    ]
+   }
+  },
+  {
+   "name": "tooth_4",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.2531620158456316,
+    0.02480114275581047,
+    0.016819769265498313
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.0051830569274698085
+   ],
+   "meta": {
+    "fromto": [
+     0.2535235676201069,
+     0.02480114275581047,
+     0.021990200526792333,
+     0.2528004640711562,
+     0.02480114275581047,
+     0.01164933800420429
+    ]
+   }
+  },
+  {
+   "name": "tooth_5",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.2721965734504523,
+    0.023986884537323692,
+    0.016358134473954657
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.004992853003525962
+   ],
+   "meta": {
+    "fromto": [
+     0.272544857269901,
+     0.023986884537323692,
+     0.021338825138503943,
+     0.27184828963100355,
+     0.023986884537323692,
+     0.011377443809405368
+    ]
+   }
+  },
+  {
+   "name": "tooth_6",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.29123170503948614,
+    0.023267155287290724,
+    0.015904708039078678
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.004802649079582115
+   ],
+   "meta": {
+    "fromto": [
+     0.2915667209039082,
+     0.023267155287290724,
+     0.02069565810688323,
+     0.290896689175064,
+     0.023267155287290724,
+     0.011113757971274126
+    ]
+   }
+  },
+  {
+   "name": "tooth_7",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.3102738015055436,
+    0.02241034505703835,
+    0.015550883986037638
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.004612445155638269
+   ],
+   "meta": {
+    "fromto": [
+     0.3105955494149391,
+     0.02241034505703835,
+     0.020152093457097457,
+     0.30995205359614814,
+     0.02241034505703835,
+     0.01094967451497782
+    ]
+   }
+  },
+  {
+   "name": "tooth_8",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.329335445220124,
+    0.019941097601652795,
+    0.015476598610359493
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.004422241231694424
+   ],
+   "meta": {
+    "fromto": [
+     0.32964392517449287,
+     0.019941097601652795,
+     0.019888067484674577,
+     0.3290269652657551,
+     0.019941097601652795,
+     0.011065129736044411
+    ]
+   }
+  },
+  {
+   "name": "tooth_9",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.177224005084538,
+    -0.04065452901930537,
+    0.02152958294147341
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.004755098098596153
+   ],
+   "meta": {
+    "fromto": [
+     0.17755570396020348,
+     -0.04065452901930537,
+     0.026273097860091778,
+     0.17689230620887256,
+     -0.04065452901930537,
+     0.016786068022855042
+    ]
+   }
+  },
+  {
+   "name": "tooth_10",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.196166698741349,
+    -0.031652728052924066,
+    0.01975423248841828
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.0049453020225400015
+   ],
+   "meta": {
+    "fromto": [
+     0.1965116655720411,
+     -0.031652728052924066,
+     0.024687488003781385,
+     0.19582173191065694,
+     -0.031652728052924066,
+     0.014820976973055178
+    ]
+   }
+  },
+  {
+   "name": "tooth_11",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.21513620426150223,
+    -0.027866763178167005,
+    0.01836230954474079
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.0051355059464838464
+   ],
+   "meta": {
+    "fromto": [
+     0.21549443904722093,
+     -0.027866763178167005,
+     0.02348530565684863,
+     0.21477796947578354,
+     -0.027866763178167005,
+     0.013239313432632953
+    ]
+   }
+  },
+  {
+   "name": "tooth_12",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.2341369040105458,
+    -0.025954083960352127,
+    0.017416484857560144
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.005325709870427692
+   ],
+   "meta": {
+    "fromto": [
+     0.23450840675129112,
+     -0.025954083960352127,
+     0.022729221566412716,
+     0.23376540126980047,
+     -0.025954083960352127,
+     0.012103748148707572
+    ]
+   }
+  },
+  {
+   "name": "tooth_13",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.2531620158456316,
+    -0.02480114275581047,
+    0.016819769265498313
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.0051830569274698085
+   ],
+   "meta": {
+    "fromto": [
+     0.2535235676201069,
+     -0.02480114275581047,
+     0.021990200526792333,
+     0.2528004640711562,
+     -0.02480114275581047,
+     0.01164933800420429
+    ]
+   }
+  },
+  {
+   "name": "tooth_14",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.2721965734504523,
+    -0.023986884537323692,
+    0.016358134473954657
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.004992853003525962
+   ],
+   "meta": {
+    "fromto": [
+     0.272544857269901,
+     -0.023986884537323692,
+     0.021338825138503943,
+     0.27184828963100355,
+     -0.023986884537323692,
+     0.011377443809405368
+    ]
+   }
+  },
+  {
+   "name": "tooth_15",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.29123170503948614,
+    -0.023267155287290724,
+    0.015904708039078678
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.004802649079582115
+   ],
+   "meta": {
+    "fromto": [
+     0.2915667209039082,
+     -0.023267155287290724,
+     0.02069565810688323,
+     0.290896689175064,
+     -0.023267155287290724,
+     0.011113757971274126
+    ]
+   }
+  },
+  {
+   "name": "tooth_16",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.3102738015055436,
+    -0.02241034505703835,
+    0.015550883986037638
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.004612445155638269
+   ],
+   "meta": {
+    "fromto": [
+     0.3105955494149391,
+     -0.02241034505703835,
+     0.020152093457097457,
+     0.30995205359614814,
+     -0.02241034505703835,
+     0.01094967451497782
+    ]
+   }
+  },
+  {
+   "name": "tooth_17",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.329335445220124,
+    -0.019941097601652795,
+    0.015476598610359493
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic (mass in skull shell)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0023775490492980774,
+    0.004422241231694424
+   ],
+   "meta": {
+    "fromto": [
+     0.32964392517449287,
+     -0.019941097601652795,
+     0.019888067484674577,
+     0.3290269652657551,
+     -0.019941097601652795,
+     0.011065129736044411
+    ]
+   }
+  },
+  {
+   "name": "eye_0",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.15788960067662558,
+    0.05273952531942269,
+    0.08587033128442137
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.008321421672543272,
+    0.002853058859157693,
+    0.008321421672543272
+   ],
+   "meta": {}
+  },
+  {
+   "name": "eye_1",
+   "body": "head",
+   "category": "cosmetic",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.15788960067662558,
+    -0.05273952531942269,
+    0.08587033128442137
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "cosmetic",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.008321421672543272,
+    0.002853058859157693,
+    0.008321421672543272
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_neck",
+   "body": "head",
+   "category": "cover",
+   "mass_kg": 0.055605300855517646,
+   "com_body": [
+    0.0513696028335758,
+    4.4249253784132285e-06,
+    -0.003304184388291709
+   ],
+   "inertia_body": [
+    [
+     0.00018278474172194072,
+     8.600345590345709e-09,
+     -2.541973181796263e-05
+    ],
+    [
+     8.600345590345709e-09,
+     0.00016169439883789109,
+     2.7985296569735533e-09
+    ],
+    [
+     -2.541973181796263e-05,
+     2.7985296569735533e-09,
+     0.00012933044877833628
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 410 cm2",
+   "cost_nom": 30.41110315095154,
+   "cost_high": 49.85776504152246,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.04096335812670736
+   ],
+   "meta": {
+    "region": "neck"
+   }
+  },
+  {
+   "name": "cover_neck_support",
+   "body": "head",
+   "category": "cover_support",
+   "mass_kg": 0.013345272205324235,
+   "com_body": [
+    0.0513696028335758,
+    4.4249253784132285e-06,
+    -0.003304184388291709
+   ],
+   "inertia_body": [
+    [
+     4.386833801326577e-05,
+     2.06408294168297e-09,
+     -6.1007356363110305e-06
+    ],
+    [
+     2.06408294168297e-09,
+     3.880665572109386e-05,
+     6.716471176736528e-10
+    ],
+    [
+     -6.1007356363110305e-06,
+     6.716471176736528e-10,
+     3.1039307706800705e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_neck_fasteners",
+   "body": "head",
+   "category": "fasteners",
+   "mass_kg": 0.009000000000000001,
+   "com_body": [
+    0.0513696028335758,
+    4.4249253784132285e-06,
+    -0.003304184388291709
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "3 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_skull",
+   "body": "head",
+   "category": "cover",
+   "mass_kg": 0.09067663395387611,
+   "com_body": [
+    0.19420086035502368,
+    -1.205278295022226e-06,
+    0.06213500026111823
+   ],
+   "inertia_body": [
+    [
+     0.00019054394000863608,
+     -4.7838843340210365e-09,
+     6.36711680193434e-05
+    ],
+    [
+     -4.7838843340210365e-09,
+     0.0005235614510264485,
+     3.990025854369849e-08
+    ],
+    [
+     6.36711680193434e-05,
+     3.990025854369849e-08,
+     0.000566896050345943
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 668 cm2",
+   "cost_nom": 44.23902469850515,
+   "cost_high": 72.38243951760825,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.06679973623429108
+   ],
+   "meta": {
+    "region": "skull"
+   }
+  },
+  {
+   "name": "cover_skull_support",
+   "body": "head",
+   "category": "cover_support",
+   "mass_kg": 0.021762392148930266,
+   "com_body": [
+    0.19420086035502368,
+    -1.205278295022226e-06,
+    0.06213500026111823
+   ],
+   "inertia_body": [
+    [
+     4.573054560207266e-05,
+     -1.1481322401650487e-09,
+     1.5281080324642416e-05
+    ],
+    [
+     -1.1481322401650487e-09,
+     0.00012565474824634764,
+     9.576062050487636e-09
+    ],
+    [
+     1.5281080324642416e-05,
+     9.576062050487636e-09,
+     0.0001360550520830263
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_skull_fasteners",
+   "body": "head",
+   "category": "fasteners",
+   "mass_kg": 0.012,
+   "com_body": [
+    0.19420086035502368,
+    -1.205278295022226e-06,
+    0.06213500026111823
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "4 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_jaw",
+   "body": "head",
+   "category": "cover",
+   "mass_kg": 0.055289626294589056,
+   "com_body": [
+    0.19727227560104085,
+    7.898304737048413e-07,
+    0.007010750193266663
+   ],
+   "inertia_body": [
+    [
+     5.7211482214078616e-05,
+     8.569124562558337e-09,
+     -5.152486223313491e-06
+    ],
+    [
+     8.569124562558337e-09,
+     0.0002634143012164038,
+     8.111347751746992e-09
+    ],
+    [
+     -5.152486223313491e-06,
+     8.111347751746992e-09,
+     0.0002842947232397138
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 407 cm2",
+   "cost_nom": 30.340644588952276,
+   "cost_high": 49.74503134232364,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.04073080673516991
+   ],
+   "meta": {
+    "region": "jaw"
+   }
+  },
+  {
+   "name": "cover_jaw_support",
+   "body": "head",
+   "category": "cover_support",
+   "mass_kg": 0.013269510310701373,
+   "com_body": [
+    0.19727227560104085,
+    7.898304737048413e-07,
+    0.007010750193266663
+   ],
+   "inertia_body": [
+    [
+     1.3730755731378868e-05,
+     2.0565898950140007e-09,
+     -1.2365966935952377e-06
+    ],
+    [
+     2.0565898950140007e-09,
+     6.321943229193691e-05,
+     1.946723460419278e-09
+    ],
+    [
+     -1.2365966935952377e-06,
+     1.946723460419278e-09,
+     6.823073357753131e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_jaw_fasteners",
+   "body": "head",
+   "category": "fasteners",
+   "mass_kg": 0.009000000000000001,
+   "com_body": [
+    0.19727227560104085,
+    7.898304737048413e-07,
+    0.007010750193266663
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "3 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "tail_spar",
+   "body": "tail",
+   "category": "linkage",
+   "mass_kg": 0.07798767934585932,
+   "com_body": [
+    -0.3098152366141862,
+    0.0,
+    0.01660228262556379
+   ],
+   "inertia_body": [
+    [
+     1.082051108732535e-05,
+     0.0,
+     0.00014159076269074772
+    ],
+    [
+     0.0,
+     0.002653046079387902,
+     0.0
+    ],
+    [
+     0.0001415907626907477,
+     0.0,
+     0.002645458557595718
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "CF tube spar rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.009105506997311785,
+    0.31025975669861416
+   ],
+   "meta": {
+    "fromto": [
+     0.0,
+     0.0,
+     0.0,
+     -0.6196304732283724,
+     0.0,
+     0.03320456525112758
+    ]
+   }
+  },
+  {
+   "name": "tail_ribs",
+   "body": "tail",
+   "category": "structure",
+   "mass_kg": 0.07505949859072705,
+   "com_body": [
+    -0.2285522403423999,
+    0.0,
+    0.007981220101819453
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "printed ribs 40 g at B=0.38, scaled B^2.2",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_tail",
+   "body": "tail",
+   "category": "cover",
+   "mass_kg": 0.18176065413434792,
+   "com_body": [
+    -0.2533280425283082,
+    4.408492871999565e-06,
+    0.006681051173949712
+   ],
+   "inertia_body": [
+    [
+     0.0003145867885417641,
+     -1.792159104170538e-08,
+     0.00046063162229004445
+    ],
+    [
+     -1.792159104170538e-08,
+     0.006290222883465452,
+     1.678253920852208e-08
+    ],
+    [
+     0.00046063162229004445,
+     1.678253920852208e-08,
+     0.006164198312732381
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 1339 cm2",
+   "cost_nom": 64.56897800278645,
+   "cost_high": 104.91036480445833,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.13389958608435576
+   ],
+   "meta": {
+    "region": "tail"
+   }
+  },
+  {
+   "name": "cover_tail_support",
+   "body": "tail",
+   "category": "cover_support",
+   "mass_kg": 0.043622556992243496,
+   "com_body": [
+    -0.2533280425283082,
+    4.408492871999565e-06,
+    0.006681051173949712
+   ],
+   "inertia_body": [
+    [
+     7.550082925002338e-05,
+     -4.30118185000929e-09,
+     0.00011055158934961065
+    ],
+    [
+     -4.30118185000929e-09,
+     0.0015096534920317083,
+     4.027809410045298e-09
+    ],
+    [
+     0.00011055158934961065,
+     4.027809410045298e-09,
+     0.0014794075950557712
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_tail_fasteners",
+   "body": "tail",
+   "category": "fasteners",
+   "mass_kg": 0.012,
+   "com_body": [
+    -0.2533280425283082,
+    4.408492871999565e-06,
+    0.006681051173949712
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "4 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "left_hip_bracket",
+   "body": "left_roll",
+   "category": "structure",
+   "mass_kg": 0.08413436025662117,
+   "com_body": [
+    0.025375,
+    0.031144614998506556,
+    -0.010117229997013144
+   ],
+   "inertia_body": [
+    [
+     4.7728843262947325e-05,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     1.5575811642300003e-05,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     6.279984874370759e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "twin-plate beam rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.04675000000000001,
+    0.08228922999701312,
+    0.006
+   ],
+   "meta": {}
+  },
+  {
+   "name": "left_hip_pitch_motor",
+   "body": "left_roll",
+   "category": "leg_actuator",
+   "mass_kg": 0.82,
+   "com_body": [
+    0.0,
+    0.09903922999701312,
+    -0.010117229997013144
+   ],
+   "inertia_body": [
+    [
+     0.0007394350000000001,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0007405625,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0007394350000000001
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "myactuator_rmd_x6_p20_60_e",
+   "cost_nom": 428,
+   "cost_high": 462.24,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "cylinder",
+   "size": [
+    0.085,
+    0.07350000000000001
+   ],
+   "meta": {
+    "actuator": "myactuator_rmd_x6_p20_60_e",
+    "axis": [
+     0.0,
+     1.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "name": "left_hip_bearings",
+   "body": "left_roll",
+   "category": "bearings",
+   "mass_kg": 0.0469025251269797,
+   "com_body": [
+    0.0,
+    0.09903922999701312,
+    -0.010117229997013144
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "bearing rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "left_hip_yaw_motor",
+   "body": "left_thigh",
+   "category": "leg_actuator",
+   "mass_kg": 0.349,
+   "com_body": [
+    0.02987487582491899,
+    0.0,
+    -0.07394291240170131
+   ],
+   "inertia_body": [
+    [
+     0.00018720874243005479,
+     0.0,
+     1.218492287994966e-05
+    ],
+    [
+     0.0,
+     0.0001921317708333333,
+     0.0
+    ],
+    [
+     1.2184922879949658e-05,
+     0.0,
+     0.00016197302840327847
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "cubemars_ak45_36_v3",
+   "cost_nom": 185.9,
+   "cost_high": 200.77200000000002,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "cylinder",
+   "size": [
+    0.06,
+    0.0625
+   ],
+   "meta": {
+    "actuator": "cubemars_ak45_36_v3",
+    "axis": [
+     0.374606593415912,
+     0.0,
+     -0.9271838545667874
+    ]
+   }
+  },
+  {
+   "name": "left_thigh_bracket",
+   "body": "left_thigh",
+   "category": "structure",
+   "mass_kg": 0.11711385000000003,
+   "com_body": [
+    0.021774008242299886,
+    -0.04075000000000001,
+    -0.05389256154669453
+   ],
+   "inertia_body": [
+    [
+     9.769895295900726e-05,
+     0.0,
+     2.5371467550908696e-05
+    ],
+    [
+     0.0,
+     0.00014214937530937505,
+     0.0
+    ],
+    [
+     2.5371467550908696e-05,
+     0.0,
+     4.515310545036779e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "bracket rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.0595,
+    0.006,
+    0.10500000000000001
+   ],
+   "meta": {}
+  },
+  {
+   "name": "left_twist_bearings",
+   "body": "left_thigh",
+   "category": "bearings",
+   "mass_kg": 0.021797532760653902,
+   "com_body": [
+    0.02987487582491899,
+    0.0,
+    -0.07394291240170131
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "bearing rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_left_thigh_upper",
+   "body": "left_thigh",
+   "category": "cover",
+   "mass_kg": 0.10283976803332519,
+   "com_body": [
+    0.0037835536457953563,
+    -1.065780753284371e-06,
+    -0.008453036766483285
+   ],
+   "inertia_body": [
+    [
+     0.0004054531594478873,
+     -2.3658839121265652e-08,
+     4.7239941064462535e-05
+    ],
+    [
+     -2.3658839121265652e-08,
+     0.0005344425384604851,
+     9.209309432385384e-09
+    ],
+    [
+     4.7239941064462535e-05,
+     9.209309432385384e-09,
+     0.00035992690292460774
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 758 cm2",
+   "cost_nom": 40.95383622503819,
+   "cost_high": 66.7261379600611,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.07576008371149014
+   ],
+   "meta": {
+    "region": "thigh"
+   }
+  },
+  {
+   "name": "cover_left_thigh_upper_support",
+   "body": "left_thigh",
+   "category": "cover_support",
+   "mass_kg": 0.024681544327998045,
+   "com_body": [
+    0.0037835536457953563,
+    -1.065780753284371e-06,
+    -0.008453036766483285
+   ],
+   "inertia_body": [
+    [
+     9.730875826749295e-05,
+     -5.678121389103756e-09,
+     1.1337585855471008e-05
+    ],
+    [
+     -5.678121389103756e-09,
+     0.0001282662092305164,
+     2.210234263772492e-09
+    ],
+    [
+     1.1337585855471008e-05,
+     2.210234263772492e-09,
+     8.638245670190585e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_left_thigh_upper_fasteners",
+   "body": "left_thigh",
+   "category": "fasteners",
+   "mass_kg": 0.009000000000000001,
+   "com_body": [
+    0.0037835536457953563,
+    -1.065780753284371e-06,
+    -0.008453036766483285
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "3 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "left_femur_plate0",
+   "body": "left_femur",
+   "category": "structure",
+   "mass_kg": 0.03341254121423194,
+   "com_body": [
+    0.06140775621532162,
+    0.037500000000000006,
+    -0.1519895301063354
+   ],
+   "inertia_body": [
+    [
+     2.520798720786519e-05,
+     0.0,
+     9.162097556126842e-06
+    ],
+    [
+     0.0,
+     3.139059608935735e-05,
+     0.0
+    ],
+    [
+     9.162097556126842e-06,
+     0.0,
+     6.2327276933135115e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "twin-plate beam rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.03,
+    0.003,
+    0.10185197748584648
+   ],
+   "meta": {}
+  },
+  {
+   "name": "left_femur_plate1",
+   "body": "left_femur",
+   "category": "structure",
+   "mass_kg": 0.03341254121423194,
+   "com_body": [
+    0.06140775621532162,
+    -0.037500000000000006,
+    -0.1519895301063354
+   ],
+   "inertia_body": [
+    [
+     2.520798720786519e-05,
+     0.0,
+     9.162097556126842e-06
+    ],
+    [
+     0.0,
+     3.139059608935735e-05,
+     0.0
+    ],
+    [
+     9.162097556126842e-06,
+     0.0,
+     6.2327276933135115e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "twin-plate beam rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.03,
+    0.003,
+    0.10185197748584648
+   ],
+   "meta": {}
+  },
+  {
+   "name": "left_knee_motor",
+   "body": "left_femur",
+   "category": "leg_actuator",
+   "mass_kg": 0.36,
+   "com_body": [
+    0.05506716923213907,
+    0.0,
+    -0.1362960266213178
+   ],
+   "inertia_body": [
+    [
+     0.00021567000000000003,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.00016199999999999998,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.00021567000000000003
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "myactuator_rmd_x4_p36_36_e_l",
+   "cost_nom": 269,
+   "cost_high": 290.52000000000004,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "cylinder",
+   "size": [
+    0.06,
+    0.067
+   ],
+   "meta": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "axis": [
+     0.0,
+     1.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "name": "left_knee_rod",
+   "body": "left_femur",
+   "category": "linkage",
+   "mass_kg": 0.0072314303767606935,
+   "com_body": [
+    0.04649977721545939,
+    0.0,
+    -0.1722709738946772
+   ],
+   "inertia_body": [
+    [
+     2.1522400861584827e-06,
+     0.0,
+     1.1741031427723398e-06
+    ],
+    [
+     0.0,
+     2.8069997573938397e-06,
+     0.0
+    ],
+    [
+     1.1741031427723398e-06,
+     0.0,
+     7.016193400767662e-07
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "push rod rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0036,
+    0.03038205123569597
+   ],
+   "meta": {
+    "fromto": [
+     0.031702136097056036,
+     0.0,
+     -0.14573611277539877,
+     0.061297418333862756,
+     0.0,
+     -0.1988058350139556
+    ]
+   }
+  },
+  {
+   "name": "left_knee_bearings",
+   "body": "left_femur",
+   "category": "bearings",
+   "mass_kg": 0.021797532760653902,
+   "com_body": [
+    0.08048496737464518,
+    0.0,
+    -0.1992072846466238
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "bearing rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "left_leg_harness",
+   "body": "left_femur",
+   "category": "harness",
+   "mass_kg": 0.07679661015041163,
+   "com_body": [
+    0.04024248368732259,
+    0.0,
+    -0.09960364232331187
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "PR #662 0.05 kg/leg at 360 mm hip, scaled with hip height^1.5",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_left_thigh_lower",
+   "body": "left_femur",
+   "category": "cover",
+   "mass_kg": 0.03479139996578444,
+   "com_body": [
+    0.059818356084755726,
+    -4.254947169984128e-08,
+    -0.1499197850417615
+   ],
+   "inertia_body": [
+    [
+     6.050801725904773e-05,
+     -1.5552725573572425e-08,
+     3.5698718791550067e-06
+    ],
+    [
+     -1.5552725573572425e-08,
+     5.167931485488544e-05,
+     -7.92733687544628e-09
+    ],
+    [
+     3.5698718791550067e-06,
+     -7.92733687544628e-09,
+     5.289811963618855e-05
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 256 cm2",
+   "cost_nom": 19.76544047236309,
+   "cost_high": 32.42470475578094,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.025630156740470617
+   ],
+   "meta": {
+    "region": "thigh"
+   }
+  },
+  {
+   "name": "cover_left_thigh_lower_support",
+   "body": "left_femur",
+   "category": "cover_support",
+   "mass_kg": 0.008349935991788265,
+   "com_body": [
+    0.059818356084755726,
+    -4.254947169984128e-08,
+    -0.1499197850417615
+   ],
+   "inertia_body": [
+    [
+     1.4521924142171454e-05,
+     -3.732654137657382e-09,
+     8.567692509972016e-07
+    ],
+    [
+     -3.732654137657382e-09,
+     1.2403035565172506e-05,
+     -1.902560850107107e-09
+    ],
+    [
+     8.567692509972016e-07,
+     -1.902560850107107e-09,
+     1.2695548712685252e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_left_thigh_lower_fasteners",
+   "body": "left_femur",
+   "category": "fasteners",
+   "mass_kg": 0.006,
+   "com_body": [
+    0.059818356084755726,
+    -4.254947169984128e-08,
+    -0.1499197850417615
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "2 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "left_tibia_plate0",
+   "body": "left_shank",
+   "category": "structure",
+   "mass_kg": 0.07247524821630545,
+   "com_body": [
+    -0.04540237304869851,
+    0.0104,
+    -0.08538944458221433
+   ],
+   "inertia_body": [
+    [
+     0.00017702519275102703,
+     0.0,
+     -9.221732976676317e-05
+    ],
+    [
+     0.0,
+     0.0002294260204843117,
+     0.0
+    ],
+    [
+     -9.221732976676317e-05,
+     0.0,
+     5.262244409473026e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "twin-plate beam rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.024,
+    0.004283331426418516,
+    0.19341905515757477
+   ],
+   "meta": {}
+  },
+  {
+   "name": "left_tibia_plate1",
+   "body": "left_shank",
+   "category": "structure",
+   "mass_kg": 0.07247524821630545,
+   "com_body": [
+    -0.04540237304869851,
+    -0.0104,
+    -0.08538944458221433
+   ],
+   "inertia_body": [
+    [
+     0.00017702519275102703,
+     0.0,
+     -9.221732976676317e-05
+    ],
+    [
+     0.0,
+     0.0002294260204843117,
+     0.0
+    ],
+    [
+     -9.221732976676317e-05,
+     0.0,
+     5.262244409473026e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "twin-plate beam rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.024,
+    0.004283331426418516,
+    0.19341905515757477
+   ],
+   "meta": {}
+  },
+  {
+   "name": "left_metatarsus_plate0",
+   "body": "left_shank",
+   "category": "structure",
+   "mass_kg": 0.030044963262125156,
+   "com_body": [
+    -0.07917779641169279,
+    0.0104,
+    -0.2141712561285239
+   ],
+   "inertia_body": [
+    [
+     1.897633551840297e-05,
+     0.0,
+     4.692230749876033e-06
+    ],
+    [
+     0.0,
+     2.1653239472668143e-05,
+     0.0
+    ],
+    [
+     4.692230749876033e-06,
+     0.0,
+     2.721971399158365e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "twin-plate beam rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.024,
+    0.003,
+    0.08984616785908235
+   ],
+   "meta": {}
+  },
+  {
+   "name": "left_metatarsus_plate1",
+   "body": "left_shank",
+   "category": "structure",
+   "mass_kg": 0.030044963262125156,
+   "com_body": [
+    -0.07917779641169279,
+    -0.0104,
+    -0.2141712561285239
+   ],
+   "inertia_body": [
+    [
+     1.897633551840297e-05,
+     0.0,
+     4.692230749876033e-06
+    ],
+    [
+     0.0,
+     2.1653239472668143e-05,
+     0.0
+    ],
+    [
+     4.692230749876033e-06,
+     0.0,
+     2.721971399158365e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "twin-plate beam rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.024,
+    0.003,
+    0.08984616785908235
+   ],
+   "meta": {}
+  },
+  {
+   "name": "left_ankle_motor_a",
+   "body": "left_shank",
+   "category": "leg_actuator",
+   "mass_kg": 0.36,
+   "com_body": [
+    -0.06255932754357618,
+    0.0,
+    -0.03245480423789299
+   ],
+   "inertia_body": [
+    [
+     0.00021567000000000003,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.00016199999999999998,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.00021567000000000003
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "myactuator_rmd_x4_p36_36_e_l",
+   "cost_nom": 269,
+   "cost_high": 290.52000000000004,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "cylinder",
+   "size": [
+    0.06,
+    0.067
+   ],
+   "meta": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "axis": [
+     0.0,
+     1.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "name": "left_ankle_rod_a",
+   "body": "left_shank",
+   "category": "linkage",
+   "mass_kg": 0.020286045263941285,
+   "com_body": [
+    -0.07140901062993657,
+    0.03375,
+    -0.13746002486300204
+   ],
+   "inertia_body": [
+    [
+     0.00011294763393764599,
+     -5.34129098760352e-07,
+     -1.7974649575001072e-05
+    ],
+    [
+     -5.341290987603519e-07,
+     0.0001157134206390953,
+     -3.350645420220623e-06
+    ],
+    [
+     -1.797464957500107e-05,
+     -3.3506454202206226e-06,
+     3.0562073804351964e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "push rod rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.003,
+    0.12784434775713
+   ],
+   "meta": {
+    "fromto": [
+     -0.05129201003671481,
+     0.037500000000000006,
+     -0.011264062009278764,
+     -0.09152601122315834,
+     0.03,
+     -0.2636559877167253
+    ]
+   }
+  },
+  {
+   "name": "left_ankle_motor_b",
+   "body": "left_shank",
+   "category": "leg_actuator",
+   "mass_kg": 0.36,
+   "com_body": [
+    -0.09354445068744499,
+    0.0,
+    -0.09072934536658217
+   ],
+   "inertia_body": [
+    [
+     0.00021567000000000003,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.00016199999999999998,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.00021567000000000003
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "myactuator_rmd_x4_p36_36_e_l",
+   "cost_nom": 269,
+   "cost_high": 290.52000000000004,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "cylinder",
+   "size": [
+    0.06,
+    0.067
+   ],
+   "meta": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "axis": [
+     0.0,
+     1.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "name": "left_ankle_rod_b",
+   "body": "left_shank",
+   "category": "linkage",
+   "mass_kg": 0.015429997749921853,
+   "com_body": [
+    -0.08690157220187097,
+    -0.03375,
+    -0.16659729542734664
+   ],
+   "inertia_body": [
+    [
+     5.1599581075372686e-05,
+     9.471854275810748e-08,
+     -2.4515354388420013e-06
+    ],
+    [
+     9.471854275810748e-08,
+     5.1639578307366565e-05,
+     1.987972563447979e-06
+    ],
+    [
+     -2.4515354388420013e-06,
+     1.987972563447979e-06,
+     2.63048491304815e-07
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "push rod rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.003,
+    0.09724113165315337
+   ],
+   "meta": {
+    "fromto": [
+     -0.0822771331805836,
+     -0.037500000000000006,
+     -0.06953860313796792,
+     -0.09152601122315834,
+     -0.03,
+     -0.2636559877167253
+    ]
+   }
+  },
+  {
+   "name": "cover_left_calf_fairing",
+   "body": "left_shank",
+   "category": "cover",
+   "mass_kg": 0.05066167065012033,
+   "com_body": [
+    -0.06052290649070248,
+    -2.1298433013722246e-06,
+    -0.06473948958509897
+   ],
+   "inertia_body": [
+    [
+     0.00013125744029383657,
+     -1.6408842032748515e-08,
+     -1.0937304316962357e-05
+    ],
+    [
+     -1.6408842032748515e-08,
+     0.00014016100362717547,
+     -5.566297470754052e-10
+    ],
+    [
+     -1.0937304316962357e-05,
+     -5.566297470754052e-10,
+     7.91857543677548e-05
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 373 cm2",
+   "cost_nom": 23.307684889106856,
+   "cost_high": 38.092295822570975,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.0373214806180165
+   ],
+   "meta": {
+    "region": "shank"
+   }
+  },
+  {
+   "name": "cover_left_calf_fairing_support",
+   "body": "left_shank",
+   "category": "cover_support",
+   "mass_kg": 0.012158800956028878,
+   "com_body": [
+    -0.06052290649070248,
+    -2.1298433013722246e-06,
+    -0.06473948958509897
+   ],
+   "inertia_body": [
+    [
+     3.150178567052078e-05,
+     -3.938122087859643e-09,
+     -2.6249530360709654e-06
+    ],
+    [
+     -3.938122087859643e-09,
+     3.363864087052211e-05,
+     -1.3359113929809725e-10
+    ],
+    [
+     -2.6249530360709654e-06,
+     -1.3359113929809725e-10,
+     1.900458104826115e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_left_calf_fairing_fasteners",
+   "body": "left_shank",
+   "category": "fasteners",
+   "mass_kg": 0.006,
+   "com_body": [
+    -0.06052290649070248,
+    -2.1298433013722246e-06,
+    -0.06473948958509897
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "2 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "left_ankle_bearings",
+   "body": "left_ankle",
+   "category": "bearings",
+   "mass_kg": 0.028336792588850072,
+   "com_body": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "bearing rule (2-DOF joint x1.3)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "left_ankle_ujoint",
+   "body": "left_ankle",
+   "category": "structure",
+   "mass_kg": 0.03544263947799917,
+   "com_body": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "inertia_body": [
+    [
+     8.207047195360512e-06,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     8.207047195360512e-06,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     8.207047195360512e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "universal joint block rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.03727400525215351,
+    0.03727400525215351,
+    0.03727400525215351
+   ],
+   "meta": {}
+  },
+  {
+   "name": "left_toe_0",
+   "body": "left_foot",
+   "category": "foot",
+   "mass_kg": 0.030895160330746737,
+   "com_body": [
+    0.05665648798327333,
+    0.0,
+    -0.011681706495370299
+   ],
+   "inertia_body": [
+    [
+     2.0898082180697085e-06,
+     0.0,
+     7.753979804714296e-07
+    ],
+    [
+     0.0,
+     4.0859707241641204e-05,
+     0.0
+    ],
+    [
+     7.753979804714296e-07,
+     0.0,
+     4.084419928203177e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "toe rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.01158792249775982,
+    0.05059626620354178
+   ],
+   "meta": {
+    "fromto": [
+     0.006070337998207859,
+     0.0,
+     -0.01066998349566899,
+     0.1072426379683388,
+     0.0,
+     -0.012693429495071608
+    ]
+   }
+  },
+  {
+   "name": "left_claw_0",
+   "body": "left_foot",
+   "category": "foot",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.11609344423145337,
+    0.0,
+    -0.014893891619736518
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "claw cap (mass in toe)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.006373357373767902,
+    0.009120241502793279
+   ],
+   "meta": {
+    "fromto": [
+     0.1072426379683388,
+     0.0,
+     -0.012693429495071608,
+     0.12494425049456795,
+     0.0,
+     -0.01709435374440143
+    ]
+   }
+  },
+  {
+   "name": "left_toe_1",
+   "body": "left_foot",
+   "category": "foot",
+   "mass_kg": 0.030895160330746737,
+   "com_body": [
+    0.040858932411488615,
+    0.022591977368653024,
+    -0.011681706495370299
+   ],
+   "inertia_body": [
+    [
+     1.0385577017229675e-05,
+     -1.2772628844727244e-05,
+     5.719889922866621e-07
+    ],
+    [
+     -1.2772628844727246e-05,
+     2.1759058514173263e-05,
+     3.714539948163507e-07
+    ],
+    [
+     5.71988992286662e-07,
+     3.714539948163507e-07,
+     3.0037066069122718e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "toe rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.01158792249775982,
+    0.0414929792387291
+   ],
+   "meta": {
+    "fromto": [
+     0.006070337998207859,
+     0.0,
+     -0.01066998349566899,
+     0.07564752682476937,
+     0.04518395473730605,
+     -0.012693429495071608
+    ]
+   }
+  },
+  {
+   "name": "left_claw_1",
+   "body": "left_foot",
+   "category": "foot",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.0830697146317976,
+    0.05000397985732816,
+    -0.014932727794318982
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "claw cap (mass in toe)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.006373357373767902,
+    0.009128853754631782
+   ],
+   "meta": {
+    "fromto": [
+     0.07564752682476937,
+     0.04518395473730605,
+     -0.012693429495071608,
+     0.09049190243882582,
+     0.054824004977350266,
+     -0.017172026093566356
+    ]
+   }
+  },
+  {
+   "name": "left_toe_2",
+   "body": "left_foot",
+   "category": "foot",
+   "mass_kg": 0.030895160330746737,
+   "com_body": [
+    0.040858932411488615,
+    -0.02259197736865302,
+    -0.011681706495370299
+   ],
+   "inertia_body": [
+    [
+     1.0385577017229675e-05,
+     1.2772628844727246e-05,
+     5.719889922866622e-07
+    ],
+    [
+     1.2772628844727248e-05,
+     2.1759058514173266e-05,
+     -3.714539948163507e-07
+    ],
+    [
+     5.719889922866621e-07,
+     -3.714539948163507e-07,
+     3.0037066069122718e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "toe rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.01158792249775982,
+    0.0414929792387291
+   ],
+   "meta": {
+    "fromto": [
+     0.006070337998207859,
+     0.0,
+     -0.01066998349566899,
+     0.07564752682476937,
+     -0.04518395473730604,
+     -0.012693429495071608
+    ]
+   }
+  },
+  {
+   "name": "left_claw_2",
+   "body": "left_foot",
+   "category": "foot",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.0830697146317976,
+    -0.05000397985732816,
+    -0.014932727794318982
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "claw cap (mass in toe)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.006373357373767902,
+    0.009128853754631783
+   ],
+   "meta": {
+    "fromto": [
+     0.07564752682476937,
+     -0.04518395473730604,
+     -0.012693429495071608,
+     0.09049190243882582,
+     -0.054824004977350266,
+     -0.017172026093566356
+    ]
+   }
+  },
+  {
+   "name": "left_hallux",
+   "body": "left_foot",
+   "category": "foot",
+   "mass_kg": 0.004,
+   "com_body": [
+    -0.02023445999402619,
+    -0.006323268748133187,
+    -0.005058614998506548
+   ],
+   "inertia_body": [
+    [
+     2.5836354834518906e-07,
+     -2.36607784271774e-07,
+     -1.892862274174191e-07
+    ],
+    [
+     -2.3660778427177405e-07,
+     7.276356538175405e-07,
+     -7.886926142392466e-08
+    ],
+    [
+     -1.892862274174191e-07,
+     -7.886926142392466e-08,
+     7.631268214583064e-07
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "hallux (cosmetic)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.006952753498655892,
+    0.0172011506793084
+   ],
+   "meta": {
+    "fromto": [
+     -0.005058614998506548,
+     0.0,
+     0.0,
+     -0.03541030498954583,
+     -0.012646537496266375,
+     -0.010117229997013095
+    ]
+   }
+  },
+  {
+   "name": "left_pad_heel",
+   "body": "left_foot",
+   "category": "foot",
+   "mass_kg": 0.017721319738999586,
+   "com_body": [
+    -0.006070337998207857,
+    0.0,
+    -0.019728598494175534
+   ],
+   "inertia_body": [
+    [
+     1.5433477868944755e-06,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     1.1276566591804888e-06,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     2.305196253686656e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "elastomer pad rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.02529307499253274,
+    0.030351689991039283,
+    0.011128952996714405
+   ],
+   "meta": {
+    "floor_contact": true
+   }
+  },
+  {
+   "name": "left_pad_toe0",
+   "body": "left_foot",
+   "category": "foot",
+   "mass_kg": 0.017721319738999586,
+   "com_body": [
+    0.08498473197491,
+    0.0,
+    -0.019728598494175534
+   ],
+   "inertia_body": [
+    [
+     7.875457365054084e-07,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     1.1276566591804888e-06,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.5493942032975885e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "elastomer pad rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.02529307499253274,
+    0.02023445999402619,
+    0.011128952996714405
+   ],
+   "meta": {
+    "floor_contact": true
+   }
+  },
+  {
+   "name": "left_pad_toe1",
+   "body": "left_foot",
+   "category": "foot",
+   "mass_kg": 0.017721319738999586,
+   "com_body": [
+    0.06034054528292583,
+    0.03524348469509872,
+    -0.019728598494175534
+   ],
+   "inertia_body": [
+    [
+     7.875457365054084e-07,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     1.1276566591804888e-06,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.5493942032975885e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "elastomer pad rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.02529307499253274,
+    0.02023445999402619,
+    0.011128952996714405
+   ],
+   "meta": {
+    "floor_contact": true
+   }
+  },
+  {
+   "name": "left_pad_toe2",
+   "body": "left_foot",
+   "category": "foot",
+   "mass_kg": 0.017721319738999586,
+   "com_body": [
+    0.06034054528292583,
+    -0.035243484695098706,
+    -0.019728598494175534
+   ],
+   "inertia_body": [
+    [
+     7.875457365054084e-07,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     1.1276566591804888e-06,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.5493942032975885e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "elastomer pad rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.02529307499253274,
+    0.02023445999402619,
+    0.011128952996714405
+   ],
+   "meta": {
+    "floor_contact": true
+   }
+  },
+  {
+   "name": "left_foot_plate",
+   "body": "left_foot",
+   "category": "structure",
+   "mass_kg": 0.11192884786542676,
+   "com_body": [
+    0.02832824399163667,
+    0.0,
+    -0.010164121995818334
+   ],
+   "inertia_body": [
+    [
+     2.4101625475580497e-05,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     9.570694660316306e-05,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.00011934220187930427
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "foot plate beam rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.10117229997013094,
+    0.05058614998506548,
+    0.005
+   ],
+   "meta": {}
+  },
+  {
+   "name": "left_foot_sensing",
+   "body": "left_foot",
+   "category": "sensors",
+   "mass_kg": 0.026624289465823937,
+   "com_body": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "estimate",
+   "source": "PR #662 foot-load sensing allocation",
+   "cost_nom": 60,
+   "cost_high": 140,
+   "power_nom_w": 0.2,
+   "power_max_w": 0.3,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "right_hip_bracket",
+   "body": "right_roll",
+   "category": "structure",
+   "mass_kg": 0.08413436025662117,
+   "com_body": [
+    -0.025375,
+    -0.031144614998506556,
+    -0.010117229997013144
+   ],
+   "inertia_body": [
+    [
+     4.7728843262947325e-05,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     1.5575811642300003e-05,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     6.279984874370759e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "twin-plate beam rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.04675000000000001,
+    0.08228922999701312,
+    0.006
+   ],
+   "meta": {}
+  },
+  {
+   "name": "right_hip_pitch_motor",
+   "body": "right_roll",
+   "category": "leg_actuator",
+   "mass_kg": 0.82,
+   "com_body": [
+    0.0,
+    -0.09903922999701312,
+    -0.010117229997013144
+   ],
+   "inertia_body": [
+    [
+     0.0007394350000000001,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0007405625,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0007394350000000001
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "myactuator_rmd_x6_p20_60_e",
+   "cost_nom": 428,
+   "cost_high": 462.24,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "cylinder",
+   "size": [
+    0.085,
+    0.07350000000000001
+   ],
+   "meta": {
+    "actuator": "myactuator_rmd_x6_p20_60_e",
+    "axis": [
+     0.0,
+     1.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "name": "right_hip_bearings",
+   "body": "right_roll",
+   "category": "bearings",
+   "mass_kg": 0.0469025251269797,
+   "com_body": [
+    0.0,
+    -0.09903922999701312,
+    -0.010117229997013144
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "bearing rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "right_hip_yaw_motor",
+   "body": "right_thigh",
+   "category": "leg_actuator",
+   "mass_kg": 0.349,
+   "com_body": [
+    0.02987487582491899,
+    0.0,
+    -0.07394291240170131
+   ],
+   "inertia_body": [
+    [
+     0.00018720874243005479,
+     0.0,
+     1.218492287994966e-05
+    ],
+    [
+     0.0,
+     0.0001921317708333333,
+     0.0
+    ],
+    [
+     1.2184922879949658e-05,
+     0.0,
+     0.00016197302840327847
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "cubemars_ak45_36_v3",
+   "cost_nom": 185.9,
+   "cost_high": 200.77200000000002,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "cylinder",
+   "size": [
+    0.06,
+    0.0625
+   ],
+   "meta": {
+    "actuator": "cubemars_ak45_36_v3",
+    "axis": [
+     0.374606593415912,
+     0.0,
+     -0.9271838545667874
+    ]
+   }
+  },
+  {
+   "name": "right_thigh_bracket",
+   "body": "right_thigh",
+   "category": "structure",
+   "mass_kg": 0.11711385000000003,
+   "com_body": [
+    0.021774008242299886,
+    0.04075000000000001,
+    -0.05389256154669453
+   ],
+   "inertia_body": [
+    [
+     9.769895295900726e-05,
+     0.0,
+     2.5371467550908696e-05
+    ],
+    [
+     0.0,
+     0.00014214937530937505,
+     0.0
+    ],
+    [
+     2.5371467550908696e-05,
+     0.0,
+     4.515310545036779e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "bracket rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.0595,
+    0.006,
+    0.10500000000000001
+   ],
+   "meta": {}
+  },
+  {
+   "name": "right_twist_bearings",
+   "body": "right_thigh",
+   "category": "bearings",
+   "mass_kg": 0.021797532760653902,
+   "com_body": [
+    0.02987487582491899,
+    0.0,
+    -0.07394291240170131
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "bearing rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_right_thigh_upper",
+   "body": "right_thigh",
+   "category": "cover",
+   "mass_kg": 0.10283976803332519,
+   "com_body": [
+    0.0037835536457953563,
+    -1.065780753284371e-06,
+    -0.008453036766483285
+   ],
+   "inertia_body": [
+    [
+     0.0004054531594478873,
+     -2.3658839121265652e-08,
+     4.7239941064462535e-05
+    ],
+    [
+     -2.3658839121265652e-08,
+     0.0005344425384604851,
+     9.209309432385384e-09
+    ],
+    [
+     4.7239941064462535e-05,
+     9.209309432385384e-09,
+     0.00035992690292460774
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 758 cm2",
+   "cost_nom": 40.95383622503819,
+   "cost_high": 66.7261379600611,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.07576008371149014
+   ],
+   "meta": {
+    "region": "thigh"
+   }
+  },
+  {
+   "name": "cover_right_thigh_upper_support",
+   "body": "right_thigh",
+   "category": "cover_support",
+   "mass_kg": 0.024681544327998045,
+   "com_body": [
+    0.0037835536457953563,
+    -1.065780753284371e-06,
+    -0.008453036766483285
+   ],
+   "inertia_body": [
+    [
+     9.730875826749295e-05,
+     -5.678121389103756e-09,
+     1.1337585855471008e-05
+    ],
+    [
+     -5.678121389103756e-09,
+     0.0001282662092305164,
+     2.210234263772492e-09
+    ],
+    [
+     1.1337585855471008e-05,
+     2.210234263772492e-09,
+     8.638245670190585e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_right_thigh_upper_fasteners",
+   "body": "right_thigh",
+   "category": "fasteners",
+   "mass_kg": 0.009000000000000001,
+   "com_body": [
+    0.0037835536457953563,
+    -1.065780753284371e-06,
+    -0.008453036766483285
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "3 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "right_femur_plate0",
+   "body": "right_femur",
+   "category": "structure",
+   "mass_kg": 0.03341254121423194,
+   "com_body": [
+    0.06140775621532162,
+    0.037500000000000006,
+    -0.1519895301063354
+   ],
+   "inertia_body": [
+    [
+     2.520798720786519e-05,
+     0.0,
+     9.162097556126842e-06
+    ],
+    [
+     0.0,
+     3.139059608935735e-05,
+     0.0
+    ],
+    [
+     9.162097556126842e-06,
+     0.0,
+     6.2327276933135115e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "twin-plate beam rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.03,
+    0.003,
+    0.10185197748584648
+   ],
+   "meta": {}
+  },
+  {
+   "name": "right_femur_plate1",
+   "body": "right_femur",
+   "category": "structure",
+   "mass_kg": 0.03341254121423194,
+   "com_body": [
+    0.06140775621532162,
+    -0.037500000000000006,
+    -0.1519895301063354
+   ],
+   "inertia_body": [
+    [
+     2.520798720786519e-05,
+     0.0,
+     9.162097556126842e-06
+    ],
+    [
+     0.0,
+     3.139059608935735e-05,
+     0.0
+    ],
+    [
+     9.162097556126842e-06,
+     0.0,
+     6.2327276933135115e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "twin-plate beam rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.03,
+    0.003,
+    0.10185197748584648
+   ],
+   "meta": {}
+  },
+  {
+   "name": "right_knee_motor",
+   "body": "right_femur",
+   "category": "leg_actuator",
+   "mass_kg": 0.36,
+   "com_body": [
+    0.05506716923213907,
+    0.0,
+    -0.1362960266213178
+   ],
+   "inertia_body": [
+    [
+     0.00021567000000000003,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.00016199999999999998,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.00021567000000000003
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "myactuator_rmd_x4_p36_36_e_l",
+   "cost_nom": 269,
+   "cost_high": 290.52000000000004,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "cylinder",
+   "size": [
+    0.06,
+    0.067
+   ],
+   "meta": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "axis": [
+     0.0,
+     1.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "name": "right_knee_rod",
+   "body": "right_femur",
+   "category": "linkage",
+   "mass_kg": 0.0072314303767606935,
+   "com_body": [
+    0.04649977721545939,
+    0.0,
+    -0.1722709738946772
+   ],
+   "inertia_body": [
+    [
+     2.1522400861584827e-06,
+     0.0,
+     1.1741031427723398e-06
+    ],
+    [
+     0.0,
+     2.8069997573938397e-06,
+     0.0
+    ],
+    [
+     1.1741031427723398e-06,
+     0.0,
+     7.016193400767662e-07
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "push rod rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.0036,
+    0.03038205123569597
+   ],
+   "meta": {
+    "fromto": [
+     0.031702136097056036,
+     0.0,
+     -0.14573611277539877,
+     0.061297418333862756,
+     0.0,
+     -0.1988058350139556
+    ]
+   }
+  },
+  {
+   "name": "right_knee_bearings",
+   "body": "right_femur",
+   "category": "bearings",
+   "mass_kg": 0.021797532760653902,
+   "com_body": [
+    0.08048496737464518,
+    0.0,
+    -0.1992072846466238
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "bearing rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "right_leg_harness",
+   "body": "right_femur",
+   "category": "harness",
+   "mass_kg": 0.07679661015041163,
+   "com_body": [
+    0.04024248368732259,
+    0.0,
+    -0.09960364232331187
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "PR #662 0.05 kg/leg at 360 mm hip, scaled with hip height^1.5",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_right_thigh_lower",
+   "body": "right_femur",
+   "category": "cover",
+   "mass_kg": 0.03479139996578444,
+   "com_body": [
+    0.059818356084755726,
+    -4.254947169984128e-08,
+    -0.1499197850417615
+   ],
+   "inertia_body": [
+    [
+     6.050801725904773e-05,
+     -1.5552725573572425e-08,
+     3.5698718791550067e-06
+    ],
+    [
+     -1.5552725573572425e-08,
+     5.167931485488544e-05,
+     -7.92733687544628e-09
+    ],
+    [
+     3.5698718791550067e-06,
+     -7.92733687544628e-09,
+     5.289811963618855e-05
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 256 cm2",
+   "cost_nom": 19.76544047236309,
+   "cost_high": 32.42470475578094,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.025630156740470617
+   ],
+   "meta": {
+    "region": "thigh"
+   }
+  },
+  {
+   "name": "cover_right_thigh_lower_support",
+   "body": "right_femur",
+   "category": "cover_support",
+   "mass_kg": 0.008349935991788265,
+   "com_body": [
+    0.059818356084755726,
+    -4.254947169984128e-08,
+    -0.1499197850417615
+   ],
+   "inertia_body": [
+    [
+     1.4521924142171454e-05,
+     -3.732654137657382e-09,
+     8.567692509972016e-07
+    ],
+    [
+     -3.732654137657382e-09,
+     1.2403035565172506e-05,
+     -1.902560850107107e-09
+    ],
+    [
+     8.567692509972016e-07,
+     -1.902560850107107e-09,
+     1.2695548712685252e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_right_thigh_lower_fasteners",
+   "body": "right_femur",
+   "category": "fasteners",
+   "mass_kg": 0.006,
+   "com_body": [
+    0.059818356084755726,
+    -4.254947169984128e-08,
+    -0.1499197850417615
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "2 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "right_tibia_plate0",
+   "body": "right_shank",
+   "category": "structure",
+   "mass_kg": 0.07247524821630545,
+   "com_body": [
+    -0.04540237304869851,
+    0.0104,
+    -0.08538944458221433
+   ],
+   "inertia_body": [
+    [
+     0.00017702519275102703,
+     0.0,
+     -9.221732976676317e-05
+    ],
+    [
+     0.0,
+     0.0002294260204843117,
+     0.0
+    ],
+    [
+     -9.221732976676317e-05,
+     0.0,
+     5.262244409473026e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "twin-plate beam rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.024,
+    0.004283331426418516,
+    0.19341905515757477
+   ],
+   "meta": {}
+  },
+  {
+   "name": "right_tibia_plate1",
+   "body": "right_shank",
+   "category": "structure",
+   "mass_kg": 0.07247524821630545,
+   "com_body": [
+    -0.04540237304869851,
+    -0.0104,
+    -0.08538944458221433
+   ],
+   "inertia_body": [
+    [
+     0.00017702519275102703,
+     0.0,
+     -9.221732976676317e-05
+    ],
+    [
+     0.0,
+     0.0002294260204843117,
+     0.0
+    ],
+    [
+     -9.221732976676317e-05,
+     0.0,
+     5.262244409473026e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "twin-plate beam rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.024,
+    0.004283331426418516,
+    0.19341905515757477
+   ],
+   "meta": {}
+  },
+  {
+   "name": "right_metatarsus_plate0",
+   "body": "right_shank",
+   "category": "structure",
+   "mass_kg": 0.030044963262125156,
+   "com_body": [
+    -0.07917779641169279,
+    0.0104,
+    -0.2141712561285239
+   ],
+   "inertia_body": [
+    [
+     1.897633551840297e-05,
+     0.0,
+     4.692230749876033e-06
+    ],
+    [
+     0.0,
+     2.1653239472668143e-05,
+     0.0
+    ],
+    [
+     4.692230749876033e-06,
+     0.0,
+     2.721971399158365e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "twin-plate beam rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.024,
+    0.003,
+    0.08984616785908235
+   ],
+   "meta": {}
+  },
+  {
+   "name": "right_metatarsus_plate1",
+   "body": "right_shank",
+   "category": "structure",
+   "mass_kg": 0.030044963262125156,
+   "com_body": [
+    -0.07917779641169279,
+    -0.0104,
+    -0.2141712561285239
+   ],
+   "inertia_body": [
+    [
+     1.897633551840297e-05,
+     0.0,
+     4.692230749876033e-06
+    ],
+    [
+     0.0,
+     2.1653239472668143e-05,
+     0.0
+    ],
+    [
+     4.692230749876033e-06,
+     0.0,
+     2.721971399158365e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "twin-plate beam rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.024,
+    0.003,
+    0.08984616785908235
+   ],
+   "meta": {}
+  },
+  {
+   "name": "right_ankle_motor_a",
+   "body": "right_shank",
+   "category": "leg_actuator",
+   "mass_kg": 0.36,
+   "com_body": [
+    -0.06255932754357618,
+    0.0,
+    -0.03245480423789299
+   ],
+   "inertia_body": [
+    [
+     0.00021567000000000003,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.00016199999999999998,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.00021567000000000003
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "myactuator_rmd_x4_p36_36_e_l",
+   "cost_nom": 269,
+   "cost_high": 290.52000000000004,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "cylinder",
+   "size": [
+    0.06,
+    0.067
+   ],
+   "meta": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "axis": [
+     0.0,
+     1.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "name": "right_ankle_rod_a",
+   "body": "right_shank",
+   "category": "linkage",
+   "mass_kg": 0.020286045263941285,
+   "com_body": [
+    -0.07140901062993657,
+    0.03375,
+    -0.13746002486300204
+   ],
+   "inertia_body": [
+    [
+     0.00011294763393764599,
+     -5.34129098760352e-07,
+     -1.7974649575001072e-05
+    ],
+    [
+     -5.341290987603519e-07,
+     0.0001157134206390953,
+     -3.350645420220623e-06
+    ],
+    [
+     -1.797464957500107e-05,
+     -3.3506454202206226e-06,
+     3.0562073804351964e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "push rod rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.003,
+    0.12784434775713
+   ],
+   "meta": {
+    "fromto": [
+     -0.05129201003671481,
+     0.037500000000000006,
+     -0.011264062009278764,
+     -0.09152601122315834,
+     0.03,
+     -0.2636559877167253
+    ]
+   }
+  },
+  {
+   "name": "right_ankle_motor_b",
+   "body": "right_shank",
+   "category": "leg_actuator",
+   "mass_kg": 0.36,
+   "com_body": [
+    -0.09354445068744499,
+    0.0,
+    -0.09072934536658217
+   ],
+   "inertia_body": [
+    [
+     0.00021567000000000003,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.00016199999999999998,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.00021567000000000003
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "sourced",
+   "source": "myactuator_rmd_x4_p36_36_e_l",
+   "cost_nom": 269,
+   "cost_high": 290.52000000000004,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "cylinder",
+   "size": [
+    0.06,
+    0.067
+   ],
+   "meta": {
+    "actuator": "myactuator_rmd_x4_p36_36_e_l",
+    "axis": [
+     0.0,
+     1.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "name": "right_ankle_rod_b",
+   "body": "right_shank",
+   "category": "linkage",
+   "mass_kg": 0.015429997749921853,
+   "com_body": [
+    -0.08690157220187097,
+    -0.03375,
+    -0.16659729542734664
+   ],
+   "inertia_body": [
+    [
+     5.1599581075372686e-05,
+     9.471854275810748e-08,
+     -2.4515354388420013e-06
+    ],
+    [
+     9.471854275810748e-08,
+     5.1639578307366565e-05,
+     1.987972563447979e-06
+    ],
+    [
+     -2.4515354388420013e-06,
+     1.987972563447979e-06,
+     2.63048491304815e-07
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "push rod rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.003,
+    0.09724113165315337
+   ],
+   "meta": {
+    "fromto": [
+     -0.0822771331805836,
+     -0.037500000000000006,
+     -0.06953860313796792,
+     -0.09152601122315834,
+     -0.03,
+     -0.2636559877167253
+    ]
+   }
+  },
+  {
+   "name": "cover_right_calf_fairing",
+   "body": "right_shank",
+   "category": "cover",
+   "mass_kg": 0.05066167065012033,
+   "com_body": [
+    -0.06052290649070248,
+    -2.1298433013722246e-06,
+    -0.06473948958509897
+   ],
+   "inertia_body": [
+    [
+     0.00013125744029383657,
+     -1.6408842032748515e-08,
+     -1.0937304316962357e-05
+    ],
+    [
+     -1.6408842032748515e-08,
+     0.00014016100362717547,
+     -5.566297470754052e-10
+    ],
+    [
+     -1.0937304316962357e-05,
+     -5.566297470754052e-10,
+     7.91857543677548e-05
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "derived",
+   "source": "PA12_MJF shell 1.34 mm, area 373 cm2",
+   "cost_nom": 23.307684889106856,
+   "cost_high": 38.092295822570975,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "mesh",
+   "size": [
+    0.0373214806180165
+   ],
+   "meta": {
+    "region": "shank"
+   }
+  },
+  {
+   "name": "cover_right_calf_fairing_support",
+   "body": "right_shank",
+   "category": "cover_support",
+   "mass_kg": 0.012158800956028878,
+   "com_body": [
+    -0.06052290649070248,
+    -2.1298433013722246e-06,
+    -0.06473948958509897
+   ],
+   "inertia_body": [
+    [
+     3.150178567052078e-05,
+     -3.938122087859643e-09,
+     -2.6249530360709654e-06
+    ],
+    [
+     -3.938122087859643e-09,
+     3.363864087052211e-05,
+     -1.3359113929809725e-10
+    ],
+    [
+     -2.6249530360709654e-06,
+     -1.3359113929809725e-10,
+     1.900458104826115e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "internal ribs/stringers 24 % of shell mass",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "cover_right_calf_fairing_fasteners",
+   "body": "right_shank",
+   "category": "fasteners",
+   "mass_kg": 0.006,
+   "com_body": [
+    -0.06052290649070248,
+    -2.1298433013722246e-06,
+    -0.06473948958509897
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "2 mounts x captive screw/insert",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "right_ankle_bearings",
+   "body": "right_ankle",
+   "category": "bearings",
+   "mass_kg": 0.028336792588850072,
+   "com_body": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "bearing rule (2-DOF joint x1.3)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "right_ankle_ujoint",
+   "body": "right_ankle",
+   "category": "structure",
+   "mass_kg": 0.03544263947799917,
+   "com_body": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "inertia_body": [
+    [
+     8.207047195360512e-06,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     8.207047195360512e-06,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     8.207047195360512e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "universal joint block rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.03727400525215351,
+    0.03727400525215351,
+    0.03727400525215351
+   ],
+   "meta": {}
+  },
+  {
+   "name": "right_toe_0",
+   "body": "right_foot",
+   "category": "foot",
+   "mass_kg": 0.030895160330746737,
+   "com_body": [
+    0.05665648798327333,
+    0.0,
+    -0.011681706495370299
+   ],
+   "inertia_body": [
+    [
+     2.0898082180697085e-06,
+     0.0,
+     7.753979804714296e-07
+    ],
+    [
+     0.0,
+     4.0859707241641204e-05,
+     0.0
+    ],
+    [
+     7.753979804714296e-07,
+     0.0,
+     4.084419928203177e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "toe rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.01158792249775982,
+    0.05059626620354178
+   ],
+   "meta": {
+    "fromto": [
+     0.006070337998207859,
+     0.0,
+     -0.01066998349566899,
+     0.1072426379683388,
+     0.0,
+     -0.012693429495071608
+    ]
+   }
+  },
+  {
+   "name": "right_claw_0",
+   "body": "right_foot",
+   "category": "foot",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.11609344423145337,
+    0.0,
+    -0.014893891619736518
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "claw cap (mass in toe)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.006373357373767902,
+    0.009120241502793279
+   ],
+   "meta": {
+    "fromto": [
+     0.1072426379683388,
+     0.0,
+     -0.012693429495071608,
+     0.12494425049456795,
+     0.0,
+     -0.01709435374440143
+    ]
+   }
+  },
+  {
+   "name": "right_toe_1",
+   "body": "right_foot",
+   "category": "foot",
+   "mass_kg": 0.030895160330746737,
+   "com_body": [
+    0.040858932411488615,
+    0.02259197736865302,
+    -0.011681706495370299
+   ],
+   "inertia_body": [
+    [
+     1.0385577017229675e-05,
+     -1.2772628844727246e-05,
+     5.719889922866622e-07
+    ],
+    [
+     -1.2772628844727248e-05,
+     2.1759058514173266e-05,
+     3.714539948163507e-07
+    ],
+    [
+     5.719889922866621e-07,
+     3.714539948163507e-07,
+     3.0037066069122718e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "toe rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.01158792249775982,
+    0.0414929792387291
+   ],
+   "meta": {
+    "fromto": [
+     0.006070337998207859,
+     0.0,
+     -0.01066998349566899,
+     0.07564752682476937,
+     0.04518395473730604,
+     -0.012693429495071608
+    ]
+   }
+  },
+  {
+   "name": "right_claw_1",
+   "body": "right_foot",
+   "category": "foot",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.0830697146317976,
+    0.05000397985732816,
+    -0.014932727794318982
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "claw cap (mass in toe)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.006373357373767902,
+    0.009128853754631783
+   ],
+   "meta": {
+    "fromto": [
+     0.07564752682476937,
+     0.04518395473730604,
+     -0.012693429495071608,
+     0.09049190243882582,
+     0.054824004977350266,
+     -0.017172026093566356
+    ]
+   }
+  },
+  {
+   "name": "right_toe_2",
+   "body": "right_foot",
+   "category": "foot",
+   "mass_kg": 0.030895160330746737,
+   "com_body": [
+    0.040858932411488615,
+    -0.022591977368653024,
+    -0.011681706495370299
+   ],
+   "inertia_body": [
+    [
+     1.0385577017229675e-05,
+     1.2772628844727244e-05,
+     5.719889922866621e-07
+    ],
+    [
+     1.2772628844727246e-05,
+     2.1759058514173263e-05,
+     -3.714539948163507e-07
+    ],
+    [
+     5.71988992286662e-07,
+     -3.714539948163507e-07,
+     3.0037066069122718e-05
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "toe rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.01158792249775982,
+    0.0414929792387291
+   ],
+   "meta": {
+    "fromto": [
+     0.006070337998207859,
+     0.0,
+     -0.01066998349566899,
+     0.07564752682476937,
+     -0.04518395473730605,
+     -0.012693429495071608
+    ]
+   }
+  },
+  {
+   "name": "right_claw_2",
+   "body": "right_foot",
+   "category": "foot",
+   "mass_kg": 0.0,
+   "com_body": [
+    0.0830697146317976,
+    -0.05000397985732816,
+    -0.014932727794318982
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "claw cap (mass in toe)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.006373357373767902,
+    0.009128853754631782
+   ],
+   "meta": {
+    "fromto": [
+     0.07564752682476937,
+     -0.04518395473730605,
+     -0.012693429495071608,
+     0.09049190243882582,
+     -0.054824004977350266,
+     -0.017172026093566356
+    ]
+   }
+  },
+  {
+   "name": "right_hallux",
+   "body": "right_foot",
+   "category": "foot",
+   "mass_kg": 0.004,
+   "com_body": [
+    -0.02023445999402619,
+    0.006323268748133187,
+    -0.005058614998506548
+   ],
+   "inertia_body": [
+    [
+     2.5836354834518906e-07,
+     2.36607784271774e-07,
+     -1.892862274174191e-07
+    ],
+    [
+     2.3660778427177405e-07,
+     7.276356538175405e-07,
+     7.886926142392466e-08
+    ],
+    [
+     -1.892862274174191e-07,
+     7.886926142392466e-08,
+     7.631268214583064e-07
+    ]
+   ],
+   "volume_class": "C",
+   "basis": "estimate",
+   "source": "hallux (cosmetic)",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "capsule",
+   "size": [
+    0.006952753498655892,
+    0.0172011506793084
+   ],
+   "meta": {
+    "fromto": [
+     -0.005058614998506548,
+     0.0,
+     0.0,
+     -0.03541030498954583,
+     0.012646537496266375,
+     -0.010117229997013095
+    ]
+   }
+  },
+  {
+   "name": "right_pad_heel",
+   "body": "right_foot",
+   "category": "foot",
+   "mass_kg": 0.017721319738999586,
+   "com_body": [
+    -0.006070337998207857,
+    0.0,
+    -0.019728598494175534
+   ],
+   "inertia_body": [
+    [
+     1.5433477868944755e-06,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     1.1276566591804888e-06,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     2.305196253686656e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "elastomer pad rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.02529307499253274,
+    0.030351689991039283,
+    0.011128952996714405
+   ],
+   "meta": {
+    "floor_contact": true
+   }
+  },
+  {
+   "name": "right_pad_toe0",
+   "body": "right_foot",
+   "category": "foot",
+   "mass_kg": 0.017721319738999586,
+   "com_body": [
+    0.08498473197491,
+    0.0,
+    -0.019728598494175534
+   ],
+   "inertia_body": [
+    [
+     7.875457365054084e-07,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     1.1276566591804888e-06,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.5493942032975885e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "elastomer pad rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.02529307499253274,
+    0.02023445999402619,
+    0.011128952996714405
+   ],
+   "meta": {
+    "floor_contact": true
+   }
+  },
+  {
+   "name": "right_pad_toe1",
+   "body": "right_foot",
+   "category": "foot",
+   "mass_kg": 0.017721319738999586,
+   "com_body": [
+    0.06034054528292583,
+    0.035243484695098706,
+    -0.019728598494175534
+   ],
+   "inertia_body": [
+    [
+     7.875457365054084e-07,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     1.1276566591804888e-06,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.5493942032975885e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "elastomer pad rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.02529307499253274,
+    0.02023445999402619,
+    0.011128952996714405
+   ],
+   "meta": {
+    "floor_contact": true
+   }
+  },
+  {
+   "name": "right_pad_toe2",
+   "body": "right_foot",
+   "category": "foot",
+   "mass_kg": 0.017721319738999586,
+   "com_body": [
+    0.06034054528292583,
+    -0.03524348469509872,
+    -0.019728598494175534
+   ],
+   "inertia_body": [
+    [
+     7.875457365054084e-07,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     1.1276566591804888e-06,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.5493942032975885e-06
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "elastomer pad rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.02529307499253274,
+    0.02023445999402619,
+    0.011128952996714405
+   ],
+   "meta": {
+    "floor_contact": true
+   }
+  },
+  {
+   "name": "right_foot_plate",
+   "body": "right_foot",
+   "category": "structure",
+   "mass_kg": 0.11192884786542676,
+   "com_body": [
+    0.02832824399163667,
+    0.0,
+    -0.010164121995818334
+   ],
+   "inertia_body": [
+    [
+     2.4101625475580497e-05,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     9.570694660316306e-05,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.00011934220187930427
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "foot plate beam rule",
+   "cost_nom": 0.0,
+   "cost_high": 0.0,
+   "power_nom_w": 0.0,
+   "power_max_w": 0.0,
+   "shape": "box",
+   "size": [
+    0.10117229997013094,
+    0.05058614998506548,
+    0.005
+   ],
+   "meta": {}
+  },
+  {
+   "name": "right_foot_sensing",
+   "body": "right_foot",
+   "category": "sensors",
+   "mass_kg": 0.026624289465823937,
+   "com_body": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "inertia_body": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ]
+   ],
+   "volume_class": "A",
+   "basis": "estimate",
+   "source": "PR #662 foot-load sensing allocation",
+   "cost_nom": 60,
+   "cost_high": 140,
+   "power_nom_w": 0.2,
+   "power_max_w": 0.3,
+   "shape": "none",
+   "size": [
+    0.0
+   ],
+   "meta": {}
+  },
+  {
+   "name": "integration_reserve",
+   "body": "trunk",
+   "category": "integration_reserve",
+   "mass_kg": 0.8351894871762279,
+   "com_body": [
+    0.08635848791670298,
+    3.545854796219116e-07,
+    0.014571959591330973
+   ],
+   "inertia_body": [
+    [
+     0.0005129316710504899,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0013695988022146765,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     0.0013695988022146765
+    ]
+   ],
+   "volume_class": "B",
+   "basis": "estimate",
+   "source": "6 % of installed mass (PR #662 precedent: 0.60 of 9.90 kg)",
+   "cost_nom": 0,
+   "cost_high": 0,
+   "power_nom_w": 0,
+   "power_max_w": 0,
+   "shape": "none",
+   "size": [
+    0
+   ],
+   "meta": {}
+  }
+ ],
+ "summary": {
+  "id": "75-M-T-10",
+  "B": 0.5058614998506548,
+  "H": 0.5058614998506548,
+  "mass": 13.9198318,
+  "crown": 0.7505675446529038,
+  "stance_ok": true,
+  "stance_dx": 0.0027299812391649025,
+  "xml": "round2/refine/mat75_thin/review/mjcf/75-M-T-10.xml",
+  "xml_sha256": "758925f6a201607ee5b05029e8498a5bd7aa4c0b4228d83bf4c60bb32aba038c"
+ },
+ "metrics": {
+  "crown": 0.7505675446529038,
+  "hip_height": 0.5058614998506548,
+  "length": 1.83667889702923,
+  "max_width": 0.3006653748738439,
+  "torso_width": 0.18337999242184383,
+  "torso_length": 0.7928332516086254,
+  "torso_depth": 0.31149381278670374,
+  "thigh_width": 0.29540762563149353,
+  "hardware_width": 0.2918144216632507,
+  "hip_pitch_spacing": 0.19807845999402623,
+  "roll_axis_offset": 0.0,
+  "foot_spacing": 0.1782706097269334,
+  "support_width": 0.26899200972877624,
+  "support_area": 0.02842354068416318,
+  "skull_length": 0.25610001773584723,
+  "skull_width": 0.1479800052067762,
+  "skull_depth": 0.14729000323882357,
+  "neck_length": 0.11887745246490379,
+  "tail_length": 0.7830863160995429,
+  "tail_root_height": 0.09987000314810718,
+  "tail_root_width": 0.08815999848743417,
+  "mass": 13.9198318,
+  "head_neck_mass": 0.709771,
+  "tail_mass": 0.39043,
+  "legs_mass": 7.1134908,
+  "com": [
+   0.06257241045586183,
+   2.374012570174862e-05,
+   0.44032007750087027
+  ],
+  "com_ahead_of_hip": 0.06257241045586183,
+  "com_height": 0.44032007750087027,
+  "torso_inclination_deg": 10.0,
+  "pelvis_inclination_deg": 5.0,
+  "ratios": {
+   "crown_over_torso_width": 4.092963113044047,
+   "crown_over_hardware_width": 2.572071456835149,
+   "hip_height_over_foot_spacing": 2.8376045867880846,
+   "torso_length_over_depth": 2.5452616362287754,
+   "skull_length_over_torso_length": 0.32301876493730686,
+   "skull_width_over_torso_width": 0.8069582905553068,
+   "neck_length_over_skull_length": 0.46418369477630883,
+   "tail_length_over_total_length": 0.426359946404437,
+   "length_over_crown": 2.4470534465736766,
+   "crown_over_hip_height": 1.4837411917580077,
+   "tail_mass_fraction": 0.02804847110293387,
+   "head_neck_mass_fraction": 0.050989912105116095,
+   "legs_mass_fraction": 0.5110328129108571,
+   "com_ahead_of_hip_over_H": 0.12369474742461138
+  }
+ },
+ "sized_record_sha256": "758925f6a201607ee5b05029e8498a5bd7aa4c0b4228d83bf4c60bb32aba038c",
+ "rev": 2
+}

@@ -1,0 +1,333 @@
+{
+ "compare": {
+  "scorecard_picks": [
+   "60-N-H-10",
+   "75-M-T-10-bighead",
+   "60-N-T-10"
+  ],
+  "judge_picks": {
+   "behavior-risk": [
+    "75-M-T-10",
+    "75-M-H-10",
+    "60-M-T-10"
+   ],
+   "hardware": [
+    "60-M-T-10",
+    "60-M-H-10",
+    "75-M-T-10"
+   ],
+   "owner-priorities": [
+    "60-M-T-10",
+    "60-N-T-10",
+    "75-M-T-10"
+   ]
+  },
+  "consensus": [],
+  "disagreements": [
+   {
+    "id": "60-N-H-10",
+    "side": "scorecard_only",
+    "scorecard_defensible": false,
+    "assessment": "Top total, but only by 0.0006 over 60-N-T-10 and 0.017 over 60-M-T-10 (0.714 / 0.713 / 0.697). The whole lead over the base body comes from one turning sub-score: friction need 0.53 against 0.65 gives clip(0.8-mu, 0.30) = 0.90 against 0.51. That is +0.024 weighted, partly offset by packaging (0.17 vs 0.48). Its turning gaps are 1.50 / 1.48 / 1.16 mm (base: 4.0 / 4.0 / 4.0) and it has 2 + 2 tight pairs in the walks (review_index clearance counts). The scorecard never scores either, even though the packaging comment says it does. The data supports the low friction need, the lower hip-roll hold (cont 0.608 vs 0.685) and Fr 0.05 at 0.959. No judge picked it, and the hardware judge ranks it 7th. A lead this small, on a body whose unscored risk is the tightest packaging at 60 cm, does not justify making it the only 60 cm base-family representative."
+   },
+   {
+    "id": "75-M-T-10-bighead",
+    "side": "scorecard_only",
+    "scorecard_defensible": false,
+    "assessment": "It is the best 75 cm body only because the larger head selects the XM540-W270 neck. The scorecard counts the base body's W150 neck four times. On 75-M-T-10 the neck (0.966) is the sizing worst ratio used in natural walking. It is also the turning worst (review_index turning.worst_targets = neck cont, in_place_0.50, 0.9695), the session hottest drive used in endurance (0.9658) and the head-and-tail ratio. Bighead's gain is endurance 0.78 vs 0.42 and head and tail 0.82 vs 0.45. The W270 costs the same in the ledger (expression_actuators $504.89 on both records). Rescored with the scorecard's own code and a W270 neck, 75-M-T-10 as sized comes to about 0.62, above bighead's 0.606 (scratchpad comparator/neck_cf.py). The body itself is worse: tightest joint margin 0.1505 rad at the knee against 0.176 rad on the base. Its hip pitch is 1.079 in the Fr 0.05 walk, so as sized it cannot do the animal-like walk. Verifying it would mostly measure the 24 V RobStride 03 speed limit."
+   },
+   {
+    "id": "60-N-T-10",
+    "side": "scorecard_only",
+    "scorecard_defensible": true,
+    "assessment": "The owner-priorities judge also picked it. Its claims check out: Fr 0.05 knee speed 0.938 (second best after 60-M-H-10-compact at 0.911) and walking-turn friction 0.541 against 0.646. Hip-roll cont is 0.607 vs 0.685 (-11 %), and reference sway is 2 x 0.0333 / 0.4047 = 0.164 H against 0.193 H. Runtime is 47.7 min. The risks are recorded: turning gaps 1.56 / 1.55 / 1.23 mm, 4 tight pairs in the nominal walk, and a tightest joint margin of 0.135 rad. As a stance-width probe it is a legitimate pick. Alongside 60-N-H-10, though, both 60 cm slots go to the tightest-packaged bodies, and the size comparison with the 75 cm pick changes stance and skull at the same time."
+   },
+   {
+    "id": "60-M-T-10",
+    "side": "judges_only",
+    "scorecard_defensible": false,
+    "assessment": "All three judges picked it, and every claim checked against the record. Thigh twist is 0.771 (3.52 of 4.56 N\u00b7m), knee speed 0.771, ankle 0.763 and neck 0.761. The stressed sizing value is 0.998. Fr 0.05 knee speed is 0.960. It has 4.0 mm in all three turns, 0 tight pairs and the best hip-roll margin of the 20 (0.196 rad). The scorecard ranks it 4th at 0.697, 0.017 behind the leader, because its friction need is 0.646 against 0.53. Leaving out the cleanest 60 cm base body for near-tied narrow twins, on unscored clearance, is not defensible. It is also the natural anchor for both the size and the family comparisons."
+   },
+   {
+    "id": "75-M-T-10",
+    "side": "judges_only",
+    "scorecard_defensible": false,
+    "assessment": "All three judges mean the F15 what-if record (round2/whatif_fr05/candidates/75-M-T-10.json), not the scored as-sized body, which the scorecard was right not to pick on Fr 0.05 (hip pitch 1.080). The what-if passes every gate (shortlist.gates all True). Its Fr 0.05 worst is the neck at 0.976, with knee speed 0.949. Thigh twist falls to 0.777, mass to 14.56 kg, runtime to 36.6 min, and cost rises to $18.2k / $25.2k. The record confirms all of this. The scorecard never sees this record, and if it did it would still score it 0.542, because the W150 neck again sets the Fr 0.05, sizing, turning and session terms. Every judge also adds the W270 neck; that combination is unscreened and needs a re-size. Hip roll stays at 0.956 in the what-if."
+   },
+   {
+    "id": "60-M-H-10",
+    "side": "judges_only",
+    "scorecard_defensible": true,
+    "assessment": "Hardware judge only. Its numbers are correct: thigh twist 0.781 (stressed 1.011), knee speed 0.786, Fr 0.05 0.983, 3.39 mm in the 0.5 rad/s walking turn and a hip-roll margin of 0.148. The scorecard ranks it 5th (0.681) and already had a Hybrid in 60-N-H-10, so omitting it is defensible under its own rule. It is still the right Hybrid for a clean family comparison, because it differs from 60-M-T-10 only in family and both sit at 0.77-0.79 drive ratios."
+   },
+   {
+    "id": "75-M-H-10",
+    "side": "judges_only",
+    "scorecard_defensible": true,
+    "assessment": "Behavior judge only, with the what-if drives. The record supports the claims: Fr 0.05 knee 0.974, hip roll 0.956, neck 0.961, turning gaps 4.0 / 3.9 / 3.52 mm and hip-roll margin 0.170. As sized it ranks last (0.551) and the what-if scores 0.554, so the scorecard is defensible here. A 75 cm family comparison puts two slots on the class with 0.96 drives and $25.3k high-side cost. The wider what-if hips also partly hide the Hybrid pelvis's hip-roll penalty, which a 60 cm comparison would show."
+   }
+  ],
+  "errors_found": [
+   "Scorecard logic: the neck drive enters four weighted categories. designlab/shortlist.py _worst_margin covers neck and tail, so on 75-M-T-10 the W150 neck (0.966) is the natural-walking sizing worst ratio. It is also the turning worst (review_index turning.worst_targets {group: neck, metric: cont, case: in_place_0.50} = 0.9695), the endurance session worst (envelope session_worst neck 0.9658) and the head-and-tail ratio. On the what-if record it is also the Fr 0.05 worst (0.976). This single part choice decides the 75 cm pick, and the W270 has the same ledger cost (expression_actuators 504.89 on both 75-M-T-10 and 75-M-T-10-bighead).",
+   "Scorecard logic: the stress test is reported but never used. build() sorts by total only, while docstring step 4 says 'a candidate whose lead depends on optimistic numbers drops'. It also multiplies speed ratios by 1.10/0.85: the Fr 0.05 worst is knee speed at 60 cm and hip-pitch speed at 75 cm, and mass does not change speed demand. 60-M-T-10's stressed 1.24 should be about 0.96/0.85 = 1.13 on that term, and 75 cm 1.40 should be about 1.27. ROUND2_REVIEW.md \u00a76 ('every body exceeds a limit, 1.21-1.43') inherits the inflated range.",
+   "Scorecard logic: the packaging comment says 'tightest joint-range margin and closest near-contact while walking', but the code uses only joint_range_margins. Turning min gaps (60-N-H-10 1.50/1.48/1.16 mm, 60-N-T-10 1.56/1.55/1.23 mm, 75-N-T-10 0.77 mm in place) and tight-pair counts (60-N-T-10: 4 nominal; 60-N-H-10: 2 + 2) are scored nowhere. That is where the narrow picks carry their risk.",
+   "Scorecard logic: the nominal CoP sub-score clip(cop+10, 30) is 1.0 on all 20 bodies (lowest min_cop_margin_single is 29.2 mm on 60-M-H-10-compact), so one third of the top-weighted natural-walking category is a constant that dilutes the drive-headroom terms.",
+   "Scorecard logic: the Fr 0.05 animal-like walk is not gated. A body whose drives cannot produce it (75-M-T-10-bighead, hip pitch 1.079) just gets 0 on one sub-score and can still be picked as the 75 cm representative.",
+   "Scorecard input: the what-if records (round2/whatif_fr05, F15), which all three judges treat as the 75 cm body to verify, are outside candidate_ids(). The scorecard scores them only by hand (DECISION_LOG F15: 0.54-0.55), and the neck double-counting means it cannot show their Fr 0.05 improvement (the what-if 75-M-T-10 scores 0.542, below the as-sized 0.555).",
+   "Behavior-risk judge: '75-M-T-00 ... The what-if drive change was run only on 75-M-T-10' is wrong. round2/whatif_fr05/candidates/75-M-H-10.json exists (DECISION_LOG F15), and the judge's own second pick relies on it.",
+   "Owner-priorities judge: '75-N-T-10 ... friction (0.37) are the study's best' is slightly wrong. 75-N-H-10 has a lower turning friction need (mu_needed_max 0.366 against 0.374).",
+   "All three judges: the W270 neck they add to the what-if 75-M-T-10 is unscreened on that body. The record keeps the W150 (neck cont 0.966, Fr 0.05 0.976), so the combination needs a re-size before verification. The hardware judge's 0.665 estimate (1.178 / 1.7702 N\u00b7m) is correct arithmetic but is not a screen result."
+  ],
+  "recommended_picks": [
+   "60-M-T-10",
+   "75-M-T-10",
+   "60-M-H-10"
+  ],
+  "change_recommended": true,
+  "summary_md": "The scorecard proposed 60-N-H-10, 75-M-T-10-bighead and 60-N-T-10. All three judges instead picked 60-M-T-10 and 75-M-T-10, the latter rebuilt with the larger hip-pitch and thigh-twist motors from the \"what-if\" study (F15). For their third body they split three ways: 60-M-H-10, 75-M-H-10 (also with the what-if motors) or 60-N-T-10. No body was chosen by both the scorecard and at least two judges.\n\nThe scorecard's 75 cm pick, the larger-skull body, wins only because its heavier head selects the stronger XM540-W270 neck servo. The scorecard counts the base body's weaker neck four times (natural walking, turning, endurance, head and tail). The W270 costs the same, and with it the base 75-M-T-10 scores about 0.62, above the larger-skull body's 0.61. As built, the larger-skull body also cannot do the animal-like Froude 0.05 walk (hip pitch at 1.08 of its limit).\n\nIts two 60 cm picks are both narrow-stance bodies. Their lead over the base body is 0.017 points or less, and it rests entirely on a lower friction need in turns. The scorecard never scores their 1.2\u20131.6 mm clearance in turns, though its own comment says it does. Two smaller flaws: the stress test is never used to rank, and it overstates the speed-limited cases.\n\nRecommended set: 60-M-T-10, the what-if 75-M-T-10 fitted with the W270 neck (it needs one re-size, because that combination has not been screened), and 60-M-H-10. Comparing the two Tapered bases gives a clean 60 vs 75 cm comparison. Comparing the two 60 cm bases gives a clean Tapered vs Hybrid comparison, at the size where drive headroom (0.77\u20130.79 of limit) will not hide the difference between the bodies. If you would rather test stance width than body family, swap 60-N-T-10 in for 60-M-H-10."
+ },
+ "judges": {
+  "behavior-risk": {
+   "picks": [
+    {
+     "id": "60-M-T-10",
+     "reason": "Most robust hardware of the 20. In the sizing walks and target turns, every governing drive sits at 0.76-0.77 of its limit: AK45-36 thigh-twist one-leg hold 3.52 of 4.56 N\u00b7m (0.771), X4-P12-10 ankle 0.763, STS3250 neck 0.761, X4-36-L knee speed 0.771. With drives 15 % weaker and the robot 10 % heavier (torque x1.294) the worst is 0.998, so no drive goes over. Passes the Froude 0.05 walk (0.45 m/s, knee speed 0.960). Over a session the hottest drive is the neck at 0.761 (0.985 stressed) and the leg drives are at most 0.53. Cleanest packaging in the set: 1 build, no overrides, 0 tight pairs in either walk, tightest walking joint-range margin 0.196 rad (hip roll; gate 0.10). Closest approach is 4.0 mm in all three turns, which is the fixed centreline hip-bracket gap; trunk to thigh stays at 5.0 mm or more. Turning hip-roll margins are 0.143/0.139/0.121 rad, and thigh twist uses 0.67 of its range (0.099 rad left turning in place). 10.85 kg, 46.4 min (40.2 min at 65 % usable), $14.8k nominal / $20.6k high. Weak points shared by every 60 cm body: (1) the battery comes out only ventrally, with 2.36 mm path clearance, because the dorsal path hits the tail motor at -4.35 mm; (2) it needs friction 0.65 in single support in the 0.35 rad/s walking turn, above the carpet band's 0.54 lower edge; (3) toe clearance over high pile is 6.1 mm, or 1.2 mm if the pile fully compresses."
+    },
+    {
+     "id": "60-M-H-10",
+     "reason": "The Hybrid side of the family comparison, placed at 60 cm, where drive margins will not mask the body difference. Governing drives are at 0.76-0.79: AK45-36 thigh twist 0.781, knee speed 0.786, ankle 0.76, neck 0.756. Under the combined stress it reaches 1.011, with only the thigh twist (just) over. Passes the Froude 0.05 walk at 0.983 (knee speed); hottest over a session is the neck at 0.756. 1 build, 0 tight pairs, walking hip-roll margin 0.148 rad. The Hybrid's hardware cost is measurable but small: (1) hip-pitch hold 3.52 vs 3.20 N\u00b7m, because its CoM sits 0.095 H ahead of the hip against 0.087 H; (2) outward hip roll is usable only to +0.260 rad against +0.308 rad, because the pelvis lateral cover meets the upper-thigh shell; (3) turning hip-roll margins are 0.095/0.090/0.072 rad against 0.143/0.139/0.121, with a 3.4 mm approach in the 0.5 rad/s walking turn; (4) it is 0.11 kg heavier and $0.1k dearer. 46.2 min, $14.9k / $20.7k. Turning friction need 0.63; toe clearance over high pile 6.0 mm (1.0 mm if the pile fully compresses)."
+    },
+    {
+     "id": "75-M-T-10",
+     "reason": "The 75 cm body with the most room in its hardware, but it should be verified with upgraded drives, not its round-two set. Packaging: 1 build, 0 tight pairs, walking hip-roll margin 0.176 rad, 4.0 mm closest approach in all three turns, turning roll margins 0.104/0.092/0.075 rad. The battery path is clear both dorsally and ventrally (2.54 mm). Toe clearance over high pile is 11.2 mm (6.2 mm fully compressed). It stands servo-held on medium pile (softest pile that holds: 9.1 mm). Turning friction need 0.43; camera height 0.726 m. As sized, its drives are thin: AK45-36 thigh-twist hold 0.963, AK45-36 hip-roll hold 0.925, XM540-W150 neck 0.970 turning in place (0.966 over a session), RobStride 03 hip-pitch speed 0.850 on 24 V and 1.080 in the Froude 0.05 walk. Under the combined stress it reaches 1.255, with three drive groups over 1.0. The fixes already exist. (1) The whatif_fr05 record swaps in an X6-60 hip pitch and an X4-36-L thigh twist; its new review index shows every round-two gate passed and the Froude 0.05 walk met at 0.976, at 14.56 kg, 36.6 min, $18.2k / $25.2k. (2) The XM540-W270 used on 75-M-T-10-bighead has the same ledger mass and cost (expression actuators 0.220 kg, $505). On this body's neck requirement it would run at 0.665 continuous, 0.563 peak and 0.43 speed (my ratio from the two records). Even with both fixes, the AK45-36 hip roll (0.956 in the what-if) stays the stress limiter at 1.24, and turning in place uses 0.78 of the \u00b10.30 rad thigh-twist range."
+    }
+   ],
+   "ranking": [
+    "60-M-T-10",
+    "60-M-H-10",
+    "75-M-T-10",
+    "60-M-T-00",
+    "60-M-H-00",
+    "60-N-T-10",
+    "60-N-H-10",
+    "60-M-T-10-bighead",
+    "75-M-T-00",
+    "75-M-T-10-bighead",
+    "75-M-H-10"
+   ],
+   "excluded": [
+    {
+     "id": "75-N-T-10",
+     "reason": "Excluded on margin, not on a hard requirement. Turning in place, toe meets toe at 0.8 mm. Both are hardware parts, so the shell-thickness allowance does not apply. Even that gap needed 4 builds with the legs moved out 6 mm per side. Turning hip-roll margins are 0.077/0.062/0.046 rad, and the swing foot passes the stance leg at 52 mm against 74 mm on 75-M-T-10. On top of that it has the 75 cm drive weaknesses: W150 neck 0.966, hip pitch 1.083 in the Froude 0.05 walk, 1.255 under stress."
+    },
+    {
+     "id": "75-N-H-10",
+     "reason": "Toe meets toe at 0.9 mm turning in place, and the pelvis cover comes within 1.5 mm of the thigh shell in the 0.5 rad/s walking turn, after 4 builds with the legs out 6 mm per side. Turning hip-roll margins 0.077/0.061/0.045 rad. W150 neck 0.961, hip pitch 1.078 in the Froude 0.05 walk, 1.25 under stress."
+    },
+    {
+     "id": "75-M-H-10-compact",
+     "reason": "Thinnest drives of the 20: RobStride 03 hip pitch at 0.97 (hold 11.06 N\u00b7m, +24 % on its base), AK45-36 thigh twist at 0.984 (1.27 under stress), knee speed 1.108 in the Froude 0.05 walk. Needed 4 builds and the ankle drives moved down to 0.42 of the shank. Closest approach 2.5 mm turning in place and 2.4 mm in the 0.5 rad/s walking turn, with hip-roll margins down to 0.026 rad. 0.30 kg heavier than its base."
+    },
+    {
+     "id": "75-M-T-10-compact",
+     "reason": "RobStride 03 hip pitch at 0.93 continuous (hold 10.64 N\u00b7m, +27 %) and AK45-36 thigh twist at 0.977 (1.26 under stress). Knee speed 1.078 in the Froude 0.05 walk. Passed the walks only after 4 builds, with the ankle drives moved to 0.42 of the shank. 0.29 kg heavier than its base."
+    },
+    {
+     "id": "75-M-H-10-bighead",
+     "reason": "Knee joint-range margin is 0.102 rad against the 0.10 gate (knee usable only to 0.706 rad). Upper-thigh shell to calf fairing is 1.73 mm in the brisk walk (2 tight pairs) and 2.5-2.9 mm in every turn. Turning hip-roll margins 0.056/0.042/0.028 rad. Thigh twist 0.965 (1.25 under stress); hip pitch 1.075 in the Froude 0.05 walk."
+    },
+    {
+     "id": "75-M-H-00",
+     "reason": "Highest thigh-twist ratio of the non-compact bodies (AK45-36 at 0.981, 1.27 under stress), on top of the 75 cm W150 neck (0.961) and hip-pitch speed (1.076 in the Froude 0.05 walk). In turns, the Hybrid pelvis leaves hip-roll margins of 0.055/0.042/0.026 rad, and a rib hoop comes within 2.2 mm of the thigh bracket in the 0.5 rad/s walking turn. Walking hip-pitch range margin 0.158 rad."
+    },
+    {
+     "id": "60-M-H-10-compact",
+     "reason": "The knee drops to an X4-P12-10 running at 0.958 continuous in the sizing walks and walking turn (1.24 under stress) and 0.76 over a session. Walking power 78 W, runtime 42.3 min (3.9 min less than its base). Neck 0.89; hip-pitch hold 4.74 N\u00b7m (+35 %)."
+    },
+    {
+     "id": "60-M-T-10-compact",
+     "reason": "Knee speed 1.085 in the Froude 0.05 walk. Neck STS3250 0.895 continuous and 0.894 over a session (1.16 under stress). Hip-pitch hold 4.50 N\u00b7m, +40 % on its base, with the CoM 0.125 H ahead of the hip. Knee usable only to 0.762 rad."
+    },
+    {
+     "id": "60-M-H-10-bighead",
+     "reason": "The only non-compact 60 cm body over a drive in the Froude 0.05 walk (knee speed 1.0035). Neck STS3250 0.853 continuous and over a session (1.11 under stress). Knee usable only to 0.763 rad (walking margin 0.182). In hardware terms it adds nothing over 60-M-H-10."
+    }
+   ],
+   "key_risks": [
+    "No body fails a hard requirement, so every exclusion and ranking here is on margin, and margins are what a controller and real hardware use up. All 20 pass the round-two clearance gates (TABLES \u00a76), the target turns with every drive inside its planning limits (\u00a78; worst 0.984), the torso-at-home check (\u00a77), runtime (37.7-47.7 min, \u00a71) and the carpet gate (\u00a79). Every screen is a prescribed motion. The Froude 0.05 walk (stride 0.80 H, lift 0.11 H) was never run through the clearance screen, which covers only home, nominal and brisk walks. The 60 cm knee is usable only to 0.81 rad and already uses 0.58 rad in the sizing walks.",
+    "24 V caps the speed available for natural walking. The CubeMars AK45-36 on hip roll and thigh twist accepts only 15-28 V (E9), which holds every body on the 6S bus; drives rated above 24 V therefore run slowed (the RobStride 03 is 48 V-nominal, F2, and gets 6.13 rad/s here). The Froude 0.05 walk needs 0.94-0.98 of the X4-36-L knee speed at 60 cm and 1.07-1.08 of the RobStride 03 at 75 cm; the F15 re-size moves the 75 cm limit to the knee at 0.95-0.97. The records evaluate speed at the 24.0 V bus, but A11 puts the pack at 21.0 V at the end of usable charge. If speed falls with voltage as E9 states, that costs another 12.5 %, enough to put every body over in the Froude 0.05 walk late in a session. Moving to 12S would require replacing the AK45-36s.",
+    "Assumption A1 (sustained torque = 0.57 x rated) is least supported exactly where the 75 cm margins are thinnest. CubeMars publishes no thermal definition, yet the AK45-36 governs the 75 cm thigh twist (one-leg hold 4.39 of 4.56 N\u00b7m, 0.96) and hip roll (0.93), and the 60 cm thigh twist (0.77). If the true fraction is 0.50 (the low end of MyActuator's 50-80 % equilibrium range), 75 cm goes to 1.10 and 1.05 and 60 cm to 0.88. The 75 cm figures come from the one-leg hold rule: the thigh-twist walking RMS is 3.59 N\u00b7m (0.79) and the session ratio 0.69. A bench test of the AK45-36 at one-leg-hold duty therefore decides whether 75 cm needs bigger hip drives.",
+    "Stress case (drives 15 % weaker, robot 10 % heavier; torque x1.294, speed /0.85). All ten 75 cm bodies end at 1.24-1.27, with two to four drive groups over. The six 60 cm base, narrow and level bodies end at 0.99-1.02, with at most the AK45-36 thigh twist over, by up to 2 %. The 60 cm bighead bodies reach 1.11-1.12 and the compact bodies 1.16-1.24 (neck or knee). On speed, the 75 cm RobStride 03 reaches 1.00 in the brisk walk, and every body goes over 1.0 in the Froude 0.05 walk. Re-driven per F15 and given a W270 neck, 75-M-T-10 still has the AK45-36 hip roll at 0.956 (1.24), the STS3215 tail peak at 0.895 (1.16) and the knee speed at 0.949 (1.12).",
+    "Head and tail servos at 75 cm. The XM540-W150 neck runs at 0.96-0.97 of its sustained torque over a whole session, almost all of it holding the head against gravity (hold 1.165 of 1.178 N\u00b7m RMS). The STS3215 tail peak is at 0.77 (0.87 in the Froude 0.05 walk). The sizing walks move the head \u00b10.05 rad and the tail \u00b10.12 rad. At the spec's upper end (\u00b10.15 / \u00b10.2 rad), my linear extrapolation of the motion part of the torque puts the W150 at about 1.05 RMS and 1.09 peak, and the tail at about 1.16 peak. The same estimate keeps the 60 cm STS3250 neck at or below 0.85 and the STS3215 tail at or below 0.70. The W270 brings the 75 cm neck back to about 0.67.",
+    "60 cm on carpet and in turns. In the 0.35 rad/s walking turn, single support needs friction 0.63-0.65 on the M bodies, above the carpet band's 0.54 lower edge (F11, still open). The cause is the stance pad's yaw moment against a 35 mm torsional radius (44 mm at 75 cm). Toe clearance over high pile in the nominal walk is 5.3-6.1 mm, and 0.3-1.2 mm if the pile fully compresses (A16); a toe-down of only 4.1-4.6 deg reaches the pile top. At 75 cm the same figures are 10.1-11.2 mm, 5.2-6.2 mm and 5.8-6.0 deg. Servo-held, the 60 cm bodies stand only on low pile (softest pile that holds: 5.6-6.7 mm).",
+    "Hip packaging margins are small, and the clearance screen measures mid-surface proxies, so the real outer skins sit 0.8-1.5 mm closer than reported. On every Tapered M body the closest approach is the fixed 4.0 mm centreline hip-bracket gap. The Hybrid pelvis lateral cover limits outward hip roll to +0.260 rad (60 cm) and +0.215 rad (75 cm), against +0.308 and +0.262 rad for Tapered; that leaves only 0.028-0.057 rad of hip-roll margin in the 75 cm Hybrid turns. The narrow stances run at 0.8-1.6 mm in turns. A learned controller's turns will deviate from the prescribed ones.",
+    "Thigh-twist joint range at 75 cm. Turning in place at 0.5 rad/s uses 0.78 of the \u00b10.30 rad range, leaving 0.066 rad (0.045 rad in the 0.5 rad/s walking turn). At 60 cm it uses 0.67 and leaves 0.098-0.099 rad. This is a hard joint limit, so a controller turning in place has little slack on any 75 cm body.",
+    "Service access and cost. On every 60 cm body the battery comes out only through a ventral hatch, with 2.35-2.36 mm path clearance; the dorsal path is blocked by the tail motor (-4.35 mm). Swaps therefore need the 11 kg robot lifted or on a stand, while 75 cm clears both dorsally and ventrally (2.54 mm). Latches, connectors and hand access are not modelled. The high-side cost is over the $20k ceiling everywhere: $20.5-20.8k at 60 cm, $24.4-24.8k at 75 cm and $25.2-25.3k for the F15 re-size. These lines are scaled from PR #662 (A8), not quoted.",
+    "Person-following with the 60 cm head camera. The camera sits at 0.572 m (0.507 m on the level bodies) against 0.726 m at 75 cm. At the \u00b10.35 rad neck limits the screen gives torso visibility of 0.08 nose-down and 0.54-0.62 nose-up at 60 cm, against 0.23 and 0.69-0.77 at 75 cm. My rotation-only check, which reproduces the screen's 0.077 at -0.35 rad on 60-M-T-10, gives about -0.11 rad of nose-down pitch at 60 cm (-0.08 rad level) before a person at 1.5 m drops below 75 % torso visibility. At 75 cm the figure is about -0.2 rad (slightly optimistic there). The spec allows head motion up to \u00b10.15 rad. Tilting the 60 cm camera further up is cheap and should be set before verification."
+   ],
+   "size_and_family_view": "None of the 20 fails a hard requirement on the screens as run (clearance, target turns, torso at home, runtime, carpet gate), so every choice below is on margin.\n\nSize: keep both, but they are not equally ready.\n\n60 cm is the robust class. On its base, narrow and level bodies the governing drive sits at 0.77-0.79 of its planning limit, the combined stress ends at 0.99-1.02, and the Froude 0.05 walk passes at 0.94-0.99. The hottest drive over a session is the neck at 0.76. These bodies weigh 10.8-11.0 kg, run 46-48 min and cost $14.8-14.9k nominal ($20.6-20.7k high).\n\n75 cm is under-driven as sized:\n- AK45-36 thigh twist 0.96-0.98 and hip roll 0.92-0.93 on the M bodies\n- W150 neck 0.96-0.97\n- RobStride 03 at 1.07-1.08 in the Froude 0.05 walk\n- 1.24-1.27 under stress\n\nBut 75 cm has the better carpet clearance (10.1-11.2 vs 5.3-6.1 mm over high pile), turning friction (0.37-0.43 vs 0.53-0.65), battery service (dorsal and ventral vs ventral only) and camera height (0.726 vs 0.572 m). Its shortfalls are part choices: F15's X6-60 hip pitch and X4-36-L thigh twist pass every gate for +$0.8k, 0.34 kg less and 1.6 min less runtime, and the W270 neck costs nothing in the ledger. So do not drop 75 cm, but do not verify it on its round-two drive set either. Otherwise verification will measure a 24 V speed limit and an undersized neck rather than the body.\n\nRuntime does not separate the bodies: walking power could rise 1.6-2.4x before 20 min is lost. High-side cost does ($20.5-20.8k vs $24.4-24.8k, $25.2k re-driven).\n\nFamily: Tapered beats Hybrid on every hardware measure at both sizes, by small margins:\n- hip-pitch hold 3.20 vs 3.52 N\u00b7m at 60 cm, 8.40 vs 8.91 N\u00b7m at 75 cm\n- outward hip roll +0.308 vs +0.260 rad at 60 cm, +0.262 vs +0.215 rad at 75 cm\n- turning roll margins 0.121-0.143 vs 0.072-0.095 rad at 60 cm, 0.075-0.104 vs 0.028-0.057 rad at 75 cm\n- 0.11-0.13 kg lighter and $0.1k cheaper\n\nNone of this disqualifies Hybrid. Its roll limit is the pelvis lateral cover meeting the thigh shell, which hip spacing fixes: F15's 11.5 mm wider hips give the 75 cm Hybrid +0.262 rad. So keep both families, but compare them at 60 cm, where drive margins of 0.77-0.79 will not confound the body difference, and leave the 75 cm Hybrid out of this round.\n\nVariants:\n- Compact: drop. Hip-pitch hold +24-40 %, the knee drive over its limit in the Froude 0.05 walk on three of four, a 0.958 knee on the fourth, and ankle drives moved at 75 cm.\n- Narrow: trades 10-11 % less hip-roll load and lower 60 cm turning friction (0.53-0.54) for 0.8-1.6 mm turning gaps and packaging-search changes. Acceptable at 60 cm only.\n- Level: the same bodies as the 10\u00b0 bases (P15), with the camera 0.065-0.081 m lower. On hardware they are interchangeable with their 10\u00b0 twins; I rank them behind 75-M-T-10 only because they would duplicate bodies already in the set.\n- Bighead: neutral at 60 cm Tapered (neck 0.86), negative elsewhere. Its one useful lesson is that the 75 cm bighead's W270 neck is the fix for the base neck.\n\nMy calculations are in /tmp/claude-0/-home-user-mesozoic-labs/c17e65d8-8171-548a-aef1-2a557e9379dd/scratchpad/r2/xc/ (stress tables: analyze.py; packaging tables: clear.py; camera check: cam.py)."
+  },
+  "hardware": {
+   "picks": [
+    {
+     "id": "75-M-T-10",
+     "reason": "Carry it with the Froude 0.05 what-if drive set (round2/whatif_fr05: MyActuator X6-60 hip pitch, X4-36-L thigh twist). As sized, the hip pitch reaches 1.08 on the Fr 0.05 walk (RobStride 03 speed on 24 V), so no controller can produce the animal-like walk with those drives. With the what-if set the body passes every round-two gate and the Fr 0.05 walk (worst drive: neck 0.976; knee speed 0.949). The thigh twist falls from 0.96 to 0.78. Knee flexion before the thigh fairing meets the calf fairing opens from 0.806 to 1.002 rad, which is the margin carpet needs. My rebuild used the 0.176 H lift that the 0.06 H carpet target requires: the nominal walk stays 4.0 mm clear with 0.21 rad of knee margin. On 17 of the 20 bodies as sized the two fairings touch (60-M-T-10 \u22120.71 mm, 75-M-T-10 as sized \u22120.07 mm). Friction needed in single support, counting the yaw moment on the stance pad: 0.40 nominal, 0.46 in the 0.35 rad/s turn, 0.63 brisk and 0.88 at Fr 0.05 (60-M-T-10: 0.565 / 0.646 / 0.871 / 1.261). Swing-foot clearance over the high-pile top is 11.2 mm (6.1 mm at 60 cm). With every joint held by a servo it stands on medium pile (2.0 deg tilt); no 60 cm body does. Ankle drives run at 0.49 of sustained (0.76 at 60 cm). Outward hip roll usable is 0.262 rad, with 0.171 rad margin in the straight walks and 0.101 in the walking turn. A person's torso is fully visible at \u00b130 deg. Runtime 36.6 min (31.8 at 65 % usable energy); $18.2k nominal / $25.2k high. Two drives remain thin: neck XM540-W150 at 0.966 (swap to the XM540-W270, which the bighead variant carries at 0.76) and hip roll AK45-36 at 0.956 (set by the single-support hold)."
+    },
+    {
+     "id": "75-M-H-10",
+     "reason": "The Hybrid counterpart, also carried with the what-if drive set. As sized it fails the Fr 0.05 walk (hip pitch 1.075), and its outward hip roll is the shortest of the four base bodies: 0.215 rad usable, leaving 0.057 rad in the 0.35 rad/s walking turn against 0.104 on the Tapered. The what-if X4-36-L thigh twist widens the hip-pitch spacing (0.1984 vs 0.187 m), which raises its outward hip roll to 0.262 rad (0.170 straight, 0.100 in the walking turn), the same as the Tapered. The family comparison therefore runs on equal hip geometry. It passes Fr 0.05 (worst: knee speed 0.974) and has 0.953 rad of usable knee flexion: the nominal walk with the 0.176 H carpet lift stays 4.0 mm clear with 0.16 rad of knee margin. Friction needed with the yaw moment is 0.39 / 0.45 / 0.61 / 0.86 (nominal / walking turn / brisk / Fr 0.05), the lowest of the two what-if bodies. It stands servo-held on medium pile (2.7 deg; the as-sized 75-M-H-10 tips there), and the torso is visible at \u00b130 deg. Runtime 36.4 min; $18.2k / $25.3k. The thin drives are the same as on the Tapered (neck 0.961, hip roll 0.956), and its CoM sits further forward (0.134 H against 0.127 H)."
+    },
+    {
+     "id": "60-M-T-10",
+     "reason": "The best 60 cm body and the counterweight on drive headroom. Every drive stays at or below 0.77 of its planning limit in the sizing walks and the target turns (thigh twist 0.77, ankle 0.76, neck 0.76; the hottest drive over a session is at 0.76), and the Fr 0.05 walk is within its drives (knee speed 0.96). It has the most hip-roll range of all 20 bodies: 0.308 rad outward usable, 0.196 margin in the straight walks, 0.143 in the walking turn and 0.099 thigh-twist margin turning in place. Neither walk has a tight pair, and every turn clears by 4.0 mm. Runtime 46.4 min; $14.8k / $20.6k. It carries the risks of the 60 cm class, which verification must test. Friction needed with the yaw moment is 0.565 in the nominal walk (above the carpet band's 0.54 lower edge), 0.646 in the walking turn, 0.871 brisk and 1.261 at Fr 0.05. Swing-foot clearance over the high-pile top is 6.1 mm, and a 4.6 deg toe-down pitch reaches the pile. Servo-held, it tips on medium pile. The 0.19 H carpet-target lift reaches the knee fairing limit (0.811 rad): 0.002 rad margin and \u22120.71 mm contact in the nominal walk, \u22125.2 mm at Fr 0.05. Before carpet trials, open its knee range as the 75 cm compact layout did (ankle drives at 0.42 of the shank)."
+    }
+   ],
+   "ranking": [
+    "75-M-T-10",
+    "75-M-H-10",
+    "60-M-T-10",
+    "60-M-T-00",
+    "60-N-T-10",
+    "60-M-H-10",
+    "60-M-H-00",
+    "60-N-H-10",
+    "60-M-T-10-bighead"
+   ],
+   "excluded": [
+    {
+     "id": "75-M-T-00",
+     "reason": "No hard-requirement failure. As sized, its drives cannot produce the Fr 0.05 walk (hip pitch 1.081, the RobStride 03's speed on 24 V). The what-if drive change was run only on 75-M-T-10. It is the same body as 75-M-T-10, level, with a 67 cm crown, so it adds no comparison. Its servo-held medium-pile stance (softest holding pile 9.4 mm) is its only edge. It becomes eligible if it is re-sized like the what-if."
+    },
+    {
+     "id": "75-N-T-10",
+     "reason": "Fr 0.05 hip pitch 1.083 as sized. Turning in place at 0.5 rad/s, the hardware toes clear by only 0.77 mm, with 0.062 rad of hip-roll margin. With the 0.176 H carpet lift the thigh fairing hits the calf fairing (\u22121.71 mm nominal, \u22123.14 mm at Fr 0.05). The lowest friction need of any body (0.74 at Fr 0.05) does not outweigh this. The what-if X4-36-L twist would also widen the narrow hips."
+    },
+    {
+     "id": "75-N-H-10",
+     "reason": "Fr 0.05 hip pitch 1.078 as sized. Toe-to-toe gap of 0.95 mm turning in place, 1.5 mm in the 0.5 rad/s walking turn. Carpet-lift knee contact \u22123.36 mm in the nominal walk."
+    },
+    {
+     "id": "75-M-H-00",
+     "reason": "Fr 0.05 hip pitch 1.076 as sized. Hip-roll margin of 0.055 rad in the 0.35 rad/s walking turn and 0.026 rad in the 0.5 rad/s stretch turn. Carpet-lift knee contact \u22121.63 mm."
+    },
+    {
+     "id": "75-M-T-10-bighead",
+     "reason": "Fr 0.05 hip pitch 1.079 as sized. Knee usable to only 0.756 rad: carpet-lift contact \u22123.08 mm in the nominal walk, \u22125.0 mm at Fr 0.05. Its XM540-W270 neck (0.76) is worth copying to the base body."
+    },
+    {
+     "id": "75-M-H-10-bighead",
+     "reason": "Fr 0.05 hip pitch 1.075 as sized. Knee usable to 0.706 rad: its knee range margin is 0.102 rad in the straight walks (at the 0.10 gate) and 0.093 rad at Fr 0.05, with a 1.5 mm thigh-to-calf gap. Carpet-lift contact \u22124.92 mm."
+    },
+    {
+     "id": "75-M-T-10-compact",
+     "reason": "Fr 0.05 exceeds two drives: knee 1.078 and hip pitch 1.053. Sizing ratios are already hip pitch 0.93 and thigh twist 0.98, so the controller has no headroom."
+    },
+    {
+     "id": "75-M-H-10-compact",
+     "reason": "Fr 0.05 knee 1.108 and hip pitch 1.049. Sizing hip pitch 0.97 and thigh twist 0.98, the least headroom of all 20."
+    },
+    {
+     "id": "60-M-T-10-compact",
+     "reason": "The only 60 cm body clearly over a drive limit on the Fr 0.05 walk (knee 1.085); neck 0.89. Knee usable 0.762 rad: carpet-lift contact \u22125.53 mm in the nominal walk, \u221210.1 mm at Fr 0.05."
+    },
+    {
+     "id": "60-M-H-10-bighead",
+     "reason": "Fr 0.05 knee 1.004 (over the limit). Knee usable 0.763 rad; carpet-lift contact \u22124.2 mm."
+    },
+    {
+     "id": "60-M-H-10-compact",
+     "reason": "It passes Fr 0.05 on its faster X4-P12-10 knee, but that knee runs at 0.958 of sustained in the sizing walk and 0.96 in the walking turn, the least torque headroom of any 60 cm drive. It has the lowest pile clearance (5.3 mm) and knee usable to 0.761 rad (carpet-lift contact \u22124.41 mm)."
+    }
+   ],
+   "key_risks": [
+    "No body fails a hard requirement. All 20 pass clearance in both walks and the target turns (closest approach 0.77\u20134.0 mm). The worst drive ratio in the sizing walks and target turns is 0.98. A person's torso is visible at home on every body. Runtime is 37.7\u201347.7 min. Every body passes the carpet gate. The disqualifiers above are behavior risks, not hard-requirement failures.",
+    "Stance-foot spin is the friction limit that binds. The carpet gate checks only the sideways force ratio (0.21\u20130.28). The turning screen's single-support requirement also counts the yaw moment the stance pad carries, and it sets the need. 60 cm: 0.47\u20130.57 nominal, 0.73\u20130.88 brisk, 0.53\u20130.65 in the walking turn, and in my SHA-matched rebuild 1.05\u20131.27 at Fr 0.05. 75 cm: 0.33\u20130.38, 0.51\u20130.59, 0.37\u20130.43 and 0.72\u20130.88. Available friction: carpet lower edge 0.54, robot foot on carpet 0.82, robot foot on hard floor 0.68 at the low end, compiled model 0.9. The prescribed walk holds the trunk heading fixed, so the controller must counter-yaw through the stance thigh twist. That drive is at 0.96\u20130.98 on the 75 cm bodies as sized and 0.78 with the what-if drives.",
+    "As sized, every 75 cm body fails the Fr 0.05 walk on hip-pitch speed (1.07\u20131.08) or knee (1.08\u20131.11 on the compact bodies). Only the what-if drive set clears it (0.97\u20130.98), and that set leaves the hip roll at 0.956 and the neck at 0.961\u20130.966.",
+    "Carpet swing height conflicts with knee range. None of the bodies meets the 0.06 H target with the reference lift. With the lift that target needs (0.176\u20130.193 H), the thigh fairing touches the calf fairing in the nominal walk on 17 of the 20 bodies as sized (\u22120.07 to \u22125.8 mm) and at Fr 0.05 on 18. Only the two 75 cm compact bodies (ankle drives at 0.42 of the shank) and both what-if bodies (knee usable 0.95\u20131.00 rad, against 0.71\u20130.81) stay clear.",
+    "Fr 0.05 combined with the carpet lift exceeds a drive on every body: knee speed 1.15\u20131.17 on the what-if bodies and 1.22\u20131.36 at 60 cm, hip pitch 1.24 on the 75 cm bodies as sized. On carpet the controller must trade walking speed against toe clearance.",
+    "Thin margins for head and tail motion and for following at 75 cm. The XM540-W150 neck runs at 0.96\u20130.97 of its sustained torque over a session, while following needs the head held near level. The tail servo's peak reaches 0.77 in sizing and 0.87\u20130.91 at Fr 0.05 with the tail at \u00b10.12 rad, the bottom of the spec's \u00b10.1\u20130.2 rad band (my linear estimate exceeds the limit at 0.2 rad). At 60 cm the neck is at 0.76 and the tail peak at 0.45.",
+    "No body can stop on one foot at the spec's 1.5 m/s\u00b2: the limit is 1.19\u20131.27 m/s\u00b2 on all 20. Stops need both feet down or a step.",
+    "Compliant stance: servo-held with no balance control, only 75-M-T-10, 75-N-T-10, 75-M-T-00, 75-M-H-00 and both what-if bodies stand on medium pile, and none stands on high pile. Active ankle balance is required, and at 60 cm the ankle drives already run at 0.74\u20130.77 of sustained (0.50\u20130.58 at 75 cm).",
+    "The narrow stances clear the target turns by 0.77\u20131.6 mm. The 75 cm gaps are toe against toe; the 60 cm gaps are pelvis plate against thigh shell, measured on mid-surface proxies whose outer skin sits closer still. Any deviation by a controller makes contact. The 0.10 rad joint-margin gate covers only the straight walks: in the walking turn the 75 cm Hybrid bodies as sized keep 0.054\u20130.057 rad of hip roll.",
+    "The one-step push bound is about 0.24 \u221a(gH) on every body, so the 75 cm bodies tolerate larger absolute bumps: 7.6\u20138.2 N\u00b7s against 4.9\u20136.4 N\u00b7s at 60 cm, under ideal balance control. My checks are in the scratchpad: /tmp/claude-0/-home-user-mesozoic-labs/c17e65d8-8171-548a-aef1-2a557e9379dd/scratchpad/r2/xc/behavior_risk/fr05_all.json and /tmp/claude-0/-home-user-mesozoic-labs/c17e65d8-8171-548a-aef1-2a557e9379dd/scratchpad/r2/xc/behavior_risk/carpet_lift_all.json (scripts fr05_check.py and carpet_lift_check.py in the same folder)."
+   ],
+   "size_and_family_view": "Keep both sizes in verification. 75 cm is the size more likely to reach natural walking on carpet, but only with the Fr 0.05 (what-if) drive set; do not verify the 75 cm bodies as sized, because their hip pitch makes the animal-like walk impossible (1.07\u20131.08).\n\nThe 60 cm handicaps are geometric. The hip hardware spacing is the same at both sizes (18.8 vs 18.7 cm), so the 60 cm stance is wider relative to height (feet 0.42 H vs 0.33 H) and stands on smaller pads (effective torsional radius 35 vs 43.7 mm). That makes its friction need with the yaw moment about 1.5 times the 75 cm value at every speed (Fr 0.05: 1.26 vs 0.84). Carpet piles do not scale with the robot, so its clearance over high pile is 6.1 mm against 11.2 mm. The 75 cm handicaps are drive selections, which the what-if shows can be fixed.\n\nDo not drop 60 cm yet. It has the most drive headroom (\u22640.77), the longest runtime (46 min) and the lowest cost ($14.8k). Verifying 60-M-T-10 answers directly whether a controller can manage the yaw moment on the stance pad. If it cannot, the 60 cm class needs larger pads or narrower hip hardware rather than more controller work. The narrow stance cuts the friction need by about 15 % but needs a few millimetres more clearance than the search's 0.8\u20131.6 mm.\n\nTapered is at least as good as Hybrid on every behavior margin as sized. Outward hip roll usable: 0.308 vs 0.260 rad at 60 cm, 0.262 vs 0.215 at 75 cm. CoM ahead of the hip: 0.087 vs 0.095 H at 60 cm, 0.127 vs 0.134 H at 75 cm. Knee contact with the carpet lift at 60 cm: \u22120.71 vs \u22121.87 mm. Hybrid's only edge is a 2\u20133 % lower friction need. In the what-if build the two families converge (hip roll 0.262 rad on both; knee 1.00 vs 0.95 rad; Fr 0.05 0.976 vs 0.974), so compare the families at 75 cm. If one family has to go, drop the 60 cm Hybrid.\n\nAmong the variants, drop compact: three of four fail Fr 0.05 (knee 1.08\u20131.11), and the Hybrid compact's knee runs at 0.96. Drop the 75 cm bighead for its knee range. The level posture is behaviorally the same body within \u00b12 % and does not need its own verification slot."
+  },
+  "owner-priorities": {
+   "picks": [
+    {
+     "id": "60-M-T-10",
+     "reason": "Best fit for the owner's first priority, natural walking, plus budget. It has the most drive margin a learned controller can use: walking RMS is at most 0.61 of sustained torque on every leg drive, and the governing ratio is 0.77 (thigh twist) in both the sizing walks and the target turns. It is one of the 8 bodies (of 20) whose as-sized drives carry the animal-like Froude 0.05 walk (0.45 m/s, knee speed 0.96). Turn clearance is 4.0/4.0/4.0 mm, and the closest pair is the fixed left/right hip-bracket gap, not a moving part. Its hip-roll range margin (0.20 rad) is the largest of the 20. Head and tail have room: neck STS3250 at 0.76, tail 0.45. It passes every gate, runs 46.4 min, costs $14.8k nominal / $20.6k high and weighs 10.85 kg. Its weak spots are shared by the whole 60 cm class. On carpet: 6.1 mm toe margin over high pile, softest pile it stands on rigidly 6.6 mm, no servo-held stance on medium pile. The 0.35 rad/s walking turn needs friction 0.65, above carpet's 0.54 lower edge. The head-camera window is narrow (see risks)."
+    },
+    {
+     "id": "60-N-T-10",
+     "reason": "Answers the owner's narrow-stance question with the best natural-walk numbers at 60 cm, and paired with 60-M-T-10 it isolates stance width. Froude 0.05 walk within drives at knee speed 0.94; only 60-M-H-10-compact (0.91) has more margin. Reference CoM sway is 0.164 H peak-to-peak vs 0.193 H on the base (2 x sway_amp 0.0333 vs 0.0391 m; spec target 0.12 H). Hip-roll hold -11 % (2.77 vs 3.13 N\u00b7m), thigh twist 0.71 vs 0.77. Walking-turn friction 0.54 vs 0.65, i.e. at carpet's lower edge instead of above it. Longest runtime of all 20 (47.7 min) at the same $14.8k / $20.6k. Its torso view is the same as the base. The risk is packaging: the pelvis plate clears the upper-thigh shell by only 1.6/1.6/1.2 mm in the turns (walk 0.35 / in place 0.5 / walk 0.5 rad/s) and 2.0 mm walking straight, with 4 near-contacts under 3 mm in the nominal walk. Those gaps are measured to the shell's mid-surface. The fix, if verification shows contact, is the packaging search's next +2 mm per side, which bought about 1.9 mm before (-0.3 to 1.6 mm)."
+    },
+    {
+     "id": "75-M-T-10",
+     "reason": "Carried with the whatif_fr05 drive set (MyActuator X6-60 hip pitch, X4-36-L thigh twist). As sized, its RobStride 03 cannot reach the Froude 0.05 walk on 24 V (hip-pitch speed 1.08). The what-if screens are complete, and with these drives it walks Froude 0.05 (0.50 m/s; governing neck 0.98, knee speed 0.95). Thigh twist in the target turns falls from 0.96 to 0.78, and it still passes every gate. It is the strongest body on the owner's carpet and person-following priorities, exactly where both 60 cm picks are weakest. Carpet: toe margin 11.2 mm over high pile (vs 6.1), stands servo-held on medium pile, softest rigid-holding pile 9.3 mm, ankle one-leg hold 0.49 of sustained (vs 0.76 at 60 cm). Turning: friction need 0.46. Following: the torso stays at least 75 % visible from -0.175 to +0.20 rad of neck pitch straight ahead (-0.125 at \u00b130 deg), and 0.68 of a person is visible at 1 m (0.56 at 60 cm). Why Tapered over Hybrid here: with these drives both stand on medium pile, but Tapered holds a softer pile (9.3 vs 9.1 mm) and keeps 4.0 mm turn clearance (Hybrid 3.5 mm). Cost $18.2k / $25.2k, 36.6 min, 14.56 kg; the hips are 11.5 mm wider than as sized. Fit the robotis-xm540-w270-t neck that 75-M-T-10-bighead selected (0.76): the W150 kept here runs at 0.97."
+    }
+   ],
+   "ranking": [
+    "60-M-T-10",
+    "60-N-T-10",
+    "75-M-T-10",
+    "60-M-H-10",
+    "75-M-H-10",
+    "60-N-H-10",
+    "60-M-T-00",
+    "60-M-T-10-bighead",
+    "75-M-T-10-bighead",
+    "75-M-T-00",
+    "75-M-H-00",
+    "60-M-H-00"
+   ],
+   "excluded": [
+    {
+     "id": "60-M-T-10-compact",
+     "reason": "No hard-gate failure (none of the 20 has one), but it is the only 60 cm Tapered that fails the Froude 0.05 walk (knee 1.08). Hip-pitch hold is +40 % (4.50 vs 3.20 N\u00b7m) with the CoM 0.125 H ahead of the hip (base 0.087 H). Neck 0.89, runtime -1.4 min. 60-M-T-10 beats it on every owner priority."
+    },
+    {
+     "id": "60-M-H-10-compact",
+     "reason": "Shortest runtime at 60 cm (42.3 min, -3.9 min). Its knee drive (RMD-X4-P12-10) runs at 0.96 of sustained in sizing and sets the walking turn (0.96, the highest at 60 cm). Hip-pitch hold +35 %, neck 0.89. Its softest rigid-holding pile is the lowest of all 20 (5.6 mm)."
+    },
+    {
+     "id": "75-M-T-10-compact",
+     "reason": "Fails the Froude 0.05 walk on the knee (1.08). Hip-pitch hold 10.64 N\u00b7m (+27 %, hip pitch 0.93) and thigh twist 0.98 in the turns. It needed its ankle drives moved to 0.42 of the shank after three failing builds. No medium-pile stance (softest pile 7.9 mm)."
+    },
+    {
+     "id": "75-M-H-10-compact",
+     "reason": "Worst Froude 0.05 result of all 20 (knee 1.11). Hip-pitch hold 11.06 N\u00b7m (+24 %, hip pitch 0.97) and thigh twist 0.98 in the turns. Four builds to pass clearance. Softest rigid-holding pile 7.7 mm, the lowest at 75 cm."
+    },
+    {
+     "id": "60-M-H-10-bighead",
+     "reason": "Tips over the Froude 0.05 limit (knee 1.00), where its base and 60-M-T-10-bighead stay at 0.98. Neck at 0.85 of sustained over a following session (base 0.76). No behaviour gain over 60-M-H-10."
+    },
+    {
+     "id": "75-M-H-10-bighead",
+     "reason": "Least packaging margin of the 75 cm M bodies: knee joint-range margin 0.10 rad (exactly at the gate), 2 near-contacts in the brisk walk, closest approach 2.9/2.8/2.5 mm in the turns. Also fails Froude 0.05 (hip pitch 1.07) and does not stand on medium pile (softest pile 8.4 mm)."
+    },
+    {
+     "id": "75-N-T-10",
+     "reason": "Turning in place at 0.5 rad/s brings the two feet's toes (hardware on hardware) within 0.77 mm, the thinnest target-turn margin in the study. The spec's own slip allowance (up to 15 mm per step, worst case) is 20x that gap. Fails Froude 0.05 (hip pitch 1.08), and the drive set that fixes it widened the hips 11.5 mm in the what-if, which undoes the narrow stance. Neck 0.97. Its sway (0.130 H peak-to-peak) and friction (0.37) are the study's best, so it is worth revisiting with slimmer hip drives."
+    },
+    {
+     "id": "75-N-H-10",
+     "reason": "Same problems as 75-N-T-10: toes 0.95 mm apart turning in place, and Froude 0.05 hip pitch 1.08. Adds a 1.5 mm shell-to-shell gap (pelvis vs upper thigh) in the 0.5 rad/s walking turn, measured between mid-surface proxies, so the actual skins may touch. Unlike 75-N-T-10, it does not stand on medium pile."
+    }
+   ],
+   "key_risks": [
+    "Carpet is the 60 cm class's weak point, and both 60 cm picks share it. No 60 cm body stands servo-held on medium pile. A rigid stance holds only on piles compressing less than 5.6-6.7 mm at 98 kPa, against the spec's 8-15 mm carpet pile. Toe margin over high pile is 5.3-6.1 mm. The 15 mm carpet swing target needs a 0.19 H lift (reference 0.10-0.11 H), on a knee that already sets the Froude 0.05 walk on speed (0.96 / 0.94). The ankle one-leg hold is 0.76-0.77 of sustained (0.49-0.51 at 75 cm), so active ankle balance on pile has less room.",
+    "Turning on carpet at 60 cm: the 0.35 rad/s walking turn needs single-support friction 0.65 (60-M-T-10) and 0.54 (60-N-T-10), against the carpet band's 0.54 lower edge. The need comes from the stance pad's yaw moment (2.43 N\u00b7m on a 35 mm torsional radius), not from sliding (F_t/F_n 0.21-0.24). At 75 cm the need is 0.37-0.46.",
+    "Head-camera following: the sensor screen tests only home and \u00b10.35 rad of neck pitch. I ran sensors.py's own person check at 0.025 rad steps (script /tmp/claude-0/-home-user-mesozoic-labs/c17e65d8-8171-548a-aef1-2a557e9379dd/scratchpad/r2/xc/neckvis.py; it reproduces the screen at 0 and \u00b10.35 rad). On the 60 cm 10-deg bodies the torso at 1.5-3 m stays at least 75 % visible only from -0.10 to +0.20 rad straight ahead, and from -0.05 (Tapered) or -0.025 rad (Hybrid) to +0.20 rad at \u00b130 deg. At 75 cm the nose-down limits are -0.175 and -0.125 rad. So the spec's \u00b10.05-0.15 rad head motion fits at 60 cm only if biased nose-up. The level postures lose more: at 60 cm they have no nose-down margin at \u00b130 deg.",
+    "Head and tail headroom at 75 cm: the XM540-W150 neck runs at 0.96-0.97 of sustained in the walks, the target turns and a following session, with only the \u00b10.05 rad head motion the reference prescribes (spec allows up to \u00b10.15). The W270 chosen on the 75 cm bighead and compact bodies runs at 0.76-0.80. The tail servo is at 0.77 of peak as sized and 0.90 in the what-if, with \u00b10.12 rad of tail yaw (spec up to \u00b10.2).",
+    "The what-if drive set has thin margins of its own: hip-roll hold rises from 0.93 to 0.96 because the hips are 11.5 mm wider, and the Froude 0.05 walk sits at knee speed 0.95 and neck 0.98. Every screen is a necessary-condition check on prescribed motion, using A1's unverified 0.57 x rated sustained torque. That matters most for drives at 0.96-0.98.",
+    "Narrow-stance packaging (60-N-T-10): 1.2-1.6 mm pelvis-plate to thigh-shell clearance in the turns and 2.0 mm walking straight, measured to the shell's mid-surface. The real skin gap is about half a wall less (walls 1.6-1.8 mm at 60 cm per A4), which is also close to outsourced-part tolerances.",
+    "Reference sway exceeds the spec on every body: the CoM sways 0.13-0.20 H peak-to-peak (2 x sway_amp, nominal walk) against 0.12 H. The controller must cut it by about 27 % on 60-N-T-10, 26 % on the what-if 75-M-T-10 and 38 % on 60-M-T-10.",
+    "Budget: high-side cost exceeds the owner's $20k ceiling on every body. Both 60 cm picks are $20.6k (3 % over, $14.8k nominal). The what-if 75-M-T-10 is $25.2k (26 % over, $18.2k nominal). Under P8 this is a note, not a gate.",
+    "Stopping: one foot holds only 1.19-1.27 m/s\u00b2 of deceleration on every body, against the spec's 1.5 m/s\u00b2, so stops at the spec limit need a step or both feet down."
+   ],
+   "size_and_family_view": "Size: keep both. They fail in different places, so verification needs one of each.\n\n60 cm wins on natural walking, head and tail motion, runtime and budget:\n- Leg-drive walking RMS is at most 0.62 of sustained.\n- Target turns stay at or below 0.78 on the base and narrow bodies.\n- Froude 0.05 fits within the as-sized drives on 8 of 10 bodies.\n- Neck 0.76, tail at most 0.47.\n- Runtime 42-48 min; cost $14.8-15.0k nominal.\n\n75 cm wins on carpet, turning on carpet and head-camera following:\n- Toe margin over high pile 10.1-11.2 mm vs 5.3-6.1 mm.\n- Four 75 cm bodies stand servo-held on medium pile; no 60 cm body does.\n- Softest rigid-holding pile 7.7-9.4 mm vs 5.6-6.7 mm.\n- Turning friction need 0.37-0.43 vs 0.53-0.65.\n- Nose-down window 0.175 vs 0.10 rad; 0.68-0.72 vs 0.56 of a person visible at 1 m.\n\nBut as sized, no 75 cm body can do the Froude 0.05 walk (hip pitch 1.07-1.08; compact knee 1.08-1.11). The what-if fixes that for +$0.8k, 1.5-1.6 min less runtime, 0.34 kg less mass and 10 mm more width. The 75 cm neck should also get the W270.\n\nFamily: Tapered is equal to or better than Hybrid on almost every behaviour number at both sizes, but only by small margins, and both use identical drive sets. Hybrid's only advantages are 0.4-0.6 points less camera self-occlusion, 0.01-0.02 lower turning friction and a nearer floor view (2.27 vs 2.39 m, 2.40 vs 2.59 m). Against that it carries +0.11-0.13 kg, +10 % / +6 % hip-pitch hold, 0.05 rad less hip-roll range margin, and at 75 cm as sized no medium-pile stance. I would not drop Hybrid from the program: the family is a looks decision for the owner. But I would not spend one of three verification slots on it, because an equal-budget comparison cannot resolve differences this small. Stance width and size are the real alternatives. If the owner picks Hybrid on looks, swap in 60-M-H-10 and the what-if 75-M-H-10 (it also stands on medium pile, softest pile 9.06 mm).\n\nVariants:\n- Narrow stance is the only variant with a behaviour upside, but at 75 cm it conflicts with the Froude 0.05 drive set.\n- Compact is the worst on every priority (hip-pitch hold +24-40 %, Froude 0.05 fails on 3 of 4).\n- Larger skull costs 60 cm neck headroom (0.85-0.86 vs 0.76) but brings the W270 neck at 75 cm.\n- Level posture keeps loads within 1 % but narrows the head-camera window, and cuts 60-M-H-00's ToF foot-path coverage to 56 %.\n\nThe ranks for 75-M-T-10 and 75-M-H-10 assume the whatif_fr05 drives. As sized, they would sit with 75-M-T-00."
+  }
+ }
+}
