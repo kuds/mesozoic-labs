@@ -58,8 +58,10 @@ against the entry's sha256, on the move's own frames with no wrap:
   with the move standing in for the nominal walk and the support read from the planned ``swing``.  The swing
   runs of that screen are cyclic, so a file whose last frame has a foot in swing is refused (``Refused``): the
   run would join the file's first frames, or its mid-swing reading would be of a cut swing.
-* ``range``: per joint the margins against ``plant.usable_ranges(body)``; ``hip_yaw_range_use`` (the worse leg's,
-  ``turning.summarize``'s formula on the usable range; the entry's own value beside it).
+* ``range``: per joint the margins against the usable range as that clearance screen reads them (its usable
+  ranges are checked against ``plant.usable_ranges(body)``), with a walk's keys; ``hip_yaw_range_use`` (the worse
+  leg's use of the usable thigh twist on the file's ``q``, ``turning.summarize``'s formula on
+  ``plant.usable_ranges``; the entry's own value beside it).
 * ``vs_walk``: each headline number against the block of the move's own walk (gait a; gait b for a start).
 * ``verdict``: ``{text, within_limits, over, near, a1_over, blocks_freeze}``.
 
@@ -543,15 +545,16 @@ def move_accelerations(t, com, heading, feet) -> dict:
                 foot_vertical_up_peak=float(fa.max()), spec_start_stop=ACCEL_RULE_M_S2, resample_hz=RESAMPLE_HZ)
 
 
-def hip_yaw_use(joints: dict, lo_key: str, hi_key: str) -> float | None:
+def hip_yaw_use(joints: dict) -> float | None:
     """The worse leg's thigh-twist use of the usable range (``turning.summarize``'s formula: the largest fraction of
-    a limit reached, 1.0 = at the limit) from a ``range`` block's joints."""
+    a limit reached, 1.0 = at the limit) from ``clearance.screen``'s ``joint_range_margins`` (its rounded
+    excursions)."""
     vals = []
     for jn, r in joints.items():
         if jn.endswith("_hip_yaw"):
             lo, hi = r["usable"]
             if lo and hi:
-                vals.append(max(r[hi_key] / hi, r[lo_key] / lo))
+                vals.append(max(r["walk_max"] / hi, r["walk_min"] / lo))
     return float(max(vals)) if vals else None
 
 
@@ -567,33 +570,44 @@ def walk_range(margins: dict) -> dict:
     tight = _tightest(joints)
     return dict(joints=joints, tightest=tight, rule_rad=RANGE_RULE_RAD,
                 ok=None if tight is None else bool(tight[2] >= RANGE_RULE_RAD),
-                hip_yaw_range_use=hip_yaw_use(joints, "walk_min", "walk_max"),
+                hip_yaw_range_use=hip_yaw_use(joints),
                 source="the look entry's price.clearance.joint_range_margins (clearance.screen, gates r2)")
 
 
-def move_range(src: dict, q, kind: str, entry: dict) -> dict:
-    """A move's ``range`` block: per joint of ``plant.usable_ranges(body)`` the file's excursion and its margins
-    (rad); the tightest gated end; Stage 0's 0.10 rad rule (``stage0_rule_ok``); the thigh-twist use; and ``ok``
-    under the rule that applies to ``kind``: 0.10 rad on every gated joint, or for a turn a twist use of at most
-    0.87 and 0.10 rad on every other gated joint."""
+def move_range(src: dict, q, kind: str, entry: dict, margins: dict) -> dict:
+    """A move's ``range`` block.  ``margins`` are ``clearance.screen``'s ``joint_range_margins`` of the move (rad,
+    as that screen rounds them; its usable ranges are checked against ``plant.usable_ranges(body)``): Stage 0's 0.10
+    rad rule is read on them, as on a walk (``stage0_rule_ok``).  ``hip_yaw_range_use`` is the worse leg's use of the
+    usable thigh twist on the file's ``q`` at full precision (``turning.summarize``'s formula on
+    ``plant.usable_ranges``, the builder's reading; the entry's own value beside it).  ``ok`` is the rule that
+    applies to ``kind``: 0.10 rad on every gated joint, or for a turn a twist use of at most 0.87 and 0.10 rad on
+    every other gated joint."""
     m = src["M"].m
     q = np.asarray(q, float)
-    joints = {}
-    for jn, (lo, hi) in plant.usable_ranges(src["body"]).items():
+    joints = {jn: dict(r) for jn, r in (margins or {}).items()}
+    usable = plant.usable_ranges(src["body"])
+    differs = sorted(jn for jn in set(joints) | set(usable)
+                     if jn not in joints or jn not in usable
+                     or [float(v) for v in joints[jn]["usable"]] != [float(v) for v in usable[jn]])
+    exact, uses = {}, []
+    for jn, (lo, hi) in usable.items():
         qv = q[:, m.jnt_qposadr[statics.jid(m, jn)]]
-        joints[jn] = dict(move_min=float(qv.min()), move_max=float(qv.max()), usable=[float(lo), float(hi)],
-                          margin_min=float(qv.min() - lo), margin_max=float(hi - qv.max()))
-        if jn in clearance.REST_ON_STOP:  # its margin at that end is not gated
-            joints[jn]["rests_on_stop"] = clearance.REST_ON_STOP[jn]
+        exact[jn] = dict(usable=[float(lo), float(hi)], margin_min=float(qv.min() - lo), margin_max=float(hi - qv.max()))
+        if jn in clearance.REST_ON_STOP:
+            exact[jn]["rests_on_stop"] = clearance.REST_ON_STOP[jn]
+        if jn.endswith("_hip_yaw") and lo and hi:
+            uses.append(max(float(qv.max()) / hi, float(qv.min()) / lo))
+    use = float(max(uses)) if uses else None
     tight = _tightest(joints)
     other = _tightest(joints, leave_out=("_hip_yaw",))
-    use = hip_yaw_use(joints, "move_min", "move_max")
     stage0 = None if tight is None else bool(tight[2] >= RANGE_RULE_RAD)
     recorded = entry.get("hip_yaw_range_use")
-    out = dict(joints=joints, tightest=tight, rule_rad=RANGE_RULE_RAD, stage0_rule_ok=stage0, hip_yaw_range_use=use,
-               hip_yaw_range_use_entry=recorded,
+    out = dict(joints=joints, tightest=tight, tightest_unrounded=_tightest(exact), rule_rad=RANGE_RULE_RAD,
+               stage0_rule_ok=stage0, hip_yaw_range_use=use, hip_yaw_range_use_entry=recorded,
                hip_yaw_range_use_equals_entry=None if recorded is None or use is None else bool(use == recorded),
-               source="the file's q against plant.usable_ranges(body)")
+               usable_differs_from_plant=differs,
+               source="clearance.screen's joint_range_margins of the move (gates r2); the thigh-twist use from the "
+                      "file's q against plant.usable_ranges(body)")
     if kind == TURN:
         twist_ok = use is not None and use <= TWIST_USE_MAX
         other_ok = other is None or other[2] >= RANGE_RULE_RAD
@@ -722,11 +736,7 @@ def screen_move(src: dict, set_dir, name: str, entry: dict, walk_block: dict | N
         clear = look._clearance_gates(src, dict(q=q, phases=cp["phases"], ik_ok=ik_ok))
         M.forward(src["q_home"])
     contact = _contact_block(M, cp, t, causal, split)
-    margins = clear.pop("joint_range_margins", None) or {}
-    rng = move_range(src, q, kind, entry)
-    rng["usable_differs_from_clearance_screen"] = [
-        jn for jn, r in margins.items()
-        if jn in rng["joints"] and [float(v) for v in r["usable"]] != rng["joints"][jn]["usable"]]
+    rng = move_range(src, q, kind, entry, clear.pop("joint_range_margins", None))
     accel = move_accelerations(t, arrs["com"], arrs["heading"], arrs["feet"])
     verdict = judge_move(kind, causal, flags, ik_ok, entry.get("ik_fail_frames"), contact, clear, rng, accel)
     over_p, near_p = _passive_lists(passive)
