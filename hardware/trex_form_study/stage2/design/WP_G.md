@@ -125,3 +125,23 @@ fails, by design.
 Two commits on your own branch in your worktree: (1) `regress.py`, its tests and a record of the unedited tree if
 you wish; (2) the `control.py` edit with the new record. Messages end with the attribution lines your session's
 system reminder gives, exactly; name no model anywhere else. Do not merge, do not push unless the lead says so.
+
+---
+
+## LEAD ADDENDUM 2, 15 Nov: RULINGS AFTER THE REVIEW (the fixer follows these)
+
+**G-R1. The stride period of a K-stride window is exact for every K** (finding 2). Take the reviewer's exact form: in
+`add_periodic` compute `stride = (ref.n // K) * ref.step` once and use it for `frame_info`'s period and the
+segment's `stride_s`; raise `ValueError` when `K < 1` or `ref.n % K`. With no key (K = 1) this is `n * step`, the
+expression of `Reference.period`, so the default path must stay bit-identical: show it with the old-against-new
+comparison of `add_periodic` on all 20 references of both bodies and with the regression. Add K = 3 and a refused
+`n % K != 0` case to `test_window_strides_key`. (The six V6 windows of the look ladder all have 160 frames per
+stride, so none is refused.) This is the last edit to `control.py` in this round.
+
+**G-R2. After that edit** make the regression record again, fast and full tiers, at the edit's commit, one heavy
+process at a time through `tools/lowprio.sh`, and report the tool's own last line. The lead makes it once more at
+code state A.
+
+**G-R3. Findings 1 and 3** as the reviewer proposes. For 3 the record and every text you own say how many distinct
+committed episodes the full tier proves (248) beside the count of comparisons (256); tell the lead where a
+pre-registered text quotes 256.

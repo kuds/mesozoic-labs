@@ -114,3 +114,44 @@ Commit on your own branch in your worktree (`git -C <worktree> ...`), small comm
 attribution lines your session's system reminder gives, exactly; name no model anywhere else. Do not merge, do
 not push unless the lead says so, never rewrite history. Final report: files changed, each acceptance command
 with its exit code, the numbers of the scratch stop and turn, anything you could not do.
+
+---
+
+## LEAD ADDENDUM 2, 15 Nov: RULINGS AFTER THE TWO REVIEWS (the fixer follows these)
+
+These settle the points the reviewers handed up. Where a ruling and a reviewer's proposed fix differ, the ruling wins.
+The lead writes the matching words into `STAGE2_75_PLAN.md`; you do not edit that file.
+
+**M-R1. The two causal ZMP limits each read their own frames** (mechanics finding 1, bit-identity finding 1). Take
+the reviewer's recommended fix, as follows.
+- `zmp_consistency` (limit 2.5 mm, unchanged) is the largest |e| over the output frames with phase < command + 1.
+- `post_window_zmp` (limit 4.0 mm, unchanged) reads the frames from one stride after the command on, as now.
+- Keep the all-frames value in every entry as a recorded field, `zmp_consistency_all_m` (and its history if the
+  history is kept per pass), gated by nothing.
+- `RULES['S2A-gates']` says exactly: "consistency error over the first stride after the command at most 2.5 mm; ZMP
+  error from one stride after it at most 4.0 mm (windows fixed on 15 Nov after the scratch builds of V0, before any
+  set was frozen and before any closed-loop episode on a Stage 2 set: STAGE2_75_PLAN.md A7)".
+- This is a rule amended after a prescribed-motion result and is labelled so in the plan. Neither constant moves.
+- Update `test_causal_fade_window` to the windowed reading, and restructure `test_stop_and_turn_from_v0` so that one
+  failed gate cannot hide the other readings (bit-identity finding 1, part 2). Expected under this reading: V0 turn
+  2.04 mm / 2.76 mm, V0 stop 1.62 / 0.53. If your build does not reproduce these to the digits the reviewer logged,
+  stop and report; do not tune anything.
+
+**M-R2. The acceleration reading** (mechanics finding 2). Take the reviewer's fix, both parts together: second
+differences on the frames' own time grid, then interpolation for the filter; the filter is given the walk (or the
+stand) before the first frame and after the last as its history; both peaks are read over the move's own frames
+only, and `accel_filter` says so. The gate's constant does not move. Expected for V0's stop: low-passed 0.623, raw
+1.90 m/s^2.
+
+**M-R3. The 1.0 rad/s ladder turn** (mechanics finding 3). Option (a): no code change. Rule A11's third outcome
+already covers it: the turn is built, written with `pass_: false` and its numbers, and not frozen; the set builder
+records "no reference within the heading rule" for that rate, and it goes to the owner in the report. The
+slowest-clock gate stays on every rate.
+
+**M-R4. Everything else.** Fix bit-identity findings 2 to 7 and mechanics findings 4 and 5 as the reviewers propose.
+For bit-identity finding 4, restore `gait.ACCURACY` on exit wherever this module sets it, and say in the docstring
+which calls set it. For finding 6, the default suite writes nothing under the study tree (use `tmp_path`).
+
+**M-R5. After your last edit to `moves.py`**, make `stage2/sets/legacy_check.json` again for both picks (about 55 min
+of CPU, one heavy process at a time through `tools/lowprio.sh`), and report the tool's own last line. The record must
+show 36 of 36 equal.

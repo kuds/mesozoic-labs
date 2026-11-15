@@ -173,3 +173,83 @@ than decide silently. Nothing you run here is a result: label every number in yo
 
 Commit on your own branch in your worktree, messages ending with the attribution lines your session's system
 reminder gives, exactly; name no model anywhere else. Do not merge, do not push unless the lead says so.
+
+---
+
+## LEAD ADDENDUM 2, 15 Nov: RULINGS AFTER THE TWO REVIEWS (the fixer follows these)
+
+These settle the points the reviewers handed up. Where a ruling and a reviewer's proposed fix differ, the ruling wins.
+The lead writes any matching words into `STAGE2_75_PLAN.md`; you do not edit that file.
+
+**B-R1. The attribution units stand where the pre-registered order puts them** (judge finding 1, blocker). The rule
+stands and the code changes: take the reviewer's fix in full (`run_75cm.sh` runs T3.1 and T4.1 with `--attribute
+none`, then one attribution step per set in the set order before T3.2 / T4.2; in `bar.evaluate` a unit's episodes
+finish before any attribution unit starts; the order test asserts it).
+
+**B-R2. The turn item's window** (judge finding 2). Option (a): the joint range and the leg gap are read over
+[t_c, t_c + at_s + 3 s], as C5 says. The drives' peak speed stays over the whole episode, because the recorder holds
+the episode's peak only and `control.run` is not edited; `RULES['turn']` says so in these words: "the drives' peak
+speed is read over the whole episode (the recorder holds the episode's peak only), which is at least as strict as
+the window". The record carries `drive_speed_span: "episode"`. The lead adds the same sentence to C5 as a labelled
+note. Add the test with a lead-in excursion.
+
+**B-R3. Toe clearance, C3: the lead amends the reading, and you build it** (judge findings 5 and 15; review of R,
+finding 1; R's fixer). On Stage 1's stock walks with no servo delay the reading as first written (middle half of the
+swing's own duration) is 0.010 to 0.017 H under Stage 1's and fails the R0 row in six of six episodes, because the 2 %
+load rule puts the touchdown 7 to 17 ms after the reference's and the 75 % edge on the falling flank. The lead amends
+C3 before any set is frozen, with a label. Build exactly this in `designlab/stage2/readings.py` (it is in your
+worktree through the merge of R; merge the working branch first so that you start from R as merged):
+
+- Contact, air runs, the swing / air-gap rule, *interrupted* and the window rule ("each swing wholly inside the
+  window") do not change.
+- A swing is read as the lowest point of the foot over **[t_lo + 0.25 T_p, t_lo + 0.75 T_p]**: `t_lo` is the swing's
+  own lift-off time; `T_p` is the planned duration, on the simulated clock (converted exactly as C3 already converts
+  the shortest planned swing), of the reference swing of that foot that overlaps the air run the longest, or the
+  track's shortest planned swing when it overlaps none. The value is interpolated at both edges and taken at every
+  update between, as now.
+- The interval is read to its end even when the swing's own touchdown comes before it: the foot is then on the floor
+  and the reading says so (an early touchdown inside the middle half fails the term). A swing whose interval runs
+  past the window's end is not read and not counted.
+- The reading as first written stays in every record beside it as `toe_clearance_own_duration_m`: reported, never
+  judged. Stage 1's reading stays as it is.
+- Per episode the record also holds, for the swing that gave the smallest judged reading: its own duration, `T_p`,
+  the time of the minimum as a fraction of `T_p` from `t_lo`, and whether an edge gave it.
+- The count rule (ruling of the lead on the R fixer's point): a reference swing counts toward a foot's number only if
+  no window edge cuts the own swing that overlaps it. "Its number of reference swings less one" then applies to that
+  count.
+- The term keeps its name, `toe_clearance_own_swing`, and its limit, 0.04 H. Its rule text ends: "(middle half of the
+  planned swing counted from the own lift-off; amended on 15 Nov after the reread of Stage 1's stock walks, before
+  any Stage 2 set was frozen: STAGE2_75_PLAN.md C3)".
+- Tests: one per clause above (a pure delay leaves the reading where it was; a late soft touchdown no longer lowers
+  it; a touchdown at 48 % of the planned swing fails; a swing cut by a window edge is neither read nor counted), and
+  keep every existing test of `readings.py` green or change it with the reason in a comment.
+- Evidence the lead will check against his own implementation: the R reviewer's table again under the amended
+  reading (75-M-H-10, stock `walk/nominal`, `walk/brisk`, `walk/fr05`, seeds 3042 to 3044, hard floor, no delay,
+  rows R2/42 and R0, last 10 s; S1 view, which rule R4 allows). R's fixer measured about 0.0477 H (R0, nominal),
+  0.0517 H (R0, brisk), 0.0435 and 0.0483 H (R2/42); report yours to four places with the reading as first written
+  beside it. Do not tune anything to these.
+- Also fix finding 5: tell the lead the exact record paths of the toe readings so that C3's Check line names them.
+
+**B-R4. Scratch-set episodes and rule R4** (judge finding 16). Rule R4 protects the three registered sets. Episodes on
+a scratch or fixture set built from Stage 1's gaits are allowed for testing the runner under R0 rows only, never
+under an R2 row. Every such closed-loop episode of a Stage 2 move run so far (the builder's smoke on D0, the judge
+reviewer's 15, the provenance reviewer's, yours) is listed in summary form in
+`stage2/runs/2026-11-15-75cm/dev_episodes.json` under a key `scratch_sets`: set, rows, conditions, seeds or counts,
+who ran them and why. Take the counts from the two reviews' `commands_run` and the builder's logs; where a count
+cannot be recovered say so in the entry.
+
+**B-R5. Provenance findings 1 to 5.** Take each fix as the reviewer wrote it. For finding 2 agree the label's field
+name with `setio` as merged (`designlab/stage2/setio.py`); if `setio` has no such field, read
+`set.json`'s `freezes[i].change_after_result` (a string, absent when none) and say so in your report so that work
+package S writes it.
+
+**B-R6. Provenance finding 6, traces under a short disk.** The second option: the trace is always written and hashed;
+when it is not kept the record holds `trace = {sha256, rows, kept: false, reason}` and the session holds
+`no_traces_for`. Rule R3's hash is never dropped.
+
+**B-R7. Everything else.** Fix judge findings 3, 4, 6 to 14 and provenance findings 7 to 14 as the reviewers propose.
+Where a fix would change the wording of a pre-registered rule rather than make the code match it, do not make it:
+list it for the lead with the rule's id.
+
+**B-R8. For `COST.md`** (judge finding 8): measure each controller's rate after a warm-up episode that is not
+counted, on episodes that run their full length, and record the load (other processes) at the time.

@@ -15,6 +15,8 @@ directory they were written in: read `design/` as this directory and `maps/` as 
 | `WPC_*.md` | Round C's builder briefs (CP policy files, CV vec pool, CB bundle, CK look reading, CE env, CT trainer, CW rows, CF R2L fit, CG gates, CN notebook) |
 | `PREREG_75_draft.md`, `PREREG_TRACKB_draft.md`, `S2_AMENDMENTS_lead.md` | Drafts from which the committed rule texts were written |
 | `PREREG_RULINGS_15NOV.md`, `TRACKB_RULINGS_15NOV.md`, `TRACKB_RULINGS2_15NOV.md` | The lead's rulings on the points the reviews left open; each is written into the committed rule it settles |
+| `REVIEW_RULINGS_15NOV.md` | The lead's rulings on the builds' independent reviews, as given to each fixer |
+| `checkpoint/` | The state at the pause of 15 Nov: `STATUS.md`, every agent's report and reviewer's findings, and a git bundle of the unmerged branches |
 | `proto_*.py`, `exp*.py`, `twist_*.py`, `turn_price*`, `check_traces.py`, `review_bitid_*.py` | Scratch prototypes and kinematic screens the designs cite; prescribed-motion or scratch results, never records |
 | `roundc/` | Round C's scratch experiments and its draft before review |
 | `maps/` | Code maps of the study written on 14 Nov, with file:line anchors of commit `7e9ea0d`; they go stale as code changes |

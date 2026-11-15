@@ -133,3 +133,42 @@ reminder gives, exactly; name no model anywhere else. Do not merge, do not push 
 report: files changed, each acceptance command with its exit code, every place where you read the design or a rule
 in one of two possible ways (say which you chose: these are rules fixed before the runs, so say so rather than
 decide silently), and anything the design asked for that you could not build.
+
+---
+
+## LEAD ADDENDUM 2, 15 Nov: RULINGS AFTER THE REVIEW (the fixer follows these)
+
+These settle the points the reviewer handed up. Where a ruling and the reviewer's proposed fix differ, the ruling
+wins. The lead writes the matching words into `STAGE2_TRACKB_PLAN.md` (still a draft, in force only once settled and
+merged; no Track B run has been made); you do not edit that file.
+
+**CE-R1. The reward's four readings stand as coded** (finding 1, blocker). The lead amends W1, W2, W3 (a) and W5 to
+the code's readings, tagged [lead, before any Track B run]: the duty term reads a foot only where the reference's
+own share over the same stride lies inside the band; progress is min(1, max(0, (v_ref_bar - v_bar) / (1.05 v_cmd)) /
+0.10) with v_ref_bar as `r5core.REWARD_RULE` defines it, restarted at the segment's first frame and read after one
+stride; clearance (a) times the swing by the planned length of the reference's swing in progress, on the reference
+clock; positions are those of the last physics step's start. The reason is one the rules already state: a playback of
+the reference scores every penalty zero. Your part: add the last sentence to `r5core.REWARD_RULE`, and make W2's
+check an equality of the env description's `reward_rule` text (a test that fails when the formula text and the rule
+text differ). No formula changes.
+
+**CE-R2. The commanded heading in a turn in place** (finding 2). Take the proposal: inside a finite segment that is
+no finite turn and that enters or leaves a gait with a yaw rate, the command stays E4's and the commanded heading
+follows the reference's own yaw; the next segment's `heading0` is its value at the segment's end. Add the in-place
+plan on S1 arrays to the playback test. For the finite turns nothing changes in the code: the bar judges the heading
+against the command's own integral, so a playback carries the heading penalty of its ramps. Add one test that
+measures that penalty on a finite turn of the S1 arrays and pins it, and give the number in your report; the lead
+writes the sentence into W1.
+
+**CE-R3. A later freeze of the same set** (finding 3). Take the fix as written (rule K4).
+
+**CE-R4. Scripted head targets keep the bar's joint margin** (finding 4). Rule: no scripted target of the head lies
+within 0.15 rad of a joint limit (the bar's 0.10 rad margin plus 0.05 rad for tracking). Compute the numbers from
+each -X body's own ranges and report them; for the jaw's [0, 0.6] rad that gives `JAW_OPEN_RAD = (0.3, 0.45)`, and
+the gaze target is cut the same way from the neck yaw's range. Add the test on both -X bodies (a playback with head
+events at their extremes scores range 0 and meets the bar's 0.10 rad). This narrows how far the jaw opens in a
+script; it is a look choice the lead reports to the owner.
+
+**CE-R5. The rest.** Findings 5, 6 and 7 as the reviewer proposes; for 6 take a rung's target speed from its name, as
+the bar does, so that training and the bar apply the same duty band at 0.30 m/s. Finding 8: no code change; the lead
+adds the numbers to T1 and J4. Finding 9: add the refusal as written (`allow_75cm_round=False`, rule X1).

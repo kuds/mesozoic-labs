@@ -1,10 +1,23 @@
 # Checkpoint of 15 Nov 2026: the second session paused for the usage limit
 
-Written by the session's lead on 15 Nov 2026 at about 04:15 UTC. The owner asked that the session stop before a tranche
+Written by the session's lead on 15 Nov 2026 at about 04:05 UTC and updated the same night (see the update below). The owner asked that the session stop before a tranche
 of work that would take the account over its weekly allocation, with everything checked in and documented, and wait
 for a go-ahead. This file is that record. It is a working paper: it sets no rule and reports no result.
 
-## 1. Why the session stopped
+## Update, 15 Nov, after the owner's answer
+
+The owner answered: the workflows already running may continue; no new one is to be added that night. So the three
+workflows that were running (round A's build, the look sets, round C's first wave) were left to run to their end,
+queued agents included, and the lead launched nothing else. The workflow that was writing the Track B rules had
+already been stopped after its first agent and stays stopped. Sections 3 to 5 below describe the state at 04:05 UTC;
+`generated.json` and the bundle are refreshed when those workflows end, and a later commit of this file says what
+they left.
+
+The lead ruled on the reviewers' open points the same night, before each fixer started, and wrote the rulings into the
+fixers' briefs: `../REVIEW_RULINGS_15NOV.md`. Of section 6's list, points 1 to 5 and 8 are ruled and written into
+`STAGE2_75_PLAN.md` (its last section); points 6, 7 and 9 are still open.
+
+## 1. Why the session stopped launching work
 
 - The owner's usage meter read 46 % at 04:00 UTC on 15 Nov, after one reset from 99 % to 0 % during this session; the
   weekly allocation resets in 4 to 7 days.
@@ -55,7 +68,14 @@ each branch's tip.
 
 ## 4. The agents that were finishing when this was written
 
-Filled in below as each one ended.
+- Review of G (regression record): done. No blocker or major finding; the Stage 1 edit leaves the default path
+  bit-identical, 256 of 256 comparisons equal (248 distinct committed episodes). One point for the lead, ruled
+  (the stride period of a K-stride window is made exact for every K).
+- Review of CE (training env): done. One blocker and three major findings, all for the lead and all ruled: the
+  reward's four readings stand as coded and the Track B rules text is amended to them; the commanded heading in a
+  turn in place follows the reference's yaw; a later freeze of the same set is accepted (rule K4); scripted head
+  targets keep 0.15 rad from a joint limit, so the jaw opens to at most 0.45 rad of its 0.6 rad in a script.
+- Review of C (set screen), build of L (look sets), build of CV (vec pool): still running at the update.
 
 ## 5. Not started
 
