@@ -1,7 +1,7 @@
 {
- "main_tip_when_bundled": "c86e5e54cb4f38023c8ba58b094a3ad9ed1ed4a8",
- "bundle_sha256": "2142d034a3ba8c7798717a12cc511ed1ca15eeef453263344d095b45fde73cc6",
- "bundle_bytes": 456518,
+ "main_tip_when_bundled": "8be12c82356dfee2e6a13ede363a948ceaf0ca85",
+ "bundle_sha256": "404bb49230e9e12508753244f44bcf43331788df0d63ae3efa9f7b471556f026",
+ "bundle_bytes": 507672,
  "branches": [
   {
    "branch": "wt/wp-m",
@@ -11,9 +11,9 @@
   },
   {
    "branch": "wt/wp-b",
-   "tip": "85f9b98e8c9c5b503f9d38a6db6e88df4d45f761",
-   "commits_not_on_main": 13,
-   "subject": "Stage 2 round A (WP B): refcheck's log line; the test module says what runs on its fixture set"
+   "tip": "8e61f70788ae28e96fc0dfba74c6867a12c7393f",
+   "commits_not_on_main": 14,
+   "subject": "Merge branch 'claude/mesozoic-trex-stage2-refine-4jffre' into wt/wp-b"
   },
   {
    "branch": "wt/wp-g",
@@ -38,6 +38,18 @@
    "tip": "8d8c450867c7ab3136fba0d7395d2a0f3e33d7e1",
    "commits_not_on_main": 29,
    "subject": "Stage 2 round C (WP CE): the history-free test also runs R6; a subprocess checks that the env imports neither torch nor stable-baselines3"
+  },
+  {
+   "branch": "wt/wpc-cv",
+   "tip": "c51c0dbfd0d7fdaccca3e0974467b69f91df977d",
+   "commits_not_on_main": 3,
+   "subject": "Stage 2 round C (WP CV): a closed pool refuses at every worker count; the pool's spaces are its own copies at workers=0 too"
+  },
+  {
+   "branch": "wt/wpc-ck",
+   "tip": "11a23b438632ecc7cee184b4bd27b1a78a6cec46",
+   "commits_not_on_main": 17,
+   "subject": "Stage 2 round C (WP CK): the look reading's tests (bands, own-event segmentation, too few steps, the ladder's rungs, playback, negative controls)"
   },
   {
    "branch": "wt/prereg-b",
@@ -116,12 +128,24 @@
   {
    "workflow": "roundA",
    "agent": "review:G:regression",
+   "state": "finished",
+   "paper": "reviews/roundA__review_G_regression.json (3 findings)"
+  },
+  {
+   "workflow": "roundA",
+   "agent": "review:C:screen",
+   "state": "finished",
+   "paper": "reviews/roundA__review_C_screen.json (8 findings)"
+  },
+  {
+   "workflow": "roundA",
+   "agent": "fix:M",
    "state": "stopped before it finished",
    "paper": ""
   },
   {
    "workflow": "roundA",
-   "agent": "review:C:screen",
+   "agent": "fix:B",
    "state": "stopped before it finished",
    "paper": ""
   },
@@ -152,8 +176,8 @@
   {
    "workflow": "roundC",
    "agent": "review:CE",
-   "state": "stopped before it finished",
-   "paper": ""
+   "state": "finished",
+   "paper": "reviews/roundC__review_CE.json (9 findings)"
   },
   {
    "workflow": "roundC",
@@ -164,6 +188,12 @@
   {
    "workflow": "roundC",
    "agent": "build:CV",
+   "state": "stopped before it finished",
+   "paper": ""
+  },
+  {
+   "workflow": "roundC",
+   "agent": "build:CK",
    "state": "stopped before it finished",
    "paper": ""
   },

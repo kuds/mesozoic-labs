@@ -17,6 +17,27 @@ The lead ruled on the reviewers' open points the same night, before each fixer s
 fixers' briefs: `../REVIEW_RULINGS_15NOV.md`. Of section 6's list, points 1 to 5 and 8 are ruled and written into
 `STAGE2_75_PLAN.md` (its last section); points 6, 7 and 9 are still open.
 
+## Update, 15 Nov, 04:25 UTC: the training-side workflow is paused until the owner's reset
+
+The owner then said: another reset is available, to be triggered when the meter nears 99 %, but not for about eight
+hours; no leaning down is wanted after that. A second meter reading (52 % at 04:14 UTC, after 46 % at 03:58)
+calibrates the session's count: 1 % of the week is about 72,000 output tokens or 8.9 million cached tokens read, and
+with five agents running the meter rose about 22 % an hour. `usage_watch.py` (in the session's scratch directory, its
+calibration in its docstring) estimates the meter from the transcripts.
+
+For those eight hours the lead holds a ceiling of 90 % by that estimate and puts the 75 cm path first:
+
+- Round A's workflow (fix M, B, G, C; then S and T) keeps running. About 19 % of a week is left in it.
+- Round C's first wave was stopped at 04:23 UTC with the estimate at 55 %. CP is merged; CE is built and reviewed,
+  its fixer not started (the rulings are in its brief); the builders of CV and CK were stopped mid-build with their
+  commits kept on `wt/wpc-cv` and `wt/wpc-ck`; CB is not started. It resumes after the reset
+  (`Workflow({scriptPath, resumeFromRunId: "wf_bb1d63d5-059"})` while the session lives; from the bundle otherwise).
+- The look sets' workflow is left to finish its build, then stopped before its two reviews, which wait for the reset.
+
+Section 6's point 10, added the same night and ruled: the quick turn's hip roll came within 0.086 rad of its limit at
+stride factor 0.8, under A12's 0.10 rad; A12 stands and the stride rule (A11) now reads it too, so V0's turn is
+expected at factor 0.70 (`../hiproll_scan.json`).
+
 ## 1. Why the session stopped launching work
 
 - The owner's usage meter read 46 % at 04:00 UTC on 15 Nov, after one reset from 99 % to 0 % during this session; the
