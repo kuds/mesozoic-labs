@@ -108,6 +108,8 @@ CAPTION_S = 1.5
 WALK_CLIP_S = 10.0
 #: A top view's eye is never lower than this (m): the picture then holds about 1.5 m along the walking line.
 TOP_MIN_HEIGHT_M = 4.0
+#: The headlight's diffuse part in a top view (the model's own 0.55 washes the floor out when it shines straight down).
+TOP_HEADLIGHT_DIFFUSE = 0.2
 
 TURN_RULES = dict(
     words="planned: read from the frozen reference played kinematically at the bar's commanded clock (no physics). "
@@ -375,6 +377,8 @@ def q_at(pose: dict, t: float) -> np.ndarray:
         return Q[-1].copy()
     k = int(np.searchsorted(T, t, side="right")) - 1
     a = (t - T[k]) / (T[k + 1] - T[k])
+    if a <= 0.0:  # (a row's own time: that row's pose)
+        return Q[k].copy()
     q0, q1 = Q[k], Q[k + 1]
     q = (1.0 - a) * q0 + a * q1
     r0, r1 = q0[3:7], q1[3:7]
@@ -687,6 +691,14 @@ def record_files(run, set_name: str, body: str = BODY, behavior: str | None = No
     return out
 
 
+def record_place(run, path) -> dict:
+    """``dict(set, block, row, condition)`` of a record file from its path under ``run`` (``bar.record_path``)."""
+    parts = Path(path).relative_to(run).parts
+    i = parts.index("eval")
+    return dict(set=parts[0], block=parts[i - 1], row="/".join(parts[i + 1 : -2]),
+                condition=f"{parts[-2]}/{Path(parts[-1]).stem}")
+
+
 def trace_file(run, record: dict, episode: dict) -> Path | None:
     tr = episode.get("trace") or {}
     if not tr.get("path") or tr.get("kept") is False:
@@ -810,9 +822,14 @@ def simulated_turn(sv: SetView, run, path: Path, with_paths: bool = False) -> di
     """The simulated block of one record (``TURN_RULES["simulated"]``): per episode that stayed up its readings,
     then their spread; the episodes that fell, and those not read with the reason."""
     rel = Path(path).relative_to(run).as_posix()
+    where = record_place(run, path)
     rec, why = read_record(path)
-    if rec is None:
-        return dict(record=rel, read=False, reason=f"the record {why}")
+    if rec is None:  # (listed under its turn all the same: the path says which record it is)
+        try:
+            move = sv.condition(where["condition"]).move
+        except ViewError:
+            move = None
+        return dict(where, record=rel, read=False, move=move, reason=f"the record {why}")
     out = dict(record=rel, read=True, status=rec.get("status"), row=rec.get("row"), delay_ms=bar.delay_ms(rec["row"]),
                floor_grip=grip_of(rec), block=rec.get("block"), condition=rec.get("key_name"),
                move=(rec.get("definition") or {}).get("move"), key_sha256=rec.get("key_sha256"))
@@ -1027,12 +1044,11 @@ def turnpath_md(doc: dict) -> str:
             A += ["No record yet: the chain had made no record of this turn when this file was written.", ""]
             continue
         for s in tn["simulated"]:
-            head = (f"`{s['record']}`: " if s.get("row") is None else
-                    f"`{s['record']}`: controller row {s['row']}, servo delay {s['delay_ms']} ms, floor grip "
-                    f"{s['floor_grip']:g}, block {s['block']}")
             if not s.get("read") or s.get("status") != "done":
-                A += [f"- {head}. Not read: {s.get('reason')}.", ""]
+                A += [f"- `{s['record']}` (row {s.get('row')}, block {s.get('block')}). Not read: {s.get('reason')}.", ""]
                 continue
+            head = (f"`{s['record']}`: controller row {s['row']}, servo delay {s['delay_ms']} ms, floor grip "
+                    f"{s['floor_grip']:g}, block {s['block']}")
             A += [f"**{head}.**", ""]
             fell = s["fell"]
             A += [f"{s['count_text']}; {len(fell)} fell"
@@ -1196,6 +1212,582 @@ def figure(sv: SetView, cond, planned: dict, sim: dict | None, stem: Path) -> st
 
 
 # ------------------------------------------------------------------------------------------------
+# Clips: which episode, which seconds, which words
+# ------------------------------------------------------------------------------------------------
+#: The views of a behaviour's clips, and each view in words.
+VIEWS_OF = {"walk": ("visitor", "side"), "turn": ("visitor", "top"), "nudge": ("visitor", "top"),
+            "stop": ("visitor", "side")}
+VIEW_WORDS = {"visitor": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front of the incoming walk",
+              "side": "side view: eye 0.6 m high, 2.5 m away, on the robot's right",
+              "top": "top view: straight down; up is the incoming walking line"}
+#: An episode that fell before its command (or a walk that fell before its judged window): the clip is the last
+#: seconds before the fall (a walk: up to ``WALK_CLIP_S``).
+BEFORE_FALL_S = 4.0
+CLIP_RULES = dict(
+    selection=SELECTION_RULE,
+    span=f"a clip starts {LEAD_S:g} s before the command and ends {TAIL_S:g} s after the end of the move (a turn: "
+         "the end of its own file on the reference clock, read from the trace; a stop: the planned rest; a nudge: "
+         "the pulse's end plus the bar's recovery limit) or at the trace's end if that comes first; a walk: the "
+         f"first {WALK_CLIP_S:g} s of its judged window.  An episode that fell: the clip runs to the fall instant "
+         f"the record gives and the last recorded pose is held for {TAIL_S:g} s under the caption 'fell' (a trace "
+         "ends at the fall); if it fell before its command, or a walk before its judged window, the clip is the "
+         f"last {BEFORE_FALL_S:g} s before the fall (a walk: up to {WALK_CLIP_S:g} s)",
+    time=f"{FPS} frames a second at real time: frame k shows the simulated time t0 + k / {FPS} s; between the 50 Hz "
+         "rows the root position and the joint angles are interpolated linearly and the root's quaternion by "
+         "normalised linear interpolation (clips.Playback's rule)",
+    pose="simulated: pose_of on the episode's trace (module docstring: exact attitude and root, the height from the "
+         "feet's low points, the joint angles moved back one physics step); planned: the frozen reference played "
+         "kinematically at the bar's commanded clock",
+    cameras="visitor and side: clips.CAMERAS' eye height, distance and bearing, the bearing counted from the "
+            "incoming walking line and kept for the whole clip; the look-at point follows the planned root path "
+            "(the reference at the reference time the episode's own clock has reached, so that the clock's play "
+            "does not move the picture), averaged over one stride, at the height of the body's bounding box "
+            "centre at home: it does not follow the body's own wobble, and a robot that leaves its planned path "
+            "leaves the picture's centre.  top: a fixed eye straight above the middle of the clip's sweep, high "
+            "enough to hold it, the picture's up along the incoming walking line, the headlight's diffuse part "
+            f"lowered to {TOP_HEADLIGHT_DIFFUSE:g} (straight down the model's own washes the floor out)",
+    labels=f"first line of every frame: '{SIM_LABEL}' or '{PLAN_LABEL}', never both, the body and the set; second "
+           "line: the condition and the row in plain words; bottom: seed, this episode's outcome, the record's "
+           "count, the view, the clip time.  From the command, for "
+           f"{CAPTION_S:g} s: 'command: ...' (read from the record); from the fall instant: 'fell'",
+    media=f"854 x 480, H.264 through clips.encode, at most {MAX_BYTES} bytes each; a poster and a contact sheet "
+          "(the frames at 1/8, 3/8, 5/8 and 7/8 of the clip) beside each; the media are written outside git and "
+          "listed here with their sha256",
+)
+
+
+def _kept(e: dict) -> bool:
+    tr = e.get("trace") or {}
+    return bool(tr.get("path")) and tr.get("kept") is not False
+
+
+def select_episodes(record: dict) -> dict:
+    """``SELECTION_RULE`` on a record: ``dict(picks, skipped, majority, counts)``.  A pick is ``dict(seed, selection
+    ("first seed" | "majority outcome"), words, episode)``; a skip ``dict(seed, selection, reason)``."""
+    eps = sorted(record.get("episodes") or [], key=lambda e: e["seed"])
+    seeds = [int(s) for s in (record.get("seeds") or [e["seed"] for e in eps])]
+    by = {int(e["seed"]): e for e in eps}
+    n_up = sum(outcome(e) == "stayed up" for e in eps)
+    n_fell = sum(outcome(e) == "fell" for e in eps)
+    first = by.get(seeds[0]) if seeds else None
+    o1 = None if first is None else outcome(first)
+    if n_up != n_fell:
+        majority = "stayed up" if n_up > n_fell else "fell"
+    else:
+        majority = o1 if o1 in ("stayed up", "fell") else "stayed up"
+    out = dict(picks=[], skipped=[], majority=majority,
+               counts={"episodes": len(eps), "stayed up": n_up, "fell": n_fell, "failed to run": len(eps) - n_up - n_fell})
+
+    def why_not(e):
+        tr = e.get("trace") or {}
+        return f"the trace was not kept ({tr.get('reason') or 'the record holds no path'})"
+
+    if first is None:
+        out["skipped"].append(dict(seed=seeds[0] if seeds else None, selection="first seed",
+                                   reason="the record holds no episode of its first seed"))
+    elif o1 == "failed to run":
+        out["skipped"].append(dict(seed=seeds[0], selection="first seed",
+                                   reason=f"the episode failed to run ({first.get('error')})"))
+    elif not _kept(first):
+        out["skipped"].append(dict(seed=seeds[0], selection="first seed", reason=why_not(first)))
+    else:
+        out["picks"].append(dict(seed=seeds[0], selection="first seed", words="the first seed", episode=first))
+    if o1 != majority:
+        same = [e for e in eps if outcome(e) == majority]
+        kept = [e for e in same if _kept(e)]
+        if kept:
+            passed = [int(e["seed"]) for e in same if e["seed"] < kept[0]["seed"]]
+            out["picks"].append(dict(seed=int(kept[0]["seed"]), selection="majority outcome", episode=kept[0],
+                                     words="the lowest seed with the majority outcome", passed_over=passed))
+        else:
+            out["skipped"].append(dict(seed=int(same[0]["seed"]) if same else None, selection="majority outcome",
+                                       reason="no episode with the majority outcome has a kept trace"
+                                       if same else "no episode has the majority outcome"))
+    return out
+
+
+def push_words(force_xy, psi_cmd: float) -> str:
+    """A nudge's direction in words from its force (N, world xy): 'to its left (from its right)'."""
+    c, s = math.cos(psi_cmd), math.sin(psi_cmd)
+    fwd, left = c * force_xy[0] + s * force_xy[1], -s * force_xy[0] + c * force_xy[1]
+    if abs(fwd) >= abs(left):
+        return "forward (from behind)" if fwd > 0 else "backward (from the front)"
+    return "to its left (from its right)" if left > 0 else "to its right (from its left)"
+
+
+def command_words(definition: dict, episode: dict | None = None, psi_cmd: float = 0.0) -> str | None:
+    """The caption of a condition's command, from the record's definition (and, a nudge, the episode's pulse)."""
+    beh = definition["behavior"]
+    if beh == "turn":
+        tn = setio.parse_name(definition["move"])
+        return f"command: turn {tn['direction']} {tn['angle_deg']}°"
+    if beh == "stop":
+        return "command: stop"
+    if beh == "nudge":
+        push = ((episode or {}).get("measures") or {}).get("push") or {}
+        if push.get("force_N") is None:
+            return f"command: push {definition['direction']}"
+        f = push["force_N"]
+        return (f"command: push {push_words(f, psi_cmd)}, {math.hypot(f[0], f[1]):.0f} newtons for "
+                f"{push['end_s'] - push['onset_s']:.2f} s")
+    return None
+
+
+def clip_span(definition: dict, t_last: float, command_s: float | None, move_end_s: float | None,
+              window_start_s: float | None, fall_s: float | None) -> dict:
+    """``CLIP_RULES["span"]``: ``dict(t0, t1, hold_s, command_s, fall_s, notes)`` in simulated seconds."""
+    walk = definition["behavior"] == "walk"
+    notes = []
+    if fall_s is not None:
+        t1, hold = float(fall_s), TAIL_S
+        if walk or command_s is None or command_s > fall_s:
+            t0 = max(0.0, t1 - (WALK_CLIP_S if walk else BEFORE_FALL_S))
+            notes.append("fell before its judged window" if walk else "fell before the command")
+            command_s = None if walk or command_s is None or command_s > fall_s else command_s
+        else:
+            t0 = max(0.0, command_s - LEAD_S)
+    elif walk:
+        if window_start_s is None:
+            raise ViewError("a walk that did not fall has no judged window in its record")
+        t0, hold = float(window_start_s), 0.0
+        t1 = min(t0 + WALK_CLIP_S, t_last)
+    else:
+        if command_s is None:
+            raise ViewError("no fall and no command instant in the record")
+        t0, hold = max(0.0, command_s - LEAD_S), 0.0
+        want = t_last if move_end_s is None else move_end_s + TAIL_S
+        if move_end_s is None:
+            notes.append("the trace ends before the end of the move: the clip ends with the trace")
+        elif want > t_last + bar.EPS_S:
+            notes.append(f"the trace ends {t_last - move_end_s:.2f} s after the end of the move: the clip ends there")
+        t1 = min(want, t_last)
+    return dict(t0=float(t0), t1=float(t1), hold_s=float(hold), command_s=command_s,
+                fall_s=None if fall_s is None else float(fall_s), notes=notes)
+
+
+def clip_labels(kind: str, body: str, set_name: str, definition: dict, view: str, record: dict | None = None,
+                pick: dict | None = None) -> tuple[list, list]:
+    """A clip's label lines ``(top, bottom)`` (``CLIP_RULES["labels"]``); ``kind`` "simulated" or "planned"."""
+    if kind not in ("simulated", "planned"):
+        raise ValueError(kind)
+    who = f"{body} ({BODY_WORDS[body]})" if body in BODY_WORDS else body
+    setw = f"{SET_WORDS[set_name]} ({set_name})" if set_name in SET_WORDS else set_name
+    cond = condition_words(definition)
+    if kind == "planned":
+        return ([f"{PLAN_LABEL}  |  {who}  |  {setw}",
+                 f"{cond}  |  the frozen reference played at the bar's commanded clock ({bar.RATE:g} x)"],
+                [VIEW_WORDS[view]])
+    e = pick["episode"]
+    oc = outcome(e)
+    how = f"fell at {e['fall_time_s']:.2f} s" if oc == "fell" else oc
+    return ([f"{SIM_LABEL}  |  {who}  |  {setw}", f"{cond}  |  {row_words(record)}"],
+            [f"seed {pick['seed']} ({pick['words']}): {how}  |  {count_words(record)}", VIEW_WORDS[view]])
+
+
+# ------------------------------------------------------------------------------------------------
+# Clips: cameras and frames
+# ------------------------------------------------------------------------------------------------
+def smooth_rows(x, rows: int) -> np.ndarray:
+    """``x`` [n, k] averaged over a centred window of ``rows`` rows (shorter at the ends)."""
+    x = np.asarray(x, float)
+    w = max(1, min(int(rows), len(x)))
+    if w <= 1:
+        return x.copy()
+    k = np.ones(w)
+    cnt = np.convolve(np.ones(len(x)), k, mode="same")
+    return np.column_stack([np.convolve(x[:, j], k, mode="same") / cnt for j in range(x.shape[1])])
+
+
+def lookat_path(planned: dict, t, t_ref, stride_s: float) -> np.ndarray:
+    """The look-at point's plan path [n, 2] at the rows ``t`` of a clip's pose series (``CLIP_RULES["cameras"]``):
+    the planned root at the reference time ``t_ref`` of each row (carried on at its last second's mean velocity
+    past the reference's end), averaged over one stride ``stride_s`` of simulated time."""
+    P = planned["pose"]
+    tp, xy = P["t"] * bar.RATE, P["root_xy"]
+    t_ref = np.asarray(t_ref, float)
+    out = np.column_stack([np.interp(t_ref, tp, xy[:, 0]), np.interp(t_ref, tp, xy[:, 1])])
+    late = t_ref > tp[-1]
+    if late.any():
+        k = int(np.searchsorted(tp, tp[-1] - bar.RATE))
+        v = (xy[-1] - xy[k]) / (tp[-1] - tp[k])
+        out[late] = xy[-1] + np.outer(t_ref[late] - tp[-1], v)
+    t = np.asarray(t, float)
+    step = float(np.median(np.diff(t))) if len(t) > 1 else 0.02
+    return smooth_rows(out, int(round(stride_s / step)))
+
+
+def camera_vectors(cam: dict) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """(eye, forward, right, up) of MuJoCo's free camera ``cam`` (lookat, distance, azimuth, elevation in deg)."""
+    az, el = math.radians(cam["azimuth"]), math.radians(cam["elevation"])
+    f = np.array([math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), math.sin(el)])
+    u = np.array([-math.sin(el) * math.cos(az), -math.sin(el) * math.sin(az), math.cos(el)])
+    return np.asarray(cam["lookat"], float) - cam["distance"] * f, f, np.cross(f, u), u
+
+
+def project(points, cam: dict, size=(854, 480), fovy_deg: float = 26.0) -> np.ndarray:
+    """Pixel coordinates (u right, v down) of world points seen by ``cam`` (also straight down, where
+    ``clips.project`` has no horizon to stand on)."""
+    eye, f, r, u = camera_vectors(cam)
+    d = np.asarray(points, float) - eye
+    k = 0.5 * size[1] / math.tan(math.radians(fovy_deg) / 2)
+    zc = d @ f
+    return np.column_stack([0.5 * size[0] + k * (d @ r) / zc, 0.5 * size[1] - k * (d @ u) / zc])
+
+
+def follow_camera(view: str, lookat_xy, z: float, psi: float, spec: dict) -> dict:
+    """The visitor's or the side camera on a look-at point: ``spec`` is ``clips.CAMERAS[view]``, its bearing
+    counted from the incoming walking line ``psi``."""
+    b = math.radians(spec["bearing_deg"]) + psi
+    look = np.array([lookat_xy[0], lookat_xy[1], z])
+    eye = np.array([look[0] + spec["distance_m"] * math.cos(b), look[1] + spec["distance_m"] * math.sin(b),
+                    spec["height_m"]])
+    d = look - eye
+    return dict(lookat=look, distance=float(np.linalg.norm(d)), azimuth=math.degrees(math.atan2(d[1], d[0])),
+                elevation=math.degrees(math.atan2(d[2], math.hypot(d[0], d[1]))), eye=eye)
+
+
+def top_camera(points_xy, z: float, psi: float, size=(854, 480), bands=(46, 42), fovy_deg: float = 26.0,
+               margin_m: float = 0.15) -> dict:
+    """The fixed top camera of a clip: straight down, the picture's up along ``psi``, centred on the sweep
+    ``points_xy`` [n, 2] in the part of the picture the label bands leave free, and high enough to hold it with
+    ``margin_m`` to spare (never lower than ``TOP_MIN_HEIGHT_M``)."""
+    ex = np.array([math.cos(psi), math.sin(psi)])
+    ey = np.array([-ex[1], ex[0]])
+    p = np.asarray(points_xy, float)
+    a, s = p @ ex, p @ ey
+    ha, hs = 0.5 * (a.max() - a.min()) + margin_m, 0.5 * (s.max() - s.min()) + margin_m
+    k = 0.5 * size[1] / math.tan(math.radians(fovy_deg) / 2)
+    free = 0.5 * (size[1] - bands[0] - bands[1])
+    dist = max(ha * k / free, hs * k / (0.5 * size[0]), TOP_MIN_HEIGHT_M - z)
+    shift = 0.5 * (bands[0] - bands[1]) * dist / k  # the free part's middle lies below the picture's middle
+    c = 0.5 * (a.max() + a.min()) * ex + 0.5 * (s.max() + s.min()) * ey + shift * ex
+    return dict(lookat=np.array([c[0], c[1], z]), distance=float(dist), azimuth=math.degrees(psi), elevation=-90.0,
+                eye=np.array([c[0], c[1], z + dist]))
+
+
+def _clips():
+    """``designlab.stage2.clips`` (imported late: it selects a GL backend), after a check that one is there."""
+    if os.environ.get("MUJOCO_GL") not in ("osmesa", "egl"):
+        raise ViewError("rendering needs MUJOCO_GL=osmesa (and LP_NUM_THREADS=1); it is "
+                        f"{os.environ.get('MUJOCO_GL')!r}")
+    from . import clips
+
+    return clips
+
+
+_SCENES: dict = {}
+
+
+def scene(body: str):
+    """``clips.ClipScene`` of the body (one per process), checked against the plant's joint layout."""
+    if body not in _SCENES:
+        cs = _clips().ClipScene(body)
+        m, pm = cs.m, body_model(body).m
+        names = [[mujoco.mj_id2name(x, mujoco.mjtObj.mjOBJ_JOINT, j) for j in range(x.njnt)] for x in (m, pm)]
+        if m.nq != pm.nq or names[0] != names[1]:
+            raise ViewError(f"{body}: the rendered model's joints are not the plant's")
+        _SCENES[body] = cs
+    return _SCENES[body]
+
+
+def draw_frame(cs, q, cam: dict, travel_xy, headlight_diffuse: float | None = None) -> np.ndarray:
+    """One covered frame of ``clips.ClipScene`` at pose ``q`` from ``cam``; the key light travels with the cameras
+    (``clips.ClipScene.frame``'s rule, in the plane) and the sky is ``clips.SKY`` where the view passes the floor.
+    ``headlight_diffuse`` replaces the headlight's diffuse part for this frame (``TOP_HEADLIGHT_DIFFUSE``)."""
+    clips = _clips()
+    m = cs.m
+    if headlight_diffuse is not None:
+        keep = m.vis.headlight.diffuse.copy()
+        m.vis.headlight.diffuse[:] = headlight_diffuse
+        try:
+            return draw_frame(cs, q, cam, travel_xy)
+        finally:
+            m.vis.headlight.diffuse[:] = keep
+    m.light_pos[:] = cs.light_pos0
+    m.light_pos[:, 0] += travel_xy[0]
+    m.light_pos[:, 1] += travel_xy[1]
+    cs.pose(q)
+    m.vis.global_.orthographic = 0
+    m.vis.global_.fovy = clips.FOVY_DEG
+    c = mujoco.MjvCamera()
+    c.type = mujoco.mjtCamera.mjCAMERA_FREE
+    c.lookat[:] = cam["lookat"]
+    c.distance, c.azimuth, c.elevation = cam["distance"], cam["azimuth"], cam["elevation"]
+    r = cs.sc.r
+    r.update_scene(cs.d, c, cs.opt_covered)
+    img = r.render().copy()
+    if cam["elevation"] + 0.5 * clips.FOVY_DEG > 0.0:
+        r.enable_depth_rendering()
+        r.update_scene(cs.d, c, cs.opt_covered)
+        depth = r.render()
+        r.disable_depth_rendering()
+        img[depth >= 0.999 * cs.far] = clips.SKY
+    return img
+
+
+#: The captions' colours (``page_kit``'s series 1 and "bad") and place (under the top band).
+CAPTION_COLOURS = {"command": (42, 120, 214), "fell": (162, 57, 42)}
+
+
+def draw_caption(img: np.ndarray, text: str, kind: str, y: int = 54) -> np.ndarray:
+    """``img`` with a caption box under the top band: a coloured bar, then ``text`` in bold ink on a light box."""
+    from PIL import Image, ImageDraw
+
+    from .. import render
+
+    im = Image.fromarray(img).convert("RGBA")
+    layer = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    dr = ImageDraw.Draw(layer)
+    size = 17
+    f = render.font(size, bold=True)
+    while dr.textlength(text, font=f) > im.size[0] - 60 and size > 11:
+        size -= 1
+        f = render.font(size, bold=True)
+    w = int(dr.textlength(text, font=f))
+    dr.rectangle([12, y, 12 + w + 26, y + 30], fill=(252, 252, 251, 235))
+    dr.rectangle([12, y, 18, y + 30], fill=CAPTION_COLOURS[kind] + (255,))
+    dr.text((27, y + 5), text, fill=(11, 11, 11, 255), font=f)
+    im.alpha_composite(layer)
+    return np.asarray(im.convert("RGB"))
+
+
+def frame_captions(t: float, span: dict, command: str | None, fall_words: str | None) -> list[tuple[str, str]]:
+    """The captions on the frame at simulated time ``t``: ``[(kind, text)]`` (``CLIP_RULES["labels"]``)."""
+    out = []
+    tc, tf = span.get("command_s"), span.get("fall_s")
+    if command and tc is not None and tc - 1e-9 <= t < tc + CAPTION_S and (tf is None or t < tf):
+        out.append(("command", command))
+    if tf is not None and t >= tf - 1e-9:
+        out.append(("fell", fall_words or "fell"))
+    return out
+
+
+def render_clip(kind: str, sv: SetView, cond, pose: dict, span: dict, view: str, top: list, bottom: list,
+                command: str | None, fall_words: str | None, stem: Path, meta: dict) -> dict:
+    """Render one clip to ``<stem>.mp4`` with ``<stem>.png`` (poster) and ``<stem>_sheet.png``; returns what the
+    manifest holds of the picture (frames, camera, framing margin, files, bytes, sha256)."""
+    clips = _clips()
+    from PIL import Image
+
+    model, cs = sv.model, scene(sv.body)
+    pl = sv.planned(cond)
+    stride = float(pl["res"]["period_s"]) / bar.RATE
+    look = lookat_path(pl, pose["t"], pose["t_ref"], stride)
+    box, _ = cs.home_box(model.q_home)
+    z, psi = float(box[2]), model.psi_cmd
+    n = int(round((span["t1"] - span["t0"] + span["hold_s"]) * FPS)) + 1
+    taus = np.arange(n) / FPS
+    t_show = np.minimum(span["t0"] + taus, span["t1"])  # (the pose is held after a fall)
+    cam_fixed = None
+    if view == "top":
+        rows = np.flatnonzero((pose["t"] >= span["t0"] - 0.03) & (pose["t"] <= span["t1"] + 0.03))[::3]
+        cam_fixed = top_camera(np.concatenate([model.surface(pose["qpos"][i])[:, :2] for i in rows]), z, psi)
+    elif view not in clips.CAMERAS:
+        raise ViewError(f"view {view!r}: choose from visitor, side, top")
+    frames = np.empty((n, clips.SIZE[1], clips.SIZE[0], 3), np.uint8)
+    margin, off = math.inf, 0.0
+    t0w = time.perf_counter()
+    try:
+        for k, tau in enumerate(taus):
+            t = float(t_show[k])
+            q = q_at(pose, t)
+            lxy = np.array([np.interp(t, pose["t"], look[:, 0]), np.interp(t, pose["t"], look[:, 1])])
+            cam = cam_fixed if cam_fixed is not None else follow_camera(view, lxy, z, psi, clips.CAMERAS[view])
+            travel = (lxy if cam_fixed is None else cam_fixed["lookat"][:2]) - model.q_home[:2]
+            raw = draw_frame(cs, q, cam, travel, TOP_HEADLIGHT_DIFFUSE if cam_fixed is not None else None)
+            img = clips.overlay(raw, top, bottom, float(tau), dark=False)
+            for j, (ckind, text) in enumerate(frame_captions(span["t0"] + tau, span, command, fall_words)):
+                img = draw_caption(img, text, ckind, y=54 + 36 * j)
+            frames[k] = img
+            if k % 3 == 0:  # the framing: how far the robot's surface stays inside the free part of the picture
+                uv = project(model.surface(q), cam, clips.SIZE, clips.FOVY_DEG)
+                margin = min(margin, float(uv[:, 0].min()), float(clips.SIZE[0] - uv[:, 0].max()),
+                             float(uv[:, 1].min() - 46), float(clips.SIZE[1] - 42 - uv[:, 1].max()))
+                off = max(off, float(np.linalg.norm(q[:2] - lxy)))
+    finally:
+        cs.m.light_pos[:] = cs.light_pos0
+    render_s = time.perf_counter() - t0w
+    stem = Path(stem)
+    stem.parent.mkdir(parents=True, exist_ok=True)
+    mp4 = Path(str(stem) + ".mp4")
+    t1w = time.perf_counter()
+    enc = clips.encode(frames, mp4, FPS, MAX_BYTES, meta=meta)
+    encode_s = time.perf_counter() - t1w
+    tc = span.get("command_s")
+    if tc is not None and span["t0"] <= tc <= span["t1"]:
+        poster_tau = min(tc + 0.5 * CAPTION_S - span["t0"], taus[-1])
+    elif span.get("fall_s") is not None:
+        poster_tau = max(0.0, taus[-1] - span["hold_s"])
+    else:
+        poster_tau = 0.5 * taus[-1]
+    Image.fromarray(frames[int(round(poster_tau * FPS))]).save(str(stem) + ".png")
+    sheet_tau = [taus[-1] * x for x in (0.125, 0.375, 0.625, 0.875)]
+    clips.contact_sheet({key: frames[int(round(tt * FPS))] for key, tt in zip(clips.SHEET_T, sheet_tau, strict=True)},
+                        Path(str(stem) + "_sheet.png"))
+    cam_doc = (dict(kind="fixed", lookat=cam_fixed["lookat"].tolist(), height_above_lookat_m=cam_fixed["distance"],
+                    up_deg=math.degrees(psi)) if cam_fixed is not None
+               else dict(clips.CAMERAS[view], kind="follows the planned root path, averaged over one stride",
+                         lookat_height_m=z, largest_distance_root_to_lookat_m=off))
+    return dict(file=mp4.name, poster=mp4.stem + ".png", sheet=mp4.stem + "_sheet.png", view=view, kind=kind,
+                bytes=enc["bytes"], sha256=hashlib.sha256(mp4.read_bytes()).hexdigest(), frames=int(n), fps=FPS,
+                seconds=float(taus[-1]), size=list(clips.SIZE), labels=dict(top=top, bottom=bottom),
+                captions=dict(command=command, fell=fall_words), span=span,
+                poster_at_s=float(poster_tau), sheet_at_s=[float(x) for x in sheet_tau],
+                camera=dict(cam_doc, fovy_deg=clips.FOVY_DEG), framing_margin_px=float(margin),
+                encode=dict(enc["settings"], tries=enc["tries"]), probe=clips.probe(mp4),
+                render_s=render_s, encode_s=encode_s)
+
+
+def _slug(text: str) -> str:
+    return text.replace("/", "-").replace("@", "_")
+
+
+def simulated_clips(run, set_name: str, ckey: str, row: str, media: Path, block: str = bar.HEADLINE_BLOCK,
+                    views=None, body: str = BODY, log=print) -> tuple[list, list]:
+    """The clips of one record (``SELECTION_RULE``, ``CLIP_RULES``): ``(entries, skipped)`` for the manifest."""
+    path = record_path(run, set_name, body, block, row, ckey)
+    rel = path.relative_to(run).as_posix()
+    item = dict(set=set_name, condition=ckey, row=row, block=block, record=rel)
+    rec, why = read_record(path)
+    if rec is None:
+        return [], [dict(item, reason=f"the record {why}" if path.exists() else "no record yet")]
+    if rec.get("status") != "done":
+        return [], [dict(item, reason=f"the record's status is {rec.get('status')!r}: {rec.get('reason')}")]
+    sv = set_view(set_name, body)
+    differ = sv.inputs_differ(rec)
+    if differ:
+        return [], [dict(item, reason="the record was made from other files than this checkout's set: " + ", ".join(differ))]
+    definition = rec["definition"]
+    cond = sv.condition(ckey)
+    sel = select_episodes(rec)
+    entries = []
+    skipped = [dict(item, seed=x["seed"], selection=x["selection"], reason=x["reason"]) for x in sel["skipped"]]
+    for pick in sel["picks"]:
+        e = pick["episode"]
+        trace, why = read_trace(run, rec, e)
+        if trace is None:
+            skipped.append(dict(item, seed=pick["seed"], selection=pick["selection"], reason=why))
+            continue
+        pose = pose_of(trace, sv.model)
+        b = (e.get("measures") or {}).get("bar") or {}
+        push = (e.get("measures") or {}).get("push") or {}
+        beh = definition["behavior"]
+        command_s = push.get("onset_s") if beh == "nudge" else e.get("command_s")
+        move_end = None
+        if beh == "turn":
+            end_ref = sv.move_end_ref_s(rec["plan"], definition["move"])
+            if end_ref is not None and len(pose["t_ref"]) and end_ref <= pose["t_ref"][-1] + 1e-12:
+                move_end = float(np.interp(end_ref, pose["t_ref"], pose["t"]))
+        elif beh == "stop":
+            move_end = b.get("rest_s")
+        elif beh == "nudge" and push.get("end_s") is not None:
+            move_end = float(push["end_s"]) + float(definition.get("recovery_s") or bar.RECOVERY_S)
+        win = (e.get("measures") or {}).get("window") or {}
+        fell = outcome(e) == "fell"
+        span = clip_span(definition, float(pose["t"][-1]), command_s, move_end, win.get("t_start_s"),
+                         float(e["fall_time_s"]) if fell else None)
+        command = command_words(definition, e, sv.model.psi_cmd)
+        fall_words = (f"fell ({e.get('fall_cause')}); the trace ends here, the last pose is held" if fell else None)
+        for view in (views or VIEWS_OF[beh]):
+            top, bottom = clip_labels("simulated", body, set_name, definition, view, rec, pick)
+            stem = Path(media) / set_name / f"{body}_{set_name}_{_slug(ckey)}_{_slug(row)}_{block}_seed{pick['seed']}_{view}"
+            ent = render_clip("simulated", sv, cond, pose, span, view, top, bottom, command, fall_words, stem,
+                              dict(title=f"{body} {set_name} {ckey} {row} seed {pick['seed']} {view}",
+                                   comment=f"{SIM_LABEL}; designlab/stage2/barviews.py; trace sha256 {e['trace']['sha256']}"))
+            ent.update(item, file=f"{set_name}/{ent['file']}", poster=f"{set_name}/{ent['poster']}",
+                       sheet=f"{set_name}/{ent['sheet']}", seed=pick["seed"], selection=pick["selection"],
+                       selection_words=pick["words"], passed_over=pick.get("passed_over", []),
+                       outcome=outcome(e), record_count=count_words(rec), majority_outcome=sel["majority"],
+                       trace=e["trace"].get("path"), trace_sha256=e["trace"]["sha256"],
+                       record_key_sha256=rec.get("key_sha256"), pose_residual_m=pose["residual_m"],
+                       in_words=condition_words(definition), row_in_words=row_words(rec))
+            entries.append(ent)
+            log(f"  {ent['file']}: {ent['frames']} frames, {ent['bytes'] / 1e6:.2f} MB, render {ent['render_s']:.0f} s, "
+                f"encode {ent['encode_s']:.0f} s, margin {ent['framing_margin_px']:.0f} px")
+    return entries, skipped
+
+
+def planned_clips(set_name: str, ckey: str, media: Path, views=None, body: str = BODY, log=print) -> tuple[list, list]:
+    """The planned clips of one condition: the frozen reference alone, the same views and seconds."""
+    sv = set_view(set_name, body)
+    item = dict(set=set_name, condition=ckey, row=None, block=None, record=None)
+    cond = sv.condition(ckey)
+    why = sv.planner.missing(cond)
+    if cond.judge == "bar_nudge":
+        return [], [dict(item, reason="a nudge has no reference of its own: its planned motion is the walk's")]
+    if why is not None:
+        return [], [dict(item, reason=f"no reference: {why['reason']}")]
+    pl = sv.planned(cond)
+    definition = cond.describe()
+    pose = pl["pose"]
+    span = clip_span(definition, float(pose["t"][-1]), pl["t_c"], pl["t_end"],
+                     max(0.0, pl["seconds"] - WALK_CLIP_S) if cond.behavior == "walk" else None, None)
+    entries = []
+    for view in (views or VIEWS_OF[cond.behavior]):
+        top, bottom = clip_labels("planned", body, set_name, definition, view)
+        stem = Path(media) / set_name / f"{body}_{set_name}_{_slug(ckey)}_planned_{view}"
+        ent = render_clip("planned", sv, cond, pose, span, view, top, bottom, command_words(definition), None, stem,
+                          dict(title=f"{body} {set_name} {ckey} planned {view}",
+                               comment=f"{PLAN_LABEL}; designlab/stage2/barviews.py"))
+        ent.update(item, file=f"{set_name}/{ent['file']}", poster=f"{set_name}/{ent['poster']}",
+                   sheet=f"{set_name}/{ent['sheet']}", seed=None, selection=None, outcome=None,
+                   reference_files=pl["files"], set_freeze=pl["freeze"], in_words=condition_words(definition))
+        entries.append(ent)
+        log(f"  {ent['file']}: {ent['frames']} frames, {ent['bytes'] / 1e6:.2f} MB, render {ent['render_s']:.0f} s, "
+            f"encode {ent['encode_s']:.0f} s, margin {ent['framing_margin_px']:.0f} px")
+    return entries, []
+
+
+def gated_items(row: str, sets=SETS, body: str = BODY) -> list[tuple]:
+    """``--all-gated --row ROW``: (set, condition, row) of every gated condition of each set."""
+    return [(s, c.key, row) for s in sets for c in set_view(s, body).conditions() if c.gated]
+
+
+def make_clips(items, planned: bool = False, run=RUN, media=None, out=None, block: str = bar.HEADLINE_BLOCK,
+               views=None, body: str = BODY, log=print) -> dict:
+    """``barviews clips``: render ``items`` and write ``<out>/clips.json`` (the manifest; the clips of earlier runs
+    that this run did not make again are kept, and so are its skips of other items)."""
+    run = Path(run)
+    out = check_out(run, out)
+    media = Path(media) if media is not None else s2io.STUDY / MEDIA
+    if os.path.realpath(media) == os.path.realpath(run) or Path(os.path.realpath(run)) in Path(os.path.realpath(media)).parents:
+        raise ViewError(f"{media}: the media directory may not lie inside the run directory")
+    _clips()
+    entries, skipped = [], []
+    t0 = time.perf_counter()
+    for it in items:
+        log(" ".join(str(x) for x in it) + (" (planned)" if planned else ""))
+        if planned:
+            e, s = planned_clips(it[0], it[1], media, views, body, log)
+        else:
+            e, s = simulated_clips(run, it[0], it[1], it[2], media, block, views, body, log)
+        for x in s:
+            log(f"  no clip: {x['reason']}")
+        entries += e
+        skipped += [dict(x, kind="planned" if planned else "simulated") for x in s]
+    path = out / "clips.json"
+    old = s2io.read_json(path) if path.exists() else {}
+    mine = {e["file"] for e in entries}
+
+    def same(a, b):
+        return all(a.get(k) == b.get(k) for k in ("kind", "set", "condition", "row", "block"))
+
+    done = [dict(kind="planned" if planned else "simulated", set=it[0], condition=it[1],
+                 row=None if planned else it[2], block=None if planned else block) for it in items]
+    doc = dict(schema=SCHEMA_CLIPS, what="video clips of the bar's episodes and of the frozen references: views, no "
+               "verdict, nothing adopted", labels=dict(simulated=SIM_LABEL, planned=PLAN_LABEL), rules=CLIP_RULES,
+               run=run_label(run), media_dir="outside git (the --media directory of the run; files relative to it)",
+               fps=FPS, max_bytes=MAX_BYTES,
+               clips=sorted([e for e in old.get("clips", []) if e["file"] not in mine] + entries, key=lambda e: e["file"]),
+               skipped=[x for x in old.get("skipped", []) if not any(same(x, d) for d in done)] + skipped,
+               provenance=dict(git=s2io.git_state(own_outputs=[str(out)]), at=s2io.now_utc(),
+                               module="designlab/stage2/barviews.py", module_sha256=s2io.sha256_file(Path(__file__)),
+                               wall_s=time.perf_counter() - t0))
+    s2io.write_json(path, s2io.plain(doc))
+    return doc
+
+
+# ------------------------------------------------------------------------------------------------
 # Command line
 # ------------------------------------------------------------------------------------------------
 def parse_item(text: str, planned: bool = False) -> tuple:
@@ -1262,6 +1854,17 @@ def main(argv=None) -> int:
     common(c)
     c.add_argument("items", nargs="+", help="SET:CONDITION:ROW")
     c.add_argument("--block", default=bar.HEADLINE_BLOCK)
+    v = sub.add_parser("clips", help="video of simulated episodes from their traces, or of the frozen references")
+    common(v)
+    v.add_argument("items", nargs="*", help="SET:CONDITION:ROW (with --planned: SET:CONDITION)")
+    v.add_argument("--planned", action="store_true", help="the frozen reference alone, labelled as planned motion")
+    v.add_argument("--all-gated", action="store_true", help="every gated condition of each set under --row")
+    v.add_argument("--row", default=None)
+    v.add_argument("--set", action="append", dest="sets", choices=SETS, help="with --all-gated: these sets only")
+    v.add_argument("--block", default=bar.HEADLINE_BLOCK, choices=tuple(bar.BLOCKS))
+    v.add_argument("--views", default=None, help="comma-separated: visitor, side, top (default: by behaviour)")
+    v.add_argument("--media", default=None, help=f"where the media go (default {MEDIA}/, git-ignored)")
+    v.add_argument("--out", default=None, help="the views directory (default: this checkout's run directory's views/)")
     a = ap.parse_args(argv)
     try:
         if a.cmd == "turnpath":
@@ -1271,6 +1874,17 @@ def main(argv=None) -> int:
                   + ("" if n else " (no record yet)") + f", {len(doc['records_not_read'])} not read")
         elif a.cmd == "posecheck":
             posecheck([parse_item(x) for x in a.items], a.run, a.block, a.body)
+        elif a.cmd == "clips":
+            items = [parse_item(x, a.planned) for x in a.items]
+            if a.all_gated:
+                if a.planned or not a.row:
+                    raise ViewError("--all-gated needs --row ROW and is for simulated clips")
+                items += gated_items(a.row, tuple(a.sets or SETS), a.body)
+            if not items:
+                raise ViewError("no item: name SET:CONDITION:ROW (or --all-gated --row ROW)")
+            doc = make_clips(items, a.planned, a.run, a.media, a.out, a.block,
+                             None if a.views is None else tuple(x for x in a.views.split(",") if x), a.body)
+            print(f"{len(doc['clips'])} clips and {len(doc['skipped'])} skips listed in the manifest")
     except (ViewError, bar.tune.InputError) as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 1
