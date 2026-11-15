@@ -4,7 +4,10 @@ the top, the comparison with JPS section 2.3, and that the two files regenerate 
 Run from hardware/trex_form_study (the fit's venv):  python -m pytest -p no:cacheprovider tests/test_stage2_barreport.py -q
 All fast.  Every record is synthetic: made with the runner's own functions (``bar.record_key``,
 ``bar.condition_record``, ``bar.not_run_record``, ``bar.record_path``) from episode dicts written here, in pytest's
-temporary directory.  Nothing is simulated, no array is needed, and no number in this file is a result.
+temporary directory.  Nothing is simulated, no array is needed, and no number in this file is a result.  The
+synthetic F25F9 has the shape of the frozen one (``stage2/sets/F25F9/75-M-H-10``: no nominal walk, the lead-in
+``start_v0.4``, two rungs that no change reaches); two tests read the three frozen sets' own committed documents
+(JSON only) to hold that shape, the plan's numbers of the changes tried and the references' own toe readings.
 """
 
 from __future__ import annotations
@@ -78,29 +81,120 @@ A1_OVER = {"F25F9cl": (setio.turn_name(setio.QUICK, "left"),)}
 #: Rule A8 as amended: a set without a frozen nominal walk starts straight into its 0.40 m/s walk.
 LEAD_IN = {"F25F9": "start_v0.4"}
 START_V04 = "lead-in `start_v0.4`: from standing straight into the 0.40 m/s walk ({}; STAGE2_75_PLAN.md A8, changed after a result)"
+#: The synthetic F25F9 in the frozen set's shape: its walks under 0.40 m/s are dropped from the ladder (no file), so
+#: it has no `start` and no change from the nominal walk; the changes from the neighbouring rung into 0.45 and
+#: 0.50 m/s failed a gate and are recorded under the direct change's name with what was tried.
+DROPPED_WALKS = (setio.NOMINAL, "v0.3", "v0.35")
+DROPPED = "dropped from the ladder: over clearance swing_clearance (synthetic)"
+NOT_A_RUNG = "the walk nominal is not a rung of the set (synthetic)"
+NO_CHANGE = NOT_A_RUNG + "; no change from the neighbouring rung within the gates"
+#: {rung: (the neighbour's change that was tried, the last value of its ZMP error history in m)}: made-up numbers.
+TRIED_ZMP = {"v0.45": ("v0.4_to_v0.45", 0.004321), "v0.5": ("v0.45_to_v0.5", 0.004987)}
+#: The synthetic references' own toe readings in m (``refcheck.json``): {set: {condition: reading}}, 0.0222 elsewhere.
+H_M = 0.501854
+REF_TOE = {"F25F9": {"walk/v0.4": 0.019712}, "F25F9cl": {"turn/q90_left": 0.016208}, "V0": {"walk/v0.4": 0.025111}}
+TOE_LIMIT_M = 0.0200741
+
+
+def walk_numbers(w: str) -> dict:
+    return dict(stage0=dict(within_limits=False, over=[dict(limit="clearance swing_clearance", value=0.0371)]),
+                speed_m_s=setio.parse_name(w)["speed_m_s"] or 0.2431)
+
+
+def tried_numbers(rung: str) -> dict:
+    """The numbers of a rung no change reaches, as the frozen F25F9 records them: the dropped walk, then what was
+    tried in order (the direct change, not built; the neighbour's change with one stride of ramp, built, failed)."""
+    change, last = TRIED_ZMP[rung]
+    return dict(walks={setio.NOMINAL: walk_numbers(setio.NOMINAL)}, tried=[
+        dict(change=setio.change_name(setio.NOMINAL, rung), not_built=NOT_A_RUNG),
+        dict(gates=dict(ik_ok=True, join_b=True, join_a=True, zmp_error=False), pass_=False, ik_ok=True,
+             join_a=dict(com_max_mm=0.031, zmp_max_mm=1.41, com_ok=True, zmp_ok=True),
+             zmp_error_history_m=[0.0471, 0.0212, 0.0061, last], failed_gates=["zmp_error"],
+             stage0=dict(within_limits=True, over=[], blocks_freeze=[]), ramp_strides=1.0, change=change)])
 
 
 def set_docs(name: str) -> dict:
     """A set's documents: every walk and move of the round, the moves of ``UNAVAILABLE`` recorded without a file
-    (``available: false`` with their reason and numbers), one freeze that lists every entry with a file."""
+    (``available: false`` with their reason and numbers), one freeze that lists every entry with a file and cites
+    the set's kinematic check (``refcheck.json``, with the sha256 of the text ``put`` writes).  F25F9 has the frozen
+    set's shape (``DROPPED_WALKS``, ``TRIED_ZMP``)."""
     walks = [setio.NOMINAL] + [setio.walk_name(v) for v in setio.SPEEDS]
     moves = ([setio.START] + [setio.change_name(setio.NOMINAL, w) for w in walks[1:]]
              + [setio.stop_name(2, bar.BAR_WALK), setio.stop_name(1, bar.BAR_WALK)]
              + [setio.turn_name(r, d) for r in setio.TURN_RATES for d in setio.DIRECTIONS])
+    base = name.split(".")[0]
     margin = MARGIN_RULE if name.startswith("F25F9cl") else None
-    gone = UNAVAILABLE.get(name.split(".")[0], {})
+    gone = UNAVAILABLE.get(base, {})
     refs = {w: dict(file=f"refs/{w}.npz", sha256=sha(name + w), margin_rule=margin, label=None) for w in walks}
     trs = {m: dict(file=f"transitions/{m}.npz", sha256=sha(name + m), a1_over=m in A1_OVER.get(name, ()),
                    move=dict(causal=True)) for m in moves if m not in gone}
     for m, (reason, numbers) in gone.items():
         trs[m] = dict(name=m, kind="turn", available=False, reason=reason, numbers=numbers)
+    not_available = {}
+    if base == "F25F9":
+        for w in DROPPED_WALKS:
+            refs[w] = dict(name=w, kind="walk", available=False, reason=DROPPED, numbers=walk_numbers(w), dropped=True)
+        trs[setio.START] = dict(name=setio.START, kind="start", available=False, numbers=dict(walks={}),
+                                reason=NOT_A_RUNG + "; the set starts from standing straight into v0.4 (start_v0.4)")
+        alt = setio.start_name(bar.BAR_WALK)
+        trs[alt] = dict(file=f"transitions/{alt}.npz", sha256=sha(name + alt), a1_over=False, move=dict(causal=False))
+        for w in walks[1:]:
+            m = setio.change_name(setio.NOMINAL, w)
+            trs[m] = dict(name=m, kind="change", available=False, reason=NOT_A_RUNG, numbers=dict(walks={}))
+            if w in TRIED_ZMP:
+                trs[m].update(reason=NO_CHANGE, numbers=tried_numbers(w), fallback=dict(rule="S2S-fallback", step=3))
+        not_available = {n: dict(reason=e["reason"], numbers=e.get("numbers"))
+                         for n, e in {**refs, **trs}.items() if e.get("available") is False}
     manifest = {n: dict(kind="walk" if n in refs else "move", sha256=e["sha256"], entry_sha256=sha("entry" + name + n))
                 for n, e in {**refs, **trs}.items() if e.get("file")}
-    sd = dict(set=name, body=BODY, role="synthetic", rules={}, not_available={}, lead_in=LEAD_IN.get(name, setio.START),
+    sd = dict(set=name, body=BODY, role="synthetic", rules={}, not_available=not_available,
+              lead_in=LEAD_IN.get(base, setio.START),
               freezes=[dict(index=0, at="2026-11-15T07:00:00Z", commit="a" * 40, manifest=manifest,
                             manifest_sha256=s2io.sha256_json(manifest))])
-    return {"set.json": sd, "refs.json": {"references": refs}, "transitions.json": {"transitions": trs},
+    docs = {"set.json": sd, "refs.json": {"references": refs}, "transitions.json": {"transitions": trs},
             "screen.json": None}
+    docs["refcheck.json"] = refcheck_doc(name, docs)
+    sd["freezes"][0]["refcheck"] = dict(file=f"stage2/sets/{name}/{BODY}/refcheck.json",
+                                        sha256=sha(refcheck_text(docs["refcheck.json"])), pass_=None)
+    return docs
+
+
+def refcheck_doc(name: str, docs: dict) -> dict:
+    """A set's kinematic check in the runner's form (``bar.refcheck``): one item per walk, turn and stop condition at
+    mu 0.9, "not run" where the set has no reference; a walk's and a turn's item holds the reference's own toe
+    reading (``REF_TOE``; made-up numbers)."""
+    planner = bar.BarPlanner(Path("unused"), docs["refs.json"]["references"], docs["transitions.json"]["transitions"],
+                             docs["set.json"])
+    items = {}
+    for c in bar.conditions(docs):
+        if c.friction is not None or c.judge == "bar_nudge":
+            continue
+        why = planner.missing(c)
+        if why is not None:
+            items[c.key] = dict(condition=c.key, status="not run", reason=why["reason"], reference=why["reference"],
+                                pass_=None)
+        elif c.judge == "bar_stop":
+            items[c.key] = dict(condition=c.key, status="done", pass_=True)
+        else:
+            m = REF_TOE.get(name.split(".")[0], {}).get(c.key, 0.0222)
+            items[c.key] = dict(condition=c.key, status="done", pass_=m >= TOE_LIMIT_M, toe=dict(
+                toe_clearance_own_swing_m=m, toe_clearance_own_swing_H=m / H_M, limit_m=TOE_LIMIT_M,
+                ok=m >= TOE_LIMIT_M))
+    return dict(schema="bar-refcheck-1", set=name, body=BODY, items=items)
+
+
+def refcheck_text(doc: dict) -> str:
+    return json.dumps(doc, indent=1)
+
+
+def write_set(study: Path, name: str, docs: dict | None = None) -> dict:
+    """A synthetic set's documents and its kinematic check where the tables look for them under ``study``."""
+    docs = set_docs(name) if docs is None else docs
+    d = study / "stage2" / "sets" / name / BODY
+    for n in ("set.json", "refs.json", "transitions.json"):
+        s2io.write_json(d / n, docs[n])
+    (d / "refcheck.json").write_text(refcheck_text(docs["refcheck.json"]))
+    return docs
 
 
 def episode(cond, seed: int, fell: bool = False, before=None, tail_over: bool = False, fail=(), error=None,
@@ -157,13 +251,13 @@ def put(study: Path, out: Path, set_name: str, row: str, key: str, block: str = 
         sources=None, extra=None, per_seed=None, bad_input: bool = False, **kw) -> dict:
     """Write one synthetic record where the runner would (``bar.record_path``) and the set's documents where the
     record's ``inputs.dir`` says; returns the record.  ``per_seed(seed)`` gives an episode's own arguments."""
-    docs = set_docs(set_name)
-    for name in ("set.json", "refs.json", "transitions.json"):
-        s2io.write_json(study / "stage2" / "sets" / set_name / BODY / name, docs[name])
+    docs = write_set(study, set_name)
     cond = next(c for c in bar.conditions(docs, block, every=True) if c.key == key)
     seeds = list(bar.BLOCKS[block])
     row_ = Row(row)
-    files = sorted({f"refs/{setio.NOMINAL}.npz", f"refs/{cond.walk}.npz"}
+    lead = docs["set.json"]["lead_in"]  # (a set that starts straight into its 0.40 m/s walk has no nominal walk)
+    files = sorted(({f"refs/{setio.NOMINAL}.npz"} if lead == setio.START else set())
+                   | {f"refs/{cond.walk}.npz"}
                    | ({f"transitions/{cond.move}.npz"} if cond.move else set()))
     fz = docs["set.json"]["freezes"][0]
     listed = {f: {k: fz["manifest"][Path(f).stem][k] for k in ("sha256", "entry_sha256")} for f in files
@@ -188,7 +282,7 @@ def put(study: Path, out: Path, set_name: str, row: str, key: str, block: str = 
             command = dict(name=cond.move, ref_s=14.5, phase=0.0, convention=conv)
             if cond.judge == "bar_stop":
                 kw.setdefault("convention", conv)
-        resolved = dict(plan=[["transition", setio.START], ["ref", cond.walk, 20]], seconds=20.0, files=files,
+        resolved = dict(plan=[["transition", lead], ["ref", cond.walk, 20]], seconds=20.0, files=files,
                         command=command)
         crouch = bar.CONTROLS[control][0] if control else 0.05
         k = bar.record_key(BODY, set_name, block, row_, cond, resolved, seeds, inputs, {}, src,
@@ -267,8 +361,8 @@ def build(study: Path, out: Path) -> None:
     # -- the ledger: task 3 started two units and cut a third; task 4 has none
     started = [run_path(cl, r, k) for r in ("R2/42@10ms", "R2/43@10ms", "R0@10ms") for k in ("walk/v0.4", "walk/v0.4_mu0.54")]
     started += [run_path(f25, r, "walk/v0.4") for r in ("R2/42@10ms", "R2/43@10ms", "R0@10ms")]
-    unit = lambda name, paths, used: dict(  # noqa: E731
-        unit=name, estimate_core_h=0.4, spent_before_core_h=0.0, started_at="2026-11-15T08:00:00Z",
+    unit = lambda name, paths, used, before=0.0: dict(  # noqa: E731
+        unit=name, estimate_core_h=0.4, spent_before_core_h=before, started_at="2026-11-15T08:00:00Z",
         used_core_h=used / 3600.0, items={"episodes": float(used)}, detail=dict(paths=paths))
     cut = dict(unit="T3.2b", estimate_core_h=0.3, spent_before_core_h=15.9, at="2026-11-15T20:00:00Z",
                reason="spent 15.900 + estimate 0.300 core-h exceeds task 3's 16 core-h",
@@ -277,7 +371,7 @@ def build(study: Path, out: Path) -> None:
     s2io.write_json(out / "budget.json", dict(schema="bar-budget-1", rule=bar.RULES["budget"], tasks={"3": dict(
         cap_core_h=16.0, cut=[cut], units=[
             unit("T3.1", started, 1800.0),
-            unit("T3.2a", [run_path(cl, r, "walk/v0.4", R) for r in ("R2/42@10ms", "R2/43@10ms")], 5400.0)])}))
+            unit("T3.2a", [run_path(cl, r, "walk/v0.4", R) for r in ("R2/42@10ms", "R2/43@10ms")], 5400.0, 0.5)])}))
 
 
 @pytest.fixture(scope="module")
@@ -324,6 +418,17 @@ def strings(x):
 
 
 J, REP4 = "10 ms (judged)", "4 ms (reported)"
+#: Why a cell has no record, word for word (``barreport.absent_reason``).
+NO_UNIT = "not run: in no unit of the registered order of this round (STAGE2_75_PLAN.md H6)"
+NOT_STARTED = ("not run yet: its unit of the registered order has not started (`budget.json` lists it under no started "
+               "unit and shows no cut for task {})")
+NO_LEDGER = ("not run yet: its unit of the registered order has not started (the run directory holds no "
+             "`budget.json`)")
+STARTED = "not run yet: its unit `{}` has started and has written no record for it"
+NOT_JUDGED = "not judged here: the record's counts do not recompute from its episodes"
+#: The label of a line that prints a verdict on a condition whose reference's own toe reading is under the limit.
+UNDER = ("the reference's own toe clearance reads {} mm ({} H), under the check's limit of 20.07 mm (STAGE2_75_PLAN.md "
+         "C3; reference: played kinematically, no physics; no result of the robot)")
 M = f" [{barreport.MARGIN_LABEL}]"  # how a sentence of the candidate's ends in the JPS table
 
 
@@ -504,7 +609,13 @@ def test_the_two_readings_are_never_pooled_and_differ_where_only_the_tail_is_ove
     assert x["reading_1"] == barreport.READING_1 and x["stage1"] == dict(k=20, n=20)
     f = one(run.tabs, "walk", "fails", set="F25F9cl", condition="walk/v0.4", delay=J, row="R2/43@10ms")
     assert f["failed_2"] == {"drive_sustained": 20} and f["failed_3"] == {}
-    assert f["worst_drive"] == "tail_yaw_servo" and f["worst_ratio"] == 1.21 and f["worst_leg_ratio"] == 0.83
+    assert f["worst_drive"] == "tail_yaw_servo" and f["worst_ratio"] == dict(largest=1.21, n=20)
+    assert f["worst_leg_ratio"] == dict(largest=0.83, n=20)
+    # the n beside the largest ratio is the number of episodes that give one: 3 of this record's 20 fell before the
+    # judged span and give none
+    r0 = one(run.tabs, "walk", "fails", set="F25F9cl", condition="walk/v0.4", delay=J, row="R0@10ms")
+    assert r0["worst_ratio"] == r0["worst_leg_ratio"] == dict(largest=0.83, n=17)
+    assert "| `left_knee_servo` | 0.830 (17) | `left_knee_servo` | 0.830 (17) | 1 |" in run.md
     # no count of any table pools readings or blocks: every "k of n" has n <= 20
     for _, p, line in every_line(run.tabs):
         for c in p["columns"]:
@@ -525,7 +636,8 @@ def test_shown_needs_both_rows_and_provisional_one(run):
     low = one(run.tabs, "walk", "verdicts", set="F25F9cl", condition="walk/v0.4_mu0.54", delay=J)
     assert low["reading_2"].startswith("shown [") and low["reading_3"].startswith("shown but for A1 [")
     none = one(run.tabs, "walk", "verdicts", set="V0", condition="walk/v0.4", delay=J)
-    assert not none["reading_2"].startswith(("shown", "provisional")) and none["reading_2"] == "not attributed"
+    assert not none["reading_2"].startswith(("shown", "provisional"))
+    assert none["reading_2"] == none["reading_3"] == f"{barreport.NEITHER_PASSES}: not attributed"
     # the words are the runner's own (bar.verdict), cell by cell
     doc = run.doc
     for ckey, ms, want2, want3 in (("walk/v0.4", 10, "provisional", "shown but for A1"),
@@ -556,7 +668,7 @@ def test_an_r0_row_gives_no_verdict_and_one_row_alone_is_incomplete(run):
     assert g["r0"] == barreport.NO_VERDICT_R0 and g["r0_up"] == dict(k=17, n=20)
     assert not any(x["row"].startswith("R0") for x in part(run.tabs, "replication", "replication")["lines"])
     alone = one(run.tabs, "rest", "verdicts", set="F25F9cl", condition="nudge/left", delay=J)
-    assert alone["reading_2"] == "incomplete (R2/43@10ms: not run)"
+    assert alone["reading_2"] == f"incomplete (R2/43@10ms: {NOT_STARTED.format(4)})"
 
 
 def test_the_judged_delay_is_marked_and_another_delay_gives_no_verdict_word(run):
@@ -615,12 +727,14 @@ def test_a_missing_record_reads_not_run_and_a_unit_the_ledger_never_started_read
     assert v2["row"] == "R2/42@2ms, R2/43@2ms, R0@2ms" and v2.get("up") is None
     assert one(run.tabs, "walk", "verdicts", set="V0", delay="2 ms (reported)")["reading_2"] == barreport.CUT
     r4 = one(run.tabs, "rest", "counts", set="V0", delay=REP4)
-    assert r4["status"] == barreport.NOT_RUN and r4["item"] == "14 conditions, 42 records: none found"
+    assert r4["status"] == NOT_STARTED.format(4) and r4["item"] == "14 conditions, 42 records: none found"
     # a single missing record among others has its own line and path
     f = one(run.tabs, "walk", "counts", set="F25F9", condition="walk/v0.4", delay=J, row="R2/42@10ms")
-    assert f["status"] == barreport.NOT_RUN and f["path"].endswith("F25F9/75-M-H-10/seeds3042/eval/R2/42@10ms/walk/v0.4.json")
-    assert one(run.tabs, "walk", "verdicts", set="F25F9", condition="walk/v0.4", delay=J)["reading_2"] == barreport.NOT_RUN
-    assert f"| {barreport.CUT} |" in run.md and f"| {barreport.NOT_RUN} |" in run.md
+    assert f["status"] == STARTED.format("T3.1")
+    assert f["path"].endswith("F25F9/75-M-H-10/seeds3042/eval/R2/42@10ms/walk/v0.4.json")
+    assert (one(run.tabs, "walk", "verdicts", set="F25F9", condition="walk/v0.4", delay=J)["reading_2"]
+            == STARTED.format("T3.1"))
+    assert f"| {barreport.CUT} |" in run.md
     # without a ledger nothing is "cut"
     doc = copy.deepcopy(run.doc)
     doc[barreport.META]["budget"] = None
@@ -639,14 +753,15 @@ def test_a_condition_without_a_reference_prints_its_reason_and_the_references_nu
     assert not lines(run.tabs, "rest", "fails", condition="turn/t90_1_left")
     g = one(run.tabs, "glance", "glance", set="F25F9cl", condition="turn/q90_right")
     assert g["reading_2"].startswith("not run: no reference within the thigh twist and the leg drives")
+    assert g["r0"] == NOT_STARTED.format(4) + "; the set holds no reference for it: " + g["reading_2"][len("not run: "):]
     assert g["reading_2"].endswith(f"({OWN}: range_use=0.91, f=0.6; {LIMITS}: limit=0.87)")
     tally = one(run.tabs, "glance", "tally", set="F25F9cl")
     assert sum(tally["reading_2"].values()) == sum(tally["reading_3"].values()) == 16
     assert {k: n for k, n in tally["reading_2"].items() if not k.startswith(("shown", "provisional"))} == {
-        "incomplete": 1, "not attributed": 1, "not read: a1_over": 1, "not run": 10}
+        "incomplete": 1, f"{barreport.NEITHER_PASSES}: not attributed": 1, "not read: a1_over": 1, "not run": 10}
     # the control for the walk only: its 14 other gated conditions say why they have no record
     f = one(run.tabs, "glance", "glance", set="F25F9", condition="stop/two_step")
-    assert f["reading_2"] == barreport.NOT_RUN and f["note"] == barreport.WALK_ONLY_NOTE
+    assert f["reading_2"] == f["r0"] == NO_UNIT and f["note"] == barreport.WALK_ONLY_NOTE
     assert one(run.tabs, "glance", "glance", set="V0", condition="stop/two_step")["note"] is None
     assert len(lines(run.tabs, "glance", "glance", set="V0")) == 16
 
@@ -657,7 +772,7 @@ def test_the_tally_counts_a_verdict_as_it_is_printed_with_its_replication_words(
     cut = "replication cut by the pre-registered order"
     tally = one(run.tabs, "glance", "tally", set="F25F9cl")
     assert tally["reading_2"] == {
-        "incomplete": 1, "not attributed": 1, "not read: a1_over": 1, "not run": 10,
+        "incomplete": 1, f"{barreport.NEITHER_PASSES}: not attributed": 1, "not read: a1_over": 1, "not run": 10,
         "provisional [R2/42@10ms: replicated]": 1, "provisional [R2/43@10ms: replication not run yet]": 1,
         f"shown [R2/42@10ms: {cut}; R2/43@10ms: {cut}]": 1}
     assert tally["reading_3"]["shown but for A1 [R2/42@10ms: replicated; R2/43@10ms: not replicated]"] == 1
@@ -689,32 +804,168 @@ def test_a_cell_with_no_record_says_when_the_set_holds_no_reference(run):
     the reason, read by the runner's rule: the cell is never a bare word and never a fail of the robot."""
     gaps = run.doc[barreport.META]["set_gaps"]
     assert set(gaps["F25F9cl"][BODY]) == {"turn/q90_right", "turn/q90_right_mu0.54", "turn/t90_1_left", "turn/t90_1_right"}
-    assert set(gaps["V0"][BODY]) == set(gaps["F25F9"][BODY]) == {"turn/t90_1_left", "turn/t90_1_right"}
+    assert set(gaps["V0"][BODY]) == {"turn/t90_1_left", "turn/t90_1_right"}
+    # the set in the frozen F25F9's shape: its dropped walks and the two rungs no change reaches, on both grips
+    assert set(gaps["F25F9"][BODY]) == set(gaps["V0"][BODY]) | {
+        f"walk/{w}{g}" for w in DROPPED_WALKS + tuple(TRIED_ZMP) for g in ("", "_mu0.54")}
+    assert run.doc[barreport.META]["set_refused"] == {} and run.tabs["checks"]["sets_refused"] == {}
     note = ("; the set holds no reference for it: no reference within the heading rule [transitions/turn90_1_right] "
             f"({OWN}: heading_at_slowest_clock_deg=77.7; {LIMITS}: limit_deg=80)")
     x = one(run.tabs, "rest", "counts", set="F25F9cl", condition="turn/t90_1_right", row="R2/42@10ms")
-    assert x["status"] == barreport.NOT_RUN + note and x.get("up") is None
+    assert x["status"] == NOT_STARTED.format(4) + note and x.get("up") is None
     # the same reason and numbers as the runner's own "not run" record of the left turn
     left = one(run.tabs, "rest", "counts", set="F25F9cl", condition="turn/t90_1_left", row="R2/42@10ms")
     assert left["status"].split(": ", 1)[1].replace("_left", "_right") == note.split(": ", 1)[1]
     v = one(run.tabs, "rest", "verdicts", set="F25F9cl", condition="turn/t90_1_right")
-    assert v["reading_2"] == v["reading_3"] == barreport.NOT_RUN + note and v["which"] == "no record"
+    assert v["reading_2"] == v["reading_3"] == NOT_STARTED.format(4) + note and v["which"] == "no record"
     g = one(run.tabs, "glance", "glance", set="F25F9cl", condition="turn/q90_right_mu0.54")
-    assert g["reading_2"].startswith(f"not run; the set holds no reference for it: {TWIST_RULE} [") and "f=0.6" in g["reading_2"]
+    assert g["reading_2"].startswith(f"{NOT_STARTED.format(4)}; the set holds no reference for it: {TWIST_RULE} [")
+    assert "f=0.6" in g["reading_2"]
     # a set and delay without any record: the conditions without a reference have their own lines
     v0 = lines(run.tabs, "rest", "counts", set="V0", delay=J)
     assert [x["item"] for x in v0] == ["27 conditions, 68 records: none found", "1 condition, 2 records: none found",
                                        "1 condition, 2 records: none found"]
-    assert v0[0]["status"] == barreport.NOT_RUN and "heading_at_slowest_clock_deg=78.4" in v0[1]["status"]
+    assert v0[0]["status"] == NOT_STARTED.format(4) and "heading_at_slowest_clock_deg=78.4" in v0[1]["status"]
     assert [x["condition"] for x in v0[1:]] == ["turn/t90_1_left", "turn/t90_1_right"]
     # listed at the top
     top = run.tabs["checks"]["no_reference"]
     assert list(top) == ["F25F9/75-M-H-10", "F25F9cl/75-M-H-10", "V0/75-M-H-10"] and len(top["F25F9cl/75-M-H-10"]) == 4
+    assert len(top["F25F9/75-M-H-10"]) == 12
     assert "- `F25F9cl/75-M-H-10`, `turn/q90_right`: no reference within the thigh twist and the leg drives" in run.md
     # the absent word itself stays the bare word (a tally counts it as "not run")
     meta = run.doc[barreport.META]
     assert barreport.absent_word(meta, "F25F9cl", BODY, H, "R2/42@10ms", "turn/t90_1_right") == barreport.NOT_RUN
     assert barreport.gap_note(meta, "F25F9cl", BODY, "walk/v0.4") == ""
+
+
+def test_a_cell_with_no_record_says_why_it_has_none_and_is_never_the_bare_words(run, tmp_path):
+    """A cell with no record is one of three things, and says which: its unit has started and has not written the
+    record yet; its unit of the registered order has not started; or it is in no unit of the registered order (a
+    ladder rung at a delay the order does not read).  None of them is the bare "not run", which a reader would take
+    for a condition without a reference."""
+    meta = run.doc[barreport.META]
+    why = lambda s, row, key, **kw: barreport.absent_reason(meta, s, BODY, H, row, key, **kw)  # noqa: E731
+    assert why("F25F9", "R2/42@10ms", "walk/v0.4") == STARTED.format("T3.1")  # listed by a started unit, no record
+    assert why("V0", "R2/42@10ms", "stop/two_step") == NOT_STARTED.format(4)  # task 4: no unit started, none cut
+    assert why("F25F9cl", "R2/42@8ms", "walk/v0.5") == NO_UNIT  # the ladder is read at 10, 0, 4 and 6 ms
+    assert why("V0", "R2/42@2ms", "walk/v0.45") == why("F25F9", "R2/42@10ms", "stop/two_step") == NO_UNIT
+    assert why("D0", "R2/42@10ms", "walk/v0.4") == NO_UNIT  # a set outside the round
+    assert why("V0", "R2/42@2ms", "walk/v0.4") == barreport.CUT  # task 3 cut a unit: the cut word stands as it is
+    assert why("F25F9cl", "R2/42@0ms", "walk/v0.4", control="omega_s1", in_order=True) == barreport.CUT
+    assert barreport.absent_text(meta, "V0", BODY, H, "R2/42@10ms", "stop/two_step") == NOT_STARTED.format(4)
+    assert barreport.NO_UNIT == NO_UNIT and barreport.NOT_RUN_YET == "not run yet"
+    # a ledger without a cut: one started unit (a record of it is not written yet), a delay not started, and the
+    # ladder at 2 ms, which no unit holds (the walk's records at 2 ms make table 2 list that delay)
+    study = tmp_path / "study"
+    out = study / "stage2" / "runs" / "x"
+    put(study, out, "V0", "R2/42@10ms", "walk/v0.4")
+    for row in ("R2/42@2ms", "R2/43@2ms"):
+        put(study, out, "V0", row, "walk/v0.4")
+    paths = [run_path("V0", r, k) for r in ("R2/42@10ms", "R2/43@10ms", "R0@10ms") for k in ("walk/v0.4", "walk/v0.4_mu0.54")]
+    s2io.write_json(out / "budget.json", dict(schema="bar-budget-1", rule=bar.RULES["budget"], tasks={"3": dict(
+        cap_core_h=16.0, cut=[], units=[dict(unit="T3.1-V0-10ms", estimate_core_h=0.1, spent_before_core_h=0.0,
+                                             started_at="2026-11-15T08:00:00Z", used_core_h=0.01,
+                                             items={"episodes": 36.0}, detail=dict(paths=paths))])}))
+    tabs = barreport.tables(barreport.load(out, study=study))
+    started = STARTED.format("T3.1-V0-10ms")
+    assert one(tabs, "walk", "counts", set="V0", condition="walk/v0.4", row="R2/43@10ms")["status"] == started
+    v = one(tabs, "walk", "verdicts", set="V0", condition="walk/v0.4", delay=J)
+    assert v["reading_2"] == v["reading_3"] == f"incomplete (R2/43@10ms: {started})"
+    low = one(tabs, "glance", "glance", set="V0", condition="walk/v0.4_mu0.54")
+    assert low["reading_2"] == low["reading_3"] == low["r0"] == started and low["note"] is None
+    zero = one(tabs, "walk", "counts", set="V0", delay="0 ms (reported)")
+    assert zero["status"] == NOT_STARTED.format(3) and zero["item"] == "2 conditions, 6 records: none found"
+    assert one(tabs, "walk", "verdicts", set="V0", delay="0 ms (reported)")["reading_2"] == NOT_STARTED.format(3)
+    g = one(tabs, "glance", "glance", set="V0", condition="stop/two_step")  # task 4 is not in this ledger at all
+    assert g["reading_2"] == g["r0"] == NOT_STARTED.format(4)
+    assert one(tabs, "glance", "glance", set="F25F9", condition="stop/two_step")["reading_2"] == NO_UNIT
+    hi = one(tabs, "ladder", "highest", set="V0", grip="mu 0.9", delay="2 ms (reported)")
+    assert hi["reading_2_rungs"] == [f"walk/{w}: {NO_UNIT}" for w in ("nominal", "v0.3", "v0.35")] + [
+        "walk/v0.4: passes at 2 ms"] + [f"walk/{w}: {NO_UNIT}" for w in ("v0.45", "v0.5")]
+    # ... and the one rung run at that delay is not printed as the highest rung of a ladder that was run
+    assert hi["reading_2_highest"] == f"walk/v0.4 (walk at 0.4 m/s); {barreport.ONLY_RUNG}"
+    assert one(tabs, "ladder", "highest", set="V0", grip="mu 0.9", delay="4 ms (reported)")["reading_2_rungs"][0] == (
+        f"walk/nominal: {NOT_STARTED.format(3)}")
+    jps = {x["line"]: x for x in part(tabs, "jps", "jps")["lines"]}
+    assert f"F25F9cl walk/v0.5 at 8 ms, R2/42@8ms: {NO_UNIT}{M}" in jps[99]["record"]  # in no unit ...
+    assert f"F25F9cl walk/v0.5 at 4 ms, R2/42@4ms: {NOT_STARTED.format(3)}{M}" in jps[99]["record"]  # ... tier 9
+    assert part(tabs, "controls", "controls")["lines"][0]["status"] == NOT_STARTED.format(3)
+    # the tally counts all of them under the bare words; no cell of a table prints them bare
+    assert one(tabs, "glance", "tally", set="V0")["reading_2"] == {"incomplete": 1, "not run": 15}
+    for t in (tabs, run.tabs):
+        bare = [(name, p["key"], k) for name, p, x in every_line(t) for k, c in x.items()
+                if c == barreport.NOT_RUN and name != "named"]
+        assert not bare
+        assert f"| {barreport.NOT_RUN} |" not in barreport.markdown(t).split("## 9. ")[0]
+    note = tabs["glance"]["notes"][0]
+    assert "A cell reads \"not run\" with its reason" in note and "its unit has not started yet" in note
+    assert "A condition without a reference reads" not in barreport.markdown(tabs)
+    assert any(f"\"{NO_UNIT}\" for a cell the order does not hold" in c for c in tabs["conventions"])
+
+
+def test_a_stored_pass_that_the_episodes_do_not_give_prints_no_pass_word(tmp_path):
+    """A record whose stored ``pass_`` its own episodes do not give (a damaged or hand-edited record) is flagged,
+    and no cell reads it as a pass: no pass word, no `shown`, no "passes at", no "replicated"."""
+    study = tmp_path / "study"
+    out = study / "stage2" / "runs" / "x"
+    cl, rows = "F25F9cl", ("R2/42@10ms", "R2/43@10ms")
+
+    def flip(row, key, block=H):
+        b, n = key.split("/")
+        path = bar.record_path(out, cl, BODY, block, row, SimpleNamespace(behavior=b, name=n))
+        rec = json.loads(path.read_text())
+        assert rec["counts"]["survived"] == 0 and rec["counts"]["pass_"] is False
+        rec["counts"]["pass_"] = rec["counts_but_A1"]["pass_"] = True
+        path.write_text(json.dumps(rec))
+
+    for row in rows:  # 0 of 20 up under both rows, and a pass written into both records by hand
+        put(study, out, cl, row, "walk/v0.4", per_seed=lambda s: dict(fell=True))
+        flip(row, "walk/v0.4")
+        put(study, out, cl, row, "walk/v0.4_mu0.54")  # these pass; the second block's record of one is damaged
+    put(study, out, cl, rows[0], "walk/v0.4_mu0.54", block=R, per_seed=lambda s: dict(fell=True), extra=dict(
+        replication_of=dict(block=H, record=run_path(cl, rows[0], "walk/v0.4_mu0.54"), readings=["success", "but_A1"])))
+    flip(rows[0], "walk/v0.4_mu0.54", R)
+    tabs = barreport.tables(barreport.load(out, study=study))
+    assert len(tabs["checks"]["counts_not_recomputed"]) == 3
+    both = f"{NOT_JUDGED} (R2/42@10ms, R2/43@10ms)"
+    assert barreport.NOT_JUDGED_HERE == NOT_JUDGED
+    for row in rows:
+        c = one(tabs, "walk", "counts", set=cl, condition="walk/v0.4", row=row)
+        assert c["up"] == c["r2"] == dict(k=0, n=20) and c["r2_pass"] == c["r3_pass"] == NOT_JUDGED
+        assert barreport.MISCOUNTED in c["labels"]
+    v = one(tabs, "walk", "verdicts", set=cl, condition="walk/v0.4", delay=J)
+    g = one(tabs, "glance", "glance", set=cl, condition="walk/v0.4")
+    assert v["reading_2"] == v["reading_3"] == g["reading_2"] == g["reading_3"] == both
+    tally = one(tabs, "glance", "tally", set=cl)["reading_2"]
+    assert tally[both] == 1 and sum(1 for k in tally if k.startswith(("shown", "provisional"))) == 1
+    assert one(tabs, "ladder", "highest", set=cl, grip="mu 0.9", delay=J)["reading_2_highest"] == "none"
+    # ... and a rung that passes below it is not printed as the highest rung without naming it
+    for row in rows:
+        put(study, out, cl, row, "walk/v0.35")
+    hi = one(barreport.tables(barreport.load(out, study=study)), "ladder", "highest", set=cl, grip="mu 0.9", delay=J)
+    assert hi["reading_2_highest"] == f"walk/v0.35 (walk at 0.35 m/s); {barreport.ONLY_RUNG}"
+    assert f"walk/v0.4: {both}" in hi["reading_2_rungs"]
+    # no cell of any line of that condition reads as a pass
+    for name, p, x in every_line(tabs):
+        if x.get("set") == cl and x.get("condition") == "walk/v0.4":
+            for k, c in x.items():
+                assert not (isinstance(c, str) and c.startswith(("shown", "provisional", "passes"))), (name, p["key"], k, c)
+    assert not lines(tabs, "replication", "replication", set=cl, condition="walk/v0.4")  # it triggers no replication
+    jps = {x["line"]: x for x in part(tabs, "jps", "jps")["lines"]}[99]["record"]
+    assert any(s.startswith(f"F25F9cl walk/v0.4 at 10 ms, R2/42@10ms: stayed up 0 of 20; Stage 1's reading 0 of 20; "
+                            f"reading 2 0 of 20 ({NOT_JUDGED}); reading 3 0 of 20 ({NOT_JUDGED})") for s in jps)
+    assert any(f"the controller R2 from its two rows: reading 2: {both}; reading 3: {both}" in s for s in jps)
+    # a second-block record with such a pass gives no "replicated"
+    word = "replication " + NOT_JUDGED
+    assert barreport.REPLICATION_NOT_JUDGED == word
+    low = one(tabs, "glance", "glance", set=cl, condition="walk/v0.4_mu0.54")
+    assert low["reading_2"] == f"shown [R2/42@10ms: {word}; R2/43@10ms: replication not run yet]"
+    r = one(tabs, "replication", "replication", set=cl, condition="walk/v0.4_mu0.54", row=rows[0])
+    assert r["b_up"] == dict(k=0, n=20) and r["b_r2_pass"] == NOT_JUDGED
+    assert r["words"] == [f"reading 2 (every limit): {word}", f"reading 3 (every limit but for A1): {word}"]
+    assert not [w for x in part(tabs, "replication", "replication")["lines"] for w in x["words"]
+                if w.endswith(": " + bar.REPLICATION_WORDS[0])]
+    assert any(f"\"{NOT_JUDGED}\"" in c for c in tabs["conventions"])
 
 
 def test_a_rerun_after_a_result_stands_beside_the_registered_record(run):
@@ -789,11 +1040,16 @@ def test_the_registered_record_kept_beside_a_rerun_is_checked_like_any_record(ru
     assert c["counts_not_recomputed"][0]["differences"] == [
         "reading 2 (every limit): pass_ is True in the record, False from its episodes"]
     later, reg = lines(tabs, "walk", "counts", set=cl, condition="walk/v0.4", row="R2/43@10ms")
-    assert reg["up"] == dict(k=14, n=20) and reg["r2_pass"] == "passes" and ".superseded/" in reg["path"]
+    # its counts are printed as it holds them, flagged; its stored pass gives no pass word and no verdict word
+    assert reg["up"] == dict(k=14, n=20) and reg["r2_pass"] == reg["r3_pass"] == NOT_JUDGED
+    assert ".superseded/" in reg["path"] and later["r2_pass"] == "passes"
     flags = [f"{barreport.OTHER_SOURCES} (bar)", barreport.NOT_IN_MANIFEST, barreport.MISCOUNTED]
     assert all(f in reg["labels"] for f in flags) and not any(f in later["labels"] for f in flags)
     v, w = lines(tabs, "walk", "verdicts", set=cl, condition="walk/v0.4", delay=J)
-    assert v["which"] == "registered records" and v["reading_2"].startswith("shown [")
+    assert v["which"] == "registered records" and v["reading_2"] == v["reading_3"] == f"{NOT_JUDGED} (R2/43@10ms)"
+    assert w["reading_2"].startswith("shown [")  # the re-run's own records recompute
+    tally = one(tabs, "glance", "tally", set=cl)["reading_2"]
+    assert tally[f"{NOT_JUDGED} (R2/43@10ms)"] == 1 and not [k for k in tally if k.startswith(("shown", "provisional"))]
     assert v["labels"] == [barreport.MARGIN_LABEL] + [f"R2/43@10ms: {f}" for f in flags]
     assert w["which"] == barreport.RERUN and w["labels"] == [barreport.MARGIN_LABEL, barreport.RERUN]
     md = barreport.markdown(tabs)
@@ -1029,7 +1285,10 @@ def test_a_lead_in_that_is_not_the_rules_is_labelled_from_the_record_and_never_a
             assert not lead, (name, p["key"], x)
     assert set(seen) == {"walk", "ladder", "glance"} and seen["glance"] == 16 + 1  # its 16 conditions and their tally
     jps = {x["line"]: x for x in part(run.tabs, "jps", "jps")["lines"]}
-    assert jps[94]["record"] == [f"F25F9 walk/v0.5 at 0 ms, {r}@0ms: {barreport.CUT} [{of_set}]" for r in barreport.R2_ROWS]
+    gap = barreport.gap_note(run.doc[barreport.META], "F25F9", BODY, "walk/v0.5")  # no change reaches the rung
+    assert gap.startswith("; the set holds no reference for it: no transition into v0.5 (") and "`zmp_error`" in gap
+    assert jps[94]["record"] == [f"F25F9 walk/v0.5 at 0 ms, {r}@0ms: {barreport.CUT}{gap} [{of_set}]"
+                                 for r in barreport.R2_ROWS]
     assert not any("lead-in" in t for n, x in jps.items() if n != 94 for t in x["record"])
     lead = run.tabs["checks"]["lead_in"]
     assert lead == dict(rule="start", records_that_differ=[], records_without_the_field=[], sets={
@@ -1041,9 +1300,12 @@ def test_a_lead_in_that_is_not_the_rules_is_labelled_from_the_record_and_never_a
     # the record's own word stands: one that says nothing, and one that says another lead-in than its set's
     study = tmp_path / "study"
     out = study / "runs" / "x"
-    for row in ("R2/42@10ms", "R2/43@10ms"):
-        put(study, out, "F25F9", row, "walk/v0.5")
-    put(study, out, "F25F9", "R0@10ms", "walk/v0.5", extra=dict(lead_in=None))
+    for row in ("R2/42@10ms", "R2/43@10ms", "R0@10ms"):  # the rung no change reaches: the runner's "not run" records
+        put(study, out, "F25F9", row, "walk/v0.5", not_run=why_not("F25F9", "walk/v0.5"))
+    quiet = bar.record_path(out, "F25F9", BODY, H, "R0@10ms", SimpleNamespace(behavior="walk", name="v0.5"))
+    rec = json.loads(quiet.read_text())  # the runner writes the lead-in into every record of such a set: taken out
+    assert rec.pop("lead_in") == "start_v0.4" and "lead_in" not in (rec.get("set_info") or {})
+    quiet.write_text(json.dumps(rec))
     put(study, out, "V0", "R0@10ms", "walk/v0.4", extra=dict(lead_in="start_v0.4"))
     put(study, out, "V0", "R2/42@10ms", "walk/v0.4")
     tabs = barreport.tables(barreport.load(out, study=study))
@@ -1052,7 +1314,8 @@ def test_a_lead_in_that_is_not_the_rules_is_labelled_from_the_record_and_never_a
     assert [t for t in silent["labels"] if "lead-in" in t] == [
         START_V04.format(barreport.LEAD_IN_FROM_SET + "; the record holds no `lead_in`")]
     assert one(tabs, "ladder", "verdicts", set="F25F9", delay=J)["labels"] == [of_rec]
-    assert one(tabs, "ladder", "highest", set="F25F9", grip="mu 0.9", delay=J)["labels"] == [of_rec]
+    assert one(tabs, "ladder", "highest", set="F25F9", grip="mu 0.9", delay=J)["labels"] == [
+        of_rec, "walk/v0.4, " + UNDER.format("19.71", "0.0393")]
     other = one(tabs, "walk", "counts", set="V0", row="R0@10ms", condition="walk/v0.4")
     assert other["labels"] == [of_rec, "the record's lead-in is `start_v0.4`; the set's `set.json` says `start`"]
     assert one(tabs, "walk", "counts", set="V0", row="R2/42@10ms", condition="walk/v0.4")["labels"] == []
@@ -1069,6 +1332,8 @@ def test_a_lead_in_that_is_not_the_rules_is_labelled_from_the_record_and_never_a
     doc = barreport.load(out, study=study)
     tabs = barreport.tables(doc)
     assert "F25F9" not in doc[barreport.META]["lead_in"] and f"F25F9/{BODY}" not in tabs["checks"]["lead_in"]["sets"]
+    # (the runner refuses such documents, a set that holds `start_v0.4` and no nominal walk: the checks say so)
+    assert tabs["checks"]["sets_refused"][f"F25F9/{BODY}"].startswith(barreport.REFUSED + f": stage2/sets/F25F9/{BODY}: ")
     assert not any("lead-in" in t for t in one(tabs, "ladder", "counts", set="F25F9", row="R0@10ms")["labels"])
     assert not any("lead-in" in t for x in lines(tabs, "walk", "counts", set="F25F9") for t in x["labels"])
     assert of_rec in one(tabs, "ladder", "counts", set="F25F9", row="R2/42@10ms")["labels"]
@@ -1158,7 +1423,20 @@ def test_errors_unjudged_counts_and_core_hours_are_listed(run):
     doc[barreport.META]["budget"]["tasks"]["3"]["units"].append(dict(
         unit="T3.9", estimate_core_h=0.1, spent_before_core_h=2.0, started_at="2026-11-15T21:00:00Z", items={}, detail={}))
     assert barreport.checks(doc)["budget"]["3"]["started_after_the_first_cut"] == ["T3.9"]
-    assert "units started after the first cut (2026-11-15T20:00:00Z): T3.9." in barreport.markdown(barreport.tables(doc))
+    assert "units started after the first cut (2026-11-15T20:00:00Z): T3.9; sums of the ledger" in barreport.markdown(
+        barreport.tables(doc))
+    # the budget section agrees with budget.json: each unit's own sum and the sum before it recompute, or are named
+    assert b["ledger_differences"] == [] and [u["ledger_used_core_h"] for u in b["units"]] == [0.5, 1.5]
+    assert [u["used_core_h"] for u in b["units"]] == [0.5, 1.5] and "from the units before it): 0." in top
+    doc = copy.deepcopy(run.doc)
+    units = doc[barreport.META]["budget"]["tasks"]["3"]["units"]
+    units[0]["used_core_h"], units[1]["spent_before_core_h"] = 0.75, 0.25
+    off = barreport.checks(doc)["budget"]["3"]
+    assert off["ledger_differences"] == [
+        "T3.1: `used_core_h` is 0.750 in the ledger, 0.500 from its items",
+        "T3.2a: `spent_before_core_h` is 0.250 in the ledger, 0.500 from the units before it"]
+    assert off["spent_core_h"] == pytest.approx(2.0)  # the tables' sum is the episodes' wall seconds, not the ledger's
+    assert "from the units before it): 2\n  - T3.1: `used_core_h` is 0.750 in the ledger" in barreport.markdown(barreport.tables(doc))
 
 
 def test_counts_are_the_records_own_and_recompute_from_their_episodes(run, tmp_path):
@@ -1202,9 +1480,11 @@ def test_counts_are_the_records_own_and_recompute_from_their_episodes(run, tmp_p
         "reading 2 (every limit): succeeded is 20 in the record, 16 from its episodes",
         "reading 2 (every limit): pass_ is True in the record, False from its episodes"]
     x = one(tabs, "walk", "counts", set="V0", condition="walk/v0.4", row="R2/42@10ms")
-    assert x["r2_pass"] == "passes" and barreport.MISCOUNTED in x["labels"]  # the record's own word, flagged
+    # the counts as the record holds them, flagged; no pass word is read from a pass its episodes do not give
+    assert x["r2"] == dict(k=20, n=20) and x["r2_pass"] == x["r3_pass"] == NOT_JUDGED and barreport.MISCOUNTED in x["labels"]
     v = one(tabs, "walk", "verdicts", set="V0", condition="walk/v0.4", delay=J)
     assert v["labels"] == [f"R2/42@10ms: {barreport.MISCOUNTED}"]
+    assert v["reading_2"] == v["reading_3"] == f"{NOT_JUDGED} (R2/42@10ms)"
     g = one(tabs, "glance", "glance", set="V0", condition="walk/v0.4")
     assert f"R2/42@10ms: {barreport.MISCOUNTED}" in g["labels"]
     assert not any(barreport.MISCOUNTED in str(x_["labels"]) for _, _, x_ in every_line(run.tabs) if "labels" in x_)
@@ -1266,21 +1546,23 @@ def test_a_measured_column_never_holds_a_target(run):
             v = line.get(c["key"])
             if c["kind"] == "measured":  # by construction of the synthetic records no measurement equals a target
                 assert "measured" in c["title"] and "imit" not in c["title"].split(":")[0], c["title"]
-                value = v["median"] if isinstance(v, dict) else v
+                value = v.get("median", v.get("largest")) if isinstance(v, dict) else v
                 assert value is None or value not in targets, (name, p["key"], c["key"], v)
                 assert v is None or isinstance(v, (float, dict)), (c["key"], v)
             elif c["kind"] in ("limit", "defined"):
                 assert "measured" not in c["title"] and not isinstance(v, dict), (c["title"], v)
                 assert c["title"].startswith("Limit") or "as defined" in c["title"] or "as run" in c["title"] \
                     or "crouch" in c["title"], c["title"]
-    assert {"measured", "limit", "defined", "of", "claim"} <= kinds
-    # the judged toe clearance stands beside the reading as first written and Stage 1's, both reported
+    assert {"measured", "limit", "defined", "of", "claim", "reference"} <= kinds
+    # the judged toe clearance stands beside its limit, the reference's own reading (neither measured nor a limit),
+    # the reading as first written and Stage 1's, both reported
     titles = [c["title"] for c in part(run.tabs, "walk", "bar_walk")["columns"]]
     i = next(i for i, t in enumerate(titles) if t.startswith("Toe clearance, the judged term"))
     assert titles[i + 1].startswith("Limit: at least (mm")
-    assert "as first written" in titles[i + 2] and "never judged" in titles[i + 2]
-    assert "Stage 1's reading" in titles[i + 3] and "never judged" in titles[i + 3]
-    assert [c["title"] for c in part(run.tabs, "rest", "bar_turn")["columns"]][-5:-1] == titles[i:i + 4]
+    assert titles[i + 2].startswith("Toe clearance of the reference itself")
+    assert "as first written" in titles[i + 3] and "never judged" in titles[i + 3]
+    assert "Stage 1's reading" in titles[i + 4] and "never judged" in titles[i + 4]
+    assert [c["title"] for c in part(run.tabs, "rest", "bar_turn")["columns"]][-6:-1] == titles[i:i + 5]
 
 
 def test_toe_clearance_names_the_middle_half_and_a_median_just_under_its_limit_shows(run, tmp_path):
@@ -1302,8 +1584,471 @@ def test_toe_clearance_names_the_middle_half_and_a_median_just_under_its_limit_s
     tabs = barreport.tables(barreport.load(out, study=study))
     x = one(tabs, "walk", "bar_walk", set="V0", row="R0@10ms")
     assert x["toe"] == dict(median=pytest.approx(20.06), n=20) and x["toe_limit"] == pytest.approx(20.0741)
-    assert "| 20.06 (20) | 20.07 | 17.10 (20) | 22.80 (20) |" in barreport.markdown(tabs)
+    assert "| 20.06 (20) | 20.07 | 25.11 (0.0500 H) | 17.10 (20) | 22.80 (20) |" in barreport.markdown(tabs)
     assert "| 23.63 (20) | 20.07 |" in run.md
+
+
+def test_the_references_own_toe_reading_stands_beside_the_measured_one(run, tmp_path):
+    """STAGE2_75_PLAN.md C3's ruling: wherever the toe term of a walk or a turn is printed, the reference's own
+    reading stands beside it, from the kinematic check the set's latest freeze cites (sha256 verified), in a column
+    of its own kind: never "measured", never a limit.  A check that is missing or is not the cited file is said, and
+    no number is printed for it."""
+    col = barreport.REF_TOE_COLUMN
+    assert col["kind"] == "reference" and col["title"].endswith("; " + barreport.REFERENCE_KIND)
+    assert barreport.REFERENCE_KIND == "reference: played kinematically, no physics"
+    assert "measured" not in col["title"] and "imit" not in col["title"] and "no result of the robot" in col["title"]
+    assert "refcheck.json" in col["title"] and "`_mu0.54` condition takes its reference's reading" in col["title"]
+    n = 0
+    for name, p, x in every_line(run.tabs):  # every part that prints the toe term has the column, and no other has
+        keys = [c["key"] for c in p["columns"]]
+        toe_term = "toe" in keys or "failed_2" in keys
+        assert ("ref_toe" in keys) == toe_term, (name, p["key"])
+        if not toe_term:
+            continue
+        assert [c for c in p["columns"] if c["key"] == "ref_toe"] == [col]
+        judged = barreport._conds()[x["condition"]]["judge"] in ("bar_walk", "bar_turn")
+        assert isinstance(x["ref_toe"], dict) == judged and (x["ref_toe"] is None) == (not judged), (name, p["key"], x)
+        n += judged
+    assert n >= 40
+    for p in (part(run.tabs, "walk", "bar_walk"), part(run.tabs, "rest", "bar_turn")):  # beside measured and limit
+        keys = [c["key"] for c in p["columns"]]
+        assert keys[keys.index("toe"):keys.index("toe") + 3] == ["toe", "toe_limit", "ref_toe"]
+        assert [c["kind"] for c in p["columns"] if c["key"] in ("toe", "toe_limit", "ref_toe")] == [
+            "measured", "limit", "reference"]
+    # the numbers are the check's own (REF_TOE: made up), in mm and as a share of H; the low grip takes its reference's
+    f = one(run.tabs, "walk", "bar_walk", set="F25F9", row="R0@10ms")
+    assert f["ref_toe"] == dict(mm=pytest.approx(19.712), H=pytest.approx(0.019712 / H_M))
+    assert one(run.tabs, "walk", "fails", set="F25F9", row="R0@10ms")["ref_toe"] == f["ref_toe"]
+    low = one(run.tabs, "walk", "bar_walk", set="F25F9cl", condition="walk/v0.4_mu0.54", row="R2/42@10ms")
+    high = one(run.tabs, "walk", "bar_walk", set="F25F9cl", condition="walk/v0.4", delay=J, row="R2/42@10ms")
+    assert low["ref_toe"] == high["ref_toe"] == dict(mm=pytest.approx(22.2), H=pytest.approx(0.0222 / H_M))
+    assert barreport.reference_condition("walk/v0.4_mu0.54") == "walk/v0.4" == barreport.reference_condition("walk/v0.4")
+    assert barreport.reference_condition("turn/q90_left_mu0.54") == "turn/q90_left"
+    t = one(run.tabs, "rest", "bar_turn", set="F25F9cl", condition="turn/q90_left", row="R2/42@10ms")
+    assert t["ref_toe"] == dict(mm=pytest.approx(16.208), H=pytest.approx(0.016208 / H_M))
+    assert one(run.tabs, "rest", "fails", set="F25F9cl", condition="stop/two_step", row="R2/43@10ms")["ref_toe"] is None
+    assert one(run.tabs, "rest", "fails", set="F25F9cl", condition="nudge/forward", row="R2/42@10ms")["ref_toe"] is None
+    assert "| 23.63 (19) | 20.07 | 19.71 (0.0393 H) | 17.10 (19) | 22.80 (19) |" in run.md  # (one episode failed to run)
+    assert barreport._cell_text(dict(mm=19.712, H=None), col) == "19.71" and barreport._cell_text(None, col) == "-"
+    meta = run.doc[barreport.META]
+    assert barreport.reference_toe(meta, "V0", BODY, "walk/v0.4") == dict(mm=pytest.approx(25.111), H=pytest.approx(0.025111 / H_M))
+    assert barreport.reference_toe(meta, "V0", BODY, "nudge/left") is None  # the term is not judged for a nudge
+    assert barreport.reference_toe(meta, "V0", BODY, "stop/two_step") is None
+    unplayed = barreport.reference_toe(meta, "F25F9", BODY, "walk/v0.5_mu0.54")  # the check did not play the rung
+    assert unplayed.startswith(f"{barreport.NO_REFERENCE_READING}: `stage2/sets/F25F9/{BODY}/refcheck.json` did not "
+                               "play `walk/v0.5` (no transition into v0.5 (")
+    assert barreport.reference_toe(meta, "D0", BODY, "walk/v0.4").startswith(barreport.NO_REFERENCE_READING + ": no ")
+    assert barreport.reference_toe(None, "V0", BODY, "walk/v0.4").startswith(barreport.NO_REFERENCE_READING)
+    # at the top: the file each freeze cites, its sha256 as found, the references under the check's limit
+    rcs = run.tabs["checks"]["reference_checks"]
+    assert list(rcs) == [f"{s_}/{BODY}" for s_ in ("F25F9", "F25F9cl", "V0")] and all(v["read"] for v in rcs.values())
+    for sb, v in rcs.items():
+        q = run.study / v["file"]
+        assert v["file"] == f"stage2/sets/{sb}/refcheck.json" and v["freeze"] == 0 and v["why"] is None
+        assert v["sha256"] == v["found_sha256"] == hashlib.sha256(q.read_bytes()).hexdigest()
+        assert run.tabs["checks"]["inputs"]["reference_checks"][sb] == dict(file=v["file"], sha256=v["sha256"])
+    assert list(rcs[f"F25F9/{BODY}"]["under_its_limit"]) == ["walk/v0.4"] and rcs[f"V0/{BODY}"]["under_its_limit"] == {}
+    assert list(rcs[f"F25F9cl/{BODY}"]["under_its_limit"]) == ["turn/q90_left"]
+    assert set(rcs[f"F25F9/{BODY}"]["not_played"]) == {"turn/t90_1_left", "turn/t90_1_right", "walk/nominal", "walk/v0.3",
+                                                       "walk/v0.35", "walk/v0.45", "walk/v0.5"}
+    top = run.md.split("## How to read the tables")[0]
+    assert "references whose own reading is under the check's limit: `walk/v0.4` 19.71 mm (0.0393 H) against 20.07 mm" in top
+    assert f"the reference check of `V0/{BODY}`: `stage2/sets/V0/{BODY}/refcheck.json` `{rcs[f'V0/{BODY}']['sha256']}`" in top
+    assert any(barreport.REFERENCE_KIND in c and "STAGE2_75_PLAN.md C3" in c for c in run.tabs["conventions"])
+    assert "`refcheck.json`" in run.tabs["conventions"][0]
+    # a check that is not the cited file, is not there, is not cited or is another set's: said, and no number
+    cases = {}
+    for case in ("changed", "absent", "not cited", "another set's", "no set.json"):
+        study = tmp_path / case.replace(" ", "_").replace("'", "")
+        shutil.copytree(run.study, study)
+        d = study / "stage2" / "sets" / "F25F9" / BODY
+        if case == "changed":
+            (d / "refcheck.json").write_text((d / "refcheck.json").read_text() + "\n")
+        elif case == "absent":
+            (d / "refcheck.json").unlink()
+        elif case == "not cited":
+            sd = json.loads((d / "set.json").read_text())
+            del sd["freezes"][-1]["refcheck"]
+            (d / "set.json").write_text(json.dumps(sd))
+        elif case == "another set's":
+            other = (study / "stage2" / "sets" / "V0" / BODY / "refcheck.json").read_text()
+            (d / "refcheck.json").write_text(other)
+            sd = json.loads((d / "set.json").read_text())
+            sd["freezes"][-1]["refcheck"]["sha256"] = sha(other)
+            (d / "set.json").write_text(json.dumps(sd))
+        else:
+            (d / "set.json").unlink()
+        tabs = barreport.tables(barreport.load(study / "stage2" / "runs" / "synthetic", study=study))
+        cells = [x["ref_toe"] for _, _, x in every_line(tabs) if x.get("set") == "F25F9" and "ref_toe" in x]
+        assert len(cells) == 2 and all(isinstance(v, str) for v in cells) and len(set(cells)) == 1, (case, cells)
+        assert cells[0].startswith(barreport.NO_REFERENCE_READING + ": ") and not re.search(r"\d\.\d+ H", cells[0])
+        v = tabs["checks"]["reference_checks"][f"F25F9/{BODY}"]
+        assert v["read"] is False and v["readings"] == 0 and cells[0].endswith(v["why"])
+        md = barreport.markdown(tabs)
+        assert f"- `F25F9/{BODY}`: not read: {v['why']}; the tables print no reading of the reference for this set" in md
+        assert str(tmp_path) not in md
+        others = [x["ref_toe"] for _, _, x in every_line(tabs) if x.get("set") == "V0" and x.get("ref_toe") is not None]
+        assert others and all(isinstance(o, dict) for o in others)  # the other sets' checks are read as before
+        cases[case] = v["why"]
+    assert "is not the file the set's latest freeze cites: its sha256 is `" in cases["changed"]
+    assert cases["absent"].endswith("which the set's latest freeze cites, was not found")
+    assert cases["not cited"] == "the set's latest freeze (freeze 0) cites no reference check"
+    assert cases["another set's"].endswith(f"is the check of set 'V0' on body '{BODY}'")
+    assert cases["no set.json"] == f"no `set.json` was found under `stage2/sets/F25F9/{BODY}`"
+
+
+def test_the_reference_reading_is_the_latest_freezes_and_stands_only_beside_a_record_made_on_it(tmp_path):
+    """A set with two freezes that cite different checks: the reading printed is the latest freeze's, and a record
+    made on the earlier freeze gets a sentence in place of a number (the check read is not that of the references it
+    played)."""
+    study = tmp_path / "study"
+    out = study / "stage2" / "runs" / "x"
+    for row in ("R2/42@10ms", "R2/43@10ms"):
+        put(study, out, "V0", row, "walk/v0.4")
+    docs = set_docs("V0")
+    old = copy.deepcopy(docs["refcheck.json"])  # the first freeze's check: another reading of the same reference
+    old["items"]["walk/v0.4"]["toe"].update(toe_clearance_own_swing_m=0.0201, toe_clearance_own_swing_H=0.0201 / H_M)
+    first = docs["set.json"]["freezes"][0]
+    second = dict(copy.deepcopy(first), index=1, at="2026-11-15T09:00:00Z")  # cites refcheck.json
+    first["refcheck"] = dict(file=f"stage2/sets/V0/{BODY}/refcheck_freeze0.json", sha256=sha(refcheck_text(old)),
+                             pass_=None)
+    docs["set.json"]["freezes"] = [first, second]
+    write_set(study, "V0", docs)
+    (study / "stage2" / "sets" / "V0" / BODY / "refcheck_freeze0.json").write_text(refcheck_text(old))
+    path = bar.record_path(out, "V0", BODY, H, "R2/42@10ms", SimpleNamespace(behavior="walk", name="v0.4"))
+    rec = json.loads(path.read_text())  # the record under R2/42 is of the later freeze, the other of the first
+    assert rec["set_freeze"]["index"] == 0
+    rec["set_freeze"]["index"] = 1
+    path.write_text(json.dumps(rec))
+    tabs = barreport.tables(barreport.load(out, study=study))
+    rc = tabs["checks"]["reference_checks"][f"V0/{BODY}"]
+    assert rc["read"] and rc["freeze"] == 1 and rc["file"] == f"stage2/sets/V0/{BODY}/refcheck.json"
+    latest = dict(mm=pytest.approx(25.111), H=pytest.approx(0.025111 / H_M))
+    earlier = "no reading of the reference: this record was made on freeze 0; the check read is freeze 1's"
+    for key in ("bar_walk", "fails"):
+        assert one(tabs, "walk", key, set="V0", row="R2/42@10ms")["ref_toe"] == latest
+        assert one(tabs, "walk", key, set="V0", row="R2/43@10ms")["ref_toe"] == earlier
+    md = barreport.markdown(tabs)
+    assert f"| 20.07 | {earlier} |" in md and "| 20.07 | 25.11 (0.0500 H) |" in md and "20.10" not in md
+    assert "as freeze 1 cites it" in md.split("## How to read the tables")[0]
+    # the function itself: a record that names no freeze stands beside the latest freeze's reading, as the column says
+    meta = barreport.load(out, study=study)[barreport.META]
+    assert barreport.reference_toe(meta, "V0", BODY, "walk/v0.4", rec=dict(set_freeze=None)) == latest
+    assert barreport.reference_toe(meta, "V0", BODY, "walk/v0.4", rec=dict(set_freeze=dict(index=0))) == earlier
+
+
+def test_a_reference_under_its_limit_is_told_from_one_whose_term_fails_for_another_reason(run, tmp_path):
+    """The check's ``ok`` is also false for a swing count or an interrupted swing: the line "under the check's limit"
+    lists a reference by its reading and the limit, and the others stand apart with their reason."""
+    study = tmp_path / "study"
+    out = study / "stage2" / "runs" / "x"
+    out.mkdir(parents=True)
+    docs = set_docs("F25F9cl")
+    item = docs["refcheck.json"]["items"]["walk/v0.45"]  # 22.2 mm, over the limit of 20.07 mm
+    item["toe"].update(ok=False, count_ok=False, interrupted_swings=1)
+    item["pass_"] = False
+    docs["set.json"]["freezes"][0]["refcheck"]["sha256"] = sha(refcheck_text(docs["refcheck.json"]))
+    write_set(study, "F25F9cl", docs)
+    doc = barreport.load(out, study=study)
+    tabs = barreport.tables(doc)
+    rc = tabs["checks"]["reference_checks"][f"F25F9cl/{BODY}"]
+    assert rc["read"] and list(rc["under_its_limit"]) == ["turn/q90_left"]
+    assert list(rc["fails_for_another_reason"]) == ["walk/v0.45"]
+    other = rc["fails_for_another_reason"]["walk/v0.45"]
+    assert (other["ok"], other["count_ok"], other["interrupted_swings"]) == (False, False, 1)
+    assert other["mm"] > other["limit_mm"]
+    top = barreport.markdown(tabs).split("## How to read the tables")[0]
+    assert ("references whose own reading is under the check's limit: `turn/q90_left` 16.21 mm (0.0323 H) against "
+            "20.07 mm; references whose reading is at or over the limit and whose toe term the check fails for another "
+            "reason (its swing count, an interrupted swing): `walk/v0.45` 22.20 mm (0.0442 H) against 20.07 mm (the "
+            "swing count is not met; 1 interrupted swing)") in top
+    # such a reference gets no "under the limit" label on its verdict lines
+    assert barreport.reference_under_limit(doc[barreport.META], "F25F9cl", BODY, "walk/v0.45") is None
+    assert barreport.reference_under_limit(doc[barreport.META], "F25F9cl", BODY, "turn/q90_left") == UNDER.format(
+        "16.21", "0.0323")
+    for v in run.tabs["checks"]["reference_checks"].values():  # the synthetic run: none fails for another reason
+        assert v["fails_for_another_reason"] == {}
+    assert "for another reason (its swing count, an interrupted swing): none" in run.md
+
+
+def test_a_verdict_on_a_condition_whose_reference_reads_under_the_limit_carries_that_reading(run):
+    """STAGE2_75_PLAN.md C3: such a condition is expected to fail the toe term for a reason that is in the reference,
+    and the report prints the reference's own reading wherever it prints these conditions: also on the lines that
+    print a verdict word and no measured value (the verdict parts, table 4, the highest rung, JPS's sentences)."""
+    walk, turn = UNDER.format("19.71", "0.0393"), UNDER.format("16.21", "0.0323")
+    under = {("F25F9", "walk/v0.4"): walk, ("F25F9", "walk/v0.4_mu0.54"): walk,
+             ("F25F9cl", "turn/q90_left"): turn, ("F25F9cl", "turn/q90_left_mu0.54"): turn}
+    said = "the reference's own toe clearance reads"
+    n = 0
+    for name, p, x in every_line(run.tabs):
+        if p["key"] not in ("verdicts", "glance") or "," in x["condition"]:
+            continue
+        want = under.get((x["set"], x["condition"]))
+        assert [t for t in x["labels"] if said in t] == ([] if want is None else [want]), (name, p["key"], x)
+        n += want is not None
+    assert n >= 7  # F25F9's walk on both grips in table 1's verdicts and table 4; the candidate's turn likewise
+    g = one(run.tabs, "glance", "glance", set="F25F9", condition="walk/v0.4")
+    assert g["labels"][:2] == [START_V04.format(barreport.LEAD_IN_FROM_RECORD), walk]
+    assert not [t for t in one(run.tabs, "glance", "glance", set="V0", condition="walk/v0.4")["labels"] if said in t]
+    # a line of several conditions without a record names the condition of each such label
+    cut = one(run.tabs, "walk", "verdicts", set="F25F9", delay="2 ms (reported)")
+    assert cut["condition"] == "walk/v0.4, walk/v0.4_mu0.54" and cut["reading_2"] == barreport.CUT
+    assert cut["labels"][-2:] == [f"walk/v0.4, {walk}", f"walk/v0.4_mu0.54, {walk}"]
+    # the highest rung of a ladder that holds such a rung
+    hi = one(run.tabs, "ladder", "highest", set="F25F9", grip="mu 0.9", delay=J)
+    assert [t for t in hi["labels"] if said in t] == [f"walk/v0.4, {walk}"]
+    assert not [t for x in lines(run.tabs, "ladder", "highest", set="V0") for t in x["labels"] if said in t]
+    # the verdict words are the runner's and are not changed for it
+    v = one(run.tabs, "rest", "verdicts", set="F25F9cl", condition="turn/q90_left", delay=J)
+    assert turn in v["labels"] and v["reading_3"].startswith("shown but for A1 [")
+    assert any("under the kinematic check's limit carries that reading" in c for c in run.tabs["conventions"])
+    assert walk in run.md and turn in run.md
+
+
+def test_the_opening_sentence_says_where_each_kind_of_number_comes_from(run):
+    """The tables print measured values (simulation), the references' own readings (played kinematically, no
+    physics), the builder's numbers of a change tried, JPS's claims and core-hours: not "every number" is a
+    simulation's, and none is measured on hardware."""
+    first = run.md.splitlines()[2]
+    assert first.startswith("Made by `designlab.stage2.barreport` from the records under `stage2/runs/synthetic`.  "
+                            "No number in these tables was measured on hardware.  Measured values come from simulation;")
+    for what in ("a reference's own reading comes from the runner's kinematic check (the reference played, no physics)",
+                 "JPS's numbers are its claims", "core-hours are wall time"):
+        assert what in first
+    assert "Every number in these tables comes from simulation" not in run.md
+
+
+def test_the_frozen_sets_own_documents_read_as_the_plan_states():
+    """The three frozen sets' committed documents (JSON only; no array is read): each kinematic check is the file its
+    freeze cites and gives the readings the plan's C3 states; F25F9's unreachable rungs print the numbers the plan's
+    A8 states; the tables' limit of that gate is the builder's and the sets'; and the synthetic F25F9 of this file
+    has the frozen set's shape."""
+    from designlab.stage2 import moves  # the builder's constant (nothing is built)
+
+    plan = " ".join((ROOT / barreport.PLAN_FILE).read_text(encoding="utf-8").split())
+    stated = {"V0": ("0.0503", "0.0456", "0.0454"), "F25F9cl": ("0.0446", "0.0323", "0.0316"),
+              "F25F9": ("0.0393", "0.0320", "0.0313")}
+    for name, (walk, left, right) in stated.items():
+        d = f"stage2/sets/{name}/{BODY}"
+        rc = barreport._refcheck(ROOT, d, name, BODY)
+        assert rc["read"] and rc["file"] == f"{d}/refcheck.json" and rc["sha256"] == rc["found_sha256"], name
+        got = tuple(f"{rc['toe'][k]['H']:.4f}" for k in ("walk/v0.4", "turn/q90_left", "turn/q90_right"))
+        assert got == (walk, left, right), name
+        assert all(v["limit_mm"] == pytest.approx(1e3 * 0.04 * H_M, abs=1e-3) for v in rc["toe"].values())
+        row = next(x for x in (ROOT / barreport.PLAN_FILE).read_text(encoding="utf-8").split("\n")
+                   if x.startswith(f"  | {name} | "))
+        assert all(v in row for v in got), (name, row)  # the plan's own table (C3)
+        tj = json.loads((ROOT / d / "transitions.json").read_text())
+        assert tj["causal_limits"]["zmp_after_first_stride_mm"] == barreport.ZMP_ERROR_LIMIT_MM
+        gaps, refused = barreport._set_gaps(ROOT / d, d)
+        assert refused is None and gaps, name  # the runner accepts the three sets
+    assert barreport.ZMP_ERROR_LIMIT_MM == pytest.approx(1e3 * moves.ZMP_HISTORY_LIMIT_M)
+    # A8 as made exact: F25F9's changes into 0.45 and 0.50 m/s end at 4.59 and 5.06 mm against 4.0 mm
+    assert "end with a ZMP error of 4.59 and 5.06 mm against A7's 4.0 mm" in plan
+    d = f"stage2/sets/F25F9/{BODY}"
+    gaps, _ = barreport._set_gaps(ROOT / d, d)
+    for rung, change, mm in (("v0.45", "v0.4_to_v0.45", "4.59"), ("v0.5", "v0.45_to_v0.5", "5.06")):
+        for grip in ("", "_mu0.54"):
+            text = barreport.why_text(gaps[f"walk/{rung}{grip}"])
+            assert text.startswith(f"no transition into {rung} (") and f"[transitions/{change}] ({barreport.TRIED_CHANGES}: " in text
+            assert (f"(2) `{change}` (ramp of 1 stride): failed `zmp_error`, {mm} mm (the last value of "
+                    f"`zmp_error_history_m`) against the limit of 4 mm; {barreport.REST_NUMBERS}: ") in text
+            assert f"(1) `nominal_to_{rung}`: not built (the walk nominal is not a rung of the set" in text
+    # the synthetic F25F9 has the frozen set's shape: the same entries with or without a file, the same lead-in, the
+    # same conditions without a reference, the same form of what was tried
+    real = {n: json.loads((ROOT / d / n).read_text()) for n in barreport.SET_FILES}
+    mine = set_docs("F25F9")
+    for n, key in (("refs.json", "references"), ("transitions.json", "transitions")):
+        shape = lambda docs: {k: bool(e.get("file")) and e.get("available") is not False  # noqa: E731
+                              for k, e in docs[n][key].items()}
+        assert shape(mine) == shape(real), n
+    assert mine["set.json"]["lead_in"] == real["set.json"]["lead_in"] == "start_v0.4"
+    assert set(mine["set.json"]["not_available"]) == set(real["set.json"]["not_available"])
+    assert set(barreport._set_gaps(Path("unused"), "x")[0] or ()) == set()  # (no documents: nothing to say)
+    planner = bar.BarPlanner(Path("unused"), mine["refs.json"]["references"], mine["transitions.json"]["transitions"],
+                             mine["set.json"])
+    assert {c.key for c in bar.conditions(mine, every=True) if planner.missing(c) is not None} == set(gaps)
+    for rung in TRIED_ZMP:
+        m = mine["transitions.json"]["transitions"][f"nominal_to_{rung}"]["numbers"]
+        r = real["transitions.json"]["transitions"][f"nominal_to_{rung}"]["numbers"]
+        assert list(m) == list(r) == ["walks", "tried"] and len(m["tried"]) == len(r["tried"]) == 2
+        for a, b in zip(m["tried"], r["tried"], strict=True):
+            assert ("not_built" in a) == ("not_built" in b) and a["change"] == b["change"] and set(a) <= set(b)
+            assert a.get("failed_gates") == b.get("failed_gates") and a.get("ramp_strides") == b.get("ramp_strides")
+
+
+def test_a_rung_whose_change_failed_prints_what_was_tried_first(run, tmp_path):
+    """A8's third step: the cell of a rung no change reaches names each change tried, then "not built" or the gate
+    that failed with its reading and its limit, before any other number of the entry."""
+    not_built = f"(1) `nominal_to_v0.5`: not built ({NOT_A_RUNG})"
+    failed = ("(2) `v0.45_to_v0.5` (ramp of 1 stride): failed `zmp_error`, 4.99 mm (the last value of "
+              "`zmp_error_history_m`) against the limit of 4 mm")
+    want = (f"no transition into v0.5 ({NO_CHANGE}) [transitions/v0.45_to_v0.5] ({barreport.TRIED_CHANGES}: {not_built}; "
+            f"{failed}; {barreport.REST_NUMBERS}: walks.nominal.stage0.within_limits=False, "
+            "walks.nominal.stage0.over={limit: clearance swing_clearance, value: 0.0371}, walks.nominal.speed_m_s=0.2431)")
+    why = why_not("F25F9", "walk/v0.5")
+    assert list(why["numbers"]) == ["walks", "tried"]  # the set's entry: the dropped walk first
+    assert barreport.why_text(why) == want and list(why["numbers"]) == ["walks", "tried"]  # (the entry is not reordered)
+    assert want.index("`zmp_error`") < want.index("walks.nominal") and barreport.OWN_NUMBERS not in want
+    assert "4.32 mm" in barreport.why_text(why_not("F25F9", "walk/v0.45_mu0.54"))
+    # a cell with no record (the JPS row, the ladder), and the list at the top
+    assert barreport.gap_note(run.doc[barreport.META], "F25F9", BODY, "walk/v0.5") == f"; the set holds no reference for it: {want}"
+    x = one(run.tabs, "ladder", "counts", set="F25F9")
+    assert x["status"] == f"{barreport.CUT}; the set holds no reference for it: {want}" and x["condition"] == "walk/v0.5"
+    assert run.tabs["checks"]["no_reference"][f"F25F9/{BODY}"]["walk/v0.5"] == want
+    # the runner's own "not run" record of the rung: its status, the verdict cell, the JPS row and the glance
+    study = tmp_path / "study"
+    out = study / "runs" / "x"
+    for row in ("R2/42@0ms", "R2/43@0ms"):
+        rec = put(study, out, "F25F9", row, "walk/v0.5", not_run=why)
+        assert rec["status"] == "not run" and list(rec["numbers"]) == ["walks", "tried"]
+    tabs = barreport.tables(barreport.load(out, study=study))
+    assert one(tabs, "ladder", "counts", set="F25F9", row="R2/42@0ms")["status"] == f"not run: {want}"
+    v = one(tabs, "ladder", "verdicts", set="F25F9")
+    assert v["reading_2"] == v["reading_3"] == f"not run: {want}"
+    jps = {x_["line"]: x_ for x_ in part(tabs, "jps", "jps")["lines"]}[94]["record"]
+    assert jps[0].startswith(f"F25F9 walk/v0.5 at 0 ms, R2/42@0ms: not run: {want} [")
+    hi = one(tabs, "ladder", "highest", set="F25F9", grip="mu 0.9")
+    assert f"walk/v0.5: not run: {want}" in hi["reading_2_rungs"] and hi["reading_2_highest"] == "none"
+    assert barreport.markdown(tabs).count(failed) >= 8
+    # the other forms an entry can take
+    tt = barreport.tried_text
+    assert tt([dict(change="a_to_b", ramp_strides=2.0, gates=dict(ik_ok=True, join_a=False),
+                    join_a=dict(com_max_mm=1.234, zmp_max_mm=2.5))]) == (
+        "(1) `a_to_b` (ramp of 2 strides): failed `join_a`, largest difference from the walk: CoM 1.23 mm, ZMP 2.50 mm "
+        "(its limits are the set's `g3_com_mm` and `g3_zmp_mm`)")
+    assert tt([dict(change="a_to_b", failed_gates=["ik_ok", "zmp_error", "odd"], ik_fail_frames=3)]) == (
+        "(1) `a_to_b`: failed `ik_ok`, 3 frames without a solution; failed `zmp_error` (the entry holds no "
+        "`zmp_error_history_m`); failed `odd` (its reading is in the record)")
+    assert tt([dict(change="a_to_b", failed_gates=[], pass_=True, stage0=dict(
+        blocks_freeze=[dict(limit="clearance swing_clearance", value=0.0371)]))]) == (
+        "(1) `a_to_b`: failed blocks the freeze at Stage 0: {limit: clearance swing_clearance, value: 0.0371}")
+    assert tt([dict(failed_gates=[], pass_=True), "x"]) == (
+        "(1) a change the entry does not name: no failed gate recorded (pass_ True); (2) x")
+    # numbers that hold no list `tried` print as before, under the reference's own name
+    assert barreport.why_text(dict(reason="r", reference="refs/x", numbers=dict(a=1.5, limit_b=2))) == (
+        f"r [refs/x] ({OWN}: a=1.5; {LIMITS}: limit_b=2)")
+    # a value that is a list of mappings, an empty list, a long one: one value each, cut where it is long
+    assert barreport._leaf([dict(f=1.0, ok=False), dict(f=0.95, ok=True)]) == "{f: 1, ok: False}/{f: 0.95, ok: True}"
+    assert barreport._leaf([]) == barreport._leaf({}) == "none (empty in the record)" and barreport._leaf([1, "a", 2.5]) == "1/a/2.5"
+    long = barreport._leaf(list(range(200)))
+    assert long.endswith(" ... (cut here: the whole value is in the record)") and len(long) < barreport.LEAF_MAX + 60
+    assert barreport._flat(dict(builds=[], tried=[dict(f=1.0)]))[0] == "builds=none (empty in the record), tried={f: 1}"
+
+
+def test_a_set_the_runner_refuses_is_said_with_the_runners_message(run, tmp_path):
+    """The tables read each set's conditions without a reference by the runner's own rule; where the runner refuses
+    the set's documents its message is printed under the checks and in every cell of that set that has no record.
+    Nothing is dropped silently."""
+    study = tmp_path / "study"
+    out = study / "runs" / "x"
+    put(study, out, "V0", "R0@10ms", "walk/v0.4")
+    docs = set_docs("V0")  # a set that holds its nominal walk and says it starts straight into the 0.40 m/s walk
+    docs["set.json"].update(set="F25F9", lead_in="start_v0.4")
+    write_set(study, "F25F9", docs)
+    d = f"stage2/sets/F25F9/{BODY}"
+    gaps, refused = barreport._set_gaps(study / d, d)
+    with pytest.raises(barreport.tune.InputError, match="records lead_in 'start_v0.4' but the set holds its nominal walk"):
+        bar.BarPlanner(study / d, docs["refs.json"]["references"], docs["transitions.json"]["transitions"], docs["set.json"])
+    assert gaps is None and refused.startswith(
+        f"{barreport.REFUSED}: {d}: set.json records lead_in 'start_v0.4' but the set holds its nominal walk: ")
+    assert barreport.REFUSED == "the set's documents were refused by the runner"
+    doc = barreport.load(out, study=study)
+    meta = doc[barreport.META]
+    assert meta["set_refused"] == {"F25F9": {BODY: refused}} and "F25F9" not in meta["set_gaps"]
+    tabs = barreport.tables(doc)
+    assert tabs["checks"]["sets_refused"] == {f"F25F9/{BODY}": refused} and f"F25F9/{BODY}" not in tabs["checks"]["no_reference"]
+    md = barreport.markdown(tabs)
+    top = md.split("## How to read the tables")[0]
+    assert f"cell of theirs with no record says so): 1\n  - `F25F9/{BODY}`: {refused}" in top
+    assert str(tmp_path) not in md  # the message names the set's directory as the tables cite it
+    for x in lines(tabs, "walk", "counts", set="F25F9") + lines(tabs, "ladder", "counts", set="F25F9"):
+        assert x["status"] == f"{NO_LEDGER}; {refused}", x  # never the bare word
+    assert one(tabs, "glance", "glance", set="F25F9", condition="walk/v0.4")["reading_2"] == f"{NO_LEDGER}; {refused}"
+    assert one(tabs, "glance", "tally", set="F25F9")["reading_2"] == {barreport.NOT_RUN: 16}
+    assert barreport.absent_word(meta, "F25F9", BODY, H, "R2/42@10ms", "walk/v0.4") == barreport.NOT_RUN
+    assert one(tabs, "walk", "counts", set="V0", row="R2/42@10ms", condition="walk/v0.4")["status"] == NO_LEDGER
+    # a lead-in the bar does not know is refused too; documents that are no set's are said in other words
+    docs["set.json"]["lead_in"] = "start_v0.45"
+    write_set(study, "F25F9", docs)
+    assert barreport._set_gaps(study / d, d) == (None, f"{barreport.REFUSED}: set.json of 'F25F9' records lead_in "
+                                                       f"'start_v0.45': the bar knows start and start_v0.4 ({bar.RULES['lead_in']})")
+    s2io.write_json(study / d / "refs.json", dict(walks={}))
+    gaps, said = barreport._set_gaps(study / d, d)
+    assert gaps is None and said == f"{barreport.UNREADABLE_SET} (KeyError: 'references')"
+    assert barreport.tables(barreport.load(out, study=study))["checks"]["sets_refused"] == {f"F25F9/{BODY}": said}
+    (study / d / "refs.json").unlink()  # a document that is not there: nothing to read, nothing said
+    assert barreport._set_gaps(study / d, d) == (None, None)
+    # the three synthetic sets of the run are accepted, and say so
+    assert run.tabs["checks"]["sets_refused"] == {} and "says so): 0\n" in run.md
+
+
+def test_a_record_with_no_episode_up_reads_as_a_fail_in_every_table(run):
+    """A record with 0 of 20 episodes up: "does not pass" in both readings, the controller's cell says that neither
+    row passes before the runner's failing word, no measured cell is left blank, and nothing reads as a pass."""
+    for row in ("R2/42@10ms", "R2/43@10ms"):
+        x = one(run.tabs, "walk", "counts", set="V0", condition="walk/v0.4", delay=J, row=row)
+        assert x["up"] == dict(k=0, n=20) and x["r2"] == x["r3"] == dict(k=0, n=20) and x["up_lcb"] == 0.0
+        assert x["r2_pass"] == x["r3_pass"] == "does not pass" and x["status"] == "done"
+        m = one(run.tabs, "walk", "bar_walk", set="V0", condition="walk/v0.4", row=row)
+        assert m["speed"] == m["toe"] == m["along"] == dict(median=None, n=0) and isinstance(m["ref_toe"], dict)
+        assert m["along_limit"] == m["lateral_limit"] == m["toe_limit"] == barreport.NO_EPISODE_HOLDS  # no blank
+        f = one(run.tabs, "walk", "fails", set="V0", condition="walk/v0.4", delay=J, row=row)
+        assert f["worst_ratio"] == f["worst_leg_ratio"] == dict(largest=None, n=0) and f["worst_drive"] is None
+        assert f["ratio_limit"] == 1.0 and f["failed_2"] == {"survived": 20}
+    fail = f"{barreport.NEITHER_PASSES}: not attributed"
+    v = one(run.tabs, "walk", "verdicts", set="V0", condition="walk/v0.4", delay=J)
+    g = one(run.tabs, "glance", "glance", set="V0", condition="walk/v0.4")
+    assert v["reading_2"] == v["reading_3"] == g["reading_2"] == g["reading_3"] == fail
+    assert one(run.tabs, "glance", "tally", set="V0")["reading_2"] == {barreport.CUT: 1, fail: 1, "not run": 14}
+    got = barreport.verdict_of(run.doc, "V0", BODY, "walk/v0.4", 10)
+    assert got["reading_2"] == dict(verdict="not attributed", text=fail, word=fail, replication=None)  # the runner's word
+    hi = one(run.tabs, "ladder", "highest", set="V0", grip="mu 0.9", delay=J)
+    assert f"walk/v0.4: {fail}" in hi["reading_2_rungs"] and hi["reading_2_highest"] == "none"
+    none = barreport.NO_EPISODE_HOLDS  # no episode gives a measured value or holds a limit: said in each cell
+    assert f"| - (0) | - (0) | {none} | - (0) | {none} | - (0) | {none} | 25.11 (0.0500 H) | - (0) | - (0) |" in run.md
+    for _, p, x in every_line(run.tabs):  # in the measured parts no limit and no measured cell is left blank
+        if p["key"] in barreport.MEASURE_COLUMNS:
+            assert not [c["key"] for c in p["columns"] if c["kind"] in ("measured", "limit", "defined")
+                        and x.get(c["key"]) is None], x
+    notes = " ".join(part(run.tabs, "walk", "verdicts")["notes"])
+    assert f"\"{barreport.NEITHER_PASSES}: \"" in notes and "that is a fail, never a pass" in notes
+    # an attributed failing word is prefixed the same way; a pass, another delay and a cell without counts are not
+    doc = copy.deepcopy(run.doc)
+    for row in ("R2/42@10ms", "R2/43@10ms"):
+        for k in ("failure", "failure_but_A1"):
+            doc["V0"][BODY][H][row]["walk/v0.4"][k]["label"] = "body-limited: drive_torque"
+    assert barreport.verdict_of(doc, "V0", BODY, "walk/v0.4", 10)["reading_3"]["text"] == f"{barreport.NEITHER_PASSES}: body-limited"
+    # at another delay the runner's failing word of reading 3 ends "but for A1", the reading's name: the tables' cell
+    # cannot be read as "would pass but for A1"
+    for row in ("R2/42@4ms", "R2/43@4ms"):
+        rec = doc["F25F9cl"][BODY][H][row]["walk/v0.4"]
+        for ck in ("counts", "counts_but_A1"):
+            rec[ck].update(succeeded=0, success_lcb=0.0, pass_=False)
+        for e in rec["episodes"]:
+            e.update(succeeded=False, succeeded_but_A1=False)
+    four = barreport.verdict_of(doc, "F25F9cl", BODY, "walk/v0.4", 4)
+    assert four["reading_2"]["text"] == four["reading_2"]["verdict"] == "does not pass at 4 ms"
+    assert four["reading_3"]["verdict"] == "does not pass at 4 ms but for A1"  # the runner's word
+    assert four["reading_3"]["text"] == "does not pass at 4 ms, also with A1 set aside"
+    late = one(barreport.tables(doc), "walk", "verdicts", set="F25F9cl", condition="walk/v0.4", delay=REP4)
+    assert late["reading_3"] == "does not pass at 4 ms, also with A1 set aside"
+    assert not [s_ for _, _, x in every_line(barreport.tables(doc)) for s_ in strings(x) if "does not pass at 4 ms but for A1" in s_]
+    assert one(run.tabs, "walk", "verdicts", set="F25F9cl", condition="walk/v0.4", delay=REP4)["reading_3"] == "passes at 4 ms but for A1"
+    for _, p, x in every_line(run.tabs):
+        for k in ("reading_2", "reading_3"):
+            cell = x.get(k)
+            if isinstance(cell, str) and cell.startswith(barreport.NEITHER_PASSES):
+                assert x.get("delay", J) == J and not any(w in cell for w in ("shown", "provisional", "passes at")), x
+    # the JPS line of such a record says that no speed was measured
+    study_doc = copy.deepcopy(run.doc)
+    for row in ("R2/42@0ms", "R2/43@0ms"):
+        rec = study_doc["V0"][BODY][H][row]["walk/v0.35"]
+        for e in rec["episodes"]:
+            e["measures"]["window"] = None
+    jps = {x["line"]: x for x in part(barreport.tables(study_doc), "jps", "jps")["lines"]}[92]["record"]
+    assert any("; no measured speed (no episode reached the judged 10 s)" in s_ for s_ in jps)
+    assert not any("measured - " in s_ for x in part(run.tabs, "jps", "jps")["lines"] for s_ in x["record"])
 
 
 def test_the_items_own_columns(run):
@@ -1329,7 +2074,8 @@ def test_numbers_are_printed_with_a_fixed_precision_or_g():
     assert barreport._num(2.0, "core-h") == "2.000" and barreport._num(1e-9) == "1e-09"
     col = dict(kind="measured", unit="deg")
     assert barreport._cell_text(dict(median=-4.25, n=20), col) == "-4.2 (20)" and barreport._cell_text(None, col) == "-"
-    assert barreport._cell_text(dict(median=None, n=0), col) == "-"
+    assert barreport._cell_text(dict(median=None, n=0), col) == "- (0)"  # no episode gives it: said, not blank
+    assert barreport._cell_text(dict(largest=0.9912, n=2), dict(kind="measured", unit="ratio")) == "0.991 (2)"
     assert barreport._cell_text({}, dict(kind="terms")) == "none"
     assert barreport._cell_text({"a": 2, "b": 1}, dict(kind="terms")) == "a: 2; b: 1"
     assert barreport._cell_text(dict(k=17, n=20), dict(kind="of")) == "17 of 20"
@@ -1344,7 +2090,8 @@ def test_numbers_are_printed_with_a_fixed_precision_or_g():
 def test_the_highest_rung_that_passes_under_both_rows(run):
     hi = one(run.tabs, "ladder", "highest", set="F25F9cl", grip="mu 0.9", delay=J)
     assert hi["reading_2_highest"] == "none"  # 0.40 m/s is provisional, 0.45 m/s falls
-    assert hi["reading_3_highest"] == "walk/v0.4 (walk at 0.4 m/s)"
+    # ... and the 0.50 m/s rung above it has no record: the cell names it, and is no ceiling of the speed
+    assert hi["reading_3_highest"] == "walk/v0.4 (walk at 0.4 m/s); no verdict above it for walk/v0.5"
     assert hi["reading_2_rungs"][0].startswith("walk/nominal: cut by the pre-registered order")
     assert "walk/v0.4: provisional [R2/42@10ms: replicated]" in hi["reading_2_rungs"]
     assert [r.split(":")[0] for r in hi["reading_2_rungs"]] == ["walk/nominal", "walk/v0.3", "walk/v0.35", "walk/v0.4",
@@ -1353,7 +2100,11 @@ def test_the_highest_rung_that_passes_under_both_rows(run):
     assert zero["reading_2_highest"] == zero["reading_3_highest"] == "walk/v0.5 (walk at 0.5 m/s)"
     assert "walk/v0.5: passes at 0 ms" in zero["reading_2_rungs"]
     v0 = one(run.tabs, "ladder", "highest", set="V0", grip="mu 0.9", delay="0 ms (reported)")
-    assert v0["reading_2_highest"] == "none" and v0["reading_3_highest"] == "walk/v0.35 (walk at 0.35 m/s)"
+    assert v0["reading_2_highest"] == "none"
+    assert v0["reading_3_highest"] == f"walk/v0.35 (walk at 0.35 m/s); {barreport.ONLY_RUNG}"  # no other rung was run
+    assert barreport.ONLY_RUNG.startswith("the only rung with a verdict at this delay")
+    note = part(run.tabs, "ladder", "highest")["notes"][0]
+    assert "no verdict above it for" in note and "is then no ceiling of the speed" in note
     assert not lines(run.tabs, "ladder", "counts", condition="walk/v0.4")  # the 0.40 m/s rung's records are table 1's
     assert one(run.tabs, "ladder", "counts", set="V0", condition="walk/v0.35", row="R2/42@0ms")["stage1"] == dict(k=0, n=20)
 
@@ -1366,7 +2117,8 @@ def test_a_line_with_counts_or_verdict_words_cites_the_records_they_come_from(ru
     assert [c["title"] for c in part(run.tabs, "glance", "glance")["columns"]][-2:] == ["R2 records", "R0 record"]
     n = 0
     for x in part(run.tabs, "glance", "glance")["lines"]:
-        assert (x["r0_path"] is None) == (x["r0"] in (barreport.NOT_RUN, barreport.CUT)), x
+        assert (x["r0_path"] is None) == (x["r0"] == barreport.CUT
+                                          or x["r0"].startswith((NO_UNIT, "not run yet: its unit "))), x
         assert x["r0_up"] is None or x["r0_path"], x
         n += x["r0_path"] is not None
     assert n == 3  # the R0 records of the synthetic run at 10 ms: one per set
@@ -1460,11 +2212,12 @@ def test_jps_rows_stand_beside_this_rounds_records_seed_by_seed(run):
     # cells this round has no condition for, and cells outside the registered order
     assert rows[96]["record"] == ["the walk at 0.55 m/s: this round's speed ladder ends at 0.50 m/s: not run"]
     assert rows[97]["record"][0].endswith(": not run") and rows[96]["paths"] == rows[97]["paths"] == []
-    assert f"F25F9cl walk/v0.5 at 8 ms, R2/42@8ms: not run{M}" in rows[99]["record"]
+    assert f"F25F9cl walk/v0.5 at 8 ms, R2/42@8ms: {NO_UNIT}{M}" in rows[99]["record"]
     assert f"F25F9cl walk/v0.5 at 6 ms, R2/42@6ms: cut by the pre-registered order{M}" in rows[99]["record"]
-    assert f"F25F9cl stop/two_step at 2 ms, R2/42@2ms: not run{M}" in rows[100]["record"]
+    assert f"F25F9cl stop/two_step at 2 ms, R2/42@2ms: {NO_UNIT}{M}" in rows[100]["record"]
+    assert f"F25F9cl stop/two_step at 4 ms, R2/42@4ms: {NOT_STARTED.format(4)}{M}" in rows[100]["record"]
     assert rows[100]["record"][-1] == "the stop from 0.50 m/s: this round's stop is from the 0.40 m/s walk: not run"
-    assert f"F25F9cl nudge/left at 2 ms, R2/43@2ms: not run{M}" in rows[101]["record"]
+    assert f"F25F9cl nudge/left at 2 ms, R2/43@2ms: {NO_UNIT}{M}" in rows[101]["record"]
     # every line of the candidate ends with its labels; no line of a control holds the margin label
     for x in rows.values():
         for text in x["record"]:
@@ -1530,6 +2283,41 @@ def test_every_verdict_table_cites_the_rules_amended_after_a_result(run):
     assert run.md.count(am[-1]["label"]) == n + 1  # and once under "How to read"
     assert run.md.count(barreport.P34_LABEL) == 4 * (n + 1)
     assert barreport.markdown(run.tabs).count("- " + note) == n + 1  # one line per label, under one bullet
+
+
+def test_the_rules_made_exact_after_a_prescribed_motion_result_are_a_list_of_their_own(run):
+    """The lead's ruling: the labels of the plan that begin "[made exact 15 Nov after a prescribed-motion result" are
+    printed in a second, separately titled list, read from the plan as the first one is; a label the plan gains
+    later fails here until the tables print it."""
+    plan = " ".join((ROOT / barreport.PLAN_FILE).read_text(encoding="utf-8").split())
+    exact = barreport.MADE_EXACT_AFTER_RESULT
+    found = [(re.findall(r"\*\*([A-Z]\d+)\. ", plan[:m.start()])[-1], m.group(0), m.end())
+             for m in re.finditer(r"\[made exact 15 Nov after a prescribed-motion result[^\]]*\]", plan)]
+    assert [(rule, label) for rule, label, _ in found] == [(a["rule"], a["label"]) for a in exact] and len(exact) == 1
+    assert [a["rule"] for a in exact] == ["A8"] and "one stride of ramp" in exact[0]["text"]
+    for a, (_, _, end) in zip(exact, found, strict=True):  # the words that follow the label, word for word
+        assert plan[end:].startswith(" " + a["text"]) and a["text"].endswith("."), a["rule"]
+    # its own title and its own bullet: not a line of the list of rules amended after a result
+    note, amended = barreport.made_exact_note(), barreport.amended_note()
+    assert note.startswith(barreport.MADE_EXACT_TITLE) and barreport.MADE_EXACT_TITLE != barreport.AMENDED_TITLE
+    assert barreport.MADE_EXACT_TITLE.startswith("Rules made exact after a prescribed-motion result")
+    assert note.count("\n  - ") == len(exact) and f"\n  - A8 {exact[0]['label']} {exact[0]['text']}" in note
+    assert exact[0]["label"] not in amended and "[made exact" not in amended
+    assert not [a for a in barreport.AMENDED_AFTER_RESULT if a["label"].startswith("[made exact")]
+    assert run.tabs["made_exact_after_result"] == [dict(a) for a in exact]
+    n = 0
+    for name in barreport.ORDER:  # wherever the first list stands, the second stands after it
+        for p in run.tabs[name]["parts"]:
+            notes = p.get("notes") or []
+            assert (amended in notes) == (note in notes), (name, p["key"])
+            if note in notes:
+                assert notes.index(note) == notes.index(amended) + 1
+                n += 1
+    assert n >= 8 and run.md.count(exact[0]["label"]) == n + 1 == run.md.count("- " + barreport.MADE_EXACT_TITLE)
+    how = run.md.split("## How to read the tables")[1].split("## 1.")[0]
+    assert how.index("- " + barreport.AMENDED_TITLE) < how.index("- " + barreport.MADE_EXACT_TITLE)
+    # the plan's other "made exact" labels are not of this kind (they follow no prescribed-motion result)
+    assert len(re.findall(r"\[made exact 15 Nov", plan)) > len(found)
 
 
 def test_the_plans_list_of_what_is_not_run_is_a_table_item_by_item(run, tmp_path):
@@ -1635,24 +2423,30 @@ def test_a_run_directory_without_records_renders_every_table(tmp_path):
     assert tabs["checks"]["records"]["found"] == 0 and "Records found: 0 (0 done, 0 \"not run\")" in md
     for name in barreport.ORDER:
         assert f"## {tabs[name]['title']}" in md
-    # every cell of the registered order is there and reads "not run"
+    # every cell of the registered order is there and reads "not run yet" with why; none is the bare word
     w = part(tabs, "walk", "counts")["lines"]
-    assert len(w) == 3 * 6 and {x["status"] for x in w} == {barreport.NOT_RUN}
+    assert len(w) == 3 * 6 and {x["status"] for x in w} == {NO_LEDGER}
     r = part(tabs, "rest", "counts")["lines"]
     assert len(r) == 2 * 4 and r[0]["item"] == "29 conditions, 72 records: none found"  # 14 x 3 rows + 15 x 2 rows
     g = part(tabs, "glance", "glance")["lines"]
-    assert len(g) == 3 * 16 and {x["reading_2"] for x in g} == {barreport.NOT_RUN}
+    assert len(g) == 3 * 16 and Counter(x["reading_2"] for x in g) == {NO_LEDGER: 2 * 16 + 2, NO_UNIT: 14}
+    assert {x["set"] for x in g if x["reading_2"] == NO_UNIT} == {"F25F9"}  # a control for the walk only
+    assert {x["r0"] for x in g} == {NO_LEDGER, NO_UNIT}
     # table 2 lists the pull request's row of F25F9 though no record of that set exists (task 3, tier 7)
     lad = part(tabs, "ladder", "counts")["lines"]
     assert list(dict.fromkeys(x["set"] for x in lad)) == ["F25F9cl", "F25F9", "V0"]
     f = one(tabs, "ladder", "counts", set="F25F9")
     assert (f["condition"], f["delay"], f["row"], f["status"]) == (
-        "walk/v0.5", "0 ms (reported)", "R2/42@0ms, R2/43@0ms", barreport.NOT_RUN)
-    assert one(tabs, "ladder", "verdicts", set="F25F9")["reading_2"] == barreport.NOT_RUN
+        "walk/v0.5", "0 ms (reported)", "R2/42@0ms, R2/43@0ms", NO_LEDGER)
+    assert one(tabs, "ladder", "verdicts", set="F25F9")["reading_2"] == NO_LEDGER
     assert [x["delay"] for x in lines(tabs, "ladder", "highest", set="F25F9")] == ["0 ms (reported)"]
     jps = part(tabs, "jps", "jps")["lines"]
-    assert all(s.endswith((": not run", ": not run" + M)) for x in jps for s in x["record"])
-    assert len(tabs["jps"]["parts"]) == 1 and part(tabs, "controls", "controls")["lines"][0]["status"] == barreport.NOT_RUN
+    assert all(s.endswith((": not run", f": {NO_LEDGER}", f": {NO_LEDGER}{M}", f": {NO_UNIT}{M}"))
+               for x in jps for s in x["record"])
+    assert len(tabs["jps"]["parts"]) == 1 and part(tabs, "controls", "controls")["lines"][0]["status"] == NO_LEDGER
+    bare = [(name, p["key"]) for name, p, x in every_line(tabs) for k, v_ in x.items()
+            if k in ("status", "reading_2", "reading_3", "r0") and v_ == barreport.NOT_RUN and name != "named"]
+    assert not bare
     assert part(tabs, "other", "other")["lines"] == [] and barreport.CUT not in md.split("## 1.")[1]
 
 

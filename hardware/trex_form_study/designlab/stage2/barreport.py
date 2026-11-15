@@ -7,7 +7,8 @@ verdict is ``bar.verdict`` on its two rows' registered records.
 
 * ``load(out)``: every record under ``out``, indexed ``[set][body][block][row][condition]``, with what the checks
   need under the key ``"_run"`` (the ledger, ``COST.md``'s rates, the list of check episodes, today's source hashes,
-  each set's latest freeze and lead-in, the controls' records, the sha256 of every file read); each record carries
+  each set's latest freeze and lead-in, the kinematic check of its references that this freeze cites
+  (``refcheck.json``, sha256 verified), the controls' records, the sha256 of every file read); each record carries
   its path and the records kept beside it by a re-run.
 * ``tables(doc)``: the JSON form of every table; ``markdown(tabs)``: the same as Markdown.  Both are pure functions:
   no time, no host; ``markdown`` reads nothing but its argument, so ``BAR_TABLES.md`` regenerates from
@@ -24,15 +25,22 @@ the omega control; 8 every record no other table cites; 9 the plan's list of wha
 Rules the tables keep (STAGE2_75_PLAN.md rule R5, H1 to H6, rule R2): readings in the plan's order (reading 1 "with
 the look" is not defined for a set without look bands; reading 2, every limit; reading 3, every limit but for A1)
 and never pooled; ``shown`` and ``provisional`` only at the judged delay, ``passes at <ms> ms`` at another; a
-candidate's verdict with the replication word of each record that passed; a cell with no record reads "not run", or
-"cut by the pre-registered order" where the ledger shows its unit was not started (``absent_word``; ``planned`` is
-the registered order as cells); the registered record (the first finished at its path) gives every count and
-verdict, and a later one stands beside it labelled "re-run after a result"; a measured value never stands in a
-column that holds a target or a limit; every line of the candidate's carries its margin label; a line of a set
-whose lead-in is not ``start`` carries that label, read from the record and never assumed (rule A8 as amended;
-``set_labels``); every table with a verdict cites the rules amended after a result, one line per label of the plan
-(``AMENDED_AFTER_RESULT``); record paths are relative to the study directory; numbers are printed with ``%g`` or a
-fixed number of decimals per unit (``DECIMALS``).
+candidate's verdict with the replication word of each record that passed; a cell with no record reads "cut by the
+pre-registered order" where the ledger shows its unit was cut, else "not run" with its reason and never the bare
+words: its unit has not started, or has started without this record, or the cell is in no unit of the registered
+order, or the set holds no reference for it (``absent_word``, ``absent_reason``, ``absent_text``; ``planned`` is the
+registered order as cells); a record whose counts do not recompute from its own episodes gives no pass word, no
+verdict word and no replication word (``NOT_JUDGED_HERE``); the registered record (the first finished at its path)
+gives every count and verdict, and a later one stands beside it labelled "re-run after a result"; a measured value
+never stands in a column that holds a target or a limit; wherever the toe term of a walk or a turn is printed, the
+reference's own reading of that term stands beside it in a column of its own kind, neither measured nor a limit
+(rule C3's ruling; ``reference_toe``), and a line that prints a verdict on a condition whose reference reads under
+the check's limit carries that reading as a label (``reference_under_limit``); every line of the candidate's
+carries its margin label; a line of a set whose lead-in is not ``start`` carries that label, read from the record
+and never assumed (rule A8 as amended; ``set_labels``); every table with a verdict cites the rules amended after a result, one line per label of the plan
+(``AMENDED_AFTER_RESULT``), and in a list of its own the rules made exact after a prescribed-motion result
+(``MADE_EXACT_AFTER_RESULT``); record paths are relative to the study directory; numbers are printed with ``%g`` or
+a fixed number of decimals per unit (``DECIMALS``).
 
 Run from hardware/trex_form_study::
 
@@ -58,7 +66,7 @@ import statistics  # noqa: E402
 from collections import Counter  # noqa: E402
 from pathlib import Path  # noqa: E402
 
-from ..stage1 import panels  # noqa: E402
+from ..stage1 import panels, tune  # noqa: E402
 from . import bar, readings, s2io, setio  # noqa: E402
 
 SCHEMA = "bar-tables-1"
@@ -79,7 +87,20 @@ MODULE_FILE = "designlab/stage2/barreport.py"
 # ------------------------------------------------------------------------------------------------
 NOT_RUN = "not run"
 CUT = "cut by the pre-registered order"
+#: Why a cell has no record (``absent_reason``): it is in no unit of the registered order; or its unit has not
+#: started, or has started and has written no record for it.  The last two say "yet": the order still holds them.
+NOT_RUN_YET = "not run yet"
+NO_UNIT = NOT_RUN + ": in no unit of the registered order of this round (STAGE2_75_PLAN.md H6)"
+#: A record whose counts, bounds or passes do not recompute from its own episodes gives no pass word, no verdict
+#: word and no replication word in these tables (its counts are printed as the record holds them, flagged).
+NOT_JUDGED_HERE = "not judged here: the record's counts do not recompute from its episodes"
+REPLICATION_NOT_JUDGED = "replication " + NOT_JUDGED_HERE
 READING_1 = "not defined for this set"
+#: Table 2's "highest rung" beside a rung above it that has no verdict (not run, cut, one row's record missing, or
+#: a record whose counts do not recompute).
+NO_VERDICT = (NOT_RUN, "incomplete")
+NO_VERDICT_ABOVE = "no verdict above it for"
+ONLY_RUNG = "the only rung with a verdict at this delay (each other rung's own cell says why it has none)"
 MARGIN_LABEL = "margin set after results on seeds 3042-3061"
 RERUN = "re-run after a result"
 REGISTERED = "registered record (the first finished one; its counts and verdict stand)"
@@ -103,10 +124,36 @@ LEAD_IN_FROM_RECORD = "as the record says"
 LEAD_IN_FROM_SET = "as the set's `set.json` says"
 OWN_NUMBERS = "the reference's own numbers, as its set records them"
 SET_LIMITS = "limits, as its set records them"
+#: A rung whose change failed its gates (rule A8's step 3): what was tried stands first, then the entry's other numbers.
+TRIED_CHANGES = ("changes tried, in the order tried, as its set records them (each with the gate that failed it; its "
+                 "other readings are in the record)")
+REST_NUMBERS = "the entry's other numbers, as its set records them"
+#: The limit of a change's gate ``zmp_error`` in mm (STAGE2_75_PLAN.md A7: Stage 1's 4.0 mm; the builder's
+#: ``moves.ZMP_HISTORY_LIMIT_M``, which a set's ``transitions.json`` records under ``causal_limits``; a test holds
+#: this number to both).  A tried change's entry holds its readings and no limit.
+ZMP_ERROR_LIMIT_MM = 4.0
+#: A leaf of a reference's numbers longer than this is cut, and says so (a list of the factors tried, a table).
+LEAF_MAX = 160
+#: The kind of the column that holds a reference's own reading (STAGE2_75_PLAN.md C3): never "measured", never a limit.
+REFERENCE_KIND = "reference: played kinematically, no physics"
+NO_REFERENCE_READING = "no reading of the reference"
+#: A limit or a definition that the tables read from a record's episodes, where no episode of the record holds it
+#: (every one fell before the judged span): said in the cell, which is then no blank beside a measured "- (0)".
+NO_EPISODE_HOLDS = "not in the record (no episode holds it)"
+REFUSED = "the set's documents were refused by the runner"
+UNREADABLE_SET = "the set's documents could not be read by the runner's rule"
 READINGS = (("success", "counts", "reading 2 (every limit)"), ("but_A1", "counts_but_A1",
                                                                "reading 3 (every limit but for A1)"))
 #: The verdict words of the judged delay (in reading 3 with "but for A1"): never printed without what H4 puts beside.
 VERDICT_WORDS = ("shown", "provisional")
+#: At the judged delay, where neither row's record passes, the runner's word is Stage 1's failing word alone
+#: ("controller-limited", "body-limited", "not attributed"): the tables say first that nothing passes, so that the
+#: cell reads as a fail whatever the word (a record with 0 of 20 episodes up is "not attributed" until it is).
+NEITHER_PASSES = "neither row passes"
+#: At another delay the runner's failing word in reading 3 is "does not pass at <ms> ms but for A1", which can be
+#: read as "would pass but for A1": the tables end it with these words in place of the runner's " but for A1".
+A1_TAIL = " but for A1"
+ALSO_WITHOUT_A1 = ", also with A1 set aside"
 
 # ------------------------------------------------------------------------------------------------
 # The registered order (STAGE2_75_PLAN.md H6 and B3): what a table lists even where no record exists
@@ -231,10 +278,36 @@ AMENDED_AFTER_RESULT = (
 )
 
 
+#: One entry per label "[made exact 15 Nov after a prescribed-motion result ...]" of the plan, in the plan's order
+#: (the lead's ruling: a list of its own, apart from the rules changed after a result): the rule, the label and the
+#: words that follow it in the plan.
+MADE_EXACT_AFTER_RESULT = (
+    dict(rule="A8", file=PLAN_FILE,
+         label="[made exact 15 Nov after a prescribed-motion result, the sets' independent review; before any set was "
+               "frozen]",
+         text="Step (2)'s change from the neighbouring rung is built with one stride of ramp, and step (1)'s "
+              "two-stride ramp is not tried on it.",
+         note="(the plan's paragraph goes on with what this decides today: F25F9's walks at 0.45 and 0.50 m/s are "
+              "frozen but cannot be reached, and their rows are \"not run\" with the numbers of the changes tried)"),
+)
+AMENDED_TITLE = "Rules amended after a result, with the plan's own labels (" + PLAN_FILE + "):"
+MADE_EXACT_TITLE = ("Rules made exact after a prescribed-motion result, with the plan's own labels (" + PLAN_FILE
+                    + "; a list of its own, apart from the rules amended after a result):")
+
+
+def _labelled_note(title: str, entries) -> str:
+    return title + "".join(
+        f"\n  - {a['rule']} {a['label']} {a['text']}" + (f" {a['note']}" if a.get("note") else "") for a in entries)
+
+
 def amended_note(entries=AMENDED_AFTER_RESULT) -> str:
     """The rules amended after a result as one note: a line per label of the plan, with the plan's own words."""
-    return ("Rules amended after a result, with the plan's own labels (" + PLAN_FILE + "):" + "".join(
-        f"\n  - {a['rule']} {a['label']} {a['text']}" + (f" {a['note']}" if a.get("note") else "") for a in entries))
+    return _labelled_note(AMENDED_TITLE, entries)
+
+
+def made_exact_note(entries=MADE_EXACT_AFTER_RESULT) -> str:
+    """The rules made exact after a prescribed-motion result as one note of its own, in the same form."""
+    return _labelled_note(MADE_EXACT_TITLE, entries)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -447,9 +520,10 @@ def load(out, sets=None, body=None, *, study=None) -> dict:
     ``_path`` (relative to ``study``, default the study directory) and ``_superseded`` (the records kept beside it by
     a re-run).  Under ``"_run"``: the run directory, ``budget.json``, ``COST.md``'s rates, ``dev_episodes.json``,
     today's source hashes, the latest freeze of every set a record names (``<study>/<inputs.dir>/set.json``), the
-    conditions each set holds no reference for (``set_gaps``), each set's lead-in as its ``set.json`` says it
-    (``lead_in[set][body]``), the controls' records (``controls[control][set]...``) and the files that are no
-    record."""
+    conditions each set holds no reference for (``set_gaps``; ``set_refused`` where the runner refuses the set's
+    documents, with its message), each set's lead-in as its ``set.json`` says it (``lead_in[set][body]``), the
+    kinematic check of its references that its latest freeze cites (``refcheck[set][body]``, ``_refcheck``), the
+    controls' records (``controls[control][set]...``) and the files that are no record."""
     out = Path(out)
     study = Path(s2io.STUDY if study is None else study)
     sets = None if sets is None else [str(s) for s in sets]
@@ -457,7 +531,8 @@ def load(out, sets=None, body=None, *, study=None) -> dict:
         raise s2io.S2Error(f"{out}: no such run directory")
     meta: dict = dict(out=_rel(out, out, study), sets=sets, body=body, unreadable=[], misplaced=[], controls={},
                       budget=_read(out / "budget.json"), cost=None, today=_today_sources(), manifests={},
-                      dev_episodes=_read(out / "dev_episodes.json"), set_gaps={}, lead_in={}, files={})
+                      dev_episodes=_read(out / "dev_episodes.json"), set_gaps={}, set_refused={}, lead_in={},
+                      refcheck={}, files={})
     cost = out / "COST.md"
     if cost.is_file():
         meta["cost"] = bar.read_cost_text(cost.read_text())
@@ -483,12 +558,15 @@ def load(out, sets=None, body=None, *, study=None) -> dict:
                                     else dict(found=True, frozen=True, index=fz["index"],
                                               manifest_sha256=fz["manifest_sha256"], entries=fz["entries"]))
     for (s, b), d in sorted(where.items()):
-        gaps = _set_gaps(study / d)
+        gaps, refused = _set_gaps(study / d, d)
         if gaps:
             meta["set_gaps"].setdefault(s, {})[b] = gaps
+        if refused:
+            meta["set_refused"].setdefault(s, {})[b] = refused
         lead = (_read(study / d / "set.json") or {}).get("lead_in")
         if lead is not None:
             meta["lead_in"].setdefault(s, {})[b] = str(lead)
+        meta["refcheck"].setdefault(s, {})[b] = _refcheck(study, d, s, b)
     # what the tables are made from, each file with the sha256 of its bytes (None: the file is not there)
     files = meta.pop("files")
     inputs = dict(
@@ -496,19 +574,30 @@ def load(out, sets=None, body=None, *, study=None) -> dict:
         run_directory={n: _sha256(out / n) for n in RUN_FILES},
         sets={d: {n: _sha256(study / d / n) for n in SET_FILES}
               for d in sorted(set(where.values()) | set(meta["manifests"]))},
+        reference_checks={f"{s}/{b}": dict(file=rc.get("file"), sha256=rc.get("found_sha256"))
+                          for s, by_body in sorted(meta["refcheck"].items()) for b, rc in sorted(by_body.items())},
         module=dict(file=MODULE_FILE, sha256=_sha256(Path(__file__))), sources=dict(meta["today"]))
     meta["inputs"] = dict(inputs, sha256=s2io.sha256_json(inputs))
     doc[META] = meta
     return doc
 
 
-def _set_gaps(set_dir: Path) -> dict | None:
-    """``{condition: {reference, reason, numbers}}`` of the bar's conditions a set holds no reference for, from the
-    set's own documents by the runner's rule (``bar.BarPlanner.missing``: what it writes into a "not run" record).
-    None when the documents are not there or are no set's."""
+def _set_gaps(set_dir: Path, shown: str | None = None) -> tuple[dict | None, str | None]:
+    """``({condition: {reference, reason, numbers}}, None)`` of the bar's conditions a set holds no reference for,
+    from the set's own documents by the runner's rule (``bar.BarPlanner.missing``: what it writes into a "not run"
+    record).  ``(None, None)`` when a document is not there.  Where the runner refuses the documents
+    (``tune.InputError``: a lead-in that does not fit the set's walks, an unknown one) the reasons cannot be read:
+    ``(None, "the set's documents were refused by the runner: <its message>")``, and likewise, in other words, for
+    documents the rule cannot read at all; nothing is dropped silently.  ``shown`` stands for the set's directory in
+    the message (the tables hold no host's path)."""
     docs = {n: _read(set_dir / n) for n in ("set.json", "refs.json", "transitions.json")}
     if any(v is None for v in docs.values()):
-        return None
+        return None, None
+
+    def said(exc) -> str:
+        text = str(exc).replace(str(set_dir), shown if shown is not None else set_dir.name)
+        return text or type(exc).__name__
+
     try:
         planner = bar.BarPlanner(set_dir, docs["refs.json"]["references"], docs["transitions.json"]["transitions"],
                                  docs["set.json"])
@@ -517,9 +606,67 @@ def _set_gaps(set_dir: Path) -> dict | None:
             why = planner.missing(c)
             if why is not None:
                 out[c.key] = dict(reference=why.get("reference"), reason=why.get("reason"), numbers=why.get("numbers"))
-        return out
-    except (KeyError, TypeError, ValueError, AttributeError, RuntimeError):
-        return None
+        return out, None
+    except tune.InputError as exc:  # the runner would not plan on this set: say so, with its own words
+        return None, f"{REFUSED}: {said(exc)}"
+    except (KeyError, TypeError, ValueError, AttributeError, RuntimeError) as exc:
+        return None, f"{UNREADABLE_SET} ({type(exc).__name__}: {said(exc)})"
+
+
+def _refcheck(study: Path, set_dir: str, set_name: str, body: str) -> dict:
+    """The kinematic check of a set's references that its latest freeze cites (``set.json``
+    ``freezes[-1].refcheck``: ``file``, relative to the study directory, and ``sha256``), read only when the file's
+    bytes have that sha256: ``{read: True, file, sha256, found_sha256, freeze, toe: {condition: {mm, H, ok,
+    limit_mm, count_ok, interrupted_swings}}, not_played: {condition: reason}}``.  ``toe`` is the reference's own
+    reading of the judged toe term (``items[condition].toe.toe_clearance_own_swing_m``; the reference played
+    kinematically, no physics); ``ok`` is the check's own word on the term, which also asks for the swing count
+    (``count_ok``) and for no interrupted swing (``readings.toe_ok``).  A check
+    that is not cited, not there, not the cited file or not this set's is not read: ``{read: False, why, ...}``, and
+    the tables say so instead of a number."""
+    out: dict = dict(read=False, file=None, sha256=None, found_sha256=None, freeze=None, toe={}, not_played={})
+    sd = _read(study / set_dir / "set.json")
+    if sd is None:
+        return dict(out, why=f"no `set.json` was found under `{set_dir}`")
+    freezes = [f for f in sd.get("freezes") or [] if isinstance(f, dict)]
+    if not freezes:
+        return dict(out, why="the set is not frozen, so no freeze cites a reference check")
+    last = freezes[-1]
+    out["freeze"] = last.get("index")
+    cite = last.get("refcheck")
+    if not isinstance(cite, dict) or not cite.get("file") or not cite.get("sha256"):
+        return dict(out, why=f"the set's latest freeze (freeze {last.get('index')}) cites no reference check")
+    out.update(file=str(cite["file"]), sha256=str(cite["sha256"]))
+    path = study / out["file"]
+    out["found_sha256"] = _sha256(path)
+    if out["found_sha256"] is None:
+        return dict(out, why=f"`{out['file']}`, which the set's latest freeze cites, was not found")
+    if out["found_sha256"] != out["sha256"]:
+        return dict(out, why=f"`{out['file']}` is not the file the set's latest freeze cites: its sha256 is "
+                             f"`{out['found_sha256']}`, the freeze cites `{out['sha256']}`")
+    doc = _read(path)
+    if doc is None or not isinstance(doc.get("items"), dict):
+        return dict(out, why=f"`{out['file']}` holds no items of a reference check")
+    if (doc.get("set"), doc.get("body")) != (set_name, body):
+        return dict(out, why=f"`{out['file']}` is the check of set {doc.get('set')!r} on body {doc.get('body')!r}")
+    for key, item in doc["items"].items():
+        toe = item.get("toe") if isinstance(item, dict) else None
+        if isinstance(item, dict) and item.get("status") != "done":
+            out["not_played"][key] = str(item.get("reason") or item.get("status") or "no reason recorded")
+        elif isinstance(toe, dict) and _is_num(toe.get("toe_clearance_own_swing_m")):
+            h, lim = toe.get("toe_clearance_own_swing_H"), toe.get("limit_m")
+            out["toe"][key] = dict(mm=1e3 * float(toe["toe_clearance_own_swing_m"]), H=float(h) if _is_num(h) else None,
+                                   ok=toe.get("ok") if isinstance(toe.get("ok"), bool) else None,
+                                   limit_mm=1e3 * float(lim) if _is_num(lim) else None,
+                                   count_ok=toe.get("count_ok") if isinstance(toe.get("count_ok"), bool) else None,
+                                   interrupted_swings=(int(toe["interrupted_swings"])
+                                                       if _is_num(toe.get("interrupted_swings")) else None))
+    return dict(out, read=True)
+
+
+def _under_limit(toe: dict) -> bool:
+    """Whether a reference's own toe reading (an entry of ``_refcheck``'s ``toe``) is under the check's limit: by
+    the two numbers, not by the check's ``ok`` (which is also false for a swing count or an interrupted swing)."""
+    return _is_num(toe.get("mm")) and _is_num(toe.get("limit_mm")) and toe["mm"] < toe["limit_mm"]
 
 
 def _records(index: dict):
@@ -622,10 +769,19 @@ def _ledger(meta: dict) -> dict:
     whether a unit of it was cut."""
     out = {}
     for t, task in ((meta.get("budget") or {}).get("tasks") or {}).items():
-        started = {str(q) for u in task.get("units") or [] for q in ((u.get("detail") or {}).get("paths") or [])}
+        unit_of: dict = {}  # a record's path -> the first started unit that lists it
+        for u in task.get("units") or []:
+            for q in ((u.get("detail") or {}).get("paths") or []):
+                unit_of.setdefault(str(q), str(u.get("unit")))
         cut = {str(q) for u in task.get("cut") or [] for q in ((u.get("detail") or {}).get("paths") or [])}
-        out[str(t)] = dict(started=started, cut=cut, any_cut=bool(task.get("cut")))
+        out[str(t)] = dict(started=set(unit_of), cut=cut, any_cut=bool(task.get("cut")), unit_of=unit_of)
     return out
+
+
+def _in_order(set_name: str, body: str, row: str, key: str, control: str | None = None) -> bool:
+    """Whether a cell is one of the registered order's (``planned``), on the round's body and no control."""
+    base, ms = _split_row(row)
+    return (set_name, key, ms, base) in planned() and body == PLAN_BODY and control is None
 
 
 def absent_word(meta: dict, set_name: str, body: str, block: str, row: str, key: str, control: str | None = None,
@@ -638,13 +794,38 @@ def absent_word(meta: dict, set_name: str, body: str, block: str, row: str, key:
     ledger = _ledger(meta)
     if any(path in t["cut"] for t in ledger.values()):
         return CUT
-    base, ms = _split_row(row)
     if in_order is None:
-        in_order = (set_name, key, ms, base) in planned() and body == PLAN_BODY and control is None
+        in_order = _in_order(set_name, body, row, key, control)
     t = ledger.get(str(TASK_OF.get(key.split("/", 1)[0])))
     if in_order and t is not None and t["any_cut"] and path not in t["started"]:
         return CUT
     return NOT_RUN
+
+
+def absent_reason(meta: dict, set_name: str, body: str, block: str, row: str, key: str, control: str | None = None,
+                  in_order: bool | None = None) -> str:
+    """``absent_word`` with why the cell has no record, so that no cell is the bare "not run": the cut word as it
+    is; "not run yet: its unit `<unit>` has started and has written no record for it" when a started unit of
+    ``budget.json`` lists its path; "not run yet: its unit of the registered order has not started (...)" for a cell
+    of the registered order that no started unit lists (no unit of its task is cut: else the word is the cut word);
+    else "not run: in no unit of the registered order of this round" (``NO_UNIT``: a ladder rung at a delay the
+    order does not read, a set or a body outside the round)."""
+    if absent_word(meta, set_name, body, block, row, key, control, in_order) == CUT:
+        return CUT
+    path = _run_path(set_name, body, block, row, key, control)
+    ledger = _ledger(meta)
+    for t in sorted(ledger):
+        unit = ledger[t]["unit_of"].get(path)
+        if unit is not None:
+            return f"{NOT_RUN_YET}: its unit `{unit}` has started and has written no record for it"
+    if in_order is None:
+        in_order = _in_order(set_name, body, row, key, control)
+    if not in_order:
+        return NO_UNIT
+    task = TASK_OF.get(key.split("/", 1)[0])
+    how = ("the run directory holds no `budget.json`" if not meta.get("budget") else
+           f"`budget.json` lists it under no started unit and shows no cut for task {task}")
+    return f"{NOT_RUN_YET}: its unit of the registered order has not started ({how})"
 
 
 # ------------------------------------------------------------------------------------------------
@@ -713,20 +894,35 @@ def _is_limit_key(name: str) -> bool:
                for q in name.split("."))
 
 
+def _leaf(x) -> str:
+    """One value of a reference's numbers as text: a number with %g, a list joined with "/", a mapping inside a list
+    as ``{key: value, ...}``; cut after ``LEAF_MAX`` characters, and it says so (the whole value is in the record)."""
+    def text(v) -> str:
+        if _is_num(v):
+            return _num(v)
+        if isinstance(v, dict):
+            return "{" + ", ".join(f"{k}: {text(w)}" for k, w in v.items()) + "}"
+        if isinstance(v, (list, tuple)):
+            return "/".join(text(w) for w in v)
+        return str(v)
+
+    out = text(x) if not (isinstance(x, (list, tuple, dict)) and not x) else "none (empty in the record)"
+    cut = " ... (cut here: the whole value is in the record)"
+    return out if len(out) <= LEAF_MAX else out[:LEAF_MAX].rstrip() + cut
+
+
 def _flat(numbers, limit: int = 12) -> tuple[str, str]:
     """A reference's numbers as its set records them, on one line each: its own numbers, then the limits recorded
     with them (``_is_limit_key``); ``key=value`` pairs under the set's own keys (a key's ending names its unit, as
-    the set wrote it), nested keys dotted, floats with %g."""
+    the set wrote it), nested keys dotted, floats with %g, a list as one value (``_leaf``)."""
     items: list[tuple[str, str]] = []
 
     def walk(x, name):
         if isinstance(x, dict):
             for k in x:
                 walk(x[k], f"{name}.{k}" if name else str(k))
-        elif isinstance(x, (list, tuple)):
-            items.append((name, "/".join(_num(v) if _is_num(v) else str(v) for v in x)))
         elif x is not None:
-            items.append((name, _num(x) if _is_num(x) else str(x)))
+            items.append((name, _leaf(x)))
 
     walk(numbers, "")
 
@@ -738,15 +934,72 @@ def _flat(numbers, limit: int = 12) -> tuple[str, str]:
     return (line([x for x in items if not _is_limit_key(x[0])]), line([x for x in items if _is_limit_key(x[0])]))
 
 
+def _gate_text(tried: dict, gate: str) -> str:
+    """One failed gate of a tried change with the reading that failed it, from the entry's own numbers: for
+    ``zmp_error`` the last value of ``zmp_error_history_m`` in mm against its limit (``ZMP_ERROR_LIMIT_MM``); for a
+    join the largest CoM and ZMP differences it records; for ``ik_ok`` the frames without a solution."""
+    if gate == "zmp_error":
+        hist = tried.get("zmp_error_history_m")
+        if isinstance(hist, (list, tuple)) and hist and _is_num(hist[-1]):
+            return (f"`zmp_error`, {_num(1e3 * float(hist[-1]), 'mm')} mm (the last value of `zmp_error_history_m`) "
+                    f"against the limit of {_num(ZMP_ERROR_LIMIT_MM)} mm")
+        return "`zmp_error` (the entry holds no `zmp_error_history_m`)"
+    if gate in ("join_a", "join_b") and isinstance(tried.get(gate), dict):
+        j = tried[gate]
+        got = [f"{name} {_num(float(j[k]), 'mm')} mm" for k, name in (("com_max_mm", "CoM"), ("zmp_max_mm", "ZMP"))
+               if _is_num(j.get(k))]
+        return f"`{gate}`" + (f", largest difference from the walk: {', '.join(got)} (its limits are the set's "
+                              "`g3_com_mm` and `g3_zmp_mm`)" if got else "")
+    if gate == "ik_ok" and _is_num(tried.get("ik_fail_frames")):
+        return f"`ik_ok`, {_num(tried['ik_fail_frames'])} frames without a solution"
+    return f"`{gate}` (its reading is in the record)"
+
+
+def tried_text(tried) -> str:
+    """The changes a set tried for a rung it cannot reach (the entry's ``numbers.tried``, STAGE2_75_PLAN.md A8), in
+    the order tried, numbered: each change's name and ramp, then "not built" with the entry's reason, or its failed
+    gates with the reading that failed each (``_gate_text``) and what blocks its freeze at Stage 0."""
+    out = []
+    for i, t in enumerate(tried if isinstance(tried, (list, tuple)) else [tried]):
+        if not isinstance(t, dict):
+            out.append(f"({i + 1}) {_leaf(t)}")
+            continue
+        name = f"`{t['change']}`" if t.get("change") else "a change the entry does not name"
+        ramp = t.get("ramp_strides")
+        if _is_num(ramp):
+            name += f" (ramp of {_num(ramp)} stride{'' if float(ramp) == 1.0 else 's'})"
+        if "not_built" in t:
+            out.append(f"({i + 1}) {name}: not built" + (f" ({t['not_built']})" if isinstance(t["not_built"], str)
+                                                         and t["not_built"] else ""))
+            continue
+        failed = t.get("failed_gates")
+        if failed is None:
+            failed = [g for g, ok in (t.get("gates") or {}).items() if ok is False]
+        said = [_gate_text(t, str(g)) for g in failed]
+        blocks = _get(t, "stage0", "blocks_freeze") or []
+        said += [f"blocks the freeze at Stage 0: {_leaf(b)}" for b in blocks]
+        out.append(f"({i + 1}) {name}: " + (f"failed {'; failed '.join(said)}" if said else
+                                             f"no failed gate recorded (pass_ {t.get('pass_')!r})"))
+    return "; ".join(out)
+
+
 def why_text(why: dict) -> str:
     """Why a condition has no reference, on one line: "<reason> [<reference>] (the reference's own numbers, as its
     set records them: ...; limits, as its set records them: ...)".  The reference's numbers and the limits stand
-    apart, each named; they are a set's numbers of a reference, never a result of the robot."""
+    apart, each named; they are a set's numbers of a reference, never a result of the robot.  Where the numbers hold
+    the changes that were tried for the rung (a list ``tried``), these stand first (``tried_text``: the gate that
+    failed, its reading and its limit), then the entry's other numbers under the same cut."""
     text = str(why.get("reason") or "no reason recorded")
     if why.get("reference"):
         text += f" [{why['reference']}]"
-    own, limits = _flat(why.get("numbers")) if why.get("numbers") else ("", "")
-    parts = ([f"{OWN_NUMBERS}: {own}"] if own else []) + ([f"{SET_LIMITS}: {limits}"] if limits else [])
+    numbers, parts, own_name = why.get("numbers"), [], OWN_NUMBERS
+    if isinstance(numbers, dict) and isinstance(numbers.get("tried"), (list, tuple)):
+        parts.append(f"{TRIED_CHANGES}: {tried_text(numbers['tried'])}")
+        # (the print's order only: the set's entry stays as it was built)
+        numbers = {k: v for k, v in numbers.items() if k != "tried"}
+        own_name = REST_NUMBERS
+    own, limits = _flat(numbers) if numbers else ("", "")
+    parts += ([f"{own_name}: {own}"] if own else []) + ([f"{SET_LIMITS}: {limits}"] if limits else [])
     return text + (f" ({'; '.join(parts)})" if parts else "")
 
 
@@ -759,12 +1012,15 @@ def gap_note(meta: dict, set_name: str, body: str, key: str) -> str:
     """What a cell with no record adds where the set itself holds no reference for the condition (so that the cell is
     never a bare word, and never reads as a result of the robot); "" otherwise."""
     why = (((meta.get("set_gaps") or {}).get(set_name) or {}).get(body) or {}).get(key)
-    return "" if why is None else f"; the set holds no reference for it: {why_text(why)}"
+    if why is None:  # a set the runner refuses: its reasons could not be read, and the cell says so
+        refused = ((meta.get("set_refused") or {}).get(set_name) or {}).get(body)
+        return "" if refused is None else f"; {refused}"
+    return f"; the set holds no reference for it: {why_text(why)}"
 
 
 def absent_text(meta: dict, set_name: str, body: str, block: str, row: str, key: str) -> str:
-    """``absent_word`` with ``gap_note``."""
-    return absent_word(meta, set_name, body, block, row, key) + gap_note(meta, set_name, body, key)
+    """What a cell with no record prints: ``absent_reason`` (the word and why) with ``gap_note``."""
+    return absent_reason(meta, set_name, body, block, row, key) + gap_note(meta, set_name, body, key)
 
 
 def pass_word(counts: dict | None, ms: int | None) -> str:
@@ -801,6 +1057,11 @@ def _worst_drive(rec: dict, which: str) -> dict | None:
             if best is None or w[1] > best[1]:
                 best = (str(w[0]), float(w[1]))
     return None if best is None else dict(name=best[0], ratio=best[1], n=n, span=span)
+
+
+def _largest(worst: dict | None) -> dict:
+    """``{largest, n}`` of ``_worst_drive``: the largest ratio and the number of episodes that give one."""
+    return dict(largest=None, n=0) if worst is None else dict(largest=worst["ratio"], n=worst["n"])
 
 
 def _failed(rec: dict, key: str) -> dict:
@@ -973,8 +1234,10 @@ def reading_1_of(recs) -> str:
 
 
 def digest(rec: dict, meta: dict | None = None) -> dict:
-    """What the tables print of one record: its names, both readings' counts, bounds and passes (the record's own),
-    Stage 1's reading, falls, failed terms, the worst drive, labels and its path.  Measured medians are added by
+    """What the tables print of one record: its names, both readings' counts, bounds and passes (the record's own;
+    where they do not recompute from its episodes, ``NOT_JUDGED_HERE`` in place of each pass word), Stage 1's
+    reading, falls, failed terms, the worst drive, labels and its path, and (with ``meta``) the own toe reading of
+    the reference it plays (``reference_toe``; no number of the record).  Measured medians are added by
     ``measures_of``."""
     row = str(rec["row"])
     ms = bar.delay_ms(row)
@@ -987,6 +1250,7 @@ def digest(rec: dict, meta: dict | None = None) -> dict:
     falls = rec.get("falls") or {}
     att = rec.get("attribution") or {}
     wd, wl = _worst_drive(rec, "worst"), _worst_drive(rec, "worst_leg")
+    miscounted = bool(counts_differences(rec))  # then its pass is not the pass of its episodes: no pass word
 
     def of(c, k):
         return None if not done or c is None or c.get(k) is None else dict(k=int(c[k]), n=int(c.get("episodes") or 0))
@@ -999,22 +1263,26 @@ def digest(rec: dict, meta: dict | None = None) -> dict:
         up_lcb=c2.get("survival_lcb") if done else None, errors=int(c2.get("errors") or 0) if done else None,
         reading_1=reading_1_of([rec]),
         r2=of(c2, "succeeded"), r2_lcb=c2.get("success_lcb") if done else None,
-        r2_pass=pass_word(c2, ms) if done else None, r2_pass_=c2.get("pass_") if done else None,
+        r2_pass=(NOT_JUDGED_HERE if miscounted else pass_word(c2, ms)) if done else None,
+        r2_pass_=c2.get("pass_") if done and not miscounted else None,
         r3=of(c3, "succeeded"), r3_lcb=(c3 or {}).get("success_lcb") if done else None,
-        r3_pass=pass_word(c3, ms) if done else None, r3_pass_=(c3 or {}).get("pass_") if done else None,
+        r3_pass=(NOT_JUDGED_HERE if miscounted else pass_word(c3, ms)) if done else None,
+        r3_pass_=(c3 or {}).get("pass_") if done and not miscounted else None,
         stage1=dict(k=sum(stage1), n=len(stage1)) if stage1 else None,
         falls_before=falls.get("before_command") if done else None,
         falls_after=falls.get("after_command") if done else None,
         falls_no_command=falls.get("no_command") if done else None,
         failed_2=_failed(rec, "failed_terms") if done else None,
         failed_3=_failed(rec, "failed_terms_but_A1") if done and c3 is not None else None,
-        worst_drive=None if wd is None else wd["name"], worst_ratio=None if wd is None else wd["ratio"],
-        worst_leg_drive=None if wl is None else wl["name"], worst_leg_ratio=None if wl is None else wl["ratio"],
-        drive_span=None if wd is None else wd["span"], ratio_limit=1.0 if wd is not None else None,
+        worst_drive=None if wd is None else wd["name"],
+        worst_ratio=_largest(wd) if done else None,  # ("- (0)": no episode reached the span the drives are judged on)
+        worst_leg_drive=None if wl is None else wl["name"], worst_leg_ratio=_largest(wl) if done else None,
+        drive_span=None if wd is None else wd["span"], ratio_limit=1.0 if done else None,
         attribution=(att.get("reported_as") or att.get("label")) if att else
         ((rec.get("failure") or {}).get("falls_label") if done else None),
         label_2=_get(rec, "failure", "label"), label_3=_get(rec, "failure_but_A1", "label"),
         omega=rec.get("omega"), crouch_frac=rec.get("crouch_frac"), control=rec.get("control"),
+        ref_toe=reference_toe(meta, rec["set"], rec["body"], rec["key_name"], d, rec) if meta is not None else None,
         replication_of=rec.get("replication_of"), path=rec.get("_path"))
 
 
@@ -1065,6 +1333,66 @@ def measures_of(rec: dict) -> dict:
     return out
 
 
+def reference_condition(key: str) -> str:
+    """The condition whose reference a condition plays: itself, without the name of its grip (the reference of
+    ``walk/v0.4_mu0.54`` is that of ``walk/v0.4``; the kinematic check plays each reference once, at mu 0.9)."""
+    for _, suffix in bar.GRIPS:
+        if suffix and key.endswith(suffix):
+            return key[: -len(suffix)]
+    return key
+
+
+def reference_toe(meta: dict | None, set_name: str, body: str, key: str, definition: dict | None = None,
+                  rec: dict | None = None):
+    """The reference's own reading of the judged toe term for a walk or a turn (STAGE2_75_PLAN.md C3: "the report
+    prints the reference's own reading beside the measured one"): ``{mm, H}`` from the kinematic check the set's
+    latest freeze cites (``_refcheck``; the reference played kinematically, no physics, so it is no measurement of
+    the robot and no limit).  A ``_mu0.54`` condition takes its reference's reading (``reference_condition``).  Where
+    the check was not read, or did not play the reference, a sentence that says so: nothing is guessed.  Beside a
+    record (``rec``) made on another freeze than the one whose check was read (its ``set_freeze.index``), a sentence
+    too: the check read is not that of the references the record played.  None for an item whose toe term is not
+    judged (a nudge, a stop, a stock condition)."""
+    d = definition or _conds().get(key) or {}
+    if d.get("judge") not in ("bar_walk", "bar_turn"):
+        return None
+    rc = (((meta or {}).get("refcheck") or {}).get(set_name) or {}).get(body)
+    if rc is None:
+        return f"{NO_REFERENCE_READING}: no reference check was read for this set and body"
+    if not rc.get("read"):
+        return f"{NO_REFERENCE_READING}: {rc.get('why')}"
+    made_on = _get(rec, "set_freeze", "index")
+    if made_on is not None and rc.get("freeze") is not None and made_on != rc["freeze"]:
+        return (f"{NO_REFERENCE_READING}: this record was made on freeze {made_on}; the check read is freeze "
+                f"{rc['freeze']}'s")
+    ref = reference_condition(key)
+    got = (rc.get("toe") or {}).get(ref)
+    if got is not None:
+        return dict(mm=got["mm"], H=got.get("H"))
+    why = (rc.get("not_played") or {}).get(ref)
+    return (f"{NO_REFERENCE_READING}: `{rc.get('file')}` " + (
+        f"did not play `{ref}` ({why})" if why is not None else f"holds no toe reading of `{ref}`"))
+
+
+def reference_under_limit(meta: dict | None, set_name: str, body: str, key: str, recs=()) -> str | None:
+    """The label of a line that prints a verdict of a walk or a turn whose reference's own toe reading is under the
+    check's limit (STAGE2_75_PLAN.md C3: such a condition is expected to fail the toe term for a reason that is in
+    the reference; the report prints the reference's own reading wherever it prints these conditions): the reading,
+    the limit and what it is.  None where the reading is at or over the limit, where no reading or no limit was read,
+    and where a record of the line was made on another freeze than the one whose check was read
+    (``reference_toe``)."""
+    rc = (((meta or {}).get("refcheck") or {}).get(set_name) or {}).get(body) or {}
+    got = (rc.get("toe") or {}).get(reference_condition(key))
+    held = [r for r in recs if r is not None] or [None]
+    if got is None or any(not isinstance(reference_toe(meta, set_name, body, key, rec=r), dict) for r in held):
+        return None
+    if not _under_limit(got):
+        return None
+    return ("the reference's own toe clearance reads " + _num(float(got["mm"]), "mm") + " mm"
+            + ("" if got.get("H") is None else f" ({float(got['H']):.4f} H)")
+            + f", under the check's limit of {_num(float(got['limit_mm']), 'mm')} mm (STAGE2_75_PLAN.md C3; "
+            + f"{REFERENCE_KIND}; no result of the robot)")
+
+
 # ------------------------------------------------------------------------------------------------
 # Verdicts and replication (the runner's words: bar.verdict, bar.REPLICATION_WORDS)
 # ------------------------------------------------------------------------------------------------
@@ -1108,9 +1436,12 @@ def replication_word(doc: dict, set_name: str, body: str, row: str, key: str, wh
     lists its record under a cut unit, or once a unit of its task was cut and no started unit lists it, and "not run
     yet" before; for a cell of the candidate whose replication is in no unit of the order, ``NO_REPLICATION_UNIT``,
     whatever the ledger shows; for a set outside the round, the runner's word (a cut only where the ledger lists the
-    record under a cut unit)."""
+    record under a cut unit).  A second-block record whose counts do not recompute from its episodes
+    (``counts_differences``) gives ``REPLICATION_NOT_JUDGED`` in place of a word read from its pass."""
     rec = registered(_rec(doc, set_name, body, bar.REPLICATION_BLOCK, row, key))
     if rec and rec.get("status") == "done":
+        if counts_differences(rec):  # a pass that does not recompute gives no "replicated"
+            return REPLICATION_NOT_JUDGED
         ok = (rec.get("counts" if which == "success" else "counts_but_A1") or {}).get("pass_")
         return (bar.REPLICATION_WORDS[0] if ok is True else bar.REPLICATION_WORDS[1] if ok is False
                 else bar.REPLICATION_PENDING[1])
@@ -1139,29 +1470,53 @@ def verdict_of(doc: dict, set_name: str, body: str, key: str, ms: int, ctrl: str
                block: str = bar.HEADLINE_BLOCK, latest: bool = False) -> dict:
     """A controller's verdict on one condition and delay, from its two rows' registered records (``latest``: from
     the records at the paths now, which differ where a record was re-run): ``{reading_2, reading_3, rows, paths,
-    flags, set_labels, records}``, each reading ``{text, verdict, replication}``; ``flags`` are the checks its
-    records fail (``flags_of``), each with its row; ``set_labels`` are the set's labels as its records give them
-    (``line_labels``); ``records`` are the records read (None where a row has none).  With no record under either
-    row the text is the absent word."""
+    flags, set_labels, reference_labels, records}``, each reading ``{text, verdict, word, replication}``; ``flags``
+    are the checks its records fail (``flags_of``), each with its row; ``set_labels`` are the set's labels as its
+    records give them (``line_labels``); ``reference_labels`` holds the label of a condition whose reference's own
+    toe reading is under the check's limit (``reference_under_limit``; else it is empty); ``records`` are the
+    records read (None where a row has none).  With no record under either row the text is the absent word with
+    its reason (``absent_reason``, ``gap_note``); ``verdict`` and ``word`` are then the bare absent word.
+    ``verdict`` is the runner's word (``bar.verdict``); ``text`` is the cell as printed: a `shown` or `provisional`
+    with its replication words; at the judged delay, where neither row passes, the runner's failing word after
+    "neither row passes: "; at another delay, where neither row passes in reading 3, "does not pass at <ms> ms,
+    also with A1 set aside" (the runner's word ends "but for A1"); ``word`` is what a count per verdict word counts
+    the cell under (the text for those kinds, else the runner's word).  Where a record read has counts, bounds or
+    passes that do not recompute from its own episodes (``counts_differences``), no word is read from its pass:
+    ``verdict``, ``text`` and ``word`` are ``NOT_JUDGED_HERE`` with the rows of those records."""
     names = [f"{r}@{ms}ms" for r in panels.VERDICT_ROWS[ctrl]]
     now = [_rec(doc, set_name, body, block, r, key) for r in names]
     recs = now if latest else [registered(r) for r in now]
+    under = reference_under_limit(doc[META], set_name, body, key, recs)
     out = dict(rows=names, paths=[r.get("_path") if r else None for r in recs], reading_1=reading_1_of(recs),
                rerun=any(r is not None and registered(r) is not r for r in now), none=all(r is None for r in recs),
                flags=[f"{n}: {f}" for n, r in zip(names, recs, strict=True) if r is not None and not r.get("_brief")
                       for f in flags_of(r, doc[META])],
-               set_labels=line_labels(doc[META], set_name, body, recs), records=recs)
+               set_labels=line_labels(doc[META], set_name, body, recs),
+               reference_labels=[] if under is None else [under], records=recs)
     absent = [None if r is not None else absent_word(doc[META], set_name, body, block, n, key)
               for r, n in zip(recs, names, strict=True)]
+    reason = [None if r is not None else absent_reason(doc[META], set_name, body, block, n, key)
+              for r, n in zip(recs, names, strict=True)]
+    miscounted = [n for n, r in zip(names, recs, strict=True) if r is not None and counts_differences(r)]
     for rkey, which in (("reading_2", "success"), ("reading_3", "but_A1")):
         if all(r is None for r in recs):
             word = absent[0] if absent[0] == absent[1] else f"{names[0]}: {absent[0]}; {names[1]}: {absent[1]}"
-            out[rkey] = dict(verdict=word, text=word + gap_note(doc[META], set_name, body, key), replication=None)
+            said = reason[0] if reason[0] == reason[1] else f"{names[0]}: {reason[0]}; {names[1]}: {reason[1]}"
+            out[rkey] = dict(verdict=word, text=said + gap_note(doc[META], set_name, body, key), word=word,
+                             replication=None)
+            continue
+        if miscounted:  # the pass of such a record is not the pass of its episodes: no verdict word from it
+            text = f"{NOT_JUDGED_HERE} ({', '.join(miscounted)})"
+            out[rkey] = dict(verdict=text, text=text, word=text, replication=None)
             continue
         v = bar.verdict([_vcell(r) for r in recs], ms, which)
-        text, rep = v["verdict"], None
+        text, rep, counted = v["verdict"], None, v["verdict"]
+        if ms == bar.JUDGED_MS and v.get("passes") is not None and not any(v["passes"]):
+            text = counted = f"{NEITHER_PASSES}: {text}"  # Stage 1's failing word alone does not say "fails"
+        elif v.get("passes") is not None and not any(v["passes"]) and text.endswith(A1_TAIL):
+            text = counted = text[: -len(A1_TAIL)] + ALSO_WITHOUT_A1  # reading 3 at another delay: no pass either
         if v["verdict"] == "incomplete" and any(r is None for r in recs):
-            text += " (" + "; ".join(f"{n}: {a}" for n, a in zip(names, absent, strict=True) if a) + ")"
+            text += " (" + "; ".join(f"{n}: {a}" for n, a in zip(names, reason, strict=True) if a) + ")"
         if v["verdict"] == NOT_RUN:
             why = next((status_of(r) for r in recs if r is not None and r.get("status") != "done"), None)
             text = why or text
@@ -1172,7 +1527,8 @@ def verdict_of(doc: dict, set_name: str, body: str, key: str, ms: int, ctrl: str
                 text += " [" + "; ".join(f"{n}: {w}" for n, w in rep.items()) + "]"
             else:
                 text += " [a control is not replicated]"
-        out[rkey] = dict(verdict=v["verdict"], text=text, replication=rep)
+            counted = text
+        out[rkey] = dict(verdict=v["verdict"], text=text, word=counted, replication=rep)
     return out
 
 
@@ -1181,8 +1537,8 @@ def verdict_of(doc: dict, set_name: str, body: str, key: str, ms: int, ctrl: str
 # ------------------------------------------------------------------------------------------------
 def _col(key: str, title: str, kind: str = "text", unit: str | None = None) -> dict:
     """A column: ``kind`` says what it holds (text, code, labels, of, count, bound, word, measured, limit, defined,
-    terms, tally, flag, claim, path, list) and how ``markdown`` prints it; ``unit`` picks the decimals
-    (``DECIMALS``)."""
+    reference, terms, tally, flag, claim, path, list) and how ``markdown`` prints it; ``unit`` picks the decimals
+    (``DECIMALS``).  ``reference`` is a reference's own reading (``REFERENCE_KIND``): no measurement, no limit."""
     return dict(key=key, title=title, kind=kind, unit=unit)
 
 
@@ -1200,11 +1556,19 @@ COUNT_COLUMNS = HEAD + [
     _col("r3_lcb", "Reading 3: one-sided 95 % lower bound (share of episodes)", "bound", "bound"),
     _col("r3_pass", "Reading 3: pass", "word"),
     _col("stage1", "Stage 1's reading: succeeded (no verdict)", "of"), _col("path", "Record", "path")]
+#: The reference's own reading of the judged toe term (``reference_toe``), in every part that prints that term for a
+#: walk or a turn: beside the measured medians, and beside the failed terms.
+REF_TOE_COLUMN = _col(
+    "ref_toe", "Toe clearance of the reference itself: the same term `toe_clearance_own_swing` read on the reference "
+               "this condition plays, by the runner's kinematic check (the `refcheck.json` that the set's latest "
+               "freeze cites, its sha256 checked; a `_mu0.54` condition takes its reference's reading; mm, and as a "
+               f"share of H; no result of the robot); {REFERENCE_KIND}",
+    "reference", "mm")
 FAIL_COLUMNS = HEAD + [
     _col("falls_before", "Falls before the command", "count"), _col("falls_after", "Falls after the command", "count"),
     _col("falls_no_command", "Falls (an item without a command)", "count"),
     _col("failed_2", "Failed terms, reading 2 (term: episodes)", "terms"),
-    _col("failed_3", "Failed terms, reading 3 (term: episodes)", "terms"),
+    _col("failed_3", "Failed terms, reading 3 (term: episodes)", "terms"), REF_TOE_COLUMN,
     _col("worst_drive", "Worst drive", "code"),
     _col("worst_ratio", "Worst drive: largest RMS over its sustained rating, measured", "measured", "ratio"),
     _col("worst_leg_drive", "Worst leg drive", "code"),
@@ -1216,7 +1580,7 @@ FAIL_COLUMNS = HEAD + [
 TOE_COLUMNS = [
     _col("toe", "Toe clearance, the judged term `toe_clearance_own_swing` (each episode's lowest swing, read over the "
                 "middle half of the planned swing from the own lift-off): median, measured", "measured", "mm"),
-    _col("toe_limit", f"Limit: at least (mm; {readings.TOE_CLEARANCE_FRAC_H:g} H)", "limit", "mm"),
+    _col("toe_limit", f"Limit: at least (mm; {readings.TOE_CLEARANCE_FRAC_H:g} H)", "limit", "mm"), REF_TOE_COLUMN,
     _col("toe_first", "Toe clearance as first written, `toe_clearance_own_duration_m` (over the middle half of the "
                       "swing's own duration), reported and never judged: median, measured", "measured", "mm"),
     _col("toe_stage1", "Toe clearance, Stage 1's reading (on the reference's clock), reported and never judged: "
@@ -1348,7 +1712,8 @@ def _head(set_name: str, body: str, key: str, ms: int | None, row: str, rec: dic
 def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
     """The parts every record table shares: counts and passes; falls, failed terms and drives; measured values per
     kind of item; the controllers' verdicts.  The cells of one set and delay that have no record at all are one line
-    per absent word."""
+    per absent word and reason (``absent_text``).  A verdict line of a condition whose reference's own toe reading is
+    under the check's limit carries that reading as a label (``reference_under_limit``)."""
     meta = doc[META]
     counts, fails, verdicts = [], [], []
     measured: dict = {j: [] for j in MEASURE_COLUMNS}
@@ -1375,7 +1740,8 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
                                             if len(pairs) > 1 else []))
                 counts.append(line)
                 if any(r in R2_ROWS for r in rows):
-                    verdicts.append(dict(set=s, body=body, labels=line["labels"], item=line["item"],
+                    verdicts.append(dict(set=s, body=body, item=line["item"],
+                                         labels=line["labels"] + _reference_labels(meta, s, body, keys_),
                                          condition=line["condition"],
                                          grip=None, delay=delay_word(ms), controller="R2 (R2/42, R2/43)",
                                          which="no record", reading_1=READING_1, reading_2=word, reading_3=word,
@@ -1405,7 +1771,10 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
                     fails.append(dict(head, **{k["key"]: d.get(k["key"]) for k in FAIL_COLUMNS[len(HEAD):]}))
                     judge = _get(r, "definition", "judge")
                     if judge in measured:
-                        m = dict(measures_of(r), path=d["path"])
+                        m = dict(measures_of(r), ref_toe=d["ref_toe"], path=d["path"])
+                        for k in MEASURE_COLUMNS[judge][len(HEAD):]:  # a limit the episodes hold, and none does
+                            if k["kind"] in ("limit", "defined") and m.get(k["key"]) is None:
+                                m[k["key"]] = NO_EPISODE_HOLDS
                         measured[judge].append(
                             dict(head, **{k["key"]: m.get(k["key"]) for k in MEASURE_COLUMNS[judge][len(HEAD):]}))
             for ctrl in sorted({bar.controller_of(b) for b in c["rows"]} & set(panels.VERDICT_ROWS)):
@@ -1414,13 +1783,14 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
                 line = dict(set=s, body=body, item=item_of(d0) if d0 else key, condition=key,
                             grip=grip_of(d0) if d0 else None, delay=delay_word(ms),
                             controller=f"{ctrl} ({', '.join(panels.VERDICT_ROWS[ctrl])})", reading_1=READING_1)
-                verdicts.append(dict(line, labels=v["set_labels"] + v["flags"],
+                verdicts.append(dict(line, labels=v["set_labels"] + v["reference_labels"] + v["flags"],
                                      which="no record" if v["none"] else "registered records",
                                      reading_1=v["reading_1"], reading_2=v["reading_2"]["text"],
                                      reading_3=v["reading_3"]["text"], paths=[p for p in v["paths"] if p]))
                 if v["rerun"]:
                     w = verdict_of(doc, s, body, key, ms, ctrl, latest=True)
-                    verdicts.append(dict(line, labels=w["set_labels"] + [RERUN] + w["flags"], which=RERUN,
+                    verdicts.append(dict(line, labels=w["set_labels"] + w["reference_labels"] + [RERUN] + w["flags"],
+                                         which=RERUN,
                                          reading_1=w["reading_1"],
                                          reading_2=w["reading_2"]["text"], reading_3=w["reading_3"]["text"],
                                          paths=[p for p in w["paths"] if p]))
@@ -1438,21 +1808,39 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
     return dict(parts=parts)
 
 
+def _reference_labels(meta: dict, set_name: str, body: str, keys, recs_of=None) -> list[str]:
+    """``reference_under_limit`` of each condition among ``keys`` that has such a label, each with its condition's
+    name (a line that prints the verdicts of several conditions); ``recs_of``: ``{key: the records read}``."""
+    out = []
+    for k in keys:
+        label = reference_under_limit(meta, set_name, body, k, (recs_of or {}).get(k) or ())
+        if label is not None:
+            out.append(f"{k}, {label}")
+    return out
+
+
 def _rel_run(meta: dict, run_path: str) -> str:
     """A path given relative to the run directory, as the tables cite it."""
     return (Path(meta["out"]) / run_path).as_posix()
 
 
 def verdict_notes() -> list[str]:
-    """What stands under every table that prints a verdict: the words' rule and the rules amended after a result."""
+    """What stands under every table that prints a verdict: the words' rule, the rules amended after a result and,
+    in a list of its own, the rules made exact after a prescribed-motion result."""
     return [
         "Verdict words (STAGE2_75_PLAN.md H2): at the judged delay (10 ms) `shown` if both R2 rows pass and "
         "`provisional` if one does, in reading 3 with `but for A1`; at another delay the cell reads `passes at <ms> "
-        "ms` and is no verdict.  An R0 row gives no verdict and is not replicated.  A candidate's `shown` or "
+        f"ms` and is no verdict.  Where neither row passes at the judged delay the cell reads \"{NEITHER_PASSES}: \" "
+        "and the runner's failing word (Stage 1's: `controller-limited`, `body-limited`, or `not attributed` while "
+        "the records' falls have not been attributed): that is a fail, never a pass.  At another delay a cell of "
+        f"reading 3 in which neither row passes reads \"does not pass at <ms> ms{ALSO_WITHOUT_A1}\" (the runner's "
+        f"word for it ends \"{A1_TAIL.strip()}\", the name of the reading, and is no pass with A1 set aside).  An R0 "
+        "row gives no verdict and is not replicated.  A candidate's `shown` or "
         "`provisional` stands with the replication word of each row's record that passed.  The registered order "
         "(STAGE2_75_PLAN.md H6) holds no replication of " + " and none of ".join(NO_REPLICATION_TIERS) + ": beside a "
         f"pass of the candidate there stands \"{NO_REPLICATION_UNIT}\", whatever the ledger shows.",
         amended_note(),
+        made_exact_note(),
     ]
 
 
@@ -1506,10 +1894,20 @@ def ladder_table(doc: dict) -> dict:
                             per.append(f"{k}: {v['text']}")
                             if v["verdict"].startswith(("shown", "passes at")):
                                 best = k
-                        line[rkey + "_highest"] = ("none" if best is None else
-                                                   f"{best} ({item_of(_conds()[best])})")
+                        said = "none" if best is None else f"{best} ({item_of(_conds()[best])})"
+                        if best is not None:  # a rung above it without a verdict: the cell is no speed ceiling
+                            bare = [k for k in ks if of_rung[k]["none"] or of_rung[k][rkey]["verdict"] in NO_VERDICT
+                                    or of_rung[k][rkey]["verdict"].startswith(NOT_JUDGED_HERE)]
+                            above = [k for k in ks[ks.index(best) + 1:] if k in bare]
+                            if above and len(bare) == len(ks) - 1:
+                                said += f"; {ONLY_RUNG}"
+                            elif above:
+                                said += f"; {NO_VERDICT_ABOVE} {', '.join(above)}"
+                        line[rkey + "_highest"] = said
                         line[rkey + "_rungs"] = per
-                    line["labels"] = line["labels"] + [f"{k}, {f}" for k in ks for f in of_rung[k]["flags"]]
+                    line["labels"] = (line["labels"] + _reference_labels(
+                        doc[META], s, body, ks, {k: of_rung[k]["records"] for k in ks})
+                                      + [f"{k}, {f}" for k in ks for f in of_rung[k]["flags"]])
                     line["paths"] = [q for k in ks for q in of_rung[k]["paths"] if q]
                     lines.append(line)
     what = "Highest rung at which both R2 rows pass (at 10 ms: shown)"
@@ -1524,7 +1922,11 @@ def ladder_table(doc: dict) -> dict:
                  _col("paths", "Records (the rungs' registered records, in the rungs' order)", "path")],
         lines=lines, notes=["The rungs in ascending order: the nominal walk, then 0.3 to 0.5 m/s; the 0.40 m/s rung's "
                             "records are table 1's.  \"none\" says no rung passes under both rows, whether its records "
-                            "fail, are not run or are cut: each rung's own cell says which."] + verdict_notes()))
+                            "fail, are not run or are cut: each rung's own cell says which.  A rung named here is the "
+                            "highest among the rungs that have a verdict at that delay.  Where a rung above it has "
+                            f"none (not run, cut or incomplete) the cell says \"{NO_VERDICT_ABOVE}\" and names those "
+                            f"rungs, or \"{ONLY_RUNG}\" where no other rung has one: the named rung is then no "
+                            "ceiling of the speed."] + verdict_notes()))
     return dict(title="2. The speed ladder (reported)", notes=[
         "Reported conditions: the walks at the nominal speed and at 0.30 to 0.50 m/s other than the bar's 0.40 m/s, "
         "under both R2 rows, and the pull request's remaining rows (STAGE2_75_PLAN.md H6, task 3, tiers 6, 7 and 9).",
@@ -1571,17 +1973,17 @@ def glance_table(doc: dict) -> dict:
                 read += v["records"] + [r0]
                 own = line_labels(doc[META], s, body, v["records"] + [r0])
                 lines.append(dict(
-                    set=s, body=body, labels=own + v["flags"] + r0_flags, item=item_of(d), condition=key,
+                    set=s, body=body, labels=own + v["reference_labels"] + v["flags"] + r0_flags, item=item_of(d),
+                    condition=key,
                     grip=grip_of(d),
                     reading_1=v["reading_1"], reading_2=v["reading_2"]["text"], reading_3=v["reading_3"]["text"],
-                    r0=NO_VERDICT_R0 if r0d else (status_of(r0) if r0 is not None else absent_word(
+                    r0=NO_VERDICT_R0 if r0d else (status_of(r0) if r0 is not None else absent_text(
                         doc[META], s, body, bar.HEADLINE_BLOCK, f"{R0_ROW}@{ms}ms", key)),
                     r0_up=None if r0d is None else r0d["up"], r0_r2=None if r0d is None else r0d["r2"],
                     r0_r3=None if r0d is None else r0d["r3"], note=note, paths=[p for p in v["paths"] if p],
                     r0_path=None if r0 is None else r0.get("_path")))
                 for rkey in tally:  # H4: a `shown` or `provisional` is counted as printed, with its replication words
-                    cell = v[rkey]
-                    tally[rkey][cell["text"] if cell["verdict"].startswith(VERDICT_WORDS) else cell["verdict"]] += 1
+                    tally[rkey][v[rkey]["word"]] += 1
             totals.append(dict(set=s, body=body, labels=line_labels(doc[META], s, body, read),
                                reading_2={k: tally["reading_2"][k] for k in sorted(tally["reading_2"])},
                                reading_3={k: tally["reading_3"][k] for k in sorted(tally["reading_3"])}))
@@ -1598,14 +2000,22 @@ def glance_table(doc: dict) -> dict:
              _col("reading_3", "Reading 3: gated conditions per verdict word (word = conditions, of 16)", "tally")]
     return dict(title="4. The bar at a glance: the 16 gated conditions at 10 ms", notes=[
         "Per set and body, the verdict of the controller R2 (rows R2/42@10ms and R2/43@10ms) on each gated "
-        "condition, in each reading.  A condition without a reference reads \"not run\" with its reason; it is not "
-        "a pass."],
+        "condition, in each reading.  A cell reads \"not run\" with its reason: the set holds no reference for "
+        "the condition, the condition is in no unit of this round's registered order, or its unit has not started "
+        "yet (or has started and has not written the record); none of these is a pass, and none is a result of "
+        "the robot.",
+        "A line of a walk or a turn whose reference's own toe reading is under the kinematic check's limit carries "
+        "that reading in its labels (STAGE2_75_PLAN.md C3: such a condition is expected to fail the toe term for a "
+        "reason that is in the reference; the verdict words are the runner's and are not changed for it)."],
         parts=[dict(key="glance", title="verdict per gated condition", columns=cols, lines=lines,
                     notes=verdict_notes()),
                dict(key="tally", title="conditions per verdict word", columns=tcols, lines=totals, notes=[
                    "A `shown` or `provisional` word is counted as it is printed in the part above: a candidate's "
                    "with the replication word of each row's record that passed, a control's with \"a control is not "
-                   "replicated\" (STAGE2_75_PLAN.md H4).  Conditions that differ in those words are counted apart."]
+                   "replicated\" (STAGE2_75_PLAN.md H4).  Conditions that differ in those words are counted apart.  "
+                   f"A condition neither of whose rows passes is counted under \"{NEITHER_PASSES}: \" and the "
+                   "runner's failing word; a condition with a \"not run\" record, or with no record, under the "
+                   "bare words \"not run\" (its reason stands in the part above)."]
                     + verdict_notes())])
 
 
@@ -1626,7 +2036,8 @@ def replication_table(doc: dict) -> dict:
         rep = (second or {}).get("replication_of") or {}
         outside = outside_rule(second) if second is not None else []
         trig = rep.get("readings")
-        if trig is None and first is not None and not outside:
+        unjudged = first is not None and bool(counts_differences(first))  # its stored pass triggers nothing here
+        if trig is None and first is not None and not outside and not unjudged:
             trig = [w for w, ck, _ in READINGS if (first.get(ck) or {}).get("pass_") is True]
         names = {w: n for w, _, n in READINGS}
         a, b = side(first), side(second)
@@ -1642,7 +2053,9 @@ def replication_table(doc: dict) -> dict:
             delay=delay_word(bar.delay_ms(row)), row=row,
             triggered_by=[names[w] for w in trig or []] or [
                 "none: the record is " + OUTSIDE_RULE if outside else
-                "no seeds3042 record found" if first is None else "no reading of the seeds3042 record passes"],
+                "no seeds3042 record found" if first is None else
+                "none read: the seeds3042 record's counts do not recompute from its episodes" if unjudged else
+                "no reading of the seeds3042 record passes"],
             a_up=a["up"], a_r2=a["r2"], a_r2_pass=a["r2_pass"], a_r3=a["r3"], a_r3_pass=a["r3_pass"],
             b_up=b["up"], b_r2=b["r2"], b_r2_pass=b["r2_pass"], b_r3=b["r3"], b_r3_pass=b["r3_pass"],
             words=[f"{OUTSIDE_RULE}: {', '.join(outside)}"] if outside else
@@ -1669,7 +2082,8 @@ def replication_table(doc: dict) -> dict:
                     continue
                 for key in sorted(blocks[bar.HEADLINE_BLOCK][row]):
                     first = registered(blocks[bar.HEADLINE_BLOCK][row][key])
-                    passed = any((first.get(ck) or {}).get("pass_") is True for _, ck, _ in READINGS)
+                    passed = (any((first.get(ck) or {}).get("pass_") is True for _, ck, _ in READINGS)
+                              and not counts_differences(first))  # a pass its episodes do not give is no pass here
                     if passed and (s, body, row, key) not in seen:
                         add(s, body, row, key, first, None)
     cols = HEAD + [_col("triggered_by", "Reading that triggered the replication", "list"),
@@ -1720,7 +2134,7 @@ def controls_table(doc: dict) -> dict:
                      else bar.CONTROLS[c][1] if c in bar.CONTROLS else c), set=s, body=body,
             labels=labels_of(s, rec, meta, body),
             item=item_of(d0), condition=key, grip=grip_of(d0), delay=delay_word(bar.delay_ms(row)), row=row,
-            status=d["status"] if d else absent_word(meta, s, body, block, row, key, control=c, in_order=True),
+            status=d["status"] if d else absent_reason(meta, s, body, block, row, key, control=c, in_order=True),
             omega=d["omega"] if d else None, crouch=d["crouch_frac"] if d else None, up=d["up"] if d else None,
             r2=d["r2"] if d else None, r3=d["r3"] if d else None, verdict="no verdict (a control)",
             ref_omega=r["omega"] if r else None, ref_crouch=r["crouch_frac"] if r else None,
@@ -1809,17 +2223,22 @@ def jps_table(doc: dict) -> dict:
                         + f"; reading 2 {_of(d['r2'])} ({d['r2_pass']}); reading 3 "
                         + (f"{_of(d['r3'])} ({d['r3_pass']})" if d["r3"] else "not defined"))
                 if m.get("speed"):
-                    text += "; median speed measured " + _median_text(m["speed"], "m/s") + " m/s"
+                    text += ("; median speed measured " + _median_text(m["speed"], "m/s") + " m/s"
+                             if m["speed"].get("median") is not None else
+                             "; no measured speed (no episode reached the judged 10 s)")
                 if m.get("stopped_s"):
                     text += ("; median stopped time measured " + _median_text(m["stopped_s"], "s") + " s, "
-                             + _median_text(m["stopped_strides"], "strides") + " commanded strides")
+                             + _median_text(m["stopped_strides"], "strides") + " commanded strides"
+                             if m["stopped_s"].get("median") is not None else
+                             "; no measured stopped time (no episode gives one)")
                 if m.get("recovered"):
                     text += f"; recovered {_of(m['recovered'])}"
                 lines.append(text + _bracket(d["labels"]))
             if any(r is not None for r in recs.values()):
                 v = verdict_of(doc, s, body, key, ms)
                 lines.append(f"{name}, the controller R2 from its two rows: reading 2: {v['reading_2']['text']}; "
-                             f"reading 3: {v['reading_3']['text']}" + _bracket(v["set_labels"] + v["flags"]))
+                             f"reading 3: {v['reading_3']['text']}"
+                             + _bracket(v["set_labels"] + v["reference_labels"] + v["flags"]))
             if any(r is not None and r.get("status") == "done" for r in recs.values()):
                 seeds_parts.append(_seed_part(claim["line"], name, recs, line_labels(meta, s, body, recs.values())))
         rows.append(dict(line=claim["line"], **{f"jps_claim_{k}": claim[k] for k in JPS_CLAIM_KEYS},
@@ -1832,8 +2251,9 @@ def jps_table(doc: dict) -> dict:
         _col("paths", "Records", "path")]
     return dict(title="6. The comparison with JPS section 2.3", notes=list(JPS_STATEMENTS) + [
         f"JPS's claims are copied from `{JPS_FILE}`, lines {JPS_ROWS[0]['line']} to {JPS_ROWS[-1]['line']} (emphasis "
-        "marks removed).  A cell with no record reads \"not run\", or \"cut by the pre-registered order\" where "
-        "`budget.json` shows its unit was not started."],
+        "marks removed).  A cell with no record reads \"not run\" with its reason (in no unit of the registered "
+        "order; its unit not started yet, or started without this record yet), or \"cut by the pre-registered "
+        "order\" where `budget.json` shows its unit was cut."],
         parts=[dict(key="jps", title="JPS's claim beside this round's record", columns=cols, lines=rows,
                     notes=verdict_notes())] + seeds_parts)
 
@@ -1896,9 +2316,13 @@ def checks(doc: dict) -> dict:
     set's latest freeze; records with errors or unjudged counts; records whose counts do not recompute
     (``bar.counts``): each on the record at every path and on the registered record kept beside a re-run;
     second-block records outside the replication rule; the conditions each set holds no reference
-    for; each set's lead-in as its ``set.json`` says it, with the records that say another or none (rule A8 as
-    amended); the build's check episodes against rule R4;
-    core-hours per task against its budget, with the units started after the first cut; the rates of ``COST.md``."""
+    for, and the sets whose documents the runner refuses, with its message; the kinematic check each set's latest
+    freeze cites, read or not and why, with the references whose own toe reading is under the check's limit (rule
+    C3's ruling; by the reading and the limit, and apart from them the references whose term the check fails for
+    another reason); each set's lead-in as its ``set.json`` says it, with the records that say another or none (rule A8
+    as amended); the build's check episodes against rule R4; core-hours per task against its budget, recomputed from
+    the ledger's episode wall seconds and set against the ledger's own sums, with the units started after the first
+    cut; the rates of ``COST.md``."""
     meta = doc[META]
     main = list(_records(doc))
     ctl = [r for c in sorted(meta["controls"]) for r in _records(meta["controls"][c])]
@@ -1947,8 +2371,20 @@ def checks(doc: dict) -> dict:
         for t, task in sorted((meta["budget"].get("tasks") or {}).items()):
             units = [dict(unit=u.get("unit"), estimate_core_h=u.get("estimate_core_h"),
                           spent_before_core_h=u.get("spent_before_core_h"), started_at=u.get("started_at"),
-                          used_core_h=float(sum((u.get("items") or {}).values())) / 3600.0)
+                          used_core_h=float(sum((u.get("items") or {}).values())) / 3600.0,
+                          ledger_used_core_h=u.get("used_core_h"))
                      for u in task.get("units") or []]
+            # the ledger's own sums against its episodes' wall seconds (to 1e-9 core-h: sums in another order)
+            differs, before = [], 0.0
+            for u in units:
+                if _is_num(u["ledger_used_core_h"]) and abs(u["ledger_used_core_h"] - u["used_core_h"]) > 1e-9:
+                    differs.append(f"{u['unit']}: `used_core_h` is {_num(float(u['ledger_used_core_h']), 'core-h')} in "
+                                   f"the ledger, {_num(u['used_core_h'], 'core-h')} from its items")
+                if _is_num(u["spent_before_core_h"]) and abs(u["spent_before_core_h"] - before) > 1e-9:
+                    differs.append(f"{u['unit']}: `spent_before_core_h` is "
+                                   f"{_num(float(u['spent_before_core_h']), 'core-h')} in the ledger, "
+                                   f"{_num(before, 'core-h')} from the units before it")
+                before += u["used_core_h"]
             cut = [dict(unit=c.get("unit"), estimate_core_h=c.get("estimate_core_h"),
                         spent_before_core_h=c.get("spent_before_core_h"), at=c.get("at"), reason=c.get("reason"),
                         label=c.get("label")) for c in task.get("cut") or []]
@@ -1957,7 +2393,8 @@ def checks(doc: dict) -> dict:
             late = [u["unit"] for u in units if first_cut is not None and str(u.get("started_at") or "") > first_cut]
             budget[str(t)] = dict(cap_core_h=task.get("cap_core_h"), registered_cap_core_h=reg,
                                   spent_core_h=float(sum(u["used_core_h"] for u in units)), units=units, cut=cut,
-                                  first_cut_at=first_cut, started_after_the_first_cut=late)
+                                  first_cut_at=first_cut, started_after_the_first_cut=late,
+                                  ledger_differences=differs)
     dev = None
     if meta.get("dev_episodes") is not None:  # rule R4: single check episodes on V0 under R0 rows, each listed
         eps = [e for e in meta["dev_episodes"].get("episodes") or [] if isinstance(e, dict)]
@@ -1988,6 +2425,16 @@ def checks(doc: dict) -> dict:
         no_reference={f"{s2}/{b}": {k: why_text(w) for k, w in gaps.items()}
                       for s2, by_body in sorted((meta.get("set_gaps") or {}).items())
                       for b, gaps in sorted(by_body.items())},
+        sets_refused={f"{s2}/{b}": text for s2, by_body in sorted((meta.get("set_refused") or {}).items())
+                      for b, text in sorted(by_body.items())},
+        reference_checks={f"{s2}/{b}": dict(
+            read=bool(rc.get("read")), file=rc.get("file"), sha256=rc.get("sha256"),
+            found_sha256=rc.get("found_sha256"), freeze=rc.get("freeze"), why=rc.get("why"),
+            readings=len(rc.get("toe") or {}), not_played=sorted(rc.get("not_played") or {}),
+            under_its_limit={k: v for k, v in (rc.get("toe") or {}).items() if _under_limit(v)},
+            fails_for_another_reason={k: v for k, v in (rc.get("toe") or {}).items()
+                                      if v.get("ok") is False and not _under_limit(v)})
+            for s2, by_body in sorted((meta.get("refcheck") or {}).items()) for b, rc in sorted(by_body.items())},
         lead_in=dict(rule=LEAD_IN_RULE,
                      sets={f"{s2}/{b}": v for s2, by_body in sorted((meta.get("lead_in") or {}).items())
                            for b, v in sorted(by_body.items())},
@@ -2069,14 +2516,19 @@ def tables(doc: dict) -> dict:
     meta = doc[META]
     tabs = dict(
         schema=SCHEMA, made_by="designlab.stage2.barreport", run=meta["out"],
-        simulation="Every number in these tables comes from simulation.",
+        simulation="No number in these tables was measured on hardware.  Measured values come from simulation; a "
+                   "reference's own reading comes from the runner's kinematic check (the reference played, no "
+                   "physics); a set's numbers of a reference or of a change tried are its builder's (prescribed "
+                   "motion); JPS's numbers are its claims; limits are the rules'; core-hours are wall time of the "
+                   "machine that ran the episodes.",
         conventions=[
             "The tables are made by code from the bar's records (one JSON record per set, body, seed block, row and "
             "condition); each line cites its record, with paths relative to the study directory "
             "(hardware/trex_form_study).  Beside the records they read the run directory's "
             + ", ".join(f"`{n}`" for n in RUN_FILES) + " (the ledger, the rates, the build's check episodes), each "
             "set's " + ", ".join(f"`{n}`" for n in SET_FILES) + " under the study directory (its latest freeze and "
-            "the conditions it holds no reference for) and today's source hashes of the panels and of the bar.  "
+            "the conditions it holds no reference for), the reference check that freeze cites (`refcheck.json`) "
+            "and today's source hashes of the panels and of the bar.  "
             "`bar_tables.json` holds under `checks.inputs` the sha256 of every file read and of this module.",
             "Readings stand in the plan's order and are never pooled: reading 1 (with the look) is "
             f"\"{READING_1}\" (the records say: {bar.LOOK_NOT_DEFINED}); reading 2 is every limit; reading 3 is every "
@@ -2085,7 +2537,18 @@ def tables(doc: dict) -> dict:
             "bound of the share of the block's 20 episodes.",
             "A measured value never stands in a column that holds a target or a limit: a column headed \"measured\" "
             "holds measurements, a column headed \"Limit\" or \"as defined\" holds none.  A measured median is "
-            "printed as \"median (n)\": n is the number of episodes that give the quantity.",
+            "printed as \"median (n)\" and a largest value over a record's episodes as \"largest (n)\": n is the "
+            "number of episodes that give the quantity, \"- (0)\" where none does (every episode fell before the "
+            f"judged span); a limit that the tables read from the episodes then reads \"{NO_EPISODE_HOLDS}\".",
+            "A line that prints a controller's verdict on a walk or a turn whose reference's own toe reading is "
+            "under the kinematic check's limit carries that reading and the limit in its labels (STAGE2_75_PLAN.md "
+            "C3); the verdict word is the runner's and is not changed for it.",
+            "Wherever the toe term of a walk or a turn is printed (the measured values, the failed terms), the "
+            f"reference's own reading of that term stands beside it in a column of its own kind, \"{REFERENCE_KIND}\" "
+            "(STAGE2_75_PLAN.md C3): the reference this condition plays, read by the runner's kinematic check "
+            "(`refcheck.json`, cited by the set's latest freeze and read only when its sha256 is the cited one).  It "
+            "is neither a measurement of the robot nor a limit; where the check could not be read, or the record "
+            "was made on another freeze than the one whose check was read, the cell says so and holds no number.",
             "Numbers: counts as integers; "
             + ", ".join(f"{u} with {d} decimal{'' if d == 1 else 's'}" for u, d in DECIMALS.items())
             + "; every other number with %g.",
@@ -2094,12 +2557,21 @@ def tables(doc: dict) -> dict:
             f"A line of a set whose lead-in is not `{LEAD_IN_RULE}` carries the label \"lead-in `<name>`\" "
             f"({LEAD_IN_EXCEPTION}): the lead-in is read from the record's own `lead_in` (\"{LEAD_IN_FROM_RECORD}\"), "
             f"and for a cell with no record from the set's `set.json` (\"{LEAD_IN_FROM_SET}\"); it is never assumed.",
-            f"A cell with no record reads \"{NOT_RUN}\", or \"{CUT}\" where `budget.json` lists its record under a "
-            "cut unit, or where a unit of its task was cut and the cell, one of the registered order's, is in no "
-            "started unit.",
+            f"A cell with no record reads \"{CUT}\" where `budget.json` lists its record under a cut unit, or "
+            "where a unit of its task was cut and the cell, one of the registered order's, is in no started unit.  "
+            f"Else it reads \"{NOT_RUN}\" with its reason, never the bare words: \"{NOT_RUN_YET}\" for a cell of "
+            "the registered order whose unit has not started, or has started and has written no record for it (the "
+            f"unit is named); \"{NO_UNIT}\" for a cell the order does not hold (a ladder rung at a delay the order "
+            "does not read, a set or a body outside the round); and, where the set itself holds no reference for the "
+            "condition, that reason with the set's own numbers.  A count per verdict word counts all of these under "
+            f"\"{NOT_RUN}\".",
+            "A record whose counts, bounds or passes do not recompute from its own episodes (`bar.counts`; listed "
+            f"under Checks) gives no pass word, no verdict word and no replication word: its cells read "
+            f"\"{NOT_JUDGED_HERE}\", and its counts are printed as the record holds them, flagged.",
             f"A record made later at the path of a finished one is labelled \"{RERUN}\" with its reason, and the "
             "registered record's counts and verdict stand beside it (STAGE2_75_PLAN.md rule R2)."],
         amended_after_result=[dict(a) for a in AMENDED_AFTER_RESULT],
+        made_exact_after_result=[dict(a) for a in MADE_EXACT_AFTER_RESULT],
         checks=checks(doc), walk=walk_table(doc), ladder=ladder_table(doc), rest=rest_table(doc),
         glance=glance_table(doc), replication=replication_table(doc), jps=jps_table(doc),
         controls=controls_table(doc),
@@ -2121,8 +2593,11 @@ def _cell_text(v, col: dict) -> str:
         return "none" if kind in ("terms", "tally") and v == {} else "-"
     if kind == "of" and isinstance(v, dict):
         return f"{v['k']} of {v['n']}"
-    if kind == "measured" and isinstance(v, dict):
-        return "-" if v.get("median") is None else f"{_num(v['median'], unit)} ({v['n']})"
+    if kind == "measured" and isinstance(v, dict):  # "median (n)", "largest (n)"; "- (0)": no episode gives it
+        x = v.get("largest") if "largest" in v else v.get("median")
+        return f"- ({v.get('n', 0)})" if x is None else f"{_num(x, unit)} ({v['n']})"
+    if kind == "reference" and isinstance(v, dict):  # a reference's own reading: mm, and as a share of H
+        return _num(float(v["mm"]), unit) + ("" if v.get("H") is None else f" ({float(v['H']):.4f} H)")
     if kind == "terms" and isinstance(v, dict):
         return "; ".join(f"{k}: {n}" for k, n in v.items())
     if kind == "tally" and isinstance(v, dict):  # a word may hold a colon ("not read: a1_over"): one word per line
@@ -2215,6 +2690,10 @@ def _md_checks(c: dict) -> list[str]:
             + f"; the documents of {len(inp['sets'])} set director{'y' if len(inp['sets']) == 1 else 'ies'}"
             + "".join(f"\n  - `{d}`: " + ", ".join(f"`{n}` " + (f"`{h}`" if h else "absent") for n, h in docs.items())
                       for d, docs in inp["sets"].items())
+            + "".join(f"\n  - the reference check of `{sb}`: " + (
+                "none cited" if not v.get("file") else f"`{v['file']}` " + (f"`{v['sha256']}`" if v.get("sha256")
+                                                                            else "absent"))
+                      for sb, v in (inp.get("reference_checks") or {}).items())
             + f"\n  - this module `{inp['module']['file']}`: `{inp['module']['sha256']}`"
             + f"\n  - sha256 over the whole list: `{inp['sha256']}`")
     out.append("- Conditions a set holds no reference for (they read \"not run\" with this reason; that is no result "
@@ -2222,6 +2701,39 @@ def _md_checks(c: dict) -> list[str]:
                + (" none found in the sets' documents" if not c["no_reference"] else "".join(
                    f"\n  - `{sb}`, `{k}`: {text}"
                    for sb, gaps in c["no_reference"].items() for k, text in gaps.items())))
+    refused = c.get("sets_refused") or {}
+    out.append(f"- Sets whose documents the runner does not accept (their conditions without a reference cannot be "
+               f"listed above, and a cell of theirs with no record says so): {len(refused)}"
+               + "".join(f"\n  - `{sb}`: {text}" for sb, text in refused.items()))
+    rcs = c.get("reference_checks")
+    if rcs is not None:
+        def reading(v) -> str:
+            return (_num(float(v["mm"]), "mm") + " mm" + ("" if v.get("H") is None else f" ({float(v['H']):.4f} H)")
+                    + ("" if v.get("limit_mm") is None else f" against {_num(float(v['limit_mm']), 'mm')} mm"))
+
+        def other(v) -> str:
+            said = (["the swing count is not met"] if v.get("count_ok") is False else []) + (
+                [f"{v['interrupted_swings']} interrupted swing{'' if v['interrupted_swings'] == 1 else 's'}"]
+                if v.get("interrupted_swings") else [])
+            return f" ({'; '.join(said) or 'the check records no other reason'})"
+
+        out.append(
+            "- The references' own toe readings (STAGE2_75_PLAN.md C3: the reference played kinematically, no physics, "
+            "by the runner's check; the `refcheck.json` each set's latest freeze cites, read only when its sha256 is "
+            "the cited one; no result of the robot):" + (" no set directory was read" if not rcs else "".join(
+                f"\n  - `{sb}`: " + (
+                    f"not read: {v['why']}; the tables print no reading of the reference for this set" if not v["read"]
+                    else f"`{v['file']}`, sha256 `{v['found_sha256']}` as freeze {v['freeze']} cites it; "
+                         f"{v['readings']} references read"
+                         + (f", {len(v['not_played'])} not played ({', '.join(f'`{k}`' for k in v['not_played'])})"
+                            if v["not_played"] else "")
+                         + "; references whose own reading is under the check's limit: "
+                         + ("; ".join(f"`{k}` {reading(x)}" for k, x in v["under_its_limit"].items()) or "none")
+                         + "; references whose reading is at or over the limit and whose toe term the check fails "
+                           "for another reason (its swing count, an interrupted swing): "
+                         + ("; ".join(f"`{k}` {reading(x)}{other(x)}"
+                                      for k, x in (v.get("fails_for_another_reason") or {}).items()) or "none"))
+                for sb, v in rcs.items())))
     lead = c.get("lead_in")
     if lead:
         out += [
@@ -2262,7 +2774,10 @@ def _md_checks(c: dict) -> list[str]:
                 + ("" if not b["cut"] else
                    f"; units started after the first cut ({b['first_cut_at']}): "
                    + (", ".join(b["started_after_the_first_cut"]) or "none (the cut units are the order's tail)"))
-                + ".")
+                + "; sums of the ledger that do not recompute from its own items (each unit's `used_core_h` from its "
+                  f"episodes' wall seconds, its `spent_before_core_h` from the units before it): "
+                  f"{len(b.get('ledger_differences') or [])}"
+                + "".join(f"\n  - {x}" for x in b.get("ledger_differences") or []) + ".")
             if b["units"]:
                 out += ["", "  | Unit, in the order started | Estimate (core-h) | Spent before it (core-h) | "
                             "Started at | Used (core-h) |", "  |---|---|---|---|---|"]
@@ -2302,7 +2817,8 @@ def markdown(tabs: dict) -> str:
            f"Made by `{tabs['made_by']}` from the records under `{tabs['run']}`.  {tabs['simulation']}", ""]
     out += _md_checks(tabs["checks"])
     out += ["## How to read the tables", ""] + [f"- {x}" for x in tabs["conventions"]] + [
-        "- " + amended_note(tabs["amended_after_result"]), ""]
+        "- " + amended_note(tabs["amended_after_result"]),
+        "- " + made_exact_note(tabs["made_exact_after_result"]), ""]
     for name in ORDER:
         t = tabs[name]
         out += [f"## {t['title']}", ""] + [f"- {x}" for x in t.get("notes") or []] + [""]
@@ -2362,14 +2878,19 @@ def main(argv=None) -> int:
     print(f"records found: {c['records']['found']} ({c['records']['done']} done, {c['records']['not_run']} not run); "
           f"other sources: {len(c['other_sources'])}; not in the latest freeze: {len(c['not_in_latest_freeze'])}; "
           f"not checked: {len(c['not_checked'])}; errors or unjudged: {len(c['errors_or_unjudged'])}; counts that "
-          f"do not recompute: {len(c['counts_not_recomputed'])}")
+          f"do not recompute: {len(c['counts_not_recomputed'])}; sets the runner refuses: {len(c['sets_refused'])}; "
+          f"reference checks not read: {sum(1 for v in c['reference_checks'].values() if not v['read'])} of "
+          f"{len(c['reference_checks'])}; ledger sums that do not recompute: "
+          f"{sum(len(b['ledger_differences']) for b in (c['budget'] or {}).values())}")
     return 0
 
 
-__all__ = ["absent_word", "amended_note", "checks", "counts_differences", "digest", "jps_table", "labels_of",
-           "lead_in_of", "line_labels", "load", "main", "manifest_differences", "markdown", "measures_of",
-           "named_table", "outside_rule", "planned", "registered", "replicated", "replication_in_order",
-           "replication_word", "set_labels", "tables", "verdict_of", "write"]
+__all__ = ["absent_reason", "absent_text", "absent_word", "amended_note", "checks", "counts_differences", "digest",
+           "jps_table", "labels_of", "lead_in_of", "line_labels", "load", "made_exact_note", "main",
+           "manifest_differences", "markdown", "measures_of", "named_table", "outside_rule", "planned",
+           "reference_condition", "reference_toe", "reference_under_limit", "registered", "replicated",
+           "replication_in_order", "replication_word", "set_labels", "tables", "tried_text", "verdict_of", "why_text",
+           "write"]
 
 if __name__ == "__main__":
     from designlab.stage2 import barreport as _named  # the importable copy owns the module's state
