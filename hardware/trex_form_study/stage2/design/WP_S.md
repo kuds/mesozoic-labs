@@ -168,3 +168,29 @@ fallback and every "not available" item.
 
 Commit on your own branch in your worktree, messages ending with the attribution lines your session's system
 reminder gives, exactly; name no model anywhere else. Do not merge, do not push unless the lead says so.
+
+---
+
+## LEAD ADDENDUM 2, 15 Nov: RULINGS AFTER THE REVIEWS OF M, B, C AND G (read before you build)
+
+The committed rules were amended on 15 Nov after the builds' independent reviews; `STAGE2_75_PLAN.md`'s last section
+lists the amendments and each stands, labelled, in its rule (A7, A11, C3, C5, R4). The rulings as given to the
+fixers are in `REVIEW_RULINGS_15NOV.md` beside this brief. What they mean for the sets:
+
+- **Build on the fixed packages.** Merge the working branch and the fixed branches of M, C, B and G before you start,
+  and say in your report which commits you built on. If a fixer's branch is not finished, stop and report; do not
+  build sets on an unfixed `moves.py`.
+- **A7's gates are M's as fixed**: the consistency limit reads the first stride after the command, the 4.0 mm limit
+  the frames after it; every entry also holds `zmp_consistency_all_m`. You change no gate and no constant. A move
+  that fails a gate is written `pass_: false` with its numbers and is not frozen (A11's third outcome); you do not
+  retry it another way.
+- **The 1.0 rad/s ladder turn** is expected to fail A10's slowest-clock heading (78.4° on V0). Build it, record it
+  with `pass_: false`, and write "no reference within the heading rule" for that rate in `set.json`.
+- **`set.json`**: each freeze may carry `change_after_result` (a string with the reason; absent when none), which the
+  runner copies into its records. The top-level `crouch_frac` equals every walk entry's own `crouch_frac`; the
+  runner refuses a set where they differ.
+- **Rule R4**: before task 3's first unit the only closed-loop episodes on a registered set are single check
+  episodes (seed 3042, one per condition) on V0 under R0 rows, each listed in
+  `stage2/runs/2026-11-15-75cm/dev_episodes.json`. Run none under an R2 row.
+- **Nothing is frozen by you.** Build, screen and record the three sets; the freeze is the lead's step at code
+  state A, after the legacy check and the regression record are made again on the merged code.

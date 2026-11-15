@@ -137,3 +137,21 @@ records are absent. Label any number you quote from a smoke as "smoke".
 
 Commit on your own branch in your worktree, messages ending with the attribution lines your session's system
 reminder gives, exactly; name no model anywhere else. Do not merge, do not push unless the lead says so.
+
+---
+
+## LEAD ADDENDUM 2, 15 Nov: RULINGS AFTER THE REVIEWS (read before you build)
+
+`STAGE2_75_PLAN.md` was amended on 15 Nov (its last section lists the amendments; `REVIEW_RULINGS_15NOV.md` beside
+this brief has the rulings as given to the fixers). For the tables:
+
+- The judged toe-clearance term keeps its name, `toe_clearance_own_swing`, and now reads the middle half of the
+  planned swing from the own lift-off. Print beside it, as reported and never judged, the reading as first written
+  (`toe_clearance_own_duration_m`) and Stage 1's. Take the record paths from the runner as fixed, not from this
+  brief.
+- Every table that prints a verdict carries, in its notes, the list of rules amended after a result (A7, C3) with
+  the plan's own label, so that no number is read without it.
+- A ladder rate without a reference prints "no reference within the heading rule" with the reference's own numbers,
+  never a blank and never a fail of the robot.
+- `COST.md`'s rates are measured after a warm-up episode that is not counted, on episodes that run their full
+  length, with the machine's load at the time recorded.
