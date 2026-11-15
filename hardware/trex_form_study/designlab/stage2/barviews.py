@@ -1014,6 +1014,34 @@ def _range(s: dict | None, L: float | None = None, nd: int = 2, unit: str = "") 
     return f"{s['median']:.{nd}f}{unit} ({s['min']:.{nd}f} to {s['max']:.{nd}f})"
 
 
+def seed_runs(seeds) -> str:
+    """"3042-3047, 3050": the seeds as runs of consecutive numbers."""
+    seeds = sorted(int(x) for x in seeds)
+    out, i = [], 0
+    while i < len(seeds):
+        j = i
+        while j + 1 < len(seeds) and seeds[j + 1] == seeds[j] + 1:
+            j += 1
+        out.append(str(seeds[i]) if j == i else f"{seeds[i]}-{seeds[j]}")
+        i = j + 1
+    return ", ".join(out)
+
+
+def fell_words(fell: list) -> str:
+    """The episodes that fell in a sentence's clause: how many, and per 'before / after the command' the seeds and
+    the fall instants' span."""
+    if not fell:
+        return "0 fell"
+    parts = []
+    for when in ("before the command", "after the command"):
+        g = [x for x in fell if x["when"] == when]
+        if g:
+            ts = [x["fall_time_s"] for x in g]
+            span = f"at {min(ts):.2f} s" if len(g) == 1 else f"between {min(ts):.2f} and {max(ts):.2f} s"
+            parts.append(f"{len(g)} {when} (seed{'s' if len(g) > 1 else ''} {seed_runs(x['seed'] for x in g)}, {span})")
+    return f"{len(fell)} fell: " + "; ".join(parts)
+
+
 def turnpath_md(doc: dict) -> str:
     L = doc["body_length"]["body_length_m"]
     words = doc["set_in_words"]
@@ -1024,8 +1052,10 @@ def turnpath_md(doc: dict) -> str:
          "",
          f"Lengths are in metres and in body lengths (BL). One body length is {L:.3f} m: the model's overall length "
          f"at its home keyframe, from {doc['body_length']['back']} to {doc['body_length']['front']}.", "",
-         f"Records are read from `{doc['run']}` and cited by their path under it. Set freeze "
-         f"{doc['set_freeze']}, manifest `{str(doc['set_manifest_sha256'])[:12]}`.", ""]
+         f"Records are read from `{doc['run']}` and cited by their path under it; it held "
+         f"{len(doc['records_seen'])} turn record{'' if len(doc['records_seen']) == 1 else 's'} of this set when this "
+         f"file was written ({doc['provenance']['at']}). Set freeze {doc['set_freeze']}, manifest "
+         f"`{str(doc['set_manifest_sha256'])[:12]}`.", ""]
     for tn in doc["turns"]:
         pl = tn["planned"]
         r, cmd = pl["readings"], pl["commanded"]
@@ -1073,10 +1103,7 @@ def turnpath_md(doc: dict) -> str:
             head = (f"`{s['record']}`: controller row {s['row']}, servo delay {s['delay_ms']} ms, floor grip "
                     f"{s['floor_grip']:g}, block {s['block']}")
             A += [f"**{head}.**", ""]
-            fell = s["fell"]
-            A += [f"{s['count_text']}; {len(fell)} fell"
-                  + (" (" + ", ".join(f"seed {x['seed']} at {x['fall_time_s']:.2f} s, {x['when']}" for x in fell) + ")"
-                     if fell else "") + ".", ""]
+            A += [f"{s['count_text']}; {fell_words(s['fell'])}.", ""]
             for x in s["not_read"]:
                 A += [f"- seed {x['seed']} not read: {x['reason']}."]
             if s["not_read"]:

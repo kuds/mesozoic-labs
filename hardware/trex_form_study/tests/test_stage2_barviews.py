@@ -428,6 +428,11 @@ def test_simulated_turn_reads_what_stayed_up_and_lists_the_rest(v0, model, fake_
 
 
 def test_spread_and_body_lengths():
+    assert bv.seed_runs([3044, 3042, 3043, 3050]) == "3042-3044, 3050" and bv.fell_words([]) == "0 fell"
+    fell = [dict(seed=s, fall_time_s=4.5 + 0.1 * k, when="before the command") for k, s in enumerate((3042, 3043, 3045))]
+    assert bv.fell_words(fell + [dict(seed=3050, fall_time_s=21.654, when="after the command")]) == (
+        "4 fell: 3 before the command (seeds 3042-3043, 3045, between 4.50 and 4.70 s); 1 after the command (seed 3050, "
+        "at 21.65 s)")
     assert bv.spread([None, 3.0, 1.0, 2.0]) == dict(n=3, median=2.0, min=1.0, max=3.0) and bv.spread([None]) is None
     x = bv.in_body_lengths(dict(a_m=2.0, b=dict(c_m=[1.0, 4.0], d_deg=3.0), body_length_m=2.0, e_m=None), 2.0)
     assert x == dict(a_m=2.0, a_bl=1.0, b=dict(c_m=[1.0, 4.0], c_bl=[0.5, 2.0], d_deg=3.0), body_length_m=2.0, e_m=None)
@@ -637,7 +642,8 @@ def test_the_commands_write_nothing_in_the_run_directory_outside_views(v0, fake_
     assert [x["record"] for x in doc["records_not_read"]] == [f"V0/{BODY}/{BLOCK}/eval/R2/43@10ms/turn/q90_left.json"]
     md = (run / "views" / "turnpath" / "V0" / "TURNPATH.md").read_text()
     assert "### Planned" in md and "### Simulated" in md and "4 of 6 episodes stayed up" in md and "No record yet" in md
-    assert "seed 3043 at 14.20 s, after the command" in md and "| reading (simulated) |" in md
+    assert "1 fell: 1 after the command (seed 3043, at 14.20 s)." in md and "| reading (simulated) |" in md
+    assert "it held 2 turn records of this set when this file was written" in md
     assert q["figure"]["simulated_from"] == sim["record"] and "SIMULATED root paths of the 2 episodes" in q["figure"]["caption"]
     assert q["figure"]["rows_before_without_a_path"] == [] and "R2/42@10ms, R2/43@10ms, R0@10ms" in q["figure"]["rule"]
     # the figure's record: the first row in the stated order with a path to draw; the rows before it are named
