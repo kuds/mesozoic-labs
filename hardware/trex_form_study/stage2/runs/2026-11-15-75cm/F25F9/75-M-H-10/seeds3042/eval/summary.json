@@ -1,0 +1,431 @@
+{
+ "schema": "bar-1",
+ "set": "F25F9",
+ "body": "75-M-H-10",
+ "block": "seeds3042",
+ "control": null,
+ "rules": {
+  "readings": "every episode is read three ways, in the plan's order and never pooled: (1) shown with the look: not defined for a set without look bands (the block is null with that reason); (2) every limit (success); (3) every limit but for A1 (success_but_A1): the same terms with the sustained-drive term read on the leg drives only (plant.leg_drives: every drive but the neck's and the tail's).  The drives' RMS is taken over the judged window for the walk and the turn and over the whole episode for nudges and the stop; both spans' per-drive ratios are recorded.  A turn frozen with a1_over runs and records both readings, but reading 2 gives it no verdict (not read: a1_over, which is not a pass)",
+  "pass_": "a record passes a reading if all 20 episodes of its block survive and at least 17 succeed in that reading; a record of fewer episodes, of other seeds or with an episode that failed to run is not judged.  The judged delay is 10 ms; at another delay a record 'passes at <ms> ms' and gives no verdict.  R0 rows, Stage 1's reading, the replication block alone and a control give no verdict",
+  "replication": "of the 75 cm round's sets only F25F9cl (the candidate) is replicated: every seeds3042 record of it under a row with a verdict that passes in reading 2 or in reading 3 is run again on seeds5042 with the same row; the controls are not run on seeds5042; the new record names the record and the reading that triggered it (replication_of); the blocks are never pooled; a pass of an R0 row is not replicated.  Beside a shown or provisional verdict stands, for each row's record that passed, 'replicated' (the second block's record passes in that reading), 'not replicated' or 'replication cut by the pre-registered order'",
+  "seeds": "blocks: seeds3042 (3042-3061, the headline) and seeds5042 (5042-5061, replication); an episode's start, sensor-noise and push seeds are tune.derived_seed(seed, 0, purpose) (panels.EPISODE_RULE with slot 0 for every item)",
+  "no_overwrite": "a finished record ('done' or 'not run') whose key differs is never replaced silently: the run stops with the differing key fields, and so it does for a record file that cannot be read; --supersede moves the old record to <record>.superseded/<first 12 hex of its key's sha256>.json and the new record states its reason (supersedes.reason): it is a re-run after a result.  The label is written beside the kept record (<12 hex>.reason.json) before the record is moved, and every later record at that path carries it, so a killed re-run keeps it; supersedes.registered names the first record made at the path, supersedes.replaces the one just moved; the moved record's traces go to eval/traces.superseded/<12 hex>/"
+ },
+ "grid": {
+  "walk/v0.4": {
+   "R0@10ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 0,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 0,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 0
+    },
+    "label": "controller-limited",
+    "label_but_A1": "controller-limited",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "b4aed3a88ac274b6f22740606cace343a92e2009f25127c3e632d8cddb854dc0",
+    "change_after_result": null,
+    "stand_in_walks": false,
+    "lead_in": "start_v0.4"
+   },
+   "R2/42@10ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 20
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "6315bca83ad24cd8cff98a6e51946fb91597d97e5731f8dfabe7d9e0f71a4699",
+    "change_after_result": null,
+    "stand_in_walks": false,
+    "lead_in": "start_v0.4"
+   },
+   "R2/43@10ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 2,
+     "succeeded": 0,
+     "falls": 18,
+     "errors": 0,
+     "survival_lcb": 0.018065203085418632,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 2,
+     "succeeded": 0,
+     "falls": 18,
+     "errors": 0,
+     "survival_lcb": 0.018065203085418632,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 18
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "8f5e9c9976ba8f884b52616c23b91841275fd42cd3e03d021ca24554d5bcb45a",
+    "change_after_result": null,
+    "stand_in_walks": false,
+    "lead_in": "start_v0.4"
+   }
+  },
+  "walk/v0.4_mu0.54": {
+   "R0@10ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 0,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 0,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 0
+    },
+    "label": "controller-limited",
+    "label_but_A1": "controller-limited",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "1e0ab6f4c383fbc23ebc7fc0ebf439affded242091818bef5b449373a99e3d00",
+    "change_after_result": null,
+    "stand_in_walks": false,
+    "lead_in": "start_v0.4"
+   },
+   "R2/42@10ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 20
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "b1a5e588637f71787b451486c65c0b6862653f11bb53562333246e44d6b5df0b",
+    "change_after_result": null,
+    "stand_in_walks": false,
+    "lead_in": "start_v0.4"
+   },
+   "R2/43@10ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 20
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "b9243d4d941c31b6bcc14df40e37ae98c655f5d31042fb1d1a8fc505734805a7",
+    "change_after_result": null,
+    "stand_in_walks": false,
+    "lead_in": "start_v0.4"
+   }
+  }
+ },
+ "verdicts": {
+  "walk/v0.4": {
+   "R2@10ms": {
+    "rows": [
+     "R2/42@10ms",
+     "R2/43@10ms"
+    ],
+    "judged_delay": true,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "not attributed",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "not attributed",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   }
+  },
+  "walk/v0.4_mu0.54": {
+   "R2@10ms": {
+    "rows": [
+     "R2/42@10ms",
+     "R2/43@10ms"
+    ],
+    "judged_delay": true,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "not attributed",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "not attributed",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   }
+  }
+ },
+ "verdicts_note": null,
+ "sessions": [
+  {
+   "id": "2026-11-15T19:45:48Z/11208",
+   "started_at": "2026-11-15T19:45:48Z",
+   "commit": "364939ca5846cc7683fb100b23999fd03cfad577",
+   "dirty": false,
+   "dirty_paths": [],
+   "versions": {
+    "python": "3.13.18",
+    "numpy": "2.5.4",
+    "mujoco": "3.10.0",
+    "scipy": "1.18.1"
+   },
+   "blas_threads": 1,
+   "procs": 3,
+   "task": 3,
+   "unit": "T3.1-F25F9-10ms",
+   "block": "seeds3042",
+   "attribute": "none",
+   "traces": true,
+   "no_traces_for": [],
+   "set": "F25F9",
+   "body": "75-M-H-10",
+   "rows": [
+    "R2/42@10ms",
+    "R2/43@10ms",
+    "R0@10ms"
+   ],
+   "conditions": [
+    "walk/v0.4",
+    "walk/v0.4_mu0.54"
+   ],
+   "seeds": [
+    3042,
+    3043,
+    3044,
+    3045,
+    3046,
+    3047,
+    3048,
+    3049,
+    3050,
+    3051,
+    3052,
+    3053,
+    3054,
+    3055,
+    3056,
+    3057,
+    3058,
+    3059,
+    3060,
+    3061
+   ],
+   "passed_of": null,
+   "control": null,
+   "episodes_run": 120,
+   "attribution_episodes_run": 0,
+   "skipped": [],
+   "reused_partial": [],
+   "rerun_failed": [],
+   "not_run": [],
+   "not_selected": [],
+   "superseded": [],
+   "attribution_cut": [],
+   "incomplete": [],
+   "incidents": [],
+   "ended_at": "2026-11-15T19:46:29Z",
+   "wall_s": 41.705743876998895
+  }
+ ],
+ "written_at": "2026-11-15T19:46:29Z"
+}

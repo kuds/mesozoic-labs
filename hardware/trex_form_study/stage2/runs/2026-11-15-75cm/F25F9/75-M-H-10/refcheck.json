@@ -1,0 +1,971 @@
+{
+ "schema": "bar-refcheck-1",
+ "set": "F25F9",
+ "body": "75-M-H-10",
+ "rule": "each reference, played kinematically at the commanded clock (1.05), read with the bar's own readings; no physics, no verdict",
+ "omega": 4.886696621968509,
+ "crouch_frac": 0.05,
+ "inputs": {
+  "dir": "stage2/sets/F25F9/75-M-H-10",
+  "files": {
+   "refs/v0.4.npz": {
+    "sha256": "3ec832ccccace18cc2722686ae28d2464a7b3bbb260a78c5b21a292c1ed5ef28",
+    "entry_sha256": "ae52ecd714aa418f81a7c24648ee648871941c7e16b3c1d71e52449542e106b1"
+   },
+   "transitions/start_v0.4.npz": {
+    "sha256": "1e72f9825f74269f9f94c834c34a119074de218c6b6d51b264d729e3e83ccdce",
+    "entry_sha256": "482d4d48ed001af61d167d3fa1a534206bb8bd98dab98aedb9e287991b6d6383"
+   },
+   "transitions/stop1_v0.4.npz": {
+    "sha256": "43d1ae96cf262371a58ba04e4dbdf051f48a8774a55babb1671d4b867d2408cc",
+    "entry_sha256": "4693dc028423ad33ac432fdb44bf483c166638dd499d1c5c6b6ccb058daad2af"
+   },
+   "transitions/stop2_v0.4.npz": {
+    "sha256": "ddf3eb083b8c4854babcd481b401921b132c14d32ffabf9d55d893c4fa7311bd",
+    "entry_sha256": "0c5aa9d1096528c973a38a5a44b81855e025ae0eef6b4cafcc7194b1e5d790d8"
+   },
+   "transitions/turn90_0.35_left.npz": {
+    "sha256": "7f5ea0c44acef8c67d81cd9bc770a73d60e95e80deac040254c3ff0fb3ef2ca2",
+    "entry_sha256": "c26738440676886fc8c15378506ffaabafff8c0f6767c6781e74edab2bd098af"
+   },
+   "transitions/turn90_0.35_right.npz": {
+    "sha256": "e27fd3d822e22e441193d0de080b105c874978340700dfdf2d895e0a6bc85c10",
+    "entry_sha256": "2f23a28f62120acb623c7724ec17ea6021330ed37ced1c7a83ecd3a9ed46d546"
+   },
+   "transitions/turn90_0.5_left.npz": {
+    "sha256": "24ade72302e2170b484adf22df0fb1ad404c4d80d446a9763254ea488a9fad67",
+    "entry_sha256": "c9e1b30ab71b75a79f63abdc7bc259bafc3f0c0501cbe0cf38fc2545f984076f"
+   },
+   "transitions/turn90_0.5_right.npz": {
+    "sha256": "564ffa6b2f7f2d65dae2c546e4880f01bc257a4008df4432118d6711cda8699a",
+    "entry_sha256": "4b10d4deb93cada9b94d16d00a7034d9f903732345b3fb6201bf23107d35b486"
+   },
+   "transitions/turn90_pi4_left.npz": {
+    "sha256": "040740666c165fdce75b9d600405dbe2eeb6f2d20d562cd2f2bf77aa3a950afa",
+    "entry_sha256": "62509ccbea3e84c65344ed2cc70fd820b7455fa78c9bc4abcbed18554bed6d75"
+   },
+   "transitions/turn90_pi4_right.npz": {
+    "sha256": "90e6cf660b18b693d5e026777f5079be000b747cf7f469043bbde78e591ba099",
+    "entry_sha256": "bac2b0215f8d0c3dbeb75551e05e94bb89e089560c374fc7ad46ded42907a900"
+   }
+  }
+ },
+ "set_freeze": {
+  "index": 0,
+  "manifest_sha256": "1a5f606feed7a0287c4d13c23dc7c1a60dc19dbd3e8aecc6057d9e2b450e3d8f"
+ },
+ "items": {
+  "walk/v0.4": {
+   "condition": "walk/v0.4",
+   "plan": [
+    [
+     "transition",
+     "start_v0.4"
+    ],
+    [
+     "ref",
+     "v0.4",
+     10
+    ]
+   ],
+   "seconds": 14.1917014508774,
+   "clock_rate": 1.05,
+   "files": [
+    "refs/v0.4.npz",
+    "transitions/start_v0.4.npz"
+   ],
+   "along_commanded_heading_m": 4.206562788505606,
+   "along_target_m": 4.0,
+   "lateral_from_line_max_m": 0.048906874786389734,
+   "toe": {
+    "toe_clearance_own_swing_m": 0.019736826136372683,
+    "own_swings": [
+     10,
+     11
+    ],
+    "ref_swings": [
+     10,
+     11
+    ],
+    "ref_swings_cut": [
+     0,
+     0
+    ],
+    "interrupted_swings": 0,
+    "air_gaps": 0,
+    "air_gap_longest_s": 0.0,
+    "air_gap_max_s": 0.21287552176285576,
+    "shortest_planned_s": 0.4257510435257115,
+    "toe_clearance_own_duration_m": 0.019758889894462926,
+    "own_duration_swings": [
+     10,
+     11
+    ],
+    "worst_swing": {
+     "foot": 1,
+     "t_lo_s": 8.99,
+     "t_td_s": 9.414,
+     "own_duration_s": 0.4239999999999995,
+     "planned_s": 0.42575104352623255,
+     "min_at_frac": 0.75,
+     "min_from_edge": "last"
+    },
+    "count_ok": true,
+    "ok": false,
+    "limit_m": 0.020074141986586733,
+    "toe_clearance_own_swing_H": 0.039327859989354584,
+    "toe_clearance_own_duration_H": 0.039371824524635814
+   },
+   "ok": {
+    "along": true,
+    "line": true,
+    "toe_clearance_own_swing": false
+   },
+   "pass_": false,
+   "status": "done",
+   "gated": true
+  },
+  "turn/q90_left": {
+   "condition": "turn/q90_left",
+   "plan": [
+    [
+     "transition",
+     "start_v0.4"
+    ],
+    [
+     "ref",
+     "v0.4",
+     2.0
+    ],
+    [
+     "transition",
+     "turn90_pi4_left"
+    ],
+    [
+     "ref",
+     "v0.4",
+     2
+    ]
+   ],
+   "seconds": 12.171362116222138,
+   "clock_rate": 1.05,
+   "files": [
+    "refs/v0.4.npz",
+    "transitions/start_v0.4.npz",
+    "transitions/turn90_pi4_left.npz"
+   ],
+   "command_s": 6.622794010411031,
+   "turn": {
+    "command_s": 6.622794010411031,
+    "at_s": 2.0,
+    "hold_s": 3.0,
+    "tol_deg": 10.0,
+    "angle_deg": 90.0,
+    "sign": 1.0,
+    "window_reached": true,
+    "heading": true,
+    "heading_error_at_deg": -4.827901263918114,
+    "heading_error_hold_max_deg": 4.509558374881364,
+    "time_to_within_10deg_s": 1.8972059895889686,
+    "turned_own_deg": 85.17209647556943,
+    "trunk_heading_at_command_deg": 2.2605124514178746e-06
+   },
+   "toe": {
+    "toe_clearance_own_swing_m": 0.01604544194170715,
+    "own_swings": [
+     6,
+     6
+    ],
+    "ref_swings": [
+     6,
+     6
+    ],
+    "ref_swings_cut": [
+     0,
+     0
+    ],
+    "interrupted_swings": 0,
+    "air_gaps": 0,
+    "air_gap_longest_s": 0.0,
+    "air_gap_max_s": 0.1490128652341939,
+    "shortest_planned_s": 0.2980257304683878,
+    "toe_clearance_own_duration_m": 0.01596661948192204,
+    "own_duration_swings": [
+     6,
+     6
+    ],
+    "worst_swing": {
+     "foot": 0,
+     "t_lo_s": 6.6240000000000006,
+     "t_td_s": 6.984,
+     "own_duration_s": 0.35999999999999943,
+     "planned_s": 0.36105094055238107,
+     "min_at_frac": 0.25,
+     "min_from_edge": "first"
+    },
+    "count_ok": true,
+    "ok": false,
+    "limit_m": 0.020074141986586733,
+    "toe_clearance_own_swing_H": 0.03197235917216984,
+    "toe_clearance_own_duration_H": 0.03181529649952803
+   },
+   "file": {
+    "kind": "turn",
+    "accel_forward_lp1hz_peak_m_s2": 0.7109267283151668,
+    "heading_total_rad": 1.5707963267945793,
+    "at_s": 2.0,
+    "heading_at_bar_deg": 85.17343872139887,
+    "heading_at_slowest_clock_deg": 80.4931054239658,
+    "heading_at_ref_clock_deg": 80.71810542396565,
+    "time_to_80deg_bar_s": 1.889563906371087,
+    "heading_ok": true
+   },
+   "heading_reached_at_bar_time_deg": 85.17209873608189,
+   "ok": {
+    "heading": true,
+    "toe_clearance_own_swing": false,
+    "heading_at_80deg": true
+   },
+   "pass_": false,
+   "status": "done",
+   "gated": true
+  },
+  "turn/q90_right": {
+   "condition": "turn/q90_right",
+   "plan": [
+    [
+     "transition",
+     "start_v0.4"
+    ],
+    [
+     "ref",
+     "v0.4",
+     2.5
+    ],
+    [
+     "transition",
+     "turn90_pi4_right"
+    ],
+    [
+     "ref",
+     "v0.4",
+     2
+    ]
+   ],
+   "seconds": 12.669316553094927,
+   "clock_rate": 1.05,
+   "files": [
+    "refs/v0.4.npz",
+    "transitions/start_v0.4.npz",
+    "transitions/turn90_pi4_right.npz"
+   ],
+   "command_s": 7.0958507254401795,
+   "turn": {
+    "command_s": 7.0958507254401795,
+    "at_s": 2.0,
+    "hold_s": 3.0,
+    "tol_deg": 10.0,
+    "angle_deg": 90.0,
+    "sign": -1.0,
+    "window_reached": true,
+    "heading": true,
+    "heading_error_at_deg": 4.828074913350296,
+    "heading_error_hold_max_deg": 4.643116486934114,
+    "time_to_within_10deg_s": 1.8941492745598207,
+    "turned_own_deg": -85.1719242977259,
+    "trunk_heading_at_command_deg": -7.889238201743657e-07
+   },
+   "toe": {
+    "toe_clearance_own_swing_m": 0.01573146881501706,
+    "own_swings": [
+     6,
+     6
+    ],
+    "ref_swings": [
+     6,
+     6
+    ],
+    "ref_swings_cut": [
+     0,
+     0
+    ],
+    "interrupted_swings": 0,
+    "air_gaps": 0,
+    "air_gap_longest_s": 0.0,
+    "air_gap_max_s": 0.1490128652341939,
+    "shortest_planned_s": 0.2980257304683878,
+    "toe_clearance_own_duration_m": 0.015801803129929293,
+    "own_duration_swings": [
+     6,
+     6
+    ],
+    "worst_swing": {
+     "foot": 1,
+     "t_lo_s": 7.096,
+     "t_td_s": 7.458,
+     "own_duration_s": 0.3620000000000001,
+     "planned_s": 0.36105094055238107,
+     "min_at_frac": 0.25,
+     "min_from_edge": "first"
+    },
+    "count_ok": true,
+    "ok": false,
+    "limit_m": 0.020074141986586733,
+    "toe_clearance_own_swing_H": 0.03134673218019203,
+    "toe_clearance_own_duration_H": 0.03148688126344397
+   },
+   "file": {
+    "kind": "turn",
+    "accel_forward_lp1hz_peak_m_s2": 0.7109057400009551,
+    "heading_total_rad": -1.5707963267945793,
+    "at_s": 2.0,
+    "heading_at_bar_deg": 85.17343872139887,
+    "heading_at_slowest_clock_deg": 80.4931054239658,
+    "heading_at_ref_clock_deg": 80.71810542396565,
+    "time_to_80deg_bar_s": 1.889563906371087,
+    "heading_ok": true
+   },
+   "heading_reached_at_bar_time_deg": 85.17192508664971,
+   "ok": {
+    "heading": true,
+    "toe_clearance_own_swing": false,
+    "heading_at_80deg": true
+   },
+   "pass_": false,
+   "status": "done",
+   "gated": true
+  },
+  "stop/two_step": {
+   "condition": "stop/two_step",
+   "plan": [
+    [
+     "transition",
+     "start_v0.4"
+    ],
+    [
+     "ref",
+     "v0.4",
+     2.5
+    ],
+    [
+     "transition",
+     "stop2_v0.4"
+    ],
+    [
+     "hold",
+     3.575774749176853
+    ]
+   ],
+   "seconds": 13.154997611208115,
+   "clock_rate": 1.05,
+   "files": [
+    "refs/v0.4.npz",
+    "transitions/start_v0.4.npz",
+    "transitions/stop2_v0.4.npz"
+   ],
+   "command_s": 7.0958507254401795,
+   "command_convention": "causal: the move's first frame",
+   "stop": {
+    "command_s": 7.0958507254401795,
+    "command_speed_m_s": 0.42000000000000004,
+    "stride_s": 0.9461134300582961,
+    "speed_frac": 0.05,
+    "reached_command": true,
+    "stopped_by_end": true,
+    "forward_stopped_s": 1.0641492745598207,
+    "forward_stopped_strides": 1.1247586608027027,
+    "touchdowns_after_command": 2,
+    "touchdown_table": [
+     [
+      1,
+      7.522,
+      0.42614927455982077
+     ],
+     [
+      0,
+      7.996,
+      0.900149274559821
+     ]
+    ],
+    "touchdowns_to_end": 2,
+    "last_touchdown_before_command": {
+     "foot": 0,
+     "t_s": 7.05,
+     "before_command_s": 0.04585072544017965
+    },
+    "distance_after_command_m": 0.2796290507002541,
+    "deceleration_raw_peak_m_s2": 2.1490024882063103,
+    "com_accel_forward_lp1hz_peak_m_s2": 0.6954385482087724
+   },
+   "ok": {
+    "stopped_by_end": true,
+    "touchdowns_after_command": true
+   },
+   "pass_": true,
+   "status": "done",
+   "gated": true
+  },
+  "walk/nominal": {
+   "condition": "walk/nominal",
+   "status": "not run",
+   "reason": "dropped from the ladder: over clearance swing_clearance 0.0382: blocks the freeze (clearance swing_clearance); a walk that is not frozen is dropped from the ladder with its numbers",
+   "reference": "refs/nominal",
+   "pass_": null
+  },
+  "walk/v0.3": {
+   "condition": "walk/v0.3",
+   "status": "not run",
+   "reason": "dropped from the ladder: over clearance swing_clearance 0.0382: blocks the freeze (clearance swing_clearance); a walk that is not frozen is dropped from the ladder with its numbers",
+   "reference": "refs/v0.3",
+   "pass_": null
+  },
+  "walk/v0.35": {
+   "condition": "walk/v0.35",
+   "status": "not run",
+   "reason": "dropped from the ladder: over clearance swing_clearance 0.0382: blocks the freeze (clearance swing_clearance); a walk that is not frozen is dropped from the ladder with its numbers",
+   "reference": "refs/v0.35",
+   "pass_": null
+  },
+  "walk/v0.45": {
+   "condition": "walk/v0.45",
+   "status": "not run",
+   "reason": "no transition into v0.45 (the walk nominal is not a rung of the set (nominal: dropped from the ladder: over clearance swing_clearance 0.0382: blocks the freeze (clearance swing_clearance); a walk that is not frozen is dropped from the ladder with its numbers); no change from the neighbouring rung within the gates)",
+   "reference": "transitions/v0.4_to_v0.45",
+   "pass_": null
+  },
+  "walk/v0.5": {
+   "condition": "walk/v0.5",
+   "status": "not run",
+   "reason": "no transition into v0.5 (the walk nominal is not a rung of the set (nominal: dropped from the ladder: over clearance swing_clearance 0.0382: blocks the freeze (clearance swing_clearance); a walk that is not frozen is dropped from the ladder with its numbers); no change from the neighbouring rung within the gates)",
+   "reference": "transitions/v0.45_to_v0.5",
+   "pass_": null
+  },
+  "turn/t90_0.35_left": {
+   "condition": "turn/t90_0.35_left",
+   "plan": [
+    [
+     "transition",
+     "start_v0.4"
+    ],
+    [
+     "ref",
+     "v0.4",
+     2.0
+    ],
+    [
+     "transition",
+     "turn90_0.35_left"
+    ],
+    [
+     "ref",
+     "v0.4",
+     3
+    ]
+   ],
+   "seconds": 14.659351621350414,
+   "clock_rate": 1.05,
+   "files": [
+    "refs/v0.4.npz",
+    "transitions/start_v0.4.npz",
+    "transitions/turn90_0.35_left.npz"
+   ],
+   "command_s": 6.622794010411031,
+   "turn": {
+    "command_s": 6.622794010411031,
+    "at_s": 4.487989505128276,
+    "hold_s": 3.0,
+    "tol_deg": 10.0,
+    "angle_deg": 90.0,
+    "sign": 1.0,
+    "window_reached": true,
+    "heading": true,
+    "heading_error_at_deg": -0.28552599605106327,
+    "heading_error_hold_max_deg": 0.22746652459795796,
+    "time_to_within_10deg_s": 3.9872059895889684,
+    "turned_own_deg": 89.71447237262018,
+    "trunk_heading_at_command_deg": 1.6313287543714202e-06
+   },
+   "toe": {
+    "toe_clearance_own_swing_m": 0.019736220614643755,
+    "own_swings": [
+     8,
+     7
+    ],
+    "ref_swings": [
+     8,
+     7
+    ],
+    "ref_swings_cut": [
+     0,
+     0
+    ],
+    "interrupted_swings": 0,
+    "air_gaps": 0,
+    "air_gap_longest_s": 0.0,
+    "air_gap_max_s": 0.21287552176285576,
+    "shortest_planned_s": 0.4257510435257115,
+    "toe_clearance_own_duration_m": 0.01975885474785606,
+    "own_duration_swings": [
+     8,
+     7
+    ],
+    "worst_swing": {
+     "foot": 1,
+     "t_lo_s": 8.99,
+     "t_td_s": 9.414,
+     "own_duration_s": 0.4239999999999995,
+     "planned_s": 0.42575104352668597,
+     "min_at_frac": 0.75,
+     "min_from_edge": "last"
+    },
+    "count_ok": true,
+    "ok": false,
+    "limit_m": 0.020074141986586733,
+    "toe_clearance_own_swing_H": 0.03932665341877372,
+    "toe_clearance_own_duration_H": 0.03937175449104357
+   },
+   "file": {
+    "kind": "turn",
+    "accel_forward_lp1hz_peak_m_s2": 0.7255131298403279,
+    "heading_total_rad": 1.5707963267949865,
+    "at_s": 4.487989505128276,
+    "heading_at_bar_deg": 89.71504868508093,
+    "heading_at_slowest_clock_deg": 86.01496446938523,
+    "heading_at_ref_clock_deg": 86.239964468395,
+    "time_to_80deg_bar_s": 3.9779276233926546,
+    "heading_ok": true
+   },
+   "heading_reached_at_bar_time_deg": 89.71447400394894,
+   "ok": {
+    "heading": true,
+    "toe_clearance_own_swing": false,
+    "heading_at_80deg": true
+   },
+   "pass_": false,
+   "status": "done",
+   "gated": false
+  },
+  "turn/t90_0.35_right": {
+   "condition": "turn/t90_0.35_right",
+   "plan": [
+    [
+     "transition",
+     "start_v0.4"
+    ],
+    [
+     "ref",
+     "v0.4",
+     2.5
+    ],
+    [
+     "transition",
+     "turn90_0.35_right"
+    ],
+    [
+     "ref",
+     "v0.4",
+     2
+    ]
+   ],
+   "seconds": 15.157306058223202,
+   "clock_rate": 1.05,
+   "files": [
+    "refs/v0.4.npz",
+    "transitions/start_v0.4.npz",
+    "transitions/turn90_0.35_right.npz"
+   ],
+   "command_s": 7.0958507254401795,
+   "turn": {
+    "command_s": 7.0958507254401795,
+    "at_s": 4.487989505128276,
+    "hold_s": 3.0,
+    "tol_deg": 10.0,
+    "angle_deg": 90.0,
+    "sign": -1.0,
+    "window_reached": true,
+    "heading": true,
+    "heading_error_at_deg": 0.28637205381228636,
+    "heading_error_hold_max_deg": 0.245329338688096,
+    "time_to_within_10deg_s": 3.9841492745598206,
+    "turned_own_deg": -89.71362737543333,
+    "trunk_heading_at_command_deg": -5.70754384533094e-07
+   },
+   "toe": {
+    "toe_clearance_own_swing_m": 0.01973702443683778,
+    "own_swings": [
+     7,
+     8
+    ],
+    "ref_swings": [
+     7,
+     8
+    ],
+    "ref_swings_cut": [
+     0,
+     0
+    ],
+    "interrupted_swings": 0,
+    "air_gaps": 0,
+    "air_gap_longest_s": 0.0,
+    "air_gap_max_s": 0.21287552176285576,
+    "shortest_planned_s": 0.4257510435257115,
+    "toe_clearance_own_duration_m": 0.019758909127538322,
+    "own_duration_swings": [
+     7,
+     8
+    ],
+    "worst_swing": {
+     "foot": 1,
+     "t_lo_s": 8.99,
+     "t_td_s": 9.414,
+     "own_duration_s": 0.4239999999999995,
+     "planned_s": 0.42575104352668597,
+     "min_at_frac": 0.75,
+     "min_from_edge": "last"
+    },
+    "count_ok": true,
+    "ok": false,
+    "limit_m": 0.020074141986586733,
+    "toe_clearance_own_swing_H": 0.03932825512547593,
+    "toe_clearance_own_duration_H": 0.03937186284871544
+   },
+   "file": {
+    "kind": "turn",
+    "accel_forward_lp1hz_peak_m_s2": 0.7254919682855709,
+    "heading_total_rad": -1.5707963267949865,
+    "at_s": 4.487989505128276,
+    "heading_at_bar_deg": 89.71504868508093,
+    "heading_at_slowest_clock_deg": 86.01496446938523,
+    "heading_at_ref_clock_deg": 86.239964468395,
+    "time_to_80deg_bar_s": 3.9779276233926546,
+    "heading_ok": true
+   },
+   "heading_reached_at_bar_time_deg": 89.71362794618771,
+   "ok": {
+    "heading": true,
+    "toe_clearance_own_swing": false,
+    "heading_at_80deg": true
+   },
+   "pass_": false,
+   "status": "done",
+   "gated": false
+  },
+  "turn/t90_0.5_left": {
+   "condition": "turn/t90_0.5_left",
+   "plan": [
+    [
+     "transition",
+     "start_v0.4"
+    ],
+    [
+     "ref",
+     "v0.4",
+     2.0
+    ],
+    [
+     "transition",
+     "turn90_0.5_left"
+    ],
+    [
+     "ref",
+     "v0.4",
+     2
+    ]
+   ],
+   "seconds": 13.312954769811931,
+   "clock_rate": 1.05,
+   "files": [
+    "refs/v0.4.npz",
+    "transitions/start_v0.4.npz",
+    "transitions/turn90_0.5_left.npz"
+   ],
+   "command_s": 6.622794010411031,
+   "turn": {
+    "command_s": 6.622794010411031,
+    "at_s": 3.141592653589793,
+    "hold_s": 3.0,
+    "tol_deg": 10.0,
+    "angle_deg": 90.0,
+    "sign": 1.0,
+    "window_reached": true,
+    "heading": true,
+    "heading_error_at_deg": -1.3431468527087667,
+    "heading_error_hold_max_deg": 1.2339254494204024,
+    "time_to_within_10deg_s": 2.8472059895889696,
+    "turned_own_deg": 88.65685081682159,
+    "trunk_heading_at_command_deg": 2.3304696491022977e-06
+   },
+   "toe": {
+    "toe_clearance_own_swing_m": 0.019736299607759987,
+    "own_swings": [
+     7,
+     6
+    ],
+    "ref_swings": [
+     7,
+     6
+    ],
+    "ref_swings_cut": [
+     0,
+     0
+    ],
+    "interrupted_swings": 0,
+    "air_gaps": 0,
+    "air_gap_longest_s": 0.0,
+    "air_gap_max_s": 0.21287552176285576,
+    "shortest_planned_s": 0.4257510435257115,
+    "toe_clearance_own_duration_m": 0.019758889381997824,
+    "own_duration_swings": [
+     7,
+     6
+    ],
+    "worst_swing": {
+     "foot": 1,
+     "t_lo_s": 8.99,
+     "t_td_s": 9.414,
+     "own_duration_s": 0.4239999999999995,
+     "planned_s": 0.42575104352668597,
+     "min_at_frac": 0.75,
+     "min_from_edge": "last"
+    },
+    "count_ok": true,
+    "ok": false,
+    "limit_m": 0.020074141986586733,
+    "toe_clearance_own_swing_H": 0.039326810821498644,
+    "toe_clearance_own_duration_H": 0.039371823503491096
+   },
+   "file": {
+    "kind": "turn",
+    "accel_forward_lp1hz_peak_m_s2": 0.7384909104507853,
+    "heading_total_rad": 1.5707963267948548,
+    "at_s": 3.141592653589793,
+    "heading_at_bar_deg": 88.65873289524303,
+    "heading_at_slowest_clock_deg": 84.40352067055059,
+    "heading_at_ref_clock_deg": 84.62852067054946,
+    "time_to_80deg_bar_s": 2.838120764946828,
+    "heading_ok": true
+   },
+   "heading_reached_at_bar_time_deg": 88.65685314729123,
+   "ok": {
+    "heading": true,
+    "toe_clearance_own_swing": false,
+    "heading_at_80deg": true
+   },
+   "pass_": false,
+   "status": "done",
+   "gated": false
+  },
+  "turn/t90_0.5_right": {
+   "condition": "turn/t90_0.5_right",
+   "plan": [
+    [
+     "transition",
+     "start_v0.4"
+    ],
+    [
+     "ref",
+     "v0.4",
+     2.5
+    ],
+    [
+     "transition",
+     "turn90_0.5_right"
+    ],
+    [
+     "ref",
+     "v0.4",
+     2
+    ]
+   ],
+   "seconds": 13.81090920668472,
+   "clock_rate": 1.05,
+   "files": [
+    "refs/v0.4.npz",
+    "transitions/start_v0.4.npz",
+    "transitions/turn90_0.5_right.npz"
+   ],
+   "command_s": 7.0958507254401795,
+   "turn": {
+    "command_s": 7.0958507254401795,
+    "at_s": 3.141592653589793,
+    "hold_s": 3.0,
+    "tol_deg": 10.0,
+    "angle_deg": 90.0,
+    "sign": -1.0,
+    "window_reached": true,
+    "heading": true,
+    "heading_error_at_deg": 1.3425630198921683,
+    "heading_error_hold_max_deg": 1.2918138841514697,
+    "time_to_within_10deg_s": 2.84414927455982,
+    "turned_own_deg": -88.65743616474442,
+    "trunk_heading_at_command_deg": -8.153634064759439e-07
+   },
+   "toe": {
+    "toe_clearance_own_swing_m": 0.019737146941900475,
+    "own_swings": [
+     6,
+     7
+    ],
+    "ref_swings": [
+     6,
+     7
+    ],
+    "ref_swings_cut": [
+     0,
+     0
+    ],
+    "interrupted_swings": 0,
+    "air_gaps": 0,
+    "air_gap_longest_s": 0.0,
+    "air_gap_max_s": 0.21287552176285576,
+    "shortest_planned_s": 0.4257510435257115,
+    "toe_clearance_own_duration_m": 0.019758889408347392,
+    "own_duration_swings": [
+     6,
+     7
+    ],
+    "worst_swing": {
+     "foot": 1,
+     "t_lo_s": 8.99,
+     "t_td_s": 9.414,
+     "own_duration_s": 0.4239999999999995,
+     "planned_s": 0.42575104352668597,
+     "min_at_frac": 0.75,
+     "min_from_edge": "last"
+    },
+    "count_ok": true,
+    "ok": false,
+    "limit_m": 0.020074141986586733,
+    "toe_clearance_own_swing_H": 0.03932849923067908,
+    "toe_clearance_own_duration_H": 0.03937182355599559
+   },
+   "file": {
+    "kind": "turn",
+    "accel_forward_lp1hz_peak_m_s2": 0.7384707235270711,
+    "heading_total_rad": -1.5707963267948548,
+    "at_s": 3.141592653589793,
+    "heading_at_bar_deg": 88.65873289524303,
+    "heading_at_slowest_clock_deg": 84.40352067055059,
+    "heading_at_ref_clock_deg": 84.62852067054946,
+    "time_to_80deg_bar_s": 2.838120764946828,
+    "heading_ok": true
+   },
+   "heading_reached_at_bar_time_deg": 88.65743698010783,
+   "ok": {
+    "heading": true,
+    "toe_clearance_own_swing": false,
+    "heading_at_80deg": true
+   },
+   "pass_": false,
+   "status": "done",
+   "gated": false
+  },
+  "turn/t90_1_left": {
+   "condition": "turn/t90_1_left",
+   "status": "not run",
+   "reason": "no reference within the thigh twist and the leg drives: no stride factor of the grid passes the kinematic rule (thigh twist at most 0.85 of its range, every other gated joint at least 0.05 rad of range, ik_ok, in both directions)",
+   "reference": "transitions/turn90_1_left",
+   "pass_": null
+  },
+  "turn/t90_1_right": {
+   "condition": "turn/t90_1_right",
+   "status": "not run",
+   "reason": "no reference within the thigh twist and the leg drives: no stride factor of the grid passes the kinematic rule (thigh twist at most 0.85 of its range, every other gated joint at least 0.05 rad of range, ik_ok, in both directions)",
+   "reference": "transitions/turn90_1_right",
+   "pass_": null
+  },
+  "stop/one_step": {
+   "condition": "stop/one_step",
+   "plan": [
+    [
+     "transition",
+     "start_v0.4"
+    ],
+    [
+     "ref",
+     "v0.4",
+     2.0
+    ],
+    [
+     "transition",
+     "stop1_v0.4"
+    ],
+    [
+     "hold",
+     3.680345180920078
+    ]
+   ],
+   "seconds": 14.150906484953119,
+   "clock_rate": 1.05,
+   "files": [
+    "refs/v0.4.npz",
+    "transitions/start_v0.4.npz",
+    "transitions/stop1_v0.4.npz"
+   ],
+   "command_s": 8.53867370628109,
+   "command_convention": "Stage 1's (decision 18): where the reference's path speed begins to ramp down; the reference anticipates this command",
+   "stop": {
+    "command_s": 8.53867370628109,
+    "command_speed_m_s": 0.42000000000000004,
+    "stride_s": 0.9461134300582961,
+    "speed_frac": 0.05,
+    "reached_command": true,
+    "stopped_by_end": true,
+    "forward_stopped_s": 0.5713262937189096,
+    "forward_stopped_strides": 0.603866593124787,
+    "touchdowns_after_command": 1,
+    "touchdown_table": [
+     [
+      0,
+      8.942,
+      0.4033262937189104
+     ]
+    ],
+    "touchdowns_to_end": 1,
+    "last_touchdown_before_command": {
+     "foot": 1,
+     "t_s": 8.468,
+     "before_command_s": 0.07067370628108982
+    },
+    "distance_after_command_m": 0.0809314396899472,
+    "deceleration_raw_peak_m_s2": 1.900650128638265,
+    "com_accel_forward_lp1hz_peak_m_s2": 0.6989779383924664
+   },
+   "ok": {
+    "stopped_by_end": true,
+    "touchdowns_after_command": true
+   },
+   "pass_": true,
+   "status": "done",
+   "gated": false
+  }
+ },
+ "pass_": false,
+ "lead_in": "start_v0.4",
+ "lead_in_rule": "an exception for a set whose nominal walk is not a rung (set.json lead_in 'start_v0.4'; STAGE2_75_PLAN.md A8 as amended by the owner's decision of 15 Nov, DECISION_LOG.md P34, after the first builds of the three sets; changed after a result): every item starts with the stand and start_v0.4, the start from standing straight into the 0.40 m/s walk, in place of start, one stride of nominal and the change to 0.40 m/s; the strides of the 0.40 m/s walk before a command, the seed slot, the planned seconds' rules and the judged windows are those of every other set (the start's own file ends with 2 strides of the 0.40 m/s walk after its steady point and the change's with 3, Stage 1's windows: counted from the steady point a command comes one stride earlier on such a set); another rung is reached from 0.40 m/s through the neighbouring rungs' changes, one stride of each rung on the way; the home pose of the track's LIPM frequency is read from the 0.40 m/s walk's file (every walk file of a set holds the body's one home pose); a condition that needs the nominal walk is not run.  Every record of such a set carries lead_in, and a table that prints its rows labels them (the summary's cells and lines, the kinematic check's record).  A set whose set.json and entries disagree is refused: lead_in 'start_v0.4' on a set that holds its nominal walk, or another lead_in on a set that holds start_v0.4 and the 0.40 m/s walk and no nominal walk",
+ "bar_sources": {
+  "sha256": "45719d030359ec7d5d3914af3814d837fdc05d77652ba45c64792b511027528d",
+  "files": {
+   "designlab/stage2/bar.py": "21ac6393a11932ca23746a429c2441d21c7fcfe97643f150d80cf22f24a52ce5",
+   "designlab/stage2/readings.py": "e1ac0446692cda578cddc6598fc888ad33bcbe95d0a16d3dc42cb800c4bf876e",
+   "designlab/stage2/setio.py": "f25d8616e5e79f805cd0deded49cd34f85f1a0dc77a4114dce44b8b0cd354c91",
+   "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+  },
+  "rule": "a record's key holds what an episode executes: the row's description and sources, the condition, the plan, seconds, seeds and command, omega and crouch_frac, panels.key_context(body), per input file its sha256 and the sha256 of the entry numbers the planner reads (setio.entry_sha256), and the source hashes of the panels' modules and of bar.py, readings.py, setio.py and speedfit.py"
+ },
+ "provenance": {
+  "git": {
+   "commit": "364939ca5846cc7683fb100b23999fd03cfad577",
+   "dirty": false,
+   "dirty_paths": []
+  },
+  "versions": {
+   "python": "3.13.18",
+   "numpy": "2.5.4",
+   "mujoco": "3.10.0",
+   "scipy": "1.18.1"
+  },
+  "blas_threads": 1
+ },
+ "at": "2026-11-15T19:44:36Z"
+}

@@ -229,3 +229,24 @@ Ways to spend less of the allocation per package, for the owner to choose betwee
 fixers at a lower effort setting than the session's; one reviewer per package instead of two where the second lens is
 not provenance or bit-identity; briefs that carry only the package's part of the design; builders and fixers on
 another model with the lead and the independent reviewers unchanged.
+
+## Update, 15 Nov 2026, 19:50 UTC: the sets are frozen and the 75 cm panels are running
+
+- Round A is merged in full (M, R, G, C, B, T, S). The sets' fix round was reviewed independently by two reviewers
+  before the freeze; their one blocker (the chain's reference-check step) is fixed in `run_75cm.sh`.
+- Code state A is `c377ba1` (`STAGE2_75_PLAN.md` R4). Before it: legacy check 36 of 36, regression 256 of 256, full
+  suite green but for two tables tests (a fixture older than the runner's lead-in refusal; being fixed in `wt/wp-t2`).
+- The chain started at 19:44 UTC in the main checkout with `PROCS=3`: `stage2/runs/2026-11-15-75cm/run_75cm.sh all`,
+  watched by `tools/keepalive.sh` with the watchdog in the session's scratch directory (`chain/watchdog_75cm.sh`:
+  it starts the chain when it is neither done, stopped, failed nor running). After a container restart: restore the
+  inputs, copy the sets' arrays back (`tools/restore_inputs.py`, group `sets`), and start the chain again; it resumes
+  per episode.
+- First judged tier (the walk at 0.40 m/s, 10 ms of servo delay, 20 seeds, the runner's own lines): under the two
+  fitted controllers 0 to 3 of 20 episodes stay up on every set and floor; under the open-loop row 20 of 20 stay up
+  and none meets every limit. The plan stated this as an expectation (the controllers were fitted with no delay).
+- Running beside the chain (workflow `trex-75cm-report-tooling`): the tables' fix on real records (`wt/wp-t2`) and
+  work package V, the turning path and video clips (`wt/wp-v`, brief `stage2/design/WP_V.md`).
+- Unmerged and paused, in `worktrees.bundle` as of the 14:15 block: `wp-l`, `wpc-ce`, `wpc-cv`, `wpc-ck`, `wpc-cb`,
+  `prereg-b`. Merged worktrees were removed.
+- Usage: the session's cost stood at 1,493.5 USD at 17:55 UTC (about 20 % of the week since the owner's reset at a
+  baseline of 1,357.5 USD; 1 % is about 6.9 USD).
