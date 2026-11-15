@@ -452,6 +452,17 @@ def test_shown_needs_both_rows_and_provisional_one(run):
         assert got["reading_3"]["verdict"] == bar.verdict(cells, ms, "but_A1")["verdict"] == want3
 
 
+def test_reading_1_is_not_defined_for_a_set_without_look_bands(run):
+    cells = [x["reading_1"] for _, _, x in every_line(run.tabs) if "reading_1" in x]
+    assert len(cells) > 100 and set(cells) == {barreport.READING_1}
+    assert all(r["counts_look"] is None and r["counts_look_reason"] == bar.LOOK_NOT_DEFINED
+               for r in barreport._records(run.doc))
+    # a record that holds the reading is not called "not defined" (these tables do not tabulate it yet)
+    rec = dict(run.doc["V0"][BODY][H]["R2/42@10ms"]["walk/v0.4"], counts_look=dict(succeeded=20))
+    assert barreport.reading_1_of([None, rec]) == "held by the record (counts_look); not tabulated here"
+    assert barreport.digest(rec)["reading_1"] != barreport.READING_1 and barreport.reading_1_of([None]) == barreport.READING_1
+
+
 def test_an_r0_row_gives_no_verdict_and_one_row_alone_is_incomplete(run):
     assert all(x["controller"].startswith("R2") for x in part(run.tabs, "walk", "verdicts")["lines"])
     r0 = one(run.tabs, "walk", "counts", set="F25F9cl", condition="walk/v0.4", delay=J, row="R0@10ms")

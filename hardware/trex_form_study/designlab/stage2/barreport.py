@@ -727,6 +727,14 @@ def labels_of(set_name: str, rec: dict | None = None, meta: dict | None = None) 
     return out
 
 
+def reading_1_of(recs) -> str:
+    """Reading 1 (with the look) of some records: "not defined for this set" while none of them holds it (the three
+    sets of the 75 cm round carry no look bands); a record that holds ``counts_look`` is named as such, since these
+    tables do not tabulate that reading."""
+    held = [r for r in recs if r is not None and r.get("counts_look") is not None]
+    return READING_1 if not held else "held by the record (counts_look); not tabulated here"
+
+
 def digest(rec: dict, meta: dict | None = None) -> dict:
     """What the tables print of one record: its names, both readings' counts, bounds and passes (the record's own),
     Stage 1's reading, falls, failed terms, the worst drive, labels and its path.  Measured medians are added by
@@ -752,7 +760,7 @@ def digest(rec: dict, meta: dict | None = None) -> dict:
         gated=rec.get("plan_gated"), status=status_of(rec), done=done, labels=labels_of(rec["set"], rec, meta),
         episodes=int(c2.get("episodes") or 0) if done else None, up=of(c2, "survived"),
         up_lcb=c2.get("survival_lcb") if done else None, errors=int(c2.get("errors") or 0) if done else None,
-        reading_1=READING_1 if rec.get("counts_look") is None else "defined",
+        reading_1=reading_1_of([rec]),
         r2=of(c2, "succeeded"), r2_lcb=c2.get("success_lcb") if done else None,
         r2_pass=pass_word(c2, ms) if done else None, r2_pass_=c2.get("pass_") if done else None,
         r3=of(c3, "succeeded"), r3_lcb=(c3 or {}).get("success_lcb") if done else None,
@@ -873,7 +881,7 @@ def verdict_of(doc: dict, set_name: str, body: str, key: str, ms: int, ctrl: str
     names = [f"{r}@{ms}ms" for r in panels.VERDICT_ROWS[ctrl]]
     now = [_rec(doc, set_name, body, block, r, key) for r in names]
     recs = now if latest else [registered(r) for r in now]
-    out = dict(rows=names, paths=[r.get("_path") if r else None for r in recs],
+    out = dict(rows=names, paths=[r.get("_path") if r else None for r in recs], reading_1=reading_1_of(recs),
                rerun=any(bool(r and r.get("supersedes")) for r in now), none=all(r is None for r in recs))
     absent = [None if r is not None else absent_word(doc[META], set_name, body, block, n, key)
               for r, n in zip(recs, names, strict=True)]
@@ -1138,15 +1146,18 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
                             grip=grip_of(d0) if d0 else None, delay=delay_word(ms),
                             controller=f"{ctrl} ({', '.join(panels.VERDICT_ROWS[ctrl])})", reading_1=READING_1)
                 verdicts.append(dict(line, which="no record" if v["none"] else "registered records",
-                                     reading_2=v["reading_2"]["text"],
+                                     reading_1=v["reading_1"], reading_2=v["reading_2"]["text"],
                                      reading_3=v["reading_3"]["text"], paths=[p for p in v["paths"] if p]))
                 if v["rerun"]:
                     w = verdict_of(doc, s, body, key, ms, ctrl, latest=True)
-                    verdicts.append(dict(line, labels=labels_of(s) + [RERUN], which=RERUN,
+                    verdicts.append(dict(line, labels=labels_of(s) + [RERUN], which=RERUN, reading_1=w["reading_1"],
                                          reading_2=w["reading_2"]["text"], reading_3=w["reading_3"]["text"],
                                          paths=[p for p in w["paths"] if p]))
     cols = [k for k in COUNT_COLUMNS if stage1 or k["key"] != "stage1"]
-    parts = [dict(key="counts", title="counts, bounds and passes per record", columns=cols, lines=counts),
+    parts = [dict(key="counts", title="counts, bounds and passes per record", columns=cols, lines=counts, notes=[
+        f"A record passes a reading when all {bar.RUNS} episodes of its block stay up and at least {bar.MIN_SUCCEED} "
+        "succeed in that reading.  A record's pass is no verdict: the verdict is the controller's, from its two R2 "
+        "rows' records (the last part of this table), and an R0 row gives none."]),
              dict(key="fails", title="falls, failed terms, drives and labels per record", columns=FAIL_COLUMNS,
                   lines=fails)]
     parts += [dict(key=j, title=MEASURE_TITLES[j], columns=MEASURE_COLUMNS[j], lines=measured[j])
@@ -1278,7 +1289,7 @@ def glance_table(doc: dict) -> dict:
                 r0d = digest(r0) if r0 is not None and r0.get("status") == "done" else None
                 lines.append(dict(
                     set=s, body=body, labels=labels_of(s), item=item_of(d), condition=key, grip=grip_of(d),
-                    reading_1=READING_1, reading_2=v["reading_2"]["text"], reading_3=v["reading_3"]["text"],
+                    reading_1=v["reading_1"], reading_2=v["reading_2"]["text"], reading_3=v["reading_3"]["text"],
                     r0=NO_VERDICT_R0 if r0d else (status_of(r0) if r0 is not None else absent_word(
                         doc[META], s, body, bar.HEADLINE_BLOCK, f"{R0_ROW}@{ms}ms", key)),
                     r0_up=None if r0d is None else r0d["up"], r0_r2=None if r0d is None else r0d["r2"],
