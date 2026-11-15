@@ -23,8 +23,8 @@ Columns: the governing ratio (largest of all drives); the worst ratio of the dri
 
 | reference | kind | frames | governing ratio | worst ratio but neck and tail | neck c / p / s | tail c / p / s | CoP margin (mm) | CoP rule (mm) | grip need mu_req | within mu 0.9 | within mu 0.54 | mid-swing clearance (H) | gated joint margin (rad) | thigh twist use | 1 Hz forward accel (m/s^2) | verdict |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `v0.3` | walk | 160 | 0.6639 (neck cont) | 0.6533 (knee speed) | 0.6639 / 0.5408 / 0.3813 | 0.4631 / 0.5989 / 0.3053 | 45.1220 | -10 | 0.4569 | yes | yes | 0.0540 | 0.1856 (left_hip_roll max) | 0.0000 | 0.0364 | within the Stage 0 limits |
 | `nominal` | walk | 160 | 0.6622 (neck cont) | 0.6221 (thigh twist cont) | 0.6622 / 0.5256 / 0.3372 | 0.4009 / 0.5152 / 0.2700 | 45.3036 | -10 | 0.3612 | yes | yes | 0.0500 | 0.1689 (left_hip_roll max) | 0.0000 | 0.0531 | within the Stage 0 limits |
+| `v0.3` | walk | 160 | 0.6639 (neck cont) | 0.6533 (knee speed) | 0.6639 / 0.5408 / 0.3813 | 0.4631 / 0.5989 / 0.3053 | 45.1220 | -10 | 0.4569 | yes | yes | 0.0540 | 0.1856 (left_hip_roll max) | 0.0000 | 0.0364 | within the Stage 0 limits |
 | `v0.35` | walk | 160 | 0.7403 (knee speed) | 0.7403 (knee speed) | 0.6664 / 0.5605 / 0.4308 | 0.5340 / 0.6963 / 0.3449 | 44.9433 | -10 | 0.5564 | yes | no | 0.0518 | 0.2015 (left_hip_roll max) | 0.0000 | 0.0231 | within the Stage 0 limits |
 | `v0.4` | walk | 160 | 0.8042 (knee speed) | 0.8042 (knee speed) | 0.6673 / 0.5647 / 0.4450 | 0.5565 / 0.7280 / 0.3562 | 44.8662 | -10 | 0.6289 | yes | no | 0.0561 | 0.2054 (left_hip_roll max) | 0.0000 | 0.0222 | within the Stage 0 limits |
 | `v0.45` | walk | 160 | 0.8708 (knee speed) | 0.8708 (knee speed) | 0.6683 / 0.5693 / 0.4592 | 0.5793 / 0.7610 / 0.3677 | 44.4494 | -10 | 0.7079 | yes | no | 0.0552 | 0.2092 (left_hip_roll max) | 0.0000 | 0.0212 | within the Stage 0 limits |
@@ -61,8 +61,8 @@ The frames of a move are not uniform in time where its stride period changes; th
 
 | reference | frames uniform in time | neck cont over time / by frames | tail cont over time / by frames | neck with passive c / p | tail with passive c / p | double-support min mu | sway per stride (H; spec 0.12 H) | CoM horizontal accel peak (m/s^2) | near a limit (within 0.02 below 1) | record re-check equal |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `v0.3` | yes | 0.6639 / 0.6639 | 0.4631 / 0.4631 | 0.6789 / 0.6145 | 0.8728 / 0.8340 | 0.2042 | 0.1396 | 2.4127 | - | yes |
 | `nominal` | yes | 0.6622 / 0.6622 | 0.4009 / 0.4009 | 0.6757 / 0.6025 | 0.8004 / 0.7446 | 0.1977 | 0.1641 | 2.1386 | - | yes |
+| `v0.3` | yes | 0.6639 / 0.6639 | 0.4631 / 0.4631 | 0.6789 / 0.6145 | 0.8728 / 0.8340 | 0.2042 | 0.1396 | 2.4127 | - | yes |
 | `v0.35` | yes | 0.6664 / 0.6664 | 0.5340 / 0.5340 | 0.6836 / 0.6344 | 0.9517 / 0.9394 | 0.1944 | 0.1168 | 2.6653 | - | yes |
 | `v0.4` | yes | 0.6673 / 0.6673 | 0.5565 / 0.5565 | 0.6843 / 0.6393 | 0.9779 / 0.9731 | 0.2058 | 0.1112 | 2.8387 | - | yes |
 | `v0.45` | yes | 0.6683 / 0.6683 | 0.5793 / 0.5793 | 0.6874 / 0.6449 | 1.0043 / 1.0074 | 0.2174 | 0.1059 | 3.0084 | - | yes |
@@ -97,5 +97,5 @@ Over a neck or tail planning limit once the plant's joint damping and friction a
 
 ## Not available
 
-- `turn90_1_left`: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit
-- `turn90_1_right`: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit
+- `turn90_1_left`: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock
+- `turn90_1_right`: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock

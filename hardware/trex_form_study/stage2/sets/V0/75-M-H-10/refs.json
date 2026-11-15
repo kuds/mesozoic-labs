@@ -59,222 +59,11 @@
   "S2S-crouch": "every walk of a set and body has one crouch (a share of the hip height), read from its spec and recorded as set.json crouch_frac and in every walk entry; a move joins two walks of one crouch (one LIPM frequency)",
   "S2S-process": "every array is made inside s2io.r2() (gait accuracy r2, checked on entry and on exit) with one BLAS thread, each item in a fresh process on a body rebuilt for it (look.source); a walk's inverse dynamics, summary and both array formats come from the one generation in the one block",
   "S2S-formats": "a walk is written twice from one generation: refs/<name>.npz (Stage 1's reference format, which the bar plays and a freeze lists) and look/<name>.npz (the look ladder's format, which the Stage 0 screen and the clips read); the build stops unless q, qd and qdd of the two are equal",
-  "S2S-twins": "where Stage 1's run (stage1/runs/2026-11-08/<body>) holds a walk of the same spec, or a transition between walks of the same specs made with Stage 1's own schedule, the set's file must have its sha256; where the look ladder (stage2/look/look_refs.json) holds a rung of the same spec, the look-format file must have its sha256; a difference stops the build with both hashes (STAGE2_75_PLAN.md A4)",
+  "S2S-twins": "where Stage 1's run (stage1/runs/2026-11-08/<body>) holds a walk of the same spec, or a transition between walks of the same specs made with Stage 1's own schedule, the set's file must have its sha256; where the look ladder (stage2/look/look_refs.json) holds a rung of the same spec, the look-format file must have its sha256; a difference stops the build with both hashes (STAGE2_75_PLAN.md A4).  V0 owes them: on a body that has a Stage 1 run record its nominal and start must be Stage 1's own files, and on a body the look ladder holds its look-format nominal and v0.4 must be the ladder's rungs; a twin that is not found there stops the build and fails sets verify (SetDef.stage1_twins, ladder_twins)",
   "S2S-stage0": "the Stage 0 gates that block a freeze (STAGE2_75_PLAN.md A12) are read where a reference is built, with the set screen's own functions: a walk by setscreen.judge_walk on its look.price, a move by setscreen.screen_move on its file; the set's screen.json is made afterwards by setscreen and must agree (sets verify)",
-  "S2S-not-available": "an item with no reference is an entry with available false, a reason and its numbers, and no file; it is listed in set.json not_available; a walk that fails a blocking Stage 0 gate is dropped from the ladder in this way and no move is built from or to it (STAGE2_75_PLAN.md A8, A11, A12).  No ramp, grid, gate or constant is changed for it"
+  "S2S-not-available": "an item with no reference is an entry with available false, a reason and its numbers, and no file; it is listed in set.json not_available; a walk that fails a blocking Stage 0 gate is dropped from the ladder in this way and no move is built from or to it (STAGE2_75_PLAN.md A8, A11, A12).  No ramp, grid, gate or constant is changed for it.  Its verdict is the code's that built it (built_by): while the set is not frozen, a build by other Stage 2 modules makes it again; an array an earlier build left under its name is removed"
  },
  "references": {
-  "v0.3": {
-   "name": "v0.3",
-   "file": "refs/v0.3.npz",
-   "sha256": "b936b5a4f17d88665082b0384aef2cf244208e1f80dd38b24f915e9e8c1b720d",
-   "frames": 160,
-   "dt_s": 0.006276239794430495,
-   "period_s": 1.0041983671088792,
-   "speed_m_s": 0.3,
-   "stride_m": 0.3012595101326638,
-   "lift_m": 0.05283695738555807,
-   "cadence_steps_s": 1.9916383709705354,
-   "yaw_rate_rad_s": 0.0,
-   "stride_motion": [
-    0.0,
-    0.0,
-    0.0,
-    0.3012595101326638,
-    0.0
-   ],
-   "min_cop_margin_single_m": 0.045121959093285785,
-   "max_friction_ratio": 0.3128666407760695,
-   "ik_ok": true,
-   "generator": "look.generate (gait.generate at accuracy r2)",
-   "dynamics": "gait.inverse_dynamics",
-   "spec": {
-    "froude": 0.018280854908240964,
-    "duty": 0.589432764116691,
-    "lift_frac": 0.10528361794165449,
-    "head_amp": 0.05,
-    "tail_amp": 0.12,
-    "sway_gain": 1.0,
-    "stride_rel": 0.6002936719964644,
-    "crouch": 0.03,
-    "zmp_iters": 6,
-    "zmp_gain": 0.5,
-    "n": 160,
-    "bob": 0.0,
-    "bob_phase": 0.0,
-    "bob_skew": null,
-    "swing_time": null,
-    "lift_peak": 0.5,
-    "toe_off": 0.0,
-    "toe_off_start": 0.825,
-    "toe_off_margin": 0.005,
-    "toe_reach": 0.0,
-    "roll_amp": 0.0,
-    "roll_phase": 0.0,
-    "zmp_inset_y": 0.0,
-    "tail_phase": 1.5707963267948966,
-    "head_mode": "nod",
-    "head_gain": 0.9,
-    "head_settle": 0.0,
-    "settle_lag": 0.075,
-    "strides": 1,
-    "phase_jitter": 0.0,
-    "asym": 0.0,
-    "gaze_var": 0.0,
-    "tail_var": 0.0,
-    "var_band": [
-     0.05,
-     0.2
-    ],
-    "noise_seed": 0,
-    "bob_drop": null,
-    "toe_off_rate": null,
-    "toe_off_accel": null
-   },
-   "info": {
-    "speed": 0.3,
-    "stride": 0.3012595101326638,
-    "period": 1.0041983671088792,
-    "froude": 0.018280854908240964,
-    "duty": 0.589432764116691,
-    "stride_rel": 0.6002936719964644,
-    "cadence_hz": 1.9916383709705354,
-    "sway_amp": 0.03503823490615015,
-    "lift": 0.05283695738555807,
-    "omega": 4.828071509019948,
-    "zmp_error_history_m": [
-     0.03588626782970456,
-     0.014164151873369066,
-     0.006511687341199921,
-     0.003045978149865006,
-     0.0017615316662569663,
-     0.0015394294290143969,
-     0.0015039225916131868
-    ],
-    "accuracy": "r2",
-    "strides": 1,
-    "window_s": 1.0041983671088792,
-    "swing_time": 0.41229094786242493,
-    "bob_m": 0.0,
-    "bob_trough_step": 0.5,
-    "step_deviations": [
-     0.0,
-     0.0
-    ],
-    "gaze_freqs_hz": [],
-    "tail_freqs_hz": [],
-    "rolling_entry": null,
-    "zmp_margin_min_m": 0.045121959093285806,
-    "zmp_margin_ref_min_m": 0.04655774556939975
-   },
-   "set": "V0",
-   "kind": "walk",
-   "label": null,
-   "margin_rule": null,
-   "crouch_frac": 0.03,
-   "strides": 1,
-   "window_s": 1.0041983671088792,
-   "look_file": "look/v0.3.npz",
-   "look_sha256": "211ae682d8aedec31485b2735fd8071b397dc90b889d41359a8c768feab4effa",
-   "stage1_sha256": null,
-   "equals_stage1": null,
-   "stage1_twin": null,
-   "ladder_sha256": null,
-   "equals_ladder": null,
-   "ladder_twin": null,
-   "stage0": {
-    "source": "setscreen.judge_walk on the walk's look.price (at build time)",
-    "governing": [
-     "neck",
-     "cont",
-     0.6638766152229397
-    ],
-    "within_limits": true,
-    "over": [],
-    "blocks_freeze": [],
-    "a1_over": false,
-    "tightest_joint": [
-     "left_hip_roll",
-     "max",
-     0.1856
-    ],
-    "text": "within the Stage 0 limits"
-   },
-   "available": true,
-   "group": "v0.3",
-   "definition": {
-    "kind": "walk",
-    "spec": {
-     "froude": 0.018280854908240964,
-     "duty": 0.589432764116691,
-     "lift_frac": 0.10528361794165449,
-     "head_amp": 0.05,
-     "tail_amp": 0.12,
-     "sway_gain": 1.0,
-     "stride_rel": 0.6002936719964644,
-     "crouch": 0.03,
-     "zmp_iters": 6,
-     "zmp_gain": 0.5,
-     "n": 160,
-     "bob": 0.0,
-     "bob_phase": 0.0,
-     "bob_skew": null,
-     "swing_time": null,
-     "lift_peak": 0.5,
-     "toe_off": 0.0,
-     "toe_off_start": 0.825,
-     "toe_off_margin": 0.005,
-     "toe_reach": 0.0,
-     "roll_amp": 0.0,
-     "roll_phase": 0.0,
-     "zmp_inset_y": 0.0,
-     "tail_phase": 1.5707963267948966,
-     "head_mode": "nod",
-     "head_gain": 0.9,
-     "head_settle": 0.0,
-     "settle_lag": 0.075,
-     "strides": 1,
-     "phase_jitter": 0.0,
-     "asym": 0.0,
-     "gaze_var": 0.0,
-     "tail_var": 0.0,
-     "var_band": [
-      0.05,
-      0.2
-     ],
-     "noise_seed": 0,
-     "bob_drop": null,
-     "toe_off_rate": null,
-     "toe_off_accel": null
-    },
-    "body_model_sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c",
-    "generator": "look.generate + gait.inverse_dynamics + refs.arrays"
-   },
-   "built_by": {
-    "commit": "853bc9d4930a8aaf9d7c3b75b4aed11709769de9",
-    "dirty": false,
-    "dirty_paths": [],
-    "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
-    "stage2_modules": {
-     "designlab/stage2/sets.py": "eacbcab8b76213feb38f89d7696ab7dfced584d916a11e0b2a3057ff4623b834",
-     "designlab/stage2/moves.py": "ccee9b2cdf5acfef7b1f1bf592d617b71f035617016b6ecffd3e727aa5b0e77e",
-     "designlab/stage2/setscreen.py": "36110ec2ba6222ce3a01e772124a92092a40d7afd9caf6f74b2300a709fc25ed",
-     "designlab/stage2/screen.py": "7c974e6240da25e8be09a83e0ba392bf37a716a6007c8e43c93835512e0a1b52",
-     "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
-     "designlab/stage2/setio.py": "f25d8616e5e79f805cd0deded49cd34f85f1a0dc77a4114dce44b8b0cd354c91",
-     "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16"
-    },
-    "versions": {
-     "python": "3.13.18",
-     "numpy": "2.5.4",
-     "mujoco": "3.10.0",
-     "scipy": "1.18.1"
-    },
-    "blas_threads": 1,
-    "accuracy": "r2",
-    "at": "2026-11-15T15:19:08Z"
-   }
-  },
   "nominal": {
    "name": "nominal",
    "file": "refs/nominal.npz",
@@ -465,12 +254,12 @@
     "generator": "look.generate + gait.inverse_dynamics + refs.arrays"
    },
    "built_by": {
-    "commit": "853bc9d4930a8aaf9d7c3b75b4aed11709769de9",
+    "commit": "c6a2993bf61e5b5ab8269af2c7867131087ee050",
     "dirty": false,
     "dirty_paths": [],
     "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
     "stage2_modules": {
-     "designlab/stage2/sets.py": "eacbcab8b76213feb38f89d7696ab7dfced584d916a11e0b2a3057ff4623b834",
+     "designlab/stage2/sets.py": "3586a51ab6366bab7568c508d582964d32523273b069bd466daa85971529d9c9",
      "designlab/stage2/moves.py": "ccee9b2cdf5acfef7b1f1bf592d617b71f035617016b6ecffd3e727aa5b0e77e",
      "designlab/stage2/setscreen.py": "36110ec2ba6222ce3a01e772124a92092a40d7afd9caf6f74b2300a709fc25ed",
      "designlab/stage2/screen.py": "7c974e6240da25e8be09a83e0ba392bf37a716a6007c8e43c93835512e0a1b52",
@@ -486,7 +275,218 @@
     },
     "blas_threads": 1,
     "accuracy": "r2",
-    "at": "2026-11-15T15:19:09Z"
+    "at": "2026-11-15T18:05:35Z"
+   }
+  },
+  "v0.3": {
+   "name": "v0.3",
+   "file": "refs/v0.3.npz",
+   "sha256": "b936b5a4f17d88665082b0384aef2cf244208e1f80dd38b24f915e9e8c1b720d",
+   "frames": 160,
+   "dt_s": 0.006276239794430495,
+   "period_s": 1.0041983671088792,
+   "speed_m_s": 0.3,
+   "stride_m": 0.3012595101326638,
+   "lift_m": 0.05283695738555807,
+   "cadence_steps_s": 1.9916383709705354,
+   "yaw_rate_rad_s": 0.0,
+   "stride_motion": [
+    0.0,
+    0.0,
+    0.0,
+    0.3012595101326638,
+    0.0
+   ],
+   "min_cop_margin_single_m": 0.045121959093285785,
+   "max_friction_ratio": 0.3128666407760695,
+   "ik_ok": true,
+   "generator": "look.generate (gait.generate at accuracy r2)",
+   "dynamics": "gait.inverse_dynamics",
+   "spec": {
+    "froude": 0.018280854908240964,
+    "duty": 0.589432764116691,
+    "lift_frac": 0.10528361794165449,
+    "head_amp": 0.05,
+    "tail_amp": 0.12,
+    "sway_gain": 1.0,
+    "stride_rel": 0.6002936719964644,
+    "crouch": 0.03,
+    "zmp_iters": 6,
+    "zmp_gain": 0.5,
+    "n": 160,
+    "bob": 0.0,
+    "bob_phase": 0.0,
+    "bob_skew": null,
+    "swing_time": null,
+    "lift_peak": 0.5,
+    "toe_off": 0.0,
+    "toe_off_start": 0.825,
+    "toe_off_margin": 0.005,
+    "toe_reach": 0.0,
+    "roll_amp": 0.0,
+    "roll_phase": 0.0,
+    "zmp_inset_y": 0.0,
+    "tail_phase": 1.5707963267948966,
+    "head_mode": "nod",
+    "head_gain": 0.9,
+    "head_settle": 0.0,
+    "settle_lag": 0.075,
+    "strides": 1,
+    "phase_jitter": 0.0,
+    "asym": 0.0,
+    "gaze_var": 0.0,
+    "tail_var": 0.0,
+    "var_band": [
+     0.05,
+     0.2
+    ],
+    "noise_seed": 0,
+    "bob_drop": null,
+    "toe_off_rate": null,
+    "toe_off_accel": null
+   },
+   "info": {
+    "speed": 0.3,
+    "stride": 0.3012595101326638,
+    "period": 1.0041983671088792,
+    "froude": 0.018280854908240964,
+    "duty": 0.589432764116691,
+    "stride_rel": 0.6002936719964644,
+    "cadence_hz": 1.9916383709705354,
+    "sway_amp": 0.03503823490615015,
+    "lift": 0.05283695738555807,
+    "omega": 4.828071509019948,
+    "zmp_error_history_m": [
+     0.03588626782970456,
+     0.014164151873369066,
+     0.006511687341199921,
+     0.003045978149865006,
+     0.0017615316662569663,
+     0.0015394294290143969,
+     0.0015039225916131868
+    ],
+    "accuracy": "r2",
+    "strides": 1,
+    "window_s": 1.0041983671088792,
+    "swing_time": 0.41229094786242493,
+    "bob_m": 0.0,
+    "bob_trough_step": 0.5,
+    "step_deviations": [
+     0.0,
+     0.0
+    ],
+    "gaze_freqs_hz": [],
+    "tail_freqs_hz": [],
+    "rolling_entry": null,
+    "zmp_margin_min_m": 0.045121959093285806,
+    "zmp_margin_ref_min_m": 0.04655774556939975
+   },
+   "set": "V0",
+   "kind": "walk",
+   "label": null,
+   "margin_rule": null,
+   "crouch_frac": 0.03,
+   "strides": 1,
+   "window_s": 1.0041983671088792,
+   "look_file": "look/v0.3.npz",
+   "look_sha256": "211ae682d8aedec31485b2735fd8071b397dc90b889d41359a8c768feab4effa",
+   "stage1_sha256": null,
+   "equals_stage1": null,
+   "stage1_twin": null,
+   "ladder_sha256": null,
+   "equals_ladder": null,
+   "ladder_twin": null,
+   "stage0": {
+    "source": "setscreen.judge_walk on the walk's look.price (at build time)",
+    "governing": [
+     "neck",
+     "cont",
+     0.6638766152229397
+    ],
+    "within_limits": true,
+    "over": [],
+    "blocks_freeze": [],
+    "a1_over": false,
+    "tightest_joint": [
+     "left_hip_roll",
+     "max",
+     0.1856
+    ],
+    "text": "within the Stage 0 limits"
+   },
+   "available": true,
+   "group": "v0.3",
+   "definition": {
+    "kind": "walk",
+    "spec": {
+     "froude": 0.018280854908240964,
+     "duty": 0.589432764116691,
+     "lift_frac": 0.10528361794165449,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "sway_gain": 1.0,
+     "stride_rel": 0.6002936719964644,
+     "crouch": 0.03,
+     "zmp_iters": 6,
+     "zmp_gain": 0.5,
+     "n": 160,
+     "bob": 0.0,
+     "bob_phase": 0.0,
+     "bob_skew": null,
+     "swing_time": null,
+     "lift_peak": 0.5,
+     "toe_off": 0.0,
+     "toe_off_start": 0.825,
+     "toe_off_margin": 0.005,
+     "toe_reach": 0.0,
+     "roll_amp": 0.0,
+     "roll_phase": 0.0,
+     "zmp_inset_y": 0.0,
+     "tail_phase": 1.5707963267948966,
+     "head_mode": "nod",
+     "head_gain": 0.9,
+     "head_settle": 0.0,
+     "settle_lag": 0.075,
+     "strides": 1,
+     "phase_jitter": 0.0,
+     "asym": 0.0,
+     "gaze_var": 0.0,
+     "tail_var": 0.0,
+     "var_band": [
+      0.05,
+      0.2
+     ],
+     "noise_seed": 0,
+     "bob_drop": null,
+     "toe_off_rate": null,
+     "toe_off_accel": null
+    },
+    "body_model_sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c",
+    "generator": "look.generate + gait.inverse_dynamics + refs.arrays"
+   },
+   "built_by": {
+    "commit": "c6a2993bf61e5b5ab8269af2c7867131087ee050",
+    "dirty": false,
+    "dirty_paths": [],
+    "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+    "stage2_modules": {
+     "designlab/stage2/sets.py": "3586a51ab6366bab7568c508d582964d32523273b069bd466daa85971529d9c9",
+     "designlab/stage2/moves.py": "ccee9b2cdf5acfef7b1f1bf592d617b71f035617016b6ecffd3e727aa5b0e77e",
+     "designlab/stage2/setscreen.py": "36110ec2ba6222ce3a01e772124a92092a40d7afd9caf6f74b2300a709fc25ed",
+     "designlab/stage2/screen.py": "7c974e6240da25e8be09a83e0ba392bf37a716a6007c8e43c93835512e0a1b52",
+     "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
+     "designlab/stage2/setio.py": "f25d8616e5e79f805cd0deded49cd34f85f1a0dc77a4114dce44b8b0cd354c91",
+     "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16"
+    },
+    "versions": {
+     "python": "3.13.18",
+     "numpy": "2.5.4",
+     "mujoco": "3.10.0",
+     "scipy": "1.18.1"
+    },
+    "blas_threads": 1,
+    "accuracy": "r2",
+    "at": "2026-11-15T18:05:35Z"
    }
   },
   "v0.35": {
@@ -676,12 +676,12 @@
     "generator": "look.generate + gait.inverse_dynamics + refs.arrays"
    },
    "built_by": {
-    "commit": "853bc9d4930a8aaf9d7c3b75b4aed11709769de9",
+    "commit": "c6a2993bf61e5b5ab8269af2c7867131087ee050",
     "dirty": false,
     "dirty_paths": [],
     "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
     "stage2_modules": {
-     "designlab/stage2/sets.py": "eacbcab8b76213feb38f89d7696ab7dfced584d916a11e0b2a3057ff4623b834",
+     "designlab/stage2/sets.py": "3586a51ab6366bab7568c508d582964d32523273b069bd466daa85971529d9c9",
      "designlab/stage2/moves.py": "ccee9b2cdf5acfef7b1f1bf592d617b71f035617016b6ecffd3e727aa5b0e77e",
      "designlab/stage2/setscreen.py": "36110ec2ba6222ce3a01e772124a92092a40d7afd9caf6f74b2300a709fc25ed",
      "designlab/stage2/screen.py": "7c974e6240da25e8be09a83e0ba392bf37a716a6007c8e43c93835512e0a1b52",
@@ -697,7 +697,7 @@
     },
     "blas_threads": 1,
     "accuracy": "r2",
-    "at": "2026-11-15T15:19:29Z"
+    "at": "2026-11-15T18:05:57Z"
    }
   },
   "v0.4": {
@@ -890,12 +890,12 @@
     "generator": "look.generate + gait.inverse_dynamics + refs.arrays"
    },
    "built_by": {
-    "commit": "853bc9d4930a8aaf9d7c3b75b4aed11709769de9",
+    "commit": "c6a2993bf61e5b5ab8269af2c7867131087ee050",
     "dirty": false,
     "dirty_paths": [],
     "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
     "stage2_modules": {
-     "designlab/stage2/sets.py": "eacbcab8b76213feb38f89d7696ab7dfced584d916a11e0b2a3057ff4623b834",
+     "designlab/stage2/sets.py": "3586a51ab6366bab7568c508d582964d32523273b069bd466daa85971529d9c9",
      "designlab/stage2/moves.py": "ccee9b2cdf5acfef7b1f1bf592d617b71f035617016b6ecffd3e727aa5b0e77e",
      "designlab/stage2/setscreen.py": "36110ec2ba6222ce3a01e772124a92092a40d7afd9caf6f74b2300a709fc25ed",
      "designlab/stage2/screen.py": "7c974e6240da25e8be09a83e0ba392bf37a716a6007c8e43c93835512e0a1b52",
@@ -911,7 +911,7 @@
     },
     "blas_threads": 1,
     "accuracy": "r2",
-    "at": "2026-11-15T15:19:32Z"
+    "at": "2026-11-15T18:05:58Z"
    }
   },
   "v0.45": {
@@ -1101,12 +1101,12 @@
     "generator": "look.generate + gait.inverse_dynamics + refs.arrays"
    },
    "built_by": {
-    "commit": "853bc9d4930a8aaf9d7c3b75b4aed11709769de9",
+    "commit": "c6a2993bf61e5b5ab8269af2c7867131087ee050",
     "dirty": false,
     "dirty_paths": [],
     "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
     "stage2_modules": {
-     "designlab/stage2/sets.py": "eacbcab8b76213feb38f89d7696ab7dfced584d916a11e0b2a3057ff4623b834",
+     "designlab/stage2/sets.py": "3586a51ab6366bab7568c508d582964d32523273b069bd466daa85971529d9c9",
      "designlab/stage2/moves.py": "ccee9b2cdf5acfef7b1f1bf592d617b71f035617016b6ecffd3e727aa5b0e77e",
      "designlab/stage2/setscreen.py": "36110ec2ba6222ce3a01e772124a92092a40d7afd9caf6f74b2300a709fc25ed",
      "designlab/stage2/screen.py": "7c974e6240da25e8be09a83e0ba392bf37a716a6007c8e43c93835512e0a1b52",
@@ -1122,7 +1122,7 @@
     },
     "blas_threads": 1,
     "accuracy": "r2",
-    "at": "2026-11-15T15:19:51Z"
+    "at": "2026-11-15T18:06:18Z"
    }
   },
   "v0.5": {
@@ -1312,12 +1312,12 @@
     "generator": "look.generate + gait.inverse_dynamics + refs.arrays"
    },
    "built_by": {
-    "commit": "853bc9d4930a8aaf9d7c3b75b4aed11709769de9",
+    "commit": "c6a2993bf61e5b5ab8269af2c7867131087ee050",
     "dirty": false,
     "dirty_paths": [],
     "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
     "stage2_modules": {
-     "designlab/stage2/sets.py": "eacbcab8b76213feb38f89d7696ab7dfced584d916a11e0b2a3057ff4623b834",
+     "designlab/stage2/sets.py": "3586a51ab6366bab7568c508d582964d32523273b069bd466daa85971529d9c9",
      "designlab/stage2/moves.py": "ccee9b2cdf5acfef7b1f1bf592d617b71f035617016b6ecffd3e727aa5b0e77e",
      "designlab/stage2/setscreen.py": "36110ec2ba6222ce3a01e772124a92092a40d7afd9caf6f74b2300a709fc25ed",
      "designlab/stage2/screen.py": "7c974e6240da25e8be09a83e0ba392bf37a716a6007c8e43c93835512e0a1b52",
@@ -1333,7 +1333,7 @@
     },
     "blas_threads": 1,
     "accuracy": "r2",
-    "at": "2026-11-15T15:19:54Z"
+    "at": "2026-11-15T18:06:19Z"
    }
   }
  }
