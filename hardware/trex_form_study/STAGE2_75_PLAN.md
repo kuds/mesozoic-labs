@@ -483,8 +483,12 @@ inside it fails the term; a swing whose interval runs past the window's end is n
   0.081 H lift), 0.25 mm above the limit, so the control is expected to fail this term in most closed-loop episodes at
   0.40 m/s. The candidate's planned reading is 0.0475 H.
 
-The amended reading is built by the runner's fixer and checked by the lead against an implementation of his own before
-any set is frozen.
+The amended reading was built by the runner's fixer and checked by the lead against an implementation of his own,
+written from this text, before any set was frozen: on 1,500 random synthetic traces (window cuts in 128, interrupted
+swings in 929, air gaps in 969) the judged reading, the reading as first written, the swing and reference-swing counts,
+the interrupted count, the air gaps and the count rule were equal in every one
+(`stage2/design/lead_c3_check.py`, scratch). In the record the readings stand under `measures.bar.toe` for a walk or
+a turn and under `measures.bar.toe_reported` for a nudge or a stop, which is where the Check line above is to be read.
 
 **C4. The walk item.** [plan; lead's ruling 5 for the line] Window: the last 10 s of a complete episode. `along`: the
 CoM covers at least 10 s × the rung's target speed along the commanded heading (4.0 m at 0.40 m/s [plan]; the same rule

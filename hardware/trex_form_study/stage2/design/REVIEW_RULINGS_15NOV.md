@@ -217,3 +217,14 @@ them.
 ## Round A, packages S and T (not yet built when the rulings were made)
 
 Their briefs (`WP_S.md`, `WP_T.md`) carry an addendum of the same date that tells the builders what the rulings above mean for the sets and the tables; the edit to `moves.pick_stride_factor` under amended A11 is package S's. The lead's kinematic scan behind that amendment is `hiproll_scan.py` with its output `hiproll_scan.json` (scratch, prescribed motion, no record).
+
+## What came back, 15 Nov
+
+- **Package B's fixer** (commit `749b3ad` on `wt/wp-b`): every code finding fixed; the amended C3 built in
+  `readings.py`; `tests/test_stage2_bar.py` 47 passed, 2 skipped; `tests/test_stage2_readings.py` 43 passed. Its
+  reread of Stage 1's stock walks of 75-M-H-10 under the amended reading (H; seeds 3042 to 3044): R0 nominal 0.0477,
+  0.0471, 0.0474 (as first written 0.0332, 0.0330, 0.0335); R0 brisk 0.0517, 0.0522, 0.0522; R2/42 nominal 0.0438,
+  0.0452, 0.0413; R2/42 brisk 0.0492, 0.0475, 0.0479; R2/42 fr05 0.0496, 0.0477, 0.0485. R0 on fr05 fails every
+  reading, Stage 1's included. Smoke on Stage 1's own run directory; no record.
+- **The lead's check of the amended C3**: `lead_c3_check.py`, an implementation written from the rule text, equal to
+  the built function on 1,500 of 1,500 random traces in every compared output.
