@@ -38,6 +38,21 @@ Section 6's point 10, added the same night and ruled: the quick turn's hip roll 
 stride factor 0.8, under A12's 0.10 rad; A12 stands and the stride rule (A11) now reads it too, so V0's turn is
 expected at factor 0.70 (`../hiproll_scan.json`).
 
+## Update, 15 Nov, 06:30 UTC: round A's four fixed packages are merged
+
+M, G, C and B came back from their fixers and are merged into the working branch (`4ef2674`, `2d9adef`, `2b12c13`,
+`dd6b372`); their reports are in `reviews/`. The set builder (S) and the table builder (T) are building; the look
+sets' build is still running. The usage estimate is 69 % (the ceiling until the owner's reset is 90 %).
+
+- Known red until code state A: `test_legacy_check_record_is_current` (the set builder's edit to `moves.py` comes
+  first) and `test_regress_record_is_current` (the record was made before the merges). Both records are made again at
+  state A.
+- The lead checked C3 as amended against an implementation of his own: 1,500 of 1,500 random traces equal
+  (`../lead_c3_check.py`).
+- Ruled for the set builder's fix round: A12's acceleration gate on a move reads the entry's value under A7 as
+  amended, and the screen and the readings module give the same number (`../WP_S.md`, addendum 3).
+- Sections 3 and 6 below are superseded where they name M, G, C or B as unmerged or points 1 to 5 and 8 as open.
+
 ## 1. Why the session stopped launching work
 
 - The owner's usage meter read 46 % at 04:00 UTC on 15 Nov, after one reset from 99 % to 0 % during this session; the

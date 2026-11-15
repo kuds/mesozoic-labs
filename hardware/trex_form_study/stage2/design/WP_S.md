@@ -207,3 +207,27 @@ fixers are in `REVIEW_RULINGS_15NOV.md` beside this brief. What they mean for th
   `stage2/runs/2026-11-15-75cm/dev_episodes.json`. Run none under an R2 row.
 - **Nothing is frozen by you.** Build, screen and record the three sets; the freeze is the lead's step at code
   state A, after the legacy check and the regression record are made again on the merged code.
+
+---
+
+## LEAD ADDENDUM 3, 15 Nov, 06:30 UTC: AFTER THE FIXES OF M, G, C AND B (for the builder if it reads this in time, and for the fixer)
+
+M, G, C and B are fixed and merged into the working branch (merge commits `4ef2674`, `2d9adef`, `2b12c13`,
+`dd6b372`). What their fixers handed to this package:
+
+- **What the runner needs from a set** (B's fixer): `manifest_sha256 = s2io.sha256_json(manifest)`;
+  `freezes[i].change_after_result` (absent when none); every walk entry's `crouch_frac` and `speed_m_s` equal to
+  `set.json`'s and to the entry's name; each causal move's `command_phase` matching the runner's leads (2, 2.5 and
+  2.5 strides). Run `bar refcheck` on each built set and report its own last line.
+- **Key names of the screen** (C's fixer): a walk's `arrays.sha256` compares with `refs.json`'s `look_sha256`, and
+  `reference.sha256` with `refs.json`'s `sha256`. `screen.json` is schema 2.
+- **One acceleration reading for a move (the lead's ruling).** A12's 1.5 m/s² gate on a start, change or stop reads
+  the entry's own value, the one `moves` computes under A7 as amended (differentiated on the frames' own grid, the
+  filter given the walk or the stand around the move). In `setscreen.judge_move` read the entry's value where the
+  entry has one, keep the screen's own no-history value beside it as `com_forward_lp1hz_peak_screen`, and say so in
+  `RULES`. In `readings.reference_readings` take the entry's value or call `moves.forward_acceleration` with the
+  history, so that the three modules give one number for one reference. Add a test that the three agree on a built
+  stop. These are small edits to fixed packages: list each in your report with its commit so that the lead reads
+  them.
+- **A red test you will meet**: `test_legacy_check_record_is_current` is red after any edit to `moves.py` until the
+  legacy check is made again; make it again after your last edit to `moves.py` (addendum 2).
