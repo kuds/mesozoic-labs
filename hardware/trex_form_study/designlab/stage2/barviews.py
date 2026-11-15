@@ -44,7 +44,7 @@ Run from hardware/trex_form_study, one process, through ``bash tools/lowprio.sh`
     python -m designlab.stage2.barviews turnpath --set V0 [--run DIR] [--out DIR] [--figure-row R2/42@10ms]
     python -m designlab.stage2.barviews clips F25F9cl:walk/v0.4:R2/42@10ms ... [--run DIR] [--media DIR] [--out DIR]
     python -m designlab.stage2.barviews clips --planned V0:turn/q90_left F25F9cl:turn/q90_left
-    python -m designlab.stage2.barviews clips --all-gated --row R2/42@10ms [--set F25F9cl]
+    python -m designlab.stage2.barviews clips --all-gated --row R2/42@10ms [--set F25F9cl] [--list]
     python -m designlab.stage2.barviews posecheck F25F9cl:walk/v0.4:R2/42@10ms [--run DIR]
 
 ``--run`` is the run directory the records are read from (default: this checkout's
@@ -1768,6 +1768,34 @@ def gated_items(row: str, sets=SETS, body: str = BODY) -> list[tuple]:
     return [(s, c.key, row) for s in sets for c in set_view(s, body).conditions() if c.gated]
 
 
+def list_clips(items, run=RUN, block: str = bar.HEADLINE_BLOCK, views=None, body: str = BODY, log=print) -> list[dict]:
+    """What ``barviews clips`` would render of ``items``, without rendering or writing: per record its count, the
+    episodes ``SELECTION_RULE`` picks and the views, or why there would be no clip."""
+    out = []
+    for set_name, ckey, row in items:
+        path = record_path(run, set_name, body, block, row, ckey)
+        row_out = dict(set=set_name, condition=ckey, row=row, block=block, record=path.relative_to(run).as_posix(), clips=[])
+        out.append(row_out)
+        rec, why = read_record(path)
+        if rec is None or rec.get("status") != "done":
+            row_out["reason"] = ("no record yet" if not path.exists() else f"the record {why}" if rec is None
+                                 else f"the record's status is {rec.get('status')!r}")
+            log(f"{set_name} {ckey} {row}: no clip ({row_out['reason']})")
+            continue
+        sel = select_episodes(rec)
+        vs = tuple(views or VIEWS_OF[rec["definition"]["behavior"]])
+        row_out.update(count=count_words(rec), majority=sel["majority"], views=list(vs), skipped=sel["skipped"])
+        for pick in sel["picks"]:
+            trace, why = read_trace(run, rec, pick["episode"])
+            row_out["clips"].append(dict(seed=pick["seed"], selection=pick["selection"], outcome=outcome(pick["episode"]),
+                                         trace=None if trace is not None else why))
+        log(f"{set_name} {ckey} {row}: {row_out['count']}; "
+            + ("; ".join(f"seed {c['seed']} ({c['selection']}, {c['outcome']})" + (f" NO CLIP: {c['trace']}" if c["trace"] else "")
+                         for c in row_out["clips"]) or "no episode to render")
+            + f"; views {', '.join(vs)}" + "".join(f"; skipped seed {x['seed']}: {x['reason']}" for x in sel["skipped"]))
+    return out
+
+
 def make_clips(items, planned: bool = False, run=RUN, media=None, out=None, block: str = bar.HEADLINE_BLOCK,
                views=None, body: str = BODY, log=print) -> dict:
     """``barviews clips``: render ``items`` and write ``<out>/clips.json`` (the manifest; the clips of earlier runs
@@ -1890,6 +1918,8 @@ def main(argv=None) -> int:
     v.add_argument("--set", action="append", dest="sets", choices=SETS, help="with --all-gated: these sets only")
     v.add_argument("--block", default=bar.HEADLINE_BLOCK, choices=tuple(bar.BLOCKS))
     v.add_argument("--views", default=None, help="comma-separated: visitor, side, top (default: by behaviour)")
+    v.add_argument("--list", action="store_true", dest="only_list",
+                   help="print which episodes would be rendered and why; renders and writes nothing")
     v.add_argument("--media", default=None, help=f"where the media go (default {MEDIA}/, git-ignored)")
     v.add_argument("--out", default=None, help="the views directory (default: this checkout's run directory's views/)")
     a = ap.parse_args(argv)
@@ -1909,9 +1939,14 @@ def main(argv=None) -> int:
                 items += gated_items(a.row, tuple(a.sets or SETS), a.body)
             if not items:
                 raise ViewError("no item: name SET:CONDITION:ROW (or --all-gated --row ROW)")
-            doc = make_clips(items, a.planned, a.run, a.media, a.out, a.block,
-                             None if a.views is None else tuple(x for x in a.views.split(",") if x), a.body)
-            print(f"{len(doc['clips'])} clips and {len(doc['skipped'])} skips listed in the manifest")
+            views = None if a.views is None else tuple(x for x in a.views.split(",") if x)
+            if a.only_list:
+                if a.planned:
+                    raise ViewError("--list is for simulated clips (a planned clip has no episode to choose)")
+                list_clips(items, a.run, a.block, views, a.body)
+            else:
+                doc = make_clips(items, a.planned, a.run, a.media, a.out, a.block, views, a.body)
+                print(f"{len(doc['clips'])} clips and {len(doc['skipped'])} skips listed in the manifest")
     except (ViewError, bar.tune.InputError) as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 1

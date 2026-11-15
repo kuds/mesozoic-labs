@@ -648,6 +648,23 @@ def test_the_commands_write_nothing_in_the_run_directory_outside_views(v0, fake_
     assert bv.check_out(run, run / "views" / "x") == run / "views" / "x"
 
 
+@needs_set
+def test_clips_list_names_the_episodes_without_rendering(fake_run, capsys):
+    run = fake_run["run"]
+    before = tree(run)
+    items = bv.gated_items(ROW, sets=("V0",))
+    assert len(items) == 16 and items[0] == ("V0", "walk/v0.4", ROW) and ("V0", "turn/q90_right_mu0.54", ROW) in items
+    assert bv.main(["clips", "--list", "--all-gated", "--row", ROW, "--set", "V0", "--run", str(run)]) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert len(out) == 16 and tree(run) == before
+    assert out[0] == "V0 walk/v0.4 R2/42@10ms: stayed up in 0 of 2; seed 3042 (first seed, fell); views visitor, side"
+    assert out[2] == ("V0 turn/q90_left R2/42@10ms: stayed up in 4 of 6 (1 failed to run); seed 3042 (first seed, stayed up); "
+                      "views visitor, top")
+    assert out[1] == "V0 walk/v0.4_mu0.54 R2/42@10ms: no clip (no record yet)"
+    assert bv.main(["clips", "--run", str(run)]) == 1 and bv.main(["clips", "--all-gated", "--run", str(run)]) == 1
+    assert "refused:" in capsys.readouterr().err
+
+
 def test_run_label_and_missing_records(tmp_path):
     assert bv.run_label("/somewhere/else/hardware/trex_form_study/stage2/runs/2026-11-15-75cm") == "stage2/runs/2026-11-15-75cm"
     assert bv.record_files(tmp_path, "V0") == []
