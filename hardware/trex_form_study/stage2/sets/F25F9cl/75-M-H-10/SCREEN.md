@@ -23,12 +23,12 @@ Columns: the governing ratio (largest of all drives); the worst ratio of the dri
 
 | reference | kind | frames | governing ratio | worst ratio but neck and tail | neck c / p / s | tail c / p / s | CoP margin (mm) | CoP rule (mm) | grip need mu_req | within mu 0.9 | within mu 0.54 | mid-swing clearance (H) | gated joint margin (rad) | thigh twist use | 1 Hz forward accel (m/s^2) | verdict |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `nominal` | walk | 160 | 0.7090 (thigh twist cont) | 0.7090 (thigh twist cont) | 0.6607 / 0.4947 / 0.2469 | 0.2186 / 0.3217 / 0.2059 | 45.0770 | -10 | 0.2452 | yes | yes | 0.0484 | 0.1189 (left_hip_roll max) | 0.0000 | 0.2111 | within the Stage 0 limits |
 | `v0.3` | walk | 160 | 0.7040 (thigh twist cont) | 0.7040 (thigh twist cont) | 0.6617 / 0.5097 / 0.3047 | 0.2703 / 0.4020 / 0.2541 | 45.0262 | -10 | 0.3249 | yes | yes | 0.0484 | 0.1493 (left_hip_roll max) | 0.0000 | 0.1079 | within the Stage 0 limits |
-| `v0.35` | walk | 160 | 0.7059 (thigh twist cont) | 0.7059 (thigh twist cont) | 0.6631 / 0.5262 / 0.3555 | 0.3186 / 0.4786 / 0.2965 | 45.0663 | -10 | 0.4074 | yes | yes | 0.0484 | 0.1717 (left_hip_roll max) | 0.0000 | 0.0598 | within the Stage 0 limits |
+| `nominal` | walk | 160 | 0.7090 (thigh twist cont) | 0.7090 (thigh twist cont) | 0.6607 / 0.4947 / 0.2469 | 0.2186 / 0.3217 / 0.2059 | 45.0770 | -10 | 0.2452 | yes | yes | 0.0484 | 0.1189 (left_hip_roll max) | 0.0000 | 0.2111 | within the Stage 0 limits |
 | `v0.4` | walk | 160 | 0.7426 (knee speed) | 0.7426 (knee speed) | 0.6643 / 0.5367 / 0.3855 | 0.3498 / 0.5264 / 0.3215 | 45.0314 | -10 | 0.4954 | yes | yes | 0.0484 | 0.1831 (left_hip_roll max) | 0.0000 | 0.0449 | within the Stage 0 limits |
-| `v0.5` | walk | 160 | 0.9285 (knee speed) | 0.9285 (knee speed) | 0.6673 / 0.5589 / 0.4407 | 0.4158 / 0.6239 / 0.3675 | 44.9868 | -10 | 0.7008 | yes | no | 0.0484 | 0.2009 (left_hip_roll max) | 0.0000 | 0.0270 | within the Stage 0 limits |
+| `v0.35` | walk | 160 | 0.7059 (thigh twist cont) | 0.7059 (thigh twist cont) | 0.6631 / 0.5262 / 0.3555 | 0.3186 / 0.4786 / 0.2965 | 45.0663 | -10 | 0.4074 | yes | yes | 0.0484 | 0.1717 (left_hip_roll max) | 0.0000 | 0.0598 | within the Stage 0 limits |
 | `v0.45` | walk | 160 | 0.8343 (knee speed) | 0.8343 (knee speed) | 0.6657 / 0.5475 / 0.4137 | 0.3820 / 0.5739 / 0.3450 | 44.9972 | -10 | 0.5931 | yes | no | 0.0484 | 0.1927 (left_hip_roll max) | 0.0000 | 0.0345 | within the Stage 0 limits |
+| `v0.5` | walk | 160 | 0.9285 (knee speed) | 0.9285 (knee speed) | 0.6673 / 0.5589 / 0.4407 | 0.4158 / 0.6239 / 0.3675 | 44.9868 | -10 | 0.7008 | yes | no | 0.0484 | 0.2009 (left_hip_roll max) | 0.0000 | 0.0270 | within the Stage 0 limits |
 | `start` | start | 800 | 0.6596 (neck cont) | 0.5302 (thigh twist cont) | 0.6596 / 0.5021 / 0.2469 | 0.1633 / 0.3245 / 0.2059 | 44.8120 | -10 | 0.2564 | yes | yes | 0.0484 | 0.0950 (left_hip_roll max) | 0.0000 | 0.4971 (at the file's end; 0.4743 at least 1 s from both ends) | within the Stage 0 limits |
 | `nominal_to_v0.4` | change | 960 | 0.7428 (knee speed) | 0.7428 (knee speed) | 0.6624 / 0.5367 / 0.3855 | 0.2869 / 0.5272 / 0.3215 | 44.1940 | -10 | 0.4974 | yes | yes | 0.0484 | 0.1189 (left_hip_roll max) | 0.0000 | 0.6515 (at the file's end; 0.3182 at least 1 s from both ends) | within the Stage 0 limits |
 | `nominal_to_v0.3` | change | 960 | 0.7068 (thigh twist cont) | 0.7068 (thigh twist cont) | 0.6613 / 0.5097 / 0.3047 | 0.2471 / 0.4025 / 0.2541 | 44.3721 | -10 | 0.3250 | yes | yes | 0.0484 | 0.1189 (left_hip_roll max) | 0.0000 | 0.6511 (at the file's end; 0.2373 at least 1 s from both ends) | within the Stage 0 limits |
@@ -58,12 +58,12 @@ The frames of a move are not uniform in time where its stride period changes; th
 
 | reference | frames uniform in time | neck cont over time / by frames | tail cont over time / by frames | neck with passive c / p | tail with passive c / p | double-support min mu | sway per stride (H; spec 0.12 H) | CoM horizontal accel peak (m/s^2) | near a limit (within 0.02 below 1) | record re-check equal |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `nominal` | yes | 0.6607 / 0.6607 | 0.2186 / 0.2186 | 0.6719 / 0.5874 | 0.2920 / 0.3339 | 0.1938 | 0.2310 | 2.2116 | - | yes |
 | `v0.3` | yes | 0.6617 / 0.6617 | 0.2703 / 0.2703 | 0.6754 / 0.5969 | 0.3013 / 0.3108 | 0.2090 | 0.1876 | 2.3464 | - | yes |
-| `v0.35` | yes | 0.6631 / 0.6631 | 0.3186 / 0.3186 | 0.6778 / 0.6057 | 0.3267 / 0.3406 | 0.2202 | 0.1559 | 2.5171 | - | yes |
+| `nominal` | yes | 0.6607 / 0.6607 | 0.2186 / 0.2186 | 0.6719 / 0.5874 | 0.2920 / 0.3339 | 0.1938 | 0.2310 | 2.2116 | - | yes |
 | `v0.4` | yes | 0.6643 / 0.6643 | 0.3498 / 0.3498 | 0.6803 / 0.6146 | 0.3513 / 0.3647 | 0.2305 | 0.1398 | 2.6772 | - | yes |
-| `v0.5` | yes | 0.6673 / 0.6673 | 0.4158 / 0.4158 | 0.6848 / 0.6331 | 0.4137 / 0.4200 | 0.2475 | 0.1150 | 3.0218 | - | yes |
+| `v0.35` | yes | 0.6631 / 0.6631 | 0.3186 / 0.3186 | 0.6778 / 0.6057 | 0.3267 / 0.3406 | 0.2202 | 0.1559 | 2.5171 | - | yes |
 | `v0.45` | yes | 0.6657 / 0.6657 | 0.3820 / 0.3820 | 0.6824 / 0.6237 | 0.3805 / 0.3913 | 0.2454 | 0.1264 | 2.8460 | - | yes |
+| `v0.5` | yes | 0.6673 / 0.6673 | 0.4158 / 0.4158 | 0.6848 / 0.6331 | 0.4137 / 0.4200 | 0.2475 | 0.1150 | 3.0218 | - | yes |
 | `start` | yes | 0.6596 / 0.6596 | 0.1633 / 0.1633 | 0.6651 / 0.5873 | 0.2486 / 0.4269 | 0.1937 | 0.2562 | 2.1815 | - | yes |
 | `nominal_to_v0.4` | no | 0.6624 / 0.6631 | 0.2869 / 0.3011 | 0.6767 / 0.6147 | 0.3206 / 0.3649 | 0.2325 | 0.2311 | 2.7092 | - | yes |
 | `nominal_to_v0.3` | no | 0.6613 / 0.6614 | 0.2471 / 0.2500 | 0.6742 / 0.5968 | 0.2971 / 0.3352 | 0.2086 | 0.2310 | 2.3413 | - | yes |
