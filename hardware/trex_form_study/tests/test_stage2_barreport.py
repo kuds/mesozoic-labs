@@ -61,18 +61,37 @@ class Row:
         return bool(cond.gated)
 
 
-def set_docs(name: str, a1_over=()) -> dict:
-    """A set's documents with one freeze that lists every entry."""
+TWIST_RULE = "no reference within the thigh twist and the leg drives"
+#: What a synthetic set holds no reference for: {move: (reason, the reference's own numbers)}.
+UNAVAILABLE = {
+    "V0": {setio.turn_name("1", d): (HEADING_RULE, dict(heading_at_slowest_clock_deg=78.4, limit_deg=80.0))
+           for d in setio.DIRECTIONS},
+    "F25F9": {setio.turn_name("1", d): (HEADING_RULE, dict(heading_at_slowest_clock_deg=77.7, limit_deg=80.0))
+              for d in setio.DIRECTIONS},
+    "F25F9cl": dict({setio.turn_name("1", d): (HEADING_RULE, dict(heading_at_slowest_clock_deg=77.7, limit_deg=80.0))
+                     for d in setio.DIRECTIONS},
+                    **{setio.turn_name(setio.QUICK, "right"): (TWIST_RULE, dict(range_use=0.91, limit=0.87, f=0.6))}),
+}
+A1_OVER = {"F25F9cl": (setio.turn_name(setio.QUICK, "left"),)}
+
+
+def set_docs(name: str) -> dict:
+    """A set's documents: every walk and move of the round, the moves of ``UNAVAILABLE`` recorded without a file
+    (``available: false`` with their reason and numbers), one freeze that lists every entry with a file."""
     walks = [setio.NOMINAL] + [setio.walk_name(v) for v in setio.SPEEDS]
-    moves = [setio.START, setio.change_name(setio.NOMINAL, bar.BAR_WALK), setio.stop_name(2, bar.BAR_WALK),
-             setio.stop_name(1, bar.BAR_WALK)] + [setio.turn_name(r, d) for r in setio.TURN_RATES for d in setio.DIRECTIONS]
+    moves = ([setio.START] + [setio.change_name(setio.NOMINAL, w) for w in walks[1:]]
+             + [setio.stop_name(2, bar.BAR_WALK), setio.stop_name(1, bar.BAR_WALK)]
+             + [setio.turn_name(r, d) for r in setio.TURN_RATES for d in setio.DIRECTIONS])
     margin = MARGIN_RULE if name.startswith("F25F9cl") else None
+    gone = UNAVAILABLE.get(name.split(".")[0], {})
     refs = {w: dict(file=f"refs/{w}.npz", sha256=sha(name + w), margin_rule=margin, label=None) for w in walks}
-    trs = {m: dict(file=f"transitions/{m}.npz", sha256=sha(name + m), a1_over=m in a1_over, move=dict(causal=True))
-           for m in moves}
+    trs = {m: dict(file=f"transitions/{m}.npz", sha256=sha(name + m), a1_over=m in A1_OVER.get(name, ()),
+                   move=dict(causal=True)) for m in moves if m not in gone}
+    for m, (reason, numbers) in gone.items():
+        trs[m] = dict(name=m, kind="turn", available=False, reason=reason, numbers=numbers)
     manifest = {n: dict(kind="walk" if n in refs else "move", sha256=e["sha256"], entry_sha256=sha("entry" + name + n))
-                for n, e in {**refs, **trs}.items()}
-    sd = dict(set=name, body=BODY, role="synthetic", rules={},
+                for n, e in {**refs, **trs}.items() if e.get("file")}
+    sd = dict(set=name, body=BODY, role="synthetic", rules={}, not_available={},
               freezes=[dict(index=0, at="2026-11-15T07:00:00Z", commit="a" * 40, manifest=manifest,
                             manifest_sha256=s2io.sha256_json(manifest))])
     return {"set.json": sd, "refs.json": {"references": refs}, "transitions.json": {"transitions": trs},
@@ -130,18 +149,20 @@ def episode(cond, seed: int, fell: bool = False, before=None, tail_over: bool = 
 
 
 def put(study: Path, out: Path, set_name: str, row: str, key: str, block: str = H, control=None, not_run=None,
-        sources=None, a1_over=(), extra=None, per_seed=None, bad_input: bool = False, **kw) -> dict:
-    """Write one synthetic record where the runner would (``bar.record_path``) and the set's ``set.json`` where the
+        sources=None, extra=None, per_seed=None, bad_input: bool = False, **kw) -> dict:
+    """Write one synthetic record where the runner would (``bar.record_path``) and the set's documents where the
     record's ``inputs.dir`` says; returns the record.  ``per_seed(seed)`` gives an episode's own arguments."""
-    docs = set_docs(set_name, a1_over)
-    s2io.write_json(study / "stage2" / "sets" / set_name / BODY / "set.json", docs["set.json"])
+    docs = set_docs(set_name)
+    for name in ("set.json", "refs.json", "transitions.json"):
+        s2io.write_json(study / "stage2" / "sets" / set_name / BODY / name, docs[name])
     cond = next(c for c in bar.conditions(docs, block, every=True) if c.key == key)
     seeds = list(bar.BLOCKS[block])
     row_ = Row(row)
     files = sorted({f"refs/{setio.NOMINAL}.npz", f"refs/{cond.walk}.npz"}
                    | ({f"transitions/{cond.move}.npz"} if cond.move else set()))
     fz = docs["set.json"]["freezes"][0]
-    listed = {f: {k: fz["manifest"][Path(f).stem][k] for k in ("sha256", "entry_sha256")} for f in files}
+    listed = {f: {k: fz["manifest"][Path(f).stem][k] for k in ("sha256", "entry_sha256")} for f in files
+              if Path(f).stem in fz["manifest"]}
     if bad_input:
         listed[files[-1]] = dict(listed[files[-1]], sha256=sha("another file"))
     inputs = dict(dir=f"stage2/sets/{set_name}/{BODY}", files=listed,
@@ -170,6 +191,14 @@ def put(study: Path, out: Path, set_name: str, row: str, key: str, block: str = 
                                    extra=more, control=control)
     s2io.write_json(bar.record_path(out, set_name, BODY, block, row, cond, control), rec)
     return rec
+
+
+def why_not(set_name: str, key: str) -> dict:
+    """Why the runner would not run a condition on a synthetic set (``bar.BarPlanner.missing`` on its documents)."""
+    docs = set_docs(set_name)
+    planner = bar.BarPlanner(Path("unused"), docs["refs.json"]["references"], docs["transitions.json"]["transitions"],
+                             docs["set.json"])
+    return planner.missing(next(c for c in bar.conditions(docs, every=True) if c.key == key))
 
 
 def run_path(set_name: str, row: str, key: str, block: str = H, control=None) -> str:
@@ -206,15 +235,10 @@ def build(study: Path, out: Path) -> None:
     put(study, out, cl, "R2/42@10ms", "walk/v0.45", per_seed=lambda s: dict(fell=s < 3050))
     put(study, out, cl, "R2/43@10ms", "walk/v0.45", per_seed=lambda s: dict(fell=s < 3050))
     # -- the rest of the bar at 10 ms
-    turn_l = setio.turn_name(setio.QUICK, "left")
     for row in ("R2/42@10ms", "R2/43@10ms"):  # a turn frozen with a1_over: reading 2 is not read
-        put(study, out, cl, row, "turn/q90_left", a1_over=(turn_l,), tail_over=True)
-        put(study, out, cl, row, "turn/q90_right", not_run=dict(  # no reference at all
-            reason="no reference within the thigh twist and the leg drives", reference="transitions/turn90_pi4_right",
-            numbers=dict(range_use=0.91, limit=0.87, f=0.6)))
-        put(study, out, cl, row, "turn/t90_1_left", not_run=dict(  # a ladder rate outside the heading rule
-            reason=HEADING_RULE, reference="transitions/turn90_1_left",
-            numbers=dict(heading_at_slowest_clock_deg=77.7, limit_deg=80.0)))
+        put(study, out, cl, row, "turn/q90_left", tail_over=True)
+        for key in ("turn/q90_right", "turn/t90_1_left"):  # no reference: the runner's own reason and numbers
+            put(study, out, cl, row, key, not_run=why_not(cl, key))
         put(study, out, cl, row, "stop/one_step", per_seed=lambda s: dict(touchdowns=1))
         put(study, out, cl, row, "nudge/forward", per_seed=lambda s: dict(fell=s < 3044, before=s < 3043))
     put(study, out, cl, "R2/42@10ms", "nudge/left")  # its other row has no record
@@ -530,6 +554,39 @@ def test_a_condition_without_a_reference_prints_its_reason_and_the_references_nu
     assert len(lines(run.tabs, "glance", "glance", set="V0")) == 16
 
 
+def test_a_cell_with_no_record_says_when_the_set_holds_no_reference(run):
+    """Where the runner wrote no "not run" record (its unit was cut, or has not run), the set's own documents give
+    the reason, read by the runner's rule: the cell is never a bare word and never a fail of the robot."""
+    gaps = run.doc[barreport.META]["set_gaps"]
+    assert set(gaps["F25F9cl"][BODY]) == {"turn/q90_right", "turn/q90_right_mu0.54", "turn/t90_1_left", "turn/t90_1_right"}
+    assert set(gaps["V0"][BODY]) == set(gaps["F25F9"][BODY]) == {"turn/t90_1_left", "turn/t90_1_right"}
+    note = ("; the set holds no reference for it: no reference within the heading rule [transitions/turn90_1_right] "
+            "(heading_at_slowest_clock_deg=77.7, limit_deg=80)")
+    x = one(run.tabs, "rest", "counts", set="F25F9cl", condition="turn/t90_1_right", row="R2/42@10ms")
+    assert x["status"] == barreport.NOT_RUN + note and x.get("up") is None
+    # the same reason and numbers as the runner's own "not run" record of the left turn
+    left = one(run.tabs, "rest", "counts", set="F25F9cl", condition="turn/t90_1_left", row="R2/42@10ms")
+    assert left["status"].split(": ", 1)[1].replace("_left", "_right") == note.split(": ", 1)[1]
+    v = one(run.tabs, "rest", "verdicts", set="F25F9cl", condition="turn/t90_1_right")
+    assert v["reading_2"] == v["reading_3"] == barreport.NOT_RUN + note and v["which"] == "no record"
+    g = one(run.tabs, "glance", "glance", set="F25F9cl", condition="turn/q90_right_mu0.54")
+    assert g["reading_2"].startswith(f"not run; the set holds no reference for it: {TWIST_RULE} [") and "f=0.6" in g["reading_2"]
+    # a set and delay without any record: the conditions without a reference have their own lines
+    v0 = lines(run.tabs, "rest", "counts", set="V0", delay=J)
+    assert [x["item"] for x in v0] == ["27 conditions, 68 records: none found", "1 conditions, 2 records: none found",
+                                       "1 conditions, 2 records: none found"]
+    assert v0[0]["status"] == barreport.NOT_RUN and "heading_at_slowest_clock_deg=78.4" in v0[1]["status"]
+    assert [x["condition"] for x in v0[1:]] == ["turn/t90_1_left", "turn/t90_1_right"]
+    # listed at the top
+    top = run.tabs["checks"]["no_reference"]
+    assert list(top) == ["F25F9/75-M-H-10", "F25F9cl/75-M-H-10", "V0/75-M-H-10"] and len(top["F25F9cl/75-M-H-10"]) == 4
+    assert "- `F25F9cl/75-M-H-10`, `turn/q90_right`: no reference within the thigh twist and the leg drives" in run.md
+    # the absent word itself stays the bare word (a tally counts it as "not run")
+    meta = run.doc[barreport.META]
+    assert barreport.absent_word(meta, "F25F9cl", BODY, H, "R2/42@10ms", "turn/t90_1_right") == barreport.NOT_RUN
+    assert barreport.gap_note(meta, "F25F9cl", BODY, "walk/v0.4") == ""
+
+
 def test_a_rerun_after_a_result_stands_beside_the_registered_record(run):
     two = lines(run.tabs, "rest", "counts", set="F25F9cl", condition="stop/two_step", row="R2/42@10ms")
     assert len(two) == 2
@@ -691,6 +748,7 @@ def test_a_change_after_a_result_a_control_and_stage_1s_command_are_labelled(run
 def test_plain_words_for_items_and_grips(run):
     conds = barreport._conds()
     assert len(conds) == 41 and barreport._group("@gated") == [c.key for c in bar.conditions(set_docs("V0")) if c.gated]
+    assert list(conds) == [c.key for c in bar.conditions(set_docs("V0"), every=True)]
     words = {k: (barreport.item_of(d), barreport.grip_of(d)) for k, d in conds.items()}
     assert words["walk/v0.4"] == ("walk at 0.4 m/s", "mu 0.9")
     assert words["walk/nominal_mu0.54"] == ("walk at the nominal speed", "mu 0.54")

@@ -65,6 +65,8 @@ META = "_run"
 TABLES_JSON, TABLES_MD = "bar_tables.json", "BAR_TABLES.md"
 PLAN_FILE = "STAGE2_75_PLAN.md"
 JPS_FILE = "stage2/jetson_plem/JETSON_PLEM_AND_SPEED.md"
+#: The sets' root, relative to the study directory.
+SETS_ROOT = setio.ROOT.relative_to(s2io.STUDY).as_posix()
 
 # ------------------------------------------------------------------------------------------------
 # Words
@@ -313,7 +315,8 @@ def load(out, sets=None, body=None, *, study=None) -> dict:
     ``_path`` (relative to ``study``, default the study directory) and ``_superseded`` (the records kept beside it by
     a re-run).  Under ``"_run"``: the run directory, ``budget.json``, ``COST.md``'s rates, ``dev_episodes.json``,
     today's source hashes, the latest freeze of every set a record names (``<study>/<inputs.dir>/set.json``), the
-    controls' records (``controls[control][set]...``) and the files that are no record."""
+    conditions each set holds no reference for (``set_gaps``), the controls' records (``controls[control][set]...``)
+    and the files that are no record."""
     out = Path(out)
     study = Path(s2io.STUDY if study is None else study)
     sets = None if sets is None else [str(s) for s in sets]
@@ -321,7 +324,7 @@ def load(out, sets=None, body=None, *, study=None) -> dict:
         raise s2io.S2Error(f"{out}: no such run directory")
     meta: dict = dict(out=_rel(out, out, study), sets=sets, body=body, unreadable=[], misplaced=[], controls={},
                       budget=_read(out / "budget.json"), cost=None, today=_today_sources(), manifests={},
-                      dev_episodes=_read(out / "dev_episodes.json"))
+                      dev_episodes=_read(out / "dev_episodes.json"), set_gaps={})
     cost = out / "COST.md"
     if cost.is_file():
         meta["cost"] = bar.read_cost_text(cost.read_text())
@@ -331,16 +334,47 @@ def load(out, sets=None, body=None, *, study=None) -> dict:
     for cdir in sorted((out / "controls").glob("*")) if (out / "controls").is_dir() else []:
         if cdir.is_dir():
             meta["controls"][cdir.name] = _index_root(cdir, out, study, sets, body, meta)
+    where: dict = {}  # (set, body) -> the set's directory: the records' own inputs.dir, else the sets' root
+    for s in SETS if sets is None else [x for x in SETS if x in sets]:
+        where[(s, body or PLAN_BODY)] = f"{SETS_ROOT}/{s}/{body or PLAN_BODY}"
     for rec in list(_records(doc)) + [r for c in meta["controls"].values() for r in _records(c)]:
         d = (rec.get("inputs") or {}).get("dir")
-        if d and d not in meta["manifests"]:
+        if not d:
+            where.setdefault((rec["set"], rec["body"]), f"{SETS_ROOT}/{rec['set']}/{rec['body']}")
+            continue
+        where[(rec["set"], rec["body"])] = d
+        if d not in meta["manifests"]:
             sd = _read(study / d / "set.json")
             fz = setio.frozen(sd) if sd else None
             meta["manifests"][d] = (dict(found=False) if sd is None else dict(found=True, frozen=False) if fz is None
                                     else dict(found=True, frozen=True, index=fz["index"],
                                               manifest_sha256=fz["manifest_sha256"], entries=fz["entries"]))
+    for (s, b), d in sorted(where.items()):
+        gaps = _set_gaps(study / d)
+        if gaps:
+            meta["set_gaps"].setdefault(s, {})[b] = gaps
     doc[META] = meta
     return doc
+
+
+def _set_gaps(set_dir: Path) -> dict | None:
+    """``{condition: {reference, reason, numbers}}`` of the bar's conditions a set holds no reference for, from the
+    set's own documents by the runner's rule (``bar.BarPlanner.missing``: what it writes into a "not run" record).
+    None when the documents are not there or are no set's."""
+    docs = {n: _read(set_dir / n) for n in ("set.json", "refs.json", "transitions.json")}
+    if any(v is None for v in docs.values()):
+        return None
+    try:
+        planner = bar.BarPlanner(set_dir, docs["refs.json"]["references"], docs["transitions.json"]["transitions"],
+                                 docs["set.json"])
+        out = {}
+        for c in bar.conditions(docs, every=True):
+            why = planner.missing(c)
+            if why is not None:
+                out[c.key] = dict(reference=why.get("reference"), reason=why.get("reason"), numbers=why.get("numbers"))
+        return out
+    except (KeyError, TypeError, ValueError, AttributeError, RuntimeError):
+        return None
 
 
 def _records(index: dict):
@@ -525,15 +559,30 @@ def _flat(numbers, prefix: str = "", limit: int = 12) -> str:
     return ", ".join(items[:limit]) + (f", ... ({more} more in the record)" if more > 0 else "")
 
 
-def status_of(rec: dict) -> str:
-    """"done", or "not run: <the record's reason> (<the missing reference's own numbers>)"."""
-    if rec.get("status") == "done":
-        return "done"
-    text = f"{NOT_RUN}: {rec.get('reason') or 'no reason recorded'}"
-    if rec.get("reference"):
-        text += f" [{rec['reference']}]"
-    nums = _flat(rec.get("numbers")) if rec.get("numbers") else ""
+def why_text(why: dict) -> str:
+    """Why a condition has no reference, on one line: "<reason> [<reference>] (<the reference's own numbers>)"."""
+    text = str(why.get("reason") or "no reason recorded")
+    if why.get("reference"):
+        text += f" [{why['reference']}]"
+    nums = _flat(why.get("numbers")) if why.get("numbers") else ""
     return text + (f" ({nums})" if nums else "")
+
+
+def status_of(rec: dict) -> str:
+    """"done", or "not run: <the record's reason> [<reference>] (<the missing reference's own numbers>)"."""
+    return "done" if rec.get("status") == "done" else f"{NOT_RUN}: {why_text(rec)}"
+
+
+def gap_note(meta: dict, set_name: str, body: str, key: str) -> str:
+    """What a cell with no record adds where the set itself holds no reference for the condition (so that the cell is
+    never a bare word, and never reads as a result of the robot); "" otherwise."""
+    why = (((meta.get("set_gaps") or {}).get(set_name) or {}).get(body) or {}).get(key)
+    return "" if why is None else f"; the set holds no reference for it: {why_text(why)}"
+
+
+def absent_text(meta: dict, set_name: str, body: str, block: str, row: str, key: str) -> str:
+    """``absent_word`` with ``gap_note``."""
+    return absent_word(meta, set_name, body, block, row, key) + gap_note(meta, set_name, body, key)
 
 
 def pass_word(counts: dict | None, ms: int | None) -> str:
@@ -831,7 +880,7 @@ def verdict_of(doc: dict, set_name: str, body: str, key: str, ms: int, ctrl: str
     for rkey, which in (("reading_2", "success"), ("reading_3", "but_A1")):
         if all(r is None for r in recs):
             word = absent[0] if absent[0] == absent[1] else f"{names[0]}: {absent[0]}; {names[1]}: {absent[1]}"
-            out[rkey] = dict(verdict=word, text=word, replication=None)
+            out[rkey] = dict(verdict=word, text=word + gap_note(doc[META], set_name, body, key), replication=None)
             continue
         v = bar.verdict([_vcell(r) for r in recs], ms, which)
         text, rep = v["verdict"], None
@@ -1034,7 +1083,7 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
             by_word: dict = {}
             for c in group:
                 for r in c["rows"]:
-                    w = absent_word(meta, s, body, bar.HEADLINE_BLOCK, f"{r}@{ms}ms", c["key"])
+                    w = absent_text(meta, s, body, bar.HEADLINE_BLOCK, f"{r}@{ms}ms", c["key"])
                     by_word.setdefault(w, []).append((c["key"], r))
             for word, pairs in by_word.items():
                 keys_ = list(dict.fromkeys(k for k, _ in pairs))
@@ -1060,7 +1109,7 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
                 row = f"{base}@{ms}ms"
                 rec = _rec(doc, s, body, bar.HEADLINE_BLOCK, row, key)
                 if rec is None:
-                    word = absent_word(meta, s, body, bar.HEADLINE_BLOCK, row, key)
+                    word = absent_text(meta, s, body, bar.HEADLINE_BLOCK, row, key)
                     counts.append(dict(_head(s, body, key, ms, row, None, meta), status=word, reading_1=READING_1,
                                        path=_rel_run(meta, _run_path(s, body, bar.HEADLINE_BLOCK, row, key))))
                     continue
@@ -1439,7 +1488,7 @@ def jps_table(doc: dict) -> dict:
                 rec = registered(_rec(doc, s, body, block, row, key))
                 recs[row] = rec
                 if rec is None:
-                    lines.append(f"{name}, {row}: {absent_word(meta, s, body, block, row, key)}")
+                    lines.append(f"{name}, {row}: {absent_text(meta, s, body, block, row, key)}")
                     continue
                 d = digest(rec, meta)
                 paths.append(d["path"])
@@ -1533,7 +1582,8 @@ def _seed_part(line: int, name: str, set_name: str, recs: dict) -> dict:
 def checks(doc: dict) -> dict:
     """Records found; records made by other sources than today's; records whose input hashes are not in their
     set's latest freeze; records with errors or unjudged counts; records whose counts do not recompute
-    (``bar.counts``); second-block records outside the replication rule; the build's check episodes against rule R4;
+    (``bar.counts``); second-block records outside the replication rule; the conditions each set holds no reference
+    for; the build's check episodes against rule R4;
     core-hours per task against its budget, with the units started after the first cut; the rates of ``COST.md``."""
     meta = doc[META]
     main = list(_records(doc))
@@ -1614,6 +1664,9 @@ def checks(doc: dict) -> dict:
         today_sources=dict(meta["today"]), other_sources=other, not_in_latest_freeze=missing, not_checked=unchecked,
         freezes={d: {k: v for k, v in m.items() if k != "entries"} for d, m in sorted(meta["manifests"].items())},
         errors_or_unjudged=unjudged, counts_not_recomputed=miscounted, second_block_outside_the_rule=second,
+        no_reference={f"{s2}/{b}": {k: why_text(w) for k, w in gaps.items()}
+                      for s2, by_body in sorted((meta.get("set_gaps") or {}).items())
+                      for b, gaps in sorted(by_body.items())},
         dev_episodes=dev, budget=budget, cost=cost)
 
 
@@ -1779,6 +1832,10 @@ def _md_checks(c: dict) -> list[str]:
            "- Records of the block `seeds5042` that the replication rule does not provide for (an R0 row, a control "
            f"set, a reported control, no `replication_of`): {len(c['second_block_outside_the_rule'])}"
            + "".join(f"\n  - `{x['path']}`: {', '.join(x['why'])}" for x in c["second_block_outside_the_rule"])]
+    out.append("- Conditions a set holds no reference for (they read \"not run\" with this reason; that is no result "
+               "of the robot, and a turn among them goes to the owner):"
+               + (" none found in the sets' documents" if not c["no_reference"] else "".join(
+                   f"\n  - `{sb}`, `{k}`: {text}" for sb, gaps in c["no_reference"].items() for k, text in gaps.items())))
     dev = c["dev_episodes"]
     if dev is None:
         out.append("- Check episodes of the build: no `dev_episodes.json` in the run directory.")
