@@ -84,8 +84,14 @@ def digest_record(x: dict) -> dict:
              toe_limit_mm=(lambda v: None if v is None else 1000.0 * v)(
                  med(get(b, "toe", "limit_m") for b in bar)),
              duty=med(statistics.mean(b["duty"]) for b in bar if b.get("duty")),
-             a1_ratio=med(get(b, "drives", "window", "worst_a1", 1) for b in bar),
-             leg_ratio=med(get(b, "drives", "window", "worst_leg", 1) for b in bar))
+             tail_ratio=med(get(b, "drives", "window", "ratios", "tail_yaw_servo") for b in bar),
+             neck_ratio=med(get(b, "drives", "window", "ratios", "neck_pitch_servo") for b in bar),
+             leg_ratio=med(get(b, "drives", "window", "worst_leg", 1) for b in bar),
+             toe_stage1_mm=(lambda v: None if v is None else 1000.0 * v)(
+                 med(get(e, "measures", "window", "toe_clearance_m") for e in win)),
+             a1_over=bool(r.get("a1_over")),
+             fall_segments=_count(e.get("segment_reached") for e in eps if e["fell"]),
+             plan=[x[1] for x in (r.get("plan") or [])])
     beh = r["behavior"]
     if beh == "turn":
         d.update(heading_error_at_deg=med(b.get("heading_error_at_deg") for b in bar),
@@ -104,12 +110,33 @@ def digest_record(x: dict) -> dict:
     return d
 
 
+def _count(values) -> dict:
+    out: dict = {}
+    for v in values:
+        out[str(v)] = out.get(str(v), 0) + 1
+    return out
+
+
 def cell(d: dict | None) -> str:
     if d is None:
         return "-"
     if d["status"] != "done":
         return "not run"
+    if d.get("a1_over"):  # H3: reading 2 of a turn frozen with a1_over is recorded and gives no pass
+        return f"{d['up']} / n.r. / {d['but_A1']}"
     return f"{d['up']} / {d['every_limit']} / {d['but_A1']}"
+
+
+GATED = (("walk", "v0.4"), ("turn", "q90_left"), ("turn", "q90_right"), ("nudge", "forward"), ("nudge", "backward"),
+         ("nudge", "left"), ("nudge", "right"), ("stop", "two_step"))
+GATED = GATED + tuple((b, c + "_mu0.54") for b, c in GATED)
+SEGMENT = {"start": "the start from standing", "start_v0.4": "the start from standing (straight into 0.40 m/s)",
+           "nominal": "the slow stride after the start", "nominal_to_v0.4": "the change of speed to 0.40 m/s",
+           "v0.4": "the 0.40 m/s walk itself"}
+
+
+def meets(d: dict | None, key: str) -> bool:
+    return bool(d and d["status"] == "done" and d["up"] == 20 and d[key] >= 17)
 
 
 def num(v, fmt="{:.2f}") -> str:
@@ -130,7 +157,9 @@ def markdown(doc: dict) -> str:
          "Cells of the count tables: **episodes that stayed up / episodes that met every limit / episodes that met "
          "every limit but for A1** (the neck and tail servos' sustained load), each of 20, seeds 3042 to 3061. A "
          "record passes with 20 up and at least 17 (H1). Rows `R2/42` and `R2/43` are the two fitted balance "
-         "controllers (fitted with no servo delay); `R0` has no balance feedback and gives no verdict.", ""]
+         "controllers (fitted with no servo delay); `R0` has no balance feedback and gives no verdict. \"n.r.\" in "
+         "the middle place: not read. That turn's reference is frozen with its tail servo over the planning limit, "
+         "so only the reading but for A1 can pass (plan, H3).", ""]
     for grip, suffix in (("grippy floor (mu 0.9)", ""), ("slippery floor (mu 0.54)", "_mu0.54")):
         L += [f"## 1. The walk at 0.40 m/s, {grip}: counts by servo delay", "",
               "| Set | Row | " + " | ".join(f"{d} ms" for d in DELAYS) + " |", "|---|---|" + "---|" * len(DELAYS)]
@@ -141,11 +170,13 @@ def markdown(doc: dict) -> str:
         L.append("")
     L += ["## 2. The walk at 0.40 m/s, grippy floor: measured medians", "",
           "Medians over the episodes that give the value (n in brackets). Speed over the last 10 s. Toe clearance "
-          "as the bar judges it (limit 20.07 mm). Duty as the mean of the two feet (limits 0.55 to 0.65). Tail or "
-          "neck servo: the larger sustained-load ratio of the two over the window (limit 1.0; this is A1). "
-          "Leg servo: the largest leg drive's ratio (limit 1.0).", "",
-          "| Set | Row | Delay | Speed (m/s) | Toe clearance (mm) | Duty | Tail or neck servo ratio | "
-          "Leg servo ratio | Failed terms (episodes of 20) |", "|---|---|---|---|---|---|---|---|---|"]
+          "as the bar judges it (limit 20.07 mm), and beside it as Stage 1 reads it (reported; no limit of the bar). "
+          "Duty as the mean of the two feet (limits 0.55 to 0.65). Tail servo and neck servo: each one's "
+          "sustained load over its rating in the window (limit 1.0 for each; the pair is A1). Leg servo: the "
+          "largest leg drive's ratio (limit 1.0).", "",
+          "| Set | Row | Delay | Speed (m/s) | Toe clearance (mm) | Toe clearance, Stage 1's reading (mm) | Duty | "
+          "Tail servo | Neck servo | Leg servo | Failed terms (episodes of 20) |",
+          "|---|---|---|---|---|---|---|---|---|---|---|"]
     for s in SETS:
         for row in ROWS:
             for d in DELAYS:
@@ -154,8 +185,9 @@ def markdown(doc: dict) -> str:
                     continue
                 ft = ", ".join(f"`{k}` {v}" for k, v in x["failed_terms"].items()) or "none"
                 L.append(f"| {s} | `{row}` | {d} ms | {num(x['speed_m_s'], '{:.3f}')} ({x['n_window']}) | "
-                         f"{num(x['toe_mm'], '{:.1f}')} ({x['n_toe']}) | {num(x['duty'], '{:.3f}')} | "
-                         f"{num(x['a1_ratio'])} | {num(x['leg_ratio'])} | {ft} |")
+                         f"{num(x['toe_mm'], '{:.1f}')} ({x['n_toe']}) | {num(x['toe_stage1_mm'], '{:.1f}')} | "
+                         f"{num(x['duty'], '{:.3f}')} | {num(x['tail_ratio'])} | {num(x['neck_ratio'])} | "
+                         f"{num(x['leg_ratio'])} | {ft} |")
     L.append("")
     rungs = ("nominal", "v0.3", "v0.35", "v0.4", "v0.45", "v0.5")
     L += ["## 3. The speed ladder, grippy floor: counts by rung and delay", "",
@@ -235,8 +267,52 @@ def markdown(doc: dict) -> str:
                              f"{num(x.get('forward_stopped_strides'))} | {num(x.get('distance_after_command_m'))} | "
                              f"{ft} |")
     L.append("")
+    L += ["## 7. Where the falls come: the walk at 0.40 m/s, fitted rows", "",
+          "Each episode starts from standing, takes the set's lead-in, and then walks at 0.40 m/s (V0 and the "
+          "candidate: the start, one slow stride, the change of speed; F25F9: straight from the start). The table "
+          "counts the falls of the two fitted rows on both floors together (80 episodes per cell) by the part of "
+          "the episode the robot had reached.", "",
+          "| Set | Delay | Falls of 80 | Where (falls) |", "|---|---|---|---|"]
+    order = list(SEGMENT)
+    for s in SETS:
+        for d in DELAYS:
+            seg: dict = {}
+            n = 0
+            for row in ("R2/42", "R2/43"):
+                for cond in ("v0.4", "v0.4_mu0.54"):
+                    x = at(s, row, d, "walk", cond)
+                    if x is None or x["status"] != "done":
+                        continue
+                    for k, v in x["fall_segments"].items():
+                        seg[k] = seg.get(k, 0) + v
+                        n += v
+            where = "; ".join(f"{SEGMENT.get(k, k)}: {seg[k]}" for k in order + sorted(set(seg) - set(order))
+                              if k in seg) or "-"
+            L.append(f"| {s} | {d} ms | {n} | {where} |")
+    L.append("")
+    L += ["## 8. The bar's 16 conditions that meet the pass rule under both fitted rows, per delay", "",
+          "The pass rule at a delay other than 10 ms gives no verdict (H2); the count is given for scale. The turns, "
+          "pushes and stop were run at 0, 4, 6 and 10 ms; on F25F9 only the two walk conditions were run.", "",
+          "| Set | Delay | Every limit | Every limit but for A1 | Which (but for A1) |", "|---|---|---|---|---|"]
+    for s in SETS:
+        for d in (0, 4, 6, 10):
+            run = [(b, c) for b, c in GATED if at(s, "R2/42", d, b, c) and at(s, "R2/43", d, b, c)]
+            p2 = [f"{b}/{c}" for b, c in run if all(meets(at(s, r, d, b, c), "every_limit")
+                                                   and not at(s, r, d, b, c).get("a1_over") for r in ("R2/42", "R2/43"))]
+            p3 = [f"{b}/{c}" for b, c in run if all(meets(at(s, r, d, b, c), "but_A1") for r in ("R2/42", "R2/43"))]
+            L.append(f"| {s} | {d} ms | {len(p2)} of {len(run)} run | {len(p3)} of {len(run)} run | "
+                     f"{', '.join('`' + x + '`' for x in p3) or 'none'} |")
+    L.append("")
+    if doc.get("controls"):
+        L += ["## 9. The registered control: omega at Stage 1's crouch", "",
+              "The candidate's walk at 0.40 m/s under `R2/42` with the controller's pendulum frequency computed as "
+              "Stage 1 computed it (plan B5). 20 episodes each; a control, no verdict.", "",
+              "| Record | Stayed up | Every limit | But for A1 |", "|---|---|---|---|"]
+        for k, x in sorted(doc["controls"].items()):
+            L.append(f"| `{k}` | {x['up']} | {x['every_limit']} | {x['but_A1']} |")
+        L.append("")
     b = doc["budget"]
-    L += ["## 7. Compute", "", "| Task | Budget (core-hours) | Used (core-hours) | Units started | Units cut |",
+    L += ["## 10. Compute", "", "| Task | Budget (core-hours) | Used (core-hours) | Units started | Units cut |",
           "|---|---|---|---|---|"]
     for t, v in sorted(b.items()):
         L.append(f"| {t} | {v['cap_core_h']:.0f} | {v['used_core_h']:.2f} | {v['units']} | {v['cut']} |")
@@ -255,7 +331,14 @@ def main() -> None:
             units = v.get("units") or []
             budget[t] = dict(cap_core_h=v["cap_core_h"], units=len(units), cut=len(v.get("cut") or []),
                              used_core_h=sum(u.get("used_core_h") or 0.0 for u in units))
-    doc = dict(schema="digest-1", run=RUN.name, records=records, budget=budget,
+    controls = {}
+    for p in sorted((RUN / "controls").glob("**/eval/**/*.json")) if (RUN / "controls").exists() else ():
+        rel = p.relative_to(RUN).as_posix()
+        if "/traces/" in rel or rel.endswith("summary.json"):
+            continue
+        raw = p.read_bytes()
+        controls[rel] = digest_record(dict(rel=rel, sha256=hashlib.sha256(raw).hexdigest(), r=json.loads(raw)))
+    doc = dict(schema="digest-1", run=RUN.name, records=records, budget=budget, controls=controls,
                counts=dict(records=len(records), done=sum(1 for d in records.values() if d["status"] == "done"),
                            not_run=sum(1 for d in records.values() if d["status"] != "done")))
     (HERE / "digest.json").write_text(json.dumps(doc, indent=1, sort_keys=True) + "\n")

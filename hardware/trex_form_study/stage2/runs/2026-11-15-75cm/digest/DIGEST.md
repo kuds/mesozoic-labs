@@ -2,7 +2,7 @@
 
 Simulation only; no number here was measured on hardware. Every number is read from the committed records of this run by `digest/digest.py` (standard library only). It is a digest for the written report: the full machine-made tables, with every label and every record path, are `BAR_TABLES.md`. A dash is a cell the registered order does not hold; "not run" is a record the runner wrote as not run.
 
-Cells of the count tables: **episodes that stayed up / episodes that met every limit / episodes that met every limit but for A1** (the neck and tail servos' sustained load), each of 20, seeds 3042 to 3061. A record passes with 20 up and at least 17 (H1). Rows `R2/42` and `R2/43` are the two fitted balance controllers (fitted with no servo delay); `R0` has no balance feedback and gives no verdict.
+Cells of the count tables: **episodes that stayed up / episodes that met every limit / episodes that met every limit but for A1** (the neck and tail servos' sustained load), each of 20, seeds 3042 to 3061. A record passes with 20 up and at least 17 (H1). Rows `R2/42` and `R2/43` are the two fitted balance controllers (fitted with no servo delay); `R0` has no balance feedback and gives no verdict. "n.r." in the middle place: not read. That turn's reference is frozen with its tail servo over the planning limit, so only the reading but for A1 can pass (plan, H3).
 
 ## 1. The walk at 0.40 m/s, grippy floor (mu 0.9): counts by servo delay
 
@@ -34,64 +34,64 @@ Cells of the count tables: **episodes that stayed up / episodes that met every l
 
 ## 2. The walk at 0.40 m/s, grippy floor: measured medians
 
-Medians over the episodes that give the value (n in brackets). Speed over the last 10 s. Toe clearance as the bar judges it (limit 20.07 mm). Duty as the mean of the two feet (limits 0.55 to 0.65). Tail or neck servo: the larger sustained-load ratio of the two over the window (limit 1.0; this is A1). Leg servo: the largest leg drive's ratio (limit 1.0).
+Medians over the episodes that give the value (n in brackets). Speed over the last 10 s. Toe clearance as the bar judges it (limit 20.07 mm), and beside it as Stage 1 reads it (reported; no limit of the bar). Duty as the mean of the two feet (limits 0.55 to 0.65). Tail servo and neck servo: each one's sustained load over its rating in the window (limit 1.0 for each; the pair is A1). Leg servo: the largest leg drive's ratio (limit 1.0).
 
-| Set | Row | Delay | Speed (m/s) | Toe clearance (mm) | Duty | Tail or neck servo ratio | Leg servo ratio | Failed terms (episodes of 20) |
-|---|---|---|---|---|---|---|---|---|
-| V0 | `R2/42` | 0 ms | 0.410 (20) | 24.2 (20) | 0.563 | 1.07 | 0.80 | `drive_sustained` 20, `line` 1 |
-| V0 | `R2/42` | 2 ms | 0.412 (20) | 22.9 (20) | 0.573 | 1.05 | 0.80 | `drive_sustained` 20 |
-| V0 | `R2/42` | 4 ms | 0.412 (20) | 20.7 (20) | 0.583 | 1.04 | 0.79 | `drive_sustained` 20, `toe_clearance_own_swing` 4 |
-| V0 | `R2/42` | 6 ms | 0.409 (20) | 18.9 (20) | 0.583 | 1.02 | 0.79 | `drive_sustained` 20, `toe_clearance_own_swing` 20 |
-| V0 | `R2/42` | 8 ms | - (0) | - (0) | - | - | - | `survived` 20 |
-| V0 | `R2/42` | 10 ms | - (0) | - (0) | - | - | - | `survived` 20 |
-| V0 | `R2/43` | 0 ms | 0.411 (20) | 24.2 (20) | 0.560 | 1.08 | 0.80 | `drive_sustained` 20, `line` 1 |
-| V0 | `R2/43` | 2 ms | 0.413 (20) | 23.1 (20) | 0.571 | 1.06 | 0.80 | `drive_sustained` 20 |
-| V0 | `R2/43` | 4 ms | 0.414 (20) | 20.2 (20) | 0.584 | 1.05 | 0.79 | `drive_sustained` 20, `toe_clearance_own_swing` 7, `line` 1 |
-| V0 | `R2/43` | 6 ms | 0.413 (20) | 18.3 (20) | 0.582 | 1.03 | 0.80 | `drive_sustained` 20, `toe_clearance_own_swing` 20 |
-| V0 | `R2/43` | 8 ms | - (0) | - (0) | - | - | - | `survived` 20 |
-| V0 | `R2/43` | 10 ms | 0.391 (1) | 4.3 (1) | 0.526 | 1.19 | 0.93 | `survived` 19, `along` 1, `drive_speed` 1, `drive_sustained` 1, `duty` 1, `toe_clearance_own_swing` 1 |
-| V0 | `R0` | 0 ms | 0.410 (20) | 24.5 (20) | 0.546 | 1.10 | 0.80 | `drive_sustained` 20, `duty` 20, `along` 1, `no_flight` 1, `toe_clearance_own_swing` 1 |
-| V0 | `R0` | 2 ms | 0.410 (18) | 25.5 (18) | 0.545 | 1.10 | 0.81 | `drive_sustained` 18, `duty` 18, `survived` 2, `line` 1 |
-| V0 | `R0` | 4 ms | 0.410 (19) | 24.9 (19) | 0.546 | 1.10 | 0.80 | `drive_sustained` 19, `duty` 19, `no_flight` 3, `toe_clearance_own_swing` 3, `along` 1, `survived` 1 |
-| V0 | `R0` | 6 ms | 0.410 (20) | 26.1 (20) | 0.546 | 1.10 | 0.81 | `drive_sustained` 20, `duty` 20 |
-| V0 | `R0` | 8 ms | 0.410 (19) | 26.3 (19) | 0.546 | 1.10 | 0.81 | `drive_sustained` 19, `duty` 19, `line` 2, `survived` 1 |
-| V0 | `R0` | 10 ms | 0.410 (20) | 25.5 (20) | 0.546 | 1.10 | 0.81 | `drive_sustained` 20, `duty` 20, `line` 1, `toe_clearance_own_swing` 1 |
-| F25F9 | `R2/42` | 0 ms | 0.413 (20) | 17.2 (20) | 0.559 | 0.69 | 0.75 | `duty` 20, `toe_clearance_own_swing` 20, `line` 1 |
-| F25F9 | `R2/42` | 2 ms | 0.413 (20) | 14.6 (20) | 0.573 | 0.69 | 0.75 | `toe_clearance_own_swing` 20, `duty` 1, `line` 1 |
-| F25F9 | `R2/42` | 4 ms | 0.412 (20) | 12.7 (20) | 0.581 | 0.69 | 0.75 | `toe_clearance_own_swing` 20, `line` 1 |
-| F25F9 | `R2/42` | 6 ms | 0.410 (15) | 12.6 (15) | 0.575 | 0.69 | 0.76 | `toe_clearance_own_swing` 15, `survived` 5, `line` 1 |
-| F25F9 | `R2/42` | 8 ms | - (0) | - (0) | - | - | - | `survived` 20 |
-| F25F9 | `R2/42` | 10 ms | - (0) | - (0) | - | - | - | `survived` 20 |
-| F25F9 | `R2/43` | 0 ms | 0.412 (20) | 17.8 (20) | 0.551 | 0.69 | 0.76 | `duty` 20, `toe_clearance_own_swing` 20, `line` 1 |
-| F25F9 | `R2/43` | 2 ms | 0.415 (20) | 15.0 (20) | 0.567 | 0.69 | 0.75 | `toe_clearance_own_swing` 20, `duty` 18, `line` 1 |
-| F25F9 | `R2/43` | 4 ms | 0.415 (20) | 12.0 (20) | 0.579 | 0.69 | 0.75 | `toe_clearance_own_swing` 20, `line` 1 |
-| F25F9 | `R2/43` | 6 ms | 0.415 (19) | 11.8 (19) | 0.574 | 0.70 | 0.76 | `toe_clearance_own_swing` 19, `duty` 4, `line` 1, `survived` 1 |
-| F25F9 | `R2/43` | 8 ms | - (0) | - (0) | - | - | - | `survived` 20 |
-| F25F9 | `R2/43` | 10 ms | 0.391 (2) | 1.9 (2) | 0.523 | 0.90 | 0.99 | `survived` 18, `along` 2, `drive_speed` 2, `duty` 2, `slip_median` 2, `toe_clearance_own_swing` 2 |
-| F25F9 | `R0` | 0 ms | 0.411 (20) | 16.5 (20) | 0.534 | 0.68 | 0.73 | `duty` 20, `toe_clearance_own_swing` 20, `line` 1 |
-| F25F9 | `R0` | 2 ms | 0.411 (20) | 16.4 (20) | 0.535 | 0.68 | 0.73 | `duty` 20, `toe_clearance_own_swing` 20 |
-| F25F9 | `R0` | 4 ms | 0.411 (20) | 16.8 (20) | 0.533 | 0.68 | 0.73 | `duty` 20, `toe_clearance_own_swing` 20, `line` 1 |
-| F25F9 | `R0` | 6 ms | 0.412 (20) | 16.8 (20) | 0.535 | 0.68 | 0.73 | `duty` 20, `toe_clearance_own_swing` 20 |
-| F25F9 | `R0` | 8 ms | 0.411 (20) | 17.0 (20) | 0.532 | 0.68 | 0.73 | `duty` 20, `toe_clearance_own_swing` 20, `line` 1, `no_flight` 1 |
-| F25F9 | `R0` | 10 ms | 0.411 (20) | 16.7 (20) | 0.534 | 0.68 | 0.73 | `duty` 20, `toe_clearance_own_swing` 20, `line` 1 |
-| F25F9cl | `R2/42` | 0 ms | 0.415 (20) | 20.0 (20) | 0.593 | 0.69 | 0.76 | `joint_range` 20, `toe_clearance_own_swing` 11, `line` 1 |
-| F25F9cl | `R2/42` | 2 ms | 0.416 (20) | 17.0 (20) | 0.607 | 0.69 | 0.75 | `joint_range` 20, `toe_clearance_own_swing` 20 |
-| F25F9cl | `R2/42` | 4 ms | 0.413 (20) | 13.7 (20) | 0.618 | 0.70 | 0.76 | `joint_range` 20, `toe_clearance_own_swing` 20, `line` 1 |
-| F25F9cl | `R2/42` | 6 ms | - (0) | - (0) | - | - | - | `survived` 20 |
-| F25F9cl | `R2/42` | 8 ms | - (0) | - (0) | - | - | - | `survived` 20 |
-| F25F9cl | `R2/42` | 10 ms | - (0) | - (0) | - | - | - | `survived` 20 |
-| F25F9cl | `R2/43` | 0 ms | 0.414 (20) | 20.6 (20) | 0.587 | 0.70 | 0.77 | `joint_range` 20, `toe_clearance_own_swing` 2 |
-| F25F9cl | `R2/43` | 2 ms | 0.417 (20) | 16.8 (20) | 0.605 | 0.69 | 0.76 | `joint_range` 20, `toe_clearance_own_swing` 20, `line` 1 |
-| F25F9cl | `R2/43` | 4 ms | 0.416 (20) | 13.0 (20) | 0.620 | 0.70 | 0.76 | `joint_range` 20, `toe_clearance_own_swing` 20, `line` 1 |
-| F25F9cl | `R2/43` | 6 ms | - (0) | - (0) | - | - | - | `survived` 20 |
-| F25F9cl | `R2/43` | 8 ms | - (0) | - (0) | - | - | - | `survived` 20 |
-| F25F9cl | `R2/43` | 10 ms | - (0) | - (0) | - | - | - | `survived` 20 |
-| F25F9cl | `R0` | 0 ms | 0.413 (20) | 21.9 (20) | 0.565 | 0.69 | 0.76 | `duty` 20, `joint_range` 20 |
-| F25F9cl | `R0` | 2 ms | 0.413 (20) | 21.9 (20) | 0.564 | 0.69 | 0.76 | `duty` 20, `joint_range` 20 |
-| F25F9cl | `R0` | 4 ms | 0.413 (20) | 21.8 (20) | 0.564 | 0.69 | 0.76 | `joint_range` 20, `duty` 17, `line` 1 |
-| F25F9cl | `R0` | 6 ms | 0.413 (20) | 21.8 (20) | 0.565 | 0.69 | 0.76 | `joint_range` 20, `duty` 18, `line` 1, `toe_clearance_own_swing` 1 |
-| F25F9cl | `R0` | 8 ms | 0.413 (20) | 21.6 (20) | 0.564 | 0.69 | 0.76 | `duty` 20, `joint_range` 20, `line` 1 |
-| F25F9cl | `R0` | 10 ms | 0.413 (20) | 21.9 (20) | 0.564 | 0.69 | 0.76 | `joint_range` 20, `duty` 19, `line` 1 |
+| Set | Row | Delay | Speed (m/s) | Toe clearance (mm) | Toe clearance, Stage 1's reading (mm) | Duty | Tail servo | Neck servo | Leg servo | Failed terms (episodes of 20) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| V0 | `R2/42` | 0 ms | 0.410 (20) | 24.2 (20) | 27.1 | 0.563 | 1.07 | 0.70 | 0.80 | `drive_sustained` 20, `line` 1 |
+| V0 | `R2/42` | 2 ms | 0.412 (20) | 22.9 (20) | 27.2 | 0.573 | 1.05 | 0.70 | 0.80 | `drive_sustained` 20 |
+| V0 | `R2/42` | 4 ms | 0.412 (20) | 20.7 (20) | 25.2 | 0.583 | 1.04 | 0.70 | 0.79 | `drive_sustained` 20, `toe_clearance_own_swing` 4 |
+| V0 | `R2/42` | 6 ms | 0.409 (20) | 18.9 (20) | 23.0 | 0.583 | 1.02 | 0.70 | 0.79 | `drive_sustained` 20, `toe_clearance_own_swing` 20 |
+| V0 | `R2/42` | 8 ms | - (0) | - (0) | - | - | - | - | - | `survived` 20 |
+| V0 | `R2/42` | 10 ms | - (0) | - (0) | - | - | - | - | - | `survived` 20 |
+| V0 | `R2/43` | 0 ms | 0.411 (20) | 24.2 (20) | 28.7 | 0.560 | 1.08 | 0.70 | 0.80 | `drive_sustained` 20, `line` 1 |
+| V0 | `R2/43` | 2 ms | 0.413 (20) | 23.1 (20) | 30.8 | 0.571 | 1.06 | 0.70 | 0.80 | `drive_sustained` 20 |
+| V0 | `R2/43` | 4 ms | 0.414 (20) | 20.2 (20) | 26.9 | 0.584 | 1.05 | 0.70 | 0.79 | `drive_sustained` 20, `toe_clearance_own_swing` 7, `line` 1 |
+| V0 | `R2/43` | 6 ms | 0.413 (20) | 18.3 (20) | 23.4 | 0.582 | 1.03 | 0.71 | 0.80 | `drive_sustained` 20, `toe_clearance_own_swing` 20 |
+| V0 | `R2/43` | 8 ms | - (0) | - (0) | - | - | - | - | - | `survived` 20 |
+| V0 | `R2/43` | 10 ms | 0.391 (1) | 4.3 (1) | 6.7 | 0.526 | 1.19 | 0.76 | 0.93 | `survived` 19, `along` 1, `drive_speed` 1, `drive_sustained` 1, `duty` 1, `toe_clearance_own_swing` 1 |
+| V0 | `R0` | 0 ms | 0.410 (20) | 24.5 (20) | 28.3 | 0.546 | 1.10 | 0.69 | 0.80 | `drive_sustained` 20, `duty` 20, `along` 1, `no_flight` 1, `toe_clearance_own_swing` 1 |
+| V0 | `R0` | 2 ms | 0.410 (18) | 25.5 (18) | 28.0 | 0.545 | 1.10 | 0.69 | 0.81 | `drive_sustained` 18, `duty` 18, `survived` 2, `line` 1 |
+| V0 | `R0` | 4 ms | 0.410 (19) | 24.9 (19) | 27.0 | 0.546 | 1.10 | 0.69 | 0.80 | `drive_sustained` 19, `duty` 19, `no_flight` 3, `toe_clearance_own_swing` 3, `along` 1, `survived` 1 |
+| V0 | `R0` | 6 ms | 0.410 (20) | 26.1 (20) | 26.0 | 0.546 | 1.10 | 0.69 | 0.81 | `drive_sustained` 20, `duty` 20 |
+| V0 | `R0` | 8 ms | 0.410 (19) | 26.3 (19) | 25.1 | 0.546 | 1.10 | 0.69 | 0.81 | `drive_sustained` 19, `duty` 19, `line` 2, `survived` 1 |
+| V0 | `R0` | 10 ms | 0.410 (20) | 25.5 (20) | 24.0 | 0.546 | 1.10 | 0.69 | 0.81 | `drive_sustained` 20, `duty` 20, `line` 1, `toe_clearance_own_swing` 1 |
+| F25F9 | `R2/42` | 0 ms | 0.413 (20) | 17.2 (20) | 20.9 | 0.559 | 0.44 | 0.69 | 0.75 | `duty` 20, `toe_clearance_own_swing` 20, `line` 1 |
+| F25F9 | `R2/42` | 2 ms | 0.413 (20) | 14.6 (20) | 19.5 | 0.573 | 0.42 | 0.69 | 0.75 | `toe_clearance_own_swing` 20, `duty` 1, `line` 1 |
+| F25F9 | `R2/42` | 4 ms | 0.412 (20) | 12.7 (20) | 16.9 | 0.581 | 0.42 | 0.69 | 0.75 | `toe_clearance_own_swing` 20, `line` 1 |
+| F25F9 | `R2/42` | 6 ms | 0.410 (15) | 12.6 (15) | 14.5 | 0.575 | 0.48 | 0.69 | 0.76 | `toe_clearance_own_swing` 15, `survived` 5, `line` 1 |
+| F25F9 | `R2/42` | 8 ms | - (0) | - (0) | - | - | - | - | - | `survived` 20 |
+| F25F9 | `R2/42` | 10 ms | - (0) | - (0) | - | - | - | - | - | `survived` 20 |
+| F25F9 | `R2/43` | 0 ms | 0.412 (20) | 17.8 (20) | 20.9 | 0.551 | 0.45 | 0.69 | 0.76 | `duty` 20, `toe_clearance_own_swing` 20, `line` 1 |
+| F25F9 | `R2/43` | 2 ms | 0.415 (20) | 15.0 (20) | 19.7 | 0.567 | 0.43 | 0.69 | 0.75 | `toe_clearance_own_swing` 20, `duty` 18, `line` 1 |
+| F25F9 | `R2/43` | 4 ms | 0.415 (20) | 12.0 (20) | 16.9 | 0.579 | 0.43 | 0.69 | 0.75 | `toe_clearance_own_swing` 20, `line` 1 |
+| F25F9 | `R2/43` | 6 ms | 0.415 (19) | 11.8 (19) | 14.8 | 0.574 | 0.47 | 0.70 | 0.76 | `toe_clearance_own_swing` 19, `duty` 4, `line` 1, `survived` 1 |
+| F25F9 | `R2/43` | 8 ms | - (0) | - (0) | - | - | - | - | - | `survived` 20 |
+| F25F9 | `R2/43` | 10 ms | 0.391 (2) | 1.9 (2) | 0.2 | 0.523 | 0.90 | 0.80 | 0.99 | `survived` 18, `along` 2, `drive_speed` 2, `duty` 2, `slip_median` 2, `toe_clearance_own_swing` 2 |
+| F25F9 | `R0` | 0 ms | 0.411 (20) | 16.5 (20) | 19.7 | 0.534 | 0.44 | 0.68 | 0.73 | `duty` 20, `toe_clearance_own_swing` 20, `line` 1 |
+| F25F9 | `R0` | 2 ms | 0.411 (20) | 16.4 (20) | 20.3 | 0.535 | 0.44 | 0.68 | 0.73 | `duty` 20, `toe_clearance_own_swing` 20 |
+| F25F9 | `R0` | 4 ms | 0.411 (20) | 16.8 (20) | 20.6 | 0.533 | 0.43 | 0.68 | 0.73 | `duty` 20, `toe_clearance_own_swing` 20, `line` 1 |
+| F25F9 | `R0` | 6 ms | 0.412 (20) | 16.8 (20) | 20.0 | 0.535 | 0.43 | 0.68 | 0.73 | `duty` 20, `toe_clearance_own_swing` 20 |
+| F25F9 | `R0` | 8 ms | 0.411 (20) | 17.0 (20) | 19.5 | 0.532 | 0.43 | 0.68 | 0.73 | `duty` 20, `toe_clearance_own_swing` 20, `line` 1, `no_flight` 1 |
+| F25F9 | `R0` | 10 ms | 0.411 (20) | 16.7 (20) | 18.7 | 0.534 | 0.43 | 0.68 | 0.73 | `duty` 20, `toe_clearance_own_swing` 20, `line` 1 |
+| F25F9cl | `R2/42` | 0 ms | 0.415 (20) | 20.0 (20) | 23.8 | 0.593 | 0.42 | 0.69 | 0.76 | `joint_range` 20, `toe_clearance_own_swing` 11, `line` 1 |
+| F25F9cl | `R2/42` | 2 ms | 0.416 (20) | 17.0 (20) | 23.4 | 0.607 | 0.40 | 0.69 | 0.75 | `joint_range` 20, `toe_clearance_own_swing` 20 |
+| F25F9cl | `R2/42` | 4 ms | 0.413 (20) | 13.7 (20) | 19.6 | 0.618 | 0.43 | 0.70 | 0.76 | `joint_range` 20, `toe_clearance_own_swing` 20, `line` 1 |
+| F25F9cl | `R2/42` | 6 ms | - (0) | - (0) | - | - | - | - | - | `survived` 20 |
+| F25F9cl | `R2/42` | 8 ms | - (0) | - (0) | - | - | - | - | - | `survived` 20 |
+| F25F9cl | `R2/42` | 10 ms | - (0) | - (0) | - | - | - | - | - | `survived` 20 |
+| F25F9cl | `R2/43` | 0 ms | 0.414 (20) | 20.6 (20) | 24.0 | 0.587 | 0.42 | 0.70 | 0.77 | `joint_range` 20, `toe_clearance_own_swing` 2 |
+| F25F9cl | `R2/43` | 2 ms | 0.417 (20) | 16.8 (20) | 23.5 | 0.605 | 0.41 | 0.69 | 0.76 | `joint_range` 20, `toe_clearance_own_swing` 20, `line` 1 |
+| F25F9cl | `R2/43` | 4 ms | 0.416 (20) | 13.0 (20) | 19.5 | 0.620 | 0.44 | 0.70 | 0.76 | `joint_range` 20, `toe_clearance_own_swing` 20, `line` 1 |
+| F25F9cl | `R2/43` | 6 ms | - (0) | - (0) | - | - | - | - | - | `survived` 20 |
+| F25F9cl | `R2/43` | 8 ms | - (0) | - (0) | - | - | - | - | - | `survived` 20 |
+| F25F9cl | `R2/43` | 10 ms | - (0) | - (0) | - | - | - | - | - | `survived` 20 |
+| F25F9cl | `R0` | 0 ms | 0.413 (20) | 21.9 (20) | 22.6 | 0.565 | 0.42 | 0.69 | 0.76 | `duty` 20, `joint_range` 20 |
+| F25F9cl | `R0` | 2 ms | 0.413 (20) | 21.9 (20) | 23.5 | 0.564 | 0.42 | 0.69 | 0.76 | `duty` 20, `joint_range` 20 |
+| F25F9cl | `R0` | 4 ms | 0.413 (20) | 21.8 (20) | 23.9 | 0.564 | 0.41 | 0.69 | 0.76 | `joint_range` 20, `duty` 17, `line` 1 |
+| F25F9cl | `R0` | 6 ms | 0.413 (20) | 21.8 (20) | 23.3 | 0.565 | 0.41 | 0.69 | 0.76 | `joint_range` 20, `duty` 18, `line` 1, `toe_clearance_own_swing` 1 |
+| F25F9cl | `R0` | 8 ms | 0.413 (20) | 21.6 (20) | 22.5 | 0.564 | 0.41 | 0.69 | 0.76 | `duty` 20, `joint_range` 20, `line` 1 |
+| F25F9cl | `R0` | 10 ms | 0.413 (20) | 21.9 (20) | 21.7 | 0.564 | 0.41 | 0.69 | 0.76 | `joint_range` 20, `duty` 19, `line` 1 |
 
 ## 3. The speed ladder, grippy floor: counts by rung and delay
 
@@ -178,18 +178,18 @@ Each of these episodes walks at 0.40 m/s first; the command or push comes after 
 | V0 | `stop/two_step_mu0.54` | `R2/42` | 20 / 20 / 20 (falls 0 b / 0 a) | 20 / 20 / 20 (falls 0 b / 0 a) | 20 / 20 / 20 (falls 0 b / 0 a) | 0 / 0 / 0 (falls 20 b / 0 a) |
 | V0 | `stop/two_step_mu0.54` | `R2/43` | 20 / 20 / 20 (falls 0 b / 0 a) | 20 / 20 / 20 (falls 0 b / 0 a) | 20 / 20 / 20 (falls 0 b / 0 a) | 3 / 0 / 0 (falls 17 b / 0 a) |
 | V0 | `stop/two_step_mu0.54` | `R0` | 20 / 20 / 20 (falls 0 b / 0 a) | 20 / 20 / 20 (falls 0 b / 0 a) | 20 / 20 / 20 (falls 0 b / 0 a) | 20 / 20 / 20 (falls 0 b / 0 a) |
-| V0 | `turn/q90_left` | `R2/42` | 20 / 0 / 0 (falls 0 b / 0 a) | 20 / 0 / 10 (falls 0 b / 0 a) | 20 / 0 / 1 (falls 0 b / 0 a) | 0 / 0 / 0 (falls 20 b / 0 a) |
-| V0 | `turn/q90_left` | `R2/43` | 20 / 0 / 0 (falls 0 b / 0 a) | 20 / 0 / 7 (falls 0 b / 0 a) | 20 / 0 / 2 (falls 0 b / 0 a) | 0 / 0 / 0 (falls 19 b / 1 a) |
-| V0 | `turn/q90_left` | `R0` | 20 / 0 / 0 (falls 0 b / 0 a) | 19 / 0 / 0 (falls 0 b / 1 a) | 20 / 0 / 0 (falls 0 b / 0 a) | 20 / 0 / 0 (falls 0 b / 0 a) |
-| V0 | `turn/q90_left_mu0.54` | `R2/42` | 20 / 0 / 0 (falls 0 b / 0 a) | 20 / 0 / 15 (falls 0 b / 0 a) | 20 / 0 / 1 (falls 0 b / 0 a) | 0 / 0 / 0 (falls 20 b / 0 a) |
-| V0 | `turn/q90_left_mu0.54` | `R2/43` | 19 / 0 / 0 (falls 0 b / 1 a) | 20 / 0 / 1 (falls 0 b / 0 a) | 20 / 0 / 0 (falls 0 b / 0 a) | 0 / 0 / 0 (falls 17 b / 3 a) |
-| V0 | `turn/q90_left_mu0.54` | `R0` | 19 / 0 / 0 (falls 0 b / 1 a) | 19 / 0 / 0 (falls 0 b / 1 a) | 20 / 0 / 0 (falls 0 b / 0 a) | 20 / 0 / 0 (falls 0 b / 0 a) |
-| V0 | `turn/q90_right` | `R2/42` | 20 / 0 / 0 (falls 0 b / 0 a) | 20 / 0 / 12 (falls 0 b / 0 a) | 20 / 0 / 3 (falls 0 b / 0 a) | 0 / 0 / 0 (falls 20 b / 0 a) |
-| V0 | `turn/q90_right` | `R2/43` | 20 / 0 / 0 (falls 0 b / 0 a) | 20 / 0 / 9 (falls 0 b / 0 a) | 20 / 0 / 0 (falls 0 b / 0 a) | 0 / 0 / 0 (falls 19 b / 1 a) |
-| V0 | `turn/q90_right` | `R0` | 19 / 0 / 0 (falls 0 b / 1 a) | 19 / 0 / 0 (falls 0 b / 1 a) | 20 / 0 / 0 (falls 0 b / 0 a) | 20 / 0 / 0 (falls 0 b / 0 a) |
-| V0 | `turn/q90_right_mu0.54` | `R2/42` | 20 / 0 / 0 (falls 0 b / 0 a) | 20 / 0 / 5 (falls 0 b / 0 a) | 20 / 0 / 1 (falls 0 b / 0 a) | 0 / 0 / 0 (falls 20 b / 0 a) |
-| V0 | `turn/q90_right_mu0.54` | `R2/43` | 19 / 0 / 0 (falls 0 b / 1 a) | 20 / 0 / 4 (falls 0 b / 0 a) | 20 / 0 / 0 (falls 0 b / 0 a) | 1 / 0 / 0 (falls 17 b / 2 a) |
-| V0 | `turn/q90_right_mu0.54` | `R0` | 20 / 0 / 0 (falls 0 b / 0 a) | 20 / 0 / 0 (falls 0 b / 0 a) | 20 / 0 / 0 (falls 0 b / 0 a) | 19 / 0 / 0 (falls 0 b / 1 a) |
+| V0 | `turn/q90_left` | `R2/42` | 20 / n.r. / 0 (falls 0 b / 0 a) | 20 / n.r. / 10 (falls 0 b / 0 a) | 20 / n.r. / 1 (falls 0 b / 0 a) | 0 / n.r. / 0 (falls 20 b / 0 a) |
+| V0 | `turn/q90_left` | `R2/43` | 20 / n.r. / 0 (falls 0 b / 0 a) | 20 / n.r. / 7 (falls 0 b / 0 a) | 20 / n.r. / 2 (falls 0 b / 0 a) | 0 / n.r. / 0 (falls 19 b / 1 a) |
+| V0 | `turn/q90_left` | `R0` | 20 / n.r. / 0 (falls 0 b / 0 a) | 19 / n.r. / 0 (falls 0 b / 1 a) | 20 / n.r. / 0 (falls 0 b / 0 a) | 20 / n.r. / 0 (falls 0 b / 0 a) |
+| V0 | `turn/q90_left_mu0.54` | `R2/42` | 20 / n.r. / 0 (falls 0 b / 0 a) | 20 / n.r. / 15 (falls 0 b / 0 a) | 20 / n.r. / 1 (falls 0 b / 0 a) | 0 / n.r. / 0 (falls 20 b / 0 a) |
+| V0 | `turn/q90_left_mu0.54` | `R2/43` | 19 / n.r. / 0 (falls 0 b / 1 a) | 20 / n.r. / 1 (falls 0 b / 0 a) | 20 / n.r. / 0 (falls 0 b / 0 a) | 0 / n.r. / 0 (falls 17 b / 3 a) |
+| V0 | `turn/q90_left_mu0.54` | `R0` | 19 / n.r. / 0 (falls 0 b / 1 a) | 19 / n.r. / 0 (falls 0 b / 1 a) | 20 / n.r. / 0 (falls 0 b / 0 a) | 20 / n.r. / 0 (falls 0 b / 0 a) |
+| V0 | `turn/q90_right` | `R2/42` | 20 / n.r. / 0 (falls 0 b / 0 a) | 20 / n.r. / 12 (falls 0 b / 0 a) | 20 / n.r. / 3 (falls 0 b / 0 a) | 0 / n.r. / 0 (falls 20 b / 0 a) |
+| V0 | `turn/q90_right` | `R2/43` | 20 / n.r. / 0 (falls 0 b / 0 a) | 20 / n.r. / 9 (falls 0 b / 0 a) | 20 / n.r. / 0 (falls 0 b / 0 a) | 0 / n.r. / 0 (falls 19 b / 1 a) |
+| V0 | `turn/q90_right` | `R0` | 19 / n.r. / 0 (falls 0 b / 1 a) | 19 / n.r. / 0 (falls 0 b / 1 a) | 20 / n.r. / 0 (falls 0 b / 0 a) | 20 / n.r. / 0 (falls 0 b / 0 a) |
+| V0 | `turn/q90_right_mu0.54` | `R2/42` | 20 / n.r. / 0 (falls 0 b / 0 a) | 20 / n.r. / 5 (falls 0 b / 0 a) | 20 / n.r. / 1 (falls 0 b / 0 a) | 0 / n.r. / 0 (falls 20 b / 0 a) |
+| V0 | `turn/q90_right_mu0.54` | `R2/43` | 19 / n.r. / 0 (falls 0 b / 1 a) | 20 / n.r. / 4 (falls 0 b / 0 a) | 20 / n.r. / 0 (falls 0 b / 0 a) | 1 / n.r. / 0 (falls 17 b / 2 a) |
+| V0 | `turn/q90_right_mu0.54` | `R0` | 20 / n.r. / 0 (falls 0 b / 0 a) | 20 / n.r. / 0 (falls 0 b / 0 a) | 20 / n.r. / 0 (falls 0 b / 0 a) | 19 / n.r. / 0 (falls 0 b / 1 a) |
 | V0 | `turn/t90_0.35_left` | `R2/42` | - | - | - | 0 / 0 / 0 (falls 20 b / 0 a) |
 | V0 | `turn/t90_0.35_left` | `R2/43` | - | - | - | 1 / 0 / 0 (falls 19 b / 0 a) |
 | V0 | `turn/t90_0.35_right` | `R2/42` | - | - | - | 0 / 0 / 0 (falls 20 b / 0 a) |
@@ -648,7 +648,60 @@ Nudges: episodes that came back onto the command within 3 s (of 20), and the med
 | F25F9cl | `stop/two_step_mu0.54` | `R0` | 6 ms | 20 | - | - | 2 | 1.27 | 0.27 | `joint_range` 20 |
 | F25F9cl | `stop/two_step_mu0.54` | `R0` | 10 ms | 20 | - | - | 2 | 1.28 | 0.28 | `joint_range` 20 |
 
-## 7. Compute
+## 7. Where the falls come: the walk at 0.40 m/s, fitted rows
+
+Each episode starts from standing, takes the set's lead-in, and then walks at 0.40 m/s (V0 and the candidate: the start, one slow stride, the change of speed; F25F9: straight from the start). The table counts the falls of the two fitted rows on both floors together (80 episodes per cell) by the part of the episode the robot had reached.
+
+| Set | Delay | Falls of 80 | Where (falls) |
+|---|---|---|---|
+| V0 | 0 ms | 0 | - |
+| V0 | 2 ms | 0 | - |
+| V0 | 4 ms | 0 | - |
+| V0 | 6 ms | 0 | - |
+| V0 | 8 ms | 80 | the slow stride after the start: 5; the change of speed to 0.40 m/s: 39; the 0.40 m/s walk itself: 36 |
+| V0 | 10 ms | 76 | the start from standing: 29; the slow stride after the start: 12; the change of speed to 0.40 m/s: 35 |
+| F25F9 | 0 ms | 0 | - |
+| F25F9 | 2 ms | 0 | - |
+| F25F9 | 4 ms | 0 | - |
+| F25F9 | 6 ms | 17 | the start from standing (straight into 0.40 m/s): 7; the 0.40 m/s walk itself: 10 |
+| F25F9 | 8 ms | 80 | the start from standing (straight into 0.40 m/s): 72; the 0.40 m/s walk itself: 8 |
+| F25F9 | 10 ms | 78 | the start from standing (straight into 0.40 m/s): 78 |
+| F25F9cl | 0 ms | 0 | - |
+| F25F9cl | 2 ms | 0 | - |
+| F25F9cl | 4 ms | 0 | - |
+| F25F9cl | 6 ms | 80 | the slow stride after the start: 1; the change of speed to 0.40 m/s: 51; the 0.40 m/s walk itself: 28 |
+| F25F9cl | 8 ms | 80 | the start from standing: 73; the slow stride after the start: 5; the change of speed to 0.40 m/s: 2 |
+| F25F9cl | 10 ms | 80 | the start from standing: 80 |
+
+## 8. The bar's 16 conditions that meet the pass rule under both fitted rows, per delay
+
+The pass rule at a delay other than 10 ms gives no verdict (H2); the count is given for scale. The turns, pushes and stop were run at 0, 4, 6 and 10 ms; on F25F9 only the two walk conditions were run.
+
+| Set | Delay | Every limit | Every limit but for A1 | Which (but for A1) |
+|---|---|---|---|---|
+| V0 | 0 ms | 2 of 16 run | 4 of 16 run | `walk/v0.4`, `stop/two_step`, `walk/v0.4_mu0.54`, `stop/two_step_mu0.54` |
+| V0 | 4 ms | 2 of 16 run | 2 of 16 run | `stop/two_step`, `stop/two_step_mu0.54` |
+| V0 | 6 ms | 2 of 16 run | 2 of 16 run | `stop/two_step`, `stop/two_step_mu0.54` |
+| V0 | 10 ms | 0 of 16 run | 0 of 16 run | none |
+| F25F9 | 0 ms | 0 of 2 run | 0 of 2 run | none |
+| F25F9 | 4 ms | 0 of 2 run | 0 of 2 run | none |
+| F25F9 | 6 ms | 0 of 2 run | 0 of 2 run | none |
+| F25F9 | 10 ms | 0 of 2 run | 0 of 2 run | none |
+| F25F9cl | 0 ms | 0 of 16 run | 0 of 16 run | none |
+| F25F9cl | 4 ms | 0 of 16 run | 0 of 16 run | none |
+| F25F9cl | 6 ms | 0 of 16 run | 0 of 16 run | none |
+| F25F9cl | 10 ms | 0 of 16 run | 0 of 16 run | none |
+
+## 9. The registered control: omega at Stage 1's crouch
+
+The candidate's walk at 0.40 m/s under `R2/42` with the controller's pendulum frequency computed as Stage 1 computed it (plan B5). 20 episodes each; a control, no verdict.
+
+| Record | Stayed up | Every limit | But for A1 |
+|---|---|---|---|
+| `controls/omega_s1/F25F9cl/75-M-H-10/seeds3042/eval/R2/42@0ms/walk/v0.4.json` | 20 | 0 | 0 |
+| `controls/omega_s1/F25F9cl/75-M-H-10/seeds3042/eval/R2/42@10ms/walk/v0.4.json` | 0 | 0 | 0 |
+
+## 10. Compute
 
 | Task | Budget (core-hours) | Used (core-hours) | Units started | Units cut |
 |---|---|---|---|---|
