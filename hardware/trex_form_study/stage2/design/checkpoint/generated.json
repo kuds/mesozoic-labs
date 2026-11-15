@@ -1,43 +1,43 @@
 {
- "main_tip_when_bundled": "c86e5e54cb4f38023c8ba58b094a3ad9ed1ed4a8",
- "bundle_sha256": "2142d034a3ba8c7798717a12cc511ed1ca15eeef453263344d095b45fde73cc6",
- "bundle_bytes": 456518,
+ "main_tip_when_bundled": "758d8587896d58f5b59bc6edcf223112964ecd83",
+ "bundle_sha256": "d7e77eecf6e33188d663080db49351429d4215bbbf7d9a39d6c3193fa0c78ec3",
+ "bundle_bytes": 751594,
  "branches": [
   {
-   "branch": "wt/wp-m",
-   "tip": "efa0005d47ddcf6685f3cd7305578c885b7200bd",
-   "commits_not_on_main": 6,
-   "subject": "Stage 2 moves: the legacy check's record is complete (36 of 36 Stage 1 transitions equal, both picks)"
+   "branch": "wt/wp-s",
+   "tip": "f5a0bf5eb305f7e0b0517456afc24e87fbcf4d78",
+   "commits_not_on_main": 7,
+   "subject": "Restore tool: groups j (the Jetson body's inputs) and sets (the frozen reference sets' arrays)"
   },
   {
-   "branch": "wt/wp-b",
-   "tip": "85f9b98e8c9c5b503f9d38a6db6e88df4d45f761",
+   "branch": "wt/wp-t",
+   "tip": "d8f1a535872f9372db36291bf077d5ed0587ec7a",
    "commits_not_on_main": 13,
-   "subject": "Stage 2 round A (WP B): refcheck's log line; the test module says what runs on its fixture set"
-  },
-  {
-   "branch": "wt/wp-g",
-   "tip": "e6ca00aa55ea2a0c0da313aa6312702898e37c40",
-   "commits_not_on_main": 6,
-   "subject": "Stage 2 round A (WP G): the regression record on the edited control.py (full tier, 256 of 256 episodes)"
-  },
-  {
-   "branch": "wt/wp-c",
-   "tip": "c30b4575052aa87431e10427bd399ca57b8b822d",
-   "commits_not_on_main": 5,
-   "subject": "Stage 2 round A (WP C): setscreen's over-limit walk tests; the recheck records the support pattern"
+   "subject": "Stage 2 round A (WP T): the review's findings on the bar's tables, first part"
   },
   {
    "branch": "wt/wp-l",
-   "tip": "01cbe30539c03e378d2ae439f476c831397add67",
-   "commits_not_on_main": 18,
-   "subject": "Stage 2 look sets (WP L): one item's refusal is recorded and the build goes on"
+   "tip": "e2696b2a7a751251ea4d817edf1e75af38bd1ed7",
+   "commits_not_on_main": 11,
+   "subject": "Stage 2 look sets (WP L): set V6 on 60-N-T-10, the walks at the frozen rungs, start, change, stop and quick turn, screened (not frozen)"
   },
   {
    "branch": "wt/wpc-ce",
    "tip": "8d8c450867c7ab3136fba0d7395d2a0f3e33d7e1",
-   "commits_not_on_main": 29,
+   "commits_not_on_main": 14,
    "subject": "Stage 2 round C (WP CE): the history-free test also runs R6; a subprocess checks that the env imports neither torch nor stable-baselines3"
+  },
+  {
+   "branch": "wt/wpc-cv",
+   "tip": "c51c0dbfd0d7fdaccca3e0974467b69f91df977d",
+   "commits_not_on_main": 3,
+   "subject": "Stage 2 round C (WP CV): a closed pool refuses at every worker count; the pool's spaces are its own copies at workers=0 too"
+  },
+  {
+   "branch": "wt/wpc-ck",
+   "tip": "11a23b438632ecc7cee184b4bd27b1a78a6cec46",
+   "commits_not_on_main": 4,
+   "subject": "Stage 2 round C (WP CK): the look reading's tests (bands, own-event segmentation, too few steps, the ladder's rungs, playback, negative controls)"
   },
   {
    "branch": "wt/prereg-b",
@@ -116,18 +116,96 @@
   {
    "workflow": "roundA",
    "agent": "review:G:regression",
+   "state": "finished",
+   "paper": "reviews/roundA__review_G_regression.json (3 findings)"
+  },
+  {
+   "workflow": "roundA",
+   "agent": "review:C:screen",
+   "state": "finished",
+   "paper": "reviews/roundA__review_C_screen.json (8 findings)"
+  },
+  {
+   "workflow": "roundA",
+   "agent": "fix:M",
+   "state": "finished",
+   "paper": "reviews/roundA__fix_M.md"
+  },
+  {
+   "workflow": "roundA",
+   "agent": "fix:B",
+   "state": "finished",
+   "paper": "reviews/roundA__fix_B.md"
+  },
+  {
+   "workflow": "roundA",
+   "agent": "fix:G",
+   "state": "finished",
+   "paper": "reviews/roundA__fix_G.md"
+  },
+  {
+   "workflow": "roundA",
+   "agent": "fix:C",
+   "state": "finished",
+   "paper": "reviews/roundA__fix_C.md"
+  },
+  {
+   "workflow": "roundA",
+   "agent": "build:T",
+   "state": "finished",
+   "paper": "reviews/roundA__build_T.md"
+  },
+  {
+   "workflow": "roundA",
+   "agent": "build:S",
    "state": "stopped before it finished",
    "paper": ""
   },
   {
    "workflow": "roundA",
-   "agent": "review:C:screen",
+   "agent": "review:T:tables",
+   "state": "finished",
+   "paper": "reviews/roundA__review_T_tables.json (13 findings)"
+  },
+  {
+   "workflow": "roundA",
+   "agent": "fix:T",
+   "state": "stopped before it finished",
+   "paper": ""
+  },
+  {
+   "workflow": "roundA",
+   "agent": "review:S:sets",
+   "state": "stopped before it finished",
+   "paper": ""
+  },
+  {
+   "workflow": "roundA",
+   "agent": "fix:S",
    "state": "stopped before it finished",
    "paper": ""
   },
   {
    "workflow": "look",
    "agent": "build:L",
+   "state": "stopped before it finished",
+   "paper": ""
+  },
+  {
+   "workflow": "look",
+   "agent": "review:L:rules",
+   "state": "stopped before it finished",
+   "paper": ""
+  },
+  {
+   "workflow": "look",
+   "agent": "review:L:bit-identity",
+   "state": "stopped before it finished",
+   "paper": ""
+  },
+  {
+   "workflow": "look",
+   "agent": "fix:L",
    "state": "stopped before it finished",
    "paper": ""
   },
@@ -152,8 +230,8 @@
   {
    "workflow": "roundC",
    "agent": "review:CE",
-   "state": "stopped before it finished",
-   "paper": ""
+   "state": "finished",
+   "paper": "reviews/roundC__review_CE.json (9 findings)"
   },
   {
    "workflow": "roundC",
@@ -164,6 +242,12 @@
   {
    "workflow": "roundC",
    "agent": "build:CV",
+   "state": "stopped before it finished",
+   "paper": ""
+  },
+  {
+   "workflow": "roundC",
+   "agent": "build:CK",
    "state": "stopped before it finished",
    "paper": ""
   },

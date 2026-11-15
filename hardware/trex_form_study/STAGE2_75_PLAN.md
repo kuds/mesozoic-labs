@@ -254,6 +254,16 @@ gated and the raw peak recorded beside it) is differentiated on the frames' own 
 given the walk or the stand around the move as its history; the first build differentiated a resampled path, which
 over-read the raw peak by a quarter to a third.
 
+[changed 15 Nov after a result, by the owner's decision (`DECISION_LOG.md` P34): the first builds of the three sets, `stage2/design/checkpoint/SETS_FIRST_BUILD.md`; prescribed motion, before any set was frozen and before any closed-loop episode on a Stage 2 set] The ZMP readings of a causal move have one limit, Stage 1's 4.0 mm: the warm-up frames against the walk's
+(`join_command`; it was 2.0 mm), the consistency error over the first stride after the command (it was 2.5 mm), and the
+ZMP error after that stride (4.0 mm, unchanged). The CoM within 1.0 mm in the warm-up and at the command, and the joints
+within 0.001 rad at the command, stand as written. Why: the two tighter limits were constants set on V0's prototypes at
+V0's own timing. Across the three sets the warm-up ZMP read 1.35 mm at V0's own timing and 2.05 to 4.01 mm at other
+walks and stride factors, while the warm-up CoM stayed within 0.09 mm of the walk's, so the reading follows the preview
+controller's grid and not a difference in the motion before the command; the first-stride consistency read 1.24 to
+3.51 mm. Under the tighter limits V0's quick turn, F25F9's two-touchdown stop and every turn built on the two tuned
+sets had no reference. The readings stay in every entry as they were.
+
 **A8. Fallbacks for starts, changes and stops.** [NEW] A move that fails A7 or a blocking gate of A12 is retried in this
 order and no other: (1) a change with a ramp of 2 strides; (2) for a ladder rung, a change from the neighbouring rung
 toward 0.40 m/s; (3) recorded "no transition within the gates". A start and the stop have no fallback, and
@@ -262,6 +272,13 @@ toward 0.40 m/s; (3) recorded "no transition within the gates". A start and the 
 frozen (A12) has no lead-in, so its conditions are "not run" too [design: a condition that needs an absent reference
 gets a "not run" record]. A gate or constant changed on such an account is a change after a result and is labelled so.
 Check: entries' `fallback`, `available`.
+
+[changed 15 Nov after a result, by the owner's decision (`DECISION_LOG.md` P34): the first builds of the three sets, `stage2/design/checkpoint/SETS_FIRST_BUILD.md`; prescribed motion, before any set was frozen and before any closed-loop episode on a Stage 2 set] A set whose `nominal` walk is not frozen but whose `v0.4` walk is starts from standing straight into its
+0.40 m/s walk (`start_v0.4`), and its lead-in is that start followed by the 0.40 m/s walk; `set.json` and every record of
+the set say so (`lead_in: "start_v0.4"`). This is an exception for such a set, labelled in every table that prints its
+rows. If `start_v0.4` fails a gate the set is not run. It applies today to F25F9 alone: built as the pull request
+specifies it, its walks at 0.35 m/s and below have a planned mid-swing pad clearance of 0.0382 H (19.2 mm) against
+0.04 H (20.1 mm) and are dropped from its ladder, while its walks at 0.40 to 0.50 m/s are within every limit.
 
 **A9. The two-touchdown stop, `stop2_v0.4`.** [differs: plan in the command's place; lead's ruling 3] Stage 1's stop
 plan (the left foot lifts last and lands beside the right; speed ramp over 0.4 stride about `phi_c = 0.5 - duty / 2`)
@@ -318,7 +335,28 @@ The ladder's other rates from 0.40 m/s (0.35, 0.5, 1.0 rad/s) use the same move 
 before any set was frozen; plan-level arithmetic of the review, no rule changed] With the 0.375 s ramps the 1.0 rad/s
 turn's heading at the slowest clock is 78.4° on V0 and 77.7° on the candidate's timing, below A10's 80°: by the third
 outcome above it is built, written `pass_: false` with its numbers and not frozen, and the ladder reports that rate as
-"no reference within the heading rule". Check: `set.json`
+"no reference within the heading rule".
+
+[changed 15 Nov after a result: the set screen's review read the design's scratch prototypes of V0's quick turn at
+`f` 0.8 and found the inside leg's hip roll 0.086 rad from its limit, under A12's 0.10 rad, which by the third outcome
+above would have left the turn without a reference; prescribed motion; before any set was frozen and before any
+closed-loop episode on a Stage 2 set] The stride rule also reads A12's joint range: `f` is the largest grid value whose
+kinematic pass, in both directions, has `ik_ok`, uses at most 0.85 of the thigh-twist range on the worse leg **and
+leaves every other gated joint at least 0.10 rad of range**; the built reference must show `ik_ok`, at most 0.87 and
+A12's 0.10 rad, and if not `f` steps down as above. No limit moved: A12's 0.10 rad stands on every joint but the twist,
+and the quicker steps that were the plan's remedy for the twist are now also its remedy for the hip roll. The lead's
+kinematic scan of V0's quick turn on this body (scratch) gives a hip-roll margin of 0.080, 0.091, 0.101, 0.111 and
+0.121 rad at `f` 0.80, 0.75, 0.70, 0.65 and 0.60, the same in both directions to 0.0001 rad, with the twist's use
+falling from 0.82 to 0.60. Expectation stated before the build, changing no rule: V0's quick turn is picked at `f`
+0.70 instead of 0.80, so its strides inside the turn last 0.70 of the walk's and its drive speeds rise; A12's leg-drive
+gate then decides whether it has a reference. Check: `stride_rules[rate]` holds, for every `f` tried and both
+directions, the tightest joint other than the twist and its margin.
+
+[changed 15 Nov after a result, by the owner's decision (`DECISION_LOG.md` P34): the first builds of the three sets, `stage2/design/checkpoint/SETS_FIRST_BUILD.md`; prescribed motion, before any set was frozen and before any closed-loop episode on a Stage 2 set] The amendment of the same morning is withdrawn as written: the stride rule does not read 0.10 rad. It reads A12's
+joint range for a move, which is now 0.05 rad, and that binds on none of the three sets' turns at the factors the thigh
+twist picks (V0 0.80, F25F9cl 0.65, F25F9 0.70 for the quick turn, with 0.072 to 0.086 rad of hip roll at the
+kinematic pass). Why: with 0.10 rad V0's quick turn moved to factor 0.70, where it missed two gates, and the two tuned
+sets had no factor at all (0.085 and 0.096 rad at factor 0.60). Check: `set.json`
 `stride_rules[rate]` (every `f` tried with both directions' readings, the chosen `f`, `steps_down`), each turn's
 `range_use`, `a1_over`, `not_available`; the report's reading 2 cell of a turn frozen with `a1_over`
 ("not read: `a1_over`").
@@ -333,6 +371,12 @@ under 0.10 rad of range (a turn's thigh twist: A11's 0.87 instead); a start, cha
 forward acceleration. Reported only: grip need, sway, passive loads, a walk's or turn's acceleration. A walk rung that
 is not frozen is dropped from the ladder with its numbers. Check: each reference's block in `screen.json`:
 `verdict.blocks_freeze`, `verdict.a1_over`; `set.json` `freezes[-1].manifest`.
+
+[changed 15 Nov after a result, by the owner's decision (`DECISION_LOG.md` P34): the first builds of the three sets, `stage2/design/checkpoint/SETS_FIRST_BUILD.md`; prescribed motion, before any set was frozen and before any closed-loop episode on a Stage 2 set] The joint-range gate of a move (a start, change, stop or turn) is 0.05 rad on every joint but a turn's thigh
+twist; a walk keeps 0.10 rad. Why: Stage 1's own transitions on this body come within 0.057 rad of a limit (10 of its
+18 are under 0.10 rad) and ran in Stage 1's closed loop, where the joint range is judged against the reference's own
+smallest margin less 0.02 rad (decision 14, unchanged in C4 and C5). With 0.10 rad F25F9cl's start (0.095 rad of hip
+roll) was blocked, which stops the set (A8).
 
 **A13. Freezing.** [NEW] Panels run only on a frozen set. A freeze lists every entry's name, kind, file sha256 and
 entry-subset sha256; a later freeze may add entries and never drops or changes one; a changed reference takes a new name
@@ -468,8 +512,12 @@ inside it fails the term; a swing whose interval runs past the window's end is n
   0.081 H lift), 0.25 mm above the limit, so the control is expected to fail this term in most closed-loop episodes at
   0.40 m/s. The candidate's planned reading is 0.0475 H.
 
-The amended reading is built by the runner's fixer and checked by the lead against an implementation of his own before
-any set is frozen.
+The amended reading was built by the runner's fixer and checked by the lead against an implementation of his own,
+written from this text, before any set was frozen: on 1,500 random synthetic traces (window cuts in 128, interrupted
+swings in 929, air gaps in 969) the judged reading, the reading as first written, the swing and reference-swing counts,
+the interrupted count, the air gaps and the count rule were equal in every one
+(`stage2/design/lead_c3_check.py`, scratch). In the record the readings stand under `measures.bar.toe` for a walk or
+a turn and under `measures.bar.toe_reported` for a nudge or a stop, which is where the Check line above is to be read.
 
 **C4. The walk item.** [plan; lead's ruling 5 for the line] Window: the last 10 s of a complete episode. `along`: the
 CoM covers at least 10 s × the rung's target speed along the commanded heading (4.0 m at 0.40 m/s [plan]; the same rule
@@ -738,7 +786,8 @@ Each is written into the rule it concerns, with its label. No closed-loop episod
 
 1. A7 (changed after a prescribed-motion result): the consistency limit reads the first stride after the command, the
    4.0 mm limit the frames after it; the acceleration reading is differentiated on the frames' own grid.
-2. A11 (noted, no change): the 1.0 rad/s ladder turn has no reference within the heading rule.
+2. A11 (noted, no change): the 1.0 rad/s ladder turn has no reference within the heading rule. A11 (changed after
+   a prescribed-motion result): the stride rule also reads A12's 0.10 rad on every joint but the twist.
 3. C3 (changed after a reread of Stage 1's stock walks): the middle half of the planned swing counted from the own
    lift-off; the count rule; the expectation for V0.
 4. C5 (noted): the drives' peak speed is read over the whole episode.
@@ -749,3 +798,11 @@ Each is written into the rule it concerns, with its label. No closed-loop episod
 6. `control.Track.add_periodic` (R4's one Stage 1 edit): the stride period of a K-stride window is
    `(n // K) × step`, exact for every K, and a window whose frame count is no multiple of K is refused. Without the
    key the path is unchanged.
+7. A12 (made exact, no limit moved): a gate whose reading is missing blocks the freeze (no single-support CoP reading,
+   no joint-range margins, a rolling-contact split that did not solve); the appendage groups are the neck and the tail
+   alone; a move's sustained ratio is the RMS over time, which on a walk's uniform frames is the same number.
+8. By the owner's decision of 15 Nov (`DECISION_LOG.md` P34), after the first builds of the three sets
+   (`stage2/design/checkpoint/SETS_FIRST_BUILD.md`): A7's ZMP readings of a causal move have one limit of 4.0 mm; A12's
+   joint range for a move is 0.05 rad (a walk keeps 0.10); A11's stride rule reads that 0.05 rad, and item 2's change
+   to it is withdrawn as written; A8: a set without a frozen `nominal` walk starts straight into its 0.40 m/s walk
+   (F25F9). Each is labelled in its rule as changed after a result.
