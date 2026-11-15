@@ -533,8 +533,9 @@ def pass_word(counts: dict | None, ms: int | None) -> str:
     if counts.get("not_read"):
         return f"not read: {counts['not_read']}"
     if counts.get("pass_") is None:
-        why = (f"{counts.get('errors')} episodes failed to run" if counts.get("errors")
-               else f"{counts.get('episodes', 0)} episodes, not the block's {bar.RUNS}")
+        n, bad = int(counts.get("episodes") or 0), int(counts.get("errors") or 0)
+        why = (f"{bad} episode{'' if bad == 1 else 's'} failed to run" if bad
+               else f"{n} episode{'' if n == 1 else 's'}, not the block's {bar.RUNS}")
         return f"not judged ({why})"
     at = "" if ms == bar.JUDGED_MS or ms is None else f" at {ms} ms"
     return ("passes" if counts["pass_"] else "does not pass") + at
@@ -1253,10 +1254,11 @@ def replication_table(doc: dict) -> dict:
                     seen.add((s, body, row, key))
                     add(s, body, row, key, registered(_rec(doc, s, body, bar.HEADLINE_BLOCK, row, key)),
                         blocks[bar.REPLICATION_BLOCK][row][key])
-            if bar.registered_name(s) not in (None, bar.CANDIDATE_SET):
+            base = bar.registered_name(s)  # the candidate, or a set outside the round that has a second block
+            if base not in (None, bar.CANDIDATE_SET) or (base is None and bar.REPLICATION_BLOCK not in blocks):
                 continue
             for row in sorted(blocks.get(bar.HEADLINE_BLOCK) or {}):
-                if bar.controller_of(row) in bar.NO_VERDICT_CONTROLLERS:
+                if bar.controller_of(row) in bar.NO_VERDICT_CONTROLLERS or bar.delay_ms(row) is None:
                     continue
                 for key in sorted(blocks[bar.HEADLINE_BLOCK][row]):
                     first = registered(blocks[bar.HEADLINE_BLOCK][row][key])
