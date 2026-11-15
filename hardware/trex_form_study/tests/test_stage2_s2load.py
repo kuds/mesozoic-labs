@@ -511,6 +511,67 @@ def test_a_training_load_keeps_the_last_observation_and_resets_nothing(saved):
     assert vecnorm.training is True and vecnorm.norm_reward is True and vecnorm.clip_reward == 50.0
 
 
+def _run_state(model, vecnorm) -> dict:
+    out = {f"policy.{k}": v.clone() for k, v in model.policy.state_dict().items()}
+    for i, slot in model.policy.optimizer.state_dict()["state"].items():
+        out.update({f"optimizer.{i}.{k}": torch.as_tensor(v).clone() for k, v in slot.items()})
+    for k, v in (("obs_mean", vecnorm.obs_rms.mean), ("obs_var", vecnorm.obs_rms.var), ("returns", vecnorm.returns),
+                 ("obs_count", vecnorm.obs_rms.count), ("ret_mean", vecnorm.ret_rms.mean),
+                 ("ret_var", vecnorm.ret_rms.var), ("ret_count", vecnorm.ret_rms.count), ("last_obs", model._last_obs),
+                 ("steps", model.num_timesteps), ("updates", model._n_updates)):
+        out[k] = torch.as_tensor(np.asarray(v, dtype=np.float64))
+    return out
+
+
+def test_a_training_load_then_the_same_boundary_continues_bit_for_bit(tmp_path):
+    """The loader's half of the kill-and-resume rule (K1, K3), on the stub env: a run that saves and then reseeds
+    and resets at every rollout start, against the same run loaded from each of its checkpoints and continued."""
+    from stable_baselines3.common.callbacks import BaseCallback
+    from stable_baselines3.common.utils import set_random_seed
+
+    budget, every, job = 96, 32, tmp_path / "job"
+
+    class Boundaries(BaseCallback):
+        def __init__(self, vecnorm, save: bool) -> None:
+            super().__init__()
+            self.vecnorm, self.save, self.due = vecnorm, save, None
+
+        def _on_step(self) -> bool:
+            return True
+
+        def _on_rollout_start(self) -> None:
+            n = self.model.num_timesteps
+            if self.due is None:                  # a session's first rollout start is a boundary
+                self.due = n
+            if n < self.due:
+                return
+            if self.save:
+                s2load.save_checkpoint(job, n, self.model, self.vecnorm, LAYOUT, RUN, {"at": n})
+            seed = 100_000 * 7 + 100 * (n // every)
+            set_random_seed(seed)
+            self.model.action_space.seed(seed)
+            self.vecnorm.seed(seed)
+            self.model._last_obs = self.vecnorm.reset()
+            self.vecnorm.returns[:] = 0.0
+            self.model._last_episode_starts = np.ones((self.vecnorm.num_envs,), dtype=bool)
+            self.model._last_original_obs = self.vecnorm.get_original_obs()
+            self.due = (n // every + 1) * every
+
+    model, venv = _build()
+    model.learn(budget, callback=Boundaries(venv, save=True))
+    assert s2load.list_checkpoints(job) == [0, 32, 64] and model.num_timesteps == budget
+    whole = _run_state(model, venv)
+    obs = s2load.fingerprint_obs(LAYOUT)
+    for n in (64, 32, 0):
+        ck = s2load.load_checkpoint(job, n, env=_venv(), lr=LR, expect_run=RUN)
+        ck["model"].learn(budget - n, reset_num_timesteps=False, callback=Boundaries(ck["vecnorm"], save=False))
+        resumed = _run_state(ck["model"], ck["vecnorm"])
+        assert sorted(resumed) == sorted(whole) and len(whole) > 40
+        assert [k for k in whole if not torch.equal(whole[k], resumed[k])] == [], f"resumed from {n}"
+        assert np.array_equal(s2load.fingerprint(ck["model"], s2load.stats_of(ck["vecnorm"]), obs),
+                              s2load.fingerprint(model, s2load.stats_of(venv), obs))
+
+
 def test_load_arguments(saved):
     from stable_baselines3.common.vec_env import VecNormalize
 
