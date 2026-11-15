@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import sys
+import textwrap
 from pathlib import Path
 
 RUN = Path(__file__).resolve().parent
@@ -49,6 +50,11 @@ def _table(head: list, rows: list) -> str:
     lines = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
     lines += ["| " + " | ".join(str(c) for c in r) + " |" for r in rows]
     return "\n".join(lines) + "\n"
+
+
+def _para(text: str) -> str:
+    """A paragraph wrapped to the documents' 120 columns."""
+    return "\n" + textwrap.fill(text, width=120, break_long_words=False, break_on_hyphens=False) + "\n"
 
 
 def _mm(v, nd=1) -> str:
@@ -120,11 +126,11 @@ def parts(D: dict) -> str:
     com = jr["com_at_pick_pose_m"]
     text = _table(["Ledger row", "", "Pi body", "Jetson body", "Change", "Centre in the trunk frame, mm (x, y, z)", "Kind"],
                   rows)
-    text += ("\nCentre of mass at the pick's home pose, x forward, y left, z up: "
-             f"({', '.join(_signed(1e3 * v, 3) for v in com['change'])}) mm in the model, "
-             f"({', '.join(_signed(1e3 * v, 3) for v in com['from_parts_change'])}) mm from the rows above (a). "
-             f"The ledgers' own masses differ by {lm['change'] * 1e3:+.3f} g; the models' masses are written to six "
-             "digits.\n")
+    text += _para("Centre of mass at the pick's home pose, x forward, y left, z up: "
+                  f"({', '.join(_signed(1e3 * v, 3) for v in com['change'])}) mm in the model, "
+                  f"({', '.join(_signed(1e3 * v, 3) for v in com['from_parts_change'])}) mm from the rows above (a). "
+                  f"The ledgers' own masses differ by {lm['change'] * 1e3:+.3f} g; the models' masses are written to "
+                  "six digits.")
     return text
 
 
@@ -352,11 +358,11 @@ def power_rows(D: dict) -> str:
     text = _table(["Compute row", "At the compute rail", "Drives (nominal walk)", "Walking power at the pack", "Runtime",
                    "Against the Pi body", "Kind"], rows)
     r = j["runtime"]
-    text += (f"\nEvery row adds the microcontroller's {aux['mcu_comms']:g} W and the sensors' {aux['sensors']:g} W, "
-             f"passes the sum through the 0.88 converter (A6) and uses 75 % of the `{r['pack']}` pack's "
-             f"{r['energy_wh']:g} Wh (A6): `designlab/power.py`, as every round-two record. The drives' power is the "
-             "model's (a); the runtime inherits the estimates (d). Every row is above the 20 minute target "
-             f"({'yes' if all(m['meets_target'] for m in pm['modes'].values()) else 'no'} for both modes).\n")
+    text += _para(f"Every row adds the microcontroller's {aux['mcu_comms']:g} W and the sensors' {aux['sensors']:g} W, "
+                  f"passes the sum through the 0.88 converter (A6) and uses 75 % of the `{r['pack']}` pack's "
+                  f"{r['energy_wh']:g} Wh (A6): `designlab/power.py`, as every round-two record. The drives' power is "
+                  "the model's (a); the runtime inherits the estimates (d). Both modes meet the 20 minute target: "
+                  f"{'yes' if all(m['meets_target'] for m in pm['modes'].values()) else 'no'}.")
     return text
 
 

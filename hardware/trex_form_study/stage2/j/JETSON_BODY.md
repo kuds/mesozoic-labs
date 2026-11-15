@@ -169,7 +169,9 @@ Without the worktree, `bash stage2/j/run_j.sh run` regenerates the same files an
 | **Sum of the rows** |  |  |  | **+105.3 g** |  | sum |
 | **The two models' masses** |  | 14.855 kg | 14.960 kg | **+105.3 g** |  | a |
 
-Centre of mass at the pick's home pose, x forward, y left, z up: (+1.636, 0.000, +0.484) mm in the model, (+1.636, 0.000, +0.484) mm from the rows above (a). The ledgers' own masses differ by +105.319 g; the models' masses are written to six digits.
+Centre of mass at the pick's home pose, x forward, y left, z up: (+1.636, 0.000, +0.484) mm in the model, (+1.636,
+0.000, +0.484) mm from the rows above (a). The ledgers' own masses differ by +105.319 g; the models' masses are written
+to six digits.
 
 **Table 3. Against the Pi body**
 
@@ -245,7 +247,9 @@ The screened model is the sized one: pass (`fc3cf6b4…`). All rows are kind (a)
 | Jetson body, the record's own `power`: 25 W + 6 W (A13, round one's allowance) | 31.0 W | 70.28 W | 115.05 W | 28.7 min | -8.1 min | d (A13) |
 | For comparison only: the 15 W mode at the survey's typical draw, 12 W + 3 W | 15.0 W | 70.28 W | 96.87 W | 34.0 min | -2.7 min | d (survey; like for like with the Pi row) |
 
-Every row adds the microcontroller's 4 W and the sensors' 4.4 W, passes the sum through the 0.88 converter (A6) and uses 75 % of the `lipo_6s_3300` pack's 73.26 Wh (A6): `designlab/power.py`, as every round-two record. The drives' power is the model's (a); the runtime inherits the estimates (d). Every row is above the 20 minute target (yes for both modes).
+Every row adds the microcontroller's 4 W and the sensors' 4.4 W, passes the sum through the 0.88 converter (A6) and uses
+75 % of the `lipo_6s_3300` pack's 73.26 Wh (A6): `designlab/power.py`, as every round-two record. The drives' power is
+the model's (a); the runtime inherits the estimates (d). Both modes meet the 20 minute target: yes.
 
 **Table 6. Stage 1 gates**
 
@@ -356,8 +360,8 @@ The body is registered like the `-X` bodies, and its references and transitions 
   with one process per core (8 Nov), and `75-M-H-10-X`'s 22,258 on two processes. The Jetson model has the pick's
   joints and contacts and one more box that collides with nothing, so this reads as the machine's load, but that is
   not shown.
-- **To finish G1:** on an otherwise idle machine, run `PY=<the venv's python> bash stage2/j/run_j.sh g1`. It may fail on
-  the step rate alone, as arm K's did on this machine (Stage 1b decision 11).
+- **To finish G1:** on an otherwise idle machine, run `PY=<the venv's python> bash stage2/j/run_j.sh g1`. It may fail
+  on the step rate alone, as arm K's did on this machine (Stage 1b decision 11).
 - G4, the tracker's gate, was not run.
 - **Provenance.** The run's records carry commit `c446ecc`, which holds all the code that ran. Their `dirty` flag is
   set only by files that were untracked then (the run's own outputs, this document, its tables script and the tests);
@@ -370,9 +374,9 @@ carpet-lift pass 2 min; the plant and references 3 min; the transitions 14 min o
 
 1. **G1 with one process per core** (section 8).
 2. **Heat.** Not modelled. The dev kit's module dissipates 15–25 W (18–28 W at the rail, c + d) where the Pi set
-   dissipates 8–9.5 W (d), in a closed PA11 chest, and the regulator adds its own loss in the abdomen. The survey sized
-   the tray's airflow for 31 W and notes that the stock fan needs a ducted inlet and outlet (d). This is a hardware
-   question for a thermal test, not for this model.
+   dissipates 8–9.5 W (d), in a closed PA11 chest, and the regulator adds its own loss in the abdomen. The survey
+   sized the tray's airflow for 31 W and notes that the stock fan needs a ducted inlet and outlet (d). This is a
+   hardware question for a thermal test, not for this model.
 3. **The mode budgets are caps, not measurements** (draft A19, section 10). `COMPUTE.md` bench test 1 replaces them.
 4. **No closed-loop comparison with the Pi body.** The review's task 6 is done "when the body passes its gates, and a
    paired-seed table against the Pi body reports each difference". The screens and G2–G3 are done; the paired-seed
