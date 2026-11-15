@@ -231,3 +231,55 @@ M, G, C and B are fixed and merged into the working branch (merge commits `4ef26
   them.
 - **A red test you will meet**: `test_legacy_check_record_is_current` is red after any edit to `moves.py` until the
   legacy check is made again; make it again after your last edit to `moves.py` (addendum 2).
+
+---
+
+## LEAD ADDENDUM 4, 15 Nov, afternoon: THE OWNER'S DECISION P34 AND WHERE THE PACKAGE STANDS (this replaces what addenda 2 and 3 say about the stride rule and the gates)
+
+**Where the package stands.** The first builder was cut off at 07:36 UTC by the account's usage limit. On `wt/wp-s`:
+`4d6c4eb` (sets.py), `8d47410` (the stride rule in moves.py reading 0.10 rad), `f5a0bf5` (restore groups `j` and
+`sets`). Untracked in the worktree: `stage2/sets/V0`, `F25F9`, `F25F9cl` on 75-M-H-10, built under the morning's
+gates (V0 by the builder; the other two by the lead with the builder's own commands). They are superseded by this
+addendum: build all three again. Their gate numbers are in `stage2/design/checkpoint/SETS_FIRST_BUILD.md` on the
+working branch. **First merge the working branch into `wt/wp-s`** (it carries the amended rules and P34).
+
+**The owner's decision (DECISION_LOG.md P34; STAGE2_75_PLAN.md A7, A8, A11, A12, each labelled as changed after a
+result).** Build exactly this, and change nothing else in a gate or a constant:
+
+1. `moves.py`
+   - `join_command`: the warm-up ZMP limit is 4.0 mm, a constant of its own (Stage 1's `transitions.G3_ZMP_MM`
+     stays 2.0 mm for the non-causal joins). CoM 1.0 mm and the joints' 0.001 rad at the command do not change.
+   - The first-stride consistency limit is 4.0 mm. The limit after the first stride stays 4.0 mm. Every reading and
+     history stays in the entry as now.
+   - `pick_stride_factor`: the limit on every joint but the twist is A12's limit for a move, 0.05 rad (one shared
+     constant with the screen, not two numbers).
+   - `RULES` texts say the new limits and end with: "(the owner's decision of 15 Nov, DECISION_LOG.md P34, after the
+     first builds of the three sets; changed after a result)". Update the tests that pin the old constants.
+2. `setscreen.py`: a move's joint-range gate is 0.05 rad on every joint but a turn's thigh twist; a walk's stays
+   0.10 rad. `RULES` and the pinning tests follow (the test that 0.0856 rad blocks a turn now pins 0.05).
+3. `sets.py` (rule A8 as amended): a set whose `nominal` walk is not frozen but whose `v0.4` walk is gets
+   `start_v0.4`, a start from standing straight into its 0.40 m/s walk, built and gated like `start`; `set.json`
+   says `lead_in: "start_v0.4"` (a set with a frozen nominal says `lead_in: "start"`); the items that need the
+   nominal walk are "not available" with the reason; a ladder rung is reached by A8's fallback (2), a change from
+   the neighbouring rung toward 0.40 m/s. If `start_v0.4` fails a gate the set is stopped as A8 says. Today this is
+   F25F9 alone.
+4. `bar.py` (the runner is merged and reviewed, so keep this edit small and say exactly what moved): for a set with
+   `lead_in: "start_v0.4"` the shared lead-in is stand, `start_v0.4`, then the 0.40 m/s walk, with the same count of
+   0.40 m/s strides before a command and the same judged windows as the other sets have after their change to
+   0.40 m/s; every record of such a set carries `lead_in`; conditions that need a reference the set does not hold
+   are "not run" as now. A set with `lead_in: "start"` must behave exactly as before: show it with the runner's
+   existing tests and by a byte comparison of the plans of every condition on the fixture set before and after.
+5. Build the three sets again on 75-M-H-10 (`--procs 2`; one set at a time), screen and verify each, run
+   `bar refcheck` on each, and report per set: which references exist, each move's gate numbers against the new
+   limits, the quick turn's stride factor with its twist use and tightest other joint, and anything "not available"
+   with its reason. Expected, not to be tuned to: quick-turn factors 0.80 (V0), 0.65 (F25F9cl), 0.70 (F25F9).
+6. After the last edit to `moves.py`: the legacy check again for both picks. Then the package's tests, the commit
+   of the sets' records (not the arrays), and your report.
+
+**Rules that still hold.** No closed-loop episode on a registered set except R4's single check episodes on V0 under
+R0 rows, listed in `dev_episodes.json`. You freeze nothing. A move that fails a gate under the new limits is written
+"not available" with its numbers; you do not retry it another way.
+
+**Working economically (the account's limit was hit once today).** Run each long job as one blocking call up to the
+tool's time limit, or in the background with a single wait; do not poll it with repeated short calls. Keep tool
+output short (tail, grep, a few lines of a JSON). Commit after each numbered step.
