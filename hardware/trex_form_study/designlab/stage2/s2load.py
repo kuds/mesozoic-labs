@@ -7,8 +7,8 @@ name and ``os.replace``:
 * ``model_<n>.zip``: the stable-baselines3 archive (``model.save``).  It is refused, and nothing of the checkpoint is
   left, if the repository's ``inspect_sb3_archive`` finds a member with bytecode in it (S2-14: schedules are instances
   of ``designlab.stage2.schedules``' classes, pickled by reference);
-* ``vecnormalize_<n>.pkl``: the ``VecNormalize`` wrapper (``vecnorm.save``); only a training resume unpickles it to
-  use it;
+* ``vecnormalize_<n>.pkl``: the ``VecNormalize`` wrapper (``vecnorm.save``); only a load for training unpickles
+  it;
 * ``fingerprint_<n>.npz``: ``obs`` (256 seeded observations, ``fingerprint_obs``), ``actions`` (the deterministic
   float32 actions the policy and the statistics give them at save time) and the observation statistics as plain
   arrays (``obs_mean``, ``obs_var``, ``obs_count``, ``clip_obs``, ``epsilon``);
@@ -23,10 +23,11 @@ tested), the load through the repository's ``load_sb3_model`` with the schedule 
 ``max |difference| > 1e-5`` raises ``CheckpointError``: the checkpoint is not used and not judged (S2-12).  **An
 inference load unpickles as little as it can**: it passes the two spaces (rebuilt from the record's layout) and
 ``None`` for the archive's last-observation members as ``custom_objects`` and normalises from the plain arrays, so
-that only torch tensors and class references cross library versions (K9).  It does not open the ``.pkl``: that file
-is checked by its size and sha256 alone.  A training resume uses the ``.pkl``, so its integrity check is
-``pair_problem``, which ends with the repository's ``checkpoint_pair_problem`` (the same zip test, and the ``.pkl``
-unpickled); ``newest_intact``, which picks the checkpoint a resume starts from, uses it too.
+that only torch tensors and class references cross library versions (K9).  It does not unpickle the ``.pkl``: that
+file is checked by its size and sha256 alone.  A load for training (a resume, a fine-tune's start from its parent)
+uses the ``.pkl``, so its integrity check is ``pair_problem``, which ends with the repository's
+``checkpoint_pair_problem`` (the same zip test, and the ``.pkl`` unpickled); ``newest_intact``, which picks the
+checkpoint a resume starts from, uses it too.
 
 ``pack`` writes ``ckpt_<n>.tar`` (the three binaries, byte-identical whenever the files are: USTAR, sorted names,
 mtime 0, uid and gid 0, empty user and group names, mode 0644, no compression); ``import_tar`` unpacks one here,
@@ -117,9 +118,10 @@ LOADER_RULE = (
     "(instances of designlab.stage2.schedules' classes; an archive holds no bytecode) and force_reset=False; a load "
     "for judging also passes the two spaces and None for the last-observation members and normalises from the plain "
     "arrays, so that only tensors and class references cross library versions: it does not unpickle "
-    "vecnormalize_<n>.pkl, which only a training resume reads (after the repository's checkpoint_pair_problem has "
-    "unpickled it once as its test); torch's build label is dropped before versions are compared (STAGE2_PLAN.md "
-    "S2-12, S2-14; Track B rule K9)")
+    "vecnormalize_<n>.pkl, which is checked by its size and sha256 and read only by a load for training (a resume, "
+    "or a fine-tune's start from its parent), after the repository's checkpoint_pair_problem has unpickled it once "
+    "as its test; torch's build label is dropped before versions are compared (STAGE2_PLAN.md S2-12, S2-14; Track B "
+    "rule K9)")
 
 
 class CheckpointError(RuntimeError):
@@ -664,7 +666,7 @@ def load_checkpoint(job_dir, steps, env=None, lr=None, tol=FINGERPRINT_TOL, expe
 
     ``CheckpointError`` on a checkpoint that is not intact (training: ``pair_problem``, which unpickles the ``.pkl``
     as the repository's check does; inference: the same record, sizes, sha256 and zip test with nothing unpickled,
-    K9: the ``.pkl`` is not opened); on a ``run_uuid`` or settings hash other than ``expect_run``'s (``{"run_uuid",
+    K9: the ``.pkl`` is not unpickled); on a ``run_uuid`` or settings hash other than ``expect_run``'s (``{"run_uuid",
     "settings_sha256"}``); on a load that fails; on fingerprint actions further than ``tol`` from the stored ones
     ("not judged": S2-12)."""
     n = _steps(steps)
