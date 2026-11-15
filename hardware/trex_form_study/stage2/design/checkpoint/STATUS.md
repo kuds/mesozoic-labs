@@ -250,3 +250,26 @@ another model with the lead and the independent reviewers unchanged.
   `prereg-b`. Merged worktrees were removed.
 - Usage: the session's cost stood at 1,493.5 USD at 17:55 UTC (about 20 % of the week since the owner's reset at a
   baseline of 1,357.5 USD; 1 % is about 6.9 USD).
+
+## Update, 15 Nov 2026, 21:50 UTC: task 3 is done, task 4 is under way, the tables' fix is merged
+
+- **Chain** (`stage2/runs/2026-11-15-75cm/run_75cm.sh all`, main checkout, PROCS=3): task 3 finished with 4.25 of 16
+  core-hours and nothing cut. Task 4 is at tier (3) (`T4.3-V0-0ms`); tiers (4) to (7) follow, about 80 minutes by its
+  own pace. To restart after a container restart: the keep-alive's watchdog does it
+  (`<scratchpad>/chain/watchdog_75cm.sh`; it is safe to run by hand, it starts nothing while the chain runs or is done).
+- **Merged since 19:50:** the tables' fix round (`wt/wp-t2`, merge `c9b6800`; 65 tests pass on the merged tree). The
+  chain's last step now makes the tables with the fixed module.
+- **Running:** the views' builder (`wt/wp-v`, workflow `wf_3ade5c27-6cd`; build, then an independent review, then a
+  fixer). Not merged.
+- **New in the run directory** (both in no record's key, standard library only): `rereads/term_aside.py` (the records
+  with the joint-range term set aside: a labelled re-reading after a result, no verdict; plan, closing amendments,
+  item 11) and `digest/digest.py` (a short digest for the written report). Run both again when the chain has ended.
+- **Read so far (simulation, from the records):** at 10 ms nothing passes; under the two fitted controllers every walk
+  falls at 8 and 10 ms on all three sets. V0 at 0.40 m/s passes but for A1 at 0 and 2 ms; V0 passes every limit at
+  0.24 and 0.30 m/s at 0 ms. The candidate passes nothing as registered: its start fails the walk item's joint range
+  by itself (item 11), and with any delay from 2 ms its toe clearance is under the limit in 20 of 20.
+- **Next:** when the chain ends, run the digest and the re-reading again, commit, write `STAGE2_75_REPORT.md`, have it
+  reviewed independently (records and code to the reviewer, not conclusions), merge the reviewed views, publish the
+  owner page with the turning circle and the clips, send the push notification.
+- **Usage:** the session's cost read 1,647 USD at 21:40 UTC, about 42 % of the week by the owner's 16:00 calibration
+  (11 % at 1,433.50 USD).
