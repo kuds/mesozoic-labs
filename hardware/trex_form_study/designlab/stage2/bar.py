@@ -3446,9 +3446,11 @@ def main(argv=None) -> int:
 
 
 __all__ = ["BarBuilt", "BarCondition", "BarContext", "BarPlanner", "BarWorker", "Budget", "Delayed", "bar_sources",
-           "condition_record", "conditions", "counts", "dry_run", "evaluate", "failed_episode", "failure", "judge",
-           "not_run_record", "record_key", "refcheck", "reference_recorder", "reread", "rows", "run_episode",
-           "summarize"]
+           "carried_supersedes", "check_manifest", "condition_record", "conditions", "counts", "cut_paths", "dry_run",
+           "evaluate", "failed_episode", "failure", "joint_range_window", "judge", "leg_gap_window", "measure_rates",
+           "not_run_record", "planned_swing_rows", "record_key", "refcheck", "reference_recorder", "registered_name",
+           "replication_word", "reread", "rows", "run_episode", "set_crouch", "set_info", "summarize",
+           "supersede_record", "verdict_text"]
 
 if __name__ == "__main__":
     from designlab.stage2 import bar as _named  # the importable copy owns every class and all module state

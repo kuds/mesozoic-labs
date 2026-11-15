@@ -2019,14 +2019,15 @@ def test_a_killed_runners_workers_end_with_it(tmp_path):
     assert len(kids) >= 2  # the two workers (and multiprocessing's resource tracker)
     proc.send_signal(signal.SIGKILL)
     proc.wait()
+    files = lambda: sorted((str(q), q.stat().st_size) for q in out.rglob("*") if q.is_file())  # noqa: E731
     t1 = time.time()
     while time.time() - t1 < 10 and not all(_gone(k) for k in kids):
         time.sleep(0.02)
     assert all(_gone(k) for k in kids), [k for k in kids if not _gone(k)]
-    assert time.time() - t1 < 1.5  # at once: no worker finishes its episode first (an episode here takes seconds)
-    files = lambda: sorted((str(q), q.stat().st_size) for q in out.rglob("*") if q.is_file())  # noqa: E731
+    assert time.time() - t1 < 1.0  # at once: no worker finishes its episode first (an episode here takes seconds)
     before = files()
-    time.sleep(3.0)
+    assert time.time() - t1 < 1.2  # (the snapshot is taken before an orphan could have finished an episode)
+    time.sleep(3.5)
     assert files() == before  # nothing was written after the runner died
     again = subprocess.run(cmd[:-6] + ["--episodes", "2", "--procs", "2", "--out", str(tmp_path / "other")], cwd=ROOT,
                            env=env, capture_output=True, text=True)
