@@ -66,23 +66,29 @@ T0_MOVES = (("start", "start"), (setio.change_name("nominal", W), "nominal_to_br
 
 
 def make_t0(root: Path, drop=(), unavailable=(), label=None, extra_entry=False, freeze=True, crouch=0.03,
-            stand_in=True) -> Path:
+            stand_in=True, lead_in=None, more_refs=(), more_moves=()) -> Path:
     """The synthetic set ``T0`` under ``root`` (module docstring); ``drop`` leaves entries out, ``unavailable``
     records them ``available: false``, ``label`` sets the walk entry's label, ``extra_entry`` adds another entry,
     ``crouch`` is the crouch ``set.json`` and every walk entry record, ``stand_in`` declares that its walk stands in
-    for the 0.40 m/s rung (it is Stage 1's brisk walk, 0.351 m/s)."""
+    for the 0.40 m/s rung (it is Stage 1's brisk walk, 0.351 m/s).  ``lead_in`` is ``set.json``'s (None: no such
+    key); ``more_refs`` and ``more_moves`` add (bar name, Stage 1 name) files."""
     src = RUN / BODY
     d = setio.set_dir(SET, BODY, root)
     refs1, trs1 = s2io.read_json(src / "refs.json"), s2io.read_json(src / "transitions.json")
     refs, trs, manifest = {}, {}, {}
-    for name, old in T0_REFS:
+    all_refs, all_moves = T0_REFS + tuple(more_refs), T0_MOVES + tuple(more_moves)
+    for name, old in all_refs:
         if name in drop:
+            continue
+        if name in unavailable:
+            refs[name] = dict(name=name, kind="walk", available=False, numbers=dict(mid_swing_min_frac_H=0.0382),
+                              reason="dropped from the ladder: a fixture's reason", crouch_frac=crouch)
             continue
         e = copy.deepcopy(refs1["references"][old])
         e.update(name=name, file=f"refs/{name}.npz", set=SET, label=label if name == W else None, strides=1,
                  window_s=e["period_s"], crouch_frac=crouch, margin_rule="a fixture's label")
         refs[name] = e
-    for name, old in T0_MOVES:
+    for name, old in all_moves:
         if name in drop:
             continue
         if name in unavailable:
@@ -107,7 +113,7 @@ def make_t0(root: Path, drop=(), unavailable=(), label=None, extra_entry=False, 
         for name, e in doc.items():
             if not e.get("file"):
                 continue
-            old = dict(T0_REFS + T0_MOVES)[name]
+            old = dict(all_refs + all_moves)[name]
             (d / sub).mkdir(parents=True, exist_ok=True)
             shutil.copyfile(src / sub / f"{old}.npz", d / e["file"])
             manifest[name] = dict(kind=kind, sha256=e["sha256"], entry_sha256=setio.entry_sha256(kind, e))
@@ -118,7 +124,8 @@ def make_t0(root: Path, drop=(), unavailable=(), label=None, extra_entry=False, 
     s2io.write_json(d / "set.json", dict(set=SET, body=BODY, role="fixture", crouch_frac=crouch,
                                          stand_in_walks=bool(stand_in),
                                          rules=dict(fixture="Stage 1's arrays under the bar's names"),
-                                         not_available={}, freezes=freezes))
+                                         not_available={}, freezes=freezes,
+                                         **({} if lead_in is None else dict(lead_in=lead_in))))
     return d
 
 
@@ -416,6 +423,143 @@ def test_the_walk_plan_is_stage1s_rule(t0, t0_docs):
     assert [x[:2] for x in nominal["plan"]] == [("transition", "start"), ("ref", "nominal")]
     assert nominal["target_speed_m_s"] == t0_docs["refs.json"]["references"]["nominal"]["speed_m_s"]
     assert res["target_speed_m_s"] == 0.4  # the rung's target is the speed its name holds
+
+
+@needs_run
+def test_a_set_that_starts_straight_into_its_bar_walk(t0, t0_docs, tmp_path, monkeypatch):
+    """``RULES["lead_in"]`` (STAGE2_75_PLAN.md A8 as amended, DECISION_LOG.md P34): a set whose ``set.json`` says
+    ``lead_in: "start_v0.4"`` begins every plan with that start in place of start, one stride of nominal and the
+    change; the strides of the 0.40 m/s walk before a command, the judged windows and the planned seconds' rules are
+    the other sets'; a rung is reached through its neighbour's change; a condition on the nominal walk is not run;
+    its records carry ``lead_in`` and the rule.  A set with ``lead_in: "start"``, or with no such key, is planned
+    and recorded exactly as before: no key is added to its records."""
+    alt = setio.start_name(W)
+    assert alt == "start_v0.4" and bar.LEAD_INS == ("start", alt)
+    root = tmp_path / "sets"
+    d = make_t0(root, unavailable=("nominal", "start", setio.change_name("nominal", W)), lead_in=alt,
+                more_refs=(("v0.45", "fr05"),), more_moves=((alt, "start"), ("v0.4_to_v0.45", "brisk_to_fr05")))
+    docs = setio.load(d)
+    pl, ref = planner_of(root), planner_of(t0)
+    assert (pl.lead, pl.home_walk, ref.lead, ref.home_walk) == (alt, W, "start", "nominal")
+    change = ("transition", setio.change_name("nominal", W))
+    for key in ("walk/v0.4", "walk/v0.4_mu0.54", "turn/q90_left", "turn/q90_right", "stop/two_step",
+                "nudge/forward", "nudge/backward_mu0.54"):
+        a, b = pl.resolve(cond_of(docs, key)), ref.resolve(cond_of(t0_docs, key))
+        k = b["plan"].index(change) + 1
+        assert b["plan"][:k] == [("transition", "start"), ("ref", "nominal", 1), change]
+        # the same items after the lead-in (the count of a walk's last strides and a stop's hold follow the lead-in's
+        # own length by the same rules)
+        assert a["plan"][0] == ("transition", alt)
+        assert [x[:1 if x[0] == "hold" else 2] for x in a["plan"][1:]] == [x[:1 if x[0] == "hold" else 2] for x in b["plan"][k:]]
+        assert a["files"] == sorted({f"refs/{W}.npz"} | {f"{'refs' if x[0] == 'ref' else 'transitions'}/{x[1]}.npz"
+                                                        for x in a["plan"] if x[0] != "hold"})
+        assert "refs/nominal.npz" not in a["files"] and f"transitions/{alt}.npz" in a["files"]
+        assert a["window"] == b["window"] and a["target_speed_m_s"] == b["target_speed_m_s"] == 0.4
+        assert (a["at_s"], a["period_s"]) == (b["at_s"], b["period_s"])
+        if key.startswith(("turn", "stop")):  # the same strides of the 0.40 m/s walk before the command
+            assert a["plan"][1] == b["plan"][k] and a["plan"][1][2] in (2.0, 2.5)
+            assert a["command_ref_s"] - a["steady_ref_s"] == pytest.approx(b["command_ref_s"] - b["steady_ref_s"], abs=1e-9)
+            assert a["command"]["phase"] == b["command"]["phase"] and a["command"]["convention"] == b["command"]["convention"]
+            # the planned seconds follow the same rule from the command's own time
+            assert (a["seconds"] - a["command_ref_s"] / (bar.SLOW * bar.RATE) if key.startswith("turn") else
+                    a["seconds"] - a["rest_ref_s"] / (bar.SLOW * bar.RATE)) == pytest.approx(
+                b["seconds"] - (b["command_ref_s"] if key.startswith("turn") else b["rest_ref_s"]) / (bar.SLOW * bar.RATE),
+                abs=1e-9)
+        if key.startswith("nudge"):
+            assert a["push"] == dict(b["push"], steady_ref_s=a["steady_ref_s"])
+            assert a["seconds"] - a["steady_ref_s"] / (bar.SLOW * bar.RATE) == pytest.approx(
+                b["seconds"] - b["steady_ref_s"] / (bar.SLOW * bar.RATE), abs=1e-9)
+    # the walk item: Stage 1's rule on the start's own steady point (as walk/nominal after start)
+    a = pl.resolve(cond_of(docs, "walk/v0.4"))
+    assert a["steady_ref_s"] == pl.phase_time(a["plan"], 0, 1.0) and len(a["plan"]) == 2
+    P, t_walk = pl.window_s(W), pl.segment_times(a["plan"])[1][0]
+    need = (a["steady_ref_s"] + panels.WINDOW_MARGIN_STRIDES * P) / bar.SLOW + tune.WALK_WINDOW_S * bar.RATE
+    assert a["plan"][1] == ("ref", W, max(1, math.ceil((need - t_walk) / P)))
+    # a ladder rung: from 0.40 m/s through its neighbour's change, one stride of the rung on the way
+    rung = pl.resolve(cond_of(docs, "walk/v0.45"))
+    assert rung["plan"][:3] == [("transition", alt), ("ref", W, 1), ("transition", "v0.4_to_v0.45")]
+    assert rung["plan"][3][:2] == ("ref", "v0.45") and len(rung["plan"]) == 4
+    # what the set does not hold is not run, with the entry's own reason
+    every = {c.key: c for c in bar.conditions(docs, every=True)}
+    why = pl.missing(every["walk/nominal"])
+    assert why["reference"] == "refs/nominal" and why["reason"] == "dropped from the ladder: a fixture's reason"
+    assert why["numbers"] == dict(mid_swing_min_frac_H=0.0382)
+    assert pl.missing(every["walk/v0.5"])["reference"] == "refs/v0.5"
+    assert pl.lead_in("nominal") is None and pl.lead_in("v0.5") is None and pl.lead_in("v0.35") is None
+    assert bar.BarPlanner.step_change("v0.5") == ("v0.45", "v0.45_to_v0.5")
+    assert bar.BarPlanner.step_change("v0.3") == ("v0.35", "v0.35_to_v0.3") and bar.BarPlanner.step_change(W) is None
+    # without its start the set runs nothing: every condition names that reference
+    gone = make_t0(tmp_path / "gone", unavailable=("nominal", "start", alt), lead_in=alt, more_moves=((alt, "start"),))
+    g = planner_of(tmp_path / "gone")
+    assert all(g.missing(c)["reference"] == f"transitions/{alt}" for c in bar.conditions(setio.load(gone))
+               if c.walk == W)
+    # the home pose is the body's: read from the 0.40 m/s walk's file it gives the same LIPM frequency
+    assert bar.omega_of(BODY, d, 0.03, home=W) == bar.omega_of(BODY, setio.set_dir(SET, BODY, t0), 0.03)
+    ctx = bar.BarContext(BODY, d, {"refs.json": docs["refs.json"], "transitions.json": docs["transitions.json"]},
+                         docs["set.json"])
+    built = ctx.built(cond_of(docs, "turn/q90_left"))
+    assert [s.name for s in built.track.segments[:3]] == [alt, W, setio.turn_name("pi4", "left")]
+    assert built.omega == bar.omega_of(BODY, d, 0.03, home=W) and built.command["ref_s"] == built.track.segments[2].t0
+    ctx.release()
+    # another value is refused, and an absent or null key is "start"
+    with pytest.raises(tune.InputError, match="lead_in 'start_v0.5'"):
+        bar.BarPlanner(d, docs["refs.json"]["references"], docs["transitions.json"]["transitions"],
+                       dict(docs["set.json"], lead_in="start_v0.5"))
+    assert bar.lead_in_of(None) == bar.lead_in_of({}) == bar.lead_in_of(dict(lead_in=None)) == "start"
+    # a set.json that disagrees with the set's entries is refused, in both directions: the exception on a set that
+    # holds its nominal walk; F25F9's shape (no nominal walk, start_v0.4 and the 0.40 m/s walk) under another lead-in
+    both = make_t0(tmp_path / "both", lead_in=alt, more_moves=((alt, "start"),))
+    with pytest.raises(tune.InputError, match="records lead_in 'start_v0.4' but the set holds its nominal walk"):
+        planner_of(tmp_path / "both")
+    assert planner_of(make_t0(tmp_path / "plain", more_moves=((alt, "start"),)).parents[1]).lead == "start"  # an extra file alone: fine
+    for i, said in enumerate((None, "start")):
+        make_t0(tmp_path / f"shape{i}", unavailable=("nominal", "start", setio.change_name("nominal", W)), lead_in=said,
+                more_moves=((alt, "start"),))
+        with pytest.raises(tune.InputError, match=f"the set holds start_v0.4 and no nominal walk, but set.json records lead_in {said!r}"):
+            planner_of(tmp_path / f"shape{i}")
+    assert both.is_dir() and "is refused" in bar.RULES["lead_in"]
+    # a rung whose neighbour's change failed its gates: the set records that under the direct change's name, and
+    # the "not run" reason and numbers are that entry's (the neighbour's change has no entry of its own)
+    make_t0(tmp_path / "step2", unavailable=("nominal", "start", setio.change_name("nominal", W), "nominal_to_v0.45"),
+            lead_in=alt, more_refs=(("v0.45", "fr05"),), more_moves=((alt, "start"), ("nominal_to_v0.45", "brisk_to_fr05")))
+    why = planner_of(tmp_path / "step2").missing(cond_of(setio.load(setio.set_dir(SET, BODY, tmp_path / "step2")), "walk/v0.45"))
+    assert why == dict(reference="transitions/v0.4_to_v0.45", numbers=dict(hip_yaw_range_use=0.93),
+                       reason="no transition into v0.45 (no reference within the thigh twist and the leg drives)")
+    # --- the records: lead_in and its rule on such a set, on both kinds of record; no key on any other set
+    faked(monkeypatch, lambda row, cond, seed, relax: fake_episode(cond, seed))
+    out = tmp_path / "out"
+    bar.evaluate(SET, BODY, out, ["R0@10ms"], ["walk/v0.4", "walk/nominal", "turn/q90_left"], episodes=1, procs=1,
+                 root=root, log=quiet)
+    done, not_run = read(rec_path(out, "R0@10ms", "walk/v0.4")), read(rec_path(out, "R0@10ms", "walk/nominal"))
+    assert done["status"] == "done" and done["lead_in"] == alt and done["plan"][0] == ["transition", alt]
+    assert done["rules"]["lead_in"] == bar.RULES["lead_in"]
+    assert sorted(done["key"]["inputs"]) == [f"refs/{W}.npz", f"transitions/{alt}.npz"]
+    assert not_run["status"] == "not run" and not_run["lead_in"] == alt and not_run["reference"] == "refs/nominal"
+    assert not_run["rules"]["lead_in"] == bar.RULES["lead_in"]
+    assert read(rec_path(out, "R0@10ms", "turn/q90_left"))["lead_in"] == alt
+    for words in ("STAGE2_75_PLAN.md A8 as amended", "DECISION_LOG.md P34", "changed after a result",
+                  "Every record of such a set carries lead_in"):
+        assert words in bar.RULES["lead_in"], words
+    plain = tmp_path / "plain_out"
+    bar.evaluate(SET, BODY, plain, ["R0@10ms"], ["walk/v0.4"], episodes=1, procs=1, root=t0, log=quiet)
+    rec = read(rec_path(plain, "R0@10ms", "walk/v0.4"))
+    assert "lead_in" not in rec and "lead_in" not in rec["rules"] and rec["plan"][0] == ["transition", "start"]
+    # the tables: the summary's cells and lines label such a set's rows, done and not run, and no other set's; the
+    # kinematic check's record says it too
+    doc = bar.summarize(out, SET, BODY, bar.HEADLINE_BLOCK)
+    cells = [doc["grid"][k]["R0@10ms"] for k in ("walk/v0.4", "walk/nominal", "turn/q90_left")]
+    assert [c["lead_in"] for c in cells] == [alt] * 3 and [c["status"] for c in cells] == ["done", "not run", "done"]
+    label = f" [lead-in {alt}: an exception, A8 as amended (P34)]"
+    lines = [x for x in bar.summary_text(doc).splitlines() if "R0@10ms" in x]
+    assert len(lines) == 3 and all(x.endswith(label) for x in lines)
+    plain_doc = bar.summarize(plain, SET, BODY, bar.HEADLINE_BLOCK)
+    assert "lead_in" not in plain_doc["grid"]["walk/v0.4"]["R0@10ms"] and "lead-in" not in bar.summary_text(plain_doc)
+    rc = bar.refcheck(SET, BODY, root, log=quiet)
+    assert rc["lead_in"] == alt and rc["lead_in_rule"] == bar.RULES["lead_in"]
+    assert "lead_in" not in bar.refcheck(SET, BODY, t0, log=quiet)
+    said = make_t0(tmp_path / "said", lead_in="start")  # the key with the value every other set has
+    assert json.dumps(planner_of(tmp_path / "said").resolve(cond_of(setio.load(said), "turn/q90_right")), default=str) \
+        == json.dumps(ref.resolve(cond_of(t0_docs, "turn/q90_right")), default=str)
 
 
 @needs_run
