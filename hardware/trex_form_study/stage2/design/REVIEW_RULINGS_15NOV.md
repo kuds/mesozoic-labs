@@ -181,3 +181,39 @@ script; it is a look choice the lead reports to the owner.
 **CE-R5. The rest.** Findings 5, 6 and 7 as the reviewer proposes; for 6 take a rung's target speed from its name, as
 the bar does, so that training and the bar apply the same duty band at 0.30 m/s. Finding 8: no code change; the lead
 adds the numbers to T1 and J4. Finding 9: add the refusal as written (`allow_75cm_round=False`, rule X1).
+
+## Round A, package C (the set screen)
+
+**C-R1. A12's 0.10 rad stands on every joint of a turn but the thigh twist** (finding 1). No change to
+`setscreen.py`'s gate and no constant changes. The lead amends A11 instead: the stride rule now also reads A12's
+0.10 rad at its kinematic pass, so the quicker steps that keep the twist in range also keep the hip roll in range.
+The lead's kinematic scan of V0's quick turn on 75-M-H-10 gives a hip-roll margin of 0.080, 0.091, 0.101, 0.111 and
+0.121 rad at stride factors 0.80, 0.75, 0.70, 0.65 and 0.60, the same in both directions to 0.0001 rad. The edit to
+`moves.pick_stride_factor` is work package S's, not yours.
+
+**C-R2. A gate whose reading is missing blocks** (findings 3 and 8 b). A move with no single-support CoP reading, no
+joint-range margins, or a rolling-contact split that did not solve is not frozen: an unread gate is not a pass. Name
+the missing reading in `verdict.blocks_freeze`. When `usable_differs_from_plant` is true the block says so and the
+reference is not frozen until the ranges agree.
+
+**C-R3. A walk's verdict text is A12's** (finding 8 a): take the fix as written; the look ladder's sentence is kept
+as `verdict.ladder_text`.
+
+**C-R4. The appendage groups are the neck and the tail** (finding 8 c): `A1_GROUPS = ("neck", "tail")`, as A12
+says. The expressive head's two drives are gated like every other drive.
+
+**C-R5. The sustained ratio of a move is the RMS over time** (finding 5): weight each frame by its duration. Keep
+the frame-weighted value beside it in the block, and say in `RULES` that on a walk, whose frames are uniform, the two
+are the same number. Show that every walk's block is unchanged by this.
+
+**C-R6. `SCREEN.md`** (finding 7): four decimals; for a turn the margin column prints `range.tightest_other`, with
+the twist's margin beside its use.
+
+**C-R7. The rest** (findings 2, 4 and 6) as the reviewer proposes: refuse a file that begins inside a swing; mark a
+1 Hz acceleration peak that sits on the file's edge; name in each walk's block both the look-format file and the
+`refs/<name>.npz` the bar plays, each with its sha256, and tell the lead the key names so that work package S uses
+them.
+
+## Round A, packages S and T (not yet built when the rulings were made)
+
+Their briefs (`WP_S.md`, `WP_T.md`) carry an addendum of the same date that tells the builders what the rulings above mean for the sets and the tables; the edit to `moves.pick_stride_factor` under amended A11 is package S's. The lead's kinematic scan behind that amendment is `hiproll_scan.py` with its output `hiproll_scan.json` (scratch, prescribed motion, no record).

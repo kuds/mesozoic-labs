@@ -318,7 +318,22 @@ The ladder's other rates from 0.40 m/s (0.35, 0.5, 1.0 rad/s) use the same move 
 before any set was frozen; plan-level arithmetic of the review, no rule changed] With the 0.375 s ramps the 1.0 rad/s
 turn's heading at the slowest clock is 78.4° on V0 and 77.7° on the candidate's timing, below A10's 80°: by the third
 outcome above it is built, written `pass_: false` with its numbers and not frozen, and the ladder reports that rate as
-"no reference within the heading rule". Check: `set.json`
+"no reference within the heading rule".
+
+[changed 15 Nov after a result: the set screen's review read the design's scratch prototypes of V0's quick turn at
+`f` 0.8 and found the inside leg's hip roll 0.086 rad from its limit, under A12's 0.10 rad, which by the third outcome
+above would have left the turn without a reference; prescribed motion; before any set was frozen and before any
+closed-loop episode on a Stage 2 set] The stride rule also reads A12's joint range: `f` is the largest grid value whose
+kinematic pass, in both directions, has `ik_ok`, uses at most 0.85 of the thigh-twist range on the worse leg **and
+leaves every other gated joint at least 0.10 rad of range**; the built reference must show `ik_ok`, at most 0.87 and
+A12's 0.10 rad, and if not `f` steps down as above. No limit moved: A12's 0.10 rad stands on every joint but the twist,
+and the quicker steps that were the plan's remedy for the twist are now also its remedy for the hip roll. The lead's
+kinematic scan of V0's quick turn on this body (scratch) gives a hip-roll margin of 0.080, 0.091, 0.101, 0.111 and
+0.121 rad at `f` 0.80, 0.75, 0.70, 0.65 and 0.60, the same in both directions to 0.0001 rad, with the twist's use
+falling from 0.82 to 0.60. Expectation stated before the build, changing no rule: V0's quick turn is picked at `f`
+0.70 instead of 0.80, so its strides inside the turn last 0.70 of the walk's and its drive speeds rise; A12's leg-drive
+gate then decides whether it has a reference. Check: `stride_rules[rate]` holds, for every `f` tried and both
+directions, the tightest joint other than the twist and its margin. Check: `set.json`
 `stride_rules[rate]` (every `f` tried with both directions' readings, the chosen `f`, `steps_down`), each turn's
 `range_use`, `a1_over`, `not_available`; the report's reading 2 cell of a turn frozen with `a1_over`
 ("not read: `a1_over`").
@@ -738,7 +753,8 @@ Each is written into the rule it concerns, with its label. No closed-loop episod
 
 1. A7 (changed after a prescribed-motion result): the consistency limit reads the first stride after the command, the
    4.0 mm limit the frames after it; the acceleration reading is differentiated on the frames' own grid.
-2. A11 (noted, no change): the 1.0 rad/s ladder turn has no reference within the heading rule.
+2. A11 (noted, no change): the 1.0 rad/s ladder turn has no reference within the heading rule. A11 (changed after
+   a prescribed-motion result): the stride rule also reads A12's 0.10 rad on every joint but the twist.
 3. C3 (changed after a reread of Stage 1's stock walks): the middle half of the planned swing counted from the own
    lift-off; the count rule; the expectation for V0.
 4. C5 (noted): the drives' peak speed is read over the whole episode.
@@ -749,3 +765,6 @@ Each is written into the rule it concerns, with its label. No closed-loop episod
 6. `control.Track.add_periodic` (R4's one Stage 1 edit): the stride period of a K-stride window is
    `(n // K) × step`, exact for every K, and a window whose frame count is no multiple of K is refused. Without the
    key the path is unchanged.
+7. A12 (made exact, no limit moved): a gate whose reading is missing blocks the freeze (no single-support CoP reading,
+   no joint-range margins, a rolling-contact split that did not solve); the appendage groups are the neck and the tail
+   alone; a move's sustained ratio is the RMS over time, which on a walk's uniform frames is the same number.

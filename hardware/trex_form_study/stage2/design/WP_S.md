@@ -184,6 +184,19 @@ fixers are in `REVIEW_RULINGS_15NOV.md` beside this brief. What they mean for th
   the frames after it; every entry also holds `zmp_consistency_all_m`. You change no gate and no constant. A move
   that fails a gate is written `pass_: false` with its numbers and is not frozen (A11's third outcome); you do not
   retry it another way.
+- **The stride rule also reads A12's 0.10 rad (A11 as amended on 15 Nov). This edit is yours.** In
+  `moves.pick_stride_factor` (and `moves.kinematic` where it helps) record, for every `f` tried and both directions,
+  the tightest joint margin other than the thigh twist (joint name and rad, against `plant.usable_ranges`), and pick
+  the largest `f` on the grid whose kinematic pass has `ik_ok`, uses at most 0.85 of the thigh-twist range on the
+  worse leg **and leaves every other gated joint at least 0.10 rad of range**. The built reference must show `ik_ok`,
+  at most 0.87 of the twist and A12's 0.10 rad; if not, `f` steps down once, at most twice in all, as before. No
+  constant changes and A12's gate in `setscreen.py` is untouched. `set.json`'s `stride_rules[rate]` holds the new
+  readings. Add a test that pins the pick's logic on a small synthetic table, and a slow test on V0's quick turn.
+  The lead's kinematic scan of V0's quick turn on 75-M-H-10 (scratch, prescribed motion) gave a hip-roll margin of
+  0.080, 0.091, 0.101, 0.111, 0.121 rad at `f` 0.80, 0.75, 0.70, 0.65, 0.60, so the expected pick for V0 is 0.70;
+  report yours, and do not tune anything to it. After your last edit to `moves.py` make
+  `stage2/sets/legacy_check.json` again for both picks (one heavy process at a time through `tools/lowprio.sh`).
+  Your reviewers review this edit with the rest of your package.
 - **The 1.0 rad/s ladder turn** is expected to fail A10's slowest-clock heading (78.4° on V0). Build it, record it
   with `pass_: false`, and write "no reference within the heading rule" for that rate in `set.json`.
 - **`set.json`**: each freeze may carry `change_after_result` (a string with the reason; absent when none), which the
