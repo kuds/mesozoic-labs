@@ -6,13 +6,13 @@ Two words are kept apart. **Planned** is read from the frozen reference, played 
 
 Lengths are in metres and in body lengths (BL). One body length is 1.759 m: the model's overall length at its home keyframe, from tail: cover_tail_seg_20 (the tail tip) to head: cover_skull (the snout tip).
 
-Records are read from `stage2/runs/2026-11-15-75cm` and cited by their path under it. Set freeze 0, manifest `cebd3d238b37`.
+Records are read from `stage2/runs/2026-11-15-75cm` and cited by their path under it; it held 24 turn records of this set when this file was written (2026-11-15T21:47:33Z). Set freeze 0, manifest `cebd3d238b37`.
 
 ## turn/q90_left: quick 90° turn to the left at 0.40 m/s
 
 ![top view](turn_q90_left.png)
 
-Top view of quick 90° turn to the left at 0.40 m/s on F25F9cl (the candidate); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move; the dashed box is the corner box of the planned root. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.
+Top view of quick 90° turn to the left at 0.40 m/s on F25F9cl (the candidate); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move; the dashed box is the corner box of the planned root. Orange, thin: SIMULATED root paths of the 20 episodes that stayed up in `F25F9cl/75-M-H-10/seeds3042/eval/R2/42@0ms/turn/q90_left.json` (R2/42@0ms, servo delay 0 ms (the judged delay is 10 ms); 20 of 20 episodes stayed up).  Rows before it with no path to draw: R2/42@10ms (0 of 20 episodes stayed up); R2/43@10ms (0 of 20 episodes stayed up); R0@10ms (0 of 20 episodes stayed up). Every path is drawn from its own position at the command. The scale bar is 0.5 m.
 
 ### Planned
 
@@ -38,13 +38,147 @@ Farthest point from the turn's centre, by part (planned): tail 1.11 m; head 0.96
 
 ### Simulated
 
-No record yet: the chain had made no record of this turn when this file was written.
+**`F25F9cl/75-M-H-10/seeds3042/eval/R0@0ms/turn/q90_left.json`: controller row R0@0ms, servo delay 0 ms, floor grip 0.9, block seeds3042.**
+
+0 of 20 episodes stayed up; 20 fell: 20 after the command (seeds 3042-3061, between 21.61 and 22.14 s).
+
+No episode of this record stayed up with a trace that can be read: nothing is read.
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R0@0ms/turn/q90_left_mu0.54.json`: controller row R0@0ms, servo delay 0 ms, floor grip 0.54, block seeds3042.**
+
+0 of 20 episodes stayed up; 20 fell: 20 after the command (seeds 3042-3061, between 21.60 and 22.58 s).
+
+No episode of this record stayed up with a trace that can be read: nothing is read.
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R0@10ms/turn/q90_left.json`: controller row R0@10ms, servo delay 10 ms, floor grip 0.9, block seeds3042.**
+
+0 of 20 episodes stayed up; 20 fell: 20 after the command (seeds 3042-3061, between 21.59 and 21.92 s).
+
+No episode of this record stayed up with a trace that can be read: nothing is read.
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R0@10ms/turn/q90_left_mu0.54.json`: controller row R0@10ms, servo delay 10 ms, floor grip 0.54, block seeds3042.**
+
+0 of 20 episodes stayed up; 20 fell: 20 after the command (seeds 3042-3061, between 21.65 and 22.97 s).
+
+No episode of this record stayed up with a trace that can be read: nothing is read.
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R2/42@0ms/turn/q90_left.json`: controller row R2/42@0ms, servo delay 0 ms, floor grip 0.9, block seeds3042.**
+
+20 of 20 episodes stayed up; 0 fell.
+
+Of the 20 read (median, then smallest to largest):
+
+| reading (simulated) | median (smallest to largest) | episodes |
+|---|---|---|
+| radius fitted to the root's path, steady part | 0.50 m (0.49 to 0.50); 0.28 BL (0.28 to 0.29) | 20 |
+| corner box, root: largest advance | 0.67 m (0.60 to 0.71); 0.38 BL (0.34 to 0.41) | 20 |
+| corner box, root: advance at the move's end | 0.65 m (0.53 to 0.70); 0.37 BL (0.30 to 0.40) | 20 |
+| corner box, root: largest sideways | 1.57 m (1.55 to 1.61); 0.89 BL (0.88 to 0.91) | 20 |
+| corner box, root: sideways at the move's end | 1.57 m (1.55 to 1.62); 0.89 BL (0.88 to 0.92) | 20 |
+| swept radius | 1.12 m (1.11 to 1.12); 0.63 BL (0.63 to 0.64) | 20 |
+| turning circle | 2.23 m (2.22 to 2.24); 1.27 BL (1.26 to 1.28) | 20 |
+| corridor for the 90° corner | 0.81 m (0.80 to 0.81); 0.46 BL (0.46 to 0.46) | 20 |
+| turn rate over the steady part | 47.7 deg/s (46.6 to 48.4) | 20 |
+| path speed over the steady part | 0.41 m/s (0.41 to 0.42) | 20 |
+| turned at the bar's judged instant | 84.0° (81.7 to 88.2) | 20 |
+| turned at the end of the move | 87.9° (86.1 to 92.0) | 20 |
+| turned at the end of the trace | 89.6° (87.3 to 93.6) | 20 |
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R2/42@0ms/turn/q90_left_mu0.54.json`: controller row R2/42@0ms, servo delay 0 ms, floor grip 0.54, block seeds3042.**
+
+20 of 20 episodes stayed up; 0 fell.
+
+Of the 20 read (median, then smallest to largest):
+
+| reading (simulated) | median (smallest to largest) | episodes |
+|---|---|---|
+| radius fitted to the root's path, steady part | 0.49 m (0.48 to 0.51); 0.28 BL (0.27 to 0.29) | 20 |
+| corner box, root: largest advance | 0.69 m (0.60 to 0.75); 0.39 BL (0.34 to 0.43) | 20 |
+| corner box, root: advance at the move's end | 0.66 m (0.51 to 0.75); 0.38 BL (0.29 to 0.43) | 20 |
+| corner box, root: largest sideways | 1.56 m (1.53 to 1.60); 0.89 BL (0.87 to 0.91) | 20 |
+| corner box, root: sideways at the move's end | 1.57 m (1.54 to 1.60); 0.89 BL (0.87 to 0.91) | 20 |
+| swept radius | 1.12 m (1.11 to 1.12); 0.63 BL (0.63 to 0.64) | 20 |
+| turning circle | 2.23 m (2.22 to 2.25); 1.27 BL (1.26 to 1.28) | 20 |
+| corridor for the 90° corner | 0.81 m (0.80 to 0.82); 0.46 BL (0.46 to 0.46) | 20 |
+| turn rate over the steady part | 47.8 deg/s (46.4 to 49.1) | 20 |
+| path speed over the steady part | 0.41 m/s (0.41 to 0.42) | 20 |
+| turned at the bar's judged instant | 83.0° (79.4 to 88.9) | 20 |
+| turned at the end of the move | 88.1° (83.9 to 94.0) | 20 |
+| turned at the end of the trace | 89.6° (85.7 to 95.1) | 20 |
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R2/42@10ms/turn/q90_left.json`: controller row R2/42@10ms, servo delay 10 ms, floor grip 0.9, block seeds3042.**
+
+0 of 20 episodes stayed up; 20 fell: 20 before the command (seeds 3042-3061, between 4.57 and 5.69 s).
+
+No episode of this record stayed up with a trace that can be read: nothing is read.
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R2/42@10ms/turn/q90_left_mu0.54.json`: controller row R2/42@10ms, servo delay 10 ms, floor grip 0.54, block seeds3042.**
+
+0 of 20 episodes stayed up; 20 fell: 20 before the command (seeds 3042-3061, between 4.57 and 5.48 s).
+
+No episode of this record stayed up with a trace that can be read: nothing is read.
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R2/43@0ms/turn/q90_left.json`: controller row R2/43@0ms, servo delay 0 ms, floor grip 0.9, block seeds3042.**
+
+20 of 20 episodes stayed up; 0 fell.
+
+Of the 20 read (median, then smallest to largest):
+
+| reading (simulated) | median (smallest to largest) | episodes |
+|---|---|---|
+| radius fitted to the root's path, steady part | 0.50 m (0.49 to 0.51); 0.28 BL (0.28 to 0.29) | 20 |
+| corner box, root: largest advance | 0.65 m (0.61 to 0.75); 0.37 BL (0.35 to 0.43) | 20 |
+| corner box, root: advance at the move's end | 0.62 m (0.56 to 0.75); 0.35 BL (0.32 to 0.43) | 20 |
+| corner box, root: largest sideways | 1.58 m (1.53 to 1.60); 0.90 BL (0.87 to 0.91) | 20 |
+| corner box, root: sideways at the move's end | 1.58 m (1.54 to 1.61); 0.90 BL (0.87 to 0.91) | 20 |
+| swept radius | 1.12 m (1.11 to 1.12); 0.63 BL (0.63 to 0.64) | 20 |
+| turning circle | 2.23 m (2.23 to 2.24); 1.27 BL (1.27 to 1.28) | 20 |
+| corridor for the 90° corner | 0.81 m (0.80 to 0.81); 0.46 BL (0.45 to 0.46) | 20 |
+| turn rate over the steady part | 47.8 deg/s (46.2 to 48.2) | 20 |
+| path speed over the steady part | 0.41 m/s (0.41 to 0.41) | 20 |
+| turned at the bar's judged instant | 84.7° (79.6 to 87.1) | 20 |
+| turned at the end of the move | 88.9° (83.9 to 91.1) | 20 |
+| turned at the end of the trace | 90.2° (85.2 to 92.3) | 20 |
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R2/43@0ms/turn/q90_left_mu0.54.json`: controller row R2/43@0ms, servo delay 0 ms, floor grip 0.54, block seeds3042.**
+
+20 of 20 episodes stayed up; 0 fell.
+
+Of the 20 read (median, then smallest to largest):
+
+| reading (simulated) | median (smallest to largest) | episodes |
+|---|---|---|
+| radius fitted to the root's path, steady part | 0.49 m (0.48 to 0.50); 0.28 BL (0.27 to 0.29) | 20 |
+| corner box, root: largest advance | 0.67 m (0.61 to 0.72); 0.38 BL (0.35 to 0.41) | 20 |
+| corner box, root: advance at the move's end | 0.65 m (0.55 to 0.71); 0.37 BL (0.31 to 0.40) | 20 |
+| corner box, root: largest sideways | 1.56 m (1.54 to 1.60); 0.89 BL (0.88 to 0.91) | 20 |
+| corner box, root: sideways at the move's end | 1.57 m (1.55 to 1.61); 0.89 BL (0.88 to 0.91) | 20 |
+| swept radius | 1.11 m (1.11 to 1.12); 0.63 BL (0.63 to 0.64) | 20 |
+| turning circle | 2.23 m (2.22 to 2.24); 1.27 BL (1.26 to 1.27) | 20 |
+| corridor for the 90° corner | 0.81 m (0.80 to 0.82); 0.46 BL (0.46 to 0.46) | 20 |
+| turn rate over the steady part | 48.1 deg/s (46.9 to 49.1) | 20 |
+| path speed over the steady part | 0.41 m/s (0.41 to 0.41) | 20 |
+| turned at the bar's judged instant | 83.6° (81.1 to 87.4) | 20 |
+| turned at the end of the move | 88.3° (85.2 to 92.5) | 20 |
+| turned at the end of the trace | 89.6° (86.4 to 93.8) | 20 |
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R2/43@10ms/turn/q90_left.json`: controller row R2/43@10ms, servo delay 10 ms, floor grip 0.9, block seeds3042.**
+
+0 of 20 episodes stayed up; 20 fell: 20 before the command (seeds 3042-3061, between 4.55 and 6.74 s).
+
+No episode of this record stayed up with a trace that can be read: nothing is read.
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R2/43@10ms/turn/q90_left_mu0.54.json`: controller row R2/43@10ms, servo delay 10 ms, floor grip 0.54, block seeds3042.**
+
+0 of 20 episodes stayed up; 20 fell: 20 before the command (seeds 3042-3061, between 4.56 and 5.95 s).
+
+No episode of this record stayed up with a trace that can be read: nothing is read.
 
 ## turn/q90_right: quick 90° turn to the right at 0.40 m/s
 
 ![top view](turn_q90_right.png)
 
-Top view of quick 90° turn to the right at 0.40 m/s on F25F9cl (the candidate); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move; the dashed box is the corner box of the planned root. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.
+Top view of quick 90° turn to the right at 0.40 m/s on F25F9cl (the candidate); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move; the dashed box is the corner box of the planned root. Orange, thin: SIMULATED root paths of the 20 episodes that stayed up in `F25F9cl/75-M-H-10/seeds3042/eval/R2/42@0ms/turn/q90_right.json` (R2/42@0ms, servo delay 0 ms (the judged delay is 10 ms); 20 of 20 episodes stayed up).  Rows before it with no path to draw: R2/42@10ms (0 of 20 episodes stayed up); R2/43@10ms (0 of 20 episodes stayed up); R0@10ms (0 of 20 episodes stayed up). Every path is drawn from its own position at the command. The scale bar is 0.5 m.
 
 ### Planned
 
@@ -70,7 +204,141 @@ Farthest point from the turn's centre, by part (planned): tail 1.11 m; head 0.96
 
 ### Simulated
 
-No record yet: the chain had made no record of this turn when this file was written.
+**`F25F9cl/75-M-H-10/seeds3042/eval/R0@0ms/turn/q90_right.json`: controller row R0@0ms, servo delay 0 ms, floor grip 0.9, block seeds3042.**
+
+0 of 20 episodes stayed up; 20 fell: 20 after the command (seeds 3042-3061, between 22.06 and 22.28 s).
+
+No episode of this record stayed up with a trace that can be read: nothing is read.
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R0@0ms/turn/q90_right_mu0.54.json`: controller row R0@0ms, servo delay 0 ms, floor grip 0.54, block seeds3042.**
+
+0 of 20 episodes stayed up; 20 fell: 20 after the command (seeds 3042-3061, between 22.12 and 22.41 s).
+
+No episode of this record stayed up with a trace that can be read: nothing is read.
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R0@10ms/turn/q90_right.json`: controller row R0@10ms, servo delay 10 ms, floor grip 0.9, block seeds3042.**
+
+0 of 20 episodes stayed up; 20 fell: 20 after the command (seeds 3042-3061, between 22.08 and 22.34 s).
+
+No episode of this record stayed up with a trace that can be read: nothing is read.
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R0@10ms/turn/q90_right_mu0.54.json`: controller row R0@10ms, servo delay 10 ms, floor grip 0.54, block seeds3042.**
+
+0 of 20 episodes stayed up; 20 fell: 20 after the command (seeds 3042-3061, between 22.15 and 23.04 s).
+
+No episode of this record stayed up with a trace that can be read: nothing is read.
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R2/42@0ms/turn/q90_right.json`: controller row R2/42@0ms, servo delay 0 ms, floor grip 0.9, block seeds3042.**
+
+20 of 20 episodes stayed up; 0 fell.
+
+Of the 20 read (median, then smallest to largest):
+
+| reading (simulated) | median (smallest to largest) | episodes |
+|---|---|---|
+| radius fitted to the root's path, steady part | 0.50 m (0.49 to 0.51); 0.28 BL (0.28 to 0.29) | 20 |
+| corner box, root: largest advance | 0.67 m (0.63 to 0.82); 0.38 BL (0.36 to 0.47) | 20 |
+| corner box, root: advance at the move's end | 0.61 m (0.56 to 0.77); 0.35 BL (0.32 to 0.44) | 20 |
+| corner box, root: largest sideways | 1.77 m (1.72 to 1.79); 1.00 BL (0.98 to 1.02) | 20 |
+| corner box, root: sideways at the move's end | 1.77 m (1.72 to 1.79); 1.01 BL (0.98 to 1.02) | 20 |
+| swept radius | 1.12 m (1.11 to 1.12); 0.63 BL (0.63 to 0.64) | 20 |
+| turning circle | 2.23 m (2.22 to 2.24); 1.27 BL (1.26 to 1.28) | 20 |
+| corridor for the 90° corner | 0.81 m (0.80 to 0.81); 0.46 BL (0.46 to 0.46) | 20 |
+| turn rate over the steady part | 47.8 deg/s (46.5 to 48.2) | 20 |
+| path speed over the steady part | 0.41 m/s (0.41 to 0.42) | 20 |
+| turned at the bar's judged instant | 84.2° (78.6 to 86.1) | 20 |
+| turned at the end of the move | 89.9° (84.6 to 91.6) | 20 |
+| turned at the end of the trace | 89.7° (84.6 to 91.2) | 20 |
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R2/42@0ms/turn/q90_right_mu0.54.json`: controller row R2/42@0ms, servo delay 0 ms, floor grip 0.54, block seeds3042.**
+
+20 of 20 episodes stayed up; 0 fell.
+
+Of the 20 read (median, then smallest to largest):
+
+| reading (simulated) | median (smallest to largest) | episodes |
+|---|---|---|
+| radius fitted to the root's path, steady part | 0.49 m (0.48 to 0.53); 0.28 BL (0.28 to 0.30) | 20 |
+| corner box, root: largest advance | 0.71 m (0.65 to 0.84); 0.41 BL (0.37 to 0.48) | 20 |
+| corner box, root: advance at the move's end | 0.66 m (0.57 to 0.80); 0.38 BL (0.32 to 0.45) | 20 |
+| corner box, root: largest sideways | 1.75 m (1.70 to 1.78); 1.00 BL (0.97 to 1.01) | 20 |
+| corner box, root: sideways at the move's end | 1.76 m (1.71 to 1.78); 1.00 BL (0.97 to 1.01) | 20 |
+| swept radius | 1.12 m (1.11 to 1.13); 0.63 BL (0.63 to 0.64) | 20 |
+| turning circle | 2.23 m (2.22 to 2.27); 1.27 BL (1.26 to 1.29) | 20 |
+| corridor for the 90° corner | 0.81 m (0.80 to 0.82); 0.46 BL (0.45 to 0.46) | 20 |
+| turn rate over the steady part | 48.0 deg/s (45.0 to 48.4) | 20 |
+| path speed over the steady part | 0.41 m/s (0.41 to 0.42) | 20 |
+| turned at the bar's judged instant | 82.5° (76.9 to 85.5) | 20 |
+| turned at the end of the move | 88.4° (83.7 to 92.2) | 20 |
+| turned at the end of the trace | 88.2° (84.1 to 91.9) | 20 |
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R2/42@10ms/turn/q90_right.json`: controller row R2/42@10ms, servo delay 10 ms, floor grip 0.9, block seeds3042.**
+
+0 of 20 episodes stayed up; 20 fell: 20 before the command (seeds 3042-3061, between 4.57 and 5.69 s).
+
+No episode of this record stayed up with a trace that can be read: nothing is read.
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R2/42@10ms/turn/q90_right_mu0.54.json`: controller row R2/42@10ms, servo delay 10 ms, floor grip 0.54, block seeds3042.**
+
+0 of 20 episodes stayed up; 20 fell: 20 before the command (seeds 3042-3061, between 4.57 and 5.48 s).
+
+No episode of this record stayed up with a trace that can be read: nothing is read.
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R2/43@0ms/turn/q90_right.json`: controller row R2/43@0ms, servo delay 0 ms, floor grip 0.9, block seeds3042.**
+
+20 of 20 episodes stayed up; 0 fell.
+
+Of the 20 read (median, then smallest to largest):
+
+| reading (simulated) | median (smallest to largest) | episodes |
+|---|---|---|
+| radius fitted to the root's path, steady part | 0.50 m (0.49 to 0.51); 0.28 BL (0.28 to 0.29) | 20 |
+| corner box, root: largest advance | 0.68 m (0.62 to 0.78); 0.38 BL (0.35 to 0.44) | 20 |
+| corner box, root: advance at the move's end | 0.62 m (0.54 to 0.74); 0.35 BL (0.31 to 0.42) | 20 |
+| corner box, root: largest sideways | 1.76 m (1.73 to 1.78); 1.00 BL (0.98 to 1.01) | 20 |
+| corner box, root: sideways at the move's end | 1.77 m (1.74 to 1.79); 1.01 BL (0.99 to 1.02) | 20 |
+| swept radius | 1.12 m (1.11 to 1.12); 0.63 BL (0.63 to 0.64) | 20 |
+| turning circle | 2.23 m (2.22 to 2.25); 1.27 BL (1.26 to 1.28) | 20 |
+| corridor for the 90° corner | 0.81 m (0.80 to 0.81); 0.46 BL (0.46 to 0.46) | 20 |
+| turn rate over the steady part | 47.7 deg/s (46.1 to 48.0) | 20 |
+| path speed over the steady part | 0.41 m/s (0.41 to 0.42) | 20 |
+| turned at the bar's judged instant | 83.8° (79.6 to 86.2) | 20 |
+| turned at the end of the move | 89.8° (85.3 to 92.2) | 20 |
+| turned at the end of the trace | 89.6° (85.0 to 91.8) | 20 |
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R2/43@0ms/turn/q90_right_mu0.54.json`: controller row R2/43@0ms, servo delay 0 ms, floor grip 0.54, block seeds3042.**
+
+20 of 20 episodes stayed up; 0 fell.
+
+Of the 20 read (median, then smallest to largest):
+
+| reading (simulated) | median (smallest to largest) | episodes |
+|---|---|---|
+| radius fitted to the root's path, steady part | 0.49 m (0.48 to 0.51); 0.28 BL (0.27 to 0.29) | 20 |
+| corner box, root: largest advance | 0.68 m (0.63 to 0.81); 0.39 BL (0.36 to 0.46) | 20 |
+| corner box, root: advance at the move's end | 0.62 m (0.55 to 0.76); 0.36 BL (0.31 to 0.43) | 20 |
+| corner box, root: largest sideways | 1.75 m (1.71 to 1.77); 1.00 BL (0.97 to 1.01) | 20 |
+| corner box, root: sideways at the move's end | 1.76 m (1.72 to 1.78); 1.00 BL (0.98 to 1.01) | 20 |
+| swept radius | 1.11 m (1.11 to 1.12); 0.63 BL (0.63 to 0.64) | 20 |
+| turning circle | 2.23 m (2.22 to 2.25); 1.27 BL (1.26 to 1.28) | 20 |
+| corridor for the 90° corner | 0.81 m (0.80 to 0.82); 0.46 BL (0.46 to 0.46) | 20 |
+| turn rate over the steady part | 47.9 deg/s (46.5 to 48.7) | 20 |
+| path speed over the steady part | 0.41 m/s (0.41 to 0.42) | 20 |
+| turned at the bar's judged instant | 83.2° (79.1 to 86.1) | 20 |
+| turned at the end of the move | 89.3° (85.1 to 92.8) | 20 |
+| turned at the end of the trace | 89.3° (85.1 to 92.6) | 20 |
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R2/43@10ms/turn/q90_right.json`: controller row R2/43@10ms, servo delay 10 ms, floor grip 0.9, block seeds3042.**
+
+0 of 20 episodes stayed up; 20 fell: 20 before the command (seeds 3042-3061, between 4.55 and 6.74 s).
+
+No episode of this record stayed up with a trace that can be read: nothing is read.
+
+**`F25F9cl/75-M-H-10/seeds3042/eval/R2/43@10ms/turn/q90_right_mu0.54.json`: controller row R2/43@10ms, servo delay 10 ms, floor grip 0.54, block seeds3042.**
+
+0 of 20 episodes stayed up; 20 fell: 20 before the command (seeds 3042-3061, between 4.56 and 5.95 s).
+
+No episode of this record stayed up with a trace that can be read: nothing is read.
 
 ## turn/t90_0.35_left: 90° turn to the left (0.35 rad/s) at 0.40 m/s
 
