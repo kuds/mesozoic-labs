@@ -193,7 +193,9 @@ class Laws:
     zmp_point: Callable[[PlanCtx, tuple], np.ndarray] | None = None  # (ctx, stance) -> world xy; None: pad centroid
     period_factor: Callable[[PlanCtx], Callable] | None = None  # -> phase -> factor on fn["T"]; None: 1
     solver: str = "stage1"  # "stage1": transitions.solve_frames, idyn, initial_state, compare
-    #                         "look":   moves_look.solve_frames, idyn, initial_state, compare, arrays_extra
+    #                         "look":   moves_look.solve_frames, idyn, initial_state, compare, arrays_extra and, where
+    #                                   it defines them, walk_state, walk_frames, walk_correction (a K-stride window
+    #                                   read on the move's phase grid)
 
 
 #: Stage 1's laws, verbatim (``transitions.py:378``, ``:420``, ``:421``, ``:422``).
@@ -211,6 +213,13 @@ def _solver(laws: Laws):
     if laws.solver == "look":
         return importlib.import_module("designlab.stage2.moves_look")
     return transitions
+
+
+def _walk_reader(laws: Laws, name: str):
+    """``walk_state``, ``walk_frames`` or ``walk_correction``: this module's (a one-stride straight walk), or the
+    look solver's where it defines its own."""
+    own = globals()[name]
+    return own if laws.solver != "look" else getattr(_solver(laws), name, own)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -726,8 +735,9 @@ def walk_state(ref: refs.Reference, phase0: float, first: float) -> np.ndarray:
 
 
 def walk_frames(ref: refs.Reference, phases, first: float, key: str) -> np.ndarray:
-    """The straight periodic walk's array ``key`` ((n, 2) or (n, 3); x and y are carried, z is kept) at gait phases
-    ``phases`` (multiples of 1 / n) in the frame of a plan whose path origin is at phase ``first``."""
+    """The straight periodic walk's array ``key`` at gait phases ``phases`` (multiples of 1 / n) in the frame of a
+    plan whose path origin is at phase ``first``: a point array ((n, 2) or (n, 3)) has its x and y carried by the
+    stride motion and its z kept; ``q`` has its root position carried likewise (the joints are periodic)."""
     _straight(ref)
     mot = transitions._stride_motion(ref)
     inv = transitions._inverse(mot)
@@ -889,12 +899,12 @@ def _causal_setup(src: dict, move: Move, ref_a: refs.Reference | None) -> dict:
     if abs(pl.phase[k_cmd] - c) > PHASE_TOL or abs(pl.t[k_cmd]) > 1e-12:
         raise MoveError(f"{move.name}: the output window must begin at the command phase")
     n = N_FRAMES
-    delta = walk_correction(ref_a, geo.omega)
+    delta = _walk_reader(move.laws, "walk_correction")(ref_a, geo.omega)
     kk = np.round(pl.phase * n).astype(int) % n
     zref0 = pl.zmp + _rotate(pl.heading, delta[kk]) * np.asarray(sch.fn["amp"](pl.phase), float)[:, None]
     kw = np.round(wl.phase * n).astype(int) % n
     zpre = wl.zmp + delta[kw]
-    x0 = walk_state(ref_a, float(pl.phase[0]), float(pl.first))
+    x0 = _walk_reader(move.laws, "walk_state")(ref_a, float(pl.phase[0]), float(pl.first))
     return dict(pl=pl, geo=geo, a=a, b=b, c=c, k_cmd=k_cmd, zref0=zref0, zpre_t=wl.t, zpre=zpre, x0=x0)
 
 
@@ -1148,13 +1158,12 @@ def stop_reference(g: dict) -> dict:
 def join_command(g: dict, ref_a: refs.Reference) -> dict:
     """A causal move's warm-up stride and command frame against the walk's own frames (design 3.3)."""
     w, pl = g["warmup"], g["plan"]
-    n, first = N_FRAMES, float(pl.first)
-    com_w = walk_frames(ref_a, w["phase"], first, "com")
-    zmp_w = walk_frames(ref_a, w["phase"], first, "zmp_mb")
-    kq = np.round(w["phase"] * n).astype(int) % n
+    first, frames = float(pl.first), _walk_reader(g["move"].laws, "walk_frames")
+    com_w = frames(ref_a, w["phase"], first, "com")
+    zmp_w = frames(ref_a, w["phase"], first, "zmp_mb")
     dc = 1e3 * np.linalg.norm(w["com"] - com_w, axis=1)
     dz = 1e3 * np.linalg.norm(w["zmp_mb"] - zmp_w, axis=1)  # NaN on the first two computed frames (no acceleration)
-    dq = np.abs(w["q"][:, 7:] - ref_a.q[kq, 7:]).max(1)
+    dq = np.abs(w["q"][:, 7:] - frames(ref_a, w["phase"], first, "q")[:, 7:]).max(1)
     out = dict(reference=ref_a.name, frames=len(dc), warmup_com_max_mm=float(np.max(dc)),
                warmup_zmp_max_mm=float(np.nanmax(dz[:-2])), warmup_joint_max_rad=float(np.max(dq)),
                warmup_ik_ok=bool(w["ik_ok"]),
@@ -1218,7 +1227,8 @@ def summary(g: dict, ref_a, ref_b, q_home) -> dict:
                definition=move.definition(), ik_fail_frames=int(g["ik_fail_frames"]), range_use=use,
                hip_yaw_range_use=hip_yaw_use(use), join_command=None,
                zmp_consistency_history_m=g["zmp_consistency_history_m"], causal_transient_m=g["causal_transient_m"],
-               post_window_zmp_error_m=g["post_window_zmp_error_m"], cop_margin_single_min=_cop_margin_single(g))
+               post_window_zmp_error_m=g["post_window_zmp_error_m"], cop_margin_single_min=_cop_margin_single(g),
+               a1_over=None, fallback=None)  # set by the set's Stage 0 screen and by its builder's fallback rule
     reference = _accel_reading(g)
     if causal:
         jc = join_command(g, ref_a)
@@ -1260,6 +1270,18 @@ def summary(g: dict, ref_a, ref_b, q_home) -> dict:
 # ------------------------------------------------------------------------------------------------
 # The stride rule
 # ------------------------------------------------------------------------------------------------
+class _accuracy:
+    """``gait.set_accuracy("r2")`` for a block, restoring the process's level after."""
+
+    def __enter__(self):
+        self.prev = gait.ACCURACY
+        gait.set_accuracy(refs.ACCURACY)
+
+    def __exit__(self, *exc):
+        gait.set_accuracy(self.prev)
+        return False
+
+
 def steady_turn_kinematic(src: dict, a: GaitX, rate: float, stride_factor: float) -> dict:
     """The steady turn's kinematic reading beside the finite turn's: ``turning.generate`` of walk ``a`` with its
     stride (and so its period) times ``stride_factor`` at the same speed, no ZMP correction.  ``turning.generate``
@@ -1271,19 +1293,7 @@ def steady_turn_kinematic(src: dict, a: GaitX, rate: float, stride_factor: float
         tr = turning.generate(src["M"], src["q_home"], src["H"], spec, yaw_rate=abs(float(rate)))
     use = range_use(src, tr["q"])
     return dict(available=True, generator="turning.generate, zmp_iters 0, left turn", period_s=float(tr["info"]["period"]),
-                ik_ok=bool(np.all(tr["ik_ok"])), hip_yaw_range_use=hip_yaw_use(use))
-
-
-class _accuracy:
-    """``gait.set_accuracy("r2")`` for a block, restoring the process's level after."""
-
-    def __enter__(self):
-        self.prev = gait.ACCURACY
-        gait.set_accuracy(refs.ACCURACY)
-
-    def __exit__(self, *exc):
-        gait.set_accuracy(self.prev)
-        return False
+                ik_ok=bool(tr["ik_ok"]), ik_fail_frames=len(tr["ik_fail_frames"]), hip_yaw_range_use=hip_yaw_use(use))
 
 
 def pick_stride_factor(src: dict, a: GaitX, ref_a, angle: float, rate: float, grid=STRIDE_GRID,
@@ -1485,8 +1495,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="python -m designlab.stage2.moves", description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("legacy", help="regenerate Stage 1's transitions through moves and compare their sha256")
-    p.add_argument("--body", action="append", required=True)
-    p.add_argument("--name", action="append", choices=list(transitions.TRANSITIONS))
+    p.add_argument("--body", action="extend", nargs="+", required=True)
+    p.add_argument("--name", action="extend", nargs="+", choices=list(transitions.TRANSITIONS), metavar="NAME",
+                   help="transitions to check (default: all 18)")
     p.add_argument("--procs", type=int, default=1)
     p.add_argument("--stage1-run", default=str(STAGE1_RUN))
     p.add_argument("--record", default=None, help="write or merge the record (stage2/sets/legacy_check.json)")

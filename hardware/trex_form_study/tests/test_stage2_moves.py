@@ -66,6 +66,13 @@ def _run(code: str, *args: str, timeout: int = 3600) -> dict:
     return json.loads(r.stdout.strip().splitlines()[-1])
 
 
+def _log(name: str, doc: dict) -> None:
+    """Keep a subprocess's numbers under logs/ (git-ignored), for a report."""
+    path = ROOT / "logs" / name
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps(doc, indent=1))
+
+
 def _same(x, y) -> bool:
     x, y = np.asarray(x), np.asarray(y)
     return x.shape == y.shape and bool(np.array_equal(x, y, equal_nan=x.dtype.kind == "f"))
@@ -270,7 +277,9 @@ print(json.dumps(out))
 def fast_builds() -> dict:
     if not ARRAYS:
         pytest.skip("the git-ignored Stage 1 arrays are not here (tools/restore_inputs.py --group picks-arrays)")
-    return _run(FAST_CODE, BODY, str(RUN / BODY), timeout=3600)
+    got = _run(FAST_CODE, BODY, str(RUN / BODY), timeout=3600)
+    _log("test_stage2_moves_fast.json", got)
+    return got
 
 
 def test_legacy_generate_equals_stage1_at_one_correction(fast_builds):
@@ -349,6 +358,7 @@ def test_legacy_generate_equals_stage1():
     """The same equality at the full 6 passes for a start, the stop, a speed change, a turn entry (exact split) and
     a stop from an in-place gait; each saved npz's sha256 equals the Stage 1 run's record."""
     got = _run(LEGACY_CODE, BODY, str(RUN / BODY), *LEGACY_NAMES, timeout=4 * 3600)
+    _log("test_stage2_moves_legacy.json", got)
     assert set(got) == set(LEGACY_NAMES)
     for name, r in got.items():
         assert r["passes"] == 6 and r["keys"], name
@@ -791,7 +801,10 @@ def test_causal_join_a_is_null(fast_builds):
     assert s["pass_"] == all(s["gates"].values()) and s["gates"]["touchdowns_after_command"]
     assert isinstance(jc["ok"], bool) and s["gates"]["join_command"] == jc["ok"]
     assert s["definition"]["builder"] == "stop_two_step" and s["hip_yaw_range_use"] < 0.1 and s["ik_fail_frames"] == 0
-    json.dumps(s, allow_nan=False)
+    # JSON-plain; the only NaN is where Stage 1's own entries have it: the stand's period and duty
+    stand = s["gaits"]["b"]
+    assert stand["name"] == "stand" and math.isnan(stand["period"]) and math.isnan(stand["duty"])
+    json.dumps(dict(s, gaits=dict(a=s["gaits"]["a"])), allow_nan=False)
 
 
 #: The scratch build of the bar's two commanded moves from V0's 0.40 m/s walk on 75-M-H-10: the walk as a set builds
@@ -834,9 +847,7 @@ def test_stop_and_turn_from_v0():
     """A scratch build of ``stop2_v0.4`` and ``turn90_pi4_right`` from the V0 0.40 walk on 75-M-H-10 passes every
     gate of the design's sections 3.3 to 3.5 (two touchdowns, the 80 deg rule); the kinematic pick is 0.80."""
     got = _run(SCRATCH_CODE, BODY75, timeout=4 * 3600)
-    log = ROOT / "logs" / "test_stage2_moves_scratch.json"  # logs/ is git-ignored: the numbers, for the report
-    log.parent.mkdir(exist_ok=True)
-    log.write_text(json.dumps(got, indent=1))
+    _log("test_stage2_moves_scratch.json", got)
     pick = got["pick"]
     assert pick["chosen"] == 0.8, pick["tried"]
     assert [r["f"] for r in pick["tried"]] == [1.0, 0.95, 0.9, 0.85, 0.8]
