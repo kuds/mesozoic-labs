@@ -277,6 +277,13 @@ def test_the_rules_say_what_the_plan_says():
     assert sets.NO_TWIST == "no reference within the thigh twist and the leg drives" and sets.NO_TWIST in r["S2S-turns"]
     assert sets.NO_GATES == "no transition within the gates"
     assert "never drops or changes one" in r["S2S-freeze"] and "No ramp, grid, gate or constant is changed" in r["S2S-not-available"]
+    for text in ("every entry a build decided built by that moves.py (A4; no flag waives it)", "a tree git cannot read counts as dirty",
+                 "change_after_result with its reason", "after_check_episodes true with reason", "before_any_episode",
+                 "refcheck.json", "no rule here makes it block a freeze"):
+        assert text in r["S2S-freeze"], text
+    assert "SetDef.stage1_twins, ladder_twins" in r["S2S-twins"] and "also names the entry gates" in r["S2S-turns"]
+    assert sets.SETS["V0"].stage1_twins == ("nominal", "start") and sets.SETS["V0"].ladder_twins == ("nominal", "v0.4")
+    assert all(sets.SETS[n].stage1_twins == sets.SETS[n].ladder_twins == () for n in ("F25F9", "F25F9cl"))
     assert sets.HEADING_GATES == ("heading_total", "heading_at_bar", "heading_at_slowest_clock")
     src = (ROOT / "designlab" / "stage2" / "sets.py").read_text()
     code = src.split('"""', 2)[2]  # past the module docstring, whose examples name a body
@@ -333,7 +340,7 @@ def produce(set_name, body, name, root=setio.ROOT):
     group = its[name].group if name in its else name
     MODE["calls"].append(group)
     d = setio.set_dir(set_name, body, root)
-    scratch = d / "partial" / f"build-{group}"
+    scratch = sets.scratch_dir(d, group)
     shutil.rmtree(scratch, ignore_errors=True)
     scratch.mkdir(parents=True)
     out = dict(item=group, set=set_name, body=body, refs={}, transitions={}, look_entries={}, stride_rules={}, files={},
@@ -655,6 +662,43 @@ def test_an_item_with_no_reference_is_an_entry_too(tmp_path, standin):
         setio.read_inputs(d, ["transitions/turn90_1_left.npz"], require_frozen=False)
 
 
+def test_an_entry_that_loses_its_reference_leaves_no_array_behind(tmp_path, standin):
+    """An item built again that ends with no reference: its entry is replaced and the array an earlier build put in
+    place goes (a walk's two files); ``verify`` notes any array no entry lists."""
+    r = build(tmp_path)
+    d = Path(r["dir"])
+    assert (d / "transitions" / "stop1_v0.4.npz").is_file() and (d / "look" / "v0.3.npz").is_file()
+    standin["fail"] = {"stop1_v0.4": sets.NO_GATES, "v0.3": "dropped from the ladder: over knee speed 1.02",
+                       "nominal_to_v0.3": "the walk v0.3 is not a rung of the set"}
+    edit_json(d / "transitions.json", lambda doc: doc["transitions"]["stop1_v0.4"].update(item={}))
+    edit_json(d / "refs.json", lambda doc: doc["references"]["v0.3"].update(definition={}))
+    log: list = []
+    r = build(tmp_path, log=log)
+    assert r["ran"] == ["v0.3", "nominal_to_v0.3", "stop1_v0.4"]
+    assert not any((d / rel).exists() for rel in ("transitions/stop1_v0.4.npz", "refs/v0.3.npz", "look/v0.3.npz",
+                                                  "transitions/nominal_to_v0.3.npz"))
+    assert f"{SET} {BODY}: removed look/v0.3.npz: no entry of the set names it any more" in log
+    write_screen(d)
+    v = verify(d)
+    assert v["ok"] and not any("an array that no entry of the set lists" in x for x in v["notes"])
+    (d / "transitions" / "left_over.npz").write_bytes(b"x")
+    v = verify(d)
+    assert v["ok"] and "transitions/left_over.npz: an array that no entry of the set lists (nothing reads it; remove it)" in v["notes"]
+
+
+def test_every_move_entry_carries_the_sets_margin_rule(tmp_path, monkeypatch):
+    """The plan's A3: every entry of the candidate carries ``margin_rule``, a move's (with or without a reference)
+    as a walk's; the other sets' entries carry None."""
+    monkeypatch.setattr(sets, "_produce_straight", lambda job, item: job.out["transitions"].update(
+        {item.name: dict(name=item.name), "other": sets._unavailable("other", "change", "x", {})}))
+    out = sets.produce("F25F9cl", BODY, "start", tmp_path)
+    rule = "duty and lift set after results on seeds 3042-3061 (JPS 2.3)"
+    assert out["transitions"]["start"]["margin_rule"] == out["transitions"]["other"]["margin_rule"] == rule == sets.RULES["S2S-margin"]
+    assert sets.SETS["F25F9cl"].margin_rule == rule
+    for name in ("V0", "F25F9"):
+        assert sets.produce(name, BODY, "start", tmp_path)["transitions"]["start"]["margin_rule"] is None
+
+
 def test_a_failed_start_stops_the_set(tmp_path, standin, capsys):
     standin["fail"] = {"start": sets.NO_GATES}
     standin["blocks_set"] = "start"
@@ -689,7 +733,7 @@ def test_a_fallbacks_change_is_merged_and_later_removed(tmp_path, standin):
             other = dict(e, name="v0.45_to_v0.5", file="transitions/v0.45_to_v0.5.npz",
                          fallback=dict(rule="S2S-fallback", step=2, of="nominal_to_v0.5"),
                          inputs={"v0.45": e["inputs"]["nominal"], "v0.5": e["inputs"]["v0.5"]})
-            scratch = d / "partial" / "build-nominal_to_v0.5" / "transitions"
+            scratch = sets.scratch_dir(d, "nominal_to_v0.5") / "transitions"
             os.replace(scratch / "nominal_to_v0.5.npz", scratch / "v0.45_to_v0.5.npz")
             out["files"] = {"transitions/v0.45_to_v0.5.npz": out["files"].pop("transitions/nominal_to_v0.5.npz")}
             other["definition"] = dict(e["definition"], specs=dict(a=dict(name="v0.45"), b=dict(name="v0.5")))
@@ -716,6 +760,7 @@ def test_a_fallbacks_change_is_merged_and_later_removed(tmp_path, standin):
     r = build(tmp_path, only=["nominal_to_v0.5"])
     tr = docs_of(d)["transitions.json"]["transitions"]
     assert "v0.45_to_v0.5" not in tr and tr["nominal_to_v0.5"]["available"] is True
+    assert not (d / "transitions" / "v0.45_to_v0.5.npz").exists()  # and its array with it
 
 
 def test_a_set_that_starts_into_its_bar_walk_records_its_lead_in(tmp_path, standin, legacy_ok):
@@ -829,7 +874,8 @@ def test_a_finished_partial_is_merged_and_a_stale_one_removed(tmp_path, standin)
     # a worker finished the start and the build was killed before the parent merged it
     part = sets.build_item(SET, BODY, "start", tmp_path)
     assert part["item"] == "start" and (d / "partial" / "start.json").is_file() and (d / "transitions" / "start.npz").is_file()
-    assert "start" not in docs_of(d)["transitions.json"]["transitions"] and not (d / "partial" / "build-start").exists()
+    assert "start" not in docs_of(d)["transitions.json"]["transitions"] and not sets.scratch_dir(d, "start").exists()
+    assert sets.scratch_dir(d, "start") == d / "partial" / f"build-start-{os.getpid()}"  # this process's own
     # ... and another item's partial whose array is not in place, a partial of another set, the screen's own partial
     other = sets.build_item(SET, BODY, "stop2_v0.4", tmp_path)
     (d / "transitions" / "stop2_v0.4.npz").unlink()
@@ -852,7 +898,8 @@ def test_a_finished_partial_is_merged_and_a_stale_one_removed(tmp_path, standin)
 #: ``transitions.json`` and ``set.json``): a record that an item does not change is not written, so there is no kill
 #: point after it.
 POINTS = ([(p, "v0.4") for p in sets.FAIL_POINTS if p != "transitions.json"]
-          + [(p, "turn90_pi4") for p in sets.FAIL_POINTS if p != "refs.json"])
+          + [(p, "turn90_pi4") for p in sets.FAIL_POINTS if p != "refs.json"]
+          + [(p, "nominal") for p in ("refs.json", "transitions.json", "set.json")])  # the first merge of a new set
 
 
 def _child(tmp: Path, root: Path, fail_at: str | None = None) -> subprocess.CompletedProcess:
@@ -901,6 +948,53 @@ def test_a_build_killed_at_any_point_resumes_to_the_same_files(tmp_path, whole, 
     before = mtimes(d)
     r = _child(tmp_path, root)
     assert r.stdout.split() == ["0", "0", "18"] and mtimes(d) == before
+
+
+def test_an_incomplete_set_of_records_is_refused_unless_a_killed_first_merge_left_it(tmp_path, standin):
+    """``refs.json`` without ``set.json`` is made again only where a partial still holds every entry of it (a build
+    killed inside the first merge of a new set); any other incomplete set of records is refused as before."""
+    build(tmp_path, only=["nominal"])
+    d = tmp_path / SET / BODY
+    (d / "set.json").unlink()
+    with pytest.raises(sets.SetError, match="it holds refs.json, transitions.json and not the other record"):
+        build(tmp_path)
+    assert (d / "refs.json").is_file() and (d / "transitions.json").is_file()
+    # the same records beside the partial of the item they hold: the killed merge is made again
+    part = sets.build_item(SET, BODY, "nominal", tmp_path)
+    assert set(part["refs"]) == {"nominal"} and (d / "partial" / "nominal.json").is_file()
+    log: list = []
+    r = build(tmp_path, only=["nominal"], log=log)
+    assert r["recovered"] == ["nominal"] and r["ran"] == [] and (d / "set.json").is_file()
+    assert sum("the first merge of the set was killed before set.json was written" in x for x in log) == 2
+    assert list(docs_of(d)["refs.json"]["references"]) == ["nominal"]
+    # an entry beyond what the partials hold: nothing is removed
+    build(tmp_path, only=["v0.3"])
+    sets.build_item(SET, BODY, "nominal", tmp_path)
+    (d / "set.json").unlink()
+    with pytest.raises(sets.SetError, match="and not the other record"):
+        build(tmp_path)
+    assert sorted(docs_of_two(d)) == ["nominal", "v0.3"]
+
+
+def docs_of_two(d: Path) -> list:
+    return list(json.loads((d / "refs.json").read_text())["references"])
+
+
+def test_a_worker_writes_only_while_its_builder_holds_the_lock(tmp_path, standin):
+    """An item started by a builder (``owner``: its pid) puts nothing in place once the set's lock names another
+    holder or none: a worker that outlives its builder cannot write beside the builder that took the set over."""
+    build(tmp_path, only=sets.walk_names())
+    d = tmp_path / SET / BODY
+    with pytest.raises(sets.SetError, match=r"the set's lock names no holder, not the builder that started this item \(pid 4242\)"):
+        sets.build_item(SET, BODY, "start", tmp_path, owner=4242)
+    with s2io.Lock(d / ".lock", log=lambda line: None):  # this process holds the set
+        with pytest.raises(sets.SetError, match=rf"the set's lock names pid {os.getpid()}, not the builder .* \(pid 4242\)"):
+            sets.build_item(SET, BODY, "start", tmp_path, owner=4242)
+        assert not (d / "transitions" / "start.npz").exists() and not (d / "partial" / "start.json").exists()
+        assert not sets.scratch_dir(d, "start").exists()
+        part = sets.build_item(SET, BODY, "start", tmp_path, owner=os.getpid())
+        assert part["item"] == "start" and (d / "transitions" / "start.npz").is_file() and (d / "partial" / "start.json").is_file()
+    assert sets.build_item(SET, BODY, "stop2_v0.4", tmp_path)["item"] == "stop2_v0.4"  # no builder to answer to
 
 
 def test_the_kill_points_are_the_writes_of_one_item():
@@ -1017,6 +1111,7 @@ def test_verify_checks_the_two_formats_of_a_walk(made):
     (lambda t: t.update(stop=dict(t["stop1_v0.4"], name="stop", group="stop1_v0.4")), "stop: a transition may not carry a name by which Stage 1"),
     (lambda t: t["start"].update(available=False, reason="x", numbers={}), "start: recorded as not available and names a file"),
     (lambda t: t["start"].update(available=False), "start: recorded as not available without a reason and its numbers"),
+    (lambda t: t["start"].update(margin_rule="another rule"), "start: its entry's margin_rule is 'another rule', the set's is None"),
 ])
 def test_verify_fails_on_a_move(made, edit, text):
     f = fails(made, lambda doc: edit(doc["transitions"]))
@@ -1031,6 +1126,8 @@ def test_verify_fails_on_a_move(made, edit, text):
     (lambda r: r["v0.4"].update(ladder_sha256="f" * 64), "v0.4: the look ladder's rung of the same spec is None"),
     (lambda r: r["v0.4"].update(speed_m_s=0.41), "v0.4: its entry's speed is 0.41 m/s, its name holds 0.4"),
     (lambda r: r["v0.4"].pop("built_by"), "v0.4: no built_by"),
+    (lambda r: r["v0.4"].update(label="new"), "v0.4: its entry's label is 'new', the set's at this speed is None (STAGE2_75_PLAN.md A2)"),
+    (lambda r: r["v0.3"].update(margin_rule="x"), "v0.3: its entry's margin_rule is 'x', the set's is None (STAGE2_75_PLAN.md A3"),
 ])
 def test_verify_fails_on_a_walk(made, edit, text):
     f = fails(made, lambda doc: edit(doc["references"]), where="refs.json")
@@ -1113,8 +1210,9 @@ def test_a_no_op_edit_to_moves_changes_nothing_but_a_note(made, monkeypatch, tmp
     before = mtimes(made)
     v = verify(made)
     assert v["ok"] and v["failures"] == []
-    notes = [x for x in v["notes"] if "built by other code, arrays identical" in x]
-    assert len(notes) == 22 and "start: built by other code, arrays identical (moves.py moved since)" in notes
+    notes = [x for x in v["notes"] if "built by other code" in x]
+    assert len(notes) == 22 and ("start: built by other code (not rebuilt: its arrays are its entry's and were not "
+                                 "compared with what today's code builds; moves.py moved since)") in notes
     assert sets.manifest_of(docs_of(made)) == manifest and mtimes(made) == before
     assert build(made.parents[1])["ran"] == [] and mtimes(made) == before  # and nothing is built again for it
 
@@ -1201,6 +1299,94 @@ def test_a_later_freeze_adds_entries_and_keeps_every_earlier_one(tmp_path, stand
     assert verify(d)["ok"]
 
 
+@pytest.mark.parametrize("label", ["after_check_episodes", "before_any_episode", "none", "two"])
+def test_a_later_freeze_says_when_it_was_made(tmp_path, standin, legacy_ok, label):
+    """A freeze that adds references to an earlier one is refused without one of the three statements (the plan's
+    A13 and its confirmation 8 under rule R4); ``after_check_episodes`` is recorded as the runner reads it (true,
+    with ``reason``) and is no change after a result."""
+    standin["fail"] = {"stop1_v0.4": sets.NO_GATES}
+    build(tmp_path)
+    d = tmp_path / SET / BODY
+    write_screen(d)
+    first = sets.freeze(SET, BODY, tmp_path, log=lambda line: None)
+    standin["fail"] = {}
+    edit_json(d / "transitions.json", lambda doc: doc["transitions"].pop("stop1_v0.4"))
+    edit_json(d / "set.json", lambda doc: doc["not_available"].pop("stop1_v0.4"))
+    assert build(tmp_path)["ran"] == ["stop1_v0.4"]
+    write_screen(d)
+    root = ["freeze", "--set", SET, "--body", BODY, "--root", str(tmp_path)]
+    if label == "none":
+        with pytest.raises(sets.SetError, match="this freeze would add stop1_v0.4 to freeze 0: say when it is made, with "
+                                                "--change-after-result REASON .* --after-check-episodes REASON .* or "
+                                                "--before-any-episode"):
+            sets.freeze(SET, BODY, tmp_path, log=lambda line: None)
+        assert sets.main(root) == 1 and docs_of(d)["set.json"]["freezes"] == [first]
+        return
+    if label == "two":
+        with pytest.raises(sets.SetError, match="--change-after-result and --after-check-episodes are given"):
+            sets.freeze(SET, BODY, tmp_path, change_after_result="x", after_check_episodes="y", log=lambda line: None)
+        with pytest.raises(SystemExit):  # and the command line takes one of them
+            sets.main(root + ["--after-check-episodes", "y", "--before-any-episode"])
+        assert docs_of(d)["set.json"]["freezes"] == [first]
+        return
+    if label == "after_check_episodes":
+        assert sets.main(root + ["--after-check-episodes", "the comparison stop, after V0's check episodes"]) == 0
+        second = docs_of(d)["set.json"]["freezes"][1]
+        assert second["after_check_episodes"] is True and second["reason"] == "the comparison stop, after V0's check episodes"
+        assert "change_after_result" not in second and "before_any_episode" not in second
+    else:
+        second = sets.freeze(SET, BODY, tmp_path, before_any_episode=True, log=lambda line: None)
+        assert second["before_any_episode"] is True and not {"change_after_result", "after_check_episodes", "reason"} & set(second)
+    assert second["index"] == 1 and second["added"] == ["stop1_v0.4"] and docs_of(d)["set.json"]["freezes"][0] == first
+    assert verify(d)["ok"]
+
+
+def test_verify_and_freeze_cite_the_bars_kinematic_check(made, legacy_ok):
+    """``refcheck.json`` beside the set's records (the bar's ``refcheck``: each reference played kinematically
+    through the bar's own readings): ``verify`` prints what fails as notes, never as a failure; a freeze cites the
+    record and refuses one that is not of the files being frozen."""
+    root = made.parents[1]
+    assert any(x.startswith("no refcheck.json beside the set's records") for x in verify(made)["notes"])
+    docs = docs_of(made)
+    files = {"refs/v0.4.npz": dict(sha256=docs["refs.json"]["references"]["v0.4"]["sha256"]),
+             "transitions/turn90_pi4_left.npz": dict(sha256=docs["transitions.json"]["transitions"]["turn90_pi4_left"]["sha256"])}
+    doc = dict(schema="bar-refcheck-1", set=SET, body=BODY, inputs=dict(dir="x", files=files), pass_=False, items={
+        "walk/v0.4": dict(status="done", pass_=True, ok=dict(along=True, toe_clearance_own_swing=True)),
+        "turn/q90_left": dict(status="done", pass_=False, ok=dict(heading=True, toe_clearance_own_swing=False),
+                              toe=dict(toe_clearance_own_swing_H=0.0323450669)),
+        "turn/t90_1_left": dict(status="not run", pass_=None, reason="no reference")})
+    s2io.write_json(made / "refcheck.json", doc)
+    state = sets.refcheck_state(made, setio.load(made))
+    assert state["current"] and state["pass_"] is False and state["not_run"] == ["turn/t90_1_left"]
+    assert state["failing"] == {"turn/q90_left": dict(fails=["toe_clearance_own_swing"], toe_clearance_own_swing_H=0.0323450669)}
+    v = verify(made)
+    note = [x for x in v["notes"] if x.startswith("refcheck")]
+    assert v["ok"] and len(note) == 1 and "turn/q90_left FAILS toe_clearance_own_swing (own-swing toe clearance 0.03235 H)" in note[0]
+    rec = sets.freeze(SET, BODY, root, log=lambda line: None)
+    assert rec["refcheck"] == dict(file=state["file"], sha256=s2io.sha256_file(made / "refcheck.json"), pass_=False,
+                                   failing=state["failing"], not_run=["turn/t90_1_left"])
+    assert verify(made)["ok"]
+    # a record of other files: a note, and no freeze cites it
+    edit_json(made / "set.json", lambda d_: d_.update(freezes=[]))
+    files["refs/v0.4.npz"]["sha256"] = "0" * 64
+    s2io.write_json(made / "refcheck.json", doc)
+    v = verify(made)
+    assert v["ok"] and any("is not current: 1 of the files it read are not the set's now (refs/v0.4.npz)" in x for x in v["notes"])
+    with pytest.raises(sets.SetError, match="the refcheck record .* is not of the files being frozen"):
+        sets.freeze(SET, BODY, root, log=lambda line: None)
+    with pytest.raises(sets.SetError, match="no such refcheck record"):
+        sets.freeze(SET, BODY, root, refcheck=made / "none.json", log=lambda line: None)
+    # every reference passing: one line says so
+    files["refs/v0.4.npz"]["sha256"] = docs["refs.json"]["references"]["v0.4"]["sha256"]
+    doc["items"]["turn/q90_left"].update(pass_=True, ok=dict(heading=True, toe_clearance_own_swing=True))
+    s2io.write_json(made / "elsewhere.json", dict(doc, pass_=True))
+    (made / "refcheck.json").unlink()
+    rec = sets.freeze(SET, BODY, root, refcheck=made / "elsewhere.json", log=lambda line: None)
+    assert rec["refcheck"]["pass_"] is True and rec["refcheck"]["failing"] == {}
+    assert sets.refcheck_lines(sets.refcheck_state(made, setio.load(made), made / "elsewhere.json"))[0].endswith(
+        "every reference that was played passes its own bar item")
+
+
 def test_a_frozen_entry_is_never_dropped_or_changed(made, legacy_ok, standin):
     root = made.parents[1]
     first = sets.freeze(SET, BODY, root, log=lambda line: None)
@@ -1221,6 +1407,13 @@ def test_a_frozen_entry_is_never_dropped_or_changed(made, legacy_ok, standin):
         sets.freeze(SET, BODY, root, log=lambda line: None)
     assert any("start: the latest freeze lists it and the set has no such entry" in x for x in verify(made)["failures"])
     assert docs_of(made)["set.json"]["freezes"] == [first]
+    # ... and a build says so and builds nothing (it could only put the array back, never the entry)
+    calls, before = len(standin["calls"]), mtimes(made)
+    with pytest.raises(sets.SetError, match="the latest freeze lists start and transitions.json holds no such entry: "
+                                            "restore the committed record"):
+        build(root)
+    assert len(standin["calls"]) == calls and mtimes(made) == before
+    assert sets.main(["build", "--set", SET, "--body", BODY, "--root", str(root), "--procs", "0"]) == 1
 
 
 def test_build_on_a_frozen_set_only_puts_matching_arrays_back(made, legacy_ok, standin):
@@ -1286,14 +1479,14 @@ def test_freeze_refuses(made, legacy_ok, monkeypatch, what):
 
 def test_freeze_without_a_legacy_record(made, legacy_ok, monkeypatch, tmp_path):
     monkeypatch.setattr(sets, "LEGACY_CHECK", tmp_path / "none.json")
-    assert sets.legacy_state() == dict(ok=False, why=f"{tmp_path / 'none.json'} is missing", sha256=None)
+    assert sets.legacy_state() == dict(ok=False, why=f"{tmp_path / 'none.json'} is missing", sha256=None, moves_sha256=None)
     with pytest.raises(sets.SetError, match="the legacy check is not current"):
         sets.freeze(SET, BODY, made.parents[1], log=lambda line: None)
 
 
 def test_freeze_refuses_mixed_sources_and_a_dirty_tree_unless_told(tmp_path, standin, legacy_ok):
     build(tmp_path, only=sets.walk_names())
-    standin["sources"] = {"designlab/stage2/moves.py": "0" * 64}  # the moves are built by other code
+    standin["sources"] = dict(sets.modules_now(), **{"designlab/stage2/sets.py": "0" * 64})  # the moves: other code
     build(tmp_path)
     d = tmp_path / SET / BODY
     write_screen(d)
@@ -1327,6 +1520,54 @@ def test_entries_built_on_a_dirty_tree_need_the_flag(tmp_path, standin, legacy_o
     with pytest.raises(sets.SetError, match="built on a dirty tree: nominal"):
         sets.freeze(SET, BODY, tmp_path, log=lambda line: None)
     assert sets.freeze(SET, BODY, tmp_path, allow_dirty=True, log=lambda line: None)["dirty"] is True
+
+
+def test_a_tree_git_cannot_read_is_not_a_clean_tree(made, legacy_ok):
+    legacy_ok.update(commit=None, dirty=None, dirty_paths=None)
+    with pytest.raises(sets.SetError, match="git cannot tell the state of the tree"):
+        sets.freeze(SET, BODY, made.parents[1], log=lambda line: None)
+    rec = sets.freeze(SET, BODY, made.parents[1], allow_dirty=True, log=lambda line: None)
+    assert rec["commit"] is None and rec["dirty"] is True
+
+
+def test_freeze_wants_every_entry_built_by_the_legacy_checks_moves(tmp_path, standin, legacy_ok, monkeypatch):
+    """The plan's A4: ``legacy_check.json``'s ``moves_sha256`` is the sha256 of the ``moves.py`` that built the sets.
+    A set built wholly by another ``moves.py`` is one source state, so it is not "mixed": the freeze refuses it all
+    the same, with no flag to waive it; an entry with no reference gets the provenance note too, and is built again
+    by today's code while the set is not frozen."""
+    other = dict(sets.modules_now(), **{"designlab/stage2/moves.py": "0" * 64})
+    standin["sources"] = other
+    standin["fail"] = {"turn90_1": "no stride factor"}
+    build(tmp_path)
+    d = tmp_path / SET / BODY
+    write_screen(d)
+    v = verify(d)
+    notes = [x for x in v["notes"] if "built by other code" in x]
+    assert v["ok"] and len(notes) == 22 and not any("differing source states" in x for x in v["notes"])
+    assert ("turn90_1_left: built by other code (not rebuilt: its verdict is that code's; moves.py moved since)") in notes
+    for flags in (dict(), dict(allow_mixed=True, allow_dirty=True)):
+        with pytest.raises(sets.SetError, match=r"22 entries were built by another moves.py than the legacy check's "
+                                                r"\(nominal, nominal_to_v0.3, .*STAGE2_75_PLAN.md A4"):
+            sets.freeze(SET, BODY, tmp_path, log=lambda line: None, **flags)
+    assert docs_of(d)["set.json"]["freezes"] == []
+    # today's code builds the entry with no reference again, and nothing else (the arrays pin the others)
+    standin["sources"], calls = None, len(standin["calls"])
+    r = build(tmp_path)
+    assert r["ran"] == ["turn90_1"] and standin["calls"][calls:] == ["turn90_1"]
+    assert build(tmp_path)["ran"] == []
+    by = docs_of(d)["transitions.json"]["transitions"]["turn90_1_left"]["built_by"]["stage2_modules"]
+    assert by == sets.modules_now()
+    # ... while a frozen set's records are not built again for a change of code
+    edit_json(d / "transitions.json", lambda doc: [e["built_by"].update(stage2_modules=sets.modules_now())
+                                                   for e in doc["transitions"].values()])
+    edit_json(d / "refs.json", lambda doc: [e["built_by"].update(stage2_modules=sets.modules_now())
+                                            for e in doc["references"].values()])
+    sets.freeze(SET, BODY, tmp_path, log=lambda line: None)
+    real = sets.modules_now()
+    monkeypatch.setattr(sets, "modules_now", lambda: dict(real, **{"designlab/stage2/sets.py": "1" * 64}))
+    assert build(tmp_path)["ran"] == [] and len(standin["calls"]) == calls + 1
+    assert any("turn90_1_left: built by other code (not rebuilt: its verdict is that code's; sets.py moved since)" in x
+               for x in verify(d)["notes"])
 
 
 # ---------------------------------------------------------------- the fallback rule and the turn rule, scripted
@@ -1668,6 +1909,11 @@ def test_turns_a_leg_drive_over_its_limit_leaves_no_reference_and_no_retry(turns
     assert rec["reason"] == "the built reference is over a leg drive's Stage 0 limit"
     assert left["available"] is False and left["reason"] == f"{sets.NO_TWIST}: {rec['reason']}"
     assert right["numbers"]["stage0"]["blocks_freeze"] == [dict(limit="knee speed", value=1.04)]
+    # a built pair that is also outside an entry gate: the reason names it, in both directions' entries
+    over = dict(leg=True, failed=["heading_at_slowest_clock"], blocks=[dict(limit="knee speed", value=1.04)])
+    job, script, rec, left, right = turns(dict(left=[over], right=[dict(leg=True, blocks=[dict(limit="knee speed", value=1.04)])]), rate="1")
+    want = f"{sets.NO_TWIST}: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock"
+    assert left["reason"] == right["reason"] == rec["no_reference"] == want and rec["outcome"] == "none"
 
 
 def test_turns_a_tail_limit_alone_keeps_the_reference_with_a1_over(turns):
@@ -1700,6 +1946,40 @@ def test_turns_without_a_stride_factor_build_nothing(turns):
 
 
 # ---------------------------------------------------------------- twins
+def test_v0_owes_its_twins_on_a_body_that_has_them(made, job_of, monkeypatch):
+    """The plan's A4 asks of V0, on a body with a Stage 1 run record and ladder rungs, that ``nominal`` and ``start``
+    are Stage 1's own files and that the look-format ``nominal`` and ``v0.4`` are the ladder's rungs: a twin that is
+    not found is a failure of ``verify`` and stops the build, not a silent null."""
+    v0 = sets.SETS["V0"]
+    assert sets.twin_owed(v0, BODY, "nominal", walk=True) == dict(stage1=True, ladder=True)
+    assert sets.twin_owed(v0, BODY, "v0.4", walk=True) == dict(stage1=False, ladder=True)
+    assert sets.twin_owed(v0, BODY, "start", walk=False) == dict(stage1=True, ladder=False)
+    assert sets.twin_owed(v0, BODY, "stop2_v0.4", walk=False) == dict(stage1=False, ladder=False)
+    other = next(b for b in stage1.BODIES if not sets.stage1_has(b, "refs.json") and not sets.ladder_has(b))
+    assert sets.twin_owed(v0, other, "nominal", walk=True) == dict(stage1=False, ladder=False)
+    assert sets.twin_owed(sets.SETS["F25F9cl"], BODY, "nominal", walk=True) == dict(stage1=False, ladder=False)
+    # the synthetic set, held to V0's twins: none of its entries is Stage 1's or the ladder's
+    monkeypatch.setitem(sets.SETS, SET, replace(sets.SETS[SET], stage1_twins=v0.stage1_twins, ladder_twins=v0.ladder_twins))
+    f = verify(made)["failures"]
+    assert sorted(x.split(":")[0] for x in f) == ["nominal", "nominal", "start", "v0.4"]
+    assert any("start: the set must hold Stage 1's own file under this name and its entry's equals_stage1 is None" in x for x in f)
+    assert any("v0.4: its look-format file must be the look ladder's rung and its entry's equals_ladder is None" in x for x in f)
+    # ... and the builder stops at such a walk before anything of it is recorded
+    job, script, its = job_of("nominal", {})
+    monkeypatch.setattr(sets, "walk_arrays", lambda src, spec: (dict(), dict(), dict()))
+    job.source, job.put, job.built_by = (lambda fresh=True: {}), (lambda sub, name, arrays: "s" * 64), (lambda: {})
+    with pytest.raises(sets.GateError, match="nominal: the set must hold Stage 1's own walk under this name and none "
+                                             "of the same spec is recorded"):
+        sets._produce_walk(job, job.mine[0])
+    assert job.out["refs"] == {}
+    # on a body that has neither record the twins are not owed: a note
+    monkeypatch.setattr(sets, "stage1_has", lambda body, record: False)
+    monkeypatch.setattr(sets, "ladder_has", lambda body: False)
+    v = verify(made)
+    assert v["ok"] and any("Stage 1's run holds no record of" in x for x in v["notes"])
+    assert any("the look ladder holds no rung of" in x for x in v["notes"])
+
+
 def test_twins_are_found_by_spec_not_by_name():
     H, _ = sets.body_facts(BODY)
     s1 = json.loads((RUN / "refs.json").read_text())["references"]

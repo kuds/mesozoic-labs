@@ -45,8 +45,10 @@ runs the missing items, walks before moves, each in a fresh spawned process (``-
 its arrays into a scratch directory under ``partial/``, moves them into place, writes ``partial/<item>.json`` and
 returns; the parent merges that into ``refs.json``, ``transitions.json`` and ``set.json`` (each written atomically)
 and deletes the partial in the same step.  An item is kept when its entry holds the definition ``items`` gives now,
-was built from the walks the set holds now, and its files have the recorded sha256.  A rebuild that reproduces an
-entry's arrays leaves the entry, and its provenance, as they were.  Wall times go to ``logs/sets.log`` in the set
+was built from the walks the set holds now, and its files have the recorded sha256; an entry with no reference is
+kept while the Stage 2 modules that decided it are today's (or the set is frozen).  A rebuild that reproduces an
+entry's arrays leaves the entry, and its provenance, as they were.  A worker writes into the set only while the
+set's lock names the builder that started it, and a first merge that was killed is made again.  Wall times go to ``logs/sets.log`` in the set
 directory and into no record.  **On a frozen set** an entry of the latest manifest is never written again: a missing
 array is rebuilt and put in place only when its sha256 is the manifest's, and a difference fails the build with
 both hashes; entries the manifest does not hold may still be added.
@@ -55,11 +57,15 @@ both hashes; entries the manifest does not hold may still be added.
 -------------------------------------
 ``verify`` reads the set as it is (no array is rebuilt) and returns ``{ok, failures, notes}``: the files against
 their entries and the latest manifest, names, definitions, the moves' gates, the stops' and turns' own readings, the
-walks' two formats, the hash gates, the screen (``screen.json``: a current block for every available entry, none
-blocking the freeze) and provenance.  ``freeze`` (the lead's act) appends a manifest of every available entry to
-``set.json`` ``freezes``; it needs ``verify`` to pass, a passing ``stage2/sets/legacy_check.json`` of today's
-``moves.py``, and one source state on a clean tree unless a flag says otherwise, and it never drops or changes an
-entry an earlier freeze holds.
+walks' two formats, the hash gates, the labels (a walk's ``label``, every entry's ``margin_rule``), the screen
+(``screen.json``: a current block for every available entry, none blocking the freeze) and provenance; its notes
+also give the bar's kinematic check of the references where the set directory holds its record (``refcheck.json``,
+made by ``python -m designlab.stage2.bar refcheck --out <the sets' root>``; a report, not a gate).  ``freeze`` (the
+lead's act) appends a manifest of every available entry to ``set.json`` ``freezes``; it needs ``verify`` to pass, a
+passing ``stage2/sets/legacy_check.json`` of today's ``moves.py`` and every built entry made by that ``moves.py``,
+and one source state on a clean tree unless a flag says otherwise; it never drops or changes an entry an earlier
+freeze holds, a later freeze that adds references says when it was made, and it cites the kinematic check's record
+where there is one (``RULES["S2S-freeze"]``).
 
 This module is in no record key.
 
@@ -68,7 +74,8 @@ Run from hardware/trex_form_study:
     python -m designlab.stage2.sets verify --set V0 --body 75-M-H-10 [--root DIR]
     python -m designlab.stage2.sets status --set V0 --body 75-M-H-10 [--root DIR]
     python -m designlab.stage2.sets freeze --set V0 --body 75-M-H-10 [--allow-mixed] [--allow-dirty]
-        [--change-after-result REASON] [--root DIR]
+        [--change-after-result REASON | --after-check-episodes REASON | --before-any-episode] [--refcheck FILE]
+        [--root DIR]
 """
 
 from __future__ import annotations
@@ -109,6 +116,9 @@ MODULES = ("sets.py", "moves.py", "setscreen.py", "screen.py", "look.py", "setio
 PARTIAL = "partial"
 SCRATCH_PREFIX = "build-"
 LOG_FILE = "logs/sets.log"
+#: The bar's kinematic check of a set's references, where it is kept beside the set's records (``refcheck_state``):
+#: ``python -m designlab.stage2.bar refcheck --set S --body B --out <the sets' root>`` writes it there.
+REFCHECK = "refcheck.json"
 WALK_GENERATOR = "look.generate + gait.inverse_dynamics + refs.arrays"
 #: The item kinds, and the builders of ``moves`` they call.
 KINDS = ("walk", "start", "change", "stop_two_step", "stop_one_step", "turn")
@@ -133,7 +143,7 @@ RULES = {
         "between sizing.BRISK and envelope.FAST from there to FAST's speed; above FAST's speed FAST's stride, duty "
         "and lift at the higher Froude number, labelled new.  F25F9cl: every rung other than 0.40, 0.45 and 0.50 m/s "
         "labelled new"),
-    "S2S-margin": "duty and lift set after results on seeds 3042-3061 (JPS 2.3)",
+    "S2S-margin": "duty and lift set after results on seeds 3042-3061 (JPS 2.3)",  # (every entry's margin_rule: A3)
     "S2S-crouch": (
         "every walk of a set and body has one crouch (a share of the hip height), read from its spec and recorded as "
         "set.json crouch_frac and in every walk entry; a move joins two walks of one crouch (one LIPM frequency)"),
@@ -149,7 +159,10 @@ RULES = {
         "where Stage 1's run (stage1/runs/2026-11-08/<body>) holds a walk of the same spec, or a transition between "
         "walks of the same specs made with Stage 1's own schedule, the set's file must have its sha256; where the "
         "look ladder (stage2/look/look_refs.json) holds a rung of the same spec, the look-format file must have its "
-        "sha256; a difference stops the build with both hashes (STAGE2_75_PLAN.md A4)"),
+        "sha256; a difference stops the build with both hashes (STAGE2_75_PLAN.md A4).  V0 owes them: on a body that "
+        "has a Stage 1 run record its nominal and start must be Stage 1's own files, and on a body the look ladder "
+        "holds its look-format nominal and v0.4 must be the ladder's rungs; a twin that is not found there stops the "
+        "build and fails sets verify (SetDef.stage1_twins, ladder_twins)"),
     "S2S-stage0": (
         "the Stage 0 gates that block a freeze (STAGE2_75_PLAN.md A12) are read where a reference is built, with the "
         "set screen's own functions: a walk by setscreen.judge_walk on its look.price, a move by "
@@ -179,20 +192,30 @@ RULES = {
         "set's 0.40 m/s walk, both directions with all passes at the chosen factor, then moves.step_down on the "
         "built pair (ik_ok in both, the worse thigh-twist use, the tighter margin of another joint, a leg drive over "
         "a Stage 0 limit in either, a neck or tail limit in either).  No factor, or a leg drive over its limit: "
-        f"'{NO_TWIST}'.  A built turn that fails another gate (A7's, A10's heading readings, another blocking gate "
+        f"'{NO_TWIST}', and the reason also names the entry gates the last built pair missed.  A built turn that "
+        "fails another gate (A7's, A10's heading readings, another blocking gate "
         f"of A12) has no further retry and no reference; where only the heading readings fail: '{NO_HEADING}'.  A "
         "turn over a neck or tail limit alone is kept with a1_over true"),
     "S2S-not-available": (
         "an item with no reference is an entry with available false, a reason and its numbers, and no file; it is "
         "listed in set.json not_available; a walk that fails a blocking Stage 0 gate is dropped from the ladder in "
         "this way and no move is built from or to it (STAGE2_75_PLAN.md A8, A11, A12).  No ramp, grid, gate or "
-        "constant is changed for it"),
+        "constant is changed for it.  Its verdict is the code's that built it (built_by): while the set is not "
+        "frozen, a build by other Stage 2 modules makes it again; an array an earlier build left under its name is "
+        "removed"),
     "S2S-freeze": (
         "a freeze lists every available entry: name -> kind, the file's sha256 and the sha256 of the entry's hashed "
         "subset (setio.entry_sha256), a walk's look-format sha256 beside them.  A later freeze may add entries and "
         "never drops or changes one.  It needs sets verify to pass, a passing stage2/sets/legacy_check.json made by "
-        "today's moves.py, entries built from one source state and a clean tree (else the manifest says "
-        "mixed_sources or dirty).  On a frozen set a build never writes a frozen entry again and puts an array in "
+        "today's moves.py, every entry a build decided built by that moves.py (A4; no flag waives it), entries built "
+        "from one source state and a clean tree (else the manifest says mixed_sources or dirty; a tree git cannot "
+        "read counts as dirty).  A later freeze that adds references says when it was made: change_after_result "
+        "with its reason (after a registered episode of the round: 'a change after a result'), after_check_episodes "
+        "true with reason (after check episodes only: no change after a result; rule R4), or before_any_episode.  "
+        "Where the set directory holds refcheck.json (the bar's kinematic check of each reference: no physics, no "
+        "verdict) it must be of the files being frozen, and the freeze cites its sha256, pass_ and failing "
+        "conditions; sets verify prints them as notes (a report: no rule here makes it block a freeze).  "
+        "On a frozen set a build never writes a frozen entry again and puts an array in "
         "place only when its sha256 is the manifest's (STAGE2_75_PLAN.md A13)"),
     "S2S-omega": "control.omega0(p, q_home, crouch_frac=<the set's crouch_frac>): the track's LIPM frequency is the set's own",
 }
@@ -283,10 +306,16 @@ class SetDef:
     note: str
     margin_rule: str | None = None
     pr_spec: bool = False  # its walks come from tuned_f9_spec: verify compares that with the pull request's function
+    #: The entries that must be Stage 1's own files, and the walks whose look-format files must be the look ladder's
+    #: rungs, on every body that has a Stage 1 run record or ladder rungs (``RULES["S2S-twins"]``; the plan's A4).
+    stage1_twins: tuple = ()
+    ladder_twins: tuple = ()
 
 
 SETS: dict[str, SetDef] = {
-    "V0": SetDef("V0", "control", v0_spec, _v0_label, "today's walk at every speed"),
+    "V0": SetDef("V0", "control", v0_spec, _v0_label, "today's walk at every speed",
+                 stage1_twins=(setio.NOMINAL, setio.START),
+                 ladder_twins=(setio.NOMINAL, setio.walk_name(setio.BAR_SPEED))),
     "F25F9": SetDef("F25F9", "control", _f9, lambda body, H, v: None,
                     "the pull request's tuned walk (_tuned_f9_spec), verbatim", pr_spec=True),
     "F25F9cl": SetDef("F25F9cl", "candidate", _f9cl, _cl_label,
@@ -464,6 +493,24 @@ def stage1_move_twin(body: str, mv: moves.Move, twin_a: dict | None, twin_b: dic
     return None
 
 
+def stage1_has(body: str, record: str) -> bool:
+    """Whether Stage 1's run holds ``record`` (``refs.json``, ``transitions.json``) of the body."""
+    return (STAGE1_RUN / body / record).is_file()
+
+
+def ladder_has(body: str) -> bool:
+    """Whether the look ladder holds rungs of the body."""
+    return bool(((_read(LOOK_REFS) or {}).get("bodies") or {}).get(body))
+
+
+def twin_owed(st: "SetDef", body: str, name: str, walk: bool) -> dict:
+    """What the set owes for the entry ``name`` (``RULES["S2S-twins"]``): ``stage1`` (it must be Stage 1's own file)
+    and ``ladder`` (a walk's look-format file must be the look ladder's rung), each true only on a body that has
+    Stage 1's record or ladder rungs."""
+    return dict(stage1=name in st.stage1_twins and stage1_has(body, "refs.json" if walk else "transitions.json"),
+                ladder=walk and name in st.ladder_twins and ladder_has(body))
+
+
 def ladder_twin(body: str, spec: gait.GaitSpec) -> dict | None:
     """``{speed, variant, sha256}`` of the look ladder's rung of the same spec on the body
     (``stage2/look/look_refs.json``), or None."""
@@ -548,6 +595,27 @@ def _unavailable(name: str, kind: str, reason: str, numbers: dict, **more) -> di
     return dict(name=name, kind=kind, available=False, reason=reason, numbers=numbers, **more)
 
 
+def scratch_dir(d: Path, group: str) -> Path:
+    """Where this process writes a group's arrays before they are moved into place: ``partial/build-<group>-<pid>``,
+    its own, so that a worker whose builder was killed and a builder started after it never share a directory."""
+    return Path(d) / PARTIAL / f"{SCRATCH_PREFIX}{group}-{os.getpid()}"
+
+
+def _held_by(d: Path, owner: int | None) -> None:
+    """``SetError`` unless the set's lock still names the builder ``owner`` (a pid) that started this item: a worker
+    whose builder is gone writes nothing into the set.  None: no builder to answer to (an item built on its own)."""
+    if owner is None:
+        return
+    try:
+        holder = json.loads((Path(d) / ".lock").read_text())
+    except (OSError, ValueError):
+        holder = None
+    pid = holder.get("pid") if isinstance(holder, dict) else None
+    if pid != owner:
+        raise SetError(f"{d}: the set's lock names " + ("no holder" if pid is None else f"pid {pid}")
+                       + f", not the builder that started this item (pid {owner}): nothing of it is written")
+
+
 class _Job:
     """One group of items being built in this process: the set's records as they are, a scratch directory, and what
     the group makes (``out``)."""
@@ -562,13 +630,14 @@ class _Job:
             raise SetError(f"{set_name} {body}: no item or group {group!r}")
         self.H, self.model = body_facts(body)
         self.specs = walk_specs(set_name, body, self.H)
-        self.scratch = self.dir / PARTIAL / f"{SCRATCH_PREFIX}{group}"
+        self.scratch = scratch_dir(self.dir, group)
         refs_doc, tr_doc = _read(self.dir / "refs.json"), _read(self.dir / "transitions.json")
         self.refs = (refs_doc or {}).get("references", {})
         self.trans = (tr_doc or {}).get("transitions", {})
         self.out = dict(item=group, set=set_name, body=body, refs={}, transitions={}, look_entries={},
                         stride_rules={}, files={}, header=None, blocks_set=None, log=[])
         self._src = None
+        self.by: dict | None = None  # the provenance of what this process built last (``built_by``)
 
     # --- the body
     def source(self, fresh: bool = True) -> dict:
@@ -586,7 +655,10 @@ class _Job:
         return self._src
 
     def built_by(self) -> dict:
-        return s2io.built_by(list(MODULES), own_outputs=[str(self.dir)])
+        """The provenance of what is being built now (call it inside the item's ``r2()`` block); kept as ``by`` for
+        an entry with no reference that this build decided."""
+        self.by = s2io.built_by(list(MODULES), own_outputs=[str(self.dir)])
+        return self.by
 
     # --- the walks a move reads
     def walk(self, name: str) -> tuple[moves.GaitX, refs.Reference, dict, dict | None] | None:
@@ -653,6 +725,9 @@ class _Job:
             prov = self.built_by()
         entry.update(file=f"transitions/{mv.name}.npz", sha256=sha)
         twin = stage1_move_twin(self.body, mv, twin_a, twin_b)
+        if twin is None and twin_owed(self.st, self.body, mv.name, walk=False)["stage1"]:
+            raise GateError(f"{self.set_name} {self.body} {mv.name}: the set must hold Stage 1's own transition under "
+                            f"this name and Stage 1's run has none between walks of these specs ({RULES['S2S-twins']})")
         if twin is not None and twin["sha256"] != sha:
             raise GateError(f"{self.set_name} {self.body} {mv.name}: its file hashes to {sha}, Stage 1's "
                             f"{twin['name']} ({twin['record']}) to {twin['sha256']}: the move is Stage 1's own "
@@ -723,6 +798,11 @@ def _produce_walk(job: _Job, item: Item) -> None:
         sha_look = job.put("look", name, la)
         prov = job.built_by()
     twin, ladder = stage1_walk_twin(body, spec), ladder_twin(body, spec)
+    owed = twin_owed(st, body, name, walk=True)
+    if (twin is None and owed["stage1"]) or (ladder is None and owed["ladder"]):
+        raise GateError(f"{job.set_name} {body} {name}: the set must hold "
+                        + ("Stage 1's own walk" if twin is None and owed["stage1"] else "the look ladder's rung")
+                        + f" under this name and none of the same spec is recorded ({RULES['S2S-twins']})")
     if twin is not None and twin["sha256"] != sha:
         raise GateError(f"{job.set_name} {body} {name}: its Stage 1-format file hashes to {sha}, Stage 1's "
                         f"{twin['name']} ({twin['record']}) to {twin['sha256']}")
@@ -806,7 +886,8 @@ def _step_two(job: _Job, item: Item, p: dict, tried: list, nominal_gone: str | N
     job.out["transitions"][name] = refs._plain(_unavailable(
         name, item.kind, f"{why}; the rung is reached from {nbn} ({other}; fallback step 2)", dict(tried=tried),
         item=item.definition, group=item.group, inputs=job.inputs((p["a"], p["b"], nbn)), set=job.set_name,
-        pass_=False if nominal_gone is None else None, fallback=dict(rule="S2S-fallback", step=2, by=other)))
+        pass_=False if nominal_gone is None else None, fallback=dict(rule="S2S-fallback", step=2, by=other),
+        built_by=job.by))
     return True
 
 
@@ -860,7 +941,8 @@ def _produce_straight(job: _Job, item: Item) -> None:
             gone = refs._plain(dict(gone, reason=f"{gone['reason']}; no change from the neighbouring rung within the "
                                                  "gates", numbers=dict(gone["numbers"], tried=tried),
                                     inputs=job.inputs(item.depends),
-                                    fallback=dict(rule="S2S-fallback", step=3, tried=len(tried))))
+                                    fallback=dict(rule="S2S-fallback", step=3, tried=len(tried)),
+                                    **({} if job.by is None else dict(built_by=job.by))))  # (a change was built)
         job.out["transitions"][name] = gone
         job.note(name, 0.0, "not available: " + gone["reason"])
         return
@@ -886,7 +968,7 @@ def _produce_straight(job: _Job, item: Item) -> None:
         job.out["transitions"][name] = refs._plain(_unavailable(
             name, kind, NO_GATES, dict(tried=tried), item=item.definition, group=item.group,
             inputs=job.inputs(item.depends), set=job.set_name, pass_=False,
-            fallback=dict(rule="S2S-fallback", step=3, tried=len(tried))))
+            fallback=dict(rule="S2S-fallback", step=3, tried=len(tried)), built_by=job.by))
         if blocks:
             job.out["blocks_set"] = f"{name}: {NO_GATES} ({RULES['S2S-fallback']})"
         return
@@ -928,6 +1010,7 @@ def _produce_turns(job: _Job) -> None:
     with s2io.r2():
         rec = moves.pick_stride_factor(job.source(), ga, ra, angle, rate, grid=tuple(c["grid"]),
                                        limit=c["limit_kinematic"], other_margin=c["limit_other_joints_rad"])
+        picked_by = job.built_by()
     rec = refs._plain(dict(rec, walk=bar, walk_sha256=ea["sha256"]))
     job.note(f"stride rule {label}", time.perf_counter() - t0, "tried " + "; ".join(
         f"f {r['f']}: twist {r['left']} / {r['right']}, other "
@@ -960,13 +1043,16 @@ def _produce_turns(job: _Job) -> None:
         name = item.name
         if rec["outcome"] != "frozen":
             why = f"{NO_TWIST}: {rec['reason']}"
+            also = sorted({g for _, fl in built.values() for g in fl["failed"]})
+            if also:  # (the same words for both directions: what the last built pair missed beside the stride rule)
+                why += f"; also outside {', '.join(also)}"
             if direction in built:
                 entry, fl = built[direction]
                 job.out["transitions"][name] = _to_unavailable(job, item, entry, fl, why)
             else:
                 job.out["transitions"][name] = refs._plain(_unavailable(
                     name, item.kind, why, dict(stride_rule="set.json stride_rules[" + label + "]"), item=item.definition,
-                    group=item.group, inputs=job.inputs((bar,)), set=job.set_name, pass_=None))
+                    group=item.group, inputs=job.inputs((bar,)), set=job.set_name, pass_=None, built_by=picked_by))
             references[name] = False
             continue
         entry, fl = built[direction]
@@ -1000,7 +1086,7 @@ def produce(set_name: str, body: str, name: str, root=setio.ROOT) -> dict:
     group = its[name].group if name in its else name
     job = _Job(set_name, body, group, root)
     shutil.rmtree(job.scratch, ignore_errors=True)
-    job.scratch.mkdir(parents=True)
+    job.scratch.mkdir(parents=True)  # (this process's own: scratch_dir)
     kind = job.mine[0].kind
     if kind == "walk":
         _produce_walk(job, job.mine[0])
@@ -1008,6 +1094,8 @@ def produce(set_name: str, body: str, name: str, root=setio.ROOT) -> dict:
         _produce_turns(job)
     else:
         _produce_straight(job, job.mine[0])
+    for e in job.out["transitions"].values():  # every entry of a set carries its margin rule (the plan's A3)
+        e["margin_rule"] = job.st.margin_rule
     return job.out  # (header None: nothing was generated, as for a move whose walk is not a rung; no body was built)
 
 
@@ -1034,16 +1122,23 @@ def _expected(rows: dict, entries: dict, rel: str) -> str | None:
     return row["sha256"]
 
 
-def build_item(set_name: str, body: str, name: str, root=setio.ROOT) -> dict:
+def build_item(set_name: str, body: str, name: str, root=setio.ROOT, owner: int | None = None) -> dict:
     """One item (or its group) in this process: ``produce``, then its arrays moved from the scratch directory into
     place and ``partial/<group>.json`` written.  Returns that partial's content.  On a frozen set a file of an entry
     the latest manifest holds is put in place only when its sha256 is the manifest's; the others are listed under
-    ``mismatch`` and left out."""
+    ``mismatch`` and left out.  ``owner``: the pid of the builder that started the item and holds the set's lock; if
+    the lock names another holder when the arrays are ready (the builder was killed and another took the set over),
+    nothing is put in place and ``SetError`` is raised."""
     s2io.require_one_thread()
     out = produce(set_name, body, name, root)
     d = setio.set_dir(set_name, body, root)
     group = out["item"]
-    scratch = d / PARTIAL / f"{SCRATCH_PREFIX}{group}"
+    scratch = scratch_dir(d, group)
+    try:
+        _held_by(d, owner)
+    except SetError:
+        shutil.rmtree(scratch, ignore_errors=True)
+        raise
     rows = _frozen_rows(d)
     entries = ((_read(d / "refs.json") or {}).get("references", {}) if rows else {})
     out["mismatch"] = []
@@ -1068,10 +1163,10 @@ def build_item(set_name: str, body: str, name: str, root=setio.ROOT) -> dict:
 
 
 def _worker(args) -> str:
-    """A pool worker: one group in a fresh process; the group's name."""
-    set_name, body, group, root = args
+    """A pool worker: one group in a fresh process, for the builder ``owner`` (a pid); the group's name."""
+    set_name, body, group, root, owner = args
     s2io.require_one_thread()
-    build_item(set_name, body, group, root)
+    build_item(set_name, body, group, root, owner=owner)
     return group
 
 
@@ -1153,12 +1248,15 @@ def _same_inputs(docs: dict, entry: dict) -> bool:
     return True
 
 
-def current(d: Path, docs: dict | None, item: Item, rows: dict) -> bool:
+def current(d: Path, docs: dict | None, item: Item, rows: dict, frozen: bool | None = None) -> bool:
     """Whether an item needs no build: its entry holds the definition made now, was built from the walks the set
-    holds now, and its files have the recorded sha256 (an entry with no reference has no file).  An entry of the
-    latest manifest (``rows``) is current when its files are in place: it is never built into the records again."""
+    holds now, and its files have the recorded sha256.  An entry with no reference has no file: it is current while
+    the Stage 2 modules that decided it (``built_by.stage2_modules``) are today's, or the set is frozen (``frozen``;
+    default: whether ``rows`` holds anything).  An entry of the latest manifest (``rows``) is current when its files
+    are in place: it is never built into the records again."""
     if docs is None:
         return False
+    frozen = bool(rows) if frozen is None else frozen
     e = _entry_of(docs, item.kind, item.name)
     if e is None:
         return False
@@ -1167,7 +1265,10 @@ def current(d: Path, docs: dict | None, item: Item, rows: dict) -> bool:
     if e.get("item" if item.kind != "walk" else "definition") != item.definition or not _same_inputs(docs, e):
         return False
     if e.get("available") is False:
-        return True
+        # no array pins it: the verdict is the code's that built it, so other code builds it again (an entry that
+        # follows from its walks alone has no built_by); a frozen set's records are not rebuilt for a change of code
+        by = e.get("built_by")
+        return bool(frozen) or by is None or by.get("stage2_modules") == modules_now()
     return _files_ok(d, e, item.kind == "walk")
 
 
@@ -1196,8 +1297,9 @@ def _write_if_changed(path: Path, doc: dict, old: dict | None, point: str, group
 def merge(d: Path, part: dict, log=print) -> dict:
     """Merge one finished item (a ``partial/<group>.json``'s content) into the set's records and delete the partial.
     An entry the latest manifest holds is never written; an entry whose arrays were reproduced (same definition,
-    same inputs, same sha256) is left as it was, provenance included.  Returns ``{written [...], kept [...],
-    frozen [...]}``."""
+    same inputs, same sha256) is left as it was, provenance included.  The array of a name that holds no reference
+    after the merge (an entry replaced by one with no reference, a fallback's change no longer made) is removed.
+    Returns ``{written [...], kept [...], frozen [...], removed [...]}``."""
     set_name, body, group = part["set"], part["body"], part["item"]
     docs = load_docs(d)
     old = None if docs is None else {k: json.loads(json.dumps(v)) for k, v in docs.items()}
@@ -1207,8 +1309,9 @@ def merge(d: Path, part: dict, log=print) -> dict:
         docs = _new_docs(set_name, body, part["header"])
     rows = setio.frozen(docs["set.json"])
     rows = {} if rows is None else rows["entries"]
-    res = dict(written=[], kept=[], frozen=[])
+    res = dict(written=[], kept=[], frozen=[], removed=[])
     set_doc = docs["set.json"]
+    orphans: list = []  # the files of names that hold no reference after this merge (never a frozen name's)
     for key, target in (("refs", docs["refs.json"]["references"]), ("transitions", docs["transitions.json"]["transitions"])):
         made = part[key]
         if key == "transitions":  # an entry this group made before and does not make now (a fallback's change)
@@ -1216,6 +1319,7 @@ def merge(d: Path, part: dict, log=print) -> dict:
                 del target[name]
                 set_doc["not_available"].pop(name, None)
                 res["written"].append(name)
+                orphans.append(f"transitions/{name}.npz")
         for name, e in made.items():
             if name in rows:
                 res["frozen"].append(name)
@@ -1234,6 +1338,7 @@ def merge(d: Path, part: dict, log=print) -> dict:
             if now.get("available") is False:
                 set_doc["not_available"][name] = dict(reason=now["reason"], numbers=now.get("numbers"))
                 set_doc["look_entries"].pop(name, None)
+                orphans += [f"{key}/{name}.npz"] + ([f"look/{name}.npz"] if key == "refs" else [])
             else:
                 set_doc["not_available"].pop(name, None)
                 if key == "refs" and (set_doc["look_entries"].get(name) or {}).get("sha256") != now["look_sha256"]:
@@ -1254,6 +1359,11 @@ def merge(d: Path, part: dict, log=print) -> dict:
     d.mkdir(parents=True, exist_ok=True)
     for name in ("refs.json", "transitions.json", "set.json"):
         _write_if_changed(d / name, docs[name], None if old is None else old[name], name, group)
+    for rel in orphans:  # (after the records: an entry never names a file this merge removed)
+        if (d / rel).is_file():
+            (d / rel).unlink()
+            res["removed"].append(rel)
+            log(f"{set_name} {body}: removed {rel}: no entry of the set names it any more")
     partial_path(d, group).unlink(missing_ok=True)
     _fail_at("deleted", group)
     for line in part.get("log", []):
@@ -1268,6 +1378,49 @@ def _log_time(d: Path, set_name: str, body: str, what: str, seconds: float, text
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "a", encoding="utf-8") as fh:
         fh.write(f"{s2io.now_utc()} {set_name} {body} {what} seconds={seconds:.1f} {text}\n")
+
+
+def _undo_killed_first_merge(d: Path, log=print) -> None:
+    """A build killed inside the first merge of a new set leaves ``refs.json``, or ``refs.json`` and
+    ``transitions.json``, without ``set.json`` (the three are written in that order) and the merged item's partial.
+    Where every entry of the records left is one a partial still in ``partial/`` made, the records are removed: the
+    partials are merged again from nothing, to the same records.  Any other incomplete set of records is left for
+    ``load_docs`` to refuse."""
+    got = {n: _read(d / n) for n in ("refs.json", "transitions.json", "set.json")}
+    if got["set.json"] is not None or (got["refs.json"] is None and got["transitions.json"] is None):
+        return
+    made: set = set()
+    pdir = d / PARTIAL
+    for p in sorted(pdir.glob("*.json")) if pdir.is_dir() else []:
+        try:
+            part = s2io.read_json(p)
+            if p == partial_path(d, part["item"]):
+                made |= set(part.get("refs", {})) | set(part.get("transitions", {}))
+        except (ValueError, KeyError, TypeError):
+            continue
+    left = (set((got["refs.json"] or {}).get("references", {}))
+            | set((got["transitions.json"] or {}).get("transitions", {})))
+    if not left or not left <= made:
+        return
+    for n in ("refs.json", "transitions.json"):
+        if got[n] is not None:
+            (d / n).unlink()
+            log(f"removed {n}: the first merge of the set was killed before set.json was written; its item is "
+                "merged again")
+
+
+def _frozen_entries_held(d: Path) -> None:
+    """``SetError`` if the latest freeze lists a name that the set's records hold no reference for: a frozen entry
+    is never built into the records again, so nothing can be built for it; the committed record must come back."""
+    docs = load_docs(d)
+    fz = None if docs is None else setio.frozen(docs["set.json"])
+    for name, row in ({} if fz is None else fz["entries"]).items():
+        rec = "refs.json" if row.get("kind") in setio.WALK_KINDS else "transitions.json"
+        e = docs[rec]["references" if rec == "refs.json" else "transitions"].get(name)
+        if e is None or e.get("available") is False:
+            raise SetError(f"{d}: the latest freeze lists {name} and {rec} holds "
+                           + ("no such entry" if e is None else "it as not available")
+                           + ": restore the committed record (nothing is built)")
 
 
 def _partial_ok(d: Path, part: dict, set_name: str, body: str, names: set) -> bool:
@@ -1331,6 +1484,8 @@ def build(set_name: str, body: str, root=setio.ROOT, only=None, procs: int = 2, 
         for p in sorted(pdir.glob(f"{SCRATCH_PREFIX}*")) if pdir.is_dir() else []:
             shutil.rmtree(p, ignore_errors=True)
             log(f"removed a stale scratch directory: {PARTIAL}/{p.name}")
+        _undo_killed_first_merge(d, log=log)
+        _frozen_entries_held(d)
 
         def take(part: dict, how: str) -> None:
             group = part["item"]
@@ -1360,7 +1515,7 @@ def build(set_name: str, body: str, root=setio.ROOT, only=None, procs: int = 2, 
         def run(phase_groups: list) -> None:
             if not phase_groups or res["blocked"]:
                 return
-            jobs = [(set_name, body, g, str(root)) for g in phase_groups]
+            jobs = [(set_name, body, g, str(root), os.getpid()) for g in phase_groups]
             log(f"{set_name} {body}: building {len(jobs)} item(s) with {min(max(1, procs), len(jobs))} process(es): "
                 + ", ".join(phase_groups))
             if procs < 1:
@@ -1368,7 +1523,7 @@ def build(set_name: str, body: str, root=setio.ROOT, only=None, procs: int = 2, 
                     if res["blocked"]:
                         res["skipped"].append(j[2])
                         continue
-                    take(build_item(*j[:3], root=j[3]), "ran")
+                    take(build_item(*j[:3], root=j[3], owner=j[4]), "ran")
                 return
             import multiprocessing as mp
             from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -1563,6 +1718,21 @@ def verify(set_name: str, body: str, root=setio.ROOT) -> dict:
             if by.get("blas_threads") != 1 or by.get("accuracy") != s2io.ACCURACY:
                 bad.append(f"{name}: built with blas_threads {by.get('blas_threads')!r} at accuracy "
                            f"{by.get('accuracy')!r} (1 and {s2io.ACCURACY!r} are required)")
+            if by.get("stage2_modules") != now_modules:  # (item 6: reported, not a failure; nothing is rebuilt here)
+                changed = sorted({Path(k).name for k in set(now_modules) | set(by.get("stage2_modules") or {})
+                                  if now_modules.get(k) != (by.get("stage2_modules") or {}).get(k)})
+                notes.append(f"{name}: built by other code (not rebuilt: "
+                             + ("its verdict is that code's" if e.get("available") is False else
+                                "its arrays are its entry's and were not compared with what today's code builds")
+                             + f"; {', '.join(changed)} moved since)")
+        if e.get("margin_rule") != st.margin_rule:
+            bad.append(f"{name}: its entry's margin_rule is {e.get('margin_rule')!r}, the set's is {st.margin_rule!r} "
+                       "(STAGE2_75_PLAN.md A3; python -m designlab.stage2.sets build in an empty directory)")
+        if kind == "walk" and name in specs:  # (a dropped rung's entry carries its label too)
+            want = st.label_of(body, H, setio.parse_name(name)["speed_m_s"])
+            if e.get("label") != want:
+                bad.append(f"{name}: its entry's label is {e.get('label')!r}, the set's at this speed is {want!r} "
+                           "(STAGE2_75_PLAN.md A2)")
         if item is not None and (e.get("item" if kind != "walk" else "definition") != item.definition
                                  or not _same_inputs(docs, e)):
             bad.append(f"{name}: its entry is not of the definition made now, or was built from another file of its "
@@ -1586,10 +1756,6 @@ def verify(set_name: str, body: str, root=setio.ROOT) -> dict:
             sources.setdefault(source_hash(by), []).append(name)
             if by.get("dirty"):
                 dirty_entries.append(name)
-            if by.get("stage2_modules") != now_modules:
-                changed = sorted({Path(k).name for k in set(now_modules) | set(by.get("stage2_modules") or {})
-                                  if now_modules.get(k) != (by.get("stage2_modules") or {}).get(k)})
-                notes.append(f"{name}: built by other code, arrays identical ({', '.join(changed)} moved since)")
         # ---- item 1: files against entries and the latest manifest
         files = [("file", "sha256")] + ([("look_file", "look_sha256")] if kind == "walk" else [])
         here = True
@@ -1618,6 +1784,14 @@ def verify(set_name: str, body: str, root=setio.ROOT) -> dict:
             _verify_walk(d, name, e, specs.get(name), set_doc, body, here, bad)
         else:
             _verify_move(d, name, e, body, bad, notes)
+        # ---- the entries that must be Stage 1's own files and the look ladder's rungs (A4)
+        owed = twin_owed(st, body, name, walk=kind == "walk")
+        if owed["stage1"] and e.get("equals_stage1") is not True:
+            bad.append(f"{name}: the set must hold Stage 1's own file under this name and its entry's equals_stage1 is "
+                       f"{e.get('equals_stage1')!r} (STAGE2_75_PLAN.md A4)")
+        if owed["ladder"] and e.get("equals_ladder") is not True:
+            bad.append(f"{name}: its look-format file must be the look ladder's rung and its entry's equals_ladder is "
+                       f"{e.get('equals_ladder')!r} (STAGE2_75_PLAN.md A4)")
         # ---- item 5: the screen
         if screen is not None:
             b = blocks.get(name)
@@ -1664,6 +1838,18 @@ def verify(set_name: str, body: str, root=setio.ROOT) -> dict:
     for name in blocks:
         if name not in out["available"]:
             bad.append(f"{name}: screen.json holds a block of a reference the set does not hold")
+    # ---- the twins a body cannot be held to; arrays that no entry lists
+    if st.stage1_twins and not stage1_has(body, "refs.json"):
+        notes.append(f"Stage 1's run holds no record of {body}: {', '.join(st.stage1_twins)} were not compared with "
+                     "Stage 1's files")
+    if st.ladder_twins and not ladder_has(body):
+        notes.append(f"the look ladder holds no rung of {body}: {', '.join(st.ladder_twins)} were not compared with it")
+    listed = {e[k] for _, e in entries.values() if e.get("available") is not False
+              for k in ("file", "look_file") if e.get(k)}
+    for sub_ in ("refs", "look", "transitions"):
+        for f in sorted((d / sub_).glob("*.npz")) if (d / sub_).is_dir() else []:
+            if f"{sub_}/{f.name}" not in listed:
+                notes.append(f"{sub_}/{f.name}: an array that no entry of the set lists (nothing reads it; remove it)")
     # ---- item 4: one crouch; the pull request's function
     crouches = {float(s.crouch) for s in specs.values()}
     if set_doc.get("crouch_frac") is None or {float(set_doc["crouch_frac"])} != crouches:
@@ -1707,7 +1893,7 @@ def verify(set_name: str, body: str, root=setio.ROOT) -> dict:
                          + (", a1_over" if rec.get("a1_over") else ""))
     # ---- the lead-in (RULES["S2S-lead-in"])
     lead, alt = lead_in_of(refs_doc["references"]), setio.start_name(setio.walk_name(setio.BAR_SPEED))
-    if fz is None and set_doc.get("lead_in") != lead and all(n in entries for n in walk_names()):
+    if set_doc.get("lead_in") != lead and all(n in entries for n in walk_names()):
         bad.append(f"set.json records lead_in {set_doc.get('lead_in')!r}, its walks give {lead!r}")
     lead = set_doc.get("lead_in")
     if lead == alt:
@@ -1728,6 +1914,18 @@ def verify(set_name: str, body: str, root=setio.ROOT) -> dict:
     for name in set_doc.get("look_entries") or {}:
         if name not in out["available"]:
             bad.append(f"{name}: set.json holds a look entry of a walk the set does not hold")
+    # ---- the bar's kinematic check of the references (a report; no rule makes it a failure here)
+    rc = refcheck_state(d, docs)
+    if rc is None:
+        notes.append(f"no {REFCHECK} beside the set's records: its references were not played through the bar's own "
+                     "readings (python -m designlab.stage2.bar refcheck --out <the sets' root>)")
+    else:
+        notes += refcheck_lines(rc)
+    cited = (set_doc["freezes"][-1].get("refcheck") if fz is not None else None)
+    if cited and (rc is None or rc["sha256"] != cited.get("sha256")):
+        for cond, x in (cited.get("failing") or {}).items():
+            notes.append(f"the latest freeze cites a refcheck ({cited.get('sha256', '')[:12]}...) in which {cond} FAILS "
+                         f"{', '.join(x.get('fails') or [])}")
     # ---- item 6: provenance
     mixed = len(sources) > 1
     if fz is not None:
@@ -1841,7 +2039,7 @@ def legacy_state() -> dict:
     """``stage2/sets/legacy_check.json`` against today's ``moves.py``: ``{ok, why, sha256}``."""
     doc = _read(LEGACY_CHECK)
     if doc is None:
-        return dict(ok=False, why=f"{s2io.portable(str(LEGACY_CHECK))} is missing", sha256=None)
+        return dict(ok=False, why=f"{s2io.portable(str(LEGACY_CHECK))} is missing", sha256=None, moves_sha256=None)
     why = []
     if doc.get("moves_sha256") != s2io.sha256_file(s2io.module_path("moves.py")):
         why.append("it was made by another moves.py")
@@ -1849,7 +2047,57 @@ def legacy_state() -> dict:
         rec = (doc.get("bodies") or {}).get(b)
         if rec is None or not rec.get("complete") or not all(x.get("equal") for x in rec.get("names", {}).values()):
             why.append(f"{b} is not complete with every transition equal")
-    return dict(ok=not why, why="; ".join(why) or None, sha256=s2io.sha256_file(LEGACY_CHECK))
+    return dict(ok=not why, why="; ".join(why) or None, sha256=s2io.sha256_file(LEGACY_CHECK),
+                moves_sha256=doc.get("moves_sha256"))
+
+
+def refcheck_state(d: Path, docs: dict, path=None) -> dict | None:
+    """The bar's kinematic check of the set's references as a record holds it (``path``; default the set
+    directory's ``refcheck.json``): each reference played with perfect tracking through the bar's own readings, no
+    physics, no verdict.  None where there is no record; else ``{file, sha256, pass_, failing {condition: {fails,
+    toe_clearance_own_swing_H}}, not_run [...], files [...], current, why}``.  ``current``: the record is of this set and body
+    and every file it read has the sha256 its entry records now (``why``: what differs).  This is a report: no rule
+    makes it block a freeze, and what it says of a reference is the lead's to rule on."""
+    path = Path(d) / REFCHECK if path is None else Path(path)
+    if not path.is_file():
+        return None
+    doc = s2io.read_json(path)
+    now = {f"refs/{n}.npz": e.get("sha256") for n, e in docs["refs.json"]["references"].items()}
+    now.update({f"transitions/{n}.npz": e.get("sha256") for n, e in docs["transitions.json"]["transitions"].items()})
+    files = (doc.get("inputs") or {}).get("files") or {}
+    why = []
+    if (doc.get("set"), doc.get("body")) != (docs["set.json"].get("set"), docs["set.json"].get("body")):
+        why.append(f"it is of {doc.get('set')!r} {doc.get('body')!r}")
+    other = sorted(f for f, v in files.items() if now.get(f) is None or now[f] != (v or {}).get("sha256"))
+    if other:
+        why.append(f"{len(other)} of the files it read are not the set's now ({', '.join(other[:4])}"
+                   + (", ..." if len(other) > 4 else "") + ")")
+    if not files:
+        why.append("it read no file")
+    items = doc.get("items") or {}
+    failing = {k: dict(fails=sorted(t for t, ok in (x.get("ok") or {}).items() if not ok),
+                       toe_clearance_own_swing_H=(x.get("toe") or {}).get("toe_clearance_own_swing_H"))
+               for k, x in items.items() if x.get("status") == "done" and not x.get("pass_")}
+    return s2io.plain(dict(file=s2io.portable(str(path.resolve())), sha256=s2io.sha256_file(path),
+                           pass_=bool(doc.get("pass_")), failing=failing,
+                           not_run=sorted(k for k, x in items.items() if x.get("status") != "done"),
+                           files=sorted(files), current=not why, why="; ".join(why) or None))
+
+
+def refcheck_lines(state: dict) -> list[str]:
+    """What a kinematic check says, one line per failing condition (``sets verify``'s notes)."""
+    head = "refcheck (each reference played kinematically through the bar's own readings; no physics)"
+    if not state["current"]:
+        return [f"{head}: {state['file']} is not current: {state['why']} (python -m designlab.stage2.bar refcheck)"]
+    if not state["failing"]:
+        return [f"{head}: every reference that was played passes its own bar item"]
+    out = []
+    for cond, x in state["failing"].items():
+        toe = x.get("toe_clearance_own_swing_H")
+        out.append(f"{head}: {cond} FAILS {', '.join(x['fails'])}"
+                   + ("" if toe is None else f" (own-swing toe clearance {toe:.4g} H)")
+                   + ": the reference itself does not pass this term of its bar item")
+    return out
 
 
 def manifest_of(docs: dict) -> dict:
@@ -1867,9 +2115,15 @@ def manifest_of(docs: dict) -> dict:
 
 
 def freeze(set_name: str, body: str, root=setio.ROOT, allow_mixed: bool = False, allow_dirty: bool = False,
-           change_after_result: str | None = None, log=print) -> dict:
+           change_after_result: str | None = None, log=print, after_check_episodes: str | None = None,
+           before_any_episode: bool = False, refcheck=None) -> dict:
     """Append a freeze to ``set.json`` (``RULES["S2S-freeze"]``) and return it; ``SetError`` when the set cannot be
-    frozen (the reasons, all of them).  A freeze that would add nothing appends nothing and returns the latest."""
+    frozen (the reasons, all of them).  A freeze that would add nothing appends nothing and returns the latest.
+    A later freeze that adds references says when it was made, by exactly one of ``change_after_result`` (a reason:
+    after a registered episode of the round; the label "change after a result", the plan's A13),
+    ``after_check_episodes`` (a reason: after check episodes only, which is no change after a result; rule R4) and
+    ``before_any_episode``.  ``refcheck``: the record of the bar's kinematic check to cite (default: the set
+    directory's ``refcheck.json`` where there is one); it must be of the files being frozen."""
     d = setio.set_dir(set_name, body, root)
     with s2io.Lock(d / ".lock", log=log):
         v = verify(set_name, body, root)
@@ -1895,16 +2149,52 @@ def freeze(set_name: str, body: str, root=setio.ROOT, allow_mixed: bool = False,
                            f"the set now {now['sha256']} (entry {now['entry_sha256'][:12]}...): a changed reference "
                            "takes a new name or a new set version")
         entries = {**docs["refs.json"]["references"], **docs["transitions.json"]["transitions"]}
+        # every entry a build decided, with or without a reference, is of the moves.py the legacy check passed (A4)
+        key = s2io.portable(str(s2io.module_path("moves.py")))
+        other = sorted(n for n, e in entries.items() if e.get("built_by")
+                       and (e["built_by"].get("stage2_modules") or {}).get(key) != leg["moves_sha256"])
+        if other:
+            why.append(f"{len(other)} entries were built by another moves.py than the legacy check's "
+                       f"({', '.join(other[:6])}{', ...' if len(other) > 6 else ''}; STAGE2_75_PLAN.md A4: "
+                       "moves_sha256 is the sha256 of the moves.py that built the sets): build the set again in an "
+                       "empty directory")
         mixed = len({source_hash(entries[n]["built_by"]) for n in manifest if entries[n].get("built_by")}) > 1
         git = s2io.git_state(own_outputs=[str(d)])
         dirty_entries = sorted(n for n in manifest if (entries[n].get("built_by") or {}).get("dirty"))
-        dirty = bool(git["dirty"] or dirty_entries)
+        unknown = git["commit"] is None  # git could not tell: the tree is not known to be clean
+        dirty = bool(git["dirty"] or dirty_entries or unknown)
         if mixed and not allow_mixed:
             why.append("the entries were built from differing source states (--allow-mixed records it and freezes)")
-        if dirty and not allow_dirty:
+        if unknown and not allow_dirty:
+            why.append("git cannot tell the state of the tree (--allow-dirty records it and freezes)")
+        elif dirty and not allow_dirty:
             why.append("the tree is dirty" + (f" ({'; '.join((git['dirty_paths'] or [])[:5])})" if git["dirty"] else "")
                        + (f"; built on a dirty tree: {', '.join(dirty_entries[:6])}" if dirty_entries else "")
                        + " (--allow-dirty records it and freezes)")
+        # when the freeze was made: a later freeze that adds references says so (A13; rule R4)
+        added = sorted(set(manifest) - set(prev))
+        said = [k for k, v in (("--change-after-result", change_after_result),
+                               ("--after-check-episodes", after_check_episodes),
+                               ("--before-any-episode", before_any_episode)) if v]
+        if len(said) > 1:
+            why.append(f"{' and '.join(said)} are given: a freeze was made at one time")
+        if freezes and added and not said:
+            why.append(f"this freeze would add {', '.join(added[:6])}{', ...' if len(added) > 6 else ''} to freeze "
+                       f"{freezes[-1]['index']}: say when it is made, with --change-after-result REASON (after a "
+                       "registered episode of the round: the label 'change after a result', STAGE2_75_PLAN.md A13), "
+                       "--after-check-episodes REASON (after check episodes only: rule R4) or --before-any-episode")
+        # the bar's kinematic check of the references, where there is a record of it: it must be of these files
+        cited = None
+        if refcheck is not None and not Path(refcheck).is_file():
+            why.append(f"{refcheck}: no such refcheck record")
+        elif refcheck is not None or (d / REFCHECK).is_file():
+            cited = refcheck_state(d, docs, refcheck)
+            beyond = sorted(set(cited["files"]) - {f"{'refs' if r['kind'] == 'walk' else 'transitions'}/{n}.npz"
+                                                   for n, r in manifest.items()})
+            if not cited["current"] or beyond:
+                why.append(f"the refcheck record {cited['file']} is not of the files being frozen ("
+                           + (cited["why"] or f"it read {', '.join(beyond[:4])}")
+                           + "): run python -m designlab.stage2.bar refcheck again")
         if why:
             raise SetError(f"{d} is not frozen: " + "; ".join(why))
         if freezes and manifest == prev:
@@ -1912,9 +2202,17 @@ def freeze(set_name: str, body: str, root=setio.ROOT, allow_mixed: bool = False,
             return freezes[-1]
         rec = dict(index=len(freezes), at=s2io.now_utc(), commit=git["commit"], manifest=manifest,
                    manifest_sha256=s2io.sha256_json(manifest), legacy_check_sha256=leg["sha256"],
-                   mixed_sources=bool(mixed), dirty=bool(dirty), added=sorted(set(manifest) - set(prev)))
+                   mixed_sources=bool(mixed), dirty=bool(dirty), added=added)
         if change_after_result:
             rec["change_after_result"] = str(change_after_result)
+        if after_check_episodes:
+            rec.update(after_check_episodes=True, reason=str(after_check_episodes))
+        if before_any_episode:
+            rec["before_any_episode"] = True
+        if cited is not None:
+            rec["refcheck"] = {k: cited[k] for k in ("file", "sha256", "pass_", "failing", "not_run")}
+            for line in refcheck_lines(cited):
+                log(f"{set_name} {body}: {line}")
         set_doc["freezes"] = freezes + [rec]
         s2io.write_json(d / "set.json", set_doc)
         log(f"{set_name} {body}: freeze {rec['index']}: {len(manifest)} entries, manifest {rec['manifest_sha256'][:12]}...")
@@ -1981,7 +2279,15 @@ def main(argv=None) -> int:
         if cmd == "freeze":
             p.add_argument("--allow-mixed", action="store_true")
             p.add_argument("--allow-dirty", action="store_true")
-            p.add_argument("--change-after-result", metavar="REASON")
+            when = p.add_mutually_exclusive_group()
+            when.add_argument("--change-after-result", metavar="REASON",
+                              help="a later freeze made after a registered episode of the round (labelled so)")
+            when.add_argument("--after-check-episodes", metavar="REASON",
+                              help="a freeze made after check episodes only (no change after a result)")
+            when.add_argument("--before-any-episode", action="store_true",
+                              help="a later freeze made before any episode on the set")
+            p.add_argument("--refcheck", metavar="FILE", help="the record of bar refcheck to cite (default: the set "
+                                                              f"directory's {REFCHECK}, where there is one)")
     a = ap.parse_args(argv)
 
     def say(line: str) -> None:
@@ -2012,7 +2318,9 @@ def main(argv=None) -> int:
                 + ("" if r["frozen"] is None else f"; freeze {r['frozen']['index']}"))
             return 0 if r["ok"] else 1
         if a.cmd == "freeze":
-            r = freeze(a.set, a.body, a.root, a.allow_mixed, a.allow_dirty, a.change_after_result, log=say)
+            r = freeze(a.set, a.body, a.root, a.allow_mixed, a.allow_dirty, a.change_after_result, log=say,
+                       after_check_episodes=a.after_check_episodes, before_any_episode=a.before_any_episode,
+                       refcheck=a.refcheck)
             say(json.dumps({k: v for k, v in r.items() if k != "manifest"}, indent=1))
             return 0
         r = status(a.set, a.body, a.root)
