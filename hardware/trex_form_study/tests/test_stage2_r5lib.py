@@ -217,7 +217,8 @@ def test_s1_table_and_inputs(s1):
 @needs_run
 def test_s1_roots():
     assert r5lib.s1_root(BODY) == RUN
-    assert r5lib.s1_root("75-M-H-10-X") == ROOT / "stage2" / "x" and r5lib.s1_root("75-M-H-10-J") == ROOT / "stage2" / "j"
+    assert r5lib.s1_root("75-M-H-10-X") == ROOT / "stage2" / "x"
+    assert r5lib.s1_root("75-M-H-10-J") == ROOT / "stage2" / "j"
 
 
 # ------------------------------------------------------------------------------------------------
@@ -231,8 +232,9 @@ def test_resolved_table_and_absent_tasks_on_a_synthetic_set(t0, t0_root):
     absent = t0.describe()["absent"]
     assert sorted(absent) == sorted(set(T1) - set(have))
     assert absent["turn_0.35_left"] == f"transitions/{ABSENT_TURN}: {ABSENT_REASON}"  # the entry's own reason
-    assert absent["walk_v0.3"] == f"transitions/nominal_to_v0.3: the set has no entry transitions/nominal_to_v0.3"
-    assert "the set has no entry" in absent["inplace_left"] and absent["turn_1_right"].startswith("transitions/turn90_1")
+    assert absent["walk_v0.3"] == "transitions/nominal_to_v0.3: the set has no entry transitions/nominal_to_v0.3"
+    assert "the set has no entry" in absent["inplace_left"]
+    assert absent["turn_1_right"].startswith("transitions/turn90_1")
     assert t0.why_not("refs", "v0.3") == NOTE_V03  # set.json's note where there is no entry
     for name in have:
         t = t0.tasks[name]
@@ -442,7 +444,8 @@ def test_foot_and_head_tables_are_the_played_poses(s1):
     for t in ts:
         kd.qpos[:] = play.q(float(t))
         mujoco.mj_kinematics(p.m, kd)
-        np.testing.assert_allclose(s.foot_rel(float(t)), r5lib.foot_rel_of(kd.xpos, kd.xmat, p.trunk, p.feet), atol=2e-5)
+        foot = r5lib.foot_rel_of(kd.xpos, kd.xmat, p.trunk, p.feet)
+        np.testing.assert_allclose(s.foot_rel(float(t)), foot, atol=2e-5)
         np.testing.assert_allclose(s.head_rp(float(t)), r5lib.head_rp_of(kd.xmat, r5lib.head_body(p), Rh), atol=2e-5)
         np.testing.assert_allclose(kd.qpos[p.qadr], s.track.joint(float(t))[: len(p.joints)], atol=1e-9)
 
