@@ -733,6 +733,15 @@ Jetson body's code is in (`designlab/build.py`, `refine.py`, `power.py`, the Sta
 of tasks 3–4 no module in a key changes; if one must, the affected baseline rows are run again into a new directory and
 both are kept (S2-17); [settled 15 Nov, before any set was frozen] the state-A records stay the registered ones.
 
+[recorded 15 Nov at the freeze; no rule changed] The three sets were frozen one per commit, because a freeze refuses a
+tree that holds another set's uncommitted `set.json`: V0 at `f9be946`, F25F9 at `8eded6c`, F25F9cl at `2c9ecd0` (each
+freeze's `commit` is the commit before the one that records it). **Code state A is `c377ba1`**, the commit that records
+the third freeze. The four commits differ from one another only in the sets' `set.json`; no module, rule or other
+record changes between them. Before it: the legacy check (36 of 36 at the moves.py of the sets) and the closed-loop
+regression (256 of 256 episode runs, full tier, at `872cb12`; every commit from there to state A changes records,
+the chain script, a citation file and these freezes, and no module in a key). Manifests: V0 `34a820e550b6…` (20
+entries), F25F9 `1a5f606feed7…` (12), F25F9cl `cebd3d238b37…` (20). No flag was given to any freeze.
+
 Episodes that the builders run to test the bar's code before task 3's first unit (the build's check episodes on set V0
 under `R0` rows; the smoke of the R2 rows and of the servo-delay wrapper on Stage 1's own run directory; the check of
 the recorder's convention in C3, within those limits; the rate measurement for `COST.md`, on Stage 1's own committed
@@ -863,3 +872,15 @@ Each is written into the rule it concerns, with its label. No closed-loop episod
    0.0393 H, the candidate's quick turn 0.0323 / 0.0316 H, against 0.04 H); A8 made exact (step (2)'s change has one
    stride of ramp); A11 made exact (each direction of a turn is judged on its own built reference); A12 noted (two
    acceleration readings in the records, both far inside the limit).
+10. After the independent review of the sets' fix round (two reviewers; before the freeze; prescribed motion only), no
+   rule changed. (a) The chain's reference-check step: `bar refcheck` ends with exit 1 when a reference fails a term
+   of its own item, which item 9 states as an expectation; the step now passes when the check's record equals, item
+   for item and input for input, the one committed beside the set and cited by its freeze (`run_75cm.sh`, in no
+   record's key). (b) The runner's `summary` output is its log: its row lines carry a set's lead-in label and its
+   verdict lines do not. The tables of A8's "every table that prints its rows" are `barreport`'s, which label every
+   line of such a set. (c) C3's "the report prints the reference's own reading beside the measured one" binds the
+   tables too: `barreport` (in no record's key) reads the cited `refcheck.json` for it before the tables are made.
+   (d) Left open, in no key and not needed today: a later freeze after `moves.py` has changed (the tie to the legacy
+   check's `moves.py` should read the entries a freeze adds); a freeze does not yet check which `bar.py` made the
+   reference check it cites, nor that the screen was made by today's `setscreen.py` (both hold on the three sets as
+   frozen: checked by the reviewers).
