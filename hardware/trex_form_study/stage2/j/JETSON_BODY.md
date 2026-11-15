@@ -140,9 +140,12 @@ pins the registry's exact set and fails otherwise), `round2/refine/refine.json` 
 - **`stage2/jetson75/budget_75.json`** hashes `build.py` and `refine.py`, so it was regenerated with this branch's
   `stage2/jetson75/budget_75.py`: against the merge base, those two hashes in its `inputs` changed and nothing else.
   **At the merge this file needs care.** The base branch has since rewritten `budget_75.py`, its record and its test
-  (P31), so this branch's copy is the older script's output. Take the three-way merge result for the file (neither
-  side's copy), then on the merged tree run `python stage2/jetson75/budget_75.py` and
-  `python -m pytest tests/test_stage2_budget75.py`, and commit the record if it changed.
+  (P31), so this branch's copy is the older script's output, and it is the one file both sides changed. Take the
+  three-way merge result for the file (neither side's copy), then on the merged tree run
+  `python stage2/jetson75/budget_75.py` and `python -m pytest tests/test_stage2_budget75.py`, and commit the record if
+  it changed. A trial merge with the base tip `89111c3` (`git merge-tree`, nothing checked out) has no conflict. Its
+  `budget_75.json` is the base's file with this branch's two hashes; in a scratch copy of that tree the base's script
+  regenerates it byte for byte and the test passes (17 passed).
 
 ## 3. What a checkout needs
 
