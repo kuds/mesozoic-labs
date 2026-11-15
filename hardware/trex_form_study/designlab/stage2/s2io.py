@@ -216,15 +216,15 @@ def write_npz(path, arrays: dict, compressed: bool = False) -> str:
 
 
 def sweep_tmp(root) -> list[str]:
-    """Remove every ``*.tmp`` file below ``root`` (what a killed writer left); their paths relative to ``root``.
-    Call it holding the directory's ``Lock``: a live writer's temporary file looks the same."""
+    """Remove every ``*.tmp`` file below ``root`` (what a killed writer left); their paths relative to ``root``,
+    sorted.  Call it holding the directory's ``Lock``: a live writer's temporary file looks the same."""
     root = Path(root)
     out = []
-    for p in sorted(root.rglob("*.tmp")):
+    for p in root.rglob("*.tmp"):
         if p.is_file() and not p.is_symlink():
             p.unlink()
             out.append(p.relative_to(root).as_posix())
-    return out
+    return sorted(out)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -407,11 +407,10 @@ def git_state(own_outputs=()) -> dict:
         lines = [x for x in _git("status", "--porcelain", "--untracked-files=all", "--", ".").splitlines() if x.strip()]
     except (OSError, subprocess.CalledProcessError):
         return dict(commit=None, dirty=None, dirty_paths=None)
-    own = [(Path(o) if Path(o).is_absolute() else STUDY / o) for o in own_outputs]
-    own = [Path(os.path.normpath(o)) for o in own]
+    own = [Path(os.path.realpath(o if Path(o).is_absolute() else STUDY / o)) for o in own_outputs]
 
     def is_own(rel: str) -> bool:
-        p = Path(os.path.normpath(top / rel))
+        p = Path(os.path.realpath(top / rel))
         return any(p == o or o in p.parents for o in own)
 
     out["dirty_paths"] = [x for x in lines if not all(is_own(p) for p in _status_paths(x))]
