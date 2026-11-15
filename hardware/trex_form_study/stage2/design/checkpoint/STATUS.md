@@ -38,6 +38,45 @@ Section 6's point 10, added the same night and ruled: the quick turn's hip roll 
 stride factor 0.8, under A12's 0.10 rad; A12 stands and the stride rule (A11) now reads it too, so V0's turn is
 expected at factor 0.70 (`../hiproll_scan.json`).
 
+## Update, 15 Nov, 14:15 UTC: the limit was hit at 07:36 UTC; the owner reset it; work resumed at 13:56
+
+- **The limit.** The account's Fable limit was reached at 07:36 UTC, when the lead's highest estimate of the meter
+  read 87 %: the estimate from transcripts was 13 points low, and the 90 % ceiling was not held. The owner confirmed
+  100 % and reset the meter before 13:56 UTC.
+- **The meter to use.** `get_session` reports the session's cost at API prices (`external_metadata.usage.cost_usd`):
+  1,358 USD at 13:57 UTC. Against the owner's readings (46 % at 03:58, the limit at 07:36) one week of allocation is
+  about 610 USD, so 1 % is about 6.1 USD and the session had used about 2.2 weeks. `usage_watch.py`'s token
+  estimates are not to be trusted beyond a few minutes.
+- **What was cut off.** Round A's set builder (S: V0 on 75-M-H-10 built, screened and verified, uncommitted; F25F9
+  and F25F9cl not built), its table fixer (T: a first commit of fixes, the rest uncommitted, one test red) and the
+  look sets' builder (L: V6 on both bodies and V6noF5 on 75-M-H-10 committed; V6noF5 on 60-N-T-10 and a head-body
+  probe uncommitted). Neither S nor L has been reviewed. The workflows ended; they can be resumed by run id
+  (`wf_4b831ec4-af2`, `wf_83a16354-c85`), which runs the cut-off agents again from the start.
+- **What the lead does by hand from here** (CPU work without agents; agents only where independence is required):
+  the builds of F25F9 and F25F9cl on 75-M-H-10 with the set builder's own commands, started at 14:05 UTC.
+- **A result that goes to the owner (rule A11).** V0's turns from 0.40 m/s on 75-M-H-10, as built under the rules as
+  amended: 0.35 rad/s has a reference (stride factor 1.0, every gate passed); 0.5 rad/s has none (factor 0.9;
+  `join_command`: warm-up ZMP 2.76 mm against 2.0 mm); the quick turn at pi/4 rad/s has none (factor 0.70, hip-roll
+  margin 0.106 rad, thigh twist 0.71; `join_command`: warm-up ZMP 2.26 mm against 2.0 mm; first-stride consistency
+  2.63 mm against 2.5 mm after the sixth pass, still falling by a fifth per pass); 1.0 rad/s has none (no factor
+  keeps 0.10 rad of hip roll). The warm-up ZMP reads 1.35 mm at factor 1.0, so it moves with the grid and not with
+  the motion (the warm-up CoM is within 0.04 mm in every case).
+
+## Update, 15 Nov, 06:30 UTC: round A's four fixed packages are merged
+
+M, G, C and B came back from their fixers and are merged into the working branch (`4ef2674`, `2d9adef`, `2b12c13`,
+`dd6b372`); their reports are in `reviews/`. The set builder (S) and the table builder (T) are building; the look
+sets' build is still running. The usage estimate is 69 % (the ceiling until the owner's reset is 90 %).
+
+- Known red until code state A: `test_legacy_check_record_is_current` (the set builder's edit to `moves.py` comes
+  first) and `test_regress_record_is_current` (the record was made before the merges). Both records are made again at
+  state A.
+- The lead checked C3 as amended against an implementation of his own: 1,500 of 1,500 random traces equal
+  (`../lead_c3_check.py`).
+- Ruled for the set builder's fix round: A12's acceleration gate on a move reads the entry's value under A7 as
+  amended, and the screen and the readings module give the same number (`../WP_S.md`, addendum 3).
+- Sections 3 and 6 below are superseded where they name M, G, C or B as unmerged or points 1 to 5 and 8 as open.
+
 ## 1. Why the session stopped launching work
 
 - The owner's usage meter read 46 % at 04:00 UTC on 15 Nov, after one reset from 99 % to 0 % during this session; the

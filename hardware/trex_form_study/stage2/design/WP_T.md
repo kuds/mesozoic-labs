@@ -155,3 +155,22 @@ this brief has the rulings as given to the fixers). For the tables:
   never a blank and never a fail of the robot.
 - `COST.md`'s rates are measured after a warm-up episode that is not counted, on episodes that run their full
   length, with the machine's load at the time recorded.
+
+---
+
+## LEAD ADDENDUM 3, 15 Nov, afternoon: WHERE THE FIX ROUND STANDS, AND P34 (for the fixer)
+
+The first fixer was cut off at 07:36 UTC by the account's usage limit. On `wt/wp-t`: `d8f1a53` holds the first part
+of the review's findings. The working tree holds its uncommitted edits to `designlab/stage2/barreport.py` and
+`tests/test_stage2_barreport.py` (tests for findings 4 to 8 were being added); with them one test is red:
+`test_the_inputs_of_the_tables_are_listed_with_their_sha256` (a count of 37 against 38). Start with `git diff` and
+that test, decide for each uncommitted edit whether it is right, and go on from there through the remaining
+findings. Do not start over.
+
+Since then the owner decided P34 (`DECISION_LOG.md`; `STAGE2_75_PLAN.md` A7, A8, A11, A12, last section item 8).
+For the tables: the notes that list the rules amended after a result name A7, A8, A11, A12 and C3 with the plan's
+own labels; every table that prints a row of a set whose `set.json` says `lead_in: "start_v0.4"` (F25F9) carries
+that label on the row or in its notes; a record's `lead_in` is read from the record, not assumed.
+
+Working economically: run each long job as one blocking call or in the background with a single wait, do not poll
+with repeated short calls, and keep tool output short.
