@@ -118,9 +118,10 @@ def row_episode(row, ctx, cond, seed: int) -> dict:
                 fall_cause=out.get("fall_cause"), built=b)
 
 
-def env_episode(e: r5env.R5Env, plan, seconds: float, seeds: dict, friction, k: int, push) -> dict:
+def env_episode(e: r5env.R5Env, plan, seconds: float, seeds: dict, friction, k: int, push, action=None) -> dict:
     """The env's episode with the zero action under 3.7's alignment: ``{digests, terminated_step, fall_cause,
-    env_steps, interference_first_env_step}``."""
+    env_steps, interference_first_env_step}``.  ``action`` replaces the zero action (a test's: any other action
+    must break the comparison)."""
     rows: list = []
     e._step_hook = lambda p: rows.append(env._state_digest(p.d))
     term, cause = None, None
@@ -130,7 +131,7 @@ def env_episode(e: r5env.R5Env, plan, seconds: float, seeds: dict, friction, k: 
             factors=dict(friction=friction, mass=1.0, kp=1.0, joint_damping=1.0, joint_friction=1.0,
                          latency_steps=int(k), noise_scale=1.0),
             push=push, head=None, terminate_on_interference=False))
-        a = np.zeros(e.layout["action_dim"], np.float32)
+        a = np.zeros(e.layout["action_dim"], np.float32) if action is None else np.asarray(action, np.float32)
         while True:
             _, _, terminated, truncated, info = e.step(a)
             if terminated:

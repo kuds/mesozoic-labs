@@ -185,8 +185,8 @@ class R5Env(gym.Env):
             raise ValueError(f"interference {cfg.interference!r}: choose from {', '.join(INTERFERENCE)}")
         if (cfg.start_joint_noise, cfg.start_root_velocity_noise) != (tune.START_JOINT_NOISE_RAD,
                                                                       tune.START_ROOT_VELOCITY_NOISE_M_S):
-            raise ValueError("the start noise is Stage 1's (tune.START_JOINT_NOISE_RAD, START_ROOT_VELOCITY_NOISE_M_S): "
-                             "the bar's rows start with it")
+            raise ValueError("the start noise is Stage 1's (tune.START_JOINT_NOISE_RAD, "
+                             "START_ROOT_VELOCITY_NOISE_M_S): the bar's rows start with it")
         self.p = p = plant.build(cfg.body, cfg.floor)
         m = p.m
         #: The model as built: the plant's nominal model and the controller's model throughout (``env.MASS_RULE``).
@@ -505,7 +505,8 @@ class R5Env(gym.Env):
         lib = self.lib.describe()
         return dict(mode=self.mode, config=self.cfg.describe(), floor=self.cfg.floor,
                     floor_params=self.p.meta.get("floor_params"), settled=settle.get("status"),
-                    tasks={t: dict(lib["tasks"][t], weight=float(w)) for t, w in zip(self.tasks, self.task_w, strict=True)},
+                    tasks={t: dict(lib["tasks"][t], weight=float(w))
+                           for t, w in zip(self.tasks, self.task_w, strict=True)},
                     absent=lib["absent"], inputs=lib["inputs"], set_freeze=(lib["inputs"]["freeze"] or {}).get(
                         "manifest_sha256"), omega=lib["omega"], crouch_frac=lib["crouch_frac"],
                     command_rule=lib["command_rule"], core=self.core.describe(), layout=self.layout,

@@ -12,12 +12,15 @@ holds its last frame), because a clock up to 25 % fast passes the end of a plan 
 * **Commanded heading**: the integral of the commanded yaw rate over reference time from the track's start.
 * **Phase** in [0, 1), 0 at a left lift-off: a periodic file's own ``phase`` where it holds one (a K-stride
   window), else the local time over the entry's stride period; a move's own ``phase`` over its frame times; 0 in a
-  hold.  ``stride_s``, ``swing_s`` (the planned swing of the gait in force), ``walking``, ``steady``, ``support``
-  and ``mid_swing`` come from the same frames (the track's own ``swing``, ``u``, ``anchor`` and ``stand``).
+  hold.  ``stride_s``, ``walking``, ``steady``, ``support`` and ``mid_swing`` come from the same frames (the
+  track's own ``swing``, ``u``, ``anchor`` and ``stand``).  ``swing_s`` is the planned length of the reference's
+  swing in progress, else of its next one (``setio.planned_swings``: joined across segments), so that inside a
+  change of gait each swing has its own length.
 * **Start states**: each file's full ``q`` and ``qd`` per frame; ``start_state(t)`` is the frame at or before
   ``t``.  ``mid_spans`` are where a mid-task start may land (rule T3): never in a hold.
 * **Reward references** by forward kinematics of each file frame on the plant's model: the feet relative to the
-  root in the root's heading frame and the head body's roll and pitch about home.
+  root in the root's heading frame, the head body's roll and pitch about home and, for a periodic walk, the CoM's
+  progress along the walk's own stride direction (``walk_progress``).
 * **Required joint-range margin**: decision 14's, as ``bar.BarContext.built`` computes it; it never exceeds what
   the reference itself keeps.
 
@@ -33,6 +36,7 @@ and round A's ``setio`` and ``s2io``; never ``bar``, ``r5core`` or ``r5env``.
 
 from __future__ import annotations
 
+import bisect
 import math
 from dataclasses import dataclass
 
@@ -260,7 +264,7 @@ class _Seg:
 
     __slots__ = ("kind", "name", "t0", "duration", "step", "n", "t", "nf", "v", "w", "pulse_s", "turn", "heading0",
                  "stride_s", "period", "swing_s", "phase", "swing", "u", "anchor", "stand", "foot_rel", "head_rp",
-                 "q", "qd", "walk")
+                 "q", "qd", "walk", "along")
 
 
 def _unwrapped(ph: np.ndarray) -> np.ndarray:
@@ -290,6 +294,9 @@ class Script:
         self._i = 0
         self._lt, self._lv = None, None
         self.has_turn = any(s.turn for s in self._segs)
+        #: The track's planned swings on the reference clock (start, end), in order.
+        sw = sorted((t0, t1) for _, t0, t1 in setio.planned_swings(track))
+        self._sw0, self._sw1 = [a for a, _ in sw], [b for _, b in sw]
         nj = len(p.joints)
         m = p.m
         jid = [mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn) for jn in p.joints]
@@ -299,8 +306,8 @@ class Script:
         #: ``plant.REST_ON_STOP_RULE``), and decision 14's required margin.
         self.ref_margin = metrics.joint_margins(q, lo, hi, plant.rest_ends(p.joints))
         if self.has_turn:
-            self.required_margin = np.maximum(np.minimum(tune.WALK_RANGE_RAD, self.ref_margin - tune.TURN_RANGE_SLACK_RAD),
-                                              tune.AT_LIMIT_RAD)
+            self.required_margin = np.maximum(
+                np.minimum(tune.WALK_RANGE_RAD, self.ref_margin - tune.TURN_RANGE_SLACK_RAD), tune.AT_LIMIT_RAD)
         else:
             self.required_margin = np.minimum(tune.WALK_RANGE_RAD, self.ref_margin)
         self._ref_yaw0 = float(track.info(0.0)[1]["yaw"])
@@ -371,7 +378,15 @@ class Script:
         return s.stride_s if s.kind == PERIODIC else float(s.period[k0])
 
     def swing_s(self, t_ref: float) -> float:
-        return self._loc(t_ref)[0].swing_s
+        """The planned length (reference s) of the reference's swing in progress at ``t_ref``, else of its next
+        swing, else of its last; a track that plans no complete swing gives its segment's gait's."""
+        t0s = self._sw0
+        if not t0s:
+            return self._loc(t_ref)[0].swing_s
+        i = bisect.bisect_right(t0s, t_ref) - 1
+        if i < 0 or (t_ref >= self._sw1[i] and i + 1 < len(t0s)):
+            i += 1
+        return self._sw1[i] - t0s[i]
 
     def walking(self, t_ref: float) -> bool:
         s, _, k0, _ = self._loc(t_ref)
@@ -385,6 +400,24 @@ class Script:
     def steady(self, t_ref: float) -> bool:
         s, tl, _, _ = self._loc(t_ref)
         return bool(s.walk and tl >= s.stride_s)
+
+    def walk_progress(self, t_a: float, t_b: float) -> float:
+        """How far the reference's CoM moves along its own stride direction from reference time ``t_a`` to
+        ``t_b``, both taken inside the periodic walking segment ``t_b`` lies in (``t_a`` no earlier than its first
+        frame); 0.0 outside such a segment."""
+        s, tl, k0, a = self._loc(t_b)
+        if not s.walk:
+            return 0.0
+        window = s.n * s.step
+
+        def at(x: float) -> float:
+            y = x / s.step
+            f = math.floor(y)
+            k = int(f) % s.n
+            a = y - f
+            return math.floor(x / window + 1e-12) * s.along[-1] + (1.0 - a) * s.along[k] + a * s.along[k + 1]
+
+        return at(tl) - at(max(t_a - s.t0, 0.0))
 
     def contact_ref(self, t_ref: float) -> tuple[bool, bool, bool, bool]:
         """(left support, right support, left in mid-swing, right in mid-swing) of the reference: the frame at or
@@ -593,6 +626,25 @@ class Library:
             self._fk[key] = fk_tables(self.p, self._load(item).q, self.R_head_home)
         return self._fk[key]
 
+    def _along_of(self, item) -> np.ndarray:
+        """[n + 1]: a periodic walk's CoM progress along its own stride direction per frame, from its first frame;
+        the last entry is one window's advance (``stride_motion``)."""
+        key = ("along", item[1])
+        if key not in self._fk:
+            ref, p = self._load(item), self.p
+            adv = np.asarray(ref.stride_motion, float)[3:5]
+            length = float(np.hypot(adv[0], adv[1]))
+            e = adv / length if length > 0.0 else np.array([1.0, 0.0])
+            kd = mujoco.MjData(p.m)
+            com = np.empty((len(ref.q), 2))
+            for k in range(len(ref.q)):
+                kd.qpos[:] = ref.q[k]
+                mujoco.mj_kinematics(p.m, kd)
+                mujoco.mj_comPos(p.m, kd)
+                com[k] = kd.subtree_com[p.trunk][:2]
+            self._fk[key] = np.concatenate([(com - com[0]) @ e, [length]])
+        return self._fk[key]
+
     @property
     def inputs(self) -> dict:
         """What the scripts built so far read: per file its sha256 and its entry's hashed subset, the freeze that
@@ -680,7 +732,7 @@ class Library:
             s.step, s.n, s.t, s.nf = float(seg.step), int(seg.n), seg.t, 0
             s.swing, s.u, s.anchor, s.stand = (seg.info[k] for k in ("swing", "u", "anchor", "stand"))
             s.period = np.asarray(seg.info["period"], float)
-            s.turn, s.pulse_s, s.walk, s.phase, s.q, s.qd = False, 0.0, False, None, None, None
+            s.turn, s.pulse_s, s.walk, s.phase, s.q, s.qd, s.along = False, 0.0, False, None, None, None, None
             if s.kind == PERIODIC:
                 e = self.refs_doc[item[1]]
                 s.v, s.w = _num(e.get("speed_m_s")), _num(e.get("yaw_rate_rad_s"))
@@ -694,6 +746,7 @@ class Library:
                 foot, rp = self._fk_of(item)
                 s.foot_rel, s.head_rp = np.concatenate([foot, foot[:1]]), np.concatenate([rp, rp[:1]])
                 s.q, s.qd = obj.q, obj.qd
+                s.along = self._along_of(item) if s.walk else None
             elif s.kind == FINITE:
                 e = self.tr_doc[item[1]]
                 a, b = (e.get("gaits") or {}).get("a") or {}, (e.get("gaits") or {}).get("b") or {}
@@ -702,7 +755,8 @@ class Library:
                 if turn is not None and turn.get("angle_rad") is not None and turn.get("rate_rad_s"):
                     sign = -1.0 if turn.get("direction") == "right" else 1.0
                     w0 = abs(float(turn["rate_rad_s"]))
-                    s.turn, s.v, s.w, s.pulse_s = True, _num(a.get("speed")), sign * w0, abs(float(turn["angle_rad"])) / w0
+                    s.turn, s.v, s.w = True, _num(a.get("speed")), sign * w0
+                    s.pulse_s = abs(float(turn["angle_rad"])) / w0
                 else:
                     s.v, s.w = _num(b.get("speed")), _num(b.get("yaw_rate"))
                 g = b if _num(b.get("period")) > 0.0 else a
@@ -713,7 +767,8 @@ class Library:
                 ph = np.asarray(obj.arrays["phase"], float)
                 s.phase = np.concatenate([ph, [ph[-1] + (ph[-1] - ph[-2]) * dt_last / own]])
                 foot, rp = self._fk_of(item)
-                nxt = self._fk_of(plan[i + 1]) if i + 1 < len(plan) and plan[i + 1][0] != "hold" else (foot[-1:], rp[-1:])
+                joined = i + 1 < len(plan) and plan[i + 1][0] != "hold"
+                nxt = self._fk_of(plan[i + 1]) if joined else (foot[-1:], rp[-1:])
                 s.foot_rel, s.head_rp = np.concatenate([foot, nxt[0][:1]]), np.concatenate([rp, nxt[1][:1]])
                 s.q, s.qd = obj.q, obj.qd
             else:

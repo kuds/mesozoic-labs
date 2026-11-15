@@ -118,10 +118,13 @@ REWARD_RULE = (
     "contact (load above 2 % of the true weight) equals the reference's support at the clock or 24 ms x the clock "
     "rate earlier.  head: exp(-((roll - roll_ref)^2 + (pitch - pitch_ref)^2) / (3 deg)^2) of the head body in the "
     "world about home.  Penalties: duty (Stage 1's: each foot's contact share over the last stride outside "
-    "0.55-0.65, or 0.55-0.72 while the commanded speed is below 0.30 m/s, over 0.05, while the reference walks); "
-    "slip, flight, impact, tilt (Stage 1's); clearance, the larger of (a) for a foot in the air between 25 % and "
-    "75 % of the planned swing time since its own lift-off (on the reference clock) and lower than 0.04 H, the "
-    "shortfall over 0.04 H, and (b) 1 if in any physics step of the env step a foot is loaded while the reference "
+    "0.55-0.65, or 0.55-0.72 while the commanded speed is below 0.30 m/s, over 0.05, while the reference walks; a "
+    "foot is read only where the reference's own share for it over the same stride lies inside the band, so that "
+    "a start, a stop or a change, where the reference itself is outside, is not charged); slip, flight, impact, "
+    "tilt (Stage 1's); clearance, the larger of (a) for a foot in the air between 25 % and 75 % of the planned "
+    "length of the reference's swing in progress (else of its next) since its own lift-off, on the reference "
+    "clock, and lower than 0.04 H, the shortfall over 0.04 H, and (b) 1 if in any physics step of the env step a "
+    "foot is loaded while the reference "
     "has that foot in mid-swing both at the clock and 24 ms x the clock rate earlier; action_rate: min(1, mean_i "
     "(a_i - a_prev_i)^2 / 0.25) on the clipped actions; touchdown: in a step in which a foot's contact begins, "
     "min(1, max(0, v_down - 0.15 m/s) / 0.30 m/s), v_down the foot body's downward speed one physics step before; "
@@ -129,9 +132,12 @@ REWARD_RULE = (
     "constant 1.0 s), min(1, max_d max(0, RMS_d / sustained_d - 1) / 0.5); interference: clip((3 mm - g) / 3 mm, "
     "0, 1), g the smallest distance over the moving left-to-right leg pairs; progress: only while the script is "
     "one stride or more into a periodic walking segment with a positive command and the mean has run one stride, "
-    "min(1, max(0, 1 - v_bar / (rate x v_cmd)) / 0.10), v_bar the bias-corrected exponential mean (time constant: "
-    "the stride period over the clock rate; restarted at the segment's first frame) of the CoM's speed along the "
-    "commanded heading; heading: clip((|yaw - yaw_home - commanded heading(c)| - 3 deg) / 17 deg, 0, 1) on the "
+    "min(1, max(0, (v_ref_bar - v_bar) / (rate x v_cmd)) / 0.10), v_bar the bias-corrected exponential mean (time "
+    "constant: the stride period over the clock rate; restarted at the segment's first frame) of the CoM's speed "
+    "along the commanded heading and v_ref_bar the same mean of the reference's own CoM speed along its stride "
+    "direction at the commanded clock rate over the same steps (its stride mean is rate x v_cmd; a playback's "
+    "speed ripple then charges nothing); heading: clip((|yaw - yaw_home - commanded heading(c)| - 3 deg) / 17 deg, "
+    "0, 1) on the "
     "true yaw, zero in a hold; range: min(1, max_j max(0, required_j - margin_j) / 0.02 rad), margin the true "
     "joint's distance to its nearer limit (an end a joint rests on by design is none), required the script's.  "
     "progress, heading and range are beyond plan B.1's list (rule W5)")
@@ -303,7 +309,7 @@ class Core:
         cfg = dict(cfg_core)
         self.p, self.lg = p, lg
         m = p.m
-        self.nj = nj = len(p.joints)
+        self.nj = len(p.joints)
         self.heading_input = bool(cfg.get("heading_input", True))
         self.layout = layout(p.joints, self.heading_input)
         self.rate = float(cfg.get("rate", 1.05))
@@ -375,7 +381,7 @@ class Core:
         self._v_down = [0.0, 0.0]
         self._servo_m = np.zeros(len(self._servo))
         self._servo_t = 0.0
-        self._vb = self._vb_t = 0.0
+        self._vb = self._vb_ref = self._vb_t = 0.0
         self._vb_key = self._vb_c0 = None
         self._hist_contact = deque(maxlen=HISTORY_STEPS)
         self._gap = (0.0, False, None)
@@ -384,7 +390,7 @@ class Core:
 
     def _new_step(self) -> None:
         self._grf, self._flight, self._match, self._drag, self._td = 0.0, 0, 0, False, 0.0
-        self._cont = [0, 0]
+        self._cont, self._rcont = [0, 0], [0, 0]
 
     def set_history(self, actions3: np.ndarray, filter_state: np.ndarray) -> None:
         """An R6 mid-task start (design D8): the three-action history (newest first) and the filter's state."""
@@ -542,6 +548,8 @@ class Core:
         s = self.script
         r = s.contact_ref(c)
         b = s.contact_ref(c - self._lag if c > self._lag else 0.0)
+        self._rcont[0] += r[0]
+        self._rcont[1] += r[1]
         self._match += (now[0] == r[0] or now[0] == b[0]) + (now[1] == r[1] or now[1] == b[1])
         if (now[0] and r[2] and b[2]) or (now[1] and r[3] and b[3]):
             self._drag = True
@@ -620,13 +628,16 @@ class Core:
         t["head"] = math.exp(-float(d_head @ d_head) / math.radians(sc["head_deg"]) ** 2)
         # --- penalties
         v_cmd, _ = s.command(c)
-        self._hist_contact.append((self._cont[0] / SUBSTEPS, self._cont[1] / SUBSTEPS))
+        self._hist_contact.append((self._cont[0] / SUBSTEPS, self._cont[1] / SUBSTEPS, self._rcont[0] / SUBSTEPS,
+                                   self._rcont[1] / SUBSTEPS))
         t["duty"] = 0.0
         n = max(1, int(round(s.stride_s(c) / self.rate / self.dt_env)))
         if s.walking(c) and len(self._hist_contact) >= n:
             lo, hi = sc["duty_band_slow"] if v_cmd < sc["duty_slow_below_m_s"] else sc["duty_band"]
-            duty = np.mean(np.array(self._hist_contact)[-n:], axis=0)
-            t["duty"] = min(1.0, float(np.sum(np.maximum(0.0, np.maximum(lo - duty, duty - hi)))) / sc["duty_over"])
+            share = np.mean(np.array(self._hist_contact)[-n:], axis=0)
+            duty, ref_duty = share[:2], share[2:]
+            over = np.where((ref_duty >= lo) & (ref_duty <= hi), np.maximum(0.0, np.maximum(lo - duty, duty - hi)), 0.0)
+            t["duty"] = min(1.0, float(np.sum(over)) / sc["duty_over"])
         weight = self.weight_true
         loads = p.foot_loads()
         heavy = [i for i in (0, 1) if loads[i] > sc["slip_load_frac"] * weight]
@@ -675,25 +686,31 @@ class Core:
         return float(r), t
 
     def _progress(self, c: float, clock0: float, step_xy, v_cmd: float) -> float:
-        """Rule W5's ``progress``: the mean is restarted at the first frame of each periodic walking segment (and
-        starts with the episode inside one) and is read once it has run one stride of reference time."""
+        """Rule W5's ``progress``: the two means are restarted at the first frame of each periodic walking segment
+        (and start with the episode inside one) and are read once they have run one stride of reference time.  The
+        reference's sample is its own CoM speed over the reference time the step covered, at the commanded clock
+        rate: a clock held slow covers less of it per step and is charged in full."""
         s = self.script
         key = s.walk_start(c)
         if key is None:
             self._vb_key = None
             return 0.0
         if key != self._vb_key:
-            self._vb_key, self._vb, self._vb_t, self._vb_c0 = key, 0.0, 0.0, clock0
+            self._vb_key, self._vb, self._vb_ref, self._vb_t, self._vb_c0 = key, 0.0, 0.0, 0.0, clock0
         stride = s.stride_s(c)
         tau = stride / self.rate
         h = self.yaw_home + s.heading(c)
         along = float(step_xy[0] * math.cos(h) + step_xy[1] * math.sin(h)) / self.dt_env
-        self._vb += (1.0 - math.exp(-self.dt_env / tau)) * (along - self._vb)
+        c_a = max(clock0, key)
+        ref = self.rate * s.walk_progress(c_a, c) / (c - c_a) if c > c_a else self.rate * v_cmd
+        a = 1.0 - math.exp(-self.dt_env / tau)
+        self._vb += a * (along - self._vb)
+        self._vb_ref += a * (ref - self._vb_ref)
         self._vb_t += self.dt_env
         if not (v_cmd > 0.0 and s.steady(c) and c - self._vb_c0 >= stride):
             return 0.0
-        v_bar = self._vb / (1.0 - math.exp(-self._vb_t / tau))
-        return min(1.0, max(0.0, 1.0 - v_bar / (self.rate * v_cmd)) / REWARD_SCALES["progress_short"])
+        short = (self._vb_ref - self._vb) / (1.0 - math.exp(-self._vb_t / tau)) / (self.rate * v_cmd)
+        return min(1.0, max(0.0, short) / REWARD_SCALES["progress_short"])
 
     def describe(self) -> dict:
         """What an episode executes of this core, for the env's description and a row's key (no measured value)."""
