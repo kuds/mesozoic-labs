@@ -161,10 +161,16 @@ def episodes_of(case: dict) -> list[tuple[str, str, int]]:
     return [(row, cond, seed) for row in case["rows"] for cond in case["conditions"] for seed in case["seeds"]]
 
 
-def committed_record(case: dict, row: str, condition: str) -> Path:
-    """``<run>/<body>/eval/<row>/<behavior>/<condition>.json`` of a case's row and condition ("turn/x"), committed."""
+def record_name(case: dict, row: str, condition: str) -> str:
+    """``<run>/<body>/eval/<row>/<behavior>/<condition>.json`` of a case's row and condition ("turn/x"): the
+    committed record, relative to the study directory."""
     behavior, name = condition.split("/", 1)
-    return STUDY / case["run"] / case["body"] / "eval" / row / behavior / f"{name}.json"
+    return f"{case['run']}/{case['body']}/eval/{row}/{behavior}/{name}.json"
+
+
+def committed_record(case: dict, row: str, condition: str) -> Path:
+    """The committed record of a case's row and condition (``record_name``)."""
+    return STUDY / record_name(case, row, condition)
 
 
 def command(case: dict, out) -> list[str]:
@@ -264,13 +270,14 @@ def _tracked_below(path: Path) -> bool:
 # Comparing one case
 # ------------------------------------------------------------------------------------------------
 def differing(a, b, path: str = "", limit: int = 12) -> list[str]:
-    """The paths at which two JSON values differ (canonical JSON, ``RULE``), at most ``limit`` of them."""
+    """The paths at which two JSON values differ (canonical JSON, ``RULE``), at most ``limit`` of them; a key only
+    ``a`` (the committed value) holds is "missing", one only ``b`` (the regenerated value) holds is "added"."""
     if isinstance(a, dict) and isinstance(b, dict):
         out = []
         for k in list(a) + [k for k in b if k not in a]:
             here = f"{path}.{k}" if path else str(k)
             if k not in a or k not in b:
-                out.append(f"{here} ({'missing' if k not in a else 'added'})")
+                out.append(f"{here} ({'added' if k not in a else 'missing'})")
             else:
                 out += differing(a[k], b[k], here, limit)
             if len(out) >= limit:
@@ -318,7 +325,7 @@ def compare_case(case: dict, out) -> list[dict]:
             cache[row, condition] = (_episodes_by_seed(old_path), _episodes_by_seed(new_path))
         (old, old_why), (new, new_why) = cache[row, condition]
         e = dict(case=case["id"], run=case["run"], body=case["body"], row=row, condition=condition, seed=int(seed),
-                 record=s2io.portable(str(old_path)), trace_sha256=None, recorded=None, trace_equal=False,
+                 record=record_name(case, row, condition), trace_sha256=None, recorded=None, trace_equal=False,
                  record_equal=False)
         notes = []
         eo, en = old.get(seed), new.get(seed)
