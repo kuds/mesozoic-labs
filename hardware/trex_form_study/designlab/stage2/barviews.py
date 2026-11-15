@@ -1243,8 +1243,11 @@ CLIP_RULES = dict(
             "incoming walking line and kept for the whole clip; the look-at point follows the planned root path "
             "(the reference at the reference time the episode's own clock has reached, so that the clock's play "
             "does not move the picture), averaged over one stride, moved to the body's bounding box centre as it "
-            "lies from the root at home and at that centre's height: it does not follow the body's own wobble, and a robot that leaves its planned path "
-            "leaves the picture's centre.  top: a fixed eye straight above the middle of the clip's sweep, high "
+            "lies from the root at home and at that centre's height.  A simulated clip moves that path by one "
+            "constant for the whole clip: the mean, over the clip's seconds, of the simulated root's place from "
+            "its planned place (a robot that drifted off its plan before the clip is then still in the picture). "
+            "Within a clip the cameras do not follow the body: not its wobble, and not a drift from the plan "
+            "during the clip, which shows as the robot leaving the picture's centre.  top: a fixed eye straight above the middle of the clip's sweep, high "
             "enough to hold it, the picture's up along the incoming walking line, the headlight's diffuse part "
             f"lowered to {TOP_HEADLIGHT_DIFFUSE:g} (straight down the model's own washes the floor out)",
     labels=f"first line of every frame: '{SIM_LABEL}' or '{PLAN_LABEL}', never both, the body and the set; second "
@@ -1583,6 +1586,14 @@ def render_clip(kind: str, sv: SetView, cond, pose: dict, span: dict, view: str,
     d_home = box[:2] - model.q_home[:2]  # the bounding box centre from the root at home, in the heading's frame
     off = (math.cos(psi) * d_home[0] + math.sin(psi) * d_home[1], -math.sin(psi) * d_home[0] + math.cos(psi) * d_home[1])
     look = lookat_path(pl, pose["t"], pose["t_ref"], stride, off)
+    shift = np.zeros(2)
+    if kind == "simulated":  # one constant per clip: where the robot is from its planned place, on average
+        P = pl["pose"]
+        sel = (pose["t"] >= span["t0"] - 1e-9) & (pose["t"] <= span["t1"] + 1e-9)
+        tp = P["t"] * bar.RATE
+        plan_xy = np.column_stack([np.interp(pose["t_ref"][sel], tp, P["root_xy"][:, j]) for j in (0, 1)])
+        shift = np.mean(pose["root_xy"][sel] - plan_xy, axis=0) if sel.any() else shift
+        look = look + shift
     n = int(round((span["t1"] - span["t0"] + span["hold_s"]) * FPS)) + 1
     taus = np.arange(n) / FPS
     t_show = np.minimum(span["t0"] + taus, span["t1"])  # (the pose is held after a fall)
@@ -1636,6 +1647,7 @@ def render_clip(kind: str, sv: SetView, cond, pose: dict, span: dict, view: str,
                     up_deg=math.degrees(psi)) if cam_fixed is not None
                else dict(clips.CAMERAS[view], kind="follows the planned root path, averaged over one stride",
                          lookat_height_m=z, lookat_offset_from_root_m=[float(off[0]), float(off[1])],
+                         shift_from_plan_m=[float(shift[0]), float(shift[1])],
                          largest_distance_surface_centre_to_lookat_m=away))
     return dict(file=mp4.name, poster=mp4.stem + ".png", sheet=mp4.stem + "_sheet.png", view=view, kind=kind,
                 bytes=enc["bytes"], sha256=hashlib.sha256(mp4.read_bytes()).hexdigest(), frames=int(n), fps=FPS,

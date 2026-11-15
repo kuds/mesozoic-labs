@@ -708,3 +708,52 @@ def test_one_rendered_frame(request, v0, model):
         assert out.shape == img.shape and np.abs(out[60:80, 12:18].astype(int) - [42, 120, 214]).max() < 3
         assert np.array_equal(out[200:400], img[200:400])  # the picture's middle is untouched by the labels
     assert np.array_equal(cs.m.vis.headlight.diffuse, np.float32([0.55, 0.55, 0.55]))
+
+
+@pytest.mark.skipif(not SLOW, reason="slow: set STAGE2_SLOW=1")
+@needs_set
+def test_clips_of_a_made_up_record_and_the_tree(request, v0, fake_run, tmp_path):
+    """``barviews clips`` on the made-up run directory: the first seed's turn in both views (it is of the majority
+    outcome, so no second episode), a walk that fell, a record that does not exist; nothing written outside views/."""
+    if _render_in_child(request):
+        return
+    run = fake_run["run"]
+    before = {k: v for k, v in tree(run).items() if not k.startswith("views/")}
+    media = tmp_path / "media"
+    with pytest.raises(bv.ViewError):
+        bv.make_clips([("V0", fake_run["ckey"], ROW)], run=run, media=run / "media", out=run / "views")
+    doc = bv.make_clips([("V0", fake_run["ckey"], ROW), ("V0", "walk/v0.4", ROW), ("V0", "stop/two_step", ROW)],
+                        run=run, media=media, out=run / "views", log=lambda *a: None)
+    assert {k: v for k, v in tree(run).items() if not k.startswith("views/")} == before
+    assert json.loads((run / "views" / "clips.json").read_text())["schema"] == bv.SCHEMA_CLIPS
+    assert [(c["condition"], c["view"], c["seed"], c["selection"], c["outcome"]) for c in doc["clips"]] == [
+        ("turn/q90_left", "top", 3042, "first seed", "stayed up"), ("turn/q90_left", "visitor", 3042, "first seed", "stayed up"),
+        ("walk/v0.4", "side", 3042, "first seed", "fell"), ("walk/v0.4", "visitor", 3042, "first seed", "fell")]
+    assert [(x["condition"], x["reason"]) for x in doc["skipped"]] == [("stop/two_step", "no record yet")]
+    t_end = v0.planned(v0.condition(fake_run["ckey"]))["t_end"]
+    for c in doc["clips"]:
+        mp4 = media / c["file"]
+        assert c["bytes"] == mp4.stat().st_size <= bv.MAX_BYTES and c["sha256"] == hashlib.sha256(mp4.read_bytes()).hexdigest()
+        assert (media / c["poster"]).exists() and (media / c["sheet"]).exists()
+        assert c["probe"]["codec"] == "h264" and (c["probe"]["width"], c["probe"]["height"]) == (854, 480)
+        assert c["probe"]["fps"] == bv.FPS and c["probe"]["frames"] == c["frames"]
+        assert c["labels"]["top"][0].startswith(bv.SIM_LABEL) and c["record"].endswith(".json") and len(c["trace_sha256"]) == 64
+        if c["condition"] == "turn/q90_left":  # 1 s before the command to 1 s after the end of the move, real time
+            assert c["span"]["t0"] == pytest.approx(fake_run["t_c"] - 1.0) and c["span"]["t1"] == pytest.approx(t_end + 1.0, abs=1e-6)
+            assert c["seconds"] == pytest.approx(t_end + 2.0 - fake_run["t_c"], abs=1.0 / bv.FPS)
+            assert c["captions"] == dict(command="command: turn left 90°", fell=None) and c["record_count"] == "stayed up in 4 of 6 (1 failed to run)"
+            if c["view"] == "top":  # the fixed eye holds the whole sweep
+                assert c["framing_margin_px"] > 0 and c["camera"]["kind"] == "fixed"
+            else:  # the glide is far from the planned path: the constant shift of the clip keeps it in the picture
+                assert np.linalg.norm(c["camera"]["shift_from_plan_m"]) > 1.0
+                assert c["camera"]["largest_distance_surface_centre_to_lookat_m"] < 0.5 and c["framing_margin_px"] > -150
+        else:  # a walk that fell before its judged window: from the start to the fall, then the pose held 1 s
+            assert (c["span"]["t0"], c["span"]["t1"], c["span"]["hold_s"]) == (0.0, 4.718, 1.0)
+            assert c["captions"]["fell"].startswith("fell (tilt)") and c["captions"]["command"] is None
+    # a second run of one item keeps the other clips' entries
+    doc2 = bv.make_clips([("V0", "turn/q90_left")], planned=True, run=run, media=media, out=run / "views",
+                         views=("top",), log=lambda *a: None)
+    assert len(doc2["clips"]) == 5 and [c["kind"] for c in doc2["clips"]].count("planned") == 1
+    planned = next(c for c in doc2["clips"] if c["kind"] == "planned")
+    assert planned["labels"]["top"][0].startswith(bv.PLAN_LABEL) and planned["seed"] is None and planned["view"] == "top"
+    assert doc2["skipped"] == doc["skipped"]
