@@ -1,0 +1,134 @@
+{
+ "verdict": "The judge, the plans and the rows of bar.py match the committed rules (STAGE2_75_PLAN.md B1-B7, C1-C8, H1-H5 and STAGE2_PLAN.md section 5) on almost every item I could check, but the chain as committed breaks one pre-registered order rule and the turn item's record claims a span the code does not use; both must be settled before task 3's first unit. Checked and found right: the 16 gated conditions and the reported ones, friction per condition (every colliding geom at 0.54), the shared lead-in and seed slot 0, 2 / 2.5 strides before the turn and 2.5 before the stop, command instants equal to the move's first frame (the inside foot lifts 9 ms after the left turn's command at 10 ms delay), episode lengths at the slowest clock and tracks at the fastest, the nudge (21.874 N = 14.855 kg x 0.25 x 0.589 / 0.1, onset 2 + u strides into the walk), R2 gains equal to tune.json with its sha256, the delay through speedfit.servo_delay, every success term and both readings, counts, Clopper-Pearson bounds, the pass rule on the block's own seeds, replication selection, the 5-fall attribution rule with the walk citation, the ledger (16 and 12 core-hours, first cut cuts all later units) and the tier list with the omega control. My own re-reading of five smoke traces (walk, both turns, both stops) reproduced the records' numbers (own-swing toe clearance to 1e-9 m, duty exactly, heading and distance at the 50 Hz trace's resolution), and the S1 view reproduced Stage 1's committed episodes bit for bit. All numbers here are smoke: the Stage 2 moves were exercised only on the builder's scratch set D0 (Stage 1's brisk walk under the name v0.4) with R0 rows, and R2 rows only on the S1 view. No R2 episode has yet run through a bar judge anywhere, so task 3's first unit is the first live test of that path.",
+ "findings": [
+  {
+   "file": "hardware/trex_form_study/stage2/runs/2026-11-15-75cm/run_75cm.sh",
+   "where": "run_75cm.sh:86 and :128 (--attribute judged on each set's unit); designlab/stage2/bar.py:2015-2076 (attribution loop inside the per-condition loop that starts at :1949)",
+   "problem": "Attribution units do not stand where the pre-registered order puts them. STAGE2_75_PLAN.md, confirmation 5 under H6: the attribution units of a tier listed 'with attribution' run directly after that tier's episode units, record by record, before the next tier. As committed, T3.1 and T4.1 pass --attribute judged to each set's unit, and bar.evaluate attributes each condition's records before the next condition's episodes. So F25F9cl's attribution units start inside its own episode unit and before the F25F9 and V0 episode units of the same tier. budget.json would show that order, and an attribution unit that does not fit would cut the controls' judged 10 ms episodes, which the registered order runs first. No count changes unless a cut falls inside tier 1 (unlikely at today's rates), but the order itself is a rule fixed before the runs.",
+   "evidence": "'run_75cm.sh list' prints T3.1-F25F9cl-10ms, T3.1-F25F9-10ms, T3.1-V0-10ms each with --attribute judged, and T4.1 likewise. Smoke on the S1 view (R2/42@10ms, walk/nominal then walk/brisk, 2 episodes, --attribute judged) logged: 'walk/nominal: 0/2 survive', 'walk/nominal: attribution ...', then 'walk/brisk: 0/2 survive', 'walk/brisk: attribution ...'. The first condition's attribution ran before the second condition's episodes.",
+   "fix": "In run_75cm.sh run T3.1 (three sets) and T4.1 (two sets) with --attribute none. Directly after each tier's last episode unit, add one attribution step per set in the same set order (the 'again' pattern with --attribute judged, unit name = the set's episode unit), before T3.2 / T4.2. In bar.evaluate move the attribution loop out of 'for cond in conds' so a unit's episodes finish before any attribution unit starts. Extend test_the_chain_lists_the_units_in_the_pre_registered_order to assert this order.",
+   "severity": "blocker"
+  },
+  {
+   "file": "hardware/trex_form_study/designlab/stage2/bar.py",
+   "where": "bar.py:1000-1001 (limits from panels._base: whole episode), :1068-1069 (leg gap over every recorded pose), rule text RULES['turn'] at :176-183",
+   "problem": "The turn item judges three terms over the whole episode while the rule and the record's own text say over the window. C5: 'Over [t_c, t_c + at_s + 3 s]: the walk's limits of C4, the joint range by decision 14, and no leg interference'. RULES['turn'], copied into every turn record, says the same. The code reads joint_range and drive_speed over the whole episode (lead-in and the up to 0.9 s after the window included) and no_leg_interference over every pose of the trace. A turn episode can therefore fail on something that happened 10 s before its command, and the record claims a rule the code did not apply. This is Stage 1's episode span and the design's 3.8 (c), but it is not what C5 registers.",
+   "evidence": "Experiment on a D0 R0@10ms turn/q90_left episode (smoke): baseline joint_range true (command at 13.84 s). With one joint set near its limit only during t = 3.0-3.5 s of the lead-in, bar._judge gave joint_range false. With the excursion only after t_c + 5.05 s (88 rows after the window), also false. measures.legs.poses = 989, the whole 19.77 s trace at 50 Hz.",
+   "fix": "Either (a) window them: joint margins from rec.Q rows with t in [t_c, t_c + at_s + 3] via metrics.joint_margins against b.required; leg gap from the poses in that window (pose j is update row j x tune.LEGS_EVERY) via lg.trace; keep drive speed over the episode (control.run only gives the episode's peak) and say so. Or (b) keep Stage 1's episode span, reword RULES['turn'] to 'over the episode: the drives' peak speed, the joint range by decision 14 and no leg interference', and have the lead label C5's clause as an amendment before task 4's first unit. Add a test with a lead-in excursion either way.",
+   "severity": "major"
+  },
+  {
+   "file": "hardware/trex_form_study/designlab/stage2/bar.py",
+   "where": "bar.py:313 (rules['delay'] = speedfit.LATENCY_RULE) and :712-713 (describe(): servo_delay_rule = speedfit.LATENCY_RULE)",
+   "problem": "Every bar record carries, as rules.delay and controller.servo_delay_rule, the speed fit's rule text: 'each episode's servo delay is k physics steps, k uniform on 0-5 (0-10 ms) drawn as numpy default_rng(...)'. The bar draws nothing: k is the row's, fixed for every episode (B2). The record states a rule the code did not apply. controller is part of the key, so the text must be right before the first registered record.",
+   "evidence": "Record smoke/D0/75-M-H-10/seeds3042/eval/R0@10ms/turn/q90_left.json: controller.latency_steps = 5, and controller.servo_delay_rule and rules.delay both begin 'each episode's servo delay is k physics steps, k uniform on 0-5 (0-10 ms) drawn as ...'.",
+   "fix": "Carry a bar-owned text instead, e.g. RULES['delay'] = 'the delay queue of speedfit.servo_delay (a queue of the last k + 1 targets, refilled with the reset's targets at each reset; k = 0 changes nothing); k is the row's for every episode: speedfit.LATENCY_RULE's random draw is not used'. Use it at :313 and :713.",
+   "severity": "minor"
+  },
+  {
+   "file": "hardware/trex_form_study/designlab/stage2/bar.py",
+   "where": "bar.py:305-318 (rules_of has no control argument), :234-236 (RULES['omega']), :1779",
+   "problem": "A record of the omega control states the opposite of what it ran. Its rules.omega reads 'the track's LIPM frequency is the set's own: control.omega0(p, q_home, crouch_frac = the set's crouch)', while the control ran with Stage 1's 0.03 H. Only the control field and crouch_frac say so.",
+   "evidence": "One-episode control on D0 (R0@0ms, smoke): controls/omega_s1/D0/.../walk/v0.4.json has control = 'omega at Stage 1's 0.03 H crouch', crouch_frac 0.03, and rules.omega = 'the track's LIPM frequency is the set's own ...'.",
+   "fix": "Pass the control to rules_of (or patch through extra) and replace rules['omega'] in a control's record with 'control: omega computed with Stage 1's 0.03 H crouch instead of the set's own (STAGE2_75_PLAN B5); no verdict, not replicated, not attributed'. Also refuse --control together with --passed-of or an --attribute other than none when --task is given (today only the chain keeps to that).",
+   "severity": "minor"
+  },
+  {
+   "file": "hardware/trex_form_study/designlab/stage2/bar.py",
+   "where": "bar.py:1038-1041 and :1066-1067 (bar.update(..., toe=toe)), :1108-1111 (toe_reported)",
+   "problem": "C3's Check names measures.bar.toe_clearance_own_swing_m, own_swings, ref_swings, interrupted_swings, air_gaps, air_gap_max_s. The record nests them one level down, under measures.bar.toe (walk, turn) or measures.bar.toe_reported (nudge, stop). A reviewer or barreport following the registered Check path finds nothing.",
+   "evidence": "Episode record of turn/q90_left: measures.bar has keys command_s, at_s, ..., toe {toe_clearance_own_swing_m, own_swings, ref_swings, interrupted_swings, air_gaps, air_gap_max_s, ...}; there is no measures.bar.toe_clearance_own_swing_m.",
+   "fix": "Also put the six registered keys directly into measures.bar for the walk and the turn (bar.update({k: toe[k] for k in (...)}), keeping the toe block), or have the lead amend C3's Check line to measures.bar.toe.* before task 3.",
+   "severity": "minor"
+  },
+  {
+   "file": "hardware/trex_form_study/designlab/stage2/bar.py",
+   "where": "bar.py:545-548 (BarPlanner.speed), used at :605, :839 and :1034",
+   "problem": "The rung's target speed is taken from the walk's name and never compared with the entry's speed_m_s. A set whose v0.4 entry is another speed is judged against 4.0 m and 0.42 m/s without a word. In the same record decision 18's reading uses the entry's speed, so one record holds two command speeds.",
+   "evidence": "D0's v0.4 entry has speed_m_s 0.3508 (Stage 1's brisk walk). The smoke record gives along_target_m 4.0 (walked 3.59 m, 'along' false) and measures.bar.command_speed_m_s 0.42 beside decision_18.command_speed_m_s 0.368. 'bar refcheck' on D0: 'walk/v0.4: FAIL along FAILS (3.682 m in 10 s, target 4 m)'.",
+   "fix": "In BarPlanner.missing or resolve raise tune.InputError when abs(entry speed_m_s - name speed) > 1e-6 x the name's speed (a stated tolerance), with a constructor flag that fixtures set to allow a stand-in walk and that is recorded in the record.",
+   "severity": "minor"
+  },
+  {
+   "file": "hardware/trex_form_study/designlab/stage2/bar.py",
+   "where": "bar.py:625 and :639 (TURN_LEAD_STRIDES / STOP_LEAD_STRIDES), :631 and :644 (move.command_phase only copied into the record)",
+   "problem": "Nothing checks that a causal move is placed at the walk phase its entry was built for. The leads are constants; the entry's move.command_phase is recorded but not compared. A set whose turn or stop carries another phase would be played with a pose jump at the command and judged as if nothing were wrong.",
+   "evidence": "In-process experiment on D0 (no file changed): as built, the joint jump at the command is 0.00016 rad (left turn, phase 0, 2 strides) and 0.00002 rad (stop, phase -0.5, 2.5 strides). With the leads exchanged, the turn and the stop were built without any error and the jump was 0.353 rad.",
+   "fix": "In _resolve raise tune.InputError unless abs(((lead - command_phase) % 1.0 + 0.5) % 1.0 - 0.5) < 1e-9 for a causal move, with a test. Optionally also refuse in BarContext.built a joint jump above 1e-3 rad between track.joint(t_cmd - eps) and track.joint(t_cmd + eps), the limit of A6's join_command.",
+   "severity": "minor"
+  },
+  {
+   "file": "hardware/trex_form_study/designlab/stage2/bar.py",
+   "where": "bar.py:2208-2232 (measure_rates), constants at :126-128; used by run_75cm.sh:142-143 for COST.md",
+   "problem": "COST.md's rates are biased high and depend on order and load. The first controller measured pays the one-time plant and track build. The R2 rate is taken on R2/42@10ms, which falls on walk/brisk before the 8 s cut, and falling episodes cost more per simulated second. Two 8 s episodes carry the fixed judge and trace cost. H6 admits each unit on these rates, so the estimates run about 1.5 to 1.9 times the real cost and the last units of a task are cut although they would fit. It is conservative, not rule-breaking.",
+   "evidence": "Smoke: dry-run measured R2 0.285 and R0 0.148 wall s per simulated s (load 3.5; both R2 episodes fell at 7.7 s). The same machine minutes later: full 20.6 s S1 episodes R2/42@0ms 0.150-0.162, R0@0ms 0.086-0.119; 8 s cuts R2/42@10ms first episode 0.269 then 0.19, R2/42@0ms 0.146, R0 0.078. The ledger test unit used 0.00107 core-h against an estimate of 0.00327.",
+   "fix": "In measure_rates call ctx.built(cond) once before timing; measure each controller on its 0 ms row (the delay queue costs nothing, and the episodes do not fall); use at least 3 seeds and a 12 s cut or the full episode; store each episode's wall and simulated seconds in the cost block. State in COST.md that the rate is an upper estimate.",
+   "severity": "minor"
+  },
+  {
+   "file": "hardware/trex_form_study/designlab/stage2/bar.py",
+   "where": "bar.py:2038-2047 (budget-cut branch of the attribution)",
+   "problem": "When a record's attribution is cut by the budget, only rec['failure'] is rebuilt with the label 'not attributed (budget, pre-registered order)'. rec['failure_but_A1'] keeps 'not attributed (falls; run with --attribute)'. The two readings of one record then give different reasons for the same missing attribution, and the summary's reading-3 cell prints the stale one.",
+   "evidence": "Code: the cut branch writes rec['failure'] and continues; the normal path at :2069-2073 rebuilds both failure and failure_but_A1.",
+   "fix": "In the cut branch also set rec['failure_but_A1'] = failure(row.name, rec['episodes'], rec['attribution'], rec['counts_but_A1']['pass_'], 'but_A1') when counts_but_A1 is not None, and write _plain_json(rec) as the normal path does.",
+   "severity": "minor"
+  },
+  {
+   "file": "hardware/trex_form_study/designlab/stage2/bar.py",
+   "where": "bar.py:230-233 (RULES['replication']), :1768-1769 and :1843-1853 (--passed-of selection)",
+   "problem": "H4 replicates only the candidate: 'Every seeds3042 record of F25F9cl under an R2 row'; 'the controls are not run on seeds5042'. The runner replicates any set it is asked to, and the rule text every record carries says 'every seeds3042 record of a row with a verdict'. Only the chain keeps V0 and F25F9 off the fresh seeds.",
+   "evidence": "Code: evaluate() checks only that passed_of is another block. No test refuses 'run --set V0 --block seeds5042 --passed-of seeds3042 --task 3'.",
+   "fix": "In evaluate raise BarError when passed_of is given on V0 or F25F9 (or, generally, on a set of PREREGISTERED_SETS whose set.json role is not the candidate's), and reword RULES['replication'] to name the candidate: 'on the 75 cm round's sets only F25F9cl is replicated; the controls are not run on seeds5042'.",
+   "severity": "minor"
+  },
+  {
+   "file": "hardware/trex_form_study/designlab/stage2/bar.py",
+   "where": "bar.py:2157-2167 (summarize verdicts), :2200-2201 (summary_text), :2761 (printed by every 'bar run')",
+   "problem": "H4: 'A candidate's verdict is never printed alone: beside it stands replicated, not replicated or replication cut by the pre-registered order.' eval/summary.json and the text 'bar run' and 'bar summary' print give 'shown' / 'provisional' for F25F9cl with no replication word. The record's replication_of sits only in the other block's records.",
+   "evidence": "summary_text prints '<condition> R2@10ms: <reading 2 verdict>; <reading 3 verdict>' and nothing else. summarize() for seeds3042 never opens the seeds5042 records or budget.json.",
+   "fix": "In summarize, for the headline block of a set with replication records or a ledger, add per verdict cell a replication field read from the seeds5042 record of each passing row ('replicated', 'not replicated', 'replication cut by the pre-registered order' from budget.json's cut list, else 'replication not run yet'), and print it in summary_text. Or print '(replication status: see the report)' beside each such verdict and leave the word to barreport.",
+   "severity": "minor"
+  },
+  {
+   "file": "hardware/trex_form_study/designlab/stage2/bar.py",
+   "where": "bar.py:1862-1871 (only a status-done record of another key is refused), :314-317 (what rules_of copies from set.json)",
+   "problem": "Two gaps against rules R2 and A13. A 'not run' record whose key changes because a later freeze added the reference is replaced by a run without refusal, without --supersede and without a label. And the record copies from set.json only rules, omega_rule and the walk entry's label and margin_rule: nothing of the move entry and nothing of a freeze's 'change after a result' or after_check_episodes flag, which A13 wants 'in every record and table that uses it'. Work package S is not built yet, so the field names are open.",
+   "evidence": "Code path: old.status == 'not run' with another key falls through to todo with item['old'] = None and the path is overwritten at :1999. rules_of reads set.json 'rules' and 'omega_rule' and refs[cond.walk] 'margin_rule' and 'label' only.",
+   "fix": "Treat a 'not run' record of another key like a finished one: refuse, or with --supersede move it to <record>.superseded/. When work package S fixes its schema, copy into record['set'] the latest freeze's flags and, for the walk and the move entry, the entry's label, margin_rule and any change-after-result label and reason.",
+   "severity": "minor"
+  },
+  {
+   "file": "hardware/trex_form_study/designlab/stage2/bar.py",
+   "where": "bar.py:213-214 (RULES['plans']) against :611-613 (walk plan)",
+   "problem": "Every record's rules.plans says 'Every track is long enough at the fastest clock (1.05 x 1.05)'. That holds for turns, nudges and stops but not for the walk item, whose track ends exactly at seconds x 1.05 (Stage 1's rule). Past it the last periodic segment simply repeats, so nothing breaks, but the sentence is false for the walk.",
+   "evidence": "plans.py on D0: walk/v0.4 has seconds x RATE = t_end = 21.6258 s, while seconds x 1.05 x 1.05 = 22.71 s.",
+   "fix": "Reword to 'a turn's, a nudge's and a stop's track is long enough at the fastest clock; a walk's track ends at its planned end on the commanded clock and its last walk segment repeats beyond it (Stage 1's rule)'.",
+   "severity": "minor"
+  },
+  {
+   "file": "hardware/trex_form_study/stage2/runs/2026-11-15-75cm/run_75cm.sh",
+   "where": "run_75cm.sh:58-62 (step: exit 0 writes the done marker); designlab/stage2/bar.py:2752-2765 (run returns 0 whatever the records hold)",
+   "problem": "C8: an episode that failed to run 'is run again on the next run of the same key' and its record is not judged meanwhile. 'bar run' exits 0 when episodes failed to run (a lost worker, an exception), the step gets its done marker, and the chain never runs that key again. In task 4 there is no later 'again' step at all, so a judged 10 ms record can stay 'incomplete' without anyone being told.",
+   "evidence": "main() returns 0 after evaluate regardless of counts.errors; step() touches done/<name> on exit 0 and skips the step from then on.",
+   "fix": "Let 'bar run' exit 4 when any record of the session still holds an episode with error (after printing which). In step() treat exit 4 as 'not done': no marker, a log line, and stop the chain after a second attempt so the next start retries the step.",
+   "severity": "minor"
+  },
+  {
+   "file": "hardware/trex_form_study/designlab/stage2/readings.py",
+   "where": "readings.py:30-35 (docstring), applied through bar.py:934-942 (_toe)",
+   "problem": "For the lead, not a code defect: the registered own-swing toe clearance (C3) reads about 0.010-0.017 H below Stage 1's reading even with no servo delay, because a foot's own swing ends where its load crosses 2 % of the weight. The plan's two stated expectations (C2) do not mention it. With the limit at 0.04 H this term may fail where Stage 1's reading passes, for controls and candidate alike.",
+   "evidence": "'bar reread' on the S1 view (smoke; traces equal to Stage 1's committed sha256, 4 of 4): walk/brisk R2/42 at 0 ms, seeds 3042 / 3043: own swing 0.0433 / 0.0436 H against 0.0541 / 0.0533 H on the reference's clock; R0: 0.0359 / 0.0356 H (under 0.04) against 0.0528 / 0.0533 H. D0 R0@10ms walk: 0.0382 H against 0.0488 H.",
+   "fix": "No code change. Before task 3's first unit add a third expectation sentence under C2 or C3 (an expectation changes no rule), citing the reread record of the S1 view, so that a toe-clearance failure is not read as a surprise after the results.",
+   "severity": "minor"
+  },
+  {
+   "file": "hardware/trex_form_study/designlab/stage2/bar.py",
+   "where": "bar.py:1698-1716 (_check_rule applies only to sets named V0, F25F9, F25F9cl)",
+   "problem": "For the lead: rule R4 lists every check episode run on a Stage 2 set before task 3 in dev_episodes.json. The builder's smoke ran closed-loop episodes of Stage 2's new moves (causal stop, quick turn) on the scratch set D0, R0 rows only, two seeds per condition, and this review added 15 more. Because D0 is not one of the three names, nothing lists them. No R2 row ran on D0 and nothing was recorded as a result.",
+   "evidence": "logs/bar-smoke.log: 'session: 64 episodes run' on D0 (R0@10ms and R0@0ms, 16 conditions, seeds 3042-3043). logs/bar-smoke-resume.log: 'session: 34 episodes run'. logs/wpb-d0/sets/D0/75-M-H-10/set.json role: 'scratch dev set of work package B (Stage 1's gaits; not screened)'.",
+   "fix": "Lead's decision: either state that a scratch set of Stage 1's gaits is outside rule R4, or list these runs (set D0, rows, seeds, reason) in stage2/runs/2026-11-15-75cm/dev_episodes.json when it is created. No code change needed.",
+   "severity": "minor"
+  }
+ ],
+ "commands_run": "All from /home/user/mesozoic-wt/wp-b/hardware/trex_form_study with PYTHONPATH=. MUJOCO_GL=disable and one BLAS thread, through tools/lowprio.sh. Every output went to /tmp/claude-0/-home-user-mesozoic-labs/2dca1c00-13f3-5853-acf6-8c3e3e04feb6/scratchpad/review_wp_b_judge/ (S below). The worktree is unchanged: git status --porcelain is empty, head 85f9b98. Every number is smoke.\n\n1. git log / git diff --stat / git show --stat of the seven WP B commits: only bar.py, tests/test_stage2_bar.py and run_75cm.sh are touched; no Stage 1 file in the diff; trailers as required.\n2. S/plans.py (BarPlanner on the builder's stub set logs/wpb-d0/sets/D0): 16 gated conditions, all in seed slot 0; plans and lengths as the rule table (walk/v0.4: K 10, 20.596 s; turn left: command at 14.5306 s of track time, 19.767 s; right: 14.9740, 20.212 s; nudge: 20.556 s; stop: command 14.9740, rest 18.0782, 20.323 s).\n3. S/built.py (BarContext.built on D0): events and commands, nudge force 21.874 N, friction 0.9 / 0.54, omega 4.8281 (0.03 H) against 4.8867 (0.05 H), leg mask excludes neck_pitch and tail_yaw.\n4. bar dry-run --set D0 --set-root logs/wpb-d0/sets --rows R2/42@10ms,R2/43@10ms,R0@10ms --conditions @gated: exit 0, 8 s, wrote nothing; rates R2 0.2854, R0 0.1479 (measured on S1 walk/brisk); 960 episodes, 1.303 core-hours.\n5. bar run --set D0 --rows R0@10ms --conditions walk/v0.4,turn/q90_left,turn/q90_right,nudge/forward,stop/two_step,stop/one_step,walk/nominal --episodes 2 --procs 1 --attribute none: exit 0, 14 episodes in 31 s, 7 records with both readings. Read turn/q90_left.json and its trace 3042.npz in full (trace sha256 equals the record's).\n6. S/recheck.py: own re-reading of the traces against the records, all agree (walk along 3.583 against 3.591 m at 50 Hz, own-swing toe equal to 1e-9 m, duty equal; turn heading error -11.883 against -11.883 deg; stop 2 touchdowns at +0.393 and +0.781 s, last touchdown before the command 39 ms).\n7. bar run --set S1 --stage1-run stage1/runs/2026-11-08 --rows R0@0ms,R2/42@0ms,R2/42@10ms --conditions walk/brisk --episodes 2 --procs 1: exit 0. R0@0ms and R2/42@0ms episodes equal Stage 1's committed records in every key but the trace path, trace sha256 equal. R2/42@10ms fell in 2 of 2 at 7.7 s.\n8. pytest -p no:cacheprovider tests/test_stage2_bar.py -q: 37 passed, 2 skipped (STAGE2_SLOW), PYTEST_EXIT=0, 2 min 6 s.\n9. bar refcheck --set D0: exit 1 as expected for the stub (walk/v0.4 'along FAILS', 3.682 m of 4 m: the stub's walk is 0.35 m/s). Turns 85.45 deg at 2 s, stop 2 touchdowns, one-step stop 1, walk/nominal 2.555 m of 2.431 m: pass.\n10. S/exp1.py: the turn's joint range fails on an excursion in the lead-in and on one after the window; per-episode rate numbers.\n11. bar run --set D0 --rows R0@0ms --conditions walk/v0.4 --episodes 1 --control omega_s1: exit 0; record under controls/omega_s1/ with the control field; its rules.omega and rules.delay texts as in the findings.\n12. bar run --set S1 --rows R2/42@10ms --conditions walk/brisk,walk/nominal --episodes 2 --attribute judged: exit 0; the log shows attribution before the next condition's episodes.\n13. bash stage2/runs/2026-11-15-75cm/run_75cm.sh list: prints every step in order and runs nothing.\n14. S/exp2.py: a move placed at the wrong phase is built without an error (0.353 rad jump).\n15. bar reread --stage1-run stage1/runs/2026-11-08 --body 75-M-H-10 --rows R2/42,R0 --conditions walk/brisk --episodes 2: exit 0, 4 of 4 stock traces equal the committed sha256; both clearance readings listed.\n16. S/exp3.py (ledger on the S1 view through the API with small caps): U1 ran, U2 'spent 0.001 + estimate 0.003 core-h exceeds', U3 'an earlier unit of task 3 was cut (U2): none is skipped'; budget.json holds units and cuts as H6 lists them.\n17. git check-ignore -v on the bar's output paths: records, summary, budget.json, COST.md, dev_episodes.json, refcheck.json and .superseded/ are not ignored; traces, partial, logs, done, .lock and *.tmp are."
+}

@@ -30,6 +30,16 @@ The bodies are `60-N-T-10` (the 60 cm Tapered), `60-N-H-10` (the 60 cm Hybrid, d
 wait for the owner (§7). All of this is on the branch `claude/mesozoic-trex-design-iteration-azm2fs`, whose pull request
 is kuds/mesozoic-labs#667 (https://github.com/kuds/mesozoic-labs/pull/667).
 
+**Note of 15 Nov 2026 (second session).** A second session ran on 14–15 Nov on the branch
+`claude/mesozoic-trex-stage2-refine-4jffre` and paused for the account's usage limit before any Stage 2 run. What it
+did, what is merged, what is built but unmerged and what the lead still has to rule on are in
+`stage2/design/checkpoint/STATUS.md`; read that file first. In short: the owner's 14 Nov decisions are recorded (P30
+to P33); the rules of the 75 cm track are fixed (`STAGE2_75_PLAN.md`, `STAGE2_PLAN.md` section 9); the Jetson body
+`75-M-H-10-J` and the Jetson documents are done (`stage2/j/`, `stage2/jetson75/`); gate L1 is frozen at V6
+(`stage2/look/L1_FREEZE.json`); the tooling for references, the bar and training is partly built. No set is frozen
+and no panel, fit or training run has been made on a Stage 2 set. This file's sections 2 to 7 still describe the
+state of 14 Nov.
+
 ## 2. What the robot can and cannot do (in simulation)
 
 ### 2.1 The controllers
@@ -509,6 +519,18 @@ tests.
 - **Usage limits are real.**
   - The account's weekly usage limit ran out on 13 Nov, after 39 workflows with 271 agents in all (one audit used 76).
   - Size a workflow's fan-out to the question, and keep a reserve for the owner's own use.
+  - The session cannot see the account's meter; only the owner can. Ask for the reading (percent used and the reset
+    day) before the first large workflow and at each tranche boundary, and give the owner the session's own count
+    beside it.
+  - An agent's cost varies fourfold with how it is set up. In the second session (15 Nov) 80 transcripts (9.5 million
+    output tokens, 1.27 billion cached-context tokens read) took the meter through one reset from 99 % and on to 46 %:
+    up to about 1.8 % of a week per agent, against 0.4 % in the first session. Those agents ran at the session's
+    effort setting (`xhigh`) and each read a design document of 150 to 190 kB.
+  - Before a fan-out, set what each agent runs at: the effort for builders and fixers, how much of the design a brief
+    carries, and one reviewer or two.
+  - Worktree branches may not be pushed, so an unmerged build is lost with the container. At a pause, merge what is
+    reviewed and fixed, and commit the rest as a `git bundle` with the reviewers' findings beside it
+    (`stage2/design/checkpoint/`).
 - **The repository's root rules drop or rewrite files silently.**
   - The root `.gitignore` ignores `logs/`, `models/`, `*.zip`, `*.pkl`, `*.npz` and `tensorboard/` at any depth. On 7
     Nov it dropped the round-one ledgers, kept in a `models/` folder, until it was renamed `mjcf/`.
@@ -743,3 +765,5 @@ reports, and `designlab/stage2/look_page.py` with the clips for the look pages.
 | Stage 1b speed round | https://claude.ai/artifact/VbBcrpxuyxjF2YhoJqG4rn |
 | Stage 2 look review (gate L1) | https://claude.ai/artifact/MG1yh5ztqJwVdFPs6GmkkY |
 | Viewers' blind sheet (L1 ratings) | https://claude.ai/artifact/QVktxN3pHsov2LTVs6d69c |
+| Delay bench sheet (second session; carries the P32 note) | https://claude.ai/artifact/LePsAx8XM8q8hUTpZ3GqtJ |
+| 75 cm build prices (second session) | https://claude.ai/artifact/KDSuT1A1AsHad4KVVrzsfa |
