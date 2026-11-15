@@ -402,16 +402,20 @@ def _turn_fns(g: transitions.Gait, w0: float, T_t: float, p0: float, p1: float, 
 
 
 def turn_design(g: transitions.Gait, angle: float, rate: float, stride_factor: float, ramp_s: float = RAMP_S,
-                pre: float = 1.0, post: float = 0.25) -> dict:
+                p0: float | None = None, pre: float = 1.0, post: float = 0.25) -> dict:
     """The numbers of a finite turn from walk ``g``: command phase, ramp and hold lengths, window, and ``kappa``, the
-    factor on the yaw rate that closes the plan's own integrated heading on ``angle`` (1 first, then one re-plan)."""
+    factor on the yaw rate that closes the plan's own integrated heading on ``angle`` (1 first, then one re-plan).
+    ``p0``: the command phase; None (every reference): the inside foot's lift-off in the stride that starts at 0."""
     A, w0, f = float(angle), float(rate), float(stride_factor)
     if not (A > 0 and w0 != 0 and f > 0 and ramp_s > 0):
         raise ValueError("a turn needs a positive angle, a signed non-zero rate, a positive stride factor and ramp")
     T_w = float(g.period)
     T_t = f * T_w
     r = 2.0 * ramp_s / (T_w + T_t)  # a ramp lasts integral T dp = r (T_w + T_t) / 2
-    p0 = 0.0 if w0 > 0 else 0.5  # the inside foot's lift-off: left for a left turn
+    inside = 0.0 if w0 > 0 else 0.5  # the inside foot's lift-off: left for a left turn
+    p0 = inside if p0 is None else float(p0)
+    if abs((p0 - inside) - round(p0 - inside)) > PHASE_TOL:
+        raise ValueError(f"a turn is commanded at a lift-off of its inside foot, not at phase {p0:g}")
     L = (A / abs(w0) + (T_t - T_w) * r * (1.0 - 2.0 * RAMP_SQ_INTEGRAL)) / T_t  # integral w T dp = A, for L >= r
     if L < r:
         raise ValueError(f"turn of {A:g} rad at {w0:g} rad/s, stride factor {f:g}: the hold would be negative "
@@ -435,17 +439,25 @@ def turn(name, a: GaitX, angle: float, rate: float, stride_factor: float, ramp_s
     together over ``ramp_s`` of reference time, hold, and ramp back; inside the turn the stride period is
     ``stride_factor`` x the walk's at the same path speed, duty and lift; the tail's and the neck's amplitudes carry
     (T(p) / T_walk)^2."""
+    return _turn(name, a, angle, rate, stride_factor, ramp_s)
+
+
+def _turn(name, a: GaitX, angle, rate, stride_factor, ramp_s=RAMP_S, p0: float | None = None) -> Move:
+    """``turn`` with the command at another lift-off of the inside foot (``p0``; the tests' use: the same turn one
+    stride earlier).  The argument is part of the move's identity only when it is given."""
     _need_walk(a, "a turn")
     g = a.legacy()
     if g.yaw_rate != 0.0 or a.in_place:
         raise ValueError("a finite turn starts from a straight walk")
-    d = turn_design(g, angle, rate, stride_factor, ramp_s)
+    args = dict(angle=float(angle), rate=float(rate), stride_factor=float(stride_factor), ramp_s=float(ramp_s))
+    if p0 is not None:
+        args["p0"] = float(p0)
+    d = turn_design(g, **args)
     p0, p1, r = d["p0"], d["p1"], d["ramp_strides"]
     fn = _turn_fns(g, d["rate_rad_s"], d["period_in_turn_s"], p0, p1, r, d["kappa"])
     sch = Schedule(kind="turn", window=d["window"], fn=fn, ramps=dict(turn_in=[p0, p0 + r], turn_out=[p1, p1 + r]),
                    command=p0, rule_f=True, pre=1.0, post=0.25)
-    return Move(name, a, a, sch, "turn", dict(angle=float(angle), rate=float(rate), stride_factor=float(stride_factor),
-                                              ramp_s=float(ramp_s)), causal=True,
+    return Move(name, a, a, sch, "turn", args, causal=True,
                 rules=("S2A-causal", "S2A-rule-F", "S2A-fade", "S2A-ramp", "S2A-appendage", "S2A-stride", "S2A-gates"))
 
 
@@ -829,17 +841,23 @@ def causal_errors(pl: transitions.Plan, command: float, zmb: np.ndarray, zct: np
                 post_window=float(np.max(en_t[post])) if post.any() else None)
 
 
-def continuing_walk(move: Move) -> Move:
-    """The walk that would have continued had no command come: the move's schedule with gait a's own constants, on a
-    window from the command to past the preview of the last grid step before it."""
-    g, sch = move.a.legacy(), move.schedule
+def walk_schedule(g: transitions.Gait, window, command: float | None = None, rule_f: bool = False, pre: float = 1.0,
+                  post: float = 0.25) -> Schedule:
+    """The schedule of a periodic gait walking on: every parameter its own constant."""
     fn = dict(T=_const(g.period), duty=_const(g.duty), lift=_const(g.lift), v=_const(g.speed), w=_const(g.yaw_rate),
               amp=_const(1.0), head_amp=_const(g.head_amp), tail_amp=_const(g.tail_amp), crouch=_const(g.crouch))
+    return Schedule(kind="walk", window=tuple(window), fn=fn, ramps={}, command=command, rule_f=rule_f, pre=pre,
+                    post=post)
+
+
+def continuing_walk(move: Move) -> Move:
+    """The walk that would have continued had no command come: gait a's own constants (``walk_schedule``) on a window
+    from the command to past the preview of the last grid step before it."""
+    g, sch = move.a.legacy(), move.schedule
     c = sch.command
     last = int(math.ceil(c)) + int(math.ceil(transitions.PREVIEW_S / g.period)) + 2
     return Move(f"{move.name}/continuing_walk", move.a, move.a,
-                Schedule(kind="walk", window=(c, last), fn=fn, ramps={}, pre=sch.pre, post=sch.post), "walk", {},
-                laws=move.laws)
+                walk_schedule(g, (c, last), pre=sch.pre, post=sch.post), "walk", {}, laws=move.laws)
 
 
 def _rotate(theta: np.ndarray, v: np.ndarray) -> np.ndarray:
@@ -1120,7 +1138,10 @@ def stop_reference(g: dict) -> dict:
     return dict(touchdowns_after_command=len(after), touchdown_phase=[float(p) for p in after],
                 touchdown_s=[float(np.interp(p, ph, t)) for p in after],
                 forward_stopped_s=None if fwd is None else float(fwd * pl.a.period), forward_stopped_strides=fwd,
-                stopped_rule=rd["rule"],
+                stopped_rule=f"the forward model-CoM speed (along the final heading) below "
+                             f"{100 * transitions.STOP_SPEED_FRAC:g} % of the walk's speed from then on, counted in "
+                             "seconds and in the walk's strides from this move's command (its first frame); gate: "
+                             f"within {transitions.STOP_WITHIN_STRIDES:g} strides",
                 margin_before_command_s=float((c - before[-1]) * pl.a.period) if before else None, stage1_stop=s1)
 
 
@@ -1291,7 +1312,7 @@ def pick_stride_factor(src: dict, a: GaitX, ref_a, angle: float, rate: float, gr
             chosen = float(f)
             break
     steady = None if chosen is None else steady_turn_kinematic(src, a, rate, chosen)
-    return dict(rule=RULES["S2A-stride"], text=RULES["S2A-stride"], grid=[float(f) for f in grid],
+    return dict(rule="S2A-stride", text=RULES["S2A-stride"], grid=[float(f) for f in grid],
                 limit_kinematic=float(limit), limit_final=TWIST_FINAL, steps_down_max=STEPS_DOWN_MAX,
                 angle_rad=float(angle), rate_rad_s=abs(float(rate)), tried=tried, chosen=chosen,
                 steady_turn_kinematic=steady, steps_down=0, builds=[], outcome="picked" if chosen is not None else "none",
