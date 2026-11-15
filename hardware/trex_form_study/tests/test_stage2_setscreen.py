@@ -15,8 +15,10 @@ Run from hardware/trex_form_study (the fit's venv):  python -m pytest tests/test
    the thigh twist, a tail torque scaled over its limit); ``clearance.screen`` runs with ``substeps`` 0; a spawned
    worker gives the block of this process.
 4. Walks: ``screen_walk`` on the look ladder's own V0 files gives the committed ``stage2/look/screen.json`` rung
-   blocks (needs the look arrays); with ``STAGE2_SLOW=1`` the two V0 walks are generated in a temporary directory,
-   hash to the ladder's rungs and screen to the same blocks; the built ``V0`` set, where there is one.
+   blocks (needs the look arrays); a walk over a limit blocks and is named by its own name; with ``STAGE2_SLOW=1``
+   the two V0 walks are generated in a temporary directory, hash to the ladder's rungs and screen to the same
+   blocks, and the ladder's own rung over the knee's speed limit blocks as a walk; the built ``V0`` set, where there
+   is one.
 """
 
 from __future__ import annotations
@@ -51,7 +53,8 @@ needs_run = pytest.mark.skipif(not (RUN / "transitions" / "start.npz").exists(),
 needs_look = pytest.mark.skipif(not (LOOK / "refs" / BODY / "nominal" / "V0.npz").exists()
                                 or not (LOOK / "screen.json").exists(),
                                 reason="the look ladder's arrays are not restored (tools/restore_inputs.py)")
-slow = pytest.mark.skipif(not os.environ.get("STAGE2_SLOW"), reason="two walks generated; set STAGE2_SLOW=1")
+slow = pytest.mark.skipif(not os.environ.get("STAGE2_SLOW"), reason="walks generated or a long window screened; set "
+                                                                 "STAGE2_SLOW=1")
 built = pytest.mark.skipif(not (V0_SET / "set.json").exists(), reason="the V0 set is not built (stage2/sets/V0)")
 
 
@@ -1164,6 +1167,53 @@ def test_screen_walk_on_the_ladders_own_v0_file_gives_the_committed_rung_block(s
     entry, rung = entries[LADDER[name]]["V0"], rungs[LADDER[name]]["V0"]
     block = setscreen.screen_walk(src, LOOK, name, entry)
     check_walk_block(block, name, LOOK.parent.name, entry, rung)
+
+
+@needs_look
+def test_a_walk_over_a_limit_is_screened_under_its_own_name_and_blocks(src, monkeypatch):
+    """A set's walk is screened under its own name (``v0.4``), which is no key of the look screen's speed table: a
+    walk over a limit must still get its sentence (the one line of ``screen.py`` this package changes).  The
+    ladder's V0 walk at 0.40 m/s with a knee speed ratio of 1.012 put into its price: the block lists it, the
+    sentence names the walk, and it blocks the freeze."""
+    entries, rungs = ladder_docs()
+    entry = entries["v040"]["V0"]
+    knee = dict(limit="knee speed", value=1.012)
+    real = look.price
+
+    def priced_over(*args, **kw):
+        pr = real(*args, **kw)
+        return dict(pr, over=[*pr["over"], knee], within_limits=False, verdict="over knee speed 1.012: under the plan's rule")
+
+    monkeypatch.setattr(look, "price", priced_over)
+    block = setscreen.screen_walk(src, LOOK, "v0.4", entry)
+    assert block["over"] == [knee] and block["within_limits"] is False
+    assert block["rung"] == ("over (knee speed): keeps its features (none) and loses v0.4 on 75-M-H-10 unless the owner "
+                             "decides otherwise (plan 4 A.3)")
+    assert block["cause"]["knee speed"]["joint"] == "knee"
+    assert block["verdict"] == dict(text="over knee speed 1.012: under the plan's rule", within_limits=False, over=[knee],
+                                    near=block["near"], a1_over=False, blocks_freeze=[knee])
+    assert block["reprice"]["equal_to_recorded"] is False  # the recorded price has no such item: reported
+    diff = setscreen.ladder_differences(block, rungs["v040"]["V0"])
+    assert sorted(x.split(":")[0] for x in diff) == [".cause", ".over", ".reprice.equal_to_recorded",
+                                                     ".reprice.other_differences", ".rung", ".verdict", ".within_limits"]
+    assert "SPEED_LABEL[speed]" not in Path(screen.__file__).read_text()
+
+
+@slow
+@needs_look
+def test_the_ladders_rung_over_the_knee_speed_limit_blocks_as_a_walk(src):
+    """The look ladder's own rung over a limit (V6 at the animal pace on 75-M-H-10: knee speed 1.012), screened as a
+    walk named ``v0.47``: the committed rung block but for the sentence that names the speed, and it blocks."""
+    entries, rungs = ladder_docs()
+    entry, rung = entries["fr05"]["V6"], rungs["fr05"]["V6"]
+    block = setscreen.screen_walk(src, LOOK, "v0.47", entry)
+    diff = setscreen.ladder_differences(block, rung)
+    assert len(diff) == 1 and diff[0].startswith(".rung: 'over (knee speed): keeps its features (F1, F2, F3, F4, F5, F6, F9, "
+                                                 "F10, F13, F14) and loses v0.47 on 75-M-H-10 unless")
+    v = block["verdict"]
+    assert v["blocks_freeze"] == v["over"] == rung["over"] and [o["limit"] for o in v["over"]] == ["knee speed"]
+    assert v["over"][0]["value"] == pytest.approx(1.0123, abs=1e-4) and not v["a1_over"] and v["text"] == rung["verdict"]
+    assert block["range"]["ok"] is True and no_wall_time(block)
 
 
 def look_entry(src, d: Path, name: str, spec) -> dict:

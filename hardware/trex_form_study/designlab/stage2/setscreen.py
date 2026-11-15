@@ -1,7 +1,8 @@
 """Stage 2 round A: the Stage 0 screen of every reference of a set (``STAGE2_75_PLAN.md`` A12; ``STAGE2_PLAN.md``
 4 A.3: every reference is priced before anything is simulated on it).
 
-Simulation only: prescribed references with perfect tracking, priced on the round-two model; nothing is adopted.
+Simulation only: prescribed references that the joints follow exactly, priced on the round-two model; nothing is
+adopted.
 
 A reference set is a directory ``stage2/sets/<set>/<body>/`` in Stage 1's run-directory layout (``setio``): periodic
 walks in ``refs/<name>.npz`` with a twin in the look ladder's format in ``look/<name>.npz``, moves (starts, speed
@@ -252,11 +253,6 @@ def _finite(x) -> np.ndarray:
 def _fmax(x):
     x = _finite(x)
     return float(x.max()) if len(x) else None
-
-
-def _fmin(x):
-    x = _finite(x)
-    return float(x.min()) if len(x) else None
 
 
 def _drive_rows(drives: dict) -> list[tuple[str, str, float]]:
@@ -733,7 +729,7 @@ def screen_move(src: dict, set_dir, name: str, entry: dict, walk_block: dict | N
         flags = drive_flags(src, tau, omega)
         passive = screen.passive_loads(M, design, tau, omega)
         cp = contact_pass(M, q, qd, qdd, swing, split)
-        clear = look._clearance_gates(src, dict(q=q, phases=cp["phases"], ik_ok=ik_ok))
+        clear = look._clearance_gates(src, dict(q=q, phases=support_phases(swing), ik_ok=ik_ok))
         M.forward(src["q_home"])
     contact = _contact_block(M, cp, t, causal, split)
     rng = move_range(src, q, kind, entry, clear.pop("joint_range_margins", None))
@@ -744,16 +740,19 @@ def screen_move(src: dict, set_dir, name: str, entry: dict, walk_block: dict | N
     rec_cop, rec_fr = entry.get("min_cop_margin_single_m"), entry.get("max_friction_ratio")
     got_cop = float(np.nanmin(cp["cop_margin"][single])) if single.any() else None
     got_fr = float(np.max(cp["friction"]))
+    file_cop = np.asarray(arrs["cop_margin"], float) if "cop_margin" in arrs else None
     recheck = dict(tau_max_abs_diff_nm=float(np.max(np.abs(cp["tau"] - tau))),
-                   cop_margin_max_abs_diff_m=(_fmax(np.abs(cp["cop_margin"] - np.asarray(arrs["cop_margin"], float)))
-                                              if "cop_margin" in arrs else None),
+                   cop_margin_max_abs_diff_m=None if file_cop is None else _fmax(np.abs(cp["cop_margin"] - file_cop)),
+                   cop_margin_same_feet=(None if file_cop is None else
+                                         bool(np.array_equal(np.isnan(cp["cop_margin"]), np.isnan(file_cop)))),
                    friction_max_abs_diff=(float(np.max(np.abs(cp["friction"] - np.asarray(arrs["friction"], float))))
                                           if "friction" in arrs else None),
                    min_cop_margin_single_m=got_cop, min_cop_margin_single_m_recorded=rec_cop,
                    max_friction_ratio=got_fr, max_friction_ratio_recorded=rec_fr)
     recheck["equal_to_recorded"] = bool(
         recheck["tau_max_abs_diff_nm"] == 0.0 and recheck["cop_margin_max_abs_diff_m"] in (None, 0.0)
-        and recheck["friction_max_abs_diff"] in (None, 0.0) and got_cop == rec_cop and got_fr == rec_fr)
+        and recheck["cop_margin_same_feet"] in (None, True) and recheck["friction_max_abs_diff"] in (None, 0.0)
+        and got_cop == rec_cop and got_fr == rec_fr)
     move = entry.get("move") or {}
     ref_lp = _get(entry, ("reference", "accel_forward_lp1hz_peak_m_s2"))
     accel.update(com_forward_lp1hz_peak_entry=ref_lp,
@@ -970,7 +969,7 @@ def run(set_name: str, body: str, root=setio.ROOT, procs: int = 2, log=print) ->
                 set=set_name, body=body, schema=SCHEMA,
                 what="Stage 2 round A: the Stage 0 screen of every reference of the set, walks and moves "
                      "(STAGE2_75_PLAN.md A12)",
-                note="prescribed references with perfect tracking on the round-two model; nothing adopted",
+                note="prescribed references that the joints follow exactly, on the round-two model; nothing adopted",
                 rules=RULES, limits=screen.limits(st["src"]),
                 margins=dict(peak=sizing.PEAK_MARGIN, speed=sizing.SPEED_MARGIN, cont=sizing.CONT_MARGIN,
                              near_band=NEAR_BAND),
@@ -1133,7 +1132,8 @@ def markdown(doc: dict) -> str:
     turns with ``a1_over`` and what is reported, each with its numbers."""
     blocks = doc["blocks"]
     L = [f"# Stage 0 screen of set {doc['set']} on {doc['body']}", "",
-         "Simulation only: prescribed references with perfect tracking, priced on the round-two model. Made by "
+         "Simulation only: every reference is priced as a prescribed motion that the joints follow exactly, on the "
+         "round-two model. Made by "
          f"`python -m designlab.stage2.setscreen md --set {doc['set']} --body {doc['body']}` from `screen.json`; "
          "the rules are in its `rules` block (STAGE2_75_PLAN.md A12).", "",
          "A ratio is a load over its limit: cont = RMS torque over the frames / sustained torque, peak = "
