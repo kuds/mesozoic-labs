@@ -130,6 +130,10 @@ VERDICT_WORDS = ("shown", "provisional")
 #: ("controller-limited", "body-limited", "not attributed"): the tables say first that nothing passes, so that the
 #: cell reads as a fail whatever the word (a record with 0 of 20 episodes up is "not attributed" until it is).
 NEITHER_PASSES = "neither row passes"
+#: At another delay the runner's failing word in reading 3 is "does not pass at <ms> ms but for A1", which can be
+#: read as "would pass but for A1": the tables end it with these words in place of the runner's " but for A1".
+A1_TAIL = " but for A1"
+ALSO_WITHOUT_A1 = ", also with A1 set aside"
 
 # ------------------------------------------------------------------------------------------------
 # The registered order (STAGE2_75_PLAN.md H6 and B3): what a table lists even where no record exists
@@ -1367,9 +1371,10 @@ def verdict_of(doc: dict, set_name: str, body: str, key: str, ms: int, ctrl: str
     records fail (``flags_of``), each with its row; ``set_labels`` are the set's labels as its records give them
     (``line_labels``); ``records`` are the records read (None where a row has none).  With no record under either
     row the text is the absent word.  ``verdict`` is the runner's word (``bar.verdict``); ``text`` is the cell as
-    printed: a `shown` or `provisional` with its replication words, and at the judged delay, where neither row
-    passes, the runner's failing word after "neither row passes: "; ``word`` is what a count per verdict word
-    counts the cell under (the text for those two kinds, else the runner's word)."""
+    printed: a `shown` or `provisional` with its replication words; at the judged delay, where neither row
+    passes, the runner's failing word after "neither row passes: "; at another delay, where neither row passes in
+    reading 3, "does not pass at <ms> ms, also with A1 set aside" (the runner's word ends "but for A1"); ``word`` is
+    what a count per verdict word counts the cell under (the text for those kinds, else the runner's word)."""
     names = [f"{r}@{ms}ms" for r in panels.VERDICT_ROWS[ctrl]]
     now = [_rec(doc, set_name, body, block, r, key) for r in names]
     recs = now if latest else [registered(r) for r in now]
@@ -1390,6 +1395,8 @@ def verdict_of(doc: dict, set_name: str, body: str, key: str, ms: int, ctrl: str
         text, rep, counted = v["verdict"], None, v["verdict"]
         if ms == bar.JUDGED_MS and v.get("passes") is not None and not any(v["passes"]):
             text = counted = f"{NEITHER_PASSES}: {text}"  # Stage 1's failing word alone does not say "fails"
+        elif v.get("passes") is not None and not any(v["passes"]) and text.endswith(A1_TAIL):
+            text = counted = text[: -len(A1_TAIL)] + ALSO_WITHOUT_A1  # reading 3 at another delay: no pass either
         if v["verdict"] == "incomplete" and any(r is None for r in recs):
             text += " (" + "; ".join(f"{n}: {a}" for n, a in zip(names, absent, strict=True) if a) + ")"
         if v["verdict"] == NOT_RUN:
@@ -1690,8 +1697,10 @@ def verdict_notes() -> list[str]:
         "`provisional` if one does, in reading 3 with `but for A1`; at another delay the cell reads `passes at <ms> "
         f"ms` and is no verdict.  Where neither row passes at the judged delay the cell reads \"{NEITHER_PASSES}: \" "
         "and the runner's failing word (Stage 1's: `controller-limited`, `body-limited`, or `not attributed` while "
-        "the records' falls have not been attributed): that is a fail, never a pass.  An R0 row gives no verdict and "
-        "is not replicated.  A candidate's `shown` or "
+        "the records' falls have not been attributed): that is a fail, never a pass.  At another delay a cell of "
+        f"reading 3 in which neither row passes reads \"does not pass at <ms> ms{ALSO_WITHOUT_A1}\" (the runner's "
+        f"word for it ends \"{A1_TAIL.strip()}\", the name of the reading, and is no pass with A1 set aside).  An R0 "
+        "row gives no verdict and is not replicated.  A candidate's `shown` or "
         "`provisional` stands with the replication word of each row's record that passed.  The registered order "
         "(STAGE2_75_PLAN.md H6) holds no replication of " + " and none of ".join(NO_REPLICATION_TIERS) + ": beside a "
         f"pass of the candidate there stands \"{NO_REPLICATION_UNIT}\", whatever the ledger shows.",

@@ -1731,6 +1731,22 @@ def test_a_record_with_no_episode_up_reads_as_a_fail_in_every_table(run):
         for k in ("failure", "failure_but_A1"):
             doc["V0"][BODY][H][row]["walk/v0.4"][k]["label"] = "body-limited: drive_torque"
     assert barreport.verdict_of(doc, "V0", BODY, "walk/v0.4", 10)["reading_3"]["text"] == f"{barreport.NEITHER_PASSES}: body-limited"
+    # at another delay the runner's failing word of reading 3 ends "but for A1", the reading's name: the tables' cell
+    # cannot be read as "would pass but for A1"
+    for row in ("R2/42@4ms", "R2/43@4ms"):
+        rec = doc["F25F9cl"][BODY][H][row]["walk/v0.4"]
+        for ck in ("counts", "counts_but_A1"):
+            rec[ck].update(succeeded=0, success_lcb=0.0, pass_=False)
+        for e in rec["episodes"]:
+            e.update(succeeded=False, succeeded_but_A1=False)
+    four = barreport.verdict_of(doc, "F25F9cl", BODY, "walk/v0.4", 4)
+    assert four["reading_2"]["text"] == four["reading_2"]["verdict"] == "does not pass at 4 ms"
+    assert four["reading_3"]["verdict"] == "does not pass at 4 ms but for A1"  # the runner's word
+    assert four["reading_3"]["text"] == "does not pass at 4 ms, also with A1 set aside"
+    late = one(barreport.tables(doc), "walk", "verdicts", set="F25F9cl", condition="walk/v0.4", delay=REP4)
+    assert late["reading_3"] == "does not pass at 4 ms, also with A1 set aside"
+    assert not [s_ for _, _, x in every_line(barreport.tables(doc)) for s_ in strings(x) if "does not pass at 4 ms but for A1" in s_]
+    assert one(run.tabs, "walk", "verdicts", set="F25F9cl", condition="walk/v0.4", delay=REP4)["reading_3"] == "passes at 4 ms but for A1"
     for _, p, x in every_line(run.tabs):
         for k in ("reading_2", "reading_3"):
             cell = x.get(k)
