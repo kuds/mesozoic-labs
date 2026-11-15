@@ -646,6 +646,7 @@ def test_every_top_band_says_simulation_or_planned_and_never_both():
     with pytest.raises(ValueError):
         bv.clip_labels("both", BODY, "V0", DEFS["walk"], "side")
     assert bv.clock_words(4.0) == "clip  4.00 s   1x" and bv.clock_words(4.0, 8.222) == "clip  4.00 s = episode  8.22 s   1x"
+    assert bv.clock_words(5.0, 4.718, held=True) == "clip  5.00 s (held at episode  4.72 s)   1x"  # (after a fall)
     assert bv.view_words("visitor") == "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
     assert bv.view_words("side", (0.8, 3.75), True) == ("side view: eye 0.8 m high, 3.8 m away (pulled back to hold the "
                                                         "robot), on the robot's right")

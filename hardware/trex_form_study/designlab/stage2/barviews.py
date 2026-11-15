@@ -1548,7 +1548,8 @@ CLIP_RULES = dict(
            "'majority outcome': the lowest seed with the majority outcome), this episode's outcome (a fall with "
            "its second of the episode), the record's count; then the view and the clock.  The clock of a simulated "
            "clip gives two times, 'clip 4.00 s = episode 8.22 s': the seconds since the clip's first frame and "
-           "the episode's own time, the one a fall's second and the records use.  From the command, for "
+           "the episode's own time, the one a fall's second and the records use; while the last pose is held "
+           "after a fall the episode's time stands still, 'clip 5.00 s (held at episode 4.72 s)'.  From the command, for "
            f"{CAPTION_S:g} s: 'command: ...' (read from the record); from the fall instant: 'fell'",
     watch="the clips are 854 x 480 and made for a landscape or a full screen.  The title's second line and the "
           "bottom's first line are 17 px tall, the other lines 13 to 15 px: at a phone's portrait width (390 px) "
@@ -1952,10 +1953,13 @@ def free_top(band_px: int, captions: int) -> int:
     return band_px if not captions else band_px + CAPTION_GAP_PX + CAPTION_STEP_PX * (captions - 1) + CAPTION_BOX_PX
 
 
-def clock_words(t_clip: float, t_episode: float | None = None) -> str:
-    """The clock of a frame: the clip's own time, and for a simulated clip the episode's time beside it."""
+def clock_words(t_clip: float, t_episode: float | None = None, held: bool = False) -> str:
+    """The clock of a frame: the clip's own time, and for a simulated clip the episode's time beside it; ``held``:
+    the frame shows the last recorded pose after a fall, and the episode's time stands still."""
     if t_episode is None:
         return f"clip {t_clip:5.2f} s   1x"
+    if held:
+        return f"clip {t_clip:5.2f} s (held at episode {t_episode:5.2f} s)   1x"
     return f"clip {t_clip:5.2f} s = episode {t_episode:5.2f} s   1x"
 
 
@@ -2140,7 +2144,7 @@ def render_clip(kind: str, sv: SetView, cond, pose: dict, span: dict, view: str,
             cam = cam_of(k, back, lift)
             travel = (lxy[k] if cam_fixed is None else cam_fixed["lookat"][:2]) - box[:2]
             raw = draw_frame(cs, q_at(pose, t), cam, travel, TOP_HEADLIGHT_DIFFUSE if cam_fixed is not None else None)
-            clock = clock_words(float(tau), t if kind == "simulated" else None)
+            clock = clock_words(float(tau), t if kind == "simulated" else None, span["t0"] + float(tau) > span["t1"] + 1e-9)
             img = draw_labels(raw, top, bottom, clock, notice)
             for j, (ckind, text) in enumerate(caps[k]):
                 img = draw_caption(img, text, ckind, y=bands[0] + CAPTION_GAP_PX + CAPTION_STEP_PX * j)
