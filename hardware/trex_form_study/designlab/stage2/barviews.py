@@ -1117,7 +1117,8 @@ def figure(sv: SetView, cond, planned: dict, sim: dict | None, stem: Path) -> st
         a, s = (np.asarray(world_xy, float) - o) @ ex, (np.asarray(world_xy, float) - o) @ ey
         return np.column_stack([-sign * s, a])
 
-    plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 8, "svg.fonttype": "none"})
+    plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 8, "svg.fonttype": "none",
+                         "svg.hashsalt": "barviews"})  # (the same bytes on every run)
     words = condition_words(cond.describe())
     drawn = [] if sim is None else sim.get("_paths", [])
     if drawn:
@@ -1241,8 +1242,8 @@ CLIP_RULES = dict(
     cameras="visitor and side: clips.CAMERAS' eye height, distance and bearing, the bearing counted from the "
             "incoming walking line and kept for the whole clip; the look-at point follows the planned root path "
             "(the reference at the reference time the episode's own clock has reached, so that the clock's play "
-            "does not move the picture), averaged over one stride, at the height of the body's bounding box "
-            "centre at home: it does not follow the body's own wobble, and a robot that leaves its planned path "
+            "does not move the picture), averaged over one stride, moved to the body's bounding box centre as it "
+            "lies from the root at home and at that centre's height: it does not follow the body's own wobble, and a robot that leaves its planned path "
             "leaves the picture's centre.  top: a fixed eye straight above the middle of the clip's sweep, high "
             "enough to hold it, the picture's up along the incoming walking line, the headlight's diffuse part "
             f"lowered to {TOP_HEADLIGHT_DIFFUSE:g} (straight down the model's own washes the floor out)",
@@ -1398,10 +1399,12 @@ def smooth_rows(x, rows: int) -> np.ndarray:
     return np.column_stack([np.convolve(x[:, j], k, mode="same") / cnt for j in range(x.shape[1])])
 
 
-def lookat_path(planned: dict, t, t_ref, stride_s: float) -> np.ndarray:
+def lookat_path(planned: dict, t, t_ref, stride_s: float, offset=(0.0, 0.0)) -> np.ndarray:
     """The look-at point's plan path [n, 2] at the rows ``t`` of a clip's pose series (``CLIP_RULES["cameras"]``):
     the planned root at the reference time ``t_ref`` of each row (carried on at its last second's mean velocity
-    past the reference's end), averaged over one stride ``stride_s`` of simulated time."""
+    past the reference's end), averaged over one stride ``stride_s`` of simulated time, plus ``offset`` (forward,
+    left: the body's bounding box centre from its root at home) turned with the planned heading, averaged
+    likewise."""
     P = planned["pose"]
     tp, xy = P["t"] * bar.RATE, P["root_xy"]
     t_ref = np.asarray(t_ref, float)
@@ -1413,7 +1416,10 @@ def lookat_path(planned: dict, t, t_ref, stride_s: float) -> np.ndarray:
         out[late] = xy[-1] + np.outer(t_ref[late] - tp[-1], v)
     t = np.asarray(t, float)
     step = float(np.median(np.diff(t))) if len(t) > 1 else 0.02
-    return smooth_rows(out, int(round(stride_s / step)))
+    rows = int(round(stride_s / step))
+    psi = smooth_rows(np.interp(t_ref, tp, P["yaw"])[:, None], rows)[:, 0]
+    c, s = np.cos(psi), np.sin(psi)
+    return smooth_rows(out, rows) + np.column_stack([c * offset[0] - s * offset[1], s * offset[0] + c * offset[1]])
 
 
 def camera_vectors(cam: dict) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -1572,9 +1578,11 @@ def render_clip(kind: str, sv: SetView, cond, pose: dict, span: dict, view: str,
     model, cs = sv.model, scene(sv.body)
     pl = sv.planned(cond)
     stride = float(pl["res"]["period_s"]) / bar.RATE
-    look = lookat_path(pl, pose["t"], pose["t_ref"], stride)
     box, _ = cs.home_box(model.q_home)
     z, psi = float(box[2]), model.psi_cmd
+    d_home = box[:2] - model.q_home[:2]  # the bounding box centre from the root at home, in the heading's frame
+    off = (math.cos(psi) * d_home[0] + math.sin(psi) * d_home[1], -math.sin(psi) * d_home[0] + math.cos(psi) * d_home[1])
+    look = lookat_path(pl, pose["t"], pose["t_ref"], stride, off)
     n = int(round((span["t1"] - span["t0"] + span["hold_s"]) * FPS)) + 1
     taus = np.arange(n) / FPS
     t_show = np.minimum(span["t0"] + taus, span["t1"])  # (the pose is held after a fall)
@@ -1585,7 +1593,7 @@ def render_clip(kind: str, sv: SetView, cond, pose: dict, span: dict, view: str,
     elif view not in clips.CAMERAS:
         raise ViewError(f"view {view!r}: choose from visitor, side, top")
     frames = np.empty((n, clips.SIZE[1], clips.SIZE[0], 3), np.uint8)
-    margin, off = math.inf, 0.0
+    margin, away = math.inf, 0.0
     t0w = time.perf_counter()
     try:
         for k, tau in enumerate(taus):
@@ -1593,7 +1601,7 @@ def render_clip(kind: str, sv: SetView, cond, pose: dict, span: dict, view: str,
             q = q_at(pose, t)
             lxy = np.array([np.interp(t, pose["t"], look[:, 0]), np.interp(t, pose["t"], look[:, 1])])
             cam = cam_fixed if cam_fixed is not None else follow_camera(view, lxy, z, psi, clips.CAMERAS[view])
-            travel = (lxy if cam_fixed is None else cam_fixed["lookat"][:2]) - model.q_home[:2]
+            travel = (lxy if cam_fixed is None else cam_fixed["lookat"][:2]) - box[:2]
             raw = draw_frame(cs, q, cam, travel, TOP_HEADLIGHT_DIFFUSE if cam_fixed is not None else None)
             img = clips.overlay(raw, top, bottom, float(tau), dark=False)
             for j, (ckind, text) in enumerate(frame_captions(span["t0"] + tau, span, command, fall_words)):
@@ -1603,7 +1611,7 @@ def render_clip(kind: str, sv: SetView, cond, pose: dict, span: dict, view: str,
                 uv = project(model.surface(q), cam, clips.SIZE, clips.FOVY_DEG)
                 margin = min(margin, float(uv[:, 0].min()), float(clips.SIZE[0] - uv[:, 0].max()),
                              float(uv[:, 1].min() - 46), float(clips.SIZE[1] - 42 - uv[:, 1].max()))
-                off = max(off, float(np.linalg.norm(q[:2] - lxy)))
+                away = max(away, float(np.linalg.norm(model.surface(q)[:, :2].mean(axis=0) - lxy)))
     finally:
         cs.m.light_pos[:] = cs.light_pos0
     render_s = time.perf_counter() - t0w
@@ -1627,7 +1635,8 @@ def render_clip(kind: str, sv: SetView, cond, pose: dict, span: dict, view: str,
     cam_doc = (dict(kind="fixed", lookat=cam_fixed["lookat"].tolist(), height_above_lookat_m=cam_fixed["distance"],
                     up_deg=math.degrees(psi)) if cam_fixed is not None
                else dict(clips.CAMERAS[view], kind="follows the planned root path, averaged over one stride",
-                         lookat_height_m=z, largest_distance_root_to_lookat_m=off))
+                         lookat_height_m=z, lookat_offset_from_root_m=[float(off[0]), float(off[1])],
+                         largest_distance_surface_centre_to_lookat_m=away))
     return dict(file=mp4.name, poster=mp4.stem + ".png", sheet=mp4.stem + "_sheet.png", view=view, kind=kind,
                 bytes=enc["bytes"], sha256=hashlib.sha256(mp4.read_bytes()).hexdigest(), frames=int(n), fps=FPS,
                 seconds=float(taus[-1]), size=list(clips.SIZE), labels=dict(top=top, bottom=bottom),
@@ -1755,6 +1764,8 @@ def make_clips(items, planned: bool = False, run=RUN, media=None, out=None, bloc
     _clips()
     entries, skipped = [], []
     t0 = time.perf_counter()
+    git = s2io.git_state(own_outputs=[str(out)])
+    made = dict(at=s2io.now_utc(), commit=git["commit"], dirty=git["dirty"], module_sha256=s2io.sha256_file(Path(__file__)))
     for it in items:
         log(" ".join(str(x) for x in it) + (" (planned)" if planned else ""))
         if planned:
@@ -1763,8 +1774,8 @@ def make_clips(items, planned: bool = False, run=RUN, media=None, out=None, bloc
             e, s = simulated_clips(run, it[0], it[1], it[2], media, block, views, body, log)
         for x in s:
             log(f"  no clip: {x['reason']}")
-        entries += e
-        skipped += [dict(x, kind="planned" if planned else "simulated") for x in s]
+        entries += [dict(x, made=made) for x in e]
+        skipped += [dict(x, kind="planned" if planned else "simulated", at=made["at"]) for x in s]
     path = out / "clips.json"
     old = s2io.read_json(path) if path.exists() else {}
     mine = {e["file"] for e in entries}
@@ -1780,9 +1791,9 @@ def make_clips(items, planned: bool = False, run=RUN, media=None, out=None, bloc
                fps=FPS, max_bytes=MAX_BYTES,
                clips=sorted([e for e in old.get("clips", []) if e["file"] not in mine] + entries, key=lambda e: e["file"]),
                skipped=[x for x in old.get("skipped", []) if not any(same(x, d) for d in done)] + skipped,
-               provenance=dict(git=s2io.git_state(own_outputs=[str(out)]), at=s2io.now_utc(),
-                               module="designlab/stage2/barviews.py", module_sha256=s2io.sha256_file(Path(__file__)),
-                               wall_s=time.perf_counter() - t0))
+               provenance=dict(note="of the last run of the command; each clip holds its own under 'made'", git=git,
+                               at=made["at"], module="designlab/stage2/barviews.py",
+                               module_sha256=made["module_sha256"], wall_s=time.perf_counter() - t0))
     s2io.write_json(path, s2io.plain(doc))
     return doc
 
