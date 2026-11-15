@@ -216,6 +216,13 @@ JETSON_REGULATOR_RULE = (
     "(JETSON_USB_VBUS_W), the carrier's own conversion loss left out.  The rated output is the catalog's power_max_w "
     "(12 V times the vendor's continuous current at its stated input voltage; the vendor gives a range of currents "
     "over input voltage and no figure at 6S, so this is the catalog's one point, not a rating at 20-25 V)")
+JETSON_REGULATOR_CONSEQUENCE_RULE = (
+    "what the rule's worst case costs in mass: on the modes' rail budgets alone (no USB load) the lighter option "
+    "covers both modes (load_fraction_at_rail_budget), and the body would then be lighter by the two catalog masses' "
+    "difference (lighter_option.body_mass_change_kg; with_reserve_kg adds the model's 6 % integration reserve).  "
+    "Whether the worst case can occur at the jack is not sourced: the catalog does not give the rating of the kit's "
+    "own 19 V supply.  If the power box already holds the computer's regulator (may_be_counted_twice), the body is "
+    "lighter than modelled by the placed row with its reserve (placed_row_with_reserve_kg)")
 JETSON_DOUBLE_COUNT_NOTE = (
     "the power box's 0.30 kg is PR #662's power bay allowance, and that robot's bay held three regulators, a "
     "D36V50F12 for its computer among them (r0_posture_study_2026-11-07/study/hardware/component_basis.md); the bay's "
@@ -249,7 +256,8 @@ for _case, (_base, _cid) in JETSON_BASE.items():
     CASES[_case] = dict(CASES[_base], ids=(_cid,), overrides=tuple(CASES[_base]["overrides"]) + JETSON_OVERRIDES,
                         base_case=_base, jetson=True,
                         label=f"{CASES[_base]['label']} + Jetson Orin Nano Super dev kit and its 12 V regulator "
-                              "(not re-sized)")
+                              "(not re-sized; power and runtime here are at round one's 31 W compute allowance, "
+                              "A13; the two power modes' figures are in the record's jetson.power_modes)")
 del _case, _base, _cid
 CARPET_LIFT_IDS = ("60-N-H-10", "60-N-T-10", "60-M-T-10", "60-M-H-10", "75-M-T-10-bighead")
 LIFTS = (0.13, 0.16, 0.19, 0.22)
@@ -667,8 +675,9 @@ def jetson_build(case: str, base_rec: dict, models_dir) -> dict:
 
 def jetson_regulators() -> dict:
     """``JETSON_REGULATOR_RULE`` on the catalog: each mode's worst case at the dev kit's jack, each candidate
-    regulator's catalog figures and which modes its rated output covers, and the rule's choice."""
-    from . import catalog, power
+    regulator's catalog figures and which modes its rated output covers, the rule's choice, and what that choice
+    costs in mass against the lighter option (``JETSON_REGULATOR_CONSEQUENCE_RULE``)."""
+    from . import build, catalog, mjcf, power
 
     modes = {m: sum(v.values()) for m, v in power.COMPUTE_MODE_BUDGET[JETSON_COMPUTE].items()}
     worst = {m: w + JETSON_USB_VBUS_W for m, w in modes.items()}
@@ -683,11 +692,21 @@ def jetson_regulators() -> dict:
                             load_fraction_at_rail_budget={m: w / r.power_max for m, w in modes.items()},
                             load_fraction_at_worst_case={m: w / r.power_max for m, w in worst.items()})
     both = sorted((o["mass_kg"], pid) for pid, o in options.items() if all(o["covers"].values()))
+    placed = catalog.part(JETSON_REGULATOR)
+    reserve = 1.0 / (1.0 - mjcf.INTEGRATION_RESERVE_FRACTION)
+    light_mass, light = min((o["mass_kg"], pid) for pid, o in options.items())
+    consequence = dict(
+        rule=JETSON_REGULATOR_CONSEQUENCE_RULE,
+        lighter_option=dict(part=light, covers_both_modes_at_rail_budget=bool(
+            all(v <= 1.0 for v in options[light]["load_fraction_at_rail_budget"].values())),
+            body_mass_change_kg=light_mass - placed.mass, with_reserve_kg=(light_mass - placed.mass) * reserve),
+        placed_row_kg=placed.mass + build.COMPUTE_REGULATOR_LEADS_KG,
+        placed_row_with_reserve_kg=(placed.mass + build.COMPUTE_REGULATOR_LEADS_KG) * reserve)
     return dict(rule=JETSON_REGULATOR_RULE, pack_full_v=25.2, carrier_input_v="9-20 V at the DC jack (compute survey: "
                 "designlab/data/research/compute_2026-11-07.json, jetson_orin_nano_super_devkit); the catalog part's "
                 f"voltage_v is its own supply's {kit.voltage:g} V",
                 rail_budget_w=modes, usb_vbus_limit_w=JETSON_USB_VBUS_W, worst_case_at_jack_w=worst, options=options,
-                choice=both[0][1] if both else None, placed=JETSON_REGULATOR,
+                choice=both[0][1] if both else None, placed=JETSON_REGULATOR, consequence=consequence,
                 may_be_counted_twice=JETSON_DOUBLE_COUNT_NOTE,
                 efficiency="the regulator's loss is in power.ETA_DCDC (0.88, A6), which every auxiliary rail takes; "
                            "the vendor gives over 90 % for this part (catalog research record), so 0.88 is the lower "
@@ -730,11 +749,13 @@ def jetson_power(design, res: dict, req: dict, sel: dict, base_rec: dict) -> dic
                   drives_w=base_rec["power"]["drives_w"], total_w=base_rec["power"]["total_w"],
                   runtime_min=base_min),
         survey_typical_15w=dict(
-            rule="for comparison, not a mode budget: the 15 W mode at the compute survey's typical draw, 12 W "
-                 "measured at the module with a detector running plus the same 3 W of carrier, storage and cooling "
-                 "(designlab/data/research/compute_2026-11-07.json, A_orin_nano_super_devkit: 'Typical 15.0 W'); the "
-                 "base's row is a typical draw too (A14).  First order: the 15 W mode's result with the rail's "
-                 "difference taken off through the converter",
+            rule="for comparison, not a mode budget and not a measurement in the 15 W mode: the compute survey's "
+                 "typical figure for this architecture, 12 W at the module plus the same 3 W of carrier, storage and "
+                 "cooling (designlab/data/research/compute_2026-11-07.json, A_orin_nano_super_devkit: 'Typical 15.0 "
+                 "W').  The 12 W was measured with locked MAXN SUPER clocks under a heavier detector load (arXiv "
+                 "2609.13551), and the survey has no measurement in the 15 W mode ('No light-load measurement exists "
+                 "in the 15 W mode').  The base's row is a typical draw too (A14).  First order: the 15 W mode's "
+                 "result with the rail's difference taken off through the converter",
             compute_rail_w=typ_rail, total_w=typ_total, runtime_min=60.0 * pack.capacity_wh * power.USABLE / typ_total,
             runtime_change_against_base_min=60.0 * pack.capacity_wh * power.USABLE / typ_total - base_min))
 
@@ -945,8 +966,10 @@ def jetson_one(case: str, cid: str, out: str) -> dict:
                                    if "margins_at_pick_pose" in at_pick else None),
             power_modes=pmodes,
             heat=dict(modelled=False,
-                      note="heat is not modelled anywhere in this study: the dev kit's 15-25 W module (18-28 W at the "
-                           "rail) against the Pi set's 8-9.5 W, in a closed chest, is an open hardware question"),
+                      note="no thermal model of the chest, the electronics or the air path exists in this study; the "
+                           "drives' heating is read only through their sustained-torque ratios (the envelope "
+                           "screen's session_heat).  The dev kit's 15-25 W module (18-28 W at the rail) against the "
+                           "Pi set's 8-9.5 W, in a closed chest, is an open hardware question"),
             selection_if_resized=dict(
                 rule="one step of sizing.select on these loads with the case's headroom, and power.select_battery "
                      "on its walking power (the record's own, and each power mode's): recorded only (the sizing loop, "

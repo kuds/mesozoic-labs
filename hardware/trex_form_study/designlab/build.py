@@ -95,12 +95,22 @@ PROFILE_CLEAR_M, PROFILE_WALL_M = 0.008, 0.002
 #:   kit's carrier, whose DC jack takes 9-20 V while a 6S pack is at 25.2 V full; DECISION_LOG E7) as a box on the power
 #:   box's top face, centred, on ``COMPUTE_REGULATOR_STANDOFF_M`` standoffs, in the power box's frame: the 6S bus is
 #:   there and the 12 V lead runs forward to the carrier.  Its mass is the catalog's plus
-#:   ``COMPUTE_REGULATOR_LEADS_KG`` for its standoffs, the 12 V lead and its plug (an estimate).  It is placed after the
-#:   covers, so the trunk profile, the covers and every other item stay as they are without it; where it sits is
-#:   recorded (``geometry_checks["compute_regulator"]``).  It is an installed part like any other: the integration
-#:   reserve (``mjcf.body_inertials``) counts it.
+#:   ``COMPUTE_REGULATOR_LEADS_KG`` for its standoffs, the 12 V lead and its plug (an estimate), so its ledger row's
+#:   basis is not the catalog part's alone (``compute_regulator_basis``: the ledger's ``mass_by_basis`` does not book
+#:   the estimate as sourced).  It is placed after the covers, so the trunk profile, the covers and every other item
+#:   stay as they are without it; where it sits is recorded (``geometry_checks["compute_regulator"]``).  It is an
+#:   installed part like any other: the integration reserve (``mjcf.body_inertials``) counts it.
 COMPUTE_REGULATOR_STANDOFF_M = 0.005
 COMPUTE_REGULATOR_LEADS_KG = 0.010
+
+
+def compute_regulator_basis(part) -> str:
+    """The basis of the regulator's ledger row: the catalog part's mass with its own basis, and the estimate added
+    for its standoffs, lead and plug (``COMPUTE_REGULATOR_LEADS_KG``)."""
+    return (f"partially_sourced; catalog part {1e3 * part.mass:g} g ({part.basis}) + "
+            f"{1e3 * COMPUTE_REGULATOR_LEADS_KG:g} g of standoffs, 12 V lead and plug (estimate)")
+
+
 #: The ledger key that marks the regulator's item (``Item.meta``), with the part id as its value.
 COMPUTE_REGULATOR_META = "compute_regulator"
 
@@ -1067,7 +1077,7 @@ class Design:
         lift = 0.5 * box.size[2] + COMPUTE_REGULATOR_STANDOFF_M + 0.5 * part.dims[2]
         pos = box.pos + box.rot @ np.array([0.0, 0.0, lift])
         it = hw.box_item("compute_regulator", "trunk", "power", part.mass + COMPUTE_REGULATOR_LEADS_KG, pos, part.dims,
-                         "A", part.basis, part.id, hw.BOARD_RGBA, rot=box.rot, cost_nom=part.price,
+                         "A", compute_regulator_basis(part), part.id, hw.BOARD_RGBA, rot=box.rot, cost_nom=part.price,
                          cost_high=part.price * 1.1, meta={COMPUTE_REGULATOR_META: part.id})
         self.add(it)
         mg = self.profile_margin(it)

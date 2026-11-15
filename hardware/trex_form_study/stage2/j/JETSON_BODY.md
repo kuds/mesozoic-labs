@@ -9,11 +9,16 @@ These notes follow the expressive head's (`stage2/x/HEAD_X.md`). The commands ar
 are listed with their sha256 in `j_inputs.json`, and `j_inputs.py` checks, copies and regenerates them. Everything here
 is simulation; nothing is built.
 
-Every number carries its kind of evidence:
+Every number carries its kind of evidence, named as `JETSON_PLEM_REVIEW.md` names them:
 
 - (a) a model result of this study: a static or prescribed-walk reading of the simulated body;
+- (b) a simulated run of this study: a forward simulation of the body under its joint servos. There are three: the
+  carpet screen's standing, G1's stands and G2's feedforward replays of the references. No balance controller or
+  policy was run;
 - (c) a sourced fact, with its catalog id (`designlab/data/parts.json`) or document;
 - (d) an estimate or assumption.
+
+G1's step rates are timings of this machine, not model results.
 
 The tables in section 4 are written by `j_tables.py` from the committed records, so no figure in them is typed by hand
 (`tests/test_stage2_j.py` checks the block). The prose quotes them rounded.
@@ -52,21 +57,26 @@ the jack:
 - plus the most the carrier can pass to its USB ports: two port pairs at 3 A and 5 V, 30 W (c, the dev kit's entry in
   `designlab/data/research/parts_2026-11-07.json`). The head camera is fed from those ports.
 
-At the rail budget alone, both parts would do: the smaller one runs at 33 % and 52 % of its rating. The rating itself is
-the catalog's one point, 12 V times the vendor's current at one stated input voltage. The vendor gives a range of
-currents over input voltage and no figure at 20–25 V (d).
+At the rail budget alone, both parts would do: the smaller one runs at 33 % and 52 % of its rating. So the choice rests
+on the 30 W for the USB ports, and that worst case is this study's construction (d), not a sourced figure for the jack:
+the catalog does not give the rating of the kit's own 19 V supply (open item 6). What the choice costs is in the note
+under table 1: with the smaller part the body would be 8.0 g lighter, 8.5 g with the reserve.
+
+The rating itself is the catalog's one point, 12 V times the vendor's current at one stated input voltage. The vendor
+gives a range of currents over input voltage and no figure at 20–25 V (d).
 
 The regulator is a 31.8 × 43.2 × 9 mm box (c) lying flat on the power box, 5 mm above it on standoffs (d), in the
 abdomen. The 6S bus is there, and the 12 V lead runs forward to the carrier. Its mass in the model is 25 g: the
-catalog's 15 g (c) plus 10 g for standoffs, the lead and its plug (d).
+catalog's 15 g (c) plus 10 g for standoffs, the lead and its plug (d). Its ledger row says so in its basis
+(`build.compute_regulator_basis`), so the ledger's sum by basis does not book the 10 g as sourced (table 2's note).
 
 **It may be counted twice.** The power box's 0.30 kg is PR #662's power bay (d). That robot carried a Jetson, and its
 bay held three regulators: a `D36V50F12` for the computer, a `D42V110F12` for the servos and a 5 V one for logic
 (`r0_posture_study_2026-11-07/study/hardware/component_basis.md`). The bay's own breakdown is not in this repository;
 `stage2/jetson75/BUDGET_75.md` reaches the same point for its price. So the box may already hold a 12 V regulator
 for the computer, the smaller part, which by the rule above covers the 15 W mode only. The body is the heavier
-reading: at most 27 g too heavy, the regulator with its reserve (d). The dev kit's rail here is its own, separate
-from the servos'.
+reading: at most 26.6 g too heavy, the regulator's row with its reserve (d). The dev kit's rail here is its own,
+separate from the servos'.
 
 **What leaves with the Raspberry Pi set.** The pick's record was read before deciding (`jetson.pi_set` in the record):
 
@@ -84,19 +94,24 @@ from the servos'.
 Jetson drives the legs itself. That is not the baseline (P30), so neither is in the model, its mass or its screens.
 Table 7 gives what they would add, as estimates.
 
-**Heat is not modelled**, here or anywhere in this study. See open item 2.
+**Heat is not modelled.** No thermal model of the chest, the electronics or the air path exists in this study. The
+drives' heating is read only through their sustained-torque ratios (the envelope screen's `session_heat`; table 4 gives
+the session's worst drive). See open item 2.
 
 ## 2. How it was built
 
 | File | Change | Why earlier models are unchanged |
 |---|---|---|
-| `designlab/build.py` | Override `compute_regulator` places the selection's `compute_regulator` part on the power box, after the covers. `Design.profile_margin` reads an item against the as-built trunk profile | The override is off by default; with it off the new code is not reached. `profile_margin` only reads |
+| `designlab/build.py` | Override `compute_regulator` places the selection's `compute_regulator` part on the power box, after the covers; `compute_regulator_basis` writes its ledger row's basis. `Design.profile_margin` reads an item against the as-built trunk profile | The override is off by default; with it off the new code is not reached. `profile_margin` only reads |
 | `designlab/power.py` | `COMPUTE_MODE_BUDGET` (the dev kit's two mode rows), `compute_loads`, and an optional `compute_mode` argument on `aux_power` and `walking_power` | `COMPUTE_BUDGET` is untouched, and a call without a mode books its row as before |
-| `designlab/refine.py` | Case `jetson_75` and its functions (`jetson_one` and others). `head_x_at_pick_pose` takes two optional arguments | The new case is one more entry. The two arguments default to what the function did |
+| `designlab/refine.py` | Case `jetson_75` and its functions (`jetson_one` and others). `head_x_at_pick_pose` takes two optional arguments | The new case is one more entry. The two arguments default to what the function did (both `-X` records regenerate unchanged) |
 | `designlab/stage1/__init__.py`, `refs.py` | `75-M-H-10-J` registered: `BODIES`, `CANDIDATE_IDS`, `SHA256_PREFIX`, `JETSON_BODIES`, the carpet lift and its record | Entries added; none changed |
 | `tests/test_stage2_x.py`, `tests/test_stage1_bodies.py` | Both pin the registry's exact set; each now names the new body | – |
-| `round2/refine/refine.json`, `REFINE.md` | Regenerated by the refine CLI, as for every case: the case's label and its two rows added | No other row changed |
+| `round2/refine/refine.json`, `REFINE.md` | Regenerated by the refine CLI, as for every case: the case's label and its two rows added. The label says that the runtime shown (28.7 min) is at round one's 31 W allowance, not at either power mode | No other row changed |
 | `stage2/jetson75/budget_75.json` | Regenerated (see below) | Two input hashes changed |
+
+Outside the brief's list of files, each as the `-X` branch did for the same purpose: `tests/test_stage1_bodies.py` (it
+pins the registry's exact set and fails otherwise), `round2/refine/refine.json` and `round2/refine/REFINE.md`.
 
 - **Every earlier model keeps its recorded `xml_sha256`.** `tests/test_stage2_j.py` rebuilds the seven bodies the
   registry held before (the three picks, the two `-K` and the two `-X`) and round two's own records of the two picks'
@@ -105,10 +120,29 @@ Table 7 gives what they would add, as estimates.
   entries: the compute part, the regulator's part and its override. Put back, the build gives the pick's sha256.
 - **The model is built with one BLAS thread**, as the expressive head's were (`run_j.sh` exports it). The XML does not
   depend on that; the model ledger JSON's last digits do.
-- **Hashes that move.** `build.py`, `stage1/__init__.py` and `stage1/refs.py` are inside the Stage 1 panels' code hash
-  and `plant.provenance`'s source hash, as they were for the `-X` branch. Records keyed after this branch carry the new
-  hashes; no committed record is rewritten. `stage2/jetson75/budget_75.json` hashes `build.py` and `refine.py`, so it
-  was regenerated with `stage2/jetson75/budget_75.py`: those two hashes in its `inputs` changed and nothing else.
+- **Hashes that move**, as they did for the `-X` branch. `stage1/__init__.py` and `stage1/refs.py` are inside all four
+  of Stage 1's source hashes, and `build.py` inside the panels'. This branch against its merge base (`feb84ad`), first
+  12 digits:
+
+  | Hash | What reads it | Before → after |
+  |---|---|---|
+  | `panels.panel_sources` | Every panel record's key. A panel worker refuses to start on other sources than its session's | `6a316fc82bf5` → `4583a1876f54` |
+  | `tune.tuner_sources` | The fit's sessions. `tune.g5` refuses to judge a fit whose sessions ran on other sources | `1d93654822ff` → `36268fb6c66d` |
+  | `speedfit.speed_sources` | The speed fit's sessions, with the same refusal | `93a968124ee8` → `d712aeb49367` |
+  | `plant.sources_sha256` (`plant.provenance`) | Every run record's provenance; recorded, not gated | `cc2a5c418b94` → `9ee925ef3e8d` |
+
+  So a fit or a panel session started before this branch is merged cannot be resumed or judged after it: **merge between
+  sessions, not during one.** No committed record is rewritten. On the base branch's tip (`89111c3`) no committed
+  record holds the old panel, tuner or speed-fit value. Five records of the `-X` package hold the old
+  `plant.sources_sha256` (the two bodies' `plant.json` and `gates.json`, and `x_costs.json`): it is their provenance,
+  and no gate or test compares a committed record's value with today's code. The merged tree's values are its own:
+  they also depend on what else the merge brings.
+- **`stage2/jetson75/budget_75.json`** hashes `build.py` and `refine.py`, so it was regenerated with this branch's
+  `stage2/jetson75/budget_75.py`: against the merge base, those two hashes in its `inputs` changed and nothing else.
+  **At the merge this file needs care.** The base branch has since rewritten `budget_75.py`, its record and its test
+  (P31), so this branch's copy is the older script's output. Take the three-way merge result for the file (neither
+  side's copy), then on the merged tree run `python stage2/jetson75/budget_75.py` and
+  `python -m pytest tests/test_stage2_budget75.py`, and commit the record if it changed.
 
 ## 3. What a checkout needs
 
@@ -158,6 +192,11 @@ Without the worktree, `bash stage2/j/run_j.sh run` regenerates the same files an
 | Drives, pack, bus, structure, covers | 8 drive groups, `lipo_6s_3300`, 24 V | the same (8 of 8 drive groups the pick's, `lipo_6s_3300`, 24 V) | a |
 | Hip height (the body unit B) | 0.5019 m | 0.5019 m | a |
 
+What the regulator's choice costs (d). `pololu_d36v50f12` covers both modes on the rail budgets alone: yes (33 % and 52
+% of its rating; 89 % and 107 % with the USB ports' 30 W). With it the body would be 8.0 g lighter, 8.5 g with the
+reserve. If the power box already holds the computer's regulator, the body is 26.6 g lighter than modelled: the placed
+row's 25.0 g with its reserve.
+
 **Table 2. The ledger rows that differ**
 
 | Ledger row |  | Pi body | Jetson body | Change | Centre in the trunk frame, mm (x, y, z) | Kind |
@@ -172,6 +211,10 @@ Without the worktree, `bash stage2/j/run_j.sh run` regenerates the same files an
 Centre of mass at the pick's home pose, x forward, y left, z up: (+1.636, 0.000, +0.484) mm in the model, (+1.636,
 0.000, +0.484) mm from the rows above (a). The ledgers' own masses differ by +105.319 g; the models' masses are written
 to six digits.
+
+The ledger's own sum by basis (`mass_by_basis`): sourced 6.092 kg on the Pi body and 6.092 kg on the Jetson body. The
+regulator's 25 g row is not booked as sourced: its basis reads "partially_sourced; catalog part 15 g (sourced) + 10 g of
+standoffs, 12 V lead and plug (estimate)".
 
 **Table 3. Against the Pi body**
 
@@ -201,6 +244,7 @@ to six digits.
 | Regulator to the hip-roll motors, front / rear | – / – | 92.8 mm / 175.7 mm |  | a |
 | Regulator to the spine beam; to a pelvis plate; to the control stack | – | 78.2 mm; 55.4 mm; 150.1 mm |  | a |
 | Compute board inside the trunk profile: dorsal / ventral / half-width | 126.1 / 78.1 / 58.9 mm | 123.2 / 74.6 / 39.9 mm |  | a |
+| Compute tray inside the trunk profile (the larger envelope) | 110.6 / 62.1 / 47.2 mm | 107.6 / 58.6 / 28.0 mm |  | a |
 | Regulator inside the trunk profile | – | 153.9 / 64.0 / 37.3 mm |  | a |
 | Component overlaps on one body at home (the screen's gate) | 0 | 0 |  | a |
 | Battery removal: clear directions; least clearance on the way out | -z; 2.55 mm | -z; 2.55 mm |  | a |
@@ -210,32 +254,38 @@ to six digits.
 | Camera view blocked by the robot at home; nearest floor it sees ahead of the toes | 0.0425; 2.3950 m | 0.0425; 2.3931 m |  | a |
 | Cost model's nominal total (the compute line at the catalog price; no regulator line) | $18,521 | $18,638 | +117 $ | d (cost model, A8) |
 
+The trunk-profile margins are each item's corners against the as-built profile with the build's 8 mm + 2 mm allowance
+(positive: inside). The build's own profile rule (`Design._required_profile`) reads class A items only, and the tray is
+class B, so the build does not check the tray against the profile: the tray's row above is that check. Its smallest
+margin on the Jetson body is 28.0 mm (47.2 mm on the pick).
+
 **Table 4. The round-two screens, gate by gate**
 
-The screened model is the sized one: pass (`fc3cf6b4…`). All rows are kind (a).
+The screened model is the sized one: pass (`fc3cf6b4…`). Every row is a prescribed-walk or static reading (a) but the
+carpet screen's standing, which is a simulated run (b).
 
-| Screen | Gate or reading | Pi body | Jetson body | Jetson body's verdict |
-|---|---|---|---|---|
-| clearance (walking gate) | No interference at home | 0 | 0 | pass |
-| clearance (walking gate) | No interference over the nominal walk | 0 | 0 | pass |
-| clearance (walking gate) | No interference over the brisk walk | 0 | 0 | pass |
-| clearance (walking gate) | No component overlap on one body | 0 | 0 | pass |
-| clearance (walking gate) | Joint-range margin at least 0.10 rad | left hip roll 0.1689 rad | left hip roll 0.1691 rad | pass |
-| clearance | Swing clearance at least 0.04 H | 25.09 / 26.05 mm | 25.09 / 26.05 mm | pass |
-| clearance | Tail at least 0.25 H above the floor | 0.8151 H | 0.8151 H | pass |
-| clearance | Battery has a clear way out | -z | -z | pass |
-| clearance | Every gate (`pass.all`) | pass | pass | pass |
-| sensors | Readings, no gate of its own: a person's torso in view at home, straight ahead and at ±30° | yes | yes | readings (more in table 3) |
-| turning | Target turns (0.35 rad/s walking, 0.5 rad/s in place): within limits, no interference, IK | worst ratio 0.767; thigh twist 0.773 of its range; grip needed 0.409 | worst ratio 0.791; thigh twist 0.776 of its range; grip needed 0.405 | pass |
-| turning | Closest approach in the target turns, walking / in place | 4.00 / 3.98 mm | 4.00 / 3.95 mm | pass |
-| turning | Stretch turn (0.5 rad/s walking) | pass | pass | pass |
-| carpet | Friction below the carpet band's lower edge and every pile top cleared in mid-swing | toe margin 11.00 mm; friction margin 0.300 | toe margin 11.00 mm; friction margin 0.300 | pass |
-| carpet | Stands, servo-held, on the hard floor and four carpets | 5 of 5 | 5 of 5 | pass |
-| carpet-lift pass | Carpet swing at 0.18 H: target met on every pile, drives within limits, walking gates | drives within limits (knee 0.969); 31.07 mm above a pile top | drives within limits (knee 0.974); 31.07 mm above a pile top | pass |
-| carpet-lift pass | One step lower, 0.175 H | target met on every pile: no; drives within limits: yes (knee 0.9533) | target met on every pile: no; drives within limits: yes (knee 0.9589) | as the pick's: 0.18 H is the rule's lift |
-| carpet-lift pass | One step higher, 0.19 H (not used) | target met on every pile: yes; drives within limits: yes (knee 0.9997); walking gates: no | target met on every pile: yes; drives within limits: no (knee 1.0051); walking gates: no | not the rule's lift on either body |
-| envelope | Froude 0.05 walk: drives within limits, reference CoP on the pad, IK | knee 0.935 | knee 0.945 | pass |
-| envelope | Readings, not gated: one-foot stop; one-step push bound; session's worst drive | 1.414 m/s²; 0.5885 m/s; neck 0.662 | 1.412 m/s²; 0.5845 m/s; neck 0.662 | readings |
+| Screen | Gate or reading | Pi body | Jetson body | Jetson body's verdict | Kind |
+|---|---|---|---|---|---|
+| clearance (walking gate) | No interference at home | 0 | 0 | pass | a |
+| clearance (walking gate) | No interference over the nominal walk | 0 | 0 | pass | a |
+| clearance (walking gate) | No interference over the brisk walk | 0 | 0 | pass | a |
+| clearance (walking gate) | No component overlap on one body | 0 | 0 | pass | a |
+| clearance (walking gate) | Joint-range margin at least 0.10 rad | left hip roll 0.1689 rad | left hip roll 0.1691 rad | pass | a |
+| clearance | Swing clearance at least 0.04 H | 25.09 / 26.05 mm | 25.09 / 26.05 mm | pass | a |
+| clearance | Tail at least 0.25 H above the floor | 0.8151 H | 0.8151 H | pass | a |
+| clearance | Battery has a clear way out | -z | -z | pass | a |
+| clearance | Every gate (`pass.all`) | pass | pass | pass | a |
+| sensors | Readings, no gate of its own: a person's torso in view at home, straight ahead and at ±30° | yes | yes | readings (more in table 3) | a |
+| turning | Target turns (0.35 rad/s walking, 0.5 rad/s in place): within limits, no interference, IK | worst ratio 0.767; thigh twist 0.773 of its range; grip needed 0.409 | worst ratio 0.791; thigh twist 0.776 of its range; grip needed 0.405 | pass | a |
+| turning | Closest approach in the target turns, walking / in place | 4.00 / 3.98 mm | 4.00 / 3.95 mm | pass | a |
+| turning | Stretch turn (0.5 rad/s walking) | pass | pass | pass | a |
+| carpet | Friction below the carpet band's lower edge and every pile top cleared in mid-swing | toe margin 11.00 mm; friction margin 0.300 | toe margin 11.00 mm; friction margin 0.300 | pass | a |
+| carpet | Stands, servo-held, on the hard floor and four carpets (a forward simulation) | 5 of 5 | 5 of 5 | pass | b |
+| carpet-lift pass | Carpet swing at 0.18 H: target met on every pile, drives within limits, walking gates | drives within limits (knee 0.969); 31.07 mm above a pile top | drives within limits (knee 0.974); 31.07 mm above a pile top | pass | a |
+| carpet-lift pass | One step lower, 0.175 H | target met on every pile: no; drives within limits: yes (knee 0.9533) | target met on every pile: no; drives within limits: yes (knee 0.9589) | as the pick's: 0.18 H is the rule's lift | a |
+| carpet-lift pass | One step higher, 0.19 H (not used) | target met on every pile: yes; drives within limits: yes (knee 0.9997); walking gates: no | target met on every pile: yes; drives within limits: no (knee 1.0051); walking gates: no | not the rule's lift on either body | a |
+| envelope | Froude 0.05 walk: drives within limits, reference CoP on the pad, IK | knee 0.935 | knee 0.945 | pass | a |
+| envelope | Readings, not gated: one-foot stop; one-step push bound; session's worst drive | 1.414 m/s²; 0.5885 m/s; neck 0.662 | 1.412 m/s²; 0.5845 m/s; neck 0.662 | readings | a |
 
 **Table 5. Power rows and runtime**
 
@@ -245,7 +295,7 @@ The screened model is the sized one: pass (`fc3cf6b4…`). All rows are kind (a)
 | Jetson body, 15 W mode: 15 W cap + 3 W carrier, storage, cooling | 18.0 W | 70.28 W | 100.28 W | 32.9 min | -3.9 min | c (the caps) + d (the 3 W); draft A19 |
 | Jetson body, 25 W mode: 25 W cap + 3 W | 28.0 W | 70.28 W | 111.64 W | 29.5 min | -7.2 min | c (the caps) + d (the 3 W); draft A19 |
 | Jetson body, the record's own `power`: 25 W + 6 W (A13, round one's allowance) | 31.0 W | 70.28 W | 115.05 W | 28.7 min | -8.1 min | d (A13) |
-| For comparison only: the 15 W mode at the survey's typical draw, 12 W + 3 W | 15.0 W | 70.28 W | 96.87 W | 34.0 min | -2.7 min | d (survey; like for like with the Pi row) |
+| For comparison only: the survey's typical figure for this kit, 12 W + 3 W. Not a measurement in the 15 W mode: the 12 W was measured under MAXN SUPER clocks and a heavier load (arXiv 2609.13551), and the survey has none in the 15 W mode | 15.0 W | 70.28 W | 96.87 W | 34.0 min | -2.7 min | d (survey; a typical figure, as the Pi row is) |
 
 Every row adds the microcontroller's 4 W and the sensors' 4.4 W, passes the sum through the 0.88 converter (A6) and uses
 75 % of the `lipo_6s_3300` pack's 73.26 Wh (A6): `designlab/power.py`, as every round-two record. The drives' power is
@@ -253,12 +303,12 @@ the model's (a); the runtime inherits the estimates (d). Both modes meet the 20 
 
 **Table 6. Stage 1 gates**
 
-| Gate | Verdict in `gates.json` | Readings |
-|---|---|---|
-| G1 plant | provisional (not judged) | stands 20 s on hard floor and low pile (tilt max 0.49 / 0.50 deg); hashes, motor map and repeatability pass; step rate 20,783 steps/s alone, 19,837 per process on 2 of 4 cores (lowest sample 19,257); the rule asks 20,000 with one process per core, and on these 2 processes the samples are **below it** |
-| G2 references | pass | every reference matches its records (True); nominal panel median 60.0 strides (20/20 runs of at least 10); unperturbed 60.0 strides with the envelope, 60.0 without |
-| G3 transitions | pass | 18/18 pass; worst CoM 0.312 mm (brisk_to_fr05), worst ZMP 1.093 mm (fr05_to_brisk) |
-| The record's `pass` | provisional (not judged) | G1: step rate timed on 2 of 4 cores (PYTHON_CPU_COUNT=2) |
+| Gate | Verdict in `gates.json` | Readings | Kind |
+|---|---|---|---|
+| G1 plant | provisional (not judged) | stands 20 s on hard floor and low pile (tilt max 0.49 / 0.50 deg); hashes, motor map and repeatability pass; step rate 20,783 steps/s alone, 19,837 per process on 2 of 4 cores (lowest sample 19,257); the rule asks 20,000 with one process per core, and on these 2 processes the samples are **below it** | b (the stands, repeatability); the step rates are timings of this machine, not model results |
+| G2 references | pass | every reference matches its records (True); nominal panel median 60.0 strides (20/20 runs of at least 10); unperturbed 60.0 strides with the envelope, 60.0 without | a (the references against their records); b (the panel and the replays: forward simulations) |
+| G3 transitions | pass | 18/18 pass; worst CoM 0.312 mm (brisk_to_fr05), worst ZMP 1.093 mm (fr05_to_brisk) | a (prescribed transitions against the periodic walks) |
+| The record's `pass` | provisional (not judged) | G1: step rate timed on 2 of 4 cores (PYTHON_CPU_COUNT=2) | – |
 
 The CLI's own summary of that record (`python -m designlab.stage1 gates`), first words of each line:
 
@@ -292,8 +342,12 @@ Table 3 has every figure. In short, all (a) unless marked:
     longer. This is PR #668's figure, now from a recorded body;
   - on this body the power box does not move. The build puts its centre at 0.22 B plus half its length, or 10 mm behind
     the tray if that is further back; at 75 cm the first holds for both boards;
-  - the hip-roll motors are 173 mm and 256 mm behind the tray. The 60 cm conflict PR #668 found does not arise here;
+  - the hip-roll motors are 173 mm and 256 mm behind the tray. PR #668 reported a conflict at 60 cm (its record, not
+    rerun here); nothing of the kind arises on this body;
   - the tray clears the spine beam by 17.0 mm (20.7 mm before);
+  - the tray, the larger envelope, is inside the as-built trunk profile by 28.0 mm at its tightest, the half-width
+    (47.2 mm on the pick). The build does not check this itself, because its profile rule reads class A items and the
+    tray is class B: the record's reading is the check (table 3's note);
   - the regulator clears the power box by its 5 mm standoffs and everything else by 55 mm or more, and sits 37 mm or
     more inside the trunk profile.
 - **The battery's removal path is the pick's**: downward only, with 2.55 mm to spare.
@@ -329,7 +383,7 @@ and runtime recompute (`tests/test_stage2_j.py`).
 | 25 W mode, module | 25 W | The mode's cap: the same part (`power_max_w`) | c |
 | Carrier, NVMe and fan, either mode | 3 W | The top of the compute survey's 2–3 W, which it calls unmeasured (`compute_2026-11-07.json`, architecture `A_orin_nano_super_devkit`) | d |
 | 15 W mode, total | 18.0 W | The survey: "Max 18.0 W = 15 W mode cap (vendor) + 3 W" | c + d |
-| 25 W mode, total | 28.0 W | The survey: "25 W mode: 25 + 3 = 28.0 W at the board" | c + d |
+| 25 W mode, total | 28.0 W | The survey: "25 W mode (the Super configuration's default): 25 + 3 = 28.0 W at the board" | c + d |
 | Microcontroller, sensors, converter, usable energy | 4 W, 4.4 W, 0.88, 75 % | A6 and the round-two records, unchanged | d |
 
 - **Each mode is booked at its cap.** Nobody has measured the kit at the converter input in either mode (`COMPUTE.md`
@@ -338,7 +392,9 @@ and runtime recompute (`tests/test_stage2_j.py`).
   against 36.7 min for the Pi body (d; the drives' power in them is the model's, a). Both stay above the 20 minute
   target, and neither would change the pack.
 - **The comparison is not like for like.** The Pi row is the survey's typical draw; these are caps. At the survey's
-  typical draw for the 15 W mode, 15.0 W, the model gives 34.0 min (d).
+  typical figure for this kit, 15.0 W, the model gives 34.0 min (d). That figure is not a measurement in the 15 W mode:
+  its 12 W at the module was measured with locked MAXN SUPER clocks under a heavier detector load (arXiv 2609.13551),
+  and the survey says "No light-load measurement exists in the 15 W mode".
 - **The record's own `power` and `runtime` are at round one's 31 W** (28.7 min), because every record books its compute
   part at `COMPUTE_BUDGET`'s row. Read the mode rows in `jetson.power_modes` instead.
 - **One converter efficiency, 0.88, for every rail** (A6). The vendor gives over 90 % for the regulator placed (c), so
@@ -363,9 +419,27 @@ The body is registered like the `-X` bodies, and its references and transitions 
 - **To finish G1:** on an otherwise idle machine, run `PY=<the venv's python> bash stage2/j/run_j.sh g1`. It may fail
   on the step rate alone, as arm K's did on this machine (Stage 1b decision 11).
 - G4, the tracker's gate, was not run.
+- **One test failed in a run of other test files, and not through this package.** `logs/j_test_others.log` ends
+  "1 failed, 39 passed": `tests/test_carpet.py::test_round_one_60cm_toe_catch_friction_standing_and_shortlist_hook`.
+  The cause is the order of the files in that run. `tests/test_stage2_x_costs.py` (line 92) sets the walks' accuracy to
+  round two's with `gait.set_accuracy` and does not put it back, so a carpet test run after it in the same process
+  reads the wrong accuracy. Reproduced: those two together give "1 failed, 9 passed"; the carpet test alone passes, and
+  it passes after `tests/test_stage2_j.py`, which puts the accuracy back. The usual alphabetical order hides it. The
+  fix belongs in `tests/test_stage2_x_costs.py`, the `-X` package's test, which this package does not edit.
 - **Provenance.** The run's records carry commit `c446ecc`, which holds all the code that ran. Their `dirty` flag is
   set only by files that were untracked then (the run's own outputs, this document, its tables script and the tests);
   no tracked file was changed.
+- **After the review** the regulator's ledger basis and three texts of the record changed, so the case was run again
+  with the stock command on the final code (`python -m designlab.refine --cases jetson_75`, one BLAS thread):
+  - the model is the same, `xml_sha256` `fc3cf6b4…`;
+  - the candidate record differs in its run time and in three entries of its `jetson` block: the heat note, the rule
+    of the survey's typical row, and the regulator's new `consequence`;
+  - the screens gave the same results. The index, the envelope record and the four plots came out byte for byte; the
+    other four records differed in their timing fields alone, and the committed ones were kept;
+  - the screen's ledger (`review/mjcf/75-M-H-10.json`) differs in the regulator row's basis and the sum by basis;
+  - the model ledger JSON's sha256 in `j_inputs.json` moved with the basis (`7404d897…` → `2447c288…`), and
+    `j_inputs.py models` rebuilds both model files to the list from nothing;
+  - Stage 1's records and arrays are untouched: they depend on the XML and on `designlab/stage1`, and neither changed.
 
 Times on this machine, at low priority beside two other builds: the case's build and screens about 7 min; the
 carpet-lift pass 2 min; the plant and references 3 min; the transitions 14 min on 2 processes; G1 to G3 3 min.
@@ -373,23 +447,31 @@ carpet-lift pass 2 min; the plant and references 3 min; the transitions 14 min o
 ## 9. Open items
 
 1. **G1 with one process per core** (section 8).
-2. **Heat.** Not modelled. The dev kit's module dissipates 15–25 W (18–28 W at the rail, c + d) where the Pi set
-   dissipates 8–9.5 W (d), in a closed PA11 chest, and the regulator adds its own loss in the abdomen. The survey
-   sized the tray's airflow for 31 W and notes that the stock fan needs a ducted inlet and outlet (d). This is a
-   hardware question for a thermal test, not for this model.
+2. **Heat.** The chest, the electronics and the air path have no thermal model (section 1). The dev kit's module
+   dissipates 15–25 W (18–28 W at the rail, c + d) where the Pi set dissipates 8–9.5 W (d), in a closed PA11 chest,
+   and the regulator adds its own loss in the abdomen. The survey sized the tray's airflow for 31 W and notes that
+   the stock fan needs a ducted inlet and outlet (d). This is a hardware question for a thermal test, not for this
+   model.
 3. **The mode budgets are caps, not measurements** (draft A19, section 10). `COMPUTE.md` bench test 1 replaces them.
 4. **No closed-loop comparison with the Pi body.** The review's task 6 is done "when the body passes its gates, and a
    paired-seed table against the Pi body reports each difference". The screens and G2–G3 are done; the paired-seed
    panels are not, and no controller was run on this body beyond the gates' own replays.
 5. **The power box's contents.** Whether its 0.30 kg already holds a 12 V regulator for the computer is not
    established (section 1), so the regulator may be counted twice.
-6. **The regulator's rating at 6S** (section 1): the catalog has one point, at another input voltage.
+6. **The regulator** (section 1). Its rating at 6S: the catalog has one point, at another input voltage. And the
+   worst case that chose it: check the rating of the kit's own 19 V supply. If it is below 54 W, the kit is not built
+   to draw the 58 W worst case at its jack, and the smaller part (`pololu_d36v50f12`, 54 W) covers both modes; the body
+   would then be 8.5 g lighter (table 1's note).
 7. **Masses that are allowances or forum figures:** the dev kit's 0.174 kg (c, a forum figure), the tray's 0.12 kg and
-   the regulator's 10 g of lead and standoffs (d). An NVMe drive has no row of its own.
+   the regulator's 10 g of lead and standoffs (d). An NVMe drive has no row of its own. One row of the pick has the
+   same mix that the regulator's row now declares: the camera's 101 g is its catalog mass plus an estimated 40 g
+   mount, booked under the part's basis, `sourced` (`designlab/build.py`). That row is the pick's and is not changed
+   here.
 8. **Not modelled:** the wiring, the fan duct's shape and air path, and the Jetson-direct option's adapter and
    supervisor (table 7).
-9. **Not built:** a body with both the dev kit and the expressive head (`-XJ`), and a 60 cm Jetson body. PR #668 found
-   that at 60 cm the power box meets a hip-roll motor; that packaging is not solved here.
+9. **Not built:** a body with both the dev kit and the expressive head (`-XJ`), and a 60 cm Jetson body. PR #668
+   reported (its record, not rerun here) that at 60 cm the power box meets a hip-roll motor; that packaging is neither
+   checked nor solved here.
 10. **Before any training on this body:** `env.PUSH_BOUND_M_S` lists the three picks only, and the PPO env falls back to
     0.5 m/s for any other body. This body's own bound is 0.584 m/s (a). Stage 1's margin ledger and Stage 2's look
     ladder do not list it either.
@@ -402,4 +484,4 @@ A draft for `DECISION_LOG.md`'s assumptions table; it is not in the log. The run
 
 | # | Assumption | What would replace it |
 |---|---|---|
-| A19 (draft) | Jetson body (`75-M-H-10-J`, refine case `jetson_75`): the Jetson Orin Nano Super dev kit is booked at its power mode's cap plus 3 W for the carrier, the NVMe and the fan, at the compute rail before the 0.88 converter: **18.0 W in the 15 W mode and 28.0 W in the 25 W mode** (`power.COMPUTE_MODE_BUDGET`). The caps are NVIDIA's (catalog `nvidia_orin_nano_super_devkit`); the 3 W is the top of the compute survey's unmeasured 2–3 W. The microcontroller's 4 W and the sensors are as in A14. No mode is chosen (P30). With these, the model gives 32.9 min (15 W mode) and 29.5 min (25 W mode) of walking on the 3,300 mAh pack, against the Pi body's 36.7 min. The Pi figure rests on a typical draw (A14) and these on caps; at the survey's typical draw for the 15 W mode (15.0 W) the model gives 34.0 min. A13's 31 W row and A14's 9.5 W row are unchanged, and the Jetson record's own runtime (28.7 min) is still at A13's 31 W. Heat is not modelled. | `COMPUTE.md` bench test 1: the dev kit measured at the converter input and with `tegrastats`, running the real pipeline in the 15 W and the 25 W mode; and bench test 9 for the real converter efficiency |
+| A19 (draft) | Jetson body (`75-M-H-10-J`, refine case `jetson_75`): the Jetson Orin Nano Super dev kit is booked at its power mode's cap plus 3 W for the carrier, the NVMe and the fan, at the compute rail before the 0.88 converter: **18.0 W in the 15 W mode and 28.0 W in the 25 W mode** (`power.COMPUTE_MODE_BUDGET`). The caps are NVIDIA's (catalog `nvidia_orin_nano_super_devkit`); the 3 W is the top of the compute survey's unmeasured 2–3 W. The microcontroller's 4 W and the sensors are as in A14. No mode is chosen (P30). With these, the model gives 32.9 min (15 W mode) and 29.5 min (25 W mode) of walking on the 3,300 mAh pack, against the Pi body's 36.7 min. The Pi figure rests on a typical draw (A14) and these on caps; at the survey's typical figure for this kit (15.0 W, whose 12 W at the module was measured under MAXN SUPER clocks: the survey has no measurement in the 15 W mode) the model gives 34.0 min. A13's 31 W row and A14's 9.5 W row are unchanged, and the Jetson record's own runtime (28.7 min) is still at A13's 31 W. The chest and the electronics have no thermal model. | `COMPUTE.md` bench test 1: the dev kit measured at the converter input and with `tegrastats`, running the real pipeline in the 15 W and the 25 W mode; and bench test 9 for the real converter efficiency |

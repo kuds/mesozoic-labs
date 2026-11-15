@@ -4,8 +4,9 @@ passes, and the run's records (``stage2/j/75-M-H-10-J``).  Nothing is computed h
 formats, so every figure in the block is a record's; ``tests/test_stage2_j.py`` checks that the document's block is
 this script's output.
 
-Each row carries its kind of evidence: (a) a model result of this study (a prescribed-walk or static reading of the
-simulated body), (c) a sourced fact, with its catalog id or document, (d) an estimate or assumption.
+Each row carries its kind of evidence, as ``JETSON_PLEM_REVIEW.md`` names them: (a) a model result of this study (a
+prescribed-walk or static reading of the simulated body), (b) a simulated run of this study (a forward simulation of
+the body under its joint servos), (c) a sourced fact, with its catalog id or document, (d) an estimate or assumption.
 
 Run from hardware/trex_form_study, with PYTHONPATH=. :
 
@@ -40,6 +41,8 @@ def load() -> dict:
                ip=_json(*refine, BASE, "review", "review_index.json")[CID])
     for key, case in (("cj", CASE), ("cp", BASE)):
         out[key] = _json(*refine, case, "review", "screening", f"{CID}_clearance.json")
+    for key, case in (("mj", CASE), ("mp", BASE)):  # the screens' model ledgers
+        out[key] = _json(*refine, case, "review", "mjcf", f"{CID}.json")
     out["lj"] = next(r for r in _json(*refine, "carpet_lift_jetson_75_0.175_0.180_0.190.json") if r["id"] == CID)
     out["lp"] = next(r for r in _json(*refine, "carpet_lift_feet_75_0.175_0.180_0.190.json") if r["id"] == CID)
     out["gates"] = _json("stage2", "j", BODY, "gates.json")
@@ -106,7 +109,20 @@ def bodies(D: dict) -> str:
          f"`{j['selection']['battery']}`, {j['selection']['bus']:g} V)", "a"],
         ["Hip height (the body unit B)", f"{p['H']:.4f} m", f"{j['H']:.4f} m", "a"],
     ]
-    return _table(["", f"`{CID}` (the pick, Pi 5 set)", f"`{BODY}`", "Kind"], rows)
+    text = _table(["", f"`{CID}` (the pick, Pi 5 set)", f"`{BODY}`", "Kind"], rows)
+    cq = reg["consequence"]
+    lo = cq["lighter_option"]
+    small = reg["options"][lo["part"]]
+    text += _para(
+        f"What the regulator's choice costs (d). `{lo['part']}` covers both modes on the rail budgets alone: "
+        f"{_is(lo['covers_both_modes_at_rail_budget'])} "
+        f"({' and '.join(f'{100 * v:.0f} %' for v in small['load_fraction_at_rail_budget'].values())} of its rating; "
+        f"{' and '.join(f'{100 * v:.0f} %' for v in small['load_fraction_at_worst_case'].values())} with the USB "
+        f"ports' {reg['usb_vbus_limit_w']:.0f} W). With it the body would be {-1e3 * lo['body_mass_change_kg']:.1f} g "
+        f"lighter, {-1e3 * lo['with_reserve_kg']:.1f} g with the reserve. If the power box already holds the "
+        f"computer's regulator, the body is {1e3 * cq['placed_row_with_reserve_kg']:.1f} g lighter than modelled: the "
+        f"placed row's {1e3 * cq['placed_row_kg']:.1f} g with its reserve.")
+    return text
 
 
 def parts(D: dict) -> str:
@@ -131,6 +147,11 @@ def parts(D: dict) -> str:
                   f"({', '.join(_signed(1e3 * v, 3) for v in com['from_parts_change'])}) mm from the rows above (a). "
                   f"The ledgers' own masses differ by {lm['change'] * 1e3:+.3f} g; the models' masses are written to "
                   "six digits.")
+    bj, bp = D["mj"]["mass_by_basis"], D["mp"]["mass_by_basis"]
+    row = next(r for r in D["mj"]["rows"] if r["name"] == "compute_regulator")
+    text += _para(f"The ledger's own sum by basis (`mass_by_basis`): sourced {bp['sourced']:.3f} kg on the Pi body and "
+                  f"{bj['sourced']:.3f} kg on the Jetson body. The regulator's {row['mass_kg'] * 1e3:.0f} g row is not "
+                  f"booked as sourced: its basis reads \"{row['basis']}\".")
     return text
 
 
@@ -211,6 +232,8 @@ def against(D: dict) -> str:
          "; ".join(gap("compute_regulator", b)[1] for b in ("spine_beam", "pelvis_plate_l", "control_stack")), "", "a"],
         ["Compute board inside the trunk profile: dorsal / ventral / half-width", margin(pmp, "compute"),
          margin(pmj, "compute"), "", "a"],
+        ["Compute tray inside the trunk profile (the larger envelope)", margin(pmp, "compute_tray"),
+         margin(pmj, "compute_tray"), "", "a"],
         ["Regulator inside the trunk profile", "–", margin(pmj, "compute_regulator"), "", "a"],
         ["Component overlaps on one body at home (the screen's gate)", len(cp["same_body_component_overlaps"]),
          len(cj["same_body_component_overlaps"]), "", "a"],
@@ -231,7 +254,14 @@ def against(D: dict) -> str:
          f"${p['cost']['nominal']:,.0f}", f"${j['cost']['nominal']:,.0f}",
          f"{j['cost']['nominal'] - p['cost']['nominal']:+,.0f} $", "d (cost model, A8)"],
     ]
-    return _table(["Reading", "Pi body", "Jetson body", "Change", "Kind"], rows)
+    text = _table(["Reading", "Pi body", "Jetson body", "Change", "Kind"], rows)
+    text += _para("The trunk-profile margins are each item's corners against the as-built profile with the build's 8 mm "
+                  "+ 2 mm allowance (positive: inside). The build's own profile rule (`Design._required_profile`) reads "
+                  "class A items only, and the tray is class B, so the build does not check the tray against the "
+                  "profile: the tray's row above is that check. Its smallest margin on the Jetson body is "
+                  f"{min(pmj['compute_tray'].values()):.1f} mm ({min(pmp['compute_tray'].values()):.1f} mm on the "
+                  "pick).")
+    return text
 
 
 def screens(D: dict) -> str:
@@ -265,34 +295,34 @@ def screens(D: dict) -> str:
     rows = []
     for g in walking + ("swing_clearance", "tail_clearance", "battery_path"):
         rows.append(["clearance" + (" (walking gate)" if g in walking else ""), names[g], reading[g][0], reading[g][1],
-                     _yes(cj["pass"][g])])
+                     _yes(cj["pass"][g]), "a"])
     rows.append(["clearance", "Every gate (`pass.all`)", _yes(cp["pass"]["all"]), _yes(cj["pass"]["all"]),
-                 _yes(cj["pass"]["all"])])
+                 _yes(cj["pass"]["all"]), "a"])
     sj, sp = ij["sensors"], ip["sensors"]
     rows.append(["sensors", "Readings, no gate of its own: a person's torso in view at home, straight ahead and at ±30°",
                  _is(sp["torso_follow"]["home"]["ok"]), _is(sj["torso_follow"]["home"]["ok"]),
-                 "readings (more in table 3)"])
+                 "readings (more in table 3)", "a"])
     tj, tp = ij["turning"], ip["turning"]
     rows.append(["turning", "Target turns (0.35 rad/s walking, 0.5 rad/s in place): within limits, no interference, IK",
                  f"worst ratio {tp['worst_ratio_targets']:.3f}; thigh twist {tp['hip_yaw_range_used_max']:.3f} of its "
                  f"range; grip needed {tp['mu_needed_max']:.3f}",
                  f"worst ratio {tj['worst_ratio_targets']:.3f}; thigh twist {tj['hip_yaw_range_used_max']:.3f} of its "
-                 f"range; grip needed {tj['mu_needed_max']:.3f}", _yes(tj["targets_pass"])])
+                 f"range; grip needed {tj['mu_needed_max']:.3f}", _yes(tj["targets_pass"]), "a"])
     rows.append(["turning", "Closest approach in the target turns, walking / in place",
                  f"{tp['min_gap_mm']['walk_0.35']:.2f} / {tp['min_gap_mm']['in_place_0.50']:.2f} mm",
                  f"{tj['min_gap_mm']['walk_0.35']:.2f} / {tj['min_gap_mm']['in_place_0.50']:.2f} mm",
-                 _yes(tj["targets_interference_free"])])
+                 _yes(tj["targets_interference_free"]), "a"])
     rows.append(["turning", "Stretch turn (0.5 rad/s walking)", _yes(tp["stretch_pass"]), _yes(tj["stretch_pass"]),
-                 _yes(tj["stretch_pass"])])
+                 _yes(tj["stretch_pass"]), "a"])
     kj, kp = ij["carpet"], ip["carpet"]
     rows.append(["carpet", "Friction below the carpet band's lower edge and every pile top cleared in mid-swing",
                  f"toe margin {kp['toe_clearance_margin_mm']:.2f} mm; friction margin {kp['friction_margin']:.3f}",
                  f"toe margin {kj['toe_clearance_margin_mm']:.2f} mm; friction margin {kj['friction_margin']:.3f}",
-                 _yes(kj["pass"])])
-    rows.append(["carpet", "Stands, servo-held, on the hard floor and four carpets",
+                 _yes(kj["pass"]), "a"])
+    rows.append(["carpet", "Stands, servo-held, on the hard floor and four carpets (a forward simulation)",
                  f"{sum(v['upright'] for v in kp['standing'].values())} of {len(kp['standing'])}",
                  f"{sum(v['upright'] for v in kj['standing'].values())} of {len(kj['standing'])}",
-                 _yes(all(kj["checks"]["servo_held_upright"].values()))])
+                 _yes(all(kj["checks"]["servo_held_upright"].values())), "b"])
     lj, lp = D["lj"]["lifts"], D["lp"]["lifts"]
 
     def lift(r, k="0.18"):
@@ -305,30 +335,33 @@ def screens(D: dict) -> str:
         return v["drives_within_limits"] and v["walking_gates"] and v["meets_target_all_piles"]
 
     rows.append(["carpet-lift pass", "Carpet swing at 0.18 H: target met on every pile, drives within limits, walking gates",
-                 lift(lp), lift(lj), _yes(lift_ok(lj))])
+                 lift(lp), lift(lj), _yes(lift_ok(lj)), "a"])
     def low(r, k="0.175"):
         v = r[k]
         return (f"target met on every pile: {_is(v['meets_target_all_piles'])}; drives within limits: "
                 f"{_is(v['drives_within_limits'])} ({v['worst_group'].replace('_', ' ')} {v['worst_ratio']:.4f})")
 
     rows.append(["carpet-lift pass", "One step lower, 0.175 H", low(lp), low(lj),
-                 "as the pick's: 0.18 H is the rule's lift" if lift_ok(lj, "0.175") == lift_ok(lp, "0.175") else "differs"])
+                 "as the pick's: 0.18 H is the rule's lift" if lift_ok(lj, "0.175") == lift_ok(lp, "0.175") else "differs",
+                 "a"])
     rows.append(["carpet-lift pass", "One step higher, 0.19 H (not used)", low(lp, "0.19") + f"; walking gates: "
                  f"{_is(lp['0.19']['walking_gates'])}", low(lj, "0.19") + f"; walking gates: "
-                 f"{_is(lj['0.19']['walking_gates'])}", "not the rule's lift on either body"])
+                 f"{_is(lj['0.19']['walking_gates'])}", "not the rule's lift on either body", "a"])
     ej, ep = ij["envelope"], ip["envelope"]
     rows.append(["envelope", "Froude 0.05 walk: drives within limits, reference CoP on the pad, IK",
                  f"{ep['fast_walk_worst'][0]} {ep['fast_walk_worst'][1]:.3f}", f"{ej['fast_walk_worst'][0]} "
                  f"{ej['fast_walk_worst'][1]:.3f}",
-                 _yes(ej["fast_walk_drives_ok"] and ej["fast_walk_reference_cop_on_pad"] and ej["fast_walk_ik_ok"])])
+                 _yes(ej["fast_walk_drives_ok"] and ej["fast_walk_reference_cop_on_pad"] and ej["fast_walk_ik_ok"]),
+                 "a"])
     rows.append(["envelope", "Readings, not gated: one-foot stop; one-step push bound; session's worst drive",
                  f"{ep['stop_max_one_foot_decel_ms2']:.3f} m/s²; {ep['push_max_dv_ms']:.4f} m/s; {ep['session_worst'][0]} "
                  f"{ep['session_worst'][1]:.3f}",
                  f"{ej['stop_max_one_foot_decel_ms2']:.3f} m/s²; {ej['push_max_dv_ms']:.4f} m/s; {ej['session_worst'][0]} "
-                 f"{ej['session_worst'][1]:.3f}", "readings"])
-    head = (f"The screened model is the sized one: {_yes(ij['matches_sized'])} (`{ij['xml_sha256'][:8]}…`). All rows are "
-            "kind (a).\n\n")
-    return head + _table(["Screen", "Gate or reading", "Pi body", "Jetson body", "Jetson body's verdict"], rows)
+                 f"{ej['session_worst'][1]:.3f}", "readings", "a"])
+    head = _para(f"The screened model is the sized one: {_yes(ij['matches_sized'])} (`{ij['xml_sha256'][:8]}…`). Every "
+                 "row is a prescribed-walk or static reading (a) but the carpet screen's standing, which is a simulated "
+                 "run (b).").lstrip("\n") + "\n"
+    return head + _table(["Screen", "Gate or reading", "Pi body", "Jetson body", "Jetson body's verdict", "Kind"], rows)
 
 
 def power_rows(D: dict) -> str:
@@ -352,8 +385,10 @@ def power_rows(D: dict) -> str:
                     pm["record_default"]["compute_rail_w"], j["power"]["drives_w"], j["power"]["total_w"],
                     j["runtime"]["minutes"], "d (A13)", j["runtime"]["minutes"] - b["runtime_min"]))
     t = pm["survey_typical_15w"]
-    rows.append(row("For comparison only: the 15 W mode at the survey's typical draw, 12 W + 3 W", t["compute_rail_w"],
-                    j["power"]["drives_w"], t["total_w"], t["runtime_min"], "d (survey; like for like with the Pi row)",
+    rows.append(row("For comparison only: the survey's typical figure for this kit, 12 W + 3 W. Not a measurement in "
+                    "the 15 W mode: the 12 W was measured under MAXN SUPER clocks and a heavier load (arXiv 2609.13551), "
+                    "and the survey has none in the 15 W mode", t["compute_rail_w"], j["power"]["drives_w"], t["total_w"],
+                    t["runtime_min"], "d (survey; a typical figure, as the Pi row is)",
                     t["runtime_change_against_base_min"]))
     text = _table(["Compute row", "At the compute rail", "Drives (nominal walk)", "Walking power at the pack", "Runtime",
                    "Against the Pi body", "Kind"], rows)
@@ -383,20 +418,22 @@ def stage1_gates(D: dict) -> str:
          f"{sr['single_process']:,.0f} steps/s alone, {sr['per_process_all_median']:,.0f} per process on "
          f"{sr['processes']} of {sr['machine']['cores']} cores (lowest sample {sr['lowest_sample']:,.0f}); the rule asks "
          f"{sr['threshold']:,} with one process per core, and on these {sr['processes']} processes the samples "
-         + ("meet it" if sr.get("ok_on_these_processes", sr["ok"]) else "are **below it**")],
+         + ("meet it" if sr.get("ok_on_these_processes", sr["ok"]) else "are **below it**"),
+         "b (the stands, repeatability); the step rates are timings of this machine, not model results"],
         ["G2 references", verdict[g2["pass"]],
          f"every reference matches its records ({g2['all_match']}); nominal panel median {pnl['median']:.1f} strides "
          f"({pnl['runs_at_least_min_strides']}/{pnl['runs']} runs of at least {g2['min_strides']:g}); unperturbed "
          f"{g2['nominal_strides_with_envelope']:.1f} strides with the envelope, "
-         f"{g2['nominal_strides_without_envelope']:.1f} without"],
+         f"{g2['nominal_strides_without_envelope']:.1f} without",
+         "a (the references against their records); b (the panel and the replays: forward simulations)"],
         ["G3 transitions", verdict[g3["pass_"]],
          f"{len(g3['transitions']) - len(g3['failed']) - len(g3['missing'])}/{len(g3['transitions'])} pass; worst CoM "
          f"{g3['worst_com']['mm']:.3f} mm ({g3['worst_com']['transition']}), worst ZMP {g3['worst_zmp']['mm']:.3f} mm "
-         f"({g3['worst_zmp']['transition']})"],
+         f"({g3['worst_zmp']['transition']})", "a (prescribed transitions against the periodic walks)"],
         ["The record's `pass`", verdict[doc["pass"]], "; ".join(f"{k}: {v}" for k, v in doc.get("provisional", {}).items())
-         or "–"],
+         or "–", "–"],
     ]
-    text = _table(["Gate", "Verdict in `gates.json`", "Readings"], rows)
+    text = _table(["Gate", "Verdict in `gates.json`", "Readings", "Kind"], rows)
     text += "\nThe CLI's own summary of that record (`python -m designlab.stage1 gates`), first words of each line:\n\n"
     text += "".join(f"- `{ln.strip()[:150]}{'…' if len(ln.strip()) > 150 else ''}`\n" for ln in lines
                     if ln.startswith(("G1", "G2", "G3")))

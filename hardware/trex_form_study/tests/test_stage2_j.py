@@ -9,12 +9,14 @@ carrier, in simulation only, built once and not re-sized (refine case ``jetson_7
 * Its ledger is the pick's but for the compute board, its tray's envelope, the regulator and the integration reserve;
   its mass and centre of mass are the pick's plus those rows' sums, in the ledger, in the compiled models and in the
   record.
-* The regulator is the catalog part the record's rule picks, and it sits on the power box clear of everything.
+* The regulator is the catalog part the record's rule picks, and it sits on the power box clear of everything; its
+  ledger row's basis names the estimate in its mass, so the ledger's sourced sum is the pick's.
 * The case is its pick's with the compute changed, the Teensy control stack kept and no Jetson-direct part placed.
 * The power rows: ``power.COMPUTE_BUDGET`` and every call without a mode are as they were (the pick's recorded power
   and runtime recompute), and the two mode rows give the record's ``jetson.power_modes``.
 * The registry, the carpet swing, the screens' records, Stage 2's run records (``stage2/j/<body>/``) and the list of
-  the git-ignored inputs (``j_inputs.json``), where present; the report's tables regenerate from the records.
+  the git-ignored inputs (``j_inputs.json``), where present; the report's tables regenerate from the records, and the
+  sentences it and ``power.py`` quote from the compute survey are in the survey.
 
 Run from hardware/trex_form_study:  python -m pytest tests/test_stage2_j.py
 About three minutes (each body is built a few times, 4 s each, and two bodies' sizing walks are run once, about 30 s
@@ -200,7 +202,15 @@ def test_the_jetson_case_is_its_pick_with_the_compute_changed():
     sr = jr["selection_if_resized"]
     assert sr["differs"] == {} and not sr["battery_differs"] and not sr["bus_differs"]
     assert all(not v["differs"] and v["meets_target"] for v in sr["battery_by_mode"].values())
-    assert jr["heat"]["modelled"] is False
+    assert jr["heat"]["modelled"] is False and "session_heat" in jr["heat"]["note"]
+    # the comparison table's row for this body shows the record's own runtime: its label says at which compute row
+    assert "31 W" in c["label"] and "jetson.power_modes" in c["label"] and c["label"].startswith(b["label"])
+    cmp_path = ROOT / "round2" / "refine" / "refine.json"
+    if cmp_path.exists():
+        cmp = json.loads(cmp_path.read_text())
+        assert cmp["cases"][CASE] == c["label"]
+        assert [r["case"] for r in cmp["rows"]].count(CASE) == 1
+        assert c["label"] in (ROOT / "round2" / "refine" / "REFINE.md").read_text()
 
 
 def test_the_control_layer_is_the_owners_baseline(built):
@@ -266,6 +276,22 @@ def test_the_jetson_ledger_is_the_picks_but_for_the_compute_rows(built):
     assert [(r["name"], r["body"], r["category"], r["source"]) for r in added] == [(ADDED, "trunk", "power", REGULATOR)]
     assert added[0]["mass_kg"] == reg.mass + build.COMPUTE_REGULATOR_LEADS_KG == 0.025 and reg.mass == 0.015
     assert tuple(added[0]["size"]) == reg.dims == (0.0318, 0.0432, 0.009) and added[0]["meta"] == {ADDED: REGULATOR}
+    # 10 g of the row is an estimate: its basis says so, and the ledger's sum by basis does not book it as sourced
+    assert reg.basis == "sourced" and added[0]["basis"] == build.compute_regulator_basis(reg) != reg.basis
+    assert added[0]["basis"] == ("partially_sourced; catalog part 15 g (sourced) + 10 g of standoffs, 12 V lead and "
+                                 "plug (estimate)")
+    sums = [{}, {}]
+    for by, rows in zip(sums, (r0, rj), strict=True):
+        for r in rows:
+            by[r["basis"]] = by.get(r["basis"], 0.0) + r["mass_kg"]
+    assert sums[1]["sourced"] == pytest.approx(sums[0]["sourced"], abs=1e-12)
+    assert sums[1][added[0]["basis"]] == added[0]["mass_kg"]
+    ledgers = [ROOT / "round2" / "refine" / c / "review" / "mjcf" / f"{CID}.json" for c in (BASE, CASE)]
+    if all(x.exists() for x in ledgers):  # the screens' own ledgers, as committed
+        l0, lj = (json.loads(x.read_text()) for x in ledgers)
+        assert lj["mass_by_basis"]["sourced"] == pytest.approx(l0["mass_by_basis"]["sourced"], abs=1e-12)
+        assert lj["mass_by_basis"][added[0]["basis"]] == 0.025
+        assert next(r for r in lj["rows"] if r["name"] == ADDED)["basis"] == added[0]["basis"]
     f = mjcf.INTEGRATION_RESERVE_FRACTION / (1 - mjcf.INTEGRATION_RESERVE_FRACTION)
     installed = (kit.mass - pi.mass) + added[0]["mass_kg"]
     assert installed == pytest.approx(0.099, abs=1e-15)
@@ -369,6 +395,14 @@ def test_the_regulator_is_the_catalog_part_that_covers_both_modes():
     assert rr["options"][REGULATOR]["covers"] == {"15w": True, "25w": True}
     assert rr["choice"] == rr["placed"] == REGULATOR == plant.record(BODY)["selection"]["compute_regulator"]
     assert min(small.voltage, big.voltage) > rr["pack_full_v"] == 25.2  # both take a full 6S pack (E7 is about 12S)
+    # what the choice costs: on the rail budgets alone the smaller part covers both modes, 8 g lighter
+    cq = rr["consequence"]
+    assert cq["rule"] == refine.JETSON_REGULATOR_CONSEQUENCE_RULE and cq["lighter_option"]["part"] == SMALLER
+    assert rr["options"][SMALLER]["load_fraction_at_rail_budget"] == pytest.approx({"15w": 18 / 54, "25w": 28 / 54})
+    assert cq["lighter_option"]["covers_both_modes_at_rail_budget"] is True
+    assert cq["lighter_option"]["body_mass_change_kg"] == pytest.approx(-0.008, abs=1e-15)
+    assert cq["lighter_option"]["with_reserve_kg"] == pytest.approx(-0.008 / 0.94, rel=1e-12)
+    assert cq["placed_row_kg"] == 0.025 and cq["placed_row_with_reserve_kg"] == pytest.approx(0.025 / 0.94, rel=1e-12)
 
 
 def test_the_regulator_sits_on_the_power_box_clear_of_everything(built):
@@ -426,6 +460,13 @@ def test_the_chest_readings_beside_the_picks(built):
     assert ch["base"]["same_body_component_overlaps"]["overlaps"] == []
     pm = ch["jetson"]["trunk_profile_margin_mm"]
     assert all(min(v.values()) > 0.0 for v in pm.values()) and set(pm) == set(refine.JETSON_CHEST_ITEMS)
+    # the tray is class B, which the build's own profile rule does not read: the record's reading is the check
+    tray = next(it for it in j["design"].bodies["trunk"].items if it.name == "compute_tray")
+    assert tray.volume_class == "B"
+    assert pm["compute_tray"] == pytest.approx({k: 1e3 * v for k, v in j["design"].profile_margin(tray).items()}, abs=1e-9)
+    assert min(pm["compute_tray"].values()) == pm["compute_tray"]["half_width"] == pytest.approx(28.03, abs=0.01)
+    assert min(pm["compute_tray"].values()) < min(pm["compute"].values())
+    assert min(ch["base"]["trunk_profile_margin_mm"]["compute_tray"].values()) == pytest.approx(47.2, abs=0.05)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -727,5 +768,30 @@ def test_the_reports_tables_regenerate_from_the_records():
     text = doc.read_text()
     assert text.count(mod.BEGIN) == 1 and text.count(mod.END) == 1
     assert text.split(mod.BEGIN)[1].split(mod.END)[0] == mod.tables()
-    for kind in ("(a)", "(c)", "(d)"):
+    for kind in ("(a)", "(b)", "(c)", "(d)"):
         assert kind in text
+
+
+#: The sentences the report and ``power.py`` give in quotation marks as the compute survey's.
+SURVEY_QUOTES = ("Max 18.0 W = 15 W mode cap (vendor) + 3 W",
+                 "25 W mode (the Super configuration's default): 25 + 3 = 28.0 W at the board",
+                 "Typical 15.0 W", "No light-load measurement exists in the 15 W mode")
+
+
+def test_the_quoted_survey_sentences_are_the_surveys():
+    """Each sentence quoted as the compute survey's is in the survey, word for word, under the dev kit's
+    architecture; ``power.py``'s comment holds all four (its line breaks and comment marks aside) and the report the
+    three it quotes."""
+    survey = json.loads((ROOT / "designlab" / "data" / "research" / "compute_2026-11-07.json").read_text())
+    arch = next(a for a in survey["synthesis"]["architectures"] if a["id"] == "A_orin_nano_super_devkit")
+    basis = arch["power_basis"]
+    assert (arch["power_w_typical"], arch["power_w_max"]) == (15.0, 18.0)
+    source = " ".join((ROOT / "designlab" / "power.py").read_text().replace("#:", " ").split())
+    for quote in SURVEY_QUOTES:
+        assert quote in basis, quote
+        assert f'"{quote}"' in source, quote
+    doc = RUN / "JETSON_BODY.md"
+    if doc.exists():
+        text = " ".join(doc.read_text().split())
+        for quote in (SURVEY_QUOTES[0], SURVEY_QUOTES[1], SURVEY_QUOTES[3]):
+            assert f'"{quote}"' in text, quote

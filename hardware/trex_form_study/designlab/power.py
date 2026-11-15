@@ -50,11 +50,13 @@ AUX_FIXED = {  # W (PR #662 auxiliary budget, kept as the baseline)
 #:     ``nvidia_orin_nano_super_devkit``, 15 W typical and 25 W maximum; ``COMPUTE.md``);
 #:   * ``carrier_storage_cooling``: 3 W for the carrier, the NVMe and the fan, the top of the compute survey's
 #:     unmeasured 2-3 W estimate (``designlab/data/research/compute_2026-11-07.json``, architecture
-#:     ``A_orin_nano_super_devkit``: "Max 18.0 W = 15 W mode cap (vendor) + 3 W" and "25 W mode: 25 + 3 = 28.0 W at the
-#:     board").  An estimate: nobody has measured the kit at the converter input in either mode (``COMPUTE.md`` bench
-#:     test 1).
-#: The survey's typical draw in the 15 W mode is lower (15.0 W: 12 W measured at the module with a detector running,
-#: plus the same 3 W); the Pi 5 set's row above is a typical draw too (A14), so the two are not like for like.
+#:     ``A_orin_nano_super_devkit``: "Max 18.0 W = 15 W mode cap (vendor) + 3 W" and "25 W mode (the Super
+#:     configuration's default): 25 + 3 = 28.0 W at the board").  An estimate: nobody has measured the kit at the
+#:     converter input in either mode (``COMPUTE.md`` bench test 1).
+#: The survey's typical figure for this architecture is lower ("Typical 15.0 W": 12 W at the module plus the same
+#: 3 W), and the Pi 5 set's row above is a typical draw too (A14), so the two are not like for like.  That 12 W is not
+#: a 15 W-mode measurement: it was measured with locked MAXN SUPER clocks under a heavier detector load (arXiv
+#: 2609.13551), and the survey says "No light-load measurement exists in the 15 W mode".
 COMPUTE_MODE_BUDGET = {
     "nvidia_orin_nano_super_devkit": {
         "15w": {"jetson_module": 15.0, "carrier_storage_cooling": 3.0},

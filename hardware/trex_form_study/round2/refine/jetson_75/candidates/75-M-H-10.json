@@ -993,7 +993,7 @@
   "C": 1.878597559290758
  },
  "gait_accuracy": "r2",
- "seconds": 72.56493425369263,
+ "seconds": 74.94835567474365,
  "ok": true,
  "refine_case": "jetson_75",
  "headroom": 1.0,
@@ -1111,6 +1111,17 @@
    },
    "choice": "pololu_d42v110f12",
    "placed": "pololu_d42v110f12",
+   "consequence": {
+    "rule": "what the rule's worst case costs in mass: on the modes' rail budgets alone (no USB load) the lighter option covers both modes (load_fraction_at_rail_budget), and the body would then be lighter by the two catalog masses' difference (lighter_option.body_mass_change_kg; with_reserve_kg adds the model's 6 % integration reserve).  Whether the worst case can occur at the jack is not sourced: the catalog does not give the rating of the kit's own 19 V supply.  If the power box already holds the computer's regulator (may_be_counted_twice), the body is lighter than modelled by the placed row with its reserve (placed_row_with_reserve_kg)",
+    "lighter_option": {
+     "part": "pololu_d36v50f12",
+     "covers_both_modes_at_rail_budget": true,
+     "body_mass_change_kg": -0.008,
+     "with_reserve_kg": -0.00851063829787234
+    },
+    "placed_row_kg": 0.025,
+    "placed_row_with_reserve_kg": 0.026595744680851064
+   },
    "may_be_counted_twice": "the power box's 0.30 kg is PR #662's power bay allowance, and that robot's bay held three regulators, a D36V50F12 for its computer among them (r0_posture_study_2026-11-07/study/hardware/component_basis.md); the bay's own breakdown is not in this repository, so the regulator placed here may duplicate one the box already holds: the body is then too heavy by at most the regulator's installed mass with its reserve",
    "efficiency": "the regulator's loss is in power.ETA_DCDC (0.88, A6), which every auxiliary rail takes; the vendor gives over 90 % for this part (catalog research record), so 0.88 is the lower of the two",
    "geometry": {
@@ -2190,7 +2201,7 @@
     "runtime_min": 36.725662514613965
    },
    "survey_typical_15w": {
-    "rule": "for comparison, not a mode budget: the 15 W mode at the compute survey's typical draw, 12 W measured at the module with a detector running plus the same 3 W of carrier, storage and cooling (designlab/data/research/compute_2026-11-07.json, A_orin_nano_super_devkit: 'Typical 15.0 W'); the base's row is a typical draw too (A14).  First order: the 15 W mode's result with the rail's difference taken off through the converter",
+    "rule": "for comparison, not a mode budget and not a measurement in the 15 W mode: the compute survey's typical figure for this architecture, 12 W at the module plus the same 3 W of carrier, storage and cooling (designlab/data/research/compute_2026-11-07.json, A_orin_nano_super_devkit: 'Typical 15.0 W').  The 12 W was measured with locked MAXN SUPER clocks under a heavier detector load (arXiv 2609.13551), and the survey has no measurement in the 15 W mode ('No light-load measurement exists in the 15 W mode').  The base's row is a typical draw too (A14).  First order: the 15 W mode's result with the rail's difference taken off through the converter",
     "compute_rail_w": 15.0,
     "total_w": 96.8700361329446,
     "runtime_min": 34.032195419805596,
@@ -2199,7 +2210,7 @@
   },
   "heat": {
    "modelled": false,
-   "note": "heat is not modelled anywhere in this study: the dev kit's 15-25 W module (18-28 W at the rail) against the Pi set's 8-9.5 W, in a closed chest, is an open hardware question"
+   "note": "no thermal model of the chest, the electronics or the air path exists in this study; the drives' heating is read only through their sustained-torque ratios (the envelope screen's session_heat).  The dev kit's 15-25 W module (18-28 W at the rail) against the Pi set's 8-9.5 W, in a closed chest, is an open hardware question"
   },
   "selection_if_resized": {
    "rule": "one step of sizing.select on these loads with the case's headroom, and power.select_battery on its walking power (the record's own, and each power mode's): recorded only (the sizing loop, which would iterate on the re-selected parts' masses, is not run, and nothing here is re-selected)",
