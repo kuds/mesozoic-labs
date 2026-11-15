@@ -41,7 +41,7 @@ Simulated episodes rendered from their traces (``SIM_LABEL`` on every frame), or
 
 Run from hardware/trex_form_study, one process, through ``bash tools/lowprio.sh``::
 
-    python -m designlab.stage2.barviews turnpath --set V0 [--run DIR] [--out DIR] [--figure-row R2/42@10ms]
+    python -m designlab.stage2.barviews turnpath --set V0 [--run DIR] [--out DIR] [--figure-row R0@10ms]
     python -m designlab.stage2.barviews clips F25F9cl:walk/v0.4:R2/42@10ms ... [--run DIR] [--media DIR] [--out DIR]
     python -m designlab.stage2.barviews clips --planned V0:turn/q90_left F25F9cl:turn/q90_left
     python -m designlab.stage2.barviews clips --all-gated --row R2/42@10ms [--set F25F9cl] [--list]
@@ -97,8 +97,11 @@ SURFACE_GROUPS = (0, 1, 2)
 #: The steady part of a turn: the rows whose heading has turned between these shares of the commanded angle.
 STEADY = (1.0 / 6.0, 5.0 / 6.0)
 STEADY_MIN_ROWS = 8
-#: The figure's simulated paths come from this row's record on the hard floor, headline block.
-FIGURE_ROW = "R2/42@10ms"
+#: The figure's simulated paths come from one record on the hard floor, headline block: the first of these rows (the
+#: judged delay's, in the chain's order: the two fitted controllers, then the open-loop row, which gives no
+#: verdict) whose record has an episode that stayed up and can be read; the caption names it and the rows before
+#: it.  ``--figure-row`` names one row instead.
+FIGURE_ROWS = ("R2/42@10ms", "R2/43@10ms", "R0@10ms")
 #: Clips: size, rate, size cap, lead and tail around the move, the command caption's length, the walk's length.
 FPS = 30
 MAX_BYTES = 3_000_000
@@ -896,7 +899,23 @@ def _anchored_path(model: BodyModel, pose: dict, t_c: float, t_end: float | None
     return np.column_stack([(xy[sel] - o) @ ex, (xy[sel] - o) @ ey])
 
 
-def turnpath(set_name: str, run=RUN, out=None, body: str = BODY, figure_row: str = FIGURE_ROW, log=print) -> dict:
+def figure_record(sims: list, rows=FIGURE_ROWS) -> tuple[dict | None, list]:
+    """(the record whose paths a turn's figure draws, the rows before it that had none to draw): ``FIGURE_ROWS``'
+    rule on the turn's simulated blocks; (the first row's record, []) if no row has a path; (None, []) if none of
+    the rows has a record."""
+    have = []
+    for row in rows:
+        s = next((x for x in sims if x.get("row") == row and x.get("floor_grip") == GRIP_HARD
+                  and x.get("block") == bar.HEADLINE_BLOCK and x.get("read")), None)
+        if s is None:
+            continue
+        if s.get("_paths"):
+            return s, [f"{x['row']} ({x.get('count_text') or x.get('reason')})" for x in have]
+        have.append(s)
+    return (have[0] if have else None), []
+
+
+def turnpath(set_name: str, run=RUN, out=None, body: str = BODY, figure_row: str | None = None, log=print) -> dict:
     """``barviews turnpath``: write ``<out>/turnpath/<set>/turnpath.json``, ``TURNPATH.md`` and a figure per turn
     (module docstring); returns the document."""
     run = Path(run)
@@ -911,15 +930,19 @@ def turnpath(set_name: str, run=RUN, out=None, body: str = BODY, figure_row: str
     for c in conds:
         pl = planned_turn(sv, c)
         mine = [s for s in sims if s.get("move") == c.move]
-        pick = next((s for s in mine if s.get("row") == figure_row and s.get("floor_grip") == GRIP_HARD
-                     and s.get("block") == bar.HEADLINE_BLOCK and s.get("read")), None)
+        pick, before = figure_record(mine, FIGURE_ROWS if figure_row is None else (figure_row,))
         stem = c.key.replace("/", "_")
-        figs[c.key] = figure(sv, c, pl, pick, d / stem)
+        figs[c.key] = figure(sv, c, pl, pick, d / stem, before)
         turns.append(dict(condition=c.key, in_words=condition_words(c.describe()), gated=bool(c.gated), move=c.move,
                           planned=pl, simulated=[{k: v for k, v in s.items() if k != "_paths"} for s in mine],
                           simulated_note=None if mine else "no record yet",
                           figure=dict(svg=f"{stem}.svg", png=f"{stem}.png", caption=figs[c.key],
-                                      simulated_from=None if pick is None else pick["record"])))
+                                      simulated_from=None if pick is None else pick["record"],
+                                      rows_before_without_a_path=before,
+                                      rule="the simulated paths are those of the first of the rows "
+                                           + ", ".join(FIGURE_ROWS if figure_row is None else (figure_row,))
+                                           + " (hard floor, headline block) whose record has an episode that "
+                                             "stayed up and can be read")))
         log(f"{set_name} {c.key}: planned radius {pl['readings']['fit']['radius_fitted_m']:.3f} m, "
             f"{len(mine)} simulated record(s)")
     unread = [s for s in sims if not s.get("read")]
@@ -1097,7 +1120,7 @@ COLOURS = dict(planned="#2a78d6", simulated="#eb6834", ink="#1c211d", ink2="#4a5
                band="#ddd6c5", surface="#fbf9f3")
 
 
-def figure(sv: SetView, cond, planned: dict, sim: dict | None, stem: Path) -> str:
+def figure(sv: SetView, cond, planned: dict, sim: dict | None, stem: Path, before=()) -> str:
     """The top view of one turn to ``<stem>.svg`` and ``<stem>.png`` (800 px wide: legible at 400): north is the
     incoming walking line, every path is drawn from its own position at the command.  Returns the caption."""
     import matplotlib
@@ -1124,10 +1147,12 @@ def figure(sv: SetView, cond, planned: dict, sim: dict | None, stem: Path) -> st
     words = condition_words(cond.describe())
     drawn = [] if sim is None else sim.get("_paths", [])
     if drawn:
-        note = (f"Simulated paths: {sim['row']}, floor grip {sim['floor_grip']:g}, {sim['block']}; "
-                f"{sim['count_text']}; {len(drawn)} drawn.")
+        ctl = "the open-loop row " if bar.controller_of(sim["row"]) in bar.NO_VERDICT_CONTROLLERS else ""
+        skipped = ("  Rows before it with no path to draw: " + "; ".join(before) + ".") if before else ""
+        note = (f"Simulated paths: {ctl}{sim['row']}, floor grip {sim['floor_grip']:g}, {sim['block']}; "
+                f"{sim['count_text']}; {len(drawn)} drawn." + skipped)
         simtext = (f"Orange, thin: SIMULATED root paths of the {len(drawn)} episodes that stayed up in "
-                   f"`{sim['record']}` ({sim['count_text']}).")
+                   f"`{sim['record']}` ({ctl}{sim['row']}; {sim['count_text']})." + skipped)
     elif sim is not None:
         note = f"Simulated: no episode to draw from {sim['row']} ({sim.get('count_text') or sim.get('reason')})."
         simtext = f"SIMULATED: no episode of `{sim['record']}` stayed up with a trace that can be read; none is drawn."
@@ -1904,7 +1929,9 @@ def main(argv=None) -> int:
     common(t)
     t.add_argument("--set", required=True, dest="set_name")
     t.add_argument("--out", default=None, help="the views directory (default: this checkout's run directory's views/)")
-    t.add_argument("--figure-row", default=FIGURE_ROW)
+    t.add_argument("--figure-row", default=None,
+                   help="the row whose record's paths the figures draw (default: the first of "
+                        + ", ".join(FIGURE_ROWS) + " with an episode that stayed up)")
     c = sub.add_parser("posecheck", help="pose_of's rebuilt feet and CoM against the traces' own columns")
     common(c)
     c.add_argument("items", nargs="+", help="SET:CONDITION:ROW")

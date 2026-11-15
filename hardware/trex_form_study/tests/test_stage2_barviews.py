@@ -639,6 +639,14 @@ def test_the_commands_write_nothing_in_the_run_directory_outside_views(v0, fake_
     assert "### Planned" in md and "### Simulated" in md and "4 of 6 episodes stayed up" in md and "No record yet" in md
     assert "seed 3043 at 14.20 s, after the command" in md and "| reading (simulated) |" in md
     assert q["figure"]["simulated_from"] == sim["record"] and "SIMULATED root paths of the 2 episodes" in q["figure"]["caption"]
+    assert q["figure"]["rows_before_without_a_path"] == [] and "R2/42@10ms, R2/43@10ms, R0@10ms" in q["figure"]["rule"]
+    # the figure's record: the first row in the stated order with a path to draw; the rows before it are named
+    a = dict(row="R2/42@10ms", floor_grip=0.9, block=BLOCK, read=True, _paths=[], count_text="0 of 20 episodes stayed up")
+    b = dict(row="R0@10ms", floor_grip=0.9, block=BLOCK, read=True, _paths=[np.zeros((2, 2))], count_text="20 of 20")
+    low = dict(b, row="R2/43@10ms", floor_grip=0.54)
+    assert bv.figure_record([low, b, a]) == (b, ["R2/42@10ms (0 of 20 episodes stayed up)"])
+    assert bv.figure_record([low, a]) == (a, []) and bv.figure_record([low]) == (None, [])
+    assert bv.figure_record([a, b], ("R2/42@10ms",)) == (a, [])
     # an output directory elsewhere inside the run directory is refused, and nothing is written
     assert bv.main(["turnpath", "--set", "V0", "--run", str(run), "--out", str(run / "V0" / "views")]) == 1
     assert bv.main(["turnpath", "--set", "V0", "--run", str(run), "--out", str(run)]) == 1
