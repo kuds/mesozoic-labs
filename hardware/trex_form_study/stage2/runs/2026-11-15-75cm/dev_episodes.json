@@ -1,0 +1,188 @@
+{
+ "rule": "STAGE2_75_PLAN.md rule R4 with its confirmation 8 and amendment 5 of 15 Nov 2026 (the runner's wording: designlab.stage2.bar RULES['checks'])",
+ "note": "check episodes of the build: smoke, no record.  'episodes' is written by the runner (bar run --dev-episodes): one entry per check episode on set V0 under an R0 row, listed when it starts and again when it is recorded.  'scratch_sets' is written by hand: the closed-loop episodes of a Stage 2 move that were run on a scratch or fixture set built from Stage 1's gaits, to test the runner, before any set was frozen.",
+ "episodes": [],
+ "scratch_sets": {
+  "rule": "R4's limits protect the three registered sets.  Closed-loop episodes of a Stage 2 move on a scratch or fixture set built from Stage 1's gaits are run only to test the runner, under R0 rows and never under an R2 row (STAGE2_75_PLAN.md, amendment 5 of 15 Nov 2026).  From the runner's review fixes on, the runner refuses another row on such a set.",
+  "sets": {
+   "D0": "the runner's builder's scratch set of 75-M-H-10: Stage 1's nominal and brisk walks (the brisk walk, 0.351 m/s, under the name v0.4) with a causal stop and quick turns built from them by designlab.stage2.moves; not screened, frozen in a scratch root (logs/wpb-d0/sets, git-ignored)",
+   "T0": "the fixture of tests/test_stage2_bar.py: Stage 1's own arrays of 75-M-H-10 under the bar's names (Stage 1's stop and turn entries declared causal); built in a temporary directory by each test session, and once by hand under logs/wpb-t0/sets"
+  },
+  "r2_rows": "none: no episode under an R2 row ran on a scratch or fixture set",
+  "summary": [
+   {
+    "set": "D0",
+    "by": "the runner's builder",
+    "when": "2026-11-15 (about 02:00 to 02:15 UTC)",
+    "rows": [
+     "R0@10ms"
+    ],
+    "conditions": [
+     "walk/v0.4",
+     "turn/q90_left",
+     "turn/q90_right",
+     "nudge/left",
+     "stop/two_step",
+     "walk/nominal",
+     "stop/one_step"
+    ],
+    "seeds": [
+     3042
+    ],
+    "episodes": 7,
+    "why": "first run of every judge of the bar on a set with causal moves",
+    "source": "logs/wpb-d0/out/D0/75-M-H-10/seeds3042/eval/summary.json (one session)"
+   },
+   {
+    "set": "D0",
+    "by": "the runner's builder",
+    "when": "2026-11-15T02:10:06Z",
+    "rows": [
+     "R0@10ms",
+     "R0@0ms"
+    ],
+    "conditions": "the 16 gated conditions",
+    "seeds": [
+     3042,
+     3043
+    ],
+    "episodes": 64,
+    "why": "the brief's smoke: 16 records per row with every reading present",
+    "source": "logs/bar-smoke.log: 'session: 64 episodes run'"
+   },
+   {
+    "set": "D0",
+    "by": "the runner's builder",
+    "when": "2026-11-15T02:11:15Z and 02:11:52Z",
+    "rows": [
+     "R0@10ms",
+     "R0@0ms"
+    ],
+    "conditions": "the 16 gated conditions",
+    "seeds": [
+     3042,
+     3043
+    ],
+    "episodes": "64 or a few more",
+    "why": "the brief's kill and resume: a run killed midway and run again to equal records",
+    "source": "logs/bar-smoke-resume.log: the resume ran 34 episodes and found 14 records (28 episodes) up to date and 2 episodes kept as partial files, so the killed run had finished 30; the episodes in flight at the kill (at most 2, with 2 processes) cannot be recovered"
+   },
+   {
+    "set": "T0",
+    "by": "the runner's builder",
+    "when": "2026-11-14 or 15",
+    "rows": [
+     "R0@0ms"
+    ],
+    "conditions": [
+     "walk/v0.4",
+     "turn/q90_left",
+     "turn/q90_right",
+     "nudge/forward",
+     "stop/two_step"
+    ],
+    "seeds": [
+     3042
+    ],
+    "episodes": 5,
+    "why": "the fixture's first run by hand",
+    "source": "logs/wpb-t0/out/T0/75-M-H-10/seeds3042/eval/summary.json (one session)"
+   },
+   {
+    "set": "D0",
+    "by": "the judge's reviewer of the runner",
+    "when": "2026-11-15 (about 03:20 to 03:40 UTC)",
+    "rows": [
+     "R0@10ms"
+    ],
+    "conditions": [
+     "walk/v0.4",
+     "turn/q90_left",
+     "turn/q90_right",
+     "nudge/forward",
+     "stop/two_step",
+     "walk/nominal",
+     "stop/one_step"
+    ],
+    "seeds": [
+     3042,
+     3043
+    ],
+    "episodes": 14,
+    "why": "an own re-reading of five traces against the records",
+    "source": "the review's scratch directory, smoke/D0/75-M-H-10/seeds3042/eval/summary.json"
+   },
+   {
+    "set": "D0",
+    "by": "the judge's reviewer of the runner",
+    "when": "2026-11-15 (about 03:35 UTC)",
+    "rows": [
+     "R0@0ms"
+    ],
+    "conditions": [
+     "walk/v0.4"
+    ],
+    "seeds": [
+     3042
+    ],
+    "episodes": 1,
+    "why": "one episode of the omega control's path (control omega_s1), to read the record it writes",
+    "source": "the review's scratch directory, smoke/controls/omega_s1/D0/...; the review counts 15 episodes in all.  Its exp1.py judged a D0 turn/q90_left episode under R0@10ms in process: whether that episode is one of the 15 or one more cannot be recovered"
+   },
+   {
+    "set": "T0",
+    "by": "the provenance reviewer of the runner",
+    "when": "2026-11-15 (about 03:45 UTC)",
+    "rows": [
+     "R0@0ms"
+    ],
+    "conditions": [
+     "walk/v0.4"
+    ],
+    "seeds": [
+     3042,
+     3043
+    ],
+    "episodes": 2,
+    "why": "two workers reading the set while the session's reading of one file was made stale",
+    "source": "the review's scripts/e7_workers.py.  Its other runs on copies of T0, and on a copy under the name V0 (2 records), put synthetic episode records in run_episode's place and simulated nothing: 51 such records on T0 by its summaries"
+   },
+   {
+    "set": "D0",
+    "by": "the fixer of the review's findings",
+    "when": "2026-11-15 (after the review)",
+    "rows": [
+     "R0@10ms"
+    ],
+    "conditions": "the 16 gated conditions (16 episodes), and again walk/v0.4, turn/q90_left, turn/q90_right, nudge/left and stop/two_step (5 episodes, the test module's slow per-judge test)",
+    "seeds": [
+     3042
+    ],
+    "episodes": 21,
+    "why": "the judge after the review's fixes on episodes that survive a turn and a stop: the turn's window readings and the amended toe clearance; D0's set.json now declares its stand-in walk",
+    "source": "logs/bar-smoke-fix.log: 'session: 16 episodes run'; logs/fix-final-slow.log (5 episodes)"
+   },
+   {
+    "set": "T0",
+    "by": "tests/test_stage2_bar.py, run by the builder, the two reviewers and the fixer of the review's findings",
+    "when": "2026-11-14 and 15",
+    "rows": [
+     "R0@0ms"
+    ],
+    "conditions": [
+     "walk/v0.4",
+     "turn/q90_left",
+     "nudge/forward",
+     "stop/two_step",
+     "nudge/left"
+    ],
+    "seeds": [
+     3042
+    ],
+    "episodes": "per test session 4 whole episodes (the fixture's walk, left turn, forward nudge and stop), 5 episodes cut at 6 s that test the 'cannot be read' rule, and from the review's fixes on 1 more of the stop (a trace that is hashed and not kept); the number of test sessions is not recorded (of the order of a few tens)",
+    "why": "the judge's plumbing on real episodes; the rules of the runner use synthetic records",
+    "source": "the test module; pytest keeps no count of its sessions"
+   }
+  ]
+ }
+}

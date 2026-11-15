@@ -22,17 +22,32 @@ a contact step (lift-off step a, ``t_lo``) and ends at a contact step (touchdown
 t_lo``.  It is a **swing** if any update row with ``t_lo <= t < t_td`` has ``ref_swing`` equal to that foot,
 whatever its length, or if ``D >= air_gap_max_s``; otherwise it is an *air gap* (stance chatter): counted, not
 read.  A *reference swing* is a maximal run of rows with ``ref_swing`` equal to the foot; a swing belongs to every
-reference swing it shares such a row with, and a reference swing with two or more swings is **interrupted**.  A
-swing wholly inside the window (``t_lo >= ta``, ``t_td <= tb``) is read as the minimum of the foot's low point over
-its value interpolated linearly between rows at ``t_lo + 0.25 D`` and at ``t_lo + 0.75 D`` and every row strictly
-between those times.  Choices this file makes where the rule's text leaves room, each stated in the function's
-docstring: which reference swings are "in the window" (those wholly inside it and complete in the trace), and that
-air gaps are counted when wholly inside the window.  The ends of a foot's own swing are thus where its debounced
-load crosses 2 % of the weight, not the planned swing's ends, and the reading is not Stage 1's reading moved in
-time.  On Stage 1's stock nominal and brisk walks of 75-M-H-10 (rows R2/42 and R0, seed 3042, hard floor, no servo
-delay; read on 15 Nov 2026) the own lift-off came within 4 ms of the planned one (medians) and the own touchdown a
-median 3 to 23 ms after it; the 75 % edge then lies on the foot's falling flank and gave the minimum in 70 of 72
-swings, and the reading was 0.004 to 0.017 H below Stage 1's (R0: 0.033 and 0.036 H, under the 0.04 H limit).
+reference swing it shares such a row with, and a reference swing with two or more swings is **interrupted**.
+
+The judged reading (STAGE2_75_PLAN.md C3 as amended on 15 Nov 2026, before any Stage 2 set was frozen): a swing is
+read as the minimum of the foot's low point over ``[t_lo + 0.25 T_p, t_lo + 0.75 T_p]``, the middle half of the
+*planned* swing counted from the foot's own lift-off: its value interpolated linearly between rows at both edges
+and every row strictly between them.  ``T_p`` is the planned duration, on the simulated clock, of the reference
+swing of that foot that the air run overlaps the longest (the most shared rows; the earlier of two that share as
+many), as the caller gives it per row (``planned_s``), or the track's shortest planned swing on the simulated clock
+(``air_gap_max_s / AIR_GAP_SWING_FRAC``) when the run overlaps none or no duration is given.  The interval is read
+to its end even when the foot's own touchdown comes before it: the foot is then on the floor and the reading says
+so.  A swing is read when it is wholly inside the window (``t_lo >= ta``, ``t_td <= tb``) and its interval ends at or
+before ``tb`` (and inside the trace); a swing whose interval runs past the window's end is neither read nor counted
+(this file treats it as a swing the window cuts).  The count rule: a reference swing counts toward a foot's number
+only if no window edge cuts an own swing that overlaps it.  Choices this file makes where the rule's text leaves
+room, each stated in the function's docstring: which reference swings are "in the window" (those wholly inside it
+and complete in the trace), that air gaps are counted when wholly inside the window, and that "overlaps the
+longest" is counted in shared update rows.
+
+The reading as first written (the middle half of the swing's *own* duration: interpolated at ``t_lo + 0.25 D`` and
+``t_lo + 0.75 D``, every row between) stays beside it as ``toe_clearance_own_duration_m``: reported, never judged.
+The ends of a foot's own swing are where its debounced load crosses 2 % of the weight, not the planned swing's ends:
+on Stage 1's stock nominal and brisk walks of 75-M-H-10 (rows R2/42 and R0, seed 3042, hard floor, no servo delay;
+read on 15 Nov 2026) the own lift-off came within 4 ms of the planned one (medians) and the own touchdown a median 3
+to 23 ms after it; the 75 % edge of the own duration then lies on the foot's falling flank and gave the minimum in
+70 of 72 swings, 0.004 to 0.017 H below Stage 1's reading (R0: 0.033 and 0.036 H, under the 0.04 H limit).  That is
+why the judged reading takes the planned duration.
 
 (b) ``line_reading``, (c) ``turn_reading``, (e) ``stop_reading`` and ``touchdowns``: the walk's, the turn's and the
 stop's readings.  ``drive_ratios``: each drive's RMS over its sustained rating over a span of steps, with the worst
@@ -70,7 +85,7 @@ RESAMPLE_HZ = 500.0
 #: Thresholds of the bar (the callers apply them unless a function takes one as an argument).
 TOE_CLEARANCE_FRAC_H = 0.04  # own-swing toe clearance, of the hip height
 AIR_GAP_SWING_FRAC = 0.5  # an air run outside the reference's swing is read as a swing from this share of the shortest
-MID_SWING = (0.25, 0.75)  # the middle half of a swing
+MID_SWING = (0.25, 0.75)  # the middle half of a swing (of its planned duration, from the own lift-off)
 WALK_WINDOW_S = 10.0  # the walk item's judged window
 LINE_MAX_M = 0.25  # the CoM's largest distance from the line along the commanded heading
 HEADING_TOL_DEG = 10.0
@@ -161,31 +176,62 @@ def touchdowns(contact, dt: float) -> list[tuple[float, int]]:
 # ------------------------------------------------------------------------------------------------
 # (a) Toe clearance over each foot's own swing
 # ------------------------------------------------------------------------------------------------
+def _mid_reading(t: np.ndarray, low_i: np.ndarray, t1: float, t2: float) -> tuple[float, float, str | None] | None:
+    """The minimum of one foot's low point over ``[t1, t2]``: its value interpolated linearly between rows at both
+    edges and every row strictly between them.  Returns (value, the time of the minimum, the edge that gave it:
+    ``"first"``, ``"last"`` or None for a row between); None if a value read is not finite."""
+    sel = np.flatnonzero((t > t1) & (t < t2))
+    between = low_i[sel]
+    edge1, edge2 = float(np.interp(t1, t, low_i)), float(np.interp(t2, t, low_i))
+    if not (math.isfinite(edge1) and math.isfinite(edge2) and np.all(np.isfinite(between))):
+        return None
+    if len(between) and float(np.min(between)) <= min(edge1, edge2):
+        k = int(sel[int(np.argmin(between))])
+        return float(low_i[k]), float(t[k]), None
+    return (edge1, float(t1), "first") if edge1 <= edge2 else (edge2, float(t2), "last")
+
+
 def toe_clearance_own_swing(t_u, low, contact, dt: float, ref_swing, ta: float, tb: float, air_gap_max_s: float,
-                            mid=MID_SWING) -> dict:
+                            mid=MID_SWING, planned_s=None) -> dict:
     """The own-swing toe clearance over the window ``[ta, tb]`` (module docstring, (a)).
 
     ``low`` is ``[rows, 2]`` (each foot's lowest point above the floor at the update rows), ``ref_swing`` is
     ``[rows]`` (the reference's swing foot at each row: 0, 1 or -1), ``air_gap_max_s`` half the shortest planned
-    swing of the track on the simulated clock (``air_gap_max``).  Returns
+    swing of the track on the simulated clock (``air_gap_max``), ``planned_s`` is ``[rows]``: at a row inside a
+    reference swing, that swing's planned duration on the simulated clock (its reference seconds divided by the
+    commanded clock rate); a value that is not finite, or no array, stands for the track's shortest planned swing
+    (``air_gap_max_s / AIR_GAP_SWING_FRAC``).  Returns
 
-    * ``toe_clearance_own_swing_m``: the smallest reading of the swings wholly inside the window (None: none);
-    * ``own_swings`` [2]: per foot, the swings wholly inside the window (the ones read);
-    * ``ref_swings`` [2]: per foot, the reference swings wholly inside the window: every row of the run within
-      ``[ta, tb]``, and the run complete in the trace (it neither starts at the first row nor ends at the last);
-    * ``interrupted_swings``: those reference swings, over both feet, that hold two or more swings (a swing counts
-      for a reference swing whether or not the window cuts the swing itself);
+    * ``toe_clearance_own_swing_m``: the smallest judged reading (None: no swing was read);
+    * ``own_swings`` [2]: per foot, the swings read: wholly inside the window, their interval ``[t_lo + 0.25 T_p,
+      t_lo + 0.75 T_p]`` ending at or before ``tb`` and inside the trace;
+    * ``ref_swings`` [2]: per foot, the reference swings that count: wholly inside the window (every row of the run
+      within ``[ta, tb]``, and the run complete in the trace: it neither starts at the first row nor ends at the
+      last) and overlapped by no own swing that a window edge cuts (a swing not wholly inside the window, or whose
+      interval runs past the window's end); ``ref_swings_cut`` [2] counts those left out for such a swing;
+    * ``interrupted_swings``: the reference swings wholly inside the window, over both feet, that hold two or more
+      swings (a swing counts for a reference swing whether or not the window cuts the swing itself);
     * ``air_gaps``, ``air_gap_longest_s``: the air gaps wholly inside the window and the longest of them (0.0);
-    * ``air_gap_max_s``: as given;
+    * ``air_gap_max_s``: as given; ``shortest_planned_s``: the shortest planned swing it stands for;
+    * ``toe_clearance_own_duration_m`` and ``own_duration_swings`` [2]: the reading as first written (the middle half
+      of each swing's own duration, over the swings wholly inside the window) and how many swings it read:
+      reported, never judged;
+    * ``worst_swing``: of the swing that gave the smallest judged reading, ``{foot, t_lo_s, t_td_s,
+      own_duration_s, planned_s, min_at_frac, min_from_edge}``: ``min_at_frac`` is the time of the minimum after
+      the lift-off as a fraction of ``T_p`` and ``min_from_edge`` says whether an edge gave it (``"first"``: the
+      25 % edge, ``"last"``: the 75 % edge, None: a row between); None when no swing was read;
     * ``swings``: ``[foot, t_lo, t_td, min_m, class]`` for every complete air run that overlaps the window, in time
-      order; ``class`` is one of ``SWING_CLASSES`` and ``min_m`` is None unless the class is ``"swing"``;
+      order; ``class`` is one of ``SWING_CLASSES`` (``"swing"``: read; ``"swing_cut"``: a swing that is not read)
+      and ``min_m`` is the judged reading, None unless the class is ``"swing"``;
+    * ``swing_details``: per row of ``swings``, ``{planned_s, own_duration_s, own_duration_min_m, min_at_frac,
+      min_from_edge, overlaps_reference}``;
     * ``count_ok``: per foot ``own_swings >= ref_swings - 1``.
 
-    A low point that is not finite where a swing is read (either edge's two neighbouring rows, or a row between
-    the edges) raises ``ValueError``: such an episode cannot be read (Python's ``min`` would drop a NaN or return
-    it, by its place).
+    A low point that is not finite where a swing is read, in either reading (an edge's two neighbouring rows, or a
+    row between the edges) raises ``ValueError``: such an episode cannot be read (Python's ``min`` would drop a NaN
+    or return it, by its place).  So does a reference swing whose rows carry two different planned durations.
 
-    The term (``toe_clearance_own_swing_ok``) needs the reading at or above 0.04 H, no interrupted swing and
+    The term (``toe_clearance_own_swing_ok``) needs the judged reading at or above 0.04 H, no interrupted swing and
     ``count_ok``; this function does not apply the 0.04 H threshold."""
     t = np.asarray(t_u, float)
     low = np.asarray(low, float)
@@ -197,57 +243,98 @@ def toe_clearance_own_swing(t_u, low, contact, dt: float, ref_swing, ta: float, 
         raise ValueError("ref_swing holds a value that is not finite")
     if not 0.0 <= mid[0] < mid[1] <= 1.0:
         raise ValueError(f"mid {mid!r}")
+    shortest = float(air_gap_max_s) / AIR_GAP_SWING_FRAC
+    if planned_s is None:
+        planned = np.full(len(t), math.nan)
+    else:
+        planned = np.asarray(planned_s, float)
+        if planned.shape != (len(t),):
+            raise ValueError(f"shapes: t_u {t.shape}, planned_s {planned.shape}")
     rs = np.rint(rs).astype(int)
-    table, readings = [], []
-    own, refs, gaps, interrupted = [0, 0], [0, 0], [], 0
+    t_last = float(t[-1]) if len(t) else -math.inf
+    table, details = [], []
+    judged, first = [], []
+    own, own_first, refs, refs_cut, gaps, interrupted = [0, 0], [0, 0], [0, 0], [0, 0], [], 0
     for i in (0, 1):
         s, e, v = _runs(rs == i)
         ref_runs = [(int(a), int(b)) for a, b, x in zip(s, e, v, strict=True) if x]
         label = np.full(len(t), -1)
+        T_ref = []
         for j, (a, b) in enumerate(ref_runs):
             label[a:b] = j
+            vals = planned[a:b][np.isfinite(planned[a:b]) & (planned[a:b] > 0.0)]
+            if len(vals) and float(np.max(vals) - np.min(vals)) > EPS_S:
+                raise ValueError(f"a reference swing of foot {i} ({t[a]:.3f} s) carries two planned durations")
+            T_ref.append(float(vals[0]) if len(vals) else shortest)
         held = [0] * len(ref_runs)
+        cut_by_window = [False] * len(ref_runs)
         for a, b in air_runs(contact[:, i], dt):
             t_lo, t_td = (a + STEP_OFFSET) * dt, (b + STEP_OFFSET) * dt
             D = t_td - t_lo
             rows = np.flatnonzero((t >= t_lo - EPS_S) & (t < t_td - EPS_S))
-            mine = np.unique(label[rows][label[rows] >= 0])
+            mine, shared = np.unique(label[rows][label[rows] >= 0], return_counts=True)
             swing = bool(len(mine)) or D >= air_gap_max_s - EPS_S
             inside = t_lo >= ta - EPS_S and t_td <= tb + EPS_S
+            T_p = T_ref[int(mine[int(np.argmax(shared))])] if len(mine) else shortest
+            t1, t2 = t_lo + mid[0] * T_p, t_lo + mid[1] * T_p
+            read = swing and inside and t2 <= tb + EPS_S and t2 <= t_last + EPS_S
             if swing:
                 for j in mine:
                     held[j] += 1
+                    cut_by_window[j] = cut_by_window[j] or not read
             if not (t_td > ta + EPS_S and t_lo < tb - EPS_S):
                 continue
             value = None
-            if swing and inside:
-                t1, t2 = t_lo + mid[0] * D, t_lo + mid[1] * D
-                between = low[(t > t1) & (t < t2), i]
-                edge1, edge2 = float(np.interp(t1, t, low[:, i])), float(np.interp(t2, t, low[:, i]))
-                if not (math.isfinite(edge1) and math.isfinite(edge2) and np.all(np.isfinite(between))):
+            det = dict(planned_s=float(T_p), own_duration_s=float(D), own_duration_min_m=None, min_at_frac=None,
+                       min_from_edge=None, overlaps_reference=bool(len(mine)))
+            if swing and inside:  # the reading as first written: reported
+                r1 = _mid_reading(t, low[:, i], t_lo + mid[0] * D, t_lo + mid[1] * D)
+                if r1 is None:
                     raise ValueError(f"low is not finite inside a read swing (foot {i}, {t_lo:.3f} to {t_td:.3f} s)")
-                value = float(min(edge1, edge2, np.min(between) if len(between) else math.inf))
-                readings.append(value)
+                det["own_duration_min_m"] = r1[0]
+                first.append(r1[0])
+                own_first[i] += 1
+            if read:
+                r2 = _mid_reading(t, low[:, i], t1, t2)
+                if r2 is None:
+                    raise ValueError(f"low is not finite inside a read swing (foot {i}, {t_lo:.3f} to {t_td:.3f} s)")
+                value = r2[0]
+                frac = {"first": float(mid[0]), "last": float(mid[1])}.get(r2[2], (r2[1] - t_lo) / T_p)
+                det.update(min_at_frac=frac, min_from_edge=r2[2])
+                judged.append((value, len(table), i))
                 own[i] += 1
-            elif inside:
+            elif inside and not swing:
                 gaps.append(D)
-            cls = ("swing" if swing else "air_gap") + ("" if inside else "_cut")
+            cls = ("swing" if read else "swing_cut") if swing else ("air_gap" if inside else "air_gap_cut")
             table.append([i, float(t_lo), float(t_td), value, cls])
+            details.append(det)
         for j, (a, b) in enumerate(ref_runs):
             if a > 0 and b < len(t) and t[a] >= ta - EPS_S and t[b - 1] <= tb + EPS_S:
-                refs[i] += 1
+                if cut_by_window[j]:
+                    refs_cut[i] += 1
+                else:
+                    refs[i] += 1
                 interrupted += held[j] >= 2
-    table.sort(key=lambda r: (r[1], r[0]))
-    return dict(toe_clearance_own_swing_m=min(readings) if readings else None, own_swings=own, ref_swings=refs,
-                interrupted_swings=int(interrupted), air_gaps=len(gaps),
-                air_gap_longest_s=float(max(gaps)) if gaps else 0.0, air_gap_max_s=float(air_gap_max_s), swings=table,
+    order = sorted(range(len(table)), key=lambda k: (table[k][1], table[k][0]))
+    worst = None
+    if judged:
+        value, k, i = min(judged, key=lambda x: (x[0], table[x[1]][1], x[2]))
+        row, det = table[k], details[k]
+        worst = dict(foot=int(i), t_lo_s=row[1], t_td_s=row[2], own_duration_s=det["own_duration_s"],
+                     planned_s=det["planned_s"], min_at_frac=det["min_at_frac"], min_from_edge=det["min_from_edge"])
+    return dict(toe_clearance_own_swing_m=min(x[0] for x in judged) if judged else None, own_swings=own,
+                ref_swings=refs, ref_swings_cut=refs_cut, interrupted_swings=int(interrupted), air_gaps=len(gaps),
+                air_gap_longest_s=float(max(gaps)) if gaps else 0.0, air_gap_max_s=float(air_gap_max_s),
+                shortest_planned_s=shortest, toe_clearance_own_duration_m=min(first) if first else None,
+                own_duration_swings=own_first, worst_swing=worst, swings=[table[k] for k in order],
+                swing_details=[details[k] for k in order],
                 count_ok=bool(all(own[i] >= refs[i] - 1 for i in (0, 1))))
 
 
 def toe_clearance_own_swing_ok(reading: dict, H: float, frac: float = TOE_CLEARANCE_FRAC_H) -> bool:
     """The term ``toe_clearance_own_swing`` on ``toe_clearance_own_swing``'s result: a swing was read, the smallest
-    reading is at least ``frac`` of the hip height ``H``, no reference swing in the window is interrupted, and each
-    foot has at least its number of reference swings less one."""
+    judged reading is at least ``frac`` of the hip height ``H``, no reference swing in the window is interrupted, and
+    each foot has at least its number of counted reference swings less one."""
     v = reading["toe_clearance_own_swing_m"]
     return bool(v is not None and v >= frac * H and reading["interrupted_swings"] == 0 and reading["count_ok"])
 
