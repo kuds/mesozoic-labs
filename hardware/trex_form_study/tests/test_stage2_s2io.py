@@ -12,6 +12,7 @@ import hashlib
 import json
 import math
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -26,6 +27,7 @@ sys.path.insert(0, str(ROOT))
 from designlab.stage2 import s2io  # noqa: E402
 
 RUN = ROOT / "stage1" / "runs" / "2026-11-08" / "75-M-H-10"
+needs_git = pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
 
 
 # ------------------------------------------------------------------------------------------------
@@ -315,6 +317,7 @@ def _git(cwd, *args):
                     *args], cwd=cwd, check=True, capture_output=True)
 
 
+@needs_git
 def test_built_by_leaves_own_outputs_out_of_dirty_paths(tmp_path, monkeypatch):
     """On a throwaway repository whose study directory is two levels down, as here: the builder's own output
     directory is left out of ``dirty_paths`` and of ``dirty``; anything else that differs from the commit stays."""
@@ -361,6 +364,7 @@ def test_built_by_leaves_own_outputs_out_of_dirty_paths(tmp_path, monkeypatch):
     assert s2io.git_state() == dict(commit=None, dirty=None, dirty_paths=None)
 
 
+@needs_git
 def test_built_by_here():
     """On this checkout: the commit, the panels' source hash, the named modules by their study-relative path, the
     versions, the thread count, the accuracy level at the call and a UTC time."""

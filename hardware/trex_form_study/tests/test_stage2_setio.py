@@ -14,6 +14,7 @@ import copy
 import json
 import math
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -514,7 +515,8 @@ IGNORE_LINES = ["*.npz", "*.tmp", ".lock", "partial/", "traces/", "logs/", "done
 def test_set_and_run_directories_ignore_what_is_not_a_record():
     for sub in ("sets", "runs"):
         assert (ROOT / "stage2" / sub / ".gitignore").read_text().splitlines() == IGNORE_LINES
-    if subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--git-dir"], capture_output=True).returncode:
+    if shutil.which("git") is None or subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--git-dir"],
+                                                     capture_output=True).returncode:
         pytest.skip("not a git checkout")
 
     def ignored(rel: str) -> bool:
