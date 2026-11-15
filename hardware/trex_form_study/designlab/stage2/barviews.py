@@ -122,11 +122,14 @@ POSE_BOUND = (
     "smoke episode run with the plant's own body positions kept (75-M-H-10, turn/walking_0.35_left, R2/42@0ms, "
     "seed 3042, 1461 rows) every body origin came back within 0.08 mm on every row but the first and within 0.11 mm "
     "on the first (the start's transient lies before the first joint sample).  On the chain's traces there is no "
-    "such truth, only the trace's own foot and CoM columns: on three turn records (60 traces, 15 Nov) the rebuilt "
-    "feet lay up to 0.31 mm from them in plan and the CoM up to 0.03 mm, and the two feet's answers for the root's "
-    "height differed by up to 1.35 mm, the largest on the rows next to a touchdown and in a fall, where the joint "
-    "speeds jump between two rows (each clip's manifest entry and each turn record's block give their own largest "
-    "distances: pose_residual_m, pose_check_worst; barviews posecheck prints them for any record)")
+    "such truth, only the trace's own foot and CoM columns: over the 1120 episodes that stayed up in the turn "
+    "records of V0 and F25F9cl (67 records, 15 Nov) the rebuilt feet lay up to 0.73 mm from them in plan (the "
+    "median of the records' largest: 0.19 mm) and the CoM up to 0.04 mm, and the two feet's answers for the "
+    "root's height differed by up to 1.02 mm (1.35 mm in an episode that fell): the largest on the rows next to "
+    "a touchdown, a slip or a fall, where the joint speeds jump between two rows.  The brief's 0.1 mm is "
+    "therefore met on a kinematic play and, but for the first row, on the smoke episode, not on every row of the "
+    "chain's traces (each clip's manifest entry and each turn record's block give their own largest distances: "
+    "pose_residual_m, pose_check_worst; barviews posecheck prints them for any record)")
 #: Clips: size, rate, size cap, lead and tail around the move, the command caption's length, the walk's length.
 FPS = 30
 MAX_BYTES = 3_000_000
