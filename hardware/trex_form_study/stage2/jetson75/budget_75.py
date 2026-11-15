@@ -1,8 +1,11 @@
-"""The 75 cm build's budget, rebuilt with ``designlab/cost.py`` (``JETSON_PLEM_REVIEW.md`` section 5, task 9).
+"""The 75 cm build's prices, by the study's cost model ``designlab/cost.py`` (``JETSON_PLEM_REVIEW.md`` section 5,
+task 9).
 
-Planning only.  Nothing here is built, quoted or measured, and nothing is adopted: the owner decides (decision-log
-P4, P14, P21 and the 14 Nov 2026 decision recorded as P30).  It writes ``stage2/jetson75/budget_75.json``;
-``python stage2/jetson75/budget_75.py md`` prints the tables that ``stage2/jetson75/BUDGET_75.md`` embeds.
+Planning only.  Nothing here is built, quoted or measured, and nothing is adopted (decision-log P14, P21, P30).  It
+is a price record.  By the owner's decision of 14 Nov 2026 (decision-log P31) prices are documented and, at this
+point, are not weighed against P4's $10-20k, so nothing here sets a total against that figure.  It writes
+``stage2/jetson75/budget_75.json``; ``python stage2/jetson75/budget_75.py md`` prints the tables that
+``stage2/jetson75/BUDGET_75.md`` embeds.
 
 Kinds of number (the study's labels):
 
@@ -28,11 +31,12 @@ What it does, in order:
    material and volume, or the expressive head's record); lines it does not cover are added from ``EXTRA`` and take the
    model's own contingency fractions (``cost.CONTINGENCY``).
 3. **Gives each total two ways**: turnkey (the cost model's total, which holds the subcontract integration line) and
-   self-assembled (the same without that line and without the contingency on it).  P4's $10-20k "including outsourced
-   fabrication, integration and spares" is read against the turnkey total.
+   self-assembled (the same without that line and without the contingency on it).
 4. **Checks what the record already holds of P21's items**, so that nothing is counted twice (``checks``).
 5. **Prices twice the lines a kept lot may already hold** (``conditional``: the 12 V regulator against the power lot,
    the supervisor against the kept control lot): each Jetson total is given with the line and without it.
+6. **Ranks the lines by the gap between their low and high cases** (``least_certain``): where the prices are least
+   certain, and what a quote for each line would have to cover.  No quote has been asked for.
 
 Run from ``hardware/trex_form_study``::
 
@@ -72,9 +76,13 @@ INPUT_FILES = (RECORD, HEAD_RECORD, LEVER_REFERENCE, LEVERS, "designlab/cost.py"
                "designlab/refine.py", "designlab/catalog.py", "designlab/data/parts.json",
                "designlab/data/actuators.json", SURVEY)
 
-P4_USD = (10000.0, 20000.0)  # decision-log P4: the prototype budget's range
+#: Decision-log P31 (the owner, 14 Nov 2026), as this record applies it.
+P31 = dict(row="P31", date="14 Nov 2026",
+           applied_as="prices are documented and, at this point, are not weighed against P4's $10-20k: this record "
+                      "sets no total against that figure, and the Jetson hardware is priced for the record whatever "
+                      "its extra cost")
 PI5 = "rpi5_8gb_ai_hat_plus_13tops"  # decision-log P14 (adopted); the record's compute part
-JETSON = "nvidia_orin_nano_super_devkit"  # studied as a refine case (the owner's 14 Nov decision, P30)
+JETSON = "nvidia_orin_nano_super_devkit"  # studied as a refine case (P30) and explored whatever it adds (P31)
 SURVEY_SETS = {JETSON: "A_orin_nano_super_devkit", PI5: "C_pi5_hailo8l_oak_depth"}  # the survey's ids for the two sets
 TIERS = ("low", "nominal", "high")
 
@@ -123,7 +131,7 @@ CLASS_LABEL = {
 #: price is the catalog's, the count or the choice of part per case is an assumption); ``usd`` lines are estimates
 #: (kind d) with their owner and derivation.  A range from a study document takes its midpoint as the nominal value.
 #: "A web search summary" is a search result's summary read on 14 Nov 2026; the pages were not opened (BUDGET_75.md
-#: section 7 lists them).
+#: section 6 lists them).
 EXTRA = {
     "regulator_12v": dict(
         label="6S-to-12 V regulator for the dev kit's carrier (decision-log E7), if it is bought separately",
@@ -258,50 +266,49 @@ SCENARIOS = {
     "jetson_mcu_p21_optional": dict(blocks=("jetson", "p21", "head_x", "audio"),
                                     label="Jetson dev kit, microcontroller loop, P21's items and every optional line"),
 }
-TRIMS = {
-    "defer_boom": dict(label="Defer the cable boom", drop=("cable_boom",)),
-    "defer_audio": dict(label="Defer the audio (it is optional and outside the main totals)", drop=("audio",)),
-}
+#: The three builds the document leads with; the optional lines stay outside their totals.
 MAIN = ("pi_p21", "jetson_mcu_p21", "jetson_direct_p21")
 
-#: What to ask a supplier for, per line (the quotes list is ranked by each line's high-minus-low spread).
-ASK = {
+#: What a quote for each line would have to cover (the lines are ranked by their high-minus-low gap: where the prices
+#: are least certain).  A description of the line's scope, not a step to take: no quote has been asked for.
+QUOTE_SCOPE = {
     "frame": "Laser-cut and machined 6061-T6 plates and brackets, bearings, hubs, soles and fasteners, from "
-             "drawings; ask three shops, and for the plates at 2.54 mm and at 3 mm",
+             "drawings, at three shops; the plates at 2.54 mm and at 3 mm",
     "covers": "MJF PA11 shells from the exported cover shapes with graded 1.4 / 1.2 / 1.0 mm walls, inserts and "
-              "finish; the same three print services for each",
+              "finish, at three print services",
     "integration": "Subcontract fit-up of one prototype: hours and rate for mechanical assembly, harness routing "
                    "and bench checkout",
-    "cable_boom": "First ask whoever builds the bench frame whether it can carry the 5 m cable; if not, a jib or "
-                  "gantry boom with a balancer rated under 0.5 kg",
+    "cable_boom": "Whether the bench frame can carry the 5 m cable (the line is then $0); if not, a jib or gantry "
+                  "boom with a balancer rated under 0.5 kg",
     "bench": "24 V bench supply (about 31 A, RSP-750-24 class), a 6S charger, a cradle or catch frame and "
              "instrumentation",
-    "spares": "Two spare hip-pitch drives and one spare pack, at the quoted drive and pack prices",
+    "spares": "Two spare hip-pitch drives and one spare pack, at the prices that quotes for the drives and the "
+              "pack would give",
     "power": "The power bay as one assembled module: distribution board, fuses, the stop circuit, the regeneration "
-             "clamp and its regulators; have each regulator named (the computer's, the logic rail's, the servos')",
+             "clamp and its regulators, each regulator named (the computer's, the logic rail's, the servos')",
     "harness": "The leg and trunk harness with locking connectors and the neck service loop, from a wiring list",
-    "pad_treads": "A urethane casting kit (50-60 Shore A polyether) and printed moulds; then the grip test on the "
+    "pad_treads": "A urethane casting kit (50-60 Shore A polyether), printed moulds and the grip test on the "
                   "owner's floors",
     "foot_sensing": "Foot contact or load sensors for two feet with their conditioning boards",
     "dc_input": "The input connector, the priority power-path board (LTC4417 class), the dummy puck and the cable; "
-                "the clamp and the stop tie-in are asked for with the power bay",
+                "the clamp and the stop tie-in belong to the power bay's price",
     "leg_actuators": "Twelve drives landed: unit price, shipping, duty and lead time (10 x RMD-X4-P36-36-E-L, 2 x "
                      "RMD-X6-P20-60-E), and which X6 variant ships at the listed price",
     "control": "Teensy 4.1, two CAN transceivers, an IMU and the servo-bus interface as a board stack",
     "compute": "The computer at today's price, its storage and its mounting tray",
-    "rgbd_camera": "The camera and a locking lead; ask about remaining stock of the discontinued camera chip",
+    "rgbd_camera": "The camera and a locking lead, and the remaining stock of the discontinued camera chip",
     "battery": "One pack and the tail-base cassette",
     "expression_actuators": "The neck and tail servos at today's prices",
-    "regulator_12v": "Nothing to quote (a stock part); buy it only if the power bay's quote holds no 12 V regulator "
-                     "for the computer",
-    "tof": "Nothing to quote (stock parts)",
+    "regulator_12v": "A stock part at its list price; an extra only if the power bay holds no 12 V regulator for "
+                     "the computer",
+    "tof": "Stock parts at their list prices",
     "usb_can": "The adapter at today's price, and the two-channel version's price",
-    "supervisor": "Nothing to quote until the supervisor's design exists; first decide whether the kept Teensy stack "
-                  "is the supervisor",
-    "servo_bus_adapter": "Nothing to quote (stock parts)",
+    "supervisor": "No firm price until the supervisor's design exists; not needed if the kept Teensy stack is the "
+                  "supervisor",
+    "servo_bus_adapter": "Stock parts at their list prices",
 }
 
-#: PR #668's budget slips (JETSON_PLEM_REVIEW.md, caveat 5), each checked against the catalog at run time.
+#: PR #668's price slips (JETSON_PLEM_REVIEW.md, caveat 5), each checked against the catalog at run time.
 PR668_SLIPS = (
     dict(what="The Jetson dev kit's price", pr668="$249 in its low and nominal cases",
          catalog_id=JETSON, wrong_price=249),
@@ -309,9 +316,6 @@ PR668_SLIPS = (
          right_id_from=("selection", "tail")),
     dict(what="The neck servo's catalog id", pr668="`robotis_xm540_w270`", wrong_id="robotis_xm540_w270",
          right_id_from=("selection", "neck")),
-    dict(what="The total read against P4",
-         pr668="its self-assembled total, the one without outsourced integration",
-         p4="P4: \"$10-20 k prototype including outsourced fabrication, integration and spares\""),
 )
 
 
@@ -559,7 +563,7 @@ def checks(record: dict, head_record: dict, base: dict) -> dict:
 
 
 def catalog_entries(record: dict, head_record: dict) -> dict:
-    """Every catalog id this budget prices, with its price (kind c) and the catalog's own basis and sources."""
+    """Every catalog id this record prices, with its price (kind c) and the catalog's own basis and sources."""
     acts, parts, out = catalog.actuators(), catalog.parts(), {}
     sel = dict(head_record["selection"])
     ids = [sel[k] for k in ("leg", "neck", "tail", "camera", "tof", "compute", "battery", "neck_yaw", "jaw")]
@@ -583,8 +587,8 @@ def record_ids(record: dict) -> list:
     return list(dict.fromkeys(ids))
 
 
-def quotes(scn: dict) -> list:
-    """The lines of one scenario ranked by their high-minus-low spread: where a quote removes most uncertainty."""
+def spreads(scn: dict) -> list:
+    """The lines of one scenario ranked by their high-minus-low spread: where its prices are least certain."""
     rows = []
     for name, usd in scn["lines"].items():
         b = LINE_BASIS.get(name)
@@ -592,7 +596,7 @@ def quotes(scn: dict) -> list:
             e = EXTRA[name]
             b = dict(kind=e["kind"], cls="new_c" if "parts" in e else "new", basis=e["basis"])
         rows.append(dict(line=name, usd=usd, spread=round(usd[2] - usd[0], 2), kind=b["kind"], cls=b["cls"],
-                         basis=b["basis"], ask=ASK.get(name, "")))
+                         basis=b["basis"], quote_scope=QUOTE_SCOPE.get(name, "")))
     rows.sort(key=lambda r: (-r["spread"], r["line"]))
     return rows
 
@@ -654,13 +658,11 @@ def slips(record: dict) -> list:
             row.update(catalog_id=s["catalog_id"], catalog_price_usd=parts[s["catalog_id"]].price,
                        pr668_price_usd=s["wrong_price"],
                        used_here=f"${parts[s['catalog_id']].price:,.0f}, the price of `{s['catalog_id']}`")
-        elif "wrong_id" in s:
+        else:
             right = record[s["right_id_from"][0]][s["right_id_from"][1]]
             row.update(pr668_id_exists=s["wrong_id"] in acts or s["wrong_id"] in parts, right_id=right,
                        right_id_exists=right in acts, right_id_price_usd=acts[right].price,
                        used_here=f"`{right}` (${acts[right].price:,.2f}), the record's own id")
-        else:
-            row.update(p4=s["p4"], used_here="the turnkey total, which holds the integration line and the spares")
         out.append(row)
     return out
 
@@ -669,7 +671,7 @@ def _with_contingency(usd) -> list:
     return [round(usd[i] * (1 + cost.CONTINGENCY[i]), 0) for i in range(3)]
 
 
-def derived(record: dict, head_record: dict, blocks: dict, scenarios: dict, quote_rows: list) -> dict:
+def derived(record: dict, head_record: dict, blocks: dict, scenarios: dict, spread_rows: list) -> dict:
     """The figures the document's prose quotes that are sums, differences or shares of the lines above (so the prose
     is checked against the record, not typed by hand).  ``steps`` are differences of two printed totals, so the prose
     adds up to the dollar; a block's own figure can be $1 off a step, because totals are rounded after summing."""
@@ -677,7 +679,7 @@ def derived(record: dict, head_record: dict, blocks: dict, scenarios: dict, quot
     sub = sum(v[1] for k, v in lines.items() if k != "contingency")
     split = {c: round(sum(v[1] for k, v in lines.items() if LINE_BASIS[k]["cls"] == c and k != "contingency"), 2)
              for c in ("a8", "carried", "catalog")}
-    q_split = {c: round(sum(r["usd"][1] for r in quote_rows if r["cls"] == c), 2)
+    s_split = {c: round(sum(r["usd"][1] for r in spread_rows if r["cls"] == c), 2)
                for c in ("a8", "carried", "catalog", "new", "new_c")}
 
     def upper(s):
@@ -697,11 +699,7 @@ def derived(record: dict, head_record: dict, blocks: dict, scenarios: dict, quot
         direct_on_jetson=minus(upper("jetson_direct_p21"), upper("jetson_mcu_p21")),
         optional_on_pi=minus(upper("pi_p21_optional"), upper("pi_p21")),
         optional_on_jetson=minus(upper("jetson_mcu_p21_optional"), upper("jetson_mcu_p21")))
-    over = [upper("pi_p21")[1] - P4_USD[1], lower("jetson_mcu_p21")[1] - P4_USD[1],
-            upper("jetson_mcu_p21")[1] - P4_USD[1]]
-    high_over = [upper("pi_p21")[2] - P4_USD[1], lower("jetson_mcu_p21")[2] - P4_USD[1],
-                 upper("jetson_mcu_p21")[2] - P4_USD[1]]
-    by_line = {r["line"]: r for r in quote_rows}
+    by_line = {r["line"]: r for r in spread_rows}
     return dict(
         steps=steps,
         p21_lines_with_contingency={k: _with_contingency(v["usd"]) for k, v in blocks["p21"]["lines"].items()},
@@ -713,10 +711,10 @@ def derived(record: dict, head_record: dict, blocks: dict, scenarios: dict, quot
         baseline_subtotal_nominal=round(sub, 2),
         baseline_split_nominal=split,
         baseline_split_share={c: round(v / sub, 4) for c, v in split.items()},
-        quotes_subtotal_nominal=round(sum(r["usd"][1] for r in quote_rows), 2),
-        quotes_split_nominal=q_split,
-        spread_top3=round(sum(r["spread"] for r in quote_rows[:3]), 2),
-        spread_all=round(sum(r["spread"] for r in quote_rows), 2),
+        adopted_subtotal_nominal=round(sum(r["usd"][1] for r in spread_rows), 2),
+        adopted_split_nominal=s_split,
+        spread_top3=round(sum(r["spread"] for r in spread_rows[:3]), 2),
+        spread_all=round(sum(r["spread"] for r in spread_rows), 2),
         spread_compute=by_line["compute"]["spread"],
         largest_lines={t: max(((k, v[i]) for k, v in scenarios["pi_p21"]["lines"].items()), key=lambda kv: kv[1])[0]
                        for i, t in enumerate(TIERS)},
@@ -726,9 +724,6 @@ def derived(record: dict, head_record: dict, blocks: dict, scenarios: dict, quot
         self_assembled_gap_record=[scenarios["record"]["turnkey"]["total"][i]
                                    - scenarios["record"]["self_assembled"]["total"][i] for i in range(3)],
         compute_difference=compute_difference(blocks),
-        nominal_over_ceiling=over,
-        nominal_over_ceiling_share=[round(v / P4_USD[1], 4) for v in over],
-        high_over_ceiling=high_over,
     )
 
 
@@ -746,22 +741,15 @@ def build() -> dict:
     def condition(keys: tuple) -> str:
         return " and ".join(CONDITIONS[k] for k in keys)
 
-    def total(names: tuple, drop: tuple = ()) -> list:
-        return price(record, head_record, names, drop=drop)["turnkey"]["total"]
-
     scenarios = {}
     for name, sc in SCENARIOS.items():
         p = price(record, head_record, sc["blocks"])
         p.update(label=sc["label"], vs_record=_delta(base, p))
-        p["p4"] = dict(ceiling_usd=P4_USD[1],
-                       turnkey_minus_ceiling=[p["turnkey"]["total"][i] - P4_USD[1] for i in range(3)],
-                       self_assembled_minus_ceiling=[p["self_assembled"]["total"][i] - P4_USD[1] for i in range(3)])
         cond = conditional(sc["blocks"])
         if cond:  # the same build if the kept lots already hold these lines
             lo = price(record, head_record, sc["blocks"], drop=cond)
             p["lower"] = dict(without=list(cond), condition=condition(cond), turnkey=lo["turnkey"],
-                              self_assembled=lo["self_assembled"],
-                              turnkey_minus_ceiling=[lo["turnkey"]["total"][i] - P4_USD[1] for i in range(3)])
+                              self_assembled=lo["self_assembled"])
         scenarios[name] = p
     blocks = {}
     for name, spec in BLOCKS.items():
@@ -781,34 +769,14 @@ def build() -> dict:
             lo = _delta(base, price(record, head_record, (name,), drop=cond))
             blocks[name]["lower"] = dict(without=list(cond), condition=condition(cond), turnkey=lo["turnkey"],
                                          self_assembled=lo["self_assembled"], subtotal=lo["subtotal"])
-
-    def with_and_without(s: str, drop: tuple, add: tuple) -> dict:
-        names = SCENARIOS[s]["blocks"]
-        one = dict(turnkey_with=total(names + add), turnkey_without=total(names, drop=drop))
-        cond = conditional(names)
-        if cond:
-            one["lower"] = dict(turnkey_with=total(names + add, drop=cond),
-                                turnkey_without=total(names, drop=cond + drop))
-        return one
-
-    trims = {}
-    for name, t in TRIMS.items():
-        key = t["drop"][0]
-        usd = extra_line(key)["usd"]
-        row = dict(label=t["label"], line=key,
-                   turnkey=[-round(usd[i] * (1 + cost.CONTINGENCY[i]), 0) for i in range(3)], scenarios={})
-        for s in MAIN:
-            # an optional line is outside the main total: its saving is against the total that holds it
-            add = () if key in scenarios[s]["lines"] else ("audio",)
-            row["scenarios"][s] = with_and_without(s, t["drop"], add)
-        trims[name] = row
-    both = {s: with_and_without(s, ("cable_boom", "audio"), ("audio",)) for s in MAIN}
     rc = record["cost"]
-    quote_rows = quotes(scenarios["pi_p21"])
-    jetson_rows = [r for r in quotes(scenarios["jetson_direct_p21"]) if r["line"] not in scenarios["pi_p21"]["lines"]]
+    spread_rows = spreads(scenarios["pi_p21"])
+    jetson_rows = [r for r in spreads(scenarios["jetson_direct_p21"])
+                   if r["line"] not in scenarios["pi_p21"]["lines"]]
     return dict(
-        study="The 75 cm build's budget, rebuilt with designlab/cost.py (JETSON_PLEM_REVIEW.md section 5, task 9)",
+        study="The 75 cm build's prices, by designlab/cost.py (JETSON_PLEM_REVIEW.md section 5, task 9)",
         status="planning estimate; nothing is built, quoted, measured or adopted",
+        p31=P31,
         body=BODY,
         script="stage2/jetson75/budget_75.py",
         script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
@@ -816,11 +784,6 @@ def build() -> dict:
         kinds=KINDS,
         tiers=list(TIERS),
         contingency_fractions=list(cost.CONTINGENCY),
-        p4=dict(range_usd=list(P4_USD),
-                statement="$10-20 k prototype including outsourced fabrication, integration and spares",
-                read_against="turnkey",
-                why="P4 includes integration and spares, and the cost model's total holds both (the integration "
-                    "line is the subcontract fit-up)"),
         baseline=dict(
             record=RECORD, record_sha256=_sha(RECORD), reproduces_exactly=rep["exact"],
             differences=rep["differences"],
@@ -837,14 +800,12 @@ def build() -> dict:
         blocks=blocks,
         scenarios=scenarios,
         conditions=CONDITIONS,
-        trims=trims,
-        trims_both=both,
-        quotes=dict(scenario="pi_p21", rows=quote_rows, jetson_only_scenario="jetson_direct_p21",
-                    jetson_only_rows=jetson_rows,
-                    direct_only_lines=[r["line"] for r in jetson_rows
-                                       if r["line"] not in scenarios["jetson_mcu_p21"]["lines"]],
-                    jetson_compute_line=scenarios["jetson_mcu_p21"]["lines"]["compute"]),
-        derived=derived(record, head_record, blocks, scenarios, quote_rows),
+        least_certain=dict(scenario="pi_p21", rows=spread_rows, jetson_only_scenario="jetson_direct_p21",
+                           jetson_only_rows=jetson_rows,
+                           direct_only_lines=[r["line"] for r in jetson_rows
+                                              if r["line"] not in scenarios["jetson_mcu_p21"]["lines"]],
+                           jetson_compute_line=scenarios["jetson_mcu_p21"]["lines"]["compute"]),
+        derived=derived(record, head_record, blocks, scenarios, spread_rows),
         pr668_slips=slips(record),
     )
 
@@ -975,73 +936,51 @@ def md(doc: dict) -> str:
 
     out.append("\n### Table 4. Totals: turnkey and self-assembled\n")
     out.append(_para("Turnkey is the cost model's total. Self-assembled leaves out the subcontract integration line "
-                     "and the contingency on it. P4 ($10-20k) is read against the turnkey column. Every total is "
-                     "kind d. A Jetson build has two rows: with every line of its blocks, and without the lines a "
-                     "kept lot may already hold (Table 2)."))
+                     "and the contingency on it. Every total is kind d. A Jetson build has two rows: with every "
+                     "line of its blocks, and without the lines a kept lot may already hold (Table 2)."))
     rows = []
     for name, s in doc["scenarios"].items():
         rows.append([f"`{name}`: {s['label']}", *[_usd(v) for v in s["turnkey"]["total"]],
-                     _plus(s["p4"]["turnkey_minus_ceiling"][1]), *[_usd(v) for v in s["self_assembled"]["total"]]])
+                     *[_usd(v) for v in s["self_assembled"]["total"]]])
         if "lower" in s:
             lo = s["lower"]
             rows.append([f"`{name}`, if {lo['condition']}", *[_usd(v) for v in lo["turnkey"]["total"]],
-                         _plus(lo["turnkey_minus_ceiling"][1]), *[_usd(v) for v in lo["self_assembled"]["total"]]])
-    out.append(_table(["Build", "Turnkey low", "Turnkey nominal", "Turnkey high", "Turnkey nominal against $20,000",
-                       "Self-assembled low", "Self-assembled nominal", "Self-assembled high"], rows))
+                         *[_usd(v) for v in lo["self_assembled"]["total"]]])
+    out.append(_table(["Build", "Turnkey low", "Turnkey nominal", "Turnkey high", "Self-assembled low",
+                       "Self-assembled nominal", "Self-assembled high"], rows))
 
-    out.append("\n### Table 5. The trim options\n")
-    out.append(_para("The first three columns are the line with its contingency. The others give each build's "
-                     "turnkey nominal with the line and without it; the figures in brackets are the same build "
-                     "without the lines a kept lot may already hold. A \"with\" less a \"without\" can be $1 off "
-                     "the first columns, because totals are rounded after summing. The audio is optional and "
-                     "outside Table 4's main totals, so its \"with\" figure is the main total plus the audio."))
-
-    def cell(v: dict) -> str:
-        text = f"{_usd(v['turnkey_with'][1])} to {_usd(v['turnkey_without'][1])}"
-        if "lower" in v:
-            text += f" ({_usd(v['lower']['turnkey_with'][1])} to {_usd(v['lower']['turnkey_without'][1])})"
-        return text
-
-    rows = []
-    for name, t in doc["trims"].items():
-        rows.append([t["label"], *[_usd(v) for v in t["turnkey"]], *[cell(v) for v in t["scenarios"].values()]])
-    rows.append(["Both, from the total with the audio", *[_usd(sum(t["turnkey"][i] for t in doc["trims"].values()))
-                                                          for i in range(3)],
-                 *[cell(v) for v in doc["trims_both"].values()]])
-    out.append(_table(["Trim", "Low", "Nominal", "High", *[f"`{s}`" for s in doc["trims_both"]]], rows))
-
-    out.append("\n### Table 6. Quotes to ask for, the widest lines first\n")
-    q = doc["quotes"]
+    out.append("\n### Table 5. Where the prices are least certain, the widest lines first\n")
+    q = doc["least_certain"]
     out.append(_para(f"The lines of `{q['scenario']}`, the adopted build (P14) with P21's items, ranked by high minus "
-                     "low. The contingency is not a quote: it is 5.3 / 7.2 / 8.4 % of whatever the other lines come "
-                     "to. A Jetson build has the same lines in the same order, with its `compute` line at "
-                     f"{_three(q['jetson_compute_line'])} and the lines of the second table."))
+                     "low: the wider that gap, the less the estimate says about the line's price. The contingency "
+                     "is not ranked: it is 5.3 / 7.2 / 8.4 % of whatever the other lines come to. A Jetson build "
+                     "has the same lines in the same order, with its `compute` line at "
+                     f"{_three(q['jetson_compute_line'])} and the lines of the second table. The last column says "
+                     "what a quote for the line would have to cover; no quote has been asked for."))
 
-    def quote_table(lines: list) -> str:
-        rows = [[f"`{r['line']}`", _usd(r["spread"]), _three(r["usd"]), b["class_labels"][r["cls"]], r["ask"]]
-                for r in lines]
-        return _table(["Line", "High minus low", "Low / nominal / high", "How it was priced", "What to ask for"],
-                      rows)
+    def spread_table(lines: list) -> str:
+        rows = [[f"`{r['line']}`", _usd(r["spread"]), _three(r["usd"]), b["class_labels"][r["cls"]],
+                 r["quote_scope"]] for r in lines]
+        return _table(["Line", "High minus low", "Low / nominal / high", "How it was priced",
+                       "What a quote would cover"], rows)
 
-    out.append(quote_table(q["rows"]))
+    out.append(spread_table(q["rows"]))
     out.append("")
     out.append(_para(f"Lines only a Jetson build adds (`{q['jetson_only_scenario']}`). "
                      + ", ".join(f"`{k}`" for k in q["direct_only_lines"])
                      + " are added only if the Jetson drives the legs directly."))
-    out.append(quote_table(q["jetson_only_rows"]))
+    out.append(spread_table(q["jetson_only_rows"]))
 
-    out.append("\n### Table 7. PR #668's budget slips, corrected\n")
+    out.append("\n### Table 6. PR #668's price slips, corrected\n")
     rows = []
     for s in doc["pr668_slips"]:
         if "catalog_price_usd" in s:
             fact = f"`{s['catalog_id']}` is ${s['catalog_price_usd']:,.0f} in `designlab/data/parts.json` (c)"
-        elif "right_id" in s:
+        else:
             fact = (("That id is in" if s["pr668_id_exists"] else "No such id in") + " `designlab/data`; the "
                     f"record names `{s['right_id']}`")
-        else:
-            fact = s["p4"]
         rows.append([s["what"], s["pr668_unverified"], fact, s["used_here"]])
-    out.append(_table(["Slip", "PR #668 (unverified)", "The catalog or the decision log", "Used here"], rows))
+    out.append(_table(["Slip", "PR #668 (unverified)", "The catalog", "Used here"], rows))
     return "\n".join(out) + "\n"
 
 

@@ -430,7 +430,10 @@ def test_run_1s_parts_can_carry_the_rows_the_sheet_asks_of_it():
     buses_path2 = max(int(r["buses"]) for r in res["rows"] if r["path"].startswith("2") and r["buses"] != "own"
                       and r["target_rate_hz"] == 500)
     assert buses_path2 == 2 and adapters["run1_qty"] == adapters["run2_qty"] == buses_path2
-    assert "for the owner to confirm" in adapters["note"]
+    # they are bench tools of this sheet, stated with their price; no confirmation is asked (decision-log P31)
+    assert "bench tools" in adapters["note"] and "confirm" not in adapters["note"]
+    assert "for the owner to confirm" not in SHEET and "for you to confirm" not in SHEET
+    assert "Draft question for the owner" not in SHEET
     assert DOC["bench"]["parts"]["usb_can_adapters_usd"] == pytest.approx(2 * 368)
     # path 1 goes to three buses: the loop Teensy and the stopwatch each need a transceiver per bus
     buses_path1 = max(int(r["buses"]) for r in res["rows"] if r["path"].startswith("1") and r["buses"] != "own")
@@ -645,7 +648,7 @@ def test_the_sheets_brief_states_the_records_figures():
     assert f"{c2['delay_ms_lo']:g}–{c2['delay_ms_hi']:g} ms" in brief
     assert "Never read between steps" in brief and "1,000 commands" in brief
     assert f"${parts['leg_drives_usd']:,.0f} is the 12 leg drives" in brief
-    assert f"two USB-CAN adapters (${parts['usb_can_adapters_usd']:,.0f})" in brief and "for you to confirm" in brief
+    assert f"two USB-CAN adapters (${parts['usb_can_adapters_usd']:,.0f}): bench tools" in brief
     slow_a = DOC["architectures"]["A"]["if_drive_loop_500_hz"]
     slow_c2 = DOC["architectures"]["C2"]["if_drive_loop_500_hz"]
     assert f"at 2–{slow_a['delay_ms_hi']:g} and 2–{slow_c2['delay_ms_hi']:g} ms" in brief

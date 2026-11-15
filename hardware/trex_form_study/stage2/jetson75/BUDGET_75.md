@@ -1,15 +1,84 @@
-# The 75 cm build's budget, rebuilt with the study's cost model
+# The 75 cm build's prices, by the study's cost model
 
-14 Nov 2026. A planning estimate for one prototype of `75-M-H-10`, the 75 cm Hybrid with the targeted drives and bigger
-feet. Nothing here is built, quoted or measured, and nothing is adopted: the owner decides. It carries out task 9 of
-`JETSON_PLEM_REVIEW.md` section 5, after the owner's decision of 14 Nov 2026 (decision-log row P30): the 75 cm budget is
-decided after a rebuild at catalog prices, the Raspberry Pi 5 + AI HAT+ stays adopted (P14), and the Jetson Orin Nano
-Super is studied beside it.
+**Changed, 14 Nov 2026 (P31).** After the first version of this document (commit `4db227e`) was summarised for the
+owner, the owner decided: "Please remove any budget concerns at this point and just document the prices. I think explore
+the jetson nano hardware is a good exercise even with the extra cost." (decision-log row P31). So this is now a price
+record. No price, kind label, source or sum changed. The places that changed:
 
-Paths are relative to `hardware/trex_form_study/`. Every budget number comes from `stage2/jetson75/budget_75.json`,
+- **Title.** It was "The 75 cm build's budget, rebuilt with the study's cost model".
+- **Opening paragraphs.** The first called this "a planning estimate", said "nothing is adopted: the owner decides", and
+  said that the 75 cm budget is decided after this rebuild (P30). It now says what the record is and, once, that P4's
+  figure is not applied. "The owner decides" is removed. It now ends with when the choice of computer is made (P30). In
+  the second, "Every budget number" is now "Every dollar figure", and a last sentence is added: the file names keep the
+  word "budget".
+- **"In brief, for the owner".** Rewritten as a short list of prices. The old brief's two opening sentences, its items 1
+  to 4 and 8 and its cautions are kept under two new headings, "The prices, group by group" and "What to treat with
+  care". Removed: item 5 (the totals set against P4), item 6's reading of P4, item 7 (the trims), the caution on how
+  near the nominal totals are to $20,000, and the closing paragraph "The decision this prepares".
+- **"The prices, group by group"** holds the old brief's numbered items, with these changes:
+  - item 4: "the budget keeps" is now "the record keeps";
+  - old item 6 is item 5: its self-assembled totals are kept, "(Jetson)" is now "(Jetson, microcontroller loop)", and in
+    place of the reading of P4 it says that the frame and the coverings are still made outside and that the owner's
+    time is not priced;
+  - item 6 is the old brief's last caution, on the optional lines, moved here, with the head's and the audio's own
+    figures added from Table 2;
+  - old item 8 is item 7: its last sentence, "Quotes from drawings for those three lots would settle more than any other
+    step (section 4)", is now "Section 4 ranks every line this way".
+- **"What to treat with care"** holds the old brief's other cautions, with these changes:
+  - the boom: "the boom may cost nothing" is now "the line is $0";
+  - "The Jetson's extra cost is a range" is now "What the Jetson adds is a range", and "costs $160 to $235 more" and
+    "costs $81 more" are now "adds $160 to $235" and "adds $81";
+  - "This budget" is now "This record" in two cautions, and "the record's frame" is now "the round-two record's frame".
+- **Section 1.** The heading was "How the budget was rebuilt". The steps are unchanged.
+- **Table 4.** The column "Turnkey nominal against $20,000" and the sentence on P4 are removed.
+- **Table 5, "The trim options",** is removed with its figures: the totals without the boom, and with and without the
+  audio. The boom's and the audio's own prices are still in Table 2.
+- **Table 6 is now Table 5,** "Where the prices are least certain"; it was "Quotes to ask for". The lines, the figures
+  and their order are the same. Its introduction is reworded. Its last column, "What to ask for", is now "What a quote
+  would cover": each cell describes the line and no longer says to ask, buy or decide. The `spares` cell said "at the
+  quoted drive and pack prices"; no quote exists, so it now says "at the prices that quotes for the drives and the pack
+  would give".
+- **Table 7 is now Table 6,** "PR #668's price slips"; it was "budget slips". Its fourth row, which total PR #668 read
+  against P4, is removed, and its third column, "The catalog or the decision log", is now "The catalog".
+- **Sections 3.2 to 3.6.** "The budget", "this budget" and "This rebuild" are now "this record": twice in section 3.2
+  and once in section 3.6. Section 3.3's tread item ended "If a fabricator's quote for the soles includes cast treads,
+  drop the kit"; "quote" is now "price", and it ends "the kit is not a separate line". Section 3.5 was "Turnkey,
+  self-assembled and P4": the reading of P4 is removed and the two totals are still explained.
+- **Section 4.** It was "Quotes to ask for", with "the order to ask in". It is now "Where the prices are least certain":
+  the same six entries and figures, described and not asked for. "No line has a quote" is added to its introduction. In
+  item 2, "the budget" is now "the record". A closing paragraph is added; it holds figures of the old section 6.
+- **Section 5.** It was "PR #668's budget slips". The reading of P4 is no longer listed among them, and "This rebuild"
+  is now "This record".
+- **Section 6, "What to do with this",** is removed. Its figures on where the gap between the low and high cases sits
+  are under "The prices, group by group" and at the end of section 4.
+- **Sections 7 and 8 are now 6 and 7,** and the references to them and to the renumbered tables follow. In the draft
+  decision-log rows, the introduction gained two sentences: each draft records prices or the assumptions under them and
+  none asks for a decision, and P31 is in the log already. Two drafts are removed: "P4's reading" and "The 75 cm budget"
+  (accept, trim or raise). The other three are kept. "Budget finding" is now "Price finding", and its statement opens
+  "The 75 cm build's prices, by" where it read "The 75 cm build's budget, rebuilt with". "Budget lines outside the cost
+  model" is now "Lines outside the cost model".
+- **`budget_75.json` and `budget_75.py`.** Removed: `p4`, each scenario's `p4` block and `turnkey_minus_ceiling`,
+  `trims`, `trims_both`, the entries `nominal_over_ceiling`, `nominal_over_ceiling_share` and `high_over_ceiling` of
+  `derived`, and the fourth slip. Renamed: `quotes` to `least_certain`, its rows' `ask` to `quote_scope`, and
+  `derived`'s `quotes_subtotal_nominal` and `quotes_split_nominal` to `adopted_subtotal_nominal` and
+  `adopted_split_nominal`. Added: `p31`. Reworded: the `study` string, as the title is, and the `quote_scope` texts, as
+  Table 5's last column is. Every other value but `script_sha256` is the same. In the script, `ASK` is now
+  `QUOTE_SCOPE` and `quotes()` is now `spreads()`; `P4_USD`, `TRIMS` and the code of the removed tables are removed; the
+  docstring and the comments are reworded to match.
+- **`tests/test_stage2_budget75.py`** follows these changes. One test is added: nothing outside this note sets a total
+  against P4.
+
+14 Nov 2026. A price record for one prototype of `75-M-H-10`, the 75 cm Hybrid with the targeted drives and bigger feet:
+what the study's cost model and its parts catalog price that build at. Nothing here is built, quoted or measured, and
+nothing is adopted. It carries out task 9 of `JETSON_PLEM_REVIEW.md` section 5. P4's $10-20k is not applied at this
+point (decision-log row P31), so this document sets no total against it. The Raspberry Pi 5 + AI HAT+ stays adopted
+(P14) and the Jetson Orin Nano Super is studied beside it (P30); which computer the build gets is decided after the
+Jetson body's screens and the delay bench test.
+
+Paths are relative to `hardware/trex_form_study/`. Every dollar figure comes from `stage2/jetson75/budget_75.json`,
 written by `stage2/jetson75/budget_75.py`; the tables in section 2 are printed by `python stage2/jetson75/budget_75.py
-md`. The only other numbers are PR #668's, marked "(unverified)", and the web search summaries of section 7. Tests:
-`tests/test_stage2_budget75.py`.
+md`. The only other numbers are PR #668's, marked "(unverified)", and the web search summaries of section 6. Tests:
+`tests/test_stage2_budget75.py`. The file names keep the word "budget" from the first version.
 
 **Kinds of number.** The study labels every number: (a) a prescribed-walk or static model result, (b) a closed-loop
 simulation, (c) a sourced fact, (d) an estimate. **Every dollar figure below is kind (d), a cost-model estimate, unless
@@ -22,10 +91,26 @@ Section 1 gives the details and the words used.
 
 ## In brief, for the owner
 
+One prototype of the 75 cm build is priced at **$20,057** with the adopted computer, the Raspberry Pi 5 set (P14), and
+at **$20,174** with the Jetson dev kit in its place. Both are US dollars, the cost model's nominal case, turnkey: made
+and fitted together by outside shops, with bench equipment, spares and a contingency. Figures in threes are its low /
+nominal / high cases.
+
+- **With the Pi 5 set: $14,228 / $20,057 / $28,215.** That is the round-two record, $13,576 / $18,521 / $25,658, plus
+  P21's four items, $652 / $1,536 / $2,557.
+- **With the Jetson dev kit: $14,343 / $20,174 / $28,333.** The kit adds $115 / $117 / $118 ($399 against $290, c), or
+  $157 / $192 / $194 if its 12 V regulator is bought separately.
+- **With the Jetson driving the legs directly:** $435 / $853 / $895 to $477 / $928 / $1,025 more.
+- **Self-assembled,** without the outside fit-up: $12,532 / $17,244 / $24,076 with the Pi 5 set, $12,647 / $17,360 /
+  $24,194 with the Jetson.
+- **Optional, in no total above:** the expressive head, $86 / $252 / $417; audio, $26 / $75 / $163.
+- **Every figure is a cost-model estimate (d) or a catalog price (c). None is a quote.** The least certain lines are the
+  frame, the coverings and the integration, scaled up from a 60 cm estimate.
+
+## The prices, group by group
+
 Figures in threes are the cost model's low / nominal / high cases. "Turnkey" is the model's total: outsourced
 fabrication, a subcontractor fitting the robot together, bench equipment, spares and a contingency.
-
-**What it says.**
 
 1. **The round-two record's own totals reproduce exactly: $13,576 low, $18,521 nominal, $25,658 high**, turnkey. The
    cost model, called on the record's parts, hip height and masses, returns all 16 lines, the three totals and the
@@ -53,56 +138,41 @@ fabrication, a subcontractor fitting the robot together, bench equipment, spares
    needs USB adapters for CAN, the leg drives' data bus, at $368 each (c, `pcan_usb_fd`; one in the low case, two
    otherwise), and adapters for the servo buses (an estimate). It also needs a supervisor that stops the drives if the
    Jetson fails.
-   - If the microcontroller stack that the budget keeps serves as that supervisor, and the regulator is in the power
+   - If the microcontroller stack that the record keeps serves as that supervisor, and the regulator is in the power
      lot: $14,778 low, $21,027 nominal, $29,228 high.
    - With a separate supervisor board (an estimate, $40 / $70 / $120) and a separately bought regulator: $14,862 low,
      $21,177 nominal, $29,434 high.
-5. **Against P4, your $10-20k prototype budget, in one sentence:** at its nominal estimate the turnkey build with P21's
-   items comes to $20,057 with the adopted Pi 5 set and $20,174 to $20,249 with the Jetson, which is $57 and $174 to
-   $249 above P4's $20,000 ceiling and well inside the estimate's own uncertainty, while the high estimates are $8,215
-   and $8,333 to $8,409 above it.
-6. **P4 is read against the turnkey total**, because P4 says "including outsourced fabrication, integration and spares".
-   Self-assembled, that is, without the subcontractor's fit-up, the same builds are $12,532 / $17,244 / $24,076 (Pi 5
-   set) and $12,647 / $17,360 / $24,194 to $12,689 / $17,435 / $24,270 (Jetson). Those totals leave out work that P4
-   includes.
-7. **The trims you were offered:**
-   - deferring the cable boom saves $316 / $965 / $1,626 and brings the nominal totals to $19,092 (Pi 5 set) and $19,209
-     to $19,284 (Jetson), under the ceiling;
-   - the audio is not in any total above. It is an optional line of $26 / $75 / $163, so deferring it saves nothing
-     here.
-8. **Most of the uncertainty sits in three lots that were scaled up from an earlier 60 cm estimate**, not in the
+5. **Self-assembled, that is, without the subcontractor's fit-up, the same builds are $12,532 / $17,244 / $24,076** (Pi
+   5 set) and $12,647 / $17,360 / $24,194 to $12,689 / $17,435 / $24,270 (Jetson, microcontroller loop). The frame and
+   the coverings are still made outside, and your own time is not priced (section 3.5).
+6. **The optional lines are outside every total above: $112 / $328 / $579 together**, turnkey, for the audio and for the
+   expressive head's two extra servos (one turns the neck, one opens the jaw) with their brackets and the yaw bearing.
+   The head alone is $86 / $252 / $417 and the audio $26 / $75 / $163, each rounded on its own. With the jaw deferred,
+   as P2 and P29 have it, the head is one servo, one bracket and the bearing: $53 / $215 / $371. The servos and brackets
+   are modelled; the bearing and the audio are not.
+7. **Most of the uncertainty sits in three lots that were scaled up from an earlier 60 cm estimate**, not in the
    computer. The frame, the coverings and the integration differ by $8,054 between their low and high cases, out of
    $12,516 for all the lines of the adopted build together. The computer's own line differs by $140, and the choice of
-   computer moves the nominal total by $117 to $192. Quotes from drawings for those three lots would settle more than
-   any other step (section 4).
+   computer moves the nominal total by $117 to $192. Section 4 ranks every line this way.
 
-**What to treat with care.**
+## What to treat with care
 
 - Every total is a cost-model estimate. About half of the nominal total is lots scaled from the 60 cm estimate
   (decision-log row A8), and none has a quote.
-- The nominal totals sit within 1.3 % of the $20,000 ceiling, so which side of it they fall on depends on choices made
-  here. The boom's nominal value is the midpoint of a wide range ($300 to $1,500), and the boom may cost nothing if the
-  bench frame can carry the cable.
-- **The Jetson's extra cost is a range, not one figure.** This budget prices it at $117 to $192 nominal, depending on
-  the regulator. Two more things move it (section 3.2). The cost model counts storage twice for the Pi 5 set, whose $290
-  already includes $40 for a drive (the catalog's note); with storage counted once for each computer the Jetson costs
-  $160 to $235 more. At the street price the catalog notes for the Pi 5 set, about $323, the kit alone costs $81 more.
+- **The boom's nominal value is the midpoint of a wide range**, $300 to $1,500, and the line is $0 if the bench frame
+  can carry the cable.
+- **What the Jetson adds is a range, not one figure.** This record prices it at $117 to $192 nominal, depending on the
+  regulator. Two more things move it (section 3.2). The cost model counts storage twice for the Pi 5 set, whose $290
+  already includes $40 for a drive (the catalog's note); with storage counted once for each computer the Jetson adds
+  $160 to $235. At the street price the catalog notes for the Pi 5 set, about $323, the kit alone adds $81.
 - **Three lines may be counted twice** against lots carried over from the 60 cm robot, whose contents the cost model
   does not list: the 12 V regulator and the DC input's regeneration clamp against the power lot, and the supervisor
   against the control lot. The Jetson totals are given both ways for the regulator and the supervisor. The clamp sits
   inside the DC input's $200 to $400 estimate and could not be separated.
-- No Jetson body has been built in the model yet (task 6 of the same review). This budget assumes it keeps the record's
-  frame, coverings, harness and battery pack.
-- The optional lines are outside every total above: $112 / $328 / $579 together, turnkey, for the audio and for the
-  expressive head's two extra servos (one turns the neck, one opens the jaw) with their brackets and the yaw bearing.
-  With the jaw deferred, as P2 and P29 have it, the head is one servo, one bracket and the bearing: $53 / $215 / $371.
-  The servos and brackets are modelled; the bearing and the audio are not.
+- No Jetson body has been built in the model yet (task 6 of the same review). This record assumes it keeps the round-two
+  record's frame, coverings, harness and battery pack.
 
-**The decision this prepares** (P30: the 75 cm budget is decided after this rebuild): accept about $20.1-20.2k nominal
-turnkey with a high case of $28.2-28.4k, trim it by deferring the boom, or raise P4's ceiling. A recommended order is in
-section 6.
-
-## 1. How the budget was rebuilt
+## 1. How the prices were put together
 
 **The kinds of number here.**
 
@@ -271,79 +341,67 @@ deferral of a jaw for the build stands (P29), so the build's head as decided tod
 ### Table 4. Totals: turnkey and self-assembled
 
 Turnkey is the cost model's total. Self-assembled leaves out the subcontract integration line and the contingency on it.
-P4 ($10-20k) is read against the turnkey column. Every total is kind d. A Jetson build has two rows: with every line of
-its blocks, and without the lines a kept lot may already hold (Table 2).
+Every total is kind d. A Jetson build has two rows: with every line of its blocks, and without the lines a kept lot may
+already hold (Table 2).
 
-| Build | Turnkey low | Turnkey nominal | Turnkey high | Turnkey nominal against $20,000 | Self-assembled low | Self-assembled nominal | Self-assembled high |
-|---|---|---|---|---|---|---|---|
-| `record`: The round-two record: Raspberry Pi 5 + AI HAT+ (P14), P21's items not priced | $13,576 | $18,521 | $25,658 | -$1,479 | $11,880 | $15,707 | $21,520 |
-| `pi_p21`: Raspberry Pi 5 + AI HAT+ (P14, adopted) with P21's items | $14,228 | $20,057 | $28,215 | +$57 | $12,532 | $17,244 | $24,076 |
-| `jetson_mcu_p21`: Jetson dev kit, walking loop on the microcontroller, with P21's items | $14,385 | $20,249 | $28,409 | +$249 | $12,689 | $17,435 | $24,270 |
-| `jetson_mcu_p21`, if the power lot already holds the 12 V regulator | $14,343 | $20,174 | $28,333 | +$174 | $12,647 | $17,360 | $24,194 |
-| `jetson_direct_p21`: Jetson dev kit driving the legs directly, with P21's items | $14,862 | $21,177 | $29,434 | +$1,177 | $13,166 | $18,364 | $25,296 |
-| `jetson_direct_p21`, if the power lot already holds the 12 V regulator and the kept Teensy stack is the supervisor | $14,778 | $21,027 | $29,228 | +$1,027 | $13,082 | $18,214 | $25,090 |
-| `pi_p21_optional`: Raspberry Pi 5 + AI HAT+ with P21's items and every optional line | $14,340 | $20,385 | $28,794 | +$385 | $12,644 | $17,571 | $24,656 |
-| `jetson_mcu_p21_optional`: Jetson dev kit, microcontroller loop, P21's items and every optional line | $14,497 | $20,577 | $28,988 | +$577 | $12,801 | $17,763 | $24,850 |
-| `jetson_mcu_p21_optional`, if the power lot already holds the 12 V regulator | $14,455 | $20,502 | $28,912 | +$502 | $12,759 | $17,688 | $24,774 |
-
-### Table 5. The trim options
-
-The first three columns are the line with its contingency. The others give each build's turnkey nominal with the line
-and without it; the figures in brackets are the same build without the lines a kept lot may already hold. A "with" less
-a "without" can be $1 off the first columns, because totals are rounded after summing. The audio is optional and outside
-Table 4's main totals, so its "with" figure is the main total plus the audio.
-
-| Trim | Low | Nominal | High | `pi_p21` | `jetson_mcu_p21` | `jetson_direct_p21` |
+| Build | Turnkey low | Turnkey nominal | Turnkey high | Self-assembled low | Self-assembled nominal | Self-assembled high |
 |---|---|---|---|---|---|---|
-| Defer the cable boom | -$316 | -$965 | -$1,626 | $20,057 to $19,092 | $20,249 to $19,284 ($20,174 to $19,209) | $21,177 to $20,213 ($21,027 to $20,063) |
-| Defer the audio (it is optional and outside the main totals) | -$26 | -$75 | -$163 | $20,132 to $20,057 | $20,324 to $20,249 ($20,249 to $20,174) | $21,252 to $21,177 ($21,102 to $21,027) |
-| Both, from the total with the audio | -$342 | -$1,040 | -$1,789 | $20,132 to $19,092 | $20,324 to $19,284 ($20,249 to $19,209) | $21,252 to $20,213 ($21,102 to $20,063) |
+| `record`: The round-two record: Raspberry Pi 5 + AI HAT+ (P14), P21's items not priced | $13,576 | $18,521 | $25,658 | $11,880 | $15,707 | $21,520 |
+| `pi_p21`: Raspberry Pi 5 + AI HAT+ (P14, adopted) with P21's items | $14,228 | $20,057 | $28,215 | $12,532 | $17,244 | $24,076 |
+| `jetson_mcu_p21`: Jetson dev kit, walking loop on the microcontroller, with P21's items | $14,385 | $20,249 | $28,409 | $12,689 | $17,435 | $24,270 |
+| `jetson_mcu_p21`, if the power lot already holds the 12 V regulator | $14,343 | $20,174 | $28,333 | $12,647 | $17,360 | $24,194 |
+| `jetson_direct_p21`: Jetson dev kit driving the legs directly, with P21's items | $14,862 | $21,177 | $29,434 | $13,166 | $18,364 | $25,296 |
+| `jetson_direct_p21`, if the power lot already holds the 12 V regulator and the kept Teensy stack is the supervisor | $14,778 | $21,027 | $29,228 | $13,082 | $18,214 | $25,090 |
+| `pi_p21_optional`: Raspberry Pi 5 + AI HAT+ with P21's items and every optional line | $14,340 | $20,385 | $28,794 | $12,644 | $17,571 | $24,656 |
+| `jetson_mcu_p21_optional`: Jetson dev kit, microcontroller loop, P21's items and every optional line | $14,497 | $20,577 | $28,988 | $12,801 | $17,763 | $24,850 |
+| `jetson_mcu_p21_optional`, if the power lot already holds the 12 V regulator | $14,455 | $20,502 | $28,912 | $12,759 | $17,688 | $24,774 |
 
-### Table 6. Quotes to ask for, the widest lines first
+### Table 5. Where the prices are least certain, the widest lines first
 
-The lines of `pi_p21`, the adopted build (P14) with P21's items, ranked by high minus low. The contingency is not a
-quote: it is 5.3 / 7.2 / 8.4 % of whatever the other lines come to. A Jetson build has the same lines in the same order,
-with its `compute` line at $459 / $519 / $599 and the lines of the second table.
+The lines of `pi_p21`, the adopted build (P14) with P21's items, ranked by high minus low: the wider that gap, the less
+the estimate says about the line's price. The contingency is not ranked: it is 5.3 / 7.2 / 8.4 % of whatever the other
+lines come to. A Jetson build has the same lines in the same order, with its `compute` line at $459 / $519 / $599 and
+the lines of the second table. The last column says what a quote for the line would have to cover; no quote has been
+asked for.
 
-| Line | High minus low | Low / nominal / high | How it was priced | What to ask for |
+| Line | High minus low | Low / nominal / high | How it was priced | What a quote would cover |
 |---|---|---|---|---|
-| `frame` | $3,602.61 | $2,947.58 / $4,503.25 / $6,550.19 | scaled from the 60 cm estimate | Laser-cut and machined 6061-T6 plates and brackets, bearings, hubs, soles and fasteners, from drawings; ask three shops, and for the plates at 2.54 mm and at 3 mm |
-| `covers` | $2,244.57 | $1,122.28 / $1,923.92 / $3,366.85 | scaled from the 60 cm estimate | MJF PA11 shells from the exported cover shapes with graded 1.4 / 1.2 / 1.0 mm walls, inserts and finish; the same three print services for each |
+| `frame` | $3,602.61 | $2,947.58 / $4,503.25 / $6,550.19 | scaled from the 60 cm estimate | Laser-cut and machined 6061-T6 plates and brackets, bearings, hubs, soles and fasteners, from drawings, at three shops; the plates at 2.54 mm and at 3 mm |
+| `covers` | $2,244.57 | $1,122.28 / $1,923.92 / $3,366.85 | scaled from the 60 cm estimate | MJF PA11 shells from the exported cover shapes with graded 1.4 / 1.2 / 1.0 mm walls, inserts and finish, at three print services |
 | `integration` | $2,207.14 | $1,610.62 / $2,624.71 / $3,817.76 | scaled from the 60 cm estimate | Subcontract fit-up of one prototype: hours and rate for mechanical assembly, harness routing and bench checkout |
-| `cable_boom` | $1,200 | $300 / $900 / $1,500 | new line, estimated here | First ask whoever builds the bench frame whether it can carry the 5 m cable; if not, a jib or gantry boom with a balancer rated under 0.5 kg |
+| `cable_boom` | $1,200 | $300 / $900 / $1,500 | new line, estimated here | Whether the bench frame can carry the 5 m cable (the line is then $0); if not, a jib or gantry boom with a balancer rated under 0.5 kg |
 | `bench` | $750 | $550 / $850 / $1,300 | 60 cm lot, carried over unscaled | 24 V bench supply (about 31 A, RSP-750-24 class), a 6S charger, a cradle or catch frame and instrumentation |
-| `spares` | $500 | $1,113.19 / $1,313.19 / $1,613.19 | catalog price + allowance | Two spare hip-pitch drives and one spare pack, at the quoted drive and pack prices |
-| `power` | $375 | $275 / $420 / $650 | 60 cm lot, carried over unscaled | The power bay as one assembled module: distribution board, fuses, the stop circuit, the regeneration clamp and its regulators; have each regulator named (the computer's, the logic rail's, the servos') |
-| `pad_treads` | $300 | $100 / $200 / $400 | new line, estimated here | A urethane casting kit (50-60 Shore A polyether) and printed moulds; then the grip test on the owner's floors |
+| `spares` | $500 | $1,113.19 / $1,313.19 / $1,613.19 | catalog price + allowance | Two spare hip-pitch drives and one spare pack, at the prices that quotes for the drives and the pack would give |
+| `power` | $375 | $275 / $420 / $650 | 60 cm lot, carried over unscaled | The power bay as one assembled module: distribution board, fuses, the stop circuit, the regeneration clamp and its regulators, each regulator named (the computer's, the logic rail's, the servos') |
+| `pad_treads` | $300 | $100 / $200 / $400 | new line, estimated here | A urethane casting kit (50-60 Shore A polyether), printed moulds and the grip test on the owner's floors |
 | `harness` | $257.36 | $193.02 / $308.83 / $450.38 | scaled from the 60 cm estimate | The leg and trunk harness with locking connectors and the neck service loop, from a wiring list |
 | `foot_sensing` | $226.87 | $113.44 / $204.19 / $340.31 | scaled from the 60 cm estimate | Foot contact or load sensors for two feet with their conditioning boards |
-| `dc_input` | $200 | $200 / $300 / $400 | new line, estimated here | The input connector, the priority power-path board (LTC4417 class), the dummy puck and the cable; the clamp and the stop tie-in are asked for with the power bay |
+| `dc_input` | $200 | $200 / $300 / $400 | new line, estimated here | The input connector, the priority power-path board (LTC4417 class), the dummy puck and the cable; the clamp and the stop tie-in belong to the power bay's price |
 | `leg_actuators` | $177.30 | $3,546 / $3,546 / $3,723.30 | catalog price + allowance | Twelve drives landed: unit price, shipping, duty and lead time (10 x RMD-X4-P36-36-E-L, 2 x RMD-X6-P20-60-E), and which X6 variant ships at the listed price |
 | `control` | $145 | $125 / $180 / $270 | 60 cm lot, carried over unscaled | Teensy 4.1, two CAN transceivers, an IMU and the servo-bus interface as a board stack |
 | `compute` | $140 | $350 / $410 / $490 | catalog price + allowance | The computer at today's price, its storage and its mounting tray |
 | `battery` | $70 | $137.19 / $167.19 / $207.19 | catalog price + allowance | One pack and the tail-base cassette |
-| `rgbd_camera` | $65 | $284 / $304 / $349 | catalog price + allowance | The camera and a locking lead; ask about remaining stock of the discontinued camera chip |
-| `tof` | $30 | $39.90 / $49.90 / $69.90 | catalog price + allowance | Nothing to quote (stock parts) |
+| `rgbd_camera` | $65 | $284 / $304 / $349 | catalog price + allowance | The camera and a locking lead, and the remaining stock of the discontinued camera chip |
+| `tof` | $30 | $39.90 / $49.90 / $69.90 | catalog price + allowance | Stock parts at their list prices |
 | `expression_actuators` | $25.24 | $504.89 / $504.89 / $530.13 | catalog price + allowance | The neck and tail servos at today's prices |
 
 Lines only a Jetson build adds (`jetson_direct_p21`). `usb_can`, `supervisor`, `servo_bus_adapter` are added only if the
 Jetson drives the legs directly.
 
-| Line | High minus low | Low / nominal / high | How it was priced | What to ask for |
+| Line | High minus low | Low / nominal / high | How it was priced | What a quote would cover |
 |---|---|---|---|---|
 | `usb_can` | $368 | $368 / $736 / $736 | new line, catalog price; the count or the part is assumed | The adapter at today's price, and the two-channel version's price |
-| `supervisor` | $80 | $40 / $70 / $120 | new line, estimated here | Nothing to quote until the supervisor's design exists; first decide whether the kept Teensy stack is the supervisor |
-| `servo_bus_adapter` | $45 | $45 / $60 / $90 | new line, estimated here | Nothing to quote (stock parts) |
-| `regulator_12v` | $30 | $39.95 / $69.95 / $69.95 | new line, catalog price; the count or the part is assumed | Nothing to quote (a stock part); buy it only if the power bay's quote holds no 12 V regulator for the computer |
+| `supervisor` | $80 | $40 / $70 / $120 | new line, estimated here | No firm price until the supervisor's design exists; not needed if the kept Teensy stack is the supervisor |
+| `servo_bus_adapter` | $45 | $45 / $60 / $90 | new line, estimated here | Stock parts at their list prices |
+| `regulator_12v` | $30 | $39.95 / $69.95 / $69.95 | new line, catalog price; the count or the part is assumed | A stock part at its list price; an extra only if the power bay holds no 12 V regulator for the computer |
 
-### Table 7. PR #668's budget slips, corrected
+### Table 6. PR #668's price slips, corrected
 
-| Slip | PR #668 (unverified) | The catalog or the decision log | Used here |
+| Slip | PR #668 (unverified) | The catalog | Used here |
 |---|---|---|---|
 | The Jetson dev kit's price | $249 in its low and nominal cases | `nvidia_orin_nano_super_devkit` is $399 in `designlab/data/parts.json` (c) | $399, the price of `nvidia_orin_nano_super_devkit` |
 | The tail servo's catalog id | `feetech_sts3215_12v` | No such id in `designlab/data`; the record names `feetech_sts3215_c018` | `feetech_sts3215_c018` ($22.00), the record's own id |
 | The neck servo's catalog id | `robotis_xm540_w270` | No such id in `designlab/data`; the record names `robotis_xm540_w270_t` | `robotis_xm540_w270_t` ($482.89), the record's own id |
-| The total read against P4 | its self-assembled total, the one without outsourced integration | P4: "$10-20 k prototype including outsourced fabrication, integration and spares" | the turnkey total, which holds the integration line and the spares |
 <!-- budget_75.py md: end -->
 
 ## 3. Reading the tables
@@ -371,7 +429,7 @@ Jetson drives the legs directly.
     survey's estimate). The allowance stands for storage as well: `designlab/build.py` names it "NVMe, fan duct, mounts,
     leads". So the record's line counts the Pi 5 set's storage twice.
   - The set needs a 5 V, 5 A regulator fed from the pack (the catalog's note; the compute survey lists it as "not
-    priced"). The catalog has no such part and the budget has no line for it. A 5 V, 5.5 A regulator from the maker of
+    priced"). The catalog has no such part and this record has no line for it. A 5 V, 5.5 A regulator from the maker of
     the two 12 V parts lists at about $40 (a web search summary, d).
 - **(ii) The Jetson dev kit, at the catalog price.** The catalog id is `nvidia_orin_nano_super_devkit` and its
   `price_usd` is 399 (c). The catalog's own sources explain the stale figure: NVIDIA's datasheet still prints the launch
@@ -408,7 +466,7 @@ Jetson drives the legs directly.
   - $199 / $235 / $237: both of those together;
   - $80 / $81 / $82: the kit alone, with the Pi 5 set at the street price the catalog notes.
 
-  The first two are the ones this budget carries into its totals.
+  The first two are the ones this record carries into its totals.
 - **The real-time options, listed separately.**
   - **Walking loop on the microcontroller** (the baseline; `COMPUTE.md`'s design, in which a Linux crash still ends in a
     controlled stop). Nothing is added. The microcontroller stack is the record's `control` lot, $125 / $180 / $270: a
@@ -444,8 +502,8 @@ the record already holds of each and how that was checked. In short:
 - **Treads: the soles are in the frame lot; the tread compound and the floor test are not named anywhere.** The added
   line is $100 / $200 / $400. Its low case is `MATERIALS.md` section 5's estimate for the grip test (about one day and
   $100). The nominal and high cases add $100 and $300 for casting rubber, release agent and printed moulds: this
-  document's guess, with no source beyond the price class of a trial unit of urethane rubber. If a fabricator's quote
-  for the soles includes cast treads, drop the kit.
+  document's guess, with no source beyond the price class of a trial unit of urethane rubber. If a fabricator's price
+  for the soles includes cast treads, the kit is not a separate line.
 - **External DC input: not in the record.** $200 / $300 / $400, `MATERIALS.md` section 6's estimate "for the input,
   power path, clamp and puck". Three cautions:
   - that estimate does not name the 5 m cable or the tie-in to the stop circuit, and this document assumes they fit
@@ -480,20 +538,19 @@ With every optional line, the builds are $14,340 / $20,385 / $28,794 (Pi 5 set) 
 $14,497 / $20,577 / $28,988 (Jetson, microcontroller loop). With the jaw deferred, the head with its bearing is
 $53 / $215 / $371 instead of $86 / $252 / $417.
 
-### 3.5 Turnkey, self-assembled and P4 (Table 4)
+### 3.5 Turnkey and self-assembled (Table 4)
 
 - The cost model has one total. Its `integration` line is a subcontractor's fit-up, $1,611 / $2,625 / $3,818 for this
-  body. That makes the model's total the turnkey figure.
-- P4 reads: "$10-20 k prototype including outsourced fabrication, integration and spares. Fabrication outsourced." It
-  names integration and spares, so the turnkey total is the one to read against it. The review's caveat 5 says the same.
-- The self-assembled totals are about $1,696 / $2,814 / $4,138 lower. They are useful if you decide to do the fit-up
-  yourself, but they are not what P4 describes.
+  body. That makes the model's total the turnkey figure: it holds the outsourced fabrication, the fit-up, the bench
+  equipment, the spares and the contingency.
+- The self-assembled totals are about $1,696 / $2,814 / $4,138 lower: the same builds without that line and without the
+  contingency on it. The frame and the coverings are still made outside, and the owner's own time is not priced.
 
 ### 3.6 Why these totals differ from the review's
 
 `JETSON_PLEM_REVIEW.md` section 6 gave "about $19.6k nominal turnkey before the Jetson" and "about $20.0-20.2k with it".
 Those figures took the added lines from PR #668 (unverified): $60 for PA11, $300 for the DC input, $600 for the boom and
-$65 for audio. This rebuild gives $20,057 before the Jetson and $20,174 to $20,249 with it. The difference before the
+$65 for audio. This record gives $20,057 before the Jetson and $20,174 to $20,249 with it. The difference before the
 Jetson, about $440, is, with contingency:
 
 - +$322: the boom at the midpoint of `MATERIALS.md`'s range, $900, where PR #668 (unverified) took $600;
@@ -501,25 +558,28 @@ Jetson, about $440, is, with contingency:
 - −$29: the PA11 coverings, re-priced through the cost model at +$33 where PR #668 (unverified) took +$60;
 - −$70: the audio, optional here and inside PR #668's total.
 
-## 4. Quotes to ask for
+## 4. Where the prices are least certain
 
-Table 6 ranks every line of the adopted build by the gap between its low and high cases, and lists the lines only a
-Jetson build adds. The order to ask in:
+Table 5 ranks every line of the adopted build by the gap between its low and high cases, and lists the lines only a
+Jetson build adds. No line has a quote. The widest, in order:
 
 1. **The frame** ($2,948 to $6,550): the widest line, and the largest line at nominal. It is the 60 cm lot multiplied by
    (structure mass / 1.79 kg) to the power 0.6, a factor of 1.64 here.
 2. **The coverings** ($1,122 to $3,367 as PA11): the 60 cm lot multiplied by (cover volume / 480 cm³) to the power 0.85,
-   a factor of 3.15 before the material and wall change. This is the largest scaling in the budget.
+   a factor of 3.15 before the material and wall change. This is the largest scaling in the record.
 3. **The integration** ($1,611 to $3,818): the 60 cm lot multiplied by (hip height / 0.39 m) to the power 0.7, a factor
    of 1.19.
-4. **The boom** ($300 to $1,500), after asking whether the bench frame can carry the cable.
-5. **The bench lot** ($550 to $1,300) and **the power bay** ($275 to $650): 60 cm lots carried over unscaled. Ask the
-   power bay's supplier to name each regulator in its price, and to say whether a regeneration clamp is inside. That
-   settles whether the computer's regulator and the DC input's clamp are extras.
+4. **The boom** ($300 to $1,500): `MATERIALS.md`'s range. The line is $0 if the bench frame can carry the cable.
+5. **The bench lot** ($550 to $1,300) and **the power bay** ($275 to $650): 60 cm lots carried over unscaled. The power
+   lot's price names no regulator and does not say whether a regeneration clamp is inside. A price that named them would
+   settle whether the computer's regulator and the DC input's clamp are extras.
 6. **The 12 drives, landed** ($3,546 at catalog prices, c): the largest catalog-priced line, and the second largest line
-   at nominal after the frame. Its range covers only a 5 % allowance. Ask for shipping, duty and lead time, and which X6
-   variant ships at the listed $428: the catalog notes that the US store's page describes a different variant from the
-   datasheet.
+   at nominal after the frame. Its range covers only a 5 % allowance. A landed price would name shipping, duty and lead
+   time, and which X6 variant ships at the listed $428: the catalog notes that the US store's page describes a different
+   variant from the datasheet.
+
+The three widest lots hold $8,054 of the $12,516 between the low and high cases of all the lines. The computer's own
+line holds $140, and the choice of computer moves the nominal total by $117 to $192.
 
 **Which lines are scalings of the 60 cm estimate (A8).** A8 names the frame (by structure mass to the power 0.6), the
 coverings (by cover volume to the power 0.85), the integration (by size to the power 0.7) and the contingency fractions.
@@ -527,32 +587,16 @@ The code also scales the harness (by size) and the foot sensing (by the square r
 control lots are the 60 cm values unchanged. Together the scaled lots are $9,565 of the $18,710 nominal subtotal of the
 adopted build with P21's items, and the unscaled 60 cm lots another $1,450.
 
-## 5. PR #668's budget slips
+## 5. PR #668's price slips
 
-Table 7 lists them: the $249 Jetson price, the two catalog ids that do not exist, and P4 read against the self-assembled
-total. This rebuild copies none of PR #668's totals. One more difference, not a slip: PR #668 put the audio inside its
-main total, and here it is optional.
+Table 6 lists them: the $249 Jetson price and the two catalog ids that do not exist. This record copies none of PR
+#668's totals. One more difference, not a slip: PR #668 put the audio inside its main total, and here it is optional.
 
 One coincidence, so that it is not mistaken for a copy: the Pi 5 build's high total here, $28,215, happens to equal PR
 #668's (unverified) turnkey high for its Jetson build. The lines behind the two differ, and nothing was taken from it.
 Table 2's `p21` block shows the lines this total is made of.
 
-## 6. What to do with this
-
-A recommended order, for the owner to accept or change:
-
-1. Read P4 against the turnkey total (section 3.5).
-2. Ask for the first three quotes of section 4 before deciding the budget. The three lots cover $8,054 of the $12,516
-   spread between the low and high cases of all the lines. The compute line's own spread is $140, and the choice of
-   computer moves the nominal total by $117 to $192.
-3. Ask whether the bench frame can carry the cable. If it can, the boom line is $0 and the nominal totals fall below
-   $20,000: $19,092 with the Pi 5 set, $19,209 to $19,284 with the Jetson.
-4. When the power bay is quoted, have its regulators and its clamp named (section 4, item 5).
-5. Leave the computer out of the budget decision. At catalog prices the Jetson costs $117 to $192 more than the Pi 5 set
-   at nominal with the loop on the microcontroller, depending on the regulator. The direct option costs $853 to $928
-   more again, and the delay bench test, not the budget, decides it.
-
-## 7. What this does not show, and what could not be established
+## 6. What this does not show, and what could not be established
 
 - **No quote, no measurement.** Every total is the cost model's.
 - **The power lot's contents.** That it holds a 12 V regulator for the computer is likely, not established, and whether
@@ -583,7 +627,7 @@ A recommended order, for the owner to accept or change:
 | https://www.cnx-software.com/2026/07/22/nvidia-increases-the-price-of-jetson-modules-and-devkits-by-up-to-101/ | The Jetson Orin Nano Super dev kit went from $249 to $399 in July 2026 | Agrees with the catalog's $399; not used as a source |
 | https://pjrc.com/store/teensy41_pins.html | Teensy 4.1 at $33.60, or $35.50 with pins and the Ethernet chip, at its maker's store (other sellers $27 to $51) | The supervisor's price class |
 | https://gridconnect.com/products/can-usb-fd-adapter-pcan-usb-fd | PCAN-USB FD at $347 (another distributor: $369) | Agrees with the catalog's $368 within 6 %; not used as a source |
-| https://gridconnect.com/products/can-usb-pro-fd-adapter-2-channels-can-lin | The two-channel PCAN-USB Pro FD at $675-708 | Section 7's open question only |
+| https://gridconnect.com/products/can-usb-pro-fd-adapter-2-channels-can-lin | The two-channel PCAN-USB Pro FD at $675-708 | Section 6's open question only |
 | https://robotshop.com/products/robotis-u2d2-usb-to-serial-adapter-for-dynamixel | ROBOTIS U2D2 servo-bus adapter at $43.57 | The servo-bus adapters' estimate |
 | https://www.pololu.com/product/4091 | Pololu D36V50F5, a 5 V, 5.5 A step-down regulator, at $39.95 | Section 3.2: the Pi 5 set's own regulator, which has no line |
 | https://www.zoro.com/igus-slewing-ring-bearing-rpm-250-prt-02-20-al/i/G9002533/ | A 20 mm-bore polymer slewing ring at $163.99; three other sellers at $229.49, $251.83 and $300.64 | The yaw bearing's nominal and high cases |
@@ -591,14 +635,13 @@ A recommended order, for the owner to accept or change:
 | https://www.adafruit.com/products/3006 | A 3 W amplifier board at $5.95 | The audio's low case |
 | https://robotshop.com/products/seeedstudio-respeaker-mic-array-v20-far-field-4-pdm-microphones | A far-field USB microphone array at $66.81; other US listings from $59.93 to $78.06 | The audio's high case |
 
-## 8. Draft decision-log rows
+## 7. Draft decision-log rows
 
-Drafts for the owner. Nothing here is adopted, and none of these rows is in `DECISION_LOG.md`.
+Drafts for the owner. Nothing here is adopted, and none of these rows is in `DECISION_LOG.md`. Each records prices or
+the assumptions under them; none asks for a decision. P31 is in the log already and is not a draft.
 
 | Draft | Kind | Statement | Evidence | Proposed status |
 |---|---|---|---|---|
-| Budget finding | F | The 75 cm build's budget, rebuilt with `designlab/cost.py`: the round-two record of `75-M-H-10` reproduces exactly ($13,576 / $18,521 / $25,658 turnkey). With P21's items not in that record (PA11 coverings, tread kit and floor test, external DC input, cable boom) it is $14,228 / $20,057 / $28,215 with the Pi 5 set. The Jetson dev kit at the catalog's $399, with the loop on the microcontroller, adds $115 / $117 / $118, or $157 / $192 / $194 if a 12 V regulator is bought on top of the power lot. Driving the legs directly adds $435 / $853 / $895 more if the kept Teensy stack is the supervisor, or $477 / $928 / $1,025 with a separate supervisor board. All are cost-model estimates. | `stage2/jetson75/BUDGET_75.md`, `budget_75.json` | open |
-| P4's reading | P (owner to confirm) | P4's $10-20k is read against the turnkey total, which holds the subcontract integration line and the spares, not against the self-assembled total. | P4's wording; `BUDGET_75.md` section 3.5 | open |
-| Budget lines outside the cost model | A | Lines the cost model does not hold, as estimates: tread kit and floor test $100 / $200 / $400; external DC input $200 / $300 / $400 and cable boom $300 / $900 / $1,500 (`MATERIALS.md` ranges, midpoints as nominal); for a Jetson driving the legs directly, servo-bus adapters $45 / $60 / $90 and, if the kept Teensy stack is not the supervisor, a supervisor board $40 / $70 / $120; optional: yaw-stage bearing $20 / $165 / $300, audio $25 / $70 / $150. | `budget_75.py` (`EXTRA`) | open; replace with quotes |
+| Price finding | F | The 75 cm build's prices, by `designlab/cost.py`: the round-two record of `75-M-H-10` reproduces exactly ($13,576 / $18,521 / $25,658 turnkey). With P21's items not in that record (PA11 coverings, tread kit and floor test, external DC input, cable boom) it is $14,228 / $20,057 / $28,215 with the Pi 5 set. The Jetson dev kit at the catalog's $399, with the loop on the microcontroller, adds $115 / $117 / $118, or $157 / $192 / $194 if a 12 V regulator is bought on top of the power lot. Driving the legs directly adds $435 / $853 / $895 more if the kept Teensy stack is the supervisor, or $477 / $928 / $1,025 with a separate supervisor board. All are cost-model estimates. | `stage2/jetson75/BUDGET_75.md`, `budget_75.json` | open |
+| Lines outside the cost model | A | Lines the cost model does not hold, as estimates: tread kit and floor test $100 / $200 / $400; external DC input $200 / $300 / $400 and cable boom $300 / $900 / $1,500 (`MATERIALS.md` ranges, midpoints as nominal); for a Jetson driving the legs directly, servo-bus adapters $45 / $60 / $90 and, if the kept Teensy stack is not the supervisor, a supervisor board $40 / $70 / $120; optional: yaw-stage bearing $20 / $165 / $300, audio $25 / $70 / $150. | `budget_75.py` (`EXTRA`) | open; replace with quotes |
 | A8, made explicit | A (update) | Besides the lots A8 names, `cost.py` scales the harness by size and the foot sensing by the square root of size, and carries the bench, power and control lots over from 60 cm unscaled. The power lot has no stated scope: it probably holds a 12 V regulator for the computer and may hold a regeneration clamp. The compute line's allowance stands for storage, which the Pi 5 set's catalog price already includes ($40). | `designlab/cost.py`; `BUDGET_75.md` sections 3.2, 3.3 and 4 | open; replace with quotes from drawings |
-| The 75 cm budget | P (owner's decision) | Accept about $20.1-20.2k nominal turnkey (high $28.2-28.4k), trim it by deferring the boom (−$965 nominal), or raise P4's ceiling. Recommended: decide after the frame, coverings and integration quotes. | `BUDGET_75.md` "In brief" and section 6 | awaiting the owner |
