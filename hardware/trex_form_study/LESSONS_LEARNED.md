@@ -534,6 +534,14 @@ tests.
   - When the limit is hit every running agent fails at once and its workflow ends with what was done; resuming by
     run id runs the cut-off agents again from the start. Have builders commit as they go, and run long CPU jobs
     from the lead with `run_in_background`, not from an agent that waits and polls with its whole context.
+  - Resuming a workflow by run id replays only the unbroken prefix of finished agent calls. Every call after the
+    first one that has to run live runs again, finished or not: on 15 Nov a resume started two finished reviews over
+    and was stopped after two minutes. To finish a cut-off workflow, write a short follow-on script that runs only the
+    stages still owed and carries the recorded results (reviews, build reports) as literals.
+  - A fixer starts the moment the last review returns. Rulings the lead owes on reviewers' open points must be in
+    the brief before then, or the fixer decides them itself; on 15 Nov the set fixer was 25 minutes into its work
+    when the lead read the reviews. Have the script stop for the lead between review and fix when rulings are
+    likely (a second workflow call), or tell the fixer to leave "for the lead" findings untouched and list them.
   - Before a fan-out, set what each agent runs at: the effort for builders and fixers, how much of the design a brief
     carries, and one reviewer or two.
   - Worktree branches may not be pushed, so an unmerged build is lost with the container. At a pause, merge what is
