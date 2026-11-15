@@ -798,6 +798,24 @@ def test_counts_are_the_records_own_and_recompute_from_their_episodes(run, tmp_p
     assert a1["counts"]["pass_"] is None and a1["counts"]["pass_if_read"] is False and barreport.counts_differences(a1) == []
 
 
+def test_check_episodes_are_counted_and_held_to_rule_r4(run, tmp_path):
+    assert run.tabs["checks"]["dev_episodes"] is None and "no `dev_episodes.json`" in run.md
+    out = tmp_path / "study" / "runs" / "x"
+    put(tmp_path / "study", out, "V0", "R0@10ms", "walk/v0.4")
+    entry = lambda s, row, seed=3042: dict(set=s, body=BODY, block=H, row=row, condition="walk/v0.4", seed=seed)  # noqa: E731
+    s2io.write_json(out / "dev_episodes.json", dict(
+        episodes=[entry("V0", "R0@10ms"), entry("V0", "R0@0ms"), entry("V0", "R2/42@10ms"), entry("F25F9cl", "R0@10ms"),
+                  entry("V0", "R0@10ms", 3043), entry("D0", "R2/42@10ms")],
+        scratch_sets=dict(sets=dict(T0="a fixture", D0="a scratch set"))))
+    tabs = barreport.tables(barreport.load(out, study=tmp_path / "study"))
+    dev = tabs["checks"]["dev_episodes"]
+    assert dev["listed"] == 6 and dev["scratch_sets"] == ["D0", "T0"]
+    assert [(x["set"], x["row"], x["seed"]) for x in dev["outside_the_rule"]] == [
+        ("V0", "R2/42@10ms", 3042), ("F25F9cl", "R0@10ms", 3042), ("V0", "R0@10ms", 3043)]
+    md = barreport.markdown(tabs)
+    assert "(smoke; none is a record): 6; of these outside rule R4" in md and "set `F25F9cl`, row `R0@10ms`" in md
+
+
 def test_cost_rates_are_printed_with_how_they_were_measured(run, tmp_path):
     out = tmp_path / "study" / "runs" / "x"
     put(tmp_path / "study", out, "V0", "R0@10ms", "walk/v0.4")

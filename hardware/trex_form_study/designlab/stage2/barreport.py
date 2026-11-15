@@ -299,16 +299,17 @@ def load(out, sets=None, body=None, *, study=None) -> dict:
     """Every record under the run directory ``out``, indexed ``[set][body][block][row][condition]`` (row
     ``"R2/42@10ms"``, condition ``"walk/v0.4"``); ``sets`` and ``body`` keep those only.  Each record carries
     ``_path`` (relative to ``study``, default the study directory) and ``_superseded`` (the records kept beside it by
-    a re-run).  Under ``"_run"``: the run directory, ``budget.json``, ``COST.md``'s rates, today's source hashes, the
-    latest freeze of every set a record names (``<study>/<inputs.dir>/set.json``), the controls' records
-    (``controls[control][set]...``) and the files that are no record."""
+    a re-run).  Under ``"_run"``: the run directory, ``budget.json``, ``COST.md``'s rates, ``dev_episodes.json``,
+    today's source hashes, the latest freeze of every set a record names (``<study>/<inputs.dir>/set.json``), the
+    controls' records (``controls[control][set]...``) and the files that are no record."""
     out = Path(out)
     study = Path(s2io.STUDY if study is None else study)
     sets = None if sets is None else [str(s) for s in sets]
     if not out.is_dir():
         raise s2io.S2Error(f"{out}: no such run directory")
     meta: dict = dict(out=_rel(out, out, study), sets=sets, body=body, unreadable=[], misplaced=[], controls={},
-                      budget=_read(out / "budget.json"), cost=None, today=_today_sources(), manifests={})
+                      budget=_read(out / "budget.json"), cost=None, today=_today_sources(), manifests={},
+                      dev_episodes=_read(out / "dev_episodes.json"))
     cost = out / "COST.md"
     if cost.is_file():
         meta["cost"] = bar.read_cost_text(cost.read_text())
@@ -1514,8 +1515,8 @@ def _seed_part(line: int, name: str, set_name: str, recs: dict) -> dict:
 def checks(doc: dict) -> dict:
     """Records found; records made by other sources than today's; records whose input hashes are not in their
     set's latest freeze; records with errors or unjudged counts; records whose counts do not recompute
-    (``bar.counts``); core-hours per task against its budget, with the units started after the first cut; the rates of
-    ``COST.md``."""
+    (``bar.counts``); second-block records outside the replication rule; the build's check episodes against rule R4;
+    core-hours per task against its budget, with the units started after the first cut; the rates of ``COST.md``."""
     meta = doc[META]
     main = list(_records(doc))
     ctl = [r for c in sorted(meta["controls"]) for r in _records(meta["controls"][c])]
@@ -1568,6 +1569,16 @@ def checks(doc: dict) -> dict:
             budget[str(t)] = dict(cap_core_h=task.get("cap_core_h"), registered_cap_core_h=reg,
                                   spent_core_h=float(sum(u["used_core_h"] for u in units)), units=units, cut=cut,
                                   first_cut_at=first_cut, started_after_the_first_cut=late)
+    dev = None
+    if meta.get("dev_episodes") is not None:  # rule R4: single check episodes on V0 under R0 rows, each listed
+        eps = [e for e in meta["dev_episodes"].get("episodes") or [] if isinstance(e, dict)]
+        seed = bar.BLOCKS[bar.HEADLINE_BLOCK][0]
+        outside = [dict(set=e.get("set"), row=e.get("row"), condition=e.get("condition"), seed=e.get("seed"))
+                   for e in eps if bar.registered_name(e.get("set")) is not None and (
+                       e.get("set") != bar.CHECK_SET or bar.controller_of(str(e.get("row"))) != R0_ROW
+                       or e.get("seed") != seed)]
+        dev = dict(listed=len(eps), outside_the_rule=outside, check_set=bar.CHECK_SET, seed=seed,
+                   scratch_sets=sorted(((meta["dev_episodes"].get("scratch_sets") or {}).get("sets") or {})))
     cost = None
     if meta.get("cost"):
         c = meta["cost"]
@@ -1585,7 +1596,7 @@ def checks(doc: dict) -> dict:
         today_sources=dict(meta["today"]), other_sources=other, not_in_latest_freeze=missing, not_checked=unchecked,
         freezes={d: {k: v for k, v in m.items() if k != "entries"} for d, m in sorted(meta["manifests"].items())},
         errors_or_unjudged=unjudged, counts_not_recomputed=miscounted, second_block_outside_the_rule=second,
-        budget=budget, cost=cost)
+        dev_episodes=dev, budget=budget, cost=cost)
 
 
 def other_records(doc: dict, tabs: dict) -> dict:
@@ -1644,7 +1655,8 @@ def tables(doc: dict) -> dict:
             "holds measurements, a column headed \"Limit\" or \"as defined\" holds none.  A measured median is "
             "printed as \"median (n)\": n is the number of episodes that give the quantity.",
             "Numbers: counts as integers; "
-            + ", ".join(f"{u} with {d} decimals" for u, d in DECIMALS.items()) + "; every other number with %g.",
+            + ", ".join(f"{u} with {d} decimal{'' if d == 1 else 's'}" for u, d in DECIMALS.items())
+            + "; every other number with %g.",
             f"Every line of set {bar.CANDIDATE_SET} carries the label \"{MARGIN_LABEL}\": its duty and lift were set "
             "after the pull request's results on those seeds (STAGE2_75_PLAN.md A3).",
             f"A cell with no record reads \"{NOT_RUN}\", or \"{CUT}\" where `budget.json` lists its record under a "
@@ -1748,6 +1760,18 @@ def _md_checks(c: dict) -> list[str]:
            "- Records of the block `seeds5042` that the replication rule does not provide for (an R0 row, a control "
            f"set, a reported control, no `replication_of`): {len(c['second_block_outside_the_rule'])}"
            + "".join(f"\n  - `{x['path']}`: {', '.join(x['why'])}" for x in c["second_block_outside_the_rule"])]
+    dev = c["dev_episodes"]
+    if dev is None:
+        out.append("- Check episodes of the build: no `dev_episodes.json` in the run directory.")
+    else:
+        out.append(
+            f"- Check episodes of the build listed in `dev_episodes.json` (smoke; none is a record): {dev['listed']}; "
+            f"of these outside rule R4 (on a set of the round: set `{dev['check_set']}`, an R0 row, seed {dev['seed']}): "
+            f"{len(dev['outside_the_rule'])}"
+            + "".join(f"\n  - set `{x['set']}`, row `{x['row']}`, `{x['condition']}`, seed {x['seed']}"
+                      for x in dev["outside_the_rule"])
+            + ("" if not dev["scratch_sets"] else
+               f"\n  - scratch or fixture sets it lists in summary form: {', '.join(dev['scratch_sets'])}"))
     if c["budget"] is None:
         out.append("- Core-hours: no `budget.json` in the run directory (no task's unit has started there).")
     else:
