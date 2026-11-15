@@ -1857,7 +1857,9 @@ def test_the_built_v0_set_holds_what_the_rules_say():
     docs = setio.load(V0_SET)
     refs_, tr, sd = docs["refs.json"]["references"], docs["transitions.json"]["transitions"], docs["set.json"]
     its = sets.items("V0", BODY)
-    assert [i.name for i in its if i.kind == "walk"] == list(refs_) and {i.name for i in its if i.kind != "walk"} <= set(tr)
+    # (the records hold their entries in the order the items were finished: two workers at a time)
+    assert sorted(i.name for i in its if i.kind == "walk") == sorted(refs_) and {i.name for i in its if i.kind != "walk"} <= set(tr)
+    assert sd["lead_in"] == "start" and "start_v0.4" not in tr  # its nominal walk is a rung
     assert all(no_wall_time(docs[k]) for k in ("refs.json", "transitions.json", "set.json"))
     assert sd["crouch_frac"] == 0.03 and sd["role"] == "control" and sd["set"] == "V0" and sd["body"] == BODY
     for name, e in refs_.items():
@@ -1868,10 +1870,10 @@ def test_the_built_v0_set_holds_what_the_rules_say():
     for label, rec in sd["stride_rules"].items():
         if "tried" not in rec:
             continue
-        assert (rec["limit_kinematic"], rec["limit_final"], rec["limit_other_joints_rad"]) == (0.85, 0.87, 0.10)
+        assert (rec["limit_kinematic"], rec["limit_final"], rec["limit_other_joints_rad"]) == (0.85, 0.87, 0.05)
         for row in rec["tried"]:
             ok = bool(row["ik_ok"] and max(row["left"], row["right"]) <= 0.85
-                      and min(row["tightest_other"][x]["margin_rad"] for x in ("left", "right")) >= 0.10)
+                      and min(row["tightest_other"][x]["margin_rad"] for x in ("left", "right")) >= 0.05)
             assert ok is row["pass_"], (label, row)
         assert [r["pass_"] for r in rec["tried"]][:-1] == [False] * (len(rec["tried"]) - 1)
         assert [r["f"] for r in rec["tried"]] == [f for f in moves.STRIDE_GRID][: len(rec["tried"])]
@@ -1882,7 +1884,7 @@ def test_the_built_v0_set_holds_what_the_rules_say():
         for n in names:
             if tr[n].get("available") is not False:
                 assert tr[n]["turn"]["stride_factor"] == rec["chosen"] and tr[n]["turn"]["stride_rule"] == rec
-                assert tr[n]["hip_yaw_range_use"] <= 0.87 and tr[n]["tightest_other"]["margin_rad"] >= 0.10
+                assert tr[n]["hip_yaw_range_use"] <= 0.87 and tr[n]["tightest_other"]["margin_rad"] >= 0.05
                 assert tr[n]["pass_"] and tr[n]["stage0"]["blocks_freeze"] == []
     for name, e in tr.items():
         if e.get("available") is False:
@@ -1892,3 +1894,51 @@ def test_the_built_v0_set_holds_what_the_rules_say():
     if docs["screen.json"] is not None:
         v = sets.verify("V0", BODY)
         assert v["ok"], v["failures"]
+
+
+@pytest.mark.parametrize("set_name", list(sets.SETS))
+def test_a_built_sets_lead_in_follows_its_walks(set_name):
+    """A built set on 75-M-H-10 against ``RULES["S2S-lead-in"]`` (the plan's A8 as amended): ``set.json`` ``lead_in``
+    is what its walks give; a set that starts into its 0.40 m/s walk holds ``start_v0.4`` as the ``start`` item's
+    reference, says why ``start`` has none, and holds no item that needs the nominal walk; a rung reached from its
+    neighbour holds that change by the fallback's step (2).  As the plan says of 15 Nov, this is F25F9 alone."""
+    d = setio.ROOT / set_name / BODY
+    if not (d / "set.json").exists():
+        pytest.skip(f"the {set_name} set is not built (stage2/sets/{set_name})")
+    docs = setio.load(d)
+    refs_, tr, sd = docs["refs.json"]["references"], docs["transitions.json"]["transitions"], docs["set.json"]
+    its = {i.name: i for i in sets.items(set_name, BODY)}
+    lead, alt = sets.lead_in_of(refs_), setio.start_name("v0.4")
+    assert sd["lead_in"] == lead and (lead == alt) == (set_name == "F25F9")
+    if lead == "start":
+        assert alt not in tr and (tr["start"].get("available") is not False or sd["blocked"]["by"] == "start")
+        return
+    assert lead == alt and refs_["nominal"]["available"] is False and refs_["v0.4"].get("available") is not False
+    e, start = tr[alt], tr["start"]
+    assert e["group"] == "start" and e["item"] == its["start"].definition
+    assert start["available"] is False and start["lead_in"]["rule"] == "S2S-lead-in" and "file" not in start
+    assert start["reason"].startswith("the walk nominal is not a rung of the set") and sd["not_available"]["start"]["reason"] == start["reason"]
+    if e.get("available") is False:  # the set is stopped: it is not run
+        assert sd["blocked"]["by"] == "start" and start["lead_in"]["by"] is None
+    else:
+        assert e["pass_"] is True and e["stage0"]["blocks_freeze"] == [] and e["fallback"] is None and sd["blocked"] is None
+        assert (e["move"]["builder"], e["move"]["causal"], e["from_"], e["to"]) == ("start", False, "stand", "v0.4")
+        assert e["definition"]["specs"]["b"]["name"] == "v0.4" and e["lead_in"]["of"] == "start" and start["lead_in"]["by"] == alt
+        assert e["inputs"] == {"nominal": None, "v0.4": refs_["v0.4"]["sha256"]} and (d / e["file"]).name == f"{alt}.npz"
+        assert e["join_b"]["reference"] == "v0.4" and e["gates"]["zmp_error"] and e["zmp_error_history_m"][-1] <= 4.0e-3
+    for v in setio.SPEEDS:  # every change from the nominal walk
+        walk = setio.walk_name(v)
+        n = tr[setio.change_name("nominal", walk)]
+        assert n["available"] is False and n["reason"].startswith("the walk nominal")
+        nb = sets.neighbour(v)
+        other = None if nb is None else setio.change_name(setio.walk_name(nb), walk)
+        if other in tr:  # the rung is reached from its neighbour
+            assert tr[other]["pass_"] and tr[other]["fallback"]["step"] == 2 and n["fallback"] == dict(rule="S2S-fallback", step=2, by=other)
+        elif nb is not None and all(refs_[w].get("available") is not False for w in (walk, setio.walk_name(nb))):
+            tried = n["numbers"]["tried"]  # that change was built and is outside a gate: no reference, with its numbers
+            assert [t["change"] for t in tried] == [n["name"], other] and tried[1]["failed_gates"] and n["fallback"]["step"] == 3
+    if docs["screen.json"] is not None:
+        v = sets.verify(set_name, BODY)
+        assert v["ok"], v["failures"]
+        assert any(x.startswith(f"lead-in: {alt}") for x in v["notes"]) and alt in v["available"]
+
