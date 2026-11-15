@@ -1,0 +1,1170 @@
+{
+ "schema": "barviews-turnpath-1",
+ "set": "F25F9cl",
+ "set_in_words": "the candidate",
+ "body": "75-M-H-10",
+ "what": "views of committed records and a frozen reference: no verdict, nothing adopted",
+ "run": "stage2/runs/2026-11-15-75cm",
+ "rules": {
+  "words": "planned: read from the frozen reference played kinematically at the bar's commanded clock (no physics). simulated: read from an episode's trace. No number mixes the two.",
+  "clock": "the bar plays a reference at 1.05 times its own clock (bar.RULES['clocks']); every time here is in simulated seconds, so a planned speed or rate in simulated time is the reference's own times 1.05; lengths and radii do not change with the clock",
+  "frame": "the corner frame of a turn: origin at the root (the trunk's origin) at the command instant; 'along' is the commanded heading (the home heading, the bar's psi_cmd), the incoming walking line; 'sideways' is square to it, positive toward the side of the turn",
+  "command": "the command instant t_c: planned, the reference clock's time of the move's first frame over the commanded clock rate; simulated, the episode record's command_s (never recomputed)",
+  "move_end": "the end of the move: the simulated time at which the reference clock reaches the end of the turn's own file (the trace's t_ref column); a trace that ends before it is read to its end and says so",
+  "heading": "the trunk's heading: the trace's yaw column (control._yaw of the trunk's rotation), unwrapped, as bar's turn reading takes it; 'turned' is its change from the commanded heading, positive toward the side of the turn",
+  "steady": "the steady part of the turn: from the first row at which the trunk has turned 0.1667 of the commanded angle to the first row at which it has turned 0.8333 of it (15 to 75 degrees of a 90 degree turn); a path that never gets there 'stops short' and has no fitted radius",
+  "radius_commanded": "the path radius commanded: the walk's path speed over the turn's rate (v / omega), both from the frozen turn's entry",
+  "radius_fitted": "the radius fitted: the circle of the root's path over the steady part, with the trunk's heading as the place on the arc: least squares of root = centre + R x n(heading) over the steady rows, n the unit vector square to the heading that points away from the side of the turn; its centre is the turn's centre, and the RMS distance of the rows from that model is given beside it.  A circle fitted to the positions alone (the algebraic fit, recorded as radius_free_fit_m) reads the root's sideways sway of about 3 cm a step as curvature: it gave 0.29 m on V0's planned quick turn, whose commanded radius is 0.51 m, where this fit gives 0.50 m",
+  "corner_box": "the corner box: over the rows from the command to the end of the move, how far the root gets along its incoming line (advance) and sideways, at the largest and at the move's end; the same box for the whole robot (every surface point)",
+  "surface": "the robot's surface points: per body of the model, the corners of the convex hull of its pads, covers and hardware (geom groups 0, 1 and 2: mesh vertices, and the corners of a primitive's bounding box), carried on each row's pose; the snout tip is the head's point farthest forward at home, the tail tip the tail's farthest back",
+  "swept_radius": "the swept radius: the largest distance in plan from the turn's centre to any surface point over the steady part of the turn (where the robot is on its circle; the straight entry and exit are in the corner box and the corridor, not here); the point that sets it is named",
+  "turning_circle": "the turning circle: twice the swept radius, the diameter of the circle a full turn at that rate would sweep about the same centre",
+  "corridor": "the corridor: the narrowest L-shaped corridor, two legs of one width meeting square, that holds every surface point from the command to the end of the move.  Its outer wall along the incoming leg touches the sweep's point farthest to the outside (sideways = Y0), its far wall across the incoming line touches the sweep's point farthest along (along = X); the inner corner is at (X - w, Y0 + w) and the width w is the smallest for which no point lies inside that corner's block: w = the largest, over all points, of min(X - along, sideways - Y0).  It holds the robot up to the end of the move only: a robot that leaves the move off its heading needs more room further on",
+  "body_length": "lengths are given in metres and in body lengths; a body length is the model's overall length at its home keyframe along the home heading, from the surface's point farthest back to its point farthest forward",
+  "simulated": "simulated: every record of the turn under the run directory (each row, delay, floor grip and block) is listed; an episode that stayed up and whose trace is kept and has the record's sha256 is read; an episode that fell is counted and listed, not read; the heading at the bar's judged instant is the record's own (command_s + at_s; the commanded angle + the sign times heading_error_at_deg)"
+ },
+ "body_length": {
+  "body_length_m": 1.759043024951823,
+  "rule": "lengths are given in metres and in body lengths; a body length is the model's overall length at its home keyframe along the home heading, from the surface's point farthest back to its point farthest forward",
+  "front": "head: cover_skull (the snout tip)",
+  "back": "tail: cover_tail_seg_20 (the tail tip)",
+  "model": "stage1/models/75-M-H-10/75-M-H-10.xml",
+  "H_m": 0.5018535496646683,
+  "H_bl": 0.2852991896991338,
+  "surface_points": 1314
+ },
+ "set_freeze": 0,
+ "set_manifest_sha256": "cebd3d238b377a5c2e99d1c426b722c7499dc907b082d70ff0041293fb3ce113",
+ "turns": [
+  {
+   "condition": "turn/q90_left",
+   "in_words": "quick 90\u00b0 turn to the left at 0.40 m/s",
+   "gated": true,
+   "move": "turn90_pi4_left",
+   "planned": {
+    "what": "planned",
+    "source": "the frozen reference played kinematically at the bar's commanded clock",
+    "move": "turn90_pi4_left",
+    "file": "transitions/turn90_pi4_left.npz",
+    "file_sha256": "da01f1bf4ebf02a22e0b29a9d81d5fc309b2408bdbb4b60b830f374d09d8ebeb",
+    "freeze": {
+     "index": 0,
+     "manifest_sha256": "cebd3d238b377a5c2e99d1c426b722c7499dc907b082d70ff0041293fb3ce113"
+    },
+    "plan": [
+     [
+      "transition",
+      "start"
+     ],
+     [
+      "ref",
+      "nominal",
+      1
+     ],
+     [
+      "transition",
+      "nominal_to_v0.4"
+     ],
+     [
+      "ref",
+      "v0.4",
+      2.0
+     ],
+     [
+      "transition",
+      "turn90_pi4_left"
+     ],
+     [
+      "ref",
+      "v0.4",
+      3
+     ]
+    ],
+    "clock_rate": 1.05,
+    "commanded": {
+     "path_speed_m_s": 0.4,
+     "turn_rate_rad_s": 0.7853981633974483,
+     "turn_rate_deg_s": 45.0,
+     "radius_m": 0.5092958178940651,
+     "radius_bl": 0.28953005166432116,
+     "angle_deg": 90.0,
+     "direction": "left",
+     "in_simulated_time": {
+      "path_speed_m_s": 0.42000000000000004,
+      "turn_rate_deg_s": 47.25
+     }
+    },
+    "judged_instant_s_after_command": 2.0,
+    "readings": {
+     "command_s": 17.761216453252256,
+     "move_end_s": 22.429915116532314,
+     "notes": [],
+     "reaches_command": true,
+     "reaches_move_end": true,
+     "read_to_s": 22.429915116532314,
+     "rows": 233,
+     "turned_at_command_deg": 1.145613813612845e-05,
+     "turned_at_read_end_deg": 89.99999999998296,
+     "turned_at_trace_end_deg": 89.99999999998296,
+     "corner_box_root": {
+      "advance_max_m": 0.6309103385840631,
+      "advance_max_bl": 0.3586668032757997,
+      "advance_at_end_m": 0.6045568760476865,
+      "advance_at_end_bl": 0.34368509892715343,
+      "sideways_max_m": 1.6036192897284378,
+      "sideways_max_bl": 0.9116430166751368,
+      "sideways_at_end_m": 1.6094287202702466,
+      "sideways_at_end_bl": 0.9149456252295626,
+      "back_max_m": 0.0,
+      "back_max_bl": 0.0,
+      "outside_max_m": 0.01914352439580614,
+      "outside_max_bl": 0.010882919931040598
+     },
+     "steady": {
+      "from_deg": 14.999999999999998,
+      "to_deg": 75.0,
+      "complete": true,
+      "rows": 65,
+      "from_s": 18.28,
+      "to_s": 19.56
+     },
+     "centre_world": [
+      4.646602470521775,
+      0.504364290532863
+     ],
+     "fit": {
+      "radius_fitted_m": 0.4937672538144007,
+      "radius_fitted_bl": 0.2807022038747029,
+      "fit_rms_m": 0.016404272672858725,
+      "fit_rms_bl": 0.00932568017960107,
+      "centre_along_m": 0.07215672637685433,
+      "centre_along_bl": 0.04102044427186798,
+      "centre_sideways_m": 0.5214766803441021,
+      "centre_sideways_bl": 0.29645476145097954,
+      "turn_rate_deg_s": 47.25000000017563,
+      "path_speed_m_s": 0.40719408900772713,
+      "radius_free_fit_m": 0.31078878579444,
+      "radius_free_fit_bl": 0.17668060495731874,
+      "seconds": 1.2799999999999976,
+      "rows": 65
+     },
+     "swept": {
+      "swept_radius_m": 1.1080812218000655,
+      "swept_radius_bl": 0.6299341210431245,
+      "turning_circle_m": 2.216162443600131,
+      "turning_circle_bl": 1.259868242086249,
+      "set_by": "tail: cover_tail_seg_20",
+      "at_s": 19.3,
+      "inner_radius_m": 0.3234852035116726,
+      "inner_radius_bl": 0.18389840323577775,
+      "farthest_by_part_m": {
+       "head": 0.9589596608812923,
+       "left foot": 0.5115859472288407,
+       "left leg": 0.5297224429459699,
+       "right foot": 0.6840913400239942,
+       "right leg": 0.6671246487595819,
+       "tail": 1.1080812218000655,
+       "trunk": 0.8004823964107248
+      },
+      "farthest_by_part_bl": {
+       "head": 0.5451598666312079,
+       "left foot": 0.29083196941294376,
+       "left leg": 0.3011424026768635,
+       "right foot": 0.3888997200865682,
+       "right leg": 0.37925431004045695,
+       "tail": 0.6299341210431245,
+       "trunk": 0.45506697963379755
+      }
+     },
+     "corner_box_robot": {
+      "along_min_m": -0.9484387081582586,
+      "along_min_bl": -0.5391788004640958,
+      "along_max_m": 1.02128193414132,
+      "along_max_bl": 0.5805895135335254,
+      "sideways_min_m": -0.5860142991243315,
+      "sideways_min_bl": -0.3331438121818432,
+      "sideways_max_m": 2.398928937251767,
+      "sideways_max_bl": 1.3637693354984706
+     },
+     "corridor": {
+      "width_m": 0.8010243992126868,
+      "width_bl": 0.45537510330915604,
+      "far_wall_along_m": 1.02128193414132,
+      "far_wall_along_bl": 0.5805895135335254,
+      "outer_wall_sideways_m": -0.5860142991243315,
+      "outer_wall_sideways_bl": -0.3331438121818432,
+      "inner_corner_m": [
+       0.2202575349286332,
+       0.2150101000883553
+      ],
+      "inner_corner_bl": [
+       0.12521441022436938,
+       0.12223129112731285
+      ],
+      "inner_corner_set_by": "left leg: cover_left_thigh_upper"
+     },
+     "turned_at_judged_instant_deg": 85.01489822912927
+    },
+    "pose_check": {
+     "feet_xy": 8.881784197001252e-16,
+     "com_xy": 1.7763568394002505e-15,
+     "feet_height": 2.7755575615628914e-16
+    }
+   },
+   "simulated": [],
+   "simulated_note": "no record yet",
+   "figure": {
+    "svg": "turn_q90_left.svg",
+    "png": "turn_q90_left.png",
+    "caption": "Top view of quick 90\u00b0 turn to the left at 0.40 m/s on F25F9cl (the candidate); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move; the dashed box is the corner box of the planned root. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
+    "simulated_from": null
+   }
+  },
+  {
+   "condition": "turn/q90_right",
+   "in_words": "quick 90\u00b0 turn to the right at 0.40 m/s",
+   "gated": true,
+   "move": "turn90_pi4_right",
+   "planned": {
+    "what": "planned",
+    "source": "the frozen reference played kinematically at the bar's commanded clock",
+    "move": "turn90_pi4_right",
+    "file": "transitions/turn90_pi4_right.npz",
+    "file_sha256": "ed8bb064d002cbbb7fbb6fda31e4c1fb68f60dd17e0309216b644aaa57c5a9cf",
+    "freeze": {
+     "index": 0,
+     "manifest_sha256": "cebd3d238b377a5c2e99d1c426b722c7499dc907b082d70ff0041293fb3ce113"
+    },
+    "plan": [
+     [
+      "transition",
+      "start"
+     ],
+     [
+      "ref",
+      "nominal",
+      1
+     ],
+     [
+      "transition",
+      "nominal_to_v0.4"
+     ],
+     [
+      "ref",
+      "v0.4",
+      2.5
+     ],
+     [
+      "transition",
+      "turn90_pi4_right"
+     ],
+     [
+      "ref",
+      "v0.4",
+      3
+     ]
+    ],
+    "clock_rate": 1.05,
+    "commanded": {
+     "path_speed_m_s": 0.4,
+     "turn_rate_rad_s": -0.7853981633974483,
+     "turn_rate_deg_s": -45.0,
+     "radius_m": -0.5092958178940651,
+     "radius_bl": -0.28953005166432116,
+     "angle_deg": 90.0,
+     "direction": "right",
+     "in_simulated_time": {
+      "path_speed_m_s": 0.42000000000000004,
+      "turn_rate_deg_s": -47.25
+     }
+    },
+    "judged_instant_s_after_command": 2.0,
+    "readings": {
+     "command_s": 18.234273168281405,
+     "move_end_s": 23.37602854659003,
+     "notes": [],
+     "reaches_command": true,
+     "reaches_move_end": true,
+     "read_to_s": 23.37602854659003,
+     "rows": 257,
+     "turned_at_command_deg": 1.2150128463746205e-06,
+     "turned_at_read_end_deg": 89.99999999998296,
+     "turned_at_trace_end_deg": 89.99999999998296,
+     "corner_box_root": {
+      "advance_max_m": 0.6309153845976496,
+      "advance_max_bl": 0.3586696718887415,
+      "advance_at_end_m": 0.5714760200400947,
+      "advance_at_end_bl": 0.32487893242733296,
+      "sideways_max_m": 1.7984860785486372,
+      "sideways_max_bl": 1.0224230181054808,
+      "sideways_at_end_m": 1.8080822563456935,
+      "sideways_at_end_bl": 1.0278783581175985,
+      "back_max_m": 0.0,
+      "back_max_bl": 0.0,
+      "outside_max_m": 0.019241789522540294,
+      "outside_max_bl": 0.010938782764035742
+     },
+     "steady": {
+      "from_deg": 14.999999999999998,
+      "to_deg": 75.0,
+      "complete": true,
+      "rows": 65,
+      "from_s": 18.76,
+      "to_s": 20.04
+     },
+     "centre_world": [
+      4.845339085076443,
+      -0.5052593753880665
+     ],
+     "fit": {
+      "radius_fitted_m": 0.49365378589324505,
+      "radius_fitted_bl": 0.2806376983910131,
+      "fit_rms_m": 0.01635049440119473,
+      "fit_rms_bl": 0.009295107720086916,
+      "centre_along_m": 0.07226129354871347,
+      "centre_along_bl": 0.04107988976033862,
+      "centre_sideways_m": 0.5212355714561623,
+      "centre_sideways_bl": 0.2963176932357513,
+      "turn_rate_deg_s": 47.24999999918287,
+      "path_speed_m_s": 0.40710051562744914,
+      "radius_free_fit_m": 0.31155199855635424,
+      "radius_free_fit_bl": 0.1771144844878863,
+      "seconds": 1.2799999999999976,
+      "rows": 65
+     },
+     "swept": {
+      "swept_radius_m": 1.1079149540127928,
+      "swept_radius_bl": 0.629839599314597,
+      "turning_circle_m": 2.2158299080255857,
+      "turning_circle_bl": 1.259679198629194,
+      "set_by": "tail: cover_tail_seg_20",
+      "at_s": 19.76,
+      "inner_radius_m": 0.3233085524014805,
+      "inner_radius_bl": 0.1837979786823778,
+      "farthest_by_part_m": {
+       "head": 0.9588290138423438,
+       "left foot": 0.6839944781021394,
+       "left leg": 0.6669869474797047,
+       "right foot": 0.5115274452549154,
+       "right leg": 0.5295228028006422,
+       "tail": 1.1079149540127928,
+       "trunk": 0.8003239874786863
+      },
+      "farthest_by_part_bl": {
+       "head": 0.5450855949749179,
+       "left foot": 0.38884465496281584,
+       "left leg": 0.37917602811220164,
+       "right foot": 0.29079871157155196,
+       "right leg": 0.301028909065567,
+       "tail": 0.629839599314597,
+       "trunk": 0.45497692559316777
+      }
+     },
+     "corner_box_robot": {
+      "along_min_m": -0.9554865496438163,
+      "along_min_bl": -0.5431854344040195,
+      "along_max_m": 1.0213327092010163,
+      "along_max_bl": 0.5806183786942839,
+      "sideways_min_m": -0.5861809462635875,
+      "sideways_min_bl": -0.33323854956853144,
+      "sideways_max_m": 2.594009619056985,
+      "sideways_max_bl": 1.47467093315016
+     },
+     "corridor": {
+      "width_m": 0.8015500995537721,
+      "width_bl": 0.4556739591834174,
+      "far_wall_along_m": 1.0213327092010163,
+      "far_wall_along_bl": 0.5806183786942839,
+      "outer_wall_sideways_m": -0.5861809462635875,
+      "outer_wall_sideways_bl": -0.33323854956853144,
+      "inner_corner_m": [
+       0.21978260964724416,
+       0.21536915329018458
+      ],
+      "inner_corner_bl": [
+       0.12494441951086649,
+       0.122435409614886
+      ],
+      "inner_corner_set_by": "right leg: cover_right_thigh_upper"
+     },
+     "turned_at_judged_instant_deg": 85.01232888553206
+    },
+    "pose_check": {
+     "feet_xy": 8.881784197001252e-16,
+     "com_xy": 8.881784197001252e-16,
+     "feet_height": 2.7755575615628914e-16
+    }
+   },
+   "simulated": [],
+   "simulated_note": "no record yet",
+   "figure": {
+    "svg": "turn_q90_right.svg",
+    "png": "turn_q90_right.png",
+    "caption": "Top view of quick 90\u00b0 turn to the right at 0.40 m/s on F25F9cl (the candidate); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move; the dashed box is the corner box of the planned root. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
+    "simulated_from": null
+   }
+  },
+  {
+   "condition": "turn/t90_0.35_left",
+   "in_words": "90\u00b0 turn to the left (0.35 rad/s) at 0.40 m/s",
+   "gated": false,
+   "move": "turn90_0.35_left",
+   "planned": {
+    "what": "planned",
+    "source": "the frozen reference played kinematically at the bar's commanded clock",
+    "move": "turn90_0.35_left",
+    "file": "transitions/turn90_0.35_left.npz",
+    "file_sha256": "907912da2e6d4339bd7201138fe5980727f61960723931a32bd563efd74a4b62",
+    "freeze": {
+     "index": 0,
+     "manifest_sha256": "cebd3d238b377a5c2e99d1c426b722c7499dc907b082d70ff0041293fb3ce113"
+    },
+    "plan": [
+     [
+      "transition",
+      "start"
+     ],
+     [
+      "ref",
+      "nominal",
+      1
+     ],
+     [
+      "transition",
+      "nominal_to_v0.4"
+     ],
+     [
+      "ref",
+      "v0.4",
+      2.0
+     ],
+     [
+      "transition",
+      "turn90_0.35_left"
+     ],
+     [
+      "ref",
+      "v0.4",
+      4
+     ]
+    ],
+    "clock_rate": 1.05,
+    "commanded": {
+     "path_speed_m_s": 0.4,
+     "turn_rate_rad_s": 0.35,
+     "turn_rate_deg_s": 20.05352282957881,
+     "radius_m": 1.142857142857143,
+     "radius_bl": 0.6497039166443606,
+     "angle_deg": 90.0,
+     "direction": "left",
+     "in_simulated_time": {
+      "path_speed_m_s": 0.42000000000000004,
+      "turn_rate_deg_s": 21.05619897105775
+     }
+    },
+    "judged_instant_s_after_command": 4.487989505128276,
+    "readings": {
+     "command_s": 17.761216453252256,
+     "move_end_s": 24.38401046366097,
+     "notes": [],
+     "reaches_command": true,
+     "reaches_move_end": true,
+     "read_to_s": 24.38401046366097,
+     "rows": 331,
+     "turned_at_command_deg": 8.980530582160444e-06,
+     "turned_at_read_end_deg": 90.00000000000516,
+     "turned_at_trace_end_deg": 90.00000000000516,
+     "corner_box_root": {
+      "advance_max_m": 1.255012851818658,
+      "advance_max_bl": 0.7134634196073917,
+      "advance_at_end_m": 1.2287115327077351,
+      "advance_at_end_bl": 0.6985113583230219,
+      "sideways_max_m": 2.074845314954175,
+      "sideways_max_bl": 1.179530736612313,
+      "sideways_at_end_m": 2.0771305706676295,
+      "sideways_at_end_bl": 1.1808298837514326,
+      "back_max_m": 0.0,
+      "back_max_bl": 0.0,
+      "outside_max_m": 0.024473158026241757,
+      "outside_max_bl": 0.013912768294517432
+     },
+     "steady": {
+      "from_deg": 14.999999999999998,
+      "to_deg": 75.0,
+      "complete": true,
+      "rows": 144,
+      "from_s": 18.66,
+      "to_s": 21.52
+     },
+     "centre_world": [
+      4.641398881297805,
+      1.135859354612728
+     ],
+     "fit": {
+      "radius_fitted_m": 1.1317486234087597,
+      "radius_fitted_bl": 0.6433888241248427,
+      "fit_rms_m": 0.03323300918742685,
+      "fit_rms_bl": 0.018892664202080585,
+      "centre_along_m": 0.06695375722487729,
+      "centre_along_bl": 0.03806260351517612,
+      "centre_sideways_m": 1.1529768086723322,
+      "centre_sideways_bl": 0.6554568548452134,
+      "turn_rate_deg_s": 21.056198971614133,
+      "path_speed_m_s": 0.4159176191137092,
+      "radius_free_fit_m": 0.8068194085982218,
+      "radius_free_fit_bl": 0.45866951356708235,
+      "seconds": 2.8599999999999994,
+      "rows": 144
+     },
+     "swept": {
+      "swept_radius_m": 1.563151514661734,
+      "swept_radius_bl": 0.8886374537112565,
+      "turning_circle_m": 3.126303029323468,
+      "turning_circle_bl": 1.777274907422513,
+      "set_by": "tail: cover_tail_seg_20",
+      "at_s": 20.96,
+      "inner_radius_m": 0.9390206186415602,
+      "inner_radius_bl": 0.533824702023578,
+      "farthest_by_part_m": {
+       "head": 1.4361158336132913,
+       "left foot": 1.1313610799766645,
+       "left leg": 1.1873398850527044,
+       "right foot": 1.3100779062816175,
+       "right leg": 1.3249217468340175,
+       "tail": 1.563151514661734,
+       "trunk": 1.3677026246194313
+      },
+      "farthest_by_part_bl": {
+       "head": 0.8164188216218441,
+       "left foot": 0.6431685091998534,
+       "left leg": 0.674991951993456,
+       "right foot": 0.744767403467859,
+       "right leg": 0.7532059921446803,
+       "tail": 0.8886374537112565,
+       "trunk": 0.777526533017514
+      }
+     },
+     "corner_box_robot": {
+      "along_min_m": -0.9484424074413922,
+      "along_min_bl": -0.539180903472994,
+      "along_max_m": 1.5019459478081565,
+      "along_max_bl": 0.8538426442691998,
+      "sideways_min_m": -0.4025235370532715,
+      "sideways_min_bl": -0.22883097874442035,
+      "sideways_max_m": 2.869940875480959,
+      "sideways_max_bl": 1.6315353489205084
+     },
+     "corridor": {
+      "width_m": 0.8018516859882494,
+      "width_bl": 0.4558454083351433,
+      "far_wall_along_m": 1.5019459478081565,
+      "far_wall_along_bl": 0.8538426442691998,
+      "outer_wall_sideways_m": -0.4025235370532715,
+      "outer_wall_sideways_bl": -0.22883097874442035,
+      "inner_corner_m": [
+       0.7000942618199071,
+       0.3993281489349779
+      ],
+      "inner_corner_bl": [
+       0.3979972359340565,
+       0.22701442959072296
+      ],
+      "inner_corner_set_by": "left foot: hw_left_claw_1"
+     },
+     "turned_at_judged_instant_deg": 89.70966432094859
+    },
+    "pose_check": {
+     "feet_xy": 8.881784197001252e-16,
+     "com_xy": 1.7763568394002505e-15,
+     "feet_height": 2.7755575615628914e-16
+    }
+   },
+   "simulated": [],
+   "simulated_note": "no record yet",
+   "figure": {
+    "svg": "turn_t90_0.35_left.svg",
+    "png": "turn_t90_0.35_left.png",
+    "caption": "Top view of 90\u00b0 turn to the left (0.35 rad/s) at 0.40 m/s on F25F9cl (the candidate); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move; the dashed box is the corner box of the planned root. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
+    "simulated_from": null
+   }
+  },
+  {
+   "condition": "turn/t90_0.35_right",
+   "in_words": "90\u00b0 turn to the right (0.35 rad/s) at 0.40 m/s",
+   "gated": false,
+   "move": "turn90_0.35_right",
+   "planned": {
+    "what": "planned",
+    "source": "the frozen reference played kinematically at the bar's commanded clock",
+    "move": "turn90_0.35_right",
+    "file": "transitions/turn90_0.35_right.npz",
+    "file_sha256": "36cdc3f7e13c21fe7ce1d1d5fa291f38b94e172431323e28f1a3f4207fdecef0",
+    "freeze": {
+     "index": 0,
+     "manifest_sha256": "cebd3d238b377a5c2e99d1c426b722c7499dc907b082d70ff0041293fb3ce113"
+    },
+    "plan": [
+     [
+      "transition",
+      "start"
+     ],
+     [
+      "ref",
+      "nominal",
+      1
+     ],
+     [
+      "transition",
+      "nominal_to_v0.4"
+     ],
+     [
+      "ref",
+      "v0.4",
+      2.5
+     ],
+     [
+      "transition",
+      "turn90_0.35_right"
+     ],
+     [
+      "ref",
+      "v0.4",
+      4
+     ]
+    ],
+    "clock_rate": 1.05,
+    "commanded": {
+     "path_speed_m_s": 0.4,
+     "turn_rate_rad_s": -0.35,
+     "turn_rate_deg_s": -20.05352282957881,
+     "radius_m": -1.142857142857143,
+     "radius_bl": -0.6497039166443606,
+     "angle_deg": 90.0,
+     "direction": "right",
+     "in_simulated_time": {
+      "path_speed_m_s": 0.42000000000000004,
+      "turn_rate_deg_s": -21.05619897105775
+     }
+    },
+    "judged_instant_s_after_command": 4.487989505128276,
+    "readings": {
+     "command_s": 18.234273168281405,
+     "move_end_s": 25.33012389371869,
+     "notes": [],
+     "reaches_command": true,
+     "reaches_move_end": true,
+     "read_to_s": 25.33012389371869,
+     "rows": 355,
+     "turned_at_command_deg": 9.608866886979458e-07,
+     "turned_at_read_end_deg": 90.00000000000516,
+     "turned_at_trace_end_deg": 90.00000000000516,
+     "corner_box_root": {
+      "advance_max_m": 1.2550092920111258,
+      "advance_max_bl": 0.7134613958891075,
+      "advance_at_end_m": 1.1956626404532344,
+      "advance_at_end_bl": 0.6797233629268287,
+      "sideways_max_m": 2.2697385122460423,
+      "sideways_max_bl": 1.2903257510191977,
+      "sideways_at_end_m": 2.275674378403586,
+      "sideways_at_end_bl": 1.2937002370740265,
+      "back_max_m": 0.0,
+      "back_max_bl": 0.0,
+      "outside_max_m": 0.02455906502849449,
+      "outside_max_bl": 0.01396160564586936
+     },
+     "steady": {
+      "from_deg": 14.999999999999998,
+      "to_deg": 75.0,
+      "complete": true,
+      "rows": 143,
+      "from_s": 19.14,
+      "to_s": 21.98
+     },
+     "centre_world": [
+      4.840250165385005,
+      -1.1365960313031558
+     ],
+     "fit": {
+      "radius_fitted_m": 1.131349197722119,
+      "radius_fitted_bl": 0.6431617542459512,
+      "fit_rms_m": 0.03332791902664407,
+      "fit_rms_bl": 0.018946619584564662,
+      "centre_along_m": 0.0671727291305606,
+      "centre_along_bl": 0.03818708705683896,
+      "centre_sideways_m": 1.1525729930823474,
+      "centre_sideways_bl": 0.6552272893461002,
+      "turn_rate_deg_s": 21.05619897163036,
+      "path_speed_m_s": 0.41577083017418526,
+      "radius_free_fit_m": 0.7976175511014801,
+      "radius_free_fit_bl": 0.4534383410680506,
+      "seconds": 2.84,
+      "rows": 143
+     },
+     "swept": {
+      "swept_radius_m": 1.5627833119652328,
+      "swept_radius_bl": 0.888428133818975,
+      "turning_circle_m": 3.1255666239304656,
+      "turning_circle_bl": 1.77685626763795,
+      "set_by": "tail: cover_tail_seg_20",
+      "at_s": 21.44,
+      "inner_radius_m": 0.9385703906250653,
+      "inner_radius_bl": 0.5335687514810907,
+      "farthest_by_part_m": {
+       "head": 1.4358520900095204,
+       "left foot": 1.3098891593331492,
+       "left leg": 1.3246072246009226,
+       "right foot": 1.1311309291971199,
+       "right leg": 1.186801267815707,
+       "tail": 1.5627833119652328,
+       "trunk": 1.367408979371385
+      },
+      "farthest_by_part_bl": {
+       "head": 0.8162688857760292,
+       "left foot": 0.7446601025401438,
+       "left leg": 0.7530271891088061,
+       "right foot": 0.6430376705698256,
+       "right leg": 0.6746857529810627,
+       "tail": 0.888428133818975,
+       "trunk": 0.7773595983582243
+      }
+     },
+     "corner_box_robot": {
+      "along_min_m": -0.955486512906897,
+      "along_min_bl": -0.5431854135194141,
+      "along_max_m": 1.5020302334524338,
+      "along_max_bl": 0.8538905598932531,
+      "sideways_min_m": -0.40266922025579516,
+      "sideways_min_bl": -0.22891379832328065,
+      "sideways_max_m": 3.0650556185604976,
+      "sideways_max_bl": 1.7424563100976134
+     },
+     "corridor": {
+      "width_m": 0.804611722111514,
+      "width_bl": 0.4574144638295876,
+      "far_wall_along_m": 1.5020302334524338,
+      "far_wall_along_bl": 0.8538905598932531,
+      "outer_wall_sideways_m": -0.40266922025579516,
+      "outer_wall_sideways_bl": -0.22891379832328065,
+      "inner_corner_m": [
+       0.6974185113409198,
+       0.40194250185571884
+      ],
+      "inner_corner_bl": [
+       0.3964760960636656,
+       0.22850066550630693
+      ],
+      "inner_corner_set_by": "right foot: hw_right_toe_2"
+     },
+     "turned_at_judged_instant_deg": 89.71270293694741
+    },
+    "pose_check": {
+     "feet_xy": 8.881784197001252e-16,
+     "com_xy": 1.7763568394002505e-15,
+     "feet_height": 3.3306690738754696e-16
+    }
+   },
+   "simulated": [],
+   "simulated_note": "no record yet",
+   "figure": {
+    "svg": "turn_t90_0.35_right.svg",
+    "png": "turn_t90_0.35_right.png",
+    "caption": "Top view of 90\u00b0 turn to the right (0.35 rad/s) at 0.40 m/s on F25F9cl (the candidate); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move; the dashed box is the corner box of the planned root. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
+    "simulated_from": null
+   }
+  },
+  {
+   "condition": "turn/t90_0.5_left",
+   "in_words": "90\u00b0 turn to the left (0.5 rad/s) at 0.40 m/s",
+   "gated": false,
+   "move": "turn90_0.5_left",
+   "planned": {
+    "what": "planned",
+    "source": "the frozen reference played kinematically at the bar's commanded clock",
+    "move": "turn90_0.5_left",
+    "file": "transitions/turn90_0.5_left.npz",
+    "file_sha256": "770ddc5536c0fcf0bc39302c2ef94bfaffeb95a1469cf886686c60242c72a085",
+    "freeze": {
+     "index": 0,
+     "manifest_sha256": "cebd3d238b377a5c2e99d1c426b722c7499dc907b082d70ff0041293fb3ce113"
+    },
+    "plan": [
+     [
+      "transition",
+      "start"
+     ],
+     [
+      "ref",
+      "nominal",
+      1
+     ],
+     [
+      "transition",
+      "nominal_to_v0.4"
+     ],
+     [
+      "ref",
+      "v0.4",
+      2.0
+     ],
+     [
+      "transition",
+      "turn90_0.5_left"
+     ],
+     [
+      "ref",
+      "v0.4",
+      4
+     ]
+    ],
+    "clock_rate": 1.05,
+    "commanded": {
+     "path_speed_m_s": 0.4,
+     "turn_rate_rad_s": 0.5,
+     "turn_rate_deg_s": 28.64788975654116,
+     "radius_m": 0.8,
+     "radius_bl": 0.4547927416510523,
+     "angle_deg": 90.0,
+     "direction": "left",
+     "in_simulated_time": {
+      "path_speed_m_s": 0.42000000000000004,
+      "turn_rate_deg_s": 30.080284244368222
+     }
+    },
+    "judged_instant_s_after_command": 3.141592653589793,
+    "readings": {
+     "command_s": 17.761216453252256,
+     "move_end_s": 23.280632364455556,
+     "notes": [],
+     "reaches_command": true,
+     "reaches_move_end": true,
+     "read_to_s": 23.280632364455556,
+     "rows": 276,
+     "turned_at_command_deg": 1.1912160163273442e-05,
+     "turned_at_read_end_deg": 90.00000000000698,
+     "turned_at_trace_end_deg": 90.00000000000698,
+     "corner_box_root": {
+      "advance_max_m": 0.9133775161499988,
+      "advance_max_bl": 0.5192468309153578,
+      "advance_at_end_m": 0.8871976480977726,
+      "advance_at_end_bl": 0.5043638134559394,
+      "sideways_max_m": 1.808211180653188,
+      "sideways_max_bl": 1.027951650416687,
+      "sideways_at_end_m": 1.808564197125297,
+      "sideways_at_end_bl": 1.028152337078185,
+      "back_max_m": 0.0,
+      "back_max_bl": 0.0,
+      "outside_max_m": 0.023046562408860306,
+      "outside_max_bl": 0.013101761629447074
+     },
+     "steady": {
+      "from_deg": 14.999999999999998,
+      "to_deg": 75.0,
+      "complete": true,
+      "rows": 100,
+      "from_s": 18.46,
+      "to_s": 20.44
+     },
+     "centre_world": [
+      4.642677622138806,
+      0.7922701216871395
+     ],
+     "fit": {
+      "radius_fitted_m": 0.7830160919370398,
+      "radius_fitted_bl": 0.44513754401117345,
+      "fit_rms_m": 0.030484420521908195,
+      "fit_rms_bl": 0.01733011648350279,
+      "centre_along_m": 0.06823249942682352,
+      "centre_along_bl": 0.038789556855036156,
+      "centre_sideways_m": 0.8093863288750589,
+      "centre_sideways_bl": 0.4601287844549604,
+      "turn_rate_deg_s": 30.08028423847917,
+      "path_speed_m_s": 0.4110834481864649,
+      "radius_free_fit_m": 0.4462988541933475,
+      "radius_free_fit_bl": 0.25371684936789474,
+      "seconds": 1.9800000000000004,
+      "rows": 100
+     },
+     "swept": {
+      "swept_radius_m": 1.3038388018726694,
+      "swept_radius_bl": 0.7412205292183681,
+      "turning_circle_m": 2.607677603745339,
+      "turning_circle_bl": 1.4824410584367362,
+      "set_by": "tail: cover_tail_seg_20",
+      "at_s": 19.900000000000002,
+      "inner_radius_m": 0.5959734314650675,
+      "inner_radius_bl": 0.3388054885589795,
+      "farthest_by_part_m": {
+       "head": 1.1622878017791558,
+       "left foot": 0.7911844549581565,
+       "left leg": 0.8376900042389688,
+       "right foot": 0.969529354941345,
+       "right leg": 0.9749003326599127,
+       "tail": 1.3038388018726694,
+       "trunk": 1.0543827276762465
+      },
+      "farthest_by_part_bl": {
+       "head": 0.6607500699483964,
+       "left foot": 0.44978118427764185,
+       "left leg": 0.4762191671019028,
+       "right foot": 0.5511686418061881,
+       "right leg": 0.5542219939086558,
+       "tail": 0.7412205292183681,
+       "trunk": 0.5994070143367438
+      }
+     },
+     "corner_box_robot": {
+      "along_min_m": -0.9484438533510553,
+      "along_min_bl": -0.5391817254595188,
+      "along_max_m": 1.2250367666870554,
+      "along_max_bl": 0.696422287181183,
+      "sideways_min_m": -0.4731754741456401,
+      "sideways_min_bl": -0.26899596396091535,
+      "sideways_max_m": 2.603181374797403,
+      "sideways_max_bl": 1.4798849930738331
+     },
+     "corridor": {
+      "width_m": 0.8014663852430317,
+      "width_bl": 0.45562636835729614,
+      "far_wall_along_m": 1.2250367666870554,
+      "far_wall_along_bl": 0.696422287181183,
+      "outer_wall_sideways_m": -0.4731754741456401,
+      "outer_wall_sideways_bl": -0.26899596396091535,
+      "inner_corner_m": [
+       0.4235703814440237,
+       0.3282909110973916
+      ],
+      "inner_corner_bl": [
+       0.24079591882388696,
+       0.18663040439638076
+      ],
+      "inner_corner_set_by": "left leg: cover_left_thigh_upper"
+     },
+     "turned_at_judged_instant_deg": 88.60671888095767
+    },
+    "pose_check": {
+     "feet_xy": 8.881784197001252e-16,
+     "com_xy": 1.7763568394002505e-15,
+     "feet_height": 2.7755575615628914e-16
+    }
+   },
+   "simulated": [],
+   "simulated_note": "no record yet",
+   "figure": {
+    "svg": "turn_t90_0.5_left.svg",
+    "png": "turn_t90_0.5_left.png",
+    "caption": "Top view of 90\u00b0 turn to the left (0.5 rad/s) at 0.40 m/s on F25F9cl (the candidate); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move; the dashed box is the corner box of the planned root. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
+    "simulated_from": null
+   }
+  },
+  {
+   "condition": "turn/t90_0.5_right",
+   "in_words": "90\u00b0 turn to the right (0.5 rad/s) at 0.40 m/s",
+   "gated": false,
+   "move": "turn90_0.5_right",
+   "planned": {
+    "what": "planned",
+    "source": "the frozen reference played kinematically at the bar's commanded clock",
+    "move": "turn90_0.5_right",
+    "file": "transitions/turn90_0.5_right.npz",
+    "file_sha256": "2a899037256b6da171e19b3ec30aa563e90e31fa3dbc06c48c15422b5a8a172e",
+    "freeze": {
+     "index": 0,
+     "manifest_sha256": "cebd3d238b377a5c2e99d1c426b722c7499dc907b082d70ff0041293fb3ce113"
+    },
+    "plan": [
+     [
+      "transition",
+      "start"
+     ],
+     [
+      "ref",
+      "nominal",
+      1
+     ],
+     [
+      "transition",
+      "nominal_to_v0.4"
+     ],
+     [
+      "ref",
+      "v0.4",
+      2.5
+     ],
+     [
+      "transition",
+      "turn90_0.5_right"
+     ],
+     [
+      "ref",
+      "v0.4",
+      3
+     ]
+    ],
+    "clock_rate": 1.05,
+    "commanded": {
+     "path_speed_m_s": 0.4,
+     "turn_rate_rad_s": -0.5,
+     "turn_rate_deg_s": -28.64788975654116,
+     "radius_m": -0.8,
+     "radius_bl": -0.4547927416510523,
+     "angle_deg": 90.0,
+     "direction": "right",
+     "in_simulated_time": {
+      "path_speed_m_s": 0.42000000000000004,
+      "turn_rate_deg_s": -30.080284244368222
+     }
+    },
+    "judged_instant_s_after_command": 3.141592653589793,
+    "readings": {
+     "command_s": 18.234273168281405,
+     "move_end_s": 24.226745794513274,
+     "notes": [],
+     "reaches_command": true,
+     "reaches_move_end": true,
+     "read_to_s": 24.226745794513274,
+     "rows": 300,
+     "turned_at_command_deg": 1.2729339647508927e-06,
+     "turned_at_read_end_deg": 90.00000000000699,
+     "turned_at_trace_end_deg": 90.00000000000698,
+     "corner_box_root": {
+      "advance_max_m": 0.9134121068513057,
+      "advance_max_bl": 0.5192664954152116,
+      "advance_at_end_m": 0.8540519754946115,
+      "advance_at_end_bl": 0.48552079930961467,
+      "sideways_max_m": 2.0031022142891333,
+      "sideways_max_bl": 1.1387454348048107,
+      "sideways_at_end_m": 2.0070012460441777,
+      "sideways_at_end_bl": 1.1409619989818873,
+      "back_max_m": 0.0,
+      "back_max_bl": 0.0,
+      "outside_max_m": 0.023057143402005167,
+      "outside_max_bl": 0.013107776828049252
+     },
+     "steady": {
+      "from_deg": 14.999999999999998,
+      "to_deg": 75.0,
+      "complete": true,
+      "rows": 101,
+      "from_s": 18.92,
+      "to_s": 20.92
+     },
+     "centre_world": [
+      4.841181546758852,
+      -0.7936879294081783
+     ],
+     "fit": {
+      "radius_fitted_m": 0.7831627393348682,
+      "radius_fitted_bl": 0.44522091172631645,
+      "fit_rms_m": 0.030512798594784823,
+      "fit_rms_bl": 0.01734624916046071,
+      "centre_along_m": 0.06810321282410392,
+      "centre_along_bl": 0.03871605859439916,
+      "centre_sideways_m": 0.80966489277624,
+      "centre_sideways_bl": 0.46028714550538935,
+      "turn_rate_deg_s": 30.080284244783368,
+      "path_speed_m_s": 0.41116043815648035,
+      "radius_free_fit_m": 0.45176312006765196,
+      "radius_free_fit_bl": 0.2568232349405012,
+      "seconds": 2.0,
+      "rows": 101
+     },
+     "swept": {
+      "swept_radius_m": 1.304402039670064,
+      "swept_radius_bl": 0.7415407247959663,
+      "turning_circle_m": 2.608804079340128,
+      "turning_circle_bl": 1.4830814495919327,
+      "set_by": "tail: cover_tail_seg_20",
+      "at_s": 20.38,
+      "inner_radius_m": 0.5963912913208455,
+      "inner_radius_bl": 0.3390430380957734,
+      "farthest_by_part_m": {
+       "head": 1.162405603705526,
+       "left foot": 0.9697146615571979,
+       "left leg": 0.975224291758717,
+       "right foot": 0.7914443705593935,
+       "right leg": 0.8378221469537733,
+       "tail": 1.304402039670064,
+       "trunk": 1.054597124167215
+      },
+      "farthest_by_part_bl": {
+       "head": 0.6608170392747285,
+       "left foot": 0.5512739869360254,
+       "left leg": 0.5544061617170658,
+       "right foot": 0.4499289439387475,
+       "right leg": 0.4762942890363468,
+       "tail": 0.7415407247959663,
+       "trunk": 0.5995288967966537
+      }
+     },
+     "corner_box_robot": {
+      "along_min_m": -0.9554861953713885,
+      "along_min_bl": -0.5431852330033584,
+      "along_max_m": 1.2251410965500664,
+      "along_max_bl": 0.6964815977617266,
+      "sideways_min_m": -0.47312761570041967,
+      "sideways_min_bl": -0.26896875686902416,
+      "sideways_max_m": 2.7982978321305425,
+      "sideways_max_bl": 1.590806928788557
+     },
+     "corridor": {
+      "width_m": 0.8006095290693205,
+      "width_bl": 0.45513925339674266,
+      "far_wall_along_m": 1.2251410965500664,
+      "far_wall_along_bl": 0.6964815977617266,
+      "outer_wall_sideways_m": -0.47312761570041967,
+      "outer_wall_sideways_bl": -0.26896875686902416,
+      "inner_corner_m": [
+       0.42453156748074594,
+       0.3274819133689008
+      ],
+      "inner_corner_bl": [
+       0.24134234436498397,
+       0.1861704965277185
+      ],
+      "inner_corner_set_by": "right leg: cover_right_thigh_upper"
+     },
+     "turned_at_judged_instant_deg": 88.60525881230937
+    },
+    "pose_check": {
+     "feet_xy": 8.881784197001252e-16,
+     "com_xy": 1.7763568394002505e-15,
+     "feet_height": 2.7755575615628914e-16
+    }
+   },
+   "simulated": [],
+   "simulated_note": "no record yet",
+   "figure": {
+    "svg": "turn_t90_0.5_right.svg",
+    "png": "turn_t90_0.5_right.png",
+    "caption": "Top view of 90\u00b0 turn to the right (0.5 rad/s) at 0.40 m/s on F25F9cl (the candidate); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move; the dashed box is the corner box of the planned root. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
+    "simulated_from": null
+   }
+  }
+ ],
+ "no_reference": [
+  {
+   "condition": "turn/t90_1_left",
+   "move": "turn90_1_left",
+   "reason": "no reference within the thigh twist and the leg drives: no stride factor of the grid passes the kinematic rule (thigh twist at most 0.85 of its range, every other gated joint at least 0.05 rad of range, ik_ok, in both directions)",
+   "reference": "transitions/turn90_1_left"
+  },
+  {
+   "condition": "turn/t90_1_right",
+   "move": "turn90_1_right",
+   "reason": "no reference within the thigh twist and the leg drives: no stride factor of the grid passes the kinematic rule (thigh twist at most 0.85 of its range, every other gated joint at least 0.05 rad of range, ik_ok, in both directions)",
+   "reference": "transitions/turn90_1_right"
+  }
+ ],
+ "records_not_read": [],
+ "records_seen": [],
+ "provenance": {
+  "git": {
+   "commit": "af7450995d42bf0e19c959ff9b52d82b17934c21",
+   "dirty": false,
+   "dirty_paths": []
+  },
+  "at": "2026-11-15T20:33:07Z",
+  "module": "designlab/stage2/barviews.py",
+  "module_sha256": "15984d063cd3030e7af45c7985525c3abfa4c7e08eb4dd2107d667790edbb297"
+ }
+}
