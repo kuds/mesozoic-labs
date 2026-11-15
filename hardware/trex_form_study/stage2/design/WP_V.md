@@ -146,3 +146,25 @@ For a list of (set, condition, row), render the episode chosen by the rule below
 Return: what you built (files, public functions, commands), the acceptance results, anything in this brief you could
 not do or read differently and why, and anything you saw in the records or traces that looks wrong (say what and
 where; change nothing).
+
+---
+
+## LEAD ADDENDUM 1, 15 Nov, 19:50 UTC (read before you build; it overrides the text above where they differ)
+
+- **Your worktree** is `/home/user/mesozoic-wt/wp-v` (branch `wt/wp-v`). The three frozen sets' arrays and Stage 1's
+  input arrays are copied in (`sets verify` passes there). The interpreter is
+  `/home/user/mesozoic-labs/hardware/trex_form_study/.venv/bin/python`.
+- **The panels' chain runs in the main checkout**, not in your worktree. Its records and traces are under
+  `/home/user/mesozoic-labs/hardware/trex_form_study/stage2/runs/2026-11-15-75cm/` (`<set>/75-M-H-10/...`,
+  `budget.json`). That directory is **read-only for you**: read records and traces from it by absolute path (give your
+  commands a `--run DIR` option whose default is the worktree-relative run directory), and write every output into
+  your own worktree (`stage2/runs/2026-11-15-75cm/views/` there) or your scratch directory. Never write, lock, move
+  or delete anything in the main checkout. A record or a trace may be half-written or missing at the moment you look:
+  read defensively (a record that does not parse, or a trace whose sha256 is not the record's, is skipped and listed).
+- **The chain's order**: task 3 (the walk at every delay, then the speed ladder) first, then task 4 (turns, nudges,
+  the stop). Turn traces will appear part-way through your work; make acceptance item 2 and 3 pass on what exists, and
+  say in your report which records existed when you ran them.
+- Records exist for delays of 0 to 10 ms and for two fitted controllers and the open-loop row. Episodes that fall are
+  common in some records. The selection rule stands as written. The lead chooses which records get clips; make
+  `barviews clips` take a list (set, condition, row) and also a `--all-gated --row ROW` shorthand.
+- Scratch directory: `/tmp/claude-0/-home-user-mesozoic-labs/2dca1c00-13f3-5853-acf6-8c3e3e04feb6/scratchpad/wp_v/`.
