@@ -38,6 +38,21 @@ Section 6's point 10, added the same night and ruled: the quick turn's hip roll 
 stride factor 0.8, under A12's 0.10 rad; A12 stands and the stride rule (A11) now reads it too, so V0's turn is
 expected at factor 0.70 (`../hiproll_scan.json`).
 
+## Owner's directions of 15 Nov, afternoon (decision log P34 to P36)
+
+- P34: Stage 1's limits for the reference checks of moves; F25F9 starts straight into its 0.40 m/s walk. Written into
+  `STAGE2_75_PLAN.md` (A7, A8, A11, A12), each labelled. The set builder was restarted with them in a follow-on
+  workflow (`trex-round-a-finish`, run `wf_9bf696c4-f69`: build S, two reviews, fix S; fix T from its recorded
+  review). Resuming the first workflow by run id was tried and stopped after two minutes: it ran finished reviews
+  again, because every call after the first live one runs live.
+- P35: the configuration stays as it is (no hip-range variant). The owner's page of the 75 cm results shows the
+  turning circle at each turn rate, planned and measured apart, and video clips of the behaviours (the 90 degree turn
+  among them).
+- P36: after the main panels, a carpet side-check on a thin-carpet model set from published figures for commercial
+  loop-pile carpet tile, checked independently, its rules committed before its first episode; reported rows only.
+- Usage: the owner read 11 % at about 16:00 UTC, when the cost figure gave 12 % (76 USD since the reset; 1 % is about
+  6.9 USD). The owner has one more reset this week.
+
 ## Update, 15 Nov, 14:15 UTC: the limit was hit at 07:36 UTC; the owner reset it; work resumed at 13:56
 
 - **The limit.** The account's Fable limit was reached at 07:36 UTC, when the lead's highest estimate of the meter
