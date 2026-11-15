@@ -1384,7 +1384,8 @@ def test_stop_and_turn_from_v0(tmp_path):
     assert ref["touchdown_foot"] == ["right", "left"] and ref["accel_filter"]["after"] == "at rest (the stand)"
     assert ref["touchdowns_scheduled"] == 2 and len(ref["touchdown_scheduled_s"]) == 2
     for built, planned in zip(ref["touchdown_s"], ref["touchdown_scheduled_s"], strict=True):
-        assert 0.0 <= built - planned < stop["duration_s"] / (stop["frames"] - 1)  # the first stance frame after it
+        # V0's duty puts no scheduled touchdown on a frame: the file's time is its own first stance frame, after it
+        assert 0.0 < built - planned < stop["duration_s"] / (stop["frames"] - 1)
     assert [st["after_command"] for st in stop["steps"]] == [False, True, True] and stop["move"]["command_phase"] == -0.5
     assert ref["accel_forward_lp1hz_peak_m_s2"] < ref["accel_forward_raw_peak_m_s2"]
     assert 0.0 < ref["accel_forward_raw_peak_t_s"] < stop["duration_s"]
