@@ -1206,34 +1206,65 @@ def forward_acceleration(t, com_xy, heading, fs: float = ACCEL_FS, before=None, 
 
 def _accel_reading(g: dict, ref_a, ref_b) -> dict:
     """A move's own forward-acceleration readings (``forward_acceleration``): the peak of the 1 Hz low-passed series
-    and of the unfiltered one, each over the move's own frames, with the instants.  The filter's history is gait a's
-    periodic stride before the first frame and gait b's after the last (``walk_forward_acceleration`` of their
-    references), or rest for the stand; a causal move's first frame has its second difference from the computed
-    frame before the command."""
+    and of the unfiltered one, each over the move's own frames, with the instants.  A causal move's first frame has
+    its second difference from the computed frame before the command.
+
+    The filter's history, per end, and ``accel_filter`` says which: rest for the stand; else the gait's periodic
+    stride from its reference (``walk_forward_acceleration``: a one-stride ``refs.Reference``; the look solver's own
+    reader of that name where it has one); else, where no such reference can be read (none was given, or it is
+    another kind of object, as a look window), the move's own stride at that end, repeated: the warm-up stride of a
+    causal move (the walk as this solve reproduced it), the first or the last output stride otherwise (they join
+    the gait within the move's own gates)."""
     from ..stage1 import metrics
 
-    pl = g["plan"]
+    pl, n = g["plan"], N_FRAMES
     o = pl.out
-    t = pl.t[o] - pl.t[o][0]
-    reader = _walk_reader(g["move"].laws, "walk_forward_acceleration")
-
-    def played(ref, phase0: float, sign: int):
-        """What plays before (``sign`` -1: the frames up to one before ``phase0``) or after (+1: from ``phase0``)."""
-        if ref is None:
-            return None
-        m = int(math.ceil(ACCEL_HISTORY_S / ref.step))
-        k = np.arange(-m, 0) if sign < 0 else np.arange(m)
-        return reader(ref, phase0 + k / N_FRAMES), ref.step
-
+    t, heading = pl.t[o] - pl.t[o][0], pl.heading[o]
     w = g.get("warmup")
     prev = None if w is None else (float(w["t"][-2]), w["com"][-2, :2])
-    tu, lp, raw = forward_acceleration(t, g["com"][:, :2], pl.heading[o], before=played(ref_a, float(pl.first), -1),
-                                       after=played(ref_b, float(pl.last), +1), prev=prev)
+    look = _solver(g["move"].laws) if g["move"].laws.solver == "look" else None
+
+    def from_reference(ref, phase0: float, sign: int):
+        reader = None if look is None else getattr(look, "walk_forward_acceleration", None)
+        if reader is None:
+            if not (isinstance(ref, refs.Reference) and {"com", "stride_motion", "dt"} <= set(ref.arrays)):
+                return None
+            reader = walk_forward_acceleration
+        m = int(math.ceil(ACCEL_HISTORY_S / ref.step))
+        k = np.arange(-m, 0) if sign < 0 else np.arange(m)
+        return reader(ref, phase0 + k / n), ref.step
+
+    def from_own_frames(sign: int):
+        if sign < 0 and w is not None:  # the stride before the command, from the first computed frame on
+            a = second_difference(w["t"], w["com"][:, :2])
+            hw = pl.heading[o.start + 1 - len(w["t"]) : o.start + 1]
+            s, dt = (a[:, 0] * np.cos(hw) + a[:, 1] * np.sin(hw))[:-1][-n:], float(w["t"][-1] - w["t"][-2])
+            which = "the move's own warm-up stride"
+        else:
+            a = second_difference(t, g["com"][:, :2], prev)
+            f = a[:, 0] * np.cos(heading) + a[:, 1] * np.sin(heading)
+            s, dt = (f[:n], float(t[1] - t[0])) if sign < 0 else (f[-n:], float(t[-1] - t[-2]))
+            which = "the move's own " + ("first" if sign < 0 else "last") + " output stride"
+        m = int(math.ceil(ACCEL_HISTORY_S / dt))
+        tiled = np.tile(s, int(math.ceil(m / len(s))))
+        return (tiled[len(tiled) - m :] if sign < 0 else tiled[:m], dt), which + ", repeated"
+
+    def played(ref, gait_, phase0: float, sign: int):
+        """What plays before (``sign`` -1: the frames up to one before ``phase0``) or after (+1: from ``phase0``):
+        (forward acceleration per frame, frame interval) or None for rest, and its description."""
+        if gait_.stand:
+            return None, "at rest (the stand)"
+        got = None if ref is None else from_reference(ref, phase0, sign)
+        if got is not None:
+            return got, f"the periodic stride of {ref.name}"
+        got, which = from_own_frames(sign)
+        return got, which + (" (no reference of the gait was given)" if ref is None else
+                             " (the gait's reference is not one saved stride)")
+
+    before, said_before = played(ref_a, pl.a, float(pl.first), -1)
+    after, said_after = played(ref_b, pl.b, float(pl.last), +1)
+    tu, lp, raw = forward_acceleration(t, g["com"][:, :2], heading, before=before, after=after, prev=prev)
     kl, kr = int(np.argmax(np.abs(lp))), int(np.argmax(np.abs(raw)))
-
-    def what(ref):
-        return "at rest (the stand)" if ref is None else f"the periodic stride of {ref.name}"
-
     return dict(accel_forward_lp1hz_peak_m_s2=float(abs(lp[kl])), accel_forward_lp1hz_peak_t_s=float(tu[kl]),
                 accel_forward_raw_peak_m_s2=float(abs(raw[kr])), accel_forward_raw_peak_t_s=float(t[kr]),
                 accel_filter=dict(hz=metrics.ACCEL_LP_HZ, order=metrics.ACCEL_LP_ORDER, zero_phase=True, fs_hz=ACCEL_FS,
@@ -1242,7 +1273,7 @@ def _accel_reading(g: dict, ref_a, ref_b) -> dict:
                                      + ("; the first frame's from the computed frame before the command"
                                         if prev is not None else "; the first frame takes its neighbour's value")
                                      + ", the last frame its neighbour's",
-                                  history_s=ACCEL_HISTORY_S, before=what(ref_a), after=what(ref_b),
+                                  history_s=ACCEL_HISTORY_S, before=said_before, after=said_after,
                                   read_over="the move's own frames only: the history enters the filter, not the "
                                             "peaks"))
 

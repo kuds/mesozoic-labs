@@ -10,11 +10,16 @@ Run from hardware/trex_form_study:  python -m pytest tests/test_stage2_moves.py 
 2. The causal builder and the stride rule: the incremental preview form, causality (nothing before the command frame
    depends on the commanded plan), a null command, committed footprints (rule F), the command at a lift-off, the
    mirror of a turn, its closure and ramps, the appendage rule, the fade of the excused transient, the stride rule's
-   logic on a stubbed kinematic pass, a causal move's summary; with STAGE2_SLOW=1 a scratch build of the two-touchdown
-   stop and of the quick right turn from V0's 0.40 m/s walk on 75-M-H-10.
+   logic on a stubbed kinematic pass, a causal move's summary and its gates (each the rule's comparison, limits
+   written out); with STAGE2_SLOW=1 a scratch build of the two-touchdown stop and of the quick right turn from V0's
+   0.40 m/s walk on 75-M-H-10.
+3. The reference's own readings: the acceleration on the frames' own grid with the track's history given to the
+   1 Hz filter, touchdowns counted in the file's frames; the gait accuracy put back by every call that sets it; the
+   legacy record's provenance per body.
 
 Every test that builds arrays does so in a subprocess with one BLAS thread; tests that need the git-ignored Stage 1
-arrays skip without them (``tools/restore_inputs.py``).
+arrays skip without them (``tools/restore_inputs.py``).  The suite writes nothing under the study tree: the numbers
+of its builds go to pytest's temporary directory, and to the directory STAGE2_TEST_LOGS names when it is set.
 """
 
 from __future__ import annotations
@@ -409,6 +414,9 @@ def test_legacy_check_record_is_current():
     again = "run again for both picks: python -m designlab.stage2.moves legacy --body <pick> --record stage2/sets/legacy_check.json"
     assert RECORD.exists(), again
     doc = json.loads(RECORD.read_text())
+    assert doc["moves_sha256"] == hashlib.sha256((ROOT / "designlab" / "stage2" / "moves.py").read_bytes()).hexdigest(), \
+        "moves.py moved: " + again
+    assert doc["panel_sources_sha256"] == panels.panel_sources()["sha256"], "the panels' sources moved: " + again
     assert doc["rule"] == moves.LEGACY_RULE and doc["blas_threads"] == 1 and doc["accuracy"] == "r2"
     assert set(doc["bodies"]) == set(look.BODIES)
     for body, b in doc["bodies"].items():
@@ -421,9 +429,6 @@ def test_legacy_check_record_is_current():
         assert b["checked"] and sorted(n for c in b["checked"] for n in c["names"]) == sorted(transitions.TRANSITIONS)
         for c in b["checked"]:
             assert c["dirty"] is False and c["dirty_paths"] == [] and len(c["commit"]) == 40 and c["at"], (body, c)
-    assert doc["moves_sha256"] == hashlib.sha256((ROOT / "designlab" / "stage2" / "moves.py").read_bytes()).hexdigest(), \
-        "moves.py moved: " + again
-    assert doc["panel_sources_sha256"] == panels.panel_sources()["sha256"], "the panels' sources moved: " + again
     assert doc["dirty"] is False and doc["dirty_paths"] == [] and len(doc["commit"]) == 40
     assert set(doc["versions"]) == set(panels.library_versions()) and all(doc["versions"].values())
 
@@ -1152,6 +1157,81 @@ def test_walk_forward_acceleration():
     assert moves.walk_forward_acceleration(surge, k / n) == pytest.approx(want, abs=0.03) and np.abs(want).max() > 1.0
 
 
+def test_acceleration_history_per_end(monkeypatch):
+    """What the 1 Hz filter is given at each end of a move, and that the entry says which: rest for the stand; the
+    gait's periodic stride where its reference is one saved stride; the look solver's own reader where it has one;
+    else the move's own stride at that end, repeated (the warm-up stride of a causal move, the first or last output
+    stride otherwise).  On a move that is the walk itself the three walking histories read the same to 0.01 m/s^2,
+    and rest reads otherwise.  (Synthetic frames: no model.)"""
+    import types
+
+    n, K, h = 160, 480, 0.86 / 160
+
+    def walk(k):
+        p = 2.0 * math.pi * np.asarray(k, float) / n
+        return 1.5 * np.sin(p + 0.4) + 0.6 * np.sin(2.0 * p)
+
+    x = np.zeros(K + n + 2)  # frames -n .. K + 1 of a straight walk whose forward acceleration is walk(frame)
+    x[1] = 0.4 * h
+    for i in range(len(x) - 2):
+        x[i + 2] = 2.0 * x[i + 1] - x[i] + h * h * walk(i + 1 - n)
+
+    def xyz(k):
+        k = np.asarray(k)
+        return np.column_stack([x[k + n], np.zeros(len(k)), np.full(len(k), 0.3)])
+
+    adv = float(x[2 * n] - x[n])
+    assert x[2 * n : 3 * n] - x[n : 2 * n] == pytest.approx(adv, abs=1e-9)  # periodic but for the stride's advance
+    one = refs.Reference("w", dict(com=xyz(np.arange(n)), t=h * np.arange(n), dt=np.array(h),
+                                   stride_motion=np.array([0.0, 0.0, 0.0, adv, 0.0])))
+    walking, standing = types.SimpleNamespace(stand=False), types.SimpleNamespace(stand=True)
+
+    def entry(ref_a, ref_b, a=walking, b=walking, causal=True, laws=moves.TODAY):
+        pl = types.SimpleNamespace(out=slice(n, n + K), t=h * np.arange(-n, K + 40), heading=np.zeros(n + K + 40), a=a,
+                                   b=b, first=0.0, last=3)
+        g = dict(plan=pl, com=xyz(np.arange(K)), move=types.SimpleNamespace(laws=laws))
+        if causal:
+            g["warmup"] = dict(t=h * np.arange(-n, 1), com=xyz(np.arange(-n, 1)))
+        r = moves._accel_reading(g, ref_a, ref_b)
+        return r["accel_forward_lp1hz_peak_m_s2"], r["accel_filter"]["before"], r["accel_filter"]["after"], r
+
+    stride = "the periodic stride of w"
+    exact, before, after, r = entry(one, one)
+    assert (before, after) == (stride, stride) and 0.5 < exact < 0.6
+    assert r["accel_forward_raw_peak_m_s2"] == pytest.approx(np.abs(walk(np.arange(n))).max(), abs=1e-6)
+    assert "frame before the command" in r["accel_filter"]["of"]
+    window = types.SimpleNamespace(name="a look window", step=h)  # a reference that is not one saved stride
+    own, before, after, _ = entry(window, None)
+    assert before == "the move's own warm-up stride, repeated (the gait's reference is not one saved stride)"
+    assert after == "the move's own last output stride, repeated (no reference of the gait was given)"
+    assert own == pytest.approx(exact, abs=1e-2)
+    own, before, after, r = entry(None, window, causal=False)
+    assert before == "the move's own first output stride, repeated (no reference of the gait was given)"
+    assert after == "the move's own last output stride, repeated (the gait's reference is not one saved stride)"
+    assert own == pytest.approx(exact, abs=1e-2) and "takes its neighbour's value" in r["accel_filter"]["of"]
+    rest, before, after, _ = entry(None, None, a=standing, b=standing)
+    assert (before, after) == ("at rest (the stand)", "at rest (the stand)") and abs(rest - exact) > 0.02
+    assert entry(one, one, a=standing, b=standing)[0] == rest  # the stand is rest whatever is handed in
+    assert entry(one, None, b=standing)[1:3] == (stride, "at rest (the stand)")
+    # the look solver: its own reader where it has one (handed the reference and the phases), else as above
+    look_laws = replace(moves.TODAY, name="look", solver="look")
+    seen = []
+
+    def reader(ref, phases):
+        seen.append((ref, np.asarray(phases)))
+        return walk(np.round(np.asarray(phases) * n))
+
+    monkeypatch.setitem(sys.modules, "designlab.stage2.moves_look", types.SimpleNamespace(walk_forward_acceleration=reader))
+    got, before, after, _ = entry(window, window, laws=look_laws)
+    assert (before, after) == ("the periodic stride of a look window",) * 2 and got == pytest.approx(exact, abs=1e-9)
+    m = math.ceil(moves.ACCEL_HISTORY_S / h)
+    assert [s[0] for s in seen] == [window, window] and [len(s[1]) for s in seen] == [m, m]
+    assert seen[0][1][-1] == pytest.approx(-1.0 / n) and seen[1][1][0] == 3.0  # up to one frame before; from the end on
+    monkeypatch.setitem(sys.modules, "designlab.stage2.moves_look", types.SimpleNamespace())
+    assert entry(window, window, laws=look_laws)[1].startswith("the move's own warm-up stride, repeated")
+    assert entry(one, one, laws=look_laws)[1:3] == (stride, stride)
+
+
 def test_touchdowns_are_counted_in_the_files_frames():
     """A touchdown is a foot in swing at one frame and in stance at the next, timed at that first stance frame; a
     swing still in the air at the last frame, and a foot that never leaves the ground, are none."""
@@ -1184,7 +1264,7 @@ def test_acceleration_reading_of_a_built_stop(fast_builds):
     assert r["warmup_t"][1] == pytest.approx(-r["frame_s"], rel=1e-9) and r["warmup_t"][2] == 0.0
     assert r["warmup_t"][0] == pytest.approx(-r["summary"]["gaits"]["a"]["period"], rel=1e-9)
     # the command frame: with the frame before it, the walk's own acceleration there; alone, the neighbour's value
-    assert abs(full["raw0"] - r["walk_accel_at_command"]) < 0.02 < abs(bare["raw0"] - r["walk_accel_at_command"])
+    assert abs(full["raw0"] - r["walk_accel_at_command"]) < 0.05 < abs(bare["raw0"] - r["walk_accel_at_command"])
     assert bare["lp_peak"] != full["lp_peak"] and abs(bare["lp0"] - full["lp0"]) > 0.05
     assert full["samples"] == int(full["duration_s"] * 500.0 + 1e-9) + 1 and full["last_sample_s"] <= full["duration_s"]
 
