@@ -26,6 +26,13 @@ Levers (``CASES``):
   the pick's drives against the expressive head's loads.  Nothing is adopted (P24), and P2's deferral of a jaw for
   the build stands.
 
+* ``jetson_75`` (Stage 2, ``JETSON_PLEM_REVIEW.md`` section 5 task 6, owner decision P30): the 75 cm pick with the
+  Jetson Orin Nano Super dev kit as its compute part and a 6S-to-12 V regulator for the dev kit's carrier
+  (``JETSON_RULE``; ``build.COMPUTE_REGULATOR_STANDOFF_M``).  Not re-sized, as the expressive head's cases are: the
+  pick's sized record with the compute changed and the regulator placed (``jetson_one``); the Teensy control stack
+  stays (the owner's baseline: the walking loop on the microcontroller).  Nothing is adopted (P24); P14's Raspberry
+  Pi 5 set stays the adopted compute, and no power mode is chosen (``jetson.power_modes`` holds both).
+
 ``carpet_lift`` (separate pass, no re-sizing): the carpet swing target needs a higher swing than the reference
 walks' 0.10-0.11 H.  For each listed body and each lift, the nominal and brisk walks are regenerated with that
 lift and checked against the body's selected drives (sizing rules: continuous = max(nominal RMS, hold),
@@ -179,6 +186,66 @@ for _case, (_base, _cid) in HEAD_X_BASE.items():
                         base_case=_base, head_x=True,
                         label=f"{CASES[_base]['label']} + expressive head (neck yaw, jaw; not re-sized)")
 del _case, _base, _cid
+#: Stage 2's Jetson body (``JETSON_PLEM_REVIEW.md`` section 5 task 6; module docstring): the compute part, the regulator
+#: placed for its carrier with the catalog parts it was chosen from, the override that places it (``build.Design``) and
+#: the pick the case builds on.  As for the expressive head, the case's sizing settings are its base case's.
+JETSON_COMPUTE = "nvidia_orin_nano_super_devkit"
+JETSON_REGULATOR = "pololu_d42v110f12"
+JETSON_REGULATOR_OPTIONS = ("pololu_d36v50f12", "pololu_d42v110f12")
+JETSON_OVERRIDES = (("compute_regulator", 1),)
+JETSON_BASE = {"jetson_75": ("feet_75", "75-M-H-10")}
+#: The most the dev kit's carrier can pass to USB devices, W: its four USB 3.2 Type-A ports are two stacked pairs with
+#: a 3 A VBUS limit each, at 5 V (``designlab/data/research/parts_2026-11-07.json``, ``jetson_orin_nano_super_devkit``:
+#: "VBUS 3 A per stacked pair"; the compute survey: "3 A VBUS limit per dual stack").  The head camera is fed there.
+JETSON_USB_VBUS_W = 2 * 3.0 * 5.0
+JETSON_RULE = (
+    "the base case's sized record of the pick (its overrides with the packaging search's, B, drives, pack, structure "
+    "and the sizing's mass guess) with the selection's compute part changed to the Jetson Orin Nano Super dev kit, "
+    "which the build places in the chest tray as it places any compute part, and the compute_regulator option on (the "
+    "selection's 6S-to-12 V regulator as a box on the power box: build.COMPUTE_REGULATOR_STANDOFF_M); built once, not "
+    "re-sized: no drive, pack or packaging step is re-selected, and the Teensy control stack stays (owner decision "
+    "P30: the walking loop stays on the microcontroller).  Its requirements use the base case's sizing walks and its "
+    "margins are against the pick's drives.  The record's power and runtime book the dev kit at power.COMPUTE_BUDGET's "
+    "row, as every record books its compute part (round one's 31 W allowance, A13); jetson.power_modes books it at "
+    "each of its two power modes (power.COMPUTE_MODE_BUDGET), since no mode is chosen")
+JETSON_REGULATOR_RULE = (
+    "the lightest of the catalog's 12 V regulators (JETSON_REGULATOR_OPTIONS; the carrier's DC jack takes 9-20 V and a "
+    "6S pack is at 25.2 V full, DECISION_LOG E7) whose rated output covers the dev kit's worst case at the jack in "
+    "both power modes, since no mode is chosen: the mode's rail budget (power.COMPUTE_MODE_BUDGET: the module's cap "
+    "plus 3 W of carrier, storage and cooling) plus the most the carrier can pass to its USB ports "
+    "(JETSON_USB_VBUS_W), the carrier's own conversion loss left out.  The rated output is the catalog's power_max_w "
+    "(12 V times the vendor's continuous current at its stated input voltage; the vendor gives a range of currents "
+    "over input voltage and no figure at 6S, so this is the catalog's one point, not a rating at 20-25 V)")
+JETSON_HOME_RULE = (
+    "the build solves the stance for the body as built (pipeline.build_candidate: statics.solve_stance shifts the feet "
+    "fore and aft so that the centre of mass is centred over the support, the trunk pose fixed), so the Jetson body's "
+    "home is not the pick's: the legs' joints differ (joint_change_rad) and against_base and com_ahead_of_hip_m's "
+    "change compare two stances, the changed parts with the re-solved stance.  against_base_at_pick_pose and "
+    "com_ahead_of_hip_m's change_at_pick_pose compare the Jetson body posed at the pick's home with the pick: the "
+    "changed parts alone, as sizing.requirements reads them from that pose")
+#: What the pick's record holds of the Raspberry Pi set, and what leaves with it (``jetson.pi_set``).
+JETSON_PI_SET_DECISION = (
+    "leaves: the compute row (catalog part rpi5_8gb_ai_hat_plus_13tops, one part: the Pi 5, its cooler and the AI "
+    "HAT+; its 0.100 kg leaves out the SSD) and the set's two power rows (pi5_ai_hat_plus, usb_ssd), which the dev "
+    "kit's rows replace.  Stays: the compute tray's 0.12 kg allowance (NVMe, fan duct, mounts and leads: the build "
+    "gives it to every compute part and resizes its envelope with the board), the 0.30 kg power box, the control "
+    "stack and the IMU (the Teensy stays), and the 4 W MCU row.  The record holds no 5 V supply for the Pi and no SSD "
+    "as items of their own (the catalog part's note names a 5 V, 5 A buck and a USB SSD; neither has a ledger row), so "
+    "there is none to remove")
+#: The Jetson-direct option's parts (``JETSON_PLEM_REVIEW.md`` section 6 decision 2), which are not the baseline and
+#: are not placed: the USB-CAN adapter (one per CAN bus; the study's control stack runs two) and a supervisor.
+JETSON_DIRECT_ADAPTER = "pcan_usb_fd"
+JETSON_NOT_PLACED_RULE = (
+    "not the baseline (owner decision P30: the microcontroller runs the walking loop and the CAN buses), so not "
+    "placed and in no mass, centre of mass or screen of this body.  would_add_kg is the catalog mass times the "
+    "count, and with_reserve_kg that plus the model's 6 % integration reserve: estimates of what the Jetson-direct "
+    "option would add, with no position.  The catalog holds no supervisor part, so no mass is given for one")
+for _case, (_base, _cid) in JETSON_BASE.items():
+    CASES[_case] = dict(CASES[_base], ids=(_cid,), overrides=tuple(CASES[_base]["overrides"]) + JETSON_OVERRIDES,
+                        base_case=_base, jetson=True,
+                        label=f"{CASES[_base]['label']} + Jetson Orin Nano Super dev kit and its 12 V regulator "
+                              "(not re-sized)")
+del _case, _base, _cid
 CARPET_LIFT_IDS = ("60-N-H-10", "60-N-T-10", "60-M-T-10", "60-M-H-10", "75-M-T-10-bighead")
 LIFTS = (0.13, 0.16, 0.19, 0.22)
 
@@ -218,6 +285,8 @@ def _size(a):
     _init(case)
     if CASES[case].get("head_x"):  # Stage 2's expressive head: the pick plus the head's drives, not re-sized
         return dict(case=case, **head_x_one(case, cid, out))
+    if CASES[case].get("jetson"):  # Stage 2's Jetson body: the pick with the dev kit and its regulator, not re-sized
+        return dict(case=case, **jetson_one(case, cid, out))
     r = round2.size_one(cid, out, str(Path(out) / "models"), base_overrides=CASES[case]["overrides"])
     p = Path(out, "candidates", f"{cid}.json")
     d = json.loads(p.read_text())
@@ -375,11 +444,15 @@ def head_x_seams(xml) -> dict:
                 seams=seams, cover_behind_hinge=jaw.get("cover_behind_hinge"), decision=HEAD_X_RANGES_DECISION)
 
 
-def head_x_at_pick_pose(base_rec: dict, r: dict, sel: dict) -> dict:
+def head_x_at_pick_pose(base_rec: dict, r: dict, sel: dict, rule: str = HEAD_X_HOME_RULE, pick_reader=None) -> dict:
     """``HEAD_X_HOME_RULE``: the pick rebuilt from its record (its model's sha256 checked) for its home pose; the
     head-X model's home against it (the trunk's pose and each leg joint's change); and the head-X body posed at the
     pick's home (the new joints at 0): its centre of mass ahead of the hip and ``sizing.requirements`` from that pose,
-    against the pick's drives (``_margins``).  ``r`` is ``head_x_build``'s result."""
+    against the pick's drives (``_margins``).  ``r`` is ``head_x_build``'s result.
+
+    The Jetson body uses it too (``jetson_one``, ``r`` from ``jetson_build``), with its own ``rule`` and a
+    ``pick_reader(pick build, pick xml)`` whose result is returned as ``pick`` (the rebuilt pick's files are gone
+    afterwards); neither changes what the head-X records hold."""
     import hashlib
     import tempfile
 
@@ -393,6 +466,8 @@ def head_x_at_pick_pose(base_rec: dict, r: dict, sel: dict) -> dict:
         pk = pipeline.build_candidate(round2.candidate(base_rec["id"], base_rec.get("overrides", ())), Path(tmp),
                                       selection=dict(base_rec["selection"]), B=float(base_rec["B"]), write=False)
         sha = hashlib.sha256((Path(tmp) / f"{base_rec['id']}.xml").read_bytes()).hexdigest()
+        picked = pick_reader(pk, Path(tmp) / f"{base_rec['id']}.xml") if pick_reader is not None and sha == base_rec[
+            "xml_sha256"] else None
     if sha != base_rec["xml_sha256"]:
         raise ValueError(f"the pick rebuilt with xml sha256 {sha[:12]}..., its record {base_rec['xml_sha256'][:12]}...")
     m0, q0 = pk["model"].m, np.asarray(pk["q_home"], float)
@@ -410,12 +485,15 @@ def head_x_at_pick_pose(base_rec: dict, r: dict, sel: dict) -> dict:
         elif qx[ax] != q0[a0]:
             joints[name] = float(qx[ax] - q0[a0])
     M.forward(q)
-    com_pick = float(M.com()[0])
+    com_vec = [float(v) for v in M.com()]
+    com_pick = com_vec[0]
     M.forward(qx)
     worst = max(joints.items(), key=lambda kv: abs(kv[1]), default=(None, 0.0))
-    out = dict(home_pose=dict(rule=HEAD_X_HOME_RULE, pick_xml_sha256=sha, trunk_pose_change_max=root,
+    out = dict(home_pose=dict(rule=rule, pick_xml_sha256=sha, trunk_pose_change_max=root,
                               joint_change_rad=joints, largest_joint_change=[worst[0], worst[1]]),
                com_ahead_of_hip_at_pick_pose_m=com_pick)
+    if pick_reader is not None:  # the Jetson body's readings (the head-X records take the keys above only)
+        out.update(com_at_pick_pose_m=com_vec, pick=picked)
     try:
         req = sizing.requirements(M, q, design.sk.H, design.cand.leg_layout)
         out["margins_at_pick_pose"] = _margins(design, req, sel)
@@ -506,6 +584,385 @@ def head_x_one(case: str, cid: str, out: str) -> dict:
                    gait_accuracy=gait.ACCURACY, seconds=time.time() - t0, ok=True,
                    refine_case=case, headroom=c["headroom"], headroom_by_group=dict(c.get("headroom_by_group") or {}),
                    fr05_sizing=c["fr05"], turn_min_gap_mm=c["min_gap"], head_x=head_x)
+    except Exception as e:  # keep failed cases, as round2.size_one does
+        doc = dict(id=cid, rev=round2.REV, ok=False, error=repr(e), traceback=traceback.format_exc(),
+                   seconds=time.time() - t0, refine_case=case)
+    Path(out, "candidates").mkdir(parents=True, exist_ok=True)
+    Path(out, "candidates", f"{cid}.json").write_text(json.dumps(doc, indent=1, default=round2._json))
+    return dict(id=cid, ok=doc["ok"], seconds=doc["seconds"])
+
+
+# ------------------------------------------------------------------------------------------------
+# Stage 2's Jetson body (jetson_75): the pick with the dev kit and its regulator, not re-sized
+# ------------------------------------------------------------------------------------------------
+#: Trunk hardware pairs whose home-pose gap ``jetson_chest`` reads (ledger item names; a pair with an item the model
+#: lacks is left out): the compute board and its tray against the power box, the hip-roll motors and what else shares
+#: the chest, the power box against the hip-roll motors, and the regulator against everything near it.
+JETSON_CHEST_PAIRS = tuple(
+    [(a, b) for a in ("compute", "compute_tray") for b in ("power_distribution", "left_hip_roll_motor",
+                                                           "right_hip_roll_motor", "spine_beam", "neck_motor", "tof_l",
+                                                           "tof_r")]
+    + [("power_distribution", b) for b in ("left_hip_roll_motor", "right_hip_roll_motor", "tof_l", "tof_r",
+                                           "pelvis_plate_l", "pelvis_plate_r")]
+    + [("compute_regulator", b) for b in ("power_distribution", "compute", "compute_tray", "left_hip_roll_motor",
+                                          "right_hip_roll_motor", "spine_beam", "pelvis_plate_l", "pelvis_plate_r",
+                                          "tof_l", "tof_r", "battery_cassette", "control_stack")])
+JETSON_CHEST_ITEMS = ("compute", "compute_tray", "power_distribution", "compute_regulator")
+JETSON_CHEST_RULE = (
+    "at the home pose, with the clearance screen's geoms and distance oracle (clearance._Screen): gaps_mm, the signed "
+    "distance of each listed pair of trunk hardware boxes (negative: they intersect; a box inside its own envelope, "
+    "as the compute board in its tray, reads negative and is counted under nested_envelopes); nearest_other_body, "
+    "the closest screened geom of another rigid body (a leg, the head, the tail) to each item; "
+    "same_body_component_overlaps, the screen's own reading behind its component_overlap_free gate; and "
+    "trunk_profile_margin_mm, each item's corners against the as-built trunk profile with the build's 8 mm + 2 mm "
+    "allowance (Design.profile_margin; positive: inside).  The trunk's own covers are not paired with its hardware: "
+    "the screen's cover pieces are convex hulls that contain it.  The walking gates read the moving pairs over the "
+    "walks (the case's clearance screen)")
+
+
+def jetson_base(case: str, out) -> tuple[Path, dict]:
+    """The base case's sized record of the Jetson case's pick (``JETSON_BASE``): its path and contents."""
+    base, cid = JETSON_BASE[case]
+    p = Path(out).parent / base / "candidates" / f"{cid}.json"
+    return p, json.loads(p.read_text())
+
+
+def jetson_candidate(case: str, base_rec: dict) -> tuple:
+    """(candidate, selection, B) of the Jetson body (``JETSON_RULE``): the base record's with the regulator's override
+    added to its overrides, and in its selection the compute part changed and the regulator named."""
+    from . import round2
+
+    _, cid = JETSON_BASE[case]
+    ov = tuple(tuple(o) for o in base_rec.get("overrides", ())) + JETSON_OVERRIDES
+    sel = dict(base_rec["selection"], compute=JETSON_COMPUTE, compute_regulator=JETSON_REGULATOR)
+    return round2.candidate(cid, ov), sel, float(base_rec["B"])
+
+
+def jetson_build(case: str, base_rec: dict, models_dir) -> dict:
+    """Build the Jetson body once (``JETSON_RULE``) into ``models_dir`` and evaluate it as the sizing evaluates its
+    final build: writes ``<models_dir>/<id>.xml`` and the model ledger ``<id>.json`` with its evaluation, as
+    ``pipeline.size_candidate`` writes them.  The case's sizing settings must be set first (``_init``)."""
+    from . import mjcf, pipeline, sizing
+
+    cand, sel, B = jetson_candidate(case, base_rec)
+    models_dir = Path(models_dir)
+    res = pipeline.build_candidate(cand, models_dir, selection=sel, B=B, write=False)
+    design = res["design"]
+    req = sizing.requirements(res["model"], res["q_home"], design.sk.H, cand.leg_layout)
+    history = [dict(iteration="jetson", mass=res["summary"]["mass"],
+                    selection=dict(joints=sel["joints"], neck=sel["neck"], tail=sel["tail"], bus=sel["bus"],
+                                   battery=sel["battery"], compute=sel["compute"],
+                                   compute_regulator=sel["compute_regulator"]),
+                    notes=[f"not re-sized: {JETSON_RULE}"])]
+    ev = _evaluate(design, res, req, sel, history)
+    mjcf.write_ledger(design, res["rows"], models_dir / f"{cand.id}.json",
+                      extra=dict(summary=res["summary"], evaluation=ev))
+    return dict(res, requirements=req, evaluation=ev, selection=sel, candidate=cand)
+
+
+def jetson_regulators() -> dict:
+    """``JETSON_REGULATOR_RULE`` on the catalog: each mode's worst case at the dev kit's jack, each candidate
+    regulator's catalog figures and which modes its rated output covers, and the rule's choice."""
+    from . import catalog, power
+
+    modes = {m: sum(v.values()) for m, v in power.COMPUTE_MODE_BUDGET[JETSON_COMPUTE].items()}
+    worst = {m: w + JETSON_USB_VBUS_W for m, w in modes.items()}
+    kit = catalog.part(JETSON_COMPUTE)
+    options = {}
+    for pid in JETSON_REGULATOR_OPTIONS:
+        r = catalog.part(pid)
+        options[pid] = dict(model=r.model, mass_kg=r.mass, dims_m=list(r.dims), price_usd=r.price,
+                            max_input_v=r.voltage, output_v=12.0, rated_output_a=r.max_current,
+                            rated_output_w=r.power_max, basis=r.basis,
+                            covers={m: bool(w <= r.power_max) for m, w in worst.items()},
+                            load_fraction_at_rail_budget={m: w / r.power_max for m, w in modes.items()},
+                            load_fraction_at_worst_case={m: w / r.power_max for m, w in worst.items()})
+    both = sorted((o["mass_kg"], pid) for pid, o in options.items() if all(o["covers"].values()))
+    return dict(rule=JETSON_REGULATOR_RULE, pack_full_v=25.2, carrier_input_v="9-20 V at the DC jack (compute survey: "
+                "designlab/data/research/compute_2026-11-07.json, jetson_orin_nano_super_devkit); the catalog part's "
+                f"voltage_v is its own supply's {kit.voltage:g} V",
+                rail_budget_w=modes, usb_vbus_limit_w=JETSON_USB_VBUS_W, worst_case_at_jack_w=worst, options=options,
+                choice=both[0][1] if both else None, placed=JETSON_REGULATOR,
+                efficiency="the regulator's loss is in power.ETA_DCDC (0.88, A6), which every auxiliary rail takes; "
+                           "the vendor gives over 90 % for this part (catalog research record), so 0.88 is the lower "
+                           "of the two")
+
+
+def jetson_power(design, res: dict, req: dict, sel: dict, base_rec: dict) -> dict:
+    """``jetson.power_modes``: the Jetson body's walking power and runtime with the dev kit booked at each of its
+    power modes (``power.COMPUTE_MODE_BUDGET``), by the method of every record's ``power`` and ``runtime``
+    (``power.walking_power`` on the body's own nominal walk, ``power.runtime`` on its pack); and, for comparison only,
+    the 15 W mode at the compute survey's typical draw."""
+    from . import power, sizing
+
+    nom = req["runs"]["nominal"]["idr"]
+    ms = sizing._motor_space(res["model"].names, nom["tau"], nom["omega"], design.cand.leg_layout)
+    pack = power.catalog.part(sel["battery"])
+    base_min = base_rec["runtime"]["minutes"]
+    modes = {}
+    for mode, loads in power.COMPUTE_MODE_BUDGET[sel["compute"]].items():
+        pw = power.walking_power(design, req, ms, compute_mode=mode)
+        rt = power.runtime(pack, pw["total_w"])
+        modes[mode] = dict(compute_rail_w=sum(loads.values()), compute_loads=dict(loads), drives_w=pw["drives_w"],
+                           aux=pw["aux"], total_w=pw["total_w"], runtime=rt,
+                           runtime_change_against_base_min=rt["minutes"] - base_min,
+                           meets_target=bool(rt["minutes"] >= power.TARGET_MIN))
+    m15 = modes["15w"]
+    typ_rail = 12.0 + power.COMPUTE_MODE_BUDGET[sel["compute"]]["15w"]["carrier_storage_cooling"]
+    typ_total = m15["total_w"] - (m15["compute_rail_w"] - typ_rail) / power.ETA_DCDC
+    return dict(
+        rule="power.walking_power(design, requirements, the nominal walk's motor series, compute_mode) and "
+             "power.runtime(pack, total): the record's own power and runtime method, the dev kit's row replaced by the "
+             "mode's (power.COMPUTE_MODE_BUDGET); drives, MCU, sensors, the 0.88 converter and the 75 % usable energy "
+             "as in every record",
+        no_mode_chosen="DECISION_LOG P30", target_min=power.TARGET_MIN, pack=pack.id, modes=modes,
+        record_default=dict(rule="the record's own power and runtime: power.COMPUTE_BUDGET's row for the dev kit, "
+                                 "round one's 31 W allowance (A13), above either mode's budget",
+                            compute_rail_w=sum(power.COMPUTE_BUDGET[sel["compute"]].values())),
+        base=dict(compute=base_rec["selection"]["compute"],
+                  compute_rail_w=sum(power.COMPUTE_BUDGET[base_rec["selection"]["compute"]].values()),
+                  drives_w=base_rec["power"]["drives_w"], total_w=base_rec["power"]["total_w"],
+                  runtime_min=base_min),
+        survey_typical_15w=dict(
+            rule="for comparison, not a mode budget: the 15 W mode at the compute survey's typical draw, 12 W "
+                 "measured at the module with a detector running plus the same 3 W of carrier, storage and cooling "
+                 "(designlab/data/research/compute_2026-11-07.json, A_orin_nano_super_devkit: 'Typical 15.0 W'); the "
+                 "base's row is a typical draw too (A14).  First order: the 15 W mode's result with the rail's "
+                 "difference taken off through the converter",
+            compute_rail_w=typ_rail, total_w=typ_total, runtime_min=60.0 * pack.capacity_wh * power.USABLE / typ_total,
+            runtime_change_against_base_min=60.0 * pack.capacity_wh * power.USABLE / typ_total - base_min))
+
+
+def jetson_chest(xml, q_home, design) -> dict:
+    """``JETSON_CHEST_RULE``: the home-pose readings at the chest and the abdomen of the model at ``xml`` (the Jetson
+    body's, or its pick's for the comparison)."""
+    import numpy as np
+
+    from . import clearance
+
+    S = clearance._Screen(xml)
+    S.set_q(np.asarray(q_home, float))
+    items = {it.name: it for it in design.bodies["trunk"].items}
+
+    def gid(name):
+        g = S.gid(f"hw_{name}")
+        return g if g >= 0 else None
+
+    gaps = {}
+    for a, b in JETSON_CHEST_PAIRS:
+        ga, gb = gid(a), gid(b)
+        if ga is not None and gb is not None:
+            gaps[f"{a}|{b}"] = 1e3 * float(S.dist(ga, gb, 1.0))
+    nearest = {}
+    for name in JETSON_CHEST_ITEMS:
+        g = gid(name)
+        if g is None:
+            continue
+        best = (np.inf, None)
+        for x in map(int, S.screened):
+            if S.geom_grp[x] != S.geom_grp[g]:
+                d = float(S.dist(g, x, 1.0))
+                if d < best[0]:
+                    best = (d, x)
+        nearest[name] = dict(geom=S.gname[best[1]], body=S.body_of(best[1]), gap_mm=1e3 * best[0])
+    same = clearance._same_body_overlaps(S)
+    present = [n for n in JETSON_CHEST_ITEMS if n in items]
+    return dict(rule=JETSON_CHEST_RULE, gaps_mm=gaps, nearest_other_body=nearest,
+                same_body_component_overlaps=dict(overlaps=same["overlaps"], nested_envelopes=same["nested_envelopes"],
+                                                  structure_contacts=same["structure_contacts"]),
+                trunk_profile_margin_mm={n: {k: 1e3 * v for k, v in design.profile_margin(items[n]).items()}
+                                         for n in present},
+                centre_trunk_mm={n: [1e3 * float(v) for v in items[n].pos] for n in present},
+                size_mm={n: [1e3 * float(v) for v in items[n].size] for n in present})
+
+
+def _ledger_delta(rows0: list, rows1: list) -> list:
+    """The ledger rows that differ between two builds (mass, centre, size or body), added and removed rows included:
+    each with both masses, the change and both centres in its body's frame."""
+    a, b = {r["name"]: r for r in rows0}, {r["name"]: r for r in rows1}
+    out = []
+    for name in list(b) + [n for n in a if n not in b]:
+        r0, r1 = a.get(name), b.get(name)
+        if r0 is not None and r1 is not None and all(
+                json.dumps(r0[k], default=str) == json.dumps(r1[k], default=str)
+                for k in ("mass_kg", "com_body", "size", "body")):
+            continue
+        ref = r1 if r1 is not None else r0
+        m0, m1 = (0.0 if r is None else float(r["mass_kg"]) for r in (r0, r1))
+        out.append(dict(name=name, body=ref["body"], category=ref["category"],
+                        status="added" if r0 is None else "removed" if r1 is None else "changed",
+                        mass_kg=[m0, m1], mass_change_kg=m1 - m0,
+                        com_body=[None if r is None else [float(v) for v in r["com_body"]] for r in (r0, r1)],
+                        size=[None if r is None else [float(v) for v in r["size"]] for r in (r0, r1)],
+                        source=[None if r is None else r["source"] for r in (r0, r1)]))
+    return out
+
+
+def _pi_set(base_rec: dict, rows: list) -> dict:
+    """``jetson.pi_set``: what the pick's record and ledger hold of the Raspberry Pi set (its compute rows, its power
+    rows, and any row naming a supply, a converter, an SSD or a HAT), with ``JETSON_PI_SET_DECISION``."""
+    tokens = ("ssd", "nvme", "5 v", "buck", "regulator", "dc-dc", "dcdc", "converter", "hat", "rpi", "pi 5")
+    row = lambda r: dict(name=r["name"], body=r["body"], category=r["category"], mass_kg=float(r["mass_kg"]),  # noqa: E731
+                         source=r["source"])
+    named = [row(r) for r in rows if r["category"] != "compute"
+             and any(t in f"{r['name']} {r['source']}".lower() for t in tokens)]
+    from . import power
+
+    loads = base_rec["power"]["aux"]["loads"]
+    own = power.COMPUTE_BUDGET[base_rec["selection"]["compute"]]
+    return dict(compute_part=base_rec["selection"]["compute"],
+                compute_rows=[row(r) for r in rows if r["category"] == "compute"],
+                compute_power_rows_w={k: loads[k] for k in own},
+                other_power_rows_w={k: v for k, v in loads.items() if k not in own},
+                other_rows_naming_a_supply_converter_or_storage=named, searched_for=list(tokens),
+                decision=JETSON_PI_SET_DECISION)
+
+
+def jetson_one(case: str, cid: str, out: str) -> dict:
+    """The sized record of the Jetson body: ``jetson_build`` into ``<out>/models``, then ``<out>/candidates/<id>.json``
+    with ``round2.size_one``'s fields, the case's settings (as ``_size`` adds them) and ``jetson``: the rule, the base
+    record it builds on (path and sha256, its model's sha256), the parts it changes and adds against the pick's ledger,
+    the regulator's choice, what leaves with the Pi set, the home-pose readings at the chest beside the pick's, its
+    loads and margins beside the base's at both homes, its power and runtime in each power mode, the Jetson-direct
+    parts it does not place, and what one selection step on its loads would pick (recorded only)."""
+    import hashlib
+    import traceback
+
+    import designlab  # noqa: F401
+
+    from . import catalog, gait, metrics, mjcf, power, round2, sizing
+    from .stage_a import _mass_by_category, _mass_by_volume_class
+
+    gait.set_accuracy(round2.GAIT_ACCURACY)
+    t0 = time.time()
+    c = CASES[case]
+    try:
+        import numpy as np
+
+        bp, base = jetson_base(case, out)
+        r = jetson_build(case, base, Path(out) / "models")
+        d, sel, cand, ev, req = r["design"], r["selection"], r["candidate"], r["evaluation"], r["requirements"]
+        meas = metrics.measure(r["model"], d, r["q_home"])
+
+        def read_pick(pk, xml):
+            M0, q0 = pk["model"], np.asarray(pk["q_home"], float)
+            M0.forward(q0)
+            return dict(rows=pk["rows"], com=[float(v) for v in M0.com()], design=pk["design"],
+                        chest=jetson_chest(xml, q0, pk["design"]))
+
+        at_pick = head_x_at_pick_pose(base, r, sel, rule=JETSON_HOME_RULE, pick_reader=read_pick)
+        pick = at_pick["pick"]
+        delta = _ledger_delta(pick["rows"], r["rows"])
+        # the parts' sum: the pick's mass and centre with the changed rows' mass and first moment exchanged (every
+        # changed row is on the trunk, whose pose the two homes share: home_pose.trunk_pose_change_max)
+        m0 = sum(float(x["mass_kg"]) for x in pick["rows"])
+        m1 = sum(float(x["mass_kg"]) for x in r["rows"])
+        moment = np.zeros(3)
+        for row in delta:
+            if row["body"] != "trunk":
+                raise ValueError(f"{row['name']}: a changed ledger row off the trunk ({row['body']})")
+            for sign, mass, com in ((-1.0, row["mass_kg"][0], row["com_body"][0]), (1.0, row["mass_kg"][1],
+                                                                                   row["com_body"][1])):
+                if com is not None:
+                    moment += sign * mass * d.sk.to_world(np.asarray(com, float))
+        com_parts = (m0 * np.asarray(pick["com"]) + moment) / m1
+        chest = jetson_chest(Path(out) / "models" / f"{cid}.xml", r["q_home"], d)
+        pick_one = sizing.select(req, mass=r["summary"]["mass"], layout=cand.leg_layout)
+        current = dict(sel["joints"], neck=sel["neck"], tail=sel["tail"])
+        pmodes = jetson_power(d, r, req, sel, base)
+        pw = ev["power"]
+        peak_aux = lambda p: p["peak_drives_w"] + p["aux"]["input_w"]  # noqa: E731
+        bat = power.select_battery(pick_one["bus"], pw["total_w"], peak_aux(pw))
+        bat_modes = {m: power.select_battery(pick_one["bus"], v["total_w"], pw["peak_drives_w"] + v["aux"]["input_w"])
+                     for m, v in pmodes["modes"].items()}
+        over = sorted(g for g, m in ev["margins"].items() if max(m["cont_ratio"], m["peak_ratio"], m["speed_ratio"]) > 1.0)
+        kit, pi, reg = (catalog.part(x) for x in (JETSON_COMPUTE, base["selection"]["compute"], JETSON_REGULATOR))
+        adapter = catalog.part(JETSON_DIRECT_ADAPTER)
+        reserve = mjcf.INTEGRATION_RESERVE_FRACTION / (1 - mjcf.INTEGRATION_RESERVE_FRACTION)
+        part = lambda x: dict(part=x.id, model=x.model, mass_kg=x.mass, dims_m=list(x.dims), price_usd=x.price,  # noqa: E731
+                              power_typ_w=x.power_typ, power_max_w=x.power_max, basis=x.basis)
+        jetson = dict(
+            rule=JETSON_RULE, case=case, base_case=c["base_case"], base_record=bp.as_posix(),
+            base_record_sha256=hashlib.sha256(bp.read_bytes()).hexdigest(), base_xml_sha256=base["xml_sha256"],
+            decision="DECISION_LOG P30 (14 Nov 2026): the Jetson is studied as a refine case; P14's Raspberry Pi 5 set "
+                     "stays adopted; the walking loop stays on the microcontroller; no power mode is chosen",
+            compute=dict(part(kit), replaces=part(pi), placed="the chest tray, as build.py places a compute part"),
+            regulator=dict(jetson_regulators(), geometry=d.geometry_checks["compute_regulator"]),
+            overrides_added=[list(o) for o in JETSON_OVERRIDES],
+            selection_changed=dict(compute=[base["selection"]["compute"], sel["compute"]],
+                                   compute_regulator=[None, sel["compute_regulator"]]),
+            control_layer=dict(kept=["control_stack (Teensy 4.1, CAN x2, IMU), 0.18 kg", "imu", "the 4 W MCU row"],
+                               rule="the owner's baseline (P30): Jetson + microcontroller"),
+            pi_set=_pi_set(base, pick["rows"]),
+            not_placed=dict(rule=JETSON_NOT_PLACED_RULE, kind="estimate",
+                            usb_can_adapter=dict(part(adapter), count_per_can_bus=1,
+                                                 would_add_kg={"1": adapter.mass, "2": 2 * adapter.mass},
+                                                 with_reserve_kg={"1": adapter.mass * (1 + reserve),
+                                                                  "2": 2 * adapter.mass * (1 + reserve)}),
+                            supervisor=dict(part=None, would_add_kg=None, note="no catalog part")),
+            parts=delta, parts_mass_change_kg=sum(row["mass_change_kg"] for row in delta),
+            ledger_mass_kg=dict(jetson=m1, base=m0, change=m1 - m0),
+            mass_kg=dict(jetson=meas["mass"], base=base["metrics"]["mass"],
+                         change=meas["mass"] - base["metrics"]["mass"]),
+            com_at_pick_pose_m=dict(jetson=at_pick["com_at_pick_pose_m"], base=pick["com"],
+                                    change=[a - b for a, b in zip(at_pick["com_at_pick_pose_m"], pick["com"],
+                                                                  strict=True)],
+                                    from_parts=[float(v) for v in com_parts],
+                                    from_parts_change=[float(a - b) for a, b in zip(com_parts, pick["com"], strict=True)],
+                                    note="both bodies at the pick's home pose; from_parts: the pick's mass and centre "
+                                         "with the changed ledger rows' masses and first moments exchanged"),
+            com_ahead_of_hip_m=dict(jetson=meas["com_ahead_of_hip"], base=base["metrics"]["com_ahead_of_hip"],
+                                    change=meas["com_ahead_of_hip"] - base["metrics"]["com_ahead_of_hip"],
+                                    jetson_at_pick_pose=at_pick["com_ahead_of_hip_at_pick_pose_m"],
+                                    change_at_pick_pose=at_pick["com_ahead_of_hip_at_pick_pose_m"]
+                                    - base["metrics"]["com_ahead_of_hip"],
+                                    note="change: each body at its own home (two stances); change_at_pick_pose: the "
+                                         "Jetson body at the pick's home (home_pose)"),
+            com_height_m=dict(jetson=meas["com_height"], base=base["metrics"]["com_height"],
+                              change=meas["com_height"] - base["metrics"]["com_height"]),
+            home_pose=at_pick["home_pose"],
+            exterior_m={k: dict(jetson=meas[k], base=base["metrics"][k], change=meas[k] - base["metrics"][k])
+                        for k in ("crown", "max_width", "torso_width", "hardware_width", "thigh_width", "length")},
+            trunk_widened_for_hardware=dict(jetson=d.geometry_checks.get("trunk_widened_for_hardware"),
+                                            base=base["geometry_checks"].get("trunk_widened_for_hardware")),
+            chest=dict(jetson=chest, base=pick["chest"]),
+            groups_over_planning_limit=over,
+            meets_case_headroom={g: bool(sizing.meets(d.act(g), req["groups"][g],
+                                                      sel["bus"] if d.act(g).box is None else None, g))
+                                 for g in req["groups"]},
+            against_base=_against(dict(margins=ev["margins"]), base),
+            against_base_at_pick_pose=(_against(dict(margins=at_pick["margins_at_pick_pose"]), base)
+                                       if "margins_at_pick_pose" in at_pick
+                                       else dict(error=at_pick["margins_at_pick_pose_error"])),
+            loads_between_stances=(_stance_effect(_against(dict(margins=ev["margins"]), base),
+                                                  _against(dict(margins=at_pick["margins_at_pick_pose"]), base))
+                                   if "margins_at_pick_pose" in at_pick else None),
+            power_modes=pmodes,
+            heat=dict(modelled=False,
+                      note="heat is not modelled anywhere in this study: the dev kit's 15-25 W module (18-28 W at the "
+                           "rail) against the Pi set's 8-9.5 W, in a closed chest, is an open hardware question"),
+            selection_if_resized=dict(
+                rule="one step of sizing.select on these loads with the case's headroom, and power.select_battery "
+                     "on its walking power (the record's own, and each power mode's): recorded only (the sizing loop, "
+                     "which would iterate on the re-selected parts' masses, is not run, and nothing here is "
+                     "re-selected)",
+                choice=pick_one["choice"], bus=pick_one["bus"], battery=bat["pack"], notes=pick_one["notes"],
+                differs={g: [current.get(g), p] for g, p in pick_one["choice"].items() if current.get(g) != p},
+                battery_differs=bat["pack"] != sel["battery"], bus_differs=pick_one["bus"] != sel["bus"],
+                battery_by_mode={m: dict(pack=b["pack"], differs=b["pack"] != sel["battery"],
+                                         meets_target=b["meets_target"]) for m, b in bat_modes.items()}))
+        doc = dict(id=cid, rev=round2.REV, candidate=dict(height=cand.height, width=cand.width, family=cand.family,
+                                                          posture=cand.posture, proportion=cand.proportion,
+                                                          leg_layout=cand.leg_layout, battery_pos=cand.battery_pos),
+                   B=d.B, H=d.sk.H, xml_sha256=r["summary"]["xml_sha256"], selection=dict(sel), metrics=meas,
+                   margins=ev["margins"], holds=ev["holds"], power=ev["power"], runtime=ev["runtime"], cost=ev["cost"],
+                   gaits=ev["gaits"], sizing_history=ev["sizing_history"], walk_feasible=ev["walk_feasible"],
+                   geometry_checks=d.geometry_checks, notes=d.notes,
+                   overrides=[list(o) for o in cand.overrides if o[0] != "rev"], packaging_search=[],
+                   mass_by_category=_mass_by_category(r["rows"]), mass_by_volume_class=_mass_by_volume_class(r["rows"]),
+                   gait_accuracy=gait.ACCURACY, seconds=time.time() - t0, ok=True,
+                   refine_case=case, headroom=c["headroom"], headroom_by_group=dict(c.get("headroom_by_group") or {}),
+                   fr05_sizing=c["fr05"], turn_min_gap_mm=c["min_gap"], jetson=jetson)
     except Exception as e:  # keep failed cases, as round2.size_one does
         doc = dict(id=cid, rev=round2.REV, ok=False, error=repr(e), traceback=traceback.format_exc(),
                    seconds=time.time() - t0, refine_case=case)

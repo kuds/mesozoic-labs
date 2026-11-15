@@ -86,6 +86,23 @@ HEAD_X_META = "expressive_head"
 #: Clearance and wall allowance of the trunk profile around hardware (``Design._required_profile``); the expressive
 #: head's neck-yaw servo is checked against the as-built profile with the same allowance.
 PROFILE_CLEAR_M, PROFILE_WALL_M = 0.008, 0.002
+#: Stage 2's Jetson body (``JETSON_PLEM_REVIEW.md`` section 5 task 6; owner decision P30: the Jetson Orin Nano Super dev
+#: kit is studied as a refine case, P14's Raspberry Pi 5 set stays adopted, nothing is chosen).  The dev kit itself is
+#: the selection's ``compute`` part, placed in the chest tray as every compute part is.  One candidate override, off by
+#: default, so every earlier model is built exactly as before:
+#:
+#: * ``compute_regulator``: the selection's ``compute_regulator`` part (a 6S-to-12 V step-down regulator for the dev
+#:   kit's carrier, whose DC jack takes 9-20 V while a 6S pack is at 25.2 V full; DECISION_LOG E7) as a box on the power
+#:   box's top face, centred, on ``COMPUTE_REGULATOR_STANDOFF_M`` standoffs, in the power box's frame: the 6S bus is
+#:   there and the 12 V lead runs forward to the carrier.  Its mass is the catalog's plus
+#:   ``COMPUTE_REGULATOR_LEADS_KG`` for its standoffs, the 12 V lead and its plug (an estimate).  It is placed after the
+#:   covers, so the trunk profile, the covers and every other item stay as they are without it; where it sits is
+#:   recorded (``geometry_checks["compute_regulator"]``).  It is an installed part like any other: the integration
+#:   reserve (``mjcf.body_inertials``) counts it.
+COMPUTE_REGULATOR_STANDOFF_M = 0.005
+COMPUTE_REGULATOR_LEADS_KG = 0.010
+#: The ledger key that marks the regulator's item (``Item.meta``), with the part id as its value.
+COMPUTE_REGULATOR_META = "compute_regulator"
 
 G = 9.81
 
@@ -161,6 +178,8 @@ class Design:
         # Stage 2's expressive head (NECK_YAW_RANGE above): off unless the candidate asks for it
         self.neck_yaw = bool(cand.override("neck_yaw_joint", 0))
         self.jaw = bool(cand.override("jaw_joint", 0))
+        # Stage 2's Jetson body (COMPUTE_REGULATOR_STANDOFF_M above): off unless the candidate asks for it
+        self.compute_regulator = bool(cand.override("compute_regulator", 0))
         self.struct_al_equiv_extra = 0.0  # aluminium-equivalent mass minus actual mass of converted beams (cost)
         self.struct_conv_al = 0.0  # aluminium-equivalent mass of converted beams
         self.fk = T.family_key(cand.family, self.rev)
@@ -404,6 +423,8 @@ class Design:
         self._place_lidar()
         if self.head_x_groups:
             self._place_expressive_head()
+        if self.compute_regulator:
+            self._place_compute_regulator()
 
     # ------------------------------------------------------------------ legs
     def _place_legs(self):
@@ -1015,6 +1036,50 @@ class Design:
                      "the skull, its lower part inside the jaw cover at home; the clearance screen lists any overlap "
                      "with the head's other components (same_body_component_overlaps)")
         self.geometry_checks["expressive_head"] = out
+
+    def profile_margin(self, it: hw.Item) -> dict:
+        """A trunk item's box or cylinder against the as-built trunk profile (``self.prof``, after the covers), with
+        ``_required_profile``'s allowance (``PROFILE_CLEAR_M`` + ``PROFILE_WALL_M``): the least margin of its corners
+        to the dorsal line, the ventral line and the half-width, m (positive: inside).  A reading only: it changes
+        nothing in the design."""
+        sk = self.sk
+        corners = _corners(it)
+        unb = corners.copy()
+        mask = corners[:, 0] > sk.pivot[0]
+        unb[mask] = (ry(-sk.bend) @ (corners[mask] - sk.pivot).T).T + sk.pivot
+        allow = PROFILE_CLEAR_M + PROFILE_WALL_M
+        mg = dict(dorsal=np.inf, ventral=np.inf, half_width=np.inf)
+        for p in unb:
+            st = self.prof.at(float(p[0]))
+            mg["dorsal"] = min(mg["dorsal"], st["dorsal"] - (p[2] + allow))
+            mg["ventral"] = min(mg["ventral"], (p[2] - allow) - st["ventral"])
+            mg["half_width"] = min(mg["half_width"], st["half"] - (abs(p[1]) + allow))
+        return {k: float(v) for k, v in mg.items()}
+
+    # ------------------------------------------------------------------ compute regulator (Stage 2, the Jetson body)
+    def _place_compute_regulator(self):
+        """The compute rail's step-down regulator (``COMPUTE_REGULATOR_STANDOFF_M`` above): the selection's
+        ``compute_regulator`` part flat on the power box's top face, marked ``COMPUTE_REGULATOR_META``.  It is placed
+        after the covers and leaves them as they are; ``geometry_checks["compute_regulator"]`` records where it sits
+        and how it fits the as-built trunk profile."""
+        part = catalog.parts()[self.sel["compute_regulator"]]
+        box = next(it for it in self.bodies["trunk"].items if it.name == "power_distribution")
+        lift = 0.5 * box.size[2] + COMPUTE_REGULATOR_STANDOFF_M + 0.5 * part.dims[2]
+        pos = box.pos + box.rot @ np.array([0.0, 0.0, lift])
+        it = hw.box_item("compute_regulator", "trunk", "power", part.mass + COMPUTE_REGULATOR_LEADS_KG, pos, part.dims,
+                         "A", part.basis, part.id, hw.BOARD_RGBA, rot=box.rot, cost_nom=part.price,
+                         cost_high=part.price * 1.1, meta={COMPUTE_REGULATOR_META: part.id})
+        self.add(it)
+        mg = self.profile_margin(it)
+        self.geometry_checks["compute_regulator"] = dict(
+            part=part.id, on="power_distribution", centre_trunk=pos.tolist(), size_m=list(map(float, part.dims)),
+            standoff_m=COMPUTE_REGULATOR_STANDOFF_M, part_mass_kg=float(part.mass),
+            leads_and_mount_kg=COMPUTE_REGULATOR_LEADS_KG, mass_kg=float(it.mass),
+            trunk_profile_margin_m=mg, inside_trunk_profile=bool(min(mg.values()) >= 0.0),
+            trunk_profile_rule=f"each corner {1e3 * PROFILE_CLEAR_M:g} mm + {1e3 * PROFILE_WALL_M:g} mm inside the "
+                               "as-built profile (Design._required_profile's allowance)",
+            source="JETSON_PLEM_REVIEW.md section 5 task 6; DECISION_LOG E7 and P30",
+            note="placed after the covers, which are the body's without it (the trunk profile is not widened for it)")
 
     def _required_profile(self) -> shapes.TrunkProfile:
         """Widen/deepen the designed trunk profile where hardware needs more room (class A/B)."""

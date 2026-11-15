@@ -41,6 +41,26 @@ COMPUTE_BUDGET = {  # W at the compute rail, before the DC-DC, by selected compu
 AUX_FIXED = {  # W (PR #662 auxiliary budget, kept as the baseline)
     "mcu_comms": 4.0,
 }
+#: Stage 2's Jetson body (refine case ``jetson_75``; DECISION_LOG P30: the dev kit is studied, no power mode is chosen):
+#: the dev kit's two capped power modes, W at the compute rail before the DC-DC, by compute part and mode.  They stand
+#: beside ``COMPUTE_BUDGET``, which is unchanged: a call without a mode books the part's row there (the dev kit's 31 W,
+#: A13), so every earlier record and ``compute_options`` reproduce.  Each mode is booked at its cap, not at a typical
+#: draw (draft A19; ``stage2/j/JETSON_BODY.md``):
+#:   * ``jetson_module``: the mode's module power cap, 15 W and 25 W (NVIDIA's nvpmodel modes; catalog part
+#:     ``nvidia_orin_nano_super_devkit``, 15 W typical and 25 W maximum; ``COMPUTE.md``);
+#:   * ``carrier_storage_cooling``: 3 W for the carrier, the NVMe and the fan, the top of the compute survey's
+#:     unmeasured 2-3 W estimate (``designlab/data/research/compute_2026-11-07.json``, architecture
+#:     ``A_orin_nano_super_devkit``: "Max 18.0 W = 15 W mode cap (vendor) + 3 W" and "25 W mode: 25 + 3 = 28.0 W at the
+#:     board").  An estimate: nobody has measured the kit at the converter input in either mode (``COMPUTE.md`` bench
+#:     test 1).
+#: The survey's typical draw in the 15 W mode is lower (15.0 W: 12 W measured at the module with a detector running,
+#: plus the same 3 W); the Pi 5 set's row above is a typical draw too (A14), so the two are not like for like.
+COMPUTE_MODE_BUDGET = {
+    "nvidia_orin_nano_super_devkit": {
+        "15w": {"jetson_module": 15.0, "carrier_storage_cooling": 3.0},
+        "25w": {"jetson_module": 25.0, "carrier_storage_cooling": 3.0},
+    },
+}
 
 
 def drive_power(act: catalog.Actuator, tau: np.ndarray, w: np.ndarray) -> dict:
@@ -70,20 +90,27 @@ def drive_power(act: catalog.Actuator, tau: np.ndarray, w: np.ndarray) -> dict:
                 current_peak=float(current.max()), flags=flags)
 
 
-def aux_power(design) -> dict:
+def compute_loads(part: str, mode: str | None = None) -> dict:
+    """The compute rail's loads of a compute part, W before the DC-DC: its ``COMPUTE_BUDGET`` row, or with ``mode`` its
+    ``COMPUTE_MODE_BUDGET`` row for that power mode (a part or a mode without one raises ``KeyError``)."""
+    return dict(COMPUTE_BUDGET[part] if mode is None else COMPUTE_MODE_BUDGET[part][mode])
+
+
+def aux_power(design, compute_mode: str | None = None) -> dict:
     sensors = 0.0
     for b in design.bodies.values():
         for it in b.items:
             if it.category == "sensors" and it.power_nom:
                 sensors += it.power_nom
-    loads = dict(COMPUTE_BUDGET[design.sel["compute"]], **AUX_FIXED, sensors=sensors)
+    loads = dict(compute_loads(design.sel["compute"], compute_mode), **AUX_FIXED, sensors=sensors)
     total_load = sum(loads.values())
     return dict(loads=loads, load_w=total_load, input_w=total_load / ETA_DCDC)
 
 
-def walking_power(design, req, motor_series: dict) -> dict:
+def walking_power(design, req, motor_series: dict, compute_mode: str | None = None) -> dict:
     """Mean electrical power for the nominal reference walk.  ``motor_series[group]`` = (tau, w) with
-    both sides stacked; each group has two drives."""
+    both sides stacked; each group has two drives.  ``compute_mode`` books the compute part at one of its power modes
+    (``COMPUTE_MODE_BUDGET``) instead of its ``COMPUTE_BUDGET`` row; without it the result is as it always was."""
     per = {}
     total = 0.0
     peak = 0.0
@@ -97,7 +124,7 @@ def walking_power(design, req, motor_series: dict) -> dict:
         total += dp["mean"] * n_drives
         peak += dp["peak"] * n_drives
         flags += [f"{g}: {f}" for f in dp["flags"]]
-    aux = aux_power(design)
+    aux = aux_power(design, compute_mode)
     return dict(drives=per, drives_w=total, aux=aux, total_w=total + aux["input_w"], peak_drives_w=peak, flags=flags)
 
 
