@@ -35,7 +35,8 @@ from designlab.stage2 import regress, s2io  # noqa: E402
 BODY = "75-M-H-10"
 RUN = ROOT / "stage1" / "runs" / "2026-11-08"
 slow = pytest.mark.skipif(not os.environ.get("STAGE2_SLOW"), reason="8 closed-loop episodes; set STAGE2_SLOW=1")
-needs_plant = pytest.mark.skipif(not ((RUN / BODY / "refs" / "nominal.npz").exists() and round_two_models(BODY)),
+needs_plant = pytest.mark.skipif(not (all((RUN / BODY / "refs" / f"{g}.npz").exists() for g in ("nominal", "brisk"))
+                                      and round_two_models(BODY)),
                                  reason="the Stage 1 arrays or the round-two model files are not restored "
                                         "(tools/restore_inputs.py)")
 
@@ -79,9 +80,18 @@ def test_cases_only_name_committed_records():
 
 def test_cases_are_the_design_table():
     """Design 4.2: the fast tier is 8 episodes, the full tier adds seed 3042 of the 22 hard-floor conditions of two
-    bodies under two rows and the 160 Stage 1b turn episodes; ids are unique; no eval writes into a run directory."""
+    bodies under two rows and the 160 Stage 1b turn episodes; ids are unique; no eval writes into a run directory.
+    The full tier's own cases hold the fast tier's 8 episodes again, so its 256 comparisons are of 248 distinct
+    committed episodes (``regress.distinct``, ``COUNT_RULE``): 248 is what a full record proves."""
     n = {t: sum(len(regress.episodes_of(c)) for c in regress.cases_of(t)) for t in regress.TIERS}
-    assert n == {"fast": 8, "full": 8 + 2 * 2 * 22 + 2 * 4 * 20}
+    assert n == {"fast": 8, "full": 8 + 2 * 2 * 22 + 2 * 4 * 20} and n["full"] == 256
+    named = {t: [dict(run=c["run"], body=c["body"], row=r, condition=k, seed=s) for c in regress.cases_of(t)
+                 for r, k, s in regress.episodes_of(c)] for t in regress.TIERS}
+    assert {t: regress.distinct(named[t]) for t in regress.TIERS} == {"fast": 8, "full": 2 * 2 * 22 + 2 * 4 * 20}
+    assert regress.distinct(named["full"]) == 248 == regress.distinct(named["full"][8:])  # the fast 8 are in the rest
+    assert regress.distinct(named["fast"] + named["fast"]) == 8 and regress.distinct([]) == 0
+    assert regress.distinct([dict(named["fast"][0], case="a"), dict(named["fast"][0], case="b")]) == 1
+    assert regress.distinct([named["fast"][0], dict(named["fast"][0], run="another/run")]) == 2
     assert len({c["id"] for c in regress.CASES}) == len(regress.CASES)
     assert regress.cases_of("fast") == [c for c in regress.CASES if c["tier"] == "fast"]
     assert regress.cases_of("full") == list(regress.CASES)
@@ -230,6 +240,8 @@ def test_run_case_keeps_its_result_and_the_evidence(tmp_path, monkeypatch):
     log_text = (scratch / "logs" / "synthetic.log").read_text()
     assert log_text.startswith("$ python -m designlab.stage1 eval --body B ") and "the eval's own output" in log_text
     assert lines == ["synthetic: 2 of 2 episodes match (0 s)"]
+    assert regress._kept(case, scratch, dict(k=1)) == json.loads(json.dumps(s2io.plain(doc)))
+    assert regress._kept(case, scratch, dict(k=2)) is None  # another key: other sources, versions or regress.py
 
     # a difference: reported line by line, the regenerated files kept for inspection
     _rewrite(regenerated, lambda eps: eps[1].update(strides=1.0))
@@ -240,6 +252,7 @@ def test_run_case_keeps_its_result_and_the_evidence(tmp_path, monkeypatch):
     assert lines[-1].startswith("  DIFFERENT B R2/42 turn/x_left seed 3043: trace equal, record differs at strides")
     assert (scratch / "work" / "synthetic" / "B" / "eval").is_dir()
     assert not (scratch / "work" / "synthetic" / "stale.txt").exists()  # each attempt starts from an empty directory
+    assert regress._kept(case, scratch, dict(k=1))["matched"] == 1  # the eval ran to its end: its difference is kept
 
     # an eval that fails matches nothing, whatever it wrote
     _rewrite(regenerated, lambda eps: eps[1].update(strides=eps[0]["strides"]))
@@ -249,6 +262,15 @@ def test_run_case_keeps_its_result_and_the_evidence(tmp_path, monkeypatch):
     assert all(e["note"] == "the eval exited with code 3" for e in doc["episodes"])
     assert all(e["trace_sha256"] == e["recorded"] for e in doc["episodes"])  # read, and still not a match
     assert "eval exit code 3" in lines[-3] and (scratch / "work" / "synthetic").is_dir()
+    # ... and is not kept (RESUME_RULE): the next run on this scratch directory starts that eval again
+    assert json.loads((scratch / "cases" / "synthetic.json").read_text())["returncode"] == 3
+    assert regress._kept(case, scratch, dict(k=1)) is None
+    state["code"] = -9  # killed by a signal
+    assert regress.run_case(case, scratch, dict(k=1), log=lines.append)["returncode"] == -9
+    assert regress._kept(case, scratch, dict(k=1)) is None
+    state["code"] = 0
+    assert regress.run_case(case, scratch, dict(k=1), log=lines.append)["matched"] == 2
+    assert regress._kept(case, scratch, dict(k=1))["returncode"] == 0
 
 
 def test_differing_is_exact():
@@ -270,14 +292,16 @@ def _record(tier="full") -> dict:
                     recorded="0" * 64, trace_equal=True, record_equal=True)
                for c in regress.cases_of(tier) for r, k, s in regress.episodes_of(c)]
     return dict(schema=regress.SCHEMA, tier=tier, cases=entries, matched=len(entries), of=len(entries),
-                sources=regress.sources())
+                distinct=regress.distinct(entries), sources=regress.sources())
 
 
-def test_check_reads_the_record_against_todays_code(tmp_path):
+def test_check_reads_the_record_against_todays_code(tmp_path, capsys):
     path = tmp_path / "regress.json"
     s2io.write_json(path, _record())
+    assert (_record()["of"], _record()["distinct"]) == (256, 248)
     assert regress.check(path) == []
     assert regress.main(["check", "--record", str(path)]) == 0
+    assert "256 of 256 episode runs matched, 248 distinct committed episodes" in capsys.readouterr().out
 
     for key in regress.SOURCE_KEYS:  # each of the four hashes is read
         doc = _record()
@@ -298,9 +322,19 @@ def test_check_reads_the_record_against_todays_code(tmp_path):
     s2io.write_json(path, doc)
     assert any(line.startswith("matched 255 of 256") for line in regress.check(path))
 
+    for wrong in (256, None):  # the count of distinct committed episodes is the listed ones', not the comparisons'
+        doc = _record()
+        doc["distinct"] = wrong
+        if wrong is None:
+            del doc["distinct"]
+        s2io.write_json(path, doc)
+        diff = regress.check(path)
+        assert len(diff) == 2 and diff[0] == f"distinct is {wrong!r}; the record lists 248 different committed episodes"
+
     doc = _record()  # a record of other cases than today's
     del doc["cases"][-1]
     doc["matched"] = doc["of"] = 255
+    doc["distinct"] = 247
     s2io.write_json(path, doc)
     assert any("lists 255 episodes, today's full tier names 256" in line for line in regress.check(path))
 
@@ -340,11 +374,16 @@ def test_run_writes_the_record_and_keeps_finished_cases(stubbed, monkeypatch):
     calls, state, tmp = stubbed
     lines = []
     doc = regress.run("fast", record=tmp / "r.json", scratch=tmp / "scratch", log=lines.append)
-    assert calls == [c["id"] for c in regress.cases_of("fast")] and (doc["matched"], doc["of"]) == (8, 8)
+    assert calls == [c["id"] for c in regress.cases_of("fast")]
+    assert (doc["matched"], doc["of"], doc["distinct"]) == (8, 8, 8)
+    assert lines[-1].startswith("fast tier: 8 of 8 episode runs match their committed trace and episode record "
+                                "(8 episode runs, 8 distinct; ")
     saved = json.loads((tmp / "r.json").read_text())
     assert saved == json.loads(json.dumps(s2io.plain(doc)))
-    assert set(saved) >= {"tier", "cases", "matched", "of", "sources", "versions", "blas_threads", "commit", "dirty",
-                          "at", "rules", "commands", "regress_sha256"}
+    assert set(saved) >= {"tier", "cases", "matched", "of", "distinct", "sources", "versions", "blas_threads", "commit",
+                          "dirty", "at", "rules", "commands", "regress_sha256"}
+    assert saved["rules"] == dict(regress=regress.RULE, clean=regress.CLEAN_RULE, resume=regress.RESUME_RULE,
+                                  count=regress.COUNT_RULE, check=regress.CHECK_RULE)
     assert saved["tier"] == "fast" and saved["blas_threads"] == 1 and saved["dirty"] is False
     assert saved["sources"] == regress.sources() and set(saved["sources"]) == set(regress.SOURCE_KEYS)
     assert saved["versions"] == panels.library_versions() and len(saved["commit"]) == 40
@@ -360,7 +399,22 @@ def test_run_writes_the_record_and_keeps_finished_cases(stubbed, monkeypatch):
     assert calls == [] and again["cases"] == doc["cases"] and any("kept from" in line for line in lines)
     full = regress.run("full", scratch=tmp / "scratch", log=lines.append)
     assert calls == [c["id"] for c in regress.CASES if c["tier"] == "full"]
-    assert (full["matched"], full["of"]) == (256, 256)
+    assert (full["matched"], full["of"], full["distinct"]) == (256, 256, 248)
+    assert lines[-1].startswith("full tier: 256 of 256 episode runs match their committed trace and episode record "
+                                "(256 episode runs, 248 distinct; ")
+    s2io.write_json(tmp / "full.json", full)
+    assert regress.check(tmp / "full.json") == []  # the stub's full record is current: the sources are today's
+
+    # a kept case whose eval exited non-zero (killed, or failed) runs again; a kept result without an exit code too
+    kept = tmp / "scratch" / "cases" / "fast-75-M-H-10.json"
+    for change in (dict(returncode=3), dict(returncode=-9), dict(returncode=None), None):
+        was = json.loads(kept.read_text())
+        assert was["returncode"] == 0
+        s2io.write_json(kept, dict(was, **change) if change else {k: v for k, v in was.items() if k != "returncode"})
+        del calls[:]
+        again = regress.run("fast", scratch=tmp / "scratch", log=lines.append)
+        assert calls == ["fast-75-M-H-10"] and (again["matched"], again["of"]) == (8, 8), change
+        assert "fast-60-N-T-10-10ms: kept from" in lines[-2] and json.loads(kept.read_text())["returncode"] == 0
 
     # a kept case of other sources, or of another regress.py, runs again
     del calls[:]
@@ -481,8 +535,11 @@ def test_window_strides_key(monkeypatch):
     """A reference whose file holds a window of K strides and says so (``window_strides``) gives a segment whose
     feedback quantities are the one-stride reference's frame for frame (``info["period"]`` is one stride), whose
     ``period`` is still the window (it drives the wrap) and whose joint targets are the one-stride track's at the
-    same times; an episode on it counts strides, not windows.  Without the key nothing changes: a Stage 1 reference's
-    segment is what ``add_periodic`` built before the edit, and a window is read as one long stride, as it was."""
+    same times; an episode on it counts strides, not windows.  The stride is ``(n // K) * step``, the one-stride
+    reference's period bit for bit for every K (K = 2 and K = 3 here; the window's period over K is not, see the brisk
+    walk below); a K that is under 1 or does not divide the window's frames is refused.  Without the key nothing
+    changes: a Stage 1 reference's segment is what ``add_periodic`` built before the edit, and a window is read as
+    one long stride, as it was."""
     p = plant.build(BODY, "hard", settle=False)
     ref = Reference.load(RUN / BODY / "refs" / "nominal.npz")
     assert "window_strides" not in ref.arrays
@@ -545,3 +602,43 @@ def test_window_strides_key(monkeypatch):
     assert np.array_equal(qa, qb) and np.array_equal(qa, p.d.qpos)
     assert b["strides"] == a["strides"] and b["reference_strides"] == a["reference_strides"] and a["strides"] > 0
     assert c["strides"] == a["strides"] / 2 and c["reference_strides"] == a["reference_strides"] / 2
+
+    # refused: a key under 1, or one that does not divide the window's frames (a stride is a whole number of frames)
+    assert ref.n % 3 and (2 * ref.n) % 7
+    n_asked = len(asked)
+    for arrays, k in ((ref.arrays, 3), (_tiled(ref, 2, key=False).arrays, 7), (ref.arrays, 0), (ref.arrays, -2)):
+        bad = Reference("bad", dict(arrays, window_strides=np.array(k)))
+        track = control.Track(p, om)
+        with pytest.raises(ValueError, match=f"window_strides {k} does not divide its {bad.n} frames"):
+            track.add_periodic(bad, 1.0)
+        assert track.segments == [] and track.t_end == 0.0
+    assert len(asked) == n_asked  # refused before anything is built
+    whole = Reference("whole", dict(ref.arrays, window_strides=np.array(1)))  # the key at 1 is the default
+    assert control.Track(p, om).add_periodic(whole, 1.0).segments[0].stride_s == ref.period
+    assert asked[-1] == (ref.period, ref.n)
+
+    # K = 3, on the brisk walk: there (3 * n * step) / 3 is one ulp off n * step, so the stride has to come from the
+    # frames, (n // K) * step, to be the one-stride period bit for bit, and an episode's strides with it
+    brisk = Reference.load(RUN / BODY / "refs" / "brisk.npz")
+    win3 = _tiled(brisk, 3, key=True)
+    assert win3.period / 3 != brisk.period  # what makes this reference tell the two expressions apart
+    om_b = control.omega0(p, brisk.q_home)
+    b1 = control.Track(p, om_b).add_periodic(brisk, 3.0)
+    b3 = control.Track(p, om_b).add_periodic(win3, 1.0)
+    single, three = b1.segments[0], b3.segments[0]
+    assert asked[-1] == (brisk.period, brisk.n) and type(asked[-1][0]) is float and type(asked[-1][1]) is int
+    assert three.stride_s == single.stride_s == brisk.period and set(three.info["period"]) == {brisk.period}
+    assert three.period == win3.period == (3 * brisk.n) * brisk.step and three.n == 3 * brisk.n
+    assert three.step == brisk.step and three.duration == win3.period
+    assert set(three.info) == set(single.info)
+    for k, v in single.info.items():
+        _same(three.info[k], np.concatenate([v, v, v]) if isinstance(v, np.ndarray) else v + v + v)
+    assert np.array_equal(three.S, np.concatenate([single.S, single.S, single.S]))
+    end = min(b1.t_end, b3.t_end)  # 3 * (n * step) and (3 * n) * step may differ in the last bit
+    for t in np.r_[np.linspace(0.0, end, 901, endpoint=False), np.arange(3 * brisk.n) * brisk.step]:
+        assert np.array_equal(b3.joint(float(t)), b1.joint(float(t))), t
+    a = control.run(control.Tracker(p, b1, "R0"), 0.6)
+    qa = p.d.qpos.copy()
+    b = control.run(control.Tracker(p, b3, "R0"), 0.6)
+    assert np.array_equal(qa, p.d.qpos)
+    assert b["strides"] == a["strides"] and b["reference_strides"] == a["reference_strides"] and a["strides"] > 0

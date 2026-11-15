@@ -16,16 +16,23 @@ What one run does (``RULE``):
   The second reading matters: an episode's ``strides`` is in no trace;
 * ``run`` refuses to start without the arrays and the round-two model files its cases read, without the committed
   records, or in a checkout with uncommitted changes, and checks the checkout again at the end (its own record aside);
-* the record holds every episode with both flags, ``matched`` and ``of``, the four source hashes read at run time
-  (the panels', the Stage 1 package's, the tuner's and the speed fit's), the library versions, the commit and a time.
+* the record holds every episode with both flags, ``matched`` and ``of``, ``distinct``, the four source hashes read
+  at run time (the panels', the Stage 1 package's, the tuner's and the speed fit's), the library versions, the commit
+  and a time.
 
-``check`` compares a record with today's code: tier ``full``, every episode matched, and the four hashes equal to
-today's.  No hash is written anywhere as a constant: after any edit to a Stage 1 module the committed record is stale
-until ``run --tier full --record stage2/regress/regress.json`` has been run on the new code and its record committed.
+``of`` counts comparisons, ``distinct`` committed episodes (``COUNT_RULE``): the full tier is the fast tier plus its
+own cases, and the fast tier's 8 episodes are run and compared a second time inside the full tier's cases.  The full
+tier is 256 comparisons of 248 distinct committed episodes; 248 is the number to quote for what the record proves.
+
+``check`` compares a record with today's code: tier ``full``, every episode matched, ``distinct`` the count of the
+episodes it lists, and the four hashes equal to today's.  No hash is written anywhere as a constant: after any edit
+to a Stage 1 module the committed record is stale until ``run --tier full --record stage2/regress/regress.json`` has
+been run on the new code and its record committed.
 
 A run is resumable: each finished case is kept in ``<scratch>/cases/<case id>.json`` and used again only by a run of
-the same case on the same four source hashes, library versions and ``regress.py`` (``RESUME_RULE``); the record is
-written only when every case is there.
+the same case on the same four source hashes, library versions and ``regress.py``, and only if its eval exited with
+code 0: a case whose eval was killed or failed runs again (``RESUME_RULE``).  The record is written only when every
+case is there.
 
 Run from hardware/trex_form_study:
     python -m designlab.stage2.regress run --tier fast
@@ -95,12 +102,20 @@ CLEAN_RULE = (
 )
 RESUME_RULE = (
     "a finished case is kept in <scratch>/cases/<case id>.json and used again only if its case definition, its four "
-    "source hashes, its library versions and the sha256 of regress.py are the run's; otherwise the case runs again "
-    "from an empty directory; the record is written only when every case of the tier is there"
+    "source hashes, its library versions and the sha256 of regress.py are the run's and its eval exited with code 0; "
+    "otherwise the case runs again from an empty directory (a case whose eval exited non-zero, or was killed, runs "
+    "again); the record is written only when every case of the tier is there"
+)
+COUNT_RULE = (
+    "`of` counts comparisons (one per episode of every case; `matched`: the ones with both flags true); `distinct` "
+    "counts the different committed episodes among them, an episode being its (run, body, row, condition, seed); the "
+    "full tier holds the fast tier's episodes twice (in the fast cases and again inside its own), so `distinct` is "
+    "the number of committed episodes a record proves"
 )
 CHECK_RULE = (
     "a record is current when its tier is full, every episode of today's full tier is in it with both flags true "
-    "(matched == of), and its four source hashes equal the ones read from today's code"
+    "(matched == of), its `distinct` is the number of different committed episodes it lists, and its four source "
+    "hashes equal the ones read from today's code"
 )
 
 #: Every hard-floor condition of Stage 1's panels (``panels.conditions`` less the pile floors): the stand, the six
@@ -129,6 +144,8 @@ def _case(id: str, tier: str, run: str, body: str, rows: tuple, conditions: tupl
 #: at 0 ms on 75-M-H-10, and the 10 ms delay queue on two turns of 60-N-T-10.  The full tier adds seed 3042 of every
 #: hard-floor condition of both bodies under R0 and R2/42 (88 episodes) and all 20 seeds of Stage 1b's four turns
 #: under its two 10 ms rows on 60-N-T-10 (160 episodes, one case per turn so that a killed run loses one turn).
+#: Those 248 hold the fast tier's 8 (seed 3042 of the same rows and conditions), so the full tier is 256 comparisons
+#: of 248 distinct committed episodes (``COUNT_RULE``, ``distinct``).
 CASES = (
     _case("fast-75-M-H-10", "fast", STAGE1_RUN, "75-M-H-10", ("R0", "R2/42"), ("start_stop/twice", "walk/brisk")),
     _case("fast-60-N-T-10-10ms", "fast", STAGE1B_RUN, "60-N-T-10", STAGE1B_ROWS,
@@ -361,6 +378,12 @@ def matched(entry: dict) -> bool:
     return bool(entry.get("trace_equal")) and bool(entry.get("record_equal"))
 
 
+def distinct(entries) -> int:
+    """How many different committed episodes a list of entries names (``COUNT_RULE``): an episode is its run, body,
+    row, condition and seed, whichever case ran it."""
+    return len({(e.get("run"), e.get("body"), e.get("row"), e.get("condition"), e.get("seed")) for e in entries})
+
+
 # ------------------------------------------------------------------------------------------------
 # Running
 # ------------------------------------------------------------------------------------------------
@@ -421,6 +444,8 @@ def _kept(case: dict, scratch: Path, key: dict) -> dict | None:
         return None
     if not isinstance(doc, dict) or doc.get("key") != key:
         return None
+    if doc.get("returncode") != 0:  # RESUME_RULE: an eval that was killed or failed is run again, not reported again
+        return None
     if [(e.get("row"), e.get("condition"), e.get("seed")) for e in doc.get("episodes") or []] != [
             (r, c, int(s)) for r, c, s in episodes_of(case)]:
         return None
@@ -479,8 +504,9 @@ def run(tier: str = "fast", record=None, procs: int = 1, log=print, scratch=None
                            "directory): " + ("; ".join(dirty[:8]) or "another commit is checked out"))
     entries = [e for case in cases for e in docs[case["id"]]["episodes"]]
     doc = dict(
-        schema=SCHEMA, tier=tier, rules=dict(regress=RULE, clean=CLEAN_RULE, resume=RESUME_RULE, check=CHECK_RULE),
-        cases=entries, matched=sum(matched(e) for e in entries), of=len(entries),
+        schema=SCHEMA, tier=tier,
+        rules=dict(regress=RULE, clean=CLEAN_RULE, resume=RESUME_RULE, count=COUNT_RULE, check=CHECK_RULE),
+        cases=entries, matched=sum(matched(e) for e in entries), of=len(entries), distinct=distinct(entries),
         commands=[dict(case, command=docs[case["id"]]["command"], returncode=docs[case["id"]]["returncode"],
                        matched=docs[case["id"]]["matched"], of=docs[case["id"]]["of"],
                        wall_s=docs[case["id"]]["wall_s"], started_at=docs[case["id"]]["started_at"],
@@ -492,8 +518,8 @@ def run(tier: str = "fast", record=None, procs: int = 1, log=print, scratch=None
     if record is not None:
         s2io.write_json(record, doc)
         log(f"record: {record}")
-    log(f"{tier} tier: {doc['matched']} of {doc['of']} episodes match their committed trace and episode record "
-        f"({doc['eval_wall_s']:.0f} s of evals)")
+    log(f"{tier} tier: {doc['matched']} of {doc['of']} episode runs match their committed trace and episode record "
+        f"({doc['of']} episode runs, {doc['distinct']} distinct; {doc['eval_wall_s']:.0f} s of evals)")
     return doc
 
 
@@ -516,6 +542,9 @@ def check(record=RECORD) -> list[str]:
     if not entries or doc.get("of") != len(entries) or doc.get("matched") != n or n != len(entries):
         out.append(f"matched {doc.get('matched')} of {doc.get('of')} ({n} of {len(entries)} listed episodes hold both "
                    "flags)")
+    if entries and doc.get("distinct") != distinct(entries):
+        out.append(f"distinct is {doc.get('distinct')!r}; the record lists {distinct(entries)} different committed "
+                   "episodes")
     want = [(c["id"], r, k, int(s)) for c in cases_of("full") for r, k, s in episodes_of(c)]
     got = [(e.get("case"), e.get("row"), e.get("condition"), e.get("seed")) for e in entries]
     if got != want:
@@ -554,8 +583,10 @@ def main(argv=None) -> int:
             for line in diff:
                 print(line, flush=True)
             if not diff:
-                print(f"{s2io.portable(str(Path(a.record).resolve()))}: current (full tier, every episode matched, "
-                      "the four source hashes are today's)", flush=True)
+                doc = s2io.read_json(a.record)
+                print(f"{s2io.portable(str(Path(a.record).resolve()))}: current (full tier, {doc['matched']} of "
+                      f"{doc['of']} episode runs matched, {doc['distinct']} distinct committed episodes, the four "
+                      "source hashes are today's)", flush=True)
             return 1 if diff else 0
         doc = run(a.tier, record=a.record, procs=a.procs, scratch=a.scratch,
                   log=lambda line: print(line, flush=True))
