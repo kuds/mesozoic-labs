@@ -573,8 +573,8 @@ def test_a_cell_with_no_record_says_when_the_set_holds_no_reference(run):
     assert g["reading_2"].startswith(f"not run; the set holds no reference for it: {TWIST_RULE} [") and "f=0.6" in g["reading_2"]
     # a set and delay without any record: the conditions without a reference have their own lines
     v0 = lines(run.tabs, "rest", "counts", set="V0", delay=J)
-    assert [x["item"] for x in v0] == ["27 conditions, 68 records: none found", "1 conditions, 2 records: none found",
-                                       "1 conditions, 2 records: none found"]
+    assert [x["item"] for x in v0] == ["27 conditions, 68 records: none found", "1 condition, 2 records: none found",
+                                       "1 condition, 2 records: none found"]
     assert v0[0]["status"] == barreport.NOT_RUN and "heading_at_slowest_clock_deg=78.4" in v0[1]["status"]
     assert [x["condition"] for x in v0[1:]] == ["turn/t90_1_left", "turn/t90_1_right"]
     # listed at the top

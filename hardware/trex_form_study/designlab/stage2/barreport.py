@@ -1090,7 +1090,8 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
                 rows = _row_order({r for _, r in pairs})
                 first = _rel_run(meta, _run_path(s, body, bar.HEADLINE_BLOCK, f"{pairs[0][1]}@{ms}ms", pairs[0][0]))
                 line = dict(set=s, body=body, labels=labels_of(s),
-                            item=f"{len(keys_)} conditions, {len(pairs)} records: none found",
+                            item=f"{len(keys_)} condition{'' if len(keys_) == 1 else 's'}, {len(pairs)} "
+                                 f"record{'' if len(pairs) == 1 else 's'}: none found",
                             condition=", ".join(keys_), grip=None, delay=delay_word(ms),
                             row=", ".join(f"{r}@{ms}ms" for r in rows), status=word, reading_1=READING_1,
                             path=[first] + ([f"and {len(pairs) - 1} more paths of the same form"]
