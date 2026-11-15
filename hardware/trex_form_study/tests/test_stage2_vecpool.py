@@ -511,14 +511,28 @@ class TestOnePool:
         _same(pool.step_wait(), ref.step_wait(), "second step_wait")
 
 
-def test_no_two_envs_share_a_kwarg():
-    """One list object named in every spec: each env gets its own copy, in this process and in workers."""
+def test_no_two_envs_share_a_kwarg_or_an_argument_at_any_worker_count():
+    """One list object named in every spec: each env gets its own copy, in this process and in workers; so with the
+    arguments of ``env_method`` and the value of ``set_attr``; and seeding the pool's action space (stable-baselines3
+    seeds its model's) does not reach into env 0."""
     for workers in (0, 2):
         shared = []
         pool = _pool([(STUB, {"tag": i, "shared": shared}) for i in range(4)], workers)
         try:
             assert pool.get_attr("shared") == [[i] for i in range(4)] and shared == []
-            assert pool.env_method("keep", []) == [[i] for i in range(4)]
+            box = []
+            assert pool.env_method("keep", box) == [[i] for i in range(4)] and box == []
+            assert pool.get_attr("box") == [[i] for i in range(4)]
+            value = {"list": []}
+            pool.set_attr("shared", value)
+            assert pool.env_method("mark") == [{"list": [i]} for i in range(4)] and value == {"list": []}
+            seeded = spaces.Box(-1.0, 1.0, (3,), np.float32)
+            seeded.seed(5)
+            pool.action_space.seed(5)
+            want = seeded.sample()
+            draws = [space.sample() for space in pool.get_attr("action_space")]
+            assert not any(np.array_equal(d, want) for d in draws)  # no env's space was seeded ...
+            assert np.array_equal(pool.action_space.sample(), want)  # ... the pool's own was
         finally:
             pool.close()
 
@@ -618,9 +632,17 @@ def test_close_leaves_no_child_process_and_no_socket_directory():
     assert not any(_alive(p) for p in pids)
     assert not os.path.exists(pool.socket_dir) and _socket_dirs() <= before
     pool.close()  # a second close does nothing
-    for call in (pool.reset, lambda: pool.get_attr("tag"), lambda: pool.step(np.zeros((4, 3), np.float32))):
-        with pytest.raises(RuntimeError, match="closed"):
-            call()
+    local = _pool(_specs(4), 0)
+    local.reset()
+    local.close()
+    local.close()
+    for closed in (pool, local):  # a closed pool refuses at every worker count
+        for call in (closed.reset, lambda: closed.get_attr("tag"), lambda: closed.env_method("bump"),
+                     lambda: closed.set_attr("gain", 1.0), lambda: closed.seed(1), lambda: closed.set_options({}),
+                     lambda: closed.env_is_wrapped(gymnasium.Wrapper),
+                     lambda: closed.step(np.zeros((4, 3), np.float32))):
+            with pytest.raises(RuntimeError, match="closed"):
+                call()
 
 
 @linux
@@ -718,7 +740,10 @@ def test_a_worker_that_cannot_start_fails_the_constructor(tmp_path):
     with pytest.raises(RuntimeError, match=r"vecpool worker 0 \(pid \d+, envs 0 to 1\) left before it connected: "
                                            r"exit code 7"):
         _pool(_specs(2), 1, worker_cmd=[sys.executable, "-c", "import sys; sys.exit(7)"])
-    assert time.monotonic() - t0 < 30.0 and _socket_dirs() <= before
+    assert time.monotonic() - t0 < 30.0
+    with pytest.raises(FileNotFoundError):
+        _pool(_specs(2), 2, worker_cmd=[str(tmp_path / "no_such_python"), "-m", "designlab.stage2.vecpool"])
+    assert _socket_dirs() <= before
 
 
 def test_a_worker_refuses_another_gl_backend_or_thread_count():

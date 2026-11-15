@@ -544,9 +544,11 @@ class _Pool:
             from stable_baselines3.common.vec_env.dummy_vec_env import DummyVecEnv
 
             self._dummy = DummyVecEnv([functools.partial(make_env, name, _load(blob)) for name, blob in packed])
-            super().__init__(n, self._dummy.observation_space, self._dummy.action_space)
+            # the spaces and the metadata are copies here too: seeding or sampling the pool's space (SB3 seeds its
+            # model's action space) must not reach into env 0 at one worker count and not at another
+            super().__init__(n, _private(self._dummy.observation_space), _private(self._dummy.action_space))
             self.reset_infos = self._dummy.reset_infos  # DummyVecEnv writes into this list, never replaces it
-            self.metadata = self._dummy.metadata
+            self.metadata = _private(self._dummy.metadata)
             return
         self.socket_dir = _socket_dir()
         self._finalizer = weakref.finalize(self, _shutdown, os.getpid(), self._workers, self.socket_dir)
@@ -624,6 +626,12 @@ class _Pool:
                 raise RuntimeError(f"{w}: {problem}")
 
     # -- the exchange --------------------------------------------------------------------------------------------
+
+    def _local(self):
+        """The ``DummyVecEnv`` that does the work with ``workers=0`` (None otherwise); a closed pool refuses."""
+        if self._dummy is not None and self._closed:
+            raise RuntimeError("this PoolVecEnv is closed")
+        return self._dummy
 
     def _usable(self) -> None:
         if self._closed:
@@ -711,7 +719,7 @@ class _Pool:
     # -- VecEnv --------------------------------------------------------------------------------------------------
 
     def reset(self):
-        if self._dummy is not None:
+        if self._local() is not None:
             return self._dummy.reset()
         parts = self._exchange([(w, ("reset", (self._seeds[w.lo:w.hi], self._options[w.lo:w.hi])))
                                 for w in self._workers])
@@ -725,11 +733,11 @@ class _Pool:
 
     def step_async(self, actions: np.ndarray) -> None:
         self.actions = actions
-        if self._dummy is not None:
+        if self._local() is not None:
             self._dummy.step_async(actions)
 
     def step_wait(self):
-        if self._dummy is not None:
+        if self._local() is not None:
             return self._dummy.step_wait()
         parts = self._exchange([(w, ("step", self.actions[w.lo:w.hi])) for w in self._workers])
         for w, part in zip(self._workers, parts):
@@ -739,8 +747,9 @@ class _Pool:
                 np.concatenate([p[2] for p in parts]), [info for p in parts for info in p[3]])
 
     def seed(self, seed: int | None = None):
-        if self._dummy is not None:
+        if self._local() is not None:
             return self._dummy.seed(seed)
+        self._usable()
         return super().seed(seed)
 
     def set_options(self, options: list[dict] | dict | None = None) -> None:
@@ -748,19 +757,20 @@ class _Pool:
             options = [_private(options) for _ in range(self.num_envs)]
         elif options is not None:
             options = [_private(o) for o in options]
-        if self._dummy is not None:
+        if self._local() is not None:
             self._dummy.set_options(options)
         else:
+            self._usable()
             super().set_options(options)
 
     def get_attr(self, attr_name: str, indices=None) -> list:
-        if self._dummy is not None:
+        if self._local() is not None:
             return [_private(v) for v in self._dummy.get_attr(attr_name, indices)]
         return self._per_env("get_attr", indices, attr_name)
 
     def set_attr(self, attr_name: str, value, indices=None) -> None:
         blob = _dump(value)
-        if self._dummy is not None:
+        if self._local() is not None:
             for i in self._indices(indices):
                 self._dummy.set_attr(attr_name, _load(blob), indices=[i])
             return
@@ -768,7 +778,7 @@ class _Pool:
 
     def env_method(self, method_name: str, *method_args, indices=None, **method_kwargs) -> list:
         blob = _dump((method_args, method_kwargs))
-        if self._dummy is not None:
+        if self._local() is not None:
             out = []
             for i in self._indices(indices):
                 args, kwargs = _load(blob)
@@ -777,12 +787,13 @@ class _Pool:
         return self._per_env("env_method", indices, method_name, blob)
 
     def env_is_wrapped(self, wrapper_class, indices=None) -> list[bool]:
-        if self._dummy is not None:
+        if self._local() is not None:
             return self._dummy.env_is_wrapped(wrapper_class, indices)
+        self._usable()
         return [False for _ in self._indices(indices)]
 
     def get_images(self):
-        if self._dummy is not None:
+        if self._local() is not None:
             return self._dummy.get_images()
         if self.render_mode != "rgb_array":
             warnings.warn(
