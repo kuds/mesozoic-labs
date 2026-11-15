@@ -104,6 +104,10 @@ GRIPS = ((None, ""), (MU_LOW, f"_mu{MU_LOW:g}"))
 BEHAVIORS = ("walk", "turn", "nudge", "stop")
 BAR_JUDGES = ("bar_walk", "bar_turn", "bar_nudge", "bar_stop")
 BAR_WALK = setio.walk_name(setio.BAR_SPEED)
+#: The starts a set's plans may begin with (``set.json`` ``lead_in``; ``RULES["lead_in"]``): ``start`` into the nominal
+#: walk (every set but the exception; also where ``set.json`` has no such key), or ``start_v0.4`` straight into the
+#: 0.40 m/s walk, for a set whose nominal walk is not a rung.
+LEAD_INS = (setio.START, setio.start_name(BAR_WALK))
 #: Nudges: the pulse's length, its share of the Stage 0 push bound (gated; reported), its onset in strides of the
 #: walk after the walk's segment begins (plus a uniform draw of one stride), the recovery limit and the hold.
 PUSH_S = panels.PUSH_S
@@ -240,6 +244,17 @@ RULES = dict(
         "move is placed at the walk phase its entry was built for (the strides of the walk before it, modulo one, "
         "equal its command_phase), and a rung's entry holds the speed its name holds (a fixture's stand-in walk "
         "apart, which its records say): a set that breaks either is refused"),
+    lead_in=(
+        f"an exception for a set whose nominal walk is not a rung (set.json lead_in '{setio.start_name(BAR_WALK)}'; "
+        "STAGE2_75_PLAN.md A8 as amended by the owner's decision of 15 Nov, DECISION_LOG.md P34, after the first "
+        "builds of the three sets; changed after a result): every item starts with the stand and "
+        f"{setio.start_name(BAR_WALK)}, the start from standing straight into the 0.40 m/s walk, in place of start, "
+        "one stride of nominal and the change to 0.40 m/s; the strides of the 0.40 m/s walk before a command, the "
+        "seed slot, the planned seconds' rules and the judged windows are those of every other set; another rung is "
+        "reached from 0.40 m/s through the neighbouring rungs' changes, one stride of each rung on the way; the home "
+        "pose of the track's LIPM frequency is read from the 0.40 m/s walk's file (every walk file of a set holds "
+        "the body's one home pose); a condition that needs the nominal walk is not run.  Every record of such a set "
+        "carries lead_in, and a table that prints its rows labels them"),
     rows=(
         f"R2/<s>@<ms>ms: Stage 1's fitted tracker of CMA-ES seed s with the gains of the Stage 1 run's tune.json "
         f"unchanged; R0@<ms>ms: the panels' open-loop row; <any registered row>@<ms>ms likewise.  <ms> is a servo "
@@ -389,7 +404,20 @@ def rules_of(cond, set_docs: dict | None = None, control: str | None = None) -> 
                           label=walk.get("label"), omega_rule=set_docs["set.json"].get("omega_rule"),
                           move_margin_rule=move.get("margin_rule"), move_label=move.get("label"),
                           move_rules=(move.get("move") or {}).get("rules"))
+        if lead_in_of(set_docs["set.json"]) != setio.START:  # (no key in the records of any other set)
+            out["lead_in"] = RULES["lead_in"]
     return out
+
+
+def lead_in_of(set_doc: dict | None) -> str:
+    """The start a set's plans begin with (``LEAD_INS``): ``set.json`` ``lead_in``; ``start`` where the set records
+    none (a set built before the key, a fixture, a set without a lead-in, whose conditions are not run for want of
+    the nominal walk).  ``tune.InputError`` for another value."""
+    lead = (set_doc or {}).get("lead_in") or setio.START
+    if lead not in LEAD_INS:
+        raise tune.InputError(f"set.json of {(set_doc or {}).get('set')!r} records lead_in {lead!r}: the bar knows "
+                              f"{' and '.join(LEAD_INS)} ({RULES['lead_in']})")
+    return lead
 
 
 # ------------------------------------------------------------------------------------------------
@@ -555,6 +583,10 @@ class BarPlanner:
         self.stand_in_walks = bool(self.set_doc.get("stand_in_walks") if stand_in_walks is None else stand_in_walks)
         if self.stand_in_walks and registered_name(self.set_doc.get("set", "")) is not None:
             raise tune.InputError(f"{self.set_dir}: a set of the 75 cm round has no stand-in walk (stand_in_walks)")
+        #: The start every plan of the set begins with, and the walk whose file gives the home pose of
+        #: ``control.omega0``: the nominal walk, or the 0.40 m/s walk of a set that starts into it (``RULES["lead_in"]``).
+        self.lead = lead_in_of(self.set_doc)
+        self.home_walk = setio.NOMINAL if self.lead == setio.START else BAR_WALK
         self._files = panels.Planner(self.set_dir, refs_doc, tr_doc)  # loads the arrays a plan's times need
 
     # ---------------------------------------------------------------- what the set has
@@ -578,7 +610,17 @@ class BarPlanner:
     def lead_in(self, walk: str) -> list | None:
         """The plan items before the steady walk ``walk``: ``start`` for the nominal walk; else start, one stride
         of nominal and the direct change; else the neighbouring rung's lead-in, one stride of that rung and the
-        change from it (the path through 0.40 m/s); None if the set has neither."""
+        change from it (the path through 0.40 m/s); None if the set has neither.  A set that starts straight into
+        its 0.40 m/s walk (``RULES["lead_in"]``): that start for the 0.40 m/s walk; for another rung the neighbouring
+        rung's lead-in, one stride of that rung and the change from it; None for the nominal walk."""
+        if self.lead != setio.START:
+            if walk == BAR_WALK:
+                return [("transition", self.lead)]
+            step = self.step_change(walk)
+            head = None if step is None else self.lead_in(step[0])
+            if head is None or not self.usable("transitions", step[1]) or not self.usable("refs", step[0]):
+                return None
+            return head + [("ref", step[0], 1), ("transition", step[1])]
         if walk == setio.NOMINAL:
             return [("transition", setio.START)]
         direct = setio.change_name(setio.NOMINAL, walk)
@@ -595,9 +637,19 @@ class BarPlanner:
             return None
         return head + [("ref", nb, 1), ("transition", step)]
 
+    @staticmethod
+    def step_change(walk: str) -> tuple[str, str] | None:
+        """(the neighbouring rung toward 0.40 m/s, the change from it into ``walk``) for a ladder rung other than
+        the 0.40 m/s walk; None for any other walk."""
+        v = setio.parse_name(walk)["speed_m_s"]
+        if walk == BAR_WALK or v not in setio.SPEEDS:
+            return None
+        nb = setio.walk_name(setio.SPEEDS[setio.SPEEDS.index(v) + (1 if v < setio.BAR_SPEED else -1)])
+        return nb, setio.change_name(nb, walk)
+
     def missing(self, cond: BarCondition) -> dict | None:
         """Why ``cond`` cannot be run on this set (``{reference, reason, numbers}``), or None."""
-        need = [("refs", setio.NOMINAL), ("transitions", setio.START), ("refs", cond.walk)]
+        need = [("refs", self.home_walk), ("transitions", self.lead), ("refs", cond.walk)]
         if cond.move:
             need.append(("transitions", cond.move))
         for sub, name in need:
@@ -605,7 +657,14 @@ class BarPlanner:
             if why is not None:
                 return why
         if self.lead_in(cond.walk) is None:
-            direct = setio.change_name(setio.NOMINAL, cond.walk)
+            if self.lead == setio.START:
+                direct = setio.change_name(setio.NOMINAL, cond.walk)
+            else:  # the change that reaches a rung of such a set comes from its neighbour
+                step = self.step_change(cond.walk)
+                if step is None:
+                    return dict(reference=f"refs/{cond.walk}", numbers=None,
+                                reason=f"the set starts into {BAR_WALK} ({self.lead}): no lead-in reaches {cond.walk}")
+                direct = step[1]
             why = self.why_not("transitions", direct) or {}
             return dict(reference=f"transitions/{direct}",
                         reason=f"no transition into {cond.walk} ({why.get('reason') or 'none in the set'})",
@@ -679,9 +738,10 @@ class BarPlanner:
         return float(self.segment_times(plan)[i][0] + np.interp(phase, tr.phase, tr.t))
 
     @staticmethod
-    def files_of(plan: list) -> list[str]:
-        """The files a plan loads, with ``refs/nominal.npz`` (the home pose of ``control.omega0``)."""
-        out = {f"refs/{setio.NOMINAL}.npz"}
+    def files_of(plan: list, home: str = setio.NOMINAL) -> list[str]:
+        """The files a plan loads, with ``refs/nominal.npz`` (the home pose of ``control.omega0``; ``home``: the
+        walk a set that starts into its 0.40 m/s walk reads it from, ``home_walk``)."""
+        out = {f"refs/{home}.npz"}
         for item in plan:
             if item[0] == "ref":
                 out.add(f"refs/{item[1]}.npz")
@@ -700,7 +760,7 @@ class BarPlanner:
         for item in out["plan"]:
             if item[0] == "ref":
                 self.check_speed(item[1])
-        out["files"] = self.files_of(out["plan"])
+        out["files"] = self.files_of(out["plan"], self.home_walk)
         if cond.seconds is not None and cond.seconds < out["seconds"]:
             out = dict(out, seconds=float(cond.seconds), cut_from_s=out["seconds"])
         return out
@@ -903,7 +963,7 @@ class BarContext(panels.Context):
     @property
     def q_home(self) -> np.ndarray:
         if self._q_home is None:
-            self._q_home = Reference.load(self.run_dir / "refs" / f"{setio.NOMINAL}.npz").q_home
+            self._q_home = Reference.load(self.run_dir / "refs" / f"{self.bar_planner.home_walk}.npz").q_home
         return self._q_home
 
     def release(self) -> None:
@@ -1008,10 +1068,11 @@ def check_manifest(set_doc: dict) -> None:
                                   f"{got[:12]}...")
 
 
-def omega_of(body: str, run_dir, crouch_frac: float) -> float:
-    """The track's LIPM frequency of a set and body (``RULES["omega"]``), as ``BarContext.built`` computes it."""
+def omega_of(body: str, run_dir, crouch_frac: float, home: str = setio.NOMINAL) -> float:
+    """The track's LIPM frequency of a set and body (``RULES["omega"]``), as ``BarContext.built`` computes it.
+    ``home``: the walk whose file gives the home pose (``BarPlanner.home_walk``)."""
     p = plant.build(body, "hard", settle=False)
-    q_home = Reference.load(Path(run_dir) / "refs" / f"{setio.NOMINAL}.npz").q_home
+    q_home = Reference.load(Path(run_dir) / "refs" / f"{home}.npz").q_home
     return float(control.omega0(p, q_home, crouch_frac=crouch_frac))
 
 
@@ -1872,6 +1933,8 @@ def _set_labels(rec: dict, set_docs: dict | None, files: dict) -> None:
         info = rec["set_info"] = set_info(set_docs, files)
     rec["change_after_result"] = (info or {}).get("change_after_result")
     rec["stand_in_walks"] = bool((info or {}).get("stand_in_walks"))
+    if set_docs is not None and lead_in_of(set_docs["set.json"]) != setio.START:
+        rec["lead_in"] = lead_in_of(set_docs["set.json"])  # (RULES["lead_in"]; no key in any other set's records)
 
 
 def not_run_record(body: str, set_name: str, block: str, row: panels.Row, cond, key: dict, why: dict, prov: dict,
@@ -2324,7 +2387,7 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
             crouch = own if crouch_override is None else crouch_override
             inputs, _ = setio.read_inputs(run_dir, files, require_frozen=True)
         key_files = sorted({f for r in resolved.values() for f in r["files"]})
-        omega = omega_of(body, run_dir, crouch) if resolved else None
+        omega = omega_of(body, run_dir, crouch, getattr(planner, "home_walk", setio.NOMINAL)) if resolved else None
         src, bsrc, kctx = panels.panel_sources(), bar_sources(), panels.key_context(body)
         key_sources = dict(panels=src["sha256"], bar=bsrc["sha256"])
         git = s2io.git_state(own_outputs=[str(out.resolve())])  # the run's own outputs make no checkout dirty
@@ -3222,7 +3285,7 @@ def refcheck(set_name: str, body: str, root=setio.ROOT, out=None, log=print) -> 
     inputs, _ = setio.read_inputs(run_dir, files, require_frozen=False)
     crouch = set_crouch(set_docs["set.json"], set_docs["refs.json"]["references"], walks_of(files))
     p = plant.build(body, "hard", settle=False)
-    omega = float(control.omega0(p, Reference.load(run_dir / "refs" / f"{setio.NOMINAL}.npz").q_home,
+    omega = float(control.omega0(p, Reference.load(run_dir / "refs" / f"{planner.home_walk}.npz").q_home,
                                  crouch_frac=crouch)) if usable else None
     items = {}
     for c in conds:
