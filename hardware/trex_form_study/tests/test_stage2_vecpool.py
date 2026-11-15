@@ -67,12 +67,13 @@ class StubEnv(gymnasium.Env):
 
     metadata = {"render_modes": [], "stub": "vecpool"}
 
-    def __init__(self, tag: int = 0, gain: float = 1.0, raw64: bool = False, shared: list | None = None):
+    def __init__(self, tag: int = 0, gain: float = 1.0, raw64: bool = False, shared: list | None = None,
+                 closed: str | None = None):
         self.observation_space = spaces.Box(-np.inf, np.inf, (8,), np.float32)
         self.action_space = spaces.Box(-1.0, 1.0, (3,), np.float32)
         self.tag, self.gain, self.raw64 = int(tag), float(gain), bool(raw64)
         self.calls = 0
-        self.shared = shared
+        self.shared, self.closed = shared, closed
         if shared is not None:
             shared.append(self.tag)
         self._mix = np.random.default_rng(77).normal(size=(8, 3))
@@ -130,6 +131,14 @@ class StubEnv(gymnasium.Env):
 
     def fail(self):
         raise KeyError(f"stub env {self.tag} was asked to fail")
+
+    def deaf(self, seconds: float):
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        time.sleep(seconds)
+
+    def close(self):
+        if self.closed is not None:
+            Path(f"{self.closed}.{self.tag}").write_text(str(os.getpid()))
 
 
 def make_stub(**kwargs) -> StubEnv:
@@ -615,6 +624,42 @@ def test_close_leaves_no_child_process_and_no_socket_directory():
 
 
 @linux
+def test_close_closes_every_env_in_its_own_process(tmp_path):
+    """``DummyVecEnv.close`` closes each env; so does the pool, in the env's worker, before the worker leaves."""
+    for workers in (0, 2):
+        mark = str(tmp_path / f"closed{workers}")
+        pool = _pool([(STUB, {"tag": i, "closed": mark}) for i in range(4)], workers)
+        pids = pool.worker_pids
+        t0 = time.monotonic()
+        pool.close()
+        assert time.monotonic() - t0 < vecpool.CLOSE_WAIT_S  # the workers left by themselves
+        said = [int(Path(f"{mark}.{i}").read_text()) for i in range(4)]
+        assert said == ([os.getpid()] * 4 if workers == 0 else [pids[0], pids[0], pids[1], pids[1]])
+
+
+@linux
+def test_a_worker_that_does_not_go_is_killed(monkeypatch):
+    """A pool closed while a worker is busy and deaf to SIGTERM: terminated, then killed after ``TERM_WAIT_S``."""
+    monkeypatch.setattr(vecpool, "TERM_WAIT_S", 0.5)
+    pool = _pool(_specs(2), 2)
+    pids = pool.worker_pids
+
+    def cut(worker):
+        time.sleep(0.5)  # worker 1 is in its method by now
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(pool, "_read", cut)
+    with pytest.raises(KeyboardInterrupt):
+        pool.env_method("deaf", 600.0, indices=[1])
+    assert all(_alive(p) for p in pids)
+    t0 = time.monotonic()
+    pool.close()
+    assert not any(_alive(p) for p in pids) and 0.4 < time.monotonic() - t0 < 10.0
+    worker = pool._workers[1]
+    assert worker.proc.returncode == -signal.SIGKILL and pool._workers[0].proc.returncode is not None
+
+
+@linux
 def test_an_unclosed_pool_that_is_collected_takes_its_workers_with_it():
     pool = _pool(_specs(2), 1)
     pids = pool.worker_pids
@@ -663,7 +708,11 @@ def test_workers_leave_with_their_parent(how):
         proc.stdout.close()
 
 
-def test_a_worker_that_cannot_start_fails_the_constructor():
+def test_a_worker_that_cannot_start_fails_the_constructor(tmp_path):
+    from multiprocessing.connection import Listener
+
+    with Listener(str(tmp_path / "s"), family="AF_UNIX") as listener:  # what makes the wait below a bounded one
+        assert hasattr(vecpool.listening_socket(listener), "settimeout")
     before = _socket_dirs()
     t0 = time.monotonic()
     with pytest.raises(RuntimeError, match=r"vecpool worker 0 \(pid \d+, envs 0 to 1\) left before it connected: "

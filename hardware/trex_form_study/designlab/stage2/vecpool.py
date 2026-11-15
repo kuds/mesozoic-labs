@@ -36,8 +36,8 @@ is killed later leaves nothing in the temporary directory.
 What crosses the process boundary travels by pickle.  So that no result can depend on which envs share a process,
 every argument reaches each env as its own copy at every W, 0 included: the kwargs of a spec, the options of
 ``set_options``, the value of ``set_attr`` and the arguments of ``env_method`` are pickled per env, and what
-``get_attr`` and ``env_method`` return is a copy.  A spec whose kwargs do not pickle (a closure, a lambda) is refused
-at every W, so what runs at ``workers=0`` runs at any worker count.
+``get_attr`` and ``env_method`` return is a copy.  Kwargs or arguments that do not pickle (a closure, a lambda) are
+refused at every W, 0 included, before any env sees them; a class they name must be importable in the worker.
 
 Failure.  A worker that has exited, or whose connection broke, raises ``RuntimeError`` naming the worker and its exit
 code from the next call, and from every call after it.  An exception raised by an env in a worker (also in a
@@ -49,9 +49,10 @@ when its parent's connection closes, so a killed trainer leaves no worker behind
 Each worker checks at its start that ``MUJOCO_GL`` is ``disable`` and that each BLAS thread variable is ``1``, and
 refuses to serve otherwise (the pool's constructor raises with the values found).
 
-Not mirrored: ``env_is_wrapped`` answers ``False`` for every env at W >= 1 (a worker cannot import a wrapper class of
-stable-baselines3 to compare with; the envs of this study are not wrapped), and at W >= 1 ``step_async`` keeps the
-actions and ``step_wait`` sends them, exactly as ``DummyVecEnv`` keeps them.
+``step_async`` keeps the actions and ``step_wait`` sends them and reads the replies, as ``DummyVecEnv`` keeps them
+and steps in ``step_wait``; the workers step side by side between the two.  Not mirrored: ``env_is_wrapped`` answers
+``False`` for every env at W >= 1 (a worker cannot import a wrapper class of stable-baselines3 to compare with; the
+envs of this study are not wrapped).
 
     python -m designlab.stage2.vecpool --worker ADDRESS      # a worker; started by PoolVecEnv, never by hand
 """
@@ -481,6 +482,14 @@ def _shutdown(owner_pid: int, workers: list, sockdir: str) -> None:
     shutil.rmtree(sockdir, ignore_errors=True)
 
 
+def listening_socket(listener):
+    """The socket a ``multiprocessing.connection.Listener`` accepts on, or None if this Python keeps it elsewhere.
+    ``Listener`` has no timeout of its own and no public way to its socket; the two attribute names are CPython's
+    since 3.3 (a test holds them for the running version).  Without the socket the pool still starts, but a child
+    that never connects would then block the constructor."""
+    return getattr(getattr(listener, "_listener", None), "_socket", None)
+
+
 def _socket_dir() -> str:
     """A new private directory (mode 0700) whose socket path fits a Unix socket's address."""
     roots = [tempfile.gettempdir(), "/tmp"]
@@ -581,9 +590,9 @@ class _Pool:
 
     def _accept(self, listener) -> None:
         """Take one connection per child and its hello.  The wait is cut into ``POLL_S`` slices by a timeout on the
-        listening socket (``Listener`` has no timeout of its own), so that a child that exits before it connects, or
-        never connects, raises here instead of blocking."""
-        sock = getattr(getattr(listener, "_listener", None), "_socket", None)
+        listening socket, so that a child that exits before it connects, or never connects, raises here instead of
+        blocking."""
+        sock = listening_socket(listener)
         if sock is not None:
             sock.settimeout(POLL_S)
         deadline = time.monotonic() + CONNECT_TIMEOUT_S
@@ -836,7 +845,8 @@ def main(argv=None) -> int:
 
 
 __all__ = ["AUTHKEY_VAR", "INDEX_VAR", "PoolVecEnv", "THREAD_VARS", "blocks", "child_env", "default_worker_cmd",
-           "environment_problem", "main", "make_env", "pack_specs", "resolve", "study_dir", "worker_main"]
+           "environment_problem", "listening_socket", "main", "make_env", "pack_specs", "resolve", "study_dir",
+           "worker_main"]
 
 if __name__ == "__main__":
     from designlab.stage2 import vecpool as _named  # the importable copy owns every class and all module state
