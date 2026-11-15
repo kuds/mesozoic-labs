@@ -213,7 +213,8 @@ def missing_inputs(tier: str = "full") -> list[str]:
     out = []
     for body in dict.fromkeys(c["body"] for c in cases_of(tier)):
         if not round_two_models(body):
-            out.append(f"{body}: no round-two model files (python tools/restore_inputs.py restore --group picks-models)")
+            out.append(f"{body}: no round-two model files (python tools/restore_inputs.py restore --group "
+                       "picks-models)")
     arrays, records = {}, {}
     for case in cases_of(tier):
         for key in case["conditions"]:
@@ -390,12 +391,16 @@ def run_case(case: dict, scratch, key: dict, log=print) -> dict:
         proc = subprocess.run([sys.executable, *cmd], cwd=STUDY, env=eval_env(), stdout=fh, stderr=subprocess.STDOUT)
     wall = time.perf_counter() - t0
     entries = compare_case(case, work)
+    if proc.returncode != 0:  # RULE: an eval that fails matches nothing, whatever it wrote before it failed
+        why = f"the eval exited with code {proc.returncode}"
+        for e in entries:
+            e.update(trace_equal=False, record_equal=False, note=f"{e['note']}; {why}" if e.get("note") else why)
     n = sum(matched(e) for e in entries)
     doc = dict(key=key, command=["python", *s2io.portable(cmd[:-1]), "<scratch>"], returncode=proc.returncode,
                started_at=started, ended_at=s2io.now_utc(), wall_s=wall, episodes=entries, matched=n, of=len(entries),
                commit=_git("rev-parse", "HEAD").strip(), log=str(logf))
     s2io.write_json(scratch / "cases" / f"{case['id']}.json", doc)
-    if n == len(entries) and proc.returncode == 0:
+    if n == len(entries):
         shutil.rmtree(work)
     log(f"{case['id']}: {n} of {len(entries)} episodes match ({wall:.0f} s"
         + ("" if proc.returncode == 0 else f"; eval exit code {proc.returncode}, see {logf}") + ")")
@@ -441,7 +446,8 @@ def run(tier: str = "fast", record=None, procs: int = 1, log=print, scratch=None
     dirty = git_status(own=(record,))
     if dirty:
         raise RegressError("the checkout has uncommitted changes (commit or remove them first; the record names a "
-                           "commit): " + "; ".join(dirty[:8]) + (f"; and {len(dirty) - 8} more" if len(dirty) > 8 else ""))
+                           "commit): " + "; ".join(dirty[:8])
+                           + (f"; and {len(dirty) - 8} more" if len(dirty) > 8 else ""))
     if _tracked_below(scratch):
         raise RegressError(f"{scratch}: git tracks files below the scratch root; an eval would overwrite them")
     commit = _git("rev-parse", "HEAD").strip()
@@ -457,7 +463,8 @@ def run(tier: str = "fast", record=None, procs: int = 1, log=print, scratch=None
                 todo.append((case, key))
             else:
                 docs[case["id"]] = kept
-                log(f"{case['id']}: kept from {kept.get('ended_at')} ({kept['matched']} of {kept['of']} episodes match)")
+                log(f"{case['id']}: kept from {kept.get('ended_at')} ({kept['matched']} of {kept['of']} episodes "
+                    "match)")
         if todo:
             with ThreadPoolExecutor(max_workers=max(1, int(procs))) as pool:
                 for (case, _), doc in zip(todo, pool.map(lambda x: run_case(x[0], scratch, x[1], log), todo)):

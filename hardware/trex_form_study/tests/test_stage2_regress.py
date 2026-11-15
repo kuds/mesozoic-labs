@@ -14,9 +14,11 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -25,17 +27,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import designlab  # noqa: E402,F401  (selects the GL backend before mujoco renders)
-from designlab.stage1 import control, panels, plant, speedfit  # noqa: E402
-from designlab.stage1.__main__ import round_two_models  # noqa: E402
-from designlab.stage1.refs import Reference  # noqa: E402
+from designlab.stage1 import panels, speedfit  # noqa: E402
 from designlab.stage2 import regress, s2io  # noqa: E402
 
-BODY = "75-M-H-10"
-RUN = ROOT / "stage1" / "runs" / "2026-11-08"
 slow = pytest.mark.skipif(not os.environ.get("STAGE2_SLOW"), reason="8 closed-loop episodes; set STAGE2_SLOW=1")
-needs_plant = pytest.mark.skipif(not ((RUN / BODY / "refs" / "nominal.npz").exists() and round_two_models(BODY)),
-                                 reason="the Stage 1 arrays or the round-two model files are not restored "
-                                        "(tools/restore_inputs.py)")
 
 
 def _in_git() -> bool:
@@ -200,6 +195,55 @@ def test_compare_equal_and_each_kind_of_difference(tmp_path, monkeypatch):
     assert b["recorded"] is None and not b["trace_equal"] and "committed: no episode of this seed" in b["note"]
 
 
+def test_run_case_keeps_its_result_and_the_evidence(tmp_path, monkeypatch):
+    """One case through ``run_case`` with the eval replaced by a copy of prepared files: the command, the log, the
+    kept result; the work directory is removed only when everything matched; a failed eval matches nothing."""
+    case, out, committed, regenerated = _case(tmp_path, monkeypatch)
+    scratch, state, seen = tmp_path / "scratch", dict(code=0), []
+
+    def fake_eval(cmd, cwd=None, env=None, stdout=None, stderr=None):
+        seen.append((cmd, cwd, env))
+        stdout.write("the eval's own output\n")
+        shutil.copytree(out, cmd[-1], dirs_exist_ok=True)
+        return SimpleNamespace(returncode=state["code"])
+
+    monkeypatch.setattr(regress.subprocess, "run", fake_eval)
+    monkeypatch.setattr(regress, "_git", lambda *args: "c" * 40 + "\n")
+    monkeypatch.setenv(regress.SPEED_RUN_ENV, "/elsewhere")
+    lines = []
+    doc = regress.run_case(case, scratch, dict(k=1), log=lines.append)
+    cmd, cwd, env = seen[0]
+    assert cmd[0] == sys.executable and cmd[1:-1] == regress.command(case, "x")[:-1]
+    assert Path(cmd[-1]) == scratch / "work" / "synthetic" and cwd == regress.STUDY
+    assert regress.SPEED_RUN_ENV not in env and env["OMP_NUM_THREADS"] == "1" and env["MUJOCO_GL"] == "disable"
+    assert (doc["matched"], doc["of"], doc["returncode"], doc["key"], doc["commit"]) == (2, 2, 0, dict(k=1), "c" * 40)
+    assert doc["command"][0] == "python" and doc["command"][-2:] == ["--out", "<scratch>"]
+    assert json.loads((scratch / "cases" / "synthetic.json").read_text()) == json.loads(json.dumps(s2io.plain(doc)))
+    assert not (scratch / "work" / "synthetic").exists()  # everything matched: the regenerated files are not kept
+    log_text = (scratch / "logs" / "synthetic.log").read_text()
+    assert log_text.startswith("$ python -m designlab.stage1 eval --body B ") and "the eval's own output" in log_text
+    assert lines == ["synthetic: 2 of 2 episodes match (0 s)"]
+
+    # a difference: reported line by line, the regenerated files kept for inspection
+    _rewrite(regenerated, lambda eps: eps[1].update(strides=1.0))
+    (scratch / "work" / "synthetic").mkdir(parents=True)
+    (scratch / "work" / "synthetic" / "stale.txt").write_text("of an earlier attempt")
+    doc = regress.run_case(case, scratch, dict(k=1), log=lines.append)
+    assert (doc["matched"], doc["of"]) == (1, 2) and lines[-2].startswith("synthetic: 1 of 2 episodes match")
+    assert lines[-1].startswith("  DIFFERENT B R2/42 turn/x_left seed 3043: trace equal, record differs at strides")
+    assert (scratch / "work" / "synthetic" / "B" / "eval").is_dir()
+    assert not (scratch / "work" / "synthetic" / "stale.txt").exists()  # each attempt starts from an empty directory
+
+    # an eval that fails matches nothing, whatever it wrote
+    _rewrite(regenerated, lambda eps: eps[1].update(strides=eps[0]["strides"]))
+    state["code"] = 3
+    doc = regress.run_case(case, scratch, dict(k=1), log=lines.append)
+    assert (doc["matched"], doc["of"], doc["returncode"]) == (0, 2, 3)
+    assert all(e["note"] == "the eval exited with code 3" for e in doc["episodes"])
+    assert all(e["trace_sha256"] == e["recorded"] for e in doc["episodes"])  # read, and still not a match
+    assert "eval exit code 3" in lines[-3] and (scratch / "work" / "synthetic").is_dir()
+
+
 def test_differing_is_exact():
     nan = float("nan")
     assert regress.differing(dict(a=nan, b=[1, 2.0, None], c="x"), dict(c="x", b=[1, 2.0, None], a=nan)) == []
@@ -308,7 +352,8 @@ def test_run_writes_the_record_and_keeps_finished_cases(stubbed, monkeypatch):
     again = regress.run("fast", scratch=tmp / "scratch", log=lines.append)
     assert calls == [] and again["cases"] == doc["cases"] and any("kept from" in line for line in lines)
     full = regress.run("full", scratch=tmp / "scratch", log=lines.append)
-    assert calls == [c["id"] for c in regress.CASES if c["tier"] == "full"] and (full["matched"], full["of"]) == (256, 256)
+    assert calls == [c["id"] for c in regress.CASES if c["tier"] == "full"]
+    assert (full["matched"], full["of"]) == (256, 256)
 
     # a kept case of other sources, or of another regress.py, runs again
     del calls[:]
