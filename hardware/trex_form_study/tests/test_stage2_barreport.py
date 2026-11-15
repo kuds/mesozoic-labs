@@ -1713,6 +1713,10 @@ def test_a_record_with_no_episode_up_reads_as_a_fail_in_every_table(run):
         assert x["r2_pass"] == x["r3_pass"] == "does not pass" and x["status"] == "done"
         m = one(run.tabs, "walk", "bar_walk", set="V0", condition="walk/v0.4", row=row)
         assert m["speed"] == m["toe"] == m["along"] == dict(median=None, n=0) and isinstance(m["ref_toe"], dict)
+        assert m["along_limit"] == m["lateral_limit"] == m["toe_limit"] == barreport.NO_EPISODE_HOLDS  # no blank
+        f = one(run.tabs, "walk", "fails", set="V0", condition="walk/v0.4", delay=J, row=row)
+        assert f["worst_ratio"] == f["worst_leg_ratio"] == dict(largest=None, n=0) and f["worst_drive"] is None
+        assert f["ratio_limit"] == 1.0 and f["failed_2"] == {"survived": 20}
     fail = f"{barreport.NEITHER_PASSES}: not attributed"
     v = one(run.tabs, "walk", "verdicts", set="V0", condition="walk/v0.4", delay=J)
     g = one(run.tabs, "glance", "glance", set="V0", condition="walk/v0.4")
@@ -1722,7 +1726,12 @@ def test_a_record_with_no_episode_up_reads_as_a_fail_in_every_table(run):
     assert got["reading_2"] == dict(verdict="not attributed", text=fail, word=fail, replication=None)  # the runner's word
     hi = one(run.tabs, "ladder", "highest", set="V0", grip="mu 0.9", delay=J)
     assert f"walk/v0.4: {fail}" in hi["reading_2_rungs"] and hi["reading_2_highest"] == "none"
-    assert "| - (0) | - (0) | - | - (0) | - |" in run.md  # no episode gives a measured value: said in each cell
+    none = barreport.NO_EPISODE_HOLDS  # no episode gives a measured value or holds a limit: said in each cell
+    assert f"| - (0) | - (0) | {none} | - (0) | {none} | - (0) | {none} | 25.11 (0.0500 H) | - (0) | - (0) |" in run.md
+    for _, p, x in every_line(run.tabs):  # in the measured parts no limit and no measured cell is left blank
+        if p["key"] in barreport.MEASURE_COLUMNS:
+            assert not [c["key"] for c in p["columns"] if c["kind"] in ("measured", "limit", "defined")
+                        and x.get(c["key"]) is None], x
     notes = " ".join(part(run.tabs, "walk", "verdicts")["notes"])
     assert f"\"{barreport.NEITHER_PASSES}: \"" in notes and "that is a fail, never a pass" in notes
     # an attributed failing word is prefixed the same way; a pass, another delay and a cell without counts are not

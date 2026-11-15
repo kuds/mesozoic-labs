@@ -120,6 +120,9 @@ LEAF_MAX = 160
 #: The kind of the column that holds a reference's own reading (STAGE2_75_PLAN.md C3): never "measured", never a limit.
 REFERENCE_KIND = "reference: played kinematically, no physics"
 NO_REFERENCE_READING = "no reading of the reference"
+#: A limit or a definition that the tables read from a record's episodes, where no episode of the record holds it
+#: (every one fell before the judged span): said in the cell, which is then no blank beside a measured "- (0)".
+NO_EPISODE_HOLDS = "not in the record (no episode holds it)"
 REFUSED = "the set's documents were refused by the runner"
 UNREADABLE_SET = "the set's documents could not be read by the runner's rule"
 READINGS = (("success", "counts", "reading 2 (every limit)"), ("but_A1", "counts_but_A1",
@@ -994,6 +997,11 @@ def _worst_drive(rec: dict, which: str) -> dict | None:
     return None if best is None else dict(name=best[0], ratio=best[1], n=n, span=span)
 
 
+def _largest(worst: dict | None) -> dict:
+    """``{largest, n}`` of ``_worst_drive``: the largest ratio and the number of episodes that give one."""
+    return dict(largest=None, n=0) if worst is None else dict(largest=worst["ratio"], n=worst["n"])
+
+
 def _failed(rec: dict, key: str) -> dict:
     """{term: episodes} over the record's episodes that ran, most frequent first (a fall counts under "survived")."""
     c = Counter(t for e in _episodes(rec) for t in (e.get(key) or ()))
@@ -1201,10 +1209,9 @@ def digest(rec: dict, meta: dict | None = None) -> dict:
         failed_2=_failed(rec, "failed_terms") if done else None,
         failed_3=_failed(rec, "failed_terms_but_A1") if done and c3 is not None else None,
         worst_drive=None if wd is None else wd["name"],
-        worst_ratio=None if wd is None else dict(largest=wd["ratio"], n=wd["n"]),
-        worst_leg_drive=None if wl is None else wl["name"],
-        worst_leg_ratio=None if wl is None else dict(largest=wl["ratio"], n=wl["n"]),
-        drive_span=None if wd is None else wd["span"], ratio_limit=1.0 if wd is not None else None,
+        worst_ratio=_largest(wd) if done else None,  # ("- (0)": no episode reached the span the drives are judged on)
+        worst_leg_drive=None if wl is None else wl["name"], worst_leg_ratio=_largest(wl) if done else None,
+        drive_span=None if wd is None else wd["span"], ratio_limit=1.0 if done else None,
         attribution=(att.get("reported_as") or att.get("label")) if att else
         ((rec.get("failure") or {}).get("falls_label") if done else None),
         label_2=_get(rec, "failure", "label"), label_3=_get(rec, "failure_but_A1", "label"),
@@ -1652,6 +1659,9 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
                     judge = _get(r, "definition", "judge")
                     if judge in measured:
                         m = dict(measures_of(r), ref_toe=d["ref_toe"], path=d["path"])
+                        for k in MEASURE_COLUMNS[judge][len(HEAD):]:  # a limit the episodes hold, and none does
+                            if k["kind"] in ("limit", "defined") and m.get(k["key"]) is None:
+                                m[k["key"]] = NO_EPISODE_HOLDS
                         measured[judge].append(
                             dict(head, **{k["key"]: m.get(k["key"]) for k in MEASURE_COLUMNS[judge][len(HEAD):]}))
             for ctrl in sorted({bar.controller_of(b) for b in c["rows"]} & set(panels.VERDICT_ROWS)):
@@ -2371,7 +2381,7 @@ def tables(doc: dict) -> dict:
             "holds measurements, a column headed \"Limit\" or \"as defined\" holds none.  A measured median is "
             "printed as \"median (n)\" and a largest value over a record's episodes as \"largest (n)\": n is the "
             "number of episodes that give the quantity, \"- (0)\" where none does (every episode fell before the "
-            "judged span).",
+            f"judged span); a limit that the tables read from the episodes then reads \"{NO_EPISODE_HOLDS}\".",
             "Wherever the toe term of a walk or a turn is printed (the measured values, the failed terms), the "
             f"reference's own reading of that term stands beside it in a column of its own kind, \"{REFERENCE_KIND}\" "
             "(STAGE2_75_PLAN.md C3): the reference this condition plays, read by the runner's kinematic check "
