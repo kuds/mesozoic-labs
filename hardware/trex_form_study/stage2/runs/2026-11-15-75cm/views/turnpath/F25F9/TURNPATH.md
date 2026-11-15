@@ -6,7 +6,7 @@ Two words are kept apart. **Planned** is read from the frozen reference, played 
 
 Lengths are in metres and in body lengths (BL). One body length is 1.759 m: the model's overall length at its home keyframe, from tail: cover_tail_seg_20 (the tail tip) to head: cover_skull (the snout tip).
 
-Records are read from `stage2/runs/2026-11-15-75cm` and cited by their path under it; it held 0 turn records of this set when this file was written (2026-11-15T21:47:39Z). Set freeze 0, manifest `1a5f606feed7`.
+Records are read from `stage2/runs/2026-11-15-75cm` and cited by their path under it; it held 0 turn records of this set when this file was written (2026-11-15T21:51:14Z). Set freeze 0, manifest `1a5f606feed7`.
 
 ## turn/q90_left: quick 90° turn to the left at 0.40 m/s
 
@@ -53,8 +53,8 @@ From `transitions/turn90_pi4_right.npz` (sha256 `90e6cf660b18`), played at 1.05 
 | reading (planned) | value |
 |---|---|
 | path speed commanded | 0.40 m/s on the reference's clock (0.42 m/s in simulated time) |
-| turn rate commanded | -45.0 deg/s on the reference's clock (-47.2 deg/s in simulated time) |
-| path radius commanded (speed over rate) | -0.51 m (-0.29 BL) |
+| turn rate commanded | 45.0 deg/s on the reference's clock (47.2 deg/s in simulated time) |
+| path radius commanded (speed over rate) | 0.51 m (0.29 BL) |
 | radius fitted to the root's path, steady part | 0.50 m (0.28 BL), RMS 19 mm off the circle (the root sways) |
 | corner box, root: advance along the incoming line | largest 0.63 m (0.36 BL), at the move's end 0.58 m (0.33 BL) |
 | corner box, root: sideways | largest 1.48 m (0.84 BL), at the move's end 1.49 m (0.85 BL) |
@@ -117,8 +117,8 @@ From `transitions/turn90_0.35_right.npz` (sha256 `e27fd3d822e2`), played at 1.05
 | reading (planned) | value |
 |---|---|
 | path speed commanded | 0.40 m/s on the reference's clock (0.42 m/s in simulated time) |
-| turn rate commanded | -20.1 deg/s on the reference's clock (-21.1 deg/s in simulated time) |
-| path radius commanded (speed over rate) | -1.14 m (-0.65 BL) |
+| turn rate commanded | 20.1 deg/s on the reference's clock (21.1 deg/s in simulated time) |
+| path radius commanded (speed over rate) | 1.14 m (0.65 BL) |
 | radius fitted to the root's path, steady part | 1.13 m (0.64 BL), RMS 34 mm off the circle (the root sways) |
 | corner box, root: advance along the incoming line | largest 1.26 m (0.72 BL), at the move's end 1.20 m (0.68 BL) |
 | corner box, root: sideways | largest 2.26 m (1.28 BL), at the move's end 2.27 m (1.29 BL) |
@@ -181,8 +181,8 @@ From `transitions/turn90_0.5_right.npz` (sha256 `564ffa6b2f7f`), played at 1.05 
 | reading (planned) | value |
 |---|---|
 | path speed commanded | 0.40 m/s on the reference's clock (0.42 m/s in simulated time) |
-| turn rate commanded | -28.6 deg/s on the reference's clock (-30.1 deg/s in simulated time) |
-| path radius commanded (speed over rate) | -0.80 m (-0.45 BL) |
+| turn rate commanded | 28.6 deg/s on the reference's clock (30.1 deg/s in simulated time) |
+| path radius commanded (speed over rate) | 0.80 m (0.45 BL) |
 | radius fitted to the root's path, steady part | 0.78 m (0.44 BL), RMS 34 mm off the circle (the root sways) |
 | corner box, root: advance along the incoming line | largest 0.92 m (0.52 BL), at the move's end 0.86 m (0.49 BL) |
 | corner box, root: sideways | largest 2.06 m (1.17 BL), at the move's end 2.06 m (1.17 BL) |
