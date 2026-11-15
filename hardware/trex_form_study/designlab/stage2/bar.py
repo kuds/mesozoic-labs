@@ -33,7 +33,7 @@ Run from hardware/trex_form_study (one BLAS thread)::
         [--conditions walk/v0.4,...] [--block seeds3042|seeds5042] [--passed-of seeds3042] [--procs 2]
         [--attribute judged|all|none] [--no-traces] [--no-traces-for R0] [--episodes 20] [--task 3|4] [--unit NAME]
         [--cost FILE] [--control omega_s1] [--supersede --supersede-reason TEXT] [--dev-episodes FILE]
-        [--set-root DIR] [--stage1-run DIR] [--records DIR] [--row-module M] --out DIR
+        [--dev-reason TEXT] [--set-root DIR] [--stage1-run DIR] [--records DIR] [--row-module M] --out DIR
 
 This file is hashed into every bar record's key (``bar_sources``), with ``readings.py``, ``setio.py`` and Stage 1's
 ``speedfit.py``.
@@ -265,9 +265,9 @@ RULES = dict(
         "committed rates) fit; a started unit finishes; the first unit that does not fit is cut with every unit "
         "after it"),
     checks=(
-        "on the three sets of the 75 cm round a run is either a task's unit (--task) or a build check: single "
-        f"episodes on set {CHECK_SET} under R0 rows, each listed in the file --dev-episodes names; a check is no "
-        "record"),
+        "on the three sets of the 75 cm round a run is either a task's unit (--task) or a build check: at most one "
+        f"episode (seed {BLOCKS[HEADLINE_BLOCK][0]}) per condition and R0 row on set {CHECK_SET}, each listed with its "
+        "reason in the file --dev-episodes names; a check is smoke and no record"),
     stock=(
         "a Stage 1 condition on the pseudo-set S1 (a Stage 1 run directory) is built by panels.Context.built and "
         "judged by panels.judge unchanged, with Stage 1's terms, trace and omega (0.03 H crouch); its record has "
@@ -287,6 +287,7 @@ STAGE1_RULE_KEYS = ("rows", "episode", "failed_episode", "limits", "lcb", "succe
                     "success", "stop", "sources")
 LOOK_NOT_DEFINED = "not defined: the set has no look bands"
 BUDGET_CUT_LABEL = "not attributed (budget, pre-registered order)"
+BUDGET_CUT_REPORT = "not attributed: cut by the pre-registered order"
 
 
 class BarError(s2io.S2Error):
@@ -1554,7 +1555,7 @@ def condition_record(body: str, set_name: str, block: str, row: panels.Row, cond
     f2 = failure(row.name, episodes, attribution, c2["pass_"], "success")
     f3 = failure(row.name, episodes, attribution, c3["pass_"], "but_A1") if bar else None
     if a1_over:  # reading 2 gives a turn frozen with a1_over no verdict
-        c2 = dict(c2, pass_=None, not_read="a1_over", pass_if_read=c2["pass_"])
+        c2 = dict(c2, pass_=None, not_read="a1_over", reason="not read: a1_over", pass_if_read=c2["pass_"])
     for e in episodes:
         if bar and not e.get("error") and e.get("omega") is not None and e["omega"] != key["omega"]:
             raise BarError(f"{row.name} {cond.key} seed {e['seed']}: the episode ran at omega {e['omega']!r}, the "
@@ -1684,7 +1685,8 @@ def _lost(job, reason: str) -> dict:
 # ------------------------------------------------------------------------------------------------
 # Running
 # ------------------------------------------------------------------------------------------------
-def _check_rule(set_name, row_names, episodes, task, dev_episodes, passed_of, control) -> None:
+def _check_rule(set_name, row_names, episodes, task, dev_episodes, passed_of, control,
+                block: str = HEADLINE_BLOCK) -> None:
     """``RULES["checks"]``: on a set of the 75 cm round a run without ``--task`` is a listed build check."""
     if set_name not in PREREGISTERED_SETS or task is not None:
         return
@@ -1693,8 +1695,8 @@ def _check_rule(set_name, row_names, episodes, task, dev_episodes, passed_of, co
         bad.append(f"the set is {set_name}, not {CHECK_SET}")
     if any(controller_of(r) != "R0" for r in row_names):
         bad.append("a row is not an R0 row")
-    if int(episodes) != 1:
-        bad.append(f"{episodes} episodes per condition, not 1")
+    if int(episodes) != 1 or block != HEADLINE_BLOCK:
+        bad.append(f"{episodes} episodes per condition on {block}, not 1 (seed {BLOCKS[HEADLINE_BLOCK][0]})")
     if dev_episodes is None:
         bad.append("--dev-episodes names no file to list the episodes in")
     if passed_of or control:
@@ -1738,7 +1740,7 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
              supersede: bool = False, log=print, *, stage1_run=STAGE1_RUN, root=setio.ROOT, passed_of: str | None = None,
              control: str | None = None, unit: str | None = None, rates: dict | None = None,
              supersede_reason: str | None = None, dev_episodes=None, timeout_s: float = tune.EVAL_TIMEOUT_S,
-             budget_cap_core_h: float | None = None, no_traces_for=()) -> dict:
+             budget_cap_core_h: float | None = None, no_traces_for=(), dev_reason: str | None = None) -> dict:
     """Run the bar's conditions ``conditions`` (keys or names; default: the 16 gated ones, or Stage 1's gated
     hard-floor conditions on the pseudo-set ``S1``) of ``set_name`` on ``body`` under ``rows`` (names, or a dict of
     built rows) into ``out``: one record per row and condition under
@@ -1762,7 +1764,7 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
     seeds = [int(s) for s in BLOCKS[block][: int(episodes)]]
     stock = set_name == STOCK_SET
     row_objs = dict(rows) if isinstance(rows, dict) else globals()["rows"](body, list(rows), stage1_run)
-    _check_rule(set_name, list(row_objs), episodes, task, dev_episodes, passed_of, control)
+    _check_rule(set_name, list(row_objs), episodes, task, dev_episodes, passed_of, control, block)
     crouch_override = None if control is None else CONTROLS[control][0]
     extra = {} if control is None else dict(control=CONTROLS[control][1], control_name=control)
     with s2io.Lock(out / ".lock"):
@@ -1989,7 +1991,8 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
                     it["rec"] = rec
                     listed += [dict(set=set_name, body=body, block=block, row=row.name, condition=cond.key, seed=s,
                                     at=s2io.now_utc(), commit=git["commit"], bar_sha256=bsrc["sha256"], out=str(out),
-                                    error=bool(new[s].get("error")), purpose="build check: smoke, no record")
+                                    error=bool(new[s].get("error")), fell=bool(new[s].get("fell")),
+                                    reason=dev_reason or "the bar's build check: smoke, no record")
                                for s in sorted(new)]
                     c2, c3 = rec["counts"], rec["counts_but_A1"]
                     log(f"{set_name} {body} {block} {row.name} {cond.key}: {c2['survived']}/{c2['episodes']} survive, "
@@ -2023,7 +2026,8 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
                             est = len(lift) * len(seeds) * float(rec["seconds"]) * rate_of(rates, row.name) / 3600.0
                             if not budget.start(a_unit, est, dict(lifted=lift, record=rel(path))):
                                 rec["attribution"] = dict(label=BUDGET_CUT_LABEL, cut=True, candidates=cands,
-                                                          not_lifted=lift, reason=budget.cut_reason(a_unit),
+                                                          reported_as=BUDGET_CUT_REPORT, not_lifted=lift,
+                                                          reason=budget.cut_reason(a_unit),
                                                           rule=RULES["attribution"], episodes=0)
                                 rec["failure"] = failure(row.name, rec["episodes"], rec["attribution"],
                                                          (rec["counts"].get("pass_if_read", rec["counts"]["pass_"])))
@@ -2141,7 +2145,9 @@ def summarize(out, set_name: str, body: str, block: str, control: str | None = N
         if rec and rec.get("schema") == SCHEMA and "key_name" in rec:
             grid.setdefault(rec["key_name"], {})[rec["row"]] = _cell(rec)
     verdicts: dict = {}
-    for ckey, cells in grid.items():
+    no_verdict = ("the replication block gives no verdict of its own" if block != HEADLINE_BLOCK else
+                  "a control gives no verdict" if control is not None else None)
+    for ckey, cells in ({} if no_verdict else grid).items():
         for ctrl, pair in panels.VERDICT_ROWS.items():
             for ms in sorted({delay_ms(r) for r in cells if controller_of(r) == ctrl and delay_ms(r) is not None}):
                 two = [cells.get(f"{r}@{ms}ms") for r in pair]
@@ -2151,7 +2157,8 @@ def summarize(out, set_name: str, body: str, block: str, control: str | None = N
                     reading_3=verdict(two, ms, "but_A1"))
     doc = dict(schema=SCHEMA, set=set_name, body=body, block=block, control=control,
                rules={k: RULES[k] for k in ("readings", "pass_", "replication", "seeds")}, grid=grid,
-               verdicts=verdicts, sessions=list(old.get("sessions") or []) + ([session] if session else []),
+               verdicts=verdicts, verdicts_note=no_verdict,
+               sessions=list(old.get("sessions") or []) + ([session] if session else []),
                written_at=s2io.now_utc())
     if session is not None or grid:
         s2io.write_json(path, doc)
@@ -2714,6 +2721,7 @@ def main(argv=None) -> int:
     ap.add_argument("--supersede", action="store_true")
     ap.add_argument("--supersede-reason", default=None)
     ap.add_argument("--dev-episodes", default=None, help="the file a build check's episodes are listed in")
+    ap.add_argument("--dev-reason", default=None, help="why the check episodes are run (listed with them)")
     ap.add_argument("--set-root", default=str(setio.ROOT))
     ap.add_argument("--stage1-run", default=str(STAGE1_RUN))
     ap.add_argument("--records", default=None)
@@ -2738,7 +2746,7 @@ def main(argv=None) -> int:
                            not a.no_traces, a.episodes, a.task, a.supersede, stage1_run=a.stage1_run, root=a.set_root,
                            passed_of=a.passed_of, control=a.control, unit=a.unit, rates=rates,
                            supersede_reason=a.supersede_reason, dev_episodes=a.dev_episodes,
-                           no_traces_for=_csv(a.no_traces_for) or ())
+                           no_traces_for=_csv(a.no_traces_for) or (), dev_reason=a.dev_reason)
             print(summary_text(doc))
             s = doc["sessions"][-1]
             print(f"session: {s['episodes_run']} episodes run, {s['attribution_episodes_run']} lifted, "

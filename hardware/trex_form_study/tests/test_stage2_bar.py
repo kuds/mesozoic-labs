@@ -1139,6 +1139,7 @@ def test_replication_takes_what_passed_and_is_never_pooled(tmp_path, monkeypatch
     turn = read(rec_path(out, "R2/42@10ms", "turn/q90_right"))
     # a turn frozen with a1_over: both readings recorded, reading 2 not read (no pass), reading 3 can pass
     assert turn["a1_over"] is True and turn["counts"]["pass_"] is None and turn["counts"]["not_read"] == "a1_over"
+    assert turn["counts"]["reason"] == "not read: a1_over"
     assert turn["counts"]["succeeded"] == 20 and turn["counts_but_A1"]["pass_"] is True
     assert one["verdicts"]["turn/q90_right"]["R2@10ms"]["reading_2"]["verdict"] == "not read: a1_over"
     assert one["verdicts"]["turn/q90_right"]["R2@10ms"]["reading_3"]["verdict"] == "provisional but for A1"
@@ -1165,6 +1166,7 @@ def test_replication_takes_what_passed_and_is_never_pooled(tmp_path, monkeypatch
     assert not rec_path(out, "R0@10ms", "walk/v0.4", block="seeds5042").exists()
     assert not rec_path(out, "R2/43@10ms", "walk/v0.4", block="seeds5042").exists()
     assert two["block"] == "seeds5042" and set(two["grid"]) == set(conds)
+    assert two["verdicts"] == {} and "no verdict" in two["verdicts_note"] and one["verdicts_note"] is None
     assert all(set(v) == {"R2/42@10ms"} for v in two["grid"].values())
     with pytest.raises(ValueError, match="another block"):
         bar.evaluate(SET, BODY, out, rows, conds, block="seeds3042", passed_of="seeds3042", procs=1, root=root, log=quiet)
@@ -1186,6 +1188,8 @@ def test_the_omega_control_runs_apart_with_stage1s_crouch(tmp_path, monkeypatch)
     assert rec_path(out, "R2/42@10ms", "walk/v0.4", control="omega_s1").is_relative_to(out / "controls" / "omega_s1")
     assert own["crouch_frac"] == own["key"]["crouch_frac"] == 0.05 and "control" not in own
     assert ctl["crouch_frac"] == ctl["key"]["crouch_frac"] == 0.03 and ctl["control"] == "omega at Stage 1's 0.03 H crouch"
+    ctl_summary = read(bar.block_dir(out, SET, BODY, "seeds3042", "omega_s1") / "eval" / "summary.json")
+    assert ctl_summary["verdicts"] == {} and ctl_summary["verdicts_note"] == "a control gives no verdict"
     assert own["omega"] == bar.omega_of(BODY, d, 0.05) and ctl["omega"] == bar.omega_of(BODY, d, 0.03)
     assert own["omega"] > ctl["omega"] and own["key"]["omega"] == own["omega"] and ctl["key"]["omega"] == ctl["omega"]
     assert bar.key_differences(own["key"], ctl["key"]) and all("omega" in x or "crouch" in x for x in
@@ -1255,6 +1259,7 @@ def test_the_ledger_cuts_the_first_unit_that_does_not_fit_and_every_unit_after_i
                        unit="T4.1", budget_cap_core_h=tiny, log=quiet)
     rec = read(rec_path(out2, "R2/42@10ms", "walk/v0.4"))
     assert rec["attribution"]["label"] == "not attributed (budget, pre-registered order)" and rec["attribution"]["cut"] is True
+    assert rec["attribution"]["reported_as"] == "not attributed: cut by the pre-registered order"
     assert rec["failure"]["falls_label"] == "not attributed (budget, pre-registered order)" and len(rec["episodes"]) == 20
     led = read(out2 / "budget.json")["tasks"]["4"]
     assert [c["unit"] for c in led["cut"]] == ["attribution T0/75-M-H-10/seeds3042/eval/R2/42@10ms/walk/v0.4.json"]
@@ -1273,6 +1278,7 @@ def test_a_run_on_a_set_of_the_75cm_round_is_a_tasks_unit_or_a_listed_check(t0, 
                       (("F25F9cl", ["R0@10ms"], 1, None, "dev.json", None, None), "not V0"),
                       (("F25F9", ["R0@10ms"], 1, None, "dev.json", None, None), "not V0"),
                       (("V0", ["R0@10ms"], 2, None, "dev.json", None, None), "2 episodes"),
+                      (("V0", ["R0@10ms"], 1, None, "dev.json", None, None, "seeds5042"), "seeds5042"),
                       (("V0", ["R0@10ms"], 1, None, None, None, None), "--dev-episodes"),
                       (("V0", ["R0@10ms"], 1, None, "dev.json", "seeds3042", None), "no check")):
         with pytest.raises(bar.BarError, match=word):
@@ -1293,6 +1299,7 @@ def test_a_run_on_a_set_of_the_75cm_round_is_a_tasks_unit_or_a_listed_check(t0, 
     assert [(x["set"], x["row"], x["condition"], x["seed"]) for x in listed["episodes"]] == [
         (SET, "R0@10ms", "walk/v0.4", 3042), (SET, "R0@10ms", "stop/two_step", 3042)]
     assert listed["rule"] == bar.RULES["checks"] and listed["episodes"][0]["bar_sha256"] == bar.bar_sources()["sha256"]
+    assert listed["episodes"][0]["reason"] == "the bar's build check: smoke, no record"
 
 
 @needs_run
