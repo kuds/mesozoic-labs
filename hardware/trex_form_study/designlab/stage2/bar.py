@@ -31,9 +31,9 @@ Run from hardware/trex_form_study (one BLAS thread)::
 
     python -m designlab.stage2.bar {run|dry-run|summary|refcheck|reread} --set S --body B --rows R2/42@10ms,R0@10ms
         [--conditions walk/v0.4,...] [--block seeds3042|seeds5042] [--passed-of seeds3042] [--procs 2]
-        [--attribute judged|all|none] [--no-traces] [--episodes 20] [--task 3|4] [--unit NAME] [--cost FILE]
-        [--control omega_s1] [--supersede --supersede-reason TEXT] [--dev-episodes FILE] [--set-root DIR]
-        [--stage1-run DIR] [--records DIR] [--row-module M] --out DIR
+        [--attribute judged|all|none] [--no-traces] [--no-traces-for R0] [--episodes 20] [--task 3|4] [--unit NAME]
+        [--cost FILE] [--control omega_s1] [--supersede --supersede-reason TEXT] [--dev-episodes FILE]
+        [--set-root DIR] [--stage1-run DIR] [--records DIR] [--row-module M] --out DIR
 
 This file is hashed into every bar record's key (``bar_sources``), with ``readings.py``, ``setio.py`` and Stage 1's
 ``speedfit.py``.
@@ -346,10 +346,11 @@ def describe_condition(cond) -> dict:
     return cond.describe() if is_bar(cond) else dict(cond.describe(), stock=True)
 
 
-def conditions(set_docs: dict, block: str = HEADLINE_BLOCK) -> list[BarCondition]:
+def conditions(set_docs: dict, block: str = HEADLINE_BLOCK, every: bool = False) -> list[BarCondition]:
     """The bar's conditions on a set (``setio.load``'s documents): the 16 gated ones, always, and the reported ones
     the set has entries for (an entry recorded ``available: false`` counts: its condition gets a "not run"
-    record)."""
+    record).  With ``every`` the reported ones are all there, whatever the set holds (a condition named in a run
+    whose reference the set never listed gets a "not run" record too)."""
     if block not in BLOCKS:
         raise ValueError(f"block {block!r}: choose from {', '.join(BLOCKS)}")
     name = set_docs["set.json"]["set"]
@@ -378,19 +379,51 @@ def conditions(set_docs: dict, block: str = HEADLINE_BLOCK) -> list[BarCondition
         add("stop", f"two_step{tag}", True, "bar_stop", friction=mu, move=setio.stop_name(2, BAR_WALK))
     # reported: the speed ladder, the turn-rate ladder, the larger nudges, Stage 1's one-step stop
     for w in [setio.NOMINAL] + [setio.walk_name(v) for v in setio.SPEEDS if v != setio.BAR_SPEED]:
-        if w in refs:
+        if every or w in refs:
             for mu, tag in GRIPS:
                 add("walk", w + tag, False, "bar_walk", friction=mu, walk=w)
     for rate in setio.TURN_RATES:
         for d in setio.DIRECTIONS:
-            if rate != setio.QUICK and setio.turn_name(rate, d) in trs:
+            if rate != setio.QUICK and (every or setio.turn_name(rate, d) in trs):
                 add("turn", f"t90_{rate}_{d}", False, "bar_turn", case=rate, direction=d, move=setio.turn_name(rate, d))
     for frac in NUDGE_FRACS_REPORTED:
         for d in panels.PUSH_DIRECTIONS:
             nudge(d, f"_x{frac:g}", False, None, frac)
-    if setio.stop_name(1, BAR_WALK) in trs:
+    if every or setio.stop_name(1, BAR_WALK) in trs:
         add("stop", "one_step", False, "bar_stop", move=setio.stop_name(1, BAR_WALK))
     return out
+
+
+#: Groups of conditions a run may name (``choose``): each takes the conditions the set has entries for.
+GROUPS = {
+    "@gated": lambda c: c.gated,
+    "@walk": lambda c: c.gated and c.judge == "bar_walk",  # the walk item on both grips (task 3)
+    "@rest": lambda c: c.gated and c.judge != "bar_walk",  # the 14 turn, nudge and stop conditions (task 4)
+    "@speed-ladder": lambda c: not c.gated and c.judge == "bar_walk" and c.friction is None,
+    "@ladders": lambda c: not c.gated and c.judge != "bar_walk",  # turn rates, larger nudges, the one-step stop
+}
+
+
+def choose(set_docs: dict, block: str, names=None) -> list[BarCondition]:
+    """The conditions a run takes: without names the 16 gated ones; a name (key or bare name) of any condition the
+    bar defines, whether or not the set lists its reference; a group of ``GROUPS`` (the conditions of that group
+    the set has entries for).  In the order of ``conditions``; ``ValueError`` for an unknown name."""
+    have = conditions(set_docs, block)
+    if names is None:
+        return [c for c in have if c.gated]
+    known = conditions(set_docs, block, every=True)
+    picked, unknown = set(), []
+    for n in names:
+        if n in GROUPS:
+            picked |= {c.key for c in have if GROUPS[n](c)}
+        elif any(n in (c.key, c.name) for c in known):
+            picked |= {c.key for c in known if n in (c.key, c.name)}
+        else:
+            unknown.append(n)
+    if unknown:
+        raise ValueError(f"conditions {unknown} are not among {sorted(c.key for c in known)} or the groups "
+                         f"{', '.join(GROUPS)}")
+    return [c for c in known if c.key in picked]
 
 
 def stock_conditions() -> list[panels.Condition]:
@@ -1180,9 +1213,13 @@ def failed_episode(cond, seed: int, reason: str, relax=(), wall_s: float = 0.0) 
 def convention_check(rec: metrics.Recorder) -> dict:
     """The recorder's one-step timing convention read on an episode (``RULES["convention"]``): at every touchdown
     step b that an update row shares (``t = b dt``), the foot's low point at that row against one physics step's
-    travel (the low point's largest change per step over the two updates before).  ``holds`` when every such low
-    point is within one step's travel of the floor; were the rows one step early, the foot would still be more
-    than that above it."""
+    travel (the low point's largest change per step over the two updates before).  By the convention the row shows
+    the foot after its touchdown step, so its low point is at the floor or pressed a little into it; were the rows
+    a step early, the foot would still be above the floor.  ``holds``: no such low point is more than one step's
+    travel above the floor.  ``within_one_step`` counts the rows whose low point is within one step's travel of the
+    floor on either side (the soft contact lets a foot sink further before its load passes 2 % of the weight, so
+    this count can be below the number of rows while the convention holds); the low point one update earlier is
+    reported beside."""
     t, dt = rec.t, rec.dt
     low, contact = _lows(rec), rec.contact()
     rows_ = []
@@ -1193,15 +1230,16 @@ def convention_check(rec: metrics.Recorder) -> dict:
         travel = float(np.max(np.abs(np.diff(low[k - 2 : k + 1, i]))) / control.FEEDBACK_EVERY)
         rows_.append((float(low[k, i]), travel, float(low[k - 1, i])))
     if not rows_:
-        return dict(touchdowns_on_rows=0, holds=None)
+        return dict(touchdowns_on_rows=0, holds=None, step_offset=readings.STEP_OFFSET)
     a = np.array(rows_)
-    return dict(touchdowns_on_rows=len(a), low_at_touchdown_row_mm=dict(median=1e3 * float(np.median(a[:, 0])),
-                                                                         max=1e3 * float(np.max(a[:, 0])),
-                                                                         min=1e3 * float(np.min(a[:, 0]))),
-                step_travel_mm=dict(median=1e3 * float(np.median(a[:, 1])), max=1e3 * float(np.max(a[:, 1]))),
-                low_one_update_before_mm=dict(median=1e3 * float(np.median(a[:, 2]))),
+
+    def mm(x):
+        return dict(min=1e3 * float(np.min(x)), median=1e3 * float(np.median(x)), max=1e3 * float(np.max(x)))
+
+    return dict(touchdowns_on_rows=len(a), low_at_touchdown_row_mm=mm(a[:, 0]), step_travel_mm=mm(a[:, 1]),
+                low_one_update_before_mm=mm(a[:, 2]), above_floor=int(np.sum(a[:, 0] > 0.0)),
                 within_one_step=int(np.sum(np.abs(a[:, 0]) <= a[:, 1] + 1e-12)),
-                holds=bool(np.all(np.abs(a[:, 0]) <= a[:, 1] + 1e-12)), step_offset=readings.STEP_OFFSET)
+                holds=bool(np.all(a[:, 0] <= a[:, 1] + 1e-12)), step_offset=readings.STEP_OFFSET)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1584,7 +1622,7 @@ class BarWorker:
     def __init__(self, body: str, run_dir: str, mode: str = "bar", rate: float = RATE,
                  expected_inputs: dict | None = None, *, set_name: str, files=(), rows=(), sources: str | None = None,
                  bar: str | None = None, traces: str | None = None, crouch_frac: float | None = None,
-                 session: dict | None = None, stage1_run: str | None = None):
+                 session: dict | None = None, no_traces_for=()):
         s2io.require_one_thread()
         if bar is not None and bar_sources()["sha256"] != bar:
             raise tune.PoolError("the bar's sources (bar.py, readings.py, setio.py, speedfit.py) changed during the "
@@ -1609,6 +1647,7 @@ class BarWorker:
         self.ctx = context_for(body, self.run_dir, docs, set_doc, crouch_frac, ident)
         self.rows = {s["name"]: panels.row_from_spec(s) for s in rows}
         self.traces = None if traces is None else Path(traces)
+        self.no_traces_for = tuple(no_traces_for)
         self.session = session
 
     def describe(self) -> dict:
@@ -1618,6 +1657,8 @@ class BarWorker:
         row, cond, relax, pdir, key_sha256 = job
         relax = tuple(relax)
         root = self.traces if not relax else None  # the attribution's lifted runs leave no trace
+        if controller_of(row) in self.no_traces_for:
+            root = None
         t0 = time.perf_counter()
         try:
             e = run_episode(self.rows[row], self.ctx, cond, int(seed), relax, trace_root=root)
@@ -1697,7 +1738,7 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
              supersede: bool = False, log=print, *, stage1_run=STAGE1_RUN, root=setio.ROOT, passed_of: str | None = None,
              control: str | None = None, unit: str | None = None, rates: dict | None = None,
              supersede_reason: str | None = None, dev_episodes=None, timeout_s: float = tune.EVAL_TIMEOUT_S,
-             budget_cap_core_h: float | None = None) -> dict:
+             budget_cap_core_h: float | None = None, no_traces_for=()) -> dict:
     """Run the bar's conditions ``conditions`` (keys or names; default: the 16 gated ones, or Stage 1's gated
     hard-floor conditions on the pseudo-set ``S1``) of ``set_name`` on ``body`` under ``rows`` (names, or a dict of
     built rows) into ``out``: one record per row and condition under
@@ -1705,8 +1746,8 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
     (``supersede`` with ``supersede_reason`` keeps it beside the new one); ``attribute`` runs decision 20's
     attribution ("judged": rows at 10 ms; "all"; "none"); ``passed_of`` selects the records of that block that
     passed (replication); ``task`` counts every episode in ``<out>/budget.json`` and needs ``rates`` (``read_cost``'s
-    ``rates``); ``control`` runs a reported control into ``<out>/controls/<control>/``.  Returns the session and
-    the block's summary."""
+    ``rates``); ``control`` runs a reported control into ``<out>/controls/<control>/``; ``no_traces_for`` names
+    controllers ("R0") whose rows write no trace.  Returns the block's summary with the session."""
     s2io.require_one_thread()
     if block not in BLOCKS:
         raise ValueError(f"block {block!r}: choose from {', '.join(BLOCKS)}")
@@ -1749,8 +1790,8 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
                 raise BarError(f"{run_dir}: set.json names the set {set_docs['set.json'].get('set')!r}")
             planner = BarPlanner(run_dir, set_docs["refs.json"]["references"],
                                  set_docs["transitions.json"]["transitions"], set_docs["set.json"])
-            all_conds = globals()["conditions"](set_docs, block)
-            conds = select(all_conds, conditions, [c for c in all_conds if c.gated])
+            all_conds = globals()["conditions"](set_docs, block, every=True)
+            conds = choose(set_docs, block, conditions)
             crouch = float(set_docs["set.json"].get("crouch_frac", 0.03)) if crouch_override is None else crouch_override
             resolved, missing = {}, {}
             for c in conds:
@@ -1870,7 +1911,8 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
                                      rows=[r.spec() for r in row_objs.values()],
                                      sources=panels.fingerprint(src["sha256"], kctx), bar=bsrc["sha256"],
                                      traces=None if trace_root is None else str(trace_root),
-                                     crouch_frac=crouch_override, session=sess))
+                                     crouch_frac=crouch_override, session=sess,
+                                     no_traces_for=tuple(no_traces_for)))
             return pool
 
         def count(unit_, item, wall):
@@ -2193,8 +2235,7 @@ def dry_run(set_name: str, body: str, out, rows, conditions=None, block: str = H
         set_docs = setio.load(run_dir)
         planner = BarPlanner(run_dir, set_docs["refs.json"]["references"], set_docs["transitions.json"]["transitions"],
                              set_docs["set.json"])
-        all_conds = globals()["conditions"](set_docs, block)
-        conds = select(all_conds, conditions, [c for c in all_conds if c.gated])
+        conds = choose(set_docs, block, conditions)
         plan = {}
         for c in conds:
             why = planner.missing(c)
@@ -2615,6 +2656,10 @@ def reread(stage1_run, body: str, rows, conditions, out, records=None, row_modul
                                     interrupted_swings=r["interrupted_swings"], air_gaps=r["air_gaps"],
                                     air_gap_longest_s=r["air_gap_longest_s"], air_gap_max_s=r["air_gap_max_s"],
                                     convention=convention_check(rec))
+                    else:
+                        line["not_read"] = ("the stock trace differs from the committed record's" if not
+                                            line["trace_equal"] else "Stage 1 judged no window (the episode fell)"
+                                            if e["fell"] else "Stage 1's window is not complete")
                     line["wall_s"] = time.perf_counter() - t0
                     eps.append(line)
                     log(f"{body} {row.name} {cond.key} {seed}: trace "
@@ -2653,12 +2698,14 @@ def main(argv=None) -> int:
     ap.add_argument("--set", dest="set_name", default=None, help="the reference set (V0, F25F9, F25F9cl, ...) or S1")
     ap.add_argument("--body", required=True)
     ap.add_argument("--rows", default=None, help="comma-separated rows: R2/42@10ms,R0@10ms")
-    ap.add_argument("--conditions", default=None, help="comma-separated keys or names (default: the gated ones)")
+    ap.add_argument("--conditions", default=None,
+                    help="comma-separated keys, names or groups (" + ", ".join(GROUPS) + "; default: the gated ones)")
     ap.add_argument("--block", default=HEADLINE_BLOCK, choices=tuple(BLOCKS))
     ap.add_argument("--passed-of", default=None, choices=tuple(BLOCKS))
     ap.add_argument("--procs", type=int, default=2)
     ap.add_argument("--attribute", default="judged", choices=("judged", "all", "none"))
     ap.add_argument("--no-traces", action="store_true")
+    ap.add_argument("--no-traces-for", default=None, help="controllers whose rows write no trace (R0)")
     ap.add_argument("--episodes", type=int, default=RUNS)
     ap.add_argument("--task", type=int, default=None, choices=tuple(BUDGET_CORE_H))
     ap.add_argument("--unit", default=None, help="the unit's name in budget.json")
@@ -2690,7 +2737,8 @@ def main(argv=None) -> int:
             doc = evaluate(a.set_name, a.body, a.out, _csv(a.rows), _csv(a.conditions), a.block, a.procs, a.attribute,
                            not a.no_traces, a.episodes, a.task, a.supersede, stage1_run=a.stage1_run, root=a.set_root,
                            passed_of=a.passed_of, control=a.control, unit=a.unit, rates=rates,
-                           supersede_reason=a.supersede_reason, dev_episodes=a.dev_episodes)
+                           supersede_reason=a.supersede_reason, dev_episodes=a.dev_episodes,
+                           no_traces_for=_csv(a.no_traces_for) or ())
             print(summary_text(doc))
             s = doc["sessions"][-1]
             print(f"session: {s['episodes_run']} episodes run, {s['attribution_episodes_run']} lifted, "

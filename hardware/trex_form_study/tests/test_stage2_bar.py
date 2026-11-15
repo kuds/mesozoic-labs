@@ -791,7 +791,7 @@ def test_an_incomplete_judged_window_is_an_error_not_a_failed_term(t0, t0_docs, 
             bar.run_episode(row, ctx, cond, 3042)
     # through the runner: the worker records it as an episode that failed to run; the record is not judged
     cut = dataclasses.replace(cond_of(t0_docs, "walk/v0.4"), seconds=6.0)
-    monkeypatch.setattr(bar, "conditions", lambda docs, block="seeds3042": [cut])
+    monkeypatch.setattr(bar, "conditions", lambda docs, block="seeds3042", every=False: [cut])
     out = tmp_path / "out"
     doc = bar.evaluate(SET, BODY, out, ["R0@0ms"], None, episodes=1, procs=1, root=t0, log=quiet)
     rec = read(rec_path(out, "R0@0ms", "walk/v0.4"))
@@ -1293,3 +1293,347 @@ def test_a_run_on_a_set_of_the_75cm_round_is_a_tasks_unit_or_a_listed_check(t0, 
     assert [(x["set"], x["row"], x["condition"], x["seed"]) for x in listed["episodes"]] == [
         (SET, "R0@10ms", "walk/v0.4", 3042), (SET, "R0@10ms", "stop/two_step", 3042)]
     assert listed["rule"] == bar.RULES["checks"] and listed["episodes"][0]["bar_sha256"] == bar.bar_sources()["sha256"]
+
+
+@needs_run
+def test_groups_and_named_ladder_conditions(t0, t0_docs, tmp_path, monkeypatch):
+    keys = lambda names: [c.key for c in bar.choose(t0_docs, "seeds3042", names)]  # noqa: E731
+    assert keys(None) == GATED == keys(["@gated"])
+    assert keys(["@walk"]) == ["walk/v0.4", "walk/v0.4_mu0.54"]
+    assert keys(["@rest"]) == [k for k in GATED if not k.startswith("walk/")] and len(keys(["@rest"])) == 14
+    assert keys(["@speed-ladder"]) == ["walk/nominal"]  # what T0 has entries for, at mu 0.9
+    assert keys(["@ladders"]) == [f"nudge/{d}_x{f:g}" for f in (0.375, 0.5) for d in ("forward", "backward", "left", "right")]
+    assert keys(["@walk", "stop/two_step"]) == ["walk/v0.4", "walk/v0.4_mu0.54", "stop/two_step"]
+    # a ladder condition named outright exists whether or not the set lists its reference: it gets a "not run" record
+    assert keys(["walk/v0.5_mu0.54", "turn/t90_1_left", "stop/one_step"]) == ["walk/v0.5_mu0.54", "turn/t90_1_left",
+                                                                             "stop/one_step"]
+    every = [c.key for c in bar.conditions(t0_docs, every=True)]
+    assert len(every) == 16 + 10 + 6 + 8 + 1 and every[:16] == GATED
+    with pytest.raises(ValueError, match="walk/v0.9"):
+        keys(["walk/v0.9"])
+    with pytest.raises(ValueError, match="@everything"):
+        keys(["@everything"])
+    calls = faked(monkeypatch, lambda row, cond, seed, relax: fake_episode(cond, seed))
+    out = tmp_path / "out"
+    doc = bar.evaluate(SET, BODY, out, ["R0@10ms"], ["walk/v0.5", "turn/t90_0.5_right", "stop/one_step", "@walk"],
+                       episodes=1, procs=1, root=t0, log=quiet)
+    assert [c[1] for c in calls] == ["walk/v0.4", "walk/v0.4_mu0.54"] and len(doc["sessions"][-1]["not_run"]) == 3
+    r = read(rec_path(out, "R0@10ms", "walk/v0.5"))
+    assert r["status"] == "not run" and r["reason"] == "the set has no entry 'v0.5'" and r["gated"] is False
+    assert read(rec_path(out, "R0@10ms", "turn/t90_0.5_right"))["reference"] == "transitions/turn90_0.5_right"
+    assert read(rec_path(out, "R0@10ms", "stop/one_step"))["reason"] == "the set has no entry 'stop1_v0.4'"
+
+
+# ------------------------------------------------------------------------------------------------
+# Kill and resume (a real kill of a real run on the S1 view)
+# ------------------------------------------------------------------------------------------------
+VOLATILE = ("wall_s", "started_at", "ended_at", "sessions", "episode_wall_s", "written_at", "at")
+
+
+@needs_run
+def test_a_killed_run_resumes_to_equal_records(tmp_path):
+    env = dict(os.environ, PYTHONPATH=str(ROOT), MUJOCO_GL="disable")
+    cmd = [sys.executable, "-m", "designlab.stage2.bar", "run", "--set", "S1", "--stage1-run", str(RUN), "--body", BODY,
+           "--rows", "R0@4ms", "--conditions", "walk/nominal,walk/brisk", "--episodes", "3", "--procs", "1"]
+    killed, whole = tmp_path / "killed", tmp_path / "whole"
+    proc = subprocess.Popen(cmd + ["--out", str(killed)], cwd=ROOT, env=env, stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL)
+    partial = bar.block_dir(killed, "S1", BODY, "seeds3042") / "partial"
+    t0_ = time.time()
+    while time.time() - t0_ < 120 and proc.poll() is None and len(list(partial.rglob("*.json"))) < 2:
+        time.sleep(0.05)
+    assert proc.poll() is None, "the run finished before it could be killed"
+    proc.send_signal(signal.SIGKILL)
+    proc.wait()
+    kept = sorted(p.relative_to(partial).as_posix() for p in partial.rglob("*.json"))
+    assert len(kept) >= 2 and (killed / ".lock").exists()  # the dead run's lock is still there ...
+    records = lambda out: sorted(p for p in bar.block_dir(out, "S1", BODY, "seeds3042").rglob("*.json")  # noqa: E731
+                                 if "partial" not in p.parts and p.name != "summary.json")
+    n_before = len(records(killed))
+    assert n_before < 2
+    # ... and is taken over: its holder is gone
+    again = subprocess.run(cmd + ["--out", str(killed)], cwd=ROOT, env=env, capture_output=True, text=True)
+    assert again.returncode == 0, again.stderr[-2000:]
+    assert "taken over" in again.stderr and not (killed / ".lock").exists() and not partial.exists()
+    ref = subprocess.run(cmd + ["--out", str(whole)], cwd=ROOT, env=env, capture_output=True, text=True)
+    assert ref.returncode == 0, ref.stderr[-2000:]
+    a, b = records(killed), records(whole)
+    assert [p.relative_to(killed) for p in a] == [p.relative_to(whole) for p in b] and len(a) == 2
+    resumed = 0
+    for pa, pb in zip(a, b, strict=True):
+        ra, rb = read(pa), read(pb)
+        assert strip(ra, VOLATILE) == strip(rb, VOLATILE), pa
+        assert [e["trace"]["sha256"] for e in ra["episodes"]] == [e["trace"]["sha256"] for e in rb["episodes"]]
+        assert sorted(s for x in ra["sessions"] for s in x["seeds_run"]) == [3042, 3043, 3044]
+        resumed += len(ra["sessions"]) > 1
+        for e in ra["episodes"]:  # every trace is there and is the one its record names
+            tr = bar.block_dir(killed, "S1", BODY, "seeds3042") / "eval" / "traces" / e["trace"]["path"]
+            assert s2io.sha256_file(tr) == e["trace"]["sha256"]
+    assert resumed >= 1  # at least one record was finished from episodes the killed run left
+    # a third run finds everything done
+    third = subprocess.run(cmd + ["--out", str(killed)], cwd=ROOT, env=env, capture_output=True, text=True)
+    assert third.returncode == 0 and "0 episodes run" in third.stdout and "2 records up to date" in third.stdout
+
+
+# ------------------------------------------------------------------------------------------------
+# Dry run, the kinematic player, refcheck, reread
+# ------------------------------------------------------------------------------------------------
+@needs_run
+def test_dry_run_writes_nothing_and_its_text_holds_the_rates(t0, tmp_path, capsys):
+    out = tmp_path / "out"
+    rates = dict(schema="bar-cost-1", rates=dict(R2=dict(wall_per_sim_s=0.5, row="R2/42@10ms"),
+                                                 R0=dict(wall_per_sim_s=0.1, row="R0@10ms")),
+                 measured_on=dict(condition="walk/brisk", body=BODY, stage1_run="stage1/runs/2026-11-08", cut_s=8.0,
+                                  seeds=[3042, 3043]))
+    doc = bar.dry_run(SET, BODY, out, ["R2/42@10ms", "R0@10ms"], ["@gated"], root=t0, rates=rates, log=quiet)
+    assert not out.exists() and len(doc["episodes"]) == 32 and doc["totals"]["episodes"] == 640
+    walk = next(x for x in doc["episodes"] if x["condition"] == "walk/v0.4" and x["row"] == "R2/42@10ms")
+    assert walk["status"] == "to run" and walk["core_h"] == pytest.approx(20 * walk["seconds"] * 0.5 / 3600)
+    assert doc["totals"]["core_h"] == pytest.approx(sum(x["core_h"] for x in doc["episodes"]))
+    (tmp_path / "COST.md").write_text(doc["text"])
+    assert bar.read_cost(tmp_path / "COST.md") == rates and "never on a reference of a Stage 2 set" in doc["text"]
+    # the CLI prints the document and nothing else (bar dry-run ... > COST.md)
+    cost = tmp_path / "COST.md"
+    assert bar.main(["dry-run", "--set", SET, "--set-root", str(t0), "--body", BODY, "--rows", "R0@10ms", "--conditions",
+                     "walk/v0.4", "--cost", str(cost), "--out", str(out)]) == 0
+    printed = capsys.readouterr().out
+    assert printed.startswith("# Cost of the bar's episodes") and "```json" in printed and not out.exists()
+    # the rates are measured on Stage 1's own committed condition (two short episodes per row type)
+    m = bar.measure_rates(BODY, ["R0@10ms", "R0@0ms"], RUN, seconds=2.0)
+    assert set(m["rates"]) == {"R0"} and m["rates"]["R0"]["row"] == "R0@10ms" and m["rates"]["R0"]["simulated_s"] == pytest.approx(4.0, abs=0.01)
+    assert 0.0 < m["rates"]["R0"]["wall_per_sim_s"] < 5.0 and m["measured_on"]["set"] == "S1"
+    assert m["measured_on"]["condition"] == "walk/brisk" and m["schema"] == "bar-cost-1"
+
+
+@needs_run
+def test_the_kinematic_player_is_stage1s_on_a_straight_walk_and_follows_any_track(t0, t0_docs):
+    from designlab.stage1.refs import Reference
+
+    p = plant.build(BODY, "hard", settle=False)
+    d = setio.set_dir(SET, BODY, t0)
+    ref = Reference.load(d / "refs" / "nominal.npz")
+    stock, track = panels.reference_recorder(p, ref, 8.0)
+    track.run_dir = d
+    mine = bar.reference_recorder(p, track, 8.0)
+    assert mine.rows == stock.rows and mine.steps == stock.steps
+    cols = [metrics.C[c] for c in ("t", "t_ref", "com_x", "com_y", "foot0_x", "foot0_y", "foot1_x", "foot1_y", "low0",
+                                   "low1", "roll", "pitch", "yaw", "ref_swing", "ref_u", "sole0_x", "sole1_y", "root_x")]
+    assert np.allclose(mine.U[:, cols], stock.U[:, cols], atol=1e-9, rtol=0) and np.allclose(mine.Q, stock.Q, atol=1e-12)
+    assert np.array_equal(mine.contact(), stock.contact())  # contact from the reference's support flags
+    T, H = ref.period, float(p.meta["H_m"])
+    a, b = (metrics.window(r, T, T + 6.0, 0.0, H) for r in (mine, stock))
+    for k in ("cadence_steps_s", "duty", "toe_clearance_m", "stride_H", "speed_m_s"):
+        assert a[k] == pytest.approx(b[k], rel=1e-9, abs=1e-9), k
+    # a whole item of the bar: the lead-in, the walk; the played CoM advances at the walk's speed times the clock
+    pl = planner_of(t0)
+    omega = control.omega0(p, ref.q_home)
+    item = bar.reference_item(p, d, cond_of(t0_docs, "walk/v0.4"), pl, omega)
+    brisk = t0_docs["refs.json"]["references"]["v0.4"]["speed_m_s"]
+    assert item["along_commanded_heading_m"] == pytest.approx(10.0 * 1.05 * brisk, abs=6e-3) and item["clock_rate"] == 1.05
+    assert item["ok"] == dict(along=False, line=True, toe_clearance_own_swing=True) and item["pass_"] is False
+    assert item["toe"]["own_swings"] == item["toe"]["ref_swings"] and item["toe"]["interrupted_swings"] == 0
+    assert item["toe"]["air_gaps"] == 0 and item["lateral_from_line_max_m"] < 0.1
+    nominal = bar.reference_item(p, d, cond_of(t0_docs, "walk/nominal"), pl, omega)
+    assert nominal["pass_"] is True and nominal["along_commanded_heading_m"] == pytest.approx(
+        10.0 * 1.05 * t0_docs["refs.json"]["references"]["nominal"]["speed_m_s"], abs=6e-3)  # (the CoM's own surge)
+    # segments are joined in one world frame: no jump of the root across a join
+    res = pl.resolve(cond_of(t0_docs, "walk/v0.4"))
+    rec = bar.reference_recorder(p, setio.build_track(p, d, res["plan"], omega, pl.tr_doc), res["seconds"], d, rate=1.05)
+    step = np.linalg.norm(np.diff(rec.U[:, [metrics.C["root_x"], metrics.C["root_y"]]], axis=0), axis=1)
+    assert step.max() < 0.01 and rec.rows == int(round(res["seconds"] / 0.002)) // 5 + (1 if int(round(res["seconds"] / 0.002)) % 5 else 0)
+    with pytest.raises(ValueError, match="run_dir"):
+        bar.reference_recorder(p, control.build_track(p, d, res["plan"], omega), 1.0)
+
+
+@needs_run
+def test_refcheck_reads_every_reference_with_the_bars_readings(t0, tmp_path):
+    lines = []
+    doc = bar.refcheck(SET, BODY, t0, tmp_path / "out", log=lines.append)
+    assert read(tmp_path / "out" / SET / BODY / "refcheck.json")["items"].keys() == doc["items"].keys()
+    assert list(doc["items"]) == ["walk/v0.4", "turn/q90_left", "turn/q90_right", "stop/two_step", "walk/nominal"]
+    assert doc["set_freeze"]["index"] == 0 and doc["omega"] == bar.omega_of(BODY, setio.set_dir(SET, BODY, t0), 0.03)
+    assert doc["items"]["walk/nominal"]["pass_"] is True and doc["items"]["walk/v0.4"]["ok"]["along"] is False
+    # T0's "moves" are Stage 1's files under other names: the readings are taken all the same
+    stop = doc["items"]["stop/two_step"]
+    assert stop["stop"]["reached_command"] and isinstance(stop["stop"]["touchdowns_after_command"], int)
+    turn = doc["items"]["turn/q90_left"]
+    assert turn["turn"]["at_s"] == 2.0 and turn["file"]["at_s"] == 2.0 and turn["toe"]["air_gap_max_s"] > 0
+    assert doc["pass_"] is False and len(lines) == 5 and "walk/nominal: pass" in lines[4]
+    assert bar.main(["refcheck", "--set", SET, "--set-root", str(t0), "--body", BODY, "--out", str(tmp_path / "o2")]) == 1
+
+
+@needs_run
+def test_reread_checks_the_stock_trace_before_it_reads_the_own_swing_clearance(tmp_path):
+    lines = []
+    doc = bar.reread(RUN, BODY, ["R0"], ["walk/brisk"], tmp_path / "out", episodes=1, log=lines.append)
+    assert doc == read(tmp_path / "out" / BODY / "reread.json")
+    assert (doc["traces_equal"], doc["traces"], doc["pass_"], doc["complete"]) == (1, 1, True, True)
+    (e,) = doc["episodes"]
+    committed = read(RUN / BODY / "eval" / "R0" / "walk" / "brisk.json")["episodes"][0]
+    assert e["trace_sha256"] == e["committed_trace_sha256"] == committed["trace"]["sha256"] and e["trace_equal"]
+    assert e["toe_clearance_reference_clock_m"] == committed["measures"]["window"]["toe_clearance_m"]
+    assert e["difference_m"] == pytest.approx(e["toe_clearance_own_swing_m"] - e["toe_clearance_reference_clock_m"])
+    assert e["interrupted_swings"] == 0 and e["own_swings"] == e["ref_swings"] and e["convention"]["holds"] is True
+    assert e["window_s"] == [committed["measures"]["window"]["t_start_s"], committed["measures"]["window"]["t_end_s"]]
+    assert "trace equal" in lines[0] and "own swing" in lines[0]
+    # a record the trace does not match: the own-swing reading is not taken, and the check fails
+    fake = tmp_path / "records" / BODY / "eval" / "R0" / "walk"
+    fake.mkdir(parents=True)
+    s2io.write_json(fake / "brisk.json", dict(episodes=[dict(seed=3042, trace=dict(sha256="0" * 64))]))
+    doc = bar.reread(RUN, BODY, ["R0"], ["walk/brisk"], tmp_path / "out2", records=tmp_path / "records", episodes=1,
+                     log=quiet)
+    (e,) = doc["episodes"]
+    assert doc["pass_"] is False and e["trace_equal"] is False and "toe_clearance_own_swing_m" not in e
+    assert e["not_read"] == "the stock trace differs from the committed record's"
+    assert s2io.read_json(fake / "brisk.json")["episodes"][0]["trace"]["sha256"] == "0" * 64  # nothing written there
+
+
+# ------------------------------------------------------------------------------------------------
+# The chain
+# ------------------------------------------------------------------------------------------------
+CHAIN = ROOT / "stage2" / "runs" / "2026-11-15-75cm" / "run_75cm.sh"
+
+
+def test_the_chain_lists_the_units_in_the_pre_registered_order(tmp_path):
+    assert subprocess.run(["bash", "-n", str(CHAIN)]).returncode == 0
+    r = subprocess.run(["bash", str(CHAIN), "list"], capture_output=True, text=True, env=dict(os.environ, PY="python"))
+    assert r.returncode == 0, r.stderr
+    steps = [line.split(" [to run]: ")[0] for line in r.stdout.splitlines()]
+    cmds = dict(line.split(" [to run]: ") for line in r.stdout.splitlines())
+    assert len(steps) == len(set(steps)) and steps[:3] == ["refcheck-V0", "refcheck-F25F9", "refcheck-F25F9cl"]
+    assert steps[-1] == "report" and "designlab.stage2.barreport" in cmds["report"]
+    t3 = [s for s in steps if s.startswith("T3.") and not s.startswith("T3.10")]
+    assert t3[:13] == ["T3.1-F25F9cl-10ms", "T3.1-F25F9-10ms", "T3.1-V0-10ms", "T3.2-F25F9cl-10ms-seeds5042",
+                       "T3.3-F25F9cl-0ms", "T3.3-F25F9-0ms", "T3.3-V0-0ms", "T3.3-F25F9cl-omega_s1-10ms",
+                       "T3.3-F25F9cl-omega_s1-0ms", "T3.4-F25F9cl-4ms", "T3.4-F25F9-4ms", "T3.4-V0-4ms", "T3.4-F25F9cl-6ms"]
+    tiers = [s.split("-")[0] for s in steps if s.startswith("T")]
+    assert tiers == sorted(tiers, key=lambda x: (int(x[1]), int(x.split(".")[1])))  # tier order, task 3 then task 4
+    assert [s for s in steps if s.startswith("T3.5")] == [f"T3.5-{s}-{d}ms" for d in (2, 8) for s in ("F25F9cl", "F25F9", "V0")]
+    assert [s for s in steps if s.startswith("T3.6")] == [f"T3.6-{s}-{d}ms" for d in (10, 0) for s in ("F25F9cl", "V0")]
+    t4 = [s for s in steps if s.startswith("T4.")]
+    assert t4 == ["T4.1-F25F9cl-10ms", "T4.1-V0-10ms", "T4.2-F25F9cl-10ms-seeds5042", "T4.3-F25F9cl-0ms", "T4.3-V0-0ms",
+                  "T4.4-F25F9cl-4ms", "T4.4-V0-4ms", "T4.5-F25F9cl-6ms", "T4.5-V0-6ms", "T4.6-F25F9cl-10ms", "T4.6-V0-10ms",
+                  "T4.7-F25F9cl-0ms-seeds5042", "T4.7-F25F9cl-4ms-seeds5042", "T4.7-F25F9cl-6ms-seeds5042"]
+    # every unit names its task, its unit and the committed cost file; each tier's rows, conditions and attribution
+    for s in steps:
+        if s.startswith("T"):
+            task = s[1]
+            assert f"--task {task} " in cmds[s] and "--cost stage2/runs/2026-11-15-75cm/COST.md" in cmds[s]
+            assert "--out stage2/runs/2026-11-15-75cm" in cmds[s] and "--body 75-M-H-10" in cmds[s]
+            unit = cmds[s].split("--unit ")[1].split()[0]
+            assert unit == s if not s.startswith(f"T{task}.10") else unit.startswith(f"T{task}.")
+    c = cmds["T3.1-F25F9cl-10ms"]
+    assert "--rows R2/42@10ms,R2/43@10ms,R0@10ms --conditions @walk" in c and c.endswith("--attribute judged")
+    assert "--block seeds5042 --passed-of seeds3042" in cmds["T3.2-F25F9cl-10ms-seeds5042"]
+    assert "R0@" not in cmds["T3.2-F25F9cl-10ms-seeds5042"]  # an R0 row is not replicated
+    assert "--control omega_s1" in cmds["T3.3-F25F9cl-omega_s1-0ms"] and "--rows R2/42@0ms --conditions walk/v0.4 " in cmds["T3.3-F25F9cl-omega_s1-0ms"]
+    assert "--conditions @speed-ladder" in cmds["T3.6-V0-0ms"] and "R0@" not in cmds["T3.6-V0-0ms"]
+    assert "--set F25F9 " in cmds["T3.7-F25F9-0ms"] and "--conditions walk/v0.5 " in cmds["T3.7-F25F9-0ms"]
+    assert "walk/v0.45_mu0.54,walk/v0.5_mu0.54" in cmds["T3.7-F25F9cl-0ms"]
+    assert all(cmds[s].endswith("--attribute none") for s in t3 if not s.startswith("T3.1-"))
+    assert "--conditions @rest" in cmds["T4.1-V0-10ms"] and cmds["T4.1-V0-10ms"].endswith("--attribute judged")
+    assert "--conditions @ladders" in cmds["T4.6-F25F9cl-10ms"] and "R0@" not in cmds["T4.6-F25F9cl-10ms"]
+    assert all("--set F25F9 " not in cmds[s] for s in t4)  # F25F9 is a control for the walk only
+    assert all(cmds[s].endswith("--attribute none") for s in t4 if not s.startswith("T4.1-"))
+    # tier 10: the remaining records' attribution, in the tiers' order, under their own units; no control, no tier 1
+    t10 = [s for s in steps if s.startswith("T3.10")]
+    assert all(cmds[s].endswith("--attribute all") for s in t10) and not any("omega" in s for s in t10)
+    assert [cmds[s].split("--unit ")[1].split()[0] for s in t10] == [s for s in t3 if not s.startswith("T3.1-")
+                                                                  and "omega" not in s]
+    text = CHAIN.read_text()
+    assert "pgrep -f 'run_75cm.sh all'" in text and "done/ALL" in text and "tools/lowprio.sh" in text
+    # with no argument it runs nothing
+    assert subprocess.run(["bash", str(CHAIN)], capture_output=True).returncode == 2
+
+
+def test_a_step_of_the_chain_is_skipped_once_done_and_a_cut_goes_on(tmp_path):
+    """The chain's ``step`` on a copy of the script with stub commands: markers, exit codes in the logs, a cut."""
+    root = tmp_path / "study"
+    run = root / "stage2" / "runs" / "2026-11-15-75cm"
+    run.mkdir(parents=True)
+    (root / "tools").mkdir()
+    (root / "tools" / "lowprio.sh").write_text('#!/bin/bash\nexec "$@"\n')
+    text = CHAIN.read_text()
+    head = text.split("r2() {")[0]
+    (run / "run_75cm.sh").write_text(head + 'step a sh -c "echo A >> ran; exit 0"\nstep b sh -c "echo B >> ran; exit 3"\n'
+                                     'step c sh -c "echo C >> ran; exit 0"\nstep d sh -c "echo D >> ran; exit 7"\n'
+                                     'step e sh -c "echo E >> ran"\n')
+    (run / "done").mkdir()
+    (run / "logs").mkdir()
+    for _ in (1, 2):
+        r = subprocess.run(["bash", str(run / "run_75cm.sh"), "all"], capture_output=True, text=True)
+        assert r.returncode == 7
+    assert (root / "ran").read_text().split() == ["A", "B", "C", "D", "D"]  # done and cut steps are not run again
+    assert sorted(p.name for p in (run / "done").iterdir()) == ["a", "b.cut", "c"]
+    assert "Z exit 0\n" in (run / "logs" / "a.log").read_text() and "Z exit 3\n" in (run / "logs" / "b.log").read_text()
+    assert (run / "logs" / "d.log").read_text().count("Z exit 7\n") == 2 and "FAILED d (exit 7)" in (run / "logs" / "run_75cm.log").read_text()
+
+
+# ------------------------------------------------------------------------------------------------
+# Slow: one full episode per judge on a built set under R0@10ms
+# ------------------------------------------------------------------------------------------------
+SLOW_SET = os.environ.get("STAGE2_BAR_SET", "V0")
+SLOW_ROOT = Path(os.environ.get("STAGE2_BAR_SET_ROOT", str(setio.ROOT)))
+SLOW_DEV = os.environ.get("STAGE2_DEV_EPISODES")
+
+
+@pytest.mark.skipif(not SLOW, reason="slow: set STAGE2_SLOW=1")
+@needs_run
+def test_slow_one_episode_per_judge_carries_every_reading(tmp_path):
+    d = setio.set_dir(SLOW_SET, BODY, SLOW_ROOT)
+    if not (d / "set.json").exists() or setio.frozen(s2io.read_json(d / "set.json")) is None:
+        pytest.skip(f"no frozen set {SLOW_SET} under {SLOW_ROOT}")
+    if SLOW_SET in bar.PREREGISTERED_SETS and not SLOW_DEV:
+        pytest.skip(f"episodes on {SLOW_SET} are build checks: name the file that lists them in STAGE2_DEV_EPISODES")
+    conds = ["walk/v0.4", "turn/q90_left", "turn/q90_right", "nudge/left", "stop/two_step"]
+    out = tmp_path / "out"
+    bar.evaluate(SLOW_SET, BODY, out, ["R0@10ms"], conds, episodes=1, procs=1, root=SLOW_ROOT, dev_episodes=SLOW_DEV,
+                 log=quiet)
+    for key in conds:
+        rec = read(rec_path(out, "R0@10ms", key, set_name=SLOW_SET))
+        if rec["status"] == "not run":
+            assert rec["reason"]
+            continue
+        (e,) = rec["episodes"]
+        assert not e.get("error"), e.get("error")
+        assert EPISODE_KEYS <= set(e) and set(e["success"]) == set(rec["terms"])
+        assert set(e["success_but_A1"]) == set(rec["terms_but_A1"]) and e["omega"] == rec["omega"]
+        assert e["measures"]["bar"]["drives"]["episode"]["ratios"] and e["measures"]["convention"]["holds"] is not False
+        b = e["measures"]["bar"]
+        if e["fell"]:
+            assert e["failed_terms"] == ["survived"] and (key.startswith("walk") or e["fell_before_command"] is not None)
+            continue
+        assert e["window_reached"] is True
+        if key.startswith("walk"):
+            assert b["toe"]["toe_clearance_own_swing_m"] is not None and b["along_target_m"] == 4.0
+            assert e["measures"]["stage1"]["terms"] and b["drives"]["window"]["ratios"]
+        elif key.startswith("turn"):
+            assert b["heading_error_at_deg"] is not None and b["heading_error_hold_max_deg"] is not None
+            assert b["toe"]["toe_clearance_own_swing_m"] is not None and e["measures"]["legs"]["poses"] > 0
+            assert b["at_s"] == 2.0 and e["command_s"] is not None and b["drives"]["window"]["ratios"]
+        elif key.startswith("nudge"):
+            assert e["measures"]["recovery"]["after_s"] is not None or not e["measures"]["recovery"]["recovered"]
+            assert e["measures"]["push"]["frac"] == 0.25 and e["command_s"] == e["measures"]["push"]["onset_s"]
+        else:
+            assert isinstance(b["touchdowns_after_command"], int) and b["decision_18"]["reached"] is True
+            assert b["stop_acceleration_1hz_m_s2"] is not None and b["rest_s"] is not None
+        z = np.load(bar.block_dir(out, SLOW_SET, BODY, "seeds3042") / "eval" / "traces" / e["trace"]["path"])
+        assert {"contact", "low100", "t100", "ref_swing100", "swings", "command_s"} <= set(z.files)
+
+
+@pytest.mark.skipif(not SLOW, reason="slow: set STAGE2_SLOW=1")
+@needs_run
+def test_slow_every_reference_passes_its_own_bar(tmp_path):
+    d = setio.set_dir(SLOW_SET, BODY, SLOW_ROOT)
+    if not (d / "set.json").exists():
+        pytest.skip(f"no set {SLOW_SET} under {SLOW_ROOT}")
+    doc = bar.refcheck(SLOW_SET, BODY, SLOW_ROOT, tmp_path / "out", log=quiet)
+    done = {k: v for k, v in doc["items"].items() if v["status"] == "done"}
+    assert done
+    for key, item in done.items():
+        if key.startswith("stop/two_step"):
+            assert item["stop"]["touchdowns_after_command"] == 2 and item["ok"]["stopped_by_end"]
+        if key.startswith("turn/"):
+            assert item["ok"]["heading"] and item["file"]["heading_at_bar_deg"] >= 80.0
+        if SLOW_SET in bar.PREREGISTERED_SETS:
+            assert item["pass_"], (key, item["ok"])
