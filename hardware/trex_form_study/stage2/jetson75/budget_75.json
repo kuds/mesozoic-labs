@@ -1,9 +1,14 @@
 {
- "study": "The 75 cm build's budget, rebuilt with designlab/cost.py (JETSON_PLEM_REVIEW.md section 5, task 9)",
+ "study": "The 75 cm build's prices, by designlab/cost.py (JETSON_PLEM_REVIEW.md section 5, task 9)",
  "status": "planning estimate; nothing is built, quoted, measured or adopted",
+ "p31": {
+  "row": "P31",
+  "date": "14 Nov 2026",
+  "applied_as": "prices are documented and, at this point, are not weighed against P4's $10-20k: this record sets no total against that figure, and the Jetson hardware is priced for the record whatever its extra cost"
+ },
  "body": "75-M-H-10",
  "script": "stage2/jetson75/budget_75.py",
- "script_sha256": "a02851939c279a3070b366b4da2d58a0a33f16bca9bacd09da167bb67c7a1820",
+ "script_sha256": "70a2a3c7ba80dc4c0be77d4793556301d8c89c206bd74c4b18724bb7f8bb55a9",
  "inputs": {
   "round2/refine/feet_75/candidates/75-M-H-10.json": "c24dcc4e928e3db7feff11e16cff3f8a8389d8c1bc27fefe72f22fa2df2734b7",
   "round2/refine/head_x_75/candidates/75-M-H-10.json": "84c76a77460a0f933d2e87bc0b0c532e6448980df6a2f9803314a265c72ffb5a",
@@ -32,15 +37,6 @@
   0.072,
   0.084
  ],
- "p4": {
-  "range_usd": [
-   10000.0,
-   20000.0
-  ],
-  "statement": "$10-20 k prototype including outsourced fabrication, integration and spares",
-  "read_against": "turnkey",
-  "why": "P4 includes integration and spares, and the cost model's total holds both (the integration line is the subcontract fit-up)"
- },
  "baseline": {
   "record": "round2/refine/feet_75/candidates/75-M-H-10.json",
   "record_sha256": "c24dcc4e928e3db7feff11e16cff3f8a8389d8c1bc27fefe72f22fa2df2734b7",
@@ -1171,19 +1167,6 @@
      0.0,
      0.0
     ]
-   },
-   "p4": {
-    "ceiling_usd": 20000.0,
-    "turnkey_minus_ceiling": [
-     -6424.0,
-     -1479.0,
-     5658.0
-    ],
-    "self_assembled_minus_ceiling": [
-     -8120.0,
-     -4293.0,
-     1520.0
-    ]
    }
   },
   "pi_p21": {
@@ -1373,19 +1356,6 @@
      619.41,
      1433.29,
      2358.25
-    ]
-   },
-   "p4": {
-    "ceiling_usd": 20000.0,
-    "turnkey_minus_ceiling": [
-     -5772.0,
-     57.0,
-     8215.0
-    ],
-    "self_assembled_minus_ceiling": [
-     -7468.0,
-     -2756.0,
-     4076.0
     ]
    }
   },
@@ -1601,19 +1571,6 @@
      2537.2
     ]
    },
-   "p4": {
-    "ceiling_usd": 20000.0,
-    "turnkey_minus_ceiling": [
-     -5615.0,
-     249.0,
-     8409.0
-    ],
-    "self_assembled_minus_ceiling": [
-     -7311.0,
-     -2565.0,
-     4270.0
-    ]
-   },
    "lower": {
     "without": [
      "regulator_12v"
@@ -1652,12 +1609,7 @@
       17360.0,
       24194.0
      ]
-    },
-    "turnkey_minus_ceiling": [
-     -5657.0,
-     174.0,
-     8333.0
-    ]
+    }
    }
   },
   "jetson_direct_p21": {
@@ -1915,19 +1867,6 @@
      3483.2
     ]
    },
-   "p4": {
-    "ceiling_usd": 20000.0,
-    "turnkey_minus_ceiling": [
-     -5138.0,
-     1177.0,
-     9434.0
-    ],
-    "self_assembled_minus_ceiling": [
-     -6834.0,
-     -1636.0,
-     5296.0
-    ]
-   },
    "lower": {
     "without": [
      "regulator_12v",
@@ -1967,12 +1906,7 @@
       18214.0,
       25090.0
      ]
-    },
-    "turnkey_minus_ceiling": [
-     -5222.0,
-     1027.0,
-     9228.0
-    ]
+    }
    }
   },
   "pi_p21_optional": {
@@ -2208,19 +2142,6 @@
      725.75,
      1738.78,
      2892.98
-    ]
-   },
-   "p4": {
-    "ceiling_usd": 20000.0,
-    "turnkey_minus_ceiling": [
-     -5660.0,
-     385.0,
-     8794.0
-    ],
-    "self_assembled_minus_ceiling": [
-     -7356.0,
-     -2429.0,
-     4656.0
     ]
    }
   },
@@ -2482,19 +2403,6 @@
      3071.93
     ]
    },
-   "p4": {
-    "ceiling_usd": 20000.0,
-    "turnkey_minus_ceiling": [
-     -5503.0,
-     577.0,
-     8988.0
-    ],
-    "self_assembled_minus_ceiling": [
-     -7199.0,
-     -2237.0,
-     4850.0
-    ]
-   },
    "lower": {
     "without": [
      "regulator_12v"
@@ -2533,12 +2441,7 @@
       17688.0,
       24774.0
      ]
-    },
-    "turnkey_minus_ceiling": [
-     -5545.0,
-     502.0,
-     8912.0
-    ]
+    }
    }
   }
  },
@@ -2546,213 +2449,7 @@
   "regulator_12v": "the power lot already holds the 12 V regulator",
   "supervisor": "the kept Teensy stack is the supervisor"
  },
- "trims": {
-  "defer_boom": {
-   "label": "Defer the cable boom",
-   "line": "cable_boom",
-   "turnkey": [
-    -316.0,
-    -965.0,
-    -1626.0
-   ],
-   "scenarios": {
-    "pi_p21": {
-     "turnkey_with": [
-      14228.0,
-      20057.0,
-      28215.0
-     ],
-     "turnkey_without": [
-      13912.0,
-      19092.0,
-      26589.0
-     ]
-    },
-    "jetson_mcu_p21": {
-     "turnkey_with": [
-      14385.0,
-      20249.0,
-      28409.0
-     ],
-     "turnkey_without": [
-      14069.0,
-      19284.0,
-      26783.0
-     ],
-     "lower": {
-      "turnkey_with": [
-       14343.0,
-       20174.0,
-       28333.0
-      ],
-      "turnkey_without": [
-       14027.0,
-       19209.0,
-       26707.0
-      ]
-     }
-    },
-    "jetson_direct_p21": {
-     "turnkey_with": [
-      14862.0,
-      21177.0,
-      29434.0
-     ],
-     "turnkey_without": [
-      14546.0,
-      20213.0,
-      27808.0
-     ],
-     "lower": {
-      "turnkey_with": [
-       14778.0,
-       21027.0,
-       29228.0
-      ],
-      "turnkey_without": [
-       14462.0,
-       20063.0,
-       27602.0
-      ]
-     }
-    }
-   }
-  },
-  "defer_audio": {
-   "label": "Defer the audio (it is optional and outside the main totals)",
-   "line": "audio",
-   "turnkey": [
-    -26.0,
-    -75.0,
-    -163.0
-   ],
-   "scenarios": {
-    "pi_p21": {
-     "turnkey_with": [
-      14255.0,
-      20132.0,
-      28377.0
-     ],
-     "turnkey_without": [
-      14228.0,
-      20057.0,
-      28215.0
-     ]
-    },
-    "jetson_mcu_p21": {
-     "turnkey_with": [
-      14411.0,
-      20324.0,
-      28571.0
-     ],
-     "turnkey_without": [
-      14385.0,
-      20249.0,
-      28409.0
-     ],
-     "lower": {
-      "turnkey_with": [
-       14369.0,
-       20249.0,
-       28495.0
-      ],
-      "turnkey_without": [
-       14343.0,
-       20174.0,
-       28333.0
-      ]
-     }
-    },
-    "jetson_direct_p21": {
-     "turnkey_with": [
-      14888.0,
-      21252.0,
-      29597.0
-     ],
-     "turnkey_without": [
-      14862.0,
-      21177.0,
-      29434.0
-     ],
-     "lower": {
-      "turnkey_with": [
-       14804.0,
-       21102.0,
-       29391.0
-      ],
-      "turnkey_without": [
-       14778.0,
-       21027.0,
-       29228.0
-      ]
-     }
-    }
-   }
-  }
- },
- "trims_both": {
-  "pi_p21": {
-   "turnkey_with": [
-    14255.0,
-    20132.0,
-    28377.0
-   ],
-   "turnkey_without": [
-    13912.0,
-    19092.0,
-    26589.0
-   ]
-  },
-  "jetson_mcu_p21": {
-   "turnkey_with": [
-    14411.0,
-    20324.0,
-    28571.0
-   ],
-   "turnkey_without": [
-    14069.0,
-    19284.0,
-    26783.0
-   ],
-   "lower": {
-    "turnkey_with": [
-     14369.0,
-     20249.0,
-     28495.0
-    ],
-    "turnkey_without": [
-     14027.0,
-     19209.0,
-     26707.0
-    ]
-   }
-  },
-  "jetson_direct_p21": {
-   "turnkey_with": [
-    14888.0,
-    21252.0,
-    29597.0
-   ],
-   "turnkey_without": [
-    14546.0,
-    20213.0,
-    27808.0
-   ],
-   "lower": {
-    "turnkey_with": [
-     14804.0,
-     21102.0,
-     29391.0
-    ],
-    "turnkey_without": [
-     14462.0,
-     20063.0,
-     27602.0
-    ]
-   }
-  }
- },
- "quotes": {
+ "least_certain": {
   "scenario": "pi_p21",
   "rows": [
    {
@@ -2766,7 +2463,7 @@
     "kind": "d",
     "cls": "a8",
     "basis": "PR #662's 60 cm lot x (structure mass / 1.79 kg)^0.6",
-    "ask": "Laser-cut and machined 6061-T6 plates and brackets, bearings, hubs, soles and fasteners, from drawings; ask three shops, and for the plates at 2.54 mm and at 3 mm"
+    "quote_scope": "Laser-cut and machined 6061-T6 plates and brackets, bearings, hubs, soles and fasteners, from drawings, at three shops; the plates at 2.54 mm and at 3 mm"
    },
    {
     "line": "covers",
@@ -2779,7 +2476,7 @@
     "kind": "d",
     "cls": "a8",
     "basis": "PR #662's 60 cm lot x (cover volume / 480 cm3)^0.85",
-    "ask": "MJF PA11 shells from the exported cover shapes with graded 1.4 / 1.2 / 1.0 mm walls, inserts and finish; the same three print services for each"
+    "quote_scope": "MJF PA11 shells from the exported cover shapes with graded 1.4 / 1.2 / 1.0 mm walls, inserts and finish, at three print services"
    },
    {
     "line": "integration",
@@ -2792,7 +2489,7 @@
     "kind": "d",
     "cls": "a8",
     "basis": "PR #662's 60 cm lot x (H / 0.39 m)^0.7",
-    "ask": "Subcontract fit-up of one prototype: hours and rate for mechanical assembly, harness routing and bench checkout"
+    "quote_scope": "Subcontract fit-up of one prototype: hours and rate for mechanical assembly, harness routing and bench checkout"
    },
    {
     "line": "cable_boom",
@@ -2805,7 +2502,7 @@
     "kind": "d",
     "cls": "new",
     "basis": "MATERIALS.md section 6's estimate, $0.3-1.5k 'if the bench lot's catch frame cannot carry it'; the nominal value is its midpoint; $0 if the catch frame can",
-    "ask": "First ask whoever builds the bench frame whether it can carry the 5 m cable; if not, a jib or gantry boom with a balancer rated under 0.5 kg"
+    "quote_scope": "Whether the bench frame can carry the 5 m cable (the line is then $0); if not, a jib or gantry boom with a balancer rated under 0.5 kg"
    },
    {
     "line": "bench",
@@ -2818,7 +2515,7 @@
     "kind": "d",
     "cls": "carried",
     "basis": "PR #662's 60 cm lot, not scaled (H is not above 0.6 m)",
-    "ask": "24 V bench supply (about 31 A, RSP-750-24 class), a 6S charger, a cradle or catch frame and instrumentation"
+    "quote_scope": "24 V bench supply (about 31 A, RSP-750-24 class), a 6S charger, a cradle or catch frame and instrumentation"
    },
    {
     "line": "spares",
@@ -2831,7 +2528,7 @@
     "kind": "c+d",
     "cls": "catalog",
     "basis": "two of the dearest leg drive and one pack at catalog prices + $150 / $350 / $650",
-    "ask": "Two spare hip-pitch drives and one spare pack, at the quoted drive and pack prices"
+    "quote_scope": "Two spare hip-pitch drives and one spare pack, at the prices that quotes for the drives and the pack would give"
    },
    {
     "line": "power",
@@ -2844,7 +2541,7 @@
     "kind": "d",
     "cls": "carried",
     "basis": "PR #662's 60 cm lot for a 24 V bus, not scaled",
-    "ask": "The power bay as one assembled module: distribution board, fuses, the stop circuit, the regeneration clamp and its regulators; have each regulator named (the computer's, the logic rail's, the servos')"
+    "quote_scope": "The power bay as one assembled module: distribution board, fuses, the stop circuit, the regeneration clamp and its regulators, each regulator named (the computer's, the logic rail's, the servos')"
    },
    {
     "line": "pad_treads",
@@ -2857,7 +2554,7 @@
     "kind": "d",
     "cls": "new",
     "basis": "low: MATERIALS.md section 5's estimate for the floor test alone (about one day and $100), with a printed TPU trial tread.  Nominal adds $100 and high adds $300 for casting rubber, release agent and printed moulds: this document's guess, with no source beyond the price class of a trial unit of 60 Shore A urethane rubber (about $25-45, a web search summary); the high case allows for several compounds and remakes.  The soles themselves are in the frame lot",
-    "ask": "A urethane casting kit (50-60 Shore A polyether) and printed moulds; then the grip test on the owner's floors"
+    "quote_scope": "A urethane casting kit (50-60 Shore A polyether), printed moulds and the grip test on the owner's floors"
    },
    {
     "line": "harness",
@@ -2870,7 +2567,7 @@
     "kind": "d",
     "cls": "a8",
     "basis": "PR #662's 60 cm lot x (H / 0.39 m)",
-    "ask": "The leg and trunk harness with locking connectors and the neck service loop, from a wiring list"
+    "quote_scope": "The leg and trunk harness with locking connectors and the neck service loop, from a wiring list"
    },
    {
     "line": "foot_sensing",
@@ -2883,7 +2580,7 @@
     "kind": "d",
     "cls": "a8",
     "basis": "PR #662's 60 cm lot x (H / 0.39 m)^0.5",
-    "ask": "Foot contact or load sensors for two feet with their conditioning boards"
+    "quote_scope": "Foot contact or load sensors for two feet with their conditioning boards"
    },
    {
     "line": "dc_input",
@@ -2896,7 +2593,7 @@
     "kind": "d",
     "cls": "new",
     "basis": "MATERIALS.md section 6's estimate, $0.2-0.4k 'for the input, power path, clamp and puck'; the nominal value is its midpoint.  That estimate does not name the 5 m cable or the stop tie-in; this document assumes they fit inside it",
-    "ask": "The input connector, the priority power-path board (LTC4417 class), the dummy puck and the cable; the clamp and the stop tie-in are asked for with the power bay"
+    "quote_scope": "The input connector, the priority power-path board (LTC4417 class), the dummy puck and the cable; the clamp and the stop tie-in belong to the power bay's price"
    },
    {
     "line": "leg_actuators",
@@ -2909,7 +2606,7 @@
     "kind": "c+d",
     "cls": "catalog",
     "basis": "12 leg drives at catalog prices; the high case adds 5 %",
-    "ask": "Twelve drives landed: unit price, shipping, duty and lead time (10 x RMD-X4-P36-36-E-L, 2 x RMD-X6-P20-60-E), and which X6 variant ships at the listed price"
+    "quote_scope": "Twelve drives landed: unit price, shipping, duty and lead time (10 x RMD-X4-P36-36-E-L, 2 x RMD-X6-P20-60-E), and which X6 variant ships at the listed price"
    },
    {
     "line": "control",
@@ -2922,7 +2619,7 @@
     "kind": "d",
     "cls": "carried",
     "basis": "PR #662's 60 cm lot, not scaled (Teensy 4.1, two CAN transceivers, IMU; the 60 cm hardware basis also names a TTL servo-bus interface)",
-    "ask": "Teensy 4.1, two CAN transceivers, an IMU and the servo-bus interface as a board stack"
+    "quote_scope": "Teensy 4.1, two CAN transceivers, an IMU and the servo-bus interface as a board stack"
    },
    {
     "line": "compute",
@@ -2935,7 +2632,7 @@
     "kind": "c+d",
     "cls": "catalog",
     "basis": "the computer's catalog price + $60 / $120 / $200 for storage, fan duct, mounts and leads",
-    "ask": "The computer at today's price, its storage and its mounting tray"
+    "quote_scope": "The computer at today's price, its storage and its mounting tray"
    },
    {
     "line": "battery",
@@ -2948,7 +2645,7 @@
     "kind": "c+d",
     "cls": "catalog",
     "basis": "one pack at catalog price + $30 / $60 / $100 for the cassette",
-    "ask": "One pack and the tail-base cassette"
+    "quote_scope": "One pack and the tail-base cassette"
    },
    {
     "line": "rgbd_camera",
@@ -2961,7 +2658,7 @@
     "kind": "c+d",
     "cls": "catalog",
     "basis": "catalog price + $15 / $35 / $80 for the lead and mount",
-    "ask": "The camera and a locking lead; ask about remaining stock of the discontinued camera chip"
+    "quote_scope": "The camera and a locking lead, and the remaining stock of the discontinued camera chip"
    },
    {
     "line": "tof",
@@ -2974,7 +2671,7 @@
     "kind": "c+d",
     "cls": "catalog",
     "basis": "two sensors at catalog price + $0 / $10 / $30",
-    "ask": "Nothing to quote (stock parts)"
+    "quote_scope": "Stock parts at their list prices"
    },
    {
     "line": "expression_actuators",
@@ -2987,7 +2684,7 @@
     "kind": "c+d",
     "cls": "catalog",
     "basis": "neck and tail servos at catalog prices; the high case adds 5 %",
-    "ask": "The neck and tail servos at today's prices"
+    "quote_scope": "The neck and tail servos at today's prices"
    }
   ],
   "jetson_only_scenario": "jetson_direct_p21",
@@ -3003,7 +2700,7 @@
     "kind": "c+d",
     "cls": "new_c",
     "basis": "the price is the catalog's (c); the count is an assumption (d): one adapter in the low case (PR #668's layout, unverified); two in the nominal and high cases, to keep the two CAN buses of the study's build (designlab/build.py, control stack: 'CAN x2'; JETSON_PLEM_REVIEW.md section 3).  The bus plan (review task 7) decides",
-    "ask": "The adapter at today's price, and the two-channel version's price"
+    "quote_scope": "The adapter at today's price, and the two-channel version's price"
    },
    {
     "line": "supervisor",
@@ -3016,7 +2713,7 @@
     "kind": "d",
     "cls": "new",
     "basis": "no catalog entry; this document's estimate from the price class of a Teensy 4.1 (about $34-36 at its maker's store, a web search summary) plus a transceiver, a relay driver and wiring (a guess, no source)",
-    "ask": "Nothing to quote until the supervisor's design exists; first decide whether the kept Teensy stack is the supervisor"
+    "quote_scope": "No firm price until the supervisor's design exists; not needed if the kept Teensy stack is the supervisor"
    },
    {
     "line": "servo_bus_adapter",
@@ -3029,7 +2726,7 @@
     "kind": "d",
     "cls": "new",
     "basis": "no catalog entry; this document's estimate: a ROBOTIS U2D2 (about $44, a web search summary) plus a Feetech bus adapter (about $15, a guess, no source)",
-    "ask": "Nothing to quote (stock parts)"
+    "quote_scope": "Stock parts at their list prices"
    },
    {
     "line": "regulator_12v",
@@ -3042,7 +2739,7 @@
     "kind": "c+d",
     "cls": "new_c",
     "basis": "the prices are the catalog's (c); the choice of part per case is an assumption (d).  Low: the 4.5 A part; nominal and high: the 9 A part (no power mode is chosen, and the larger part covers both modes with room for USB loads).  Both accept the 6S bus; E7 rules the D36V50F12 out only on 12S",
-    "ask": "Nothing to quote (a stock part); buy it only if the power bay's quote holds no 12 V regulator for the computer"
+    "quote_scope": "A stock part at its list price; an extra only if the power bay holds no 12 V regulator for the computer"
    }
   ],
   "direct_only_lines": [
@@ -3143,8 +2840,8 @@
    "carried": 0.0839,
    "catalog": 0.3644
   },
-  "quotes_subtotal_nominal": 18710.07,
-  "quotes_split_nominal": {
+  "adopted_subtotal_nominal": 18710.07,
+  "adopted_split_nominal": {
    "a8": 9564.9,
    "carried": 1450.0,
    "catalog": 6295.17,
@@ -3290,22 +2987,7 @@
     81.0,
     235.0
    ]
-  },
-  "nominal_over_ceiling": [
-   57.0,
-   174.0,
-   249.0
-  ],
-  "nominal_over_ceiling_share": [
-   0.0029,
-   0.0087,
-   0.0124
-  ],
-  "high_over_ceiling": [
-   8215.0,
-   8333.0,
-   8409.0
-  ]
+  }
  },
  "pr668_slips": [
   {
@@ -3333,12 +3015,6 @@
    "right_id_exists": true,
    "right_id_price_usd": 482.89,
    "used_here": "`robotis_xm540_w270_t` ($482.89), the record's own id"
-  },
-  {
-   "what": "The total read against P4",
-   "pr668_unverified": "its self-assembled total, the one without outsourced integration",
-   "p4": "P4: \"$10-20 k prototype including outsourced fabrication, integration and spares\"",
-   "used_here": "the turnkey total, which holds the integration line and the spares"
   }
  ]
 }

@@ -722,6 +722,8 @@ for the owner" (§1) and "draft F26" and "draft A17" (§2, §6) predate them.
   - The jaw is modelled in simulation only; P2's deferral stands for the build (P29).
   - P4's prototype budget is $10–20k. The high estimates already exceed it: $20.5k for `60-N-T-10` and $25.7k for
     `75-M-H-10`, against nominals of $14.8k and $18.5k (their round-two records). Cost every hardware lever against it.
+    **Note, 14 Nov 2026 (second session):** the owner set budget concerns aside at this point (`DECISION_LOG.md`
+    P31): prices are documented, not weighed against P4, and a lever is priced for the record, not gated on cost.
 - **PR kuds/mesozoic-labs#668's decisions** are listed in `JETSON_PLEM_REVIEW.md`.
 
 ## 8. Published pages

@@ -1,5 +1,9 @@
 # Delay bench sheet for the 75 cm build (decision-log row A17)
 
+**Changed, 14 Nov 2026 (P31).** The two USB-CAN adapters ($736, c) are stated as bench tools that this sheet uses. The
+request that the owner confirm them is removed in four places: "In brief", the parts table's note, section 2 and
+section 10's drafts. No price or quantity changed.
+
 14 Nov 2026. **A sheet to run by hand. Nothing on it has been measured yet.** It is task 8 of `JETSON_PLEM_REVIEW.md`
 section 5, for the body `75-M-H-10`, and it serves the owner's decision of 14 Nov (P30): the delay bench runs first,
 on both paths, before any compute purchase.
@@ -44,8 +48,8 @@ must never be mixed with the targets beside them.
 - **What you need.** Run 1 uses one drive of each type and replays the other 10 leg drives' traffic: $1,998 of
   catalog parts (c), about $2,431 with the two Teensys and the small parts (d). Run 2 uses all 12 leg drives: $4,867
   of catalog parts (c), of which $3,546 is the 12 leg drives that the build needs whatever the compute; about $5,300
-  with the Teensys and small parts (d). Both runs include two USB-CAN adapters ($736), which only a Jetson-direct
-  layout would use: taking them as test tools is the author's reading of P30, for you to confirm. Add a 24 V, 10 A
+  with the Teensys and small parts (d). Both runs include two USB-CAN adapters ($736): bench tools that this sheet
+  uses to measure the Jetson path, and that only a Jetson-direct layout would use on the robot. Add a 24 V, 10 A
   bench supply if you have none (not priced) and a Windows PC for the leg drives' set-up software. The Jetson dev
   kit is on hand (`COMPUTE.md`, bench test 1).
 - **What it takes.** About 10.5–16.5 hours at the bench for run 1, 6.5–10 hours more for run 2, and 11–16.5 hours for
@@ -171,7 +175,7 @@ The sums:
 | neck servo | `robotis_xm540_w270_t` | $482.89 | 1 | 1 | (c) |  |
 | tail servo | `feetech_sts3215_c018` | $22.00 | 1 | 1 | (c) | a spare is cheap: the thermal test may age one |
 | Jetson dev kit (path 2) | `nvidia_orin_nano_super_devkit` | $399.00 | 0 | 0 | (c) | on hand: COMPUTE.md's bench test 1 measures 'the current dev kit' with no purchase |
-| USB-CAN adapter (path 2) | `pcan_usb_fd` | $368.00 | 2 | 2 | (c) | one channel each, so two for the two buses that 500 Hz needs; taken as a test tool, which is the author's reading of P30 and for the owner to confirm |
+| USB-CAN adapter (path 2) | `pcan_usb_fd` | $368.00 | 2 | 2 | (c) | one channel each, so two for the two buses that 500 Hz needs; bench tools that this sheet uses to measure the Jetson path (their price is in the totals row) |
 | 24 V to 12 V regulator for the neck and tail servos | `pololu_d36v50f12` | $39.95 | 1 | 1 | (c) |  |
 | chest ToF sensor (follow-on sheet C) | `st_vl53l5cx_carrier` | $19.95 | 1 | 2 | (c) |  |
 | the build's 6S pack (optional: repeat run 2 on a sagging supply) | `lipo_6s_3300` | $107.19 | 0 | 0 | (c) | not needed for the delay itself |
@@ -197,9 +201,9 @@ The sums:
   traffic.
 - **On hand (c).** `COMPUTE.md`'s first bench test measures "the current dev kit" with no purchase, so the Jetson
   Orin Nano Super dev kit is taken as on hand. Nothing else is assumed to be.
-- **A reading of P30, for the owner to confirm.** P30 says the bench runs "before any compute purchase". The author
-  reads that as being about the robot's computer, and takes the USB-CAN adapters and the Teensys as test tools. The
-  adapters are $736 that only a Jetson-direct layout would use afterwards (draft in section 10).
+- **The USB-CAN adapters and the Teensys are bench tools.** P30 says the bench runs "before any compute purchase".
+  This sheet reads that as being about the robot's computer. The two USB-CAN adapters ($736, c) and the two Teensys
+  are tools it uses to measure the two paths; only a Jetson-direct layout would use the adapters on the robot.
 - **The Raspberry Pi 5 is assumed not to be needed (d).** On the Teensy path the host is outside the servo loop (the
   budget, section 1), so the dev kit plays the busy host for both paths. If the owner wants the baseline's own host
   on the bench, it is one more purchase.
@@ -754,9 +758,6 @@ Drafts for the owner. Nothing is adopted here, and the row numbers are for the l
   buses, under the worse of the idle and the loaded condition, on the Teensy's CAN loop and on a Jetson real-time
   core with USB-CAN; rounded up to a whole 2 ms step, at which the bar is re-run. The reading lacks the walking
   controller's compute step until the firmware exists (`stage2/jetson75/BENCH_SHEET.md`)."
-- **Draft question for the owner (P30's "before any compute purchase").** "The delay bench needs two USB-CAN
-  adapters ($736), which only a Jetson-direct layout would use afterwards, and two Teensys. The sheet takes them as
-  test tools, not as a compute purchase. Confirm, or the Jetson path of the bench waits."
 - **Draft A row (the bench host).** "On the delay bench the Jetson dev kit stands in for the Raspberry Pi 5 as the
   Teensy path's host, on the assumption that a host outside the servo loop does not change the delay."
 - **Draft A row (the ToF stop).** "The chest ToF stop's time from an obstacle entering the beam to the stop flag is

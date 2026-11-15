@@ -1,0 +1,241 @@
+{
+ "what": "gate L1's outcome, frozen by hash: the look ladder's V6 rungs as committed (designlab.stage2.l1freeze)",
+ "simulation_only": true,
+ "decided": {
+  "by": "owner",
+  "date": "2026-11-14",
+  "decision_log": "P30",
+  "pick": "V6",
+  "pick_text": "V6, every look feature (the look review page's proposal)",
+  "feature_may_cost_a_speed_rung": true,
+  "duty_band": {
+   "below_0.30_m_s": [
+    0.55,
+    0.72
+   ],
+   "from_0.30_m_s": [
+    0.55,
+    0.65
+   ]
+  },
+  "viewers": "the owner's pick decided L1; the scores of 3-5 viewers new to the project are added later as a labelled late reading (a change to plan A.5's order, taken by the owner before any Stage 2 run)",
+  "candidate": "the tuned walk with the counter-phased tail and the duty and lift margin (set F25F9cl of STAGE2_75_PLAN.md) is a labelled candidate for the 75 cm body; it is not frozen here"
+ },
+ "rule": "a rung is in the ladder if the committed Stage 0 screen has it within every limit (screen.json rungs[body][speed][V6].within_limits); a rung over a drive limit keeps its features and loses that speed rung (plan 4 A.3; the owner's decision of 14 Nov that a look feature may cost a speed rung)",
+ "sources": {
+  "look_refs": {
+   "file": "stage2/look/look_refs.json",
+   "sha256": "368a33723d013632ce672d79b0a74cc3267a9d62f7b5ef0ecf163999a7f12a6c"
+  },
+  "screen": {
+   "file": "stage2/look/screen.json",
+   "sha256": "82c14fee84d9b11c4bba6e347c00c0c4b0dc7c7905d3a0000b01a6475d642735"
+  }
+ },
+ "rungs": {
+  "60-N-T-10": {
+   "nominal": {
+    "variant": "V6",
+    "features": [
+     "F1",
+     "F2",
+     "F3",
+     "F4",
+     "F5",
+     "F6",
+     "F9",
+     "F10",
+     "F14"
+    ],
+    "file": "stage2/look/refs/60-N-T-10/nominal/V6.npz",
+    "sha256": "dfc1aeebe5fec6679a873fcf9d31d4144565b96f0c9ce3774263bbb7903e2522",
+    "speed_m_s": 0.21826592177876797,
+    "duty": 0.6864653129237532,
+    "strides_in_window": 10,
+    "governing": [
+     "neck",
+     "peak",
+     0.788863299831808
+    ],
+    "over": [],
+    "within_limits": true,
+    "in_ladder": true,
+    "screen_rung": "within the Stage 0 limits: kept at this speed",
+    "flags": [
+     "owner decision 2: F3 puts the duty at 0.686, outside the spec's 0.55-0.65 band at 0.22 m/s; this rung needs the band widened to 0.72 below 0.30 m/s, else F3 starts at the brisk walk",
+     "F5 rolls past the toe pad's edge on to the middle claw's tip (over a transition arc, the real foot within 0.23 mm above the floor), where the plant has no contact: CLAW_QUESTION"
+    ]
+   },
+   "v040": {
+    "variant": "V6",
+    "features": [
+     "F1",
+     "F2",
+     "F3",
+     "F4",
+     "F5",
+     "F6",
+     "F9",
+     "F10",
+     "F14"
+    ],
+    "file": "stage2/look/refs/60-N-T-10/v040/V6.npz",
+    "sha256": "91b5c12658ec01cbc2e5d015e4184b93e52cb2bc4d13007e94786406724fa094",
+    "speed_m_s": 0.4,
+    "duty": 0.5742634070924775,
+    "strides_in_window": 14,
+    "governing": [
+     "knee",
+     "speed",
+     0.8845060180151323
+    ],
+    "over": [],
+    "within_limits": true,
+    "in_ladder": true,
+    "screen_rung": "within the Stage 0 limits: kept at this speed",
+    "flags": [
+     "F5 reduced: 0.031 rad by lift-off (the research's 0.3-0.5), as the roll has 28 ms on the floor within 3.4 rad/s and 220.0 rad/s^2; a full toe-off at this speed needs the late single-support ZMP moved toward the toe line, a new feature for the owner to approve"
+    ]
+   },
+   "fr05": {
+    "variant": "V6",
+    "features": [
+     "F1",
+     "F2",
+     "F3",
+     "F4",
+     "F5",
+     "F6",
+     "F9",
+     "F10",
+     "F14"
+    ],
+    "file": "stage2/look/refs/60-N-T-10/fr05/V6.npz",
+    "sha256": "9d47708858fddca1ae91edeea77de71e2992af6205446c172a4ae559e9c19eb6",
+    "speed_m_s": 0.4455334471635064,
+    "duty": 0.56,
+    "strides_in_window": 14,
+    "governing": [
+     "knee",
+     "speed",
+     0.9109350249686508
+    ],
+    "over": [],
+    "within_limits": true,
+    "in_ladder": true,
+    "screen_rung": "within the Stage 0 limits: kept at this speed",
+    "flags": [
+     "F5 reduced: 0.020 rad by lift-off (the research's 0.3-0.5), as the roll has 23 ms on the floor within 3.4 rad/s and 220.0 rad/s^2; a full toe-off at this speed needs the late single-support ZMP moved toward the toe line, a new feature for the owner to approve"
+    ]
+   }
+  },
+  "75-M-H-10": {
+   "nominal": {
+    "variant": "V6",
+    "features": [
+     "F1",
+     "F2",
+     "F3",
+     "F4",
+     "F5",
+     "F6",
+     "F9",
+     "F10",
+     "F14"
+    ],
+    "file": "stage2/look/refs/75-M-H-10/nominal/V6.npz",
+    "sha256": "139b0b6b0e28729ae2bd03696bfccffbea5e9a839bbd189fc4df488d749d0ce2",
+    "speed_m_s": 0.24306007460404672,
+    "duty": 0.6864653129237532,
+    "strides_in_window": 9,
+    "governing": [
+     "knee",
+     "speed",
+     0.7574508637999374
+    ],
+    "over": [],
+    "within_limits": true,
+    "in_ladder": true,
+    "screen_rung": "within the Stage 0 limits: kept at this speed",
+    "flags": [
+     "owner decision 2: F3 puts the duty at 0.686, outside the spec's 0.55-0.65 band at 0.24 m/s; this rung needs the band widened to 0.72 below 0.30 m/s, else F3 starts at the brisk walk",
+     "F5 rolls past the toe pad's edge on to the middle claw's tip (over a transition arc, the real foot within 0.23 mm above the floor), where the plant has no contact: CLAW_QUESTION"
+    ]
+   },
+   "v040": {
+    "variant": "V6",
+    "features": [
+     "F1",
+     "F2",
+     "F3",
+     "F4",
+     "F5",
+     "F6",
+     "F9",
+     "F10",
+     "F14"
+    ],
+    "file": "stage2/look/refs/75-M-H-10/v040/V6.npz",
+    "sha256": "a521b31e56459e41246e635b925f023301a4f42e8490c7c839eaa34072634955",
+    "speed_m_s": 0.4,
+    "duty": 0.5862816369688507,
+    "strides_in_window": 12,
+    "governing": [
+     "knee",
+     "speed",
+     0.7522366088528667
+    ],
+    "over": [],
+    "within_limits": true,
+    "in_ladder": true,
+    "screen_rung": "within the Stage 0 limits: kept at this speed",
+    "flags": [
+     "F5 reduced: 0.056 rad by lift-off (the research's 0.3-0.5), as the roll has 39 ms on the floor within 3.4 rad/s and 220.0 rad/s^2; a full toe-off at this speed needs the late single-support ZMP moved toward the toe line, a new feature for the owner to approve",
+     "F5 rolls past the toe pad's edge on to the middle claw's tip (over a transition arc, the real foot within 0.23 mm above the floor), where the plant has no contact: CLAW_QUESTION"
+    ]
+   },
+   "fr05": {
+    "variant": "V6",
+    "features": [
+     "F1",
+     "F2",
+     "F3",
+     "F4",
+     "F5",
+     "F6",
+     "F9",
+     "F10",
+     "F13",
+     "F14"
+    ],
+    "file": "stage2/look/refs/75-M-H-10/fr05/V6.npz",
+    "sha256": "7412cb876bf80e3c372f525e925fa2c14dc92fbc90c83f205e75756090837460",
+    "speed_m_s": 0.4961442996856054,
+    "duty": 0.5977142857142858,
+    "strides_in_window": 12,
+    "governing": [
+     "knee",
+     "speed",
+     1.0122964726272832
+    ],
+    "over": [
+     {
+      "limit": "knee speed",
+      "value": 1.0122964726272832
+     }
+    ],
+    "within_limits": false,
+    "in_ladder": false,
+    "screen_rung": "over (knee speed): keeps its features (F1, F2, F3, F4, F5, F6, F9, F10, F13, F14) and loses the animal pace (Froude 0.05) on 75-M-H-10 unless the owner decides otherwise (plan 4 A.3)",
+    "flags": [
+     "F5 reduced: 0.083 rad by lift-off (the research's 0.3-0.5), as the roll has 47 ms on the floor within 3.4 rad/s and 220.0 rad/s^2; a full toe-off at this speed needs the late single-support ZMP moved toward the toe line, a new feature for the owner to approve",
+     "F5 rolls past the toe pad's edge on to the middle claw's tip (over a transition arc, the real foot within 0.23 mm above the floor), where the plant has no contact: CLAW_QUESTION",
+     "over knee speed 1.012: under the plan's rule, over a drive limit (or a Stage 0 gate), a variant keeps its feature and loses that speed rung (character first) unless the owner decides otherwise"
+    ]
+   }
+  }
+ },
+ "not_in_ladder": [
+  "75-M-H-10 fr05"
+ ]
+}

@@ -734,7 +734,7 @@ def inputs(ctxs: dict) -> list[dict]:
     add("host_link", "d", "s", "none", "This document's: a serial or USB hop from the host to the real-time layer",
         low=HOST_LINK_S[0], high=HOST_LINK_S[1])
     add("servo_delay", "d", "s", "DECISION_LOG.md P29 (and the owner's 14 Nov decision, P30): the bar is judged at "
-        "10 ms until a bench value exists; draft A17",
+        "10 ms until a bench value exists; A17",
         "The study's assumption: reference 10 ms, range 0-20 ms as Stage 1 simulated (LESSONS_LEARNED.md 2.3)",
         low=SERVO_DELAY_S[0], ref=SERVO_DELAY_S[1], high=SERVO_DELAY_S[2])
     add("spec_decel", "c", "m/s^2", "BEHAVIOR_SPEC.md section 1, Start / stop: peak horizontal trunk acceleration at "

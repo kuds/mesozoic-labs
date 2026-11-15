@@ -1,5 +1,5 @@
 """Stage 2, the 75 cm + Jetson track: a latency budget and bus plan per compute architecture (``JETSON_PLEM_REVIEW.md``
-section 5, task 7) and the machine-made tables of the delay bench sheet (task 8, draft decision-log row A17).
+section 5, task 7) and the machine-made tables of the delay bench sheet (task 8, decision-log row A17).
 
 Planning arithmetic only: nothing here is simulated, built or measured.  It writes ``stage2/jetson75/latency_bus.json``;
 ``LATENCY_AND_BUS.md`` and ``BENCH_SHEET.md`` embed the tables that ``md`` prints.
@@ -602,8 +602,8 @@ BENCH_PARTS = (
     ("parts", "nvidia_orin_nano_super_devkit", "Jetson dev kit (path 2)", 0, 0,
      "on hand: COMPUTE.md's bench test 1 measures 'the current dev kit' with no purchase"),
     ("parts", "pcan_usb_fd", "USB-CAN adapter (path 2)", 2, 2,
-     "one channel each, so two for the two buses that 500 Hz needs; taken as a test tool, which is the author's "
-     "reading of P30 and for the owner to confirm"),
+     "one channel each, so two for the two buses that 500 Hz needs; bench tools that this sheet uses to measure "
+     "the Jetson path (their price is in the totals row)"),
     ("parts", "pololu_d36v50f12", "24 V to 12 V regulator for the neck and tail servos", 1, 1, ""),
     ("parts", "st_vl53l5cx_carrier", "chest ToF sensor (follow-on sheet C)", 1, 2, ""),
     ("parts", "lipo_6s_3300", "the build's 6S pack (optional: repeat run 2 on a sagging supply)", 0, 0,
