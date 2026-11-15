@@ -939,6 +939,12 @@ def test_a_stored_pass_that_the_episodes_do_not_give_prints_no_pass_word(tmp_pat
     tally = one(tabs, "glance", "tally", set=cl)["reading_2"]
     assert tally[both] == 1 and sum(1 for k in tally if k.startswith(("shown", "provisional"))) == 1
     assert one(tabs, "ladder", "highest", set=cl, grip="mu 0.9", delay=J)["reading_2_highest"] == "none"
+    # ... and a rung that passes below it is not printed as the highest rung without naming it
+    for row in rows:
+        put(study, out, cl, row, "walk/v0.35")
+    hi = one(barreport.tables(barreport.load(out, study=study)), "ladder", "highest", set=cl, grip="mu 0.9", delay=J)
+    assert hi["reading_2_highest"] == f"walk/v0.35 (walk at 0.35 m/s); {barreport.ONLY_RUNG}"
+    assert f"walk/v0.4: {both}" in hi["reading_2_rungs"]
     # no cell of any line of that condition reads as a pass
     for name, p, x in every_line(tabs):
         if x.get("set") == cl and x.get("condition") == "walk/v0.4":

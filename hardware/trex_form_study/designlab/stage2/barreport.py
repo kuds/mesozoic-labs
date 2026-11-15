@@ -96,7 +96,8 @@ NO_UNIT = NOT_RUN + ": in no unit of the registered order of this round (STAGE2_
 NOT_JUDGED_HERE = "not judged here: the record's counts do not recompute from its episodes"
 REPLICATION_NOT_JUDGED = "replication " + NOT_JUDGED_HERE
 READING_1 = "not defined for this set"
-#: Table 2's "highest rung" beside a rung above it that has no verdict (not run, cut, one row's record missing).
+#: Table 2's "highest rung" beside a rung above it that has no verdict (not run, cut, one row's record missing, or
+#: a record whose counts do not recompute).
 NO_VERDICT = (NOT_RUN, "incomplete")
 NO_VERDICT_ABOVE = "no verdict above it for"
 ONLY_RUNG = "the only rung with a verdict at this delay (each other rung's own cell says why it has none)"
@@ -1895,7 +1896,8 @@ def ladder_table(doc: dict) -> dict:
                                 best = k
                         said = "none" if best is None else f"{best} ({item_of(_conds()[best])})"
                         if best is not None:  # a rung above it without a verdict: the cell is no speed ceiling
-                            bare = [k for k in ks if of_rung[k]["none"] or of_rung[k][rkey]["verdict"] in NO_VERDICT]
+                            bare = [k for k in ks if of_rung[k]["none"] or of_rung[k][rkey]["verdict"] in NO_VERDICT
+                                    or of_rung[k][rkey]["verdict"].startswith(NOT_JUDGED_HERE)]
                             above = [k for k in ks[ks.index(best) + 1:] if k in bare]
                             if above and len(bare) == len(ks) - 1:
                                 said += f"; {ONLY_RUNG}"
