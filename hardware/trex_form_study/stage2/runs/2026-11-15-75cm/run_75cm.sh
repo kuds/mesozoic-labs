@@ -187,7 +187,18 @@ all() {
         exit 4
     fi
     for s in V0 F25F9 F25F9cl; do
-        step "refcheck-$s" "$PY" -m designlab.stage2.bar refcheck --set "$s" --body "$BODY" --out "$RUN"
+        # bar refcheck exits 1 when a reference fails a term of its own item: the plan states that before the runs
+        # (C3's expectation) and it is a report, no gate.  The step passes when the check wrote its record and the
+        # record's items and input hashes are those of the record committed beside the set (the one its freeze cites).
+        step "refcheck-$s" bash -c '
+            rm -f "$3/$1/$2/refcheck.json"
+            "$0" -m designlab.stage2.bar refcheck --set "$1" --body "$2" --out "$3"; c=$?
+            { [ "$c" -le 1 ] && [ -s "$3/$1/$2/refcheck.json" ]; } || exit $(( c > 1 ? c : 1 ))
+            exec "$0" -c "import json, sys
+a, b = (json.load(open(p)) for p in sys.argv[1:3])
+same = a[\"items\"] == b[\"items\"] and a[\"inputs\"][\"files\"] == b[\"inputs\"][\"files\"]
+print(\"refcheck: items and inputs \" + (\"equal\" if same else \"DIFFER from\") + \" those of \" + sys.argv[2])
+sys.exit(0 if same else 1)" "$3/$1/$2/refcheck.json" "stage2/sets/$1/$2/refcheck.json"' "$PY" "$s" "$BODY" "$RUN"
     done
     task3
     task4
