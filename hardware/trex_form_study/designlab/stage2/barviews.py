@@ -121,10 +121,12 @@ POSE_BOUND = (
     "the joint angles are a cubic spline through the 50 Hz angles read one physics step earlier.  On a Stage 1 "
     "smoke episode run with the plant's own body positions kept (75-M-H-10, turn/walking_0.35_left, R2/42@0ms, "
     "seed 3042, 1461 rows) every body origin came back within 0.08 mm on every row but the first and within 0.11 mm "
-    "on the first (the start's transient lies before the first joint sample).  On the chain's traces the rebuilt "
-    "feet lie up to a few tenths of a millimetre from the trace's own foot columns on the rows next to a touchdown "
-    "or a fall (each clip's manifest entry and each turn record's block give the largest distance: "
-    "pose_residual_m, pose_check_worst)")
+    "on the first (the start's transient lies before the first joint sample).  On the chain's traces there is no "
+    "such truth, only the trace's own foot and CoM columns: on three turn records (60 traces, 15 Nov) the rebuilt "
+    "feet lay up to 0.31 mm from them in plan and the CoM up to 0.03 mm, and the two feet's answers for the root's "
+    "height differed by up to 1.35 mm, the largest on the rows next to a touchdown and in a fall, where the joint "
+    "speeds jump between two rows (each clip's manifest entry and each turn record's block give their own largest "
+    "distances: pose_residual_m, pose_check_worst; barviews posecheck prints them for any record)")
 #: Clips: size, rate, size cap, lead and tail around the move, the command caption's length, the walk's length.
 FPS = 30
 MAX_BYTES = 3_000_000
