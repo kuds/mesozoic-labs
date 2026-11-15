@@ -6,7 +6,7 @@ Two words are kept apart. **Planned** is read from the frozen reference, played 
 
 Lengths are in metres and in body lengths (BL). One body length is 1.759 m: the model's overall length at its home keyframe, from tail: cover_tail_seg_20 (the tail tip) to head: cover_skull (the snout tip).
 
-Records are read from `stage2/runs/2026-11-15-75cm` and cited by their path under it; it held 0 turn records of this set when this file was written (2026-11-15T21:51:14Z). Set freeze 0, manifest `1a5f606feed7`.
+Records are read from `stage2/runs/2026-11-15-75cm` and cited by their path under it; it held 0 turn records of this set when this file was written (2026-11-15T21:59:35Z). Set freeze 0, manifest `1a5f606feed7`.
 
 ## turn/q90_left: quick 90° turn to the left at 0.40 m/s
 
