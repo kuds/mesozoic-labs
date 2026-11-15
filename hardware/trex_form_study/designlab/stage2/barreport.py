@@ -7,8 +7,8 @@ verdict is ``bar.verdict`` on its two rows' registered records.
 
 * ``load(out)``: every record under ``out``, indexed ``[set][body][block][row][condition]``, with what the checks
   need under the key ``"_run"`` (the ledger, ``COST.md``'s rates, the list of check episodes, today's source hashes,
-  each set's latest freeze, the controls' records); each record carries its path and the records kept beside it by a
-  re-run.
+  each set's latest freeze and lead-in, the controls' records, the sha256 of every file read); each record carries
+  its path and the records kept beside it by a re-run.
 * ``tables(doc)``: the JSON form of every table; ``markdown(tabs)``: the same as Markdown.  Both are pure functions:
   no time, no host; ``markdown`` reads nothing but its argument, so ``BAR_TABLES.md`` regenerates from
   ``bar_tables.json`` byte for byte.
@@ -28,9 +28,11 @@ candidate's verdict with the replication word of each record that passed; a cell
 "cut by the pre-registered order" where the ledger shows its unit was not started (``absent_word``; ``planned`` is
 the registered order as cells); the registered record (the first finished at its path) gives every count and
 verdict, and a later one stands beside it labelled "re-run after a result"; a measured value never stands in a
-column that holds a target or a limit; every line of the candidate's carries its margin label; every table with a
-verdict cites the rules amended after a result (``AMENDED_AFTER_RESULT``); record paths are relative to the study
-directory; numbers are printed with ``%g`` or a fixed number of decimals per unit (``DECIMALS``).
+column that holds a target or a limit; every line of the candidate's carries its margin label; a line of a set
+whose lead-in is not ``start`` carries that label, read from the record and never assumed (rule A8 as amended;
+``set_labels``); every table with a verdict cites the rules amended after a result, one line per label of the plan
+(``AMENDED_AFTER_RESULT``); record paths are relative to the study directory; numbers are printed with ``%g`` or a
+fixed number of decimals per unit (``DECIMALS``).
 
 Run from hardware/trex_form_study::
 
@@ -2364,9 +2366,10 @@ def main(argv=None) -> int:
     return 0
 
 
-__all__ = ["absent_word", "checks", "counts_differences", "digest", "jps_table", "load", "main", "manifest_differences",
-           "markdown", "measures_of", "named_table", "outside_rule", "planned", "registered", "replicated",
-           "replication_in_order", "replication_word", "tables", "verdict_of", "write"]
+__all__ = ["absent_word", "amended_note", "checks", "counts_differences", "digest", "jps_table", "labels_of",
+           "lead_in_of", "line_labels", "load", "main", "manifest_differences", "markdown", "measures_of",
+           "named_table", "outside_rule", "planned", "registered", "replicated", "replication_in_order",
+           "replication_word", "set_labels", "tables", "verdict_of", "write"]
 
 if __name__ == "__main__":
     from designlab.stage2 import barreport as _named  # the importable copy owns the module's state
