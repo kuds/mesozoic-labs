@@ -99,9 +99,9 @@ STEADY = (1.0 / 6.0, 5.0 / 6.0)
 STEADY_MIN_ROWS = 8
 #: The figure's simulated paths come from one record on the hard floor, headline block: the first of these rows (the
 #: judged delay's, in the chain's order: the two fitted controllers, then the open-loop row, which gives no
-#: verdict) whose record has an episode that stayed up and can be read; the caption names it and the rows before
-#: it.  ``--figure-row`` names one row instead.
-FIGURE_ROWS = ("R2/42@10ms", "R2/43@10ms", "R0@10ms")
+#: verdict; then the same three without a servo delay) whose record has an episode that stayed up and can be read;
+#: the caption names it, its delay, and the rows before it.  ``--figure-row`` names one row instead.
+FIGURE_ROWS = ("R2/42@10ms", "R2/43@10ms", "R0@10ms", "R2/42@0ms", "R2/43@0ms", "R0@0ms")
 #: Clips: size, rate, size cap, lead and tail around the move, the command caption's length, the walk's length.
 FPS = 30
 MAX_BYTES = 3_000_000
@@ -1175,11 +1175,13 @@ def figure(sv: SetView, cond, planned: dict, sim: dict | None, stem: Path, befor
     drawn = [] if sim is None else sim.get("_paths", [])
     if drawn:
         ctl = "the open-loop row " if bar.controller_of(sim["row"]) in bar.NO_VERDICT_CONTROLLERS else ""
+        ms = sim["delay_ms"]
+        delay = f"servo delay {ms} ms" + ("" if ms == bar.JUDGED_MS else f" (the judged delay is {bar.JUDGED_MS} ms)")
         skipped = ("  Rows before it with no path to draw: " + "; ".join(before) + ".") if before else ""
-        note = (f"Simulated paths: {ctl}{sim['row']}, floor grip {sim['floor_grip']:g}, {sim['block']}; "
+        note = (f"Simulated paths: {ctl}{sim['row']}, {delay}, floor grip {sim['floor_grip']:g}, {sim['block']}; "
                 f"{sim['count_text']}; {len(drawn)} drawn." + skipped)
         simtext = (f"Orange, thin: SIMULATED root paths of the {len(drawn)} episodes that stayed up in "
-                   f"`{sim['record']}` ({ctl}{sim['row']}; {sim['count_text']})." + skipped)
+                   f"`{sim['record']}` ({ctl}{sim['row']}, {delay}; {sim['count_text']})." + skipped)
     elif sim is not None:
         note = f"Simulated: no episode to draw from {sim['row']} ({sim.get('count_text') or sim.get('reason')})."
         simtext = f"SIMULATED: no episode of `{sim['record']}` stayed up with a trace that can be read; none is drawn."

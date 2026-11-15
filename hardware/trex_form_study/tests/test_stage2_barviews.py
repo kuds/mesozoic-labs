@@ -649,6 +649,7 @@ def test_the_commands_write_nothing_in_the_run_directory_outside_views(v0, fake_
     # the figure's record: the first row in the stated order with a path to draw; the rows before it are named
     a = dict(row="R2/42@10ms", floor_grip=0.9, block=BLOCK, read=True, _paths=[], count_text="0 of 20 episodes stayed up")
     b = dict(row="R0@10ms", floor_grip=0.9, block=BLOCK, read=True, _paths=[np.zeros((2, 2))], count_text="20 of 20")
+    assert bv.FIGURE_ROWS[:3] == ("R2/42@10ms", "R2/43@10ms", "R0@10ms") and bv.FIGURE_ROWS[3:] == ("R2/42@0ms", "R2/43@0ms", "R0@0ms")
     low = dict(b, row="R2/43@10ms", floor_grip=0.54)
     assert bv.figure_record([low, b, a]) == (b, ["R2/42@10ms (0 of 20 episodes stayed up)"])
     assert bv.figure_record([low, a]) == (a, []) and bv.figure_record([low]) == (None, [])
