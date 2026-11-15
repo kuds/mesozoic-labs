@@ -7,21 +7,24 @@
  "run": "stage2/runs/2026-11-15-75cm",
  "rules": {
   "words": "planned: read from the frozen reference played kinematically at the bar's commanded clock (no physics). simulated: read from an episode's trace. No number mixes the two.",
-  "clock": "the bar plays a reference at 1.05 times its own clock (bar.RULES['clocks']); every time here is in simulated seconds, so a planned speed or rate in simulated time is the reference's own times 1.05; lengths and radii do not change with the clock",
+  "clock": "the bar plays a reference 1.05 times faster than the reference's own clock (bar.RULES['clocks']); every time here is on the bar's clock (the seconds of an episode), so a planned speed or rate on the bar's clock is the reference's own times 1.05; lengths and radii do not change with the clock",
   "frame": "the corner frame of a turn: origin at the root (the trunk's origin) at the command instant; 'along' is the commanded heading (the home heading, the bar's psi_cmd), the incoming walking line; 'sideways' is square to it, positive toward the side of the turn",
   "command": "the command instant t_c: planned, the reference clock's time of the move's first frame over the commanded clock rate; simulated, the episode record's command_s (never recomputed)",
-  "move_end": "the end of the move: the simulated time at which the reference clock reaches the end of the turn's own file (the trace's t_ref column); a trace that ends before it is read to its end and says so",
+  "move_end": "the end of the move: the time on the bar's clock at which the reference clock reaches the end of the turn's own file (a trace's t_ref column); a trace that ends before it is read to its end and says so. A turn's file goes on after the turn: it holds the walk out of the turn too, and the files of different turns and sets differ in length",
+  "ends": "every largest and smallest value over a span of time is taken over the 50 Hz rows in the span and the span's two ends themselves (read between the rows on either side, linearly): a value 'at the end' is then never beyond the largest",
+  "turn_itself": "the turn itself: from the command to the first row at which the trunk has turned the commanded angle to within 0.5 degrees.  Given: the seconds it took, where the root is then (along its incoming line and sideways), the box of the whole robot (every surface point) over those rows, and how far the root is then from its place at the end of the move (the walk after the turn that the corner box to the move's end includes).  A path whose trunk never turns that far has none of these",
   "heading": "the trunk's heading: the trace's yaw column (control._yaw of the trunk's rotation), unwrapped, as bar's turn reading takes it; 'turned' is its change from the commanded heading, positive toward the side of the turn",
   "steady": "the steady part of the turn: from the first row at which the trunk has turned 0.1667 of the commanded angle to the first row at which it has turned 0.8333 of it (15 to 75 degrees of a 90 degree turn); a path that never gets there 'stops short' and has no fitted radius",
   "radius_commanded": "the path radius commanded: the walk's path speed over the turn's rate (v / omega), both from the frozen turn's entry",
   "radius_fitted": "the radius fitted: the circle of the root's path over the steady part, with the trunk's heading as the place on the arc: least squares of root = centre + R x n(heading) over the steady rows, n the unit vector square to the heading that points away from the side of the turn; its centre is the turn's centre, and the RMS distance of the rows from that model is given beside it.  A circle fitted to the positions alone (the algebraic fit, recorded as radius_free_fit_m) reads the root's sideways sway of about 3 cm a step as curvature: it gave 0.29 m on V0's planned quick turn, whose commanded radius is 0.51 m, where this fit gives 0.50 m",
-  "corner_box": "the corner box: over the rows from the command to the end of the move, how far the root gets along its incoming line (advance) and sideways, at the largest and at the move's end; the same box for the whole robot (every surface point)",
+  "corner_box": "the corner box to the end of the move: from the command to the end of the move, how far the root gets along its incoming line (advance) and sideways, at the largest and at the move's end; the same box for the whole robot (every surface point).  Its sideways side is mostly the walk after the turn and grows with the length of the move's file: read the room of the turn from 'the turn itself', not from this box",
   "surface": "the robot's surface points: per body of the model, the corners of the convex hull of its pads, covers and hardware (geom groups 0, 1 and 2: mesh vertices, and the corners of a primitive's bounding box), carried on each row's pose; the snout tip is the head's point farthest forward at home, the tail tip the tail's farthest back",
-  "swept_radius": "the swept radius: the largest distance in plan from the turn's centre to any surface point over the steady part of the turn (where the robot is on its circle; the straight entry and exit are in the corner box and the corridor, not here); the point that sets it is named",
-  "turning_circle": "the turning circle: twice the swept radius, the diameter of the circle a full turn at that rate would sweep about the same centre",
-  "corridor": "the corridor: the narrowest L-shaped corridor, two legs of one width meeting square, that holds every surface point from the command to the end of the move.  Its outer wall along the incoming leg touches the sweep's point farthest to the outside (sideways = Y0), its far wall across the incoming line touches the sweep's point farthest along (along = X); the inner corner is at (X - w, Y0 + w) and the width w is the smallest for which no point lies inside that corner's block: w = the largest, over all points, of min(X - along, sideways - Y0).  It holds the robot up to the end of the move only: a robot that leaves the move off its heading needs more room further on",
+  "swept_radius": "the swept radius: the largest distance in plan from the turn's centre to any surface point over the steady part of the turn (where the robot is on its circle); the point that sets it is named.  A circle of that radius does not hold the robot through this 90 degree turn: at the command the robot still stands along its incoming line and its tail reaches further from the centre.  That is the second reading, 'the largest distance from the turn's centre from the command until the trunk has turned the commanded angle' (the turn itself), with the point and the instant that set it",
+  "turning_circle": "the turning circle: twice the swept radius of the steady part, the diameter of the circle a full turn at that rate would sweep about the same centre (a robot that keeps turning; not the larger distance at the command)",
+  "corridor": "the corridor: the narrowest L-shaped corridor, two legs of one width meeting square, that holds every surface point from the command to the end of the move (both ends included).  Its outer wall along the incoming leg touches the sweep's point farthest to the outside (sideways = Y0), its far wall across the incoming line touches the sweep's point farthest along (along = X); the inner corner is at (X - w, Y0 + w) and the width w is the smallest for which no point lies inside that corner's block: w = the largest, over all points, of min(X - along, sideways - Y0).  It holds the robot up to the end of the move only: a robot that leaves the move off its heading needs more room further on",
   "body_length": "lengths are given in metres and in body lengths; a body length is the model's overall length at its home keyframe along the home heading, from the surface's point farthest back to its point farthest forward",
-  "simulated": "simulated: every record of the turn under the run directory (each row, delay, floor grip and block) is listed; an episode that stayed up and whose trace is kept and has the record's sha256 is read; an episode that fell is counted and listed, not read; the heading at the bar's judged instant is the record's own (command_s + at_s; the commanded angle + the sign times heading_error_at_deg)"
+  "simulated": "simulated: every record of the turn under the run directory (each row, delay, floor grip and block) is listed; an episode that stayed up and whose trace is kept and has the record's sha256 is read; an episode that fell is counted and listed, not read; the heading at the bar's judged instant is the record's own (command_s + at_s; the commanded angle + the sign times heading_error_at_deg)",
+  "pose": "the pose of an episode's trace row is a measured bound, not exact: the attitude and the root's place are exact, the joint angles are a cubic spline through the 50 Hz angles read one physics step earlier.  On a Stage 1 smoke episode run with the plant's own body positions kept (75-M-H-10, turn/walking_0.35_left, R2/42@0ms, seed 3042, 1461 rows) every body origin came back within 0.08 mm on every row but the first and within 0.11 mm on the first (the start's transient lies before the first joint sample).  On the chain's traces there is no such truth, only the trace's own foot and CoM columns: over the 1120 episodes that stayed up in the turn records of V0 and F25F9cl (67 records, 15 Nov) the rebuilt feet lay up to 0.73 mm from them in plan (the median of the records' largest: 0.19 mm) and the CoM up to 0.04 mm, and the two feet's answers for the root's height differed by up to 1.02 mm (1.35 mm in an episode that fell): the largest on the rows next to a touchdown, a slip or a fall, where the joint speeds jump between two rows.  The brief's 0.1 mm is therefore met on a kinematic play and, but for the first row, on the smoke episode, not on every row of the chain's traces (each clip's manifest entry and each turn record's block give their own largest distances: pose_residual_m, pose_check_worst; barviews posecheck prints them for any record)"
  },
  "body_length": {
   "body_length_m": 1.759043024951823,
@@ -37,11 +40,18 @@
   "radius_fitted": "m",
   "turn_rate": "deg/s",
   "path_speed": "m/s",
+  "turn_seconds": "s",
+  "turn_root_advance": "m",
+  "turn_root_sideways": "m",
+  "turn_robot_along_max": "m",
+  "turn_robot_sideways_max": "m",
+  "walk_after_turn": "m",
   "advance_max": "m",
   "advance_at_end": "m",
   "sideways_max": "m",
   "sideways_at_end": "m",
   "swept_radius": "m",
+  "largest_from_centre_in_turn": "m",
   "turning_circle": "m",
   "corridor": "m",
   "turned_at_judged_instant": "deg",
@@ -95,7 +105,7 @@
      "radius_bl": 0.28953005166432116,
      "angle_deg": 90.0,
      "direction": "left",
-     "in_simulated_time": {
+     "on_the_bars_clock": {
       "path_speed_m_s": 0.42000000000000004,
       "turn_rate_deg_s": 47.25
      }
@@ -117,14 +127,46 @@
       "advance_max_bl": 0.35981362451328297,
       "advance_at_end_m": 0.5999460109758719,
       "advance_at_end_bl": 0.3410638639679114,
-      "sideways_max_m": 1.6777244208328634,
-      "sideways_max_bl": 0.9537711113568773,
+      "sideways_max_m": 1.6871066266635615,
+      "sideways_max_bl": 0.9591048102474744,
       "sideways_at_end_m": 1.6871066266635615,
       "sideways_at_end_bl": 0.9591048102474744,
-      "back_max_m": 0.0,
-      "back_max_bl": 0.0,
+      "back_max_m": -0.0,
+      "back_max_bl": -0.0,
       "outside_max_m": 0.024303859123513846,
-      "outside_max_bl": 0.013816523404354753
+      "outside_max_bl": 0.013816523404354753,
+      "seconds_after_command": 4.872047038621867
+     },
+     "turn_itself": {
+      "within_deg": 0.5,
+      "at_s": 8.78,
+      "seconds_after_command": 2.1572059895889684,
+      "turned_deg": 89.58977249839481,
+      "rows": 108,
+      "root_advance_m": 0.6251060599683891,
+      "root_advance_bl": 0.3553671235446385,
+      "root_sideways_m": 0.5493387965968021,
+      "root_sideways_bl": 0.3122941217494367,
+      "root_advance_max_m": 0.6251060599683891,
+      "root_advance_max_bl": 0.3553671235446385,
+      "root_sideways_max_m": 0.5493387965968021,
+      "root_sideways_max_bl": 0.3122941217494367,
+      "root_back_max_m": -0.0,
+      "root_back_max_bl": -0.0,
+      "root_outside_max_m": 0.024303859123513846,
+      "root_outside_max_bl": 0.013816523404354753,
+      "root_to_move_end_m": 1.1380459846597273,
+      "root_to_move_end_bl": 0.646968816860461,
+      "robot": {
+       "along_min_m": -0.9588895777420368,
+       "along_min_bl": -0.545120025002401,
+       "along_max_m": 1.0294819031749496,
+       "along_max_bl": 0.5852511215313482,
+       "sideways_min_m": -0.5904609047460221,
+       "sideways_min_bl": -0.3356716671340053,
+       "sideways_max_m": 1.3415284296587584,
+       "sideways_max_bl": 0.762646740659172
+      }
      },
      "steady": {
       "from_deg": 14.999999999999998,
@@ -180,17 +222,26 @@
        "right leg": 0.3819608333266031,
        "tail": 0.6348097467160628,
        "trunk": 0.4569754699489191
-      }
+      },
+      "over": "the steady part"
+     },
+     "swept_turn": {
+      "largest_distance_m": 1.1204101312794545,
+      "largest_distance_bl": 0.6369429942227482,
+      "set_by": "tail: cover_tail_seg_20",
+      "at_s": 6.92,
+      "seconds_after_command": 0.29720598958896893,
+      "over": "from the command until the trunk has turned the commanded angle"
      },
      "corner_box_robot": {
-      "along_min_m": -0.9485984712680073,
-      "along_min_bl": -0.5392696243424675,
+      "along_min_m": -0.9588895777420368,
+      "along_min_bl": -0.545120025002401,
       "along_max_m": 1.0294819031749496,
       "along_max_bl": 0.5852511215313482,
       "sideways_min_m": -0.5904609047460221,
       "sideways_min_bl": -0.3356716671340053,
-      "sideways_max_m": 2.4732070057502615,
-      "sideways_max_bl": 1.4059957435196893
+      "sideways_max_m": 2.4820465190326764,
+      "sideways_max_bl": 1.4110209266204021
      },
      "corridor": {
       "width_m": 0.8065835522614838,
@@ -222,10 +273,10 @@
    "figure": {
     "svg": "turn_q90_left.svg",
     "png": "turn_q90_left.png",
-    "caption": "Top view of quick 90\u00b0 turn to the left at 0.40 m/s on F25F9 (the pull request's walk); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move; the dashed box is the corner box of the planned root. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
+    "caption": "Top view of quick 90\u00b0 turn to the left at 0.40 m/s on F25F9 (the pull request's walk); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move's file; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move's file. The dashed box is the turn itself: the PLANNED root is 0.63 m along its incoming line and 0.55 m sideways (the ring) when the trunk has turned 90\u00b0, 2.16 s after the command. The dotted box is the PLANNED root's corner box to the end of the move's file, 4.87 s after the command: 0.63 m along and 1.69 m sideways (1.14 m of it after the turn); its sideways side is mostly the walk after the turn and depends on the file's length. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
     "simulated_from": null,
     "rows_before_without_a_path": [],
-    "rule": "the simulated paths are those of the first of the rows R2/42@10ms, R2/43@10ms, R0@10ms, R2/42@0ms, R2/43@0ms, R0@0ms (hard floor, headline block) whose record has an episode that stayed up and can be read"
+    "rule": "the simulated paths are those of the first of the rows R2/42@10ms, R2/43@10ms, R0@10ms, R2/42@8ms, R2/43@8ms, R0@8ms, R2/42@6ms, R2/43@6ms, R0@6ms, R2/42@4ms, R2/43@4ms, R0@4ms, R2/42@2ms, R2/43@2ms, R0@2ms, R2/42@0ms, R2/43@0ms, R0@0ms (hard floor, headline block) whose record has an episode that stayed up and can be read"
    }
   },
   {
@@ -272,7 +323,7 @@
      "radius_bl": 0.28953005166432116,
      "angle_deg": 90.0,
      "direction": "right",
-     "in_simulated_time": {
+     "on_the_bars_clock": {
       "path_speed_m_s": 0.42000000000000004,
       "turn_rate_deg_s": 47.25
      }
@@ -294,14 +345,46 @@
       "advance_max_bl": 0.35979947505966126,
       "advance_at_end_m": 0.5792429004030678,
       "advance_at_end_bl": 0.3292943334452733,
-      "sideways_max_m": 1.478958187036359,
-      "sideways_max_bl": 0.8407743108369194,
+      "sideways_max_m": 1.4883383130262513,
+      "sideways_max_bl": 0.8461068273568887,
       "sideways_at_end_m": 1.4883383130262513,
       "sideways_at_end_bl": 0.8461068273568887,
-      "back_max_m": 0.0,
-      "back_max_bl": 0.0,
+      "back_max_m": -0.0,
+      "back_max_bl": -0.0,
       "outside_max_m": 0.024360812418238793,
-      "outside_max_bl": 0.013848900835672279
+      "outside_max_bl": 0.013848900835672279,
+      "seconds_after_command": 4.398990323593301
+     },
+     "turn_itself": {
+      "within_deg": 0.5,
+      "at_s": 9.26,
+      "seconds_after_command": 2.1641492745598203,
+      "turned_deg": 89.65803223946938,
+      "rows": 109,
+      "root_advance_m": 0.6259709048844684,
+      "root_advance_bl": 0.35585878003274685,
+      "root_sideways_m": 0.5514261097826467,
+      "root_sideways_bl": 0.3134807403575301,
+      "root_advance_max_m": 0.6259709048844684,
+      "root_advance_max_bl": 0.35585878003274685,
+      "root_sideways_max_m": 0.5514261097826467,
+      "root_sideways_max_bl": 0.3134807403575301,
+      "root_back_max_m": -0.0,
+      "root_back_max_bl": -0.0,
+      "root_outside_max_m": 0.024360812418238793,
+      "root_outside_max_bl": 0.013848900835672279,
+      "root_to_move_end_m": 0.9380767468547545,
+      "root_to_move_end_bl": 0.5332881194764675,
+      "robot": {
+       "along_min_m": -0.958893065371623,
+       "along_min_bl": -0.5451220076881778,
+       "along_max_m": 1.0295005801280772,
+       "along_max_bl": 0.5852617392097463,
+       "sideways_min_m": -0.5904621801051267,
+       "sideways_min_bl": -0.33567239216408506,
+       "sideways_max_m": 1.3435874325877681,
+       "sideways_max_bl": 0.7638172651431119
+      }
      },
      "steady": {
       "from_deg": 14.999999999999998,
@@ -357,17 +440,26 @@
        "right leg": 0.3046148651353732,
        "tail": 0.6348864671437227,
        "trunk": 0.4569891304634625
-      }
+      },
+      "over": "the steady part"
+     },
+     "swept_turn": {
+      "largest_distance_m": 1.1204793180843908,
+      "largest_distance_bl": 0.636982326293627,
+      "set_by": "tail: cover_tail_seg_20",
+      "at_s": 7.4,
+      "seconds_after_command": 0.3041492745598209,
+      "over": "from the command until the trunk has turned the commanded angle"
      },
      "corner_box_robot": {
-      "along_min_m": -0.9562623074460932,
-      "along_min_bl": -0.5436264456762128,
+      "along_min_m": -0.958893065371623,
+      "along_min_bl": -0.5451220076881778,
       "along_max_m": 1.0295005801280772,
       "along_max_bl": 0.5852617392097463,
       "sideways_min_m": -0.5904621801051267,
       "sideways_min_bl": -0.33567239216408506,
-      "sideways_max_m": 2.2744407719537776,
-      "sideways_max_bl": 1.292998942999743
+      "sideways_max_m": 2.283278205395367,
+      "sideways_max_bl": 1.298022943729817
      },
      "corridor": {
       "width_m": 0.8069839035481047,
@@ -399,10 +491,10 @@
    "figure": {
     "svg": "turn_q90_right.svg",
     "png": "turn_q90_right.png",
-    "caption": "Top view of quick 90\u00b0 turn to the right at 0.40 m/s on F25F9 (the pull request's walk); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move; the dashed box is the corner box of the planned root. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
+    "caption": "Top view of quick 90\u00b0 turn to the right at 0.40 m/s on F25F9 (the pull request's walk); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move's file; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move's file. The dashed box is the turn itself: the PLANNED root is 0.63 m along its incoming line and 0.55 m sideways (the ring) when the trunk has turned 90\u00b0, 2.16 s after the command. The dotted box is the PLANNED root's corner box to the end of the move's file, 4.40 s after the command: 0.63 m along and 1.49 m sideways (0.94 m of it after the turn); its sideways side is mostly the walk after the turn and depends on the file's length. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
     "simulated_from": null,
     "rows_before_without_a_path": [],
-    "rule": "the simulated paths are those of the first of the rows R2/42@10ms, R2/43@10ms, R0@10ms, R2/42@0ms, R2/43@0ms, R0@0ms (hard floor, headline block) whose record has an episode that stayed up and can be read"
+    "rule": "the simulated paths are those of the first of the rows R2/42@10ms, R2/43@10ms, R0@10ms, R2/42@8ms, R2/43@8ms, R0@8ms, R2/42@6ms, R2/43@6ms, R0@6ms, R2/42@4ms, R2/43@4ms, R0@4ms, R2/42@2ms, R2/43@2ms, R0@2ms, R2/42@0ms, R2/43@0ms, R0@0ms (hard floor, headline block) whose record has an episode that stayed up and can be read"
    }
   },
   {
@@ -449,7 +541,7 @@
      "radius_bl": 0.6497039166443606,
      "angle_deg": 90.0,
      "direction": "left",
-     "in_simulated_time": {
+     "on_the_bars_clock": {
       "path_speed_m_s": 0.42000000000000004,
       "turn_rate_deg_s": 21.05619897105775
      }
@@ -471,14 +563,46 @@
       "advance_max_bl": 0.7154605875633743,
       "advance_at_end_m": 1.2254993481544014,
       "advance_at_end_bl": 0.6966852605483972,
-      "sideways_max_m": 2.0644581105879767,
-      "sideways_max_bl": 1.1736257051725716,
+      "sideways_max_m": 2.0678698438714282,
+      "sideways_max_bl": 1.1755652445897755,
       "sideways_at_end_m": 2.0678698438714282,
       "sideways_at_end_bl": 1.1755652445897755,
-      "back_max_m": 0.0,
-      "back_max_bl": 0.0,
+      "back_max_m": -0.0,
+      "back_max_bl": -0.0,
       "outside_max_m": 0.030957206940166435,
-      "outside_max_bl": 0.017598891272721597
+      "outside_max_bl": 0.017598891272721597,
+      "seconds_after_command": 6.622794010408713
+     },
+     "turn_itself": {
+      "within_deg": 0.5,
+      "at_s": 11.1,
+      "seconds_after_command": 4.477205989588969,
+      "turned_deg": 89.63611148220208,
+      "rows": 224,
+      "root_advance_m": 1.1707296314829525,
+      "root_advance_bl": 0.6655491735428226,
+      "root_sideways_m": 1.155960339758708,
+      "root_sideways_bl": 0.6571529651984309,
+      "root_advance_max_m": 1.235316885229581,
+      "root_advance_max_bl": 0.7022664413017494,
+      "root_sideways_max_m": 1.155960339758708,
+      "root_sideways_max_bl": 0.6571529651984309,
+      "root_back_max_m": -0.0,
+      "root_back_max_bl": -0.0,
+      "root_outside_max_m": 0.030957206940166435,
+      "root_outside_max_bl": 0.017598891272721597,
+      "root_to_move_end_m": 0.9135527710840673,
+      "root_to_move_end_bl": 0.519346461755299,
+      "robot": {
+       "along_min_m": -0.9588889906463207,
+       "along_min_bl": -0.5451196912438131,
+       "along_max_m": 1.5047992307174354,
+       "along_max_bl": 0.8554647097154711,
+       "sideways_min_m": -0.41332504571015577,
+       "sideways_min_bl": -0.23497153841446033,
+       "sideways_max_m": 1.95027137796507,
+       "sideways_max_bl": 1.1087115836853874
+      }
      },
      "steady": {
       "from_deg": 14.999999999999998,
@@ -534,17 +658,26 @@
        "right leg": 0.7532314321993265,
        "tail": 0.8913621376693739,
        "trunk": 0.7774954509662592
-      }
+      },
+      "over": "the steady part"
+     },
+     "swept_turn": {
+      "largest_distance_m": 1.5711473315818876,
+      "largest_distance_bl": 0.893183003084827,
+      "set_by": "tail: cover_tail_seg_20",
+      "at_s": 10.78,
+      "seconds_after_command": 4.157205989588968,
+      "over": "from the command until the trunk has turned the commanded angle"
      },
      "corner_box_robot": {
-      "along_min_m": -0.9486018579426867,
-      "along_min_bl": -0.5392715496362956,
+      "along_min_m": -0.9588889906463207,
+      "along_min_bl": -0.5451196912438131,
       "along_max_m": 1.5047992307174354,
       "along_max_bl": 0.8554647097154711,
       "sideways_min_m": -0.41332504571015577,
       "sideways_min_bl": -0.23497153841446033,
-      "sideways_max_m": 2.8596116239189824,
-      "sideways_max_bl": 1.625663263124165
+      "sideways_max_m": 2.8628112083765753,
+      "sideways_max_bl": 1.6274821978586809
      },
      "corridor": {
       "width_m": 0.8037010683255446,
@@ -576,10 +709,10 @@
    "figure": {
     "svg": "turn_t90_0.35_left.svg",
     "png": "turn_t90_0.35_left.png",
-    "caption": "Top view of 90\u00b0 turn to the left (0.35 rad/s) at 0.40 m/s on F25F9 (the pull request's walk); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move; the dashed box is the corner box of the planned root. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
+    "caption": "Top view of 90\u00b0 turn to the left (0.35 rad/s) at 0.40 m/s on F25F9 (the pull request's walk); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move's file; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move's file. The dashed box is the turn itself: the PLANNED root is 1.17 m along its incoming line and 1.16 m sideways (the ring) when the trunk has turned 90\u00b0, 4.48 s after the command. The dotted box is the PLANNED root's corner box to the end of the move's file, 6.62 s after the command: 1.26 m along and 2.07 m sideways (0.91 m of it after the turn); its sideways side is mostly the walk after the turn and depends on the file's length. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
     "simulated_from": null,
     "rows_before_without_a_path": [],
-    "rule": "the simulated paths are those of the first of the rows R2/42@10ms, R2/43@10ms, R0@10ms, R2/42@0ms, R2/43@0ms, R0@0ms (hard floor, headline block) whose record has an episode that stayed up and can be read"
+    "rule": "the simulated paths are those of the first of the rows R2/42@10ms, R2/43@10ms, R0@10ms, R2/42@8ms, R2/43@8ms, R0@8ms, R2/42@6ms, R2/43@6ms, R0@6ms, R2/42@4ms, R2/43@4ms, R0@4ms, R2/42@2ms, R2/43@2ms, R0@2ms, R2/42@0ms, R2/43@0ms, R0@0ms (hard floor, headline block) whose record has an episode that stayed up and can be read"
    }
   },
   {
@@ -626,7 +759,7 @@
      "radius_bl": 0.6497039166443606,
      "angle_deg": 90.0,
      "direction": "right",
-     "in_simulated_time": {
+     "on_the_bars_clock": {
       "path_speed_m_s": 0.42000000000000004,
       "turn_rate_deg_s": 21.05619897105775
      }
@@ -648,14 +781,46 @@
       "advance_max_bl": 0.7154293805225863,
       "advance_at_end_m": 1.2048658098805067,
       "advance_at_end_bl": 0.684955281246464,
-      "sideways_max_m": 2.2591844734799964,
-      "sideways_max_bl": 1.2843258757368208,
+      "sideways_max_m": 2.266502389277686,
+      "sideways_max_bl": 1.2884860444728243,
       "sideways_at_end_m": 2.266502389277686,
       "sideways_at_end_bl": 1.2884860444728243,
-      "back_max_m": 0.0,
-      "back_max_bl": 0.0,
+      "back_max_m": -0.0,
+      "back_max_bl": -0.0,
       "outside_max_m": 0.031008813819813616,
-      "outside_max_bl": 0.017628229315575093
+      "outside_max_bl": 0.017628229315575093,
+      "seconds_after_command": 7.0958507254372805
+     },
+     "turn_itself": {
+      "within_deg": 0.5,
+      "at_s": 11.56,
+      "seconds_after_command": 4.464149274559821,
+      "turned_deg": 89.52433277263944,
+      "rows": 224,
+      "root_advance_m": 1.1702046124111476,
+      "root_advance_bl": 0.6652507049639661,
+      "root_sideways_m": 1.1522242958515172,
+      "root_sideways_bl": 0.655029058134081,
+      "root_advance_max_m": 1.2352358170160525,
+      "root_advance_max_bl": 0.7022203547578851,
+      "root_sideways_max_m": 1.1522242958515172,
+      "root_sideways_max_bl": 0.655029058134081,
+      "root_back_max_m": -0.0,
+      "root_back_max_bl": -0.0,
+      "root_outside_max_m": 0.031008813819813616,
+      "root_outside_max_bl": 0.017628229315575093,
+      "root_to_move_end_m": 1.1148170558883048,
+      "root_to_move_end_bl": 0.6337633816084957,
+      "robot": {
+       "along_min_m": -0.958892968748928,
+       "along_min_bl": -0.5451219527590523,
+       "along_max_m": 1.504727052314911,
+       "along_max_bl": 0.855423676948506,
+       "sideways_min_m": -0.4131647163456716,
+       "sideways_min_bl": -0.23488039262540916,
+       "sideways_max_m": 1.9460318338768803,
+       "sideways_max_bl": 1.1063014413363645
+      }
      },
      "steady": {
       "from_deg": 14.999999999999998,
@@ -711,17 +876,26 @@
        "right leg": 0.6747222457469441,
        "tail": 0.8910619479790383,
        "trunk": 0.7773563193023387
-      }
+      },
+      "over": "the steady part"
+     },
+     "swept_turn": {
+      "largest_distance_m": 1.5709086322265622,
+      "largest_distance_bl": 0.8930473046670285,
+      "set_by": "tail: cover_tail_seg_20",
+      "at_s": 11.26,
+      "seconds_after_command": 4.16414927455982,
+      "over": "from the command until the trunk has turned the commanded angle"
      },
      "corner_box_robot": {
-      "along_min_m": -0.9562624266717199,
-      "along_min_bl": -0.5436265134548999,
+      "along_min_m": -0.958892968748928,
+      "along_min_bl": -0.5451219527590523,
       "along_max_m": 1.504727052314911,
       "along_max_bl": 0.855423676948506,
       "sideways_min_m": -0.4131647163456716,
       "sideways_min_bl": -0.23488039262540916,
-      "sideways_max_m": 3.0545577285409706,
-      "sideways_max_bl": 1.7364883548681986
+      "sideways_max_m": 3.0614413673461143,
+      "sideways_max_bl": 1.7404016410741072
      },
      "corridor": {
       "width_m": 0.8040968337289849,
@@ -753,10 +927,10 @@
    "figure": {
     "svg": "turn_t90_0.35_right.svg",
     "png": "turn_t90_0.35_right.png",
-    "caption": "Top view of 90\u00b0 turn to the right (0.35 rad/s) at 0.40 m/s on F25F9 (the pull request's walk); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move; the dashed box is the corner box of the planned root. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
+    "caption": "Top view of 90\u00b0 turn to the right (0.35 rad/s) at 0.40 m/s on F25F9 (the pull request's walk); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move's file; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move's file. The dashed box is the turn itself: the PLANNED root is 1.17 m along its incoming line and 1.15 m sideways (the ring) when the trunk has turned 90\u00b0, 4.46 s after the command. The dotted box is the PLANNED root's corner box to the end of the move's file, 7.10 s after the command: 1.26 m along and 2.27 m sideways (1.11 m of it after the turn); its sideways side is mostly the walk after the turn and depends on the file's length. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
     "simulated_from": null,
     "rows_before_without_a_path": [],
-    "rule": "the simulated paths are those of the first of the rows R2/42@10ms, R2/43@10ms, R0@10ms, R2/42@0ms, R2/43@0ms, R0@0ms (hard floor, headline block) whose record has an episode that stayed up and can be read"
+    "rule": "the simulated paths are those of the first of the rows R2/42@10ms, R2/43@10ms, R0@10ms, R2/42@8ms, R2/43@8ms, R0@8ms, R2/42@6ms, R2/43@6ms, R0@6ms, R2/42@4ms, R2/43@4ms, R0@4ms, R2/42@2ms, R2/43@2ms, R0@2ms, R2/42@0ms, R2/43@0ms, R0@0ms (hard floor, headline block) whose record has an episode that stayed up and can be read"
    }
   },
   {
@@ -803,7 +977,7 @@
      "radius_bl": 0.4547927416510523,
      "angle_deg": 90.0,
      "direction": "left",
-     "in_simulated_time": {
+     "on_the_bars_clock": {
       "path_speed_m_s": 0.42000000000000004,
       "turn_rate_deg_s": 30.080284244368222
      }
@@ -825,14 +999,46 @@
       "advance_max_bl": 0.5206232069815863,
       "advance_at_end_m": 0.8829246189919422,
       "advance_at_end_bl": 0.5019346351781953,
-      "sideways_max_m": 1.8540397120114422,
-      "sideways_max_bl": 1.0540047546945142,
+      "sideways_max_m": 1.866487994547311,
+      "sideways_max_bl": 1.0610814903736825,
       "sideways_at_end_m": 1.866487994547311,
       "sideways_at_end_bl": 1.0610814903736825,
-      "back_max_m": 0.0,
-      "back_max_bl": 0.0,
+      "back_max_m": -0.0,
+      "back_max_bl": -0.0,
       "outside_max_m": 0.03019761871900351,
-      "outside_max_bl": 0.01716707226068593
+      "outside_max_bl": 0.01716707226068593,
+      "seconds_after_command": 5.676680580351578
+     },
+     "turn_itself": {
+      "within_deg": 0.5,
+      "at_s": 9.82,
+      "seconds_after_command": 3.1972059895889693,
+      "turned_deg": 89.50520013388518,
+      "rows": 160,
+      "root_advance_m": 0.8998968326363472,
+      "root_advance_bl": 0.5115831846472282,
+      "root_sideways_m": 0.8058264210594568,
+      "root_sideways_bl": 0.45810500916060704,
+      "root_advance_max_m": 0.9097417942651129,
+      "root_advance_max_bl": 0.5171799560104728,
+      "root_sideways_max_m": 0.8058264210594568,
+      "root_sideways_max_bl": 0.45810500916060704,
+      "root_back_max_m": -0.0,
+      "root_back_max_bl": -0.0,
+      "root_outside_max_m": 0.03019761871900351,
+      "root_outside_max_bl": 0.01716707226068593,
+      "root_to_move_end_m": 1.0607973555348458,
+      "root_to_move_end_bl": 0.6030536720748483,
+      "robot": {
+       "along_min_m": -0.9588889994621674,
+       "along_min_bl": -0.5451196962555419,
+       "along_max_m": 1.222084020003346,
+       "along_max_bl": 0.6947436774815765,
+       "sideways_min_m": -0.4771518153842706,
+       "sideways_min_bl": -0.2712564778779865,
+       "sideways_max_m": 1.6031469310193178,
+       "sideways_max_bl": 0.9113744850346825
+      }
      },
      "steady": {
       "from_deg": 14.999999999999998,
@@ -888,17 +1094,26 @@
        "right leg": 0.5557031277670865,
        "tail": 0.7469266449118958,
        "trunk": 0.6007622205953235
-      }
+      },
+      "over": "the steady part"
+     },
+     "swept_turn": {
+      "largest_distance_m": 1.3192474979529947,
+      "largest_distance_bl": 0.7499802331379168,
+      "set_by": "tail: cover_tail_seg_20",
+      "at_s": 7.0,
+      "seconds_after_command": 0.377205989588969,
+      "over": "from the command until the trunk has turned the commanded angle"
      },
      "corner_box_robot": {
-      "along_min_m": -0.9486036444246359,
-      "along_min_bl": -0.5392725652350752,
+      "along_min_m": -0.9588889994621674,
+      "along_min_bl": -0.5451196962555419,
       "along_max_m": 1.222084020003346,
       "along_max_bl": 0.6947436774815765,
       "sideways_min_m": -0.4771518153842706,
       "sideways_min_bl": -0.2712564778779865,
-      "sideways_max_m": 2.6496798359325795,
-      "sideways_max_bl": 1.5063189463516105
+      "sideways_max_m": 2.6614335624601733,
+      "sideways_max_bl": 1.5130008332417368
      },
      "corridor": {
       "width_m": 0.795080512339171,
@@ -930,10 +1145,10 @@
    "figure": {
     "svg": "turn_t90_0.5_left.svg",
     "png": "turn_t90_0.5_left.png",
-    "caption": "Top view of 90\u00b0 turn to the left (0.5 rad/s) at 0.40 m/s on F25F9 (the pull request's walk); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move; the dashed box is the corner box of the planned root. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
+    "caption": "Top view of 90\u00b0 turn to the left (0.5 rad/s) at 0.40 m/s on F25F9 (the pull request's walk); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move's file; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move's file. The dashed box is the turn itself: the PLANNED root is 0.90 m along its incoming line and 0.81 m sideways (the ring) when the trunk has turned 90\u00b0, 3.20 s after the command. The dotted box is the PLANNED root's corner box to the end of the move's file, 5.68 s after the command: 0.92 m along and 1.87 m sideways (1.06 m of it after the turn); its sideways side is mostly the walk after the turn and depends on the file's length. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
     "simulated_from": null,
     "rows_before_without_a_path": [],
-    "rule": "the simulated paths are those of the first of the rows R2/42@10ms, R2/43@10ms, R0@10ms, R2/42@0ms, R2/43@0ms, R0@0ms (hard floor, headline block) whose record has an episode that stayed up and can be read"
+    "rule": "the simulated paths are those of the first of the rows R2/42@10ms, R2/43@10ms, R0@10ms, R2/42@8ms, R2/43@8ms, R0@8ms, R2/42@6ms, R2/43@6ms, R0@6ms, R2/42@4ms, R2/43@4ms, R0@4ms, R2/42@2ms, R2/43@2ms, R0@2ms, R2/42@0ms, R2/43@0ms, R0@0ms (hard floor, headline block) whose record has an episode that stayed up and can be read"
    }
   },
   {
@@ -980,7 +1195,7 @@
      "radius_bl": 0.4547927416510523,
      "angle_deg": 90.0,
      "direction": "right",
-     "in_simulated_time": {
+     "on_the_bars_clock": {
       "path_speed_m_s": 0.42000000000000004,
       "turn_rate_deg_s": 30.080284244368222
      }
@@ -1002,14 +1217,46 @@
       "advance_max_bl": 0.520605362321013,
       "advance_at_end_m": 0.8621591755427056,
       "advance_at_end_bl": 0.4901296689808475,
-      "sideways_max_m": 2.061563906698995,
-      "sideways_max_bl": 1.1719803765206127,
+      "sideways_max_m": 2.06497563989162,
+      "sideways_max_bl": 1.1739199158861826,
       "sideways_at_end_m": 2.06497563989162,
       "sideways_at_end_bl": 1.1739199158861826,
-      "back_max_m": 0.0,
-      "back_max_bl": 0.0,
+      "back_max_m": -0.0,
+      "back_max_bl": -0.0,
       "outside_max_m": 0.030234990964868404,
-      "outside_max_bl": 0.01718831804338412
+      "outside_max_bl": 0.01718831804338412,
+      "seconds_after_command": 6.1497372953801435
+     },
+     "turn_itself": {
+      "within_deg": 0.5,
+      "at_s": 10.3,
+      "seconds_after_command": 3.2041492745598212,
+      "turned_deg": 89.57749953646666,
+      "rows": 161,
+      "root_advance_m": 0.8983976312513398,
+      "root_advance_bl": 0.5107309022620099,
+      "root_sideways_m": 0.8090779853027471,
+      "root_sideways_bl": 0.4599534939316827,
+      "root_advance_max_m": 0.9097324742469901,
+      "root_advance_max_bl": 0.5171746576647299,
+      "root_sideways_max_m": 0.8090779853027471,
+      "root_sideways_max_bl": 0.4599534939316827,
+      "root_back_max_m": -0.0,
+      "root_back_max_bl": -0.0,
+      "root_outside_max_m": 0.030234990964868404,
+      "root_outside_max_bl": 0.01718831804338412,
+      "root_to_move_end_m": 1.2564203693326443,
+      "root_to_move_end_bl": 0.7142635805437764,
+      "robot": {
+       "along_min_m": -0.9588929692398378,
+       "along_min_bl": -0.54512195303813,
+       "along_max_m": 1.2220855202881622,
+       "along_max_bl": 0.6947445303798825,
+       "sideways_min_m": -0.47731207052210567,
+       "sideways_min_bl": -0.2713475814698611,
+       "sideways_max_m": 1.60638075415264,
+       "sideways_max_bl": 0.9132128841457052
+      }
      },
      "steady": {
       "from_deg": 14.999999999999998,
@@ -1065,17 +1312,26 @@
        "right leg": 0.4773206829480754,
        "tail": 0.7468558965862108,
        "trunk": 0.6005952839842429
-      }
+      },
+      "over": "the steady part"
+     },
+     "swept_turn": {
+      "largest_distance_m": 1.3193183588106283,
+      "largest_distance_bl": 0.7500205168925655,
+      "set_by": "tail: cover_tail_seg_20",
+      "at_s": 7.46,
+      "seconds_after_command": 0.3641492745598205,
+      "over": "from the command until the trunk has turned the commanded angle"
      },
      "corner_box_robot": {
-      "along_min_m": -0.9562624198880441,
-      "along_min_bl": -0.5436265095984417,
+      "along_min_m": -0.9588929692398378,
+      "along_min_bl": -0.54512195303813,
       "along_max_m": 1.2220855202881622,
       "along_max_bl": 0.6947445303798825,
       "sideways_min_m": -0.47731207052210567,
       "sideways_min_bl": -0.2713475814698611,
-      "sideways_max_m": 2.856717420030022,
-      "sideways_max_bl": 1.624017934472218
+      "sideways_max_m": 2.859917004396767,
+      "sideways_max_bl": 1.625836869155088
      },
      "corridor": {
       "width_m": 0.7952236516108879,
@@ -1107,10 +1363,10 @@
    "figure": {
     "svg": "turn_t90_0.5_right.svg",
     "png": "turn_t90_0.5_right.png",
-    "caption": "Top view of 90\u00b0 turn to the right (0.5 rad/s) at 0.40 m/s on F25F9 (the pull request's walk); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move; the dashed box is the corner box of the planned root. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
+    "caption": "Top view of 90\u00b0 turn to the right (0.5 rad/s) at 0.40 m/s on F25F9 (the pull request's walk); up is the incoming walking line. Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command to the end of the move's file; the grey shapes are the PLANNED outline of the robot at the command and at the end of the move's file. The dashed box is the turn itself: the PLANNED root is 0.90 m along its incoming line and 0.81 m sideways (the ring) when the trunk has turned 90\u00b0, 3.20 s after the command. The dotted box is the PLANNED root's corner box to the end of the move's file, 6.15 s after the command: 0.92 m along and 2.06 m sideways (1.26 m of it after the turn); its sideways side is mostly the walk after the turn and depends on the file's length. SIMULATED: no record yet; no simulated path is drawn. Every path is drawn from its own position at the command. The scale bar is 0.5 m.",
     "simulated_from": null,
     "rows_before_without_a_path": [],
-    "rule": "the simulated paths are those of the first of the rows R2/42@10ms, R2/43@10ms, R0@10ms, R2/42@0ms, R2/43@0ms, R0@0ms (hard floor, headline block) whose record has an episode that stayed up and can be read"
+    "rule": "the simulated paths are those of the first of the rows R2/42@10ms, R2/43@10ms, R0@10ms, R2/42@8ms, R2/43@8ms, R0@8ms, R2/42@6ms, R2/43@6ms, R0@6ms, R2/42@4ms, R2/43@4ms, R0@4ms, R2/42@2ms, R2/43@2ms, R0@2ms, R2/42@0ms, R2/43@0ms, R0@0ms (hard floor, headline block) whose record has an episode that stayed up and can be read"
    }
   }
  ],
@@ -1128,16 +1384,17 @@
    "reference": "transitions/turn90_1_right"
   }
  ],
+ "records_of_turns_without_a_reference": [],
  "records_not_read": [],
  "records_seen": [],
  "provenance": {
   "git": {
-   "commit": "074f441833dff47a165b6a530daa80561b88b622",
+   "commit": "efc8cab0d83f85367814439f5096ea0bcd5d8bfb",
    "dirty": false,
    "dirty_paths": []
   },
-  "at": "2026-11-15T21:59:35Z",
+  "at": "2026-11-15T23:44:55Z",
   "module": "designlab/stage2/barviews.py",
-  "module_sha256": "9a92405d7d10e9db950890e0fea076d9e934ad67ed8f77cfac3dc76bcb0fae0a"
+  "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
  }
 }
