@@ -892,10 +892,12 @@ def test_numbers_are_printed_with_a_fixed_precision_or_g():
     col = dict(kind="measured", unit="deg")
     assert barreport._cell_text(dict(median=-4.25, n=20), col) == "-4.2 (20)" and barreport._cell_text(None, col) == "-"
     assert barreport._cell_text(dict(median=None, n=0), col) == "-"
-    assert barreport._cell_text({}, dict(kind="terms")) == "none" and barreport._cell_text({"a": 2, "b": 1}, dict(kind="terms")) == "a: 2; b: 1"
+    assert barreport._cell_text({}, dict(kind="terms")) == "none"
+    assert barreport._cell_text({"a": 2, "b": 1}, dict(kind="terms")) == "a: 2; b: 1"
     assert barreport._cell_text(dict(k=17, n=20), dict(kind="of")) == "17 of 20"
     assert barreport._cell_text("a/b.json", dict(kind="path")) == "`a/b.json`"
-    assert barreport._cell_text(True, dict(kind="flag")) == "yes" and barreport._cell_text("not defined", dict(kind="flag")) == "not defined"
+    assert barreport._cell_text(True, dict(kind="flag")) == "yes"
+    assert barreport._cell_text("not defined", dict(kind="flag")) == "not defined"
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1118,4 +1120,5 @@ def test_output_paths_are_not_ignored_by_git():
     for name in (barreport.TABLES_JSON, barreport.TABLES_MD):
         r = subprocess.run(["git", "check-ignore", "-q", f"{run_dir}/{name}"], cwd=ROOT)
         assert r.returncode == 1, name
-    assert subprocess.run(["git", "check-ignore", "-q", "logs/barreport-smoke/" + barreport.TABLES_MD], cwd=ROOT).returncode == 0
+    smoke = "logs/barreport-smoke/" + barreport.TABLES_MD
+    assert subprocess.run(["git", "check-ignore", "-q", smoke], cwd=ROOT).returncode == 0

@@ -116,8 +116,9 @@ AMENDED_AFTER_RESULT = (
 # ------------------------------------------------------------------------------------------------
 # JPS section 2.3: its numbers, copied (emphasis marks and backticks removed) with the file and the line
 # ------------------------------------------------------------------------------------------------
-JPS_HEADER = dict(file=JPS_FILE, line=90, condition="75-M-H-10 Condition (20 seeds each, R2/42 · R2/43)", delay="Delay",
-                  floor_plant="Floor / Plant", stay_up="Stay Up (42 · 43)", meet_every_limit="Meet Every Limit (42 · 43)",
+JPS_HEADER = dict(file=JPS_FILE, line=90, condition="75-M-H-10 Condition (20 seeds each, R2/42 · R2/43)",
+                  delay="Delay", floor_plant="Floor / Plant", stay_up="Stay Up (42 · 43)",
+                  meet_every_limit="Meet Every Limit (42 · 43)",
                   median_speed="Median Speed (m/s)", takeaway="Binding Limit / Takeaway")
 JPS_ROWS = (
     dict(line=92, condition="Stage 1 V0 brisk (0.351 m/s)", delay="0 ms", floor_plant="mu = 0.90 (Pi 5)",
@@ -145,7 +146,8 @@ JPS_ROWS = (
          takeaway="Partial PLEM (CPU 5 + pcan_usb_fd) holds the 2 ms pass zone (toe = 22.8–23.6 mm)."),
     dict(line=99, condition="F25_F9_cl @ 0.496 m/s (4 ms vs 6–10 ms bridge lag)", delay="4 / 6–10 ms",
          floor_plant="mu = 0.90", stay_up="20·20 / 0·0", meet_every_limit="5·1 / 0·0", median_speed="0.512 / falls",
-         takeaway="4 ms loses toe clearance (18.9–19.3 mm); 6–10 ms (S2-7) collapses 0/20 at both 0.40 & 0.50 m/s."),
+         takeaway="4 ms loses toe clearance (18.9–19.3 mm); 6–10 ms (S2-7) collapses 0/20 at both 0.40 & 0.50 "
+                  "m/s."),
     dict(line=100, condition="Stage 2 stop2 (<= 1.5 strides, <= 1.5 m/s²) @ 0.40 & 0.50 m/s", delay="2 ms",
          floor_plant="mu = 0.90", stay_up="20/20 · 20/20", meet_every_limit="20/20 · 20/20",
          median_speed="0.67 / 0.73 strides",
@@ -215,7 +217,7 @@ def _num(x, unit: str | None = None) -> str:
 # ------------------------------------------------------------------------------------------------
 def _read(path) -> dict | None:
     try:
-        doc = json.loads(Path(path).read_text())
+        doc = s2io.read_json(path)
     except (OSError, ValueError):
         return None
     return doc if isinstance(doc, dict) else None
@@ -490,7 +492,8 @@ def item_of(definition: dict) -> str:
         return f"nudge {d.get('direction')}, {float(d.get('frac')):g} x the push bound"
     if b == "stop":
         steps = setio.parse_name(d["move"]).get("steps") if d.get("move") else None
-        return "stop, two touchdowns" if steps == 2 else "stop, Stage 1's one-step stop" if steps == 1 else f"stop {name}"
+        return ("stop, two touchdowns" if steps == 2 else "stop, Stage 1's one-step stop" if steps == 1
+                else f"stop {name}")
     return f"{b}/{name}"
 
 
@@ -847,9 +850,9 @@ def _col(key: str, title: str, kind: str = "text", unit: str | None = None) -> d
     return dict(key=key, title=title, kind=kind, unit=unit)
 
 
-HEAD = [_col("set", "Set", "code"), _col("labels", "Labels", "labels"), _col("item", "Item"),
-        _col("condition", "Condition", "code"), _col("grip", "Grip"), _col("delay", "Servo delay"),
-        _col("row", "Row", "code")]
+HEAD = [_col("set", "Set", "code"), _col("body", "Body", "code"), _col("labels", "Labels", "labels"),
+        _col("item", "Item"), _col("condition", "Condition", "code"), _col("grip", "Grip"),
+        _col("delay", "Servo delay"), _col("row", "Row", "code")]
 COUNT_COLUMNS = HEAD + [
     _col("status", "Status"), _col("episodes", "Episodes", "count"), _col("up", "Stayed up", "of"),
     _col("up_lcb", "Stayed up: one-sided 95 % lower bound (share of episodes)", "bound", "bound"),
@@ -872,7 +875,8 @@ FAIL_COLUMNS = HEAD + [
     _col("worst_leg_ratio", "Worst leg drive: largest RMS over its sustained rating, measured", "measured", "ratio"),
     _col("ratio_limit", "Limit: at most (ratio of the sustained rating)", "limit"),
     _col("drive_span", "Span the drives are judged over"), _col("attribution", "Attribution label"),
-    _col("label_2", "Failure label, reading 2"), _col("label_3", "Failure label, reading 3"), _col("path", "Record", "path")]
+    _col("label_2", "Failure label, reading 2"), _col("label_3", "Failure label, reading 3"),
+    _col("path", "Record", "path")]
 TOE_COLUMNS = [
     _col("toe", "Toe clearance, the judged term `toe_clearance_own_swing` (each episode's lowest swing, read over the "
                 "planned swing from the own lift-off): median, measured", "measured", "mm"),
@@ -911,7 +915,7 @@ STOP_COLUMNS = HEAD + [
     _col("decel_raw", "Unfiltered deceleration peak, reported: median, measured", "measured", "m/s^2"),
     _col("path", "Record", "path")]
 VERDICT_COLUMNS = [
-    _col("set", "Set", "code"), _col("labels", "Labels", "labels"), _col("item", "Item"),
+    _col("set", "Set", "code"), _col("body", "Body", "code"), _col("labels", "Labels", "labels"), _col("item", "Item"),
     _col("condition", "Condition", "code"), _col("grip", "Grip"), _col("delay", "Servo delay"),
     _col("controller", "Controller (its two rows)"), _col("which", "Read from"),
     _col("reading_1", "Reading 1 (with the look)"), _col("reading_2", "Reading 2 (every limit)", "word"),
@@ -999,10 +1003,10 @@ def _cells(doc: dict, sets, keys, plan_rows) -> list[dict]:
     return out
 
 
-def _head(set_name: str, key: str, ms: int | None, row: str, rec: dict | None, meta: dict) -> dict:
+def _head(set_name: str, body: str, key: str, ms: int | None, row: str, rec: dict | None, meta: dict) -> dict:
     d = (rec or {}).get("definition") or _conds().get(key) or {}
-    return dict(set=set_name, labels=labels_of(set_name, rec, meta), item=item_of(d) if d else key, condition=key,
-                grip=grip_of(d) if d else None, delay=delay_word(ms), row=row)
+    return dict(set=set_name, body=body, labels=labels_of(set_name, rec, meta), item=item_of(d) if d else key,
+                condition=key, grip=grip_of(d) if d else None, delay=delay_word(ms), row=row)
 
 
 def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
@@ -1026,14 +1030,16 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
                 keys_ = list(dict.fromkeys(k for k, _ in pairs))
                 rows = _row_order({r for _, r in pairs})
                 first = _rel_run(meta, _run_path(s, body, bar.HEADLINE_BLOCK, f"{pairs[0][1]}@{ms}ms", pairs[0][0]))
-                line = dict(set=s, labels=labels_of(s), item=f"{len(keys_)} conditions, {len(pairs)} records: none found",
+                line = dict(set=s, body=body, labels=labels_of(s),
+                            item=f"{len(keys_)} conditions, {len(pairs)} records: none found",
                             condition=", ".join(keys_), grip=None, delay=delay_word(ms),
                             row=", ".join(f"{r}@{ms}ms" for r in rows), status=word, reading_1=READING_1,
                             path=[first] + ([f"and {len(pairs) - 1} more paths of the same form"]
                                             if len(pairs) > 1 else []))
                 counts.append(line)
                 if any(r in R2_ROWS for r in rows):
-                    verdicts.append(dict(set=s, labels=labels_of(s), item=line["item"], condition=line["condition"],
+                    verdicts.append(dict(set=s, body=body, labels=labels_of(s), item=line["item"],
+                                         condition=line["condition"],
                                          grip=None, delay=delay_word(ms), controller="R2 (R2/42, R2/43)",
                                          which="no record", reading_1=READING_1, reading_2=word, reading_3=word,
                                          paths=None))
@@ -1045,13 +1051,13 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
                 rec = _rec(doc, s, body, bar.HEADLINE_BLOCK, row, key)
                 if rec is None:
                     word = absent_word(meta, s, body, bar.HEADLINE_BLOCK, row, key)
-                    counts.append(dict(_head(s, key, ms, row, None, meta), status=word, reading_1=READING_1,
+                    counts.append(dict(_head(s, body, key, ms, row, None, meta), status=word, reading_1=READING_1,
                                        path=_rel_run(meta, _run_path(s, body, bar.HEADLINE_BLOCK, row, key))))
                     continue
                 reg = registered(rec)
                 for i, r in enumerate([rec] if reg is rec else [rec, reg]):
                     d = digest(r, meta)
-                    head = _head(s, key, ms, row, r, meta)
+                    head = _head(s, body, key, ms, row, r, meta)
                     if i == 1:  # the registered record stands beside its re-run
                         head["labels"] = labels_of(s) + [REGISTERED + (
                             "; its kept file cannot be read: counts from the later record's supersedes field"
@@ -1068,7 +1074,7 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
             for ctrl in sorted({bar.controller_of(b) for b in c["rows"]} & set(panels.VERDICT_ROWS)):
                 v = verdict_of(doc, s, body, key, ms, ctrl)
                 d0 = _conds().get(key) or {}
-                line = dict(set=s, labels=labels_of(s), item=item_of(d0) if d0 else key, condition=key,
+                line = dict(set=s, body=body, labels=labels_of(s), item=item_of(d0) if d0 else key, condition=key,
                             grip=grip_of(d0) if d0 else None, delay=delay_word(ms),
                             controller=f"{ctrl} ({', '.join(panels.VERDICT_ROWS[ctrl])})", reading_1=READING_1)
                 verdicts.append(dict(line, which="no record" if v["none"] else "registered records",
@@ -1137,14 +1143,16 @@ def ladder_table(doc: dict) -> dict:
     for s in _set_order(doc, LADDER_SETS):
         for body in _bodies(doc, s):
             found = _found(doc, s, body, bar.HEADLINE_BLOCK, set(rungs))
-            delays = {m for _, m in found} | ({ms for (ps, _, ms) in plan_rows if ps == s} if body == PLAN_BODY else set())
+            delays = {m for _, m in found}
+            if body == PLAN_BODY:
+                delays |= {ms for (ps, _, ms) in plan_rows if ps == s}
             for grip in ("mu 0.9", "mu 0.54"):
                 ks = sorted((k for k in rungs if grip_of(_conds()[k]) == grip),
                             key=lambda k: setio.parse_name(_conds()[k]["walk"]).get("speed_m_s") or 0.0)
                 for ms in _delays(delays):
                     if grip != "mu 0.9" and not any((k, ms) in found for k in ks):
                         continue
-                    line = dict(set=s, labels=labels_of(s), grip=grip, delay=delay_word(ms))
+                    line = dict(set=s, body=body, labels=labels_of(s), grip=grip, delay=delay_word(ms))
                     for rkey in ("reading_2", "reading_3"):
                         per, best = [], None
                         for k in ks:
@@ -1159,8 +1167,9 @@ def ladder_table(doc: dict) -> dict:
     what = "Highest rung at which both R2 rows pass (at 10 ms: shown)"
     sec["parts"].append(dict(
         key="highest", title="the highest rung that passes under both R2 rows, per set, grip and delay",
-        columns=[_col("set", "Set", "code"), _col("labels", "Labels", "labels"), _col("grip", "Grip"),
-                 _col("delay", "Servo delay"), _col("reading_2_highest", what + ", reading 2 (every limit)", "word"),
+        columns=[_col("set", "Set", "code"), _col("body", "Body", "code"), _col("labels", "Labels", "labels"),
+                 _col("grip", "Grip"), _col("delay", "Servo delay"),
+                 _col("reading_2_highest", what + ", reading 2 (every limit)", "word"),
                  _col("reading_2_rungs", "Each rung, reading 2", "list"),
                  _col("reading_3_highest", what + ", reading 3 (every limit but for A1)", "word"),
                  _col("reading_3_rungs", "Each rung, reading 3", "list")],
@@ -1203,7 +1212,8 @@ def glance_table(doc: dict) -> dict:
                 v = verdict_of(doc, s, body, key, ms)
                 r0 = registered(_rec(doc, s, body, bar.HEADLINE_BLOCK, f"{R0_ROW}@{ms}ms", key))
                 note = None
-                if bar.registered_name(s) == "F25F9" and d["behavior"] != "walk" and v["reading_2"]["verdict"] == NOT_RUN:
+                if (bar.registered_name(s) == "F25F9" and d["behavior"] != "walk"
+                        and v["reading_2"]["verdict"] == NOT_RUN):
                     note = WALK_ONLY_NOTE
                 r0d = digest(r0) if r0 is not None and r0.get("status") == "done" else None
                 lines.append(dict(
@@ -1263,7 +1273,8 @@ def replication_table(doc: dict) -> dict:
         if second is not None and second.get("_registered_of"):
             labels = labels_of(s) + [REGISTERED]
         lines.append(dict(
-            set=s, labels=labels, item=item_of(d) if d else key, condition=key, grip=grip_of(d) if d else None,
+            set=s, body=body, labels=labels, item=item_of(d) if d else key, condition=key,
+            grip=grip_of(d) if d else None,
             delay=delay_word(bar.delay_ms(row)), row=row,
             triggered_by=[names[w] for w in trig or []] or [
                 "no seeds3042 record found" if first is None else "no reading of the seeds3042 record passes"],
@@ -1295,9 +1306,7 @@ def replication_table(doc: dict) -> dict:
                     passed = any((first.get(ck) or {}).get("pass_") is True for _, ck, _ in READINGS)
                     if passed and (s, body, row, key) not in seen:
                         add(s, body, row, key, first, None)
-    cols = [_col("set", "Set", "code"), _col("labels", "Labels", "labels"), _col("item", "Item"),
-            _col("condition", "Condition", "code"), _col("grip", "Grip"), _col("delay", "Servo delay"),
-            _col("row", "Row", "code"), _col("triggered_by", "Reading that triggered the replication", "list"),
+    cols = HEAD + [_col("triggered_by", "Reading that triggered the replication", "list"),
             _col("a_up", "seeds3042: stayed up", "of"), _col("a_r2", "seeds3042: succeeded, reading 2", "of"),
             _col("a_r2_pass", "seeds3042: reading 2", "word"), _col("a_r3", "seeds3042: succeeded, reading 3", "of"),
             _col("a_r3_pass", "seeds3042: reading 3", "word"),
@@ -1342,7 +1351,8 @@ def controls_table(doc: dict) -> dict:
         d0 = (rec or ref or {}).get("definition") or _conds().get(key) or {}
         lines.append(dict(
             control=((rec.get("control") or f"{c}: the record holds no control field") if rec
-                     else bar.CONTROLS[c][1] if c in bar.CONTROLS else c), set=s, labels=labels_of(s, rec, meta),
+                     else bar.CONTROLS[c][1] if c in bar.CONTROLS else c), set=s, body=body,
+            labels=labels_of(s, rec, meta),
             item=item_of(d0), condition=key, grip=grip_of(d0), delay=delay_word(bar.delay_ms(row)), row=row,
             status=d["status"] if d else absent_word(meta, s, body, block, row, key, control=c, in_order=True),
             omega=d["omega"] if d else None, crouch=d["crouch_frac"] if d else None, up=d["up"] if d else None,
@@ -1351,9 +1361,7 @@ def controls_table(doc: dict) -> dict:
             ref_up=r["up"] if r else None, ref_r2=r["r2"] if r else None, ref_r3=r["r3"] if r else None,
             path=d["path"] if d else _rel_run(meta, _run_path(s, body, block, row, key, c)),
             ref_path=r["path"] if r else None))
-    cols = [_col("control", "Control"), _col("set", "Set", "code"), _col("labels", "Labels", "labels"),
-            _col("item", "Item"), _col("condition", "Condition", "code"), _col("grip", "Grip"),
-            _col("delay", "Servo delay"), _col("row", "Row", "code"), _col("status", "Status"),
+    cols = [_col("control", "Control")] + HEAD + [_col("status", "Status"),
             _col("omega", "Control: omega as run (rad/s)", "defined", "rad/s"),
             _col("crouch", "Control: crouch in omega (H)", "defined"), _col("up", "Control: stayed up", "of"),
             _col("r2", "Control: succeeded, reading 2", "of"), _col("r3", "Control: succeeded, reading 3", "of"),
@@ -1620,15 +1628,16 @@ def other_records(doc: dict, tabs: dict) -> dict:
         if r["_path"] in cited:
             continue
         d = digest(r, doc[META])
-        lines.append({k: d[k] for k in ("set", "labels", "item", "condition", "grip", "row", "status", "episodes", "up",
-                                         "r2", "r2_pass", "r3", "r3_pass", "path")} | dict(block=r["block"], body=r["body"]))
+        keep = ("set", "labels", "item", "condition", "grip", "row", "status", "episodes", "up", "r2", "r2_pass", "r3",
+                "r3_pass", "path")
+        lines.append(dict({k: d[k] for k in keep}, block=r["block"], body=r["body"]))
     cols = [_col("set", "Set", "code"), _col("body", "Body", "code"), _col("block", "Block", "code"),
             _col("labels", "Labels", "labels"), _col("item", "Item"), _col("condition", "Condition", "code"),
             _col("grip", "Grip"), _col("row", "Row", "code"), _col("status", "Status"),
             _col("episodes", "Episodes", "count"), _col("up", "Stayed up", "of"),
             _col("r2", "Reading 2 (every limit): succeeded", "of"), _col("r2_pass", "Reading 2: pass", "word"),
-            _col("r3", "Reading 3 (every limit but for A1): succeeded", "of"), _col("r3_pass", "Reading 3: pass", "word"),
-            _col("path", "Record", "path")]
+            _col("r3", "Reading 3 (every limit but for A1): succeeded", "of"),
+            _col("r3_pass", "Reading 3: pass", "word"), _col("path", "Record", "path")]
     return dict(title="8. Records in no table above", notes=[
         "Every record found under the run directory that tables 1 to 7 do not cite: a Stage 1 condition of the "
         "pseudo-set `S1` (one reading), or a row without a delay.  They give no verdict here."],
@@ -1766,8 +1775,8 @@ def _md_checks(c: dict) -> list[str]:
     else:
         out.append(
             f"- Check episodes of the build listed in `dev_episodes.json` (smoke; none is a record): {dev['listed']}; "
-            f"of these outside rule R4 (on a set of the round: set `{dev['check_set']}`, an R0 row, seed {dev['seed']}): "
-            f"{len(dev['outside_the_rule'])}"
+            f"of these outside rule R4 (on a set of the round: set `{dev['check_set']}`, an R0 row, seed "
+            f"{dev['seed']}): {len(dev['outside_the_rule'])}"
             + "".join(f"\n  - set `{x['set']}`, row `{x['row']}`, `{x['condition']}`, seed {x['seed']}"
                       for x in dev["outside_the_rule"])
             + ("" if not dev["scratch_sets"] else
@@ -1788,8 +1797,8 @@ def _md_checks(c: dict) -> list[str]:
                    + (", ".join(b["started_after_the_first_cut"]) or "none (the cut units are the order's tail)"))
                 + ".")
             if b["units"]:
-                out += ["", "  | Unit, in the order started | Estimate (core-h) | Spent before it (core-h) | Started at "
-                            "| Used (core-h) |", "  |---|---|---|---|---|"]
+                out += ["", "  | Unit, in the order started | Estimate (core-h) | Spent before it (core-h) | "
+                            "Started at | Used (core-h) |", "  |---|---|---|---|---|"]
                 out += [f"  | {u['unit']} | " + " | ".join(
                     "-" if u[k] is None else _num(float(u[k]), "core-h") for k in ("estimate_core_h",
                                                                                      "spent_before_core_h"))
@@ -1864,7 +1873,7 @@ def write(out, dest=None, sets=None, body=None, *, study=None) -> dict:
     dest = Path(out if dest is None else dest)
     tabs = tables(load(out, sets=sets, body=body, study=study))
     s2io.write_json(dest / TABLES_JSON, tabs)
-    _write_text(dest / TABLES_MD, markdown(json.loads((dest / TABLES_JSON).read_text())))
+    _write_text(dest / TABLES_MD, markdown(s2io.read_json(dest / TABLES_JSON)))
     return tabs
 
 
@@ -1891,8 +1900,8 @@ def main(argv=None) -> int:
     return 0
 
 
-__all__ = ["absent_word", "checks", "digest", "jps_table", "load", "main", "markdown", "measures_of", "planned",
-           "registered", "replication_word", "tables", "verdict_of", "write"]
+__all__ = ["absent_word", "checks", "counts_differences", "digest", "jps_table", "load", "main", "manifest_differences",
+           "markdown", "measures_of", "planned", "registered", "replication_word", "tables", "verdict_of", "write"]
 
 if __name__ == "__main__":
     from designlab.stage2 import barreport as _named  # the importable copy owns the module's state
