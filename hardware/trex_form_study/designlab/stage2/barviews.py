@@ -1056,6 +1056,8 @@ def turnpath_md(doc: dict) -> str:
                      if fell else "") + ".", ""]
             for x in s["not_read"]:
                 A += [f"- seed {x['seed']} not read: {x['reason']}."]
+            if s["not_read"]:
+                A += [""]
             sm = s["summary"]
             if not sm:
                 A += ["No episode of this record stayed up with a trace that can be read: nothing is read.", ""]
@@ -1619,10 +1621,12 @@ def render_clip(kind: str, sv: SetView, cond, pose: dict, span: dict, view: str,
                 img = draw_caption(img, text, ckind, y=54 + 36 * j)
             frames[k] = img
             if k % 3 == 0:  # the framing: how far the robot's surface stays inside the free part of the picture
-                uv = project(model.surface(q), cam, clips.SIZE, clips.FOVY_DEG)
+                surf = model.surface(q)
+                uv = project(surf, cam, clips.SIZE, clips.FOVY_DEG)
                 margin = min(margin, float(uv[:, 0].min()), float(clips.SIZE[0] - uv[:, 0].max()),
                              float(uv[:, 1].min() - 46), float(clips.SIZE[1] - 42 - uv[:, 1].max()))
-                away = max(away, float(np.linalg.norm(model.surface(q)[:, :2].mean(axis=0) - lxy)))
+                mid = 0.5 * (surf[:, :2].min(axis=0) + surf[:, :2].max(axis=0))
+                away = max(away, float(np.linalg.norm(mid - lxy)))
     finally:
         cs.m.light_pos[:] = cs.light_pos0
     render_s = time.perf_counter() - t0w
@@ -1648,7 +1652,7 @@ def render_clip(kind: str, sv: SetView, cond, pose: dict, span: dict, view: str,
                else dict(clips.CAMERAS[view], kind="follows the planned root path, averaged over one stride",
                          lookat_height_m=z, lookat_offset_from_root_m=[float(off[0]), float(off[1])],
                          shift_from_plan_m=[float(shift[0]), float(shift[1])],
-                         largest_distance_surface_centre_to_lookat_m=away))
+                         largest_distance_box_centre_to_lookat_m=away))
     return dict(file=mp4.name, poster=mp4.stem + ".png", sheet=mp4.stem + "_sheet.png", view=view, kind=kind,
                 bytes=enc["bytes"], sha256=hashlib.sha256(mp4.read_bytes()).hexdigest(), frames=int(n), fps=FPS,
                 seconds=float(taus[-1]), size=list(clips.SIZE), labels=dict(top=top, bottom=bottom),

@@ -746,7 +746,7 @@ def test_clips_of_a_made_up_record_and_the_tree(request, v0, fake_run, tmp_path)
                 assert c["framing_margin_px"] > 0 and c["camera"]["kind"] == "fixed"
             else:  # the glide is far from the planned path: the constant shift of the clip keeps it in the picture
                 assert np.linalg.norm(c["camera"]["shift_from_plan_m"]) > 1.0
-                assert c["camera"]["largest_distance_surface_centre_to_lookat_m"] < 0.5 and c["framing_margin_px"] > -150
+                assert c["camera"]["largest_distance_box_centre_to_lookat_m"] < 0.5 and c["framing_margin_px"] > -150
         else:  # a walk that fell before its judged window: from the start to the fall, then the pose held 1 s
             assert (c["span"]["t0"], c["span"]["t1"], c["span"]["hold_s"]) == (0.0, 4.718, 1.0)
             assert c["captions"]["fell"].startswith("fell (tilt)") and c["captions"]["command"] is None
