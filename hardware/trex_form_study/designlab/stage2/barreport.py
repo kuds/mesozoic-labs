@@ -505,9 +505,9 @@ def _flat(numbers, prefix: str = "", limit: int = 12) -> str:
             for k in x:
                 walk(x[k], f"{name}.{k}" if name else str(k))
         elif isinstance(x, (list, tuple)):
-            items.append(f"{name}=" + "/".join(_num(v) if _is_num(v) else str(v) for v in x))
+            items.append((f"{name}=" if name else "") + "/".join(_num(v) if _is_num(v) else str(v) for v in x))
         elif x is not None:
-            items.append(f"{name}=" + (_num(x) if _is_num(x) else str(x)))
+            items.append((f"{name}=" if name else "") + (_num(x) if _is_num(x) else str(x)))
 
     walk(numbers, prefix)
     more = len(items) - limit
@@ -752,8 +752,9 @@ def registered(rec: dict | None) -> dict | None:
     if rec is None or not rec.get("supersedes"):
         return rec
     reg = rec["supersedes"].get("registered") or {}
-    for k in rec.get("_superseded") or []:
-        if k["name"] == reg.get("record") and k["record"]:
+    kept = rec.get("_superseded") or []
+    for k in kept if reg.get("record") else kept[:1]:  # no name: the oldest record kept beside it
+        if (not reg.get("record") or k["name"] == reg["record"]) and k["record"]:
             return dict(k["record"], _path=k["path"], _registered_of=rec.get("_path"))
     return dict(schema=bar.SCHEMA, set=rec["set"], body=rec["body"], block=rec["block"], row=rec["row"],
                 key_name=rec["key_name"], behavior=rec.get("behavior"), definition=rec.get("definition"),
@@ -772,8 +773,8 @@ def _vcell(rec: dict | None) -> dict | None:
 
 def replication_word(doc: dict, set_name: str, body: str, row: str, key: str, which: str) -> str:
     """``bar.replication_word`` from the loaded records: what stands beside a passing headline record in one
-    reading."""
-    rec = _rec(doc, set_name, body, bar.REPLICATION_BLOCK, row, key)
+    reading.  It reads the registered record of the second block (the first finished at its path)."""
+    rec = registered(_rec(doc, set_name, body, bar.REPLICATION_BLOCK, row, key))
     if rec and rec.get("status") == "done":
         ok = (rec.get("counts" if which == "success" else "counts_but_A1") or {}).get("pass_")
         return (bar.REPLICATION_WORDS[0] if ok is True else bar.REPLICATION_WORDS[1] if ok is False
@@ -792,7 +793,7 @@ def verdict_of(doc: dict, set_name: str, body: str, key: str, ms: int, ctrl: str
     now = [_rec(doc, set_name, body, block, r, key) for r in names]
     recs = now if latest else [registered(r) for r in now]
     out = dict(rows=names, paths=[r.get("_path") if r else None for r in recs],
-               rerun=any(bool(r and r.get("supersedes")) for r in now))
+               rerun=any(bool(r and r.get("supersedes")) for r in now), none=all(r is None for r in recs))
     absent = [None if r is not None else absent_word(doc[META], set_name, body, block, n, key)
               for r, n in zip(recs, names, strict=True)]
     for rkey, which in (("reading_2", "success"), ("reading_3", "but_A1")):
@@ -842,8 +843,8 @@ COUNT_COLUMNS = HEAD + [
 FAIL_COLUMNS = HEAD + [
     _col("falls_before", "Falls before the command", "count"), _col("falls_after", "Falls after the command", "count"),
     _col("falls_no_command", "Falls (an item without a command)", "count"),
-    _col("failed_2", "Failed terms, reading 2 (episodes each)", "terms"),
-    _col("failed_3", "Failed terms, reading 3 (episodes each)", "terms"),
+    _col("failed_2", "Failed terms, reading 2 (term: episodes)", "terms"),
+    _col("failed_3", "Failed terms, reading 3 (term: episodes)", "terms"),
     _col("worst_drive", "Worst drive", "code"),
     _col("worst_ratio", "Worst drive: largest RMS over its sustained rating, measured", "measured", "ratio"),
     _col("worst_leg_drive", "Worst leg drive", "code"),
@@ -880,7 +881,7 @@ NUDGE_COLUMNS = HEAD + [
     _col("back_limit", "Limit: at most (s)", "limit"), _col("path", "Record", "path")]
 STOP_COLUMNS = HEAD + [
     _col("convention", "Command instant read by"), _col("stopped", "Stopped by the end", "of"),
-    _col("touchdowns", "Touchdowns after the command (episodes per count)", "terms"),
+    _col("touchdowns", "Touchdowns after the command (number of touchdowns: episodes)", "terms"),
     _col("touchdowns_limit", "Limit: at most (touchdowns)", "limit"),
     _col("stopped_s", "Stopped time after the command: median, measured", "measured", "s"),
     _col("stopped_strides", "Stopped time in commanded strides: median, measured", "measured", "strides"),
@@ -891,7 +892,7 @@ STOP_COLUMNS = HEAD + [
 VERDICT_COLUMNS = [
     _col("set", "Set", "code"), _col("labels", "Labels", "labels"), _col("item", "Item"),
     _col("condition", "Condition", "code"), _col("grip", "Grip"), _col("delay", "Servo delay"),
-    _col("controller", "Controller (its two rows)"), _col("which", "Records"),
+    _col("controller", "Controller (its two rows)"), _col("which", "Read from"),
     _col("reading_1", "Reading 1 (with the look)"), _col("reading_2", "Reading 2 (every limit)", "word"),
     _col("reading_3", "Reading 3 (every limit but for A1)", "word"), _col("paths", "Records", "path")]
 MEASURE_COLUMNS = {"bar_walk": WALK_COLUMNS, "bar_turn": TURN_COLUMNS, "bar_nudge": NUDGE_COLUMNS,
@@ -1049,7 +1050,8 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
                 line = dict(set=s, labels=labels_of(s), item=item_of(d0) if d0 else key, condition=key,
                             grip=grip_of(d0) if d0 else None, delay=delay_word(ms),
                             controller=f"{ctrl} ({', '.join(panels.VERDICT_ROWS[ctrl])})", reading_1=READING_1)
-                verdicts.append(dict(line, which="registered records", reading_2=v["reading_2"]["text"],
+                verdicts.append(dict(line, which="no record" if v["none"] else "registered records",
+                                     reading_2=v["reading_2"]["text"],
                                      reading_3=v["reading_3"]["text"], paths=[p for p in v["paths"] if p]))
                 if v["rerun"]:
                     w = verdict_of(doc, s, body, key, ms, ctrl, latest=True)
@@ -1204,8 +1206,8 @@ def glance_table(doc: dict) -> dict:
             _col("r0_r2", "R0: succeeded, reading 2", "of"), _col("r0_r3", "R0: succeeded, reading 3", "of"),
             _col("note", "Note"), _col("paths", "R2 records", "path")]
     tcols = [_col("set", "Set", "code"), _col("body", "Body", "code"), _col("labels", "Labels", "labels"),
-             _col("reading_2", "Reading 2: conditions per verdict word, of 16", "terms"),
-             _col("reading_3", "Reading 3: conditions per verdict word, of 16", "terms")]
+             _col("reading_2", "Reading 2: gated conditions per verdict word (word: conditions, of 16)", "terms"),
+             _col("reading_3", "Reading 3: gated conditions per verdict word (word: conditions, of 16)", "terms")]
     return dict(title="4. The bar at a glance: the 16 gated conditions at 10 ms", notes=[
         "Per set and body, the verdict of the controller R2 (rows R2/42@10ms and R2/43@10ms) on each gated "
         "condition, in each reading.  A condition without a reference reads \"not run\" with its reason; it is not "
@@ -1228,7 +1230,7 @@ def replication_table(doc: dict) -> dict:
         return dict(up=d["up"], r2=d["r2"], r2_pass=d["r2_pass"] if d["done"] else d["status"], r3=d["r3"],
                     r3_pass=d["r3_pass"] if d["done"] else d["status"], path=d["path"])
 
-    def add(s, body, row, key, first, second):
+    def add(s, body, row, key, first, second, rerun=False):
         rep = (second or {}).get("replication_of") or {}
         trig = rep.get("readings")
         if trig is None and first is not None:
@@ -1236,14 +1238,17 @@ def replication_table(doc: dict) -> dict:
         names = {w: n for w, _, n in READINGS}
         a, b = side(first), side(second)
         d = (first or second or {}).get("definition") or _conds().get(key) or {}
-        ms = bar.delay_ms(row)
+        labels = labels_of(s, second, meta) if second else labels_of(s)
+        if second is not None and second.get("_registered_of"):
+            labels = labels_of(s) + [REGISTERED]
         lines.append(dict(
-            set=s, labels=labels_of(s, second, meta) if second else labels_of(s), item=item_of(d) if d else key,
-            condition=key, grip=grip_of(d) if d else None, delay=delay_word(ms), row=row,
+            set=s, labels=labels, item=item_of(d) if d else key, condition=key, grip=grip_of(d) if d else None,
+            delay=delay_word(bar.delay_ms(row)), row=row,
             triggered_by=[names[w] for w in trig or []] or ["no reading of the headline record passes"],
             a_up=a["up"], a_r2=a["r2"], a_r2_pass=a["r2_pass"], a_r3=a["r3"], a_r3_pass=a["r3_pass"],
             b_up=b["up"], b_r2=b["r2"], b_r2_pass=b["r2_pass"], b_r3=b["r3"], b_r3_pass=b["r3_pass"],
-            words=[f"{names[w]}: {replication_word(doc, s, body, row, key, w)}" for w in trig or []],
+            words=[RERUN + ": the registered record's word stands"] if rerun else
+            [f"{names[w]}: {replication_word(doc, s, body, row, key, w)}" for w in trig or []],
             a_path=a["path"], b_path=b["path"] or _rel_run(meta, _run_path(s, body, bar.REPLICATION_BLOCK, row, key))))
 
     for s in _set_order(doc, ()):
@@ -1252,8 +1257,11 @@ def replication_table(doc: dict) -> dict:
             for row in sorted(blocks.get(bar.REPLICATION_BLOCK) or {}):
                 for key in sorted(blocks[bar.REPLICATION_BLOCK][row]):
                     seen.add((s, body, row, key))
-                    add(s, body, row, key, registered(_rec(doc, s, body, bar.HEADLINE_BLOCK, row, key)),
-                        blocks[bar.REPLICATION_BLOCK][row][key])
+                    first = registered(_rec(doc, s, body, bar.HEADLINE_BLOCK, row, key))
+                    second = blocks[bar.REPLICATION_BLOCK][row][key]
+                    add(s, body, row, key, first, registered(second))
+                    if registered(second) is not second:  # a re-run of the second block stands beside, labelled
+                        add(s, body, row, key, first, second, rerun=True)
             base = bar.registered_name(s)  # the candidate, or a set outside the round that has a second block
             if base not in (None, bar.CANDIDATE_SET) or (base is None and bar.REPLICATION_BLOCK not in blocks):
                 continue
@@ -1514,8 +1522,11 @@ def checks(doc: dict) -> dict:
                         spent_before_core_h=c.get("spent_before_core_h"), at=c.get("at"), reason=c.get("reason"),
                         label=c.get("label")) for c in task.get("cut") or []]
             reg = bar.BUDGET_CORE_H.get(int(t)) if str(t).isdigit() else None
+            first_cut = min((str(c["at"]) for c in cut if c.get("at")), default=None)
+            late = [u["unit"] for u in units if first_cut is not None and str(u.get("started_at") or "") > first_cut]
             budget[str(t)] = dict(cap_core_h=task.get("cap_core_h"), registered_cap_core_h=reg,
-                                  spent_core_h=float(sum(u["used_core_h"] for u in units)), units=units, cut=cut)
+                                  spent_core_h=float(sum(u["used_core_h"] for u in units)), units=units, cut=cut,
+                                  first_cut_at=first_cut, started_after_the_first_cut=late)
     cost = None
     if meta.get("cost"):
         c = meta["cost"]
@@ -1623,7 +1634,7 @@ def _cell_text(v, col: dict) -> str:
     if kind == "measured" and isinstance(v, dict):
         return "-" if v.get("median") is None else f"{_num(v['median'], unit)} ({v['n']})"
     if kind == "terms" and isinstance(v, dict):
-        return ", ".join(f"{k} {n}" for k, n in v.items())
+        return "; ".join(f"{k}: {n}" for k, n in v.items())
     if kind == "flag":
         return "yes" if v is True else "no" if v is False else str(v)
     if kind in ("labels", "list") and isinstance(v, list):
@@ -1682,7 +1693,7 @@ def _md_checks(c: dict) -> list[str]:
            f"- Records whose inputs could not be checked (no `set.json` with a freeze at the record's `inputs.dir` "
            f"under the study directory): {len(c['not_checked'])}"
            + "".join(f"\n  - `{x['path']}` (`{x['set_dir']}`)" for x in c["not_checked"]),
-           "- Latest freeze of each set a record names: " + ("none" if not c["freezes"] else "".join(
+           "- Latest freeze of each set a record names:" + (" none" if not c["freezes"] else "".join(
                f"\n  - `{d}`: " + ("no `set.json` found" if not m.get("found") else "not frozen" if not m.get("frozen")
                                    else f"freeze {m['index']}, manifest `{m['manifest_sha256']}`")
                for d, m in c["freezes"].items())),
@@ -1699,7 +1710,11 @@ def _md_checks(c: dict) -> list[str]:
                 "(the sum of its episodes' wall seconds in `budget.json`)"
                 + ("" if b["registered_cap_core_h"] in (None, cap) else
                    f"; the registered budget is {_num(float(b['registered_cap_core_h']))} core-hours")
-                + f"; {len(b['units'])} units started, {len(b['cut'])} cut.")
+                + f"; {len(b['units'])} units started, {len(b['cut'])} cut"
+                + ("" if not b["cut"] else
+                   f"; units started after the first cut ({b['first_cut_at']}): "
+                   + (", ".join(b["started_after_the_first_cut"]) or "none (the cut units are the order's tail)"))
+                + ".")
             if b["units"]:
                 out += ["", "  | Unit, in the order started | Estimate (core-h) | Spent before it (core-h) | Started at "
                             "| Used (core-h) |", "  |---|---|---|---|---|"]

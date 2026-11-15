@@ -542,15 +542,38 @@ def test_a_rerun_after_a_result_stands_beside_the_registered_record(run):
     # the verdict is the registered records'; the re-run's is printed beside it, labelled
     reg, re_ = lines(run.tabs, "rest", "verdicts", set="F25F9cl", condition="stop/two_step")
     assert reg["which"] == "registered records" and reg["reading_2"].startswith("provisional [")
+    assert one(run.tabs, "walk", "verdicts", set="F25F9", condition="walk/v0.4", delay=J)["which"] == "no record"
     assert re_["which"] == barreport.RERUN and re_["reading_2"].startswith("shown [") and barreport.RERUN in re_["labels"]
     g = one(run.tabs, "glance", "glance", set="F25F9cl", condition="stop/two_step")
     assert g["reading_2"].startswith("provisional [")
     assert run.tabs["checks"]["records"]["kept_beside_a_rerun"] == 1
     # where the kept file cannot be read, the counts copied into the later record stand in
     rec = copy.deepcopy(run.doc["F25F9cl"][BODY][H]["R2/42@10ms"]["stop/two_step"])
-    rec["_superseded"] = []
+    kept, rec["_superseded"] = rec["_superseded"], []
     brief = barreport.registered(rec)
     assert brief["_brief"] and brief["counts"]["succeeded"] == 0 and brief["counts"]["pass_"] is False
+    # a later record that names no registered one (its reason file was lost): the oldest record kept beside it
+    rec["_superseded"], rec["supersedes"] = kept, dict(reason=None, label=barreport.RERUN)
+    assert barreport.registered(rec)["counts"]["succeeded"] == 0 and ".superseded/" in barreport.registered(rec)["_path"]
+    assert barreport.registered(None) is None and barreport.registered(kept[0]["record"]) is kept[0]["record"]
+
+
+def test_a_rerun_of_the_second_block_does_not_change_the_replication_word(run, tmp_path):
+    study = tmp_path / "study"
+    out = study / "runs" / "x"
+    put(study, out, "F25F9cl", "R2/42@10ms", "walk/v0.4")
+    put(study, out, "F25F9cl", "R2/42@10ms", "walk/v0.4", block=R, per_seed=lambda s: dict(fell=True))
+    path = bar.record_path(out, "F25F9cl", BODY, R, "R2/42@10ms", SimpleNamespace(behavior="walk", name="v0.4"))
+    field = bar.supersede_record(path, json.loads(path.read_text()), "synthetic: the second block run again")
+    put(study, out, "F25F9cl", "R2/42@10ms", "walk/v0.4", block=R, extra=dict(supersedes=field))
+    doc = barreport.load(out, study=study)
+    assert barreport.replication_word(doc, "F25F9cl", BODY, "R2/42@10ms", "walk/v0.4", "success") == "not replicated"
+    assert bar.replication_word(out, "F25F9cl", BODY, "R2/42@10ms", "walk/v0.4", "success") == "replicated"  # the later one
+    first, later = part(barreport.tables(doc), "replication", "replication")["lines"]
+    assert first["b_up"] == dict(k=0, n=20) and first["words"][0].endswith(": not replicated")
+    assert any(x.startswith(barreport.REGISTERED) for x in first["labels"]) and ".superseded/" in first["b_path"]
+    assert later["b_up"] == dict(k=20, n=20) and later["words"] == [barreport.RERUN + ": the registered record's word stands"]
+    assert any(x.startswith(barreport.RERUN + ": synthetic") for x in later["labels"])
 
 
 def test_a_rerun_that_has_not_finished_leaves_the_registered_record(run, tmp_path):
@@ -734,7 +757,14 @@ def test_errors_unjudged_counts_and_core_hours_are_listed(run):
     assert [u["unit"] for u in b["cut"]] == ["T3.2b"] and "4" not in c["budget"]
     top = run.md.split("## How to read the tables")[0]
     assert "Task 3: 2.000 core-hours spent of 16" in top and "| T3.2b | 0.300 | 15.900 |" in top
-    assert "2 units started, 1 cut" in top and "`COST.md`: none" in top
+    assert "2 units started, 1 cut; units started after the first cut (2026-11-15T20:00:00Z): none" in top
+    assert "`COST.md`: none" in top and b["started_after_the_first_cut"] == []
+    # a unit that started after the first cut is named: the cut units would not be the order's tail
+    doc = copy.deepcopy(run.doc)
+    doc[barreport.META]["budget"]["tasks"]["3"]["units"].append(dict(
+        unit="T3.9", estimate_core_h=0.1, spent_before_core_h=2.0, started_at="2026-11-15T21:00:00Z", items={}, detail={}))
+    assert barreport.checks(doc)["budget"]["3"]["started_after_the_first_cut"] == ["T3.9"]
+    assert "units started after the first cut (2026-11-15T20:00:00Z): T3.9." in barreport.markdown(barreport.tables(doc))
 
 
 def test_cost_rates_are_printed_with_how_they_were_measured(run, tmp_path):
@@ -813,7 +843,7 @@ def test_numbers_are_printed_with_a_fixed_precision_or_g():
     col = dict(kind="measured", unit="deg")
     assert barreport._cell_text(dict(median=-4.25, n=20), col) == "-4.2 (20)" and barreport._cell_text(None, col) == "-"
     assert barreport._cell_text(dict(median=None, n=0), col) == "-"
-    assert barreport._cell_text({}, dict(kind="terms")) == "none" and barreport._cell_text({"a": 2}, dict(kind="terms")) == "a 2"
+    assert barreport._cell_text({}, dict(kind="terms")) == "none" and barreport._cell_text({"a": 2, "b": 1}, dict(kind="terms")) == "a: 2; b: 1"
     assert barreport._cell_text(dict(k=17, n=20), dict(kind="of")) == "17 of 20"
     assert barreport._cell_text("a/b.json", dict(kind="path")) == "`a/b.json`"
     assert barreport._cell_text(True, dict(kind="flag")) == "yes" and barreport._cell_text("not defined", dict(kind="flag")) == "not defined"
