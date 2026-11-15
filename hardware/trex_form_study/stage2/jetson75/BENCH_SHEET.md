@@ -1,12 +1,17 @@
 # Delay bench sheet for the 75 cm build (decision-log row A17)
 
+**Changed, 15 Nov 2026 (P32).** The owner does not expect to run this bench test before a 75 cm build works in
+simulation. The sheet is unchanged otherwise and stays ready; one sentence below is corrected (where this sheet said
+the bench "runs first"). Until a bench value exists, the agility bar stays judged at the assumed 10 ms of servo delay.
+
 **Changed, 14 Nov 2026 (P31).** The two USB-CAN adapters ($736, c) are stated as bench tools that this sheet uses. The
 request that the owner confirm them is removed in four places: "In brief", the parts table's note, section 2 and
 section 10's drafts. No price or quantity changed.
 
 14 Nov 2026. **A sheet to run by hand. Nothing on it has been measured yet.** It is task 8 of `JETSON_PLEM_REVIEW.md`
-section 5, for the body `75-M-H-10`, and it serves the owner's decision of 14 Nov (P30): the delay bench runs first,
-on both paths, before any compute purchase.
+section 5, for the body `75-M-H-10`. The owner's decision of 14 Nov (P30) was that the delay bench runs first, on both
+paths, before any compute purchase; on 15 Nov the owner said it is not expected before a 75 cm build works in
+simulation (P32). The order of the two paths and "before any compute purchase" stand for whenever it is run.
 
 **Purpose, in three lines.**
 1. Measure, for each drive type of the 75 cm build, how long a command takes to become motion, end to end, on both

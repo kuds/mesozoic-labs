@@ -22,6 +22,10 @@ decision 2), else F3 starts at brisk"; section 6's "The owner confirms that the 
 sections 5 and 8, now `DECISION_LOG.md` A17. Section 9 holds the amendments fixed before any run (S2-9 to S2-18); the
 75 cm track's detailed rules are in `STAGE2_75_PLAN.md`.
 
+**Note, 15 Nov 2026 (owner, P32).** Decision 8's timing changed: the owner does not expect to run the delay bench test
+before a 75 cm build works in simulation. No rule changes: the bar stays judged at the assumed 10 ms (S2-7), and S2-9's
+rule for a bench value applies whenever one exists.
+
 **Status (11 Nov 2026): the owner has taken decisions 3–6 below (P29). Track A's first phase is done: the look ladder (`stage2/look/`), its Stage 0 screen and renders, and the look review page for gate L1 (claude.ai artifact MG1yh5ztqJwVdFPs6GmkkY; the blind viewers' sheet QVktxN3pHsov2LTVs6d69c), awaiting the owner's picks. The expressive head (S2-2) is built and costed (`stage2/x/`). Nothing else has run.** Simulation only; it changes no body and adopts nothing
 without the owner (P24). Paths are relative to `hardware/trex_form_study/` unless they begin `environments/`,
 `notebooks/` or `docs/`. S1 and S1b are the Stage 1 and 1b reports (`stage1/runs/2026-11-08/STAGE1_PROBE.md`,

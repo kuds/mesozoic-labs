@@ -724,6 +724,8 @@ for the owner" (§1) and "draft F26" and "draft A17" (§2, §6) predate them.
     `75-M-H-10`, against nominals of $14.8k and $18.5k (their round-two records). Cost every hardware lever against it.
     **Note, 14 Nov 2026 (second session):** the owner set budget concerns aside at this point (`DECISION_LOG.md`
     P31): prices are documented, not weighed against P4, and a lever is priced for the record, not gated on cost.
+- **Note, 15 Nov 2026 (second session):** the owner does not expect to run the delay bench test before a 75 cm build
+  works in simulation (`DECISION_LOG.md` P32). The bench sheet is ready; the bar stays judged at the assumed 10 ms.
 - **PR kuds/mesozoic-labs#668's decisions** are listed in `JETSON_PLEM_REVIEW.md`.
 
 ## 8. Published pages
