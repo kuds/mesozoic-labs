@@ -104,11 +104,16 @@ a neck or tail drive's ratio above 1 (``a1_over``)      blocks    blocks        
 ``ik_ok``; the single-support CoP rule                  blocks    blocks                blocks
 a planned swing's mid-swing pad clearance under 0.04 H  blocks    blocks                blocks
 interference, component overlap, tail clearance         blocks    blocks                blocks
-joint range                                             0.10 rad  0.10 rad              twist use at most 0.87;
-                                                                                        other joints 0.10 rad
+joint range                                             0.10 rad  0.05 rad              twist use at most 0.87;
+                                                                                        other joints 0.05 rad
 1 Hz forward acceleration above 1.5 m/s^2               reported  blocks                reported
 a gate's reading is missing                             blocks    blocks                blocks
 ======================================================  ========  ====================  =====================
+
+The joint range of a move (a start, change, stop or turn) is 0.05 rad on every gated joint but a turn's thigh twist
+(``RANGE_RULE_MOVE_RAD``; the stride rule of ``moves`` reads the same constant); a walk keeps Stage 0's 0.10 rad.  It
+was 0.10 rad for every reference until the owner's decision of 15 Nov (``DECISION_LOG.md`` P34, after the first
+builds of the three sets; changed after a result): Stage 1's own transitions come within 0.057 rad of a limit.
 
 A ratio is cont, peak or speed.  The appendage groups are the neck and the tail alone (``A1_GROUPS``); the
 expressive head's two drives (neck yaw, jaw), on a body that has them, are gated like the legs'.  A gate that
@@ -190,6 +195,10 @@ COP_RULE_M = look.COP_RULE_M
 COP_RULE_CAUSAL_M = 0.010
 SWING_MIN_FRAC = clearance.SWING_MIN_FRAC
 RANGE_RULE_RAD = clearance.RANGE_MARGIN_RAD
+#: The joint-range gate of a move (a start, change, stop or turn; rad): every gated joint but a turn's thigh twist
+#: (``STAGE2_75_PLAN.md`` A12 as amended by the owner's decision of 15 Nov, ``DECISION_LOG.md`` P34; a walk keeps
+#: ``RANGE_RULE_RAD``).  The stride rule (``moves.OTHER_JOINT_MARGIN_RAD``, A11) is this constant.
+RANGE_RULE_MOVE_RAD = 0.05
 #: A turn's thigh twist: the largest use of the usable range on the built reference (the stride rule's final limit).
 TWIST_USE_MAX = 0.87
 #: Decision 10's limit on the 1 Hz low-passed forward acceleration (m/s^2) and the resample it is read on (Hz).
@@ -217,7 +226,8 @@ RULES = dict(
     source="STAGE2_75_PLAN.md A12 (the round-A design's section 3.7); nothing but the gates below blocks a freeze",
     constants=dict(drive_ratio_max=1.0, near_band=NEAR_BAND, cop_rule_m=COP_RULE_M,
                    cop_rule_causal_m=COP_RULE_CAUSAL_M, swing_min_frac_H=SWING_MIN_FRAC,
-                   joint_range_rad=RANGE_RULE_RAD, twist_use_max=TWIST_USE_MAX, accel_lp1hz_m_s2=ACCEL_RULE_M_S2,
+                   joint_range_rad=RANGE_RULE_RAD, joint_range_move_rad=RANGE_RULE_MOVE_RAD,
+                   twist_use_max=TWIST_USE_MAX, accel_lp1hz_m_s2=ACCEL_RULE_M_S2,
                    accel_resample_hz=RESAMPLE_HZ, accel_edge_s=ACCEL_EDGE_S, frames_uniform_tol=UNIFORM_TOL,
                    swing_start_tol=SWING_START_TOL, grips=list(GRIPS), a1_groups=list(A1_GROUPS)),
     gates=[
@@ -233,8 +243,8 @@ RULES = dict(
              turn="blocks"),
         dict(gate="interference at home or along the frames; component overlap; tail clearance", walk="blocks",
              straight="blocks", turn="blocks"),
-        dict(gate="joint range", walk="0.10 rad on every gated joint", straight="0.10 rad on every gated joint",
-             turn="thigh twist: use of the usable range at most 0.87; every other gated joint 0.10 rad"),
+        dict(gate="joint range", walk="0.10 rad on every gated joint", straight="0.05 rad on every gated joint",
+             turn="thigh twist: use of the usable range at most 0.87; every other gated joint 0.05 rad"),
         dict(gate="forward CoM acceleration low-passed at 1 Hz above 1.5 m/s^2 (decision 10)", walk="reported",
              straight="blocks", turn="reported"),
         dict(gate="a gate's reading is missing (no single-support CoP margin; no joint-range margins, none for a "
@@ -246,6 +256,10 @@ RULES = dict(
                   "walk and the re-solved contact against the record", walk="reported", straight="reported",
              turn="reported"),
     ],
+    joint_range_move="the joint-range gate of a move (a start, change, stop or turn) is 0.05 rad on every gated joint "
+                     "but a turn's thigh twist; a walk keeps 0.10 rad; it was 0.10 rad for every reference (the "
+                     "owner's decision of 15 Nov, DECISION_LOG.md P34, after the first builds of the three sets; "
+                     "changed after a result)",
     a1_over="true when a neck or tail group's cont, peak or speed ratio exceeds 1",
     not_read="a gate that is not read is not passed: the item in verdict.blocks_freeze begins 'not read: ' and names "
              "the reading",
@@ -766,12 +780,13 @@ def walk_range(margins: dict, usable: dict | None = None) -> dict:
 def move_range(src: dict, q, kind: str, entry: dict, margins: dict) -> dict:
     """A move's ``range`` block.  ``margins`` are ``clearance.screen``'s ``joint_range_margins`` of the move (rad,
     as that screen rounds them; its usable ranges are checked against ``plant.usable_ranges(body)``): Stage 0's 0.10
-    rad rule is read on them, as on a walk (``stage0_rule_ok``).  ``hip_yaw_range_use`` is the worse leg's use of the
-    usable thigh twist on the file's ``q`` at full precision (``turning.summarize``'s formula on
-    ``plant.usable_ranges``, the builder's reading; the entry's own value beside it).  ``ok`` is the rule that
-    applies to ``kind``: 0.10 rad on every gated joint, or for a turn a twist use of at most 0.87 and 0.10 rad on
-    every other gated joint (``tightest_other``; ``tightest_twist`` is the twist's own tightest margin).  A margin
-    or a twist use that was not read fails its rule."""
+    rad rule of a walk is read on them and reported (``stage0_rule_ok``; ``walk_rule_rad``).  ``hip_yaw_range_use``
+    is the worse leg's use of the usable thigh twist on the file's ``q`` at full precision
+    (``turning.summarize``'s formula on ``plant.usable_ranges``, the builder's reading; the entry's own value beside
+    it).  ``ok`` is the rule that applies to ``kind`` (``rule_rad``: ``RANGE_RULE_MOVE_RAD``): 0.05 rad on every
+    gated joint, or for a turn a twist use of at most 0.87 and 0.05 rad on every other gated joint
+    (``tightest_other``; ``tightest_twist`` is the twist's own tightest margin).  A margin or a twist use that was
+    not read fails its rule."""
     m = src["M"].m
     q = np.asarray(q, float)
     joints = {jn: dict(r) for jn, r in (margins or {}).items()}
@@ -790,21 +805,23 @@ def move_range(src: dict, q, kind: str, entry: dict, margins: dict) -> dict:
     other = _tightest(joints, leave_out=("_hip_yaw",))
     stage0 = bool(tight is not None and tight[2] >= RANGE_RULE_RAD)
     recorded = entry.get("hip_yaw_range_use")
-    out = dict(joints=joints, tightest=tight, tightest_unrounded=_tightest(exact), rule_rad=RANGE_RULE_RAD,
-               stage0_rule_ok=stage0, hip_yaw_range_use=use, hip_yaw_range_use_entry=recorded,
+    out = dict(joints=joints, tightest=tight, tightest_unrounded=_tightest(exact), rule_rad=RANGE_RULE_MOVE_RAD,
+               walk_rule_rad=RANGE_RULE_RAD, stage0_rule_ok=stage0, hip_yaw_range_use=use,
+               hip_yaw_range_use_entry=recorded,
                hip_yaw_range_use_equals_entry=None if recorded is None or use is None else bool(use == recorded),
                usable_differs_from_plant=differs,
                source="clearance.screen's joint_range_margins of the move (gates r2); the thigh-twist use from the "
                       "file's q against plant.usable_ranges(body)")
     if kind == TURN:
         twist_ok = use is not None and use <= TWIST_USE_MAX
-        other_ok = other is not None and other[2] >= RANGE_RULE_RAD
+        other_ok = other is not None and other[2] >= RANGE_RULE_MOVE_RAD
         out.update(rule=f"a turn: thigh twist use at most {TWIST_USE_MAX:g} of the usable range; every other gated "
-                        f"joint {RANGE_RULE_RAD:g} rad", twist_use_max=TWIST_USE_MAX, twist_ok=bool(twist_ok),
+                        f"joint {RANGE_RULE_MOVE_RAD:g} rad", twist_use_max=TWIST_USE_MAX, twist_ok=bool(twist_ok),
                    tightest_other=other, tightest_twist=_tightest(joints, only=("_hip_yaw",)),
                    ok=bool(twist_ok and other_ok))
     else:
-        out.update(rule=f"{RANGE_RULE_RAD:g} rad on every gated joint", ok=stage0)
+        out.update(rule=f"a move: {RANGE_RULE_MOVE_RAD:g} rad on every gated joint",
+                   ok=bool(tight is not None and tight[2] >= RANGE_RULE_MOVE_RAD))
     return out
 
 
@@ -831,7 +848,8 @@ def judge_move(kind: str, causal: bool, flags: dict, ik_ok: bool, ik_fail_frames
     """A move's verdict by ``RULES``: ``{text, within_limits, over, near, a1_over, blocks_freeze}``.  ``over`` lists
     every limit of the table that the move is over, as ``{limit, value}``, and every gate whose reading is missing
     (``"not read: ..."``); ``blocks_freeze`` those that block its freeze.  A gate that is only reported for the kind
-    (a turn's 1 Hz acceleration, Stage 0's 0.10 rad on a turn's thigh twist) is in neither."""
+    (a turn's 1 Hz acceleration, the joint-range rule on a turn's thigh twist) is in neither.  The joint-range gate
+    of a move is ``RANGE_RULE_MOVE_RAD`` (0.05 rad; a walk's is 0.10 rad, ``judge_walk``)."""
     over, blocks = [], []
 
     def add(item: dict, blocking: bool = True):
@@ -862,8 +880,8 @@ def judge_move(kind: str, causal: bool, flags: dict, ik_ok: bool, ik_fail_frames
             add(dict(limit=f"thigh twist use above {TWIST_USE_MAX:g}", value=rng["hip_yaw_range_use"]))
     if tight is None:
         add(_not_read("joint range margins" + (" of a joint other than the thigh twist" if kind == TURN else "")))
-    elif tight[2] < RANGE_RULE_RAD:
-        add(dict(limit=f"joint range margin under {RANGE_RULE_RAD:g} rad ({tight[0]} {tight[1]})", value=tight[2]))
+    elif tight[2] < RANGE_RULE_MOVE_RAD:
+        add(dict(limit=f"joint range margin under {RANGE_RULE_MOVE_RAD:g} rad ({tight[0]} {tight[1]})", value=tight[2]))
     for item in _usable_items(rng):
         add(item)
     if kind in STRAIGHT and accel["com_forward_lp1hz_peak"] > ACCEL_RULE_M_S2:
@@ -1395,8 +1413,9 @@ def _margin_cell(tight) -> str:
 
 
 def _range_cells(b: dict) -> tuple[str, str]:
-    """The table's two joint-range cells: the margin the 0.10 rad gate reads (a turn: the tightest joint other than
-    the thigh twist) and the thigh-twist use (a turn: with the twist's own tightest margin beside it)."""
+    """The table's two joint-range cells: the margin the joint-range gate reads (a walk's 0.10 rad, a move's 0.05
+    rad; a turn: the tightest joint other than the thigh twist) and the thigh-twist use (a turn: with the twist's own
+    tightest margin beside it)."""
     rng = b["range"]
     use = _f(rng.get("hip_yaw_range_use"))
     if b["kind"] != TURN:
@@ -1443,8 +1462,9 @@ def markdown(doc: dict) -> str:
           "and the tail's (the legs'; on a body with the expressive head, its two drives as well); neck and tail "
           "ratios (cont / peak / speed); the single-support CoP margin (mm inside the pad; negative: outside) and "
           "the rule it is read against (mm); the single-support grip need mu_req and whether it is within mu 0.9 and "
-          "mu 0.54; the mid-swing pad clearance (H; the gate is 0.04 H); the joint-range margin that the 0.10 rad "
-          "gate reads (rad): the tightest gated joint, and for a turn the tightest joint other than the thigh twist; "
+          "mu 0.54; the mid-swing pad clearance (H; the gate is 0.04 H); the joint-range margin that the gate reads "
+          "(rad; the gate is 0.10 rad for a walk and 0.05 rad for a start, change, stop or turn): the tightest gated "
+          "joint, and for a turn the tightest joint other than the thigh twist; "
           "the thigh-twist use of the usable range (a turn's gate is 0.87; for a turn the twist's own tightest margin "
           "is beside it); the forward CoM acceleration low-passed at 1 Hz (m/s^2; the gate of a start, change or "
           "stop is 1.5 m/s^2), read on the file alone: a peak within 1 s of the file's first or last frame may be "

@@ -44,7 +44,7 @@ sys.path.insert(0, str(ROOT))
 
 import designlab  # noqa: E402,F401  (selects the GL backend before mujoco is imported)
 from designlab import clearance, envelope, sizing, statics  # noqa: E402
-from designlab.stage2 import look, readings, s2io, screen, setio, setscreen  # noqa: E402
+from designlab.stage2 import look, moves, readings, s2io, screen, setio, setscreen  # noqa: E402
 
 BODY = "75-M-H-10"
 RUN = ROOT / "stage1" / "runs" / "2026-11-08" / BODY
@@ -109,9 +109,9 @@ def parts(kind="change", causal=False, cop=45.0, swing=0.05, twist=0.0, tightest
     if kind == "turn":
         twist_ok = twist is not None and twist <= setscreen.TWIST_USE_MAX
         rng.update(twist_ok=twist_ok, tightest_other=None if other is None else ["left_hip_roll", "max", other],
-                   ok=twist_ok and other is not None and other >= setscreen.RANGE_RULE_RAD)
+                   ok=twist_ok and other is not None and other >= setscreen.RANGE_RULE_MOVE_RAD)
     else:
-        rng.update(ok=tightest is not None and tightest >= setscreen.RANGE_RULE_RAD)
+        rng.update(ok=tightest is not None and tightest >= setscreen.RANGE_RULE_MOVE_RAD)
     return dict(contact=dict(single_support_cop_margin_min_mm=cop, split_failed_frames=split_failed,
                              cop_rule_mm=1e3 * (setscreen.COP_RULE_CAUSAL_M if causal else setscreen.COP_RULE_M)),
                 clear=dict(gates=g, mid_swing_min_frac_H=swing), rng=rng, accel=dict(com_forward_lp1hz_peak=lp))
@@ -180,27 +180,33 @@ def test_the_table_of_what_blocks_a_freeze():
         assert limits_of(v) == ([] if kind == "turn" else ["1 Hz forward acceleration above 1.5 m/s^2"])
         assert v["within_limits"] is (kind == "turn")
         assert limits_of(judge(kind, lp=1.5)) == []
-    # joint range: 0.10 rad on every gated joint of a straight move
+    # joint range: a move's 0.05 rad on every gated joint of a straight move (the owner's decision P34; a walk's 0.10
+    # rad is not a move's gate: Stage 1's own transitions come within 0.057 rad)
+    assert setscreen.RANGE_RULE_MOVE_RAD == 0.05 and setscreen.RANGE_RULE_RAD == 0.10
     for kind in ("start", "change", "stop"):
-        v = judge(kind, tightest=0.051, twist=0.83)
-        assert limits_of(v) == ["joint range margin under 0.1 rad (left_hip_yaw max)"]
-        assert v["blocks_freeze"][0]["value"] == 0.051
-        assert limits_of(judge(kind, tightest=0.1)) == []
-    # a turn: the thigh twist by the stride rule's 0.87; Stage 0's 0.10 rad is not applied to it
+        v = judge(kind, tightest=0.0499, twist=0.83)
+        assert limits_of(v) == ["joint range margin under 0.05 rad (left_hip_yaw max)"]
+        assert v["blocks_freeze"][0]["value"] == 0.0499
+        assert limits_of(judge(kind, tightest=0.05)) == []
+        assert limits_of(judge(kind, tightest=0.057)) == [] and limits_of(judge(kind, tightest=0.095)) == []
+    # a turn: the thigh twist by the stride rule's 0.87; the 0.05 rad is not applied to it
     v = judge("turn", twist=0.83, tightest=0.051)
     assert v["within_limits"] and limits_of(v) == [] and v["over"] == []
     assert limits_of(judge("turn", twist=0.87, tightest=0.039)) == []
     v = judge("turn", twist=0.88, tightest=0.036)
     assert limits_of(v) == ["thigh twist use above 0.87"] and v["blocks_freeze"][0]["value"] == 0.88
-    v = judge("turn", twist=0.83, tightest=0.051, other=0.09)  # another joint keeps Stage 0's 0.10 rad
-    assert limits_of(v) == ["joint range margin under 0.1 rad (left_hip_roll max)"]
-    assert limits_of(judge("turn", twist=0.9, other=0.09)) == ["thigh twist use above 0.87",
-                                                              "joint range margin under 0.1 rad (left_hip_roll max)"]
-    # the margin of the prototype quick turn (0.0856 rad of hip roll at a twist use of 0.817) blocks; 0.1003 does not
+    v = judge("turn", twist=0.83, tightest=0.051, other=0.049)  # another joint keeps the move's 0.05 rad
+    assert limits_of(v) == ["joint range margin under 0.05 rad (left_hip_roll max)"]
+    assert limits_of(judge("turn", twist=0.9, other=0.049)) == ["thigh twist use above 0.87",
+                                                               "joint range margin under 0.05 rad (left_hip_roll max)"]
+    # the margin of the prototype quick turn (0.0856 rad of hip roll at a twist use of 0.817) blocked under 0.10 rad;
+    # under a move's 0.05 rad it does not, and 0.0499 rad does
     v = judge("turn", twist=0.817, tightest=0.0549, other=0.0856)
-    assert limits_of(v) == ["joint range margin under 0.1 rad (left_hip_roll max)"] and v["blocks_freeze"][0]["value"] == 0.0856
-    assert "joint range margin under 0.1 rad (left_hip_roll max) 0.0856: blocks the freeze" in v["text"]
-    assert limits_of(judge("turn", twist=0.70, other=0.1003)) == []
+    assert limits_of(v) == [] and v["within_limits"] and v["blocks_freeze"] == []
+    v = judge("turn", twist=0.817, tightest=0.0549, other=0.0499)
+    assert limits_of(v) == ["joint range margin under 0.05 rad (left_hip_roll max)"] and v["blocks_freeze"][0]["value"] == 0.0499
+    assert "joint range margin under 0.05 rad (left_hip_roll max) 0.0499: blocks the freeze" in v["text"]
+    assert limits_of(judge("turn", twist=0.70, other=0.05)) == []
     # joint-range margins that were not read are not a pass: a straight move's, a turn's other joints, its twist use
     for kind in ("start", "change", "stop"):
         assert limits_of(judge(kind, tightest=None)) == ["not read: joint range margins"]
@@ -213,20 +219,20 @@ def test_the_table_of_what_blocks_a_freeze():
     # near a limit is listed and blocks nothing
     v = judge("change", fl=flags(**{"knee speed": 0.99, "tail peak": 0.985}))
     assert v["within_limits"] and [o["limit"] for o in v["near"]] == ["knee speed", "tail peak"]
-    # the sentence names what blocks, or that nothing does, with four decimals (0.0997 rad is not its 0.10 rad gate)
+    # the sentence names what blocks, or that nothing does, with four decimals (0.0497 rad is not its 0.05 rad gate)
     assert judge("change", fl=flags(**{"knee speed": 1.03}))["text"] == "over knee speed 1.0300: blocks the freeze (knee speed)"
     assert judge("turn", fl=flags(**{"tail peak": 1.2}))["text"] == (
         "over tail peak 1.2000: does not block the freeze; a1_over, read under the plan's third reading only")
-    v = judge("change", tightest=0.0997)
-    assert v["text"] == ("over joint range margin under 0.1 rad (left_hip_yaw max) 0.0997: blocks the freeze (joint range "
-                         "margin under 0.1 rad (left_hip_yaw max))")
+    v = judge("change", tightest=0.0497)
+    assert v["text"] == ("over joint range margin under 0.05 rad (left_hip_yaw max) 0.0497: blocks the freeze (joint range "
+                         "margin under 0.05 rad (left_hip_yaw max))")
     assert setscreen._item(dict(limit="joint range margin under 0.1 rad (left_hip_roll max)", value=0.0997)).endswith(" 0.0997")
     assert setscreen._item(dict(limit="IK", value=3)) == "IK 3" and setscreen._item(dict(limit="x", value=None)) == "x"
     assert judge("turn", lp=1.6)["text"] == "within the Stage 0 limits"  # a turn's acceleration is no item at all
 
 
 def test_move_range_fails_a_rule_whose_reading_is_missing(monkeypatch):
-    """``move_range`` with no margins: the 0.10 rad rule and a turn's rule read false, not unread-and-passed; usable
+    """``move_range`` with no margins: the joint-range rule and a turn's rule read false, not unread-and-passed; usable
     ranges that are not the plant's are listed."""
     usable = {"left_hip_yaw": (-0.3, 0.3), "right_hip_yaw": (-0.3, 0.3), "left_hip_roll": (-0.45, 0.2618)}
     monkeypatch.setattr(setscreen.plant, "usable_ranges", lambda body: usable)
@@ -244,7 +250,14 @@ def test_move_range_fails_a_rule_whose_reading_is_missing(monkeypatch):
     r = setscreen.move_range(src, q, "turn", {}, margins)
     assert (r["ok"], r["twist_ok"], r["stage0_rule_ok"], r["usable_differs_from_plant"]) == (True, True, False, [])
     assert r["tightest_other"] == ["left_hip_roll", "max", 0.1618] and r["tightest_twist"] == ["left_hip_yaw", "max", 0.06]
+    assert (r["rule_rad"], r["walk_rule_rad"]) == (0.05, 0.10)
+    # a straight move: a move's 0.05 rad on every gated joint (0.06 rad passes it and is under a walk's 0.10 rad)
+    r = setscreen.move_range(src, q, "change", {}, margins)
+    assert (r["ok"], r["stage0_rule_ok"], r["rule_rad"], r["rule"]) == (True, False, 0.05, "a move: 0.05 rad on every gated joint")
+    margins["left_hip_yaw"]["margin_max"] = 0.0499
     assert setscreen.move_range(src, q, "change", {}, margins)["ok"] is False
+    assert setscreen.move_range(src, q, "turn", {}, margins)["ok"] is True  # a turn's twist has its own rule
+    margins["left_hip_yaw"]["margin_max"] = 0.06
     margins["right_hip_yaw"]["usable"] = [-0.3, 0.31]
     del margins["left_hip_roll"]
     r = setscreen.move_range(src, q, "turn", {}, margins)
@@ -260,6 +273,15 @@ def test_the_rules_record_holds_the_table_and_its_constants():
     assert (c["joint_range_rad"], c["twist_use_max"], c["accel_lp1hz_m_s2"], c["swing_min_frac_H"]) == (0.10, 0.87, 1.5, 0.04)
     assert (c["cop_rule_m"], c["cop_rule_causal_m"], c["grips"]) == (-0.010, 0.010, [0.9, 0.54])
     assert c["cop_rule_m"] == look.COP_RULE_M and c["joint_range_rad"] == clearance.RANGE_MARGIN_RAD
+    # a move's joint range (STAGE2_75_PLAN.md A12 as amended, DECISION_LOG.md P34): one constant with the stride rule
+    assert c["joint_range_move_rad"] == setscreen.RANGE_RULE_MOVE_RAD == moves.OTHER_JOINT_MARGIN_RAD == 0.05
+    row = setscreen.RULES["gates"][5]
+    assert (row["gate"], row["walk"], row["straight"]) == ("joint range", "0.10 rad on every gated joint",
+                                                            "0.05 rad on every gated joint")
+    assert row["turn"] == "thigh twist: use of the usable range at most 0.87; every other gated joint 0.05 rad"
+    for words in ("0.05 rad on every gated joint but a turn's thigh twist", "a walk keeps 0.10 rad",
+                  "DECISION_LOG.md P34", "changed after a result"):
+        assert words in setscreen.RULES["joint_range_move"], words
     assert c["swing_min_frac_H"] == clearance.SWING_MIN_FRAC
     # the appendage groups are the neck and the tail alone: the expressive head's two drives are gated like the legs'
     assert c["a1_groups"] == ["neck", "tail"] == list(setscreen.A1_GROUPS)
@@ -1126,7 +1148,7 @@ def test_what_blocks_is_listed_and_a_refused_move_has_no_block(tmp_path, standin
     assert doc["over"] == [dict(name="v0.4", kind="walk", over=[knee]), dict(name="turn90_pi4_left", kind="turn", over=[tail])]
     md = (d / "SCREEN.md").read_text()
     assert md == setscreen.markdown(doc)
-    # four decimals; a turn's margin column holds the joint its 0.10 rad gate reads, the twist's margin is beside its use
+    # four decimals; a turn's margin column holds the joint its 0.05 rad gate reads, the twist's margin is beside its use
     assert "- `v0.4` (walk): knee speed 1.0120" in md
     assert ("- `turn90_pi4_left`: tail peak 1.1990; neck c / p / s 0.5000 / 0.6000 / 0.7000; tail c / p / s 0.5000 / 1.1990 / "
             "0.7000; thigh twist use 0.8170 (margin 0.0549 rad, left_hip_yaw max); gated joint margin 0.1272 (left_hip_roll "
@@ -1306,9 +1328,9 @@ def test_screen_move_reproduces_stage1s_recorded_cop_margin_and_friction_ratio(s
     assert enter["accel"]["com_forward_lp1hz_peak_interior"] == pytest.approx(0.101, abs=1e-3)
     assert enter["accel"]["com_forward_lp1hz_peak_t_s"] > enter["arrays"]["duration_s"] - 1.0
     # Stage 1's entry into its 0.5 rad/s turn is no finite turn of a set: it is read as a change between two gaits,
-    # and Stage 0's 0.10 rad rule on the thigh twist stops it (0.898 of the usable twist)
+    # and a move's 0.05 rad rule on the thigh twist stops it (0.898 of the usable twist)
     assert enter["kind"] == "change" and enter["range"]["hip_yaw_range_use"] == pytest.approx(0.898, abs=1e-3)
-    assert [o["limit"] for o in enter["verdict"]["blocks_freeze"]] == ["joint range margin under 0.1 rad (right_hip_yaw min)"]
+    assert [o["limit"] for o in enter["verdict"]["blocks_freeze"]] == ["joint range margin under 0.05 rad (right_hip_yaw min)"]
     assert enter["verdict"]["blocks_freeze"][0]["value"] == enter["range"]["tightest"][2] == 0.0307
     assert enter["range"]["tightest_unrounded"][2] == pytest.approx(0.0307, abs=5e-5)
     assert enter["range"]["stage0_rule_ok"] is False and not enter["verdict"]["a1_over"]
@@ -1457,9 +1479,9 @@ TURN_STRIDE = ("exit_walk_0.35_left", 0, 160)
 @needs_run
 def test_positive_control_a_turn_at_0_83_of_the_twist_keeps_its_own_range_rule(src, tmp_path):
     """A stride of Stage 1's steady 0.35 rad/s turn, its thigh twist scaled to 0.83 of the usable range, under a
-    turn's entry: the turn's own rule passes (0.87), Stage 0's 0.10 rad does not hold (0.051 rad are left) and is not
-    applied.  The same file under a change's entry is stopped by the 0.10 rad rule; at 0.88 the turn's own rule
-    stops it."""
+    turn's entry: the turn's own rule passes (0.87), a walk's 0.10 rad does not hold (0.051 rad are left) and is not
+    applied.  The same file under a change's entry is within a move's 0.05 rad and is stopped by it with 0.0499 rad
+    left; at 0.88 the turn's own rule stops it."""
     d, entry = cut_move(tmp_path, *TURN_STRIDE[:1], "turn83", *TURN_STRIDE[1:], edit=twist_to(src, 0.83), **TURN_ENTRY)
     block = setscreen.screen_move(src, d, "turn83", entry, None)
     rng = block["range"]
@@ -1469,8 +1491,9 @@ def test_positive_control_a_turn_at_0_83_of_the_twist_keeps_its_own_range_rule(s
     assert rng["twist_ok"] is True and rng["ok"] is True and rng["stage0_rule_ok"] is False
     assert rng["tightest"][0].endswith("_hip_yaw") and rng["tightest"][2] == pytest.approx(0.051, abs=1e-4)
     assert rng["tightest_other"][2] >= 0.10 and not rng["tightest_other"][0].endswith("_hip_yaw")
+    assert (rng["rule_rad"], rng["walk_rule_rad"]) == (0.05, 0.10)
     assert rng["tightest_twist"] == rng["tightest"]
-    # SCREEN.md's two cells of a turn: the joint the 0.10 rad gate reads, and the twist's own margin beside its use
+    # SCREEN.md's two cells of a turn: the joint the 0.05 rad gate reads, and the twist's own margin beside its use
     margin_cell, twist_cell = setscreen._range_cells(block)
     assert margin_cell == f"{rng['tightest_other'][2]:.4f} ({rng['tightest_other'][0]} {rng['tightest_other'][1]})"
     assert twist_cell == f"0.8300 (margin {rng['tightest'][2]:.4f} rad, {rng['tightest'][0]} {rng['tightest'][1]})"
@@ -1484,7 +1507,13 @@ def test_positive_control_a_turn_at_0_83_of_the_twist_keeps_its_own_range_rule(s
     as_change = setscreen.move_range(src, q, "change", entry, margins)
     fl = setscreen.drive_flags(src, np.zeros((2, 14)), np.zeros((2, 14)), np.array([0.0, 0.01]))
     v = setscreen.judge_move("change", False, fl, True, 0, block["contact"], block["clearance"], as_change, block["accel"])
-    assert [o["limit"] for o in v["blocks_freeze"]] == [f"joint range margin under 0.1 rad ({rng['tightest'][0]} {rng['tightest'][1]})"]
+    assert v["blocks_freeze"] == [] and as_change["ok"] is True and as_change["stage0_rule_ok"] is False  # 0.051 rad
+    jn, end = rng["tightest"][:2]
+    margins[jn] = dict(margins[jn], **{f"margin_{end}": 0.0499})
+    tight = setscreen.move_range(src, q, "change", entry, margins)
+    v = setscreen.judge_move("change", False, fl, True, 0, block["contact"], block["clearance"], tight, block["accel"])
+    assert tight["ok"] is False and tight["tightest"] == [jn, end, 0.0499]
+    assert [o["limit"] for o in v["blocks_freeze"]] == [f"joint range margin under 0.05 rad ({jn} {end})"]
     arrs = dict(q=q.copy())
     twist_to(src, 0.88)(arrs)
     wide = setscreen.move_range(src, arrs["q"], "turn", entry, margins)
