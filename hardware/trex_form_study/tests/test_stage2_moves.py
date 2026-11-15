@@ -66,11 +66,13 @@ def _run(code: str, *args: str, timeout: int = 3600) -> dict:
     return json.loads(r.stdout.strip().splitlines()[-1])
 
 
-def _log(name: str, doc: dict) -> None:
-    """Keep a subprocess's numbers under logs/ (git-ignored), for a report."""
-    path = ROOT / "logs" / name
-    path.parent.mkdir(exist_ok=True)
-    path.write_text(json.dumps(doc, indent=1))
+def _log(tmp, name: str, doc: dict) -> None:
+    """Keep a subprocess's numbers for a report: under pytest's temporary directory ``tmp`` and, when the variable
+    STAGE2_TEST_LOGS names a directory, there as well.  By itself the suite writes nothing under the study tree."""
+    for folder in filter(None, (tmp, os.environ.get("STAGE2_TEST_LOGS"))):
+        path = Path(folder) / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(doc, indent=1))
 
 
 def _same(x, y) -> bool:
@@ -196,15 +198,19 @@ def test_named_builders_are_stage1s_schedules():
 #: (a) ``nominal_to_brisk`` and ``stop`` through ``transitions.generate`` (``gait_of`` patched to one correction pass)
 #:     and through ``moves.generate`` (the same gaits through ``GaitX``), with counters on Stage 1's solver functions;
 #: (b) a null command: the nominal walk commanded, causally, to walk on (one solve, no correction pass);
-#: (c) the two-touchdown stop from the nominal walk, solved once (no correction), and its summary.
+#: (c) the two-touchdown stop from the nominal walk, solved once (no correction), and its summary; the same stop's
+#:     kinematic pass; the quick right turn from the nominal walk, solved once, and its summary;
+#: (d) the gait accuracy of the process (round one's when it starts) before, inside and after each of those calls.
 FAST_CODE = r"""
-import json, sys
+import json, math, sys
 from dataclasses import replace
 import numpy as np
+from designlab import gait
 from designlab.stage1 import refs, transitions
 from designlab.stage2 import moves
 
 body, run = sys.argv[1], sys.argv[2]
+levels = dict(start=gait.ACCURACY, inside=[], after={})
 src = refs.source(body)
 H, q_home = src["H"], src["q_home"]
 load = lambda name: transitions._load_ref(run, name)
@@ -232,13 +238,16 @@ for name in ("nominal_to_brisk", "stop"):
         f = originals[(mod, fname)] = getattr(mod, fname)
         def w(*args, **kw):
             calls[fname] = calls.get(fname, 0) + 1
+            levels["inside"].append(gait.ACCURACY)
             return f(*args, **kw)
         setattr(mod, fname, w)
     for fname in ("initial_state", "com_path", "solve_frames", "derivatives", "multibody_zmp", "idyn", "preview_run"):
         counted(transitions, fname)
     for fname in ("com_path_causal", "preview_run_switch", "_causal_setup", "_generate_causal"):
         counted(moves, fname)
+    gait.set_accuracy("r1")  # transitions.generate above left round two's level set: Stage 1's behaviour
     g2 = moves.generate(src, mv, ref_a)
+    levels["after"]["generate " + name] = gait.ACCURACY
     for (mod, fname), f in originals.items():
         setattr(mod, fname, f)
     a2, s2 = moves.arrays(g2), moves.summary(g2, ref_a, ref_b, q_home)
@@ -255,6 +264,7 @@ a = passes(nominal, 0)
 null = moves.Move("null_command", a, a, moves.walk_schedule(a.legacy(), (0.0, 2), command=0.0, rule_f=True), "change",
                   {}, causal=True)
 g = moves.generate(src, null, ref)
+levels["after"]["generate null_command"] = gait.ACCURACY
 pl = g["plan"]
 ph = pl.phase[pl.out]
 kq = np.round(ph * ref.n).astype(int) % ref.n
@@ -267,18 +277,40 @@ out["null"] = dict(
 
 stop = moves.stop_two_step("stop2_nominal", passes(nominal, 0))
 g = moves.generate(src, stop, ref)
+pl = g["plan"]
+t = pl.t[pl.out] - pl.t[pl.out][0]
+bare = moves.forward_acceleration(t, g["com"][:, :2], pl.heading[pl.out])  # at rest before and after, no frame before
+m = int(math.ceil(moves.ACCEL_HISTORY_S / ref.step))
+full = moves.forward_acceleration(
+    t, g["com"][:, :2], pl.heading[pl.out], prev=(float(g["warmup"]["t"][-2]), g["warmup"]["com"][-2, :2]),
+    before=(moves.walk_forward_acceleration(ref, pl.first + np.arange(-m, 0) / ref.n), ref.step))
 out["stop"] = dict(summary=moves.summary(g, ref, None, q_home), array_keys=list(moves.arrays(g)),
-                   frames=int(g["plan"].n_out), solves=len(g["zmp_error_history_m"]))
+                   frames=int(pl.n_out), solves=len(g["zmp_error_history_m"]),
+                   file_touchdowns=moves.touchdowns(moves.arrays(g)["swing"], t), frame_s=float(t[1] - t[0]),
+                   warmup_t=[float(g["warmup"]["t"][0]), float(g["warmup"]["t"][-2]), float(g["warmup"]["t"][-1])],
+                   bare=dict(lp_peak=float(np.abs(bare[1]).max()), raw_peak=float(np.abs(bare[2]).max()),
+                             raw0=float(bare[2][0]), lp0=float(bare[1][0])),
+                   full=dict(lp_peak=float(np.abs(full[1]).max()), raw_peak=float(np.abs(full[2]).max()),
+                             raw0=float(full[2][0]), lp0=float(full[1][0]), samples=int(len(full[0])),
+                             last_sample_s=float(full[0][-1]), duration_s=float(t[-1])),
+                   walk_accel_at_command=float(moves.walk_forward_acceleration(ref, [pl.first])[0]))
+kin = moves.kinematic(src, stop, ref)
+levels["after"]["kinematic stop"] = gait.ACCURACY
+out["kinematic"] = dict(ik_ok=kin["ik_ok"], frames=int(len(kin["q"])), same_q=same(kin["q"], g["q"]))
+turn = moves.turn("turn90_pi4_right", passes(nominal, 0), math.pi / 2, -math.pi / 4, 0.8)
+g = moves.generate(src, turn, ref)
+out["turn"] = dict(summary=moves.summary(g, ref, ref, q_home), frames=int(g["plan"].n_out))
+out["accuracy"] = dict(levels, inside=sorted(set(levels["inside"])), end=gait.ACCURACY)
 print(json.dumps(out))
 """
 
 
 @pytest.fixture(scope="module")
-def fast_builds() -> dict:
+def fast_builds(tmp_path_factory) -> dict:
     if not ARRAYS:
         pytest.skip("the git-ignored Stage 1 arrays are not here (tools/restore_inputs.py --group picks-arrays)")
     got = _run(FAST_CODE, BODY, str(RUN / BODY), timeout=3600)
-    _log("test_stage2_moves_fast.json", got)
+    _log(tmp_path_factory.mktemp("moves_fast"), "test_stage2_moves_fast.json", got)
     return got
 
 
@@ -354,11 +386,11 @@ print(json.dumps(out))
 
 @slow
 @needs_arrays
-def test_legacy_generate_equals_stage1():
+def test_legacy_generate_equals_stage1(tmp_path):
     """The same equality at the full 6 passes for a start, the stop, a speed change, a turn entry (exact split) and
     a stop from an in-place gait; each saved npz's sha256 equals the Stage 1 run's record."""
     got = _run(LEGACY_CODE, BODY, str(RUN / BODY), *LEGACY_NAMES, timeout=4 * 3600)
-    _log("test_stage2_moves_legacy.json", got)
+    _log(tmp_path, "test_stage2_moves_legacy.json", got)
     assert set(got) == set(LEGACY_NAMES)
     for name, r in got.items():
         assert r["passes"] == 6 and r["keys"], name
@@ -367,9 +399,15 @@ def test_legacy_generate_equals_stage1():
 
 
 def test_legacy_check_record_is_current():
-    """``stage2/sets/legacy_check.json``: both picks complete, 18 of 18 equal, made by today's ``moves.py`` (an edit
-    to ``moves.py`` fails this test until ``python -m designlab.stage2.moves legacy`` is run again for both picks)."""
-    assert RECORD.exists(), "run: python -m designlab.stage2.moves legacy --body <pick> --record stage2/sets/legacy_check.json"
+    """``stage2/sets/legacy_check.json``: both picks complete, 18 of 18 equal, made by today's ``moves.py`` AND
+    today's panels' sources (the code the record certifies: ``transitions.py``, ``refs.py``, ``gait.py`` ...), on a
+    clean tree, every body by its own run's account.  An edit to ``moves.py`` or to one of the panels' sources fails
+    this test until ``python -m designlab.stage2.moves legacy`` is run again for both picks.  The libraries' versions
+    are recorded and not compared here: they belong to the machine, not to the tree."""
+    from designlab.stage1 import panels
+
+    again = "run again for both picks: python -m designlab.stage2.moves legacy --body <pick> --record stage2/sets/legacy_check.json"
+    assert RECORD.exists(), again
     doc = json.loads(RECORD.read_text())
     assert doc["rule"] == moves.LEGACY_RULE and doc["blas_threads"] == 1 and doc["accuracy"] == "r2"
     assert set(doc["bodies"]) == set(look.BODIES)
@@ -379,8 +417,15 @@ def test_legacy_check_record_is_current():
         assert b["equal"] == b["of"] == 18 and set(b["passes"].values()) == {6}
         stage1 = json.loads((RUN / body / "transitions.json").read_text())["transitions"]
         assert {n: e["recorded"] for n, e in b["names"].items()} == {n: stage1[n]["sha256"] for n in stage1}
-    assert doc["moves_sha256"] == hashlib.sha256((ROOT / "designlab" / "stage2" / "moves.py").read_bytes()).hexdigest()
-    assert len(doc["panel_sources_sha256"]) == 64 and doc["commit"] and doc["versions"]["numpy"]
+        # the body's own provenance: every run that checked some of its names, each name in exactly one run
+        assert b["checked"] and sorted(n for c in b["checked"] for n in c["names"]) == sorted(transitions.TRANSITIONS)
+        for c in b["checked"]:
+            assert c["dirty"] is False and c["dirty_paths"] == [] and len(c["commit"]) == 40 and c["at"], (body, c)
+    assert doc["moves_sha256"] == hashlib.sha256((ROOT / "designlab" / "stage2" / "moves.py").read_bytes()).hexdigest(), \
+        "moves.py moved: " + again
+    assert doc["panel_sources_sha256"] == panels.panel_sources()["sha256"], "the panels' sources moved: " + again
+    assert doc["dirty"] is False and doc["dirty_paths"] == [] and len(doc["commit"]) == 40
+    assert set(doc["versions"]) == set(panels.library_versions()) and all(doc["versions"].values())
 
 
 # ------------------------------------------------------------------------------------------------
@@ -392,10 +437,23 @@ def test_rules_and_constants():
     assert moves.CAUSAL_FADE == (0.5, 1.0) and moves.RAMP_S == 0.375
     assert (moves.CONSISTENCY_LIMIT_M, moves.ZMP_HISTORY_LIMIT_M, moves.CAUSAL_COP_MARGIN_M) == (2.5e-3, 4.0e-3, 0.010)
     assert moves.JOINT_AT_COMMAND_RAD == 1e-3
+    assert (moves.TURN_HEADING_MIN_DEG, moves.TURN_CLOSURE_RAD, moves.KAPPA_TOL) == (80.0, 1e-9, 1e-6)
+    assert (moves.STOP_TOUCHDOWNS, moves.STOP_ACCEL_LP_LIMIT_M_S2, moves.ACCEL_FS) == (2, 1.5, 500.0)
+    assert moves.ACCEL_HISTORY_S == 3.0  # not a gate constant; the reading does not move with it from 1 s on
+    assert (transitions.G3_COM_MM, transitions.G3_ZMP_MM) == (1.0, 2.0)  # Stage 1's, which the gates read
+    assert (transitions.STOP_SPEED_FRAC, transitions.STOP_WITHIN_STRIDES) == (0.05, 1.5)
     assert set(moves.RULES) == {"S2A-causal", "S2A-rule-F", "S2A-fade", "S2A-ramp", "S2A-appendage", "S2A-stride",
                                 "S2A-gates"}
     where = "constants set on the 14 Nov prototypes of V0 on 75-M-H-10, before any closed-loop run"
     assert where in moves.RULES["S2A-gates"] and where in moves.RULES["S2A-stride"]
+    # the two causal ZMP limits, each on its own frames (the lead's ruling of 15 Nov, STAGE2_75_PLAN.md A7), word for word
+    assert ("consistency error over the first stride after the command at most 2.5 mm; ZMP error from one stride after "
+            "it at most 4.0 mm (windows fixed on 15 Nov after the scratch builds of V0, before any set was frozen and "
+            "before any closed-loop episode on a Stage 2 set: STAGE2_75_PLAN.md A7)") in moves.RULES["S2A-gates"]
+    for text in ("at least 80 deg", "within 1e-09 rad", "thigh twist at most 0.87", "exactly 2 touchdowns",
+                 "within 1.5 strides", "within 1.5 m/s^2", "at least 10 mm inside the pad", "joints within 0.001 rad"):
+        assert text in moves.RULES["S2A-gates"], text
+    assert "under 0.05 mm of CoM" in moves.RULES["S2A-causal"] and "exactly on one grid" in moves.RULES["S2A-causal"]
     assert "0.375 s of reference time" in moves.RULES["S2A-ramp"] and "(T(p) / T_walk)^2" in moves.RULES["S2A-appendage"]
     x = np.linspace(0.0, 1.0, 200001)
     assert moves.RAMP_SQ_INTEGRAL == pytest.approx(float(np.trapezoid(transitions._ramp(x) ** 2, x)), abs=1e-10)
@@ -664,7 +722,9 @@ def test_appendage_rule(v0):
 
 def test_causal_fade_window(v0):
     """``tau_c`` is zero before the command and from one stride after it; ``post_window_zmp_error_m`` is read over
-    p >= c + 1 only; in between the loop corrects the multibody ZMP less the faded transient."""
+    p >= c + 1 only and the consistency error over p < c + 1 only (the two limits each read their own frames; the
+    all-frames value is the larger of the two); in between the loop corrects the multibody ZMP less the faded
+    transient."""
     stop = moves.stop_two_step("stop2", v0["a"])
     pl = moves.plan(stop, v0["geo"])
     c, o, k = -0.5, pl.out, pl.out.start
@@ -689,16 +749,30 @@ def test_causal_fade_window(v0):
     norm = np.linalg.norm(err, axis=1)
     out_frames = np.zeros(K, bool)
     out_frames[o] = True
-    assert e["post_window"] == norm[out_frames & (pl.phase >= c + 1.0 - 1e-9)].max()
+    post = out_frames & (pl.phase >= c + 1.0 - 1e-9)
+    first = out_frames & ~post  # the first stride after the command: frames k .. k + 159
+    assert np.flatnonzero(first)[[0, -1]].tolist() == [k, k + 159] and np.flatnonzero(post)[0] == k + 160
+    assert e["post_window"] == norm[post].max()
     assert e["target"] == norm[out_frames].max() and e["post_window"] <= e["target"]
     assert e["transient"] == np.linalg.norm(tau[o], axis=1).max() > 0
-    assert e["consistency"] == np.linalg.norm(e["e"][o], axis=1).max()
-    # a spike of ZMP error before the post window does not show in it; one inside it does
+    en = np.linalg.norm(e["e"], axis=1)
+    assert e["consistency"] == en[first].max() and e["consistency_all"] == en[out_frames].max()
+    assert e["consistency_all"] == max(e["consistency"], e["post_window"])  # after the fade e is the ZMP error itself
+    # a spike of error inside the first stride shows in the consistency error and not in the post window; one
+    # after it shows in the post window (and in the all-frames value) and not in the consistency error
     spike = zmb.copy()
     spike[k + 100] += 0.5
-    assert moves.causal_errors(pl, c, spike, zct, zref)["post_window"] == e["post_window"]
+    got = moves.causal_errors(pl, c, spike, zct, zref)
+    assert got["post_window"] == e["post_window"] and got["consistency"] > 0.4 and got["consistency_all"] > 0.4
+    spike = zmb.copy()
     spike[k + 200] += 0.5
-    assert moves.causal_errors(pl, c, spike, zct, zref)["post_window"] > 0.4
+    got = moves.causal_errors(pl, c, spike, zct, zref)
+    assert got["post_window"] > 0.4 and got["consistency"] == e["consistency"] and got["consistency_all"] > 0.4
+    for edge, in_first in ((k + 159, True), (k + 160, False)):  # the boundary frame belongs to the post window
+        spike = zmb.copy()
+        spike[edge] += 0.5
+        got = moves.causal_errors(pl, c, spike, zct, zref)
+        assert (got["consistency"] > 0.4) is in_first and (got["post_window"] > 0.4) is not in_first
 
 
 def test_pick_stride_factor(v0, monkeypatch):
@@ -772,9 +846,352 @@ def test_pick_stride_factor(v0, monkeypatch):
     assert moves.step_down(last, dict(ik_ok=True, hip_yaw_range_use=0.9))["outcome"] == "none"
 
 
+def _assert_gates_are_the_rule(s: dict) -> None:
+    """Every gate of a causal move's entry is its rule's comparison on the entry's own numbers, with the
+    pre-registered limits written out here: a flipped comparison or a moved limit in ``moves.summary`` fails."""
+    g, ref, jb, jc = s["gates"], s["reference"], s["join_b"], s["join_command"]
+    assert g["ik_ok"] == s["ik_ok"] == (s["ik_fail_frames"] == 0)
+    assert g["join_b"] == (jb["com_max_mm"] <= 1.0 and jb["zmp_max_mm"] <= 2.0)
+    assert g["join_command"] == jc["ok"] == (jc["warmup_com_max_mm"] <= 1.0 and jc["at_command"]["com_mm"] <= 1.0
+                                             and jc["at_command"]["joint_rad"] <= 1e-3
+                                             and jc["warmup_zmp_max_mm"] <= 2.0)
+    assert g["zmp_consistency"] == (s["zmp_consistency_history_m"][-1] <= 2.5e-3)
+    assert g["post_window_zmp"] == (s["post_window_zmp_error_m"][-1] <= 4.0e-3)
+    assert g["cop_margin_single"] == (s["cop_margin_single_min"]["m"] >= 0.010)
+    extra = set()
+    if s["move"]["builder"] == "stop_two_step":
+        fwd = ref["forward_stopped_strides"]
+        assert g["touchdowns_after_command"] == (ref["touchdowns_after_command"] == 2 == len(ref["touchdown_s"]))
+        assert g["stopped_within"] == (fwd is not None and fwd <= 1.5)
+        assert g["accel_lp1hz"] == (ref["accel_forward_lp1hz_peak_m_s2"] <= 1.5)
+        extra = {"touchdowns_after_command", "stopped_within", "accel_lp1hz"}
+    if s["move"]["builder"] == "turn":
+        assert g["heading_total"] == (abs(abs(s["turn"]["heading_total_rad"]) - s["turn"]["angle_rad"]) <= 1e-9)
+        assert g["heading_at_bar"] == (ref["heading_at_bar_deg"] >= 80.0)
+        assert g["heading_at_slowest_clock"] == (ref["heading_at_slowest_clock_deg"] >= 80.0)
+        assert g["thigh_twist"] == (s["hip_yaw_range_use"] <= 0.87)
+        extra = {"heading_total", "heading_at_bar", "heading_at_slowest_clock", "thigh_twist"}
+    assert set(g) == {"ik_ok", "join_b", "join_command", "zmp_consistency", "post_window_zmp",
+                      "cop_margin_single"} | extra
+    assert s["pass_"] == all(g.values())
+    # the all-frames consistency error is recorded beside the two gated windows, gated by nothing: the larger of them
+    assert s["zmp_consistency_all_m"] == s["zmp_consistency_all_history_m"][-1]
+    assert s["zmp_consistency_all_m"] == max(s["zmp_consistency_history_m"][-1], s["post_window_zmp_error_m"][-1])
+    assert len(s["zmp_consistency_all_history_m"]) == len(s["zmp_consistency_history_m"])
+
+
+def test_turn_summary_and_gates(fast_builds):
+    """The quick right turn from Stage 1's nominal walk on 60-N-T-10, solved once (no correction pass): the entry's
+    turn readings, and every gate the rule's comparison on the entry's own numbers.  Without a correction the two
+    ZMP limits fail, and on this body at stride x0.8 so does the thigh twist; the heading gates and the CoP margin
+    hold; the move does not pass."""
+    s = fast_builds["turn"]["summary"]
+    assert fast_builds["turn"]["frames"] == 880 and s["kind"] == "walk" and s["split"] == "exact"
+    assert s["move"] == dict(kind="turn", builder="turn", causal=True, command_phase=0.5, command_t_s=0.0,
+                             rules=["S2A-causal", "S2A-rule-F", "S2A-fade", "S2A-ramp", "S2A-appendage",
+                                    "S2A-stride", "S2A-gates"], laws="today")
+    assert s["join_a"] is None and s["stop"] is None and s["ik_ok"]
+    _assert_gates_are_the_rule(s)
+    g = s["gates"]
+    assert g["heading_total"] and g["heading_at_bar"] and g["heading_at_slowest_clock"] and g["cop_margin_single"]
+    assert not g["zmp_consistency"] and not g["post_window_zmp"] and not g["thigh_twist"] and not s["pass_"]
+    t, ref = s["turn"], s["reference"]
+    assert t["direction"] == t["first_swing"] == "right" and t["stride_factor"] == 0.8 and t["ramp_s"] == 0.375
+    assert abs(t["kappa"] - 1.0) < 1e-6 and t["heading_total_rad"] == pytest.approx(-math.pi / 2, abs=1e-9)
+    assert ref["at_s"] == 2.0 and 80.0 <= ref["heading_at_slowest_clock_deg"] < ref["heading_at_bar_deg"] < 90.0
+    # the walk's own left step, landed before the command (a right lift-off), is labelled; every later step follows it
+    assert [(st["side"], st["lift_off_phase"], st["after_command"]) for st in s["steps"][:3]] == [
+        ("left", 0.0, False), ("right", 0.5, True), ("left", 1.0, True)]
+    assert all(st["after_command"] for st in s["steps"][1:])
+    # a turn at constant path speed has next to no 1 Hz forward acceleration once the filter is given the walk on
+    # both sides (the first build read 0.3 m/s^2 here: its file began mid-walk with no history)
+    assert ref["accel_filter"]["before"] == ref["accel_filter"]["after"] == "the periodic stride of nominal"
+    assert ref["accel_forward_lp1hz_peak_m_s2"] < 0.15 < 1.0 < ref["accel_forward_raw_peak_m_s2"]
+
+
+def test_legacy_steps_have_no_new_key(fast_builds):
+    """A move of Stage 1's construction keeps Stage 1's list of steps, key for key (``after_command`` is a causal
+    move's): the summary equality above depends on it."""
+    for name in ("nominal_to_brisk", "stop"):
+        assert fast_builds["legacy"][name]["summary_equal"]["steps"] is True
+
+
+def test_accuracy_inside_and_after(fast_builds):
+    """``generate`` (both solve paths) and ``kinematic`` run at round two's accuracy and leave the process at the
+    level they found: round one's, in a process that never set it.  ``kinematic`` is ``generate``'s first solve."""
+    acc = fast_builds["accuracy"]
+    assert acc["start"] == "r1" and acc["inside"] == ["r2"] and acc["end"] == "r1"
+    assert acc["after"] == {"generate nominal_to_brisk": "r1", "generate stop": "r1", "generate null_command": "r1",
+                            "kinematic stop": "r1"}
+    assert fast_builds["kinematic"] == dict(ik_ok=True, frames=560, same_q=True)
+
+
+def test_accuracy_is_put_back(monkeypatch):
+    """``generate``, ``kinematic`` and the legacy check's job set round two's accuracy for their own duration and
+    put the process's level back, also when they raise and whatever the level was (the solvers are stubbed: no
+    arrays are built).  A level left set makes a later caller in the same process build round one's walks at r2."""
+    H = _src(BODY)["H"]
+    mv = moves.stage1(BODY, "start", H)
+    stop = moves.stop_two_step("stop2", moves.stage1_gait(BODY, "nominal", H))
+    seen = []
+
+    def stub(*args, **kw):
+        seen.append(gait.ACCURACY)
+        return dict(zmp_iters=6)
+
+    def boom(*args, **kw):
+        seen.append(gait.ACCURACY)
+        raise RuntimeError("stopped here")
+
+    was = gait.ACCURACY  # another test file may have left a level set: this test puts back what it found
+    try:
+        for level in ("r1", "r2"):
+            gait.set_accuracy(level)
+            for target, call in (("_generate_stage1", lambda: moves.generate({}, mv, None)),
+                                 ("_generate_causal", lambda: moves.generate({}, stop, None)),
+                                 ("_kinematic", lambda: moves.kinematic({}, mv, None))):
+                seen.clear()
+                monkeypatch.setattr(moves, target, stub)
+                assert call() == dict(zmp_iters=6) and seen == ["r2"] and gait.ACCURACY == level, (target, level)
+                monkeypatch.setattr(moves, target, boom)
+                with pytest.raises(RuntimeError, match="stopped here"):
+                    call()
+                assert seen == ["r2", "r2"] and gait.ACCURACY == level, (target, level)
+        # the legacy check's job: one transition from the stand (no saved reference needed), its solve stubbed
+        gait.set_accuracy("r1")
+        for var in moves.THREAD_VARS:
+            monkeypatch.setenv(var, "1")
+        monkeypatch.setattr(refs, "source", lambda body: dict(H=H))
+        monkeypatch.setattr(moves, "generate", stub)
+        monkeypatch.setattr(moves, "arrays", lambda g: dict(x=np.zeros(3)))
+        seen.clear()
+        r = moves._legacy_job((BODY, "start", str(RUN)))
+        assert seen == ["r2"] and r["accuracy"] == "r2" and gait.ACCURACY == "r1"
+        assert (r["body"], r["name"], r["passes"], r["equal"]) == (BODY, "start", 6, False) and len(r["sha256"]) == 64
+        monkeypatch.setattr(moves, "generate", boom)
+        with pytest.raises(RuntimeError, match="stopped here"):
+            moves._legacy_job((BODY, "start", str(RUN)))
+        assert gait.ACCURACY == "r1"
+    finally:
+        gait.set_accuracy(was)
+
+
+def test_legacy_record_keeps_each_bodys_provenance(tmp_path, monkeypatch):
+    """The record's commit and tree state belong to the run that checked a name: each body keeps its own under
+    ``checked`` (one entry per run, a name checked again moving to the later run), so a body checked on a dirty tree
+    does not read as clean after another body is run on a clean one; the top of the record is the last run's.  A
+    record made by other code is not merged into.  (The job is stubbed: nothing is generated.)"""
+    for var in moves.THREAD_VARS:
+        monkeypatch.setenv(var, "1")
+    state = {}
+    monkeypatch.setattr(moves, "_git_state", lambda leave_out: dict(state, dirty_paths=list(state["dirty_paths"])))
+    monkeypatch.setattr(moves, "_legacy_line", lambda r: None)
+    monkeypatch.setattr(moves, "_legacy_job", lambda job: dict(
+        body=job[0], name=job[1], sha256="a" * 64, recorded="a" * 64, equal=True, passes=6, accuracy="r2", seconds=0.0))
+    record = tmp_path / "sets" / "legacy_check.json"
+    names = list(transitions.TRANSITIONS)
+    b75, b60 = "75-M-H-10", "60-N-T-10"
+
+    def run(commit, dirty, bodies, which):
+        state.update(commit=commit * 40, dirty=bool(dirty), dirty_paths=[" M designlab/gait.py"] if dirty else [])
+        doc = moves.legacy_check(bodies, which, record=record)
+        on_disk = json.loads(record.read_text())
+        assert {k: v for k, v in doc.items() if k != "checked"} == on_disk and not list(tmp_path.rglob("*.tmp"))
+        assert doc["checked"] == [dict(body=b, name=n, equal=True) for b in bodies for n in (which or names)]
+        return on_disk
+
+    def runs(doc, body):
+        return [(c["commit"][0], c["dirty"], c["names"]) for c in doc["bodies"][body]["checked"]]
+
+    doc = run("1", True, [b75], names[:5])  # the first five names of one body, on a dirty tree
+    assert runs(doc, b75) == [("1", True, names[:5])] and not doc["bodies"][b75]["complete"]
+    assert doc["dirty"] is True and doc["commit"] == "1" * 40 and doc["bodies"][b75]["checked"][0]["at"] == doc["at"]
+    assert doc["bodies"][b75]["checked"][0]["dirty_paths"] == [" M designlab/gait.py"]
+    doc = run("2", False, [b60], None)  # the other body, complete, on a clean tree
+    assert doc["dirty"] is False and doc["commit"] == "2" * 40  # the top of the record: the last run's
+    assert runs(doc, b60) == [("2", False, names)] and doc["bodies"][b60]["complete"]
+    assert runs(doc, b75) == [("1", True, names[:5])]  # and the first body is still what its own run saw
+    doc = run("3", False, [b75], names[3:])  # the rest of the first body, two of its names again
+    assert runs(doc, b75) == [("1", True, names[:3]), ("3", False, names[3:])] and doc["bodies"][b75]["complete"]
+    assert (doc["bodies"][b75]["equal"], doc["bodies"][b75]["of"]) == (18, 18)
+    assert list(doc["bodies"][b75]["names"]) == names and runs(doc, b60) == [("2", False, names)]
+    doc = run("4", False, [b75], names[:3])  # the three names of the dirty run again: no dirty entry is left
+    assert runs(doc, b75) == [("3", False, names[3:]), ("4", False, names[:3])]
+    assert all(c["dirty"] is False for b in doc["bodies"].values() for c in b["checked"])
+    monkeypatch.setattr(moves, "LEGACY_RULE", "another rule")  # a record made under other code or rules
+    doc = run("5", False, [b60], names[:1])
+    assert set(doc["bodies"]) == {b60} and runs(doc, b60) == [("5", False, names[:1])] and doc["rule"] == "another rule"
+
+
+def test_second_difference_is_on_the_frames_own_grid():
+    """Three-point second differences at the frames' own times: exact for a quadratic on a non-uniform grid, the
+    plain second difference on a uniform one; the last frame takes its neighbour's value, and so does the first
+    unless the frame before it is given."""
+    rng = np.random.default_rng(3)
+    t = np.cumsum(rng.uniform(0.004, 0.006, 400))
+    quad = np.column_stack([0.3 - 0.7 * t + 1.25 * t**2, 2.0 * t - 0.4 * t**2])
+    acc = moves.second_difference(t, quad)
+    assert acc.shape == (400, 2) and acc == pytest.approx(np.tile([2.5, -0.8], (400, 1)), abs=1e-6)
+    x = np.sin(3.0 * t)
+    acc = moves.second_difference(t, x)
+    assert acc.shape == (400,) and acc[0] == acc[1] and acc[-1] == acc[-2]
+    assert acc[1:-1] == pytest.approx(-9.0 * x[1:-1], abs=0.03)  # first order in the difference of the two intervals
+    before = t[0] - 0.005
+    acc2 = moves.second_difference(t, x, prev=(before, math.sin(3.0 * before)))
+    assert np.array_equal(acc2[1:], acc[1:]) and acc2[0] != acc[0] and acc2[0] == pytest.approx(-9.0 * x[0], abs=0.02)
+    tu = 0.005378818345924685 * np.arange(300)
+    xu = np.sin(7.0 * tu)
+    plain = (xu[2:] - 2.0 * xu[1:-1] + xu[:-2]) / tu[1] ** 2
+    assert moves.second_difference(tu, xu)[1:-1] == pytest.approx(plain, rel=1e-9, abs=1e-9)
+    with pytest.raises(ValueError, match="three frames"):
+        moves.second_difference(t[:2], x[:2])
+    with pytest.raises(ValueError, match="increase"):
+        moves.second_difference(t[::-1], x)
+
+
+def test_forward_acceleration_reads_no_resampling_comb():
+    """A CoM path with a known forward acceleration (peak 1.9 m/s^2), sampled at a walk's frame interval of 5.38 ms
+    (no multiple of the filter's 2 ms): the unfiltered reading is the true acceleration at the frames.  The first
+    build's way (the path interpolated to 500 Hz, then differentiated twice) reads the knots of its interpolation, a
+    quarter and more above the truth; it is rebuilt here to show the size."""
+    h = 0.005378818345924685
+    t = h * np.arange(600)
+    w = 2.0 * math.pi * 1.7
+    x = 0.4 * t + (1.9 / w**2) * np.sin(w * t)
+    true = -1.9 * np.sin(w * t)
+    tu, lp, raw = moves.forward_acceleration(t, np.column_stack([x, 0.0 * x]), np.zeros(len(t)))
+    assert raw.shape == t.shape and np.abs(raw[1:-1] - true[1:-1]).max() < 2e-3
+    assert np.abs(raw).max() == pytest.approx(1.9, rel=2e-3) and raw[0] == raw[1] and raw[-1] == raw[-2]
+    xu = np.interp(tu, t, x)
+    comb = np.gradient(np.gradient(xu, tu), tu)
+    assert np.abs(comb[5:-5]).max() > 1.25 * 1.9
+    # the uniform grid: 500 Hz from the first frame, within the move's own frames
+    assert tu[0] == t[0] and np.diff(tu) == pytest.approx(1.0 / moves.ACCEL_FS, abs=1e-12) and lp.shape == tu.shape
+    assert tu[-1] <= t[-1] < tu[-1] + 1.0 / moves.ACCEL_FS
+    # along the heading: the same path turned by 0.3 rad reads the same along its own heading, nothing across it
+    turned = np.column_stack([math.cos(0.3) * x, math.sin(0.3) * x])
+    assert moves.forward_acceleration(t, turned, np.full(len(t), 0.3))[2] == pytest.approx(raw, abs=1e-9)
+    assert np.abs(moves.forward_acceleration(t, turned, np.full(len(t), 0.3 + math.pi / 2))[2]).max() < 1e-9
+
+
+def test_forward_acceleration_filter_has_the_tracks_history(monkeypatch):
+    """A file cut out of a periodic walk in mid-stride: with the walk's own acceleration before its first frame and
+    after its last, the 1 Hz reading over the file's frames is that of the endless walk (to 5e-4 m/s^2 with the 3 s
+    of history; to 0.01 with 1 s); given nothing (rest on both sides) it is wrong at both ends by half the walk's
+    own reading.  Both peaks are read over the file's own frames only, and rest is a history of zeros."""
+    from designlab.stage1 import metrics
+
+    n, K, k0, fs = 160, 368, 37, moves.ACCEL_FS
+    h = 0.86 / n
+
+    def walk(k):  # zero-mean, periodic over n frames: the stride's own rhythm (1.16 Hz) and the step's
+        p = 2.0 * math.pi * np.asarray(k, float) / n
+        return 1.5 * np.sin(p + 0.4) + 0.6 * np.sin(2.0 * p)
+
+    a = walk(k0 + np.arange(K))
+    x = np.zeros(K + 2)  # frames -1 .. K: positions whose second difference is the walk's acceleration exactly
+    x[1] = 0.4 * h
+    for k in range(K):
+        x[k + 2] = 2.0 * x[k + 1] - x[k] + h * h * walk(k0 + k)
+    t = h * np.arange(K)
+    com, heading, prev = np.column_stack([x[1 : K + 1], np.zeros(K)]), np.zeros(K), (-h, [x[0], 0.0])
+    m = int(math.ceil(moves.ACCEL_HISTORY_S / h))
+    before, after = (walk(k0 + np.arange(-m, 0)), h), (walk(k0 + K + np.arange(m)), h)
+    tu, lp, raw = moves.forward_acceleration(t, com, heading, before=before, after=after, prev=prev)
+    assert raw[:-1] == pytest.approx(a[:-1], abs=1e-6) and raw[-1] == raw[-2]  # the first frame from the one before
+    # the endless walk, by hand: 20 strides on each side, sampled at the same instants
+    M = 20 * n
+    ts, xs = h * np.arange(-M, K + M), walk(k0 + np.arange(-M, K + M))
+    grid = np.arange(-int(M * h * fs), int((K + M) * h * fs)) / fs
+    endless = metrics.lowpass(np.interp(grid, ts, xs), fs)[np.searchsorted(grid, tu - 1e-9)]
+    assert np.abs(endless).max() > 0.5 and len(tu) == int(t[-1] * fs + 1e-9) + 1
+    assert lp == pytest.approx(endless, abs=5e-4)
+    bare = moves.forward_acceleration(t, com, heading)  # nothing given: at rest before and after
+    assert np.abs(bare[1] - endless)[[0, -1]].min() > 0.3
+    assert np.array_equal(bare[0], tu) and np.array_equal(bare[2][1:], raw[1:])
+    zeros = (np.zeros(int(moves.ACCEL_HISTORY_S * fs)), 1.0 / fs)
+    assert np.array_equal(moves.forward_acceleration(t, com, heading, before=zeros, after=zeros)[1], bare[1])
+    # a longer series than the history is cut to it, nearest the file; a shorter one is taken whole
+    long_b, long_a = (walk(k0 + np.arange(-3 * m, 0)), h), (walk(k0 + K + np.arange(3 * m)), h)
+    assert np.array_equal(moves.forward_acceleration(t, com, heading, before=long_b, after=long_a, prev=prev)[1], lp)
+    monkeypatch.setattr(moves, "ACCEL_HISTORY_S", 1.0)
+    one = moves.forward_acceleration(t, com, heading, before=before, after=after, prev=prev)
+    assert np.array_equal(one[0], tu) and one[1] == pytest.approx(lp, abs=1e-2)
+    assert np.abs(one[1] - lp).max() > 1e-3  # 1 s is not enough for the third digit at the file's ends; 3 s is
+
+
+def test_walk_forward_acceleration():
+    """A periodic gait's forward acceleration from its saved model CoM: second differences across the stride
+    boundary, along the stride's own heading; periodic in the gait phase.  A steady turn on a circle at constant
+    speed has none (its acceleration is across the heading)."""
+    n, T = 160, 0.8
+    dt, k = T / n, np.arange(n)
+    adv = 0.32
+    x = adv * k / n + 0.004 * np.sin(4.0 * math.pi * k / n)
+    y = 0.01 * np.sin(2.0 * math.pi * k / n)
+
+    def ref_of(name, xy, motion):
+        return refs.Reference(name, dict(com=np.column_stack([xy, np.full(n, 0.3)]), t=dt * k, dt=np.array(dt),
+                                         stride_motion=np.array(motion, float)))
+
+    straight = ref_of("straight", np.column_stack([x, y]), [0.0, 0.0, 0.0, adv, 0.0])
+    af = moves.walk_forward_acceleration(straight, k / n)
+    w = 4.0 * math.pi / T
+    assert af == pytest.approx(-0.004 * w**2 * np.sin(4.0 * math.pi * k / n), abs=2e-3 * 0.004 * w**2)  # all n frames
+    assert np.array_equal(moves.walk_forward_acceleration(straight, k / n - 3.0), af)
+    assert np.array_equal(moves.walk_forward_acceleration(straight, [1.0, 2.5, -0.5]), af[[0, 80, 80]])
+    phi, R, C = 0.5678, 0.9, np.array([0.2, 0.9])
+
+    def circle(theta):
+        return C + R * np.column_stack([np.sin(theta), -np.cos(theta)])
+
+    steady = ref_of("steady", circle(phi * k / n), [phi, C[0], C[1], C[0], C[1]])
+    assert np.abs(moves.walk_forward_acceleration(steady, k / n)).max() < 1e-8
+    surge = ref_of("surge", circle(phi * k / n + 0.02 * np.sin(2.0 * math.pi * k / n)), [phi, C[0], C[1], C[0], C[1]])
+    want = -R * 0.02 * (2.0 * math.pi / T) ** 2 * np.sin(2.0 * math.pi * k / n)
+    assert moves.walk_forward_acceleration(surge, k / n) == pytest.approx(want, abs=0.03) and np.abs(want).max() > 1.0
+
+
+def test_touchdowns_are_counted_in_the_files_frames():
+    """A touchdown is a foot in swing at one frame and in stance at the next, timed at that first stance frame; a
+    swing still in the air at the last frame, and a foot that never leaves the ground, are none."""
+    t = 0.005 * np.arange(12)
+    sw = np.zeros((12, 2), bool)
+    assert moves.touchdowns(sw, t) == []
+    sw[0:3, 1] = True  # the right foot is in swing at the first frame (the command at its lift-off) and lands at 3
+    sw[5:8, 0] = True  # the left foot swings over frames 5 to 7 and lands at 8
+    assert moves.touchdowns(sw, t) == [(t[3], "right"), (t[8], "left")]
+    sw[10:, 1] = True  # still in the air at the last frame
+    assert moves.touchdowns(sw, t) == [(t[3], "right"), (t[8], "left")]
+    sw[9, 0] = True  # a third, one frame long
+    assert moves.touchdowns(sw, t) == [(t[3], "right"), (t[8], "left"), (t[10], "left")]
+
+
+def test_acceleration_reading_of_a_built_stop(fast_builds):
+    """The entry's acceleration readings are ``forward_acceleration``'s with the walk before the command and rest
+    after the stop as the filter's history and the computed frame before the command for the first frame's second
+    difference: there the reading is the walk's own (a file read alone starts with its neighbour's value and a
+    filter that knows no walk)."""
+    r = fast_builds["stop"]
+    ref, full, bare = r["summary"]["reference"], r["full"], r["bare"]
+    f = ref["accel_filter"]
+    assert (f["hz"], f["order"], f["zero_phase"], f["fs_hz"], f["history_s"]) == (1.0, 2, True, 500.0, 3.0)
+    assert f["before"] == "the periodic stride of nominal" and f["after"] == "at rest (the stand)"
+    assert "frames' own times" in f["of"] and "frame before the command" in f["of"] and "own frames only" in f["read_over"]
+    assert ref["accel_forward_lp1hz_peak_m_s2"] == full["lp_peak"] and ref["accel_forward_raw_peak_m_s2"] == full["raw_peak"]
+    assert 0.0 < ref["accel_forward_lp1hz_peak_t_s"] < full["duration_s"] and 0.0 < ref["accel_forward_raw_peak_t_s"]
+    assert ref["accel_forward_lp1hz_peak_m_s2"] < ref["accel_forward_raw_peak_m_s2"]
+    assert r["warmup_t"][1] == pytest.approx(-r["frame_s"], rel=1e-9) and r["warmup_t"][2] == 0.0
+    assert r["warmup_t"][0] == pytest.approx(-r["summary"]["gaits"]["a"]["period"], rel=1e-9)
+    # the command frame: with the frame before it, the walk's own acceleration there; alone, the neighbour's value
+    assert abs(full["raw0"] - r["walk_accel_at_command"]) < 0.02 < abs(bare["raw0"] - r["walk_accel_at_command"])
+    assert bare["lp_peak"] != full["lp_peak"] and abs(bare["lp0"] - full["lp0"]) > 0.05
+    assert full["samples"] == int(full["duration_s"] * 500.0 + 1e-9) + 1 and full["last_sample_s"] <= full["duration_s"]
+
+
 def test_causal_join_a_is_null(fast_builds):
     """The summary of a causal move has ``join_a`` and ``stop`` None, ``join_command`` with ``at_command.zmp_mm``,
-    the three histories, the reference's own readings, and no wall time."""
+    the histories, the reference's own readings, and no wall time; every gate is its rule's comparison."""
     r = fast_builds["stop"]
     s = r["summary"]
     assert r["solves"] == 1 and r["frames"] == 560 and len(r["array_keys"]) == 27
@@ -784,22 +1201,39 @@ def test_causal_join_a_is_null(fast_builds):
     jc = s["join_command"]
     assert isinstance(jc["at_command"]["zmp_mm"], float) and "not gated" in jc["at_command"]["zmp_note"]
     assert jc["frames"] == 161 and jc["warmup_com_max_mm"] < 1.0 and jc["at_command"]["joint_rad"] < 1e-3
-    for key in ("zmp_error_history_m", "zmp_consistency_history_m", "causal_transient_m", "post_window_zmp_error_m"):
+    for key in ("zmp_error_history_m", "zmp_consistency_history_m", "zmp_consistency_all_history_m",
+                "causal_transient_m", "post_window_zmp_error_m"):
         assert len(s[key]) == 1 and s[key][0] > 0
+    # the all-frames consistency error is recorded beside the two gated windows, and is the larger of them
+    assert s["zmp_consistency_all_m"] == s["zmp_consistency_all_history_m"][-1]
+    assert s["zmp_consistency_all_m"] == max(s["zmp_consistency_history_m"][-1], s["post_window_zmp_error_m"][-1])
     assert s["output_phase"] == [-0.5, 3] and s["kind"] == "stop" and s["to"] == "stand"
     assert set(s["cop_margin_single_min"]) == {"m", "frame", "foot"}
     ref = s["reference"]
-    assert ref["touchdowns_after_command"] == 2 and len(ref["touchdown_s"]) == 2
-    duty = s["gaits"]["a"]["duty"]
-    assert ref["touchdown_phase"] == pytest.approx([0.5 - duty, 1.0 - duty])
-    assert ref["margin_before_command_s"] == pytest.approx((duty - 0.5) * s["gaits"]["a"]["period"])
+    duty, period = s["gaits"]["a"]["duty"], s["gaits"]["a"]["period"]
+    # the touchdowns are counted in the file's own frames; the plan's scheduled ones are recorded beside them
+    assert ref["touchdowns_after_command"] == 2 and ref["touchdown_foot"] == ["right", "left"]
+    assert [list(x) for x in r["file_touchdowns"]] == [[t, f] for t, f in zip(ref["touchdown_s"], ref["touchdown_foot"])]
+    assert ref["touchdowns_scheduled"] == 2 and ref["touchdown_phase"] == pytest.approx([0.5 - duty, 1.0 - duty])
+    assert ref["touchdown_scheduled_s"] == pytest.approx([(1.0 - duty) * period, (1.5 - duty) * period])
+    for built, planned in zip(ref["touchdown_s"], ref["touchdown_scheduled_s"], strict=True):
+        assert -1e-9 <= built - planned < r["frame_s"]  # the first stance frame at or after the scheduled instant
+    assert "file's own frames" in ref["touchdown_rule"]
+    assert ref["margin_before_command_s"] == pytest.approx((duty - 0.5) * period)
     assert ref["stage1_stop"]["command_phase"] == pytest.approx(transitions.stop_command_phase(duty))
     assert "Stage 1's convention" in ref["stage1_stop"]["command_phase_is"]
-    assert ref["accel_forward_lp1hz_peak_m_s2"] <= ref["accel_forward_raw_peak_m_s2"]
+    # Stage 1's list of steps begins with the walk's own left step, which landed before the command: labelled
+    assert [(st["side"], st["lift_off_phase"], st["after_command"]) for st in s["steps"]] == [
+        ("left", -1.0, False), ("right", -0.5, True), ("left", 0.0, True)]
+    assert sum(st["after_command"] for st in s["steps"]) == ref["touchdowns_after_command"]
     assert set(s["gates"]) == {"ik_ok", "join_b", "join_command", "zmp_consistency", "post_window_zmp",
                                "cop_margin_single", "touchdowns_after_command", "stopped_within", "accel_lp1hz"}
     assert s["pass_"] == all(s["gates"].values()) and s["gates"]["touchdowns_after_command"]
     assert isinstance(jc["ok"], bool) and s["gates"]["join_command"] == jc["ok"]
+    _assert_gates_are_the_rule(s)
+    # one solve, no correction: 8.8 mm in the first stride (over 2.5: this gate's False branch), 3.4 mm after it
+    assert not s["gates"]["zmp_consistency"] and s["gates"]["post_window_zmp"] and not s["pass_"]
+    assert s["gates"]["cop_margin_single"] and s["gates"]["stopped_within"] and s["gates"]["accel_lp1hz"]
     assert s["definition"]["builder"] == "stop_two_step" and s["hip_yaw_range_use"] < 0.1 and s["ik_fail_frames"] == 0
     # JSON-plain; the only NaN is where Stage 1's own entries have it: the stand's period and duty
     stand = s["gaits"]["b"]
@@ -843,33 +1277,61 @@ print(json.dumps(out))
 
 
 @slow
-def test_stop_and_turn_from_v0():
+def test_stop_and_turn_from_v0(tmp_path):
     """A scratch build of ``stop2_v0.4`` and ``turn90_pi4_right`` from the V0 0.40 walk on 75-M-H-10 passes every
-    gate of the design's sections 3.3 to 3.5 (two touchdowns, the 80 deg rule); the kinematic pick is 0.80."""
+    gate of the design's sections 3.3 to 3.5 (two touchdowns, the 80 deg rule); the kinematic pick is 0.80.
+
+    Every reading is checked first and the gates last, in one assertion that names each failed gate of both moves,
+    so that one failed gate cannot hide the other readings."""
     got = _run(SCRATCH_CODE, BODY75, timeout=4 * 3600)
-    _log("test_stage2_moves_scratch.json", got)
+    _log(tmp_path, "test_stage2_moves_scratch.json", got)
     pick = got["pick"]
     assert pick["chosen"] == 0.8, pick["tried"]
     assert [r["f"] for r in pick["tried"]] == [1.0, 0.95, 0.9, 0.85, 0.8]
     assert max(pick["tried"][-1]["left"], pick["tried"][-1]["right"]) <= moves.TWIST_KINEMATIC
-    stop, turn = got["stop2_v0.4"], got["turn90_pi4_right"]
+    assert [r["pass_"] for r in pick["tried"]] == [False, False, False, False, True]
+    names = ("stop2_v0.4", "turn90_pi4_right")
+    stop, turn = (got[n] for n in names)
+    # --- the readings: what each entry holds, and that every gate is its rule's comparison on the entry's numbers
     for s in (stop, turn):
-        assert s["ik_ok"] and s["ik_fail_frames"] == 0 and s["join_a"] is None and s["stop"] is None
+        assert s["join_a"] is None and s["stop"] is None and s["move"]["causal"] and s["move"]["command_t_s"] == 0.0
+        for key in ("zmp_error_history_m", "zmp_consistency_history_m", "zmp_consistency_all_history_m",
+                    "causal_transient_m", "post_window_zmp_error_m"):
+            assert len(s[key]) == 7, key
+        _assert_gates_are_the_rule(s)
+        assert s["reference"]["accel_filter"]["before"] == "the periodic stride of v0.4"
+    ref = stop["reference"]
+    assert ref["touchdown_foot"] == ["right", "left"] and ref["accel_filter"]["after"] == "at rest (the stand)"
+    assert ref["touchdowns_scheduled"] == 2 and len(ref["touchdown_scheduled_s"]) == 2
+    for built, planned in zip(ref["touchdown_s"], ref["touchdown_scheduled_s"], strict=True):
+        assert 0.0 <= built - planned < stop["duration_s"] / (stop["frames"] - 1)  # the first stance frame after it
+    assert [st["after_command"] for st in stop["steps"]] == [False, True, True] and stop["move"]["command_phase"] == -0.5
+    assert ref["accel_forward_lp1hz_peak_m_s2"] < ref["accel_forward_raw_peak_m_s2"]
+    assert 0.0 < ref["accel_forward_raw_peak_t_s"] < stop["duration_s"]
+    ref = turn["reference"]
+    assert ref["accel_filter"]["after"] == "the periodic stride of v0.4" and ref["at_s"] == 2.0
+    assert abs(turn["turn"]["kappa"] - 1.0) < 1e-6 and turn["turn"]["stride_factor"] == 0.8
+    assert turn["turn"]["direction"] == "right" and turn["move"]["command_phase"] == 0.5 and turn["split"] == "exact"
+    assert turn["turn"]["ramp_s"] == 0.375 and got["turn90_pi4_right/kappa"] == turn["turn"]["kappa"]
+    assert [st["after_command"] for st in turn["steps"][:2]] == [False, True]
+    # --- the gates: one assertion for both moves
+    failed = {n: sorted(k for k, v in got[n]["gates"].items() if not v) for n in names}
+    assert failed == {"stop2_v0.4": [], "turn90_pi4_right": []}, failed
+    assert stop["pass_"] and turn["pass_"]
+    # --- and what passing means, with the limits written out
+    for s in (stop, turn):
+        assert s["ik_ok"] and s["ik_fail_frames"] == 0
         assert s["join_b"]["com_max_mm"] <= 1.0 and s["join_b"]["zmp_max_mm"] <= 2.0, s["join_b"]
         jc = s["join_command"]
         assert jc["ok"] and jc["warmup_com_max_mm"] <= 1.0 and jc["warmup_zmp_max_mm"] <= 2.0, jc
         assert jc["at_command"]["com_mm"] <= 1.0 and jc["at_command"]["joint_rad"] <= 1e-3
-        assert len(s["zmp_consistency_history_m"]) == 7
-        assert s["zmp_consistency_history_m"][-1] <= moves.CONSISTENCY_LIMIT_M, s["zmp_consistency_history_m"]
-        assert s["post_window_zmp_error_m"][-1] <= moves.ZMP_HISTORY_LIMIT_M, s["post_window_zmp_error_m"]
-        assert s["cop_margin_single_min"]["m"] >= moves.CAUSAL_COP_MARGIN_M, s["cop_margin_single_min"]
-        assert all(s["gates"].values()) and s["pass_"], s["gates"]
+        assert s["zmp_consistency_history_m"][-1] <= 2.5e-3, s["zmp_consistency_history_m"]  # the first stride
+        assert s["post_window_zmp_error_m"][-1] <= 4.0e-3, s["post_window_zmp_error_m"]  # from one stride after it
+        assert s["cop_margin_single_min"]["m"] >= 0.010, s["cop_margin_single_min"]
     ref = stop["reference"]
     assert ref["touchdowns_after_command"] == 2 and ref["forward_stopped_strides"] <= 1.5
-    assert ref["accel_forward_lp1hz_peak_m_s2"] <= moves.STOP_ACCEL_LP_LIMIT_M_S2
+    assert ref["accel_forward_lp1hz_peak_m_s2"] <= 1.5
     ref = turn["reference"]
     assert ref["heading_at_bar_deg"] >= 80.0 and ref["heading_at_slowest_clock_deg"] >= 80.0
     assert abs(abs(turn["turn"]["heading_total_rad"]) - math.pi / 2) <= 1e-9
-    assert abs(turn["turn"]["kappa"] - 1.0) < 1e-6 and turn["turn"]["stride_factor"] == 0.8
-    assert turn["turn"]["direction"] == "right" and turn["move"]["command_phase"] == 0.5
-    assert turn["hip_yaw_range_use"] <= moves.TWIST_FINAL and turn["split"] == "exact"
+    assert turn["hip_yaw_range_use"] <= 0.87
