@@ -9,7 +9,13 @@ Arrays and clocks.  ``t_u`` are the times of the 100 Hz update rows (simulated s
 ``[steps, 2]`` per physics step (left, right), already debounced (``contact_flags``); ``dt`` is the physics step.
 By the recorder's convention a row's time is the start of the physics step just taken and a step's loads are read
 after it, so physics step ``a`` and a row with ``t = a dt`` are one instant: a step is put on the rows' clock as
-``(a + STEP_OFFSET) dt``.  Times are compared with ``EPS_S`` of slack, far below a physics step.
+``(a + STEP_OFFSET) dt``.  Times are compared with ``EPS_S`` of slack, far below a physics step, and headings
+against their limits with ``EPS_DEG``.  ``t_u`` must therefore be float64: the recorder's own times or, for a trace
+read again, times rebuilt as ``row * every * dt`` (within 2e-12 s of the recorder's on a 20 s episode; the own-swing
+reading then comes back to 1e-12 m, and to 1e-9 m from float32 low points).  Times that went through float32 are off
+by up to 1e-6 s past 16 s (25.6 s becomes 25.600000381 s), far more than ``EPS_S``: an update that sits on a
+lift-off, a touchdown or a window's edge can change sides, and the reading is not the live one (4e-7 m per swing on
+that episode).
 
 (a) ``toe_clearance_own_swing``: per foot, an *air run* is a maximal run of steps out of contact that starts after
 a contact step (lift-off step a, ``t_lo``) and ends at a contact step (touchdown step b, ``t_td``); ``D = t_td -
@@ -21,7 +27,12 @@ swing wholly inside the window (``t_lo >= ta``, ``t_td <= tb``) is read as the m
 its value interpolated linearly between rows at ``t_lo + 0.25 D`` and at ``t_lo + 0.75 D`` and every row strictly
 between those times.  Choices this file makes where the rule's text leaves room, each stated in the function's
 docstring: which reference swings are "in the window" (those wholly inside it and complete in the trace), and that
-air gaps are counted when wholly inside the window.
+air gaps are counted when wholly inside the window.  The ends of a foot's own swing are thus where its debounced
+load crosses 2 % of the weight, not the planned swing's ends, and the reading is not Stage 1's reading moved in
+time.  On Stage 1's stock nominal and brisk walks of 75-M-H-10 (rows R2/42 and R0, seed 3042, hard floor, no servo
+delay; read on 15 Nov 2026) the own lift-off came within 4 ms of the planned one (medians) and the own touchdown a
+median 3 to 23 ms after it; the 75 % edge then lies on the foot's falling flank and gave the minimum in 70 of 72
+swings, and the reading was 0.004 to 0.017 H below Stage 1's (R0: 0.033 and 0.036 H, under the 0.04 H limit).
 
 (b) ``line_reading``, (c) ``turn_reading``, (e) ``stop_reading`` and ``touchdowns``: the walk's, the turn's and the
 stop's readings.  ``drive_ratios``: each drive's RMS over its sustained rating over a span of steps, with the worst
@@ -38,6 +49,9 @@ from scipy.signal import butter, filtfilt
 
 #: Slack of every time comparison (s).
 EPS_S = 1e-9
+#: Slack of every comparison of a heading with its limit (deg): a heading of exactly 80 deg against a commanded
+#: 90 deg reads an error of -10.00000000000001 deg through the radians.
+EPS_DEG = 1e-9
 #: Physics step ``a`` is the instant ``(a + STEP_OFFSET) * dt`` on the update rows' clock (module docstring).
 STEP_OFFSET = 0
 #: Contact, as Stage 1 reads it: a foot carrying more than this share of the weight, runs shorter than
@@ -167,6 +181,10 @@ def toe_clearance_own_swing(t_u, low, contact, dt: float, ref_swing, ta: float, 
       order; ``class`` is one of ``SWING_CLASSES`` and ``min_m`` is None unless the class is ``"swing"``;
     * ``count_ok``: per foot ``own_swings >= ref_swings - 1``.
 
+    A low point that is not finite where a swing is read (either edge's two neighbouring rows, or a row between
+    the edges) raises ``ValueError``: such an episode cannot be read (Python's ``min`` would drop a NaN or return
+    it, by its place).
+
     The term (``toe_clearance_own_swing_ok``) needs the reading at or above 0.04 H, no interrupted swing and
     ``count_ok``; this function does not apply the 0.04 H threshold."""
     t = np.asarray(t_u, float)
@@ -205,8 +223,10 @@ def toe_clearance_own_swing(t_u, low, contact, dt: float, ref_swing, ta: float, 
             if swing and inside:
                 t1, t2 = t_lo + mid[0] * D, t_lo + mid[1] * D
                 between = low[(t > t1) & (t < t2), i]
-                value = float(min(np.interp(t1, t, low[:, i]), np.interp(t2, t, low[:, i]),
-                                  np.min(between) if len(between) else math.inf))
+                edge1, edge2 = float(np.interp(t1, t, low[:, i])), float(np.interp(t2, t, low[:, i]))
+                if not (math.isfinite(edge1) and math.isfinite(edge2) and np.all(np.isfinite(between))):
+                    raise ValueError(f"low is not finite inside a read swing (foot {i}, {t_lo:.3f} to {t_td:.3f} s)")
+                value = float(min(edge1, edge2, np.min(between) if len(between) else math.inf))
                 readings.append(value)
                 own[i] += 1
             elif inside:
@@ -244,13 +264,16 @@ def line_reading(t_u, com_xy, heading: float, ta: float, tb: float, c_episode_st
     ``lateral_end_m`` is the offset at ``tb``, positive to the left of the heading;
     ``lateral_from_episode_start_line_max_m`` is the same largest distance from the line through
     ``c_episode_start`` (reported; None without it).  ``complete`` is false, and the values None, when the window
-    holds fewer than two updates."""
+    holds fewer than two updates.  ``window_reached`` is false when the trace does not span ``[ta, tb]``: a trace
+    that ends before ``tb`` still gives values (``c(tb)`` is then the last update's, so ``along`` is a shorter
+    walk's), and the caller treats that as an episode that cannot be read (a fall apart), not as a failed term."""
     t = np.asarray(t_u, float)
     c = np.asarray(com_xy, float)
     h = np.array([math.cos(heading), math.sin(heading)])
     left = np.array([-h[1], h[0]])
     sel = (t >= ta - EPS_S) & (t <= tb + EPS_S)
-    out = dict(t_start_s=float(ta), t_end_s=float(tb), updates=int(sel.sum()))
+    out = dict(t_start_s=float(ta), t_end_s=float(tb), updates=int(sel.sum()),
+               window_reached=bool(len(t) and t[0] <= ta + EPS_S and t[-1] >= tb - EPS_S))
     if out["updates"] < 2:
         return dict(out, complete=False, anchor_s=None, anchor_xy=None, along_commanded_heading_m=None,
                     lateral_from_line_max_m=None, lateral_end_m=None, lateral_from_episode_start_line_max_m=None)
@@ -284,7 +307,7 @@ def turn_reading(t_u, yaw_unwrapped, t_c: float, psi_cmd: float, sign: float, an
     end is within ``tol_deg`` (None: the last one is not).  Reported: ``turned_own_deg = psi(t_c + at_s) -
     psi(t_c)`` (positive to the left) and ``trunk_heading_at_command_deg = psi(t_c) - psi_cmd``.
     ``window_reached`` is false when the trace does not span ``[t_c, t_c + at_s + hold_s]``: the term is then
-    false and what cannot be read is None."""
+    false and what cannot be read is None.  "Within ``tol_deg``" is ``|err| <= tol_deg + EPS_DEG``."""
     t = np.asarray(t_u, float)
     psi = np.asarray(yaw_unwrapped, float).copy()
     t_at, t_end = t_c + at_s, t_c + at_s + hold_s
@@ -310,9 +333,9 @@ def turn_reading(t_u, yaw_unwrapped, t_c: float, psi_cmd: float, sign: float, an
     hold = (t >= t_at - EPS_S) & (t <= t_end + EPS_S)
     worst = float(np.max(np.abs(err[hold]))) if hold.any() else abs(err_at)
     out.update(window_reached=True, heading_error_hold_max_deg=worst,
-               heading=bool(abs(err_at) <= tol_deg and worst <= tol_deg))
+               heading=bool(abs(err_at) <= tol_deg + EPS_DEG and worst <= tol_deg + EPS_DEG))
     span = np.flatnonzero((t >= t_c - EPS_S) & (t <= t_end + EPS_S))
-    within = np.abs(err[span]) <= tol_deg
+    within = np.abs(err[span]) <= tol_deg + EPS_DEG
     if len(span) and within[-1]:
         off = np.flatnonzero(~within)
         first = span[off[-1] + 1] if len(off) else span[0]
@@ -421,12 +444,13 @@ def drive_ratios(force_sq, sustained, actuators, leg_mask, k0: int, k1: int) -> 
 # What a reference's own file can say
 # ------------------------------------------------------------------------------------------------
 def reference_heading_at(arrays: dict, tau_s: float, rate: float) -> float:
-    """The heading of a transition-format file (``t``, ``heading``) at its own time ``rate * tau_s``, less its
-    first heading, in degrees (positive to the left).  ``tau_s`` is bar time since the command, which is the file's
-    first frame; ``rate`` is the clock's (``RATE`` nominal).  Past the file's last frame the last heading holds."""
+    """The heading of a transition-format file (``t``, ``heading``) at its own time ``rate * tau_s`` after its
+    first frame, less its first heading, in degrees (positive to the left).  ``tau_s`` is bar time since the
+    command, which is the file's first frame (whatever ``t[0]`` is); ``rate`` is the clock's (``RATE`` nominal).
+    Past the file's last frame the last heading holds."""
     t = np.asarray(arrays["t"], float)
     h = np.asarray(arrays["heading"], float)
-    return math.degrees(float(np.interp(rate * tau_s, t, h)) - float(h[0]))
+    return math.degrees(float(np.interp(t[0] + rate * tau_s, t, h)) - float(h[0]))
 
 
 def _forward_acceleration(t, com_xy, heading) -> tuple[np.ndarray, np.ndarray]:
@@ -443,9 +467,10 @@ def _forward_acceleration(t, com_xy, heading) -> tuple[np.ndarray, np.ndarray]:
 def reference_readings(arrays: dict, kind: str, walk: dict | None = None) -> dict:
     """What a move's own file (transition format: ``t``, ``com``, ``heading``, ``support``) says of the bar's
     readings, on the reference's clock unless a key says otherwise.  No toe clearance: a file holds no toe points
-    (the set's screen has it).  ``walk`` gives the numbers of the move's own walk and command that the file does
-    not hold: ``speed_m_s`` and ``period_s`` (or ``speed``, ``period``, as an entry's ``gaits.a``) for a stop,
-    ``duty`` optionally; ``at_s`` or ``rate_rad_s`` for a turn.
+    (the set's screen has it).  Every time returned is counted from the file's first frame.  ``walk`` gives the
+    numbers of the move's own walk and command that the file does not hold: ``speed_m_s`` and ``period_s`` (or
+    ``speed``, ``period``, as an entry's ``gaits.a``) for a stop, ``duty`` optionally; ``at_s`` or ``rate_rad_s``
+    for a turn.
 
     Every kind: ``accel_forward_lp1hz_peak_m_s2``, the largest ``|a|`` of the model CoM's acceleration along the
     heading after the 1 Hz filter (on a uniform 500 Hz resample).
@@ -475,16 +500,17 @@ def reference_readings(arrays: dict, kind: str, walk: dict | None = None) -> dic
         if speed is None or period is None:
             raise ValueError("a stop's readings need the walk's speed_m_s and period_s")
         sup = np.asarray(arrays["support"], bool)
-        tds = sorted((float(t[k]), i) for i in range(sup.shape[1]) for k in np.flatnonzero(sup[1:, i] & ~sup[:-1, i]) + 1)
+        tds = sorted((float(t[k] - t[0]), i) for i in range(sup.shape[1])
+                     for k in np.flatnonzero(sup[1:, i] & ~sup[:-1, i]) + 1)
         v = np.gradient(com, t, axis=0)
         vf = v[:, 0] * np.cos(heading) + v[:, 1] * np.sin(heading)
         fast = np.flatnonzero(np.abs(vf) >= STOP_SPEED_FRAC * float(speed))
         if not len(fast):
-            t_stop = float(t[0])
+            t_stop = 0.0
         elif fast[-1] == len(t) - 1:
             t_stop = None
         else:
-            t_stop = float(t[fast[-1] + 1])
+            t_stop = float(t[fast[-1] + 1] - t[0])
         duty = walk.get("duty")
         out.update(touchdowns_after_command=len(tds), touchdown_s=[x for x, _ in tds],
                    touchdown_feet=[int(i) for _, i in tds], forward_stopped_s=t_stop,
@@ -501,17 +527,18 @@ def reference_readings(arrays: dict, kind: str, walk: dict | None = None) -> dic
         total = float(heading[-1] - heading[0])
         sgn = 1.0 if total >= 0 else -1.0
         turned = sgn * np.degrees(heading - heading[0])
-        k = np.flatnonzero(turned >= REFERENCE_HEADING_MIN_DEG)
+        k = np.flatnonzero(turned >= REFERENCE_HEADING_MIN_DEG - EPS_DEG)
         if not len(k):
             t80 = None
         elif k[0] == 0:
             t80 = 0.0
         else:
             j = int(k[0])
-            t80 = float(np.interp(REFERENCE_HEADING_MIN_DEG, turned[j - 1 : j + 1], t[j - 1 : j + 1])) / RATE
+            t80 = float(np.interp(REFERENCE_HEADING_MIN_DEG, turned[j - 1 : j + 1], t[j - 1 : j + 1]) - t[0]) / RATE
         bar = sgn * reference_heading_at(arrays, at_s, RATE)
         slow = sgn * reference_heading_at(arrays, at_s, (1.0 - PHASE_RATE_LIMIT) * RATE)
         out.update(heading_total_rad=total, at_s=at_s, heading_at_bar_deg=bar, heading_at_slowest_clock_deg=slow,
                    heading_at_ref_clock_deg=sgn * reference_heading_at(arrays, at_s, 1.0), time_to_80deg_bar_s=t80,
-                   heading_ok=bool(bar >= REFERENCE_HEADING_MIN_DEG and slow >= REFERENCE_HEADING_MIN_DEG))
+                   heading_ok=bool(bar >= REFERENCE_HEADING_MIN_DEG - EPS_DEG
+                                   and slow >= REFERENCE_HEADING_MIN_DEG - EPS_DEG))
     return out

@@ -1,5 +1,6 @@
 """Tests for the bar's readings (designlab/stage2/readings.py): the round-A design's section 4.4 table, row by row, on
-synthetic arrays.
+synthetic arrays, and then one test for each clause of the rules that the table's rows cannot fail on (the review of
+15 Nov 2026 changed ``readings.py`` one wrong rule at a time; each of those tests names the clause it holds).
 
 Run from hardware/trex_form_study (the fit's venv):  python -m pytest tests/test_stage2_readings.py -q
 All fast.  ``readings`` itself loads neither MuJoCo nor Stage 1 (checked in a child process); the two tests that
@@ -573,7 +574,7 @@ def test_reference_readings_of_a_turn():
     assert set(R.reference_readings(arr, "change")) == {"kind", "accel_forward_lp1hz_peak_m_s2"}
 
 
-def test_reference_readings_of_a_stop():
+def stop_file():
     """A stop file: the forward speed ramps from 0.40 m/s to rest over [0.3, 1.0] s; two touchdowns after frame 0."""
     t = np.linspace(0.0, 3.0, 601)
     x = np.clip((t - 0.3) / 0.7, 0.0, 1.0)
@@ -584,6 +585,12 @@ def test_reference_readings_of_a_stop():
     support = np.ones((len(t), 2), bool)
     support[:70, 1] = False  # the right foot is in the air at the command and lands at frame 70
     support[82:150, 0] = False  # the left foot's last step
+    return t, com, heading, support
+
+
+def test_reference_readings_of_a_stop():
+    """``stop_file``: touchdowns, the stopped time, the acceleration peaks and the earlier step's margin."""
+    t, com, heading, support = stop_file()
     walk = dict(speed=0.40, period=0.8606, duty=0.5732)  # an entry's gaits.a
     r = R.reference_readings(dict(t=t, com=com, heading=heading, support=support), "stop", walk)
     assert r["touchdowns_after_command"] == 2 and r["touchdown_feet"] == [1, 0]
@@ -601,6 +608,297 @@ def test_reference_readings_of_a_stop():
     assert same["forward_stopped_s"] == r["forward_stopped_s"] and same["margin_before_command_s"] is None
     with pytest.raises(ValueError):
         R.reference_readings(dict(t=t, com=com, heading=heading, support=support), "stop")
+
+
+def test_reference_readings_count_from_the_files_first_frame():
+    """A file whose ``t`` starts at 3.0 s reads as the same file from zero: the command is the first frame, whatever
+    its time."""
+    arr = turn_file()
+    late = dict(arr, t=arr["t"] + 3.0)
+    for rate in (1.05, 0.9975, 1.0):
+        for tau in (0.7, 2.0):
+            zero_based = R.reference_heading_at(arr, tau, rate)
+            assert R.reference_heading_at(late, tau, rate) == pytest.approx(zero_based, abs=1e-9)
+    a, b = (R.reference_readings(x, "turn", dict(at_s=2.0)) for x in (arr, late))
+    for key in ("heading_at_bar_deg", "heading_at_slowest_clock_deg", "heading_at_ref_clock_deg",
+                "time_to_80deg_bar_s"):
+        assert b[key] == pytest.approx(a[key], abs=1e-9), key
+    assert 80.0 < a["heading_at_slowest_clock_deg"] < 90.0 and a["time_to_80deg_bar_s"] < 2.0
+    assert b["heading_ok"]
+    assert b["accel_forward_lp1hz_peak_m_s2"] == pytest.approx(a["accel_forward_lp1hz_peak_m_s2"], rel=1e-6)
+    t, com, heading, support = stop_file()
+    walk = dict(speed_m_s=0.40, period_s=0.8606)
+    a = R.reference_readings(dict(t=t, com=com, heading=heading, support=support), "stop", walk)
+    b = R.reference_readings(dict(t=t + 3.0, com=com, heading=heading, support=support), "stop", walk)
+    assert b["touchdown_s"] == [pytest.approx(x, abs=1e-12) for x in a["touchdown_s"]] and a["touchdown_s"][0] < 0.5
+    assert b["forward_stopped_s"] == pytest.approx(a["forward_stopped_s"], abs=1e-12) and a["forward_stopped_s"] < 1.0
+    assert b["forward_stopped_strides"] == pytest.approx(a["forward_stopped_strides"], abs=1e-12)
+    # a file already at rest is stopped at its first frame: 0 s after it, wherever the file's clock starts
+    still = dict(t=t + 3.0, com=np.zeros((len(t), 3)), heading=heading, support=np.ones((len(t), 2), bool))
+    assert R.reference_readings(still, "stop", walk)["forward_stopped_s"] == 0.0
+
+
+def test_reference_heading_of_exactly_80_deg_is_ok():
+    """G9's rule is "at least 80 deg".  From a first heading of 0.6 rad, a file that turns exactly 80 deg reads
+    79.99999999999999 deg through the radians: ``EPS_DEG`` takes that up; 79.999 deg stays short."""
+    t = np.linspace(0.0, 4.0, 401)
+
+    def file(deg):
+        heading = 0.6 + np.interp(t, [0.0, 1.9], [0.0, math.radians(deg)])  # there from 1.9 s of its own time on
+        return dict(t=t, heading=heading, com=np.column_stack([0.4 * t, np.zeros(len(t)), np.full(len(t), 0.45)]))
+
+    r = R.reference_readings(file(80.0), "turn", dict(at_s=2.0))
+    assert 80.0 - R.EPS_DEG < r["heading_at_bar_deg"] < 80.0  # the case meant: the arithmetic falls short
+    assert 80.0 - R.EPS_DEG < r["heading_at_slowest_clock_deg"] < 80.0
+    assert r["heading_ok"] and r["time_to_80deg_bar_s"] == pytest.approx(1.9 / R.RATE, abs=1e-12)
+    r = R.reference_readings(file(79.999), "turn", dict(at_s=2.0))
+    assert not r["heading_ok"] and r["time_to_80deg_bar_s"] is None
+
+
+# ------------------------------------------------------------------------------------------------
+# One test per clause of the rules that the table's rows cannot fail on (review of 15 Nov 2026)
+# ------------------------------------------------------------------------------------------------
+RAMP_LIFT = 0.040
+GAP_S = 0.1667
+
+
+def bare_trace(seconds=4.0):
+    """Both feet down and no reference swing: steps, t_u, contact [steps, 2], low [rows, 2], ref_swing [rows]."""
+    n = int(round(seconds / DT))
+    t_u = np.arange(0, n, EVERY) * DT
+    return n, t_u, np.ones((n, 2), bool), np.zeros((len(t_u), 2)), -np.ones(len(t_u))
+
+
+def put_swing(t_u, contact, low, ref, foot, a, steps, shape, ref_a=None, ref_steps=None):
+    """An air run of ``foot`` from step ``a`` over ``steps`` with the low point ``shape(u)``; with ``ref_a``, the
+    reference's swing of that foot from step ``ref_a`` over ``ref_steps``."""
+    contact[a : a + steps, foot] = False
+    u = (t_u - a * DT) / (steps * DT)
+    m = (u >= 0) & (u <= 1)
+    low[m, foot] = shape(u[m])
+    if ref_a is not None:
+        ref[(t_u >= ref_a * DT - 1e-12) & (t_u < (ref_a + ref_steps) * DT - 1e-12)] = foot
+
+
+def read_swing(t_u, low, contact, ref, ta=0.2, tb=3.9, gap=GAP_S):
+    return R.toe_clearance_own_swing(t_u, low, contact, DT, ref, ta, tb, gap)
+
+
+@pytest.mark.parametrize("edge", ["25 % edge", "75 % edge"])
+def test_each_edge_is_interpolated(edge):
+    """A ramp whose minimum over the middle half lies at one edge only (rising: the 25 % edge; falling: the 75 %
+    edge), with the lift-off 4 ms off the row grid.  The interpolation is exact on a ramp; the rows alone
+    over-read."""
+    shape = (lambda u: RAMP_LIFT * u) if edge == "25 % edge" else (lambda u: RAMP_LIFT * (1 - u))
+    n, t_u, contact, low, ref = bare_trace()
+    put_swing(t_u, contact, low, ref, 0, 502, 175, shape, 500, 175)
+    r = read_swing(t_u, low, contact, ref)
+    assert r["toe_clearance_own_swing_m"] == pytest.approx(0.25 * RAMP_LIFT, abs=1e-12)
+    rows = low[(t_u > 502 * DT + 0.25 * SWING_S) & (t_u < 502 * DT + 0.75 * SWING_S), 0]
+    assert rows.min() > 0.25 * RAMP_LIFT + 1e-4
+
+
+def test_rows_between_the_edges_are_read():
+    """A foot 30 mm up at both edges that dips to 5 mm at one update in mid swing."""
+    n, t_u, contact, low, ref = bare_trace()
+    put_swing(t_u, contact, low, ref, 0, 500, 175, lambda u: 0.030 + 0 * u, 500, 175)
+    low[117, 0] = 0.005  # the update at 1.17 s
+    assert read_swing(t_u, low, contact, ref)["toe_clearance_own_swing_m"] == pytest.approx(0.005, abs=1e-15)
+
+
+def test_a_low_point_that_is_not_finite_where_a_swing_is_read_raises():
+    """The swing lifts at 1.0 s and lands at 1.35 s: its edges, at 1.0875 s and 1.2625 s, are carried by the updates
+    at 1.08, 1.09 and 1.26, 1.27 s, and the updates from 1.09 to 1.26 s lie between them.  A NaN or an infinite value
+    at any of those cannot be read; one anywhere else changes nothing; a swing that is not read is not checked."""
+    n, t_u, contact, low, ref = bare_trace()
+    put_swing(t_u, contact, low, ref, 0, 500, 175, lambda u: RAMP_LIFT * np.sin(np.pi * u) ** 2, 500, 175)
+    clean = read_swing(t_u, low, contact, ref)
+    assert clean["toe_clearance_own_swing_m"] == pytest.approx(0.5 * RAMP_LIFT, abs=1e-5)
+    for row, value in ((108, np.nan), (109, np.nan), (117, np.nan), (126, np.nan), (127, np.nan), (117, np.inf),
+                       (117, -np.inf)):
+        bad = low.copy()
+        bad[row, 0] = value
+        with pytest.raises(ValueError, match="not finite inside a read swing"):
+            read_swing(t_u, bad, contact, ref)
+    # the update before the edges' own, the one after them, one in stance, and the other foot's
+    for row, foot in ((107, 0), (128, 0), (50, 0), (117, 1)):
+        ok = low.copy()
+        ok[row, foot] = np.nan
+        assert read_swing(t_u, ok, contact, ref)["toe_clearance_own_swing_m"] == clean["toe_clearance_own_swing_m"]
+    bad = low.copy()
+    bad[117, 0] = np.nan
+    r = read_swing(t_u, bad, contact, ref, ta=1.004)  # the window cuts the swing: not read, so not checked
+    assert r["toe_clearance_own_swing_m"] is None and [row[3:] for row in r["swings"]] == [[None, "swing_cut"]]
+
+
+def test_a_swing_cut_by_the_windows_start_is_not_read():
+    """The window starts 4 ms after the lift-off of a 1 mm hop: the hop is not read (``t_lo >= ta``)."""
+    n, t_u, contact, low, ref = bare_trace()
+    put_swing(t_u, contact, low, ref, 0, 500, 175, lambda u: 0.001 * np.sin(np.pi * u) ** 2, 500, 175)
+    put_swing(t_u, contact, low, ref, 0, 1000, 175, lambda u: RAMP_LIFT * np.sin(np.pi * u) ** 2, 1000, 175)
+    r = read_swing(t_u, low, contact, ref, ta=1.004)
+    assert [row[4] for row in r["swings"]] == ["swing_cut", "swing"] and r["own_swings"] == [1, 0]
+    assert r["toe_clearance_own_swing_m"] > 0.015
+
+
+def test_overlap_takes_updates_from_the_lift_off_up_to_but_not_at_the_touchdown():
+    """``t_lo <= t < t_td``: chatter that ends exactly on the first update of the reference's swing is an air gap;
+    chatter that starts exactly on its last update is a swing."""
+    n, t_u, contact, low, ref = bare_trace()
+    ref[(t_u >= 1.0 - 1e-12) & (t_u < 1.35 - 1e-12)] = 0  # the updates at 1.00 .. 1.34 s
+    contact[485:500, 0] = False  # 0.970 -> 1.000 s: the touchdown is at the swing's first update
+    assert [row[4] for row in read_swing(t_u, low, contact, ref)["swings"]] == ["air_gap"]
+    contact[:] = True
+    contact[670:685, 0] = False  # 1.340 -> 1.370 s: the lift-off is at the swing's last update
+    assert [row[4] for row in read_swing(t_u, low, contact, ref)["swings"]] == ["swing"]
+
+
+def test_an_air_run_of_exactly_air_gap_max_is_a_swing():
+    """``D >= air_gap_max_s``, away from every reference swing."""
+    n, t_u, contact, low, ref = bare_trace()
+    contact[800:884, 0] = False
+    assert [row[4] for row in read_swing(t_u, low, contact, ref, gap=84 * DT)["swings"]] == ["swing"]
+    assert [row[4] for row in read_swing(t_u, low, contact, ref, gap=85 * DT)["swings"]] == ["air_gap"]
+
+
+def test_a_cut_swing_still_counts_for_its_reference_swing():
+    """This file's stated choice: a reference swing wholly inside the window whose second swing lands after ``tb``
+    is interrupted, though that second swing is not read."""
+    n, t_u, contact, low, ref = bare_trace()
+    ref[(t_u >= 1.0 - 1e-12) & (t_u < 1.35 - 1e-12)] = 0
+    ref[(t_u >= 3.0 - 1e-12) & (t_u < 3.35 - 1e-12)] = 0
+    contact[500:560, 0] = False
+    contact[580:800, 0] = False  # the second part of the first reference swing lands at 1.600 s, after tb = 1.5 s
+    r = read_swing(t_u, low, contact, ref, tb=1.5)
+    assert r["ref_swings"] == [1, 0] and r["interrupted_swings"] == 1
+    assert [row[4] for row in r["swings"]] == ["swing", "swing_cut"] and r["own_swings"] == [1, 0]
+
+
+def test_along_is_the_projection_on_the_commanded_heading():
+    """4.1 m walked 20 deg off the commanded heading is 3.853 m along it: ``along`` fails at 0.40 m/s."""
+    t = np.arange(1001) * 0.01
+    off = math.radians(50.0)
+    com = np.outer(0.41 * t, [math.cos(off), math.sin(off)])
+    r = R.line_reading(t, com, math.radians(30.0), 0.0, 10.0)
+    assert r["along_commanded_heading_m"] == pytest.approx(4.1 * math.cos(math.radians(20.0)), abs=1e-12)
+    assert r["along_commanded_heading_m"] < R.WALK_WINDOW_S * 0.40
+    assert r["lateral_end_m"] == pytest.approx(4.1 * math.sin(math.radians(20.0)), abs=1e-12)
+
+
+def test_line_reading_says_whether_the_trace_spans_the_window():
+    """A trace that ends before ``tb`` (or starts after ``ta``) still gives values, a shorter walk's:
+    ``window_reached`` is what tells the caller."""
+    heading = math.radians(30.0)
+    t, com, _ = line_case(4.2, 0.0)  # updates from 0 to 14.0 s
+    assert R.line_reading(t, com, heading, 4.0, 14.0)["window_reached"]
+    assert R.line_reading(t, com, heading, 0.0, 14.0)["window_reached"]  # the trace's own ends
+    r = R.line_reading(t, com, heading, 5.99, 15.99)  # the trace ends 1.99 s before the window does
+    assert r["complete"] and not r["window_reached"]
+    assert r["along_commanded_heading_m"] == pytest.approx(4.2 * (14.0 - 5.99) / 10.0, abs=1e-9)
+    r = R.line_reading(t[500:], com[500:], heading, 4.0, 14.0)  # the trace starts 1 s after the window does
+    assert r["complete"] and not r["window_reached"] and r["anchor_s"] == pytest.approx(5.0, abs=1e-12)
+    r = R.line_reading(t, com, heading, 20.0, 30.0)
+    assert not r["complete"] and not r["window_reached"]
+    assert not R.line_reading(t[:0], com[:0], heading, 4.0, 14.0)["window_reached"]
+
+
+def test_heading_needs_the_reading_instant_itself():
+    """The command lies between updates; the heading interpolated at ``t_c + at_s`` is 79.54 deg while every update
+    of the hold is within 10 deg: the term fails."""
+    t = np.arange(1200) * 0.01
+    t_c = 3.1374
+    k = int(np.searchsorted(t, t_c + 2.0))
+    yaw = np.radians(np.interp(t, [0, t_c, t[k - 1], t[k], t[k] + 0.5, 12], [0, 0, 77.67, 80.2, 90, 90]))
+    r = R.turn_reading(t, yaw, t_c, 0.0, 1.0, math.pi / 2, 2.0)
+    assert r["window_reached"] and r["heading_error_hold_max_deg"] < 10.0
+    assert r["heading_error_at_deg"] == pytest.approx(-10.46, abs=0.01) and not r["heading"]
+
+
+def test_heading_limit_takes_rounding_slack():
+    """A heading of exactly 80 deg at the reading instant is within 10 deg of the commanded 90 deg, though through
+    the radians its error reads -10.000000000000002 deg: ``EPS_DEG`` takes that up and nothing more."""
+    r = turn(*yaw_law([(2.0, 80.0), (2.5, 90.0)]))
+    assert 10.0 < abs(r["heading_error_at_deg"]) < 10.0 + R.EPS_DEG  # the case meant: the arithmetic falls short
+    assert r["heading"] and r["heading_error_hold_max_deg"] == abs(r["heading_error_at_deg"])
+    assert r["time_to_within_10deg_s"] == pytest.approx(2.0, abs=1e-9)  # the update at the instant, not the next one
+    r = turn(*yaw_law([(2.0, 80.0), (2.5, 90.0)], sign=-1.0), sign=-1.0)
+    assert 10.0 < abs(r["heading_error_at_deg"]) < 10.0 + R.EPS_DEG and r["heading"]
+    r = turn(*yaw_law([(2.0, 79.999), (2.5, 90.0)]))
+    assert not r["heading"] and r["time_to_within_10deg_s"] == pytest.approx(2.01, abs=1e-9)
+    # the same at the band's other edge, during the hold: an overshoot to exactly 100 deg is within, 100.001 is not
+    r = turn(*yaw_law([(2.0, 90.0), (2.5, 100.0), (3.5, 90.0)]))
+    assert r["heading"] and r["heading_error_hold_max_deg"] == pytest.approx(10.0, abs=R.EPS_DEG)
+    assert not turn(*yaw_law([(2.0, 90.0), (2.5, 100.001), (3.5, 90.0)]))["heading"]
+
+
+def stop_arrays(vf, heading=0.0, side=0.0, seconds=9.0):
+    """Steps, update times, CoM and velocity of a body whose speed along ``heading`` is ``vf(t)`` and whose speed
+    to the left of it is ``side``."""
+    n = int(round(seconds / DT))
+    t = np.arange(0, n, EVERY) * DT
+    h = np.array([math.cos(heading), math.sin(heading)])
+    v = np.outer(vf(t), h) + np.outer(np.full(len(t), side), [-h[1], h[0]])
+    return n, t, np.cumsum(v, 0) * 0.01, v
+
+
+def ramp_down(t):
+    """0.42 m/s until 4.0 s, then down to rest over 0.8 s: under 5 % of 0.42 m/s from the update at 4.77 s on."""
+    return 0.42 * np.clip(1 - (t - 4.0) / 0.8, 0, 1)
+
+
+def stop_at_4s(t, com, v, contact, heading=0.0, t_c=4.0):
+    return R.stop_reading(t, com, v, contact, DT, t_c, heading, 0.42, 0.82)
+
+
+def test_stopped_means_staying_under_five_percent_in_either_direction():
+    """A dip under 5 % that does not last is not the stop; a backward creep of 6 % is not a stop."""
+    n, t, com, v = stop_arrays(lambda t: ramp_down(t) + 0.08 * 0.42 * ((t > 5.2) & (t < 5.6)))
+    r = stop_at_4s(t, com, v, np.ones((n, 2), bool))
+    assert r["forward_stopped_s"] == pytest.approx(1.6, abs=1e-9)  # not 0.77 s, the first dip under 5 %
+    n, t, com, v = stop_arrays(lambda t: ramp_down(t) - 0.06 * 0.42 * (t > 5.0))
+    assert not stop_at_4s(t, com, v, np.ones((n, 2), bool))["stopped_by_end"]
+
+
+def test_stop_reads_the_speed_along_the_commanded_heading():
+    """On a heading of 35 deg, a sideways speed of 0.1 m/s is not forward speed; read along x the body never
+    stops."""
+    n, t, com, v = stop_arrays(ramp_down, heading=math.radians(35.0), side=0.1)
+    r = stop_at_4s(t, com, v, np.ones((n, 2), bool), heading=math.radians(35.0))
+    assert r["stopped_by_end"] and r["forward_stopped_s"] == pytest.approx(0.77, abs=1e-9)
+    assert not stop_at_4s(t, com, v, np.ones((n, 2), bool), heading=0.0)["stopped_by_end"]
+
+
+def test_a_touchdown_at_t_stop_counts_and_the_first_update_is_at_or_after_the_command():
+    """``t_c < t <= t_stop``: a touchdown at the stopped instant counts, one physics step later it does not.  And
+    ``t_stop`` is never before the command: with the speed already under 5 % at the first update at or after an
+    off-grid command, it is that update."""
+    n, t, com, v = stop_arrays(ramp_down)
+    contact = np.ones((n, 2), bool)
+    contact[2100:2385, 0] = False  # lands at step 2385 = 4.770 s = t_stop
+    r = stop_at_4s(t, com, v, contact)
+    assert r["forward_stopped_s"] == pytest.approx(0.77, abs=1e-9) and r["touchdowns_after_command"] == 1
+    contact[2385, 0] = False  # one step later: after the stop
+    r = stop_at_4s(t, com, v, contact)
+    assert r["touchdowns_after_command"] == 0 and r["touchdowns_to_end"] == 1
+    n, t, com, v = stop_arrays(lambda t: 0.42 * (t < 3.9))
+    r = stop_at_4s(t, com, v, np.ones((n, 2), bool), t_c=3.996)
+    assert r["forward_stopped_s"] == pytest.approx(0.004, abs=1e-9)
+
+
+def test_the_raw_deceleration_peak_is_over_two_strides_from_the_command():
+    """A drop of 0.3 m/s three seconds before the command (15 m/s^2 by central differences) is not the stop's."""
+    n, t, com, v = stop_arrays(lambda t: ramp_down(t) + 0.3 * (t < 1.0))
+    r = stop_at_4s(t, com, v, np.ones((n, 2), bool))
+    assert r["deceleration_raw_peak_m_s2"] == pytest.approx(0.42 / 0.8, rel=1e-6)
+
+
+def test_a_drive_exactly_at_its_rating_passes():
+    """ "Every drive at or under 1." """
+    f = np.full((100, 2), 3.0)
+    r = R.drive_ratios(f**2, np.array([3.0, 6.0]), ["knee", "tail"], np.array([True, False]), 0, 100)
+    assert r["worst"] == ["knee", 1.0] and r["drive_sustained"] and r["drive_sustained_legs"]
+    r = R.drive_ratios(f**2, np.array([3.0 * (1 - 1e-12), 6.0]), ["knee", "tail"], np.array([True, False]), 0, 100)
+    assert not r["drive_sustained"] and not r["drive_sustained_legs"]
 
 
 # ------------------------------------------------------------------------------------------------

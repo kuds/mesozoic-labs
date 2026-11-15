@@ -384,6 +384,11 @@ def test_built_by_here():
     assert b["stage2_modules"] == {f"designlab/stage2/{n}": s2io.sha256_file(ROOT / "designlab" / "stage2" / n)
                                    for n in ("s2io.py", "setio.py", "readings.py")}
     assert b["accuracy"] == "r2"  # the level inside the item's block, where it was called
+    try:  # ... and outside a block the record says what the level was, not "r2"
+        gait.set_accuracy("r1")
+        assert s2io.built_by(["s2io.py"])["accuracy"] == "r1"
+    finally:
+        gait.set_accuracy(before)
     assert b["blas_threads"] == s2io.blas_threads()
     assert len(b["at"]) == 20 and b["at"].endswith("Z") and b["at"][10] == "T"
     if b["dirty_paths"] is not None:
