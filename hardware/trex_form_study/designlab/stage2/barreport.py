@@ -268,7 +268,7 @@ def _index_root(root: Path, out: Path, study: Path, sets, body, meta: dict) -> d
             if q.is_dir():  # a re-run that has not finished: the registered record is the kept one
                 kept = _superseded(q.with_name(q.name[: -len(".superseded")]), out, study)
                 rec = dict(kept[0]["record"] or {}) if kept else {}
-                rec["_rerun_pending"] = True
+                rec.update(_rerun_pending=True, _superseded=kept)
                 path = Path(kept[0]["path"]) if kept else q
                 rel = kept[0]["path"] if kept else _rel(q, out, study)
             else:
@@ -532,7 +532,8 @@ def pass_word(counts: dict | None, ms: int | None) -> str:
     if counts.get("pass_") is None:
         n, bad = int(counts.get("episodes") or 0), int(counts.get("errors") or 0)
         why = (f"{bad} episode{'' if bad == 1 else 's'} failed to run" if bad
-               else f"{n} episode{'' if n == 1 else 's'}, not the block's {bar.RUNS}")
+               else f"{n} episode{'' if n == 1 else 's'}, not the block's {bar.RUNS}" if n != bar.RUNS
+               else "its seeds are not a block's")
         return f"not judged ({why})"
     at = "" if ms == bar.JUDGED_MS or ms is None else f" at {ms} ms"
     return ("passes" if counts["pass_"] else "does not pass") + at
@@ -596,6 +597,29 @@ def manifest_differences(rec: dict, meta: dict) -> list[str] | None:
             out.append(f"{f}: another sha256")
         elif ent.get("entry_sha256") != files[f].get("entry_sha256"):
             out.append(f"{f}: another entry_sha256")
+    return out
+
+
+COUNT_KEYS = ("episodes", "survived", "succeeded", "falls", "errors", "survival_lcb", "success_lcb", "judged", "pass_")
+
+
+def counts_differences(rec: dict) -> list[str]:
+    """Where a finished record's counts, bounds and passes differ from ``bar.counts`` on its own episodes and seeds
+    (floats to 1e-12); reading 2 of a turn frozen with ``a1_over`` holds its pass under ``pass_if_read``."""
+    out = []
+    if rec.get("status") != "done" or rec.get("_brief"):
+        return out
+    for which, ck, name in READINGS:
+        have = rec.get(ck)
+        if have is None:
+            continue
+        want = bar.counts(rec.get("episodes") or [], rec.get("seeds") or [], which)
+        for k in COUNT_KEYS:
+            a = have.get("pass_if_read") if k == "pass_" and have.get("not_read") else have.get(k)
+            b = want[k]
+            same = abs(a - b) <= 1e-12 if _is_num(a) and _is_num(b) and not isinstance(b, int) else a == b
+            if not same:
+                out.append(f"{name}: {k} is {a!r} in the record, {b!r} from its episodes")
     return out
 
 
@@ -740,13 +764,16 @@ def registered(rec: dict | None) -> dict | None:
     """The registered record at a record's path: the first one finished there (STAGE2_75_PLAN.md rule R2).  A record
     that superseded none is its own; else the kept record its ``supersedes.registered`` names, or, where that file
     cannot be read, the counts ``supersedes.registered`` copied from it."""
-    if rec is None or not rec.get("supersedes"):
+    if rec is None or not rec.get("supersedes") or rec.get("_rerun_pending"):
         return rec
     reg = rec["supersedes"].get("registered") or {}
     kept = rec.get("_superseded") or []
-    for k in kept if reg.get("record") else kept[:1]:  # no name: the oldest record kept beside it
-        if (not reg.get("record") or k["name"] == reg["record"]) and k["record"]:
-            return dict(k["record"], _path=k["path"], _registered_of=rec.get("_path"))
+    if reg.get("record"):
+        pick = next((k for k in kept if k["name"] == reg["record"]), None)
+    else:  # the later record names none (its reason file was lost): the oldest record kept beside it
+        pick = kept[0] if kept else None
+    if pick is not None and pick["record"]:
+        return dict(pick["record"], _path=pick["path"], _registered_of=rec.get("_path"))
     return dict(schema=bar.SCHEMA, set=rec["set"], body=rec["body"], block=rec["block"], row=rec["row"],
                 key_name=rec["key_name"], behavior=rec.get("behavior"), definition=rec.get("definition"),
                 status=reg.get("status") or "done", counts=reg.get("counts") or {},
@@ -824,12 +851,14 @@ HEAD = [_col("set", "Set", "code"), _col("labels", "Labels", "labels"), _col("it
         _col("row", "Row", "code")]
 COUNT_COLUMNS = HEAD + [
     _col("status", "Status"), _col("episodes", "Episodes", "count"), _col("up", "Stayed up", "of"),
-    _col("up_lcb", "Stayed up: one-sided 95 % lower bound", "bound", "bound"),
+    _col("up_lcb", "Stayed up: one-sided 95 % lower bound (share of episodes)", "bound", "bound"),
     _col("reading_1", "Reading 1 (with the look)"),
     _col("r2", "Reading 2 (every limit): succeeded", "of"),
-    _col("r2_lcb", "Reading 2: one-sided 95 % lower bound", "bound", "bound"), _col("r2_pass", "Reading 2: pass", "word"),
+    _col("r2_lcb", "Reading 2: one-sided 95 % lower bound (share of episodes)", "bound", "bound"),
+    _col("r2_pass", "Reading 2: pass", "word"),
     _col("r3", "Reading 3 (every limit but for A1): succeeded", "of"),
-    _col("r3_lcb", "Reading 3: one-sided 95 % lower bound", "bound", "bound"), _col("r3_pass", "Reading 3: pass", "word"),
+    _col("r3_lcb", "Reading 3: one-sided 95 % lower bound (share of episodes)", "bound", "bound"),
+    _col("r3_pass", "Reading 3: pass", "word"),
     _col("stage1", "Stage 1's reading: succeeded (no verdict)", "of"), _col("path", "Record", "path")]
 FAIL_COLUMNS = HEAD + [
     _col("falls_before", "Falls before the command", "count"), _col("falls_after", "Falls after the command", "count"),
@@ -844,13 +873,13 @@ FAIL_COLUMNS = HEAD + [
     _col("drive_span", "Span the drives are judged over"), _col("attribution", "Attribution label"),
     _col("label_2", "Failure label, reading 2"), _col("label_3", "Failure label, reading 3"), _col("path", "Record", "path")]
 TOE_COLUMNS = [
-    _col("toe", "Toe clearance, the judged term (planned swing from the own lift-off): median, measured", "measured",
-         "mm"),
-    _col("toe_limit", "Limit: at least (mm; 0.04 H)", "limit"),
-    _col("toe_first", "Toe clearance as first written (own duration), reported and never judged: median, measured",
-         "measured", "mm"),
-    _col("toe_stage1", "Toe clearance, Stage 1's reading, reported and never judged: median, measured", "measured",
-         "mm")]
+    _col("toe", "Toe clearance, the judged term `toe_clearance_own_swing` (each episode's lowest swing, read over the "
+                "planned swing from the own lift-off): median, measured", "measured", "mm"),
+    _col("toe_limit", f"Limit: at least (mm; {readings.TOE_CLEARANCE_FRAC_H:g} H)", "limit"),
+    _col("toe_first", "Toe clearance as first written, `toe_clearance_own_duration_m` (over the swing's own "
+                      "duration), reported and never judged: median, measured", "measured", "mm"),
+    _col("toe_stage1", "Toe clearance, Stage 1's reading (on the reference's clock), reported and never judged: "
+                       "median, measured", "measured", "mm")]
 WALK_COLUMNS = HEAD + [
     _col("speed", "Speed over the judged 10 s: median, measured", "measured", "m/s"),
     _col("along", "Distance along the commanded heading over the judged 10 s: median, measured", "measured", "m"),
@@ -1171,7 +1200,7 @@ def glance_table(doc: dict) -> dict:
             for key in _group("@gated"):
                 d = _conds()[key]
                 v = verdict_of(doc, s, body, key, ms)
-                r0 = _rec(doc, s, body, bar.HEADLINE_BLOCK, f"{R0_ROW}@{ms}ms", key)
+                r0 = registered(_rec(doc, s, body, bar.HEADLINE_BLOCK, f"{R0_ROW}@{ms}ms", key))
                 note = None
                 if bar.registered_name(s) == "F25F9" and d["behavior"] != "walk" and v["reading_2"]["verdict"] == NOT_RUN:
                     note = WALK_ONLY_NOTE
@@ -1235,7 +1264,8 @@ def replication_table(doc: dict) -> dict:
         lines.append(dict(
             set=s, labels=labels, item=item_of(d) if d else key, condition=key, grip=grip_of(d) if d else None,
             delay=delay_word(bar.delay_ms(row)), row=row,
-            triggered_by=[names[w] for w in trig or []] or ["no reading of the headline record passes"],
+            triggered_by=[names[w] for w in trig or []] or [
+                "no seeds3042 record found" if first is None else "no reading of the seeds3042 record passes"],
             a_up=a["up"], a_r2=a["r2"], a_r2_pass=a["r2_pass"], a_r3=a["r3"], a_r3_pass=a["r3_pass"],
             b_up=b["up"], b_r2=b["r2"], b_r2_pass=b["r2_pass"], b_r3=b["r3"], b_r3_pass=b["r3_pass"],
             words=[RERUN + ": the registered record's word stands"] if rerun else
@@ -1454,14 +1484,17 @@ def _seed_part(line: int, name: str, set_name: str, recs: dict) -> dict:
             for k in ("up", "stage1", "r2", "r3"):
                 x[f"{k}_{i}"] = (flags[row].get(s) or {}).get(k)
         lines.append(x)
-    total = dict(seed="episodes that did, of those listed")
+    def tally(vals):
+        if not vals:
+            return None
+        if len(set(map(str, vals))) == 1 and not isinstance(vals[0], bool):
+            return str(vals[0])  # "not defined" or "failed to run" in every episode
+        return f"{sum(1 for v in vals if v is True)} of {len(vals)}"
+
+    total = dict(seed="episodes with yes, of those listed")
     for i, row in enumerate(names):
         for k in ("up", "stage1", "r2", "r3"):
-            vals = [f[k] for f in flags[row].values()]
-            total[f"{k}_{i}"] = (f"{sum(1 for v in vals if v is True)} of {len(vals)}"
-                                 if vals and all(isinstance(v, bool) for v in vals) else
-                                 (str(vals[0]) if vals and len(set(map(str, vals))) == 1 else
-                                  (f"{sum(1 for v in vals if v is True)} of {len(vals)}" if vals else None)))
+            total[f"{k}_{i}"] = tally([f[k] for f in flags[row].values()])
         if recs[row] is None:
             total[f"up_{i}"] = "no record"
     lines.append(total)
@@ -1475,8 +1508,9 @@ def _seed_part(line: int, name: str, set_name: str, recs: dict) -> dict:
 # ------------------------------------------------------------------------------------------------
 def checks(doc: dict) -> dict:
     """Records found; records made by other sources than today's; records whose input hashes are not in their
-    set's latest freeze; records with errors or unjudged counts; core-hours per task against its budget; the rates
-    of ``COST.md``."""
+    set's latest freeze; records with errors or unjudged counts; records whose counts do not recompute
+    (``bar.counts``); core-hours per task against its budget, with the units started after the first cut; the rates of
+    ``COST.md``."""
     meta = doc[META]
     main = list(_records(doc))
     ctl = [r for c in sorted(meta["controls"]) for r in _records(meta["controls"][c])]
@@ -1484,8 +1518,11 @@ def checks(doc: dict) -> dict:
     for r in main:
         x = by_set.setdefault(r["set"], dict(done=0, not_run=0))
         x["done" if r.get("status") == "done" else "not_run"] += 1
-    other, missing, unchecked, unjudged = [], [], [], []
+    other, missing, unchecked, unjudged, miscounted = [], [], [], [], []
     for r in main + ctl:
+        diff = counts_differences(r)
+        if diff:
+            miscounted.append(dict(path=r["_path"], differences=diff))
         src = _get(r, "key", "sources") or {}
         differ = [k for k in ("panels", "bar") if src.get(k) != meta["today"].get(k)]
         if differ:
@@ -1534,7 +1571,7 @@ def checks(doc: dict) -> dict:
                      not_a_record=list(meta["unreadable"]), misplaced=list(meta["misplaced"])),
         today_sources=dict(meta["today"]), other_sources=other, not_in_latest_freeze=missing, not_checked=unchecked,
         freezes={d: {k: v for k, v in m.items() if k != "entries"} for d, m in sorted(meta["manifests"].items())},
-        errors_or_unjudged=unjudged, budget=budget, cost=cost)
+        errors_or_unjudged=unjudged, counts_not_recomputed=miscounted, budget=budget, cost=cost)
 
 
 def other_records(doc: dict, tabs: dict) -> dict:
@@ -1690,7 +1727,10 @@ def _md_checks(c: dict) -> list[str]:
                for d, m in c["freezes"].items())),
            f"- Records with episodes that failed to run or with unjudged counts: {len(c['errors_or_unjudged'])}"
            + "".join(f"\n  - `{x['path']}`: episodes {x['episodes']}, failed to run {x['errors']}, "
-                     + ("judged" if x["judged"] else "not judged") for x in c["errors_or_unjudged"])]
+                     + ("judged" if x["judged"] else "not judged") for x in c["errors_or_unjudged"]),
+           "- Records whose counts, bounds or passes do not recompute from their own episodes (`bar.counts`): "
+           f"{len(c['counts_not_recomputed'])}"
+           + "".join(f"\n  - `{x['path']}`: {'; '.join(x['differences'])}" for x in c["counts_not_recomputed"])]
     if c["budget"] is None:
         out.append("- Core-hours: no `budget.json` in the run directory (no task's unit has started there).")
     else:
@@ -1805,7 +1845,8 @@ def main(argv=None) -> int:
     print(f"{dest / TABLES_JSON}\n{dest / TABLES_MD}")
     print(f"records found: {c['records']['found']} ({c['records']['done']} done, {c['records']['not_run']} not run); "
           f"other sources: {len(c['other_sources'])}; not in the latest freeze: {len(c['not_in_latest_freeze'])}; "
-          f"not checked: {len(c['not_checked'])}; errors or unjudged: {len(c['errors_or_unjudged'])}")
+          f"not checked: {len(c['not_checked'])}; errors or unjudged: {len(c['errors_or_unjudged'])}; counts that "
+          f"do not recompute: {len(c['counts_not_recomputed'])}")
     return 0
 
 

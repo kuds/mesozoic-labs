@@ -766,6 +766,34 @@ def test_errors_unjudged_counts_and_core_hours_are_listed(run):
     assert "units started after the first cut (2026-11-15T20:00:00Z): T3.9." in barreport.markdown(barreport.tables(doc))
 
 
+def test_counts_are_the_records_own_and_recompute_from_their_episodes(run, tmp_path):
+    assert run.tabs["checks"]["counts_not_recomputed"] == []
+    assert "do not recompute from their own episodes (`bar.counts`): 0" in run.md
+    for rec in barreport._records(run.doc):  # every count a table prints is the record's, equal to bar.counts
+        assert barreport.counts_differences(rec) == []
+        d = barreport.digest(rec)
+        if rec["status"] == "done":
+            c2, c3 = bar.counts(rec["episodes"], rec["seeds"]), bar.counts(rec["episodes"], rec["seeds"], "but_A1")
+            assert (d["up"]["k"], d["r2"]["k"], d["r3"]["k"]) == (c2["survived"], c2["succeeded"], c3["succeeded"])
+            assert (d["up_lcb"], d["r2_lcb"], d["r3_lcb"]) == (c2["survival_lcb"], c2["success_lcb"], c3["success_lcb"])
+    # a record whose counts were changed by hand is named at the top
+    study = tmp_path / "study"
+    out = study / "runs" / "x"
+    put(study, out, "V0", "R2/42@10ms", "walk/v0.4", per_seed=lambda s: dict(fell=s < 3046))
+    path = bar.record_path(out, "V0", BODY, H, "R2/42@10ms", SimpleNamespace(behavior="walk", name="v0.4"))
+    rec = json.loads(path.read_text())
+    rec["counts"].update(survived=20, succeeded=20, pass_=True)
+    path.write_text(json.dumps(rec))
+    c = barreport.tables(barreport.load(out, study=study))["checks"]
+    assert len(c["counts_not_recomputed"]) == 1 and c["counts_not_recomputed"][0]["differences"] == [
+        "reading 2 (every limit): survived is 20 in the record, 16 from its episodes",
+        "reading 2 (every limit): succeeded is 20 in the record, 16 from its episodes",
+        "reading 2 (every limit): pass_ is True in the record, False from its episodes"]
+    # reading 2 of a turn frozen with a1_over keeps its pass under pass_if_read: that is no difference
+    a1 = run.doc["F25F9cl"][BODY][H]["R2/42@10ms"]["turn/q90_left"]
+    assert a1["counts"]["pass_"] is None and a1["counts"]["pass_if_read"] is False and barreport.counts_differences(a1) == []
+
+
 def test_cost_rates_are_printed_with_how_they_were_measured(run, tmp_path):
     out = tmp_path / "study" / "runs" / "x"
     put(tmp_path / "study", out, "V0", "R0@10ms", "walk/v0.4")
