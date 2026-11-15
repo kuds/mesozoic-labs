@@ -216,6 +216,11 @@ JETSON_REGULATOR_RULE = (
     "(JETSON_USB_VBUS_W), the carrier's own conversion loss left out.  The rated output is the catalog's power_max_w "
     "(12 V times the vendor's continuous current at its stated input voltage; the vendor gives a range of currents "
     "over input voltage and no figure at 6S, so this is the catalog's one point, not a rating at 20-25 V)")
+JETSON_DOUBLE_COUNT_NOTE = (
+    "the power box's 0.30 kg is PR #662's power bay allowance, and that robot's bay held three regulators, a "
+    "D36V50F12 for its computer among them (r0_posture_study_2026-11-07/study/hardware/component_basis.md); the bay's "
+    "own breakdown is not in this repository, so the regulator placed here may duplicate one the box already holds: "
+    "the body is then too heavy by at most the regulator's installed mass with its reserve")
 JETSON_HOME_RULE = (
     "the build solves the stance for the body as built (pipeline.build_candidate: statics.solve_stance shifts the feet "
     "fore and aft so that the centre of mass is centred over the support, the trunk pose fixed), so the Jetson body's "
@@ -683,6 +688,7 @@ def jetson_regulators() -> dict:
                 f"voltage_v is its own supply's {kit.voltage:g} V",
                 rail_budget_w=modes, usb_vbus_limit_w=JETSON_USB_VBUS_W, worst_case_at_jack_w=worst, options=options,
                 choice=both[0][1] if both else None, placed=JETSON_REGULATOR,
+                may_be_counted_twice=JETSON_DOUBLE_COUNT_NOTE,
                 efficiency="the regulator's loss is in power.ETA_DCDC (0.88, A6), which every auxiliary rail takes; "
                            "the vendor gives over 90 % for this part (catalog research record), so 0.88 is the lower "
                            "of the two")

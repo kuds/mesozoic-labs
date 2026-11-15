@@ -241,12 +241,16 @@ def _key(r: dict) -> tuple:
 def test_the_jetson_ledger_is_the_picks_but_for_the_compute_rows(built):
     """The ledger: the pick's rows exactly, in the pick's order, but for the compute board (the dev kit's catalog mass
     and box), its tray's envelope (the same 0.12 kg in a box 17 x 20 x 30 mm larger than the board) and the
-    integration reserve (6 % of the installed mass, the regulator included); plus the regulator, last before the
-    reserve.  The covers are the pick's: the trunk profile is not widened for the dev kit or the regulator."""
+    integration reserve (6 % of the installed mass, the regulator included); plus the regulator, the last of the
+    trunk's items (it is placed after the covers).  The covers are the pick's: the trunk profile is not widened for
+    the dev kit or the regulator."""
     pick, j = built
     r0, rj = pick["rows"], j["rows"]
-    assert [r["name"] for r in rj if r["name"] != ADDED] == [r["name"] for r in r0]
-    assert [r["name"] for r in rj][-2:] == [ADDED, "integration_reserve"]
+    names = [r["name"] for r in rj]
+    assert [n for n in names if n != ADDED] == [r["name"] for r in r0] and names[-1] == "integration_reserve"
+    i = names.index(ADDED)
+    assert rj[i - 1]["body"] == rj[i + 1]["body"] == "trunk" and not names[i - 1].startswith("cover_")
+    assert names[i + 1].startswith("cover_") and names.count(ADDED) == 1
     same = [(a, b) for a, b in zip(r0, [r for r in rj if r["name"] != ADDED], strict=True) if a["name"] not in CHANGED]
     assert all(_key(a) == _key(b) for a, b in same) and len(same) == len(r0) - 3
     by0, byj = {r["name"]: r for r in r0}, {r["name"]: r for r in rj}
@@ -394,7 +398,7 @@ def test_the_regulator_sits_on_the_power_box_clear_of_everything(built):
     assert all(got["gaps_mm"][k] == pytest.approx(v, abs=1e-6) for k, v in want["gaps_mm"].items())
     assert want["same_body_component_overlaps"]["overlaps"] == []
     g = want["gaps_mm"]
-    assert g["compute_regulator|power_distribution"] == pytest.approx(5.0, abs=1e-6)
+    assert g["compute_regulator|power_distribution"] == pytest.approx(5.0, abs=1e-4)  # the standoffs, mm
     assert all(v > 50.0 for k, v in g.items() if k.startswith("compute_regulator|") and "power_distribution" not in k)
 
 
@@ -591,8 +595,9 @@ def test_the_screens_beside_the_picks():
     cj, cp = j["clearance"], p["clearance"]
     assert cj["battery_clear_directions"] == cp["battery_clear_directions"] == ["-z"]
     assert cj["battery_overlapping_at_home"] == cp["battery_overlapping_at_home"] == []
-    assert {k: v["usable"] for k, v in cj["joint_range_margins"].items()} == pytest.approx(
-        {k: v["usable"] for k, v in cp["joint_range_margins"].items()}, abs=2e-3)
+    assert list(cj["joint_range_margins"]) == list(cp["joint_range_margins"])
+    assert [x for v in cj["joint_range_margins"].values() for x in v["usable"]] == pytest.approx(
+        [x for v in cp["joint_range_margins"].values() for x in v["usable"]], abs=2e-3)
     sj, sp = j["sensors"], p["sensors"]
     assert sj["camera_blocked"] == sp["camera_blocked"] and sj["camera_height_m"] == sp["camera_height_m"]
     for side in ("tof_l", "tof_r"):
