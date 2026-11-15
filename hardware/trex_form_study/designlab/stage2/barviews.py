@@ -888,6 +888,24 @@ def simulated_turn(sv: SetView, run, path: Path, with_paths: bool = False) -> di
     return out
 
 
+def compact_simulated(s: dict) -> dict:
+    """A simulated block as the committed file holds it: each episode's readings as the values of ``READINGS``
+    (metres, degrees; ``reading_units``) with what set them and the notes, in place of ``turn_readings``' whole
+    dict (it can be made again from the trace), and without the paths the figure draws."""
+    out = {k: v for k, v in s.items() if k not in ("_paths", "episodes")}
+    if "episodes" in s:
+        out["episodes"] = [
+            dict(seed=e["seed"], trace_sha256=e["trace_sha256"],
+                 values={name: reading(e["readings"], name) for name in READINGS},
+                 command_s=e["readings"].get("command_s"), move_end_s=e["readings"].get("move_end_s"),
+                 judged_instant_s=e["readings"].get("judged_instant_s"),
+                 swept_radius_set_by=(e["readings"].get("swept") or {}).get("set_by"),
+                 corridor_inner_corner_set_by=(e["readings"].get("corridor") or {}).get("inner_corner_set_by"),
+                 notes=e["readings"].get("notes") or [], pose_check_m=e["pose_check"])
+            for e in s["episodes"]]
+    return out
+
+
 def _anchored_path(model: BodyModel, pose: dict, t_c: float, t_end: float | None, sign: float) -> np.ndarray:
     """The root's path in its own corner frame [k, 2] (along, sideways) from ``LEAD_S`` before the command to the
     end of the move (or the trace's end)."""
@@ -934,7 +952,7 @@ def turnpath(set_name: str, run=RUN, out=None, body: str = BODY, figure_row: str
         stem = c.key.replace("/", "_")
         figs[c.key] = figure(sv, c, pl, pick, d / stem, before)
         turns.append(dict(condition=c.key, in_words=condition_words(c.describe()), gated=bool(c.gated), move=c.move,
-                          planned=pl, simulated=[{k: v for k, v in s.items() if k != "_paths"} for s in mine],
+                          planned=pl, simulated=[compact_simulated(s) for s in mine],
                           simulated_note=None if mine else "no record yet",
                           figure=dict(svg=f"{stem}.svg", png=f"{stem}.png", caption=figs[c.key],
                                       simulated_from=None if pick is None else pick["record"],
@@ -945,10 +963,11 @@ def turnpath(set_name: str, run=RUN, out=None, body: str = BODY, figure_row: str
                                              "stayed up and can be read")))
         log(f"{set_name} {c.key}: planned radius {pl['readings']['fit']['radius_fitted_m']:.3f} m, "
             f"{len(mine)} simulated record(s)")
-    unread = [s for s in sims if not s.get("read")]
+    unread = [compact_simulated(s) for s in sims if not s.get("read")]
     doc = dict(schema=SCHEMA_TURNPATH, set=set_name, set_in_words=SET_WORDS.get(set_name, set_name), body=body,
                what="views of committed records and a frozen reference: no verdict, nothing adopted",
                run=run_label(run), rules=TURN_RULES, body_length=sv.model.length_info,
+               reading_units={name: unit for name, (_, unit) in READINGS.items()},
                set_freeze=(setio.frozen(sv.set_doc) or {}).get("index"),
                set_manifest_sha256=(setio.frozen(sv.set_doc) or {}).get("manifest_sha256"),
                turns=turns, no_reference=missing, records_not_read=unread,
