@@ -61,6 +61,7 @@ import numpy as np  # noqa: E402
 from .. import clearance, gait, sizing, statics, turning  # noqa: E402
 from ..stage1 import plant, refs, transitions  # noqa: E402
 from ..stage1.transitions import PHASE_TOL, SETTLE_STRIDES, SHIFT_STRIDES, SIDES, SUB, _ramp, _rot2  # noqa: E402
+from . import setscreen  # noqa: E402
 
 STUDY = Path(__file__).resolve().parents[2]
 N_FRAMES = transitions.N_FRAMES
@@ -77,15 +78,22 @@ STRIDE_GRID = (1.00, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60)
 TWIST_KINEMATIC = 0.85
 TWIST_FINAL = 0.87
 STEPS_DOWN_MAX = 2
-#: The stride rule also reads Stage 0's joint range (STAGE2_75_PLAN.md A11 as amended on 15 Nov): in the kinematic pass
-#: and on the built reference every gated joint other than the thigh twist keeps at least this much of its usable
-#: range (rad).  It is A12's own limit, read from where Stage 0 holds it: no new constant.
-OTHER_JOINT_MARGIN_RAD = clearance.RANGE_MARGIN_RAD
+#: The stride rule also reads Stage 0's joint range of a move (STAGE2_75_PLAN.md A11 and A12 as amended by the owner's
+#: decision of 15 Nov, DECISION_LOG.md P34): in the kinematic pass and on the built reference every gated joint other
+#: than the thigh twist keeps at least this much of its usable range (rad).  It is A12's limit for a move, read from
+#: where the set's Stage 0 screen holds it: one constant for the rule and the screen, not two numbers (the one thing
+#: this module takes from ``setscreen``).
+OTHER_JOINT_MARGIN_RAD = setscreen.RANGE_RULE_MOVE_RAD
 #: The excused causal transient fades to zero over these phases after the command (``RULES["S2A-fade"]``).
 CAUSAL_FADE = (0.5, 1.0)
-#: Gates of a move (``RULES["S2A-gates"]``).
-CONSISTENCY_LIMIT_M = 2.5e-3
+#: Gates of a move (``RULES["S2A-gates"]``).  The ZMP readings of a causal move have one limit, Stage 1's 4.0 mm (the
+#: owner's decision of 15 Nov, DECISION_LOG.md P34: STAGE2_75_PLAN.md A7 as amended): the consistency error over the
+#: first stride after the command (it was 2.5 mm), the ZMP error after that stride, and the warm-up frames against the
+#: walk's (``join_command``; a constant of its own: it was Stage 1's ``transitions.G3_ZMP_MM``, 2.0 mm, which the
+#: joins of a move's first and last stride still read).
+CONSISTENCY_LIMIT_M = 4.0e-3
 ZMP_HISTORY_LIMIT_M = 4.0e-3
+WARMUP_ZMP_LIMIT_MM = 4.0
 CAUSAL_COP_MARGIN_M = 0.010
 JOINT_AT_COMMAND_RAD = 1e-3
 #: Gates read on the reference itself: a turn's heading at the bar's instant (deg) and its closure (rad); a stop's
@@ -106,8 +114,11 @@ ACCEL_HISTORY_S = 3.0
 RAMP_SQ_INTEGRAL = 181.0 / 462.0
 
 _PROTO = "constants set on the 14 Nov prototypes of V0 on 75-M-H-10, before any closed-loop run"
-#: The two causal ZMP limits, each on its own frames (the lead's ruling M-R1 of 15 Nov; neither constant moved).  The
-#: error over all output frames is recorded beside them (``zmp_consistency_all_m``) and gated by nothing.
+#: The last words of a rule whose limits the owner's decision P34 set (STAGE2_75_PLAN.md A7, A11, A12 as amended).
+_P34 = ("(the owner's decision of 15 Nov, DECISION_LOG.md P34, after the first builds of the three sets; changed after a "
+        "result)")
+#: The two causal ZMP limits, each on its own frames (the lead's ruling M-R1 of 15 Nov).  The error over all output
+#: frames is recorded beside them (``zmp_consistency_all_m``) and gated by nothing.
 _ZMP_WINDOWS = (
     f"consistency error over the first stride after the command at most {1e3 * CONSISTENCY_LIMIT_M:.1f} mm; ZMP "
     f"error from one stride after it at most {1e3 * ZMP_HISTORY_LIMIT_M:.1f} mm (windows fixed on 15 Nov after the "
@@ -153,17 +164,18 @@ RULES = {
         f"least {OTHER_JOINT_MARGIN_RAD:g} rad of its usable range; the reference built with all passes "
         f"must show ik_ok, at most {TWIST_FINAL:g} and the same {OTHER_JOINT_MARGIN_RAD:g} rad, else f steps down once "
         f"(at most {STEPS_DOWN_MAX:g} times in all); {_PROTO}; the {OTHER_JOINT_MARGIN_RAD:g} rad is Stage 0's "
-        "joint-range limit (STAGE2_75_PLAN.md A12; every end of a joint's usable range but one it rests on by "
-        "design), read by this rule since A11 was amended on 15 Nov after a prescribed-motion result (the set "
-        "screen's review found V0's quick turn at f 0.8 with 0.086 rad of hip roll left), before any set was frozen "
-        "and before any closed-loop episode on a Stage 2 set; no limit moved"),
+        "joint-range limit of a move (STAGE2_75_PLAN.md A12 as amended: a start, change, stop or turn; every end of a "
+        "joint's usable range but one it rests on by design; a walk keeps 0.1 rad), one constant with the set's "
+        "screen; the rule read 0.1 rad from the morning of 15 Nov (A11's first amendment, withdrawn), under which "
+        "V0's quick turn moved to f 0.7 and missed two gates and the two tuned sets had no factor "
+        f"{_P34}"),
     "S2A-gates": (
         "a move passes when: ik_ok; its last output stride is within "
         f"{transitions.G3_COM_MM:g} mm of gait b's CoM and {transitions.G3_ZMP_MM:g} mm of its multibody ZMP (the "
         "home stance for a stop); a move of Stage 1's construction: its first stride the same against gait a, and the "
         f"final ZMP error at most {1e3 * ZMP_HISTORY_LIMIT_M:g} mm; a causal move: the warm-up stride and the command "
         f"frame within {transitions.G3_COM_MM:g} mm of the walk's CoM, joints within {JOINT_AT_COMMAND_RAD:g} rad at "
-        f"the command frame, multibody ZMP within {transitions.G3_ZMP_MM:g} mm over the warm-up frames up to two "
+        f"the command frame, multibody ZMP within {WARMUP_ZMP_LIMIT_MM:g} mm over the warm-up frames up to two "
         "frames before the command (the ZMP at the command frame is recorded, not gated: its central difference "
         f"straddles the command), single-support CoP at least {1e3 * CAUSAL_COP_MARGIN_M:g} mm inside the pad, "
         f"{_ZMP_WINDOWS}; a turn: total heading within {TURN_CLOSURE_RAD:g} rad of "
@@ -173,7 +185,11 @@ RULES = {
         f"{100 * transitions.STOP_SPEED_FRAC:g} % of the walk's within {transitions.STOP_WITHIN_STRIDES:g} strides of "
         f"the command, 1 Hz low-passed forward CoM acceleration within {STOP_ACCEL_LP_LIMIT_M_S2:g} m/s^2 (a zero-phase "
         "order-2 Butterworth at 1 Hz turns a speed change dv into at most 2.22 x dv m/s^2, so this term detects "
-        f"rocking, not abruptness; the unfiltered peak is recorded beside it); {_PROTO}"),
+        f"rocking, not abruptness; the unfiltered peak is recorded beside it); {_PROTO}, but the ZMP readings of a "
+        f"causal move, which have one limit, Stage 1's {1e3 * ZMP_HISTORY_LIMIT_M:g} mm: the warm-up frames (it was "
+        f"{transitions.G3_ZMP_MM:g} mm), the first stride after the command (it was 2.5 mm) and the frames after it "
+        f"(unchanged); the CoM's {transitions.G3_COM_MM:g} mm and the joints' {JOINT_AT_COMMAND_RAD:g} rad at the "
+        f"command stand as written {_P34}"),
 }
 
 
@@ -1378,7 +1394,9 @@ def stop_reference(g: dict) -> dict:
 
 
 def join_command(g: dict, ref_a: refs.Reference) -> dict:
-    """A causal move's warm-up stride and command frame against the walk's own frames (design 3.3)."""
+    """A causal move's warm-up stride and command frame against the walk's own frames (design 3.3): the model CoM
+    within ``transitions.G3_COM_MM`` over the warm-up and at the command, the joints within ``JOINT_AT_COMMAND_RAD``
+    at it, the multibody ZMP within ``WARMUP_ZMP_LIMIT_MM`` over the warm-up frames up to two before it."""
     w, pl = g["warmup"], g["plan"]
     first, frames = float(pl.first), _walk_reader(g["move"].laws, "walk_frames")
     com_w = frames(ref_a, w["phase"], first, "com")
@@ -1392,10 +1410,10 @@ def join_command(g: dict, ref_a: refs.Reference) -> dict:
                at_command=dict(com_mm=float(dc[-1]), joint_rad=float(dq[-1]), zmp_mm=float(dz[-1]),
                                zmp_note="recorded, not gated: the multibody ZMP's central difference at the command "
                                         "frame straddles the command"),
-               limits=dict(com_mm=transitions.G3_COM_MM, zmp_mm=transitions.G3_ZMP_MM, joint_rad=JOINT_AT_COMMAND_RAD,
+               limits=dict(com_mm=transitions.G3_COM_MM, zmp_mm=WARMUP_ZMP_LIMIT_MM, joint_rad=JOINT_AT_COMMAND_RAD,
                            zmp_frames="the warm-up frames up to two frames before the command"))
     out["ok"] = bool(out["warmup_com_max_mm"] <= transitions.G3_COM_MM and dc[-1] <= transitions.G3_COM_MM
-                     and dq[-1] <= JOINT_AT_COMMAND_RAD and out["warmup_zmp_max_mm"] <= transitions.G3_ZMP_MM)
+                     and dq[-1] <= JOINT_AT_COMMAND_RAD and out["warmup_zmp_max_mm"] <= WARMUP_ZMP_LIMIT_MM)
     return out
 
 
@@ -1576,7 +1594,7 @@ def step_down(record: dict, built: dict) -> dict:
 
     A record that holds ``limit_other_joints_rad`` (every record ``pick_stride_factor`` makes) needs
     ``built["tightest_other_rad"]``: without it the rule cannot be read and ``ValueError`` is raised.  A record
-    without that key (made before A11's amendment of 15 Nov) is read on the twist alone."""
+    without that key (made before the rule read a joint range) is read on the twist alone."""
     f = record["chosen"]
     if f is None:
         raise ValueError("no stride factor is chosen: nothing was built")
