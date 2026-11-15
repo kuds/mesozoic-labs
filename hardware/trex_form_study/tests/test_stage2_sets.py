@@ -49,6 +49,13 @@ slow = pytest.mark.skipif(not os.environ.get("STAGE2_SLOW"), reason="walks and a
 needs_run = pytest.mark.skipif(not (RUN / "transitions" / "start.npz").exists(),
                                reason="the Stage 1 arrays are not here (tools/restore_inputs.py)")
 built = pytest.mark.skipif(not (V0_SET / "set.json").exists(), reason="the V0 set is not built (stage2/sets/V0)")
+
+
+def arrays_here(d: Path, docs: dict) -> bool:
+    """Whether a built set's git-ignored arrays are in place: a fresh clone holds its committed records only, and
+    ``sets verify`` reads the arrays."""
+    entries = list(docs["refs.json"]["references"].values()) + list(docs["transitions.json"]["transitions"].values())
+    return all((d / e["file"]).is_file() for e in entries if e.get("available") is not False)
 has_git = pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
 
 
@@ -2171,9 +2178,50 @@ def test_the_built_v0_set_holds_what_the_rules_say():
             assert e["reason"] and "numbers" in e and "file" not in e and sd["not_available"][name]["reason"] == e["reason"]
         else:
             assert e["pass_"] is True and e["a1_over"] in (True, False) and e["built_by"]["accuracy"] == "r2"
-    if docs["screen.json"] is not None:
+    if docs["screen.json"] is not None and arrays_here(V0_SET, docs):
         v = sets.verify("V0", BODY)
         assert v["ok"], v["failures"]
+
+
+@pytest.mark.parametrize("set_name", list(sets.SETS))
+def test_a_built_sets_entries_carry_their_labels_and_its_kinematic_check_is_of_its_files(set_name):
+    """A built set on 75-M-H-10 as its committed records hold it: every entry carries the set's ``margin_rule`` (the
+    plan's A3: the candidate's is the rule's text, a move's as a walk's, with or without a reference) and every walk
+    its label (A2); an entry with no reference that a build decided carries that build's provenance; V0's twins are
+    Stage 1's and the ladder's (A4); the record of the bar's kinematic check beside the set is of the set's files,
+    and ``sets verify`` gives what fails in it as notes, never as a failure."""
+    d = setio.ROOT / set_name / BODY
+    if not (d / "set.json").exists():
+        pytest.skip(f"the {set_name} set is not built (stage2/sets/{set_name})")
+    docs = setio.load(d)
+    st = sets.SETS[set_name]
+    H, _ = sets.body_facts(BODY)
+    refs_, tr = docs["refs.json"]["references"], docs["transitions.json"]["transitions"]
+    assert (st.margin_rule == "duty and lift set after results on seeds 3042-3061 (JPS 2.3)") == (set_name == "F25F9cl")
+    for name, e in {**refs_, **tr}.items():
+        assert "margin_rule" in e and e["margin_rule"] == st.margin_rule, name
+    for name, e in refs_.items():
+        assert e["label"] == st.label_of(BODY, H, setio.parse_name(name)["speed_m_s"]), name
+    for name, e in tr.items():
+        if e.get("available") is False and (e.get("numbers") or {}).get("tried") and any("gates" in t for t in e["numbers"]["tried"]):
+            assert e["built_by"]["stage2_modules"], name  # a change was built for it: its verdict has a builder
+    for name in st.stage1_twins:
+        assert {**refs_, **tr}[name]["equals_stage1"] is True, name
+    for name in st.ladder_twins:
+        assert refs_[name]["equals_ladder"] is True, name
+    rc = sets.refcheck_state(d, docs)
+    if rc is None:
+        pytest.skip(f"no refcheck.json beside the {set_name} set")
+    assert rc["current"], rc["why"]
+    assert rc["file"] == f"stage2/sets/{set_name}/{BODY}/refcheck.json" and set(rc["files"]) <= {
+        f"{'refs' if n in refs_ else 'transitions'}/{n}.npz" for n in {**refs_, **tr}}
+    lines = sets.refcheck_lines(rc)
+    assert len(lines) == max(1, len(rc["failing"])) and all(any(f"{c} FAILS" in x for x in lines) for c in rc["failing"])
+    assert rc["pass_"] is (not rc["failing"])
+    if docs["screen.json"] is not None and arrays_here(d, docs):
+        v = sets.verify(set_name, BODY)
+        assert v["ok"], v["failures"]  # what the kinematic check says is a note, never a failure of verify
+        assert [x for x in v["notes"] if x.startswith("refcheck")] == lines
 
 
 @pytest.mark.parametrize("set_name", list(sets.SETS))
@@ -2217,7 +2265,7 @@ def test_a_built_sets_lead_in_follows_its_walks(set_name):
         elif nb is not None and all(refs_[w].get("available") is not False for w in (walk, setio.walk_name(nb))):
             tried = n["numbers"]["tried"]  # that change was built and is outside a gate: no reference, with its numbers
             assert [t["change"] for t in tried] == [n["name"], other] and tried[1]["failed_gates"] and n["fallback"]["step"] == 3
-    if docs["screen.json"] is not None:
+    if docs["screen.json"] is not None and arrays_here(d, docs):
         v = sets.verify(set_name, BODY)
         assert v["ok"], v["failures"]
         assert any(x.startswith(f"lead-in: {alt}") for x in v["notes"]) and alt in v["available"]
