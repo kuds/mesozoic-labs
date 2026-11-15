@@ -861,6 +861,14 @@ def context_for(body: str, run_dir, docs: dict, set_doc: dict | None, crouch_fra
     return _CONTEXT["ctx"]
 
 
+def set_crouch(set_doc: dict) -> float:
+    """The crouch a set records in ``set.json`` (``crouch_frac``, a share of the hip height): the crouch of every
+    spec of the set, with which the track's LIPM frequency is computed.  A set that records none is refused."""
+    if set_doc.get("crouch_frac") is None:
+        raise BarError(f"set.json of {set_doc.get('set')!r} records no crouch_frac ({RULES['omega']})")
+    return float(set_doc["crouch_frac"])
+
+
 def omega_of(body: str, run_dir, crouch_frac: float) -> float:
     """The track's LIPM frequency of a set and body (``RULES["omega"]``), as ``BarContext.built`` computes it."""
     p = plant.build(body, "hard", settle=False)
@@ -1640,6 +1648,8 @@ class BarWorker:
         else:
             self.inputs, docs = setio.read_inputs(self.run_dir, files, require_frozen=True)
             set_doc = setio.load(self.run_dir)["set.json"]
+            if crouch_frac is None:
+                set_crouch(set_doc)
         if expected_inputs is not None:
             diff = tune.input_differences(expected_inputs, self.inputs)
             if diff:
@@ -1794,7 +1804,7 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
                                  set_docs["transitions.json"]["transitions"], set_docs["set.json"])
             all_conds = globals()["conditions"](set_docs, block, every=True)
             conds = choose(set_docs, block, conditions)
-            crouch = float(set_docs["set.json"].get("crouch_frac", 0.03)) if crouch_override is None else crouch_override
+            crouch = set_crouch(set_docs["set.json"]) if crouch_override is None else crouch_override
             resolved, missing = {}, {}
             for c in conds:
                 why = planner.missing(c)
@@ -2567,7 +2577,7 @@ def refcheck(set_name: str, body: str, root=setio.ROOT, out=None, log=print) -> 
     usable = [c for c in conds if planner.missing(c) is None]
     files = sorted({f for c in usable for f in planner.resolve(c)["files"]})
     inputs, _ = setio.read_inputs(run_dir, files, require_frozen=False)
-    crouch = float(set_docs["set.json"].get("crouch_frac", 0.03))
+    crouch = set_crouch(set_docs["set.json"])
     p = plant.build(body, "hard", settle=False)
     omega = float(control.omega0(p, Reference.load(run_dir / "refs" / f"{setio.NOMINAL}.npz").q_home,
                                  crouch_frac=crouch)) if usable else None

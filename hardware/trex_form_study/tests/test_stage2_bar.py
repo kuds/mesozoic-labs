@@ -1196,6 +1196,10 @@ def test_the_omega_control_runs_apart_with_stage1s_crouch(tmp_path, monkeypatch)
                                                                bar.key_differences(own["key"], ctl["key"]))
     with pytest.raises(ValueError):
         bar.run_root(out, "other")
+    # a set that records no crouch is refused: the track's frequency would be a guess
+    s2io.write_json(d / "set.json", {k: v for k, v in sd.items() if k != "crouch_frac"})
+    with pytest.raises(bar.BarError, match="crouch_frac"):
+        bar.evaluate(SET, BODY, tmp_path / "none", ["R2/42@10ms"], ["walk/v0.4"], episodes=2, procs=1, root=root, log=quiet)
 
 
 @needs_run
