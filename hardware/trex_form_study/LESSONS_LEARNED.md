@@ -526,6 +526,14 @@ tests.
     output tokens, 1.27 billion cached-context tokens read) took the meter through one reset from 99 % and on to 46 %:
     up to about 1.8 % of a week per agent, against 0.4 % in the first session. Those agents ran at the session's
     effort setting (`xhigh`) and each read a design document of 150 to 190 kB.
+  - The session can read its own cost: `get_session` (claude-code-remote) returns `external_metadata.usage.cost_usd`
+    and `rate_limit_info`. On 15 Nov one week of the owner's allocation was about 610 USD at those prices (46 % at
+    03:58 UTC, the limit at 07:36), and a builder with a 600,000-token context over 100 turns cost 30 to 45 USD,
+    mostly in cached-context reads. Track that figure; an estimate from token counts read 87 % when the limit was
+    hit.
+  - When the limit is hit every running agent fails at once and its workflow ends with what was done; resuming by
+    run id runs the cut-off agents again from the start. Have builders commit as they go, and run long CPU jobs
+    from the lead with `run_in_background`, not from an agent that waits and polls with its whole context.
   - Before a fan-out, set what each agent runs at: the effort for builders and fixers, how much of the design a brief
     carries, and one reviewer or two.
   - Worktree branches may not be pushed, so an unmerged build is lost with the container. At a pause, merge what is

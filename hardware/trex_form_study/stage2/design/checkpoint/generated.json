@@ -1,19 +1,25 @@
 {
- "main_tip_when_bundled": "dd6b372c2179fa46790af0e43cd03ae69bab1664",
- "bundle_sha256": "cd421430705aa1b3f323ea49e36ff99bedda26301a8be56ef0f7066ec1ef89ec",
- "bundle_bytes": 431498,
+ "main_tip_when_bundled": "758d8587896d58f5b59bc6edcf223112964ecd83",
+ "bundle_sha256": "d7e77eecf6e33188d663080db49351429d4215bbbf7d9a39d6c3193fa0c78ec3",
+ "bundle_bytes": 751594,
  "branches": [
   {
    "branch": "wt/wp-s",
-   "tip": "962e748ccdd8776db325e86e3cd5670103dcd858",
-   "commits_not_on_main": 4,
-   "subject": "Merge branch 'wt/wp-b' into wt/wp-s"
+   "tip": "f5a0bf5eb305f7e0b0517456afc24e87fbcf4d78",
+   "commits_not_on_main": 7,
+   "subject": "Restore tool: groups j (the Jetson body's inputs) and sets (the frozen reference sets' arrays)"
+  },
+  {
+   "branch": "wt/wp-t",
+   "tip": "d8f1a535872f9372db36291bf077d5ed0587ec7a",
+   "commits_not_on_main": 13,
+   "subject": "Stage 2 round A (WP T): the review's findings on the bar's tables, first part"
   },
   {
    "branch": "wt/wp-l",
-   "tip": "e62028df2c11940f2c64cf40dfc681268d53bf15",
-   "commits_not_on_main": 9,
-   "subject": "Stage 2 look sets (WP L): the screen's verdicts written into the set's records (stride rule outcomes, what blocks a freeze)"
+   "tip": "e2696b2a7a751251ea4d817edf1e75af38bd1ed7",
+   "commits_not_on_main": 11,
+   "subject": "Stage 2 look sets (WP L): set V6 on 60-N-T-10, the walks at the frozen rungs, start, change, stop and quick turn, screened (not frozen)"
   },
   {
    "branch": "wt/wpc-ce",
@@ -146,8 +152,8 @@
   {
    "workflow": "roundA",
    "agent": "build:T",
-   "state": "stopped before it finished",
-   "paper": ""
+   "state": "finished",
+   "paper": "reviews/roundA__build_T.md"
   },
   {
    "workflow": "roundA",
@@ -156,8 +162,50 @@
    "paper": ""
   },
   {
+   "workflow": "roundA",
+   "agent": "review:T:tables",
+   "state": "finished",
+   "paper": "reviews/roundA__review_T_tables.json (13 findings)"
+  },
+  {
+   "workflow": "roundA",
+   "agent": "fix:T",
+   "state": "stopped before it finished",
+   "paper": ""
+  },
+  {
+   "workflow": "roundA",
+   "agent": "review:S:sets",
+   "state": "stopped before it finished",
+   "paper": ""
+  },
+  {
+   "workflow": "roundA",
+   "agent": "fix:S",
+   "state": "stopped before it finished",
+   "paper": ""
+  },
+  {
    "workflow": "look",
    "agent": "build:L",
+   "state": "stopped before it finished",
+   "paper": ""
+  },
+  {
+   "workflow": "look",
+   "agent": "review:L:rules",
+   "state": "stopped before it finished",
+   "paper": ""
+  },
+  {
+   "workflow": "look",
+   "agent": "review:L:bit-identity",
+   "state": "stopped before it finished",
+   "paper": ""
+  },
+  {
+   "workflow": "look",
+   "agent": "fix:L",
    "state": "stopped before it finished",
    "paper": ""
   },
