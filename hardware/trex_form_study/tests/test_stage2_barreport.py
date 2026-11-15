@@ -16,6 +16,7 @@ import re
 import shutil
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -407,6 +408,75 @@ def test_the_tables_hold_no_time_and_no_host(run, tmp_path):
     assert "2031" not in run.md and "provenance" not in json.dumps(run.tabs)
 
 
+def test_the_bytes_do_not_change_with_how_the_run_directory_is_typed(run, tmp_path, monkeypatch):
+    """A run directory reached through a symbolic link, or by a relative path, is the same directory."""
+    link = tmp_path / "study_link"
+    link.symlink_to(run.study, target_is_directory=True)
+    through = barreport.load(link / "stage2" / "runs" / "synthetic", study=run.study)
+    assert through[barreport.META]["out"] == "stage2/runs/synthetic"
+    assert barreport.markdown(barreport.tables(through)) == run.md
+    assert barreport.tables(barreport.load(run.out, study=link)) == run.tabs  # the study typed through the link
+    monkeypatch.chdir(run.out.parent)
+    assert barreport.tables(barreport.load("synthetic", study=run.study)) == run.tabs
+    # a run directory outside the study is cited from its own name, through a link too
+    study = tmp_path / "other_study"
+    study.mkdir()
+    outside = tmp_path / "outside"
+    shutil.copytree(run.out, outside / "run")
+    (tmp_path / "ln").symlink_to(outside, target_is_directory=True)
+    a = barreport.load(outside / "run", study=study)
+    b = barreport.load(tmp_path / "ln" / "run", study=study)
+    assert a[barreport.META]["out"] == b[barreport.META]["out"] == "run"
+    assert [r["_path"] for r in barreport._records(a)] == [r["_path"] for r in barreport._records(b)]
+    assert all(r["_path"].startswith("run/") for r in barreport._records(a))
+
+
+def test_the_inputs_of_the_tables_are_listed_with_their_sha256(run, tmp_path):
+    """What the tables were made from: every record file, the run directory's files, each set's documents and this
+    module, each with the sha256 of its bytes, and one hash over the list."""
+    inp = run.tabs["checks"]["inputs"]
+    recs = {k: v for k, v in inp["records"].items() if v["kind"] == "a record"}
+    assert sorted(recs) == sorted(r["_path"] for r in list(barreport._records(run.doc))
+                                  + list(barreport._records(run.doc[barreport.META]["controls"]["omega_s1"])))
+    for rel, v in inp["records"].items():
+        q = run.study / rel
+        assert v["sha256"] == hashlib.sha256(q.read_bytes()).hexdigest(), rel
+        if v["kind"] != "the reason of a re-run":
+            assert v["key_sha256"] == json.loads(q.read_text())["key_sha256"]
+    assert Counter(v["kind"] for v in inp["records"].values()) == {
+        "a record": 37, "a record kept beside a re-run": 1, "the reason of a re-run": 1}  # 36 and the control's
+    assert inp["run_directory"] == {"budget.json": hashlib.sha256((run.out / "budget.json").read_bytes()).hexdigest(),
+                                    "COST.md": None, "dev_episodes.json": None}
+    assert list(inp["sets"]) == [f"stage2/sets/{s}/{BODY}" for s in ("F25F9", "F25F9cl", "V0")]
+    for d, docs in inp["sets"].items():
+        assert docs == {n: hashlib.sha256((run.study / d / n).read_bytes()).hexdigest() for n in barreport.SET_FILES}
+    module = ROOT / barreport.MODULE_FILE
+    assert module.samefile(barreport.__file__)
+    assert inp["module"] == dict(file=barreport.MODULE_FILE, sha256=hashlib.sha256(module.read_bytes()).hexdigest())
+    assert inp["sources"] == TODAY == run.tabs["checks"]["today_sources"]
+    assert inp["sha256"] == s2io.sha256_json({k: v for k, v in inp.items() if k != "sha256"})
+    top = run.md.split("## How to read the tables")[0]
+    assert f"sha256 over the whole list: `{inp['sha256']}`" in top and f"`budget.json` `{inp['run_directory']['budget.json']}`" in top
+    assert "37 record files; 1 record file kept beside a re-run, with 1 reason file; " in top and "`COST.md` absent" in top
+    assert f"this module `{barreport.MODULE_FILE}`: `{inp['module']['sha256']}`" in top
+    assert "`checks.inputs`" in run.tabs["conventions"][0] and "`budget.json`, `COST.md`, `dev_episodes.json`" in run.tabs["conventions"][0]
+    # a set document that changes changes the list's hash, and nothing is hidden: the records are the same files
+    study = tmp_path / "study"
+    shutil.copytree(run.study, study)
+    refs = study / "stage2" / "sets" / "V0" / BODY / "refs.json"
+    refs.write_text(refs.read_text() + "\n")
+    other = barreport.tables(barreport.load(study / "stage2" / "runs" / "synthetic", study=study))["checks"]["inputs"]
+    assert other["records"] == inp["records"] and other["sha256"] != inp["sha256"]
+    assert {d: [n for n in docs if docs[n] != inp["sets"][d][n]] for d, docs in other["sets"].items()} == {
+        f"stage2/sets/F25F9/{BODY}": [], f"stage2/sets/F25F9cl/{BODY}": [], f"stage2/sets/V0/{BODY}": ["refs.json"]}
+    # a set no record names and no document exists for: listed, with nothing to hash
+    empty = tmp_path / "empty" / "runs" / "x"
+    empty.mkdir(parents=True)
+    none = barreport.tables(barreport.load(empty, study=tmp_path / "empty"))["checks"]["inputs"]
+    assert none["records"] == {} and set(none["sets"]) == {f"stage2/sets/{s}/{BODY}" for s in barreport.SETS}
+    assert all(h is None for docs in none["sets"].values() for h in docs.values())
+
+
 def test_cli_writes_both_files(run, tmp_path, capsys, monkeypatch):
     monkeypatch.setattr(s2io, "STUDY", run.study)  # the study directory the paths are relative to
     assert barreport.main(["--out", str(run.out), "--dest", str(tmp_path / "d"), "--set", "V0", "--set", "F25F9"]) == 0
@@ -690,6 +760,82 @@ def test_a_rerun_of_the_second_block_does_not_change_the_replication_word(run, t
     assert any(x.startswith(barreport.RERUN + ": synthetic") for x in later["labels"])
 
 
+def test_the_registered_record_kept_beside_a_rerun_is_checked_like_any_record(run, tmp_path):
+    """Rule R2: the registered record gives every count and verdict, so the checks at the top read it too, and what
+    it fails is a label of its line and of the verdict made from it."""
+    study = tmp_path / "study"
+    out = study / "runs" / "x"
+    cl = "F25F9cl"
+    put(study, out, cl, "R2/42@10ms", "walk/v0.4")
+    put(study, out, cl, "R2/43@10ms", "walk/v0.4", per_seed=lambda s: dict(fell=s < 3048),
+        sources=dict(bar=sha("another bar.py")), bad_input=True)
+    path = bar.record_path(out, cl, BODY, H, "R2/43@10ms", SimpleNamespace(behavior="walk", name="v0.4"))
+    first = json.loads(path.read_text())
+    first["counts"].update(pass_=True)  # 14 of 20 up, and a stored pass
+    field = bar.supersede_record(path, first, "synthetic: run again")
+    kept = path.with_name(path.name + ".superseded") / field["record"]
+    kept.write_text(json.dumps(first))
+    put(study, out, cl, "R2/43@10ms", "walk/v0.4", extra=dict(supersedes=field))
+    tabs = barreport.tables(barreport.load(out, study=study))
+    c = tabs["checks"]
+    assert c["records"]["found"] == 2 and c["records"]["kept_beside_a_rerun"] == 1
+    for name in ("other_sources", "not_in_latest_freeze", "counts_not_recomputed"):
+        assert [".superseded/" in x["path"] for x in c[name]] == [True], name
+    assert c["counts_not_recomputed"][0]["differences"] == [
+        "reading 2 (every limit): pass_ is True in the record, False from its episodes"]
+    later, reg = lines(tabs, "walk", "counts", set=cl, condition="walk/v0.4", row="R2/43@10ms")
+    assert reg["up"] == dict(k=14, n=20) and reg["r2_pass"] == "passes" and ".superseded/" in reg["path"]
+    flags = [f"{barreport.OTHER_SOURCES} (bar)", barreport.NOT_IN_MANIFEST, barreport.MISCOUNTED]
+    assert all(f in reg["labels"] for f in flags) and not any(f in later["labels"] for f in flags)
+    v, w = lines(tabs, "walk", "verdicts", set=cl, condition="walk/v0.4", delay=J)
+    assert v["which"] == "registered records" and v["reading_2"].startswith("shown [")
+    assert v["labels"] == [barreport.MARGIN_LABEL] + [f"R2/43@10ms: {f}" for f in flags]
+    assert w["which"] == barreport.RERUN and w["labels"] == [barreport.MARGIN_LABEL, barreport.RERUN]
+    md = barreport.markdown(tabs)
+    top = md.split("## How to read the tables")[0]
+    assert top.count(".superseded/") == 3 and f"R2/43@10ms: {barreport.MISCOUNTED}" in md
+    jps = {x["line"]: x for x in part(tabs, "jps", "jps")["lines"]}[99]["record"]
+    assert any(s.startswith("F25F9cl walk/v0.4 at 10 ms, the controller R2") and s.endswith(
+        f"[{barreport.MARGIN_LABEL}; " + "; ".join(f"R2/43@10ms: {f}" for f in flags) + "]") for s in jps)
+
+
+def test_a_record_kept_beside_one_without_a_supersedes_field_is_still_the_registered_one(run, tmp_path):
+    """The label and the registered record do not rest on the later record's own word alone: a
+    ``<record>.superseded/`` directory beside a record says a record was made there before."""
+    study = tmp_path / "study"
+    out = study / "runs" / "x"
+    put(study, out, "V0", "R2/42@10ms", "walk/v0.4")
+    put(study, out, "V0", "R2/43@10ms", "walk/v0.4", per_seed=lambda s: dict(fell=True))  # the first record: all fall
+    path = bar.record_path(out, "V0", BODY, H, "R2/43@10ms", SimpleNamespace(behavior="walk", name="v0.4"))
+    sdir = path.with_name(path.name + ".superseded")
+    sdir.mkdir()
+    path.rename(sdir / "ffffffffffff.json")  # kept by hand: no reason file, and the later record names nothing
+    put(study, out, "V0", "R2/43@10ms", "walk/v0.4")
+    doc = barreport.load(out, study=study)
+    rec = doc["V0"][BODY][H]["R2/43@10ms"]["walk/v0.4"]
+    assert "supersedes" not in rec and len(rec["_superseded"]) == 1
+    reg = barreport.registered(rec)
+    assert reg is not rec and reg["counts"]["survived"] == 0 and reg["_path"].endswith(".superseded/ffffffffffff.json")
+    tabs = barreport.tables(doc)
+    later, first = lines(tabs, "walk", "counts", set="V0", condition="walk/v0.4", row="R2/43@10ms")
+    assert later["up"] == dict(k=20, n=20) and first["up"] == dict(k=0, n=20)
+    assert [x for x in later["labels"] if x.startswith(barreport.RERUN)] == [
+        barreport.RERUN + ": no reason recorded (a record is kept beside it; this one holds no `supersedes` field)"]
+    assert any(x.startswith(barreport.REGISTERED) for x in first["labels"])
+    assert not any(x.startswith(barreport.RERUN) for x in first["labels"])
+    v, w = lines(tabs, "walk", "verdicts", set="V0", condition="walk/v0.4", delay=J)
+    assert (v["which"], v["reading_2"]) == ("registered records", "provisional [a control is not replicated]")
+    assert (w["which"], w["reading_2"]) == (barreport.RERUN, "shown [a control is not replicated]")
+    assert one(tabs, "glance", "glance", set="V0", condition="walk/v0.4")["reading_2"] == v["reading_2"]
+    # the kept file cannot be read and no field copies its counts: the registered record has none, and says so
+    (sdir / "ffffffffffff.json").write_text("{")
+    tabs = barreport.tables(barreport.load(out, study=study))
+    later, first = lines(tabs, "walk", "counts", set="V0", condition="walk/v0.4", row="R2/43@10ms")
+    assert first["up"] is None and any("the later record holds no supersedes field: no counts" in x for x in first["labels"])
+    v = lines(tabs, "walk", "verdicts", set="V0", condition="walk/v0.4", delay=J)[0]
+    assert v["which"] == "registered records" and v["reading_2"] == "incomplete"
+
+
 def test_a_rerun_that_has_not_finished_leaves_the_registered_record(run, tmp_path):
     study = tmp_path / "study"
     out = study / "runs" / "x"
@@ -961,13 +1107,33 @@ def test_counts_are_the_records_own_and_recompute_from_their_episodes(run, tmp_p
     rec["counts"].update(survived=20, succeeded=20, pass_=True)
     path.write_text(json.dumps(rec))
     put(study, out, "V0", "R0@10ms", "walk/v0.4", block=R)  # no second block for a control set or an R0 row
-    c = barreport.tables(barreport.load(out, study=study))["checks"]
+    put(study, out, "V0", "R2/42@10ms", "walk/v0.4", block=R)  # ... nor under an R2 row of a control (it passes)
+    tabs = barreport.tables(barreport.load(out, study=study))
+    c = tabs["checks"]
     assert [x["why"] for x in c["second_block_outside_the_rule"]] == [
-        ["an R0 row", "a control set of the round", "no replication_of field"]]
+        ["an R0 row", "a control set of the round", "no replication_of field"],
+        ["a control set of the round", "no replication_of field"]]
+    # table 5 lists them beside the first block and gives them no replication word
+    for row, why in (("R0@10ms", "an R0 row, a control set of the round, no replication_of field"),
+                     ("R2/42@10ms", "a control set of the round, no replication_of field")):
+        x = one(tabs, "replication", "replication", set="V0", row=row)
+        assert x["words"] == [f"{barreport.OUTSIDE_RULE}: {why}"] and x["words"][0] in x["labels"]
+        assert x["triggered_by"] == ["none: the record is " + barreport.OUTSIDE_RULE] and x["b_up"] == dict(k=20, n=20)
+    assert not [w for x in part(tabs, "replication", "replication")["lines"] for w in x["words"]
+                if w.endswith(bar.REPLICATION_WORDS[:2])]
+    assert barreport.outside_rule(run.doc["F25F9cl"][BODY][R]["R2/42@10ms"]["walk/v0.4"]) == []
+    assert barreport.outside_rule(run.doc["V0"][BODY][H]["R0@10ms"]["walk/v0.4"]) == []  # another block
     assert len(c["counts_not_recomputed"]) == 1 and c["counts_not_recomputed"][0]["differences"] == [
         "reading 2 (every limit): survived is 20 in the record, 16 from its episodes",
         "reading 2 (every limit): succeeded is 20 in the record, 16 from its episodes",
         "reading 2 (every limit): pass_ is True in the record, False from its episodes"]
+    x = one(tabs, "walk", "counts", set="V0", condition="walk/v0.4", row="R2/42@10ms")
+    assert x["r2_pass"] == "passes" and barreport.MISCOUNTED in x["labels"]  # the record's own word, flagged
+    v = one(tabs, "walk", "verdicts", set="V0", condition="walk/v0.4", delay=J)
+    assert v["labels"] == [f"R2/42@10ms: {barreport.MISCOUNTED}"]
+    g = one(tabs, "glance", "glance", set="V0", condition="walk/v0.4")
+    assert f"R2/42@10ms: {barreport.MISCOUNTED}" in g["labels"]
+    assert not any(barreport.MISCOUNTED in str(x_["labels"]) for _, _, x_ in every_line(run.tabs) if "labels" in x_)
     # reading 2 of a turn frozen with a1_over keeps its pass under pass_if_read: that is no difference
     a1 = run.doc["F25F9cl"][BODY][H]["R2/42@10ms"]["turn/q90_left"]
     assert a1["counts"]["pass_"] is None and a1["counts"]["pass_if_read"] is False and barreport.counts_differences(a1) == []

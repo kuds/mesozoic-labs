@@ -1035,8 +1035,9 @@ def outside_rule(rec: dict) -> list[str]:
 def verdict_of(doc: dict, set_name: str, body: str, key: str, ms: int, ctrl: str = "R2",
                block: str = bar.HEADLINE_BLOCK, latest: bool = False) -> dict:
     """A controller's verdict on one condition and delay, from its two rows' registered records (``latest``: from
-    the records at the paths now, which differ where a record was re-run): ``{reading_2, reading_3, rows, paths}``,
-    each reading ``{text, verdict, replication}``.  With no record under either row the text is the absent word."""
+    the records at the paths now, which differ where a record was re-run): ``{reading_2, reading_3, rows, paths,
+    flags}``, each reading ``{text, verdict, replication}``; ``flags`` are the checks its records fail
+    (``flags_of``), each with its row.  With no record under either row the text is the absent word."""
     names = [f"{r}@{ms}ms" for r in panels.VERDICT_ROWS[ctrl]]
     now = [_rec(doc, set_name, body, block, r, key) for r in names]
     recs = now if latest else [registered(r) for r in now]
@@ -1074,7 +1075,8 @@ def verdict_of(doc: dict, set_name: str, body: str, key: str, ms: int, ctrl: str
 # ------------------------------------------------------------------------------------------------
 def _col(key: str, title: str, kind: str = "text", unit: str | None = None) -> dict:
     """A column: ``kind`` says what it holds (text, code, labels, of, count, bound, word, measured, limit, defined,
-    terms, claim, path, list) and how ``markdown`` prints it; ``unit`` picks the decimals (``DECIMALS``)."""
+    terms, tally, flag, claim, path, list) and how ``markdown`` prints it; ``unit`` picks the decimals
+    (``DECIMALS``)."""
     return dict(key=key, title=title, kind=kind, unit=unit)
 
 
@@ -1908,8 +1910,8 @@ def other_records(doc: dict, tabs: dict) -> dict:
 
 
 def named_table(doc: dict) -> dict:
-    """Table 9: the plan's list "Not run in this round, by name", one line per item: "not run", or the finished
-    records found under the run directory that are of it (the list is the plan's; a record is what was run)."""
+    """Table 9: the plan's list "Not run in this round, by name", one line per item: "not run" when no finished
+    record of it is among the records read, else those records, counted and cited (``NOT_RUN_BY_NAME``)."""
     meta = doc[META]
     recs = [r for r in list(_records(doc)) + [x for c in sorted(meta["controls"]) for x in _records(meta["controls"][c])]
             if r.get("status") == "done"]
@@ -1928,11 +1930,12 @@ def named_table(doc: dict) -> dict:
             _col("where", "Where the tables say more"), _col("reference", "Named not run by"),
             _col("paths", "Records found", "path")]
     return dict(title="9. Not run in this round, by name", notes=[
-        f"The list of `{PLAN_FILE}` under \"{NOT_RUN_SECTION}\", item by item in the plan's words.  The plan fixed "
-        "it before the runs; no episode was run for an item that reads \"not run\".",
-        "The status is checked against the records: a finished record under the run directory that is of an item "
-        "(among the sets and the body asked for) is counted and cited in its line instead of the words \"not "
-        "run\".  For stiffness x0.7 no record of the bar could show it: the bar has no such plant.",
+        f"The list of `{PLAN_FILE}` under \"{NOT_RUN_SECTION}\", item by item in the plan's words: the plan fixed, "
+        "before the runs, that these are not run in this round.",
+        "Each line is checked against the records read: an item reads \"not run\" when no finished record of it "
+        "was found under the run directory (among the sets and the body asked for); a record found is counted and "
+        "cited in its line instead.  One item cannot be checked that way, stiffness ×0.7: no record of the bar "
+        "holds a stiffness factor.",
         "A cell of JPS section 2.3 with no counterpart in these runs reads \"not run\" in table 6."],
         parts=[dict(key="named", title="the plan's list, item by item", columns=cols, lines=lines)])
 
@@ -2032,6 +2035,11 @@ def _md_table(part: dict) -> list[str]:
     return out + [""]
 
 
+def _count(n: int, what: str) -> str:
+    """"1 record file", "2 record files"."""
+    return f"{n} {what}{'' if n == 1 else 's'}"
+
+
 def _md_checks(c: dict) -> list[str]:
     r = c["records"]
     out = ["## Checks", "",
@@ -2074,8 +2082,9 @@ def _md_checks(c: dict) -> list[str]:
         kinds = Counter(v["kind"] for v in inp["records"].values())
         out.append(
             "- Inputs (the sha256 of each file is in `bar_tables.json`, `checks.inputs`): "
-            + f"{kinds.get('a record', 0)} record files, {kinds.get('a record kept beside a re-run', 0)} kept beside "
-            f"a re-run with {kinds.get('the reason of a re-run', 0)} reason files; "
+            + _count(kinds.get("a record", 0), "record file") + "; "
+            + _count(kinds.get("a record kept beside a re-run", 0), "record file") + " kept beside a re-run, with "
+            + _count(kinds.get("the reason of a re-run", 0), "reason file") + "; "
             + "; ".join(f"`{n}` " + (f"`{h}`" if h else "absent") for n, h in inp["run_directory"].items())
             + f"; the documents of {len(inp['sets'])} set director{'y' if len(inp['sets']) == 1 else 'ies'}"
             + "".join(f"\n  - `{d}`: " + ", ".join(f"`{n}` " + (f"`{h}`" if h else "absent") for n, h in docs.items())
@@ -2218,7 +2227,8 @@ def main(argv=None) -> int:
 
 
 __all__ = ["absent_word", "checks", "counts_differences", "digest", "jps_table", "load", "main", "manifest_differences",
-           "markdown", "measures_of", "planned", "registered", "replication_word", "tables", "verdict_of", "write"]
+           "markdown", "measures_of", "named_table", "outside_rule", "planned", "registered", "replicated",
+           "replication_in_order", "replication_word", "tables", "verdict_of", "write"]
 
 if __name__ == "__main__":
     from designlab.stage2 import barreport as _named  # the importable copy owns the module's state
