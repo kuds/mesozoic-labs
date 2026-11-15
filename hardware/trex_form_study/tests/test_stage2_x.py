@@ -58,6 +58,8 @@ HEAD_X = {"60-N-T-10-X": ("head_x_60", "60-N-T-10", "narrow_carpet_60"),
 #: Every body the registry held before Stage 2, with its record's case.
 EARLIER = {"60-N-T-10": "narrow_carpet_60", "60-N-H-10": "narrow_carpet_60", "75-M-H-10": "feet_75",
            "60-N-T-10-K": "narrow_knee_60", "60-N-H-10-K": "narrow_knee_60"}
+#: Stage 2's Jetson body, registered after the -X bodies (``tests/test_stage2_j.py``): body -> its pick's id.
+JETSON = {"75-M-H-10-J": "75-M-H-10"}
 STS3215 = "feetech_sts3215_c018"
 RUN = ROOT / "stage2" / "x"
 
@@ -398,12 +400,12 @@ def test_each_new_joint_is_driven_by_an_sts3215(body, built):
 # ------------------------------------------------------------------------------------------------
 def test_the_head_x_bodies_are_registered_beside_the_earlier_ones():
     assert HEAD_X_BODIES == tuple(HEAD_X) and PROBE_BODIES == ("60-N-T-10", "60-N-H-10", "75-M-H-10")
-    assert set(BODIES) == set(EARLIER) | set(HEAD_X) and set(SHA256_PREFIX) == set(BODIES)
+    assert set(BODIES) == set(EARLIER) | set(HEAD_X) | set(JETSON) and set(SHA256_PREFIX) == set(BODIES)
     for body, (case, cid, _) in HEAD_X.items():
         assert BODIES[body] == f"round2/refine/{case}" and CANDIDATE_IDS[body] == cid == candidate_id(body)
         assert case_dir(body) == STUDY / "round2" / "refine" / case
     assert {k: v for k, v in CANDIDATE_IDS.items() if k not in HEAD_X} == {"60-N-T-10-K": "60-N-T-10",
-                                                                            "60-N-H-10-K": "60-N-H-10"}
+                                                                            "60-N-H-10-K": "60-N-H-10", **JETSON}
 
 
 @pytest.mark.parametrize("body", sorted(HEAD_X))

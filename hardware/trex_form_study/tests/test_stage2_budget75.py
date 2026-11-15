@@ -1,19 +1,24 @@
-"""Tests for the 75 cm build's budget (``stage2/jetson75/budget_75.py``, ``budget_75.json``, ``BUDGET_75.md``;
-``JETSON_PLEM_REVIEW.md`` section 5, task 9).
+"""Tests for the 75 cm build's price record (``stage2/jetson75/budget_75.py``, ``budget_75.json``, ``BUDGET_75.md``;
+``JETSON_PLEM_REVIEW.md`` section 5, task 9).  The file names keep the word "budget" from the first version.
 
 * The committed ``budget_75.json`` came from the committed script and regenerates from it exactly.
 * The baseline reproduces the round-two record's cost block for ``75-M-H-10`` exactly: every line and the totals
   ($13,576 / $18,521 / $25,658), with the unrounded drivers to 12 digits; a record that does not reproduce stops the
   script.
-* Every catalog id the record names, and every id the budget prices, exists in ``designlab/data``; the two ids
-  PR #668 cited do not.
+* Every catalog id the record names, and every id the price record prices, exists in ``designlab/data``; the two
+  ids PR #668 cited do not.
 * The Jetson line uses the catalog's price ($399), not the stale $249.
 * Every total is its lines plus the cost model's contingency; the blocks add up to the scenarios; P21's items are not
   counted twice; the optional lines stay out of the main totals; every low is at most its nominal and its high.
 * A line that a kept lot may already hold (the regulator, the supervisor) is priced both ways, and the
   Jetson-against-Pi difference is a range read from the catalog and the compute survey.
+* The lines are ranked by the gap between their low and high cases (where the prices are least certain), and what
+  a quote would cover is described without telling anyone to act.
 * ``BUDGET_75.md`` embeds the tables the script prints from the record, quotes the record's figures and none of
   PR #668's totals.
+* Decision-log P31: prices are documented and not weighed against P4.  Outside the dated note at its top, the
+  document names P4 once, to say that it is not applied; the document, the record and the script hold no verdict
+  against P4, no option to cut a line and no request for a budget decision.
 
 Run from hardware/trex_form_study:  python -m pytest tests/test_stage2_budget75.py -q      (about 2 s)
 """
@@ -73,6 +78,17 @@ def _prose() -> tuple:
     begin, end = "<!-- budget_75.py md: begin -->\n", "<!-- budget_75.py md: end -->"
     assert text.count(begin) == 1 and text.count(end) == 1
     return text, text.split(begin)[0] + text.split(end)[1], text.split(begin)[1].split(end)[0]
+
+
+def _note_and_rest() -> tuple:
+    """The dated note at the top of the document (it lists what the first version held, in that version's words) and
+    the document without it."""
+    text = (RUN / "BUDGET_75.md").read_text()
+    begin, end = "**Changed, 14 Nov 2026 (P31).**", "\n14 Nov 2026. A price record"
+    assert text.count(begin) == 1 and text.count(end) == 1
+    head, rest = text.split(begin)
+    note, tail = rest.split(end)
+    return begin + note, head + end + tail
 
 
 def test_the_record_is_the_committed_scripts_and_regenerates_exactly():
@@ -178,7 +194,7 @@ def test_the_jetson_line_uses_the_catalogs_price():
 
 def test_a_line_a_kept_lot_may_hold_is_priced_both_ways():
     """The regulator (against the power lot) and the supervisor (against the kept control lot): every total that
-    holds one is also given without it, and the Jetson's extra cost is stated for the kit alone and with the
+    holds one is also given without it, and what the Jetson adds is stated for the kit alone and with the
     regulator."""
     assert set(DOC["conditions"]) == {"regulator_12v", "supervisor"}
     assert budget_75.BLOCKS["jetson"]["conditional"] == ("regulator_12v",)
@@ -195,7 +211,6 @@ def test_a_line_a_kept_lot_may_hold_is_priced_both_ways():
                 assert lo[which]["subtotal"][i] == pytest.approx(sub, abs=0.011)
                 assert lo[which]["total"][i] == pytest.approx(sub * (1 + cost.CONTINGENCY[i]), abs=0.51)
                 assert lo[which]["total"][i] < s[name][which]["total"][i]
-        assert lo["turnkey_minus_ceiling"] == [v - 20000.0 for v in lo["turnkey"]["total"]]
     # the kit alone is the catalog difference with the model's contingency: like for like with the Pi 5 set, whose
     # own regulator has no line either
     steps = DOC["derived"]["steps"]
@@ -254,13 +269,10 @@ def test_every_total_is_its_lines_plus_the_models_contingency():
                 sub = sum(v[i] for k, v in s["lines"].items() if k not in skip)
                 assert s[which]["subtotal"][i] == pytest.approx(sub, abs=0.011)
                 assert s[which]["total"][i] == pytest.approx(sub * (1 + cost.CONTINGENCY[i]), abs=0.51)
-        assert s["p4"]["ceiling_usd"] == 20000.0
-        assert s["p4"]["turnkey_minus_ceiling"] == [v - 20000.0 for v in s["turnkey"]["total"]]
         # self-assembled is turnkey less the integration line and the contingency on it
         for i in range(3):
             gap = s["turnkey"]["total"][i] - s["self_assembled"]["total"][i]
             assert gap == pytest.approx(s["lines"]["integration"][i] * (1 + cost.CONTINGENCY[i]), abs=1.01)
-    assert DOC["p4"]["read_against"] == "turnkey"
     assert DOC["contingency_fractions"] == list(cost.CONTINGENCY)
 
 
@@ -377,29 +389,14 @@ def test_the_optional_lines_stay_out_of_the_main_totals():
     for i in range(3):
         assert 0.45 * hx["frame"]["usd"][i] <= yaw["lines"]["frame"][i] <= 0.55 * hx["frame"]["usd"][i]
         assert yaw["turnkey_with_bearing"][i] < DOC["blocks"]["head_x"]["turnkey"][i]
-    # the trims: the boom is in the main totals, the audio is not
-    boom, audio = DOC["trims"]["defer_boom"], DOC["trims"]["defer_audio"]
-    for name in budget_75.MAIN:
-        s = DOC["scenarios"][name]["turnkey"]["total"]
-        assert boom["scenarios"][name]["turnkey_with"] == s
-        assert audio["scenarios"][name]["turnkey_without"] == s
-        both = DOC["trims_both"][name]
-        assert both["turnkey_without"] == boom["scenarios"][name]["turnkey_without"]
-        assert both["turnkey_with"] == audio["scenarios"][name]["turnkey_with"]  # from the total with the audio
-        for t in (boom, audio):
-            one = t["scenarios"][name]
-            cut = [w - wo for w, wo in zip(one["turnkey_with"], one["turnkey_without"])]
-            assert cut == pytest.approx([-v for v in t["turnkey"]], abs=1.01)
-            if "lower" in DOC["scenarios"][name]:
-                lo = one["lower"]
-                cut = [w - wo for w, wo in zip(lo["turnkey_with"], lo["turnkey_without"])]
-                assert cut == pytest.approx([-v for v in t["turnkey"]], abs=1.01)
-        if "lower" in DOC["scenarios"][name]:
-            assert boom["scenarios"][name]["lower"]["turnkey_with"] == \
-                DOC["scenarios"][name]["lower"]["turnkey"]["total"]
+    # every build with the optional lines is its main build plus the two optional blocks, and nothing else
+    for main, optional in (("pi_p21", "pi_p21_optional"), ("jetson_mcu_p21", "jetson_mcu_p21_optional")):
+        a, b = DOC["scenarios"][main]["lines"], DOC["scenarios"][optional]["lines"]
+        assert set(b) - set(a) == {"yaw_bearing", "audio"}
+        assert {k for k in a if a[k] != b[k]} == {"expression_actuators", "frame"}
 
 
-def test_every_line_has_a_kind_and_the_quotes_are_ranked():
+def test_every_line_has_a_kind_and_the_lines_are_ranked_by_their_spread():
     for blk in DOC["blocks"].values():
         for key, line in blk["lines"].items():
             assert line["kind"] in DOC["kinds"] and line["basis"]
@@ -408,8 +405,8 @@ def test_every_line_has_a_kind_and_the_quotes_are_ranked():
                 assert all(c["id"] in catalog.parts() for c in line["catalog"])
             elif key in budget_75.EXTRA:
                 assert line["kind"] == "d"
-    # the quotes are ranked on the adopted build; the lines only a Jetson build adds are listed apart
-    q = DOC["quotes"]
+    # the lines are ranked on the adopted build; the lines only a Jetson build adds are listed apart
+    q = DOC["least_certain"]
     assert q["scenario"] == "pi_p21" and q["jetson_only_scenario"] == "jetson_direct_p21"
     rows = q["rows"]
     assert [r["spread"] for r in rows] == sorted((r["spread"] for r in rows), reverse=True)
@@ -422,11 +419,14 @@ def test_every_line_has_a_kind_and_the_quotes_are_ranked():
     cls = {r["line"]: r["cls"] for r in rows}
     assert {k for k, v in cls.items() if v == "a8"} == {"frame", "covers", "integration", "harness", "foot_sensing"}
     assert {k for k, v in cls.items() if v == "carried"} == {"control", "power", "bench"}
-    assert all(r["ask"] for r in rows + q["jetson_only_rows"])
-    # the clamp and the stop circuit are asked for once, with the power bay
-    asks = {r["line"]: r["ask"] for r in rows}
-    assert "clamp" in asks["power"] and "stop circuit" in asks["power"] and "regulator" in asks["power"]
-    assert "asked for with the power bay" in asks["dc_input"]
+    # what a quote would cover is a description of the line, not a step for anyone to take (decision-log P31)
+    scopes = {r["line"]: r["quote_scope"] for r in rows + q["jetson_only_rows"]}
+    assert all(scopes.values()) and set(scopes) == set(budget_75.QUOTE_SCOPE)
+    for line, scope in scopes.items():
+        assert not re.search(r"\b(ask|asks|asked|buy|decide|confirm|approve)\b", scope.lower()), (line, scope)
+    # the clamp and the stop circuit are counted once, with the power bay
+    assert "clamp" in scopes["power"] and "stop circuit" in scopes["power"] and "regulator" in scopes["power"]
+    assert "belong to the power bay's price" in scopes["dc_input"]
     # the leg drives are the largest line only in the low case; the frame is at nominal and high
     assert DOC["derived"]["largest_lines"] == {"low": "leg_actuators", "nominal": "frame", "high": "frame"}
     # the scalings the table names are the ones cost.py applies
@@ -472,17 +472,26 @@ def test_the_document_embeds_the_tables_and_quotes_the_record():
     for name in ("jetson_mcu_p21", "jetson_direct_p21"):  # each Jetson total both ways
         low, nom, high = s[name]["lower"]["turnkey"]["total"]
         assert f"${low:,.0f} low, ${nom:,.0f} nominal, ${high:,.0f} high" in flat, name
-    boom = DOC["trims"]["defer_boom"]["scenarios"]
     for v in (dv["spread_top3"], dv["spread_all"], dv["spread_compute"], dv["baseline_subtotal_nominal"],
-              dv["quotes_subtotal_nominal"], *dv["baseline_split_nominal"].values(), dv["quotes_split_nominal"]["a8"],
-              *dv["nominal_over_ceiling"], *dv["high_over_ceiling"], *dv["compute_difference"]["nominal_as_priced"],
-              dv["regulator_upgrade_usd"], boom["pi_p21"]["turnkey_without"][1],
-              boom["jetson_mcu_p21"]["turnkey_without"][1], boom["jetson_mcu_p21"]["lower"]["turnkey_without"][1]):
+              dv["adopted_subtotal_nominal"], *dv["baseline_split_nominal"].values(),
+              dv["adopted_split_nominal"]["a8"], *dv["compute_difference"]["nominal_as_priced"],
+              dv["regulator_upgrade_usd"]):
         assert f"${v:,.0f}" in flat, v
     assert [round(100 * v) for v in dv["baseline_split_share"].values()] == [55, 8, 36]
-    assert max(dv["nominal_over_ceiling_share"]) <= 0.013
     assert "second largest line at nominal after the frame" in flat  # the drives are not the largest line
     assert "In brief, for the owner" in prose and "Draft decision-log rows" in prose
+    # the brief leads with the two nominal totals, in dollars, and says what kind of number they are
+    brief = " ".join(prose.split("## In brief, for the owner")[1].split("\n## ")[0].split())
+    pi, jetson = s["pi_p21"]["turnkey"]["total"], s["jetson_mcu_p21"]["lower"]["turnkey"]["total"]
+    assert brief.startswith(f"One prototype of the 75 cm build is priced at **${pi[1]:,.0f}**")
+    assert f"**${jetson[1]:,.0f}** with the Jetson dev kit" in brief and "US dollars" in brief
+    for values in (pi, jetson, s["record"]["turnkey"]["total"], dv["steps"]["p21_on_the_record"],
+                   dv["steps"]["jetson_kit_alone_on_pi"], dv["steps"]["jetson_with_regulator_on_pi"],
+                   dv["steps"]["direct_on_jetson_lower"], dv["steps"]["direct_on_jetson"],
+                   s["pi_p21"]["self_assembled"]["total"], s["jetson_mcu_p21"]["lower"]["self_assembled"]["total"],
+                   DOC["blocks"]["head_x"]["turnkey"], DOC["blocks"]["audio"]["turnkey"]):
+        assert three(values) in brief, values
+    assert "a cost-model estimate (d) or a catalog price (c). None is a quote." in brief
     assert "nvidia_orin_nano_super_devkit" in prose and "$399" in prose
     for word in ("H is the hip height", "TPU is", "Shore A is", "sha256 is"):  # every abbreviation explained once
         assert word in flat, word
@@ -495,14 +504,74 @@ def test_the_document_names_no_total_of_pr668():
     text, prose, tables = _prose()
     for stale in PR668_TOTALS:
         assert stale not in text, stale
-    # "$249" is also this budget's own figure for the Jetson build's nominal above the $20,000 ceiling (+$249)
-    assert DOC["scenarios"]["jetson_mcu_p21"]["p4"]["turnkey_minus_ceiling"][1] == 249.0
     for line in tables.splitlines():
-        if "$249" in line.replace("+$249", ""):
-            assert line.startswith("| The Jetson dev kit's price"), line  # Table 7, the slip's own row
+        if "$249" in line:
+            assert line.startswith("| The Jetson dev kit's price"), line  # Table 6, the slip's own row
     flat = " ".join(prose.split())
-    corrected = ("launch price of $249", "the $249 Jetson price", "from $249 to $399", "$174 to $249 above")
-    assert flat.count("$249") == sum(flat.count(phrase) for phrase in corrected) == 4
+    corrected = ("launch price of $249", "the $249 Jetson price", "from $249 to $399")
+    assert flat.count("$249") == sum(flat.count(phrase) for phrase in corrected) == 3
     # the one equal figure is a coincidence, and the document says so
     assert DOC["scenarios"]["pi_p21"]["turnkey"]["total"][2] == 28215.0
     assert "happens to equal PR #668's (unverified) turnkey high" in " ".join(prose.split())
+
+
+def test_no_total_is_set_against_p4():
+    """Decision-log P31 (the owner, 14 Nov 2026): "remove any budget concerns at this point and just document the
+    prices".  The document is a price record: a dated note at its very top lists what changed, and outside that note
+    neither it, nor the record, nor the script weighs a total against P4, offers a line to cut or asks for a budget
+    decision."""
+    text = (RUN / "BUDGET_75.md").read_text()
+    note, rest = _note_and_rest()
+    # the note is the first thing under the title, and it names the decision and the owner's words
+    assert text.split("\n\n")[1].startswith("**Changed, 14 Nov 2026 (P31).**")
+    flat_note = " ".join(note.split())
+    assert "remove any budget concerns at this point and just document the prices" in flat_note
+    for place in ("Title", "In brief, for the owner", "Table 4", "Table 5", "Table 6", "Table 7", "Section 4",
+                  "Section 6", "draft decision-log rows", "`budget_75.json`"):
+        assert place in flat_note, place
+    # P4 is named once outside the note, to say that it is not applied
+    flat = " ".join(rest.split())
+    assert flat.count("P4") == 1
+    assert ("P4's $10-20k is not applied at this point (decision-log row P31), so this document sets no total "
+            "against it.") in flat
+    assert flat.index("P4's $10-20k is not applied") < flat.index("## In brief, for the owner")
+    # no verdict against P4, no option to cut a line, no request for a budget decision
+    record_text = (RUN / "budget_75.json").read_text()
+    script_text = (RUN / "budget_75.py").read_text()
+    verdicts = ("over p4", "under p4", "above p4", "below p4", "trim", "ceiling", "$20,000", "$20k", "exceed",
+                "afford", "over budget", "within budget", "prototype budget", "what to do with this",
+                "the decision this prepares", "owner's decision)", "awaiting the owner", "accept about", "defer the")
+    for where, body in (("document", rest), ("tables", budget_75.md(DOC)), ("record", record_text),
+                        ("script", script_text)):
+        low = " ".join(body.split()).lower()
+        for word in verdicts:
+            assert word not in low, (where, word)
+        # nor a dollar amount said to be over or under something
+        assert not re.search(r"\$[\d,.]+k? (over|above|under|below)\b", low), where
+    assert DOC["p31"]["row"] == "P31" and "not weighed against P4" in DOC["p31"]["applied_as"]
+    assert "p4" not in DOC and "trims" not in DOC and "quotes" not in DOC
+    for name, s in DOC["scenarios"].items():
+        assert set(s) <= {"blocks", "compute", "cover", "lines", "extra_lines", "turnkey", "self_assembled", "label",
+                          "vs_record", "lower"}, name
+        if "lower" in s:
+            assert set(s["lower"]) == {"without", "condition", "turnkey", "self_assembled"}, name
+    assert not [k for k in DOC["derived"] if "ceiling" in k or "p4" in k.lower()]
+    # every slip that is left is a price or a catalog id
+    assert [r["what"] for r in DOC["pr668_slips"]] == [
+        "The Jetson dev kit's price", "The tail servo's catalog id", "The neck servo's catalog id"]
+    # the totals table has the three cases, turnkey and self-assembled, and no column against a figure
+    tables = budget_75.md(DOC)
+    header = next(line for line in tables.splitlines() if line.startswith("| Build |"))
+    assert header == ("| Build | Turnkey low | Turnkey nominal | Turnkey high | Self-assembled low | "
+                      "Self-assembled nominal | Self-assembled high |")
+    assert [line[4:] for line in tables.splitlines() if line.startswith("### Table")] == [
+        "Table 1. The round-two record's cost block, recomputed",
+        "Table 2. The variants, each as a difference from the record",
+        "Table 3. What the record already holds of P21's items",
+        "Table 4. Totals: turnkey and self-assembled",
+        "Table 5. Where the prices are least certain, the widest lines first",
+        "Table 6. PR #668's price slips, corrected"]
+    # the draft rows record prices and assumptions; none proposes a budget decision
+    drafts = [line.split("|")[1].strip() for line in rest.split("Draft decision-log rows")[1].splitlines()
+              if line.startswith("|") and not line.startswith(("| Draft", "|---"))]
+    assert drafts == ["Price finding", "Lines outside the cost model", "A8, made explicit"]

@@ -47,6 +47,8 @@ ARM_K = {"60-N-T-10-K": "60-N-T-10", "60-N-H-10-K": "60-N-H-10"}
 K_CASE = "round2/refine/narrow_knee_60"
 #: Stage 2's expressive heads (S2-2), registered after arm K: body -> its pick's id (tests/test_stage2_x.py).
 HEAD_X = {"60-N-T-10-X": "60-N-T-10", "75-M-H-10-X": "75-M-H-10"}
+#: Stage 2's Jetson body, registered after them: body -> its pick's id (tests/test_stage2_j.py).
+JETSON = {"75-M-H-10-J": "75-M-H-10"}
 
 
 def _have_inputs(body: str) -> bool:
@@ -62,13 +64,13 @@ def test_the_probe_bodies_are_registered_as_stage_1_ran_them():
     for body, (case, prefix) in PROBE.items():
         assert BODIES[body] == case and SHA256_PREFIX[body] == prefix
         assert candidate_id(body) == body and case_dir(body) == STUDY / case
-    assert set(BODIES) == set(PROBE) | set(ARM_K) | set(HEAD_X) and set(SHA256_PREFIX) == set(BODIES)
+    assert set(BODIES) == set(PROBE) | set(ARM_K) | set(HEAD_X) | set(JETSON) and set(SHA256_PREFIX) == set(BODIES)
     with pytest.raises(KeyError):
         candidate_id("60-N-T-10-Y")
 
 
 def test_arm_k_maps_to_the_narrow_knee_case_and_its_picks_ids():
-    assert CANDIDATE_IDS == ARM_K | HEAD_X
+    assert CANDIDATE_IDS == ARM_K | HEAD_X | JETSON
     for body, cid in ARM_K.items():
         assert BODIES[body] == K_CASE and candidate_id(body) == cid and case_dir(body) == STUDY / K_CASE
         rec = plant.record(body)

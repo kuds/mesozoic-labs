@@ -1,10 +1,14 @@
 # A speed governor from the chest ToF sensors (75 cm + Jetson track, task 10)
 
+**Changed, 14 Nov 2026.** Decision-log rows P30 and A17 are in the log now. The opening paragraph no longer says that
+P30 is "being added today", and A17 is no longer called a draft in four places: "In brief", section 3, section 10's
+heading and the `servo_delay` row of the inputs table. No number changed.
+
 14 Nov 2026. Simulation and planning only: nothing here is a hardware measurement, and nothing here is a speed the
 robot has shown. Nothing is adopted (P24); the draft rows in section 13 are for the owner. This answers task 10 of
 `JETSON_PLEM_REVIEW.md` section 5, "a speed governor, not a speed claim", under the owner's decisions of 14 Nov 2026
-(decision-log row P30, being added today): the Jetson is studied as a refine case, the real-time walking loop stays on
-the microcontroller as the baseline, and the agility bar is judged at 10 ms of servo delay until a bench value exists.
+(decision-log row P30): the Jetson is studied as a refine case, the real-time walking loop stays on the microcontroller
+as the baseline, and the agility bar is judged at 10 ms of servo delay until a bench value exists.
 
 Paths are relative to `hardware/trex_form_study/`. The 75 cm body `75-M-H-10` comes first and the 60 cm body
 `60-N-T-10` beside it. P, F, E and A rows are in `DECISION_LOG.md`. S1 is the Stage 1 report
@@ -110,8 +114,8 @@ recorded for each sensor and agrees with them to 0.17 mm. Tests: `tests/test_sta
 - **Not established.** How many frames the sensor needs to report an edge; whether it ranges the floor 1.05 m away at
   about 23–25° to the floor in the owner's light, in each mode; one I2C packet size; the trunk's pitch in closed-loop
   walking; and any stop from a walk faster than the nominal one, since no such stop reference exists yet (section 9).
-- **Nothing to decide now.** Section 10 lists six readings for the delay bench sheet (draft A17). Section 13 has three
-  draft decision-log rows.
+- **Nothing to decide now.** Section 10 lists six readings for the delay bench sheet (decision-log row A17). Section 13
+  has three draft decision-log rows.
 
 ## 1. The question and the method
 
@@ -249,7 +253,7 @@ window is assumed here.
   same range.
 - **Host link (d).** A serial or USB hop from the host to the real-time layer, 0–5 ms.
 - **Command delay (d).** The study's assumption: the bar is judged at 10 ms until a bench value exists (P29, P30;
-  draft A17). The range is the 0–20 ms Stage 1 simulated.
+  A17). The range is the 0–20 ms Stage 1 simulated.
 
 | Stop path | Reaction time, 8x8 zones at 15 Hz: low–high, ms (d) | Reaction time, 4x4 zones at 60 Hz: low–high, ms (d) | Reaction time, 4x4 zones at 30 Hz: low–high, ms (d) | If Linux fails |
 |---|---|---|---|---|
@@ -558,7 +562,7 @@ stacked case with a stop of two steps or longer; its mean-phase pair lies inside
 - **Turning, slopes and moving people** are outside this document. So are hazards the camera sees first, which give
   more room.
 
-## 10. For the delay bench sheet (draft A17)
+## 10. For the delay bench sheet (decision-log row A17)
 
 Task 8 of the review asks the sheet to carry the ToF stop's timing, and the bench tests run first, on both paths,
 before any compute purchase (P30). Six readings would replace this document's assumptions:
@@ -627,7 +631,7 @@ two-step stop reference exists (review tasks 2 to 4).
 | `host_deadline` | (c) | 0.2 | s | BEHAVIOR_SPEC.md section 3, Compute timing: at most 200 ms from the oldest sensor sample to a motion request. A deadline (a target), not a measured latency |
 | `host_planner` | (d) | low 0 / high 0.2 | s | This document's: low = 0, a bound (a planner at its best phase waits almost nothing, and no compute time is sourced); high = the spec's deadline, assumed met. No latency has been measured on the Pi 5 or the Jetson, so both hosts take the same range |
 | `host_link` | (d) | low 0 / high 0.005 | s | This document's: a serial or USB hop from the host to the real-time layer |
-| `servo_delay` | (d) | low 0 / ref 0.01 / high 0.02 | s | DECISION_LOG.md P29 (and the owner's 14 Nov decision, P30): the bar is judged at 10 ms until a bench value exists; draft A17. The study's assumption: reference 10 ms, range 0-20 ms as Stage 1 simulated (LESSONS_LEARNED.md 2.3) |
+| `servo_delay` | (d) | low 0 / ref 0.01 / high 0.02 | s | DECISION_LOG.md P29 (and the owner's 14 Nov decision, P30): the bar is judged at 10 ms until a bench value exists; A17. The study's assumption: reference 10 ms, range 0-20 ms as Stage 1 simulated (LESSONS_LEARNED.md 2.3) |
 | `spec_decel` | (c) | 1.5 | m/s^2 | BEHAVIOR_SPEC.md section 1, Start / stop: peak horizontal trunk acceleration at most 1.5 m/s^2; STAGE1_PLAN.md decision 10; STAGE2_PLAN.md section 5 gates it in the bar's stop; designlab/envelope.py STOP_DECEL. A limit (a target), not a deceleration the robot has shown |
 | `stop_steps` | (c) | low 1 / high 2 | steps | STAGE2_PLAN.md section 5, the bar: stop within a step or two (at most two touchdowns after the stop command). A target the bar sets, not a stop the robot has shown |
 | `spec_stop_strides` | (c) | 1.5 | strides | BEHAVIOR_SPEC.md section 1, Start / stop: stop within 1.5 strides; STAGE1_PLAN.md decision 18. A target, not a stop the robot has shown |
