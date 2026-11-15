@@ -55,6 +55,7 @@ ACCEL_LP_ORDER = 2
 RESAMPLE_HZ = 500.0
 #: Thresholds of the bar (the callers apply them unless a function takes one as an argument).
 TOE_CLEARANCE_FRAC_H = 0.04  # own-swing toe clearance, of the hip height
+AIR_GAP_SWING_FRAC = 0.5  # an air run outside the reference's swing is read as a swing from this share of the shortest
 MID_SWING = (0.25, 0.75)  # the middle half of a swing
 WALK_WINDOW_S = 10.0  # the walk item's judged window
 LINE_MAX_M = 0.25  # the CoM's largest distance from the line along the commanded heading
@@ -113,6 +114,12 @@ def contact_flags(loads, weight: float, dt: float, load_frac: float = CONTACT_LO
     return np.column_stack([debounce(raw[:, i], k) for i in range(raw.shape[1])])
 
 
+def air_gap_max(min_planned_swing_s: float, rate: float = RATE) -> float:
+    """``air_gap_max_s``: half the shortest planned swing of the condition's track (reference seconds), put on the
+    simulated clock of a track played at ``rate``."""
+    return AIR_GAP_SWING_FRAC * float(min_planned_swing_s) / rate
+
+
 def air_runs(contact_i, dt: float) -> list[tuple[int, int]]:
     """The complete air runs of one foot as (lift-off step a, touchdown step b): steps ``a .. b - 1`` are out of
     contact, step ``a - 1`` and step ``b`` are in contact.  A run the trace cuts at either end is not complete and
@@ -146,7 +153,7 @@ def toe_clearance_own_swing(t_u, low, contact, dt: float, ref_swing, ta: float, 
 
     ``low`` is ``[rows, 2]`` (each foot's lowest point above the floor at the update rows), ``ref_swing`` is
     ``[rows]`` (the reference's swing foot at each row: 0, 1 or -1), ``air_gap_max_s`` half the shortest planned
-    swing of the track on the simulated clock.  Returns
+    swing of the track on the simulated clock (``air_gap_max``).  Returns
 
     * ``toe_clearance_own_swing_m``: the smallest reading of the swings wholly inside the window (None: none);
     * ``own_swings`` [2]: per foot, the swings wholly inside the window (the ones read);

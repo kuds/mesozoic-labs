@@ -31,7 +31,7 @@ LIFT = 0.081 * H
 SWING_S = 0.350
 SWING_STEPS = int(round(SWING_S / DT))  # 175
 #: Half the planned swing on the simulated clock (the bar's rule for a 0.350 s shortest swing).
-AIR_GAP_MAX_S = 0.5 * SWING_S / R.RATE
+AIR_GAP_MAX_S = R.air_gap_max(SWING_S)
 #: How far the own-swing reading can move with the grid on this profile.  The design's table says 1e-6 m; linear
 #: interpolation between 10 ms rows does not reach that here: at 25 % and 75 % of a sin^2 swing the curvature is zero
 #: and the cubic term leaves up to f''' h^3 / (36 sqrt 3) = 1.9e-6 m at an edge (f''' = LIFT (2 pi / D)^3 / 2, h the
@@ -189,7 +189,7 @@ def test_stance_chatter_is_an_air_gap():
     graze = lambda u: 0.0005 + 0.0 * u  # noqa: E731  (the unloaded foot half a millimetre up)
     r = own_swing(episode(own + [(0, a, 15, graze)], ref))
     assert r["air_gaps"] == 1 and r["air_gap_longest_s"] == pytest.approx(0.030, abs=1e-12)
-    assert r["air_gap_max_s"] == AIR_GAP_MAX_S
+    assert r["air_gap_max_s"] == AIR_GAP_MAX_S == pytest.approx(0.5 * 0.350 / 1.05, abs=1e-15)
     assert r["toe_clearance_own_swing_m"] == base["toe_clearance_own_swing_m"]
     assert r["own_swings"] == base["own_swings"] == [6, 0] and r["interrupted_swings"] == 0
     gap = [row for row in r["swings"] if row[4] == "air_gap"]

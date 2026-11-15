@@ -269,7 +269,9 @@ class Lock:
     ``S2Error`` names the holder.  The holder is gone when the file names this host and its pid is not alive here,
     or the pid is alive but belongs to another process (another start time, or the machine has booted since: after
     a restart a new process can carry the old pid).  A lock of another host, or a file that cannot be read, is
-    never taken over.  ``release`` removes the file only while it still names this holder."""
+    never taken over.  ``release`` removes the file only while it still names this holder.  (Two processes that
+    find the same stale lock in the same instant can both take it: the takeover removes the stale file and creates
+    its own, and nothing ties the two steps together.  Start one builder per directory.)"""
 
     def __init__(self, path, log=None):
         self.path = Path(path)
