@@ -72,13 +72,15 @@ against the entry's sha256, on the move's own frames with no wrap:
   horizontal peak, the part along the heading, the vertical range, the feet's vertical peak; and the part along
   the heading low-passed at 1 Hz (``stage1.metrics.lowpass``) on a uniform 500 Hz resample of the frames
   (``com_forward_lp1hz_peak``: the reading of ``readings.reference_readings``, and the one this screen gates).
-  The filter sees the file alone: at a file's end that joins a walk its value is that of the unfiltered series
-  there, not of a filter that had the walk before or after it.  ``com_forward_lp1hz_peak_at_end`` says that the
-  peak lies within 1 s of an end of the file, and ``com_forward_lp1hz_peak_interior`` is the largest value at least
-  1 s from both ends (None for a file under 2 s).  The builder's own reading of the move
-  (``reference.accel_forward_lp1hz_peak_m_s2``: second differences on the frames' own times, the filter given the
-  walk or the stand around the move as its history; the plan's A7) is another number and is recorded beside it
-  (``com_forward_lp1hz_peak_entry``, ``com_forward_lp1hz_peak_minus_entry``).
+  The filter sees the file alone: within about 1 s (its corner period) of an end that joins a walk its value is an
+  end effect, not that of a filter that had the walk before or after it (Stage 1's entry into its 0.5 rad/s turn
+  reads 0.168 m/s^2 on its last sample and at most 0.101 m/s^2 away from the ends).
+  ``com_forward_lp1hz_peak_at_end`` says that the peak lies within 1 s of an end of the file, and
+  ``com_forward_lp1hz_peak_interior`` is the largest value at least 1 s from both ends (None for a file under 2 s).
+  The builder's own reading of the move (``reference.accel_forward_lp1hz_peak_m_s2``: second differences on the
+  frames' own times, the filter given the walk or the stand around the move as its history; the plan's A7) is
+  another number and is recorded beside it (``com_forward_lp1hz_peak_entry``,
+  ``com_forward_lp1hz_peak_minus_entry``).
 * ``clearance``: ``look._clearance_gates`` (``clearance.screen``, gates r2, no interpolated pose: ``substeps`` 0)
   with the move standing in for the nominal walk and the support read from the planned ``swing``.  The swing
   runs of that screen are cyclic and its mid-swing reading is the middle half of each run, so a file is refused
@@ -97,8 +99,7 @@ against the entry's sha256, on the move's own frames with no wrap:
 ======================================================  ========  ====================  =====================
 gate                                                    walk      start, change, stop   turn
 ======================================================  ========  ====================  =====================
-a drive's cont, peak or speed ratio above 1, the        blocks    blocks                blocks
-neck's and the tail's apart
+a drive's ratio above 1, the neck's and tail's apart    blocks    blocks                blocks
 a neck or tail drive's ratio above 1 (``a1_over``)      blocks    blocks                does not block
 ``ik_ok``; the single-support CoP rule                  blocks    blocks                blocks
 a planned swing's mid-swing pad clearance under 0.04 H  blocks    blocks                blocks
@@ -109,12 +110,13 @@ joint range                                             0.10 rad  0.10 rad      
 a gate's reading is missing                             blocks    blocks                blocks
 ======================================================  ========  ====================  =====================
 
-"The neck's and the tail's apart": the appendage groups are the neck and the tail alone (``A1_GROUPS``); the
+A ratio is cont, peak or speed.  The appendage groups are the neck and the tail alone (``A1_GROUPS``); the
 expressive head's two drives (neck yaw, jaw), on a body that has them, are gated like the legs'.  A gate that
 is not read is not passed: no single-support CoP margin, no joint-range margins (or none for a joint other than
 a turn's thigh twist, or no thigh-twist use), a contact split that did not solve (a walk's rolling-contact split;
 a move's double-support split), a clearance gate that is not true, usable ranges that are not
-``plant.usable_ranges(body)``'s: each is named in ``verdict.blocks_freeze`` ("not read: ...").
+``plant.usable_ranges(body)``'s or were not compared with them: each is named in ``verdict.blocks_freeze`` (a
+walk's rolling-contact split and a clearance gate under ``look.price``'s own names, the others as "not read: ...").
 
 Grip need, sway, passive loads, ``recheck`` and a walk's ``reprice`` are reported.  ``a1_over`` is true when a
 neck or tail group's cont, peak or speed ratio exceeds 1; a turn with ``a1_over`` is frozen and read under the
@@ -166,7 +168,9 @@ from . import look, s2io, screen, setio  # noqa: E402
 LOG = logging.getLogger(__name__)
 SIDES = statics.SIDES
 G = turning.G
-SCHEMA = 1
+#: 2: the readings after the screen's review (a move's sustained ratio over time; a walk's ``reference``; what a
+#: missing reading does).  A ``screen.json`` of schema 1 is not merged into.
+SCHEMA = 2
 SCREEN_JSON = "screen.json"
 SCREEN_MD = "SCREEN.md"
 PARTIAL = "partial"
@@ -235,7 +239,8 @@ RULES = dict(
              straight="blocks", turn="reported"),
         dict(gate="a gate's reading is missing (no single-support CoP margin; no joint-range margins, none for a "
                   "joint other than a turn's thigh twist, or no thigh-twist use; a contact split that did not "
-                  "solve; a clearance gate that is not true; usable ranges that are not plant.usable_ranges(body)'s)",
+                  "solve; a clearance gate that is not true; usable ranges that are not plant.usable_ranges(body)'s "
+                  "or were not compared with them)",
              walk="blocks", straight="blocks", turn="blocks"),
         dict(gate="grip need at mu 0.9 and 0.54; sway against 0.12 H; passive neck and tail loads; the re-priced "
                   "walk and the re-solved contact against the record", walk="reported", straight="reported",
@@ -692,7 +697,7 @@ def move_accelerations(t, com, heading, feet) -> dict:
     differences on the file's frames (the first and last frame left out); the part along the heading low-passed at
     1 Hz on a uniform 500 Hz resample (``forward_acceleration_lp``), which decision 10's 1.5 m/s^2 is read on.
 
-    The filter has the file alone, so its value at an end that joins a walk is the unfiltered series' there:
+    The filter has the file alone, so near an end that joins a walk its value is an end effect of the filter:
     ``com_forward_lp1hz_peak_at_end`` is true when the peak lies within ``ACCEL_EDGE_S`` of the file's first or last
     sample, and ``com_forward_lp1hz_peak_interior`` is the largest value at least that far from both (None for a file
     shorter than twice that)."""
@@ -812,6 +817,15 @@ def _passive_lists(passive: dict) -> tuple[list, list]:
     return rows(lambda r: r > 1.0), rows(lambda r: 1.0 - NEAR_BAND < r <= 1.0)
 
 
+def _usable_items(rng: dict) -> list:
+    """The item of a ``range`` block whose margins were read on usable ranges that are not ``plant.usable_ranges``'
+    (the thigh-twist use is read on the plant's), or were not compared with them."""
+    differs = rng.get("usable_differs_from_plant")
+    if differs is None:
+        return [_not_read("the usable ranges were not compared with plant.usable_ranges")]
+    return [_not_read("the usable ranges are not plant.usable_ranges' (" + ", ".join(differs) + ")")] if differs else []
+
+
 def judge_move(kind: str, causal: bool, flags: dict, ik_ok: bool, ik_fail_frames, contact: dict, clear: dict,
                rng: dict, accel: dict) -> dict:
     """A move's verdict by ``RULES``: ``{text, within_limits, over, near, a1_over, blocks_freeze}``.  ``over`` lists
@@ -850,9 +864,8 @@ def judge_move(kind: str, causal: bool, flags: dict, ik_ok: bool, ik_fail_frames
         add(_not_read("joint range margins" + (" of a joint other than the thigh twist" if kind == TURN else "")))
     elif tight[2] < RANGE_RULE_RAD:
         add(dict(limit=f"joint range margin under {RANGE_RULE_RAD:g} rad ({tight[0]} {tight[1]})", value=tight[2]))
-    if rng.get("usable_differs_from_plant"):
-        add(_not_read("the usable ranges are not plant.usable_ranges' (" + ", ".join(rng["usable_differs_from_plant"])
-                      + ")"))
+    for item in _usable_items(rng):
+        add(item)
     if kind in STRAIGHT and accel["com_forward_lp1hz_peak"] > ACCEL_RULE_M_S2:
         add(dict(limit=f"1 Hz forward acceleration above {ACCEL_RULE_M_S2:g} m/s^2",
                  value=accel["com_forward_lp1hz_peak"]))
@@ -869,9 +882,9 @@ def judge_walk(block: dict) -> dict:
     the CoP rule, a clearance gate (the 0.10 rad joint range among them; a gate that is not true is listed, read or
     not) and a rolling-contact split that did not solve (the drive loads of those frames are then not read).  A gate
     whose reading is missing is added to ``over`` here and blocks: no single-support CoP margin, no joint-range
-    margins, usable ranges that are not ``plant.usable_ranges``'.  ``a1_over`` when a neck or tail ratio exceeds 1
-    (on a walk it blocks).  ``text`` is this screen's sentence (the plan's A12); ``ladder_text`` is ``screen_rung``'s,
-    the look ladder's."""
+    margins, usable ranges that are not ``plant.usable_ranges``' or were not compared with them.  ``a1_over`` when a
+    neck or tail ratio exceeds 1 (on a walk it blocks).  ``text`` is this screen's sentence (the plan's A12);
+    ``ladder_text`` is ``screen_rung``'s, the look ladder's."""
     groups = set(block["drives"])
     over = list(block["over"])
     blocks = [o for o in over
@@ -890,9 +903,8 @@ def judge_walk(block: dict) -> dict:
         add(_not_read("joint range margins"))
     elif tight[2] < RANGE_RULE_RAD and not any(o["limit"] == "clearance joint_range_margin" for o in over):
         add(dict(limit=f"joint range margin under {RANGE_RULE_RAD:g} rad ({tight[0]} {tight[1]})", value=tight[2]))
-    if rng.get("usable_differs_from_plant"):
-        add(_not_read("the usable ranges are not plant.usable_ranges' (" + ", ".join(rng["usable_differs_from_plant"])
-                      + ")"))
+    for item in _usable_items(rng):
+        add(item)
     a1 = bool(any(g in A1_GROUPS and r > 1.0 for g, _, r in _drive_rows(block["drives"])))
     return dict(text=_text(over, blocks, a1, WALK), ladder_text=block["verdict"], within_limits=not over, over=over,
                 near=block["near"], a1_over=a1, blocks_freeze=blocks)
@@ -1395,7 +1407,7 @@ def _range_cells(b: dict) -> tuple[str, str]:
 
 
 def _accel_cell(b: dict) -> str:
-    """The 1 Hz forward acceleration, marked where the peak is the filter's value at an end of the file."""
+    """The 1 Hz forward acceleration, marked where the peak lies within 1 s of an end of the file."""
     a = b["accel"]
     if not a.get("com_forward_lp1hz_peak_at_end"):
         return _f(a.get("com_forward_lp1hz_peak"))
@@ -1435,8 +1447,8 @@ def markdown(doc: dict) -> str:
           "gate reads (rad): the tightest gated joint, and for a turn the tightest joint other than the thigh twist; "
           "the thigh-twist use of the usable range (a turn's gate is 0.87; for a turn the twist's own tightest margin "
           "is beside it); the forward CoM acceleration low-passed at 1 Hz (m/s^2; the gate of a start, change or "
-          "stop is 1.5 m/s^2), read on the file alone: a peak within 1 s of the file's first or last frame is the "
-          "filter's value at that end and is marked, with the largest value away from the ends beside it.", "",
+          "stop is 1.5 m/s^2), read on the file alone: a peak within 1 s of the file's first or last frame may be "
+          "an end effect of the filter and is marked, with the largest value away from the ends beside it.", "",
           "| reference | kind | frames | governing ratio | worst ratio but neck and tail | neck c / p / s | tail c / "
           "p / s | CoP margin (mm) | CoP rule (mm) | grip need mu_req | within mu 0.9 | within mu 0.54 | mid-swing "
           "clearance (H) | gated joint margin (rad) | thigh twist use | 1 Hz forward accel (m/s^2) | verdict |",

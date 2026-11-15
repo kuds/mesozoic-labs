@@ -105,7 +105,7 @@ def parts(kind="change", causal=False, cop=45.0, swing=0.05, twist=0.0, tightest
     g = dict.fromkeys(setscreen.CLEARANCE_GATES, True) | gates
     g["swing_clearance"] = swing >= setscreen.SWING_MIN_FRAC
     rng = dict(tightest=None if tightest is None else ["left_hip_yaw", "max", tightest], hip_yaw_range_use=twist,
-               usable_differs_from_plant=list(differs))
+               usable_differs_from_plant=None if differs is None else list(differs))
     if kind == "turn":
         twist_ok = twist is not None and twist <= setscreen.TWIST_USE_MAX
         rng.update(twist_ok=twist_ok, tightest_other=None if other is None else ["left_hip_roll", "max", other],
@@ -158,6 +158,7 @@ def test_the_table_of_what_blocks_a_freeze():
                                            value=3)]
         v = judge(kind, differs=("left_hip_yaw", "right_knee"))
         assert limits_of(v) == ["not read: the usable ranges are not plant.usable_ranges' (left_hip_yaw, right_knee)"]
+        assert limits_of(judge(kind, differs=None)) == ["not read: the usable ranges were not compared with plant.usable_ranges"]
         v = judge(kind, fl=flags(**{"knee speed": 1.03}), cop=None)  # over a limit and a reading missing: both said
         assert limits_of(v) == ["knee speed", "not read: single-support CoP margin"]
         assert v["text"].startswith("over knee speed 1.0300; not read: single-support CoP margin: blocks the freeze (")
@@ -337,8 +338,11 @@ def test_a_walks_verdict():
     assert v["blocks_freeze"] == v["over"] == [dict(limit="not read: single-support CoP margin", value=None)]
     assert v["within_limits"] is False and stub["over"] == [] and "blocks the freeze" in v["text"]
     stub = walk_stub()
-    stub["range"] = setscreen.walk_range({})
+    stub["range"] = setscreen.walk_range({}, {})
     assert limits_of(setscreen.judge_walk(stub)) == ["not read: joint range margins"]
+    stub["range"] = setscreen.walk_range({})  # nor compared with the plant's ranges
+    assert limits_of(setscreen.judge_walk(stub)) == ["not read: joint range margins",
+                                                     "not read: the usable ranges were not compared with plant.usable_ranges"]
     stub = walk_stub()
     stub["range"]["usable_differs_from_plant"] = ["left_knee"]
     assert limits_of(setscreen.judge_walk(stub)) == ["not read: the usable ranges are not plant.usable_ranges' (left_knee)"]
@@ -509,8 +513,8 @@ def test_accelerations_of_a_known_move():
 
 
 def test_a_1hz_peak_at_a_files_end_is_marked():
-    """The filter has the file alone: where a file ends inside a motion its 1 Hz value there is the unfiltered
-    series'.  The gated peak stays the largest value; the mark and the interior value are beside it."""
+    """The filter has the file alone: where a file ends inside a motion its 1 Hz value near that end is an end effect
+    of the filter.  The gated peak stays the largest value; the mark and the interior value are beside it."""
     n = 1201
     tt = np.linspace(0, 6, n)
     zeros = np.zeros((n, 2, 3))
@@ -922,7 +926,7 @@ def test_run_screens_every_reference_once_and_a_second_run_does_nothing(tmp_path
     doc = json.loads((d / "screen.json").read_text())
     assert doc == res["doc"] and res["path"] == str(d / "screen.json")
     assert list(doc["blocks"]) == WALKS + MOVES
-    assert (doc["set"], doc["body"], doc["schema"]) == ("T", BODY, 1)
+    assert (doc["set"], doc["body"], doc["schema"]) == ("T", BODY, 2) and setscreen.SCHEMA == 2
     assert doc["rules"] == json.loads(json.dumps(setscreen.RULES)) and doc["limits"] == LIMITS
     assert doc["margins"] == dict(peak=1.25, speed=1.15, cont=1.0, near_band=0.02) and doc["grips"] == [0.9, 0.54]
     assert doc["over"] == [] and doc["a1_over"] == [] and doc["blocks_freeze"] == {} and doc["refused"] == {}
@@ -1090,9 +1094,9 @@ def test_run_holds_the_sets_lock_and_reads_one_thread(tmp_path, standins, monkey
     with pytest.raises(Exception, match="no such set directory"):
         setscreen.run("Nope", BODY, root=tmp_path, procs=0)
     run(tmp_path)
-    # the screen of another set or schema is not merged into
-    edit_json(d / "screen.json", lambda doc: doc.update(schema=0))
-    with pytest.raises(s2io.S2Error, match="schema"):
+    # the screen of another set or schema is not merged into: schema 1 held a move's sustained ratio by frames
+    edit_json(d / "screen.json", lambda doc: doc.update(schema=1))
+    with pytest.raises(s2io.S2Error, match=r"\(schema 1\), not of T 75-M-H-10 \(schema 2\)"):
         run(tmp_path)
 
 
@@ -1294,7 +1298,7 @@ def test_screen_move_reproduces_stage1s_recorded_cop_margin_and_friction_ratio(s
     assert start["friction"]["single_support"]["mu_req_max"] == pytest.approx(0.3643, abs=1e-4)
     assert start["range"]["hip_yaw_range_use"] < 1e-6 and start["sway"]["strides"] == 5
     # the start's 1 Hz peak lies inside the file; the entry into the turn ends in a walk, and its peak is the
-    # filter's value at the file's last frames (0.168 m/s^2 against 0.101 away from the ends)
+    # filter's end effect on the file's last sample (0.168 m/s^2 against 0.101 away from the ends)
     assert start["accel"]["com_forward_lp1hz_peak_at_end"] is False
     assert start["accel"]["com_forward_lp1hz_peak_interior"] == start["accel"]["com_forward_lp1hz_peak"]
     assert enter["accel"]["com_forward_lp1hz_peak_at_end"] is True
