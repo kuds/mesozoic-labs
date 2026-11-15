@@ -249,8 +249,9 @@ RULES = dict(
         "and the new record states its reason (supersedes.reason): it is a re-run after a result"),
     trace=(
         "each episode's trace (not the attribution's lifted runs): Stage 1's 50 Hz arrays (panels.TRACE_RULE) plus "
-        "the 500 Hz contact flags (bit-packed), both feet's 100 Hz low points with their times, the per-swing "
-        "table and the command instant; the episode record holds its path and sha256"),
+        "the 500 Hz contact flags (bit-packed), both feet's 100 Hz low points with their times and the reference's "
+        "swing foot at those updates, the per-swing table and the command instant; the episode record holds its "
+        "path and sha256"),
     attribution=(
         "decision 20 (panels.PANEL_ATTRIBUTION_RULE, gates.attribute) on R2 rows' records with "
         f"{panels.ATTRIBUTION_MIN_FALLS} or more falls: each candidate limit lifted over the same seeds.  A turn, "
@@ -1078,6 +1079,7 @@ def _judge(b: BarBuilt, out: dict, rec: metrics.Recorder, seed: int, lg=None) ->
     if fell:
         success["survived"] = but_a1["survived"] = False
     before = None if (t_c is None and j == "bar_walk") else bool(fell and (t_c is None or out["fall_time_s"] < t_c))
+    measures["convention"] = convention_check(rec) if rec.rows > 2 else None
     e.update(success=success, succeeded=bool(all(success.values())), success_but_A1=but_a1,
              succeeded_but_A1=bool(all(but_a1.values())),
              failed_terms=["survived"] if fell else [t for t, v in success.items() if not v],
@@ -1107,8 +1109,9 @@ def swing_table(swings: list) -> np.ndarray:
 
 def trace_arrays(rec: metrics.Recorder, swings: list, command_s: float | None) -> dict:
     """``RULES["trace"]``'s arrays: ``panels.write_trace``'s five, unchanged, then the contact bits (per foot,
-    ``np.packbits``; ``steps`` their count), ``dt``, ``weight``, the updates' times and both feet's low points, the
-    per-swing table and the command instant (NaN: none)."""
+    ``np.packbits``; ``steps`` their count), ``dt``, ``weight``, the updates' times, both feet's low points and the
+    reference's swing foot at every update (what reading (a) takes), the per-swing table and the command instant
+    (NaN: none)."""
     every = panels.TRACE_EVERY
     U = rec.U[: rec.rows : every] if rec.rows else np.zeros((0, len(metrics.COLS)))
     Q = rec.Q[: rec.rows : every] if rec.rows else np.zeros((0, 0))
@@ -1118,6 +1121,7 @@ def trace_arrays(rec: metrics.Recorder, swings: list, command_s: float | None) -
                 contact=np.packbits(contact.T, axis=1), steps=np.array(len(contact)), dt=np.array(float(rec.dt)),
                 weight=np.array(float(rec.weight)), t100=np.asarray(rec.t, np.float64).copy(),
                 low100=_lows(rec).astype(np.float32) if rec.rows else np.zeros((0, 2), np.float32),
+                ref_swing100=(np.rint(rec.col("ref_swing")).astype(np.int8) if rec.rows else np.zeros(0, np.int8)),
                 swings=swing_table(swings), swing_classes=np.array(readings.SWING_CLASSES),
                 command_s=np.array(math.nan if command_s is None else float(command_s)))
 
