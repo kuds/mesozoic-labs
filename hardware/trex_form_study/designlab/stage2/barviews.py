@@ -901,8 +901,10 @@ def compact_simulated(s: dict) -> dict:
                  judged_instant_s=e["readings"].get("judged_instant_s"),
                  swept_radius_set_by=(e["readings"].get("swept") or {}).get("set_by"),
                  corridor_inner_corner_set_by=(e["readings"].get("corridor") or {}).get("inner_corner_set_by"),
-                 notes=e["readings"].get("notes") or [], pose_check_m=e["pose_check"])
+                 notes=e["readings"].get("notes") or [])
             for e in s["episodes"]]
+        if s["episodes"]:  # pose_of's largest residual over the record's episodes (metres; module docstring)
+            out["pose_check_worst"] = {k: max(e["pose_check"][k] for e in s["episodes"]) for k in s["episodes"][0]["pose_check"]}
     return out
 
 

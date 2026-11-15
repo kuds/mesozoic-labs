@@ -647,6 +647,7 @@ def test_the_commands_write_nothing_in_the_run_directory_outside_views(v0, fake_
     assert sorted(ep["values"]) == sorted(bv.READINGS) and doc["reading_units"]["radius_fitted"] == "m"
     assert ep["swept_radius_set_by"].startswith("tail:") and sim["episodes"][1]["values"]["radius_fitted"] is None
     assert any(n.startswith("stops short") for n in sim["episodes"][1]["notes"])
+    assert sim["pose_check_worst"]["feet_xy"] < 1e-5 and "pose_check" not in ep
     assert q["planned"]["readings"]["fit"]["radius_fitted_bl"] == pytest.approx(
         q["planned"]["readings"]["fit"]["radius_fitted_m"] / v0.model.length_m)
     assert doc["turns"][1]["simulated"] == [] and doc["turns"][1]["simulated_note"] == "no record yet"
