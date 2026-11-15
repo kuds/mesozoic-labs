@@ -29,7 +29,6 @@ sensors; joint angles are ``qpos``, as Stage 1's reward reads them.
 from __future__ import annotations
 
 import math
-from collections import deque
 
 import mujoco
 import numpy as np
@@ -383,7 +382,8 @@ class Core:
         self._servo_t = 0.0
         self._vb = self._vb_ref = self._vb_t = 0.0
         self._vb_key = self._vb_c0 = None
-        self._hist_contact = deque(maxlen=HISTORY_STEPS)
+        self._shares = np.zeros((HISTORY_STEPS, 4))  # per env step: each foot's contact share, the reference's
+        self._shares_n = 0
         self._gap = (0.0, False, None)
         self._rf_sum, self._rf_min, self._rf_n = 0.0, math.inf, 0
         self._new_step()
@@ -628,13 +628,15 @@ class Core:
         t["head"] = math.exp(-float(d_head @ d_head) / math.radians(sc["head_deg"]) ** 2)
         # --- penalties
         v_cmd, _ = s.command(c)
-        self._hist_contact.append((self._cont[0] / SUBSTEPS, self._cont[1] / SUBSTEPS, self._rcont[0] / SUBSTEPS,
-                                   self._rcont[1] / SUBSTEPS))
+        k = self._shares_n
+        self._shares[k % HISTORY_STEPS] = (self._cont[0] / SUBSTEPS, self._cont[1] / SUBSTEPS,
+                                           self._rcont[0] / SUBSTEPS, self._rcont[1] / SUBSTEPS)
+        self._shares_n = k = k + 1
         t["duty"] = 0.0
-        n = max(1, int(round(s.stride_s(c) / self.rate / self.dt_env)))
-        if s.walking(c) and len(self._hist_contact) >= n:
+        n = min(max(1, int(round(s.stride_s(c) / self.rate / self.dt_env))), HISTORY_STEPS)
+        if s.walking(c) and k >= n:
             lo, hi = sc["duty_band_slow"] if v_cmd < sc["duty_slow_below_m_s"] else sc["duty_band"]
-            share = np.mean(np.array(self._hist_contact)[-n:], axis=0)
+            share = np.mean(self._shares[np.arange(k - n, k) % HISTORY_STEPS], axis=0)
             duty, ref_duty = share[:2], share[2:]
             over = np.where((ref_duty >= lo) & (ref_duty <= hi), np.maximum(0.0, np.maximum(lo - duty, duty - hi)), 0.0)
             t["duty"] = min(1.0, float(np.sum(over)) / sc["duty_over"])

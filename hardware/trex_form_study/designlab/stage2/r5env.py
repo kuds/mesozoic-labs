@@ -452,7 +452,7 @@ class R5Env(gym.Env):
                 hook(p)
             core.substep()
         fall = p.fall_cause()  # 4
-        if fall is None and any(d.number for d in p.d.warning):
+        if fall is None and p.d.warning.number.any():  # (any(d.number for d in p.d.warning), read at once)
             fall = "MuJoCo warning"
         pen, below = core.interference()
         self.k_env += 1  # 5
