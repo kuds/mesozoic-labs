@@ -800,3 +800,496 @@ def test_an_incomplete_judged_window_is_an_error_not_a_failed_term(t0, t0_docs, 
     assert rec["counts"]["errors"] == 1 and rec["counts"]["falls"] == 0 and rec["counts"]["pass_"] is None
     assert rec["counts_but_A1"]["errors"] == 1 and rec["falls"] == dict(before_command=0, after_command=0, no_command=0)
     assert doc["grid"]["walk/v0.4"]["R0@0ms"]["counts"]["errors"] == 1
+
+
+# ------------------------------------------------------------------------------------------------
+# Counts, records and the runner's rules (synthetic episodes: no simulation)
+# ------------------------------------------------------------------------------------------------
+def test_the_two_readings_count_apart_when_only_the_tail_is_over():
+    cond = bar.BarCondition("walk", "v0.4", True, "bar_walk", set=SET)
+    seeds = bar.BLOCKS["seeds3042"]
+    eps = [fake_episode(cond, s, tail_over=True) for s in seeds]
+    c2, c3 = bar.counts(eps, seeds, "success"), bar.counts(eps, seeds, "but_A1")
+    assert (c2["succeeded"], c2["pass_"], c2["judged"]) == (0, False, True)
+    assert (c3["succeeded"], c3["pass_"], c3["judged"]) == (20, True, True)
+    assert c2["survived"] == c3["survived"] == 20 and c2["success_lcb"] == 0.0 and c3["success_lcb"] == pytest.approx(0.861, abs=1e-3)
+    f = bar.failure("R2/42@10ms", eps, None, c2["pass_"], "success")
+    assert f["label"] == "body-limited: drive_sustained" and f["kind"] == "success" and f["reading"] == "success"
+    assert bar.failure("R2/42@10ms", eps, None, c3["pass_"], "but_A1") is None
+    # the pass rule: 20 up and at least 17 succeed, on a whole block in order, with no episode that failed to run
+    eps = [fake_episode(cond, s, fail=("line",) if i < 3 else ()) for i, s in enumerate(seeds)]
+    assert bar.counts(eps, seeds)["pass_"] is True and bar.counts(eps[:19] + [fake_episode(cond, 3061, fell=True)], seeds)["pass_"] is False
+    eps4 = [fake_episode(cond, s, fail=("line",) if i < 4 else ()) for i, s in enumerate(seeds)]
+    assert bar.counts(eps4, seeds)["pass_"] is False and bar.counts(eps4, seeds)["succeeded"] == 16
+    assert bar.counts(eps[:10], seeds[:10])["pass_"] is None and bar.counts(eps, list(range(4042, 4062)))["judged"] is False
+    assert bar.counts(eps[::-1], seeds)["judged"] is False
+    broken = eps[:19] + [bar.failed_episode(cond, 3061, "boom")]
+    c = bar.counts(broken, seeds)
+    assert (c["errors"], c["falls"], c["judged"], c["pass_"]) == (1, 0, False, None)
+    # the replication block is judged on its own seeds
+    rep = bar.BLOCKS["seeds5042"]
+    assert bar.counts([fake_episode(cond, s) for s in rep], rep)["pass_"] is True
+    assert bar.counts([fake_episode(cond, s) for s in rep], seeds)["judged"] is False
+    assert bar.terms_but_a1(cond) == tuple("drive_sustained_legs" if t == "drive_sustained" else t for t in bar.WALK_TERMS)
+    assert bar.term_class("drive_sustained_legs") == "hardware" and bar.term_class("heading") == "controller"
+    fe = bar.failed_episode(cond, 3042, "why", ("slip",), 1.5)
+    assert fe["error"] == "why" and fe["relaxed"] == ["slip"] and fe["wall_s"] == 1.5 and not fe["succeeded_but_A1"]
+    assert set(fe["success_but_A1"]) == set(bar.terms_but_a1(cond))
+    nominal = dataclasses.replace(cond, name="nominal", walk="nominal", gated=False)
+    assert bar.terms_of(nominal) == bar.WALK_TERMS + ("cadence", "stride", "grf")
+
+
+@needs_run
+def test_a_record_holds_both_readings_and_the_verdict_words(t0, tmp_path, monkeypatch):
+    out = tmp_path / "out"
+
+    def plan(row, cond, seed, relax):
+        if row.name.startswith("R2/43"):
+            return fake_episode(cond, seed, tail_over=True, fail=("line",) if seed < 3050 else ())
+        return fake_episode(cond, seed, tail_over=True)
+
+    calls = faked(monkeypatch, plan)
+    doc = bar.evaluate(SET, BODY, out, ["R2/42@10ms", "R2/43@10ms", "R0@10ms", "R2/42@4ms", "R2/43@4ms"], ["walk/v0.4"],
+                       procs=1, root=t0, attribute="none", log=quiet)
+    assert len(calls) == 100 and doc["sessions"][-1]["episodes_run"] == 100
+    rec = read(rec_path(out, "R2/42@10ms", "walk/v0.4"))
+    assert rec["counts"]["pass_"] is False and rec["counts"]["succeeded"] == 0 and rec["counts"]["reading"] == "success"
+    assert rec["counts_but_A1"]["pass_"] is True and rec["counts_but_A1"]["succeeded"] == 20
+    assert rec["counts_look"] is None and rec["counts_look_reason"] == bar.LOOK_NOT_DEFINED
+    assert rec["failure"]["label"] == "body-limited: drive_sustained" and rec["failure_but_A1"] is None
+    assert rec["gated"] is True and rec["controller"]["latency_ms"] == 10 and rec["a1_over"] is False
+    assert rec["term_classes"]["drive_sustained_legs"] == "hardware" and rec["term_classes"]["survived"] is None
+    assert rec["seeds"] == list(range(3042, 3062)) and [e["seed"] for e in rec["episodes"]] == rec["seeds"]
+    assert read(rec_path(out, "R2/43@10ms", "walk/v0.4"))["counts_but_A1"]["succeeded"] == 12
+    v = doc["verdicts"]["walk/v0.4"]
+    assert v["R2@10ms"]["judged_delay"] is True and v["R2@10ms"]["rows"] == ["R2/42@10ms", "R2/43@10ms"]
+    assert v["R2@10ms"]["reading_1"] == dict(verdict=None, reason=bar.LOOK_NOT_DEFINED)
+    assert v["R2@10ms"]["reading_2"]["verdict"] == "body-limited"
+    assert v["R2@10ms"]["reading_3"]["verdict"] == "provisional but for A1"  # one of the two seeds passes
+    # away from 10 ms a cell gives "passes at <ms> ms" and never either word
+    assert v["R2@4ms"]["judged_delay"] is False and v["R2@4ms"]["reading_3"]["verdict"] == "one of two passes at 4 ms but for A1"
+    assert v["R2@4ms"]["reading_2"]["verdict"] == "does not pass at 4 ms"
+    assert not any("shown" in x["verdict"] or "provisional" in x["verdict"] for x in (v["R2@4ms"]["reading_2"],
+                                                                                    v["R2@4ms"]["reading_3"]))
+    assert "R0@10ms" not in v  # an R0 row gives no verdict
+    text = bar.summary_text(doc)
+    assert "but for A1: 20 succeed pass" in text and "every limit: 0 succeed FAIL" in text
+    summary = read(bar.block_dir(out, SET, BODY, "seeds3042") / "eval" / "summary.json")
+    assert summary["grid"] == doc["grid"] and len(summary["sessions"]) == 1 and summary["block"] == "seeds3042"
+    # both seeds pass both readings: shown
+    faked(monkeypatch, lambda row, cond, seed, relax: fake_episode(cond, seed))
+    doc = bar.evaluate(SET, BODY, tmp_path / "ok", ["R2/42@10ms", "R2/43@10ms"], ["walk/v0.4"], procs=1, root=t0, log=quiet)
+    v = doc["verdicts"]["walk/v0.4"]["R2@10ms"]
+    assert v["reading_2"]["verdict"] == "shown" and v["reading_3"]["verdict"] == "shown but for A1"
+
+
+@needs_run
+def test_a_finished_record_of_another_key_is_refused_and_supersede_keeps_it(t0, tmp_path, monkeypatch, capsys):
+    out = tmp_path / "out"
+    calls = faked(monkeypatch, lambda row, cond, seed, relax: fake_episode(cond, seed))
+    args = (SET, BODY, out, ["R0@10ms"], ["walk/v0.4", "stop/two_step"])
+    bar.evaluate(*args, episodes=3, procs=1, root=t0, log=quiet)
+    path = rec_path(out, "R0@10ms", "walk/v0.4")
+    before, old = path.read_bytes(), read(path)
+    assert len(calls) == 6
+    # the same key: the finished records are skipped and left as they are
+    doc = bar.evaluate(*args, episodes=3, procs=1, root=t0, log=quiet)
+    assert len(calls) == 6 and doc["sessions"][-1]["episodes_run"] == 0 and path.read_bytes() == before
+    assert doc["sessions"][-1]["skipped"] == ["R0@10ms walk/v0.4", "R0@10ms stop/two_step"]
+    # another key (bar.py's bytes changed): refused before any episode, with the differing fields; nothing is touched
+    real = bar.bar_sources()
+    monkeypatch.setattr(bar, "bar_sources", lambda: dict(real, sha256="f" * 64))
+    with pytest.raises(bar.KeyMismatch) as exc:
+        bar.evaluate(*args, episodes=3, procs=1, root=t0, log=quiet)
+    msg = str(exc.value)
+    assert "key.sources.bar" in msg and real["sha256"][:20] in msg and "f" * 20 in msg and "--supersede" in msg
+    assert str(path) in msg and str(rec_path(out, "R0@10ms", "stop/two_step")) in msg
+    assert len(calls) == 6 and path.read_bytes() == before and not (out / ".lock").exists()
+    # other seeds are another key too
+    with pytest.raises(bar.KeyMismatch, match="key.seeds"):
+        bar.evaluate(*args, episodes=4, procs=1, root=t0, log=quiet)
+    assert path.read_bytes() == before
+    # the CLI prints the fields and exits 1
+    code = bar.main(["run", "--set", SET, "--set-root", str(t0), "--body", BODY, "--rows", "R0@10ms", "--conditions",
+                     "walk/v0.4", "--episodes", "3", "--procs", "1", "--out", str(out)])
+    assert code == 1 and "key.sources.bar" in capsys.readouterr().err and path.read_bytes() == before
+    # --supersede needs its reason; with it the old record is moved aside, kept, and the new one says why
+    with pytest.raises(bar.BarError, match="supersede-reason"):
+        bar.evaluate(*args, episodes=3, procs=1, root=t0, supersede=True, log=quiet)
+    assert path.read_bytes() == before
+    doc = bar.evaluate(*args, episodes=3, procs=1, root=t0, supersede=True, supersede_reason="a reading was fixed",
+                       log=quiet)
+    kept = path.with_name("v0.4.json.superseded") / f"{old['key_sha256'][:12]}.json"
+    assert kept.read_bytes() == before and len(calls) == 12
+    new = read(path)
+    assert new["key"]["sources"]["bar"] == "f" * 64 and new["key_sha256"] != old["key_sha256"]
+    assert new["supersedes"]["reason"] == "a reading was fixed" and new["supersedes"]["label"] == "re-run after a result"
+    assert new["supersedes"]["key_sha256"] == old["key_sha256"] and new["supersedes"]["registered"]["counts"] == old["counts"]
+    assert doc["grid"]["walk/v0.4"]["R0@10ms"]["supersedes"]["reason"] == "a reading was fixed"
+    assert list(doc["grid"]) == ["stop/two_step", "walk/v0.4"]  # the superseded copies are not in the grid
+    # a "not run" record holds no result: it is replaced without --supersede when the reference is there
+    make_t0(tmp_path / "b", unavailable=("turn90_pi4_left",))
+    bar.evaluate(SET, BODY, tmp_path / "o2", ["R0@10ms"], ["turn/q90_left"], episodes=2, procs=1, root=tmp_path / "b",
+                 log=quiet)
+    p2 = rec_path(tmp_path / "o2", "R0@10ms", "turn/q90_left")
+    assert read(p2)["status"] == "not run"
+    bar.evaluate(SET, BODY, tmp_path / "o2", ["R0@10ms"], ["turn/q90_left"], episodes=2, procs=1, root=t0, log=quiet)
+    assert read(p2)["status"] == "done" and not p2.with_name("q90_left.json.superseded").exists()
+
+
+@needs_run
+def test_resume_per_episode(t0, tmp_path, monkeypatch):
+    out = tmp_path / "out"
+    args = (SET, BODY, out, ["R0@10ms"], ["walk/v0.4"])
+    pdir = bar.block_dir(out, SET, BODY, "seeds3042") / "partial" / "R0@10ms" / "walk" / "v0.4"
+
+    def killed_at(seed_):
+        def plan(row, cond, seed, relax):
+            if seed == seed_:
+                raise KeyboardInterrupt  # not an Exception: the run dies as under a kill
+            return fake_episode(cond, seed)
+        return plan
+
+    calls = faked(monkeypatch, killed_at(3044))
+    with pytest.raises(KeyboardInterrupt):
+        bar.evaluate(*args, episodes=5, procs=1, root=t0, log=quiet)
+    assert [c[2] for c in calls] == [3042, 3043, 3044] and not rec_path(out, "R0@10ms", "walk/v0.4").exists()
+    assert not (out / ".lock").exists()
+    (kdir,) = list(pdir.iterdir())
+    assert sorted(p.name for p in kdir.iterdir()) == ["3042.json", "3043.json"] and len(kdir.name) == 16
+    part = read(kdir / "3042.json")
+    assert part["episode"]["seed"] == 3042 and part["key_sha256"].startswith(kdir.name) and part["session"]["procs"] == 1
+    # a torn partial file is ignored; a partial of another key is not reused; one whose episode failed to run is not
+    (kdir / "3043.json").write_text('{"schema": "bar-partial-1", "key_sha2')
+    s2io.write_json(kdir / "3045.json", dict(part, seed=3045, key_sha256="0" * 64, episode=dict(part["episode"], seed=3045)))
+    s2io.write_json(kdir / "3046.json", dict(part, seed=3046, episode=bar.failed_episode(
+        bar.BarCondition("walk", "v0.4", True, "bar_walk"), 3046, "boom")))
+    (pdir / ("0" * 16)).mkdir()
+    s2io.write_json(pdir / ("0" * 16) / "3044.json", dict(part, seed=3044, key_sha256="0" * 64))
+    calls = faked(monkeypatch, lambda row, cond, seed, relax: fake_episode(cond, seed))
+    doc = bar.evaluate(*args, episodes=5, procs=1, root=t0, log=quiet)
+    assert [c[2] for c in calls] == [3043, 3044, 3045, 3046]
+    s = doc["sessions"][-1]
+    assert s["reused_partial"] == ["R0@10ms walk/v0.4: seeds [3042]"] and s["episodes_run"] == 4
+    rec = read(rec_path(out, "R0@10ms", "walk/v0.4"))
+    assert [e["seed"] for e in rec["episodes"]] == [3042, 3043, 3044, 3045, 3046] and rec["counts"]["errors"] == 0
+    assert [x["seeds_run"] for x in rec["sessions"]] == [[3042], [3043, 3044, 3045, 3046]]
+    assert rec["sessions"][0]["note"] == "episodes kept from a run that did not finish" and rec["sessions"][0]["ended_at"] is None
+    assert not pdir.exists()  # the partial files go when the record is written
+    # a complete record is skipped; an episode that failed to run is run again and merged in
+    assert bar.evaluate(*args, episodes=5, procs=1, root=t0, log=quiet)["sessions"][-1]["episodes_run"] == 0
+
+    def raising(row, cond, seed, relax):
+        if seed == 3043:
+            raise RuntimeError("the episode broke")
+        return fake_episode(cond, seed)
+
+    out2 = tmp_path / "out2"
+    faked(monkeypatch, raising)
+    doc = bar.evaluate(SET, BODY, out2, ["R0@10ms"], ["walk/v0.4"], episodes=3, procs=1, root=t0, log=quiet)
+    rec = read(rec_path(out2, "R0@10ms", "walk/v0.4"))
+    bad = rec["episodes"][1]
+    assert "RuntimeError: the episode broke" in bad["error"] and bad["fell"] and bad["failed_terms"] == list(bar.WALK_TERMS)
+    assert rec["counts"]["errors"] == 1 and rec["counts"]["falls"] == 0 and rec["counts"]["pass_"] is None
+    calls = faked(monkeypatch, lambda row, cond, seed, relax: fake_episode(cond, seed))
+    doc = bar.evaluate(SET, BODY, out2, ["R0@10ms"], ["walk/v0.4"], episodes=3, procs=1, root=t0, log=quiet)
+    assert [c[2] for c in calls] == [3043] and doc["sessions"][-1]["rerun_failed"] == ["R0@10ms walk/v0.4: seeds [3043]"]
+    rec = read(rec_path(out2, "R0@10ms", "walk/v0.4"))
+    assert rec["counts"]["errors"] == 0 and [x["seeds_run"] for x in rec["sessions"]] == [[3042, 3043, 3044], [3043]]
+
+
+@needs_run
+def test_a_second_runner_on_a_locked_run_directory_is_refused(t0, tmp_path, monkeypatch):
+    out = tmp_path / "out"
+    calls = faked(monkeypatch, lambda row, cond, seed, relax: fake_episode(cond, seed))
+    with s2io.Lock(out / ".lock"):
+        with pytest.raises(s2io.S2Error, match="is held by pid"):
+            bar.evaluate(SET, BODY, out, ["R0@10ms"], ["walk/v0.4"], episodes=1, procs=1, root=t0, log=quiet)
+    assert calls == [] and not list(out.rglob("*.json"))
+    bar.evaluate(SET, BODY, out, ["R0@10ms"], ["walk/v0.4"], episodes=1, procs=1, root=t0, log=quiet)
+    assert len(calls) == 1
+
+
+@needs_run
+def test_a_condition_without_a_reference_gets_a_not_run_record(tmp_path, monkeypatch):
+    root = tmp_path / "sets"
+    make_t0(root, unavailable=("turn90_pi4_left",), drop=("stop2_v0.4",))
+    out = tmp_path / "out"
+    calls = faked(monkeypatch, lambda row, cond, seed, relax: fake_episode(cond, seed))
+    doc = bar.evaluate(SET, BODY, out, ["R0@10ms", "R2/42@10ms"], None, episodes=2, procs=1, root=root, log=quiet)
+    # all 16 gated conditions have a record under each row
+    for row in ("R0@10ms", "R2/42@10ms"):
+        recs = {k: read(rec_path(out, row, k)) for k in GATED}
+        not_run = sorted(k for k, r in recs.items() if r["status"] == "not run")
+        assert not_run == ["stop/two_step", "stop/two_step_mu0.54", "turn/q90_left", "turn/q90_left_mu0.54"]
+        t = recs["turn/q90_left"]
+        assert t["reason"] == "no reference within the thigh twist and the leg drives" and t["numbers"] == dict(hip_yaw_range_use=0.93)
+        assert t["reference"] == "transitions/turn90_pi4_left" and t["episodes"] == [] and t["counts"]["pass_"] is None
+        assert t["counts_but_A1"]["pass_"] is None and t["key"]["plan"] is None and t["key"]["inputs"] == {}
+        assert recs["stop/two_step"]["reason"] == "the set has no entry 'stop2_v0.4'"
+        assert all(r["status"] == "done" for k, r in recs.items() if k not in not_run)
+    assert len(calls) == 2 * 12 * 2 and len(doc["sessions"][-1]["not_run"]) == 8
+    assert doc["verdicts"]["turn/q90_left"]["R2@10ms"]["reading_2"]["verdict"] == "not run"
+    # the second run writes nothing new
+    stamp = read(rec_path(out, "R0@10ms", "turn/q90_left"))["ended_at"]
+    bar.evaluate(SET, BODY, out, ["R0@10ms", "R2/42@10ms"], None, episodes=2, procs=1, root=root, log=quiet)
+    assert len(calls) == 48 and read(rec_path(out, "R0@10ms", "turn/q90_left"))["ended_at"] == stamp
+    # a set that is not frozen, or whose file differs from its manifest, is refused
+    make_t0(tmp_path / "open", freeze=False)
+    with pytest.raises(tune.InputError, match="not frozen"):
+        bar.evaluate(SET, BODY, tmp_path / "o", ["R0@10ms"], ["walk/v0.4"], episodes=1, procs=1, root=tmp_path / "open",
+                     log=quiet)
+    d = make_t0(tmp_path / "changed")
+    with open(d / "refs" / "v0.4.npz", "ab") as fh:
+        fh.write(b"\0")
+    with pytest.raises(tune.InputError, match="sha256"):
+        bar.evaluate(SET, BODY, tmp_path / "o", ["R0@10ms"], ["walk/v0.4"], episodes=1, procs=1,
+                     root=tmp_path / "changed", log=quiet)
+
+
+@needs_run
+def test_attribution_lifts_limits_on_r2_rows_and_cites_the_walk_record(t0, tmp_path, monkeypatch):
+    out = tmp_path / "out"
+
+    def plan(row, cond, seed, relax):
+        i = seed - 3042
+        if relax:  # a lifted run: the limit lifted, nothing falls
+            return fake_episode(cond, seed, relax=relax)
+        if cond.key == "walk/v0.4":
+            return fake_episode(cond, seed, fell=i < 6)
+        if cond.key == "turn/q90_left":  # six falls, four of them after the command
+            return fake_episode(cond, seed, fell=i < 6, before=i < 2)
+        if cond.key == "turn/q90_right":  # five falls after the command
+            return fake_episode(cond, seed, fell=i < 5, before=False)
+        return fake_episode(cond, seed, fell=i < 2, before=False)
+
+    calls = faked(monkeypatch, plan)
+    conds = ["walk/v0.4", "turn/q90_left", "turn/q90_right", "stop/two_step"]
+    rows = ["R2/42@10ms", "R0@10ms", "R2/42@4ms"]
+    doc = bar.evaluate(SET, BODY, out, rows, conds, procs=1, root=t0, attribute="judged", log=quiet)
+    lifted = [c for c in calls if c[3]]
+    assert {(c[0], c[1], c[3]) for c in lifted} == {("R2/42@10ms", "walk/v0.4", ("slip",)),
+                                                    ("R2/42@10ms", "turn/q90_right", ("slip",))}
+    assert len(lifted) == 40 and doc["sessions"][-1]["attribution_episodes_run"] == 40
+    walk = read(rec_path(out, "R2/42@10ms", "walk/v0.4"))
+    a = walk["attribution"]
+    assert a["label"] == "body-limited: slip" and a["falls"] == 6 and a["episodes"] == 20 and a["candidates"] == ["slip"]
+    assert a["lifted"]["slip"]["significant"] is True and a["rule_bar"] == bar.RULES["attribution"]
+    assert walk["failure"]["falls_label"] == "body-limited: slip" and walk["failure"]["kind"] == "falls"
+    assert walk["failure_but_A1"]["falls_label"] == "body-limited: slip"
+    assert walk["falls"] == dict(before_command=0, after_command=0, no_command=6)
+    # the lifted runs leave no trace and no partial file behind
+    assert not (bar.block_dir(out, SET, BODY, "seeds3042") / "partial").exists()
+    left = read(rec_path(out, "R2/42@10ms", "turn/q90_left"))
+    assert left["falls"] == dict(before_command=2, after_command=4, no_command=0)
+    assert left["attribution"]["label"] == "lead-in falls: see walk/v0.4" and left["attribution"]["cites"] == "walk/v0.4"
+    assert left["attribution"]["record"] == "T0/75-M-H-10/seeds3042/eval/R2/42@10ms/walk/v0.4.json"
+    assert left["attribution"]["episodes"] == 0 and left["failure"]["falls_label"] == "lead-in falls: see walk/v0.4"
+    right = read(rec_path(out, "R2/42@10ms", "turn/q90_right"))
+    assert right["attribution"]["label"] == "body-limited: slip" and right["falls"]["after_command"] == 5
+    stop = read(rec_path(out, "R2/42@10ms", "stop/two_step"))
+    assert stop["attribution"]["label"] == "lead-in falls: see walk/v0.4" and stop["attribution"]["falls_after_command"] == 2
+    # R0 rows are not attributed; "judged" leaves the other delays alone
+    assert read(rec_path(out, "R0@10ms", "walk/v0.4"))["attribution"] is None
+    assert read(rec_path(out, "R0@10ms", "walk/v0.4"))["failure"]["falls_label"].startswith("not attributed (falls; attribution is applied to R2")
+    four = read(rec_path(out, "R2/42@4ms", "walk/v0.4"))
+    assert four["attribution"] is None and four["failure"]["falls_label"] == "not attributed (falls; run with --attribute)"
+    # --attribute all on finished records: only the attribution runs
+    n = len(calls)
+    doc = bar.evaluate(SET, BODY, out, rows, conds, procs=1, root=t0, attribute="all", log=quiet)
+    assert doc["sessions"][-1]["episodes_run"] == 0 and len(calls) == n + 40
+    assert read(rec_path(out, "R2/42@4ms", "walk/v0.4"))["attribution"]["label"] == "body-limited: slip"
+    assert read(rec_path(out, "R2/42@4ms", "turn/q90_left"))["attribution"]["cites"] == "walk/v0.4"
+    # a walk record with fewer than five falls is controller-limited by decision 20, with no limit lifted
+    out3 = tmp_path / "few"
+    calls = faked(monkeypatch, lambda row, cond, seed, relax: fake_episode(cond, seed, fell=seed < 3045))
+    bar.evaluate(SET, BODY, out3, ["R2/42@10ms"], ["walk/v0.4"], procs=1, root=t0, log=quiet)
+    a = read(rec_path(out3, "R2/42@10ms", "walk/v0.4"))["attribution"]
+    assert len(calls) == 20 and a["episodes"] == 0 and a["label"].startswith("controller-limited (decision 20; 3 falls")
+
+
+@needs_run
+def test_replication_takes_what_passed_and_is_never_pooled(tmp_path, monkeypatch):
+    root = tmp_path / "sets"
+    d = make_t0(root)
+    doc = s2io.read_json(d / "transitions.json")  # the right turn frozen with a1_over (a fixture's flag)
+    doc["transitions"]["turn90_pi4_right"]["a1_over"] = True
+    manifest = {}
+    s2io.write_json(d / "transitions.json", doc)
+    sd = s2io.read_json(d / "set.json")
+    for name, m in sd["freezes"][0]["manifest"].items():
+        kind = m["kind"]
+        entry = (doc["transitions"] if kind == "move" else s2io.read_json(d / "refs.json")["references"])[name]
+        manifest[name] = dict(m, entry_sha256=setio.entry_sha256(kind, entry))
+    sd["freezes"][0].update(manifest=manifest, manifest_sha256=s2io.sha256_json(manifest))
+    s2io.write_json(d / "set.json", sd)
+    out = tmp_path / "out"
+
+    def first(row, cond, seed, relax):
+        if row.name == "R2/43@10ms":
+            return fake_episode(cond, seed, fail=("joint_range",))  # fails both readings
+        if cond.key == "walk/v0.4_mu0.54":
+            return fake_episode(cond, seed, tail_over=True)  # passes reading 3 only
+        return fake_episode(cond, seed)
+
+    faked(monkeypatch, first)
+    conds = ["walk/v0.4", "walk/v0.4_mu0.54", "turn/q90_right"]
+    rows = ["R2/42@10ms", "R2/43@10ms", "R0@10ms"]
+    one = bar.evaluate(SET, BODY, out, rows, conds, procs=1, root=root, attribute="none", log=quiet)
+    turn = read(rec_path(out, "R2/42@10ms", "turn/q90_right"))
+    # a turn frozen with a1_over: both readings recorded, reading 2 not read (no pass), reading 3 can pass
+    assert turn["a1_over"] is True and turn["counts"]["pass_"] is None and turn["counts"]["not_read"] == "a1_over"
+    assert turn["counts"]["succeeded"] == 20 and turn["counts_but_A1"]["pass_"] is True
+    assert one["verdicts"]["turn/q90_right"]["R2@10ms"]["reading_2"]["verdict"] == "not read: a1_over"
+    assert one["verdicts"]["turn/q90_right"]["R2@10ms"]["reading_3"]["verdict"] == "provisional but for A1"
+    frozen = {p: p.read_bytes() for p in bar.block_dir(out, SET, BODY, "seeds3042").rglob("*.json")}
+    # the replication block: exactly the records that passed in reading 2 or 3, of rows with a verdict
+    calls = faked(monkeypatch, lambda row, cond, seed, relax: fake_episode(cond, seed, fail=("joint_range",)))
+    two = bar.evaluate(SET, BODY, out, rows, conds, block="seeds5042", passed_of="seeds3042", procs=1, root=root,
+                       attribute="none", log=quiet)
+    assert {(c[0], c[1]) for c in calls} == {("R2/42@10ms", k) for k in conds} and len(calls) == 60
+    assert {c[2] for c in calls} == set(range(5042, 5062))
+    assert sorted(two["sessions"][-1]["not_selected"]) == sorted(f"{r} {k}" for r in ("R2/43@10ms", "R0@10ms") for k in conds)
+    rep = {k: read(rec_path(out, "R2/42@10ms", k, block="seeds5042")) for k in conds}
+    assert rep["walk/v0.4"]["replication_of"]["readings"] == ["success", "but_A1"]
+    assert rep["walk/v0.4_mu0.54"]["replication_of"]["readings"] == ["but_A1"]
+    assert rep["turn/q90_right"]["replication_of"]["readings"] == ["but_A1"]  # reading 2 gave it no verdict
+    r = rep["walk/v0.4"]
+    assert r["block"] == "seeds5042" and r["seeds"] == list(range(5042, 5062)) and r["definition"]["block"] == "seeds5042"
+    assert r["replication_of"]["block"] == "seeds3042" and r["replication_of"]["record"] == "T0/75-M-H-10/seeds3042/eval/R2/42@10ms/walk/v0.4.json"
+    assert r["replication_of"]["key_sha256"] == read(rec_path(out, "R2/42@10ms", "walk/v0.4"))["key_sha256"]
+    # judged on its own 20 seeds: it fails here while the first block's record stays a pass; nothing is pooled
+    assert r["counts"]["judged"] is True and r["counts"]["pass_"] is False and r["counts"]["episodes"] == 20
+    assert read(rec_path(out, "R2/42@10ms", "walk/v0.4"))["counts"]["pass_"] is True
+    assert {p: p.read_bytes() for p in frozen} == frozen
+    assert not rec_path(out, "R0@10ms", "walk/v0.4", block="seeds5042").exists()
+    assert not rec_path(out, "R2/43@10ms", "walk/v0.4", block="seeds5042").exists()
+    assert two["block"] == "seeds5042" and set(two["grid"]) == set(conds)
+    assert all(set(v) == {"R2/42@10ms"} for v in two["grid"].values())
+    with pytest.raises(ValueError, match="another block"):
+        bar.evaluate(SET, BODY, out, rows, conds, block="seeds3042", passed_of="seeds3042", procs=1, root=root, log=quiet)
+
+
+@needs_run
+def test_the_omega_control_runs_apart_with_stage1s_crouch(tmp_path, monkeypatch):
+    root = tmp_path / "sets"
+    d = make_t0(root)
+    sd = s2io.read_json(d / "set.json")
+    s2io.write_json(d / "set.json", dict(sd, crouch_frac=0.05))  # a set that crouches 0.05 H
+    out = tmp_path / "out"
+    faked(monkeypatch, lambda row, cond, seed, relax: fake_episode(cond, seed))
+    bar.evaluate(SET, BODY, out, ["R2/42@10ms"], ["walk/v0.4"], episodes=2, procs=1, root=root, log=quiet)
+    bar.evaluate(SET, BODY, out, ["R2/42@10ms"], ["walk/v0.4"], episodes=2, procs=1, root=root, control="omega_s1",
+                 log=quiet)
+    own = read(rec_path(out, "R2/42@10ms", "walk/v0.4"))
+    ctl = read(rec_path(out, "R2/42@10ms", "walk/v0.4", control="omega_s1"))
+    assert rec_path(out, "R2/42@10ms", "walk/v0.4", control="omega_s1").is_relative_to(out / "controls" / "omega_s1")
+    assert own["crouch_frac"] == own["key"]["crouch_frac"] == 0.05 and "control" not in own
+    assert ctl["crouch_frac"] == ctl["key"]["crouch_frac"] == 0.03 and ctl["control"] == "omega at Stage 1's 0.03 H crouch"
+    assert own["omega"] == bar.omega_of(BODY, d, 0.05) and ctl["omega"] == bar.omega_of(BODY, d, 0.03)
+    assert own["omega"] > ctl["omega"] and own["key"]["omega"] == own["omega"] and ctl["key"]["omega"] == ctl["omega"]
+    assert bar.key_differences(own["key"], ctl["key"]) and all("omega" in x or "crouch" in x for x in
+                                                               bar.key_differences(own["key"], ctl["key"]))
+    with pytest.raises(ValueError):
+        bar.run_root(out, "other")
+
+
+@needs_run
+def test_the_ledger_cuts_the_first_unit_that_does_not_fit_and_every_unit_after_it(t0, tmp_path, monkeypatch, capsys):
+    b = bar.Budget(tmp_path / "budget.json", 3, cap_core_h=1.0)
+    assert b.start("u1", 0.4) and b.spent() == 0.0
+    b.add("u1", "rec#s1", 900.0)
+    b.add("u1", "rec#s1", 600.0)  # the same item again: the larger value stands, nothing is counted twice
+    b.add("u1", "rec#s2", 180.0)
+    assert b.spent() == pytest.approx(0.3) and b.unit("u1")["used_core_h"] == pytest.approx(0.3)
+    assert not b.start("u2", 0.8)  # 0.3 + 0.8 > 1.0: cut
+    assert not b.start("u3", 0.01)  # ... and every unit after it, however cheap
+    assert b.start("u1", 5.0)  # a started unit always continues
+    doc = read(tmp_path / "budget.json")
+    t = doc["tasks"]["3"]
+    assert [u["unit"] for u in t["units"]] == ["u1"] and [c["unit"] for c in t["cut"]] == ["u2", "u3"]
+    assert t["units"][0]["estimate_core_h"] == 0.4 and t["units"][0]["spent_before_core_h"] == 0.0 and t["units"][0]["started_at"]
+    assert t["cut"][0]["spent_before_core_h"] == pytest.approx(0.3) and "exceeds" in t["cut"][0]["reason"]
+    assert "an earlier unit" in t["cut"][1]["reason"] and t["cut"][0]["label"] == "cut by the pre-registered order"
+    assert bar.Budget(tmp_path / "budget.json", 4).spent() == 0.0 and bar.BUDGET_CORE_H == {3: 16.0, 4: 12.0}
+    with pytest.raises(ValueError):
+        bar.Budget(tmp_path / "budget.json", 5)
+    # through the runner: every episode's wall seconds are counted, per record and session
+    out = tmp_path / "out"
+    rates = dict(R2=dict(wall_per_sim_s=0.45), R0=dict(wall_per_sim_s=0.09))
+    calls = faked(monkeypatch, lambda row, cond, seed, relax: fake_episode(cond, seed, fell=not relax and seed < 3048))
+    args = (SET, BODY, out, ["R2/42@10ms", "R0@10ms"], ["walk/v0.4"])
+    with pytest.raises(bar.BarError, match="needs the committed rates"):
+        bar.evaluate(*args, procs=1, root=t0, task=3, log=quiet)
+    doc = bar.evaluate(*args, procs=1, root=t0, task=3, rates=rates, unit="T3.1 T0 @10ms", log=quiet)
+    led = read(out / "budget.json")["tasks"]["3"]
+    assert led["cap_core_h"] == 16.0 and [u["unit"] for u in led["units"]] == [
+        "T3.1 T0 @10ms", "attribution T0/75-M-H-10/seeds3042/eval/R2/42@10ms/walk/v0.4.json"]
+    seconds = read(rec_path(out, "R0@10ms", "walk/v0.4"))["seconds"]
+    assert led["units"][0]["estimate_core_h"] == pytest.approx(20 * seconds * (0.45 + 0.09) / 3600)
+    assert led["units"][0]["used_core_h"] == pytest.approx(40 * 0.25 / 3600) and len(led["units"][0]["items"]) == 2
+    assert led["units"][1]["estimate_core_h"] == pytest.approx(20 * seconds * 0.45 / 3600)
+    assert led["units"][1]["used_core_h"] == pytest.approx(20 * 0.25 / 3600) and led["cut"] == []
+    assert led["units"][1]["spent_before_core_h"] == pytest.approx(40 * 0.25 / 3600)
+    assert bar.Budget(out / "budget.json", 3).spent() == pytest.approx(60 * 0.25 / 3600)
+    assert doc["sessions"][-1]["task"] == 3 and read(rec_path(out, "R0@10ms", "walk/v0.4"))["sessions"][0]["unit"] == "T3.1 T0 @10ms"
+    # a resumed unit counts nothing twice
+    bar.evaluate(*args, procs=1, root=t0, task=3, rates=rates, unit="T3.1 T0 @10ms", log=quiet)
+    assert bar.Budget(out / "budget.json", 3).spent() == pytest.approx(60 * 0.25 / 3600)
+    # a unit that does not fit is refused before any episode (exit 3 from the CLI), and so is the next one
+    n = len(calls)
+    with pytest.raises(bar.BudgetCut, match="cut by the pre-registered order"):
+        bar.evaluate(SET, BODY, out, ["R2/42@4ms"], ["walk/v0.4"], procs=1, root=t0, task=3, rates=rates,
+                     unit="T3.4 T0 @4ms", budget_cap_core_h=0.01, log=quiet)
+    assert len(calls) == n and not rec_path(out, "R2/42@4ms", "walk/v0.4").exists()
+    (out / "COST.md").write_text("# Cost\n\n```json\n" + json.dumps(dict(schema="bar-cost-1", rates=rates)) + "\n```\n")
+    code = bar.main(["run", "--set", SET, "--set-root", str(t0), "--body", BODY, "--rows", "R0@6ms", "--conditions",
+                     "walk/v0.4", "--procs", "1", "--task", "3", "--unit", "T3.4 T0 @6ms", "--out", str(out)])
+    assert code == 3 and "cut by the pre-registered order: T3.4 T0 @6ms" in capsys.readouterr().err and len(calls) == n
+    led = read(out / "budget.json")["tasks"]["3"]
+    assert [c["unit"] for c in led["cut"]] == ["T3.4 T0 @4ms", "T3.4 T0 @6ms"]
+    # attribution is checked record by record: one that does not fit is labelled, and the record keeps its episodes
+    out2 = tmp_path / "out2"
+    tiny = 20 * seconds * 0.45 / 3600 + 1e-4  # room for the run's estimate, not for a record's attribution
+    doc = bar.evaluate(SET, BODY, out2, ["R2/42@10ms"], ["walk/v0.4"], procs=1, root=t0, task=4, rates=rates,
+                       unit="T4.1", budget_cap_core_h=tiny, log=quiet)
+    rec = read(rec_path(out2, "R2/42@10ms", "walk/v0.4"))
+    assert rec["attribution"]["label"] == "not attributed (budget, pre-registered order)" and rec["attribution"]["cut"] is True
+    assert rec["failure"]["falls_label"] == "not attributed (budget, pre-registered order)" and len(rec["episodes"]) == 20
+    led = read(out2 / "budget.json")["tasks"]["4"]
+    assert [c["unit"] for c in led["cut"]] == ["attribution T0/75-M-H-10/seeds3042/eval/R2/42@10ms/walk/v0.4.json"]
+    assert doc["sessions"][-1]["attribution_cut"] == ["R2/42@10ms walk/v0.4"]
+    assert bar.read_cost(out / "COST.md")["rates"] == rates and bar.rate_of(rates, "R2/43@6ms") == 0.45
+    assert bar.rate_of(rates, "R4/42@10ms") == 0.45  # a row type that was not measured: the largest rate
+    with pytest.raises(bar.BarError, match="bar-cost-1"):
+        bar.read_cost(rec_path(out, "R0@10ms", "walk/v0.4"))
+
+
+@needs_run
+def test_a_run_on_a_set_of_the_75cm_round_is_a_tasks_unit_or_a_listed_check(t0, tmp_path, monkeypatch):
+    ok = ("V0", ["R0@10ms", "R0@0ms"], 1, None, "dev.json", None, None)
+    bar._check_rule(*ok)
+    for bad, word in ((("V0", ["R0@10ms", "R2/42@10ms"], 1, None, "dev.json", None, None), "not an R0 row"),
+                      (("F25F9cl", ["R0@10ms"], 1, None, "dev.json", None, None), "not V0"),
+                      (("F25F9", ["R0@10ms"], 1, None, "dev.json", None, None), "not V0"),
+                      (("V0", ["R0@10ms"], 2, None, "dev.json", None, None), "2 episodes"),
+                      (("V0", ["R0@10ms"], 1, None, None, None, None), "--dev-episodes"),
+                      (("V0", ["R0@10ms"], 1, None, "dev.json", "seeds3042", None), "no check")):
+        with pytest.raises(bar.BarError, match=word):
+            bar._check_rule(*bad)
+    bar._check_rule("F25F9cl", ["R2/42@10ms"], 20, 3, None, None, None)  # a task's unit
+    bar._check_rule(SET, ["R2/42@10ms"], 20, None, None, None, None)  # not a set of the round (a fixture)
+    bar._check_rule("S1", ["R2/42@10ms"], 20, None, None, None, None)
+    with pytest.raises(bar.BarError, match="build check"):
+        bar.evaluate("V0", BODY, tmp_path / "x", ["R2/42@10ms"], ["walk/v0.4"], procs=1, root=t0, log=quiet)
+    assert not (tmp_path / "x").exists()
+    # a check's episodes are listed in the file --dev-episodes names
+    faked(monkeypatch, lambda row, cond, seed, relax: fake_episode(cond, seed))
+    dev = tmp_path / "dev_episodes.json"
+    for _ in (1, 2):
+        bar.evaluate(SET, BODY, tmp_path / "out", ["R0@10ms"], ["walk/v0.4", "stop/two_step"], episodes=1, procs=1,
+                     root=t0, dev_episodes=dev, log=quiet)
+    listed = read(dev)
+    assert [(x["set"], x["row"], x["condition"], x["seed"]) for x in listed["episodes"]] == [
+        (SET, "R0@10ms", "walk/v0.4", 3042), (SET, "R0@10ms", "stop/two_step", 3042)]
+    assert listed["rule"] == bar.RULES["checks"] and listed["episodes"][0]["bar_sha256"] == bar.bar_sources()["sha256"]

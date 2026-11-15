@@ -1376,6 +1376,20 @@ def read_partials(pdir: Path, key_sha256: str, seeds) -> dict:
     return out
 
 
+def drop_partials(cond_dir: Path) -> None:
+    """Remove a condition's partial files (every key's) and the directories they leave empty, up to ``partial/``."""
+    shutil.rmtree(cond_dir, ignore_errors=True)
+    d = cond_dir.parent
+    while "partial" in d.parts:
+        try:
+            d.rmdir()
+        except OSError:
+            return
+        if d.name == "partial":
+            return
+        d = d.parent
+
+
 # ------------------------------------------------------------------------------------------------
 # The budget ledger
 # ------------------------------------------------------------------------------------------------
@@ -1929,7 +1943,7 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
                     rec = condition_record(body, set_name, block, row, cond, [have[s] for s in seeds], key, seeds,
                                            prov, inputs, sessions, set_docs, extra=more)
                     s2io.write_json(path, rec)
-                    shutil.rmtree(it["pdir"].parent, ignore_errors=True)
+                    drop_partials(it["pdir"].parent)
                     it["rec"] = rec
                     listed += [dict(set=set_name, body=body, block=block, row=row.name, condition=cond.key, seed=s,
                                     at=s2io.now_utc(), commit=git["commit"], bar_sha256=bsrc["sha256"], out=str(out),
@@ -2002,7 +2016,7 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
                         rec["failure_but_A1"] = failure(row.name, rec["episodes"], rec["attribution"],
                                                         rec["counts_but_A1"]["pass_"], "but_A1")
                     s2io.write_json(path, _plain_json(rec))
-                    shutil.rmtree(it["pdir"].parent, ignore_errors=True)
+                    drop_partials(it["pdir"].parent)
                     log(f"{set_name} {body} {block} {row.name} {cond.key}: attribution {rec['attribution']['label']}")
             if pool is not None:
                 session["incidents"] = list(pool.incidents)
