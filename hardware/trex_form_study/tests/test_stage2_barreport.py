@@ -776,6 +776,7 @@ def test_counts_are_the_records_own_and_recompute_from_their_episodes(run, tmp_p
             c2, c3 = bar.counts(rec["episodes"], rec["seeds"]), bar.counts(rec["episodes"], rec["seeds"], "but_A1")
             assert (d["up"]["k"], d["r2"]["k"], d["r3"]["k"]) == (c2["survived"], c2["succeeded"], c3["succeeded"])
             assert (d["up_lcb"], d["r2_lcb"], d["r3_lcb"]) == (c2["survival_lcb"], c2["success_lcb"], c3["success_lcb"])
+    assert run.tabs["checks"]["second_block_outside_the_rule"] == []
     # a record whose counts were changed by hand is named at the top
     study = tmp_path / "study"
     out = study / "runs" / "x"
@@ -784,7 +785,10 @@ def test_counts_are_the_records_own_and_recompute_from_their_episodes(run, tmp_p
     rec = json.loads(path.read_text())
     rec["counts"].update(survived=20, succeeded=20, pass_=True)
     path.write_text(json.dumps(rec))
+    put(study, out, "V0", "R0@10ms", "walk/v0.4", block=R)  # no second block for a control set or an R0 row
     c = barreport.tables(barreport.load(out, study=study))["checks"]
+    assert [x["why"] for x in c["second_block_outside_the_rule"]] == [
+        ["an R0 row", "a control set of the round", "no replication_of field"]]
     assert len(c["counts_not_recomputed"]) == 1 and c["counts_not_recomputed"][0]["differences"] == [
         "reading 2 (every limit): survived is 20 in the record, 16 from its episodes",
         "reading 2 (every limit): succeeded is 20 in the record, 16 from its episodes",
@@ -960,6 +964,11 @@ def test_jps_rows_stand_beside_this_rounds_records_seed_by_seed(run):
             "(passes at 0 ms); reading 3 20 of 20 (passes at 0 ms); median speed measured 0.514 (20) m/s "
             f"[{barreport.MARGIN_LABEL}]") in r95["record"]
     assert "F25F9cl walk/v0.45_mu0.54 at 0 ms, R2/42@0ms: cut by the pre-registered order" in r95["record"]
+    assert ("F25F9cl walk/v0.5 at 0 ms, the controller R2 from its two rows: reading 2: passes at 0 ms; reading 3: "
+            "passes at 0 ms but for A1") in r95["record"]
+    assert ("F25F9cl walk/v0.4 at 10 ms, the controller R2 from its two rows: reading 2: provisional [R2/42@10ms: "
+            "replicated]; reading 3: shown but for A1 [R2/42@10ms: replicated; R2/43@10ms: not replicated]") \
+        in rows[99]["record"]
     assert any(p.endswith("seeds3042/eval/R2/43@0ms/walk/v0.5.json") for p in r95["paths"])
     r92 = rows[92]
     assert any("V0 walk/v0.35 at 0 ms, R2/43@0ms: stayed up 20 of 20; Stage 1's reading 0 of 20; reading 2 0 of 20"

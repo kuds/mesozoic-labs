@@ -1340,7 +1340,8 @@ def controls_table(doc: dict) -> dict:
         r = digest(ref, meta) if ref else None
         d0 = (rec or ref or {}).get("definition") or _conds().get(key) or {}
         lines.append(dict(
-            control=bar.CONTROLS[c][1] if c in bar.CONTROLS else c, set=s, labels=labels_of(s, rec, meta),
+            control=((rec.get("control") or f"{c}: the record holds no control field") if rec
+                     else bar.CONTROLS[c][1] if c in bar.CONTROLS else c), set=s, labels=labels_of(s, rec, meta),
             item=item_of(d0), condition=key, grip=grip_of(d0), delay=delay_word(bar.delay_ms(row)), row=row,
             status=d["status"] if d else absent_word(meta, s, body, block, row, key, control=c, in_order=True),
             omega=d["omega"] if d else None, crouch=d["crouch_frac"] if d else None, up=d["up"] if d else None,
@@ -1441,6 +1442,10 @@ def jps_table(doc: dict) -> dict:
                 if d["labels"]:
                     text += " [" + "; ".join(d["labels"]) + "]"
                 lines.append(text)
+            if any(r is not None for r in recs.values()):
+                v = verdict_of(doc, s, body, key, ms)
+                lines.append(f"{name}, the controller R2 from its two rows: reading 2: {v['reading_2']['text']}; "
+                             f"reading 3: {v['reading_3']['text']}")
             if any(r is not None and r.get("status") == "done" for r in recs.values()):
                 seeds_parts.append(_seed_part(claim["line"], name, s, recs))
         rows.append(dict(line=claim["line"], **{f"jps_claim_{k}": claim[k] for k in JPS_CLAIM_KEYS},
@@ -1518,8 +1523,16 @@ def checks(doc: dict) -> dict:
     for r in main:
         x = by_set.setdefault(r["set"], dict(done=0, not_run=0))
         x["done" if r.get("status") == "done" else "not_run"] += 1
-    other, missing, unchecked, unjudged, miscounted = [], [], [], [], []
+    other, missing, unchecked, unjudged, miscounted, second = [], [], [], [], [], []
     for r in main + ctl:
+        if r["block"] == bar.REPLICATION_BLOCK:  # H4: the candidate only, under a row with a verdict; no control
+            why = [w for w, bad in (
+                ("an R0 row", bar.controller_of(r["row"]) in bar.NO_VERDICT_CONTROLLERS),
+                ("a control set of the round", bar.registered_name(r["set"]) not in (None, bar.CANDIDATE_SET)),
+                ("a reported control", bool(r.get("control"))),
+                ("no replication_of field", r.get("status") == "done" and not r.get("replication_of"))) if bad]
+            if why:
+                second.append(dict(path=r["_path"], why=why))
         diff = counts_differences(r)
         if diff:
             miscounted.append(dict(path=r["_path"], differences=diff))
@@ -1571,7 +1584,8 @@ def checks(doc: dict) -> dict:
                      not_a_record=list(meta["unreadable"]), misplaced=list(meta["misplaced"])),
         today_sources=dict(meta["today"]), other_sources=other, not_in_latest_freeze=missing, not_checked=unchecked,
         freezes={d: {k: v for k, v in m.items() if k != "entries"} for d, m in sorted(meta["manifests"].items())},
-        errors_or_unjudged=unjudged, counts_not_recomputed=miscounted, budget=budget, cost=cost)
+        errors_or_unjudged=unjudged, counts_not_recomputed=miscounted, second_block_outside_the_rule=second,
+        budget=budget, cost=cost)
 
 
 def other_records(doc: dict, tabs: dict) -> dict:
@@ -1730,7 +1744,10 @@ def _md_checks(c: dict) -> list[str]:
                      + ("judged" if x["judged"] else "not judged") for x in c["errors_or_unjudged"]),
            "- Records whose counts, bounds or passes do not recompute from their own episodes (`bar.counts`): "
            f"{len(c['counts_not_recomputed'])}"
-           + "".join(f"\n  - `{x['path']}`: {'; '.join(x['differences'])}" for x in c["counts_not_recomputed"])]
+           + "".join(f"\n  - `{x['path']}`: {'; '.join(x['differences'])}" for x in c["counts_not_recomputed"]),
+           "- Records of the block `seeds5042` that the replication rule does not provide for (an R0 row, a control "
+           f"set, a reported control, no `replication_of`): {len(c['second_block_outside_the_rule'])}"
+           + "".join(f"\n  - `{x['path']}`: {', '.join(x['why'])}" for x in c["second_block_outside_the_rule"])]
     if c["budget"] is None:
         out.append("- Core-hours: no `budget.json` in the run directory (no task's unit has started there).")
     else:
