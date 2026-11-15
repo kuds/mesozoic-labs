@@ -781,9 +781,11 @@ def test_causal_fade_window(v0):
 
 
 def test_pick_stride_factor(v0, monkeypatch):
-    """With ``kinematic`` stubbed by a table: the largest passing f is chosen; both directions must pass; every f
-    tried is recorded; no f gives ``chosen: None``; the full-build step-down happens at most twice; "over a leg
-    drive" and "a1_over" are told apart by the caller's flags."""
+    """With ``kinematic`` stubbed by a table: the largest f that passes the twist rule AND leaves every other gated
+    joint 0.10 rad is chosen (A11 as amended on 15 Nov); both directions must pass; every f tried is recorded with
+    both directions' twist use and tightest other joint; a reading the pass does not give is not passed; no f gives
+    ``chosen: None``; the full-build step-down (twist over 0.87, an IK failure, or under 0.10 rad on another joint)
+    happens at most twice; "over a leg drive" and "a1_over" are told apart by the caller's flags."""
     a = v0["a"]
     table = {}
     calls = []
@@ -792,19 +794,23 @@ def test_pick_stride_factor(v0, monkeypatch):
         f, direction = move.args["stride_factor"], "left" if move.args["rate"] > 0 else "right"
         assert move.builder == "turn" and move.causal and move.args["angle"] == math.pi / 2 and move.args["ramp_s"] == 0.375
         calls.append((f, direction))
-        use, ik_ok = table[(f, direction)]
-        return dict(ik_ok=ik_ok, ik_fail_frames=0 if ik_ok else 7,
-                    range_use=dict(left_hip_yaw=use if direction == "left" else use - 0.05,
-                                   right_hip_yaw=use if direction == "right" else use - 0.05, left_knee=0.99))
+        use, ik_ok, margin = table[(f, direction)]
+        out = dict(ik_ok=ik_ok, ik_fail_frames=0 if ik_ok else 7,
+                   range_use=dict(left_hip_yaw=use if direction == "left" else use - 0.05,
+                                  right_hip_yaw=use if direction == "right" else use - 0.05, left_knee=0.99))
+        if margin is not None:  # None: a pass that gives no reading of the other joints
+            out["tightest_other"] = dict(joint=f"{direction}_hip_roll", end="min", margin_rad=margin)
+        return out
 
     monkeypatch.setattr(moves, "kinematic", fake_kinematic)
     monkeypatch.setattr(moves, "steady_turn_kinematic", lambda src, a, rate, f: dict(available=True, f=f))
+    assert moves.OTHER_JOINT_MARGIN_RAD == 0.10  # A12's own limit (clearance.RANGE_MARGIN_RAD), not a new constant
     for f in moves.STRIDE_GRID:
-        table[(f, "left")] = table[(f, "right")] = (0.80, True)
-    table[(1.0, "left")] = table[(1.0, "right")] = (1.0, False)  # pinned, with IK failures
-    table[(0.95, "left")], table[(0.95, "right")] = (0.84, False), (0.84, True)  # within the twist, IK fails on one side
-    table[(0.90, "left")], table[(0.90, "right")] = (0.84, True), (0.851, True)  # one direction over 0.85
-    table[(0.85, "left")], table[(0.85, "right")] = (0.85, True), (0.85, True)  # at the limit: passes
+        table[(f, "left")] = table[(f, "right")] = (0.80, True, 0.20)
+    table[(1.0, "left")] = table[(1.0, "right")] = (1.0, False, 0.20)  # pinned, with IK failures
+    table[(0.95, "left")], table[(0.95, "right")] = (0.84, False, 0.20), (0.84, True, 0.20)  # IK fails on one side
+    table[(0.90, "left")], table[(0.90, "right")] = (0.84, True, 0.20), (0.851, True, 0.20)  # one direction over 0.85
+    table[(0.85, "left")], table[(0.85, "right")] = (0.85, True, 0.10), (0.85, True, 0.10)  # at both limits: passes
     rec = moves.pick_stride_factor(None, a, None, math.pi / 2, math.pi / 4)
     assert rec["chosen"] == 0.85 and rec["steps_down"] == 0 and rec["outcome"] == "picked"
     assert [r["f"] for r in rec["tried"]] == [1.0, 0.95, 0.9, 0.85]
@@ -813,42 +819,117 @@ def test_pick_stride_factor(v0, monkeypatch):
     assert [r["ik_ok"] for r in rec["tried"]] == [False, False, True, True]
     assert rec["tried"][2]["left"] == 0.84 and rec["tried"][2]["right"] == 0.851
     assert rec["tried"][0]["ik_fail_frames"] == dict(left=7, right=7)
+    for r in rec["tried"]:  # both directions' tightest other joint, by name, end and margin
+        assert r["tightest_other"] == {d: dict(joint=f"{d}_hip_roll", end="min", margin_rad=table[(r["f"], d)][2])
+                                       for d in ("left", "right")}
     assert rec["steady_turn_kinematic"] == dict(available=True, f=0.85)
     assert rec["rule"] == "S2A-stride" and rec["text"] == moves.RULES["S2A-stride"]
-    assert (rec["grid"], rec["limit_kinematic"], rec["limit_final"], rec["steps_down_max"]) == (
-        list(moves.STRIDE_GRID), 0.85, 0.87, 2)
+    assert (rec["grid"], rec["limit_kinematic"], rec["limit_final"], rec["limit_other_joints_rad"],
+            rec["steps_down_max"]) == (list(moves.STRIDE_GRID), 0.85, 0.87, 0.10, 2)
+    for text in ("at most 0.85 of the usable thigh-twist range", "every other gated joint at least 0.1 rad",
+                 "at most 0.87 and the same 0.1 rad", "STAGE2_75_PLAN.md A12", "amended on 15 Nov", "no limit moved"):
+        assert text in rec["text"], text
     json.dumps(rec, allow_nan=False)
-    # the full build: within 0.87 it stands; the caller's flags tell the two Stage 0 outcomes apart
-    ok = moves.step_down(rec, dict(ik_ok=True, hip_yaw_range_use=0.87))
+    # --- the joint-range half of the rule (A11 as amended): the twist alone no longer picks
+    calls.clear()
+    for f in moves.STRIDE_GRID:
+        table[(f, "left")] = table[(f, "right")] = (0.80, True, 0.20)
+    table[(1.0, "left")], table[(1.0, "right")] = (0.80, True, 0.0999), (0.80, True, 0.20)  # one direction under 0.10
+    table[(0.95, "left")], table[(0.95, "right")] = (0.80, True, 0.20), (0.80, True, -0.01)  # outside its range
+    table[(0.90, "left")], table[(0.90, "right")] = (0.80, True, None), (0.80, True, 0.20)  # not read: not passed
+    table[(0.85, "left")], table[(0.85, "right")] = (0.86, True, 0.30), (0.80, True, 0.30)  # the twist still gates
+    table[(0.80, "left")], table[(0.80, "right")] = (0.80, True, 0.101), (0.80, True, 0.10)
+    by_range = moves.pick_stride_factor(None, a, None, math.pi / 2, math.pi / 4)
+    assert by_range["chosen"] == 0.8 and [r["pass_"] for r in by_range["tried"]] == [False] * 4 + [True]
+    assert all(r["ik_ok"] for r in by_range["tried"]) and len(calls) == 10
+    assert by_range["tried"][0]["tightest_other"]["left"]["margin_rad"] == 0.0999
+    assert by_range["tried"][2]["tightest_other"] == dict(
+        left=None, right=dict(joint="right_hip_roll", end="min", margin_rad=0.20))
+    # the two limits are arguments with the registered defaults
+    loose = moves.pick_stride_factor(None, a, None, math.pi / 2, math.pi / 4, other_margin=0.05)
+    assert loose["chosen"] == 1.0 and loose["limit_other_joints_rad"] == 0.05
+    for f in moves.STRIDE_GRID:
+        table[(f, "left")] = table[(f, "right")] = (0.80, True, 0.20)
+    table[(1.0, "left")] = table[(1.0, "right")] = (1.0, False, 0.20)
+    table[(0.95, "left")], table[(0.95, "right")] = (0.84, False, 0.20), (0.84, True, 0.20)
+    table[(0.90, "left")], table[(0.90, "right")] = (0.84, True, 0.20), (0.851, True, 0.20)
+    table[(0.85, "left")], table[(0.85, "right")] = (0.85, True, 0.10), (0.85, True, 0.10)
+    # --- the full build: within 0.87 and 0.10 rad it stands; the caller's flags tell the two Stage 0 outcomes apart
+    ok = moves.step_down(rec, dict(ik_ok=True, hip_yaw_range_use=0.87, tightest_other_rad=0.10))
     assert ok["outcome"] == "frozen" and ok["chosen"] == 0.85 and ok["a1_over"] is False and ok["steps_down"] == 0
-    a1 = moves.step_down(rec, dict(ik_ok=True, hip_yaw_range_use=0.86, a1_over=True))
+    assert ok["builds"] == [dict(f=0.85, ik_ok=True, hip_yaw_range_use=0.87, tightest_other_rad=0.10)]
+    a1 = moves.step_down(rec, dict(ik_ok=True, hip_yaw_range_use=0.86, tightest_other_rad=0.2, a1_over=True))
     assert a1["outcome"] == "frozen" and a1["a1_over"] is True and a1["chosen"] == 0.85
-    leg = moves.step_down(rec, dict(ik_ok=True, hip_yaw_range_use=0.86, over_leg_drive=True, a1_over=True))
+    leg = moves.step_down(rec, dict(ik_ok=True, hip_yaw_range_use=0.86, tightest_other_rad=0.2, over_leg_drive=True,
+                                    a1_over=True))
     assert leg["outcome"] == "none" and leg["chosen"] is None and "leg drive" in leg["reason"]
-    # over 0.87 (or an IK failure): one factor down the grid, at most twice in all
-    one = moves.step_down(rec, dict(ik_ok=True, hip_yaw_range_use=0.871))
+    # over 0.87, an IK failure, or under 0.10 rad on another joint: one factor down the grid, at most twice in all
+    one = moves.step_down(rec, dict(ik_ok=True, hip_yaw_range_use=0.871, tightest_other_rad=0.2))
     assert (one["outcome"], one["chosen"], one["steps_down"]) == ("rebuild", 0.8, 1) and rec["steps_down"] == 0
-    two = moves.step_down(one, dict(ik_ok=False, hip_yaw_range_use=0.80))
+    two = moves.step_down(one, dict(ik_ok=False, hip_yaw_range_use=0.80, tightest_other_rad=0.2))
     assert (two["outcome"], two["chosen"], two["steps_down"]) == ("rebuild", 0.75, 2)
-    three = moves.step_down(two, dict(ik_ok=True, hip_yaw_range_use=0.88))
+    three = moves.step_down(two, dict(ik_ok=True, hip_yaw_range_use=0.88, tightest_other_rad=0.2))
     assert (three["outcome"], three["chosen"], three["steps_down"]) == ("none", None, 2)
     assert [b["f"] for b in three["builds"]] == [0.85, 0.8, 0.75] and "no step-down is left" in three["reason"]
-    assert moves.step_down(two, dict(ik_ok=True, hip_yaw_range_use=0.5))["outcome"] == "frozen"
+    assert moves.step_down(two, dict(ik_ok=True, hip_yaw_range_use=0.5, tightest_other_rad=0.2))["outcome"] == "frozen"
     with pytest.raises(ValueError, match="nothing was built"):
-        moves.step_down(three, dict(ik_ok=True, hip_yaw_range_use=0.5))
+        moves.step_down(three, dict(ik_ok=True, hip_yaw_range_use=0.5, tightest_other_rad=0.2))
+    by_margin = moves.step_down(rec, dict(ik_ok=True, hip_yaw_range_use=0.5, tightest_other_rad=0.0999))
+    assert (by_margin["outcome"], by_margin["chosen"], by_margin["steps_down"]) == ("rebuild", 0.8, 1)
+    last_margin = moves.step_down(two, dict(ik_ok=True, hip_yaw_range_use=0.5, tightest_other_rad=0.05))
+    assert last_margin["outcome"] == "none" and "joint-range rule (0.1 rad" in last_margin["reason"]
+    # the built reference's reading of the other joints is required: without it the rule cannot be read
+    with pytest.raises(ValueError, match="tightest_other_rad"):
+        moves.step_down(rec, dict(ik_ok=True, hip_yaw_range_use=0.5))
+    # ... except on a record made before the amendment (no limit_other_joints_rad): the twist alone, as it was
+    older = {k: v for k, v in rec.items() if k != "limit_other_joints_rad"}
+    assert moves.step_down(older, dict(ik_ok=True, hip_yaw_range_use=0.87))["outcome"] == "frozen"
+    assert moves.step_down(older, dict(ik_ok=True, hip_yaw_range_use=0.871))["outcome"] == "rebuild"
     # no factor of the grid passes: nothing is chosen, every f is recorded, no steady reading
     calls.clear()
     for key in table:
-        table[key] = (0.90, True)
+        table[key] = (0.90, True, 0.20)
     none = moves.pick_stride_factor(None, a, None, math.pi / 2, math.pi / 4)
     assert none["chosen"] is None and none["outcome"] == "none" and none["steady_turn_kinematic"] is None
     assert [r["f"] for r in none["tried"]] == list(moves.STRIDE_GRID) and len(calls) == 18
+    assert "0.85" in none["reason"] and "0.1 rad" in none["reason"]
     # the last factor of the grid has no step-down
     for key in table:
-        table[key] = (0.90, True) if key[0] > 0.6 else (0.80, True)
+        table[key] = (0.90, True, 0.20) if key[0] > 0.6 else (0.80, True, 0.20)
     last = moves.pick_stride_factor(None, a, None, math.pi / 2, math.pi / 4)
     assert last["chosen"] == 0.6
-    assert moves.step_down(last, dict(ik_ok=True, hip_yaw_range_use=0.9))["outcome"] == "none"
+    assert moves.step_down(last, dict(ik_ok=True, hip_yaw_range_use=0.9, tightest_other_rad=0.2))["outcome"] == "none"
+
+
+def test_tightest_other_reads_the_usable_ranges(monkeypatch):
+    """``tightest_other``: the least margin over every joint but the two thigh twists and every end but one a joint
+    rests on by design, against ``plant.usable_ranges`` at full precision (negative outside the range)."""
+    from types import SimpleNamespace
+
+    from designlab import statics
+    from designlab.stage1 import plant
+
+    names = ["left_hip_yaw", "left_hip_roll", "jaw", "tail_yaw"]
+    usable = dict(left_hip_yaw=(-0.3, 0.3), left_hip_roll=(-0.45, 0.2618), jaw=(0.0, 0.5), tail_yaw=(-0.45, 0.45))
+    monkeypatch.setattr(plant, "usable_ranges", lambda body: usable)
+    monkeypatch.setattr(statics, "jid", lambda m, jn: names.index(jn))
+    src = dict(body="B", M=SimpleNamespace(m=SimpleNamespace(jnt_qposadr=np.arange(len(names)))))
+    q = np.zeros((5, len(names)))
+    q[:, 0] = [-0.29, 0.0, 0.1, 0.2, 0.299]  # the twist: at its limits, never read here
+    q[:, 1] = [-0.30, -0.1, 0.0, 0.1, 0.20]
+    q[:, 3] = [-0.2, 0.0, 0.1, 0.2, 0.30]
+    got = moves.tightest_other(src, q)
+    assert got["joint"] == "left_hip_roll" and got["end"] == "max" and got["margin_rad"] == pytest.approx(0.0618)
+    q[:, 2] = 0.0  # the jaw rests on its lower stop (clearance.REST_ON_STOP): that end is not read, its other end is
+    assert moves.tightest_other(src, q)["joint"] == "left_hip_roll"
+    q[:, 2] = [0.0, 0.1, 0.2, 0.3, 0.46]
+    got = moves.tightest_other(src, q)
+    assert (got["joint"], got["end"]) == ("jaw", "max") and got["margin_rad"] == pytest.approx(0.04)
+    q[:, 3] = [-0.5, 0.0, 0.1, 0.2, 0.30]  # outside its range: a negative margin
+    got = moves.tightest_other(src, q)
+    assert (got["joint"], got["end"]) == ("tail_yaw", "min") and got["margin_rad"] == pytest.approx(-0.05)
+    monkeypatch.setattr(plant, "usable_ranges", lambda body: dict(left_hip_yaw=(-0.3, 0.3)))
+    assert moves.tightest_other(src, q) is None
 
 
 def _assert_gates_are_the_rule(s: dict) -> None:
@@ -1358,18 +1439,38 @@ print(json.dumps(out))
 
 @slow
 def test_stop_and_turn_from_v0(tmp_path):
-    """A scratch build of ``stop2_v0.4`` and ``turn90_pi4_right`` from the V0 0.40 walk on 75-M-H-10 passes every
-    gate of the design's sections 3.3 to 3.5 (two touchdowns, the 80 deg rule); the kinematic pick is 0.80.
+    """A scratch build of ``stop2_v0.4`` and ``turn90_pi4_right`` from the V0 0.40 walk on 75-M-H-10.  The stop
+    passes every gate of the design's sections 3.3 to 3.5 (two touchdowns).  The kinematic pick is the largest
+    stride factor within the twist rule that also leaves every other gated joint 0.10 rad (A11 as amended on 15 Nov):
+    by the twist alone it would be 0.80, where the inside leg's hip roll keeps under 0.10 rad, so the pick is lower
+    (0.70).  The turn built there holds the 80 deg rule, the twist, the 0.10 rad, the CoP margin and its join to the
+    walk, and is outside two of A7's gates, as first built on 15 Nov: the warm-up stride's multibody ZMP against the
+    walk's (2.26 mm against 2.0 mm) and the consistency error of the first stride after the command (2.63 mm against
+    2.5 mm).  That is a result of the rules as registered (the turn has no reference and goes to the owner), pinned
+    here as it was found; no constant is changed for it.
 
     Every reading is checked first and the gates last, in one assertion that names each failed gate of both moves,
     so that one failed gate cannot hide the other readings."""
     got = _run(SCRATCH_CODE, BODY75, timeout=4 * 3600)
     _log(tmp_path, "test_stage2_moves_scratch.json", got)
     pick = got["pick"]
-    assert pick["chosen"] == 0.8, pick["tried"]
-    assert [r["f"] for r in pick["tried"]] == [1.0, 0.95, 0.9, 0.85, 0.8]
-    assert max(pick["tried"][-1]["left"], pick["tried"][-1]["right"]) <= moves.TWIST_KINEMATIC
-    assert [r["pass_"] for r in pick["tried"]] == [False, False, False, False, True]
+    tried = pick["tried"]
+    f = pick["chosen"]
+    assert f is not None and f < 0.8, tried  # the twist alone picked 0.80; the hip roll takes it lower
+    assert [r["f"] for r in tried] == [x for x in moves.STRIDE_GRID if x >= f] and tried[-1]["f"] == f
+    assert [r["pass_"] for r in tried] == [False] * (len(tried) - 1) + [True]
+    assert pick["limit_other_joints_rad"] == moves.OTHER_JOINT_MARGIN_RAD == 0.10
+
+    def within(r):  # the rule, written out on a row's own readings
+        return bool(r["ik_ok"] and max(r["left"], r["right"]) <= 0.85
+                    and min(r["tightest_other"][d]["margin_rad"] for d in ("left", "right")) >= 0.10)
+
+    assert [within(r) for r in tried] == [r["pass_"] for r in tried], tried
+    at_08 = next(r for r in tried if r["f"] == 0.8)  # within the twist rule, out by the hip roll alone
+    assert at_08["ik_ok"] and max(at_08["left"], at_08["right"]) <= moves.TWIST_KINEMATIC
+    assert {d: at_08["tightest_other"][d]["joint"] for d in ("left", "right")} == dict(left="left_hip_roll",
+                                                                                         right="right_hip_roll")
+    assert max(at_08["tightest_other"][d]["margin_rad"] for d in ("left", "right")) < 0.10
     names = ("stop2_v0.4", "turn90_pi4_right")
     stop, turn = (got[n] for n in names)
     # --- the readings: what each entry holds, and that every gate is its rule's comparison on the entry's numbers
@@ -1391,24 +1492,30 @@ def test_stop_and_turn_from_v0(tmp_path):
     assert 0.0 < ref["accel_forward_raw_peak_t_s"] < stop["duration_s"]
     ref = turn["reference"]
     assert ref["accel_filter"]["after"] == "the periodic stride of v0.4" and ref["at_s"] == 2.0
-    assert abs(turn["turn"]["kappa"] - 1.0) < 1e-6 and turn["turn"]["stride_factor"] == 0.8
+    assert abs(turn["turn"]["kappa"] - 1.0) < 1e-6 and turn["turn"]["stride_factor"] == f
     assert turn["turn"]["direction"] == "right" and turn["move"]["command_phase"] == 0.5 and turn["split"] == "exact"
     assert turn["turn"]["ramp_s"] == 0.375 and got["turn90_pi4_right/kappa"] == turn["turn"]["kappa"]
     assert [st["after_command"] for st in turn["steps"][:2]] == [False, True]
-    # --- the gates: one assertion for both moves
+    # --- the gates: one assertion for both moves (the turn's two failing gates are the result found on 15 Nov)
     failed = {n: sorted(k for k, v in got[n]["gates"].items() if not v) for n in names}
-    assert failed == {"stop2_v0.4": [], "turn90_pi4_right": []}, failed
-    assert stop["pass_"] and turn["pass_"]
+    assert failed == {"stop2_v0.4": [], "turn90_pi4_right": ["join_command", "zmp_consistency"]}, failed
+    assert stop["pass_"] and not turn["pass_"]
     # --- and what passing means, with the limits written out
     for s in (stop, turn):
         assert s["ik_ok"] and s["ik_fail_frames"] == 0
         assert s["join_b"]["com_max_mm"] <= 1.0 and s["join_b"]["zmp_max_mm"] <= 2.0, s["join_b"]
         jc = s["join_command"]
-        assert jc["ok"] and jc["warmup_com_max_mm"] <= 1.0 and jc["warmup_zmp_max_mm"] <= 2.0, jc
-        assert jc["at_command"]["com_mm"] <= 1.0 and jc["at_command"]["joint_rad"] <= 1e-3
-        assert s["zmp_consistency_history_m"][-1] <= 2.5e-3, s["zmp_consistency_history_m"]  # the first stride
+        assert jc["warmup_com_max_mm"] <= 1.0 and jc["at_command"]["com_mm"] <= 1.0 and jc["at_command"]["joint_rad"] <= 1e-3
         assert s["post_window_zmp_error_m"][-1] <= 4.0e-3, s["post_window_zmp_error_m"]  # from one stride after it
         assert s["cop_margin_single_min"]["m"] >= 0.010, s["cop_margin_single_min"]
+    jc = stop["join_command"]
+    assert jc["ok"] and jc["warmup_zmp_max_mm"] <= 2.0, jc
+    assert stop["zmp_consistency_history_m"][-1] <= 2.5e-3, stop["zmp_consistency_history_m"]  # the first stride
+    # the turn at the picked factor: outside the warm-up ZMP limit and the first stride's consistency limit
+    jc = turn["join_command"]
+    assert not jc["ok"] and jc["warmup_zmp_max_mm"] == pytest.approx(2.261, rel=0.05) and jc["warmup_zmp_max_mm"] > 2.0
+    assert turn["zmp_consistency_history_m"][-1] == pytest.approx(2.634e-3, rel=0.05) > 2.5e-3
+    assert turn["hip_yaw_range_use"] <= moves.TWIST_FINAL and turn["gates"]["thigh_twist"]
     ref = stop["reference"]
     assert ref["touchdowns_after_command"] == 2 and ref["forward_stopped_strides"] <= 1.5
     assert ref["accel_forward_lp1hz_peak_m_s2"] <= 1.5

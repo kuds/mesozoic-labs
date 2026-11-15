@@ -58,7 +58,7 @@ from typing import Callable  # noqa: E402
 
 import numpy as np  # noqa: E402
 
-from .. import gait, sizing, statics, turning  # noqa: E402
+from .. import clearance, gait, sizing, statics, turning  # noqa: E402
 from ..stage1 import plant, refs, transitions  # noqa: E402
 from ..stage1.transitions import PHASE_TOL, SETTLE_STRIDES, SHIFT_STRIDES, SIDES, SUB, _ramp, _rot2  # noqa: E402
 
@@ -77,6 +77,10 @@ STRIDE_GRID = (1.00, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60)
 TWIST_KINEMATIC = 0.85
 TWIST_FINAL = 0.87
 STEPS_DOWN_MAX = 2
+#: The stride rule also reads Stage 0's joint range (STAGE2_75_PLAN.md A11 as amended on 15 Nov): in the kinematic pass
+#: and on the built reference every gated joint other than the thigh twist keeps at least this much of its usable
+#: range (rad).  It is A12's own limit, read from where Stage 0 holds it: no new constant.
+OTHER_JOINT_MARGIN_RAD = clearance.RANGE_MARGIN_RAD
 #: The excused causal transient fades to zero over these phases after the command (``RULES["S2A-fade"]``).
 CAUSAL_FADE = (0.5, 1.0)
 #: Gates of a move (``RULES["S2A-gates"]``).
@@ -144,10 +148,15 @@ RULES = {
     "S2A-stride": (
         "inside the turn the stride period is f x T_walk at the same path speed; f is the largest value of "
         + ", ".join(f"{f:g}" for f in STRIDE_GRID) + " for which the finite turn's own kinematic pass (the causal plan "
-        "solved once, no ZMP correction), in both directions, has ik_ok and uses at most "
-        f"{TWIST_KINEMATIC:g} of the usable thigh-twist range on the worse leg; the reference built with all passes "
-        f"must show ik_ok and at most {TWIST_FINAL:g}, else f steps down once (at most {STEPS_DOWN_MAX:g} times in "
-        f"all); {_PROTO}"),
+        "solved once, no ZMP correction), in both directions, has ik_ok, uses at most "
+        f"{TWIST_KINEMATIC:g} of the usable thigh-twist range on the worse leg and leaves every other gated joint at "
+        f"least {OTHER_JOINT_MARGIN_RAD:g} rad of its usable range; the reference built with all passes "
+        f"must show ik_ok, at most {TWIST_FINAL:g} and the same {OTHER_JOINT_MARGIN_RAD:g} rad, else f steps down once "
+        f"(at most {STEPS_DOWN_MAX:g} times in all); {_PROTO}; the {OTHER_JOINT_MARGIN_RAD:g} rad is Stage 0's "
+        "joint-range limit (STAGE2_75_PLAN.md A12; every end of a joint's usable range but one it rests on by "
+        "design), read by this rule since A11 was amended on 15 Nov after a prescribed-motion result (the set "
+        "screen's review found V0's quick turn at f 0.8 with 0.086 rad of hip roll left), before any set was frozen "
+        "and before any closed-loop episode on a Stage 2 set; no limit moved"),
     "S2A-gates": (
         "a move passes when: ik_ok; its last output stride is within "
         f"{transitions.G3_COM_MM:g} mm of gait b's CoM and {transitions.G3_ZMP_MM:g} mm of its multibody ZMP (the "
@@ -947,6 +956,26 @@ def hip_yaw_use(use: dict) -> float:
     return float(max(v for k, v in use.items() if k.endswith("_hip_yaw")))
 
 
+def tightest_other(src: dict, q: np.ndarray) -> dict | None:
+    """The tightest joint margin other than the thigh twist over the frames ``q``: ``{joint, end, margin_rad}``, the
+    least distance (rad; negative: outside) between a joint's excursion and an end of its usable range
+    (``plant.usable_ranges``), over every joint but the two thigh twists and every end but one a joint rests on by
+    design (``clearance.REST_ON_STOP``), as Stage 0's joint-range gate reads the ends (``clearance.gated_margins``;
+    here at full precision).  None where the body has no such joint."""
+    m = src["M"].m
+    best = None
+    for jn, (lo, hi) in plant.usable_ranges(src["body"]).items():
+        if jn.endswith("_hip_yaw"):
+            continue
+        qv = q[:, m.jnt_qposadr[statics.jid(m, jn)]]
+        for end, margin in (("min", float(np.min(qv) - lo)), ("max", float(hi - np.max(qv)))):
+            if clearance.REST_ON_STOP.get(jn) == end:
+                continue
+            if best is None or margin < best["margin_rad"]:
+                best = dict(joint=jn, end=end, margin_rad=margin)
+    return best
+
+
 def _ik(foot_err: np.ndarray) -> tuple[bool, int]:
     return bool(np.all(foot_err <= turning.IK_TOL)), int(np.sum(np.any(foot_err > turning.IK_TOL, axis=1)))
 
@@ -1088,8 +1117,9 @@ def _generate_causal(S, src: dict, move: Move, ref_a, verbose: bool) -> dict:
 
 def kinematic(src: dict, move: Move, ref_a) -> dict:
     """One solve of the move's frames on its first CoM path, no ZMP correction and no dynamics: the output frames'
-    ``q``, ``ik_ok``, ``ik_fail_frames``, ``range_use`` (and ``hip_yaw_range_use``, the worse leg's).  Runs at round
-    two's accuracy and puts the process's level back, as ``generate``."""
+    ``q``, ``ik_ok``, ``ik_fail_frames``, ``range_use`` (and ``hip_yaw_range_use``, the worse leg's) and
+    ``tightest_other`` (the tightest joint margin other than the thigh twist).  Runs at round two's accuracy and puts
+    the process's level back, as ``generate``."""
     S = _solver(move.laws)
     with _accuracy():
         return _kinematic(S, src, move, ref_a)
@@ -1112,7 +1142,8 @@ def _kinematic(S, src: dict, move: Move, ref_a) -> dict:
     ik_ok, ik_fail = _ik(foot_err[o])
     use = range_use(src, qs[o])
     return dict(name=move.name, plan=pl, geo=geo, q=qs[o], foot_error=foot_err[o], ik_ok=ik_ok, ik_fail_frames=ik_fail,
-                range_use=use, hip_yaw_range_use=hip_yaw_use(use), seconds=time.perf_counter() - t0)
+                range_use=use, hip_yaw_range_use=hip_yaw_use(use), tightest_other=tightest_other(src, qs[o]),
+                seconds=time.perf_counter() - t0)
 
 
 def arrays(g: dict) -> dict:
@@ -1489,14 +1520,17 @@ def steady_turn_kinematic(src: dict, a: GaitX, rate: float, stride_factor: float
 
 
 def pick_stride_factor(src: dict, a: GaitX, ref_a, angle: float, rate: float, grid=STRIDE_GRID,
-                       limit: float = TWIST_KINEMATIC) -> dict:
+                       limit: float = TWIST_KINEMATIC, other_margin: float = OTHER_JOINT_MARGIN_RAD) -> dict:
     """The stride rule's kinematic pick (``RULES["S2A-stride"]``): for f in ``grid``, largest first, the kinematic
-    pass of the left and of the right turn at that f; the first f whose two passes both have ``ik_ok`` and a
-    thigh-twist use of at most ``limit`` is chosen.  Returns every f tried with its two readings, the chosen f or
-    None, the steady turn's kinematic reading at the chosen f, the rule's text and constants, ``steps_down`` 0."""
+    pass of the left and of the right turn at that f; the first f whose two passes both have ``ik_ok``, a
+    thigh-twist use of at most ``limit`` and at least ``other_margin`` rad left on every other gated joint
+    (``tightest_other``) is chosen.  A reading that a pass does not give is not passed.  Returns every f tried with
+    its two readings of each kind (``left`` and ``right``: the twist's use; ``tightest_other``: per direction the
+    joint, its end and the margin in rad, against ``plant.usable_ranges``), the chosen f or None, the steady turn's
+    kinematic reading at the chosen f, the rule's text and constants, ``steps_down`` 0."""
     tried, chosen = [], None
     for f in grid:
-        row = dict(f=float(f), left=None, right=None, ik_fail_frames={}, ik_ok=True, pass_=True)
+        row = dict(f=float(f), left=None, right=None, tightest_other={}, ik_fail_frames={}, ik_ok=True, pass_=True)
         for direction, sign in (("left", 1.0), ("right", -1.0)):
             try:
                 mv = turn(f"turn_{direction}", a, angle, sign * abs(float(rate)), f)
@@ -1505,48 +1539,68 @@ def pick_stride_factor(src: dict, a: GaitX, ref_a, angle: float, rate: float, gr
                 continue
             k = kinematic(src, mv, ref_a)
             use = hip_yaw_use(k["range_use"])
+            other = k.get("tightest_other")
             row[direction] = use
+            row["tightest_other"][direction] = None if other is None else dict(
+                joint=other["joint"], end=other["end"], margin_rad=float(other["margin_rad"]))
             row["ik_fail_frames"][direction] = int(k["ik_fail_frames"])
             row["ik_ok"] = bool(row["ik_ok"] and k["ik_ok"])
-            row["pass_"] = bool(row["pass_"] and k["ik_ok"] and use <= limit)
+            row["pass_"] = bool(row["pass_"] and k["ik_ok"] and use <= limit
+                                and other is not None and other["margin_rad"] >= other_margin)
         tried.append(row)
         if row["pass_"]:
             chosen = float(f)
             break
     steady = None if chosen is None else steady_turn_kinematic(src, a, rate, chosen)
     return dict(rule="S2A-stride", text=RULES["S2A-stride"], grid=[float(f) for f in grid],
-                limit_kinematic=float(limit), limit_final=TWIST_FINAL, steps_down_max=STEPS_DOWN_MAX,
+                limit_kinematic=float(limit), limit_final=TWIST_FINAL, limit_other_joints_rad=float(other_margin),
+                steps_down_max=STEPS_DOWN_MAX,
                 angle_rad=float(angle), rate_rad_s=abs(float(rate)), tried=tried, chosen=chosen,
                 steady_turn_kinematic=steady, steps_down=0, builds=[], outcome="picked" if chosen is not None else "none",
                 reason=None if chosen is not None else
-                f"no stride factor of the grid passes the kinematic thigh-twist rule ({limit:g})")
+                f"no stride factor of the grid passes the kinematic rule (thigh twist at most {limit:g} of its range, "
+                f"every other gated joint at least {other_margin:g} rad of range, ik_ok, in both directions)")
 
 
 def step_down(record: dict, built: dict) -> dict:
-    """The stride rule after a full build at ``record["chosen"]``.  ``built``: the built reference's ``ik_ok`` and
-    ``hip_yaw_range_use`` and the caller's Stage 0 flags ``over_leg_drive`` (a leg drive over a limit) and
-    ``a1_over`` (a neck or tail planning limit over, after the appendage rule).  Returns a new record with the build
-    appended to ``builds`` and ``outcome``:
+    """The stride rule after a full build at ``record["chosen"]``.  ``built``: the built reference's ``ik_ok``,
+    ``hip_yaw_range_use`` and ``tightest_other_rad`` (the tightest margin of a joint other than the thigh twist, the
+    worse direction's; ``tightest_other``) and the caller's Stage 0 flags ``over_leg_drive`` (a leg drive over a
+    limit) and ``a1_over`` (a neck or tail planning limit over, after the appendage rule).  Returns a new record with
+    the build appended to ``builds`` and ``outcome``:
 
     * ``"frozen"``: the reference stands (``a1_over`` says whether it is read under the third reading only);
     * ``"rebuild"``: ``chosen`` is now the next factor down the grid (``steps_down`` + 1): build again;
     * ``"none"``: no reference for this set, body and rate (``chosen`` None, ``reason``): over a leg drive's limit,
-      or the twist rule failed with no step-down left."""
+      or the twist or joint-range rule failed with no step-down left.
+
+    A record that holds ``limit_other_joints_rad`` (every record ``pick_stride_factor`` makes) needs
+    ``built["tightest_other_rad"]``: without it the rule cannot be read and ``ValueError`` is raised.  A record
+    without that key (made before A11's amendment of 15 Nov) is read on the twist alone."""
     f = record["chosen"]
     if f is None:
         raise ValueError("no stride factor is chosen: nothing was built")
+    limit_other = record.get("limit_other_joints_rad")
+    other_ok = True
+    if limit_other is not None:
+        margin = built.get("tightest_other_rad")
+        if margin is None:
+            raise ValueError("the stride rule reads the tightest margin of a joint other than the thigh twist on the "
+                             "built reference: built['tightest_other_rad'] is missing")
+        other_ok = bool(margin >= limit_other)
     rec = dict(record, builds=[*record.get("builds", []), dict(f=float(f), **built)])
     grid = [float(x) for x in record["grid"]]
     if built.get("over_leg_drive"):
         return dict(rec, chosen=None, outcome="none", a1_over=None,
                     reason="the built reference is over a leg drive's Stage 0 limit")
-    if built["ik_ok"] and built["hip_yaw_range_use"] <= record["limit_final"]:
+    if built["ik_ok"] and built["hip_yaw_range_use"] <= record["limit_final"] and other_ok:
         return dict(rec, outcome="frozen", a1_over=bool(built.get("a1_over", False)), reason=None)
     lower = [x for x in grid if x < f - 1e-12]
     if record["steps_down"] >= record["steps_down_max"] or not lower:
+        within = f"the thigh-twist rule ({record['limit_final']:g})" + (
+            "" if limit_other is None else f" and the joint-range rule ({limit_other:g} rad on every other gated joint)")
         return dict(rec, chosen=None, outcome="none", a1_over=None,
-                    reason=f"the built reference is not within the thigh-twist rule ({record['limit_final']:g}) and "
-                           "no step-down is left")
+                    reason=f"the built reference is not within {within} and no step-down is left")
     return dict(rec, chosen=max(lower), steps_down=record["steps_down"] + 1, outcome="rebuild", a1_over=None,
                 reason=None)
 
