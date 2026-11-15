@@ -2,25 +2,35 @@
 
 The bar writes one JSON record per set, body, seed block, row and condition.  This module reads every record under a
 run directory and makes the tables a reader is given: nothing is simulated, nothing is judged again.  Counts, bounds
-and passes are the records' own; a controller's verdict is ``bar.verdict`` on its two rows' records.
+and passes are the records' own (and are checked against ``bar.counts`` on the record's episodes); a controller's
+verdict is ``bar.verdict`` on its two rows' registered records.
 
 * ``load(out)``: every record under ``out``, indexed ``[set][body][block][row][condition]``, with what the checks
-  need under the key ``"_run"`` (the ledger, today's source hashes, each set's latest freeze, the controls' records,
-  the records kept beside a re-run).
+  need under the key ``"_run"`` (the ledger, ``COST.md``'s rates, the list of check episodes, today's source hashes,
+  each set's latest freeze, the controls' records); each record carries its path and the records kept beside it by a
+  re-run.
 * ``tables(doc)``: the JSON form of every table; ``markdown(tabs)``: the same as Markdown.  Both are pure functions:
   no time, no host; ``markdown`` reads nothing but its argument, so ``BAR_TABLES.md`` regenerates from
   ``bar_tables.json`` byte for byte.
 * ``jps_table(doc)``: the seed-by-seed comparison with section 2.3 of the pull request's report (``JPS_ROWS``: its
-  numbers, copied with file and line, printed only in columns labelled as its claims).
+  numbers, copied with file and line, printed only in columns headed as its claims; ``JPS_MAP``: the records set
+  beside each row).
 * ``write(out, dest)``: both files, written atomically.
 
-Rules the tables keep (STAGE2_75_PLAN.md rule R5 and H1 to H6): readings in the plan's order (reading 1 "with the
-look" is not defined for a set without look bands; reading 2, every limit; reading 3, every limit but for A1) and
-never pooled; ``shown`` and ``provisional`` only at the judged delay, ``passes at <ms> ms`` at another; a candidate's
-verdict with the replication word of each record that passed; a cell with no record reads "not run", or "cut by the
-pre-registered order" where the ledger shows its unit was not started; a measured value never stands in a column
-that holds a target or a limit; every line of the candidate's carries its margin label; record paths are relative to
-the study directory; numbers are printed with ``%g`` or a fixed number of decimals per unit (``DECIMALS``).
+The tables: checks at the top (``checks``); 1 the walk at 0.40 m/s; 2 the speed ladder; 3 the turns, nudges and the
+stop; 4 the 16 gated conditions at the judged delay; 5 the replication block beside the headline block; 6 JPS 2.3; 7
+the omega control; 8 every record no other table cites.
+
+Rules the tables keep (STAGE2_75_PLAN.md rule R5, H1 to H6, rule R2): readings in the plan's order (reading 1 "with
+the look" is not defined for a set without look bands; reading 2, every limit; reading 3, every limit but for A1)
+and never pooled; ``shown`` and ``provisional`` only at the judged delay, ``passes at <ms> ms`` at another; a
+candidate's verdict with the replication word of each record that passed; a cell with no record reads "not run", or
+"cut by the pre-registered order" where the ledger shows its unit was not started (``absent_word``; ``planned`` is
+the registered order as cells); the registered record (the first finished at its path) gives every count and
+verdict, and a later one stands beside it labelled "re-run after a result"; a measured value never stands in a
+column that holds a target or a limit; every line of the candidate's carries its margin label; every table with a
+verdict cites the rules amended after a result (``AMENDED_AFTER_RESULT``); record paths are relative to the study
+directory; numbers are printed with ``%g`` or a fixed number of decimals per unit (``DECIMALS``).
 
 Run from hardware/trex_form_study::
 
@@ -1058,8 +1068,8 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
                 for i, r in enumerate([rec] if reg is rec else [rec, reg]):
                     d = digest(r, meta)
                     head = _head(s, body, key, ms, row, r, meta)
-                    if i == 1:  # the registered record stands beside its re-run
-                        head["labels"] = labels_of(s) + [REGISTERED + (
+                    if i == 1:  # the registered record stands beside its re-run, with its own labels
+                        head["labels"] = (labels_of(s) if r.get("_brief") else head["labels"]) + [REGISTERED + (
                             "; its kept file cannot be read: counts from the later record's supersedes field"
                             if r.get("_brief") else "")]
                     counts.append(dict(head, **{k["key"]: d.get(k["key"]) for k in COUNT_COLUMNS[len(HEAD):]}))
@@ -1269,9 +1279,9 @@ def replication_table(doc: dict) -> dict:
         names = {w: n for w, _, n in READINGS}
         a, b = side(first), side(second)
         d = (first or second or {}).get("definition") or _conds().get(key) or {}
-        labels = labels_of(s, second, meta) if second else labels_of(s)
+        labels = labels_of(s, None if (second or {}).get("_brief") else second, meta)
         if second is not None and second.get("_registered_of"):
-            labels = labels_of(s) + [REGISTERED]
+            labels = labels + [REGISTERED]
         lines.append(dict(
             set=s, body=body, labels=labels, item=item_of(d) if d else key, condition=key,
             grip=grip_of(d) if d else None,

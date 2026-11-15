@@ -537,7 +537,8 @@ def test_a_rerun_after_a_result_stands_beside_the_registered_record(run):
     assert any(x.startswith(barreport.RERUN + ": synthetic: run again") for x in later["labels"])
     assert later["r2"] == dict(k=20, n=20) and ".superseded" not in later["path"]
     assert any(x.startswith(barreport.REGISTERED) for x in first["labels"]) and first["r2"] == dict(k=0, n=20)
-    assert ".superseded/" in first["path"] and barreport.MARGIN_LABEL in first["labels"]
+    assert ".superseded/" in first["path"] and first["labels"][0] == barreport.MARGIN_LABEL
+    assert not any(x.startswith(barreport.RERUN) for x in first["labels"])
     # the verdict is the registered records'; the re-run's is printed beside it, labelled
     reg, re_ = lines(run.tabs, "rest", "verdicts", set="F25F9cl", condition="stop/two_step")
     assert reg["which"] == "registered records" and reg["reading_2"].startswith("provisional [")
