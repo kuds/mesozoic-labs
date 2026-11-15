@@ -36,7 +36,7 @@ sys.path.insert(0, str(ROOT))
 import designlab  # noqa: E402,F401  (selects the GL backend before mujoco is imported)
 from designlab import envelope, gait, sizing, stage1  # noqa: E402
 from designlab.stage1 import plant, tune  # noqa: E402
-from designlab.stage2 import look, moves, s2io, setio, sets  # noqa: E402
+from designlab.stage2 import look, moves, s2io, setio, sets, setscreen  # noqa: E402
 
 BODY = "75-M-H-10"
 BODY60 = "60-N-T-10"
@@ -192,7 +192,13 @@ def test_items_of_every_set_on_every_registered_body(set_name, body):
     assert [i.kind for i in its] == ["walk"] * 6 + ["start"] + ["change"] * 5 + ["stop_two_step", "stop_one_step"] + ["turn"] * 8
     assert set(i.kind for i in its) == set(sets.KINDS)
     by = {i.name: i for i in its}
-    assert all(i.depends == () for i in its[:6]) and by["start"].depends == ("nominal",)
+    # the start reads the nominal walk, or the 0.40 m/s walk where the nominal walk is no rung (S2S-lead-in)
+    assert all(i.depends == () for i in its[:6]) and by["start"].depends == ("nominal", "v0.4")
+    lead = by["start"].definition["lead_in"]
+    assert (lead["rule"], lead["name"]) == ("S2S-lead-in", "start_v0.4") == ("S2S-lead-in", setio.start_name("v0.4"))
+    assert lead["start"]["builder"] == "start" and lead["start"]["specs"]["b"]["name"] == "v0.4"
+    assert lead["start"]["specs"]["a"]["spec"] is None and by["start"].definition["specs"]["b"]["name"] == "nominal"
+    assert "start_v0.4" not in by  # no item of its own: the start item makes it where the set needs it
     assert by["nominal_to_v0.4"].depends == ("nominal", "v0.4")
     assert by["nominal_to_v0.5"].depends == ("nominal", "v0.5", "v0.45")  # its fallback's neighbour, toward 0.40 m/s
     assert by["nominal_to_v0.3"].depends == ("nominal", "v0.3", "v0.35")
@@ -219,7 +225,8 @@ def test_items_of_every_set_on_every_registered_body(set_name, body):
     t = by["turn90_pi4_right"].definition
     assert t["args"] == dict(angle=math.pi / 2, rate=-math.pi / 4, ramp_s=0.375) and t["causal"] is True
     assert t["stride_rule"] == dict(grid=[1.0, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6], limit_kinematic=0.85,
-                                    limit_final=0.87, limit_other_joints_rad=0.10, steps_down_max=2)
+                                    limit_final=0.87, limit_other_joints_rad=0.05, steps_down_max=2)
+    assert t["stride_rule"]["limit_other_joints_rad"] == setscreen.RANGE_RULE_MOVE_RAD  # A12's limit of a move
     assert "S2A-appendage" in t["rules"] and "S2A-stride" in t["rules"]
     assert by["turn90_pi4_left"].definition["args"]["rate"] == math.pi / 4
 
@@ -255,7 +262,13 @@ def test_every_name_parses_back_to_its_definition_exactly():
 def test_the_rules_say_what_the_plan_says():
     r = sets.RULES
     assert set(r) == {"S2S-sets", "S2S-speeds", "S2S-margin", "S2S-crouch", "S2S-process", "S2S-formats", "S2S-twins",
-                      "S2S-stage0", "S2S-fallback", "S2S-turns", "S2S-not-available", "S2S-freeze", "S2S-omega"}
+                      "S2S-stage0", "S2S-fallback", "S2S-lead-in", "S2S-turns", "S2S-not-available", "S2S-freeze",
+                      "S2S-omega"}
+    for text in ("lead_in 'start'", "start_v0.4, built and gated like start, with no fallback", "lead_in 'start_v0.4'",
+                 "a change from the neighbouring rung toward 0.40 m/s", "A start_v0.4 that fails a gate stops the set",
+                 "lead_in null", "STAGE2_75_PLAN.md A8 as amended", "DECISION_LOG.md P34", "changed after a result"):
+        assert text in r["S2S-lead-in"], text
+    assert "a failed start_v0.4" in r["S2S-fallback"]
     for text in ("(1) a change with a ramp of 2 strides instead of 1", "v0.4_to_v0.45, v0.45_to_v0.5, v0.4_to_v0.35, "
                  "v0.35_to_v0.3", "no transition within the gates", "A start and the stops have no fallback",
                  "nominal_to_v0.4 has step (1) only", "stops the set and goes to the lead"):
@@ -309,7 +322,7 @@ def stride_record(names, ok=True, reason=None):
                tightest_other=dict(left=dict(joint="left_hip_roll", end="min", margin_rad=0.101),
                                    right=dict(joint="right_hip_roll", end="max", margin_rad=0.101)))
     return dict(rule="S2A-stride", text="the stride rule", grid=[1.0, 0.7, 0.6], limit_kinematic=0.85, limit_final=0.87,
-                limit_other_joints_rad=0.1, steps_down_max=2, tried=[row], chosen=0.7, steps_down=0,
+                limit_other_joints_rad=0.05, steps_down_max=2, tried=[row], chosen=0.7, steps_down=0,
                 builds=[dict(f=0.7, ik_ok=True, hip_yaw_range_use=0.72, tightest_other_rad=0.1005)],
                 outcome="frozen", a1_over=False, reason=None, references={n: ok for n in names},
                 no_reference=None if ok else reason)
@@ -366,14 +379,26 @@ def produce(set_name, body, name, root=setio.ROOT):
                                                             item=it.definition, group=group, inputs=inputs(walks),
                                                             set=set_name, pass_=False, built_by=built_by())
             continue
-        sha = put("transitions", it.name, arrays(it.name))
-        d_ = it.definition
-        e = dict(name=it.name, kind="walk" if it.kind in ("change", "turn") else it.kind.split("_")[0],
+        name, d_ = it.name, it.definition
+        if it.kind == "start" and refs_now[walks[0]].get("available") is False:  # S2S-lead-in: no nominal walk
+            walks, bar = it.depends, it.depends[1]
+            lead = d_["lead_in"]
+            has = refs_now[bar].get("available") is not False
+            out["transitions"][it.name] = sets._unavailable(
+                it.name, it.kind, "the walk nominal is not a rung of the set" + (
+                    f"; the set starts from standing straight into {bar} ({lead['name']})" if has else ""),
+                dict(walks={}), item=d_, group=group, inputs=inputs(walks), set=set_name, pass_=None)
+            if not has:
+                continue
+            name, d_ = lead["name"], dict(d_, **lead["start"])
+        sha = put("transitions", name, arrays(name))
+        e = dict(name=name, kind="walk" if it.kind in ("change", "turn") else it.kind.split("_")[0],
                  from_=d_["specs"]["a"]["name"], to=d_["specs"]["b"]["name"],
                  gaits=dict(a=dict(name=d_["specs"]["a"]["name"], period=0.08, speed=0.4, duty=0.58),
                             b=dict(name=d_["specs"]["b"]["name"], period=0.08, speed=0.4, duty=0.58)),
                  frames=8, duration_s=0.07, split="statics", ik_ok=True, ik_fail_frames=0,
-                 file=f"transitions/{it.name}.npz", sha256=sha, available=True, set=set_name, group=group, item=d_,
+                 file=f"transitions/{name}.npz", sha256=sha, available=True, set=set_name, group=group,
+                 item=it.definition,
                  definition=dict({k: d_[k] for k in ("builder", "args", "specs", "causal", "laws", "rules")},
                                  body_model_sha256=d_["body_model_sha256"], ref_a_sha256=None, ref_b_sha256=None),
                  inputs=inputs(walks), a1_over=False, fallback=None, hip_yaw_range_use=0.1,
@@ -393,7 +418,7 @@ def produce(set_name, body, name, root=setio.ROOT):
             e["reference"].update(heading_at_bar_deg=85.0, heading_at_slowest_clock_deg=80.6)
             e["hip_yaw_range_use"] = 0.72
             e["tightest_other"] = dict(joint="left_hip_roll", end="min", margin_rad=0.1005)
-        out["transitions"][it.name] = e
+        out["transitions"][name] = e
     if mine[0].kind == "turn":
         label = setio.parse_name(mine[0].name)["rate"]
         why = MODE["fail"].get(group)
@@ -520,9 +545,15 @@ def test_build_makes_the_set_and_a_second_build_does_nothing(tmp_path, standin):
     r_doc, t_doc, s_doc = docs["refs.json"], docs["transitions.json"], docs["set.json"]
     assert {"body", "accuracy", "model", "H_m", "q_home", "joints", "feedforward", "references", "set", "schema", "rules"} == set(r_doc)
     assert {"body", "transitions", "method", "preview", "shift_strides", "settle_strides", "path_half_width",
-            "walk_ramp_strides", "windows", "g3_com_mm", "g3_zmp_mm", "set", "schema", "rules"} == set(t_doc)
+            "walk_ramp_strides", "windows", "g3_com_mm", "g3_zmp_mm", "causal_limits", "set", "schema", "rules"} == set(t_doc)
     assert {"set", "body", "schema", "role", "note", "spec_rule", "margin_rule", "speeds", "crouch_frac", "omega_rule",
-            "rules", "look_entries", "stride_rules", "not_available", "blocked", "freezes"} == set(s_doc)
+            "rules", "lead_in", "look_entries", "stride_rules", "not_available", "blocked", "freezes"} == set(s_doc)
+    assert s_doc["lead_in"] == "start" and r["lead_in"] == "start" and "S2S-lead-in" in t_doc["rules"]
+    # the limits of a commanded move as the owner's decision P34 set them (STAGE2_75_PLAN.md A7, A12 as amended)
+    assert t_doc["causal_limits"] == dict(warmup_com_mm=1.0, warmup_zmp_mm=4.0, joint_at_command_rad=1e-3,
+                                          consistency_first_stride_mm=4.0, zmp_after_first_stride_mm=4.0,
+                                          cop_margin_single_mm=10.0, joint_range_rad=0.05)
+    assert (t_doc["g3_com_mm"], t_doc["g3_zmp_mm"]) == (1.0, 2.0)  # Stage 1's, which a move's first and last stride keep
     assert (r_doc["set"], r_doc["body"], r_doc["schema"], r_doc["accuracy"]) == (SET, BODY, 1, "r2")
     assert s_doc["role"] == "control" and s_doc["crouch_frac"] == 0.05 and s_doc["freezes"] == [] and s_doc["blocked"] is None
     assert list(s_doc["speeds"]) == names[:6] and s_doc["speeds"]["v0.45"] == 0.45
@@ -678,13 +709,87 @@ def test_a_fallbacks_change_is_merged_and_later_removed(tmp_path, standin):
     tr = docs_of(d)["transitions.json"]["transitions"]
     assert r["ran"] == ["nominal_to_v0.5"] and tr["nominal_to_v0.5"]["available"] is False
     assert tr["v0.45_to_v0.5"]["fallback"]["step"] == 2 and (d / "transitions" / "v0.45_to_v0.5.npz").is_file()
-    assert sets.status(SET, BODY, tmp_path)["items"]["v0.45_to_v0.5"] == "built (a fallback's change)"
+    assert sets.status(SET, BODY, tmp_path)["items"]["v0.45_to_v0.5"] == "built (made by the item nominal_to_v0.5)"
     assert _check_names(d) == []
     # the direct change built again (as after a definition moved): the fallback's entry is no longer made, and goes
     edit_json(d / "transitions.json", lambda doc: doc["transitions"]["nominal_to_v0.5"].update(item={}))
     r = build(tmp_path, only=["nominal_to_v0.5"])
     tr = docs_of(d)["transitions.json"]["transitions"]
     assert "v0.45_to_v0.5" not in tr and tr["nominal_to_v0.5"]["available"] is True
+
+
+def test_a_set_that_starts_into_its_bar_walk_records_its_lead_in(tmp_path, standin, legacy_ok):
+    """``set.json`` ``lead_in`` follows the walks (``RULES["S2S-lead-in"]``): ``start`` with the nominal walk,
+    ``start_v0.4`` without it, with that start an entry made by the ``start`` item; ``verify`` notes the exception;
+    a missing array of that start is built again, on a frozen set too; with the nominal walk back the set starts into
+    it again and ``start_v0.4`` goes."""
+    standin["fail"] = {"nominal": "dropped from the ladder: over clearance swing_clearance 0.0382"}
+    r = build(tmp_path)
+    d = tmp_path / SET / BODY
+    docs = docs_of(d)
+    tr = docs["transitions.json"]["transitions"]
+    assert r["lead_in"] == docs["set.json"]["lead_in"] == "start_v0.4" and r["blocked"] is None
+    assert tr["start"]["available"] is False and tr["start_v0.4"]["available"] is True and tr["start_v0.4"]["group"] == "start"
+    assert tr["start_v0.4"]["inputs"] == dict(nominal=None, **{"v0.4": docs["refs.json"]["references"]["v0.4"]["sha256"]})
+    assert (d / "transitions" / "start_v0.4.npz").is_file() and not (d / "transitions" / "start.npz").exists()
+    assert set(docs["set.json"]["not_available"]) >= {"nominal", "start"} and "start_v0.4" not in docs["set.json"]["not_available"]
+    st = sets.status(SET, BODY, tmp_path)
+    assert st["lead_in"] == "start_v0.4" and st["items"]["start_v0.4"] == "built (made by the item start)"
+    assert st["items"]["start"].startswith("not available: the walk nominal is not a rung of the set")
+    assert _check_names(d) == []
+    write_screen(d)
+    v = verify(d)
+    assert v["ok"], v["failures"]
+    assert any(n.startswith("lead-in: start_v0.4 (the nominal walk is not a rung") for n in v["notes"])
+    assert "start_v0.4" in v["available"] and "start" in v["not_available"]
+    # the records must agree with the walks, and the start must be there and be a start into that walk
+    edit_json(d / "set.json", lambda doc: doc.update(lead_in="start"))
+    f = verify(d)["failures"]
+    assert "set.json records lead_in 'start', its walks give 'start_v0.4'" in f
+    assert "start_v0.4: the set holds it and its lead-in is 'start'" in f
+    edit_json(d / "set.json", lambda doc: doc.update(lead_in="start_v0.4"))
+    whole_ = tree(d)
+    edit_json(d / "transitions.json", lambda doc: doc["transitions"]["start_v0.4"]["definition"]["specs"]["b"].update(name="v0.45"))
+    assert "start_v0.4: its definition starts into 'v0.45'" in verify(d)["failures"]
+    edit_json(d / "transitions.json", lambda doc: doc["transitions"]["start_v0.4"]["definition"]["specs"]["b"].update(name="v0.4"))
+    edit_json(d / "transitions.json", lambda doc: doc["transitions"]["start_v0.4"]["item"].update(causal=True))
+    assert any(x.startswith("start_v0.4: made by the item start, whose definition is not the one made now") for x in verify(d)["failures"])
+    edit_json(d / "transitions.json", lambda doc: doc["transitions"]["start_v0.4"]["item"].update(causal=False))
+    assert tree(d) == whole_ and verify(d)["ok"]
+    # a second build does nothing; a missing array of the start is built again (the start item's group)
+    assert build(tmp_path)["ran"] == []
+    (d / "transitions" / "start_v0.4.npz").unlink()
+    r = build(tmp_path)
+    assert r["ran"] == ["start"] and tree(d) == whole_
+    # frozen: the manifest lists the start the set has; its array is put back and no record is written
+    fz = sets.freeze(SET, BODY, tmp_path, log=lambda line: None)
+    assert "start_v0.4" in fz["manifest"] and "start" not in fz["manifest"] and "nominal" not in fz["manifest"]
+    assert fz["manifest"]["start_v0.4"]["kind"] == "start" and docs_of(d)["set.json"]["lead_in"] == "start_v0.4"
+    whole_ = tree(d)
+    json_before = {n: (d / n).stat().st_mtime_ns for n in ("refs.json", "transitions.json", "set.json")}
+    (d / "transitions" / "start_v0.4.npz").unlink()
+    r = build(tmp_path)
+    assert r["ran"] == ["start"] and r["restored"] == ["start_v0.4"] and r["mismatch"] == [] and tree(d) == whole_
+    assert {n: (d / n).stat().st_mtime_ns for n in json_before} == json_before
+    # --- another set directory: with its nominal walk back, the set starts into it and start_v0.4 goes
+    other = tmp_path / "again"
+    standin["fail"] = {"nominal": "dropped from the ladder: over clearance swing_clearance 0.0382"}
+    build(other)
+    standin["fail"] = {}
+    edit_json(other / SET / BODY / "refs.json", lambda doc: doc["references"]["nominal"].update(definition={}))  # (as after its definition moved)
+    r = build(other)
+    docs = docs_of(other / SET / BODY)
+    tr = docs["transitions.json"]["transitions"]
+    assert "nominal" in r["ran"] and "start" in r["ran"] and docs["set.json"]["lead_in"] == "start"
+    assert "start_v0.4" not in tr and tr["start"]["available"] is True and "start" not in docs["set.json"]["not_available"]
+    # --- neither walk: no lead-in
+    none = tmp_path / "none"
+    standin["fail"] = {"nominal": "dropped from the ladder: x", "v0.4": "dropped from the ladder: x"}
+    r = build(none)
+    assert r["lead_in"] is None and docs_of(none / SET / BODY)["set.json"]["lead_in"] is None
+    assert "start_v0.4" not in docs_of(none / SET / BODY)["transitions.json"]["transitions"]
+    write_screen(none / SET / BODY)
+    assert any("the set has no lead-in" in n for n in sets.verify(SET, BODY, none)["notes"])
 
 
 def _check_names(d: Path) -> list:
@@ -897,7 +1002,7 @@ def test_verify_checks_the_two_formats_of_a_walk(made):
     (lambda t: t["turn90_pi4_left"]["reference"].update(heading_at_slowest_clock_deg=79.9), "heading_at_slowest_clock_deg 79.9 (at least 80)"),
     (lambda t: t["turn90_pi4_left"]["reference"].update(heading_at_bar_deg=79.0), "heading_at_bar_deg 79.0 (at least 80)"),
     (lambda t: t["turn90_pi4_left"].update(hip_yaw_range_use=0.871), "thigh-twist use 0.871 (at most 0.87)"),
-    (lambda t: t["turn90_pi4_left"]["tightest_other"].update(margin_rad=0.0999), "(at least 0.1 rad)"),
+    (lambda t: t["turn90_pi4_left"]["tightest_other"].update(margin_rad=0.0499), "(at least 0.05 rad)"),
     (lambda t: t["turn90_pi4_left"]["move"].update(rules=["S2A-stride"]), "S2A-appendage is not among its rules"),
     (lambda t: t["turn90_pi4_left"]["turn"].update(stride_rule=None), "holds no stride rule record with the outcome 'frozen'"),
     (lambda t: t["turn90_pi4_left"]["turn"].update(ramp_s=0.387), "its ramps last 0.387 s, not 0.375"),
@@ -1365,9 +1470,137 @@ def test_a_move_from_a_dropped_rung_is_not_built(tmp_path, standin, job_of):
     assert job.out["stride_rules"]["pi4"]["references"] == {"turn90_pi4_left": False, "turn90_pi4_right": False}
 
 
+DROPPED = dict(available=False, reason="dropped from the ladder: over clearance swing_clearance 0.0382",
+               numbers=dict(mid=0.0382))
+
+
+def test_lead_in_of_reads_the_walks():
+    """``RULES["S2S-lead-in"]``: start where the nominal walk is a rung; start_v0.4 where it is not and the 0.40 m/s
+    walk is; none where neither is, or while either is not built."""
+    ok, gone = dict(sha256="a"), dict(available=False)
+    assert sets.lead_in_of({"nominal": ok, "v0.4": ok}) == "start" == setio.START
+    assert sets.lead_in_of({"nominal": ok, "v0.4": gone}) == "start"
+    assert sets.lead_in_of({"nominal": gone, "v0.4": ok}) == "start_v0.4" == setio.start_name("v0.4")
+    assert sets.lead_in_of({"nominal": gone, "v0.4": gone}) is None
+    assert sets.lead_in_of({"nominal": gone}) is None and sets.lead_in_of({"v0.4": ok}) is None and sets.lead_in_of({}) is None
+    assert setio.parse_name("start_v0.4") == dict(kind="start", name="start_v0.4", walk="v0.4")
+    assert setio.parse_name("start") == dict(kind="start", name="start") and setio.start_name("nominal") == "start"
+    for bad in ("start_nominal", "start_v0.40", "start_", "start_x"):
+        with pytest.raises(ValueError):
+            setio.parse_name(bad)
+
+
+def test_a_set_without_its_nominal_walk_starts_straight_into_the_bars_walk(job_of):
+    """The plan's A8 as amended (DECISION_LOG.md P34): the ``start`` item of a set whose nominal walk is no rung
+    builds ``start_v0.4``, a start from standing into the 0.40 m/s walk, gated like ``start`` and with no fallback;
+    the item's own entry says why it has no reference and which start the set has."""
+    job, script, its = job_of("start", {"start_v0.4": [PASS]})
+    job.refs["nominal"] = dict(DROPPED)
+    sets._produce_straight(job, its["start"])
+    tr = job.out["transitions"]
+    assert script.calls == [("start_v0.4", "start", {})] and sorted(tr) == ["start", "start_v0.4"]
+    alt, start = tr["start_v0.4"], tr["start"]
+    assert alt["available"] and alt["group"] == "start" and alt["item"] == its["start"].definition
+    assert alt["definition"]["specs"]["b"]["name"] == "v0.4" and alt["definition"]["specs"]["a"]["spec"] is None
+    assert alt["definition"] == its["start"].definition["lead_in"]["start"]  # what the item's definition announced
+    assert alt["inputs"] == dict(nominal=None, **{"v0.4": job.refs["v0.4"]["sha256"]}) == start["inputs"]
+    assert alt["lead_in"] == dict(rule="S2S-lead-in", text=sets.RULES["S2S-lead-in"], of="start") and alt["fallback"] is None
+    assert start["available"] is False and "file" not in start and start["pass_"] is None
+    assert start["reason"] == ("the walk nominal is not a rung of the set (nominal: dropped from the ladder: over "
+                               "clearance swing_clearance 0.0382); the set starts from standing straight into v0.4 "
+                               "(start_v0.4; STAGE2_75_PLAN.md A8 as amended)")
+    assert start["lead_in"] == dict(rule="S2S-lead-in", by="start_v0.4") and start["numbers"]["walks"]["nominal"] == dict(mid=0.0382)
+    assert job.out["files"] == {"transitions/start_v0.4.npz": "s" * 64} and job.out["blocks_set"] is None
+    # a start_v0.4 outside its gates: no retry, no file, and the set is stopped (it is not run)
+    job, script, its = job_of("start", {"start_v0.4": [FAIL]})
+    job.refs["nominal"] = dict(DROPPED)
+    sets._produce_straight(job, its["start"])
+    tr = job.out["transitions"]
+    assert len(script.calls) == 1 and [tr[n]["available"] for n in ("start", "start_v0.4")] == [False, False]
+    assert tr["start_v0.4"]["reason"] == sets.NO_GATES and tr["start_v0.4"]["numbers"]["failed_gates"] == ["join_b"]
+    assert tr["start_v0.4"]["group"] == "start" and tr["start"]["reason"].endswith("; start_v0.4: no transition within the gates")
+    assert tr["start"]["lead_in"] == dict(rule="S2S-lead-in", by=None) and job.out["files"] == {}
+    assert job.out["blocks_set"].startswith("start_v0.4: no transition within the gates")
+    # a Stage 0 gate that blocks it stops the set in the same way
+    job, script, its = job_of("start", {"start_v0.4": [dict(blocks=[dict(limit="knee speed", value=1.02)])]})
+    job.refs["nominal"] = dict(DROPPED)
+    sets._produce_straight(job, its["start"])
+    assert job.out["transitions"]["start_v0.4"]["available"] is False and job.out["blocks_set"] is not None
+    # neither walk is a rung: nothing is built, the set has no lead-in, and nothing more is stopped
+    job, script, its = job_of("start", {})
+    job.refs["nominal"], job.refs["v0.4"] = dict(DROPPED), dict(DROPPED)
+    sets._produce_straight(job, its["start"])
+    tr = job.out["transitions"]
+    assert script.calls == [] and list(tr) == ["start"] and tr["start"]["available"] is False
+    assert tr["start"]["reason"].startswith("the walk nominal, v0.4 is not a rung of the set") and job.out["blocks_set"] is None
+    assert tr["start"]["inputs"] == dict(nominal=None, **{"v0.4": None})
+    # with its nominal walk the set starts into it, as before: no start_v0.4, the nominal walk its one input
+    job, script, its = job_of("start", {"start": [PASS]})
+    sets._produce_straight(job, its["start"])
+    assert list(job.out["transitions"]) == ["start"] and script.calls == [("start", "start", {})]
+    assert job.out["transitions"]["start"]["inputs"] == dict(nominal=job.refs["nominal"]["sha256"])
+
+
+def test_a_rung_of_a_set_without_its_nominal_walk_is_reached_from_its_neighbour(job_of):
+    """The items that need the nominal walk are not available, with that reason; a ladder rung is reached by the
+    fallback's step (2), the change from the neighbouring rung toward 0.40 m/s, built at once."""
+    job, script, its = job_of("nominal_to_v0.45", {"v0.4_to_v0.45": [PASS]})
+    job.refs["nominal"] = dict(DROPPED)
+    sets._produce_straight(job, its["nominal_to_v0.45"])
+    tr = job.out["transitions"]
+    assert script.calls == [("v0.4_to_v0.45", "change", dict(ramp_strides=1.0))] and sorted(tr) == ["nominal_to_v0.45", "v0.4_to_v0.45"]
+    direct, step = tr["nominal_to_v0.45"], tr["v0.4_to_v0.45"]
+    assert direct["available"] is False and direct["pass_"] is None  # never built, not failed
+    assert direct["reason"] == ("the walk nominal is not a rung of the set (nominal: dropped from the ladder: over "
+                                "clearance swing_clearance 0.0382); the rung is reached from v0.4 (v0.4_to_v0.45; "
+                                "fallback step 2)")
+    assert direct["fallback"] == dict(rule="S2S-fallback", step=2, by="v0.4_to_v0.45")
+    assert direct["inputs"] == {"nominal": None, "v0.45": job.refs["v0.45"]["sha256"], "v0.4": job.refs["v0.4"]["sha256"]}
+    assert direct["numbers"]["tried"] == [dict(change="nominal_to_v0.45", not_built=(
+        "the walk nominal is not a rung of the set (nominal: dropped from the ladder: over clearance swing_clearance 0.0382)"))]
+    assert step["available"] and step["group"] == "nominal_to_v0.45" and step["ramp_strides"] == 1.0
+    assert step["fallback"]["step"] == 2 and step["fallback"]["of"] == "nominal_to_v0.45" and step["inputs"].keys() == {"v0.4", "v0.45"}
+    assert job.out["files"] == {"transitions/v0.4_to_v0.45.npz": "s" * 64} and job.out["blocks_set"] is None
+    # the next rung up comes from 0.45 m/s
+    job, script, its = job_of("nominal_to_v0.5", {"v0.45_to_v0.5": [PASS]})
+    job.refs["nominal"] = dict(DROPPED)
+    sets._produce_straight(job, its["nominal_to_v0.5"])
+    assert [c[0] for c in script.calls] == ["v0.45_to_v0.5"] and job.out["transitions"]["v0.45_to_v0.5"]["available"]
+    # that change outside its gates: no reference for the rung, with what was tried; a rung does not stop the set
+    job, script, its = job_of("nominal_to_v0.5", {"v0.45_to_v0.5": [FAIL]})
+    job.refs["nominal"] = dict(DROPPED)
+    sets._produce_straight(job, its["nominal_to_v0.5"])
+    e = job.out["transitions"]
+    assert list(e) == ["nominal_to_v0.5"] and e["nominal_to_v0.5"]["available"] is False and job.out["files"] == {}
+    assert e["nominal_to_v0.5"]["reason"].endswith("; no change from the neighbouring rung within the gates")
+    assert [t["change"] for t in e["nominal_to_v0.5"]["numbers"]["tried"]] == ["nominal_to_v0.5", "v0.45_to_v0.5"]
+    assert e["nominal_to_v0.5"]["fallback"] == dict(rule="S2S-fallback", step=3, tried=2) and job.out["blocks_set"] is None
+    assert e["nominal_to_v0.5"]["inputs"].keys() == {"nominal", "v0.5", "v0.45"}
+    # the change into the 0.40 m/s walk needs the nominal walk: not available, nothing built, the set not stopped
+    # (the set's lead-in is start_v0.4)
+    job, script, its = job_of("nominal_to_v0.4", {})
+    job.refs["nominal"] = dict(DROPPED)
+    sets._produce_straight(job, its["nominal_to_v0.4"])
+    e = job.out["transitions"]["nominal_to_v0.4"]
+    assert script.calls == [] and e["available"] is False and job.out["blocks_set"] is None
+    assert e["reason"] == "the walk nominal is not a rung of the set (nominal: dropped from the ladder: over clearance swing_clearance 0.0382)"
+    # a rung that is itself dropped has no change from anywhere
+    job, script, its = job_of("nominal_to_v0.3", {})
+    job.refs["nominal"], job.refs["v0.3"] = dict(DROPPED), dict(DROPPED)
+    sets._produce_straight(job, its["nominal_to_v0.3"])
+    assert script.calls == [] and list(job.out["transitions"]) == ["nominal_to_v0.3"]
+    assert job.out["transitions"]["nominal_to_v0.3"]["reason"].startswith("the walk nominal, v0.3 is not a rung of the set")
+    # its neighbour dropped: the change cannot be built, and the entry says so
+    job, script, its = job_of("nominal_to_v0.5", {})
+    job.refs["nominal"], job.refs["v0.45"] = dict(DROPPED), dict(DROPPED)
+    sets._produce_straight(job, its["nominal_to_v0.5"])
+    tried = job.out["transitions"]["nominal_to_v0.5"]["numbers"]["tried"]
+    assert script.calls == [] and tried[1] == dict(change="v0.45_to_v0.5", not_built="the walk v0.45 is not a rung of the set")
+
+
 def pick_stub(chosen=0.8):
-    def pick(src, a, ref_a, angle, rate, grid=moves.STRIDE_GRID, limit=0.85, other_margin=0.1):
-        assert tuple(grid) == moves.STRIDE_GRID and (limit, other_margin) == (0.85, 0.10)  # the item's own constants
+    def pick(src, a, ref_a, angle, rate, grid=moves.STRIDE_GRID, limit=0.85, other_margin=0.05):
+        assert tuple(grid) == moves.STRIDE_GRID and (limit, other_margin) == (0.85, 0.05)  # the item's own constants
         return dict(rule="S2A-stride", text="t", grid=[float(f) for f in grid], limit_kinematic=limit, limit_final=0.87,
                     limit_other_joints_rad=other_margin, steps_down_max=2, angle_rad=angle, rate_rad_s=rate,
                     tried=[dict(f=0.6 if chosen is None else chosen, left=0.8, right=0.8, ik_ok=True,
@@ -1406,10 +1639,10 @@ def test_turns_both_directions_are_built_at_the_picked_factor(turns):
     assert sorted(job.out["files"]) == ["transitions/turn90_pi4_left.npz", "transitions/turn90_pi4_right.npz"]
 
 
-@pytest.mark.parametrize("worse,how", [(dict(twist=0.871), "twist"), (dict(margin=0.0999), "margin"), (dict(ik_ok=False), "ik")])
+@pytest.mark.parametrize("worse,how", [(dict(twist=0.871), "twist"), (dict(margin=0.0499), "margin"), (dict(ik_ok=False), "ik")])
 def test_turns_step_down_when_either_direction_is_outside_the_stride_rule(turns, worse, how):
-    """The worse direction decides: a thigh twist over 0.87, another joint under 0.10 rad, or an IK failure in one
-    direction steps the factor down for both."""
+    """The worse direction decides: a thigh twist over 0.87, another joint under a move's 0.05 rad, or an IK failure
+    in one direction steps the factor down for both."""
     job, script, rec, left, right = turns(dict(left=[PASS, PASS], right=[worse, PASS]))
     assert [(c[0], c[2]["stride_factor"]) for c in script.calls] == [
         ("turn90_pi4_left", 0.8), ("turn90_pi4_right", 0.8), ("turn90_pi4_left", 0.75), ("turn90_pi4_right", 0.75)]
@@ -1418,7 +1651,7 @@ def test_turns_step_down_when_either_direction_is_outside_the_stride_rule(turns,
 
 
 def test_turns_step_down_at_most_twice_then_there_is_no_reference(turns):
-    bad = dict(margin=0.09)
+    bad = dict(margin=0.049)
     job, script, rec, left, right = turns(dict(left=[bad, bad, bad]))
     assert [c[2]["stride_factor"] for c in script.calls] == [0.8, 0.8, 0.75, 0.75, 0.7, 0.7]
     assert rec["outcome"] == "none" and rec["chosen"] is None and rec["steps_down"] == 2

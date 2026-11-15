@@ -5,7 +5,8 @@ A reference set is a directory ``stage2/sets/<set>/<body>/`` in Stage 1's run-di
 ``screen.json``.  This module only reads one; ``sets.py`` builds it.  It is hashed into every bar record's key, so it
 holds nothing a record does not execute:
 
-* **Names** are made and parsed here only, numbers with ``%g``: walks ``nominal`` and ``v0.4``; the start ``start``;
+* **Names** are made and parsed here only, numbers with ``%g``: walks ``nominal`` and ``v0.4``; the start ``start``
+  (``start_v0.4``: a start from standing straight into another walk, for a set whose nominal walk is no rung);
   changes ``nominal_to_v0.4``; stops ``stop2_v0.4`` (two touchdowns after the command) and ``stop1_v0.4``; turns
   ``turn90_<rate>_<left|right>`` with the rate's label from ``TURN_RATES`` (``turn90_pi4_left`` is the quick turn at
   pi/4 rad/s).  No name holds a rounded value: ``parse_name`` maps every name back to its values exactly, and a
@@ -98,6 +99,13 @@ def walk_name(v: float | None) -> str:
     return name
 
 
+def start_name(walk: str = NOMINAL) -> str:
+    """The start from standing into ``walk``: ``start`` into the nominal walk, ``start_v0.4`` into another (a set
+    whose nominal walk is no rung starts straight into its 0.40 m/s walk: ``STAGE2_75_PLAN.md`` A8 as amended on
+    15 Nov, ``DECISION_LOG.md`` P34)."""
+    return START if _walk_speed(walk) is None else f"{START}_{walk}"
+
+
 def change_name(a: str, b: str) -> str:
     """A speed change from walk ``a`` to walk ``b``: ``nominal_to_v0.4``."""
     _walk_speed(a), _walk_speed(b)
@@ -124,15 +132,19 @@ def turn_name(rate: str, direction: str) -> str:
 
 
 def parse_name(name: str) -> dict:
-    """The exact inverse of the makers: ``{kind: "walk", speed_m_s}`` (None: nominal), ``{kind: "start"}``,
-    ``{kind: "change", a, b}``, ``{kind: "stop", steps, walk}`` or ``{kind: "turn", angle_deg, angle_rad, rate,
-    rate_rad_s, direction, sign}`` (sign +1 left, -1 right), each with ``name``.  ``ValueError`` for a name the
+    """The exact inverse of the makers: ``{kind: "walk", speed_m_s}`` (None: nominal), ``{kind: "start"}``
+    (``start_v0.4``: with ``walk``), ``{kind: "change", a, b}``, ``{kind: "stop", steps, walk}`` or ``{kind: "turn",
+    angle_deg, angle_rad, rate, rate_rad_s, direction, sign}`` (sign +1 left, -1 right), each with ``name``.
+    ``ValueError`` for a name the
     makers did not make."""
     if not isinstance(name, str):
         raise ValueError(f"{name!r} is not a name")
     out = None
     if name == START:
         out = dict(kind="start", name=name)
+    elif name.startswith(START + "_") and "_to_" not in name:
+        out = dict(kind="start", name=name, walk=name[len(START) + 1:])
+        made = start_name(out["walk"])
     elif "_to_" in name:
         a, _, b = name.partition("_to_")
         out = dict(kind="change", name=name, a=a, b=b)
@@ -147,7 +159,7 @@ def parse_name(name: str) -> dict:
                    rate=rate, rate_rad_s=TURN_RATES[rate], direction=direction, sign=1.0 if direction == "left" else -1.0)
     else:
         out = dict(kind="walk", name=name, speed_m_s=_walk_speed(name))
-    if out["kind"] in ("change", "stop", "turn") and made != name:
+    if (out["kind"] in ("change", "stop", "turn") or "walk" in out and out["kind"] == "start") and made != name:
         raise ValueError(f"{name!r} is not a name this module makes")
     return out
 

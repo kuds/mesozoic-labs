@@ -17,7 +17,9 @@ walk, ``tuned_f9_spec``, copied verbatim) and ``F25F9cl`` (candidate: that walk 
 ``setio.SPEEDS``; ``start``; ``nominal_to_v<v>`` for every speed; the two-touchdown stop ``stop2_v0.4`` and Stage 1's
 one-step stop ``stop1_v0.4`` (a labelled comparison); ``turn90_<rate>_<left|right>`` for every rate of
 ``setio.TURN_RATES``.  Names are made and parsed by ``setio`` only.  An item's ``definition`` is its identity as
-asked: the specs, every builder argument, the body's model sha256 and the rules' constants.
+asked: the specs, every builder argument, the body's model sha256 and the rules' constants.  A set whose nominal walk
+is not a rung but whose 0.40 m/s walk is starts from standing straight into that walk (``start_v0.4``, made by the
+``start`` item; ``set.json`` ``lead_in``; ``RULES["S2S-lead-in"]``, the plan's A8 as amended).
 
 2. Building (``build``; the plan's A4 to A12)
 ---------------------------------------------
@@ -160,7 +162,18 @@ RULES = {
         "from the neighbouring rung toward 0.40 m/s (v0.4_to_v0.45, v0.45_to_v0.5, v0.4_to_v0.35, v0.35_to_v0.3), "
         "with one stride of ramp, the rung's plan then walking through 0.40 m/s; (3) the item is recorded 'no "
         "transition within the gates' with its numbers.  A start and the stops have no fallback and nominal_to_v0.4 "
-        "has step (1) only.  A failed start or nominal_to_v0.4 stops the set and goes to the lead"),
+        "has step (1) only.  A failed start or nominal_to_v0.4 stops the set and goes to the lead (a set that starts "
+        "into its 0.40 m/s walk, S2S-lead-in: a failed start_v0.4)"),
+    "S2S-lead-in": (
+        "a set whose nominal walk is a rung starts into it (start; set.json lead_in 'start').  A set whose nominal "
+        "walk is not a rung (A12) but whose 0.40 m/s walk is starts from standing straight into its 0.40 m/s walk: "
+        "start_v0.4, built and gated like start, with no fallback; set.json says lead_in 'start_v0.4', and so does "
+        "every record of the set (an exception, labelled where its rows are printed).  The items that need the "
+        "nominal walk are then not available, with that reason, and a ladder rung is reached by the fallback rule's "
+        "step (2), a change from the neighbouring rung toward 0.40 m/s.  A start_v0.4 that fails a gate stops the "
+        "set: it is not run.  A set with neither walk has no lead-in (lead_in null) and its conditions are not run "
+        "(STAGE2_75_PLAN.md A8 as amended: the owner's decision of 15 Nov, DECISION_LOG.md P34, after the first "
+        "builds of the three sets; changed after a result)"),
     "S2S-turns": (
         "a turn rate is built once for both directions (STAGE2_75_PLAN.md A10, A11): moves.pick_stride_factor on the "
         "set's 0.40 m/s walk, both directions with all passes at the chosen factor, then moves.step_down on the "
@@ -361,7 +374,8 @@ def items(set_name: str, body: str) -> list[Item]:
         return Item(mv.name, kind, depends, refs._plain(dict(kind=kind, **mv.definition(), body_model_sha256=model,
                                                              **more)))
 
-    out.append(of("start", moves.start(setio.START, gx[nom]), (nom,), fallback=None))
+    out.append(of("start", moves.start(setio.START, gx[nom]), (nom, bar), fallback=None, lead_in=dict(
+        rule="S2S-lead-in", name=setio.start_name(bar), start=moves.start(setio.start_name(bar), gx[bar]).definition())))
     for v in setio.SPEEDS:
         b, nb = setio.walk_name(v), neighbour(v)
         steps = [dict(step=1, ramp_strides=2.0)]
@@ -390,6 +404,18 @@ def groups(its: list[Item]) -> dict:
     for it in its:
         out.setdefault(it.group, []).append(it)
     return out
+
+
+def lead_in_of(references: dict) -> str | None:
+    """The start a set's plans begin with (``RULES["S2S-lead-in"]``), from its walk entries: ``start`` where the
+    nominal walk is a rung; ``start_v0.4`` where it is not and the 0.40 m/s walk is; None where neither is, or while
+    either is not built."""
+    nom, bar = references.get(setio.NOMINAL), references.get(setio.walk_name(setio.BAR_SPEED))
+    if nom is None or bar is None:
+        return None
+    if nom.get("available") is not False:
+        return setio.START
+    return setio.start_name(setio.walk_name(setio.BAR_SPEED)) if bar.get("available") is not False else None
 
 
 # ------------------------------------------------------------------------------------------------
@@ -750,15 +776,94 @@ def _produce_walk(job: _Job, item: Item) -> None:
     job.out["refs"][name] = refs._plain(entry)
 
 
+def _step_two(job: _Job, item: Item, p: dict, tried: list, nominal_gone: str | None = None) -> bool:
+    """Step (2) of ``RULES["S2S-fallback"]`` for the ladder rung ``p["b"]``: a change from the neighbouring rung
+    toward 0.40 m/s.  True when it stands: the change's entry and the item's (not available, reached by the change)
+    are written.  ``nominal_gone``: why the nominal walk is no rung, where that is why the direct change was not
+    built (``RULES["S2S-lead-in"]``)."""
+    name = item.name
+    v = setio.parse_name(p["b"])["speed_m_s"]
+    nb = None if v not in setio.SPEEDS else neighbour(v)
+    if nb is None:
+        return False
+    nbn = setio.walk_name(nb)
+    other = setio.change_name(nbn, p["b"])
+    got = job.walk(nbn)
+    if got is None:
+        tried.append(dict(change=other, not_built=f"the walk {nbn} is not a rung of the set"))
+        return False
+    gn, rn, en, tn = got
+    gb, rb, eb, tb = job.walk(p["b"])
+    e2, fl2 = job.move(item, moves.change(other, gn, gb), rn, rb, en, eb, tn, tb, (nbn, p["b"]))
+    e2["ramp_strides"] = 1.0
+    if not fl2["ok"]:
+        tried.append(_numbers(e2, fl2, ramp_strides=1.0, change=other))
+        job.drop("transitions", other)
+        return False
+    e2["fallback"] = dict(rule="S2S-fallback", text=RULES["S2S-fallback"], step=2, of=name, tried=tried)
+    job.out["transitions"][other] = e2
+    why = ("no direct transition within the gates" if nominal_gone is None else nominal_gone)
+    job.out["transitions"][name] = refs._plain(_unavailable(
+        name, item.kind, f"{why}; the rung is reached from {nbn} ({other}; fallback step 2)", dict(tried=tried),
+        item=item.definition, group=item.group, inputs=job.inputs((p["a"], p["b"], nbn)), set=job.set_name,
+        pass_=False if nominal_gone is None else None, fallback=dict(rule="S2S-fallback", step=2, by=other)))
+    return True
+
+
+def _produce_lead_in(job: _Job, item: Item) -> None:
+    """The ``start`` item of a set whose nominal walk is no rung (``RULES["S2S-lead-in"]``): the start from standing
+    straight into the 0.40 m/s walk, built and gated like ``start``, under the name ``setio.start_name`` gives it; the
+    item's own entry says why it has no reference and which start the set has."""
+    nom, bar = item.depends
+    alt = setio.start_name(bar)
+    gone = job.missing_walk(item, (nom, bar))
+    got = job.walk(bar)
+    if got is None:  # neither walk is a rung: the set has no lead-in
+        job.out["transitions"][item.name] = gone
+        job.note(item.name, 0.0, "not available: " + gone["reason"])
+        return
+    gb, rb, eb, tb = got
+    entry, fl = job.move(item, moves.start(alt, gb), None, rb, None, eb, None, tb, (nom, bar))
+    rule = dict(rule="S2S-lead-in", text=RULES["S2S-lead-in"], of=item.name)
+    if fl["ok"]:
+        entry["lead_in"] = rule
+        job.out["transitions"][alt] = entry
+        gone = dict(gone, reason=f"{gone['reason']}; the set starts from standing straight into {bar} ({alt}; "
+                                 "STAGE2_75_PLAN.md A8 as amended)", lead_in=dict(rule="S2S-lead-in", by=alt))
+    else:
+        job.out["transitions"][alt] = _to_unavailable(job, item, entry, fl, NO_GATES, lead_in=rule,
+                                                      fallback=dict(rule="S2S-fallback", step=3, tried=1))
+        gone = dict(gone, reason=f"{gone['reason']}; {alt}: {NO_GATES}", lead_in=dict(rule="S2S-lead-in", by=None))
+        job.out["blocks_set"] = f"{alt}: {NO_GATES} ({RULES['S2S-lead-in']})"
+    job.out["transitions"][item.name] = refs._plain(gone)
+    job.note(item.name, 0.0, "not available: " + gone["reason"])
+
+
 def _produce_straight(job: _Job, item: Item) -> None:
-    """A start, a speed change or a stop, with the fallbacks of ``RULES["S2S-fallback"]``."""
+    """A start, a speed change or a stop, with the fallbacks of ``RULES["S2S-fallback"]`` and the start of a set
+    whose nominal walk is no rung (``RULES["S2S-lead-in"]``)."""
     name, kind = item.name, item.kind
+    nom, bar = setio.NOMINAL, setio.walk_name(setio.BAR_SPEED)
+    if kind == "start" and job.refs.get(nom, {}).get("available") is False:
+        _produce_lead_in(job, item)
+        return
     gone = job.missing_walk(item, item.depends[: 2 if kind == "change" else 1])
     if gone is not None:
+        p = setio.parse_name(name) if kind == "change" else {}
+        only_nominal = (kind == "change" and p["a"] == nom and p["b"] != bar
+                        and job.refs.get(p["b"], {}).get("available") is not False)
+        # a ladder rung of a set without its nominal walk: step (2), from the neighbouring rung (S2S-lead-in)
+        tried = [dict(change=name, not_built=gone["reason"])]
+        if only_nominal and _step_two(job, item, p, tried, nominal_gone=gone["reason"]):
+            return
+        if only_nominal:
+            gone = refs._plain(dict(gone, reason=f"{gone['reason']}; no change from the neighbouring rung within the "
+                                                 "gates", numbers=dict(gone["numbers"], tried=tried),
+                                    inputs=job.inputs(item.depends),
+                                    fallback=dict(rule="S2S-fallback", step=3, tried=len(tried))))
         job.out["transitions"][name] = gone
         job.note(name, 0.0, "not available: " + gone["reason"])
         return
-    nom, bar = setio.NOMINAL, setio.walk_name(setio.BAR_SPEED)
     blocks = kind == "start" or name == setio.change_name(nom, bar)
     if kind == "change":
         p = setio.parse_name(name)
@@ -776,29 +881,8 @@ def _produce_straight(job: _Job, item: Item) -> None:
                 return
             tried.append(_numbers(entry, fl, ramp_strides=ramp, change=name))
             job.drop("transitions", name)
-        v = setio.parse_name(p["b"])["speed_m_s"]
-        nb = None if v not in setio.SPEEDS else neighbour(v)
-        if nb is not None:
-            nbn = setio.walk_name(nb)
-            other = setio.change_name(nbn, p["b"])
-            got = job.walk(nbn)
-            if got is None:
-                tried.append(dict(change=other, not_built=f"the walk {nbn} is not a rung of the set"))
-            else:
-                gn, rn, en, tn = got
-                e2, fl2 = job.move(item, moves.change(other, gn, gb), rn, rb, en, eb, tn, tb, (nbn, p["b"]))
-                e2["ramp_strides"] = 1.0
-                if fl2["ok"]:
-                    e2["fallback"] = dict(rule="S2S-fallback", text=RULES["S2S-fallback"], step=2, of=name, tried=tried)
-                    job.out["transitions"][other] = e2
-                    job.out["transitions"][name] = refs._plain(_unavailable(
-                        name, kind, f"no direct transition within the gates; the rung is reached from {nbn} "
-                                    f"({other}; fallback step 2)", dict(tried=tried), item=item.definition,
-                        group=item.group, inputs=job.inputs((p["a"], p["b"], nbn)), set=job.set_name, pass_=False,
-                        fallback=dict(rule="S2S-fallback", step=2, by=other)))
-                    return
-                tried.append(_numbers(e2, fl2, ramp_strides=1.0, change=other))
-                job.drop("transitions", other)
+        if _step_two(job, item, p, tried):
+            return
         job.out["transitions"][name] = refs._plain(_unavailable(
             name, kind, NO_GATES, dict(tried=tried), item=item.definition, group=item.group,
             inputs=job.inputs(item.depends), set=job.set_name, pass_=False,
@@ -1017,12 +1101,18 @@ def _new_docs(set_name: str, body: str, header: dict) -> dict:
             shift_strides=transitions.SHIFT_STRIDES, settle_strides=transitions.SETTLE_STRIDES,
             path_half_width=transitions.PATH_HALF_WIDTH, walk_ramp_strides=transitions.WALK_RAMP_STRIDES,
             windows=transitions.WINDOWS, g3_com_mm=transitions.G3_COM_MM, g3_zmp_mm=transitions.G3_ZMP_MM,
+            causal_limits=dict(warmup_com_mm=transitions.G3_COM_MM, warmup_zmp_mm=moves.WARMUP_ZMP_LIMIT_MM,
+                               joint_at_command_rad=moves.JOINT_AT_COMMAND_RAD,
+                               consistency_first_stride_mm=1e3 * moves.CONSISTENCY_LIMIT_M,
+                               zmp_after_first_stride_mm=1e3 * moves.ZMP_HISTORY_LIMIT_M,
+                               cop_margin_single_mm=1e3 * moves.CAUSAL_COP_MARGIN_M,
+                               joint_range_rad=moves.OTHER_JOINT_MARGIN_RAD),
             rules=dict(moves.RULES, **{k: RULES[k] for k in ("S2S-process", "S2S-twins", "S2S-stage0", "S2S-fallback",
-                                                              "S2S-turns", "S2S-not-available")})),
+                                                              "S2S-lead-in", "S2S-turns", "S2S-not-available")})),
         "set.json": dict(
             set=set_name, body=body, schema=SCHEMA, role=st.role, note=st.note, spec_rule=RULES["S2S-speeds"],
             margin_rule=st.margin_rule, speeds=speeds, crouch_frac=crouch, omega_rule=RULES["S2S-omega"], rules=RULES,
-            look_entries={}, stride_rules={}, not_available={}, blocked=None, freezes=[]),
+            lead_in=None, look_entries={}, stride_rules={}, not_available={}, blocked=None, freezes=[]),
     }
 
 
@@ -1079,6 +1169,20 @@ def current(d: Path, docs: dict | None, item: Item, rows: dict) -> bool:
     if e.get("available") is False:
         return True
     return _files_ok(d, e, item.kind == "walk")
+
+
+def extras_current(d: Path, docs: dict | None, group: str, names, rows: dict) -> bool:
+    """Whether the references a group made beside its items (a fallback's change from the neighbouring rung, the
+    start of a set into its 0.40 m/s walk) need no build: each one's file is in place with its sha256 and, unless
+    the latest manifest (``rows``) holds it, it was built from the walks the set holds now."""
+    if docs is None:
+        return True
+    for name, e in docs["transitions.json"]["transitions"].items():
+        if e.get("group") != group or name in names or e.get("available") is False:
+            continue
+        if not _files_ok(d, e, False) or (name not in rows and not _same_inputs(docs, e)):
+            return False
+    return True
 
 
 def _write_if_changed(path: Path, doc: dict, old: dict | None, point: str, group: str) -> bool:
@@ -1145,6 +1249,8 @@ def merge(d: Path, part: dict, log=print) -> dict:
         set_doc["blocked"] = dict(by=group, reason=part["blocks_set"])
     elif (set_doc.get("blocked") or {}).get("by") == group:
         set_doc["blocked"] = None
+    if not setio.frozen(set_doc):  # (a frozen set's lead-in is its freeze's: its walks are never written again)
+        set_doc["lead_in"] = lead_in_of(docs["refs.json"]["references"])
     d.mkdir(parents=True, exist_ok=True)
     for name in ("refs.json", "transitions.json", "set.json"):
         _write_if_changed(d / name, docs[name], None if old is None else old[name], name, group)
@@ -1202,8 +1308,8 @@ def build(set_name: str, body: str, root=setio.ROOT, only=None, procs: int = 2, 
     """Build what the set lacks (module docstring, section 2), resumably, under the set's lock.  ``only``: item or
     group names (their walks must be there).  ``procs`` spawned workers at a time, each item in a fresh process (0:
     the items run in this process, one after another, for tests).  Returns ``{dir, ran, kept, recovered, restored,
-    skipped, mismatch, blocked, not_available, seconds}``; ``SetError`` after the run if a frozen entry could not be
-    reproduced; ``GateError`` if a built-in gate stopped it."""
+    skipped, mismatch, blocked, not_available, lead_in, seconds}``; ``SetError`` after the run if a frozen entry could
+    not be reproduced; ``GateError`` if a built-in gate stopped it."""
     s2io.require_one_thread()
     its = items(set_name, body)
     by_group = groups(its)
@@ -1217,7 +1323,7 @@ def build(set_name: str, body: str, root=setio.ROOT, only=None, procs: int = 2, 
     d.mkdir(parents=True, exist_ok=True)
     t0 = time.perf_counter()
     res = dict(dir=str(d), ran=[], kept=[], recovered=[], restored=[], skipped=[], mismatch=[], blocked=None,
-               not_available={}, seconds=None)
+               not_available={}, lead_in=None, seconds=None)
     with s2io.Lock(d / ".lock", log=log):
         for f in s2io.sweep_tmp(d):
             log(f"removed a stale temporary file: {f}")
@@ -1292,7 +1398,8 @@ def build(set_name: str, body: str, root=setio.ROOT, only=None, procs: int = 2, 
             for group, members in by_group.items():
                 if (members[0].kind == "walk") != phase or (wanted is not None and group not in wanted):
                     continue
-                if all(current(d, docs, i, rows) for i in members):
+                if (all(current(d, docs, i, rows) for i in members)
+                        and extras_current(d, docs, group, {i.name for i in members}, rows)):
                     if group not in res["recovered"]:
                         res["kept"].append(group)
                     continue
@@ -1304,6 +1411,7 @@ def build(set_name: str, body: str, root=setio.ROOT, only=None, procs: int = 2, 
         docs = load_docs(d)
         if docs is not None:
             res["not_available"] = {n: v.get("reason") for n, v in docs["set.json"].get("not_available", {}).items()}
+            res["lead_in"] = docs["set.json"].get("lead_in")
             if res["blocked"] is None:
                 res["blocked"] = docs["set.json"].get("blocked")
     res["seconds"] = time.perf_counter() - t0
@@ -1386,6 +1494,8 @@ def _check_name(name: str, kind: str, e: dict, item: Item | None, bad: list) -> 
         bad.append(f"{name}: its name reads as a {p['kind']}, its definition's builder is {builder!r}")
         return
     a, b = (d.get("specs") or {}).get("a") or {}, (d.get("specs") or {}).get("b") or {}
+    if p["kind"] == "start" and e.get("available") is not False and b.get("name") != p.get("walk", setio.NOMINAL):
+        bad.append(f"{name}: its definition starts into {b.get('name')!r}")
     if p["kind"] == "change" and (a.get("name"), b.get("name")) != (p["a"], p["b"]):
         bad.append(f"{name}: its definition joins {a.get('name')!r} to {b.get('name')!r}")
     if p["kind"] == "stop" and a.get("name") != p["walk"]:
@@ -1442,6 +1552,11 @@ def verify(set_name: str, body: str, root=setio.ROOT) -> dict:
         item = its.get(name)
         if item is None and e.get("group") not in group_names:
             notes.append(f"{name}: an entry of no item defined now")
+        elif item is None and e["group"] in its and (e.get("item") != its[e["group"]].definition
+                                                    or not _same_inputs(docs, e)):
+            # (a group of one item bears its item's name: a fallback's change, the start into the 0.40 m/s walk)
+            bad.append(f"{name}: made by the item {e['group']}, whose definition is not the one made now, or built "
+                       "from another file of its walk than the set holds now (python -m designlab.stage2.sets build)")
         _check_name(name, kind, e, item, bad)
         by = e.get("built_by")
         if by is not None:
@@ -1590,6 +1705,21 @@ def verify(set_name: str, body: str, root=setio.ROOT) -> dict:
             notes.append(f"turn rate {label}: stride factor {rec['chosen']:g}"
                          + (f", {rec['steps_down']} step(s) down" if rec.get("steps_down") else "")
                          + (", a1_over" if rec.get("a1_over") else ""))
+    # ---- the lead-in (RULES["S2S-lead-in"])
+    lead, alt = lead_in_of(refs_doc["references"]), setio.start_name(setio.walk_name(setio.BAR_SPEED))
+    if fz is None and set_doc.get("lead_in") != lead and all(n in entries for n in walk_names()):
+        bad.append(f"set.json records lead_in {set_doc.get('lead_in')!r}, its walks give {lead!r}")
+    lead = set_doc.get("lead_in")
+    if lead == alt:
+        notes.append(f"lead-in: {alt} (the nominal walk is not a rung: the set starts from standing straight into "
+                     "its 0.40 m/s walk; an exception, STAGE2_75_PLAN.md A8 as amended)")
+        if alt not in entries:
+            bad.append(f"{alt}: not built (python -m designlab.stage2.sets build)")
+    elif alt in entries:
+        bad.append(f"{alt}: the set holds it and its lead-in is {lead!r}")
+    if lead is None and all(n in entries for n in walk_names()):
+        notes.append("the set has no lead-in (neither its nominal nor its 0.40 m/s walk is a rung): its conditions "
+                     "are not run")
     if set_doc.get("blocked"):
         bad.append(f"the set is stopped: {set_doc['blocked'].get('reason')} (it goes to the lead)")
     for name, rec in (set_doc.get("not_available") or {}).items():
@@ -1792,13 +1922,15 @@ def freeze(set_name: str, body: str, root=setio.ROOT, allow_mixed: bool = False,
 
 
 def status(set_name: str, body: str, root=setio.ROOT) -> dict:
-    """What the set holds, read now: ``{dir, built, frozen, items {name: state}, missing, not_available, blocked}``;
+    """What the set holds, read now: ``{dir, built, frozen, items {name: state}, missing, not_available, blocked,
+    lead_in}``;
     an item's state is ``built``, ``built (frozen)``, ``array missing``, ``stale``, ``missing`` or ``not available:
     <reason>``."""
     d = setio.set_dir(set_name, body, root)
     its = items(set_name, body)
     docs = load_docs(d) if d.is_dir() else None
-    out = dict(dir=str(d), built=docs is not None, frozen=None, items={}, missing=[], not_available={}, blocked=None)
+    out = dict(dir=str(d), built=docs is not None, frozen=None, items={}, missing=[], not_available={}, blocked=None,
+               lead_in=None)
     if docs is None:
         out["missing"] = [i.name for i in its]
         out["items"] = {i.name: "missing" for i in its}
@@ -1825,8 +1957,9 @@ def status(set_name: str, body: str, root=setio.ROOT) -> dict:
         out["items"][i.name] = state
     for name, e in docs["transitions.json"]["transitions"].items():
         if name not in out["items"]:
-            out["items"][name] = ("built (a fallback's change)" if e.get("available") is not False
+            out["items"][name] = (f"built (made by the item {e.get('group')})" if e.get("available") is not False
                                   else f"not available: {e.get('reason')}")
+    out["lead_in"] = docs["set.json"].get("lead_in")
     return out
 
 
@@ -1862,6 +1995,7 @@ def main(argv=None) -> int:
                 + f"; {r['seconds']:.0f} s")
             for name, why in r["not_available"].items():
                 say(f"  not available: {name}: {why}")
+            say(f"  lead-in: {r['lead_in']}")
             if r["blocked"]:
                 say(f"  the set is stopped: {r['blocked']['reason']}"
                     + (f"; not built: {', '.join(r['skipped'])}" if r["skipped"] else ""))
@@ -1886,7 +2020,7 @@ def main(argv=None) -> int:
             say(f"  {name}: {state}")
         say(f"{a.set} {a.body}: " + ("not built" if not r["built"] else
                                      ("not frozen" if r["frozen"] is None else f"freeze {r['frozen']['index']}"))
-            + (f"; missing {len(r['missing'])}" if r["missing"] else "")
+            + (f"; missing {len(r['missing'])}" if r["missing"] else "") + f"; lead-in {r['lead_in']}"
             + (f"; stopped: {r['blocked']['reason']}" if r["blocked"] else ""))
         return 0
     except SetError as exc:
