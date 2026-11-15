@@ -14,7 +14,6 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from designlab.stage2 import tbenv
 
 STUDY = Path(__file__).resolve().parents[1]

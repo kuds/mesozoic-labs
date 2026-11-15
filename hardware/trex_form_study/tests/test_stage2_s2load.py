@@ -77,10 +77,9 @@ def _venv():
 
 def _build(closure: bool = False):
     """A model as ``train2`` builds it (design 3.6); with ``closure`` Stage 1's own schedule is left in."""
+    from designlab.stage1 import policy
     from stable_baselines3 import PPO
     from stable_baselines3.common.vec_env import VecNormalize
-
-    from designlab.stage1 import policy
 
     torch.set_num_threads(1)
     venv = VecNormalize(_venv(), norm_obs=True, norm_reward=True, clip_obs=10.0, clip_reward=50.0, gamma=0.99)
@@ -91,16 +90,22 @@ def _build(closure: bool = False):
     return PPO(env=venv, seed=7, device="cpu", **kw), venv
 
 
-@pytest.fixture(scope="module")
-def saved(tmp_path_factory):
-    """A job with the checkpoints of steps 32 and 64 of one short run, and the live model and wrapper of step 64."""
-    job = tmp_path_factory.mktemp("s2load") / "jobs" / RUN["job"]
+def scratch_checkpoints(job):
+    """Write the checkpoints of steps 32 and 64 of one short run on the stub env into job directory ``job``; the
+    live model and wrapper of step 64 with the two records.  Also this file's command line (see its last lines):
+    the scratch checkpoint that ``python -m designlab.stage2.s2load check | pack | import`` are tried on."""
+    job = Path(job)
     model, venv = _build()
     model.learn(32)
     first = s2load.save_checkpoint(job, 32, model, venv, LAYOUT, RUN, STATE)
     model.learn(32, reset_num_timesteps=False)
     second = s2load.save_checkpoint(job, 64, model, venv, LAYOUT, RUN, dict(STATE, checks_done=[32]))
     return types.SimpleNamespace(job=job, model=model, venv=venv, records={32: first, 64: second})
+
+
+@pytest.fixture(scope="module")
+def saved(tmp_path_factory):
+    return scratch_checkpoints(tmp_path_factory.mktemp("s2load") / "jobs" / RUN["job"])
 
 
 def _copy(saved, tmp_path) -> Path:
@@ -149,7 +154,7 @@ def test_versions_and_comparable():
     assert s2load.comparable(cpu)["torch"] == "2.15.0"
     assert s2load.comparable(dict(here, torch="2.15.1+cpu")) != s2load.comparable(cpu)     # the number is compared
     assert s2load.comparable(dict(here, python="3.12.11")) != s2load.comparable(here)
-    assert s2load.comparable(dict(here, numpy="2.5.4+x")) == dict(s2load.comparable(here), numpy="2.5.4+x")  # torch only
+    assert s2load.comparable(dict(here, numpy="2+x")) == dict(s2load.comparable(here), numpy="2+x")   # torch's only
     assert tuple(s2load.comparable(dict(reversed(list(here.items())), extra="1"))) == s2load.VERSION_KEYS
     lacking = {k: v for k, v in here.items() if k != "cloudpickle"}
     assert s2load.comparable(lacking) != s2load.comparable(here)         # a set that lacks a key is another set
@@ -337,6 +342,25 @@ def test_an_archive_with_stage1s_closure_schedule_is_refused(tmp_path):
     assert list((job / "checkpoints").iterdir()) == [] and s2load.list_checkpoints(job) == []
 
 
+def test_saving_draws_no_random_number_and_touches_no_env(tmp_path):
+    import random
+
+    model, venv = _build()
+    model.learn(32)
+    before = (torch.get_rng_state().clone(), np.random.get_state(), random.getstate(),
+              [(e.resets, e.steps) for e in venv.venv.envs], model._last_obs.copy(), s2load.stats_of(venv),
+              venv.returns.copy(), [t.clone() for t in model.policy.state_dict().values()])
+    s2load.save_checkpoint(tmp_path / "job", 32, model, venv, LAYOUT, RUN, STATE)
+    assert torch.equal(torch.get_rng_state(), before[0])
+    now = np.random.get_state()
+    assert now[0] == before[1][0] and np.array_equal(now[1], before[1][1]) and now[2:] == before[1][2:]
+    assert random.getstate() == before[2]
+    assert [(e.resets, e.steps) for e in venv.venv.envs] == before[3]
+    assert np.array_equal(model._last_obs, before[4]) and np.array_equal(venv.returns, before[6])
+    assert all(np.array_equal(s2load.stats_of(venv)[k], before[5][k]) for k in s2load.STATS_KEYS)
+    assert all(torch.equal(a, b) for a, b in zip(model.policy.state_dict().values(), before[7]))
+
+
 def test_save_refuses_before_it_writes(saved, tmp_path):
     job = tmp_path / "job"
     for run, said in ((dict(RUN, mode="R5"), r"run holds \['mode'\]"),
@@ -387,12 +411,24 @@ def test_the_fingerprint_is_reproduced_exactly_in_a_fresh_process(saved):
     done = _cli("check", saved.job, 64)
     assert done.returncode == 0, done.stdout + done.stderr[-2000:]
     assert "S2 CHECKPOINT 64: intact; fingerprint 0.0 " in done.stdout and "cross_version False" in done.stdout
-    # the CLI assigns MUJOCO_GL itself: started under OSMesa it still builds its policy with no GL library loaded
+
+
+def test_the_cli_assigns_mujoco_gl_itself(saved):
+    # started under OSMesa, main() still builds its policy in a process with no GL library loaded
     env = tbenv.child_env("disable")
     env.update(MUJOCO_GL="osmesa", PYOPENGL_PLATFORM="osmesa")
-    done = _cli("check", saved.job, 32, env=env)
+    code = ("import json, os, sys\n"
+            "from designlab.stage2 import s2load\n"
+            f"rc = s2load.main(['check', {str(saved.job)!r}, '32'])\n"
+            "print(json.dumps([rc, os.environ.get('MUJOCO_GL'), os.environ.get('PYOPENGL_PLATFORM'),"
+            " 'mujoco' in sys.modules, 'OpenGL' in sys.modules]))\n")
+    done = subprocess.run([sys.executable, "-c", code], cwd=STUDY, env=env, capture_output=True, text=True, timeout=300)
     assert done.returncode == 0, done.stdout + done.stderr[-2000:]
     assert "S2 CHECKPOINT 32: intact; fingerprint 0.0 " in done.stdout
+    assert json.loads(done.stdout.strip().splitlines()[-1]) == [0, "disable", None, True, False]
+    # ... and an inherited thread count other than one is refused, not silently kept (round A's rule for a CLI)
+    done = _cli("check", saved.job, 32, env=dict(tbenv.child_env("disable"), OMP_NUM_THREADS="4"))
+    assert done.returncode != 0 and "one BLAS thread is required" in done.stderr
 
 
 class _Boom:
@@ -441,7 +477,7 @@ def test_an_inference_load_unpickles_neither_space_nor_last_observation(saved, t
     with np.load(s2load.checkpoint_files(saved.job, 64)["fingerprint"]) as z:
         stats = {k: z[k] for k in s2load.STATS_KEYS}
         assert np.array_equal(s2load.fingerprint(model, stats, z["obs"]), z["actions"])
-    with pytest.raises(ZeroDivisionError):        # a training load does read the spaces (they are checked against the env)
+    with pytest.raises(ZeroDivisionError):        # a training load does read the spaces (to check the env's)
         s2load.load_model(doctored, LAYOUT, env=_venv(), lr=LR)
 
 
@@ -470,8 +506,70 @@ def test_a_training_load_keeps_the_last_observation_and_resets_nothing(saved):
         assert all(torch.equal(slot[name], mine["state"][key][name]) for name in ("exp_avg", "exp_avg_sq", "step"))
     live = s2load.stats_of(saved.venv)
     assert all(np.array_equal(s2load.stats_of(vecnorm)[k], live[k]) for k in s2load.STATS_KEYS)
-    assert np.array_equal(vecnorm.ret_rms.var, saved.venv.ret_rms.var) and vecnorm.ret_rms.count == saved.venv.ret_rms.count
+    assert np.array_equal(vecnorm.ret_rms.var, saved.venv.ret_rms.var)
+    assert vecnorm.ret_rms.count == saved.venv.ret_rms.count
     assert vecnorm.training is True and vecnorm.norm_reward is True and vecnorm.clip_reward == 50.0
+
+
+def _run_state(model, vecnorm) -> dict:
+    out = {f"policy.{k}": v.clone() for k, v in model.policy.state_dict().items()}
+    for i, slot in model.policy.optimizer.state_dict()["state"].items():
+        out.update({f"optimizer.{i}.{k}": torch.as_tensor(v).clone() for k, v in slot.items()})
+    for k, v in (("obs_mean", vecnorm.obs_rms.mean), ("obs_var", vecnorm.obs_rms.var), ("returns", vecnorm.returns),
+                 ("obs_count", vecnorm.obs_rms.count), ("ret_mean", vecnorm.ret_rms.mean),
+                 ("ret_var", vecnorm.ret_rms.var), ("ret_count", vecnorm.ret_rms.count), ("last_obs", model._last_obs),
+                 ("steps", model.num_timesteps), ("updates", model._n_updates)):
+        out[k] = torch.as_tensor(np.asarray(v, dtype=np.float64))
+    return out
+
+
+def test_a_training_load_then_the_same_boundary_continues_bit_for_bit(tmp_path):
+    """The loader's half of the kill-and-resume rule (K1, K3), on the stub env: a run that saves and then reseeds
+    and resets at every rollout start, against the same run loaded from each of its checkpoints and continued."""
+    from stable_baselines3.common.callbacks import BaseCallback
+    from stable_baselines3.common.utils import set_random_seed
+
+    budget, every, job = 96, 32, tmp_path / "job"
+
+    class Boundaries(BaseCallback):
+        def __init__(self, vecnorm, save: bool) -> None:
+            super().__init__()
+            self.vecnorm, self.save, self.due = vecnorm, save, None
+
+        def _on_step(self) -> bool:
+            return True
+
+        def _on_rollout_start(self) -> None:
+            n = self.model.num_timesteps
+            if self.due is None:                  # a session's first rollout start is a boundary
+                self.due = n
+            if n < self.due:
+                return
+            if self.save:
+                s2load.save_checkpoint(job, n, self.model, self.vecnorm, LAYOUT, RUN, {"at": n})
+            seed = 100_000 * 7 + 100 * (n // every)
+            set_random_seed(seed)
+            self.model.action_space.seed(seed)
+            self.vecnorm.seed(seed)
+            self.model._last_obs = self.vecnorm.reset()
+            self.vecnorm.returns[:] = 0.0
+            self.model._last_episode_starts = np.ones((self.vecnorm.num_envs,), dtype=bool)
+            self.model._last_original_obs = self.vecnorm.get_original_obs()
+            self.due = (n // every + 1) * every
+
+    model, venv = _build()
+    model.learn(budget, callback=Boundaries(venv, save=True))
+    assert s2load.list_checkpoints(job) == [0, 32, 64] and model.num_timesteps == budget
+    whole = _run_state(model, venv)
+    obs = s2load.fingerprint_obs(LAYOUT)
+    for n in (64, 32, 0):
+        ck = s2load.load_checkpoint(job, n, env=_venv(), lr=LR, expect_run=RUN)
+        ck["model"].learn(budget - n, reset_num_timesteps=False, callback=Boundaries(ck["vecnorm"], save=False))
+        resumed = _run_state(ck["model"], ck["vecnorm"])
+        assert sorted(resumed) == sorted(whole) and len(whole) > 40
+        assert [k for k in whole if not torch.equal(whole[k], resumed[k])] == [], f"resumed from {n}"
+        assert np.array_equal(s2load.fingerprint(ck["model"], s2load.stats_of(ck["vecnorm"]), obs),
+                              s2load.fingerprint(model, s2load.stats_of(venv), obs))
 
 
 def test_load_arguments(saved):
@@ -644,7 +742,8 @@ def test_newest_intact_skips_a_broken_newest_checkpoint_and_says_why(saved, tmp_
 def test_remove_checkpoint(saved, tmp_path):
     job = _copy(saved, tmp_path)
     gone = s2load.remove_checkpoint(job, 32)
-    assert gone[0] == "checkpoint_32.json" and sorted(gone) == sorted(s2load.FILE_NAMES[k] % 32 for k in s2load.FILE_NAMES)
+    assert gone[0] == "checkpoint_32.json"
+    assert sorted(gone) == sorted(s2load.FILE_NAMES[k] % 32 for k in s2load.FILE_NAMES)
     assert s2load.list_checkpoints(job) == [64] and s2load.newest_intact(job) == (64, [])
     assert s2load.remove_checkpoint(job, 32) == []
 
@@ -701,6 +800,8 @@ def test_import_tar_round_trips(saved, tmp_path):
     assert sorted(p.name for p in (into / "checkpoints").iterdir()) == sorted(p.name for p in mine.values())
     assert s2load.newest_intact(into) == (64, []) and s2load.load_checkpoint(into, 64, expect_run=RUN)["model"]
     assert s2load.import_tar(record, packed["tar"], into)["ok"] is True  # again, over itself
+    own = s2load.checkpoint_files(into, 64)["record"]                     # ... and with the record that stands there
+    assert s2load.import_tar(own, packed["tar"], into)["ok"] is True and s2load.newest_intact(into) == (64, [])
     json.dumps(s2io.plain(got))                                           # the validation record is JSON as it stands
 
 
@@ -811,3 +912,8 @@ def test_a_checkpoints_binaries_are_ignored_by_git():
     if (STUDY / "stage2" / "tb" / ".gitignore").is_file():                # the Track B rules, once they are merged
         rest = [base + "checkpoint_250000.json", base + "model_250000.zip.tmp", "stage2/tb/work/run/ckpt_250000.tar"]
         assert ignored(rest) == rest
+
+
+if __name__ == "__main__":                        # python tests/test_stage2_s2load.py JOBDIR: a scratch job for the CLI
+    _made = scratch_checkpoints(sys.argv[1])
+    print(f"scratch checkpoints {sorted(_made.records)} in {_made.job}")
