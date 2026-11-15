@@ -4,8 +4,9 @@
  "rules": {
   "regress": "each case is one subprocess `python -m designlab.stage1 eval --body B [--row-module M] --rows ROWS --conditions CONDITIONS --episodes N --workers 1 --inputs I --out <scratch>` (tools/README.md, 'Eval traces') with OMP_NUM_THREADS, OPENBLAS_NUM_THREADS and MKL_NUM_THREADS at 1, MUJOCO_GL=disable and STAGE1B_SPEED_RUN removed; per episode, trace_equal: the sha256 of the regenerated <out>/<body>/eval/traces/<row>/<behavior>/<condition>/<seed>.npz equals episodes[i].trace.sha256 of the committed record <run>/<body>/eval/<row>/<behavior>/<condition>.json; record_equal: the regenerated episode record equals the committed one on every key but wall_s, compared as canonical JSON after a round trip through a file (floats exactly; a NaN equals a NaN; 1 differs from 1.0); an episode matches when both hold; an eval that fails, or an episode it does not write, matches nothing",
   "clean": "a run starts only in a checkout whose `git status --porcelain` is empty (the record it is writing aside) and with the arrays, the round-two model files and the committed records its cases read; the status is read again after the last case and the run is refused if anything changed; the four source hashes are read before the first case and after the last and must be equal",
-  "resume": "a finished case is kept in <scratch>/cases/<case id>.json and used again only if its case definition, its four source hashes, its library versions and the sha256 of regress.py are the run's; otherwise the case runs again from an empty directory; the record is written only when every case of the tier is there",
-  "check": "a record is current when its tier is full, every episode of today's full tier is in it with both flags true (matched == of), and its four source hashes equal the ones read from today's code"
+  "resume": "a finished case is kept in <scratch>/cases/<case id>.json and used again only if its case definition, its four source hashes, its library versions and the sha256 of regress.py are the run's and its eval exited with code 0; otherwise the case runs again from an empty directory (a case whose eval exited non-zero, or was killed, runs again); the record is written only when every case of the tier is there",
+  "count": "`of` counts comparisons (one per episode of every case; `matched`: the ones with both flags true); `distinct` counts the different committed episodes among them, an episode being its (run, body, row, condition, seed); the full tier holds the fast tier's episodes twice (in the fast cases and again inside its own), so `distinct` is the number of committed episodes a record proves",
+  "check": "a record is current when its tier is full, every episode of today's full tier is in it with both flags true (matched == of), its `distinct` is the number of different committed episodes it lists, and its four source hashes equal the ones read from today's code"
  },
  "cases": [
   {
@@ -3339,6 +3340,7 @@
  ],
  "matched": 256,
  "of": 256,
+ "distinct": 248,
  "commands": [
   {
    "id": "fast-75-M-H-10",
@@ -3381,10 +3383,10 @@
    "returncode": 0,
    "matched": 4,
    "of": 4,
-   "wall_s": 15.54564524700254,
-   "started_at": "2026-11-15T02:10:17Z",
-   "ended_at": "2026-11-15T02:10:33Z",
-   "commit": "fbb25346af648a65ad409006ceeb30e4f0b00a51"
+   "wall_s": 15.652444530001958,
+   "started_at": "2026-11-15T05:16:07Z",
+   "ended_at": "2026-11-15T05:16:23Z",
+   "commit": "f4c5eee8467552d66833344d00fcc380665d9778"
   },
   {
    "id": "fast-60-N-T-10-10ms",
@@ -3429,10 +3431,10 @@
    "returncode": 0,
    "matched": 4,
    "of": 4,
-   "wall_s": 12.32337922300212,
-   "started_at": "2026-11-15T02:10:33Z",
-   "ended_at": "2026-11-15T02:10:45Z",
-   "commit": "fbb25346af648a65ad409006ceeb30e4f0b00a51"
+   "wall_s": 11.91547000799983,
+   "started_at": "2026-11-15T05:16:23Z",
+   "ended_at": "2026-11-15T05:16:34Z",
+   "commit": "f4c5eee8467552d66833344d00fcc380665d9778"
   },
   {
    "id": "full-75-M-H-10-hard-floor",
@@ -3495,10 +3497,10 @@
    "returncode": 0,
    "matched": 44,
    "of": 44,
-   "wall_s": 104.98304504800035,
-   "started_at": "2026-11-15T02:10:45Z",
-   "ended_at": "2026-11-15T02:12:30Z",
-   "commit": "fbb25346af648a65ad409006ceeb30e4f0b00a51"
+   "wall_s": 104.44705233499917,
+   "started_at": "2026-11-15T05:16:35Z",
+   "ended_at": "2026-11-15T05:18:19Z",
+   "commit": "f4c5eee8467552d66833344d00fcc380665d9778"
   },
   {
    "id": "full-60-N-T-10-hard-floor",
@@ -3561,10 +3563,10 @@
    "returncode": 0,
    "matched": 44,
    "of": 44,
-   "wall_s": 88.935257035002,
-   "started_at": "2026-11-15T02:12:30Z",
-   "ended_at": "2026-11-15T02:13:59Z",
-   "commit": "fbb25346af648a65ad409006ceeb30e4f0b00a51"
+   "wall_s": 82.90116421199855,
+   "started_at": "2026-11-15T05:18:19Z",
+   "ended_at": "2026-11-15T05:19:42Z",
+   "commit": "f4c5eee8467552d66833344d00fcc380665d9778"
   },
   {
    "id": "full-60-N-T-10-10ms-walking_0.35_left",
@@ -3627,10 +3629,10 @@
    "returncode": 0,
    "matched": 40,
    "of": 40,
-   "wall_s": 61.09253728600015,
-   "started_at": "2026-11-15T02:13:59Z",
-   "ended_at": "2026-11-15T02:15:00Z",
-   "commit": "fbb25346af648a65ad409006ceeb30e4f0b00a51"
+   "wall_s": 56.19054050400155,
+   "started_at": "2026-11-15T05:19:42Z",
+   "ended_at": "2026-11-15T05:20:38Z",
+   "commit": "f4c5eee8467552d66833344d00fcc380665d9778"
   },
   {
    "id": "full-60-N-T-10-10ms-walking_0.35_right",
@@ -3693,10 +3695,10 @@
    "returncode": 0,
    "matched": 40,
    "of": 40,
-   "wall_s": 59.19869435000146,
-   "started_at": "2026-11-15T02:15:00Z",
-   "ended_at": "2026-11-15T02:16:00Z",
-   "commit": "fbb25346af648a65ad409006ceeb30e4f0b00a51"
+   "wall_s": 57.10829005400228,
+   "started_at": "2026-11-15T05:20:38Z",
+   "ended_at": "2026-11-15T05:21:35Z",
+   "commit": "f4c5eee8467552d66833344d00fcc380665d9778"
   },
   {
    "id": "full-60-N-T-10-10ms-in_place_0.50_left",
@@ -3759,10 +3761,10 @@
    "returncode": 0,
    "matched": 40,
    "of": 40,
-   "wall_s": 104.82733091800037,
-   "started_at": "2026-11-15T02:16:00Z",
-   "ended_at": "2026-11-15T02:17:45Z",
-   "commit": "fbb25346af648a65ad409006ceeb30e4f0b00a51"
+   "wall_s": 102.85176167799727,
+   "started_at": "2026-11-15T05:21:35Z",
+   "ended_at": "2026-11-15T05:23:18Z",
+   "commit": "f4c5eee8467552d66833344d00fcc380665d9778"
   },
   {
    "id": "full-60-N-T-10-10ms-in_place_0.50_right",
@@ -3825,19 +3827,19 @@
    "returncode": 0,
    "matched": 40,
    "of": 40,
-   "wall_s": 103.04308366599798,
-   "started_at": "2026-11-15T02:17:45Z",
-   "ended_at": "2026-11-15T02:19:28Z",
-   "commit": "fbb25346af648a65ad409006ceeb30e4f0b00a51"
+   "wall_s": 100.25217132800026,
+   "started_at": "2026-11-15T05:23:18Z",
+   "ended_at": "2026-11-15T05:24:59Z",
+   "commit": "f4c5eee8467552d66833344d00fcc380665d9778"
   }
  ],
  "sources": {
-  "panel_sources_sha256": "c2863e38e925e148e1e49b87779b697b2016fdc217f68ecb1dd0223dfca67a67",
-  "stage1_sources_sha256": "a3f37228359ab4abc1fb08351a8878c60b6d613c8535eec4461aa932f2feb240",
-  "tuner_sources_sha256": "c02b9a71054921ae240a1e9ead8c244aa2ffb103c7cae48318a3e8884e1acd4c",
-  "speed_sources_sha256": "381daa82b3030b07e82c6ee15df54898b7f4420c2eaee1c123fdc7a871e3b3a8"
+  "panel_sources_sha256": "b981db81ba5f6b21fdbf329e1696a42a7cfaba17fffbdb10577cd56dedefeebb",
+  "stage1_sources_sha256": "e25139ed4f43264078c9eb9508b1c837a697ef3a983c085cbbc18bc0997fea01",
+  "tuner_sources_sha256": "6afec35519061c0b447ef3b1ceeec02aed9ef341816408d6a5f2aaf4f4977c92",
+  "speed_sources_sha256": "85b9e3fa5a7859806402b0c6524b0bcd7cd3ec1fab33349baa936642a089c73d"
  },
- "regress_sha256": "763411362b0ec0b9727d97093751615c8ff3b55d1b364c859496e42ef74a516d",
+ "regress_sha256": "a0744352924b2fb8a8737120543874fcdbdac9e5e2a61f4f460e4efdc5be559c",
  "versions": {
   "python": "3.13.18",
   "numpy": "2.5.4",
@@ -3852,9 +3854,9 @@
   "MUJOCO_GL": "disable",
   "STAGE1B_SPEED_RUN": null
  },
- "commit": "fbb25346af648a65ad409006ceeb30e4f0b00a51",
+ "commit": "f4c5eee8467552d66833344d00fcc380665d9778",
  "dirty": false,
- "eval_wall_s": 549.948972773007,
- "session_wall_s": 551.1599841559982,
- "at": "2026-11-15T02:19:28Z"
+ "eval_wall_s": 531.3188946490009,
+ "session_wall_s": 532.4741111049989,
+ "at": "2026-11-15T05:24:59Z"
 }
