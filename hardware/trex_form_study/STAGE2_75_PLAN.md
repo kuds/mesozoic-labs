@@ -280,6 +280,13 @@ rows. If `start_v0.4` fails a gate the set is not run. It applies today to F25F9
 specifies it, its walks at 0.35 m/s and below have a planned mid-swing pad clearance of 0.0382 H (19.2 mm) against
 0.04 H (20.1 mm) and are dropped from its ladder, while its walks at 0.40 to 0.50 m/s are within every limit.
 
+[made exact 15 Nov after a prescribed-motion result, the sets' independent review; before any set was frozen] Step (2)'s
+change from the neighbouring rung is built with one stride of ramp, and step (1)'s two-stride ramp is not tried on it.
+The text above did not say; the builder built it so before the result was known, and the other reading was not
+tried. What it decides today: on F25F9 the changes `v0.4_to_v0.45` and `v0.45_to_v0.5` end with a ZMP error of 4.59
+and 5.06 mm against A7's 4.0 mm, so its walks at 0.45 and 0.50 m/s are frozen but cannot be reached, and their ladder
+rows are "not run" with those numbers. V0 and F25F9cl reach all six of their walks by the direct change.
+
 **A9. The two-touchdown stop, `stop2_v0.4`.** [differs: plan in the command's place; lead's ruling 3] Stage 1's stop
 plan (the left foot lifts last and lands beside the right; speed ramp over 0.4 stride about `phi_c = 0.5 - duty / 2`)
 commanded causally at the right foot's lift-off, half a stride before the left foot's last lift-off. The reference has
@@ -361,6 +368,12 @@ sets had no factor at all (0.085 and 0.096 rad at factor 0.60). Check: `set.json
 `range_use`, `a1_over`, `not_available`; the report's reading 2 cell of a turn frozen with `a1_over`
 ("not read: `a1_over`").
 
+[made exact 15 Nov after the sets' independent review; before any set was frozen; no built set is in this state] The
+stride factor is one value for both directions, but after it is chosen each direction's built reference is judged on
+its own gates. If one direction fails a gate under the third outcome and the other passes, the passing direction is
+frozen and the failing one has no reference: its conditions are "not run" with the numbers, which is not a pass, and
+it goes to the owner as above. On the three sets every rate has both directions alike.
+
 **A12. Stage 0 screen of every reference, and what blocks a freeze.** [plan 4 A.3; NEW table] Every walk and move has a
 block in the set's `screen.json` with every gate the look ladder's screen applies (drive ratios cont, peak, speed;
 passive neck and tail loads; grip need at μ 0.9 and 0.54; sway; accelerations; the clearance gates; joint-range
@@ -377,6 +390,15 @@ twist; a walk keeps 0.10 rad. Why: Stage 1's own transitions on this body come w
 18 are under 0.10 rad) and ran in Stage 1's closed loop, where the joint range is judged against the reference's own
 smallest margin less 0.02 rad (decision 14, unchanged in C4 and C5). With 0.10 rad F25F9cl's start (0.095 rad of hip
 roll) was blocked, which stops the set (A8).
+
+[noted 15 Nov after the sets' independent review; before any set was frozen; no gate or limit changed] Two readings of
+a move's 1 Hz forward acceleration stand in the records. This rule's 1.5 m/s² gate reads the screen's own
+(`screen.json` `accel.com_forward_lp1hz_peak`: the move's frames alone, the filter given no walk or stand around
+them). A7's reading as amended is the builder's (`accel.com_forward_lp1hz_peak_entry`: the filter given the walk or
+the stand around the move). On the three sets as built the larger of the two on any start, change or stop is
+0.74 m/s² (F25F9's `stop2_v0.4`: 0.741 and 0.653), half the limit, so no verdict depends on which is read. The lead's
+earlier ruling to make them one number in the three modules was not built before the freeze and is left for a later
+code state.
 
 **A13. Freezing.** [NEW] Panels run only on a frozen set. A freeze lists every entry's name, kind, file sha256 and
 entry-subset sha256; a later freeze may add entries and never drops or changes one; a changed reference takes a new name
@@ -508,9 +530,38 @@ inside it fails the term; a swing whose interval runs past the window's end is n
 - The count rule is made exact in the same edit: a reference swing counts toward a foot's number only if no window
   edge cuts the own swing that overlaps it. On synthetic traces the first wording failed a clean walk at 11 of 410
   window ends, where the window cut a foot's first and last swing.
-- Expectation, stated before the runs and changing no rule: V0's planned reading at 0.40 m/s is 0.0405 H (half of its
-  0.081 H lift), 0.25 mm above the limit, so the control is expected to fail this term in most closed-loop episodes at
-  0.40 m/s. The candidate's planned reading is 0.0475 H.
+- Expectation, stated before the runs and changing no rule: F25F9's planned reading at 0.40 m/s is 0.0405 H (half of
+  its 0.081 H lift), 0.25 mm above the limit, so the control is expected to fail this term in most closed-loop episodes
+  at 0.40 m/s. The candidate's planned reading is 0.0475 H.
+  [corrected in place 15 Nov, after the sets' independent review and before any set was frozen: this sentence named V0
+  where the numbers are F25F9's (V0's lift at 0.40 m/s is 0.11 H), and both numbers are Stage 0's mid-swing pad
+  clearance (half the lift), not what this rule reads on the reference. The next item gives the references' own
+  readings.]
+- Expectation from the references themselves, stated before the runs and changing no rule [added 15 Nov after the
+  sets' independent review; prescribed motion; before any set was frozen and before any closed-loop episode on a
+  Stage 2 set]. The runner's kinematic check (`bar refcheck`: the reference played as if the robot tracked it exactly,
+  no physics) reads this rule on each reference, against the limit of 0.04 H (20.07 mm):
+
+  | Set | Walk at 0.40 m/s | Quick turn, left / right |
+  |---|---|---|
+  | V0 | 0.0503 H | 0.0456 / 0.0454 H |
+  | F25F9cl | 0.0446 H | **0.0323 / 0.0316 H** |
+  | F25F9 | **0.0393 H** | 0.0320 / 0.0313 H (not run in this round, H3) |
+
+  So F25F9's walk item, and the candidate's four gated quick-turn conditions (left and right at μ 0.9 and 0.54), are
+  expected to fail this term in every episode in which the robot tracks its reference, under readings 2 and 3, for a
+  reason that is in the reference and not in the controller. On the candidate's turn the cause is the two swings that
+  straddle the turn's 0.375 s ramps: the stride period changes inside the swing, so the middle half in time is not the
+  middle half in phase (per swing on the left turn: the first swing after the command 0.0374 H at its 25 % edge, the
+  steady-turn swings 0.0440 to 0.0458 H, the ramp-out swing 0.0313 H at its 75 % edge). A12's clearance gate, read by
+  swing phase, gives 0.0484 H for that same turn and is not changed. On F25F9's walk the reading is every foot geom's
+  over the time window, against Stage 0's pad reading of 0.0405 H at mid-swing.
+  The lead's ruling: nothing is changed for it. No limit, reading, ramp, lift or stride factor moves; the sets are
+  frozen with these references; each set's `refcheck.json` is committed beside it and cited by its freeze; and the
+  report prints the reference's own reading beside the measured one wherever it prints these conditions. A change to
+  how this rule reads a swing inside a ramp, to the lift inside a turn, or to the ramp would be a change after a
+  result and is the owner's to decide after the panels (`DECISION_LOG.md` P35: the configuration is kept for now).
+  Check: `stage2/sets/<set>/75-M-H-10/refcheck.json`; the set's latest freeze record.
 
 The amended reading was built by the runner's fixer and checked by the lead against an implementation of his own,
 written from this text, before any set was frozen: on 1,500 random synthetic traces (window cuts in 128, interrupted
@@ -806,3 +857,9 @@ Each is written into the rule it concerns, with its label. No closed-loop episod
    joint range for a move is 0.05 rad (a walk keeps 0.10); A11's stride rule reads that 0.05 rad, and item 2's change
    to it is withdrawn as written; A8: a set without a frozen `nominal` walk starts straight into its 0.40 m/s walk
    (F25F9). Each is labelled in its rule as changed after a result.
+9. After the independent reviews of the sets as built under item 8 (prescribed motion; no set frozen, no closed-loop
+   episode on a Stage 2 set), no limit or reading changed: C3's expectation sentence corrected in place (it named V0
+   for F25F9's numbers) and the references' own C3 readings stated as an expectation before the runs (F25F9's walk
+   0.0393 H, the candidate's quick turn 0.0323 / 0.0316 H, against 0.04 H); A8 made exact (step (2)'s change has one
+   stride of ramp); A11 made exact (each direction of a turn is judged on its own built reference); A12 noted (two
+   acceleration readings in the records, both far inside the limit).
