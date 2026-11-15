@@ -24,8 +24,8 @@ Columns: the governing ratio (largest of all drives); the worst ratio of the dri
 | reference | kind | frames | governing ratio | worst ratio but neck and tail | neck c / p / s | tail c / p / s | CoP margin (mm) | CoP rule (mm) | grip need mu_req | within mu 0.9 | within mu 0.54 | mid-swing clearance (H) | gated joint margin (rad) | thigh twist use | 1 Hz forward accel (m/s^2) | verdict |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `v0.4` | walk | 160 | 0.7234 (thigh twist cont) | 0.7234 (thigh twist cont) | 0.6643 / 0.5356 / 0.3855 | 0.3772 / 0.5417 / 0.3215 | 43.7301 | -10 | 0.4131 | yes | yes | 0.0405 | 0.1833 (left_hip_roll max) | 0.0000 | 0.0485 | within the Stage 0 limits |
-| `v0.5` | walk | 160 | 0.7571 (hip pitch speed) | 0.7571 (hip pitch speed) | 0.6670 / 0.5565 / 0.4407 | 0.4440 / 0.6311 / 0.3675 | 43.6278 | -10 | 0.5790 | yes | no | 0.0405 | 0.2009 (left_hip_roll max) | 0.0000 | 0.0294 | within the Stage 0 limits |
 | `v0.45` | walk | 160 | 0.7287 (thigh twist cont) | 0.7287 (thigh twist cont) | 0.6656 / 0.5459 / 0.4137 | 0.4100 / 0.5858 / 0.3450 | 43.6767 | -10 | 0.4918 | yes | yes | 0.0405 | 0.1928 (left_hip_roll max) | 0.0000 | 0.0374 | within the Stage 0 limits |
+| `v0.5` | walk | 160 | 0.7571 (hip pitch speed) | 0.7571 (hip pitch speed) | 0.6670 / 0.5565 / 0.4407 | 0.4440 / 0.6311 / 0.3675 | 43.6278 | -10 | 0.5790 | yes | no | 0.0405 | 0.2009 (left_hip_roll max) | 0.0000 | 0.0294 | within the Stage 0 limits |
 | `start_v0.4` | start | 800 | 0.6612 (neck cont) | 0.6462 (hip pitch speed) | 0.6612 / 0.5389 / 0.3855 | 0.2781 / 0.5520 / 0.3215 | 43.2332 | -10 | 0.4222 | yes | yes | 0.0405 | 0.1361 (left_hip_roll max) | 0.0000 | 0.6187 | within the Stage 0 limits |
 | `stop2_v0.4` | stop | 560 | 0.6606 (neck cont) | 0.6215 (knee speed) | 0.6606 / 0.5376 / 0.3855 | 0.1979 / 0.5647 / 0.3215 | 43.2136 | 10 | 0.4182 | yes | yes | 0.0405 | 0.1331 (left_hip_roll max) | 0.0000 | 0.7408 (at the file's end; 0.3274 at least 1 s from both ends) | within the Stage 0 limits |
 | `stop1_v0.4` | stop | 800 | 0.6617 (neck cont) | 0.6247 (knee speed) | 0.6617 / 0.5375 / 0.3855 | 0.2646 / 0.5649 / 0.3215 | 43.2280 | -10 | 0.4131 | yes | yes | 0.0405 | 0.1327 (left_hip_roll max) | 0.0000 | 0.7018 (at the file's end; 0.6568 at least 1 s from both ends) | within the Stage 0 limits |
@@ -51,8 +51,8 @@ The frames of a move are not uniform in time where its stride period changes; th
 | reference | frames uniform in time | neck cont over time / by frames | tail cont over time / by frames | neck with passive c / p | tail with passive c / p | double-support min mu | sway per stride (H; spec 0.12 H) | CoM horizontal accel peak (m/s^2) | near a limit (within 0.02 below 1) | record re-check equal |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `v0.4` | yes | 0.6643 / 0.6643 | 0.3772 / 0.3772 | 0.6792 / 0.6117 | 0.3492 / 0.3343 | 0.2557 | 0.1418 | 2.8543 | - | yes |
-| `v0.5` | yes | 0.6670 / 0.6670 | 0.4440 / 0.4440 | 0.6832 / 0.6293 | 0.4155 / 0.3949 | 0.2724 | 0.1168 | 3.0686 | - | yes |
 | `v0.45` | yes | 0.6656 / 0.6656 | 0.4100 / 0.4100 | 0.6810 / 0.6179 | 0.3805 / 0.3608 | 0.2678 | 0.1284 | 2.9633 | - | yes |
+| `v0.5` | yes | 0.6670 / 0.6670 | 0.4440 / 0.4440 | 0.6832 / 0.6293 | 0.4155 / 0.3949 | 0.2724 | 0.1168 | 3.0686 | - | yes |
 | `start_v0.4` | yes | 0.6612 / 0.6612 | 0.2781 / 0.2781 | 0.6689 / 0.6128 | 0.2886 / 0.4122 | 0.2556 | 0.1801 | 2.8017 | - | yes |
 | `stop2_v0.4` | yes | 0.6606 / 0.6606 | 0.1979 / 0.1979 | 0.6630 / 0.6157 | 0.2331 / 0.5792 | 0.2518 | 0.0999 | 2.9645 | - | yes |
 | `stop1_v0.4` | yes | 0.6617 / 0.6617 | 0.2646 / 0.2646 | 0.6682 / 0.6155 | 0.2735 / 0.5790 | 0.2545 | 0.1418 | 2.8854 | - | yes |
