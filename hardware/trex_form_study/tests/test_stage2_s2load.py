@@ -800,6 +800,8 @@ def test_import_tar_round_trips(saved, tmp_path):
     assert sorted(p.name for p in (into / "checkpoints").iterdir()) == sorted(p.name for p in mine.values())
     assert s2load.newest_intact(into) == (64, []) and s2load.load_checkpoint(into, 64, expect_run=RUN)["model"]
     assert s2load.import_tar(record, packed["tar"], into)["ok"] is True  # again, over itself
+    own = s2load.checkpoint_files(into, 64)["record"]                     # ... and with the record that stands there
+    assert s2load.import_tar(own, packed["tar"], into)["ok"] is True and s2load.newest_intact(into) == (64, [])
     json.dumps(s2io.plain(got))                                           # the validation record is JSON as it stands
 
 

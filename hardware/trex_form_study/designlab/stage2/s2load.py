@@ -765,9 +765,10 @@ def import_tar(record, tar, into) -> dict:
     doc, why = _read_record(record_path)
     if why:
         raise CheckpointError(f"{record_path}: {why}")
+    raw = record_path.read_bytes()                # now: the record may be the very file this import replaces
     n = _steps(doc["steps"])
     out = {"schema": IMPORT_SCHEMA, "steps": n, "run_uuid": doc.get("run_uuid"), "job": doc.get("job"),
-           "settings_sha256": doc.get("settings_sha256"), "record_sha256": s2io.sha256_file(record_path),
+           "settings_sha256": doc.get("settings_sha256"), "record_sha256": hashlib.sha256(raw).hexdigest(),
            "tar": {"name": tar_path.name, "bytes": None, "sha256": None}, "files": doc.get("files"),
            "versions_saved": doc.get("versions"), "versions_here": versions(), "cross_version": None,
            "fingerprint_max_abs_diff": None, "tol": FINGERPRINT_TOL, "ok": False, "reason": None,
@@ -818,7 +819,7 @@ def import_tar(record, tar, into) -> dict:
         tmp = _tmp(files["record"])
         placed.append(tmp)
         with open(tmp, "wb") as fh:
-            fh.write(record_path.read_bytes())
+            fh.write(raw)
             fh.flush()
             os.fsync(fh.fileno())
         os.replace(tmp, files["record"])
