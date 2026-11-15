@@ -75,6 +75,9 @@ UNAVAILABLE = {
                     **{setio.turn_name(setio.QUICK, "right"): (TWIST_RULE, dict(range_use=0.91, limit=0.87, f=0.6))}),
 }
 A1_OVER = {"F25F9cl": (setio.turn_name(setio.QUICK, "left"),)}
+#: Rule A8 as amended: a set without a frozen nominal walk starts straight into its 0.40 m/s walk.
+LEAD_IN = {"F25F9": "start_v0.4"}
+START_V04 = "lead-in `start_v0.4`: from standing straight into the 0.40 m/s walk ({}; STAGE2_75_PLAN.md A8, changed after a result)"
 
 
 def set_docs(name: str) -> dict:
@@ -93,7 +96,7 @@ def set_docs(name: str) -> dict:
         trs[m] = dict(name=m, kind="turn", available=False, reason=reason, numbers=numbers)
     manifest = {n: dict(kind="walk" if n in refs else "move", sha256=e["sha256"], entry_sha256=sha("entry" + name + n))
                 for n, e in {**refs, **trs}.items() if e.get("file")}
-    sd = dict(set=name, body=BODY, role="synthetic", rules={}, not_available={},
+    sd = dict(set=name, body=BODY, role="synthetic", rules={}, not_available={}, lead_in=LEAD_IN.get(name, setio.START),
               freezes=[dict(index=0, at="2026-11-15T07:00:00Z", commit="a" * 40, manifest=manifest,
                             manifest_sha256=s2io.sha256_json(manifest))])
     return {"set.json": sd, "refs.json": {"references": refs}, "transitions.json": {"transitions": trs},
@@ -171,6 +174,8 @@ def put(study: Path, out: Path, set_name: str, row: str, key: str, block: str = 
                   freeze=dict(index=0, manifest_sha256=fz["manifest_sha256"]))
     src = dict(TODAY, **(sources or {}))
     more = dict(extra or {})
+    if docs["set.json"]["lead_in"] != setio.START:  # every record of such a set says so (A8)
+        more.setdefault("lead_in", docs["set.json"]["lead_in"])
     if control:
         more.update(control=bar.CONTROLS[control][1], control_name=control)
     if not_run:
@@ -1007,6 +1012,75 @@ def test_a_change_after_a_result_a_control_and_stage_1s_command_are_labelled(run
     assert absent["status"] == barreport.CUT and absent["up"] is None
 
 
+def test_a_lead_in_that_is_not_the_rules_is_labelled_from_the_record_and_never_assumed(run, tmp_path):
+    """Rule A8 as amended (P34): a set whose ``set.json`` says ``lead_in: "start_v0.4"`` carries that label on every
+    line of every table: read from the record where the line has one, from the set's ``set.json`` where it has none."""
+    of_rec, of_set = START_V04.format(barreport.LEAD_IN_FROM_RECORD), START_V04.format(barreport.LEAD_IN_FROM_SET)
+    assert run.doc[barreport.META]["lead_in"] == {s_: {BODY: LEAD_IN.get(s_, "start")} for s_ in ("F25F9", "F25F9cl", "V0")}
+    seen = Counter()
+    for name, p, x in every_line(run.tabs):
+        lead = [t for t in x.get("labels") or [] if "lead-in" in t]
+        if x.get("set") == "F25F9":
+            assert lead in ([of_rec], [of_set]), (name, p["key"], x)
+            cites = any("R0@10ms/walk/v0.4.json" in t for t in strings(x))  # the set's one record
+            assert (lead == [of_rec]) == (cites or p["key"] == "tally"), (name, p["key"], x)  # the tally reads it too
+            seen[name] += 1
+        else:
+            assert not lead, (name, p["key"], x)
+    assert set(seen) == {"walk", "ladder", "glance"} and seen["glance"] == 16 + 1  # its 16 conditions and their tally
+    jps = {x["line"]: x for x in part(run.tabs, "jps", "jps")["lines"]}
+    assert jps[94]["record"] == [f"F25F9 walk/v0.5 at 0 ms, {r}@0ms: {barreport.CUT} [{of_set}]" for r in barreport.R2_ROWS]
+    assert not any("lead-in" in t for n, x in jps.items() if n != 94 for t in x["record"])
+    lead = run.tabs["checks"]["lead_in"]
+    assert lead == dict(rule="start", records_that_differ=[], records_without_the_field=[], sets={
+        f"F25F9/{BODY}": "start_v0.4", f"F25F9cl/{BODY}": "start", f"V0/{BODY}": "start"})
+    top = run.md.split("## How to read the tables")[0]
+    assert f"`F25F9/{BODY}` `start_v0.4`; `F25F9cl/{BODY}` `start`; `V0/{BODY}` `start`." in top
+    assert "Records whose own `lead_in` differs from their set's: 0" in top
+    assert any("lead-in `<name>`" in c and "never assumed" in c for c in run.tabs["conventions"])
+    # the record's own word stands: one that says nothing, and one that says another lead-in than its set's
+    study = tmp_path / "study"
+    out = study / "runs" / "x"
+    for row in ("R2/42@10ms", "R2/43@10ms"):
+        put(study, out, "F25F9", row, "walk/v0.5")
+    put(study, out, "F25F9", "R0@10ms", "walk/v0.5", extra=dict(lead_in=None))
+    put(study, out, "V0", "R0@10ms", "walk/v0.4", extra=dict(lead_in="start_v0.4"))
+    put(study, out, "V0", "R2/42@10ms", "walk/v0.4")
+    tabs = barreport.tables(barreport.load(out, study=study))
+    assert of_rec in one(tabs, "ladder", "counts", set="F25F9", row="R2/42@10ms")["labels"]
+    silent = one(tabs, "ladder", "counts", set="F25F9", row="R0@10ms")
+    assert [t for t in silent["labels"] if "lead-in" in t] == [
+        START_V04.format(barreport.LEAD_IN_FROM_SET + "; the record holds no `lead_in`")]
+    assert one(tabs, "ladder", "verdicts", set="F25F9", delay=J)["labels"] == [of_rec]
+    assert one(tabs, "ladder", "highest", set="F25F9", grip="mu 0.9", delay=J)["labels"] == [of_rec]
+    other = one(tabs, "walk", "counts", set="V0", row="R0@10ms", condition="walk/v0.4")
+    assert other["labels"] == [of_rec, "the record's lead-in is `start_v0.4`; the set's `set.json` says `start`"]
+    assert one(tabs, "walk", "counts", set="V0", row="R2/42@10ms", condition="walk/v0.4")["labels"] == []
+    assert tabs["checks"]["lead_in"]["records_that_differ"] == [dict(path=other["path"], record="start_v0.4", set="start")]
+    assert tabs["checks"]["lead_in"]["records_without_the_field"] == [dict(path=silent["path"], set="start_v0.4")]
+    md = barreport.markdown(tabs)
+    assert f"- `{other['path']}`: the record says `start_v0.4`, the set's `set.json` `start`" in md
+    assert f"- `{silent['path']}` (the set's `set.json` says `start_v0.4`)" in md
+    # nothing is assumed of a set by its name: with no `lead_in` in its set.json only the records' own word is printed
+    sj = study / "stage2" / "sets" / "F25F9" / BODY / "set.json"
+    sd = json.loads(sj.read_text())
+    del sd["lead_in"]
+    sj.write_text(json.dumps(sd))
+    doc = barreport.load(out, study=study)
+    tabs = barreport.tables(doc)
+    assert "F25F9" not in doc[barreport.META]["lead_in"] and f"F25F9/{BODY}" not in tabs["checks"]["lead_in"]["sets"]
+    assert not any("lead-in" in t for t in one(tabs, "ladder", "counts", set="F25F9", row="R0@10ms")["labels"])
+    assert not any("lead-in" in t for x in lines(tabs, "walk", "counts", set="F25F9") for t in x["labels"])
+    assert of_rec in one(tabs, "ladder", "counts", set="F25F9", row="R2/42@10ms")["labels"]
+    assert tabs["checks"]["lead_in"]["records_without_the_field"] == []
+    # where a record holds it
+    assert barreport.lead_in_of(None) is None and barreport.lead_in_of({}) is None
+    assert barreport.lead_in_of(dict(set_info=dict(lead_in="start_v0.4"))) == "start_v0.4"
+    assert barreport.lead_in_of(dict(lead_in="start", set_info=dict(lead_in="start_v0.4"))) == "start"
+    assert barreport.set_labels("F25F9") == [] and barreport.labels_of("F25F9", dict(lead_in="start")) == []
+    assert barreport.lead_in_label("x", "as the record says") == f"lead-in `x` (as the record says; {barreport.LEAD_IN_CITE})"
+
+
 def test_plain_words_for_items_and_grips(run):
     conds = barreport._conds()
     assert len(conds) == 41 and barreport._group("@gated") == [c.key for c in bar.conditions(set_docs("V0")) if c.gated]
@@ -1209,6 +1283,29 @@ def test_a_measured_column_never_holds_a_target(run):
     assert [c["title"] for c in part(run.tabs, "rest", "bar_turn")["columns"]][-5:-1] == titles[i:i + 4]
 
 
+def test_toe_clearance_names_the_middle_half_and_a_median_just_under_its_limit_shows(run, tmp_path):
+    """C3 as amended: both readings are over a middle half, and the headers say which; a median 0.01 mm under the
+    limit is not printed as the limit or above it."""
+    cols = {c["key"]: c for c in barreport.TOE_COLUMNS}
+    assert "read over the middle half of the planned swing from the own lift-off" in cols["toe"]["title"]
+    assert "over the middle half of the swing's own duration" in cols["toe_first"]["title"]
+    assert (cols["toe_limit"]["kind"], cols["toe_limit"]["unit"], cols["toe"]["unit"]) == ("limit", "mm", "mm")
+    assert barreport.DECIMALS["mm"] == 2 and "mm with 2 decimals" in " ".join(run.tabs["conventions"])
+    study = tmp_path / "study"
+    out = study / "runs" / "x"
+    put(study, out, "V0", "R0@10ms", "walk/v0.4")
+    path = bar.record_path(out, "V0", BODY, H, "R0@10ms", SimpleNamespace(behavior="walk", name="v0.4"))
+    rec = json.loads(path.read_text())
+    for e in rec["episodes"]:
+        e["measures"]["bar"]["toe_clearance_own_swing_m"] = 0.02006  # under the limit of 20.0741 mm
+    path.write_text(json.dumps(rec))
+    tabs = barreport.tables(barreport.load(out, study=study))
+    x = one(tabs, "walk", "bar_walk", set="V0", row="R0@10ms")
+    assert x["toe"] == dict(median=pytest.approx(20.06), n=20) and x["toe_limit"] == pytest.approx(20.0741)
+    assert "| 20.06 (20) | 20.07 | 17.10 (20) | 22.80 (20) |" in barreport.markdown(tabs)
+    assert "| 23.63 (20) | 20.07 |" in run.md
+
+
 def test_the_items_own_columns(run):
     t = one(run.tabs, "rest", "bar_turn", set="F25F9cl", condition="turn/q90_left", row="R2/42@10ms")
     assert t["heading_at"] == dict(median=-4.5, n=20) and t["within"] == dict(median=1.71, n=20)
@@ -1259,6 +1356,32 @@ def test_the_highest_rung_that_passes_under_both_rows(run):
     assert v0["reading_2_highest"] == "none" and v0["reading_3_highest"] == "walk/v0.35 (walk at 0.35 m/s)"
     assert not lines(run.tabs, "ladder", "counts", condition="walk/v0.4")  # the 0.40 m/s rung's records are table 1's
     assert one(run.tabs, "ladder", "counts", set="V0", condition="walk/v0.35", row="R2/42@0ms")["stage1"] == dict(k=0, n=20)
+
+
+def test_a_line_with_counts_or_verdict_words_cites_the_records_they_come_from(run):
+    """The glance line cites its R0 record beside the R2 records; the highest rung cites every rung's records."""
+    g = one(run.tabs, "glance", "glance", set="F25F9cl", condition="walk/v0.4")
+    assert g["r0_up"] == dict(k=17, n=20) and g["r0_path"].endswith("seeds3042/eval/R0@10ms/walk/v0.4.json")
+    assert [q.split("/eval/")[1] for q in g["paths"]] == ["R2/42@10ms/walk/v0.4.json", "R2/43@10ms/walk/v0.4.json"]
+    assert [c["title"] for c in part(run.tabs, "glance", "glance")["columns"]][-2:] == ["R2 records", "R0 record"]
+    n = 0
+    for x in part(run.tabs, "glance", "glance")["lines"]:
+        assert (x["r0_path"] is None) == (x["r0"] in (barreport.NOT_RUN, barreport.CUT)), x
+        assert x["r0_up"] is None or x["r0_path"], x
+        n += x["r0_path"] is not None
+    assert n == 3  # the R0 records of the synthetic run at 10 ms: one per set
+    hi = one(run.tabs, "ladder", "highest", set="F25F9cl", grip="mu 0.9", delay=J)
+    assert [q.split("/eval/")[1] for q in hi["paths"]] == [
+        f"{r}@10ms/walk/{k}.json" for k in ("v0.4", "v0.45") for r in barreport.R2_ROWS]
+    assert part(run.tabs, "ladder", "highest")["columns"][-1]["kind"] == "path"
+    absent = (barreport.NOT_RUN, barreport.CUT)
+    for x in part(run.tabs, "ladder", "highest")["lines"]:
+        said = [r for r in x["reading_2_rungs"] + x["reading_3_rungs"] if not r.split(": ", 1)[1].startswith(absent)]
+        assert bool(x["paths"]) == bool(said), x
+    # in every table: a line that holds a count cites a record, in its own line or under its part
+    for name, p, x in every_line(run.tabs):
+        if any(c["kind"] == "of" and x.get(c["key"]) is not None for c in p["columns"]):
+            assert any(x.get(c["key"]) for c in p["columns"] if c["kind"] == "path") or p.get("paths"), (name, p["key"], x)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1379,11 +1502,22 @@ def test_jps_table_is_part_of_the_tables_and_keeps_to_the_sets_asked_for(run):
 # The plan's text and the chain
 # ------------------------------------------------------------------------------------------------
 def test_every_verdict_table_cites_the_rules_amended_after_a_result(run):
+    """Every label "[changed 15 Nov after a result ...]" of the plan is in the tables' list, under its rule, in the
+    plan's order, with the plan's own words; a label the plan gains later fails here until the tables name it."""
     plan = " ".join((ROOT / barreport.PLAN_FILE).read_text(encoding="utf-8").split())
-    assert [a["rule"] for a in barreport.AMENDED_AFTER_RESULT] == ["A7", "C3"]
-    for a in barreport.AMENDED_AFTER_RESULT:  # the plan's own labels and sentences, word for word
-        assert a["label"] in plan and a["label"] + " " + a["text"] in plan, a["rule"]
-    assert plan.count("[changed 15 Nov after a result:") == len(barreport.AMENDED_AFTER_RESULT)
+    am = barreport.AMENDED_AFTER_RESULT
+    assert [a["rule"] for a in am] == ["A7", "A7", "A8", "A11", "A11", "A12", "C3"]
+    found = [(re.findall(r"\*\*([A-Z]\d+)\. ", plan[:m.start()])[-1], m.group(0), m.end())
+             for m in re.finditer(r"\[changed 15 Nov after a result[^\]]*\]", plan)]
+    assert [(rule, label) for rule, label, _ in found] == [(a["rule"], a["label"]) for a in am]
+    for a, (_, _, end) in zip(am, found, strict=True):  # the words that follow the label, word for word
+        assert plan[end:].startswith(" " + a["text"]), a["rule"]
+        assert a["text"].endswith(".") or a["note"], a["rule"]  # a sentence cut short says so
+    assert sum(a["label"] == barreport.P34_LABEL for a in am) == 4 and "`DECISION_LOG.md` P34" in barreport.P34_LABEL
+    assert {a["rule"] for a in am if a["label"] == barreport.P34_LABEL} == {"A7", "A8", "A11", "A12"}
+    note = barreport.amended_note()
+    assert note.count("\n  - ") == len(am) and all(f"\n  - {a['rule']} {a['label']} {a['text']}" in note for a in am)
+    assert run.tabs["amended_after_result"] == [dict(a) for a in am]
     n = 0
     for name in barreport.ORDER:
         for p in run.tabs[name]["parts"]:
@@ -1391,11 +1525,68 @@ def test_every_verdict_table_cites_the_rules_amended_after_a_result(run):
                           and c["kind"] in ("word", "list") for c in p["columns"]) or p["key"] in ("replication", "tally")
             if verdict:
                 n += 1
-                notes = " ".join(p.get("notes") or [])
-                for a in barreport.AMENDED_AFTER_RESULT:
-                    assert f"{a['rule']} {a['label']}" in notes, (name, p["key"])
+                assert note in (p.get("notes") or []), (name, p["key"])
     assert n >= 8
-    assert run.md.count(barreport.AMENDED_AFTER_RESULT[1]["label"]) == n + 1  # and once under "How to read"
+    assert run.md.count(am[-1]["label"]) == n + 1  # and once under "How to read"
+    assert run.md.count(barreport.P34_LABEL) == 4 * (n + 1)
+    assert barreport.markdown(run.tabs).count("- " + note) == n + 1  # one line per label, under one bullet
+
+
+def test_the_plans_list_of_what_is_not_run_is_a_table_item_by_item(run, tmp_path):
+    """The plan: "Each appears in the report as "not run"".  Table 9 holds one line per item of the plan's sentence,
+    in the plan's words, and a finished record of an item is counted and cited instead of the words."""
+    plan = " ".join((ROOT / barreport.PLAN_FILE).read_text(encoding="utf-8").split())
+    items = [x[0] for x in barreport.NOT_RUN_BY_NAME]
+    sentence = plan.split(f"## {barreport.NOT_RUN_SECTION} ", 1)[1].split(" Each appears in the report as", 1)[0]
+    assert sentence == ", ".join(items[:4]) + "; " + "; ".join(items[4:]) + "."  # as the plan joins them
+    assert len(items) == len(set(items)) == 14 and barreport.ORDER[-1] == "named"
+    named = part(run.tabs, "named", "named")["lines"]
+    assert [x["item"] for x in named] == items and run.tabs["named"]["title"] == f"9. {barreport.NOT_RUN_SECTION}"
+    assert all(x["status"] == barreport.NOT_RUN and x["found"] == 0 and x["paths"] == [] for x in named)
+    assert {x["reference"] for x in named} == {f'{barreport.PLAN_FILE}, "{barreport.NOT_RUN_SECTION}"'}
+    for item in items:
+        assert f"| {item} | {barreport.NOT_RUN} | 0 |" in run.md, item
+    assert barreport.named_table(run.doc)["parts"][0]["lines"] == named
+    # a finished record of an item: counted and cited; a "not run" record of it is no run
+    study = tmp_path / "study"
+    out = study / "runs" / "x"
+    put(study, out, "F25F9", "R2/42@10ms", "stop/two_step")
+    put(study, out, "F25F9", "R2/43@10ms", "stop/two_step", not_run=dict(reason="synthetic", reference="x", numbers=None))
+    put(study, out, "F25F9cl", "R0@10ms", "walk/v0.45")
+    put(study, out, "F25F9cl", "R0@10ms", "walk/v0.4")  # the bar's own R0 row: none of the list
+    put(study, out, "F25F9cl", "R2/42@2ms", "nudge/left")
+    put(study, out, "V0", "R2/42@14ms", "walk/v0.4")
+    tabs = barreport.tables(barreport.load(out, study=study))
+    by = {x["item"]: x for x in part(tabs, "named", "named")["lines"]}
+    found = {i: by[i]["paths"] for i in items if by[i]["found"]}
+    ends = lambda paths: [q.split("/eval/")[1] for q in paths]  # noqa: E731
+    assert {i: ends(q) for i, q in found.items()} == {
+        "delays of 14, 16 and 20 ms": ["R2/42@14ms/walk/v0.4.json"],
+        items[5]: ["R2/42@2ms/nudge/left.json"],
+        items[6]: ["R2/42@10ms/stop/two_step.json"],
+        "`R0` rows on the ladders and on the PR's remaining rows": ["R0@10ms/walk/v0.45.json"]}
+    assert items[5].startswith("the turn, nudge and stop conditions at 2 and 8 ms") and "F25F9" in items[6]
+    for i in found:
+        assert by[i]["status"] == "1 finished record found under the run directory" and by[i]["found"] == 1
+    assert all(by[i]["status"] == barreport.NOT_RUN for i in items if i not in found)
+    assert by["stiffness ×0.7"]["status"] == barreport.NOT_RUN  # no record of the bar could show it
+    assert all(m is not None for i, _, m in barreport.NOT_RUN_BY_NAME if i != "stiffness ×0.7")
+    # the tests on a record, one by one
+    fact = lambda **kw: dict(dict(d={}, base="R2/42", ms=10, behavior="walk", key="walk/v0.4", stock=False,  # noqa: E731
+                                  body=BODY, set="V0", look=False), **kw)
+    hits = lambda x: [i for i, _, m in barreport.NOT_RUN_BY_NAME if m is not None and m(x)]  # noqa: E731
+    assert hits(fact()) == []
+    assert hits(fact(behavior="turn", key="turn/x", d=dict(walk=setio.NOMINAL))) == [items[0]]
+    assert hits(fact(behavior="carpet")) == ["carpet walks"] and hits(fact(d=dict(floor="robot_floor_carpet"))) == [items[3]]
+    assert hits(fact(ms=20)) == ["delays of 14, 16 and 20 ms"] and hits(fact(ms=8)) == []
+    assert hits(fact(behavior="stop", key="stop/two_step", ms=8)) == [items[5]]
+    assert hits(fact(stock=True)) == ["Stage 1's twelve no-loss conditions (plan section 5)"]
+    assert hits(fact(look=True)) == ["the look gates and reading 1"]
+    assert hits(fact(key="walk/v0.55")) == ["0.55 m/s"] and hits(fact(body="75-M-H-10-J")) == [items[11]]
+    assert hits(fact(behavior="stop", key="stop/x", d=dict(walk=setio.walk_name(0.5)))) == ["a stop from 0.50 m/s"]
+    assert hits(fact(body="60-N-T-10")) == ["any 60 cm body"]
+    assert hits(fact(set="F25F9cl", base="R0", key="walk/v0.5", ms=2)) == [items[7]]
+    assert hits(fact(set="F25F9cl", base="R0", key="turn/t90_0.5_left", behavior="turn")) == [items[7]]
 
 
 def test_the_registered_order_is_the_chains(run):
@@ -1451,6 +1642,14 @@ def test_a_run_directory_without_records_renders_every_table(tmp_path):
     assert len(r) == 2 * 4 and r[0]["item"] == "29 conditions, 72 records: none found"  # 14 x 3 rows + 15 x 2 rows
     g = part(tabs, "glance", "glance")["lines"]
     assert len(g) == 3 * 16 and {x["reading_2"] for x in g} == {barreport.NOT_RUN}
+    # table 2 lists the pull request's row of F25F9 though no record of that set exists (task 3, tier 7)
+    lad = part(tabs, "ladder", "counts")["lines"]
+    assert list(dict.fromkeys(x["set"] for x in lad)) == ["F25F9cl", "F25F9", "V0"]
+    f = one(tabs, "ladder", "counts", set="F25F9")
+    assert (f["condition"], f["delay"], f["row"], f["status"]) == (
+        "walk/v0.5", "0 ms (reported)", "R2/42@0ms, R2/43@0ms", barreport.NOT_RUN)
+    assert one(tabs, "ladder", "verdicts", set="F25F9")["reading_2"] == barreport.NOT_RUN
+    assert [x["delay"] for x in lines(tabs, "ladder", "highest", set="F25F9")] == ["0 ms (reported)"]
     jps = part(tabs, "jps", "jps")["lines"]
     assert all(s.endswith((": not run", ": not run" + M)) for x in jps for s in x["record"])
     assert len(tabs["jps"]["parts"]) == 1 and part(tabs, "controls", "controls")["lines"][0]["status"] == barreport.NOT_RUN

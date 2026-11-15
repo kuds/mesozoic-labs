@@ -91,6 +91,14 @@ NO_VERDICT_R0 = "no verdict (an R0 row)"
 #: replication the order does not reach, and why.  It never changes with the ledger.
 NO_REPLICATION_UNIT = bar.REPLICATION_WORDS[2] + " (the order holds no replication unit for it)"
 OUTSIDE_RULE = "outside the replication rule (H4)"
+#: The lead-in every set has by rule; another one is rule A8's exception and labels every line of the set.
+LEAD_IN_RULE = setio.START
+LEAD_IN_WORDS = {"start_v0.4": "from standing straight into the 0.40 m/s walk"}
+LEAD_IN_EXCEPTION = ("the exception of STAGE2_75_PLAN.md A8 for a set without a frozen `nominal` walk, changed after a "
+                     "result")
+LEAD_IN_CITE = "STAGE2_75_PLAN.md A8, changed after a result"
+LEAD_IN_FROM_RECORD = "as the record says"
+LEAD_IN_FROM_SET = "as the set's `set.json` says"
 OWN_NUMBERS = "the reference's own numbers, as its set records them"
 SET_LIMITS = "limits, as its set records them"
 READINGS = (("success", "counts", "reading 2 (every limit)"), ("but_A1", "counts_but_A1",
@@ -177,18 +185,55 @@ NOT_RUN_BY_NAME = (
 # ------------------------------------------------------------------------------------------------
 # Rules amended after a result (STAGE2_75_PLAN.md, with the plan's own labels): every table with a verdict cites them
 # ------------------------------------------------------------------------------------------------
+#: The label the plan gives every rule changed by the owner's decision P34.
+P34_LABEL = ("[changed 15 Nov after a result, by the owner's decision (`DECISION_LOG.md` P34): the first builds of the "
+             "three sets, `stage2/design/checkpoint/SETS_FIRST_BUILD.md`; prescribed motion, before any set was frozen "
+             "and before any closed-loop episode on a Stage 2 set]")
+#: One entry per label "[changed 15 Nov after a result ...]" of the plan, in the plan's order: the rule, the label
+#: and the words that follow it in the plan (``text``; where it ends inside the plan's sentence, or the amendment
+#: was itself amended, ``note`` says so in the tables' own words).
 AMENDED_AFTER_RESULT = (
     dict(rule="A7", file=PLAN_FILE,
          label="[changed 15 Nov after a result: the review's scratch builds of V0's stop and quick turn (prescribed "
                "motion); before any set was frozen and before any closed-loop episode on a Stage 2 set]",
-         text="The two causal limits each read their own frames."),
+         text="The two causal limits each read their own frames.",
+         note="(the limits themselves were changed by the next entry)"),
+    dict(rule="A7", file=PLAN_FILE, label=P34_LABEL,
+         text="The ZMP readings of a causal move have one limit, Stage 1's 4.0 mm: the warm-up frames against the "
+              "walk's (`join_command`; it was 2.0 mm), the consistency error over the first stride after the command "
+              "(it was 2.5 mm), and the ZMP error after that stride (4.0 mm, unchanged).", note=None),
+    dict(rule="A8", file=PLAN_FILE, label=P34_LABEL,
+         text="A set whose `nominal` walk is not frozen but whose `v0.4` walk is starts from standing straight into "
+              "its 0.40 m/s walk (`start_v0.4`), and its lead-in is that start followed by the 0.40 m/s walk; "
+              "`set.json` and every record of the set say so (`lead_in: \"start_v0.4\"`).", note=None),
+    dict(rule="A11", file=PLAN_FILE,
+         label="[changed 15 Nov after a result: the set screen's review read the design's scratch prototypes of V0's "
+               "quick turn at `f` 0.8 and found the inside leg's hip roll 0.086 rad from its limit, under A12's 0.10 "
+               "rad, which by the third outcome above would have left the turn without a reference; prescribed "
+               "motion; before any set was frozen and before any closed-loop episode on a Stage 2 set]",
+         text="The stride rule also reads A12's joint range",
+         note="(the plan's sentence goes on; this amendment was withdrawn as written by the next entry)"),
+    dict(rule="A11", file=PLAN_FILE, label=P34_LABEL,
+         text="The amendment of the same morning is withdrawn as written: the stride rule does not read 0.10 rad. It "
+              "reads A12's joint range for a move, which is now 0.05 rad",
+         note="(the plan's sentence goes on)"),
+    dict(rule="A12", file=PLAN_FILE, label=P34_LABEL,
+         text="The joint-range gate of a move (a start, change, stop or turn) is 0.05 rad on every joint but a turn's "
+              "thigh twist; a walk keeps 0.10 rad.", note=None),
     dict(rule="C3", file=PLAN_FILE,
          label="[changed 15 Nov after a result: the review's reread of Stage 1's stock walks of this body under the "
                "reading above (`walk/nominal`, `walk/brisk`, `walk/fr05`, seeds 3042–3044, hard floor, no servo "
                "delay; smoke on Stage 1's own run directory, which R4 allows); before any set was frozen and before "
                "any closed-loop episode on a Stage 2 set]",
-         text="The middle half is that of the **planned** swing, counted from the foot's own lift-off."),
+         text="The middle half is that of the **planned** swing, counted from the foot's own lift-off.", note=None),
 )
+
+
+def amended_note(entries=AMENDED_AFTER_RESULT) -> str:
+    """The rules amended after a result as one note: a line per label of the plan, with the plan's own words."""
+    return ("Rules amended after a result, with the plan's own labels (" + PLAN_FILE + "):" + "".join(
+        f"\n  - {a['rule']} {a['label']} {a['text']}" + (f" {a['note']}" if a.get("note") else "") for a in entries))
+
 
 # ------------------------------------------------------------------------------------------------
 # JPS section 2.3: its numbers, copied (emphasis marks and backticks removed) with the file and the line
@@ -400,8 +445,9 @@ def load(out, sets=None, body=None, *, study=None) -> dict:
     ``_path`` (relative to ``study``, default the study directory) and ``_superseded`` (the records kept beside it by
     a re-run).  Under ``"_run"``: the run directory, ``budget.json``, ``COST.md``'s rates, ``dev_episodes.json``,
     today's source hashes, the latest freeze of every set a record names (``<study>/<inputs.dir>/set.json``), the
-    conditions each set holds no reference for (``set_gaps``), the controls' records (``controls[control][set]...``)
-    and the files that are no record."""
+    conditions each set holds no reference for (``set_gaps``), each set's lead-in as its ``set.json`` says it
+    (``lead_in[set][body]``), the controls' records (``controls[control][set]...``) and the files that are no
+    record."""
     out = Path(out)
     study = Path(s2io.STUDY if study is None else study)
     sets = None if sets is None else [str(s) for s in sets]
@@ -409,7 +455,7 @@ def load(out, sets=None, body=None, *, study=None) -> dict:
         raise s2io.S2Error(f"{out}: no such run directory")
     meta: dict = dict(out=_rel(out, out, study), sets=sets, body=body, unreadable=[], misplaced=[], controls={},
                       budget=_read(out / "budget.json"), cost=None, today=_today_sources(), manifests={},
-                      dev_episodes=_read(out / "dev_episodes.json"), set_gaps={}, files={})
+                      dev_episodes=_read(out / "dev_episodes.json"), set_gaps={}, lead_in={}, files={})
     cost = out / "COST.md"
     if cost.is_file():
         meta["cost"] = bar.read_cost_text(cost.read_text())
@@ -438,12 +484,16 @@ def load(out, sets=None, body=None, *, study=None) -> dict:
         gaps = _set_gaps(study / d)
         if gaps:
             meta["set_gaps"].setdefault(s, {})[b] = gaps
+        lead = (_read(study / d / "set.json") or {}).get("lead_in")
+        if lead is not None:
+            meta["lead_in"].setdefault(s, {})[b] = str(lead)
     # what the tables are made from, each file with the sha256 of its bytes (None: the file is not there)
     files = meta.pop("files")
     inputs = dict(
         records={k: files[k] for k in sorted(files)},
         run_directory={n: _sha256(out / n) for n in RUN_FILES},
-        sets={d: {n: _sha256(study / d / n) for n in SET_FILES} for d in sorted(set(where.values()) | set(meta["manifests"]))},
+        sets={d: {n: _sha256(study / d / n) for n in SET_FILES}
+              for d in sorted(set(where.values()) | set(meta["manifests"]))},
         module=dict(file=MODULE_FILE, sha256=_sha256(Path(__file__))), sources=dict(meta["today"]))
     meta["inputs"] = dict(inputs, sha256=s2io.sha256_json(inputs))
     doc[META] = meta
@@ -818,16 +868,67 @@ def counts_differences(rec: dict) -> list[str]:
     return out
 
 
-def labels_of(set_name: str, rec: dict | None = None, meta: dict | None = None) -> list[str]:
-    """The labels a line carries: the candidate's margin label (every line of that set), a set version, and from the
-    record: its reference's label, a re-run after a result with its reason, a change after a result with its
-    reasons, a control, stand-in walks, and the checks it fails."""
+def lead_in_of(rec: dict | None) -> str | None:
+    """A record's own lead-in: its ``lead_in`` field (else ``set_info.lead_in``); None when it holds neither."""
+    if rec is None:
+        return None
+    v = rec.get("lead_in")
+    if v is None:
+        v = _get(rec, "set_info", "lead_in")
+    return None if v is None else str(v)
+
+
+def lead_in_label(value: str, source: str) -> str:
+    """The label of a lead-in that is not the rule's ``start`` (STAGE2_75_PLAN.md A8 as amended), with where it was
+    read."""
+    words = LEAD_IN_WORDS.get(value)
+    return f"lead-in `{value}`" + (f": {words}" if words else "") + f" ({source}; {LEAD_IN_CITE})"
+
+
+def set_labels(set_name: str, rec: dict | None = None, meta: dict | None = None, body: str | None = None) -> list[str]:
+    """The labels every line of a set carries: the candidate's margin label, a set version, and a lead-in that is not
+    the rule's.  The lead-in is read from the record (``lead_in_of``), never assumed; for a line without a record, or
+    a record that holds none, from the set's ``set.json`` (``meta["lead_in"]``, for ``body``), and the label says
+    which.  A record whose lead-in differs from its set's says so."""
     out = []
     base = bar.registered_name(set_name)
     if base == bar.CANDIDATE_SET:
         out.append(MARGIN_LABEL)
     if base is not None and base != set_name:
         out.append(f"a version of set {base}")
+    if rec is not None and rec.get("_brief"):  # counts copied from a later record: no record to read a lead-in from
+        rec = None
+    own = lead_in_of(rec)
+    b = (rec or {}).get("body") or body or PLAN_BODY
+    of_set = (((meta or {}).get("lead_in") or {}).get(set_name) or {}).get(b)
+    if own is not None:
+        if own != LEAD_IN_RULE:
+            out.append(lead_in_label(own, LEAD_IN_FROM_RECORD))
+        if of_set is not None and of_set != own:
+            out.append(f"the record's lead-in is `{own}`; the set's `set.json` says `{of_set}`")
+    elif of_set is not None and of_set != LEAD_IN_RULE:
+        out.append(lead_in_label(of_set, LEAD_IN_FROM_SET + ("" if rec is None else "; the record holds no `lead_in`")))
+    return out
+
+
+def line_labels(meta: dict, set_name: str, body: str, recs=()) -> list[str]:
+    """``set_labels`` of a line that is made from several records, or from none: each record's own, once; with no
+    record, the set's."""
+    recs = [r for r in recs if r is not None and not r.get("_brief")]
+    if not recs:
+        return set_labels(set_name, None, meta, body)
+    out: list[str] = []
+    for r in recs:
+        out += [x for x in set_labels(set_name, r, meta, body) if x not in out]
+    return out
+
+
+def labels_of(set_name: str, rec: dict | None = None, meta: dict | None = None, body: str | None = None) -> list[str]:
+    """The labels a line carries: the set's (``set_labels``: the candidate's margin label on every line of that set,
+    a set version, a lead-in that is not the rule's), and from the record: its reference's label, a re-run after a
+    result with its reason, a change after a result with its reasons, a control, stand-in walks, and the checks it
+    fails."""
+    out = set_labels(set_name, rec, meta, body)
     if rec is None:
         return out
     rs = _get(rec, "rules", "set") or {}
@@ -1036,15 +1137,18 @@ def verdict_of(doc: dict, set_name: str, body: str, key: str, ms: int, ctrl: str
                block: str = bar.HEADLINE_BLOCK, latest: bool = False) -> dict:
     """A controller's verdict on one condition and delay, from its two rows' registered records (``latest``: from
     the records at the paths now, which differ where a record was re-run): ``{reading_2, reading_3, rows, paths,
-    flags}``, each reading ``{text, verdict, replication}``; ``flags`` are the checks its records fail
-    (``flags_of``), each with its row.  With no record under either row the text is the absent word."""
+    flags, set_labels, records}``, each reading ``{text, verdict, replication}``; ``flags`` are the checks its
+    records fail (``flags_of``), each with its row; ``set_labels`` are the set's labels as its records give them
+    (``line_labels``); ``records`` are the records read (None where a row has none).  With no record under either
+    row the text is the absent word."""
     names = [f"{r}@{ms}ms" for r in panels.VERDICT_ROWS[ctrl]]
     now = [_rec(doc, set_name, body, block, r, key) for r in names]
     recs = now if latest else [registered(r) for r in now]
     out = dict(rows=names, paths=[r.get("_path") if r else None for r in recs], reading_1=reading_1_of(recs),
                rerun=any(r is not None and registered(r) is not r for r in now), none=all(r is None for r in recs),
                flags=[f"{n}: {f}" for n, r in zip(names, recs, strict=True) if r is not None and not r.get("_brief")
-                      for f in flags_of(r, doc[META])])
+                      for f in flags_of(r, doc[META])],
+               set_labels=line_labels(doc[META], set_name, body, recs), records=recs)
     absent = [None if r is not None else absent_word(doc[META], set_name, body, block, n, key)
               for r, n in zip(recs, names, strict=True)]
     for rkey, which in (("reading_2", "success"), ("reading_3", "but_A1")):
@@ -1235,7 +1339,7 @@ def _cells(doc: dict, sets, keys, plan_rows) -> list[dict]:
 
 def _head(set_name: str, body: str, key: str, ms: int | None, row: str, rec: dict | None, meta: dict) -> dict:
     d = (rec or {}).get("definition") or _conds().get(key) or {}
-    return dict(set=set_name, body=body, labels=labels_of(set_name, rec, meta), item=item_of(d) if d else key,
+    return dict(set=set_name, body=body, labels=labels_of(set_name, rec, meta, body), item=item_of(d) if d else key,
                 condition=key, grip=grip_of(d) if d else None, delay=delay_word(ms), row=row)
 
 
@@ -1260,7 +1364,7 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
                 keys_ = list(dict.fromkeys(k for k, _ in pairs))
                 rows = _row_order({r for _, r in pairs})
                 first = _rel_run(meta, _run_path(s, body, bar.HEADLINE_BLOCK, f"{pairs[0][1]}@{ms}ms", pairs[0][0]))
-                line = dict(set=s, body=body, labels=labels_of(s),
+                line = dict(set=s, body=body, labels=labels_of(s, None, meta, body),
                             item=f"{len(keys_)} condition{'' if len(keys_) == 1 else 's'}, {len(pairs)} "
                                  f"record{'' if len(pairs) == 1 else 's'}: none found",
                             condition=", ".join(keys_), grip=None, delay=delay_word(ms),
@@ -1269,7 +1373,7 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
                                             if len(pairs) > 1 else []))
                 counts.append(line)
                 if any(r in R2_ROWS for r in rows):
-                    verdicts.append(dict(set=s, body=body, labels=labels_of(s), item=line["item"],
+                    verdicts.append(dict(set=s, body=body, labels=line["labels"], item=line["item"],
                                          condition=line["condition"],
                                          grip=None, delay=delay_word(ms), controller="R2 (R2/42, R2/43)",
                                          which="no record", reading_1=READING_1, reading_2=word, reading_3=word,
@@ -1290,7 +1394,8 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
                     d = digest(r, meta)
                     head = _head(s, body, key, ms, row, r, meta)
                     if i == 1:  # the registered record stands beside its re-run, with its own labels
-                        head["labels"] = (labels_of(s) if r.get("_brief") else head["labels"]) + [REGISTERED + (
+                        head["labels"] = (labels_of(s, None, meta, body) if r.get("_brief")
+                                          else head["labels"]) + [REGISTERED + (
                             f"; its kept file cannot be read: {r['_brief']}" if r.get("_brief") else "")]
                     counts.append(dict(head, **{k["key"]: d.get(k["key"]) for k in COUNT_COLUMNS[len(HEAD):]}))
                     if not d["done"] or r.get("_brief"):
@@ -1304,16 +1409,16 @@ def _section(doc: dict, sets, keys, plan_rows, stage1: bool) -> dict:
             for ctrl in sorted({bar.controller_of(b) for b in c["rows"]} & set(panels.VERDICT_ROWS)):
                 v = verdict_of(doc, s, body, key, ms, ctrl)
                 d0 = _conds().get(key) or {}
-                line = dict(set=s, body=body, labels=labels_of(s), item=item_of(d0) if d0 else key, condition=key,
+                line = dict(set=s, body=body, item=item_of(d0) if d0 else key, condition=key,
                             grip=grip_of(d0) if d0 else None, delay=delay_word(ms),
                             controller=f"{ctrl} ({', '.join(panels.VERDICT_ROWS[ctrl])})", reading_1=READING_1)
-                verdicts.append(dict(line, labels=labels_of(s) + v["flags"],
+                verdicts.append(dict(line, labels=v["set_labels"] + v["flags"],
                                      which="no record" if v["none"] else "registered records",
                                      reading_1=v["reading_1"], reading_2=v["reading_2"]["text"],
                                      reading_3=v["reading_3"]["text"], paths=[p for p in v["paths"] if p]))
                 if v["rerun"]:
                     w = verdict_of(doc, s, body, key, ms, ctrl, latest=True)
-                    verdicts.append(dict(line, labels=labels_of(s) + [RERUN] + w["flags"], which=RERUN,
+                    verdicts.append(dict(line, labels=w["set_labels"] + [RERUN] + w["flags"], which=RERUN,
                                          reading_1=w["reading_1"],
                                          reading_2=w["reading_2"]["text"], reading_3=w["reading_3"]["text"],
                                          paths=[p for p in w["paths"] if p]))
@@ -1345,8 +1450,7 @@ def verdict_notes() -> list[str]:
         "`provisional` stands with the replication word of each row's record that passed.  The registered order "
         "(STAGE2_75_PLAN.md H6) holds no replication of " + " and none of ".join(NO_REPLICATION_TIERS) + ": beside a "
         f"pass of the candidate there stands \"{NO_REPLICATION_UNIT}\", whatever the ledger shows.",
-        "Rules amended after a result, with the plan's own labels (" + PLAN_FILE + "): "
-        + "  ".join(f"{a['rule']} {a['label']} {a['text']}" for a in AMENDED_AFTER_RESULT),
+        amended_note(),
     ]
 
 
@@ -1390,8 +1494,9 @@ def ladder_table(doc: dict) -> dict:
                 for ms in _delays(delays):
                     if grip != "mu 0.9" and not any((k, ms) in found for k in ks):
                         continue
-                    line = dict(set=s, body=body, labels=labels_of(s), grip=grip, delay=delay_word(ms))
+                    line = dict(set=s, body=body, grip=grip, delay=delay_word(ms))
                     of_rung = {k: verdict_of(doc, s, body, k, ms) for k in ks}
+                    line["labels"] = line_labels(doc[META], s, body, [r for k in ks for r in of_rung[k]["records"]])
                     for rkey in ("reading_2", "reading_3"):
                         per, best = [], None
                         for k in ks:
@@ -1449,6 +1554,7 @@ def glance_table(doc: dict) -> dict:
     for s in _set_order(doc, SETS):
         for body in _bodies(doc, s):
             tally = {"reading_2": Counter(), "reading_3": Counter()}
+            read: list = []  # the records the 16 conditions are read from: the set's labels are theirs
             for key in _group("@gated"):
                 d = _conds()[key]
                 v = verdict_of(doc, s, body, key, ms)
@@ -1460,8 +1566,10 @@ def glance_table(doc: dict) -> dict:
                 r0d = digest(r0) if r0 is not None and r0.get("status") == "done" else None
                 r0_flags = ([] if r0 is None or r0.get("_brief") else
                             [f"{R0_ROW}@{ms}ms: {f}" for f in flags_of(r0, doc[META])])
+                read += v["records"] + [r0]
+                own = line_labels(doc[META], s, body, v["records"] + [r0])
                 lines.append(dict(
-                    set=s, body=body, labels=labels_of(s) + v["flags"] + r0_flags, item=item_of(d), condition=key,
+                    set=s, body=body, labels=own + v["flags"] + r0_flags, item=item_of(d), condition=key,
                     grip=grip_of(d),
                     reading_1=v["reading_1"], reading_2=v["reading_2"]["text"], reading_3=v["reading_3"]["text"],
                     r0=NO_VERDICT_R0 if r0d else (status_of(r0) if r0 is not None else absent_word(
@@ -1472,7 +1580,7 @@ def glance_table(doc: dict) -> dict:
                 for rkey in tally:  # H4: a `shown` or `provisional` is counted as printed, with its replication words
                     cell = v[rkey]
                     tally[rkey][cell["text"] if cell["verdict"].startswith(VERDICT_WORDS) else cell["verdict"]] += 1
-            totals.append(dict(set=s, body=body, labels=labels_of(s),
+            totals.append(dict(set=s, body=body, labels=line_labels(doc[META], s, body, read),
                                reading_2={k: tally["reading_2"][k] for k in sorted(tally["reading_2"])},
                                reading_3={k: tally["reading_3"][k] for k in sorted(tally["reading_3"])}))
     cols = [_col("set", "Set", "code"), _col("body", "Body", "code"), _col("labels", "Labels", "labels"),
@@ -1521,7 +1629,7 @@ def replication_table(doc: dict) -> dict:
         names = {w: n for w, _, n in READINGS}
         a, b = side(first), side(second)
         d = (first or second or {}).get("definition") or _conds().get(key) or {}
-        labels = labels_of(s, None if (second or {}).get("_brief") else second, meta)
+        labels = labels_of(s, None if (second or {}).get("_brief") else second, meta, body)
         if second is not None and second.get("_registered_of"):
             labels = labels + [REGISTERED]
         if outside:  # no replication word: the rule does not provide for this record
@@ -1608,7 +1716,7 @@ def controls_table(doc: dict) -> dict:
         lines.append(dict(
             control=((rec.get("control") or f"{c}: the record holds no control field") if rec
                      else bar.CONTROLS[c][1] if c in bar.CONTROLS else c), set=s, body=body,
-            labels=labels_of(s, rec, meta),
+            labels=labels_of(s, rec, meta, body),
             item=item_of(d0), condition=key, grip=grip_of(d0), delay=delay_word(bar.delay_ms(row)), row=row,
             status=d["status"] if d else absent_word(meta, s, body, block, row, key, control=c, in_order=True),
             omega=d["omega"] if d else None, crouch=d["crouch_frac"] if d else None, up=d["up"] if d else None,
@@ -1685,7 +1793,8 @@ def jps_table(doc: dict) -> dict:
                 rec = registered(_rec(doc, s, body, block, row, key))
                 recs[row] = rec
                 if rec is None:
-                    lines.append(f"{name}, {row}: {absent_text(meta, s, body, block, row, key)}" + _bracket(labels_of(s)))
+                    lines.append(f"{name}, {row}: {absent_text(meta, s, body, block, row, key)}"
+                                 + _bracket(labels_of(s, None, meta, body)))
                     continue
                 d = digest(rec, meta)
                 paths.append(d["path"])
@@ -1708,9 +1817,9 @@ def jps_table(doc: dict) -> dict:
             if any(r is not None for r in recs.values()):
                 v = verdict_of(doc, s, body, key, ms)
                 lines.append(f"{name}, the controller R2 from its two rows: reading 2: {v['reading_2']['text']}; "
-                             f"reading 3: {v['reading_3']['text']}" + _bracket(labels_of(s) + v["flags"]))
+                             f"reading 3: {v['reading_3']['text']}" + _bracket(v["set_labels"] + v["flags"]))
             if any(r is not None and r.get("status") == "done" for r in recs.values()):
-                seeds_parts.append(_seed_part(claim["line"], name, s, recs))
+                seeds_parts.append(_seed_part(claim["line"], name, recs, line_labels(meta, s, body, recs.values())))
         rows.append(dict(line=claim["line"], **{f"jps_claim_{k}": claim[k] for k in JPS_CLAIM_KEYS},
                          matched=matched, record=lines, paths=paths))
     cols = [_col("line", "JPS line", "count")] + [
@@ -1740,8 +1849,9 @@ def _median_text(m: dict, unit: str) -> str:
     return "-" if m is None or m.get("median") is None else f"{_num(m['median'], unit)} ({m['n']})"
 
 
-def _seed_part(line: int, name: str, set_name: str, recs: dict) -> dict:
-    """One matched cell seed by seed: a line per seed of the records, the two rows side by side."""
+def _seed_part(line: int, name: str, recs: dict, labels: list[str]) -> dict:
+    """One matched cell seed by seed: a line per seed of the records, the two rows side by side; ``labels`` are the
+    set's labels (the part's notes)."""
     flags = {row: _seed_flags(rec) for row, rec in recs.items()}
     seeds = sorted({s for f in flags.values() for s in f})
     names = list(recs)
@@ -1772,7 +1882,7 @@ def _seed_part(line: int, name: str, set_name: str, recs: dict) -> dict:
             total[f"up_{i}"] = "no record"
     lines.append(total)
     return dict(key="seeds " + name, title=f"JPS line {line}: {name}, seed by seed", columns=cols, lines=lines,
-                notes=[MARGIN_LABEL] if bar.registered_name(set_name) == bar.CANDIDATE_SET else [],
+                notes=list(labels),
                 paths=[r.get("_path") for r in recs.values() if r is not None and r.get("_path")])
 
 
@@ -1784,7 +1894,8 @@ def checks(doc: dict) -> dict:
     set's latest freeze; records with errors or unjudged counts; records whose counts do not recompute
     (``bar.counts``): each on the record at every path and on the registered record kept beside a re-run;
     second-block records outside the replication rule; the conditions each set holds no reference
-    for; the build's check episodes against rule R4;
+    for; each set's lead-in as its ``set.json`` says it, with the records that say another or none (rule A8 as
+    amended); the build's check episodes against rule R4;
     core-hours per task against its budget, with the units started after the first cut; the rates of ``COST.md``."""
     meta = doc[META]
     main = list(_records(doc))
@@ -1794,6 +1905,7 @@ def checks(doc: dict) -> dict:
         x = by_set.setdefault(r["set"], dict(done=0, not_run=0))
         x["done" if r.get("status") == "done" else "not_run"] += 1
     other, missing, unchecked, unjudged, miscounted, second = [], [], [], [], [], []
+    lead_differs, lead_absent = [], []
     held = []  # every record at a path, and the registered record kept beside a re-run: it gives the counts (R2)
     for r in main + ctl:
         held.append(r)
@@ -1801,6 +1913,11 @@ def checks(doc: dict) -> dict:
         if reg is not None and reg is not r and not reg.get("_brief"):
             held.append(reg)
     for r in held:
+        own, of_set = lead_in_of(r), ((meta.get("lead_in") or {}).get(r["set"]) or {}).get(r["body"])
+        if own is not None and of_set is not None and own != of_set:
+            lead_differs.append(dict(path=r["_path"], record=own, set=of_set))
+        elif own is None and of_set not in (None, LEAD_IN_RULE):  # A8: every record of such a set says so
+            lead_absent.append(dict(path=r["_path"], set=of_set))
         why = outside_rule(r)  # H4: the candidate only, under a row with a verdict; no control
         if why:
             second.append(dict(path=r["_path"], why=why))
@@ -1869,6 +1986,10 @@ def checks(doc: dict) -> dict:
         no_reference={f"{s2}/{b}": {k: why_text(w) for k, w in gaps.items()}
                       for s2, by_body in sorted((meta.get("set_gaps") or {}).items())
                       for b, gaps in sorted(by_body.items())},
+        lead_in=dict(rule=LEAD_IN_RULE,
+                     sets={f"{s2}/{b}": v for s2, by_body in sorted((meta.get("lead_in") or {}).items())
+                           for b, v in sorted(by_body.items())},
+                     records_that_differ=lead_differs, records_without_the_field=lead_absent),
         dev_episodes=dev, budget=budget, cost=cost, inputs=meta.get("inputs"))
 
 
@@ -1913,8 +2034,8 @@ def named_table(doc: dict) -> dict:
     """Table 9: the plan's list "Not run in this round, by name", one line per item: "not run" when no finished
     record of it is among the records read, else those records, counted and cited (``NOT_RUN_BY_NAME``)."""
     meta = doc[META]
-    recs = [r for r in list(_records(doc)) + [x for c in sorted(meta["controls"]) for x in _records(meta["controls"][c])]
-            if r.get("status") == "done"]
+    ctl = [x for c in sorted(meta["controls"]) for x in _records(meta["controls"][c])]
+    recs = [r for r in list(_records(doc)) + ctl if r.get("status") == "done"]
     seen = [(r["_path"], _facts(r)) for r in recs]
     lines = []
     for item, where, match in NOT_RUN_BY_NAME:
@@ -1968,6 +2089,9 @@ def tables(doc: dict) -> dict:
             + "; every other number with %g.",
             f"Every line of set {bar.CANDIDATE_SET} carries the label \"{MARGIN_LABEL}\": its duty and lift were set "
             "after the pull request's results on those seeds (STAGE2_75_PLAN.md A3).",
+            f"A line of a set whose lead-in is not `{LEAD_IN_RULE}` carries the label \"lead-in `<name>`\" "
+            f"({LEAD_IN_EXCEPTION}): the lead-in is read from the record's own `lead_in` (\"{LEAD_IN_FROM_RECORD}\"), "
+            f"and for a cell with no record from the set's `set.json` (\"{LEAD_IN_FROM_SET}\"); it is never assumed.",
             f"A cell with no record reads \"{NOT_RUN}\", or \"{CUT}\" where `budget.json` lists its record under a "
             "cut unit, or where a unit of its task was cut and the cell, one of the registered order's, is in no "
             "started unit.",
@@ -2094,7 +2218,22 @@ def _md_checks(c: dict) -> list[str]:
     out.append("- Conditions a set holds no reference for (they read \"not run\" with this reason; that is no result "
                "of the robot, and a turn among them goes to the owner):"
                + (" none found in the sets' documents" if not c["no_reference"] else "".join(
-                   f"\n  - `{sb}`, `{k}`: {text}" for sb, gaps in c["no_reference"].items() for k, text in gaps.items())))
+                   f"\n  - `{sb}`, `{k}`: {text}"
+                   for sb, gaps in c["no_reference"].items() for k, text in gaps.items())))
+    lead = c.get("lead_in")
+    if lead:
+        out += [
+            f"- Lead-in of each set, as its `set.json` says (`{lead['rule']}` is the rule; another is "
+            f"{LEAD_IN_EXCEPTION}, and labels every line of the set):"
+            + (" no `set.json` read holds a `lead_in`." if not lead["sets"] else
+               " " + "; ".join(f"`{sb}` `{v}`" for sb, v in lead["sets"].items()) + "."),
+            f"- Records whose own `lead_in` differs from their set's: {len(lead['records_that_differ'])}"
+            + "".join(f"\n  - `{x['path']}`: the record says `{x['record']}`, the set's `set.json` `{x['set']}`"
+                      for x in lead["records_that_differ"]),
+            "- Records that hold no `lead_in`, of a set whose lead-in is not the rule's: "
+            f"{len(lead['records_without_the_field'])}"
+            + "".join(f"\n  - `{x['path']}` (the set's `set.json` says `{x['set']}`)"
+                      for x in lead["records_without_the_field"])]
     dev = c["dev_episodes"]
     if dev is None:
         out.append("- Check episodes of the build: no `dev_episodes.json` in the run directory.")
@@ -2161,8 +2300,7 @@ def markdown(tabs: dict) -> str:
            f"Made by `{tabs['made_by']}` from the records under `{tabs['run']}`.  {tabs['simulation']}", ""]
     out += _md_checks(tabs["checks"])
     out += ["## How to read the tables", ""] + [f"- {x}" for x in tabs["conventions"]] + [
-        "- Rules amended after a result, with the plan's own labels (" + PLAN_FILE + "): "
-        + "  ".join(f"{a['rule']} {a['label']} {a['text']}" for a in tabs["amended_after_result"]), ""]
+        "- " + amended_note(tabs["amended_after_result"]), ""]
     for name in ORDER:
         t = tabs[name]
         out += [f"## {t['title']}", ""] + [f"- {x}" for x in t.get("notes") or []] + [""]
