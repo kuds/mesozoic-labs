@@ -654,3 +654,31 @@ text, are the author's. Five rule sentences outside the marks were reworded or e
 text agrees with the settled wording; they are not the lead's wording: H6's second sentence and rule R4's sentence on
 the builders' episodes (each quotes its reading of 14 Nov), H1's clause on a turn frozen with `a1_over` (with the `null`
 in its Check), H4's "under an R2 row" (with the replication words in its Check) and B5's clause on rule R2.
+
+### Confirmed and added by the lead, 15 Nov 2026, before any set was frozen
+
+The independent check of the settled text left the points below. Each is decided here, and the five author's sentences
+named above are confirmed as rules. No reference set had been frozen and no Stage 2 closed-loop episode had been run.
+
+1. H6: "a started unit finishes" is confirmed.
+2. H1: reading 2 of a turn frozen with `a1_over` has `pass_: null`; it is no pass and is not replicated.
+3. B5: the omega control is a control of its own (its key holds `omega` and `crouch_frac`); it is not a re-run under rule
+   R2.
+4. H4: a candidate's `shown` or `provisional` verdict prints with the replication status of each record that passed; a
+   cell that is neither carries no replication word.
+5. H5 and H6, where the attribution units stand: the attribution units of a tier that the order lists "with
+   attribution" run directly after that tier's episode units, record by record in the order the records were made, and
+   before the next tier starts; every other attribution unit of task 3 stands in its tier (10); task 4 attributes its
+   tier (1) only. An attribution that is not run is reported "not attributed: cut by the pre-registered order".
+6. H2 and the judged delay: "the judged delay" is 10 ms until a bench value exists. When one exists, the judged delay
+   becomes the bench value's whole step (`STAGE2_PLAN.md` S2-9), the verdict words then apply at that delay, and the
+   change is labelled with the bench record it rests on.
+7. C1 and `stop/one_step`: the command instant is a move's first frame for every causal move; the one reported
+   condition that plays a non-causal move, `stop/one_step`, is read from Stage 1's command (B6) and says so.
+8. Rule R4, check episodes: a check is at most one episode (seed 3042) per condition and `R0` row on set `V0`; each is
+   listed in `dev_episodes.json` with its reason. A13's "after any episode of this round" means a registered episode (a
+   judged or reported record's); a freeze made after a check episode records `after_check_episodes: true` and the reason
+   for the new freeze, and is not thereby "a change after a result".
+9. `STAGE2_PLAN.md` S2-17's "the one Stage 1 edit of this round" means the one edit to a module that enters a record key
+   (`control.py`); the plan's section 6 keeps its estimate of about 80 core-hours as written on 10 Nov, and the 75 cm
+   track's about 32 core-hours come on top (H6).
