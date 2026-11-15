@@ -264,13 +264,29 @@ class _Seg:
 
     __slots__ = ("kind", "name", "t0", "duration", "step", "n", "t", "nf", "v", "w", "pulse_s", "turn", "heading0",
                  "stride_s", "period", "swing_s", "phase", "swing", "u", "anchor", "stand", "foot_rel", "head_rp",
-                 "q", "qd", "walk", "along")
+                 "q", "qd", "walk", "along", "swing_len")
 
 
 def _unwrapped(ph: np.ndarray) -> np.ndarray:
     """A phase series made monotone: 1 is added at every frame where it falls (a wrap)."""
     ph = np.asarray(ph, float)
     return ph + np.concatenate([[0.0], np.cumsum(np.diff(ph) < -0.5)])
+
+
+def _swing_lengths(swing: np.ndarray, step: float) -> np.ndarray | None:
+    """Per frame of a periodic file: the length (s) of the swing the frame belongs to, or, in double support, of
+    the next swing (wrapping); None for a file without a swing."""
+    n = len(swing)
+    out = np.full(n, np.nan)
+    for j in (0, 1):
+        for run in control._swing_runs(swing == j, True):
+            out[run] = len(run) * step
+    if not np.any(np.isfinite(out)):
+        return None
+    for k in range(2 * n - 1, -1, -1):  # backward twice round: each double-support frame takes the next swing's
+        if not np.isfinite(out[k % n]):
+            out[k % n] = out[(k + 1) % n]
+    return out
 
 
 class Script:
@@ -379,10 +395,15 @@ class Script:
 
     def swing_s(self, t_ref: float) -> float:
         """The planned length (reference s) of the reference's swing in progress at ``t_ref``, else of its next
-        swing, else of its last; a track that plans no complete swing gives its segment's gait's."""
+        swing, else of its last: inside a periodic segment from its file's own swings, elsewhere from the track's
+        planned swings, joined across segments; a track that plans no complete swing gives its segment's
+        gait's."""
+        s, _, k0, _ = self._loc(t_ref)
+        if s.swing_len is not None:  # a periodic segment: its file's own swings, which loop as the track does
+            return float(s.swing_len[k0])
         t0s = self._sw0
         if not t0s:
-            return self._loc(t_ref)[0].swing_s
+            return s.swing_s
         i = bisect.bisect_right(t0s, t_ref) - 1
         if i < 0 or (t_ref >= self._sw1[i] and i + 1 < len(t0s)):
             i += 1
@@ -733,6 +754,7 @@ class Library:
             s.swing, s.u, s.anchor, s.stand = (seg.info[k] for k in ("swing", "u", "anchor", "stand"))
             s.period = np.asarray(seg.info["period"], float)
             s.turn, s.pulse_s, s.walk, s.phase, s.q, s.qd, s.along = False, 0.0, False, None, None, None, None
+            s.swing_len = None
             if s.kind == PERIODIC:
                 e = self.refs_doc[item[1]]
                 s.v, s.w = _num(e.get("speed_m_s")), _num(e.get("yaw_rate_rad_s"))
@@ -747,6 +769,7 @@ class Library:
                 s.foot_rel, s.head_rp = np.concatenate([foot, foot[:1]]), np.concatenate([rp, rp[:1]])
                 s.q, s.qd = obj.q, obj.qd
                 s.along = self._along_of(item) if s.walk else None
+                s.swing_len = _swing_lengths(np.asarray(s.swing), s.step)
             elif s.kind == FINITE:
                 e = self.tr_doc[item[1]]
                 a, b = (e.get("gaits") or {}).get("a") or {}, (e.get("gaits") or {}).get("b") or {}
