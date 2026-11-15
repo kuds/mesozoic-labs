@@ -803,7 +803,7 @@ def planned_turn(sv: SetView, cond) -> dict:
     pl = sv.planned(cond)
     res = pl["res"]
     entry = sv.trs[cond.move]
-    v, rate = float(entry["gaits"]["a"]["speed"]), float(entry["turn"]["rate_rad_s"])
+    v, rate = float(entry["gaits"]["a"]["speed"]), abs(float(entry["turn"]["rate_rad_s"]))  # (a right turn's is negative)
     r = path_readings(sv.model, pl["pose"], pl["t_c"], pl["t_end"], float(res["sign"]), float(res["angle_rad"]))
     t_at = pl["t_c"] + float(res["at_s"])
     psi = pl["pose"]["yaw"]

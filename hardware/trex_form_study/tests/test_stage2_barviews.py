@@ -336,6 +336,11 @@ def test_planned_turn_of_the_frozen_set(v0):
     assert 0.3 < r["corridor"]["width_m"] < v0.model.length_m
     assert max(pl["pose_check"].values()) < 1e-9
     assert 1.5 < v0.model.length_m < 2.0 and "snout tip" in v0.model.length_info["front"]
+    right = bv.planned_turn(v0, v0.condition("turn/q90_right"))  # the same room on the other side
+    assert right["commanded"]["radius_m"] == pytest.approx(cmd["radius_m"]) and right["commanded"]["direction"] == "right"
+    assert right["commanded"]["turn_rate_deg_s"] == pytest.approx(45.0)
+    assert right["readings"]["fit"]["radius_fitted_m"] == pytest.approx(r["fit"]["radius_fitted_m"], abs=0.01)
+    assert right["readings"]["fit"]["centre_sideways_m"] > 0.4 and right["readings"]["turned_at_read_end_deg"] == pytest.approx(90.0, abs=0.01)
     have, missing = bv.turn_conditions(v0)
     assert [c.key for c in have][:2] == ["turn/q90_left", "turn/q90_right"]
     assert all(c.friction is None for c in have) and all(x["reason"] for x in missing)
