@@ -1,0 +1,156 @@
+# Checkpoint of 15 Nov 2026: the second session paused for the usage limit
+
+Written by the session's lead on 15 Nov 2026 at about 04:05 UTC and updated the same night (see the update below). The owner asked that the session stop before a tranche
+of work that would take the account over its weekly allocation, with everything checked in and documented, and wait
+for a go-ahead. This file is that record. It is a working paper: it sets no rule and reports no result.
+
+## Update, 15 Nov, after the owner's answer
+
+The owner answered: the workflows already running may continue; no new one is to be added that night. So the three
+workflows that were running (round A's build, the look sets, round C's first wave) were left to run to their end,
+queued agents included, and the lead launched nothing else. The workflow that was writing the Track B rules had
+already been stopped after its first agent and stays stopped. Sections 3 to 5 below describe the state at 04:05 UTC;
+`generated.json` and the bundle are refreshed when those workflows end, and a later commit of this file says what
+they left.
+
+The lead ruled on the reviewers' open points the same night, before each fixer started, and wrote the rulings into the
+fixers' briefs: `../REVIEW_RULINGS_15NOV.md`. Of section 6's list, points 1 to 5 and 8 are ruled and written into
+`STAGE2_75_PLAN.md` (its last section); points 6, 7 and 9 are still open.
+
+## 1. Why the session stopped launching work
+
+- The owner's usage meter read 46 % at 04:00 UTC on 15 Nov, after one reset from 99 % to 0 % during this session; the
+  weekly allocation resets in 4 to 7 days.
+- This session's own count at that time, from its transcripts: 80 agent and lead transcripts, 9.5 million output
+  tokens, 1.27 billion cached-context tokens read, 34 million written.
+- So the session had used at least 46 % of a week since the reset, and up to 145 % in all if the meter stood near zero
+  when it began. On the larger figure one agent of this session costs about 1.8 % of a week (the lead had assumed
+  0.4 %, from the first session's 271 agents). The agents ran at the session's own effort setting (`xhigh`), each with
+  a design document of 150 to 190 kB in its context.
+- The work already launched had about 21 agents still queued (about 38 % of a week at that rate), which with 46 % used
+  comes to about the limit before the 75 cm panels are reported. That is the owner's stop condition.
+
+What the lead did: let each agent that was in the middle of a task finish that task, stopped every workflow before it
+started a queued agent, merged the two packages that were built, reviewed and fixed, and wrote everything else here.
+
+## 2. What is on the branch (built, reviewed independently, fixed, merged)
+
+| Package | What | Merge commit |
+|---|---|---|
+| Decision log, plans | P30 to P33, F26, F27, A17, A18; `STAGE2_PLAN.md` section 9 (S2-9 to S2-18); `STAGE2_75_PLAN.md` | `167dce4` to `7558b3b`, `89111c3` |
+| Jetson documents | latency and bus plan, bench sheet, price record, time-of-flight governor (`stage2/jetson75/`) | `7e9ea0d`, `feb84ad` |
+| Jetson body | 75-M-H-10-J (`stage2/j/`, `round2/refine/jetson_75/`) | `1aefbd0` |
+| L1 freeze | `designlab/stage2/l1freeze.py`, `stage2/look/L1_FREEZE.json` | `90b0097` |
+| Round A, R | the bar's readings, record helpers, set reader (`readings.py`, `s2io.py`, `setio.py`) | `dc5bb10` |
+| Round C, CP | policy files, cross-version loader, picklable schedules (`s2load.py`, `schedules.py`, `tbenv.py`) | `c86e5e5` |
+
+After the two merges of 15 Nov the six test files of R and CP gave exit 0 here (124 passed, 1 skipped). The full suite
+was last run before them (679 passed, 107 skipped, on 14 Nov) and is owed again at the next merge.
+
+## 3. What is in the bundle (built, not merged)
+
+`worktrees.bundle` in this directory holds every branch below, commit for commit. None of it is on the working branch,
+because none of it has finished review and fixing. Section 6 restores it.
+
+| Package | Branch | Built | Reviewed | Fixed | What is owed |
+|---|---|---|---|---|---|
+| Round A, M (moves: starts, changes, stops, turns for any gait) | `wt/wp-m` | yes; 36 of 36 Stage 1 transitions regenerate bit for bit | two reviews done | no | ruling 1 below, then the fixer |
+| Round A, B (the bar's runner) | `wt/wp-b` | yes | two reviews done | no | ruling 2 below, then the fixer (1 blocker, 7 major) |
+| Round A, G (closed-loop regression record) | `wt/wp-g` | yes | see section 4 | no | the fixer |
+| Round A, C (set screen) | `wt/wp-c` | yes | see section 4 | no | the fixer |
+| Look sets, L (V6 and V6noF5 sets) | `wt/wp-l` | see section 4 | no | no | two reviews, the fixer |
+| Round C, CE (R5's and R6's env) | `wt/wpc-ce` | yes | see section 4 | no | the fixer |
+| Round C, CV (vec pool) | `wt/wpc-cv` | see section 4 | no | no | finish the build, review, fix |
+| Track B rules | `wt/prereg-b` | draft `STAGE2_TRACKB_PLAN.md` with the lead's 25 rulings written in | no | no | ten conflicts between rulings (the integrator's report), then the independent check |
+
+Every agent's final report, and every reviewer's findings in full, are in `reviews/`; `generated.json` lists them with
+each branch's tip.
+
+## 4. The agents that were finishing when this was written
+
+- Review of G (regression record): done. No blocker or major finding; the Stage 1 edit leaves the default path
+  bit-identical, 256 of 256 comparisons equal (248 distinct committed episodes). One point for the lead, ruled
+  (the stride period of a K-stride window is made exact for every K).
+- Review of CE (training env): done. One blocker and three major findings, all for the lead and all ruled: the
+  reward's four readings stand as coded and the Track B rules text is amended to them; the commanded heading in a
+  turn in place follows the reference's yaw; a later freeze of the same set is accepted (rule K4); scripted head
+  targets keep 0.15 rad from a joint limit, so the jaw opens to at most 0.45 rad of its 0.6 rad in a script.
+- Review of C (set screen), build of L (look sets), build of CV (vec pool): still running at the update.
+
+## 5. Not started
+
+- Round A: S (build and freeze the sets V0, F25F9, F25F9cl; restore group `j`) and T (tables, `COST.md`). Both wait for
+  M, C and B.
+- Round C: CK (look reading), CB (Drive bundle), then CT (trainer), CW (rows), CF (R2L fit), CG (gates G8a and G9),
+  CN (notebook).
+- Every run: no panel, no fit and no training run has been made on any Stage 2 set. No set is frozen. Code state A
+  does not exist yet.
+
+## 6. Open rulings for the lead, before the next builder starts
+
+Each is a point a builder, reviewer or fixer handed up. None is settled.
+
+1. **The V0 quick turn fails its consistency gate in both directions** on 75-M-H-10 (review of M, mechanics, finding
+   1, blocker; bit-identity, finding 1). The reviewer traces it to the design's two causal ZMP limits contradicting
+   each other as coded, not to the builder. The committed slow test `test_stop_and_turn_from_v0` is red. Needs a
+   ruling before any set with a quick turn is built; the constant must not be moved to make it pass.
+2. **Attribution units run out of the pre-registered order** (review of B, judge, finding 1, blocker;
+   `STAGE2_75_PLAN.md`, confirmation 5 under H6). Either the chain is reordered or the rule is amended with a label,
+   before task 3's first unit.
+3. **The own-swing toe clearance (C3)** reads 0.010 to 0.017 H below Stage 1's reading on stock walks, with no servo
+   delay, because a foot's own swing ends where its load crosses 2 % of the weight (review of R, finding 1; fix of R;
+   review of B, judge, finding 15). Keep the rule with an expectation sentence, or redefine it with a label. The
+   fixer measured one alternative (same swings, middle half of the planned duration counted from the own lift-off).
+4. **A turn's window can cut the inside foot's first swing**, and then `count_ok` fails on a clean walk (fix of R,
+   "new, mine"). Suggested: do not count a reference swing whose own swing the window cuts.
+5. **With ramps fixed at 0.375 s the 1.0 rad/s ladder turn cannot pass the slowest-clock heading gate** on any set
+   (review of M, mechanics, finding 3). Decide before the ladder is built.
+6. **Whether a judging load reads the `.pkl`** (review of CP, finding 1; the fixer built rule K9's reading: it does
+   not). Confirm, or revert one line and change K9's text.
+7. **`actions_at_bound`** as a record key of the fingerprint (review of CP, finding 8). Accept or drop before
+   `s2load.py` is frozen.
+8. **Six major provenance points of the bar's runner** to fix before state A (review of B, provenance, findings 1 to
+   6): the supersede label lost after a kill, a "not run" record replaced without a label, exit 0 when episodes failed
+   to run, the dirty flag counting the run's own outputs, the crouch read from an unfrozen key, and R0 traces dropped
+   under 1.5 GB free.
+9. **Ten conflicts in the Track B rules draft** (`reviews/trackb_rules__integrate_trackb-rulings.md`).
+
+Texts owed by the lead after these: `STAGE2_75_PLAN.md` C3 and C7 wording (five readings now stated only in
+docstrings), design 4.4 and 2.1.
+
+## 7. Restoring the bundle in a fresh clone
+
+From the repository root, on the working branch:
+
+```sh
+B=hardware/trex_form_study/stage2/design/checkpoint/worktrees.bundle
+sha256sum $B                                   # compare with bundle_sha256 in generated.json
+git bundle verify $B
+git fetch $B 'refs/heads/wt/*:refs/heads/wt/*'
+mkdir -p ../mesozoic-wt
+for p in wp-m wp-b wp-g wp-c wp-l wpc-ce wpc-cv prereg-b; do
+  git rev-parse -q --verify wt/$p >/dev/null && git worktree add ../mesozoic-wt/$p wt/$p
+done
+```
+
+A branch missing from `generated.json` had no commit of its own. The worktree branches may not be pushed (only the
+session's designated branch may), which is why they travel as a bundle. Delete the bundle from the tree once every
+branch in it is merged or dropped.
+
+## 8. Order of work on resuming
+
+The owner's stated focus is a 75 cm build that works in simulation (P33), so the 75 cm path comes first:
+
+1. Rulings 1 to 5 and 8, written into the committed rules with labels where a rule changes.
+2. Fix M, G, C and B; merge in the order M, G, C, B; full suite.
+3. Build, review and fix S; freeze the three 75 cm sets; legacy check and regression record at state A.
+4. Task 3's tiers, then task 4's (28 core-hours of CPU here; no agents needed while they run), with T's tables.
+5. Report, independent review, owner page; push notification to the owner (asked for on 15 Nov).
+
+The training side (round C, the Track B rules, the notebook, the Drive bundle) follows, and is the larger share of what
+is left.
+
+Ways to spend less of the allocation per package, for the owner to choose between (none taken yet): run builders and
+fixers at a lower effort setting than the session's; one reviewer per package instead of two where the second lens is
+not provenance or bit-identity; briefs that carry only the package's part of the design; builders and fixers on
+another model with the lead and the independent reviewers unchanged.

@@ -240,6 +240,20 @@ error and both ZMP errors are read after the last correction pass; the number of
 [design]. Check: `pass_`, `join_a` / `join_command`, `join_b`, `zmp_error_history_m`, `zmp_consistency_history_m`,
 `post_window_zmp_error_m`, `cop_margin_single_min`, `move.rules`.
 
+[changed 15 Nov after a result: the review's scratch builds of V0's stop and quick turn (prescribed motion); before any
+set was frozen and before any closed-loop episode on a Stage 2 set] The two causal limits each read their own frames.
+The consistency error is read over the frames before one stride after the command (phase < command + 1) and is at most
+2.5 mm; the ZMP error over the frames from one stride after the command on is at most 4.0 mm. As first written the
+2.5 mm limit was read over every output frame. After the fade those frames' consistency error is the ZMP error itself,
+so the 4.0 mm limit could never fail and the frames after the transient were held tighter than Stage 1's own
+transitions (4.0 mm; they end at 1.7 to 3.8 mm). Under the first wording V0's quick turn read 2.76 mm (2.04 mm inside
+the first stride) and failed in both directions, while the candidate's timing passed at 2.03 mm; V0's stop read
+1.62 mm. Neither constant moved. The all-frames value stays in every entry (`zmp_consistency_all_m`), gated by nothing.
+Corrected in the same edit, with no limit moved: the reference's forward acceleration (the low-passed value that is
+gated and the raw peak recorded beside it) is differentiated on the frames' own time grid, and the low-pass filter is
+given the walk or the stand around the move as its history; the first build differentiated a resampled path, which
+over-read the raw peak by a quarter to a third.
+
 **A8. Fallbacks for starts, changes and stops.** [NEW] A move that fails A7 or a blocking gate of A12 is retried in this
 order and no other: (1) a change with a ramp of 2 strides; (2) for a ladder rung, a change from the neighbouring rung
 toward 0.40 m/s; (3) recorded "no transition within the gates". A start and the stop have no fallback, and
@@ -300,7 +314,11 @@ step down stays on the grid (none below 0.60). Outcomes:
   has no other fallback: the ramp, the grid, the limits and the appendage rule are not changed for it except by an
   amendment labelled as made after that result.
 
-The ladder's other rates from 0.40 m/s (0.35, 0.5, 1.0 rad/s) use the same move and rule. Check: `set.json`
+The ladder's other rates from 0.40 m/s (0.35, 0.5, 1.0 rad/s) use the same move and rule. [noted 15 Nov,
+before any set was frozen; plan-level arithmetic of the review, no rule changed] With the 0.375 s ramps the 1.0 rad/s
+turn's heading at the slowest clock is 78.4° on V0 and 77.7° on the candidate's timing, below A10's 80°: by the third
+outcome above it is built, written `pass_: false` with its numbers and not frozen, and the ladder reports that rate as
+"no reference within the heading rule". Check: `set.json`
 `stride_rules[rate]` (every `f` tried with both directions' readings, the chosen `f`, `steps_down`), each turn's
 `range_use`, `a1_over`, `not_available`; the report's reading 2 cell of a turn frozen with `a1_over`
 ("not read: `a1_over`").
@@ -426,6 +444,33 @@ lift-off and touchdown times shift by that step through one named constant, and 
 Check: `measures.bar.toe_clearance_own_swing_m`, `own_swings`, `ref_swings`, `interrupted_swings`, `air_gaps`,
 `air_gap_max_s`; the trace's `swings`, `contact`, `low100`.
 
+[changed 15 Nov after a result: the review's reread of Stage 1's stock walks of this body under the reading above
+(`walk/nominal`, `walk/brisk`, `walk/fr05`, seeds 3042–3044, hard floor, no servo delay; smoke on Stage 1's own run
+directory, which R4 allows); before any set was frozen and before any closed-loop episode on a Stage 2 set] The middle
+half is that of the **planned** swing, counted from the foot's own lift-off. A swing is read over
+[`t_lo` + 0.25 `T_p`, `t_lo` + 0.75 `T_p`]: `t_lo` is its own lift-off, and `T_p` is the planned duration, on the
+simulated clock, of the reference swing of that foot it overlaps the longest (the track's shortest planned swing if it
+overlaps none). The interval is read to its end even if the foot has touched down before it, so an early touchdown
+inside it fails the term; a swing whose interval runs past the window's end is neither read nor counted.
+
+- Why: on these walks the 2 % load rule puts a foot's own touchdown 7 to 17 ms after the reference's (the foot rests
+  within 1 mm of the floor for about 28 ms before its load crosses 2 %), which puts the 75 % edge of the own duration
+  on the falling flank. As first written the reading was 0.010 to 0.017 H under Stage 1's on the same low points. It
+  failed the `R0` row in six of six episodes (0.033 to 0.038 H) on walks Stage 1 passes (0.048 to 0.054 H); `R2/42`
+  passed nine of nine with as little as 0.3 mm to spare.
+- What stays: the limit (0.04 H), contact, the swing and air-gap rule and *interrupted*. The reading as first written
+  stays in every record (`toe_clearance_own_duration_m`), reported and never judged; Stage 1's reading stays beside
+  both.
+- The count rule is made exact in the same edit: a reference swing counts toward a foot's number only if no window
+  edge cuts the own swing that overlaps it. On synthetic traces the first wording failed a clean walk at 11 of 410
+  window ends, where the window cut a foot's first and last swing.
+- Expectation, stated before the runs and changing no rule: V0's planned reading at 0.40 m/s is 0.0405 H (half of its
+  0.081 H lift), 0.25 mm above the limit, so the control is expected to fail this term in most closed-loop episodes at
+  0.40 m/s. The candidate's planned reading is 0.0475 H.
+
+The amended reading is built by the runner's fixer and checked by the lead against an implementation of his own before
+any set is frozen.
+
 **C4. The walk item.** [plan; lead's ruling 5 for the line] Window: the last 10 s of a complete episode. `along`: the
 CoM covers at least 10 s × the rung's target speed along the commanded heading (4.0 m at 0.40 m/s [plan]; the same rule
 at the ladder's other rungs is NEW). `line`: the CoM stays within 0.25 m of the line along the commanded heading through
@@ -447,6 +492,10 @@ limits of C4 (without `along` and `line`), the joint range by decision 14 (at le
 margin less 0.02 rad, capped at 0.10 rad), and no leg interference (50 Hz poses on the screened model). Peak ground
 reaction reported, as in the walk item [differs: S1, which judged it in its turns; those were from the nominal walk].
 Check: `measures.bar.heading_error_at_deg`, `heading_error_hold_max_deg`, `time_to_within_10deg_s`, `measures.legs`.
+
+[noted 15 Nov, before any set was frozen] The joint range and the leg gap are read over the window. The drives' peak
+speed is read over the whole episode, because the recorder holds the episode's peak only; that is at least as strict as
+the window, and the record says `drive_speed_span: "episode"`.
 
 **C6. Nudges.** [plan; S1 decision 30] No fall; back on the command (0.9–1.1 × the commanded speed along the heading and
 at most 0.1 × across, by stride means) within 3 s of the pulse's end, held to the planned end; drive and range limits
@@ -682,3 +731,21 @@ named above are confirmed as rules. No reference set had been frozen and no Stag
 9. `STAGE2_PLAN.md` S2-17's "the one Stage 1 edit of this round" means the one edit to a module that enters a record key
    (`control.py`); the plan's section 6 keeps its estimate of about 80 core-hours as written on 10 Nov, and the 75 cm
    track's about 32 core-hours come on top (H6).
+
+## Amended on 15 Nov 2026 after the builds' independent reviews, before the first frozen set
+
+Each is written into the rule it concerns, with its label. No closed-loop episode had run on a Stage 2 set.
+
+1. A7 (changed after a prescribed-motion result): the consistency limit reads the first stride after the command, the
+   4.0 mm limit the frames after it; the acceleration reading is differentiated on the frames' own grid.
+2. A11 (noted, no change): the 1.0 rad/s ladder turn has no reference within the heading rule.
+3. C3 (changed after a reread of Stage 1's stock walks): the middle half of the planned swing counted from the own
+   lift-off; the count rule; the expectation for V0.
+4. C5 (noted): the drives' peak speed is read over the whole episode.
+5. Rule R4 and scratch sets: R4's limits protect the three registered sets. Closed-loop episodes of a Stage 2 move on a
+   scratch or fixture set built from Stage 1's gaits are run only to test the runner, under `R0` rows and never under
+   an `R2` row. Those run by the runner's builder and its two reviewers on 14–15 Nov are listed in summary form in
+   `stage2/runs/2026-11-15-75cm/dev_episodes.json` under `scratch_sets`.
+6. `control.Track.add_periodic` (R4's one Stage 1 edit): the stride period of a K-stride window is
+   `(n // K) × step`, exact for every K, and a window whose frame count is no multiple of K is refused. Without the
+   key the path is unchanged.
