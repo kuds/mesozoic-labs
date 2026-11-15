@@ -9,8 +9,9 @@ R2 rows and the delay wrapper) and (b) a synthetic set ``T0`` in pytest's tempor
 arrays of 75-M-H-10 under the bar's names: the brisk walk as ``v0.4``, ``nominal_to_brisk`` as ``nominal_to_v0.4``,
 Stage 1's stop and turn entries *declared* causal as ``stop2_v0.4`` and ``turn90_pi4_<dir>``.  ``T0`` is a fixture for
 plans, keys, records and the runner's plumbing: its walk item is Stage 1's brisk walk exactly, its "moves" join
-nothing and say nothing about a stop or a turn.  Only R0 rows run on it.  Both need the Stage 1 arrays and the
-round-two model files (git-ignored; ``python tools/restore_inputs.py``) and skip without them.
+nothing and say nothing about a stop or a turn.  Only R0 rows run episodes on it; the tests of the runner's rules
+that name R2 rows there use synthetic episode records (``fake_episode``) and simulate nothing.  Both need the Stage 1
+arrays and the round-two model files (git-ignored; ``python tools/restore_inputs.py``) and skip without them.
 
 Slow (``STAGE2_SLOW=1``): one full episode per judge on a built and frozen set under ``R0@10ms`` (set
 ``STAGE2_BAR_SET``, default ``V0``, under ``STAGE2_BAR_SET_ROOT``, default ``stage2/sets``).  On a set of the 75 cm

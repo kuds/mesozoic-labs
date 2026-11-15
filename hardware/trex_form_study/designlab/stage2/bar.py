@@ -2607,8 +2607,9 @@ def refcheck(set_name: str, body: str, root=setio.ROOT, out=None, log=print) -> 
 
 def _refcheck_numbers(r: dict) -> str:
     if "stop" in r:
+        s = r["stop"]["forward_stopped_s"]
         return (f" ({r['stop']['touchdowns_after_command']} touchdowns after the command, stopped "
-                f"{r['stop']['forward_stopped_s']} s after it)")
+                + ("never" if s is None else f"{s:.3f} s after it") + ")")
     t = r.get("toe") or {}
     toe = "" if t.get("toe_clearance_own_swing_H") is None else f", clearance {t['toe_clearance_own_swing_H']:.4f} H"
     if "turn" in r:
