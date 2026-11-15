@@ -674,7 +674,18 @@ def test_a_walk_episode_carries_every_reading_and_stage1s_beside(t0, t0_run):
     assert e["success"]["line"] is (b["lateral_from_line_max_m"] <= 0.25)
     toe = b["toe"]
     assert {"toe_clearance_own_swing_m", "own_swings", "ref_swings", "interrupted_swings", "air_gaps",
-            "air_gap_longest_s", "air_gap_max_s", "ok", "limit_m"} <= set(toe) and "swings" not in toe
+            "air_gap_longest_s", "air_gap_max_s", "ok", "limit_m", "toe_clearance_own_duration_m", "worst_swing",
+            "ref_swings_cut", "shortest_planned_s"} <= set(toe) and "swings" not in toe and "swing_details" not in toe
+    # C3's Check names these directly under measures.bar; the reading as first written stands beside the judged one
+    for k in bar.TOE_KEYS:
+        assert b[k] == toe[k], k
+    assert set(bar.TOE_KEYS) >= {"toe_clearance_own_swing_m", "own_swings", "ref_swings", "interrupted_swings",
+                                 "air_gaps", "air_gap_max_s"}
+    ws = toe["worst_swing"]
+    assert set(ws) == {"foot", "t_lo_s", "t_td_s", "own_duration_s", "planned_s", "min_at_frac", "min_from_edge"}
+    assert ws["planned_s"] >= toe["shortest_planned_s"] > 0.2 and 0.25 <= ws["min_at_frac"] <= 0.75
+    assert toe["toe_clearance_own_duration_m"] <= toe["toe_clearance_own_swing_m"] + 1e-12  # (this walk lands late)
+    assert "amended on 15 Nov" in rec["rules"]["toe"] and "STAGE2_75_PLAN.md C3" in rec["rules"]["toe"]
     assert toe["limit_m"] == pytest.approx(0.04 * 0.501854, rel=1e-5) and e["success"]["toe_clearance_own_swing"] is toe["ok"]
     assert b["stage1_toe_clearance_m"] == m["window"]["toe_clearance_m"]
     # the three readings' drive term: on this body the tail servo alone is over its sustained rating
@@ -715,7 +726,8 @@ def test_a_bar_trace_holds_stage1s_arrays_and_what_the_readings_need(t0, t0_run)
     assert e["trace"]["path"] == "R0@0ms/walk/v0.4/3042.npz" and s2io.sha256_file(path) == e["trace"]["sha256"]
     z = np.load(path, allow_pickle=False)
     assert list(z.files)[:5] == ["t", "t_ref", "rows", "cols", "q"]
-    assert {"contact", "steps", "dt", "weight", "t100", "low100", "ref_swing100", "swings", "command_s"} <= set(z.files)
+    assert {"contact", "steps", "dt", "weight", "t100", "low100", "ref_swing100", "planned_s100", "swings",
+            "swing_cols", "command_s"} <= set(z.files)
     assert list(z["cols"]) == list(metrics.COLS) and z["rows"].dtype == np.float32 and z["t"].dtype == np.float64
     assert len(z["t"]) == e["trace"]["rows"] and len(z["t100"]) == e["trace"]["updates"] and len(z["t"]) == (len(z["t100"]) + 1) // 2
     assert float(z["dt"]) == 0.002 and math.isnan(float(z["command_s"])) and int(z["steps"]) == e["trace"]["steps"]
@@ -734,15 +746,29 @@ def test_a_bar_trace_holds_stage1s_arrays_and_what_the_readings_need(t0, t0_run)
     # reading (a) and the line come back from the trace alone
     toe = e["measures"]["bar"]["toe"]
     again = readings.toe_clearance_own_swing(z["t100"], z["low100"].astype(float), contact, float(z["dt"]),
-                                             z["ref_swing100"], *toe["window_s"], toe["air_gap_max_s"])
+                                             z["ref_swing100"], *toe["window_s"], toe["air_gap_max_s"],
+                                             planned_s=z["planned_s100"])
     assert again["toe_clearance_own_swing_m"] == pytest.approx(toe["toe_clearance_own_swing_m"], abs=1e-8)
+    assert again["toe_clearance_own_duration_m"] == pytest.approx(toe["toe_clearance_own_duration_m"], abs=1e-8)
     assert (again["own_swings"], again["ref_swings"], again["interrupted_swings"], again["air_gaps"]) == (
         toe["own_swings"], toe["ref_swings"], toe["interrupted_swings"], toe["air_gaps"])
     table = z["swings"]
-    assert table.shape == (len(again["swings"]), 5) and list(z["swing_classes"]) == list(readings.SWING_CLASSES)
+    assert table.shape == (len(again["swings"]), 7) and list(z["swing_classes"]) == list(readings.SWING_CLASSES)
+    assert list(z["swing_cols"]) == list(bar.SWING_COLS) and z["planned_s100"].dtype == np.float64
     read_ = table[table[:, 4] == 0]
     assert len(read_) == sum(toe["own_swings"]) and np.nanmin(read_[:, 3]) == pytest.approx(
         toe["toe_clearance_own_swing_m"], abs=1e-12)
+    assert np.nanmin(table[:, 6]) <= toe["toe_clearance_own_duration_m"] + 1e-12
+    # the rows' planned durations are the track's own planned swings on the simulated clock: the brisk walk's swing
+    # in every row of a reference swing, nothing elsewhere
+    in_swing = z["ref_swing100"] >= 0
+    assert np.all(np.isnan(z["planned_s100"][~in_swing])) and np.all(np.isfinite(z["planned_s100"][in_swing]))
+    built = s1_context().built(cond)
+    planned = {round((b_ - a_) / 1.05, 9) for _, a_, b_ in setio.planned_swings(built.track)}
+    assert {round(float(x), 9) for x in z["planned_s100"][in_swing]} <= planned
+    assert np.array_equal(z["planned_s100"], bar.planned_swing_rows(built.track, live.col("t_ref"), live.col("ref_swing")),
+                          equal_nan=True)
+    assert np.all(read_[:, 5] > 0.2) and toe["shortest_planned_s"] == pytest.approx(min(planned), abs=1e-9)
 
 
 @needs_run
@@ -760,6 +786,17 @@ def test_commanded_items_read_their_command_and_falls_after_it(t0, t0_docs, t0_r
     assert turn["terms"] == list(bar.TURN_TERMS) and turn["falls"] == dict(before_command=0, after_command=1, no_command=0)
     assert e["measures"]["bar"]["at_s"] == 2.0 and e["measures"]["bar"]["sign"] == 1.0
     assert e["measures"]["bar"]["trunk_heading_at_command_deg"] is not None and e["measures"]["legs"]["poses"] > 0
+    # C5: the joint range and the leg gap are read over the window (here cut short by the fall), the drives' peak
+    # speed over the episode; the whole episode's readings are reported beside
+    legs = e["measures"]["legs"]
+    assert legs["span"] == "window" and legs["window_complete"] is False and legs["window_s"][0] == e["command_s"]
+    assert legs["poses"] < legs["poses_episode"] == e["measures"]["legs_episode"]["poses"]
+    mb = e["measures"]["bar"]
+    assert (mb["drive_speed_span"], mb["joint_range_span"], mb["no_leg_interference_span"]) == ("episode", "window", "window")
+    assert mb["joint_range_episode"]["joint_shortfall_rad"] == e["joint_shortfall_rad"]
+    assert (turn["drive_speed_span"], turn["joint_range_span"]) == ("episode", "window")
+    assert "whole episode (the recorder holds the episode's peak only), which is at least as strict as the window" in " ".join(
+        turn["rules"]["turn"].split())
     assert turn["counts"]["falls"] == 1 and turn["counts"]["errors"] == 0
     stop = read(rec_path(t0_run, "R0@0ms", "stop/two_step"))
     (e,) = stop["episodes"]

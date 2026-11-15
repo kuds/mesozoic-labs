@@ -154,11 +154,19 @@ RULES = dict(
         "load above 2 % of weight, 20 ms debounce, per physics step); an air run of a foot is a swing if any 100 Hz "
         "update inside it falls in the reference's swing of that foot, or if it lasts at least half the shortest "
         f"planned swing of the track on the simulated clock (its reference seconds / {RATE:g}), else an air gap "
-        "(counted, not read); each swing wholly inside the window is read as the foot's lowest point over the middle "
-        "half of its own duration (interpolated at 25 % and 75 %, and every update between); the term passes when "
-        f"the smallest reading is at least {readings.TOE_CLEARANCE_FRAC_H:g} H, no reference swing in the window is "
-        "interrupted and each foot has at least its number of reference swings less one.  Stage 1's reading (on the "
-        "reference's clock) is recorded beside it"),
+        "(counted, not read); each swing wholly inside the window is read as the foot's lowest point over [t_lo + "
+        "0.25 T_p, t_lo + 0.75 T_p] (interpolated at both edges, and every update between): t_lo is the swing's own "
+        "lift-off and T_p the planned duration, on the simulated clock (its reference seconds / "
+        f"{RATE:g}), of the reference swing of that foot it overlaps the longest (the track's shortest planned swing "
+        "if it overlaps none); the interval is read to its end even if the foot has touched down before it; a swing "
+        "whose interval runs past the window's end is neither read nor counted; a reference swing counts toward a "
+        "foot's number only if no window edge cuts an own swing that overlaps it; the term passes when the smallest "
+        f"reading is at least {readings.TOE_CLEARANCE_FRAC_H:g} H, no reference swing in the window is interrupted "
+        "and each foot has at least its number of reference swings less one.  The reading as first written (the "
+        "middle half of the swing's own duration) is recorded beside it as toe_clearance_own_duration_m, reported "
+        "and never judged, and so is Stage 1's reading (on the reference's clock) (middle half of the planned swing "
+        "counted from the own lift-off; amended on 15 Nov after the reread of Stage 1's stock walks, before any "
+        "Stage 2 set was frozen: STAGE2_75_PLAN.md C3)"),
     walk=(
         "the walk item: window = the last 10 s of a complete episode; along: the CoM covers at least 10 s x the "
         "rung's target speed along the commanded heading (the home heading); line: the CoM stays within "
@@ -179,8 +187,11 @@ RULES = dict(
         f"(pi/2) / |rate|, and at every update for {readings.HEADING_HOLD_S:g} s after; over [t_c, t_c + at_s + "
         f"{readings.HEADING_HOLD_S:g} s]: the walk's limits (without along and line), the joint range by decision 14 "
         f"(min({tune.WALK_RANGE_RAD:g}, the track's own smallest margin of that joint - "
-        f"{tune.TURN_RANGE_SLACK_RAD:g}), at least {tune.AT_LIMIT_RAD:g} rad) and no leg interference (legs.LegGap "
-        "at 50 Hz).  Peak ground reaction is reported"),
+        f"{tune.TURN_RANGE_SLACK_RAD:g}), at least {tune.AT_LIMIT_RAD:g} rad; read on the 100 Hz updates inside the "
+        "window) and no leg interference (legs.LegGap on the 50 Hz poses inside the window); the drives' peak speed "
+        "is read over the whole episode (the recorder holds the episode's peak only), which is at least as strict as "
+        "the window.  Peak ground reaction is reported, and so are the joint range and the leg gap over the whole "
+        "episode"),
     nudge=(
         f"a nudge: a {PUSH_S:g} s pulse at the trunk's centre of mass of m x frac x the Stage 0 push bound / "
         f"{PUSH_S:g} s in the commanded heading's frame, frac {NUDGE_FRAC:g} (reported: "
@@ -249,9 +260,10 @@ RULES = dict(
         "and the new record states its reason (supersedes.reason): it is a re-run after a result"),
     trace=(
         "each episode's trace (not the attribution's lifted runs): Stage 1's 50 Hz arrays (panels.TRACE_RULE) plus "
-        "the 500 Hz contact flags (bit-packed), both feet's 100 Hz low points with their times and the reference's "
-        "swing foot at those updates, the per-swing table and the command instant; the episode record holds its "
-        "path and sha256"),
+        "the 500 Hz contact flags (bit-packed), both feet's 100 Hz low points with their times, the reference's "
+        "swing foot and that swing's planned duration at those updates, the per-swing table and the command "
+        "instant; the episode record holds its sha256, and its path when the file is kept (a trace that is not kept "
+        "is written, hashed and removed: the record says kept: false and why)"),
     attribution=(
         "decision 20 (panels.PANEL_ATTRIBUTION_RULE, gates.attribute) on R2 rows' records with "
         f"{panels.ATTRIBUTION_MIN_FALLS} or more falls: each candidate limit lifted over the same seeds.  A turn, "
@@ -931,15 +943,62 @@ def _com(rec: metrics.Recorder) -> np.ndarray:
     return rec.U[:, [metrics.C["com_x"], metrics.C["com_y"]]]
 
 
-def _toe(b: BarBuilt, rec: metrics.Recorder, ta: float, tb: float) -> tuple[dict, list]:
-    """Reading (a) over [ta, tb]: (the reading with its term and without the per-swing table, the table)."""
-    r = readings.toe_clearance_own_swing(rec.t, _lows(rec), rec.contact(), rec.dt, rec.col("ref_swing"), ta, tb,
-                                         b.air_gap_max_s)
-    table = r.pop("swings")
-    v = r["toe_clearance_own_swing_m"]
+#: The keys of reading (a) that STAGE2_75_PLAN.md C3's Check names: a walk's and a turn's episode holds them directly
+#: under ``measures.bar`` (and the whole reading under ``measures.bar.toe``).
+TOE_KEYS = ("toe_clearance_own_swing_m", "toe_clearance_own_duration_m", "own_swings", "ref_swings",
+            "interrupted_swings", "air_gaps", "air_gap_max_s")
+
+
+def planned_swing_rows(track: control.Track, t_ref, ref_swing, rate: float = RATE) -> np.ndarray:
+    """Per update row, ``T_p`` of reading (a): the planned duration of the reference swing the row lies in, on the
+    simulated clock.  The row's reference time is looked up in the track's planned swings of the row's swing foot
+    (``setio.planned_swings``, reference seconds) and the swing's duration divided by ``rate``, as
+    ``readings.air_gap_max`` converts the shortest.  Past the end of a track that ends in a walk the walk's strides
+    repeat (``control.Track.info``): the row's reference time is then taken back by whole strides of that walk.  NaN
+    for a row in no swing, or in one the track's plan does not hold (the reading takes the shortest planned swing
+    there)."""
+    t_ref = np.asarray(t_ref, float)
+    foot = np.rint(np.asarray(ref_swing, float)).astype(int)
+    out = np.full(len(t_ref), math.nan)
+    by = {i: sorted((a, b) for f, a, b in setio.planned_swings(track) if f == i) for i in (0, 1)}
+    starts = {i: np.array([a for a, _ in v]) for i, v in by.items()}
+    last = track.segments[-1] if track.segments else None
+    stride = float(last.n * last.step) if last is not None and last.kind == "periodic" else None
+
+    def lookup(i: int, x: float) -> float | None:
+        k = int(np.searchsorted(starts[i], x + EPS_S, side="right")) - 1
+        if k >= 0 and x < by[i][k][1] + EPS_S:
+            return (by[i][k][1] - by[i][k][0]) / rate
+        return None
+
+    for r in np.flatnonzero(foot >= 0):
+        i, x = int(foot[r]), float(t_ref[r])
+        if i not in by:
+            continue
+        v = lookup(i, x)
+        while v is None and stride is not None and x - stride >= last.t0 - EPS_S:
+            x -= stride
+            v = lookup(i, x)
+        if v is not None:
+            out[r] = v
+    return out
+
+
+def _toe(b, rec: metrics.Recorder, ta: float, tb: float, air_gap_max_s: float | None = None,
+         planned=None) -> tuple[dict, dict]:
+    """Reading (a) over [ta, tb]: (the reading with its term and without the per-swing tables; the tables and the
+    rows' planned swing durations, for the trace).  ``b`` is any built condition (its track and hip height)."""
+    if planned is None:
+        planned = planned_swing_rows(b.track, rec.col("t_ref"), rec.col("ref_swing"))
+    gap = b.air_gap_max_s if air_gap_max_s is None else air_gap_max_s
+    r = readings.toe_clearance_own_swing(rec.t, _lows(rec), rec.contact(), rec.dt, rec.col("ref_swing"), ta, tb, gap,
+                                         planned_s=planned)
+    extra = dict(swings=r.pop("swings"), swing_details=r.pop("swing_details"), planned_s=planned)
+    v, v1 = r["toe_clearance_own_swing_m"], r["toe_clearance_own_duration_m"]
     r.update(ok=readings.toe_clearance_own_swing_ok(r, b.H), limit_m=readings.TOE_CLEARANCE_FRAC_H * b.H,
-             toe_clearance_own_swing_H=None if v is None else v / b.H, window_s=[float(ta), float(tb)])
-    return r, table
+             toe_clearance_own_swing_H=None if v is None else v / b.H,
+             toe_clearance_own_duration_H=None if v1 is None else v1 / b.H, window_s=[float(ta), float(tb)])
+    return r, extra
 
 
 def _window_limits(w: dict, cond: BarCondition, target_speed: float) -> dict:
@@ -954,6 +1013,40 @@ def _window_limits(w: dict, cond: BarCondition, target_speed: float) -> dict:
                 grf=w["grf_peak_bw"] <= tune.GRF_BW,
                 cadence=w["cadence_steps_s"] is not None and tune.CADENCE[0] <= w["cadence_steps_s"] <= tune.CADENCE[1],
                 stride=w["stride_H"] is not None and tune.STRIDE_H[0] <= w["stride_H"] <= tune.STRIDE_H[1])
+
+
+def joint_range_window(b: BarBuilt, rec: metrics.Recorder, ta: float, tb: float) -> dict:
+    """The joint range over the update rows in [ta, tb] (``panels._base``'s reading on those rows): each joint's
+    smallest distance to its range against ``b.required`` (an end a joint rests on by design left out,
+    ``plant.REST_ON_STOP_RULE``).  ``ok`` is None when the window holds no row."""
+    sel = (rec.t >= ta - EPS_S) & (rec.t <= tb + EPS_S)
+    out = dict(span="window", window_s=[float(ta), float(tb)], rows=int(sel.sum()), ok=None, joint_margin_min_rad=None,
+               joint_shortfall_rad=None, joint_worst=None)
+    if not sel.any():
+        return out
+    margins = metrics.joint_margins(rec.Q[sel], b.lo, b.hi, plant.rest_ends(b.p.joints))
+    short = b.required - margins
+    w = int(np.argmax(short))
+    return dict(out, ok=bool(short[w] <= 0.0), joint_margin_min_rad=float(margins.min()),
+                joint_shortfall_rad=float(short[w]), joint_worst=b.p.joints[w])
+
+
+def leg_gap_window(rec: metrics.Recorder, lg, ta: float, tb: float) -> dict:
+    """``legs.LegGap`` over the recorded poses inside [ta, tb] (``metrics.leg_gap``'s keys): pose j is the update
+    row ``j * rec.legs_every``.  ``interference_free`` is None when the window holds no pose."""
+    poses = rec.poses or []
+    rows = np.arange(len(poses)) * max(1, int(rec.legs_every))
+    t = np.asarray(rec.t, float)
+    keep = [q for q, r in zip(poses, rows, strict=True)
+            if r < len(t) and ta - EPS_S <= t[r] <= tb + EPS_S]
+    out = dict(span="window", window_s=[float(ta), float(tb)], poses=len(keep), poses_episode=len(poses),
+               interference_free=None, min_gap_all_mm=None)
+    if not keep or lg is None:
+        return out
+    r = lg.trace(keep)
+    return dict(out, **{k: r[k] for k in ("poses", "interference_free", "interference_poses", "tight_poses",
+                                          "min_gap_all_mm", "min_gap_all_pair", "min_gap_moving_mm",
+                                          "min_gap_moving_pair")})
 
 
 def _planned_s(b: BarBuilt) -> float:
@@ -1001,7 +1094,8 @@ def _judge(b: BarBuilt, out: dict, rec: metrics.Recorder, seed: int, lg=None) ->
     ok: dict = dict(survived=not fell, drive_speed=limits["drive_speed"], joint_range=limits["joint_range"])
     bar: dict = {}
     measures: dict = dict(bar=bar, window=None, stage1=None, legs=None, push=None, recovery=None)
-    swings: list = []
+    planned = planned_swing_rows(b.track, rec.col("t_ref"), rec.col("ref_swing")) if rec.rows else np.zeros(0)
+    toe_extra: dict = dict(swings=[], swing_details=[], planned_s=planned)
     drives_episode = (readings.drive_ratios(rec.force_sq, rec.sustained, rec.actuators, b.leg_mask, 0, rec.steps)
                       if rec.steps else None)
     drives_window = None
@@ -1028,7 +1122,7 @@ def _judge(b: BarBuilt, out: dict, rec: metrics.Recorder, seed: int, lg=None) ->
                 raise Unreadable(f"{cond.key} seed {seed}: the last {tune.WALK_WINDOW_S:g} s ([{ta:.3f}, {tb:.3f}] s) "
                                  f"are not all in the walk's steady part (it begins at {steady} s)")
             window_reached = True
-            toe, swings = _toe(b, rec, ta, tb)
+            toe, toe_extra = _toe(b, rec, ta, tb, planned=planned)
             drives_window = readings.drive_ratios(rec.force_sq, rec.sustained, rec.actuators, b.leg_mask,
                                                   *_window_steps(rec, ta, tb))
             target = tune.WALK_WINDOW_S * b.target_speed
@@ -1036,7 +1130,8 @@ def _judge(b: BarBuilt, out: dict, rec: metrics.Recorder, seed: int, lg=None) ->
             ok.update(along=line["along_commanded_heading_m"] >= target, line=line["lateral_from_line_max_m"] <= readings.LINE_MAX_M,
                       toe_clearance_own_swing=toe["ok"])
             bar.update(line, along_target_m=target, line_max_m=readings.LINE_MAX_M, toe=toe,
-                       heading_drift_deg=math.degrees(w["heading_change_rad"]), grf_peak_bw=w["grf_peak_bw"],
+                       **{k: toe[k] for k in TOE_KEYS}, heading_drift_deg=math.degrees(w["heading_change_rad"]),
+                       grf_peak_bw=w["grf_peak_bw"],
                        cadence_steps_s=w["cadence_steps_s"], stride_H=w["stride_H"], duty=w["duty"],
                        stage1_toe_clearance_m=w["toe_clearance_m"])
             measures["look"] = panels.look(rec, ta, tb, H, b.spec.stride_s, b.track, b.p.joints)
@@ -1057,16 +1152,29 @@ def _judge(b: BarBuilt, out: dict, rec: metrics.Recorder, seed: int, lg=None) ->
                 if not w.get("complete"):
                     raise Unreadable(f"{cond.key} seed {seed}: the window [{ta:.3f}, {tb:.3f}] s cannot be read")
                 window_reached = True
-                toe, swings = _toe(b, rec, ta, tb)
+                toe, toe_extra = _toe(b, rec, ta, tb, planned=planned)
                 drives_window = readings.drive_ratios(rec.force_sq, rec.sustained, rec.actuators, b.leg_mask,
                                                       *_window_steps(rec, ta, tb))
                 measures["window"] = {k: w.get(k) for k in panels.WINDOW_KEYS}
+                jr = joint_range_window(b, rec, ta, tb)
+                measures["legs"] = (dict(leg_gap_window(rec, lg, ta, tb), window_complete=True) if lg is not None
+                                    else None)
                 ok.update(_window_limits(w, cond, b.target_speed))
-                ok.update(heading=tr["heading"], toe_clearance_own_swing=toe["ok"])
-                bar.update(toe=toe, grf_peak_bw=w["grf_peak_bw"], duty=w["duty"],
-                           stage1_toe_clearance_m=w["toe_clearance_m"])
-        measures["legs"] = metrics.leg_gap(rec, lg) if lg is not None else None
-        ok["no_leg_interference"] = bool(measures["legs"] and measures["legs"]["interference_free"])
+                ok.update(heading=tr["heading"], toe_clearance_own_swing=toe["ok"], joint_range=bool(jr["ok"]),
+                          no_leg_interference=bool(measures["legs"] and measures["legs"]["interference_free"]))
+                bar.update(toe=toe, **{k: toe[k] for k in TOE_KEYS}, grf_peak_bw=w["grf_peak_bw"], duty=w["duty"],
+                           stage1_toe_clearance_m=w["toe_clearance_m"], joint_range=jr)
+            elif lg is not None:  # a fall inside the window: what there is of it, reported
+                measures["legs"] = dict(leg_gap_window(rec, lg, t_c, t_c + at_s + readings.HEADING_HOLD_S),
+                                        window_complete=False)
+        # the same two readings over the whole episode, reported (Stage 1's span); a fall leaves the terms false
+        measures["legs_episode"] = metrics.leg_gap(rec, lg) if lg is not None else None
+        bar.update(drive_speed_span="episode", joint_range_span="window", no_leg_interference_span="window",
+                   joint_range_episode=dict(span="episode", ok=bool(limits["joint_range"]),
+                                            joint_shortfall_rad=e["joint_shortfall_rad"], joint_worst=e["joint_worst"]))
+        ok.setdefault("no_leg_interference", False)
+        if not window_reached:
+            ok["joint_range"] = False
     elif j == "bar_nudge":
         t_on = b.push_onset(seed)
         f = b.push_force()
@@ -1107,7 +1215,7 @@ def _judge(b: BarBuilt, out: dict, rec: metrics.Recorder, seed: int, lg=None) ->
         raise ValueError(f"judge {j!r}")
     if j in ("bar_nudge", "bar_stop") and rec.rows > 1:  # reported: the own-swing reading over the whole trace
         try:
-            toe, swings = _toe(b, rec, float(rec.t[0]), float(rec.t[-1]))
+            toe, toe_extra = _toe(b, rec, float(rec.t[0]), float(rec.t[-1]), planned=planned)
             bar["toe_reported"] = toe
         except ValueError as exc:
             bar["toe_reported"] = dict(error=str(exc))
@@ -1129,7 +1237,7 @@ def _judge(b: BarBuilt, out: dict, rec: metrics.Recorder, seed: int, lg=None) ->
              command_s=t_c, command_ref_s=command_ref, fell_before_command=before,
              segment_reached=out.get("segment_reached"), window_reached=bool(window_reached), omega=b.omega,
              crouch_frac=b.crouch_frac, measures=measures)
-    return e, dict(swings=swings, command_s=t_c)
+    return e, dict(toe_extra, command_s=t_c)
 
 
 def judge(b, out: dict, rec: metrics.Recorder, seed: int, lg=None) -> dict:
@@ -1141,20 +1249,31 @@ def judge(b, out: dict, rec: metrics.Recorder, seed: int, lg=None) -> dict:
     return _judge(b, out, rec, seed, lg)[0]
 
 
-def swing_table(swings: list) -> np.ndarray:
-    """The per-swing table as an array [n, 5]: foot, t_lo, t_td, min (NaN: not read), class (its index in
-    ``readings.SWING_CLASSES``)."""
+SWING_COLS = ("foot", "t_lo_s", "t_td_s", "min_m", "class", "planned_s", "own_duration_min_m")
+
+
+def swing_table(swings: list, details: list | None = None) -> np.ndarray:
+    """The per-swing table as an array [n, 7] (``SWING_COLS``): foot, t_lo, t_td, the judged minimum (NaN: not
+    read), class (its index in ``readings.SWING_CLASSES``), the planned duration ``T_p`` and the minimum as first
+    written, over the swing's own duration (NaN: none)."""
     cls = {c: i for i, c in enumerate(readings.SWING_CLASSES)}
-    return np.array([[r[0], r[1], r[2], math.nan if r[3] is None else r[3], cls[r[4]]] for r in swings],
-                    float).reshape(-1, 5)
+    details = details if details is not None else [{}] * len(swings)
+
+    def num(x):
+        return math.nan if x is None else float(x)
+
+    return np.array([[r[0], r[1], r[2], num(r[3]), cls[r[4]], num(d.get("planned_s")), num(d.get("own_duration_min_m"))]
+                     for r, d in zip(swings, details, strict=True)], float).reshape(-1, len(SWING_COLS))
 
 
-def trace_arrays(rec: metrics.Recorder, swings: list, command_s: float | None) -> dict:
+def trace_arrays(rec: metrics.Recorder, swings: list, command_s: float | None, planned_s=None,
+                 swing_details: list | None = None) -> dict:
     """``RULES["trace"]``'s arrays: ``panels.write_trace``'s five, unchanged, then the contact bits (per foot,
-    ``np.packbits``; ``steps`` their count), ``dt``, ``weight``, the updates' times, both feet's low points and the
-    reference's swing foot at every update (what reading (a) takes), the per-swing table and the command instant
-    (NaN: none)."""
+    ``np.packbits``; ``steps`` their count), ``dt``, ``weight``, the updates' times, both feet's low points, the
+    reference's swing foot and that swing's planned duration at every update (what reading (a) takes), the
+    per-swing table and the command instant (NaN: none)."""
     every = panels.TRACE_EVERY
+    planned = np.full(rec.rows, math.nan) if planned_s is None else np.asarray(planned_s, np.float64)
     U = rec.U[: rec.rows : every] if rec.rows else np.zeros((0, len(metrics.COLS)))
     Q = rec.Q[: rec.rows : every] if rec.rows else np.zeros((0, 0))
     contact = rec.contact() if rec.steps else np.zeros((0, 2), bool)
@@ -1164,14 +1283,16 @@ def trace_arrays(rec: metrics.Recorder, swings: list, command_s: float | None) -
                 weight=np.array(float(rec.weight)), t100=np.asarray(rec.t, np.float64).copy(),
                 low100=_lows(rec).astype(np.float32) if rec.rows else np.zeros((0, 2), np.float32),
                 ref_swing100=(np.rint(rec.col("ref_swing")).astype(np.int8) if rec.rows else np.zeros(0, np.int8)),
-                swings=swing_table(swings), swing_classes=np.array(readings.SWING_CLASSES),
+                planned_s100=planned.copy(), swings=swing_table(swings, swing_details),
+                swing_cols=np.array(SWING_COLS), swing_classes=np.array(readings.SWING_CLASSES),
                 command_s=np.array(math.nan if command_s is None else float(command_s)))
 
 
-def write_trace(root, rel, rec: metrics.Recorder, swings: list, command_s: float | None) -> dict:
+def write_trace(root, rel, rec: metrics.Recorder, swings: list, command_s: float | None, planned_s=None,
+                swing_details: list | None = None) -> dict:
     """A bar episode's trace into ``root / rel`` (compressed, written whole, then moved into place); its path
     (relative to ``root``), sha256 and rows."""
-    arrays = trace_arrays(rec, swings, command_s)
+    arrays = trace_arrays(rec, swings, command_s, planned_s, swing_details)
     sha = s2io.write_npz(Path(root) / rel, arrays, compressed=True)
     return dict(path=Path(rel).as_posix(), sha256=sha, rows=int(len(arrays["t"])),
                 every_s=panels.TRACE_EVERY * control.FEEDBACK_EVERY * float(rec.dt), updates=int(rec.rows),
@@ -1196,7 +1317,8 @@ def run_episode(row: panels.Row, ctx: panels.Context, cond, seed: int, relax=(),
     if is_bar(cond):
         e, extra = _judge(b, out, rec, int(seed), lg)
         if trace_root is not None:
-            e["trace"] = write_trace(trace_root, rel, rec, extra["swings"], extra["command_s"])
+            e["trace"] = write_trace(trace_root, rel, rec, extra["swings"], extra["command_s"], extra["planned_s"],
+                                     extra["swing_details"])
     else:
         e = panels.judge(b, out, rec, int(seed), lg)
         if trace_root is not None:
@@ -1583,6 +1705,8 @@ def condition_record(body: str, set_name: str, block: str, row: panels.Row, cond
                set_freeze=inputs.get("freeze"), sessions=list(sessions),
                episode_wall_s=float(sum(e.get("wall_s") or 0.0 for e in episodes)),
                simulated_s=float(sum(e.get("survival_s") or 0.0 for e in episodes)), ended_at=s2io.now_utc())
+    if bar and cond.judge == "bar_turn":  # C5's note: which span each of the turn's three limits is read over
+        rec.update(drive_speed_span="episode", joint_range_span="window", no_leg_interference_span="window")
     rec.update(extra or {})
     return _plain_json(rec)
 
@@ -2521,12 +2645,16 @@ def reference_item(p: plant.Plant, run_dir, cond: BarCondition, planner: BarPlan
     out = dict(condition=cond.key, plan=[list(x) for x in res["plan"]], seconds=res["seconds"], clock_rate=RATE,
                files=res["files"])
 
+    planned = planned_swing_rows(track, rec.col("t_ref"), rec.col("ref_swing"))
+
     def toe(ta, tb):
-        r = readings.toe_clearance_own_swing(rec.t, _lows(rec), rec.contact(), rec.dt, rec.col("ref_swing"), ta, tb, gap)
-        r.pop("swings")
-        v = r["toe_clearance_own_swing_m"]
+        r = readings.toe_clearance_own_swing(rec.t, _lows(rec), rec.contact(), rec.dt, rec.col("ref_swing"), ta, tb,
+                                             gap, planned_s=planned)
+        r.pop("swings"), r.pop("swing_details")
+        v, v1 = r["toe_clearance_own_swing_m"], r["toe_clearance_own_duration_m"]
         return dict(r, ok=readings.toe_clearance_own_swing_ok(r, H), limit_m=readings.TOE_CLEARANCE_FRAC_H * H,
-                    toe_clearance_own_swing_H=None if v is None else v / H)
+                    toe_clearance_own_swing_H=None if v is None else v / H,
+                    toe_clearance_own_duration_H=None if v1 is None else v1 / H)
 
     j = cond.judge
     if j == "bar_walk":
@@ -2661,13 +2789,19 @@ def reread(stage1_run, body: str, rows, conditions, out, records=None, row_modul
                     w = (e.get("measures") or {}).get("window") or {}
                     if line["trace_equal"] and w.get("complete"):
                         gap = readings.air_gap_max(setio.min_planned_swing_s(b.track), RATE)
-                        r = readings.toe_clearance_own_swing(rec.t, _lows(rec), rec.contact(), rec.dt,
-                                                             rec.col("ref_swing"), w["t_start_s"], w["t_end_s"], gap)
-                        r.pop("swings")
+                        r, _ = _toe(b, rec, w["t_start_s"], w["t_end_s"], air_gap_max_s=gap)
                         own, ref = r["toe_clearance_own_swing_m"], w.get("toe_clearance_m")
+                        first = r["toe_clearance_own_duration_m"]
                         line.update(window_s=[w["t_start_s"], w["t_end_s"]], H_m=b.H,
-                                    toe_clearance_own_swing_m=own, toe_clearance_reference_clock_m=ref,
+                                    toe_clearance_own_swing_m=own, toe_clearance_own_duration_m=first,
+                                    toe_clearance_reference_clock_m=ref,
+                                    toe_clearance_own_swing_H=r["toe_clearance_own_swing_H"],
+                                    toe_clearance_own_duration_H=r["toe_clearance_own_duration_H"],
+                                    toe_clearance_reference_clock_H=None if ref is None else ref / b.H,
                                     difference_m=None if own is None or ref is None else own - ref,
+                                    worst_swing=r["worst_swing"], ref_swings_cut=r["ref_swings_cut"],
+                                    own_duration_ok=bool(first is not None and first >= readings.TOE_CLEARANCE_FRAC_H
+                                                         * b.H),
                                     own_swing_ok=readings.toe_clearance_own_swing_ok(r, b.H),
                                     reference_clock_ok=bool(ref is not None and ref >= tune.TOE_H * b.H),
                                     own_swings=r["own_swings"], ref_swings=r["ref_swings"],
@@ -2682,14 +2816,16 @@ def reread(stage1_run, body: str, rows, conditions, out, records=None, row_modul
                     eps.append(line)
                     log(f"{body} {row.name} {cond.key} {seed}: trace "
                         + ("equal" if line["trace_equal"] else "DIFFERS" if want else "has no committed record")
-                        + (f"; own swing {1e3 * line['toe_clearance_own_swing_m']:.2f} mm, reference clock "
-                           f"{1e3 * line['toe_clearance_reference_clock_m']:.2f} mm"
+                        + (f"; own swing {line['toe_clearance_own_swing_H']:.4f} H (as first written "
+                           f"{line['toe_clearance_own_duration_H']:.4f} H), reference clock "
+                           f"{line['toe_clearance_reference_clock_H']:.4f} H"
                            if line.get("toe_clearance_own_swing_m") is not None
                            and line.get("toe_clearance_reference_clock_m") is not None else ""))
                     doc = dict(schema="bar-reread-1", body=body, rule=(
                         "stock rows on stock conditions, re-run; a stock trace's sha256 must equal the committed "
                         "episode record's before the own-swing toe clearance is read on the live recorder, over "
-                        "the window Stage 1 judged; only the trace identity is asserted"),
+                        "the window Stage 1 judged (the judged reading of C3 as amended on 15 Nov 2026, the reading "
+                        "as first written and Stage 1's beside it); only the trace identity is asserted"),
                         stage1_run=s2io.portable(str(setio._anchored(stage1_run))),
                         records=s2io.portable(str(rec_root)), rows=list(row_objs), conditions=[c.key for c in conds],
                         seeds=[int(s) for s in seeds], episodes=eps, traces_equal=sum(x["trace_equal"] for x in eps),

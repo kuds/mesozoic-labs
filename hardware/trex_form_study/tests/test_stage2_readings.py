@@ -78,9 +78,16 @@ def walk(feet=(0,), delay=0, shift=0, count=6, period_s=1.0, first_s=1.0, shape=
     return own, ref
 
 
+def planned_rows(ref_swing, planned_s=SWING_S):
+    """``planned_s`` of the amended reading: every reference swing of these traces is planned ``planned_s`` long
+    (the synthetic traces have one clock: a planned second is a simulated second)."""
+    return np.where(np.asarray(ref_swing) >= 0, float(planned_s), np.nan)
+
+
 def own_swing(arrays, ta=0.5, tb=7.9, air_gap_max_s=AIR_GAP_MAX_S):
     t_u, low, contact, ref_swing, _ = arrays
-    return R.toe_clearance_own_swing(t_u, low, contact, DT, ref_swing, ta, tb, air_gap_max_s)
+    return R.toe_clearance_own_swing(t_u, low, contact, DT, ref_swing, ta, tb, air_gap_max_s,
+                                     planned_s=planned_rows(ref_swing))
 
 
 def reference_clock_reading(arrays, ta=0.5, tb=7.9):
@@ -139,7 +146,9 @@ def test_own_swing_edges_are_interpolated():
 
 def test_early_touchdown_fails():
     """A touchdown at 45 % of the planned swing.  The air run is shorter than half the shortest planned swing, but it
-    overlaps the reference's swing, so it is a swing, read over its own middle half; the term fails."""
+    overlaps the reference's swing, so it is a swing; the term fails.  (Changed with C3's amendment of 15 Nov 2026:
+    the judged reading takes the middle half of the planned swing from the own lift-off, where the foot is on the
+    floor from 45 %, so it reads the floor; the tent's own middle half is the reading as first written, reported.)"""
     steps = int(round(0.45 * SWING_STEPS))  # 79 steps: 0.158 s
     assert steps * DT < AIR_GAP_MAX_S
 
@@ -153,7 +162,9 @@ def test_early_touchdown_fails():
                             "swing"]]
     assert r["own_swings"] == [1, 0] and r["ref_swings"] == [1, 0] and r["air_gaps"] == 0
     expected = LIFT * math.sin(math.pi * 0.25 * steps / SWING_STEPS) ** 2  # the tent at 25 % and 75 % of its own run
-    assert r["toe_clearance_own_swing_m"] == pytest.approx(expected, abs=1e-4)  # (the profile curves between rows)
+    assert r["toe_clearance_own_duration_m"] == pytest.approx(expected, abs=1e-4)  # (the profile curves between rows)
+    assert r["toe_clearance_own_swing_m"] == 0.0 and r["worst_swing"]["min_from_edge"] is None
+    assert r["worst_swing"]["own_duration_s"] == pytest.approx(steps * DT) and r["worst_swing"]["planned_s"] == SWING_S
     assert r["toe_clearance_own_swing_m"] < R.TOE_CLEARANCE_FRAC_H * H
     assert not R.toe_clearance_own_swing_ok(r, H)
     # the same short air run wholly inside the reference's stance is an air gap: only the overlap makes it a swing
@@ -163,7 +174,9 @@ def test_early_touchdown_fails():
 
 def test_mid_swing_stub_fails():
     """A 30 ms re-contact at mid-swing: two swings in one reference swing, so ``interrupted_swings == 1`` and the
-    term fails, whatever the clearance of the two parts."""
+    term fails, whatever the clearance of the two parts.  (Changed with C3's amendment of 15 Nov 2026: the stub lies
+    inside the first part's planned middle half, so the judged reading is the floor's; the two parts' own middle
+    halves, 30 mm up, are the reading as first written.)"""
     a = int(round(1.0 / DT))
     part = 80  # steps before the stub; 15 steps (30 ms) of contact; 80 steps after
     own, ref = walk(count=3)
@@ -175,8 +188,10 @@ def test_mid_swing_stub_fails():
     assert r["own_swings"] == [4, 0] and r["ref_swings"] == [3, 0] and r["count_ok"]
     assert [row[4] for row in r["swings"]] == ["swing"] * 4  # both parts are swings: each overlaps the reference's
     assert all(row[2] - row[1] < AIR_GAP_MAX_S for row in r["swings"][1:3])
-    assert r["toe_clearance_own_swing_m"] >= R.TOE_CLEARANCE_FRAC_H * H
+    assert r["toe_clearance_own_duration_m"] >= R.TOE_CLEARANCE_FRAC_H * H
+    assert r["toe_clearance_own_swing_m"] == 0.0
     assert not R.toe_clearance_own_swing_ok(r, H)
+    assert not R.toe_clearance_own_swing_ok(dict(r, toe_clearance_own_swing_m=0.030), H)  # interrupted alone fails it
     whole = own_swing(episode(*walk(count=3), seconds=5.0), ta=0.5, tb=4.9)
     assert whole["interrupted_swings"] == 0 and R.toe_clearance_own_swing_ok(whole, H)
 
@@ -199,7 +214,12 @@ def test_stance_chatter_is_an_air_gap():
     long_steps = int(math.ceil(AIR_GAP_MAX_S / DT))  # 84 steps: 0.168 s >= 0.1667 s
     r = own_swing(episode(own + [(0, a, long_steps, graze)], ref))
     assert r["air_gaps"] == 0 and r["own_swings"] == [7, 0]
-    assert r["toe_clearance_own_swing_m"] == pytest.approx(0.0005, abs=1e-12)
+    # (changed with C3's amendment of 15 Nov 2026: outside every reference swing T_p is the shortest planned swing,
+    # 0.333 s, whose middle half runs past this 0.168 s unloading: the judged reading is the floor's, and the graze
+    # itself is the reading as first written)
+    assert r["toe_clearance_own_duration_m"] == pytest.approx(0.0005, abs=1e-12)
+    assert r["toe_clearance_own_swing_m"] == 0.0 and r["worst_swing"]["planned_s"] == pytest.approx(0.350 / 1.05)
+    assert r["shortest_planned_s"] == pytest.approx(0.350 / 1.05, abs=1e-15)
     assert not R.toe_clearance_own_swing_ok(r, H)
     r = own_swing(episode(own + [(0, a, long_steps - 1, graze)], ref))  # one step shorter: still a gap
     assert r["air_gaps"] == 1 and r["own_swings"] == [6, 0]
@@ -680,8 +700,8 @@ def put_swing(t_u, contact, low, ref, foot, a, steps, shape, ref_a=None, ref_ste
         ref[(t_u >= ref_a * DT - 1e-12) & (t_u < (ref_a + ref_steps) * DT - 1e-12)] = foot
 
 
-def read_swing(t_u, low, contact, ref, ta=0.2, tb=3.9, gap=GAP_S):
-    return R.toe_clearance_own_swing(t_u, low, contact, DT, ref, ta, tb, gap)
+def read_swing(t_u, low, contact, ref, ta=0.2, tb=3.9, gap=GAP_S, planned=SWING_S):
+    return R.toe_clearance_own_swing(t_u, low, contact, DT, ref, ta, tb, gap, planned_s=planned_rows(ref, planned))
 
 
 @pytest.mark.parametrize("edge", ["25 % edge", "75 % edge"])
@@ -763,15 +783,155 @@ def test_an_air_run_of_exactly_air_gap_max_is_a_swing():
 
 def test_a_cut_swing_still_counts_for_its_reference_swing():
     """This file's stated choice: a reference swing wholly inside the window whose second swing lands after ``tb``
-    is interrupted, though that second swing is not read."""
+    is interrupted, though that second swing is not read.  (Changed with C3's amendment of 15 Nov 2026, the count
+    rule: a window edge cuts an own swing that overlaps this reference swing, so it no longer counts toward the
+    foot's number of reference swings; it is still interrupted.)"""
     n, t_u, contact, low, ref = bare_trace()
     ref[(t_u >= 1.0 - 1e-12) & (t_u < 1.35 - 1e-12)] = 0
     ref[(t_u >= 3.0 - 1e-12) & (t_u < 3.35 - 1e-12)] = 0
     contact[500:560, 0] = False
     contact[580:800, 0] = False  # the second part of the first reference swing lands at 1.600 s, after tb = 1.5 s
     r = read_swing(t_u, low, contact, ref, tb=1.5)
-    assert r["ref_swings"] == [1, 0] and r["interrupted_swings"] == 1
+    assert r["ref_swings"] == [0, 0] and r["ref_swings_cut"] == [1, 0] and r["interrupted_swings"] == 1
     assert [row[4] for row in r["swings"]] == ["swing", "swing_cut"] and r["own_swings"] == [1, 0]
+
+
+# ------------------------------------------------------------------------------------------------
+# C3 as amended on 15 Nov 2026 (STAGE2_75_PLAN.md): the middle half of the planned swing from the own lift-off
+# ------------------------------------------------------------------------------------------------
+def test_amended_a_pure_delay_leaves_the_reading_where_it_was():
+    """The simulated foot is the reference k = 0..5 physics steps late (own duration = planned duration): the judged
+    reading is the reading as first written, for every k."""
+    for k in range(6):
+        r = own_swing(episode(*walk(feet=(0, 1), delay=k)))
+        assert r["toe_clearance_own_swing_m"] == pytest.approx(0.5 * LIFT, abs=0.5 * EDGE_TOL_M)
+        assert r["toe_clearance_own_swing_m"] == pytest.approx(r["toe_clearance_own_duration_m"], abs=1e-12)
+        assert r["own_swings"] == r["own_duration_swings"] == r["ref_swings"] == [6, 6] and r["ref_swings_cut"] == [0, 0]
+        w = r["worst_swing"]
+        assert w["planned_s"] == SWING_S and w["own_duration_s"] == pytest.approx(SWING_S, abs=1e-12)
+        assert w["min_from_edge"] in ("first", "last") and w["min_at_frac"] in (0.25, 0.75)
+        assert [d["planned_s"] for d in r["swing_details"]] == [SWING_S] * 12 and len(r["swing_details"]) == len(r["swings"])
+
+
+def test_amended_a_late_soft_touchdown_no_longer_lowers_the_reading():
+    """The foot follows the planned sin^2 swing, reaches the floor when the plan does and rests there unloaded for
+    28 ms before its load passes 2 % (what Stage 1's stock walks do): the own swing lasts 0.378 s.  As first written
+    the 75 % edge of that duration lies on the falling flank and reads 0.026 H, under 0.04 H; the judged reading is
+    half the lift, 0.0405 H, as with a touchdown on time."""
+    rest = 14  # physics steps on the floor before contact: 28 ms
+    own_steps = SWING_STEPS + rest
+
+    def soft(u):  # u over the own run: the planned profile, then the floor
+        x = u * own_steps / SWING_STEPS
+        return np.where(x < 1.0, LIFT * np.sin(np.pi * np.minimum(x, 1.0)) ** 2, 0.0)
+
+    own, ref = walk(count=3)
+    own = [(f, a, own_steps, soft) for f, a, _, _ in own]
+    r = own_swing(episode(own, ref, seconds=5.0), ta=0.5, tb=4.9)
+    on_time = own_swing(episode(*walk(count=3), seconds=5.0), ta=0.5, tb=4.9)
+    assert r["own_swings"] == [3, 0] and r["ref_swings"] == [3, 0] and r["interrupted_swings"] == 0
+    assert r["toe_clearance_own_swing_m"] == pytest.approx(on_time["toe_clearance_own_swing_m"], abs=1e-12)
+    assert r["toe_clearance_own_swing_m"] == pytest.approx(0.5 * LIFT, abs=0.5 * EDGE_TOL_M)
+    assert R.toe_clearance_own_swing_ok(r, H)
+    first = r["toe_clearance_own_duration_m"]
+    assert first == pytest.approx(LIFT * math.sin(math.pi * 0.75 * own_steps / SWING_STEPS) ** 2, abs=1e-4)
+    assert first / H == pytest.approx(0.0256, abs=5e-4) and first < R.TOE_CLEARANCE_FRAC_H * H
+    w = r["worst_swing"]
+    assert w["own_duration_s"] == pytest.approx(own_steps * DT) and w["planned_s"] == SWING_S
+    assert [d["own_duration_min_m"] for d in r["swing_details"]] == pytest.approx([first] * 3, abs=1e-9)
+
+
+def test_amended_a_touchdown_at_48_percent_of_the_planned_swing_fails():
+    """The foot goes up along the plan and comes down early: contact at 48 % of the planned swing.  The interval is
+    read to its end, 75 % of the planned swing after the lift-off, where the foot is on the floor: the term fails,
+    whatever the foot's height over its own middle half."""
+    steps = int(round(0.48 * SWING_STEPS))  # 84 steps: 0.168 s
+    high = lambda u: 0.030 + 0.0 * u  # noqa: E731  (30 mm up for the whole of its own air run)
+    a = int(round(1.0 / DT))
+    r = own_swing(episode([(0, a, steps, high)], [(0, a, SWING_STEPS)], seconds=3.0), ta=0.5, tb=2.9)
+    assert [row[4] for row in r["swings"]] == ["swing"] and r["own_swings"] == [1, 0] and r["ref_swings"] == [1, 0]
+    assert r["toe_clearance_own_duration_m"] == pytest.approx(0.030) and r["toe_clearance_own_swing_m"] == 0.0
+    assert r["count_ok"] and r["interrupted_swings"] == 0 and not R.toe_clearance_own_swing_ok(r, H)
+    w = r["worst_swing"]
+    assert w["min_from_edge"] is None and 0.48 <= w["min_at_frac"] < 0.48 + 0.03  # the first update on the floor
+
+
+def test_amended_a_swing_cut_by_a_window_edge_is_neither_read_nor_counted():
+    """Both feet walk cleanly.  A swing the window's start or end cuts is not read and not counted, and the
+    reference swing it overlaps does not count either; nor does a swing whose own touchdown is inside the window
+    while its interval (to 75 % of the planned swing) runs past the window's end."""
+    own, ref = walk(feet=(0, 1), delay=3)  # 6 ms late: an own swing can reach past a window end that its reference's does not
+    arrays = episode(own, ref)
+    full = own_swing(arrays)
+    assert full["own_swings"] == full["ref_swings"] == [6, 6] and full["ref_swings_cut"] == [0, 0]
+    # the window ends 2 ms before the left foot's last own touchdown (6.356 s): its reference swing (to 6.35 s) is inside
+    r = own_swing(arrays, tb=6.354)
+    assert r["swings"][-1] == [0, pytest.approx(6.006), pytest.approx(6.356), None, "swing_cut"]
+    assert r["own_swings"] == [5, 5] and r["ref_swings"] == [5, 5] and r["ref_swings_cut"] == [1, 0] and r["count_ok"]
+    # the window starts 2 ms after the left foot's first reference swing begins and before its own lift-off: read
+    r = own_swing(arrays, ta=1.002)
+    assert r["own_swings"] == [6, 6] and r["ref_swings"] == [5, 6]  # (that reference swing is not wholly inside)
+    # ... and 2 ms after its own lift-off: cut, neither read nor counted
+    r = own_swing(arrays, ta=1.008)
+    assert r["swings"][0][3:] == [None, "swing_cut"] and r["own_swings"] == [5, 6] and r["ref_swings"] == [5, 6]
+    # an early touchdown near the window's end: the swing is inside the window, its interval is not
+    short = int(round(0.48 * SWING_STEPS))
+    own2 = own[:-1] + [(1, own[-1][1], short, sin2())]
+    last_lo = own[-1][1] * DT
+    r = own_swing(episode(own2, ref), tb=last_lo + 0.20)
+    assert r["swings"][-1] == [1, pytest.approx(last_lo), pytest.approx(last_lo + short * DT), None, "swing_cut"]
+    assert r["own_swings"] == [6, 5] and r["own_duration_swings"] == [6, 6] and r["count_ok"]
+    r = own_swing(episode(own2, ref), tb=last_lo + 0.75 * SWING_S + 0.001)  # the interval fits: read, on the floor
+    assert r["swings"][-1][4] == "swing" and r["toe_clearance_own_swing_m"] == 0.0 and r["own_swings"] == [6, 6]
+
+
+def test_amended_count_rule_holds_a_clean_walk_at_every_window():
+    """A clean walk of both feet (the simulated feet 6 ms late) passes the term wherever the window's edges fall:
+    410 window ends 2 ms apart with the window's start moving too.  (As first written, a window that cut a foot's
+    first and last swing left that foot two swings short of its reference swings and failed the count.)"""
+    arrays = episode(*walk(feet=(0, 1), delay=3))
+    bad = []
+    for n in range(410):
+        ta, tb = 0.9 + 0.002 * (n % 137), 6.2 + 0.002 * n
+        r = own_swing(arrays, ta=ta, tb=tb)
+        if not (r["count_ok"] and R.toe_clearance_own_swing_ok(r, H)):
+            bad.append((ta, tb, r["own_swings"], r["ref_swings"]))
+        assert all(r["own_swings"][i] >= r["ref_swings"][i] for i in (0, 1))
+    assert bad == []
+
+
+def test_amended_the_planned_duration_is_the_longest_overlapped_reference_swings():
+    """``T_p`` is the planned duration of the reference swing the air run shares the most updates with (the earlier
+    of two that share as many); with no overlap, or no ``planned_s``, the track's shortest planned swing."""
+    n, t_u, contact, low, ref = bare_trace()
+    ref[(t_u >= 1.0 - 1e-12) & (t_u < 1.30 - 1e-12)] = 0  # planned 0.30 s
+    ref[(t_u >= 1.40 - 1e-12) & (t_u < 1.80 - 1e-12)] = 0  # planned 0.40 s
+    planned = np.full(len(t_u), np.nan)
+    planned[(t_u >= 1.0 - 1e-12) & (t_u < 1.30 - 1e-12)] = 0.30
+    planned[(t_u >= 1.40 - 1e-12) & (t_u < 1.80 - 1e-12)] = 0.40
+    low[:, 0] = 0.030
+
+    def one(a, b):
+        c = contact.copy()
+        c[a:b, 0] = False
+        r = R.toe_clearance_own_swing(t_u, low, c, DT, ref, 0.2, 3.9, GAP_S, planned_s=planned)
+        return r["swing_details"][0]["planned_s"], r
+
+    assert one(600, 750)[0] == 0.30  # 1.20-1.50 s: ten updates of the first, ten of the second: the earlier
+    assert one(605, 750)[0] == 0.40  # 1.21-1.50 s: nine of the first, ten of the second
+    assert one(500, 745)[0] == 0.30  # 1.00-1.49 s: thirty of the first, nine of the second
+    T, r = one(1000, 1100)  # 2.0-2.2 s: no reference swing; long enough to be a swing
+    assert T == pytest.approx(GAP_S / 0.5) and r["swing_details"][0]["overlaps_reference"] is False
+    c = contact.copy()
+    c[500:650, 0] = False
+    none = R.toe_clearance_own_swing(t_u, low, c, DT, ref, 0.2, 3.9, GAP_S)  # no planned_s at all
+    assert none["swing_details"][0]["planned_s"] == pytest.approx(GAP_S / 0.5)
+    two = planned.copy()
+    two[105] = 0.31
+    with pytest.raises(ValueError, match="two planned durations"):
+        R.toe_clearance_own_swing(t_u, low, c, DT, ref, 0.2, 3.9, GAP_S, planned_s=two)
+    with pytest.raises(ValueError, match="planned_s"):
+        R.toe_clearance_own_swing(t_u, low, c, DT, ref, 0.2, 3.9, GAP_S, planned_s=planned[:-1])
 
 
 def test_along_is_the_projection_on_the_commanded_heading():
