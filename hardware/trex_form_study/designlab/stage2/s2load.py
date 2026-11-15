@@ -315,9 +315,9 @@ def stats_of(vecnorm) -> dict:
     rms = vecnorm.obs_rms
     if isinstance(rms, dict) or not getattr(vecnorm, "norm_obs", True):
         raise CheckpointError("the plain statistics need a VecNormalize that normalises one flat Box observation")
-    return {"obs_mean": np.array(rms.mean, dtype=np.float64), "obs_var": np.array(rms.var, dtype=np.float64),
-            "obs_count": np.array(rms.count, dtype=np.float64), "clip_obs": np.array(vecnorm.clip_obs, dtype=np.float64),
-            "epsilon": np.array(vecnorm.epsilon, dtype=np.float64)}
+    values = {"obs_mean": rms.mean, "obs_var": rms.var, "obs_count": rms.count, "clip_obs": vecnorm.clip_obs,
+              "epsilon": vecnorm.epsilon}
+    return {key: np.array(values[key], dtype=np.float64) for key in STATS_KEYS}
 
 
 def normalize(stats: dict, obs) -> np.ndarray:
@@ -406,7 +406,7 @@ def save_checkpoint(job_dir, steps, model, vecnorm, layout, run: dict, state: di
     files = checkpoint_files(job_dir, n)
     lay = _layout_record(layout)
     run_part = _run_part(run)
-    run_state = s2io.plain(state)                 # before any file is touched: a state that cannot be written changes nothing
+    run_state = s2io.plain(state)                 # before any file is touched: a state that is no JSON stops here
     stats = stats_of(vecnorm)
     _check_model(model, stats, lay)
     obs = fingerprint_obs(lay)
@@ -439,9 +439,9 @@ def save_checkpoint(job_dir, steps, model, vecnorm, layout, run: dict, state: di
             _unlink(files[kind])
             _unlink(_tmp(files[kind]))
         raise
-    record = dict(run_part)
+    record = {"schema": SCHEMA, **run_part}
     record.update(
-        schema=SCHEMA, steps=n, num_timesteps=int(model.num_timesteps),
+        steps=n, num_timesteps=int(model.num_timesteps),
         files={kind: {"name": files[kind].name, "bytes": files[kind].stat().st_size,
                       "sha256": s2io.sha256_file(files[kind])} for kind in FILE_KINDS},
         versions=versions(), layout=lay,
@@ -467,7 +467,8 @@ def _read_record(path: Path) -> tuple:
     except (OSError, ValueError) as exc:
         return None, f"record {path.name} is not JSON ({exc})"
     if not isinstance(doc, dict) or doc.get("schema") != SCHEMA:
-        return None, f"record {path.name} has schema {doc.get('schema') if isinstance(doc, dict) else None!r}, not {SCHEMA!r}"
+        schema = doc.get("schema") if isinstance(doc, dict) else None
+        return None, f"record {path.name} has schema {schema!r}, not {SCHEMA!r}"
     body = {k: v for k, v in doc.items() if k != "sha256"}
     if doc.get("sha256") != s2io.sha256_json(body):
         return None, f"record {path.name} does not hash to its own sha256 (it was changed or cut)"
@@ -500,7 +501,8 @@ def _hash_problem(job_dir, steps) -> tuple:
     for kind in FILE_KINDS:
         sha = s2io.sha256_file(files[kind])
         if sha != entries[kind].get("sha256"):
-            return None, f"{files[kind].name} has sha256 {sha[:16]}..., the record says {str(entries[kind].get('sha256'))[:16]}..."
+            said = str(entries[kind].get("sha256"))
+            return None, f"{files[kind].name} has sha256 {sha[:16]}..., the record says {said[:16]}..."
     return doc, None
 
 
@@ -656,13 +658,14 @@ def load_checkpoint(job_dir, steps, env=None, lr=None, tol=FINGERPRINT_TOL, expe
             out["vecnorm"] = vecnorm
         else:
             model = load_model(files["model"], record["layout"])
-    except Exception as exc:  # noqa: BLE001 - whatever a library raises on an archive it cannot use, the checkpoint is not used
+    except Exception as exc:  # noqa: BLE001 - whatever a library raises on an archive it cannot use: not used
         raise CheckpointError(f"{where}: does not load ({type(exc).__name__}: {exc})") from exc
     if env is not None:
         live = stats_of(out["vecnorm"])
         differ = [k for k in STATS_KEYS if not np.array_equal(live[k], stats[k])]
         if differ:
-            raise CheckpointError(f"{where}: the .pkl's statistics are not the fingerprint file's ({', '.join(differ)})")
+            raise CheckpointError(f"{where}: the .pkl's statistics are not the fingerprint file's "
+                                  f"({', '.join(differ)})")
     actions = fingerprint(model, stats, arrays["obs"])
     if actions.shape != arrays["actions"].shape:
         raise CheckpointError(f"{where}: fingerprint not reproduced: actions {actions.shape}, stored "
@@ -911,6 +914,6 @@ __all__ = ["CLIP_RANGE", "CheckpointError", "FILE_KINDS", "FILE_NAMES", "FINGERP
            "save_checkpoint", "stats_of", "tar_name", "versions", "write_validation"]
 
 if __name__ == "__main__":
-    from designlab.stage2 import s2load as _named    # the importable copy owns every class and all module state
+    from designlab.stage2 import s2load as _named  # the importable copy owns every class and all module state
 
     sys.exit(_named.main())

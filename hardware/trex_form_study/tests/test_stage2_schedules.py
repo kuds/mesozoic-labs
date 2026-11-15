@@ -10,7 +10,6 @@ import pickle
 import pickletools
 
 import pytest
-
 from designlab.stage2 import schedules
 from designlab.stage2.schedules import ConstantSchedule, LinearSchedule
 
