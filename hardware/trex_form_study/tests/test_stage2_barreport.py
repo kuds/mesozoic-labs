@@ -503,7 +503,6 @@ def test_a_missing_record_reads_not_run_and_a_unit_the_ledger_never_started_read
     assert f"| {barreport.CUT} |" in run.md and f"| {barreport.NOT_RUN} |" in run.md
     # without a ledger nothing is "cut"
     doc = copy.deepcopy(run.doc)
-    doc[barreport.META].pop("_ledger", None)
     doc[barreport.META]["budget"] = None
     assert not [s for _, _, x in every_line(barreport.tables(doc)) for s in strings(x) if barreport.CUT in s]
 

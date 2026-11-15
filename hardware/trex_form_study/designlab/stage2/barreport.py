@@ -408,14 +408,11 @@ def _run_path(set_name: str, body: str, block: str, row: str, key: str, control:
 def _ledger(meta: dict) -> dict:
     """Per task of ``budget.json``: the paths of its started units' records and of its cut units' records, and
     whether a unit of it was cut."""
-    if "_ledger" in meta:  # read once per document (a cache; it adds nothing to the document's content)
-        return meta["_ledger"]
     out = {}
     for t, task in ((meta.get("budget") or {}).get("tasks") or {}).items():
         started = {str(q) for u in task.get("units") or [] for q in ((u.get("detail") or {}).get("paths") or [])}
         cut = {str(q) for u in task.get("cut") or [] for q in ((u.get("detail") or {}).get("paths") or [])}
         out[str(t)] = dict(started=started, cut=cut, any_cut=bool(task.get("cut")))
-    meta["_ledger"] = out
     return out
 
 
@@ -575,14 +572,8 @@ def flags_of(rec: dict, meta: dict) -> list[str]:
     if differ:
         out.append(f"{OTHER_SOURCES} ({', '.join(differ)})")
     why = manifest_differences(rec, meta)
-    if why is None:
-        pass
-    elif why == []:
-        pass
-    elif why == [NOT_CHECKED]:
-        out.append(NOT_CHECKED)
-    else:
-        out.append(NOT_IN_MANIFEST)
+    if why:
+        out.append(NOT_CHECKED if why == [NOT_CHECKED] else NOT_IN_MANIFEST)
     return out
 
 
@@ -1698,7 +1689,7 @@ def _md_checks(c: dict) -> list[str]:
                                    else f"freeze {m['index']}, manifest `{m['manifest_sha256']}`")
                for d, m in c["freezes"].items())),
            f"- Records with episodes that failed to run or with unjudged counts: {len(c['errors_or_unjudged'])}"
-           + "".join(f"\n  - `{x['path']}`: {x['episodes']} episodes, {x['errors']} failed to run, "
+           + "".join(f"\n  - `{x['path']}`: episodes {x['episodes']}, failed to run {x['errors']}, "
                      + ("judged" if x["judged"] else "not judged") for x in c["errors_or_unjudged"])]
     if c["budget"] is None:
         out.append("- Core-hours: no `budget.json` in the run directory (no task's unit has started there).")
