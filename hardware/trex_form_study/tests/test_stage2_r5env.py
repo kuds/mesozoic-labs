@@ -135,15 +135,15 @@ def test_any_offset_breaks_the_digest(e0):
 # Reset is history-free (design D16)
 # ------------------------------------------------------------------------------------------------
 @needs_run
-@pytest.mark.parametrize("body,floor", [(BODY, "hard"), (BODY, "robot_floor_carpet"),
-                                        pytest.param(BODY_X, "hard", marks=needs_x)])
-def test_reset_is_history_free(body, floor):
+@pytest.mark.parametrize("mode,body,floor", [("R5", BODY, "hard"), ("R5", BODY, "robot_floor_carpet"),
+                                             pytest.param("R5", BODY_X, "hard", marks=needs_x), ("R6", BODY, "hard")])
+def test_reset_is_history_free(mode, body, floor):
     """An env after six randomised episodes (noise actions, drawn tasks, starts, factors, pushes and head events)
     against a fresh env: after ``reset(seed)`` and the same actions, every physics step's digest, every
     observation and reward and everything the reset drew are equal: from the stance, from mid-task and with the
     start drawn."""
-    cfg = cfg_of(body, floor=floor)
-    used, fresh = r5env.R5Env(cfg), r5env.R5Env(cfg)
+    cfg = cfg_of(body, floor=floor, mode=mode)
+    used, fresh = r5env.make(mode, cfg), r5env.make(mode, cfg)
     n = used.layout["action_dim"]
     assert n == (17 if body == BODY_X else 15)
     seen = []
