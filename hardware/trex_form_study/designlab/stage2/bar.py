@@ -250,11 +250,16 @@ RULES = dict(
         "builds of the three sets; changed after a result): every item starts with the stand and "
         f"{setio.start_name(BAR_WALK)}, the start from standing straight into the 0.40 m/s walk, in place of start, "
         "one stride of nominal and the change to 0.40 m/s; the strides of the 0.40 m/s walk before a command, the "
-        "seed slot, the planned seconds' rules and the judged windows are those of every other set; another rung is "
+        "seed slot, the planned seconds' rules and the judged windows are those of every other set (the start's own "
+        "file ends with 2 strides of the 0.40 m/s walk after its steady point and the change's with 3, Stage 1's "
+        "windows: counted from the steady point a command comes one stride earlier on such a set); another rung is "
         "reached from 0.40 m/s through the neighbouring rungs' changes, one stride of each rung on the way; the home "
         "pose of the track's LIPM frequency is read from the 0.40 m/s walk's file (every walk file of a set holds "
         "the body's one home pose); a condition that needs the nominal walk is not run.  Every record of such a set "
-        "carries lead_in, and a table that prints its rows labels them"),
+        "carries lead_in, and a table that prints its rows labels them (the summary's cells and lines, the "
+        "kinematic check's record).  A set whose set.json and entries disagree is refused: lead_in "
+        f"'{setio.start_name(BAR_WALK)}' on a set that holds its nominal walk, or another lead_in on a set that "
+        f"holds {setio.start_name(BAR_WALK)} and the 0.40 m/s walk and no nominal walk"),
     rows=(
         f"R2/<s>@<ms>ms: Stage 1's fitted tracker of CMA-ES seed s with the gains of the Stage 1 run's tune.json "
         f"unchanged; R0@<ms>ms: the panels' open-loop row; <any registered row>@<ms>ms likewise.  <ms> is a servo "
@@ -586,6 +591,13 @@ class BarPlanner:
         #: The start every plan of the set begins with, and the walk whose file gives the home pose of
         #: ``control.omega0``: the nominal walk, or the 0.40 m/s walk of a set that starts into it (``RULES["lead_in"]``).
         self.lead = lead_in_of(self.set_doc)
+        alt, has_nominal = setio.start_name(BAR_WALK), self.usable("refs", setio.NOMINAL)
+        if self.lead == alt and has_nominal:
+            raise tune.InputError(f"{self.set_dir}: set.json records lead_in {alt!r} but the set holds its nominal "
+                                  f"walk: the exception is for a set whose nominal walk is not a rung ({RULES['lead_in']})")
+        if self.lead == setio.START and not has_nominal and self.usable("refs", BAR_WALK) and self.usable("transitions", alt):
+            raise tune.InputError(f"{self.set_dir}: the set holds {alt} and no nominal walk, but set.json records "
+                                  f"lead_in {self.set_doc.get('lead_in')!r} ({RULES['lead_in']})")
         self.home_walk = setio.NOMINAL if self.lead == setio.START else BAR_WALK
         self._files = panels.Planner(self.set_dir, refs_doc, tr_doc)  # loads the arrays a plan's times need
 
@@ -666,6 +678,10 @@ class BarPlanner:
                                 reason=f"the set starts into {BAR_WALK} ({self.lead}): no lead-in reaches {cond.walk}")
                 direct = step[1]
             why = self.why_not("transitions", direct) or {}
+            if direct not in self.tr_doc and not (self.set_doc.get("not_available") or {}).get(direct):
+                # (a set records a neighbour's change that failed its gates under the direct change's name, with
+                # the numbers of what was tried)
+                why = self.why_not("transitions", setio.change_name(setio.NOMINAL, cond.walk)) or why
             return dict(reference=f"transitions/{direct}",
                         reason=f"no transition into {cond.walk} ({why.get('reason') or 'none in the set'})",
                         numbers=why.get("numbers"))
@@ -2713,7 +2729,8 @@ def _cell(rec: dict) -> dict:
                 a1_over=rec.get("a1_over"), falls=rec.get("falls"), label=f2.get("label"), label_but_A1=f3.get("label"),
                 attribution=(rec.get("attribution") or {}).get("label"), replication_of=rec.get("replication_of"),
                 supersedes=rec.get("supersedes"), control=rec.get("control"), key_sha256=rec.get("key_sha256"),
-                change_after_result=rec.get("change_after_result"), stand_in_walks=rec.get("stand_in_walks"))
+                change_after_result=rec.get("change_after_result"), stand_in_walks=rec.get("stand_in_walks"),
+                **({"lead_in": rec["lead_in"]} if rec.get("lead_in") else {}))  # (no key in any other set's cells)
 
 
 def verdict(cells: list, ms: int | None, which: str = "success") -> dict:
@@ -2841,13 +2858,17 @@ def verdict_text(v: dict) -> str:
 
 def summary_text(doc: dict) -> str:
     """The block's grid as text: one line per condition and row with both readings' counts, the labels a record
-    carries (a re-run after a result, a change after a result), and per controller its verdicts with their
-    replication words."""
+    carries (a re-run after a result, a change after a result, the lead-in of a set that starts straight into its
+    0.40 m/s walk), and per controller its verdicts with their replication words."""
     lines = [f"{doc['set']} {doc['body']} {doc['block']}" + (f" (control {doc['control']})" if doc.get("control") else "")]
+
+    def lead(x):  # the label of a set that starts straight into its 0.40 m/s walk (RULES["lead_in"])
+        return f" [lead-in {x['lead_in']}: an exception, A8 as amended (P34)]" if x.get("lead_in") else ""
+
     for ckey, cells in doc["grid"].items():
         for r, x in cells.items():
             if x["status"] != "done":
-                lines.append(f"  {ckey:28s} {r:14s} {x['status']}: {x.get('reason')}")
+                lines.append(f"  {ckey:28s} {r:14s} {x['status']}: {x.get('reason')}" + lead(x))
                 continue
             c2, c3 = x["counts"], x["counts_but_A1"]
 
@@ -2865,7 +2886,8 @@ def summary_text(doc: dict) -> str:
                          + ("" if x.get("gated", True) else " [reported]")
                          + (f" [{x['supersedes'].get('label')}: {x['supersedes'].get('reason')}]"
                             if x.get("supersedes") else "")
-                         + (f" [{x['change_after_result'].get('label')}]" if x.get("change_after_result") else ""))
+                         + (f" [{x['change_after_result'].get('label')}]" if x.get("change_after_result") else "")
+                         + lead(x))
         for name, v in (doc["verdicts"].get(ckey) or {}).items():
             lines.append(f"  {ckey:28s} {name}: {verdict_text(v['reading_2'])}; {verdict_text(v['reading_3'])}")
     return "\n".join(lines)
@@ -3304,6 +3326,7 @@ def refcheck(set_name: str, body: str, root=setio.ROOT, out=None, log=print) -> 
                f"commanded clock ({RATE:g}), read with the bar's own readings; no physics, no verdict",
                omega=omega, crouch_frac=crouch, inputs=dict(dir=s2io.portable(inputs["dir"]), files=inputs["files"]),
                set_freeze=inputs.get("freeze"), items=items, pass_=bool(done and all(x["pass_"] for x in done)),
+               **({} if planner.lead == setio.START else dict(lead_in=planner.lead, lead_in_rule=RULES["lead_in"])),
                bar_sources=bar_sources(),
                provenance=dict(git=s2io.git_state(own_outputs=[] if out is None else [str(Path(out).resolve())]),
                                versions=panels.library_versions(), blas_threads=s2io.blas_threads()),

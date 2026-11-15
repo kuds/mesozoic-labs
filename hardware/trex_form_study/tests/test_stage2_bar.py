@@ -506,6 +506,25 @@ def test_a_set_that_starts_straight_into_its_bar_walk(t0, t0_docs, tmp_path, mon
         bar.BarPlanner(d, docs["refs.json"]["references"], docs["transitions.json"]["transitions"],
                        dict(docs["set.json"], lead_in="start_v0.5"))
     assert bar.lead_in_of(None) == bar.lead_in_of({}) == bar.lead_in_of(dict(lead_in=None)) == "start"
+    # a set.json that disagrees with the set's entries is refused, in both directions: the exception on a set that
+    # holds its nominal walk; F25F9's shape (no nominal walk, start_v0.4 and the 0.40 m/s walk) under another lead-in
+    both = make_t0(tmp_path / "both", lead_in=alt, more_moves=((alt, "start"),))
+    with pytest.raises(tune.InputError, match="records lead_in 'start_v0.4' but the set holds its nominal walk"):
+        planner_of(tmp_path / "both")
+    assert planner_of(make_t0(tmp_path / "plain", more_moves=((alt, "start"),)).parents[1]).lead == "start"  # an extra file alone: fine
+    for i, said in enumerate((None, "start")):
+        make_t0(tmp_path / f"shape{i}", unavailable=("nominal", "start", setio.change_name("nominal", W)), lead_in=said,
+                more_moves=((alt, "start"),))
+        with pytest.raises(tune.InputError, match=f"the set holds start_v0.4 and no nominal walk, but set.json records lead_in {said!r}"):
+            planner_of(tmp_path / f"shape{i}")
+    assert both.is_dir() and "is refused" in bar.RULES["lead_in"]
+    # a rung whose neighbour's change failed its gates: the set records that under the direct change's name, and
+    # the "not run" reason and numbers are that entry's (the neighbour's change has no entry of its own)
+    make_t0(tmp_path / "step2", unavailable=("nominal", "start", setio.change_name("nominal", W), "nominal_to_v0.45"),
+            lead_in=alt, more_refs=(("v0.45", "fr05"),), more_moves=((alt, "start"), ("nominal_to_v0.45", "brisk_to_fr05")))
+    why = planner_of(tmp_path / "step2").missing(cond_of(setio.load(setio.set_dir(SET, BODY, tmp_path / "step2")), "walk/v0.45"))
+    assert why == dict(reference="transitions/v0.4_to_v0.45", numbers=dict(hip_yaw_range_use=0.93),
+                       reason="no transition into v0.45 (no reference within the thigh twist and the leg drives)")
     # --- the records: lead_in and its rule on such a set, on both kinds of record; no key on any other set
     faked(monkeypatch, lambda row, cond, seed, relax: fake_episode(cond, seed))
     out = tmp_path / "out"
@@ -525,6 +544,19 @@ def test_a_set_that_starts_straight_into_its_bar_walk(t0, t0_docs, tmp_path, mon
     bar.evaluate(SET, BODY, plain, ["R0@10ms"], ["walk/v0.4"], episodes=1, procs=1, root=t0, log=quiet)
     rec = read(rec_path(plain, "R0@10ms", "walk/v0.4"))
     assert "lead_in" not in rec and "lead_in" not in rec["rules"] and rec["plan"][0] == ["transition", "start"]
+    # the tables: the summary's cells and lines label such a set's rows, done and not run, and no other set's; the
+    # kinematic check's record says it too
+    doc = bar.summarize(out, SET, BODY, bar.HEADLINE_BLOCK)
+    cells = [doc["grid"][k]["R0@10ms"] for k in ("walk/v0.4", "walk/nominal", "turn/q90_left")]
+    assert [c["lead_in"] for c in cells] == [alt] * 3 and [c["status"] for c in cells] == ["done", "not run", "done"]
+    label = f" [lead-in {alt}: an exception, A8 as amended (P34)]"
+    lines = [x for x in bar.summary_text(doc).splitlines() if "R0@10ms" in x]
+    assert len(lines) == 3 and all(x.endswith(label) for x in lines)
+    plain_doc = bar.summarize(plain, SET, BODY, bar.HEADLINE_BLOCK)
+    assert "lead_in" not in plain_doc["grid"]["walk/v0.4"]["R0@10ms"] and "lead-in" not in bar.summary_text(plain_doc)
+    rc = bar.refcheck(SET, BODY, root, log=quiet)
+    assert rc["lead_in"] == alt and rc["lead_in_rule"] == bar.RULES["lead_in"]
+    assert "lead_in" not in bar.refcheck(SET, BODY, t0, log=quiet)
     said = make_t0(tmp_path / "said", lead_in="start")  # the key with the value every other set has
     assert json.dumps(planner_of(tmp_path / "said").resolve(cond_of(setio.load(said), "turn/q90_right")), default=str) \
         == json.dumps(ref.resolve(cond_of(t0_docs, "turn/q90_right")), default=str)
