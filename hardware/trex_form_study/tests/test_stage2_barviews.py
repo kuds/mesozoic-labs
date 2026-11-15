@@ -5,13 +5,16 @@ Run from hardware/trex_form_study:  python -m pytest -p no:cacheprovider -q test
 child process with MUJOCO_GL=osmesa, as the look clips' tests do)
 
 1. The pose of a trace row: the attitude columns' convention; the round trip of a kinematic play through the bar's
-   own trace file (every body within 1e-4 m and 1e-4 rad); the joint angles' one-step lag on a simulated trace.
+   own trace file (every body within 1e-4 m and 1e-4 rad); the joint angles' one-step lag on a simulated trace
+   (a cubic through the 50 Hz angles); and, behind STAGE2_SLOW=1, a Stage 1 smoke episode run in this process with
+   the plant's own body positions kept at every row (the measured bound of ``bv.POSE_BOUND``).
 2. A turn's readings on a synthetic circular path with a known radius, centre and heading: the function itself, the
    planned code path on the frozen set and the simulated code path on a made-up run directory (an episode that stops
    short, an episode that fell, a trace that is not the record's, a trace not kept, a record that does not parse).
 3. The selection rule on synthetic records.
-4. Labels, captions and the seconds of a clip.
-5. Cameras: the top view holds its sweep, up is the incoming walking line.
+4. Labels, captions and the seconds of a clip; an episode that fell before its condition's own move began says
+   so on every frame; the label bands of barviews' own.
+5. Cameras: the top view holds its sweep, up is the incoming walking line; the robot is held in the free picture.
 6. Nothing in a run directory outside its views/ is written (the commands run on a made-up run directory and the
    tree is compared); an output directory elsewhere inside it is refused.
 7. One rendered frame (STAGE2_SLOW=1).
@@ -46,6 +49,7 @@ _SET = ROOT / "stage2" / "sets" / "V0" / BODY
 needs_set = pytest.mark.skipif(not (_SET / "transitions" / "turn90_pi4_left.npz").exists(),
                                reason="the git-ignored arrays of the frozen set V0 are not here")
 ROW = "R2/42@10ms"
+BEFORE_ROW = "R2/43@10ms"  # the made-up run's record whose episodes fell before their command
 BLOCK = bar.HEADLINE_BLOCK
 
 
@@ -215,8 +219,8 @@ def test_pose_round_trip_of_a_kinematic_play_through_the_bars_trace_file(v0, mod
 
 def test_joint_angles_are_moved_back_one_physics_step(model):
     """``metrics.Recorder.update`` writes the joint angles of the state after the step beside the kinematics of the
-    state before it: a trace built that way comes back within a third of a millimetre with the shift (what is left is
-    the interpolation between the 50 Hz rows) and more than a millimetre off without it."""
+    state before it: a trace built that way comes back within 0.02 mm with the shift (a cubic through the 50 Hz
+    angles; a straight line between the rows left 0.2 mm) and more than a millimetre off without it."""
     p = model.p
     t = np.arange(150) * 0.02
     xy = np.column_stack([0.4 * t, np.zeros(len(t))])
@@ -238,10 +242,61 @@ def test_joint_angles_are_moved_back_one_physics_step(model):
         err[lag] = max(float(np.max(np.linalg.norm(model.kin(pose["qpos"][i]).xpos[p.feet] - feet[i], axis=1)))
                        for i in range(len(t)))
         assert pose["joint_lag_steps"] == lag
-    assert err[1] < 3e-4 and err[0] > 1e-3 and err[1] < err[0] / 5, err
-    assert bv.pose_of(late, model)["residual_m"]["feet_xy"] < 3e-4  # (the default is the simulated trace's shift)
-    assert np.allclose(bv.joints_at_rows(t, joints(t + model.dt), model.dt, 1), joints(t), atol=5e-4)
+    assert err[1] < 2e-5 and err[0] > 1e-3, err
+    assert bv.pose_of(late, model)["residual_m"]["feet_xy"] < 2e-5  # (the default is the simulated trace's shift)
+    assert np.allclose(bv.joints_at_rows(t, joints(t + model.dt), model.dt, 1), joints(t), atol=2e-5)
     assert not np.allclose(joints(t + model.dt), joints(t), atol=2e-3)
+    # fewer than four rows: a straight line between the rows; no lag: the angles as they are
+    Q3 = joints(t[:3] + model.dt)
+    assert np.allclose(bv.joints_at_rows(t[:3], Q3, model.dt, 1)[1:], Q3[1:] - 0.1 * np.diff(Q3, axis=0))
+    assert np.array_equal(bv.joints_at_rows(t, Q3, model.dt, 0), Q3)
+
+
+@pytest.mark.skipif(not SLOW, reason="slow: set STAGE2_SLOW=1 (one Stage 1 smoke episode, about 10 s)")
+def test_pose_of_a_simulated_episode_against_the_plants_own_positions(model, monkeypatch):
+    """A Stage 1 smoke episode (the pseudo-set S1: Stage 1's own run directory; never a Stage 2 set) run in this
+    process, nothing written, with the plant's body positions kept at every recorder update: the pose rebuilt from
+    the trace's arrays lies within ``bv.POSE_BOUND``'s measured bound of them, and a straight line between the
+    rows (the rule before) does not."""
+    from designlab.stage1 import panels
+    from designlab.stage2 import s2io
+
+    stage1_run = ROOT / "stage1" / "runs" / "2026-11-08"
+    if not (stage1_run / BODY / "refs" / "nominal.npz").exists():
+        pytest.skip("Stage 1's git-ignored arrays are not here")
+    truth = []
+    update = metrics.Recorder.update
+
+    def keeping(self, *a):
+        update(self, *a)
+        truth.append(self._v.xpos.copy())  # (the positions the recorder's kinematic columns were read from)
+
+    monkeypatch.setattr(metrics.Recorder, "update", keeping)
+    inputs, docs = setio.stage1_view(stage1_run, BODY)
+    ident = s2io.sha256_json(dict(files=inputs["files"], freeze=inputs.get("freeze")))
+    ctx = bar.context_for(BODY, setio._anchored(stage1_run) / BODY, docs, None, None, ident)
+    row = bar.rows(BODY, ["R2/42@0ms"], stage1_run)["R2/42@0ms"]
+    cond = next(c for c in bar.stock_conditions() if c.key == "turn/walking_0.35_left")
+    _, out, rec = row.episode(ctx, cond, 3042, ())
+    monkeypatch.undo()
+    every = panels.TRACE_EVERY
+    U = rec.U[: rec.rows : every]
+    trace = dict(t=U[:, metrics.C["t"]].copy(), t_ref=U[:, metrics.C["t_ref"]].copy(), rows=U.astype(np.float32),
+                 cols=np.array(metrics.COLS), q=rec.Q[: rec.rows : every].astype(np.float32), dt=np.array(rec.dt))
+    want = np.array(truth)[: rec.rows : every]
+    assert len(want) == len(trace["t"]) > 1000 and not out.get("fell")
+
+    def worst(pose):
+        return np.array([np.max(np.linalg.norm(model.kin(pose["qpos"][i]).xpos - want[i], axis=1))
+                         for i in range(len(want))])
+
+    err = worst(bv.pose_of(trace, model))
+    assert err[1:].max() < 1e-4 and err[0] < 1.5e-4, (err[1:].max(), err[0])  # (the first row: the start's transient)
+    assert "0.08 mm" in bv.POSE_BOUND and err[1:].max() < 0.08e-3 and "0.11 mm" in bv.POSE_BOUND and err[0] < 0.11e-3
+    monkeypatch.setattr(bv, "joints_at_rows", lambda t, Q, dt, lag: np.asarray(Q, float) - (lag * dt / 0.02) * np.vstack(
+        [Q[1:2] - Q[0:1], np.diff(np.asarray(Q, float), axis=0)]))
+    line = worst(bv.pose_of(trace, model))
+    assert (line > 1e-4).sum() > 100 and line.max() > 2e-4, ((line > 1e-4).sum(), line.max())
 
 
 # ------------------------------------------------------------------------------------------------
@@ -269,6 +324,35 @@ def test_turn_readings_on_a_known_circle(sign):
     box = r["corner_box_root"]
     assert abs(box["advance_max_m"] - R) < 1e-6 and abs(box["advance_at_end_m"] - R) < 1e-6
     assert abs(box["sideways_at_end_m"] - (R + v * 1.0)) < 1e-6 and box["back_max_m"] == 0 and box["outside_max_m"] < 1e-12
+    # the move ends between two rows: the end itself is in the largest (never 'largest' below 'at the end')
+    assert 0.0 < (t_end / 0.02) % 1.0 < 1.0 and box["sideways_max_m"] == pytest.approx(box["sideways_at_end_m"], abs=1e-12)
+    assert box["sideways_max_m"] > float(((xy - [1.0 + v * t_c, -0.3]) @ (sign * np.array([0.0, 1.0])))[t <= t_end].max()) + 1e-4
+    assert box["seconds_after_command"] == pytest.approx(t_end - t_c)
+    rob = r["corner_box_robot"]
+    assert rob["sideways_max_m"] == pytest.approx(R + v * 1.0 + L, abs=1e-9)  # (the snout at the end itself)
+    # the turn itself: to the first row at which the trunk has turned 90 degrees to within 0.5
+    ti = r["turn_itself"]
+    i1 = int(np.flatnonzero(np.degrees(sign * psi) >= 89.5)[0])
+    assert ti["at_s"] == t[i1] and ti["seconds_after_command"] == pytest.approx(t[i1] - t_c) and ti["within_deg"] == 0.5
+    assert 89.5 <= ti["turned_deg"] < 90.0 and t[i1] < t_out
+    assert ti["root_advance_m"] == pytest.approx(R * math.sin(math.radians(ti["turned_deg"])), abs=1e-9)
+    assert ti["root_sideways_m"] == pytest.approx(R * (1 - math.cos(math.radians(ti["turned_deg"]))), abs=1e-9)
+    assert ti["root_to_move_end_m"] == pytest.approx(
+        math.hypot(R - ti["root_advance_m"], R + v * 1.0 - ti["root_sideways_m"]), abs=1e-9)
+    assert ti["robot"]["sideways_max_m"] < rob["sideways_max_m"] - 0.3 and ti["robot"]["along_max_m"] == pytest.approx(rob["along_max_m"])
+    assert bv.reading(r, "turn_root_sideways") == ti["root_sideways_m"] and bv.reading(r, "walk_after_turn") == ti["root_to_move_end_m"]
+    # on a circle every point keeps its distance from the centre: the second swept reading is the first
+    st = r["swept_turn"]
+    assert st["largest_distance_m"] == pytest.approx(math.hypot(R, L), abs=1e-9) and st["over"].startswith("from the command")
+    # ... and where the tail stands further out at the command only, it is the second reading that says so
+    out = pts.copy()
+    k0 = int(np.searchsorted(t, t_c))
+    out[k0 : k0 + 3, 1] += 0.2 * (out[k0 : k0 + 3, 1] - c) / np.linalg.norm(out[k0 : k0 + 3, 1] - c, axis=1)[:, None]
+    r2 = bv.turn_readings(t, xy, psi, t_c, t_end, 0.0, sign, math.pi / 2, out, labels)
+    assert r2["swept"]["swept_radius_m"] == pytest.approx(math.hypot(R, L), abs=1e-9)
+    assert r2["swept_turn"]["largest_distance_m"] == pytest.approx(math.hypot(R, L) + 0.2, abs=1e-9)
+    assert r2["swept_turn"]["set_by"] == "tail: tip" and r2["swept_turn"]["seconds_after_command"] < 0.06
+    assert bv.reading(r2, "largest_from_centre_in_turn") > bv.reading(r2, "swept_radius") + 0.19
     sw = r["swept"]
     assert abs(sw["swept_radius_m"] - math.hypot(R, L)) < 1e-9 and abs(sw["turning_circle_m"] - 2 * math.hypot(R, L)) < 1e-9
     assert sw["set_by"] in ("head: snout", "tail: tip") and abs(sw["farthest_by_part_m"]["trunk"] - R) < 1e-9
@@ -279,7 +363,8 @@ def test_turn_readings_on_a_known_circle(sign):
     ex, ey = np.array([1.0, 0.0]), sign * np.array([0.0, 1.0])
     o = np.array([1.0 + v * t_c, -0.3])
     win = (t >= t_c - 1e-9) & (t <= t_end + 1e-9)
-    a, s = (pts[win] - o) @ ex, (pts[win] - o) @ ey
+    ends = np.array([bv._between(t_c, t, pts), bv._between(t_end, t, pts)])  # (both ends of the span are held too)
+    a, s = (np.concatenate([pts[win], ends]) - o) @ ex, (np.concatenate([pts[win], ends]) - o) @ ey
 
     def inside(w):
         X, Y0 = co["far_wall_along_m"], co["outer_wall_sideways_m"]
@@ -296,6 +381,8 @@ def test_turn_readings_of_a_path_that_stops_short_and_of_a_cut_trace():
     r = bv.turn_readings(t, xy, psi, 2.0, 6.0, 0.0, 1.0, math.pi / 2)
     assert r["fit"] is None and not r["steady"]["complete"] and r["swept"] is None and r["corridor"] is None
     assert any(n.startswith("stops short: the trunk turned 40.0 deg") for n in r["notes"])
+    assert r["turn_itself"] is None and any(n.startswith("the turn itself is not read: the trunk turned 40.0 deg") for n in r["notes"])
+    assert bv.reading(r, "turn_seconds") is None and bv.reading(r, "turn_robot_along_max") is None
     assert abs(r["turned_at_read_end_deg"] - 40) < 1e-9 and r["corner_box_root"]["advance_max_m"] > 0.6
     # a trace that ends before the end of the move is read to its end and says so; before the command: nothing
     xy, psi, _ = corner_path(t, 2.0, 0.42, 0.6, 1.0)
@@ -304,6 +391,8 @@ def test_turn_readings_of_a_path_that_stops_short_and_of_a_cut_trace():
     r = bv.turn_readings(t[cut], xy[cut], psi[cut], 2.0, None, 0.0, 1.0, math.pi / 2, pts[cut], ["trunk: a", "trunk: b"])
     assert not r["reaches_move_end"] and r["read_to_s"] == pytest.approx(5.0) and r["corridor"] is None
     assert r["fit"] is not None and r["swept"] is not None and any("before the end of the move" in n for n in r["notes"])
+    assert r["turn_itself"]["root_to_move_end_m"] is None and r["swept_turn"] is not None  # (turned 90 deg at 4.24 s)
+    assert bv._between(5.0, t[cut], pts[cut]) is not None and bv._between(4.99, t, np.where(t[:, None, None] > 4.98, np.nan, pts)) is None
     r = bv.turn_readings(t[t < 1.5], xy[t < 1.5], psi[t < 1.5], 2.0, 6.0, 0.0, 1.0, math.pi / 2)
     assert r["reaches_command"] is False and "fit" not in r
 
@@ -326,6 +415,7 @@ def test_planned_turn_of_the_frozen_set(v0):
     cmd, r = pl["commanded"], pl["readings"]
     assert pl["what"] == "planned" and pl["file_sha256"] == entry["sha256"] and pl["freeze"]["index"] == 0
     assert cmd["radius_m"] == pytest.approx(0.4 / (math.pi / 4)) and cmd["direction"] == "left"
+    assert cmd["on_the_bars_clock"]["path_speed_m_s"] == pytest.approx(0.4 * bar.RATE) and "in_simulated_time" not in cmd
     assert abs(r["fit"]["radius_fitted_m"] - cmd["radius_m"]) < 0.05 * cmd["radius_m"]
     assert abs(r["fit"]["turn_rate_deg_s"] - bar.RATE * 45.0) < 0.5
     # the heading at the bar's judged instant is the one the set's own record holds for its reference
@@ -335,12 +425,26 @@ def test_planned_turn_of_the_frozen_set(v0):
     assert r["swept"]["swept_radius_m"] > r["fit"]["radius_fitted_m"] + 0.3
     assert 0.3 < r["corridor"]["width_m"] < v0.model.length_m
     assert max(pl["pose_check"].values()) < 1e-9
+    # the turn itself is done long before the end of the move's file, which holds the walk out of the turn
+    ti, box = r["turn_itself"], r["corner_box_root"]
+    assert 2.0 < ti["seconds_after_command"] < 2.3 < box["seconds_after_command"]
+    assert ti["root_advance_m"] == pytest.approx(0.61, abs=0.01) and ti["root_sideways_m"] == pytest.approx(0.54, abs=0.01)
+    assert ti["root_to_move_end_m"] > 0.7 and box["sideways_max_m"] > ti["root_sideways_m"] + 0.7
+    assert box["sideways_max_m"] >= box["sideways_at_end_m"] and box["advance_max_m"] >= box["advance_at_end_m"]
+    assert r["corner_box_robot"]["sideways_max_m"] > ti["robot"]["sideways_max_m"] + 0.7
+    # at the command the tail reaches further from the turn's centre than on the steady part
+    assert r["swept_turn"]["largest_distance_m"] > r["swept"]["swept_radius_m"] + 0.05 and r["swept_turn"]["set_by"].startswith("tail:")
+    assert r["swept_turn"]["seconds_after_command"] < 0.1
     assert 1.5 < v0.model.length_m < 2.0 and "snout tip" in v0.model.length_info["front"]
     right = bv.planned_turn(v0, v0.condition("turn/q90_right"))  # the same room on the other side
     assert right["commanded"]["radius_m"] == pytest.approx(cmd["radius_m"]) and right["commanded"]["direction"] == "right"
     assert right["commanded"]["turn_rate_deg_s"] == pytest.approx(45.0)
     assert right["readings"]["fit"]["radius_fitted_m"] == pytest.approx(r["fit"]["radius_fitted_m"], abs=0.01)
     assert right["readings"]["fit"]["centre_sideways_m"] > 0.4 and right["readings"]["turned_at_read_end_deg"] == pytest.approx(90.0, abs=0.01)
+    # the turn itself takes the same room to the right; the corner boxes to the ends of the two files do not
+    tr = right["readings"]["turn_itself"]
+    assert tr["root_advance_m"] == pytest.approx(ti["root_advance_m"], abs=0.01) and tr["root_sideways_m"] == pytest.approx(ti["root_sideways_m"], abs=0.01)
+    assert abs(right["readings"]["corner_box_root"]["sideways_max_m"] - box["sideways_max_m"]) > 0.1
     have, missing = bv.turn_conditions(v0)
     assert [c.key for c in have][:2] == ["turn/q90_left", "turn/q90_right"]
     assert all(c.friction is None for c in have) and all(x["reason"] for x in missing)
@@ -350,7 +454,8 @@ def test_planned_turn_of_the_frozen_set(v0):
 def fake_run(v0, model, tmp_path_factory):
     """A made-up run directory with one turn record of V0: seed 3042 turns on a known circle, 3043 fell, 3044 stops
     short, 3045's trace is not the record's, 3046's was not kept; a second record file does not parse; a walk
-    record whose every episode fell.  The traces are kinematic glides of the home pose: no episode is run."""
+    record whose every episode fell in the start from standing; a stop record (another row) whose episodes fell
+    before the stop was commanded.  The traces are kinematic glides of the home pose: no episode is run."""
     run = tmp_path_factory.mktemp("run") / "2026-11-15-75cm"
     ckey = "turn/q90_left"
     pl = v0.planned(v0.condition(ckey))
@@ -374,9 +479,15 @@ def fake_run(v0, model, tmp_path_factory):
     torn.write_text('{"schema": "bar-1", "episodes": [')
     tw = np.arange(0.0, 4.72, 0.02)
     walk, _ = glide(model, tw, np.column_stack([0.3 * tw, np.zeros(len(tw))]), np.zeros(len(tw)))
-    weps = [episode(s, fell=True, fall_time_s=4.718, trace=write_trace(run, "V0", ROW, "walk/v0.4", s, walk))
+    weps = [episode(s, fell=True, fall_time_s=4.718, trace=write_trace(run, "V0", ROW, "walk/v0.4", s, walk),
+                    fell_before_command=None, segment_reached="start")  # (a walk has no command: bar._judge)
             for s in (3042, 3043)]
     put_record(run, record(v0, "walk/v0.4", ROW, weps))
+    ts = np.arange(0.0, 8.24, 0.02)
+    early, _ = glide(model, ts, np.column_stack([0.3 * ts, np.zeros(len(ts))]), np.zeros(len(ts)))
+    seps = [episode(s, fell=True, fall_time_s=8.222, before=True, command_ref_s=14.8163, segment_reached="nominal_to_v0.4",
+                    trace=write_trace(run, "V0", BEFORE_ROW, "stop/two_step", s, early)) for s in (3042, 3043)]
+    put_record(run, record(v0, "stop/two_step", BEFORE_ROW, seps))
     (run / "budget.json").write_text("{}")
     return dict(run=run, t_c=t_c, R=R, v=v, centre=centre, t=t, xy=xy, psi=psi, ckey=ckey)
 
@@ -521,10 +632,12 @@ def test_every_top_band_says_simulation_or_planned_and_never_both():
                 assert top[0].startswith(bv.SIM_LABEL) and bv.PLAN_LABEL not in band and "kinematic" not in band
                 assert words in top[0] and set_name in top[0] and "75 cm Hybrid" in top[0]
                 assert bv.condition_words(definition) in top[1] and "servo delay 10 ms" in top[1]
-                assert bottom[0] == "seed 3042 (the first seed): fell at 4.72 s  |  stayed up in 2 of 3"
-                assert bottom[1] == bv.VIEW_WORDS[view]
+                # the fall's second is the episode's own time, and the label says so (the clock gives both times)
+                assert bottom[0] == "seed 3042 (first seed): fell 4.72 s into the episode  |  stayed up in 2 of 3"
+                assert bottom[1] == bv.VIEW_WORDS[view] == bv.view_words(view)
                 top2, _ = bv.clip_labels("simulated", BODY, set_name, definition, view, rec, pick[1])
-                assert "seed 3043 (the lowest seed with the majority outcome): stayed up" in _[0]
+                assert _[0] == "seed 3043 (majority outcome): stayed up  |  stayed up in 2 of 3"
+                assert bv.before_notice(definition, pick[0]["episode"]) is None  # (it fell after its command)
                 if name != "nudge":
                     top, bottom = bv.clip_labels("planned", BODY, set_name, definition, view)
                     band = " ".join(top)
@@ -532,6 +645,104 @@ def test_every_top_band_says_simulation_or_planned_and_never_both():
                     assert words in top[0] and bottom == [bv.VIEW_WORDS[view]]
     with pytest.raises(ValueError):
         bv.clip_labels("both", BODY, "V0", DEFS["walk"], "side")
+    assert bv.clock_words(4.0) == "clip  4.00 s   1x" and bv.clock_words(4.0, 8.222) == "clip  4.00 s = episode  8.22 s   1x"
+    assert bv.view_words("visitor") == "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+    assert bv.view_words("side", (0.8, 3.75), True) == ("side view: eye 0.8 m high, 3.8 m away (pulled back to hold the "
+                                                        "robot), on the robot's right")
+    assert "landscape" in bv.CLIP_RULES["watch"] and "episode" in bv.CLIP_RULES["labels"]
+
+
+def _before_episode(name: str) -> dict:
+    """An episode record that fell before its condition's own move began, as ``bar._judge`` writes it."""
+    e = episode(3042, fell=True, fall_time_s=8.222, command_ref_s=14.8163, segment_reached="nominal_to_v0.4",
+                trace=dict(path="p", sha256="s"))
+    if name == "walk":  # no command: fell_before_command is None; it fell in the start, before the 0.40 m/s walk
+        e.update(fell_before_command=None, segment_reached="start", command_ref_s=None)
+    elif name == "nudge":  # the record holds the push's planned onset, and that the episode fell before it
+        e.update(fell_before_command=True, command_s=13.707,
+                 measures=dict(push=dict(onset_s=13.707, end_s=13.807, force_N=[0.0, 21.9], fell_before_pulse=True)))
+    else:
+        e.update(fell_before_command=True)
+    return e
+
+
+def test_a_clip_of_an_episode_that_fell_before_its_move_says_so_on_the_frame():
+    """The reviewer's finding: such a clip showed the start falling under a turn's, a stop's or a nudge's title
+    with nothing on the frame to say so.  Every frame now carries two lines under the title, the bottom line and
+    the fall's caption say 'before', and there is no command caption."""
+    want = dict(
+        turn=("THE TURN WAS NEVER COMMANDED: this episode fell before it",
+              "it fell 8.22 s into the episode, in the change from the nominal walk to 0.40 m/s; the command was due "
+              "at about 14.1 s", "before the command"),
+        slow=("THE TURN WAS NEVER COMMANDED: this episode fell before it", None, "before the command"),
+        stop=("THE STOP WAS NEVER COMMANDED: this episode fell before it", None, "before the command"),
+        nudge=("THE PUSH NEVER CAME: this episode fell before it",
+               "it fell 8.22 s into the episode, in the change from the nominal walk to 0.40 m/s; the push was due at "
+               "13.7 s", "before the push"),
+        walk=("THE WALK AT 0.40 m/s NEVER BEGAN: this episode fell before it",
+              "it fell 8.22 s into the episode, in the start from standing", "before the walk at 0.40 m/s began"))
+    assert 14.8163 / bar.RATE == pytest.approx(14.1, abs=0.05)
+    for name, definition in DEFS.items():
+        e = _before_episode(name)
+        rec = dict(row="R2/42@10ms", definition=definition, seeds=[3042, 3043], episodes=[e, dict(e, seed=3043)])
+        pick = bv.select_episodes(rec)["picks"][0]
+        head, line, words = want[name]
+        assert bv.fell_before(definition, e) and bv.before_words(definition) == words
+        notice = bv.before_notice(definition, e)
+        assert notice[0] == head and (line is None or notice[1] == line) and len(notice) == 2
+        for view in bv.VIEWS_OF[definition["behavior"]]:
+            top, bottom = bv.clip_labels("simulated", BODY, "V0", definition, view, rec, pick)
+            assert bottom[0] == f"seed 3042 (first seed): fell 8.22 s into the episode, {words}  |  stayed up in 0 of 2"
+            assert bv.condition_words(definition) in top[1]  # (the title is the record's; the notice is under it)
+        assert bv.fall_caption(definition, e) == f"fell {words} (tilt); the trace ends here, the last pose is held"
+        # the clip is the seconds before the fall, and it has no command instant: no command caption can show
+        push = (e.get("measures") or {}).get("push") or {}
+        span = bv.clip_span(definition, 8.22, push.get("onset_s") if name == "nudge" else e["command_s"], None, None, 8.222)
+        assert span["command_s"] is None and span["t1"] == 8.222 and span["hold_s"] == 1.0
+        assert all(k != "command" for tt in np.arange(span["t0"], 9.3, 0.05)
+                   for k, _ in bv.frame_captions(tt, span, None, bv.fall_caption(definition, e)))
+    # after the command, or an episode that stayed up: no notice, the plain words
+    after = dict(_before_episode("turn"), fell_before_command=False, command_s=7.0, segment_reached="turn90_pi4_left")
+    assert not bv.fell_before(DEFS["turn"], after) and bv.before_notice(DEFS["turn"], after) is None
+    assert bv.fall_caption(DEFS["turn"], after) == "fell (tilt); the trace ends here, the last pose is held"
+    assert not bv.fell_before(DEFS["turn"], episode(3042)) and bv.before_notice(DEFS["walk"], episode(3042)) is None
+    walking = dict(_before_episode("walk"), segment_reached="v0.4")  # it fell in the 0.40 m/s walk itself
+    assert not bv.fell_before(DEFS["walk"], walking)
+    # a record without the flag: read from the command and the fall instants
+    old = episode(3042, fell=True, fall_time_s=8.2, command_s=None)
+    del old["fell_before_command"]
+    assert bv.fell_before(DEFS["turn"], old) and not bv.fell_before(DEFS["turn"], dict(old, command_s=7.0))
+    assert bv.fell_before(DEFS["nudge"], dict(old, command_s=13.7))
+    for name, words in (("start", "the start from standing"), ("start_v0.4", "the start from standing into the walk at 0.40 m/s"),
+                        ("nominal", "the nominal walk"), ("v0.45", "the walk at 0.45 m/s"), ("stand", "the stand after the stop"),
+                        ("turn90_pi4_right", "the turn to the right"), ("stop2_v0.4", "the stop"),
+                        (None, "a part of its plan the record does not name")):
+        assert bv.segment_words(name) == words
+
+
+def test_label_bands_of_barviews_own():
+    """The lines a viewer needs are larger than ``clips.overlay``'s 13 px; the notice sits under the title beside
+    a red bar; the picture between the bands is untouched."""
+    top = [f"{bv.SIM_LABEL}  |  75-M-H-10 (75 cm Hybrid)  |  today's walk (V0)", "quick 90° turn to the right at 0.40 m/s  |  "
+           "controller R2/43, servo delay 10 ms, floor grip 0.54"]
+    bottom = ["seed 3043 (majority outcome): fell 8.22 s into the episode, before the command  |  stayed up in 1 of 20",
+              bv.view_words("visitor")]
+    notice = bv.before_notice(DEFS["turn"], _before_episode("turn"))
+    assert bv.LABEL_PX["top"][1][0] == bv.LABEL_PX["bottom"][0][0] == 17 and bv.LABEL_PX["notice"][0][0] >= 16
+    assert bv.band_heights(top, bottom) == (48, 44) and bv.band_heights(top, bottom, notice) == (48 + 4 + 21 + 18, 44)
+    assert bv.free_top(48, 0) == 48 and bv.free_top(48, 1) == 48 + 8 + 30 and bv.free_top(91, 2) == 91 + 8 + 36 + 30
+    img = np.full((480, 854, 3), 120, np.uint8)
+    plain = bv.draw_labels(img, top, bottom, bv.clock_words(4.0, 8.222))
+    noted = bv.draw_labels(img, top, bottom, bv.clock_words(4.0, 8.222), notice)
+    assert plain.shape == noted.shape == img.shape and plain.dtype == np.uint8
+    assert np.array_equal(plain[48:436], img[48:436]) and np.array_equal(noted[91:436], img[91:436])
+    assert (plain[:48] != 120).all(axis=2).mean() > 0.99 and (plain[436:] != 120).all(axis=2).mean() > 0.99
+    assert not np.array_equal(noted[48:91], img[48:91]) and np.abs(noted[60:80, 13:17].astype(int) - [162, 57, 42]).max() < 3
+    dark = lambda a: (a.max(axis=2) < 110)  # noqa: E731  (ink)
+    assert dark(plain[24:46, 12:800]).sum() > 1500 and dark(plain[440:458, 12:800]).sum() > 1500  # the 17 px lines
+    assert dark(plain[460:476, 600:850]).sum() > 200 and dark(noted[52:90, 26:840]).sum() > 1500  # the clock, the notice
+    cap = bv.draw_caption(noted, bv.fall_caption(DEFS["turn"], _before_episode("turn")), "fell", y=91 + 8)
+    assert np.array_equal(cap[91 + 8 + 31 : 436], img[91 + 8 + 31 : 436]) and not np.array_equal(cap[99:129], noted[99:129])
 
 
 def test_plain_words():
@@ -566,8 +777,8 @@ def test_clip_seconds_and_captions():
     assert s["notes"] == ["fell before the command"]
     s = bv.clip_span(walk, 24.4, None, None, 14.4, None)  # the judged window's 10 s
     assert (s["t0"], s["t1"], s["hold_s"]) == (14.4, 24.4, 0.0)
-    s = bv.clip_span(walk, 4.7, None, None, None, 4.718)  # a walk that fell before its window: from the start
-    assert (s["t0"], s["t1"], s["hold_s"], s["notes"]) == (0.0, 4.718, 1.0, ["fell before its judged window"])
+    s = bv.clip_span(walk, 4.7, None, None, None, 4.718)  # a walk that fell (it has no window): from the start
+    assert (s["t0"], s["t1"], s["hold_s"], s["notes"]) == (0.0, 4.718, 1.0, ["fell: it has no judged window"])
     with pytest.raises(bv.ViewError):
         bv.clip_span(turn, 20.0, None, None, None, None)
     span = dict(t0=12.7, t1=15.21, hold_s=1.0, command_s=13.7, fall_s=15.21)
@@ -610,6 +821,11 @@ def test_follow_camera_and_the_smoothed_look_at_point():
     assert np.allclose(bv.project([[2.0, 1.0, 0.4]], cam), [[427.0, 240.0]])
     cam = bv.follow_camera("visitor", (2.0, 1.0), 0.4, math.pi / 2, spec)  # the bearing turns with the incoming line
     assert cam["eye"][0] > 2.0 and cam["eye"][1] > 1.0
+    # pulled back: the eye moves along its line of sight, the look-at point stays in the picture's middle
+    near, far = bv.follow_camera("visitor", (2.0, 1.0), 0.4, 0.0, spec), bv.follow_camera("visitor", (2.0, 1.0), 0.4, 0.0, spec, 1.5)
+    assert np.allclose(far["eye"] - far["lookat"], 1.5 * (near["eye"] - near["lookat"])) and far["distance"] == pytest.approx(1.5 * near["distance"])
+    assert (far["azimuth"], far["elevation"]) == pytest.approx((near["azimuth"], near["elevation"]))
+    assert np.allclose(bv.project([[2.0, 1.0, 0.4]], far), [[427.0, 240.0]])
     # the look-at point does not follow a sway of one stride's period
     t = np.arange(0.0, 6.0, 0.02)
     xy = np.column_stack([0.42 * t, 0.03 * np.sin(2 * math.pi * t / 0.8)])
@@ -617,6 +833,46 @@ def test_follow_camera_and_the_smoothed_look_at_point():
     mid = slice(40, -40)
     assert np.max(np.abs(sm[mid, 1])) < 1e-3 and np.max(np.abs(sm[mid, 0] - (xy[mid, 0] - 0.0042))) < 1e-9
     assert bv.smooth_rows(xy, 1).tolist() == xy.tolist()
+
+
+def test_the_robot_is_held_in_the_free_picture():
+    """``clip_framing`` measures how far the surface stays inside the free part of the picture (under the bands and
+    a clip's captions); ``hold_in_picture`` takes the smallest pull-back, and for it the smallest raise of the
+    look-at point, that keeps it inside."""
+    spec = dict(height_m=1.5, distance_m=2.5, bearing_deg=-45.0)
+    body = np.array([[x, y, z] for x in (-0.5, 0.5) for y in (-0.15, 0.15) for z in (0.1, 0.6)])
+    tipped = np.array([[x, y, z] for x in (-0.5, 0.5) for y in (-0.15, 0.15) for z in (0.1, 0.85)])  # (it rears up)
+    surfaces = [body, tipped, tipped]
+    captions = [0, 0, 1]
+
+    def margin(back, lift, bands=(48, 44), caps=captions):
+        return bv.clip_framing(surfaces, lambda k: bv.follow_camera("visitor", (0.0, 0.0), 0.4 + lift, 0.0, spec, back), bands, caps)
+
+    m0 = margin(1.0, 0.0)
+    uv = bv.project(tipped, bv.follow_camera("visitor", (0.0, 0.0), 0.4, 0.0, spec))
+    assert m0 == pytest.approx(min(uv[:, 0].min(), 854 - uv[:, 0].max(), uv[:, 1].min() - bv.free_top(48, 1), 480 - 44 - uv[:, 1].max()))
+    assert m0 < 0 and margin(1.0, 0.0, caps=[0, 0, 0]) == pytest.approx(m0 + 38)  # (the caption's 38 px of the top)
+    assert margin(1.0, 0.0, bands=(91, 44)) == pytest.approx(m0 - 43)
+    back, lift, m = bv.hold_in_picture(margin)
+    assert m >= 0 and m == pytest.approx(margin(back, lift)) and (back, lift) != (1.0, 0.0)
+    assert back in bv.PULL_BACK and lift in bv.LOOK_LIFT_M
+    assert all(margin(b, h) < 0 for b in bv.PULL_BACK if b < back for h in bv.LOOK_LIFT_M)  # no smaller factor holds it
+    assert all(margin(back, h) < 0 for h in bv.LOOK_LIFT_M if h < lift)                      # ... and no smaller raise
+    assert bv.hold_in_picture(lambda b, h: 5.0) == (1.0, 0.0, 5.0)  # a robot that is inside: nothing changes
+    # none holds it: the largest factor and its best raise (the command then prints a warning)
+    assert bv.hold_in_picture(lambda b, h: -100.0 + b + 10 * h - 30 * h * h) == (2.5, 0.15, pytest.approx(-96.675))
+    assert bv.clip_log(dict(file="a.mp4", frames=3, bytes=2e6, render_s=1.0, encode_s=1.0, framing_margin_px=-12.4,
+                            camera=dict(pulled_back=2.5, lookat_raised_m=0.15))).endswith(
+        "margin -12 px, eye pulled back 2.5 x, look-at raised 0.15 m\n  WARNING: the robot leaves the free picture by 12 px in a.mp4")
+    assert "WARNING" not in bv.clip_log(dict(file="a.mp4", frames=3, bytes=2e6, render_s=1.0, encode_s=1.0,
+                                             framing_margin_px=3.0, camera=dict(kind="fixed")))
+
+
+def test_the_renderer_is_told_not_to_keep_a_shader_cache():
+    """Mesa's shader cache under the home directory was the one write outside the output directories."""
+    env = bv.renderer_env({})
+    assert env == {"MESA_SHADER_CACHE_DISABLE": "true", "MESA_GLSL_CACHE_DISABLE": "true"}
+    assert bv.renderer_env({"MESA_SHADER_CACHE_DISABLE": "false"})["MESA_SHADER_CACHE_DISABLE"] == "false"  # (a set value stays)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -654,6 +910,24 @@ def test_the_commands_write_nothing_in_the_run_directory_outside_views(v0, fake_
     assert [x["record"] for x in doc["records_not_read"]] == [f"V0/{BODY}/{BLOCK}/eval/R2/43@10ms/turn/q90_left.json"]
     md = (run / "views" / "turnpath" / "V0" / "TURNPATH.md").read_text()
     assert "### Planned" in md and "### Simulated" in md and "4 of 6 episodes stayed up" in md and "No record yet" in md
+    blocks = md.split("### Planned")[1:]
+    assert len(blocks) == 6
+    for blk in blocks:  # the planned tables never use the word kept for an episode's readings
+        planned_rows = [x for x in blk.split("### Simulated")[0].splitlines() if x.startswith("|")]
+        assert len(planned_rows) >= 18 and not any("simulated" in x.lower() for x in planned_rows)
+        assert sum("on the bar's clock" in x for x in planned_rows) == 2
+        assert sum(x.startswith("| the turn itself") or x.startswith("| **the turn itself**") for x in planned_rows) == 4
+        assert sum(x.startswith("| corner box to the end of the move's file") for x in planned_rows) == 4
+        assert any("of walk after the turn" in x for x in planned_rows)
+        assert any(x.startswith("| largest distance from the turn's centre, from the command until") for x in planned_rows)
+    assert "| the turn itself, root: sideways when the trunk has turned 90° |" in md
+    assert q["planned"]["commanded"]["on_the_bars_clock"]["path_speed_m_s"] == pytest.approx(0.42)
+    assert doc["rules"]["pose"] == bv.POSE_BOUND and "turn_itself" in doc["rules"] and "ends" in doc["rules"]
+    pr = q["planned"]["readings"]
+    assert pr["turn_itself"]["root_sideways_bl"] == pytest.approx(pr["turn_itself"]["root_sideways_m"] / v0.model.length_m)
+    assert ep["values"]["turn_root_advance"] == pytest.approx(0.6, abs=1e-3) and ep["values"]["turn_root_sideways"] == pytest.approx(0.6, abs=6e-3)
+    assert ep["largest_from_centre_in_turn_set_by"].startswith("tail:") and sim["episodes"][1]["values"]["turn_seconds"] is None
+    assert "dashed box is the turn itself" in q["figure"]["caption"] and "dotted box" in q["figure"]["caption"]
     assert "1 fell: 1 after the command (seed 3043, at 14.20 s)." in md and "| reading (simulated) |" in md
     assert "it held 2 turn records of this set when this file was written" in md
     assert q["figure"]["simulated_from"] == sim["record"] and "SIMULATED root paths of the 2 episodes" in q["figure"]["caption"]
@@ -661,7 +935,11 @@ def test_the_commands_write_nothing_in_the_run_directory_outside_views(v0, fake_
     # the figure's record: the first row in the stated order with a path to draw; the rows before it are named
     a = dict(row="R2/42@10ms", floor_grip=0.9, block=BLOCK, read=True, _paths=[], count_text="0 of 20 episodes stayed up")
     b = dict(row="R0@10ms", floor_grip=0.9, block=BLOCK, read=True, _paths=[np.zeros((2, 2))], count_text="20 of 20")
-    assert bv.FIGURE_ROWS[:3] == ("R2/42@10ms", "R2/43@10ms", "R0@10ms") and bv.FIGURE_ROWS[3:] == ("R2/42@0ms", "R2/43@0ms", "R0@0ms")
+    # the judged delay's rows first, then each shorter delay the chain runs, the nearest first, down to none
+    assert bv.FIGURE_ROWS[:3] == ("R2/42@10ms", "R2/43@10ms", "R0@10ms") and bv.FIGURE_ROWS[-3:] == ("R2/42@0ms", "R2/43@0ms", "R0@0ms")
+    assert [bar.delay_ms(x) for x in bv.FIGURE_ROWS[::3]] == [10, 8, 6, 4, 2, 0] and len(bv.FIGURE_ROWS) == 18
+    late = dict(b, row="R2/42@4ms")
+    assert bv.figure_record([dict(b, row="R0@0ms"), late, a])[0] is late  # (4 ms before 0 ms)
     low = dict(b, row="R2/43@10ms", floor_grip=0.54)
     assert bv.figure_record([low, b, a]) == (b, ["R2/42@10ms (0 of 20 episodes stayed up)"])
     assert bv.figure_record([low, a]) == (a, []) and bv.figure_record([low]) == (None, [])
@@ -684,12 +962,17 @@ def test_clips_list_names_the_episodes_without_rendering(fake_run, capsys):
     assert bv.main(["clips", "--list", "--all-gated", "--row", ROW, "--set", "V0", "--run", str(run)]) == 0
     out = capsys.readouterr().out.splitlines()
     assert len(out) == 16 and tree(run) == before
-    assert out[0] == "V0 walk/v0.4 R2/42@10ms: stayed up in 0 of 2; seed 3042 (first seed, fell); views visitor, side"
+    assert out[0] == ("V0 walk/v0.4 R2/42@10ms: stayed up in 0 of 2; seed 3042 (first seed, fell before the walk at 0.40 m/s "
+                      "began); views visitor, side")
     assert out[2] == ("V0 turn/q90_left R2/42@10ms: stayed up in 4 of 6 (1 failed to run); seed 3042 (first seed, stayed up); "
                       "views visitor, top")
     assert out[1] == "V0 walk/v0.4_mu0.54 R2/42@10ms: no clip (no record yet)"
     assert bv.main(["clips", "--run", str(run)]) == 1 and bv.main(["clips", "--all-gated", "--run", str(run)]) == 1
     assert "refused:" in capsys.readouterr().err
+    # a record whose episodes fell before the stop was commanded: the list says so
+    listed = bv.list_clips([("V0", "stop/two_step", BEFORE_ROW)], run, log=lambda *a: None)
+    assert [(c["seed"], c["outcome"], c["fell_before_its_move"]) for c in listed[0]["clips"]] == [(3042, "fell before the command", True)]
+    assert tree(run) == before
 
 
 def test_run_label_and_missing_records(tmp_path):
@@ -711,7 +994,11 @@ def _render_in_child(request) -> bool:
     (tests/test_stage2_clips.py's rule: the shared test process never loads a GL backend)."""
     if os.environ.get(CHILD) == "1":
         return False
-    env = dict(os.environ, MUJOCO_GL="osmesa", PYOPENGL_PLATFORM="osmesa", LP_NUM_THREADS="1", **{CHILD: "1"})
+    cache = request.getfixturevalue("tmp_path_factory").mktemp("xdg_cache")  # where Mesa would keep its shader cache
+    env = dict(os.environ, MUJOCO_GL="osmesa", PYOPENGL_PLATFORM="osmesa", LP_NUM_THREADS="1", XDG_CACHE_HOME=str(cache),
+               **{CHILD: "1"})
+    for name in ("MESA_SHADER_CACHE_DISABLE", "MESA_GLSL_CACHE_DISABLE", "MESA_SHADER_CACHE_DIR"):
+        env.pop(name, None)  # (the module's own default is what is tested)
     r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", request.node.nodeid],
                        cwd=request.config.rootpath, env=env, capture_output=True, text=True, timeout=900)
     assert r.returncode == 0, r.stdout[-4000:] + r.stderr[-2000:]
@@ -748,17 +1035,23 @@ def test_one_rendered_frame(request, v0, model):
         inside = robot[int(uv[:, 1].min()) : int(uv[:, 1].max()) + 1, int(uv[:, 0].min()) : int(uv[:, 0].max()) + 1]
         assert inside.mean() > 0.15
         top, bottom = bv.clip_labels("planned", BODY, "V0", v0.condition("turn/q90_left").describe(), view)
-        out = bv.draw_caption(clips.overlay(img, top, bottom, 1.75, dark=False), "command: turn left 90°", "command")
+        th, bh = bv.band_heights(top, bottom)
+        out = bv.draw_caption(bv.draw_labels(img, top, bottom, bv.clock_words(1.75)), "command: turn left 90°", "command",
+                              y=th + bv.CAPTION_GAP_PX)
         assert out.shape == img.shape and np.abs(out[60:80, 12:18].astype(int) - [42, 120, 214]).max() < 3
         assert np.array_equal(out[200:400], img[200:400])  # the picture's middle is untouched by the labels
     assert np.array_equal(cs.m.vis.headlight.diffuse, np.float32([0.55, 0.55, 0.55]))
+    # the renderer wrote no shader cache (``bv.renderer_env``; this process's cache directory is the test's own)
+    cache = Path(os.environ["XDG_CACHE_HOME"])
+    assert os.environ["MESA_SHADER_CACHE_DISABLE"] == "true" and cache.is_dir() and not [p for p in cache.rglob("*") if p.is_file()]
 
 
 @pytest.mark.skipif(not SLOW, reason="slow: set STAGE2_SLOW=1")
 @needs_set
 def test_clips_of_a_made_up_record_and_the_tree(request, v0, fake_run, tmp_path):
     """``barviews clips`` on the made-up run directory: the first seed's turn in both views (it is of the majority
-    outcome, so no second episode), a walk that fell, a record that does not exist; nothing written outside views/."""
+    outcome, so no second episode), a walk that fell in its start, a stop whose episode fell before the command, a
+    record that does not exist; nothing written outside views/."""
     if _render_in_child(request):
         return
     run = fake_run["run"]
@@ -766,14 +1059,23 @@ def test_clips_of_a_made_up_record_and_the_tree(request, v0, fake_run, tmp_path)
     media = tmp_path / "media"
     with pytest.raises(bv.ViewError):
         bv.make_clips([("V0", fake_run["ckey"], ROW)], run=run, media=run / "media", out=run / "views")
-    doc = bv.make_clips([("V0", fake_run["ckey"], ROW), ("V0", "walk/v0.4", ROW), ("V0", "stop/two_step", ROW)],
-                        run=run, media=media, out=run / "views", log=lambda *a: None)
+    lines = []
+    doc = bv.make_clips([("V0", fake_run["ckey"], ROW), ("V0", "walk/v0.4", ROW), ("V0", "stop/two_step", ROW),
+                         ("V0", "stop/two_step", BEFORE_ROW)],
+                        run=run, media=media, out=run / "views", log=lambda *a: lines.append(" ".join(str(x) for x in a)))
     assert {k: v for k, v in tree(run).items() if not k.startswith("views/")} == before
     assert json.loads((run / "views" / "clips.json").read_text())["schema"] == bv.SCHEMA_CLIPS
-    assert [(c["condition"], c["view"], c["seed"], c["selection"], c["outcome"]) for c in doc["clips"]] == [
-        ("turn/q90_left", "top", 3042, "first seed", "stayed up"), ("turn/q90_left", "visitor", 3042, "first seed", "stayed up"),
-        ("walk/v0.4", "side", 3042, "first seed", "fell"), ("walk/v0.4", "visitor", 3042, "first seed", "fell")]
-    assert [(x["condition"], x["reason"]) for x in doc["skipped"]] == [("stop/two_step", "no record yet")]
+    assert [(c["condition"], c["row"], c["view"], c["seed"], c["selection"], c["outcome"]) for c in doc["clips"]] == [
+        ("stop/two_step", BEFORE_ROW, "side", 3042, "first seed", "fell"), ("stop/two_step", BEFORE_ROW, "visitor", 3042, "first seed", "fell"),
+        ("turn/q90_left", ROW, "top", 3042, "first seed", "stayed up"), ("turn/q90_left", ROW, "visitor", 3042, "first seed", "stayed up"),
+        ("walk/v0.4", ROW, "side", 3042, "first seed", "fell"), ("walk/v0.4", ROW, "visitor", 3042, "first seed", "fell")]
+    assert [(x["condition"], x["row"], x["reason"]) for x in doc["skipped"]] == [("stop/two_step", ROW, "no record yet")]
+    assert doc["rules"] == json.loads(json.dumps(bv.CLIP_RULES)) and "landscape" in doc["rules"]["watch"]
+    # every clip holds the robot in the free part of its picture, or the command warned about it
+    for c in doc["clips"]:
+        warned = any("WARNING: the robot leaves the free picture" in x and c["file"] in x for x in lines)
+        assert warned == (c["framing_margin_px"] < 0), (c["file"], c["framing_margin_px"])
+        assert c["bands_px"] == list(bv.band_heights(c["labels"]["top"], c["labels"]["bottom"], c["labels"]["notice"]))
     t_end = v0.planned(v0.condition(fake_run["ckey"]))["t_end"]
     for c in doc["clips"]:
         mp4 = media / c["file"]
@@ -786,18 +1088,39 @@ def test_clips_of_a_made_up_record_and_the_tree(request, v0, fake_run, tmp_path)
             assert c["span"]["t0"] == pytest.approx(fake_run["t_c"] - 1.0) and c["span"]["t1"] == pytest.approx(t_end + 1.0, abs=1e-6)
             assert c["seconds"] == pytest.approx(t_end + 2.0 - fake_run["t_c"], abs=1.0 / bv.FPS)
             assert c["captions"] == dict(command="command: turn left 90°", fell=None) and c["record_count"] == "stayed up in 4 of 6 (1 failed to run)"
+            assert c["fell_before_its_move"] is False and c["labels"]["notice"] is None
             if c["view"] == "top":  # the fixed eye holds the whole sweep
                 assert c["framing_margin_px"] > 0 and c["camera"]["kind"] == "fixed"
             else:  # the glide is far from the planned path: the constant shift of the clip keeps it in the picture
                 assert np.linalg.norm(c["camera"]["shift_from_plan_m"]) > 1.0
-                assert c["camera"]["largest_distance_box_centre_to_lookat_m"] < 0.5 and c["framing_margin_px"] > -150
-        else:  # a walk that fell before its judged window: from the start to the fall, then the pose held 1 s
+                assert c["camera"]["largest_distance_box_centre_to_lookat_m"] < 0.5 and c["framing_margin_px"] >= 0
+        elif c["condition"] == "walk/v0.4":  # a walk that fell in its start: from the start to the fall, the pose held 1 s
             assert (c["span"]["t0"], c["span"]["t1"], c["span"]["hold_s"]) == (0.0, 4.718, 1.0)
-            assert c["captions"]["fell"].startswith("fell (tilt)") and c["captions"]["command"] is None
+            assert c["captions"] == dict(command=None, fell="fell before the walk at 0.40 m/s began (tilt); the trace ends "
+                                                              "here, the last pose is held")
+            assert c["fell_before_its_move"] is True and c["labels"]["notice"] == [
+                "THE WALK AT 0.40 m/s NEVER BEGAN: this episode fell before it",
+                "it fell 4.72 s into the episode, in the start from standing"]
+            assert c["labels"]["bottom"][0] == ("seed 3042 (first seed): fell 4.72 s into the episode, before the walk at "
+                                                "0.40 m/s began  |  stayed up in 0 of 2")
+            assert c["framing_margin_under_captions_px"] >= 0  # (the fall is held under its caption)
+        else:  # the stop was never commanded: the frame says so, and no command caption exists
+            assert c["row"] == BEFORE_ROW and c["span"]["command_s"] is None and c["span"]["notes"] == ["fell before the command"]
+            assert (c["span"]["t0"], c["span"]["t1"], c["span"]["hold_s"]) == (pytest.approx(4.222), 8.222, 1.0)
+            assert c["captions"] == dict(command=None, fell="fell before the command (tilt); the trace ends here, the last "
+                                                              "pose is held")
+            assert c["fell_before_its_move"] is True and c["segment_reached"] == "nominal_to_v0.4"
+            assert c["labels"]["notice"] == ["THE STOP WAS NEVER COMMANDED: this episode fell before it",
+                                             "it fell 8.22 s into the episode, in the change from the nominal walk to 0.40 m/s; "
+                                             "the command was due at about 14.1 s"]
+            assert c["labels"]["top"][1].startswith("stop from 0.40 m/s within two steps") and c["bands_px"][0] > 48
+            assert c["labels"]["bottom"][0].startswith("seed 3042 (first seed): fell 8.22 s into the episode, before the command")
+            assert c["framing_margin_under_captions_px"] >= 0
     # a second run of one item keeps the other clips' entries
     doc2 = bv.make_clips([("V0", "turn/q90_left")], planned=True, run=run, media=media, out=run / "views",
                          views=("top",), log=lambda *a: None)
-    assert len(doc2["clips"]) == 5 and [c["kind"] for c in doc2["clips"]].count("planned") == 1
+    assert len(doc2["clips"]) == 7 and [c["kind"] for c in doc2["clips"]].count("planned") == 1
     planned = next(c for c in doc2["clips"] if c["kind"] == "planned")
     assert planned["labels"]["top"][0].startswith(bv.PLAN_LABEL) and planned["seed"] is None and planned["view"] == "top"
+    assert planned["labels"]["notice"] is None and planned["captions"]["command"] == "command: turn left 90°"
     assert doc2["skipped"] == doc["skipped"]

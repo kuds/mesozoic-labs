@@ -21,10 +21,13 @@ shift exactly.
 
 One thing is not exact on a simulated trace.  ``metrics.Recorder.update`` runs after the physics step: its kinematic
 columns describe the state at the step's start (``bar.RULES["convention"]``), its joint angles are ``qpos`` after
-the step, one physics step (2 ms) later.  ``pose_of`` moves the joint angles back by that step (linear between the
-50 Hz rows; ``joint_lag_steps=1``, the default) and returns how far the rebuilt feet and CoM lie from the trace's
-own ``foot*_x/y`` and ``com_x/y`` columns (``residual_m``).  A kinematic play's recorder (``bar.reference_recorder``)
-writes both at one instant: ``joint_lag_steps=0``, and the round trip is exact to the arrays' precision.
+the step, one physics step (2 ms) later.  ``pose_of`` moves the joint angles back by that step (``joint_lag_steps=1``,
+the default): a cubic spline through the 50 Hz joint angles at the instants they were taken, read at the rows' own
+instants (``POSE_BOUND``; a straight line between the rows left up to 0.27 mm).  It returns how far the rebuilt
+feet and CoM lie from the trace's own ``foot*_x/y`` and ``com_x/y`` columns (``residual_m``).  This is a measured
+bound, not an exact rebuild: where a foot lands or the robot hits the floor the joint speeds jump between two rows
+and no curve through the 50 Hz angles follows them.  A kinematic play's recorder (``bar.reference_recorder``) writes
+both at one instant: ``joint_lag_steps=0``, and the round trip is exact to the arrays' precision.
 
 ``barviews turnpath``: the room a turn needs
 --------------------------------------------
@@ -36,8 +39,10 @@ reading; it is copied into the file.
 ``barviews clips``: video
 -------------------------
 Simulated episodes rendered from their traces (``SIM_LABEL`` on every frame), or the frozen reference alone
-(``--planned``; ``PLAN_LABEL``).  Which episode: ``SELECTION_RULE``.  Media go outside git (``--media``, default
-``logs/barviews/``); ``views/clips.json`` lists them.
+(``--planned``; ``PLAN_LABEL``).  Which episode: ``SELECTION_RULE``.  An episode that fell before its condition's
+own move began (the turn, the stop or the push was never commanded; the walk at its speed never began) says so on
+every frame (``CLIP_RULES["before"]``).  Media go outside git (``--media``, default ``logs/barviews/``);
+``views/clips.json`` lists them.
 
 Run from hardware/trex_form_study, one process, through ``bash tools/lowprio.sh``::
 
@@ -59,6 +64,8 @@ import os
 if __name__ == "__main__":  # before numpy: one core; one llvmpipe thread for the software renderer
     for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "LP_NUM_THREADS"):
         os.environ.setdefault(_v, "1")
+    for _v in ("MESA_SHADER_CACHE_DISABLE", "MESA_GLSL_CACHE_DISABLE"):  # (``renderer_env``, before any GL library)
+        os.environ.setdefault(_v, "true")
 
 import argparse  # noqa: E402
 import hashlib  # noqa: E402
@@ -97,11 +104,27 @@ SURFACE_GROUPS = (0, 1, 2)
 #: The steady part of a turn: the rows whose heading has turned between these shares of the commanded angle.
 STEADY = (1.0 / 6.0, 5.0 / 6.0)
 STEADY_MIN_ROWS = 8
+#: The turn itself is done at the first row at which the trunk has turned its commanded angle to within this (deg).
+TURNED_WITHIN_DEG = 0.5
 #: The figure's simulated paths come from one record on the hard floor, headline block: the first of these rows (the
 #: judged delay's, in the chain's order: the two fitted controllers, then the open-loop row, which gives no
-#: verdict; then the same three without a servo delay) whose record has an episode that stayed up and can be read;
-#: the caption names it, its delay, and the rows before it.  ``--figure-row`` names one row instead.
-FIGURE_ROWS = ("R2/42@10ms", "R2/43@10ms", "R0@10ms", "R2/42@0ms", "R2/43@0ms", "R0@0ms")
+#: verdict; then the same three at each shorter servo delay the chain runs, the nearest to the judged delay first,
+#: down to none) whose record has an episode that stayed up and can be read; the caption names it, its delay, and
+#: the rows before it.  ``--figure-row`` names one row instead.
+FIGURE_DELAYS_MS = (10, 8, 6, 4, 2, 0)
+FIGURE_ROWS = tuple(f"{ctl}@{ms}ms" for ms in FIGURE_DELAYS_MS for ctl in ("R2/42", "R2/43", "R0"))
+#: How close ``pose_of`` comes to the plant's own body positions on an episode's trace (module docstring): measured,
+#: not exact.  ``tests/test_stage2_barviews.py`` checks the first on a Stage 1 smoke episode run with the plant's
+#: positions kept (STAGE2_SLOW=1); ``barviews posecheck`` gives the second for any record.
+POSE_BOUND = (
+    "the pose of an episode's trace row is a measured bound, not exact: the attitude and the root's place are exact, "
+    "the joint angles are a cubic spline through the 50 Hz angles read one physics step earlier.  On a Stage 1 "
+    "smoke episode run with the plant's own body positions kept (75-M-H-10, turn/walking_0.35_left, R2/42@0ms, "
+    "seed 3042, 1461 rows) every body origin came back within 0.08 mm on every row but the first and within 0.11 mm "
+    "on the first (the start's transient lies before the first joint sample).  On the chain's traces the rebuilt "
+    "feet lie up to a few tenths of a millimetre from the trace's own foot columns on the rows next to a touchdown "
+    "or a fall (each clip's manifest entry and each turn record's block give the largest distance: "
+    "pose_residual_m, pose_check_worst)")
 #: Clips: size, rate, size cap, lead and tail around the move, the command caption's length, the walk's length.
 FPS = 30
 MAX_BYTES = 3_000_000
@@ -117,16 +140,28 @@ TOP_HEADLIGHT_DIFFUSE = 0.2
 TURN_RULES = dict(
     words="planned: read from the frozen reference played kinematically at the bar's commanded clock (no physics). "
           "simulated: read from an episode's trace. No number mixes the two.",
-    clock=f"the bar plays a reference at {bar.RATE:g} times its own clock (bar.RULES['clocks']); every time here is "
-          "in simulated seconds, so a planned speed or rate in simulated time is the reference's own times "
-          f"{bar.RATE:g}; lengths and radii do not change with the clock",
+    clock=f"the bar plays a reference {bar.RATE:g} times faster than the reference's own clock "
+          "(bar.RULES['clocks']); every time here is on the bar's clock (the seconds of an episode), so a planned "
+          f"speed or rate on the bar's clock is the reference's own times {bar.RATE:g}; lengths and radii do not "
+          "change with the clock",
     frame="the corner frame of a turn: origin at the root (the trunk's origin) at the command instant; 'along' is "
           "the commanded heading (the home heading, the bar's psi_cmd), the incoming walking line; 'sideways' is "
           "square to it, positive toward the side of the turn",
     command="the command instant t_c: planned, the reference clock's time of the move's first frame over the "
             "commanded clock rate; simulated, the episode record's command_s (never recomputed)",
-    move_end="the end of the move: the simulated time at which the reference clock reaches the end of the turn's "
-             "own file (the trace's t_ref column); a trace that ends before it is read to its end and says so",
+    move_end="the end of the move: the time on the bar's clock at which the reference clock reaches the end of the "
+             "turn's own file (a trace's t_ref column); a trace that ends before it is read to its end and says so. "
+             "A turn's file goes on after the turn: it holds the walk out of the turn too, and the files of "
+             "different turns and sets differ in length",
+    ends="every largest and smallest value over a span of time is taken over the 50 Hz rows in the span and the "
+         "span's two ends themselves (read between the rows on either side, linearly): a value 'at the end' is "
+         "then never beyond the largest",
+    turn_itself=f"the turn itself: from the command to the first row at which the trunk has turned the commanded "
+                f"angle to within {TURNED_WITHIN_DEG:g} degrees.  Given: the seconds it took, where the root is then "
+                "(along its incoming line and sideways), the box of the whole robot (every surface point) over "
+                "those rows, and how far the root is then from its place at the end of the move (the walk after "
+                "the turn that the corner box to the move's end includes).  A path whose trunk never turns that "
+                "far has none of these",
     heading="the trunk's heading: the trace's yaw column (control._yaw of the trunk's rotation), unwrapped, as "
             "bar's turn reading takes it; 'turned' is its change from the commanded heading, positive toward the "
             "side of the turn",
@@ -142,20 +177,27 @@ TURN_RULES = dict(
                   "circle fitted to the positions alone (the algebraic fit, recorded as radius_free_fit_m) reads "
                   "the root's sideways sway of about 3 cm a step as curvature: it gave 0.29 m on V0's planned "
                   "quick turn, whose commanded radius is 0.51 m, where this fit gives 0.50 m",
-    corner_box="the corner box: over the rows from the command to the end of the move, how far the root gets "
-               "along its incoming line (advance) and sideways, at the largest and at the move's end; the same "
-               "box for the whole robot (every surface point)",
+    corner_box="the corner box to the end of the move: from the command to the end of the move, how far the root "
+               "gets along its incoming line (advance) and sideways, at the largest and at the move's end; the same "
+               "box for the whole robot (every surface point).  Its sideways side is mostly the walk after the "
+               "turn and grows with the length of the move's file: read the room of the turn from 'the turn "
+               "itself', not from this box",
     surface="the robot's surface points: per body of the model, the corners of the convex hull of its pads, covers "
             "and hardware (geom groups 0, 1 and 2: mesh vertices, and the corners of a primitive's bounding box), "
             "carried on each row's pose; the snout tip is the head's point farthest forward at home, the tail tip "
             "the tail's farthest back",
     swept_radius="the swept radius: the largest distance in plan from the turn's centre to any surface point over "
-                 "the steady part of the turn (where the robot is on its circle; the straight entry and exit are "
-                 "in the corner box and the corridor, not here); the point that sets it is named",
-    turning_circle="the turning circle: twice the swept radius, the diameter of the circle a full turn at that "
-                   "rate would sweep about the same centre",
+                 "the steady part of the turn (where the robot is on its circle); the point that sets it is named.  "
+                 "A circle of that radius does not hold the robot through this 90 degree turn: at the command the "
+                 "robot still stands along its incoming line and its tail reaches further from the centre.  That "
+                 "is the second reading, 'the largest distance from the turn's centre from the command until the "
+                 "trunk has turned the commanded angle' (the turn itself), with the point and the instant that "
+                 "set it",
+    turning_circle="the turning circle: twice the swept radius of the steady part, the diameter of the circle a "
+                   "full turn at that rate would sweep about the same centre (a robot that keeps turning; not the "
+                   "larger distance at the command)",
     corridor="the corridor: the narrowest L-shaped corridor, two legs of one width meeting square, that holds "
-             "every surface point from the command to the end of the move.  Its outer wall along the incoming leg "
+             "every surface point from the command to the end of the move (both ends included).  Its outer wall along the incoming leg "
              "touches the sweep's point farthest to the outside (sideways = Y0), its far wall across the incoming "
              "line touches the sweep's point farthest along (along = X); the inner corner is at (X - w, Y0 + w) "
              "and the width w is the smallest for which no point lies inside that corner's block: w = the largest, "
@@ -169,6 +211,7 @@ TURN_RULES = dict(
               "read; an episode that fell is counted and listed, not read; the heading at the bar's judged "
               "instant is the record's own (command_s + at_s; the commanded angle + the sign times "
               "heading_error_at_deg)",
+    pose=POSE_BOUND,
 )
 SELECTION_RULE = (
     "which episode a clip shows (stated before any record existed): the block's first seed; if that episode's "
@@ -314,12 +357,18 @@ def _col(trace, name: str) -> np.ndarray:
 
 
 def joints_at_rows(t, Q, dt: float, lag_steps: int) -> np.ndarray:
-    """The joint angles at the rows' own times, from angles recorded ``lag_steps`` physics steps after them: linear
-    between a row and the one before it (the first row: the same slope taken from the next one)."""
+    """The joint angles at the rows' own times ``t``, from angles ``Q`` recorded ``lag_steps`` physics steps after
+    them: the cubic spline (not-a-knot) through ``Q`` at the instants ``t + lag_steps dt``, read at ``t`` (the
+    first row lies ``lag_steps`` steps before the first sample: the spline's first piece carried back).  Fewer than
+    four rows: a straight line between a row and the one before it."""
     Q = np.asarray(Q, float)
     if not lag_steps or len(Q) < 2:
         return Q.copy()
     t = np.asarray(t, float)
+    if len(Q) >= 4:
+        from scipy.interpolate import CubicSpline
+
+        return np.asarray(CubicSpline(t + lag_steps * dt, Q, axis=0)(t), float)
     step = np.diff(t)
     frac = (lag_steps * dt) / np.r_[step[0], step]
     dQ = np.vstack([Q[1] - Q[0], np.diff(Q, axis=0)])
@@ -428,13 +477,26 @@ def corridor_width(along, side) -> dict:
     return dict(width_m=w, far_wall_along_m=X, outer_wall_sideways_m=Y0, inner_corner_m=[X - w, Y0 + w], index=i)
 
 
+def _between(tq: float, t, x):
+    """``x`` [n, ...] at the time ``tq``, linear between the rows on either side (a row's own time: that row; held
+    at the ends); None if a row it needs is not carried (NaN)."""
+    if len(t) == 1:
+        v = x[0]
+    else:
+        k = int(np.clip(np.searchsorted(t, tq, side="right") - 1, 0, len(t) - 2))
+        a = min(max((tq - t[k]) / (t[k + 1] - t[k]), 0.0), 1.0)
+        v = x[k] if a == 0.0 else x[k + 1] if a == 1.0 else (1.0 - a) * x[k] + a * x[k + 1]
+    return None if np.isnan(v).any() else np.asarray(v, float)
+
+
 def turn_readings(t, xy, heading, t_c: float, t_end: float | None, psi_cmd: float, sign: float, angle: float,
                   pts=None, labels=None) -> dict:
-    """The room a turn takes, from one path (``TURN_RULES``): ``t`` [n] simulated seconds, ``xy`` [n, 2] the root,
-    ``heading`` [n] the trunk's unwrapped heading (rad), ``t_c`` the command, ``t_end`` the end of the move (None:
-    not reached), ``psi_cmd`` the commanded heading, ``sign`` +1 left / -1 right, ``angle`` the commanded angle
-    (rad); ``pts`` [n, N, 2] the surface points on each row (or None) with their ``labels`` [N].  Lengths in
-    metres, angles in degrees; what cannot be read is None with its reason in ``notes``."""
+    """The room a turn takes, from one path (``TURN_RULES``): ``t`` [n] seconds on the bar's clock, ``xy`` [n, 2]
+    the root, ``heading`` [n] the trunk's unwrapped heading (rad), ``t_c`` the command, ``t_end`` the end of the
+    move (None: not reached), ``psi_cmd`` the commanded heading, ``sign`` +1 left / -1 right, ``angle`` the
+    commanded angle (rad); ``pts`` [n, N, 2] the surface points on each row (or None; NaN on rows that are not
+    carried) with their ``labels`` [N].  Lengths in metres, angles in degrees; what cannot be read is None with its
+    reason in ``notes``."""
     t, xy, heading = np.asarray(t, float), np.asarray(xy, float), np.asarray(heading, float)
     out: dict = dict(command_s=float(t_c), move_end_s=None if t_end is None else float(t_end), notes=[])
     if not len(t) or t[0] > t_c + bar.EPS_S or t[-1] < t_c - bar.EPS_S:
@@ -457,10 +519,35 @@ def turn_readings(t, xy, heading, t_c: float, t_end: float | None, psi_cmd: floa
         out["notes"].append("the trace ends before the end of the move: read to the trace's end")
     if not len(win):
         return out
+    # the root from the command to the end of the move: the rows and the two ends themselves (TURN_RULES["ends"];
+    # at the command the root is the frame's origin)
+    a_b, s_b = float(np.interp(t_b, t, along)), float(np.interp(t_b, t, side))
+    A, S = np.r_[0.0, along[win], a_b], np.r_[0.0, side[win], s_b]
     out["corner_box_root"] = dict(
-        advance_max_m=float(along[win].max()), advance_at_end_m=float(np.interp(t_b, t, along)),
-        sideways_max_m=float(side[win].max()), sideways_at_end_m=float(np.interp(t_b, t, side)),
-        back_max_m=float(max(-along[win].min(), 0.0)), outside_max_m=float(max(-side[win].min(), 0.0)))
+        advance_max_m=float(A.max()), advance_at_end_m=a_b, sideways_max_m=float(S.max()), sideways_at_end_m=s_b,
+        back_max_m=float(max(-A.min(), 0.0)), outside_max_m=float(max(-S.min(), 0.0)),
+        seconds_after_command=t_b - float(t_c))
+    # the turn itself: to the first row at which the trunk has turned the commanded angle
+    done = win[turned[win] >= angle - math.radians(TURNED_WITHIN_DEG)]
+    rows1 = np.zeros(0, int)
+    out["turn_itself"] = None
+    if len(done):
+        i1 = int(done[0])
+        rows1 = win[win <= i1]
+        A1, S1 = np.r_[0.0, along[rows1]], np.r_[0.0, side[rows1]]
+        out["turn_itself"] = dict(
+            within_deg=TURNED_WITHIN_DEG, at_s=float(t[i1]), seconds_after_command=float(t[i1] - t_c),
+            turned_deg=math.degrees(float(turned[i1])), rows=int(len(rows1)),
+            root_advance_m=float(along[i1]), root_sideways_m=float(side[i1]),
+            root_advance_max_m=float(A1.max()), root_sideways_max_m=float(S1.max()),
+            root_back_max_m=float(max(-A1.min(), 0.0)), root_outside_max_m=float(max(-S1.min(), 0.0)),
+            root_to_move_end_m=float(math.hypot(a_b - along[i1], s_b - side[i1])) if reaches_end else None,
+            robot=None)
+    else:
+        out["notes"].append(
+            f"the turn itself is not read: the trunk turned {math.degrees(float(turned[win].max())):.1f} deg at most "
+            f"between the command and {t_b:.2f} s, not the commanded {math.degrees(angle):.0f} deg to within "
+            f"{TURNED_WITHIN_DEG:g} deg")
     # the steady part
     lo, hi = STEADY[0] * angle, STEADY[1] * angle
     after = win[turned[win] >= lo]
@@ -487,14 +574,23 @@ def turn_readings(t, xy, heading, t_c: float, t_end: float | None, psi_cmd: floa
             f"command and {t_b:.2f} s; the steady part is {math.degrees(lo):.0f} to {math.degrees(hi):.0f} deg"
             if not out["steady"]["complete"] else f"the steady part holds {len(steady)} rows, fewer than {STEADY_MIN_ROWS}")
     out["fit"] = fit
-    out["swept"] = out["corner_box_robot"] = out["corridor"] = None
+    out["swept"] = out["swept_turn"] = out["corner_box_robot"] = out["corridor"] = None
     if pts is not None:
         pts = np.asarray(pts, float)
-        pa, ps = (pts - o) @ ex, (pts - o) @ ey
-        out["corner_box_robot"] = dict(along_min_m=float(pa[win].min()), along_max_m=float(pa[win].max()),
-                                       sideways_min_m=float(ps[win].min()), sideways_max_m=float(ps[win].max()))
+        p_c, p_b = _between(float(t_c), t, pts), _between(t_b, t, pts)  # the surface at the span's two ends
+        head = [] if p_c is None else [p_c]
+        whole = np.array(head + list(pts[win]) + ([] if p_b is None else [p_b]))
+        pa, ps = (whole - o) @ ex, (whole - o) @ ey
+        out["corner_box_robot"] = dict(along_min_m=float(pa.min()), along_max_m=float(pa.max()),
+                                       sideways_min_m=float(ps.min()), sideways_max_m=float(ps.max()))
+        turn = np.array(head + list(pts[rows1])) if len(rows1) else None
+        if turn is not None:
+            ta, ts = (turn - o) @ ex, (turn - o) @ ey
+            out["turn_itself"]["robot"] = dict(along_min_m=float(ta.min()), along_max_m=float(ta.max()),
+                                               sideways_min_m=float(ts.min()), sideways_max_m=float(ts.max()))
         if fit is not None:
-            dist = np.linalg.norm(pts[steady] - np.asarray(out["centre_world"]), axis=2)
+            centre = np.asarray(out["centre_world"])
+            dist = np.linalg.norm(pts[steady] - centre, axis=2)
             r_i, k_i = np.unravel_index(int(np.argmax(dist)), dist.shape)
             parts = sorted({lab.split(":")[0] for lab in labels}) if labels is not None else []
             per = {}
@@ -503,9 +599,17 @@ def turn_readings(t, xy, heading, t_c: float, t_end: float | None, psi_cmd: floa
                 per[part] = float(dist[:, sel].max())
             out["swept"] = dict(swept_radius_m=float(dist[r_i, k_i]), turning_circle_m=2.0 * float(dist[r_i, k_i]),
                                 set_by=None if labels is None else labels[int(k_i)], at_s=float(t[steady[r_i]]),
-                                inner_radius_m=float(dist.min()), farthest_by_part_m=per)
+                                inner_radius_m=float(dist.min()), farthest_by_part_m=per, over="the steady part")
+            if turn is not None:
+                d1 = np.linalg.norm(turn - centre, axis=2)
+                r_1, k_1 = np.unravel_index(int(np.argmax(d1)), d1.shape)
+                at = float(np.r_[[float(t_c)] * len(head), t[rows1]][r_1])
+                out["swept_turn"] = dict(
+                    largest_distance_m=float(d1[r_1, k_1]), set_by=None if labels is None else labels[int(k_1)],
+                    at_s=at, seconds_after_command=at - float(t_c),
+                    over="from the command until the trunk has turned the commanded angle")
         if reaches_end:
-            cw = corridor_width(pa[win], ps[win])
+            cw = corridor_width(pa, ps)
             k = cw.pop("index") % pts.shape[1]
             out["corridor"] = dict(cw, inner_corner_set_by=None if labels is None else labels[int(k)])
         else:
@@ -518,11 +622,18 @@ READINGS = {
     "radius_fitted": (("fit", "radius_fitted_m"), "m"),
     "turn_rate": (("fit", "turn_rate_deg_s"), "deg/s"),
     "path_speed": (("fit", "path_speed_m_s"), "m/s"),  # the fitted radius times the mean turn rate
+    "turn_seconds": (("turn_itself", "seconds_after_command"), "s"),  # the turn itself (TURN_RULES["turn_itself"])
+    "turn_root_advance": (("turn_itself", "root_advance_m"), "m"),
+    "turn_root_sideways": (("turn_itself", "root_sideways_m"), "m"),
+    "turn_robot_along_max": (("turn_itself", "robot", "along_max_m"), "m"),
+    "turn_robot_sideways_max": (("turn_itself", "robot", "sideways_max_m"), "m"),
+    "walk_after_turn": (("turn_itself", "root_to_move_end_m"), "m"),
     "advance_max": (("corner_box_root", "advance_max_m"), "m"),
     "advance_at_end": (("corner_box_root", "advance_at_end_m"), "m"),
     "sideways_max": (("corner_box_root", "sideways_max_m"), "m"),
     "sideways_at_end": (("corner_box_root", "sideways_at_end_m"), "m"),
     "swept_radius": (("swept", "swept_radius_m"), "m"),
+    "largest_from_centre_in_turn": (("swept_turn", "largest_distance_m"), "m"),
     "turning_circle": (("swept", "turning_circle_m"), "m"),
     "corridor": (("corridor", "width_m"), "m"),
     "turned_at_judged_instant": (("turned_at_judged_instant_deg",), "deg"),
@@ -643,11 +754,13 @@ def surface_rows(model: BodyModel, pose: dict, rows) -> np.ndarray:
 
 def path_readings(model: BodyModel, pose: dict, t_c: float, t_end: float | None, sign: float, angle: float) -> dict:
     """``turn_readings`` of a pose series: the surface points are carried on the rows from the command to the end
-    of the move only (the rows the readings take)."""
+    of the move only (the rows the readings take, and one row on either side)."""
     t = pose["t"]
     n = len(t)
     stop = t[-1] if t_end is None else t_end
     rows = np.flatnonzero((t >= t_c - bar.EPS_S) & (t <= stop + bar.EPS_S))
+    if len(rows):  # (and the row on either side: the span's two ends are read between rows)
+        rows = np.arange(max(int(rows[0]) - 1, 0), min(int(rows[-1]) + 2, n))
     pts = np.full((n, len(model.labels), 2), np.nan)
     if len(rows):
         pts[rows] = surface_rows(model, pose, rows)
@@ -816,7 +929,7 @@ def planned_turn(sv: SetView, cond) -> dict:
         commanded=dict(path_speed_m_s=v, turn_rate_rad_s=rate, turn_rate_deg_s=math.degrees(rate),
                        radius_m=v / rate, angle_deg=math.degrees(float(res["angle_rad"])),
                        direction=entry["turn"]["direction"],
-                       in_simulated_time=dict(path_speed_m_s=v * bar.RATE, turn_rate_deg_s=math.degrees(rate) * bar.RATE)),
+                       on_the_bars_clock=dict(path_speed_m_s=v * bar.RATE, turn_rate_deg_s=math.degrees(rate) * bar.RATE)),
         judged_instant_s_after_command=float(res["at_s"]), readings=r,
         pose_check=pl["pose"]["residual_m"])
 
@@ -900,6 +1013,7 @@ def compact_simulated(s: dict) -> dict:
                  command_s=e["readings"].get("command_s"), move_end_s=e["readings"].get("move_end_s"),
                  judged_instant_s=e["readings"].get("judged_instant_s"),
                  swept_radius_set_by=(e["readings"].get("swept") or {}).get("set_by"),
+                 largest_from_centre_in_turn_set_by=(e["readings"].get("swept_turn") or {}).get("set_by"),
                  corridor_inner_corner_set_by=(e["readings"].get("corridor") or {}).get("inner_corner_set_by"),
                  notes=e["readings"].get("notes") or [])
             for e in s["episodes"]]
@@ -1081,28 +1195,49 @@ def turnpath_md(doc: dict) -> str:
         pl = tn["planned"]
         r, cmd = pl["readings"], pl["commanded"]
         fit, box, rob, sw, co = r["fit"], r["corner_box_root"], r["corner_box_robot"], r["swept"], r["corridor"]
+        ti, st = r.get("turn_itself"), r.get("swept_turn")
+        tr_ = (ti or {}).get("robot")
+        to_end = (f"to the end of the move's file, {box['seconds_after_command']:.2f} s after the command"
+                  + (f"; includes {ti['root_to_move_end_m']:.2f} m of walk after the turn" if ti and
+                     ti.get("root_to_move_end_m") is not None else ""))
+        ang = f"{cmd['angle_deg']:.0f}°"
         A += [f"## {tn['condition']}: {tn['in_words']}", "",
               f"![top view]({tn['figure']['png']})", "", tn["figure"]["caption"], "",
               "### Planned", "",
               f"From `{pl['file']}` (sha256 `{pl['file_sha256'][:12]}`), played at {pl['clock_rate']:g} times its own "
               "clock.", "",
               "| reading (planned) | value |", "|---|---|",
-              f"| path speed commanded | {cmd['path_speed_m_s']:.2f} m/s on the reference's clock "
-              f"({cmd['in_simulated_time']['path_speed_m_s']:.2f} m/s in simulated time) |",
-              f"| turn rate commanded | {cmd['turn_rate_deg_s']:.1f} deg/s on the reference's clock "
-              f"({cmd['in_simulated_time']['turn_rate_deg_s']:.1f} deg/s in simulated time) |",
+              f"| path speed commanded | {cmd['path_speed_m_s']:.2f} m/s on the reference's clock; "
+              f"{cmd['on_the_bars_clock']['path_speed_m_s']:.2f} m/s on the bar's clock (the reference is played "
+              f"{pl['clock_rate']:g} times faster) |",
+              f"| turn rate commanded | {cmd['turn_rate_deg_s']:.1f} deg/s on the reference's clock; "
+              f"{cmd['on_the_bars_clock']['turn_rate_deg_s']:.1f} deg/s on the bar's clock |",
               f"| path radius commanded (speed over rate) | {_len(cmd['radius_m'], L)} |",
               f"| radius fitted to the root's path, steady part | {_len(fit and fit['radius_fitted_m'], L)}, RMS "
               f"{_num(fit and 1e3 * fit['fit_rms_m'], 0)} mm off the circle (the root sways) |",
-              f"| corner box, root: advance along the incoming line | largest {_len(box['advance_max_m'], L)}, at the "
-              f"move's end {_len(box['advance_at_end_m'], L)} |",
-              f"| corner box, root: sideways | largest {_len(box['sideways_max_m'], L)}, at the move's end "
-              f"{_len(box['sideways_at_end_m'], L)} |",
-              f"| corner box, whole robot: along | {_len(rob['along_min_m'], L)} to {_len(rob['along_max_m'], L)} |",
-              f"| corner box, whole robot: sideways | {_len(rob['sideways_min_m'], L)} to "
+              f"| **the turn itself**: until the trunk has turned {ang} (to within {TURNED_WITHIN_DEG:g}°) | "
+              + (f"{ti['seconds_after_command']:.2f} s after the command |" if ti else "- (the trunk never turns that far) |"),
+              f"| the turn itself, root: where it is then | {_len(ti and ti['root_advance_m'], L)} along the incoming "
+              f"line, {_len(ti and ti['root_sideways_m'], L)} sideways |",
+              f"| the turn itself, whole robot: along | {_len(tr_ and tr_['along_min_m'], L)} to "
+              f"{_len(tr_ and tr_['along_max_m'], L)} |",
+              f"| the turn itself, whole robot: sideways | {_len(tr_ and tr_['sideways_min_m'], L)} to "
+              f"{_len(tr_ and tr_['sideways_max_m'], L)} |",
+              f"| corner box {to_end}; root: advance along the incoming line | largest "
+              f"{_len(box['advance_max_m'], L)}, at the move's end {_len(box['advance_at_end_m'], L)} |",
+              f"| corner box to the end of the move's file; root: sideways | largest {_len(box['sideways_max_m'], L)}, "
+              f"at the move's end {_len(box['sideways_at_end_m'], L)} |",
+              f"| corner box to the end of the move's file; whole robot: along | {_len(rob['along_min_m'], L)} to "
+              f"{_len(rob['along_max_m'], L)} |",
+              f"| corner box to the end of the move's file; whole robot: sideways | {_len(rob['sideways_min_m'], L)} to "
               f"{_len(rob['sideways_max_m'], L)} |",
-              f"| swept radius | {_len(sw and sw['swept_radius_m'], L)}, set by {sw and sw['set_by']} |",
-              f"| turning circle (twice the swept radius) | {_len(sw and sw['turning_circle_m'], L)} |",
+              f"| swept radius over the steady part of the turn (the turning circle uses this one) | "
+              f"{_len(sw and sw['swept_radius_m'], L)}, set by {sw and sw['set_by']} |",
+              f"| largest distance from the turn's centre, from the command until the trunk has turned {ang} | "
+              f"{_len(st and st['largest_distance_m'], L)}, set by {st and st['set_by']}"
+              + ("" if not st else ", at the command |" if st["seconds_after_command"] < 0.005
+                 else f", {st['seconds_after_command']:.2f} s after the command |") + ("" if st else " |"),
+              f"| turning circle (twice the swept radius of the steady part) | {_len(sw and sw['turning_circle_m'], L)} |",
               f"| corridor for the 90° corner | {_len(co and co['width_m'], L)}, inner corner set by "
               f"{co and co['inner_corner_set_by']} |",
               f"| turned {pl['judged_instant_s_after_command']:g} s after the command | "
@@ -1134,22 +1269,35 @@ def turnpath_md(doc: dict) -> str:
                 A += ["No episode of this record stayed up with a trace that can be read: nothing is read.", ""]
                 continue
             n = s["count"]["read"]
-            A += [f"Of the {n} read (median, then smallest to largest):", "",
+            A += [f"Of the {n} read (median, then smallest to largest; the last column counts the episodes that have "
+                  "the reading: the turn itself is read only where the trunk turned the commanded angle to within "
+                  f"{TURNED_WITHIN_DEG:g}° before the end of the move):", "",
                   "| reading (simulated) | median (smallest to largest) | episodes |", "|---|---|---|"]
             for name, title in (("radius_fitted", "radius fitted to the root's path, steady part"),
-                                ("advance_max", "corner box, root: largest advance"),
-                                ("advance_at_end", "corner box, root: advance at the move's end"),
-                                ("sideways_max", "corner box, root: largest sideways"),
-                                ("sideways_at_end", "corner box, root: sideways at the move's end"),
-                                ("swept_radius", "swept radius"), ("turning_circle", "turning circle"),
+                                ("turn_root_advance", "the turn itself, root: along the incoming line when the trunk "
+                                                      f"has turned {ang}"),
+                                ("turn_root_sideways", f"the turn itself, root: sideways when the trunk has turned {ang}"),
+                                ("turn_robot_along_max", "the turn itself, whole robot: farthest along"),
+                                ("turn_robot_sideways_max", "the turn itself, whole robot: farthest sideways"),
+                                ("walk_after_turn", "walk after the turn, to the end of the move's file (root)"),
+                                ("advance_max", "corner box to the end of the move's file, root: largest advance"),
+                                ("advance_at_end", "corner box to the end of the move's file, root: advance at the end"),
+                                ("sideways_max", "corner box to the end of the move's file, root: largest sideways"),
+                                ("sideways_at_end", "corner box to the end of the move's file, root: sideways at the end"),
+                                ("swept_radius", "swept radius over the steady part"),
+                                ("largest_from_centre_in_turn", "largest distance from the turn's centre, from the "
+                                                                f"command until the trunk has turned {ang}"),
+                                ("turning_circle", "turning circle (twice the swept radius of the steady part)"),
                                 ("corridor", "corridor for the 90° corner")):
                 A += [f"| {title} | {_range(sm[name], L)} | {sm[name]['n'] if sm[name] else 0} |"]
-            for name, title, unit in (("turn_rate", "turn rate over the steady part", " deg/s"),
+            for name, title, unit in (("turn_seconds", "the turn itself: seconds from the command until the trunk "
+                                                       f"has turned {ang} (to within {TURNED_WITHIN_DEG:g}°)", " s"),
+                                      ("turn_rate", "turn rate over the steady part", " deg/s"),
                                       ("path_speed", "path speed over the steady part", " m/s"),
                                       ("turned_at_judged_instant", "turned at the bar's judged instant", "°"),
                                       ("turned_at_move_end", "turned at the end of the move", "°"),
                                       ("turned_at_trace_end", "turned at the end of the trace", "°")):
-                A += [f"| {title} | {_range(sm[name], None, 1 if unit != ' m/s' else 2, unit)} | "
+                A += [f"| {title} | {_range(sm[name], None, 1 if unit not in (' m/s', ' s') else 2, unit)} | "
                       f"{sm[name]['n'] if sm[name] else 0} |"]
             A += [""]
     if doc["no_reference"]:
@@ -1201,7 +1349,8 @@ def figure(sv: SetView, cond, planned: dict, sim: dict | None, stem: Path, befor
         skipped = ("  Rows before it with no path to draw: " + "; ".join(before) + ".") if before else ""
         note = (f"Simulated paths: {ctl}{sim['row']}, {delay}, floor grip {sim['floor_grip']:g}, {sim['block']}; "
                 f"{sim['count_text']}; {len(drawn)} drawn." + skipped)
-        simtext = (f"Orange, thin: SIMULATED root paths of the {len(drawn)} episodes that stayed up in "
+        simtext = (f"Orange, thin: SIMULATED root path{'s' if len(drawn) != 1 else ''} of the {len(drawn)} "
+                   f"episode{'s' if len(drawn) != 1 else ''} that stayed up in "
                    f"`{sim['record']}` ({ctl}{sim['row']}, {delay}; {sim['count_text']})." + skipped)
     elif sim is not None:
         note = f"Simulated: no episode to draw from {sim['row']} ({sim.get('count_text') or sim.get('reason')})."
@@ -1211,15 +1360,26 @@ def figure(sv: SetView, cond, planned: dict, sim: dict | None, stem: Path, befor
         simtext = "SIMULATED: no record yet; no simulated path is drawn."
     foot = textwrap.wrap(f"{sv.name} ({SET_WORDS.get(sv.name, sv.name)}): {words}. Top view, up is the incoming "
                          "walking line. Every path is drawn from its own place at the command. " + note, 84)
+    rob, box, ti = r["corner_box_robot"], r["corner_box_root"], r.get("turn_itself")
+    ang = f"{math.degrees(float(pl['res']['angle_rad'])):.0f}°"
+    after = "" if not ti or ti.get("root_to_move_end_m") is None else f" ({ti['root_to_move_end_m']:.2f} m of it after the turn)"
     handles = [plt.Line2D([], [], color=C["planned"], linewidth=2.0, label="planned: root path of the frozen reference"),
-               plt.Line2D([], [], color=C["ink2"], linewidth=0.8, linestyle=(0, (4, 3)), label="corner box of the planned root"),
+               plt.Line2D([], [], color=C["ink3"], linewidth=0.9, linestyle=(0, (1, 2)),
+                          label=f"to the end of the move's file (planned root): {box['sideways_max_m']:.2f} m sideways"
+                                + (",\n" + after.strip(" ()").replace("of it", "of it walk") if after else "")),
                Polygon([[0, 0]], facecolor=C["band"], edgecolor=C["ink3"], linewidth=0.5,
                        label="planned outline at the command and at the move's end")]
+    if ti:
+        handles.insert(1, plt.Line2D(
+            [], [], color=C["ink"], linewidth=1.0, linestyle=(0, (4, 3)), marker="o", markersize=3.5,
+            markerfacecolor=C["surface"], markeredgecolor=C["ink"],
+            label=f"the turn itself (planned root): {ti['root_advance_m']:.2f} m along, {ti['root_sideways_m']:.2f} m "
+                  "sideways"))
     if drawn:
         handles.insert(1, plt.Line2D([], [], color=C["simulated"], linewidth=0.9,
-                                     label=f"simulated: root paths of {len(drawn)} episodes that stayed up"))
+                                     label=f"simulated: root path{'s' if len(drawn) != 1 else ''} of {len(drawn)} "
+                                           f"episode{'s' if len(drawn) != 1 else ''} that stayed up"))
     # the picture's extent: the planned robot's corner box (and the simulated paths), a margin, room for the bar
-    rob, box = r["corner_box_robot"], r["corner_box_root"]
     xs = sorted([-sign * rob["sideways_min_m"], -sign * rob["sideways_max_m"]])
     ys = [rob["along_min_m"], rob["along_max_m"]]
     for path in drawn:
@@ -1232,7 +1392,8 @@ def figure(sv: SetView, cond, planned: dict, sim: dict | None, stem: Path, befor
     W_in, left = 4.0, 0.12
     ax_w = W_in - 2 * left
     ax_h = ax_w * (ylim[1] - ylim[0]) / (xlim[1] - xlim[0])
-    below = 0.10 + 0.125 * len(foot) + 0.06 + 0.15 * len(handles) + 0.08
+    legend_lines = sum(h.get_label().count("\n") + 1 for h in handles)
+    below = 0.10 + 0.125 * len(foot) + 0.06 + 0.15 * legend_lines + 0.08
     H_in = ax_h + below + 0.06
     fig = plt.figure(figsize=(W_in, H_in), dpi=200, facecolor=C["surface"])
     ax = fig.add_axes([left / W_in, below / H_in, ax_w / W_in, ax_h / H_in], facecolor=C["surface"])
@@ -1248,10 +1409,11 @@ def figure(sv: SetView, cond, planned: dict, sim: dict | None, stem: Path, befor
                                  alpha=0.55, zorder=2))
     x0, x1 = sorted([sign * box["outside_max_m"], -sign * box["sideways_max_m"]])
     ax.add_patch(Rectangle((x0, -box["back_max_m"]), x1 - x0, box["advance_max_m"] + box["back_max_m"], fill=False,
-                           edgecolor=C["ink2"], linewidth=0.8, linestyle=(0, (4, 3)), zorder=3))
-    ax.text(0.5 * (x0 + x1) - sign * 0.12 * (x1 - x0), 0.42 * box["advance_max_m"],
-            f"corner box of the planned root:\n{box['advance_max_m']:.2f} m along,\n{box['sideways_max_m']:.2f} m sideways",
-            color=C["ink2"], fontsize=6.5, ha="center", va="center", linespacing=1.25, zorder=7)
+                           edgecolor=C["ink3"], linewidth=0.9, linestyle=(0, (1, 2)), zorder=3))
+    if ti:  # the turn itself: from the root's place at the command to its place when the trunk has turned the angle
+        tx, ty = -sign * ti["root_sideways_m"], ti["root_advance_m"]
+        ax.add_patch(Rectangle((min(0.0, tx), 0.0), abs(tx), ty, fill=False, edgecolor=C["ink"], linewidth=1.0,
+                               linestyle=(0, (4, 3)), zorder=6))
     for path in drawn:
         ax.plot(-sign * path[:, 1], path[:, 0], color=C["simulated"], linewidth=0.7, alpha=0.75, zorder=4)
     sel = (pose["t"] >= t_c - LEAD_S) & (pose["t"] <= t_end + bar.EPS_S)
@@ -1259,6 +1421,9 @@ def figure(sv: SetView, cond, planned: dict, sim: dict | None, stem: Path, befor
     ax.plot(pxy[:, 0], pxy[:, 1], color=C["planned"], linewidth=2.0, zorder=5, solid_capstyle="round")
     ax.plot([0], [0], marker="o", markersize=5, color=C["planned"], markeredgecolor=C["surface"], markeredgewidth=1.0,
             zorder=6)
+    if ti:
+        ax.plot([tx], [ty], marker="o", markersize=4.5, color=C["surface"], markeredgecolor=C["ink"],
+                markeredgewidth=1.0, zorder=7)
     side_out = "left" if sign > 0 else "right"  # labels go on the outside of the turn, where the picture is free
     ax.annotate("command", (0, 0), xytext=(sign * 22, 0), textcoords="offset points", color=C["ink"], fontsize=7.5,
                 ha=side_out, va="center", zorder=7)
@@ -1284,8 +1449,15 @@ def figure(sv: SetView, cond, planned: dict, sim: dict | None, stem: Path, befor
     plt.close(fig)
     return (f"Top view of {words} on {sv.name} ({SET_WORDS.get(sv.name, sv.name)}); up is the incoming walking line. "
             "Blue, thick: the PLANNED path of the root (the frozen reference, kinematic), from 1 s before the command "
-            "to the end of the move; the grey shapes are the PLANNED outline of the robot at the command and at the "
-            "end of the move; the dashed box is the corner box of the planned root. " + simtext
+            "to the end of the move's file; the grey shapes are the PLANNED outline of the robot at the command and at "
+            "the end of the move's file. "
+            + (f"The dashed box is the turn itself: the PLANNED root is {ti['root_advance_m']:.2f} m along its "
+               f"incoming line and {ti['root_sideways_m']:.2f} m sideways (the ring) when the trunk has turned {ang}, "
+               f"{ti['seconds_after_command']:.2f} s after the command. " if ti else "")
+            + f"The dotted box is the PLANNED root's corner box to the end of the move's file, "
+              f"{box['seconds_after_command']:.2f} s after the command: {box['advance_max_m']:.2f} m along and "
+              f"{box['sideways_max_m']:.2f} m sideways{after}; its sideways side is mostly the walk after the turn and "
+              "depends on the file's length. " + simtext
             + " Every path is drawn from its own position at the command. The scale bar is 0.5 m.")
 
 
@@ -1295,9 +1467,29 @@ def figure(sv: SetView, cond, planned: dict, sim: dict | None, stem: Path, befor
 #: The views of a behaviour's clips, and each view in words.
 VIEWS_OF = {"walk": ("visitor", "side"), "turn": ("visitor", "top"), "nudge": ("visitor", "top"),
             "stop": ("visitor", "side")}
-VIEW_WORDS = {"visitor": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front of the incoming walk",
-              "side": "side view: eye 0.6 m high, 2.5 m away, on the robot's right",
-              "top": "top view: straight down; up is the incoming walking line"}
+#: ``clips.CAMERAS``' eye height and distance along the floor (m) of the two following views (checked against
+#: ``clips.CAMERAS`` when a clip is rendered).
+VIEW_EYES = {"visitor": (1.5, 2.5), "side": (0.6, 2.5)}
+#: Holding the robot in the free part of the picture (``CLIP_RULES["cameras"]``): the factors by which the eye may
+#: be pulled back along its line of sight, and the heights (m) by which the look-at point may be raised (the label
+#: bands and the captions take more of the picture's top than of its bottom).
+PULL_BACK = tuple(round(1.0 + 0.1 * k, 1) for k in range(16))
+LOOK_LIFT_M = tuple(round(0.05 * k, 2) for k in range(13))
+
+
+def view_words(view: str, eye=None, pulled_back: bool = False) -> str:
+    """A view in words; ``eye`` (height, distance along the floor, m) where it is not ``VIEW_EYES``'."""
+    if view == "top":
+        return "top view: straight down; up is the incoming walking line"
+    h, d = eye or VIEW_EYES[view]
+    name, where = {"visitor": ("visitor's view", "three-quarter front"), "side": ("side view", "on the robot's right")}[view]
+    return (f"{name}: eye {h:.1f} m high, {d:.1f} m away" + (" (pulled back to hold the robot)" if pulled_back else "")
+            + f", {where}")
+
+
+VIEW_WORDS = {v: view_words(v) for v in ("visitor", "side", "top")}
+#: The label's short word for how the episode was chosen (``SELECTION_RULE``; a pick's ``selection``).
+SELECTION_SHORT = {"first seed": "first seed", "majority outcome": "majority outcome"}
 #: An episode that fell before its command (or a walk that fell before its judged window): the clip is the last
 #: seconds before the fall (a walk: up to ``WALK_CLIP_S``).
 BEFORE_FALL_S = 4.0
@@ -1308,14 +1500,25 @@ CLIP_RULES = dict(
          "the pulse's end plus the bar's recovery limit) or at the trace's end if that comes first; a walk: the "
          f"first {WALK_CLIP_S:g} s of its judged window.  An episode that fell: the clip runs to the fall instant "
          f"the record gives and the last recorded pose is held for {TAIL_S:g} s under the caption 'fell' (a trace "
-         "ends at the fall); if it fell before its command, or a walk before its judged window, the clip is the "
-         f"last {BEFORE_FALL_S:g} s before the fall (a walk: up to {WALK_CLIP_S:g} s)",
+         "ends at the fall); if it fell before its command the clip is the last "
+         f"{BEFORE_FALL_S:g} s before the fall; a walk that fell (it has no judged window): the last "
+         f"{WALK_CLIP_S:g} s before the fall, from the episode's start if it is shorter",
+    before="an episode that fell before its condition's own move began shows something else than its title: the "
+           "start from standing or the change of speed, seconds before the turn, the stop or the push was due.  "
+           "'Before' is read from the record: a turn or a stop, the episode's fell_before_command; a nudge, its "
+           "push's fell_before_pulse; a walk, a segment_reached that is not the walk's own reference.  Such a clip "
+           "says so on every frame, in two lines under the title ('THE TURN WAS NEVER COMMANDED: ...', with the "
+           "fall's second, the part of its plan the episode had reached, and when the command was due: the "
+           "command's reference time over the commanded clock rate, 'about', or a push's own onset), in the bottom "
+           "line and in the fall's caption; its manifest entry has fell_before_its_move true and no command "
+           "caption.  Episodes of different conditions with one seed are the same motion up to their commands: "
+           "one fall in the start can be the clip of several records",
     time=f"{FPS} frames a second at real time: frame k shows the simulated time t0 + k / {FPS} s; between the 50 Hz "
          "rows the root position and the joint angles are interpolated linearly and the root's quaternion by "
          "normalised linear interpolation (clips.Playback's rule)",
-    pose="simulated: pose_of on the episode's trace (module docstring: exact attitude and root, the height from the "
-         "feet's low points, the joint angles moved back one physics step); planned: the frozen reference played "
-         "kinematically at the bar's commanded clock",
+    pose="simulated: pose_of on the episode's trace (the attitude and the root's place exact, the height from the "
+         "feet's low points, the joint angles moved back one physics step); " + POSE_BOUND + ".  planned: the "
+         "frozen reference played kinematically at the bar's commanded clock (exact)",
     cameras="visitor and side: clips.CAMERAS' eye height, distance and bearing, the bearing counted from the "
             "incoming walking line and kept for the whole clip; the look-at point follows the planned root path "
             "(the reference at the reference time the episode's own clock has reached, so that the clock's play "
@@ -1324,13 +1527,27 @@ CLIP_RULES = dict(
             "constant for the whole clip: the mean, over the clip's seconds, of the simulated root's place from "
             "its planned place (a robot that drifted off its plan before the clip is then still in the picture). "
             "Within a clip the cameras do not follow the body: not its wobble, and not a drift from the plan "
-            "during the clip, which shows as the robot leaving the picture's centre.  top: a fixed eye straight above the middle of the clip's sweep, high "
+            "during the clip, which shows as the robot leaving the picture's centre.  The robot is held in the "
+            "free part of the picture by two constants per clip: the look-at point is raised by the smallest of "
+            f"{LOOK_LIFT_M[0]:g} to {LOOK_LIFT_M[-1]:g} m (steps of 0.05 m) and the eye pulled back along its line "
+            f"of sight by the smallest factor of {PULL_BACK[0]:g} to {PULL_BACK[-1]:g} (steps of 0.1; the factor "
+            "first, then the raise) that keep every surface point of the robot, on every third frame, inside "
+            "the part of the picture the label bands leave free; a clip of an episode that fell: free of the "
+            "fall's caption too.  The label gives the eye's height and distance when the eye was pulled back; if "
+            "no pair holds the robot, the largest factor and its best raise are used and the command prints a "
+            "warning.  top: a fixed eye straight above the middle of the clip's sweep, high "
             "enough to hold it, the picture's up along the incoming walking line, the headlight's diffuse part "
             f"lowered to {TOP_HEADLIGHT_DIFFUSE:g} (straight down the model's own washes the floor out)",
     labels=f"first line of every frame: '{SIM_LABEL}' or '{PLAN_LABEL}', never both, the body and the set; second "
-           "line: the condition and the row in plain words; bottom: seed, this episode's outcome, the record's "
-           "count, the view, the clip time.  From the command, for "
+           "line: the condition and the row in plain words; bottom: seed, how it was chosen ('first seed' or "
+           "'majority outcome': the lowest seed with the majority outcome), this episode's outcome (a fall with "
+           "its second of the episode), the record's count; then the view and the clock.  The clock of a simulated "
+           "clip gives two times, 'clip 4.00 s = episode 8.22 s': the seconds since the clip's first frame and "
+           "the episode's own time, the one a fall's second and the records use.  From the command, for "
            f"{CAPTION_S:g} s: 'command: ...' (read from the record); from the fall instant: 'fell'",
+    watch="the clips are 854 x 480 and made for a landscape or a full screen.  The title's second line and the "
+          "bottom's first line are 17 px tall, the other lines 13 to 15 px: at a phone's portrait width (390 px) "
+          "they come out under 8 px, hard to read",
     media=f"854 x 480, H.264 through clips.encode, at most {MAX_BYTES} bytes each; a poster and a contact sheet "
           "(the frames at 1/8, 3/8, 5/8 and 7/8 of the clip) beside each; the media are written outside git and "
           "listed here with their sha256",
@@ -1423,7 +1640,7 @@ def clip_span(definition: dict, t_last: float, command_s: float | None, move_end
         t1, hold = float(fall_s), TAIL_S
         if walk or command_s is None or command_s > fall_s:
             t0 = max(0.0, t1 - (WALK_CLIP_S if walk else BEFORE_FALL_S))
-            notes.append("fell before its judged window" if walk else "fell before the command")
+            notes.append("fell: it has no judged window" if walk else "fell before the command")
             command_s = None if walk or command_s is None or command_s > fall_s else command_s
         else:
             t0 = max(0.0, command_s - LEAD_S)
@@ -1446,23 +1663,102 @@ def clip_span(definition: dict, t_last: float, command_s: float | None, move_end
                 fall_s=None if fall_s is None else float(fall_s), notes=notes)
 
 
+def segment_words(name: str | None) -> str:
+    """A part of an episode's plan (the record's ``segment_reached``) in plain words."""
+    def walk(w):
+        v = setio.parse_name(w).get("speed_m_s")
+        return "the nominal walk" if v is None else f"{v:.2f} m/s"
+
+    if not name:
+        return "a part of its plan the record does not name"
+    if name == "stand":
+        return "the stand after the stop"
+    try:
+        p = setio.parse_name(name)
+        if p["kind"] == "start":
+            return "the start from standing" + (f" into the walk at {walk(p['walk'])}" if p.get("walk") else "")
+        if p["kind"] == "change":
+            return f"the change from {walk(p['a'])} to {walk(p['b'])}"
+        if p["kind"] == "stop":
+            return "the stop"
+        if p["kind"] == "turn":
+            return f"the turn to the {p['direction']}"
+        return "the nominal walk" if p["speed_m_s"] is None else f"the walk at {p['speed_m_s']:.2f} m/s"
+    except (ValueError, KeyError):
+        return f"the part of its plan named {name}"
+
+
+def fell_before(definition: dict, episode: dict) -> bool:
+    """Whether the episode fell before its condition's own move began (``CLIP_RULES["before"]``)."""
+    if outcome(episode) != "fell":
+        return False
+    beh = definition["behavior"]
+    if beh == "walk":
+        reached = episode.get("segment_reached")
+        return reached is not None and reached != (definition.get("walk") or definition.get("gait"))
+    if beh == "nudge":
+        pulse = ((episode.get("measures") or {}).get("push") or {}).get("fell_before_pulse")
+        if pulse is not None:
+            return bool(pulse)
+    if episode.get("fell_before_command") is not None:
+        return bool(episode["fell_before_command"])
+    return episode.get("command_s") is None or float(episode["command_s"]) > float(episode["fall_time_s"])
+
+
+def before_words(definition: dict) -> str:
+    """"before the command" (a turn, a stop), "before the push", "before the walk at 0.40 m/s began"."""
+    beh = definition["behavior"]
+    if beh == "walk":
+        return f"before the {condition_words(definition)} began"
+    return "before the push" if beh == "nudge" else "before the command"
+
+
+def before_notice(definition: dict, episode: dict) -> list[str] | None:
+    """The two lines every frame of a clip carries under its title when the episode fell before its condition's
+    own move began (``CLIP_RULES["before"]``); None otherwise."""
+    if not fell_before(definition, episode):
+        return None
+    beh = definition["behavior"]
+    head = {"turn": "THE TURN WAS NEVER COMMANDED", "stop": "THE STOP WAS NEVER COMMANDED",
+            "nudge": "THE PUSH NEVER CAME"}.get(beh) or f"THE {condition_words(definition).upper().replace('M/S', 'm/s')} NEVER BEGAN"
+    line = (f"it fell {float(episode['fall_time_s']):.2f} s into the episode, in "
+            f"{segment_words(episode.get('segment_reached'))}")
+    push = (episode.get("measures") or {}).get("push") or {}
+    if beh == "nudge" and push.get("onset_s") is not None:
+        line += f"; the push was due at {float(push['onset_s']):.1f} s"
+    elif beh in ("turn", "stop") and episode.get("command_ref_s") is not None:
+        line += f"; the command was due at about {float(episode['command_ref_s']) / bar.RATE:.1f} s"
+    return [f"{head}: this episode fell before it", line]
+
+
+def fall_caption(definition: dict, episode: dict) -> str:
+    """The caption from the fall instant on: 'fell (tilt); ...', and 'fell before the command (tilt); ...'."""
+    when = f" {before_words(definition)}" if fell_before(definition, episode) else ""
+    return f"fell{when} ({episode.get('fall_cause')}); the trace ends here, the last pose is held"
+
+
 def clip_labels(kind: str, body: str, set_name: str, definition: dict, view: str, record: dict | None = None,
-                pick: dict | None = None) -> tuple[list, list]:
-    """A clip's label lines ``(top, bottom)`` (``CLIP_RULES["labels"]``); ``kind`` "simulated" or "planned"."""
+                pick: dict | None = None, eye=None, pulled_back: bool = False) -> tuple[list, list]:
+    """A clip's label lines ``(top, bottom)`` (``CLIP_RULES["labels"]``); ``kind`` "simulated" or "planned";
+    ``eye`` (height, distance, m) where the view's eye is not ``VIEW_EYES``'."""
     if kind not in ("simulated", "planned"):
         raise ValueError(kind)
     who = f"{body} ({BODY_WORDS[body]})" if body in BODY_WORDS else body
     setw = f"{SET_WORDS[set_name]} ({set_name})" if set_name in SET_WORDS else set_name
     cond = condition_words(definition)
+    vw = view_words(view, eye, pulled_back)
     if kind == "planned":
         return ([f"{PLAN_LABEL}  |  {who}  |  {setw}",
                  f"{cond}  |  the frozen reference played at the bar's commanded clock ({bar.RATE:g} x)"],
-                [VIEW_WORDS[view]])
+                [vw])
     e = pick["episode"]
     oc = outcome(e)
-    how = f"fell at {e['fall_time_s']:.2f} s" if oc == "fell" else oc
+    how = oc
+    if oc == "fell":  # (the fall's second is the episode's own time: the clock gives both times)
+        how = f"fell {e['fall_time_s']:.2f} s into the episode" + (
+            f", {before_words(definition)}" if fell_before(definition, e) else "")
     return ([f"{SIM_LABEL}  |  {who}  |  {setw}", f"{cond}  |  {row_words(record)}"],
-            [f"seed {pick['seed']} ({pick['words']}): {how}  |  {count_words(record)}", VIEW_WORDS[view]])
+            [f"seed {pick['seed']} ({SELECTION_SHORT.get(pick['selection'], pick['words'])}): {how}  |  {count_words(record)}", vw])
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1520,19 +1816,21 @@ def project(points, cam: dict, size=(854, 480), fovy_deg: float = 26.0) -> np.nd
     return np.column_stack([0.5 * size[0] + k * (d @ r) / zc, 0.5 * size[1] - k * (d @ u) / zc])
 
 
-def follow_camera(view: str, lookat_xy, z: float, psi: float, spec: dict) -> dict:
+def follow_camera(view: str, lookat_xy, z: float, psi: float, spec: dict, back: float = 1.0) -> dict:
     """The visitor's or the side camera on a look-at point: ``spec`` is ``clips.CAMERAS[view]``, its bearing
-    counted from the incoming walking line ``psi``."""
+    counted from the incoming walking line ``psi``; ``back`` moves the eye along its line of sight to that many
+    times its distance from the look-at point."""
     b = math.radians(spec["bearing_deg"]) + psi
     look = np.array([lookat_xy[0], lookat_xy[1], z])
     eye = np.array([look[0] + spec["distance_m"] * math.cos(b), look[1] + spec["distance_m"] * math.sin(b),
                     spec["height_m"]])
+    eye = look + back * (eye - look)
     d = look - eye
     return dict(lookat=look, distance=float(np.linalg.norm(d)), azimuth=math.degrees(math.atan2(d[1], d[0])),
                 elevation=math.degrees(math.atan2(d[2], math.hypot(d[0], d[1]))), eye=eye)
 
 
-def top_camera(points_xy, z: float, psi: float, size=(854, 480), bands=(46, 42), fovy_deg: float = 26.0,
+def top_camera(points_xy, z: float, psi: float, size=(854, 480), bands=(48, 44), fovy_deg: float = 26.0,
                margin_m: float = 0.15) -> dict:
     """The fixed top camera of a clip: straight down, the picture's up along ``psi``, centred on the sweep
     ``points_xy`` [n, 2] in the part of the picture the label bands leave free, and high enough to hold it with
@@ -1551,11 +1849,23 @@ def top_camera(points_xy, z: float, psi: float, size=(854, 480), bands=(46, 42),
                 eye=np.array([c[0], c[1], z + dist]))
 
 
+def renderer_env(env=None) -> dict:
+    """Keep the software renderer from writing outside the output directories: Mesa keeps a shader cache under the
+    home directory (``~/.cache/mesa_shader_cache_db``) unless it is told not to.  Sets ``MESA_SHADER_CACHE_DISABLE``
+    (and the older ``MESA_GLSL_CACHE_DISABLE``) to "true" in ``env`` (default: this process's) where they are not
+    set; called before the first GL context is made."""
+    env = os.environ if env is None else env
+    for name in ("MESA_SHADER_CACHE_DISABLE", "MESA_GLSL_CACHE_DISABLE"):
+        env.setdefault(name, "true")
+    return env
+
+
 def _clips():
     """``designlab.stage2.clips`` (imported late: it selects a GL backend), after a check that one is there."""
     if os.environ.get("MUJOCO_GL") not in ("osmesa", "egl"):
         raise ViewError("rendering needs MUJOCO_GL=osmesa (and LP_NUM_THREADS=1); it is "
                         f"{os.environ.get('MUJOCO_GL')!r}")
+    renderer_env()
     from . import clips
 
     return clips
@@ -1611,27 +1921,100 @@ def draw_frame(cs, q, cam: dict, travel_xy, headlight_diffuse: float | None = No
     return img
 
 
-#: The captions' colours (``page_kit``'s series 1 and "bad") and place (under the top band).
+#: The captions' colours (``page_kit``'s series 1 and "bad"); a caption box is ``CAPTION_BOX_PX`` tall, the first
+#: ``CAPTION_GAP_PX`` under the top band, the next ``CAPTION_STEP_PX`` lower.
 CAPTION_COLOURS = {"command": (42, 120, 214), "fell": (162, 57, 42)}
+CAPTION_BOX_PX, CAPTION_GAP_PX, CAPTION_STEP_PX = 30, 8, 36
+#: The label lines' sizes (px) and row heights (px): the top band's first line (bold) and its others, the notice's
+#: first line (bold) and its others, the bottom band's first line and its others (the last shares its row with
+#: the clock).  ``clips.overlay`` writes every line but the first at 13 px; here the lines a viewer needs most
+#: (the condition and the row; the seed, the outcome and the count; the notice) are larger.
+LABEL_PX = dict(top=((15, 19), (17, 21)), notice=((16, 21), (14, 18)), bottom=((17, 21), (13, 17)), clock=14)
+BAND_PAD_PX = (8, 6)  # (the top band's, the bottom band's: 48 and 44 px for two lines each)
+
+
+def band_heights(top: list, bottom: list, notice: list | None = None) -> tuple[int, int]:
+    """(the top band's height, the bottom band's) in px for these label lines (``draw_labels``)."""
+    T, N, B = LABEL_PX["top"], LABEL_PX["notice"], LABEL_PX["bottom"]
+    th = BAND_PAD_PX[0] + T[0][1] + T[1][1] * (len(top) - 1)
+    if notice:
+        th += 4 + N[0][1] + N[1][1] * (len(notice) - 1)
+    return th, BAND_PAD_PX[1] + B[0][1] + B[1][1] * (len(bottom) - 1)
+
+
+def free_top(band_px: int, captions: int) -> int:
+    """The first picture row (px from the top) that neither the top band nor ``captions`` caption boxes cover."""
+    return band_px if not captions else band_px + CAPTION_GAP_PX + CAPTION_STEP_PX * (captions - 1) + CAPTION_BOX_PX
+
+
+def clock_words(t_clip: float, t_episode: float | None = None) -> str:
+    """The clock of a frame: the clip's own time, and for a simulated clip the episode's time beside it."""
+    if t_episode is None:
+        return f"clip {t_clip:5.2f} s   1x"
+    return f"clip {t_clip:5.2f} s = episode {t_episode:5.2f} s   1x"
+
+
+def _fit_font(dr, text: str, size: int, bold: bool, width: float, smallest: int = 10):
+    from .. import render
+
+    font = render.font(size, bold=bold)
+    while dr.textlength(text, font=font) > width and size > smallest:
+        size -= 1
+        font = render.font(size, bold=bold)
+    return font
+
+
+def draw_labels(img: np.ndarray, top: list, bottom: list, clock: str, notice: list | None = None) -> np.ndarray:
+    """``img`` with the label bands (``CLIP_RULES["labels"]``, ``LABEL_PX``): ``top`` lines top left (the first
+    bold), under them the ``notice`` lines beside a red bar, ``bottom`` lines bottom left and ``clock`` bottom
+    right; dark ink on light bands."""
+    from PIL import Image, ImageDraw
+
+    im = Image.fromarray(img).convert("RGBA")
+    W, H = im.size
+    th, bh = band_heights(top, bottom, notice)
+    im.alpha_composite(Image.new("RGBA", (W, th), (252, 252, 251, 205)))
+    im.alpha_composite(Image.new("RGBA", (W, bh), (252, 252, 251, 205)), (0, H - bh))
+    layer = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    dr = ImageDraw.Draw(layer)
+    ink, ink2 = (11, 11, 11, 255), (58, 58, 55, 255)
+    y = 5
+    for k, text in enumerate(top):
+        size, row = LABEL_PX["top"][min(k, 1)]
+        dr.text((12, y), text, fill=ink if k == 0 else ink2, font=_fit_font(dr, text, size, k == 0, W - 24))
+        y += row
+    if notice:
+        y += 3
+        rows = [LABEL_PX["notice"][min(k, 1)] for k in range(len(notice))]
+        dr.rectangle([12, y + 1, 17, y + sum(r for _, r in rows) - 4], fill=CAPTION_COLOURS["fell"] + (255,))
+        for text, (size, row), bold in zip(notice, rows, [True] + [False] * len(notice), strict=False):
+            dr.text((26, y), text, fill=ink, font=_fit_font(dr, text, size, bold, W - 38))
+            y += row
+    fc = _fit_font(dr, clock, LABEL_PX["clock"], False, W)
+    cw = dr.textlength(clock, font=fc)
+    y = H - bh + 4
+    for k, text in enumerate(bottom):
+        size, row = LABEL_PX["bottom"][min(k, 1)]
+        last = k == len(bottom) - 1  # the last line shares its row with the clock
+        dr.text((12, y), text, fill=ink2, font=_fit_font(dr, text, size, False, W - 24 - (cw + 16 if last else 0)))
+        if last:
+            dr.text((W - cw - 10, y - (1 if len(bottom) > 1 else -2)), clock, fill=ink2, font=fc)
+        y += row
+    im.alpha_composite(layer)
+    return np.asarray(im.convert("RGB"))
 
 
 def draw_caption(img: np.ndarray, text: str, kind: str, y: int = 54) -> np.ndarray:
-    """``img`` with a caption box under the top band: a coloured bar, then ``text`` in bold ink on a light box."""
+    """``img`` with a caption box whose top is at ``y``: a coloured bar, then ``text`` in bold ink on a light box."""
     from PIL import Image, ImageDraw
-
-    from .. import render
 
     im = Image.fromarray(img).convert("RGBA")
     layer = Image.new("RGBA", im.size, (0, 0, 0, 0))
     dr = ImageDraw.Draw(layer)
-    size = 17
-    f = render.font(size, bold=True)
-    while dr.textlength(text, font=f) > im.size[0] - 60 and size > 11:
-        size -= 1
-        f = render.font(size, bold=True)
+    f = _fit_font(dr, text, 17, True, im.size[0] - 60, smallest=11)
     w = int(dr.textlength(text, font=f))
-    dr.rectangle([12, y, 12 + w + 26, y + 30], fill=(252, 252, 251, 235))
-    dr.rectangle([12, y, 18, y + 30], fill=CAPTION_COLOURS[kind] + (255,))
+    dr.rectangle([12, y, 12 + w + 26, y + CAPTION_BOX_PX], fill=(252, 252, 251, 235))
+    dr.rectangle([12, y, 18, y + CAPTION_BOX_PX], fill=CAPTION_COLOURS[kind] + (255,))
     dr.text((27, y + 5), text, fill=(11, 11, 11, 255), font=f)
     im.alpha_composite(layer)
     return np.asarray(im.convert("RGB"))
@@ -1648,13 +2031,46 @@ def frame_captions(t: float, span: dict, command: str | None, fall_words: str | 
     return out
 
 
-def render_clip(kind: str, sv: SetView, cond, pose: dict, span: dict, view: str, top: list, bottom: list,
-                command: str | None, fall_words: str | None, stem: Path, meta: dict) -> dict:
+def clip_framing(surfaces: list, cam_of, bands: tuple, captions: list, size=(854, 480), fovy_deg: float = 26.0) -> float:
+    """How far (px; negative: outside) the robot's surface stays inside the free part of the picture over a clip:
+    ``surfaces`` [k][N, 3] on the sampled frames, ``cam_of(k)`` each one's camera, ``bands`` the two label bands'
+    heights and ``captions`` [k] the number of caption boxes on each sampled frame."""
+    m = math.inf
+    for k, surf in enumerate(surfaces):
+        uv = project(surf, cam_of(k), size, fovy_deg)
+        m = min(m, float(uv[:, 0].min()), float(size[0] - uv[:, 0].max()),
+                float(uv[:, 1].min() - free_top(bands[0], captions[k])), float(size[1] - bands[1] - uv[:, 1].max()))
+    return m
+
+
+def hold_in_picture(margin_of, backs=PULL_BACK, lifts=LOOK_LIFT_M) -> tuple[float, float, float]:
+    """(pull-back factor, raise of the look-at point in m, the margin there): the first of ``backs``, and for it
+    the first of ``lifts``, at which ``margin_of(back, lift)`` is not negative; none: the last factor and its best
+    raise (``CLIP_RULES["cameras"]``)."""
+    best = None
+    for back in backs:
+        best = None
+        for lift in lifts:
+            m = margin_of(back, lift)
+            if m >= 0.0:
+                return float(back), float(lift), float(m)
+            if best is None or m > best[2]:
+                best = (float(back), float(lift), float(m))
+    return best
+
+
+def render_clip(kind: str, sv: SetView, cond, pose: dict, span: dict, view: str, labels, command: str | None,
+                fall_words: str | None, stem: Path, meta: dict, notice: list | None = None) -> dict:
     """Render one clip to ``<stem>.mp4`` with ``<stem>.png`` (poster) and ``<stem>_sheet.png``; returns what the
-    manifest holds of the picture (frames, camera, framing margin, files, bytes, sha256)."""
+    manifest holds of the picture (frames, camera, framing margin, files, bytes, sha256).  ``labels(eye,
+    pulled_back)`` gives the label lines ``(top, bottom)`` (``clip_labels``; ``eye`` None: the view's own);
+    ``notice`` the lines under the title on every frame (``before_notice``)."""
     clips = _clips()
     from PIL import Image
 
+    for name, (h, d) in VIEW_EYES.items():
+        if (clips.CAMERAS[name]["height_m"], clips.CAMERAS[name]["distance_m"]) != (h, d):
+            raise ViewError(f"clips.CAMERAS[{name!r}] is not the eye VIEW_EYES states")
     model, cs = sv.model, scene(sv.body)
     pl = sv.planned(cond)
     stride = float(pl["res"]["period_s"]) / bar.RATE
@@ -1674,34 +2090,56 @@ def render_clip(kind: str, sv: SetView, cond, pose: dict, span: dict, view: str,
     n = int(round((span["t1"] - span["t0"] + span["hold_s"]) * FPS)) + 1
     taus = np.arange(n) / FPS
     t_show = np.minimum(span["t0"] + taus, span["t1"])  # (the pose is held after a fall)
+    fell = span.get("fall_s") is not None
+    top, bottom = labels(None, False)
+    bands = band_heights(top, bottom, notice)
+    caps = [frame_captions(span["t0"] + float(tau), span, command, fall_words) for tau in taus]
     cam_fixed = None
-    if view == "top":
+    if view == "top":  # (a clip with a fall: the sweep is held under the fall's caption too)
         rows = np.flatnonzero((pose["t"] >= span["t0"] - 0.03) & (pose["t"] <= span["t1"] + 0.03))[::3]
-        cam_fixed = top_camera(np.concatenate([model.surface(pose["qpos"][i])[:, :2] for i in rows]), z, psi)
+        cam_fixed = top_camera(np.concatenate([model.surface(pose["qpos"][i])[:, :2] for i in rows]), z, psi,
+                               bands=(free_top(bands[0], 1 if fell else 0), bands[1]))
     elif view not in clips.CAMERAS:
         raise ViewError(f"view {view!r}: choose from visitor, side, top")
+    lxy = np.column_stack([np.interp(t_show, pose["t"], look[:, 0]), np.interp(t_show, pose["t"], look[:, 1])])
+
+    def cam_of(k: int, back: float = 1.0, lift: float = 0.0) -> dict:
+        if cam_fixed is not None:
+            return cam_fixed
+        return follow_camera(view, lxy[k], z + lift, psi, clips.CAMERAS[view], back)
+
+    # the framing, on every third frame: how far the robot's surface stays inside the free part of the picture
+    ks = list(range(0, n, 3))
+    surfaces = [model.surface(q_at(pose, float(t_show[k]))) for k in ks]
+
+    def margin_of(back: float, lift: float, with_captions: bool) -> float:
+        return clip_framing(surfaces, lambda j: cam_of(ks[j], back, lift), bands,
+                            [len(caps[k]) if with_captions else 0 for k in ks], clips.SIZE, clips.FOVY_DEG)
+
+    back, lift = 1.0, 0.0
+    if cam_fixed is None:  # hold the robot in the free picture (CLIP_RULES["cameras"]); a fall: under its caption
+        back, lift, _ = hold_in_picture(lambda b, h: margin_of(b, h, fell))
+    margin, margin_captions = margin_of(back, lift, False), margin_of(back, lift, True)
+    eye = None
+    if cam_fixed is None and back != 1.0:
+        e0 = cam_of(0, back, lift)
+        eye = (float(e0["eye"][2]), float(np.hypot(*(e0["eye"][:2] - e0["lookat"][:2]))))
+        top, bottom = labels(eye, True)
+    away = max(float(np.linalg.norm(0.5 * (sf[:, :2].min(axis=0) + sf[:, :2].max(axis=0)) - lxy[k]))
+               for k, sf in zip(ks, surfaces, strict=True))
     frames = np.empty((n, clips.SIZE[1], clips.SIZE[0], 3), np.uint8)
-    margin, away = math.inf, 0.0
     t0w = time.perf_counter()
     try:
         for k, tau in enumerate(taus):
             t = float(t_show[k])
-            q = q_at(pose, t)
-            lxy = np.array([np.interp(t, pose["t"], look[:, 0]), np.interp(t, pose["t"], look[:, 1])])
-            cam = cam_fixed if cam_fixed is not None else follow_camera(view, lxy, z, psi, clips.CAMERAS[view])
-            travel = (lxy if cam_fixed is None else cam_fixed["lookat"][:2]) - box[:2]
-            raw = draw_frame(cs, q, cam, travel, TOP_HEADLIGHT_DIFFUSE if cam_fixed is not None else None)
-            img = clips.overlay(raw, top, bottom, float(tau), dark=False)
-            for j, (ckind, text) in enumerate(frame_captions(span["t0"] + tau, span, command, fall_words)):
-                img = draw_caption(img, text, ckind, y=54 + 36 * j)
+            cam = cam_of(k, back, lift)
+            travel = (lxy[k] if cam_fixed is None else cam_fixed["lookat"][:2]) - box[:2]
+            raw = draw_frame(cs, q_at(pose, t), cam, travel, TOP_HEADLIGHT_DIFFUSE if cam_fixed is not None else None)
+            clock = clock_words(float(tau), t if kind == "simulated" else None)
+            img = draw_labels(raw, top, bottom, clock, notice)
+            for j, (ckind, text) in enumerate(caps[k]):
+                img = draw_caption(img, text, ckind, y=bands[0] + CAPTION_GAP_PX + CAPTION_STEP_PX * j)
             frames[k] = img
-            if k % 3 == 0:  # the framing: how far the robot's surface stays inside the free part of the picture
-                surf = model.surface(q)
-                uv = project(surf, cam, clips.SIZE, clips.FOVY_DEG)
-                margin = min(margin, float(uv[:, 0].min()), float(clips.SIZE[0] - uv[:, 0].max()),
-                             float(uv[:, 1].min() - 46), float(clips.SIZE[1] - 42 - uv[:, 1].max()))
-                mid = 0.5 * (surf[:, :2].min(axis=0) + surf[:, :2].max(axis=0))
-                away = max(away, float(np.linalg.norm(mid - lxy)))
     finally:
         cs.m.light_pos[:] = cs.light_pos0
     render_s = time.perf_counter() - t0w
@@ -1714,7 +2152,7 @@ def render_clip(kind: str, sv: SetView, cond, pose: dict, span: dict, view: str,
     tc = span.get("command_s")
     if tc is not None and span["t0"] <= tc <= span["t1"]:
         poster_tau = min(tc + 0.5 * CAPTION_S - span["t0"], taus[-1])
-    elif span.get("fall_s") is not None:
+    elif fell:
         poster_tau = max(0.0, taus[-1] - span["hold_s"])
     else:
         poster_tau = 0.5 * taus[-1]
@@ -1726,16 +2164,33 @@ def render_clip(kind: str, sv: SetView, cond, pose: dict, span: dict, view: str,
                     up_deg=math.degrees(psi)) if cam_fixed is not None
                else dict(clips.CAMERAS[view], kind="follows the planned root path, averaged over one stride",
                          lookat_height_m=z, lookat_offset_from_root_m=[float(off[0]), float(off[1])],
-                         shift_from_plan_m=[float(shift[0]), float(shift[1])],
+                         shift_from_plan_m=[float(shift[0]), float(shift[1])], pulled_back=float(back),
+                         lookat_raised_m=float(lift),
+                         eye_height_m=VIEW_EYES[view][0] if eye is None else eye[0],
+                         eye_distance_m=VIEW_EYES[view][1] if eye is None else eye[1],
                          largest_distance_box_centre_to_lookat_m=away))
     return dict(file=mp4.name, poster=mp4.stem + ".png", sheet=mp4.stem + "_sheet.png", view=view, kind=kind,
                 bytes=enc["bytes"], sha256=hashlib.sha256(mp4.read_bytes()).hexdigest(), frames=int(n), fps=FPS,
-                seconds=float(taus[-1]), size=list(clips.SIZE), labels=dict(top=top, bottom=bottom),
-                captions=dict(command=command, fell=fall_words), span=span,
+                seconds=float(taus[-1]), size=list(clips.SIZE), labels=dict(top=top, bottom=bottom, notice=notice),
+                bands_px=list(bands), captions=dict(command=command, fell=fall_words), span=span,
                 poster_at_s=float(poster_tau), sheet_at_s=[float(x) for x in sheet_tau],
                 camera=dict(cam_doc, fovy_deg=clips.FOVY_DEG), framing_margin_px=float(margin),
+                framing_margin_under_captions_px=float(margin_captions),
                 encode=dict(enc["settings"], tries=enc["tries"]), probe=clips.probe(mp4),
                 render_s=render_s, encode_s=encode_s)
+
+
+def clip_log(ent: dict) -> str:
+    """One line for the person rendering: the file, its size and times, the framing; a warning if the robot leaves
+    the free part of the picture."""
+    m = ent["framing_margin_px"]
+    line = (f"  {ent['file']}: {ent['frames']} frames, {ent['bytes'] / 1e6:.2f} MB, render {ent['render_s']:.0f} s, "
+            f"encode {ent['encode_s']:.0f} s, margin {m:.0f} px"
+            + (f", eye pulled back {ent['camera']['pulled_back']:g} x" if ent["camera"].get("pulled_back", 1.0) != 1.0 else "")
+            + (f", look-at raised {ent['camera']['lookat_raised_m']:g} m" if ent["camera"].get("lookat_raised_m") else ""))
+    if m < 0:
+        line += f"\n  WARNING: the robot leaves the free picture by {-m:.0f} px in {ent['file']}"
+    return line
 
 
 def _slug(text: str) -> str:
@@ -1786,24 +2241,30 @@ def simulated_clips(run, set_name: str, ckey: str, row: str, media: Path, block:
         fell = outcome(e) == "fell"
         span = clip_span(definition, float(pose["t"][-1]), command_s, move_end, win.get("t_start_s"),
                          float(e["fall_time_s"]) if fell else None)
-        command = command_words(definition, e, sv.model.psi_cmd)
-        fall_words = (f"fell ({e.get('fall_cause')}); the trace ends here, the last pose is held" if fell else None)
+        # the command's caption only where the clip holds the command (an episode that fell before it has none)
+        command = None if span["command_s"] is None else command_words(definition, e, sv.model.psi_cmd)
+        before = fell_before(definition, e)
+        notice = before_notice(definition, e)
+        fall_words = fall_caption(definition, e) if fell else None
         for view in (views or VIEWS_OF[beh]):
-            top, bottom = clip_labels("simulated", body, set_name, definition, view, rec, pick)
+            def labels(eye, pulled_back, view=view):
+                return clip_labels("simulated", body, set_name, definition, view, rec, pick, eye, pulled_back)
+
             stem = Path(media) / set_name / f"{body}_{set_name}_{_slug(ckey)}_{_slug(row)}_{block}_seed{pick['seed']}_{view}"
-            ent = render_clip("simulated", sv, cond, pose, span, view, top, bottom, command, fall_words, stem,
+            ent = render_clip("simulated", sv, cond, pose, span, view, labels, command, fall_words, stem,
                               dict(title=f"{body} {set_name} {ckey} {row} seed {pick['seed']} {view}",
-                                   comment=f"{SIM_LABEL}; designlab/stage2/barviews.py; trace sha256 {e['trace']['sha256']}"))
+                                   comment=f"{SIM_LABEL}; designlab/stage2/barviews.py; trace sha256 {e['trace']['sha256']}"),
+                              notice)
             ent.update(item, file=f"{set_name}/{ent['file']}", poster=f"{set_name}/{ent['poster']}",
                        sheet=f"{set_name}/{ent['sheet']}", seed=pick["seed"], selection=pick["selection"],
                        selection_words=pick["words"], passed_over=pick.get("passed_over", []),
+                       fell_before_its_move=bool(before), segment_reached=e.get("segment_reached"),
                        outcome=outcome(e), record_count=count_words(rec), majority_outcome=sel["majority"],
                        trace=e["trace"].get("path"), trace_sha256=e["trace"]["sha256"],
                        record_key_sha256=rec.get("key_sha256"), pose_residual_m=pose["residual_m"],
                        in_words=condition_words(definition), row_in_words=row_words(rec))
             entries.append(ent)
-            log(f"  {ent['file']}: {ent['frames']} frames, {ent['bytes'] / 1e6:.2f} MB, render {ent['render_s']:.0f} s, "
-                f"encode {ent['encode_s']:.0f} s, margin {ent['framing_margin_px']:.0f} px")
+            log(clip_log(ent))
     return entries, skipped
 
 
@@ -1824,17 +2285,18 @@ def planned_clips(set_name: str, ckey: str, media: Path, views=None, body: str =
                      max(0.0, pl["seconds"] - WALK_CLIP_S) if cond.behavior == "walk" else None, None)
     entries = []
     for view in (views or VIEWS_OF[cond.behavior]):
-        top, bottom = clip_labels("planned", body, set_name, definition, view)
+        def labels(eye, pulled_back, view=view):
+            return clip_labels("planned", body, set_name, definition, view, None, None, eye, pulled_back)
+
         stem = Path(media) / set_name / f"{body}_{set_name}_{_slug(ckey)}_planned_{view}"
-        ent = render_clip("planned", sv, cond, pose, span, view, top, bottom, command_words(definition), None, stem,
+        ent = render_clip("planned", sv, cond, pose, span, view, labels, command_words(definition), None, stem,
                           dict(title=f"{body} {set_name} {ckey} planned {view}",
                                comment=f"{PLAN_LABEL}; designlab/stage2/barviews.py"))
         ent.update(item, file=f"{set_name}/{ent['file']}", poster=f"{set_name}/{ent['poster']}",
                    sheet=f"{set_name}/{ent['sheet']}", seed=None, selection=None, outcome=None,
                    reference_files=pl["files"], set_freeze=pl["freeze"], in_words=condition_words(definition))
         entries.append(ent)
-        log(f"  {ent['file']}: {ent['frames']} frames, {ent['bytes'] / 1e6:.2f} MB, render {ent['render_s']:.0f} s, "
-            f"encode {ent['encode_s']:.0f} s, margin {ent['framing_margin_px']:.0f} px")
+        log(clip_log(ent))
     return entries, []
 
 
@@ -1862,7 +2324,11 @@ def list_clips(items, run=RUN, block: str = bar.HEADLINE_BLOCK, views=None, body
         row_out.update(count=count_words(rec), majority=sel["majority"], views=list(vs), skipped=sel["skipped"])
         for pick in sel["picks"]:
             trace, why = read_trace(run, rec, pick["episode"])
-            row_out["clips"].append(dict(seed=pick["seed"], selection=pick["selection"], outcome=outcome(pick["episode"]),
+            oc = outcome(pick["episode"])
+            if fell_before(rec["definition"], pick["episode"]):
+                oc += f" {before_words(rec['definition'])}"
+            row_out["clips"].append(dict(seed=pick["seed"], selection=pick["selection"], outcome=oc,
+                                         fell_before_its_move=fell_before(rec["definition"], pick["episode"]),
                                          trace=None if trace is not None else why))
         log(f"{set_name} {ckey} {row}: {row_out['count']}; "
             + ("; ".join(f"seed {c['seed']} ({c['selection']}, {c['outcome']})" + (f" NO CLIP: {c['trace']}" if c["trace"] else "")
