@@ -1432,9 +1432,9 @@ def _git_state(leave_out: Path | None) -> dict:
 def legacy_check(bodies, names=None, procs: int = 1, record=None, run=STAGE1_RUN) -> dict:
     """Regenerate Stage 1's transitions ``names`` (default: all 18) of ``bodies`` through this module and compare each
     npz's sha256 with the Stage 1 run's ``transitions.json``.  With ``record`` the result is written to that JSON
-    file, merged per body and per name with what the file already holds from this same ``moves.py`` and the same
-    panels' sources (a record made by other code is not merged into); a body is ``complete`` when all 18 names are
-    there.  Returns the record."""
+    file (after every transition), merged per body and per name with what the file already holds from this same
+    ``moves.py`` and the same panels' sources (a record made by other code is not merged into); a body is
+    ``complete`` when all 18 names are there.  Returns the record."""
     from ..stage1 import panels
 
     require_one_thread()
@@ -1442,45 +1442,54 @@ def legacy_check(bodies, names=None, procs: int = 1, record=None, run=STAGE1_RUN
     names = list(names or transitions.TRANSITIONS)
     jobs = [(body, name, str(run)) for body in bodies for name in names]
     procs = max(1, min(int(procs), len(jobs)))
-    results = []
-    if procs == 1:
-        for job in jobs:
-            results.append(_legacy_job(job))
-            _legacy_line(results[-1])
-    else:
-        import multiprocessing as mp
-
-        with mp.get_context("spawn").Pool(procs) as pool:
-            for r in pool.imap(_legacy_job, jobs, chunksize=1):
-                results.append(r)
-                _legacy_line(r)
     record = None if record is None else _study_path(record)
     head = dict(rule=LEGACY_RULE, moves_sha256=sha256_file(Path(__file__)),
                 panel_sources_sha256=panels.panel_sources()["sha256"], versions=panels.library_versions(),
                 blas_threads=require_one_thread(), accuracy=refs.ACCURACY,
                 stage1_run=run.relative_to(STUDY).as_posix() if run.is_relative_to(STUDY) else str(run))
-    doc = dict(head, bodies={})
-    if record is not None and record.exists():
-        old = json.loads(record.read_text())
-        if all(old.get(k) == v for k, v in head.items()):
-            doc["bodies"] = old.get("bodies", {})
-    for r in results:
-        b = doc["bodies"].setdefault(r["body"], dict(complete=False, names={}, passes={}))
-        b["names"][r["name"]] = dict(sha256=r["sha256"], recorded=r["recorded"], equal=bool(r["equal"]))
-        b["passes"][r["name"]] = r["passes"]
-    for b in doc["bodies"].values():
-        b["names"] = {nm: b["names"][nm] for nm in transitions.TRANSITIONS if nm in b["names"]}
-        b["passes"] = {nm: b["passes"][nm] for nm in b["names"]}
-        b["complete"] = set(b["names"]) == set(transitions.TRANSITIONS)
-        b["equal"] = sum(1 for e in b["names"].values() if e["equal"])
-        b["of"] = len(b["names"])
-    doc.update(_git_state(record), at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
-    if record is not None:
-        record.parent.mkdir(parents=True, exist_ok=True)
-        tmp = record.with_name(record.name + ".tmp")
-        with open(tmp, "w") as fh:
-            json.dump(refs._plain(doc), fh, indent=1)
-        os.replace(tmp, record)
+    results = []
+
+    def merged() -> dict:
+        """The record with the results so far; written at once, so that an interrupted run keeps what it checked."""
+        doc = dict(head, bodies={})
+        if record is not None and record.exists():
+            old = json.loads(record.read_text())
+            if all(old.get(k) == v for k, v in head.items()):
+                doc["bodies"] = old.get("bodies", {})
+        for r in results:
+            b = doc["bodies"].setdefault(r["body"], dict(complete=False, names={}, passes={}))
+            b["names"][r["name"]] = dict(sha256=r["sha256"], recorded=r["recorded"], equal=bool(r["equal"]))
+            b["passes"][r["name"]] = r["passes"]
+        for b in doc["bodies"].values():
+            b["names"] = {nm: b["names"][nm] for nm in transitions.TRANSITIONS if nm in b["names"]}
+            b["passes"] = {nm: b["passes"][nm] for nm in b["names"]}
+            b["complete"] = set(b["names"]) == set(transitions.TRANSITIONS)
+            b["equal"] = sum(1 for e in b["names"].values() if e["equal"])
+            b["of"] = len(b["names"])
+        doc.update(_git_state(record), at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+        if record is not None:
+            record.parent.mkdir(parents=True, exist_ok=True)
+            tmp = record.with_name(record.name + ".tmp")
+            with open(tmp, "w") as fh:
+                json.dump(refs._plain(doc), fh, indent=1)
+            os.replace(tmp, record)
+        return doc
+
+    def take(r: dict) -> None:
+        results.append(r)
+        _legacy_line(r)
+        merged()
+
+    if procs == 1:
+        for job in jobs:
+            take(_legacy_job(job))
+    else:
+        import multiprocessing as mp
+
+        with mp.get_context("spawn").Pool(procs) as pool:
+            for r in pool.imap(_legacy_job, jobs, chunksize=1):
+                take(r)
+    doc = merged()
     doc["checked"] = [dict(body=r["body"], name=r["name"], equal=bool(r["equal"])) for r in results]
     return doc
 
