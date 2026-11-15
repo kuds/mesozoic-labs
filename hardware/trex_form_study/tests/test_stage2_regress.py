@@ -27,10 +27,17 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import designlab  # noqa: E402,F401  (selects the GL backend before mujoco renders)
-from designlab.stage1 import panels, speedfit  # noqa: E402
+from designlab.stage1 import control, panels, plant, speedfit  # noqa: E402
+from designlab.stage1.__main__ import round_two_models  # noqa: E402
+from designlab.stage1.refs import Reference  # noqa: E402
 from designlab.stage2 import regress, s2io  # noqa: E402
 
+BODY = "75-M-H-10"
+RUN = ROOT / "stage1" / "runs" / "2026-11-08"
 slow = pytest.mark.skipif(not os.environ.get("STAGE2_SLOW"), reason="8 closed-loop episodes; set STAGE2_SLOW=1")
+needs_plant = pytest.mark.skipif(not ((RUN / BODY / "refs" / "nominal.npz").exists() and round_two_models(BODY)),
+                                 reason="the Stage 1 arrays or the round-two model files are not restored "
+                                        "(tools/restore_inputs.py)")
 
 
 def _in_git() -> bool:
@@ -444,3 +451,97 @@ def test_regress_fast(tmp_path):
     assert all(c["returncode"] == 0 for c in doc["commands"])
     assert json.loads((tmp_path / "regress.json").read_text())["matched"] == 8
     assert not (tmp_path / "scratch" / "work" / "fast-75-M-H-10").exists()  # removed once everything matched
+
+
+# ------------------------------------------------------------------------------------------------
+# The Stage 1 edit the regression guards: control.Track.add_periodic's optional window_strides key (D18)
+# ------------------------------------------------------------------------------------------------
+def _tiled(ref: Reference, k: int, key: bool) -> Reference:
+    """``ref``'s stride repeated ``k`` times as one window (every per-frame array tiled, the time axis continued),
+    with or without the ``window_strides`` key."""
+    n = ref.n
+    assert not any(len(ref.arrays[x]) == n for x in ("q_home", "joints", "stride_motion"))
+    arrays = {name: (np.concatenate([a] * k) if a.ndim and len(a) == n else a) for name, a in ref.arrays.items()}
+    arrays["t"] = np.concatenate([ref.arrays["t"] + i * ref.period for i in range(k)])
+    if key:
+        arrays["window_strides"] = np.array(k)
+    return Reference(f"{ref.name}_x{k}", arrays)
+
+
+def _same(a, b) -> None:
+    if isinstance(a, np.ndarray):
+        assert isinstance(b, np.ndarray) and a.shape == b.shape and a.dtype == b.dtype
+        assert np.array_equal(a, b, equal_nan=a.dtype.kind == "f")
+    else:
+        assert a == b
+
+
+@needs_plant
+def test_window_strides_key(monkeypatch):
+    """A reference whose file holds a window of K strides and says so (``window_strides``) gives a segment whose
+    feedback quantities are the one-stride reference's frame for frame (``info["period"]`` is one stride), whose
+    ``period`` is still the window (it drives the wrap) and whose joint targets are the one-stride track's at the
+    same times; an episode on it counts strides, not windows.  Without the key nothing changes: a Stage 1 reference's
+    segment is what ``add_periodic`` built before the edit, and a window is read as one long stride, as it was."""
+    p = plant.build(BODY, "hard", settle=False)
+    ref = Reference.load(RUN / BODY / "refs" / "nominal.npz")
+    assert "window_strides" not in ref.arrays
+    om = control.omega0(p, ref.q_home)
+    asked, frame_info = [], control.frame_info
+
+    def spy(*args, **kw):  # what add_periodic asks frame_info for
+        asked.append((kw["period"], kw.get("frames_per_stride")))
+        return frame_info(*args, **kw)
+
+    monkeypatch.setattr(control, "frame_info", spy)
+    t1 = control.Track(p, om).add_periodic(ref, 4.0)
+    one = t1.segments[0]
+    assert asked == [(ref.period, ref.n)] and type(asked[0][1]) is int
+
+    # without the key: the segment of before the edit (frame_info called with the reference's own period and frames)
+    want = frame_info(p, ref.q, ref.qd, ref.support, ref.zmp_mb, ref.normal, om, periodic=True, period=ref.period,
+                      frames_per_stride=ref.n)
+    assert set(one.info) == set(want)
+    for k, v in want.items():
+        _same(one.info[k], v)
+    assert (one.kind, one.period, one.n, one.step, one.duration) == ("periodic", ref.period, ref.n, ref.step,
+                                                                    4.0 * ref.period)
+    assert one.stride_s == ref.period and set(one.info["period"]) == {ref.period}
+    assert control.Segment("hold", "stand", 0.0, 1.0, one.S[:1], {}).stride_s == 0.0  # other segments: no stride
+    held = control.Track(p, om).add_hold(ref.q[0], ref.tau[0], ref.zmp_mb[0], 1.0)
+    assert [s.stride_s for s in held.segments] == [0.0]
+
+    # with the key: two strides in one window
+    win = _tiled(ref, 2, key=True)
+    t2 = control.Track(p, om).add_periodic(win, 2.0)
+    two = t2.segments[0]
+    assert asked[-1] == (ref.period, ref.n) and type(asked[-1][1]) is int  # one stride's period and frames
+    assert two.period == win.period == 2 * ref.period and two.n == 2 * ref.n and two.step == ref.step
+    assert two.duration == one.duration and t2.t_end == t1.t_end
+    assert two.stride_s == ref.period
+    assert set(two.info["period"]) == {ref.period} and len(two.info["period"]) == 2 * ref.n
+    assert set(two.info) == set(one.info)
+    for k, v in one.info.items():  # every feedback quantity is the one-stride reference's, frame for frame
+        _same(two.info[k], np.concatenate([v, v]) if isinstance(v, np.ndarray) else v + v)
+    assert np.array_equal(two.S, np.concatenate([one.S, one.S]))
+    times = np.r_[np.linspace(0.0, t1.t_end, 1201, endpoint=False), np.arange(4 * ref.n) * ref.step]
+    assert times.max() < t1.t_end
+    for t in times:
+        assert np.array_equal(t2.joint(float(t)), t1.joint(float(t))), t
+
+    # the same window without the key is one long stride, as before the edit
+    t3 = control.Track(p, om).add_periodic(_tiled(ref, 2, key=False), 2.0)
+    long = t3.segments[0]
+    assert asked[-1] == (2 * ref.period, 2 * ref.n)
+    assert long.period == long.stride_s == 2 * ref.period and set(long.info["period"]) == {2 * ref.period}
+    assert np.array_equal(long.S, two.S)
+
+    # an episode counts the strides of the commanded gait: with the key, a window of two strides counts two
+    a = control.run(control.Tracker(p, t1, "R0"), 0.6)
+    qa = p.d.qpos.copy()
+    b = control.run(control.Tracker(p, t2, "R0"), 0.6)
+    qb = p.d.qpos.copy()
+    c = control.run(control.Tracker(p, t3, "R0"), 0.6)
+    assert np.array_equal(qa, qb) and np.array_equal(qa, p.d.qpos)
+    assert b["strides"] == a["strides"] and b["reference_strides"] == a["reference_strides"] and a["strides"] > 0
+    assert c["strides"] == a["strides"] / 2 and c["reference_strides"] == a["reference_strides"] / 2

@@ -764,6 +764,7 @@ class Segment:
     period: float = 1.0
     duty: float = 0.6
     yaw_per_stride: float = 0.0
+    stride_s: float = 0.0  # periodic: one stride (``period`` over the reference's ``window_strides``; 0.0: ``period``)
 
 
 def _swing_of(support: np.ndarray) -> np.ndarray:
@@ -969,11 +970,12 @@ class Track:
         if list(ref.joints) != p.joints:
             raise ValueError("reference and plant joints differ")
         S = _joint_stack(p, ref.q, ref.qd, ref.tau, ref.qdd)
+        K = int(ref.arrays["window_strides"]) if "window_strides" in ref.arrays else 1  # strides in the window
         info = frame_info(p, ref.q, ref.qd, ref.support, ref.zmp_mb, ref.normal, self.omega, periodic=True,
-                          period=ref.period, frames_per_stride=ref.n)
+                          period=ref.period / K, frames_per_stride=ref.n // K)
         seg = Segment("periodic", name or ref.name, self.t_end, strides * ref.period, S, info, step=ref.step, n=ref.n,
                       period=ref.period, duty=float(np.mean(ref.support[:, 0])),
-                      yaw_per_stride=float(ref.stride_motion[0]))
+                      yaw_per_stride=float(ref.stride_motion[0]), stride_s=ref.period / K)
         self._append(seg, ref.q[0], ref.qd[0])
         return self
 
@@ -2297,7 +2299,7 @@ def _episode(tk: Tracker, seconds: float, push, period: float | None, confirm: b
     update's ``update`` and ``end`` (it only reads)."""
     p = tk.p
     m, d, env = p.m, p.d, p.envelope
-    per_ref = period or next((sg.period for sg in tk.track.segments if sg.kind == "periodic"), 1.0)
+    per_ref = period or next(((sg.stride_s or sg.period) for sg in tk.track.segments if sg.kind == "periodic"), 1.0)
     per = per_ref / tk.rate  # a stride of the commanded gait (rate 1: the reference's period)
     n = int(round(seconds / tk.dt))
     capped = bool(tk.ankle_cap) and tk.mode != "R0"
