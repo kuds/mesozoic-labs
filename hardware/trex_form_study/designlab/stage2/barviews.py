@@ -1085,13 +1085,15 @@ def turnpath(set_name: str, run=RUN, out=None, body: str = BODY, figure_row: str
         log(f"{set_name} {c.key}: planned radius {pl['readings']['fit']['radius_fitted_m']:.3f} m, "
             f"{len(mine)} simulated record(s)")
     unread = [compact_simulated(s) for s in sims if not s.get("read")]
+    moves = {c.move for c in conds}  # a record of a turn this set has no reference for (the chain wrote it "not run")
+    other = [compact_simulated(s) for s in sims if s.get("read") and s.get("move") not in moves]
     doc = dict(schema=SCHEMA_TURNPATH, set=set_name, set_in_words=SET_WORDS.get(set_name, set_name), body=body,
                what="views of committed records and a frozen reference: no verdict, nothing adopted",
                run=run_label(run), rules=TURN_RULES, body_length=sv.model.length_info,
                reading_units={name: unit for name, (_, unit) in READINGS.items()},
                set_freeze=(setio.frozen(sv.set_doc) or {}).get("index"),
                set_manifest_sha256=(setio.frozen(sv.set_doc) or {}).get("manifest_sha256"),
-               turns=turns, no_reference=missing, records_not_read=unread,
+               turns=turns, no_reference=missing, records_of_turns_without_a_reference=other, records_not_read=unread,
                records_seen=[Path(f).relative_to(run).as_posix() for f in files],
                provenance=dict(git=s2io.git_state(own_outputs=[str(out)]), at=s2io.now_utc(),
                                module="designlab/stage2/barviews.py",
@@ -1308,6 +1310,10 @@ def turnpath_md(doc: dict) -> str:
     if doc["no_reference"]:
         A += ["## Turns without a reference in this set", ""]
         A += [f"- {x['condition']} (`{x['reference']}`): {x['reason']}" for x in doc["no_reference"]] + [""]
+        if doc.get("records_of_turns_without_a_reference"):
+            A += ["The run directory holds these records of them (no episode to read):", ""]
+            A += [f"- `{x['record']}` (row {x.get('row')}, block {x.get('block')}): {x.get('reason') or x.get('count_text')}"
+                  for x in doc["records_of_turns_without_a_reference"]] + [""]
     if doc["records_not_read"]:
         A += ["## Records that could not be read", ""]
         A += [f"- `{x['record']}`: {x.get('reason')}" for x in doc["records_not_read"]] + [""]
@@ -2479,8 +2485,10 @@ def main(argv=None) -> int:
         if a.cmd == "turnpath":
             doc = turnpath(a.set_name, a.run, a.out, a.body, a.figure_row)
             n = sum(len(x["simulated"]) for x in doc["turns"])
+            other = len(doc["records_of_turns_without_a_reference"])
             print(f"{a.set_name}: {len(doc['turns'])} planned turns, {n} simulated records"
-                  + ("" if n else " (no record yet)") + f", {len(doc['records_not_read'])} not read")
+                  + ("" if n else " (no record yet)") + f", {len(doc['records_not_read'])} not read"
+                  + (f", {other} of turns without a reference (listed)" if other else ""))
         elif a.cmd == "posecheck":
             posecheck([parse_item(x) for x in a.items], a.run, a.block, a.body)
         elif a.cmd == "clips":

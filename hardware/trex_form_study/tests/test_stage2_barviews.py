@@ -882,12 +882,19 @@ def test_the_renderer_is_told_not_to_keep_a_shader_cache():
 @needs_set
 def test_the_commands_write_nothing_in_the_run_directory_outside_views(v0, fake_run, capsys):
     run = fake_run["run"]
+    # a record the chain wrote "not run" for a turn the set has no reference for: listed, under no turn
+    norun = bv.record_path(run, "V0", BODY, BLOCK, "R0@10ms", "turn/t90_1_left")
+    norun.parent.mkdir(parents=True, exist_ok=True)
+    norun.write_text(json.dumps(dict(schema=bar.SCHEMA, status="not run", set="V0", body=BODY, block=BLOCK, row="R0@10ms",
+                                     key_name="turn/t90_1_left", reason="no reference: the set has no turn at 1 rad/s",
+                                     definition=dict(behavior="turn", move="turn90_1_left"), episodes=[])))
     before = tree(run)
     assert before and not any(k.startswith("views/") for k in before)
     assert bv.main(["turnpath", "--set", "V0", "--run", str(run), "--out", str(run / "views")]) == 0
     assert bv.main(["posecheck", f"V0:{fake_run['ckey']}:{ROW}", "V0:walk/v0.4:R0@10ms", "--run", str(run)]) == 0
     out = capsys.readouterr().out
-    assert "V0: 6 planned turns, 2 simulated records, 1 not read" in out and "the record cannot be opened" in out
+    assert "V0: 6 planned turns, 2 simulated records, 1 not read, 1 of turns without a reference (listed)" in out
+    assert "the record cannot be opened" in out
     after = tree(run)
     assert {k: v for k, v in after.items() if not k.startswith("views/")} == before
     made = sorted(k for k in after if k.startswith("views/"))
@@ -930,7 +937,12 @@ def test_the_commands_write_nothing_in_the_run_directory_outside_views(v0, fake_
     assert ep["largest_from_centre_in_turn_set_by"].startswith("tail:") and sim["episodes"][1]["values"]["turn_seconds"] is None
     assert "dashed box is the turn itself" in q["figure"]["caption"] and "dotted box" in q["figure"]["caption"]
     assert "1 fell: 1 after the command (seed 3043, at 14.20 s)." in md and "| reading (simulated) |" in md
-    assert "it held 2 turn records of this set when this file was written" in md
+    assert "it held 3 turn records of this set when this file was written" in md
+    assert [x["record"] for x in doc["records_of_turns_without_a_reference"]] == [f"V0/{BODY}/{BLOCK}/eval/R0@10ms/turn/t90_1_left.json"]
+    assert (f"- `V0/{BODY}/{BLOCK}/eval/R0@10ms/turn/t90_1_left.json` (row R0@10ms, block {BLOCK}): status 'not run': no "
+            "reference: the set has no turn at 1 rad/s") in md
+    used = {x["record"] for tn in doc["turns"] for x in tn["simulated"]}  # every record seen is cited somewhere
+    assert used | {x["record"] for x in doc["records_of_turns_without_a_reference"] + doc["records_not_read"]} == set(doc["records_seen"])
     assert q["figure"]["simulated_from"] == sim["record"] and "SIMULATED root paths of the 2 episodes" in q["figure"]["caption"]
     assert q["figure"]["rows_before_without_a_path"] == [] and "R2/42@10ms, R2/43@10ms, R0@10ms" in q["figure"]["rule"]
     # the figure's record: the first row in the stated order with a path to draw; the rows before it are named
