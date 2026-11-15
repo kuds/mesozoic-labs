@@ -11,6 +11,7 @@ import dataclasses
 import json
 import math
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -512,6 +513,15 @@ def test_interference_terminates_at_two_step_ends_in_a_row():
     assert e.step(zero)[4]["interference"] == dict(penalty=0.0, below_zero=False, consecutive=0, min_gap_m=None,
                                                    first_env_step=None)
     e.close()
+
+
+def test_importing_the_env_loads_neither_torch_nor_sb3():
+    """A worker process hosts envs without the trainer's libraries (design D13): about 245 MB less each."""
+    code = ("import sys; from designlab.stage2 import r5env, r5core, r5lib; "
+            "print(*(int(m in sys.modules) for m in ('torch', 'stable_baselines3', 'designlab.stage2.bar')))")
+    out = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=True,
+                         env={**os.environ, "PYTHONPATH": ".", "MUJOCO_GL": "disable"})
+    assert out.stdout.split() == ["0", "0", "0"], out.stdout + out.stderr
 
 
 # ------------------------------------------------------------------------------------------------

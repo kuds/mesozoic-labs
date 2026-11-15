@@ -21,6 +21,24 @@ would change the solver's warm start): positions are the plant's own, as of the 
 sensors; joint angles are ``qpos``, as Stage 1's reward reads them.
 
 **Reward** (``REWARD_RULE``, ``REWARD_WEIGHTS``, ``REWARD_SCALES``): rule W2's table.  Every term lies in [0, 1].
+Rule W1 asks that a kinematic playback of the reference score every positive term 1 and every penalty 0; three
+terms are read so that it does, each said in ``REWARD_RULE`` (``READINGS``):
+
+* ``duty`` (Stage 1's) charges a foot only where the reference's own contact share over the same stride lies
+  inside the band.  Stage 1's reading charged its own reference for a stride at every start and stop.
+* ``progress`` is the shortfall of the CoM's mean speed against the same mean of the reference's own speed at the
+  commanded clock, over ``rate x v_cmd``.  Against ``rate x v_cmd`` itself the speed ripple inside a stride
+  charged the playback up to 0.28 (75 cm nominal walk).  The means restart at each periodic walking segment's
+  first frame and are read after one stride, also after a mid-task start.
+* ``clearance`` (a) times a foot's own swing by the planned length of the reference's swing in progress
+  (``r5lib.Script.swing_s``), on the reference clock, so that inside a change of gait each swing has its own.
+
+Further readings, where the rules leave a choice: the headings of a mid-task start are taken about the start less
+what the reference itself had turned by then (the heading input and term then read as a playback from the track's
+start would); the ``range`` term's margin leaves out an end a joint rests on by design, as the required margin
+does (``plant.REST_ON_STOP_RULE``: the jaw); the head overlay enters the joint term's reference, not the head
+term's (``Script.head_rp`` is the files'); a gaze train starts at the episode's first instant and training's jaw
+event is timed as the bar's (``HEAD_RULE``).
 
 ``Core`` must be built while the plant's model is nominal (it reads the nominal weight).  This module imports
 ``r5lib``; it never imports ``r5env``.
@@ -140,6 +158,10 @@ REWARD_RULE = (
     "true yaw, zero in a hold; range: min(1, max_j max(0, required_j - margin_j) / 0.02 rad), margin the true "
     "joint's distance to its nearer limit (an end a joint rests on by design is none), required the script's.  "
     "progress, heading and range are beyond plan B.1's list (rule W5)")
+#: The readings of rule W1 named in the module docstring, for the lead and the reviewer (each is in ``REWARD_RULE``).
+READINGS = ("duty: a foot is charged only where the reference's own share over the same stride is inside the band",
+            "progress: the shortfall against the same mean of the reference's own speed, over rate x v_cmd",
+            "clearance (a): the planned length of the reference's swing in progress, on the reference clock")
 INTERFERENCE_RULE = (
     "legs.LegGap at the end of every env step: the penalty reads the pairs that move (home distance at least the "
     "report cap); pairs that stay at one distance in every pose carry none and are listed; termination when the "
@@ -723,6 +745,7 @@ class Core:
                     span=None if self.span is None else [float(x) for x in self.span],
                     span_rule=None if self.span is None else env.POLICY_ONLY_SPAN_RULE,
                     reward=dict(self.weights), reward_scales=_plain(REWARD_SCALES), reward_rule=REWARD_RULE,
+                    reward_readings=list(READINGS),
                     interference_rule=INTERFERENCE_RULE, head_rule=HEAD_RULE if self.head_x else None,
                     nominal_weight_N=self.weight)
 

@@ -389,6 +389,61 @@ def test_swing_s_is_the_planned_swing_in_progress(s1):
     assert s.swing_s(s.t_end + 9.0) == pytest.approx(swings[-1][1] - swings[-1][0], **near)  # a move holds its last
 
 
+@needs_run
+@pytest.mark.parametrize("wrapped", [False, True])
+def test_a_k_stride_window_is_read_by_its_own_phase(p, tmp_path, wrapped):
+    """Design D5: a periodic file may hold a window of K strides with its own ``phase``; an item then counts
+    windows, the stride is the entry's ``period_s`` and the phase is the file's, modulo 1.  Here: Stage 1's brisk
+    stride twice over, as ``v0.4``, its phase written 0..2 or wrapped at 1."""
+    d = make_t0(tmp_path, freeze=False)
+    one = dict(np.load(RUN / BODY / "refs" / "brisk.npz"))
+    n, stride = len(one["t"]), float(one["dt"]) * len(one["t"])
+    adv = np.asarray(one["stride_motion"], float)
+    two = {}
+    for key, x in one.items():
+        if x.ndim and len(x) == n and key not in ("q_home", "joints", "stride_motion"):
+            second = np.array(x, copy=True)
+            if key == "t":
+                second = second + stride
+            elif key == "q":
+                second[:, 0:2] += adv[3:5]
+            elif key in ("com", "com_ref", "zmp_ref", "zmp_mb") or key == "feet":
+                second[..., 0:2] += adv[3:5]
+            two[key] = np.concatenate([x, second])
+        else:
+            two[key] = x
+    two["stride_motion"] = np.r_[adv[:3], 2.0 * adv[3:5]]
+    ph = np.arange(2 * n) / n
+    two["phase"] = ph % 1.0 if wrapped else ph
+    two["window_strides"] = np.array(2)
+    refs = s2io.read_json(d / "refs.json")
+    e = refs["references"]["v0.4"]
+    e.update(sha256=s2io.write_npz(d / "refs" / "v0.4.npz", two), frames=2 * n, strides=2, window_s=2.0 * stride)
+    s2io.write_json(d / "refs.json", refs)
+    lib = r5lib.Library(p, BODY, SET, RATE, root=tmp_path, require_frozen=False)
+    s = lib.script("walk_v0.4")  # start, one window of nominal, the change, v0.4 to the end
+    seg = s.track.segments[-1]
+    windows = s.plan[-1][2]
+    assert seg.period == pytest.approx(2.0 * stride) and seg.duration == pytest.approx(windows * 2.0 * stride)
+    assert s.t_end >= 30.0 * RATE > s.t_end - 2.0 * stride
+    for x in (0.0, 0.3, 0.999, 1.0, 1.5, 2.0, 2.25, 3.7, 2.0 * windows + 0.6):  # strides into the segment
+        t = seg.t0 + x * stride
+        off = abs(s.phase(t) - x % 1.0)
+        assert off == pytest.approx(0.0, abs=1e-9) or off == pytest.approx(1.0, abs=1e-9)
+        assert s.stride_s(t) == stride == e["period_s"] and s.command(t) == (e["speed_m_s"], 0.0)
+        assert s.steady(t) == (x >= 1.0)
+        assert s.swing_s(t) == pytest.approx((1.0 - 0.575) * stride, abs=1e-9)  # each swing's own length
+    assert s.walk_progress(seg.t0, seg.t0 + 2.0 * stride) == pytest.approx(2.0 * float(np.hypot(*adv[3:5])), abs=1e-9)
+    assert s.walk_progress(seg.t0 + 0.2, seg.t0 + 0.2 + stride) == pytest.approx(float(np.hypot(*adv[3:5])), abs=1e-6)
+    # the second stride of the window repeats the first: the same tables one stride on
+    for x in (0.1, 0.37, 0.8):
+        a, b = seg.t0 + x * stride, seg.t0 + (x + 1.0) * stride
+        np.testing.assert_allclose(s.foot_rel(a), s.foot_rel(b), atol=1e-9)
+        assert s.support(a).tolist() == s.support(b).tolist() and s.mid_swing(a).tolist() == s.mid_swing(b).tolist()
+    t, q, _ = s.start_state(seg.t0 + 1.25 * stride)
+    assert np.array_equal(q, two["q"][n + n // 4]) and t == pytest.approx(seg.t0 + 1.25 * stride)
+
+
 # ------------------------------------------------------------------------------------------------
 # Tables past the plan's end, and against the played poses
 # ------------------------------------------------------------------------------------------------

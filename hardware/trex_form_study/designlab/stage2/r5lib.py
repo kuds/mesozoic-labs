@@ -429,14 +429,13 @@ class Script:
         s, tl, k0, a = self._loc(t_b)
         if not s.walk:
             return 0.0
-        window = s.n * s.step
 
         def at(x: float) -> float:
             y = x / s.step
             f = math.floor(y)
-            k = int(f) % s.n
+            windows, k = divmod(int(f), s.n)
             a = y - f
-            return math.floor(x / window + 1e-12) * s.along[-1] + (1.0 - a) * s.along[k] + a * s.along[k + 1]
+            return windows * s.along[-1] + (1.0 - a) * s.along[k] + a * s.along[k + 1]
 
         return at(tl) - at(max(t_a - s.t0, 0.0))
 
@@ -785,10 +784,11 @@ class Library:
                 g = b if _num(b.get("period")) > 0.0 else a
                 s.stride_s = _num(g.get("period"), float(s.period[-1]))
                 s.swing_s = (1.0 - _num(g.get("duty"), 0.6)) * s.stride_s
-                dt_last = float(s.t[-1] - s.t[-2])
-                own = float(obj.t[-1] - obj.t[-2])
-                ph = np.asarray(obj.arrays["phase"], float)
-                s.phase = np.concatenate([ph, [ph[-1] + (ph[-1] - ph[-2]) * dt_last / own]])
+                if "phase" in obj.arrays:  # (a move without one: the local time over its gait's stride)
+                    dt_last = float(s.t[-1] - s.t[-2])
+                    own = float(obj.t[-1] - obj.t[-2])
+                    ph = np.asarray(obj.arrays["phase"], float)
+                    s.phase = np.concatenate([ph, [ph[-1] + (ph[-1] - ph[-2]) * dt_last / own]])
                 foot, rp = self._fk_of(item)
                 joined = i + 1 < len(plan) and plan[i + 1][0] != "hold"
                 nxt = self._fk_of(plan[i + 1]) if joined else (foot[-1:], rp[-1:])

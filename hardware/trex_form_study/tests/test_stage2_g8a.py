@@ -102,7 +102,8 @@ def test_zero_action_is_r0_on_the_s1_view(k):
     r = g8a.stock(BODY, "walk/brisk", 3042, k, 1.0)
     assert r["identical"] and r["ends_alike"] and r["first_difference"] is None
     assert r["reference_steps"] == r["compared_steps"] == r["env_physics_steps"] == 500 and r["env_steps"] == 50
-    assert (r["set"], r["row"], r["condition"], r["seed"], r["k"], r["seconds"]) == ("S1", "R0", "walk/brisk", 3042, k, 1.0)
+    assert (r["set"], r["row"], r["condition"]) == ("S1", "R0", "walk/brisk")
+    assert (r["seed"], r["k"], r["seconds"]) == (3042, k, 1.0)
     assert r["reference_fell_step"] is None and r["env_terminated_step"] is None and r["rule"] == g8a.RULE
     assert r["interference_first_env_step"] is None and not r["reference_warned"]
     parts = g8a._STOCK[BODY]
@@ -208,9 +209,9 @@ def make_t0(root: Path) -> Path:
             manifest[name] = dict(kind=kind, sha256=e["sha256"], entry_sha256=setio.entry_sha256(kind, e))
     s2io.write_json(d / "refs.json", dict(body=BODY, set=SET, schema=1, references=refs))
     s2io.write_json(d / "transitions.json", dict(body=BODY, set=SET, schema=1, transitions=trs))
-    s2io.write_json(d / "set.json", dict(
-        set=SET, body=BODY, role="fixture", crouch_frac=0.03, rules=dict(fixture="Stage 1's arrays"), not_available={},
-        freezes=[dict(index=0, at="fixture", commit=None, manifest=manifest, manifest_sha256=s2io.sha256_json(manifest))]))
+    freeze = dict(index=0, at="fixture", commit=None, manifest=manifest, manifest_sha256=s2io.sha256_json(manifest))
+    s2io.write_json(d / "set.json", dict(set=SET, body=BODY, role="fixture", crouch_frac=0.03, not_available={},
+                                         rules=dict(fixture="Stage 1's arrays"), freezes=[freeze]))
     return d
 
 
@@ -234,7 +235,8 @@ def test_bar_form_on_a_synthetic_set(tmp_path):
     assert doc["set_freeze"] == dict(index=0, manifest_sha256=freeze["manifest_sha256"]) and doc["set"] == SET
     assert doc["sources"]["bar"] == bar.bar_sources()["sha256"]
     assert doc["sources"]["panels"] == panels.panel_sources()["sha256"]
-    assert sorted(doc["sources"]["track_b"]) == [f"designlab/stage2/{n}.py" for n in ("g8a", "r5core", "r5env", "r5lib")]
+    mine = ("g8a", "r5core", "r5env", "r5lib")
+    assert sorted(doc["sources"]["track_b"]) == [f"designlab/stage2/{n}.py" for n in mine]
     assert doc["key_context"] == panels.key_context(BODY) and doc["blas_threads"] == 1 and "commit" in doc
     # rule Z1's conditions on a set: the gated mu 0.9 ones it defines, then the two named
     keys = g8a.conditions(setio.load(d))
