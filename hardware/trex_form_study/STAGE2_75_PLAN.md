@@ -884,3 +884,19 @@ Each is written into the rule it concerns, with its label. No closed-loop episod
    check's `moves.py` should read the entries a freeze adds); a freeze does not yet check which `bar.py` made the
    reference check it cites, nor that the screen was made by today's `setscreen.py` (both hold on the three sets as
    frozen: checked by the reviewers).
+11. [noted 15 Nov after a result: the chain's own walk records of the three frozen sets (tasks 3 and 4 still running);
+   no rule, limit or reading changed] (a) **The candidate's walk item cannot pass as registered, whatever the
+   controller.** C4 judges the joint range at 0.10 rad, and the runner reads it over the whole episode
+   (`bar.py`, the walk item: `panels._limits_ok`, Stage 1's span). Every episode starts with the set's `start`, and
+   F25F9cl's `start` comes within 0.095 rad of the hip-roll limit (the number P34's change of the move's *build* gate
+   already names). Every surviving episode of every F25F9cl record so far reads 0.0950 to 0.0952 rad, under all
+   three rows and at every delay, so its term `joint_range` fails 20 of 20 before the controller matters. This was
+   not stated as an expectation before the runs; it should have been. The registered verdicts stand as the records
+   hold them. The report also prints, under this label and as no verdict, the same records' counts with that one
+   term set aside, so that the reader can see what else fails (V0's and F25F9's starts keep 0.127 and 0.136 rad and
+   are not touched by this). Whether a later round judges a walk's joint range over its window (as C5's note does
+   for a turn) or rebuilds the candidate's start is a rule change or a new set, for a later freeze and the owner.
+   (b) **The tables' fix round** (`barreport`, in no key): the reviewer's finding 6 asked whether C3's "wherever it
+   prints these conditions" needs more than the reference's column in the measured and failed-terms parts. Ruling:
+   the column there, plus the label now on every line that prints a controller's verdict on such a condition, is
+   what C3 asks; no verdict word is changed (that would change a rule).
