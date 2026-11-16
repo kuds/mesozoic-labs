@@ -6,7 +6,9 @@
 #   bash stage2/runs/2026-11-16-75cm-addon/run_addon.sh list    # the units, their estimates, what would start
 #   bash stage2/runs/2026-11-16-75cm-addon/run_addon.sh all     # run them in the registered order
 #
-# A unit that is done (A/done/<unit>) is not run again; a kill is resumed by running "all" again.
+# A unit that is done (A/done/<unit>) is not run again; a kill is resumed by running "all" again: a unit the
+# runner's budget.json already holds has started and finishes without a new cap test (A-3).  A unit whose episodes
+# failed to run twice is marked A/done/<unit>.incomplete, is not started a third time, and the chain goes on.
 set -u
 cd "$(dirname "$0")/../../.." || exit 1          # hardware/trex_form_study
 PY=${PY:-.venv/bin/python}
@@ -35,8 +37,11 @@ print('panels', panels.panel_sources()['sha256'])")
 if [ "$HAVE_KEYS" != "$WANT_KEYS" ]; then
     say "FAILED code state: the runner's key sources are not the registered ones"; echo "$HAVE_KEYS"; exit 1
 fi
-if [ "$MODE" = all ] && [ -n "$(git status --short -- . ":(exclude)$ADD")" ]; then
-    say "FAILED code state: the checkout has uncommitted changes outside $ADD"; git status --short -- . ":(exclude)$ADD" | head; exit 1
+if [ "$MODE" = all ]; then
+    DIRTY=$(git status --short -- . ":(exclude)$RUN") || { say "FAILED code state: git status did not answer"; exit 1; }
+    [ -z "$DIRTY" ] || { say "FAILED code state: the checkout has uncommitted changes outside $RUN"; echo "$DIRTY" | head; exit 1; }
+    exec 9> "$RUN/logs/chain.lock"               # one chain at a time: a second "all" would misread a running unit
+    flock -n 9 || { say "FAILED: another chain holds $RUN/logs/chain.lock"; exit 1; }
 fi
 
 # The units of rule A-2, in their order: name | rows | conditions.
@@ -56,15 +61,18 @@ doc = json.load(open(path)) if os.path.exists(path) else dict(
     note="the runner's own budget.json names its task 3 with a cap of 16 core-hours; this section's cap is the one here",
     key_sha256={}, units=[])
 doc["key_sha256"] = dict(line.split() for line in os.environ["HAVE_KEYS"].splitlines())
-used = None
-if state == "done" and os.path.exists(budget):
+row = dict(unit=unit, state=state, estimate_core_h=float(est), spent_before_core_h=float(spent), used_core_h=None,
+           started_at=None, at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+if os.path.exists(budget):  # a unit the runner started: its first estimate, spent-before and start, and what it used
     for u in json.load(open(budget))["tasks"].get("3", {}).get("units", []):
-        if u["unit"] == unit:
-            used = u.get("used_core_h")
-row = dict(unit=unit, state=state, estimate_core_h=float(est), spent_before_core_h=float(spent),
-           used_core_h=used, at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+        if u["unit"] == unit and u.get("estimate_core_h") is not None:
+            row.update(estimate_core_h=u["estimate_core_h"], spent_before_core_h=u["spent_before_core_h"],
+                       started_at=u.get("started_at"), used_core_h=u.get("used_core_h"))
 doc["units"] = [u for u in doc["units"] if u["unit"] != unit] + [row]
-json.dump(doc, open(path, "w"), indent=1, sort_keys=True)
+with open(path + ".tmp", "w") as f:
+    json.dump(doc, f, indent=1, sort_keys=True)
+    f.write("\n")
+os.replace(path + ".tmp", path)
 EOF
 }
 export HAVE_KEYS
@@ -78,36 +86,65 @@ print(f"{sum((u.get('used_core_h') or 0.0) for u in t.get('units', [])):.6f}")
 EOF
 }
 
+started() {  # started <unit>: "<estimate> <spent before>" of a unit the runner's budget.json holds; fails otherwise
+    "$PY" - "$RUN/budget.json" "$1" <<'EOF'
+import json, os, sys
+p, unit = sys.argv[1:3]
+t = json.load(open(p))["tasks"].get("3", {}) if os.path.exists(p) else {}
+u = next((u for u in t.get("units", []) if u["unit"] == unit), None)
+if u is None or u.get("estimate_core_h") is None:
+    sys.exit(1)
+print(f"{u['estimate_core_h']:.6f} {u['spent_before_core_h']:.6f}")
+EOF
+}
+fail() { say "FAILED $*"; exit 1; }
+
 CUT=""
 echo "$UNITS" | while IFS='|' read -r NAME ROWS CONDS; do
     ARGS="--set V0 --body 75-M-H-10 --rows $ROWS --conditions $CONDS --cost $COST --stage1-run $STAGE1 --out $RUN"
     if [ -e "$RUN/done/$NAME" ]; then [ "$MODE" = list ] && echo "$NAME [done]"; continue; fi
-    if [ -e "$RUN/done/$NAME.cut" ] || [ -n "$CUT" ]; then
-        CUT=1; [ "$MODE" = list ] && echo "$NAME [cut]"
-        [ "$MODE" = all ] && [ ! -e "$RUN/done/$NAME.cut" ] && { ledger "$NAME" cut 0 "$(spent)"; touch "$RUN/done/$NAME.cut"; say "cut $NAME (after a cut unit)"; }
+    if [ -e "$RUN/done/$NAME.incomplete" ]; then [ "$MODE" = list ] && echo "$NAME [incomplete: not run a third time]"; continue; fi
+    SPENT=$(spent) || fail "$NAME: $RUN/budget.json cannot be read"
+    case "$SPENT" in ""|*[!0-9.]*) fail "$NAME: spent core-hours '$SPENT' is no number" ;; esac
+    if FIRST=$(started "$NAME" 2>/dev/null); then   # a started unit finishes (A-3): no cap test, its first estimate stands
+        EST=${FIRST% *}; BEFORE=${FIRST#* }; FITS=1; WORD="started before"
+    else                                            # the dry run's Total at the committed rates, as A-3 says
+        EST=$(bash tools/lowprio.sh "$PY" -m designlab.stage2.bar dry-run $ARGS 2>/dev/null < /dev/null | sed -n 's/^Total: .* \([0-9.]*\) core-hours (.*$/\1/p' | tail -1)
+        [ -n "$EST" ] || fail "$NAME: no estimate from the dry run"
+        BEFORE=$SPENT; WORD="to run"
+        FITS=$("$PY" -c "print(1 if $SPENT + $EST <= $CAP_CORE_H + 1e-9 else 0)") || fail "$NAME: the cap test did not run"
+        [ "$FITS" = 1 ] || [ "$FITS" = 0 ] || fail "$NAME: the cap test gave '$FITS'"
+    fi
+    if [ -e "$RUN/done/$NAME.cut" ] || [ -n "$CUT" ] || [ "$FITS" != 1 ]; then
+        WHY="after a cut unit"; [ -n "$CUT" ] || [ -e "$RUN/done/$NAME.cut" ] || WHY="$SPENT + $EST over the cap $CAP_CORE_H"
+        CUT=1
+        if [ "$MODE" = list ]; then echo "$NAME [cut]: estimate $EST core-h, spent before $SPENT, cap $CAP_CORE_H ($WHY)"; continue; fi
+        if [ ! -e "$RUN/done/$NAME.cut" ]; then
+            ledger "$NAME" cut "$EST" "$SPENT" || fail "$NAME: the ledger was not written"
+            touch "$RUN/done/$NAME.cut"; say "cut $NAME ($WHY)"
+        fi
         continue
     fi
-    EST=$(bash tools/lowprio.sh "$PY" -m designlab.stage2.bar dry-run $ARGS 2>/dev/null | sed -n 's/^Total: .*(\([0-9.]*\) to run).*$/\1/p' | tail -1)
-    [ -n "$EST" ] || { say "FAILED $NAME: no estimate from the dry run"; exit 1; }
-    SPENT=$(spent)
-    FITS=$("$PY" -c "print(1 if $SPENT + $EST <= $CAP_CORE_H + 1e-9 else 0)")
     if [ "$MODE" = list ]; then
-        echo "$NAME [to run]: estimate $EST core-h, spent before $SPENT, cap $CAP_CORE_H, fits $FITS :: bar run $ARGS --procs $PROCS --attribute none --task 3 --unit $NAME"
+        echo "$NAME [$WORD]: estimate $EST core-h, spent before $BEFORE, spent now $SPENT, cap $CAP_CORE_H, fits $FITS :: bar run $ARGS --procs $PROCS --attribute none --task 3 --unit $NAME"
         continue
     fi
-    if [ "$FITS" != 1 ]; then
-        CUT=1; ledger "$NAME" cut "$EST" "$SPENT"; touch "$RUN/done/$NAME.cut"; say "cut $NAME: $SPENT + $EST over the cap $CAP_CORE_H"; continue
-    fi
+    ledger "$NAME" started "$EST" "$BEFORE" || fail "$NAME: the ledger was not written"
     CODE=1
     for TRY in 1 2; do              # exit 4 (episodes failed to run): the same command once more (C8)
         [ "$TRY" = 1 ] && say "start $NAME" || say "again $NAME (episodes failed to run)"
         bash tools/lowprio.sh "$PY" -m designlab.stage2.bar run $ARGS --procs "$PROCS" --attribute none --task 3 --unit "$NAME" \
-            >> "$RUN/logs/$NAME.log" 2>&1
+            >> "$RUN/logs/$NAME.log" 2>&1 < /dev/null
         CODE=$?
         [ "$CODE" = 4 ] || break
     done
-    if [ "$CODE" != 0 ]; then say "FAILED $NAME (exit $CODE)"; ledger "$NAME" "failed-exit-$CODE" "$EST" "$SPENT"; exit 1; fi
-    touch "$RUN/done/$NAME"; ledger "$NAME" done "$EST" "$SPENT"; say "done $NAME"
+    if [ "$CODE" = 4 ]; then   # episodes failed to run twice (A-3, C8): not started a third time; the chain goes on
+        ledger "$NAME" incomplete "$EST" "$BEFORE" || fail "$NAME: the ledger was not written"
+        touch "$RUN/done/$NAME.incomplete"; say "INCOMPLETE $NAME (episodes failed to run, twice): $RUN/logs/$NAME.log"; continue
+    fi
+    if [ "$CODE" != 0 ]; then say "FAILED $NAME (exit $CODE)"; ledger "$NAME" "failed-exit-$CODE" "$EST" "$BEFORE"; exit 1; fi
+    ledger "$NAME" done "$EST" "$BEFORE" || fail "$NAME: the ledger was not written"
+    touch "$RUN/done/$NAME"; say "done $NAME"
 done || exit 1
-[ "$MODE" = all ] && { [ -n "$(ls "$RUN/done" | grep -v '\.cut$' )" ] && touch "$RUN/done/ALL"; say "all units of section A handled"; }
+[ "$MODE" = all ] && { touch "$RUN/done/ALL"; say "all units of section A handled"; }
 exit 0
