@@ -1986,12 +1986,12 @@ paragraph above: a cut is taken for a body). No rule freezes or blocks them by i
 [settled 16 Nov 2026, before any Track B run; labelled as changed after the look work package had built look sets
 (prescribed motion; none frozen); ruling 4 of the fifth list] "That body's other look sets" takes in the sets of the
 body's `-X` head: the paragraph above itself takes a cut for every look set of that body and of its `-X` head. [from
-here to the paragraph's end, the author's note, after the independent review of this writing-in, not the lead's wording]
-The ruling names no place for that record. By this text's own rule for a later answer of the lead it is an amendment of
-this text with its date, and one given after a result is labelled so (the two sections "Settled by the lead"). Added
-when the fifth list was written in: its ruling 4 names the `-X` head's sets as among the other sets; where the set that
-fails is the `-X` head's own, the same reading is taken here, with the "body" of the paragraph above, which has two
-heads: the other sets are that body's look sets on either head.
+here to the paragraph's end, the author's note, after the independent review of the fourth list's writing-in, not the
+lead's wording] Ruling 7 of the fourth list names no place for that record. By this text's own rule for a later answer
+of the lead it is an amendment of this text with its date, and one given after a result is labelled so (the two sections
+"Settled by the lead"). Added when the fifth list was written in: its ruling 4 names the `-X` head's sets as among the
+other sets; where the set that fails is the `-X` head's own, the same reading is taken here, with the "body" of the
+paragraph above, which has two heads: the other sets are that body's look sets on either head.
 
 The design's cut 3 [differs: B6 and T1]: a move leaves and enters a K-stride window only at its boundary (a right-foot
 command at the exact time of phase 0.5 after the boundary); episodes then walk whole windows (about 10 s) before a
@@ -2482,8 +2482,9 @@ later on 16 Nov 2026: the next amendment].
    with ruling 1 of the fourth list: the next amendment]: Q5, with a pointer in Q6.
 7. An attempt at a check is logged before the monitor starts and closed with its exit code. M1's "once" counts closed
    attempts that left no record: after two the check counts as without a gain and as a failed G8b reading. An attempt
-   never closed is an interruption, which K5's resume runs again and which does not count. This makes precise point 9 of
-   the second list: M1, K5, with a pointer in M4.
+   never closed is an interruption, which K5's resume runs again and which does not count [a monitor's refusal to run is
+   no attempt either, by ruling 6 of the fifth list: the last amendment]. This makes precise point 9 of the second list:
+   M1, K5, with a pointer in M4.
 8. The smoke passes when Y1, Y3, Y6 and Y9 pass and Y4 passes or has been answered by the owner's budget; Y11's floor is
    the inequality `r x 72,000 < 15,000,000` alone, with no rounded rate beside it. This changes ruling 12 of the first
    list in Y10's list of items: Y10, Y11.
@@ -2540,20 +2541,25 @@ what a rule decides comes back to the lead.
    numbers are gone. This makes precise ruling 6 of the third list: Q5, with the brief and a word in Q6's Check.
 2. How a cap is spent: by the bar's own unit rule, the units in the order 10, 0, 4, 6 ms; fall attribution, which the
    dry-run total does not hold, runs last and is cut first; one run directory and one `budget.json` per cap; the 10 ms
-   unit always fits its cap, so "never cut" holds. This makes precise ruling 6 of the third list: Q5.
+   unit always fits its cap, so "never cut" holds [a cap of their own for delays that S2-9 asks for late, and the
+   directories' name: ruling 3 of the fifth list and its confirmations, the next amendment]. This makes precise ruling 6
+   of the third list: Q5.
 3. K5's resume keeps the attempts logged for a check on the checkpoint it resumes from, so that M1's count of closed
    attempts survives a resume. This makes precise ruling 7 of the third list: K5, with a pointer in M4.
 4. Three cases of M1 and M4. The 18 episodes of a check counted without a record are *errors*. After two attempts at one
    check that were never closed, the run halts and goes to the lead. A record of a check is a `monitor_<n>.json` that
-   names the checkpoint's hashes and holds an outcome for all 18 episodes: M1, with pointers in M4 and K5.
+   names the checkpoint's hashes and holds an outcome for all 18 episodes [that sentence was corrected for a condition
+   that is not run, and what follows the halt was settled, by rulings 1 and 2 of the fifth list: the next amendment]:
+   M1, with pointers in M4 and K5.
 5. L8's Check says what is equal: on the shared strides the move's times and slow variations are the window's, and its
    frames are read by the join gates: L8.
 6. A stance is flat when it ends after the instant and no later than the end of the move's last ramp. The Check reads
    the lift-off `foot_pitch` and `rolling` before a change's instant as gait a's spec gives them on the move's own step
    times. This makes precise ruling 3 of the third list and point 6 of the second: L10, L11.
 7. The set whose `start` or `nominal_to_v0.4` fails holds no freeze. Whether that body's other look sets are frozen is
-   then the lead's decision, recorded with its date and reason; no rule freezes or blocks them by itself. This makes
-   precise ruling 4 of the third list: L12, and the brief.
+   then the lead's decision, recorded with its date and reason; no rule freezes or blocks them by itself [the `-X`
+   head's sets are among them, by ruling 4 of the fifth list: the next amendment]. This makes precise ruling 4 of the
+   third list: L12, and the brief.
 8. The bar's reading is printed beside the companion's on stop items only, walks and turns having no reading 1 in the
    bar's own record; on any other set the companion's counts equal the bar's. This makes precise ruling 5 of the third
    list: U4.
@@ -2725,15 +2731,17 @@ changed for this text.
 What else changed in this text with the fifth list; this paragraph is the author's and not the lead's wording. These
 follow the settled wording and are the author's: the sentences added to the Status, the bullet in "What had been run",
 the Tags entry, the brief's sentences, the change list's clauses and the additions to the "Check:" lines; and "the two
-amendments" reads "the three amendments" in the Status, the brief, the Tags entry and the change list's opening. In M1:
-the notes on rulings 1, 2 and 6, among them the three refusals by the words the monitor's code has for them, the reading
-that a checkpoint without its record is not intact, the reading that the refused attempt stays in the log, and that on
-Colab the parameter of ruling 2 is set on the lead's word. In K5: the reading of rulings 2 and 6 for a resume. In M4 and
-M5: the pointers. In Q5: the reading of the later cap (its dry run's rows, its units, that nothing spent under one cap
-counts in the other), what `DRY_RUN.json` holds, and the Check's phrases that are worded per cap, which its mark names.
-In U3: the reading of "while the reference's amplitude is read", that both limits must hold where the term is read, and
-that "the four bands" are the four terms; in the list of words, "four terms" for "four limits". In L12: the reading of
-the case in which the failing set is the `-X` head's own.
+amendments" reads "the three amendments" in the Status, the brief, the Tags entry and the change list's opening. Four
+lines of the two earlier amendments point to this one (ruling 7 of the third list; rulings 2, 4 and 7 of the fourth), as
+do the two paragraphs of the second amendment that named points with the lead. In M1: the notes on rulings 1, 2 and 6,
+among them the three refusals by the words the monitor's code has for them, the reading that a checkpoint without its
+record is not intact, the reading that the refused attempt stays in the log, and that on Colab the parameter of ruling 2
+is set on the lead's word. In K5: the reading of rulings 2 and 6 for a resume. In M4 and M5: the pointers. In Q5: the
+reading of the later cap (its dry run's rows, its units, that nothing spent under one cap counts in the other), what
+`DRY_RUN.json` holds, and the Check's phrases that are worded per cap, which its mark names. In U3: the reading of
+"while the reference's amplitude is read", that both limits must hold where the term is read, and that "the four bands"
+are the four terms; in the list of words, "four terms" for "four limits". In L12: the reading of the case in which the
+failing set is the `-X` head's own.
 
 Seen while this was written in. These are with the lead, because each changes what a rule decides; none is written in
 but the last, which is written in as the author's reading. M1's sentence on R0L's baseline, "each must end *read* or
