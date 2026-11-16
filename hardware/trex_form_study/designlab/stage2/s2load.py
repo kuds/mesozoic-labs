@@ -7,8 +7,8 @@ name and ``os.replace``:
 * ``model_<n>.zip``: the stable-baselines3 archive (``model.save``).  It is refused, and nothing of the checkpoint is
   left, if the repository's ``inspect_sb3_archive`` finds a member with bytecode in it (S2-14: schedules are instances
   of ``designlab.stage2.schedules``' classes, pickled by reference);
-* ``vecnormalize_<n>.pkl``: the ``VecNormalize`` wrapper (``vecnorm.save``); only a training resume unpickles it to
-  use it;
+* ``vecnormalize_<n>.pkl``: the ``VecNormalize`` wrapper (``vecnorm.save``); only a load for training unpickles
+  it;
 * ``fingerprint_<n>.npz``: ``obs`` (256 seeded observations, ``fingerprint_obs``), ``actions`` (the deterministic
   float32 actions the policy and the statistics give them at save time) and the observation statistics as plain
   arrays (``obs_mean``, ``obs_var``, ``obs_count``, ``clip_obs``, ``epsilon``);
@@ -17,13 +17,17 @@ name and ``os.replace``:
   its presence with matching hashes is what "an intact checkpoint" means, on local disk and on Drive.
 
 Every load, anywhere in Track B (the trainer's resume, the monitor, the policy rows, the smoke), goes through
-``load_checkpoint``: ``pair_problem`` (this module's hashes and sizes, then the repository's
-``checkpoint_pair_problem``), the load through the repository's ``load_sb3_model`` with the schedule objects passed
-explicitly and ``force_reset=False``, then the fingerprint reproduced from the stored observations and the plain
-statistics.  ``max |difference| > 1e-5`` raises ``CheckpointError``: the checkpoint is not used and not judged
-(S2-12).  **An inference load unpickles as little as it can**: it passes the two spaces (rebuilt from the record's
-layout) and ``None`` for the archive's last-observation members as ``custom_objects`` and normalises from the plain
-arrays, so that only torch tensors and class references cross library versions.
+``load_checkpoint``: the integrity check (the record and the three files' sizes and sha256, then the archive's zip
+tested), the load through the repository's ``load_sb3_model`` with the schedule objects passed explicitly and
+``force_reset=False``, then the fingerprint reproduced from the stored observations and the plain statistics.
+``max |difference| > 1e-5`` raises ``CheckpointError``: the checkpoint is not used and not judged (S2-12).  **An
+inference load unpickles as little as it can**: it passes the two spaces (rebuilt from the record's layout) and
+``None`` for the archive's last-observation members as ``custom_objects`` and normalises from the plain arrays, so
+that only torch tensors and class references cross library versions (K9).  It does not unpickle the ``.pkl``: that
+file is checked by its size and sha256 alone.  A load for training (a resume, a fine-tune's start from its parent)
+uses the ``.pkl``, so its integrity check is ``pair_problem``, which ends with the repository's
+``checkpoint_pair_problem`` (the same zip test, and the ``.pkl`` unpickled); ``newest_intact``, which picks the
+checkpoint a resume starts from, uses it too.
 
 ``pack`` writes ``ckpt_<n>.tar`` (the three binaries, byte-identical whenever the files are: USTAR, sorted names,
 mtime 0, uid and gid 0, empty user and group names, mode 0644, no compression); ``import_tar`` unpacks one here,
@@ -52,6 +56,7 @@ import argparse
 import hashlib
 import re
 import tarfile
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -108,12 +113,15 @@ FINGERPRINT_RULE = (
     "(STAGE2_PLAN.md S2-12; Track B rule K9)")
 LOADER_RULE = (
     "every load goes through s2load.load_checkpoint: the three files' sizes and sha256 against checkpoint_<n>.json, "
-    "the repository's checkpoint_pair_problem, then environments.shared.policy_loading.load_sb3_model with the "
-    "schedule objects passed explicitly (instances of designlab.stage2.schedules' classes; an archive holds no "
-    "bytecode) and force_reset=False; a load for judging also passes the two spaces and None for the "
-    "last-observation members and normalises from the plain arrays, so that only tensors and class references cross "
-    "library versions; torch's build label is dropped before versions are compared (STAGE2_PLAN.md S2-12, S2-14; "
-    "Track B rule K9)")
+    "the archive's zip tested (it opens, its members test clean, the outer archive holds stable-baselines3's "
+    "members), then environments.shared.policy_loading.load_sb3_model with the schedule objects passed explicitly "
+    "(instances of designlab.stage2.schedules' classes; an archive holds no bytecode) and force_reset=False; a load "
+    "for judging also passes the two spaces and None for the last-observation members and normalises from the plain "
+    "arrays, so that only tensors and class references cross library versions: it does not unpickle "
+    "vecnormalize_<n>.pkl, which is checked by its size and sha256 and read only by a load for training (a resume, "
+    "or a fine-tune's start from its parent), after the repository's checkpoint_pair_problem has unpickled it once "
+    "as its test; torch's build label is dropped before versions are compared (STAGE2_PLAN.md S2-12, S2-14; Track B "
+    "rule K9)")
 
 
 class CheckpointError(RuntimeError):
@@ -312,8 +320,9 @@ def fingerprint_obs(layout: dict) -> np.ndarray:
 def stats_of(vecnorm) -> dict:
     """A ``VecNormalize``'s observation statistics as plain float64 arrays: ``{"obs_mean", "obs_var", "obs_count",
     "clip_obs", "epsilon"}`` (copies)."""
-    rms = vecnorm.obs_rms
-    if isinstance(rms, dict) or not getattr(vecnorm, "norm_obs", True):
+    # a VecNormalize built with norm_obs=False has no obs_rms at all; a dict observation's is a dict of them
+    rms = getattr(vecnorm, "obs_rms", None) if getattr(vecnorm, "norm_obs", True) else None
+    if rms is None or isinstance(rms, dict):
         raise CheckpointError("the plain statistics need a VecNormalize that normalises one flat Box observation")
     values = {"obs_mean": rms.mean, "obs_var": rms.var, "obs_count": rms.count, "clip_obs": vecnorm.clip_obs,
               "epsilon": vecnorm.epsilon}
@@ -506,10 +515,39 @@ def _hash_problem(job_dir, steps) -> tuple:
     return doc, None
 
 
+def _archive_problem(path: Path) -> str | None:
+    """None when a model archive opens, its members test clean and its outer zip holds SB3's members (``data`` and a
+    ``policy.pth``), else why not.  This is the zip half of the repository's ``checkpoint_pair_problem``, in its
+    words (a test holds the two to the same sentence); it unpickles nothing."""
+    try:
+        with zipfile.ZipFile(path) as archive:
+            bad_member = archive.testzip()
+            names = archive.namelist()
+        if bad_member is not None:
+            raise zipfile.BadZipFile(f"corrupt archive member {bad_member!r}")
+        # a truncated SB3 archive can still open (zipfile finds a nested torch archive's directory): ask for SB3's
+        # own members in the outer archive, as the repository's check does
+        if "data" not in names or not any(name.endswith("policy.pth") for name in names):
+            raise zipfile.BadZipFile(
+                f"outer archive lacks SB3 members (truncated checkpoint; found {sorted(names)[:5]})")
+    except Exception as exc:  # noqa: BLE001 - whatever zipfile raises on a file that is no clean archive
+        return f"bad/truncated checkpoint zip {Path(path).name} ({exc})"
+    return None
+
+
+def _inference_problem(job_dir, steps) -> str | None:
+    """The integrity check of a load that does not use the ``.pkl`` (a load for judging, K9): the record, the three
+    files' sizes and sha256 (the ``.pkl``'s too: it is part of the checkpoint), then the archive's zip.  Nothing is
+    unpickled, so a ``.pkl`` that this machine's libraries cannot read does not stop a checkpoint from being judged."""
+    _, why = _hash_problem(job_dir, steps)
+    return why or _archive_problem(checkpoint_files(job_dir, steps)["model"])
+
+
 def pair_problem(job_dir, steps) -> str | None:
-    """None when checkpoint ``steps`` is intact, else why not: a missing or unreadable record, a missing file, a
-    size or sha256 other than the record's, then the reason of the repository's ``checkpoint_pair_problem`` (the zip
-    opens, tests clean and holds SB3's members; the statistics unpickle)."""
+    """None when checkpoint ``steps`` is intact for a training resume, else why not: a missing or unreadable record,
+    a missing file, a size or sha256 other than the record's, then the reason of the repository's
+    ``checkpoint_pair_problem`` (the zip opens, tests clean and holds SB3's members; the statistics unpickle, which
+    is the one place outside a resume's own load where the ``.pkl`` is unpickled)."""
     _, why = _hash_problem(job_dir, steps)
     if why:
         return why
@@ -595,21 +633,25 @@ def load_vecnormalize(path, venv):
     return VecNormalize.load(str(path), venv)
 
 
-def _read_fingerprint(path: Path, record: dict) -> dict:
+def _read_fingerprint(path: Path, record: dict, where: str) -> dict:
+    """The arrays of ``fingerprint_<n>.npz``; ``CheckpointError`` (starting with ``where``, as every refusal of
+    ``load_checkpoint`` does) when the file does not read, lacks an array, or is not the record's table."""
     obs_dim, _, action_dim = _dims(record["layout"])
     try:
         with np.load(path, allow_pickle=False) as z:
             arrays = {k: z[k] for k in z.files}
-    except (OSError, ValueError, KeyError) as exc:
-        raise CheckpointError(f"{path.name} does not read ({exc})") from exc
+    except Exception as exc:  # noqa: BLE001 - whatever numpy or zipfile raises on a file that is no whole .npz
+        # (BadZipFile, EOFError, zlib.error, ...): a file cut before its record hashed it gets this far, and it is
+        # refused by rule, not by a traceback
+        raise CheckpointError(f"{where}: {path.name} does not read ({type(exc).__name__}: {exc})") from exc
     missing = [k for k in ("obs", "actions") + STATS_KEYS if k not in arrays]
     if missing:
-        raise CheckpointError(f"{path.name} lacks {', '.join(missing)}")
+        raise CheckpointError(f"{where}: {path.name} lacks {', '.join(missing)}")
     if arrays["obs"].shape != (FINGERPRINT_ROWS, obs_dim) or arrays["actions"].shape != (FINGERPRINT_ROWS, action_dim):
-        raise CheckpointError(f"{path.name}: obs {arrays['obs'].shape}, actions {arrays['actions'].shape}; the layout "
-                              f"asks ({FINGERPRINT_ROWS}, {obs_dim}) and ({FINGERPRINT_ROWS}, {action_dim})")
+        raise CheckpointError(f"{where}: {path.name}: obs {arrays['obs'].shape}, actions {arrays['actions'].shape}; "
+                              f"the layout asks ({FINGERPRINT_ROWS}, {obs_dim}) and ({FINGERPRINT_ROWS}, {action_dim})")
     if _obs_sha256(arrays["obs"]) != (record.get("fingerprint") or {}).get("obs_sha256"):
-        raise CheckpointError(f"{path.name}: the observations do not hash to the record's obs_sha256")
+        raise CheckpointError(f"{where}: {path.name}: the observations do not hash to the record's obs_sha256")
     return arrays
 
 
@@ -622,9 +664,11 @@ def load_checkpoint(job_dir, steps, env=None, lr=None, tol=FINGERPRINT_TOL, expe
     wrapped; ``lr = (start, end)``): ``vecnorm`` is the ``.pkl`` bound to ``env``, the model is loaded on it with
     ``force_reset=False``, and the ``.pkl``'s statistics must equal the plain arrays.
 
-    ``CheckpointError`` on a ``pair_problem``; on a ``run_uuid`` or settings hash other than ``expect_run``'s
-    (``{"run_uuid", "settings_sha256"}``); on a load that fails; on fingerprint actions further than ``tol`` from
-    the stored ones ("not judged": S2-12)."""
+    ``CheckpointError`` on a checkpoint that is not intact (training: ``pair_problem``, which unpickles the ``.pkl``
+    as the repository's check does; inference: the same record, sizes, sha256 and zip test with nothing unpickled,
+    K9: the ``.pkl`` is not unpickled); on a ``run_uuid`` or settings hash other than ``expect_run``'s (``{"run_uuid",
+    "settings_sha256"}``); on a load that fails; on fingerprint actions further than ``tol`` from the stored ones
+    ("not judged": S2-12)."""
     n = _steps(steps)
     if expect_run is not None and not all(k in expect_run for k in ("run_uuid", "settings_sha256")):
         raise ValueError("expect_run holds run_uuid and settings_sha256")
@@ -638,7 +682,7 @@ def load_checkpoint(job_dir, steps, env=None, lr=None, tol=FINGERPRINT_TOL, expe
     elif lr is not None:
         raise ValueError("lr belongs to a training load (env given)")
     where = f"checkpoint {n} of {job_dir}"
-    why = pair_problem(job_dir, n)
+    why = pair_problem(job_dir, n) if env is not None else _inference_problem(job_dir, n)
     if why:
         raise CheckpointError(f"{where}: {why}")
     files = checkpoint_files(job_dir, n)
@@ -648,7 +692,7 @@ def load_checkpoint(job_dir, steps, env=None, lr=None, tol=FINGERPRINT_TOL, expe
             if record.get(key) != expect_run[key]:
                 raise CheckpointError(f"{where}: its {key} {record.get(key)!r} is not the run's {expect_run[key]!r}: "
                                       "another run's checkpoint is not used and not judged")
-    arrays = _read_fingerprint(files["fingerprint"], record)
+    arrays = _read_fingerprint(files["fingerprint"], record, where)
     stats = {k: arrays[k] for k in STATS_KEYS}
     out = {}
     try:

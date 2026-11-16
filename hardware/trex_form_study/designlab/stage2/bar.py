@@ -16,13 +16,17 @@ success.  This module is an own runner on the panels' classes (``Condition``, ``
   hold at the slowest clock and tracks at the fastest (``RULES["plans"]``).
 * **Rows** (``Delayed``, ``rows``): any ``panels.Row`` inside ``speedfit.servo_delay``: ``R2/42@10ms``, ``R0@10ms``.
 * **Judge** (``judge``, ``run_episode``): ``readings``' functions on the live recorder; two success vectors per
-  episode (reading 2: every limit; reading 3: the sustained-drive term on the leg drives only).
+  episode (reading 2: every limit; reading 3: the sustained-drive term on the leg drives only).  The toe clearance
+  is read over the planned swing from the foot's own lift-off (``planned_swing_rows``); a turn's joint range and leg
+  gap over its window.
 * **Records** (``record_key``, ``condition_record``): one JSON per set, body, block, row and condition with rules,
-  provenance and hashes.  A finished record with another key is never overwritten (``--supersede`` keeps it beside
-  the new one).  Episodes are written one by one by their workers and merged when a condition's seeds are complete,
-  so a killed run resumes per episode.
-* **Runner** (``evaluate``): ``tune.Pool`` with ``BarWorker``; attribution by decision 20; replication on the second
-  seed block of what passed on the first; the budget ledger of a task (``Budget``).
+  provenance and hashes.  A finished record with another key ("done" or "not run"), or a record file that cannot be
+  read, is never overwritten (``--supersede`` keeps it beside the new one, whose label a killed re-run keeps).
+  Episodes are written one by one by their workers and merged when a condition's seeds are complete, so a killed
+  run resumes per episode.  A record names its freeze and copies a freeze's "change after a result" label.
+* **Runner** (``evaluate``): ``tune.Pool`` with ``BarWorker`` (a worker ends with its runner); attribution by
+  decision 20 after every episode of the call; replication on the second seed block of what passed on the first
+  (the candidate's only); the budget ledger of a task (``Budget``); every trace hashed, kept or not.
 * ``dry_run`` (cost from measured rates; writes nothing), ``refcheck`` (each reference played kinematically through
   the bar's readings), ``reread`` (stock episodes of Stage 1 re-run, their traces checked against the committed
   records' sha256, with the own-swing toe clearance read beside Stage 1's).
@@ -34,6 +38,10 @@ Run from hardware/trex_form_study (one BLAS thread)::
         [--attribute judged|all|none] [--no-traces] [--no-traces-for R0] [--episodes 20] [--task 3|4] [--unit NAME]
         [--cost FILE] [--control omega_s1] [--supersede --supersede-reason TEXT] [--dev-episodes FILE]
         [--dev-reason TEXT] [--set-root DIR] [--stage1-run DIR] [--records DIR] [--row-module M] --out DIR
+
+Exit codes of ``run``: 0; 1 a refusal (a record of another key, a set that is not frozen, a rule of the checks); 3
+the budget cut the unit (the pre-registered order); 4 a record of the session still holds an episode that failed to
+run (the next run of the same command runs it again).
 
 This file is hashed into every bar record's key (``bar_sources``), with ``readings.py``, ``setio.py`` and Stage 1's
 ``speedfit.py``.
@@ -54,9 +62,11 @@ import functools  # noqa: E402
 import importlib  # noqa: E402
 import json  # noqa: E402
 import math  # noqa: E402
+import multiprocessing  # noqa: E402
 import re  # noqa: E402
 import shutil  # noqa: E402
 import tempfile  # noqa: E402
+import threading  # noqa: E402
 import time  # noqa: E402
 import traceback  # noqa: E402
 from collections import Counter  # noqa: E402
@@ -85,11 +95,19 @@ STAGE1_RUN = s2io.STUDY / "stage1" / "runs" / "2026-11-08"
 #: (``RULES["checks"]``).
 PREREGISTERED_SETS = ("V0", "F25F9", "F25F9cl")
 CHECK_SET = "V0"
+#: The candidate: the one set of the round that is replicated on the second seed block (STAGE2_75_PLAN.md H4).
+CANDIDATE_SET = "F25F9cl"
+#: A rung's entry must hold the speed its name holds, to this relative tolerance (``BarPlanner.check_speed``).
+SPEED_NAME_TOL = 1e-6
 MU_LOW = panels.MU_LOW
 GRIPS = ((None, ""), (MU_LOW, f"_mu{MU_LOW:g}"))
 BEHAVIORS = ("walk", "turn", "nudge", "stop")
 BAR_JUDGES = ("bar_walk", "bar_turn", "bar_nudge", "bar_stop")
 BAR_WALK = setio.walk_name(setio.BAR_SPEED)
+#: The starts a set's plans may begin with (``set.json`` ``lead_in``; ``RULES["lead_in"]``): ``start`` into the nominal
+#: walk (every set but the exception; also where ``set.json`` has no such key), or ``start_v0.4`` straight into the
+#: 0.40 m/s walk, for a set whose nominal walk is not a rung.
+LEAD_INS = (setio.START, setio.start_name(BAR_WALK))
 #: Nudges: the pulse's length, its share of the Stage 0 push bound (gated; reported), its onset in strides of the
 #: walk after the walk's segment begins (plus a uniform draw of one stride), the recovery limit and the hold.
 PUSH_S = panels.PUSH_S
@@ -124,8 +142,7 @@ BUDGET_CORE_H = {3: 16.0, 4: 12.0}
 CONTROLS = {"omega_s1": (0.03, "omega at Stage 1's 0.03 H crouch")}
 #: Dry-run rates: Stage 1's own committed condition they are measured on, the cut of each episode and its seeds.
 COST_CONDITION = "walk/brisk"
-COST_SECONDS = 8.0
-COST_SEEDS = (3042, 3043)
+COST_SEEDS = (3042, 3043, 3044)
 COST_SCHEMA = "bar-cost-1"
 EPS_S = readings.EPS_S
 
@@ -154,11 +171,19 @@ RULES = dict(
         "load above 2 % of weight, 20 ms debounce, per physics step); an air run of a foot is a swing if any 100 Hz "
         "update inside it falls in the reference's swing of that foot, or if it lasts at least half the shortest "
         f"planned swing of the track on the simulated clock (its reference seconds / {RATE:g}), else an air gap "
-        "(counted, not read); each swing wholly inside the window is read as the foot's lowest point over the middle "
-        "half of its own duration (interpolated at 25 % and 75 %, and every update between); the term passes when "
-        f"the smallest reading is at least {readings.TOE_CLEARANCE_FRAC_H:g} H, no reference swing in the window is "
-        "interrupted and each foot has at least its number of reference swings less one.  Stage 1's reading (on the "
-        "reference's clock) is recorded beside it"),
+        "(counted, not read); each swing wholly inside the window is read as the foot's lowest point over [t_lo + "
+        "0.25 T_p, t_lo + 0.75 T_p] (interpolated at both edges, and every update between): t_lo is the swing's own "
+        "lift-off and T_p the planned duration, on the simulated clock (its reference seconds / "
+        f"{RATE:g}), of the reference swing of that foot it overlaps the longest (the track's shortest planned swing "
+        "if it overlaps none); the interval is read to its end even if the foot has touched down before it; a swing "
+        "whose interval runs past the window's end is neither read nor counted; a reference swing counts toward a "
+        "foot's number only if no window edge cuts an own swing that overlaps it; the term passes when the smallest "
+        f"reading is at least {readings.TOE_CLEARANCE_FRAC_H:g} H, no reference swing in the window is interrupted "
+        "and each foot has at least its number of reference swings less one.  The reading as first written (the "
+        "middle half of the swing's own duration) is recorded beside it as toe_clearance_own_duration_m, reported "
+        "and never judged, and so is Stage 1's reading (on the reference's clock) (middle half of the planned swing "
+        "counted from the own lift-off; amended on 15 Nov after the reread of Stage 1's stock walks, before any "
+        "Stage 2 set was frozen: STAGE2_75_PLAN.md C3)"),
     walk=(
         "the walk item: window = the last 10 s of a complete episode; along: the CoM covers at least 10 s x the "
         "rung's target speed along the commanded heading (the home heading); line: the CoM stays within "
@@ -179,8 +204,11 @@ RULES = dict(
         f"(pi/2) / |rate|, and at every update for {readings.HEADING_HOLD_S:g} s after; over [t_c, t_c + at_s + "
         f"{readings.HEADING_HOLD_S:g} s]: the walk's limits (without along and line), the joint range by decision 14 "
         f"(min({tune.WALK_RANGE_RAD:g}, the track's own smallest margin of that joint - "
-        f"{tune.TURN_RANGE_SLACK_RAD:g}), at least {tune.AT_LIMIT_RAD:g} rad) and no leg interference (legs.LegGap "
-        "at 50 Hz).  Peak ground reaction is reported"),
+        f"{tune.TURN_RANGE_SLACK_RAD:g}), at least {tune.AT_LIMIT_RAD:g} rad; read on the 100 Hz updates inside the "
+        "window) and no leg interference (legs.LegGap on the 50 Hz poses inside the window); the drives' peak speed "
+        "is read over the whole episode (the recorder holds the episode's peak only), which is at least as strict as "
+        "the window.  Peak ground reaction is reported, and so are the joint range and the leg gap over the whole "
+        "episode"),
     nudge=(
         f"a nudge: a {PUSH_S:g} s pulse at the trunk's centre of mass of m x frac x the Stage 0 push bound / "
         f"{PUSH_S:g} s in the commanded heading's frame, frac {NUDGE_FRAC:g} (reported: "
@@ -210,13 +238,38 @@ RULES = dict(
         f"{readings.HEADING_HOLD_S:g} + {END_MARGIN_S:g}.  Nudge: seconds = the latest onset at the slowest clock + "
         f"{PUSH_S:g} + {RECOVERY_S:g} + {HOLD_S:g}.  Stop: {STOP_LEAD_STRIDES[2]:g} strides "
         f"({STOP_LEAD_STRIDES[1]:g} before the one-step stop), the stop, a hold; seconds = t_rest / (slowest clock) "
-        f"+ {STOP_HOLD_S:g} + {END_MARGIN_S:g}.  Every track is long enough at the fastest clock ({FAST:g} x "
-        f"{RATE:g}).  walk/nominal is start, then nominal to the end"),
+        f"+ {STOP_HOLD_S:g} + {END_MARGIN_S:g}.  A turn's, a nudge's and a stop's track is long enough at the fastest "
+        f"clock ({FAST:g} x {RATE:g}); a walk's track ends at its planned end on the commanded clock and its last "
+        "walk segment repeats beyond it (Stage 1's rule).  walk/nominal is start, then nominal to the end.  A causal "
+        "move is placed at the walk phase its entry was built for (the strides of the walk before it, modulo one, "
+        "equal its command_phase), and a rung's entry holds the speed its name holds (a fixture's stand-in walk "
+        "apart, which its records say): a set that breaks either is refused"),
+    lead_in=(
+        f"an exception for a set whose nominal walk is not a rung (set.json lead_in '{setio.start_name(BAR_WALK)}'; "
+        "STAGE2_75_PLAN.md A8 as amended by the owner's decision of 15 Nov, DECISION_LOG.md P34, after the first "
+        "builds of the three sets; changed after a result): every item starts with the stand and "
+        f"{setio.start_name(BAR_WALK)}, the start from standing straight into the 0.40 m/s walk, in place of start, "
+        "one stride of nominal and the change to 0.40 m/s; the strides of the 0.40 m/s walk before a command, the "
+        "seed slot, the planned seconds' rules and the judged windows are those of every other set (the start's own "
+        "file ends with 2 strides of the 0.40 m/s walk after its steady point and the change's with 3, Stage 1's "
+        "windows: counted from the steady point a command comes one stride earlier on such a set); another rung is "
+        "reached from 0.40 m/s through the neighbouring rungs' changes, one stride of each rung on the way; the home "
+        "pose of the track's LIPM frequency is read from the 0.40 m/s walk's file (every walk file of a set holds "
+        "the body's one home pose); a condition that needs the nominal walk is not run.  Every record of such a set "
+        "carries lead_in, and a table that prints its rows labels them (the summary's cells and lines, the "
+        "kinematic check's record).  A set whose set.json and entries disagree is refused: lead_in "
+        f"'{setio.start_name(BAR_WALK)}' on a set that holds its nominal walk, or another lead_in on a set that "
+        f"holds {setio.start_name(BAR_WALK)} and the 0.40 m/s walk and no nominal walk"),
     rows=(
         f"R2/<s>@<ms>ms: Stage 1's fitted tracker of CMA-ES seed s with the gains of the Stage 1 run's tune.json "
         f"unchanged; R0@<ms>ms: the panels' open-loop row; <any registered row>@<ms>ms likewise.  <ms> is a servo "
         f"delay of k = ms / {STEP_MS} whole physics steps for the whole episode (speedfit.servo_delay: every servo "
         "target reaches the servos k steps after the controller sets it); with k = 0 the wrapper changes nothing"),
+    delay=(
+        "the delay queue of speedfit.servo_delay (a queue of the last k + 1 servo targets, refilled with the "
+        "reset's targets at every reset: each target reaches the servos k physics steps after the controller sets "
+        "it; k = 0 changes nothing); k is the row's and the same for every episode: speedfit.LATENCY_RULE's random "
+        "draw per episode is not used"),
     seeds=(
         f"blocks: {HEADLINE_BLOCK} ({BLOCKS[HEADLINE_BLOCK][0]}-{BLOCKS[HEADLINE_BLOCK][-1]}, the headline) and "
         f"{REPLICATION_BLOCK} ({BLOCKS[REPLICATION_BLOCK][0]}-{BLOCKS[REPLICATION_BLOCK][-1]}, replication); an "
@@ -228,36 +281,48 @@ RULES = dict(
         "judged.  The judged delay is 10 ms; at another delay a record 'passes at <ms> ms' and gives no verdict.  "
         "R0 rows, Stage 1's reading, the replication block alone and a control give no verdict"),
     replication=(
-        f"every {HEADLINE_BLOCK} record of a row with a verdict that passes in reading 2 or in reading 3 is run "
-        f"again on {REPLICATION_BLOCK} with the same row; the new record names the record and the reading that "
-        "triggered it (replication_of); the blocks are never pooled; a pass of an R0 row is not replicated"),
+        f"of the 75 cm round's sets only {CANDIDATE_SET} (the candidate) is replicated: every {HEADLINE_BLOCK} "
+        "record of it under a row with a verdict that passes in reading 2 or in reading 3 is run again on "
+        f"{REPLICATION_BLOCK} with the same row; the controls are not run on {REPLICATION_BLOCK}; the new record "
+        "names the record and the reading that triggered it (replication_of); the blocks are never pooled; a pass "
+        "of an R0 row is not replicated.  Beside a shown or provisional verdict stands, for each row's record that "
+        "passed, 'replicated' (the second block's record passes in that reading), 'not replicated' or 'replication "
+        "cut by the pre-registered order'"),
     omega=(
         "the track's LIPM frequency is the set's own: control.omega0(p, q_home, crouch_frac = the set's crouch); "
         "the controllers' gains are not refitted; omega and crouch_frac are in every record and in its key"),
     error=(
         "an episode that raised, or that did not fall and whose trace ends before its judged window, failed to "
         "run: it is recorded with its reason, the same seed is run again on the next run of the same key, and a "
-        "record that still holds such an episode is not judged; it is never a failed term"),
+        "record that still holds such an episode is not judged; it is never a failed term.  bar run exits 4 "
+        "while a record of its session holds such an episode"),
     key=(
         "a record's key holds what an episode executes: the row's description and sources, the condition, the "
         "plan, seconds, seeds and command, omega and crouch_frac, panels.key_context(body), per input file its "
         "sha256 and the sha256 of the entry numbers the planner reads (setio.entry_sha256), and the source hashes "
         "of the panels' modules and of bar.py, readings.py, setio.py and speedfit.py"),
     no_overwrite=(
-        "a finished record whose key differs is never replaced silently: the run stops with the differing key "
-        "fields; --supersede moves the old record to <record>.superseded/<first 12 hex of its key's sha256>.json "
-        "and the new record states its reason (supersedes.reason): it is a re-run after a result"),
+        "a finished record ('done' or 'not run') whose key differs is never replaced silently: the run stops with "
+        "the differing key fields, and so it does for a record file that cannot be read; --supersede moves the old "
+        "record to <record>.superseded/<first 12 hex of its key's sha256>.json and the new record states its reason "
+        "(supersedes.reason): it is a re-run after a result.  The label is written beside the kept record "
+        "(<12 hex>.reason.json) before the record is moved, and every later record at that path carries it, so a "
+        "killed re-run keeps it; supersedes.registered names the first record made at the path, supersedes.replaces "
+        "the one just moved; the moved record's traces go to eval/traces.superseded/<12 hex>/"),
     trace=(
         "each episode's trace (not the attribution's lifted runs): Stage 1's 50 Hz arrays (panels.TRACE_RULE) plus "
-        "the 500 Hz contact flags (bit-packed), both feet's 100 Hz low points with their times and the reference's "
-        "swing foot at those updates, the per-swing table and the command instant; the episode record holds its "
-        "path and sha256"),
+        "the 500 Hz contact flags (bit-packed), both feet's 100 Hz low points with their times, the reference's "
+        "swing foot and that swing's planned duration at those updates, the per-swing table and the command "
+        "instant; the episode record holds its sha256, and its path when the file is kept (a trace that is not kept "
+        "is written, hashed and removed: the record says kept: false and why)"),
     attribution=(
         "decision 20 (panels.PANEL_ATTRIBUTION_RULE, gates.attribute) on R2 rows' records with "
         f"{panels.ATTRIBUTION_MIN_FALLS} or more falls: each candidate limit lifted over the same seeds.  A turn, "
         f"nudge or stop record with fewer than {panels.ATTRIBUTION_MIN_FALLS} falls after its command is not "
         "attributed itself: it cites the walk record of the same set, row, grip and block.  A record whose "
-        "attribution the budget cut reads 'not attributed (budget, pre-registered order)'"),
+        "attribution the budget cut reads 'not attributed (budget, pre-registered order)'.  A unit's episodes all "
+        "finish before any of its records is attributed; attribution then runs record by record in the order the "
+        "records were made, and the record names the session that ran it"),
     budget=(
         "a task's budget is the sum of its episodes' wall seconds (attribution's lifted episodes and re-runs "
         "included) in budget.json.  It is spent unit by unit (one run command; one record's attribution): a unit "
@@ -265,9 +330,23 @@ RULES = dict(
         "committed rates) fit; a started unit finishes; the first unit that does not fit is cut with every unit "
         "after it"),
     checks=(
-        "on the three sets of the 75 cm round a run is either a task's unit (--task) or a build check: at most one "
+        "on the three sets of the 75 cm round (and a version of one: a name's part before its first dot) a run is "
+        "either a task's unit (--task) or a build check: at most one "
         f"episode (seed {BLOCKS[HEADLINE_BLOCK][0]}) per condition and R0 row on set {CHECK_SET}, each listed with its "
-        "reason in the file --dev-episodes names; a check is smoke and no record"),
+        "reason in the file --dev-episodes names, when it starts and again when it is recorded; a check is smoke "
+        "and no record.  On any other reference set (a scratch or fixture set built from Stage 1's gaits) only R0 "
+        "rows run, never an R2 row (STAGE2_75_PLAN.md, amendment 5 of 15 Nov).  A run without --task writes neither "
+        "under stage2/runs/ nor into a directory that holds a budget.json, and no run writes under stage1/ or "
+        "stage2/sets/"),
+    freeze=(
+        "a run reads a frozen set: every file played is in the latest freeze with its sha256 and its entry's "
+        "hashed subset (setio.read_inputs), the freeze's manifest_sha256 is recomputed from its manifest "
+        "(s2io.sha256_json) and a set whose stored value differs is refused, and set.json's crouch_frac must equal "
+        "the crouch_frac of every walk entry played (which the freeze covers).  A record names the freeze "
+        "(set_freeze) and, per input file, the first freeze that lists it; a freeze that set.json labels "
+        "change_after_result is copied with its reason into every record that plays a file it added "
+        "(change_after_result: 'change after a result'), and after_check_episodes likewise (which is no change "
+        "after a result)"),
     stock=(
         "a Stage 1 condition on the pseudo-set S1 (a Stage 1 run directory) is built by panels.Context.built and "
         "judged by panels.judge unchanged, with Stage 1's terms, trace and omega (0.03 H crouch); its record has "
@@ -277,8 +356,11 @@ RULES = dict(
         "loads are read after it, so physics step a and a row with t = a dt are one instant "
         "(readings.STEP_OFFSET); convention_check reads it on a real episode"),
 )
-COMMON_RULE_KEYS = ("clocks", "readings", "plans", "rows", "seeds", "pass_", "replication", "omega", "error", "key",
-                    "no_overwrite", "trace", "attribution", "budget", "checks", "convention")
+COMMON_RULE_KEYS = ("clocks", "readings", "plans", "rows", "delay", "seeds", "pass_", "replication", "omega", "error",
+                    "key", "no_overwrite", "trace", "attribution", "budget", "checks", "freeze", "convention")
+#: What a control's record says in place of ``RULES["omega"]``.
+CONTROL_RULES = {"omega_s1": "control: omega computed with Stage 1's 0.03 H crouch instead of the set's own "
+                             "(STAGE2_75_PLAN B5); no verdict, not replicated, not attributed"}
 JUDGE_RULE_KEYS = {"bar_walk": ("walk", "toe"), "bar_turn": ("turn", "walk", "toe"), "bar_nudge": ("nudge",),
                    "bar_stop": ("stop",)}
 #: Stage 1's rules a bar record relies on (copied into it under ``rules.stage1``).
@@ -302,20 +384,45 @@ class Unreadable(RuntimeError):
     """An episode that did not fall and cannot be read (``RULES["error"]``): the worker records it as failed to run."""
 
 
-def rules_of(cond, set_docs: dict | None = None) -> dict:
+def registered_name(set_name) -> str | None:
+    """The registered set a name stands for: the part before its first dot (``F25F9cl.2`` is a version of
+    ``F25F9cl``) if that is one of ``PREREGISTERED_SETS``; None for the pseudo-set, a fixture or a scratch set."""
+    base = str(set_name).split(".", 1)[0]
+    return base if base in PREREGISTERED_SETS else None
+
+
+def rules_of(cond, set_docs: dict | None = None, control: str | None = None) -> dict:
     """The rules a condition's record is made by: the bar's common ones and its judge's, Stage 1's rules they rely
-    on, and for a bar condition the set's own (``set.json`` ``rules`` and the walk entry's ``margin_rule``)."""
+    on, and for a bar condition the set's own (``set.json`` ``rules``, the walk entry's and the move entry's
+    ``margin_rule`` and ``label``).  A control's record states the control in place of ``RULES["omega"]``."""
     if not isinstance(cond, BarCondition):
-        return dict({k: RULES[k] for k in ("stock", "rows", "seeds", "pass_", "error", "key", "no_overwrite")},
-                    stage1=panels.rules_of(cond))
+        return dict({k: RULES[k] for k in ("stock", "rows", "delay", "seeds", "pass_", "error", "key", "no_overwrite",
+                                           "trace")}, stage1=panels.rules_of(cond))
     out = {k: RULES[k] for k in COMMON_RULE_KEYS + JUDGE_RULE_KEYS[cond.judge]}
     out["stage1"] = {k: panels.RULES[k] for k in STAGE1_RULE_KEYS}
-    out["delay"] = speedfit.LATENCY_RULE
+    if control is not None:
+        out["omega"] = CONTROL_RULES[control]
     if set_docs is not None:
         walk = (set_docs["refs.json"]["references"].get(cond.walk) or {})
+        move = (set_docs["transitions.json"]["transitions"].get(cond.move) or {}) if cond.move else {}
         out["set"] = dict(rules=set_docs["set.json"].get("rules"), margin_rule=walk.get("margin_rule"),
-                          label=walk.get("label"), omega_rule=set_docs["set.json"].get("omega_rule"))
+                          label=walk.get("label"), omega_rule=set_docs["set.json"].get("omega_rule"),
+                          move_margin_rule=move.get("margin_rule"), move_label=move.get("label"),
+                          move_rules=(move.get("move") or {}).get("rules"))
+        if lead_in_of(set_docs["set.json"]) != setio.START:  # (no key in the records of any other set)
+            out["lead_in"] = RULES["lead_in"]
     return out
+
+
+def lead_in_of(set_doc: dict | None) -> str:
+    """The start a set's plans begin with (``LEAD_INS``): ``set.json`` ``lead_in``; ``start`` where the set records
+    none (a set built before the key, a fixture, a set without a lead-in, whose conditions are not run for want of
+    the nominal walk).  ``tune.InputError`` for another value."""
+    lead = (set_doc or {}).get("lead_in") or setio.START
+    if lead not in LEAD_INS:
+        raise tune.InputError(f"set.json of {(set_doc or {}).get('set')!r} records lead_in {lead!r}: the bar knows "
+                              f"{' and '.join(LEAD_INS)} ({RULES['lead_in']})")
+    return lead
 
 
 # ------------------------------------------------------------------------------------------------
@@ -472,9 +579,26 @@ class BarPlanner:
     times follow ``control.build_track``; a periodic item lasts its strides times the entry's ``window_s`` (its
     ``period_s`` where the entry has none)."""
 
-    def __init__(self, set_dir, refs_doc: dict, tr_doc: dict, set_doc: dict | None = None):
+    def __init__(self, set_dir, refs_doc: dict, tr_doc: dict, set_doc: dict | None = None,
+                 stand_in_walks: bool | None = None):
         self.set_dir, self.refs_doc, self.tr_doc = Path(set_dir), refs_doc, tr_doc
         self.set_doc = set_doc or {}
+        #: A fixture's walk may stand in for a rung of another speed (``set.json`` ``stand_in_walks: true``, or the
+        #: argument); a registered set never has one.  The set's records say so (``stand_in_walks``).
+        self.stand_in_walks = bool(self.set_doc.get("stand_in_walks") if stand_in_walks is None else stand_in_walks)
+        if self.stand_in_walks and registered_name(self.set_doc.get("set", "")) is not None:
+            raise tune.InputError(f"{self.set_dir}: a set of the 75 cm round has no stand-in walk (stand_in_walks)")
+        #: The start every plan of the set begins with, and the walk whose file gives the home pose of
+        #: ``control.omega0``: the nominal walk, or the 0.40 m/s walk of a set that starts into it (``RULES["lead_in"]``).
+        self.lead = lead_in_of(self.set_doc)
+        alt, has_nominal = setio.start_name(BAR_WALK), self.usable("refs", setio.NOMINAL)
+        if self.lead == alt and has_nominal:
+            raise tune.InputError(f"{self.set_dir}: set.json records lead_in {alt!r} but the set holds its nominal "
+                                  f"walk: the exception is for a set whose nominal walk is not a rung ({RULES['lead_in']})")
+        if self.lead == setio.START and not has_nominal and self.usable("refs", BAR_WALK) and self.usable("transitions", alt):
+            raise tune.InputError(f"{self.set_dir}: the set holds {alt} and no nominal walk, but set.json records "
+                                  f"lead_in {self.set_doc.get('lead_in')!r} ({RULES['lead_in']})")
+        self.home_walk = setio.NOMINAL if self.lead == setio.START else BAR_WALK
         self._files = panels.Planner(self.set_dir, refs_doc, tr_doc)  # loads the arrays a plan's times need
 
     # ---------------------------------------------------------------- what the set has
@@ -498,7 +622,17 @@ class BarPlanner:
     def lead_in(self, walk: str) -> list | None:
         """The plan items before the steady walk ``walk``: ``start`` for the nominal walk; else start, one stride
         of nominal and the direct change; else the neighbouring rung's lead-in, one stride of that rung and the
-        change from it (the path through 0.40 m/s); None if the set has neither."""
+        change from it (the path through 0.40 m/s); None if the set has neither.  A set that starts straight into
+        its 0.40 m/s walk (``RULES["lead_in"]``): that start for the 0.40 m/s walk; for another rung the neighbouring
+        rung's lead-in, one stride of that rung and the change from it; None for the nominal walk."""
+        if self.lead != setio.START:
+            if walk == BAR_WALK:
+                return [("transition", self.lead)]
+            step = self.step_change(walk)
+            head = None if step is None else self.lead_in(step[0])
+            if head is None or not self.usable("transitions", step[1]) or not self.usable("refs", step[0]):
+                return None
+            return head + [("ref", step[0], 1), ("transition", step[1])]
         if walk == setio.NOMINAL:
             return [("transition", setio.START)]
         direct = setio.change_name(setio.NOMINAL, walk)
@@ -515,9 +649,19 @@ class BarPlanner:
             return None
         return head + [("ref", nb, 1), ("transition", step)]
 
+    @staticmethod
+    def step_change(walk: str) -> tuple[str, str] | None:
+        """(the neighbouring rung toward 0.40 m/s, the change from it into ``walk``) for a ladder rung other than
+        the 0.40 m/s walk; None for any other walk."""
+        v = setio.parse_name(walk)["speed_m_s"]
+        if walk == BAR_WALK or v not in setio.SPEEDS:
+            return None
+        nb = setio.walk_name(setio.SPEEDS[setio.SPEEDS.index(v) + (1 if v < setio.BAR_SPEED else -1)])
+        return nb, setio.change_name(nb, walk)
+
     def missing(self, cond: BarCondition) -> dict | None:
         """Why ``cond`` cannot be run on this set (``{reference, reason, numbers}``), or None."""
-        need = [("refs", setio.NOMINAL), ("transitions", setio.START), ("refs", cond.walk)]
+        need = [("refs", self.home_walk), ("transitions", self.lead), ("refs", cond.walk)]
         if cond.move:
             need.append(("transitions", cond.move))
         for sub, name in need:
@@ -525,8 +669,19 @@ class BarPlanner:
             if why is not None:
                 return why
         if self.lead_in(cond.walk) is None:
-            direct = setio.change_name(setio.NOMINAL, cond.walk)
+            if self.lead == setio.START:
+                direct = setio.change_name(setio.NOMINAL, cond.walk)
+            else:  # the change that reaches a rung of such a set comes from its neighbour
+                step = self.step_change(cond.walk)
+                if step is None:
+                    return dict(reference=f"refs/{cond.walk}", numbers=None,
+                                reason=f"the set starts into {BAR_WALK} ({self.lead}): no lead-in reaches {cond.walk}")
+                direct = step[1]
             why = self.why_not("transitions", direct) or {}
+            if direct not in self.tr_doc and not (self.set_doc.get("not_available") or {}).get(direct):
+                # (a set records a neighbour's change that failed its gates under the direct change's name, with
+                # the numbers of what was tried)
+                why = self.why_not("transitions", setio.change_name(setio.NOMINAL, cond.walk)) or why
             return dict(reference=f"transitions/{direct}",
                         reason=f"no transition into {cond.walk} ({why.get('reason') or 'none in the set'})",
                         numbers=why.get("numbers"))
@@ -546,6 +701,31 @@ class BarPlanner:
         """The walk's target speed: the speed its name holds, or the nominal walk's own."""
         v = setio.parse_name(name).get("speed_m_s")
         return float(self.refs_doc[name]["speed_m_s"]) if v is None else float(v)
+
+    def check_speed(self, name: str) -> None:
+        """A rung's entry must hold the speed its name holds (to ``SPEED_NAME_TOL``, relative): the judge takes
+        the target from the name and decision 18's reading from the entry.  ``tune.InputError`` otherwise, unless
+        the set declares stand-in walks."""
+        v = setio.parse_name(name).get("speed_m_s")
+        got = self.refs_doc[name].get("speed_m_s")
+        if v is None or self.stand_in_walks:
+            return
+        if got is None or abs(float(got) - float(v)) > SPEED_NAME_TOL * float(v):
+            raise tune.InputError(f"walk {name!r}: its entry's speed_m_s is {got!r}, its name holds {v:g} m/s "
+                                  f"(relative tolerance {SPEED_NAME_TOL:g}; a fixture's stand-in walk needs "
+                                  "stand_in_walks in set.json)")
+
+    def check_phase(self, cond: "BarCondition", lead_strides: float) -> dict:
+        """The move entry's ``move`` block of a commanded item.  A causal move must be placed at the walk phase it
+        was built for: the strides of the walk before it, modulo one, equal its ``command_phase``
+        (``tune.InputError`` otherwise; the file's first frame would not join the walk)."""
+        move = self.tr_doc[cond.move].get("move") or {}
+        if move.get("causal"):
+            ph = move.get("command_phase")
+            if ph is None or abs(((float(lead_strides) - float(ph)) % 1.0 + 0.5) % 1.0 - 0.5) >= 1e-9:
+                raise tune.InputError(f"{cond.key}: {cond.move} was built for the walk phase {ph!r}, the plan puts "
+                                      f"it after {lead_strides:g} strides of {cond.walk}")
+        return move
 
     def segment_times(self, plan: list) -> list[tuple[float, float]]:
         """(t0, duration) of each item on the reference clock, as ``control.build_track`` lays them out."""
@@ -574,9 +754,10 @@ class BarPlanner:
         return float(self.segment_times(plan)[i][0] + np.interp(phase, tr.phase, tr.t))
 
     @staticmethod
-    def files_of(plan: list) -> list[str]:
-        """The files a plan loads, with ``refs/nominal.npz`` (the home pose of ``control.omega0``)."""
-        out = {f"refs/{setio.NOMINAL}.npz"}
+    def files_of(plan: list, home: str = setio.NOMINAL) -> list[str]:
+        """The files a plan loads, with ``refs/nominal.npz`` (the home pose of ``control.omega0``; ``home``: the
+        walk a set that starts into its 0.40 m/s walk reads it from, ``home_walk``)."""
+        out = {f"refs/{home}.npz"}
         for item in plan:
             if item[0] == "ref":
                 out.add(f"refs/{item[1]}.npz")
@@ -592,7 +773,10 @@ class BarPlanner:
         if why is not None:
             raise tune.InputError(f"{cond.key}: {why['reference']}: {why['reason']}")
         out = self._resolve(cond)
-        out["files"] = self.files_of(out["plan"])
+        for item in out["plan"]:
+            if item[0] == "ref":
+                self.check_speed(item[1])
+        out["files"] = self.files_of(out["plan"], self.home_walk)
         if cond.seconds is not None and cond.seconds < out["seconds"]:
             out = dict(out, seconds=float(cond.seconds), cut_from_s=out["seconds"])
         return out
@@ -622,13 +806,17 @@ class BarPlanner:
                         window=dict(kind="the whole episode"))
         if j == "bar_turn":
             name = setio.parse_name(cond.move)
+            move = self.check_phase(cond, TURN_LEAD_STRIDES[name["direction"]])
+            if not move.get("causal"):
+                raise tune.InputError(f"{cond.key}: {cond.move} is not a causal move (a turn's file begins at its "
+                                      "command)")
             head = lead + [("ref", W, TURN_LEAD_STRIDES[name["direction"]]), ("transition", cond.move)]
             times = self.segment_times(head + [("ref", W, 1)])
             t_cmd, t_after = times[len(head) - 1][0], times[len(head)][0]
             at_s = name["angle_rad"] / abs(name["rate_rad_s"])
             seconds = t_cmd / (SLOW * RATE) + at_s + readings.HEADING_HOLD_S + END_MARGIN_S
             K = max(1, math.ceil((seconds * FAST * RATE - t_after) / P))
-            phase = ((self.tr_doc[cond.move].get("move") or {}).get("command_phase"))
+            phase = move.get("command_phase")
             return dict(out, plan=head + [("ref", W, K)], seconds=seconds, command_ref_s=t_cmd, at_s=at_s,
                         steady_ref_s=t_walk, sign=name["sign"], angle_rad=name["angle_rad"],
                         command=dict(name=cond.move, ref_s=t_cmd, phase=phase, convention="causal: the move's first "
@@ -639,7 +827,7 @@ class BarPlanner:
             head = lead + [("ref", W, STOP_LEAD_STRIDES[name["steps"]]), ("transition", cond.move)]
             t_seg, dur = self.segment_times(head)[-1]
             t_rest = t_seg + dur
-            move = self.tr_doc[cond.move].get("move") or {}
+            move = self.check_phase(cond, STOP_LEAD_STRIDES[name["steps"]])
             if move.get("causal"):
                 command = dict(name=cond.move, ref_s=t_seg, phase=move.get("command_phase"),
                                convention="causal: the move's first frame")
@@ -710,7 +898,7 @@ class Delayed(panels.Row):
 
     def describe(self) -> dict:
         return dict(self.inner.describe(), delayed_row=self.name, latency_steps=self.k, latency_ms=STEP_MS * self.k,
-                    latency_rule=RULES["rows"], servo_delay_rule=speedfit.LATENCY_RULE)
+                    latency_rule=RULES["rows"], servo_delay_rule=RULES["delay"])
 
     def sources(self) -> dict:
         """The inner row's sources with this module and ``speedfit.py`` (the delay model) by sha256."""
@@ -791,7 +979,7 @@ class BarContext(panels.Context):
     @property
     def q_home(self) -> np.ndarray:
         if self._q_home is None:
-            self._q_home = Reference.load(self.run_dir / "refs" / f"{setio.NOMINAL}.npz").q_home
+            self._q_home = Reference.load(self.run_dir / "refs" / f"{self.bar_planner.home_walk}.npz").q_home
         return self._q_home
 
     def release(self) -> None:
@@ -861,18 +1049,46 @@ def context_for(body: str, run_dir, docs: dict, set_doc: dict | None, crouch_fra
     return _CONTEXT["ctx"]
 
 
-def set_crouch(set_doc: dict) -> float:
+def walks_of(files) -> list[str]:
+    """The walk entries among a run's input files (``refs/<name>.npz``)."""
+    return sorted({Path(f).stem for f in files if Path(f).parts[0] == "refs"})
+
+
+def set_crouch(set_doc: dict, refs: dict | None = None, walks=()) -> float:
     """The crouch a set records in ``set.json`` (``crouch_frac``, a share of the hip height): the crouch of every
-    spec of the set, with which the track's LIPM frequency is computed.  A set that records none is refused."""
-    if set_doc.get("crouch_frac") is None:
+    spec of the set, with which the track's LIPM frequency is computed.  A set that records none is refused.  No
+    freeze covers ``set.json``'s own value, so with ``refs`` (the references of ``refs.json``) every walk entry in
+    ``walks`` (the ones a run plays; a freeze covers their ``crouch_frac``) must record the same value: a set
+    where they differ is refused, with both values."""
+    c = set_doc.get("crouch_frac")
+    if c is None:
         raise BarError(f"set.json of {set_doc.get('set')!r} records no crouch_frac ({RULES['omega']})")
-    return float(set_doc["crouch_frac"])
+    for w in sorted(set(walks)) if refs is not None else ():
+        own = (refs.get(w) or {}).get("crouch_frac")
+        if own is None or float(own) != float(c):
+            raise BarError(f"set.json of {set_doc.get('set')!r} records crouch_frac {c!r}, its walk entry {w!r} "
+                           f"records {own!r}: the track's LIPM frequency would not be the frozen entries' "
+                           f"({RULES['omega']})")
+    return float(c)
 
 
-def omega_of(body: str, run_dir, crouch_frac: float) -> float:
-    """The track's LIPM frequency of a set and body (``RULES["omega"]``), as ``BarContext.built`` computes it."""
+def check_manifest(set_doc: dict) -> None:
+    """``RULES["freeze"]``: every freeze's ``manifest_sha256`` must be ``s2io.sha256_json`` of its ``manifest``
+    (``tune.InputError`` otherwise): a record's ``set_freeze.manifest_sha256`` then names the manifest the run
+    checked its files against."""
+    for fz in set_doc.get("freezes") or []:
+        got = s2io.sha256_json(fz.get("manifest"))
+        if got != fz.get("manifest_sha256"):
+            raise tune.InputError(f"set.json of {set_doc.get('set')!r}: freeze {fz.get('index')!r} stores "
+                                  f"manifest_sha256 {str(fz.get('manifest_sha256'))[:12]}..., its manifest hashes to "
+                                  f"{got[:12]}...")
+
+
+def omega_of(body: str, run_dir, crouch_frac: float, home: str = setio.NOMINAL) -> float:
+    """The track's LIPM frequency of a set and body (``RULES["omega"]``), as ``BarContext.built`` computes it.
+    ``home``: the walk whose file gives the home pose (``BarPlanner.home_walk``)."""
     p = plant.build(body, "hard", settle=False)
-    q_home = Reference.load(Path(run_dir) / "refs" / f"{setio.NOMINAL}.npz").q_home
+    q_home = Reference.load(Path(run_dir) / "refs" / f"{home}.npz").q_home
     return float(control.omega0(p, q_home, crouch_frac=crouch_frac))
 
 
@@ -931,15 +1147,62 @@ def _com(rec: metrics.Recorder) -> np.ndarray:
     return rec.U[:, [metrics.C["com_x"], metrics.C["com_y"]]]
 
 
-def _toe(b: BarBuilt, rec: metrics.Recorder, ta: float, tb: float) -> tuple[dict, list]:
-    """Reading (a) over [ta, tb]: (the reading with its term and without the per-swing table, the table)."""
-    r = readings.toe_clearance_own_swing(rec.t, _lows(rec), rec.contact(), rec.dt, rec.col("ref_swing"), ta, tb,
-                                         b.air_gap_max_s)
-    table = r.pop("swings")
-    v = r["toe_clearance_own_swing_m"]
+#: The keys of reading (a) that STAGE2_75_PLAN.md C3's Check names: a walk's and a turn's episode holds them directly
+#: under ``measures.bar`` (and the whole reading under ``measures.bar.toe``).
+TOE_KEYS = ("toe_clearance_own_swing_m", "toe_clearance_own_duration_m", "own_swings", "ref_swings",
+            "interrupted_swings", "air_gaps", "air_gap_max_s")
+
+
+def planned_swing_rows(track: control.Track, t_ref, ref_swing, rate: float = RATE) -> np.ndarray:
+    """Per update row, ``T_p`` of reading (a): the planned duration of the reference swing the row lies in, on the
+    simulated clock.  The row's reference time is looked up in the track's planned swings of the row's swing foot
+    (``setio.planned_swings``, reference seconds) and the swing's duration divided by ``rate``, as
+    ``readings.air_gap_max`` converts the shortest.  Past the end of a track that ends in a walk the walk's strides
+    repeat (``control.Track.info``): the row's reference time is then taken back by whole strides of that walk.  NaN
+    for a row in no swing, or in one the track's plan does not hold (the reading takes the shortest planned swing
+    there)."""
+    t_ref = np.asarray(t_ref, float)
+    foot = np.rint(np.asarray(ref_swing, float)).astype(int)
+    out = np.full(len(t_ref), math.nan)
+    by = {i: sorted((a, b) for f, a, b in setio.planned_swings(track) if f == i) for i in (0, 1)}
+    starts = {i: np.array([a for a, _ in v]) for i, v in by.items()}
+    last = track.segments[-1] if track.segments else None
+    stride = float(last.n * last.step) if last is not None and last.kind == "periodic" else None
+
+    def lookup(i: int, x: float) -> float | None:
+        k = int(np.searchsorted(starts[i], x + EPS_S, side="right")) - 1
+        if k >= 0 and x < by[i][k][1] + EPS_S:
+            return (by[i][k][1] - by[i][k][0]) / rate
+        return None
+
+    for r in np.flatnonzero(foot >= 0):
+        i, x = int(foot[r]), float(t_ref[r])
+        if i not in by:
+            continue
+        v = lookup(i, x)
+        while v is None and stride is not None and x - stride >= last.t0 - EPS_S:
+            x -= stride
+            v = lookup(i, x)
+        if v is not None:
+            out[r] = v
+    return out
+
+
+def _toe(b, rec: metrics.Recorder, ta: float, tb: float, air_gap_max_s: float | None = None,
+         planned=None) -> tuple[dict, dict]:
+    """Reading (a) over [ta, tb]: (the reading with its term and without the per-swing tables; the tables and the
+    rows' planned swing durations, for the trace).  ``b`` is any built condition (its track and hip height)."""
+    if planned is None:
+        planned = planned_swing_rows(b.track, rec.col("t_ref"), rec.col("ref_swing"))
+    gap = b.air_gap_max_s if air_gap_max_s is None else air_gap_max_s
+    r = readings.toe_clearance_own_swing(rec.t, _lows(rec), rec.contact(), rec.dt, rec.col("ref_swing"), ta, tb, gap,
+                                         planned_s=planned)
+    extra = dict(swings=r.pop("swings"), swing_details=r.pop("swing_details"), planned_s=planned)
+    v, v1 = r["toe_clearance_own_swing_m"], r["toe_clearance_own_duration_m"]
     r.update(ok=readings.toe_clearance_own_swing_ok(r, b.H), limit_m=readings.TOE_CLEARANCE_FRAC_H * b.H,
-             toe_clearance_own_swing_H=None if v is None else v / b.H, window_s=[float(ta), float(tb)])
-    return r, table
+             toe_clearance_own_swing_H=None if v is None else v / b.H,
+             toe_clearance_own_duration_H=None if v1 is None else v1 / b.H, window_s=[float(ta), float(tb)])
+    return r, extra
 
 
 def _window_limits(w: dict, cond: BarCondition, target_speed: float) -> dict:
@@ -954,6 +1217,40 @@ def _window_limits(w: dict, cond: BarCondition, target_speed: float) -> dict:
                 grf=w["grf_peak_bw"] <= tune.GRF_BW,
                 cadence=w["cadence_steps_s"] is not None and tune.CADENCE[0] <= w["cadence_steps_s"] <= tune.CADENCE[1],
                 stride=w["stride_H"] is not None and tune.STRIDE_H[0] <= w["stride_H"] <= tune.STRIDE_H[1])
+
+
+def joint_range_window(b: BarBuilt, rec: metrics.Recorder, ta: float, tb: float) -> dict:
+    """The joint range over the update rows in [ta, tb] (``panels._base``'s reading on those rows): each joint's
+    smallest distance to its range against ``b.required`` (an end a joint rests on by design left out,
+    ``plant.REST_ON_STOP_RULE``).  ``ok`` is None when the window holds no row."""
+    sel = (rec.t >= ta - EPS_S) & (rec.t <= tb + EPS_S)
+    out = dict(span="window", window_s=[float(ta), float(tb)], rows=int(sel.sum()), ok=None, joint_margin_min_rad=None,
+               joint_shortfall_rad=None, joint_worst=None)
+    if not sel.any():
+        return out
+    margins = metrics.joint_margins(rec.Q[sel], b.lo, b.hi, plant.rest_ends(b.p.joints))
+    short = b.required - margins
+    w = int(np.argmax(short))
+    return dict(out, ok=bool(short[w] <= 0.0), joint_margin_min_rad=float(margins.min()),
+                joint_shortfall_rad=float(short[w]), joint_worst=b.p.joints[w])
+
+
+def leg_gap_window(rec: metrics.Recorder, lg, ta: float, tb: float) -> dict:
+    """``legs.LegGap`` over the recorded poses inside [ta, tb] (``metrics.leg_gap``'s keys): pose j is the update
+    row ``j * rec.legs_every``.  ``interference_free`` is None when the window holds no pose."""
+    poses = rec.poses or []
+    rows = np.arange(len(poses)) * max(1, int(rec.legs_every))
+    t = np.asarray(rec.t, float)
+    keep = [q for q, r in zip(poses, rows, strict=True)
+            if r < len(t) and ta - EPS_S <= t[r] <= tb + EPS_S]
+    out = dict(span="window", window_s=[float(ta), float(tb)], poses=len(keep), poses_episode=len(poses),
+               interference_free=None, min_gap_all_mm=None)
+    if not keep or lg is None:
+        return out
+    r = lg.trace(keep)
+    return dict(out, **{k: r[k] for k in ("poses", "interference_free", "interference_poses", "tight_poses",
+                                          "min_gap_all_mm", "min_gap_all_pair", "min_gap_moving_mm",
+                                          "min_gap_moving_pair")})
 
 
 def _planned_s(b: BarBuilt) -> float:
@@ -1001,7 +1298,8 @@ def _judge(b: BarBuilt, out: dict, rec: metrics.Recorder, seed: int, lg=None) ->
     ok: dict = dict(survived=not fell, drive_speed=limits["drive_speed"], joint_range=limits["joint_range"])
     bar: dict = {}
     measures: dict = dict(bar=bar, window=None, stage1=None, legs=None, push=None, recovery=None)
-    swings: list = []
+    planned = planned_swing_rows(b.track, rec.col("t_ref"), rec.col("ref_swing")) if rec.rows else np.zeros(0)
+    toe_extra: dict = dict(swings=[], swing_details=[], planned_s=planned)
     drives_episode = (readings.drive_ratios(rec.force_sq, rec.sustained, rec.actuators, b.leg_mask, 0, rec.steps)
                       if rec.steps else None)
     drives_window = None
@@ -1028,7 +1326,7 @@ def _judge(b: BarBuilt, out: dict, rec: metrics.Recorder, seed: int, lg=None) ->
                 raise Unreadable(f"{cond.key} seed {seed}: the last {tune.WALK_WINDOW_S:g} s ([{ta:.3f}, {tb:.3f}] s) "
                                  f"are not all in the walk's steady part (it begins at {steady} s)")
             window_reached = True
-            toe, swings = _toe(b, rec, ta, tb)
+            toe, toe_extra = _toe(b, rec, ta, tb, planned=planned)
             drives_window = readings.drive_ratios(rec.force_sq, rec.sustained, rec.actuators, b.leg_mask,
                                                   *_window_steps(rec, ta, tb))
             target = tune.WALK_WINDOW_S * b.target_speed
@@ -1036,7 +1334,8 @@ def _judge(b: BarBuilt, out: dict, rec: metrics.Recorder, seed: int, lg=None) ->
             ok.update(along=line["along_commanded_heading_m"] >= target, line=line["lateral_from_line_max_m"] <= readings.LINE_MAX_M,
                       toe_clearance_own_swing=toe["ok"])
             bar.update(line, along_target_m=target, line_max_m=readings.LINE_MAX_M, toe=toe,
-                       heading_drift_deg=math.degrees(w["heading_change_rad"]), grf_peak_bw=w["grf_peak_bw"],
+                       **{k: toe[k] for k in TOE_KEYS}, heading_drift_deg=math.degrees(w["heading_change_rad"]),
+                       grf_peak_bw=w["grf_peak_bw"],
                        cadence_steps_s=w["cadence_steps_s"], stride_H=w["stride_H"], duty=w["duty"],
                        stage1_toe_clearance_m=w["toe_clearance_m"])
             measures["look"] = panels.look(rec, ta, tb, H, b.spec.stride_s, b.track, b.p.joints)
@@ -1057,16 +1356,29 @@ def _judge(b: BarBuilt, out: dict, rec: metrics.Recorder, seed: int, lg=None) ->
                 if not w.get("complete"):
                     raise Unreadable(f"{cond.key} seed {seed}: the window [{ta:.3f}, {tb:.3f}] s cannot be read")
                 window_reached = True
-                toe, swings = _toe(b, rec, ta, tb)
+                toe, toe_extra = _toe(b, rec, ta, tb, planned=planned)
                 drives_window = readings.drive_ratios(rec.force_sq, rec.sustained, rec.actuators, b.leg_mask,
                                                       *_window_steps(rec, ta, tb))
                 measures["window"] = {k: w.get(k) for k in panels.WINDOW_KEYS}
+                jr = joint_range_window(b, rec, ta, tb)
+                measures["legs"] = (dict(leg_gap_window(rec, lg, ta, tb), window_complete=True) if lg is not None
+                                    else None)
                 ok.update(_window_limits(w, cond, b.target_speed))
-                ok.update(heading=tr["heading"], toe_clearance_own_swing=toe["ok"])
-                bar.update(toe=toe, grf_peak_bw=w["grf_peak_bw"], duty=w["duty"],
-                           stage1_toe_clearance_m=w["toe_clearance_m"])
-        measures["legs"] = metrics.leg_gap(rec, lg) if lg is not None else None
-        ok["no_leg_interference"] = bool(measures["legs"] and measures["legs"]["interference_free"])
+                ok.update(heading=tr["heading"], toe_clearance_own_swing=toe["ok"], joint_range=bool(jr["ok"]),
+                          no_leg_interference=bool(measures["legs"] and measures["legs"]["interference_free"]))
+                bar.update(toe=toe, **{k: toe[k] for k in TOE_KEYS}, grf_peak_bw=w["grf_peak_bw"], duty=w["duty"],
+                           stage1_toe_clearance_m=w["toe_clearance_m"], joint_range=jr)
+            elif lg is not None:  # a fall inside the window: what there is of it, reported
+                measures["legs"] = dict(leg_gap_window(rec, lg, t_c, t_c + at_s + readings.HEADING_HOLD_S),
+                                        window_complete=False)
+        # the same two readings over the whole episode, reported (Stage 1's span); a fall leaves the terms false
+        measures["legs_episode"] = metrics.leg_gap(rec, lg) if lg is not None else None
+        bar.update(drive_speed_span="episode", joint_range_span="window", no_leg_interference_span="window",
+                   joint_range_episode=dict(span="episode", ok=bool(limits["joint_range"]),
+                                            joint_shortfall_rad=e["joint_shortfall_rad"], joint_worst=e["joint_worst"]))
+        ok.setdefault("no_leg_interference", False)
+        if not window_reached:
+            ok["joint_range"] = False
     elif j == "bar_nudge":
         t_on = b.push_onset(seed)
         f = b.push_force()
@@ -1107,7 +1419,7 @@ def _judge(b: BarBuilt, out: dict, rec: metrics.Recorder, seed: int, lg=None) ->
         raise ValueError(f"judge {j!r}")
     if j in ("bar_nudge", "bar_stop") and rec.rows > 1:  # reported: the own-swing reading over the whole trace
         try:
-            toe, swings = _toe(b, rec, float(rec.t[0]), float(rec.t[-1]))
+            toe, toe_extra = _toe(b, rec, float(rec.t[0]), float(rec.t[-1]), planned=planned)
             bar["toe_reported"] = toe
         except ValueError as exc:
             bar["toe_reported"] = dict(error=str(exc))
@@ -1129,7 +1441,7 @@ def _judge(b: BarBuilt, out: dict, rec: metrics.Recorder, seed: int, lg=None) ->
              command_s=t_c, command_ref_s=command_ref, fell_before_command=before,
              segment_reached=out.get("segment_reached"), window_reached=bool(window_reached), omega=b.omega,
              crouch_frac=b.crouch_frac, measures=measures)
-    return e, dict(swings=swings, command_s=t_c)
+    return e, dict(toe_extra, command_s=t_c)
 
 
 def judge(b, out: dict, rec: metrics.Recorder, seed: int, lg=None) -> dict:
@@ -1141,20 +1453,31 @@ def judge(b, out: dict, rec: metrics.Recorder, seed: int, lg=None) -> dict:
     return _judge(b, out, rec, seed, lg)[0]
 
 
-def swing_table(swings: list) -> np.ndarray:
-    """The per-swing table as an array [n, 5]: foot, t_lo, t_td, min (NaN: not read), class (its index in
-    ``readings.SWING_CLASSES``)."""
+SWING_COLS = ("foot", "t_lo_s", "t_td_s", "min_m", "class", "planned_s", "own_duration_min_m")
+
+
+def swing_table(swings: list, details: list | None = None) -> np.ndarray:
+    """The per-swing table as an array [n, 7] (``SWING_COLS``): foot, t_lo, t_td, the judged minimum (NaN: not
+    read), class (its index in ``readings.SWING_CLASSES``), the planned duration ``T_p`` and the minimum as first
+    written, over the swing's own duration (NaN: none)."""
     cls = {c: i for i, c in enumerate(readings.SWING_CLASSES)}
-    return np.array([[r[0], r[1], r[2], math.nan if r[3] is None else r[3], cls[r[4]]] for r in swings],
-                    float).reshape(-1, 5)
+    details = details if details is not None else [{}] * len(swings)
+
+    def num(x):
+        return math.nan if x is None else float(x)
+
+    return np.array([[r[0], r[1], r[2], num(r[3]), cls[r[4]], num(d.get("planned_s")), num(d.get("own_duration_min_m"))]
+                     for r, d in zip(swings, details, strict=True)], float).reshape(-1, len(SWING_COLS))
 
 
-def trace_arrays(rec: metrics.Recorder, swings: list, command_s: float | None) -> dict:
+def trace_arrays(rec: metrics.Recorder, swings: list, command_s: float | None, planned_s=None,
+                 swing_details: list | None = None) -> dict:
     """``RULES["trace"]``'s arrays: ``panels.write_trace``'s five, unchanged, then the contact bits (per foot,
-    ``np.packbits``; ``steps`` their count), ``dt``, ``weight``, the updates' times, both feet's low points and the
-    reference's swing foot at every update (what reading (a) takes), the per-swing table and the command instant
-    (NaN: none)."""
+    ``np.packbits``; ``steps`` their count), ``dt``, ``weight``, the updates' times, both feet's low points, the
+    reference's swing foot and that swing's planned duration at every update (what reading (a) takes), the
+    per-swing table and the command instant (NaN: none)."""
     every = panels.TRACE_EVERY
+    planned = np.full(rec.rows, math.nan) if planned_s is None else np.asarray(planned_s, np.float64)
     U = rec.U[: rec.rows : every] if rec.rows else np.zeros((0, len(metrics.COLS)))
     Q = rec.Q[: rec.rows : every] if rec.rows else np.zeros((0, 0))
     contact = rec.contact() if rec.steps else np.zeros((0, 2), bool)
@@ -1164,14 +1487,16 @@ def trace_arrays(rec: metrics.Recorder, swings: list, command_s: float | None) -
                 weight=np.array(float(rec.weight)), t100=np.asarray(rec.t, np.float64).copy(),
                 low100=_lows(rec).astype(np.float32) if rec.rows else np.zeros((0, 2), np.float32),
                 ref_swing100=(np.rint(rec.col("ref_swing")).astype(np.int8) if rec.rows else np.zeros(0, np.int8)),
-                swings=swing_table(swings), swing_classes=np.array(readings.SWING_CLASSES),
+                planned_s100=planned.copy(), swings=swing_table(swings, swing_details),
+                swing_cols=np.array(SWING_COLS), swing_classes=np.array(readings.SWING_CLASSES),
                 command_s=np.array(math.nan if command_s is None else float(command_s)))
 
 
-def write_trace(root, rel, rec: metrics.Recorder, swings: list, command_s: float | None) -> dict:
+def write_trace(root, rel, rec: metrics.Recorder, swings: list, command_s: float | None, planned_s=None,
+                swing_details: list | None = None) -> dict:
     """A bar episode's trace into ``root / rel`` (compressed, written whole, then moved into place); its path
     (relative to ``root``), sha256 and rows."""
-    arrays = trace_arrays(rec, swings, command_s)
+    arrays = trace_arrays(rec, swings, command_s, planned_s, swing_details)
     sha = s2io.write_npz(Path(root) / rel, arrays, compressed=True)
     return dict(path=Path(rel).as_posix(), sha256=sha, rows=int(len(arrays["t"])),
                 every_s=panels.TRACE_EVERY * control.FEEDBACK_EVERY * float(rec.dt), updates=int(rec.rows),
@@ -1185,10 +1510,23 @@ def read_trace_contact(path) -> np.ndarray:
         return np.unpackbits(z["contact"], axis=1)[:, :n].T.astype(bool)
 
 
-def run_episode(row: panels.Row, ctx: panels.Context, cond, seed: int, relax=(), trace_root=None) -> dict:
+def _prune_empty(d: Path, stop: Path) -> None:
+    """Remove ``d`` and its parents while they are empty, up to and not including ``stop``."""
+    d, stop = Path(d), Path(stop)
+    while d != stop and stop in d.parents:
+        try:
+            d.rmdir()
+        except OSError:
+            return
+        d = d.parent
+
+
+def run_episode(row: panels.Row, ctx: panels.Context, cond, seed: int, relax=(), trace_root=None,
+                keep_trace: bool = True, not_kept_reason: str | None = None) -> dict:
     """One episode of ``row`` on ``cond`` and its record: ``row.episode``, then ``judge`` (``panels.judge`` and
     ``panels.write_trace`` unchanged for a stock condition), the trace under ``trace_root`` when given, the lifted
-    limits and the wall time."""
+    limits and the wall time.  With ``keep_trace`` false the trace is written and hashed all the same and then
+    removed: the record holds ``trace = {sha256, rows, kept: false, reason}`` and no path (``RULES["trace"]``)."""
     t0 = time.perf_counter()
     b, out, rec = row.episode(ctx, cond, int(seed), tuple(relax))
     lg = ctx.lg if b.legs else None
@@ -1196,11 +1534,18 @@ def run_episode(row: panels.Row, ctx: panels.Context, cond, seed: int, relax=(),
     if is_bar(cond):
         e, extra = _judge(b, out, rec, int(seed), lg)
         if trace_root is not None:
-            e["trace"] = write_trace(trace_root, rel, rec, extra["swings"], extra["command_s"])
+            e["trace"] = write_trace(trace_root, rel, rec, extra["swings"], extra["command_s"], extra["planned_s"],
+                                     extra["swing_details"])
     else:
         e = panels.judge(b, out, rec, int(seed), lg)
         if trace_root is not None:
             e["trace"] = panels.write_trace(trace_root, rel, rec)
+    if trace_root is not None and not keep_trace:
+        path = Path(trace_root) / e["trace"]["path"]
+        path.unlink(missing_ok=True)
+        _prune_empty(path.parent, Path(trace_root).parent)
+        e["trace"] = dict({k: v for k, v in e["trace"].items() if k != "path"}, kept=False,
+                          reason=str(not_kept_reason or "not kept"))
     e.update(relaxed=list(relax), wall_s=time.perf_counter() - t0)
     return e
 
@@ -1526,7 +1871,14 @@ class Budget:
 def read_cost(path) -> dict:
     """The rates of a committed ``COST.md`` (``dry_run``'s output): its fenced JSON block, ``{"schema":
     "bar-cost-1", "rates": {"R2": {"wall_per_sim_s": ..}, "R0": {..}}, ..}``."""
-    text = Path(path).read_text()
+    doc = read_cost_text(Path(path).read_text())
+    if doc is None:
+        raise BarError(f"{path}: no {COST_SCHEMA} block (write it with: bar dry-run ... > COST.md)")
+    return doc
+
+
+def read_cost_text(text: str) -> dict | None:
+    """The ``bar-cost-1`` block of a ``COST.md``'s text (None: it holds none)."""
     for m in re.finditer(r"```json\n(.*?)\n```", text, re.DOTALL):
         try:
             doc = json.loads(m.group(1))
@@ -1534,7 +1886,7 @@ def read_cost(path) -> dict:
             continue
         if isinstance(doc, dict) and doc.get("schema") == COST_SCHEMA:
             return doc
-    raise BarError(f"{path}: no {COST_SCHEMA} block (write it with: bar dry-run ... > COST.md)")
+    return None
 
 
 def rate_of(rates: dict, row_name: str) -> float:
@@ -1550,7 +1902,7 @@ def rate_of(rates: dict, row_name: str) -> float:
 # ------------------------------------------------------------------------------------------------
 def condition_record(body: str, set_name: str, block: str, row: panels.Row, cond, episodes: list[dict], key: dict,
                      seeds, prov: dict, inputs: dict, sessions: list, set_docs: dict | None = None,
-                     attribution: dict | None = None, extra: dict | None = None) -> dict:
+                     attribution: dict | None = None, extra: dict | None = None, control: str | None = None) -> dict:
     """A condition's record: Stage 1's keys (``panels.condition_record``) with the bar's (module docstring).
     ``counts`` is reading 2, ``counts_but_A1`` reading 3 (None for a stock condition), ``counts_look`` reading 1
     (None, with its reason)."""
@@ -1578,17 +1930,32 @@ def condition_record(body: str, set_name: str, block: str, row: panels.Row, cond
                a1_over=a1_over, failure=f2, failure_but_A1=f3, attribution=attribution, falls=fall_split(episodes),
                terms=list(terms_of(cond)), terms_but_A1=None if t3 is None else list(t3),
                term_classes={t: term_class(t) for t in tuple(terms_of(cond)) + tuple(t3 or ())},
-               episodes=episodes, rules=rules_of(cond, set_docs), key=key, key_sha256=s2io.sha256_json(key),
+               episodes=episodes, rules=rules_of(cond, set_docs, control), key=key, key_sha256=s2io.sha256_json(key),
                provenance=prov, inputs=dict(dir=s2io.portable(inputs.get("dir")), files=key["inputs"]),
                set_freeze=inputs.get("freeze"), sessions=list(sessions),
                episode_wall_s=float(sum(e.get("wall_s") or 0.0 for e in episodes)),
                simulated_s=float(sum(e.get("survival_s") or 0.0 for e in episodes)), ended_at=s2io.now_utc())
+    if bar and cond.judge == "bar_turn":  # C5's note: which span each of the turn's three limits is read over
+        rec.update(drive_speed_span="episode", joint_range_span="window", no_leg_interference_span="window")
     rec.update(extra or {})
+    _set_labels(rec, set_docs, key["inputs"])
     return _plain_json(rec)
 
 
+def _set_labels(rec: dict, set_docs: dict | None, files: dict) -> None:
+    """A record's ``set_info`` (``set_info``) and, at its top level, the labels a table prints from it."""
+    info = rec.get("set_info")
+    if info is None:
+        info = rec["set_info"] = set_info(set_docs, files)
+    rec["change_after_result"] = (info or {}).get("change_after_result")
+    rec["stand_in_walks"] = bool((info or {}).get("stand_in_walks"))
+    if set_docs is not None and lead_in_of(set_docs["set.json"]) != setio.START:
+        rec["lead_in"] = lead_in_of(set_docs["set.json"])  # (RULES["lead_in"]; no key in any other set's records)
+
+
 def not_run_record(body: str, set_name: str, block: str, row: panels.Row, cond, key: dict, why: dict, prov: dict,
-                   inputs: dict | None = None, set_docs: dict | None = None, extra: dict | None = None) -> dict:
+                   inputs: dict | None = None, set_docs: dict | None = None, extra: dict | None = None,
+                   control: str | None = None) -> dict:
     """The record of a condition without a reference (or, for a stock condition, without a settled stance): status
     "not run" with the reason and the numbers of the missing reference.  It is not a pass."""
     rec = dict(schema=SCHEMA, body=body, set=set_name, block=block, row=row.name, behavior=cond.behavior,
@@ -1598,41 +1965,156 @@ def not_run_record(body: str, set_name: str, block: str, row: panels.Row, cond, 
                counts=dict(reading="success", episodes=0, errors=0, judged=False, pass_=None),
                counts_but_A1=dict(reading="but_A1", episodes=0, errors=0, judged=False, pass_=None) if is_bar(cond)
                else None, counts_look=None, counts_look_reason=LOOK_NOT_DEFINED, failure=None, failure_but_A1=None,
-               attribution=None, episodes=[], rules=rules_of(cond, set_docs), key=key,
+               attribution=None, episodes=[], rules=rules_of(cond, set_docs, control), key=key,
                key_sha256=s2io.sha256_json(key), provenance=prov, set_freeze=(inputs or {}).get("freeze"),
                sessions=[], ended_at=s2io.now_utc())
     rec.update(extra or {})
+    _set_labels(rec, set_docs, {})
     return _plain_json(rec)
 
 
-def supersede_record(path: Path, old: dict, reason: str) -> dict:
-    """Move a finished record aside (``RULES["no_overwrite"]``) and return the new record's ``supersedes`` field."""
-    kh = old.get("key_sha256") or s2io.sha256_json(old.get("key"))
-    dest = path.with_name(path.name + ".superseded") / f"{kh[:12]}.json"
-    dest.parent.mkdir(parents=True, exist_ok=True)
+def _superseded_dir(path: Path) -> Path:
+    """Where the records that were moved aside for ``path`` are kept: ``<record>.superseded/``."""
+    return path.with_name(path.name + ".superseded")
+
+
+def _brief(old: dict | None, name: str) -> dict:
+    """What a ``supersedes`` field says of a record that was moved aside."""
+    old = old or {}
+    return dict(record=name, key_sha256=old.get("key_sha256"), status=old.get("status"), counts=old.get("counts"),
+                counts_but_A1=old.get("counts_but_A1"), ended_at=old.get("ended_at"))
+
+
+def superseded_reasons(path: Path) -> list[dict]:
+    """The ``supersedes`` fields written beside the records kept for ``path`` (``<12 hex>.reason.json``), oldest
+    first."""
+    sdir = _superseded_dir(path)
+    docs = [d for d in (_read(q) for q in sorted(sdir.glob("*.reason.json"))) if d] if sdir.is_dir() else []
+    return sorted(docs, key=lambda d: int(d.get("sequence") or 0))
+
+
+def carried_supersedes(path: Path) -> dict | None:
+    """The ``supersedes`` field every record at ``path`` carries once a record there was moved aside
+    (``RULES["no_overwrite"]``): the latest reason file's; None when no record was.  A record kept there with no
+    reason file beside it still gives the label."""
+    docs = superseded_reasons(path)
+    if docs:
+        return docs[-1]
+    sdir = _superseded_dir(path)
+    kept = sorted(q.name for q in sdir.glob("*.json")) if sdir.is_dir() else []
+    if not kept:
+        return None
+    return dict(reason=None, label="re-run after a result", record=kept[-1],
+                note="a record is kept beside this one with no reason file")
+
+
+def supersede_record(path: Path, old: dict | None, reason: str, trace_root: Path | None = None) -> dict:
+    """Move a finished record aside (``RULES["no_overwrite"]``) and return the new record's ``supersedes`` field.
+    ``old`` is the record at ``path`` (None: a file that cannot be read, kept as ``unreadable-<n>.json``).  The
+    field is written to ``<record>.superseded/<12 hex>.reason.json`` before anything moves; then the old record's
+    traces under ``trace_root`` move to ``<trace_root>.superseded/<12 hex>/`` (the new run writes the same trace
+    paths), then the record.  ``registered`` is the first record ever moved aside at this path (the registered
+    one), ``replaces`` the one moved now."""
+    sdir = _superseded_dir(path)
+    earlier = superseded_reasons(path)
+    seq = 1 + max((int(d.get("sequence") or 0) for d in earlier), default=0)
+    if old is None:
+        kh, stem = None, f"unreadable-{seq}"
+    else:
+        kh = old.get("key_sha256") or s2io.sha256_json(old.get("key"))
+        stem = kh[:12]
+    dest = sdir / f"{stem}.json"
     if dest.exists():
         raise BarError(f"{dest} exists already: the record of this key was superseded before")
+    replaces = dict(_brief(old, dest.name), key_sha256=kh, unreadable=old is None)
+    registered = (earlier[0].get("registered") if earlier else None) or replaces
+    field = dict(reason=str(reason), label="re-run after a result", sequence=seq, record=dest.name, key_sha256=kh,
+                 registered=registered, replaces=replaces, traces=None, at=s2io.now_utc())
+    moves = []
+    if trace_root is not None and old is not None:
+        tdir = Path(trace_root).with_name(Path(trace_root).name + ".superseded") / stem
+        for e in old.get("episodes") or []:
+            rel = (e.get("trace") or {}).get("path")
+            if rel and (Path(trace_root) / rel).is_file():
+                moves.append((Path(trace_root) / rel, tdir / rel))
+        field["traces"] = dict(moved_to=f"{tdir.parent.name}/{stem}", files=len(moves))
+    s2io.write_json(sdir / f"{stem}.reason.json", field)
+    for src, dst in moves:
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(src, dst)
     os.replace(path, dest)
-    return dict(reason=str(reason), label="re-run after a result", record=dest.name, key_sha256=kh,
-                registered=dict(counts=old.get("counts"), counts_but_A1=old.get("counts_but_A1"),
-                                ended_at=old.get("ended_at")), at=s2io.now_utc())
+    return field
+
+
+def set_info(set_docs: dict | None, files) -> dict | None:
+    """What a record copies from ``set.json`` (``RULES["freeze"]``): the set's role, whether its walks stand in for
+    rungs of another speed, the latest freeze's flags, per input file of ``files`` (``{file: {sha256, ..}}``) the
+    first freeze whose manifest lists it with that sha256, and the labels of those freezes: ``change_after_result``
+    (a string, the reason: the label "change after a result") and ``after_check_episodes`` (with the freeze's
+    ``reason``; no change after a result).  None for the pseudo-set."""
+    if set_docs is None:
+        return None
+    sd = set_docs["set.json"]
+    freezes = sd.get("freezes") or []
+    first = {}
+    for f, v in (files or {}).items():
+        name = Path(f).stem
+        first[f] = next((fz.get("index") for fz in freezes
+                         if ((fz.get("manifest") or {}).get(name) or {}).get("sha256") == v.get("sha256")), None)
+    used = sorted({i for i in first.values() if i is not None})
+    by_index = {fz.get("index"): fz for fz in freezes}
+    changed = [dict(freeze=i, reason=str(by_index[i]["change_after_result"]),
+                    files=sorted(f for f, j in first.items() if j == i))
+               for i in used if by_index[i].get("change_after_result")]
+    checks = [dict(freeze=i, reason=by_index[i].get("reason")) for i in used if by_index[i].get("after_check_episodes")]
+    last = freezes[-1] if freezes else {}
+    return dict(role=sd.get("role"), stand_in_walks=bool(sd.get("stand_in_walks")),
+                freeze={k: last.get(k) for k in ("index", "at", "commit", "manifest_sha256", "change_after_result",
+                                                 "after_check_episodes", "reason", "dirty", "mixed_sources")}
+                if last else None, first_freeze=first,
+                change_after_result=dict(label="change after a result", freezes=changed) if changed else None,
+                after_check_episodes=checks or None)
 
 
 # ------------------------------------------------------------------------------------------------
 # Workers (tune.Pool with the bar's evaluator)
 # ------------------------------------------------------------------------------------------------
+_PARENT_WATCH: dict = {}
+
+
+def die_with_parent() -> bool:
+    """In a spawned worker: end this process the moment its runner is gone (a daemon thread joins the parent and
+    calls ``os._exit``), so that a killed runner leaves no worker that still writes a trace or a partial file into
+    a run directory whose lock a resumed run has taken over.  False in a process that is no worker's."""
+    parent = multiprocessing.parent_process()
+    if parent is None:
+        return False
+    if "thread" not in _PARENT_WATCH:
+        def watch():
+            parent.join()
+            os._exit(1)
+
+        _PARENT_WATCH["thread"] = threading.Thread(target=watch, name="bar-parent-watch", daemon=True)
+        _PARENT_WATCH["thread"].start()
+    return True
+
+
 class BarWorker:
     """A worker's evaluator for ``tune.Pool``: ``evaluate((row, condition, relax, partial dir, key sha256), seed)``
     runs one episode and writes it as a partial file.  It refuses to start with another thread count than one, on
     other bar sources (``bar``: ``bar_sources()["sha256"]``) or on other panel sources or key context than the
-    session's (``sources``: ``panels.fingerprint``); it reads the set itself (frozen and matching, or the ``S1``
-    view) and rebuilds the rows from their specs."""
+    session's (``sources``: ``panels.fingerprint``); it reads the set itself (frozen and matching, its manifest's
+    hash and its crouch checked; or the ``S1`` view) and rebuilds the rows from their specs.  A spawned worker ends
+    with its runner (``die_with_parent``).  ``traces`` is the traces' directory; an episode's trace is always
+    written and hashed, and removed again when it is not kept (``keep_traces`` false, or its controller in
+    ``no_traces_for``): ``RULES["trace"]``.  The attribution's lifted runs leave none."""
 
     def __init__(self, body: str, run_dir: str, mode: str = "bar", rate: float = RATE,
                  expected_inputs: dict | None = None, *, set_name: str, files=(), rows=(), sources: str | None = None,
                  bar: str | None = None, traces: str | None = None, crouch_frac: float | None = None,
-                 session: dict | None = None, no_traces_for=()):
+                 session: dict | None = None, no_traces_for=(), keep_traces: bool = True):
         s2io.require_one_thread()
+        die_with_parent()
         if bar is not None and bar_sources()["sha256"] != bar:
             raise tune.PoolError("the bar's sources (bar.py, readings.py, setio.py, speedfit.py) changed during the "
                                  "session: restore them and run again")
@@ -1646,10 +2128,10 @@ class BarWorker:
             self.inputs, docs = setio.stage1_view(self.run_dir.parent, body)
             set_doc = None
         else:
-            self.inputs, docs = setio.read_inputs(self.run_dir, files, require_frozen=True)
             set_doc = setio.load(self.run_dir)["set.json"]
-            if crouch_frac is None:
-                set_crouch(set_doc)
+            check_manifest(set_doc)
+            self.inputs, docs = setio.read_inputs(self.run_dir, files, require_frozen=True)
+            set_crouch(set_doc, docs["refs.json"]["references"], walks_of(files))
         if expected_inputs is not None:
             diff = tune.input_differences(expected_inputs, self.inputs)
             if diff:
@@ -1658,21 +2140,31 @@ class BarWorker:
         self.ctx = context_for(body, self.run_dir, docs, set_doc, crouch_frac, ident)
         self.rows = {s["name"]: panels.row_from_spec(s) for s in rows}
         self.traces = None if traces is None else Path(traces)
+        self.keep_traces = bool(keep_traces)
         self.no_traces_for = tuple(no_traces_for)
         self.session = session
 
     def describe(self) -> dict:
         return dict(body=self.body, set=self.set_name, rows=sorted(self.rows), bar_sources=bar_sources()["sha256"])
 
+    def not_kept(self, row: str) -> str | None:
+        """Why this row's traces are not kept (None: they are)."""
+        if not self.keep_traces:
+            return "--no-traces"
+        ctrl = controller_of(row)
+        return f"--no-traces-for {ctrl}" if ctrl in self.no_traces_for else None
+
     def evaluate(self, job, seed) -> dict:
         row, cond, relax, pdir, key_sha256 = job
         relax = tuple(relax)
-        root = self.traces if not relax else None  # the attribution's lifted runs leave no trace
-        if controller_of(row) in self.no_traces_for:
-            root = None
         t0 = time.perf_counter()
         try:
-            e = run_episode(self.rows[row], self.ctx, cond, int(seed), relax, trace_root=root)
+            if relax or self.traces is None:  # the attribution's lifted runs leave no trace
+                e = run_episode(self.rows[row], self.ctx, cond, int(seed), relax)
+            else:
+                why = self.not_kept(row)
+                e = run_episode(self.rows[row], self.ctx, cond, int(seed), relax, trace_root=self.traces,
+                                keep_trace=why is None, not_kept_reason=why)
         except Exception:
             e = failed_episode(cond, int(seed), traceback.format_exc(), relax, time.perf_counter() - t0)
         if pdir is not None:
@@ -1695,13 +2187,27 @@ def _lost(job, reason: str) -> dict:
 # ------------------------------------------------------------------------------------------------
 # Running
 # ------------------------------------------------------------------------------------------------
+#: Set by tests that put synthetic episode records in ``run_episode``'s place (they simulate nothing); no command
+#: line switch sets it.  Real episodes on a scratch or fixture set run under R0 rows only (``RULES["checks"]``).
+SYNTHETIC_EPISODES = False
+
+
 def _check_rule(set_name, row_names, episodes, task, dev_episodes, passed_of, control,
                 block: str = HEADLINE_BLOCK) -> None:
-    """``RULES["checks"]``: on a set of the 75 cm round a run without ``--task`` is a listed build check."""
-    if set_name not in PREREGISTERED_SETS or task is not None:
+    """``RULES["checks"]``: on a set of the 75 cm round (or a version of one) a run without ``--task`` is a listed
+    build check; on any other reference set only R0 rows run."""
+    if set_name == STOCK_SET:
+        return
+    reg = registered_name(set_name)
+    if reg is None:
+        if not SYNTHETIC_EPISODES and any(controller_of(r) != "R0" for r in row_names):
+            raise BarError(f"{set_name} is a scratch or fixture set: only R0 rows run on it, never an R2 row "
+                           f"({RULES['checks']})")
+        return
+    if task is not None:
         return
     bad = []
-    if set_name != CHECK_SET:
+    if reg != CHECK_SET or set_name != reg:
         bad.append(f"the set is {set_name}, not {CHECK_SET}")
     if any(controller_of(r) != "R0" for r in row_names):
         bad.append("a row is not an R0 row")
@@ -1716,11 +2222,61 @@ def _check_rule(set_name, row_names, episodes, task, dev_episodes, passed_of, co
                        + "; ".join(bad))
 
 
+def _inside(path, parent) -> bool:
+    a, b = Path(os.path.realpath(path)), Path(os.path.realpath(parent))
+    return a == b or b in a.parents
+
+
+def _check_out(out, set_name: str, task, root=setio.ROOT) -> None:
+    """``RULES["checks"]``, where a run may write: never under ``stage1/`` or the sets' root; without ``--task``
+    never into a task's run directory (one that holds a ``budget.json``), and a build check on a set of the round
+    never under ``stage2/runs/``."""
+    for parent, what in ((s2io.STUDY / "stage1", "stage1/"), (setio.ROOT, "stage2/sets/"),
+                         (setio._anchored(root), "the sets' root")):
+        if _inside(out, parent):
+            raise BarError(f"--out {out} lies under {what}: the bar writes no run there")
+    if task is None:
+        if (Path(out) / "budget.json").exists():
+            raise BarError(f"--out {out} holds a budget.json: a task's run directory takes its tasks' units only "
+                           "(--task); write a check or a smoke under logs/ or a temporary directory")
+        if registered_name(set_name) is not None and _inside(out, s2io.STUDY / "stage2" / "runs"):
+            raise BarError(f"--out {out} lies under stage2/runs/: a build check on {set_name} is smoke and no record; "
+                           "write it under logs/ or a temporary directory")
+
+
+def _sweep(out: Path, set_name: str) -> list[str]:
+    """Remove the temporary files a killed run of the bar left in ``out``: under ``<out>/<set>/`` and
+    ``<out>/controls/``, and ``budget.json.tmp``; nothing else below ``out`` is touched.  Call it holding the lock."""
+    gone = []
+    for d in (out / set_name, out / "controls"):
+        if d.is_dir():
+            gone += [f"{d.name}/{x}" for x in s2io.sweep_tmp(d)]
+    tmp = out / "budget.json.tmp"
+    if tmp.is_file():
+        tmp.unlink()
+        gone.append(tmp.name)
+    return gone
+
+
+DEV_KEY = ("set", "body", "block", "row", "condition", "seed")
+
+
 def _list_dev_episodes(path, entries: list) -> None:
+    """List check episodes in the file ``--dev-episodes`` names, one entry per (set, body, block, row, condition,
+    seed): a later entry for the same episode (its record after its start) updates the first, so a resumed check
+    adds no duplicate.  Whatever else the file holds (``scratch_sets``) is kept."""
     if not entries:
         return
     doc = _read(path) or dict(rule=RULES["checks"], note="check episodes of the build: smoke, no record", episodes=[])
-    doc["episodes"] += entries
+    eps = doc.setdefault("episodes", [])
+    index = {tuple(e.get(k) for k in DEV_KEY): i for i, e in enumerate(eps)}
+    for x in entries:
+        k = tuple(x.get(f) for f in DEV_KEY)
+        if k in index:
+            eps[index[k]] = dict(eps[index[k]], **x)
+        else:
+            index[k] = len(eps)
+            eps.append(dict(x))
     s2io.write_json(path, doc)
 
 
@@ -1739,6 +2295,25 @@ def _attribution_needed(rec: dict, mode: str) -> bool:
     return a is None or bool(a.get("lifted_errors"))
 
 
+def _relabel(rec: dict) -> None:
+    """Both readings' failure labels of a record from its attribution (after the attribution is set or cut)."""
+    pass2 = rec["counts"].get("pass_if_read", rec["counts"]["pass_"])
+    rec["failure"] = failure(rec["row"], rec["episodes"], rec["attribution"], pass2, "success")
+    if rec.get("counts_but_A1") is not None:
+        rec["failure_but_A1"] = failure(rec["row"], rec["episodes"], rec["attribution"],
+                                        rec["counts_but_A1"]["pass_"], "but_A1")
+
+
+def _attribution_session(rec: dict, sess: dict, lifted, t0: float) -> None:
+    """Name the session that attributed a record: in ``attribution.session`` and, when that session is not the
+    record's last already, as an entry of ``sessions`` with no seeds run."""
+    entry = dict(sess, ended_at=s2io.now_utc(), seeds_run=[], attribution=True, lifted=list(lifted),
+                 wall_s=time.perf_counter() - t0)
+    rec["attribution"]["session"] = entry
+    if not rec.get("sessions") or rec["sessions"][-1].get("id") != sess["id"]:
+        rec["sessions"] = list(rec.get("sessions") or []) + [entry]
+
+
 def walk_record_of(cond: BarCondition) -> str:
     """The key of the walk condition a turn, nudge or stop record cites: the same walk and grip."""
     tag = next(t for mu, t in GRIPS if mu == cond.friction)
@@ -1755,11 +2330,13 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
     hard-floor conditions on the pseudo-set ``S1``) of ``set_name`` on ``body`` under ``rows`` (names, or a dict of
     built rows) into ``out``: one record per row and condition under
     ``<out>/<set>/<body>/<block>/eval/``.  Resumes per episode; never overwrites a finished record of another key
-    (``supersede`` with ``supersede_reason`` keeps it beside the new one); ``attribute`` runs decision 20's
-    attribution ("judged": rows at 10 ms; "all"; "none"); ``passed_of`` selects the records of that block that
-    passed (replication); ``task`` counts every episode in ``<out>/budget.json`` and needs ``rates`` (``read_cost``'s
-    ``rates``); ``control`` runs a reported control into ``<out>/controls/<control>/``; ``no_traces_for`` names
-    controllers ("R0") whose rows write no trace.  Returns the block's summary with the session."""
+    or a record file it cannot read (``supersede`` with ``supersede_reason`` keeps it beside the new one);
+    ``attribute`` runs decision 20's attribution ("judged": rows at 10 ms; "all"; "none") after every episode of
+    the call has finished; ``passed_of`` selects the records of that block that passed (replication); ``task``
+    counts every episode in ``<out>/budget.json`` and needs ``rates`` (``read_cost``'s ``rates``); ``control`` runs
+    a reported control into ``<out>/controls/<control>/``; ``traces`` false, or a controller in ``no_traces_for``
+    ("R0"), has the episodes' traces hashed and not kept.  Returns the block's summary with the session; the
+    session's ``incomplete`` lists the records that still hold an episode that failed to run."""
     s2io.require_one_thread()
     if block not in BLOCKS:
         raise ValueError(f"block {block!r}: choose from {', '.join(BLOCKS)}")
@@ -1769,16 +2346,25 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
         raise ValueError(f"--passed-of {passed_of!r}: another block than {block}")
     if supersede and not supersede_reason:
         raise BarError("--supersede needs --supersede-reason: the new record states why it was run again")
+    if control is not None and control not in CONTROLS:
+        raise ValueError(f"control {control!r}: choose from {', '.join(CONTROLS)}")
+    if control is not None and (passed_of is not None or attribute != "none"):
+        raise BarError(f"a control gives no verdict and is neither replicated nor attributed ({CONTROL_RULES[control]}"
+                       "): run it with --attribute none and without --passed-of")
+    if passed_of is not None and registered_name(set_name) not in (None, CANDIDATE_SET):
+        raise BarError(f"{set_name} is a control of the 75 cm round: it is not run on {block} "
+                       f"({RULES['replication']})")
     out = Path(out)
     t_start = time.perf_counter()
     seeds = [int(s) for s in BLOCKS[block][: int(episodes)]]
     stock = set_name == STOCK_SET
     row_objs = dict(rows) if isinstance(rows, dict) else globals()["rows"](body, list(rows), stage1_run)
     _check_rule(set_name, list(row_objs), episodes, task, dev_episodes, passed_of, control, block)
+    _check_out(out, set_name, task, root)
     crouch_override = None if control is None else CONTROLS[control][0]
     extra = {} if control is None else dict(control=CONTROLS[control][1], control_name=control)
     with s2io.Lock(out / ".lock"):
-        s2io.sweep_tmp(out)
+        _sweep(out, set_name)
         if stock:
             if control is not None:
                 raise BarError("a control runs on a reference set, not on the pseudo-set S1")
@@ -1800,11 +2386,11 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
             set_docs = setio.load(run_dir)
             if set_docs["set.json"].get("set") != set_name:
                 raise BarError(f"{run_dir}: set.json names the set {set_docs['set.json'].get('set')!r}")
+            check_manifest(set_docs["set.json"])
             planner = BarPlanner(run_dir, set_docs["refs.json"]["references"],
                                  set_docs["transitions.json"]["transitions"], set_docs["set.json"])
             all_conds = globals()["conditions"](set_docs, block, every=True)
             conds = choose(set_docs, block, conditions)
-            crouch = set_crouch(set_docs["set.json"]) if crouch_override is None else crouch_override
             resolved, missing = {}, {}
             for c in conds:
                 why = planner.missing(c)
@@ -1813,27 +2399,31 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
                 else:
                     missing[c] = why
             files = sorted({f for r in resolved.values() for f in r["files"]})
+            own = set_crouch(set_docs["set.json"], set_docs["refs.json"]["references"], walks_of(files))
+            crouch = own if crouch_override is None else crouch_override
             inputs, _ = setio.read_inputs(run_dir, files, require_frozen=True)
-        omega = omega_of(body, run_dir, crouch) if resolved else None
+        key_files = sorted({f for r in resolved.values() for f in r["files"]})
+        omega = omega_of(body, run_dir, crouch, getattr(planner, "home_walk", setio.NOMINAL)) if resolved else None
         src, bsrc, kctx = panels.panel_sources(), bar_sources(), panels.key_context(body)
         key_sources = dict(panels=src["sha256"], bar=bsrc["sha256"])
-        prov = dict(plant.provenance(), panel_sources=src, bar_sources=bsrc)
-        git = s2io.git_state()
+        git = s2io.git_state(own_outputs=[str(out.resolve())])  # the run's own outputs make no checkout dirty
+        prov = dict(plant.provenance(), git=git, panel_sources=src, bar_sources=bsrc)
         started_at = s2io.now_utc()
         sess = dict(id=f"{started_at}/{os.getpid()}", started_at=started_at, commit=git["commit"], dirty=git["dirty"],
-                    versions=panels.library_versions(), blas_threads=s2io.blas_threads(), procs=int(procs), task=task,
-                    unit=None, block=block, attribute=attribute)
+                    dirty_paths=git["dirty_paths"], versions=panels.library_versions(),
+                    blas_threads=s2io.blas_threads(), procs=int(procs), task=task, unit=None, block=block,
+                    attribute=attribute, traces=bool(traces), no_traces_for=[str(x) for x in no_traces_for])
         session = dict(sess, set=set_name, body=body, rows=list(row_objs), conditions=[c.key for c in conds],
-                       seeds=seeds, traces=bool(traces), passed_of=passed_of, control=control, episodes_run=0,
+                       seeds=seeds, passed_of=passed_of, control=control, episodes_run=0,
                        attribution_episodes_run=0, skipped=[], reused_partial=[], rerun_failed=[], not_run=[],
-                       not_selected=[], superseded=[], attribution_cut=[], incidents=[])
-        trace_root = block_dir(out, set_name, body, block, control) / "eval" / "traces" if traces else None
+                       not_selected=[], superseded=[], attribution_cut=[], incomplete=[], incidents=[])
+        trace_root = block_dir(out, set_name, body, block, control) / "eval" / "traces"
 
         def rel(path) -> str:
             return Path(os.path.relpath(path, out)).as_posix()
 
         # -- the plan of the session: every row and condition, before any episode
-        todo, mismatched = [], []
+        todo, mismatched, unreadable = [], [], []
         for cond in conds:
             for row in row_objs.values():
                 if not row.runs(cond):
@@ -1858,28 +2448,37 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
                 old = _read(path)
                 item = dict(row=row, cond=cond, path=path, key=key, kh=kh, old=None, run=[], reused={}, rep=rep,
                             pdir=partial_root(out, set_name, body, block, row.name, cond, control) / kh[:16],
-                            supersedes=None, rec=None, why=missing.get(cond))
-                if old is not None and old.get("status") == "done" and old.get("key") != key:
+                            supersedes=None, carried=None, rec=None, why=missing.get(cond))
+                if path.exists() and (old is None or "status" not in old or "key" not in old):
+                    if not supersede:  # a file that is there and cannot be read is no missing record
+                        unreadable.append(path)
+                        continue
+                    item["supersedes"] = (None, str(supersede_reason))
+                elif old is not None and old.get("key") != key:  # a finished record, "done" or "not run"
                     if not supersede:
-                        mismatched.append((path, key_differences(old.get("key"), key)))
+                        mismatched.append((path, old.get("status"), key_differences(old.get("key"), key)))
                         continue
                     item["supersedes"] = (old, str(supersede_reason))
-                elif old is not None and old.get("status") == "done":
-                    item["old"] = old
-                elif old is not None and old.get("key") == key:
-                    item["old"] = old  # a "not run" record of this key
+                elif old is not None:
+                    item["old"] = old  # a record of this key: done, or "not run"
+                    item["carried"] = old.get("supersedes")
+                if item["supersedes"] is None and item["carried"] is None:
+                    item["carried"] = carried_supersedes(path)  # a re-run that was killed keeps its label
                 todo.append(item)
-        if mismatched:
-            lines = [f"{p}: a finished record holds another key:\n    " + "\n    ".join(d[:12] + (["..."] if len(d) > 12
-                                                                                               else []))
-                     for p, d in mismatched]
-            raise KeyMismatch("\n".join(lines) + "\nA finished record is never overwritten: use a new --out, or "
-                              "--supersede with --supersede-reason (the old record is kept beside the new one).")
+        if mismatched or unreadable:
+            lines = [f"{p}: a finished record ({st}) holds another key:\n    "
+                     + "\n    ".join(d[:12] + (["..."] if len(d) > 12 else [])) for p, st, d in mismatched]
+            lines += [f"{p}: the record file is there and cannot be read (it is no missing record)" for p in unreadable]
+            raise (KeyMismatch if mismatched else BarError)(
+                "\n".join(lines) + "\nA finished record is never overwritten: use a new --out, or "
+                "--supersede with --supersede-reason (the old record is kept beside the new one).")
         for it in todo:
-            if it["why"] is not None or it["supersedes"] is not None:
+            if it["why"] is not None:
                 continue
             old = it["old"]
-            if old is not None and old.get("status") == "done":
+            if it["supersedes"] is not None:
+                it["run"] = list(seeds)
+            elif old is not None and old.get("status") == "done":
                 redo = [e["seed"] for e in old["episodes"] if e.get("error")]
                 it["run"] = redo
                 (session["rerun_failed"] if redo else session["skipped"]).append(
@@ -1889,9 +2488,6 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
                 it["run"] = [s for s in seeds if s not in it["reused"]]
                 if it["reused"]:
                     session["reused_partial"].append(f"{it['row'].name} {it['cond'].key}: seeds {sorted(it['reused'])}")
-        for it in todo:
-            if it["supersedes"] is not None and it["why"] is None:
-                it["run"] = list(seeds)
 
         # -- the budget: the unit starts only if it fits
         budget = None
@@ -1909,8 +2505,20 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
                 if it["why"] is None:
                     sim[it["row"].name] = sim.get(it["row"].name, 0.0) + len(seeds) * float(it["key"]["seconds"])
             estimate = sum(s * rate_of(rates, r) for r, s in sim.items()) / 3600.0
-            if not budget.start(unit_name, estimate, dict(simulated_s=sim, records=len(todo))):
+            detail = dict(simulated_s=sim, records=len(todo), block=block, passed_of=passed_of,
+                          paths=[rel(it["path"]) for it in todo])
+            if not budget.start(unit_name, estimate, detail):
                 raise BudgetCut(f"cut by the pre-registered order: {unit_name}: {budget.cut_reason(unit_name)}")
+
+        def dev_entry(it, seed, **more) -> dict:
+            return dict(set=set_name, body=body, block=block, row=it["row"].name, condition=it["cond"].key,
+                        seed=int(seed), commit=git["commit"], bar_sha256=bsrc["sha256"], out=str(out),
+                        reason=dev_reason or "the bar's build check: smoke, no record", **more)
+
+        if dev_episodes is not None:  # listed before any of them runs: a killed check is still on the list
+            _list_dev_episodes(dev_episodes, [dev_entry(it, s, state="started", started_at=started_at)
+                                              for it in todo if it["why"] is None
+                                              for s in sorted(set(it["run"]) | set(it["reused"]))])
 
         pool = None
 
@@ -1922,9 +2530,21 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
                                      _worker, set_name=set_name, files=files,
                                      rows=[r.spec() for r in row_objs.values()],
                                      sources=panels.fingerprint(src["sha256"], kctx), bar=bsrc["sha256"],
-                                     traces=None if trace_root is None else str(trace_root),
+                                     traces=str(trace_root), keep_traces=bool(traces),
                                      crouch_frac=crouch_override, session=sess,
                                      no_traces_for=tuple(no_traces_for)))
+                # the workers read the set themselves: what they read must be what the records' keys name
+                theirs = pool.inputs or {}
+                diff = tune.input_differences(
+                    dict(files={f: inputs["files"].get(f) for f in key_files}),
+                    dict(files={f: (theirs.get("files") or {}).get(f) for f in key_files})) if key_files else []
+                if (theirs.get("freeze") or None) != (inputs.get("freeze") or None):
+                    diff.append(f"freeze: {inputs.get('freeze')} -> {theirs.get('freeze')}")
+                if diff:
+                    pool.close()
+                    pool = None
+                    raise tune.InputError(f"{run_dir}: the workers read other inputs than the session's (the set "
+                                          "changed after the run began): " + "; ".join(diff))
             return pool
 
         def count(unit_, item, wall):
@@ -1945,25 +2565,33 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
                     count(g.get("unit") or unit_name, f"{rel(it['path'])}#{sid}", g["wall_s"])
             return list(by.values())
 
+        def carried(it) -> dict:
+            """What a rewritten record keeps: the control's label, the re-run's and the replication's."""
+            more = dict(extra)
+            sup = it["supersedes"] if isinstance(it["supersedes"], dict) else it["carried"]
+            if sup is not None:
+                more["supersedes"] = sup
+            rep = it["rep"] if it["rep"] is not None else (it["old"] or {}).get("replication_of")
+            if rep is not None:
+                more["replication_of"] = rep
+            return more
+
         try:
             for cond in conds:
                 batch = [it for it in todo if it["cond"] is cond]
                 for it in batch:
                     row, path, key = it["row"], it["path"], it["key"]
+                    if it["supersedes"] is not None:
+                        it["supersedes"] = supersede_record(path, *it["supersedes"], trace_root=trace_root)
+                        session["superseded"].append(f"{row.name} {cond.key}: {it['supersedes']['record']}")
                     if it["why"] is not None:
                         old = it["old"]
-                        if it["supersedes"] is not None:
-                            it["supersedes"] = supersede_record(path, *it["supersedes"])
-                        if not (old and old.get("status") == "not run" and old.get("key") == key):
+                        if not (old and old.get("status") == "not run"):
                             s2io.write_json(path, not_run_record(
                                 body, set_name, block, row, cond, key, it["why"], prov, inputs, set_docs,
-                                dict(extra, **({} if it["supersedes"] is None else dict(supersedes=it["supersedes"])),
-                                     **({} if it["rep"] is None else dict(replication_of=it["rep"])))))
+                                dict(carried(it), set_info=set_info(set_docs, {})), control=control))
                         session["not_run"].append(f"{row.name} {cond.key}: {it['why']['reason']}")
                         log(f"{set_name} {body} {block} {row.name} {cond.key}: not run ({it['why']['reason']})")
-                    elif it["supersedes"] is not None:
-                        it["supersedes"] = supersede_record(path, *it["supersedes"])
-                        session["superseded"].append(f"{row.name} {cond.key}: {it['supersedes']['record']}")
                 jobs = [((it["row"].name, cond, (), str(it["pdir"]), it["kh"]), s) for it in batch for s in it["run"]]
                 results = get_pool().map(jobs, failed=_lost) if jobs else []
                 session["episodes_run"] += len(jobs)
@@ -1987,23 +2615,17 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
                     have = {e["seed"]: e for e in (old or {}).get("episodes") or []}
                     have.update({s: doc["episode"] for s, doc in it["reused"].items()})
                     have.update(new)
-                    more = dict(extra)
-                    if it["supersedes"] is not None:
-                        more["supersedes"] = it["supersedes"]
-                    if it["rep"] is not None:
-                        more["replication_of"] = it["rep"]
+                    more = dict(carried(it), set_info=set_info(set_docs, key["inputs"]))
                     if old is not None and old.get("attribution") is not None and not new:
                         more["attribution"] = old["attribution"]
                     rec = condition_record(body, set_name, block, row, cond, [have[s] for s in seeds], key, seeds,
-                                           prov, inputs, sessions, set_docs, extra=more)
+                                           prov, inputs, sessions, set_docs, extra=more, control=control)
                     s2io.write_json(path, rec)
                     drop_partials(it["pdir"].parent)
                     it["rec"] = rec
-                    listed += [dict(set=set_name, body=body, block=block, row=row.name, condition=cond.key, seed=s,
-                                    at=s2io.now_utc(), commit=git["commit"], bar_sha256=bsrc["sha256"], out=str(out),
-                                    error=bool(new[s].get("error")), fell=bool(new[s].get("fell")),
-                                    reason=dev_reason or "the bar's build check: smoke, no record")
-                               for s in sorted(new)]
+                    listed += [dev_entry(it, s, state="done", recorded_at=s2io.now_utc(),
+                                         error=bool(have[s].get("error")), fell=bool(have[s].get("fell")))
+                               for s in sorted(set(new) | set(it["reused"]))]
                     c2, c3 = rec["counts"], rec["counts_but_A1"]
                     log(f"{set_name} {body} {block} {row.name} {cond.key}: {c2['survived']}/{c2['episodes']} survive, "
                         f"{c2['succeeded']} succeed" + ("" if c3 is None else f", {c3['succeeded']} but for A1")
@@ -2012,75 +2634,82 @@ def evaluate(set_name: str, body: str, out, rows, conditions=None, block: str = 
                         + ("" if row.gated(cond) else " [reported]"))
                 if dev_episodes is not None:
                     _list_dev_episodes(dev_episodes, listed)
-                # -- decision 20's attribution, record by record (each a unit of the budget)
-                for it in batch:
-                    rec = it["rec"]
-                    if rec is None or not _attribution_needed(rec, attribute):
-                        continue
-                    row, path = it["row"], it["path"]
-                    falls = rec["falls"]
-                    if is_bar(cond) and cond.judge != "bar_walk" and falls["after_command"] < panels.ATTRIBUTION_MIN_FALLS:
-                        cite = walk_record_of(cond)
-                        wc = next((c for c in all_conds if c.key == cite), None)
-                        rec["attribution"] = dict(
-                            label=f"lead-in falls: see {cite}", cites=cite,
-                            record=None if wc is None else rel(record_path(out, set_name, body, block, row.name, wc,
-                                                                            control)),
-                            falls=rec["counts"]["falls"], falls_after_command=falls["after_command"],
-                            falls_before_command=falls["before_command"], min_falls=panels.ATTRIBUTION_MIN_FALLS,
-                            rule=RULES["attribution"], episodes=0)
-                    else:
-                        cands, lift = panels.attribution_plan(rec)
-                        a_unit = f"attribution {rel(path)}"
-                        if lift and budget is not None:
-                            est = len(lift) * len(seeds) * float(rec["seconds"]) * rate_of(rates, row.name) / 3600.0
-                            if not budget.start(a_unit, est, dict(lifted=lift, record=rel(path))):
-                                rec["attribution"] = dict(label=BUDGET_CUT_LABEL, cut=True, candidates=cands,
-                                                          reported_as=BUDGET_CUT_REPORT, not_lifted=lift,
-                                                          reason=budget.cut_reason(a_unit),
-                                                          rule=RULES["attribution"], episodes=0)
-                                rec["failure"] = failure(row.name, rec["episodes"], rec["attribution"],
-                                                         (rec["counts"].get("pass_if_read", rec["counts"]["pass_"])))
-                                s2io.write_json(path, rec)
-                                session["attribution_cut"].append(f"{row.name} {cond.key}")
-                                log(f"{set_name} {body} {block} {row.name} {cond.key}: {BUDGET_CUT_LABEL}")
-                                continue
-                        lifted, t0 = {}, time.perf_counter()
-                        for r in lift:
-                            ldir = it["pdir"] / f"lift-{r}"
-                            kept = read_partials(ldir, it["kh"], seeds)
-                            run = [s for s in seeds if s not in kept]
-                            ajobs = [((row.name, cond, (r,), str(ldir), it["kh"]), s) for s in run]
-                            got = dict(zip(run, get_pool().map(ajobs, failed=_lost) if ajobs else [], strict=True))
-                            wall_new = float(sum(e.get("wall_s") or 0.0 for e in got.values()))
-                            by = {}
-                            for s, doc in kept.items():
-                                sid = (doc.get("session") or {}).get("id")
-                                by[sid] = by.get(sid, 0.0) + float(doc["episode"].get("wall_s") or 0.0)
-                            for sid, wall in by.items():
-                                count(a_unit, f"{rel(path)}#lift-{r}#{sid}", wall)
-                            if got:
-                                count(a_unit, f"{rel(path)}#lift-{r}#{sess['id']}", wall_new)
-                            session["attribution_episodes_run"] += len(got)
-                            lifted[r] = [got[s] if s in got else kept[s]["episode"] for s in seeds]
-                        rec["attribution"] = dict(panels.attribution_record(rec, cands, lifted,
-                                                                            time.perf_counter() - t0),
-                                                  rule_bar=RULES["attribution"])
-                    pass2 = rec["counts"].get("pass_if_read", rec["counts"]["pass_"])
-                    rec["failure"] = failure(row.name, rec["episodes"], rec["attribution"], pass2, "success")
-                    if rec.get("counts_but_A1") is not None:
-                        rec["failure_but_A1"] = failure(row.name, rec["episodes"], rec["attribution"],
-                                                        rec["counts_but_A1"]["pass_"], "but_A1")
-                    s2io.write_json(path, _plain_json(rec))
-                    drop_partials(it["pdir"].parent)
-                    log(f"{set_name} {body} {block} {row.name} {cond.key}: attribution {rec['attribution']['label']}")
+            # -- decision 20's attribution: after every episode of the call, record by record in the order the
+            #    records were made (each record's attribution is a unit of the budget)
+            for it in todo:
+                rec, cond, row, path = it["rec"], it["cond"], it["row"], it["path"]
+                if rec is None or not _attribution_needed(rec, attribute):
+                    continue
+                falls = rec["falls"]
+                t0, lift = time.perf_counter(), []
+                if is_bar(cond) and cond.judge != "bar_walk" and falls["after_command"] < panels.ATTRIBUTION_MIN_FALLS:
+                    cite = walk_record_of(cond)
+                    wc = next((c for c in all_conds if c.key == cite), None)
+                    rec["attribution"] = dict(
+                        label=f"lead-in falls: see {cite}", cites=cite,
+                        record=None if wc is None else rel(record_path(out, set_name, body, block, row.name, wc,
+                                                                        control)),
+                        falls=rec["counts"]["falls"], falls_after_command=falls["after_command"],
+                        falls_before_command=falls["before_command"], min_falls=panels.ATTRIBUTION_MIN_FALLS,
+                        rule=RULES["attribution"], episodes=0)
+                else:
+                    cands, lift = panels.attribution_plan(rec)
+                    a_unit = f"attribution {rel(path)}"
+                    if lift and budget is not None:
+                        est = len(lift) * len(seeds) * float(rec["seconds"]) * rate_of(rates, row.name) / 3600.0
+                        if not budget.start(a_unit, est, dict(lifted=lift, record=rel(path))):
+                            rec["attribution"] = dict(label=BUDGET_CUT_LABEL, cut=True, candidates=cands,
+                                                      reported_as=BUDGET_CUT_REPORT, not_lifted=lift,
+                                                      reason=budget.cut_reason(a_unit),
+                                                      rule=RULES["attribution"], episodes=0)
+                            _relabel(rec)
+                            _attribution_session(rec, sess, [], t0)
+                            s2io.write_json(path, _plain_json(rec))
+                            session["attribution_cut"].append(f"{row.name} {cond.key}")
+                            log(f"{set_name} {body} {block} {row.name} {cond.key}: {BUDGET_CUT_LABEL}")
+                            continue
+                    lifted = {}
+                    for r in lift:
+                        ldir = it["pdir"] / f"lift-{r}"
+                        kept = read_partials(ldir, it["kh"], seeds)
+                        run = [s for s in seeds if s not in kept]
+                        ajobs = [((row.name, cond, (r,), str(ldir), it["kh"]), s) for s in run]
+                        got = dict(zip(run, get_pool().map(ajobs, failed=_lost) if ajobs else [], strict=True))
+                        wall_new = float(sum(e.get("wall_s") or 0.0 for e in got.values()))
+                        by = {}
+                        for s, doc in kept.items():
+                            sid = (doc.get("session") or {}).get("id")
+                            by[sid] = by.get(sid, 0.0) + float(doc["episode"].get("wall_s") or 0.0)
+                        for sid, wall in by.items():
+                            count(a_unit, f"{rel(path)}#lift-{r}#{sid}", wall)
+                        if got:
+                            count(a_unit, f"{rel(path)}#lift-{r}#{sess['id']}", wall_new)
+                        session["attribution_episodes_run"] += len(got)
+                        lifted[r] = [got[s] if s in got else kept[s]["episode"] for s in seeds]
+                    rec["attribution"] = dict(panels.attribution_record(rec, cands, lifted,
+                                                                        time.perf_counter() - t0),
+                                              rule_bar=RULES["attribution"])
+                _relabel(rec)
+                _attribution_session(rec, sess, lift, t0)
+                s2io.write_json(path, _plain_json(rec))
+                drop_partials(it["pdir"].parent)
+                log(f"{set_name} {body} {block} {row.name} {cond.key}: attribution {rec['attribution']['label']}")
             if pool is not None:
                 session["incidents"] = list(pool.incidents)
         finally:
             if pool is not None:
                 pool.close()
+        for it in todo:  # what C8 says is run again on the next run of the same key
+            rec = it["rec"]
+            n = int(((rec or {}).get("counts") or {}).get("errors") or 0)
+            lost = int(((rec or {}).get("attribution") or {}).get("lifted_errors") or 0)
+            if n or lost:
+                session["incomplete"].append(f"{it['row'].name} {it['cond'].key}: {n} episodes failed to run"
+                                             + (f", {lost} lifted episodes failed to run" if lost else ""))
         session.update(ended_at=s2io.now_utc(), wall_s=time.perf_counter() - t_start)
         doc = summarize(out, set_name, body, block, control, session=session)
+        if passed_of is not None:  # the headline block's verdicts name each replication's outcome
+            summarize(out, set_name, body, passed_of, control)
     return doc
 
 
@@ -2099,7 +2728,9 @@ def _cell(rec: dict) -> dict:
                 counts=part(rec.get("counts")), counts_but_A1=part(rec.get("counts_but_A1")), counts_look=None,
                 a1_over=rec.get("a1_over"), falls=rec.get("falls"), label=f2.get("label"), label_but_A1=f3.get("label"),
                 attribution=(rec.get("attribution") or {}).get("label"), replication_of=rec.get("replication_of"),
-                supersedes=rec.get("supersedes"), control=rec.get("control"), key_sha256=rec.get("key_sha256"))
+                supersedes=rec.get("supersedes"), control=rec.get("control"), key_sha256=rec.get("key_sha256"),
+                change_after_result=rec.get("change_after_result"), stand_in_walks=rec.get("stand_in_walks"),
+                **({"lead_in": rec["lead_in"]} if rec.get("lead_in") else {}))  # (no key in any other set's cells)
 
 
 def verdict(cells: list, ms: int | None, which: str = "success") -> dict:
@@ -2138,11 +2769,40 @@ def verdict(cells: list, ms: int | None, which: str = "success") -> dict:
     return dict(verdict=v, reading=which, passes=passes)
 
 
+REPLICATION_WORDS = ("replicated", "not replicated", "replication cut by the pre-registered order")
+REPLICATION_PENDING = ("replication not run yet", "replication incomplete")
+
+
+def cut_paths(out) -> set[str]:
+    """The records (paths relative to ``out``) of every unit that ``<out>/budget.json`` lists as cut."""
+    doc = _read(Path(out) / "budget.json") or {}
+    return {str(q) for t in (doc.get("tasks") or {}).values() for c in t.get("cut") or []
+            for q in ((c.get("detail") or {}).get("paths") or [])}
+
+
+def replication_word(out, set_name: str, body: str, row: str, ckey: str, which: str, cut=None) -> str:
+    """What stands beside a passing headline record in one reading (``RULES["replication"]``): ``replicated`` if
+    the second block's record of that row and condition passes in that reading, ``not replicated`` if it fails,
+    ``replication cut by the pre-registered order`` if the ledger cut its unit; before that is known,
+    ``replication not run yet`` (or ``replication incomplete``: an episode of it failed to run)."""
+    path = block_dir(out, set_name, body, REPLICATION_BLOCK) / "eval" / row / f"{ckey}.json"
+    rec = _read(path)
+    if rec and rec.get("status") == "done":
+        ok = (rec.get("counts" if which == "success" else "counts_but_A1") or {}).get("pass_")
+        return REPLICATION_WORDS[0] if ok is True else REPLICATION_WORDS[1] if ok is False else REPLICATION_PENDING[1]
+    cut = cut_paths(out) if cut is None else cut
+    if Path(os.path.relpath(path, out)).as_posix() in cut:
+        return REPLICATION_WORDS[2]
+    return REPLICATION_PENDING[0]
+
+
 def summarize(out, set_name: str, body: str, block: str, control: str | None = None,
               session: dict | None = None) -> dict:
     """``<out>/<set>/<body>/<block>/eval/summary.json``: per condition the rows' cells in both readings and, per
     controller with a verdict (``panels.VERDICT_ROWS``) and delay, its cell in each reading; the sessions (each
-    ``evaluate`` call appends its own).  The two blocks have a summary each and are never pooled."""
+    ``evaluate`` call appends its own).  The two blocks have a summary each and are never pooled.  In the headline
+    block a ``shown`` or ``provisional`` cell carries, per row whose record passed in that reading, its
+    replication word (``replication_word``); a control of the round is not replicated and says so."""
     edir = block_dir(out, set_name, body, block, control) / "eval"
     path = edir / "summary.json"
     old = _read(path) or {}
@@ -2155,18 +2815,31 @@ def summarize(out, set_name: str, body: str, block: str, control: str | None = N
         if rec and rec.get("schema") == SCHEMA and "key_name" in rec:
             grid.setdefault(rec["key_name"], {})[rec["row"]] = _cell(rec)
     verdicts: dict = {}
+    cut = None
     no_verdict = ("the replication block gives no verdict of its own" if block != HEADLINE_BLOCK else
                   "a control gives no verdict" if control is not None else None)
     for ckey, cells in ({} if no_verdict else grid).items():
         for ctrl, pair in panels.VERDICT_ROWS.items():
             for ms in sorted({delay_ms(r) for r in cells if controller_of(r) == ctrl and delay_ms(r) is not None}):
                 two = [cells.get(f"{r}@{ms}ms") for r in pair]
-                verdicts.setdefault(ckey, {})[f"{ctrl}@{ms}ms"] = dict(
-                    rows=[f"{r}@{ms}ms" for r in pair], judged_delay=ms == JUDGED_MS, block=block,
-                    reading_1=dict(verdict=None, reason=LOOK_NOT_DEFINED), reading_2=verdict(two, ms, "success"),
-                    reading_3=verdict(two, ms, "but_A1"))
+                names = [f"{r}@{ms}ms" for r in pair]
+                cell = dict(rows=names, judged_delay=ms == JUDGED_MS, block=block,
+                            reading_1=dict(verdict=None, reason=LOOK_NOT_DEFINED), reading_2=verdict(two, ms, "success"),
+                            reading_3=verdict(two, ms, "but_A1"))
+                for rkey, which in (("reading_2", "success"), ("reading_3", "but_A1")):
+                    v = cell[rkey]
+                    if not v["verdict"].startswith(("shown", "provisional")):
+                        continue
+                    if registered_name(set_name) not in (None, CANDIDATE_SET):
+                        v.update(replication=None, replication_note="a control is not replicated")
+                        continue
+                    if cut is None:
+                        cut = cut_paths(out)
+                    v["replication"] = {r: replication_word(out, set_name, body, r, ckey, which, cut)
+                                        for r, ok in zip(names, v["passes"], strict=True) if ok}
+                verdicts.setdefault(ckey, {})[f"{ctrl}@{ms}ms"] = cell
     doc = dict(schema=SCHEMA, set=set_name, body=body, block=block, control=control,
-               rules={k: RULES[k] for k in ("readings", "pass_", "replication", "seeds")}, grid=grid,
+               rules={k: RULES[k] for k in ("readings", "pass_", "replication", "seeds", "no_overwrite")}, grid=grid,
                verdicts=verdicts, verdicts_note=no_verdict,
                sessions=list(old.get("sessions") or []) + ([session] if session else []),
                written_at=s2io.now_utc())
@@ -2175,13 +2848,27 @@ def summarize(out, set_name: str, body: str, block: str, control: str | None = N
     return doc
 
 
+def verdict_text(v: dict) -> str:
+    """A verdict cell as it is printed: a ``shown`` or ``provisional`` word never stands alone (H4)."""
+    rep = v.get("replication")
+    if rep:
+        return v["verdict"] + " [" + "; ".join(f"{r}: {w}" for r, w in rep.items()) + "]"
+    return v["verdict"] + (f" [{v['replication_note']}]" if v.get("replication_note") else "")
+
+
 def summary_text(doc: dict) -> str:
-    """The block's grid as text: one line per condition and row with both readings' counts."""
+    """The block's grid as text: one line per condition and row with both readings' counts, the labels a record
+    carries (a re-run after a result, a change after a result, the lead-in of a set that starts straight into its
+    0.40 m/s walk), and per controller its verdicts with their replication words."""
     lines = [f"{doc['set']} {doc['body']} {doc['block']}" + (f" (control {doc['control']})" if doc.get("control") else "")]
+
+    def lead(x):  # the label of a set that starts straight into its 0.40 m/s walk (RULES["lead_in"])
+        return f" [lead-in {x['lead_in']}: an exception, A8 as amended (P34)]" if x.get("lead_in") else ""
+
     for ckey, cells in doc["grid"].items():
         for r, x in cells.items():
             if x["status"] != "done":
-                lines.append(f"  {ckey:28s} {r:14s} {x['status']}: {x.get('reason')}")
+                lines.append(f"  {ckey:28s} {r:14s} {x['status']}: {x.get('reason')}" + lead(x))
                 continue
             c2, c3 = x["counts"], x["counts_but_A1"]
 
@@ -2196,40 +2883,72 @@ def summary_text(doc: dict) -> str:
                          f"{c2['succeeded']} succeed{word(c2)}"
                          + ("" if c3 is None else f"; but for A1: {c3['succeeded']} succeed{word(c3)}")
                          + (f"; {c2['errors']} failed to run" if c2.get("errors") else "")
-                         + ("" if x.get("gated", True) else " [reported]"))
+                         + ("" if x.get("gated", True) else " [reported]")
+                         + (f" [{x['supersedes'].get('label')}: {x['supersedes'].get('reason')}]"
+                            if x.get("supersedes") else "")
+                         + (f" [{x['change_after_result'].get('label')}]" if x.get("change_after_result") else "")
+                         + lead(x))
         for name, v in (doc["verdicts"].get(ckey) or {}).items():
-            lines.append(f"  {ckey:28s} {name}: {v['reading_2']['verdict']}; {v['reading_3']['verdict']}")
+            lines.append(f"  {ckey:28s} {name}: {verdict_text(v['reading_2'])}; {verdict_text(v['reading_3'])}")
     return "\n".join(lines)
 
 
 # ------------------------------------------------------------------------------------------------
 # Dry run
 # ------------------------------------------------------------------------------------------------
-def measure_rates(body: str, row_names, stage1_run=STAGE1_RUN, seconds: float = COST_SECONDS, seeds=COST_SEEDS) -> dict:
-    """Wall seconds per simulated second of each row type (controller) among ``row_names``: two short episodes of
-    its first row on Stage 1's own committed condition ``COST_CONDITION`` (the ``S1`` view, cut to ``seconds``),
-    run and judged as the runner does, the trace written to a temporary directory.  Never on a reference of a
-    Stage 2 set."""
+def _load() -> dict:
+    """The machine's load now: the load averages and, where /proc has it, the runnable and all processes."""
+    out = dict(load_average=[float(x) for x in os.getloadavg()], at=s2io.now_utc())
+    try:
+        out["runnable"], out["processes"] = (int(x) for x in Path("/proc/loadavg").read_text().split()[3].split("/"))
+    except (OSError, ValueError, IndexError):
+        pass
+    return out
+
+
+def measure_rates(body: str, row_names, stage1_run=STAGE1_RUN, seconds: float | None = None, seeds=COST_SEEDS) -> dict:
+    """Wall seconds per simulated second of each row type (controller) among ``row_names``, for ``COST.md``: on
+    Stage 1's own committed condition ``COST_CONDITION`` (the ``S1`` view; never a reference of a Stage 2 set),
+    under the row type's row at 0 ms (the delay queue costs nothing, and at 0 ms these episodes run their full
+    length), after one warm-up episode that is not counted (it pays the plant's and the track's build), over the
+    episodes of ``seeds``, each run and judged as the runner does with its trace written to a temporary directory.
+    ``seconds`` cuts the episodes (tests; the committed rates take full episodes).  Every episode's wall and
+    simulated seconds and whether it fell are kept, with the machine's load before and after: a rate measured
+    beside other processes is an upper estimate."""
     run_dir = setio._anchored(stage1_run) / body
     _, docs = setio.stage1_view(stage1_run, body)
     ctx = BarContext(body, run_dir, docs)
-    cond = dataclasses.replace(next(c for c in panels.conditions() if c.key == COST_CONDITION), seconds=float(seconds))
+    cond = next(c for c in panels.conditions() if c.key == COST_CONDITION)
+    if seconds is not None:
+        cond = dataclasses.replace(cond, seconds=float(seconds))
     first = {}
     for name in row_names:
-        first.setdefault(controller_of(name), name)
-    out = {}
+        first.setdefault(controller_of(name), f"{parse_row(name)[0]}@0ms")
+    out, before = {}, _load()
     with tempfile.TemporaryDirectory() as tmp:
         for ctrl, name in first.items():
             row = rows(body, [name], stage1_run)[name]
+            planned = float(ctx.built(cond).seconds)
+            warm = run_episode(row, ctx, cond, seeds[0], trace_root=Path(tmp) / "warm")
             eps = [run_episode(row, ctx, cond, s, trace_root=Path(tmp)) for s in seeds]
             wall, sim = sum(e["wall_s"] for e in eps), sum(e["survival_s"] for e in eps)
             out[ctrl] = dict(wall_per_sim_s=wall / max(sim, 1e-9), row=name, wall_s=wall, simulated_s=sim,
-                             fell=[bool(e["fell"]) for e in eps])
+                             planned_s=planned,
+                             episodes=[dict(seed=int(e["seed"]), wall_s=e["wall_s"], simulated_s=e["survival_s"],
+                                            fell=bool(e["fell"])) for e in eps],
+                             full_length=bool(all(not e["fell"] and e["survival_s"] >= planned - 0.05 for e in eps)),
+                             warm_up=dict(seed=int(warm["seed"]), wall_s=warm["wall_s"], simulated_s=warm["survival_s"],
+                                          counted=False))
     return dict(schema=COST_SCHEMA, rates=out,
                 measured_on=dict(set=STOCK_SET, stage1_run=s2io.portable(str(setio._anchored(stage1_run))), body=body,
-                                 condition=COST_CONDITION, cut_s=float(seconds), seeds=[int(s) for s in seeds],
+                                 condition=COST_CONDITION, cut_s=None if seconds is None else float(seconds),
+                                 seeds=[int(s) for s in seeds], delay_ms=0,
+                                 warm_up="one episode per row type before the counted ones; not counted",
                                  note="Stage 1's own committed condition, never a reference of a Stage 2 set"),
-                load_average=list(os.getloadavg()), cpu_count=os.cpu_count(), at=s2io.now_utc())
+                load=dict(before=before, after=_load(), cpu_count=os.cpu_count(),
+                          note="the machine's load while the rates were measured; a rate measured beside other "
+                               "processes is an upper estimate"),
+                at=s2io.now_utc())
 
 
 def dry_run(set_name: str, body: str, out, rows, conditions=None, block: str = HEADLINE_BLOCK, episodes: int = RUNS,
@@ -2287,8 +3006,12 @@ def dry_run(set_name: str, body: str, out, rows, conditions=None, block: str = H
     if cost is not None:
         mo = cost.get("measured_on") or {}
         text += ["Rates (wall seconds per simulated second, one process), measured on Stage 1's own committed "
-                 f"condition `{mo.get('condition')}` of `{mo.get('body')}` (`{mo.get('stage1_run')}`), cut to "
-                 f"{mo.get('cut_s')} s, seeds {mo.get('seeds')}; never on a reference of a Stage 2 set:", "",
+                 f"condition `{mo.get('condition')}` of `{mo.get('body')}` (`{mo.get('stage1_run')}`) under each row "
+                 "type's row at 0 ms, after a warm-up episode that is not counted, on episodes "
+                 + ("run their full length" if mo.get("cut_s") is None else f"cut to {mo.get('cut_s')} s")
+                 + f", seeds {mo.get('seeds')}; never on a reference of a Stage 2 set.  The machine's load at the "
+                 "time is in the block below: a rate measured beside other processes is an upper estimate, so a "
+                 "unit's estimate from it is no bound.", "",
                  "| Row type | Row measured | Wall s per simulated s |", "|---|---|---|"]
         text += [f"| {k} | `{v['row']}` | {v['wall_per_sim_s']:.4f} |" for k, v in cost["rates"].items()]
         text += ["", "```json", json.dumps(s2io.plain(cost), indent=1), "```", ""]
@@ -2521,12 +3244,16 @@ def reference_item(p: plant.Plant, run_dir, cond: BarCondition, planner: BarPlan
     out = dict(condition=cond.key, plan=[list(x) for x in res["plan"]], seconds=res["seconds"], clock_rate=RATE,
                files=res["files"])
 
+    planned = planned_swing_rows(track, rec.col("t_ref"), rec.col("ref_swing"))
+
     def toe(ta, tb):
-        r = readings.toe_clearance_own_swing(rec.t, _lows(rec), rec.contact(), rec.dt, rec.col("ref_swing"), ta, tb, gap)
-        r.pop("swings")
-        v = r["toe_clearance_own_swing_m"]
+        r = readings.toe_clearance_own_swing(rec.t, _lows(rec), rec.contact(), rec.dt, rec.col("ref_swing"), ta, tb,
+                                             gap, planned_s=planned)
+        r.pop("swings"), r.pop("swing_details")
+        v, v1 = r["toe_clearance_own_swing_m"], r["toe_clearance_own_duration_m"]
         return dict(r, ok=readings.toe_clearance_own_swing_ok(r, H), limit_m=readings.TOE_CLEARANCE_FRAC_H * H,
-                    toe_clearance_own_swing_H=None if v is None else v / H)
+                    toe_clearance_own_swing_H=None if v is None else v / H,
+                    toe_clearance_own_duration_H=None if v1 is None else v1 / H)
 
     j = cond.judge
     if j == "bar_walk":
@@ -2576,10 +3303,11 @@ def refcheck(set_name: str, body: str, root=setio.ROOT, out=None, log=print) -> 
     conds = [c for c in conditions(set_docs) if c.friction is None and c.judge != "bar_nudge"]
     usable = [c for c in conds if planner.missing(c) is None]
     files = sorted({f for c in usable for f in planner.resolve(c)["files"]})
+    check_manifest(set_docs["set.json"])
     inputs, _ = setio.read_inputs(run_dir, files, require_frozen=False)
-    crouch = set_crouch(set_docs["set.json"])
+    crouch = set_crouch(set_docs["set.json"], set_docs["refs.json"]["references"], walks_of(files))
     p = plant.build(body, "hard", settle=False)
-    omega = float(control.omega0(p, Reference.load(run_dir / "refs" / f"{setio.NOMINAL}.npz").q_home,
+    omega = float(control.omega0(p, Reference.load(run_dir / "refs" / f"{planner.home_walk}.npz").q_home,
                                  crouch_frac=crouch)) if usable else None
     items = {}
     for c in conds:
@@ -2598,8 +3326,11 @@ def refcheck(set_name: str, body: str, root=setio.ROOT, out=None, log=print) -> 
                f"commanded clock ({RATE:g}), read with the bar's own readings; no physics, no verdict",
                omega=omega, crouch_frac=crouch, inputs=dict(dir=s2io.portable(inputs["dir"]), files=inputs["files"]),
                set_freeze=inputs.get("freeze"), items=items, pass_=bool(done and all(x["pass_"] for x in done)),
-               bar_sources=bar_sources(), provenance=dict(git=s2io.git_state(), versions=panels.library_versions(),
-                                                           blas_threads=s2io.blas_threads()), at=s2io.now_utc())
+               **({} if planner.lead == setio.START else dict(lead_in=planner.lead, lead_in_rule=RULES["lead_in"])),
+               bar_sources=bar_sources(),
+               provenance=dict(git=s2io.git_state(own_outputs=[] if out is None else [str(Path(out).resolve())]),
+                               versions=panels.library_versions(), blas_threads=s2io.blas_threads()),
+               at=s2io.now_utc())
     if out is not None:
         s2io.write_json(Path(out) / set_name / body / "refcheck.json", doc)
     return doc
@@ -2661,13 +3392,19 @@ def reread(stage1_run, body: str, rows, conditions, out, records=None, row_modul
                     w = (e.get("measures") or {}).get("window") or {}
                     if line["trace_equal"] and w.get("complete"):
                         gap = readings.air_gap_max(setio.min_planned_swing_s(b.track), RATE)
-                        r = readings.toe_clearance_own_swing(rec.t, _lows(rec), rec.contact(), rec.dt,
-                                                             rec.col("ref_swing"), w["t_start_s"], w["t_end_s"], gap)
-                        r.pop("swings")
+                        r, _ = _toe(b, rec, w["t_start_s"], w["t_end_s"], air_gap_max_s=gap)
                         own, ref = r["toe_clearance_own_swing_m"], w.get("toe_clearance_m")
+                        first = r["toe_clearance_own_duration_m"]
                         line.update(window_s=[w["t_start_s"], w["t_end_s"]], H_m=b.H,
-                                    toe_clearance_own_swing_m=own, toe_clearance_reference_clock_m=ref,
+                                    toe_clearance_own_swing_m=own, toe_clearance_own_duration_m=first,
+                                    toe_clearance_reference_clock_m=ref,
+                                    toe_clearance_own_swing_H=r["toe_clearance_own_swing_H"],
+                                    toe_clearance_own_duration_H=r["toe_clearance_own_duration_H"],
+                                    toe_clearance_reference_clock_H=None if ref is None else ref / b.H,
                                     difference_m=None if own is None or ref is None else own - ref,
+                                    worst_swing=r["worst_swing"], ref_swings_cut=r["ref_swings_cut"],
+                                    own_duration_ok=bool(first is not None and first >= readings.TOE_CLEARANCE_FRAC_H
+                                                         * b.H),
                                     own_swing_ok=readings.toe_clearance_own_swing_ok(r, b.H),
                                     reference_clock_ok=bool(ref is not None and ref >= tune.TOE_H * b.H),
                                     own_swings=r["own_swings"], ref_swings=r["ref_swings"],
@@ -2682,22 +3419,24 @@ def reread(stage1_run, body: str, rows, conditions, out, records=None, row_modul
                     eps.append(line)
                     log(f"{body} {row.name} {cond.key} {seed}: trace "
                         + ("equal" if line["trace_equal"] else "DIFFERS" if want else "has no committed record")
-                        + (f"; own swing {1e3 * line['toe_clearance_own_swing_m']:.2f} mm, reference clock "
-                           f"{1e3 * line['toe_clearance_reference_clock_m']:.2f} mm"
+                        + (f"; own swing {line['toe_clearance_own_swing_H']:.4f} H (as first written "
+                           f"{line['toe_clearance_own_duration_H']:.4f} H), reference clock "
+                           f"{line['toe_clearance_reference_clock_H']:.4f} H"
                            if line.get("toe_clearance_own_swing_m") is not None
                            and line.get("toe_clearance_reference_clock_m") is not None else ""))
                     doc = dict(schema="bar-reread-1", body=body, rule=(
                         "stock rows on stock conditions, re-run; a stock trace's sha256 must equal the committed "
                         "episode record's before the own-swing toe clearance is read on the live recorder, over "
-                        "the window Stage 1 judged; only the trace identity is asserted"),
+                        "the window Stage 1 judged (the judged reading of C3 as amended on 15 Nov 2026, the reading "
+                        "as first written and Stage 1's beside it); only the trace identity is asserted"),
                         stage1_run=s2io.portable(str(setio._anchored(stage1_run))),
                         records=s2io.portable(str(rec_root)), rows=list(row_objs), conditions=[c.key for c in conds],
                         seeds=[int(s) for s in seeds], episodes=eps, traces_equal=sum(x["trace_equal"] for x in eps),
                         traces=len(eps), pass_=bool(all(x["trace_equal"] for x in eps)),
                         complete=len(eps) == len(row_objs) * len(conds) * len(seeds), bar_sources=bar_sources(),
                         panel_sources=panels.panel_sources()["sha256"], inputs=dict(files=inputs["files"]),
-                        provenance=dict(git=s2io.git_state(), versions=panels.library_versions(),
-                                        blas_threads=s2io.blas_threads()),
+                        provenance=dict(git=s2io.git_state(own_outputs=[str(out.resolve())]),
+                                        versions=panels.library_versions(), blas_threads=s2io.blas_threads()),
                         wall_s=time.perf_counter() - t_start, at=s2io.now_utc())
                 s2io.write_json(path, doc)
     return doc
@@ -2722,8 +3461,9 @@ def main(argv=None) -> int:
     ap.add_argument("--passed-of", default=None, choices=tuple(BLOCKS))
     ap.add_argument("--procs", type=int, default=2)
     ap.add_argument("--attribute", default="judged", choices=("judged", "all", "none"))
-    ap.add_argument("--no-traces", action="store_true")
-    ap.add_argument("--no-traces-for", default=None, help="controllers whose rows write no trace (R0)")
+    ap.add_argument("--no-traces", action="store_true", help="hash every trace and keep none")
+    ap.add_argument("--no-traces-for", default=None,
+                    help="controllers whose rows' traces are hashed and not kept (R0)")
     ap.add_argument("--episodes", type=int, default=RUNS)
     ap.add_argument("--task", type=int, default=None, choices=tuple(BUDGET_CORE_H))
     ap.add_argument("--unit", default=None, help="the unit's name in budget.json")
@@ -2762,6 +3502,10 @@ def main(argv=None) -> int:
             s = doc["sessions"][-1]
             print(f"session: {s['episodes_run']} episodes run, {s['attribution_episodes_run']} lifted, "
                   f"{len(s['skipped'])} records up to date, {len(s['not_run'])} not run, {s['wall_s']:.1f} s")
+            if s.get("incomplete"):  # RULES["error"]: these are run again on the next run of the same key
+                print("bar: episodes failed to run; their records are not judged and the next run of the same "
+                      "command runs them again (exit 4): " + "; ".join(s["incomplete"]), file=sys.stderr)
+                return 4
             return 0
         if a.command == "dry-run":
             rates = read_cost(a.cost) if a.cost else None
@@ -2788,9 +3532,11 @@ def main(argv=None) -> int:
 
 
 __all__ = ["BarBuilt", "BarCondition", "BarContext", "BarPlanner", "BarWorker", "Budget", "Delayed", "bar_sources",
-           "condition_record", "conditions", "counts", "dry_run", "evaluate", "failed_episode", "failure", "judge",
-           "not_run_record", "record_key", "refcheck", "reference_recorder", "reread", "rows", "run_episode",
-           "summarize"]
+           "carried_supersedes", "check_manifest", "condition_record", "conditions", "counts", "cut_paths", "dry_run",
+           "evaluate", "failed_episode", "failure", "joint_range_window", "judge", "leg_gap_window", "measure_rates",
+           "not_run_record", "planned_swing_rows", "record_key", "refcheck", "reference_recorder", "registered_name",
+           "replication_word", "reread", "rows", "run_episode", "set_crouch", "set_info", "summarize",
+           "supersede_record", "verdict_text"]
 
 if __name__ == "__main__":
     from designlab.stage2 import bar as _named  # the importable copy owns every class and all module state

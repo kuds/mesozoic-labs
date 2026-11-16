@@ -77,7 +77,11 @@ def test_the_picks_list_matches_the_records():
 
 def test_every_listed_input_is_git_ignored_and_untracked():
     paths = [p for g in ri.GROUPS for p in ri.listed(g)]
-    assert len(paths) == len(set(paths)) == 6 + 84 + 60 + 60 + 73
+    # the sets group's list is made from the frozen sets' manifests: two files per frozen walk, one per frozen move
+    frozen = sum(2 if row.get("kind") in ("walk", "ref") else 1 for _, _, manifest in ri.frozen_sets()
+                 for row in manifest.values())
+    assert len(ri.listed("sets")) == frozen
+    assert len(paths) == len(set(paths)) == 6 + 84 + 60 + 60 + 30 + 73 + frozen
     ignored = subprocess.run(["git", "-C", str(STUDY), "check-ignore", "--no-index", "--stdin"], input="\n".join(paths),
                              capture_output=True, text=True).stdout.split()
     assert sorted(ignored) == sorted(paths)
@@ -92,12 +96,19 @@ def test_every_list_agrees_with_the_committed_records(group):
 
 
 def test_the_restore_order():
-    """Models before arrays; the look ladder (whose price reads the picks' models) after them."""
-    assert ri.GROUPS == ("picks-models", "picks-arrays", "k", "x", "look")
+    """Models before arrays; the look ladder (whose price reads the picks' models) after them; the frozen reference
+    sets (built on the picks' models, checked against the picks' and the ladder's arrays) last."""
+    assert ri.GROUPS == ("picks-models", "picks-arrays", "k", "x", "j", "look", "sets")
+    assert set(ri.GROUPS) == set(ri.TITLES) == set(ri.RESTORE)
+    assert ri.NEEDS == {"look": ("picks-models",), "sets": ("picks-models", "picks-arrays")}
     for g, needs in ri.NEEDS.items():
         assert all(ri.GROUPS.index(n) < ri.GROUPS.index(g) for n in needs)
     assert ri.helper_bodies("k") == ("60-N-T-10-K", "60-N-H-10-K") and ri.helper_bodies("x") == ("60-N-T-10-X",
                                                                                                   "75-M-H-10-X")
+    assert ri.helper_bodies("j") == ("75-M-H-10-J",) == stage1.JETSON_BODIES and set(ri.HELPERS) == {"k", "x", "j"}
+    j = ri.listed("j")  # 2 model files, 10 references, 18 transitions
+    assert len(j) == 30 and sum(p.startswith("round2/refine/jetson_75/models/") for p in j) == 2
+    assert sum("/refs/" in p for p in j) == 10 and sum("/transitions/" in p for p in j) == 18
     assert ri.SIZE_BLAS_THREADS >= 2  # with one BLAS thread the picks' ledger JSON is not the recorded one
 
 
@@ -362,13 +373,20 @@ def fake_study(tmp_path, monkeypatch):
     (run / "stage1_inputs.json").write_text(json.dumps(dict(files={p: _sha(b) for p, b in right.items()
                                                                    if not p.startswith("stage2/")})))
     for name, value in (("STUDY", study), ("RUN", run), ("MANIFEST", run / "stage1_inputs.json"), ("LOOK", look),
-                        ("LOOK_REFS", look / "look_refs.json"), ("PICKS", picks)):
+                        ("LOOK_REFS", look / "look_refs.json"), ("PICKS", picks), ("SETS", study / "stage2" / "sets")):
         monkeypatch.setattr(ri, name, value)
     made, jobs = {}, []
 
     def regen(job_list, procs):
         for label, argv, _ in job_list:
             jobs.append((label, argv))
+            if "designlab.stage2.sets" in argv:  # sets build --set S --body B --procs N: in place, on a frozen set
+                d = f"stage2/sets/{argv[argv.index('--set') + 1]}/{argv[argv.index('--body') + 1]}/"
+                for rel, sha in ri.listed("sets").items():  # ... only an array whose sha256 is the manifest's
+                    if rel.startswith(d) and _sha(made.get(rel, right[rel])) == sha and ri._sha(study / rel) != sha:
+                        (study / rel).parent.mkdir(parents=True, exist_ok=True)
+                        (study / rel).write_bytes(made.get(rel, right[rel]))
+                continue
             if "designlab.stage2.look" in argv:  # look prepare --out DIR --body B --speed S --variant V ...
                 dest = Path(argv[argv.index("--out") + 1])
                 opt = {k: [argv[i + 1] for i, a in enumerate(argv) if a == k] for k in ("--body", "--speed",
@@ -482,3 +500,116 @@ def test_restore_helper_runs_only_the_steps_whose_files_are_bad(monkeypatch, tmp
     jobs.clear()
     bad = {ri.helper("k").model_paths("60-N-T-10-K")[1]: "0" * 64}
     assert ri.restore_helper("k", 2, tmp_path) == 0 and jobs == [([["models"]], 1)]
+
+
+# ------------------------------------------------------------------------------------------------
+# The sets group: its list is the frozen sets' manifests
+# ------------------------------------------------------------------------------------------------
+def _frozen_set(fs, set_name="V0", body="75-M-H-10", walks=("nominal", "v0.4"), moves=("start", "turn90_pi4_left"),
+                freezes=1) -> dict:
+    """A reference set under the fake study with ``freezes`` freezes (the last one holds every entry; an earlier one
+    only the first walk) and none of its arrays; its files' bytes go to ``fs.right``.  Returns the latest manifest."""
+    d = fs.study / "stage2" / "sets" / set_name / body
+    rel = f"stage2/sets/{set_name}/{body}"
+    refs, trans, manifest = {}, {}, {}
+    for w in walks:
+        fs.right[f"{rel}/refs/{w}.npz"] = f"walk {set_name} {body} {w}".encode()
+        fs.right[f"{rel}/look/{w}.npz"] = f"look {set_name} {body} {w}".encode()
+        refs[w] = dict(file=f"refs/{w}.npz", sha256=_sha(fs.right[f"{rel}/refs/{w}.npz"]), look_file=f"look/{w}.npz",
+                       look_sha256=_sha(fs.right[f"{rel}/look/{w}.npz"]))
+        manifest[w] = dict(kind="walk", sha256=refs[w]["sha256"], entry_sha256="e" * 64, look_sha256=refs[w]["look_sha256"])
+    for m in moves:
+        fs.right[f"{rel}/transitions/{m}.npz"] = f"move {set_name} {body} {m}".encode()
+        trans[m] = dict(file=f"transitions/{m}.npz", sha256=_sha(fs.right[f"{rel}/transitions/{m}.npz"]))
+        manifest[m] = dict(kind="turn" if m.startswith("turn") else m, sha256=trans[m]["sha256"], entry_sha256="e" * 64)
+    trans["turn90_1_left"] = dict(name="turn90_1_left", available=False, reason="no reference within the heading rule")
+    d.mkdir(parents=True)
+    (d / "refs.json").write_text(json.dumps(dict(references=refs)))
+    (d / "transitions.json").write_text(json.dumps(dict(transitions=trans)))
+    first = {walks[0]: manifest[walks[0]]}
+    (d / "set.json").write_text(json.dumps(dict(set=set_name, body=body, freezes=[
+        dict(index=i, manifest=manifest if i == freezes - 1 else first) for i in range(freezes)])))
+    return manifest
+
+
+def test_the_sets_group_lists_nothing_while_no_set_is_frozen(fake_study, tmp_path, capsys):
+    fs = fake_study
+    assert ri.frozen_sets() == [] and ri.listed("sets") == {} and ri.agreement("sets") == []
+    _frozen_set(fs, freezes=0)  # built, not frozen
+    assert ri.frozen_sets() == [] and ri.listed("sets") == {}
+    assert ri.restore_sets(2, tmp_path) == 0 and fs.jobs == []
+    assert "sets: no reference set is frozen" in capsys.readouterr().out
+    assert ri.tally(ri.listed("sets")) == dict(ok=[], missing=[], wrong=[])
+
+
+def test_the_sets_group_lists_the_latest_freeze_of_every_set(fake_study):
+    """Per frozen walk its Stage 1-format file and its look-format twin, per frozen move its file, each with the
+    manifest's sha256; an entry that is not in the manifest (an item with no reference) is not listed; the latest
+    freeze counts."""
+    fs = fake_study
+    m = _frozen_set(fs, freezes=2)
+    _frozen_set(fs, "F25F9cl", walks=("v0.4",), moves=())
+    _frozen_set(fs, "F25F9", freezes=0)
+    assert [(s, b) for s, b, _ in ri.frozen_sets()] == [("F25F9cl", "75-M-H-10"), ("V0", "75-M-H-10")]
+    d = "stage2/sets/V0/75-M-H-10"
+    files = ri.listed("sets")
+    assert files == {
+        f"{d}/refs/nominal.npz": m["nominal"]["sha256"], f"{d}/look/nominal.npz": m["nominal"]["look_sha256"],
+        f"{d}/refs/v0.4.npz": m["v0.4"]["sha256"], f"{d}/look/v0.4.npz": m["v0.4"]["look_sha256"],
+        f"{d}/transitions/start.npz": m["start"]["sha256"],
+        f"{d}/transitions/turn90_pi4_left.npz": m["turn90_pi4_left"]["sha256"],
+        "stage2/sets/F25F9cl/75-M-H-10/refs/v0.4.npz": _sha(fs.right["stage2/sets/F25F9cl/75-M-H-10/refs/v0.4.npz"]),
+        "stage2/sets/F25F9cl/75-M-H-10/look/v0.4.npz": _sha(fs.right["stage2/sets/F25F9cl/75-M-H-10/look/v0.4.npz"])}
+    assert all(files[p] == _sha(fs.right[p]) for p in files)
+    assert ri.agreement("sets") == []
+    # the set's own records must hold the frozen arrays
+    path = fs.study / d / "transitions.json"
+    doc = json.loads(path.read_text())
+    doc["transitions"]["start"]["sha256"] = "0" * 64
+    del doc["transitions"]["turn90_pi4_left"]
+    path.write_text(json.dumps(doc))
+    assert ri.agreement("sets") == [
+        f"{d}/transitions/start.npz: the list has {m['start']['sha256'][:8]}, the record 00000000",
+        f"{d}/transitions/turn90_pi4_left.npz: in the freeze, and its entry in the set's records holds no sha256"]
+
+
+def test_restore_sets_runs_sets_build_on_each_frozen_set_that_lacks_an_array(fake_study, tmp_path, capsys):
+    fs = fake_study
+    _frozen_set(fs)
+    _frozen_set(fs, "F25F9cl", walks=("v0.4",), moves=("start",))
+    d = "stage2/sets/V0/75-M-H-10"
+    for rel in ri.listed("sets"):
+        if rel.startswith("stage2/sets/F25F9cl/"):
+            _place(fs, rel)  # that set is all here
+    _place(fs, f"{d}/refs/nominal.npz")
+    _place(fs, f"{d}/look/v0.4.npz", b"another array")
+    records = {p: p.read_bytes() for p in (fs.study / d).glob("*.json")}
+    assert ri.restore_sets(2, tmp_path) == 0
+    assert fs.jobs == [("V0/75-M-H-10", [sys.executable, "-m", "designlab.stage2.sets", "build", "--set", "V0",
+                                         "--body", "75-M-H-10", "--procs", "2"])]
+    assert ri.tally(ri.listed("sets")) == dict(ok=sorted(ri.listed("sets")), missing=[], wrong=[])
+    assert {p: p.read_bytes() for p in (fs.study / d).glob("*.json")} == records  # no record is written
+    assert "sets: V0 75-M-H-10: 5 arrays: sets build" in capsys.readouterr().out
+    assert ri.restore_sets(2, tmp_path) == 0 and len(fs.jobs) == 1 and "sets: all here" in capsys.readouterr().out
+    # an array today's code does not reproduce is not put in place, and the group fails
+    (fs.study / d / "transitions" / "start.npz").unlink()
+    fs.made[f"{d}/transitions/start.npz"] = b"other code's array"
+    assert ri.restore_sets(1, tmp_path) == 1 and not (fs.study / d / "transitions" / "start.npz").exists()
+    out = capsys.readouterr().out
+    assert "1 arrays still missing or wrong" in out and f"{d}/transitions/start.npz" in out
+    assert fs.jobs[-1][1][-1] == "1"
+
+
+def test_copy_from_brings_a_frozen_sets_arrays(fake_study, tmp_path, capsys):
+    fs = fake_study
+    _frozen_set(fs)
+    src = tmp_path / "other"
+    for rel in ri.listed("sets"):
+        (src / rel).parent.mkdir(parents=True, exist_ok=True)
+        (src / rel).write_bytes(fs.right[rel])
+    (src / "stage2/sets/V0/75-M-H-10/look/v0.4.npz").write_bytes(b"not the frozen file")
+    assert ri.copy_from(str(src), ("sets",)) == 1
+    out = capsys.readouterr().out
+    assert "== sets: copied 5, already here 0" in out and "not copied (1)" in out
+    assert ri.tally(ri.listed("sets"))["missing"] == ["stage2/sets/V0/75-M-H-10/look/v0.4.npz"]
+

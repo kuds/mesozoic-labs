@@ -10,10 +10,12 @@ pytest's temporary directories.  Needs torch, stable-baselines3 and gymnasium (s
 from __future__ import annotations
 
 import base64
+import hashlib
 import io
 import json
 import math
 import operator
+import pickle
 import shutil
 import subprocess
 import sys
@@ -108,8 +110,8 @@ def saved(tmp_path_factory):
     return scratch_checkpoints(tmp_path_factory.mktemp("s2load") / "jobs" / RUN["job"])
 
 
-def _copy(saved, tmp_path) -> Path:
-    return Path(shutil.copytree(saved.job, tmp_path / "job"))
+def _copy(saved, tmp_path, name: str = "job") -> Path:
+    return Path(shutil.copytree(saved.job, tmp_path / name))
 
 
 def _reseal(job, n, **changes) -> dict:
@@ -124,6 +126,18 @@ def _reseal(job, n, **changes) -> dict:
     doc["sha256"] = s2io.sha256_json(doc)
     s2io.write_json(files["record"], doc)
     return doc
+
+
+def _edit_fingerprint(job, n, drop=(), **edits) -> None:
+    """Rewrite ``fingerprint_<n>.npz`` with ``edits`` (array name -> a function of a copy of the array that returns
+    the new one) and without the arrays named in ``drop``, then make the record agree with the files."""
+    path = s2load.checkpoint_files(job, n)["fingerprint"]
+    with np.load(path) as z:
+        arrays = {k: z[k] for k in z.files if k not in drop}
+    for key, change in edits.items():
+        arrays[key] = change(arrays[key].copy())
+    s2io.write_npz(path, arrays)
+    _reseal(job, n)
 
 
 def _cli(*args, env=None) -> subprocess.CompletedProcess:
@@ -235,6 +249,11 @@ def test_fingerprint_obs():
              "actor_dim": 88, "obs_dim": 130, "action_dim": 15}
     other = s2load.fingerprint_obs(plain)
     assert other.shape == (256, 130) and not other[:, 88:].any() and not np.array_equal(other[:, :14], obs[:, :14])
+    # the whole table is part of the rule every record carries (FINGERPRINT_RULE): both tables to the bit, so that
+    # no constant of FINGERPRINT_BLOCKS, no kind of draw and no order of the draws changes without this line changing
+    assert s2load._obs_sha256(obs) == "6fc5c509d17682ad1cd5839ccd162fe92f19deb1c71fcaf21c913c72305fd4b6"
+    assert s2load._obs_sha256(other) == "0a9aa56cd5df322d815cb088add1cead8cca01d05f31e67a40c1a86910bc7527"
+    assert s2load._obs_sha256(obs) == hashlib.sha256(obs.astype("<f4").tobytes()).hexdigest()   # what the hash is of
 
 
 def test_fingerprint_obs_refuses_a_layout_it_cannot_draw():
@@ -303,8 +322,8 @@ def test_the_record_and_the_four_files(saved):
     assert rec["layout"]["blocks"]["q"] == [0, 16] and rec["layout"]["head_x"] is True
     fp = rec["fingerprint"]
     assert (fp["rows"], fp["seed"], fp["tol"]) == (256, [20261115, OBS, ACTOR], 1e-5)
-    assert fp["rule"] == s2load.FINGERPRINT_RULE and 0 <= fp["clipped_rows"] <= 256
-    body = {k: v for k, v in rec.items() if k != "sha256"}
+    assert fp["rule"] == s2load.FINGERPRINT_RULE
+    body ={k: v for k, v in rec.items() if k != "sha256"}
     assert rec["sha256"] == s2io.sha256_json(body)
     # the order of the writes, no temporary file left
     times = [files[k].stat().st_mtime_ns for k in ("model", "vecnormalize", "fingerprint", "record")]
@@ -322,6 +341,16 @@ def test_the_record_and_the_four_files(saved):
     live = s2load.stats_of(saved.venv)
     assert all(np.array_equal(arrays[k], live[k]) and arrays[k].dtype == np.float64 for k in s2load.STATS_KEYS)
     assert np.array_equal(arrays["actions"], s2load.fingerprint(saved.model, live, arrays["obs"]))
+    # S2-12's definition, by stable-baselines3's own code and none of this module's: the deterministic actions of
+    # the policy on the observations as the SAVED statistics normalise them (not on the observations as drawn)
+    normalised = saved.venv.normalize_obs(arrays["obs"])
+    want, _ = saved.model.predict(normalised, deterministic=True)
+    assert np.array_equal(arrays["actions"], want)
+    raw, _ = saved.model.predict(arrays["obs"], deterministic=True)
+    assert not np.array_equal(arrays["actions"], raw) and np.abs(want - raw).max() > 1e-3
+    # the rows the normalisation clips in an actor column, counted from VecNormalize's own output
+    clipped = int(np.any(np.abs(normalised[:, :ACTOR]) >= 10.0, axis=1).sum())
+    assert fp["clipped_rows"] == clipped and 0 < clipped < 256
     # the two checkpoints differ (the policy and the statistics moved between them)
     with np.load(s2load.checkpoint_files(saved.job, 32)["fingerprint"]) as z:
         assert np.array_equal(z["obs"], arrays["obs"]) and not np.array_equal(z["actions"], arrays["actions"])
@@ -362,7 +391,18 @@ def test_saving_draws_no_random_number_and_touches_no_env(tmp_path):
 
 
 def test_save_refuses_before_it_writes(saved, tmp_path):
+    from stable_baselines3.common.vec_env import VecNormalize
+
     job = tmp_path / "job"
+    # statistics that are not one flat observation's (normalisation off; a dict observation's), or of another width
+    with pytest.raises(CheckpointError, match="plain statistics need a VecNormalize that normalises one flat Box"):
+        s2load.save_checkpoint(job, 64, saved.model, VecNormalize(_venv(), norm_obs=False), LAYOUT, RUN, STATE)
+    with pytest.raises(CheckpointError, match="plain statistics need"):
+        s2load.stats_of(types.SimpleNamespace(obs_rms={"camera": None}, norm_obs=True))
+    rms = types.SimpleNamespace(mean=np.zeros(130), var=np.ones(130), count=1.0)
+    narrow_stats = types.SimpleNamespace(obs_rms=rms, norm_obs=True, clip_obs=10.0, epsilon=1e-8)
+    with pytest.raises(CheckpointError, match="the statistics are 130 wide, the layout 140"):
+        s2load.save_checkpoint(job, 64, saved.model, narrow_stats, LAYOUT, RUN, STATE)
     for run, said in ((dict(RUN, mode="R5"), r"run holds \['mode'\]"),
                       ({k: v for k, v in RUN.items() if k != "run_uuid"}, "run_uuid"),
                       (dict(RUN, settings_sha256=""), "settings_sha256")):
@@ -377,6 +417,25 @@ def test_save_refuses_before_it_writes(saved, tmp_path):
     with pytest.raises(TypeError):
         s2load.save_checkpoint(job, 64, saved.model, saved.venv, LAYOUT, RUN, dict(STATE, bad={1, 2}))
     assert not job.exists()
+
+
+def test_a_save_whose_fingerprint_is_not_finite_leaves_nothing(saved, tmp_path, monkeypatch):
+    job, real = tmp_path / "job", s2load.fingerprint
+    s2load.save_checkpoint(job, 64, saved.model, saved.venv, LAYOUT, RUN, STATE)       # a good one stands there
+    assert s2load.pair_problem(job, 64) is None
+    for bad in (np.inf, np.nan):                  # a policy that diverged: one action column is no number
+        monkeypatch.setattr(s2load, "fingerprint", lambda model, stats, obs, bad=bad: np.where(
+            np.arange(ACT) == 3, np.float32(bad), real(model, stats, obs)))
+        with pytest.raises(CheckpointError, match="checkpoint 64: the fingerprint actions are not 256 finite rows"):
+            s2load.save_checkpoint(job, 64, saved.model, saved.venv, LAYOUT, RUN, STATE)
+        assert list((job / "checkpoints").iterdir()) == []                # no record, no binary, no temporary file
+    monkeypatch.setattr(s2load, "fingerprint", lambda model, stats, obs: real(model, stats, obs)[:, :-1])
+    with pytest.raises(CheckpointError, match="not 256 finite rows of 17"):
+        s2load.save_checkpoint(job, 64, saved.model, saved.venv, LAYOUT, RUN, STATE)
+    assert list((job / "checkpoints").iterdir()) == []
+    monkeypatch.undo()
+    s2load.save_checkpoint(job, 64, saved.model, saved.venv, LAYOUT, RUN, STATE)
+    assert s2load.load_checkpoint(job, 64)["fingerprint_max_abs_diff"] == 0.0
 
 
 # ------------------------------------------------------------------------------------------------
@@ -461,8 +520,14 @@ def test_an_inference_load_unpickles_neither_space_nor_last_observation(saved, t
     from environments.shared.policy_loading import inspect_sb3_archive, load_sb3_model
 
     src = s2load.checkpoint_files(saved.job, 64)["model"]
-    replaced = ("observation_space", "action_space") + s2load.INFERENCE_NONE + ("learning_rate", "lr_schedule",
-                                                                                "clip_range")
+    # every pickled member of the archive itself, less the two class references (K9: "only tensors and the policy
+    # class cross library versions"): the list is read from the archive, not from the loader's own constants
+    replaced = tuple(sorted(inspect_sb3_archive(src).serialized_members - {"policy_class", "rollout_buffer_class"}))
+    assert set(replaced) == {"observation_space", "action_space", "learning_rate", "lr_schedule", "clip_range",
+                             "_last_obs", "_last_original_obs", "_last_episode_starts", "ep_info_buffer",
+                             "ep_success_buffer"}
+    assert set(s2load.INFERENCE_NONE) == set(replaced) - {"observation_space", "action_space", "learning_rate",
+                                                          "lr_schedule", "clip_range"}
     for name in replaced:                         # each member alone stops a plain load ...
         one = tmp_path / f"one_{name}.zip"
         _doctor(src, one, (name,))
@@ -479,6 +544,66 @@ def test_an_inference_load_unpickles_neither_space_nor_last_observation(saved, t
         assert np.array_equal(s2load.fingerprint(model, stats, z["obs"]), z["actions"])
     with pytest.raises(ZeroDivisionError):        # a training load does read the spaces (to check the env's)
         s2load.load_model(doctored, LAYOUT, env=_venv(), lr=LR)
+
+
+def test_a_load_for_judging_does_not_unpickle_the_statistics_file(saved, tmp_path):
+    """K9: a load for judging reads the statistics from the plain arrays; ``vecnormalize_<n>.pkl`` is checked by its
+    size and sha256 and is not unpickled, so a file this machine's libraries cannot read does not stop a checkpoint
+    from being judged.  A training resume uses the file, and is refused."""
+    job = _copy(saved, tmp_path)
+    path = s2load.checkpoint_files(job, 64)["vecnormalize"]
+    path.write_bytes(pickle.dumps(_Boom()))                              # unpickling it divides by zero
+    with pytest.raises(ZeroDivisionError):
+        pickle.loads(path.read_bytes())
+    _refused(job, 64, "vecnormalize_64.pkl has")                         # still one of the checkpoint's three files
+    _reseal(job, 64)
+    ck = s2load.load_checkpoint(job, 64, expect_run=RUN)
+    assert ck["fingerprint_max_abs_diff"] == 0.0 and "vecnorm" not in ck
+    packed =s2load.pack(job, 64, tmp_path / "out")                       # ... and it comes through an import
+    got = s2load.import_tar(s2load.checkpoint_files(job, 64)["record"], packed["tar"], tmp_path / "here")
+    assert got["ok"] is True and got["fingerprint_max_abs_diff"] == 0.0
+    assert "does not unpickle vecnormalize_<n>.pkl" in got["rules"]["loader"]
+    # what a resume starts from: the repository's own check of the pair, which unpickles the file
+    why = "VecNormalize sidecar vecnormalize_64.pkl does not unpickle (division by zero)"
+    assert s2load.pair_problem(job, 64) == why
+    assert s2load.newest_intact(job) == (32, [{"steps": 64, "reason": why}])
+    venv = _venv()
+    assert _refused(job, 64, "does not unpickle", env=venv, lr=LR).endswith(why)
+    assert [(e.resets, e.steps) for e in venv.envs] == [(0, 0), (0, 0)]
+
+
+def test_the_zip_test_of_a_judging_load_is_the_repositorys(saved, tmp_path):
+    """The inference load's zip test is this module's copy of the first half of the repository's
+    ``checkpoint_pair_problem`` (the second half unpickles the ``.pkl``): the same verdict in the same words."""
+    tbenv.repo_on_path()
+    from environments.shared.curriculum.checkpoints import checkpoint_pair_problem
+
+    files = s2load.checkpoint_files(saved.job, 64)
+    whole = files["model"].read_bytes()
+    flipped = bytearray(whole)
+    flipped[1000] ^= 0xFF                         # inside a stored member: its CRC no longer matches
+    cases = {"whole": whole, "cut": whole[: len(whole) * 2 // 3], "tail": whole[-(len(whole) // 3):], "empty": b"",
+             "noise": b"not a zip at all" * 200, "flipped": bytes(flipped)}
+    with zipfile.ZipFile(files["model"]) as zin:
+        names = zin.namelist()
+        for drop in ("data", "policy.pth"):       # an archive that opens and tests clean, without one SB3 member
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w") as zout:
+                for item in zin.infolist():
+                    if item.filename != drop:     # by name: writestr(item, ...) would move zin's own offsets
+                        zout.writestr(item.filename, zin.read(item.filename))
+            cases["without " + drop] = buf.getvalue()
+    assert {"data", "policy.pth"} <= set(names)
+    path, said = tmp_path / "model_64.zip", {}
+    for name, payload in cases.items():
+        path.write_bytes(payload)
+        said[name] = s2load._archive_problem(path)
+        assert said[name] == checkpoint_pair_problem(path, files["vecnormalize"]), name
+    assert said.pop("whole") is None
+    assert all(why.startswith("bad/truncated checkpoint zip model_64.zip (") for why in said.values()), said
+    assert all("outer archive lacks SB3 members" in said[k] for k in ("without data", "without policy.pth"))
+    assert "corrupt archive member" in said["flipped"]
+    assert s2load._archive_problem(tmp_path / "absent.zip").startswith("bad/truncated checkpoint zip absent.zip (")
 
 
 def test_a_training_load_keeps_the_last_observation_and_resets_nothing(saved):
@@ -585,6 +710,8 @@ def test_load_arguments(saved):
         s2load.load_checkpoint(saved.job, 64, expect_run={"run_uuid": RUN["run_uuid"]})
     with pytest.raises(ValueError, match="lr="):
         s2load.load_model(s2load.checkpoint_files(saved.job, 64)["model"], LAYOUT, env=_venv())
+    with pytest.raises(ValueError, match="an inference load has no schedule"):
+        s2load.load_model(s2load.checkpoint_files(saved.job, 64)["model"], LAYOUT, lr=LR)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -631,10 +758,13 @@ def test_a_truncated_zip_is_refused(saved, tmp_path):
     path.write_bytes(whole[: len(whole) * 2 // 3])
     assert s2load.pair_problem(job, 64) == f"model_64.zip has {len(whole) * 2 // 3} bytes, the record says {len(whole)}"
     _refused(job, 64, "bytes, the record says")
-    # were the record cut with it (a pair written straight to a mount), the repository's own check still says no
+    # were the record cut with it (a pair written straight to a mount), the repository's own check still says no,
+    # and so does a load for judging, whose zip test is the same without the .pkl being unpickled
     _reseal(job, 64)
-    assert s2load.pair_problem(job, 64).startswith("bad/truncated checkpoint zip model_64.zip")
-    _refused(job, 64, "bad/truncated checkpoint zip")
+    why = s2load.pair_problem(job, 64)
+    assert why.startswith("bad/truncated checkpoint zip model_64.zip")
+    assert _refused(job, 64, "bad/truncated checkpoint zip").endswith(why)
+    assert _refused(job, 64, "bad/truncated checkpoint zip", env=_venv(), lr=LR).endswith(why)
     path.write_bytes(whole)
     _reseal(job, 64)
     stats = s2load.checkpoint_files(job, 64)["vecnormalize"]
@@ -656,6 +786,17 @@ def test_a_changed_record_is_refused(saved, tmp_path):
     assert "schema 's2-ckpt-1'" in s2load.pair_problem(job, 64)
     shutil.copy(s2load.checkpoint_files(job, 32)["record"], path)         # another step's record under this name
     assert s2load.pair_problem(job, 64) == "record checkpoint_64.json is of step 32"
+    # a record whose own hash is right but which names another file, or does not list the three
+    other = _copy(saved, tmp_path, "names")
+    entries = s2io.read_json(s2load.checkpoint_files(other, 64)["record"])["files"]
+    _reseal(other, 64, files=dict(entries, model=dict(entries["model"], name="model_32.zip")))
+    assert s2load.pair_problem(other, 64) == "record names 'model_32.zip' as its model, not model_64.zip"
+    _refused(other, 64, "record names 'model_32.zip' as its model")
+    with pytest.raises(CheckpointError, match="record names 'model_32.zip'.*not packed"):
+        s2load.pack(other, 64, tmp_path / "out")
+    _reseal(other, 64, files={k: v for k, v in entries.items() if k != "vecnormalize"})
+    assert s2load.pair_problem(other, 64) == "record checkpoint_64.json does not list model, vecnormalize, fingerprint"
+    _refused(other, 64, "does not list model, vecnormalize, fingerprint")
 
 
 def test_a_foreign_run_is_refused(saved):
@@ -702,6 +843,106 @@ def test_a_wrong_fingerprint_is_refused(saved, tmp_path):
     s2io.write_npz(path, arrays)
     _reseal(job, 32)
     _refused(job, 32, "do not hash to the record's obs_sha256")
+    # a difference that is no number is not "within the tolerance"
+    nan = _copy(saved, tmp_path, "nan")
+    _perturb(nan, 64, float("nan"))
+    with pytest.raises(CheckpointError, match="fingerprint not reproduced: max .difference. nan > 1e-05") as err:
+        s2load.load_checkpoint(nan, 64)
+    assert math.isnan(err.value.fingerprint_max_abs_diff)
+    with pytest.raises(CheckpointError, match="fingerprint not reproduced"):
+        s2load.load_checkpoint(nan, 64, env=_venv(), lr=LR)
+
+
+def _set(index, value):
+    def change(array):
+        array[index] = value(array[index]) if callable(value) else value
+        return array
+    return change
+
+
+def test_a_changed_statistic_or_weight_is_refused_by_the_fingerprint(saved, tmp_path):
+    """The stored actions untouched, every hash right: what changed is what the policy is.  The fingerprint goes
+    through the saved statistics and the saved weights, so each of these is "not judged" (S2-12, K9)."""
+    def diff(job) -> float:
+        with pytest.raises(CheckpointError, match="fingerprint not reproduced.*not judged") as err:
+            s2load.load_checkpoint(job, 64, expect_run=RUN)
+        return err.value.fingerprint_max_abs_diff
+
+    seen = {}
+    for name, key, change in (("mean", "obs_mean", _set(0, lambda x: x + 1e-2)),
+                              ("var", "obs_var", _set(5, lambda x: x + 0.1)),
+                              ("clip", "clip_obs", _set((), 1.0)),
+                              ("epsilon", "epsilon", _set((), 1e-2))):
+        job = _copy(saved, tmp_path, name)
+        _edit_fingerprint(job, 64, **{key: change})
+        assert s2load._inference_problem(job, 64) is None                # every file is intact
+        seen[name] = diff(job)
+    assert all(1e-5 < d < 0.1 for d in seen.values()), seen
+    # a weight: the archive saved again from an inference load (as it stands: reproduced), then with one output
+    # weight moved by 1e-3
+    job = _copy(saved, tmp_path, "weight")
+    path = s2load.checkpoint_files(job, 64)["model"]
+    model = s2load.load_model(path, LAYOUT)
+    model.save(path)
+    _reseal(job, 64)
+    assert s2load.load_checkpoint(job, 64)["fingerprint_max_abs_diff"] == 0.0
+    with torch.no_grad():
+        model.policy.action_net.weight[0, 0] += 1e-3
+    model.save(path)
+    _reseal(job, 64)
+    assert 1e-5 < diff(job) < 1e-2
+
+
+def test_a_fingerprint_file_that_does_not_read_is_refused(saved, tmp_path):
+    """A file that was already cut when its record hashed it: the hashes agree, numpy cannot read it, and the
+    checkpoint is refused by rule (``CheckpointError``), not by a traceback out of numpy or zipfile."""
+    whole = s2load.checkpoint_files(saved.job, 64)["fingerprint"].read_bytes()
+    plain_npy = io.BytesIO()
+    np.save(plain_npy, np.zeros(3))
+    for name, payload in (("half", whole[: len(whole) // 2]), ("nearly", whole[: len(whole) * 98 // 100]),
+                          ("empty", b""), ("noise", b"\x00" * 4096), ("npy", plain_npy.getvalue())):
+        job = _copy(saved, tmp_path, name)
+        s2load.checkpoint_files(job, 64)["fingerprint"].write_bytes(payload)
+        _reseal(job, 64)
+        _refused(job, 64, "checkpoint 64 of .*fingerprint_64.npz does not read")
+        _refused(job, 64, "checkpoint 64 of .*fingerprint_64.npz does not read", env=_venv(), lr=LR)
+        done = _cli("check", job, 64) if name == "half" else None
+        assert done is None or (done.returncode == 1 and "NOT USABLE" in done.stdout and "Traceback" not in done.stderr)
+    # an array that is not there, or of another shape
+    job = _copy(saved, tmp_path, "lacking")
+    _edit_fingerprint(job, 64, drop=("epsilon",))
+    _refused(job, 64, "checkpoint 64 of .*fingerprint_64.npz lacks epsilon")
+    _edit_fingerprint(job, 32, drop=("actions", "obs_count"))
+    _refused(job, 32, "checkpoint 32 of .*fingerprint_32.npz lacks actions, obs_count")
+    job = _copy(saved, tmp_path, "shape")
+    _edit_fingerprint(job, 64, actions=lambda a: a[:, :-1])
+    _refused(job, 64, r"actions \(256, 16\); the layout asks \(256, 140\) and \(256, 17\)")
+
+
+def test_an_archive_that_does_not_load_is_refused(saved, tmp_path):
+    """A clean zip with every hash right whose weights are not the policy's: whatever the library raises on it, the
+    checkpoint is refused by rule."""
+    job = _copy(saved, tmp_path)
+    path = s2load.checkpoint_files(job, 64)["model"]
+    buf = io.BytesIO()
+    with zipfile.ZipFile(path) as zin, zipfile.ZipFile(buf, "w") as zout:
+        for item in zin.infolist():
+            payload = zin.read(item.filename)
+            if item.filename == "policy.pth":
+                state = torch.load(io.BytesIO(payload), map_location="cpu", weights_only=True)
+                state["action_net.weight"] = state["action_net.weight"][:, :-1].clone()     # another layer width
+                out = io.BytesIO()
+                torch.save(state, out)
+                payload = out.getvalue()
+            zout.writestr(item, payload)
+    path.write_bytes(buf.getvalue())
+    _reseal(job, 64)
+    assert s2load.pair_problem(job, 64) is None                          # the zip and the .pkl are whole
+    said = _refused(job, 64, "checkpoint 64 of .*: does not load \\(RuntimeError: ")
+    assert "action_net.weight" in said
+    venv = _venv()
+    _refused(job, 64, "does not load", env=venv, lr=LR)
+    assert [(e.resets, e.steps) for e in venv.envs] == [(0, 0), (0, 0)]
 
 
 def test_statistics_that_are_not_the_pkls_are_refused_on_a_resume(saved, tmp_path):
@@ -820,9 +1061,10 @@ def test_a_checkpoint_saved_under_other_versions_is_flagged(saved, tmp_path):
     assert s2load.load_checkpoint(job, 32)["cross_version"] is False     # only torch's build label differs
 
 
-def _tar(path: Path, members: dict) -> Path:
+def _tar(path: Path, members) -> Path:
+    """A plain tar of ``members``: a dict name -> bytes, or a list of (name, bytes) pairs (a name may then repeat)."""
     with tarfile.open(path, "w", format=tarfile.USTAR_FORMAT) as tar:
-        for name, payload in members.items():
+        for name, payload in (members.items() if isinstance(members, dict) else members):
             info = tarfile.TarInfo(name)
             info.size = len(payload)
             tar.addfile(info, io.BytesIO(payload))
@@ -833,7 +1075,7 @@ def test_import_tar_refuses_what_is_not_the_records_checkpoint(saved, tmp_path):
     files = s2load.checkpoint_files(saved.job, 64)
     good = {files[k].name: files[k].read_bytes() for k in s2load.FILE_KINDS}
 
-    def failed(members: dict, said: str, name: str) -> dict:
+    def failed(members, said: str, name: str) -> dict:
         into = tmp_path / name
         got = s2load.import_tar(files["record"], _tar(tmp_path / f"{name}.tar", members), into)
         assert got["ok"] is False and said in got["reason"], got["reason"]
@@ -848,6 +1090,9 @@ def test_import_tar_refuses_what_is_not_the_records_checkpoint(saved, tmp_path):
     failed({k: v for k, v in good.items() if "pkl" not in k}, "the record lists", "lacking")
     failed({("../" + k if "npz" in k else k): v for k, v in good.items()}, "is not a plain file name", "leaving")
     failed({("sub/" + k if "npz" in k else k): v for k, v in good.items()}, "is not a plain file name", "nested")
+    # the same name twice: the right three names, and a second model_64.zip that would be unpacked over the first
+    failed(list(good.items()) + [("model_64.zip", changed["model_64.zip"])], "member 'model_64.zip' twice", "twice")
+    failed([("model_64.zip", changed["model_64.zip"])] + list(good.items()), "member 'model_64.zip' twice", "twice2")
     got = s2load.import_tar(files["record"], tmp_path / "absent.tar", tmp_path / "absent")
     assert got["ok"] is False and "missing tar" in got["reason"]
     (tmp_path / "junk.tar").write_bytes(b"not a tar at all" * 100)
@@ -896,24 +1141,71 @@ def test_the_cli_packs_imports_and_writes_the_validation_record(saved, tmp_path)
     assert done.returncode == 1 and "NOT PACKED" in done.stdout and "missing record" in done.stdout
 
 
-def test_a_checkpoints_binaries_are_ignored_by_git():
+_CHECKPOINTS = "stage2/tb/work/run/jobs/R5-x-s42/checkpoints/"
+
+
+def _git_ignored(paths) -> list:
     if shutil.which("git") is None:
         pytest.skip("git is not installed")
-    base = "stage2/tb/work/run/jobs/R5-x-s42/checkpoints/"
-    binaries = [base + s2load.FILE_NAMES[k] % 250000 for k in s2load.FILE_KINDS]
+    done = subprocess.run(["git", "check-ignore", *paths], cwd=STUDY, capture_output=True, text=True)
+    if done.returncode not in (0, 1):
+        pytest.skip(f"not a git checkout: {done.stderr.strip()}")
+    return done.stdout.split()
 
-    def ignored(paths):
-        done = subprocess.run(["git", "check-ignore", *paths], cwd=STUDY, capture_output=True, text=True)
-        if done.returncode not in (0, 1):
-            pytest.skip(f"not a git checkout: {done.stderr.strip()}")
-        return done.stdout.split()
 
-    assert ignored(binaries) == binaries          # the repository's own rules (*.zip, *.pkl, *.npz), at any depth
-    if (STUDY / "stage2" / "tb" / ".gitignore").is_file():                # the Track B rules, once they are merged
-        rest = [base + "checkpoint_250000.json", base + "model_250000.zip.tmp", "stage2/tb/work/run/ckpt_250000.tar"]
-        assert ignored(rest) == rest
+def test_a_checkpoints_binaries_are_ignored_by_git():
+    binaries = [_CHECKPOINTS + s2load.FILE_NAMES[k] % 250000 for k in s2load.FILE_KINDS]
+    assert _git_ignored(binaries) == binaries     # the repository's own rules (*.zip, *.pkl, *.npz), at any depth
+    record = ["stage2/tb/validation/colab_archive.json"]                  # a committed record is not ignored
+    assert _git_ignored(record) == []
+
+
+def test_the_record_the_temporary_names_and_the_tar_are_ignored_by_git():
+    """Every other path this module writes that is no committed record.  The rules that cover them are Track B's own
+    ``stage2/tb/.gitignore``, which is the launcher package's file (CB), not this one's: without it this test is
+    reported as skipped, never as passed, and it asserts as soon as that file is in the checkout."""
+    rest = [_CHECKPOINTS + "checkpoint_250000.json", _CHECKPOINTS + "checkpoint_250000.json.tmp"]
+    rest += [_CHECKPOINTS + s2load.FILE_NAMES[k] % 250000 + ".tmp" for k in s2load.FILE_KINDS]
+    rest += ["stage2/tb/work/run/ckpt_250000.tar", "stage2/tb/work/run/ckpt_250000.tar.tmp",
+             "stage2/tb/validation/colab_archive.json.tmp"]
+    if not (STUDY / "stage2" / "tb" / ".gitignore").is_file():
+        covered = _git_ignored(rest)
+        missing = [p for p in rest if p not in covered]
+        pytest.skip(f"stage2/tb/.gitignore (work package CB) is not in this checkout: git does not yet ignore "
+                    f"{len(missing)} of the {len(rest)} paths ({', '.join(missing)})")
+    assert _git_ignored(rest) == rest
+
+
+def test_the_scratch_helper_assigns_mujoco_gl_itself(tmp_path):
+    # the acceptance commands' scratch checkpoint: started under OSMesa, it still builds its policy with no GL library
+    env = tbenv.child_env("disable")
+    env.update(MUJOCO_GL="osmesa", PYOPENGL_PLATFORM="osmesa")
+    done = subprocess.run([sys.executable, str(Path(__file__).resolve()), str(tmp_path / "job")], cwd=STUDY, env=env,
+                          capture_output=True, text=True, timeout=300)
+    assert done.returncode == 0, done.stdout + done.stderr[-2000:]
+    said = done.stdout.strip().splitlines()[-1]
+    assert said.startswith(f"scratch checkpoints [32, 64] in {tmp_path / 'job'}; MUJOCO_GL=disable, mujoco imported, ")
+    if Path("/proc/self/maps").is_file():
+        assert said.endswith(", no GL library")
+    assert s2load.newest_intact(tmp_path / "job") == (64, [])
+
+
+def _gl_libraries():
+    """The OpenGL libraries mapped into this process (Linux: ``/proc/self/maps``), or None where that cannot be read."""
+    try:
+        with open("/proc/self/maps") as fh:
+            return sorted({line.rsplit("/", 1)[-1].strip() for line in fh
+                           if any(lib in line for lib in ("libOSMesa", "libEGL", "libGL.", "libGLX", "libglfw"))})
+    except OSError:
+        return None
 
 
 if __name__ == "__main__":                        # python tests/test_stage2_s2load.py JOBDIR: a scratch job for the CLI
+    import os
+
+    tbenv.assign_gl("disable")                    # this process builds a policy; nothing has imported mujoco yet
     _made = scratch_checkpoints(sys.argv[1])
-    print(f"scratch checkpoints {sorted(_made.records)} in {_made.job}")
+    _gl = _gl_libraries()
+    print(f"scratch checkpoints {sorted(_made.records)} in {_made.job}; MUJOCO_GL={os.environ['MUJOCO_GL']}, "
+          f"mujoco {'imported' if 'mujoco' in sys.modules else 'not imported'}, "
+          + ("GL libraries not read" if _gl is None else "GL libraries " + ", ".join(_gl) if _gl else "no GL library"))

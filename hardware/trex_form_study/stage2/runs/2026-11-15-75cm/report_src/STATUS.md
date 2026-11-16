@@ -1,0 +1,1 @@
+**Status: fourth version, 16 Nov 2026, 00:40 UTC. Three rounds of independent checks are folded in: every number recomputed from the records, every claim checked against the rules and sources, plain readings as the owner, and a last check of sections 1 to 3 and 10 that found no blocker and whose fixes are in this version. Nothing in it is adopted.**

@@ -294,6 +294,11 @@ the owner may run.
 concerns aside at this point. Prices are documented and not weighed against P4, and the Jetson hardware is explored
 whatever its extra cost (`DECISION_LOG.md` P31; the prices are in `stage2/jetson75/BUDGET_75.md`).
 
+**Changed, 15 Nov 2026 (P32).** Decision 4's timing no longer stands as answered: the owner does not expect to run the
+delay bench test before a 75 cm build works in simulation (`DECISION_LOG.md` P32). The sheet stays as prepared
+(`stage2/jetson75/BENCH_SHEET.md`); the bar stays judged at the assumed 10 ms meanwhile, and the compute choice of
+decision 1 waits with the bench test.
+
 Recommended options come first.
 
 1. **Compute for the 75 cm build.**
