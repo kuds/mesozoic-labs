@@ -30,6 +30,8 @@ tbenv.assign_gl("osmesa")
 import os  # noqa: E402
 import sys  # noqa: E402
 
+os.environ.setdefault("GIT_OPTIONAL_LOCKS", "0")  # (as in train2: a killed ``git status`` leaves no index.lock)
+
 if __name__ == "__main__":  # before numpy: one core; one llvmpipe thread; no shader cache under the home directory
     for _v in tbenv.THREAD_VARS + ("LP_NUM_THREADS",):
         os.environ.setdefault(_v, "1")

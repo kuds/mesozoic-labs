@@ -54,6 +54,8 @@ tbenv.assign_gl("disable")
 import os  # noqa: E402
 import sys  # noqa: E402
 
+os.environ.setdefault("GIT_OPTIONAL_LOCKS", "0")  # (as in train2: a killed ``git status`` leaves no index.lock)
+
 if __name__ == "__main__":  # before any numpy import (round A's module skeleton)
     for _v in tbenv.THREAD_VARS:
         os.environ.setdefault(_v, "1")

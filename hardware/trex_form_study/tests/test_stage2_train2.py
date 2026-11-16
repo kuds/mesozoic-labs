@@ -1498,6 +1498,48 @@ def test_the_workers_of_a_run_are_the_trainers_worker_entry(stub, tmp_path):
     assert stub.main(["worker"]) == 2
 
 
+def test_the_packages_processes_take_no_lock_on_the_checkouts_index(tmp_path):
+    """``s2io.git_state`` runs ``git status``, which rewrites the index under ``index.lock``; a SIGKILL of the
+    job's process group in that instant leaves the lock behind, and later git commands in the checkout refuse to
+    run.  The trainer, the monitor and the clip tool set ``GIT_OPTIONAL_LOCKS=0`` unless the caller set it, and
+    their children inherit it; with it ``git status`` leaves the index alone."""
+    env = {k: v for k, v in _env(tmp_path).items() if k != "GIT_OPTIONAL_LOCKS"}
+    for module, gl in (("train2", "disable"), ("monitor2", "disable"), ("clip2", "osmesa")):
+        code = (f"import os; from designlab.stage2 import {module}, tbenv; "
+                f"print(os.environ.get('GIT_OPTIONAL_LOCKS'), tbenv.child_env('{gl}').get('GIT_OPTIONAL_LOCKS'))")
+        r = subprocess.run([PY, "-c", code], cwd=STUDY, env=env, capture_output=True, text=True, timeout=120)
+        assert r.returncode == 0 and r.stdout.split() == ["0", "0"], (module, r.stdout, r.stderr[-2000:])
+        r = subprocess.run([PY, "-c", code], cwd=STUDY, env=dict(env, GIT_OPTIONAL_LOCKS="1"), capture_output=True,
+                           text=True, timeout=120)
+        assert r.stdout.split() == ["1", "1"], module  # (the caller's own setting stands)
+    # what the variable buys, in a scratch repository: a file whose time moved makes a plain status rewrite the
+    # index, and a status with the variable not
+    import shutil
+
+    if shutil.which("git") is None:
+        pytest.skip("no git on PATH")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args, **extra):
+        e = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        e.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull, **extra)
+        return subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@example.invalid",
+                               *args], env=e, capture_output=True, text=True, check=True).stdout
+
+    git("init", "-q", ".")
+    (repo / "f").write_text("a")
+    git("add", "f")
+    git("commit", "-q", "-m", "one file")
+    index = repo / ".git" / "index"
+    for i, (extra, rewritten) in enumerate(((dict(GIT_OPTIONAL_LOCKS="0"), False), ({}, True))):
+        t = time.time() + 100 * (i + 1)
+        os.utime(repo / "f", (t, t))
+        before = index.read_bytes()
+        assert git("status", "--porcelain", **extra) == ""
+        assert (index.read_bytes() != before) is rewritten
+
+
 def test_importing_the_trainer_imports_no_torch():
     code = ("import sys; from designlab.stage2 import train2, monitor2; "
             "print(sorted(m for m in ('torch', 'stable_baselines3', 'mujoco') if m in sys.modules))")

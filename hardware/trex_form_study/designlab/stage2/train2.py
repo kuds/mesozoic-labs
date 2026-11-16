@@ -55,6 +55,12 @@ tbenv.assign_gl("disable")
 import os  # noqa: E402
 import sys  # noqa: E402
 
+# ``s2io.git_state`` runs ``git status``, which rewrites the checkout's index under ``index.lock`` unless it is
+# told not to.  A SIGKILL of the job's process group in that instant leaves the lock behind (seen on 16 Nov 2026
+# after a kill test), and every later git command that writes the index refuses to run until someone removes it.
+# The trainer's processes only read the checkout's state; their children inherit the variable.
+os.environ.setdefault("GIT_OPTIONAL_LOCKS", "0")
+
 if __name__ == "__main__":  # before any numpy import (round A's module skeleton)
     for _v in tbenv.THREAD_VARS:
         os.environ.setdefault(_v, "1")
