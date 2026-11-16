@@ -526,3 +526,39 @@ its commits in its worktree. In a new session, start from the worktree branches 
 refit tool (CF) and the gates (CG); the sixth list into the draft; then the validation steps of
 `ROUND_C_DESIGN.md` section 6, the real bundle, the acceptance run and the steps sheet's final values for the
 day-one Colab smoke.
+
+## Update, 16 Nov 2026, 21:13 UTC: handover note before the allocation ends; the owner will switch the session's model
+
+The owner said at about 21:12 UTC: once usage reaches 99 %, the session is switched to another model. The meter read
+95.5 % at 21:11 UTC. The lead pauses the two running workflows at about 98 %, so that no agent is cut by the limit
+in the middle of a turn, and they are resumed after the switch.
+
+**State at 21:13 UTC.**
+- Rows package (CW, `wt/wpc-cw`): built and independently reviewed; its fixer is running.
+- Notebook and steps sheet (CN, `wt/wpc-cn`): built and independently reviewed; its fixer is running.
+- Look sets (L, `wt/wp-l`): still in their build.
+- Worktree heads at this time: wpc-cw 9952f5b ahead 8 dirty 3;wpc-cn 36347d4 ahead 11 dirty 0;wp-l b72c61c ahead 17 dirty 1;
+- The reports of the builds and reviews that have finished are in the workflows' journals
+  (`subagents/workflows/wf_fbceb97c-fa4/journal.jsonl`, `wf_debdfcfc-4dd/journal.jsonl` under the session's
+  project directory) and are saved to `reviews/` when their package is brought in.
+
+**For whoever continues, on any model.**
+1. Resume the two workflows from their saved scripts with their run ids (the block of 20:46 UTC names them).
+   Finished agents return from the journal; a fixer that was cut starts again and finds its commits in its
+   worktree.
+2. **The two attribution lines.** Every commit message ends with the two lines the session's instructions give
+   at that time. The saved workflow scripts carry the lines that were in force when they were written, inside
+   the agents' prompts. If the session's instructions give other lines after the switch, change them in the
+   scripts before resuming, so that no commit is attributed wrongly. No model is named anywhere else in a commit
+   or in code.
+3. Before a branch is brought in: read its review and fix reports; check every commit that is not yet on the
+   working branch for the two lines (a builder's merge commit without them stays out: bring the package in by
+   cherry-pick, as was done for CB, CE and CK); compare the package's files with the reviewed tip; run the
+   package's tests on the merged tree with `-o addopts=""` so that the summary line prints; confirm the two
+   record-key hashes.
+4. The standing rules are at the top of this file's history and in `LESSONS_LEARNED.md`: simulation only; rules
+   fixed before runs; two seeds for any verdict; an independent review of every build, report and owner page;
+   nothing adopted without the owner; push before a turn ends; never force-push.
+5. Open with the owner: whether to send the five maker questions as they stand
+   (`../servo_model/MAKER_QUESTIONS.md`); gate 1's condition 4 and the numbers of gates 2 and 3; the draft
+   decision-log rows F28, F29, E and a row for the add-on's result (F30).
