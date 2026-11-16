@@ -354,3 +354,16 @@ another model with the lead and the independent reviewers unchanged.
   directory; branch `wt/prereg-b`) and the fixer for the training env (`wt/wpc-ce`; its review and the lead's four
   rulings are in section 4 above).
 - **Usage line:** about 90 % (about 1,979 USD on `get_session`); read it before each step.
+
+## Update, 16 Nov 2026, 02:10 UTC: the owner asked for a buy gate (P39)
+
+- **New, by the owner (P39):** stronger evidence of robust walking before about 20,000 USD is spent. The lead drafts
+  `BUY_GATE_DRAFT.md` for approval: stages (harsher simulation and a trained policy; a bench of one leg drive and
+  the tail servo, about 1,300 to 2,000 USD; a legs-only prototype with the 12 leg drives, 3,546 USD, plus
+  structure; the full build) and what must be shown before each purchase. A realistic servo model (friction, gear
+  play, voltage sag, delay, all randomised; see `stage2/research/microduck_delay_15nov.md`) joins the training path.
+- **The lead's stated confidence** (judgement, not a result): about 65 % that the real robot ends up walking steadily
+  at 0.35 to 0.40 m/s on a flat hard floor; about 90 % for the simulated walk at 4 ms or less; about 40 % that a
+  trained policy passes the whole bar at 10 ms.
+- **In flight:** the independent review of section A's rules and chain script (an agent, background). Then steps (2)
+  to (5) of the 01:50 update. The keep-alive ended at 01:36 UTC and is not re-armed while agents run.
