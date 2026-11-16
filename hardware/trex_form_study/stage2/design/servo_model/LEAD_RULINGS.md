@@ -39,3 +39,19 @@ and is marked so.
 12. *The bench sheet.* The six added measurements (N1 to N6) are proposed additions to
     `stage2/jetson75/BENCH_SHEET.md`; the gate draft's sentences on what the bench measures are reworded with them
     once the owner has seen them.
+
+## Second list (16 Nov 2026, 16:00 UTC), after the note's last revision
+
+The first list named 18 points; the note's section of open choices holds 27. The rest are ruled here.
+
+- *Choices 2, 4, 5, 6, 8, 12, 13, 14 and 17* (the gain limits until the maker answers; the run-time dead zone for
+  gear play on the leg drives; friction's load term on for all classes; the feedforward keeps today's friction
+  values; a nominal bus of 22.2 V with 0.05 ohm; no servo draw in the critic's inputs now; the encoder offset
+  patched after each step; the 60 cm body gets its own table before its own gate 1; the box servos' nominal
+  stiffness stays the model's until the bench): the note's recommendation stands in each.
+- *Choice 7* (kv under a drawn inertia): one rule for every drive, as ruled for the tail.
+- *The X6's drawn corner and zero-torque speed:* the corner is drawn first, then the zero between the larger of
+  8.01 rad/s and corner + 1.20 rad/s, and 9.215 rad/s.
+- *The names of the served rows:* settled in the build's brief, not here.
+- *A failed repeat of the drawn panel on the second block of seeds:* whether it stops a purchase is the owner's,
+  and is asked with condition 2. The lead recommends that the repeat must pass too.

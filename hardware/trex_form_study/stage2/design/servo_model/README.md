@@ -12,12 +12,12 @@ random per run), for gate 1 of `BUY_GATE_DRAFT.md`.
 | `reader2_hardware_facts.md` | Every fact the repository holds on the real actuators of the 75 cm build, the study's own assumptions, and what the bench sheet plans to measure |
 | `reader3_outside_sources.md` | Makers' data and third-party measurements for the build's actuators, how others model such actuators for learned walking, and the ranges they draw from. 33 links, quoted as found and not checked a second time |
 
-**The design note and its review (added 16 Nov, 14:07 UTC).** `SERVO_MODEL_DESIGN.md` is the designer's note,
-as first written. `REVIEW.md` is the independent reviewer's report on it: "usable after the listed fixes". Its
-run-time layer and three hooks hold up against the code. Its section 9 (the text proposed for the owner and the
-buy gate) and the corner rule of condition 2 are **not to go to the owner as written**: the review's blocker and
-major points are on them. The fixes are not in the note yet. Next: one fixer applies the review to the note, the
-reviewer checks the changed parts, and the lead then puts gate 1's condition 2 to the owner.
+**The design note (as of 16 Nov, 16:00 UTC).** `SERVO_MODEL_DESIGN.md` is the note after two independent checks
+and two revisions (834 lines). `REVIEW.md` is the first review of the first version, `FIX_REPORT.md` the first
+revision's report, `RECHECK.md` the second independent check, `FINISH_REPORT.md` the second revision's report, and
+`LEAD_RULINGS.md` the lead's rulings on its open choices. The second check's fixes and the rulings are in the note
+and were not checked a third time. Its section 11 is the text for the owner; its appendix A holds five questions
+for the maker of the leg drives, ready to send. Nothing in it is built.
 
 **History.** The designer was first started at 03:05 UTC and stopped at 03:22 UTC before it had written the note,
 by the lead's mistake (a watcher's time-out was read as the designer's result). The workflow was resumed at
