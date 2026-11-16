@@ -1,5 +1,7 @@
 # Work package L (later; starts after code state A): the look in moves, `moves_look.py`
 
+> **Added 16 Nov 2026.** The lead's rulings of 16 Nov on rule L10 as settled, the turn in place, `move.command_phase`, a failed start, and freezing are in `stage2/design/ROUND_C_RULINGS_16NOV.md`. Where that file and this brief differ, that file wins.
+
 You are building one module of a robotics simulation study (a robotic T. rex biped; everything is simulation).
 You need no other context than this brief and the design it points into:
 `/tmp/claude-0/-home-user-mesozoic-labs/2dca1c00-13f3-5853-acf6-8c3e3e04feb6/scratchpad/design/ROUND_A_DESIGN.md`
