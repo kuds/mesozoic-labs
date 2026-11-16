@@ -24,3 +24,8 @@ the candidate's two caps are made again; K4 keeps the wording file's entry 8. Q5
 5. **The look reading's tail term (added 18:21 UTC, from the review of the look reading).** The tail term fails when
    the robot's fitted tail amplitude is under 0.02 rad while the reference's amplitude is read. It goes into the
    draft's look rules with the next round, and into `lookread.py` before code state B.
+
+6. **M1, a monitor that refuses to run (added 19:01 UTC, from the review of the trainer).** A monitor that refuses to
+   run (its sources have moved, the checkpoint is not intact, or the checkpoint is another run's) is no attempt:
+   the trainer halts, and the refusal does not count toward the two attempts after which a check counts as
+   without a gain.

@@ -91,3 +91,28 @@ minor points (`checkpoint/reviews/roundC__{build,review,fix}_CK.md`). On the wor
 9. For CW and CG: `played` takes `lead_s` and returns `window` and `lead_s`; `window` reads the fall itself;
    `series` refuses a pose past the last load. A bar walk or turn item that cannot be played is a fault of the
    definition, never "no look reading".
+
+## Added 16 Nov, 19:01 UTC, after the trainer (CT) was reviewed, fixed and merged (`e7f5386`)
+
+**The trainer (CT).** Review: merge after two major fixes in the probes; both are fixed with the eight smaller
+points (`checkpoint/reviews/roundC__{build,review,fix}_CT.md`). On the merged tree its tests give "68 passed,
+3 skipped".
+1. **A monitor that refuses to run is no attempt** (a rule decision, for M1): the monitor leaves with its own exit
+   code when it refuses (moved sources, a checkpoint that is not intact, another run's checkpoint); the trainer
+   halts with exit 5; the attempt does not count toward M1's two. Owed as a small change to the trainer's files and
+   one sentence in M1.
+2. The fixer's readings stand: rule O3's probe is refused without the filter record on any set but S1; a later
+   probe call with other settings is refused, not merged; a policy row's table without its clock times is refused;
+   a lost baseline is made again and compared, and the run halts if it differs; rule K8's probe is made again when
+   a fine-tune is cut before its first rollout.
+3. For the rows package (CW): every policy episode that ends read, fell or unread returns its clock times and
+   `planned_s`.
+4. For the notebook (CN): `progress.json` has three new keys (`checks_without_record`, `halt`,
+   `last_monitor.counted_without_record`); exit codes 4 and 5 as before; copy `monitor/` with `run.json`.
+5. For the gates (CG): a run that is not tiny needs `filter.json`'s choice or the config's `filter_hz`, as it
+   needs a rate.
+6. The trainer's processes set `GIT_OPTIONAL_LOCKS=0`, so a killed job leaves no `index.lock`. Whether
+   `s2io._git` should do the same for every tool is decided when that file is next changed; it is not in this
+   package.
+7. Still open from the builder's list, to be ruled with the gates package's brief: `--expect-baseline` for rule
+   M3, the S1 stand-in in the monitor, no timeout on the monitor child, "R0L exactly" to rounding.
