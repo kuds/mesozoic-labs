@@ -1,5 +1,7 @@
 # Work package CT: the trainer: `train2.py`, `monitor2.py`, `clip2.py`
 
+> **Added 16 Nov 2026.** The lead's rulings of 16 Nov on the worker pool, what a resumed run compares, and the servo model are in `stage2/design/ROUND_C_RULINGS_16NOV.md`. Where that file and this brief differ, that file wins.
+
 You are building one part of a robotics simulation study (a robotic T. rex biped; everything is simulation). You
 need no other context than this brief and the two texts it points into:
 - the design: `/tmp/claude-0/-home-user-mesozoic-labs/2dca1c00-13f3-5853-acf6-8c3e3e04feb6/scratchpad/design/ROUND_C_DESIGN.md` (read its header, the decisions and sections named under "Read first" below);
