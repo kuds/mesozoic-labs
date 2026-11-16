@@ -367,3 +367,35 @@ another model with the lead and the independent reviewers unchanged.
   trained policy passes the whole bar at 10 ms.
 - **In flight:** the independent review of section A's rules and chain script (an agent, background). Then steps (2)
   to (5) of the 01:50 update. The keep-alive ended at 01:36 UTC and is not re-armed while agents run.
+
+## Update, 16 Nov 2026, 02:30 UTC: item A of the add-on is run and reported; the training env's fix round is running
+
+**Item A (more delays), done.** Simulation; no verdict; the bar stays judged at 10 ms.
+
+- Section A's rules were amended before any unit ran, after an independent review (one blocker, eight major points;
+  `stage2/design/addon/review_A.md`). The chain script took the reviewer's corrections and a lock; its failure,
+  cap, resume and dirty-tree paths were run against a stand-in runner in scratch. Commit `f4a8b7d`.
+- All six units ran, none cut: 47 records, 940 runs, 0.495 of 1.0 core-hour. Commit `f35ed65`.
+- Result and reading: `STAGE2_75_REPORT.md` section 13 and `stage2/runs/2026-11-16-75cm-addon/DELAYS_TABLE.md`.
+  One independent check of the section found no wrong number and asked for changes of wording, which are in
+  (`stage2/design/addon/review_sec13.md`). The owner page is republished with the section (version 2).
+- Owed: a draft decision-log row for this result (proposed number F30), to be put to the owner with F28, F29 and E.
+- Items B (carpet range) and C (refit with delay) are designed and reviewed, not registered, and wait for room (P38).
+
+**Buy gate (P39).** `BUY_GATE_DRAFT.md` now has the section on when the form factor is reconsidered. The owner has
+not yet been asked to approve the stages and numbers. The servo model for the training path (friction, gear play,
+voltage sag, delay; drawn at random) is not designed yet; it is the next design item after the training env is
+merged.
+
+**Training path (P38).** The fix round of the training env (CE, `wt/wpc-ce`) was started at 01:53 UTC with the
+lead's four rulings and the review's nine findings (`reviews/roundC__review_CE.json`). The lead lifted rule X1 for
+the frozen 75 cm sets in the fixer's brief: the panels ended on 15 Nov, so the env may now be compared with the
+bar's runner on set `V0`. After the fixer: one independent review, then the merge into the working branch.
+
+**Usage.** The session's meter read $1,881.93 at 02:15 UTC, about 76 % by the calibration of the 01:20 block
+(65 % at $1,808.26; 1 % is about $6.9). The owner's line is about 90 % (about $1,979). The account's rate-limit
+status now reads "allowed_warning".
+
+**Next, in order:** (1) review and merge CE; (2) the servo model's design for gate 1, with sources, reviewed;
+(3) the ten conflicts of the Track B rules draft and section 6's open points 6 and 7; (4) CT (trainer), CB (Drive
+bundle), CN (notebook) toward the day-one Colab smoke; (5) the look sets' review, CV, CK, CW, CF, CG.
