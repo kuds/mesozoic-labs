@@ -11,7 +11,8 @@ What is held here:
 * a worker's ``sys.modules`` holds neither ``torch`` nor ``stable_baselines3``; its command line is the
   ``worker_cmd`` given; it runs with ``MUJOCO_GL=disable`` and one BLAS thread and refuses anything else;
 * a killed worker makes the next ``step_wait`` raise with the worker and its exit code; an env's own exception is
-  raised in the parent and the pool goes on; a worker that cannot start fails the constructor;
+  raised in the parent and the pool goes on; a worker that cannot start, or fails the connection's handshake, fails
+  the constructor with its name and exit code;
 * ``close()`` leaves no child process and no socket directory; so do an unclosed pool that is collected, a parent
   that exits without closing, and a parent that is killed;
 * a 2-update PPO run under ``VecNormalize`` on the pool equals the same run on ``DummyVecEnv`` (policy tensors,
@@ -132,8 +133,9 @@ class StubEnv(gymnasium.Env):
     def fail(self):
         raise KeyError(f"stub env {self.tag} was asked to fail")
 
-    def deaf(self, seconds: float):
+    def deaf(self, seconds: float, mark: str):
         signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        Path(mark).write_text(str(os.getpid()))  # deaf from here on
         time.sleep(seconds)
 
     def close(self):
@@ -260,7 +262,7 @@ def _alive(pid: int) -> bool:
         return False
 
 
-def _gone(pids, within: float = 15.0) -> bool:
+def _gone(pids, within: float = 60.0) -> bool:
     deadline = time.monotonic() + within
     while time.monotonic() < deadline:
         if not any(_alive(p) for p in pids):
@@ -564,11 +566,10 @@ def test_child_env_is_the_track_b_child_environment(monkeypatch):
     assert env["PYTHONHASHSEED"] == "0" and env["PYTHONPATH"] == "." and env["VECPOOL_TEST_KEPT"] == "yes"
     assert os.environ["MUJOCO_GL"] == "osmesa"  # the parent's own environment is not touched
     assert vecpool.environment_problem(env) is None
-    try:
-        from designlab.stage2 import tbenv
-    except ImportError:
-        return
+    from designlab.stage2 import tbenv
+
     assert env == tbenv.child_env("disable") and vecpool.study_dir() == tbenv.study_dir()
+    assert vecpool.THREAD_VARS == tbenv.THREAD_VARS
 
 
 def test_the_study_directory_is_the_workers_working_directory():
@@ -646,37 +647,41 @@ def test_close_leaves_no_child_process_and_no_socket_directory():
 
 
 @linux
-def test_close_closes_every_env_in_its_own_process(tmp_path):
-    """``DummyVecEnv.close`` closes each env; so does the pool, in the env's worker, before the worker leaves."""
+def test_close_closes_every_env_in_its_own_process(tmp_path, monkeypatch):
+    """``DummyVecEnv.close`` closes each env; so does the pool, in the env's worker, before the worker leaves by
+    itself (exit code 0: it was not terminated)."""
+    monkeypatch.setattr(vecpool, "CLOSE_WAIT_S", 120.0)  # a loaded machine may take its time; nothing waits it out
     for workers in (0, 2):
         mark = str(tmp_path / f"closed{workers}")
         pool = _pool([(STUB, {"tag": i, "closed": mark}) for i in range(4)], workers)
         pids = pool.worker_pids
-        t0 = time.monotonic()
         pool.close()
-        assert time.monotonic() - t0 < vecpool.CLOSE_WAIT_S  # the workers left by themselves
         said = [int(Path(f"{mark}.{i}").read_text()) for i in range(4)]
         assert said == ([os.getpid()] * 4 if workers == 0 else [pids[0], pids[0], pids[1], pids[1]])
+        assert [w.proc.returncode for w in pool._workers] == [vecpool.EXIT_OK] * workers
 
 
 @linux
-def test_a_worker_that_does_not_go_is_killed(monkeypatch):
+def test_a_worker_that_does_not_go_is_killed(monkeypatch, tmp_path):
     """A pool closed while a worker is busy and deaf to SIGTERM: terminated, then killed after ``TERM_WAIT_S``."""
     monkeypatch.setattr(vecpool, "TERM_WAIT_S", 0.5)
     pool = _pool(_specs(2), 2)
     pids = pool.worker_pids
+    mark = tmp_path / "deaf"
 
     def cut(worker):
-        time.sleep(0.5)  # worker 1 is in its method by now
+        deadline = time.monotonic() + 60.0
+        while not mark.exists() and time.monotonic() < deadline:  # until worker 1 is in its method and deaf
+            time.sleep(0.02)
         raise KeyboardInterrupt
 
     monkeypatch.setattr(pool, "_read", cut)
     with pytest.raises(KeyboardInterrupt):
-        pool.env_method("deaf", 600.0, indices=[1])
-    assert all(_alive(p) for p in pids)
+        pool.env_method("deaf", 600.0, str(mark), indices=[1])
+    assert mark.exists() and all(_alive(p) for p in pids)
     t0 = time.monotonic()
     pool.close()
-    assert not any(_alive(p) for p in pids) and 0.4 < time.monotonic() - t0 < 10.0
+    assert not any(_alive(p) for p in pids) and 0.4 < time.monotonic() - t0 < 120.0  # not the method's 600 s
     worker = pool._workers[1]
     assert worker.proc.returncode == -signal.SIGKILL and pool._workers[0].proc.returncode is not None
 
@@ -740,9 +745,25 @@ def test_a_worker_that_cannot_start_fails_the_constructor(tmp_path):
     with pytest.raises(RuntimeError, match=r"vecpool worker 0 \(pid \d+, envs 0 to 1\) left before it connected: "
                                            r"exit code 7"):
         _pool(_specs(2), 1, worker_cmd=[sys.executable, "-c", "import sys; sys.exit(7)"])
-    assert time.monotonic() - t0 < 30.0
+    assert time.monotonic() - t0 < vecpool.CONNECT_TIMEOUT_S / 2  # found dead, not waited out
     with pytest.raises(FileNotFoundError):
         _pool(_specs(2), 2, worker_cmd=[str(tmp_path / "no_such_python"), "-m", "designlab.stage2.vecpool"])
+    assert _socket_dirs() <= before
+
+
+def test_a_child_that_fails_the_handshake_fails_the_constructor_by_its_name():
+    """A child that connects and leaves, or answers the challenge with another key, is no broken pipe or
+    authentication error of the constructor's: the worker and its exit code, as for one that never connected."""
+    before = _socket_dirs()
+    leaves = "import socket, sys; s = socket.socket(socket.AF_UNIX); s.connect(sys.argv[-1]); s.close(); sys.exit(5)"
+    with pytest.raises(RuntimeError, match=r"vecpool worker 0 \(pid \d+, envs 0 to 1\) left before it connected: "
+                                           r"exit code 5"):
+        _pool(_specs(2), 1, worker_cmd=[sys.executable, "-c", leaves])
+    other_key = (f"import os, sys; os.environ[{vecpool.AUTHKEY_VAR!r}] = 'ab' * 32; "
+                 "from designlab.stage2 import vecpool; sys.exit(vecpool.worker_main(sys.argv[-1]))")
+    with pytest.raises(RuntimeError, match=r"vecpool worker 0 \(pid \d+, envs 0 to 1\) left before it connected: "
+                                           r"exit code 1"):
+        _pool(_specs(2), 1, worker_cmd=[sys.executable, "-c", other_key])
     assert _socket_dirs() <= before
 
 

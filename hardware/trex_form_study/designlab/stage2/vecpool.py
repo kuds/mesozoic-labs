@@ -29,9 +29,10 @@ Start-up.  The pool opens a ``multiprocessing.connection.Listener`` on a Unix so
 with a random authkey, starts the children (the environment of ``tbenv.child_env("disable")``, the study directory as
 working directory, the authkey and the worker's index in two environment variables that the worker removes from its
 own environment), accepts the connections, sends each child its specs and receives the spaces.  A child that exits
-before it connects, or does not connect within ``CONNECT_TIMEOUT_S``, fails the constructor.  The listener and its
-directory are removed as soon as every child is connected (and by ``close`` after a failed start), so a trainer that
-is killed later leaves nothing in the temporary directory.
+before it connects (also one that connects and leaves, or fails the key's handshake), or does not connect within
+``CONNECT_TIMEOUT_S``, fails the constructor with a ``RuntimeError`` naming the worker and its exit code.  The
+listener and its directory are removed as soon as every child is connected (and by ``close`` after a failed start),
+so a trainer that is killed later leaves nothing in the temporary directory.
 
 What crosses the process boundary travels by pickle.  So that no result can depend on which envs share a process,
 every argument reaches each env as its own copy at every W, 0 included: the kwargs of a spec, the options of
@@ -81,14 +82,16 @@ import traceback  # noqa: E402
 import warnings  # noqa: E402
 import weakref  # noqa: E402
 from collections import OrderedDict  # noqa: E402
-from multiprocessing.connection import Client, Listener  # noqa: E402
+from multiprocessing.connection import AuthenticationError, Client, Listener  # noqa: E402
 
 import gymnasium  # noqa: E402
 import numpy as np  # noqa: E402
 from gymnasium import spaces  # noqa: E402
 
-#: Each of these is "1" in a worker (``tbenv.THREAD_VARS``, ``s2io.THREAD_VARS``).
-THREAD_VARS = ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")
+from . import tbenv  # noqa: E402  (standard library only)
+
+#: Each of these is "1" in a worker (``tbenv.THREAD_VARS``).
+THREAD_VARS = tbenv.THREAD_VARS
 #: The child's environment variables that carry the connection's authkey (hex) and the worker's index.  The worker
 #: removes both from its environment before it builds an env.
 AUTHKEY_VAR = "STAGE2_VECPOOL_AUTHKEY"
@@ -404,25 +407,14 @@ def worker_main(address: str) -> int:
 
 
 def study_dir() -> str:
-    """The study directory (``hardware/trex_form_study``), from this file's location (``tbenv.study_dir``)."""
-    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+    """The study directory (``hardware/trex_form_study``), a worker's working directory: ``tbenv.study_dir()``."""
+    return tbenv.study_dir()
 
 
 def child_env() -> dict:
-    """A worker's environment: ``tbenv.child_env("disable")``.  Until ``tbenv`` is on the branch the same
-    environment is built here: a copy of ``os.environ`` with ``MUJOCO_GL=disable``, no ``PYOPENGL_PLATFORM``, the
-    thread variables at ``1``, ``PYTHONHASHSEED=0`` and ``PYTHONPATH=.`` (the child's working directory is the study
-    directory)."""
-    try:
-        from . import tbenv
-    except ImportError:
-        env = {str(k): str(v) for k, v in os.environ.items()}
-        env["MUJOCO_GL"] = "disable"
-        env.pop("PYOPENGL_PLATFORM", None)
-        for name in THREAD_VARS:
-            env[name] = "1"
-        env.update(PYTHONHASHSEED="0", PYTHONPATH=".")
-        return env
+    """A worker's environment, ``tbenv.child_env("disable")``: a copy of ``os.environ`` with ``MUJOCO_GL=disable``,
+    no ``PYOPENGL_PLATFORM``, the thread variables at ``1``, ``PYTHONHASHSEED=0`` and ``PYTHONPATH=.`` (the child's
+    working directory is the study directory)."""
     return tbenv.child_env("disable")
 
 
@@ -593,7 +585,8 @@ class _Pool:
     def _accept(self, listener) -> None:
         """Take one connection per child and its hello.  The wait is cut into ``POLL_S`` slices by a timeout on the
         listening socket, so that a child that exits before it connects, or never connects, raises here instead of
-        blocking."""
+        blocking.  A connection that breaks or fails the key's handshake inside ``accept`` is dropped: the child
+        behind it is found dead at the next turn, or the wait ends at its limit."""
         sock = listening_socket(listener)
         if sock is not None:
             sock.settimeout(POLL_S)
@@ -612,6 +605,9 @@ class _Pool:
             try:
                 conn = listener.accept()
             except TimeoutError:
+                continue
+            except (AuthenticationError, EOFError, OSError):
+                time.sleep(POLL_S / 10.0)  # (a listener that fails at once must not spin until the limit)
                 continue
             try:
                 if not conn.poll(CONNECT_TIMEOUT_S):
