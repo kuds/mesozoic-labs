@@ -1250,16 +1250,19 @@ cut first. Each cap has its own run directory and its own `budget.json`, under o
 times a total that holds its 10 ms unit's estimate, so that unit always fits and starts: "never cut" holds.
 
 How these two rulings are read where they name no case (the author's reading, not the lead's wording). On `V6noF5`,
-"where S2-9 asks" is a body on which R5 failed G8b on both seeds (Q6), which is known only after the row's 10 ms
-records. The first dry run therefore takes the 17 conditions at 10 ms. If S2-9 then asks, the dry run is made again with
-all four delays and committed before the first record at another delay; 1.5 times its total is the row's cap from then
-on, and what the 10 ms unit spent counts in it. On `F25F9cl` the dry runs are the two pairs of commands listed below,
-made again and committed before `R2L-F25F9cl/42`'s first panel record and before the first re-run record. They take the
-22 records that Q6 names for the candidate's row (the 16 gated conditions at 10 ms, which are its 10 ms unit, then
-`walk/v0.4` and `walk/v0.4_mu0.54` at 0, at 4 and at 6 ms; Q6 names no `walk/nominal` record there, and none is
-counted), and the same 22 for each of `R2/42` and `R2/43` where they are run again. The dry run of an R2L row names the
-row `R2/42`: the runner gives a row without a measured rate the largest measured one, which is R2's (`bar.rate_of`). The
-rulings name no path for a cap's run directory or for its committed dry run, and no task key.
+"where S2-9 asks" is a body on which R5 failed G8b on both seeds (Q6), which may be known only after the row's 10 ms
+records. Where S2-9 has asked before the first dry run is made, that dry run takes all four delays, as the ruling's
+command has it. Where it has not, the first dry run takes the 17 conditions at 10 ms; if S2-9 asks later, the dry run is
+made again with all four delays and committed before the first record at another delay; 1.5 times its total is the row's
+cap from then on, and what the 10 ms unit spent counts in it. On `F25F9cl` the dry runs are the two pairs of commands
+listed below, made again and committed before `R2L-F25F9cl/42`'s first panel record and before the first re-run record.
+They take the 22 records that Q6 names for the candidate's row (the 16 gated conditions at 10 ms, which are its 10 ms
+unit, then `walk/v0.4` and `walk/v0.4_mu0.54` at 0, at 4 and at 6 ms; Q6 names no `walk/nominal` record there, and none
+is counted), and the same 22 for each of `R2/42` and `R2/43` where they are run again. The dry run of an R2L row names
+the row `R2/42`: the runner gives a row without a measured rate the largest measured one, which is R2's (`bar.rate_of`).
+The rulings name no path for a cap's run directory or for its committed dry run, and no task key, and this text names
+none: the report names each cap's run directory and the file and commit that hold its dry run, and the Check reads them
+there [this last clause is the author's, after the independent review of this writing-in, so that the Check can be run].
 
 Planning figures. They cap nothing; each is an estimate and no record: a dry run plans each episode, multiplies its
 planned seconds by a rate and runs none. The rate is `COST.md`'s for an R2 row, 0.1574 wall seconds per simulated
@@ -1306,13 +1309,13 @@ which was not checked, is that a look walk's file is a window of 9 to 14 strides
 Check: `ledger.json` (per fit: the seconds of each block, of the decisive cell and of each reported cell, in the order
 run); `r2lg5.json` `judged_at_generation`, `overrun`; the report's cell for a fit that was cut.
 [settled 16 Nov 2026, before any Track B run] `r2lg5.json` `overrun_reported`, and for each reported cell its estimate,
-what the share still held when it was decided and whether it started; for each cap, its committed dry run (the command
-and the printed total, on the frozen set, in a commit that is an ancestor of the `sessions[].commit` of the row's first
-panel record) and its own run directory's `budget.json` (one task key; the cap, which is 1.5 times that total; the units
-in the order started, which is 10, 0, 4, 6 ms and then attribution; the cut units, which are the tail of that order,
-with no 10 ms unit among them; the excess of a 10 ms unit that passed its cap) [the fourth list: this Check read "the
-bar's `budget.json` (the cap, the units in the order started, and the cut units: 6 ms, then 4 ms, then 0 ms, and no 10
-ms record among them)"].
+what the share still held when it was decided and whether it started; for each cap, where the report names them, its
+committed dry run (the command and the printed total, on the frozen set, whose freeze it names, in a commit that is an
+ancestor of the `sessions[].commit` of the row's first panel record) and its own run directory's `budget.json` (one task
+key; the cap, which is 1.5 times that total; the units in the order started, which is 10, 0, 4, 6 ms and then
+attribution; the cut units, which are the tail of that order, with no 10 ms unit among them; the excess of a 10 ms unit
+that passed its cap) [the fourth list: this Check read "the bar's `budget.json` (the cap, the units in the order
+started, and the cut units: 6 ms, then 4 ms, then 0 ms, and no 10 ms record among them)"].
 
 **Q6. Rows and reading.** [plan; settled 15 Nov, before any Track B run: the row on the candidate set;
 settled 16 Nov 2026, before any Track B run: how that row is judged, and a pointer to Q5's caps] Rows are named by their
@@ -1483,7 +1486,7 @@ the owner's answer is what lets the smoke pass, the queue file that carries it i
 starts before the answer is in it.] [settled 15 Nov, before any Track B run] Y4 fails under 15,000,000 steps, and no job
 is then queued until the owner has set the budget (Y11). Check: `runs/<run_id>/smoke/SMOKE.json`;
 `stage2/tb/validation/colab_archive.json`; where Y4 failed, `QUEUE.json` `budget_by` (`owner`) and `budget_set_on`, a
-time before the start of the queue's first job.
+UTC date and time before the start of the queue's first job.
 
 **Y11. The budget (S2-8).** [plan section 6, as stated, with its "about 560 env steps/s" made exact;
 settled 15 Nov, before any Track B run: which smoke fixes the budget, and a rate under the floor;
@@ -1816,7 +1819,10 @@ of `v0.4` (and half a stride for a right-foot command)", and the env description
 (prescribed motion; none frozen); ruling 7 of the fourth list, on what the paragraph above leaves open for the body's
 other sets] The set whose `start` or `nominal_to_v0.4` fails holds no freeze. Whether that body's other look sets are
 frozen is then the lead's decision, recorded with its date and reason, because a body's sets are meant to agree (the
-paragraph above: a cut is taken for a body). No rule freezes or blocks them by itself.
+paragraph above: a cut is taken for a body). No rule freezes or blocks them by itself. [from here to the paragraph's
+end, the author's note, after the independent review of this writing-in, not the lead's wording] The ruling names no
+place for that record. By this text's own rule for a later answer of the lead it is an amendment of this text with its
+date, and one given after a result is labelled so (the two sections "Settled by the lead").
 
 The design's cut 3 [differs: B6 and T1]: a move leaves and enters a K-stride window only at its boundary (a right-foot
 command at the exact time of phase 0.5 after the boundary); episodes then walk whole windows (about 10 s) before a
@@ -1844,10 +1850,10 @@ move's `join_command` or `join_b` numbers; the same in every look set of the bod
 entries' `a_phase`, `a_time_s`, `join_command`, `join_b`, and `available: false` with its numbers for a move that still
 fails, other than `start` and `nominal_to_v0.4`: a set in which one of those two still fails holds no freeze (A8)
 [settled 16 Nov 2026, before any Track B run: this exception], and the lead's decision on that body's other look sets is
-on record with its date and reason [settled 16 Nov 2026, before any Track B run: this item; ruling 7 of the fourth
-list]; under cut 3, the reading of T1's and B6's stride counts in the env description and in the records' `plan`; a set
-rebuilt under a cut after a closed-loop episode on it carries the label "changed after a result", and one rebuilt before
-any does not.
+on record with its date and reason, as an amendment of this text [settled 16 Nov 2026, before any Track B run: this
+item; ruling 7 of the fourth list; "as an amendment of this text" is the author's note in the rule]; under cut 3, the
+reading of T1's and B6's stride counts in the env description and in the records' `plan`; a set rebuilt under a cut
+after a closed-loop episode on it carries the label "changed after a result", and one rebuilt before any does not.
 
 **L13. The turn in place.** [look choice; lead, 15 Nov, before any look set was built;
 settled 15 Nov, before any Track B run, after the look work package's first kinematic numbers existed: the plan's
