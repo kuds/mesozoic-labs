@@ -21,7 +21,12 @@ would change the solver's warm start and break gate G8a).  So the reward and the
 joint angles are ``qpos`` at the env step's end, as Stage 1's reward reads them; body positions and orientations
 (the CoM, the trunk's attitude and yaw, the feet, the head, the feet's lowest points and slip speeds) and the foot
 loads are the plant's own after the env step's last physics step, which MuJoCo computes at that physics step's
-start, 2 ms before the env step's end.  ``REWARD_RULE`` says so.
+start, 2 ms before the env step's end.  What ``substep`` reads after every physics step (the foot loads, the foot
+bodies' heights, the actuator forces) is the plant's own in the same way, computed at that physics step's start;
+the reference's flags beside it are read at the reference clock after that physics step.  The first reading of an
+episode is the reset's, of the episode's start itself, so the displacement behind the first env step's tracking
+speed, yaw rate and progress sample spans 18 ms and is divided by 20 ms like every other (it matters only for a
+start in motion).  ``REWARD_RULE`` says so.
 
 **Reward** (``REWARD_RULE``, ``REWARD_WEIGHTS``, ``REWARD_SCALES``): rule W2's table.  Every term lies in [0, 1].
 Rule W1 asks that a kinematic playback of the reference score every positive term 1 and every penalty 0.  Three
@@ -30,13 +35,15 @@ as coded and that the wording of rules W2, W3 and W5 follows them (``stage2/desi
 ``REWARD_RULE`` states what the code computes and nothing else; ``READINGS`` names the readings:
 
 * ``duty`` charges a foot only where the reference's own contact share over the same stride lies inside the band:
-  a start, a stop or a change, where the reference itself is outside the band, is not charged.
+  a start, a stop or a change, where the reference itself is outside the band, is not charged.  The stride is read
+  as a whole number of env steps, kept between 1 and ``HISTORY_STEPS`` (256).
 * ``progress`` is the shortfall of the CoM's mean speed against the same mean of the reference's own CoM speed at
   the commanded clock, over ``rate x v_cmd``: the reference's speed ripple inside a stride is in both means.  The
   means restart at each periodic walking segment's first frame and are read after one stride, also after a
   mid-task start.
 * ``clearance`` (a) times a foot's own swing by the planned length of the reference's swing in progress
-  (``r5lib.Script.swing_s``), on the reference clock, so that inside a change of gait each swing has its own.
+  (``r5lib.Script.swing_s``), on the reference clock, so that inside a change of gait each swing has its own.  Where
+  that length is not above zero, (a) is not read.
 
 Further readings, where the rules leave a choice: the headings of a mid-task start are taken about the start less
 what the reference itself had turned by then (the heading input and term then read as a playback from the track's
@@ -44,14 +51,18 @@ start would); in the turn-in-place tasks the commanded heading is the reference'
 the ``range`` term's margin leaves out an end a joint rests on by design, as the required margin does
 (``plant.REST_ON_STOP_RULE``: the jaw); the head overlay enters the joint term's reference, not the head term's
 (``Script.head_rp`` is the files'); a gaze train starts at the episode's first instant and training's jaw event is
-timed as the bar's (``HEAD_RULE``).
+timed as the bar's (``HEAD_RULE``).  In R5 the overlay is added to the reference's neck-yaw and jaw targets; in R6
+it is added to the settled home pose's (``Core.targets``), where the jaw rests 0.0015 rad open on ``75-M-H-10-X``
+and 0.0007 rad on ``60-N-T-10-X``, so an R6 jaw target reaches 0.4515 and 0.4507 rad.
 
 Where a playback does not score exactly as rule W1 says (kinematic playbacks, 16 Nov 2026): the tracking term is
 Stage 1's and compares a speed over the 20 ms step with the reference's at the step's start: at least 0.989 on the
 walks of Stage 1's arrays and of the frozen set V0 (75-M-H-10), 0.962 in V0's quick turn, 0.951 in Stage 1's turn in
 place.  In a walking turn the commanded heading stays rule E4's integral of a rectangular pulse (the lead's ruling)
 while the reference's yaw ramps: on V0 the heading penalty reaches 0.35 in the quick turn, 0.14 at 0.5 rad/s and
-0.04 at 0.35 rad/s, for 98 to 208 of a task's 1,499 env steps.  Every other penalty of every task of V0 is 0.
+0.04 at 0.35 rad/s, for 98 to 208 of a task's 1,499 env steps.  ``progress`` is not exactly 0 on a playback: it
+reads up to 2.1e-05 in V0's walks and walking turns and up to 8.3e-06 on Stage 1's arrays (the tests ask for below
+1e-4).  Every other penalty of every task of V0 is 0.
 
 ``Core`` must be built while the plant's model is nominal (it reads the nominal weight).  This module imports
 ``r5lib``; it never imports ``r5env``.
@@ -143,12 +154,19 @@ REWARD_RULE = (
     "its start).  The true state: joint angles are those at the env step's end; body positions and orientations "
     "(the CoM, the trunk's attitude and yaw, the feet, the head, the feet's lowest points and slip speeds) and the "
     "foot loads are the plant's own after the env step's last physics step, which the simulator computes at that "
-    "physics step's start, 2 ms before the env step's end (the plant's data is read, never recomputed).  A foot is "
+    "physics step's start, 2 ms before the env step's end (the plant's data is read, never recomputed).  What is "
+    "read at every physics step (the foot loads, and with them a foot's contact, for contact, duty, flight, impact, "
+    "touchdown, a foot's own lift-off and clearance (b); the foot bodies' heights for touchdown's speed; the "
+    "actuator forces for servo) is likewise the plant's own after that physics step, computed at its start, and "
+    "the reference's flags beside it are read at the reference clock after that physics step.  In an episode's "
+    "first env step the displacement behind tracking's speed and yaw rate and behind progress's sample runs from "
+    "the reading at the reset, which is of the episode's start, to the step's reading 18 ms later, and is divided "
+    "by 20 ms like every other (it matters only for a start in motion).  A foot is "
     "loaded, or in contact, when its load is above 2 % of the true weight.  A kinematic playback of the reference "
     "scores joint, foot, contact and head 1, tracking close to 1 (a speed over the 20 ms step against the "
-    "reference's at the step's start) and every penalty 0, except heading inside a finite walking turn, where the "
-    "commanded heading is the integral of a rectangular yaw-rate pulse and the reference's own yaw ramps; duty, "
-    "progress and clearance (a) are read so that it does.  "
+    "reference's at the step's start), progress below 1e-4 and every other penalty 0, except heading inside a "
+    "finite walking turn, where the commanded heading is the integral of a rectangular yaw-rate pulse and the "
+    "reference's own yaw ramps; duty, progress and clearance (a) are read so that it does.  "
     "joint: exp(-mean_j ((q_j - q_ref_j(c)) / 0.1 rad)^2) over all hinges, the reference with the head overlay.  "
     "tracking: Stage 1's gaussian_tracking_reward of the CoM's speed along the previous heading and the trunk's "
     "yaw rate over the step against the reference's own at c0 times the commanded clock rate.  foot: "
@@ -157,7 +175,8 @@ REWARD_RULE = (
     "contact equals the reference's support at the clock or 24 ms x the clock rate earlier.  head: exp(-((roll - "
     "roll_ref)^2 + (pitch - pitch_ref)^2) / (3 deg)^2) of the head body in the world about home.  Penalties.  "
     "duty: min(1, sum over the feet read of max(0, lo - d_f, d_f - hi) / 0.05), d_f the foot's contact share over "
-    "the physics steps of the last n env steps, n = round(the stride period at c / the clock rate / 20 ms); a foot "
+    "the physics steps of the last n env steps, n = round(the stride period at c / the clock rate / 20 ms), kept "
+    "between 1 and 256 env steps (the history kept); a foot "
     "is read only where the reference's own support share for it over the same physics steps, each at the clock, "
     "lies inside the band [lo, hi], so that a start, a stop or a change, where the reference itself is outside the "
     "band, is not charged; the band is 0.55-0.72 while the commanded gait's target speed (the speed a rung's name "
@@ -175,7 +194,8 @@ REWARD_RULE = (
     "progress x T; for the other foot, the clock) and T the planned length, in reference time, of the reference's "
     "swing in progress at c, in double support of its next swing and past its last swing of that one, each swing "
     "its own length, also inside a change of gait (a track that plans no complete swing: its gait's (1 - duty) x "
-    "stride period).  (b): 1 if in any physics step of the env step a foot is loaded while the reference has that "
+    "stride period); where T is not above zero, (a) is not read.  (b): 1 if in any physics step of the env step a "
+    "foot is loaded while the reference has that "
     "foot between 25 % and 75 % of its swing both at the clock and 24 ms x the clock rate earlier.  action_rate: "
     "min(1, mean_i (a_i - a_prev_i)^2 / 0.25) on the clipped actions.  touchdown: in an env step in which a foot's "
     "contact begins, min(1, max(0, v_down - 0.15 m/s) / 0.30 m/s), v_down the foot body's downward speed one "
@@ -205,7 +225,8 @@ READINGS = ("duty: a foot is charged only where the reference's own share over t
             "progress: the shortfall against the same mean of the reference's own speed, over rate x v_cmd",
             "clearance (a): the planned length of the reference's swing in progress, on the reference clock",
             "positions and foot loads: the plant's own after the env step's last physics step, computed at that "
-            "physics step's start; joint angles: those at the env step's end")
+            "physics step's start, and after every physics step for what is read there; joint angles: those at the "
+            "env step's end")
 INTERFERENCE_RULE = (
     "legs.LegGap at the end of every env step: the penalty reads the pairs that move (home distance at least the "
     "report cap); pairs that stay at one distance in every pose carry none and are listed; termination when the "
@@ -235,8 +256,13 @@ JAW_HOLD_S = (1.0, 1.5)
 JAW_AT = (0.25, 0.75)  # the jaw event starts at a time uniform in this share of the episode (its middle half)
 H1_STREAM = 77
 HEAD_RULE = (
-    "the head command is an overlay added to the reference's neck-yaw and jaw targets before the policy's offsets; "
-    "the actor sees [yaw now, jaw now, yaw goal, jaw goal] / 0.6 rad; head neutral is all zero.  A scripted head "
+    "the head command is an overlay: in R5 it is added to the reference's neck-yaw and jaw targets before the "
+    "policy's offsets; in R6, which has no reference controller, it is added to the settled home pose's neck-yaw "
+    "and jaw angles before the policy's term (the joint targets are clip(home + overlay + action x span, range)), "
+    "so an R6 target lies off the script's value by the settled angle (the neck yaw settles within 1e-7 rad of "
+    "zero; the jaw settles 0.0015 rad open on 75-M-H-10-X and 0.0007 rad on 60-N-T-10-X: an R6 jaw target reaches "
+    "0.4515 and 0.4507 rad).  The "
+    "actor sees [yaw now, jaw now, yaw goal, jaw goal] / 0.6 rad; head neutral is all zero.  A scripted head "
     "target keeps 0.15 rad from a joint limit (the neck yaw's range is +-0.6 rad, the jaw's 0 to 0.6 rad; the "
     "jaw's closed end is the end it rests on and is no limit).  A gaze train: from the episode's first instant, "
     "shifts to a yaw target uniform on +-0.45 rad, minimum-jerk over 0.8-1.2 s, each held 2-6 s, to the episode's "
@@ -451,7 +477,9 @@ class Core:
         """After the episode's reset: ``clock()`` gives the reference time, ``est()`` the estimate (``q``, ``qd``,
         ``gravity``, ``gyro``, ``foot_load``, ``yaw``).  The histories, the filter and the reward's accumulators
         start at zero; the headings are taken about the start, less what the reference itself had turned by the
-        start's reference time (a mid-task start)."""
+        start's reference time (a mid-task start).  The CoM and the yaw read here are the plant's own at the reset,
+        of the episode's start: the first env step's displacement runs from them to the reading 18 ms later
+        (``REWARD_RULE``)."""
         if head is not None and not self.head_x:
             raise ValueError("a head script needs a body with a neck yaw and a jaw")
         self.clock, self.est, self.script, self.head_script = clock, est, script, head
@@ -611,7 +639,9 @@ class Core:
         return (off if off.any() else None), self._clock_factor(a_f)
 
     def targets(self, a_f) -> tuple[np.ndarray, float]:
-        """R6 (rule E2): (``q_target``, ``rate_factor``): ``clip(home + head overlay + a_f[:nj] x span, range)``."""
+        """R6 (rule E2): (``q_target``, ``rate_factor``): ``clip(home + head overlay + a_f[:nj] x span, range)``,
+        home the settled home pose's joint angles: the head overlay is added to the settled neck-yaw and jaw
+        angles, not to a reference's (``HEAD_RULE``)."""
         q = self.q_home + a_f[: self.nj] * self.span
         if self.head_script is not None:
             oy, oj, _ = self._overlay()
@@ -629,7 +659,9 @@ class Core:
     def substep(self) -> None:
         """After every physics step: the foot loads (peak, flight, contact shares), the contact match with the
         reference, a loaded foot through the reference's mid-swing, each foot's own lift-off and touchdown speed,
-        and the servo mean squares."""
+        and the servo mean squares.  The loads, the foot bodies' heights and the actuator forces are the plant's
+        own after the physics step, which the simulator computed at that step's start; the reference's flags and a
+        lift-off's time are read at the reference clock after it (``REWARD_RULE``)."""
         p, v = self.p, self.p._v
         sd = v.sensordata
         l0, l1 = float(sd[self._load_adr[0]]), float(sd[self._load_adr[1]])

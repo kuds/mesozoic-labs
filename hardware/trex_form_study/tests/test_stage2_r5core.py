@@ -3,8 +3,9 @@
 
 The reward is tested on a **kinematic playback**: a script's own poses (the bar's placement of the files in one
 world frame, ``bar._Played``) written into the plant's data at the commanded clock, the foot loads from the
-reference's support flags, no physics.  On it every imitation term is 1 and every penalty 0 (rule W1); each term
-then moves when its cause is injected into the playback.  The S1 view only (Stage 1's run directory).
+reference's support flags, no physics.  On it every imitation term is 1 and every penalty below 1e-4 (rule W1 as
+the lead ruled it on 16 Nov 2026: ``progress`` is not exactly 0, and ``heading`` is charged inside a walking turn);
+each term then moves when its cause is injected into the playback.  The S1 view only (Stage 1's run directory).
 """
 
 from __future__ import annotations
@@ -137,13 +138,40 @@ def test_the_reward_rule_states_the_readings_as_coded():
             "which the simulator computes at that physics step's start, 2 ms before the env step's end",
             "joint angles are those at the env step's end",
             "in a turn-in-place task the reference's own yaw",
-            "every penalty 0, except heading inside a finite walking turn",
-            "below 0.30 m/s, else 0.55-0.65"):
+            "below 0.30 m/s, else 0.55-0.65",
+            # the six details the review of the fix round found unstated (16 Nov 2026), each pinned by a test below
+            # or in tests/test_stage2_r5env.py:
+            # (a) the first env step's displacement
+            "In an episode's first env step the displacement behind tracking's speed and yaw rate and behind "
+            "progress's sample runs from the reading at the reset, which is of the episode's start, to the step's "
+            "reading 18 ms later, and is divided by 20 ms like every other",
+            # (b) what a playback scores on progress
+            "progress below 1e-4 and every other penalty 0, except heading inside a finite walking turn",
+            # (c) the bounds of duty's n
+            "n = round(the stride period at c / the clock rate / 20 ms), kept between 1 and 256 env steps",
+            # (d) clearance (a) without a swing length
+            "where T is not above zero, (a) is not read",
+            # (e) the instant of the readings taken at every physics step
+            "What is read at every physics step (the foot loads, and with them a foot's contact, for contact, duty, "
+            "flight, impact, touchdown, a foot's own lift-off and clearance (b); the foot bodies' heights for "
+            "touchdown's speed; the actuator forces for servo) is likewise the plant's own after that physics step, "
+            "computed at its start, and the reference's flags beside it are read at the reference clock after that "
+            "physics step"):
         assert said in rule, said
-    for gone in ("1 - v_bar", "Stage 1's:", "(Stage 1's)", "the planned swing time"):
+    for gone in ("1 - v_bar", "Stage 1's:", "(Stage 1's)", "the planned swing time", "and every penalty 0"):
         assert gone not in rule, gone
     assert len(r5core.READINGS) == 4 and [x.split(":")[0] for x in r5core.READINGS] == [
         "duty", "progress", "clearance (a)", "positions and foot loads"]
+    assert "after every physics step for what is read there" in r5core.READINGS[3]
+    assert r5core.HISTORY_STEPS == 256
+    # (f) the head rule's first sentence: R5's overlay on the reference, R6's on the settled home pose
+    head = " ".join(r5core.HEAD_RULE.split())
+    for said in ("in R5 it is added to the reference's neck-yaw and jaw targets before the policy's offsets",
+                 "in R6, which has no reference controller, it is added to the settled home pose's neck-yaw and jaw "
+                 "angles before the policy's term (the joint targets are clip(home + overlay + action x span, range))",
+                 "the neck yaw settles within 1e-7 rad of zero",
+                 "an R6 jaw target reaches 0.4515 and 0.4507 rad"):
+        assert said in head, said
 
 
 # ------------------------------------------------------------------------------------------------
@@ -536,6 +564,7 @@ def test_progress_is_the_shortfall_against_the_references_own_mean_speed(p, core
         np.testing.assert_allclose(coded, reading, rtol=0, atol=1e-9)
         if factor == 1.0:
             assert max(coded) < 1e-4 and max(constant) > 0.25  # rule W1 holds for the reading only
+            assert 0.0 < max(coded)  # ... to below 1e-4, not to exactly 0: REWARD_RULE says "progress below 1e-4"
         else:
             assert 0.42 < min(coded) and max(coded) < 0.58  # 5 % short of the reference: half the term
 
@@ -628,6 +657,13 @@ def test_a_playback_of_a_turn_in_place_scores_heading_zero(p, core, t0, directio
         inputs.append(float(core.actor_obs()[at]))
     assert max(charged) == 1.0 and float(np.mean(charged)) > 0.7 and float(np.mean(np.array(charged) == 1.0)) > 0.65
     assert float(np.mean(np.abs(inputs) == 2.0)) > 0.5
+    # the same plan given as a plan with the heading named, as a row that plays a turn in place gives it
+    # (``from_plan(plan, heading="reference")``): read as the task is
+    named = t0.from_plan(s.plan, heading=r5lib.HEADING_REFERENCE)
+    assert named is not s and named is not e4 and named.heading_rule == "reference"
+    pb = Playback(p, core, named, t0.dir, played=played_turning)
+    for _ in range(n):
+        assert pb.step()["heading"] == 0.0 and abs(float(core.actor_obs()[at])) < 1e-6
 
 
 @needs_run
@@ -928,6 +964,83 @@ def test_a_rung_at_0_30_m_s_keeps_the_usual_duty_band(p, core, t0):
         assert np.all(np.abs(share[:2] - 0.69) < 0.01) and np.all(np.abs(share[2:] - 0.60) < 0.02)
 
 
+@needs_run
+def test_dutys_stride_is_kept_between_1_and_256_env_steps(p, core, s1, monkeypatch):
+    """``REWARD_RULE``: duty's n is ``round(the stride period / the clock rate / 20 ms)``, kept between 1 and 256
+    env steps (``HISTORY_STEPS``: the history the core keeps).  With a stride period that would give 476 env steps
+    the term is read from the 256th env step on, over the last 256; with one that would give none it is read from
+    the first env step on, over that one step."""
+    s = s1.script("walk")
+    seg = s.track.segments[1]
+    w = float(p.m.body_subtreemass[p.trunk]) * 9.81
+    t0 = s.start_state(seg.t0 + 0.5 * seg.period)[0]
+    assert seg.kind == "periodic" and seg.duration / RATE > 257 * 0.02 + 0.5 * seg.period
+    # (the upper bound) a stride of 10 s: round(10 / 1.05 / 0.02) = 476 env steps, kept at 256
+    monkeypatch.setattr(s, "stride_s", lambda c: 10.0)
+    assert int(round(10.0 / RATE / 0.02)) == 476 > r5core.HISTORY_STEPS == 256
+    pb = playback(p, core, s1, "walk", t0)
+    pb.loads = lambda c: np.array([0.5 * w, 0.5 * w])  # both feet down, always
+    read = [pb.step()["duty"] for _ in range(257)]
+    assert read[:255] == [0.0] * 255 and read[255] == read[256] == 1.0  # read from the 256th env step, not the 476th
+    share = np.mean(core._shares[np.arange(core._shares_n - 256, core._shares_n) % 256], axis=0)
+    assert share[:2].tolist() == [1.0, 1.0] and np.all((share[2:] > 0.55) & (share[2:] < 0.65))
+    # (the lower bound) a stride of 1 ms: round(0.001 / 1.05 / 0.02) = 0 env steps, kept at 1
+    monkeypatch.setattr(s, "stride_s", lambda c: 0.001)
+    assert int(round(0.001 / RATE / 0.02)) == 0
+    pb = playback(p, core, s1, "walk", t0)
+    pb.loads = lambda c: np.array([0.5 * w, 0.5 * w])
+    ref, orig = [], pb.set
+
+    def recording():
+        orig()
+        ref.append(s.support(pb.c))
+
+    pb.set = recording
+    coded, want = [], []
+    for _ in range(int((seg.t0 + seg.duration - t0) / RATE / 0.02) - 2):  # to the end of the periodic walk
+        ref.clear()
+        coded.append(pb.step()["duty"])
+        own = np.mean(ref, axis=0)  # the reference's own support share over this one env step
+        want.append(min(1.0, float(np.sum(np.where((own >= 0.55) & (own <= 0.72), 1.0 - 0.72, 0.0))) / 0.05))
+    assert len(coded) > 300 and coded == want and max(coded) == 1.0 and 0 < sum(1 for x in coded if x > 0.0) < 30
+    assert s.target_speed(pb.c) < 0.30  # (Stage 1's nominal walk: the band is 0.55-0.72)
+
+
+@needs_run
+def test_clearance_a_is_not_read_without_a_swing_length(p, core, s1, monkeypatch):
+    """``REWARD_RULE``: where T, the planned length of the reference's swing, is not above zero, clearance (a) is
+    not read (no division by it).  A foot that skims the floor through the middle of its own swing is charged 0.75
+    with the reference's swing length and nothing where the script gives none; (b) is read all the same."""
+    s = s1.script("walk")
+    need = 0.04 * core.H
+    foot = p.feet[0]
+    w = float(p.m.body_subtreemass[p.trunk]) * 9.81
+    t0 = s.start_state(steady_time(s))[0]
+
+    def skimming(swing):
+        if swing is not None:
+            monkeypatch.setattr(s, "swing_s", lambda c: swing)
+        pb = playback(p, core, s1, "walk", t0)
+        orig = pb.set
+
+        def squat():  # the played pose lowered so that the left foot skims the floor while it swings
+            orig()
+            if not s.support(pb.c)[0]:
+                lowest = metrics.foot_lowest(p.m, p.d, *core._foot_tables)[0] - p.z_floor
+                for g in np.flatnonzero(p.m.geom_bodyid == foot):
+                    p.d.geom_xpos[g, 2] -= lowest - 0.25 * need
+
+        pb.set = squat
+        return pb
+
+    assert skimming(None).run(2.5)["clearance"] == (0.0, pytest.approx(0.75, abs=1e-6))
+    for swing in (0.0, -0.3):
+        assert skimming(swing).run(2.5)["clearance"] == (0.0, 0.0)  # (a) is not read; nothing divides by T
+    pb = skimming(0.0)
+    pb.loads = lambda c: np.array([0.5 * w, 0.5 * w])  # a foot loaded through the reference's mid-swing: (b)
+    assert pb.run(2.5)["clearance"] == (0.0, 1.0)
+
+
 def _pitched(q, angle: float):
     q = np.array(q, float)
     w, x, y, z = q[3:7]
@@ -1116,6 +1229,42 @@ def test_a_playback_obeying_the_head_command_scores_range_zero(body):
     drafted = r5core.HeadScript([("jaw", 1.0, 0.4, 1.5, 0.6)])
     rng, margins = obeying(drafted, 3.0)
     assert rng["range"] == (0.0, 1.0) and margins[i_jaw] == pytest.approx(0.0, abs=1e-12)
+
+
+@pytest.mark.parametrize("body", HEAD_BODIES)
+def test_in_r6_the_head_overlay_is_added_to_the_settled_home_pose(body):
+    """``HEAD_RULE``: in R5 the head command is added to the reference's neck-yaw and jaw targets; in R6 it is added
+    to the settled home pose's angles (``Core.targets``).  The jaw settles a little open, so an R6 jaw target lies
+    that much above the script's value: 0.4515 rad on ``75-M-H-10-X`` and 0.4507 rad on ``60-N-T-10-X`` for the
+    widest opening a script commands, which the rule string states."""
+    pytest.importorskip("designlab.stage2.bar")
+    px = plant.build(body, "hard")
+    lib = r5lib.Library(px, body, "S1", RATE)
+    span = np.full(16, 0.2)
+    core = r5core.Core(px, dict(span=span), None)
+    i_yaw, i_jaw = core.i_yaw, core.i_jaw
+    home = px.q_settled[px.qadr]
+    assert abs(home[i_yaw]) < 1e-7 and 0.0005 < home[i_jaw] < 0.002  # the jaw rests a little open on its closed end
+    wide, yaw = r5core.JAW_OPEN_RAD[1], -r5core.GAZE_YAW_RAD
+    head = r5core.HeadScript([("gaze", 0.0, 0.8, 6.0, yaw), ("jaw", 0.5, 0.4, 1.5, wide)])
+    playback(px, core, lib, "walk", head=head)
+    px.d.time = 1.5  # both moves done, both held
+    assert head.value(1.5) == (yaw, wide, yaw, wide)
+    zero = np.zeros(17)
+    q, rf = core.targets(zeros := zero.copy())  # R6: the settled home pose, the overlay, no action
+    assert rf == 1.0 and not zeros.any()
+    np.testing.assert_array_equal(np.delete(q, [i_yaw, i_jaw]), np.delete(home, [i_yaw, i_jaw]))
+    assert q[i_yaw] == home[i_yaw] + yaw and q[i_jaw] == home[i_jaw] + wide > wide
+    off, _ = core.offsets(zero.copy())  # R5: the offsets the tracker adds to the reference's targets
+    assert np.flatnonzero(off).tolist() == [i_yaw, i_jaw] and (off[i_yaw], off[i_jaw]) == (yaw, wide)
+    # the numbers the rule string gives, and what they leave to the jaw's limit
+    said = {"75-M-H-10-X": ("settles 0.0015 rad open on 75-M-H-10-X", "0.4515"),
+            "60-N-T-10-X": ("0.0007 rad on 60-N-T-10-X", "0.4507")}[body]
+    rule = " ".join(r5core.HEAD_RULE.split())
+    assert said[0] in rule and f"{home[i_jaw]:.4f}" in said[0] and f"{q[i_jaw]:.4f}" == said[1] and said[1] in rule
+    assert core.hi[i_jaw] - q[i_jaw] == pytest.approx(0.15 - home[i_jaw], abs=1e-12)
+    assert 0.148 < core.hi[i_jaw] - q[i_jaw] < 0.15  # just under the 0.15 rad a script's own value keeps
+    assert core.hi[i_jaw] - q[i_jaw] > tune.WALK_RANGE_RAD  # ... and well over what the range term asks
 
 
 @needs_x

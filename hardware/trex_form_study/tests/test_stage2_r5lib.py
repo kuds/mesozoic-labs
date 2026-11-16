@@ -232,6 +232,9 @@ def test_s1_table_and_inputs(s1):
     text = json.dumps(s2io.plain(doc))  # (a plain document)
     assert str(ROOT) not in text and "/home" not in text and "/tmp" not in text
     assert doc["absent"] == {} and doc["command_rule"] == r5lib.COMMAND_RULE and list(doc["tasks"]) == list(s1.tasks)
+    assert doc["crouch_rule"] == r5lib.CROUCH_RULE
+    # the names of the tasks the view holds, from its records alone (no plant): what the library resolves
+    assert r5lib.task_names(BODY, "S1") == list(s1.tasks) == ["stand", "walk", "brisk", "stop"]
 
 
 @needs_run
@@ -256,6 +259,13 @@ def test_resolved_table_and_absent_tasks_on_a_synthetic_set(t0, t0_root):
     assert "the set has no entry" in absent["inplace_left"]
     assert absent["turn_1_right"].startswith("transitions/turn90_1")
     assert t0.why_not("refs", "v0.3") == NOTE_V03  # set.json's note where there is no entry
+    # the same table from the set's records alone (no plant, no array): the names an env config stores (rule K4)
+    assert r5lib.task_names(BODY, SET, t0_root) == have
+    docs = setio.load(setio.set_dir(SET, BODY, t0_root))
+    records = (docs["refs.json"]["references"], docs["transitions.json"]["transitions"], docs["set.json"])
+    for td in r5lib.TASKS:
+        assert r5lib.absent_reason(td, *records) == t0.tasks[td.name]["reason"], td.name
+    assert r5lib.why_not(*records, "refs", "v0.3") == NOTE_V03 and r5lib.why_not(*records, "refs", "v0.4") is None
     for name in have:
         t = t0.tasks[name]
         assert t["reason"] is None and all(isinstance(x[-1], (int, float, str)) for x in t["plan"])
@@ -295,6 +305,64 @@ def test_a_set_must_be_frozen_and_unchanged(p, tmp_path):
     s2io.write_json(d / "set.json", doc)
     with pytest.raises(tune.InputError, match="crouch_frac"):
         r5lib.Library(p, BODY, SET, RATE, root=tmp_path / "c")
+
+
+def _edit(path: Path, change) -> None:
+    doc = s2io.read_json(path)
+    change(doc)
+    s2io.write_json(path, doc)
+
+
+@needs_run
+def test_a_set_whose_crouch_differs_from_a_walk_entrys_is_refused(p, tmp_path):
+    """No freeze covers ``set.json``'s ``crouch_frac``, with which the track's LIPM frequency is computed; a freeze
+    covers each walk entry's own.  A set where they differ is refused with both values, as ``bar.set_crouch``
+    refuses it: for every walk entry the library reads, also one that only a plan given as a plan reads."""
+    bar = pytest.importorskip("designlab.stage2.bar")
+    # set.json edited after the freeze: the frozen set still reads as frozen and unchanged
+    d = make_t0(tmp_path / "a")
+    ok = r5lib.Library(p, BODY, SET, RATE, root=tmp_path / "a")
+    assert ok.crouch_frac == 0.03 and ok.describe()["crouch_rule"] == r5lib.CROUCH_RULE
+    assert "refused with both values" in r5lib.CROUCH_RULE and "bar.set_crouch" in r5lib.CROUCH_RULE
+    _edit(d / "set.json", lambda doc: doc.update(crouch_frac=0.08))
+    with pytest.raises(tune.InputError) as err:
+        r5lib.Library(p, BODY, SET, RATE, root=tmp_path / "a")
+    text = str(err.value)
+    assert f"{SET}/{BODY}: set.json records crouch_frac 0.08" in text
+    assert "its walk entry 'nominal' records 0.03" in text and "its walk entry 'v0.4' records 0.03" in text
+    assert "transitions" not in text  # (a move's entry records no crouch)
+    docs = setio.load(d)
+    with pytest.raises(bar.BarError, match="records crouch_frac 0.08, its walk entry 'nominal' records 0.03"):
+        bar.set_crouch(docs["set.json"], docs["refs.json"]["references"], ["nominal", "v0.4"])  # the bar's refusal
+    # a walk entry with a crouch of its own, or with none
+    for i, (own, said) in enumerate(((0.05, "0.05"), (None, "None"))):
+        d = make_t0(tmp_path / f"b{i}", freeze=False)
+
+        def other(doc, own=own):
+            if own is None:
+                del doc["references"]["v0.4"]["crouch_frac"]
+            else:
+                doc["references"]["v0.4"]["crouch_frac"] = own
+
+        _edit(d / "refs.json", other)
+        with pytest.raises(tune.InputError, match=f"records crouch_frac 0.03, its walk entry 'v0.4' records {said}:"):
+            r5lib.Library(p, BODY, SET, RATE, root=tmp_path / f"b{i}", require_frozen=False)
+    # a walk that no task of the table reads is not read, and is refused when a plan given as a plan reads it
+    d = make_t0(tmp_path / "c", freeze=False)
+
+    def one_more(doc):
+        e = copy.deepcopy(doc["references"]["v0.4"])
+        e.update(name="v0.45", file="refs/v0.45.npz", crouch_frac=0.06)
+        doc["references"]["v0.45"] = e
+
+    _edit(d / "refs.json", one_more)
+    shutil.copyfile(d / "refs" / "v0.4.npz", d / "refs" / "v0.45.npz")
+    lib = r5lib.Library(p, BODY, SET, RATE, root=tmp_path / "c", require_frozen=False)
+    assert "refs/v0.45.npz" not in lib.inputs["files"] and not lib.tasks["walk_v0.45"]["available"]
+    with pytest.raises(tune.InputError, match="records crouch_frac 0.03, its walk entry 'v0.45' records 0.06"):
+        lib.from_plan([("transition", "start"), ("ref", "v0.45", 2)])
+    assert "refs/v0.45.npz" not in lib.inputs["files"]  # (a refused file is not noted as read)
+    assert lib.from_plan([("transition", "start"), ("ref", "nominal", 2)]).t_end > 0.0  # the others still build
 
 
 # ------------------------------------------------------------------------------------------------
@@ -401,6 +469,38 @@ def test_in_a_turn_in_place_the_commanded_heading_is_the_references_own_yaw(t0_m
     assert s.heading_rule == "command" and s.heading(a + 1.0) == pytest.approx(math.pi / 4, abs=1e-12)
     with pytest.raises(ValueError, match="heading"):
         r5lib.Script(lib, s.plan, heading="gyro")
+
+
+@needs_run
+def test_a_plan_given_as_a_plan_can_name_the_references_yaw(t0_more):
+    """A row that plays a turn-in-place plan as a plan (``from_plan``) names the heading the task's definition
+    names: with ``heading="reference"`` the script's commanded heading is the reference's own yaw, as the task's
+    is; without it, rule E4's integral, as before.  The command, the track and every other table are the same."""
+    lib = t0_more
+    for d in ("left", "right"):
+        task = lib.script(f"inplace_{d}")
+        e4 = lib.from_plan(task.plan)
+        ref = lib.from_plan(task.plan, heading=r5lib.HEADING_REFERENCE)
+        assert (e4.heading_rule, ref.heading_rule, task.heading_rule) == ("command", "reference", "reference")
+        assert ref is not e4 and ref is not task and ref.describe()["heading"] == "reference"
+        # kept by plan and heading: the default is the script it always was
+        assert lib.from_plan(task.plan) is e4 is lib.from_plan(task.plan, heading="command")
+        assert lib.from_plan([list(x) for x in task.plan], heading="reference") is ref
+        _, turn, _ = _segments(task)
+        ts = np.concatenate([np.linspace(0.0, 1.25 * task.t_end + 2.0, 601), [turn[0], turn[1] - 1e-9, task.t_end]])
+        for t in ts:
+            t = float(t)
+            assert ref.heading(t) == task.heading(t) == ref.ref_yaw(t) and ref.command(t) == e4.command(t)
+            assert _tables(ref, t) == _tables(e4, t) == _tables(task, t)
+        assert max(abs(e4.heading(float(t)) - ref.heading(float(t))) for t in ts) > math.radians(60.0)
+        # with a track already built from the plan (a row's built condition), as without one
+        track = setio.build_track(lib.p, lib.dir, task.plan, lib.omega, lib.tr_doc)
+        built = lib.from_plan(task.plan, track=track, heading="reference")
+        assert built.track is track and built.heading_rule == "reference" and built is not ref
+        assert lib.from_plan(task.plan, track=track).heading_rule == "command"
+        assert built.heading(turn[0] + 0.7) == ref.heading(turn[0] + 0.7)
+    with pytest.raises(ValueError, match="heading 'gyro': 'command' or 'reference'"):
+        lib.from_plan(task.plan, heading="gyro")
 
 
 @needs_run
