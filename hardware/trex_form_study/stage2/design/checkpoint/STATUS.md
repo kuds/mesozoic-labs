@@ -312,3 +312,13 @@ another model with the lead and the independent reviewers unchanged.
   main panels' results.
 - **Usage:** the session's cost read 1,777 USD at 00:18 UTC, about 61 % of the week by the owner's 16:00
   calibration (11 % at 1,433.50 USD; baseline 1,357.5; 1 % is about 6.9 USD).
+
+## Update, 16 Nov 2026, 01:20 UTC: the owner's usage line
+
+- The owner read 65 % at about 01:15 UTC; the session's cost then read 1,808 USD (00:53 UTC), which is 65 % by the
+  16:00 calibration, so the meter agrees. 1 % is about 6.9 USD; 90 % is about 1,979 USD.
+- Asked where to stop, the owner wrote: "Run up to about 90% and then tomorrow and I will rest it". Read as: work on
+  up to about 90 %, then checkpoint and stop; the owner will use the week's remaining manual reset tomorrow. Read the
+  cost with `get_session` before each tranche and stop before one that would pass 90 %.
+- To spend less: one independent reviewer per build, and a short labelled section for the add-on's results in place
+  of another full report cycle.
