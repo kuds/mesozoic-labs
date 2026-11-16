@@ -5,6 +5,7 @@ are imported, not edited.
     python -m designlab.stage2.train2 run --mode R5|R6 --body B --seed N [--set V6] --out ROOT [--job NAME] [--steps N]
            [--workers W] [--resume] [--allow-version-change] [--allow-source-change] [--from-checkpoint JOBDIR:STEPS]
            [--lr X] [--monitor-every N] [--monitor-also-k K,...] [--no-gates] [--tiny] [--run-id ID] [--config JSON]
+           [--retry-check]
     python -m designlab.stage2.train2 {probe-lr|probe-sigma|filter} --bodies B,... --set S --out PATH ...
     python -m designlab.stage2.train2 preflight
     python -m designlab.stage2.train2 worker ADDRESS        # a worker of the env pool (started by the pool)
@@ -33,7 +34,8 @@ final checkpoint the monitor child runs on the checkpoint just saved; each attem
 
 **Exit codes** of ``run``: 0 done, or stopped by rule M4 or M5; 3 G8a failed ("G8a fails: no run"); 4 refused (a
 resume the rules refuse, or a start that cannot be made: nothing was run); 5 halted for the lead (R0L's baseline
-could not be made; two attempts at one check were never closed); any other code is a failure.
+could not be made; two attempts at one check were never closed: ``run.json`` ``halt`` holds the reason, and
+``--retry-check`` on the resume lets that check run once more); any other code is a failure.
 
 **The seams.**  ``_env_configs``, ``_env_specs``, ``_g8a_short``, ``_monitor_cmd`` and ``_validation`` are the
 places where the trainer meets the env, the gate, the monitor child and the validation records; the tests replace
@@ -134,6 +136,11 @@ CHECKPOINT_RULE = (
     "step's check (the task weights in force, the fix, the monitor history, the no-gain count, the checks done, "
     "any stop, the flags).  Kept locally: each check's and the newest two (rule K2).  When learn() returns, a final "
     "checkpoint is saved if the last step has none")
+RETRY_RULE = (
+    "the lead's ruling of 16 Nov 2026 (the fifth list, 2): after the halt for two attempts at one check that were "
+    "never closed, the lead has the fault repaired and resumes with a recorded parameter (--retry-check; "
+    "sessions[].retry_check), which lets that check run once more per resume; the attempt is logged with "
+    "after_halt")
 RESUME_RULE = (
     "rules K4, K5: a resume is refused, in this order, on no run.json; a stopped run; other settings (every "
     "argument given must be the run's; the env configs as built today, but for the named freeze and the task "
@@ -449,7 +456,7 @@ def _parent_of(parent) -> tuple | None:
 def train(mode, body, seed, set_name="V6", out=None, job=None, steps=None, resume=False, workers=None,
           checkpoint_every=CHECKPOINT_EVERY, monitor_every=MONITOR_EVERY, monitor_also_k=(), lr=None, config=None,
           ppo=None, gates=True, allow_version_change=False, allow_source_change=False, parent=None, tiny=False,
-          run_id=None, log=print) -> dict:
+          run_id=None, log=print, retry_check=False) -> dict:
     """One training job (module docstring); its ``run.json``.
 
     ``out``: the root (``<out>/jobs/<job>``); ``job``: the job's name (default ``<mode>-<body>-s<seed>``; a
@@ -457,7 +464,9 @@ def train(mode, body, seed, set_name="V6", out=None, job=None, steps=None, resum
     ``resume``); ``workers``: W (default one per vCPU, at most 8; 0: the envs in this process); ``lr``: the starting
     rate (default: the body's rate of ``lr_probe.json``); ``config``: ``R5Config`` fields for every env; ``ppo``:
     PPO constructor arguments over design 2's (smoke checks; both are settings); ``gates`` False: ``GATES_RULE``;
-    ``parent``: ``(job directory, steps)`` of a fine-tune's parent (rule K8); ``tiny``: design 3.6's tiny run.
+    ``parent``: ``(job directory, steps)`` of a fine-tune's parent (rule K8); ``tiny``: design 3.6's tiny run;
+    ``retry_check``: on a resume of a run that halted after two attempts at one check were never closed, let that
+    check run once more (``RETRY_RULE``; recorded in the session).
 
     Raises ``Refused`` (a resume the rules refuse), ``Halt`` (rule M1: the lead) or ``TrainError``; a job that a
     rule stopped returns its ``run.json`` like one that finished (``status``)."""
@@ -465,7 +474,7 @@ def train(mode, body, seed, set_name="V6", out=None, job=None, steps=None, resum
                      workers=workers, checkpoint_every=checkpoint_every, monitor_every=monitor_every,
                      monitor_also_k=monitor_also_k, lr=lr, config=config, ppo=ppo, gates=gates,
                      allow_version_change=allow_version_change, allow_source_change=allow_source_change,
-                     parent=parent, tiny=tiny, run_id=run_id, log=log)).go()
+                     parent=parent, tiny=tiny, run_id=run_id, log=log, retry_check=retry_check)).go()
 
 
 class _Run:
@@ -505,6 +514,7 @@ class _Run:
         w = a["workers"]
         self.workers = min(N_ENVS, vcpus()) if w is None else max(0, min(int(w), N_ENVS))
         self.allow_version, self.allow_source = bool(a["allow_version_change"]), bool(a["allow_source_change"])
+        self.retry_check, self.retry_used = bool(a.get("retry_check")), False
         self.log = a["log"] or (lambda *x: None)
         self.doc = self.session = self.venv = self.vecnorm = self.model = self.cb = None
         self.k, self.skipped, self.freeze_index, self.val, self.env_described = 0, [], None, {}, {}
@@ -600,6 +610,8 @@ class _Run:
                 self.session["error"] = f"{type(exc).__name__}: {exc}"
                 if doc["status"] == "running":
                     doc["status"] = "partial"
+                if isinstance(exc, Halt):  # (one of rule M5's five endings, until the lead resumes the run)
+                    doc["halt"] = dict(session=self.k, reason=str(exc), at=s2io.now_utc())
             raise
         finally:
             if self.session is not None:
@@ -621,11 +633,11 @@ class _Run:
             settings=asked, settings_sha256=None,
             rules=dict(boundary=BOUNDARY_RULE, checkpoint=CHECKPOINT_RULE, resume=RESUME_RULE, updates=UPDATES_RULE,
                        kl_cut=KL_CUT_RULE, rate=RATE_RULE, gates=GATES_RULE, fine_tune=FINE_TUNE_RULE,
-                       monitor=dict(m2.RULES)),
+                       retry=RETRY_RULE, monitor=dict(m2.RULES)),
             layout=None, sessions=[], checkpoints=[], kept=[],
             gates=dict(g8a=None, rate=None, g8b=None, g8b_after_fix=None), monitor=[], baseline=None,
             baseline_attempts=[], fix=None, flags=dict(kl_cut=False), no_gain_count=0, stopped=None, parent=None,
-            final_check=None, updates_file="updates.jsonl", status="running", budget=None,
+            final_check=None, halt=None, updates_file="updates.jsonl", status="running", budget=None,
             budget_asked=self.steps_asked, num_timesteps=0)
 
     def _refuse_sources_versions(self, doc: dict, src: dict, vers: dict) -> dict:
@@ -669,11 +681,11 @@ class _Run:
             pythonhashseed=os.environ.get("PYTHONHASHSEED"), resumed_from=None, restarted_from_zero=False,
             skipped_checkpoints=list(self.skipped), fingerprint_max_abs_diff=None, version_change=False,
             source_change=False, freeze_index=self.freeze_index, boundary_seeds=[], discarded_after_resume=None,
-            error=None, env=None, other_envs=None)
+            retry_check=self.retry_check, error=None, env=None, other_envs=None)
         session.update(flagged)
         session.update(self.env_described)
         doc["sessions"].append(session)
-        doc["status"] = "running"
+        doc["status"], doc["halt"] = "running", None
         for key in ("version_change", "source_change"):
             if session[key]:
                 doc["flags"][key] = True
@@ -736,6 +748,9 @@ class _Run:
             parent = self._parent_record()  # (before the pool is built: rule K8's probe builds its own)
         self.venv = venv = self._pool(cfgs)
         descs = venv.env_method("describe")
+        built = [i for i, (d, c) in enumerate(zip(descs, cfgs, strict=True)) if s2io.plain(d["config"]) != c]
+        if built:  # (rule K4: of the description of the envs as built, ``config`` is the stored config)
+            raise TrainError(f"the config that env {built[0]} describes is not the config it was built from")
         views = [_resume_view(d) for d in descs]
         if any(v != views[0] for v in views[1:]):
             raise TrainError("the envs of the job do not agree on their tasks, input files or freeze")
@@ -1075,14 +1090,17 @@ class _Run:
         rec = usable()
         closed = sum(1 for a in entry["attempts"] if a.get("closed_at") is not None and not a.get("record"))
         while rec is None and closed < m2.ATTEMPTS:
-            if sum(1 for a in entry["attempts"] if a.get("closed_at") is None) >= m2.ATTEMPTS:
+            after_halt = sum(1 for a in entry["attempts"] if a.get("closed_at") is None) >= m2.ATTEMPTS
+            if after_halt and (not self.retry_check or self.retry_used):
                 raise Halt(f"{self.job}: two attempts at the check of {n} steps were never closed (the session died "
-                           "while the check ran, twice): the run halts and goes to the lead (rule M1)")
+                           "while the check ran, twice): the run halts and goes to the lead (rule M1); with the "
+                           "fault repaired, a resume with --retry-check lets the check run once more")
+            self.retry_used = self.retry_used or after_halt
             if path.is_file():  # (a record of other files: a checkpoint saved again after a resume)
                 os.replace(path, path.with_name("monitor_%d.discarded.s%d.json" % (n, self.k)))
             self.say(f"check at {n} steps (attempt {len(entry['attempts']) + 1})")
             att = dict(session=self.k, started_at=s2io.now_utc(), checkpoint_sha256=hashes, closed_at=None,
-                       exit_code=None, record=None)
+                       exit_code=None, record=None, **(dict(after_halt=True) if after_halt else {}))
             entry["attempts"].append(att)
             self.write()  # (logged before the monitor starts)
             code = self._child(["run", "--job", self.jd, "--steps", n, "--body", self.body, "--set", self.set,
@@ -1095,6 +1113,8 @@ class _Run:
                 self.say(f"WARNING: the monitor left no record of the check at {n} steps (exit code {code})")
         entry.update(record=None if rec is None else "monitor/monitor_%d.json" % n,
                      record_sha256=None if rec is None else rec["sha256"], counted_without_record=rec is None)
+        if rec is None:  # (rule M1: counted without a record, each of its episodes entered as an error)
+            entry["episodes"] = [dict(condition=c, seed=s, outcome="error") for c, s in pairs]
         prev = max([e["at_steps"] for e in d["monitor"] if e["at_steps"] < n], default=0)
         kl = kl_share(read_updates(self.jd / "updates.jsonl"), prev, n)
         st = m2.decide(self._history(n), self.baseline, dict(task_weights=self.weights0), self.rules)
@@ -1715,6 +1735,8 @@ def main(argv=None) -> int:
     a.add_argument("--no-gates", action="store_true")
     a.add_argument("--tiny", action="store_true")
     a.add_argument("--run-id", default=None)
+    a.add_argument("--retry-check", action="store_true",
+                   help="after a halt for two attempts at one check that were never closed: run it once more")
     a.add_argument("--config", default=None, help="a JSON object of env config fields for every env")
     for name, text in (("probe-lr", "rule O3's learning-rate probe"), ("probe-sigma", "rule O2's sigma probe"),
                        ("filter", "rule O4's filter measurement")):
@@ -1760,7 +1782,7 @@ def main(argv=None) -> int:
                     config=json.loads(args.config) if args.config else None, gates=not args.no_gates,
                     allow_version_change=args.allow_version_change, allow_source_change=args.allow_source_change,
                     parent=args.from_checkpoint, tiny=args.tiny, run_id=args.run_id,
-                    log=lambda *x: print(*x, flush=True))
+                    retry_check=args.retry_check, log=lambda *x: print(*x, flush=True))
     except TrainError as exc:
         print(f"train2 {args.cmd}: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
         return exc.code

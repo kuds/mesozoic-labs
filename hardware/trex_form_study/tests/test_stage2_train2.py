@@ -935,13 +935,13 @@ def test_the_cli_hands_its_arguments_to_train(stub, tmp_path, monkeypatch):
                       str(tmp_path), "--job", "ft", "--steps", "5000000", "--workers", "3", "--resume",
                       "--allow-version-change", "--allow-source-change", "--from-checkpoint", "/runs/jobs/p:40001536",
                       "--lr", "3e-5", "--monitor-every", "500000", "--monitor-also-k", "0,2", "--no-gates",
-                      "--run-id", "s2-4", "--config", '{"filter_hz": 20.0, "servo_model": "m1"}'])
+                      "--run-id", "s2-4", "--retry-check", "--config", '{"filter_hz": 20.0, "servo_model": "m1"}'])
     log = seen.pop("log")
     assert code == 0 and callable(log) and seen == dict(
         mode="R6", body="75-M-H-10-X", seed=43, set_name="V6", out=str(tmp_path), job="ft", steps=5_000_000,
         resume=True, workers=3, monitor_every=500_000, monitor_also_k=(0, 2), lr=3e-5,
         config=dict(filter_hz=20.0, servo_model="m1"), gates=False, allow_version_change=True,
-        allow_source_change=True, parent="/runs/jobs/p:40001536", tiny=False, run_id="s2-4")
+        allow_source_change=True, parent="/runs/jobs/p:40001536", tiny=False, run_id="s2-4", retry_check=True)
     assert stub._parent_of("/runs/jobs/p:40001536") == (Path("/runs/jobs/p"), 40_001_536)
     # the overrides reach every env config untouched (the stub's configs take any field)
     monkeypatch.setenv("STUB_SET_FILE", str(tmp_path / "set.json"))
@@ -950,8 +950,8 @@ def test_the_cli_hands_its_arguments_to_train(stub, tmp_path, monkeypatch):
     # defaults: the design's intervals, one worker per vCPU, gates on
     seen.clear()
     assert stub.main(["run", "--mode", "R5", "--body", "b", "--seed", "42", "--out", str(tmp_path)]) == 0
-    assert (seen["monitor_every"], seen["workers"], seen["gates"], seen["tiny"], seen["set_name"]) == (
-        2_500_000, None, True, False, "V6")
+    assert (seen["monitor_every"], seen["workers"], seen["gates"], seen["tiny"], seen["set_name"],
+            seen["retry_check"]) == (2_500_000, None, True, False, "V6", False)
     assert stub.CHECKPOINT_EVERY == 250_000 and stub.N_ENVS == 8 and stub.N_STEPS == 1024
 
 
@@ -968,6 +968,8 @@ def test_a_check_without_a_record_counts_after_two_closed_attempts(stub, tmp_pat
     assert [(a["exit_code"], a["record"]) for a in e["attempts"]] == [(7, False), (7, False)]
     assert all(a["closed_at"] and a["checkpoint_sha256"] == e["checkpoint_sha256"] for a in e["attempts"])
     assert e["counted_without_record"] is True and e["record"] is None and e["no_record"] is True
+    assert len(e["episodes"]) == 6 and {x["outcome"] for x in e["episodes"]} == {"error"}  # entered as errors
+    assert [x["seed"] for x in e["episodes"]] == [6001, 6004, 6007, 6010, 6013, 6016]
     assert e["gain"]["gain"] is False and e["outcomes"]["error"] == 6 and e["N"] == 0 and e["S"] == 0.0
     assert d["gates"]["g8b"]["pass"] is False and d["gates"]["g8b"]["up"] == 0
     assert d["fix"]["tasks"] == ["walk_nominal", "walk_v0.4", "turn_q90_left", "turn_q90_right", "stop",
@@ -999,6 +1001,25 @@ def test_two_attempts_never_closed_halt_the_run(stub, tmp_path, monkeypatch):
     d = doc_of(out)
     assert d["status"] == "partial" and "never closed" in d["sessions"][1]["error"]
     assert [a.get("interrupted") for a in d["monitor"][0]["attempts"]] == [True, True]
+    assert d["halt"]["session"] == 1 and "--retry-check" in d["halt"]["reason"] and d["sessions"][1]["retry_check"] is False
+    # the lead's fifth list of 16 Nov 2026: with the fault repaired, a resume with the recorded parameter lets
+    # the check run once more per resume.  A retry that leaves no record halts again ...
+    crash = tmp_path / "crash"
+    crash.write_text("1")
+    monkeypatch.setenv("STUB_MON_CRASH", str(crash))
+    with pytest.raises(stub.Halt, match="never closed"):
+        run(stub, out, gates=True, resume=True, retry_check=True)
+    d = doc_of(out)
+    atts = d["monitor"][0]["attempts"]
+    assert len(atts) == 3 and atts[2]["after_halt"] is True and (atts[2]["exit_code"], atts[2]["record"]) == (7, False)
+    assert d["sessions"][2]["retry_check"] is True and d["halt"]["session"] == 2
+    # ... and the next one, whose monitor works, goes on to the run's end
+    d = run(stub, out, gates=True, resume=True, retry_check=True)
+    atts = d["monitor"][0]["attempts"]
+    assert d["status"] == "done" and d["halt"] is None and len(atts) == 4
+    assert atts[3]["after_halt"] is True and atts[3]["record"] is True and atts[3]["session"] == 3
+    assert d["monitor"][0]["counted_without_record"] is False and len(d["monitor"][1]["attempts"]) == 1
+    assert "after_halt" not in d["monitor"][1]["attempts"][0] and d["sessions"][3]["retry_check"] is True
 
 
 def test_a_second_g8b_failure_stops_the_run(stub, tmp_path, monkeypatch):
@@ -1113,6 +1134,24 @@ def test_kl_share_and_small_helpers(tmp_path):
     assert [u["steps"] for u in train2.read_updates(path)] == [128, 256, 384]
     assert (tmp_path / "updates.discarded.s2.jsonl").read_text().splitlines()[-1] == '{"steps": 7'
     assert train2.filter_sigma(20.0) == pytest.approx(0.081, abs=5e-4) and train2.filter_sigma(10.0) == 0.1
+
+
+def test_what_a_resume_compares_is_the_envs_own_keys(stub, tmp_path, monkeypatch):
+    """Rule K4: of the description of the envs as built the trainer compares ``r5env.RESUME_KEYS``; ``config`` is
+    the stored config the env was built from."""
+    from designlab.stage2 import r5env
+
+    assert r5env.RESUME_KEYS == ("config", "task_names", "tasks", "task_files", "set_freeze_started")
+    desc = make_stub(stub_configs("R5", "stub", "STUB", None)[0]).describe()
+    view = stub._resume_view(desc)
+    assert set(view) == set(r5env.RESUME_KEYS) - {"config"} | {"plant_inputs"}
+    import importlib
+
+    named = importlib.import_module(HERE)  # (the copy of this module the trainer builds its envs from)
+    monkeypatch.setattr(named.StubEnv, "describe",
+                        lambda self: dict(desc, config=dict(desc["config"], filter_hz=99.0)))
+    with pytest.raises(stub.TrainError, match="not the config it was built from"):
+        run(stub, tmp_path / "out")
 
 
 def test_sources():

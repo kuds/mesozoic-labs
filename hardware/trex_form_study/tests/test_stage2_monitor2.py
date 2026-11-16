@@ -490,6 +490,33 @@ def test_a_check_counted_without_a_record():
     assert not m2.is_record(good, hashes, m2.pairs_for("V6", tiny=True))
 
 
+def test_a_condition_without_a_reference_is_not_run(monkeypatch, tmp_path):
+    """Rule M1 with the lead's fifth list of 16 Nov 2026: a check's record holds, for each episode, an outcome or,
+    for a condition without a reference, "not run": not succeeding and zero survival for both rows, and still a
+    record (a body without a quick turn does not fail every check for it)."""
+    def not_run(eps):
+        for e in eps:
+            if e["condition"] == "turn/q90_left":
+                e.update(outcome="not_run", reason="the set has no entry transitions/turn90_pi4_left", survival_s=0.0,
+                         planned_s=0.0, clock=None)
+        return eps
+
+    job = _job(tmp_path)
+    monkeypatch.setattr(m2, "_sources", lambda given: dict(given=given, own="x"))
+    monkeypatch.setattr(m2, "_episodes", lambda *a, **k: not_run(table()))
+    base = m2.baseline(BODY, "V6", job / "monitor", job_dir=job)
+    assert base["valid"] is True and base["outcomes"]["not_run"] == 3 and m2.baseline_problem(base) is None
+    assert base["S"] == pytest.approx(15 * 12.0 / 18) == base["L_planned_s"]
+    doc = m2.run(job, 512, BODY, "V6", job / "monitor")
+    assert m2.is_record(doc, _hashes(job), m2.pairs_for("V6")) and doc["outcomes"]["not_run"] == 3
+    assert doc["up_by_condition"]["turn/q90_left"] == dict(up=0, of=3) and doc["mean_clock_factor"] == 1.0
+    # the same episodes not run in both rows: no gain from it, no loss; G8b reads walk/nominal alone
+    assert m2.gain(doc, [], base)["gain"] is False and m2.g8b(doc)["pass"] is True
+    # at a G8b failure the turn's tasks are doubled with the others that are down: the condition is not up
+    down = record(not_run(table({"walk/nominal": dict(outcome="fell", survival=3.0)})), at(2))
+    assert m2.fix_weights(down, WEIGHTS) == dict(WEIGHTS, walk_nominal=4.0, turn_q90_left=3.0, turn_q90_right=3.0)
+
+
 # ---------------------------------------------------------------------------------------------------------------
 # S2-10
 # ---------------------------------------------------------------------------------------------------------------

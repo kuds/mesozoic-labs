@@ -150,7 +150,8 @@ RULES = dict(
         "one of its episodes.  After two closed attempts that left no record the check counts as without a gain and "
         "as a failed G8b reading, each of its episodes an error.  An attempt that was never closed (the session "
         "died while the check ran) is an interruption: the resume runs the check again and it does not count; after "
-        "two of them at one check the run halts and goes to the lead"),
+        "two of them at one check the run halts and goes to the lead.  A condition without a reference is held in a "
+        "record as \"not run\" (the lead's fifth list of 16 Nov 2026, 1)"),
     sources=(
         "the trainer hashes its sources once per session and gives the hash to this process, which refuses to run "
         "if its own differs (train2.sources)"),
