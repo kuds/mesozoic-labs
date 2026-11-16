@@ -24,10 +24,14 @@ contact after a step in (out of) it, by the 2 % load rule with the 20 ms debounc
               tail-yaw joint's angle; contact, lift-offs and touchdowns per foot.
 ``reading``   the four numbers over a window, from what lies inside the window alone (samples, lift-offs and
               touchdowns with ``ta <= t <= tb``; a value at a lift-off or touchdown is interpolated between the
-              two poses around it), so that an episode's trace and a playback of just the window are read alike.
+              two poses around it), so that an episode's trace and a playback of the window are read alike.
 ``compare``   the four terms against a reference's reading (``BANDS``, ``NOT_READ_RAD``, ``MIN_STEPS``).
 ``playback``  the reference's reading: the track's own files placed in one world frame by ``bar._Played``, played
-              at the nominal commanded clock over the window's reference times.
+              at the nominal commanded clock over the window's reference times.  The playback begins ``LEAD_S``
+              before the window (or at the track's start) and only the window is read: a contact change is an
+              event from the second physics step of a series on (``readings.touchdowns``), so a playback that
+              began with the window would not count a lift-off or touchdown on the window's first step, which
+              an episode's trace counts.
 ``window``    rule U2 from a built bar condition and its recorder (simulated time; a walk episode that fell has
               none, as the bar judges none); ``window_ref`` the reference times that window covers at the
               nominal commanded clock, from the built condition alone (what ``playback`` takes: one definition
@@ -67,6 +71,9 @@ SIDES = ("left", "right")
 RATE = readings.RATE
 POSE_S = 0.02
 EPS_S = readings.EPS_S
+#: How long before the window ``playback`` begins the reference's playback (simulated seconds; a whole number of
+#: poses, five times the contact rule's debounce), so that the window's first physics step can hold an event.
+LEAD_S = 0.1
 #: ``control.G``: a recorder's weight is the trunk's subtree mass times this (``metrics.Recorder.begin``).
 G = 9.81
 #: Rule U2's windows (``tune.WALK_WINDOW_S``, ``readings.HEADING_HOLD_S``).
@@ -124,8 +131,11 @@ RULES = dict(
         "has fewer, it is an error of the definition (LookError).  "
         + MODULE_READING +
         "the playback is the files' poses placed in one world frame by bar._Played, with contact from the files' "
-        "support flags.  A playback that lacks one of its own values (its bob, its tail amplitude, its tail phase "
-        "where the tail is read, its toe-off) is the same error of the definition."),
+        f"support flags.  It begins {LEAD_S:g} s of simulated time before the window, or at the track's start, and "
+        "only what lies inside the window is read, so that a lift-off or touchdown on the window's first physics "
+        "step is counted as an episode's trace counts it.  A playback that lacks one of its own values (its bob, "
+        "its tail amplitude, its tail phase where the tail is read, its toe-off) is the same error of the "
+        "definition."),
 )
 
 
@@ -375,21 +385,30 @@ def compare(own: dict, ref: dict) -> dict:
 # ------------------------------------------------------------------------------------------------
 # The reference's values: kinematic playback of a track
 # ------------------------------------------------------------------------------------------------
-def played(p, track, run_dir, ta_ref: float, tb_ref: float, rate: float = RATE) -> dict:
+def played(p, track, run_dir, ta_ref: float, tb_ref: float, rate: float = RATE, lead_s: float = 0.0) -> dict:
     """A track's own poses and planned loads over the reference times ``[ta_ref, tb_ref]`` at the clock ``rate``:
     ``poses`` at ``ta_ref, ta_ref + POSE_S * rate, ...`` by ``bar._Played(track, run_dir).q`` (the files' frames
     placed in one world frame), ``loads`` at every physics step by ``_Played.loads`` (the files' support flags), and
-    ``dt``, ``every``, ``t0`` (= ``ta_ref / rate``: the simulated time of the first pose on that clock), ``rate``,
-    ``window_ref``.
+    ``dt``, ``every``, ``t0`` (the simulated time of the first pose on that clock), ``rate``, ``window_ref``,
+    ``window`` (``[ta_ref / rate, tb_ref / rate]``: the simulated times to read) and ``lead_s``.
+
+    ``lead_s`` (simulated seconds, cut down to whole poses; default none) begins the arrays that long before
+    ``ta_ref``, and no earlier than the track's time 0, where an episode begins: the same poses and loads with
+    ``lead_s / POSE_S`` more poses in front, ``t0 = ta_ref / rate - lead_s`` and the lead given back as ``lead_s``.
+    A reader then takes ``window`` alone (``reading(ser, *window)``; ``controls(..., ta=window[0], tb=window[1])``)
+    and counts a lift-off or touchdown on the window's first physics step, which a series that begins there cannot
+    hold (``readings.touchdowns``: step 0 is never one).  ``playback`` plays with ``LEAD_S``.
 
     ``LookError("not played: ...")`` for a track ``_Played`` refuses (a periodic turning gait).  No bar walk or turn
     item holds such a gait, so for an item with a window (``window_ref``) this is a fault of the definition (rule
     U5) like any other ``LookError`` of a playback, never "this item has no look reading"."""
     from . import bar  # not at module level: the bar is no part of this module's import
 
-    ta_ref, tb_ref, rate = float(ta_ref), float(tb_ref), float(rate)
+    ta_ref, tb_ref, rate, lead_s = float(ta_ref), float(tb_ref), float(rate), float(lead_s)
     if not (tb_ref > ta_ref and rate > 0):
         raise LookError(f"reference times [{ta_ref!r}, {tb_ref!r}] at the clock {rate!r}")
+    if not lead_s >= 0.0:
+        raise LookError(f"a playback's lead {lead_s!r} s")
     try:
         play = bar._Played(track, run_dir)
     except ValueError as e:
@@ -401,21 +420,28 @@ def played(p, track, run_dir, ta_ref: float, tb_ref: float, rate: float = RATE) 
     w = weight(p)
     steps = int(math.floor((tb_ref - ta_ref) / (rate * dt) + 1e-9)) + 1
     n = (steps - 1) // every + 1
+    # whole poses of lead, none of them before the track's time 0 (pose and load -lead are at or after it)
+    lead = max(0, min(int(math.floor(lead_s / POSE_S + 1e-9)), int(math.floor(ta_ref / (rate * POSE_S) + 1e-9))))
     t_last = float(track.t_end) - 1e-9 if getattr(track, "t_end", None) is not None else math.inf
-    poses = np.array([play.q(min(ta_ref + rate * j * every * dt, t_last)) for j in range(n)], float)
-    loads = np.array([play.loads(min(ta_ref + rate * k * dt, t_last), w) for k in range(steps)], float).reshape(steps, 2)
-    return dict(poses=poses, loads=loads, dt=dt, every=every, t0=ta_ref / rate, rate=rate, window_ref=[ta_ref, tb_ref])
+    poses = np.array([play.q(min(ta_ref + rate * j * every * dt, t_last)) for j in range(-lead, n)], float)
+    loads = np.array([play.loads(min(ta_ref + rate * k * dt, t_last), w) for k in range(-lead * every, steps)],
+                     float).reshape(steps + lead * every, 2)
+    return dict(poses=poses, loads=loads, dt=dt, every=every, t0=ta_ref / rate - lead * POSE_S, rate=rate,
+                window_ref=[ta_ref, tb_ref], window=[ta_ref / rate, tb_ref / rate], lead_s=lead * POSE_S)
 
 
 def playback(p, track, run_dir, ta_ref: float, tb_ref: float) -> dict:
     """The reference's reading (rule U5): ``reading`` of ``series`` of the track's own poses and planned loads over
     the reference times ``[ta_ref, tb_ref]`` at the nominal commanded clock (``played`` at ``RATE``), so that the
-    result is on simulated time: its ``window`` is ``[ta_ref / RATE, tb_ref / RATE]``.  With ``window_ref`` and
-    ``clock_rate`` beside the reading's keys.  ``LookError("not played: ...")`` as ``played``: for a bar walk or
-    turn item, a fault of the definition."""
-    a = played(p, track, run_dir, ta_ref, tb_ref)
+    result is on simulated time: its ``window`` is ``[ta_ref / RATE, tb_ref / RATE]``.  The playback begins
+    ``LEAD_S`` before the window (``played``'s ``lead_s``; less at the track's start) and the window alone is read:
+    the poses are those of a playback that begins with the window, and a lift-off or touchdown on the window's
+    first physics step is counted, as it is in an episode's trace.  With ``window_ref``, ``clock_rate`` and
+    ``lead_s`` (the lead played) beside the reading's keys.  ``LookError("not played: ...")`` as ``played``: for a
+    bar walk or turn item, a fault of the definition."""
+    a = played(p, track, run_dir, ta_ref, tb_ref, lead_s=LEAD_S)
     ser = series(p, a["poses"], a["loads"], a["dt"], a["every"], t0=a["t0"])
-    return dict(reading(ser, a["t0"], float(tb_ref) / RATE), window_ref=a["window_ref"], clock_rate=RATE)
+    return dict(reading(ser, *a["window"]), window_ref=a["window_ref"], clock_rate=RATE, lead_s=a["lead_s"])
 
 
 # ------------------------------------------------------------------------------------------------
@@ -588,8 +614,9 @@ def controls(p, poses, loads, dt, every, t0: float = 0.0, ta: float | None = Non
     """Gate Z2 (c) on a playback's arrays (``played``): the unchanged playback against itself passes all four terms
     with ratio 1 and difference 0; each degraded copy of ``kinds`` (``DEGRADED``) fails exactly its term; the
     window cut to 3 steps reads ``too_few_steps``.  ``ok`` holds when all of that does.  The window is ``[ta, tb]``
-    (default: all of the series).  A term the reference leaves unread (``not_read``) cannot fail, so its control is
-    not ok: on a set without toe-off the gate leaves ``flat_feet`` out of ``kinds``."""
+    (default: all of the series; for arrays played with a lead, ``played``'s ``window``, so that the controls read
+    what ``playback`` reads).  A term the reference leaves unread (``not_read``) cannot fail, so its control is not
+    ok: on a set without toe-off the gate leaves ``flat_feet`` out of ``kinds``."""
     unknown = [k for k in kinds if k not in DEGRADED]
     if unknown:
         raise LookError(f"degraded copies {unknown}: of {tuple(DEGRADED)}")

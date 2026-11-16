@@ -9,11 +9,11 @@ the bob per step, "not read", too few steps, a reference that lacks a value, the
 reference times, gate Z2 (b)'s limits one at a time, the rule texts.  Tests on a model (kinematics only, no physics
 and no episode): the look ladder's V6 rungs played from their own arrays against ``stage2/look/metrics.json`` within
 gate Z2 (b)'s limits, the playback through ``bar._Played`` (a rung written as a reference file under pytest's
-temporary directory, and Stage 1's own run directory with a real track), the window and the playback of real bar
-items (a frozen 75 cm set's tracks, played, never run), the negative controls of gate Z2 (c), and an ``-X`` body.
-They need the round-two model files, the look ladder's arrays, Stage 1's arrays and the frozen sets' arrays
-(git-ignored; ``python tools/restore_inputs.py restore``) and skip without them.  Nothing is written outside
-``tmp_path``.
+temporary directory, and Stage 1's own run directory with a real track), a lift-off or touchdown on a window's first
+physics step, the window and the playback of real bar items (a frozen 75 cm set's tracks, played, never run), the
+negative controls of gate Z2 (c), and an ``-X`` body.  They need the round-two model files, the look ladder's
+arrays, Stage 1's arrays and the frozen sets' arrays (git-ignored; ``python tools/restore_inputs.py restore``) and
+skip without them.  Nothing is written outside ``tmp_path``.
 
 Slow (``STAGE2_SLOW=1``; about 5 s): one closed-loop episode of Stage 1's own run directory (the view ``S1``; row
 R0, no record), its recorder lent 50 Hz poses as the row wrapper will lend them: what ``series`` takes of a live
@@ -98,6 +98,8 @@ def test_constants_are_the_plans_and_stage1s():
     assert lookread.G == control.G and lookread.RATE == panels.RATE == 1.05
     assert lookread.WALK_WINDOW_S == tune.WALK_WINDOW_S == 10.0 and lookread.TURN_WINDOW_S == readings.HEADING_HOLD_S == 3.0
     assert lookread.POSE_S == tune.LEGS_EVERY * control.FEEDBACK_EVERY * 0.002
+    # the playback's lead: whole poses, longer than the contact rule's debounce
+    assert lookread.LEAD_S == 0.1 == 5 * lookread.POSE_S and lookread.LEAD_S > readings.DEBOUNCE_S
     assert set(lookread.RULES) == {"measures", "window", "bands", "reference"}
     assert all("STAGE2_TRACKB_PLAN rule U" in v for v in lookread.RULES.values())
 
@@ -113,7 +115,8 @@ def test_the_rule_texts_mark_what_is_the_modules_own_reading():
         window=("did not fall", "an episode that fell", "two updates", "when the trace spans it"),
         bands=("cannot be computed fails its term", "The bob has no such threshold", "reads the phase alone",
                "no band reads it"),
-        reference=("bar._Played", "support flags", "lacks one of its own values"))
+        reference=("bar._Played", "support flags", "0.1 s of simulated time before the window",
+                   "lacks one of its own values"))
     rule = dict(
         measures=("rule U1", "own steps", "RMS about its mean", "zero at each of its left lift-offs", "2 % load rule"),
         window=("rule U2", "judged last 10 s", "3 s after t_c + at_s", "Nudge and stop items are not read"),
@@ -696,26 +699,49 @@ def _stub_track(name: str, step: float, period: float, strides: int):
     return types.SimpleNamespace(segments=[seg], t_end=strides * period)
 
 
+def _rung_as_a_run_dir(root: Path, z: dict, w: float, strides: int):
+    """A look-ladder rung's arrays written as the reference file ``refs/v0.4.npz`` of a run directory under
+    ``root``, and a track of ``strides`` of it for ``bar._Played``."""
+    (root / "refs").mkdir()
+    np.savez(root / "refs" / "v0.4.npz", t=z["t"], dt=z["dt"], q=z["q"], support=z["support"],
+             normal=np.where(z["support"], 0.5 * w, 0.0), stride_motion=z["stride_motion"], q_home=z["q_home"])
+    return _stub_track("v0.4", float(z["dt"]), len(z["t"]) * float(z["dt"]), strides)
+
+
 @needs["75-M-H-10"]
 def test_playback_through_the_bars_player_is_the_rungs_own_reading(tmp_path):
     body, speed = "75-M-H-10", "v040"
     p = plant_of(body)
     z = load(_rung(body, speed))
     w = lookread.weight(p)
-    (tmp_path / "refs").mkdir()
-    np.savez(tmp_path / "refs" / "v0.4.npz", t=z["t"], dt=z["dt"], q=z["q"], support=z["support"],
-             normal=np.where(z["support"], 0.5 * w, 0.0), stride_motion=z["stride_motion"], q_home=z["q_home"])
     period = len(z["t"]) * float(z["dt"])
-    track = _stub_track("v0.4", float(z["dt"]), period, 3)
+    track = _rung_as_a_run_dir(tmp_path, z, w, 3)
     a = lookread.played(p, track, tmp_path, TA_REF, TB_REF)
     poses, loads = rung_arrays(z, w, TA_REF, TB_REF)
     assert a["dt"] == DT and a["every"] == EVERY and a["t0"] == TA_REF / RATE and a["rate"] == RATE
+    assert a["window"] == [TA_REF / RATE, TB_REF / RATE] and a["window_ref"] == [TA_REF, TB_REF] and a["lead_s"] == 0.0
     assert a["poses"].shape == poses.shape == (501, p.m.nq) and a["loads"].shape == loads.shape == (5001, 2)
     assert np.allclose(a["poses"], poses, atol=1e-12, rtol=0)
     assert np.array_equal(a["loads"] > 0.02 * w, loads > 0.02 * w)
+    # with a lead: the same arrays behind whole poses of the track's own earlier times, the window unchanged
+    b = lookread.played(p, track, tmp_path, TA_REF, TB_REF, lead_s=0.1)
+    assert b["lead_s"] == 0.1 and b["t0"] == pytest.approx(TA_REF / RATE - 0.1, abs=1e-12) and b["window"] == a["window"]
+    assert b["poses"].shape == (506, p.m.nq) and b["loads"].shape == (5051, 2)
+    assert np.array_equal(b["poses"][5:], a["poses"]) and np.array_equal(b["loads"][50:], a["loads"])
+    front = lookread.played(p, track, tmp_path, TA_REF - 0.1 * RATE, TA_REF)
+    assert np.allclose(b["poses"][:6], front["poses"], atol=1e-12, rtol=0)
+    assert np.array_equal(b["loads"][:51] > 0.02 * w, front["loads"] > 0.02 * w)
+    assert lookread.played(p, track, tmp_path, TA_REF, TB_REF, lead_s=0.055)["lead_s"] == 0.04  # (whole poses)
+    # never before the track's start, where an episode begins: no lead at 0, two poses of it at 0.05 s
+    assert lookread.played(p, track, tmp_path, 0.0, 1.0, lead_s=0.1)["lead_s"] == 0.0
+    c = lookread.played(p, track, tmp_path, 0.05 * RATE, 1.0, lead_s=0.1)
+    assert c["lead_s"] == 0.04 and c["t0"] == pytest.approx(0.01, abs=1e-12) and c["window"][0] == pytest.approx(0.05)
+    assert np.allclose(c["poses"][0], lookread.played(p, track, tmp_path, 0.01 * RATE, 1.0)["poses"][0], atol=1e-12, rtol=0)
+    with pytest.raises(lookread.LookError, match="lead"):
+        lookread.played(p, track, tmp_path, TA_REF, TB_REF, lead_s=-0.02)
     r = lookread.playback(p, track, tmp_path, TA_REF, TB_REF)
     mine = rung_reading(body, speed)
-    assert r["window_ref"] == [TA_REF, TB_REF] and r["clock_rate"] == RATE
+    assert r["window_ref"] == [TA_REF, TB_REF] and r["clock_rate"] == RATE and r["lead_s"] == lookread.LEAD_S
     assert r["window"] == pytest.approx([TA_REF / RATE, TB_REF / RATE]) and r["samples"] == 501
     assert (r["steps"], r["lift_offs"], r["tail"]["strides"]) == (mine["steps"], mine["lift_offs"], mine["tail"]["strides"])
     for key in ("bob_pp_m", "head_world_pitch_rms_deg", "toe_off_rad"):
@@ -727,6 +753,51 @@ def test_playback_through_the_bars_player_is_the_rungs_own_reading(tmp_path):
     assert late["steps"] < 6 and late["samples"] == 286
     with pytest.raises(lookread.LookError, match="reference times"):
         lookread.playback(p, track, tmp_path, 5.0, 5.0)
+
+
+@needs["75-M-H-10"]
+def test_a_playback_counts_a_lift_off_or_touchdown_on_the_windows_first_step(tmp_path):
+    """A contact change is an event from the second physics step of a series on (``readings.touchdowns``: step 0 is
+    never one), so a series that begins with the window cannot hold one on the window's first step, which a trace
+    that began earlier holds and ``reading`` counts (``ta <= t``).  ``playback`` begins ``LEAD_S`` before the window
+    and reads the window alone: for windows that begin one physics step before, at, and one step after a lift-off
+    and a touchdown, it counts what a playback from the track's start reads inside the same window."""
+    body, speed = "75-M-H-10", "v040"
+    p = plant_of(body)
+    z = load(_rung(body, speed))
+    track = _rung_as_a_run_dir(tmp_path, z, lookread.weight(p), 20)
+    assert track.t_end > RATE * 14.0
+    whole = lookread.played(p, track, tmp_path, 0.0, RATE * 14.0)  # 14 s of simulated time from the track's start
+    assert whole["t0"] == 0.0 and whole["lead_s"] == 0.0
+    trace = lookread.series(p, whole["poses"], whole["loads"], DT, EVERY)
+    lift_off = float(min(x for x in trace["lift_offs"][0] if x > 2.0))  # of the left foot: the tail's phase too
+    touchdown = float(min(x for x in trace["touchdowns"][1] if x > 2.0))
+    fewer = 0
+    for t_event, key in ((lift_off, "lift_offs"), (touchdown, "steps")):
+        a = int(round(t_event / DT))
+        assert a * DT == pytest.approx(t_event, abs=1e-12)
+        counts = {}
+        for k in (a, a - 1, a + 1):
+            ta, tb = k * DT, k * DT + 10.0
+            want = lookread.reading(trace, ta, tb)
+            got = lookread.playback(p, track, tmp_path, RATE * ta, RATE * tb)
+            assert (got["steps"], got["lift_offs"], got["tail"]["strides"]) == (
+                want["steps"], want["lift_offs"], want["tail"]["strides"]), (key, k - a)
+            assert got["lead_s"] == lookread.LEAD_S and got["window"] == pytest.approx([ta, tb], abs=1e-12)
+            c = lookread.compare(got, want)  # (the two pose grids differ: the trace's is on multiples of 20 ms)
+            assert c["ok"] and c["bob_ratio"] == pytest.approx(1.0, abs=0.02) and abs(c["tail_phase_diff_cycles"]) < 0.005
+            assert c["toe_off_ratio"] == pytest.approx(1.0, abs=0.05)
+            counts[k - a] = want[key]
+            # a playback that begins with the window: the same poses, and one event fewer when the event is on
+            # its first step
+            bare = lookread.played(p, track, tmp_path, RATE * ta, RATE * tb)
+            cut = lookread.reading(lookread.series(p, bare["poses"], bare["loads"], DT, EVERY, t0=bare["t0"]), ta, tb)
+            assert cut[key] == want[key] - (1 if k == a else 0), (key, k - a)
+            assert cut["head_world_pitch_rms_deg"] == pytest.approx(got["head_world_pitch_rms_deg"], rel=1e-9)
+            fewer += k == a
+        # the event is inside the window that begins with it and outside the one that begins a step later
+        assert counts[0] == counts[-1] == counts[1] + 1, (key, counts)
+    assert fewer == 2
 
 
 @needs["75-M-H-10"]
