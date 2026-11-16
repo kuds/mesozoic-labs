@@ -462,3 +462,30 @@ numbers as drafted, and hard floors only for gate 1 (`DECISION_LOG.md` P40; `BUY
 approved and what is still proposed). Nothing is running. The tree is clean and pushed. The order of work after
 the reset is in the block above; gate 1's conditions 2 and 4 and the numbers of gates 2 and 3 go to the owner once
 the servo model is designed.
+
+## Update, 16 Nov 2026, 14:18 UTC: the owner reset the allocation; work resumed; what is running
+
+**The reset.** The owner said to resume at 13:13 UTC and to work until about 99 %, then reset the allocation at about
+14:15 UTC ("Reset trigger"). The session's meter read $2,042.71 at 14:16 UTC and the rate-limit status went from
+"allowed_warning" to "allowed". **New calibration:** 0 % is about $2,040; 1 % is still about $6.9. The old
+calibration (0 % at $1,357.5) agreed with the owner's own readings to within a point up to the reset.
+
+**Done since the 03:29 block.**
+- The servo model's design note and its independent review are written and saved (`stage2/design/servo_model/`:
+  the note, `REVIEW.md`, the readers' reports, a README with the history). Verdict: usable after the listed fixes;
+  its section for the owner and condition 2's corner rule are not to go to the owner as written.
+- The lead's rulings on the Track B rules draft's ten conflicts and on two open points of the policy files:
+  `stage2/design/TRACKB_RULINGS3_16NOV.md`. A closing note in `STAGE2_75_PLAN.md` (item 13) for ruling 10.
+
+**Running now.**
+- Wave 2a of the training tooling (workflow `wf_5b45aea3-b83`): the worker pool (CV), the Drive bundle tool (CB)
+  and the env's eight minor points (CE), each built, independently reviewed, then fixed, in the worktrees
+  `wpc-cv`, `wpc-cb`, `wpc-ce`. The lead merges each after reading its review and fix.
+- A documents wave (workflow `wf_1552bd0f-86f`): the review applied to the servo model's note and re-checked;
+  rulings 1 to 10 written into the Track B draft (`wt/prereg-b`), reviewed and fixed.
+
+**Next, in order:** merge CV, CB and the env's fixes; the trainer (CT; its brief gains the ruling on what a resumed
+run compares); the look reading (CK) and the look sets' review (L); the policy files' `actions_at_bound` (ruling
+12); the reward wording into the Track B draft (ruling 13); the rows (CW), the refit tool (CF), the gates (CG) and
+the notebook (CN); then the validation steps of `ROUND_C_DESIGN.md` section 6 toward the acceptance run and the
+steps sheet for the day-one Colab smoke. Gate 1's condition 2 goes to the owner once the servo note's fixes are in.

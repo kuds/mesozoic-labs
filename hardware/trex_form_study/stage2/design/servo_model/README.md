@@ -12,12 +12,13 @@ random per run), for gate 1 of `BUY_GATE_DRAFT.md`.
 | `reader2_hardware_facts.md` | Every fact the repository holds on the real actuators of the 75 cm build, the study's own assumptions, and what the bench sheet plans to measure |
 | `reader3_outside_sources.md` | Makers' data and third-party measurements for the build's actuators, how others model such actuators for learned walking, and the ranges they draw from. 33 links, quoted as found and not checked a second time |
 
-**What does not exist yet.** The design note and its independent review. The designer was started at 03:05 UTC
-and was stopped at 03:22 UTC before it had written the note. That stop was the lead's mistake: a watcher that was
-meant to report "the designer has finished" also ended, with the same exit code, when it timed out, and the lead
-stopped the workflow without reading which of the two had happened. The designer's 17 minutes are lost. It was not
-started again because the session was near the owner's usage line (about 87 % against 90 %).
+**The design note and its review (added 16 Nov, 14:07 UTC).** `SERVO_MODEL_DESIGN.md` is the designer's note,
+as first written. `REVIEW.md` is the independent reviewer's report on it: "usable after the listed fixes". Its
+run-time layer and three hooks hold up against the code. Its section 9 (the text proposed for the owner and the
+buy gate) and the corner rule of condition 2 are **not to go to the owner as written**: the review's blocker and
+major points are on them. The fixes are not in the note yet. Next: one fixer applies the review to the note, the
+reviewer checks the changed parts, and the lead then puts gate 1's condition 2 to the owner.
 
-**To finish it.** In the same session, resume the workflow run `wf_7aac8b25-fd4` from its saved script: the three
-readers' results are cached, and the designer and the reviewer run. In a new session, give a designer these three
-files and the brief in that script (the nine items the note must hold), then one independent reviewer.
+**History.** The designer was first started at 03:05 UTC and stopped at 03:22 UTC before it had written the note,
+by the lead's mistake (a watcher's time-out was read as the designer's result). The workflow was resumed at
+13:13 UTC from the three readers' cached results.
