@@ -11,7 +11,8 @@ indirection to ``lookbar``, is replaced by such a table; no episode is run):
 * a policy that stands (read, not succeeding), a policy whose clock lags (``unread``, reason ``clock_behind``) and
   a too-few-steps episode (read, its look terms failed): each counted as not succeeding, never an error, and the
   monitor asks for each episode exactly once;
-* the survival credit: a clock held at 0.75 earns 0.75 of its time, R0L its full time, an error nothing;
+* the survival credit: a clock held at 0.75 earns 0.75 of its time, R0L its full time, an error nothing; a policy
+  row's episode that comes back without its clock times is not credited in full: its table is no record;
 * G8b's 2 of 3 (up is read or unread); the fix doubles the mapped tasks' weights only, each once; a second failure
   stops; three checks without a gain from 20M stop at the third; ``decide`` gives the same state from the records
   alone, however often and at whatever point of the history it is asked;
@@ -302,6 +303,51 @@ def test_survival_credit():
     rec = record(table({"walk/nominal": dict(factor=0.5)}))
     assert rec["S"] == pytest.approx((15 * 12.0 + 3 * 6.0) / 18) and rec["mean_survival_s"] == pytest.approx(12.0)
     assert rec["L_planned_s"] == pytest.approx(12.0)
+
+
+def test_a_policy_rows_episode_without_its_clock_is_no_record(monkeypatch, tmp_path):
+    """Rule M3's credit exists to stop a slowed clock from buying survival, so it must not fall back to the plain
+    survival time for a policy row: an episode of a checkpoint's row that ended read, fell or unread and holds no
+    clock times makes the table no record (nothing is written).  R0L, which has no clock to slow, is credited its
+    survival time."""
+    slow = ep("walk/nominal", 6001, survival=12.0, factor=0.5)
+    assert m2.survival_credit(slow) == pytest.approx(6.0) and m2.has_clock(slow)
+    for strip in (dict(clock=None), dict(planned_s=None), dict(clock=dict(slow["clock"], t_ref_reached=None)),
+                  dict(clock=dict(mean_factor=0.5, min_factor=0.5))):
+        bare = dict(slow, **strip)
+        assert not m2.has_clock(bare) and m2.survival_credit(bare) == 12.0  # (what a policy row must not be given)
+    job = _job(tmp_path)
+    monkeypatch.setattr(m2, "_sources", lambda given: dict(given=given, own="x"))
+    for outcome, strip in (("read", dict(clock=None)), ("unread", dict(planned_s=None)),
+                           ("fell", dict(clock=dict(mean_factor=0.5, min_factor=0.5)))):
+        eps = table({6005: dict(outcome=outcome, survival=8.0, factor=0.5)})
+        eps[4].update(strip)
+        monkeypatch.setattr(m2, "_episodes", lambda *a, eps=eps, **k: [dict(e) for e in eps])
+        with pytest.raises(m2.MonitorError, match=f"walk/v0.4 seed 6005: a policy row's episode \\({outcome}\\) "
+                                                  "came back without its clock times"):
+            m2.run(job, 512, BODY, "V6", job / "monitor")
+        assert not (job / "monitor" / "monitor_512.json").exists()
+        with pytest.raises(m2.MonitorError, match="without its clock times"):
+            m2._checked(eps, m2.pairs_for("V6"), policy=True)
+        # the baseline: the same table under R0L is a record, and that episode has its survival time
+        if outcome != "unread":
+            base = m2.baseline(BODY, "V6", tmp_path / outcome, job_dir=job)
+            assert base["episodes"][4]["survival_credit"] == 8.0 and base["valid"] is True
+    assert m2.main(["run", "--job", str(job), "--steps", "512", "--body", BODY, "--set", "V6"]) == 1
+    # an error and a condition that was not run hold no clock and are no refusal (they are credited nothing)
+    eps = table({6005: dict(outcome="error", survival=0.0)})
+    eps[0].update(outcome="not_run", clock=None, planned_s=0.0, survival_s=0.0)
+    monkeypatch.setattr(m2, "_episodes", lambda *a, **k: [dict(e) for e in eps])
+    doc = m2.run(job, 512, BODY, "V6", job / "monitor")
+    assert doc["outcomes"]["error"] == 1 and doc["outcomes"]["not_run"] == 1
+    # the reported delays' tables are a policy row's too (rule M6)
+    eps = table()
+    bare = [dict(e, clock=None) if e["seed"] == 6001 else dict(e) for e in eps]
+    monkeypatch.setattr(m2, "_episodes", lambda body, set_name, row, *a, **k: [dict(e) for e in (
+        eps if row.endswith("@10ms") else bare)])
+    with pytest.raises(m2.MonitorError, match="walk/nominal seed 6001: a policy row's episode"):
+        m2.run(job, 512, BODY, "V6", tmp_path / "also", also_k=(0,))
+    assert "came back without them" in m2.RULES["survival"]
 
 
 # ---------------------------------------------------------------------------------------------------------------

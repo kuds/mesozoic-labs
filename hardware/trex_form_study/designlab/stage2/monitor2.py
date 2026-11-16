@@ -123,7 +123,11 @@ RULES = dict(
         "times min(1, reference time covered / (1.05 x survival time)): the survival time itself for a row that "
         "does not slow its clock.  S is the mean over the episodes; N the number succeeding with the look (reading "
         "1).  Printed beside: the counts in readings 2 and 3, the count succeeding but for A1 with the look bands "
-        "kept, and the plain mean survival, which decide nothing"),
+        "kept, and the plain mean survival, which decide nothing.  The credit needs the episode's clock times "
+        "(clock.t_ref_reached, clock.t_ref_planned) and its planned length: a policy row's episode that ended read, "
+        "fell or unread and came back without them is not credited its survival time (a slowed clock would buy "
+        "it); its table is no record of the check.  R0L, which has no clock to slow, is then credited its survival "
+        "time"),
     gain=(
         "rule M3: a check shows a gain when N >= N* + 2 or S >= S* + 1.0 s; N* is the largest N, and S* the largest "
         "S, over R0L's episodes and every earlier check of the run, each taken separately (for the first check: "
@@ -219,8 +223,9 @@ def _num(x, default: float = 0.0) -> float:
 def survival_credit(e: dict) -> float:
     """Rule M3's S of one episode: ``survival_s x min(1, reference time covered / (1.05 x survival_s))``.  The
     reference time covered is ``clock.t_ref_reached`` less the track's start, ``clock.t_ref_planned - 1.05 x
-    planned_s``; an episode whose record holds no clock times is credited its survival time.  An *error* and a
-    condition that was not run are credited 0."""
+    planned_s``; an episode whose record holds no clock times is credited its survival time: that is R0L's case
+    alone, for ``run`` takes no policy row's table that holds such an episode (``has_clock``; ``_checked``).  An
+    *error* and a condition that was not run are credited 0."""
     if e.get("outcome") in ("error", NOT_RUN):
         return 0.0
     surv = _num(e.get("survival_s"))
@@ -234,9 +239,19 @@ def survival_credit(e: dict) -> float:
     return surv * min(1.0, max(0.0, covered) / (RATE * surv))
 
 
-def _checked(episodes, pairs) -> list:
+def has_clock(e: dict) -> bool:
+    """Whether an episode holds what its credited survival is computed from: both clock times and its planned
+    length."""
+    clock = e.get("clock") or {}
+    return (clock.get("t_ref_reached") is not None and clock.get("t_ref_planned") is not None
+            and e.get("planned_s") is not None)
+
+
+def _checked(episodes, pairs, policy: bool = False) -> list:
     """The episodes as returned, one per pair and in the pairs' order, each with a known outcome; ``MonitorError``
-    otherwise (a table that is not the check's is no record)."""
+    otherwise (a table that is not the check's is no record).  ``policy``: the row is a checkpoint's; an episode
+    of it that ended read, fell or unread must hold its clock times (rule M3's credit exists to stop a slowed
+    clock from buying survival, so it does not fall back to the plain survival time there)."""
     episodes = list(episodes)
     if len(episodes) != len(pairs):
         raise MonitorError(f"{len(episodes)} episodes came back for {len(pairs)} (condition, seed) pairs")
@@ -248,6 +263,10 @@ def _checked(episodes, pairs) -> list:
         if e.get("outcome") not in OUTCOMES + (NOT_RUN,):
             raise MonitorError(f"{cond} seed {seed}: outcome {e.get('outcome')!r} is none of "
                                f"{', '.join(OUTCOMES + (NOT_RUN,))}")
+        if policy and e.get("outcome") in ("read", "fell", "unread") and not has_clock(e):
+            raise MonitorError(f"{cond} seed {seed}: a policy row's episode ({e.get('outcome')}) came back without "
+                               "its clock times (clock.t_ref_reached, clock.t_ref_planned, planned_s): its "
+                               "credited survival cannot be computed (rule M3), so the table is no record")
         e = dict(e)
         e["survival_credit"] = survival_credit(e)
         out.append(e)
@@ -648,7 +667,7 @@ def _also(body, set_name, mode, seed, pairs, policies, also_k, k) -> dict:
         if kk == int(k):
             continue
         row = row_name(mode, seed, kk)
-        eps = _checked(_episodes(body, set_name, row, pairs, policies, None), pairs)
+        eps = _checked(_episodes(body, set_name, row, pairs, policies, None), pairs, policy=mode is not None)
         out["%d" % kk] = dict(row=row, k=kk, episodes=eps, **summarize(eps), note="reported (rule M6)")
     return out
 
@@ -696,7 +715,7 @@ def run(job_dir, steps, body, set_name, out, k=K, tiny=False, also_k=(), sources
     row = row_name(mode, seed, k)
     policies = {row.split("@", 1)[0]: dict(job_dir=str(job_dir), steps=n)}
     traces = out / "traces" / ("%d" % n)
-    eps = _checked(_episodes(body, set_name, row, pairs, policies, traces), pairs)
+    eps = _checked(_episodes(body, set_name, row, pairs, policies, traces), pairs, policy=True)
     doc = dict(
         schema=SCHEMA, kind="check", job=job.get("job"), run_uuid=job.get("run_uuid"), run_id=job.get("run_id"),
         settings_sha256=job.get("settings_sha256"), mode=mode, body=body, set=set_name, ppo_seed=seed, row=row,
@@ -826,7 +845,8 @@ __all__ = ["ATTEMPTS", "BASELINE_SCHEMA", "CONDITIONS", "FIX_TASKS", "G8B_AGAIN_
            "K", "MonitorError", "OUTCOMES", "RULES", "S1_CONDITIONS", "S1_FIX_TASKS", "S2_10_SCHEMA", "SCHEMA",
            "SEEDS", "STOP_CHECKS", "STOP_FROM", "baseline", "baseline_equal", "baseline_problem",
            "checkpoint_hashes", "conditions_down", "conditions_for", "decide", "fix_tasks_for", "fix_weights", "g8b",
-           "gain", "installed_versions", "is_record", "main", "need_up", "no_record", "pairs_for", "row_name", "rules", "run", "s2_10",
+           "gain", "has_clock", "installed_versions", "is_record", "main", "need_up", "no_record", "pairs_for",
+           "row_name", "rules", "run", "s2_10",
            "seeds_for", "summarize", "survival_credit", "write_s2_10"]
 
 if __name__ == "__main__":
