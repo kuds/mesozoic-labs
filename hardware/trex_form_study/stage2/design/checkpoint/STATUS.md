@@ -454,3 +454,11 @@ CE_RULE_WORDING.md`, section 6's open points 6 and 7; (4) CT (trainer; see the r
 compares), CB (Drive bundle), CN (notebook), toward the day-one Colab smoke; (5) the look sets' review, CV, CK,
 CW, CF, CG; (6) only if room: the add-on's items C and B, after their rules are rewritten and reviewed. Owed to
 the owner: the draft decision-log rows F28, F29, E and a row for the add-on's result (proposed F30).
+
+## Update, 16 Nov 2026, 03:29 UTC: the owner's answers on the buy gate (P40); the session stops for the usage line
+
+The owner approved the buy gate's four stages, gate 1's speed (0.30 m/s must pass; 0.40 m/s reported), gate 1's
+numbers as drafted, and hard floors only for gate 1 (`DECISION_LOG.md` P40; `BUY_GATE_DRAFT.md` marks what is
+approved and what is still proposed). Nothing is running. The tree is clean and pushed. The order of work after
+the reset is in the block above; gate 1's conditions 2 and 4 and the numbers of gates 2 and 3 go to the owner once
+the servo model is designed.
