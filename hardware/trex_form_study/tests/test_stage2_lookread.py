@@ -5,14 +5,14 @@ Run from hardware/trex_form_study (the fit's venv):
     OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 python -m pytest -p no:cacheprovider tests/test_stage2_lookread.py
 
 Fast tests on synthetic series (no model): each band on both sides of its limit, segmentation by the own events,
-"not read", too few steps, a reference that lacks a value, the window of a bar item and its reference times.  Tests
-on a model (kinematics only, no physics and no episode): the look ladder's V6 rungs played from their own arrays
-against ``stage2/look/metrics.json`` within gate Z2 (b)'s limits, the playback through ``bar._Played`` (a rung
-written as a reference file under pytest's temporary directory, and Stage 1's own run directory with a real track),
-the window and the playback of real bar items (a frozen 75 cm set's tracks, played, never run), the negative controls
-of gate Z2 (c), and an ``-X`` body.  They need the round-two model files, the look ladder's arrays, Stage 1's arrays
-and the frozen sets' arrays (git-ignored; ``python tools/restore_inputs.py``) and skip without them.  Nothing is
-written outside ``tmp_path``.
+the bob per step, "not read", too few steps, a reference that lacks a value, the window of a bar item and its
+reference times, gate Z2 (b)'s limits one at a time.  Tests on a model (kinematics only, no physics and no
+episode): the look ladder's V6 rungs played from their own arrays against ``stage2/look/metrics.json`` within gate
+Z2 (b)'s limits, the playback through ``bar._Played`` (a rung written as a reference file under pytest's temporary
+directory, and Stage 1's own run directory with a real track), the window and the playback of real bar items (a
+frozen 75 cm set's tracks, played, never run), the negative controls of gate Z2 (c), and an ``-X`` body.  They need
+the round-two model files, the look ladder's arrays, Stage 1's arrays and the frozen sets' arrays (git-ignored;
+``python tools/restore_inputs.py restore``) and skip without them.  Nothing is written outside ``tmp_path``.
 
 Slow (``STAGE2_SLOW=1``; about 5 s): one closed-loop episode of Stage 1's own run directory (the view ``S1``; row
 R0, no record), its recorder lent 50 Hz poses as the row wrapper will lend them: what ``series`` takes of a live
@@ -82,6 +82,12 @@ def read(ser, win=WIN):
     return lookread.reading(ser, *win)
 
 
+#: The command each skip names, by the groups it restores (the tool takes a subcommand before ``--group``).
+RESTORE = "python tools/restore_inputs.py restore --group"
+HINTS = {"ladder": f"{RESTORE} picks-models look", "stage1": f"{RESTORE} picks-arrays", "sets": f"{RESTORE} sets",
+         "x": f"{RESTORE} x"}
+
+
 def test_constants_are_the_plans_and_stage1s():
     from designlab.stage1 import control, panels, tune
 
@@ -123,6 +129,26 @@ def test_the_four_numbers_of_a_synthetic_walk():
                lift_offs=[x[(x >= 3.0) & (x <= 13.0)] for x in s["lift_offs"]],
                touchdowns=[x[(x >= 3.0) & (x <= 13.0)] for x in s["touchdowns"]])
     assert read(cut) == r
+
+
+def test_the_bob_is_the_mean_of_the_own_steps_ranges_not_the_windows_range():
+    """A hip height that drifts 2 mm/s under the bob: each step's own range holds 0.8 mm of the drift, the whole
+    window's range 20 mm of it."""
+    s = synth()
+    flat = read(s)
+    drifting = s["hip_mid_z"] + 0.002 * s["t50"]
+    r = read(dict(s, hip_mid_z=drifting))
+    sel = (s["t50"] >= 3.0) & (s["t50"] <= 13.0)
+    whole = float(drifting[sel].max() - drifting[sel].min())
+    assert whole == pytest.approx(0.008 + 0.020, rel=0.03) and whole > 3.0 * flat["bob_pp_m"]
+    assert r["steps"] == flat["steps"] == 23 and r["bob_pp_m"] == pytest.approx(flat["bob_pp_m"], rel=0.10)
+    assert lookread.compare(r, flat)["terms"]["bob"] is True
+    # and it is the mean over the steps, not the largest of them
+    big = s["hip_mid_z"].copy()
+    step = (s["t50"] > 5.0) & (s["t50"] < 5.4)
+    big[step] = 0.45 + 2.0 * (big[step] - 0.45)
+    one = read(dict(s, hip_mid_z=big))  # (0.4 s with twice the bob: one or two of the 23 steps)
+    assert flat["bob_pp_m"] < one["bob_pp_m"] < 1.1 * flat["bob_pp_m"]
 
 
 def test_the_own_phase_is_zero_at_each_left_lift_off_and_linear_between():
@@ -240,11 +266,14 @@ def test_too_few_own_steps_fail_bob_tail_and_toe_off_and_are_no_error():
     c = lookread.compare(none, read(synth()))
     assert c["too_few_steps"] is True and c["terms"] == dict(bob=False, head=True, tail=False, toe_off=False)
     assert c["bob_ratio"] is None and c["tail_phase_diff_cycles"] is None and c["toe_off_ratio"] is None
-    # too few lift-offs alone (4 steps, 3 lift-offs) is too few as well; 4 and 4 are enough
+    # too few lift-offs alone (4 steps, 3 lift-offs) is too few as well, and so are too few steps alone (3 steps,
+    # 4 lift-offs); 4 and 4 are enough
     four = read(synth(), (3.0, 3.0 + 4.6 * 0.41))
     assert four["steps"] == 4 and four["lift_offs"] == 4
     assert lookread.compare(four, ref)["too_few_steps"] is False and lookread.compare(four, ref)["ok"] is True
-    assert lookread.compare(dict(four, lift_offs=3), ref)["too_few_steps"] is True
+    for short in (dict(four, lift_offs=3), dict(four, steps=3)):
+        c = lookread.compare(short, ref)
+        assert c["too_few_steps"] is True and c["terms"] == dict(bob=False, head=True, tail=False, toe_off=False)
     # a term the reference leaves unread is listed and is failed all the same when the robot has too few steps
     c = lookread.compare(own, dict(ref, toe_off_rad=0.01))
     assert c["not_read"] == ["toe_off"] and c["terms"]["toe_off"] is False and c["too_few_steps"] is True
@@ -301,6 +330,65 @@ def test_the_tails_amplitude_is_recorded_and_no_band_reads_it():
     assert c["tail_amp_ratio"] is None and c["terms"]["tail"] is False
     flat = lookread.compare(read(synth()), read(synth(tail_amp=0.0)))
     assert flat["not_read"] == ["tail"] and (flat["tail_amp_ratio"] is None or flat["tail_amp_ratio"] > 1e6)
+
+
+# ------------------------------------------------------------------------------------------------
+# Gate Z2 (b)'s limits (no model)
+# ------------------------------------------------------------------------------------------------
+def test_the_ladders_limits_each_bite_alone_and_the_tails_difference_is_wrapped():
+    """``against_ladder`` on numbers alone: each limit on both sides, the toe-off's two limits (0.02 rad and 10 % of
+    the ladder's number) each failing where the other holds, and a tail phase compared across the wrap at half a
+    cycle."""
+    lad = dict(bob_pp_m=0.0075, head_world_pitch_rms_deg=0.54, tail=dict(phase_cycles=-0.28, amp_rad=0.12), toe_off_rad=0.30)
+
+    def terms(ladder=lad, **own):
+        return lookread.against_ladder(dict(ladder, **own), ladder)
+
+    assert terms()["ok"] and terms()["terms"] == dict(bob=True, head=True, tail=True, toe_off=True)
+    for own, term, ok in ((dict(bob_pp_m=0.0075 * 1.049), "bob", True), (dict(bob_pp_m=0.0075 * 1.051), "bob", False),
+                          (dict(bob_pp_m=0.0075 * 0.949), "bob", False),
+                          (dict(head_world_pitch_rms_deg=0.54 + 0.099), "head", True),
+                          (dict(head_world_pitch_rms_deg=0.54 - 0.101), "head", False),
+                          (dict(tail=dict(phase_cycles=-0.28 + 0.009, amp_rad=0.12)), "tail", True),
+                          (dict(tail=dict(phase_cycles=-0.28 - 0.011, amp_rad=0.12)), "tail", False)):
+        a = terms(**own)
+        assert a["terms"] == dict(dict(bob=True, head=True, tail=True, toe_off=True), **{term: ok}), own
+    # the toe-off on a large ladder number (0.30 rad): 0.025 rad off is 8.3 % and fails by the 0.02 rad limit alone
+    a = terms(toe_off_rad=0.30 - 0.025)
+    assert abs(a["differences"]["toe_off_rad"]) > 0.02 and abs(a["differences"]["toe_off_rel"]) < 0.10
+    assert a["terms"] == dict(bob=True, head=True, tail=True, toe_off=False)
+    assert terms(toe_off_rad=0.30 + 0.025)["terms"]["toe_off"] is False
+    assert terms(toe_off_rad=0.30 - 0.019)["terms"]["toe_off"] is True
+    # on a small one (0.056 rad): 12 % off is 0.0067 rad and fails by the 10 % limit alone
+    small = dict(lad, toe_off_rad=0.056)
+    a = terms(small, toe_off_rad=0.056 * 0.88)
+    assert abs(a["differences"]["toe_off_rad"]) < 0.02 and abs(a["differences"]["toe_off_rel"]) > 0.10
+    assert a["terms"] == dict(bob=True, head=True, tail=True, toe_off=False)
+    assert terms(small, toe_off_rad=0.056 * 1.12)["terms"]["toe_off"] is False
+    assert terms(small, toe_off_rad=0.056 * 0.91)["terms"]["toe_off"] is True
+    # left out (a set without F5), neither limit is read
+    assert lookread.against_ladder(dict(lad, toe_off_rad=0.0), lad, toe_off=False)["ok"] is True
+    # the tail across the wrap: 0.498 and -0.497 cycle are 0.005 cycle apart, 0.49 and -0.49 are 0.02
+    for own, other, d, ok in ((-0.497, 0.498, 0.005, True), (0.498, -0.497, -0.005, True), (-0.49, 0.49, 0.02, False)):
+        a = lookread.against_ladder(dict(lad, tail=dict(phase_cycles=own, amp_rad=0.12)),
+                                    dict(lad, tail=dict(phase_cycles=other, amp_rad=0.12)))
+        assert a["differences"]["tail_cycles"] == pytest.approx(d, abs=1e-12) and a["terms"]["tail"] is ok
+
+
+def test_the_skip_reasons_name_commands_the_restore_tool_takes():
+    """Each skip names ``python tools/restore_inputs.py restore --group ...``: the tool's own parser takes it (asked
+    with ``--help`` after the arguments, so that nothing is restored), and refuses the form without a subcommand."""
+    tool = ROOT / "tools" / "restore_inputs.py"
+    for hint in HINTS.values():
+        words = hint.split()
+        assert words[:3] == ["python", "tools/restore_inputs.py", "restore"] and words[3] == "--group" and words[4:]
+        ok = subprocess.run([sys.executable, str(tool), *words[2:], "--help"], cwd=ROOT, capture_output=True, text=True)
+        assert ok.returncode == 0 and "usage: python tools/restore_inputs.py restore" in ok.stdout, hint
+        bad = subprocess.run([sys.executable, str(tool), *words[3:], "--help"], cwd=ROOT, capture_output=True, text=True)
+        assert bad.returncode == 2 and "invalid choice" in bad.stderr, hint
+    assert all(HINTS["ladder"] in needs[b].kwargs["reason"] for b in BODIES)
+    without_subcommand = "restore_inputs.py " + "--group"  # (the form this file's skips named before)
+    assert without_subcommand not in Path(__file__).read_text()
 
 
 # ------------------------------------------------------------------------------------------------
@@ -398,8 +486,7 @@ def _rung(body, speed, variant="V6") -> Path:
 
 HAVE = {b: _have_model(b) and all(_rung(b, s).exists() for s in SPEEDS) for b in BODIES}
 needs = {b: pytest.mark.skipif(not HAVE[b], reason=(
-    f"needs the round-two model of {b} and the look ladder's arrays (python tools/restore_inputs.py --group "
-    "picks-models look)")) for b in BODIES}
+    f"needs the round-two model of {b} and the look ladder's arrays ({HINTS['ladder']})")) for b in BODIES}
 _PLANTS: dict = {}
 
 
@@ -598,7 +685,7 @@ def test_playback_of_a_real_track_is_the_bars_reference_recorder():
     body = "75-M-H-10"
     run = RUN / body
     if not (run / "refs" / "nominal.npz").exists() or not (run / "transitions" / "start.npz").exists():
-        pytest.skip("needs the Stage 1 arrays (python tools/restore_inputs.py --group picks-arrays)")
+        pytest.skip(f"needs the Stage 1 arrays ({HINTS['stage1']})")
     p = plant_of(body)
     omega = control.omega0(p, Reference.load(run / "refs" / "nominal.npz").q_home)
     track = control.build_track(p, run, [("transition", "start"), ("ref", "nominal", 14)], omega)
@@ -637,7 +724,7 @@ def test_the_window_and_the_playback_of_real_bar_items():
     body = "75-M-H-10"
     d = setio.set_dir("F25F9", body)
     if not (d / "refs" / "v0.4.npz").exists() or not (d / "transitions" / "turn90_pi4_left.npz").exists():
-        pytest.skip("needs the frozen sets' arrays (python tools/restore_inputs.py --group sets)")
+        pytest.skip(f"needs the frozen sets' arrays ({HINTS['sets']})")
     docs = setio.load(d)
     conds = {c.key: c for c in bar.conditions(docs, every=True)}
     ctx = bar.BarContext(body, d, {"refs.json": docs["refs.json"], "transitions.json": docs["transitions.json"]},
@@ -697,7 +784,7 @@ def test_a_live_recorders_poses_and_loads_are_what_series_takes():
     body = "75-M-H-10"
     run = RUN / body
     if not (run / "refs" / "brisk.npz").exists() or not (run / "transitions" / "start.npz").exists():
-        pytest.skip("needs the Stage 1 arrays (python tools/restore_inputs.py --group picks-arrays)")
+        pytest.skip(f"needs the Stage 1 arrays ({HINTS['stage1']})")
     _, docs = setio.stage1_view(RUN, body)
     ctx = bar.BarContext(body, run, docs)
     cond = next(c for c in panels.conditions() if c.key == "walk/brisk")
@@ -773,6 +860,75 @@ def test_each_degraded_playback_fails_exactly_its_term():
     assert np.abs(flat["foot_pitch"]).max() < 1e-9
 
 
+@needs["75-M-H-10"]
+def test_the_controls_verdict_needs_each_of_its_parts(monkeypatch):
+    """Gate Z2 (c)'s ``ok`` on a turn item's window of the same rung, with one part spoiled at a time: a degraded
+    copy that fails a second term beside its own is not "exactly its term"; a cut that does not read too few steps;
+    an unchanged playback that passes without the exact ratio 1.  Each alone makes ``ok`` False."""
+    body, speed = "75-M-H-10", "v040"
+    p = plant_of(body)
+    poses, loads = rung_arrays(load(_rung(body, speed)), lookread.weight(p), TA_REF, TA_REF + 3.0 * RATE)
+    real_compare, real_degrade = lookread.compare, lookread.degrade
+
+    def run():
+        return lookread.controls(p, poses, loads, DT, EVERY, t0=TA_REF / RATE)
+
+    def parts(c):
+        return (c["unchanged"]["ok"], c["cut"]["ok"], {k: v["ok"] for k, v in c["degraded"].items()}, c["ok"])
+
+    every_kind = dict(bob_half=True, neck_3deg=True, tail_late=True, flat_feet=True)
+    assert parts(run()) == (True, True, every_kind, True)
+
+    # (1) the bob's copy also nods: it fails its own term and the head's
+    def two(p_, q, kind, *args, **kw):
+        out = real_degrade(p_, q, kind, *args, **kw)
+        return real_degrade(p_, out, "neck_3deg", *args, **kw) if kind == "bob_half" else out
+
+    monkeypatch.setattr(lookread, "degrade", two)
+    c = run()
+    assert c["degraded"]["bob_half"]["failed"] == ["bob", "head"] and c["degraded"]["bob_half"]["expected"] == ["bob"]
+    assert parts(c) == (True, True, dict(every_kind, bob_half=False), False)
+    # ... or fails nothing at all
+    monkeypatch.setattr(lookread, "degrade", lambda p_, q, kind, *args, **kw: (
+        np.array(q, float) if kind == "tail_late" else real_degrade(p_, q, kind, *args, **kw)))
+    c = run()
+    assert c["degraded"]["tail_late"]["failed"] == [] and parts(c) == (True, True, dict(every_kind, tail_late=False), False)
+    monkeypatch.setattr(lookread, "degrade", real_degrade)
+
+    # (2) the cut to 3 steps is compared by a function that does not label too few steps
+    def unlabelled(own, ref):
+        c = real_compare(own, ref)
+        return dict(c, too_few_steps=False) if own["steps"] == lookread.MIN_STEPS - 1 else c
+
+    monkeypatch.setattr(lookread, "compare", unlabelled)
+    c = run()
+    assert c["cut"]["own"]["steps"] == 3 and c["cut"]["compare"]["terms"] == dict(bob=False, head=True, tail=False, toe_off=False)
+    assert parts(c) == (True, False, every_kind, False)
+
+    # ... or that labels them and fails no term
+    def unfailed(own, ref):
+        c = real_compare(own, ref)
+        return dict(c, terms=dict(c["terms"], toe_off=True)) if own["steps"] == lookread.MIN_STEPS - 1 else c
+
+    monkeypatch.setattr(lookread, "compare", unfailed)
+    assert parts(run()) == (True, False, every_kind, False)
+
+    # (3) the unchanged playback passes all four terms, with a ratio or a difference that is not exactly 1 or 0
+    for term, key, value in (("bob", "bob_ratio", 1.0 + 1e-12), ("tail", "tail_phase_diff_cycles", 1e-15),
+                             ("toe_off", "toe_off_ratio", 1.0 - 1e-12)):
+        def near(own, ref, key=key, value=value):
+            c = real_compare(own, ref)
+            return dict(c, **{key: value}) if own is ref else c
+
+        monkeypatch.setattr(lookread, "compare", near)
+        c = run()
+        assert c["unchanged"]["compare"]["ok"] is True
+        assert c["unchanged"]["exact"] == dict(dict(bob=True, tail=True, toe_off=True), **{term: False}), key
+        assert parts(c) == (False, True, every_kind, False), key
+    monkeypatch.setattr(lookread, "compare", real_compare)
+    assert parts(run()) == (True, True, every_kind, True)
+
+
 @needs["60-N-T-10"]
 def test_a_reference_toe_off_under_the_threshold_leaves_the_flat_feet_control_nothing_to_fail():
     """The 60 cm body's fastest ladder rung: its toe-off reads under 0.02 rad (rule U3 names the case), so the term
@@ -799,7 +955,7 @@ def test_a_16_joint_body_builds_its_series_by_name():
     home reads as the plain body's (gate Z2 (b) sets an ``-X`` playback against the plain body's)."""
     body = "75-M-H-10"
     if not _have_model(body + "-X"):
-        pytest.skip("needs the -X body's model (python tools/restore_inputs.py --group x)")
+        pytest.skip(f"needs the -X body's model ({HINTS['x']})")
     p, px = plant_of(body), plant_of(body + "-X")
     assert len(px.joints) == 16 and px.m.nq == 23 and px.joints.index("tail_yaw") != p.joints.index("tail_yaw")
     poses, loads = rung_arrays(load(_rung(body, "v040")), lookread.weight(p), TA_REF, TB_REF)
