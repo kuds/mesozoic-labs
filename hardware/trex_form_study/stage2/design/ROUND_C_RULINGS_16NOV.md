@@ -116,3 +116,16 @@ points (`checkpoint/reviews/roundC__{build,review,fix}_CT.md`). On the merged tr
    package.
 7. Still open from the builder's list, to be ruled with the gates package's brief: `--expect-baseline` for rule
    M3, the S1 stand-in in the monitor, no timeout on the monitor child, "R0L exactly" to rounding.
+
+## Added 16 Nov, 19:56 UTC, after two code follow-ups and the fifth list's integration were brought in
+
+- **The monitor's refusal** (the trainer's files) and **the tail's amplitude band** (the look reading) are in, as
+  three cherry-picked commits. Their review: bring in as they stand, no defect in the look reading, three minor
+  points on the trainer for its next change (`checkpoint/reviews/roundC__{build,review}_followups2.md`). On the
+  merged tree the trainer's, the monitor's and the look reading's tests give "141 passed, 4 skipped".
+- At the next change to the trainer's files: the halt message after a refusal under `--retry-check` names that
+  parameter; one test kills the trainer around a refusal; a checkpoint record of the wrong shape, a missing
+  `run.json` and a fingerprint not reproduced at the row's load are refusals too (`TRACKB_RULINGS6_16NOV.md`,
+  ruling 3).
+- For the gates package (CG): a fifth degraded playback, the tail scaled to a tenth about its mean, which must
+  fail the tail term and no other (`TRACKB_RULINGS6_16NOV.md`, ruling 2).
