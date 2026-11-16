@@ -794,8 +794,8 @@ to the command, as R0L and R2L do, meets it].
 `V6` and `V6noF5`, reading 1 lives in the companion record and is the verdict of a Track B row. The bar's own record is
 printed beside it as "the bar's reading (C7)". Wherever the two differ on a stop item, the table prints both and names
 the term `on_command_at_stop`. On any other set, `F25F9cl` included, reading 1 does not count, as this rule's first
-paragraph says: a Track B row is judged there by the bar's own readings, and the term `on_command_at_stop` is recorded
-in its companion and decides nothing on that set (Q6).
+paragraph says. The row `R2L-F25F9cl/42` is therefore judged there by the bar's own readings, exactly as `R2/42` and
+`R2/43` beside it. The term `on_command_at_stop` is recorded in its companion and decides nothing on that set (Q6).
 
 Why this was settled (the author's account, not the lead's wording): `bar.py` is not edited (E6), so a stop item's bar
 record holds no such term and can differ from its companion; and on `F25F9cl` the row `R2L-F25F9cl/42` would have
@@ -982,7 +982,7 @@ each of `R2/42` and `R2/43` where they are run again. The dry runs, made on 16 N
 |---|---|---|---|---|---|---|
 | `R2L-V6noF5/42` on `75-M-H-10`, 10 ms | 17 | set `V0`, row `R2/42`: a stand-in set and a stand-in row | 340 | 1.882 | 0.296 | 0.444 |
 | the same with 0, 4 and 6 ms (S2-9) | 68 | set `V0`, row `R2/42`: a stand-in set and a stand-in row | 1,360 | 7.529 | 1.185 | 1.7775 |
-| `R2L-V6noF5/42` on `60-N-T-10`, 10 ms; with 0, 4 and 6 ms | 17; 68 | none of its own: the two rows above, until the 60 cm body's own rates exist | - | - | 0.296; 1.185 | 0.444; 1.7775 |
+| `R2L-V6noF5/42` on `60-N-T-10`, 10 ms; with 0, 4 and 6 ms | 17; 68 | none of its own (no 60 cm set is frozen): the two rows above, at the same `COST.md` rates | - | - | 0.296; 1.185 | 0.444; 1.7775 |
 | `R2L-F25F9cl/42` on `75-M-H-10` | 22 | set `F25F9cl` itself, row `R2/42`: a stand-in row | 440 | 2.999 | 0.472 | 0.708 |
 | `R2/42` and `R2/43` beside it, where run again | 44 | set `F25F9cl` itself, the two rows themselves | 880 | 5.998 | 0.944 | 1.416 |
 
@@ -1012,8 +1012,11 @@ with these arguments; the totals are the runner's own printed lines:
   @walk`: 240 episodes, 1.626 simulated hours, 0.256 core-hours; the table's row is their sum.
 
 No `V6noF5` set is frozen and no R2L row can be built yet. The two `V6noF5` caps are therefore estimates from a stand-in
-row (`R2/42`) on a stand-in set (the frozen `V0`) of the 75 cm body. The 60 cm body has no committed rates: it takes the
-75 cm body's numbers until its own rates exist, and is labelled so wherever its cap is printed.
+row (`R2/42`) on a stand-in set (the frozen `V0`) of the 75 cm body. The 60 cm body has no frozen set to plan on, and
+`COST.md` holds no rate measured on it: its caps are written with the 75 cm stand-in's numbers at `COST.md`'s rates, the
+only rates the ruling names, and are labelled so wherever they are printed [corrected after the review of this
+writing-in, by the author: this sentence read "it takes the 75 cm body's numbers until its own rates exist", a condition
+that the ruling does not hold].
 
 Known when this was written in (the author's note, not the lead's wording): the stand-in understates a look set. The
 first of the dry runs above was also made on the look work package's unfrozen build of `V6noF5` on `75-M-H-10` (`--set
@@ -1099,10 +1102,12 @@ the no-gain count, the checks done, any stop. A resume rebuilds the run's live r
 no record naming that checkpoint, and then applies M3-M5 to the records exactly as the uninterrupted run does. A job
 with a run record and no checkpoint restarts from step 0 in place and is the same run (`restarted_from_zero`).
 [settled 16 Nov 2026, before any Track B run] An attempt at a check that was never closed (M1: the session died while
-the check ran) is an interruption: the resume runs that check again, and the attempt does not count toward M1's two. A
-check that M1 has counted, after two closed attempts that left no record, is not run again by a resume. Check:
-`checkpoint_<n>.json` `run_state`; `sessions[].discarded_after_resume`; `tests/test_stage2_train2.py` (a kill during a
-check; after a fix).
+the check ran) is an interruption: the resume runs that check again, and the attempt does not count toward M1's two.
+[from here to "Check:", the author's reading of M1's count and not the lead's wording] A check that M1 has counted,
+after two closed attempts that left no record, is not run again by a resume. The ruling does not say that the attempts
+logged for a check are kept when a resume moves later entries to `discarded_after_resume`; this reading holds only if
+they are. Check: `checkpoint_<n>.json` `run_state`; `sessions[].discarded_after_resume`; `tests/test_stage2_train2.py`
+(a kill during a check; after a fix).
 
 **K6. One commit, one path, one queue.** [S2-13; NEW precision] A run keeps one RUN_ID, one bundle, one queue, one
 budget and one commit for its whole life: REPO_REF is the 40-hex SHA of the launch commit (the notebook refuses any
@@ -1469,11 +1474,13 @@ report says so. A `start` or a `nominal_to_v0.4` that still fails under the cuts
 is then not frozen, and goes to the lead: A8 stands on a look set. Any other move that still fails is "not available"
 with its numbers: a ladder change (A8 step 3), the stop (its conditions are then "not run", H3), a turn (A11) and the
 turn in place (L13) [settled 16 Nov 2026, before any Track B run; labelled as changed after the look work package had
-built look sets (prescribed motion; none frozen): the two sentences before this mark, in place of the committed sentence
-"A move that still fails under the cuts open to it is "not available" with its numbers (A8 step 3; A11 for a turn)"
-(settled 15 Nov)]. No limit is changed for such a move without the label "changed after a result". Under cut 3 the "2
-(2.5) strides of `v0.4`" of T1 and of B6 read "one window of `v0.4` (and half a stride for a right-foot command)", and
-the env description and every record say so.
+built look sets (prescribed motion; none frozen): the two sentences before this mark, in place of the first clause of
+the committed sentence "A move that still fails under the cuts open to it is "not available" with its numbers (A8 step
+3; A11 for a turn); no limit is changed for it without the label "changed after a result"" (settled 15 Nov); the
+sentence after this mark is that sentence's closing clause, set on its own by the author, and it holds as committed, for
+every move that still fails]. No limit is changed for a move that still fails without the label "changed after a
+result". Under cut 3 the "2 (2.5) strides of `v0.4`" of T1 and of B6 read "one window of `v0.4` (and half a stride for a
+right-foot command)", and the env description and every record say so.
 
 The design's cut 3 [differs: B6 and T1]: a move leaves and enters a K-stride window only at its boundary (a right-foot
 command at the exact time of phase 0.5 after the boundary); episodes then walk whole windows (about 10 s) before a
@@ -1499,7 +1506,7 @@ start for the turn in place.
 Check: `set.json` `rules` (the join code's review by path and sha256; the fallback in force, or none, with the failing
 move's `join_command` or `join_b` numbers; the same in every look set of the body and of its `-X` head); the move
 entries' `a_phase`, `a_time_s`, `join_command`, `join_b`, and `available: false` with its numbers for a move that still
-fails, other than `start` and `nominal_to_v0.4`: no set of a body is frozen while one of those two still fails (A8)
+fails, other than `start` and `nominal_to_v0.4`: a set in which one of those two still fails holds no freeze (A8)
 [settled 16 Nov 2026, before any Track B run: this exception]; under cut 3, the reading of T1's and B6's stride counts
 in the env description and in the records' `plan`; a set rebuilt under a cut after a closed-loop episode on it carries
 the label "changed after a result", and one rebuilt before any does not.
@@ -1527,16 +1534,16 @@ fails is "not available". The design's cut 4 is in force from the start for the 
 
 [settled 16 Nov 2026, before any Track B run; labelled as changed after the look work package had built look sets
 (prescribed motion; none frozen)] The turn in place has flat feet as its own law: no toe-off and no rolling entry in any
-stride, the start and the stop included. Rule L10 is about a walk's moves (its starts and changes, and its stop and
-turns from their command) and does not govern this gait.
+stride, the start and the stop included. Rule L10 is about starts and changes of a walk and does not govern this gait.
 
 Why the citation went, and what was checked when this was written in (the author's account, not the lead's wording): by
 L10 as settled, a stance that ends after a move's last ramp follows the gait's own law, so L10 did not say that the hold
-strides are flat. The look work package's code (branch `wt/wp-l` at `e2696b2`; `designlab/stage2/sets_look.py`, the
-builder's `inplace`) builds this gait from the set's nominal look gait with F5's fields at their defaults (`toe_off` 0,
-`toe_reach` 0), for the long plan and for the stop. In its build of `V6` on `75-M-H-10`, which is not frozen,
-`foot_pitch` is 0 and `rolling` false in every frame of the two gaits, of their starts and of their stops (six files,
-read on 16 Nov 2026). Its rule texts still cite L10 for the flat feet.
+strides are flat. The ruling's sentence on L10 names a walk's starts and changes; L10's per-stance rule also holds for a
+walk's causal moves, its stop and its turns, from their command. The look work package's code (branch `wt/wp-l` at
+`e2696b2`; `designlab/stage2/sets_look.py`, the builder's `inplace`) builds this gait from the set's nominal look gait
+with F5's fields at their defaults (`toe_off` 0, `toe_reach` 0), for the long plan and for the stop. In its build of
+`V6` on `75-M-H-10`, which is not frozen, `foot_pitch` is 0 and `rolling` false in every frame of the two gaits, of
+their starts and of their stops (six files, read on 16 Nov 2026). Its rule texts still cite L10 for the flat feet.
 
 Known when this was settled (the review's note, as the commit that adds this file holds it): the look work package's
 first version (branch `wt/wp-l`, before that commit) already wrote the turn in place as one stride with no F14
