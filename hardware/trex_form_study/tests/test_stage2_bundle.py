@@ -478,6 +478,56 @@ def test_build_refuses_bad_arguments(tree, tmp_path, monkeypatch):
         bundle.build("t1", BODIES, sets=(), out=out, root=tree)
 
 
+def test_a_name_ustar_cannot_hold_is_refused(tree, tmp_path):
+    """The parts are USTAR and nothing else: a file name over USTAR's 100 characters is refused, never written with
+    a PAX or GNU extension header (which another tar reader may take differently), and nothing is left."""
+    name = "w" * 120
+    data = _blob("a long name", 1000)
+    _put(tree / SETD / "refs" / f"{name}.npz", data)
+    _edit(tree / SETD / "refs.json", lambda d: d["references"].update(
+        {name: dict(name=name, file=f"refs/{name}.npz", sha256=_sha(data), available=True)}))
+    row = dict(kind="walk", sha256=_sha(data), entry_sha256=_sha(b"entry" + data))
+    _edit(tree / SETD / "set.json", lambda d: _refreeze(d, lambda m: m.update({name: row})))
+    with pytest.raises(bundle.BundleError, match=r"SX-T-A-1\.tar\.tmp: cannot be written as USTAR"):
+        bundle.build("t1", BODIES, sets=("SX",), out=tmp_path / "out", root=tree)
+    assert _files_under(tmp_path / "out") == []
+
+
+def test_the_order_of_the_names_given_does_not_matter(tmp_path, monkeypatch):
+    """Bodies and sets are sorted before anything is built: given in another order they are one content, with the
+    same parts byte for byte."""
+    root = tmp_path / "study"
+    _register(monkeypatch, make_tree(root, sets=("SX", "SY")))
+    a = bundle.build("o", BODIES, sets=("SX", "SY"), out=tmp_path / "a", part_mb=0.06, root=root)
+    b = bundle.build("o", BODIES[::-1], sets=("SY", "SX"), out=tmp_path / "b", part_mb=0.06, root=root)
+    assert a["content"]["bodies"] == BODIES and list(a["content"]["sets"]) == ["SX", "SY"]
+    assert b["content"] == a["content"] and b["content_sha256"] == a["content_sha256"]
+    assert json.dumps(b["content"]) == json.dumps(a["content"])  # the tables' own order too
+    for name in a["content"]["parts"]:
+        assert (tmp_path / "a" / "parts" / name).read_bytes() == (tmp_path / "b" / "parts" / name).read_bytes(), name
+    # and the same bundle directory takes the other order as the same build
+    again = bundle.build("o", BODIES[::-1], sets=("SY", "SX"), out=tmp_path / "a", part_mb=0.06, root=root)
+    assert again == a
+
+
+def test_a_file_that_changes_while_it_is_packed_is_refused(tree, tmp_path, monkeypatch):
+    """Between the hash that goes to the manifest and the bytes that go to the part a file can change: every part is
+    read back against the manifest before any part is moved into place."""
+    changed, real = f"{MODEL_B}.xml", bundle._write_part
+
+    def write(path, root, members):
+        if any(rel == changed for rel, _, _ in members):  # hashed already; now one bit of it changes
+            data = bytearray((root / changed).read_bytes())
+            data[10] ^= 1
+            (root / changed).write_bytes(data)
+        real(path, root, members)
+
+    monkeypatch.setattr(bundle, "_write_part", write)
+    with pytest.raises(bundle.BundleError, match=f"models-T-B.tar.tmp: member '{changed}' has 30000 bytes and sha256"):
+        bundle.build("t1", BODIES, sets=("SX",), out=tmp_path / "out", root=tree)
+    assert _files_under(tmp_path / "out") == []  # not the parts written before it either
+
+
 def test_a_second_build_leaves_the_manifest_and_another_content_is_refused(built, tree, tmp_path):
     """A bundle id names one content: the same build again changes no byte (the manifest keeps the first build's
     provenance); another content under the same directory, or a part that is not the bundle's, replaces nothing."""
@@ -644,6 +694,27 @@ def test_verify_never_raises_on_a_bad_manifest(built, tmp_path):
     assert _files_under(tmp_path / "never") == []
 
 
+def test_a_part_that_changes_while_it_is_unpacked_is_refused(built, tmp_path, monkeypatch):
+    """Between the check of the parts and the writing a part can change: what is written is compared with the
+    manifest once more before it is moved into place, and the wrong bytes never stand at a file's place."""
+    tree, out, doc = built
+    pdir, root = tmp_path / "parts", tmp_path / "unpacked"
+    shutil.copytree(out / "parts", pdir)
+    real = bundle.scan_part
+
+    def scan(path, expect):
+        real(path, expect)
+        if Path(path).name == PART:  # checked; now it becomes a tar with the same names and sizes and other bytes
+            members = _members(Path(path))
+            _write_tar(Path(path), [(members[0][0], bytes(len(members[0][1])))] + members[1:])
+
+    monkeypatch.setattr(bundle, "scan_part", scan)
+    assert sorted(doc["content"]["parts"])[0] == PART  # the first part written, and FIRST its first member
+    with pytest.raises(bundle.BundleError, match=f"{PART}: changed while it was unpacked"):
+        bundle.unpack(doc, pdir, root)
+    assert _files_under(root) == []  # no wrong file, no temporary file
+
+
 # ------------------------------------------------------------------------------------------------
 # unpack
 # ------------------------------------------------------------------------------------------------
@@ -663,8 +734,11 @@ def test_unpack_gives_the_files_and_twice_is_a_no_op(built, tmp_path):
     assert stamps == {rel: ((root / rel).stat().st_mtime_ns, (root / rel).stat().st_ino) for rel in expected}
     # a wrong file in the way is replaced by the bundle's (its temporary name too, had a killed unpack left one); a
     # link at a file's place is replaced, not followed
-    wrong, linked = f"{SETD}/refs/nominal.npz", f"{SETD}/refs/v0.4.npz"
+    wrong, linked, flipped = f"{SETD}/refs/nominal.npz", f"{SETD}/refs/v0.4.npz", f"{SETD}/transitions/start.npz"
     (root / wrong).write_bytes(b"wrong")
+    data = bytearray(expected[flipped])
+    data[-1] ^= 1
+    (root / flipped).write_bytes(data)  # the right size, one bit wrong: its sha256 decides, not its size
     (root / (wrong + ".tmp")).write_bytes(b"what a killed unpack left")
     victim = tmp_path / "victim"
     victim.write_bytes(b"not to be written through a link")
@@ -674,7 +748,8 @@ def test_unpack_gives_the_files_and_twice_is_a_no_op(built, tmp_path):
     (root / linked).unlink()
     (root / linked).symlink_to(target)
     third = bundle.unpack(doc, out / "parts", root)
-    assert third["replaced"] == sorted([wrong, linked]) and third["written"] == []
+    assert third["replaced"] == sorted([wrong, linked, flipped]) and third["written"] == []
+    assert len(third["left"]) == len(expected) - 3
     assert not (root / linked).is_symlink() and target.read_bytes() == expected[linked]
     assert victim.read_bytes() == b"not to be written through a link"
     assert bundle.verify(doc, root)["ok"] and _files_under(root) == sorted(expected)
