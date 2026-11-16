@@ -56,3 +56,16 @@ No look set is frozen by the package: freezing is the lead's step after the revi
 **For the briefs.** `WPC_CT.md` and `WP_L.md` now point to this file at their top. The Track B draft's integration
 of the reward wording must read `stage2/design/CE_RULE_WORDING.md` as merged here (the third round changed its
 entries 3a, 3b and 8 and withdrew entry 9).
+
+## Added 16 Nov, 16:28 UTC, after the follow-ups were reviewed and brought in
+
+**The follow-ups on the bundle tool and the policy files** came in as four cherry-picked commits (the branch's
+history still holds the builder's merge commit without the two lines). Their review: the code can go in as it
+stands (`checkpoint/reviews/roundC__{build,review}_followups.md`).
+1. The builder's three extras in the manifest's cross-check stay: a content key outside the six is a problem; a
+   part with no file or with two owners is a problem; a set's files must fill its parts without a gap.
+2. At the next change to `bundle.py`: the shapes of a file entry and a part entry are made exact; three test gaps
+   the review named are closed (a set's file that is no `.npz`; only sound file entries reach the table check;
+   one branch that cannot be reached is replaced by a plain assignment).
+3. Owed by the lead in `ROUND_C_DESIGN.md`: the ignore lines lose `checkpoints/` (13 lines, decision D22); the
+   fingerprint record's keys gain `actions_at_bound`; section 2.2 gains the env's new arguments and keys.
