@@ -2,9 +2,12 @@
 reference's own values against the bands, and the reference's values by kinematic playback of a track.
 
 Rules: ``STAGE2_TRACKB_PLAN.md`` U1 (the measures), U2 (the window), U3 (the bands and what is not read), U5 (the
-reference's values; too few steps); gate Z2 (G9-ref) parts (b) and (c) are read with the helpers at the end.  No
-module of the bar is edited and none is imported at module level: ``lookbar.LookRow`` (another package) lends an
-episode a recorder with poses and calls this module; ``playback`` imports ``bar`` inside the function.
+reference's values; too few steps); gate Z2 (G9-ref) parts (b) and (c) are read with the helpers at the end.  The
+readings of rule U4 (what "success with the look" is on which set and item, the stop item's
+``on_command_at_stop``) and rule U6's companion record are not here: they are the row wrapper's (``lookbar``).  No
+module of the bar is edited, and ``bar`` itself is not imported at module level (``readings``, whose contact rule
+and constants are read, and ``s2io`` are): ``lookbar.LookRow`` (another package) lends an episode a recorder with
+poses and calls this module; ``playback`` imports ``bar`` inside the function.
 
 Clocks.  Every time here is simulated seconds on the bar's own convention (``readings``' module docstring): pose j
 is the update row at ``j * every * dt``, physics step ``a`` is the instant ``a * dt``, and a recorder's pose and
@@ -20,12 +23,14 @@ contact after a step in (out of) it, by the 2 % load rule with the 20 ms debounc
               a foot that points along world x, and the same angle at any heading, which a turn item needs), the
               tail-yaw joint's angle; contact, lift-offs and touchdowns per foot.
 ``reading``   the four numbers over a window, from what lies inside the window alone (samples, lift-offs and
-              touchdowns with ``ta <= t <= tb``), so that an episode's trace and a playback of just the window are
-              read alike.
+              touchdowns with ``ta <= t <= tb``; a value at a lift-off or touchdown is interpolated between the
+              two poses around it), so that an episode's trace and a playback of just the window are read alike.
 ``compare``   the four terms against a reference's reading (``BANDS``, ``NOT_READ_RAD``, ``MIN_STEPS``).
 ``playback``  the reference's reading: the track's own files placed in one world frame by ``bar._Played``, played
               at the nominal commanded clock over the window's reference times.
-``window``    rule U2 from a built bar condition and its recorder.
+``window``    rule U2 from a built bar condition and its recorder (simulated time); ``window_ref`` the reference
+              times that window covers at the nominal commanded clock, from the built condition alone (what
+              ``playback`` takes: one definition for the gate and for an episode's wrapper).
 
 For gate G9-ref: ``played`` (a playback's arrays), ``degrade`` and ``controls`` (part (c)'s negative controls),
 ``ladder_numbers`` and ``against_ladder`` (part (b): the four numbers of a ``stage2/look/metrics.json`` rung and
@@ -93,14 +98,16 @@ RULES = dict(
         f">= {BANDS['toe_off_rel']:g} x reference.  The tail term is not read when the reference's tail amplitude "
         f"in the window is under {NOT_READ_RAD:g} rad, the toe-off term when the reference's toe-off is under "
         f"{NOT_READ_RAD:g} rad; both then pass, labelled, and the reference's value and its side of the threshold "
-        "are recorded.  A value that cannot be computed fails its term."),
+        "are recorded.  A value of the robot's that cannot be computed fails its term.  The bob has no such "
+        "threshold: against a reference without a bob the term fails.  The tail term reads the phase alone: the "
+        "ratio of the two amplitudes is recorded and no band reads it."),
     reference=(
         f"STAGE2_TRACKB_PLAN rule U5.  The reference's values are the same functions on a kinematic playback of "
         f"the episode's own track over the window's reference times at the nominal commanded clock ({RATE:g}): "
         "the files' poses placed in one world frame by bar._Played, contact from the files' support flags.  When "
         f"that playback has at least {MIN_STEPS} steps and {MIN_STEPS} lift-offs in the window and the robot has "
         "fewer, the bob, tail and toe-off terms fail (too_few_steps); it is no error.  When the playback itself "
-        "has fewer it is an error of the definition (LookError)."),
+        "has fewer, or lacks one of its own values, it is an error of the definition (LookError)."),
 )
 
 
@@ -283,35 +290,45 @@ def compare(own: dict, ref: dict) -> dict:
     ``terms {bob, head, tail, toe_off}``; ``ok`` (all four); ``not_read`` (the terms the reference's own values
     leave unread: they pass); ``too_few_steps``: the reference has at least ``MIN_STEPS`` steps and lift-offs and
     the robot has fewer of either: ``bob``, ``tail`` and ``toe_off`` are then False (also one that ``not_read``
-    names) and ``head`` is still read.  ``LookError`` when the reference itself has fewer (a definition fault).
-    Beside them ``bob_ratio``, ``tail_phase_diff_cycles``, ``toe_off_ratio`` (None where a value is missing) and
-    ``reference`` (its tail amplitude and toe-off, and the side of ``NOT_READ_RAD`` each lies on).  A value of
-    ``own`` that is missing fails its term.  Limits are compared without slack."""
+    names) and ``head`` is still read.  ``LookError`` (a definition fault, which gate Z2 (b) must have caught)
+    when the reference itself has fewer, or when one of its own values is missing or not finite: its bob, its tail
+    amplitude, its tail phase where the tail is read, its toe-off.  A term is never left unread for want of the
+    reference's value: only for a value under ``NOT_READ_RAD``.
+    Beside them ``bob_ratio``, ``tail_phase_diff_cycles``, ``toe_off_ratio`` (None where a value of ``own`` is
+    missing, or the reference's is not above zero), ``tail_amp_ratio`` (recorded: no band reads the tail's
+    amplitude) and ``reference`` (its tail amplitude and toe-off, and the side of ``NOT_READ_RAD`` each lies on).
+    A value of ``own`` that is missing fails its term.  Limits are compared without slack."""
     if int(ref["steps"]) < MIN_STEPS or int(ref["lift_offs"]) < MIN_STEPS:
         raise LookError(f"the reference's own window holds {ref['steps']} steps and {ref['lift_offs']} lift-offs: at "
                         f"least {MIN_STEPS} of each are needed (STAGE2_TRACKB_PLAN rule U5; gate Z2 (b))")
     too_few = int(own["steps"]) < MIN_STEPS or int(own["lift_offs"]) < MIN_STEPS
     terms, not_read = {}, []
-    # bob
     ob, rb = _num(own.get("bob_pp_m")), _num(ref.get("bob_pp_m"))
-    ratio = ob / rb if (ob is not None and rb is not None and rb > 0.0) else None
-    terms["bob"] = bool(ratio is not None and abs(ratio - 1.0) <= BANDS["bob_rel"])
-    # head
     oh = _num(own.get("head_world_pitch_rms_deg"))
-    terms["head"] = bool(oh is not None and oh <= BANDS["head_world_pitch_rms_deg"])
-    # tail
     ot, rt = own.get("tail") or {}, ref.get("tail") or {}
     r_amp, r_ph, o_ph = _num(rt.get("amp_rad")), _num(rt.get("phase_cycles")), _num(ot.get("phase_cycles"))
+    oo, ro = _num(own.get("toe_off_rad")), _num(ref.get("toe_off_rad"))
+    tail_read = r_amp is not None and not r_amp < NOT_READ_RAD
+    toe_read = ro is not None and not ro < NOT_READ_RAD
+    missing = [name for name, v in (("bob_pp_m", rb), ("tail.amp_rad", r_amp), ("toe_off_rad", ro)) if v is None]
+    if tail_read and r_ph is None:
+        missing.append("tail.phase_cycles")
+    if missing:
+        raise LookError(f"the reference's own reading holds no finite {', '.join(missing)} (a definition fault: "
+                        "STAGE2_TRACKB_PLAN rule U5; gate Z2 (b) asks for the four numbers of every playback)")
+    # bob
+    ratio = ob / rb if (ob is not None and rb > 0.0) else None
+    terms["bob"] = bool(ratio is not None and abs(ratio - 1.0) <= BANDS["bob_rel"])
+    # head
+    terms["head"] = bool(oh is not None and oh <= BANDS["head_world_pitch_rms_deg"])
+    # tail
     diff = wrap_cycles(o_ph - r_ph) if (o_ph is not None and r_ph is not None) else None
-    tail_read = not (r_amp is None or r_amp < NOT_READ_RAD)
     if tail_read:
         terms["tail"] = bool(diff is not None and abs(diff) <= BANDS["tail_phase_cycles"])
     else:
         terms["tail"] = True
         not_read.append("tail")
     # toe-off
-    oo, ro = _num(own.get("toe_off_rad")), _num(ref.get("toe_off_rad"))
-    toe_read = not (ro is None or ro < NOT_READ_RAD)
     if toe_read:
         terms["toe_off"] = bool(oo is not None and oo >= BANDS["toe_off_rel"] * ro)
     else:
@@ -320,13 +337,15 @@ def compare(own: dict, ref: dict) -> dict:
     if too_few:
         for k in STEP_TERMS:
             terms[k] = False
+    o_amp = _num(ot.get("amp_rad"))
 
     def side(v):
-        return None if v is None else (f"under {NOT_READ_RAD:g} rad" if v < NOT_READ_RAD else f"at or over {NOT_READ_RAD:g} rad")
+        return f"under {NOT_READ_RAD:g} rad" if v < NOT_READ_RAD else f"at or over {NOT_READ_RAD:g} rad"
 
     return dict(terms={k: terms[k] for k in TERMS}, ok=all(terms[k] for k in TERMS), not_read=not_read,
                 too_few_steps=bool(too_few), bob_ratio=ratio, head_world_pitch_rms_deg=oh, tail_phase_diff_cycles=diff,
-                toe_off_ratio=(oo / ro if (oo is not None and ro is not None and ro > 0.0) else None),
+                tail_amp_ratio=(o_amp / r_amp if (o_amp is not None and r_amp > 0.0) else None),
+                toe_off_ratio=(oo / ro if (oo is not None and ro > 0.0) else None),
                 steps=dict(own=int(own["steps"]), reference=int(ref["steps"]), needed=MIN_STEPS),
                 lift_offs=dict(own=int(own["lift_offs"]), reference=int(ref["lift_offs"]), needed=MIN_STEPS),
                 reference=dict(tail_amp_rad=r_amp, tail_amp_side=side(r_amp), toe_off_rad=ro, toe_off_side=side(ro),
@@ -408,6 +427,35 @@ def window(b, rec) -> tuple[float, float] | None:
     return None if t_end < tb - EPS_S else (ta, tb)
 
 
+def window_ref(b) -> tuple[float, float] | None:
+    """The reference times (the track's own clock, s) that rule U2's window of a built bar condition ``b`` covers
+    at the nominal commanded clock, from the condition alone, or None (an item that is not read, or a cut walk
+    episode, which has no window): the ``ta_ref, tb_ref`` that ``playback`` takes for that item (rule U5), the same
+    for every episode of the condition whatever its own clock did.
+
+    A walk item: ``RATE`` times the window of an episode that runs to its planned end, ``[t_end - WALK_WINDOW_S,
+    t_end]`` with ``t_end`` the last update of ``round(b.seconds / dt)`` physics steps (``control._episode``; an
+    episode starts with the track's clock at 0).  A turn item: ``[ref_s + RATE * at_s, ref_s + RATE * (at_s +
+    TURN_WINDOW_S)]`` with ``ref_s`` the command's reference time: on the nominal clock the simulated window
+    ``[t_c + at_s, t_c + at_s + TURN_WINDOW_S]`` covers these times.  Only attributes of ``b`` are read."""
+    judge = getattr(getattr(b, "cond", None), "judge", None)
+    if judge == "bar_walk":
+        from ..stage1 import control  # (the update interval)
+
+        if "cut_from_s" in b.resolved:
+            return None
+        dt = float(b.p.m.opt.timestep)
+        n = int(round(float(b.seconds) / dt))
+        if n < 1:
+            return None
+        t_end = ((n - 1) // control.FEEDBACK_EVERY) * control.FEEDBACK_EVERY * dt
+        return (RATE * (t_end - WALK_WINDOW_S), RATE * t_end)
+    if judge == "bar_turn" and getattr(b, "command", None) is not None:
+        ta = float(b.command["ref_s"]) + RATE * float(b.resolved["at_s"])
+        return (ta, ta + RATE * TURN_WINDOW_S)
+    return None
+
+
 def sources() -> dict:
     """``{path: sha256}`` of this file (its path relative to the study directory)."""
     path = Path(__file__).resolve()
@@ -435,14 +483,18 @@ def ladder_numbers(rung: dict) -> dict:
 
 def against_ladder(read: dict, ladder: dict, toe_off: bool = True) -> dict:
     """Gate Z2 (b): a playback's reading against the ladder's numbers (``ladder_numbers``) within
-    ``LADDER_LIMITS``.  ``toe_off=False`` leaves the toe-off out (a set without F5: recorded "not read").  Returns
-    the differences, ``terms {bob, head, tail, toe_off}`` and ``ok``."""
+    ``LADDER_LIMITS``.  ``ladder`` may also be another playback's reading, which has the same four keys: the plain
+    body's for an ``-X`` body, the V6 set's for ``V6noF5``.  ``toe_off=False`` leaves the toe-off out (a set
+    without F5: recorded "not read").  Returns the differences, ``terms {bob, head, tail, toe_off}`` and ``ok``."""
     L = LADDER_LIMITS
     ob, oh, oo = _num(read.get("bob_pp_m")), _num(read.get("head_world_pitch_rms_deg")), _num(read.get("toe_off_rad"))
     o_ph = _num((read.get("tail") or {}).get("phase_cycles"))
-    lb, lh, lo, l_ph = ladder["bob_pp_m"], ladder["head_world_pitch_rms_deg"], ladder["toe_off_rad"], ladder["tail"]["phase_cycles"]
-    d = dict(bob_rel=None if ob is None or not lb > 0 else ob / lb - 1.0, head_deg=None if oh is None else oh - lh,
-             tail_cycles=None if o_ph is None else wrap_cycles(o_ph - l_ph), toe_off_rad=None if oo is None else oo - lo)
+    lb, lh, lo = _num(ladder.get("bob_pp_m")), _num(ladder.get("head_world_pitch_rms_deg")), _num(ladder.get("toe_off_rad"))
+    l_ph = _num((ladder.get("tail") or {}).get("phase_cycles"))
+    d = dict(bob_rel=None if ob is None or lb is None or not lb > 0 else ob / lb - 1.0,
+             head_deg=None if oh is None or lh is None else oh - lh,
+             tail_cycles=None if o_ph is None or l_ph is None else wrap_cycles(o_ph - l_ph),
+             toe_off_rad=None if oo is None or lo is None else oo - lo)
     d["toe_off_rel"] = None if (d["toe_off_rad"] is None or not lo > 0) else d["toe_off_rad"] / lo
     terms = dict(bob=d["bob_rel"] is not None and abs(d["bob_rel"]) <= L["bob_rel"],
                  head=d["head_deg"] is not None and abs(d["head_deg"]) <= L["head_deg"],
