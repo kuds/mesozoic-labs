@@ -69,3 +69,25 @@ stands (`checkpoint/reviews/roundC__{build,review}_followups.md`).
    one branch that cannot be reached is replaced by a plain assignment).
 3. Owed by the lead in `ROUND_C_DESIGN.md`: the ignore lines lose `checkpoints/` (13 lines, decision D22); the
    fingerprint record's keys gain `actions_at_bound`; section 2.2 gains the env's new arguments and keys.
+
+## Added 16 Nov, 18:21 UTC, after the look reading (CK) was reviewed, fixed and brought in
+
+**The look reading (CK)** came in as nine cherry-picked commits (two merge commits of the earlier builder lack the
+two lines and stay out). Review: merge as it stands, no blocker or major defect in the code; the fixer closed its
+minor points (`checkpoint/reviews/roundC__{build,review,fix}_CK.md`). On the working branch its tests give
+"60 passed, 1 skipped".
+1. The playback's lead of 0.1 s before the window (`LEAD_S`) stays. No rule gives the number; any lead of one
+   physics step or more gives the same events on clean support flags.
+2. The rule texts stay as marked: the plan's rule first, then the module's own reading after its mark.
+3. `on_command_at_stop` belongs to the rows package (CW); its brief says so.
+4. **The tail's amplitude gets a band** (a rule decision, for the Track B draft's look rules, before code state B):
+   the tail term fails when the robot's fitted amplitude is under 0.02 rad while the reference's is read. A tail
+   that does not swing cannot pass a reading of how it swings. To be built in `lookread.py` with a test.
+5. The bob has no "not read" threshold: outside the look sets the rows package records the numbers only.
+6. Contact is read literally, as built; the rows package records the short air runs.
+7. The gates package (CG) lists each item's reference toe-off and its side of 0.02 rad.
+8. Owed by the lead in `ROUND_C_DESIGN.md`: section 3.7's toe-off sentence (the rule is 0.02 rad and 10 %) and
+   section 3.5's "3 s of walking".
+9. For CW and CG: `played` takes `lead_s` and returns `window` and `lead_s`; `window` reads the fall itself;
+   `series` refuses a pose past the last load. A bar walk or turn item that cannot be played is a fault of the
+   definition, never "no look reading".
