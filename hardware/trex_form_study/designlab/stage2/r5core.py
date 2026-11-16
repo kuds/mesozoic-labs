@@ -135,7 +135,8 @@ REWARD_RULE = (
     "contact (load above 2 % of the true weight) equals the reference's support at the clock or 24 ms x the clock "
     "rate earlier.  head: exp(-((roll - roll_ref)^2 + (pitch - pitch_ref)^2) / (3 deg)^2) of the head body in the "
     "world about home.  Penalties: duty (Stage 1's: each foot's contact share over the last stride outside "
-    "0.55-0.65, or 0.55-0.72 while the commanded speed is below 0.30 m/s, over 0.05, while the reference walks; a "
+    "0.55-0.65, or 0.55-0.72 while the commanded gait's target speed (the speed a rung's name holds, as the bar "
+    "takes it; a gait whose name holds none: its entry's) is below 0.30 m/s, over 0.05, while the reference walks; a "
     "foot is read only where the reference's own share for it over the same stride lies inside the band, so that "
     "a start, a stop or a change, where the reference itself is outside, is not charged); slip, flight, impact, "
     "tilt (Stage 1's); clearance, the larger of (a) for a foot in the air between 25 % and 75 % of the planned "
@@ -657,7 +658,9 @@ class Core:
         t["duty"] = 0.0
         n = min(max(1, int(round(s.stride_s(c) / self.rate / self.dt_env))), HISTORY_STEPS)
         if s.walking(c) and k >= n:
-            lo, hi = sc["duty_band_slow"] if v_cmd < sc["duty_slow_below_m_s"] else sc["duty_band"]
+            # (the band by the gait's target speed as the bar takes it, the speed a rung's name holds: a rung at
+            # 0.30 m/s whose entry computed one ulp less is not "below 0.30 m/s")
+            lo, hi = sc["duty_band_slow"] if s.target_speed(c) < sc["duty_slow_below_m_s"] else sc["duty_band"]
             share = np.mean(self._shares[np.arange(k - n, k) % HISTORY_STEPS], axis=0)
             duty, ref_duty = share[:2], share[2:]
             over = np.where((ref_duty >= lo) & (ref_duty <= hi), np.maximum(0.0, np.maximum(lo - duty, duty - hi)), 0.0)

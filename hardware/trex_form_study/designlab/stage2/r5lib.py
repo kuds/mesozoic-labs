@@ -9,7 +9,16 @@ holds its last frame), because a clock up to 25 % fast passes the end of a plan 
 
 * **Command** (``COMMAND_RULE``, rule E4): piecewise constant on the reference clock, in the references' own units,
   and it changes at a segment's first frame only.  Nothing before a segment's first frame depends on that segment.
-* **Commanded heading**: the integral of the commanded yaw rate over reference time from the track's start.
+* **Commanded heading**: the integral of the commanded yaw rate over reference time from the track's start
+  (``HEADING_COMMAND``).  A task whose definition says so (``TaskDef.heading``: the turn-in-place tasks, by the
+  lead's ruling of 16 Nov 2026) takes the reference's own yaw less its yaw at the track's start instead
+  (``HEADING_REFERENCE``): a start into the turn commands its yaw rate from its first frame while the reference
+  ramps up from rest, so the integral ran 71.6 degrees ahead of the reference through the whole periodic part
+  (Stage 1's arrays of 75-M-H-10) and the heading penalty charged the reference itself.  The command is the same
+  in both; walking turns keep the integral.
+* **Target speed** (``Script.target_speed``): what the duty band reads (rule W3).  A rung's target is the speed its
+  name holds, as the bar takes it (``bar.BarPlanner.speed``): ``v0.3`` is 0.30 m/s whatever float its entry
+  computed.  A gait whose name holds no speed (the nominal walk, a turn in place, a Stage 1 name) has its entry's.
 * **Phase** in [0, 1), 0 at a left lift-off: a periodic file's own ``phase`` where it holds one (a K-stride
   window), else the local time over the entry's stride period; a move's own ``phase`` over its frame times; 0 in a
   hold.  ``stride_s``, ``walking``, ``steady``, ``support`` and ``mid_swing`` come from the same frames (the
@@ -73,6 +82,9 @@ START_STOP_WINDOWS = 2
 #: The turn in place of design D5 (names proposed there; a set that names them otherwise has no such task).
 INPLACE_RATE = 0.5
 INPLACE_STRIDES = 3
+#: What a script's commanded heading is (``TaskDef.heading``; ``COMMAND_RULE``): the integral of the commanded yaw
+#: rate, or the reference's own yaw.
+HEADING_COMMAND, HEADING_REFERENCE = "command", "reference"
 #: Rule T3: a mid-task start lands between this long after the first non-hold frame and this long (simulated)
 #: before the plan's end.
 MID_AFTER_S = 0.2
@@ -88,8 +100,11 @@ COMMAND_RULE = (
     "gait they lead to (gaits.b; a stand is (0, 0)) from the segment's first frame; a finite turn of angle A at "
     "rate w0 from walk a keeps a's speed and commands sign x |w0| for A / |w0| seconds of reference time from "
     "its first frame, then 0.  The commanded heading is the integral of w over reference time from the track's "
-    "start.  Nothing before a segment's first frame depends on that segment; past the plan's end the last "
-    "segment's command continues")
+    "start; in a task whose definition names the heading \"reference\" (the turn-in-place tasks inplace_left and "
+    "inplace_right, and no other) it is instead the reference's own yaw less its yaw at the track's start, at every "
+    "reference time, with the command unchanged (a start into the turn commands its yaw rate from its first frame "
+    "while the reference ramps up from rest; a walking turn keeps the integral).  Nothing before a segment's first "
+    "frame depends on that segment; past the plan's end the last segment's command continues")
 
 
 class Absent(Exception):
@@ -100,14 +115,16 @@ class Absent(Exception):
 class TaskDef:
     """One row of the task table (rule T1): its name, the plan it builds (round A's track items; ``END`` in a
     periodic item's count stands for "to the end"), its relative weight, the monitor conditions whose failure
-    doubles its weight (rule M4), and the simulated seconds played from a stance start (None: the plan's own
-    length, at most ``MAX_SECONDS``)."""
+    doubles its weight (rule M4), the simulated seconds played from a stance start (None: the plan's own length,
+    at most ``MAX_SECONDS``), and what its commanded heading is (``HEADING_COMMAND``: the integral of the commanded
+    yaw rate, rule E4; ``HEADING_REFERENCE``: the reference's own yaw, the turn-in-place tasks)."""
 
     name: str
     plan: tuple
     weight: float
     monitor: tuple = ()
     seconds: float | None = None
+    heading: str = HEADING_COMMAND
 
 
 def _lead(walk: str) -> list:
@@ -162,7 +179,7 @@ def _tasks() -> tuple:
                                                             ("ref", setio.NOMINAL, START_STOP_WINDOWS)]), 1.0,
                        monitor=("stop/two_step",)))
     for d in setio.DIRECTIONS:
-        out.append(TaskDef(f"inplace_{d}", _inplace_plan(d), 0.5))
+        out.append(TaskDef(f"inplace_{d}", _inplace_plan(d), 0.5, heading=HEADING_REFERENCE))
     return tuple(out)
 
 
@@ -264,7 +281,7 @@ class _Seg:
 
     __slots__ = ("kind", "name", "t0", "duration", "step", "n", "t", "nf", "v", "w", "pulse_s", "turn", "heading0",
                  "stride_s", "period", "swing_s", "phase", "swing", "u", "anchor", "stand", "foot_rel", "head_rp",
-                 "q", "qd", "walk", "along", "swing_len")
+                 "q", "qd", "walk", "along", "swing_len", "v_target")
 
 
 def _unwrapped(ph: np.ndarray) -> np.ndarray:
@@ -291,12 +308,18 @@ def _swing_lengths(swing: np.ndarray, step: float) -> np.ndarray | None:
 
 class Script:
     """One plan on one plant: the track and its side tables (module docstring).  ``seconds`` is the simulated
-    length played from a stance start when it is shorter than the plan (the stand task); it bounds ``mid_spans``."""
+    length played from a stance start when it is shorter than the plan (the stand task); it bounds ``mid_spans``.
+    ``heading`` is the task's (``TaskDef.heading``): what ``heading(t)`` returns."""
 
-    def __init__(self, lib: "Library", plan, seconds: float | None = None, track: control.Track | None = None):
+    def __init__(self, lib: "Library", plan, seconds: float | None = None, track: control.Track | None = None,
+                 heading: str = HEADING_COMMAND):
+        if heading not in (HEADING_COMMAND, HEADING_REFERENCE):
+            raise ValueError(f"heading {heading!r}: {HEADING_COMMAND!r} or {HEADING_REFERENCE!r}")
         self.plan = [tuple(x) for x in plan]
         self.rate = float(lib.rate)
         self.seconds = None if seconds is None else float(seconds)
+        self.heading_rule = heading
+        self._follow = heading == HEADING_REFERENCE
         p = lib.p
         if track is None:
             track = setio.build_track(p, lib.dir, self.plan, lib.omega, lib.tr_doc)
@@ -373,8 +396,18 @@ class Script:
         return s.v, s.w
 
     def heading(self, t_ref: float) -> float:
+        """The commanded heading about the track's start (rad, unwrapped): the integral of the commanded yaw rate
+        over reference time, or, in a task whose definition says so, the reference's own yaw (``COMMAND_RULE``)."""
+        if self._follow:
+            return self.ref_yaw(t_ref)
         s, tl, _, _ = self._loc(t_ref)
         return s.heading0 + s.w * (min(tl, s.pulse_s) if s.turn else tl)
+
+    def target_speed(self, t_ref: float) -> float:
+        """The target speed (m/s, the references' own units) of the gait whose speed is commanded at ``t_ref``,
+        as the bar takes a walk's (``bar.BarPlanner.speed``): the speed its name holds, else its entry's own.  The
+        duty band reads it (rule W3); the command itself stays the entry's ``speed_m_s``."""
+        return self._loc(t_ref)[0].v_target
 
     def ref_yaw(self, t_ref: float) -> float:
         """The reference's own (unwrapped) yaw less its yaw at the track's start (``Track.info``'s)."""
@@ -509,7 +542,7 @@ class Script:
 
     def describe(self) -> dict:
         return dict(plan=[list(x) for x in self.plan], t_end_s=self.t_end, seconds=self.seconds,
-                    events=s2io.plain(self.events), finite_turn=self.has_turn,
+                    events=s2io.plain(self.events), finite_turn=self.has_turn, heading=self.heading_rule,
                     required_margin_rad=[float(x) for x in self.required_margin])
 
 
@@ -527,6 +560,16 @@ def _num(x, default: float = 0.0) -> float:
     except (TypeError, ValueError):
         return default
     return x if math.isfinite(x) else default
+
+
+def target_speed_of(name, own: float) -> float:
+    """A gait's target speed as the bar takes a walk's (``bar.BarPlanner.speed``): the speed its name holds (a
+    rung), else ``own`` (its entry's: the nominal walk, a stand, a turn in place, a Stage 1 name)."""
+    try:
+        v = setio.parse_name(name).get("speed_m_s") if isinstance(name, str) else None
+    except ValueError:
+        v = None
+    return float(own) if v is None else float(v)
 
 
 class Library:
@@ -566,7 +609,7 @@ class Library:
                 templates[td.name] = td
             except Absent as why:
                 self.tasks[td.name] = dict(plan=None, weight=float(td.weight), available=False, reason=str(why),
-                                           seconds=None, monitor=list(td.monitor))
+                                           seconds=None, monitor=list(td.monitor), heading=td.heading)
         need = [f"refs/{setio.NOMINAL}.npz"]
         for td in templates.values():
             for f in plan_files(td.plan):
@@ -583,7 +626,7 @@ class Library:
             t_end = sum(d for _, d in self.segment_times(plan))
             seconds = float(td.seconds) if td.seconds is not None else min(t_end / self.rate, MAX_SECONDS)
             self.tasks[td.name] = dict(plan=[list(x) for x in plan], weight=float(td.weight), available=True,
-                                       reason=None, seconds=seconds, monitor=list(td.monitor))
+                                       reason=None, seconds=seconds, monitor=list(td.monitor), heading=td.heading)
             self._defs[td.name] = td
         self.tasks = {td.name: self.tasks[td.name] for td in table}
 
@@ -719,13 +762,15 @@ class Library:
             raise Absent(f"task {task!r}: {t['reason']}")
         key = ("task", task)
         if key not in self._scripts:
-            self._scripts[key] = Script(self, [tuple(x) for x in t["plan"]], self._defs[task].seconds)
+            td = self._defs[task]
+            self._scripts[key] = Script(self, [tuple(x) for x in t["plan"]], td.seconds, heading=td.heading)
         return self._scripts[key]
 
     def from_plan(self, plan: list, track: control.Track | None = None) -> Script:
         """The script of any plan over the set (a bar condition's): the same side tables on the same files.
         ``track`` gives a track already built from this plan on this plant (a row's built condition), so that it
-        is not built twice; scripts are kept by plan."""
+        is not built twice; scripts are kept by plan.  Its commanded heading is rule E4's integral, whatever the
+        plan holds: only a task's definition names another (``TaskDef.heading``)."""
         plan = [tuple(x) for x in plan]
         for item in plan:
             try:
@@ -757,6 +802,7 @@ class Library:
             if s.kind == PERIODIC:
                 e = self.refs_doc[item[1]]
                 s.v, s.w = _num(e.get("speed_m_s")), _num(e.get("yaw_rate_rad_s"))
+                s.v_target = target_speed_of(item[1], s.v)
                 s.stride_s = float(e["period_s"])
                 s.swing_s = (1.0 - float(seg.duty)) * s.stride_s
                 s.walk = s.v > 0.0
@@ -779,8 +825,10 @@ class Library:
                     w0 = abs(float(turn["rate_rad_s"]))
                     s.turn, s.v, s.w = True, _num(a.get("speed")), sign * w0
                     s.pulse_s = abs(float(turn["angle_rad"])) / w0
+                    s.v_target = target_speed_of(a.get("name"), s.v)
                 else:
                     s.v, s.w = _num(b.get("speed")), _num(b.get("yaw_rate"))
+                    s.v_target = target_speed_of(b.get("name"), s.v)
                 g = b if _num(b.get("period")) > 0.0 else a
                 s.stride_s = _num(g.get("period"), float(s.period[-1]))
                 s.swing_s = (1.0 - _num(g.get("duty"), 0.6)) * s.stride_s
@@ -795,7 +843,7 @@ class Library:
                 s.foot_rel, s.head_rp = np.concatenate([foot, nxt[0][:1]]), np.concatenate([rp, nxt[1][:1]])
                 s.q, s.qd = obj.q, obj.qd
             else:
-                s.v = s.w = 0.0
+                s.v = s.w = s.v_target = 0.0
                 s.stride_s = float(seg.period)
                 src, k = (i + 1, 0) if i == 0 else (i - 1, -1)  # (the pose ``control.build_track`` holds)
                 foot, rp = self._fk_of(plan[src])
@@ -821,5 +869,6 @@ class Library:
                     inputs=self.inputs)
 
 
-__all__ = ["Absent", "COMMAND_RULE", "END", "Library", "MAX_SECONDS", "S1_TASKS", "STOCK_SET", "Script", "TASKS",
-           "TaskDef", "fk_tables", "foot_rel_of", "head_body", "head_home", "head_rp_of", "plan_files", "s1_root"]
+__all__ = ["Absent", "COMMAND_RULE", "END", "HEADING_COMMAND", "HEADING_REFERENCE", "Library", "MAX_SECONDS",
+           "S1_TASKS", "STOCK_SET", "Script", "TASKS", "TaskDef", "fk_tables", "foot_rel_of", "head_body", "head_home",
+           "head_rp_of", "plan_files", "s1_root", "target_speed_of"]

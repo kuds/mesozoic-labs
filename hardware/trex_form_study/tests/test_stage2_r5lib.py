@@ -48,21 +48,36 @@ T0_MOVES = (("start", "start"), (setio.change_name("nominal", W), "nominal_to_br
 ABSENT_TURN = setio.turn_name("0.35", "left")
 ABSENT_REASON = "no reference within the thigh twist and the leg drives"
 NOTE_V03 = "over the knee drive's Stage 0 limit"
+#: ``make_t0(more=True)`` adds the 0.30 m/s rung (Stage 1's nominal walk under the name ``v0.3``, its entry's speed
+#: one ulp below 0.30) with its change, and the turn in place under design D5's names, from Stage 1's.
+V03_BELOW = float(np.nextafter(0.3, 0.0))
+MORE_REFS = (("v0.3", "nominal"),) + tuple((f"inplace_0.5_{d}", f"in_place_0.50_{d}") for d in ("left", "right"))
+MORE_MOVES = ((setio.change_name("nominal", "v0.3"), "nominal_to_brisk"),) + tuple(
+    (f"{k}_inplace_0.5_{d}", f"{k}_in_place_0.50_{d}") for d in ("left", "right") for k in ("start", "stop"))
 
 
-def make_t0(root: Path, freeze: bool = True) -> Path:
-    """The synthetic set ``T0`` under ``root`` (module docstring)."""
+def make_t0(root: Path, freeze: bool = True, more: bool = False) -> Path:
+    """The synthetic set ``T0`` under ``root`` (module docstring); ``more``: with ``MORE_REFS`` and ``MORE_MOVES``."""
     src = RUN / BODY
     d = setio.set_dir(SET, BODY, root)
     refs1, trs1 = s2io.read_json(src / "refs.json"), s2io.read_json(src / "transitions.json")
     refs, trs, manifest = {}, {}, {}
-    for name, old in T0_REFS:
+    t0_refs, t0_moves = T0_REFS + (MORE_REFS if more else ()), T0_MOVES + (MORE_MOVES if more else ())
+    for name, old in t0_refs:
         e = copy.deepcopy(refs1["references"][old])
         e.update(name=name, file=f"refs/{name}.npz", set=SET, strides=1, window_s=e["period_s"], crouch_frac=0.03)
+        if name == "v0.3":
+            e["speed_m_s"] = V03_BELOW
         refs[name] = e
-    for name, old in T0_MOVES:
+    for name, old in t0_moves:
         e = copy.deepcopy(trs1["transitions"][old])
         e.update(name=name, file=f"transitions/{name}.npz", a1_over=None)
+        if "inplace" in name:  # (no name ``setio`` makes: design D5's)
+            e["move"] = dict(kind=name.split("_")[0], builder="fixture", causal=False, command_phase=None)
+            trs[name] = e
+            continue
+        if name == "nominal_to_v0.3":
+            e["gaits"]["b"].update(name="v0.3", speed=V03_BELOW)
         kind = setio.parse_name(name)["kind"]
         if kind == "stop":
             e["move"] = dict(kind="stop", builder="fixture", causal=True, command_phase=-0.5)
@@ -80,7 +95,7 @@ def make_t0(root: Path, freeze: bool = True) -> Path:
             if not e.get("file"):
                 continue
             (d / sub).mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(src / sub / f"{dict(T0_REFS + T0_MOVES)[name]}.npz", d / e["file"])
+            shutil.copyfile(src / sub / f"{dict(t0_refs + t0_moves)[name]}.npz", d / e["file"])
             manifest[name] = dict(kind=kind, sha256=e["sha256"], entry_sha256=setio.entry_sha256(kind, e))
     s2io.write_json(d / "refs.json", dict(body=BODY, set=SET, schema=1, references=refs))
     s2io.write_json(d / "transitions.json", dict(body=BODY, set=SET, schema=1, transitions=trs))
@@ -148,6 +163,11 @@ def test_task_table_is_rule_t1():
     assert len(r5lib.TASKS) == 19 and r5lib.MAX_SECONDS == 30.0
     stand = next(t for t in r5lib.TASKS if t.name == "stand")
     assert stand.seconds == 10.0 and all(t.seconds is None for t in r5lib.TASKS if t.name != "stand")
+    # the commanded heading is rule E4's integral in every task but the two turns in place (the lead's ruling)
+    assert (r5lib.HEADING_COMMAND, r5lib.HEADING_REFERENCE) == ("command", "reference")
+    assert {t.name: t.heading for t in r5lib.TASKS if t.heading != "command"} == {
+        "inplace_left": "reference", "inplace_right": "reference"}
+    assert all(t.heading == "command" for t in r5lib.S1_TASKS)
     by_condition: dict = {}
     for t in r5lib.TASKS:
         for c in t.monitor:
@@ -334,6 +354,83 @@ def test_a_turns_pulse_integrates_to_its_angle(t0):
         # the event of the causal move sits at its first frame
         ev = [e for e in s.events if e["kind"] == "turn"]
         assert len(ev) == 1 and ev[0]["t_ref"] == a
+
+
+@pytest.fixture(scope="module")
+def t0_more(p, tmp_path_factory):
+    root = tmp_path_factory.mktemp("sets_more")
+    make_t0(root, more=True)
+    return r5lib.Library(p, BODY, SET, RATE, root=root)
+
+
+@needs_run
+def test_in_a_turn_in_place_the_commanded_heading_is_the_references_own_yaw(t0_more):
+    """The lead's ruling of 16 Nov 2026 on rule E4: in ``inplace_left`` and ``inplace_right``, and in no other task,
+    the commanded heading follows the reference's own yaw.  The same plan read by rule E4's integral (a plan given
+    as a plan: ``from_plan``) runs far ahead of its reference through the whole turn; the command is the same."""
+    lib = t0_more
+    have = [n for n, t in lib.tasks.items() if t["available"]]
+    assert have == ["stand", "walk_nominal", "walk_v0.4", "walk_v0.3", "turn_q90_left", "turn_q90_right", "stop",
+                    "start_stop", "inplace_left", "inplace_right"]
+    assert {n: t["heading"] for n, t in lib.tasks.items() if t["heading"] != "command"} == {
+        "inplace_left": "reference", "inplace_right": "reference"}  # (absent tasks carry theirs too)
+    assert lib.describe()["tasks"]["inplace_left"]["heading"] == "reference"
+    assert "inplace_left and inplace_right" in r5lib.COMMAND_RULE
+    for d, sign in (("left", 1.0), ("right", -1.0)):
+        s = lib.script(f"inplace_{d}")
+        e4 = lib.from_plan(s.plan)
+        assert s.heading_rule == s.describe()["heading"] == "reference" and e4.heading_rule == "command"
+        assert e4 is not s and e4.plan == s.plan and not s.has_turn
+        start, turn, stop = _segments(s)
+        ts = np.concatenate([np.linspace(0.0, 1.25 * s.t_end + 2.0, 1201), [turn[0], turn[1] - 1e-9, s.t_end]])
+        for t in ts:
+            t = float(t)
+            assert s.heading(t) == s.ref_yaw(t) == e4.ref_yaw(t) and s.command(t) == e4.command(t)
+        # rule E4, followed to the letter: 0.5 rad/s from the start's first frame, zero from the stop's
+        assert s.command(0.0) == s.command(turn[0]) == (0.0, sign * 0.5) and s.command(stop[0]) == (0.0, 0.0)
+        gap = np.array([e4.ref_yaw(float(t)) - e4.heading(float(t)) for t in np.linspace(turn[0], turn[1], 301)])
+        assert np.all(sign * gap < -math.radians(60.0))  # the integral: over 60 degrees ahead, the whole turn long
+        assert sign * (e4.ref_yaw(turn[0]) - e4.heading(turn[0])) == pytest.approx(-math.radians(71.57), abs=2e-3)
+        assert abs(e4.ref_yaw(s.t_end) - e4.heading(s.t_end)) < 1e-6  # ... and level again at the plan's end only
+        assert e4.heading(s.t_end) == pytest.approx(sign * 0.5 * stop[0], abs=1e-12)  # 0.5 rad/s until the stop
+        assert s.heading(s.t_end) == pytest.approx(sign * 0.5 * stop[0], abs=1e-6)
+    # walking turns keep rule E4 as coded, on the same set
+    s = lib.script("turn_q90_left")
+    i = next(k for k, x in enumerate(s.plan) if x[0] == "transition" and x[1].startswith("turn90"))
+    a, _ = _segments(s)[i]
+    assert s.heading_rule == "command" and s.heading(a + 1.0) == pytest.approx(math.pi / 4, abs=1e-12)
+    with pytest.raises(ValueError, match="heading"):
+        r5lib.Script(lib, s.plan, heading="gyro")
+
+
+@needs_run
+def test_the_duty_bands_target_speed_is_the_speed_a_rungs_name_holds(t0_more):
+    """Rule W3's band switches below a target speed of 0.30 m/s and one rung is 0.30 m/s: the target is the speed
+    the rung's name holds, as the bar takes it, so an entry whose computed speed is one ulp below 0.30 is no slow
+    walk.  The command stays the entry's own speed."""
+    bar = pytest.importorskip("designlab.stage2.bar")
+    lib = t0_more
+    assert V03_BELOW < 0.3 == setio.SPEEDS[0] and lib.refs_doc["v0.3"]["speed_m_s"] == V03_BELOW
+    v_nom = lib.refs_doc["nominal"]["speed_m_s"]
+    s = lib.script("walk_v0.3")  # start, one window of nominal, the change, v0.3 to the end
+    assert [x[1] for x in s.plan] == ["start", "nominal", "nominal_to_v0.3", "v0.3"]
+    want = [(v_nom, v_nom), (v_nom, v_nom), (V03_BELOW, 0.3), (V03_BELOW, 0.3)]  # (the command, the target)
+    for (a, b), (v_cmd, v_target) in zip(_segments(s), want, strict=True):
+        for t in (a, 0.5 * (a + b), b - 1e-9):
+            assert s.command(t) == (v_cmd, 0.0) and s.target_speed(t) == v_target
+    assert s.target_speed(s.t_end + 3.0) == 0.3 and not s.target_speed(s.t_end - 1.0) < 0.30
+    planner = bar.BarPlanner(lib.dir, lib.refs_doc, lib.tr_doc, dict(lib.set_doc, stand_in_walks=True))
+    for name in ("v0.3", "v0.4", "nominal"):  # the bar's own reading of a walk's target
+        assert r5lib.target_speed_of(name, lib.refs_doc[name]["speed_m_s"]) == planner.speed(name)
+    assert planner.speed("v0.3") == 0.3 and planner.speed("nominal") == v_nom
+    # a name that holds no speed leaves the entry's own: a stand, a Stage 1 name, a turn in place, no name
+    for name in ("stand", "brisk", "nominal", "inplace_0.5_left", "start", None):
+        assert r5lib.target_speed_of(name, 0.123) == 0.123
+    stop = lib.script("stop")
+    assert stop.target_speed(stop.t_end - 1.0) == 0.0 and lib.script("inplace_left").target_speed(1.0) == 0.0
+    turn = lib.script("turn_q90_left")  # a finite turn keeps the walk it leaves: gaits.a
+    i = next(k for k, x in enumerate(turn.plan) if x[0] == "transition" and x[1].startswith("turn90"))
+    assert turn.target_speed(_segments(turn)[i][0] + 0.5) == turn.command(_segments(turn)[i][0] + 0.5)[0]
 
 
 @needs_run

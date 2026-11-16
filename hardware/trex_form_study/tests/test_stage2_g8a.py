@@ -210,8 +210,10 @@ def make_t0(root: Path) -> Path:
     s2io.write_json(d / "refs.json", dict(body=BODY, set=SET, schema=1, references=refs))
     s2io.write_json(d / "transitions.json", dict(body=BODY, set=SET, schema=1, transitions=trs))
     freeze = dict(index=0, at="fixture", commit=None, manifest=manifest, manifest_sha256=s2io.sha256_json(manifest))
+    # (Stage 1's brisk walk stands in for the 0.40 m/s rung: the bar refuses that unless the set says so)
     s2io.write_json(d / "set.json", dict(set=SET, body=BODY, role="fixture", crouch_frac=0.03, not_available={},
-                                         rules=dict(fixture="Stage 1's arrays"), freezes=[freeze]))
+                                         stand_in_walks=True, rules=dict(fixture="Stage 1's arrays"),
+                                         freezes=[freeze]))
     return d
 
 
