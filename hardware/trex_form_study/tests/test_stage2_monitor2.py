@@ -19,7 +19,9 @@ indirection to ``lookbar``, is replaced by such a table; no episode is run):
 * a check counted without a record (every episode an error); what a record of a check is; a baseline that holds
   an error is kept beside as a failed attempt and is no baseline;
 * S2-10's record with its earlier checks, its per-term table and M3b's route;
-* the monitor refuses to run on other sources than the trainer's, and on a checkpoint that is not intact;
+* the monitor refuses to run on other sources than the trainer's, and on a checkpoint that is not intact; a
+  refusal (other sources, a checkpoint that is not intact, another run's checkpoint) leaves the CLI with its own
+  exit code 8 and a note of its reason, and any other fault keeps exit code 1;
 * ``monitor2``'s table of rule M4 is the task table's (``r5lib.TASKS``' ``monitor`` fields).
 
 ``clip2`` renders a real clip from a Stage 1 trace in a child process (OSMesa and ffmpeg; skipped without them)
@@ -259,6 +261,71 @@ def test_the_monitor_refuses_other_sources_and_a_checkpoint_that_is_not_intact(m
     # the CLI: exit code 1 and no record
     assert m2.main(["baseline", "--job", str(job), "--body", BODY, "--set", "V6"]) == 1
     assert not (job / "monitor" / "r0l.json").exists()
+
+
+def test_a_monitor_that_refuses_to_run_leaves_with_its_own_exit_code(monkeypatch, tmp_path):
+    """The lead's ruling of 16 Nov 2026 (19:01 UTC): a monitor that refuses to run is no attempt.  The CLI leaves
+    with ``EXIT_REFUSAL`` when its sources are not the trainer's, when the checkpoint is not intact and when the
+    checkpoint is another run's, and writes its reason beside where the record would be; no episode is run.  A
+    fault that is no refusal keeps exit code 1."""
+    from designlab.stage2 import train2
+
+    called = []
+    monkeypatch.setattr(m2, "_episodes", lambda *a, **k: called.append(a) or table())
+    job = _job(tmp_path)
+    own = train2.sources()["sha256"]
+    mon = job / "monitor"
+    note, base_note = mon / "monitor_512.refused.json", mon / "r0l.refused.json"
+    assert m2.EXIT_REFUSAL == 8 and m2.REFUSALS == ("sources", "checkpoint", "other_run")
+    assert m2.refusal_path(mon, 512) == note and m2.refusal_path(mon) == base_note
+    assert "is no attempt" in m2.RULES["refusal"] and "refusal" in m2.RULES["attempts"]
+    assert m2.rules(2_500_000)["texts"]["refusal"] == m2.RULES["refusal"]
+    run = ["run", "--job", str(job), "--steps", "512", "--body", BODY, "--set", "V6"]
+
+    def refused(argv, path, kind, text):
+        path.unlink(missing_ok=True)
+        assert m2.main(argv) == 8
+        said = json.loads(path.read_text())
+        assert (said["schema"], said["kind"], said["rule"]) == ("s2-monitor-refusal-1", kind, m2.RULES["refusal"])
+        assert text in said["reason"] and said["cmd"] == argv[0]
+        assert said["at_steps"] == (512 if argv[0] == "run" else None)
+        assert not called and not (mon / "monitor_512.json").exists() and not (mon / "r0l.json").exists()
+
+    # its sources have moved (a check, and the baseline)
+    refused(run + ["--sources", "0" * 64], note, "sources", "the sources differ")
+    refused(["baseline", "--job", str(job), "--body", BODY, "--set", "V6", "--sources", "0" * 64], base_note,
+            "sources", "the sources differ")
+    # the checkpoint is another run's
+    rec_path = job / "checkpoints" / "checkpoint_512.json"
+    good = rec_path.read_text()
+    for key in ("run_uuid", "settings_sha256"):
+        rec_path.write_text(json.dumps(dict(json.loads(good), **{key: "z" * 32})))
+        refused(run + ["--sources", own], note, "other_run", f"its {key} is not the run's")
+    # the checkpoint is not intact: a record that was cut, no record, a file that is not the one its record names
+    rec_path.write_text(good[: len(good) // 2])
+    refused(run + ["--sources", own], note, "checkpoint", "the checkpoint's record cannot be read")
+    rec_path.unlink()
+    refused(run + ["--sources", own], note, "checkpoint", "no checkpoint record")
+    rec_path.write_text(good)
+    model = job / "checkpoints" / "model_512.zip"
+    kept = model.read_bytes()
+    model.write_bytes(b"x" * 10)
+    refused(run + ["--sources", own], note, "checkpoint", "not the file its record names")
+    model.write_bytes(kept)
+    # the functions raise MonitorRefusal, a MonitorError that names its kind
+    with pytest.raises(m2.MonitorRefusal, match="the sources differ") as info:
+        m2.run(job, 512, BODY, "V6", mon, sources_sha256="0" * 64)
+    assert info.value.kind == "sources" and isinstance(info.value, m2.MonitorError)
+    with pytest.raises(ValueError, match="refusal kind"):
+        m2.MonitorRefusal("crash", "x")
+    # a call that runs takes an earlier refusal's note away and writes its record
+    assert note.is_file() and m2.main(run + ["--sources", own]) == 0
+    assert not note.exists() and len(called) == 1 and (mon / "monitor_512.json").is_file()
+    # a fault that is no refusal keeps exit code 1 and leaves no note: episodes that are not the check's; no run.json
+    monkeypatch.setattr(m2, "_episodes", lambda *a, **k: table()[:-1])
+    assert m2.main(run + ["--sources", own]) == 1 and not note.exists()
+    (job / "run.json").unlink()
+    assert m2.main(run + ["--sources", own]) == 1 and not note.exists()
 
 
 def test_a_baseline_that_holds_an_error_is_no_baseline(monkeypatch, tmp_path):
