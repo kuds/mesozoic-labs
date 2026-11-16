@@ -85,6 +85,10 @@ def test_module_assigns_mujoco_gl_and_names_the_rules_constants():
     assert "import bar" not in src.split("def conditions")[0]  # the stock form runs without the bar
     assert (g8a.SEEDS, g8a.DELAYS, g8a.SHORT_CONDITION) == ((3042, 3043), (0, 5), "walk/v0.4")
     assert g8a.EXTRA_CONDITIONS == ("walk/v0.4_mu0.54", "walk/nominal") and g8a.SUBSTEPS == 10
+    # rule X1 as the lead left it on 16 Nov 2026: said in the docstring, with both dates; no set is refused in code
+    doc = " ".join(g8a.__doc__.split())
+    assert "finished on 15 Nov 2026" in doc and "on 16 Nov 2026 the lead lifted rule X1 for the frozen 75 cm sets" in doc
+    assert "Nothing in this module refuses a set" in doc and "runs on no set of the 75 cm round" not in doc
 
 
 # ------------------------------------------------------------------------------------------------

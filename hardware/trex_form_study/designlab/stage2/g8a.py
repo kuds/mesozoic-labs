@@ -18,8 +18,15 @@ env steps.  Digests are ``env._state_digest`` (sha256 of ``qpos``, ``qvel``, ``c
 physics step: the row's through a wrapper lent to the built condition's ``recorder`` for the one episode (an
 instance attribute, removed in a ``finally``), the env's through its step hook.
 
-No episode here is a record; a gate's record is written by ``gates2``.  Until the lead says otherwise ``bar_form``
-runs on no set of the 75 cm round (rule X1); ``stock`` reads Stage 1's run directory only.
+No episode here is a record; a gate's record is written by ``gates2``.  ``stock`` reads Stage 1's run directory
+only.
+
+**Rule X1 and ``bar_form``.**  The env side of ``bar_form`` is an R2-mode episode, which rule X1 kept off the 75 cm
+round's sets (V0, F25F9, F25F9cl) until task 3's first unit of that round had run.  The 75 cm round's panels
+finished on 15 Nov 2026 (task 3's and task 4's units have all run), and on 16 Nov 2026 the lead lifted rule X1 for
+the frozen 75 cm sets: ``bar_form`` and ``short`` may run on them.  Nothing in this module refuses a set.  On a look
+set rule X1's own limits stand and are the caller's to keep: no closed-loop episode there before G9-ref has passed,
+and every episode that is no record is listed in ``stage2/tb/dev_episodes.json``.
 """
 
 from __future__ import annotations
@@ -213,8 +220,10 @@ def conditions(set_docs: dict) -> list[str]:
 def bar_form(body: str, set_name: str, conditions, seeds, delays, cut_s: float | None = None, root=setio.ROOT) -> dict:
     """The gate's form: for every condition (the bar's keys), panel seed and delay (physics steps), the env against
     the bar's row ``R0@<2k>ms`` on the frozen set.  A condition whose reference the set does not hold is listed
-    under ``not_run`` with the set's reason.  ``cut_s`` cuts every condition (a smoke check).  Returns the gate's
-    document (``identical`` of ``of`` episodes; rule Z1 passes when they are equal and nothing differs)."""
+    under ``not_run`` with the set's reason.  ``cut_s`` cuts every condition (a smoke check).  ``root`` is where the
+    sets are read from (default: the study directory's ``stage2/sets``); nothing is written.  Returns the gate's
+    document (``identical`` of ``of`` episodes; rule Z1 passes when they are equal and nothing differs).  Which
+    sets it may run on: the module docstring (rule X1, lifted for the frozen 75 cm sets on 16 Nov 2026)."""
     from . import bar
 
     d = setio.set_dir(set_name, body, root)
