@@ -708,7 +708,8 @@ def verify(manifest, root, parts_dir=None) -> dict:
 # ------------------------------------------------------------------------------------------------
 def _dest(root_real: str, rel: str) -> Path:
     """Where ``rel`` goes under the resolved root; ``BundleError`` when its directory resolves outside the root (a
-    symbolic link on the way) or a directory stands at the file's place."""
+    symbolic link on the way), a directory stands at the file's place or something that is no directory stands
+    where one of its directories must be."""
     dest = Path(root_real) / rel
     parent = os.path.realpath(dest.parent)
     if os.path.commonpath([root_real, parent]) != root_real:
@@ -716,6 +717,11 @@ def _dest(root_real: str, rel: str) -> Path:
                           "link on the way): it would leave the root")
     if dest.is_dir() and not dest.is_symlink():
         raise BundleError(f"{rel}: a directory stands at {dest}")
+    above = dest.parent
+    while not os.path.lexists(above) and above != above.parent:
+        above = above.parent
+    if not above.is_dir():
+        raise BundleError(f"{rel}: {above} is in its way and is no directory")
     return dest
 
 
@@ -729,7 +735,7 @@ def unpack(manifest, parts_dir, root, *, parts=None) -> dict:
     problem (``manifest_problems``), a part that is missing or whose size or sha256 differs, and whatever
     ``scan_part`` refuses in a part (a member that is not one of the part's files in ``content.files``, a link or a
     directory, an absolute path or one with ``..``, a member with other bytes, a missing file); also a file whose
-    directory under ``root`` resolves outside it.  Then each file is written beside its place as ``<name>.tmp``,
+    directory under ``root`` resolves outside it or cannot be made.  Then each file is written beside its place as ``<name>.tmp``,
     flushed, compared once more with the manifest and moved into place.  A regular file already there with the
     manifest's sha256 is left untouched, so a second call writes nothing.
 
@@ -799,6 +805,8 @@ def unpack(manifest, parts_dir, root, *, parts=None) -> dict:
                     (replaced if there else written).append(rel)
         except tarfile.TarError as exc:
             raise BundleError(f"{name}: changed while it was unpacked ({exc})") from None
+        except OSError as exc:  # a full disk, a place that cannot be written, another unpack at work here
+            raise BundleError(f"{name}: a file could not be written under {root_real} ({exc})") from None
     return dict(ok=True, bundle_id=content["bundle_id"], content_sha256=s2io.sha256_json(content), root=root_real,
                 parts=names, files=len(dests), written=sorted(written), replaced=sorted(replaced), left=sorted(left))
 

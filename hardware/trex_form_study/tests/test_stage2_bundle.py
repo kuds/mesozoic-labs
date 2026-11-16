@@ -836,6 +836,12 @@ def test_unpack_refuses_a_place_that_resolves_outside_the_root(built, tmp_path):
     with pytest.raises(bundle.BundleError, match=f"{FIRST}: a directory stands at"):
         bundle.unpack(doc, out / "parts", root)
     assert _files_under(root) == []
+    # a file where a directory belongs
+    shutil.rmtree(root / "stage2")
+    (root / "stage2").write_text("in the way")
+    with pytest.raises(bundle.BundleError, match=f"{FIRST}: .*stage2 is in its way and is no directory"):
+        bundle.unpack(doc, out / "parts", root)
+    assert _files_under(root) == ["stage2"]
 
 
 def test_path_problem():
