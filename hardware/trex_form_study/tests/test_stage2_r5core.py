@@ -122,6 +122,29 @@ def test_reward_weights_and_scales_equal_the_rules_table():
         assert word in r5core.REWARD_RULE
 
 
+def test_the_reward_rule_states_the_readings_as_coded():
+    """The lead's ruling of 16 Nov 2026: the readings of duty, progress and clearance stand as coded and the rule
+    text follows them.  The rule string an env description and every record carry states each reading, and holds
+    no formula of the wording it replaced (the tests of the next sections pin what the code computes)."""
+    rule = " ".join(r5core.REWARD_RULE.split())
+    for said in (
+            "a foot is read only where the reference's own support share for it over the same physics steps, each "
+            "at the clock, lies inside the band [lo, hi]",
+            "min(1, max(0, (v_ref_bar - v_bar) / (rate x v_cmd)) / 0.10)",
+            "the same mean over the same env steps of the reference's own sample",
+            "restarted at the segment's first frame",
+            "T the planned length, in reference time, of the reference's swing in progress at c",
+            "which the simulator computes at that physics step's start, 2 ms before the env step's end",
+            "joint angles are those at the env step's end",
+            "in a turn-in-place task the reference's own yaw",
+            "below 0.30 m/s, else 0.55-0.65"):
+        assert said in rule, said
+    for gone in ("1 - v_bar", "Stage 1's:", "(Stage 1's)", "the planned swing time"):
+        assert gone not in rule, gone
+    assert len(r5core.READINGS) == 4 and [x.split(":")[0] for x in r5core.READINGS] == [
+        "duty", "progress", "clearance (a)", "positions and foot loads"]
+
+
 # ------------------------------------------------------------------------------------------------
 # The head script (rules E5, J4)
 # ------------------------------------------------------------------------------------------------
@@ -425,6 +448,150 @@ def test_a_playback_scores_imitation_one_and_every_penalty_zero(p, s1, task):
     assert rng["duty"] == (0.0, 0.0) and rng["progress"][1] < 1e-4
     stats = core.clock_stats()
     assert stats["mean"] == stats["min"] == 1.0 and stats["reference_s"] == pytest.approx(pb.c)
+
+
+# ------------------------------------------------------------------------------------------------
+# The readings the lead ruled on (16 Nov 2026): each scores the reference's playback 0, and each differs from the
+# wording it replaced, which is computed here beside it
+# ------------------------------------------------------------------------------------------------
+def _band(target_speed: float) -> tuple[float, float]:
+    return (0.55, 0.72) if target_speed < 0.30 else (0.55, 0.65)  # rule W3
+
+
+@needs_run
+@pytest.mark.parametrize("task", ["walk", "brisk"])
+def test_duty_reads_a_foot_only_where_the_references_own_share_is_inside_the_band(p, core, s1, task):
+    """On the reference's own playback (Stage 1's start, walks, changes and stop) the duty term is 0 at every env
+    step.  Without the condition on the reference's own share (each foot's share over the last stride outside
+    rule W3's band, over 0.05, while the reference walks, and no more) the same contacts are charged in the start
+    and in the stop, where the reference's own share is outside the band.  The term equals the reading, computed
+    here from the playback's loads and the reference's support flags alone."""
+    pb = playback(p, core, s1, task)
+    s, weight = pb.script, pb.weight
+    down, ref, orig = [], [], pb.set
+
+    def recording():
+        orig()
+        down.append(p.d.sensordata[p._load_adr] > 0.02 * weight)
+        ref.append(s.support(pb.c))
+
+    pb.set = recording
+    shares, ref_shares, coded, unconditional, kinds = [], [], [], [], []
+    for _ in range(int(round((s.t_end / RATE - 0.02) / 0.02))):
+        down.clear()
+        ref.clear()
+        t = pb.step()
+        shares.append(np.mean(down, axis=0))
+        ref_shares.append(np.mean(ref, axis=0))
+        n = max(1, int(round(s.stride_s(pb.c) / RATE / 0.02)))
+        reading = without = 0.0
+        if s.walking(pb.c) and len(shares) >= n:
+            lo, hi = _band(s.target_speed(pb.c))
+            d, d_ref = np.mean(shares[-n:], axis=0), np.mean(ref_shares[-n:], axis=0)
+            over = np.maximum(0.0, np.maximum(lo - d, d - hi))
+            without = min(1.0, float(over.sum()) / 0.05)
+            reading = min(1.0, float(over[(d_ref >= lo) & (d_ref <= hi)].sum()) / 0.05)
+        assert t["duty"] == pytest.approx(reading, abs=1e-12)
+        coded.append(t["duty"])
+        unconditional.append(without)
+        kinds.append(s.kind(pb.c))
+    assert max(coded) == 0.0  # rule W1: the reference scores zero
+    charged = [k for k, x in zip(kinds, unconditional, strict=True) if x > 0.0]
+    assert len(charged) > 60 and set(charged) == {"finite"} and max(unconditional) == 1.0
+    assert not any(x > 0.0 for k, x in zip(kinds, unconditional, strict=True) if k == "periodic")
+
+
+@needs_run
+def test_progress_is_the_shortfall_against_the_references_own_mean_speed(p, core, s1):
+    """The CoM of a walking reference speeds up and slows down inside every stride.  Against the constant ``rate x
+    v_cmd`` the bias-corrected mean of the playback's own speed falls short by up to a quarter of the term's scale
+    and more; against the same mean of the reference's own speed it does not.  With the clock held 5 % slow the
+    term is the reading's formula, computed here from the played CoM and the reference's stride table alone."""
+    s = s1.script("walk")
+    seg = s.track.segments[1]
+    v_cmd, tau = s.command(seg.t0 + 0.1)[0], seg.period / RATE
+    a = 1.0 - math.exp(-0.02 / tau)
+    for factor in (1.0, 0.95):
+        pb = playback(p, core, s1, "walk", seg.t0)
+        pb.factor = factor
+        com0, c0 = p.d.subtree_com[p.trunk][:2].copy(), pb.c
+        heading = np.array([math.cos(core.yaw_home), math.sin(core.yaw_home)])  # a straight walk: the home heading
+        v_bar = v_ref_bar = elapsed = 0.0
+        coded, constant, reading = [], [], []
+        while pb.c < seg.t0 + seg.duration - 0.05:
+            t = pb.step()
+            com = p.d.subtree_com[p.trunk][:2].copy()
+            v_bar += a * (float((com - com0) @ heading) / 0.02 - v_bar)
+            v_ref_bar += a * (RATE * s.walk_progress(c0, pb.c) / (pb.c - c0) - v_ref_bar)
+            com0, c0, elapsed = com, pb.c, elapsed + 0.02
+            if pb.c - seg.t0 >= seg.period:  # one stride after the segment's first frame
+                grown = 1.0 - math.exp(-elapsed / tau)
+                coded.append(t["progress"])
+                constant.append(min(1.0, max(0.0, 1.0 - v_bar / grown / (RATE * v_cmd)) / 0.10))
+                reading.append(min(1.0, max(0.0, (v_ref_bar - v_bar) / grown / (RATE * v_cmd)) / 0.10))
+            else:
+                assert t["progress"] == 0.0
+        assert len(coded) > 200
+        np.testing.assert_allclose(coded, reading, rtol=0, atol=1e-9)
+        if factor == 1.0:
+            assert max(coded) < 1e-4 and max(constant) > 0.25  # rule W1 holds for the reading only
+        else:
+            assert 0.42 < min(coded) and max(coded) < 0.58  # 5 % short of the reference: half the term
+
+
+def _gait_swing_s(lib, script, c: float) -> float:
+    """One swing time per gait: (1 - duty) x the stride period of the gait of the segment in force at ``c`` (a
+    move: the gait it leads to, else the one it leaves), from the set's records."""
+    item = script.plan[script.segment_index(c)]
+    if item[0] == "ref":
+        e = lib.refs_doc[item[1]]
+        return (1.0 - float(script.track.segments[script.segment_index(c)].duty)) * float(e["period_s"])
+    if item[0] == "transition":
+        g = lib.tr_doc[item[1]]["gaits"]
+        g = g["b"] if math.isfinite(float(g["b"]["period"])) and float(g["b"]["period"]) > 0.0 else g["a"]
+        return (1.0 - float(g["duty"])) * float(g["period"])
+    return 0.0
+
+
+@needs_run
+def test_clearance_a_times_a_swing_by_the_references_swing_in_progress(p, core, s1):
+    """Inside a change between two walks every swing has a length of its own.  On the reference's playback
+    (Stage 1's brisk task: both walks and both changes) clearance is 0 at every env step.  With one swing time per
+    gait the same lift-offs put a foot "between 25 % and 75 % of its swing" while the reference has it near the
+    floor, and the reference is charged inside the two changes."""
+    pb = playback(p, core, s1, "brisk")
+    s, weight, need = pb.script, pb.weight, 0.04 * core.H
+    tables = env.foot_tables(p.m, p.feet)
+    lift, was, orig = [0.0, 0.0], [True, True], pb.set
+    names = sorted({seg.name for seg in s.track.segments if seg.kind == "finite"})
+    assert names == ["brisk_to_nominal", "nominal_to_brisk", "start", "stop"]
+
+    def recording():  # each foot's own lift-off, on the reference clock
+        orig()
+        for f in (0, 1):
+            now = bool(p.d.sensordata[p._load_adr[f]] > 0.02 * weight)
+            if was[f] and not now:
+                lift[f] = pb.c
+            was[f] = now
+
+    pb.set = recording
+    coded, per_gait, where = [], [], []
+    for _ in range(int(round((s.t_end / RATE - 0.02) / 0.02))):
+        t = pb.step()
+        c = pb.c
+        low = metrics.foot_lowest(p.m, p.d, *tables) - p.z_floor
+        charge = {}
+        for label, swing in (("progress", s.swing_s(c)), ("gait", _gait_swing_s(s1, s, c))):
+            charge[label] = max([min(1.0, max(0.0, need - float(low[f])) / need) for f in (0, 1)
+                                 if not was[f] and swing > 0.0 and 0.25 <= (c - lift[f]) / swing <= 0.75] or [0.0])
+        assert t["clearance"] == pytest.approx(charge["progress"], abs=1e-12)
+        coded.append(t["clearance"])
+        per_gait.append(charge["gait"])
+        where.append(s.track.segments[s.segment_index(c)].name)
+    assert max(coded) == 0.0  # rule W1: the reference scores zero
+    charged = sorted({n for n, x in zip(where, per_gait, strict=True) if x > 0.0})
+    assert charged == ["brisk_to_nominal", "nominal_to_brisk"] and max(per_gait) > 0.5
+    assert sum(1 for x in per_gait if x > 0.0) >= 5
 
 
 @needs_run

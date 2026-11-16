@@ -15,6 +15,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import mujoco
 import numpy as np
 import pytest
 
@@ -129,6 +130,42 @@ def test_any_offset_breaks_the_digest(e0):
         assert len(moved["digests"]) == 10 and moved["digests"] != zero["digests"]
         assert moved["digests"][-1] != zero["digests"][-1]
         assert (e0.tk.residual is None) == (entry == 14) and (e0.tk.rate_factor == 1.0) == (entry != 14)
+
+
+@needs_run
+def test_the_reward_reads_positions_as_of_the_last_physics_steps_start(e0):
+    """``r5core.REWARD_RULE``: joint angles are those at the env step's end; body positions and orientations are
+    the plant's own after the env step's last physics step, which MuJoCo computes at that step's start (the plant's
+    data is only read).  After 15 env steps of noise actions the foot term is the one of the pose 2 ms before the
+    env step's end, not of the pose at its end; the joint term is the one of the angles at its end."""
+    p, core = e0.p, e0.core
+    before: list = []
+    e0.reset(seed=5, options=dict(task="walk", start=8.3, seeds=dict(start=1, noise=2)))
+    e0._step_hook = lambda pp: before.append(pp.d.qpos.copy())  # (after every physics step)
+    try:
+        for a in noise(15, 15, 0.1, 1):
+            before.clear()
+            _, _, term, _, info = e0.step(a)
+            assert not term
+    finally:
+        e0._step_hook = None
+    s, c, terms = e0.script, e0.tk.tau_ref, info["reward_terms"]
+    kd = mujoco.MjData(p.m)
+
+    def foot_term(qpos) -> float:
+        kd.qpos[:] = qpos
+        mujoco.mj_kinematics(p.m, kd)
+        d = r5lib.foot_rel_of(kd.xpos, kd.xmat, p.trunk, p.feet) - s.foot_rel(c)
+        return math.exp(-float(np.mean(np.sum(d * d, axis=1))) / (0.10 * core.H) ** 2)
+
+    assert len(before) == 10 and np.array_equal(before[-1], p.d.qpos)
+    start_of_last, at_end = foot_term(before[-2]), foot_term(p.d.qpos)
+    assert terms["foot"] == pytest.approx(start_of_last, abs=1e-9) and 0.8 < terms["foot"] < 0.95
+    assert abs(start_of_last - at_end) > 1e-3 and abs(terms["foot"] - at_end) > 1e-3
+    q_ref = s.track.joint(c)[:14]
+    joint = lambda q: math.exp(-float(np.mean(np.square((q[p.qadr] - q_ref) / 0.1))))  # noqa: E731
+    assert terms["joint"] == pytest.approx(joint(p.d.qpos), abs=1e-12)
+    assert abs(joint(before[-2]) - terms["joint"]) > 1e-3
 
 
 # ------------------------------------------------------------------------------------------------
