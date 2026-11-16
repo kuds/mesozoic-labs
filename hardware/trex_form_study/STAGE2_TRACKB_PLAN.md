@@ -36,16 +36,22 @@ section L (points 4, 5 and 6) was fixed after the look work package's first kine
 heading describes, and is labelled so. On 16 Nov 2026 the lead settled ten conflicts between rules that the writing-in
 of the second list had left (the third list), again before any Track B run, fit or training run and before any look set
 was frozen; the 75 cm round's panels and their add-on had run by then. Each of those wordings stands in its rule, marked
-"[settled 16 Nov 2026, before any Track B run]", and the first of the two amendments that close the last section lists
+"[settled 16 Nov 2026, before any Track B run]", and the first of the three amendments that close the last section lists
 the ten. Later on 16 Nov 2026 the lead ruled on fourteen points that the review of that writing-in had handed up (the
 fourth list), and the reward's and the training env's wording was brought to what the env's code does, under ruling 13
 of the third list. Both were written in before any Track B run, fit or training run and with no look set frozen; by then
 the env's builders had played references kinematically and stepped the env on Stage 1's arrays and on the frozen 75 cm
 set `V0`, none of it a record ("What had been run"). Those wordings carry the same mark, and the second amendment lists
-them. Paths are relative to `hardware/trex_form_study/`. A rule changed after a result is labelled so. Check: the commit
-that adds this file, the commit that adds the settled wording and the last of the commits that add the wording settled
-on 16 Nov 2026 are ancestors of the commit named in every Track B record (`sessions[].commit`, or `commit` in a gate's,
-a probe's or a fit's record) and in every look set's `freezes[].commit` that a Track B record uses.
+them. Later still on 16 Nov 2026 the lead ruled on six further points (the fifth list): four that the review of the
+fourth list's writing-in had handed up, one from the review of the look reading's code and one from the review of the
+trainer's. They were written in before any Track B run, fit or training run on a Stage 2 set and with no look set
+frozen; by then the builders and reviewers of the look reading and of the trainer had run their tests, with closed-loop
+episodes and tiny training runs on the view `S1` alone, none of it a record ("What had been run"). Those wordings carry
+the same mark, and the third amendment lists them. Paths are relative to `hardware/trex_form_study/`. A rule changed
+after a result is labelled so. Check: the commit that adds this file, the commit that adds the settled wording and the
+last of the commits that add the wording settled on 16 Nov 2026 are ancestors of the commit named in every Track B
+record (`sessions[].commit`, or `commit` in a gate's, a probe's or a fit's record) and in every look set's
+`freezes[].commit` that a Track B record uses.
 
 ## What had been run when these rules were fixed
 
@@ -123,6 +129,23 @@ a probe's or a fit's record) and in every look set's `freezes[].commit` that a T
   training run, dry run or test. The working branch (at `355e91a`) then held no look set, and the three look sets that
   branch `wt/wp-l` holds in its commit `c9b8819` had `freezes` empty; that package's worktree was being changed then,
   and its files were not read.
+- When the fifth list was settled, later on 16 Nov 2026 (`stage2/design/TRACKB_RULINGS5_16NOV.md`: rulings 1 to 4 and
+  the confirmations at 16:28 UTC, ruling 5 at 18:21 UTC, ruling 6 at 19:01 UTC): no Track B run, fit or training run had
+  been made and no look set was frozen, as that list states. Rulings 5 and 6 came from the reviews of two built
+  packages, the look reading and the trainer. What those packages' builders, reviewers and fixers had run by then is in
+  their reports (`stage2/design/checkpoint/reviews/roundC__{build,review,fix}_CK.md` and
+  `roundC__{build,review,fix}_CT.md`): none of it is a record, and none is a closed-loop episode or a training run on a
+  Stage 2 set. For the look reading: its tests; synthetic series; kinematic playbacks of the look ladder's rungs, of
+  items of the three frozen 75 cm sets and, read only, of the look work package's unfrozen builds; and closed-loop
+  episodes on the view `S1` alone (Stage 1's `walk/brisk` of `75-M-H-10`, seed 3042, under row `R0` and, once, under row
+  `R2/42`). The probe behind ruling 5 is that review's, on synthetic series: a tail of 1e-4 rad noise against a 0.12 rad
+  reference passed the tail term in 40 of 200 draws. For the trainer: its tests on a stub env; kills and resumes at
+  random moments on the stub; and tiny runs of 4,096 steps of R5 and of R6 on the view `S1`, also killed and resumed,
+  with the monitor's stand-in episodes on that view. Those tiny runs are training runs of the tooling on Stage 1's stock
+  references, the view on which X1 has the build's tests and acceptances run. When the wording was written in (from
+  19:04 UTC), the working branch (at `ffecc2c`) held no look set, and its `stage2/tb/` directory held one ignore file
+  and no record; branch `wt/wp-l` (at `de96fc0`) held no look set's `set.json` in its commit, and that package's
+  worktree was not read. The writing-in was made with no episode, fit, training run, dry run or test.
 - Scratch experiments of 15 Nov on Stage 1's own run directory (`stage1/runs/2026-11-08`: stock references, no Stage 2
   set), by the architect and by the three reviewers of the design, on a stub env (Stage 1's env with the open-loop base
   in place of the tracker; Stage 1's observation and reward), one to six episodes per setting. They are scratch: none is
@@ -243,14 +266,20 @@ arrays when the design was written and are no record.
   for the two legs coming within 3 mm of each other, and a training episode ends when they overlap at two readings in a
   row.
 - **Settled on 16 Nov 2026.** Writing those answers in left ten places where two rules disagreed. The lead settled them
-  on 16 Nov 2026, again before any Track B run (the first of the two amendments that close the last section lists them),
-  and this brief was changed where an answer touched it: the two exceptions to "not available" under the look choices,
-  and the caps under "Compute". Later that day the lead settled fourteen smaller points that the check of that
+  on 16 Nov 2026, again before any Track B run (the first of the three amendments that close the last section lists
+  them), and this brief was changed where an answer touched it: the two exceptions to "not available" under the look
+  choices, and the caps under "Compute". Later that day the lead settled fourteen smaller points that the check of that
   writing-in had left, and the wording of the training reward and of the training setup was brought to what the code
   does; both before any Track B run (the second amendment lists them). For you to know from these: no cap under
   "Compute" has a number yet; if a body's start still fails, the lead decides on that body's other look sets; the head
   script's gaze now stays within 0.45 rad and its jaw opens to at most 0.45 rad, so that the head keeps a margin from
-  its joint limits; and in a turn in place the heading the controller is asked to hold is the reference's own.
+  its joint limits; and in a turn in place the heading the controller is asked to hold is the reference's own. Later
+  still that day the lead settled six more points: four that the check of that second writing-in had left, and two
+  raised by the checks of the code that reads the look and of the training program; all before any Track B run (the
+  third amendment lists them). For you to know from these: a tail that does not swing (under 0.02 rad) fails the tail
+  reading wherever the reference's tail does swing; a check that the monitor refuses to make, because the code or the
+  saved policy is not what the run recorded, halts the run for the lead and is not counted as a failed check; and where
+  a body's start still fails, the lead's decision takes in that body's look sets on both heads.
 
 ## Words, names and tags
 
@@ -329,7 +358,7 @@ As `STAGE2_75_PLAN.md`, whose list of words stands, with these additions.
   [dated 16 Nov 2026, ruling 13 of the fourth list: this sentence corrects "Those rulings too are session notes."; the
   working branch has held the paper since commit `a0314fc`]. **[settled 16 Nov 2026, before any Track B run]** stands in
   the same way before wording that the lead settled on 16 Nov 2026, on one of ten conflicts between rules that the
-  writing-in of the second list had left ("ruling n of the third list": the first of the two amendments that close the
+  writing-in of the second list had left ("ruling n of the third list": the first of the three amendments that close the
   last section lists them, and the rulings are `stage2/design/TRACKB_RULINGS3_16NOV.md`, rulings 1 to 10). Where it
   follows the wording it names it, and a sentence that it replaces is quoted once. In section L it also says that the
   look work package had built look sets by then (prescribed motion; none frozen). The same mark stands on two later sets
@@ -343,11 +372,15 @@ As `STAGE2_75_PLAN.md`, whose list of words stands, with these additions.
   kinematically and stepped the env on Stage 1's arrays and on the frozen set `V0` ("What had been run"), and a number
   quoted from that file is theirs and is labelled so. In three places the same mark stands on wording that the author
   added after the independent review of that writing-in, where the wording file is behind the env's code or holds no
-  entry (E4's closing sentences; a parenthesis in W2's joint row and one in W5's `range`): the mark says so there.
-  **[dated 16 Nov 2026, ruling n of the fourth list]** stands after a sentence of 15 Nov that rulings 13 and 14 of the
-  fourth list correct or complete, and quotes the sentence as it was. **[differs: C7]**, **[differs: A8, A11]**,
-  **[differs: B6 and T1]** and **[differs: rule R4's wording]** are departures from those rules of `STAGE2_75_PLAN.md`
-  (T1 is this text's). Every rule ends with "Check:", the record field or file a reviewer compares with it.
+  entry (E4's closing sentences; a parenthesis in W2's joint row and one in W5's `range`): the mark says so there. The
+  same mark stands, with "ruling n of the fifth list", on the lead's six rulings of the fifth list and on what that list
+  confirms, E4's closing sentences among it (`stage2/design/TRACKB_RULINGS5_16NOV.md`; the third amendment lists them).
+  The marks of its rulings 5 and 6 also say that the look reading and the trainer had been built and reviewed by then
+  ("What had been run"). **[dated 16 Nov 2026, ruling n of the fourth list]** stands after a sentence of 15 Nov that
+  rulings 13 and 14 of the fourth list correct or complete, and quotes the sentence as it was. **[differs: C7]**,
+  **[differs: A8, A11]**, **[differs: B6 and T1]** and **[differs: rule R4's wording]** are departures from those rules
+  of `STAGE2_75_PLAN.md` (T1 is this text's). Every rule ends with "Check:", the record field or file a reviewer
+  compares with it.
 
 ## E. The controllers
 
@@ -905,8 +938,11 @@ checkpoint whose record is missing is read here as not intact too: the record is
 and the loader calls a checkpoint intact when the record is there with matching hashes (`s2load.py`). The entry that was
 logged before the monitor started stays in `monitor[]` and is closed with the monitor's exit code, which for a refusal
 is a code of its own (the lead's ruling of 19:01 UTC on the trainer, `stage2/design/ROUND_C_RULINGS_16NOV.md`). It is
-not one of the two closed attempts that count a check without a record. After the halt the check is still due and has no
-record, so a resume runs it (K5), once the cause is repaired. No parameter is ruled for that resume.
+not one of the two closed attempts that count a check without a record: the paragraphs of 15 and 16 Nov on a check whose
+monitor leaves no record are read with this ruling, and they count the attempts in which the monitor ran. After the halt
+the check has no record, so the resumed run makes it once the cause is repaired (K5): at the step it resumes from, or,
+where that checkpoint was not intact and the resume starts from an earlier one (K4), when it reaches the check's step
+again. No parameter is ruled for that resume.
 
 A condition without a reference is "not run" and counts as not succeeding and as zero survival for both rows. Each
 record holds the failures per term, the mean clock factor and the number of distinct start seeds. Check:
@@ -1535,11 +1571,12 @@ the fault is repaired, runs the check once more; if that attempt is never closed
 unless it too has the parameter [changed with ruling 2 of the fifth list, which stands in M1 in the lead's words; the
 sentence before this one read "And after two attempts at one check that were never closed, the check is not run a third
 time: the run halts and goes to the lead (M1)."]. A monitor's refusal to run is no attempt (M1; ruling 6 of the fifth
-list): after the halt it brings, the check is still due and has no record, and a resume runs it. Check:
-`checkpoint_<n>.json` `run_state`; `sessions[].discarded_after_resume`; `tests/test_stage2_train2.py` (a kill during a
-check; after a fix); after a resume, `run.json` `monitor[]` still holds every attempt logged for a check on the
-checkpoint resumed from [settled 16 Nov 2026, before any Track B run: this last item]; `sessions[].retry_check` in a
-session that resumed after M1's halt for two attempts never closed [added with ruling 2 of the fifth list].
+list): after the halt it brings, the check has no record, and the resumed run makes it, at the step it resumes from or
+when it reaches the check's step again. Check: `checkpoint_<n>.json` `run_state`; `sessions[].discarded_after_resume`;
+`tests/test_stage2_train2.py` (a kill during a check; after a fix); after a resume, `run.json` `monitor[]` still holds
+every attempt logged for a check on the checkpoint resumed from [settled 16 Nov 2026, before any Track B run: this last
+item]; `sessions[].retry_check` in a session that resumed after M1's halt for two attempts never closed [added with
+ruling 2 of the fifth list].
 
 **K6. One commit, one path, one queue.** [S2-13; NEW precision] A run keeps one RUN_ID, one bundle, one queue, one
 budget and one commit for its whole life: REPO_REF is the 40-hex SHA of the launch commit (the notebook refuses any
@@ -2072,9 +2109,9 @@ run".
 
 Each item names the sentence of `STAGE2_PLAN.md` that it replaces or makes precise. "[lead]" marks an item the lead
 ruled on at 02:45 UTC (the section "Settled by the lead"), "[settled]" an item or a clause that rests on a ruling of the
-second list (the last section), "[settled 16 Nov]" one that rests on a ruling of the third or the fourth list, or on the
-wording written in under ruling 13 of the third list (the two amendments that close that section). Items 7, 25, 27, 28,
-29 and 30 also name rules of `STAGE2_75_PLAN.md`.
+second list (the last section), "[settled 16 Nov]" one that rests on a ruling of the third, the fourth or the fifth
+list, or on the wording written in under ruling 13 of the third list (the three amendments that close that section).
+Items 7, 25, 27, 28, 29 and 30 also name rules of `STAGE2_75_PLAN.md`.
 
 1. E6 [lead]: in plan B.4, "It runs `designlab/stage1/train.py`, extended with R5 and R6, a picklable schedule, ..." is
    replaced: the notebook runs the new module `designlab/stage2/train2.py`, which has those abilities, and `train.py` is
@@ -2148,8 +2185,8 @@ wording written in under ruling 13 of the third list (the two amendments that cl
     [settled 16 Nov]: R2L's panel records and the re-runs of `R2/42` and `R2/43` beside the candidate's row, which plan
     section 6 counts in "panels and attribution 45 (...; 0.8 per other row)", get caps of 1.5 times the bar runner's
     dry-run total, per set and body; the dry run is made on the frozen set itself and committed before the row's first
-    panel record, and a cap is spent unit by unit in the order 10, 0, 4, 6 ms, attribution last; where S2-9 asks for the
-    three other delays after a row's cap is committed, those delays get a cap of their own (ruling 3 of the fifth list).
+    panel record, and a cap is spent unit by unit in the order 10, 0, 4, 6 ms, attribution last. Q5 [settled 16 Nov]:
+    where S2-9 asks for the three other delays after a row's cap is committed, those delays get a cap of their own.
 16. E5: in plan section 5's "`-X` runs the bar head neutral (the hardware's cost) and with gaze events and head-first
     turns (the cost of using it)", head-first turns are not run.
 17. N5: plan B.3's "a fresh-clone dry run of the bundle" and "the notebook on a tiny budget" are one acceptance run.
@@ -2597,7 +2634,8 @@ this agrees with L8's Check as settled and with L10; its own Check already reads
 ruling names J1. With the lead, because they change what a rule decides: the case in Q5 in which S2-9 asks for the three
 other delays after a row's cap has been committed (written in as the author's reading: the dry run is made again with
 all four delays, and the cap is 1.5 times its total from then on); and whether "no number is fixed now" holds for the
-candidate's two caps on `F25F9cl` too (written in as: yes).
+candidate's two caps on `F25F9cl` too (written in as: yes) [both were answered by the lead with the fifth list: the next
+amendment].
 
 Changed after the independent review of this writing-in (16 Nov 2026), by the author and not by the lead, on findings
 that needed no new decision; each stands where it is, labelled. E4: its closing sentences follow the env's code, in
@@ -2622,4 +2660,86 @@ UTC on the env's small fix round, and working papers); this file alone differs f
 The points of that review that need a decision are with the lead and are not written in: what a record of a check holds
 for a condition without a reference (M1); how a run goes on after the halt that follows two attempts never closed (M1,
 K5, M5); the case in Q5 named above, for which the Check as written does not allow a second dry run; and whether "that
-body's other look sets" in L12 takes in the sets of its `-X` head.
+body's other look sets" in L12 takes in the sets of its `-X` head [the lead ruled on the four later on 16 Nov 2026: the
+next amendment].
+
+**Amendment of 16 Nov 2026: the fifth list.** The independent review of the fourth list's writing-in and the fix round
+after it handed four points up to the lead (`stage2/design/checkpoint/reviews/trackb_rules4__review.md` and
+`trackb_rules4__fix.md`; the paragraph above names them). The lead ruled on the four on 16 Nov 2026, at 16:28 UTC, and
+confirmed what the fixer had asked to have confirmed (`stage2/design/TRACKB_RULINGS5_16NOV.md`). Two rulings joined that
+list later the same day: ruling 5 at 18:21 UTC, from the review of the look reading's code, and ruling 6 at 19:01 UTC,
+from the review of the trainer's (`stage2/design/ROUND_C_RULINGS_16NOV.md` holds both as rule decisions for this text).
+All six were given before any Track B run, fit or training run and with no look set frozen; "What had been run" says
+what the two reviews and the packages' builders had run by then. Each line below says what was decided and, after its
+last colon, in which rule the wording now stands; there it carries the mark
+"[settled 16 Nov 2026, before any Track B run]" and names its ruling of the fifth list. Ruling 4 is about section L and
+was settled after the look work package had built look sets (prescribed motion; none frozen): its wording says so.
+Rulings 5 and 6 were given after the code they are about had been built and reviewed: their marks say so.
+
+1. A record of a check holds, for each of the 18 episodes, an outcome or, for a condition without a reference, "not
+   run". Read to the letter as it stood, a body without a quick turn would have failed every check. This corrects ruling
+   4 of the fourth list in its sentence on what a record is: M1 (the rule, the author's note and the Check).
+2. After the halt for two attempts at one check that were never closed, the lead has the fault repaired and resumes with
+   a recorded parameter, which lets the check run once more per resume. A run that cannot be resumed is `unfinished:
+   <reason>`. This says what follows the halt of ruling 4 of the fourth list: M1, with K5's reading and Check and a
+   pointer in M5.
+3. Where S2-9 asks for the three other delays after a row's cap is committed, those delays get a cap of their own, with
+   its own dry run, run directory and `budget.json`; the Check holds per cap. This stands in place of the author's
+   reading of that case: Q5, with the brief and the change list's item 15.
+4. "That body's other look sets" takes in the sets of the body's `-X` head, as L12 itself takes a cut for every look set
+   of that body and of its `-X` head. This makes precise ruling 7 of the fourth list: L12, with the brief and the change
+   list's item 30.
+5. The tail term fails when the robot's fitted tail amplitude is under 0.02 rad while the reference's amplitude is read.
+   It is new, and it departs from plan section 5, whose tail term reads the phase alone: U3, with the amplitude's name
+   in U1 and the change list's item 24.
+6. A monitor that refuses to run (its sources have moved, the checkpoint is not intact, or the checkpoint is another
+   run's) is no attempt: the trainer halts, and the refusal does not count toward the two attempts after which a check
+   counts as without a gain. This makes precise ruling 7 of the third list: M1, with pointers in M4, M5 and K5.
+
+Confirmed by the lead as the fixer left them: E4's sentences on a plan given as a plan, which the lead had ruled at
+03:02 UTC (E4's mark says so); that the candidate's two caps are made again (Q5); and that K4 keeps the wording file's
+entry 8 (no word of K4 changes). Named by the lead: a cap's run directory is `stage2/tb/bar/<run>/`, with a
+`DRY_RUN.json` at its top (Q5 and its Check).
+
+What the code holds while this is written in; the author's account, read on the working branch at `ffecc2c`. No code was
+changed for this text.
+
+- `designlab/stage2/lookread.py` (last changed by commit `477f4ef`) does not hold ruling 5's limit yet. Its `compare`
+  reads the tail term from the phase alone wherever the reference's amplitude is not under 0.02 rad (`NOT_READ_RAD`). It
+  records the ratio of the two amplitudes as `tail_amp_ratio`, and its own rule text says that no band reads it. The
+  robot's fitted amplitude is in a reading as `tail.amp_rad`. By the ruling the limit goes into that file before code
+  state B.
+- `designlab/stage2/monitor2.py` and `designlab/stage2/train2.py` (last changed by commit `bc7ca20`) do not hold ruling
+  6 yet. Each of the three refusals raises `MonitorError`, the monitor leaves with exit code 1 as it does for any other
+  failure, and the trainer closes the attempt and counts it: two refusals count the check without a record. The lead's
+  ruling of 19:01 UTC on the trainer (`stage2/design/ROUND_C_RULINGS_16NOV.md`) gives the change that is owed: the
+  monitor leaves with an exit code of its own when it refuses, and the trainer halts with exit code 5.
+- The same two files hold rulings 1 and 2. `monitor2.is_record` takes `not_run` as an episode's entry. The trainer has
+  `--retry-check`, recorded as `sessions[].retry_check`; the attempt it allows is marked `after_halt`, and it is one
+  attempt per resumed session.
+- The trainer writes a halt's reason into its own `run.json` (`halt`) and `progress.json`. `HALT.json`, which M1, M5 and
+  K7 name, is the launcher's file in the design (`stage2/design/ROUND_C_DESIGN.md`).
+- The bar's `dry-run` command writes no file, by the docstring of `designlab/stage2/bar.py`, so a cap's `DRY_RUN.json`
+  is written by whoever makes the dry run.
+
+What else changed in this text with the fifth list; this paragraph is the author's and not the lead's wording. These
+follow the settled wording and are the author's: the sentences added to the Status, the bullet in "What had been run",
+the Tags entry, the brief's sentences, the change list's clauses and the additions to the "Check:" lines; and "the two
+amendments" reads "the three amendments" in the Status, the brief, the Tags entry and the change list's opening. In M1:
+the notes on rulings 1, 2 and 6, among them the three refusals by the words the monitor's code has for them, the reading
+that a checkpoint without its record is not intact, the reading that the refused attempt stays in the log, and that on
+Colab the parameter of ruling 2 is set on the lead's word. In K5: the reading of rulings 2 and 6 for a resume. In M4 and
+M5: the pointers. In Q5: the reading of the later cap (its dry run's rows, its units, that nothing spent under one cap
+counts in the other), what `DRY_RUN.json` holds, and the Check's phrases that are worded per cap, which its mark names.
+In U3: the reading of "while the reference's amplitude is read", that both limits must hold where the term is read, and
+that "the four bands" are the four terms; in the list of words, "four terms" for "four limits". In L12: the reading of
+the case in which the failing set is the `-X` head's own.
+
+Seen while this was written in. These are with the lead, because each changes what a rule decides; none is written in
+but the last, which is written in as the author's reading. M1's sentence on R0L's baseline, "each must end *read* or
+*fell*", names no condition without a reference, which is "not run" for both rows: read to the letter, a body without a
+quick turn has no baseline that a check can be read against (the monitor's code takes "not run" there,
+`monitor2.baseline_problem`). Z2 (c) has no degraded playback that fails the tail term by its new limit, such as a tail
+held still. The monitor's code has one more refusal before any episode, a run directory without `run.json`, which ruling
+6 does not list. And in L12, whether the lead's decision takes in the plain head's sets when the set that fails is the
+`-X` head's own (written in as: yes).
