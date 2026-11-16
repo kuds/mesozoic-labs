@@ -63,6 +63,7 @@ import copy  # noqa: E402
 import inspect  # noqa: E402
 import json  # noqa: E402
 import math  # noqa: E402
+import signal  # noqa: E402
 import socket  # noqa: E402
 import subprocess  # noqa: E402
 import time  # noqa: E402
@@ -111,6 +112,8 @@ S1_SET = "S1"
 EXIT_DONE, EXIT_FAILED, EXIT_G8A, EXIT_REFUSED, EXIT_HALT = 0, 1, 3, 4, 5
 #: Where the probes' records are read from when ``--lr`` or the filter is not given (design section 6).
 VALIDATION = s2io.STUDY / "stage2" / "tb" / "validation"
+#: How long a resume waits for a monitor child of an earlier session to be gone after its SIGKILL (``CHILD_RULE``).
+CHILD_WAIT_S = 20.0
 WORKER_CMD = ("-m", "designlab.stage2.train2", "worker")
 
 #: The files whose hash a session records and gives to its children (design 3.6 "Sources"): every Track B module
@@ -144,18 +147,36 @@ RETRY_RULE = (
 RESUME_RULE = (
     "rules K4, K5: a resume is refused, in this order, on no run.json; a stopped run; other settings (every "
     "argument given must be the run's; the env configs as built today, but for the named freeze and the task "
-    "names, must be the run's); other sources than the last session's unless --allow-source-change; other library "
-    "versions than the last session's (s2load.comparable) unless --allow-version-change; other inputs (the envs are "
-    "built from the run's stored configs, which name the freeze the run started on and its tasks: a used file's "
-    "sha256 or entry hash, the plant's inputs or the resolved task table that differs; a later freeze of the set "
-    "is accepted when these are unchanged, and both freezes are recorded); a checkpoint whose run_uuid or settings "
-    "hash is not the run's; a fingerprint that is not reproduced within 1e-5.  A checkpoint that fails its "
-    "integrity check is skipped with its reason.  No intact checkpoint is no refusal: the job restarts from step 0 "
-    "in place and is the same run.  The run state is taken from the checkpoint's record: run.json's live fields "
-    "are rebuilt from it, later entries move to the session's discarded_after_resume (the attempts logged for a "
-    "check on the checkpoint itself are kept), updates.jsonl is cut back to the resumed step, a check that is due "
-    "at that step and has no record naming that checkpoint is run, and the rules are applied to the records as the "
-    "uninterrupted run applies them")
+    "names, must be the run's); other inputs (the envs are built from the run's stored configs, which name the "
+    "freeze the run started on and its tasks: a used file's sha256 or entry hash, the plant's inputs or the "
+    "resolved task table that differs; a later freeze of the set is accepted when these are unchanged, and both "
+    "freezes are recorded); other sources than the last session's unless --allow-source-change; other library "
+    "versions than the last session's (s2load.comparable) unless --allow-version-change; a checkpoint whose "
+    "run_uuid or settings hash is not the run's; a fingerprint that is not reproduced within 1e-5.  A checkpoint "
+    "that fails its integrity check is skipped with its reason.  No intact checkpoint is no refusal: the job "
+    "restarts from step 0 in place and is the same run.  The run state is taken from the checkpoint's record: "
+    "run.json's live fields are rebuilt from it (its list of checkpoints holds the step resumed from, whether or "
+    "not the session that saved it lived to write so), later entries move to the session's discarded_after_resume "
+    "(the attempts logged for a check on the checkpoint itself are kept), updates.jsonl is cut back to the resumed "
+    "step, a check that is due at that step and has no record naming that checkpoint is run, and the rules are "
+    "applied to the records as the uninterrupted run applies them.  A monitor_<n>.json of the resumed step that "
+    "cannot be read (a copy that was cut short) is no record (rule M1): it is kept beside and the check is run")
+BASELINE_RULE = (
+    "rule M1: R0L's baseline is made once per run, before its first rollout; run.json baseline holds its record's "
+    "sha256, its summary and, per episode, the condition, the seed, the outcome and the survival (with the state "
+    "digest where the record holds one).  A resume reads monitor/r0l.json and refuses one that is not the record "
+    "run.json names.  If the file is lost, or cannot be read (it is then kept beside as r0l.unreadable.s<k>.json), "
+    "R0L's episodes are run again and compared with what run.json holds, episode for episode and in the summary: "
+    "equal, the new record takes the old one's place and the session is named under baseline.remade; not equal, "
+    "the new record is kept as r0l.differs.s<k>.json, nothing is replaced and the run halts and goes to the lead "
+    "(the run's checks were read against the lost one)")
+CHILD_RULE = (
+    "an attempt at a check, or at the baseline, holds its monitor child's pid, that process's start time (clock "
+    "ticks since boot) and the boot id, written when the child has started.  A resume ends, with SIGKILL, every "
+    "such child of an earlier session on this host that is still alive under an attempt that was never closed "
+    "(the trainer was killed alone while its monitor ran), before any check or baseline is run: two monitors "
+    "never write one record.  The attempt stays what it was, an interruption (rule M1); the session lists what it "
+    "ended under ended_children")
 UPDATES_RULE = (
     "updates.jsonl holds one line per PPO update: session, update (the run's count), steps (the env steps the "
     "policy was trained on after it), minibatch_steps_run (the optimizer steps PPO really made, counted by a "
@@ -342,6 +363,43 @@ def _rss_mb(pid: int | None = None) -> float | None:
     return None
 
 
+def require_hashseed() -> None:
+    """``Refused`` unless this process runs with ``PYTHONHASHSEED=0`` (design D16: the trainer and its workers;
+    the pool's workers and the monitor child get it from ``tbenv.child_env``, the trainer and a probe from whoever
+    starts them)."""
+    if os.environ.get("PYTHONHASHSEED") != "0":
+        raise Refused("start the trainer with PYTHONHASHSEED=0 (design D16: the trainer and its workers; "
+                      f"it is {os.environ.get('PYTHONHASHSEED')!r})")
+
+
+def _read_record(path):
+    """The JSON document of a record file; None when the file is not there or cannot be read as JSON (a copy that
+    was cut short: by rule M1 such a file is no record)."""
+    try:
+        return s2io.read_json(path)
+    except (OSError, ValueError):
+        return None
+
+
+def _proc(pid) -> tuple | None:
+    """``(start time in clock ticks since boot, state)`` of a process (``/proc/<pid>/stat``, fields 22 and 3); None
+    where there is no such process, or no ``/proc``.  The start time tells a process from a later one that got its
+    pid; state ``Z`` is a process that has ended and was not yet collected."""
+    try:
+        stat = Path(f"/proc/{int(pid)}/stat").read_text()
+        rest = stat[stat.rindex(")") + 2:].split()
+        return int(rest[19]), rest[0]
+    except (OSError, ValueError, IndexError, TypeError):
+        return None
+
+
+def _boot_id() -> str | None:
+    try:
+        return Path("/proc/sys/kernel/random/boot_id").read_text().strip() or None
+    except OSError:
+        return None
+
+
 def is_boundary(n: int, every: int, rollout: int) -> bool:
     """Whether the rollout start with ``n`` steps done is the first at or past a multiple of ``every`` (0 too)."""
     return n == 0 or n // every != (n - rollout) // every
@@ -481,6 +539,7 @@ class _Run:
     """One call of ``train``: the arguments, the job's files and the session's state."""
 
     def __init__(self, a: dict):
+        require_hashseed()
         if a["mode"] not in MODES:
             raise Refused(f"mode {a['mode']!r}: choose from {', '.join(MODES)}")
         if a["out"] is None:
@@ -595,6 +654,8 @@ class _Run:
             if complete:
                 loaded = self._load()
             self._begin(src, vers, flagged)
+            if not new:
+                self._end_children()
             if not complete:
                 if self.gates and not (doc["gates"].get("g8a") or {}).get("passes") and not self._g8a():
                     doc["status"] = "stopped_g8a"
@@ -633,7 +694,7 @@ class _Run:
             settings=asked, settings_sha256=None,
             rules=dict(boundary=BOUNDARY_RULE, checkpoint=CHECKPOINT_RULE, resume=RESUME_RULE, updates=UPDATES_RULE,
                        kl_cut=KL_CUT_RULE, rate=RATE_RULE, gates=GATES_RULE, fine_tune=FINE_TUNE_RULE,
-                       retry=RETRY_RULE, monitor=dict(m2.RULES)),
+                       retry=RETRY_RULE, baseline=BASELINE_RULE, children=CHILD_RULE, monitor=dict(m2.RULES)),
             layout=None, sessions=[], checkpoints=[], kept=[],
             gates=dict(g8a=None, rate=None, g8b=None, g8b_after_fix=None), monitor=[], baseline=None,
             baseline_attempts=[], fix=None, flags=dict(kl_cut=False), no_gain_count=0, stopped=None, parent=None,
@@ -1001,7 +1062,10 @@ class _Run:
             s2load.remove_checkpoint(self.jd, m)
         if gone:
             disc["checkpoints"] = gone
-        d["checkpoints"] = [m for m in d["checkpoints"] if m <= at]
+        # (the step resumed from is a checkpoint, also when its session was killed between the checkpoint's last
+        # file and run.json)
+        d["checkpoints"] = sorted({int(m) for m in d["checkpoints"] if m <= at}
+                                  | ({int(n)} if n is not None else set()))
         d["kept"] = s2load.list_checkpoints(self.jd)
         cut = _cut_updates(self.jd / "updates.jsonl", at, self.k)
         if cut:
@@ -1012,31 +1076,84 @@ class _Run:
         self.session["discarded_after_resume"] = disc or None
 
     # ---------------------------------------------------------------- the monitor child
-    def _child(self, args: list) -> int:
-        """Run the monitor child and wait for it (a subprocess: nothing forks while the pool is open)."""
+    def _child(self, args: list, att: dict | None = None) -> int:
+        """Run the monitor child and wait for it (a subprocess: nothing forks while the pool is open).  ``att``:
+        the attempt's log entry, already written; it takes the child's pid, start time and boot id as soon as the
+        child has started (``CHILD_RULE``)."""
         cmd = _monitor_cmd() + [str(x) for x in args]
         cmd += ["--sources", self.session["sources"]["sha256"]]
         if self.tiny:
             cmd.append("--tiny")
         if self.also_k:
             cmd += ["--also-k", ",".join("%d" % k for k in self.also_k)]
-        return subprocess.run(cmd, env=tbenv.child_env("disable"), cwd=tbenv.study_dir(),
-                              stdin=subprocess.DEVNULL).returncode
+        proc = subprocess.Popen(cmd, env=tbenv.child_env("disable"), cwd=tbenv.study_dir(), stdin=subprocess.DEVNULL)
+        try:
+            if att is not None:
+                att.update(pid=int(proc.pid), pid_start=(_proc(proc.pid) or (None,))[0], boot_id=_boot_id())
+                self.write()
+            return int(proc.wait())
+        except BaseException:  # (as subprocess.run: the child does not outlive an exception in its trainer)
+            proc.kill()
+            proc.wait()
+            raise
+
+    def _end_children(self) -> None:
+        """``CHILD_RULE``: end the monitor children of earlier sessions that outlived their trainer."""
+        d, host, boot, ended = self.doc, socket.gethostname(), _boot_id(), []
+        rows = [("baseline", None, a) for a in d.get("baseline_attempts") or []]
+        rows += [("check", e["at_steps"], a) for e in d["monitor"] for a in e.get("attempts") or []]
+        for kind, n, a in rows:
+            pid, start, s = a.get("pid"), a.get("pid_start"), a.get("session")
+            if a.get("closed_at") is not None or pid is None or start is None or not isinstance(s, int):
+                continue
+            if s >= self.k or d["sessions"][s].get("host") != host or a.get("boot_id") != boot:
+                continue
+
+            def alive(pid=pid, start=start) -> bool:
+                now = _proc(pid)
+                return now is not None and now[0] == start and now[1] != "Z"
+
+            if not alive():
+                continue
+            self.say(f"WARNING: the monitor child {pid} of session {s} ({kind}"
+                     + ("" if n is None else f" at {n} steps") + ") outlived its trainer: it is ended")
+            try:
+                os.kill(int(pid), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            deadline = time.monotonic() + CHILD_WAIT_S
+            while alive():
+                if time.monotonic() > deadline:
+                    raise TrainError(f"{self.job}: the monitor child {pid} of session {s} is still alive "
+                                     f"{CHILD_WAIT_S:g} s after its SIGKILL: no second monitor is started beside it")
+                time.sleep(0.05)
+            a["child_ended"] = dict(session=self.k, at=s2io.now_utc())
+            ended.append(dict(kind=kind, at_steps=n, pid=int(pid), session=int(s)))
+        if ended:
+            self.session["ended_children"] = ended
+            self.write()
 
     def _baseline(self) -> None:
-        """R0L's episodes, once per run (rule M1): no check is read against a baseline that holds an error."""
+        """R0L's episodes, once per run (rule M1): no check is read against a baseline that holds an error.  A
+        record that is lost or cannot be read is made again and must be the one ``run.json`` names
+        (``BASELINE_RULE``)."""
         m2, d = _monitor2(), self.doc
         path = self.jd / "monitor" / "r0l.json"
-        rec = s2io.read_json(path) if path.is_file() else None
-        if d["baseline"] is not None and rec is not None and rec.get("sha256") != d["baseline"].get("sha256"):
+        rec, was = _read_record(path), d["baseline"]
+        remade = list((was or {}).get("remade") or [])
+        if rec is None and path.is_file():  # (a copy that was cut short is no record; it is kept beside)
+            os.replace(path, path.with_name("r0l.unreadable.s%d.json" % self.k))
+            self.say("WARNING: monitor/r0l.json cannot be read: it is kept beside and R0L's episodes are run again")
+        if was is not None and rec is not None and rec.get("sha256") != was.get("sha256"):
             raise Refused(f"{path}: not the baseline record run.json names (its sha256 differs)")
         if rec is None or m2.baseline_problem(rec) is not None:
             self.say("the R0L baseline")
             att = dict(session=self.k, started_at=s2io.now_utc(), closed_at=None, exit_code=None, record=None)
             d["baseline_attempts"].append(att)
             self.write()
-            code = self._child(["baseline", "--job", self.jd, "--body", self.body, "--set", self.set, "--k", m2.K])
-            rec = s2io.read_json(path) if path.is_file() else None
+            code = self._child(["baseline", "--job", self.jd, "--body", self.body, "--set", self.set, "--k", m2.K],
+                               att)
+            rec = _read_record(path)
             ok = rec is not None and m2.baseline_problem(rec) is None
             att.update(closed_at=s2io.now_utc(), exit_code=int(code), record=bool(ok))
             self.write()
@@ -1044,9 +1161,20 @@ class _Run:
                 raise Halt(f"{self.job}: the R0L baseline could not be made (the monitor child ended with code "
                            f"{code}; {m2.baseline_problem(rec)}): rule M1: the fault is repaired and all its "
                            "episodes are run again before the run's first rollout")
+            if was is not None:  # (the record run.json names was lost: the run's checks were read against it)
+                same = baseline_same(was, rec)
+                if not same["equal"]:
+                    kept = "r0l.differs.s%d.json" % self.k
+                    os.replace(path, path.with_name(kept))
+                    raise Halt(f"{self.job}: R0L's baseline was lost and, made again, is not the one the run's "
+                               f"checks were read against ({'; '.join(same['differ'])}): nothing is replaced, the "
+                               f"new record is kept as monitor/{kept}, and the run goes to the lead")
+                remade.append(dict(session=self.k, was_sha256=was.get("sha256"), **same))
+                self.say("the R0L baseline was lost and is made again: equal to the one run.json names")
         self.baseline = rec
-        d["baseline"] = dict(record="monitor/r0l.json", sha256=rec["sha256"], row=rec.get("row"),
-                             **{k: rec.get(k) for k in m2.SUMMARY_KEYS})
+        d["baseline"] = baseline_entry(rec)
+        if remade:
+            d["baseline"]["remade"] = remade
         self.write()
 
     def _hashes(self, n: int) -> dict:
@@ -1065,10 +1193,10 @@ class _Run:
                 out.append(m2.no_record(e["at_steps"], self.set, self.tiny, k=m2.K))
                 continue
             path = self.jd / e["record"]
-            rec = s2io.read_json(path) if path.is_file() else None
-            if rec is None or rec.get("sha256") != e.get("record_sha256"):
-                raise TrainError(f"{path}: the record of the check at {e['at_steps']} steps is missing or is not "
-                                 "the one run.json names: the rules read records")
+            rec = _read_record(path)
+            if not isinstance(rec, dict) or rec.get("sha256") != e.get("record_sha256"):
+                raise TrainError(f"{path}: the record of the check at {e['at_steps']} steps is missing, cannot be "
+                                 "read or is not the one run.json names: the rules read records")
             out.append(rec)
         return out
 
@@ -1084,7 +1212,7 @@ class _Run:
         path = self.jd / "monitor" / ("monitor_%d.json" % n)
 
         def usable():
-            doc = s2io.read_json(path) if path.is_file() else None
+            doc = _read_record(path)  # (None too for a file that cannot be read: a copy that was cut short)
             return doc if m2.is_record(doc, hashes, pairs) else None
 
         rec = usable()
@@ -1096,7 +1224,7 @@ class _Run:
                            "while the check ran, twice): the run halts and goes to the lead (rule M1); with the "
                            "fault repaired, a resume with --retry-check lets the check run once more")
             self.retry_used = self.retry_used or after_halt
-            if path.is_file():  # (a record of other files: a checkpoint saved again after a resume)
+            if path.is_file():  # (no record: of other files, a checkpoint saved again after a resume; or cut)
                 os.replace(path, path.with_name("monitor_%d.discarded.s%d.json" % (n, self.k)))
             self.say(f"check at {n} steps (attempt {len(entry['attempts']) + 1})")
             att = dict(session=self.k, started_at=s2io.now_utc(), checkpoint_sha256=hashes, closed_at=None,
@@ -1104,7 +1232,7 @@ class _Run:
             entry["attempts"].append(att)
             self.write()  # (logged before the monitor starts)
             code = self._child(["run", "--job", self.jd, "--steps", n, "--body", self.body, "--set", self.set,
-                                "--k", m2.K])
+                                "--k", m2.K], att)
             rec = usable()
             att.update(closed_at=s2io.now_utc(), exit_code=int(code), record=rec is not None)
             self.write()
@@ -1198,7 +1326,11 @@ class _Run:
             workers=self.workers, last_checkpoint=d["kept"][-1] if d["kept"] else None,
             last_monitor=None if mon is None else dict(
                 at_steps=mon["at_steps"], N=mon.get("N"), S=mon.get("S"),
-                mean_clock_factor=mon.get("mean_clock_factor"), gain=(mon.get("gain") or {}).get("gain")),
+                mean_clock_factor=mon.get("mean_clock_factor"), gain=(mon.get("gain") or {}).get("gain"),
+                counted_without_record=bool(mon.get("counted_without_record"))),
+            # (rule M1: "the lead is told"; a halt is one of rule M5's endings until the lead resumes the run)
+            checks_without_record=[e["at_steps"] for e in d["monitor"] if e.get("counted_without_record")],
+            halt=d.get("halt"),
             g8a=(d["gates"].get("g8a") or {}).get("passes"), g8b=(d["gates"].get("g8b") or {}).get("pass"),
             fix=None if d["fix"] is None else d["fix"]["at_steps"], flags=d["flags"], stopped=d["stopped"],
             minibatch_steps_last=last))
@@ -1364,6 +1496,32 @@ def _monitor2():
     from designlab.stage2 import monitor2
 
     return monitor2
+
+
+BASELINE_EPISODE_KEYS = ("condition", "seed", "outcome", "survival_s", "state_digest", "digest")
+
+
+def baseline_entry(rec: dict) -> dict:
+    """What ``run.json`` ``baseline`` holds of R0L's record (``BASELINE_RULE``)."""
+    m2 = _monitor2()
+    return dict(record="monitor/r0l.json", sha256=rec["sha256"], row=rec.get("row"),
+                **{k: rec.get(k) for k in m2.SUMMARY_KEYS},
+                episodes=[{k: e[k] for k in BASELINE_EPISODE_KEYS if k in e} for e in rec["episodes"]])
+
+
+def baseline_same(was: dict, rec: dict) -> dict:
+    """A baseline record made again (``rec``) against what ``run.json`` holds of the lost one (``was``): the
+    summary, and episode for episode the outcome, the survival and, where both hold one, the state digest
+    (``monitor2.baseline_equal``).  ``{equal, differ, episodes_compared, digests_compared}``."""
+    m2 = _monitor2()
+    differ = [f"{k}: {was.get(k)!r} -> {rec.get(k)!r}" for k in m2.SUMMARY_KEYS
+              if k in was and was.get(k) != s2io.plain(rec.get(k))]
+    eps = None
+    if was.get("episodes") is not None:
+        eps = m2.baseline_equal(rec, dict(episodes=was["episodes"]))
+        differ += eps["differ"]
+    return dict(equal=not differ, differ=differ, episodes_compared=None if eps is None else eps["episodes"],
+                digests_compared=None if eps is None else eps["digests_compared"])
 
 
 # ------------------------------------------------------------------------------------------------

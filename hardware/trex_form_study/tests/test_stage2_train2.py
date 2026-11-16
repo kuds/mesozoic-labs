@@ -9,14 +9,18 @@ What is held here, on a stub env and a stub monitor (no plant, no reference set)
   monitor child runs (the attempt is logged before the child starts and is an interruption), a run killed after
   G8b's fix and before the next checkpoint (the fix is recorded once), a run whose ``run.json`` is ahead of its
   newest intact checkpoint (later entries move to ``discarded_after_resume``; ``updates.jsonl`` holds no step
-  twice), and a job that has a ``run.json`` and no checkpoint (it restarts from step 0 in place);
+  twice), and a job that has a ``run.json`` and no checkpoint (it restarts from step 0 in place); a trainer killed
+  alone while its monitor child runs (the resume ends the child that outlived it); a kill between a checkpoint's
+  last file and ``run.json``; a ``monitor_<n>.json`` or ``r0l.json`` that was cut (no record: kept beside, made
+  again); a lost baseline made again (it must be the one ``run.json`` names, else the run halts);
 * **what a resume refuses**, in the rule's order: no ``run.json``, a stopped run, other settings, other inputs (a
   changed file refused; a later freeze of the set with unchanged files accepted, both freezes recorded), other
   sources and other library versions (each refused without its flag, accepted and flagged with it), a checkpoint
-  of another run; a broken newest checkpoint is skipped with its reason;
+  of another run; a broken newest checkpoint is skipped with its reason; the stored rule text names that order;
+  the trainer refuses to start without ``PYTHONHASHSEED=0``;
 * **a check's attempts** (rule M1): logged before the monitor starts and closed with its exit code; after two closed
   attempts without a record the check counts as a failed G8b reading; after two attempts that were never closed
-  the run halts;
+  the run halts; ``progress.json`` names a check counted without a record, and a halt;
 * **lesson 16**: with a learning rate that trips ``target_kl`` ``minibatch_steps_run < minibatch_steps_possible``,
   and the ``kl_cut`` flag is set from the median share over a check interval;
 * **``MUJOCO_GL``**: a trainer started with ``MUJOCO_GL=osmesa`` runs a rollout with ``disable`` in itself and in
@@ -189,14 +193,15 @@ def _steps_env(name: str) -> list:
 
 
 def stub_episodes(body, set_name, row, pairs, policies=None, traces=None) -> list:
-    """The stub of ``lookbar.episodes``: R0L reads every episode (survival 10 s); a policy row reads them too and
-    survives 10.5 s, but ``walk/nominal`` falls at the steps of ``STUB_MON_FAIL_AT``."""
+    """The stub of ``lookbar.episodes``: R0L reads every episode (survival 10 s, or ``STUB_R0L_SURVIVAL``); a
+    policy row reads them too and survives 10.5 s, but ``walk/nominal`` falls at the steps of
+    ``STUB_MON_FAIL_AT``."""
     n = None if not policies else int(next(iter(policies.values()))["steps"])
     down = n is not None and n in _steps_env("STUB_MON_FAIL_AT")
     out = []
     for cond, seed in pairs:
         fell = bool(down and cond == "walk/nominal")
-        surv = 10.0 if n is None else (3.0 if fell else 10.5)
+        surv = float(os.environ.get("STUB_R0L_SURVIVAL", 10.0)) if n is None else (3.0 if fell else 10.5)
         out.append(dict(condition=cond, seed=int(seed), outcome="fell" if fell else "read", reason=None, fell=fell,
                         survival_s=surv, planned_s=12.0, succeeded=False, succeeded_but_A1=False,
                         succeeded_look=False, succeeded_but_A1_look=False, failed_terms=["tail_servo"], look=None,
@@ -308,6 +313,7 @@ def stub(monkeypatch, tmp_path):
         if k.startswith("STUB_"):
             monkeypatch.delenv(k)
     monkeypatch.setenv("STUB_SET_FILE", str(_set_file(tmp_path)))
+    monkeypatch.setenv("PYTHONHASHSEED", "0")  # (what train() asks of its process; the children get it anyway)
     monkeypatch.chdir(STUDY)  # (the stub factory is named tests.test_stage2_train2)
     return train2
 
@@ -398,6 +404,15 @@ def updates(job_dir) -> list:
     return [json.loads(x) for x in (Path(job_dir) / "updates.jsonl").read_text().splitlines()]
 
 
+def process_alive(pid: int) -> bool:
+    """Whether the process runs (a process that has ended and waits to be collected does not)."""
+    try:
+        stat = Path(f"/proc/{int(pid)}/stat").read_text()
+    except OSError:
+        return False
+    return stat[stat.rindex(")") + 2:].split()[0] != "Z"
+
+
 def same_updates(a, b) -> None:
     drop = ("session", "wall_s")
     ua = [{k: v for k, v in u.items() if k not in drop} for u in updates(a)]
@@ -482,6 +497,18 @@ def test_the_uninterrupted_run_and_its_records(ref_fix):
     assert rate["first_rollout"]["env_steps"] == ROLLOUT and rate["first_three"]["env_steps"] == 3 * ROLLOUT
     prog = json.loads((jd / "progress.json").read_text())
     assert prog["steps"] == FINAL and prog["status"] == "done" and prog["last_monitor"]["at_steps"] == FINAL
+    assert prog["last_monitor"]["counted_without_record"] is False and prog["checks_without_record"] == []
+    assert prog["halt"] is None
+    # every attempt holds its monitor child's pid and start time; the baseline's episodes are in run.json
+    atts = d["baseline_attempts"] + [a for e in d["monitor"] for a in e["attempts"]]
+    assert len(atts) == 4 and all(a["pid"] > 0 and a["pid_start"] > 0 and a["closed_at"] for a in atts)
+    assert len({a["pid"] for a in atts}) == 4 and "ended_children" not in d["sessions"][0]
+    r0l = json.loads((jd / "monitor" / "r0l.json").read_text())
+    assert d["baseline"]["sha256"] == r0l["sha256"] and "remade" not in d["baseline"]
+    assert d["baseline"]["episodes"] == [dict(condition=e["condition"], seed=e["seed"], outcome="read",
+                                              survival_s=10.0) for e in r0l["episodes"]]
+    assert [e["seed"] for e in d["baseline"]["episodes"]] == [6001, 6004, 6007, 6010, 6013, 6016]
+    assert set(d["rules"]) >= {"resume", "baseline", "children"}
 
 
 def test_an_archive_saved_by_the_trainer_has_no_bytecode(ref_plain):
@@ -604,6 +631,58 @@ def test_kill_after_the_fix(ref_fix, tmp_path):
     assert len(fixes) == 1 and fixes[0]["at_steps"] == 512
 
 
+def test_a_monitor_child_that_outlived_its_trainer_is_ended_at_the_resume(ref_fix, tmp_path):
+    """The trainer alone is killed while the monitor child of the first check runs (not its process group): the
+    child lives on.  The attempt holds the child's pid; the resume ends that child before it runs the check again,
+    so two monitors never write one record, and the run ends as the uninterrupted one."""
+    out, hold = tmp_path / "out", tmp_path / "hold"
+    hold.write_text("")
+    _set_file(tmp_path)
+    args = dict(KW, out=str(out), workers=0)
+    p = subprocess.Popen([PY, "-m", HERE, "drive", json.dumps(args)], cwd=STUDY, start_new_session=True,
+                         env=_env(tmp_path, STUB_MON_FAIL_AT="512", STUB_MON_HOLD=hold),
+                         stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    try:
+        deadline = time.monotonic() + 240
+        while not Path(str(hold) + ".started").exists():
+            assert p.poll() is None, p.stderr.read().decode()[-3000:]
+            assert time.monotonic() < deadline, "the monitor child did not start"
+            time.sleep(0.05)
+        child = int(Path(str(hold) + ".started").read_text())
+        while "pid" not in doc_of(out)["monitor"][0]["attempts"][0]:
+            assert time.monotonic() < deadline, "the attempt never took its child's pid"
+            time.sleep(0.05)
+        att = doc_of(out)["monitor"][0]["attempts"][0]
+        assert att["pid"] == child and att["pid_start"] > 0 and att["closed_at"] is None
+        os.kill(p.pid, signal.SIGKILL)  # the trainer alone
+        p.wait()
+        time.sleep(1.0)
+        assert process_alive(child)  # (the monitor child outlived its trainer)
+        hold.unlink()
+        r = drive(tmp_path, out, env=dict(STUB_MON_FAIL_AT="512"), workers=0, resume=True)
+        assert r.returncode == 0, r.stderr[-3000:]
+        assert not process_alive(child)
+        assert f"the monitor child {child} of session 0 (check at 512 steps) outlived its trainer" in r.stdout
+    finally:
+        try:
+            os.killpg(p.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        p.wait()
+        p.stderr.close()
+    d = doc_of(out)
+    e = d["monitor"][0]
+    assert d["status"] == "done" and d["sessions"][1]["resumed_from"] == 512
+    assert d["sessions"][1]["ended_children"] == [dict(kind="check", at_steps=512, pid=child, session=0)]
+    assert [bool(a.get("interrupted")) for a in e["attempts"]] == [True, False]
+    assert e["attempts"][0]["child_ended"]["session"] == 1 and e["attempts"][0]["closed_at"] is None
+    assert e["attempts"][1]["exit_code"] == 0 and e["attempts"][1]["pid"] != child
+    assert e["counted_without_record"] is False and d["fix"]["at_steps"] == 512
+    for n in (1024, FINAL):
+        assert_same_checkpoint(job(ref_fix / "out"), job(out), n)
+    same_updates(job(ref_fix / "out"), job(out))
+
+
 # ---------------------------------------------------------------------------------------------------------------
 # Resume, in process (a session cut by an exception at a rollout start)
 # ---------------------------------------------------------------------------------------------------------------
@@ -654,6 +733,7 @@ def install_again(monkeypatch, tmp_path):
                      ("_monitor_cmd", stub_monitor_cmd), ("_validation", stub_validation)):
         monkeypatch.setattr(train2, name, fn)
     monkeypatch.setenv("STUB_SET_FILE", str(tmp_path / "set.json"))
+    monkeypatch.setenv("PYTHONHASHSEED", "0")
     monkeypatch.chdir(STUDY)
     return train2
 
@@ -709,6 +789,122 @@ def test_a_resume_from_checkpoint_zero(ref_plain, stub, tmp_path, monkeypatch):
     for n in (1280, FINAL):
         assert_same_checkpoint(job(ref_plain / "out"), job(out), n)
     same_updates(job(ref_plain / "out"), job(out))
+
+
+def test_a_kill_between_a_checkpoints_last_file_and_run_json(ref_plain, stub, tmp_path, monkeypatch):
+    """The session ends when checkpoint 768 has its four files and ``run.json`` does not name it yet: the resume
+    starts from it, and ``run.json``'s list of checkpoints is the uninterrupted run's."""
+    from designlab.stage2 import s2load
+
+    out = tmp_path / "out"
+    inner = s2load.save_checkpoint
+
+    def save_checkpoint(job_dir, steps, *a, **k):
+        rec = inner(job_dir, steps, *a, **k)
+        if int(steps) == 768:
+            raise _Cut("cut after checkpoint 768's last file")
+        return rec
+
+    monkeypatch.setattr(s2load, "save_checkpoint", save_checkpoint)
+    with pytest.raises(_Cut):
+        run(stub, out)
+    monkeypatch.undo()
+    stub = install_again(monkeypatch, tmp_path)
+    assert doc_of(out)["checkpoints"] == [0, 256, 512]
+    assert (job(out) / "checkpoints" / "checkpoint_768.json").is_file()
+    d = run(stub, out, resume=True)
+    ref = doc_of(ref_plain / "out")
+    assert d["status"] == "done" and d["sessions"][1]["resumed_from"] == 768
+    assert d["checkpoints"] == ref["checkpoints"] == [0, 256, 512, 768, 1024, 1280, 1536]
+    assert d["kept"] == ref["kept"]
+    assert_same_checkpoint(job(ref_plain / "out"), job(out), FINAL)
+    same_updates(job(ref_plain / "out"), job(out))
+
+
+def _cut_with_gates(stub, out, tmp_path, monkeypatch, at=640):
+    """A run with its checks cut at ``at`` steps; ``train2`` with the stub seams again."""
+    monkeypatch.setenv("STUB_MON_FAIL_AT", "512")
+    cut_at(monkeypatch, stub, at)
+    with pytest.raises(_Cut):
+        run(stub, out, gates=True)
+    monkeypatch.undo()
+    stub = install_again(monkeypatch, tmp_path)
+    monkeypatch.setenv("STUB_MON_FAIL_AT", "512")
+    return stub
+
+
+def test_a_record_that_was_cut_is_no_record(ref_fix, stub, tmp_path, monkeypatch):
+    """A ``monitor_<n>.json`` or an ``r0l.json`` that cannot be read (a copy that was cut short) is no record
+    (rule M1): the resume does not fail on it; the file is kept beside, the check of the resumed step is run again
+    and R0L's episodes are made again and compared with what ``run.json`` holds."""
+    out = tmp_path / "out"
+    stub = _cut_with_gates(stub, out, tmp_path, monkeypatch)
+    jd = job(out)
+    before = doc_of(out)["baseline"]
+    for name in ("monitor_512.json", "r0l.json"):
+        with open(jd / "monitor" / name, "r+b") as fh:
+            fh.truncate(200)
+    d = run(stub, out, gates=True, resume=True)
+    s = d["sessions"][1]
+    assert d["status"] == "done" and s["resumed_from"] == 512
+    assert (jd / "monitor" / "monitor_512.discarded.s1.json").stat().st_size == 200
+    assert (jd / "monitor" / "r0l.unreadable.s1.json").stat().st_size == 200
+    e = d["monitor"][0]
+    assert [(a["session"], a["exit_code"], a["record"]) for a in e["attempts"]] == [(0, 0, True), (1, 0, True)]
+    assert e["counted_without_record"] is False and d["fix"]["at_steps"] == 512
+    assert [(a["session"], a["record"]) for a in d["baseline_attempts"]] == [(0, True), (1, True)]
+    assert d["baseline"]["remade"] == [dict(session=1, was_sha256=before["sha256"], equal=True, differ=[],
+                                            episodes_compared=6, digests_compared=False)]
+    assert d["baseline"]["sha256"] != before["sha256"] and d["baseline"]["episodes"] == before["episodes"]
+    for n in (1024, FINAL):
+        assert_same_checkpoint(job(ref_fix / "out"), jd, n)
+    same_updates(job(ref_fix / "out"), jd)
+    # an earlier check's record that cannot be read: the rules read records, and the reason is named
+    with open(jd / "monitor" / "monitor_512.json", "r+b") as fh:
+        fh.truncate(200)
+    with pytest.raises(stub.TrainError, match="cannot be read"):
+        stub._Run._history(_history_of(stub, d, jd), 1024)
+
+
+def _history_of(train2, doc, jd):
+    """A bare ``_Run`` holding a job's document: enough for ``_history``."""
+    r = object.__new__(train2._Run)
+    r.doc, r.jd, r.set, r.tiny = doc, jd, "STUB", True
+    return r
+
+
+def test_a_lost_baseline_made_again_must_be_the_runs(stub, tmp_path, monkeypatch):
+    """R0L's record is lost between two sessions.  Made again, it must hold the episodes ``run.json`` names: the
+    run's checks were read against them.  If it does not, nothing is replaced and the run halts for the lead."""
+    out = tmp_path / "out"
+    stub = _cut_with_gates(stub, out, tmp_path, monkeypatch)
+    jd = job(out)
+    before = doc_of(out)["baseline"]
+    (jd / "monitor" / "r0l.json").unlink()
+    monkeypatch.setenv("STUB_R0L_SURVIVAL", "9.0")
+    with pytest.raises(stub.Halt, match="is not the one the run's checks were read against") as info:
+        run(stub, out, gates=True, resume=True)
+    assert info.value.code == stub.EXIT_HALT and "walk/nominal seed 6001: survival_s" in str(info.value)
+    d = doc_of(out)
+    assert d["baseline"] == before and d["halt"]["session"] == 1 and d["status"] == "partial"
+    assert not (jd / "monitor" / "r0l.json").exists()
+    kept = json.loads((jd / "monitor" / "r0l.differs.s1.json").read_text())
+    assert kept["episodes"][0]["survival_s"] == 9.0 and d["num_timesteps"] == 512  # (no step was made)
+    assert json.loads((jd / "progress.json").read_text())["halt"]["session"] == 1
+    # the same episodes again: the new record takes the lost one's place, and the session is named
+    monkeypatch.delenv("STUB_R0L_SURVIVAL")
+    d = run(stub, out, gates=True, resume=True)
+    assert d["status"] == "done" and d["halt"] is None and d["sessions"][2]["resumed_from"] == 512
+    assert d["baseline"]["remade"] == [dict(session=2, was_sha256=before["sha256"], equal=True, differ=[],
+                                            episodes_compared=6, digests_compared=False)]
+    now = json.loads((jd / "monitor" / "r0l.json").read_text())
+    assert d["baseline"]["sha256"] == now["sha256"] != before["sha256"]
+    assert {k: v for k, v in d["baseline"].items() if k not in ("sha256", "remade")} == {
+        k: v for k, v in before.items() if k != "sha256"}
+    # a run.json of before this rule (no episodes under baseline) is compared in its summary
+    old = {k: v for k, v in before.items() if k != "episodes"}
+    assert stub.baseline_same(old, now) == dict(equal=True, differ=[], episodes_compared=None, digests_compared=None)
+    assert stub.baseline_same(dict(old, S=9.5), now)["differ"] == ["S: 9.5 -> 10.0"]
 
 
 def test_the_schedule_follows_the_step_count_across_a_resume(ref_plain, stub, tmp_path, monkeypatch):
@@ -832,6 +1028,47 @@ def test_resume_refusals_sources_and_versions(cut_run, monkeypatch):
     assert last["run_state"]["flags"]["source_change"] is True and last["run_state"]["flags"]["version_change"] is True
     # torch's build label is no version change
     assert s2load.comparable(dict(torch="2.15.0+cu126")) == s2load.comparable(dict(torch="2.15.0+cpu"))
+
+
+def test_the_resume_rule_names_the_order_the_code_refuses_in(cut_run, tmp_path, monkeypatch):
+    """``RESUME_RULE`` is stored in every ``run.json``: its order is the code's (and the design's): the settings,
+    the inputs, the sources, the versions, the checkpoint."""
+    from designlab.stage2 import s2load
+
+    train2, out = cut_run
+    text = train2.RESUME_RULE
+    assert doc_of(out)["rules"]["resume"] == text
+    at = [text.index(w) for w in ("no run.json", "a stopped run", "other settings", "other inputs", "other sources",
+                                  "other library versions", "a checkpoint whose run_uuid",
+                                  "a fingerprint that is not reproduced")]
+    assert at == sorted(at)
+    # a job where an argument, a used file, the sources and the versions all differ is refused in that order
+    files = json.loads((tmp_path / "set.json").read_text())["files"]
+    changed = json.loads(json.dumps(files))
+    changed["transitions/start.npz"]["sha256"] = "9" * 64
+    write_set(tmp_path / "set.json", files=changed)
+    real = train2.sources()
+    monkeypatch.setattr(train2, "sources", lambda: dict(real, sha256="1" * 64))
+    vers = dict(s2load.versions(), numpy="9.9.9")
+    monkeypatch.setattr(s2load, "versions", lambda: dict(vers))
+    _refused(train2, out, "other settings", lr=1e-4)
+    _refused(train2, out, "other inputs")
+    write_set(tmp_path / "set.json", files=files)
+    _refused(train2, out, "other sources")
+    _refused(train2, out, "other library versions", allow_source_change=True)
+
+
+def test_the_trainer_refuses_without_pythonhashseed_0(stub, tmp_path, monkeypatch):
+    """Design D16: the trainer and its workers run with ``PYTHONHASHSEED=0``.  ``train()`` asks it of its own
+    process, whoever calls it (not the command line alone)."""
+    monkeypatch.setenv("PYTHONHASHSEED", "7")
+    with pytest.raises(stub.Refused, match="PYTHONHASHSEED=0") as info:
+        run(stub, tmp_path / "out")
+    assert info.value.code == stub.EXIT_REFUSED and "'7'" in str(info.value)
+    monkeypatch.delenv("PYTHONHASHSEED")
+    with pytest.raises(stub.Refused, match="PYTHONHASHSEED=0"):
+        run(stub, tmp_path / "out")
+    assert not (tmp_path / "out").exists()
 
 
 def test_resume_refusals_checkpoints(cut_run, tmp_path):
@@ -976,6 +1213,24 @@ def test_a_check_without_a_record_counts_after_two_closed_attempts(stub, tmp_pat
                                  "start_stop"]
     assert d["fix"]["monitor"] is None and d["gates"]["g8b_after_fix"]["pass"] is True
     assert len(d["monitor"][1]["attempts"]) == 1 and d["monitor"][1]["counted_without_record"] is False
+    # the launcher reads it in progress.json (rule M1: the lead is told), also after later checks
+    prog = json.loads((job(out) / "progress.json").read_text())
+    assert prog["checks_without_record"] == [512] and prog["last_monitor"]["at_steps"] == FINAL
+    assert prog["last_monitor"]["counted_without_record"] is False
+
+
+def test_progress_names_a_check_counted_without_a_record(stub, tmp_path, monkeypatch):
+    """What the launcher sees one rollout after such a check: not only N 0 and S 0."""
+    out, crash = tmp_path / "out", tmp_path / "crash"
+    crash.write_text("2")
+    monkeypatch.setenv("STUB_MON_CRASH", str(crash))
+    cut_at(monkeypatch, stub, 640)
+    with pytest.raises(_Cut):
+        run(stub, out, gates=True)
+    prog = json.loads((job(out) / "progress.json").read_text())
+    last = prog["last_monitor"]
+    assert last["at_steps"] == 512 and (last["N"], last["S"]) == (0, 0.0) and last["counted_without_record"] is True
+    assert prog["checks_without_record"] == [512] and prog["halt"] is None and prog["fix"] == 512
 
 
 def test_two_attempts_never_closed_halt_the_run(stub, tmp_path, monkeypatch):
@@ -1002,6 +1257,8 @@ def test_two_attempts_never_closed_halt_the_run(stub, tmp_path, monkeypatch):
     assert d["status"] == "partial" and "never closed" in d["sessions"][1]["error"]
     assert [a.get("interrupted") for a in d["monitor"][0]["attempts"]] == [True, True]
     assert d["halt"]["session"] == 1 and "--retry-check" in d["halt"]["reason"] and d["sessions"][1]["retry_check"] is False
+    prog = json.loads((jd / "progress.json").read_text())  # (the launcher reads the halt there)
+    assert prog["status"] == "partial" and prog["halt"] == d["halt"] and "never closed" in prog["halt"]["reason"]
     # the lead's fifth list of 16 Nov 2026: with the fault repaired, a resume with the recorded parameter lets
     # the check run once more per resume.  A retry that leaves no record halts again ...
     crash = tmp_path / "crash"
@@ -1020,6 +1277,7 @@ def test_two_attempts_never_closed_halt_the_run(stub, tmp_path, monkeypatch):
     assert atts[3]["after_halt"] is True and atts[3]["record"] is True and atts[3]["session"] == 3
     assert d["monitor"][0]["counted_without_record"] is False and len(d["monitor"][1]["attempts"]) == 1
     assert "after_halt" not in d["monitor"][1]["attempts"][0] and d["sessions"][3]["retry_check"] is True
+    assert json.loads((jd / "progress.json").read_text())["halt"] is None
 
 
 def test_a_second_g8b_failure_stops_the_run(stub, tmp_path, monkeypatch):
@@ -1065,6 +1323,8 @@ def test_a_failed_baseline_halts_before_the_first_rollout(stub, tmp_path, monkey
     assert d["status"] == "partial" and d["baseline"] is None and d["checkpoints"] == []
     assert d["baseline_attempts"][0]["exit_code"] == 6 and d["baseline_attempts"][0]["record"] is False
     assert not (job(out) / "checkpoints").exists() and not (job(out) / "updates.jsonl").exists()
+    prog = json.loads((job(out) / "progress.json").read_text())
+    assert prog["status"] == "partial" and "R0L baseline could not be made" in prog["halt"]["reason"]
 
 
 def test_a_failed_set_task_weights_ends_the_session(stub, tmp_path, monkeypatch):
