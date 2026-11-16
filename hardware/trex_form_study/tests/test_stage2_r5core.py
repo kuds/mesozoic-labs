@@ -9,8 +9,10 @@ then moves when its cause is injected into the playback.  The S1 view only (Stag
 
 from __future__ import annotations
 
+import copy
 import math
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -22,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from designlab.stage1 import control, env, legs, plant  # noqa: E402
-from designlab.stage2 import r5core, r5lib, s2io  # noqa: E402
+from designlab.stage2 import r5core, r5lib, s2io, setio  # noqa: E402
 
 BODY, BODY_X = "75-M-H-10", "75-M-H-10-X"
 RATE = 1.05
@@ -175,17 +177,102 @@ def core(p):
     return r5core.Core(p, {}, None)
 
 
+SET = "T0"
+V03_BELOW = float(np.nextafter(0.3, 0.0))
+SET_REFS = (("nominal", "nominal"), ("v0.3", "nominal"), ("inplace_0.5_left", "in_place_0.50_left"),
+            ("inplace_0.5_right", "in_place_0.50_right"))
+SET_MOVES = (("start", "start"),) + tuple((f"{k}_inplace_0.5_{d}", f"{k}_in_place_0.50_{d}")
+                                          for d in ("left", "right") for k in ("start", "stop"))
+
+
+def make_set(root: Path, body: str = BODY) -> Path:
+    """A frozen synthetic set ``T0`` under ``root``, of Stage 1's arrays under the names a Stage 2 set gives them:
+    ``nominal`` and ``start``; ``v0.3`` (Stage 1's nominal walk again, its entry's speed one ulp below 0.30 m/s);
+    the turn in place with its start and its stop under design D5's names."""
+    src = r5lib.s1_root(body) / body
+    d = setio.set_dir(SET, body, root)
+    refs1, trs1 = s2io.read_json(src / "refs.json"), s2io.read_json(src / "transitions.json")
+    refs, trs, manifest = {}, {}, {}
+    for name, old in SET_REFS:
+        e = copy.deepcopy(refs1["references"][old])
+        e.update(name=name, file=f"refs/{name}.npz", set=SET, strides=1, window_s=e["period_s"], crouch_frac=0.03)
+        if name == "v0.3":
+            e["speed_m_s"] = V03_BELOW
+        refs[name] = e
+    for name, old in SET_MOVES:
+        e = copy.deepcopy(trs1["transitions"][old])
+        e.update(name=name, file=f"transitions/{name}.npz", a1_over=None,
+                 move=dict(kind=name.split("_")[0], builder="fixture", causal=False, command_phase=None))
+        trs[name] = e
+    for doc, sub, kind in ((refs, "refs", "walk"), (trs, "transitions", "move")):
+        for name, e in doc.items():
+            (d / sub).mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src / sub / f"{dict(SET_REFS + SET_MOVES)[name]}.npz", d / e["file"])
+            manifest[name] = dict(kind=kind, sha256=e["sha256"], entry_sha256=setio.entry_sha256(kind, e))
+    s2io.write_json(d / "refs.json", dict(body=body, set=SET, schema=1, references=refs))
+    s2io.write_json(d / "transitions.json", dict(body=body, set=SET, schema=1, transitions=trs))
+    freeze = dict(index=0, at="fixture", commit=None, manifest=manifest, manifest_sha256=s2io.sha256_json(manifest))
+    s2io.write_json(d / "set.json", dict(set=SET, body=body, role="fixture", crouch_frac=0.03, not_available={},
+                                         freezes=[freeze]))
+    return d
+
+
+@pytest.fixture(scope="module")
+def t0(p, tmp_path_factory):
+    root = tmp_path_factory.mktemp("sets")
+    make_set(root)
+    return r5lib.Library(p, BODY, SET, RATE, root=root)
+
+
+def played_turning(track, run_dir):
+    """``bar._Played`` for a track that holds a turn in place, which ``bar._Played`` itself refuses: the same
+    placement of the files in one world frame, a periodic window carried on by the file's own stride motion
+    (``turning.move_pose``: a turn about a point), any number of windows."""
+    from designlab import turning
+    from designlab.stage1.refs import Reference
+    from designlab.stage1.transitions import Transition
+    from designlab.stage2 import bar
+
+    class Turning(bar._Played):
+        def __init__(self, track, run_dir):  # (bar._Played's own lines, less its refusal of a turning gait)
+            self.track, run_dir = track, Path(run_dir)
+            self.objs = [Reference.load(run_dir / "refs" / f"{seg.name}.npz") if seg.kind == "periodic" else
+                         Transition.load(run_dir / "transitions" / f"{seg.name}.npz") if seg.kind == "finite" else None
+                         for seg in track.segments]
+            self.T, self.held = [None] * len(self.objs), [None] * len(self.objs)
+            pose = None
+            for i, obj in enumerate(self.objs):
+                if obj is None:
+                    self.held[i] = np.array(self.objs[1].q[0], float) if i == 0 else self._file_end_frame(i - 1)
+                    pose = bar._xy_yaw(self.held[i]) if i == 0 else pose
+                    self.T[i] = (0.0, 0.0, 0.0)
+                    continue
+                self.T[i] = (0.0, 0.0, 0.0) if pose is None else bar._onto(pose, bar._xy_yaw(obj.q[0]))
+                pose = bar._xy_yaw(bar._move(self.T[i], self._end_pose(i)))
+
+        def _periodic(self, i: int, k: int) -> np.ndarray:
+            ref = self.objs[i]
+            q = np.array(ref.q[k % ref.n], float)
+            phi, ax, ay, bx, by = (float(x) for x in ref.stride_motion)
+            for _ in range(k // ref.n):
+                q = turning.move_pose(q, phi, (ax, ay), (bx, by))
+            return q
+
+    return Turning(track, run_dir)
+
+
 class Playback:
     """A script played kinematically on a plant's data with a ``Core`` reading it (module docstring).  What a test
     injects: ``factor`` (the clock's rate over the commanded one), ``pose(q, c)`` (changes the played pose),
     ``load_lag`` (the loads are the reference's this much reference time earlier), ``loads(c)`` (replaces them),
-    ``yaw`` (the whole pose turned about the vertical) and ``force`` (actuator forces)."""
+    ``yaw`` (the whole pose turned about the vertical) and ``force`` (actuator forces).  ``played`` places the
+    files (default: ``bar._Played``; ``played_turning`` for a turn in place)."""
 
-    def __init__(self, p, core, script, run_dir, t0: float = 0.0, head=None):
+    def __init__(self, p, core, script, run_dir, t0: float = 0.0, head=None, played=None):
         from designlab.stage2 import bar
 
         self.p, self.core, self.script, self._move = p, core, script, bar._move
-        self.play = bar._Played(script.track, run_dir)
+        self.play = (bar._Played if played is None else played)(script.track, run_dir)
         self.factor, self.pose, self.load_lag, self.loads, self.yaw, self.force = 1.0, None, 0.0, None, 0.0, None
         self.c = float(t0)
         self.weight = float(p.m.body_subtreemass[p.trunk]) * 9.81
@@ -325,6 +412,41 @@ def test_a_playback_scores_imitation_one_and_every_penalty_zero(p, s1, task):
     assert rng["duty"] == (0.0, 0.0) and rng["progress"][1] < 1e-4
     stats = core.clock_stats()
     assert stats["mean"] == stats["min"] == 1.0 and stats["reference_s"] == pytest.approx(pb.c)
+
+
+@needs_run
+@pytest.mark.parametrize("direction", ["left", "right"])
+def test_a_playback_of_a_turn_in_place_scores_heading_zero(p, core, t0, direction):
+    """The lead's ruling of 16 Nov 2026: in the turn-in-place tasks the commanded heading follows the reference's
+    own yaw, so that the reference itself scores zero on the heading penalty over the whole task (the start from
+    standing, three strides of the turn, the stop), and the actor's heading input stays at zero.  The same plan
+    read by rule E4's integral (as a plan, not as the task) charges its own reference for most of the task."""
+    pytest.importorskip("designlab.stage2.bar")
+    s = t0.script(f"inplace_{direction}")
+    assert s.heading_rule == "reference" and [x[0] for x in s.plan] == ["transition", "ref", "transition"]
+    n = int(round((s.t_end / RATE - 0.02) / 0.02))
+    at = core.layout["blocks"]["heading"][0]
+    pb = Playback(p, core, s, t0.dir, played=played_turning)
+    inputs = []
+    for _ in range(n):
+        assert pb.step()["heading"] == 0.0
+        inputs.append(float(core.actor_obs()[at]))
+    assert s.t_end - 0.05 < pb.c <= s.t_end and max(abs(x) for x in inputs) < 1e-6  # the whole task
+    turned = control._wrap(control._yaw(p.d.xmat[p.trunk]) - core.yaw_home)  # the pose really turned: 260 degrees
+    assert abs(control._wrap(turned - s.ref_yaw(pb.c))) < 1e-6 and abs(s.ref_yaw(pb.c)) > math.radians(250.0)
+    rows = pb.terms
+    _check_reference_scores({k: (min(t[k] for t in rows), max(t[k] for t in rows)) for k in rows[0]},
+                            tracking_floor=0.95)
+    # rule E4's integral on the same plan: the reference is charged, and the input sits at its clip
+    e4 = t0.from_plan(s.plan)
+    assert e4.heading_rule == "command"
+    pb = Playback(p, core, e4, t0.dir, played=played_turning)
+    charged, inputs = [], []
+    for _ in range(n):
+        charged.append(pb.step()["heading"])
+        inputs.append(float(core.actor_obs()[at]))
+    assert max(charged) == 1.0 and float(np.mean(charged)) > 0.7 and float(np.mean(np.array(charged) == 1.0)) > 0.65
+    assert float(np.mean(np.abs(inputs) == 2.0)) > 0.5
 
 
 @needs_run
@@ -600,6 +722,29 @@ def test_stage_1s_penalties_and_the_action_rate(p, core, s1):
     one[0] = 1.0
     pb.step(np.zeros(n))
     assert pb.step(one)["action_rate"] == pytest.approx(1.0 / n / 0.25)
+
+
+@needs_run
+def test_a_rung_at_0_30_m_s_keeps_the_usual_duty_band(p, core, t0):
+    """Rule W3: the band is 0.55-0.72 while the target speed is below 0.30 m/s.  A rung named ``v0.3`` whose entry
+    holds one ulp less than 0.30 is not below it (the bar takes the target from the name): a body whose feet are
+    each down for 0.69 of the stride is charged under 0.55-0.65.  The same arrays as the nominal walk (0.243 m/s)
+    are read under 0.55-0.72 and not charged."""
+    w = float(p.m.body_subtreemass[p.trunk]) * 9.81
+    assert t0.refs_doc["v0.3"]["speed_m_s"] == V03_BELOW < 0.3 == r5core.REWARD_SCALES["duty_slow_below_m_s"]
+    for name, target, want in (("v0.3", 0.3, 1.0), ("nominal", t0.refs_doc["nominal"]["speed_m_s"], 0.0)):
+        s = t0.from_plan([("transition", "start"), ("ref", name, 8)])
+        seg = s.track.segments[1]
+        pb = Playback(p, core, s, t0.dir, s.start_state(seg.t0 + 0.5 * seg.period)[0])
+        # each foot in the air for the first 0.31 of the reference's own swing phase: a share of 0.69
+        pb.loads = lambda c, s=s: np.array([0.0 if s.phase(c) < 0.31 else 0.5 * w,
+                                            0.0 if 0.5 <= s.phase(c) < 0.81 else 0.5 * w])
+        assert pb.run(1.0)["duty"] == (0.0, 0.0)  # (no whole stride of history yet)
+        assert pb.run(2.0)["duty"][1] == want
+        assert s.target_speed(pb.c) == target and s.command(pb.c)[0] == t0.refs_doc[name]["speed_m_s"]
+        n = int(round(seg.period / RATE / 0.02))
+        share = np.mean(core._shares[np.arange(core._shares_n - n, core._shares_n) % r5core.HISTORY_STEPS], axis=0)
+        assert np.all(np.abs(share[:2] - 0.69) < 0.01) and np.all(np.abs(share[2:] - 0.60) < 0.02)
 
 
 def _pitched(q, angle: float):
