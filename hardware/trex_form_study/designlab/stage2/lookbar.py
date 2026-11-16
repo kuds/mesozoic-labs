@@ -116,6 +116,11 @@ CLOCK_TOL = 1e-9
 #: What a block holds of a read episode's look reading: the companion episode's ``look``.
 LOOK_KEYS = ("window", "window_ref", "own", "reference", "terms", "not_read", "too_few_steps", "look_ok", "compare",
              "air_runs")
+#: What a block keeps of ``lookread.compare``'s value beside the terms: the ratios and differences, the robot's own
+#: tail amplitude with its side of its limit, the counts of steps and lift-offs, the reference's values with their
+#: sides of the threshold, and the bands.
+COMPARE_KEYS = ("bob_ratio", "head_world_pitch_rms_deg", "tail_phase_diff_cycles", "tail_amp_rad", "tail_amp_side",
+                "tail_amp_min_rad", "tail_amp_ratio", "toe_off_ratio", "steps", "lift_offs", "reference", "bands")
 #: The keys ``bar.Delayed.describe`` adds to its inner row's description (a test holds the two together).
 DELAYED_KEYS = ("delayed_row", "latency_steps", "latency_ms", "latency_rule", "servo_delay_rule")
 #: The modules whose import registers a controller's rows (``panels.register_rows``): looked up by the controller's
@@ -403,8 +408,8 @@ class LookRow(panels.Row):
             too_few_steps=None, look_ok=None, compare=None, air_runs=None, on_command_at_stop=None,
             policy_check=None, state_digest=None, row_sha256=self.row_sha256(), at=s2io.now_utc())
         faults = []
-        for key, fn in (("clock", lambda: clock_block(out, rec, b.seconds)), ("state_digest", lambda: state_digest(b.p)),
-                        ("policy_check", self.provenance)):
+        for key, fn in (("clock", lambda: clock_block(out, rec, b.seconds)),
+                        ("state_digest", lambda: state_digest(b.p)), ("policy_check", self.provenance)):
             try:
                 block[key] = fn()
             except Exception as exc:  # noqa: BLE001 - recorded, never raised (RULES["wrapper"])
@@ -454,10 +459,7 @@ class LookRow(panels.Row):
                      air_runs=air_runs(ser, win[0], win[1], b.air_gap_max_s))
         c = lookread.compare(own, ref["reading"])
         block.update(read=True, terms=c["terms"], not_read=c["not_read"], too_few_steps=c["too_few_steps"],
-                     look_ok=bool(c["ok"]),
-                     compare={k: c[k] for k in ("bob_ratio", "head_world_pitch_rms_deg", "tail_phase_diff_cycles",
-                                                "tail_amp_ratio", "toe_off_ratio", "steps", "lift_offs", "reference",
-                                                "bands")})
+                     look_ok=bool(c["ok"]), compare={k: c[k] for k in COMPARE_KEYS})
 
 
 def sidecar_path(root, row: str, condition: str, seed: int) -> Path:
@@ -596,7 +598,8 @@ def companion_episode(condition: str, judge: str, seed: int, e: dict | None, blo
     return dict(
         condition=condition, seed=int(seed), outcome=outcome, reason=reason, unreadable=unreadable,
         fell=None if block is None and (e is None or (e or {}).get("error")) else bool(src.get("fell")),
-        survival_s=float(src.get("survival_s") or 0.0), planned_s=src.get("planned_s"), steps=(block or {}).get("steps"),
+        survival_s=float(src.get("survival_s") or 0.0), planned_s=src.get("planned_s"),
+        steps=(block or {}).get("steps"),
         succeeded=ok2, succeeded_but_A1=ok3, succeeded_look=ok1, succeeded_but_A1_look=ok13, reading_1=reading_1,
         failed_terms=failed, failed_terms_but_A1=failed3, look=look, look_ok=None if look is None else look["look_ok"],
         look_failed_terms=look_failed, look_reason=(block or {}).get("reason"), look_fault=(block or {}).get("fault"),
@@ -613,8 +616,8 @@ def companion_episode(condition: str, judge: str, seed: int, e: dict | None, blo
 def _counted(ep: dict, key: str) -> dict:
     """A companion episode as ``bar.counts`` reads it in the reading ``key`` (``RULES["counts"]``)."""
     o = ep["outcome"]
-    return dict(seed=ep["seed"], fell=o in ("fell", "error"), error=(ep.get("error") or "error") if o == "error" else None,
-                succeeded=bool(ep.get(key)))
+    return dict(seed=ep["seed"], fell=o in ("fell", "error"),
+                error=(ep.get("error") or "error") if o == "error" else None, succeeded=bool(ep.get(key)))
 
 
 def counts_of(episodes: list, seeds, key: str, reading: str) -> dict:

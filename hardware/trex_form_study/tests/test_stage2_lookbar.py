@@ -776,6 +776,8 @@ def test_the_look_block_of_a_walk_item(t0_set, tmp_path):
     assert blk["terms"] == dict(bob=False, head=False, tail=True, toe_off=True) and blk["not_read"] == ["toe_off"]
     assert blk["look_ok"] is False and blk["compare"]["reference"]["toe_off_side"] == "under 0.02 rad"
     assert abs(blk["compare"]["tail_phase_diff_cycles"]) < 0.02 and blk["compare"]["bands"] == dict(lookread.BANDS)
+    assert sorted(blk["compare"]) == sorted(lookbar.COMPARE_KEYS) and blk["compare"]["tail_amp_rad"] > 0.1
+    assert blk["compare"]["tail_amp_side"] == "at or over 0.02 rad" and blk["compare"]["tail_amp_min_rad"] == 0.02
     assert blk["air_runs"]["in_window"] == blk["own"]["lift_offs"] and blk["air_runs"]["shorter_than_air_gap_max"] == 0
     assert blk["air_runs"]["air_gap_max_s"] == b.air_gap_max_s and blk["on_command_at_stop"] is None
     assert blk["clock"]["mean_factor"] == pytest.approx(1.0, abs=1e-9)

@@ -161,7 +161,8 @@ def source_check(run: dict) -> dict:
                    files={rel: (src.get("files") or {}).get(rel) for rel in SOURCE_FILES},
                    stage1=src.get("plant_sources"), panels=src.get("panel_sources"))
         trained.append(rec)
-        changed += [f"session {rec['session']}: {rel}" for rel in SOURCE_FILES if rec["files"][rel] != today["files"][rel]]
+        changed += [f"session {rec['session']}: {rel}" for rel in SOURCE_FILES
+                    if rec["files"][rel] != today["files"][rel]]
         changed += [f"session {rec['session']}: {what}" for key, what in
                     (("stage1", "the Stage 1 sources (designlab/stage1/*.py: policy.py, env.py)"),
                      ("panels", "the panels' sources")) if rec[key] != today[key]]
@@ -595,8 +596,9 @@ def equivalence_check(job_dir, steps, body: str, set_name: str, condition: str, 
     r = g8a.row_episode(delayed, ctx, cond, int(seed))
     b = r["built"]
     if inner.policy._episode["script"].heading_rule != r5lib.HEADING_COMMAND:
-        raise RowError(f"{condition} plays a turn in place: the row names the reference's yaw as its commanded heading "
-                       "and a plan given to the env by its reset options names none (rule E4): the two are not compared")
+        raise RowError(f"{condition} plays a turn in place: the row names the reference's yaw as its commanded "
+                       "heading and a plan given to the env by its reset options names none (rule E4): the two are "
+                       "not compared")
     ld = inner.policy.load()
     mode = inner.ck["mode"]
     cfg = r5env.config_from(dict(run["settings"]["env_configs"][0], mode=mode, floor=cond.floor, randomize=False,
@@ -610,7 +612,8 @@ def equivalence_check(job_dir, steps, body: str, set_name: str, condition: str, 
     a_max, factors = 0.0, []
     try:
         obs, _ = e.reset(seed=0, options=dict(
-            plan=b.plan, seconds=float(b.seconds), start="stance", seeds=dict(start=seeds["start"], noise=seeds["noise"]),
+            plan=b.plan, seconds=float(b.seconds), start="stance",
+            seeds=dict(start=seeds["start"], noise=seeds["noise"]),
             factors=dict(friction=cond.friction, mass=1.0, kp=1.0, joint_damping=1.0, joint_friction=1.0,
                          latency_steps=int(k), noise_scale=1.0),
             push=b.push(int(seed)), head=head, terminate_on_interference=False))
