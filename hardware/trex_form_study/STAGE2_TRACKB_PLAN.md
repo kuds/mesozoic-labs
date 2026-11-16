@@ -178,7 +178,8 @@ arrays when the design was written and are no record.
   gates, every look set of that body, for both heads, is rebuilt so that moves leave and enter the loop only at its end,
   and a command then comes after about 10 s of walking. There is no second fallback: a move that still fails is recorded
   "not available", but for two: if the start or the change to the 0.40 m/s walk still fails, that body's look set is not
-  frozen and the point goes to the lead [settled 16 Nov 2026, before any Track B run: the two exceptions].
+  frozen and the point goes to the lead, who also decides whether that body's other look sets are frozen
+  [settled 16 Nov 2026, before any Track B run: the two exceptions, and the lead's decision on the other sets].
 - **What may come back to you.** No gain at the go or no-go. A failing 60 cm local run. A body whose turn in place
   cannot be built within its gate: it then trains without it, and the report says the plan's list of references is not
   met there. A quick turn that cannot be built within its gates on a body: its turn items then read "not run". R5
@@ -1407,23 +1408,32 @@ the arrays, `trunk_quat`: the roll is toward the stance leg at its mid-stance; t
 enter a move's period step by step, through the law `period_factor`, at the rate of the walk's own warp (`gait._Warp`).
 Check: with L8.
 
-**L8. Where a move carries the variation (F14; also `gaze_var`, `tail_var`).** [design; NEW] The variation's envelope is
-1 on the frames a move shares with a periodic window (its warm-up stride and its join strides) and fades with s to 0
-across the next stride inward. Between the fades a move has no F14 variation. Check: on the arrays, between the fades
-the phase runs at the plan's own rate, `1 / T(p)`, and the head and the tail carry no slow variation; on the shared
-strides the move equals the resampled window (join rules J1 and J2).
+**L8. Where a move carries the variation (F14; also `gaze_var`, `tail_var`).** [design; NEW;
+settled 16 Nov 2026, before any Track B run: the Check's last clause] The variation's envelope is 1 on the frames a move
+shares with a periodic window (its warm-up stride and its join strides) and fades with s to 0 across the next stride
+inward. Between the fades a move has no F14 variation. Check: on the arrays, between the fades the phase runs at the
+plan's own rate, `1 / T(p)`, and the head and the tail carry no slow variation; on the shared strides the move's times
+and slow variations are the window's, and its frames are read by the join gates (join rules J1 and J2)
+[settled 16 Nov 2026, before any Track B run; labelled as changed after the look work package had built look sets
+(prescribed motion; none frozen): this clause, which says what is equal, in place of "on the shared strides the move
+equals the resampled window (join rules J1 and J2)"; for a start or a change that clause contradicted L10 as settled, by
+which the frames before the instant are the move's own; ruling 5 of the fourth list].
 
 **L10. Flat feet, stance by stance.** [design; NEW; with L11, the rule of every move;
 settled 15 Nov, before any Track B run, after the look work package's first kinematic numbers existed: which stances are
 flat, and the instant of a start or a change; this refines the lead's look choice "flat feet inside every move";
-settled 16 Nov 2026, before any Track B run: what holds before the instant of a start or a change]
-[settled 15 Nov, before any Track B run; labelled as changed after the look work package's first kinematic numbers
-existed] For a start or a change, the instant is the start of the move's ramp (the entry's `move.command_phase`, Stage
-1's convention). Every stance that ends between that instant and the end of the move's last ramp is flat; a stance that
-ends after the last ramp has ended follows the walk's own law, so that the move's last frame equals the walk's first,
-foot pitch included [a clause on the frames before the instant followed here; the next paragraph replaces it]. The same
-per-stance rule holds for a causal move with its command instant in place of the ramp's start. This refines the lead's
-choice "flat feet inside every move" (L11): flat while the gait is changing.
+settled 16 Nov 2026, before any Track B run: what holds before the instant of a start or a change, the stance that ends
+at the instant, and how the Check reads the law before it] [settled 15 Nov, before any Track B run; labelled as changed
+after the look work package's first kinematic numbers existed] For a start or a change, the instant is the start of the
+move's ramp (the entry's `move.command_phase`, Stage 1's convention). Every stance that ends after that instant and no
+later than the end of the move's last ramp is flat [settled 16 Nov 2026, before any Track B run; labelled as changed
+after the look work package had built look sets (prescribed motion; none frozen): "ends after that instant and no later
+than the end of the move's last ramp", in place of "ends between that instant and the end of the move's last ramp"
+(settled 15 Nov), which did not say on which side a stance falls that ends at the instant itself: it is not flat; ruling
+6 of the fourth list]; a stance that ends after the last ramp has ended follows the walk's own law, so that the move's
+last frame equals the walk's first, foot pitch included [a clause on the frames before the instant followed here; the
+next paragraph replaces it]. The same per-stance rule holds for a causal move with its command instant in place of the
+ramp's start. This refines the lead's choice "flat feet inside every move" (L11): flat while the gait is changing.
 
 [settled 16 Nov 2026, before any Track B run; labelled as changed after the look work package had built look sets
 (prescribed motion; none frozen); in place of the committed clause "the frames before the instant equal the look walk's,
@@ -1449,14 +1459,17 @@ of the command in advance (A6). The committed sentence on the frames before and 
 alone, whose reference is the walk, frame for frame, up to the command (A6). The wording settled on 15 Nov had carried
 it over to a start and a change; the paragraph settled on 16 Nov 2026 says what holds there instead.
 
-Check: on the arrays, `foot_pitch` is 0 and `rolling` is false through every stance that ends between the instant and
-the end of the move's last ramp, and a stance that ends after that ramp carries the walk's own `foot_pitch` and
-`rolling`; `join_command` (the joints within 1e-3 rad at the command frame); the entry's `move.command_phase` (for a
+Check: on the arrays, `foot_pitch` is 0 and `rolling` is false through every stance that ends after the instant and no
+later than the end of the move's last ramp, and a stance that ends after that ramp carries the walk's own `foot_pitch`
+and `rolling`; in a change, every stance that ends at or before the instant has the lift-off `foot_pitch` and `rolling`
+frames that gait a's spec gives on the move's own step times [settled 16 Nov 2026, before any Track B run: this item,
+and "after the instant and no later than" in the item before it, which read "between the instant and"; ruling 6 of the
+fourth list]; `join_command` (the joints within 1e-3 rad at the command frame); the entry's `move.command_phase` (for a
 start or a change, the instant); in `tests/test_stage2_moves_look.py`, the test that in a causal move the frames before
 and at the command equal the look walk's, the test that before the instant of a change `foot_pitch` and `rolling` follow
-the law of the walk it leaves [settled 16 Nov 2026, before any Track B run: these two tests, in place of one test "that
-the frames before the instant (in a causal move, before and at the command) equal the look walk's"], and the test that
-the move's last frame equals the walk's first, `foot_pitch` included.
+the law of the walk it leaves, read as the item above reads it [settled 16 Nov 2026, before any Track B run: these two
+tests, in place of one test "that the frames before the instant (in a causal move, before and at the command) equal the
+look walk's"], and the test that the move's last frame equals the walk's first, `foot_pitch` included.
 
 **Windows.** [design; settled 15 Nov, before any Track B run, after the look work package's first kinematic numbers
 existed: a nudge's onset] With F14 a look walk's file holds a window of K whole strides that is periodic as a whole (9
@@ -1494,52 +1507,63 @@ strides and nowhere else. Check: as L8.
 **L11. F5 lives in the periodic walks only; inside every move the feet are flat.** [look choice; lead, 15 Nov, before
 any look set was built; settled 15 Nov, before any Track B run, after the look work package's first kinematic numbers
 existed: the choice is refined to "flat while the gait is changing", and the instant of a start or a change is named;
-settled 16 Nov 2026, before any Track B run: what holds before that instant, with L10; differs: S2-15's "V6 (every look
-feature)", inside moves] Toe-off with rolling contact (F5; fields `toe_off`, `toe_off_start`, `toe_off_margin`,
-`toe_off_rate`, `toe_off_accel`, `toe_reach`) is in the periodic walks of V6 and nowhere else. Inside every move (start,
-change, stop, turn) the feet are flat by rule L10, which is stated per stance so that commanded moves stay causal. These
-are the first two cuts the design named (F5 inside turns and stops; F5 inside starts and changes too), taken from the
-start: the design's rule L9 (F5 inside a move, as rolling contact per stance about the yawed foot's own lateral axis) is
-not built. `V6noF5` is V6 with F5 off in the walks as well.
+settled 16 Nov 2026, before any Track B run: what holds before that instant and which stances are flat, with L10, and
+the turn in place's start and stop excepted; differs: S2-15's "V6 (every look feature)", inside moves] Toe-off with
+rolling contact (F5; fields `toe_off`, `toe_off_start`, `toe_off_margin`, `toe_off_rate`, `toe_off_accel`, `toe_reach`)
+is in the periodic walks of V6 and nowhere else. Inside every move (start, change, stop, turn) but the turn in place's
+start and stop (L13) [settled 16 Nov 2026, before any Track B run: "but the turn in place's start and stop (L13)", whose
+flat feet are that gait's own law; ruling 12 of the fourth list] the feet are flat by rule L10, which is stated per
+stance so that commanded moves stay causal. These are the first two cuts the design named (F5 inside turns and stops; F5
+inside starts and changes too), taken from the start: the design's rule L9 (F5 inside a move, as rolling contact per
+stance about the yawed foot's own lateral axis) is not built. `V6noF5` is V6 with F5 off in the walks as well.
 
 [settled 15 Nov, before any Track B run; labelled as changed after the look work package's first kinematic numbers
 existed; this refines the lead's look choice of 02:45 UTC, which the paragraph above states] The feet are flat while the
-gait is changing. Rule L10 as settled names the stances: every stance that ends between the move's instant and the end
-of its last ramp is flat, and a stance that ends after the last ramp has ended follows the walk's own law (in V6, F5's
-toe-off), so that the move's last frame equals the walk's first, foot pitch included. For a start or a change, which are
-not causal (`STAGE2_75_PLAN.md` A5), the instant is the start of the move's ramp (the entry's `move.command_phase`,
-Stage 1's convention), and before it the foot pitch of a change follows the law of the walk it leaves, while the rest of
-the frame is the move's own (L10) [settled 16 Nov 2026, before any Track B run: this clause, in place of "and the frames
-before it equal the look walk's, foot pitch included"]. "Nowhere else" and "inside every move" in the paragraph above
-are read with this refinement.
+gait is changing. Rule L10 as settled names the stances: every stance that ends after the move's instant and no later
+than the end of its last ramp is flat [settled 16 Nov 2026, before any Track B run: "after the move's instant and no
+later than", as in L10, in place of "between the move's instant and"], and a stance that ends after the last ramp has
+ended follows the walk's own law (in V6, F5's toe-off), so that the move's last frame equals the walk's first, foot
+pitch included. For a start or a change, which are not causal (`STAGE2_75_PLAN.md` A5), the instant is the start of the
+move's ramp (the entry's `move.command_phase`, Stage 1's convention), and before it the foot pitch of a change follows
+the law of the walk it leaves, while the rest of the frame is the move's own (L10)
+[settled 16 Nov 2026, before any Track B run: this clause, in place of "and the frames before it equal the look walk's,
+foot pitch included"]. "Nowhere else" and "inside every move" in the paragraph above are read with this refinement.
 
 Check: each V6 walk entry's `definition.spec` (F5's fields as the look ladder's V6 rung has them); each V6noF5 walk
-entry's `definition.spec` (`toe_off` and `toe_reach` 0); in every move entry of both sets, L10 named in `move.rules`, L9
-in none, and on its arrays `foot_pitch` 0 and `rolling` false in the stances L10 names; for a start or a change, the
-instant read from the entry's `move.command_phase`.
+entry's `definition.spec` (`toe_off` and `toe_reach` 0); in every move entry of both sets, L9 named in no `move.rules`;
+in every move entry of both sets but the turn in place's start and stop (L13)
+[settled 16 Nov 2026, before any Track B run: this exception; ruling 12 of the fourth list], L10 named in `move.rules`,
+and on its arrays `foot_pitch` 0 and `rolling` false in the stances L10 names; for a start or a change, the instant read
+from the entry's `move.command_phase`.
 
 **L12. Join rule J1 is built as designed; its fallback order is fixed now.** [look choice; lead, 15 Nov, before any look
 set was built; settled 15 Nov, before any Track B run, after the look work package's first kinematic numbers existed:
 the trigger, the scope and the order of the fallback; settled 16 Nov 2026, before any Track B run: a `start` or a
-`nominal_to_v0.4` that still fails; differs: A8, A11, for a join gate failed on a K-stride window; cut 3 differs: B6 and
-T1] [settled 15 Nov, before any Track B run; labelled as changed after the look work package's first kinematic numbers
-existed, whose join numbers are what this trigger reads ("What had been run")] The fallback is taken only when a move of
-a look set, built by the builder after an independent review of its join code (the review's record named by path and
-sha256 in `set.json` `rules`), has `join_command` or `join_b` outside A7's limits. A change or a start that fails is
-first retried by A8's steps under join rule J1; cut 3 is taken for a causal move (the stop, a turn), or when A8 is
-exhausted. A cut is taken for a body, not for a move: every look set of that body and of its `-X` head (`V6`, `V6noF5`)
-is rebuilt under it, so that a body's two heads and its R2L set never differ in it; two bodies may differ, and the
-report says so. A `start` or a `nominal_to_v0.4` that still fails under the cuts open to it stops that body's set, which
-is then not frozen, and goes to the lead: A8 stands on a look set. Any other move that still fails is "not available"
-with its numbers: a ladder change (A8 step 3), the stop (its conditions are then "not run", H3), a turn (A11) and the
-turn in place (L13) [settled 16 Nov 2026, before any Track B run; labelled as changed after the look work package had
-built look sets (prescribed motion; none frozen): the two sentences before this mark, in place of the first clause of
-the committed sentence "A move that still fails under the cuts open to it is "not available" with its numbers (A8 step
-3; A11 for a turn); no limit is changed for it without the label "changed after a result"" (settled 15 Nov); the
-sentence after this mark is that sentence's closing clause, set on its own by the author, and it holds as committed, for
-every move that still fails]. No limit is changed for a move that still fails without the label "changed after a
-result". Under cut 3 the "2 (2.5) strides of `v0.4`" of T1 and of B6 read "one window of `v0.4` (and half a stride for a
-right-foot command)", and the env description and every record say so.
+`nominal_to_v0.4` that still fails, and who then decides on the body's other look sets; differs: A8, A11, for a join
+gate failed on a K-stride window; cut 3 differs: B6 and T1] [settled 15 Nov, before any Track B run; labelled as changed
+after the look work package's first kinematic numbers existed, whose join numbers are what this trigger reads ("What had
+been run")] The fallback is taken only when a move of a look set, built by the builder after an independent review of
+its join code (the review's record named by path and sha256 in `set.json` `rules`), has `join_command` or `join_b`
+outside A7's limits. A change or a start that fails is first retried by A8's steps under join rule J1; cut 3 is taken
+for a causal move (the stop, a turn), or when A8 is exhausted. A cut is taken for a body, not for a move: every look set
+of that body and of its `-X` head (`V6`, `V6noF5`) is rebuilt under it, so that a body's two heads and its R2L set never
+differ in it; two bodies may differ, and the report says so. A `start` or a `nominal_to_v0.4` that still fails under the
+cuts open to it stops that body's set, which is then not frozen, and goes to the lead: A8 stands on a look set. Any
+other move that still fails is "not available" with its numbers: a ladder change (A8 step 3), the stop (its conditions
+are then "not run", H3), a turn (A11) and the turn in place (L13) [settled 16 Nov 2026, before any Track B run; labelled
+as changed after the look work package had built look sets (prescribed motion; none frozen): the two sentences before
+this mark, in place of the first clause of the committed sentence "A move that still fails under the cuts open to it is
+"not available" with its numbers (A8 step 3; A11 for a turn); no limit is changed for it without the label "changed
+after a result"" (settled 15 Nov); the sentence after this mark is that sentence's closing clause, set on its own by the
+author, and it holds as committed, for every move that still fails]. No limit is changed for a move that still fails
+without the label "changed after a result". Under cut 3 the "2 (2.5) strides of `v0.4`" of T1 and of B6 read "one window
+of `v0.4` (and half a stride for a right-foot command)", and the env description and every record say so.
+
+[settled 16 Nov 2026, before any Track B run; labelled as changed after the look work package had built look sets
+(prescribed motion; none frozen); ruling 7 of the fourth list, on what the paragraph above leaves open for the body's
+other sets] The set whose `start` or `nominal_to_v0.4` fails holds no freeze. Whether that body's other look sets are
+frozen is then the lead's decision, recorded with its date and reason, because a body's sets are meant to agree (the
+paragraph above: a cut is taken for a body). No rule freezes or blocks them by itself.
 
 The design's cut 3 [differs: B6 and T1]: a move leaves and enters a K-stride window only at its boundary (a right-foot
 command at the exact time of phase 0.5 after the boundary); episodes then walk whole windows (about 10 s) before a
@@ -1566,9 +1590,11 @@ Check: `set.json` `rules` (the join code's review by path and sha256; the fallba
 move's `join_command` or `join_b` numbers; the same in every look set of the body and of its `-X` head); the move
 entries' `a_phase`, `a_time_s`, `join_command`, `join_b`, and `available: false` with its numbers for a move that still
 fails, other than `start` and `nominal_to_v0.4`: a set in which one of those two still fails holds no freeze (A8)
-[settled 16 Nov 2026, before any Track B run: this exception]; under cut 3, the reading of T1's and B6's stride counts
-in the env description and in the records' `plan`; a set rebuilt under a cut after a closed-loop episode on it carries
-the label "changed after a result", and one rebuilt before any does not.
+[settled 16 Nov 2026, before any Track B run: this exception], and the lead's decision on that body's other look sets is
+on record with its date and reason [settled 16 Nov 2026, before any Track B run: this item; ruling 7 of the fourth
+list]; under cut 3, the reading of T1's and B6's stride counts in the env description and in the records' `plan`; a set
+rebuilt under a cut after a closed-loop episode on it carries the label "changed after a result", and one rebuilt before
+any does not.
 
 **L13. The turn in place.** [look choice; lead, 15 Nov, before any look set was built;
 settled 15 Nov, before any Track B run, after the look work package's first kinematic numbers existed: the plan's
