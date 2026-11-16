@@ -322,3 +322,15 @@ another model with the lead and the independent reviewers unchanged.
   cost with `get_session` before each tranche and stop before one that would pass 90 %.
 - To spend less: one independent reviewer per build, and a short labelled section for the add-on's results in place
   of another full report cycle.
+
+## Update, 16 Nov 2026, 01:35 UTC: the order of work (P38)
+
+- The owner chose "Training path first" (`DECISION_LOG.md` P38). Order from here: (1) item A of the add-on, today's
+  walk at 14, 16 and 20 ms, with its rules committed first; (2) the training path toward the day-one Colab smoke:
+  sections 2 to 8 of this file say what is built, what is in the bundle and what is not started (round C tooling,
+  the look sets, the Track B rules with ten conflicts, validation B.3 and S2-4, the notebook, the Drive bundle, the
+  steps sheet); (3) the refit with delay and the carpet range only if there is room: their designs and reviews are
+  being written by workflow `wf_5204a798-a6e` and stay on file (`<scratchpad>/addon/`; copy what returns into
+  `stage2/design/` so that it survives a restart).
+- The usage line is about 90 % (about 1,979 USD on `get_session`'s meter), then checkpoint and stop; the owner
+  resets the allocation the next day.
