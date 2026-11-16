@@ -33,8 +33,10 @@ from designlab.stage2 import bundle, s2io  # noqa: E402
 
 needs_git = pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
 IGNORE = ROOT / "stage2" / "tb" / ".gitignore"
+#: The file's 13 lines.  No line ignores ``checkpoints/``: a checkpoint's record ``checkpoint_<n>.json`` is committed
+#: (the lead's ruling of 16 Nov 2026); its three binaries are ignored by their own lines.
 IGNORE_LINES = ["work/", "*.tar", "*.zip", "*.npz", "*.pkl", "*.mp4", "*.tmp", "*.part", ".lock", "logs/", "partial/",
-                "traces/", "checkpoints/", "parts/"]
+                "traces/", "parts/"]
 #: The synthetic bodies: name -> refine case directory (their candidate id is their name).
 CASES = {"T-A": "round2/refine/t_case_a", "T-B": "round2/refine/t_case_b"}
 BODIES = sorted(CASES)
@@ -172,16 +174,21 @@ IGNORED = ["work/x", "bundle/b/parts/a.tar", "runs/r/jobs/j/checkpoints/model_1.
            # live files and the rest of what Track B writes and never commits
            "work/runs/r/LIVE.json", "work/runs/r/STATUS.json", "work/r2l/fit/gen_3.json",
            "runs/r/jobs/j/checkpoints/vecnormalize_1.pkl", "runs/r/jobs/j/checkpoints/fingerprint_1.npz",
-           "runs/r/jobs/j/checkpoints/checkpoint_1.json", "runs/r/jobs/j/ckpt_1.tar",
+           "runs/r/jobs/j/checkpoints/checkpoint_1.json.tmp", "runs/r/jobs/j/checkpoints/model_1.zip.part",
+           "runs/r/jobs/j/ckpt_1.tar",
            "runs/r/jobs/j/monitor/clip_1.mp4", "runs/r/logs/launcher.s1.log", "runs/r/jobs/j/model_1.zip.part",
            "bundle/b/.lock", "bundle/b/MANIFEST.json.tmp", "bundle/b/parts/a.tar.tmp"]
+#: The committed kind.  A checkpoint's record is one of them: of the four files under ``checkpoints/`` only the three
+#: binaries (``.zip``, ``.pkl``, ``.npz``, in ``IGNORED``) stay out of git.
 NOT_IGNORED = ["bundle/b/MANIFEST.json", "runs/r/jobs/j/run.json", "gates/V6/b/g8a.json",
+               "runs/r/jobs/j/checkpoints/checkpoint_1.json",
                "bundle/b/UPLOADS.json", "bundle/b/ACCEPTANCE.json", "runs/r/STATUS.json", "colab_steps.txt",
                "validation/rates.json", ".gitignore"]
 
 
 def test_the_ignore_file_holds_exactly_its_lines():
     assert IGNORE.read_text() == "".join(line + "\n" for line in IGNORE_LINES)
+    assert len(IGNORE_LINES) == 13 and "checkpoints/" not in IGNORE_LINES
 
 
 def _scratch_repo(tmp_path: Path) -> Path:
