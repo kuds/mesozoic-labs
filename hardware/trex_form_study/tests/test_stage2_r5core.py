@@ -3,8 +3,9 @@
 
 The reward is tested on a **kinematic playback**: a script's own poses (the bar's placement of the files in one
 world frame, ``bar._Played``) written into the plant's data at the commanded clock, the foot loads from the
-reference's support flags, no physics.  On it every imitation term is 1 and every penalty 0 (rule W1); each term
-then moves when its cause is injected into the playback.  The S1 view only (Stage 1's run directory).
+reference's support flags, no physics.  On it every imitation term is 1 and every penalty below 1e-4 (rule W1 as
+the lead ruled it on 16 Nov 2026: ``progress`` is not exactly 0, and ``heading`` is charged inside a walking turn);
+each term then moves when its cause is injected into the playback.  The S1 view only (Stage 1's run directory).
 """
 
 from __future__ import annotations
