@@ -1093,6 +1093,44 @@ def test_cli_verify_and_unpack(built, tmp_path):
     assert _files_under(tmp_path / "two") == []
 
 
+def test_cli_json(built, tmp_path):
+    """``--json``: the result as one line of JSON and nothing else (what a caller in another process reads: the
+    whole content hash, the counts, every problem), with the same exit codes."""
+    tree, out, doc = built
+    manifest, parts, root = str(out / "MANIFEST.json"), str(out / "parts"), tmp_path / "unpacked"
+    cli = ["-m", "designlab.stage2.bundle"]
+
+    def one_line(got):
+        assert got.stdout.endswith("\n") and got.stdout.count("\n") == 1, got.stdout + got.stderr
+        return json.loads(got.stdout)
+
+    got = _run(cli + ["unpack", "--manifest", manifest, "--parts", parts, "--root", str(root), "--json"])
+    first = one_line(got)
+    assert got.returncode == 0 and first == dict(
+        ok=True, bundle_id="t1", content_sha256=doc["content_sha256"], root=os.path.realpath(root),
+        parts=sorted(doc["content"]["parts"]), files=len(doc["content"]["files"]),
+        written=sorted(doc["content"]["files"]), replaced=[], left=[])
+    got = _run(cli + ["verify", "--manifest", manifest, "--root", str(root), "--parts", parts, "--json"])
+    assert got.returncode == 0 and one_line(got) == bundle.verify(manifest, root, parts)
+    assert one_line(got)["ok"] is True and one_line(got)["content_sha256"] == doc["content_sha256"]
+    (root / FIRST).write_bytes(b"other")
+    got = _run(cli + ["verify", "--manifest", manifest, "--root", str(root), "--json"])
+    bad = one_line(got)
+    assert got.returncode == 1 and bad == bundle.verify(manifest, root)
+    assert bad["ok"] is False and bad["first_problem"].startswith(f"{FIRST}: 5 bytes") and bad["parts_ok"] is None
+    assert (bad["files_ok"], bad["files"]) == (len(doc["content"]["files"]) - 1, len(doc["content"]["files"]))
+    got = _run(cli + ["verify", "--manifest", str(tmp_path / "nothing.json"), "--root", str(root), "--json"])
+    assert got.returncode == 1 and one_line(got)["first_problem"].startswith("MANIFEST: ")
+    spoiled = tmp_path / "parts"
+    shutil.copytree(out / "parts", spoiled)
+    (spoiled / PART).write_bytes((spoiled / PART).read_bytes()[:-512])
+    got = _run(cli + ["unpack", "--manifest", manifest, "--parts", str(spoiled), "--root", str(tmp_path / "two"),
+                      "--json"])
+    refused = one_line(got)
+    assert got.returncode == 1 and sorted(refused) == ["first_problem", "ok"] and refused["ok"] is False
+    assert refused["first_problem"].startswith(f"{PART}: ") and _files_under(tmp_path / "two") == []
+
+
 def test_verify_and_unpack_import_neither_mujoco_nor_setio(built, tmp_path):
     """What a Colab session calls needs the standard library, numpy and ``s2io`` only; a models-only build imports
     no plant either (so it cannot rebuild a model)."""

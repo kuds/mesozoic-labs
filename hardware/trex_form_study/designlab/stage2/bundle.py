@@ -50,6 +50,11 @@ right sha256 is left untouched, so a second ``unpack`` writes nothing.  A record
 cannot be read or is not what it must be is a refusal (``BundleError``; for ``verify`` a reported problem) with its
 path, never another exception.
 
+On the command line ``verify`` and ``unpack`` print one line that starts ``S2 BUNDLE`` (its wording is for a reader);
+with ``--json`` they print the result as one line of JSON and nothing else, which is what a caller in another process
+reads: ``verify``'s result as it is returned, ``unpack``'s likewise or, for a refusal, ``{"ok": false,
+"first_problem": <the refusal>}``.  The exit code is 0 for OK and 1 for a difference or a refusal in both forms.
+
 A relative path given to any function or option is taken from the study directory (``hardware/trex_form_study``),
 never from the working directory (``setio``'s rule).
 
@@ -57,8 +62,8 @@ This module is in no record key.  It imports ``setio`` (and with it Stage 1's co
 ``build`` and only when a set is packed: ``verify`` and ``unpack`` need the standard library, numpy and ``s2io``.
 
     python -m designlab.stage2.bundle build --bundle-id ID --bodies B1,B2 --sets V6 --out stage2/tb/bundle/ID [--part-mb 20]
-    python -m designlab.stage2.bundle verify --manifest PATH --root DIR [--parts DIR]
-    python -m designlab.stage2.bundle unpack --manifest PATH --parts DIR --root DIR [--only PART,...]
+    python -m designlab.stage2.bundle verify --manifest PATH --root DIR [--parts DIR] [--json]
+    python -m designlab.stage2.bundle unpack --manifest PATH --parts DIR --root DIR [--only PART,...] [--json]
 """
 
 from __future__ import annotations
@@ -899,11 +904,13 @@ def main(argv=None) -> int:
     a.add_argument("--manifest", required=True)
     a.add_argument("--root", required=True)
     a.add_argument("--parts", default=None, help="a directory holding the parts: each is hashed too")
+    a.add_argument("--json", action="store_true", help="print the result as one line of JSON and nothing else")
     a = sub.add_parser("unpack", help="check the parts and write their files to their study paths under a root")
     a.add_argument("--manifest", required=True)
     a.add_argument("--parts", required=True)
     a.add_argument("--root", required=True)
     a.add_argument("--only", default=None, help="part names to unpack, comma-separated (default: every part)")
+    a.add_argument("--json", action="store_true", help="print the result as one line of JSON and nothing else")
     args = ap.parse_args(argv)
 
     if args.cmd == "build":
@@ -929,6 +936,9 @@ def main(argv=None) -> int:
         return 0
     if args.cmd == "verify":
         got = verify(args.manifest, args.root, args.parts)
+        if args.json:
+            print(json.dumps(got, sort_keys=True), flush=True)
+            return 0 if got["ok"] else 1
         line = (f"S2 BUNDLE {got['bundle_id']}: manifest {str(got['content_sha256'])[:12]}, {got['files_ok']} of "
                 f"{got['files']} files match their sha256")
         if args.parts is not None:
@@ -940,8 +950,12 @@ def main(argv=None) -> int:
     try:
         got = unpack(args.manifest, args.parts, args.root, parts=_csv(args.only) if args.only is not None else None)
     except s2io.S2Error as exc:
-        print(f"S2 BUNDLE: NOT UNPACKED: {exc}", flush=True)
+        print(json.dumps(dict(ok=False, first_problem=str(exc)), sort_keys=True) if args.json
+              else f"S2 BUNDLE: NOT UNPACKED: {exc}", flush=True)
         return 1
+    if args.json:
+        print(json.dumps(got, sort_keys=True), flush=True)
+        return 0
     print(f"S2 BUNDLE {got['bundle_id']}: manifest {got['content_sha256'][:12]}, {_count(got['files'], 'file')} of "
           f"{_count(len(got['parts']), 'part')} under {got['root']}: {len(got['written'])} written, "
           f"{len(got['replaced'])} replaced, {len(got['left'])} already there: OK", flush=True)
