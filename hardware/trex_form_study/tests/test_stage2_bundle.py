@@ -644,6 +644,70 @@ def test_records_must_be_committed(tree, tmp_path):
     assert _files_under(tmp_path / "b") == [] and _files_under(tmp_path / "c") == []
 
 
+def _git_says(code: int, stdout: str = "", stderr: str = ""):
+    """A stand-in for ``subprocess.run`` in ``bundle``: every git command ends like this."""
+    return lambda cmd, **kw: subprocess.CompletedProcess(cmd, code, stdout, stderr)
+
+
+def _no_git(cmd, **kw):
+    raise FileNotFoundError(errno.ENOENT, "No such file or directory", "git")
+
+
+@needs_git
+def test_a_build_of_the_study_itself_is_refused_where_git_cannot_tell(tree, tmp_path, monkeypatch):
+    """The study's own bundle is built from records git shows to be committed, never from records nobody compared
+    with a commit: where the root is the study itself (the command line's only root) and git cannot tell, the build
+    is refused with the reason and writes nothing.  Another root (a synthetic tree) keeps the note and
+    ``records_committed: null``."""
+    out, build = tmp_path / "out", lambda **kw: bundle.build("t1", BODIES, sets=("SX",), part_mb=0.06, **kw)
+    assert build(out=tmp_path / "elsewhere", root=tree)["provenance"]["records_committed"] is None
+    other = Path(shutil.copytree(tree, tmp_path / "another tree"))
+    monkeypatch.setattr(s2io, "STUDY", tree)  # from here on the synthetic tree is the study
+    alias = tmp_path / "alias"
+    alias.symlink_to(tree, target_is_directory=True)
+    for root in (None, tree, str(tree), tree / "stage2" / "..", alias):  # the study, however it is named
+        with pytest.raises(bundle.BundleError) as exc:
+            build(out=out, root=root)
+        text = str(exc.value)
+        assert text.startswith("bundle t1 is not built: ") and "is the study itself" in text, text
+        assert "git cannot tell whether the records read are committed" in text
+        assert "git rev-parse --is-inside-work-tree: fatal: not a git repository" in text  # git's own words
+        assert "committed records only" in text
+    assert _files_under(out) == [] and not out.exists()
+    # the other ways git cannot tell, each with its reason: no git, a checkout git refuses, a listing that fails
+    real = subprocess.run
+    listing_fails = lambda cmd, **kw: (subprocess.CompletedProcess(cmd, 128, "", "fatal: index file corrupt\n")
+                                       if "ls-files" in cmd else real(cmd, **kw))
+    _git(tmp_path, "init", "-q", str(tree))
+    for fake, why in ((_no_git, "git could not be run (No such file or directory)"),
+                      (_git_says(128, stderr="fatal: detected dubious ownership in repository at '/x'\nhint: y\n"),
+                       "git rev-parse --is-inside-work-tree: fatal: detected dubious ownership in repository at '/x'"),
+                      (_git_says(0, stdout="false\n"), "git rev-parse --is-inside-work-tree: false"),
+                      (listing_fails, "git ls-files: fatal: index file corrupt")):
+        with monkeypatch.context() as m:
+            m.setattr(bundle.subprocess, "run", fake)
+            with pytest.raises(bundle.BundleError) as exc:
+                build(out=out)
+            assert f"({why})" in str(exc.value) and "is the study itself" in str(exc.value), str(exc.value)
+            # the same on another root is a note, not a refusal (that tree is no checkout: git's first answer there)
+            doc, info = bundle._build("t1", BODIES, ("SX",), tmp_path / f"other{len(why)}", 0.06, other)
+            assert doc["provenance"]["records_committed"] is None and doc["provenance"]["root"] == str(other)
+            assert info["notes"][-1].startswith(f"git cannot tell whether the records read under {other} are "
+                                                "committed ("), info["notes"]
+            assert (why if fake is not listing_fails else "fatal: not a git repository") in info["notes"][-1]
+    assert _files_under(out) == []
+    # where git can tell, the study builds, and its manifest says what git showed
+    records = [p for p in _files_under(tree) if p.endswith(".json") and "/models/" not in p]
+    with pytest.raises(bundle.BundleError, match="not tracked by git .a bundle is built from committed records only"):
+        build(out=out)
+    _git(tree, "add", "--", *records)
+    _git(tree, "commit", "-q", "-m", "records")
+    for root in (None, alias):
+        doc = build(out=out, root=root)
+        assert doc["provenance"]["records_committed"] is True and doc["provenance"]["root"] == "."
+    assert bundle.verify(doc, tree, out / "parts")["ok"]
+
+
 # ------------------------------------------------------------------------------------------------
 # The content hash
 # ------------------------------------------------------------------------------------------------
@@ -1209,7 +1273,7 @@ def test_a_stand_in_bundle_of_the_picks_models(tmp_path):
     cli = ["-m", "designlab.stage2.bundle"]
     got = _run(cli + ["build", "--bundle-id", "standin", "--bodies", ",".join(PICKS), "--sets", "", "--out", str(out)])
     if got.returncode != 0 and "committed records only" in got.stdout:
-        pytest.skip("a record of the picks is not committed in this checkout: " + got.stdout.strip()[:300])
+        pytest.skip("the picks' records are not shown to be committed in this checkout: " + got.stdout.strip()[:300])
     assert got.returncode == 0, got.stdout + got.stderr
     doc = json.loads((out / "MANIFEST.json").read_text())
     c = doc["content"]
@@ -1225,7 +1289,14 @@ def test_a_stand_in_bundle_of_the_picks_models(tmp_path):
         assert c["files"][xml]["sha256"].startswith(stage1.SHA256_PREFIX[body])
         assert doc["provenance"]["hash_sources"][ledger] == ["stage1/runs/2026-11-08/stage1_inputs.json: files"]
     assert all(p["bytes"] <= 20 * bundle.MB for p in c["parts"].values())
-    assert doc["provenance"]["root"] == "." and doc["provenance"]["records_committed"] in (True, None)
+    assert doc["provenance"]["root"] == "." and doc["provenance"]["records_committed"] is True  # the study's own
+    # with git unable to tell (here: pointed at a repository that is not there), the study's bundle is not built
+    blind = _run(cli + ["build", "--bundle-id", "blind", "--bodies", ",".join(PICKS), "--sets", "", "--out",
+                        str(tmp_path / "blind")], env=dict(GIT_DIR=str(tmp_path / "no-repository")))
+    assert blind.returncode == 1
+    assert blind.stdout.startswith("S2 BUNDLE blind: NOT BUILT: bundle blind is not built: "), blind.stdout
+    assert "is the study itself" in blind.stdout and "git cannot tell" in blind.stdout, blind.stdout
+    assert _files_under(tmp_path / "blind") == []
     got = _run(cli + ["verify", "--manifest", str(out / "MANIFEST.json"), "--root", ".", "--parts", str(out / "parts")])
     assert got.returncode == 0 and got.stdout.strip().endswith("4 of 4 files match their sha256, 2 of 2 parts: OK")
     got = _run(cli + ["unpack", "--manifest", str(out / "MANIFEST.json"), "--parts", str(out / "parts"), "--root",
@@ -1264,9 +1335,10 @@ def test_a_real_frozen_set(tmp_path):
         doc = bundle.build("real", [body], sets=(set_name,), out=out)
     except bundle.BundleError as exc:
         if "committed records only" in str(exc):
-            pytest.skip(f"a record of {set_name} {body} is not committed in this checkout")
+            pytest.skip(f"the records of {set_name} {body} are not shown to be committed in this checkout")
         raise
     c = doc["content"]
+    assert doc["provenance"]["records_committed"] is True  # built from the study itself
     assert c["sets"] == {set_name: {body: dict(freeze_index=fz["index"], manifest_sha256=fz["manifest_sha256"],
                                                files=len(fz["entries"]))}}
     set_files = {f: e for f, e in c["files"].items() if f.startswith(f"{bundle.SETS_DIR}/")}

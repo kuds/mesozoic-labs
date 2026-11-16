@@ -16,7 +16,9 @@ files on local disk, and whoever carries them elsewhere writes the receipts in a
   the models only.
 
 Every file must be on disk with its recorded sha256, and every record read must be committed and unchanged in the
-tree it is read from (where that tree is a git checkout); ``build`` lists every difference and writes nothing.
+tree it is read from (where that tree is a git checkout); ``build`` lists every difference and writes nothing.  Where
+the tree is the study itself and git cannot tell whether the records are committed (no checkout, no git, a checkout
+git refuses), ``build`` refuses too: the study's own bundle is never built from records nobody compared with a commit.
 
 **Parts** (``<out>/parts/``): ``models-<body>.tar`` and ``<set>-<body>-<i>.tar`` (i from 1; a set's files in sorted
 order, a new part when the next file would take the part past ``part_mb``; a "MB" is 1,000,000 bytes, ``MB``).
@@ -365,28 +367,34 @@ def _split(stem: str, packed: list, limit: int, bad: list) -> list:
     return [(f"{stem}-{i}.tar", g) for i, g in enumerate(groups, start=1)]
 
 
-def _uncommitted(root: Path, rels) -> list[str] | None:
-    """Which of the records ``rels`` (relative to ``root``) are not committed as they are on disk, each with its
-    reason; None where ``root`` is in no git work tree (or git is missing): nothing can be told there."""
+def _uncommitted(root: Path, rels) -> tuple[list[str] | None, str | None]:
+    """``(which of the records rels (relative to root) are not committed as they are on disk, each with its reason;
+    None)``, or ``(None, why)`` where git cannot tell: ``root`` is in no git work tree, git is missing, or git
+    refuses the tree.  ``why`` names the git command and holds the first line git said."""
     def git(*args):
         return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True)
 
+    def said(done) -> str:
+        lines = (done.stderr or done.stdout or "").strip().splitlines()
+        return lines[0] if lines else f"exit code {done.returncode}"
+
     rels = sorted(rels)
     try:
-        if git("rev-parse", "--is-inside-work-tree").stdout.strip() != "true":
-            return None
+        inside = git("rev-parse", "--is-inside-work-tree")
+        if inside.returncode != 0 or inside.stdout.strip() != "true":
+            return None, f"git rev-parse --is-inside-work-tree: {said(inside)}"
         tracked = git("ls-files", "-z", "--", *rels)
         changed = git("diff", "--name-only", "-z", "--relative", "HEAD", "--", *rels)
-    except OSError:
-        return None
+    except OSError as exc:
+        return None, f"git could not be run ({exc.strerror or exc})"
     if tracked.returncode != 0:
-        return None
+        return None, f"git ls-files: {said(tracked)}"
     have = set(tracked.stdout.split("\0"))
     out = [f"{r}: not tracked by git" for r in rels if r not in have]
     if changed.returncode != 0:
-        return out + ["no commit to compare with (git diff HEAD failed)"]
+        return out + ["no commit to compare with (git diff HEAD failed)"], None
     diff = set(changed.stdout.split("\0"))
-    return out + [f"{r}: differs from the commit" for r in rels if r in diff and r in have]
+    return out + [f"{r}: differs from the commit" for r in rels if r in diff and r in have], None
 
 
 # ------------------------------------------------------------------------------------------------
@@ -480,6 +488,7 @@ def _build(bundle_id, bodies, sets, out, part_mb, root) -> tuple[dict, dict]:
         raise BundleError(f"part_mb must be a positive number, not {part_mb!r}")
     limit = int(part_mb * MB)
     root = _anchored(s2io.STUDY if root is None else root)
+    own = os.path.realpath(root) == os.path.realpath(s2io.STUDY)  # the study itself, however the root is named
     out_dir = _anchored(Path("stage2") / "tb" / "bundle" / bundle_id if out is None else out)
 
     # what to pack: read-only; every difference is collected
@@ -511,9 +520,15 @@ def _build(bundle_id, bodies, sets, out, part_mb, root) -> tuple[dict, dict]:
             if rel in files:
                 bad.append(f"{rel}: listed twice (in {files[rel]['part']} and {name})")
             files[rel] = dict(sha256=sha, bytes=n, part=name)
-    committed = None
+    committed, blind = None, None
     if not bad:
-        loose = _uncommitted(root, records)
+        loose, blind = _uncommitted(root, records)
+        if loose is None and own:
+            raise BundleError(
+                f"bundle {bundle_id} is not built: the root {root} is the study itself and git cannot tell whether "
+                f"the records read are committed there ({blind}); the study's bundle is built from committed records "
+                "only, so nothing is written: build it in a git checkout of the study, with git installed and the "
+                "checkout one that git accepts")
         committed = None if loose is None else not loose
         bad += [f"{x} (a bundle is built from committed records only: commit it first)" for x in loose or ()]
     if bad:
@@ -524,9 +539,9 @@ def _build(bundle_id, bodies, sets, out, part_mb, root) -> tuple[dict, dict]:
     tmps = {name: parts_dir / f"{name}.tmp" for name, _ in groups}
     notes = [f"{rel}: no committed record holds its sha256; the manifest holds the file's own"
              for rel in sorted(files) if not sources.get(rel)]
-    if committed is None:
-        notes.append(f"{root} is no git checkout (or git could not tell): the records read were not compared with a "
-                     "commit (provenance.records_committed is null)")
+    if committed is None:  # never the study itself: that build was refused above
+        notes.append(f"git cannot tell whether the records read under {root} are committed ({blind}): they were not "
+                     "compared with a commit (provenance.records_committed is null)")
     with s2io.Lock(out_dir / ".lock"):
         for left in parts_dir.glob("*.tar.tmp"):  # what a killed build left, whatever its parts were called; a link
             _unlink(left)                         # at such a name is removed, never followed (the lock is held)
@@ -566,7 +581,7 @@ def _build(bundle_id, bodies, sets, out, part_mb, root) -> tuple[dict, dict]:
                 prov = dict(made_at=s2io.now_utc(), **s2io.git_state(own_outputs=[str(out_dir)]), rule=RULE,
                             tool_sha256=s2io.sha256_file(__file__),
                             versions=dict(python=platform.python_version(), numpy=np.__version__),
-                            root=s2io.portable(str(root)) if root != s2io.STUDY else ".", part_mb=part_mb,
+                            root="." if own else s2io.portable(str(root)), part_mb=part_mb,
                             part_limit_bytes=limit, records=dict(sorted(records.items())),
                             records_committed=committed, hash_sources=dict(sorted(sources.items())))
                 old = dict(schema=SCHEMA, content=content, content_sha256=digest, provenance=prov)
@@ -591,17 +606,22 @@ def build(bundle_id, bodies, sets=("V6",), out=None, part_mb=20, root=None) -> d
 
     ``BundleError`` lists every difference and nothing is written: a missing record, a set that is not frozen, a
     file that is missing or has another sha256 than its record's, records that disagree, a record that is not
-    committed, a file too large for a part.  Each part is written under a temporary name, read back member by member
-    against the manifest and moved into place; the manifest is written last.  An existing manifest with the same
-    content is left as it is (its provenance is the first build's); one with another content, or a part in
-    ``<out>/parts`` that is not this bundle's, is refused with nothing replaced.  Temporary parts a killed build
-    left in ``<out>/parts`` (``*.tar.tmp``) are removed, under the directory's lock.
+    committed, a file too large for a part.  It also refuses, with git's own words, where ``root`` is the study
+    itself (the default, and the command line's only root; a link to it or another spelling of it too) and git
+    cannot tell whether the records are committed.
+
+    Each part is written under a temporary name, read back member by member against the manifest and moved into
+    place; the manifest is written last.  An existing manifest with the same content is left as it is (its
+    provenance is the first build's); one with another content, or a part in ``<out>/parts`` that is not this
+    bundle's, is refused with nothing replaced.  Temporary parts a killed build left in ``<out>/parts``
+    (``*.tar.tmp``) are removed, under the directory's lock.
 
     ``provenance.commit``, ``dirty`` and ``dirty_paths`` describe the checkout that holds this tool (``s2io``'s
     rule); with another ``root`` they say nothing about the tree read, which ``provenance.root`` names.
     ``provenance.records_committed`` is true where git showed every record read to be committed and unchanged in
-    ``root``, and null where git could not tell (no checkout, no git; the command line prints a note): a manifest
-    that reads null was not shown to be built from committed records."""
+    ``root``, and null where git could not tell (no checkout, no git) and ``root`` is another tree than the study:
+    a manifest that reads null was not shown to be built from committed records.  A bundle of the study itself
+    always reads true: where git cannot tell, it is not built."""
     return _build(bundle_id, bodies, sets, out, part_mb, root)[0]
 
 
