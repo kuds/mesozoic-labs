@@ -412,6 +412,22 @@ def test_setup_prints_line_1_and_has_no_unpinned_fallback(tmp_path, monkeypatch,
     with pytest.raises(nb.NbError, match="a pin did not install"):
         nb.setup(dict(REPO_REF=head, IN_COLAB=True))
     assert [c[3] for c in ran if "pip" in c] == ["uninstall", "install"]
+    # rule N2: on Colab the installed torch is the CPU build after the installs, whatever pip reported; a torch that
+    # still carries another build label stops the step.  apt's package lists are updated before the install
+    ran.clear()
+    monkeypatch.setattr(nb, "_call", lambda cmd, timeout=None: ran.append(cmd) or 0)
+    monkeypatch.setattr(nb, "versions", lambda pinned: dict(real(pinned), torch=pinned["torch"] + "+cu126"))
+    with pytest.raises(nb.NbError, match="not the CPU build"):
+        nb.setup(dict(REPO_REF=head, IN_COLAB=True), record=tmp_path / "setup2.json")
+    assert [c[:2] for c in ran if c[0] == "apt-get"] == [["apt-get", "update"], ["apt-get", "install"]]
+    assert any(f"torch=={nb.pins()['torch']}+cpu" in c for c in ran)             # the CPU build was asked for
+    rec = json.loads((tmp_path / "setup2.json").read_text())
+    assert rec["pins_match"] is False and rec["torch_build"] == "cu126" and rec["line"] is None
+    monkeypatch.setattr(nb, "versions", lambda pinned: dict(real(pinned), torch=pinned["torch"] + "+cpu"))
+    assert nb.setup(dict(REPO_REF=head, IN_COLAB=True))["torch_build"] == "cpu"
+    # outside Colab nothing is installed: the build label is recorded, not judged
+    monkeypatch.setattr(nb, "versions", lambda pinned: dict(real(pinned), torch=pinned["torch"] + "+cu126"))
+    assert nb.setup(dict(REPO_REF=head))["torch_build"] == "cu126"
 
 
 # ------------------------------------------------------------------------------------------------
@@ -896,6 +912,11 @@ def test_job_rules(tmp_path, stubs, monkeypatch, capsys):
         p, res, d, out = go(name, {"R5-B1-s42": plan})
         assert res["state"] == "halted" and word in res["reason"] and len(_calls(p)) == 1, res
         assert json.loads((d / "HALT.json").read_text())["jobs"]["R5-B1-s42"]["retries"] == 0
+        # AS BUILT, and handed to the lead (the review of 16 Nov, major 2): HALT.json ends the run for the notebook,
+        # so after these two halts neither rule K4's flags nor rule M1's parameter reach the trainer by a resume
+        with pytest.raises(nb.Refused, match=r"the run is finished \(HALT.json: "):
+            _session(p, RESUME=True, TAKEOVER=True, ALLOW_VERSION_CHANGE=True, ALLOW_SOURCE_CHANGE=True,
+                     RETRY_CHECK=True)
     # a check counted without a record is said once (the trainer's later progress key)
     p, res, d, out = go("told", {"*": dict(checks_without_record=[2048])}, queue=("R5:B1:42",))
     assert out.count("the check at 2048 steps was counted without a record") == 1
@@ -1402,6 +1423,33 @@ def test_a_job_is_not_started_while_drive_holds_a_newer_checkpoint(tmp_path, stu
     assert run["sessions"][-1]["resumed_from"] == max(have) and len(_calls(p)) == 1
 
 
+def test_a_session_closed_by_a_failed_line_launches_nothing(tmp_path, stubs, capsys):
+    """Rule N1: line 2 ending FAILED or line 3 ending FAIL stops the session before any training.  As built only
+    the cells' order did: the same session's launch, run by hand afterwards, trained."""
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
+    _session(p)
+    d = tmp_path / "drive" / "runs" / "r1"
+    st = nb._open_state("r1", p["DRIVE_DIR"], p["LOCAL_DIR"])
+    nb._note(st, nb.line2("tb-1", None, 0, 4, "models-B1.tar: missing"))
+    nb._close(st, "line 2 failed: nothing was trained")              # what the inputs step does on a failure
+    res = _launch(p)
+    assert res["state"] == "refused" and "this session was closed (line 2 failed" in res["reason"], res
+    assert not _calls(p) and not (d / "jobs").exists() and "S2 REFUSED launch" in capsys.readouterr().out
+    assert json.loads((d / "SESSION_0.json").read_text())["closed"]["reason"].startswith("line 2 failed")
+    with pytest.raises(nb.Refused, match="this session was closed .* runs no smoke"):
+        nb.smoke("r1", p["DRIVE_DIR"], p["LOCAL_DIR"])
+    assert _session(p, RESUME=True)["session"] == 1                  # a new session re-enters the run
+    assert _launch(p)["state"] == "done"
+
+
+def test_the_stub_hook_is_refused_on_colab(tmp_path, stubs):
+    p = _params(tmp_path)
+    with pytest.raises(nb.Refused, match="S2_NB_SEAMS .* refused on Colab"):
+        _session(p, IN_COLAB=True)
+    assert not (tmp_path / "drive").exists()
+    assert "differs in spelling" not in nb.K6_RULE                   # (a note that no launch could print is gone)
+
+
 # ------------------------------------------------------------------------------------------------
 # inputs and preflight
 # ------------------------------------------------------------------------------------------------
@@ -1490,6 +1538,67 @@ def test_inputs_verify_and_unpack_the_bundle(tmp_path, monkeypatch, capsys):
     ok.write_text(json.dumps(dict(allowed=True, content_sha256=sha)))
     res = nb.inputs("tb-test", b["drive"], "rebuild", local=tmp_path / "l2")
     assert res["ok"] and res["source"] == "rebuild", res                          # (a bundle of models: nothing to build)
+
+
+STUB_BUNDLE = r"""
+import json, os, sys
+plan = json.loads(os.environ["STUB_BUNDLE"])
+print(json.dumps(dict(plan[sys.argv[1]], ok=True)))
+"""
+
+
+def test_inputs_compare_what_verify_reports_with_the_manifest(tmp_path, stubs, monkeypatch):
+    """The lead's ruling of 16 Nov on the bundle tool, item 3: the notebook reads ``bundle_id`` and the 64-hex
+    ``content_sha256`` from ``verify --json`` and compares them with the quoted ones.  The bundle tool refuses the
+    same cases itself; a tool that reports them and says ok shows the notebook's own comparison."""
+    b = _bundle(tmp_path)
+    (stubs / "bundle.py").write_text(STUB_BUNDLE)
+    seams = json.loads((stubs / "seams.json").read_text())
+    seams["bundle"] = [sys.executable, str(stubs / "bundle.py")]
+    (stubs / "seams.json").write_text(json.dumps(seams))
+    monkeypatch.setattr(nb, "ROOT", b["root"])
+    sha = b["manifest"]["content_sha256"]
+
+    def run(**verify):
+        plan = dict(unpack=dict(parts=1, files=2, written=[], replaced=[], left=[]),
+                    verify=dict(dict(files_ok=2, files=2, bundle_id="tb-test", content_sha256=sha), **verify))
+        monkeypatch.setenv("STUB_BUNDLE", json.dumps(plan))
+        return nb.inputs("tb-test", b["drive"], local=tmp_path / "local")
+
+    good = run()
+    assert good["ok"] and good["content_sha256"] == sha and good["line"].endswith("2 of 2 files match their sha256: OK")
+    bad = run(bundle_id="tb-other")
+    assert not bad["ok"] and "FAILED (the manifest is bundle 'tb-other', not 'tb-test')" in bad["line"]
+    for other in ("0" * 64, sha[:12], None):
+        bad = run(content_sha256=other)
+        assert not bad["ok"] and "FAILED (the content hash verify reports" in bad["line"], other
+
+
+def test_a_resume_with_another_bundle_fails_line_2(tmp_path, monkeypatch, capsys):
+    """Rule K6: one bundle for a run's whole life.  As built, line 2 was printed and kept as OK and the refusal
+    came after it on a line of its own."""
+    b = _bundle(tmp_path)
+    shutil.copy(STUDY / nb.PINS_FILE, b["root"] / nb.PINS_FILE)
+    monkeypatch.setattr(nb, "ROOT", b["root"])
+    p = _params(tmp_path, BUNDLE_ID="tb-test", QUEUE=["R5:B1:42"])
+    _session(p)
+    d, sha = tmp_path / "drive" / "runs" / "r1", b["manifest"]["content_sha256"]
+    assert nb._step_inputs(p, None) == nb.EXIT_OK
+    q = json.loads((d / "QUEUE.json").read_text())
+    assert q["bundle"]["content_sha256"] == sha                      # the first session's hash is the run's
+    q["bundle"]["content_sha256"] = "1" * 64                         # (as if the run had begun on another bundle)
+    (d / "QUEUE.json").write_text(json.dumps(q))
+    p2 = dict(p, RESUME=True, TAKEOVER=True)
+    _session(p2)
+    capsys.readouterr()
+    assert nb._step_inputs(p2, None) == nb.EXIT_FAILED
+    lines = nb.lines_of(capsys.readouterr().out)[2]
+    assert len(lines) == 1 and lines[0].endswith(
+        f": FAILED (RESUME with another bundle: the run's content hash is 111111111111, this checkout's inputs give "
+        f"{sha[:12]} (rule K6))"), lines
+    assert json.loads((d / "STATUS.json").read_text())["lines"][-1] == lines[0]
+    assert json.loads((d / "SESSION_1.json").read_text())["closed"]["reason"].startswith("line 2 failed")
+    assert json.loads((d / "QUEUE.json").read_text())["bundle"]["content_sha256"] == "1" * 64
 
 
 STUB_REBUILD = r'''
@@ -1665,9 +1774,12 @@ def test_collect(tmp_path, stubs, monkeypatch, capsys):
     (d / "jobs" / "R5-B1-s42" / "partial").mkdir()
     (d / "jobs" / "R5-B1-s42" / "partial" / "x.json").write_text("{}")
     (d / "notes.txt").write_text("a note")
+    (d / "logs" / "notes.txt").write_text("a text file under logs/ is no record")
+    (d / "jobs" / "R5-B1-s42" / "checkpoints" / "notes.json").write_text("{}")   # of checkpoints/ only the records
     dst = tmp_path / "committed" / "r1"
     rec = nb.collect(d, dst, "run")
     got = sorted(x.relative_to(dst).as_posix() for x in dst.rglob("*") if x.is_file())
+    assert not [x for x in got if x.startswith("logs/")] and "jobs/R5-B1-s42/checkpoints/notes.json" not in got
     assert got == sorted(list(rec["files"]) + ["COLLECTED.json"])
     assert "jobs/R5-B1-s42/run.json" in got and "jobs/R5-B1-s42/updates.jsonl" in got and "notes.txt" in got
     assert "DONE.json" in got and "QUEUE.json" in got and "SESSION_0.json" in got and "STATUS.json" in got
@@ -1760,6 +1872,17 @@ def test_release_runtime(monkeypatch, capsys):
     broken.disconnect_runtime = lambda reason, in_colab, auto, flush_drive: done.append(("repo", reason, flush_drive))
     nb.release_runtime("the run is over", in_colab=True, auto=True, flush_drive=False)
     assert done == [("repo", "the run is over", False)]
+    # whatever the flush itself raises, the runtime is unassigned (design D19); as built it stayed allocated
+    done.clear()
+    del broken.disconnect_runtime
+
+    def flush():
+        done.append("flush")
+        raise OSError(107, "Transport endpoint is not connected")
+
+    colab.drive = types.SimpleNamespace(flush_and_unmount=flush)
+    nb.release_runtime("the run is over", in_colab=True, auto=True, flush_drive=True)
+    assert done == ["flush", "sleep 5", "unassign"] and "could not be flushed" in capsys.readouterr().out
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1800,6 +1923,108 @@ def test_smoke_on_the_stubs(tmp_path, stubs, monkeypatch, capsys):
     _session(p2, commit=head)
     doc = nb.smoke("smoke2", p2["DRIVE_DIR"], p2["LOCAL_DIR"])
     assert doc["items"]["Y4"]["verdict"] == "FAILED" and doc["budget"] is None and "owner" in doc["items"]["Y4"]["value"]
+
+
+def test_the_smokes_clip_is_drawn_from_a_trace_taken_after_the_resume(tmp_path, stubs, monkeypatch):
+    """Rule Y5.  As built the trace was looked for only until the kill (and copied while its writer lived), so a
+    tiny job whose first check came after its first copied checkpoint left no clip."""
+    # the tiny job's only check is its last one: no trace exists yet when its first checkpoint is on Drive
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(traces=True, tick=0.15, rate=560.0, monitor_every=4096)}))
+    p = _params(tmp_path, SMOKE=True, QUEUE=[], RUN_ID="smoke3", REPO_REF="main", PERIOD_S=0.05)
+    _session(p, commit=nb.repo_state()["commit"])
+    doc = nb.smoke("smoke3", p["DRIVE_DIR"], p["LOCAL_DIR"])
+    y5, y6 = doc["items"]["Y5"], doc["items"]["Y6"]
+    assert y6["verdict"] == "OK" and y6["killed_at"]["first_checkpoint_on_drive"] < 4096, y6
+    assert (y6["killed_at"]["progress"] or 0) < 4096                 # killed before the job's only check
+    assert y5["ok"] and "an MP4 of 3 s" in y5["value"], y5
+    clip = tmp_path / "drive" / "runs" / "smoke3" / "smoke" / "clip" / "clip_test.mp4"
+    assert clip.read_bytes() == b"mp4 of trace 4096"                 # the check the resumed job made
+
+
+def test_acceptance_refuses_a_scratch_directory_that_is_not_its_own(tmp_path):
+    """The acceptance run deletes its scratch directory first.  As built it deleted whatever directory outside
+    the checkout it was given."""
+    scratch = tmp_path / "s"
+    scratch.mkdir()
+    (scratch / "keep.txt").write_text("mine")
+    with pytest.raises(nb.Refused, match="is not empty and is not an earlier acceptance run's"):
+        nb.acceptance(NOTEBOOK, nb.repo_state()["commit"], tmp_path / "x" / "parts", scratch, tmp_path / "a.json")
+    assert (scratch / "keep.txt").read_text() == "mine"
+    (tmp_path / "file").write_text("x")
+    with pytest.raises(nb.Refused, match="is not empty and is not an earlier acceptance run's"):
+        nb.acceptance(NOTEBOOK, nb.repo_state()["commit"], tmp_path / "x" / "parts", tmp_path / "file", tmp_path / "a.json")
+
+
+@needs_git
+def test_the_acceptance_runs_plumbing_on_stubs(tmp_path, monkeypatch):
+    """``acceptance`` needs the pushed launch commit and the built bundle and **has never run**.  Here its own
+    plumbing runs on a scratch repository with the drill replaced by a stand-in: the remote's SHA, the two fresh
+    clones and their HEADs, what a dead VM loses (the clone and the whole local directory, the inputs' local copies
+    included), the record's fields of design 3.10, and the scratch directory's mark."""
+    b = _bundle(tmp_path)
+    parts = b["root"] / nb.BUNDLE_DIR / "tb-test" / "parts"
+    parts.mkdir()
+    shutil.copy(b["parts"] / "models-B1.tar", parts / "models-B1.tar")
+    sha = b["manifest"]["content_sha256"]
+    env = dict(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull, GIT_AUTHOR_NAME="t",
+               GIT_AUTHOR_EMAIL="t@example.invalid", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@example.invalid")
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+
+    def git(cwd, *args):
+        return subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True).stdout
+
+    remote, main = tmp_path / "remote", tmp_path / "main"
+    (remote / "study").mkdir(parents=True)
+    git(remote, "init", "-q", "-b", "main")
+    (remote / "study" / "README").write_text("the study")
+    git(remote, "add", ".")
+    git(remote, "commit", "-q", "-m", "the launch commit")
+    git(tmp_path, "clone", "-q", str(remote), str(main))
+    ref = git(main, "rev-parse", "HEAD").strip()
+    monkeypatch.setattr(nb, "study", lambda: main / "study")         # (the checkout the acceptance run is started in)
+    monkeypatch.setattr(nb, "ROOT", STUDY)                           # (the pins file, for the record's versions)
+    scratch = tmp_path / "acc"
+    drive, seen = scratch / "drive", {}
+
+    def drill(notebook, params, logs, cwd_of, kill_when, wipe=None):
+        local, first = Path(params["LOCAL_DIR"]), cwd_of(0)
+        assert first == scratch / "clone1" / "study" and (first / "README").is_file() and kill_when() is None
+        (local / "inputs" / "tb-test" / "parts").mkdir(parents=True)  # what the inputs step leaves on the local disk
+        (local / "inputs" / "tb-test" / "parts" / "models-B1.tar").write_bytes(b"a local copy")
+        (local / "acceptance" / "jobs").mkdir(parents=True)
+        wipe()
+        seen.update(clone_gone=not (scratch / "clone1").exists(), local_gone=not local.exists(),
+                    on_drive=sorted(x.name for x in (drive / "inputs" / "tb-test").iterdir()))
+        second = cwd_of(1)                                           # (the drill's order: attempts 1, 2, 3)
+        assert second == scratch / "clone2" / "study" and (second / "README").is_file()
+        assert cwd_of(2) == second and cwd_of(3) == second and cwd_of(0) == first
+        lines = {k: [] for k in nb.LINE_RE}
+        lines[2], lines[3] = [nb.line2("tb-test", sha, 2, 2)], [nb.line3("B1", "V6", 2, 2, 6000)]
+        one = dict(exit_code=0, killed=None, seconds=1.0, text="", lines=lines, log="x")
+        return dict(drive_run=str(drive / "runs" / "acceptance"), local_run=str(local / "acceptance"),
+                    first_job="R5-75-M-H-10-s42", kill=dict(when="model_1024.zip.part exists (a copy in progress)"),
+                    attempts=dict(session0=one, refused_live=one, session1=one, refused_finished=one))
+
+    monkeypatch.setattr(nb, "_drill", drill)
+    monkeypatch.setattr(nb, "_drill_checks", lambda drill, params: dict(stand_in=True))
+    rec = nb.acceptance("stage2/stage2_training.ipynb", ref, parts, scratch, tmp_path / "ACCEPTANCE.json")
+    assert json.loads((tmp_path / "ACCEPTANCE.json").read_text())["sha256"] == rec["sha256"]
+    # design 3.10: the remote URL, ls-remote's SHA, the clone's HEAD, the content hash, the G8a counts per body
+    assert rec["remote"] == rec["clone_source"] == str(remote) and rec["ls_remote_sha"] == ref == rec["ref"]
+    assert rec["clone_head"] == ref and rec["clone_heads"] == {"1": ref, "2": ref} and rec["content_sha256"] == sha
+    assert rec["g8a"] == {"B1": dict(set="V6", identical=2, of=2, steps=6000, passes=True)} and rec["files"] == 2
+    assert rec["checks"]["head_is_ref"] and rec["checks"]["fresh_clones_hold_nothing_ignored"]
+    assert rec["checks"]["content_hash"] and rec["checks"]["g8a_every_body"] and rec["bodies"] == ["B1"]
+    # step 4: a dead VM loses the clone and its whole local disk; the stand-in Drive keeps the parts
+    assert seen == dict(clone_gone=True, local_gone=True, on_drive=["models-B1.tar"])
+    # the scratch directory is marked as this function's own, so a second run may delete and remake it
+    assert (scratch / nb.ACCEPTANCE_MARK).is_file()
+    (scratch / "left-over.txt").write_text("of the first run")
+    again = nb.acceptance("stage2/stage2_training.ipynb", ref, parts, scratch, tmp_path / "ACCEPTANCE2.json")
+    assert again["clone_head"] == ref and not (scratch / "left-over.txt").exists()
+    assert nb.g8a_counts([nb.line3("B2", "V6", 1, 2, 5000, "the gate ended with exit code 1"), "noise"]) == {
+        "B2": dict(set="V6", identical=1, of=2, steps=5000, passes=False)}
 
 
 @needs_git

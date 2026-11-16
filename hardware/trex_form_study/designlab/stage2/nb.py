@@ -55,7 +55,8 @@ holds a newer checkpoint of it than this machine.  Where Drive cannot be had, th
 resume.  ``finish`` says whether every finished job's last checkpoint is on Drive (exit code 6 when one is not).
 
 **Seams** (``_trainer_cmd``, ``_clip_cmd``, ``_pack_cmd``, ``_bundle_cmd``, ``_child_cmd``, ``_rebuild_cmd``,
-``ROOT``): the places where this module meets the other tools; the tests replace them with stubs.
+``ROOT``): the places where this module meets the other tools; the tests replace them with stubs.  ``S2_NB_SEAMS``
+is refused on Colab.
 """
 
 from __future__ import annotations
@@ -168,8 +169,7 @@ K6_RULE = (
     "branch or a tag); when its RUN_ID has a run directory with QUEUE.json and RESUME is not set; when RESUME is "
     "set and there is no such run, or the run is a smoke; when RESUME comes with another queue, set, bundle or "
     "budget (or other trainer options) than QUEUE.json holds; when the checkout's commit is not QUEUE.json's, "
-    "unless ALLOW_SOURCE_CHANGE is set (recorded).  On a resume REPO_REF is QUEUE.json's; a cell's REPO_REF that "
-    "differs in spelling and names the same commit is noted")
+    "unless ALLOW_SOURCE_CHANGE is set (recorded and noted).  On a resume REPO_REF is QUEUE.json's")
 K7_RULE = (
     f"rule K7: a session with RESUME is refused while LIVE.json is younger than {LIVE_FRESH_S:g} s and was not "
     "closed by the session that wrote it, unless TAKEOVER is set (recorded); a run that has DONE.json or HALT.json "
@@ -847,16 +847,17 @@ def _call(cmd, timeout=None) -> int:
 def setup(params: dict, record=None) -> dict:
     """Cell 2's step after the Git block (design 3.9; rule N2): on Colab the legacy gym packages are removed, the
     pins applied where the installed versions differ (``pip_commands``) and ``libosmesa6`` and ``ffmpeg``
-    installed (a failure of that is reported, not fatal); anywhere, the installed versions are compared with the
-    pins (the build label dropped) and **line 1** is printed.  A pin that does not hold afterwards raises: there
-    is no unpinned fallback.  ``record``: where the step's record is written (``SETUP_SCHEMA``; ``session`` reads
-    it)."""
+    installed after ``apt-get update`` (a failure of either is reported, not fatal); anywhere, the installed
+    versions are compared with the pins (the build label dropped) and **line 1** is printed.  A pin that does not
+    hold afterwards raises, and on Colab so does a torch whose build label is not ``cpu`` after the installs (rule
+    N2: the CPU build, forced when another build is installed): there is no unpinned fallback.  ``record``: where
+    the step's record is written (``SETUP_SCHEMA``; ``session`` reads it)."""
     p = load_params(params)
     t0 = float(p["SETUP_STARTED"] or time.time())
     in_colab = bool(p["IN_COLAB"])
     pinned = pins()
     before = versions(pinned)
-    ran, apt = [], None
+    ran, apt, apt_update = [], None, None
     if in_colab:
         _call([sys.executable, "-m", "pip", "uninstall", "-y", "-q", "gym", "gym-notices", "shimmy"])
         for cmd in pip_commands(pinned, before):
@@ -866,12 +867,19 @@ def setup(params: dict, record=None) -> dict:
             if code != 0:
                 raise NbError(f"a pin did not install (exit code {code}): {' '.join(cmd[2:])}.  There is no "
                               "unpinned fallback: stop here and send this cell's output")
+        # (a runtime's package lists can be older than its mirrors: without the update an install may not be found)
+        apt_update = _call(["apt-get", "update", "-qq"])
+        if apt_update != 0:
+            _say(f"S2 setup: apt-get update failed (exit code {apt_update}): the install below may fail too")
         apt = _call(["apt-get", "install", "-y", "-qq", "libosmesa6", "ffmpeg"])
         if apt != 0:
             _say(f"S2 setup: apt-get install libosmesa6 ffmpeg failed (exit code {apt}): clips may not be made; "
                  "training does not need them")
     after = versions(pinned)
     differ = pin_differences(pinned, after)
+    if in_colab and torch_build(after.get("torch")) != "cpu":
+        differ.append(f"torch: the installed build is {after.get('torch')}, not the CPU build "
+                      f"{pinned['torch']}+cpu (rule N2)")
     minor_ok = sys.version_info[:2] == PYTHON_MINOR
     ffmpeg = shutil.which("ffmpeg")
     repo = repo_state()
@@ -879,7 +887,8 @@ def setup(params: dict, record=None) -> dict:
     ref_is_commit = bool(_HEX40.match(ref)) and ref == repo["commit"]
     doc = dict(schema=SETUP_SCHEMA, started_epoch=t0, in_colab=in_colab, pins=pinned, versions_before=before,
                versions=after, torch_build=torch_build(after.get("torch")), pins_match=not differ,
-               pin_differences=differ, python_minor_matches=minor_ok, pip=ran, apt_exit_code=apt, ffmpeg=ffmpeg,
+               pin_differences=differ, python_minor_matches=minor_ok, pip=ran, apt_exit_code=apt,
+               apt_update_exit_code=apt_update, ffmpeg=ffmpeg,
                repo=dict(ref=ref, commit=repo["commit"], dirty=repo["dirty"], dirty_paths=repo["dirty_paths"],
                          ref_is_commit=ref_is_commit),
                line=None, seconds=None, at=_now())
@@ -1126,10 +1135,25 @@ def _note(st: dict, line: str | None = None, state: str = "running", **fields) -
 
 def _close(st: dict, reason: str) -> None:
     """The session ends before any job could run on: ``LIVE.json`` is closed, so that a later RESUME is not held
-    back for ten minutes by a session that is known to be over."""
+    back for ten minutes by a session that is known to be over.  The session is marked closed in its own state and
+    record: it launches nothing afterwards (``_refuse_closed``)."""
+    s = st["session"]
+    s["closed"] = dict(at=_now(), reason=reason)
+    _save_state(st)
     d = Path(st["drive_run"])
-    if _owner(d, st["session"]["session_uuid"]) is None:
+    if _owner(d, s["session_uuid"]) is None:
+        _write_json(d / f"SESSION_{s['session']}.json", s)
         _write_live(st, closed=reason)
+
+
+def _refuse_closed(st: dict, what: str) -> None:
+    """Rule N1: line 2 ending FAILED or line 3 ending FAIL stops the session before any training.  The cells'
+    order does that for "Run all"; this does it for a cell run by hand afterwards."""
+    closed = st["session"].get("closed")
+    if isinstance(closed, dict):
+        raise Refused(f"{st['drive_run']}: this session was closed ({closed.get('reason')}): it {what} (rule N1: a "
+                      "failed line 2 or line 3 stops the session before any training); only a new session "
+                      "re-enters the run")
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1198,6 +1222,9 @@ def session(run_id, drive, local, queue, repo_ref, commit, resume, params) -> di
         raise Refused("BUDGET_STEPS is not set: a launch names its budget (rule Y11 fixes it after the smoke)")
     if str(p["BUNDLE_ID"] or "") == S1_BUNDLE:
         raise Refused(f"BUNDLE_ID {S1_BUNDLE!r} is the name line 2 gives the Stage 1 view; a bundle has another")
+    if p["IN_COLAB"] and seams() is not None:
+        raise Refused("S2_NB_SEAMS names stub commands in place of the trainer: it is a hook of the tests and is "
+                      "refused on Colab; nothing was changed")
     want = _queue_doc(run_id, jobs, repo_ref, commit, p)
     qpath = d / "QUEUE.json"
     qdoc, notes, took_over, source_change = _read_json(qpath), [], None, False
@@ -1225,9 +1252,7 @@ def session(run_id, drive, local, queue, repo_ref, commit, resume, params) -> di
                               "commit is accepted only with ALLOW_SOURCE_CHANGE, on the lead's word (rule K6)")
             source_change = True
             notes.append(f"ALLOW_SOURCE_CHANGE: the run's commit is {qdoc.get('commit')}, this session's {commit}")
-        elif repo_ref != qdoc.get("repo_ref"):
-            notes.append(f"REPO_REF is taken from QUEUE.json ({qdoc.get('repo_ref')}); the cell's reads "
-                         f"{repo_ref!r} and names the same commit")
+        # (with the same commit the cell's REPO_REF is QUEUE.json's: both are that commit's 40 hex digits)
         live = _read_json(d / "LIVE.json")
         age = _live_age(live)
         if age is not None and age < LIVE_FRESH_S:
@@ -1359,7 +1384,16 @@ def rebuilt_dir(drive, bundle_id) -> Path:
     return _anchored(drive) / "inputs" / str(bundle_id) / "rebuilt"
 
 
-def inputs(bundle_id, drive, source="drive", *, set_name=None, bodies=(), local=None) -> dict:
+def _other_bundle(expect, got) -> str | None:
+    """Rule K6 (one bundle for a run's whole life): the problem when a resume's inputs have another content hash
+    than the run's first session recorded in QUEUE.json (``expect``; None: a new run); else None."""
+    if expect and expect != got:
+        return (f"RESUME with another bundle: the run's content hash is {str(expect)[:12]}, this checkout's inputs "
+                f"give {str(got)[:12]} (rule K6)")
+    return None
+
+
+def inputs(bundle_id, drive, source="drive", *, set_name=None, bodies=(), local=None, expect=None) -> dict:
     """Cell 4 (rules N3, N4): the bundle's parts brought to local disk, each against the committed manifest's
     sha256 (``bundle unpack``), unpacked at their study paths, every file's sha256 (``bundle verify --json``: the
     bundle id and the 64-hex content hash it reports must be the quoted ones), then ``setio.read_inputs(
@@ -1370,7 +1404,9 @@ def inputs(bundle_id, drive, source="drive", *, set_name=None, bodies=(), local=
     branch); ``"rebuild"`` (the model parts from Drive and the arrays from ``rebuilt/`` on Drive or built again by
     ``sets build``, allowed only when the smoke's rule Y8 left ``REBUILD_OK.json`` for this content hash; verified
     arrays are kept on Drive).  Without a ``bundle_id`` only the Stage 1 view (``set_name`` ``S1``) is verified,
-    for ``bodies``.  ``local``: the local root the parts are copied under (default: a temporary directory)."""
+    for ``bodies``.  ``local``: the local root the parts are copied under (default: a temporary directory).
+    ``expect``: the content hash the run's first session recorded (a resume); inputs with another are a failed
+    line 2 (rule K6), so the line that is printed and kept never reads OK for them."""
     source = str(source or "drive")
     if not bundle_id:
         if set_name != S1_SET:
@@ -1378,6 +1414,10 @@ def inputs(bundle_id, drive, source="drive", *, set_name=None, bodies=(), local=
                        problems=[f"no BUNDLE_ID: set {set_name} needs its bundle (only the Stage 1 view has none)"])
         else:
             res = _inputs_s1(list(bodies))
+        other = None if res["problems"] else _other_bundle(expect, res["content_sha256"])
+        if other:
+            res["problems"].append(other)
+            res["ok"] = False
         res["line"] = line2(res["bundle_id"], res["content_sha256"], res["files_ok"], res["files"],
                             res["problems"][0] if res["problems"] else None)
         _say(res["line"])
@@ -1458,6 +1498,10 @@ def inputs(bundle_id, drive, source="drive", *, set_name=None, bodies=(), local=
     if problems:
         return end()
     res["content_sha256"] = sha
+    other = _other_bundle(expect, sha)
+    if other:
+        problems.append(other)
+        return end()
     sets_root = root / "stage2" / "sets"
     for name in sorted(content.get("sets") or {}):
         res["sets"][name] = {}
@@ -2519,8 +2563,10 @@ def launch(run_id, drive, local, queue, set_name, budget, workers, tiny=False, c
     the text records and the checkpoints copied (``COPY_RULE``; nothing with ``drive == local``), one clip child
     (``CLIP_RULE``), **line 4** from ``gates/rate.json`` (``LINE4_RULE``), the job rules (``JOB_RULE``).  The
     queue, the set, the budget, ``tiny`` and the two monitor options must be ``QUEUE.json``'s (they go to every
-    ``train2 run``).  Never raises: returns ``{state: "done" | "halted" | "interrupted" | "refused", reason,
-    session, jobs, lines, record}`` (``DONE.json`` or ``HALT.json`` is written for the first two)."""
+    ``train2 run``).  Never raises: returns ``{state: "done" | "halted" | "unfinished" | "interrupted" |
+    "refused", reason, session, jobs, lines, record}`` (``DONE.json`` or ``HALT.json`` is written for the first
+    two; ``"unfinished"``: neither, for a fault of Drive, ``UNFINISHED_RULE``; a session that its own failed line
+    2 or line 3 closed is refused)."""
     try:
         st = _open_state(run_id, drive, local)
         d, s = Path(st["drive_run"]), st["session"]
@@ -2535,6 +2581,7 @@ def launch(run_id, drive, local, queue, set_name, budget, workers, tiny=False, c
                 raise Refused(f"{d}: the run is finished ({name}); nothing to launch")
         if q.get("smoke"):
             raise Refused(f"{d}: this run is a smoke: it queues no training job (rule Y10)")
+        _refuse_closed(st, "launches nothing")
         mine = dict(queue=[r["entry"] for r in parse_queue(queue)], set=str(set_name), budget_steps=int(budget or 0),
                     tiny=bool(tiny), monitor_every=None if monitor_every is None else int(monitor_every),
                     monitor_also_k=[int(k) for k in (monitor_also_k or ())])
@@ -2651,7 +2698,7 @@ def finish(run_id, drive, local=None) -> dict:
 def release_runtime(reason: str, in_colab: bool, auto: bool, flush_drive: bool) -> None:
     """The final cell's flush and disconnect (design D19): outside Colab, or with ``auto`` False, only the reason
     is printed; on Colab the repository's ``disconnect_runtime`` is tried first and, whatever it raises, Drive is
-    still flushed and the runtime unassigned."""
+    still flushed and the runtime unassigned; the runtime is unassigned whatever the flush itself raises."""
     if not (in_colab and auto):
         print(f"\n{reason}\nAuto-disconnect skipped (not in Colab or AUTO_DISCONNECT is False).", flush=True)
         return
@@ -2665,12 +2712,16 @@ def release_runtime(reason: str, in_colab: bool, auto: bool, flush_drive: bool) 
               flush=True)
         from google.colab import drive, runtime
 
-        if flush_drive:
-            print("Flushing Google Drive writes...", flush=True)
-            drive.flush_and_unmount()
-        print("Disconnecting runtime in 5 seconds...", flush=True)
-        time.sleep(5)
-        runtime.unassign()
+        try:
+            if flush_drive:
+                print("Flushing Google Drive writes...", flush=True)
+                drive.flush_and_unmount()
+        except Exception as flush_exc:  # noqa: BLE001 - a Drive that cannot be flushed must not keep the runtime
+            print(f"(Google Drive could not be flushed: {type(flush_exc).__name__}: {flush_exc})", flush=True)
+        finally:
+            print("Disconnecting runtime in 5 seconds...", flush=True)
+            time.sleep(5)
+            runtime.unassign()
 
 
 # ------------------------------------------------------------------------------------------------
@@ -2849,11 +2900,13 @@ def smoke(run_id, drive, local) -> dict:
     and again after Y8.  Y3, Y4 and Y7 read one R5 job of four rollouts without gates; Y6 runs a tiny job through
     this module's own ``session`` and ``launch`` in a run directory under ``smoke/kill``, ends the launcher's whole
     session with SIGKILL when its first checkpoint is on Drive, deletes the local job directory and resumes in a
-    new process; Y5 draws its clip from a trace of that job; Y8 builds one body's arrays again in a scratch
-    directory (capped at 40 minutes; "not finished" is an outcome) and, when every file was compared and equal,
-    leaves ``REBUILD_OK.json`` with the arrays on Drive (rule N4).  Y9 is the lead's download, Y10 the pass rule:
-    neither is decided here.  Returns the record."""
+    new process; Y5 draws its clip from a trace of that job, taken after the resumed launch has ended (nothing
+    writes a trace then); Y8 builds one body's arrays again in a scratch directory (capped at 40 minutes; "not
+    finished" is an outcome) and, when every file was compared and equal, leaves ``REBUILD_OK.json`` with the
+    arrays on Drive (rule N4).  Y9 is the lead's download, Y10 the pass rule: neither is decided here.  A session
+    that its own failed line 2 or line 3 closed runs no smoke.  Returns the record."""
     st = _open_state(run_id, drive, local)
+    _refuse_closed(st, "runs no smoke")
     s, d, lrun = st["session"], Path(st["drive_run"]), Path(st["local_run"])
     p = load_params(s["params"])
     jobs = parse_queue(p["QUEUE"])
@@ -2962,11 +3015,6 @@ def smoke(run_id, drive, local) -> dict:
             proc = _nb_step("launch", kp, pfile, start_new_session=True, **both)
 
             def on_drive():
-                if not kept_trace.is_file():  # (Y5: a trace of the job, kept before its directory is deleted)
-                    t = clip_trace(trace_dir)
-                    if t is not None:
-                        kept_trace.parent.mkdir(parents=True, exist_ok=True)
-                        shutil.copyfile(t, kept_trace)
                 have = [n for n in _drive_checkpoints(ck) if n > 0]
                 return min(have) if have else None
 
@@ -2985,6 +3033,12 @@ def smoke(run_id, drive, local) -> dict:
                     y6["why"] = "the resume's session was refused"
                 else:
                     _nb_step("launch", kp2, pfile, **both).wait()
+                    # (Y5: a trace of the job, taken now: the resumed launch has ended, so nothing writes a trace
+                    # any more, and the checks after the kill have left theirs)
+                    t = clip_trace(trace_dir)
+                    if t is not None:
+                        kept_trace.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copyfile(t, kept_trace)
                     run = _read_json(klocal / krun / "jobs" / kjob / "run.json") or {}
                     last = (run.get("sessions") or [{}])[-1]
                     diff = last.get("fingerprint_max_abs_diff")
@@ -3261,13 +3315,33 @@ def local_run(notebook, drive_dir, params, record=None) -> dict:
     return rec
 
 
+#: The file that marks a directory as an acceptance run's scratch: only such a directory is ever deleted.
+ACCEPTANCE_MARK = "S2_ACCEPTANCE_SCRATCH"
+
+
+def g8a_counts(lines) -> dict:
+    """Line 3's counts per body as the printed lines give them: ``{body: {set, identical, of, steps, passes}}``
+    (the acceptance run's record: design 3.10, "the G8a counts per body")."""
+    out = {}
+    for text in lines:
+        m = LINE_RE[3].match(text)
+        if m:
+            out[m.group("body")] = dict(set=m.group("set"), identical=int(m.group("identical")),
+                                        of=int(m.group("of")), steps=int(m.group("steps")),
+                                        passes=m.group("end") == "PASS")
+    return out
+
+
 def acceptance(notebook, ref, parts_dir, scratch, record) -> dict:
     """The acceptance run (design 3.10; rule N5): a fresh clone of the launch commit ``ref`` that holds nothing
     git ignores, the bundle's parts (``parts_dir``: ``stage2/tb/bundle/<bundle_id>/parts``) in a directory standing
     in for Drive under ``scratch`` (outside the checkout), the notebook's cells 1-5 and 7-8 with a tiny R5 and a
     tiny R6 job on ``75-M-H-10`` and set V6, preflight over every body of the bundle; the launcher's session ended
-    with SIGKILL at the moment a ``.part`` file exists on the stand-in Drive; the local run directory and the clone
-    deleted; a second clone; ``_drill``'s resumes; then the record ``ACCEPTANCE.json`` (``ACCEPTANCE_SCHEMA``).
+    with SIGKILL at the moment a ``.part`` file exists on the stand-in Drive; the clone and the whole local
+    directory deleted (a dead VM loses both: the run directory and the inputs' local copies); a second clone;
+    ``_drill``'s resumes; then the record ``ACCEPTANCE.json`` (``ACCEPTANCE_SCHEMA``).  ``scratch`` is deleted
+    first, so it must be new, empty or an earlier acceptance run's own (``ACCEPTANCE_MARK``); any other directory
+    is refused.
 
     It needs the pushed commit and the built bundle and is the lead's step: **this function was written with the
     package and has not been run** (its drill is ``local_run``'s, which has)."""
@@ -3277,6 +3351,10 @@ def acceptance(notebook, ref, parts_dir, scratch, record) -> dict:
     top = Path((_git("rev-parse", "--show-toplevel") or "").strip() or study())
     if scratch == top or top in scratch.parents:
         raise Refused(f"--scratch {scratch} is inside the checkout {top}: the clones are made outside it")
+    if scratch.exists() and (not scratch.is_dir() or (any(scratch.iterdir())
+                                                      and not (scratch / ACCEPTANCE_MARK).is_file())):
+        raise Refused(f"--scratch {scratch} exists, is not empty and is not an earlier acceptance run's (it holds "
+                      f"no {ACCEPTANCE_MARK}): the scratch directory is deleted before the run, so name a new one")
     parts_dir = _anchored(parts_dir).resolve()
     bundle_id = parts_dir.parent.name
     manifest = _read_json(parts_dir.parent / "MANIFEST.json")
@@ -3297,12 +3375,15 @@ def acceptance(notebook, ref, parts_dir, scratch, record) -> dict:
                           "the pushed launch commit")
         source = str(top)  # (the remote cannot be reached from here: the local repository's remote-tracking ref)
     before = _git("status", "--porcelain")
-    shutil.rmtree(scratch, ignore_errors=True)
+    shutil.rmtree(scratch, ignore_errors=True)  # (new, empty or marked as this function's own: checked above)
+    scratch.mkdir(parents=True)
+    (scratch / ACCEPTANCE_MARK).write_text(f"the scratch directory of nb acceptance --ref {ref}; made {_now()}\n",
+                                           encoding="utf-8")
     drive = scratch / "drive"
     for name in sorted(content["parts"]):
         _copy_file(parts_dir / name, drive / "inputs" / bundle_id / name)
 
-    fresh = {}
+    fresh, heads = {}, {}
 
     def clone(i: int) -> Path:
         dst = scratch / f"clone{i}"
@@ -3312,7 +3393,15 @@ def acceptance(notebook, ref, parts_dir, scratch, record) -> dict:
         # a fresh clone holds nothing git ignores, and nothing else that is not the commit's
         status = _git("status", "--porcelain", "--ignored", cwd=dst)
         fresh[i] = status is not None and not status.strip()
+        heads[i] = (_git("rev-parse", "HEAD", cwd=dst) or "").strip() or None
         return dst / prefix
+
+    def dead_vm() -> None:
+        """Design 3.10 step 4: a dead VM loses its clone and its whole local disk (``_drill`` has deleted the
+        local run directory; the parts ``inputs`` copied under ``local/inputs`` go too, so that the resume takes
+        them from the stand-in Drive again)."""
+        shutil.rmtree(scratch / "clone1", ignore_errors=True)
+        shutil.rmtree(scratch / "local", ignore_errors=True)
 
     clones = {0: clone(1)}
     p = load_params(dict(
@@ -3329,14 +3418,17 @@ def acceptance(notebook, ref, parts_dir, scratch, record) -> dict:
         return f"{hit[0]} exists on the stand-in Drive (a copy in progress)" if hit else None
 
     def cwd_of(i: int) -> Path:
-        if i not in clones:
-            clones[i] = clones[max(clones)] if i > 1 else clone(2)
-        return clones[i]
+        """Session 0 runs in the first clone; every later attempt in the second, which is made when it is first
+        asked for (the first is deleted by then)."""
+        if i == 0:
+            return clones[0]
+        if 1 not in clones:
+            clones[1] = clone(2)
+        return clones[1]
 
     t0 = time.time()
     # (STUDY_DIR stays unset: the cells then take their working directory, which is each attempt's clone)
-    drill = _drill(notebook, dict(p, STUDY_DIR=None), scratch / "logs", cwd_of, part_exists,
-                   wipe=lambda: shutil.rmtree(scratch / "clone1", ignore_errors=True))
+    drill = _drill(notebook, dict(p, STUDY_DIR=None), scratch / "logs", cwd_of, part_exists, wipe=dead_vm)
     checks = _drill_checks(drill, p)
     at = drill["attempts"]
     jobs = parse_queue(p["QUEUE"])
@@ -3352,7 +3444,7 @@ def acceptance(notebook, ref, parts_dir, scratch, record) -> dict:
     line2 = (at["session1"]["lines"][2] or [""])[0]
     m2 = LINE_RE[2].match(line2)
     checks.update(
-        head_is_ref=(_git("rev-parse", "HEAD", cwd=cwd_of(2)) or "").strip() == ref,
+        head_is_ref=len(heads) == 2 and all(h == ref for h in heads.values()),
         fresh_clones_hold_nothing_ignored=len(fresh) == 2 and all(fresh.values()),
         killed_during_a_copy=bool(drill["kill"]["when"]) and "copy in progress" in str(drill["kill"]["when"]),
         part_swept=bool((_read_json(d / "SESSION_1.json") or {}).get("swept_parts")),
@@ -3368,8 +3460,10 @@ def acceptance(notebook, ref, parts_dir, scratch, record) -> dict:
         main_checkout_unchanged=before is not None and before == _git("status", "--porcelain"))
     rec = _stamped(dict(
         schema=ACCEPTANCE_SCHEMA, ok=all(checks.values()), checks=checks, remote=url, ls_remote=on_remote,
-        clone_source=source, ref=ref, bundle_id=bundle_id, content_sha256=manifest.get("content_sha256"),
-        files=len(content.get("files") or {}), bodies=p["PREFLIGHT_BODIES"], params=p, kill=drill["kill"],
+        ls_remote_sha=ref if on_remote else None, clone_source=source, ref=ref, clone_head=heads.get(2),
+        clone_heads={str(i): h for i, h in sorted(heads.items())}, bundle_id=bundle_id,
+        content_sha256=manifest.get("content_sha256"), files=len(content.get("files") or {}),
+        bodies=p["PREFLIGHT_BODIES"], g8a=g8a_counts(at["session1"]["lines"][3]), params=p, kill=drill["kill"],
         seconds=round(time.time() - t0, 1),
         attempts={k: dict(exit_code=v["exit_code"], killed=v["killed"], seconds=v["seconds"],
                           lines={str(n): rows for n, rows in v["lines"].items() if rows})
@@ -3410,15 +3504,11 @@ def _step_inputs(p: dict, args) -> int:
     d = Path(st["drive_run"])
     if _owner(d, st["session"]["session_uuid"]) is not None:
         raise Refused(f"{d}: this session no longer owns the run (LIVE.json)")
-    res = inputs(p["BUNDLE_ID"], p["DRIVE_DIR"], p["BUNDLE_SOURCE"], set_name=p["SET"], bodies=_bodies(p),
-                 local=p["LOCAL_DIR"])
     q = _read_json(d / "QUEUE.json") or {}
     was = (q.get("bundle") or {}).get("content_sha256")
-    if res["ok"] and was and was != res["content_sha256"]:
-        res["ok"] = False
-        _say(f"S2 REFUSED inputs: RESUME with another bundle: the run's content hash is {was[:12]}, this checkout's "
-             f"inputs give {str(res['content_sha256'])[:12]} (rule K6)")
-    elif res["ok"] and not was and isinstance(q.get("bundle"), dict):
+    res = inputs(p["BUNDLE_ID"], p["DRIVE_DIR"], p["BUNDLE_SOURCE"], set_name=p["SET"], bodies=_bodies(p),
+                 local=p["LOCAL_DIR"], expect=was)
+    if res["ok"] and not was and isinstance(q.get("bundle"), dict):
         q["bundle"]["content_sha256"] = res["content_sha256"]
         _write_json(d / "QUEUE.json", q)
     _note(st, res["line"], bundle=dict(id=res["bundle_id"], content_sha256=res["content_sha256"],
@@ -3531,9 +3621,10 @@ def main(argv=None) -> int:
         return exc.code
 
 
-__all__ = ["BUDGET_RULE", "COPY_RULE", "FENCE_RULE", "HALT_RULE", "JOB_RULE", "K6_RULE", "K7_RULE", "LINE_RE",
-           "NbError", "PARAMS", "Refused", "acceptance", "at_or_past", "budget_for", "collect", "finish", "floor_rate",
-           "hours", "inputs", "job_name", "keep_on_drive", "launch", "line1", "line2", "line3", "line4", "lines_of",
+__all__ = ["BACK_RULE", "BUDGET_RULE", "COPY_RULE", "FENCE_RULE", "HALT_RULE", "JOB_RULE", "K6_RULE", "K7_RULE",
+           "LINE_RE", "NbError", "PARAMS", "Refused", "UNFINISHED_RULE", "acceptance", "at_or_past", "budget_for",
+           "collect", "finish", "floor_rate", "g8a_counts", "hours", "inputs", "job_name", "keep_on_drive", "launch",
+           "line1", "line2", "line3", "line4", "lines_of",
            "load_params", "local_run", "main", "parse_queue", "pin_differences", "pins", "pip_commands", "preflight",
            "release_runtime", "run_cells", "session", "session_line", "setup", "sha256_json", "smoke", "smoke_line"]
 
