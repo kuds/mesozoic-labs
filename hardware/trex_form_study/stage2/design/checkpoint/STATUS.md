@@ -368,7 +368,7 @@ another model with the lead and the independent reviewers unchanged.
 - **In flight:** the independent review of section A's rules and chain script (an agent, background). Then steps (2)
   to (5) of the 01:50 update. The keep-alive ended at 01:36 UTC and is not re-armed while agents run.
 
-## Update, 16 Nov 2026, 02:30 UTC: item A of the add-on is run and reported; the training env's fix round is running
+## Update, 16 Nov 2026, 02:20 UTC: item A of the add-on is run and reported; the training env's fix round is running
 
 **Item A (more delays), done.** Simulation; no verdict; the bar stays judged at 10 ms.
 
