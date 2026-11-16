@@ -174,22 +174,47 @@ HISTORY_STEPS = 256
 # ------------------------------------------------------------------------------------------------
 # The head command (rules E5, J4)
 # ------------------------------------------------------------------------------------------------
-GAZE_YAW_RAD = 0.5
+#: A scripted head target keeps this far from a joint limit (the lead's ruling of 16 Nov 2026 on the review of
+#: CE): the 0.10 rad every joint must keep of its range in a walk (``tune.WALK_RANGE_RAD``: the ``range`` term's
+#: required margin and the bar's ``joint_range``) and 0.05 rad for the servo's tracking.  On both ``-X`` bodies the
+#: neck yaw's range is +-0.6 rad and the jaw's 0 to 0.6 rad (closed, 0, is the end it rests on by design and is no
+#: limit: ``plant.REST_ON_STOP_RULE``), so a gaze target lies on +-0.45 rad and a jaw opens to at most 0.45 rad.
+#: As drafted (+-0.5 rad, 0.3-0.6 rad) a jaw on its commanded opening above 0.5 rad was charged by the ``range``
+#: term and failed the bar's ``joint_range`` whatever the policy did.  ``Core`` refuses a body whose ranges do not
+#: leave the margin.
+HEAD_TARGET_MARGIN_RAD = 0.15
+GAZE_YAW_RAD = 0.45
 GAZE_MOVE_S = (0.8, 1.2)
 GAZE_HOLD_S = (2.0, 6.0)
-JAW_OPEN_RAD = (0.3, 0.6)
+JAW_OPEN_RAD = (0.3, 0.45)
 JAW_MOVE_S = (0.4, 0.6)
 JAW_HOLD_S = (1.0, 1.5)
 JAW_AT = (0.25, 0.75)  # the jaw event starts at a time uniform in this share of the episode (its middle half)
 H1_STREAM = 77
 HEAD_RULE = (
     "the head command is an overlay added to the reference's neck-yaw and jaw targets before the policy's offsets; "
-    "the actor sees [yaw now, jaw now, yaw goal, jaw goal] / 0.6 rad; head neutral is all zero.  A gaze train: "
-    "from the episode's first instant, shifts to a yaw target uniform on +-0.5 rad, minimum-jerk over 0.8-1.2 s, "
-    "each held 2-6 s, to the episode's end.  A jaw event: at a time uniform in the episode's middle half, open to "
-    "0.3-0.6 rad over 0.4-0.6 s, held 1.0-1.5 s, closed over the same time.  Training draws a train with "
-    "probability gaze_prob and a jaw event with probability jaw_prob from the env's generator (rule J4); the "
-    "bar's head script H1 has both, from numpy SeedSequence([episode seed, 77]) (rule E5)")
+    "the actor sees [yaw now, jaw now, yaw goal, jaw goal] / 0.6 rad; head neutral is all zero.  A scripted head "
+    "target keeps 0.15 rad from a joint limit (the neck yaw's range is +-0.6 rad, the jaw's 0 to 0.6 rad; the "
+    "jaw's closed end is the end it rests on and is no limit).  A gaze train: from the episode's first instant, "
+    "shifts to a yaw target uniform on +-0.45 rad, minimum-jerk over 0.8-1.2 s, each held 2-6 s, to the episode's "
+    "end.  A jaw event: starting at a time uniform in the episode's middle half, open to 0.3-0.45 rad over 0.4-0.6 "
+    "s, held 1.0-1.5 s, closed over the same time.  Training draws a train with probability gaze_prob and a jaw "
+    "event with probability jaw_prob from the env's generator (rule J4); the bar's head script H1 has both, from "
+    "numpy SeedSequence([episode seed, 77]) (rule E5)")
+
+
+def head_target_room(joints, lo, hi) -> dict:
+    """{neck_yaw, jaw}: the smallest distance between any target a head script can command (a gaze target on
+    +-``GAZE_YAW_RAD``; a jaw closed at 0 or opened to ``JAW_OPEN_RAD``) and the joint's range (``lo``, ``hi`` in the
+    order of ``joints``), an end the joint rests on by design left out (``plant.REST_ON_STOP_RULE``)."""
+    joints = list(joints)
+    rest = plant.rest_ends(joints)
+    out = {}
+    for jn, targets in ((HEAD_X_JOINTS[0], (-GAZE_YAW_RAD, GAZE_YAW_RAD)), (HEAD_X_JOINTS[1], (0.0, JAW_OPEN_RAD[1]))):
+        i = joints.index(jn)
+        out[jn] = float(metrics.joint_margins(np.array(targets)[:, None], lo[i : i + 1], hi[i : i + 1],
+                                              rest[i : i + 1])[0])
+    return out
 
 
 class HeadScript:
@@ -358,6 +383,12 @@ class Core:
         self.weight_true = self.weight
         self.lo, self.hi = (m.jnt_range[[_jid(m, jn) for jn in p.joints], i].copy() for i in (0, 1))
         self.rest = plant.rest_ends(p.joints)
+        if self.head_x:
+            room = head_target_room(p.joints, self.lo, self.hi)
+            short = [f"{jn} {x:.4f} rad" for jn, x in room.items() if x < HEAD_TARGET_MARGIN_RAD - 1e-9]
+            if short:
+                raise plant.PlantError(f"the head script's targets come within {HEAD_TARGET_MARGIN_RAD:g} rad of a "
+                                       f"joint limit on this body ({', '.join(short)}): HEAD_RULE")
         self.q_home = p.q_settled[p.qadr].copy()
         self.R_home = p._R_home
         self.head = r5lib.head_body(p)
@@ -761,6 +792,6 @@ def _plain(d: dict) -> dict:
     return {k: (list(v) if isinstance(v, tuple) else v) for k, v in d.items()}
 
 
-__all__ = ["Core", "HEAD_RULE", "HeadScript", "INTERFERENCE_RULE", "LAYOUT_RULE", "PENALTIES", "POSITIVE", "R6Tracker",
-           "REWARD_RULE", "REWARD_SCALES", "REWARD_WEIGHTS", "REWARD_WEIGHTS_ITEMS", "SUBSTEPS", "layout",
-           "policy_span", "reset_at", "tracker_estimate"]
+__all__ = ["Core", "HEAD_RULE", "HEAD_TARGET_MARGIN_RAD", "HeadScript", "INTERFERENCE_RULE", "LAYOUT_RULE", "PENALTIES",
+           "POSITIVE", "R6Tracker", "REWARD_RULE", "REWARD_SCALES", "REWARD_WEIGHTS", "REWARD_WEIGHTS_ITEMS", "SUBSTEPS",
+           "head_target_room", "layout", "policy_span", "reset_at", "tracker_estimate"]

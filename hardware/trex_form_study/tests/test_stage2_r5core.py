@@ -23,7 +23,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from designlab.stage1 import control, env, legs, plant  # noqa: E402
+from designlab.stage1 import HEAD_X_BODIES, control, env, legs, metrics, plant, tune  # noqa: E402
 from designlab.stage2 import r5core, r5lib, s2io, setio  # noqa: E402
 
 BODY, BODY_X = "75-M-H-10", "75-M-H-10-X"
@@ -43,6 +43,11 @@ needs_run = pytest.mark.skipif(not (_have(BODY) and ONE_THREAD), reason=(
     "needs the Stage 1 arrays and the round-two models (tools/restore_inputs.py) and one BLAS thread"))
 needs_x = pytest.mark.skipif(not (_have(BODY_X) and ONE_THREAD), reason=(
     "needs the expressive-head body's models and arrays (tools/restore_inputs.py --group x) and one BLAS thread"))
+
+#: Every body with a head that takes a command (a neck yaw and a jaw): each test on them skips where its models and
+#: arrays are not restored.
+HEAD_BODIES = [pytest.param(b, marks=pytest.mark.skipif(not (_have(b) and ONE_THREAD), reason=(
+    f"needs {b}'s models and arrays (tools/restore_inputs.py --group x) and one BLAS thread"))) for b in HEAD_X_BODIES]
 
 J14 = ["neck_pitch", "tail_yaw"] + [f"{s}_{j}" for s in ("left", "right") for j in control.LEGS]
 J16 = ["neck_yaw", "neck_pitch", "jaw", "tail_yaw"] + J14[2:]
@@ -128,14 +133,22 @@ def test_head_script_h1_and_the_training_draw():
     assert len(jaw) == 1 and len(gaze) >= 3 and gaze[0][1] == 0.0  # both always present; the train starts at once
     t = 0.0
     for _, t0, move, hold, target in gaze:
-        assert t0 == pytest.approx(t) and 0.8 <= move <= 1.2 and 2.0 <= hold <= 6.0 and abs(target) <= 0.5
+        assert t0 == pytest.approx(t) and 0.8 <= move <= 1.2 and 2.0 <= hold <= 6.0 and abs(target) <= 0.45
         t = t0 + move + hold
     assert t >= 20.0 and gaze[-1][1] < 20.0  # the whole episode
     _, t0, move, hold, opening = jaw[0]
-    assert 5.0 <= t0 <= 15.0 and 0.4 <= move <= 0.6 and 1.0 <= hold <= 1.5 and 0.3 <= opening <= 0.6
+    assert 5.0 <= t0 <= 15.0 and 0.4 <= move <= 0.6 and 1.0 <= hold <= 1.5 and 0.3 <= opening <= 0.45
+    # the script's numbers (rules E5, J4 as the lead ruled them on 16 Nov 2026: 0.15 rad from a joint limit)
+    assert (r5core.GAZE_YAW_RAD, r5core.JAW_OPEN_RAD, r5core.HEAD_TARGET_MARGIN_RAD) == (0.45, (0.3, 0.45), 0.15)
+    assert (r5core.GAZE_MOVE_S, r5core.GAZE_HOLD_S) == ((0.8, 1.2), (2.0, 6.0))
+    assert (r5core.JAW_MOVE_S, r5core.JAW_HOLD_S, r5core.JAW_AT, r5core.H1_STREAM) == ((0.4, 0.6), (1.0, 1.5),
+                                                                                    (0.25, 0.75), 77)
+    for text in ("+-0.45 rad", "0.3-0.45 rad", "0.15 rad from a joint limit", "middle half", "first instant"):
+        assert text in r5core.HEAD_RULE
+    assert "0.3-0.6 rad" not in r5core.HEAD_RULE and "+-0.5 rad" not in r5core.HEAD_RULE
     # the stream is SeedSequence([seed, 77])
     rng = np.random.default_rng(np.random.SeedSequence([3042, 77]))
-    assert gaze[0][4] == float(rng.uniform(-0.5, 0.5))
+    assert gaze[0][4] == float(rng.uniform(-0.45, 0.45))
     assert h.value(0.0) == (0.0, 0.0, gaze[0][4], 0.0)  # at rest at the first instant: exactly zero
     # minimum-jerk moves: continuous, at the target when the move ends, held, the goal known from the move's start
     _, t1, move1, _, x1 = gaze[1]
@@ -144,7 +157,7 @@ def test_head_script_h1_and_the_training_draw():
     ts = np.arange(0.0, 20.0, 0.002)
     val = np.array([h.value(float(x)) for x in ts])
     assert np.max(np.abs(np.diff(val[:, 0]))) < 0.005 and np.max(np.abs(np.diff(val[:, 1]))) < 0.008
-    assert np.max(np.abs(val[:, 0])) <= 0.5 and 0.0 <= val[:, 1].min() and val[:, 1].max() == pytest.approx(opening)
+    assert np.max(np.abs(val[:, 0])) <= 0.45 and 0.0 <= val[:, 1].min() and val[:, 1].max() == pytest.approx(opening)
     assert h.value(t0 + move + 0.5 * hold)[1::2] == (opening, opening)
     assert h.value(t0 + 2 * move + hold + 0.1)[1::2] == (0.0, 0.0)  # closed over the same time, goal back at zero
     # training (rule J4): probabilities from the env's generator; neither drawn is no script at all
@@ -857,6 +870,84 @@ def test_x_core_addresses_joints_by_name(px):
     assert core.actor_obs()[98:102].tolist() == [0.0] * 4
     with pytest.raises(ValueError, match="neck yaw"):
         r5core.Core(plant.build(BODY, "hard"), {}, None).begin(lambda: 0.0, pb.est, lib.script("walk"), head)
+
+
+def _script_extremes(h) -> tuple[float, float, float]:
+    """(the lowest and the highest neck-yaw target, the widest jaw opening) a head script commands."""
+    gaze = [e[4] for e in h.events if e[0] == "gaze"] or [0.0]
+    return min(gaze), max(gaze), max([e[4] for e in h.events if e[0] == "jaw"] or [0.0])
+
+
+@pytest.mark.parametrize("body", HEAD_BODIES)
+def test_no_scripted_head_target_lies_within_0_15_rad_of_a_joint_limit(body, monkeypatch):
+    """The lead's ruling of 16 Nov 2026: scripted head targets keep 0.15 rad from a joint limit; with the jaw's
+    range of 0 to 0.6 rad a script opens it to at most 0.45 rad.  On every body with a head: the bar's script H1
+    over 300 episode seeds, training's draws, and every value on the way between two targets."""
+    px = plant.build(body, "hard")
+    core = r5core.Core(px, {}, None)
+    i_yaw, i_jaw = px.joints.index("neck_yaw"), px.joints.index("jaw")
+    lo, hi, need = core.lo, core.hi, r5core.HEAD_TARGET_MARGIN_RAD
+    assert (lo[i_yaw], hi[i_yaw], lo[i_jaw], hi[i_jaw]) == (-0.6, 0.6, 0.0, 0.6) and need == 0.15
+    assert core.rest[i_jaw] == -1 and core.rest[i_yaw] == 0  # closed is the jaw's rest end: no limit there
+    room = r5core.head_target_room(px.joints, lo, hi)
+    assert room == dict(neck_yaw=pytest.approx(0.15, abs=1e-12), jaw=pytest.approx(0.15, abs=1e-12))
+    rng = np.random.default_rng(0)
+    scripts = [r5core.HeadScript.fixed(seed, 30.0) for seed in range(3042, 3342)]
+    scripts += [r5core.HeadScript.drawn(rng, 30.0, 1.0, 1.0) for _ in range(300)]
+    low, high, wide = (f(x) for f, x in zip((min, max, max), zip(*map(_script_extremes, scripts), strict=True),
+                                            strict=True))
+    assert low - lo[i_yaw] >= need - 1e-12 and hi[i_yaw] - high >= need - 1e-12 and hi[i_jaw] - wide >= need - 1e-12
+    assert low < -0.44 and high > 0.44 and 0.44 < wide <= 0.45  # (the draws reach the ends of their ranges)
+    for h in scripts[:20] + scripts[300:320]:  # a minimum-jerk move never passes its target
+        val = np.array([h.value(float(t)) for t in np.arange(0.0, 30.0, 0.01)])
+        assert hi[i_yaw] - np.max(np.abs(val[:, [0, 2]])) >= need - 1e-12
+        assert hi[i_jaw] - np.max(val[:, [1, 3]]) >= need - 1e-12 and np.min(val[:, [1, 3]]) >= 0.0
+    # the script as drafted (a jaw opened to 0.6 rad, a gaze to +-0.5 rad) is refused when a core is built
+    monkeypatch.setattr(r5core, "JAW_OPEN_RAD", (0.3, 0.6))
+    with pytest.raises(plant.PlantError, match="jaw 0.0000 rad"):
+        r5core.Core(px, {}, None)
+    monkeypatch.setattr(r5core, "JAW_OPEN_RAD", (0.3, 0.45))
+    monkeypatch.setattr(r5core, "GAZE_YAW_RAD", 0.5)
+    with pytest.raises(plant.PlantError, match="neck_yaw 0.1000 rad"):
+        r5core.Core(px, {}, None)
+
+
+@pytest.mark.parametrize("body", HEAD_BODIES)
+def test_a_playback_obeying_the_head_command_scores_range_zero(body):
+    """A body whose neck yaw and jaw sit exactly on the head command, at the script's extremes (a gaze held at
+    either end, the jaw opened as far as a script opens it), is charged nothing by the ``range`` term and keeps
+    the 0.10 rad of joint range the bar asks of a walk.  A jaw opened to 0.6 rad, as the script was drafted, sits
+    on its limit and is charged in full."""
+    pytest.importorskip("designlab.stage2.bar")
+    px = plant.build(body, "hard")
+    lib = r5lib.Library(px, body, "S1", RATE)
+    core = r5core.Core(px, {}, None)
+    i_yaw, i_jaw = core.i_yaw, core.i_jaw
+    script = lib.script("walk")
+    assert script.required_margin[i_yaw] == script.required_margin[i_jaw] == tune.WALK_RANGE_RAD == 0.10
+
+    def obeying(head, seconds: float) -> tuple[dict, np.ndarray]:
+        pb = playback(px, core, lib, "walk", head=head)
+        pb.pose = lambda q, c: _offset(_offset(q, _jq(px, "neck_yaw"), head.value(px.d.time)[0]), _jq(px, "jaw"),
+                                       head.value(px.d.time)[1])
+        played, terms = [], []
+        for _ in range(int(round(seconds / 0.02))):
+            terms.append(pb.step())
+            played.append(px.d.qpos[px.qadr].copy())
+        margins = metrics.joint_margins(np.array(played), core.lo, core.hi, core.rest)
+        return {k: (min(t[k] for t in terms), max(t[k] for t in terms)) for k in terms[0]}, margins
+
+    for yaw in (r5core.GAZE_YAW_RAD, -r5core.GAZE_YAW_RAD):
+        head = r5core.HeadScript([("gaze", 0.0, 0.8, 6.0, yaw), ("jaw", 1.0, 0.4, 1.5, r5core.JAW_OPEN_RAD[1])])
+        rng, margins = obeying(head, 4.0)
+        assert rng["range"] == (0.0, 0.0) and rng["joint"][0] > 1.0 - 1e-4
+        assert margins[i_yaw] == pytest.approx(0.15, abs=1e-9) and margins[i_jaw] == pytest.approx(0.15, abs=1e-9)
+        assert np.all(margins >= script.required_margin - 1e-12)  # every joint keeps what the bar asks
+    rng, margins = obeying(r5core.HeadScript.fixed(3042, 12.0), 12.0)  # the bar's own script for one seed
+    assert rng["range"] == (0.0, 0.0) and min(margins[i_yaw], margins[i_jaw]) >= 0.15 - 1e-9
+    drafted = r5core.HeadScript([("jaw", 1.0, 0.4, 1.5, 0.6)])
+    rng, margins = obeying(drafted, 3.0)
+    assert rng["range"] == (0.0, 1.0) and margins[i_jaw] == pytest.approx(0.0, abs=1e-12)
 
 
 @needs_x
