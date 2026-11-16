@@ -2769,10 +2769,14 @@ changed for this text.
   6 yet. Each of the three refusals raises `MonitorError`, the monitor leaves with exit code 1 as it does for any other
   failure, and the trainer closes the attempt and counts it: two refusals count the check without a record. The lead's
   ruling of 19:01 UTC on the trainer (`stage2/design/ROUND_C_RULINGS_16NOV.md`) gives the change that is owed: the
-  monitor leaves with an exit code of its own when it refuses, and the trainer halts with exit code 5.
-- The same two files hold rulings 1 and 2. `monitor2.is_record` takes `not_run` as an episode's entry. The trainer has
-  `--retry-check`, recorded as `sessions[].retry_check`; the attempt it allows is marked `after_halt`, and it is one
-  attempt per resumed session.
+  monitor leaves with an exit code of its own when it refuses, and the trainer halts with exit code 5. On a resume that
+  starts from an earlier checkpoint the trainer moves a later check's entry, its attempts with it, to that session's
+  `discarded_after_resume` (`train2._rollback`).
+- The same two files hold rulings 1 and 2. `monitor2.is_record` takes `not_run` as an episode's entry, on any episode:
+  it does not read whether the condition has a reference. The trainer has `--retry-check`, recorded as
+  `sessions[].retry_check`; the attempt it allows is marked `after_halt`, and it is one attempt per resumed session. If
+  that attempt is closed without a record, the trainer counts it among the closed attempts and, unless it is the second
+  of them, halts again.
 - The trainer writes a halt's reason into its own `run.json` (`halt`) and `progress.json`. `HALT.json`, which M1, M5 and
   K7 name, is the launcher's file in the design (`stage2/design/ROUND_C_DESIGN.md`).
 - The bar's `dry-run` command writes no file, by the docstring of `designlab/stage2/bar.py`, so a cap's `DRY_RUN.json`
@@ -2801,3 +2805,32 @@ quick turn has no baseline that a check can be read against (the monitor's code 
 held still. The monitor's code has one more refusal before any episode, a run directory without `run.json`, which ruling
 6 does not list. And in L12, whether the lead's decision takes in the plain head's sets when the set that fails is the
 `-X` head's own (written in as: yes).
+
+Changed after the independent review of this writing-in (16 Nov 2026), by the author and not by the lead, on findings
+that needed no new decision; each stands where it is, labelled. "What had been run": the look branch's commit `33652cb`,
+made while the wording was being committed, which holds a `set.json` of set `V6` on `75-M-H-10` (not frozen), where the
+bullet had said that the branch held none; "on a Stage 2 set", there and in this amendment's opening; and what the
+review and these fixes ran. M1: the Check for ruling 1 names where a condition without a reference is read. The Checks
+for rulings 2 and 6 are worded so that each item is read from the records. They read "the resumed session's recorded
+parameter (`sessions[].retry_check`) and the one attempt at that check made under it (in `monitor[]`, marked
+`after_halt`; both names are the trainer's, `designlab/stage2/train2.py`)" and "in `monitor[]`, that attempt closed with
+the monitor's exit code for a refusal; and no such attempt among the two closed attempts of a check counted without a
+record". But a session may resume after the halt without the parameter, and after a resume from an earlier checkpoint
+the refused entry lies in that session's `discarded_after_resume`; the note on ruling 6 now says the second too. K5: its
+reading gains the case in which the attempt that the parameter allows is closed without a record, and its Check is
+worded as M1's. Q5: the reading turns on when the row's first dry run is committed, where it had "is made";
+`DRY_RUN.json` gets four key names, which are the author's; the Check's last item is read from files; the change list's
+item 15 follows the brief. U3: the fitted amplitude is from the same fit as the tail phase. E4's mark, the Tags entry
+and the line on the confirmations above: the list's own words on E4, and which confirmations carry a mark. The working
+branch had not moved (`ffecc2c`); this file alone differs from it.
+
+The points of that review that need a decision are with the lead and are not written in. They are the four that the
+paragraph "Seen while this was written in" names, and the review made two of them more exact. For Z2 (c) it probed the
+look reading's fit and comparison on synthetic numbers (pure functions; no record), and the fix round ran that probe
+once more: a tail held at 0 already fails today's tail term by its phase (0.27 cycle from the reference's), while a tail
+scaled to a tenth about its mean (0.0125 rad against 0.125 rad) keeps the reference's phase and passes today's term. So
+the scaled tail, not the tail held still, is the playback that would fail by the new limit alone. For the monitor's
+exits before any episode that ruling 6 does not list, the review names two beside the missing `run.json`: a checkpoint
+record that cannot be read (the reader's own error, not the monitor's), and a checkpoint whose fingerprint is not
+reproduced when the row loads it (`s2load.CheckpointError`, which the monitor's command does not catch; seen on the
+stand-in's path for the view `S1`, the only path on the branch).
