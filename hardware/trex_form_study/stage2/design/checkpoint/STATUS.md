@@ -399,3 +399,41 @@ status now reads "allowed_warning".
 **Next, in order:** (1) review and merge CE; (2) the servo model's design for gate 1, with sources, reviewed;
 (3) the ten conflicts of the Track B rules draft and section 6's open points 6 and 7; (4) CT (trainer), CB (Drive
 bundle), CN (notebook) toward the day-one Colab smoke; (5) the look sets' review, CV, CK, CW, CF, CG.
+
+## Update, 16 Nov 2026, 03:05 UTC: the training env (CE) is merged; the lead's rulings on what was handed up
+
+**Merged.** `wt/wpc-ce` is merged into the working branch at `9ecefa5` (nine files: the env's four modules, their
+four test files, `stage2/design/CE_RULE_WORDING.md`). The fixer's report and the independent review of the fix
+round are `reviews/roundC__fix_CE.md` and `reviews/roundC__review_fix_CE.md`. The review found no blocker and no
+major point and said to merge as it stands. Both record-key hashes are the registered ones after the merge. On the
+merged tree the lead ran `tests/test_stage2_r5lib.py`, `test_stage2_r5core.py` and `test_stage2_tbenv.py`: all
+passed. The reviewer's run of the env and comparison tests on the same tree: "36 passed, 1 skipped". On the frozen
+set `V0` the env and the bar's runner were identical step for step in four comparisons (`walk/v0.4` at 0 and 6 ms,
+`walk/nominal` at 0 and 10 ms; no feedback row). That is a check, not gate G8a's record. The bundle still holds
+`wt/wpc-ce`; drop it from the bundle at the next refresh.
+
+**Rule X1** is lifted for the frozen 75 cm sets as of 16 Nov 2026 (the panels ended on 15 Nov), by the lead, in the
+fixer's brief and now here.
+
+**The lead's rulings on the points handed up** (to be written into the Track B rules draft with the wording file):
+
+1. *A playback does not score exactly zero in walking turns.* The reference's yaw lags the commanded heading by up
+   to 9.0° in the quick turn, so a playback's heading penalty reaches 0.351 there. Ruled: rule E4 stays in walking
+   turns. The bar judges the heading against the command, so the penalty points the same way as the bar. Rule W1's
+   sentence is amended to say so, as the wording file's entry 1b proposes, with the reviewer's two corrections: the
+   tracking figure is scoped to the two sets it was measured on, and "every penalty 0" becomes "below 1e-4".
+2. *The gaze target* moves from ±0.5 to ±0.45 rad with the jaw's limit, as the 0.15 rad margin requires. Accepted.
+3. *What a resumed run compares* (K4): the trainer compares the config's named freeze, the input files and the task
+   names, not the env's whole description. The env configs should store the resolved task names, so that K4's
+   accepted case can be reached. This goes into CT's brief.
+4. *The eight minor points of the review of the fix round* are accepted as findings and owed as one small fix round
+   before any run fixes the env's source hashes: the task table is compared when the named freeze is the latest;
+   a set whose `crouch_frac` differs from a used walk entry's is refused; six unstated details join the rule
+   strings; the wording file gains an entry for the mid-start rule (T3); `from_plan` gains a heading argument
+   before any row plays a turn in place; three test gaps.
+
+**Not done on the training path:** the Track B rules draft's ten conflicts and the wording file's integration; the
+look sets' review; CV, CK, CB, CT, CW, CF, CG, CN. The servo model's design is being written (a workflow; its
+review phase will be cut to hold the owner's usage line, and the note labelled "not yet reviewed").
+
+**Usage.** $1,937.41 at 03:01 UTC, about 84 %. The owner read 81 % at 02:47 UTC, which agrees with the calibration.
