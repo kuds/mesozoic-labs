@@ -595,7 +595,13 @@ def build(bundle_id, bodies, sets=("V6",), out=None, part_mb=20, root=None) -> d
     against the manifest and moved into place; the manifest is written last.  An existing manifest with the same
     content is left as it is (its provenance is the first build's); one with another content, or a part in
     ``<out>/parts`` that is not this bundle's, is refused with nothing replaced.  Temporary parts a killed build
-    left in ``<out>/parts`` (``*.tar.tmp``) are removed, under the directory's lock."""
+    left in ``<out>/parts`` (``*.tar.tmp``) are removed, under the directory's lock.
+
+    ``provenance.commit``, ``dirty`` and ``dirty_paths`` describe the checkout that holds this tool (``s2io``'s
+    rule); with another ``root`` they say nothing about the tree read, which ``provenance.root`` names.
+    ``provenance.records_committed`` is true where git showed every record read to be committed and unchanged in
+    ``root``, and null where git could not tell (no checkout, no git; the command line prints a note): a manifest
+    that reads null was not shown to be built from committed records."""
     return _build(bundle_id, bodies, sets, out, part_mb, root)[0]
 
 
@@ -784,7 +790,9 @@ def unpack(manifest, parts_dir, root, *, parts=None) -> dict:
     directory under ``root`` resolves outside it or cannot be made, and a part or a place that cannot be looked at
     (every such refusal is a ``BundleError``, never an ``OSError``).  Then each file is written beside its place as
     ``<name>.tmp``, flushed, compared once more with the manifest and moved into place.  A regular file already
-    there with the manifest's sha256 is left untouched, so a second call writes nothing.
+    there with the manifest's sha256 is left untouched, so a second call writes nothing.  No lock is taken (a lock
+    file under ``root`` would be an untracked file of a clone): run one ``unpack`` per root at a time, and ``verify``
+    after it.
 
     Returns ``{ok: True, bundle_id, content_sha256, root, parts, files, written, replaced, left}``: the part names
     unpacked, the number of their files, and the paths written new, written over another file, and left."""
