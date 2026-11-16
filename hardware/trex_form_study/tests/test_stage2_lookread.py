@@ -6,13 +6,14 @@ Run from hardware/trex_form_study (the fit's venv):
 
 Fast tests on synthetic series (no model): each band on both sides of its limit, segmentation by the own events,
 the bob per step, "not read", too few steps, a reference that lacks a value, the window of a bar item and its
-reference times, gate Z2 (b)'s limits one at a time.  Tests on a model (kinematics only, no physics and no
-episode): the look ladder's V6 rungs played from their own arrays against ``stage2/look/metrics.json`` within gate
-Z2 (b)'s limits, the playback through ``bar._Played`` (a rung written as a reference file under pytest's temporary
-directory, and Stage 1's own run directory with a real track), the window and the playback of real bar items (a
-frozen 75 cm set's tracks, played, never run), the negative controls of gate Z2 (c), and an ``-X`` body.  They need
-the round-two model files, the look ladder's arrays, Stage 1's arrays and the frozen sets' arrays (git-ignored;
-``python tools/restore_inputs.py restore``) and skip without them.  Nothing is written outside ``tmp_path``.
+reference times, gate Z2 (b)'s limits one at a time, the rule texts.  Tests on a model (kinematics only, no physics
+and no episode): the look ladder's V6 rungs played from their own arrays against ``stage2/look/metrics.json`` within
+gate Z2 (b)'s limits, the playback through ``bar._Played`` (a rung written as a reference file under pytest's
+temporary directory, and Stage 1's own run directory with a real track), the window and the playback of real bar
+items (a frozen 75 cm set's tracks, played, never run), the negative controls of gate Z2 (c), and an ``-X`` body.
+They need the round-two model files, the look ladder's arrays, Stage 1's arrays and the frozen sets' arrays
+(git-ignored; ``python tools/restore_inputs.py restore``) and skip without them.  Nothing is written outside
+``tmp_path``.
 
 Slow (``STAGE2_SLOW=1``; about 5 s): one closed-loop episode of Stage 1's own run directory (the view ``S1``; row
 R0, no record), its recorder lent 50 Hz poses as the row wrapper will lend them: what ``series`` takes of a live
@@ -99,6 +100,35 @@ def test_constants_are_the_plans_and_stage1s():
     assert lookread.POSE_S == tune.LEGS_EVERY * control.FEEDBACK_EVERY * 0.002
     assert set(lookread.RULES) == {"measures", "window", "bands", "reference"}
     assert all("STAGE2_TRACKB_PLAN rule U" in v for v in lookread.RULES.values())
+
+
+def test_the_rule_texts_mark_what_is_the_modules_own_reading():
+    """The texts go into records as rule texts: each opens with the plan's rule and holds, after one mark, the
+    sentences that are this module's reading and not the rule's words."""
+    mark = lookread.MODULE_READING
+    assert mark == "This module's own reading, which is not the rule's wording: "
+    own = dict(
+        measures=("hip-roll joints' anchors", "elevation of the head body's x axis", "first and last left lift-off",
+                  "elevation of the foot body's x axis", "first physics step after the change"),
+        window=("did not fall", "an episode that fell", "two updates", "when the trace spans it"),
+        bands=("cannot be computed fails its term", "The bob has no such threshold", "reads the phase alone",
+               "no band reads it"),
+        reference=("bar._Played", "support flags", "lacks one of its own values"))
+    rule = dict(
+        measures=("rule U1", "own steps", "RMS about its mean", "zero at each of its left lift-offs", "2 % load rule"),
+        window=("rule U2", "judged last 10 s", "3 s after t_c + at_s", "Nudge and stop items are not read"),
+        bands=("rule U3", "<= 0.3;", "<= 1.5 deg RMS (not relative)", "<= 0.1 cycle", ">= 0.7 x reference",
+               "under 0.02 rad", "both then pass, labelled"),
+        reference=("rule U5", "nominal commanded clock (1.05)", "at least 4 steps and 4 lift-offs", "too_few_steps",
+                   "When the playback itself has fewer, it is an error of the definition"))
+    for key, text in lookread.RULES.items():
+        assert text.count(mark) == 1, key
+        before, after = text.split(mark)
+        assert before.startswith("STAGE2_TRACKB_PLAN rule U") and after.endswith("."), key
+        for phrase in own[key]:
+            assert phrase in after and phrase not in before, (key, phrase)
+        for phrase in rule[key]:
+            assert phrase in before, (key, phrase)
 
 
 def test_the_module_does_not_import_the_bar_and_names_its_own_file():

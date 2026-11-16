@@ -73,25 +73,37 @@ G = 9.81
 WALK_WINDOW_S = readings.WALK_WINDOW_S
 TURN_WINDOW_S = readings.HEADING_HOLD_S
 
+#: The mark that stands, in each rule text below, between the plan's rule and the sentences that are this module's
+#: own reading of it: a record that quotes a text shows which is which.
+MODULE_READING = "This module's own reading, which is not the rule's wording: "
+
 RULES = dict(
     measures=(
-        "STAGE2_TRACKB_PLAN rule U1.  From 50 Hz poses, by kinematics on the plant's model: bob = the mean, over "
-        "the robot's own steps wholly inside the window (a step runs from one touchdown of either foot to the "
-        "next), of max less min of the hip midpoint's height (the midpoint of the two hip-roll joints' anchors; "
-        "the poses between the two touchdowns and the height interpolated at each of them); head = the RMS about "
-        "its mean of the head body's pitch in the world (the elevation of its x axis) over the poses in the "
-        "window, degrees; tail phase = psi / (2 pi) of the least-squares fit tail = A sin(2 pi phi + psi) + c of "
-        "the tail-yaw joint's angle on the robot's own phase phi (0 at its first left lift-off in the window, one "
-        "more at each later one, linear in time between them; the poses between the window's first and last left "
-        "lift-off), and A; toe-off = the mean, over the lift-offs of either foot in the window, of the lifting "
-        "foot's pitch (the elevation of the foot body's x axis below the horizontal, toe down positive) at the "
-        "lift-off instant, interpolated between poses.  Contact is the 2 % load rule with the 20 ms debounce "
-        "(readings.contact_flags); a lift-off or touchdown is the first physics step after the change."),
+        "STAGE2_TRACKB_PLAN rule U1.  From 50 Hz poses of an episode: bob = the mean, over the robot's own steps "
+        "wholly inside the window (a step runs from one touchdown of either foot to the next), of the range of the "
+        "hip midpoint's height; head = the RMS about its mean of the head's pitch in the world, degrees; tail phase "
+        "= the phase, in cycles, of the least-squares sinusoid of the tail-yaw joint's angle on the robot's own "
+        "phase (zero at each of its left lift-offs); toe-off = the mean, over its lift-offs in the window, of the "
+        "lifting foot's pitch at that instant.  Contact is the 2 % load rule with the 20 ms debounce "
+        "(readings.contact_flags).  "
+        + MODULE_READING +
+        "all by kinematics on the plant's model.  The hip midpoint is the midpoint of the two hip-roll joints' "
+        "anchors; a step's range is taken over the poses between its two touchdowns and the height interpolated at "
+        "each of them.  The head's pitch is the elevation of the head body's x axis.  The tail's fit is tail = A "
+        "sin(2 pi phi + psi) + c with the phase psi / (2 pi) and the amplitude A; phi is 0 at the robot's first "
+        "left lift-off in the window, one more at each later one and linear in time between them, and the fit "
+        "takes the poses between the window's first and last left lift-off.  A foot's pitch is the elevation of "
+        "the foot body's x axis below the horizontal, toe down positive, interpolated between poses at the "
+        "lift-off instant.  A lift-off or touchdown is the first physics step after the change."),
     window=(
-        f"STAGE2_TRACKB_PLAN rule U2.  A walk item: the last {WALK_WINDOW_S:g} s of an episode that ran to its "
-        f"planned end (the bar's judged window).  A turn item: the {TURN_WINDOW_S:g} s after t_c + at_s (t_c the "
-        "simulated time at which the reference clock reached the command, at_s the item's judged time).  Nudge and "
-        "stop items are not read."),
+        f"STAGE2_TRACKB_PLAN rule U2.  A walk item: its judged last {WALK_WINDOW_S:g} s.  A turn item: the "
+        f"{TURN_WINDOW_S:g} s after t_c + at_s (t_c the simulated time at which the reference clock reached the "
+        "command, at_s the item's judged time).  Nudge and stop items are not read.  "
+        + MODULE_READING +
+        f"a walk item's window is the one the bar judges: the {WALK_WINDOW_S:g} s before the trace's last update, "
+        "of an episode that did not fall and whose trace reaches its planned end to within two updates; an episode "
+        "that fell, also inside its last two updates, has none.  A turn item's window is read when the trace spans "
+        "it."),
     bands=(
         f"STAGE2_TRACKB_PLAN rule U3.  Against the reference's own values: bob |own / reference - 1| <= "
         f"{BANDS['bob_rel']:g}; head pitch own <= {BANDS['head_world_pitch_rms_deg']:g} deg RMS (not relative); "
@@ -99,16 +111,21 @@ RULES = dict(
         f">= {BANDS['toe_off_rel']:g} x reference.  The tail term is not read when the reference's tail amplitude "
         f"in the window is under {NOT_READ_RAD:g} rad, the toe-off term when the reference's toe-off is under "
         f"{NOT_READ_RAD:g} rad; both then pass, labelled, and the reference's value and its side of the threshold "
-        "are recorded.  A value of the robot's that cannot be computed fails its term.  The bob has no such "
-        "threshold: against a reference without a bob the term fails.  The tail term reads the phase alone: the "
-        "ratio of the two amplitudes is recorded and no band reads it."),
+        "are recorded.  "
+        + MODULE_READING +
+        "a value of the robot's that cannot be computed fails its term.  The bob has no such threshold: against a "
+        "reference without a bob the term fails.  The tail term reads the phase alone: the ratio of the two "
+        "amplitudes is recorded and no band reads it."),
     reference=(
         f"STAGE2_TRACKB_PLAN rule U5.  The reference's values are the same functions on a kinematic playback of "
-        f"the episode's own track over the window's reference times at the nominal commanded clock ({RATE:g}): "
-        "the files' poses placed in one world frame by bar._Played, contact from the files' support flags.  When "
-        f"that playback has at least {MIN_STEPS} steps and {MIN_STEPS} lift-offs in the window and the robot has "
-        "fewer, the bob, tail and toe-off terms fail (too_few_steps); it is no error.  When the playback itself "
-        "has fewer, or lacks one of its own values, it is an error of the definition (LookError)."),
+        f"the episode's own track over the window's reference times at the nominal commanded clock ({RATE:g}).  "
+        f"When that playback has at least {MIN_STEPS} steps and {MIN_STEPS} lift-offs in the window and the robot "
+        "has fewer, the bob, tail and toe-off terms fail (too_few_steps); it is no error.  When the playback itself "
+        "has fewer, it is an error of the definition (LookError).  "
+        + MODULE_READING +
+        "the playback is the files' poses placed in one world frame by bar._Played, with contact from the files' "
+        "support flags.  A playback that lacks one of its own values (its bob, its tail amplitude, its tail phase "
+        "where the tail is read, its toe-off) is the same error of the definition."),
 )
 
 
@@ -363,7 +380,11 @@ def played(p, track, run_dir, ta_ref: float, tb_ref: float, rate: float = RATE) 
     ``poses`` at ``ta_ref, ta_ref + POSE_S * rate, ...`` by ``bar._Played(track, run_dir).q`` (the files' frames
     placed in one world frame), ``loads`` at every physics step by ``_Played.loads`` (the files' support flags), and
     ``dt``, ``every``, ``t0`` (= ``ta_ref / rate``: the simulated time of the first pose on that clock), ``rate``,
-    ``window_ref``.  ``LookError("not played: ...")`` for a track ``_Played`` refuses (a periodic turning gait)."""
+    ``window_ref``.
+
+    ``LookError("not played: ...")`` for a track ``_Played`` refuses (a periodic turning gait).  No bar walk or turn
+    item holds such a gait, so for an item with a window (``window_ref``) this is a fault of the definition (rule
+    U5) like any other ``LookError`` of a playback, never "this item has no look reading"."""
     from . import bar  # not at module level: the bar is no part of this module's import
 
     ta_ref, tb_ref, rate = float(ta_ref), float(tb_ref), float(rate)
@@ -390,7 +411,8 @@ def playback(p, track, run_dir, ta_ref: float, tb_ref: float) -> dict:
     """The reference's reading (rule U5): ``reading`` of ``series`` of the track's own poses and planned loads over
     the reference times ``[ta_ref, tb_ref]`` at the nominal commanded clock (``played`` at ``RATE``), so that the
     result is on simulated time: its ``window`` is ``[ta_ref / RATE, tb_ref / RATE]``.  With ``window_ref`` and
-    ``clock_rate`` beside the reading's keys.  ``LookError("not played: ...")`` as ``played``."""
+    ``clock_rate`` beside the reading's keys.  ``LookError("not played: ...")`` as ``played``: for a bar walk or
+    turn item, a fault of the definition."""
     a = played(p, track, run_dir, ta_ref, tb_ref)
     ser = series(p, a["poses"], a["loads"], a["dt"], a["every"], t0=a["t0"])
     return dict(reading(ser, a["t0"], float(tb_ref) / RATE), window_ref=a["window_ref"], clock_rate=RATE)
