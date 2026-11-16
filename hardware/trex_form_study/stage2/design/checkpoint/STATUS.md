@@ -334,3 +334,23 @@ another model with the lead and the independent reviewers unchanged.
   `stage2/design/` so that it survives a restart).
 - The usage line is about 90 % (about 1,979 USD on `get_session`'s meter), then checkpoint and stop; the owner
   resets the allocation the next day.
+
+## Update, 16 Nov 2026, 01:50 UTC: item A registered; what to do next, step by step
+
+- **Committed with this update:** `STAGE2_75_ADDON_PLAN.md` (section A registered; B and C not registered), the chain
+  script `stage2/runs/2026-11-16-75cm-addon/run_addon.sh` (list mode tried: six units, 0.665 core-hours estimated
+  against the cap of 1.0), and the designers' and reviewers' working papers under `stage2/design/addon/`
+  (`design_AB.md`, `review_AB.md`, `design_C.md`, `review_C.md`, `proto/`).
+- **No episode of the add-on has run yet.**
+- **Next, in this order:** (1) one independent reviewer reads section A and the chain script and tries `list`;
+  fix what is found; commit. (2) `PY=.venv/bin/python PROCS=3 bash stage2/runs/2026-11-16-75cm-addon/run_addon.sh
+  all` from `hardware/trex_form_study` in the main checkout with a clean tree (about 15 to 20 minutes); commit the
+  records, `budget.json` and `ADDON_LEDGER.json` under `stage2/runs/2026-11-16-75cm-addon/A/`. (3) Write
+  `A/delays_table.py` (standard library, in no key): per delay 0 to 20 ms, each record's count of episodes up, of
+  episodes meeting the distance term, where the falls come, and the reading words of rule A-6; registered records
+  at 0 to 10 ms from `stage2/runs/2026-11-15-75cm/`. (4) A short labelled section in `STAGE2_75_REPORT.md` (rule
+  A-10), checked by one reviewer; tell the owner (push notification). (5) Then the training path (P38): start with
+  the ten conflicts of the Track B rules draft (`reviews/trackb_rules__integrate_trackb-rulings.md` in this
+  directory; branch `wt/prereg-b`) and the fixer for the training env (`wt/wpc-ce`; its review and the lead's four
+  rulings are in section 4 above).
+- **Usage line:** about 90 % (about 1,979 USD on `get_session`); read it before each step.
