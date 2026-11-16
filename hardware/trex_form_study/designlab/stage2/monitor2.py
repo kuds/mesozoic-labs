@@ -544,11 +544,14 @@ def _stand_in(body: str, row: str, pairs: list, policies: dict | None) -> list:
     name, _, ms = row.partition("@")
     k = int(round(float(ms[:-2]) / STEP_MS))
     mode, model, stats = "R5", None, None
+    base = dict(body=body, set=S1_SET, mode=mode, tasks=("stand",))
     if name != "R0L":
         mode = name.split("/", 1)[0]
         pol = (policies or {})[name]
         ck = s2load.load_checkpoint(pol["job_dir"], int(pol["steps"]))
         model, stats = ck["model"], ck["stats"]
+        # the run's own env config (its tasks: R6's joint spans are taken over the env's task scripts)
+        base = dict(_job_doc(pol["job_dir"])["settings"]["env_configs"][0])
     run_dir = setio._anchored(r5lib.s1_root(body)) / body
     _, docs = setio.stage1_view(run_dir.parent, body)
     planner = panels.Planner(run_dir, docs["refs.json"]["references"], docs["transitions.json"]["transitions"])
@@ -558,8 +561,8 @@ def _stand_in(body: str, row: str, pairs: list, policies: dict | None) -> list:
     for key, seed in pairs:
         cond = conds[key]
         if cond.floor not in envs:
-            cfg = r5env.R5Config(body=body, set=S1_SET, mode=mode, floor=cond.floor, tasks=("stand",), randomize=False,
-                                 push_prob=0.0, head_events=False, mid_start=0.0)
+            cfg = r5env.config_from(dict(base, mode=mode, floor=cond.floor, randomize=False, push_prob=0.0,
+                                         head_events=False, mid_start=0.0))
             envs[cond.floor] = r5env.make(mode, cfg)
         e = envs[cond.floor]
         res = planner.resolve(cond)

@@ -677,6 +677,36 @@ def test_restart_from_zero_is_the_fresh_run(ref_plain, stub, tmp_path, monkeypat
     same_updates(job(ref_plain / "out"), jd)
 
 
+def test_a_resume_from_checkpoint_zero(ref_plain, stub, tmp_path, monkeypatch):
+    """A session cut before its second checkpoint resumes from checkpoint 0: the same code path as a fresh start
+    (the boundary of step 0 is made again, the checkpoint is not saved again)."""
+    out = tmp_path / "out"
+    cut_at(monkeypatch, stub, 128)
+    with pytest.raises(_Cut):
+        run(stub, out)
+    monkeypatch.undo()
+    stub = install_again(monkeypatch, tmp_path)
+    assert doc_of(out)["kept"] == [0]
+    zero = (job(out) / "checkpoints" / "model_0.zip").read_bytes()
+    seen = {}
+    inner = stub._Run.boundary
+
+    def boundary(self, n):
+        if n == 0:  # (what checkpoint 0 holds when the resumed session makes its boundary)
+            seen[0] = (job(out) / "checkpoints" / "model_0.zip").read_bytes()
+        inner(self, n)
+
+    monkeypatch.setattr(stub._Run, "boundary", boundary)
+    d = run(stub, out, resume=True)
+    s = d["sessions"][1]
+    assert d["status"] == "done" and s["resumed_from"] == 0 and s["restarted_from_zero"] is False
+    assert s["boundary_seeds"][0] == dict(b=0, steps=0, seed=4_200_000) and seen[0] == zero  # not saved again
+    assert s["discarded_after_resume"]["updates"]["lines"] == 1
+    for n in (1280, FINAL):
+        assert_same_checkpoint(job(ref_plain / "out"), job(out), n)
+    same_updates(job(ref_plain / "out"), job(out))
+
+
 def test_the_schedule_follows_the_step_count_across_a_resume(ref_plain, stub, tmp_path, monkeypatch):
     out = tmp_path / "out"
     cut_at(monkeypatch, stub, 640)
@@ -735,6 +765,10 @@ def test_resume_refusals_settings(cut_run, stub, tmp_path):
     # nothing given but the run's own: accepted (the budget and the rate are the run's)
     d = run(train2, out, resume=True, steps=None)
     assert d["status"] == "done" and d["sessions"][1]["resumed_from"] == 512
+    # a run that is done: a resume has nothing to do and writes nothing
+    before = (job(out) / "run.json").read_bytes()
+    assert run(train2, out, resume=True)["status"] == "done" and (job(out) / "run.json").read_bytes() == before
+    assert len(doc_of(out)["sessions"]) == 2
 
 
 def test_resume_refusals_inputs_and_a_later_freeze(cut_run, tmp_path):
@@ -936,6 +970,25 @@ def test_a_second_g8b_failure_stops_the_run(stub, tmp_path, monkeypatch):
         run(stub, out, gates=True, resume=True)
 
 
+def test_the_final_check_does_not_stop_a_run_its_budget_ended(stub, tmp_path, monkeypatch):
+    """The check on the final checkpoint is read like any other, but the budget ended the run: a second G8b
+    failure there is recorded and is no stop; a first failure there makes no fix (no training follows)."""
+    monkeypatch.setenv("STUB_MON_FAIL_AT", "768,1536")
+    d = run(stub, tmp_path / "a", gates=True, monitor_every=768)
+    assert d["status"] == "done" and d["stopped"] is None and d["num_timesteps"] == FINAL
+    assert [e["at_steps"] for e in d["monitor"]] == [768, 1536] and d["fix"]["at_steps"] == 768
+    assert d["gates"]["g8b_after_fix"]["pass"] is False and d["gates"]["g8b_after_fix"]["at_steps"] == FINAL
+    assert d["final_check"]["would_have_stopped"]["status"] == "stopped_g8b"
+    assert d["final_check"]["ended_by"] == "the budget" and "fix_not_applied" not in d["final_check"]
+    monkeypatch.setenv("STUB_MON_FAIL_AT", "1536")
+    d = run(stub, tmp_path / "b", gates=True, monitor_every=1536)
+    assert d["status"] == "done" and [e["at_steps"] for e in d["monitor"]] == [1536]
+    assert d["gates"]["g8b"]["pass"] is False and d["fix"] is None
+    assert d["final_check"]["fix_not_applied"]["tasks"] == ["walk_nominal"]
+    last = json.loads((job(tmp_path / "b") / "checkpoints" / f"checkpoint_{FINAL}.json").read_text())
+    assert last["run_state"]["task_weights"]["walk_nominal"] == 2.0
+
+
 def test_a_failed_baseline_halts_before_the_first_rollout(stub, tmp_path, monkeypatch):
     out = tmp_path / "out"
     monkeypatch.setattr(stub, "_monitor_cmd", lambda: [PY, "-c", "import sys; sys.exit(6)"])
@@ -961,15 +1014,31 @@ def test_a_failed_set_task_weights_ends_the_session(stub, tmp_path, monkeypatch)
 # ---------------------------------------------------------------------------------------------------------------
 # Lesson 16
 # ---------------------------------------------------------------------------------------------------------------
-def test_minibatch_steps_are_counted_and_the_kl_cut_flag(stub, tmp_path):
-    """A learning rate that trips ``target_kl``: PPO stops its updates early without a message; the wrapped
-    optimizer step counts what really ran, and the flag is set from the median share over a check interval."""
-    out = tmp_path / "out"
-    d = run(stub, out, lr=3e-2, gates=True)
-    up = updates(job(out))
+@pytest.fixture(scope="module")
+def hot(tmp_path_factory):
+    """A run with a learning rate that trips ``target_kl`` (3e-2 against the tiny run's 3e-5), with its checks."""
+    _need_torch()
+    tmp = tmp_path_factory.mktemp("hot")
+    r = drive(tmp, tmp / "out", workers=0, lr=3e-2)
+    assert r.returncode == 0, r.stderr[-3000:]
+    return tmp / "out"
+
+
+def test_minibatch_steps_are_counted(hot):
+    """Lesson 16: PPO stops an update early without a message when the KL passes 1.5 x ``target_kl``; the wrapped
+    optimizer step counts what really ran, while SB3's own count goes on as if all had."""
+    up = updates(job(hot))
     assert len(up) == 12 and all(u["minibatch_steps_possible"] == 10 for u in up)
-    assert all(u["minibatch_steps_run"] < u["minibatch_steps_possible"] for u in up[1:])
+    assert all(0 < u["minibatch_steps_run"] < u["minibatch_steps_possible"] for u in up[1:])
     assert any(u["approx_kl"] > 1.5 * 0.03 for u in up)
+    assert doc_of(hot)["settings"]["lr"]["start"] == 3e-2 and doc_of(hot)["settings"]["ppo"]["target_kl"] == 0.03
+
+
+def test_kl_cut_flag(hot):
+    """Rule O3: the median share of minibatch steps run over a check interval under one half sets the flag; it
+    stops nothing."""
+    out, d = hot, doc_of(hot)
+    up = updates(job(out))
     share = float(np.median([u["minibatch_steps_run"] / 10 for u in up[8:]]))
     last = d["monitor"][-1]["kl_cut"]
     assert last == dict(after_steps=1024, to_steps=1536, updates=4, median_share=share, cut=share < 0.5)
@@ -1095,12 +1164,20 @@ def test_a_fine_tune_starts_from_its_parents_checkpoint(ref_plain, stub, tmp_pat
     assert d["settings"]["lr"] == dict(start=1e-5, end=1e-5, source="given (--lr)", schedule="constant")
     assert all(u["lr"] == pytest.approx(1e-5) for u in updates(jd))
     assert d["sessions"][0]["boundary_seeds"][0]["steps"] == 0 and d["checkpoints"] == [0, 256, 512]
-    # checkpoint 0 of the fine-tune is the parent's policy and statistics, before any of its own steps
+    # the fine-tune went on from the parent's statistics (updated further) and wrote checkpoints of its own run
     a, b = tensors(parent, FINAL), tensors(jd, 512)
-    c0 = json.loads((jd / "checkpoints" / "checkpoint_512.json").read_text())
-    assert c0["run_uuid"] == d["run_uuid"]
-    assert float(b["obs_count"]) > float(a["obs_count"])  # the statistics were updated further
-    assert not np.array_equal(a["policy.pth/log_std"], b["policy.pth/log_std"]) or True
+    c512 = json.loads((jd / "checkpoints" / "checkpoint_512.json").read_text())
+    assert c512["run_uuid"] == d["run_uuid"] and c512["settings_sha256"] == d["settings_sha256"]
+    assert float(b["obs_count"]) == pytest.approx(float(a["obs_count"]) + 512 + 2 * 8)  # (512 steps, 2 boundaries)
+    assert float(b["policy.pth/log_std"].mean()) == pytest.approx(float(a["policy.pth/log_std"].mean()), abs=1e-3)
+    # without --lr the rate is rule K8's probe from the parent's checkpoint, run once and kept
+    d2 = run(stub, tmp_path / "out2", job="ft2", parent=(parent, 1280), steps=256)
+    p = 0.3 * 3e-5 + 0.7 * 3e-5 * (1.0 - 1280 / FINAL)
+    assert d2["status"] == "done" and d2["settings"]["lr"]["start"] == pytest.approx(p) == d2["settings"]["lr"]["end"]
+    assert d2["settings"]["lr"]["source"].startswith("rule K8") and d2["parent"]["lr_probe"]["rate"] == pytest.approx(p)
+    probe = json.loads((job(tmp_path / "out2", "ft2") / d2["parent"]["lr_probe"]["record"]).read_text())
+    assert probe["sha256"] == d2["parent"]["lr_probe"]["sha256"] and probe["updates"] == 6
+    assert probe["bodies"]["stub"]["tried"][0]["passes"] is True and len(probe["bodies"]["stub"]["tried"]) == 1
     # rule K8's probe from the parent's checkpoint: p first, then the listed rates below it
     monkeypatch.setattr(stub, "FINE_TUNE_RATES", (1e-1, 1e-7))
     probe = stub.probe_lr(["stub"], "STUB", tmp_path / "probe.json", updates=2, workers=0, parent=(parent, 1280))

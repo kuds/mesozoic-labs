@@ -505,7 +505,7 @@ class _Run:
         self.allow_version, self.allow_source = bool(a["allow_version_change"]), bool(a["allow_source_change"])
         self.log = a["log"] or (lambda *x: None)
         self.doc = self.session = self.venv = self.vecnorm = self.model = self.cb = None
-        self.k, self.skipped, self.freeze_index, self.val = 0, [], None, {}
+        self.k, self.skipped, self.freeze_index, self.val, self.env_described = 0, [], None, {}, {}
 
     # ---------------------------------------------------------------- records
     def write(self) -> None:
@@ -667,8 +667,9 @@ class _Run:
             pythonhashseed=os.environ.get("PYTHONHASHSEED"), resumed_from=None, restarted_from_zero=False,
             skipped_checkpoints=list(self.skipped), fingerprint_max_abs_diff=None, version_change=False,
             source_change=False, freeze_index=self.freeze_index, boundary_seeds=[], discarded_after_resume=None,
-            error=None)
+            error=None, env=None, other_envs=None)
         session.update(flagged)
+        session.update(self.env_described)
         doc["sessions"].append(session)
         doc["status"] = "running"
         for key in ("version_change", "source_change"):
@@ -738,8 +739,13 @@ class _Run:
             raise TrainError("the envs of the job do not agree on their tasks, input files or freeze")
         view, layout = views[0], s2io.plain(descs[0]["layout"])
         self.freeze_index = s2io.plain(dict(started=view["set_freeze_started"], now=descs[0].get("set_freeze_now")))
+        # what the session's envs execute, as they describe it (the rule texts, the reward's weights and scales,
+        # R6's span, every file read): env 0's description whole, the others' entries that differ from it
+        first = s2io.plain(descs[0])
+        self.env_described = dict(env=first, other_envs=[{k: v for k, v in s2io.plain(d).items() if first.get(k) != v}
+                                                         for d in descs[1:]])
         if self.session is not None:
-            self.session["freeze_index"] = self.freeze_index
+            self.session.update(freeze_index=self.freeze_index, **self.env_described)
         self.weights0 = {t: float(view["tasks"][t]["weight"]) for t in view["task_names"]}
         if complete:
             s = doc["settings"]
@@ -1096,23 +1102,31 @@ class _Run:
         d["no_gain_count"] = st["no_gain_count"]
         d["flags"]["kl_cut"] = kl["cut"]
         d["flags"]["kl_cut_ever"] = bool(d["flags"].get("kl_cut_ever") or kl["cut"])
-        if st["fix"] is not None and d["fix"] is None:
-            fixed = [dict(c, task_weights=[st["fix"]["weights"][t] for t in c["tasks"]])
-                     for c in d["settings"]["env_configs"]]
-            d["fix"] = dict(st["fix"], monitor=entry["record"], monitor_sha256=entry["record_sha256"],
-                            env_configs=fixed, applied="in place: env_method('set_task_weights') on every env; the "
-                            "settings keep the env configs the run started with")
-            self.say(f"G8b failed at {n} steps: one fix (rule M4): the weights of "
-                     f"{', '.join(st['fix']['tasks']) or 'no task'} doubled")
-        if st["task_weights"] != self.weights:
-            self.weights = dict(st["task_weights"])
-            if training_follows:
+        if not training_follows:
+            # The final checkpoint's check: the budget ended the run (rule M5's five endings), so a fix that the
+            # reading asks for cannot act and a stop has nothing to stop; both are recorded as what they were.
+            extra = {}
+            if st["fix"] is not None and d["fix"] is None:
+                extra["fix_not_applied"] = st["fix"]
+            if st["stopped"] is not None:
+                extra["would_have_stopped"] = st["stopped"]
+            if extra:
+                d["final_check"] = dict(at_steps=n, ended_by="the budget", **extra)
+        else:
+            if st["fix"] is not None and d["fix"] is None:
+                fixed = [dict(c, task_weights=[st["fix"]["weights"][t] for t in c["tasks"]])
+                         for c in d["settings"]["env_configs"]]
+                d["fix"] = dict(st["fix"], monitor=entry["record"], monitor_sha256=entry["record_sha256"],
+                                env_configs=fixed, applied="in place: env_method('set_task_weights') on every env; "
+                                "the settings keep the env configs the run started with")
+                self.say(f"G8b failed at {n} steps: one fix (rule M4): the weights of "
+                         f"{', '.join(st['fix']['tasks']) or 'no task'} doubled")
+            if st["task_weights"] != self.weights:
+                self.weights = dict(st["task_weights"])
                 self._set_weights(self.weights)
-        if st["stopped"] is not None and training_follows:
-            d["stopped"] = dict(st["stopped"], at=s2io.now_utc())
-            self.say(f"stopped at {n} steps: {st['stopped']['reason']}")
-        elif st["stopped"] is not None:  # (the final checkpoint's check: the budget ended the run, rule M5)
-            d["final_check"] = dict(at_steps=n, ended_by="the budget", would_have_stopped=st["stopped"])
+            if st["stopped"] is not None:
+                d["stopped"] = dict(st["stopped"], at=s2io.now_utc())
+                self.say(f"stopped at {n} steps: {st['stopped']['reason']}")
         g = mine["gain"]
         self.say(f"check at {n} steps: N {g['N']} (N* {g['N_star']}), S {g['S']:.3f} s (S* {g['S_star']:.3f} s): "
                  f"{'a gain' if g['gain'] else 'no gain'}" + ("; kl_cut" if kl["cut"] else ""))
