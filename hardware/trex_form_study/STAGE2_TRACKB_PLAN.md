@@ -386,14 +386,16 @@ As `STAGE2_75_PLAN.md`, whose list of words stands, with these additions.
   quoted from that file is theirs and is labelled so. In three places the same mark stands on wording that the author
   added after the independent review of that writing-in, where the wording file is behind the env's code or holds no
   entry (E4's closing sentences; a parenthesis in W2's joint row and one in W5's `range`): the mark says so there. The
-  same mark stands, with "ruling n of the fifth list", on the lead's six rulings of the fifth list and on what that list
-  confirms, E4's closing sentences among it (`stage2/design/TRACKB_RULINGS5_16NOV.md`; the third amendment lists them).
-  The marks of its rulings 5 and 6 also say that the look reading and the trainer had been built and reviewed by then
-  ("What had been run"). **[dated 16 Nov 2026, ruling n of the fourth list]** stands after a sentence of 15 Nov that
-  rulings 13 and 14 of the fourth list correct or complete, and quotes the sentence as it was. **[differs: C7]**,
-  **[differs: A8, A11]**, **[differs: B6 and T1]** and **[differs: rule R4's wording]** are departures from those rules
-  of `STAGE2_75_PLAN.md` (T1 is this text's). Every rule ends with "Check:", the record field or file a reviewer
-  compares with it.
+  same mark stands, with "ruling n of the fifth list", on the lead's six rulings of the fifth list
+  (`stage2/design/TRACKB_RULINGS5_16NOV.md`; the third amendment lists them). What that list confirms or names carries
+  no ruling's number: the mark that stands there says that the list confirms it (E4's closing sentences; in Q5, the
+  candidate's two caps and the name of a cap's run directory), and K4, which the list also confirms, has no word changed
+  and no new mark. The marks of its rulings 5 and 6 also say that the look reading and the trainer had been built and
+  reviewed by then ("What had been run"). **[dated 16 Nov 2026, ruling n of the fourth list]** stands after a sentence
+  of 15 Nov that rulings 13 and 14 of the fourth list correct or complete, and quotes the sentence as it was.
+  **[differs: C7]**, **[differs: A8, A11]**, **[differs: B6 and T1]** and **[differs: rule R4's wording]** are
+  departures from those rules of `STAGE2_75_PLAN.md` (T1 is this text's). Every rule ends with "Check:", the record
+  field or file a reviewer compares with it.
 
 ## E. The controllers
 
@@ -465,11 +467,12 @@ the other two state what the env's code does since its second fix round, in whic
 argument (commit `011f6e2` on `wt/wpc-ce`;
 `tests/test_stage2_r5lib.py::test_a_plan_given_as_a_plan_can_name_the_references_yaw`), as the lead had ruled on 16 Nov
 2026 (03:02 UTC; `stage2/design/checkpoint/STATUS.md`, ruling 4: "`from_plan` gains a heading argument before any row
-plays a turn in place"); the lead confirmed these sentences as they stand with the fifth list of 16 Nov 2026. The env
-work package's reason, from its wording file, is a kinematic playback of Stage 1's turn in place on `75-M-H-10`
-(prescribed motion, no record): under the integral the reference's own playback had a mean heading penalty of 0.73, and
-under the task's definition it has 0 at every env step]. Nothing before a segment's first frame depends on that segment.
-Check: `tests/test_stage2_r5lib.py`; the env description's `command_rule`.
+plays a turn in place"); the fifth list of 16 Nov 2026 confirms, as the fixer left it, "rule E4's sentence on a plan
+given as a plan" (the list's words; it names one sentence, and these are three). The env work package's reason, from its
+wording file, is a kinematic playback of Stage 1's turn in place on `75-M-H-10` (prescribed motion, no record): under
+the integral the reference's own playback had a mean heading penalty of 0.73, and under the task's definition it has 0
+at every env step]. Nothing before a segment's first frame depends on that segment. Check: `tests/test_stage2_r5lib.py`;
+the env description's `command_rule`.
 
 **E5. The head command on `-X`, and the bar's head script.** [plan; NEW; lead, 15 Nov, before any Track B run: head
 script H1's numbers accepted as drafted; settled 16 Nov 2026, before any Track B run: the gaze and jaw ranges, which
@@ -1151,10 +1154,12 @@ and its review had probed the tail term on synthetic series (no record; "What ha
 while the reference's amplitude is read.
 
 How that sentence is read (the author's reading, not the lead's wording). The robot's fitted tail amplitude is the
-amplitude of U1's sinusoid, fitted over the window. "While the reference's amplitude is read" means: while the tail term
-is read, that is, while the reference's tail amplitude in the window is not under 0.02 rad. Where the tail term is read
-it therefore passes only if both hold: the tail phase lies within +-0.1 cycle of the reference's, and the robot's fitted
-tail amplitude is not under 0.02 rad. Where the term is not read it passes, labelled, as before, whatever the robot's
+amplitude of U1's sinusoid, from the same fit as the tail phase [until the independent review of this writing-in:
+"fitted over the window"; the look reading's code fits the poses between the window's first and last left lift-off,
+`lookread.RULES["measures"]`]. "While the reference's amplitude is read" means: while the tail term is read, that is,
+while the reference's tail amplitude in the window is not under 0.02 rad. Where the tail term is read it therefore
+passes only if both hold: the tail phase lies within +-0.1 cycle of the reference's, and the robot's fitted tail
+amplitude is not under 0.02 rad. Where the term is not read it passes, labelled, as before, whatever the robot's
 amplitude. No band reads how large the robot's amplitude is beside the reference's. The tail term stays one term of
 reading 1: "the four bands" and "the look bands", wherever this text names them, are the four terms as this rule holds
 them. The lead's reason, from the rulings of 18:21 UTC on the look reading (`stage2/design/ROUND_C_RULINGS_16NOV.md`): a
@@ -2720,9 +2725,9 @@ after it handed four points up to the lead (`stage2/design/checkpoint/reviews/tr
 confirmed what the fixer had asked to have confirmed (`stage2/design/TRACKB_RULINGS5_16NOV.md`). Two rulings joined that
 list later the same day: ruling 5 at 18:21 UTC, from the review of the look reading's code, and ruling 6 at 19:01 UTC,
 from the review of the trainer's (`stage2/design/ROUND_C_RULINGS_16NOV.md` holds both as rule decisions for this text).
-All six were given before any Track B run, fit or training run and with no look set frozen; "What had been run" says
-what the two reviews and the packages' builders had run by then. Each line below says what was decided and, after its
-last colon, in which rule the wording now stands; there it carries the mark
+All six were given before any Track B run, fit or training run on a Stage 2 set and with no look set frozen; "What had
+been run" says what the two reviews and the packages' builders had run by then. Each line below says what was decided
+and, after its last colon, in which rule the wording now stands; there it carries the mark
 "[settled 16 Nov 2026, before any Track B run]" and names its ruling of the fifth list. Ruling 4 is about section L and
 was settled after the look work package had built look sets (prescribed motion; none frozen): its wording says so.
 Rulings 5 and 6 were given after the code they are about had been built and reviewed: their marks say so.
@@ -2747,10 +2752,10 @@ Rulings 5 and 6 were given after the code they are about had been built and revi
    run's) is no attempt: the trainer halts, and the refusal does not count toward the two attempts after which a check
    counts as without a gain. This makes precise ruling 7 of the third list: M1, with pointers in M4, M5 and K5.
 
-Confirmed by the lead as the fixer left them: E4's sentences on a plan given as a plan, which the lead had ruled at
-03:02 UTC (E4's mark says so); that the candidate's two caps are made again (Q5); and that K4 keeps the wording file's
-entry 8 (no word of K4 changes). Named by the lead: a cap's run directory is `stage2/tb/bar/<run>/`, with a
-`DRY_RUN.json` at its top (Q5 and its Check).
+Confirmed by the lead as the fixer left them: "rule E4's sentence on a plan given as a plan" (the list's words; the
+fixer had left three sentences there), which the lead had ruled at 03:02 UTC (E4's mark says so); that the candidate's
+two caps are made again (Q5); and that K4 keeps the wording file's entry 8 (no word of K4 changes). Named by the lead: a
+cap's run directory is `stage2/tb/bar/<run>/`, with a `DRY_RUN.json` at its top (Q5 and its Check).
 
 What the code holds while this is written in; the author's account, read on the working branch at `ffecc2c`. No code was
 changed for this text.
