@@ -14,7 +14,10 @@ name and ``os.replace``:
   arrays (``obs_mean``, ``obs_var``, ``obs_count``, ``clip_obs``, ``epsilon``);
 * ``checkpoint_<n>.json`` (schema ``s2-ckpt-2``): the three files' names, sizes and sha256, the library versions,
   the layout, the run's ``run_uuid`` and settings hash, and the run state a resume starts from.  It is written last:
-  its presence with matching hashes is what "an intact checkpoint" means, on local disk and on Drive.
+  its presence with matching hashes is what "an intact checkpoint" means, on local disk and on Drive.  Its
+  ``fingerprint`` block holds two readings of how much the fingerprint can show: ``clipped_rows`` (the rows of the
+  256 that the normalisation clips in an actor column) and ``actions_at_bound`` (the entries of the 256 x action
+  width actions that are on a bound of the action space, +-1).  Neither refuses anything.
 
 Every load, anywhere in Track B (the trainer's resume, the monitor, the policy rows, the smoke), goes through
 ``load_checkpoint``: the integrity check (the record and the three files' sizes and sha256, then the archive's zip
@@ -362,6 +365,14 @@ def _clipped_rows(stats: dict, obs: np.ndarray, actor_dim: int) -> int:
     return int(np.count_nonzero(np.any(np.abs(z) > float(stats["clip_obs"]), axis=1)))
 
 
+def _actions_at_bound(actions: np.ndarray) -> int:
+    """How many entries of the fingerprint's actions are on a bound of the action space.  ``predict`` clips an action
+    to that space, which is +-1 for every Track B policy (the training env's, and the one an inference load rebuilds:
+    ``load_model``), and an entry on a bound cannot show a difference: a fingerprint with many of them proves less
+    than its number of entries suggests."""
+    return int(np.count_nonzero(np.abs(actions) >= 1.0))
+
+
 def _layout_record(layout: dict) -> dict:
     """The layout as the record holds it: what was given (blocks included, so that ``fingerprint_obs`` can be drawn
     again from the record alone), with ``actor_dim``, ``obs_dim``, ``action_dim``, ``nj`` and ``heading`` present."""
@@ -456,7 +467,8 @@ def save_checkpoint(job_dir, steps, model, vecnorm, layout, run: dict, state: di
         versions=versions(), layout=lay,
         fingerprint={"rows": FINGERPRINT_ROWS, "seed": [FINGERPRINT_SEED, lay["obs_dim"], lay["actor_dim"]],
                      "obs_sha256": _obs_sha256(obs), "tol": FINGERPRINT_TOL,
-                     "clipped_rows": _clipped_rows(stats, obs, lay["actor_dim"]), "rule": FINGERPRINT_RULE},
+                     "clipped_rows": _clipped_rows(stats, obs, lay["actor_dim"]),
+                     "actions_at_bound": _actions_at_bound(actions), "rule": FINGERPRINT_RULE},
         run_state=run_state, saved_at=s2io.now_utc())
     record = s2io.plain(record)
     record["sha256"] = s2io.sha256_json(record)   # of the record without this key
