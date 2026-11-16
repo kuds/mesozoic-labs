@@ -26,7 +26,9 @@ What is held here, on a stub env and a stub monitor (no plant, no reference set)
 * **``MUJOCO_GL``**: a trainer started with ``MUJOCO_GL=osmesa`` runs a rollout with ``disable`` in itself and in
   its worker, and the worker holds no torch; an archive the trainer saves has no bytecode member; the schedule's
   value follows the step count across a resume;
-* the probes on the stub (rule O3's stops at the first rate that passes both sigmas; rule O4's sigma).
+* the probes on the stub (rule O3's stops at the first rate that passes both sigmas; rule O4's sigma); a later
+  probe adds its heads, or its bodies, to the validation record and probes none again; a run that is not tiny and
+  rule O3's probe refuse without rule O4's filter; rule K8's probe runs on the fine-tune's own envs.
 
 Slow (``STAGE2_SLOW=1``; the Stage 1 view ``S1`` of 75-M-H-10, 2 workers, minutes): a tiny R5 run killed after its
 first checkpoint and resumed to its budget, equal to the uninterrupted tiny run; a tiny R6 run killed and resumed.
@@ -178,6 +180,15 @@ def stub_validation(body, set_name) -> dict:
     return dict(lr_probe=None, filter=None)
 
 
+def with_filter(body, set_name) -> dict:
+    """A validation directory that holds rule O4's choice and no rate."""
+    return dict(lr_probe=None, filter=dict(path="stage2/tb/validation/filter.json", sha256="f" * 64, filter_hz=10.0))
+
+
+#: ``train2``'s own ``_validation`` (the ``stub`` fixture replaces it).
+REAL: dict = {}
+
+
 def install(module=None):
     """Put the stub seams on ``train2`` (in this process)."""
     from designlab.stage2 import train2
@@ -306,6 +317,7 @@ def stub(monkeypatch, tmp_path):
     _need_torch()
     from designlab.stage2 import train2
 
+    REAL.setdefault("_validation", train2._validation)
     for name, fn in (("_env_configs", stub_configs), ("_env_specs", stub_specs), ("_g8a_short", stub_g8a),
                      ("_monitor_cmd", stub_monitor_cmd), ("_validation", stub_validation)):
         monkeypatch.setattr(train2, name, fn)
@@ -1068,7 +1080,17 @@ def test_the_trainer_refuses_without_pythonhashseed_0(stub, tmp_path, monkeypatc
     monkeypatch.delenv("PYTHONHASHSEED")
     with pytest.raises(stub.Refused, match="PYTHONHASHSEED=0"):
         run(stub, tmp_path / "out")
-    assert not (tmp_path / "out").exists()
+    # the probes too, called or started from the command line (exit code 4: nothing was run)
+    for probe in (lambda: stub.probe_lr(["stub"], "STUB", tmp_path / "lr.json", workers=0),
+                  lambda: stub.probe_sigma(["stub"], "STUB", tmp_path / "sigma.json"),
+                  lambda: stub.filter_choice(["stub"], "STUB", tmp_path / "filter.json")):
+        with pytest.raises(stub.Refused, match="PYTHONHASHSEED=0"):
+            probe()
+    for v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+        monkeypatch.setenv(v, "1")
+    for cmd in ("probe-lr", "probe-sigma", "filter"):
+        assert stub.main([cmd, "--bodies", "stub", "--set", "STUB", "--out", str(tmp_path / "x.json")]) == 4
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["set.json"]  # (the fixture's set file; nothing written)
 
 
 def test_resume_refusals_checkpoints(cut_run, tmp_path):
@@ -1184,6 +1206,17 @@ def test_the_cli_hands_its_arguments_to_train(stub, tmp_path, monkeypatch):
     monkeypatch.setenv("STUB_SET_FILE", str(tmp_path / "set.json"))
     assert all(c["servo_model"] == "m1" and c["filter_hz"] == 20.0
                for c in stub._env_configs("R5", "stub", "STUB", dict(filter_hz=20.0, servo_model="m1")))
+    # probe-lr: rule K8's probe takes the fine-tune's mode and its env config fields
+    got = {}
+    monkeypatch.setattr(stub, "probe_lr", lambda bodies, set_name, out, **kw: got.update(
+        kw, bodies=bodies, set_name=set_name, out=out) or dict(rates_by_body={}))
+    assert stub.main(["probe-lr", "--bodies", "a,b", "--set", "V6", "--out", "x.json", "--workers", "2", "--parent",
+                      "/runs/jobs/p:512", "--mode", "R6", "--config", '{"filter_hz": 20.0}']) == 0
+    assert got == dict(bodies=["a", "b"], set_name="V6", out="x.json", workers=2, parent="/runs/jobs/p:512",
+                       mode="R6", config=dict(filter_hz=20.0))
+    got.clear()
+    assert stub.main(["probe-lr", "--bodies", "a", "--out", "x.json"]) == 0
+    assert (got["mode"], got["config"], got["parent"], got["set_name"]) == ("R5", None, None, "V6")
     # defaults: the design's intervals, one worker per vCPU, gates on
     seen.clear()
     assert stub.main(["run", "--mode", "R5", "--body", "b", "--seed", "42", "--out", str(tmp_path)]) == 0
@@ -1477,11 +1510,23 @@ def test_importing_the_trainer_imports_no_torch():
 # ---------------------------------------------------------------------------------------------------------------
 def test_probe_lr_stops_at_the_first_rate_that_passes(stub, tmp_path, monkeypatch):
     monkeypatch.setattr(stub, "N_STEPS", 16)
+    # rule O3's probe runs with rule O4's filter, which is measured first: without it nothing is probed
+    built = []
+    monkeypatch.setattr(stub, "_env_configs", lambda *x: built.append(x) or stub_configs(*x))
+    with pytest.raises(stub.Refused, match="probe-lr stub: no action filter"):
+        stub.probe_lr(["stub", "stub-X"], "STUB", tmp_path / "lr_probe.json", rates=(1e-1, 1e-6, 1e-7), updates=2,
+                      workers=0)
+    assert not built and not (tmp_path / "lr_probe.json").exists()
+    monkeypatch.setattr(stub, "_validation", with_filter)
     doc = stub.probe_lr(["stub", "stub-X"], "STUB", tmp_path / "lr_probe.json", rates=(1e-1, 1e-6, 1e-7), updates=2,
                         workers=0)
     assert json.loads((tmp_path / "lr_probe.json").read_text())["sha256"] == doc["sha256"]
+    assert doc["added"] == ["stub", "stub-X"] and doc["mode"] == "R5" and doc["parent"] is None
     for body in ("stub", "stub-X"):
         row = doc["bodies"][body]
+        assert (row["mode"], row["config"], row["filter_hz"]) == ("R5", {}, 10.0)
+        assert row["validation"]["filter"]["filter_hz"] == 10.0 and row["probed"]["workers"] == 0
+        assert set(row["probed"]) == {"versions", "provenance", "at", "workers"}
         assert [t["rate"] for t in row["tried"]] == [1e-1, 1e-6] and row["passed"] == 1e-6  # 1e-7 is not tried
         assert [t["passes"] for t in row["tried"]] == [False, True]
         for t in row["tried"]:
@@ -1493,6 +1538,167 @@ def test_probe_lr_stops_at_the_first_rate_that_passes(stub, tmp_path, monkeypatc
         assert all(u["std_mean"] == pytest.approx(0.03, rel=1e-3) for u in low)
     assert doc["rates_by_body"] == dict(stub=dict(rate=1e-6, heads={"stub": 1e-6, "stub-X": 1e-6}))
     assert doc["value"] == 1e-6 and doc["seed"] == 42 and doc["updates"] == 2
+
+
+def test_a_later_probe_adds_its_heads_to_the_record(ref_plain, stub, tmp_path, monkeypatch):
+    """Rule O3 as settled: the heads of a body are probed at different times, each once and never again; a body's
+    rate is the smallest passing rate over every head the record holds.  A later call must not drop what an
+    earlier one found."""
+    from designlab.stage2 import s2io
+
+    passing = {"at": 1e-6}
+
+    def cell(venv, layout, rate, sigma, updates, n_steps, parent=None):  # (no PPO: the largest rate that "passes")
+        return dict(sigma=sigma, updates=[], passes=bool(rate <= passing["at"]))
+
+    monkeypatch.setattr(stub, "_probe_cell", cell)
+    monkeypatch.setattr(stub, "_validation", with_filter)
+    val = tmp_path / "validation"
+    kw = dict(rates=(1e-5, 1e-6, 1e-7), workers=0)
+    a = stub.probe_lr(["stub"], "STUB", val, **kw)
+    assert a["rates_by_body"] == dict(stub=dict(rate=1e-6, heads={"stub": 1e-6})) and a["added"] == ["stub"]
+    passing["at"] = 1e-7
+    b = stub.probe_lr(["stub-X"], "STUB", val, **kw)  # the -X head, later, into the same record
+    assert b["bodies"]["stub"] == a["bodies"]["stub"] and list(b["bodies"]) == ["stub", "stub-X"]
+    assert b["rates_by_body"] == dict(stub=dict(rate=1e-7, heads={"stub": 1e-6, "stub-X": 1e-7}))
+    assert b["value"] == 1e-7 and b["added"] == ["stub-X"]
+    assert json.loads((val / "lr_probe.json").read_text()) == b
+    # what a run of the body takes when it starts, and the heads its rate rests on (the record read back)
+    monkeypatch.setattr(stub, "VALIDATION", val)
+    for body in ("stub", "stub-X"):
+        got = REAL["_validation"](body, "STUB")["lr_probe"]
+        assert got["rate"] == 1e-7 and got["heads"] == {"stub": 1e-6, "stub-X": 1e-7}
+        assert got["sha256"] == s2io.sha256_file(val / "lr_probe.json")
+    # a head the record holds is not probed again; a record of other settings is not added to; no env is built
+    built = []
+    monkeypatch.setattr(stub, "_env_configs", lambda *x: built.append(x) or stub_configs(*x))
+    keep = (val / "lr_probe.json").read_bytes()
+    with pytest.raises(stub.Refused, match="already probed: stub-X"):
+        stub.probe_lr(["other", "stub-X"], "STUB", val, **kw)
+    with pytest.raises(stub.Refused, match="other settings.*rates"):
+        stub.probe_lr(["other"], "STUB", val, rates=(1e-5,), workers=0)
+    with pytest.raises(stub.Refused, match="other settings.*set"):
+        stub.probe_lr(["other"], "S9", val, **kw)
+    with pytest.raises(stub.Refused, match="not the record of this parent's probe"):  # rule K8's probe is its job's
+        stub.probe_lr(["stub"], "STUB", val, workers=0, parent=(job(ref_plain / "out"), 1280))
+    assert not built and (val / "lr_probe.json").read_bytes() == keep
+    # another body is its own group; a head without a passing rate leaves its body without one
+    passing["at"] = 1e-5
+    c = stub.probe_lr(["other"], "STUB", val, **kw)
+    assert c["rates_by_body"] == dict(b["rates_by_body"], other=dict(rate=1e-5, heads={"other": 1e-5}))
+    assert c["value"] == 1e-7 and len(built) == 1
+    passing["at"] = 0.0
+    e = stub.probe_lr(["other-X"], "STUB", val, **kw)
+    assert e["rates_by_body"]["other"] == dict(rate=None, heads={"other": 1e-5, "other-X": None})
+    assert e["value"] is None and e["rates_by_body"]["stub"] == b["rates_by_body"]["stub"]
+    assert REAL["_validation"]("other", "STUB")["lr_probe"] is None  # (nothing trains on that body: the lead)
+    # a record that was changed by hand is not added to and not replaced
+    doc = json.loads((val / "lr_probe.json").read_text())
+    doc["rates_by_body"]["stub"]["rate"] = 1e-4
+    (val / "lr_probe.json").write_text(json.dumps(doc))
+    with pytest.raises(stub.Refused, match="hashes to its own sha256"):
+        stub.probe_lr(["third"], "STUB", val, **kw)
+    assert json.loads((val / "lr_probe.json").read_text()) == doc
+    with pytest.raises(stub.Refused, match="fresh R5 model"):
+        stub.probe_lr(["third"], "STUB", tmp_path / "r6.json", mode="R6", **kw)
+
+
+class _NoEnv:
+    def close(self) -> None:
+        pass
+
+
+def test_a_later_filter_measurement_keeps_the_choice(stub, tmp_path, monkeypatch):
+    """Rule O4: measured once on 75-M-H-10, which decides; the 60 cm body's measurement comes later, is reported
+    and decides nothing.  The later call must not take the choice out of the record, and a record without the
+    choice gives a run no filter."""
+    from designlab.stage2 import s2io
+
+    mean = {("75-M-H-10", 10.0): 10.0, ("75-M-H-10", 20.0): 9.5, ("60-N-T-10", 10.0): 8.0, ("60-N-T-10", 20.0): 4.0}
+    asked = []
+
+    def episodes(body, set_name, filter_hz, sigma, episodes=None, k=5, env=None):  # (no env: the survival asked for)
+        asked.append((body, filter_hz))
+        return [dict(task=t, episode_seed=e, survived=False, env_steps=1, of=1, survival_s=mean[(body, filter_hz)],
+                     fall_cause=None) for t in ("walk_nominal", "walk_v0.4") for e in range(7000, 7010)], _NoEnv()
+
+    monkeypatch.setattr(stub, "_noise_episodes", episodes)
+    val = tmp_path / "validation"
+    a = stub.filter_choice(["75-M-H-10"], "STUB", val)
+    assert a["choice"] == dict(body="75-M-H-10", ratio=0.95, keep=0.9, filter_hz=20.0) and a["added"] == ["75-M-H-10"]
+    b = stub.filter_choice(["60-N-T-10"], "STUB", val)  # the 60 cm body, later, into the same record
+    assert b["choice"] == a["choice"] and b["bodies"]["75-M-H-10"] == a["bodies"]["75-M-H-10"]
+    assert b["bodies"]["60-N-T-10"]["role"] == "reported; decides nothing" and b["bodies"]["60-N-T-10"]["ratio"] == 0.5
+    assert b["added"] == ["60-N-T-10"] and json.loads((val / "filter.json").read_text()) == b
+    assert set(b["bodies"]["60-N-T-10"]["measured"]) == {"versions", "provenance", "at"}
+    monkeypatch.setattr(stub, "VALIDATION", val)
+    for body in ("75-M-H-10", "60-N-T-10", "60-N-T-10-X"):
+        got = REAL["_validation"](body, "STUB")["filter"]
+        assert got["filter_hz"] == 20.0 and got["sha256"] == s2io.sha256_file(val / "filter.json")
+    # measured once: neither body again; another pair of cut-offs is another measurement
+    keep, n = (val / "filter.json").read_bytes(), len(asked)
+    for body in ("75-M-H-10", "60-N-T-10"):
+        with pytest.raises(stub.Refused, match=f"already measured: {body}"):
+            stub.filter_choice([body], "STUB", val)
+    with pytest.raises(stub.Refused, match="other settings.*cutoffs"):
+        stub.filter_choice(["60-N-T-10-X"], "STUB", val, cutoffs=(10.0, 30.0))
+    assert (val / "filter.json").read_bytes() == keep and len(asked) == n
+    # the other order: while the rule's body is not measured there is no choice, and a run is given no filter
+    other = tmp_path / "other"
+    c = stub.filter_choice(["60-N-T-10"], "STUB", other)
+    assert c["choice"] is None
+    monkeypatch.setattr(stub, "VALIDATION", other)
+    assert REAL["_validation"]("60-N-T-10", "STUB")["filter"] is None
+    d = stub.filter_choice(["75-M-H-10"], "STUB", other)
+    assert d["choice"] == a["choice"] and list(d["bodies"]) == ["60-N-T-10", "75-M-H-10"]
+    assert REAL["_validation"]("60-N-T-10", "STUB")["filter"]["filter_hz"] == 20.0
+
+
+def test_a_run_that_is_not_tiny_needs_the_filter(stub, tmp_path, monkeypatch):
+    """Rule O4 is measured before any run: without its record a run that is not tiny is refused, as it is without
+    a rate, unless the caller names the filter; it does not start on the env's default without a word."""
+    with pytest.raises(stub.Refused, match="no action filter.*rule O4") as info:
+        run(stub, tmp_path / "a", tiny=False, lr=1e-4)
+    assert info.value.code == stub.EXIT_REFUSED and not (tmp_path / "a").exists()
+    with pytest.raises(stub.Refused, match="no learning rate"):  # (the rate is asked for first)
+        run(stub, tmp_path / "a", tiny=False)
+    d = run(stub, tmp_path / "b", tiny=False, lr=1e-4, config=dict(filter_hz=20.0))  # named by the caller
+    assert d["status"] == "done" and {c["filter_hz"] for c in d["settings"]["env_configs"]} == {20.0}
+    assert d["settings"]["validation"]["filter"] is None and d["settings"]["config"] == dict(filter_hz=20.0)
+    assert "rule O4 is measured before any run" in d["rules"]["filter"]
+    monkeypatch.setattr(stub, "_validation", lambda body, set_name: dict(
+        lr_probe=None, filter=dict(path="p", sha256="0" * 64, filter_hz=20.0)))
+    d = run(stub, tmp_path / "c", tiny=False, lr=1e-4)  # the record's choice
+    assert d["status"] == "done" and {c["filter_hz"] for c in d["settings"]["env_configs"]} == {20.0}
+    assert d["settings"]["validation"]["filter"]["filter_hz"] == 20.0 and d["settings"]["config"] == {}
+
+
+def test_rule_k8s_probe_runs_on_the_fine_tunes_own_envs(stub, tmp_path, monkeypatch):
+    """Rule K8's probe asks whether every minibatch step runs from the parent's checkpoint: on the envs the
+    fine-tune will train on, its mode and its config fields, not on R5 envs with today's defaults."""
+    assert run(stub, tmp_path / "p", mode="R6")["status"] == "done"
+    parent = job(tmp_path / "p", "R6-stub-s42")
+    calls = []
+    monkeypatch.setattr(stub, "_env_configs", lambda mode, body, set_name, overrides: calls.append(
+        ("configs", mode, dict(overrides or {}))) or stub_configs(mode, body, set_name, overrides))
+    monkeypatch.setattr(stub, "_env_specs", lambda mode, cfgs: calls.append(
+        ("specs", mode, sorted({(c["mode"], c["filter_hz"]) for c in cfgs}))) or stub_specs(mode, cfgs))
+    d = run(stub, tmp_path / "ft", mode="R6", job="ft", parent=(parent, 1280), steps=256,
+            config=dict(filter_hz=20.0))
+    assert d["status"] == "done" and d["settings"]["lr"]["source"].startswith("rule K8")
+    assert calls == [("configs", "R6", dict(filter_hz=20.0)),            # the job's configs
+                     ("configs", "R6", dict(filter_hz=20.0)),            # the probe's
+                     ("specs", "R6", [("R6", 20.0)]),                    # the probe's pool
+                     ("specs", "R6", [("R6", 20.0)])]                    # the job's pool
+    probe = json.loads((job(tmp_path / "ft", "ft") / d["parent"]["lr_probe"]["record"]).read_text())
+    row = probe["bodies"]["stub"]
+    assert probe["mode"] == "R6" and (row["mode"], row["config"], row["filter_hz"]) == ("R6", dict(filter_hz=20.0), 20.0)
+    assert probe["parent"]["job"] == "R6-stub-s42" and probe["sha256"] == d["parent"]["lr_probe"]["sha256"]
+    # the validation record's filter reaches the probe as it reaches the job, unless the caller names one
+    calls.clear()
+    monkeypatch.setattr(stub, "_validation", with_filter)
+    stub.probe_lr(["stub"], "STUB", tmp_path / "k8.json", updates=1, workers=0, parent=(parent, 1280), mode="R6")
+    assert calls == [("configs", "R6", dict(filter_hz=10.0)), ("specs", "R6", [("R6", 10.0)])]
 
 
 def test_a_fine_tune_starts_from_its_parents_checkpoint(ref_plain, stub, tmp_path, monkeypatch):
@@ -1618,6 +1824,7 @@ def test_tiny_probes_on_the_s1_view(tmp_path, monkeypatch):
         pytest.skip("Stage 1's arrays are not restored")
     from designlab.stage2 import train2
 
+    monkeypatch.setenv("PYTHONHASHSEED", "0")
     monkeypatch.setattr(train2, "PROBE_EPISODES", (7000,))
     doc = train2.probe_sigma([BODY], "S1", tmp_path, sigmas=(0.0, 0.1))
     per = doc["bodies"][BODY]["sigmas"]

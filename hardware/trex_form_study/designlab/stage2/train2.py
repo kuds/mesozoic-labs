@@ -6,7 +6,8 @@ are imported, not edited.
            [--workers W] [--resume] [--allow-version-change] [--allow-source-change] [--from-checkpoint JOBDIR:STEPS]
            [--lr X] [--monitor-every N] [--monitor-also-k K,...] [--no-gates] [--tiny] [--run-id ID] [--config JSON]
            [--retry-check]
-    python -m designlab.stage2.train2 {probe-lr|probe-sigma|filter} --bodies B,... --set S --out PATH ...
+    python -m designlab.stage2.train2 {probe-lr|probe-sigma|filter} --bodies B,... --set S --out PATH
+           [probe-lr: --workers W] [probe-lr, rule K8's probe: --parent JOBDIR:STEPS --mode R5|R6 --config JSON]
     python -m designlab.stage2.train2 preflight
     python -m designlab.stage2.train2 worker ADDRESS        # a worker of the env pool (started by the pool)
     python -m designlab.stage2.train2 monitor ...           # the monitor child: designlab.stage2.monitor2's CLI
@@ -112,6 +113,7 @@ S1_SET = "S1"
 EXIT_DONE, EXIT_FAILED, EXIT_G8A, EXIT_REFUSED, EXIT_HALT = 0, 1, 3, 4, 5
 #: Where the probes' records are read from when ``--lr`` or the filter is not given (design section 6).
 VALIDATION = s2io.STUDY / "stage2" / "tb" / "validation"
+LR_PROBE_SCHEMA, FILTER_SCHEMA = "s2-lr-probe-1", "s2-filter-1"
 #: How long a resume waits for a monitor child of an earlier session to be gone after its SIGKILL (``CHILD_RULE``).
 CHILD_WAIT_S = 20.0
 WORKER_CMD = ("-m", "designlab.stage2.train2", "worker")
@@ -209,7 +211,10 @@ LR_PROBE_RULE = (
     "randomisation, 8 envs on rule J5's floors, the rate held constant, 6 updates, once at sigma 0.1 and once with "
     "log_std set to ln 0.03; a rate passes on a body and head when every minibatch step ran in each update at both "
     "sigmas; the probe stops at the first rate that passes.  A body's rate is the smallest passing rate over its "
-    "heads that were probed")
+    "heads that were probed.  The probe runs with rule O4's filter (measured first) and is run once per body and "
+    "head: a later call adds its heads to the record it finds, with the earlier ones as they were, probes none of "
+    "them again and takes each body's rate over every head the record then holds; it adds nothing to a record of "
+    "other settings")
 SIGMA_PROBE_RULE = (
     "rule O2 (reported; decides nothing): the stance-start walk_nominal and walk_v0.4 tasks at a servo delay of 5 "
     "physics steps on the nominal plant, on hard floor, with no push and no head event, 10 episodes each (episode "
@@ -219,7 +224,13 @@ FILTER_RULE = (
     "rule O4: rule O2's 20 episodes under each cut-off with the same z, the noise scaled so that the filtered "
     "action has the same RMS (sigma 0.1 at the first cut-off; x sqrt((a0 / (2 - a0)) / (a / (2 - a))) at another, a "
     "= 1 - exp(-2 pi f x 0.02 s)); 20 Hz is used if its mean survival time over 75-M-H-10's 20 episodes is at "
-    "least 0.9 x that at 10 Hz, else 10 Hz; another body's measurement is reported and decides nothing")
+    "least 0.9 x that at 10 Hz, else 10 Hz; another body's measurement is reported and decides nothing.  Each "
+    "body is measured once: a later call adds its bodies to the record it finds, measures none of them again and "
+    "keeps the choice")
+FILTER_NEED_RULE = (
+    "rule O4 is measured before any run: a run that is not tiny, and rule O3's probe on any set but the Stage 1 "
+    "view, is refused when filter.json holds no choice, unless the caller names the filter (config filter_hz); a "
+    "tiny run then takes the env's own default")
 
 
 class TrainError(RuntimeError):
@@ -325,6 +336,24 @@ def _validation(body: str, set_name: str) -> dict:
         if hz is not None:
             out["filter"] = dict(path=s2io.portable(str(p)), sha256=s2io.sha256_file(p), filter_hz=float(hz))
     return out
+
+
+def _overrides(config: dict | None, val: dict) -> dict:
+    """The env config fields that a job, or a probe, gives every env: the caller's, and rule O4's choice from the
+    validation record unless the caller names a filter."""
+    over = dict(config or {})
+    if (val or {}).get("filter") and "filter_hz" not in over:
+        over["filter_hz"] = val["filter"]["filter_hz"]
+    return over
+
+
+def _need_filter(who: str, config: dict | None, val: dict) -> None:
+    """``FILTER_NEED_RULE``: ``Refused`` when neither the validation record nor the caller gives the filter."""
+    if (val or {}).get("filter") or "filter_hz" in (config or {}):
+        return
+    raise Refused(f"{who}: no action filter: run `train2 filter` on {FILTER_BODY} first (rule O4: "
+                  f"{s2io.portable(str(VALIDATION / 'filter.json'))} holds no choice), or name one (--config "
+                  "'{\"filter_hz\": 10.0}')")
 
 
 def _resume_view(desc: dict) -> dict:
@@ -644,6 +673,8 @@ class _Run:
         if not complete:  # (a start that cannot be made is refused before anything is written)
             self.val = _validation(self.body, self.set)
             self._rate(self.val, None, dry=True)
+            if not self.tiny:
+                _need_filter(self.job, self.config, self.val)
         try:
             # A resume refuses in RESUME_RULE's order, and nothing is written before the last refusal: the envs
             # are built from the run's stored configs (other inputs), then the sources, the versions, the
@@ -694,7 +725,8 @@ class _Run:
             settings=asked, settings_sha256=None,
             rules=dict(boundary=BOUNDARY_RULE, checkpoint=CHECKPOINT_RULE, resume=RESUME_RULE, updates=UPDATES_RULE,
                        kl_cut=KL_CUT_RULE, rate=RATE_RULE, gates=GATES_RULE, fine_tune=FINE_TUNE_RULE,
-                       retry=RETRY_RULE, baseline=BASELINE_RULE, children=CHILD_RULE, monitor=dict(m2.RULES)),
+                       retry=RETRY_RULE, baseline=BASELINE_RULE, children=CHILD_RULE, filter=FILTER_NEED_RULE,
+                       monitor=dict(m2.RULES)),
             layout=None, sessions=[], checkpoints=[], kept=[],
             gates=dict(g8a=None, rate=None, g8b=None, g8b_after_fix=None), monitor=[], baseline=None,
             baseline_attempts=[], fix=None, flags=dict(kl_cut=False), no_gain_count=0, stopped=None, parent=None,
@@ -791,9 +823,7 @@ class _Run:
         doc = self.doc
         complete = doc["settings_sha256"] is not None
         val = (doc["settings"].get("validation") if complete else self.val) or {}
-        overrides = dict(self.config)
-        if val.get("filter") and "filter_hz" not in overrides:  # (rule O4's choice, unless the caller names one)
-            overrides["filter_hz"] = val["filter"]["filter_hz"]
+        overrides = _overrides(self.config, val)  # (rule O4's choice, unless the caller names one)
         today = _env_configs(self.mode, self.body, self.set, overrides)
         cfgs, parent = today, None
         if complete:
@@ -960,7 +990,8 @@ class _Run:
         if self.lr_asked is None:
             self.say(f"rule K8's probe from the parent's checkpoint {pdir.name}:{psteps}")
             probe = probe_lr([self.body], self.set, self.jd / "gates" / "parent_lr_probe.json",
-                             workers=self.workers, parent=(pdir, psteps))
+                             workers=self.workers, parent=(pdir, psteps), mode=self.mode,
+                             config=_overrides(self.config, self.val))
             out["lr_probe"] = dict(record="gates/parent_lr_probe.json", sha256=probe["sha256"],
                                    rate=probe["bodies"][self.body]["passed"], p=probe["parent"]["p"])
         return out
@@ -1532,14 +1563,36 @@ def _record_path(out, name: str) -> Path:
     return out if out.suffix == ".json" else out / name
 
 
-def _write_record(path: Path, doc: dict) -> dict:
+def _stamp(path: Path) -> dict:
+    """The library versions, the checkout's state (the record itself left out) and the time."""
     from designlab.stage2 import s2load
 
-    doc = dict(doc, versions=s2load.versions(), provenance=s2io.git_state(own_outputs=[str(path.resolve())]),
-               at=s2io.now_utc())
-    doc = s2io.plain(doc)
+    return dict(versions=s2load.versions(), provenance=s2io.git_state(own_outputs=[str(path.resolve())]),
+                at=s2io.now_utc())
+
+
+def _write_record(path: Path, doc: dict) -> dict:
+    doc = s2io.plain(dict(doc, **_stamp(path)))
     doc["sha256"] = s2io.sha256_json(doc)
     s2io.write_json(path, doc)
+    return doc
+
+
+def _record_to_add_to(path: Path, schema: str, same: dict, what: str) -> dict | None:
+    """The record a probe adds its bodies to (None: there is none yet).  ``Refused`` when the file is no record of
+    ``schema`` that hashes to its own ``sha256``, or holds another value for one of ``same``'s settings: nothing is
+    added to such a file and it is not replaced."""
+    if not path.exists():
+        return None
+    doc = _read_record(path)
+    if (not isinstance(doc, dict) or doc.get("schema") != schema
+            or doc.get("sha256") != s2io.sha256_json({k: v for k, v in doc.items() if k != "sha256"})):
+        raise Refused(f"{path}: not a {what} record that hashes to its own sha256: nothing is added to it and it is "
+                      "not replaced (move it aside, or name another --out)")
+    diff = [f"{k}: {doc.get(k)!r} -> {v!r}" for k, v in s2io.plain(same).items() if doc.get(k) != v]
+    if diff:
+        raise Refused(f"{path}: the record holds a {what} of other settings ({'; '.join(diff)}): nothing is added "
+                      "to it and it is not replaced (name another --out)")
     return doc
 
 
@@ -1609,23 +1662,33 @@ def _probe_cell(venv, layout: dict, rate: float, sigma, updates: int, n_steps: i
 
 
 def probe_lr(bodies, set_name, out, rates=PROBE_RATES, sigmas=PROBE_SIGMAS, updates=PROBE_UPDATES, workers=None,
-             parent=None) -> dict:
+             parent=None, mode="R5", config=None) -> dict:
     """Rule O3's learning-rate probe (``LR_PROBE_RULE``), or with ``parent = (job directory, steps)`` rule K8's
     from a parent's checkpoint (``FINE_TUNE_RULE``: one body, the parent's own sigma; the rates tried are the
     parent's schedule value p at its step, then the listed rates below p).  The record (``lr_probe.json`` under
     ``out``, or ``out`` itself when it names a ``.json``): per body and head the rates tried with every update of
     every cell and the rate that passed; ``rates_by_body`` (rule O3 as settled on 15 Nov: the smallest passing
     rate over the probed heads of a body; None where a probed head has none); ``value`` (the smallest over
-    everything probed)."""
+    everything the record holds).
+
+    Rule O3's probe is a fresh R5 model on envs with rule O4's filter (``FILTER_NEED_RULE``), and each body and
+    head is probed once: the bodies of this call are added to the record ``out`` already holds, which keeps its
+    earlier bodies as they were; a body the record holds is refused, and so is a record of other settings.  Rule
+    K8's probe runs on the fine-tune's own envs: ``mode`` and ``config`` (env config fields for every env) are the
+    fine-tune's, and its record is its job's own (a record of anything else at ``out`` is not replaced)."""
     import torch
 
     from designlab.stage2 import vecpool
 
+    require_hashseed()
     torch.set_num_threads(1)
-    bodies = list(bodies)
+    bodies = list(dict.fromkeys(str(b) for b in bodies))
+    if mode not in MODES:
+        raise Refused(f"mode {mode!r}: choose from {', '.join(MODES)}")
+    path = _record_path(out, "lr_probe.json")
     w = min(N_ENVS, vcpus()) if workers is None else max(0, min(int(workers), N_ENVS))
     n_steps = N_STEPS
-    par = None
+    par, have = None, {}
     if parent is not None:
         pdir, psteps = _parent_of(parent)
         if len(bodies) != 1:
@@ -1638,12 +1701,33 @@ def probe_lr(bodies, set_name, out, rates=PROBE_RATES, sigmas=PROBE_SIGMAS, upda
         n_steps = int(s["ppo"]["n_steps"])
         par = dict(job=Path(pdir).name, run_uuid=pdoc["run_uuid"], steps=int(psteps), p=float(p),
                    lr_schedule=s["lr"], budget=pdoc["budget"])
+        if path.exists():  # (a fine-tune cut before its first rollout makes its probe again; nothing else is replaced)
+            old = _read_record(path)
+            mine = {k: par[k] for k in ("job", "run_uuid", "steps")}
+            if not isinstance(old, dict) or {k: (old.get("parent") or {}).get(k) for k in mine} != mine:
+                raise Refused(f"{path}: not the record of this parent's probe ({par['job']}:{par['steps']}): it is "
+                              "not replaced (name another --out)")
+    else:
+        if mode != "R5":
+            raise Refused(f"rule O3's probe is a fresh R5 model (mode {mode!r} is a fine-tune's: pass its parent)")
+        same = dict(set=set_name, rates=[float(r) for r in rates], sigmas=list(sigmas), updates=int(updates),
+                    seed=PROBE_SEED, n_envs=N_ENVS, n_steps=int(n_steps), parent=None)
+        old = _record_to_add_to(path, LR_PROBE_SCHEMA, same, "learning-rate probe")
+        have = dict((old or {}).get("bodies") or {})
+        again = [b for b in bodies if b in have]
+        if again:
+            raise Refused(f"{path}: already probed: {', '.join(again)} (rule O3: the probe is run once per body and "
+                          "head, and is not run again)")
+    vals = {body: _validation(body, set_name) for body in bodies}
+    if parent is None and set_name != S1_SET:  # (before any env is built: nothing is probed when one is refused)
+        for body in bodies:
+            _need_filter(f"probe-lr {body}", config, vals[body])
     out_bodies = {}
     for body in bodies:
-        val = _validation(body, set_name)
-        over = dict(filter_hz=val["filter"]["filter_hz"]) if val.get("filter") else {}
-        cfgs = _env_configs("R5", body, set_name, over)
-        venv = vecpool.PoolVecEnv(_env_specs("R5", cfgs), min(w, len(cfgs)), worker_cmd=[sys.executable, *WORKER_CMD])
+        val = vals[body]
+        over = _overrides(config, val)
+        cfgs = _env_configs(mode, body, set_name, over)
+        venv = vecpool.PoolVecEnv(_env_specs(mode, cfgs), min(w, len(cfgs)), worker_cmd=[sys.executable, *WORKER_CMD])
         try:
             desc = venv.env_method("describe", indices=[0])[0]
             tried, passed = [], None
@@ -1659,24 +1743,29 @@ def probe_lr(bodies, set_name, out, rates=PROBE_RATES, sigmas=PROBE_SIGMAS, upda
                     break
         finally:
             venv.close()
-        out_bodies[body] = dict(tried=tried, passed=passed, floors=[c.get("floor") for c in cfgs],
-                                filter_hz=cfgs[0].get("filter_hz"), set_freeze=cfgs[0].get("set_freeze"),
-                                task_names=list(desc["tasks"]), validation=val)
+        out_bodies[body] = dict(tried=tried, passed=passed, mode=mode, config=s2io.plain(dict(config or {})),
+                                floors=[c.get("floor") for c in cfgs], filter_hz=cfgs[0].get("filter_hz"),
+                                set_freeze=cfgs[0].get("set_freeze"), task_names=list(desc["tasks"]),
+                                validation=val, probed=dict(_stamp(path), workers=w))
+    rows = dict(have, **out_bodies)  # (the record's earlier bodies as they were, then this call's)
     by_body: dict = {}
-    for body, row in out_bodies.items():
+    for body, row in rows.items():
         g = by_body.setdefault(base_body(body), dict(rate=None, heads={}))
         g["heads"][body] = row["passed"]
     for g in by_body.values():
         got = list(g["heads"].values())
         g["rate"] = None if any(r is None for r in got) else min(got)
-    all_passed = [r["passed"] for r in out_bodies.values()]
-    doc = dict(schema="s2-lr-probe-1", rule=FINE_TUNE_RULE if parent is not None else LR_PROBE_RULE, set=set_name,
-               rates=[float(r) for r in rates], sigmas=list(sigmas), updates=int(updates), seed=PROBE_SEED,
-               n_envs=N_ENVS, n_steps=int(n_steps), workers=w, bodies=out_bodies, rates_by_body=by_body,
+    all_passed = [r["passed"] for r in rows.values()]
+    doc = dict(schema=LR_PROBE_SCHEMA, rule=FINE_TUNE_RULE if parent is not None else LR_PROBE_RULE, set=set_name,
+               mode=mode, rates=[float(r) for r in rates], sigmas=list(sigmas), updates=int(updates), seed=PROBE_SEED,
+               n_envs=N_ENVS, n_steps=int(n_steps), workers=w, bodies=rows, rates_by_body=by_body,
                value=None if any(r is None for r in all_passed) else min(all_passed), parent=par,
-               note="rule O3 as settled on 15 Nov 2026 uses rates_by_body (one rate per body); value is the "
-                    "smallest over everything probed here")
-    return _write_record(_record_path(out, "lr_probe.json"), doc)
+               added=list(out_bodies), filter_rule=FILTER_NEED_RULE,
+               note="rule O3 as settled on 15 Nov 2026 uses rates_by_body (one rate per body, over every head the "
+                    "record holds); value is the smallest over everything the record holds; each body's entry "
+                    "holds when and on what it was probed (probed); the versions, provenance and time at the top "
+                    "are the last call's, which added the bodies under added")
+    return _write_record(path, doc)
 
 
 def _noise_episodes(body: str, set_name: str, filter_hz: float, sigma: float, episodes=None, k: int = PROBE_K,
@@ -1716,6 +1805,7 @@ def _noise_summary(rows: list) -> dict:
 def probe_sigma(bodies, set_name, out, sigmas=PROBE_SIGMA_VALUES) -> dict:
     """Rule O2's sigma probe (``SIGMA_PROBE_RULE``; reported, decides nothing): per body and sigma the 20 episodes,
     how many reach the task's end and the mean survival time.  One record (``sigma_probe.json``)."""
+    require_hashseed()
     out_bodies = {}
     for body in bodies:
         hz = (_validation(body, set_name).get("filter") or {}).get("filter_hz", FILTER_CUTOFFS[0])
@@ -1743,7 +1833,20 @@ def filter_sigma(hz: float, hz0: float = FILTER_CUTOFFS[0], sigma0: float = SIGM
 def filter_choice(bodies, set_name, out, cutoffs=FILTER_CUTOFFS) -> dict:
     """Rule O4's measurement (``FILTER_RULE``): per body and cut-off rule O2's 20 episodes at equal filtered
     action RMS.  ``choice``: on ``FILTER_BODY`` (75-M-H-10) the last cut-off if its mean survival time is at least
-    0.9 x the first's, else the first; None when that body was not measured.  One record (``filter.json``)."""
+    0.9 x the first's, else the first; None while that body is not measured.  One record (``filter.json``): each
+    body is measured once, and the bodies of this call are added to the record ``out`` already holds, which keeps
+    its earlier bodies and its choice; a body the record holds is refused, and so is a record of other
+    settings."""
+    require_hashseed()
+    bodies = list(dict.fromkeys(str(b) for b in bodies))
+    path = _record_path(out, "filter.json")
+    same = dict(set=set_name, cutoffs=[float(c) for c in cutoffs], episode_seeds=list(PROBE_EPISODES))
+    old = _record_to_add_to(path, FILTER_SCHEMA, same, "filter measurement")
+    have = dict((old or {}).get("bodies") or {})
+    again = [b for b in bodies if b in have]
+    if again:
+        raise Refused(f"{path}: already measured: {', '.join(again)} (rule O4: measured once; it is not measured "
+                      "again)")
     out_bodies = {}
     for body in bodies:
         per = {}
@@ -1755,15 +1858,19 @@ def filter_choice(bodies, set_name, out, cutoffs=FILTER_CUTOFFS) -> dict:
                                   runs=rows)
         a, b = per["%g" % cutoffs[0]]["mean_survival_s"], per["%g" % cutoffs[-1]]["mean_survival_s"]
         out_bodies[body] = dict(cutoffs=per, ratio=None if not a else b / a,
-                                role="the rule's body" if body == FILTER_BODY else "reported; decides nothing")
-    choice = None
-    if FILTER_BODY in out_bodies:
-        r = out_bodies[FILTER_BODY]["ratio"]
+                                role="the rule's body" if body == FILTER_BODY else "reported; decides nothing",
+                                measured=_stamp(path))
+    rows_by_body = dict(have, **out_bodies)  # (the record's earlier bodies as they were, then this call's)
+    choice = (old or {}).get("choice")  # (measured once: a later call keeps it)
+    if choice is None and FILTER_BODY in rows_by_body:
+        r = rows_by_body[FILTER_BODY]["ratio"]
         choice = dict(body=FILTER_BODY, ratio=r, keep=FILTER_KEEP,
                       filter_hz=float(cutoffs[-1] if r is not None and r >= FILTER_KEEP else cutoffs[0]))
-    doc = dict(schema="s2-filter-1", rule=FILTER_RULE, set=set_name, cutoffs=[float(c) for c in cutoffs],
-               episode_seeds=list(PROBE_EPISODES), bodies=out_bodies, choice=choice)
-    return _write_record(_record_path(out, "filter.json"), doc)
+    doc = dict(schema=FILTER_SCHEMA, rule=FILTER_RULE, set=set_name, cutoffs=[float(c) for c in cutoffs],
+               episode_seeds=list(PROBE_EPISODES), bodies=rows_by_body, choice=choice, added=list(out_bodies),
+               note="each body's entry holds when it was measured (measured); the versions, provenance and time at "
+                    "the top are the last call's, which added the bodies under added")
+    return _write_record(path, doc)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1905,6 +2012,9 @@ def main(argv=None) -> int:
         if name == "probe-lr":
             a.add_argument("--workers", type=int, default=None)
             a.add_argument("--parent", default=None, metavar="JOBDIR:STEPS", help="rule K8's probe")
+            a.add_argument("--mode", default="R5", choices=MODES, help="with --parent: the fine-tune's mode")
+            a.add_argument("--config", default=None, help="a JSON object of env config fields for every env "
+                           "(with --parent: the fine-tune's)")
     a = sub.add_parser("preflight", help="a policy built and one rollout run in a worker")
     a.add_argument("--workers", type=int, default=1)
     sub.add_parser("worker", help="ADDRESS: a worker of the env pool (started by the pool)")
@@ -1920,9 +2030,11 @@ def main(argv=None) -> int:
             res = preflight(args.workers)
             print(json.dumps(s2io.plain(res)), flush=True)
             return EXIT_DONE if res["ok"] else EXIT_FAILED
+        require_hashseed()
         if args.cmd in ("probe-lr", "probe-sigma", "filter"):
             if args.cmd == "probe-lr":
-                doc = probe_lr(_list(args.bodies), args.set, args.out, workers=args.workers, parent=args.parent)
+                doc = probe_lr(_list(args.bodies), args.set, args.out, workers=args.workers, parent=args.parent,
+                               mode=args.mode, config=json.loads(args.config) if args.config else None)
                 print(f"lr probe on set {args.set}: {doc['rates_by_body']}", flush=True)
             elif args.cmd == "probe-sigma":
                 doc = probe_sigma(_list(args.bodies), args.set, args.out)
@@ -1931,9 +2043,6 @@ def main(argv=None) -> int:
                 doc = filter_choice(_list(args.bodies), args.set, args.out)
                 print(f"filter on set {args.set}: {doc['choice']}", flush=True)
             return EXIT_DONE
-        if os.environ.get("PYTHONHASHSEED") != "0":
-            raise Refused("start the trainer with PYTHONHASHSEED=0 (design D16: the trainer and its workers; "
-                          f"it is {os.environ.get('PYTHONHASHSEED')!r})")
         doc = train(args.mode, args.body, args.seed, set_name=args.set, out=args.out, job=args.job, steps=args.steps,
                     resume=args.resume, workers=args.workers, monitor_every=args.monitor_every,
                     monitor_also_k=tuple(int(k) for k in _list(args.monitor_also_k)), lr=args.lr,
@@ -1951,7 +2060,7 @@ __all__ = ["BOUNDARY_RULE", "CHECKPOINT_EVERY", "EXIT_DONE", "EXIT_FAILED", "EXI
            "Halt", "MONITOR_EVERY", "N_ENVS", "N_STEPS", "Refused", "RESUME_RULE", "SCHEMA", "SOURCE_FILES", "TINY",
            "TrainError", "base_body", "boundary_seed", "count_optimizer_steps", "filter_choice", "filter_sigma",
            "is_boundary", "job_name", "kl_share", "main", "preflight", "preflight_env", "probe_lr", "probe_sigma",
-           "read_updates", "sources", "train"]
+           "read_updates", "require_hashseed", "sources", "train"]
 
 if __name__ == "__main__":
     from designlab.stage2 import train2 as _named  # the importable copy owns every class and all module state
