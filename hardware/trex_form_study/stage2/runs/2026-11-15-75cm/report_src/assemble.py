@@ -57,6 +57,34 @@ for k in ('TURN_ANSWER', 'TURN_SECTION'):
     p = HERE / f'{k}.md'
     fill[k] = p.read_text().strip() if p.exists() else f'[to be added when the reviewed views are merged: {k}]'
 fill['STATUS'] = (HERE / 'STATUS.md').read_text().strip()
+# the add-on's section (STAGE2_75_ADDON_PLAN.md A-10): its tables and sentences come verbatim from the add-on's own script
+ADD = STUDY / 'stage2/runs/2026-11-16-75cm-addon'
+add = (ADD / 'DELAYS_TABLE.md').read_text().split('\n')
+addj = json.loads((ADD / 'delays_table.json').read_text())
+def add_table(title_start, which=0):
+    i = next(k for k, l in enumerate(add) if l.startswith(title_start))
+    j = next((k for k in range(i + 1, len(add)) if add[k].startswith('## ')), len(add))
+    blocks, cur = [], []
+    for l in add[i:j]:
+        if l.startswith('|'):
+            cur.append(l)
+        elif cur:
+            blocks.append(cur); cur = []
+    if cur:
+        blocks.append(cur)
+    words = {'add-on A1': "new: the owner's delays", 'add-on A2': "new: the lead's addition", 'add-on A3': "new: the lead's addition"}
+    out = '\n'.join(blocks[which])
+    for k_, v_ in words.items():   # the unit names A1 to A3 would collide with the limit "A1" of the cells
+        out = out.replace(f'| {k_} |', f'| {v_} |')
+    assert 'add-on' not in out
+    return out
+fill['ADDON_FAST'] = add_table('## 1.')
+fill['ADDON_SLOW'] = add_table('## 2.')
+fill['ADDON_PATTERN_FAST'] = addj['pattern_fast']['sentence']
+fill['ADDON_PATTERN_SLOW'] = addj['pattern_slow']['sentence']
+m_ = addj['mirror']
+fill['ADDON_MIRROR'] = ('The five predictions are ' + str(m_['result']) + ' on the delays that were run'
+                        + ('' if not m_['differ'] else ': ' + ', '.join(f'{d} ms' for d in m_['differ']) + ' differ') + '.')
 for k, v in fill.items():
     assert '{{' + k + '}}' in t, k
     t = t.replace('{{' + k + '}}', v)

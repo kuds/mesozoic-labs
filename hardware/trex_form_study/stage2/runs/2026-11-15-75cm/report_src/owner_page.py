@@ -138,6 +138,10 @@ md = f"""# The 75 cm build in simulation: can it walk?
 
 {section('## 1. The short answer')}
 
+## Longer delays, added 16 Nov
+
+{section('## 13. Added 16 Nov 2026')}
+
 ## Clips
 
 Every clip is labelled on its frames as simulation or as planned motion. **Which records have a clip** was the
@@ -163,7 +167,11 @@ CLIPS_PLACEHOLDER
 
 {section('## 2. What this does not show')}
 
-## For you to decide
+## For you to decide (answered 16 Nov)
+
+**You answered these five questions on 16 Nov** (`DECISION_LOG.md` P37): test 14 to 20 ms and then refit; the
+counter-phased tail; no more runs on the candidate; close the pull request as superseded; carpet as a range with no
+verdict. The text below is left as it was asked.
 
 {section('## 3. For the owner')}
 
