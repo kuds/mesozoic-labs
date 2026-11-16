@@ -911,3 +911,11 @@ Each is written into the rule it concerns, with its label. No closed-loop episod
    0.0950 rad read, and the term would not have failed: that is arithmetic on the rule, not a record. Item 11(a)
    stands as written; this item adds why the expectation was missed. What to do about it is the owner's question
    (the report, section 3, question 3).
+13. [noted 16 Nov 2026, after the panels and their add-on; no rule, limit or record of this round changes] The sentence
+   near the top of this file, that until the first unit of task 3 "the only closed-loop episodes run on a Stage 2 set
+   are the build's checks" (the development episodes of rule R4), names the 75 cm round's three sets: V0, F25F9 and
+   F25F9cl. That is how the Track B rules draft reads it (its rule X1); the look sets are limited by their own gates.
+   Task 3's first unit ran on 15 Nov 2026 and tasks 3 and 4 ended that day, so the sentence restricts nothing any
+   more. On 16 Nov 2026 the lead said so for the training env's fix round: the env was compared with the bar's
+   runner on the frozen set V0 under `R0` rows, as a check that leaves no record
+   (`stage2/design/checkpoint/STATUS.md`, the update of 03:02 UTC; `stage2/design/TRACKB_RULINGS3_16NOV.md`, ruling 10).
