@@ -24,6 +24,12 @@ physics step before the start) and the estimator's first reading is taken from t
 
 R6 (``R6Env``; design D8, rule E2) sets joint targets alone through ``r5core.R6Tracker``; the same observation,
 commands, reward, starts and randomisation.
+
+**A later freeze of the set** (rule K4): settings that name a freeze are checked against the set as it is read
+today (``FREEZE_RULE``), whether the named freeze is the latest or an earlier one.  ``R5Env.describe`` says which
+keys of the env description a trainer compares on a resume (``RESUME_KEYS``) and which an accepted later freeze
+changes (``LATER_FREEZE_KEYS``); ``env_configs`` names a job's tasks in its configs, so that a later freeze which
+makes a further task usable leaves a resumed run its own tasks.
 """
 
 from __future__ import annotations
@@ -97,15 +103,27 @@ PUSH_RULE = (
     "push_standing if it stands; force = true mass x dv / push_s (rule J3)")
 FREEZE_RULE = (
     "rule K4: settings that name a freeze of the set (set_freeze: its manifest's sha256, the freeze the run started "
-    "on) are accepted when that freeze is the set's latest, or when the set has been frozen again since and, under "
-    "the latest freeze, (1) every file this env's tasks use (and the nominal walk's) has the sha256 and the entry "
-    "hash that the named freeze's manifest holds, and (2) the resolved task table is the same: a task is in the "
-    "table under a freeze exactly when that freeze's manifest holds every file of its plan (a manifest lists every "
-    "available entry), so with (1) the names, plans, window counts and lengths are the same; settings that name "
-    "their tasks are read for those tasks alone.  Anything else is refused with what differs: a hash that is none "
-    "of the set's freezes, a file missing from the named freeze, a changed file or entry, a task that entered or "
-    "left the table.  Both freezes are in the env description (set_freeze_started, set_freeze_now: index and "
-    "manifest sha256)")
+    "on) are accepted when, as the set is read today under its latest freeze, (1) every file this env's tasks use "
+    "(and the nominal walk's) has the sha256 and the entry hash that the named freeze's manifest holds, and (2) "
+    "the resolved task table is the same: a task is in the table under a freeze exactly when that freeze's "
+    "manifest holds every file of its plan (a manifest lists every available entry), so with (1) the names, plans, "
+    "window counts and lengths are the same; settings that name their tasks are read for those tasks alone.  Both "
+    "are checked whether the named freeze is the set's latest or an earlier one (a set's records can be edited "
+    "after its latest freeze without a new one).  Anything else is refused with what differs: a hash that is none "
+    "of the set's freezes, a manifest that is not the one its hash names, a file missing from the named freeze, a "
+    "changed file or entry, a task that entered or left the table (a named task that left it included).  Both "
+    "freezes are in the env description, each with its index and manifest sha256: set_freeze_started is the named "
+    "freeze, by the index of the first freeze of the set that holds that manifest (the settings hold the hash "
+    "alone; sets.freeze appends no freeze whose manifest an earlier one holds), and never changes with a later "
+    "freeze; set_freeze_now is the latest")
+#: What a trainer compares on a resume (``R5Env.describe``; rule K4, the lead's ruling of 16 Nov 2026): the keys of
+#: the env description that hold the config with its named freeze, the task names and the input files this env's
+#: tasks use.  They are equal in every session of a run, also across an accepted later freeze of the set.
+RESUME_KEYS = ("config", "task_names", "tasks", "task_files", "set_freeze_started")
+#: The keys of the env description (dotted: a key inside a key) that an accepted later freeze of the set changes:
+#: the first three always, the last two where the later freeze made further tasks usable.  Every other key is
+#: unchanged by it.
+LATER_FREEZE_KEYS = ("set_freeze", "set_freeze_now", "inputs.freeze", "inputs.files", "absent")
 FACTOR_RULE = (
     "per episode (rules J1, J2): servo delay k uniform on the integers latency_steps (inclusive), through "
     "speedfit.servo_delay; servo stiffness x kp; sliding friction; trunk mass and inertia x mass (env.MASS_RULE); "
@@ -116,10 +134,12 @@ FACTOR_RULE = (
 @dataclass(frozen=True)
 class R5Config:
     """One env's settings (design 3.2).  Ranges are uniform (lo, hi); ``randomize`` False draws no factor (the
-    nominal plant, no delay, the default IMU noise).  ``tasks`` ``()`` takes every task the set has.  No field is a
-    path: the set is named and pinned by ``set_freeze`` (the manifest sha256 of the freeze the run started on; a
-    later freeze of the set is accepted by ``FREEZE_RULE``, rule K4), and ``setio.set_dir`` resolves it under the
-    study directory."""
+    nominal plant, no delay, the default IMU noise).  ``tasks`` ``()`` takes every task the set has on the day the
+    env is built; a run's stored configs name their tasks (``env_configs`` resolves them), so that a later freeze
+    of the set that makes a further task usable changes nothing the run plays.  No field is a path: the set is
+    named and pinned by ``set_freeze`` (the manifest sha256 of the freeze the run started on; a later freeze of
+    the set is accepted by ``FREEZE_RULE``, rule K4), and ``setio.set_dir`` resolves it under the study
+    directory."""
 
     body: str
     set: str = "V6"
@@ -227,14 +247,18 @@ class R5Env(gym.Env):
         self.lib = r5lib.Library(p, cfg.body, cfg.set, cfg.rate, **({} if root is None else dict(root=root)),
                                  require_frozen=require_frozen)
         table = self.lib.tasks
+        held = ", ".join(t for t in table if table[t]["available"])
         self.tasks = [str(t) for t in cfg.tasks] if cfg.tasks else [t for t in table if table[t]["available"]]
-        bad = [t for t in self.tasks if t not in table or not table[t]["available"]]
-        if bad or not self.tasks:
-            raise ValueError(f"{cfg.set}/{cfg.body}: tasks {bad or '(none)'} are not available "
-                             f"({', '.join(t for t in table if table[t]['available'])})")
+        unknown = [t for t in self.tasks if t not in table]  # (no row of the task table: the settings' own error)
+        if unknown or not self.tasks:
+            raise ValueError(f"{cfg.set}/{cfg.body}: tasks {unknown or '(none)'} are not available ({held})")
         #: Rule K4: the freeze the settings name (the one the run started on) and the one the files were read
         #: under (the set's latest), each ``{index, manifest_sha256}``; None without a freeze.
         self.freeze_started, self.freeze_now = self._check_freeze()
+        gone = [t for t in self.tasks if not table[t]["available"]]
+        if gone:  # (a named task the set does not hold: an input that is not the one expected, rule T2's reason)
+            raise tune.InputError(f"{cfg.set}/{cfg.body}: the settings name tasks that are not available: "
+                                  + "; ".join(f"{t} ({table[t]['reason']})" for t in gone) + f".  Available: {held}")
         self.scripts = {t: self.lib.script(t) for t in self.tasks}
         #: Every task's tracker, built here, while the model is nominal (design D16).
         self.trackers = {t: self._tracker(self.scripts[t]) for t in self.tasks}
@@ -264,20 +288,33 @@ class R5Env(gym.Env):
             self.reset(seed=seed)
 
     # ------------------------------------------------------------------ the set's freeze (rule K4)
+    def _used_files(self) -> list[str]:
+        """The files this env's tasks use, with the nominal walk's (the home pose of the track's LIPM frequency),
+        sorted: what rule K4 compares.  A named task the set does not hold has none."""
+        used = [f"refs/{setio.NOMINAL}.npz"]
+        for t in self.tasks:
+            if self.lib.tasks[t]["available"]:
+                for f in r5lib.plan_files(self.lib.tasks[t]["plan"]):
+                    if f not in used:
+                        used.append(f)
+        return sorted(used)
+
     def _check_freeze(self) -> tuple[dict | None, dict | None]:
         """``FREEZE_RULE``: (the freeze the settings name, the freeze the files were read under), or
-        ``tune.InputError`` naming what differs.  Without ``set_freeze`` in the settings both are the one read."""
+        ``tune.InputError`` naming what differs.  Without ``set_freeze`` in the settings both are the one read and
+        nothing is compared."""
         cfg, lib = self.cfg, self.lib
         now = None if lib.inputs["freeze"] is None else dict(lib.inputs["freeze"])
         if cfg.set_freeze is None:
             return now, now
         where = f"{cfg.set}/{cfg.body}"
-        if now is None:
-            raise tune.InputError(f"{where}: the settings name the freeze {cfg.set_freeze[:12]}... and the set has "
-                                  "no freeze")
-        if cfg.set_freeze == now["manifest_sha256"]:
-            return dict(now), now
         freezes = list(lib.set_doc.get("freezes") or [])
+        if now is None:
+            raise tune.InputError(f"{where}: the settings name the freeze {cfg.set_freeze[:12]}... and "
+                                  + ("the set's latest freeze does not hold every file read" if freezes else
+                                     "the set has no freeze"))
+        # the named freeze: the first of the set's freezes that holds the named manifest (the settings hold the
+        # hash alone; ``sets.freeze`` appends no freeze whose manifest an earlier one holds)
         old = next((f for f in freezes if f.get("manifest_sha256") == cfg.set_freeze), None)
         if old is None:
             raise tune.InputError(f"{where}: the settings name the freeze {cfg.set_freeze[:12]}..., which is none of "
@@ -292,13 +329,8 @@ class R5Env(gym.Env):
             return f.split("/", 1)[1][: -len(".npz")]
 
         # (1) every used file's and entry's hash: the files of this env's tasks and the nominal walk's
-        used = [f"refs/{setio.NOMINAL}.npz"]
-        for t in self.tasks:
-            for f in r5lib.plan_files(lib.tasks[t]["plan"]):
-                if f not in used:
-                    used.append(f)
         read = lib.inputs["files"]
-        for f in sorted(used):
+        for f in self._used_files():
             row = held.get(name_of(f))
             if row is None:
                 diff.append(f"{f} is not in freeze {i0}")
@@ -309,7 +341,8 @@ class R5Env(gym.Env):
                 diff.append(f"{f}: its entry's hashed subset is {read[f]['entry_sha256'][:12]}..., freeze {i0} held "
                             f"{str(row.get('entry_sha256'))[:12]}...")
         # (2) the resolved task table: under freeze i0 a task was available exactly when the manifest held every
-        # file of its plan (a manifest lists every available entry, and a frozen set is read through it)
+        # file of its plan (a manifest lists every available entry, and a frozen set is read through it).  Also
+        # when freeze i0 is the latest: the records can be edited after it without a new freeze.
         for td in lib.table:
             if cfg.tasks and td.name not in self.tasks:
                 continue  # (settings that name their tasks: the table is those tasks')
@@ -321,6 +354,10 @@ class R5Env(gym.Env):
             elif was and not is_:
                 diff.append(f"task {td.name} was in the table under freeze {i0} and is absent now "
                             f"({lib.tasks[td.name]['reason']})")
+        if diff and i0 == now["index"]:
+            raise tune.InputError(f"{where}: the settings name the set's latest freeze, index {i0} "
+                                  f"({cfg.set_freeze[:12]}...), and what the run uses, as the set's records are "
+                                  f"read today, is not what that freeze holds (rule K4): {'; '.join(diff)}")
         if diff:
             raise tune.InputError(f"{where}: the set's latest freeze is index {now['index']} "
                                   f"({now['manifest_sha256'][:12]}...), the settings name index {i0} "
@@ -585,16 +622,45 @@ class R5Env(gym.Env):
     def describe(self) -> dict:
         """The env's settings as an episode executes them, without any path: the config, the resolved task table
         with the files' hashes and the absent tasks, the layout, the action mapping and the reward's weights,
-        scales and rule texts."""
+        scales and rule texts.
+
+        **What a resumed run compares** (rule K4; the lead's ruling of 16 Nov 2026).  A resumed run builds its
+        envs again from the configs it stored, and the env itself refuses what rule K4 refuses (``FREEZE_RULE``).
+        Of this description a trainer compares, with what the run's first session stored, ``RESUME_KEYS``:
+
+        * ``config``: the settings as given.  It holds the named freeze (``set_freeze``: the manifest sha256 of
+          the freeze the run started on) and, in a config that names its tasks, the task names; ``env_configs``
+          makes such configs.  A config with ``tasks`` ``()`` takes whatever tasks the set holds on the day the
+          env is built, so a later freeze that makes a further task usable is then refused (rule K4's "the
+          resolved task table is unchanged"); with the names stored it is accepted and the run plays on with its
+          own tasks.
+        * ``task_names``: this env's tasks, in the order the task draw uses; ``tasks``: their resolved table
+          (plans with their window counts, lengths, weights, headings), with the weights in force when the
+          description is made (``set_task_weights`` changes them: compare the description of the env as built).
+        * ``task_files``: the input files this env's tasks use and the nominal walk's, each with its sha256 and
+          its entry's hashed subset (what ``FREEZE_RULE`` compares with the named freeze's manifest).
+        * ``set_freeze_started``: the named freeze with its index (``FREEZE_RULE`` says which).  A config that
+          names no freeze has none to keep: it and ``set_freeze_now`` are then both the latest.
+
+        **An accepted later freeze of the set changes** ``LATER_FREEZE_KEYS`` and no other key: ``set_freeze``
+        (the manifest sha256 of the set's latest freeze, not the settings' ``config.set_freeze``),
+        ``set_freeze_now`` and ``inputs.freeze`` always; ``inputs.files`` (every file the library read: it reads
+        the files of every task the set holds, and of every plan given by options since) and ``absent`` where the
+        later freeze made further tasks usable.  A trainer that compared the description whole would refuse what
+        rule K4 accepts."""
         settle = self.p.meta.get("settle") or {}
         lib = self.lib.describe()
+        files = lib["inputs"]["files"]
         return dict(mode=self.mode, config=self.cfg.describe(), floor=self.cfg.floor,
                     floor_params=self.p.meta.get("floor_params"), settled=settle.get("status"),
+                    task_names=list(self.tasks),
                     tasks={t: dict(lib["tasks"][t], weight=float(w))
                            for t, w in zip(self.tasks, self.task_w, strict=True)},
+                    task_files={f: dict(files[f]) for f in self._used_files()},
                     absent=lib["absent"], inputs=lib["inputs"], set_freeze=(lib["inputs"]["freeze"] or {}).get(
                         "manifest_sha256"), set_freeze_started=self.freeze_started, set_freeze_now=self.freeze_now,
                     freeze_rule=FREEZE_RULE, omega=lib["omega"], crouch_frac=lib["crouch_frac"],
+                    crouch_rule=lib["crouch_rule"],
                     command_rule=lib["command_rule"], core=self.core.describe(), layout=self.layout,
                     reward=dict(self.core.weights), reward_scales=self.core.describe()["reward_scales"],
                     reward_rule=r5core.REWARD_RULE, head_rule=r5core.HEAD_RULE if self.layout["head_x"] else None,
@@ -700,12 +766,19 @@ def set_freeze(body: str, set_name: str, root=setio.ROOT) -> str | None:
     return None if fz is None else fz["manifest_sha256"]
 
 
-def env_configs(mode: str, body: str, set_name: str, n_envs: int = 8, overrides: dict | None = None) -> list[R5Config]:
-    """A job's env configs: env i on ``FLOOR_SPREAD[i % 4]`` (design D13), the set pinned by its freeze today.
-    ``overrides`` replaces fields in every config (a field named ``floor`` puts every env on that floor)."""
+def env_configs(mode: str, body: str, set_name: str, n_envs: int = 8, overrides: dict | None = None,
+                root=setio.ROOT) -> list[R5Config]:
+    """A job's env configs: env i on ``FLOOR_SPREAD[i % 4]`` (design D13), the set pinned by its freeze today and
+    the tasks named: ``tasks`` holds the names of the tasks the set holds today, in the table's order
+    (``r5lib.task_names``: the tasks an env resolves from a config that names none).  A run stores these configs
+    and builds its envs from them in every session, so a later freeze of the set that makes a further task usable
+    is accepted (rule K4, ``FREEZE_RULE``) and the run plays on with the tasks it started with.  ``overrides``
+    replaces fields in every config (a field named ``floor`` puts every env on that floor; ``tasks`` names other
+    tasks).  ``root`` is where the sets are read from (a test's; it is no part of the settings)."""
     if mode not in MODES:
         raise ValueError(f"mode {mode!r}: choose from {', '.join(MODES)}")
-    base = R5Config(body=body, set=set_name, mode=mode, set_freeze=set_freeze(body, set_name))
+    base = R5Config(body=body, set=set_name, mode=mode, tasks=tuple(r5lib.task_names(body, set_name, root)),
+                    set_freeze=set_freeze(body, set_name, root))
     over = dict(overrides or {})
     return [replace(base, **{"floor": FLOOR_SPREAD[i % len(FLOOR_SPREAD)], **over}) for i in range(int(n_envs))]
 
@@ -752,5 +825,6 @@ def throughput(mode: str, cfg: R5Config, env_steps: int = 2000, sigma: float = 0
     return out
 
 
-__all__ = ["DRAW_ORDER", "FLOOR_SPREAD", "FREEZE_RULE", "MODES", "R5Config", "R5Env", "R5Tracker", "R6Env", "RESET_ORDER",
-           "STEP_ORDER", "config_from", "env_configs", "make", "mid_start_time", "set_freeze", "throughput"]
+__all__ = ["DRAW_ORDER", "FLOOR_SPREAD", "FREEZE_RULE", "LATER_FREEZE_KEYS", "MODES", "R5Config", "R5Env", "R5Tracker",
+           "R6Env", "RESET_ORDER", "RESUME_KEYS", "STEP_ORDER", "config_from", "env_configs", "make", "mid_start_time",
+           "set_freeze", "throughput"]

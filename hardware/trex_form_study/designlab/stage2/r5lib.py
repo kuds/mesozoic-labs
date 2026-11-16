@@ -35,9 +35,14 @@ holds its last frame), because a clock up to 25 % fast passes the end of a plan 
 
 ``Library`` reads a set (``setio.read_inputs`` on the files its tasks need, frozen), resolves the task table
 (``TASKS``: rule T1; a task whose reference is absent or ``available: false`` is dropped and listed with its
-reason, rule T2) and builds scripts for tasks and for any plan (``from_plan``: a bar condition's).  The pseudo-set
-``S1`` is Stage 1's own run directory through ``setio.stage1_view`` with the small table ``S1_TASKS``: for
-development and tests only.
+reason, rule T2; ``task_names`` resolves the same names from the set's records alone) and builds scripts for tasks
+and for any plan (``from_plan``: a bar condition's; its ``heading`` argument names the reference's own yaw for a
+plan that plays a turn in place).  The pseudo-set ``S1`` is Stage 1's own run directory through
+``setio.stage1_view`` with the small table ``S1_TASKS``: for development and tests only.
+
+**The crouch** (``CROUCH_RULE``): the track's LIPM frequency is computed with ``set.json``'s ``crouch_frac``, which
+no freeze covers; a freeze covers each walk entry's own ``crouch_frac``.  A set whose ``set.json`` value differs
+from that of a walk entry the library reads is refused with both values, as ``bar.set_crouch`` refuses it.
 
 Nothing here iterates a ``set`` (an episode may not depend on ``PYTHONHASHSEED``).  Imports ``designlab.stage1``
 and round A's ``setio`` and ``s2io``; never ``bar``, ``r5core`` or ``r5env``.
@@ -105,6 +110,12 @@ COMMAND_RULE = (
     "reference time, with the command unchanged (a start into the turn commands its yaw rate from its first frame "
     "while the reference ramps up from rest; a walking turn keeps the integral).  Nothing before a segment's first "
     "frame depends on that segment; past the plan's end the last segment's command continues")
+CROUCH_RULE = (
+    "the track's LIPM frequency is control.omega0(p, q_home, crouch_frac = set.json's crouch_frac); no freeze covers "
+    "set.json's own value and a freeze covers every walk entry's crouch_frac, so every walk entry whose file the "
+    "library reads (the walks of every task the set holds, the nominal walk, the walks of a plan given as a plan) "
+    "must record the same value: a set where they differ, or where such an entry records none, is refused with both "
+    "values (as bar.set_crouch refuses it)")
 
 
 class Absent(Exception):
@@ -205,6 +216,52 @@ def s1_root(body: str):
     if body in JETSON_BODIES:
         return s2io.STUDY / "stage2" / "j"
     return STAGE1_RUN
+
+
+def why_not(refs_doc: dict, tr_doc: dict, set_doc: dict, sub: str, name: str) -> str | None:
+    """None if the records hold a usable entry ``name`` (``sub``: "refs" or "transitions"), else the reason (the
+    entry's, ``set.json``'s ``not_available`` note, or that there is no entry).  The records alone: no file is
+    read."""
+    e = (refs_doc if sub == "refs" else tr_doc).get(name)
+    if isinstance(e, dict) and e.get("available") is not False and e.get("file"):
+        return None
+    noted = (set_doc.get("not_available") or {}).get(name) or {}
+    if e is None:
+        return str(noted.get("reason") or f"the set has no entry {sub}/{name}")
+    return str(e.get("reason") or noted.get("reason") or "recorded as not available")
+
+
+def absent_reason(td: TaskDef, refs_doc: dict, tr_doc: dict, set_doc: dict) -> str | None:
+    """None if the records hold every item of the task's plan (rule T2), else ``"<sub>/<name>: <the reason>"`` of
+    the first item, in the plan's order, that they do not hold."""
+    for item in td.plan:
+        if item[0] == "hold":
+            continue
+        sub = "refs" if item[0] == "ref" else "transitions"
+        why = why_not(refs_doc, tr_doc, set_doc, sub, item[1])
+        if why is not None:
+            return f"{sub}/{item[1]}: {why}"
+    return None
+
+
+def task_names(body: str, set_name: str, root=setio.ROOT) -> list[str]:
+    """The names of the tasks a set holds for a body today, in the table's order: the tasks a ``Library`` resolves
+    as available, from the set's records alone (``set.json``, ``refs.json``, ``transitions.json``; no plant, no
+    array, no hash).  ``r5env.env_configs`` stores them in a job's env configs, so that a later freeze of the set
+    cannot change which tasks a resumed run plays (rule K4)."""
+    if set_name == STOCK_SET:
+        d = setio._anchored(s1_root(body)) / body
+        docs = {}
+        for record in ("refs.json", "transitions.json"):
+            if not (d / record).is_file():
+                raise tune.InputError(f"{d}: {record} is missing")
+            docs[record] = s2io.read_json(d / record)
+        set_doc, table = {}, S1_TASKS
+    else:
+        docs = setio.load(setio.set_dir(set_name, body, root))
+        set_doc, table = docs["set.json"], TASKS
+    refs_doc, tr_doc = docs["refs.json"]["references"], docs["transitions.json"]["transitions"]
+    return [td.name for td in table if absent_reason(td, refs_doc, tr_doc, set_doc) is None]
 
 
 def plan_files(plan) -> list[str]:
@@ -605,12 +662,11 @@ class Library:
         self._files, self._freeze = {}, None
         templates, self.tasks = {}, {}
         for td in table:
-            try:
-                for item in td.plan:
-                    self._need(item)
+            why = absent_reason(td, self.refs_doc, self.tr_doc, self.set_doc)
+            if why is None:
                 templates[td.name] = td
-            except Absent as why:
-                self.tasks[td.name] = dict(plan=None, weight=float(td.weight), available=False, reason=str(why),
+            else:
+                self.tasks[td.name] = dict(plan=None, weight=float(td.weight), available=False, reason=why,
                                            seconds=None, monitor=list(td.monitor), heading=td.heading)
         need = [f"refs/{setio.NOMINAL}.npz"]
         for td in templates.values():
@@ -636,13 +692,7 @@ class Library:
     def why_not(self, sub: str, name: str) -> str | None:
         """None if the set has a usable entry ``name`` (``sub``: "refs" or "transitions"), else the reason
         (the entry's, ``set.json``'s ``not_available`` note, or that there is no entry)."""
-        e = (self.refs_doc if sub == "refs" else self.tr_doc).get(name)
-        if isinstance(e, dict) and e.get("available") is not False and e.get("file"):
-            return None
-        noted = (self.set_doc.get("not_available") or {}).get(name) or {}
-        if e is None:
-            return str(noted.get("reason") or f"the set has no entry {sub}/{name}")
-        return str(e.get("reason") or noted.get("reason") or "recorded as not available")
+        return why_not(self.refs_doc, self.tr_doc, self.set_doc, sub, name)
 
     def _need(self, item) -> None:
         if item[0] == "hold":
@@ -665,12 +715,30 @@ class Library:
             for f in new:
                 self._files[f] = dict(self._view[f])
             return
-        rec, _ = setio.read_inputs(self.dir, new, require_frozen=self.require_frozen)
+        rec, docs = setio.read_inputs(self.dir, new, require_frozen=self.require_frozen)
         if self._files and rec["freeze"] != self._freeze:
             raise tune.InputError(f"{self.dir}: the set's freeze changed while it was being read")
+        self._check_crouch(new, docs["refs.json"]["references"])
         self._freeze = rec["freeze"]
         for f in new:
             self._files[f] = dict(rec["files"][f])
+
+    def _check_crouch(self, files, refs: dict) -> None:
+        """``CROUCH_RULE``: every walk entry among ``files`` (``refs/<name>.npz``; ``refs``: the entries as they
+        were hashed) must record ``set.json``'s ``crouch_frac``, or ``tune.InputError`` with both values."""
+        bad = []
+        for f in sorted(files):
+            if not f.startswith("refs/"):
+                continue
+            name = f[len("refs/"): -len(".npz")]
+            own = (refs.get(name) or {}).get("crouch_frac")
+            if own is None or float(own) != self.crouch_frac:
+                bad.append(f"its walk entry {name!r} records {own!r}")
+        if bad:
+            raise tune.InputError(
+                f"{self.set}/{self.body}: set.json records crouch_frac {self.set_doc.get('crouch_frac')!r}, "
+                f"{', '.join(bad)}: the track's LIPM frequency would not be the frozen entries' (no freeze covers "
+                "set.json's own value; a freeze covers the entries')")
 
     def _load(self, item):
         """The file of a plan item (``Reference`` or ``Transition``; None for a hold), loaded once and only after
@@ -768,11 +836,17 @@ class Library:
             self._scripts[key] = Script(self, [tuple(x) for x in t["plan"]], td.seconds, heading=td.heading)
         return self._scripts[key]
 
-    def from_plan(self, plan: list, track: control.Track | None = None) -> Script:
+    def from_plan(self, plan: list, track: control.Track | None = None, heading: str = HEADING_COMMAND) -> Script:
         """The script of any plan over the set (a bar condition's): the same side tables on the same files.
         ``track`` gives a track already built from this plan on this plant (a row's built condition), so that it
-        is not built twice; scripts are kept by plan.  Its commanded heading is rule E4's integral, whatever the
-        plan holds: only a task's definition names another (``TaskDef.heading``)."""
+        is not built twice; scripts are kept by plan, track and heading.  ``heading`` is what the script's
+        commanded heading is (``Script.heading``): by default rule E4's integral of the commanded yaw rate,
+        whatever the plan holds.  A row that plays a turn-in-place plan as a plan passes ``HEADING_REFERENCE``
+        (the reference's own yaw), which is what the turn-in-place tasks' definitions name (``TaskDef.heading``):
+        the policy was trained with a heading input near zero there, and under the integral the same plan reads
+        far ahead of its reference.  The command is the same under both."""
+        if heading not in (HEADING_COMMAND, HEADING_REFERENCE):
+            raise ValueError(f"heading {heading!r}: {HEADING_COMMAND!r} or {HEADING_REFERENCE!r}")
         plan = [tuple(x) for x in plan]
         for item in plan:
             try:
@@ -780,9 +854,9 @@ class Library:
             except Absent as why:
                 raise tune.InputError(f"{self.set}/{self.body}: {why}") from None
         self._read(plan_files(plan))
-        key = ("plan", tuple(plan), None if track is None else id(track))
+        key = ("plan", tuple(plan), None if track is None else id(track), heading)
         if key not in self._scripts:
-            self._scripts[key] = Script(self, plan, track=track)
+            self._scripts[key] = Script(self, plan, track=track, heading=heading)
         return self._scripts[key]
 
     def _tables(self, plan, track: control.Track) -> list[_Seg]:
@@ -865,12 +939,13 @@ class Library:
         """The resolved task table, the absent tasks with their reasons and the files read with their hashes: what
         a run's settings hold of its references (no path)."""
         return dict(set=self.set, body=self.body, rate=self.rate, omega=self.omega, crouch_frac=self.crouch_frac,
-                    max_seconds=MAX_SECONDS, command_rule=COMMAND_RULE,
+                    max_seconds=MAX_SECONDS, command_rule=COMMAND_RULE, crouch_rule=CROUCH_RULE,
                     tasks={n: dict(t) for n, t in self.tasks.items() if t["available"]},
                     absent={n: t["reason"] for n, t in self.tasks.items() if not t["available"]},
                     inputs=self.inputs)
 
 
-__all__ = ["Absent", "COMMAND_RULE", "END", "HEADING_COMMAND", "HEADING_REFERENCE", "Library", "MAX_SECONDS",
-           "S1_TASKS", "STOCK_SET", "Script", "TASKS", "TaskDef", "fk_tables", "foot_rel_of", "head_body", "head_home",
-           "head_rp_of", "plan_files", "s1_root", "target_speed_of"]
+__all__ = ["Absent", "COMMAND_RULE", "CROUCH_RULE", "END", "HEADING_COMMAND", "HEADING_REFERENCE", "Library",
+           "MAX_SECONDS", "S1_TASKS", "STOCK_SET", "Script", "TASKS", "TaskDef", "absent_reason", "fk_tables",
+           "foot_rel_of", "head_body", "head_home", "head_rp_of", "plan_files", "s1_root", "target_speed_of",
+           "task_names", "why_not"]
