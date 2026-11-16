@@ -489,3 +489,40 @@ run compares); the look reading (CK) and the look sets' review (L); the policy f
 12); the reward wording into the Track B draft (ruling 13); the rows (CW), the refit tool (CF), the gates (CG) and
 the notebook (CN); then the validation steps of `ROUND_C_DESIGN.md` section 6 toward the acceptance run and the
 steps sheet for the day-one Colab smoke. Gate 1's condition 2 goes to the owner once the servo note's fixes are in.
+
+## Update, 16 Nov 2026, 20:47 UTC: the second allocation is at about 90 %; what is merged, what is running, how to resume
+
+**Usage.** After the owner's reset at about 14:15 UTC the meter's zero is $2,042.71; by the owner's reading at
+18:45 UTC, 1 % is about $6.76. The reading at 20:46 UTC was $2,652.78, about 90 %. The owner was pushed at
+85 %. Nothing new is launched. Near 98 % with no reset showing, the lead stops the two running workflows.
+
+**Merged on the working branch since the reset** (each built, independently reviewed and fixed; reports under
+`reviews/`; rulings in `../ROUND_C_RULINGS_16NOV.md`): the worker pool (CV), the Drive bundle tool (CB) and its
+follow-ups, the env's small fix round (CE), the policy files' `actions_at_bound` (CP), the look reading (CK)
+with the tail's amplitude band, the trainer (CT) with the monitor's refusal. The Track B rules draft is on the
+branch as `STAGE2_TRACKB_PLAN.md` with five lists of the lead's rulings written in; the sixth list
+(`../TRACKB_RULINGS6_16NOV.md`) is ruled and not written in. Tests seen on the merged tree at each merge; the two
+record-key hashes are the registered ones throughout.
+
+**Buy gate.** The servo model's design note went through two independent checks (`../servo_model/`). The owner
+approved gate 1's condition 2 (`DECISION_LOG.md` P41). Five questions for the maker of the leg drives are in
+`../servo_model/MAKER_QUESTIONS.md`, checked against the study's record only: the session could not read the
+maker's pages (two attempts were refused by the permission check after the owner allowed the hosts). The owner
+has not yet said whether to send them as they stand.
+
+**Running at 20:47 UTC.**
+- Workflow `wf_fbceb97c-fa4` (task `w17pnouw7`): the rows package (CW, `wt/wpc-cw`) is built and under review;
+  the notebook and steps sheet (CN, `wt/wpc-cn`) is built and reviewed, its fixer is running.
+- Workflow `wf_debdfcfc-4dd` (task `wuysq2rgi`): the look sets (L, `wt/wp-l`) are still in their build, about
+  five hours in. An earlier report says its new build of set V6 is blocked by its start; the builder has not
+  handed back.
+
+**To resume after a stop.** Each workflow resumes from its saved script with its run id
+(`round-c-wave-4-wf_fbceb97c-fa4.js`, `round-c-wave-3-builds-wf_debdfcfc-4dd.js` under the session's
+`workflows/scripts/`): finished agents return from the journal, and an agent cut mid-run starts again and finds
+its commits in its worktree. In a new session, start from the worktree branches and the briefs.
+
+**Next after these land:** merge CW and CN; the look sets' review and the lead's decision on freezing them; the
+refit tool (CF) and the gates (CG); the sixth list into the draft; then the validation steps of
+`ROUND_C_DESIGN.md` section 6, the real bundle, the acceptance run and the steps sheet's final values for the
+day-one Colab smoke.
