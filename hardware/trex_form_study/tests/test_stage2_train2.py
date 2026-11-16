@@ -74,6 +74,10 @@ class StubEnv(gymnasium.Env):
     metadata = {"render_modes": []}
 
     def __init__(self, cfg: dict):
+        if os.environ.get("STUB_INPUT_ERROR"):  # (as the real env refuses its inputs when it is built, rule K4)
+            from designlab.stage1 import tune
+
+            raise tune.InputError("stub: a used file is not the one the named freeze holds")
         self.cfg = dict(cfg)
         self.observation_space = spaces.Box(-np.inf, np.inf, (STUB_LAYOUT["obs_dim"],), np.float32)
         self.action_space = spaces.Box(-1.0, 1.0, (STUB_LAYOUT["action_dim"],), np.float32)
@@ -771,7 +775,7 @@ def test_resume_refusals_settings(cut_run, stub, tmp_path):
     assert len(doc_of(out)["sessions"]) == 2
 
 
-def test_resume_refusals_inputs_and_a_later_freeze(cut_run, tmp_path):
+def test_resume_refusals_inputs_and_a_later_freeze(cut_run, tmp_path, monkeypatch):
     train2, out = cut_run
     files = json.loads((tmp_path / "set.json").read_text())["files"]
     # a later freeze of the set, every used file and entry unchanged: accepted, both freezes recorded
@@ -787,6 +791,11 @@ def test_resume_refusals_inputs_and_a_later_freeze(cut_run, tmp_path):
     write_set(tmp_path / "set.json", freezes=("f0", "f1"), files=entry)
     assert "refs/nominal.npz" in _refused(train2, out, "other inputs")
     write_set(tmp_path / "set.json", freezes=("f0", "f1"), files=files)
+    # an env that refuses its inputs when it is built from the run's stored config (the real env's own check of
+    # rule K4) is a refused resume too
+    monkeypatch.setenv("STUB_INPUT_ERROR", "1")
+    assert "not the one the named freeze holds" in _refused(train2, out, "other inputs")
+    monkeypatch.delenv("STUB_INPUT_ERROR")
     d = run(train2, out, resume=True)
     s = d["sessions"][1]
     assert d["status"] == "done" and s["resumed_from"] == 512

@@ -684,7 +684,7 @@ class _Run:
         self.say(f"G8a's short form on set {self.set}")
         res = _g8a_short(self.body, self.set, self.tiny)
         rec = s2io.plain(dict(schema="s2-run-g8a-1", job=self.job, run_uuid=self.doc["run_uuid"], tiny=self.tiny,
-                              **res, at=s2io.now_utc()))
+                              **res, session=self.k, at=s2io.now_utc()))
         rec["sha256"] = s2io.sha256_json(rec)
         s2io.write_json(self.jd / "gates" / "g8a.json", rec)
         self.doc["gates"]["g8a"] = dict(record="gates/g8a.json", sha256=rec["sha256"], passes=bool(res["passes"]),

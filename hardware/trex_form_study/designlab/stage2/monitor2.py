@@ -19,7 +19,9 @@ infrastructure fault: not succeeding, zero credited survival, not up).  A condit
 companion episode as ``lookbar.episodes`` returned it with its ``survival_credit``, then N (reading 1, with the
 look), S (the mean credited survival), the counts in readings 2 and 3 and "but A1 with the look",
 ``failures_by_term``, ``mean_clock_factor``, ``distinct_start_seeds``, the checkpoint's three file hashes, and the
-sources hash the trainer gave beside this process's own (``run`` refuses to run if they differ).
+sources hash the trainer gave beside this process's own (``run`` refuses to run if they differ).  The episodes'
+traces go under ``monitor/traces/<n>/`` (the baseline's under ``monitor/traces/r0l/``), at the bar's own relative
+paths (``<row>/<behaviour>/<condition>/<seed>.npz``): ``clip2`` draws a clip from one of them.
 
 **Rules on records** (pure functions: the same state from the same records, live or at a resume):
 ``survival_credit``, ``gain`` (M3), ``g8b`` and ``fix_weights`` (M4), ``decide`` (everything read after a check:
@@ -650,6 +652,23 @@ def _also(body, set_name, mode, seed, pairs, policies, also_k, k) -> dict:
     return out
 
 
+def installed_versions() -> dict:
+    """The installed versions of the libraries a checkpoint records (``s2load.VERSION_KEYS``), read from the
+    distributions' metadata: nothing is imported for it (the baseline's process holds no torch)."""
+    import platform
+    from importlib import metadata
+
+    out = {"python": platform.python_version()}
+    for key, dist in (("numpy", "numpy"), ("mujoco", "mujoco"), ("scipy", "scipy"), ("torch", "torch"),
+                      ("stable_baselines3", "stable-baselines3"), ("gymnasium", "gymnasium"),
+                      ("cloudpickle", "cloudpickle")):
+        try:
+            out[key] = metadata.version(dist)
+        except metadata.PackageNotFoundError:
+            out[key] = None
+    return out
+
+
 def _write(path: Path, doc: dict) -> dict:
     doc = s2io.plain(doc)
     doc["sha256"] = s2io.sha256_json(doc)  # of the record without this key
@@ -684,11 +703,11 @@ def run(job_dir, steps, body, set_name, out, k=K, tiny=False, also_k=(), sources
         pairs=[[c, s] for c, s in pairs], fix_tasks=fix_tasks_for(set_name),
         checkpoint=dict(steps=n, files=ck["files"]), checkpoint_sha256=checkpoint_hashes(ck), episodes=eps,
         **summarize(eps), also=_also(body, set_name, mode, seed, pairs, policies, also_k, k),
-        traces=s2io.portable(str(traces)) if traces.is_dir() else None, episodes_by=_episodes_by(set_name),
+        traces="traces/%d" % n if traces.is_dir() else None, episodes_by=_episodes_by(set_name),
         sources=src, flags=dict(job.get("flags") or {}),
         rules={key: RULES[key] for key in ("episodes", "outcomes", "survival", "sources")},
-        provenance=s2io.git_state(own_outputs=[str(job_dir.resolve())]), wall_s=time.perf_counter() - t0,
-        at=s2io.now_utc())
+        provenance=s2io.git_state(own_outputs=[str(job_dir.resolve())]), versions=installed_versions(),
+        wall_s=time.perf_counter() - t0, at=s2io.now_utc())
     return _write(out / ("monitor_%d.json" % n), doc)
 
 
@@ -710,10 +729,10 @@ def baseline(body, set_name, out, k=K, tiny=False, also_k=(), sources_sha256=Non
         run_id=job.get("run_id"), body=body, set=set_name, row=row, k=int(k), tiny=bool(tiny),
         conditions=list(conditions_for(set_name)), pairs=[[c, s] for c, s in pairs], episodes=eps, **summarize(eps),
         also=_also(body, set_name, None, None, pairs, None, also_k, k),
-        traces=s2io.portable(str(traces)) if traces.is_dir() else None, episodes_by=_episodes_by(set_name),
+        traces="traces/r0l" if traces.is_dir() else None, episodes_by=_episodes_by(set_name),
         sources=src, rules={key: RULES[key] for key in ("episodes", "outcomes", "survival", "sources")},
         provenance=s2io.git_state(own_outputs=[str(Path(job_dir).resolve())] if job_dir is not None else [str(out)]),
-        wall_s=time.perf_counter() - t0, at=s2io.now_utc())
+        versions=installed_versions(), wall_s=time.perf_counter() - t0, at=s2io.now_utc())
     why = baseline_problem(doc)
     if why is not None:
         i = 0
@@ -745,7 +764,8 @@ def write_s2_10(job_dir, out=None, committed_baseline=None) -> dict:
         doc["baseline_equal"] = dict(baseline_equal(r0l, s2io.read_json(committed_baseline)),
                                      committed=s2io.portable(str(Path(committed_baseline).resolve())),
                                      committed_sha256=s2io.sha256_file(committed_baseline))
-    doc.update(provenance=s2io.git_state(own_outputs=[str(job_dir.resolve())]), at=s2io.now_utc())
+    doc.update(provenance=s2io.git_state(own_outputs=[str(job_dir.resolve())]), versions=installed_versions(),
+               at=s2io.now_utc())
     return _write(Path(out) if out is not None else job_dir / "S2_10.json", doc)
 
 
@@ -805,7 +825,7 @@ __all__ = ["ATTEMPTS", "BASELINE_SCHEMA", "CONDITIONS", "FIX_TASKS", "G8B_AGAIN_
            "K", "MonitorError", "OUTCOMES", "RULES", "S1_CONDITIONS", "S1_FIX_TASKS", "S2_10_SCHEMA", "SCHEMA",
            "SEEDS", "STOP_CHECKS", "STOP_FROM", "baseline", "baseline_equal", "baseline_problem",
            "checkpoint_hashes", "conditions_down", "conditions_for", "decide", "fix_tasks_for", "fix_weights", "g8b",
-           "gain", "is_record", "main", "need_up", "no_record", "pairs_for", "row_name", "rules", "run", "s2_10",
+           "gain", "installed_versions", "is_record", "main", "need_up", "no_record", "pairs_for", "row_name", "rules", "run", "s2_10",
            "seeds_for", "summarize", "survival_credit", "write_s2_10"]
 
 if __name__ == "__main__":

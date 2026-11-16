@@ -168,6 +168,11 @@ def test_standing_lagging_and_too_few_steps_count_as_not_succeeding(monkeypatch,
     assert doc["checkpoint_sha256"] == _hashes(job) and len(set(_hashes(job).values())) == 3
     assert doc["sha256"] == s2io.sha256_json({k: v for k, v in doc.items() if k != "sha256"})
     assert m2.is_record(doc, doc["checkpoint_sha256"], m2.pairs_for("V6"))
+    import numpy
+
+    assert doc["versions"]["numpy"] == numpy.__version__ and set(doc["versions"]) >= {"python", "torch", "mujoco"}
+    assert set(doc["provenance"]) == {"commit", "dirty", "dirty_paths"} and doc["rules"]["outcomes"] == m2.RULES[
+        "outcomes"]
     lagging = [e for e in doc["episodes"] if e["outcome"] == "unread"]
     assert all(e["survival_credit"] == pytest.approx(0.75 * PLANNED) for e in lagging)
     assert m2.g8b(doc)["pass"] is True and m2.gain(doc, [], R0L)["gain"] is False
