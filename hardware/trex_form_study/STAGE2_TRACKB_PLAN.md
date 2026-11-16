@@ -221,13 +221,14 @@ arrays when the design was written and are no record.
   no-go run (inside the plan's 10 for validation); about 5.2 for the 60 cm run, on top of the plan's estimate of about
   80; a budget of 12 for R2L in place of the plan's 8 (a third fit, on the candidate walk of the 75 cm track). R2L's
   panel records, and the re-runs of the 75 cm track's two balance-controller rows beside them, have caps of their own
-  beside that budget (Q5). Each cap is set from a planning run on the frozen reference set before that row's first
-  record; none has a number yet [settled 16 Nov 2026, before any Track B run: these two sentences]. On Colab: 40,000,000
-  steps per run, or fewer if the smoke's rate cannot reach that in 20 hours (about 556 steps per second), never under
-  15,000,000 without you. The plan's cap of 220 runtime-hours or 8 days stands: when it is reached, running jobs stop at
-  their next checkpoint, every run is judged at the last checkpoint its comparison reached, and jobs not yet started are
-  cut in the plan's order (fine-tunes, then R6, then the expressive head's second seed); the 8 days count from the start
-  of the first training session. Nothing is adopted.
+  beside that budget (Q5). Each cap is set from a planning run on the frozen reference set before the first record it
+  covers; none has a number yet [settled 16 Nov 2026, before any Track B run: these two sentences; "before the first
+  record it covers" read "before that row's first record" until ruling 3 of the fifth list, by which a row can come to
+  have a second cap]. On Colab: 40,000,000 steps per run, or fewer if the smoke's rate cannot reach that in 20 hours
+  (about 556 steps per second), never under 15,000,000 without you. The plan's cap of 220 runtime-hours or 8 days
+  stands: when it is reached, running jobs stop at their next checkpoint, every run is judged at the last checkpoint its
+  comparison reached, and jobs not yet started are cut in the plan's order (fine-tunes, then R6, then the expressive
+  head's second seed); the 8 days count from the start of the first training session. Nothing is adopted.
 - **Settled after the review.** The independent review of these rules left 25 points for the study's lead. The lead
   settled all of them on 15 Nov 2026, before any Track B run (the last section lists them), and this brief was changed
   where an answer touched it. Four answers have no bullet above. Each size trains at its own learning rate: a short
@@ -416,10 +417,11 @@ the other two state what the env's code does since its second fix round, in whic
 argument (commit `011f6e2` on `wt/wpc-ce`;
 `tests/test_stage2_r5lib.py::test_a_plan_given_as_a_plan_can_name_the_references_yaw`), as the lead had ruled on 16 Nov
 2026 (03:02 UTC; `stage2/design/checkpoint/STATUS.md`, ruling 4: "`from_plan` gains a heading argument before any row
-plays a turn in place"). The env work package's reason, from its wording file, is a kinematic playback of Stage 1's turn
-in place on `75-M-H-10` (prescribed motion, no record): under the integral the reference's own playback had a mean
-heading penalty of 0.73, and under the task's definition it has 0 at every env step]. Nothing before a segment's first
-frame depends on that segment. Check: `tests/test_stage2_r5lib.py`; the env description's `command_rule`.
+plays a turn in place"); the lead confirmed these sentences as they stand with the fifth list of 16 Nov 2026. The env
+work package's reason, from its wording file, is a kinematic playback of Stage 1's turn in place on `75-M-H-10`
+(prescribed motion, no record): under the integral the reference's own playback had a mean heading penalty of 0.73, and
+under the task's definition it has 0 at every env step]. Nothing before a segment's first frame depends on that segment.
+Check: `tests/test_stage2_r5lib.py`; the env description's `command_rule`.
 
 **E5. The head command on `-X`, and the bar's head script.** [plan; NEW; lead, 15 Nov, before any Track B run: head
 script H1's numbers accepted as drafted; settled 16 Nov 2026, before any Track B run: the gaze and jaw ranges, which
@@ -1258,10 +1260,12 @@ a cell not reached reads "not run: budget" **[differs: S2-18's "the others repor
 
 **Q5. Budget.** [lead, 15 Nov, before any Track B run; settled 15 Nov, before any Track B run: how a fit's share is
 spent; settled 16 Nov 2026, before any Track B run: when a reported cell starts and what a fit's share then holds, and
-the caps of R2L's panel records and of the re-runs beside them, with where each cap's number comes from and how a cap is
-spent; differs: plan section 6's 8 core-hours for R2L; NEW split] As the lead ruled: R2L's budget is 12 core-hours,
-counted as the sum of evaluation CPU seconds in `ledger.json`, for three fits in this order: `V6noF5` on `75-M-H-10`,
-then `V6noF5` on `60-N-T-10` (8 core-hours for the two), then the candidate `F25F9cl` on `75-M-H-10` (4 core-hours).
+the caps of R2L's panel records and of the re-runs beside them, with where each cap's number comes from, how a cap is
+spent, the cap of the delays that S2-9 asks for after a row's cap is committed, and where a cap's run directory and dry
+run are kept; differs: plan section 6's 8 core-hours for R2L; NEW split] As the lead ruled: R2L's budget is 12
+core-hours, counted as the sum of evaluation CPU seconds in `ledger.json`, for three fits in this order: `V6noF5` on
+`75-M-H-10`, then `V6noF5` on `60-N-T-10` (8 core-hours for the two), then the candidate `F25F9cl` on `75-M-H-10` (4
+core-hours).
 
 [settled 15 Nov, before any Track B run] The three fits have separate shares of 4.0 core-hours and run in that order; an
 overrun comes off no other fit's share. Within a share: block 0 (six generations) always runs; after each whole block
@@ -1310,17 +1314,36 @@ times a total that holds its 10 ms unit's estimate, so that unit always fits and
 How these two rulings are read where they name no case (the author's reading, not the lead's wording). On `V6noF5`,
 "where S2-9 asks" is a body on which R5 failed G8b on both seeds (Q6), which may be known only after the row's 10 ms
 records. Where S2-9 has asked before the first dry run is made, that dry run takes all four delays, as the ruling's
-command has it. Where it has not, the first dry run takes the 17 conditions at 10 ms; if S2-9 asks later, the dry run is
-made again with all four delays and committed before the first record at another delay; 1.5 times its total is the row's
-cap from then on, and what the 10 ms unit spent counts in it. On `F25F9cl` the dry runs are the two pairs of commands
-listed below, made again and committed before `R2L-F25F9cl/42`'s first panel record and before the first re-run record.
-They take the 22 records that Q6 names for the candidate's row (the 16 gated conditions at 10 ms, which are its 10 ms
-unit, then `walk/v0.4` and `walk/v0.4_mu0.54` at 0, at 4 and at 6 ms; Q6 names no `walk/nominal` record there, and none
-is counted), and the same 22 for each of `R2/42` and `R2/43` where they are run again. The dry run of an R2L row names
-the row `R2/42`: the runner gives a row without a measured rate the largest measured one, which is R2's (`bar.rate_of`).
-The rulings name no path for a cap's run directory or for its committed dry run, and no task key, and this text names
-none: the report names each cap's run directory and the file and commit that hold its dry run, and the Check reads them
-there [this last clause is the author's, after the independent review of this writing-in, so that the Check can be run].
+command has it. Where it has not, the first dry run takes the 17 conditions at 10 ms, and what holds if S2-9 asks later
+is settled in the next paragraph [until ruling 3 of the fifth list this reading went on: "if S2-9 asks later, the dry
+run is made again with all four delays and committed before the first record at another delay; 1.5 times its total is
+the row's cap from then on, and what the 10 ms unit spent counts in it"]. On `F25F9cl` the dry runs are the two pairs of
+commands listed below, made again and committed before `R2L-F25F9cl/42`'s first panel record and before the first re-run
+record [settled 16 Nov 2026, before any Track B run: that the candidate's two caps are made again, which the lead
+confirmed with the fifth list]. They take the 22 records that Q6 names for the candidate's row (the 16 gated conditions
+at 10 ms, which are its 10 ms unit, then `walk/v0.4` and `walk/v0.4_mu0.54` at 0, at 4 and at 6 ms; Q6 names no
+`walk/nominal` record there, and none is counted), and the same 22 for each of `R2/42` and `R2/43` where they are run
+again. The dry run of an R2L row names the row `R2/42`: the runner gives a row without a measured rate the largest
+measured one, which is R2's (`bar.rate_of`). The rulings name no task key, and this text names none: the report names
+it, with each cap's `<run>` and the commit that holds its dry run, and the Check reads them there [the author's, so that
+the Check can be run; until the fifth list named the directories, in the next paragraph, this sentence read "The rulings
+name no path for a cap's run directory or for its committed dry run, and no task key, and this text names none: the
+report names each cap's run directory and the file and commit that hold its dry run, and the Check reads them there"].
+
+[settled 16 Nov 2026, before any Track B run; ruling 3 of the fifth list, on the case that the reading above had
+answered otherwise, and that list's confirmation of where a cap is kept] Where S2-9 asks for the three other delays
+after a row's cap is committed, those delays get a cap of their own, with its own dry run, run directory and
+`budget.json`. A cap's run directory is `stage2/tb/bar/<run>/`, with a `DRY_RUN.json` at its top.
+
+How that paragraph is read (the author's reading, not the lead's wording). The later cap is a cap like every other: 1.5
+times the total that its own dry run prints on the frozen set, at the same `COST.md`. Its dry run takes the row's 17
+conditions at the three other delays (`--rows R2/42@0ms,R2/42@4ms,R2/42@6ms --conditions @gated,walk/nominal`) and is
+committed before the row's first record at one of them. It is spent by the same unit rule: one unit per delay in the
+order 0, 4, 6 ms, then the fall attribution of its own records, which is cut first. The row's first cap stays as it is,
+with its 10 ms unit and the attribution of the 10 ms records; nothing spent under one of the two caps counts in the
+other. Where this rule and its Check say "the row's first panel record", that is, for each cap, the first panel record
+the cap covers. `DRY_RUN.json` holds what the Check reads of a cap's dry run: the command, the printed total and the
+freeze of the set it was made on. `<run>` is the builder's name for the run; the report gives it.
 
 Planning figures. They cap nothing; each is an estimate and no record: a dry run plans each episode, multiplies its
 planned seconds by a rate and runs none. The rate is `COST.md`'s for an R2 row, 0.1574 wall seconds per simulated
@@ -1367,13 +1390,22 @@ which was not checked, is that a look walk's file is a window of 9 to 14 strides
 Check: `ledger.json` (per fit: the seconds of each block, of the decisive cell and of each reported cell, in the order
 run); `r2lg5.json` `judged_at_generation`, `overrun`; the report's cell for a fit that was cut.
 [settled 16 Nov 2026, before any Track B run] `r2lg5.json` `overrun_reported`, and for each reported cell its estimate,
-what the share still held when it was decided and whether it started; for each cap, where the report names them, its
-committed dry run (the command and the printed total, on the frozen set, whose freeze it names, in a commit that is an
-ancestor of the `sessions[].commit` of the row's first panel record) and its own run directory's `budget.json` (one task
-key; the cap, which is 1.5 times that total; the units in the order started, which is 10, 0, 4, 6 ms and then
-attribution; the cut units, which are the tail of that order, with no 10 ms unit among them; the excess of a 10 ms unit
-that passed its cap) [rulings 1 and 2 of the fourth list: this Check read "the bar's `budget.json` (the cap, the units
-in the order started, and the cut units: 6 ms, then 4 ms, then 0 ms, and no 10 ms record among them)"].
+what the share still held when it was decided and whether it started; for each cap, its run directory
+`stage2/tb/bar/<run>/` (the report gives each `<run>`), the `DRY_RUN.json` at its top, which holds its committed dry run
+(the command and the printed total, on the frozen set, whose freeze it names, in a commit that is an ancestor of the
+`sessions[].commit` of the first panel record the cap covers), and that directory's `budget.json` (one task key; the
+cap, which is 1.5 times that total; the units in the order started, which is 10, 0, 4, 6 ms and then attribution, each
+cap holding the units of its own delays; the cut units, which are the tail of that order, with no 10 ms unit among them;
+the excess of a 10 ms unit that passed its cap) [rulings 1 and 2 of the fourth list: this Check read "the bar's
+`budget.json` (the cap, the units in the order started, and the cut units: 6 ms, then 4 ms, then 0 ms, and no 10 ms
+record among them)"] [settled 16 Nov 2026, before any Track B run; ruling 3 of the fifth list and its confirmation of
+the directories' name, so that the Check holds per cap: "its run directory `stage2/tb/bar/<run>/` (the report gives each
+`<run>`), the `DRY_RUN.json` at its top, which holds its committed dry run" stands in place of "where the report names
+them, its committed dry run"; "that directory's" in place of "its own run directory's"; "the first panel record the cap
+covers" in place of "the row's first panel record"; and "each cap holding the units of its own delays" is added]; for a
+row for which S2-9 asked after its cap was committed, two caps, the first with the 10 ms unit and the later one with the
+units of 0, 4 and 6 ms, each with its own `DRY_RUN.json` and `budget.json` [settled 16 Nov 2026, before any Track B run:
+this item; ruling 3 of the fifth list].
 
 **Q6. Rows and reading.** [plan; settled 15 Nov, before any Track B run: the row on the candidate set;
 settled 16 Nov 2026, before any Track B run: how that row is judged, and a pointer to Q5's caps] Rows are named by their
@@ -2083,7 +2115,8 @@ wording written in under ruling 13 of the third list (the two amendments that cl
     [settled 16 Nov]: R2L's panel records and the re-runs of `R2/42` and `R2/43` beside the candidate's row, which plan
     section 6 counts in "panels and attribution 45 (...; 0.8 per other row)", get caps of 1.5 times the bar runner's
     dry-run total, per set and body; the dry run is made on the frozen set itself and committed before the row's first
-    panel record, and a cap is spent unit by unit in the order 10, 0, 4, 6 ms, attribution last.
+    panel record, and a cap is spent unit by unit in the order 10, 0, 4, 6 ms, attribution last; where S2-9 asks for the
+    three other delays after a row's cap is committed, those delays get a cap of their own (ruling 3 of the fifth list).
 16. E5: in plan section 5's "`-X` runs the bar head neutral (the hardware's cost) and with gaze events and head-first
     turns (the cost of using it)", head-first turns are not run.
 17. N5: plan B.3's "a fresh-clone dry run of the bundle" and "the notebook on a tiny budget" are one acceptance run.
