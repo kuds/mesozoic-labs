@@ -321,6 +321,23 @@ These were answered in conversation after the Stage 1b report; P28 and `STAGE2_P
       on it: one answer was a request for more time.
     - Send a push notification when long work finishes; the owner asked to be pinged four times.
     - "Help me think" means discussion, not new runs ("Don't do any big experiments", 10 Nov).
+19. **A report's tables are right long before its prose is** (the 75 cm report, 15 to 16 Nov).
+    Three rounds of independent checks recomputed every table cell from the records and found none wrong; they found
+    the lead's sentences wrong or too strong 50, 24 and then fewer times. What to do:
+    - Write the short answer last, from a list of facts each of which a script printed, and send exactly that part
+      to a reader who has seen no earlier review.
+    - Say *where* a failure happens before saying *why*. "It falls at 10 ms" was true; "the walk falls" was not (the
+      falls were in the start), and the correction "not in the walk" was not true either (the slow walk falls).
+    - A column that prints "the larger of two" needs its name in every sentence that quotes it (the neck servo's
+      0.69 was reported as the tail's).
+    - Name what a limit is a share of. "1.08 times its rating" was 1.08 times the study's planning limit, itself
+      0.57 of the maker's figure (A1), over a joint friction with no source (A18).
+    - Recompute a reviewer's proposed sentence before pasting it: one of them named a cell that was never run.
+    - An interpretation must list what speaks against it from the study's own log (F26, F27 here), not only what
+      speaks for it.
+    - When a rule's text is amended, check the amended sentence against the runner's code for every item it names:
+      the P34 amendment said "unchanged in C4 and C5" and was false for C4, which failed the candidate on one term
+      in every walk, push and stop.
 
 ## 4. Working in the cloud container
 

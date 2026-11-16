@@ -900,3 +900,14 @@ Each is written into the rule it concerns, with its label. No closed-loop episod
    prints these conditions" needs more than the reference's column in the measured and failed-terms parts. Ruling:
    the column there, plus the label now on every line that prints a controller's verdict on such a condition, is
    what C3 asks; no verdict word is changed (that would change a rule).
+12. [noted 16 Nov after the independent review of the report on these runs (`STAGE2_75_REPORT.md`); no rule, limit or
+   reading changed; the lead's error] **A12's amendment of 15 Nov contradicts C4.** The amendment made for P34 gives
+   as its reason that in the closed loop "the joint range is judged against the reference's own smallest margin less
+   0.02 rad (decision 14, unchanged in C4 and C5)". That is true of C5 (the turn item) and false of C4 (the walk
+   item): C4 says "joint range 0.10 rad", and the runner at code state A applies 0.10 rad over the whole episode to
+   walks, nudges and stops and decision 14 to turns only (`bar.py`, `required`; `panels.LIMITS_RULE`). The owner's
+   decision P34 was therefore taken on a sentence that was not true of the walk item. The registered counts follow
+   C4 and the runner. By the amendment's sentence the candidate's limit would have been 0.075 rad against the
+   0.0950 rad read, and the term would not have failed: that is arithmetic on the rule, not a record. Item 11(a)
+   stands as written; this item adds why the expectation was missed. What to do about it is the owner's question
+   (the report, section 3, question 3).
