@@ -63,6 +63,31 @@ What must hold (*proposed*): on a flat hard floor, with ballast standing in for 
 in 4 of 5 trials; and the joints follow the simulation's motion closely enough that the same policy file is used in
 both.
 
+## When the form factor is reconsidered (added 16 Nov 2026, after the owner asked)
+
+The owner asked whether to continue on this path before considering changes to size, motors or goals. The lead's
+recommendation: continue through gate 1, and reconsider the form factor there, on what gate 1 shows. The reason:
+today's falls at 10 ms happen under a stand-in controller that was fitted with no delay, and the runner's own
+labels for them are hints (`STAGE2_75_REPORT.md` section 5). They cannot yet tell a limit of the body from a limit
+of the controller. A policy trained with delay is the first test that can.
+
+If gate 1 fails, how it fails names what to change. *Every row is the lead's proposal, not a finding.*
+
+| What gate 1 shows | What is reconsidered | What is known today (simulation, stand-in controller) |
+|---|---|---|
+| The walk passes at 0.30 m/s and fails at 0.40 m/s | The goal: accept 0.30 m/s for this body, or change the body | With no delay today's walk meets every limit at 0.24 and 0.30 m/s; at 0.40 m/s only with the tail servo's limit set aside |
+| The tail servo's load stays over its planning limit with the counter-phased tail | The tail: a stronger servo, or a shorter or lighter tail | Today's walk: 1.02 to 1.11 of the limit at 0.40 m/s. The pull request's counter-phased tail: 0.40 to 0.48 |
+| Pushes fail on a drive's peak speed | The leg drives: a faster drive or a lower gear ratio | With no delay 11 to 15 of 20 runs meet every limit after a push; drive peak speed is one of the failing limits |
+| The quick turn fails on drive speed, toe clearance or heading with the tail fixed | The turn that is asked for (a wider or slower turn), then hip range and drive speed | The quick turn stays up 20 of 20 with no delay and does not pass at any delay; with no delay its failing limits are the tail servo and duty in every run and, in some runs, a drive's peak speed, toe clearance and heading. A slower turn needs a wider circle: 2.61 m or 3.13 m as planned, against 2.22 m |
+| Falls at the start from standing persist with the foot's edge loaded | The feet and ankles: a longer or wider pad, more ankle torque | The runner labels today's 10 ms falls "controller-limited" and names the pad edge as one possible cause it cannot test |
+| Nothing passes at 10 ms and the walk passes at 4 to 6 ms | The compute and wiring (gate 2's delay measurement decides), not the body | Today's walk stays up 20 of 20 at 0 to 6 ms |
+
+Two more things belong to this question:
+
+- **The 60 cm body goes through gate 1 as well** (`60-N-T-10` stays in the plan). If it passes where the 75 cm
+  body fails, size is the first change to consider. It costs no hardware.
+- **A change of form factor restarts gate 1 for the changed body.** Results do not carry over between bodies.
+
 ## What this draft does not do
 
 - It does not make a trained policy pass. Today nothing passes at 10 ms under the stand-in controller
@@ -81,3 +106,4 @@ about 80 to 85 % if gate 2 is passed; about 90 % if gate 3 is passed.
 1. Approve the staged idea, or change the stages.
 2. Approve, loosen or tighten each gate's proposed numbers.
 3. Say whether gate 1 should also ask for carpet.
+4. Say whether 0.30 m/s can be the speed gate 1 must pass, with 0.40 m/s as a stretch that is reported.
