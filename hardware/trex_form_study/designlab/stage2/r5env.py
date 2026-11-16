@@ -19,7 +19,8 @@ fresh env after ``reset(seed)``.
 
 **Mid-task starts** (design D6, rule T3): ``R5Tracker.reset_at`` lends the track the start state for one call of
 ``control.Tracker.reset("frame")``; the delay queue is refilled with the commands the zero action would have given
-over the k physics steps before the start.
+over the k physics steps before the start; the servos are set to the oldest of them (k = 0: to the command of one
+physics step before the start) and the estimator's first reading is taken from the forward pass on that command.
 
 R6 (``R6Env``; design D8, rule E2) sets joint targets alone through ``r5core.R6Tracker``; the same observation,
 commands, reward, starts and randomisation.
@@ -64,7 +65,9 @@ RESET_ORDER = (
     "latency_steps, noise_scale, joint_damping, joint_friction, then options.factors, then applied; 7 the push and, "
     "on a body with a neck yaw and a jaw, the head script; 8 the episode seed and its start and noise seeds; 9 "
     "counters; 10 the previous episode's delay left; 11 the start; 12 the delay entered (a mid start refills its "
-    "queue); 13 the core's baselines, histories and accumulators, the observation")
+    "queue, sets the servos to the zero action's command before the start, computes the forward pass and gives "
+    "the estimator its first reading from it); 13 the core's baselines, histories and accumulators, the "
+    "observation")
 STEP_ORDER = (
     "1 the action clipped and low-passed; 2 R5: joint offsets and the clock factor on the tracker (None and exactly "
     "1.0 for a zero action with the head neutral); R6: joint targets; 3 ten times: the push, the tracker's physics "
@@ -82,8 +85,11 @@ MID_START_RULE = (
     "the task's non-hold segments between 0.2 s after the first non-hold frame and 2.0 s x the clock rate before "
     "the plan's end, snapped to a file frame; the plant is set to that frame (rates x the clock rate) with Stage "
     "1's start noise (uniform on the joints, uniform added to the root's velocity), the estimator is reset from "
-    "that state, and the delay queue holds the k commands the zero action would have given before it (the servos "
-    "are set to the oldest and the forward pass is computed once)")
+    "that state, and the delay queue holds the k commands the zero action would have given before it.  The "
+    "servos are then set to the oldest of those (without a delay, k = 0: to the command the zero action would have "
+    "given one physics step before the start), the forward pass is computed once on that, and the estimator is "
+    "reset again from the same state with a sensor reading of that pass (its foot loads, accelerometer and contact "
+    "flags; the plant's first pass ran with the servos at their home targets)")
 PUSH_RULE = (
     "with probability push_prob in an episode longer than 4 s: one push_s pulse at the trunk's CoM at a time uniform "
     "in [2 s, end - 2 s], direction uniform, dv = u x the body's Stage 0 forward bound (env.PUSH_BOUND_M_S[body]: "
@@ -442,12 +448,8 @@ class R5Env(gym.Env):
             spans = script.mid_spans()
             if not spans:
                 raise ValueError(f"task {self.task!r} has no mid-task start (rule T3)")
-            u = float(rng.uniform(0.0, sum(b - a for a, b in spans)))
-            for a, b in spans:
-                if u <= b - a:
-                    break
-                u -= b - a
-            t_start, q0, qd0 = script.start_state(min(a + u, b))
+            t_start, q0, qd0 = script.start_state(mid_start_time(
+                spans, float(rng.uniform(0.0, sum(b - a for a, b in spans)))))
         elif not isinstance(start, str):
             t_start, q0, qd0 = script.start_state(float(start))
             start = "mid"
@@ -500,14 +502,21 @@ class R5Env(gym.Env):
                 qvel[:3] += r.uniform(-cfg.start_root_velocity_noise, cfg.start_root_velocity_noise, 3)
             self._mid(tk, t_start, qpos, qvel, seeds)
         k = int(self.factors["latency_steps"])  # 12
-        if k:
-            queue = self._delay.enter_context(speedfit.servo_delay(p, k))
-            if start == "mid":
-                step = self.dt * cfg.rate
+        queue = self._delay.enter_context(speedfit.servo_delay(p, k)) if k else None
+        if start == "mid":
+            # The servos hold what the zero action commanded before the start, not their home targets
+            # (``Plant.set_state``'s): the queue's oldest command, or without a delay the one of the physics step
+            # before.  One forward pass on that, and the estimator's first reading (foot loads, accelerometer,
+            # contact flags) is taken from it, as is the core's (``MID_START_RULE``).
+            step = self.dt * cfg.rate
+            if k:
                 queue.clear()
                 queue.extend(self._zero_ctrl(tk, max(t_start - j * step, 0.0)) for j in range(k, 0, -1))
                 p.d.ctrl[:] = queue[0]
-                mujoco.mj_forward(p.m, p.d)
+            else:
+                p.d.ctrl[:] = self._zero_ctrl(tk, max(t_start - step, 0.0))
+            mujoco.mj_forward(p.m, p.d)
+            tk.est.reset(p.d.qpos.copy(), p.d.qvel.copy(), tk.sensors.read())
         self.core.begin(lambda: self.tk.tau_ref, lambda: r5core.tracker_estimate(self.tk), script, self.head)  # 13
         self._after_begin(start, t_start)
         return self._observation(), dict(self._info(), seconds=self.seconds, n_steps=self.n_steps, seeds=dict(seeds),
@@ -642,6 +651,25 @@ class R6Env(R5Env):
         self.tk.q_target, self.tk.rate_factor = self.core.targets(a_f)
 
 
+def mid_start_time(spans, u: float) -> float:
+    """The reference time of a mid-task start (``MID_START_RULE``): ``u``, drawn uniform on [0, the spans' total
+    length], laid along ``spans`` (``Script.mid_spans``: (start, end) in order), and kept inside the span it falls
+    in.  The subtractions along the spans can leave ``u`` a rounding step past the last span's length, and a span
+    may end at a hold's first instant, where no start can land: the result is always before its span's end."""
+    spans = [(float(a), float(b)) for a, b in spans]
+    if not spans:
+        raise ValueError("no span: this task has no mid-task start (rule T3)")
+    u = float(u)
+    for a, b in spans:
+        if u <= b - a:
+            break
+        u -= b - a
+    else:
+        u = b - a  # (past the last span's length, by rounding: its end)
+    t = a + min(max(u, 0.0), b - a)
+    return float(np.nextafter(b, a)) if t >= b else t
+
+
 def make(mode: str, cfg: R5Config, seed: int | None = None) -> R5Env:
     """The factory the worker pool names (``"designlab.stage2.r5env:make"``).  ``cfg`` may be a config's
     ``describe()`` (a plain dict crosses a process boundary as JSON)."""
@@ -725,4 +753,4 @@ def throughput(mode: str, cfg: R5Config, env_steps: int = 2000, sigma: float = 0
 
 
 __all__ = ["DRAW_ORDER", "FLOOR_SPREAD", "FREEZE_RULE", "MODES", "R5Config", "R5Env", "R5Tracker", "R6Env", "RESET_ORDER",
-           "STEP_ORDER", "config_from", "env_configs", "make", "set_freeze", "throughput"]
+           "STEP_ORDER", "config_from", "env_configs", "make", "mid_start_time", "set_freeze", "throughput"]

@@ -359,7 +359,9 @@ def test_mid_start_queue_holds_the_references_commands(e0):
         assert np.array_equal(late[1 + j], now[1 + j - k])
     assert np.array_equal(late[0], late[1])  # the oldest of the queue, set at the reset
     assert not np.array_equal(late[0], e0.p.ctrl_home)
-    assert np.array_equal(now[0], e0.p.ctrl_home)  # (no delay: Plant.set_state's targets until the first command)
+    # no delay: the servos are set to the command of one physics step before the start (the newest the delayed
+    # run's queue holds), not left at Plant.set_state's home targets
+    assert np.array_equal(now[0], late[k]) and not np.array_equal(now[0], e0.p.ctrl_home)
     # the three before the start, against an undelayed tracker played from three steps earlier
     e0.close()
     t_frame, q, qd = e0.scripts["brisk"].start_state(t)
@@ -375,6 +377,93 @@ def test_mid_start_queue_holds_the_references_commands(e0):
     want = e0.p.d.ctrl.copy()
     tk.step()
     assert np.array_equal(e0.p.d.ctrl, want)
+
+
+@needs_run
+@pytest.mark.parametrize("k", [0, 5])
+def test_mid_start_first_reading_is_of_the_zero_actions_command(e0, k):
+    """At a mid-task start the plant's first forward pass (``Plant.set_state``) runs with the servos at their home
+    targets while the pose is mid-stride.  The env sets the servos to what the zero action commanded before the
+    start, computes the pass again and resets the estimator from it, with and without a delay: the first
+    observation's foot loads and the estimator's and the core's first contact flags are that pass's.  (With the
+    sensor noise off, so that the numbers can be compared exactly.)"""
+    p, w = e0.p, e0.weight
+    lay = e0.layout["blocks"]["foot_load"]
+    scratch = mujoco.MjData(p.m)
+
+    def loads_under(ctrl) -> np.ndarray:  # the forward pass on the plant's state with these servo targets
+        scratch.qpos[:], scratch.qvel[:], scratch.ctrl[:] = p.d.qpos, p.d.qvel, ctrl
+        mujoco.mj_forward(p.m, scratch)
+        return scratch.sensordata[p._load_adr].copy()
+
+    apart = []
+    for t in (6.2, 8.31, 9.6, 14.02, 20.9):
+        obs, info = e0.reset(options=dict(task="brisk", start=t, seeds=dict(start=123, noise=456),
+                                          factors=dict(latency_steps=k, noise_scale=0.0)))
+        tk, est = e0.tk, e0.tk.est
+        step = 0.002 * RATE
+        want = e0._zero_ctrl(tk, info["t_start"] - (k if k else 1) * step)  # (d.ctrl is its workspace ...)
+        p.d.ctrl[:] = want  # (... and holds the same values again)
+        loads = p.d.sensordata[p._load_adr].copy()
+        np.testing.assert_allclose(loads, loads_under(want), rtol=0, atol=1e-9 * w)
+        np.testing.assert_array_equal(est.load, loads)
+        np.testing.assert_allclose(obs[lay[0] : lay[1]], loads / w, rtol=1e-6, atol=1e-7)
+        np.testing.assert_array_equal(est.q, p.d.qpos[p.qadr])  # still reset from the known state
+        np.testing.assert_array_equal(est.base, p.d.qpos[:3])
+        assert est.contact.tolist() == (loads > est.g.contact_on * est.weight).tolist()
+        assert e0.core._contact == (loads > 0.02 * w).tolist()
+        apart.append(float(np.max(np.abs(loads_under(p.ctrl_home) - loads))) / w)
+        assert np.max(loads) < 2.5 * w
+    assert min(apart) > 0.3 and max(apart) > 2.0  # the home targets' pass: body weights away at every start
+    # with the default noise the first observation is still that pass's, within the load noise
+    obs, info = e0.reset(options=dict(task="brisk", start=9.6, seeds=dict(start=123, noise=456),
+                                      factors=dict(latency_steps=k)))
+    np.testing.assert_allclose(obs[lay[0] : lay[1]], p.d.sensordata[p._load_adr] / w, rtol=0, atol=0.05)
+
+
+def test_mid_start_time_stays_inside_its_span():
+    """The uniform draw laid along the spans (rule T3): inside a span the time is the span's start plus what is
+    left of the draw; a draw that the subtractions along the spans leave a rounding step past the last span, or that
+    falls on a span's end, gives the last instant before that end (a span may end where a hold begins)."""
+    spans = [(0.2, 5.678), (5.678, 7.949), (7.949, 13.627)]  # Stage 1's stop task: the hold begins at 13.627
+    total = sum(b - a for a, b in spans)
+    f = r5env.mid_start_time
+    assert f(spans, 0.0) == 0.2 and f(spans, 1.0) == 1.2 and f(spans, 5.478 + 1.0) == pytest.approx(6.678, abs=1e-12)
+    assert f(spans, 5.478 + 2.271 + 3.0) == pytest.approx(10.949, abs=1e-9)
+    for u in (total, float(np.nextafter(total, np.inf)), total + 1e-9, total + 5.0):
+        t = f(spans, u)
+        assert t == float(np.nextafter(13.627, 0.0)) and 7.949 <= t < 13.627
+    for a, b in spans:  # a draw that falls on a span's end, or just short of it
+        on_end = sum(y - x for x, y in spans if y <= a) + (b - a)
+        assert a <= f(spans, on_end) < b
+        t = f(spans, on_end - 1e-9)
+        assert a <= t < b and t == pytest.approx(b - 1e-9, abs=1e-12)
+    rng = np.random.default_rng(3)
+    for u in rng.uniform(0.0, total, 2000):
+        t = f(spans, float(u))
+        assert any(a <= t < b for a, b in spans)
+    assert f([(1.0, 1.0 + 1e-12)], 5.0) < 1.0 + 1e-12 and f(spans, -1.0) == 0.2
+    with pytest.raises(ValueError, match="no span"):
+        f([], 0.3)
+
+
+@needs_run
+def test_a_mid_start_draw_at_the_end_of_the_last_span_does_not_land_in_the_hold(e0):
+    """The stop task's last span ends where its hold begins, and a start in the hold is refused: the largest value
+    the draw can take still gives a start, in the stop itself."""
+    s = e0.scripts["stop"]
+    spans = s.mid_spans()
+    hold = next(seg for seg in s.track.segments if seg.kind == "hold")
+    assert spans[-1][1] == hold.t0  # (2 s x the clock rate before the plan's end lies inside the 4 s hold)
+    with pytest.raises(ValueError, match="hold"):
+        s.start_state(spans[-1][1])
+    total = sum(b - a for a, b in spans)
+    for u in (total, float(np.nextafter(total, np.inf))):
+        t = r5env.mid_start_time(spans, u)
+        t_frame, _, _ = s.start_state(t)
+        assert s.kind(t) == "finite" and t_frame <= t < hold.t0
+        _, info = e0.reset(options=dict(task="stop", start=t))
+        assert info["start"] == "mid" and info["t_start"] == t_frame
 
 
 @needs_run
