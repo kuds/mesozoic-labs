@@ -870,6 +870,12 @@ def test_unpack_only_the_named_parts(built, tmp_path):
         f"{case}/models/{body}.{s}" for body, case in CASES.items() for s in ("xml", "json"))
     with pytest.raises(bundle.BundleError, match="not parts of bundle t1: nope.tar"):
         bundle.unpack(doc, pdir, tmp_path / "some", parts=["nope.tar"])
+    # an empty selection is no selection (it would report "OK" with nothing unpacked); nor is a name alone a list
+    for nothing, text in (([], "no part is named"), ((), "no part is named"),
+                          ("models-T-A.tar", "a list of part names"), ([3, "models-T-A.tar"], "a list of part names")):
+        with pytest.raises(bundle.BundleError, match=text):
+            bundle.unpack(doc, pdir, tmp_path / "none", parts=nothing)
+    assert _files_under(tmp_path / "none") == []
 
 
 def _members(path: Path) -> list:
@@ -1057,6 +1063,11 @@ def test_cli_verify_and_unpack(built, tmp_path):
     (spoiled / PART).write_bytes((spoiled / PART).read_bytes()[:-512])
     got = _run(cli + ["unpack", "--manifest", manifest, "--parts", str(spoiled), "--root", str(tmp_path / "two")])
     assert got.returncode == 1 and got.stdout.startswith(f"S2 BUNDLE: NOT UNPACKED: {PART}: ")
+    assert _files_under(tmp_path / "two") == []
+    # an empty selection is refused, not reported as "0 files of 0 parts: OK"
+    got = _run(cli + ["unpack", "--manifest", manifest, "--parts", parts, "--root", str(tmp_path / "two"), "--only",
+                      ""])
+    assert got.returncode == 1 and got.stdout.startswith("S2 BUNDLE: NOT UNPACKED: no part is named")
     assert _files_under(tmp_path / "two") == []
 
 

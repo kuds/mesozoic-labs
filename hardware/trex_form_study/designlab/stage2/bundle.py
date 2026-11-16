@@ -764,8 +764,9 @@ def _dest(root_real: str, rel: str) -> Path:
 def unpack(manifest, parts_dir, root, *, parts=None) -> dict:
     """Unpack the bundle's parts from ``parts_dir`` to their study paths under ``root``.
 
-    ``manifest``: the document or the path of ``MANIFEST.json``; ``parts`` (keyword only): the part names to unpack,
-    default every part of the manifest (rule N4's second fallback brings the model parts alone).
+    ``manifest``: the document or the path of ``MANIFEST.json``; ``parts`` (keyword only): a list of the part names
+    to unpack, default (None) every part of the manifest (rule N4's second fallback brings the model parts alone).
+    An empty list is refused: it would unpack nothing and report no problem.
 
     Before anything is written, every chosen part is read to its end and ``BundleError`` refuses: a manifest with a
     problem (``manifest_problems``), a part that is missing or whose size or sha256 differs, and whatever
@@ -784,7 +785,15 @@ def unpack(manifest, parts_dir, root, *, parts=None) -> dict:
         raise BundleError(f"the manifest has {_count(len(bad), 'problem')}, nothing is unpacked: "
                           + "; ".join(bad[:5]))
     content = doc["content"]
-    names = sorted(content["parts"]) if parts is None else sorted(set(parts))
+    if parts is None:
+        names = sorted(content["parts"])
+    elif not isinstance(parts, (list, tuple, set, frozenset)) or not all(isinstance(n, str) for n in parts):
+        raise BundleError(f"parts: give a list of part names, not {parts!r}")
+    elif not parts:
+        raise BundleError("no part is named: nothing would be unpacked (name the parts, or leave the selection out "
+                          "for every part of the bundle)")
+    else:
+        names = sorted(set(parts))
     unknown = [n for n in names if n not in content["parts"]]
     if unknown:
         raise BundleError(f"not parts of bundle {content['bundle_id']}: {', '.join(map(str, unknown))}")
