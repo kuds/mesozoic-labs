@@ -1,0 +1,2305 @@
+{
+ "schema": "barviews-clips-1",
+ "what": "video clips of the bar's episodes and of the frozen references: views, no verdict, nothing adopted",
+ "labels": {
+  "simulated": "SIMULATION (physics)",
+  "planned": "PLANNED MOTION (kinematic, no physics)"
+ },
+ "rules": {
+  "selection": "which episode a clip shows (stated before any record existed): the block's first seed; if that episode's outcome (stayed up or fell) is not the majority outcome of the record's episodes, in addition the lowest seed with the majority outcome whose trace is kept.  An episode that failed to run has no outcome and no clip.  On a tie the first seed's outcome counts as the majority.  A trace that was not kept, is missing or does not have the record's sha256 gives no clip; the manifest says why",
+  "span": "a clip starts 1 s before the command and ends 1 s after the end of the move (a turn: the end of its own file on the reference clock, read from the trace; a stop: the planned rest; a nudge: the pulse's end plus the bar's recovery limit) or at the trace's end if that comes first; a walk: the first 10 s of its judged window.  An episode that fell: the clip runs to the fall instant the record gives and the last recorded pose is held for 1 s under the caption 'fell' (a trace ends at the fall); if it fell before its command the clip is the last 4 s before the fall; a walk that fell (it has no judged window): the last 10 s before the fall, from the episode's start if it is shorter",
+  "before": "an episode that fell before its condition's own move began shows something else than its title: the start from standing or the change of speed, seconds before the turn, the stop or the push was due.  'Before' is read from the record: a turn or a stop, the episode's fell_before_command; a nudge, its push's fell_before_pulse; a walk, a segment_reached that is not the walk's own reference.  Such a clip says so on every frame, in two lines under the title ('THE TURN WAS NEVER COMMANDED: ...', with the fall's second, the part of its plan the episode had reached, and when the command was due: the command's reference time over the commanded clock rate, 'about', or a push's own onset), in the bottom line and in the fall's caption; its manifest entry has fell_before_its_move true and no command caption.  Episodes of different conditions with one seed are the same motion up to their commands: one fall in the start can be the clip of several records",
+  "time": "30 frames a second at real time: frame k shows the simulated time t0 + k / 30 s; between the 50 Hz rows the root position and the joint angles are interpolated linearly and the root's quaternion by normalised linear interpolation (clips.Playback's rule)",
+  "pose": "simulated: pose_of on the episode's trace (the attitude and the root's place exact, the height from the feet's low points, the joint angles moved back one physics step); the pose of an episode's trace row is a measured bound, not exact: the attitude and the root's place are exact, the joint angles are a cubic spline through the 50 Hz angles read one physics step earlier.  On a Stage 1 smoke episode run with the plant's own body positions kept (75-M-H-10, turn/walking_0.35_left, R2/42@0ms, seed 3042, 1461 rows) every body origin came back within 0.08 mm on every row but the first and within 0.11 mm on the first (the start's transient lies before the first joint sample).  On the chain's traces there is no such truth, only the trace's own foot and CoM columns: over the 1120 episodes that stayed up in the turn records of V0 and F25F9cl (67 records, 15 Nov) the rebuilt feet lay up to 0.73 mm from them in plan (the median of the records' largest: 0.19 mm) and the CoM up to 0.04 mm, and the two feet's answers for the root's height differed by up to 1.02 mm (1.35 mm in an episode that fell): the largest on the rows next to a touchdown, a slip or a fall, where the joint speeds jump between two rows.  The brief's 0.1 mm is therefore met on a kinematic play and, but for the first row, on the smoke episode, not on every row of the chain's traces (each clip's manifest entry and each turn record's block give their own largest distances: pose_residual_m, pose_check_worst; barviews posecheck prints them for any record).  planned: the frozen reference played kinematically at the bar's commanded clock (exact)",
+  "cameras": "visitor and side: clips.CAMERAS' eye height, distance and bearing, the bearing counted from the incoming walking line and kept for the whole clip; the look-at point follows the planned root path (the reference at the reference time the episode's own clock has reached, so that the clock's play does not move the picture), averaged over one stride, moved to the body's bounding box centre as it lies from the root at home and at that centre's height.  A simulated clip moves that path by one constant for the whole clip: the mean, over the clip's seconds, of the simulated root's place from its planned place (a robot that drifted off its plan before the clip is then still in the picture). Within a clip the cameras do not follow the body: not its wobble, and not a drift from the plan during the clip, which shows as the robot leaving the picture's centre.  The robot is held in the free part of the picture by two constants per clip: the look-at point is raised by the smallest of 0 to 0.6 m (steps of 0.05 m) and the eye pulled back along its line of sight by the smallest factor of 1 to 2.5 (steps of 0.1; the factor first, then the raise) that keep every surface point of the robot, on every third frame, inside the part of the picture the label bands leave free; a clip of an episode that fell: free of the fall's caption too.  The label gives the eye's height and distance when the eye was pulled back; if no pair holds the robot, the largest factor and its best raise are used and the command prints a warning.  top: a fixed eye straight above the middle of the clip's sweep, high enough to hold it, the picture's up along the incoming walking line, the headlight's diffuse part lowered to 0.2 (straight down the model's own washes the floor out)",
+  "labels": "first line of every frame: 'SIMULATION (physics)' or 'PLANNED MOTION (kinematic, no physics)', never both, the body and the set; second line: the condition and the row in plain words; bottom: seed, how it was chosen ('first seed' or 'majority outcome': the lowest seed with the majority outcome), this episode's outcome (a fall with its second of the episode), the record's count; then the view and the clock.  The clock of a simulated clip gives two times, 'clip 4.00 s = episode 8.22 s': the seconds since the clip's first frame and the episode's own time, the one a fall's second and the records use; while the last pose is held after a fall the episode's time stands still, 'clip 5.00 s (held at episode 4.72 s)'.  From the command, for 1.5 s: 'command: ...' (read from the record); from the fall instant: 'fell'",
+  "watch": "the clips are 854 x 480 and made for a landscape or a full screen.  The title's second line and the bottom's first line are 17 px tall, the other lines 13 to 15 px: at a phone's portrait width (390 px) they come out under 8 px, hard to read",
+  "media": "854 x 480, H.264 through clips.encode, at most 3000000 bytes each; a poster and a contact sheet (the frames at 1/8, 3/8, 5/8 and 7/8 of the clip) beside each; the media are written outside git and listed here with their sha256"
+ },
+ "run": "stage2/runs/2026-11-15-75cm",
+ "media_dir": "outside git (the --media directory of the run; files relative to it)",
+ "fps": 30,
+ "max_bytes": 3000000,
+ "clips": [
+  {
+   "file": "F25F9cl/75-M-H-10_F25F9cl_turn-q90_left_R2-42_0ms_seeds3042_seed3042_top.mp4",
+   "poster": "F25F9cl/75-M-H-10_F25F9cl_turn-q90_left_R2-42_0ms_seeds3042_seed3042_top.png",
+   "sheet": "F25F9cl/75-M-H-10_F25F9cl_turn-q90_left_R2-42_0ms_seeds3042_seed3042_top_sheet.png",
+   "view": "top",
+   "kind": "simulated",
+   "bytes": 244485,
+   "sha256": "4919d6768eaceb019e1cc586a20eeb0d0c330b76b8e7ac072ca002a042bb5004",
+   "frames": 201,
+   "fps": 30,
+   "seconds": 6.666666666666667,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "SIMULATION (physics)  |  75-M-H-10 (75 cm Hybrid)  |  the candidate (F25F9cl)",
+     "quick 90\u00b0 turn to the left at 0.40 m/s  |  controller R2/42, servo delay 0 ms, floor grip 0.9"
+    ],
+    "bottom": [
+     "seed 3042 (first seed): stayed up  |  stayed up in 20 of 20",
+     "top view: straight down; up is the incoming walking line"
+    ],
+    "notice": null
+   },
+   "bands_px": [
+    48,
+    44
+   ],
+   "captions": {
+    "command": "command: turn left 90\u00b0",
+    "fell": null
+   },
+   "span": {
+    "t0": 16.762300621983872,
+    "t1": 23.428942857991245,
+    "hold_s": 0.0,
+    "command_s": 17.762300621983872,
+    "fall_s": null,
+    "notes": []
+   },
+   "poster_at_s": 1.75,
+   "sheet_at_s": [
+    0.8333333333333334,
+    2.5,
+    4.166666666666667,
+    5.833333333333334
+   ],
+   "camera": {
+    "kind": "fixed",
+    "lookat": [
+     4.340749096757205,
+     1.0246999707166353,
+     0.3753989386587561
+    ],
+    "height_above_lookat_m": 7.334996439884971,
+    "up_deg": 0.0,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 14.704411559899853,
+   "framing_margin_under_captions_px": -23.295588440100147,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 244485,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 244485
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 201,
+    "pix_fmt": "yuv420p",
+    "duration_s": 6.7,
+    "bytes": 244485
+   },
+   "render_s": 37.06702947300073,
+   "encode_s": 1.0480989230054547,
+   "set": "F25F9cl",
+   "condition": "turn/q90_left",
+   "row": "R2/42@0ms",
+   "block": "seeds3042",
+   "record": "F25F9cl/75-M-H-10/seeds3042/eval/R2/42@0ms/turn/q90_left.json",
+   "seed": 3042,
+   "selection": "first seed",
+   "selection_words": "the first seed",
+   "passed_over": [],
+   "fell_before_its_move": false,
+   "segment_reached": "v0.4",
+   "outcome": "stayed up",
+   "record_count": "stayed up in 20 of 20",
+   "majority_outcome": "stayed up",
+   "trace": "R2/42@0ms/turn/q90_left/3042.npz",
+   "trace_sha256": "e649ca75cec2a56f4ede97ee336de226130307c33445cac5f872dec297ebc6cf",
+   "record_key_sha256": "5938b93f477b430cc48994f2d941287044938e4201200e95861c811a91574f95",
+   "pose_residual_m": {
+    "feet_xy": 5.5665310882288543e-05,
+    "com_xy": 1.167349639175086e-05,
+    "feet_height": 0.00015484156734346666
+   },
+   "in_words": "quick 90\u00b0 turn to the left at 0.40 m/s",
+   "row_in_words": "controller R2/42, servo delay 0 ms, floor grip 0.9",
+   "made": {
+    "at": "2026-11-15T23:55:47Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  },
+  {
+   "file": "F25F9cl/75-M-H-10_F25F9cl_turn-q90_left_R2-42_0ms_seeds3042_seed3042_visitor.mp4",
+   "poster": "F25F9cl/75-M-H-10_F25F9cl_turn-q90_left_R2-42_0ms_seeds3042_seed3042_visitor.png",
+   "sheet": "F25F9cl/75-M-H-10_F25F9cl_turn-q90_left_R2-42_0ms_seeds3042_seed3042_visitor_sheet.png",
+   "view": "visitor",
+   "kind": "simulated",
+   "bytes": 836721,
+   "sha256": "154a893f35b65cf274c5fb199518334725bf169a29040b7015bada5258c22867",
+   "frames": 201,
+   "fps": 30,
+   "seconds": 6.666666666666667,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "SIMULATION (physics)  |  75-M-H-10 (75 cm Hybrid)  |  the candidate (F25F9cl)",
+     "quick 90\u00b0 turn to the left at 0.40 m/s  |  controller R2/42, servo delay 0 ms, floor grip 0.9"
+    ],
+    "bottom": [
+     "seed 3042 (first seed): stayed up  |  stayed up in 20 of 20",
+     "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+    ],
+    "notice": null
+   },
+   "bands_px": [
+    48,
+    44
+   ],
+   "captions": {
+    "command": "command: turn left 90\u00b0",
+    "fell": null
+   },
+   "span": {
+    "t0": 16.762300621983872,
+    "t1": 23.428942857991245,
+    "hold_s": 0.0,
+    "command_s": 17.762300621983872,
+    "fall_s": null,
+    "notes": []
+   },
+   "poster_at_s": 1.75,
+   "sheet_at_s": [
+    0.8333333333333334,
+    2.5,
+    4.166666666666667,
+    5.833333333333334
+   ],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "kind": "follows the planned root path, averaged over one stride",
+    "lookat_height_m": 0.3753989386587561,
+    "lookat_offset_from_root_m": [
+     -0.0845749867458902,
+     0.0
+    ],
+    "shift_from_plan_m": [
+     -0.04341163026183357,
+     -0.06707275859065459
+    ],
+    "pulled_back": 1.0,
+    "lookat_raised_m": 0.0,
+    "eye_height_m": 1.5,
+    "eye_distance_m": 2.5,
+    "largest_distance_box_centre_to_lookat_m": 0.0636091793980565,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 8.3898566354884,
+   "framing_margin_under_captions_px": 8.3898566354884,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 836721,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 836721
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 201,
+    "pix_fmt": "yuv420p",
+    "duration_s": 6.7,
+    "bytes": 836721
+   },
+   "render_s": 38.40153469800134,
+   "encode_s": 2.0286235340026906,
+   "set": "F25F9cl",
+   "condition": "turn/q90_left",
+   "row": "R2/42@0ms",
+   "block": "seeds3042",
+   "record": "F25F9cl/75-M-H-10/seeds3042/eval/R2/42@0ms/turn/q90_left.json",
+   "seed": 3042,
+   "selection": "first seed",
+   "selection_words": "the first seed",
+   "passed_over": [],
+   "fell_before_its_move": false,
+   "segment_reached": "v0.4",
+   "outcome": "stayed up",
+   "record_count": "stayed up in 20 of 20",
+   "majority_outcome": "stayed up",
+   "trace": "R2/42@0ms/turn/q90_left/3042.npz",
+   "trace_sha256": "e649ca75cec2a56f4ede97ee336de226130307c33445cac5f872dec297ebc6cf",
+   "record_key_sha256": "5938b93f477b430cc48994f2d941287044938e4201200e95861c811a91574f95",
+   "pose_residual_m": {
+    "feet_xy": 5.5665310882288543e-05,
+    "com_xy": 1.167349639175086e-05,
+    "feet_height": 0.00015484156734346666
+   },
+   "in_words": "quick 90\u00b0 turn to the left at 0.40 m/s",
+   "row_in_words": "controller R2/42, servo delay 0 ms, floor grip 0.9",
+   "made": {
+    "at": "2026-11-15T23:55:47Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  },
+  {
+   "file": "F25F9cl/75-M-H-10_F25F9cl_turn-q90_left_planned_top.mp4",
+   "poster": "F25F9cl/75-M-H-10_F25F9cl_turn-q90_left_planned_top.png",
+   "sheet": "F25F9cl/75-M-H-10_F25F9cl_turn-q90_left_planned_top_sheet.png",
+   "view": "top",
+   "kind": "planned",
+   "bytes": 248277,
+   "sha256": "d0803eceade84fbf8989f54c9c29c597d6f2e064c3e6e2f9d58207876c4a4e08",
+   "frames": 201,
+   "fps": 30,
+   "seconds": 6.666666666666667,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "PLANNED MOTION (kinematic, no physics)  |  75-M-H-10 (75 cm Hybrid)  |  the candidate (F25F9cl)",
+     "quick 90\u00b0 turn to the left at 0.40 m/s  |  the frozen reference played at the bar's commanded clock (1.05 x)"
+    ],
+    "bottom": [
+     "top view: straight down; up is the incoming walking line"
+    ],
+    "notice": null
+   },
+   "bands_px": [
+    48,
+    27
+   ],
+   "captions": {
+    "command": "command: turn left 90\u00b0",
+    "fell": null
+   },
+   "span": {
+    "t0": 16.761216453252256,
+    "t1": 23.429915116532314,
+    "hold_s": 0.0,
+    "command_s": 17.761216453252256,
+    "fall_s": null,
+    "notes": []
+   },
+   "poster_at_s": 1.75,
+   "sheet_at_s": [
+    0.8333333333333334,
+    2.5,
+    4.166666666666667,
+    5.833333333333334
+   ],
+   "camera": {
+    "kind": "fixed",
+    "lookat": [
+     4.454092403079776,
+     1.0977025941993799,
+     0.3753989386587561
+    ],
+    "height_above_lookat_m": 6.99335879116397,
+    "up_deg": 0.0,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 15.183076939229778,
+   "framing_margin_under_captions_px": -22.816923060770222,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 248277,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 248277
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 201,
+    "pix_fmt": "yuv420p",
+    "duration_s": 6.7,
+    "bytes": 248277
+   },
+   "render_s": 36.227432219995535,
+   "encode_s": 0.9718709430017043,
+   "set": "F25F9cl",
+   "condition": "turn/q90_left",
+   "row": null,
+   "block": null,
+   "record": null,
+   "seed": null,
+   "selection": null,
+   "outcome": null,
+   "reference_files": {
+    "refs/nominal.npz": "3dafd4c34dcd398fa04c254bdb0b3cd4dadaab00c8ab8880710222e2f7284e4d",
+    "refs/v0.4.npz": "e0034485466cb6375d985b7adef2989e58e46731091459b67945c85bab5a53cd",
+    "transitions/nominal_to_v0.4.npz": "61c799486b12f665eb44109c75b6f241a87572d7b325f5d87ccd612b2b94da41",
+    "transitions/start.npz": "e6bd25b3e29d089739262d9c98906d2b126a2ca94ba17b14e4b4cbee6a66c63a",
+    "transitions/turn90_pi4_left.npz": "da01f1bf4ebf02a22e0b29a9d81d5fc309b2408bdbb4b60b830f374d09d8ebeb"
+   },
+   "set_freeze": {
+    "index": 0,
+    "manifest_sha256": "cebd3d238b377a5c2e99d1c426b722c7499dc907b082d70ff0041293fb3ce113"
+   },
+   "in_words": "quick 90\u00b0 turn to the left at 0.40 m/s",
+   "made": {
+    "at": "2026-11-16T00:07:39Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  },
+  {
+   "file": "F25F9cl/75-M-H-10_F25F9cl_turn-q90_left_planned_visitor.mp4",
+   "poster": "F25F9cl/75-M-H-10_F25F9cl_turn-q90_left_planned_visitor.png",
+   "sheet": "F25F9cl/75-M-H-10_F25F9cl_turn-q90_left_planned_visitor_sheet.png",
+   "view": "visitor",
+   "kind": "planned",
+   "bytes": 841667,
+   "sha256": "7441abcadc247cb6130eb282d1e4515de55af923ab64c45ec1629cb49740597b",
+   "frames": 201,
+   "fps": 30,
+   "seconds": 6.666666666666667,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "PLANNED MOTION (kinematic, no physics)  |  75-M-H-10 (75 cm Hybrid)  |  the candidate (F25F9cl)",
+     "quick 90\u00b0 turn to the left at 0.40 m/s  |  the frozen reference played at the bar's commanded clock (1.05 x)"
+    ],
+    "bottom": [
+     "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+    ],
+    "notice": null
+   },
+   "bands_px": [
+    48,
+    27
+   ],
+   "captions": {
+    "command": "command: turn left 90\u00b0",
+    "fell": null
+   },
+   "span": {
+    "t0": 16.761216453252256,
+    "t1": 23.429915116532314,
+    "hold_s": 0.0,
+    "command_s": 17.761216453252256,
+    "fall_s": null,
+    "notes": []
+   },
+   "poster_at_s": 1.75,
+   "sheet_at_s": [
+    0.8333333333333334,
+    2.5,
+    4.166666666666667,
+    5.833333333333334
+   ],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "kind": "follows the planned root path, averaged over one stride",
+    "lookat_height_m": 0.3753989386587561,
+    "lookat_offset_from_root_m": [
+     -0.0845749867458902,
+     0.0
+    ],
+    "shift_from_plan_m": [
+     0.0,
+     0.0
+    ],
+    "pulled_back": 1.0,
+    "lookat_raised_m": 0.0,
+    "eye_height_m": 1.5,
+    "eye_distance_m": 2.5,
+    "largest_distance_box_centre_to_lookat_m": 0.04568664120263366,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 8.619591697510998,
+   "framing_margin_under_captions_px": 8.619591697510998,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 841667,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 841667
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 201,
+    "pix_fmt": "yuv420p",
+    "duration_s": 6.7,
+    "bytes": 841667
+   },
+   "render_s": 37.57598584600055,
+   "encode_s": 2.0581767089970526,
+   "set": "F25F9cl",
+   "condition": "turn/q90_left",
+   "row": null,
+   "block": null,
+   "record": null,
+   "seed": null,
+   "selection": null,
+   "outcome": null,
+   "reference_files": {
+    "refs/nominal.npz": "3dafd4c34dcd398fa04c254bdb0b3cd4dadaab00c8ab8880710222e2f7284e4d",
+    "refs/v0.4.npz": "e0034485466cb6375d985b7adef2989e58e46731091459b67945c85bab5a53cd",
+    "transitions/nominal_to_v0.4.npz": "61c799486b12f665eb44109c75b6f241a87572d7b325f5d87ccd612b2b94da41",
+    "transitions/start.npz": "e6bd25b3e29d089739262d9c98906d2b126a2ca94ba17b14e4b4cbee6a66c63a",
+    "transitions/turn90_pi4_left.npz": "da01f1bf4ebf02a22e0b29a9d81d5fc309b2408bdbb4b60b830f374d09d8ebeb"
+   },
+   "set_freeze": {
+    "index": 0,
+    "manifest_sha256": "cebd3d238b377a5c2e99d1c426b722c7499dc907b082d70ff0041293fb3ce113"
+   },
+   "in_words": "quick 90\u00b0 turn to the left at 0.40 m/s",
+   "made": {
+    "at": "2026-11-16T00:07:39Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  },
+  {
+   "file": "F25F9cl/75-M-H-10_F25F9cl_walk-v0.4_R2-42_10ms_seeds3042_seed3042_side.mp4",
+   "poster": "F25F9cl/75-M-H-10_F25F9cl_walk-v0.4_R2-42_10ms_seeds3042_seed3042_side.png",
+   "sheet": "F25F9cl/75-M-H-10_F25F9cl_walk-v0.4_R2-42_10ms_seeds3042_seed3042_side_sheet.png",
+   "view": "side",
+   "kind": "simulated",
+   "bytes": 220914,
+   "sha256": "5f843e99345411974136b9404e5a3dc3cb6e42f5983b3d018248ae5047b5aba1",
+   "frames": 173,
+   "fps": 30,
+   "seconds": 5.733333333333333,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "SIMULATION (physics)  |  75-M-H-10 (75 cm Hybrid)  |  the candidate (F25F9cl)",
+     "walk at 0.40 m/s  |  controller R2/42, servo delay 10 ms, floor grip 0.9"
+    ],
+    "bottom": [
+     "seed 3042 (first seed): fell 4.72 s into the episode, before the walk at 0.40 m/s began  |  stayed up in 0 of 20",
+     "side view: eye 0.6 m high, 3.5 m away (pulled back to hold the robot), on the robot's right"
+    ],
+    "notice": [
+     "THE WALK AT 0.40 m/s NEVER BEGAN: this episode fell before it",
+     "it fell 4.72 s into the episode, in the start from standing"
+    ]
+   },
+   "bands_px": [
+    91,
+    44
+   ],
+   "captions": {
+    "command": null,
+    "fell": "fell before the walk at 0.40 m/s began (tilt); the trace ends here, the last pose is held"
+   },
+   "span": {
+    "t0": 0.0,
+    "t1": 4.717999999999702,
+    "hold_s": 1.0,
+    "command_s": null,
+    "fall_s": 4.717999999999702,
+    "notes": [
+     "fell: it has no judged window"
+    ]
+   },
+   "poster_at_s": 4.733333333333333,
+   "sheet_at_s": [
+    0.7166666666666667,
+    2.15,
+    3.5833333333333335,
+    5.016666666666667
+   ],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "kind": "follows the planned root path, averaged over one stride",
+    "lookat_height_m": 0.3753989386587561,
+    "lookat_offset_from_root_m": [
+     -0.0845749867458902,
+     0.0
+    ],
+    "shift_from_plan_m": [
+     -0.022330333871218615,
+     -0.013556736898236606
+    ],
+    "pulled_back": 1.4,
+    "lookat_raised_m": 0.2,
+    "eye_height_m": 0.6098404245364976,
+    "eye_distance_m": 3.5,
+    "largest_distance_box_centre_to_lookat_m": 0.20740484156440947,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 13.73776555994084,
+   "framing_margin_under_captions_px": 5.89816401402058,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 220914,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 220914
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 173,
+    "pix_fmt": "yuv420p",
+    "duration_s": 5.766667,
+    "bytes": 220914
+   },
+   "render_s": 41.45526996999979,
+   "encode_s": 1.0264355589970364,
+   "set": "F25F9cl",
+   "condition": "walk/v0.4",
+   "row": "R2/42@10ms",
+   "block": "seeds3042",
+   "record": "F25F9cl/75-M-H-10/seeds3042/eval/R2/42@10ms/walk/v0.4.json",
+   "seed": 3042,
+   "selection": "first seed",
+   "selection_words": "the first seed",
+   "passed_over": [],
+   "fell_before_its_move": true,
+   "segment_reached": "start",
+   "outcome": "fell",
+   "record_count": "stayed up in 0 of 20",
+   "majority_outcome": "fell",
+   "trace": "R2/42@10ms/walk/v0.4/3042.npz",
+   "trace_sha256": "550cb7e1581dc24fb4d52221f3fb202a34bb148f1756de1434f3b9540bfe8f1c",
+   "record_key_sha256": "90eff18824b97e76f3fe14e35f75d399c5a7f717adf2b78ef731e7bbeb145d25",
+   "pose_residual_m": {
+    "feet_xy": 0.00016100592265858027,
+    "com_xy": 1.3876473821672342e-05,
+    "feet_height": 0.0003091041843871767
+   },
+   "in_words": "walk at 0.40 m/s",
+   "row_in_words": "controller R2/42, servo delay 10 ms, floor grip 0.9",
+   "made": {
+    "at": "2026-11-15T23:55:47Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  },
+  {
+   "file": "F25F9cl/75-M-H-10_F25F9cl_walk-v0.4_R2-42_10ms_seeds3042_seed3042_visitor.mp4",
+   "poster": "F25F9cl/75-M-H-10_F25F9cl_walk-v0.4_R2-42_10ms_seeds3042_seed3042_visitor.png",
+   "sheet": "F25F9cl/75-M-H-10_F25F9cl_walk-v0.4_R2-42_10ms_seeds3042_seed3042_visitor_sheet.png",
+   "view": "visitor",
+   "kind": "simulated",
+   "bytes": 335265,
+   "sha256": "484dffdf549146b1fa731cbe0929b0bf11aa16cdbe4837693cff8b78d6bae511",
+   "frames": 173,
+   "fps": 30,
+   "seconds": 5.733333333333333,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "SIMULATION (physics)  |  75-M-H-10 (75 cm Hybrid)  |  the candidate (F25F9cl)",
+     "walk at 0.40 m/s  |  controller R2/42, servo delay 10 ms, floor grip 0.9"
+    ],
+    "bottom": [
+     "seed 3042 (first seed): fell 4.72 s into the episode, before the walk at 0.40 m/s began  |  stayed up in 0 of 20",
+     "visitor's view: eye 1.7 m high, 3.0 m away (pulled back to hold the robot), three-quarter front"
+    ],
+    "notice": [
+     "THE WALK AT 0.40 m/s NEVER BEGAN: this episode fell before it",
+     "it fell 4.72 s into the episode, in the start from standing"
+    ]
+   },
+   "bands_px": [
+    91,
+    44
+   ],
+   "captions": {
+    "command": null,
+    "fell": "fell before the walk at 0.40 m/s began (tilt); the trace ends here, the last pose is held"
+   },
+   "span": {
+    "t0": 0.0,
+    "t1": 4.717999999999702,
+    "hold_s": 1.0,
+    "command_s": null,
+    "fall_s": 4.717999999999702,
+    "notes": [
+     "fell: it has no judged window"
+    ]
+   },
+   "poster_at_s": 4.733333333333333,
+   "sheet_at_s": [
+    0.7166666666666667,
+    2.15,
+    3.5833333333333335,
+    5.016666666666667
+   ],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "kind": "follows the planned root path, averaged over one stride",
+    "lookat_height_m": 0.3753989386587561,
+    "lookat_offset_from_root_m": [
+     -0.0845749867458902,
+     0.0
+    ],
+    "shift_from_plan_m": [
+     -0.022330333871218615,
+     -0.013556736898236606
+    ],
+    "pulled_back": 1.2,
+    "lookat_raised_m": 0.0,
+    "eye_height_m": 1.7249202122682488,
+    "eye_distance_m": 2.9999999999999996,
+    "largest_distance_box_centre_to_lookat_m": 0.20740484156440947,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 29.60266610822488,
+   "framing_margin_under_captions_px": 0.6733531191617317,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 335265,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 335265
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 173,
+    "pix_fmt": "yuv420p",
+    "duration_s": 5.766667,
+    "bytes": 335265
+   },
+   "render_s": 31.827469698997447,
+   "encode_s": 1.2009211810000124,
+   "set": "F25F9cl",
+   "condition": "walk/v0.4",
+   "row": "R2/42@10ms",
+   "block": "seeds3042",
+   "record": "F25F9cl/75-M-H-10/seeds3042/eval/R2/42@10ms/walk/v0.4.json",
+   "seed": 3042,
+   "selection": "first seed",
+   "selection_words": "the first seed",
+   "passed_over": [],
+   "fell_before_its_move": true,
+   "segment_reached": "start",
+   "outcome": "fell",
+   "record_count": "stayed up in 0 of 20",
+   "majority_outcome": "fell",
+   "trace": "R2/42@10ms/walk/v0.4/3042.npz",
+   "trace_sha256": "550cb7e1581dc24fb4d52221f3fb202a34bb148f1756de1434f3b9540bfe8f1c",
+   "record_key_sha256": "90eff18824b97e76f3fe14e35f75d399c5a7f717adf2b78ef731e7bbeb145d25",
+   "pose_residual_m": {
+    "feet_xy": 0.00016100592265858027,
+    "com_xy": 1.3876473821672342e-05,
+    "feet_height": 0.0003091041843871767
+   },
+   "in_words": "walk at 0.40 m/s",
+   "row_in_words": "controller R2/42, servo delay 10 ms, floor grip 0.9",
+   "made": {
+    "at": "2026-11-15T23:55:47Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  },
+  {
+   "file": "V0/75-M-H-10_V0_nudge-left_R2-42_0ms_seeds3042_seed3042_top.mp4",
+   "poster": "V0/75-M-H-10_V0_nudge-left_R2-42_0ms_seeds3042_seed3042_top.png",
+   "sheet": "V0/75-M-H-10_V0_nudge-left_R2-42_0ms_seeds3042_seed3042_top_sheet.png",
+   "view": "top",
+   "kind": "simulated",
+   "bytes": 153607,
+   "sha256": "cb3ae9ef0471601bc974685c283324fbd87008012bee71b59bd2f61b6f004378",
+   "frames": 154,
+   "fps": 30,
+   "seconds": 5.1,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "SIMULATION (physics)  |  75-M-H-10 (75 cm Hybrid)  |  today's walk (V0)",
+     "nudge left (0.25 of the push bound) while walking at 0.40 m/s  |  controller R2/42, servo delay 0 ms, floor grip 0.9"
+    ],
+    "bottom": [
+     "seed 3042 (first seed): stayed up  |  stayed up in 20 of 20",
+     "top view: straight down; up is the incoming walking line"
+    ],
+    "notice": null
+   },
+   "bands_px": [
+    48,
+    44
+   ],
+   "captions": {
+    "command": "command: push to its left (from its right), 22 newtons for 0.10 s",
+    "fell": null
+   },
+   "span": {
+    "t0": 12.707159642595771,
+    "t1": 17.80715964259577,
+    "hold_s": 0.0,
+    "command_s": 13.707159642595771,
+    "fall_s": null,
+    "notes": []
+   },
+   "poster_at_s": 1.75,
+   "sheet_at_s": [
+    0.6375,
+    1.9124999999999999,
+    3.1875,
+    4.4624999999999995
+   ],
+   "camera": {
+    "kind": "fixed",
+    "lookat": [
+     4.118532536736488,
+     -0.08606145780954985,
+     0.3753989386587561
+    ],
+    "height_above_lookat_m": 11.146673756960201,
+    "up_deg": 0.0,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 7.820677654291785,
+   "framing_margin_under_captions_px": 7.820677654291785,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 153607,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 153607
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 154,
+    "pix_fmt": "yuv420p",
+    "duration_s": 5.133333,
+    "bytes": 153607
+   },
+   "render_s": 27.433783051994396,
+   "encode_s": 0.7563996850003605,
+   "set": "V0",
+   "condition": "nudge/left",
+   "row": "R2/42@0ms",
+   "block": "seeds3042",
+   "record": "V0/75-M-H-10/seeds3042/eval/R2/42@0ms/nudge/left.json",
+   "seed": 3042,
+   "selection": "first seed",
+   "selection_words": "the first seed",
+   "passed_over": [],
+   "fell_before_its_move": false,
+   "segment_reached": "v0.4",
+   "outcome": "stayed up",
+   "record_count": "stayed up in 20 of 20",
+   "majority_outcome": "stayed up",
+   "trace": "R2/42@0ms/nudge/left/3042.npz",
+   "trace_sha256": "070e3772aec62b510e2741a8725153a276f42061c614cd798cf71af85f5b71f8",
+   "record_key_sha256": "4e41e0f0d2bb8be979e6dd0add4423e0d0c95c2b7344877383dd9dd906ccb28b",
+   "pose_residual_m": {
+    "feet_xy": 6.485092511709922e-05,
+    "com_xy": 7.765675286819373e-06,
+    "feet_height": 0.00016299358358851102
+   },
+   "in_words": "nudge left (0.25 of the push bound) while walking at 0.40 m/s",
+   "row_in_words": "controller R2/42, servo delay 0 ms, floor grip 0.9",
+   "made": {
+    "at": "2026-11-15T23:55:47Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  },
+  {
+   "file": "V0/75-M-H-10_V0_nudge-left_R2-42_0ms_seeds3042_seed3042_visitor.mp4",
+   "poster": "V0/75-M-H-10_V0_nudge-left_R2-42_0ms_seeds3042_seed3042_visitor.png",
+   "sheet": "V0/75-M-H-10_V0_nudge-left_R2-42_0ms_seeds3042_seed3042_visitor_sheet.png",
+   "view": "visitor",
+   "kind": "simulated",
+   "bytes": 635849,
+   "sha256": "b5f700b650b52fee5f4fe6f8c15ae604ddeaa456d4b20f3b24a9fec0b916c538",
+   "frames": 154,
+   "fps": 30,
+   "seconds": 5.1,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "SIMULATION (physics)  |  75-M-H-10 (75 cm Hybrid)  |  today's walk (V0)",
+     "nudge left (0.25 of the push bound) while walking at 0.40 m/s  |  controller R2/42, servo delay 0 ms, floor grip 0.9"
+    ],
+    "bottom": [
+     "seed 3042 (first seed): stayed up  |  stayed up in 20 of 20",
+     "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+    ],
+    "notice": null
+   },
+   "bands_px": [
+    48,
+    44
+   ],
+   "captions": {
+    "command": "command: push to its left (from its right), 22 newtons for 0.10 s",
+    "fell": null
+   },
+   "span": {
+    "t0": 12.707159642595771,
+    "t1": 17.80715964259577,
+    "hold_s": 0.0,
+    "command_s": 13.707159642595771,
+    "fall_s": null,
+    "notes": []
+   },
+   "poster_at_s": 1.75,
+   "sheet_at_s": [
+    0.6375,
+    1.9124999999999999,
+    3.1875,
+    4.4624999999999995
+   ],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "kind": "follows the planned root path, averaged over one stride",
+    "lookat_height_m": 0.3753989386587561,
+    "lookat_offset_from_root_m": [
+     -0.0845749867458902,
+     0.0
+    ],
+    "shift_from_plan_m": [
+     -0.08760699153295266,
+     -0.08959582728847625
+    ],
+    "pulled_back": 1.0,
+    "lookat_raised_m": 0.0,
+    "eye_height_m": 1.5,
+    "eye_distance_m": 2.5,
+    "largest_distance_box_centre_to_lookat_m": 0.0402718241681377,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 4.404926885173154,
+   "framing_margin_under_captions_px": 4.404926885173154,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 635849,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 635849
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 154,
+    "pix_fmt": "yuv420p",
+    "duration_s": 5.133333,
+    "bytes": 635849
+   },
+   "render_s": 29.49774180100212,
+   "encode_s": 1.5951477890048409,
+   "set": "V0",
+   "condition": "nudge/left",
+   "row": "R2/42@0ms",
+   "block": "seeds3042",
+   "record": "V0/75-M-H-10/seeds3042/eval/R2/42@0ms/nudge/left.json",
+   "seed": 3042,
+   "selection": "first seed",
+   "selection_words": "the first seed",
+   "passed_over": [],
+   "fell_before_its_move": false,
+   "segment_reached": "v0.4",
+   "outcome": "stayed up",
+   "record_count": "stayed up in 20 of 20",
+   "majority_outcome": "stayed up",
+   "trace": "R2/42@0ms/nudge/left/3042.npz",
+   "trace_sha256": "070e3772aec62b510e2741a8725153a276f42061c614cd798cf71af85f5b71f8",
+   "record_key_sha256": "4e41e0f0d2bb8be979e6dd0add4423e0d0c95c2b7344877383dd9dd906ccb28b",
+   "pose_residual_m": {
+    "feet_xy": 6.485092511709922e-05,
+    "com_xy": 7.765675286819373e-06,
+    "feet_height": 0.00016299358358851102
+   },
+   "in_words": "nudge left (0.25 of the push bound) while walking at 0.40 m/s",
+   "row_in_words": "controller R2/42, servo delay 0 ms, floor grip 0.9",
+   "made": {
+    "at": "2026-11-15T23:55:47Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  },
+  {
+   "file": "V0/75-M-H-10_V0_stop-two_step_R2-42_0ms_seeds3042_seed3042_side.mp4",
+   "poster": "V0/75-M-H-10_V0_stop-two_step_R2-42_0ms_seeds3042_seed3042_side.png",
+   "sheet": "V0/75-M-H-10_V0_stop-two_step_R2-42_0ms_seeds3042_seed3042_side_sheet.png",
+   "view": "side",
+   "kind": "simulated",
+   "bytes": 265746,
+   "sha256": "7fac841cd74319d8596c2f6922d12e05884a47478048921d51cbe19c6bb80912",
+   "frames": 147,
+   "fps": 30,
+   "seconds": 4.866666666666666,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "SIMULATION (physics)  |  75-M-H-10 (75 cm Hybrid)  |  today's walk (V0)",
+     "stop from 0.40 m/s within two steps  |  controller R2/42, servo delay 0 ms, floor grip 0.9"
+    ],
+    "bottom": [
+     "seed 3042 (first seed): stayed up  |  stayed up in 20 of 20",
+     "side view: eye 0.6 m high, 2.5 m away, on the robot's right"
+    ],
+    "notice": null
+   },
+   "bands_px": [
+    48,
+    44
+   ],
+   "captions": {
+    "command": "command: stop",
+    "fell": null
+   },
+   "span": {
+    "t0": 13.126257933959616,
+    "t1": 17.993311060344933,
+    "hold_s": 0.0,
+    "command_s": 14.126257933959616,
+    "fall_s": null,
+    "notes": []
+   },
+   "poster_at_s": 1.75,
+   "sheet_at_s": [
+    0.6083333333333333,
+    1.8249999999999997,
+    3.0416666666666665,
+    4.258333333333333
+   ],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "kind": "follows the planned root path, averaged over one stride",
+    "lookat_height_m": 0.3753989386587561,
+    "lookat_offset_from_root_m": [
+     -0.0845749867458902,
+     0.0
+    ],
+    "shift_from_plan_m": [
+     -0.08376159288180167,
+     -0.08685994474323053
+    ],
+    "pulled_back": 1.0,
+    "lookat_raised_m": 0.0,
+    "eye_height_m": 0.6,
+    "eye_distance_m": 2.5,
+    "largest_distance_box_centre_to_lookat_m": 0.031040614354397957,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 26.226126663411492,
+   "framing_margin_under_captions_px": -4.239109914022919,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 265746,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 265746
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 147,
+    "pix_fmt": "yuv420p",
+    "duration_s": 4.9,
+    "bytes": 265746
+   },
+   "render_s": 35.91441711499647,
+   "encode_s": 0.9966903980021016,
+   "set": "V0",
+   "condition": "stop/two_step",
+   "row": "R2/42@0ms",
+   "block": "seeds3042",
+   "record": "V0/75-M-H-10/seeds3042/eval/R2/42@0ms/stop/two_step.json",
+   "seed": 3042,
+   "selection": "first seed",
+   "selection_words": "the first seed",
+   "passed_over": [],
+   "fell_before_its_move": false,
+   "segment_reached": "stand",
+   "outcome": "stayed up",
+   "record_count": "stayed up in 20 of 20",
+   "majority_outcome": "stayed up",
+   "trace": "R2/42@0ms/stop/two_step/3042.npz",
+   "trace_sha256": "5e0b1d10511fafcf6d7abfa9d56bec675bbc2ca2d2de9c09b21cbcf068505e1f",
+   "record_key_sha256": "05d44c18d847edf1fb687bbcf2dc875a1e942d2b3437a8c40515a8bea59ce724",
+   "pose_residual_m": {
+    "feet_xy": 6.485092511709922e-05,
+    "com_xy": 6.665575779774002e-06,
+    "feet_height": 0.00012932098335088904
+   },
+   "in_words": "stop from 0.40 m/s within two steps",
+   "row_in_words": "controller R2/42, servo delay 0 ms, floor grip 0.9",
+   "made": {
+    "at": "2026-11-15T23:55:47Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  },
+  {
+   "file": "V0/75-M-H-10_V0_stop-two_step_R2-42_0ms_seeds3042_seed3042_visitor.mp4",
+   "poster": "V0/75-M-H-10_V0_stop-two_step_R2-42_0ms_seeds3042_seed3042_visitor.png",
+   "sheet": "V0/75-M-H-10_V0_stop-two_step_R2-42_0ms_seeds3042_seed3042_visitor_sheet.png",
+   "view": "visitor",
+   "kind": "simulated",
+   "bytes": 360945,
+   "sha256": "659deccdbe8587f2b7ceffcb6f003406a76dfb68187e44c5eb6c9b1714af3cff",
+   "frames": 147,
+   "fps": 30,
+   "seconds": 4.866666666666666,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "SIMULATION (physics)  |  75-M-H-10 (75 cm Hybrid)  |  today's walk (V0)",
+     "stop from 0.40 m/s within two steps  |  controller R2/42, servo delay 0 ms, floor grip 0.9"
+    ],
+    "bottom": [
+     "seed 3042 (first seed): stayed up  |  stayed up in 20 of 20",
+     "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+    ],
+    "notice": null
+   },
+   "bands_px": [
+    48,
+    44
+   ],
+   "captions": {
+    "command": "command: stop",
+    "fell": null
+   },
+   "span": {
+    "t0": 13.126257933959616,
+    "t1": 17.993311060344933,
+    "hold_s": 0.0,
+    "command_s": 14.126257933959616,
+    "fall_s": null,
+    "notes": []
+   },
+   "poster_at_s": 1.75,
+   "sheet_at_s": [
+    0.6083333333333333,
+    1.8249999999999997,
+    3.0416666666666665,
+    4.258333333333333
+   ],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "kind": "follows the planned root path, averaged over one stride",
+    "lookat_height_m": 0.3753989386587561,
+    "lookat_offset_from_root_m": [
+     -0.0845749867458902,
+     0.0
+    ],
+    "shift_from_plan_m": [
+     -0.08376159288180167,
+     -0.08685994474323053
+    ],
+    "pulled_back": 1.0,
+    "lookat_raised_m": 0.0,
+    "eye_height_m": 1.5,
+    "eye_distance_m": 2.5,
+    "largest_distance_box_centre_to_lookat_m": 0.031040614354397957,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 5.214159506850592,
+   "framing_margin_under_captions_px": 5.214159506850592,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 360945,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 360945
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 147,
+    "pix_fmt": "yuv420p",
+    "duration_s": 4.9,
+    "bytes": 360945
+   },
+   "render_s": 27.776801263004018,
+   "encode_s": 1.1436306289979257,
+   "set": "V0",
+   "condition": "stop/two_step",
+   "row": "R2/42@0ms",
+   "block": "seeds3042",
+   "record": "V0/75-M-H-10/seeds3042/eval/R2/42@0ms/stop/two_step.json",
+   "seed": 3042,
+   "selection": "first seed",
+   "selection_words": "the first seed",
+   "passed_over": [],
+   "fell_before_its_move": false,
+   "segment_reached": "stand",
+   "outcome": "stayed up",
+   "record_count": "stayed up in 20 of 20",
+   "majority_outcome": "stayed up",
+   "trace": "R2/42@0ms/stop/two_step/3042.npz",
+   "trace_sha256": "5e0b1d10511fafcf6d7abfa9d56bec675bbc2ca2d2de9c09b21cbcf068505e1f",
+   "record_key_sha256": "05d44c18d847edf1fb687bbcf2dc875a1e942d2b3437a8c40515a8bea59ce724",
+   "pose_residual_m": {
+    "feet_xy": 6.485092511709922e-05,
+    "com_xy": 6.665575779774002e-06,
+    "feet_height": 0.00012932098335088904
+   },
+   "in_words": "stop from 0.40 m/s within two steps",
+   "row_in_words": "controller R2/42, servo delay 0 ms, floor grip 0.9",
+   "made": {
+    "at": "2026-11-15T23:55:47Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  },
+  {
+   "file": "V0/75-M-H-10_V0_turn-q90_left_R2-42_0ms_seeds3042_seed3042_top.mp4",
+   "poster": "V0/75-M-H-10_V0_turn-q90_left_R2-42_0ms_seeds3042_seed3042_top.png",
+   "sheet": "V0/75-M-H-10_V0_turn-q90_left_R2-42_0ms_seeds3042_seed3042_top_sheet.png",
+   "view": "top",
+   "kind": "simulated",
+   "bytes": 249453,
+   "sha256": "c489dfe33974d78b9786348fbff88cc50c5c33fe721aad6f9708796f2b53d51a",
+   "frames": 195,
+   "fps": 30,
+   "seconds": 6.466666666666667,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "SIMULATION (physics)  |  75-M-H-10 (75 cm Hybrid)  |  today's walk (V0)",
+     "quick 90\u00b0 turn to the left at 0.40 m/s  |  controller R2/42, servo delay 0 ms, floor grip 0.9"
+    ],
+    "bottom": [
+     "seed 3042 (first seed): stayed up  |  stayed up in 20 of 20",
+     "top view: straight down; up is the incoming walking line"
+    ],
+    "notice": null
+   },
+   "bands_px": [
+    48,
+    44
+   ],
+   "captions": {
+    "command": "command: turn left 90\u00b0",
+    "fell": null
+   },
+   "span": {
+    "t0": 12.71570498311187,
+    "t1": 19.198764500837633,
+    "hold_s": 0.0,
+    "command_s": 13.71570498311187,
+    "fall_s": null,
+    "notes": []
+   },
+   "poster_at_s": 1.75,
+   "sheet_at_s": [
+    0.8083333333333333,
+    2.425,
+    4.041666666666667,
+    5.658333333333333
+   ],
+   "camera": {
+    "kind": "fixed",
+    "lookat": [
+     3.409123819094592,
+     0.8912747853052456,
+     0.3753989386587561
+    ],
+    "height_above_lookat_m": 7.35271680855355,
+    "up_deg": 0.0,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 14.648690710542411,
+   "framing_margin_under_captions_px": -23.35130928945759,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 249453,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 249453
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 195,
+    "pix_fmt": "yuv420p",
+    "duration_s": 6.5,
+    "bytes": 249453
+   },
+   "render_s": 37.11458606800443,
+   "encode_s": 0.9632470220021787,
+   "set": "V0",
+   "condition": "turn/q90_left",
+   "row": "R2/42@0ms",
+   "block": "seeds3042",
+   "record": "V0/75-M-H-10/seeds3042/eval/R2/42@0ms/turn/q90_left.json",
+   "seed": 3042,
+   "selection": "first seed",
+   "selection_words": "the first seed",
+   "passed_over": [],
+   "fell_before_its_move": false,
+   "segment_reached": "v0.4",
+   "outcome": "stayed up",
+   "record_count": "stayed up in 20 of 20",
+   "majority_outcome": "stayed up",
+   "trace": "R2/42@0ms/turn/q90_left/3042.npz",
+   "trace_sha256": "e85bd8bb5549eee771868d0b86ee6ba6be4854ce74add6db16141705d53ca95f",
+   "record_key_sha256": "633c93aa0c960b732e019d22b7a8f96c71793d920e91bd1c9a0714d99d7b190c",
+   "pose_residual_m": {
+    "feet_xy": 0.00014657126773087725,
+    "com_xy": 1.7779581448995607e-05,
+    "feet_height": 0.0002924801744920713
+   },
+   "in_words": "quick 90\u00b0 turn to the left at 0.40 m/s",
+   "row_in_words": "controller R2/42, servo delay 0 ms, floor grip 0.9",
+   "made": {
+    "at": "2026-11-15T23:55:47Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  },
+  {
+   "file": "V0/75-M-H-10_V0_turn-q90_left_R2-42_0ms_seeds3042_seed3042_visitor.mp4",
+   "poster": "V0/75-M-H-10_V0_turn-q90_left_R2-42_0ms_seeds3042_seed3042_visitor.png",
+   "sheet": "V0/75-M-H-10_V0_turn-q90_left_R2-42_0ms_seeds3042_seed3042_visitor_sheet.png",
+   "view": "visitor",
+   "kind": "simulated",
+   "bytes": 834279,
+   "sha256": "e541f9d2060f3b9303f4eff5db6c194345994b2296167274bf7c0aa7ec7b0364",
+   "frames": 195,
+   "fps": 30,
+   "seconds": 6.466666666666667,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "SIMULATION (physics)  |  75-M-H-10 (75 cm Hybrid)  |  today's walk (V0)",
+     "quick 90\u00b0 turn to the left at 0.40 m/s  |  controller R2/42, servo delay 0 ms, floor grip 0.9"
+    ],
+    "bottom": [
+     "seed 3042 (first seed): stayed up  |  stayed up in 20 of 20",
+     "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+    ],
+    "notice": null
+   },
+   "bands_px": [
+    48,
+    44
+   ],
+   "captions": {
+    "command": "command: turn left 90\u00b0",
+    "fell": null
+   },
+   "span": {
+    "t0": 12.71570498311187,
+    "t1": 19.198764500837633,
+    "hold_s": 0.0,
+    "command_s": 13.71570498311187,
+    "fall_s": null,
+    "notes": []
+   },
+   "poster_at_s": 1.75,
+   "sheet_at_s": [
+    0.8083333333333333,
+    2.425,
+    4.041666666666667,
+    5.658333333333333
+   ],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "kind": "follows the planned root path, averaged over one stride",
+    "lookat_height_m": 0.3753989386587561,
+    "lookat_offset_from_root_m": [
+     -0.0845749867458902,
+     0.0
+    ],
+    "shift_from_plan_m": [
+     -0.0377814170190102,
+     -0.14318051407646362
+    ],
+    "pulled_back": 1.0,
+    "lookat_raised_m": 0.0,
+    "eye_height_m": 1.5,
+    "eye_distance_m": 2.5,
+    "largest_distance_box_centre_to_lookat_m": 0.12213224003602825,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 9.284830320826131,
+   "framing_margin_under_captions_px": 8.280046899217552,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 834279,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 834279
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 195,
+    "pix_fmt": "yuv420p",
+    "duration_s": 6.5,
+    "bytes": 834279
+   },
+   "render_s": 37.30244486100128,
+   "encode_s": 2.0536560760010616,
+   "set": "V0",
+   "condition": "turn/q90_left",
+   "row": "R2/42@0ms",
+   "block": "seeds3042",
+   "record": "V0/75-M-H-10/seeds3042/eval/R2/42@0ms/turn/q90_left.json",
+   "seed": 3042,
+   "selection": "first seed",
+   "selection_words": "the first seed",
+   "passed_over": [],
+   "fell_before_its_move": false,
+   "segment_reached": "v0.4",
+   "outcome": "stayed up",
+   "record_count": "stayed up in 20 of 20",
+   "majority_outcome": "stayed up",
+   "trace": "R2/42@0ms/turn/q90_left/3042.npz",
+   "trace_sha256": "e85bd8bb5549eee771868d0b86ee6ba6be4854ce74add6db16141705d53ca95f",
+   "record_key_sha256": "633c93aa0c960b732e019d22b7a8f96c71793d920e91bd1c9a0714d99d7b190c",
+   "pose_residual_m": {
+    "feet_xy": 0.00014657126773087725,
+    "com_xy": 1.7779581448995607e-05,
+    "feet_height": 0.0002924801744920713
+   },
+   "in_words": "quick 90\u00b0 turn to the left at 0.40 m/s",
+   "row_in_words": "controller R2/42, servo delay 0 ms, floor grip 0.9",
+   "made": {
+    "at": "2026-11-15T23:55:47Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  },
+  {
+   "file": "V0/75-M-H-10_V0_turn-q90_left_planned_top.mp4",
+   "poster": "V0/75-M-H-10_V0_turn-q90_left_planned_top.png",
+   "sheet": "V0/75-M-H-10_V0_turn-q90_left_planned_top_sheet.png",
+   "view": "top",
+   "kind": "planned",
+   "bytes": 241044,
+   "sha256": "f7e9a6a4bf3ad1b4e27bd3a429d07aa5834debee490b4191b48215ed62924fe1",
+   "frames": 194,
+   "fps": 30,
+   "seconds": 6.433333333333334,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "PLANNED MOTION (kinematic, no physics)  |  75-M-H-10 (75 cm Hybrid)  |  today's walk (V0)",
+     "quick 90\u00b0 turn to the left at 0.40 m/s  |  the frozen reference played at the bar's commanded clock (1.05 x)"
+    ],
+    "bottom": [
+     "top view: straight down; up is the incoming walking line"
+    ],
+    "notice": null
+   },
+   "bands_px": [
+    48,
+    27
+   ],
+   "captions": {
+    "command": "command: turn left 90\u00b0",
+    "fell": null
+   },
+   "span": {
+    "t0": 12.700928797740886,
+    "t1": 19.14680974212163,
+    "hold_s": 0.0,
+    "command_s": 13.700928797740886,
+    "fall_s": null,
+    "notes": []
+   },
+   "poster_at_s": 1.75,
+   "sheet_at_s": [
+    0.8041666666666667,
+    2.4125,
+    4.020833333333334,
+    5.629166666666666
+   ],
+   "camera": {
+    "kind": "fixed",
+    "lookat": [
+     3.520118963633332,
+     1.054094567756589,
+     0.3753989386587561
+    ],
+    "height_above_lookat_m": 7.003270763777468,
+    "up_deg": 0.0,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 14.78646297146264,
+   "framing_margin_under_captions_px": -23.21353702853736,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 241044,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 241044
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 194,
+    "pix_fmt": "yuv420p",
+    "duration_s": 6.466667,
+    "bytes": 241044
+   },
+   "render_s": 34.715467937996436,
+   "encode_s": 0.9698867960032658,
+   "set": "V0",
+   "condition": "turn/q90_left",
+   "row": null,
+   "block": null,
+   "record": null,
+   "seed": null,
+   "selection": null,
+   "outcome": null,
+   "reference_files": {
+    "refs/nominal.npz": "b767df97e07f979977f3cac1390281c44380df66fee628db484bf3f30edaec75",
+    "refs/v0.4.npz": "91859c26bc0b24a9432a1fcc7150a50a4c4d7fb955df06937fd57a0d8e408e91",
+    "transitions/nominal_to_v0.4.npz": "c6193a95adb1c2f08f655cf7d8738b313c19886bdd255103f3f18bd6e1e24a97",
+    "transitions/start.npz": "11c76d011399ff44293057352f4cfaaae37746b7c9744d0ba9df7799e58375c3",
+    "transitions/turn90_pi4_left.npz": "e8ad177483b9f05319b010bedfc41fb7f0622fdf2a3a7962300976ae23edec91"
+   },
+   "set_freeze": {
+    "index": 0,
+    "manifest_sha256": "34a820e550b6dfc589cb7f6fc26d33f9ee9aa9e4da327cc3896cd170e08d6ae2"
+   },
+   "in_words": "quick 90\u00b0 turn to the left at 0.40 m/s",
+   "made": {
+    "at": "2026-11-16T00:06:08Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  },
+  {
+   "file": "V0/75-M-H-10_V0_turn-q90_left_planned_visitor.mp4",
+   "poster": "V0/75-M-H-10_V0_turn-q90_left_planned_visitor.png",
+   "sheet": "V0/75-M-H-10_V0_turn-q90_left_planned_visitor_sheet.png",
+   "view": "visitor",
+   "kind": "planned",
+   "bytes": 818859,
+   "sha256": "d58ae570e9f8b30d010e5a30d781cc2c539f60c52a59d751a5a123cc6d8aee7f",
+   "frames": 194,
+   "fps": 30,
+   "seconds": 6.433333333333334,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "PLANNED MOTION (kinematic, no physics)  |  75-M-H-10 (75 cm Hybrid)  |  today's walk (V0)",
+     "quick 90\u00b0 turn to the left at 0.40 m/s  |  the frozen reference played at the bar's commanded clock (1.05 x)"
+    ],
+    "bottom": [
+     "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front"
+    ],
+    "notice": null
+   },
+   "bands_px": [
+    48,
+    27
+   ],
+   "captions": {
+    "command": "command: turn left 90\u00b0",
+    "fell": null
+   },
+   "span": {
+    "t0": 12.700928797740886,
+    "t1": 19.14680974212163,
+    "hold_s": 0.0,
+    "command_s": 13.700928797740886,
+    "fall_s": null,
+    "notes": []
+   },
+   "poster_at_s": 1.75,
+   "sheet_at_s": [
+    0.8041666666666667,
+    2.4125,
+    4.020833333333334,
+    5.629166666666666
+   ],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "kind": "follows the planned root path, averaged over one stride",
+    "lookat_height_m": 0.3753989386587561,
+    "lookat_offset_from_root_m": [
+     -0.0845749867458902,
+     0.0
+    ],
+    "shift_from_plan_m": [
+     0.0,
+     0.0
+    ],
+    "pulled_back": 1.0,
+    "lookat_raised_m": 0.0,
+    "eye_height_m": 1.5,
+    "eye_distance_m": 2.5,
+    "largest_distance_box_centre_to_lookat_m": 0.055707000641299874,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 6.029805959506746,
+   "framing_margin_under_captions_px": 4.6054207579645094,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 818859,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 818859
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 194,
+    "pix_fmt": "yuv420p",
+    "duration_s": 6.466667,
+    "bytes": 818859
+   },
+   "render_s": 36.87129049500072,
+   "encode_s": 1.94757566699991,
+   "set": "V0",
+   "condition": "turn/q90_left",
+   "row": null,
+   "block": null,
+   "record": null,
+   "seed": null,
+   "selection": null,
+   "outcome": null,
+   "reference_files": {
+    "refs/nominal.npz": "b767df97e07f979977f3cac1390281c44380df66fee628db484bf3f30edaec75",
+    "refs/v0.4.npz": "91859c26bc0b24a9432a1fcc7150a50a4c4d7fb955df06937fd57a0d8e408e91",
+    "transitions/nominal_to_v0.4.npz": "c6193a95adb1c2f08f655cf7d8738b313c19886bdd255103f3f18bd6e1e24a97",
+    "transitions/start.npz": "11c76d011399ff44293057352f4cfaaae37746b7c9744d0ba9df7799e58375c3",
+    "transitions/turn90_pi4_left.npz": "e8ad177483b9f05319b010bedfc41fb7f0622fdf2a3a7962300976ae23edec91"
+   },
+   "set_freeze": {
+    "index": 0,
+    "manifest_sha256": "34a820e550b6dfc589cb7f6fc26d33f9ee9aa9e4da327cc3896cd170e08d6ae2"
+   },
+   "in_words": "quick 90\u00b0 turn to the left at 0.40 m/s",
+   "made": {
+    "at": "2026-11-16T00:06:08Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  },
+  {
+   "file": "V0/75-M-H-10_V0_walk-v0.4_R2-42_0ms_seeds3042_seed3042_side.mp4",
+   "poster": "V0/75-M-H-10_V0_walk-v0.4_R2-42_0ms_seeds3042_seed3042_side.png",
+   "sheet": "V0/75-M-H-10_V0_walk-v0.4_R2-42_0ms_seeds3042_seed3042_side_sheet.png",
+   "view": "side",
+   "kind": "simulated",
+   "bytes": 916957,
+   "sha256": "e156d3bb8b1abe9c39dcd668ad328dbb9ffca23e5e201cd29864269983b78a33",
+   "frames": 301,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "SIMULATION (physics)  |  75-M-H-10 (75 cm Hybrid)  |  today's walk (V0)",
+     "walk at 0.40 m/s  |  controller R2/42, servo delay 0 ms, floor grip 0.9"
+    ],
+    "bottom": [
+     "seed 3042 (first seed): stayed up  |  stayed up in 20 of 20",
+     "side view: eye 0.6 m high, 2.5 m away, on the robot's right"
+    ],
+    "notice": null
+   },
+   "bands_px": [
+    48,
+    44
+   ],
+   "captions": {
+    "command": null,
+    "fell": null
+   },
+   "span": {
+    "t0": 11.069999999999201,
+    "t1": 21.059999999999206,
+    "hold_s": 0.0,
+    "command_s": null,
+    "fall_s": null,
+    "notes": []
+   },
+   "poster_at_s": 5.0,
+   "sheet_at_s": [
+    1.25,
+    3.75,
+    6.25,
+    8.75
+   ],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "kind": "follows the planned root path, averaged over one stride",
+    "lookat_height_m": 0.3753989386587561,
+    "lookat_offset_from_root_m": [
+     -0.0845749867458902,
+     0.0
+    ],
+    "shift_from_plan_m": [
+     -0.0968615266640766,
+     -0.10897993558935769
+    ],
+    "pulled_back": 1.0,
+    "lookat_raised_m": 0.0,
+    "eye_height_m": 0.6,
+    "eye_distance_m": 2.5,
+    "largest_distance_box_centre_to_lookat_m": 0.10290929980481975,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 16.131174402555985,
+   "framing_margin_under_captions_px": 16.131174402555985,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 916957,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 916957
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 301,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.033333,
+    "bytes": 916957
+   },
+   "render_s": 74.28745637500106,
+   "encode_s": 2.3543789440009277,
+   "set": "V0",
+   "condition": "walk/v0.4",
+   "row": "R2/42@0ms",
+   "block": "seeds3042",
+   "record": "V0/75-M-H-10/seeds3042/eval/R2/42@0ms/walk/v0.4.json",
+   "seed": 3042,
+   "selection": "first seed",
+   "selection_words": "the first seed",
+   "passed_over": [],
+   "fell_before_its_move": false,
+   "segment_reached": "v0.4",
+   "outcome": "stayed up",
+   "record_count": "stayed up in 20 of 20",
+   "majority_outcome": "stayed up",
+   "trace": "R2/42@0ms/walk/v0.4/3042.npz",
+   "trace_sha256": "e1e7ac142baa3d8dfaac4998beb108b6df603889eba3b21ccea0216aeec15cbd",
+   "record_key_sha256": "f239ef55897f5f1790317af5a433ead64c220b0847a25b715164093a3c8e30d7",
+   "pose_residual_m": {
+    "feet_xy": 6.800552297203666e-05,
+    "com_xy": 7.516670619267529e-06,
+    "feet_height": 0.00020329948110875407
+   },
+   "in_words": "walk at 0.40 m/s",
+   "row_in_words": "controller R2/42, servo delay 0 ms, floor grip 0.9",
+   "made": {
+    "at": "2026-11-15T23:55:47Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  },
+  {
+   "file": "V0/75-M-H-10_V0_walk-v0.4_R2-42_0ms_seeds3042_seed3042_visitor.mp4",
+   "poster": "V0/75-M-H-10_V0_walk-v0.4_R2-42_0ms_seeds3042_seed3042_visitor.png",
+   "sheet": "V0/75-M-H-10_V0_walk-v0.4_R2-42_0ms_seeds3042_seed3042_visitor_sheet.png",
+   "view": "visitor",
+   "kind": "simulated",
+   "bytes": 1164994,
+   "sha256": "87704ecdec2d95ea60038426634b70ed16ce6cc5acf103a118aaf92813094f94",
+   "frames": 301,
+   "fps": 30,
+   "seconds": 10.0,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "SIMULATION (physics)  |  75-M-H-10 (75 cm Hybrid)  |  today's walk (V0)",
+     "walk at 0.40 m/s  |  controller R2/42, servo delay 0 ms, floor grip 0.9"
+    ],
+    "bottom": [
+     "seed 3042 (first seed): stayed up  |  stayed up in 20 of 20",
+     "visitor's view: eye 1.6 m high, 2.7 m away (pulled back to hold the robot), three-quarter front"
+    ],
+    "notice": null
+   },
+   "bands_px": [
+    48,
+    44
+   ],
+   "captions": {
+    "command": null,
+    "fell": null
+   },
+   "span": {
+    "t0": 11.069999999999201,
+    "t1": 21.059999999999206,
+    "hold_s": 0.0,
+    "command_s": null,
+    "fall_s": null,
+    "notes": []
+   },
+   "poster_at_s": 5.0,
+   "sheet_at_s": [
+    1.25,
+    3.75,
+    6.25,
+    8.75
+   ],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "kind": "follows the planned root path, averaged over one stride",
+    "lookat_height_m": 0.3753989386587561,
+    "lookat_offset_from_root_m": [
+     -0.0845749867458902,
+     0.0
+    ],
+    "shift_from_plan_m": [
+     -0.0968615266640766,
+     -0.10897993558935769
+    ],
+    "pulled_back": 1.1,
+    "lookat_raised_m": 0.0,
+    "eye_height_m": 1.6124601061341244,
+    "eye_distance_m": 2.7499999999999996,
+    "largest_distance_box_centre_to_lookat_m": 0.10290929980481975,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 5.003687860921332,
+   "framing_margin_under_captions_px": 5.003687860921332,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 1164994,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 1164994
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 301,
+    "pix_fmt": "yuv420p",
+    "duration_s": 10.033333,
+    "bytes": 1164994
+   },
+   "render_s": 57.249203693005256,
+   "encode_s": 2.8925732869975036,
+   "set": "V0",
+   "condition": "walk/v0.4",
+   "row": "R2/42@0ms",
+   "block": "seeds3042",
+   "record": "V0/75-M-H-10/seeds3042/eval/R2/42@0ms/walk/v0.4.json",
+   "seed": 3042,
+   "selection": "first seed",
+   "selection_words": "the first seed",
+   "passed_over": [],
+   "fell_before_its_move": false,
+   "segment_reached": "v0.4",
+   "outcome": "stayed up",
+   "record_count": "stayed up in 20 of 20",
+   "majority_outcome": "stayed up",
+   "trace": "R2/42@0ms/walk/v0.4/3042.npz",
+   "trace_sha256": "e1e7ac142baa3d8dfaac4998beb108b6df603889eba3b21ccea0216aeec15cbd",
+   "record_key_sha256": "f239ef55897f5f1790317af5a433ead64c220b0847a25b715164093a3c8e30d7",
+   "pose_residual_m": {
+    "feet_xy": 6.800552297203666e-05,
+    "com_xy": 7.516670619267529e-06,
+    "feet_height": 0.00020329948110875407
+   },
+   "in_words": "walk at 0.40 m/s",
+   "row_in_words": "controller R2/42, servo delay 0 ms, floor grip 0.9",
+   "made": {
+    "at": "2026-11-15T23:55:47Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  },
+  {
+   "file": "V0/75-M-H-10_V0_walk-v0.4_R2-42_10ms_seeds3042_seed3042_side.mp4",
+   "poster": "V0/75-M-H-10_V0_walk-v0.4_R2-42_10ms_seeds3042_seed3042_side.png",
+   "sheet": "V0/75-M-H-10_V0_walk-v0.4_R2-42_10ms_seeds3042_seed3042_side_sheet.png",
+   "view": "side",
+   "kind": "simulated",
+   "bytes": 433288,
+   "sha256": "3b4e1cc9e9050615ecde1e85e25e5edde10b9bf9aac6426a24a1ba1390b56db3",
+   "frames": 262,
+   "fps": 30,
+   "seconds": 8.7,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "SIMULATION (physics)  |  75-M-H-10 (75 cm Hybrid)  |  today's walk (V0)",
+     "walk at 0.40 m/s  |  controller R2/42, servo delay 10 ms, floor grip 0.9"
+    ],
+    "bottom": [
+     "seed 3042 (first seed): fell 7.70 s into the episode, before the walk at 0.40 m/s began  |  stayed up in 0 of 20",
+     "side view: eye 0.6 m high, 3.8 m away (pulled back to hold the robot), on the robot's right"
+    ],
+    "notice": [
+     "THE WALK AT 0.40 m/s NEVER BEGAN: this episode fell before it",
+     "it fell 7.70 s into the episode, in the change from the nominal walk to 0.40 m/s"
+    ]
+   },
+   "bands_px": [
+    91,
+    44
+   ],
+   "captions": {
+    "command": null,
+    "fell": "fell before the walk at 0.40 m/s began (tilt); the trace ends here, the last pose is held"
+   },
+   "span": {
+    "t0": 0.0,
+    "t1": 7.697999999999374,
+    "hold_s": 1.0,
+    "command_s": null,
+    "fall_s": 7.697999999999374,
+    "notes": [
+     "fell: it has no judged window"
+    ]
+   },
+   "poster_at_s": 7.699999999999999,
+   "sheet_at_s": [
+    1.0875,
+    3.2624999999999997,
+    5.4375,
+    7.612499999999999
+   ],
+   "camera": {
+    "height_m": 0.6,
+    "distance_m": 2.5,
+    "bearing_deg": -90.0,
+    "text": "side view: eye 0.6 m high, 2.5 m away",
+    "kind": "follows the planned root path, averaged over one stride",
+    "lookat_height_m": 0.3753989386587561,
+    "lookat_offset_from_root_m": [
+     -0.0845749867458902,
+     0.0
+    ],
+    "shift_from_plan_m": [
+     -0.0355780377068725,
+     0.0006421570398849838
+    ],
+    "pulled_back": 1.5,
+    "lookat_raised_m": 0.25,
+    "eye_height_m": 0.5873005306706218,
+    "eye_distance_m": 3.75,
+    "largest_distance_box_centre_to_lookat_m": 0.2710743289796635,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 13.91366907934082,
+   "framing_margin_under_captions_px": 1.5373788069171042,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 433288,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 433288
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 262,
+    "pix_fmt": "yuv420p",
+    "duration_s": 8.733333,
+    "bytes": 433288
+   },
+   "render_s": 60.086368791002315,
+   "encode_s": 1.5155095000009169,
+   "set": "V0",
+   "condition": "walk/v0.4",
+   "row": "R2/42@10ms",
+   "block": "seeds3042",
+   "record": "V0/75-M-H-10/seeds3042/eval/R2/42@10ms/walk/v0.4.json",
+   "seed": 3042,
+   "selection": "first seed",
+   "selection_words": "the first seed",
+   "passed_over": [],
+   "fell_before_its_move": true,
+   "segment_reached": "nominal_to_v0.4",
+   "outcome": "fell",
+   "record_count": "stayed up in 0 of 20",
+   "majority_outcome": "fell",
+   "trace": "R2/42@10ms/walk/v0.4/3042.npz",
+   "trace_sha256": "3fbea4e55fedc01872f92b9edfe30dc574cd380680147586e8468fd07ab007d4",
+   "record_key_sha256": "137cdcdcf28aaa80a93088ce8a0cfd114ef6587f4cdd8ff238fe17c8de8606b7",
+   "pose_residual_m": {
+    "feet_xy": 0.00015039945286776657,
+    "com_xy": 7.909097918812336e-06,
+    "feet_height": 0.00030098477984452643
+   },
+   "in_words": "walk at 0.40 m/s",
+   "row_in_words": "controller R2/42, servo delay 10 ms, floor grip 0.9",
+   "made": {
+    "at": "2026-11-15T23:55:47Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  },
+  {
+   "file": "V0/75-M-H-10_V0_walk-v0.4_R2-42_10ms_seeds3042_seed3042_visitor.mp4",
+   "poster": "V0/75-M-H-10_V0_walk-v0.4_R2-42_10ms_seeds3042_seed3042_visitor.png",
+   "sheet": "V0/75-M-H-10_V0_walk-v0.4_R2-42_10ms_seeds3042_seed3042_visitor_sheet.png",
+   "view": "visitor",
+   "kind": "simulated",
+   "bytes": 667853,
+   "sha256": "cd8f51ba31ee6bce0d51677323328814c26fdfaafcf4d017dfcc36d7b8b3ebfc",
+   "frames": 262,
+   "fps": 30,
+   "seconds": 8.7,
+   "size": [
+    854,
+    480
+   ],
+   "labels": {
+    "top": [
+     "SIMULATION (physics)  |  75-M-H-10 (75 cm Hybrid)  |  today's walk (V0)",
+     "walk at 0.40 m/s  |  controller R2/42, servo delay 10 ms, floor grip 0.9"
+    ],
+    "bottom": [
+     "seed 3042 (first seed): fell 7.70 s into the episode, before the walk at 0.40 m/s began  |  stayed up in 0 of 20",
+     "visitor's view: eye 1.8 m high, 3.2 m away (pulled back to hold the robot), three-quarter front"
+    ],
+    "notice": [
+     "THE WALK AT 0.40 m/s NEVER BEGAN: this episode fell before it",
+     "it fell 7.70 s into the episode, in the change from the nominal walk to 0.40 m/s"
+    ]
+   },
+   "bands_px": [
+    91,
+    44
+   ],
+   "captions": {
+    "command": null,
+    "fell": "fell before the walk at 0.40 m/s began (tilt); the trace ends here, the last pose is held"
+   },
+   "span": {
+    "t0": 0.0,
+    "t1": 7.697999999999374,
+    "hold_s": 1.0,
+    "command_s": null,
+    "fall_s": 7.697999999999374,
+    "notes": [
+     "fell: it has no judged window"
+    ]
+   },
+   "poster_at_s": 7.699999999999999,
+   "sheet_at_s": [
+    1.0875,
+    3.2624999999999997,
+    5.4375,
+    7.612499999999999
+   ],
+   "camera": {
+    "height_m": 1.5,
+    "distance_m": 2.5,
+    "bearing_deg": -45.0,
+    "text": "visitor's view: eye 1.5 m high, 2.5 m away, three-quarter front",
+    "kind": "follows the planned root path, averaged over one stride",
+    "lookat_height_m": 0.3753989386587561,
+    "lookat_offset_from_root_m": [
+     -0.0845749867458902,
+     0.0
+    ],
+    "shift_from_plan_m": [
+     -0.0355780377068725,
+     0.0006421570398849838
+    ],
+    "pulled_back": 1.3,
+    "lookat_raised_m": 0.15,
+    "eye_height_m": 1.7923803184023732,
+    "eye_distance_m": 3.25,
+    "largest_distance_box_centre_to_lookat_m": 0.2710743289796635,
+    "fovy_deg": 26.0
+   },
+   "framing_margin_px": 3.7798335478078116,
+   "framing_margin_under_captions_px": 2.3158681903259435,
+   "encode": {
+    "crf": 23,
+    "maxrate_kbit_s": 1100,
+    "bytes": 667853,
+    "tries": [
+     {
+      "crf": 23,
+      "maxrate_kbit_s": 1100,
+      "bytes": 667853
+     }
+    ]
+   },
+   "probe": {
+    "codec": "h264",
+    "profile": "High",
+    "width": 854,
+    "height": 480,
+    "fps": 30.0,
+    "frames": 262,
+    "pix_fmt": "yuv420p",
+    "duration_s": 8.733333,
+    "bytes": 667853
+   },
+   "render_s": 50.10688236300484,
+   "encode_s": 2.0041653709995444,
+   "set": "V0",
+   "condition": "walk/v0.4",
+   "row": "R2/42@10ms",
+   "block": "seeds3042",
+   "record": "V0/75-M-H-10/seeds3042/eval/R2/42@10ms/walk/v0.4.json",
+   "seed": 3042,
+   "selection": "first seed",
+   "selection_words": "the first seed",
+   "passed_over": [],
+   "fell_before_its_move": true,
+   "segment_reached": "nominal_to_v0.4",
+   "outcome": "fell",
+   "record_count": "stayed up in 0 of 20",
+   "majority_outcome": "fell",
+   "trace": "R2/42@10ms/walk/v0.4/3042.npz",
+   "trace_sha256": "3fbea4e55fedc01872f92b9edfe30dc574cd380680147586e8468fd07ab007d4",
+   "record_key_sha256": "137cdcdcf28aaa80a93088ce8a0cfd114ef6587f4cdd8ff238fe17c8de8606b7",
+   "pose_residual_m": {
+    "feet_xy": 0.00015039945286776657,
+    "com_xy": 7.909097918812336e-06,
+    "feet_height": 0.00030098477984452643
+   },
+   "in_words": "walk at 0.40 m/s",
+   "row_in_words": "controller R2/42, servo delay 10 ms, floor grip 0.9",
+   "made": {
+    "at": "2026-11-15T23:55:47Z",
+    "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+    "dirty": false,
+    "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d"
+   }
+  }
+ ],
+ "skipped": [],
+ "provenance": {
+  "note": "of the last run of the command; each clip holds its own under 'made'",
+  "git": {
+   "commit": "4e7e9b5c5dee58bc0ffa8d0651ff1df190d93852",
+   "dirty": false,
+   "dirty_paths": []
+  },
+  "at": "2026-11-16T00:07:39Z",
+  "module": "designlab/stage2/barviews.py",
+  "module_sha256": "03239279bc38cb241e07dbfaf6b690e5923386d9a97e5ca1ad7e0fc2f005b11d",
+  "wall_s": 79.21068522800488
+ }
+}

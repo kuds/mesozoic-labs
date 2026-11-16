@@ -1,0 +1,5652 @@
+{
+ "schema": "bar-1",
+ "body": "75-M-H-10",
+ "set": "V0",
+ "block": "seeds3042",
+ "row": "R0@0ms",
+ "behavior": "nudge",
+ "condition": "backward_mu0.54",
+ "key_name": "nudge/backward_mu0.54",
+ "gated": true,
+ "plan_gated": true,
+ "status": "done",
+ "controller": {
+  "row": "R0",
+  "controller": "R0: feedforward + PD on the commanded clock (ROWS_RULE)",
+  "tracker_mode": "R1",
+  "terms": [],
+  "ankle_cap": [],
+  "inward_bound": "pad_clearance",
+  "rate": 1.05,
+  "gains": null,
+  "gains_info": {
+   "source": "R0 has no feedback: no gains"
+  },
+  "hard_only": true,
+  "policy": null,
+  "delayed_row": "R0@0ms",
+  "latency_steps": 0,
+  "latency_ms": 0,
+  "latency_rule": "R2/<s>@<ms>ms: Stage 1's fitted tracker of CMA-ES seed s with the gains of the Stage 1 run's tune.json unchanged; R0@<ms>ms: the panels' open-loop row; <any registered row>@<ms>ms likewise.  <ms> is a servo delay of k = ms / 2 whole physics steps for the whole episode (speedfit.servo_delay: every servo target reaches the servos k steps after the controller sets it); with k = 0 the wrapper changes nothing",
+  "servo_delay_rule": "the delay queue of speedfit.servo_delay (a queue of the last k + 1 servo targets, refilled with the reset's targets at every reset: each target reaches the servos k physics steps after the controller sets it; k = 0 changes nothing); k is the row's and the same for every episode: speedfit.LATENCY_RULE's random draw per episode is not used"
+ },
+ "definition": {
+  "behavior": "nudge",
+  "name": "backward_mu0.54",
+  "gated": true,
+  "judge": "bar_nudge",
+  "floor": "hard",
+  "friction": 0.54,
+  "gait": "v0.4",
+  "case": null,
+  "direction": "backward",
+  "seconds": null,
+  "push_at": 2.0,
+  "push_spread": 1.0,
+  "recovery_s": 3.0,
+  "hold_s": 2.0,
+  "set": "V0",
+  "walk": "v0.4",
+  "move": null,
+  "frac": 0.25,
+  "block": "seeds3042",
+  "key": "nudge/backward_mu0.54",
+  "stock": false
+ },
+ "plan": [
+  [
+   "transition",
+   "start"
+  ],
+  [
+   "ref",
+   "nominal",
+   1
+  ],
+  [
+   "transition",
+   "nominal_to_v0.4"
+  ],
+  [
+   "ref",
+   "v0.4",
+   12
+  ]
+ ],
+ "seconds": 20.384798168396884,
+ "seeds": [
+  3042,
+  3043,
+  3044,
+  3045,
+  3046,
+  3047,
+  3048,
+  3049,
+  3050,
+  3051,
+  3052,
+  3053,
+  3054,
+  3055,
+  3056,
+  3057,
+  3058,
+  3059,
+  3060,
+  3061
+ ],
+ "command": null,
+ "omega": 4.828071509019948,
+ "crouch_frac": 0.03,
+ "counts": {
+  "reading": "success",
+  "episodes": 20,
+  "survived": 5,
+  "succeeded": 2,
+  "falls": 15,
+  "errors": 0,
+  "survival_lcb": 0.10408083591013609,
+  "success_lcb": 0.018065203085418632,
+  "judged": true,
+  "pass_": false
+ },
+ "counts_but_A1": {
+  "reading": "but_A1",
+  "episodes": 20,
+  "survived": 5,
+  "succeeded": 2,
+  "falls": 15,
+  "errors": 0,
+  "survival_lcb": 0.10408083591013609,
+  "success_lcb": 0.018065203085418632,
+  "judged": true,
+  "pass_": false
+ },
+ "counts_look": null,
+ "counts_look_reason": "not defined: the set has no look bands",
+ "a1_over": false,
+ "failure": {
+  "reading": "success",
+  "falls": 15,
+  "fall_causes": {
+   "tilt": 15
+  },
+  "fall_candidates": {
+   "slip": 15,
+   "leg_drive_at_torque_limit": 7
+  },
+  "success": {
+   "failed_episodes": 3,
+   "terms": {
+    "recovered": {
+     "count": 3,
+     "cls": "controller"
+    }
+   },
+   "hardware_terms": [],
+   "label": "controller-limited"
+  },
+  "success_failures": 3,
+  "falls_label": "not attributed (falls; attribution is applied to R2 rows)",
+  "success_label": "controller-limited",
+  "kind": "falls",
+  "label": "not attributed (falls; attribution is applied to R2 rows)",
+  "untestable": []
+ },
+ "failure_but_A1": {
+  "reading": "but_A1",
+  "falls": 15,
+  "fall_causes": {
+   "tilt": 15
+  },
+  "fall_candidates": {
+   "slip": 15,
+   "leg_drive_at_torque_limit": 7
+  },
+  "success": {
+   "failed_episodes": 3,
+   "terms": {
+    "recovered": {
+     "count": 3,
+     "cls": "controller"
+    }
+   },
+   "hardware_terms": [],
+   "label": "controller-limited"
+  },
+  "success_failures": 3,
+  "falls_label": "not attributed (falls; attribution is applied to R2 rows)",
+  "success_label": "controller-limited",
+  "kind": "falls",
+  "label": "not attributed (falls; attribution is applied to R2 rows)",
+  "untestable": []
+ },
+ "attribution": null,
+ "falls": {
+  "before_command": 0,
+  "after_command": 15,
+  "no_command": 0
+ },
+ "terms": [
+  "survived",
+  "recovered",
+  "drive_sustained",
+  "drive_speed",
+  "joint_range"
+ ],
+ "terms_but_A1": [
+  "survived",
+  "recovered",
+  "drive_sustained_legs",
+  "drive_speed",
+  "joint_range"
+ ],
+ "term_classes": {
+  "survived": null,
+  "recovered": "controller",
+  "drive_sustained": "hardware",
+  "drive_speed": "hardware",
+  "joint_range": "hardware",
+  "drive_sustained_legs": "hardware"
+ },
+ "episodes": [
+  {
+   "seed": 3042,
+   "fell": false,
+   "fall_time_s": null,
+   "fall_cause": null,
+   "fall_onset_s": null,
+   "fall_candidates": null,
+   "limits_before_onset": null,
+   "survival_s": 20.38399999999958,
+   "planned_s": 20.384798168396884,
+   "strides": 18.847452036886086,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.9908010639405935
+   ],
+   "worst_speed_ratio": [
+    "left_knee_servo",
+    0.7444681713796153
+   ],
+   "tilt_from_home_max_deg": 4.092134395495562,
+   "joint_margin_min_rad": 0.12732063689061804,
+   "joint_shortfall_rad": -0.027320636890618033,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": true,
+    "recovered": false,
+    "drive_sustained": true,
+    "drive_speed": true,
+    "joint_range": true
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": true,
+    "recovered": false,
+    "drive_sustained_legs": true,
+    "drive_speed": true,
+    "joint_range": true
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "recovered"
+   ],
+   "failed_terms_but_A1": [
+    "recovered"
+   ],
+   "command_s": 13.707159642595771,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": true,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": 0.002858566147813848,
+      "own_swings": [
+       20,
+       20
+      ],
+      "ref_swings": [
+       20,
+       20
+      ],
+      "ref_swings_cut": [
+       0,
+       0
+      ],
+      "interrupted_swings": 0,
+      "air_gaps": 0,
+      "air_gap_longest_s": 0.0,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": 0.0007713433724993945,
+      "own_duration_swings": [
+       20,
+       20
+      ],
+      "worst_swing": {
+       "foot": 0,
+       "t_lo_s": 16.212,
+       "t_td_s": 16.594,
+       "own_duration_s": 0.38200000000000145,
+       "planned_s": 0.3534652055893432,
+       "min_at_frac": 0.75,
+       "min_from_edge": "last"
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": 0.005696016596323574,
+      "toe_clearance_own_duration_H": 0.001536988974203322,
+      "window_s": [
+       0.0,
+       20.379999999999583
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.7117986601898508,
+        "tail_yaw_servo": 0.9908010639405935,
+        "left_hip_roll_servo": 0.6713950257408402,
+        "left_hip_pitch_servo": 0.7411364359553382,
+        "left_hip_yaw_servo": 0.5759670361725023,
+        "left_knee_servo": 0.589500529186543,
+        "left_ankle_a_servo": 0.4884477914592431,
+        "left_ankle_b_servo": 0.5420892892843051,
+        "right_hip_roll_servo": 0.6755344713865188,
+        "right_hip_pitch_servo": 0.7372065440898998,
+        "right_hip_yaw_servo": 0.586169338434911,
+        "right_knee_servo": 0.6126249712160241,
+        "right_ankle_a_servo": 0.5174439436475966,
+        "right_ankle_b_servo": 0.5264248726707333
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.9908010639405935
+       ],
+       "worst_leg": [
+        "left_hip_pitch_servo",
+        0.7411364359553382
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.9908010639405935
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        10192
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 13.707159642595771,
+     "end_s": 13.80715964259577,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.37332921005850433,
+     "along_max_after_pulse_m_s": 0.4228959885601183,
+     "across_max_after_pulse_m_s": 0.07440098582671205,
+     "standing": false,
+     "after_s": null,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 20.379999999999583,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.08854166666666667,
+     "com_displacement_m": 2.597493682038437
+    },
+    "convention": {
+     "touchdowns_on_rows": 6,
+     "low_at_touchdown_row_mm": {
+      "min": -0.5099979215416303,
+      "median": -0.0965975474218183,
+      "max": -0.020707395672919793
+     },
+     "step_travel_mm": {
+      "min": 0.08502950266088151,
+      "median": 0.3507768791636949,
+      "max": 0.6237814714081998
+     },
+     "low_one_update_before_mm": {
+      "min": 0.3845155717197681,
+      "median": 1.4316145324649705,
+      "max": 2.9751778396100126
+     },
+     "above_floor": 0,
+     "within_one_step": 5,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3042.npz",
+    "sha256": "5a3aa5b18b10e7ae2fc757a64bab0542593195e49d1d2a592b115057c6db547a",
+    "rows": 1020,
+    "every_s": 0.02,
+    "updates": 2039,
+    "steps": 10192
+   },
+   "relaxed": [],
+   "wall_s": 1.8106005159970664
+  },
+  {
+   "seed": 3043,
+   "fell": true,
+   "fall_time_s": 16.250000000001872,
+   "fall_cause": "tilt",
+   "fall_onset_s": 15.93200000000199,
+   "fall_candidates": [
+    "slip"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 50,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.22,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.13000000000004341,
+     "cop_at_pad_edge_with_ankle_saturated": null,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.2,
+     "ankle_cap_box": 0.0,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": [
+     "neck_pitch_servo",
+     "tail_yaw_servo"
+    ]
+   },
+   "survival_s": 16.250000000001872,
+   "planned_s": 20.384798168396884,
+   "strides": 15.025073371244137,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.9165811006342455
+   ],
+   "worst_speed_ratio": [
+    "neck_pitch_servo",
+    1.1134555841685747
+   ],
+   "tilt_from_home_max_deg": 29.529311981963918,
+   "joint_margin_min_rad": 0.12708637885237564,
+   "joint_shortfall_rad": -0.027086378852375637,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained_legs": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "command_s": 14.252865812027755,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": false,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.003190685935033301,
+      "own_swings": [
+       16,
+       15
+      ],
+      "ref_swings": [
+       15,
+       14
+      ],
+      "ref_swings_cut": [
+       0,
+       1
+      ],
+      "interrupted_swings": 2,
+      "air_gaps": 2,
+      "air_gap_longest_s": 0.10799999999999876,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": 0.0020065494561193223,
+      "own_duration_swings": [
+       16,
+       16
+      ],
+      "worst_swing": {
+       "foot": 1,
+       "t_lo_s": 15.788,
+       "t_td_s": 16.004,
+       "own_duration_s": 0.21600000000000108,
+       "planned_s": 0.3534652055893398,
+       "min_at_frac": 0.6563588051479667,
+       "min_from_edge": null
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.006357802863335875,
+      "toe_clearance_own_duration_H": 0.00399827690261446,
+      "window_s": [
+       0.0,
+       16.240000000001878
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.6992825286514304,
+        "tail_yaw_servo": 0.9165811006342455,
+        "left_hip_roll_servo": 0.6186581904902178,
+        "left_hip_pitch_servo": 0.7059851379707879,
+        "left_hip_yaw_servo": 0.5361164059695287,
+        "left_knee_servo": 0.5815358936294315,
+        "left_ankle_a_servo": 0.4208097954356252,
+        "left_ankle_b_servo": 0.4967466901197535,
+        "right_hip_roll_servo": 0.6148365999338373,
+        "right_hip_pitch_servo": 0.7163328895937151,
+        "right_hip_yaw_servo": 0.5486485993996852,
+        "right_knee_servo": 0.5865449176328879,
+        "right_ankle_a_servo": 0.511576071663123,
+        "right_ankle_b_servo": 0.40095721076603946
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.9165811006342455
+       ],
+       "worst_leg": [
+        "right_hip_pitch_servo",
+        0.7163328895937151
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.9165811006342455
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        8125
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 14.252865812027755,
+     "end_s": 14.352865812027755,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.09049183277676412,
+     "along_max_after_pulse_m_s": 0.43538001938935145,
+     "across_max_after_pulse_m_s": 0.2497720980959323,
+     "standing": false,
+     "after_s": null,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 16.240000000001878,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.0,
+     "com_displacement_m": 0.5764279055930993
+    },
+    "convention": {
+     "touchdowns_on_rows": 4,
+     "low_at_touchdown_row_mm": {
+      "min": -0.1192821870222337,
+      "median": -0.06369867162415999,
+      "max": -0.01484673031337553
+     },
+     "step_travel_mm": {
+      "min": 0.08234043352452862,
+      "median": 0.09350877979425759,
+      "max": 0.13489963637551178
+     },
+     "low_one_update_before_mm": {
+      "min": 0.3962145501893305,
+      "median": 0.40416567090709654,
+      "max": 0.5552159948553252
+     },
+     "above_floor": 0,
+     "within_one_step": 4,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3043.npz",
+    "sha256": "23f516defb57b67db55d22eef94c1aed76e3703e090e23574e507d36a45ffc07",
+    "rows": 813,
+    "every_s": 0.02,
+    "updates": 1625,
+    "steps": 8125
+   },
+   "relaxed": [],
+   "wall_s": 1.6048747169988928
+  },
+  {
+   "seed": 3044,
+   "fell": true,
+   "fall_time_s": 18.34800000000071,
+   "fall_cause": "tilt",
+   "fall_onset_s": 17.972000000000918,
+   "fall_candidates": [
+    "slip"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.21568627450980393,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.1199999999999335,
+     "cop_at_pad_edge_with_ankle_saturated": null,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.19607843137254902,
+     "ankle_cap_box": 0.0,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": [
+     "neck_pitch_servo",
+     "tail_yaw_servo"
+    ]
+   },
+   "survival_s": 18.34800000000071,
+   "planned_s": 20.384798168396884,
+   "strides": 16.964925920957928,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.9478880656833649
+   ],
+   "worst_speed_ratio": [
+    "neck_pitch_servo",
+    1.1447703929009385
+   ],
+   "tilt_from_home_max_deg": 29.996758237994726,
+   "joint_margin_min_rad": 0.1273269152711507,
+   "joint_shortfall_rad": -0.027326915271150692,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained_legs": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "command_s": 14.50634942442528,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": false,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.0034352153381707294,
+      "own_swings": [
+       19,
+       19
+      ],
+      "ref_swings": [
+       17,
+       17
+      ],
+      "ref_swings_cut": [
+       1,
+       0
+      ],
+      "interrupted_swings": 4,
+      "air_gaps": 1,
+      "air_gap_longest_s": 0.10800000000000054,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": -0.0010480571992045854,
+      "own_duration_swings": [
+       20,
+       19
+      ],
+      "worst_swing": {
+       "foot": 0,
+       "t_lo_s": 17.834,
+       "t_td_s": 18.034,
+       "own_duration_s": 0.1999999999999993,
+       "planned_s": 0.3534652055893398,
+       "min_at_frac": 0.6110926806522124,
+       "min_from_edge": null
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.006845055376147271,
+      "toe_clearance_own_duration_H": -0.0020883725937674105,
+      "window_s": [
+       0.0,
+       18.340000000000714
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.710187944438062,
+        "tail_yaw_servo": 0.9478880656833649,
+        "left_hip_roll_servo": 0.6494650949791841,
+        "left_hip_pitch_servo": 0.7374307148922888,
+        "left_hip_yaw_servo": 0.5670672005040556,
+        "left_knee_servo": 0.6173020027134566,
+        "left_ankle_a_servo": 0.4579067927040262,
+        "left_ankle_b_servo": 0.5138966742454779,
+        "right_hip_roll_servo": 0.6580270159122705,
+        "right_hip_pitch_servo": 0.7218885656088957,
+        "right_hip_yaw_servo": 0.5529535331196417,
+        "right_knee_servo": 0.6050677617960283,
+        "right_ankle_a_servo": 0.49293800822424594,
+        "right_ankle_b_servo": 0.4833113356180998
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.9478880656833649
+       ],
+       "worst_leg": [
+        "left_hip_pitch_servo",
+        0.7374307148922888
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.9478880656833649
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        9174
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 14.50634942442528,
+     "end_s": 14.60634942442528,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.028707740739935143,
+     "along_max_after_pulse_m_s": 0.42905008368024694,
+     "across_max_after_pulse_m_s": 0.257000746198199,
+     "standing": false,
+     "after_s": null,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 18.340000000000714,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.14726027397260275,
+     "com_displacement_m": 1.299229060612917
+    },
+    "convention": {
+     "touchdowns_on_rows": 6,
+     "low_at_touchdown_row_mm": {
+      "min": -0.19364552848886474,
+      "median": -0.027472905086410072,
+      "max": -0.00028255236071347833
+     },
+     "step_travel_mm": {
+      "min": 0.08235025979584226,
+      "median": 0.09796804825225298,
+      "max": 0.21259139015567616
+     },
+     "low_one_update_before_mm": {
+      "min": 0.28511373968347337,
+      "median": 0.42736396689495176,
+      "max": 0.8693114222895161
+     },
+     "above_floor": 0,
+     "within_one_step": 6,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3044.npz",
+    "sha256": "04f47d2397357b3bb0bbdf59386b2764bd7ce1367277f8a482a23c05cfd26816",
+    "rows": 918,
+    "every_s": 0.02,
+    "updates": 1835,
+    "steps": 9174
+   },
+   "relaxed": [],
+   "wall_s": 1.7440498030009621
+  },
+  {
+   "seed": 3045,
+   "fell": true,
+   "fall_time_s": 17.17400000000136,
+   "fall_cause": "tilt",
+   "fall_onset_s": 16.7420000000016,
+   "fall_candidates": [
+    "slip"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.21568627450980393,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.1199999999999335,
+     "cop_at_pad_edge_with_ankle_saturated": null,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.17647058823529413,
+     "ankle_cap_box": 0.0,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": [
+     "neck_pitch_servo",
+     "tail_yaw_servo"
+    ]
+   },
+   "survival_s": 17.17400000000136,
+   "planned_s": 20.384798168396884,
+   "strides": 15.87942215863,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.9390397147430447
+   ],
+   "worst_speed_ratio": [
+    "neck_pitch_servo",
+    1.2088787018654286
+   ],
+   "tilt_from_home_max_deg": 30.329288692208113,
+   "joint_margin_min_rad": 0.12720327097087764,
+   "joint_shortfall_rad": -0.02720327097087763,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained_legs": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "command_s": 14.199579642612983,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": false,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.004631080246938139,
+      "own_swings": [
+       17,
+       18
+      ],
+      "ref_swings": [
+       16,
+       16
+      ],
+      "ref_swings_cut": [
+       0,
+       0
+      ],
+      "interrupted_swings": 3,
+      "air_gaps": 1,
+      "air_gap_longest_s": 0.09999999999999787,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": 0.000718612821376162,
+      "own_duration_swings": [
+       17,
+       18
+      ],
+      "worst_swing": {
+       "foot": 1,
+       "t_lo_s": 16.864,
+       "t_td_s": 16.998,
+       "own_duration_s": 0.13400000000000034,
+       "planned_s": 0.3534652055893398,
+       "min_at_frac": 0.4130533859988326,
+       "min_from_edge": null
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.009227951560833959,
+      "toe_clearance_own_duration_H": 0.0014319173827829438,
+      "window_s": [
+       0.0,
+       17.170000000001362
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.7041884831549686,
+        "tail_yaw_servo": 0.9390397147430447,
+        "left_hip_roll_servo": 0.6171628242751711,
+        "left_hip_pitch_servo": 0.6988309309561238,
+        "left_hip_yaw_servo": 0.5292948187680578,
+        "left_knee_servo": 0.5840811792365476,
+        "left_ankle_a_servo": 0.46263658350871467,
+        "left_ankle_b_servo": 0.49857886076583935,
+        "right_hip_roll_servo": 0.6147383081073173,
+        "right_hip_pitch_servo": 0.735661130891246,
+        "right_hip_yaw_servo": 0.5703174532531669,
+        "right_knee_servo": 0.6271632949909002,
+        "right_ankle_a_servo": 0.5250564485437454,
+        "right_ankle_b_servo": 0.4007652840046748
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.9390397147430447
+       ],
+       "worst_leg": [
+        "right_hip_pitch_servo",
+        0.735661130891246
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.9390397147430447
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        8587
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 14.199579642612983,
+     "end_s": 14.299579642612983,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": -0.019437932092304367,
+     "along_max_after_pulse_m_s": 0.44679745138262894,
+     "across_max_after_pulse_m_s": 0.2412537955357869,
+     "standing": false,
+     "after_s": null,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 17.170000000001362,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.10679611650485436,
+     "com_displacement_m": 0.9522344927742561
+    },
+    "convention": {
+     "touchdowns_on_rows": 7,
+     "low_at_touchdown_row_mm": {
+      "min": -0.5405296464919603,
+      "median": -0.09852394888001763,
+      "max": -0.04985308177746055
+     },
+     "step_travel_mm": {
+      "min": 0.0863608534626163,
+      "median": 0.09631247440921448,
+      "max": 0.83139198355319
+     },
+     "low_one_update_before_mm": {
+      "min": 0.33686869091478516,
+      "median": 0.4112701276958184,
+      "max": 3.8890923108634863
+     },
+     "above_floor": 0,
+     "within_one_step": 5,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3045.npz",
+    "sha256": "d16510a18de428172dfa93da2442d49f396015ae76827dc81fc2cb0e2d0b2085",
+    "rows": 859,
+    "every_s": 0.02,
+    "updates": 1718,
+    "steps": 8587
+   },
+   "relaxed": [],
+   "wall_s": 1.5971040730000823
+  },
+  {
+   "seed": 3046,
+   "fell": false,
+   "fall_time_s": null,
+   "fall_cause": null,
+   "fall_onset_s": null,
+   "fall_candidates": null,
+   "limits_before_onset": null,
+   "survival_s": 20.38399999999958,
+   "planned_s": 20.384798168396884,
+   "strides": 18.847452036886086,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.9820062480536883
+   ],
+   "worst_speed_ratio": [
+    "left_knee_servo",
+    0.744311078843985
+   ],
+   "tilt_from_home_max_deg": 4.996002583712551,
+   "joint_margin_min_rad": 0.1273239882163803,
+   "joint_shortfall_rad": -0.027323988216380296,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": true,
+    "recovered": false,
+    "drive_sustained": true,
+    "drive_speed": true,
+    "joint_range": true
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": true,
+    "recovered": false,
+    "drive_sustained_legs": true,
+    "drive_speed": true,
+    "joint_range": true
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "recovered"
+   ],
+   "failed_terms_but_A1": [
+    "recovered"
+   ],
+   "command_s": 14.043109042756905,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": true,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.001819954660306617,
+      "own_swings": [
+       20,
+       21
+      ],
+      "ref_swings": [
+       20,
+       20
+      ],
+      "ref_swings_cut": [
+       0,
+       0
+      ],
+      "interrupted_swings": 1,
+      "air_gaps": 0,
+      "air_gap_longest_s": 0.0,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": 0.00024497087875910824,
+      "own_duration_swings": [
+       20,
+       21
+      ],
+      "worst_swing": {
+       "foot": 1,
+       "t_lo_s": 16.096,
+       "t_td_s": 16.182,
+       "own_duration_s": 0.08599999999999852,
+       "planned_s": 0.3534652055893398,
+       "min_at_frac": 0.29422980920710023,
+       "min_from_edge": null
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.0036264656522260047,
+      "toe_clearance_own_duration_H": 0.0004881322029560106,
+      "window_s": [
+       0.0,
+       20.379999999999583
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.7068953627971518,
+        "tail_yaw_servo": 0.9820062480536883,
+        "left_hip_roll_servo": 0.6674997832419697,
+        "left_hip_pitch_servo": 0.7309103204854223,
+        "left_hip_yaw_servo": 0.5654119437727011,
+        "left_knee_servo": 0.5943810408306247,
+        "left_ankle_a_servo": 0.4828034490093391,
+        "left_ankle_b_servo": 0.5298954559009905,
+        "right_hip_roll_servo": 0.6717511036671291,
+        "right_hip_pitch_servo": 0.7383180836088825,
+        "right_hip_yaw_servo": 0.5718016403777587,
+        "right_knee_servo": 0.5927134285755965,
+        "right_ankle_a_servo": 0.5383730980171755,
+        "right_ankle_b_servo": 0.5125509407057752
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.9820062480536883
+       ],
+       "worst_leg": [
+        "right_hip_pitch_servo",
+        0.7383180836088825
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.9820062480536883
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        10192
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 14.043109042756905,
+     "end_s": 14.143109042756905,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.37014135053000247,
+     "along_max_after_pulse_m_s": 0.4189486145966509,
+     "across_max_after_pulse_m_s": 0.06213885751674376,
+     "standing": false,
+     "after_s": 5.2268909572432385,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 20.379999999999583,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.6199261992619927,
+     "com_displacement_m": 2.471838252524712
+    },
+    "convention": {
+     "touchdowns_on_rows": 7,
+     "low_at_touchdown_row_mm": {
+      "min": -0.6268704207134934,
+      "median": -0.04373957616122647,
+      "max": -0.004438920164562439
+     },
+     "step_travel_mm": {
+      "min": 0.08417869311154823,
+      "median": 0.09478794272242252,
+      "max": 0.5552025131593009
+     },
+     "low_one_update_before_mm": {
+      "min": 0.38859153786867817,
+      "median": 0.4236309133868361,
+      "max": 2.268066697627521
+     },
+     "above_floor": 0,
+     "within_one_step": 6,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3046.npz",
+    "sha256": "b3b912dfc63d9c2df0644066456b61b32c5aff9de47ce7308867641eb0248a60",
+    "rows": 1020,
+    "every_s": 0.02,
+    "updates": 2039,
+    "steps": 10192
+   },
+   "relaxed": [],
+   "wall_s": 1.8100538049984607
+  },
+  {
+   "seed": 3047,
+   "fell": false,
+   "fall_time_s": null,
+   "fall_cause": null,
+   "fall_onset_s": null,
+   "fall_candidates": null,
+   "limits_before_onset": null,
+   "survival_s": 20.38399999999958,
+   "planned_s": 20.384798168396884,
+   "strides": 18.847452036886086,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.986645358846818
+   ],
+   "worst_speed_ratio": [
+    "left_knee_servo",
+    0.7442508302497735
+   ],
+   "tilt_from_home_max_deg": 4.654921230078912,
+   "joint_margin_min_rad": 0.12731583703948415,
+   "joint_shortfall_rad": -0.027315837039484148,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": true,
+    "recovered": false,
+    "drive_sustained": true,
+    "drive_speed": true,
+    "joint_range": true
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": true,
+    "recovered": false,
+    "drive_sustained_legs": true,
+    "drive_speed": true,
+    "joint_range": true
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "recovered"
+   ],
+   "failed_terms_but_A1": [
+    "recovered"
+   ],
+   "command_s": 13.817818080585333,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": true,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.0017828026067550585,
+      "own_swings": [
+       20,
+       21
+      ],
+      "ref_swings": [
+       20,
+       20
+      ],
+      "ref_swings_cut": [
+       0,
+       0
+      ],
+      "interrupted_swings": 1,
+      "air_gaps": 0,
+      "air_gap_longest_s": 0.0,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": 0.0008793460051550444,
+      "own_duration_swings": [
+       20,
+       21
+      ],
+      "worst_swing": {
+       "foot": 1,
+       "t_lo_s": 16.092,
+       "t_td_s": 16.182,
+       "own_duration_s": 0.08999999999999986,
+       "planned_s": 0.3534652055893398,
+       "min_at_frac": 0.3055463403302473,
+       "min_from_edge": null
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.0035524359804694075,
+      "toe_clearance_own_duration_H": 0.0017521964440474942,
+      "window_s": [
+       0.0,
+       20.379999999999583
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.7080275870843018,
+        "tail_yaw_servo": 0.986645358846818,
+        "left_hip_roll_servo": 0.6695368914835056,
+        "left_hip_pitch_servo": 0.7236790504205609,
+        "left_hip_yaw_servo": 0.5709158019213286,
+        "left_knee_servo": 0.5929562808315056,
+        "left_ankle_a_servo": 0.5061938988671696,
+        "left_ankle_b_servo": 0.5516172423111648,
+        "right_hip_roll_servo": 0.6740053079113804,
+        "right_hip_pitch_servo": 0.745333227425893,
+        "right_hip_yaw_servo": 0.574420805403107,
+        "right_knee_servo": 0.5981081941679159,
+        "right_ankle_a_servo": 0.534134658190413,
+        "right_ankle_b_servo": 0.5243170770745684
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.986645358846818
+       ],
+       "worst_leg": [
+        "right_hip_pitch_servo",
+        0.745333227425893
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.986645358846818
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        10192
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 13.817818080585333,
+     "end_s": 13.917818080585333,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.36658692110264113,
+     "along_max_after_pulse_m_s": 0.4231955286119772,
+     "across_max_after_pulse_m_s": 0.07752286436447887,
+     "standing": false,
+     "after_s": null,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 20.379999999999583,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.13982300884955753,
+     "com_displacement_m": 2.5586030430360336
+    },
+    "convention": {
+     "touchdowns_on_rows": 9,
+     "low_at_touchdown_row_mm": {
+      "min": -0.5273598519147,
+      "median": -0.06213694516247082,
+      "max": -0.007648764264759841
+     },
+     "step_travel_mm": {
+      "min": 0.07934810431487159,
+      "median": 0.0987821443695856,
+      "max": 0.6298611617857099
+     },
+     "low_one_update_before_mm": {
+      "min": 0.33460357641188715,
+      "median": 0.4096067686826261,
+      "max": 2.2331871896960145
+     },
+     "above_floor": 0,
+     "within_one_step": 7,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3047.npz",
+    "sha256": "87692573ffd3d0d9b6cd14c6254cd3335888059d08ddad8ec2daf521d10befdc",
+    "rows": 1020,
+    "every_s": 0.02,
+    "updates": 2039,
+    "steps": 10192
+   },
+   "relaxed": [],
+   "wall_s": 1.8300255199974345
+  },
+  {
+   "seed": 3048,
+   "fell": false,
+   "fall_time_s": null,
+   "fall_cause": null,
+   "fall_onset_s": null,
+   "fall_candidates": null,
+   "limits_before_onset": null,
+   "survival_s": 20.38399999999958,
+   "planned_s": 20.384798168396884,
+   "strides": 18.847452036886086,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.9848659311876858
+   ],
+   "worst_speed_ratio": [
+    "left_knee_servo",
+    0.7444062976246426
+   ],
+   "tilt_from_home_max_deg": 5.073461974124263,
+   "joint_margin_min_rad": 0.1272442121344667,
+   "joint_shortfall_rad": -0.027244212134466705,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": true,
+    "recovered": true,
+    "drive_sustained": true,
+    "drive_speed": true,
+    "joint_range": true
+   },
+   "succeeded": true,
+   "success_but_A1": {
+    "survived": true,
+    "recovered": true,
+    "drive_sustained_legs": true,
+    "drive_speed": true,
+    "joint_range": true
+   },
+   "succeeded_but_A1": true,
+   "failed_terms": [],
+   "failed_terms_but_A1": [],
+   "command_s": 13.981855658421626,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": true,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.0012510807008055402,
+      "own_swings": [
+       21,
+       20
+      ],
+      "ref_swings": [
+       20,
+       19
+      ],
+      "ref_swings_cut": [
+       0,
+       1
+      ],
+      "interrupted_swings": 2,
+      "air_gaps": 0,
+      "air_gap_longest_s": 0.0,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": 0.00016598806095688136,
+      "own_duration_swings": [
+       21,
+       21
+      ],
+      "worst_swing": {
+       "foot": 0,
+       "t_lo_s": 18.144000000000002,
+       "t_td_s": 18.22,
+       "own_duration_s": 0.07599999999999696,
+       "planned_s": 0.3534652055893398,
+       "min_at_frac": 0.2715967469576099,
+       "min_from_edge": null
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.0024929198999219895,
+      "toe_clearance_own_duration_H": 0.0003307499988149776,
+      "window_s": [
+       0.0,
+       20.379999999999583
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.7089323608343522,
+        "tail_yaw_servo": 0.9848659311876858,
+        "left_hip_roll_servo": 0.652049737983916,
+        "left_hip_pitch_servo": 0.7406772705587162,
+        "left_hip_yaw_servo": 0.5668613253967033,
+        "left_knee_servo": 0.5832961177282137,
+        "left_ankle_a_servo": 0.5055692213715526,
+        "left_ankle_b_servo": 0.5407508411943391,
+        "right_hip_roll_servo": 0.654649047671216,
+        "right_hip_pitch_servo": 0.7338304057172645,
+        "right_hip_yaw_servo": 0.579182047174857,
+        "right_knee_servo": 0.5964834472566498,
+        "right_ankle_a_servo": 0.538775802986308,
+        "right_ankle_b_servo": 0.4993514652634997
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.9848659311876858
+       ],
+       "worst_leg": [
+        "left_hip_pitch_servo",
+        0.7406772705587162
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.9848659311876858
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        10192
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 13.981855658421626,
+     "end_s": 14.081855658421626,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.37489971005179645,
+     "along_max_after_pulse_m_s": 0.42230146518002637,
+     "across_max_after_pulse_m_s": 0.05276133203828196,
+     "standing": false,
+     "after_s": 0.9681443415800697,
+     "never_left_command": false,
+     "recovered": true,
+     "limit_s": 3.0,
+     "trace_until_s": 20.379999999999583,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.9014598540145985,
+     "com_displacement_m": 2.4933846083809064
+    },
+    "convention": {
+     "touchdowns_on_rows": 12,
+     "low_at_touchdown_row_mm": {
+      "min": -0.25652892482739675,
+      "median": -0.029020170496836962,
+      "max": -0.008881785818684942
+     },
+     "step_travel_mm": {
+      "min": 0.06756865283121163,
+      "median": 0.10791803578440876,
+      "max": 0.6249314782911124
+     },
+     "low_one_update_before_mm": {
+      "min": 0.3289614783373732,
+      "median": 0.5175367933951996,
+      "max": 2.899316194032126
+     },
+     "above_floor": 0,
+     "within_one_step": 11,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3048.npz",
+    "sha256": "b7c7d17f5a3b6917990193424dba776414e3e7bbcf674b05c159b0278d225a75",
+    "rows": 1020,
+    "every_s": 0.02,
+    "updates": 2039,
+    "steps": 10192
+   },
+   "relaxed": [],
+   "wall_s": 1.811351101998298
+  },
+  {
+   "seed": 3049,
+   "fell": true,
+   "fall_time_s": 18.246000000000766,
+   "fall_cause": "tilt",
+   "fall_onset_s": 17.812000000001007,
+   "fall_candidates": [
+    "leg_drive_at_torque_limit",
+    "slip"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0784313725490196,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.17647058823529413,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.2727272727272727,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": 0.31999999999982265,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": null,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.19607843137254902,
+     "ankle_cap_box": 0.0,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [
+     "left_ankle_a_servo"
+    ],
+    "neck_tail_drives": [
+     "neck_pitch_servo",
+     "tail_yaw_servo"
+    ]
+   },
+   "survival_s": 18.246000000000766,
+   "planned_s": 20.384798168396884,
+   "strides": 16.870614691181565,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.9512438365134782
+   ],
+   "worst_speed_ratio": [
+    "left_knee_servo",
+    1.1963815027677167
+   ],
+   "tilt_from_home_max_deg": 37.50689207825156,
+   "joint_margin_min_rad": 0.12721022396674253,
+   "joint_shortfall_rad": -0.027210223966742525,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained_legs": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "command_s": 14.494315478286342,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": false,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.013442067549784012,
+      "own_swings": [
+       19,
+       20
+      ],
+      "ref_swings": [
+       18,
+       17
+      ],
+      "ref_swings_cut": [
+       0,
+       0
+      ],
+      "interrupted_swings": 3,
+      "air_gaps": 2,
+      "air_gap_longest_s": 0.04999999999999716,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": -0.0010241120883013764,
+      "own_duration_swings": [
+       19,
+       20
+      ],
+      "worst_swing": {
+       "foot": 0,
+       "t_lo_s": 17.858,
+       "t_td_s": 17.936,
+       "own_duration_s": 0.0779999999999994,
+       "planned_s": 0.3534652055893398,
+       "min_at_frac": 0.6280674773368777,
+       "min_from_edge": null
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.02678484103333695,
+      "toe_clearance_own_duration_H": -0.0020406592500654304,
+      "window_s": [
+       0.0,
+       18.24000000000077
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.7058762926505461,
+        "tail_yaw_servo": 0.9512438365134782,
+        "left_hip_roll_servo": 0.6222152156795956,
+        "left_hip_pitch_servo": 0.7331053812599845,
+        "left_hip_yaw_servo": 0.5876259236063182,
+        "left_knee_servo": 0.6929364458391043,
+        "left_ankle_a_servo": 0.47346452535194555,
+        "left_ankle_b_servo": 0.534354399704295,
+        "right_hip_roll_servo": 0.6270702900131668,
+        "right_hip_pitch_servo": 0.724818788218682,
+        "right_hip_yaw_servo": 0.5549944840292452,
+        "right_knee_servo": 0.608437943450805,
+        "right_ankle_a_servo": 0.49182328589646523,
+        "right_ankle_b_servo": 0.45897012245721425
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.9512438365134782
+       ],
+       "worst_leg": [
+        "left_hip_pitch_servo",
+        0.7331053812599845
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.9512438365134782
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        9123
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 14.494315478286342,
+     "end_s": 14.594315478286342,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.30630578954721144,
+     "along_max_after_pulse_m_s": 0.47740857929071673,
+     "across_max_after_pulse_m_s": 0.2695563388736397,
+     "standing": false,
+     "after_s": null,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 18.24000000000077,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.21201413427561838,
+     "com_displacement_m": 1.4523376171750637
+    },
+    "convention": {
+     "touchdowns_on_rows": 6,
+     "low_at_touchdown_row_mm": {
+      "min": -0.7171609467175235,
+      "median": -0.0650550589851185,
+      "max": -0.018200401796650972
+     },
+     "step_travel_mm": {
+      "min": 0.08557003231794459,
+      "median": 0.09165848222458226,
+      "max": 1.015287423819503
+     },
+     "low_one_update_before_mm": {
+      "min": 0.2928753036712398,
+      "median": 0.3947738666301788,
+      "max": 4.3592761723799915
+     },
+     "above_floor": 0,
+     "within_one_step": 5,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3049.npz",
+    "sha256": "f19b62c832453c4101a7de035da9543c5164828359d8dfe8c4256321e52e1ca4",
+    "rows": 913,
+    "every_s": 0.02,
+    "updates": 1825,
+    "steps": 9123
+   },
+   "relaxed": [],
+   "wall_s": 1.5446021860007022
+  },
+  {
+   "seed": 3050,
+   "fell": true,
+   "fall_time_s": 16.718000000001613,
+   "fall_cause": "tilt",
+   "fall_onset_s": 16.282000000001855,
+   "fall_candidates": [
+    "leg_drive_at_torque_limit",
+    "slip"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0784313725490196,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.11764705882352941,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.2727272727272727,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": 0.07999999999995566,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.10999999999993904,
+     "cop_at_pad_edge_with_ankle_saturated": null,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.23529411764705882,
+     "ankle_cap_box": 0.0,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [
+     "right_ankle_a_servo",
+     "right_ankle_b_servo"
+    ],
+    "neck_tail_drives": [
+     "neck_pitch_servo",
+     "tail_yaw_servo"
+    ]
+   },
+   "survival_s": 16.718000000001613,
+   "planned_s": 20.384798168396884,
+   "strides": 15.457795484335678,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.9365259375214556
+   ],
+   "worst_speed_ratio": [
+    "neck_pitch_servo",
+    1.5105321122698012
+   ],
+   "tilt_from_home_max_deg": 31.64787699662155,
+   "joint_margin_min_rad": 0.127261525299736,
+   "joint_shortfall_rad": -0.027261525299735995,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained_legs": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "command_s": 13.791346280596711,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": false,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.003090117105779565,
+      "own_swings": [
+       17,
+       16
+      ],
+      "ref_swings": [
+       15,
+       15
+      ],
+      "ref_swings_cut": [
+       1,
+       0
+      ],
+      "interrupted_swings": 3,
+      "air_gaps": 0,
+      "air_gap_longest_s": 0.0,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": -0.0025362519849487664,
+      "own_duration_swings": [
+       18,
+       16
+      ],
+      "worst_swing": {
+       "foot": 1,
+       "t_lo_s": 16.074,
+       "t_td_s": 16.152,
+       "own_duration_s": 0.0779999999999994,
+       "planned_s": 0.3534652055893398,
+       "min_at_frac": 0.2715967469608564,
+       "min_from_edge": null
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.006157408088165042,
+      "toe_clearance_own_duration_H": -0.005053769145686934,
+      "window_s": [
+       0.0,
+       16.710000000001617
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.709048425885144,
+        "tail_yaw_servo": 0.9365259375214556,
+        "left_hip_roll_servo": 0.6304924384566694,
+        "left_hip_pitch_servo": 0.725994929961805,
+        "left_hip_yaw_servo": 0.5600213425729726,
+        "left_knee_servo": 0.6452310579221168,
+        "left_ankle_a_servo": 0.4100477785729892,
+        "left_ankle_b_servo": 0.5484394970689892,
+        "right_hip_roll_servo": 0.6427650709553567,
+        "right_hip_pitch_servo": 0.7216000092943564,
+        "right_hip_yaw_servo": 0.5421954336681705,
+        "right_knee_servo": 0.5863114457222871,
+        "right_ankle_a_servo": 0.5117058628967491,
+        "right_ankle_b_servo": 0.49004929734677455
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.9365259375214556
+       ],
+       "worst_leg": [
+        "left_hip_pitch_servo",
+        0.725994929961805
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.9365259375214556
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        8359
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 13.791346280596711,
+     "end_s": 13.89134628059671,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.01214574255980354,
+     "along_max_after_pulse_m_s": 0.44598437586753864,
+     "across_max_after_pulse_m_s": 0.3292596562508084,
+     "standing": false,
+     "after_s": null,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 16.710000000001617,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.07,
+     "com_displacement_m": 0.9371459331602641
+    },
+    "convention": {
+     "touchdowns_on_rows": 7,
+     "low_at_touchdown_row_mm": {
+      "min": -0.10005716065053516,
+      "median": -0.062119803824470764,
+      "max": -0.0069160460021604545
+     },
+     "step_travel_mm": {
+      "min": 0.06904591182853528,
+      "median": 0.09113369054421314,
+      "max": 0.4969717983251329
+     },
+     "low_one_update_before_mm": {
+      "min": 0.2831097553182057,
+      "median": 0.4211072981276454,
+      "max": 2.4200878473927347
+     },
+     "above_floor": 0,
+     "within_one_step": 7,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3050.npz",
+    "sha256": "f0fcb3cb11ef83a1a1d50df3c0e448e2510476ef629e5f2d9fc073c0f38edc8d",
+    "rows": 836,
+    "every_s": 0.02,
+    "updates": 1672,
+    "steps": 8359
+   },
+   "relaxed": [],
+   "wall_s": 1.4692807469982654
+  },
+  {
+   "seed": 3051,
+   "fell": true,
+   "fall_time_s": 17.238000000001325,
+   "fall_cause": "tilt",
+   "fall_onset_s": 15.93200000000199,
+   "fall_candidates": [
+    "slip"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 50,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.14,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.2300000000000768,
+     "cop_at_pad_edge_with_ankle_saturated": null,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.0,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 17.238000000001325,
+   "planned_s": 20.384798168396884,
+   "strides": 15.938597832215168,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.9289247188606433
+   ],
+   "worst_speed_ratio": [
+    "neck_pitch_servo",
+    2.431821336452929
+   ],
+   "tilt_from_home_max_deg": 37.89399108278126,
+   "joint_margin_min_rad": 0.12574916091772248,
+   "joint_shortfall_rad": -0.025749160917722475,
+   "joint_worst": "left_knee",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained_legs": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "command_s": 14.170670018172773,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": false,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.009456145991688128,
+      "own_swings": [
+       17,
+       17
+      ],
+      "ref_swings": [
+       16,
+       16
+      ],
+      "ref_swings_cut": [
+       0,
+       0
+      ],
+      "interrupted_swings": 2,
+      "air_gaps": 4,
+      "air_gap_longest_s": 0.09600000000000009,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": -0.0031593477006583897,
+      "own_duration_swings": [
+       18,
+       17
+      ],
+      "worst_swing": {
+       "foot": 0,
+       "t_lo_s": 16.464,
+       "t_td_s": 16.636,
+       "own_duration_s": 0.1720000000000006,
+       "planned_s": 0.3534652055893432,
+       "min_at_frac": 0.5262186972308308,
+       "min_from_edge": null
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.018842441182306265,
+      "toe_clearance_own_duration_H": -0.0062953578843258605,
+      "window_s": [
+       0.0,
+       17.23000000000133
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.722945289981594,
+        "tail_yaw_servo": 0.9289247188606433,
+        "left_hip_roll_servo": 0.6277804288966466,
+        "left_hip_pitch_servo": 0.7638892214662518,
+        "left_hip_yaw_servo": 0.6246835733156999,
+        "left_knee_servo": 0.7923336617334089,
+        "left_ankle_a_servo": 0.47851375546225056,
+        "left_ankle_b_servo": 0.6075613716392158,
+        "right_hip_roll_servo": 0.6419894953093397,
+        "right_hip_pitch_servo": 0.711959365519465,
+        "right_hip_yaw_servo": 0.5299504445382232,
+        "right_knee_servo": 0.577935290568715,
+        "right_ankle_a_servo": 0.47673491967872256,
+        "right_ankle_b_servo": 0.415643993867898
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.9289247188606433
+       ],
+       "worst_leg": [
+        "left_knee_servo",
+        0.7923336617334089
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.9289247188606433
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        8619
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 14.170670018172773,
+     "end_s": 14.270670018172773,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.15977305221773241,
+     "along_max_after_pulse_m_s": 0.4365172944739622,
+     "across_max_after_pulse_m_s": 0.2020142996731539,
+     "standing": false,
+     "after_s": null,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 17.23000000000133,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.06542056074766354,
+     "com_displacement_m": 0.9945295589146258
+    },
+    "convention": {
+     "touchdowns_on_rows": 5,
+     "low_at_touchdown_row_mm": {
+      "min": -4.670077700089784,
+      "median": -0.11113661980827974,
+      "max": -0.006357376132568905
+     },
+     "step_travel_mm": {
+      "min": 0.026400059451963526,
+      "median": 0.09864285488201033,
+      "max": 0.5286978224196481
+     },
+     "low_one_update_before_mm": {
+      "min": -2.0265885879915437,
+      "median": 0.3607277510338956,
+      "max": 0.4881607881500778
+     },
+     "above_floor": 0,
+     "within_one_step": 2,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3051.npz",
+    "sha256": "9acbecd11246017ba3e68b680484cca2c8244053b6e72609c21ae1aca07dcfa7",
+    "rows": 862,
+    "every_s": 0.02,
+    "updates": 1724,
+    "steps": 8619
+   },
+   "relaxed": [],
+   "wall_s": 1.5463387449999573
+  },
+  {
+   "seed": 3052,
+   "fell": true,
+   "fall_time_s": 17.17400000000136,
+   "fall_cause": "tilt",
+   "fall_onset_s": 16.83200000000155,
+   "fall_candidates": [
+    "leg_drive_at_torque_limit",
+    "slip"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.058823529411764705,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.11764705882352941,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": 0.239999999999867,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.26999999999985036,
+     "cop_at_pad_edge_with_ankle_saturated": null,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.2549019607843137,
+     "ankle_cap_box": 0.0,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [
+     "left_hip_pitch_servo",
+     "left_knee_servo"
+    ],
+    "neck_tail_drives": [
+     "neck_pitch_servo",
+     "tail_yaw_servo"
+    ]
+   },
+   "survival_s": 17.17400000000136,
+   "planned_s": 20.384798168396884,
+   "strides": 15.87942215863,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.9299393653391498
+   ],
+   "worst_speed_ratio": [
+    "neck_pitch_servo",
+    1.1604166338771051
+   ],
+   "tilt_from_home_max_deg": 29.69364140598704,
+   "joint_margin_min_rad": 0.12714707608380466,
+   "joint_shortfall_rad": -0.02714707608380465,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained_legs": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "command_s": 14.43547022902002,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": false,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.0034874433892721633,
+      "own_swings": [
+       17,
+       16
+      ],
+      "ref_swings": [
+       16,
+       16
+      ],
+      "ref_swings_cut": [
+       0,
+       0
+      ],
+      "interrupted_swings": 1,
+      "air_gaps": 2,
+      "air_gap_longest_s": 0.06599999999999895,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": 0.002039245046651892,
+      "own_duration_swings": [
+       17,
+       16
+      ],
+      "worst_swing": {
+       "foot": 0,
+       "t_lo_s": 16.174,
+       "t_td_s": 16.43,
+       "own_duration_s": 0.2560000000000002,
+       "planned_s": 0.3534652055893432,
+       "min_at_frac": 0.75,
+       "min_from_edge": "last"
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.006949125679398751,
+      "toe_clearance_own_duration_H": 0.004063426567400963,
+      "window_s": [
+       0.0,
+       17.170000000001362
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.7079121200378823,
+        "tail_yaw_servo": 0.9299393653391498,
+        "left_hip_roll_servo": 0.6296463929480938,
+        "left_hip_pitch_servo": 0.7356629043524148,
+        "left_hip_yaw_servo": 0.5685512126152743,
+        "left_knee_servo": 0.6242824624384455,
+        "left_ankle_a_servo": 0.38429574817577716,
+        "left_ankle_b_servo": 0.5022988554145856,
+        "right_hip_roll_servo": 0.6335327021210815,
+        "right_hip_pitch_servo": 0.7203491585690951,
+        "right_hip_yaw_servo": 0.5687602578386475,
+        "right_knee_servo": 0.5950495838163875,
+        "right_ankle_a_servo": 0.48278230711496184,
+        "right_ankle_b_servo": 0.39195863778830603
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.9299393653391498
+       ],
+       "worst_leg": [
+        "left_hip_pitch_servo",
+        0.7356629043524148
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.9299393653391498
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        8587
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 14.43547022902002,
+     "end_s": 14.535470229020019,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.03724455008229658,
+     "along_max_after_pulse_m_s": 0.4181040517392812,
+     "across_max_after_pulse_m_s": 0.2073607980862137,
+     "standing": false,
+     "after_s": null,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 17.170000000001362,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.12637362637362637,
+     "com_displacement_m": 0.7536913581254177
+    },
+    "convention": {
+     "touchdowns_on_rows": 11,
+     "low_at_touchdown_row_mm": {
+      "min": -0.8213241926978186,
+      "median": -0.07420937177404253,
+      "max": -0.00798879176741596
+     },
+     "step_travel_mm": {
+      "min": 0.08473182398735894,
+      "median": 0.10616627390248115,
+      "max": 1.2428377802806687
+     },
+     "low_one_update_before_mm": {
+      "min": 0.3761800804066209,
+      "median": 0.4428461218638569,
+      "max": 5.392864708705525
+     },
+     "above_floor": 0,
+     "within_one_step": 11,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3052.npz",
+    "sha256": "40f95103cac4aa19e9a5e428a02ad05d24b8df031fac0450c927e5ba22d783cb",
+    "rows": 859,
+    "every_s": 0.02,
+    "updates": 1718,
+    "steps": 8587
+   },
+   "relaxed": [],
+   "wall_s": 1.602305353997508
+  },
+  {
+   "seed": 3053,
+   "fell": true,
+   "fall_time_s": 15.894000000001977,
+   "fall_cause": "tilt",
+   "fall_onset_s": 15.42200000000182,
+   "fall_candidates": [
+    "leg_drive_at_torque_limit",
+    "slip"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 50,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.18,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.18,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.4,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.2,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": 0.03000000000001002,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.07000000000002338,
+     "cop_at_pad_edge_with_ankle_saturated": null,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.24,
+     "ankle_cap_box": 0.0,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [
+     "left_ankle_a_servo",
+     "right_ankle_a_servo",
+     "right_ankle_b_servo"
+    ],
+    "neck_tail_drives": [
+     "neck_pitch_servo",
+     "tail_yaw_servo"
+    ]
+   },
+   "survival_s": 15.894000000001977,
+   "planned_s": 20.384798168396884,
+   "strides": 14.695908686926554,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.9221084449271306
+   ],
+   "worst_speed_ratio": [
+    "neck_pitch_servo",
+    1.4094355153905196
+   ],
+   "tilt_from_home_max_deg": 34.2577397161211,
+   "joint_margin_min_rad": 0.1273021114551319,
+   "joint_shortfall_rad": -0.027302111455131894,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained_legs": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "command_s": 13.998861025852904,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": false,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.004013417211139469,
+      "own_swings": [
+       15,
+       15
+      ],
+      "ref_swings": [
+       14,
+       14
+      ],
+      "ref_swings_cut": [
+       1,
+       0
+      ],
+      "interrupted_swings": 2,
+      "air_gaps": 0,
+      "air_gap_longest_s": 0.0,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": -0.002180072066558316,
+      "own_duration_swings": [
+       16,
+       15
+      ],
+      "worst_swing": {
+       "foot": 1,
+       "t_lo_s": 14.982000000000001,
+       "t_td_s": 15.200000000000001,
+       "own_duration_s": 0.21799999999999997,
+       "planned_s": 0.3534652055893415,
+       "min_at_frac": 0.6733336018319754,
+       "min_from_edge": null
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.007997188051815473,
+      "toe_clearance_own_duration_H": -0.004344040344070517,
+      "window_s": [
+       0.0,
+       15.890000000001976
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.70776332150464,
+        "tail_yaw_servo": 0.9221084449271306,
+        "left_hip_roll_servo": 0.6422905848084826,
+        "left_hip_pitch_servo": 0.7386822579842345,
+        "left_hip_yaw_servo": 0.5589361960246912,
+        "left_knee_servo": 0.6522813975908058,
+        "left_ankle_a_servo": 0.4110446833140291,
+        "left_ankle_b_servo": 0.5418836888318721,
+        "right_hip_roll_servo": 0.6545383287282676,
+        "right_hip_pitch_servo": 0.7089431596014395,
+        "right_hip_yaw_servo": 0.5335319196197487,
+        "right_knee_servo": 0.5797111275139378,
+        "right_ankle_a_servo": 0.5098013188607883,
+        "right_ankle_b_servo": 0.45534767618277583
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.9221084449271306
+       ],
+       "worst_leg": [
+        "left_hip_pitch_servo",
+        0.7386822579842345
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.9221084449271306
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        7947
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 13.998861025852904,
+     "end_s": 14.098861025852903,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.07297927129724426,
+     "along_max_after_pulse_m_s": 0.44213428309696173,
+     "across_max_after_pulse_m_s": 0.38651610549566906,
+     "standing": false,
+     "after_s": null,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 15.890000000001976,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.16326530612244897,
+     "com_displacement_m": 0.5675327684768603
+    },
+    "convention": {
+     "touchdowns_on_rows": 5,
+     "low_at_touchdown_row_mm": {
+      "min": -5.337408335001398,
+      "median": -0.07215451402984088,
+      "max": -0.03433011156689543
+     },
+     "step_travel_mm": {
+      "min": 0.08688934227827037,
+      "median": 0.1142112272136878,
+      "max": 1.4248292703062895
+     },
+     "low_one_update_before_mm": {
+      "min": 0.37937193773701205,
+      "median": 0.526833689757031,
+      "max": 4.895356512113154
+     },
+     "above_floor": 0,
+     "within_one_step": 4,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3053.npz",
+    "sha256": "efa35843e45b52ade6a4d6f3a6dfa274a1fa6ce444aaf607558746c2d234da2a",
+    "rows": 795,
+    "every_s": 0.02,
+    "updates": 1590,
+    "steps": 7947
+   },
+   "relaxed": [],
+   "wall_s": 1.7242207580020477
+  },
+  {
+   "seed": 3054,
+   "fell": true,
+   "fall_time_s": 16.22000000000189,
+   "fall_cause": "tilt",
+   "fall_onset_s": 15.442000000001826,
+   "fall_candidates": [
+    "slip"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 50,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.22,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.3,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.0500000000000167,
+     "cop_at_pad_edge_with_ankle_saturated": null,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.12,
+     "ankle_cap_box": 0.0,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": [
+     "neck_pitch_servo",
+     "tail_yaw_servo"
+    ]
+   },
+   "survival_s": 16.22000000000189,
+   "planned_s": 20.384798168396884,
+   "strides": 14.997334774251089,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.936472751101027
+   ],
+   "worst_speed_ratio": [
+    "neck_pitch_servo",
+    1.3280931211262084
+   ],
+   "tilt_from_home_max_deg": 33.50054133906229,
+   "joint_margin_min_rad": 0.12708032901008917,
+   "joint_shortfall_rad": -0.027080329010089166,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained_legs": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "command_s": 14.25048761115875,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": false,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.00966256622650474,
+      "own_swings": [
+       16,
+       15
+      ],
+      "ref_swings": [
+       15,
+       15
+      ],
+      "ref_swings_cut": [
+       0,
+       0
+      ],
+      "interrupted_swings": 2,
+      "air_gaps": 2,
+      "air_gap_longest_s": 0.08000000000000007,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": 9.08865844981339e-05,
+      "own_duration_swings": [
+       16,
+       15
+      ],
+      "worst_swing": {
+       "foot": 0,
+       "t_lo_s": 15.634,
+       "t_td_s": 15.796000000000001,
+       "own_duration_s": 0.1620000000000008,
+       "planned_s": 0.3534652055893432,
+       "min_at_frac": 0.49792736942381277,
+       "min_from_edge": null
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.01925375686385228,
+      "toe_clearance_own_duration_H": 0.00018110180661044058,
+      "window_s": [
+       0.0,
+       16.210000000001894
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.7027678089143492,
+        "tail_yaw_servo": 0.936472751101027,
+        "left_hip_roll_servo": 0.6346830568321743,
+        "left_hip_pitch_servo": 0.7251873512682542,
+        "left_hip_yaw_servo": 0.553175009915873,
+        "left_knee_servo": 0.6491384337702296,
+        "left_ankle_a_servo": 0.3810701788036665,
+        "left_ankle_b_servo": 0.6234363500516303,
+        "right_hip_roll_servo": 0.6401626539652296,
+        "right_hip_pitch_servo": 0.6887001184231041,
+        "right_hip_yaw_servo": 0.5242945661447453,
+        "right_knee_servo": 0.5552750474432222,
+        "right_ankle_a_servo": 0.5110335013046726,
+        "right_ankle_b_servo": 0.3950068901213354
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.936472751101027
+       ],
+       "worst_leg": [
+        "left_hip_pitch_servo",
+        0.7251873512682542
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.936472751101027
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        8110
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 14.25048761115875,
+     "end_s": 14.35048761115875,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.13077266798088596,
+     "along_max_after_pulse_m_s": 0.4484872750479445,
+     "across_max_after_pulse_m_s": 0.28867417519553495,
+     "standing": false,
+     "after_s": null,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 16.210000000001894,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.009615384615384616,
+     "com_displacement_m": 0.6077724104606933
+    },
+    "convention": {
+     "touchdowns_on_rows": 5,
+     "low_at_touchdown_row_mm": {
+      "min": -0.09092979444130268,
+      "median": -0.04325573145041919,
+      "max": -0.003151991129707668
+     },
+     "step_travel_mm": {
+      "min": 0.08871725467661934,
+      "median": 0.13001381520796032,
+      "max": 0.17853470845290603
+     },
+     "low_one_update_before_mm": {
+      "min": 0.40033054193267753,
+      "median": 0.5120541263695673,
+      "max": 0.6000696547360058
+     },
+     "above_floor": 0,
+     "within_one_step": 5,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3054.npz",
+    "sha256": "4ad252a4876734d26c42d0cac5dcffe91e1d7eb3b00752b627d26dbb1b5d06c4",
+    "rows": 811,
+    "every_s": 0.02,
+    "updates": 1622,
+    "steps": 8110
+   },
+   "relaxed": [],
+   "wall_s": 1.9353898570007004
+  },
+  {
+   "seed": 3055,
+   "fell": true,
+   "fall_time_s": 16.390000000001795,
+   "fall_cause": "tilt",
+   "fall_onset_s": 15.772000000001936,
+   "fall_candidates": [
+    "leg_drive_at_torque_limit",
+    "slip"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 50,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.08,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.1,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.1,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": 0.13000000000004341,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": null,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.12,
+     "ankle_cap_box": 0.0,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [
+     "left_ankle_b_servo",
+     "left_knee_servo"
+    ],
+    "neck_tail_drives": [
+     "tail_yaw_servo"
+    ]
+   },
+   "survival_s": 16.390000000001795,
+   "planned_s": 20.384798168396884,
+   "strides": 15.15452015721169,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.9257538365839918
+   ],
+   "worst_speed_ratio": [
+    "neck_pitch_servo",
+    1.297545743468981
+   ],
+   "tilt_from_home_max_deg": 34.68371116987093,
+   "joint_margin_min_rad": 0.12724504594742062,
+   "joint_shortfall_rad": -0.02724504594742061,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained_legs": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "command_s": 14.293404818343012,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": false,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.01081671211753912,
+      "own_swings": [
+       16,
+       17
+      ],
+      "ref_swings": [
+       15,
+       15
+      ],
+      "ref_swings_cut": [
+       0,
+       0
+      ],
+      "interrupted_swings": 3,
+      "air_gaps": 0,
+      "air_gap_longest_s": 0.0,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": 0.00011007119487626204,
+      "own_duration_swings": [
+       16,
+       17
+      ],
+      "worst_swing": {
+       "foot": 1,
+       "t_lo_s": 16.044,
+       "t_td_s": 16.212,
+       "own_duration_s": 0.16799999999999926,
+       "planned_s": 0.3534652055893398,
+       "min_at_frac": 0.5262186972314892,
+       "min_from_edge": null
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.02155352318373896,
+      "toe_clearance_own_duration_H": 0.00021932931419895327,
+      "window_s": [
+       0.0,
+       16.3800000000018
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.7094457017009187,
+        "tail_yaw_servo": 0.9257538365839918,
+        "left_hip_roll_servo": 0.6362940384393502,
+        "left_hip_pitch_servo": 0.7135252093716261,
+        "left_hip_yaw_servo": 0.5305705827974777,
+        "left_knee_servo": 0.5951808737088523,
+        "left_ankle_a_servo": 0.47856866859619357,
+        "left_ankle_b_servo": 0.5134417795059256,
+        "right_hip_roll_servo": 0.6325714483703132,
+        "right_hip_pitch_servo": 0.7285106495653862,
+        "right_hip_yaw_servo": 0.5582581138385738,
+        "right_knee_servo": 0.6320023095119464,
+        "right_ankle_a_servo": 0.588391200033664,
+        "right_ankle_b_servo": 0.4096230963451531
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.9257538365839918
+       ],
+       "worst_leg": [
+        "right_hip_pitch_servo",
+        0.7285106495653862
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.9257538365839918
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        8195
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 14.293404818343012,
+     "end_s": 14.393404818343011,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.1641250168994939,
+     "along_max_after_pulse_m_s": 0.4359828819390922,
+     "across_max_after_pulse_m_s": 0.3825415534652839,
+     "standing": false,
+     "after_s": null,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 16.3800000000018,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.0,
+     "com_displacement_m": 0.698295580956673
+    },
+    "convention": {
+     "touchdowns_on_rows": 8,
+     "low_at_touchdown_row_mm": {
+      "min": -0.37301200449757316,
+      "median": -0.0738984490610147,
+      "max": -0.03403546453541791
+     },
+     "step_travel_mm": {
+      "min": 0.0863331399892274,
+      "median": 0.10705732293184983,
+      "max": 0.6965133781702705
+     },
+     "low_one_update_before_mm": {
+      "min": 0.19573923663738277,
+      "median": 0.4267229413543027,
+      "max": 2.7441358521639834
+     },
+     "above_floor": 0,
+     "within_one_step": 7,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3055.npz",
+    "sha256": "38a12afb87a0a933165350a42174b6a2b8d7f649db91921356edfe632e970724",
+    "rows": 820,
+    "every_s": 0.02,
+    "updates": 1639,
+    "steps": 8195
+   },
+   "relaxed": [],
+   "wall_s": 1.240019292999932
+  },
+  {
+   "seed": 3056,
+   "fell": true,
+   "fall_time_s": 17.008000000001452,
+   "fall_cause": "tilt",
+   "fall_onset_s": 16.63200000000166,
+   "fall_candidates": [
+    "slip"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.17647058823529413,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.09090909090909091,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.09999999999994458,
+     "cop_at_pad_edge_with_ankle_saturated": null,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.1568627450980392,
+     "ankle_cap_box": 0.0,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": [
+     "neck_pitch_servo",
+     "tail_yaw_servo"
+    ]
+   },
+   "survival_s": 17.008000000001452,
+   "planned_s": 20.384798168396884,
+   "strides": 15.725935255268471,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.929399653067436
+   ],
+   "worst_speed_ratio": [
+    "neck_pitch_servo",
+    0.7831292306594272
+   ],
+   "tilt_from_home_max_deg": 29.77435900575672,
+   "joint_margin_min_rad": 0.1271407243823044,
+   "joint_shortfall_rad": -0.027140724382304388,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained_legs": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "command_s": 13.997877124078425,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": false,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.0038497714797808766,
+      "own_swings": [
+       17,
+       15
+      ],
+      "ref_swings": [
+       16,
+       16
+      ],
+      "ref_swings_cut": [
+       0,
+       0
+      ],
+      "interrupted_swings": 1,
+      "air_gaps": 2,
+      "air_gap_longest_s": 0.08599999999999852,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": 0.00122918291517621,
+      "own_duration_swings": [
+       17,
+       15
+      ],
+      "worst_swing": {
+       "foot": 0,
+       "t_lo_s": 16.212,
+       "t_td_s": 16.446,
+       "own_duration_s": 0.23400000000000176,
+       "planned_s": 0.3534652055893432,
+       "min_at_frac": 0.7016249296398447,
+       "min_from_edge": null
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.007671105409841658,
+      "toe_clearance_own_duration_H": 0.002449286083554721,
+      "window_s": [
+       0.0,
+       17.000000000001457
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.701427593580529,
+        "tail_yaw_servo": 0.929399653067436,
+        "left_hip_roll_servo": 0.6218510384394856,
+        "left_hip_pitch_servo": 0.7092853987259518,
+        "left_hip_yaw_servo": 0.5643217144056373,
+        "left_knee_servo": 0.6028220415721139,
+        "left_ankle_a_servo": 0.39643063607514717,
+        "left_ankle_b_servo": 0.48684303288395187,
+        "right_hip_roll_servo": 0.623467316257068,
+        "right_hip_pitch_servo": 0.7026455193520508,
+        "right_hip_yaw_servo": 0.5536487144321744,
+        "right_knee_servo": 0.5909495190046719,
+        "right_ankle_a_servo": 0.4964676501861922,
+        "right_ankle_b_servo": 0.39631273044450466
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.929399653067436
+       ],
+       "worst_leg": [
+        "left_hip_pitch_servo",
+        0.7092853987259518
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.929399653067436
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        8504
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 13.997877124078425,
+     "end_s": 14.097877124078424,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.16369504337098864,
+     "along_max_after_pulse_m_s": 0.4125179483787699,
+     "across_max_after_pulse_m_s": 0.19670301879153385,
+     "standing": false,
+     "after_s": null,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 17.000000000001457,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.215311004784689,
+     "com_displacement_m": 0.9301622301222363
+    },
+    "convention": {
+     "touchdowns_on_rows": 2,
+     "low_at_touchdown_row_mm": {
+      "min": -0.09468100165099541,
+      "median": -0.08952296812500321,
+      "max": -0.084364934599011
+     },
+     "step_travel_mm": {
+      "min": 0.09503446806631584,
+      "median": 0.16831082641921627,
+      "max": 0.24158718477211674
+     },
+     "low_one_update_before_mm": {
+      "min": 0.39080740573256817,
+      "median": 0.7520311639710783,
+      "max": 1.1132549222095884
+     },
+     "above_floor": 0,
+     "within_one_step": 2,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3056.npz",
+    "sha256": "b74986af804a9f3c4796e954445da2a983fa6196642f29bef135b84a739a0133",
+    "rows": 851,
+    "every_s": 0.02,
+    "updates": 1701,
+    "steps": 8504
+   },
+   "relaxed": [],
+   "wall_s": 1.8196989089992712
+  },
+  {
+   "seed": 3057,
+   "fell": true,
+   "fall_time_s": 15.876000000001971,
+   "fall_cause": "tilt",
+   "fall_onset_s": 15.382000000001806,
+   "fall_candidates": [
+    "leg_drive_at_torque_limit",
+    "slip"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 50,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.16,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.2,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.2,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.3,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.01000000000000334,
+     "cop_at_pad_edge_with_ankle_saturated": null,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.14,
+     "ankle_cap_box": 0.0,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [
+     "left_ankle_a_servo",
+     "right_ankle_a_servo",
+     "right_ankle_b_servo"
+    ],
+    "neck_tail_drives": [
+     "neck_pitch_servo",
+     "tail_yaw_servo"
+    ]
+   },
+   "survival_s": 15.876000000001971,
+   "planned_s": 20.384798168396884,
+   "strides": 14.67926552873071,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.9244713744440347
+   ],
+   "worst_speed_ratio": [
+    "left_knee_servo",
+    1.1869934127147115
+   ],
+   "tilt_from_home_max_deg": 36.00119606158152,
+   "joint_margin_min_rad": 0.12714919873136526,
+   "joint_shortfall_rad": -0.02714919873136526,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained_legs": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "command_s": 13.98729004621273,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": false,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.005011367611979201,
+      "own_swings": [
+       15,
+       15
+      ],
+      "ref_swings": [
+       14,
+       14
+      ],
+      "ref_swings_cut": [
+       1,
+       0
+      ],
+      "interrupted_swings": 2,
+      "air_gaps": 0,
+      "air_gap_longest_s": 0.0,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": 0.002983247491833192,
+      "own_duration_swings": [
+       16,
+       15
+      ],
+      "worst_swing": {
+       "foot": 1,
+       "t_lo_s": 15.248000000000001,
+       "t_td_s": 15.348,
+       "own_duration_s": 0.09999999999999964,
+       "planned_s": 0.3534652055893415,
+       "min_at_frac": 0.3168628714530963,
+       "min_from_edge": null
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.009985717178503028,
+      "toe_clearance_own_duration_H": 0.005944458286339824,
+      "window_s": [
+       0.0,
+       15.87000000000197
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.7055200988899347,
+        "tail_yaw_servo": 0.9244713744440347,
+        "left_hip_roll_servo": 0.6173802023082752,
+        "left_hip_pitch_servo": 0.7239943841344566,
+        "left_hip_yaw_servo": 0.5608543201271451,
+        "left_knee_servo": 0.6571988916232628,
+        "left_ankle_a_servo": 0.4038450003904888,
+        "left_ankle_b_servo": 0.550541915747606,
+        "right_hip_roll_servo": 0.6252707983790251,
+        "right_hip_pitch_servo": 0.7125569551631069,
+        "right_hip_yaw_servo": 0.5345530422675933,
+        "right_knee_servo": 0.5790680445288712,
+        "right_ankle_a_servo": 0.5285405681776553,
+        "right_ankle_b_servo": 0.44250658402511567
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.9244713744440347
+       ],
+       "worst_leg": [
+        "left_hip_pitch_servo",
+        0.7239943841344566
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.9244713744440347
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        7938
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 13.98729004621273,
+     "end_s": 14.087290046212729,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.1618048051646665,
+     "along_max_after_pulse_m_s": 0.4457871367676765,
+     "across_max_after_pulse_m_s": 0.37493873706146963,
+     "standing": false,
+     "after_s": null,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 15.87000000000197,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.2268041237113402,
+     "com_displacement_m": 0.6277905498723023
+    },
+    "convention": {
+     "touchdowns_on_rows": 7,
+     "low_at_touchdown_row_mm": {
+      "min": -8.175127643224547,
+      "median": -0.05829075523954182,
+      "max": -0.008337937186887745
+     },
+     "step_travel_mm": {
+      "min": 0.08773968962079629,
+      "median": 0.0914334549333139,
+      "max": 1.347191059160208
+     },
+     "low_one_update_before_mm": {
+      "min": -1.4391723474235065,
+      "median": 0.3988765194270277,
+      "max": 2.579531218624625
+     },
+     "above_floor": 0,
+     "within_one_step": 5,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3057.npz",
+    "sha256": "8c43bfb856c7cb96bfab1070da866df2231ec45cd53c82d9c67319222923fc3b",
+    "rows": 794,
+    "every_s": 0.02,
+    "updates": 1588,
+    "steps": 7938
+   },
+   "relaxed": [],
+   "wall_s": 1.3342578110023169
+  },
+  {
+   "seed": 3058,
+   "fell": false,
+   "fall_time_s": null,
+   "fall_cause": null,
+   "fall_onset_s": null,
+   "fall_candidates": null,
+   "limits_before_onset": null,
+   "survival_s": 20.38399999999958,
+   "planned_s": 20.384798168396884,
+   "strides": 18.847452036886086,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.9779957837332005
+   ],
+   "worst_speed_ratio": [
+    "left_knee_servo",
+    0.7443864275839844
+   ],
+   "tilt_from_home_max_deg": 5.391258607667586,
+   "joint_margin_min_rad": 0.12730932999906305,
+   "joint_shortfall_rad": -0.027309329999063048,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": true,
+    "recovered": true,
+    "drive_sustained": true,
+    "drive_speed": true,
+    "joint_range": true
+   },
+   "succeeded": true,
+   "success_but_A1": {
+    "survived": true,
+    "recovered": true,
+    "drive_sustained_legs": true,
+    "drive_speed": true,
+    "joint_range": true
+   },
+   "succeeded_but_A1": true,
+   "failed_terms": [],
+   "failed_terms_but_A1": [],
+   "command_s": 14.035368379360442,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": true,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.002188231899674866,
+      "own_swings": [
+       21,
+       20
+      ],
+      "ref_swings": [
+       20,
+       20
+      ],
+      "ref_swings_cut": [
+       0,
+       0
+      ],
+      "interrupted_swings": 1,
+      "air_gaps": 1,
+      "air_gap_longest_s": 0.08000000000000185,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": -7.138453193568145e-05,
+      "own_duration_swings": [
+       21,
+       20
+      ],
+      "worst_swing": {
+       "foot": 0,
+       "t_lo_s": 17.85,
+       "t_td_s": 18.102,
+       "own_duration_s": 0.2519999999999989,
+       "planned_s": 0.3534652055893398,
+       "min_at_frac": 0.75,
+       "min_from_edge": "last"
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.00436029973512594,
+      "toe_clearance_own_duration_H": -0.0001422417595399686,
+      "window_s": [
+       0.0,
+       20.379999999999583
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.7078192274018505,
+        "tail_yaw_servo": 0.9779957837332005,
+        "left_hip_roll_servo": 0.6642303322746244,
+        "left_hip_pitch_servo": 0.7298995306713343,
+        "left_hip_yaw_servo": 0.5658009800577615,
+        "left_knee_servo": 0.5987233361047981,
+        "left_ankle_a_servo": 0.47642487125388827,
+        "left_ankle_b_servo": 0.5212748891362804,
+        "right_hip_roll_servo": 0.6687505521498003,
+        "right_hip_pitch_servo": 0.7394149967336926,
+        "right_hip_yaw_servo": 0.5729360969393796,
+        "right_knee_servo": 0.5886468248641955,
+        "right_ankle_a_servo": 0.5462383769317477,
+        "right_ankle_b_servo": 0.5099515014022392
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.9779957837332005
+       ],
+       "worst_leg": [
+        "right_hip_pitch_servo",
+        0.7394149967336926
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.9779957837332005
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        10192
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 14.035368379360442,
+     "end_s": 14.135368379360441,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.37614088967049103,
+     "along_max_after_pulse_m_s": 0.4110421448439716,
+     "across_max_after_pulse_m_s": 0.055702269350233535,
+     "standing": false,
+     "after_s": 2.9146316206409875,
+     "never_left_command": false,
+     "recovered": true,
+     "limit_s": 3.0,
+     "trace_until_s": 20.379999999999583,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.8674033149171271,
+     "com_displacement_m": 2.460583321531545
+    },
+    "convention": {
+     "touchdowns_on_rows": 7,
+     "low_at_touchdown_row_mm": {
+      "min": -0.08239033327528833,
+      "median": -0.06113636985459123,
+      "max": -0.011445956255707983
+     },
+     "step_travel_mm": {
+      "min": 0.08998419700744965,
+      "median": 0.09142901675580888,
+      "max": 0.1846255219957153
+     },
+     "low_one_update_before_mm": {
+      "min": 0.18714856219187534,
+      "median": 0.3775129590059554,
+      "max": 0.4473281241738243
+     },
+     "above_floor": 0,
+     "within_one_step": 7,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3058.npz",
+    "sha256": "2d6fa74a64c563a9cedb84105b88e9e7f9a8d57a40ab28a66fbe23a2ff98ed08",
+    "rows": 1020,
+    "every_s": 0.02,
+    "updates": 2039,
+    "steps": 10192
+   },
+   "relaxed": [],
+   "wall_s": 1.8455626289978682
+  },
+  {
+   "seed": 3059,
+   "fell": true,
+   "fall_time_s": 18.76400000000048,
+   "fall_cause": "tilt",
+   "fall_onset_s": 18.352000000000707,
+   "fall_candidates": [
+    "leg_drive_at_torque_limit",
+    "slip"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.09803921568627451,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.13725490196078433,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.09090909090909091,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": 0.09999999999994458,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.12999999999992795,
+     "cop_at_pad_edge_with_ankle_saturated": null,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.2549019607843137,
+     "ankle_cap_box": 0.0,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [
+     "left_ankle_a_servo",
+     "left_ankle_b_servo"
+    ],
+    "neck_tail_drives": [
+     "neck_pitch_servo",
+     "tail_yaw_servo"
+    ]
+   },
+   "survival_s": 18.76400000000048,
+   "planned_s": 20.384798168396884,
+   "strides": 17.349567799261518,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.9560807094087573
+   ],
+   "worst_speed_ratio": [
+    "neck_pitch_servo",
+    1.4219531673155665
+   ],
+   "tilt_from_home_max_deg": 31.6213458613063,
+   "joint_margin_min_rad": 0.12716125926843438,
+   "joint_shortfall_rad": -0.02716125926843438,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained_legs": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "command_s": 14.043090622267439,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": false,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.003387259846950619,
+      "own_swings": [
+       19,
+       19
+      ],
+      "ref_swings": [
+       18,
+       17
+      ],
+      "ref_swings_cut": [
+       0,
+       1
+      ],
+      "interrupted_swings": 3,
+      "air_gaps": 0,
+      "air_gap_longest_s": 0.0,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": 9.621233299877095e-05,
+      "own_duration_swings": [
+       19,
+       20
+      ],
+      "worst_swing": {
+       "foot": 0,
+       "t_lo_s": 17.814,
+       "t_td_s": 18.068,
+       "own_duration_s": 0.25400000000000134,
+       "planned_s": 0.3534652055893398,
+       "min_at_frac": 0.75,
+       "min_from_edge": "last"
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.006749498632049011,
+      "toe_clearance_own_duration_H": 0.00019171396329279472,
+      "window_s": [
+       0.0,
+       18.76000000000048
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.7165443703994889,
+        "tail_yaw_servo": 0.9560807094087573,
+        "left_hip_roll_servo": 0.6352657171253181,
+        "left_hip_pitch_servo": 0.7307428506897301,
+        "left_hip_yaw_servo": 0.5457976607696461,
+        "left_knee_servo": 0.5954645882861525,
+        "left_ankle_a_servo": 0.4772359980719385,
+        "left_ankle_b_servo": 0.5298092995530372,
+        "right_hip_roll_servo": 0.6334702334841705,
+        "right_hip_pitch_servo": 0.7474330943384732,
+        "right_hip_yaw_servo": 0.5910174932260661,
+        "right_knee_servo": 0.6629409987081036,
+        "right_ankle_a_servo": 0.5432270708148742,
+        "right_ankle_b_servo": 0.45920912795548413
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.9560807094087573
+       ],
+       "worst_leg": [
+        "right_hip_pitch_servo",
+        0.7474330943384732
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.9560807094087573
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        9382
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 14.043090622267439,
+     "end_s": 14.143090622267438,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": -0.09194157313551422,
+     "along_max_after_pulse_m_s": 0.4516337556339451,
+     "across_max_after_pulse_m_s": 0.32102208198140914,
+     "standing": false,
+     "after_s": null,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 18.76000000000048,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.5815789473684211,
+     "com_displacement_m": 1.633037409746222
+    },
+    "convention": {
+     "touchdowns_on_rows": 7,
+     "low_at_touchdown_row_mm": {
+      "min": -0.3372031567384828,
+      "median": -0.0318901900070688,
+      "max": -0.004250784590448947
+     },
+     "step_travel_mm": {
+      "min": 0.09100824743845502,
+      "median": 0.11685486477772955,
+      "max": 0.8344738591706524
+     },
+     "low_one_update_before_mm": {
+      "min": 0.42315104718520635,
+      "median": 0.5784017065722868,
+      "max": 4.168118511262813
+     },
+     "above_floor": 0,
+     "within_one_step": 7,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3059.npz",
+    "sha256": "afb8547731b708db24bbc37f52f79cc9aac43595395299273fbe607da4819ac0",
+    "rows": 939,
+    "every_s": 0.02,
+    "updates": 1877,
+    "steps": 9382
+   },
+   "relaxed": [],
+   "wall_s": 1.8734504540007038
+  },
+  {
+   "seed": 3060,
+   "fell": true,
+   "fall_time_s": 17.276000000001304,
+   "fall_cause": "tilt",
+   "fall_onset_s": 16.67200000000164,
+   "fall_candidates": [
+    "slip"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.1568627450980392,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.1399999999999224,
+     "cop_at_pad_edge_with_ankle_saturated": null,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.0,
+     "ankle_cap_box": 0.0,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": []
+   },
+   "survival_s": 17.276000000001304,
+   "planned_s": 20.384798168396884,
+   "strides": 15.973733388406362,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.9249737129687906
+   ],
+   "worst_speed_ratio": [
+    "neck_pitch_servo",
+    1.7483486644703363
+   ],
+   "tilt_from_home_max_deg": 30.16575337685901,
+   "joint_margin_min_rad": 0.12709787500301106,
+   "joint_shortfall_rad": -0.027097875003011057,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained_legs": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "command_s": 14.038716152470897,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": false,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.00218910617438485,
+      "own_swings": [
+       17,
+       16
+      ],
+      "ref_swings": [
+       16,
+       16
+      ],
+      "ref_swings_cut": [
+       0,
+       0
+      ],
+      "interrupted_swings": 0,
+      "air_gaps": 4,
+      "air_gap_longest_s": 0.07600000000000051,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": -0.00173876785550506,
+      "own_duration_swings": [
+       18,
+       16
+      ],
+      "worst_swing": {
+       "foot": 0,
+       "t_lo_s": 15.41,
+       "t_td_s": 15.644,
+       "own_duration_s": 0.23399999999999999,
+       "planned_s": 0.3534652055893432,
+       "min_at_frac": 0.7072831952018201,
+       "min_from_edge": null
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.004362041826440365,
+      "toe_clearance_own_duration_H": -0.0034646917545305416,
+      "window_s": [
+       0.0,
+       17.270000000001307
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.7115054269131865,
+        "tail_yaw_servo": 0.9249737129687906,
+        "left_hip_roll_servo": 0.6166574985385344,
+        "left_hip_pitch_servo": 0.7049443912097291,
+        "left_hip_yaw_servo": 0.5541337011107419,
+        "left_knee_servo": 0.6481439463962783,
+        "left_ankle_a_servo": 0.3902311114458039,
+        "left_ankle_b_servo": 0.47884728786879327,
+        "right_hip_roll_servo": 0.6192778185714481,
+        "right_hip_pitch_servo": 0.7474480958036169,
+        "right_hip_yaw_servo": 0.5656604180223458,
+        "right_knee_servo": 0.6150796530574928,
+        "right_ankle_a_servo": 0.5039427403424579,
+        "right_ankle_b_servo": 0.40781401495914044
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.9249737129687906
+       ],
+       "worst_leg": [
+        "right_hip_pitch_servo",
+        0.7474480958036169
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.9249737129687906
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        8638
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 14.038716152470897,
+     "end_s": 14.138716152470897,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.09622866771948194,
+     "along_max_after_pulse_m_s": 0.41506109837063077,
+     "across_max_after_pulse_m_s": 0.13628721994206153,
+     "standing": false,
+     "after_s": null,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 17.270000000001307,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.21551724137931033,
+     "com_displacement_m": 0.9528970433788111
+    },
+    "convention": {
+     "touchdowns_on_rows": 11,
+     "low_at_touchdown_row_mm": {
+      "min": -0.7631150690729773,
+      "median": -0.02264992674021714,
+      "max": -0.001516910184906628
+     },
+     "step_travel_mm": {
+      "min": 0.08983544642215732,
+      "median": 0.12211699539556412,
+      "max": 0.9450670247319719
+     },
+     "low_one_update_before_mm": {
+      "min": 0.36289344825664316,
+      "median": 0.5918649629440215,
+      "max": 3.6164887950151643
+     },
+     "above_floor": 0,
+     "within_one_step": 11,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3060.npz",
+    "sha256": "18963f1fc6ac772d248ceddfbf7ef7d809063b1a3fa0273dac053b24a6cc84a7",
+    "rows": 864,
+    "every_s": 0.02,
+    "updates": 1728,
+    "steps": 8638
+   },
+   "relaxed": [],
+   "wall_s": 1.6450198579987045
+  },
+  {
+   "seed": 3061,
+   "fell": true,
+   "fall_time_s": 19.244000000000213,
+   "fall_cause": "tilt",
+   "fall_onset_s": 18.902000000000402,
+   "fall_candidates": [
+    "slip"
+   ],
+   "limits_before_onset": {
+    "window_s": 0.5,
+    "updates": 51,
+    "hardware": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.21568627450980393,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_near_onset": {
+     "leg_drive_at_torque_limit": 0.0,
+     "leg_drive_at_envelope_limit": 0.0,
+     "ankle_linkage": 0.0,
+     "slip": 0.09090909090909091,
+     "cop_at_pad_edge_with_ankle_saturated": 0.0,
+     "leg_to_leg_clearance": 0.0,
+     "joint_range": 0.0
+    },
+    "hardware_last_active_before_onset_s": {
+     "leg_drive_at_torque_limit": null,
+     "leg_drive_at_envelope_limit": null,
+     "ankle_linkage": null,
+     "slip": 0.0,
+     "cop_at_pad_edge_with_ankle_saturated": null,
+     "leg_to_leg_clearance": null,
+     "joint_range": null
+    },
+    "reported": {
+     "neck_tail_at_torque_limit": 0.1568627450980392,
+     "ankle_cap_box": 0.0,
+     "step_clip": 0.0,
+     "phase_rate_saturated": 0.0
+    },
+    "leg_drives": [],
+    "neck_tail_drives": [
+     "neck_pitch_servo",
+     "tail_yaw_servo"
+    ]
+   },
+   "survival_s": 19.244000000000213,
+   "planned_s": 20.384798168396884,
+   "strides": 17.79338535115028,
+   "worst_sustained_ratio": [
+    "tail_yaw_servo",
+    0.9528290500441441
+   ],
+   "worst_speed_ratio": [
+    "neck_pitch_servo",
+    1.0149387171054438
+   ],
+   "tilt_from_home_max_deg": 29.675680372132152,
+   "joint_margin_min_rad": 0.127315041582634,
+   "joint_shortfall_rad": -0.02731504158263398,
+   "joint_worst": "left_hip_roll",
+   "estimator": null,
+   "ankle_cap_residual": null,
+   "captures": 0,
+   "phase_rate_range": [
+    0.0,
+    0.0
+   ],
+   "success": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded": false,
+   "success_but_A1": {
+    "survived": false,
+    "recovered": false,
+    "drive_sustained_legs": false,
+    "drive_speed": false,
+    "joint_range": false
+   },
+   "succeeded_but_A1": false,
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "command_s": 14.431775720979969,
+   "command_ref_s": null,
+   "fell_before_command": false,
+   "segment_reached": "v0.4",
+   "window_reached": false,
+   "omega": 4.828071509019948,
+   "crouch_frac": 0.03,
+   "measures": {
+    "bar": {
+     "toe_reported": {
+      "toe_clearance_own_swing_m": -0.002758638883875169,
+      "own_swings": [
+       19,
+       19
+      ],
+      "ref_swings": [
+       19,
+       18
+      ],
+      "ref_swings_cut": [
+       0,
+       0
+      ],
+      "interrupted_swings": 1,
+      "air_gaps": 4,
+      "air_gap_longest_s": 0.10999999999999943,
+      "air_gap_max_s": 0.17673260279443476,
+      "shortest_planned_s": 0.3534652055888695,
+      "toe_clearance_own_duration_m": 0.0008155819350635279,
+      "own_duration_swings": [
+       19,
+       19
+      ],
+      "worst_swing": {
+       "foot": 0,
+       "t_lo_s": 18.644000000000002,
+       "t_td_s": 18.898,
+       "own_duration_s": 0.2539999999999978,
+       "planned_s": 0.3534652055893398,
+       "min_at_frac": 0.75,
+       "min_from_edge": "last"
+      },
+      "count_ok": true,
+      "ok": false,
+      "limit_m": 0.020074141986586733,
+      "toe_clearance_own_swing_H": -0.005496900212658561,
+      "toe_clearance_own_duration_H": 0.0016251393172539849,
+      "window_s": [
+       0.0,
+       19.240000000000215
+      ]
+     },
+     "drives": {
+      "judged_span": "episode",
+      "window": null,
+      "episode": {
+       "ratios": {
+        "neck_pitch_servo": 0.7050009646712141,
+        "tail_yaw_servo": 0.9528290500441441,
+        "left_hip_roll_servo": 0.6450663765378877,
+        "left_hip_pitch_servo": 0.7230047085190316,
+        "left_hip_yaw_servo": 0.5701887241109183,
+        "left_knee_servo": 0.6198289295061957,
+        "left_ankle_a_servo": 0.46440812906013457,
+        "left_ankle_b_servo": 0.4774657070814653,
+        "right_hip_roll_servo": 0.6477056847767839,
+        "right_hip_pitch_servo": 0.7139901565686838,
+        "right_hip_yaw_servo": 0.5484405935300689,
+        "right_knee_servo": 0.5899893405356259,
+        "right_ankle_a_servo": 0.5139617237196005,
+        "right_ankle_b_servo": 0.44651515734305497
+       },
+       "worst": [
+        "tail_yaw_servo",
+        0.9528290500441441
+       ],
+       "worst_leg": [
+        "left_hip_pitch_servo",
+        0.7230047085190316
+       ],
+       "worst_a1": [
+        "tail_yaw_servo",
+        0.9528290500441441
+       ],
+       "drive_sustained": true,
+       "drive_sustained_legs": true,
+       "steps": [
+        0,
+        9622
+       ]
+      }
+     }
+    },
+    "window": null,
+    "stage1": null,
+    "legs": null,
+    "push": {
+     "onset_s": 14.431775720979969,
+     "end_s": 14.531775720979969,
+     "direction": "backward",
+     "frac": 0.25,
+     "force_N": [
+      -21.87385792,
+      0.0
+     ],
+     "dv_m_s": 0.14725,
+     "impulse_N_s": 2.187385792,
+     "bound_m_s": 0.589,
+     "fell_before_pulse": false
+    },
+    "recovery": {
+     "speed": "the CoM's mean velocity over the commanded stride from each feedback update, along the starting heading and across it",
+     "heading_rad": 2.3501039044251092e-07,
+     "stride_s": 0.8196294622361532,
+     "along_m_s": [
+      0.37800000000000006,
+      0.4620000000000001
+     ],
+     "across_max_m_s": 0.04200000000000001,
+     "along_min_after_pulse_m_s": 0.07142310006801479,
+     "along_max_after_pulse_m_s": 0.4514378510023092,
+     "across_max_after_pulse_m_s": 0.17368510911560936,
+     "standing": false,
+     "after_s": null,
+     "never_left_command": false,
+     "recovered": false,
+     "limit_s": 3.0,
+     "trace_until_s": 19.240000000000215,
+     "planned_until_s": 20.384798168396884,
+     "on_command_frac_after_pulse": 0.622107969151671,
+     "com_displacement_m": 1.6589757621894996
+    },
+    "convention": {
+     "touchdowns_on_rows": 6,
+     "low_at_touchdown_row_mm": {
+      "min": -0.7672566877395364,
+      "median": -0.07543347796748825,
+      "max": -0.003321494109536846
+     },
+     "step_travel_mm": {
+      "min": 0.07385381689519015,
+      "median": 0.1839251504917672,
+      "max": 0.9750841595193266
+     },
+     "low_one_update_before_mm": {
+      "min": 0.3236020676941993,
+      "median": 0.8568632872507872,
+      "max": 3.8145770009343876
+     },
+     "above_floor": 0,
+     "within_one_step": 6,
+     "holds": true,
+     "step_offset": 0
+    }
+   },
+   "trace": {
+    "path": "R0@0ms/nudge/backward_mu0.54/3061.npz",
+    "sha256": "9141a3778949bf95810d6a0505499dda8ea6dcf8ddf95aa987f5acc312bf9b21",
+    "rows": 963,
+    "every_s": 0.02,
+    "updates": 1925,
+    "steps": 9622
+   },
+   "relaxed": [],
+   "wall_s": 1.9078691429967876
+  }
+ ],
+ "rules": {
+  "clocks": "three clocks: the reference clock (track time); simulated time; the bar's clock, simulated seconds since the command instant t_c = the simulated time at which the reference clock reaches the commanded move's first frame (a causal move's file begins at its command).  The track is played at the commanded rate 1.05, times the tracker's phase-rate factor (within +-5 %).  Every judged time (a turn's (pi/2)/|rate| s, the 3 s hold, the walk's 10 s) is in simulated seconds.  A nudge's command is its onset.  stop/one_step plays Stage 1's non-causal one-step stop and is read from Stage 1's command (decision 18's convention: where the reference's path speed begins to ramp down), labelled so",
+  "readings": "every episode is read three ways, in the plan's order and never pooled: (1) shown with the look: not defined for a set without look bands (the block is null with that reason); (2) every limit (success); (3) every limit but for A1 (success_but_A1): the same terms with the sustained-drive term read on the leg drives only (plant.leg_drives: every drive but the neck's and the tail's).  The drives' RMS is taken over the judged window for the walk and the turn and over the whole episode for nudges and the stop; both spans' per-drive ratios are recorded.  A turn frozen with a1_over runs and records both readings, but reading 2 gives it no verdict (not read: a1_over, which is not a pass)",
+  "plans": "every item starts with the walk item's lead-in (start, one stride of nominal, the change to the walk, or the path through the neighbouring rung toward 0.40 m/s where the direct change is not available) and takes the walk's seed slot (slot 0), so the items of a seed are not independent: a fall in the lead-in shows in all of them (this differs from Stage 1, which gives turns their own slots).  Walk: K strides of the walk, the fewest that hold the last 10 s in its steady part with the clock 5 % slow (Stage 1's rule).  Turn: 2 strides (2.5 for a right turn), the turn, then the walk; seconds = t_cmd / (slowest clock) + at_s + 3 + 0.2.  Nudge: seconds = the latest onset at the slowest clock + 0.1 + 3 + 2.  Stop: 2.5 strides (2 before the one-step stop), the stop, a hold; seconds = t_rest / (slowest clock) + 2 + 0.2.  A turn's, a nudge's and a stop's track is long enough at the fastest clock (1.05 x 1.05); a walk's track ends at its planned end on the commanded clock and its last walk segment repeats beyond it (Stage 1's rule).  walk/nominal is start, then nominal to the end.  A causal move is placed at the walk phase its entry was built for (the strides of the walk before it, modulo one, equal its command_phase), and a rung's entry holds the speed its name holds (a fixture's stand-in walk apart, which its records say): a set that breaks either is refused",
+  "rows": "R2/<s>@<ms>ms: Stage 1's fitted tracker of CMA-ES seed s with the gains of the Stage 1 run's tune.json unchanged; R0@<ms>ms: the panels' open-loop row; <any registered row>@<ms>ms likewise.  <ms> is a servo delay of k = ms / 2 whole physics steps for the whole episode (speedfit.servo_delay: every servo target reaches the servos k steps after the controller sets it); with k = 0 the wrapper changes nothing",
+  "delay": "the delay queue of speedfit.servo_delay (a queue of the last k + 1 servo targets, refilled with the reset's targets at every reset: each target reaches the servos k physics steps after the controller sets it; k = 0 changes nothing); k is the row's and the same for every episode: speedfit.LATENCY_RULE's random draw per episode is not used",
+  "seeds": "blocks: seeds3042 (3042-3061, the headline) and seeds5042 (5042-5061, replication); an episode's start, sensor-noise and push seeds are tune.derived_seed(seed, 0, purpose) (panels.EPISODE_RULE with slot 0 for every item)",
+  "pass_": "a record passes a reading if all 20 episodes of its block survive and at least 17 succeed in that reading; a record of fewer episodes, of other seeds or with an episode that failed to run is not judged.  The judged delay is 10 ms; at another delay a record 'passes at <ms> ms' and gives no verdict.  R0 rows, Stage 1's reading, the replication block alone and a control give no verdict",
+  "replication": "of the 75 cm round's sets only F25F9cl (the candidate) is replicated: every seeds3042 record of it under a row with a verdict that passes in reading 2 or in reading 3 is run again on seeds5042 with the same row; the controls are not run on seeds5042; the new record names the record and the reading that triggered it (replication_of); the blocks are never pooled; a pass of an R0 row is not replicated.  Beside a shown or provisional verdict stands, for each row's record that passed, 'replicated' (the second block's record passes in that reading), 'not replicated' or 'replication cut by the pre-registered order'",
+  "omega": "the track's LIPM frequency is the set's own: control.omega0(p, q_home, crouch_frac = the set's crouch); the controllers' gains are not refitted; omega and crouch_frac are in every record and in its key",
+  "error": "an episode that raised, or that did not fall and whose trace ends before its judged window, failed to run: it is recorded with its reason, the same seed is run again on the next run of the same key, and a record that still holds such an episode is not judged; it is never a failed term.  bar run exits 4 while a record of its session holds such an episode",
+  "key": "a record's key holds what an episode executes: the row's description and sources, the condition, the plan, seconds, seeds and command, omega and crouch_frac, panels.key_context(body), per input file its sha256 and the sha256 of the entry numbers the planner reads (setio.entry_sha256), and the source hashes of the panels' modules and of bar.py, readings.py, setio.py and speedfit.py",
+  "no_overwrite": "a finished record ('done' or 'not run') whose key differs is never replaced silently: the run stops with the differing key fields, and so it does for a record file that cannot be read; --supersede moves the old record to <record>.superseded/<first 12 hex of its key's sha256>.json and the new record states its reason (supersedes.reason): it is a re-run after a result.  The label is written beside the kept record (<12 hex>.reason.json) before the record is moved, and every later record at that path carries it, so a killed re-run keeps it; supersedes.registered names the first record made at the path, supersedes.replaces the one just moved; the moved record's traces go to eval/traces.superseded/<12 hex>/",
+  "trace": "each episode's trace (not the attribution's lifted runs): Stage 1's 50 Hz arrays (panels.TRACE_RULE) plus the 500 Hz contact flags (bit-packed), both feet's 100 Hz low points with their times, the reference's swing foot and that swing's planned duration at those updates, the per-swing table and the command instant; the episode record holds its sha256, and its path when the file is kept (a trace that is not kept is written, hashed and removed: the record says kept: false and why)",
+  "attribution": "decision 20 (panels.PANEL_ATTRIBUTION_RULE, gates.attribute) on R2 rows' records with 5 or more falls: each candidate limit lifted over the same seeds.  A turn, nudge or stop record with fewer than 5 falls after its command is not attributed itself: it cites the walk record of the same set, row, grip and block.  A record whose attribution the budget cut reads 'not attributed (budget, pre-registered order)'.  A unit's episodes all finish before any of its records is attributed; attribution then runs record by record in the order the records were made, and the record names the session that ran it",
+  "budget": "a task's budget is the sum of its episodes' wall seconds (attribution's lifted episodes and re-runs included) in budget.json.  It is spent unit by unit (one run command; one record's attribution): a unit starts only if the task's spent core-hours plus the unit's estimate (its planned simulated seconds x the committed rates) fit; a started unit finishes; the first unit that does not fit is cut with every unit after it",
+  "checks": "on the three sets of the 75 cm round (and a version of one: a name's part before its first dot) a run is either a task's unit (--task) or a build check: at most one episode (seed 3042) per condition and R0 row on set V0, each listed with its reason in the file --dev-episodes names, when it starts and again when it is recorded; a check is smoke and no record.  On any other reference set (a scratch or fixture set built from Stage 1's gaits) only R0 rows run, never an R2 row (STAGE2_75_PLAN.md, amendment 5 of 15 Nov).  A run without --task writes neither under stage2/runs/ nor into a directory that holds a budget.json, and no run writes under stage1/ or stage2/sets/",
+  "freeze": "a run reads a frozen set: every file played is in the latest freeze with its sha256 and its entry's hashed subset (setio.read_inputs), the freeze's manifest_sha256 is recomputed from its manifest (s2io.sha256_json) and a set whose stored value differs is refused, and set.json's crouch_frac must equal the crouch_frac of every walk entry played (which the freeze covers).  A record names the freeze (set_freeze) and, per input file, the first freeze that lists it; a freeze that set.json labels change_after_result is copied with its reason into every record that plays a file it added (change_after_result: 'change after a result'), and after_check_episodes likewise (which is no change after a result)",
+  "convention": "the recorder's convention: an update row's time is the start of the physics step just taken and a step's loads are read after it, so physics step a and a row with t = a dt are one instant (readings.STEP_OFFSET); convention_check reads it on a real episode",
+  "nudge": "a nudge: a 0.1 s pulse at the trunk's centre of mass of m x frac x the Stage 0 push bound / 0.1 s in the commanded heading's frame, frac 0.25 (reported: 0.375, 0.5); onset (t_steady + (2 + u) T) / 1.05, t_steady the track time at which the walk's segment begins, T the walk's stride, u uniform in [0, 1) from the episode's push seed; no fall, back on the command within 3 s of the pulse's end and held to the planned end (panels.RECOVERY_RULE, decision 30), the drive and range limits over the episode",
+  "stage1": {
+   "rows": "R0: the reference with feedforward and servo PD only, played on the commanded clock: control.Tracker with no feedback term and no ankle cap (terms=(), ankle_cap=(); its R1 mode, whose state view then sets nothing), which commands exactly R0's targets (control.Tracker's R0 mode refuses another clock than the references' own; at rate 1 the two are the same bit for bit).  R0 has no balance, step or capture: in a push it holds the reference through the servos' PD alone, in a turn it plays the turn reference open loop; both are judged by the same rules.  R1: the tracker on the true state with the body-level G5 selection (env.tuned_gains, env.GAINS_RULE).  R2/42 and R2/43: the tracker on the estimate with each CMA-ES seed's own G5-selected candidate (tune.json seeds[s].selected_gains).  Every row: control.TERMS (R1, R2), the decided ankle cap and inward bound, the capture margin as selected (0.0, tune.FIXED_RULE), clock rate 1.05",
+   "episode": "seeds 3042-3061 for every condition and row (pushes paired by seed); episode seed s of a condition starts from the plant's settled stance with tune's start noise (joint angles +-0.01 rad, root velocity +-0.02 m/s) drawn from tune.derived_seed(s, slot, 0) and R2's sensor noise (estimator.SensorNoise defaults) from tune.derived_seed(s, slot, 1), slot the episode kind's place in tune's mix (walk and carpet walk 0, walking turn 1, in-place turn 2, every other condition 0), so a panel episode on a G5 validation seed is G5's episode; a push's timing is drawn from tune.derived_seed(s, slot, 2); the nominal plant (no randomisation, no latency), the floor and friction of the condition, commanded 5 % above (tune.COMMAND_RATE, control.COMMAND_RATE_RULE); a fall is plant.Plant.fall_cause (an episode during which MuJoCo warned counts as a fall at its start, tune.FAILURE_RULE); an episode that raises, or whose worker is lost twice, failed to run and is not a result (FAILED_EPISODE_RULE)",
+   "failed_episode": "an episode that raises, or whose worker process dies or does not answer within 900 s on each of 2 attempts (tune.Pool), failed to run: it is recorded with the traceback or reason (error) as a fall at its start with every success term failed, but it is not a result: the counts give it apart (errors), a record that holds one is not judged (pass_ None, its verdict incomplete), the next eval of the same key runs those seeds again and merges them in (RESUME_RULE), and attribution leaves it out (PANEL_ATTRIBUTION_RULE)",
+   "limits": "every success also needs every drive's motor-space RMS at most its sustained torque and every drive's peak speed at most speed_at(24 V) (control.run's worst ratios), and every joint keeping its required usable range (walks, stands, pushes, starts and stops 0.1 rad; turns decision 14's margin, tune.SUCCESS_RULE): for walks, turns and the carpet walk read as tune.SUCCESS_RULE reads them (the drive RMS over the judged window, peak speed and range over the episode); for stands, pushes and starts and stops over the whole episode",
+   "lcb": "one-sided 95 % Clopper-Pearson lower bound on the success probability: the 0.05 quantile of Beta(k, n - k + 1), 0 for k = 0 (20/20 -> 0.861, 17/20 -> 0.656; the repository's recovery_gate.binomial_lcb by bisection gives the same)",
+   "success_label": "the success failures (episodes that survive but fail a term) are labelled from their failed terms: the hardware terms (drive_sustained, drive_speed, joint_range, slip_median, slip_worst, no_leg_interference: drive RMS, drive speed, joint range, slip at the pad, and the legs' clearance, legs.LegGap's interference, the leg-to-leg clearance that STAGE1_PLAN.md decision 20 puts in the body-limited list in place of the turn gap: on the narrow bodies the legs are 32-58 mm apart at the reference stance, so their spacing is the body's) against the controller's (speed, yaw rate, cadence, stride, duty, flight, GRF, roll, pitch and tilt, toe clearance and the carpet's toe terms, drift, start and stop, push recovery); body-limited by the hardware terms that failed in more than half of the failed episodes, else controller-limited; every failed term is listed with its class and count.  A fall's failed term is 'survived' alone: a fall fails every term (tune.SUCCESS_RULE), so its other terms say nothing about what bound, and falls do not count here.  The CoP at a pad edge with the ankle saturated and step reach are hardware limits with no success term of their own: they enter through falls (control.HW_LIMITS, decision 20)",
+   "attribution": "with --attribute, a condition of an R2 or R3 row with falls is attributed by decision 20 (gates.ATTRIBUTION_RULE, gates.attribute): every relaxable hardware limit that is a candidate of at least one of its falls (control.CANDIDATE_RULE) is lifted in turn (control.run's relax) over the same 20 seeds, and the condition is body-limited by the limits whose lifting improves survival significantly (gates.sign_test, one-sided, p < 0.05), else controller-limited; that costs (lifted limits x 20) episodes.  The sign test can reach p < 0.05 only with at least 5 falls (every one of them improved: 1/2^5 = 0.03125; with 4, 0.0625), so a condition with fewer falls is controller-limited by decision 20 and no limit is lifted for it (its label says so).  A candidate the plant cannot relax (control.RELAXES None: cop_at_pad_edge_with_ankle_saturated, the pad's size) cannot be tested; a controller-limited label names such candidates as untestable.  Episodes that failed to run (FAILED_EPISODE_RULE) give no candidates and are left out of the sign test's pairs; an attribution whose lifted runs had such failures is run again by the next --attribute.  The null (1 mm/s) and the together runs of G4 are diagnostics and are not run; R0 and R1 are not attributed",
+   "decision_20": "STAGE1_PLAN.md decision 20: a condition that fails is body-limited by a hardware limit only if lifting that limit from the start (control.relaxed), over the condition's 20 starts (the same root-velocity offsets and noise seeds), improves survival significantly: a one-sided exact sign test on the paired survival times (strides to the fall; a run that does not fall outlasts one that does; two runs that do not fall tie; ties are dropped), p < 0.05.  The limits tested are the relaxable hardware limits that are candidates of at least one of the condition's falls (control.CANDIDATE_RULE); otherwise its falls are controller-limited.  The null, the same starts with the root velocity changed by a further 1 mm/s in x and nothing lifted, is reported as a chaos diagnostic and does not change the label.  Candidates the plant cannot lift (the CoP at a pad edge: the pads' size) are listed; lifting the candidates together is reported, not the label",
+   "candidates": "the hardware limits (HW_LIMITS) active at an update of the 0.5 s before the fall's onset (the last time the trunk tilt rose through 0.2 rad)",
+   "failure_label": "a failing record's failure holds both labels: the falls' (decision 20's attribution label, PANEL_ATTRIBUTION_RULE, or 'not attributed' until it runs, R2 and R3, or because it is not run, R0 and R1) and the success failures' (SUCCESS_LABEL_RULE).  Its label is the success failures' when nothing falls, the falls' when the success failures alone would not fail it (at most 3 of them), and otherwise that of the kind with more failed episodes, the falls' on a tie (plan section 4: a hardware limit binds before most failures)",
+   "trace": "each panel episode's trace (not the attribution's lifted runs) is written to <out>/<body>/eval/traces/<row>/<behavior>/<condition>/<seed>.npz (git-ignored, stage1/.gitignore): the recorder's rows every 2 feedback updates (50 Hz; metrics.COLS: time and reference time, CoM and its velocity, feet, lowest points, roll, pitch and yaw, slip speeds, IMU acceleration, DCM error, the reference's swing, sole centres, loads, root) and the joint angles (plant order), the times in float64 and the rest in float32; the episode record holds its path and sha256",
+   "command_rate": "a command of r times the reference's speed plays the track r times faster than real time (the reference clock's rate r, the phase-rate term's +-5 % about it): cadence, speed and yaw rate times r, stride and footprints unchanged, the reference rates times r and accelerations times r^2 in the servo targets and the armature feedforward, the reference DCM c + r c' / omega0 (the CoM moving r times as fast), the inverse-dynamics torque and the reference ZMP as the reference's",
+   "failures": "an evaluation that raises scores as the worst case: every episode a fall at its start (survived share 0, S = 2 per episode, every term 1, J = 7), with its traceback in the evaluation log; an episode during which MuJoCo warned (mjWARN_INERTIA, mjWARN_CONTACTFULL, mjWARN_CNSTRFULL, mjWARN_BADQPOS, mjWARN_BADQVEL, mjWARN_BADQACC, mjWARN_BADCTRL; counted after the episode) counts as a fall at its start, the warnings recorded; a worker process that dies or does not answer within 900 s is replaced by a fresh one (on the same inputs and tuner sources, else the run stops) and its evaluation run again, up to 2 attempts, after which it scores as the worst case with the reason; every such incident is kept in the session record",
+   "recovery": "STAGE1_PLAN.md decision 30: back to the command within 3 s means a feedback update at most 3 s after the pulse's end (at or after it) from which the body is on its command to the episode's end (at least 2 s more).  Standing, on command at an update: the true CoM's horizontal speed below 5 % of the nominal walk's commanded speed (decision 18's 'stopped'), at every update to the end.  Walking, on command from an update: the CoM's mean velocity over the commanded stride that starts there (its displacement over that stride / the stride's time) is 90-110 % of the commanded speed along the episode's starting heading (the straight walk's) and at most 10 % of it across, for every stride that starts at an update from then until one stride before the episode's end.  The window starts at the pulse's end or later, so the reading after the pulse is not the walking before it.  An update at the pulse's end itself is 'never left the command'.  A trace a fall cut short has not recovered; the time from the pulse's end is recorded",
+   "success": "plan section 4 on each validation episode: the nominal walk succeeds if it survives and over the 10 s before the stop command its mean speed is at least the nominal speed, each foot's duty is 0.55-0.65, there is no flight, the cadence is 1.6-2.2 steps/s, the stride 0.5-0.65 H, the peak GRF at most 1.6 BW, roll and pitch about home at most 4 deg RMS and 8 deg peak, the toe clearance at least 0.04 H, the slip at most 5 mm median and 15 mm worst and every drive's motor-space RMS at most its sustained torque (the drive RMS is judged over the same window as the other limits), and over the whole episode every drive's peak speed is at most speed_at(24 V) and every joint keeps 0.1 rad of its range.  A turn succeeds if it survives, its yaw rate over the 180 deg turn is at least the target, the walk limits (duty, flight, GRF, roll and pitch, toe clearance, slip) and the drive RMS hold over its steady turning (the same window), the drives' peak speeds hold over the episode, every joint keeps decision 14's margin, the legs do not interfere (legs.LegGap at 50 Hz) and, in place, the drift (the root's displacement) is at most 0.1 m.  Cadence and stride are judged at nominal only (the Walk row's 'at nominal').  The measures are metrics' (its docstring): toe clearance on the reference's swing clock, flight on the 20 ms debounced contact, slip as the sole centre's largest displacement over each loaded stance, the drive RMS over the window's physics steps",
+   "stop": "decision 18: stopped = the forward CoM speed below 5 % of the commanded speed from then on, within 1.5 strides of the stop command (the start of the stop's speed ramp, the last lift-off); the time to rest (CoM slower than 1 mm/s from then on, for a reference also within 1 mm of its final stand) is reported",
+   "sources": "sha256 over the modules an episode and its judgement run: the designlab/stage1 modules panels.py imports, followed as tune.TUNER_SOURCES_RULE follows the tuner's (from panels.py and the package's __init__.py, transitively) except env.py and gates.py, and the designlab modules outside designlab/stage1 that these import when they are imported (module level), followed the same way through designlab's own module-level imports (statics, carpet, clearance, sizing, gait, ...; a missing model's rebuild through round2 and pipeline is a function-level import, and plant.verify checks the model against its record's xml_sha256 anyway), each set hashed as plant.SOURCES_RULE hashes files, the module lists recorded beside.  env.py (the PPO environments) and gates.py (the gates) are left out: the panels take from env.py the carpet walk's plan and friction, the push bound, the pile floors' foot tables, the rate residual's bound and the env step, which the key holds by value or by source (RESUME_RULE), and from gates.py only the attribution, whose record holds gates.py's sha256.  So a row added in its own module, or a change to env.py's training code, leaves the R0-R2 records' keys as they are"
+  },
+  "set": {
+   "rules": {
+    "S2S-sets": "three reference sets per body, each a directory stage2/sets/<set>/<body>/ in Stage 1's run-directory layout: V0 (control: today's walk), F25F9 (control: the pull request's _tuned_f9_spec, verbatim) and F25F9cl (candidate: that spec with duty 0.59 and lift 0.095 H at every speed) (STAGE2_75_PLAN.md A1)",
+    "S2S-speeds": "walks nominal (sizing.NOMINAL's Froude number) and v0.3, v0.35, v0.4, v0.45, v0.5 (A2).  V0: sizing.NOMINAL at the nominal speed; look.speed_spec between sizing.NOMINAL and sizing.BRISK below BRISK's speed and between sizing.BRISK and envelope.FAST from there to FAST's speed; above FAST's speed FAST's stride, duty and lift at the higher Froude number, labelled new.  F25F9cl: every rung other than 0.40, 0.45 and 0.50 m/s labelled new",
+    "S2S-margin": "duty and lift set after results on seeds 3042-3061 (JPS 2.3)",
+    "S2S-crouch": "every walk of a set and body has one crouch (a share of the hip height), read from its spec and recorded as set.json crouch_frac and in every walk entry; a move joins two walks of one crouch (one LIPM frequency)",
+    "S2S-process": "every array is made inside s2io.r2() (gait accuracy r2, checked on entry and on exit) with one BLAS thread, each item in a fresh process on a body rebuilt for it (look.source); a walk's inverse dynamics, summary and both array formats come from the one generation in the one block",
+    "S2S-formats": "a walk is written twice from one generation: refs/<name>.npz (Stage 1's reference format, which the bar plays and a freeze lists) and look/<name>.npz (the look ladder's format, which the Stage 0 screen and the clips read); the build stops unless q, qd and qdd of the two are equal",
+    "S2S-twins": "where Stage 1's run (stage1/runs/2026-11-08/<body>) holds a walk of the same spec, or a transition between walks of the same specs made with Stage 1's own schedule, the set's file must have its sha256; where the look ladder (stage2/look/look_refs.json) holds a rung of the same spec, the look-format file must have its sha256; a difference stops the build with both hashes (STAGE2_75_PLAN.md A4).  V0 owes them: on a body that has a Stage 1 run record its nominal and start must be Stage 1's own files, and on a body the look ladder holds its look-format nominal and v0.4 must be the ladder's rungs; a twin that is not found there stops the build and fails sets verify (SetDef.stage1_twins, ladder_twins)",
+    "S2S-stage0": "the Stage 0 gates that block a freeze (STAGE2_75_PLAN.md A12) are read where a reference is built, with the set screen's own functions: a walk by setscreen.judge_walk on its look.price, a move by setscreen.screen_move on its file; the set's screen.json is made afterwards by setscreen and must agree (sets verify)",
+    "S2S-fallback": "a start, change or stop that fails a gate of its entry (A7) or a blocking Stage 0 gate (A12) is retried in this order and no other (STAGE2_75_PLAN.md A8): (1) a change with a ramp of 2 strides instead of 1 (same name; the entry records ramp_strides 2 and this rule); (2) for a ladder rung other than 0.40 m/s, a change from the neighbouring rung toward 0.40 m/s (v0.4_to_v0.45, v0.45_to_v0.5, v0.4_to_v0.35, v0.35_to_v0.3), with one stride of ramp, the rung's plan then walking through 0.40 m/s; (3) the item is recorded 'no transition within the gates' with its numbers.  A start and the stops have no fallback and nominal_to_v0.4 has step (1) only.  A failed start or nominal_to_v0.4 stops the set and goes to the lead (a set that starts into its 0.40 m/s walk, S2S-lead-in: a failed start_v0.4)",
+    "S2S-lead-in": "a set whose nominal walk is a rung starts into it (start; set.json lead_in 'start').  A set whose nominal walk is not a rung (A12) but whose 0.40 m/s walk is starts from standing straight into its 0.40 m/s walk: start_v0.4, built and gated like start, with no fallback; set.json says lead_in 'start_v0.4', and so does every record of the set (an exception, labelled where its rows are printed).  The items that need the nominal walk are then not available, with that reason, and a ladder rung is reached by the fallback rule's step (2), a change from the neighbouring rung toward 0.40 m/s.  A start_v0.4 that fails a gate stops the set: it is not run.  A set with neither walk has no lead-in (lead_in null) and its conditions are not run (STAGE2_75_PLAN.md A8 as amended: the owner's decision of 15 Nov, DECISION_LOG.md P34, after the first builds of the three sets; changed after a result)",
+    "S2S-turns": "a turn rate is built once for both directions (STAGE2_75_PLAN.md A10, A11): moves.pick_stride_factor on the set's 0.40 m/s walk, both directions with all passes at the chosen factor, then moves.step_down on the built pair (ik_ok in both, the worse thigh-twist use, the tighter margin of another joint, a leg drive over a Stage 0 limit in either, a neck or tail limit in either).  No factor, or a leg drive over its limit: 'no reference within the thigh twist and the leg drives', and the reason also names the entry gates the last built pair missed.  A built turn that fails another gate (A7's, A10's heading readings, another blocking gate of A12) has no further retry and no reference; where only the heading readings fail: 'no reference within the heading rule'.  A turn over a neck or tail limit alone is kept with a1_over true",
+    "S2S-not-available": "an item with no reference is an entry with available false, a reason and its numbers, and no file; it is listed in set.json not_available; a walk that fails a blocking Stage 0 gate is dropped from the ladder in this way and no move is built from or to it (STAGE2_75_PLAN.md A8, A11, A12).  No ramp, grid, gate or constant is changed for it.  Its verdict is the code's that built it (built_by): while the set is not frozen, a build by other Stage 2 modules makes it again; an array an earlier build left under its name is removed",
+    "S2S-freeze": "a freeze lists every available entry: name -> kind, the file's sha256 and the sha256 of the entry's hashed subset (setio.entry_sha256), a walk's look-format sha256 beside them.  A later freeze may add entries and never drops or changes one.  It needs sets verify to pass, a passing stage2/sets/legacy_check.json made by today's moves.py, every entry a build decided built by that moves.py (A4; no flag waives it), entries built from one source state and a clean tree (else the manifest says mixed_sources or dirty; a tree git cannot read counts as dirty).  A later freeze that adds references says when it was made: change_after_result with its reason (after a registered episode of the round: 'a change after a result'), after_check_episodes true with reason (after check episodes only: no change after a result; rule R4), or before_any_episode.  Where the set directory holds refcheck.json (the bar's kinematic check of each reference: no physics, no verdict) it must be of the files being frozen, and the freeze cites its sha256, pass_ and failing conditions; sets verify prints them as notes (a report: no rule here makes it block a freeze).  On a frozen set a build never writes a frozen entry again and puts an array in place only when its sha256 is the manifest's (STAGE2_75_PLAN.md A13)",
+    "S2S-omega": "control.omega0(p, q_home, crouch_frac=<the set's crouch_frac>): the track's LIPM frequency is the set's own"
+   },
+   "margin_rule": null,
+   "label": null,
+   "omega_rule": "control.omega0(p, q_home, crouch_frac=<the set's crouch_frac>): the track's LIPM frequency is the set's own",
+   "move_margin_rule": null,
+   "move_label": null,
+   "move_rules": null
+  }
+ },
+ "key": {
+  "schema": "bar-1",
+  "body": "75-M-H-10",
+  "set": "V0",
+  "block": "seeds3042",
+  "row": {
+   "row": "R0",
+   "controller": "R0: feedforward + PD on the commanded clock (ROWS_RULE)",
+   "tracker_mode": "R1",
+   "terms": [],
+   "ankle_cap": [],
+   "inward_bound": "pad_clearance",
+   "rate": 1.05,
+   "gains": null,
+   "gains_info": {
+    "source": "R0 has no feedback: no gains"
+   },
+   "hard_only": true,
+   "policy": null,
+   "delayed_row": "R0@0ms",
+   "latency_steps": 0,
+   "latency_ms": 0,
+   "latency_rule": "R2/<s>@<ms>ms: Stage 1's fitted tracker of CMA-ES seed s with the gains of the Stage 1 run's tune.json unchanged; R0@<ms>ms: the panels' open-loop row; <any registered row>@<ms>ms likewise.  <ms> is a servo delay of k = ms / 2 whole physics steps for the whole episode (speedfit.servo_delay: every servo target reaches the servos k steps after the controller sets it); with k = 0 the wrapper changes nothing",
+   "servo_delay_rule": "the delay queue of speedfit.servo_delay (a queue of the last k + 1 servo targets, refilled with the reset's targets at every reset: each target reaches the servos k physics steps after the controller sets it; k = 0 changes nothing); k is the row's and the same for every episode: speedfit.LATENCY_RULE's random draw per episode is not used"
+  },
+  "row_sources": {
+   "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197",
+   "designlab/stage2/bar.py": "21ac6393a11932ca23746a429c2441d21c7fcfe97643f150d80cf22f24a52ce5"
+  },
+  "condition": {
+   "behavior": "nudge",
+   "name": "backward_mu0.54",
+   "gated": true,
+   "judge": "bar_nudge",
+   "floor": "hard",
+   "friction": 0.54,
+   "gait": "v0.4",
+   "case": null,
+   "direction": "backward",
+   "seconds": null,
+   "push_at": 2.0,
+   "push_spread": 1.0,
+   "recovery_s": 3.0,
+   "hold_s": 2.0,
+   "set": "V0",
+   "walk": "v0.4",
+   "move": null,
+   "frac": 0.25,
+   "block": "seeds3042",
+   "key": "nudge/backward_mu0.54",
+   "stock": false
+  },
+  "plan": [
+   [
+    "transition",
+    "start"
+   ],
+   [
+    "ref",
+    "nominal",
+    1
+   ],
+   [
+    "transition",
+    "nominal_to_v0.4"
+   ],
+   [
+    "ref",
+    "v0.4",
+    12
+   ]
+  ],
+  "seconds": 20.384798168396884,
+  "seeds": [
+   3042,
+   3043,
+   3044,
+   3045,
+   3046,
+   3047,
+   3048,
+   3049,
+   3050,
+   3051,
+   3052,
+   3053,
+   3054,
+   3055,
+   3056,
+   3057,
+   3058,
+   3059,
+   3060,
+   3061
+  ],
+  "command": null,
+  "omega": 4.828071509019948,
+  "crouch_frac": 0.03,
+  "inputs": {
+   "refs/nominal.npz": {
+    "sha256": "b767df97e07f979977f3cac1390281c44380df66fee628db484bf3f30edaec75",
+    "entry_sha256": "18eceeacd0bcbbf6e43948659e148a95262222981daf2d24c795918905b1050c"
+   },
+   "refs/v0.4.npz": {
+    "sha256": "91859c26bc0b24a9432a1fcc7150a50a4c4d7fb955df06937fd57a0d8e408e91",
+    "entry_sha256": "97f86434f3e8aea9caedac01553c9090320b052a8dd5dee8d1d015205558a616"
+   },
+   "transitions/nominal_to_v0.4.npz": {
+    "sha256": "c6193a95adb1c2f08f655cf7d8738b313c19886bdd255103f3f18bd6e1e24a97",
+    "entry_sha256": "90c2aa7d7972934c51f70fd5ad8f79c6fda9bcde2c2d94892ff3988fc9402619"
+   },
+   "transitions/start.npz": {
+    "sha256": "11c76d011399ff44293057352f4cfaaae37746b7c9744d0ba9df7799e58375c3",
+    "entry_sha256": "4760ea14b4add472660cfabc1b775f42a6defec494bb2ebf67d50c42f10d5ed9"
+   }
+  },
+  "context": {
+   "plant_inputs": {
+    "record": "c24dcc4e928e3db7feff11e16cff3f8a8389d8c1bc27fefe72f22fa2df2734b7",
+    "mjcf": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c",
+    "ledger": "58f7cc2099374dd658b2323d7513669f8bce5ec01dee8c16a60b80233c741a90",
+    "clearance": "8a251f7e414e9e2c72656a16c5a55375b6a49a6a8418ad395b99c2968e0f6988"
+   },
+   "versions": {
+    "python": "3.13.18",
+    "numpy": "2.5.4",
+    "mujoco": "3.10.0",
+    "scipy": "1.18.1"
+   },
+   "env": {
+    "push_bound_m_s": 0.589,
+    "residual_rate": 0.25,
+    "env_substeps": 10,
+    "carpet_walk": [
+     [
+      "transition",
+      "start"
+     ],
+     [
+      "ref",
+      "carpet",
+      7
+     ],
+     [
+      "transition",
+      "stop"
+     ]
+    ],
+    "carpet_friction": 0.54,
+    "foot_tables_sha256": "fac1de69369e4b0d4ee808cdd01f62b278d414a2a74f4bde4d65ac1119b5f120"
+   }
+  },
+  "sources": {
+   "panels": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+   "bar": "45719d030359ec7d5d3914af3814d837fdc05d77652ba45c64792b511027528d"
+  }
+ },
+ "key_sha256": "3d185508088010343b7d62cefc60f457d7e3332e0ed34d5812c56abca82fdf5f",
+ "provenance": {
+  "versions": {
+   "python": "3.13.18",
+   "numpy": "2.5.4",
+   "mujoco": "3.10.0",
+   "scipy": "1.18.1",
+   "gymnasium": "1.4.0",
+   "stable-baselines3": "2.9.2",
+   "torch": "2.15.0+cpu"
+  },
+  "git": {
+   "commit": "04be4a823b61e1532449dbfa12d864004cc6ddf6",
+   "dirty": false,
+   "dirty_paths": []
+  },
+  "stage1_sources": {
+   "sha256": "b698b59641ebd491c38c6410d871881ab0cc48fb42e5ac1a3eaf4f11c55a60d1",
+   "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
+   "files": [
+    "__init__.py",
+    "__main__.py",
+    "control.py",
+    "drive.py",
+    "env.py",
+    "estimator.py",
+    "gates.py",
+    "ledger.py",
+    "legs.py",
+    "metrics.py",
+    "panels.py",
+    "plant.py",
+    "policy.py",
+    "policy_rows.py",
+    "refs.py",
+    "replay.py",
+    "report.py",
+    "speedfit.py",
+    "speedreport.py",
+    "train.py",
+    "transitions.py",
+    "tune.py"
+   ]
+  },
+  "panel_sources": {
+   "sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+   "rule": "sha256 over the modules an episode and its judgement run: the designlab/stage1 modules panels.py imports, followed as tune.TUNER_SOURCES_RULE follows the tuner's (from panels.py and the package's __init__.py, transitively) except env.py and gates.py, and the designlab modules outside designlab/stage1 that these import when they are imported (module level), followed the same way through designlab's own module-level imports (statics, carpet, clearance, sizing, gait, ...; a missing model's rebuild through round2 and pipeline is a function-level import, and plant.verify checks the model against its record's xml_sha256 anyway), each set hashed as plant.SOURCES_RULE hashes files, the module lists recorded beside.  env.py (the PPO environments) and gates.py (the gates) are left out: the panels take from env.py the carpet walk's plan and friction, the push bound, the pile floors' foot tables, the rate residual's bound and the env step, which the key holds by value or by source (RESUME_RULE), and from gates.py only the attribution, whose record holds gates.py's sha256.  So a row added in its own module, or a change to env.py's training code, leaves the R0-R2 records' keys as they are",
+   "modules": [
+    "__init__.py",
+    "control.py",
+    "drive.py",
+    "estimator.py",
+    "legs.py",
+    "metrics.py",
+    "panels.py",
+    "plant.py",
+    "refs.py",
+    "transitions.py",
+    "tune.py"
+   ],
+   "stage1_sha256": "ff1d2726abd72f139c65c69a511ae000901aabe7129433c5214df5ef19a4832f",
+   "designlab_modules": [
+    "__init__.py",
+    "build.py",
+    "carpet.py",
+    "catalog.py",
+    "clearance.py",
+    "envelope.py",
+    "gait.py",
+    "geometry.py",
+    "hardware.py",
+    "mjcf.py",
+    "params.py",
+    "shapes.py",
+    "sizing.py",
+    "skeleton.py",
+    "statics.py",
+    "template.py",
+    "turning.py"
+   ],
+   "designlab_sha256": "60951e5e1892eb874075835d582b8cee00daa0ea2b0c167847da546a5ff1e532",
+   "excluded": [
+    "env.py",
+    "gates.py"
+   ]
+  },
+  "bar_sources": {
+   "sha256": "45719d030359ec7d5d3914af3814d837fdc05d77652ba45c64792b511027528d",
+   "files": {
+    "designlab/stage2/bar.py": "21ac6393a11932ca23746a429c2441d21c7fcfe97643f150d80cf22f24a52ce5",
+    "designlab/stage2/readings.py": "e1ac0446692cda578cddc6598fc888ad33bcbe95d0a16d3dc42cb800c4bf876e",
+    "designlab/stage2/setio.py": "f25d8616e5e79f805cd0deded49cd34f85f1a0dc77a4114dce44b8b0cd354c91",
+    "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+   },
+   "rule": "a record's key holds what an episode executes: the row's description and sources, the condition, the plan, seconds, seeds and command, omega and crouch_frac, panels.key_context(body), per input file its sha256 and the sha256 of the entry numbers the planner reads (setio.entry_sha256), and the source hashes of the panels' modules and of bar.py, readings.py, setio.py and speedfit.py"
+  }
+ },
+ "inputs": {
+  "dir": "stage2/sets/V0/75-M-H-10",
+  "files": {
+   "refs/nominal.npz": {
+    "sha256": "b767df97e07f979977f3cac1390281c44380df66fee628db484bf3f30edaec75",
+    "entry_sha256": "18eceeacd0bcbbf6e43948659e148a95262222981daf2d24c795918905b1050c"
+   },
+   "refs/v0.4.npz": {
+    "sha256": "91859c26bc0b24a9432a1fcc7150a50a4c4d7fb955df06937fd57a0d8e408e91",
+    "entry_sha256": "97f86434f3e8aea9caedac01553c9090320b052a8dd5dee8d1d015205558a616"
+   },
+   "transitions/nominal_to_v0.4.npz": {
+    "sha256": "c6193a95adb1c2f08f655cf7d8738b313c19886bdd255103f3f18bd6e1e24a97",
+    "entry_sha256": "90c2aa7d7972934c51f70fd5ad8f79c6fda9bcde2c2d94892ff3988fc9402619"
+   },
+   "transitions/start.npz": {
+    "sha256": "11c76d011399ff44293057352f4cfaaae37746b7c9744d0ba9df7799e58375c3",
+    "entry_sha256": "4760ea14b4add472660cfabc1b775f42a6defec494bb2ebf67d50c42f10d5ed9"
+   }
+  }
+ },
+ "set_freeze": {
+  "index": 0,
+  "manifest_sha256": "34a820e550b6dfc589cb7f6fc26d33f9ee9aa9e4da327cc3896cd170e08d6ae2"
+ },
+ "sessions": [
+  {
+   "id": "2026-11-15T21:47:26Z/12700",
+   "started_at": "2026-11-15T21:47:26Z",
+   "commit": "04be4a823b61e1532449dbfa12d864004cc6ddf6",
+   "dirty": false,
+   "dirty_paths": [],
+   "versions": {
+    "python": "3.13.18",
+    "numpy": "2.5.4",
+    "mujoco": "3.10.0",
+    "scipy": "1.18.1"
+   },
+   "blas_threads": 1,
+   "procs": 3,
+   "task": 4,
+   "unit": "T4.3-V0-0ms",
+   "block": "seeds3042",
+   "attribute": "none",
+   "traces": true,
+   "no_traces_for": [],
+   "ended_at": "2026-11-15T21:55:37Z",
+   "seeds_run": [
+    3042,
+    3043,
+    3044,
+    3045,
+    3046,
+    3047,
+    3048,
+    3049,
+    3050,
+    3051,
+    3052,
+    3053,
+    3054,
+    3055,
+    3056,
+    3057,
+    3058,
+    3059,
+    3060,
+    3061
+   ],
+   "wall_s": 33.69607527998596
+  }
+ ],
+ "episode_wall_s": 33.69607527998596,
+ "simulated_s": 359.740000000018,
+ "ended_at": "2026-11-15T21:55:37Z",
+ "set_info": {
+  "role": "control",
+  "stand_in_walks": false,
+  "freeze": {
+   "index": 0,
+   "at": "2026-11-15T19:42:39Z",
+   "commit": "f9be946fb2e52b09a7a87cf25226ad9c773239b9",
+   "manifest_sha256": "34a820e550b6dfc589cb7f6fc26d33f9ee9aa9e4da327cc3896cd170e08d6ae2",
+   "change_after_result": null,
+   "after_check_episodes": null,
+   "reason": null,
+   "dirty": false,
+   "mixed_sources": false
+  },
+  "first_freeze": {
+   "refs/nominal.npz": 0,
+   "refs/v0.4.npz": 0,
+   "transitions/nominal_to_v0.4.npz": 0,
+   "transitions/start.npz": 0
+  },
+  "change_after_result": null,
+  "after_check_episodes": null
+ },
+ "change_after_result": null,
+ "stand_in_walks": false
+}
