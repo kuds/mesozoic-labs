@@ -1,0 +1,291 @@
+T. rex form study, Stage 2: training on Colab. The steps.
+=========================================================
+
+*** DRAFT of 16 Nov 2026. DO NOT START FROM THIS DRAFT. ***
+Every value written <<LIKE THIS>> is not known yet. I fill them in after the acceptance run (a full rehearsal on
+my side) and send you the final sheet. The list of what is still open is at the very end.
+
+Everything here is a simulation on Google's computers. Nothing touches a real robot.
+
+You need: a browser (a laptop is easier; a phone works), your Google account, and this sheet. You do not need to
+understand the output. You only compare a few lines with the ones written here.
+
+Three rules for the whole sheet:
+  - If a line on screen differs from the line written here, stop and tell me. Send me the line (a screenshot is
+    fine).
+  - Never change RUN_ID or REPO_REF, never set TAKEOVER or one of the two ALLOW boxes, never delete anything,
+    because an error message seems to suggest it. I tell you when one of them applies.
+  - There is nothing to send me except the lines I ask for. I read all the files from your Drive.
+
+
+1. WHAT RUNS
+
+   The code:    one fixed version of the repository, commit
+                  <<C1: THE 40 CHARACTERS OF THE LAUNCH COMMIT>>
+                This is REPO_REF in every step below. The same version is also marked with the tag s2-launch-1.
+   The inputs:  bundle <<BUNDLE_ID>>, manifest <<HASH12: FIRST 12 CHARACTERS OF THE CONTENT HASH>>,
+                <<N_FILES>> files in <<N_PARTS>> parts.
+   The rules:   fixed before any run, in hardware/trex_form_study/stage2/tb/PREREG_TRACKB.md,
+                sha256 <<RULES_SHA256>>.
+   The machine: Runtime type "CPU" with "High-RAM" switched on. No GPU: this training runs on the processor,
+                and a GPU would cost more and add nothing.
+                If "High-RAM" is not offered to you: stop and tell me. The next choice costs about twenty times
+                as much, and I confirm it with you first.
+   The limit:   all runs together stay under 220 hours of runtime. I keep the count.
+
+
+2. BEFORE DAY ONE (I do this; you only approve)
+
+   I put the input files on your Google Drive through the Drive connector:
+     <<N_PARTS>> files, <<TOTAL_MB>> MB in all, named
+       <<PART NAMES, ONE PER LINE>>
+     into the folder  My Drive / mesozoic-labs / stage2 / inputs / <<BUNDLE_ID>>
+   Each upload asks for your approval. Approve each one.
+   What to expect: afterwards that folder holds exactly those <<N_PARTS>> files.
+   If an upload fails or you are not asked: tell me. Do not upload anything yourself.
+
+
+3. DAY ONE: THE SMOKE (a check of the machine; nothing is trained; one runtime; about <<SMOKE_TOTAL_MIN>> minutes)
+
+   3.1  Open this address:
+          https://colab.research.google.com/github/kuds/mesozoic-labs/blob/s2-launch-1/hardware/trex_form_study/stage2/stage2_training.ipynb
+        Expect: a notebook titled "Mesozoic Labs: T. rex form study, Stage 2 training (Track B)".
+        If it does not open: tell me.
+
+   3.2  Menu File > Save a copy in Drive. Name the copy "s2 smoke-1". Work in the copy from now on.
+        Expect: a new tab with the copy.
+
+   3.3  Menu Runtime > Change runtime type. Choose CPU. Switch High-RAM on. Save.
+        If there is no High-RAM switch: stop and tell me.
+
+   3.4  In the first grey box ("1. PARAMETERS") set exactly these values. Leave everything else as it is.
+          REPO_REF              <<C1>>
+          RUN_ID                smoke-1
+          QUEUE                 []            (an opening and a closing square bracket, nothing between)
+          BUNDLE_ID             <<BUNDLE_ID>>
+          BUNDLE_SOURCE         drive
+          RESUME                not ticked
+          TAKEOVER              not ticked
+          SMOKE                 ticked
+          BUDGET_STEPS          0
+          WORKERS               0
+          CLIPS                 ticked
+          ALLOW_VERSION_CHANGE  not ticked
+          ALLOW_SOURCE_CHANGE   not ticked
+          USE_GOOGLE_DRIVE      ticked
+          AUTO_DISCONNECT       ticked
+
+   3.5  Menu Runtime > Run all.
+        A window asks whether this notebook may access your Google Drive files. Choose "Connect to Google Drive",
+        pick your account, allow. (inferred)
+        If you refuse by mistake: nothing was written. Run all again and allow it, or tell me.
+
+   3.6  Check these lines as they appear, in this order. They come within about <<MIN_SETUP>> minutes.
+
+        (a) Repository ref: <<C1>>; commit: <<C1>>                                                   (inferred)
+
+        (b) Line 1:
+              S2 LINE 1/4 commit: <<C1>> (REPO_REF is a commit: yes; checkout clean: yes)
+            Another commit, or a "no" anywhere in it: stop and tell me.
+
+        (c) Google Drive mounted. Stage 2 files are under: /content/drive/MyDrive/mesozoic-labs/stage2
+                                                                                                     (inferred)
+
+        (d) Run directory: /content/drive/MyDrive/mesozoic-labs/stage2/runs/smoke-1 (new run)
+            If instead you read "S2 REFUSED session: ...": stop and tell me the line. Do not change RUN_ID.
+
+        (e) Line 2 (on screen it is one line):
+              S2 LINE 2/4 inputs: bundle <<BUNDLE_ID>>, manifest <<HASH12>>, <<N_FILES>> of <<N_FILES>> files
+              match their sha256: OK
+            If it ends "FAILED (...)": the notebook stops by itself with an error under the box. Nothing was
+            trained. Tell me the whole line. (Usually one input file is missing or cut short; see 7.)
+
+        (f) A few lines that begin "SB3 archive load preflight" and "S2 preflight:", then line 3 (one line):
+              S2 LINE 3/4 G8a 75-M-H-10 set V6: zero action = R0 at 0 ms and 10 ms, 2 of 2 episodes identical
+              (<<G8A_STEPS>> physics steps): PASS
+            If it ends "FAIL (...)": the notebook stops by itself. Tell me the whole line.
+
+        (g) Eight lines that begin "S2 SMOKE", one after another. Each ends OK, REPORTED or FAILED.
+
+              S2 SMOKE Y1 setup: ...: OK                      after about <<MIN_Y1>> min
+                 FAILED: tell me the line.
+              S2 SMOKE Y2 machine: ...: REPORTED              at once. It only reports the machine.
+              S2 SMOKE Y3 memory: ...: OK                     after about <<MIN_Y3>> min
+                 FAILED: tell me the line.
+              S2 SMOKE Y4 rate at 8 envs: ...: OK             with Y3
+                 FAILED ("no job is queued until the owner has set the budget"): the machine is slower than
+                 planned. Tell me the line; we then decide the budget together.
+              S2 SMOKE Y5 test clip: ...: REPORTED            after about <<MIN_Y5>> min
+                 "not made": nothing to do. A missing clip stops nothing.
+              S2 SMOKE Y6 kill and resume on Drive: ...: OK   after about <<MIN_Y6>> min
+                 FAILED: tell me the line.
+              S2 SMOKE Y7 setup time: ...: REPORTED           at once
+              S2 SMOKE Y8 inputs rebuilt once: ...: REPORTED  after at most 40 min more (about <<MIN_Y8>> min)
+                 It may say "not finished". That is an allowed outcome.
+
+        (h) The end:
+              S2 FINISH smoke-1: DONE: the smoke is written (smoke/SMOKE.json)
+            then "Disconnecting runtime in 5 seconds..." and the runtime lets go by itself.          (inferred)
+            If the page then says "Runtime disconnected": that is the expected end.
+
+   3.7  Tell me that it finished, or which line stopped it. The results are in
+          My Drive / mesozoic-labs / stage2 / runs / smoke-1 / smoke / SMOKE.json
+        There is nothing to send: I read them from Drive.
+
+   After the smoke I tell you the value of BUDGET_STEPS and which launches to start.
+   Do not start a launch before I say so.
+
+
+4. A LAUNCH (one runtime per row of this table; you can start several rows at the same time)
+
+        Runtime   Name of the copy     RUN_ID          QUEUE
+        <<TABLE OF LAUNCHES: ONE ROW PER RUNTIME, FILLED IN AFTER THE SMOKE>>
+
+   4.1  Open the same address as in 3.1. File > Save a copy in Drive, named as in the table. Work in the copy.
+   4.2  Runtime > Change runtime type: CPU, High-RAM on, as in 3.3.
+   4.3  In the first grey box set:
+          REPO_REF              <<C1>>
+          RUN_ID                from the table
+          QUEUE                 from the table, typed exactly, with the square brackets and the quotation marks
+          BUNDLE_ID             <<BUNDLE_ID>>
+          BUNDLE_SOURCE         drive
+          RESUME                not ticked
+          TAKEOVER              not ticked
+          SMOKE                 not ticked
+          BUDGET_STEPS          <<BUDGET_STEPS: FIXED AFTER THE SMOKE>>
+          WORKERS               0
+          CLIPS                 ticked
+          ALLOW_VERSION_CHANGE  not ticked
+          ALLOW_SOURCE_CHANGE   not ticked
+          USE_GOOGLE_DRIVE      ticked
+          AUTO_DISCONNECT       ticked
+   4.4  Runtime > Run all. Allow Drive as in 3.5.
+
+   4.5  Check, in this order (the first lines are those of 3.6, with this run's RUN_ID in the folder name):
+          Line 1 as in 3.6 (b). Another commit or a "no": stop and tell me.
+          Run directory: /content/drive/MyDrive/mesozoic-labs/stage2/runs/<RUN_ID> (new run)
+             "S2 REFUSED session: ... exists": this RUN_ID was used before. Stop and tell me. Do not change it.
+          Line 2 as in 3.6 (e). FAILED: it stops by itself; nothing was trained; tell me the line.
+          Line 3 as in 3.6 (f), once for each robot body in QUEUE. FAIL: it stops by itself; tell me the line.
+          Then "S2 launch: the lines so far:" and the same lines once more, together.
+          Then "S2 launch: <job> started ..." and, indented, the trainer's own lines.
+
+        Line 4, within about <<MIN_LINE4>> minutes of line 3 (one line on screen):
+              S2 LINE 4/4 first rate <job>: <<RATE>> env steps/s (8 envs, <<W>> workers, <<VCPUS>> vCPUs);
+              <<BUDGET_M>>M steps in about <<HOURS>> h
+        The number before "env steps/s" should be near <<RATE>>. It may differ by a few per cent.
+        If the line ends " BELOW FLOOR <<FLOOR>>": the machine is too slow to finish in 22 hours. Leave it
+        running and tell me the line.
+        If there is no line 4 after <<MIN_LINE4_LATE>> minutes: tell me the last lines on screen.
+
+   4.6  Leave it running: about <<HOURS_PER_JOB>> hours for each job in QUEUE. You can close the tab; the run
+        goes on. Once a minute it writes its state to
+          My Drive / mesozoic-labs / stage2 / runs / <RUN_ID> / STATUS.json
+        A line "S2 LINE 4/4 ..." appears again when the second job of QUEUE starts.
+
+   4.7  The end, on screen:
+              S2 launch: DONE: the queue is finished
+              S2 FINISH <RUN_ID>: DONE: the queue is finished
+        then "Disconnecting runtime in 5 seconds..." and the runtime lets go by itself.              (inferred)
+        In Drive the run's folder then holds a file DONE.json.
+        Tell me the RUN_ID and that it is done. Do not start it again.
+        If instead you read "S2 launch: HALT: ..." or the folder holds HALT.json: see 6.
+
+
+5. IF THE BROWSER SHOWS "DISCONNECTED", OR YOU ARE NOT SURE THE RUN IS ALIVE
+
+   A lost browser does not end a run. First look, do not restart.
+
+   5.1  In Drive open the folder  My Drive / mesozoic-labs / stage2 / runs / <RUN_ID>.
+   5.2  If it holds DONE.json or HALT.json: the run is finished. Do not resume. Tell me.
+   5.3  Otherwise open STATUS.json and find "written_at". It is a time in UTC (search the web for "utc time"
+        to see the present time in UTC).
+          Less than 10 minutes old: the run is alive. Do nothing.                                    (inferred)
+          More than 10 minutes old: the run has stopped. Go on with 5.4.
+   5.4  Resume. In the same copy of the notebook: Runtime > Disconnect and delete runtime (if it is offered),
+        then check the first grey box: every value as before, and now
+          RESUME                ticked
+        Nothing else changes: same REPO_REF, same RUN_ID, same QUEUE, same BUDGET_STEPS.
+        Runtime > Run all. Allow Drive.
+   5.5  Expect: lines 1, 2 and 3 as before, and in place of "(new run)" (one line on screen):
+              Run directory: /content/drive/MyDrive/mesozoic-labs/stage2/runs/<RUN_ID> (resuming session <k>:
+              <job> from <n> steps; <m> jobs done)
+        <k> counts the sessions of this run (1 at the first resume), <n> is where it goes on, <m> is how many
+        jobs of QUEUE were already finished. Then, indented:
+              <job>: resuming session <k>: <job> from <n> steps
+        These are fine and need nothing from you:
+              WARNING: skipping checkpoint <n>: <reason>       the newest save was cut; it uses the one before
+              restarting <job> from step 0                      the run stopped before its first save reached
+                                                                Drive; only that short start is done again
+        Then line 4 again, as in 4.5, and the run goes on as in 4.6.
+        Tell me the RUN_ID, the <n> it resumed from, and the time.
+   5.6  If instead you read (one line on screen):
+              Run directory: /content/drive/MyDrive/mesozoic-labs/stage2/runs/<RUN_ID>: still running
+              (LIVE.json written <s> s ago); nothing to do
+        and an error under the box: the run was alive after all. Nothing was changed. Close the new runtime
+        (Runtime > Disconnect and delete runtime) and leave the old one alone. If the same happens again ten
+        minutes later, tell me.
+
+
+6. MESSAGES THAT MEAN: STOP AND TELL ME
+
+   For every one of these: do not restart, do not delete anything, do not change RUN_ID or REPO_REF, do not tick
+   TAKEOVER or an ALLOW box, whatever the message seems to suggest. Send me the line. I tell you what to do.
+
+     S2 REFUSED session: ...                      a resume that was refused (other settings, inputs, sources or
+                                                  versions than the run's; or the run is already finished)
+     S2 launch: HALT: ...   or a file HALT.json   the run stopped itself
+     ... FAIL (...)   or   G8a fails: no run      the safety check before training did not pass
+     ... fingerprint not reproduced ...           a saved state did not load back exactly
+     ... BELOW FLOOR <<FLOOR>>                    the machine is too slow (leave it running, tell me)
+     ... crashed twice ...                        a job failed, was tried once more and failed again
+     S2 NOTE: ... counted without a record ...    a check during training left no record
+     S2 WARNING: a copy to Drive failed ...       once: nothing to do, it tries again a minute later.
+                                                  Again and again: your Drive may be full. Empty the Drive's
+                                                  bin first (deleted saves stay in the bin), then tell me.
+     S2 FAILED setup: ...                         a software package did not install. Send me everything the
+                                                  second grey box printed.
+     Anything in red that is not on this sheet.
+
+
+7. FALLBACKS (only when I tell you to use one)
+
+   7.1  Line 2 said FAILED because an input file is missing or cut short. I upload that file again (you approve
+        the upload as in 2). Then I tell you how to run again: for a launch it is the same copy with RESUME
+        ticked; for the smoke it is a new RUN_ID that I give you.
+   7.2  The uploads keep failing. Two other ways to get the inputs, each only on my word:
+          BUNDLE_SOURCE   rebuild          Only after the smoke's line Y8 ended with
+                                           "the rebuild is an allowed fallback". The first launch then takes
+                                           about <<MIN_REBUILD>> minutes longer; later launches reuse what it
+                                           built.
+          BUNDLE_SOURCE   git:<<DATA_REF>> Only if you agreed to the data branch.
+   7.3  A clip is not made ("clip ...: not made"): nothing to do.
+   7.4  A software package does not install (the second grey box stops with "S2 FAILED setup"): stop and send
+        me what that box printed. There is no other way around it.
+
+
+8. WHICH LINES WERE MEASURED AND WHICH ARE INFERRED
+
+   Measured: <<TO BE WRITTEN FROM THE ACCEPTANCE RUN'S RECORD (ACCEPTANCE.json): every line it printed is quoted
+   on this sheet from that record, with its values; the minutes of each smoke item come from the smoke itself
+   and are measured here only where they could be.>>
+
+   In this draft, the wording of every line that begins "S2 LINE", "S2 SMOKE", "S2 FINISH", "S2 launch:",
+   "S2 REFUSED" or "Run directory:" is the program's own (the same functions print it), and I have seen these
+   lines printed on my machine in a small rehearsal on 16 Nov 2026 (two very short jobs on an older reference
+   set, with a kill and a resume). Their values (the commit, the bundle, the counts, the rate, the minutes)
+   are not from that rehearsal: they are the <<...>> fields.
+
+   Inferred (only Colab prints or shows them; I have not seen them): everything marked "(inferred)" above:
+   the "Repository ref" line, the Drive permission window and "Google Drive mounted", "Disconnecting runtime in
+   5 seconds..." and the runtime letting go by itself, "Runtime disconnected", and how soon a file written by the
+   runtime shows in your Drive (the 10 minutes of 5.3).
+
+
+STILL OPEN IN THIS DRAFT (for me, not for you)
+
+   <<C1>> <<BUNDLE_ID>> <<HASH12>> <<N_FILES>> <<N_PARTS>> <<TOTAL_MB>> <<PART NAMES>> <<RULES_SHA256>>
+   <<G8A_STEPS>> <<SMOKE_TOTAL_MIN>> <<MIN_SETUP>> <<MIN_Y1>> <<MIN_Y3>> <<MIN_Y5>> <<MIN_Y6>> <<MIN_Y8>>
+   <<TABLE OF LAUNCHES>> <<BUDGET_STEPS>> <<RATE>> <<W>> <<VCPUS>> <<BUDGET_M>> <<HOURS>> <<FLOOR>>
+   <<MIN_LINE4>> <<MIN_LINE4_LATE>> <<HOURS_PER_JOB>> <<MIN_REBUILD>> <<DATA_REF>>
+   and section 8's first paragraph.
