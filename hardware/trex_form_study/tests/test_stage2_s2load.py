@@ -351,9 +351,42 @@ def test_the_record_and_the_four_files(saved):
     # the rows the normalisation clips in an actor column, counted from VecNormalize's own output
     clipped = int(np.any(np.abs(normalised[:, :ACTOR]) >= 10.0, axis=1).sum())
     assert fp["clipped_rows"] == clipped and 0 < clipped < 256
+    # the action entries on a bound of the action space (+-1: predict clips to it), of 256 x 17: such an entry cannot
+    # show a difference.  This young policy has none (test_the_record_counts_the_fingerprint_actions_on_a_bound)
+    assert fp["actions_at_bound"] == int(np.count_nonzero(np.abs(arrays["actions"]) >= 1.0)) == 0
+    assert type(fp["actions_at_bound"]) is int
+    assert sorted(fp) == ["actions_at_bound", "clipped_rows", "obs_sha256", "rows", "rule", "seed", "tol"]
     # the two checkpoints differ (the policy and the statistics moved between them)
     with np.load(s2load.checkpoint_files(saved.job, 32)["fingerprint"]) as z:
         assert np.array_equal(z["obs"], arrays["obs"]) and not np.array_equal(z["actions"], arrays["actions"])
+
+
+def test_the_record_counts_the_fingerprint_actions_on_a_bound(tmp_path):
+    """A policy whose outputs saturate: ``predict`` clips its actions to the bounds of the action space (+-1), and an
+    entry on a bound cannot show a difference, so a fingerprint with many of them proves less than its 256 x 17
+    numbers suggest.  The record's ``actions_at_bound`` is their number, counted here from the policy's own output
+    before the clip; the checkpoint is saved and loads as any other (the count is a reading, not a refusal)."""
+    job = tmp_path / "job"
+    model, venv = _build()
+    with torch.no_grad():
+        model.policy.action_net.weight.mul_(300.0)                       # most outputs now pass a bound
+    rec = s2load.save_checkpoint(job, 0, model, venv, LAYOUT, RUN, STATE)
+    with np.load(s2load.checkpoint_files(job, 0)["fingerprint"]) as z:
+        obs, stored = z["obs"], z["actions"]
+    with torch.no_grad():                                                # SB3's own path, without predict's clip
+        raw = model.policy._predict(model.policy.obs_to_tensor(venv.normalize_obs(obs))[0], deterministic=True).numpy()
+    assert raw.shape == stored.shape == (256, ACT) and np.array_equal(stored, np.clip(raw, -1.0, 1.0))
+    low, high = model.action_space.low, model.action_space.high
+    beyond = int(np.count_nonzero((raw <= low) | (raw >= high)))
+    assert rec["fingerprint"]["actions_at_bound"] == beyond == int(np.count_nonzero(np.abs(stored) == 1.0))
+    assert raw.size // 4 < beyond < raw.size and (stored == 1.0).any() and (stored == -1.0).any()
+    assert s2io.read_json(s2load.checkpoint_files(job, 0)["record"])["fingerprint"]["actions_at_bound"] == beyond
+    assert s2load.load_checkpoint(job, 0, expect_run=RUN)["fingerprint_max_abs_diff"] == 0.0
+    # a record written before this key was added (the same schema) still loads: nothing reads the count on a load
+    doc = s2io.read_json(s2load.checkpoint_files(job, 0)["record"])
+    del doc["fingerprint"]["actions_at_bound"]
+    _reseal(job, 0, fingerprint=doc["fingerprint"])
+    assert s2load.load_checkpoint(job, 0, expect_run=RUN)["fingerprint_max_abs_diff"] == 0.0
 
 
 def test_an_archive_with_stage1s_closure_schedule_is_refused(tmp_path):

@@ -22,3 +22,9 @@ for the maker of the leg drives, ready to send. Nothing in it is built.
 **History.** The designer was first started at 03:05 UTC and stopped at 03:22 UTC before it had written the note,
 by the lead's mistake (a watcher's time-out was read as the designer's result). The workflow was resumed at
 13:13 UTC from the three readers' cached results.
+
+**The owner's answers (16 Nov, `DECISION_LOG.md` P41).** Condition 2 is approved with the note's first option: six
+extremes and the random panel can stop the purchase of the bench parts; at an extreme the robot must only stay up;
+a random-panel record that passes is repeated and the repeat must pass too; the owner sends the five questions of
+appendix A, and gate 1 is judged after the answers or after two weeks. `BUY_GATE_DRAFT.md` carries the approved
+text. The note's own section 11 still reads as the question that was asked.
