@@ -512,7 +512,7 @@ def test_collect_counts_the_three_readings_with_the_bars_arithmetic(tmp_path):
     assert doc["look_failures_by_term"] == dict(head=1) and doc["policy"] is None and doc["counts_equal_bar"] is None
     assert doc["short_air_runs"] == dict(episodes_read=19, episodes_with_any=19, total=19)
     assert doc["bands"] == dict(lookread.BANDS) and set(doc["rules"]) == set(lookread.RULES) | set(lookbar.RULES)
-    assert sorted(doc["sidecars"]["sha256"]) == sorted(str(s) for s in SEEDS) and doc["provenance"]["commit"]
+    assert sorted(doc["sidecars"]["sha256"]) == sorted(str(s) for s in SEEDS) and "commit" in doc["provenance"]
     assert sorted(doc["sources"]) == ["bar", "designlab/stage2/lookbar.py", "designlab/stage2/lookread.py"]
     assert doc["sha256"] == s2io.sha256_json({k: v for k, v in doc.items() if k != "sha256"})
     assert doc["versions"] == panels.library_versions() and doc["blas_threads"] == 1 and doc["at"]

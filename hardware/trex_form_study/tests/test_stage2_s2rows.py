@@ -695,6 +695,29 @@ def test_equivalence_at_10_ms_on_the_x_body_with_the_head_neutral_and_with_the_h
 
 @slow
 @needs_run
+def test_two_spawned_workers_rebuild_the_policy_row_from_its_spec(job, tmp_path, monkeypatch):
+    """The bar's runner with two worker processes: each rebuilds the rows from their specs, checks the files'
+    hashes, loads the checkpoint itself and writes its episodes' sidecars; the records are those of one process."""
+    stock_cut(monkeypatch, 1.0)
+    s2rows.configure({"R5/42": dict(job_dir=job, steps=0)})
+    docs = {}
+    for procs in (2, 1):
+        out = tmp_path / f"procs{procs}"
+        doc = lookbar.run("S1", BODY, out, ["R5/42@10ms", "R0L@10ms"], ["walk/brisk"], episodes=4, procs=procs,
+                          stage1_run=RUN, log=quiet)
+        assert doc["bar"]["sessions"][-1]["episodes_run"] == 8 and not doc["bar"]["sessions"][-1]["incomplete"]
+        bdir = bar.block_dir(out, "S1", BODY, bar.HEADLINE_BLOCK)
+        docs[procs] = {r: s2io.read_json(bdir / "look" / r / "walk" / "brisk.json") for r in ("R5/42@10ms", "R0L@10ms")}
+    for r in ("R5/42@10ms", "R0L@10ms"):
+        two, one = docs[2][r], docs[1][r]
+        assert [e["state_digest"] for e in two["episodes"]] == [e["state_digest"] for e in one["episodes"]]
+        assert two["bar_record"]["key_sha256"] == one["bar_record"]["key_sha256"] and two["counts"] == one["counts"]
+    pol = docs[2]["R5/42@10ms"]["policy"]
+    assert pol["episodes_checked"] == 4 and pol["fingerprint_max_abs_diff"] == 0.0 and pol["same_checkpoint"] is True
+
+
+@slow
+@needs_run
 def test_r6_row_against_the_r6_env(tmp_path):
     job = tmp_path / "R6-75-M-H-10-s42"
     make_job(job, BODY, mode="R6")
@@ -707,3 +730,10 @@ def test_r6_row_against_the_r6_env(tmp_path):
     assert [r["row"] for r in rs] == ["R6/42@10ms"] * 3
     r0 = s2rows.equivalence_check(job, 0, BODY, "S1", "walk/brisk", 3042, 0, seconds=2.0)
     assert r0["identical"] and r0["row"] == "R6/42@0ms" and r0["reference_steps"] == 1000
+    # the bar judges an R6 episode like any other row's, and the monitor's table holds its clock times
+    m2 = pytest.importorskip("designlab.stage2.monitor2")
+    s2rows.configure({"R6/42": dict(job_dir=job, steps=0)})
+    pairs = m2.pairs_for("S1", tiny=True)
+    eps = m2._checked(lookbar.episodes(BODY, "S1", lookbar.rows(BODY, ["R6/42@10ms"]), pairs), pairs, policy=True)
+    assert [e["outcome"] in ("read", "fell") for e in eps] == [True, True] and all(e["error"] is None for e in eps)
+    assert all(e["policy_check"]["mode"] == "R6" and e["survival_credit"] > 0 for e in eps)
