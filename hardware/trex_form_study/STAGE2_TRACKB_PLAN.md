@@ -386,22 +386,32 @@ session is not modelled and not shown. The input was proposed on the scratch dri
 `run.json` `layout`; `checkpoint_<n>.json` `layout`.
 
 **E4. The command and the commanded heading.** [NEW; settled 16 Nov 2026, before any Track B run: the commanded heading
-in the turn-in-place tasks; differs: S1, whose input was the reference's own speed] The input is `(v / 0.5 m/s, w / 1.0
-rad/s)` times 1.05, piecewise constant on the reference clock: the gait's speed and yaw rate in a periodic gait; the
-next gait's from the first frame of a start or change; zero from the first frame of a stop; in a finite turn of angle A
-at rate w0 the walk's speed and `w0` for `A / |w0|` seconds of reference time from the turn's first frame, then zero.
-The commanded heading is the integral of w over reference time, except in the turn-in-place tasks (`inplace_left`,
-`inplace_right`), where it is the reference's own yaw less its yaw at the track's start, at every reference time; the
-command is the same. A start into the turn commands 0.5 rad/s from its first frame while the reference ramps up from
-rest, so the integral ran ahead of the reference through the whole turn and the heading penalty charged the reference
-itself. A walking turn keeps the integral, and so does a plan that is given as a plan (a bar condition's): only a task's
-definition names the reference's yaw [settled 16 Nov 2026, before any Track B run: from "except in the turn-in-place
-tasks" to this mark, added to the committed sentence "The commanded heading is the integral of w over reference time.";
-wording entry 5a; the env's code was changed with it, by commit `0dc39b8` on `wt/wpc-ce`, on the env review's finding on
-the turn in place. The env work package's reason, from its wording file, is a kinematic playback of Stage 1's turn in
-place on `75-M-H-10` (prescribed motion, no record): under the integral the reference's own playback had a mean heading
-penalty of 0.73, and under the task's definition it has 0 at every env step]. Nothing before a segment's first frame
-depends on that segment. Check: `tests/test_stage2_r5lib.py`; the env description's `command_rule`.
+in the turn-in-place tasks, and in a plan that is given as a plan; differs: S1, whose input was the reference's own
+speed] The input is `(v / 0.5 m/s, w / 1.0 rad/s)` times 1.05, piecewise constant on the reference clock: the gait's
+speed and yaw rate in a periodic gait; the next gait's from the first frame of a start or change; zero from the first
+frame of a stop; in a finite turn of angle A at rate w0 the walk's speed and `w0` for `A / |w0|` seconds of reference
+time from the turn's first frame, then zero. The commanded heading is the integral of w over reference time, except in
+the turn-in-place tasks (`inplace_left`, `inplace_right`), where it is the reference's own yaw less its yaw at the
+track's start, at every reference time; the command is the same. A start into the turn commands 0.5 rad/s from its first
+frame while the reference ramps up from rest, so the integral ran ahead of the reference through the whole turn and the
+heading penalty charged the reference itself. A walking turn keeps the integral. A plan that is given as a plan (a bar
+condition's) keeps it too, unless its caller names the reference's yaw (`r5lib.Library.from_plan`'s `heading`): the
+argument is there so that a row that plays a turn-in-place plan reads the commanded heading its policy was trained with.
+No rule of this text runs such a row (T2), and a plan given to the env by its reset options names none
+[settled 16 Nov 2026, before any Track B run: from "except in the turn-in-place tasks" to this mark, added to the
+committed sentence "The commanded heading is the integral of w over reference time."; wording entry 5a, but for its last
+sentence; the env's code was changed with it, by commit `0dc39b8` on `wt/wpc-ce`, on the env review's finding on the
+turn in place. Entry 5a's last sentence reads "A walking turn keeps the integral, and so does a plan that is given as a
+plan (a bar condition's): only a task's definition names the reference's yaw." In its place stand the three sentences
+before this mark, by the author, after the independent review of this writing-in: the first keeps its first clause, and
+the other two state what the env's code does since its second fix round, in which `from_plan` gained its `heading`
+argument (commit `011f6e2` on `wt/wpc-ce`;
+`tests/test_stage2_r5lib.py::test_a_plan_given_as_a_plan_can_name_the_references_yaw`), as the lead had ruled on 16 Nov
+2026 (03:02 UTC; `stage2/design/checkpoint/STATUS.md`, ruling 4: "`from_plan` gains a heading argument before any row
+plays a turn in place"). The env work package's reason, from its wording file, is a kinematic playback of Stage 1's turn
+in place on `75-M-H-10` (prescribed motion, no record): under the integral the reference's own playback had a mean
+heading penalty of 0.73, and under the task's definition it has 0 at every env step]. Nothing before a segment's first
+frame depends on that segment. Check: `tests/test_stage2_r5lib.py`; the env description's `command_rule`.
 
 **E5. The head command on `-X`, and the bar's head script.** [plan; NEW; lead, 15 Nov, before any Track B run: head
 script H1's numbers accepted as drafted; settled 16 Nov 2026, before any Track B run: the gaze and jaw ranges, which
@@ -574,14 +584,14 @@ Nov 2026 with the code of commit `4523ed6`. They are readings of prescribed moti
 nothing for a look set, for the 60 cm body or for hardware. Check: the env description's `reward_rule`;
 `tests/test_stage2_r5core.py`.
 
-**W2. Terms, weights, scales and their source.** [S1 for Stage 1's terms; NEW for the others; lead, 15 Nov, before any
-Track B run, for the last three rows; settled 15 Nov, before any Track B run, for the `interference` row;
-settled 16 Nov 2026, before any Track B run: `duty`'s own row, and the Check's `reward_rule`; differs: plan B.1's reward
-list]
+**W2. Terms, weights, scales and their source.** [S1 for Stage 1's terms; NEW for the others;
+lead, 15 Nov, before any Track B run, for the last three rows; settled 15 Nov, before any Track B run, for the
+`interference` row; settled 16 Nov 2026, before any Track B run: `duty`'s own row, the Check's `reward_rule`, and a
+parenthesis in the joint row; differs: plan B.1's reward list]
 
 | Term | Weight | Formula | Source |
 |---|---|---|---|
-| joint imitation (+) | 0.55 | `exp(-mean_j ((q_j - q_ref_j(c)) / 0.1 rad)^2)` over all hinges | Stage 1 |
+| joint imitation (+) | 0.55 | `exp(-mean_j ((q_j - q_ref_j(c)) / 0.1 rad)^2)` over all hinges (on `-X`, with the head command's yaw and jaw angles added to q_ref: E5) [settled 16 Nov 2026, before any Track B run: this parenthesis] | Stage 1 |
 | speed and yaw-rate tracking (+) | 0.35 | Stage 1's Gaussian tracking reward of the CoM's speed along the previous heading and the trunk's yaw rate over the step, against the reference's own at c0 times 1.05 | Stage 1 |
 | foot imitation (+) | 0.15 | `exp(-mean_f (d_f / (0.10 H))^2)`, d_f the distance between r_f and r_ref_f(c), r a foot's position less the root's in the root's heading frame | new (plan) |
 | contact imitation (+) | 0.10 | the share, over both feet and the step's 10 physics steps, of steps in which the foot's contact (load above 2 % of the weight) equals the reference's support at the clock or 24 ms x 1.05 earlier | new (plan) |
@@ -602,11 +612,14 @@ The new weights were set on 15 Nov on the recipe of `stage2/research/research_lo
 new term outweighs Stage 1's joint imitation. They are the same for every body, head, seed and mode and are not changed
 by M4's fix. As committed, `duty` shared one row with `slip`, `impact` and `tilt`, whose cells read "duty, slip, impact,
 tilt", "0.02 each", "Stage 1's (W3 for the duty band)" and "Stage 1"; it has its own row because W3 now holds its whole
-formula (wording entry 2a; the env's code is unchanged by it). Check: `settings.env_configs[].reward` and the env
-description's `reward_scales` in every `run.json` equal this table, and the env description's `reward_rule` is the text
-of `r5core.REWARD_RULE` at the run's commit, which states every term's formula as coded (W3's and W5's included)
-[settled 16 Nov 2026, before any Track B run: the clause on `reward_rule`, added to a Check that ended at "equal this
-table"; wording entry 2b; the env's code is unchanged by it].
+formula (wording entry 2a; the env's code is unchanged by it). The parenthesis in the joint row was added by the author
+after the independent review of this writing-in. It states what the env's code computes (`r5core.REWARD_RULE`: "the
+reference with the head overlay"): the head command's yaw and jaw angles are added to the reference's (E5) before the
+difference is taken. No wording entry holds it, and the env's code is unchanged by it. Check:
+`settings.env_configs[].reward` and the env description's `reward_scales` in every `run.json` equal this table, and the
+env description's `reward_rule` is the text of `r5core.REWARD_RULE` at the run's commit, which states every term's
+formula as coded (W3's and W5's included) [settled 16 Nov 2026, before any Track B run: the clause on `reward_rule`,
+added to a Check that ended at "equal this table"; wording entry 2b; the env's code is unchanged by it].
 
 **W3. Two of Stage 1's terms read differently.** [differs: S1; settled 16 Nov 2026, before any Track B run: clause (a)
 of `clearance`, and `duty`'s formula, the reference's own share in it and its target speed]
@@ -660,8 +673,9 @@ reason. It is a fourth term beyond plan B.1's list and is tagged so. Check: `set
 
 **W5. Three terms beyond plan B.1's list.** [lead, 15 Nov, before any Track B run;
 settled 16 Nov 2026, before any Track B run: `progress` read against the reference's own mean speed, `heading`'s wrap
-and `yaw_home`, and the closing sentences; differs: plan B.1's reward list, by three terms] (scratch) The lead accepted
-each of the three separately, with the weight W2 gives it, each labelled as beyond plan B.1's list.
+and `yaw_home`, the end a joint rests on in `range`, and the closing sentences; differs: plan B.1's reward list, by
+three terms] (scratch) The lead accepted each of the three separately, with the weight W2 gives it, each labelled as
+beyond plan B.1's list.
 
 [settled 16 Nov 2026, before any Track B run; wording entry 4a; the env's code is unchanged by it; in place of the
 committed sentence on `progress`, which is quoted below] `progress`: only inside a periodic walking segment, from one
@@ -682,12 +696,15 @@ difference wrapped to +-180 degrees, zero in a hold. The commanded heading is E4
 reference's own yaw). `yaw_home` is the true yaw at the episode's start less what the reference itself had turned by the
 start's reference time, so that a mid-task start reads as a playback from the track's start would.
 
-`range`: `min(1, max_j max(0, required_j - margin_j) / 0.02 rad)`, margin the joint's distance to its nearer limit;
-required, per joint: in a task without a finite turn `min(0.10 rad, the reference's own smallest margin)` (0.10 rad is
-Stage 1's walk rule, `tune.WALK_RANGE_RAD`); in a task with one, decision 14's
-`max(min(0.10 rad, the reference's own smallest margin - 0.02 rad), 0.001 rad)`, as the bar computes it. The reference
-itself therefore scores zero on `range`, also with a head command: a scripted head target keeps 0.15 rad from a joint
-limit (E5). On `heading` a playback scores zero everywhere but inside a finite turn (W1)
+`range`: `min(1, max_j max(0, required_j - margin_j) / 0.02 rad)`, margin the joint's distance to its nearer limit (an
+end a joint rests on by design, the jaw's closed end, is no limit: E5) [settled 16 Nov 2026, before any Track B run:
+this parenthesis, added by the author after the independent review of this writing-in; it states what the env's code
+computes (`r5core.REWARD_RULE`: "an end a joint rests on by design is none") and what E5 says of the jaw; no wording
+entry holds it, and the env's code is unchanged by it]; required, per joint: in a task without a finite turn `min(0.10
+rad, the reference's own smallest margin)` (0.10 rad is Stage 1's walk rule, `tune.WALK_RANGE_RAD`); in a task with one,
+decision 14's `max(min(0.10 rad, the reference's own smallest margin - 0.02 rad), 0.001 rad)`, as the bar computes it.
+The reference itself therefore scores zero on `range`, also with a head command: a scripted head target keeps 0.15 rad
+from a joint limit (E5). On `heading` a playback scores zero everywhere but inside a finite turn (W1)
 [settled 16 Nov 2026, before any Track B run: the two sentences before this mark, in place of the committed sentence
 "The reference itself therefore scores zero."; wording entry 4c; for the head command the env's code was changed with it
 (E5's ranges, commit `ad64656` on `wt/wpc-ce`), and the sentence on `heading` follows W1].
