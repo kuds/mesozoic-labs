@@ -1397,22 +1397,26 @@ times a total that holds its 10 ms unit's estimate, so that unit always fits and
 
 How these two rulings are read where they name no case (the author's reading, not the lead's wording). On `V6noF5`,
 "where S2-9 asks" is a body on which R5 failed G8b on both seeds (Q6), which may be known only after the row's 10 ms
-records. Where S2-9 has asked before the first dry run is made, that dry run takes all four delays, as the ruling's
-command has it. Where it has not, the first dry run takes the 17 conditions at 10 ms, and what holds if S2-9 asks later
-is settled in the next paragraph [until ruling 3 of the fifth list this reading went on: "if S2-9 asks later, the dry
-run is made again with all four delays and committed before the first record at another delay; 1.5 times its total is
-the row's cap from then on, and what the 10 ms unit spent counts in it"]. On `F25F9cl` the dry runs are the two pairs of
-commands listed below, made again and committed before `R2L-F25F9cl/42`'s first panel record and before the first re-run
-record [settled 16 Nov 2026, before any Track B run: that the candidate's two caps are made again, which the lead
-confirmed with the fifth list]. They take the 22 records that Q6 names for the candidate's row (the 16 gated conditions
-at 10 ms, which are its 10 ms unit, then `walk/v0.4` and `walk/v0.4_mu0.54` at 0, at 4 and at 6 ms; Q6 names no
-`walk/nominal` record there, and none is counted), and the same 22 for each of `R2/42` and `R2/43` where they are run
-again. The dry run of an R2L row names the row `R2/42`: the runner gives a row without a measured rate the largest
-measured one, which is R2's (`bar.rate_of`). The rulings name no task key, and this text names none: the report names
-it, with each cap's `<run>` and the commit that holds its dry run, and the Check reads them there [the author's, so that
-the Check can be run; until the fifth list named the directories, in the next paragraph, this sentence read "The rulings
-name no path for a cap's run directory or for its committed dry run, and no task key, and this text names none: the
-report names each cap's run directory and the file and commit that hold its dry run, and the Check reads them there"].
+records. Where S2-9 has asked before the row's first dry run is committed, the dry run that is committed takes all four
+delays, as the ruling's command has it (one made at 10 ms alone before S2-9 asked is made again). Where it has not, the
+first dry run takes the 17 conditions at 10 ms, and what holds if S2-9 asks later is settled in the next paragraph
+[until ruling 3 of the fifth list this reading went on: "if S2-9 asks later, the dry run is made again with all four
+delays and committed before the first record at another delay; 1.5 times its total is the row's cap from then on, and
+what the 10 ms unit spent counts in it"; and until the independent review of that ruling's writing-in this reading's
+second sentence read "Where S2-9 has asked before the first dry run is made, that dry run takes all four delays, as the
+ruling's command has it", which left the time between the making and the commit of a dry run without a rule: ruling 3's
+case begins when the cap is committed]. On `F25F9cl` the dry runs are the two pairs of commands listed below, made again
+and committed before `R2L-F25F9cl/42`'s first panel record and before the first re-run record
+[settled 16 Nov 2026, before any Track B run: that the candidate's two caps are made again, which the lead confirmed
+with the fifth list]. They take the 22 records that Q6 names for the candidate's row (the 16 gated conditions at 10 ms,
+which are its 10 ms unit, then `walk/v0.4` and `walk/v0.4_mu0.54` at 0, at 4 and at 6 ms; Q6 names no `walk/nominal`
+record there, and none is counted), and the same 22 for each of `R2/42` and `R2/43` where they are run again. The dry
+run of an R2L row names the row `R2/42`: the runner gives a row without a measured rate the largest measured one, which
+is R2's (`bar.rate_of`). The rulings name no task key, and this text names none: the report names it, with each cap's
+`<run>` and the commit that holds its dry run, and the Check reads them there [the author's, so that the Check can be
+run; until the fifth list named the directories, in the next paragraph, this sentence read "The rulings name no path for
+a cap's run directory or for its committed dry run, and no task key, and this text names none: the report names each
+cap's run directory and the file and commit that hold its dry run, and the Check reads them there"].
 
 [settled 16 Nov 2026, before any Track B run; ruling 3 of the fifth list, on the case that the reading above had
 answered otherwise, and that list's confirmation of where a cap is kept] Where S2-9 asks for the three other delays
@@ -1427,7 +1431,13 @@ order 0, 4, 6 ms, then the fall attribution of its own records, which is cut fir
 with its 10 ms unit and the attribution of the 10 ms records; nothing spent under one of the two caps counts in the
 other. Where this rule and its Check say "the row's first panel record", that is, for each cap, the first panel record
 the cap covers. `DRY_RUN.json` holds what the Check reads of a cap's dry run: the command, the printed total and the
-freeze of the set it was made on. `<run>` is the builder's name for the run; the report gives it.
+freeze of the set it was made on. It holds them under four keys: `commands` (each dry-run command's arguments as given:
+one command, or two for each of the candidate's caps), `rows` (the rows those commands name, each with its delay, as
+`R2/42@10ms`), `total_core_h` (the printed total; for two commands the sum of their printed totals) and `set_freeze`
+(the `index` and the `manifest_sha256` of the freeze of the set it was made on). The key names are the author's, added
+after the independent review of this writing-in so that a program can read the file; no ruling names them. The runner's
+`dry-run` command writes no file (`designlab/stage2/bar.py`), so whoever makes the dry run writes this one. `<run>` is
+the builder's name for the run; the report gives it.
 
 Planning figures. They cap nothing; each is an estimate and no record: a dry run plans each episode, multiplies its
 planned seconds by a rate and runs none. The rate is `COST.md`'s for an R2 row, 0.1574 wall seconds per simulated
@@ -1476,20 +1486,25 @@ run); `r2lg5.json` `judged_at_generation`, `overrun`; the report's cell for a fi
 [settled 16 Nov 2026, before any Track B run] `r2lg5.json` `overrun_reported`, and for each reported cell its estimate,
 what the share still held when it was decided and whether it started; for each cap, its run directory
 `stage2/tb/bar/<run>/` (the report gives each `<run>`), the `DRY_RUN.json` at its top, which holds its committed dry run
-(the command and the printed total, on the frozen set, whose freeze it names, in a commit that is an ancestor of the
-`sessions[].commit` of the first panel record the cap covers), and that directory's `budget.json` (one task key; the
-cap, which is 1.5 times that total; the units in the order started, which is 10, 0, 4, 6 ms and then attribution, each
-cap holding the units of its own delays; the cut units, which are the tail of that order, with no 10 ms unit among them;
-the excess of a 10 ms unit that passed its cap) [rulings 1 and 2 of the fourth list: this Check read "the bar's
-`budget.json` (the cap, the units in the order started, and the cut units: 6 ms, then 4 ms, then 0 ms, and no 10 ms
-record among them)"] [settled 16 Nov 2026, before any Track B run; ruling 3 of the fifth list and its confirmation of
-the directories' name, so that the Check holds per cap: "its run directory `stage2/tb/bar/<run>/` (the report gives each
-`<run>`), the `DRY_RUN.json` at its top, which holds its committed dry run" stands in place of "where the report names
-them, its committed dry run"; "that directory's" in place of "its own run directory's"; "the first panel record the cap
-covers" in place of "the row's first panel record"; and "each cap holding the units of its own delays" is added]; for a
-row for which S2-9 asked after its cap was committed, two caps, the first with the 10 ms unit and the later one with the
-units of 0, 4 and 6 ms, each with its own `DRY_RUN.json` and `budget.json` [settled 16 Nov 2026, before any Track B run:
-this item; ruling 3 of the fifth list].
+(the command and the printed total, on the frozen set, whose freeze it names, under the keys that the reading above
+gives, in a commit that is an ancestor of the `sessions[].commit` of the first panel record the cap covers), and that
+directory's `budget.json` (one task key; the cap, which is 1.5 times that total; the units in the order started, which
+is 10, 0, 4, 6 ms and then attribution, each cap holding the units of its own delays; the cut units, which are the tail
+of that order, with no 10 ms unit among them; the excess of a 10 ms unit that passed its cap) [rulings 1 and 2 of the
+fourth list: this Check read "the bar's `budget.json` (the cap, the units in the order started, and the cut units: 6 ms,
+then 4 ms, then 0 ms, and no 10 ms record among them)"] [settled 16 Nov 2026, before any Track B run; ruling 3 of the
+fifth list and its confirmation of the directories' name, so that the Check holds per cap: "its run directory
+`stage2/tb/bar/<run>/` (the report gives each `<run>`), the `DRY_RUN.json` at its top, which holds its committed dry
+run" stands in place of "where the report names them, its committed dry run"; "that directory's" in place of "its own
+run directory's"; "the first panel record the cap covers" in place of "the row's first panel record"; and "each cap
+holding the units of its own delays" is added; "under the keys that the reading above gives" was added by the author
+after the independent review of that writing-in]; for a row that has a record at 0, 4 or 6 ms and whose first cap's
+`DRY_RUN.json` names 10 ms rows alone (`rows`), a second cap with the units of 0, 4 and 6 ms, each of the two caps with
+its own `DRY_RUN.json` and `budget.json` [settled 16 Nov 2026, before any Track B run: this item; ruling 3 of the fifth
+list; worded anew by the author after the independent review of its writing-in, so that the case is read from files, no
+record holding when S2-9 asked: it read "for a row for which S2-9 asked after its cap was committed, two caps, the first
+with the 10 ms unit and the later one with the units of 0, 4 and 6 ms, each with its own `DRY_RUN.json` and
+`budget.json`"].
 
 **Q6. Rows and reading.** [plan; settled 15 Nov, before any Track B run: the row on the candidate set;
 settled 16 Nov 2026, before any Track B run: how that row is judged, and a pointer to Q5's caps] Rows are named by their
@@ -2213,9 +2228,10 @@ Items 7, 25, 27, 28, 29 and 30 also name rules of `STAGE2_75_PLAN.md`.
     read "not run: budget"; Q5 [settled 16 Nov]: it starts only when the fit's share still holds its estimate. Q5
     [settled 16 Nov]: R2L's panel records and the re-runs of `R2/42` and `R2/43` beside the candidate's row, which plan
     section 6 counts in "panels and attribution 45 (...; 0.8 per other row)", get caps of 1.5 times the bar runner's
-    dry-run total, per set and body; the dry run is made on the frozen set itself and committed before the row's first
-    panel record, and a cap is spent unit by unit in the order 10, 0, 4, 6 ms, attribution last. Q5 [settled 16 Nov]:
-    where S2-9 asks for the three other delays after a row's cap is committed, those delays get a cap of their own.
+    dry-run total, per set and body; the dry run is made on the frozen set itself and committed before the first panel
+    record the cap covers, and a cap is spent unit by unit in the order 10, 0, 4, 6 ms, attribution last. Q5
+    [settled 16 Nov]: where S2-9 asks for the three other delays after a row's cap is committed, those delays get a cap
+    of their own.
 16. E5: in plan section 5's "`-X` runs the bar head neutral (the hardware's cost) and with gaze events and head-first
     turns (the cost of using it)", head-first turns are not run.
 17. N5: plan B.3's "a fresh-clone dry run of the bundle" and "the notebook on a tiny budget" are one acceptance run.
