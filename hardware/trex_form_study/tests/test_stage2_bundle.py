@@ -337,6 +337,7 @@ def test_a_bundle_holds_the_models_and_the_latest_freeze_and_nothing_else(built)
         assert c["sets"]["SX"][body] == dict(freeze_index=1, manifest_sha256=latest["manifest_sha256"],
                                              files=len(SET_FILES))
     assert doc["content_sha256"] == bundle.content_sha256(doc) == s2io.sha256_json(c)
+    assert sorted(c) == sorted(bundle.CONTENT_KEYS) and bundle.manifest_problems(doc) == []
     p = doc["provenance"]
     assert {"made_at", "commit", "dirty", "rule", "tool_sha256", "versions"} <= set(p)
     assert p["rule"] == bundle.RULE and p["tool_sha256"] == s2io.sha256_file(bundle.__file__)
@@ -351,7 +352,7 @@ def test_a_bundle_holds_the_models_and_the_latest_freeze_and_nothing_else(built)
 def test_sets_empty_packs_the_models_only(tree, tmp_path):
     doc = bundle.build("m", BODIES, sets=(), out=tmp_path / "m", root=tree)
     assert doc["content"]["sets"] == {} and sorted(doc["content"]["parts"]) == [f"models-{b}.tar" for b in BODIES]
-    assert len(doc["content"]["files"]) == 4
+    assert len(doc["content"]["files"]) == 4 and bundle.manifest_problems(doc) == []
 
 
 def test_a_set_over_the_part_size_splits_and_every_file_is_in_exactly_one_part(built, tree, tmp_path):
@@ -379,6 +380,7 @@ def test_a_set_over_the_part_size_splits_and_every_file_is_in_exactly_one_part(b
                                                      + [f"SX-{b}-1.tar" for b in BODIES])
     assert {f: (e["sha256"], e["bytes"]) for f, e in one["content"]["files"].items()} == {
         f: (e["sha256"], e["bytes"]) for f, e in c["files"].items()}
+    assert bundle.manifest_problems(one) == []
     # a file that alone is over the limit is refused with its path, and nothing is written
     with pytest.raises(bundle.BundleError, match="turn90_pi4_left.npz.*over the limit"):
         bundle.build("t3", BODIES, sets=("SX",), out=tmp_path / "small", part_mb=0.03, root=tree)
@@ -413,6 +415,9 @@ def _refreeze(doc, change) -> None:
 SETD = f"{bundle.SETS_DIR}/SX/T-A"
 MODEL_A, MODEL_B = f"{CASES['T-A']}/models/T-A", f"{CASES['T-B']}/models/T-B"
 CANDIDATE_A = f"{CASES['T-A']}/candidates/T-A.json"
+#: The first two parts of the set SX for T-A at 60 kB a part, and the first and the last of that set's files.
+PART, OTHER = "SX-T-A-1.tar", "SX-T-A-2.tar"
+FIRST, LAST = f"{SETD}/refs/nominal.npz", f"{SETD}/transitions/turn90_pi4_right.npz"
 
 
 def _list_says_another_xml(t):
@@ -540,6 +545,7 @@ def test_the_order_of_the_names_given_does_not_matter(tmp_path, monkeypatch):
     assert a["content"]["bodies"] == BODIES and list(a["content"]["sets"]) == ["SX", "SY"]
     assert b["content"] == a["content"] and b["content_sha256"] == a["content_sha256"]
     assert json.dumps(b["content"]) == json.dumps(a["content"])  # the tables' own order too
+    assert bundle.manifest_problems(a) == [] and len(a["content"]["parts"]) == 18  # two sets, each in four parts
     for name in a["content"]["parts"]:
         assert (tmp_path / "a" / "parts" / name).read_bytes() == (tmp_path / "b" / "parts" / name).read_bytes(), name
     # and the same bundle directory takes the other order as the same build
@@ -676,8 +682,11 @@ def test_a_build_of_the_study_itself_is_refused_where_git_cannot_tell(tree, tmp_
     assert _files_under(out) == [] and not out.exists()
     # the other ways git cannot tell, each with its reason: no git, a checkout git refuses, a listing that fails
     real = subprocess.run
-    listing_fails = lambda cmd, **kw: (subprocess.CompletedProcess(cmd, 128, "", "fatal: index file corrupt\n")
-                                       if "ls-files" in cmd else real(cmd, **kw))
+
+    def listing_fails(cmd, **kw):
+        return subprocess.CompletedProcess(cmd, 128, "", "fatal: index file corrupt\n") if "ls-files" in cmd else real(
+            cmd, **kw)
+
     _git(tmp_path, "init", "-q", str(tree))
     for fake, why in ((_no_git, "git could not be run (No such file or directory)"),
                       (_git_says(128, stderr="fatal: detected dubious ownership in repository at '/x'\nhint: y\n"),
@@ -702,10 +711,10 @@ def test_a_build_of_the_study_itself_is_refused_where_git_cannot_tell(tree, tmp_
         build(out=out)
     _git(tree, "add", "--", *records)
     _git(tree, "commit", "-q", "-m", "records")
-    for root in (None, alias):
-        doc = build(out=out, root=root)
+    for root, where in ((None, out), (alias, tmp_path / "out by another name")):
+        doc = build(out=where, root=root)
         assert doc["provenance"]["records_committed"] is True and doc["provenance"]["root"] == "."
-    assert bundle.verify(doc, tree, out / "parts")["ok"]
+        assert bundle.verify(doc, tree, where / "parts")["ok"]
 
 
 # ------------------------------------------------------------------------------------------------
@@ -833,6 +842,239 @@ def test_verify_never_raises_on_a_bad_manifest(built, tmp_path):
         with pytest.raises(bundle.BundleError):  # and unpack refuses the same manifests, before writing
             bundle.unpack(manifest, out / "parts", tmp_path / "never")
     assert _files_under(tmp_path / "never") == []
+
+
+def _refitted(doc: dict, change) -> dict:
+    """The manifest with its content changed by ``change(content)`` and ``content_sha256`` made to agree: what
+    someone who can write the manifest would write."""
+    d = copy.deepcopy(doc)
+    change(d["content"])
+    d["content_sha256"] = s2io.sha256_json(d["content"])
+    return d
+
+
+def _move(rel: str, part: str):
+    """Give the file ``rel`` to ``part``, with the two parts' file counts made to agree."""
+    def change(c):
+        c["parts"][c["files"][rel]["part"]]["files"] -= 1
+        c["parts"][part]["files"] += 1
+        c["files"][rel]["part"] = part
+    return change
+
+
+def _swap_parts(a: str, b: str):
+    def change(c):
+        c["files"][a]["part"], c["files"][b]["part"] = c["files"][b]["part"], c["files"][a]["part"]
+    return change
+
+
+def _nobodys_file(c):
+    c["files"]["stage2/other/x.npz"] = dict(sha256=_sha(b"x"), bytes=1, part="models-T-A.tar")
+    c["parts"]["models-T-A.tar"]["files"] += 1
+
+
+def _renumber(rel: str, old: str, new: str):
+    """Call the part ``old``, which holds the file ``rel`` alone, ``new``."""
+    def change(c):
+        c["parts"][new] = c["parts"].pop(old)
+        c["files"][rel]["part"] = new
+    return change
+
+
+def _another_bodys_ledger(c):
+    c["models"]["T-A"]["record"] = dict(c["models"]["T-B"]["record"])
+
+
+def _set_entry(n: int) -> dict:
+    return {b: dict(freeze_index=0, manifest_sha256="0" * 64, files=n) for b in BODIES}
+
+
+#: junk in the manifest's own tables, the content hash refitted -> the start or a part of the problem it must give
+JUNK = {
+    "a body with no models": (lambda c: c["bodies"].append("T-Z"),
+                              "MANIFEST: content.models is for T-A, T-B, content.bodies lists T-A, T-B, T-Z"),
+    "bodies that are a name": (lambda c: c.update(bodies="T-A"), "MANIFEST: content.bodies is not a sorted list"),
+    "bodies out of order": (lambda c: c["bodies"].reverse(), "MANIFEST: content.bodies is not a sorted list"),
+    "a body twice": (lambda c: c["bodies"].append("T-B"), "MANIFEST: content.bodies is not a sorted list"),
+    "no body": (lambda c: c.update(bodies=[]), "MANIFEST: content.bodies is not a sorted list"),
+    "a body that is no name": (lambda c: c["bodies"].insert(0, "../x"), "MANIFEST: content.bodies is not a sorted"),
+    "no models table": (lambda c: c.pop("models"), "MANIFEST: content.models is not a table"),
+    "models of a body that is not listed": (
+        lambda c: c["models"].update({"T-Z": copy.deepcopy(c["models"]["T-A"])}),
+        "MANIFEST: content.models is for T-A, T-B, T-Z, content.bodies lists T-A, T-B"),
+    "one model for two bodies": (lambda c: c["models"].update({"T-B": copy.deepcopy(c["models"]["T-A"])}),
+                                 f"{MODEL_A}.xml: a model file of T-A and of T-B"),
+    "a model's sha256 that is not its file's": (
+        lambda c: c["models"]["T-A"]["xml"].update(sha256="0" * 64),
+        f"{MODEL_A}.xml: content.models['T-A'] holds sha256 000000000000..., content.files "),
+    "a ledger's sha256 that is not its file's": (
+        lambda c: c["models"]["T-B"]["record"].update(sha256="1" * 64),
+        f"{MODEL_B}.json: content.models['T-B'] holds sha256 111111111111..., content.files "),
+    "a model's path that is no file of the bundle": (
+        lambda c: c["models"]["T-A"]["xml"].update(path=f"{CASES['T-A']}/models/T-Q.xml"),
+        f"MANIFEST: content.models['T-A']: its xml file '{CASES['T-A']}/models/T-Q.xml' is not in content.files"),
+    "a model's case that is not its path's": (lambda c: c["models"]["T-A"].update(case="t_case_b"),
+                                              "MANIFEST: content.models['T-A']: its files are not"),
+    "a ledger that is not beside its model": (_another_bodys_ledger,
+                                              "MANIFEST: content.models['T-A']: its files are not"),
+    "a model entry with another key": (lambda c: c["models"]["T-A"].update(note="x"),
+                                       "MANIFEST: content.models['T-A'] is not {case, xml"),
+    "a model entry without its ledger": (lambda c: c["models"]["T-A"].pop("record"),
+                                         "MANIFEST: content.models['T-A'] is not {case, xml"),
+    "a model entry that is a list": (lambda c: c["models"].update({"T-A": [1]}),
+                                     "MANIFEST: content.models['T-A'] is not {case, xml"),
+    "a model file in another part": (_move(f"{MODEL_A}.json", "models-T-B.tar"),
+                                     f"{MODEL_A}.json: a model file of T-A in the part 'models-T-B.tar'"),
+    "a set's count that is not its files'": (
+        lambda c: c["sets"]["SX"]["T-A"].update(files=99),
+        f"MANIFEST: content.sets['SX']['T-A'] lists 99 files, content.files holds 7 under {SETD}/"),
+    "a set's hash that is none": (lambda c: c["sets"]["SX"]["T-A"].update(manifest_sha256="junk"),
+                                  "MANIFEST: content.sets['SX']['T-A'] is not {freeze_index, manifest_sha256, files}"),
+    "a set's freeze index that is none": (lambda c: c["sets"]["SX"]["T-B"].update(freeze_index=-1),
+                                          "MANIFEST: content.sets['SX']['T-B'] is not {freeze_index"),
+    "a set entry with another key": (lambda c: c["sets"]["SX"]["T-A"].update(note="x"),
+                                     "MANIFEST: content.sets['SX']['T-A'] is not {freeze_index"),
+    "a set with files it does not have": (lambda c: c["sets"].update(SY=_set_entry(3)),
+                                          "MANIFEST: content.sets['SY']['T-A'] lists 3 files, content.files holds 0"),
+    "a set that lacks a body": (lambda c: c["sets"]["SX"].pop("T-B"),
+                                "MANIFEST: content.sets['SX'] is for T-A, content.bodies lists T-A, T-B"),
+    "a set for a body that is not listed": (
+        lambda c: c["sets"]["SX"].update({"T-Z": dict(freeze_index=0, manifest_sha256="0" * 64, files=0)}),
+        "MANIFEST: content.sets['SX'] is for T-A, T-B, T-Z, content.bodies lists T-A, T-B"),
+    "files of a set the table does not hold": (
+        lambda c: c.update(sets={}), f"{SETD}/refs/nominal.npz: content.sets holds no set 'SX' for the body 'T-A' (7 "),
+    "sets that are a list": (lambda c: c.update(sets=[1]), "MANIFEST: content.sets is not a table"),
+    "a set whose name is a path": (lambda c: c["sets"].update({"../x": _set_entry(0)}),
+                                   "MANIFEST: content.sets['../x'] is not a set's name"),
+    "a set that is a number": (lambda c: c["sets"].update(SY=3), "MANIFEST: content.sets['SY'] is not a set's name"),
+    "a set's file in a model part": (_move(FIRST, "models-T-A.tar"),
+                                     f"{FIRST}: in the part 'models-T-A.tar', not SX-T-A-<i>.tar"),
+    "a set's file in another body's part": (_move(FIRST, "SX-T-B-1.tar"),
+                                            f"{FIRST}: in the part 'SX-T-B-1.tar', not SX-T-A-<i>.tar"),
+    "a set's parts out of their order": (_swap_parts(FIRST, LAST), f"{FIRST}: in part 4 of SX T-A where part 1 is due"),
+    "a set's parts with a gap": (_renumber(LAST, "SX-T-A-4.tar", "SX-T-A-5.tar"),
+                                 f"{LAST}: in part 5 of SX T-A where part 3 or 4 is due"),
+    "a set's parts that go back": (  # the files of parts 2 and 3 change places: part 3 comes before part 2
+        _swap_parts(f"{SETD}/transitions/stop2_v0.4.npz", f"{SETD}/transitions/turn90_pi4_left.npz"),
+        f"{SETD}/transitions/turn90_pi4_left.npz: in part 2 of SX T-A where part 3 or 4 is due"),
+    "a file that is nobody's": (_nobodys_file, "stage2/other/x.npz: neither a model file of content.models nor"),
+    "a look twin among a set's files": (
+        lambda c: (c["files"].update({f"{SETD}/look/nominal.npz": dict(sha256=_sha(b"x"), bytes=1, part=PART)}),
+                   c["parts"][PART].update(files=c["parts"][PART]["files"] + 1)),
+        f"{SETD}/look/nominal.npz: neither a model file of content.models nor"),
+    "a part that holds nothing": (
+        lambda c: c["parts"].update({"extra.tar": dict(sha256=_sha(bytes(10240)), bytes=10240, files=0)}),
+        "extra.tar: no file of content.files is in it"),
+    "another key in the content": (lambda c: c.update(uploads={"by": "someone"}),
+                                   "MANIFEST: content holds uploads: its keys are bundle_id, bodies, models, sets, "),
+}
+
+
+@pytest.mark.parametrize("case", sorted(JUNK))
+def test_junk_in_the_manifests_own_tables_does_not_verify(case, built, tmp_path):
+    """The tables of bodies, models and sets are checked against the file list: junk in them, with the content hash
+    made to agree (so the hash check passes), is a problem ``verify`` reports and ``unpack`` refuses before it
+    writes."""
+    tree, out, doc = built
+    change, text = JUNK[case]
+    junk = _refitted(doc, change)
+    assert junk["content_sha256"] != doc["content_sha256"] and bundle.manifest_problems(doc) == []
+    problems = bundle.manifest_problems(junk)
+    assert any(text in p for p in problems), problems
+    assert not any("content_sha256" in p for p in problems)  # the hash was refitted: it is not what gives it away
+    (out / "parts" / "extra.tar").write_bytes(bytes(10240))  # an empty tar: where a part is added, its bytes are right
+    got = bundle.verify(junk, tree, out / "parts")
+    assert got["ok"] is False and got["problems"][:len(problems)] == problems
+    assert got["content_sha256"] == junk["content_sha256"] == s2io.sha256_json(junk["content"])
+    with pytest.raises(bundle.BundleError, match="the manifest has .* problem"):
+        bundle.unpack(junk, out / "parts", tmp_path / "never")
+    assert _files_under(tmp_path / "never") == []
+
+
+def _places(node, at=()):
+    """Every place in a JSON value, as the keys and indices that lead to it."""
+    yield at
+    for key, value in (node.items() if isinstance(node, dict) else enumerate(node) if isinstance(node, list) else ()):
+        yield from _places(value, at + (key,))
+
+
+def _at(content: dict, at: tuple):
+    node = content
+    for key in at:
+        node = node[key]
+    return node
+
+
+def test_any_junk_anywhere_in_the_tables_is_a_problem_and_never_another_exception(built, tmp_path):
+    """Every place in ``bodies``, ``models`` and ``sets`` given a value of every JSON kind, removed, or (a table)
+    given one more key: each is a reported problem; ``verify`` never raises and ``unpack`` refuses."""
+    tree, out, doc = built
+    values = (None, True, 1.5, -1, "x", [], [1], {}, {"a": 1})
+    tried = 0
+    for table in ("bodies", "models", "sets"):
+        for at in _places(doc["content"][table], (table,)):
+            above, key = at[:-1], at[-1]
+            changes = [lambda c, v=v: _at(c, above).__setitem__(key, copy.deepcopy(v)) for v in values]
+            if isinstance(_at(doc["content"], at), dict):
+                changes.append(lambda c: _at(c, at).update(junk="x"))  # one more key in a table
+            if isinstance(key, str):
+                changes.append(lambda c: _at(c, above).pop(key))  # a table without this key
+            for change in changes:
+                junk = _refitted(doc, change)
+                assert junk["content_sha256"] != doc["content_sha256"]
+                got = bundle.verify(junk, tree)
+                assert got["ok"] is False and got["files_ok"] == got["files"], (at, got["problems"])
+                assert bundle.manifest_problems(junk) == got["problems"]
+                with pytest.raises(bundle.BundleError, match="the manifest has .* problem"):
+                    bundle.unpack(junk, out / "parts", tmp_path / "never")
+                tried += 1
+    assert tried > 300 and _files_under(tmp_path / "never") == []
+    # a document that never was JSON: keys that are no strings (beside string keys they cannot even be hashed)
+    for change in (lambda c: c.update(models={3: 4, 1: [2]}), lambda c: c.update(sets={3: {}}),
+                   lambda c: c["sets"].update(SX={1.5: {}}), lambda c: c["models"].update({"T-A": {1: 2}}),
+                   lambda c: c["models"].update({3: 4}), lambda c: c["sets"].update({None: {}}),
+                   lambda c: c.update({7: 8})):
+        junk = copy.deepcopy(doc)
+        change(junk["content"])
+        assert bundle.manifest_problems(junk) and bundle.verify(junk, tree)["ok"] is False
+        with pytest.raises(bundle.BundleError):
+            bundle.unpack(junk, out / "parts", tmp_path / "never")
+    assert _files_under(tmp_path / "never") == []
+
+
+def test_a_part_holds_the_files_of_one_owner(tmp_path):
+    """Names that collide (a set called ``models`` for the body ``T-A`` and the models of a body ``T-A-1`` both give
+    ``models-T-A-1.tar``): a part with files of both is a problem.  ``build`` itself never writes one ("two parts
+    would carry this name")."""
+    sha, mdir, sdir = _sha(b"x"), "round2/refine/c/models", f"{bundle.SETS_DIR}/models/T-A"
+    part, bodies = "models-T-A-1.tar", ["T-A", "T-A-1"]
+    files = {f"{mdir}/{b}.{ext}": dict(sha256=sha, bytes=1, part=f"models-{b}.tar") for b in bodies
+             for ext in ("xml", "json")}
+    files[f"{sdir}/refs/w.npz"] = dict(sha256=sha, bytes=1, part=part)
+    content = dict(
+        bundle_id="c", bodies=bodies, files=files,
+        models={b: dict(case="c", xml=dict(path=f"{mdir}/{b}.xml", sha256=sha),
+                        record=dict(path=f"{mdir}/{b}.json", sha256=sha)) for b in bodies},
+        sets=dict(models={"T-A": dict(freeze_index=0, manifest_sha256="0" * 64, files=1),
+                          "T-A-1": dict(freeze_index=0, manifest_sha256="0" * 64, files=0)}),
+        parts={"models-T-A.tar": dict(sha256=sha, bytes=10240, files=2), part: dict(sha256=sha, bytes=10240, files=3)})
+    doc = dict(schema=bundle.SCHEMA, content=content, content_sha256=s2io.sha256_json(content))
+    assert bundle.manifest_problems(doc) == [f"{sdir}/refs/w.npz: its part {part!r} also holds files of models T-A-1"]
+    del files[f"{sdir}/refs/w.npz"]  # without the set's file the same tables agree
+    content["sets"]["models"]["T-A"]["files"], content["parts"][part]["files"] = 0, 2
+    assert bundle.manifest_problems(dict(doc, content_sha256=s2io.sha256_json(content))) == []
+
+
+def test_what_the_tables_cross_check_cannot_tell(built):
+    """Its limits, held here so that nobody reads more into it: another freeze index, another 64-hex manifest hash
+    and an empty set that was never packed agree with the file list (only the set's own records can tell; the
+    notebook compares the quoted bundle id and content hash), and so does another bundle id."""
+    tree, out, doc = built
+    for change in (lambda c: c["sets"]["SX"]["T-A"].update(freeze_index=7),
+                   lambda c: c["sets"]["SX"]["T-A"].update(manifest_sha256="f" * 64),
+                   lambda c: c["sets"].update(SY=_set_entry(0)), lambda c: c.update(bundle_id="t9")):
+        other = _refitted(doc, change)
+        assert bundle.manifest_problems(other) == [] and other["content_sha256"] != doc["content_sha256"]
 
 
 def _gone(path: Path):
@@ -997,10 +1239,6 @@ def _refit(doc: dict, pdir: Path) -> dict:
             e.update(sha256=s2io.sha256_file(pdir / name), bytes=(pdir / name).stat().st_size)
     doc["content_sha256"] = s2io.sha256_json(doc["content"])
     return doc
-
-
-PART, OTHER = "SX-T-A-1.tar", "SX-T-A-2.tar"
-FIRST = f"{SETD}/refs/nominal.npz"
 
 
 def _tamper(case: str, pdir: Path, doc: dict, tmp_path: Path) -> tuple[dict, str]:

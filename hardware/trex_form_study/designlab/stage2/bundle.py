@@ -38,9 +38,11 @@ gid 0, empty user and group names, mode 0644, no compression, the file's bytes s
 
 ``content_sha256`` is ``s2io.sha256_json(content)`` (canonical JSON: sorted keys, no spaces), so it does not depend on
 how the file is laid out and nothing outside ``content`` enters it.  Nothing is ever added to ``content`` after the
-build.  ``build`` leaves an existing manifest with the same content as it is and refuses one with another content: a
-bundle id names one content.  (``models.<body>.record`` is the model ledger JSON beside the XML, not the candidate
-record: that one is committed.)
+build (``CONTENT_KEYS``), and its tables of bodies, models and sets must agree with its file list
+(``manifest_problems``): a manifest with junk in them does not verify and is not unpacked, whatever its hash.
+``build`` leaves an existing manifest with the same content as it is and refuses one with another content: a bundle id
+names one content.  (``models.<body>.record`` is the model ledger JSON beside the XML, not the candidate record: that
+one is committed.)
 
 **verify** re-hashes every file of the manifest under a root (and, given a parts directory, every part) and never
 raises on a difference: it returns the counts and the problems, each starting with its path.  **unpack** refuses,
@@ -92,6 +94,8 @@ from designlab import stage1
 from designlab.stage2 import s2io
 
 SCHEMA = "s2-bundle-2"
+#: The keys of a manifest's content block, and all of them: nothing is added to the content after the build.
+CONTENT_KEYS = ("bundle_id", "bodies", "models", "sets", "files", "parts")
 MANIFEST = "MANIFEST.json"
 PARTS = "parts"
 #: Bytes in one "MB" of ``part_mb``: the decimal reading, the smaller of the two (a part within 20 x 1,000,000 bytes
@@ -657,9 +661,143 @@ def _is_count(x) -> bool:
     return isinstance(x, int) and not isinstance(x, bool) and x >= 0
 
 
+def _keys(table) -> list:
+    return sorted(table, key=str)
+
+
+def _table_problems(content: dict, files: dict, parts: list) -> list[str]:
+    """How the content's own tables disagree with its file list, for ``manifest_problems``.  ``files``: the entries
+    of ``content.files`` that are ``{sha256, bytes, part}`` with a part of ``content.parts``; ``parts``: the names of
+    the parts whose own entries are sound (the other files and parts are reported already).  Nothing is read from
+    disk.  Checked:
+
+    * the content holds ``CONTENT_KEYS`` and no other key;
+    * ``bodies`` is a sorted list of distinct names, and it is not empty;
+    * ``models`` has one entry per body, ``{case, xml {path, sha256}, record {path, sha256}}`` and no other key; the
+      two paths are ``<case directory>/models/<id>.xml`` and ``<id>.json`` of that case; each is in the file list
+      with the same sha256, in the part ``models-<body>.tar``, and is no other body's;
+    * ``sets`` has, per set, one entry per body, ``{freeze_index, manifest_sha256, files}`` and no other key, whose
+      ``files`` is the number of files the list holds under ``<SETS_DIR>/<set>/<body>/``; those files, in sorted
+      order, fill the parts ``<set>-<body>-<i>.tar`` from 1 on without a gap;
+    * every file of the list is a body's model file or such a set's ``refs/<name>.npz`` or
+      ``transitions/<name>.npz``; every part holds at least one file, and the files of one owner only.
+
+    Not checked, because the manifest alone cannot tell: whether ``freeze_index`` and ``manifest_sha256`` are the
+    set's (its own records hold them), and whether a set that lists no file was packed at all."""
+    out = []
+    extra = [str(k) for k in _keys(content) if k not in CONTENT_KEYS]
+    if extra:
+        out.append(f"MANIFEST: content holds {', '.join(extra)}: its keys are {', '.join(CONTENT_KEYS)}, and nothing "
+                   "is added to the content after the build")
+    bodies, models, sets = content.get("bodies"), content.get("models"), content.get("sets")
+    shapes = []
+    if not (isinstance(bodies, list) and bodies and all(isinstance(b, str) and _NAME.match(b) for b in bodies)
+            and bodies == sorted(set(bodies))):
+        shapes.append("MANIFEST: content.bodies is not a sorted list of distinct body names (at least one)")
+    if not isinstance(models, dict):
+        shapes.append("MANIFEST: content.models is not a table")
+    if not isinstance(sets, dict):
+        shapes.append("MANIFEST: content.sets is not a table")
+    if shapes:  # nothing to cross-check the file list with
+        return out + shapes
+    listed = ", ".join(bodies)
+
+    def named(table) -> str:
+        return ", ".join(map(str, _keys(table))) or "no body"
+
+    # the models: one entry per body, its two files in the list with the same sha256, in the body's model part
+    if _keys(models) != bodies:
+        out.append(f"MANIFEST: content.models is for {named(models)}, content.bodies lists {listed}")
+    owner: dict = {}     # part -> who its files belong to (a body's models, or a set and body)
+    model_of: dict = {}  # model file -> body
+    for body in _keys(models):
+        m, where = models[body], f"MANIFEST: content.models[{body!r}]"
+        if not (isinstance(m, dict) and _keys(m) == ["case", "record", "xml"] and isinstance(m["case"], str)
+                and all(isinstance(m[k], dict) and _keys(m[k]) == ["path", "sha256"]
+                        and all(isinstance(v, str) for v in m[k].values()) for k in ("xml", "record"))):
+            out.append(f"{where} is not {{case, xml {{path, sha256}}, record {{path, sha256}}}}")
+            continue
+        xml, ledger = m["xml"]["path"], m["record"]["path"]
+        if not (xml.endswith(".xml") and ledger == xml[:-4] + ".json"
+                and xml.split("/")[-3:-1] == [m["case"], "models"]):
+            out.append(f"{where}: its files are not <case directory>/models/<id>.xml and <id>.json of the case "
+                       f"{m['case']!r}")
+        for key in ("xml", "record"):
+            path, sha = m[key]["path"], m[key]["sha256"]
+            e = files.get(path)
+            if e is None:
+                out.append(f"{where}: its {key} file {path!r} is not in content.files")
+            elif model_of.setdefault(path, body) != body:
+                out.append(f"{path}: a model file of {model_of[path]} and of {body} in content.models")
+            else:
+                if e["sha256"] != sha:
+                    out.append(f"{path}: content.models[{body!r}] holds sha256 {sha[:12]}..., content.files "
+                               f"{e['sha256'][:12]}...")
+                if e["part"] != f"models-{body}.tar":
+                    out.append(f"{path}: a model file of {body} in the part {e['part']!r}, not models-{body}.tar")
+                elif owner.setdefault(e["part"], ("models", body)) != ("models", body):
+                    out.append(f"{path}: its part {e['part']!r} also holds files of "
+                               + " ".join(map(str, owner[e["part"]])))
+
+    # every other file is a set's: <SETS_DIR>/<set>/<body>/refs/<name>.npz or transitions/<name>.npz
+    base = SETS_DIR.split("/")
+    of_set: dict = {}    # (set, body) -> its files in the list
+    for rel in files:
+        names = rel.split("/")
+        if rel in model_of:
+            continue
+        if (len(names) == len(base) + 4 and names[:len(base)] == base and names[-2] in ("refs", "transitions")
+                and names[-1].endswith(".npz") and names[-1] != ".npz"):
+            of_set.setdefault((names[-4], names[-3]), []).append(rel)
+        else:
+            out.append(f"{rel}: neither a model file of content.models nor a set's file ({SETS_DIR}/<set>/<body>/"
+                       "refs/<name>.npz or transitions/<name>.npz)")
+    for name in _keys(sets):
+        per, where = sets[name], f"MANIFEST: content.sets[{name!r}]"
+        if not (isinstance(name, str) and _NAME.match(name) and isinstance(per, dict)):
+            out.append(f"{where} is not a set's name with its table of bodies")
+            continue
+        if _keys(per) != bodies:
+            out.append(f"{where} is for {named(per)}, content.bodies lists {listed}")
+        for body in _keys(per):
+            e, have = per[body], sorted(of_set.pop((name, body), ()))
+            if not (isinstance(e, dict) and _keys(e) == ["files", "freeze_index", "manifest_sha256"]
+                    and _is_count(e["files"]) and _is_count(e["freeze_index"])
+                    and isinstance(e["manifest_sha256"], str) and _HEX64.match(e["manifest_sha256"])):
+                out.append(f"{where}[{body!r}] is not {{freeze_index, manifest_sha256, files}}")
+                continue
+            if e["files"] != len(have):
+                out.append(f"{where}[{body!r}] lists {e['files']} files, content.files holds {len(have)} under "
+                           f"{SETS_DIR}/{name}/{body}/")
+            numbered, at = re.compile(re.escape(f"{name}-{body}-") + r"([1-9][0-9]*)\.tar\Z"), 0
+            for rel in have:  # in sorted order they fill the parts 1, 2, ... (``_split``)
+                part = files[rel]["part"]
+                found = numbered.match(part)
+                if not found:
+                    out.append(f"{rel}: in the part {part!r}, not {name}-{body}-<i>.tar")
+                    continue
+                i = int(found.group(1))
+                if i not in (at, at + 1):
+                    due = f"part {at} or {at + 1}" if at else "part 1"
+                    out.append(f"{rel}: in part {i} of {name} {body} where {due} is due (a set's files in sorted "
+                               "order fill its parts, numbered from 1)")
+                at = i
+                if owner.setdefault(part, (name, body)) != (name, body):
+                    out.append(f"{rel}: its part {part!r} also holds files of " + " ".join(map(str, owner[part])))
+    for (name, body), have in sorted(of_set.items(), key=str):
+        out.append(f"{min(have)}: content.sets holds no set {name!r} for the body {body!r} "
+                   f"({_count(len(have), 'file')} under {SETS_DIR}/{name}/{body}/)")
+    used = {e["part"] for e in files.values()}
+    out += [f"{name}: no file of content.files is in it: a part is a body's models or a piece of a set"
+            for name in parts if name not in used]
+    return out
+
+
 def manifest_problems(doc) -> list[str]:
-    """Every way ``doc`` is not a manifest whose files and parts agree (empty: it is one): the schema, the content
-    block and its hash, each file's path, sha256, size and part, each part's name, sha256, size and file count."""
+    """Every way ``doc`` is not a manifest whose tables agree (empty: it is one): the schema, the content block and
+    its hash, each file's path, sha256, size and part, each part's name, sha256, size and file count, and then the
+    content's keys and its tables of bodies, models and sets against the file list (``_table_problems``), so that
+    junk in those tables is a problem even where ``content_sha256`` was made to agree with it."""
     if not isinstance(doc, dict):
         return ["MANIFEST: not a JSON object"]
     out = []
@@ -680,7 +818,7 @@ def manifest_problems(doc) -> list[str]:
     if doc.get("content_sha256") != digest:
         out.append(f"MANIFEST: content_sha256 is {str(doc.get('content_sha256'))[:12]}..., the content block's hash "
                    f"is {digest[:12]}...")
-    count = dict.fromkeys(parts, 0)
+    count, good, sound = dict.fromkeys(parts, 0), {}, []
     for rel in sorted(files, key=str):
         e, why = files[rel], path_problem(rel)
         if why:
@@ -692,6 +830,7 @@ def manifest_problems(doc) -> list[str]:
             out.append(f"{rel}: its part {e['part']!r} is not in content.parts")
         else:
             count[e["part"]] += 1
+            good[rel] = e
     for name in sorted(parts, key=str):
         e = parts[name]
         if not (isinstance(name, str) and _NAME.match(name) and name.endswith(".tar")):
@@ -701,7 +840,9 @@ def manifest_problems(doc) -> list[str]:
             out.append(f"{name}: its entry is not {{sha256, bytes, files}}")
         elif e["files"] != count[name]:
             out.append(f"{name}: lists {e['files']} files, content.files gives it {count[name]}")
-    return out
+        else:
+            sound.append(name)
+    return out + _table_problems(content, good, sound)
 
 
 def _file_ok(e) -> bool:
@@ -990,8 +1131,8 @@ def main(argv=None) -> int:
     return 0
 
 
-__all__ = ["BundleError", "INPUT_LISTS", "MANIFEST", "MB", "PARTS", "RULE", "SCHEMA", "SETS_DIR", "build",
-           "content_sha256", "load", "main", "manifest_problems", "model_paths", "path_problem", "scan_part",
+__all__ = ["BundleError", "CONTENT_KEYS", "INPUT_LISTS", "MANIFEST", "MB", "PARTS", "RULE", "SCHEMA", "SETS_DIR",
+           "build", "content_sha256", "load", "main", "manifest_problems", "model_paths", "path_problem", "scan_part",
            "tar_bytes", "unpack", "verify"]
 
 if __name__ == "__main__":
