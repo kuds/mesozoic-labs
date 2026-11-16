@@ -433,14 +433,47 @@ tests).
 
 ## W. Reward
 
-**W1. Form.** [plan] `r = sum of the positive terms x their weights - sum of the penalties x their weights`, each term
-in [0, 1], read on the true state at the end of every env step (c the reference clock then, c0 at its start). A zero
-action on a kinematic playback scores every positive term 1 and every penalty 0. Check: the env description's
-`reward_rule`; `tests/test_stage2_r5core.py`.
+**W1. Form.** [plan; settled 16 Nov 2026, before any Track B run: which instant the reward reads, and what a playback
+scores] `r = sum of the positive terms x their weights - sum of the penalties x their weights`, each term in [0, 1],
+read on the true state at the end of every env step (c the reference clock then, c0 at its start).
+[settled 16 Nov 2026, before any Track B run; wording entry 1a, added after the sentence before this mark, which stands
+as committed; the env's code is unchanged by it] Joint angles are those at the env step's end. Body positions and
+orientations (the CoM, the trunk's attitude and yaw, the feet, the head, the feet's lowest points and slip speeds) and
+the foot loads are the plant's own after the env step's last physics step, which the simulator computes at that physics
+step's start, 2 ms before the env step's end: the plant's data is read and never recomputed, because a second forward
+pass would change the solver's warm start and gate Z1 would no longer hold. What is read at every physics step (the foot
+loads, and with them a foot's contact, for contact, duty, flight, impact, touchdown, a foot's own lift-off and clearance
+(b); the foot bodies' heights for touchdown's speed; the actuator forces for servo) is the plant's own after that
+physics step in the same way, computed at its start, and the reference's flags beside it are read at the reference clock
+after that physics step. In an episode's first env step the displacement behind tracking's speed and yaw rate and behind
+progress's sample runs from the reading at the reset, which is of the episode's start, to the step's reading 18 ms
+later, and is divided by 20 ms like every other; this matters only for a start in motion.
+
+[settled 16 Nov 2026, before any Track B run; wording entry 1b, as the lead ruled it on 16 Nov 2026 (03:02 UTC): rule E4
+stays in walking turns; the env's code is unchanged by it; in place of the committed sentence "A zero action on a
+kinematic playback scores every positive term 1 and every penalty 0."] A kinematic playback of the reference scores the
+imitation terms (joint, foot, contact, head) 1, the tracking term close to 1 and every penalty below 1e-4, with one
+exception: inside a finite walking turn a playback's `heading` penalty is not zero. Rule E4 stays in walking turns: the
+commanded heading there is the integral of a rectangular yaw-rate pulse while the reference's own yaw ramps, and the bar
+judges the heading against the command, so the penalty points the same way as the bar. Measured on kinematic playbacks
+of two sets, Stage 1's stock arrays of `75-M-H-10` and the frozen set V0 of `75-M-H-10`, and on no other: the tracking
+term is at least 0.989 on the walks of both sets, 0.962 in V0's quick turn and 0.951 in Stage 1's turn in place (V0 has
+no turn in place and no 1.0 rad/s turn). On V0 the reference's yaw is up to 9.0 degrees behind the commanded heading in
+the quick turn, 5.4 degrees at 0.5 rad/s and 3.8 degrees at 0.35 rad/s, and the heading penalty reaches 0.351, 0.139 and
+0.0447; in the left turns it is above zero on 98, 148 and 207 of the 1,499 env steps played (task means 0.021, 0.013,
+0.006), in the right turns on one step more each.
+
+Where that paragraph's numbers come from (the author's note, not the lead's wording): they are the env work package's,
+quoted from its wording file. It gives them as kinematic playbacks of every task script of the two sets from its first
+frame, one env step short of the episode's length, with no physics step and no record, run by the env's builders on 16
+Nov 2026 with the code of commit `4523ed6`. They are readings of prescribed motion on one body's two sets: they show
+nothing for a look set, for the 60 cm body or for hardware. Check: the env description's `reward_rule`;
+`tests/test_stage2_r5core.py`.
 
 **W2. Terms, weights, scales and their source.** [S1 for Stage 1's terms; NEW for the others; lead, 15 Nov, before any
-Track B run, for the last three rows; settled 15 Nov, before any Track B run, for the `interference` row; differs: plan
-B.1's reward list]
+Track B run, for the last three rows; settled 15 Nov, before any Track B run, for the `interference` row;
+settled 16 Nov 2026, before any Track B run: `duty`'s own row, and the Check's `reward_rule`; differs: plan B.1's reward
+list]
 
 | Term | Weight | Formula | Source |
 |---|---|---|---|
@@ -449,7 +482,8 @@ B.1's reward list]
 | foot imitation (+) | 0.15 | `exp(-mean_f (d_f / (0.10 H))^2)`, d_f the distance between r_f and r_ref_f(c), r a foot's position less the root's in the root's heading frame | new (plan) |
 | contact imitation (+) | 0.10 | the share, over both feet and the step's 10 physics steps, of steps in which the foot's contact (load above 2 % of the weight) equals the reference's support at the clock or 24 ms x 1.05 earlier | new (plan) |
 | head attitude (+) | 0.10 | `exp(-((roll - roll_ref)^2 + (pitch - pitch_ref)^2) / (3 deg)^2)` of the head in the world | new (plan) |
-| duty, slip, impact, tilt | 0.02 each | Stage 1's (W3 for the duty band) | Stage 1 |
+| duty | 0.02 | W3 | Stage 1, read against the reference's own contact share (W3) [settled 16 Nov 2026, before any Track B run: this row and the next, in place of one row] |
+| slip, impact, tilt | 0.02 each | Stage 1's | Stage 1 |
 | flight | 0.05 | Stage 1's | Stage 1 |
 | clearance | 0.02 | W3 | Stage 1, read as the bar reads |
 | action rate | 0.03 | `min(1, mean_i (a_i - a_prev_i)^2 / 0.25)` on the clipped actions | new (plan) |
@@ -462,15 +496,48 @@ B.1's reward list]
 
 The new weights were set on 15 Nov on the recipe of `stage2/research/research_look.md` 3.3, before any run, so that no
 new term outweighs Stage 1's joint imitation. They are the same for every body, head, seed and mode and are not changed
-by M4's fix. Check: `settings.env_configs[].reward` and the env description's `reward_scales` in every `run.json` equal
-this table.
+by M4's fix. As committed, `duty` shared one row with `slip`, `impact` and `tilt`, whose cells read "duty, slip, impact,
+tilt", "0.02 each", "Stage 1's (W3 for the duty band)" and "Stage 1"; it has its own row because W3 now holds its whole
+formula (wording entry 2a; the env's code is unchanged by it). Check: `settings.env_configs[].reward` and the env
+description's `reward_scales` in every `run.json` equal this table, and the env description's `reward_rule` is the text
+of `r5core.REWARD_RULE` at the run's commit, which states every term's formula as coded (W3's and W5's included)
+[settled 16 Nov 2026, before any Track B run: the clause on `reward_rule`, added to a Check that ended at "equal this
+table"; wording entry 2b; the env's code is unchanged by it].
 
-**W3. Two of Stage 1's terms read differently.** [differs: S1] `clearance` is the larger of (a) for a foot in the air
+**W3. Two of Stage 1's terms read differently.** [differs: S1; settled 16 Nov 2026, before any Track B run: clause (a)
+of `clearance`, and `duty`'s formula, the reference's own share in it and its target speed]
+[settled 16 Nov 2026, before any Track B run; wording entry 3a; the env's code is unchanged by it; clause (a), from "for
+a foot not in contact" to "also inside a change of gait", in place of the committed clause "(a) for a foot in the air
 between 25 % and 75 % of the planned swing time since its **own** lift-off and lower than 0.04 H: the shortfall over
-0.04 H; (b) 1 if in any physics step of the env step a foot is loaded while the reference has that foot between 25 % and
-75 % of its swing both at the clock and 24 ms x 1.05 earlier (a dragged foot or a stub step). `duty`'s band is 0.55-0.72
-while the commanded target speed is below 0.30 m/s (owner decision 2), else 0.55-0.65. Check: the env description's
-`reward_rule`.
+0.04 H"; clause (b) stands as committed] `clearance` is the larger of (a) for a foot not in contact at the env step's
+end whose `u = (c - c_lift) / T` lies between 0.25 and 0.75 and whose lowest point is lower than 0.04 H: the shortfall
+over 0.04 H. `c_lift` is the reference clock at the foot's **own** lift-off (the physics step in which its contact last
+ended; at an episode's start, for the foot the reference has in swing, the clock less the reference's swing progress x
+T, and for the other foot the clock). `T` is the planned length, in reference time, of the reference's swing in progress
+at c; in double support, of its next swing; past its last swing, of that one. Each swing has its own length, also inside
+a change of gait; (b) 1 if in any physics step of the env step a foot is loaded while the reference has that foot
+between 25 % and 75 % of its swing both at the clock and 24 ms x 1.05 earlier (a dragged foot or a stub step).
+
+[settled 16 Nov 2026, before any Track B run; wording entry 3b; the env's code is unchanged by it; in place of the
+committed sentence "`duty`'s band is 0.55-0.72 while the commanded target speed is below 0.30 m/s (owner decision 2),
+else 0.55-0.65."] `duty` is `min(1, sum over the feet read of max(0, lo - d_f, d_f - hi) / 0.05)`, d_f the foot's
+contact share over the last stride (the physics steps of the last `round(stride period / 1.05 / 20 ms)` env steps); zero
+while the reference stands and until that many env steps of the episode have been played. A foot is read only where the
+reference's own support share for it over the same physics steps lies inside the band, so that a start, a stop or a
+change, where the reference itself is outside the band, is not charged. The band [lo, hi] is 0.55-0.72 while the
+commanded gait's target speed is below 0.30 m/s (owner decision 2), else 0.55-0.65. The target speed is the speed a
+rung's name holds, as the bar takes it (`v0.3` is 0.30 m/s and is not below it, whatever float its entry computed); for
+a gait whose name holds no speed (the nominal walk) it is the entry's own [this last sentence: wording entry 3c, added;
+the env's code was changed with it, by commit `0dc39b8` on `wt/wpc-ce`, which made the env read the name's speed where
+it had compared the entry's float].
+
+Why these two were reworded (the env work package's account, quoted from its wording file; its numbers are kinematic
+playbacks of Stage 1's stock arrays of `75-M-H-10`, prescribed motion and no record). With one swing time per gait,
+clause (a) charged a playback of Stage 1's brisk task inside both changes of gait (13 env steps, up to 0.78). Stage 1's
+`duty` formula without the reference's own share charged the reference's own playback in every start and stop (84 of 918
+env steps of Stage 1's walk task and 147 of 1,479 of its brisk task, up to 1.0). As coded, both playbacks score 0 at
+every env step, and a body that keeps both feet down while the reference steps is charged in full. Check: the env
+description's `reward_rule`.
 
 **W4. Leg-to-leg interference.** [NEW; `LESSONS_LEARNED.md` 2.8; settled 15 Nov, before any Track B run: the penalty and
 the termination accepted; differs: plan B.1's reward list, by one penalty and one termination] Read at the end of every
@@ -486,17 +553,51 @@ accepted the penalty, with the weight W2 gives it, and accepted the termination;
 reason. It is a fourth term beyond plan B.1's list and is tagged so. Check: `settings.env_configs[].interference ==
 "terminate"`; the env description's `fixed_pairs`; `info["interference"]`.
 
-**W5. Three terms beyond plan B.1's list.** [lead, 15 Nov, before any Track B run; differs: plan B.1's reward list, by
-three terms] (scratch) The lead accepted each of the three separately, with the weight W2 gives it, each labelled as
-beyond plan B.1's list. `progress`: only inside a periodic walking segment, from one stride after its first frame, with
-a positive command: `min(1, max(0, 1 - v_bar / (1.05 v_cmd)) / 0.10)`, v_bar the bias-corrected exponential mean (time
-constant: the stride period over 1.05) of the CoM's speed along the commanded heading (the bar's walk item fails 4.8 %
-short of the commanded distance; Stage 1's tracking term charges 0.2 % of the reward for 5 %). `heading`: `clip((|yaw -
-yaw_home - commanded heading(c)| - 3 deg) / 17 deg, 0, 1)` on the true yaw, zero in a hold. `range`: `min(1, max_j
-max(0, required_j - margin_j) / 0.02 rad)`, margin the joint's distance to its nearer limit; required, per joint: in a
-task without a finite turn `min(0.10 rad, the reference's own smallest margin)` (0.10 rad is Stage 1's walk rule,
-`tune.WALK_RANGE_RAD`); in a task with one, decision 14's `max(min(0.10 rad, the reference's own smallest margin - 0.02
-rad), 0.001 rad)`, as the bar computes it. The reference itself therefore scores zero. Check:
+**W5. Three terms beyond plan B.1's list.** [lead, 15 Nov, before any Track B run;
+settled 16 Nov 2026, before any Track B run: `progress` read against the reference's own mean speed, `heading`'s wrap
+and `yaw_home`, and the closing sentences; differs: plan B.1's reward list, by three terms] (scratch) The lead accepted
+each of the three separately, with the weight W2 gives it, each labelled as beyond plan B.1's list.
+
+[settled 16 Nov 2026, before any Track B run; wording entry 4a; the env's code is unchanged by it; in place of the
+committed sentence on `progress`, which is quoted below] `progress`: only inside a periodic walking segment, from one
+stride after its first frame, with a positive command, and once the two means have run one stride of reference time:
+`min(1, max(0, (v_ref_bar - v_bar) / (1.05 v_cmd)) / 0.10)`. v_bar is the bias-corrected exponential mean (time
+constant: the stride period over 1.05; one sample per env step; restarted at the segment's first frame, and started
+where an episode starts inside the segment) of the CoM's speed over the env step along the commanded heading. v_ref_bar
+is the same mean over the same env steps of the reference's own CoM speed along its stride direction at the commanded
+clock: 1.05 x the reference CoM's progress over the reference time the env step covered, over that reference time. The
+reference's mean over a stride is 1.05 v_cmd and its speed ripple inside a stride is in both means, so a playback is
+charged below 1e-4 (W1); a clock held slow leaves the reference's sample as it is and is charged in full (the bar's walk
+item fails 4.8 % short of the commanded distance; Stage 1's tracking term charges 0.2 % of the reward for 5 %).
+
+[settled 16 Nov 2026, before any Track B run; wording entry 4b; the env's code is unchanged by the wrap and by
+`yaw_home`, and was changed for the turn in place (E4); in place of the committed sentence on `heading`, which is quoted
+below] `heading`: `clip((|yaw - yaw_home - commanded heading(c)| - 3 deg) / 17 deg, 0, 1)` on the true yaw, the
+difference wrapped to +-180 degrees, zero in a hold. The commanded heading is E4's (in a turn-in-place task the
+reference's own yaw). `yaw_home` is the true yaw at the episode's start less what the reference itself had turned by the
+start's reference time, so that a mid-task start reads as a playback from the track's start would.
+
+`range`: `min(1, max_j max(0, required_j - margin_j) / 0.02 rad)`, margin the joint's distance to its nearer limit;
+required, per joint: in a task without a finite turn `min(0.10 rad, the reference's own smallest margin)` (0.10 rad is
+Stage 1's walk rule, `tune.WALK_RANGE_RAD`); in a task with one, decision 14's
+`max(min(0.10 rad, the reference's own smallest margin - 0.02 rad), 0.001 rad)`, as the bar computes it. The reference
+itself therefore scores zero on `range`, also with a head command: a scripted head target keeps 0.15 rad from a joint
+limit (E5). On `heading` a playback scores zero everywhere but inside a finite turn (W1)
+[settled 16 Nov 2026, before any Track B run: the two sentences before this mark, in place of the committed sentence
+"The reference itself therefore scores zero."; wording entry 4c; for the head command the env's code was changed with it
+(E5's ranges, commit `ad64656` on `wt/wpc-ce`), and the sentence on `heading` follows W1].
+
+How the two reworded terms read as committed, and why they were reworded (the author's account). On `progress`:
+"`progress`: only inside a periodic walking segment, from one stride after its first frame, with a positive command:
+`min(1, max(0, 1 - v_bar / (1.05 v_cmd)) / 0.10)`, v_bar the bias-corrected exponential mean (time constant: the stride
+period over 1.05) of the CoM's speed along the commanded heading (the bar's walk item fails 4.8 % short of the commanded
+distance; Stage 1's tracking term charges 0.2 % of the reward for 5 %)." On `heading`: "`heading`:
+`clip((|yaw - yaw_home - commanded heading(c)| - 3 deg) / 17 deg, 0, 1)` on the true yaw, zero in a hold." The lead's
+acceptance of 15 Nov was of the three terms and their weights. The wording file says that the env's reward stands as
+coded by the lead's rulings of 16 Nov 2026 on the env's review, and that the rule's text follows the code. Its reason
+for `progress`, from kinematic playbacks of Stage 1's stock arrays (prescribed motion, no record): against the constant
+`1.05 v_cmd` the playback's own speed ripple was charged up to 0.286 on Stage 1's nominal walk and up to 0.168 on its
+brisk walk; as coded a playback scores below 1e-4, and a clock held 5 % slow scores 0.42 to 0.58. Check:
 `settings.env_configs[].reward`.
 
 ## J. Randomisation
