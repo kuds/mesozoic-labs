@@ -597,6 +597,8 @@ class Library:
                                       "LIPM frequency, round A D16)")
             self.crouch_frac = float(self.set_doc["crouch_frac"])
             table = TASKS
+        #: The task table this set is read by (``TASKS``; the S1 view: ``S1_TASKS``).
+        self.table = table
         self.refs_doc = docs["refs.json"]["references"]
         self.tr_doc = docs["transitions.json"]["transitions"]
         self._objs, self._fk, self._scripts = {}, {}, {}

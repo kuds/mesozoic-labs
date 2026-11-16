@@ -7,10 +7,12 @@ Stage 2 reference set is touched (rule X1).  Digests are ``env._state_digest`` a
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import json
 import math
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -23,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from designlab.stage1 import env, plant, tune  # noqa: E402
-from designlab.stage2 import r5core, r5env, r5lib, s2io  # noqa: E402
+from designlab.stage2 import r5core, r5env, r5lib, s2io, setio  # noqa: E402
 
 BODY, BODY_X = "75-M-H-10", "75-M-H-10-X"
 RATE = 1.05
@@ -252,7 +254,8 @@ def test_trackers_are_built_nominal():
 @needs_run
 def test_factors_are_applied_and_restored(e0):
     p, m, nom = e0.p, e0.p.m, e0.nominal_model
-    assert env.model_differences(m, nom) == []
+    e0.reset(options=dict(task="walk"))  # (the env is shared: after a step the drive envelope's force ranges are
+    assert env.model_differences(m, nom) == []  # that step's, until the next reset)
     f = dict(friction=0.5, mass=1.1, kp=0.8, latency_steps=4, noise_scale=1.3, joint_damping=1.5, joint_friction=0.5)
     _, info = e0.reset(seed=1, options=dict(task="walk", factors=f))
     assert info["factors"] == f and e0.tk.noise.scale == 1.3
@@ -576,6 +579,8 @@ def test_describe_holds_the_rules_and_no_path(e0):
     assert doc["reward_scales"] == scales
     assert doc["reward_rule"] == r5core.REWARD_RULE and doc["command_rule"] == r5lib.COMMAND_RULE
     assert doc["layout"] == r5core.layout(e0.p.joints) and doc["head_rule"] is None and doc["set_freeze"] is None
+    assert doc["set_freeze_started"] is None and doc["set_freeze_now"] is None  # the S1 view has no freeze
+    assert doc["freeze_rule"] == r5env.FREEZE_RULE
     assert list(doc["tasks"]) == ["stand", "walk", "brisk", "stop"] and doc["absent"] == {}
     assert [doc["tasks"][t]["weight"] for t in doc["tasks"]] == [1.0, 2.0, 2.0, 2.0]
     assert doc["inputs"] == e0.lib.inputs and doc["push_bound_m_s"] == 0.589 and doc["interference"] == "terminate"
@@ -627,6 +632,159 @@ def test_task_weights_and_env_configs(e0):
     with pytest.raises(ValueError, match="mode"):
         r5env.env_configs("R3", BODY, "S1")
     assert r5env.FLOOR_SPREAD == ("hard", "hard", "hard", "robot_floor_carpet")
+
+
+# ------------------------------------------------------------------------------------------------
+# A later freeze of the set (rule K4)
+# ------------------------------------------------------------------------------------------------
+SET = "T0"
+
+
+def freeze_t0(root: Path, refs=(), moves=(), edit=None) -> dict:
+    """The synthetic set ``T0`` under ``root`` frozen once more: Stage 1's arrays under the names given
+    (``(name, Stage 1's name)``) are added to its records (a first call makes the set), ``edit(references,
+    transitions, directory)`` then changes what it likes, and a freeze of every entry is appended to ``set.json``
+    as ``sets.freeze`` writes it (the manifest: each available entry's kind, sha256 and hashed subset), without
+    that command's checks.  Returns the freeze."""
+    src = r5lib.s1_root(BODY) / BODY
+    d = setio.set_dir(SET, BODY, root)
+    refs1, trs1 = s2io.read_json(src / "refs.json"), s2io.read_json(src / "transitions.json")
+    if (d / "set.json").is_file():
+        docs = setio.load(d)
+        set_doc, have_refs, have_trs = docs["set.json"], docs["refs.json"]["references"], docs["transitions.json"][
+            "transitions"]
+    else:
+        set_doc = dict(set=SET, body=BODY, role="fixture", crouch_frac=0.03, not_available={}, freezes=[])
+        have_refs, have_trs = {}, {}
+    for name, old in refs:
+        e = copy.deepcopy(refs1["references"][old])
+        e.update(name=name, file=f"refs/{name}.npz", set=SET, strides=1, window_s=e["period_s"], crouch_frac=0.03)
+        have_refs[name] = e
+        (d / "refs").mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src / "refs" / f"{old}.npz", d / e["file"])
+    for name, old in moves:
+        e = copy.deepcopy(trs1["transitions"][old])
+        e.update(name=name, file=f"transitions/{name}.npz", a1_over=None,
+                 move=dict(kind=e["kind"], builder="fixture", causal=False, command_phase=None))
+        have_trs[name] = e
+        (d / "transitions").mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src / "transitions" / f"{old}.npz", d / e["file"])
+    if edit is not None:
+        edit(have_refs, have_trs, d)
+    manifest = {n: dict(kind="walk", sha256=e["sha256"], entry_sha256=setio.entry_sha256("walk", e))
+                for n, e in have_refs.items()}
+    manifest.update({n: dict(kind="move", sha256=e["sha256"], entry_sha256=setio.entry_sha256("move", e))
+                     for n, e in have_trs.items()})
+    freeze = dict(index=len(set_doc["freezes"]), at="fixture", commit=None, manifest=manifest,
+                  manifest_sha256=s2io.sha256_json(manifest))
+    set_doc["freezes"] = set_doc["freezes"] + [freeze]
+    s2io.write_json(d / "refs.json", dict(body=BODY, set=SET, schema=1, references=have_refs))
+    s2io.write_json(d / "transitions.json", dict(body=BODY, set=SET, schema=1, transitions=have_trs))
+    s2io.write_json(d / "set.json", set_doc)
+    return freeze
+
+
+def frozen_cfg(freeze: dict, **over) -> r5env.R5Config:
+    return r5env.R5Config(body=BODY, set=SET, set_freeze=freeze["manifest_sha256"], **{
+        **dict(randomize=False, push_prob=0.0, head_events=False, mid_start=0.0, interference="off"), **over})
+
+
+@needs_run
+def test_a_later_freeze_with_the_same_files_and_task_table_is_accepted(tmp_path):
+    """Rule K4: a run's stored settings name the freeze it started on.  After a later freeze of the same set and
+    body that changes no used file, no used entry and no task of the resolved table, the same settings build the
+    same env, and its description holds both freezes."""
+    f0 = freeze_t0(tmp_path, refs=(("nominal", "nominal"),), moves=(("start", "start"),))
+    cfg = frozen_cfg(f0)
+    assert r5env.set_freeze(BODY, SET, tmp_path) == cfg.set_freeze == f0["manifest_sha256"]
+    e = r5env.R5Env(cfg, root=tmp_path)
+    first = e.describe()
+    assert e.tasks == ["stand", "walk_nominal"] and first["set_freeze"] == cfg.set_freeze
+    pin0 = dict(index=0, manifest_sha256=f0["manifest_sha256"])
+    assert first["set_freeze_started"] == first["set_freeze_now"] == pin0 == first["inputs"]["freeze"]
+    assert first["freeze_rule"] == r5env.FREEZE_RULE and "rule K4" in r5env.FREEZE_RULE
+    acts = noise(15, 12, 0.1, 3)
+    a = play(e, acts, seed=11, options=dict(task="walk_nominal", start="stance"))
+    e.close()
+    # the set is frozen again: one more walk, which no task of the table can use without its change
+    f1 = freeze_t0(tmp_path, refs=(("v0.4", "brisk"),))
+    assert f1["index"] == 1 and f1["manifest_sha256"] != f0["manifest_sha256"] and sorted(f1["manifest"]) == [
+        "nominal", "start", "v0.4"]
+    assert r5env.set_freeze(BODY, SET, tmp_path) == f1["manifest_sha256"]
+    e = r5env.R5Env(cfg, root=tmp_path)  # the stored settings, unchanged
+    later = e.describe()
+    assert later["config"] == first["config"] and later["config"]["set_freeze"] == f0["manifest_sha256"]
+    assert later["set_freeze_started"] == pin0
+    assert later["set_freeze_now"] == dict(index=1, manifest_sha256=f1["manifest_sha256"]) == later["inputs"]["freeze"]
+    assert later["inputs"]["files"] == first["inputs"]["files"] and later["tasks"] == first["tasks"]
+    assert later["absent"] == first["absent"] and e.tasks == ["stand", "walk_nominal"]
+    same(a, play(e, acts, seed=11, options=dict(task="walk_nominal", start="stance")))  # ... and the same episode
+    e.close()
+    # settings that name the later freeze are that freeze's own
+    e = r5env.R5Env(frozen_cfg(f1), root=tmp_path)
+    assert e.describe()["set_freeze_started"] == e.describe()["set_freeze_now"] == dict(
+        index=1, manifest_sha256=f1["manifest_sha256"])
+    e.close()
+    # settings without a freeze take the one that is read
+    e = r5env.R5Env(dataclasses.replace(cfg, set_freeze=None), root=tmp_path)
+    assert e.freeze_started == e.freeze_now == dict(index=1, manifest_sha256=f1["manifest_sha256"])
+    e.close()
+
+
+@needs_run
+def test_a_later_freeze_that_changes_what_the_run_uses_is_refused_with_what_differs(tmp_path):
+    """Rule K4, the other way: a hash that is none of the set's freezes; a later freeze under which a task enters
+    the resolved table; a used entry whose hashed subset changed; a used file whose bytes changed.  Each refusal
+    names what differs."""
+    f0 = freeze_t0(tmp_path / "a", refs=(("nominal", "nominal"), ("v0.4", "brisk")), moves=(("start", "start"),))
+    cfg = frozen_cfg(f0)
+    r5env.R5Env(cfg, root=tmp_path / "a").close()
+    with pytest.raises(tune.InputError, match=r"0{12}\.\.\., which is none of the set's 1 \(the latest: index 0"):
+        r5env.R5Env(frozen_cfg(dict(manifest_sha256="0" * 64)), root=tmp_path / "a")
+    # the change into the 0.40 m/s walk is frozen later: walk_v0.4 enters the table
+    f1 = freeze_t0(tmp_path / "a", moves=((setio.change_name("nominal", "v0.4"), "nominal_to_brisk"),))
+    with pytest.raises(tune.InputError) as err:
+        r5env.R5Env(cfg, root=tmp_path / "a")
+    text = str(err.value)
+    assert "rule K4" in text and f"latest freeze is index 1 ({f1['manifest_sha256'][:12]}...)" in text
+    assert f"the settings name index 0 ({f0['manifest_sha256'][:12]}...)" in text
+    assert ("task walk_v0.4 is in the table now and was absent under freeze 0 (transitions/nominal_to_v0.4.npz not "
+            "in it)") in text
+    assert "refs/" not in text.split("rule K4")[1]  # (no file the run used changed: the table alone)
+    # settings that name their tasks are read for those tasks alone: their table is the same under both freezes
+    named = frozen_cfg(f0, tasks=("stand", "walk_nominal"))
+    e = r5env.R5Env(named, root=tmp_path / "a")
+    assert e.freeze_started["index"] == 0 and e.freeze_now["index"] == 1 and e.tasks == ["stand", "walk_nominal"]
+    e.close()
+    with pytest.raises(tune.InputError, match="task walk_v0.4 is in the table now and was absent under freeze 0"):
+        r5env.R5Env(frozen_cfg(f0, tasks=("walk_v0.4",)), root=tmp_path / "a")
+
+    # a used entry's hashed subset changes (its recorded duration) and the set is frozen again
+    f0 = freeze_t0(tmp_path / "b", refs=(("nominal", "nominal"),), moves=(("start", "start"),))
+
+    def longer(refs, trs, d):
+        trs["start"]["duration_s"] = trs["start"]["duration_s"] + 0.5
+
+    freeze_t0(tmp_path / "b", edit=longer)
+    with pytest.raises(tune.InputError, match=r"transitions/start\.npz: its entry's hashed subset is \w{12}\.\.\., "
+                                              r"freeze 0 held \w{12}\.\.\."):
+        r5env.R5Env(frozen_cfg(f0), root=tmp_path / "b")
+
+    # a used file's bytes change (another walk's arrays under the same name) and the set is frozen again
+    f0 = freeze_t0(tmp_path / "c", refs=(("nominal", "nominal"),), moves=(("start", "start"),))
+
+    def other_walk(refs, trs, d):
+        src = r5lib.s1_root(BODY) / BODY
+        shutil.copyfile(src / "refs" / "brisk.npz", d / "refs" / "nominal.npz")
+        refs["nominal"]["sha256"] = s2io.sha256_file(d / "refs" / "nominal.npz")
+
+    freeze_t0(tmp_path / "c", edit=other_walk)
+    with pytest.raises(tune.InputError, match=r"refs/nominal\.npz has sha256 \w{12}\.\.\., freeze 0 held "
+                                              r"\w{12}\.\.\."):
+        r5env.R5Env(frozen_cfg(f0), root=tmp_path / "c")
+    # the S1 view has no freeze to name
+    with pytest.raises(tune.InputError, match="the set has no freeze"):
+        r5env.R5Env(nominal(set_freeze="0" * 64))
 
 
 # ------------------------------------------------------------------------------------------------
