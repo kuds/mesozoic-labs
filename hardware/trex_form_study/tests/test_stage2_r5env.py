@@ -24,7 +24,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from designlab.stage1 import env, plant, tune  # noqa: E402
+from designlab.stage1 import control, env, plant, tune  # noqa: E402
 from designlab.stage2 import r5core, r5env, r5lib, s2io, setio  # noqa: E402
 
 BODY, BODY_X = "75-M-H-10", "75-M-H-10-X"
@@ -168,6 +168,129 @@ def test_the_reward_reads_positions_as_of_the_last_physics_steps_start(e0):
     joint = lambda q: math.exp(-float(np.mean(np.square((q[p.qadr] - q_ref) / 0.1))))  # noqa: E731
     assert terms["joint"] == pytest.approx(joint(p.d.qpos), abs=1e-12)
     assert abs(joint(before[-2]) - terms["joint"]) > 1e-3
+
+
+@needs_run
+def test_the_first_env_steps_displacement_runs_from_the_reset_and_spans_18_ms(e0):
+    """``r5core.REWARD_RULE``: the displacement behind tracking's speed and yaw rate and behind progress's sample
+    runs from the previous reading to the env step's; the first reading is the reset's, of the episode's start
+    itself, and every later one is of the state one physics step before an env step's end.  So in an episode's
+    first env step the displacement spans 18 ms, and it is divided by 20 ms all the same.  Shown at a start in
+    motion (mid-stride of the brisk walk, sensor noise off): the first step's tracking term is the one of the
+    displacement over the first nine physics steps, and the brisk walk's two extra millimetres per 20 ms are not
+    in it."""
+    p, core = e0.p, e0.core
+    kd = mujoco.MjData(p.m)
+
+    def com_yaw(qpos) -> tuple[np.ndarray, float]:
+        kd.qpos[:] = qpos
+        mujoco.mj_kinematics(p.m, kd)
+        mujoco.mj_comPos(p.m, kd)
+        return kd.subtree_com[p.trunk][:2].copy(), control._yaw(kd.xmat[p.trunk])
+
+    s = e0.scripts["brisk"]
+    seg = s.track.segments[3]
+    assert seg.name == "brisk" and seg.kind == "periodic"
+    e0.reset(options=dict(task="brisk", start=seg.t0 + 1.3 * seg.period, seeds=dict(start=1, noise=2),
+                          factors=dict(noise_scale=0.0)))
+    com_r, yaw_r = com_yaw(p.d.qpos)  # the reset's reading is of the episode's start
+    np.testing.assert_allclose(core._com0, com_r, rtol=0, atol=1e-12)
+    assert core._yaw0 == pytest.approx(yaw_r, abs=1e-12)
+    qs: list = []
+    e0._step_hook = lambda pp: qs.append(pp.d.qpos.copy())
+    try:
+        c0 = e0.tk.tau_ref
+        _, _, term, _, info = e0.step(np.zeros(15, np.float32))
+        first, c1 = list(qs), e0.tk.tau_ref
+        vb1 = core._vb
+        qs.clear()
+        _, _, term2, _, info2 = e0.step(np.zeros(15, np.float32))
+    finally:
+        e0._step_hook = None
+    assert not term and not term2 and len(first) == len(qs) == 10
+
+    def tracking(a, b, clock0: float) -> tuple[float, float]:
+        (com_a, yaw_a), (com_b, yaw_b) = a, b
+        d = com_b - com_a
+        speed = float(d[0] * math.cos(yaw_a) + d[1] * math.sin(yaw_a)) / 0.02
+        v_ref, w_ref = core._reference_motion(clock0)
+        rate = control._wrap(yaw_b - yaw_a) / 0.02
+        return float(core.gaussian_tracking_reward(abs(speed - v_ref), abs(rate - w_ref))), speed
+
+    at9, at10 = com_yaw(first[8]), com_yaw(first[9])  # after nine physics steps (18 ms); at the env step's end
+    want, speed18 = tracking((com_r, yaw_r), at9, c0)
+    assert info["reward_terms"]["tracking"] == pytest.approx(want, abs=1e-9)
+    other, speed20 = tracking((com_r, yaw_r), at10, c0)  # the displacement over the whole 20 ms: not what is read
+    assert speed20 - speed18 > 0.02 and abs(info["reward_terms"]["tracking"] - other) > 1e-4
+    # progress's sample is the same displacement, along the commanded heading, over 20 ms
+    a = 1.0 - math.exp(-0.02 / (s.stride_s(c1) / RATE))
+    h = core.yaw_home + s.heading(c1)
+    along = float((at9[0] - com_r) @ np.array([math.cos(h), math.sin(h)])) / 0.02
+    assert vb1 == pytest.approx(a * along, abs=1e-12) and along == pytest.approx(speed18, abs=0.02)
+    # every later step: 20 ms, from the previous step's reading to this step's
+    want2, speed2 = tracking(at9, com_yaw(qs[8]), c1)
+    assert info2["reward_terms"]["tracking"] == pytest.approx(want2, abs=1e-9) and speed2 > speed18
+
+
+@needs_run
+def test_what_is_read_at_every_physics_step_is_the_plants_own_computed_at_that_steps_start(e0):
+    """``r5core.REWARD_RULE``: the foot loads, the foot bodies' heights and the actuator forces that the core reads
+    after every physics step are the plant's own, which the simulator computed at that physics step's start, and
+    the reference's flags beside them are read at the reference clock after the physics step.  Each physics step's
+    readings equal a forward pass on the state before it and differ from one on the state after it; the contact,
+    flight and impact terms are those of these readings."""
+    p, core = e0.p, e0.core
+    scratch = mujoco.MjData(p.m)
+
+    def forward(qpos, qvel, ctrl) -> tuple[np.ndarray, list, np.ndarray]:
+        scratch.qpos[:], scratch.qvel[:], scratch.ctrl[:] = qpos, qvel, ctrl
+        mujoco.mj_forward(p.m, scratch)
+        return (scratch.sensordata[p._load_adr].copy(), [float(scratch.xpos[f, 2]) for f in p.feet],
+                scratch.actuator_force.copy())
+
+    e0.reset(seed=5, options=dict(task="brisk", start=8.3, seeds=dict(start=1, noise=2)))
+    s, w, lag = e0.script, e0.weight_true, core._lag
+    assert w == e0.weight and lag == 0.024 * RATE
+    state = [p.d.qpos.copy(), p.d.qvel.copy()]
+    rows: list = []
+
+    def hook(pp):  # (after every physics step, before the core reads it)
+        d = pp.d
+        rows.append(dict(loads=d.sensordata[pp._load_adr].copy(), z=[float(d.xpos[f, 2]) for f in pp.feet],
+                         force=d.actuator_force.copy(), clock=float(e0.tk.tau_ref),
+                         before=forward(state[0], state[1], d.ctrl), after=forward(d.qpos, d.qvel, d.ctrl)))
+        state[:] = [d.qpos.copy(), d.qvel.copy()]
+
+    e0._step_hook = hook
+    apart_loads, apart_z = [], []
+    try:
+        for a in noise(15, 15, 0.1, 1):
+            rows.clear()
+            clock0 = e0.tk.tau_ref
+            _, _, term, _, info = e0.step(a)
+            assert not term and len(rows) == 10
+            for k, r in enumerate(rows):
+                np.testing.assert_allclose(r["loads"], r["before"][0], rtol=0, atol=1e-6 * w)
+                np.testing.assert_allclose(r["z"], r["before"][1], rtol=0, atol=1e-12)
+                np.testing.assert_allclose(r["force"], r["before"][2], rtol=0,
+                                           atol=1e-6 * (1.0 + np.abs(r["force"]).max()))
+                apart_loads.append(float(np.max(np.abs(r["loads"] - r["after"][0]))) / w)
+                apart_z.append(float(np.max(np.abs(np.array(r["z"]) - np.array(r["after"][1])))))
+                assert r["clock"] > clock0 and (k == 0 or r["clock"] > rows[k - 1]["clock"])  # the clock after it
+            assert rows[-1]["clock"] == e0.tk.tau_ref
+            loads = np.array([r["loads"] for r in rows])
+            down = loads > 0.02 * w
+            terms = info["reward_terms"]
+            assert terms["flight"] == float(np.mean(~down.any(axis=1)))
+            assert terms["impact"] == min(1.0, max(0.0, float(loads.sum(axis=1).max()) / w - 1.6) / 1.6)
+            match = 0
+            for r, now in zip(rows, down, strict=True):
+                ref, back = s.contact_ref(r["clock"]), s.contact_ref(max(r["clock"] - lag, 0.0))
+                match += sum(int(now[f] == ref[f] or now[f] == back[f]) for f in (0, 1))
+            assert terms["contact"] == match / 20.0
+    finally:
+        e0._step_hook = None
+    assert max(apart_loads) > 0.02 and max(apart_z) > 1e-4  # the pass on the state after a step is another reading
 
 
 # ------------------------------------------------------------------------------------------------
@@ -466,6 +589,62 @@ def test_a_mid_start_draw_at_the_end_of_the_last_span_does_not_land_in_the_hold(
         assert info["start"] == "mid" and info["t_start"] == t_frame
 
 
+class _Top:
+    """A stand-in for the env's generator whose uniform draw is ``at``: the draw's upper end, or just past it (numpy:
+    the upper end "may be included ... due to floating-point rounding")."""
+
+    def __init__(self, at: float):
+        self.at, self.calls = float(at), []
+
+    def uniform(self, lo: float, hi: float) -> float:
+        self.calls.append((lo, hi))
+        return self.at
+
+
+def _inline_time(spans, u: float) -> float:
+    """The reference time the env's reset computed inline before ``r5env.mid_start_time`` (commit 225f4b3)."""
+    for a, b in spans:
+        if u <= b - a:
+            break
+        u -= b - a
+    return min(a + u, b)
+
+
+@needs_run
+def test_the_envs_own_draw_at_the_end_of_the_last_span_starts_just_before_the_hold(e0, monkeypatch):
+    """The fix of the mid-start draw, through the env's own reset: with the env's generator drawing the largest
+    values the uniform draw can give (its upper end, and a few rounding steps either side), a mid-task start of
+    the stop task lands on the last file frame before the hold.  The inline arithmetic this replaced puts every
+    one of these draws in the hold (where the reset raises) or back at the last span's first instant."""
+    s = e0.scripts["stop"]
+    spans = s.mid_spans()
+    hold = next(seg for seg in s.track.segments if seg.kind == "hold")
+    total = sum(b - a for a, b in spans)
+    last_frame = s.start_state(float(np.nextafter(hold.t0, 0.0)))[0]
+    assert spans[-1][1] == hold.t0 and hold.t0 - 0.01 < last_frame < hold.t0
+    ulp = float(np.spacing(total))
+    draws = [total + j * ulp for j in range(-2, 4)]
+    wrong = 0
+    for u in draws:
+        gen = _Top(u)
+        monkeypatch.setattr(e0, "_np_random", gen)
+        _, info = e0.reset(options=dict(task="stop", start="mid", seeds=dict(start=1, noise=2)))
+        assert gen.calls == [(0.0, total)]  # the env's own draw: one uniform over the spans' total length
+        assert info["start"] == "mid" and s.kind(info["t_start"]) == "finite"
+        assert hold.t0 - 0.01 < info["t_start"] <= last_frame  # in the stop itself, at its end
+        if u >= total:
+            assert info["t_start"] == last_frame
+        old = _inline_time(spans, u)
+        if old >= hold.t0:  # the hold's first instant: the reset raised there
+            wrong += 1
+            with pytest.raises(ValueError, match="hold"):
+                s.start_state(old)
+        elif old < hold.t0 - 1.0:  # carried past the last span: back at its first instant
+            wrong += 1
+            assert old == pytest.approx(spans[-1][0], abs=1e-9)
+    assert wrong >= 3, wrong
+
+
 @needs_run
 def test_mid_start_never_lands_in_a_hold():
     e = r5env.R5Env(nominal(tasks=("stop", "stand", "walk"), mid_start=1.0, interference="off"))
@@ -669,8 +848,19 @@ def test_describe_holds_the_rules_and_no_path(e0):
     assert doc["reward_rule"] == r5core.REWARD_RULE and doc["command_rule"] == r5lib.COMMAND_RULE
     assert doc["layout"] == r5core.layout(e0.p.joints) and doc["head_rule"] is None and doc["set_freeze"] is None
     assert doc["set_freeze_started"] is None and doc["set_freeze_now"] is None  # the S1 view has no freeze
-    assert doc["freeze_rule"] == r5env.FREEZE_RULE
+    assert doc["freeze_rule"] == r5env.FREEZE_RULE and doc["crouch_rule"] == r5lib.CROUCH_RULE
     assert list(doc["tasks"]) == ["stand", "walk", "brisk", "stop"] and doc["absent"] == {}
+    # what a trainer compares on a resume (rule K4): the config, the task names in the draw's order, the resolved
+    # table and the files these tasks use; the config is the settings as given (this one names no task)
+    assert doc["task_names"] == ["stand", "walk", "brisk", "stop"] == e0.tasks and doc["config"]["tasks"] == []
+    assert doc["task_files"] == doc["inputs"]["files"] and len(doc["task_files"]) == 6  # (every task of the view)
+    assert r5env.RESUME_KEYS == ("config", "task_names", "tasks", "task_files", "set_freeze_started")
+    assert r5env.LATER_FREEZE_KEYS == ("set_freeze", "set_freeze_now", "inputs.freeze", "inputs.files", "absent")
+    assert all(k in doc for k in r5env.RESUME_KEYS) and all(k.split(".")[0] in doc for k in r5env.LATER_FREEZE_KEYS)
+    said = " ".join(r5env.R5Env.describe.__doc__.split())
+    for key in r5env.RESUME_KEYS + r5env.LATER_FREEZE_KEYS:
+        assert f"``{key}``" in said, key
+    assert "A trainer that compared the description whole would refuse what rule K4 accepts" in said
     assert [doc["tasks"][t]["weight"] for t in doc["tasks"]] == [1.0, 2.0, 2.0, 2.0]
     assert doc["inputs"] == e0.lib.inputs and doc["push_bound_m_s"] == 0.589 and doc["interference"] == "terminate"
     assert doc["core"]["action"] == dict(leg_rad=0.35, other_rad=0.15, clock=0.25, scale=[0.15] * 2 + [0.35] * 12)
@@ -687,7 +877,7 @@ def test_describe_holds_the_rules_and_no_path(e0):
         r5env.R5Env(nominal(floor="low"))
     with pytest.raises(ValueError, match="start noise"):
         r5env.R5Env(nominal(start_joint_noise=0.0))
-    with pytest.raises(ValueError, match="not available"):
+    with pytest.raises(ValueError, match="not available"):  # (no row of the view's table: the settings' own error)
         r5env.R5Env(nominal(tasks=("walk_v0.4",)))
     assert (e0.cfg.start_joint_noise, e0.cfg.start_root_velocity_noise) == (tune.START_JOINT_NOISE_RAD,
                                                                           tune.START_ROOT_VELOCITY_NOISE_M_S)
@@ -715,7 +905,10 @@ def test_task_weights_and_env_configs(e0):
     assert (c.latency_steps, c.interference, c.heading_input) == ((0, 12), "terminate", True)
     assert (c.filter_hz, c.rate, c.gaze_prob, c.jaw_prob) == (10.0, 1.05, 0.5, 0.25)
     assert (c.action_leg_rad, c.action_other_rad, c.action_rate) == (0.35, 0.15, 0.25)
-    assert dict(c.reward) == r5core.REWARD_WEIGHTS and c.max_seconds == 30.0 and c.tasks == ()
+    assert dict(c.reward) == r5core.REWARD_WEIGHTS and c.max_seconds == 30.0
+    # the configs name the tasks the set holds today, in the table's order (rule K4: a resumed run keeps them)
+    assert all(x.tasks == ("stand", "walk", "brisk", "stop") == tuple(e0.tasks) for x in cfgs)
+    assert r5env.env_configs("R5", BODY, "S1", n_envs=1, overrides=dict(tasks=("walk",)))[0].tasks == ("walk",)
     r6 = r5env.env_configs("R6", BODY, "S1", n_envs=3, overrides=dict(floor="hard", mid_start=0.0))
     assert [(x.mode, x.floor, x.mid_start) for x in r6] == [("R6", "hard", 0.0)] * 3
     with pytest.raises(ValueError, match="mode"):
@@ -732,9 +925,10 @@ SET = "T0"
 def freeze_t0(root: Path, refs=(), moves=(), edit=None) -> dict:
     """The synthetic set ``T0`` under ``root`` frozen once more: Stage 1's arrays under the names given
     (``(name, Stage 1's name)``) are added to its records (a first call makes the set), ``edit(references,
-    transitions, directory)`` then changes what it likes, and a freeze of every entry is appended to ``set.json``
-    as ``sets.freeze`` writes it (the manifest: each available entry's kind, sha256 and hashed subset), without
-    that command's checks.  Returns the freeze."""
+    transitions, directory)`` then changes what it likes, and a freeze is appended to ``set.json`` as
+    ``sets.freeze`` writes it (the manifest: each available entry's kind, sha256 and hashed subset, as
+    ``sets.manifest_of`` lists them: an entry recorded as not available is in no manifest), without that command's
+    checks.  Returns the freeze."""
     src = r5lib.s1_root(BODY) / BODY
     d = setio.set_dir(SET, BODY, root)
     refs1, trs1 = s2io.read_json(src / "refs.json"), s2io.read_json(src / "transitions.json")
@@ -761,9 +955,9 @@ def freeze_t0(root: Path, refs=(), moves=(), edit=None) -> dict:
     if edit is not None:
         edit(have_refs, have_trs, d)
     manifest = {n: dict(kind="walk", sha256=e["sha256"], entry_sha256=setio.entry_sha256("walk", e))
-                for n, e in have_refs.items()}
+                for n, e in have_refs.items() if e.get("available") is not False}
     manifest.update({n: dict(kind="move", sha256=e["sha256"], entry_sha256=setio.entry_sha256("move", e))
-                     for n, e in have_trs.items()})
+                     for n, e in have_trs.items() if e.get("available") is not False})
     freeze = dict(index=len(set_doc["freezes"]), at="fixture", commit=None, manifest=manifest,
                   manifest_sha256=s2io.sha256_json(manifest))
     set_doc["freezes"] = set_doc["freezes"] + [freeze]
@@ -773,9 +967,28 @@ def freeze_t0(root: Path, refs=(), moves=(), edit=None) -> dict:
     return freeze
 
 
+QUIET = dict(randomize=False, push_prob=0.0, head_events=False, mid_start=0.0, interference="off")
+CHANGE = setio.change_name("nominal", "v0.4")
+
+
 def frozen_cfg(freeze: dict, **over) -> r5env.R5Config:
-    return r5env.R5Config(body=BODY, set=SET, set_freeze=freeze["manifest_sha256"], **{
-        **dict(randomize=False, push_prob=0.0, head_events=False, mid_start=0.0, interference="off"), **over})
+    return r5env.R5Config(body=BODY, set=SET, set_freeze=freeze["manifest_sha256"], **{**QUIET, **over})
+
+
+def changed_keys(a: dict, b: dict) -> list[str]:
+    """The keys of two env descriptions that differ, sorted; inside ``inputs`` by its own keys (dotted)."""
+    out = []
+    for k in sorted(set(a) | set(b)):
+        if a.get(k) != b.get(k):
+            out += [f"{k}.{j}" for j in sorted(set(a[k]) | set(b[k])) if a[k].get(j) != b[k].get(j)] \
+                if k == "inputs" else [k]
+    return out
+
+
+def _edit(path: Path, change) -> None:
+    doc = s2io.read_json(path)
+    change(doc)
+    s2io.write_json(path, doc)
 
 
 @needs_run
@@ -807,6 +1020,10 @@ def test_a_later_freeze_with_the_same_files_and_task_table_is_accepted(tmp_path)
     assert later["set_freeze_now"] == dict(index=1, manifest_sha256=f1["manifest_sha256"]) == later["inputs"]["freeze"]
     assert later["inputs"]["files"] == first["inputs"]["files"] and later["tasks"] == first["tasks"]
     assert later["absent"] == first["absent"] and e.tasks == ["stand", "walk_nominal"]
+    # of the description, the later freeze changes three keys (``LATER_FREEZE_KEYS``' first three) and no other
+    assert changed_keys(first, later) == ["inputs.freeze", "set_freeze", "set_freeze_now"]
+    assert later["set_freeze"] == f1["manifest_sha256"] != later["config"]["set_freeze"]
+    assert all(later[k] == first[k] for k in r5env.RESUME_KEYS)
     same(a, play(e, acts, seed=11, options=dict(task="walk_nominal", start="stance")))  # ... and the same episode
     e.close()
     # settings that name the later freeze are that freeze's own
@@ -874,6 +1091,289 @@ def test_a_later_freeze_that_changes_what_the_run_uses_is_refused_with_what_diff
     # the S1 view has no freeze to name
     with pytest.raises(tune.InputError, match="the set has no freeze"):
         r5env.R5Env(nominal(set_freeze="0" * 64))
+
+    # set.json's crouch, which no freeze covers, is edited (0.03 to 0.08: the track's LIPM frequency would change
+    # with it and no hash would) and the set is frozen again: the library refuses the set, with both values
+    f0 = freeze_t0(tmp_path / "d", refs=(("nominal", "nominal"),), moves=(("start", "start"),))
+    e = r5env.R5Env(frozen_cfg(f0), root=tmp_path / "d")
+    assert e.describe()["crouch_frac"] == 0.03 and e.describe()["crouch_rule"] == r5lib.CROUCH_RULE
+    e.close()
+    _edit(setio.set_dir(SET, BODY, tmp_path / "d") / "set.json", lambda doc: doc.update(crouch_frac=0.08))
+    for cfg in (frozen_cfg(f0), dataclasses.replace(frozen_cfg(f0), set_freeze=None)):  # (before any new freeze)
+        with pytest.raises(tune.InputError, match="set.json records crouch_frac 0.08, its walk entry 'nominal' "
+                                                  "records 0.03"):
+            r5env.R5Env(cfg, root=tmp_path / "d")
+    f1 = freeze_t0(tmp_path / "d", refs=(("v0.4", "brisk"),))
+    for cfg in (frozen_cfg(f0), frozen_cfg(f1)):
+        with pytest.raises(tune.InputError, match="set.json records crouch_frac 0.08, its walk entry 'nominal' "
+                                                  "records 0.03"):
+            r5env.R5Env(cfg, root=tmp_path / "d")
+
+
+@needs_run
+def test_the_task_table_is_compared_also_when_the_named_freeze_is_the_latest(tmp_path):
+    """``FREEZE_RULE``: a task is in the table under a freeze exactly when that freeze's manifest holds every file
+    of its plan.  A set's records can be edited after its latest freeze without a new one; settings that name that
+    freeze are then refused like any other whose table differs, with the task and its reason."""
+    f0 = freeze_t0(tmp_path / "a", refs=(("nominal", "nominal"), ("v0.4", "brisk")),
+                   moves=(("start", "start"), (CHANGE, "nominal_to_brisk")))
+    cfg = frozen_cfg(f0)
+    pin0 = dict(index=0, manifest_sha256=f0["manifest_sha256"])
+    e = r5env.R5Env(cfg, root=tmp_path / "a")
+    assert e.tasks == ["stand", "walk_nominal", "walk_v0.4"] and e.freeze_started == e.freeze_now == pin0
+    e.close()
+    # the change into the 0.40 m/s walk is withdrawn in transitions.json; the set is not frozen again
+    d = setio.set_dir(SET, BODY, tmp_path / "a")
+    _edit(d / "transitions.json", lambda doc: doc["transitions"][CHANGE].update(
+        available=False, reason="withdrawn after the freeze"))
+    assert len(s2io.read_json(d / "set.json")["freezes"]) == 1
+    assert r5env.set_freeze(BODY, SET, tmp_path / "a") == cfg.set_freeze
+    with pytest.raises(tune.InputError) as err:
+        r5env.R5Env(cfg, root=tmp_path / "a")
+    text = str(err.value)
+    assert f"the settings name the set's latest freeze, index 0 ({f0['manifest_sha256'][:12]}...)" in text
+    assert "is not what that freeze holds (rule K4): " in text
+    assert text.endswith("task walk_v0.4 was in the table under freeze 0 and is absent now "
+                         "(transitions/nominal_to_v0.4: withdrawn after the freeze)")
+    # settings that name their tasks are read for those tasks alone ...
+    e = r5env.R5Env(frozen_cfg(f0, tasks=("stand", "walk_nominal")), root=tmp_path / "a")
+    assert e.tasks == ["stand", "walk_nominal"] and e.freeze_started == e.freeze_now == pin0
+    e.close()
+    # ... and a named task that left the table is refused with the study's InputError, not a ValueError
+    with pytest.raises(tune.InputError, match=r"task walk_v0\.4 was in the table under freeze 0 and is absent now "
+                                              r"\(transitions/nominal_to_v0\.4: withdrawn after the freeze\)"):
+        r5env.R5Env(frozen_cfg(f0, tasks=("stand", "walk_v0.4")), root=tmp_path / "a")
+    # settings that name no freeze have nothing to be compared with: they take the table as it is read
+    e = r5env.R5Env(dataclasses.replace(cfg, set_freeze=None), root=tmp_path / "a")
+    assert e.tasks == ["stand", "walk_nominal"] and e.freeze_started == e.freeze_now == pin0
+    e.close()
+    # ... but a task they name must be there: the same InputError, with the set's reason
+    with pytest.raises(tune.InputError, match=r"the settings name tasks that are not available: walk_v0\.4 "
+                                              r"\(transitions/nominal_to_v0\.4: withdrawn after the freeze\)\.  "
+                                              r"Available: stand, walk_nominal$"):
+        r5env.R5Env(dataclasses.replace(frozen_cfg(f0, tasks=("walk_v0.4",)), set_freeze=None), root=tmp_path / "a")
+    with pytest.raises(ValueError, match=r"tasks \['walk'\] are not available \(stand, walk_nominal\)"):
+        r5env.R5Env(frozen_cfg(f0, tasks=("walk",)), root=tmp_path / "a")  # (no row of the table: a ValueError)
+
+    # the manifest that set.json holds for the named freeze is checked against its hash when it is the latest too
+    f0 = freeze_t0(tmp_path / "b", refs=(("nominal", "nominal"),), moves=(("start", "start"),))
+    d = setio.set_dir(SET, BODY, tmp_path / "b")
+    _edit(d / "set.json", lambda doc: doc["freezes"][0]["manifest"].update(
+        ghost=dict(kind="move", sha256="0" * 64, entry_sha256="0" * 64)))
+    with pytest.raises(tune.InputError, match="the settings name the set's latest freeze, index 0 .*: the manifest "
+                                              "that set.json holds for freeze 0 is not the one its hash names$"):
+        r5env.R5Env(frozen_cfg(f0), root=tmp_path / "b")
+
+
+@needs_run
+def test_a_task_that_leaves_the_table_under_a_later_freeze_is_refused(tmp_path):
+    """Rule K4: a task that was in the table under the freeze the settings name and is absent under the latest (its
+    change was withdrawn and the set frozen again) refuses the run, with the task and the set's reason; settings
+    that name their tasks without it are accepted, and settings that name it are refused the same way."""
+    sets = pytest.importorskip("designlab.stage2.sets")
+    f0 = freeze_t0(tmp_path, refs=(("nominal", "nominal"), ("v0.4", "brisk")),
+                   moves=(("start", "start"), (CHANGE, "nominal_to_brisk")))
+    f1 = freeze_t0(tmp_path, edit=lambda refs, trs, d: trs[CHANGE].update(available=False, reason="withdrawn"))
+    # the fixture's manifest lists the available entries only, as ``sets.manifest_of`` does
+    assert sorted(f0["manifest"]) == ["nominal", CHANGE, "start", "v0.4"]
+    assert sorted(f1["manifest"]) == ["nominal", "start", "v0.4"] and f1["index"] == 1
+    docs = setio.load(setio.set_dir(SET, BODY, tmp_path))
+    for entry in docs["refs.json"]["references"].values():
+        entry.setdefault("look_sha256", None)  # (a look set's key, which ``manifest_of`` reads; no fixture has it)
+    hashes = lambda m: {n: (r["sha256"], r["entry_sha256"]) for n, r in m.items()}  # noqa: E731
+    assert hashes(f1["manifest"]) == hashes(sets.manifest_of(docs))
+    with pytest.raises(tune.InputError) as err:
+        r5env.R5Env(frozen_cfg(f0), root=tmp_path)
+    text = str(err.value)
+    assert f"latest freeze is index 1 ({f1['manifest_sha256'][:12]}...)" in text
+    assert f"the settings name index 0 ({f0['manifest_sha256'][:12]}...)" in text
+    assert text.endswith("(rule K4): task walk_v0.4 was in the table under freeze 0 and is absent now "
+                         "(transitions/nominal_to_v0.4: withdrawn)")
+    e = r5env.R5Env(frozen_cfg(f0, tasks=("stand", "walk_nominal")), root=tmp_path)
+    assert (e.freeze_started["index"], e.freeze_now["index"], e.tasks) == (0, 1, ["stand", "walk_nominal"])
+    e.close()
+    with pytest.raises(tune.InputError, match=r"\(rule K4\): task walk_v0\.4 was in the table under freeze 0 and is "
+                                              r"absent now \(transitions/nominal_to_v0\.4: withdrawn\)$"):
+        r5env.R5Env(frozen_cfg(f0, tasks=("walk_v0.4",)), root=tmp_path)
+    # settings that name the later freeze: the task was never in its table, and a config that names it is refused
+    e = r5env.R5Env(frozen_cfg(f1), root=tmp_path)
+    assert e.tasks == ["stand", "walk_nominal"] and e.freeze_started == e.freeze_now
+    e.close()
+    with pytest.raises(tune.InputError, match=r"the settings name tasks that are not available: walk_v0\.4 "
+                                              r"\(transitions/nominal_to_v0\.4: withdrawn\)"):
+        r5env.R5Env(frozen_cfg(f1, tasks=("walk_v0.4",)), root=tmp_path)
+
+
+@needs_run
+def test_env_configs_name_their_tasks_so_a_later_freeze_that_adds_a_task_is_accepted(tmp_path):
+    """Rule K4's accepted case, reached by a resumed run: a job's env configs (``env_configs``) name the tasks the
+    set holds when the run starts.  When a later freeze makes a further task usable (the change into the 0.40 m/s
+    walk, frozen later), the stored configs build the same envs, which play the same episodes on the same tasks;
+    of the env description only ``LATER_FREEZE_KEYS`` change, and what a trainer compares (``RESUME_KEYS``) is
+    equal.  The same settings without the task names are refused, as rule K4 says to the letter."""
+    f0 = freeze_t0(tmp_path, refs=(("nominal", "nominal"), ("v0.4", "brisk")), moves=(("start", "start"),))
+    cfgs = r5env.env_configs("R5", BODY, SET, n_envs=5, overrides=QUIET, root=tmp_path)
+    cfg = cfgs[0]
+    assert all(c.tasks == ("stand", "walk_nominal") and c.set_freeze == f0["manifest_sha256"] for c in cfgs)
+    assert [c.floor for c in cfgs] == ["hard", "hard", "hard", "robot_floor_carpet", "hard"]
+    assert list(cfg.tasks) == r5lib.task_names(BODY, SET, tmp_path)
+    assert r5env.config_from(json.loads(json.dumps(cfg.describe()))) == cfg  # (a stored config, read back)
+    e = r5env.R5Env(cfg, root=tmp_path)
+    first = e.describe()
+    acts = noise(15, 12, 0.1, 3)
+    a = play(e, acts, seed=11)  # (the task is drawn)
+    e.close()
+    assert first["task_names"] == ["stand", "walk_nominal"] == first["config"]["tasks"] == list(first["tasks"])
+    assert sorted(first["task_files"]) == ["refs/nominal.npz", "transitions/start.npz"]
+    assert first["task_files"] == {f: first["inputs"]["files"][f] for f in first["task_files"]}
+    # a config that names no task builds the same env today
+    bare = dataclasses.replace(cfg, tasks=())
+    e = r5env.R5Env(bare, root=tmp_path)
+    assert changed_keys(first, e.describe()) == ["config"] and e.describe()["config"]["tasks"] == []
+    e.close()
+    # the change is frozen later: walk_v0.4 becomes usable, and the turns and the stop are absent for another reason
+    f1 = freeze_t0(tmp_path, moves=((CHANGE, "nominal_to_brisk"),))
+    assert r5lib.task_names(BODY, SET, tmp_path) == ["stand", "walk_nominal", "walk_v0.4"]
+    e = r5env.R5Env(cfg, root=tmp_path)  # the stored config: accepted
+    later = e.describe()
+    assert e.tasks == ["stand", "walk_nominal"]
+    for key in r5env.RESUME_KEYS:
+        assert later[key] == first[key], key
+    assert changed_keys(first, later) == sorted(r5env.LATER_FREEZE_KEYS)  # all five, and no other key
+    assert later["set_freeze_started"] == dict(index=0, manifest_sha256=f0["manifest_sha256"])
+    assert later["set_freeze_now"] == dict(index=1, manifest_sha256=f1["manifest_sha256"]) == later["inputs"]["freeze"]
+    assert "walk_v0.4" in first["absent"] and "walk_v0.4" not in later["absent"]
+    new = sorted(set(later["inputs"]["files"]) - set(first["inputs"]["files"]))
+    assert new == ["refs/v0.4.npz", f"transitions/{CHANGE}.npz"]  # the library reads the new task's files too
+    assert all(later["inputs"]["files"][f] == first["inputs"]["files"][f] for f in first["inputs"]["files"])
+    same(a, play(e, acts, seed=11))  # the same episode, the same task drawn
+    e.close()
+    with pytest.raises(tune.InputError, match="task walk_v0.4 is in the table now and was absent under freeze 0"):
+        r5env.R5Env(bare, root=tmp_path)  # without the names: refused
+    # a job that starts today names the three tasks and the later freeze
+    today = r5env.env_configs("R5", BODY, SET, n_envs=1, overrides=QUIET, root=tmp_path)[0]
+    assert today.tasks == ("stand", "walk_nominal", "walk_v0.4") and today.set_freeze == f1["manifest_sha256"]
+
+
+@needs_run
+def test_set_freeze_started_is_the_index_the_run_started_on(tmp_path):
+    """The settings hold the named freeze's manifest hash alone.  Where two freezes of a set hold the same manifest
+    (a fixture's: ``sets.freeze`` appends no such freeze), the description's ``set_freeze_started`` is the first of
+    them, the one a run that stored the hash then started on, and it does not move when the set is frozen again."""
+    f0 = freeze_t0(tmp_path / "a", refs=(("nominal", "nominal"),), moves=(("start", "start"),))
+    pin0 = dict(index=0, manifest_sha256=f0["manifest_sha256"])
+    cfg = frozen_cfg(f0)
+    e = r5env.R5Env(cfg, root=tmp_path / "a")
+    first = e.describe()
+    e.close()
+    f1 = freeze_t0(tmp_path / "a")  # frozen again with nothing changed: the same manifest under index 1
+    assert (f1["index"], f1["manifest_sha256"]) == (1, f0["manifest_sha256"])
+    e = r5env.R5Env(cfg, root=tmp_path / "a")
+    later = e.describe()
+    e.close()
+    assert later["set_freeze_started"] == first["set_freeze_started"] == pin0
+    assert later["set_freeze_now"] == dict(index=1, manifest_sha256=f0["manifest_sha256"])
+    assert changed_keys(first, later) == ["inputs.freeze", "set_freeze_now"]  # (the hash is the same: the index alone)
+    # three freezes: a used file changes under the second (refused there) and changes back under the third
+    src = r5lib.s1_root(BODY) / BODY
+    f0 = freeze_t0(tmp_path / "b", refs=(("nominal", "nominal"),), moves=(("start", "start"),))
+
+    def swap(name: str):
+        def edit(refs, trs, d):
+            shutil.copyfile(src / "refs" / f"{name}.npz", d / "refs" / "nominal.npz")
+            refs["nominal"]["sha256"] = s2io.sha256_file(d / "refs" / "nominal.npz")
+        return edit
+
+    f1 = freeze_t0(tmp_path / "b", edit=swap("brisk"))
+    assert f1["manifest_sha256"] != f0["manifest_sha256"]
+    with pytest.raises(tune.InputError, match=r"refs/nominal\.npz has sha256 \w{12}\.\.\., freeze 0 held"):
+        r5env.R5Env(frozen_cfg(f0), root=tmp_path / "b")
+    f2 = freeze_t0(tmp_path / "b", edit=swap("nominal"))
+    assert (f2["index"], f2["manifest_sha256"]) == (2, f0["manifest_sha256"])
+    e = r5env.R5Env(frozen_cfg(f0), root=tmp_path / "b")
+    assert e.freeze_started == dict(index=0, manifest_sha256=f0["manifest_sha256"])
+    assert e.freeze_now == dict(index=2, manifest_sha256=f0["manifest_sha256"])
+    e.close()
+
+
+# ------------------------------------------------------------------------------------------------
+# The wording handed to the rules draft (``stage2/design/CE_RULE_WORDING.md``; the review of the second fix round)
+# ------------------------------------------------------------------------------------------------
+WORDING = ROOT / "stage2" / "design" / "CE_RULE_WORDING.md"
+
+
+def wording_entry(heading: str) -> str:
+    """The part of the wording file under the heading line that starts with ``heading`` (``### 3a.``, ``## 8.``),
+    up to the next heading or rule line, whitespace folded.  The file is a working paper for the lead: a test that
+    reads it skips in a checkout that no longer holds it."""
+    if not WORDING.is_file():
+        pytest.skip(f"{WORDING.name} is not in this checkout")
+    lines = WORDING.read_text().splitlines()
+    start = next(i for i, x in enumerate(lines) if x.startswith(heading))
+    stop = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("#") or lines[i] == "---"), len(lines))
+    return " ".join(" ".join(lines[start:stop]).split())
+
+
+def proposed(entry: str) -> str:
+    """What an entry proposes first: from its first ``**New**`` to its next ``**New**`` or to its ``**Label``."""
+    rest = entry.split("**New**", 1)[1]
+    return min((rest.split(mark, 1)[0] for mark in ("**New**", "**Label")), key=len)
+
+
+@needs_run
+def test_of_what_a_resume_compares_a_change_of_the_task_weights_moves_the_weights_alone(e0):
+    """``RESUME_KEYS`` hold ``tasks``, the resolved table with the task weights in force, and those weights are run
+    state (rule K5; rule M4's fix changes them).  What a resume compares is therefore the description of the env as
+    built from its stored config, before any weight is set on it: a change of the weights moves ``tasks`` alone of
+    the whole description, and in it the weights alone.  ``describe``'s docstring says "as built", and so does the
+    sentence proposed for rule K4 (the wording file's entry 8)."""
+    built = e0.describe()
+    try:
+        e0.set_task_weights(dict(walk=4.0))  # rule M4's fix
+        fixed = e0.describe()
+    finally:
+        e0.set_task_weights([1.0, 2.0, 2.0, 2.0])
+    assert changed_keys(built, fixed) == ["tasks"] and changed_keys(built, e0.describe()) == []
+    assert [k for k in r5env.RESUME_KEYS if built[k] != fixed[k]] == ["tasks"]
+
+    def less_weights(tasks: dict) -> dict:
+        return {t: {k: v for k, v in row.items() if k != "weight"} for t, row in tasks.items()}
+
+    assert less_weights(built["tasks"]) == less_weights(fixed["tasks"])
+    assert [row["weight"] for row in built["tasks"].values()] == [1.0, 2.0, 2.0, 2.0]
+    assert [row["weight"] for row in fixed["tasks"].values()] == [1.0, 4.0, 2.0, 2.0]
+    assert "compare the description of the env as built" in " ".join(r5env.R5Env.describe.__doc__.split())
+    k4 = proposed(wording_entry("## 8."))
+    assert ("of the description of the envs as built, `config`, `task_names`, `tasks`, `task_files` and "
+            "`set_freeze_started` (`r5env.RESUME_KEYS`), not the description whole") in k4
+    assert "`tasks` holds the task weights in force, and those are run state (K5), which M4's fix changes" in k4
+
+
+def test_the_wording_for_w3_states_dutys_bounds_and_clearance_as_guard():
+    """The review of the second fix round, finding 3: the sentences proposed for rule W3 state the two bounds that
+    ``r5core.REWARD_RULE`` states (``tests/test_stage2_r5core.py`` pins them there and what the code does): duty's
+    stride is kept between 1 and 256 env steps, and clearance (a) is not read where T is not above zero."""
+    clearance, duty = proposed(wording_entry("### 3a.")), proposed(wording_entry("### 3b."))
+    assert "a track that plans no complete swing has its gait's, (1 - duty) x the stride period" in clearance
+    assert "Where `T` is not above zero, (a) is not read" in clearance
+    assert ("the last n env steps, `n = round(stride period / 1.05 / 20 ms)`, kept between 1 and 256 env steps: the "
+            "history the env keeps") in duty
+    assert "until n env steps of the episode have been played" in duty and "until that many" not in duty
+    assert r5core.HISTORY_STEPS == 256
+
+
+def test_the_wording_file_asks_no_paste_for_x1_which_the_draft_holds():
+    """The review of the second fix round, finding 2: the lead wrote X1's lifting into the rules draft, so the
+    sentence the wording file quoted as old is no longer in the draft as quoted.  Entry 9 quotes no old sentence and
+    proposes none; the file says against which commit of the draft its other old sentences were compared (the draft
+    is on another branch: that comparison is made by hand), and how many there are."""
+    x1 = wording_entry("## 9.")
+    assert "**Old**" not in x1 and "**New**" not in x1 and "**No wording change is asked.**" in x1
+    assert "`405c218` of `wt/prereg-b`" in x1
+    assert "(lifted for the frozen 75 cm sets on 16 Nov 2026, after the panels)" in x1
+    head = wording_entry("# Work package CE")
+    assert "`c4a0ff8` of `wt/prereg-b`" in head and "all 19 are there word for word" in head
+    assert WORDING.read_text().count("**Old** (") == 19
 
 
 # ------------------------------------------------------------------------------------------------
