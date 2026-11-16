@@ -287,7 +287,8 @@ As `STAGE2_75_PLAN.md`, whose list of words stands, with these additions.
   IMU the inertial measurement unit (gyro and accelerometer).
 - **The bar.** "The bar", "the panels" and "readings 1, 2 and 3" are as in `STAGE2_75_PLAN.md`: reading 1 is "shown with
   the look", reading 2 "shown" (every limit), reading 3 "shown but for A1" (every limit but a neck or tail servo's
-  sustained planning limit; A1 is the decision log's row). The "look bands" are reading 1's four limits (U3).
+  sustained planning limit; A1 is the decision log's row). The "look bands" are reading 1's four terms (U3) [until
+  ruling 5 of the fifth list gave the tail term a second limit, this read "reading 1's four limits"].
 - **The look.** "Look feature Fn" is [look] 3.1's: F1 and F2 the body's bob, F3 a swing of fixed duration, F4 the shape
   of the foot's lift, F5 toe-off with rolling contact, F6 trunk roll, F9 the counter-phased tail, F10 the stabilised
   head, F11 the head-first turn, F13 a longer stride at the animal pace, F14 stride-to-stride variation. These are not
@@ -1059,28 +1060,51 @@ Check: `stage2/tb/runs/local-60/jobs/R5-60-N-T-10-s41/run.json` (`flags.kl_cut`;
 
 ## U. The look reading (reading 1)
 
-**U1. The four measures.** [plan section 5; `research_look.md` 4.2; NEW definitions] From 50 Hz poses of an episode:
+**U1. The four measures.** [plan section 5; `research_look.md` 4.2; NEW definitions;
+settled 16 Nov 2026, before any Track B run: the name of the fitted tail amplitude] From 50 Hz poses of an episode:
 *bob*, the mean over the robot's own steps (touchdown to next touchdown of either foot, wholly inside the window) of the
 range of the hip-midpoint's height; *head*, the RMS of the head's world pitch about its mean; *tail phase*, the phase of
-the least-squares sinusoid of the tail-yaw angle on the robot's own phase (zero at each of its left lift-offs);
-*toe-off*, the mean over its lift-offs of the lifting foot's pitch at that instant. Contact is the 2 % load rule with 20
-ms debounce. Check: each companion episode's `look.own`.
+the least-squares sinusoid of the tail-yaw angle on the robot's own phase (zero at each of its left lift-offs), whose
+amplitude is the *fitted tail amplitude* that U3 reads [settled 16 Nov 2026, before any Track B run: the clause on the
+amplitude; ruling 5 of the fifth list]; *toe-off*, the mean over its lift-offs of the lifting foot's pitch at that
+instant. Contact is the 2 % load rule with 20 ms debounce. Check: each companion episode's `look.own`.
 
 **U2. Window.** [NEW] A walk item: its judged last 10 s. A turn item: the 3 s after `t_c + at_s`. Nudge and stop items:
 not read. Check: `look.window`.
 
 **U3. Bands.** [plan section 5; settled 15 Nov, before any Track B run: the threshold stays, and the records print its
-side] Against the reference's own values (U5): bob within +-30 %; head pitch at most 1.5 degrees RMS (not relative);
-tail phase within +-0.1 cycle; toe-off at least 70 %. The tail term is not read when the reference's tail amplitude in
-the window is under 0.02 rad, the toe-off term when the reference's toe-off is under 0.02 rad [NEW]; both then pass,
-labelled. On `V6noF5`, whose walks have no toe-off (L11), the toe-off term is therefore never read, and every table that
-sets R2L's reading 1 beside R5's says so. Known when this was fixed (gate L1's record, kinematic; its flags give the
-toe-off pitch reached by lift-off): the look ladder's V6 walks reach 0.056 rad on `75-M-H-10` and 0.031 rad on
-`60-N-T-10` at 0.40 m/s, and 0.020 rad on `60-N-T-10` at 0.4455 m/s. At 0.40 m/s the 70 % band therefore asks for 0.039
-rad and 0.022 rad, and on the 60 cm body's rungs above 0.40 m/s the reference's toe-off lies at the 0.02 rad threshold,
-so whether the term is read there may turn on rounding. [settled 15 Nov, before any Track B run] The threshold stays
-0.02 rad, and every record prints the reference's value and the side of 0.02 rad it lies on. Check: `look.terms`,
-`look.not_read`, `look.reference` (the reference's toe-off and the side of 0.02 rad it lies on).
+side; settled 16 Nov 2026, before any Track B run: the tail term fails on a tail that does not swing; differs: plan
+section 5, whose tail term reads the phase alone] Against the reference's own values (U5): bob within +-30 %; head pitch
+at most 1.5 degrees RMS (not relative); tail phase within +-0.1 cycle; toe-off at least 70 %. The tail term is not read
+when the reference's tail amplitude in the window is under 0.02 rad, the toe-off term when the reference's toe-off is
+under 0.02 rad [NEW]; both then pass, labelled. On `V6noF5`, whose walks have no toe-off (L11), the toe-off term is
+therefore never read, and every table that sets R2L's reading 1 beside R5's says so. Known when this was fixed (gate
+L1's record, kinematic; its flags give the toe-off pitch reached by lift-off): the look ladder's V6 walks reach 0.056
+rad on `75-M-H-10` and 0.031 rad on `60-N-T-10` at 0.40 m/s, and 0.020 rad on `60-N-T-10` at 0.4455 m/s. At 0.40 m/s the
+70 % band therefore asks for 0.039 rad and 0.022 rad, and on the 60 cm body's rungs above 0.40 m/s the reference's
+toe-off lies at the 0.02 rad threshold, so whether the term is read there may turn on rounding.
+[settled 15 Nov, before any Track B run] The threshold stays 0.02 rad, and every record prints the reference's value and
+the side of 0.02 rad it lies on.
+
+[settled 16 Nov 2026, before any Track B run; ruling 5 of the fifth list, given after the look reading had been built
+and its review had probed the tail term on synthetic series (no record; "What had been run"); NEW; differs: plan section
+5, whose tail term reads the phase alone] The tail term fails when the robot's fitted tail amplitude is under 0.02 rad
+while the reference's amplitude is read.
+
+How that sentence is read (the author's reading, not the lead's wording). The robot's fitted tail amplitude is the
+amplitude of U1's sinusoid, fitted over the window. "While the reference's amplitude is read" means: while the tail term
+is read, that is, while the reference's tail amplitude in the window is not under 0.02 rad. Where the tail term is read
+it therefore passes only if both hold: the tail phase lies within +-0.1 cycle of the reference's, and the robot's fitted
+tail amplitude is not under 0.02 rad. Where the term is not read it passes, labelled, as before, whatever the robot's
+amplitude. No band reads how large the robot's amplitude is beside the reference's. The tail term stays one term of
+reading 1: "the four bands" and "the look bands", wherever this text names them, are the four terms as this rule holds
+them. The lead's reason, from the rulings of 18:21 UTC on the look reading (`stage2/design/ROUND_C_RULINGS_16NOV.md`): a
+tail that does not swing cannot pass a reading of how it swings.
+
+Check: `look.terms`, `look.not_read`, `look.reference` (the reference's toe-off and the side of 0.02 rad it lies on).
+[settled 16 Nov 2026, before any Track B run; ruling 5 of the fifth list] `look.own` (the robot's fitted tail amplitude)
+beside `look.reference` (the reference's tail amplitude and the side of 0.02 rad it lies on): wherever the tail term is
+read and the robot's fitted tail amplitude is under 0.02 rad, `look.terms` holds the tail term as failed.
 
 **U4. The readings on a look set.** [plan; settled 15 Nov, before any Track B run: a turn frozen with `a1_over`, reading
 1's words, one more term of the stop item; settled 16 Nov 2026, before any Track B run: where the companion's reading is
@@ -2154,7 +2178,9 @@ wording written in under ruling 13 of the third list (the two amendments that cl
     `ALLOW_SOURCE_CHANGE`, set only on the lead's word and recorded (S2-13's own sentence on a changed source hash).
 24. U3: in plan section 5's reading 1, the tail-phase and toe-off terms are not read, and pass, where the reference's
     own amplitude is under 0.02 rad; on `V6noF5` reading 1 therefore has no toe-off band, and every table that sets
-    R2L's reading 1 beside R5's says so.
+    R2L's reading 1 beside R5's says so. U3 [settled 16 Nov]: the same reading's "tail phase within ±0.1 cycle" gains a
+    second limit: where the tail term is read, it also fails when the robot's own fitted tail amplitude is under 0.02
+    rad.
 25. Section L, "Windows": on a look set, rule B6's "one stride of `nominal`" is one window of it, and its 2 or 2.5
     strides before a command are join rule J1's leave point [differs: `STAGE2_75_PLAN.md` B6's wording]; B6's nudge
     onset "at 2 + u strides into the 0.40 m/s walk" is (2 + u) x the walk's `period_s` after the walk segment's first
