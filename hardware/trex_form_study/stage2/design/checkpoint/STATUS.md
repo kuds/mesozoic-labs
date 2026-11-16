@@ -273,3 +273,25 @@ another model with the lead and the independent reviewers unchanged.
   owner page with the turning circle and the clips, send the push notification.
 - **Usage:** the session's cost read 1,647 USD at 21:40 UTC, about 42 % of the week by the owner's 16:00 calibration
   (11 % at 1,433.50 USD).
+
+## Update, 16 Nov 2026, 00:55 UTC: the 75 cm panels are reported; five questions wait for the owner
+
+- **Chain:** ended 15 Nov 23:09 UTC. 592 records and 2 control records, all committed; 4.25 of 16 and 5.51 of 12
+  core-hours used; nothing cut. Nothing is running.
+- **Report:** `STAGE2_75_REPORT.md`, fourth version, after three rounds of independent checks (50, 24 and 12
+  findings on the text; 10 on the page; no table cell was ever found wrong). Its sources and the page builder are in
+  `stage2/runs/2026-11-15-75cm/report_src/` (README there); the report and the page regenerate byte for byte.
+- **Owner page:** published as a private artifact, https://claude.ai/artifact/CeymkxuQuPpsoT8TTrbveZ (ten clips
+  inline, the turning figure, the five questions). Checked at phone width, in dark mode and on its side.
+- **Merged since 21:50:** the views (`wt/wp-v`, merge `4e7e9b5`: `designlab/stage2/barviews.py`, its tests, the turn
+  files). 18 clips rendered in the main checkout (`logs/barviews/`, git-ignored; manifest `views/clips.json`).
+- **Result in one line (simulation):** under Stage 1's fitted controller nothing passes at the judged 10 ms; today's
+  walk stays up 20 of 20 to 6 ms and passes 4 of 16 conditions with no delay; the candidate passes nothing as
+  registered.
+- **Recorded errors of the lead:** the plan's A12 sentence contradicts C4 on the joint range (plan, closing
+  amendments, items 11 and 12; report section 8); lesson 19 in `LESSONS_LEARNED.md`.
+- **Waiting for the owner** (report section 3): the judged delay, the tail servo, whether to keep the candidate,
+  pull request #668, carpet. Nothing more is run on the 75 cm track until they answer.
+- **Not adopted:** the draft rows F28, F29 and E in report section 11.
+- **Paused, as before:** round C training tooling, the look sets, Track B rules, the milestone items after the
+  75 cm track (R5/G8a/G9, R2L, B.3, S2-4, the notebook, the Drive bundle, the steps sheet).

@@ -800,3 +800,4 @@ reports, and `designlab/stage2/look_page.py` with the clips for the look pages.
 | Viewers' blind sheet (L1 ratings) | https://claude.ai/artifact/QVktxN3pHsov2LTVs6d69c |
 | Delay bench sheet (second session; carries the P32 note) | https://claude.ai/artifact/LePsAx8XM8q8hUTpZ3GqtJ |
 | 75 cm build prices (second session) | https://claude.ai/artifact/KDSuT1A1AsHad4KVVrzsfa |
+| 75 cm walk results (second session; `STAGE2_75_REPORT.md`, fourth version; sources in `stage2/runs/2026-11-15-75cm/report_src/`) | https://claude.ai/artifact/CeymkxuQuPpsoT8TTrbveZ |
