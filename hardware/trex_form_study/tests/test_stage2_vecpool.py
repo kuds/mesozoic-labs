@@ -11,10 +11,14 @@ What is held here:
 * a worker's ``sys.modules`` holds neither ``torch`` nor ``stable_baselines3``; its command line is the
   ``worker_cmd`` given; it runs with ``MUJOCO_GL=disable`` and one BLAS thread and refuses anything else;
 * a killed worker makes the next ``step_wait`` raise with the worker and its exit code; an env's own exception is
-  raised in the parent and the pool goes on; a worker that cannot start, or fails the connection's handshake, fails
-  the constructor with its name and exit code;
+  raised in the parent, the one ``DummyVecEnv`` raises (the first in the call's order): after one in ``get_attr``,
+  ``set_attr`` or ``env_method`` the pool goes on, after one in ``reset`` or ``step`` it refuses every later call at
+  every worker count and ``close`` still closes every env; a worker that cannot start, or fails the connection's
+  handshake, fails the constructor with its name and exit code; children that do not connect, or connect and say
+  nothing, fail it at the connect limit;
 * ``close()`` leaves no child process and no socket directory; so do an unclosed pool that is collected, a parent
-  that exits without closing, and a parent that is killed;
+  that exits without closing (the hook at interpreter exit: the workers are gone when the parent is), and a parent
+  that is killed;
 * a 2-update PPO run under ``VecNormalize`` on the pool equals the same run on ``DummyVecEnv`` (policy tensors,
   normalisation statistics).
 
@@ -22,6 +26,10 @@ The stub envs are defined here and named to the workers as ``tests.test_stage2_v
 directory is the study directory.  This module therefore imports neither torch nor stable-baselines3 at its top (a
 worker imports it): the tests that need them import them inside and skip without them.  No test touches a reference
 set or runs a plant: the envs are stubs.
+
+The pools of this module make their socket directories in a temporary directory of the module's own (the fixture
+``own_temp_dir``), so that the counts of what is left behind do not see another process's pools and do not depend on
+how long the machine's ``TMPDIR`` is.
 """
 
 from __future__ import annotations
@@ -31,6 +39,7 @@ import functools
 import gc
 import glob
 import os
+import shutil
 import signal
 import struct
 import subprocess
@@ -42,9 +51,8 @@ from pathlib import Path
 import gymnasium
 import numpy as np
 import pytest
-from gymnasium import spaces
-
 from designlab.stage2 import vecpool
+from gymnasium import spaces
 
 STUDY = Path(__file__).resolve().parents[1]
 HERE = "tests.test_stage2_vecpool"
@@ -69,12 +77,13 @@ class StubEnv(gymnasium.Env):
     metadata = {"render_modes": [], "stub": "vecpool"}
 
     def __init__(self, tag: int = 0, gain: float = 1.0, raw64: bool = False, shared: list | None = None,
-                 closed: str | None = None):
+                 closed: str | None = None, linger: float = 0.0):
         self.observation_space = spaces.Box(-np.inf, np.inf, (8,), np.float32)
         self.action_space = spaces.Box(-1.0, 1.0, (3,), np.float32)
         self.tag, self.gain, self.raw64 = int(tag), float(gain), bool(raw64)
         self.calls = 0
-        self.shared, self.closed = shared, closed
+        self.shared, self.closed, self.linger = shared, closed, float(linger)
+        self.trip = None  # "reset" or "step" (through set_attr): that call raises
         if shared is not None:
             shared.append(self.tag)
         self._mix = np.random.default_rng(77).normal(size=(8, 3))
@@ -86,6 +95,8 @@ class StubEnv(gymnasium.Env):
         return self._x.copy() if self.raw64 else self._x.astype(np.float32)
 
     def reset(self, *, seed=None, options=None):
+        if self.trip == "reset":
+            raise ValueError(f"stub env {self.tag} trips in reset")
         if seed is not None:
             self._rng = np.random.default_rng(seed)
         self._episodes += 1
@@ -98,6 +109,8 @@ class StubEnv(gymnasium.Env):
         return self._obs(), {"seed": seed, "episode": self._episodes, "length": self._length, "options": options}
 
     def step(self, action):
+        if self.trip == "step":
+            raise ValueError(f"stub env {self.tag} trips in step")
         a = np.asarray(action, dtype=np.float64)
         self._t += 1
         self._x = 0.9 * self._x + self.gain * (self._mix @ a) + 0.05 * self._rng.normal(size=8)
@@ -133,6 +146,11 @@ class StubEnv(gymnasium.Env):
     def fail(self):
         raise KeyError(f"stub env {self.tag} was asked to fail")
 
+    def fail_if(self, tags: list):
+        if self.tag in tags:
+            raise KeyError(f"stub env {self.tag} was asked to fail")
+        return self.tag
+
     def deaf(self, seconds: float, mark: str):
         signal.signal(signal.SIGTERM, signal.SIG_IGN)
         Path(mark).write_text(str(os.getpid()))  # deaf from here on
@@ -141,6 +159,8 @@ class StubEnv(gymnasium.Env):
     def close(self):
         if self.closed is not None:
             Path(f"{self.closed}.{self.tag}").write_text(str(os.getpid()))
+        if self.linger:
+            time.sleep(self.linger)  # an env that takes its time to close: its worker is still there meanwhile
 
 
 def make_stub(**kwargs) -> StubEnv:
@@ -280,10 +300,47 @@ def _socket_dirs() -> set:
     return set(glob.glob(os.path.join(tempfile.gettempdir(), "vecpool-*")))
 
 
+def _with_token(token: str) -> list[int]:
+    """The processes whose command line holds ``token`` (a zombie has none)."""
+    found = []
+    for name in os.listdir("/proc"):
+        if name.isdigit():
+            try:
+                if token in " ".join(_cmdline(int(name))):
+                    found.append(int(name))
+            except OSError:
+                pass
+    return found
+
+
 def _child_script_env() -> dict:
     env = {k: v for k, v in os.environ.items() if k not in (vecpool.AUTHKEY_VAR, vecpool.INDEX_VAR)}
     env.update(PYTHONPATH=".", MUJOCO_GL="disable", PYTHONHASHSEED="0", **{v: "1" for v in vecpool.THREAD_VARS})
     return env
+
+
+@pytest.fixture(scope="module", autouse=True)
+def own_temp_dir(tmp_path_factory):
+    """A temporary directory of this module's own, with a short path, for the whole module: the pool makes its
+    socket directory under ``tempfile.gettempdir()`` (a parent script and the workers read ``TMPDIR``).  Short, because
+    a Unix socket's path is limited: under a long ``TMPDIR`` the pool falls back to ``/tmp``, where these tests would
+    look in the wrong place.  Its own, because ``_socket_dirs`` counts what is left behind: a pool that another
+    process builds in the machine's temporary directory meanwhile is not this module's to count."""
+    tmp_path_factory.getbasetemp()  # pytest's own base directory is made before the temporary directory moves
+    probe = os.path.join("vpt-12345678", "vecpool-12345678", "s")
+    root = next((r for r in (tempfile.gettempdir(), "/tmp")
+                 if os.path.isdir(r) and len(os.fsencode(os.path.join(r, probe))) <= vecpool.SOCKET_PATH_MAX), None)
+    if root is None:
+        pytest.skip("no temporary directory short enough for a Unix socket")
+    own = tempfile.mkdtemp(prefix="vpt-", dir=root)
+    patch = pytest.MonkeyPatch()
+    patch.setattr(tempfile, "tempdir", own)
+    patch.setenv("TMPDIR", own)
+    try:
+        yield own
+    finally:
+        patch.undo()
+        shutil.rmtree(own, ignore_errors=True)
 
 
 @pytest.fixture(scope="module")
@@ -481,10 +538,17 @@ class TestOnePool:
 
     def test_an_envs_exception_is_raised_here_and_the_pool_goes_on(self, pair):
         pool, ref = pair
-        with pytest.raises(KeyError, match="stub env 3 was asked to fail") as err:
-            pool.env_method("fail", indices=[7, 3, 4])  # both workers fail; the first in worker order is raised
-        notes = "\n".join(getattr(err.value, "__notes__", []))
-        assert "raised in vecpool worker 1" in notes and "in fail" in notes
+        for venv in (ref, pool):  # two workers fail: the exception is DummyVecEnv's, the first in the call's order
+            with pytest.raises(KeyError, match="stub env 7 was asked to fail") as err:
+                venv.env_method("fail", indices=[7, 3, 4])
+        notes = "\n".join(getattr(err.value, "__notes__", []))  # (the pool's)
+        assert "raised in vecpool worker 2" in notes and "in fail" in notes
+        for indices, tags, first in (([3, 7, 4], [3, 4, 7], 3), ([3, 7, 4], [4, 7], 7), ([0, 4, 6, 3], [3, 6], 6),
+                                     ([7, 6, 5, 4, 3, 2, 1, 0], [0, 1, 2], 2), (None, [5, 2], 2)):
+            for venv in pair:
+                with pytest.raises(KeyError, match=f"stub env {first} was asked to fail"):
+                    venv.env_method("fail_if", tags, indices=indices)
+        assert pool.env_method("fail_if", [9], indices=[6, 0, 3]) == [6, 0, 3]
         with pytest.raises(AttributeError):
             pool.get_attr("no_such_attribute")
         assert pool.has_attr("tag") and not pool.has_attr("no_such_attribute")
@@ -511,6 +575,57 @@ class TestOnePool:
             venv.step_async(actions)
         _same(pool.step_wait(), ref.step_wait(), "first step_wait")
         _same(pool.step_wait(), ref.step_wait(), "second step_wait")
+
+
+@linux
+@pytest.mark.parametrize("call", ["reset", "step"])
+@pytest.mark.parametrize("workers", [0, 2])
+def test_an_envs_exception_in_reset_or_step_ends_the_pool_at_every_worker_count(workers, call, tmp_path,
+                                                                               monkeypatch):
+    """``DummyVecEnv`` stops at the env that raised and has not touched the envs after it; a pool's other workers
+    have gone through their blocks meanwhile.  So what the envs hold after such a call depends on the worker count,
+    and no later call may build on it: the env's exception is raised (the first in env order, as ``DummyVecEnv``
+    raises it), then every call refuses, at W = 0 too.  ``close`` still closes every env in its own process."""
+    monkeypatch.setattr(vecpool, "CLOSE_WAIT_S", 120.0)  # a loaded machine may take its time; nothing waits it out
+    mark = str(tmp_path / "closed")
+    pool = _pool([(STUB, {"tag": i, "closed": mark}) for i in range(4)], workers)
+    actions = np.zeros((4, 3), dtype=np.float32)
+    try:
+        pids = pool.worker_pids
+        pool.seed(1)
+        pool.reset()
+        pool.step(actions)
+        pool.set_attr("trip", call, indices=[3, 1])  # one env in each block of W = 2
+        with pytest.raises(ValueError, match=f"stub env 1 trips in {call}") as err:
+            pool.reset() if call == "reset" else pool.step(actions)
+        if workers:
+            assert "raised in vecpool worker 0" in "\n".join(err.value.__notes__)
+        refusal = rf"an env raised in `{call}` \(ValueError: stub env 1 trips in {call}\).*cannot continue"
+        for later in (pool.reset, lambda: pool.step(actions), lambda: pool.get_attr("tag"),
+                      lambda: pool.env_method("bump"), lambda: pool.set_attr("trip", None), lambda: pool.seed(1),
+                      lambda: pool.set_options({}), lambda: pool.env_is_wrapped(gymnasium.Wrapper)):
+            with pytest.raises(RuntimeError, match=refusal):
+                later()
+    finally:
+        pool.close()
+    said = [int(Path(f"{mark}.{i}").read_text()) for i in range(4)]
+    assert said == ([os.getpid()] * 4 if workers == 0 else [pids[0], pids[0], pids[1], pids[1]])
+    assert [w.proc.returncode for w in pool._workers] == [vecpool.EXIT_OK] * workers  # they left, not terminated
+
+
+def test_a_step_wait_before_any_step_async_reaches_no_env_at_any_worker_count():
+    """No actions were given: an ``AttributeError`` of the caller's, not an env's exception; the pool goes on."""
+    for workers in (0, 2):
+        pool = _pool(_specs(4), workers)
+        try:
+            pool.seed(3)
+            first = pool.reset()
+            with pytest.raises(AttributeError, match="actions"):
+                pool.step_wait()
+            pool.seed(3)
+            _same(pool.reset(), first, f"W={workers}")
+        finally:
+            pool.close()
 
 
 def test_no_two_envs_share_a_kwarg_or_an_argument_at_any_worker_count():
@@ -699,7 +814,7 @@ def test_an_unclosed_pool_that_is_collected_takes_its_workers_with_it():
 _PARENT = f"""
 import sys, time
 from designlab.stage2 import vecpool
-pool = vecpool.PoolVecEnv([("{STUB}", {{"tag": i}}) for i in range(2)], 2)
+pool = vecpool.PoolVecEnv([("{STUB}", {{"tag": i, "linger": 2.0}}) for i in range(2)], 2)
 pool.reset()
 print(*pool.worker_pids, pool.socket_dir, flush=True)
 if sys.argv[1] == "exit":
@@ -711,8 +826,10 @@ time.sleep(600)
 @linux
 @pytest.mark.parametrize("how", ["exit", "kill"])
 def test_workers_leave_with_their_parent(how):
-    """A parent that exits without closing its pool cleans up at exit; a parent that is killed cleans nothing up,
-    and its workers leave because their connection closed."""
+    """A parent that exits without closing its pool cleans up at exit: the hook stops the workers and waits for
+    them, so they are gone when the parent is (left to themselves they would still be closing their envs, which
+    takes these stubs 2 s).  A parent that is killed cleans nothing up, and its workers leave because their
+    connection closed."""
     pytest.importorskip("stable_baselines3")
     proc = subprocess.Popen([sys.executable, "-c", _PARENT, how], cwd=STUDY, env=_child_script_env(),
                             stdout=subprocess.PIPE, text=True)
@@ -726,6 +843,7 @@ def test_workers_leave_with_their_parent(how):
             assert proc.wait(timeout=30) == -signal.SIGKILL
         else:
             assert proc.wait(timeout=60) == 0
+            assert _gone(pids, 0.0)
         assert _gone(pids)
         assert not os.path.exists(sockdir)
     finally:
@@ -735,10 +853,11 @@ def test_workers_leave_with_their_parent(how):
         proc.stdout.close()
 
 
-def test_a_worker_that_cannot_start_fails_the_constructor(tmp_path):
+def test_a_worker_that_cannot_start_fails_the_constructor(tmp_path, own_temp_dir):
     from multiprocessing.connection import Listener
 
-    with Listener(str(tmp_path / "s"), family="AF_UNIX") as listener:  # what makes the wait below a bounded one
+    # (in the module's short directory: tmp_path can be too long for a Unix socket)
+    with Listener(os.path.join(own_temp_dir, "s"), family="AF_UNIX") as listener:  # what bounds the wait below
         assert hasattr(vecpool.listening_socket(listener), "settimeout")
     before = _socket_dirs()
     t0 = time.monotonic()
@@ -765,6 +884,42 @@ def test_a_child_that_fails_the_handshake_fails_the_constructor_by_its_name():
                                            r"exit code 1"):
         _pool(_specs(2), 1, worker_cmd=[sys.executable, "-c", other_key])
     assert _socket_dirs() <= before
+
+
+@linux
+def test_children_that_do_not_connect_fail_the_constructor_at_the_limit(monkeypatch):
+    """Children that run and never connect: the constructor raises at ``CONNECT_TIMEOUT_S`` with their indices and
+    leaves no child and no socket directory."""
+    monkeypatch.setattr(vecpool, "CONNECT_TIMEOUT_S", 1.0)
+    token = f"vecpool-test-sleeper-{os.getpid()}"
+    before = _socket_dirs()
+    t0 = time.monotonic()
+    with pytest.raises(RuntimeError, match=r"vecpool workers \[0, 1\] did not connect within 1 s"):
+        _pool(_specs(2), 2, worker_cmd=[sys.executable, "-c", "import time; time.sleep(90)", token])
+    assert time.monotonic() - t0 < 45.0  # the limit, not the children's 90 s
+    assert _with_token(token) == [] and _socket_dirs() <= before
+
+
+@linux
+@pytest.mark.parametrize("child", ["no handshake", "no hello"])
+def test_a_child_that_connects_and_says_nothing_does_not_hold_the_constructor(monkeypatch, child):
+    """``Listener.accept`` reads the key's handshake without a timeout: a child that connects and then says nothing
+    would hold the constructor for as long as it lives.  The limit holds all the same (the child is killed at it); so
+    it does for a child that passes the handshake and never sends its hello."""
+    monkeypatch.setattr(vecpool, "CONNECT_TIMEOUT_S", 2.0)
+    token = f"vecpool-test-silent-{os.getpid()}"
+    if child == "no handshake":
+        code = "import socket, sys, time; s = socket.socket(socket.AF_UNIX); s.connect(sys.argv[-1]); time.sleep(90)"
+    else:
+        code = ("import os, sys, time; from multiprocessing.connection import Client; "
+                f"key = bytes.fromhex(os.environ[{vecpool.AUTHKEY_VAR!r}]); "
+                "c = Client(sys.argv[-1], family='AF_UNIX', authkey=key); time.sleep(90)")
+    before = _socket_dirs()
+    t0 = time.monotonic()
+    with pytest.raises(RuntimeError, match=r"vecpool workers \[0\] did not connect within 2 s"):
+        _pool(_specs(2), 1, worker_cmd=[sys.executable, "-c", code, token])
+    assert time.monotonic() - t0 < 45.0  # the limit, not the child's 90 s
+    assert _with_token(token) == [] and _socket_dirs() <= before
 
 
 def test_a_worker_refuses_another_gl_backend_or_thread_count():
@@ -877,11 +1032,14 @@ def _ppo_run(venv) -> dict:
         vecnorm.close()
 
 
-def test_ppo_under_vecnormalize_is_the_same_run_on_the_pool():
+def test_ppo_under_vecnormalize_is_the_same_run_on_the_pool(tmp_path, monkeypatch):
     torch = pytest.importorskip("torch")
     pytest.importorskip("stable_baselines3")
+    # stable-baselines3's logger makes a folder per model, by default SB3-<time> in the temporary directory
+    monkeypatch.setenv("SB3_LOGDIR", str(tmp_path / "sb3"))
     ref = _ppo_run(_dummy())
     got = _ppo_run(_pool(_specs(), 2))
+    assert glob.glob(os.path.join(tempfile.gettempdir(), "SB3-*")) == [] and (tmp_path / "sb3").is_dir()
     assert got["steps"] == ref["steps"] == 2 * 16 * N_ENVS
     assert list(got["policy"]) == list(ref["policy"]) and len(ref["policy"]) >= 9
     for name, tensor in ref["policy"].items():

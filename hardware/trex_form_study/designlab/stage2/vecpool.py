@@ -29,10 +29,12 @@ Start-up.  The pool opens a ``multiprocessing.connection.Listener`` on a Unix so
 with a random authkey, starts the children (the environment of ``tbenv.child_env("disable")``, the study directory as
 working directory, the authkey and the worker's index in two environment variables that the worker removes from its
 own environment), accepts the connections, sends each child its specs and receives the spaces.  A child that exits
-before it connects (also one that connects and leaves, or fails the key's handshake), or does not connect within
-``CONNECT_TIMEOUT_S``, fails the constructor with a ``RuntimeError`` naming the worker and its exit code.  The
-listener and its directory are removed as soon as every child is connected (and by ``close`` after a failed start),
-so a trainer that is killed later leaves nothing in the temporary directory.
+before it connects (also one that connects and leaves, or fails the key's handshake) fails the constructor with a
+``RuntimeError`` naming the worker and its exit code; children that have not connected and said their hello within
+``CONNECT_TIMEOUT_S`` fail it with their indices, and are killed at that limit (which also ends the wait for a child
+that connected and then said nothing).  The listener and its directory are removed as soon as every child is
+connected (and by ``close`` after a failed start), so a trainer that is killed later leaves nothing in the temporary
+directory.
 
 What crosses the process boundary travels by pickle.  So that no result can depend on which envs share a process,
 every argument reaches each env as its own copy at every W, 0 included: the kwargs of a spec, the options of
@@ -42,10 +44,24 @@ refused at every W, 0 included, before any env sees them; a class they name must
 
 Failure.  A worker that has exited, or whose connection broke, raises ``RuntimeError`` naming the worker and its exit
 code from the next call, and from every call after it.  An exception raised by an env in a worker (also in a
-factory) is raised here as the same exception, the worker's traceback attached as a note; the worker goes on.
+factory) is raised here as the same exception, the worker's traceback attached as a note; the worker goes on.  Where
+envs of several workers raise in one call, the exception is the one ``DummyVecEnv`` raises: that of the env first in
+the call's order.  What follows depends on the call:
+
+* ``get_attr``, ``set_attr``, ``env_method``: the pool goes on.  (The envs after the one that raised, in the call's
+  order, have not been called where they share its worker, and at W = 0; in another worker they have.)
+* ``reset``, ``step``: the pool does not go on, at any W, 0 included.  ``DummyVecEnv`` stops at the env that raised;
+  a pool's other workers have gone through their blocks meanwhile, so what the envs hold afterwards depends on the
+  worker count.  Every later call raises ``RuntimeError``; ``close`` still closes every env.
+
 ``close`` asks the workers to close their envs, terminates what is left, kills what does not go, and waits for all of
 them; the same clean-up runs at interpreter exit and when an unclosed pool is collected.  A worker leaves by itself
-when its parent's connection closes, so a killed trainer leaves no worker behind.
+when its parent's connection closes, so a killed trainer leaves no worker behind.  Two limits of that, both after a
+kill that no code of the trainer's answers: a trainer killed while its workers are still connecting leaves the socket
+directory (one socket file) in the temporary directory; and a forked copy of the trainer (``os.fork``,
+``multiprocessing`` with the fork start method) holds the workers' connections as well, so the workers stay until
+that copy has ended too.  So no fork in a trainer while it has a pool open (a child started with ``subprocess`` does
+not hold the connections: they are closed on exec).
 
 Each worker checks at its start that ``MUJOCO_GL`` is ``disable`` and that each BLAS thread variable is ``1``, and
 refuses to serve otherwise (the pool's constructor raises with the values found).
@@ -77,6 +93,7 @@ import shutil  # noqa: E402
 import signal  # noqa: E402
 import subprocess  # noqa: E402
 import tempfile  # noqa: E402
+import threading  # noqa: E402
 import time  # noqa: E402
 import traceback  # noqa: E402
 import warnings  # noqa: E402
@@ -96,8 +113,9 @@ THREAD_VARS = tbenv.THREAD_VARS
 #: removes both from its environment before it builds an env.
 AUTHKEY_VAR = "STAGE2_VECPOOL_AUTHKEY"
 INDEX_VAR = "STAGE2_VECPOOL_WORKER"
-#: A child must have connected this long after the pool started it (interpreter start and imports on a loaded
-#: machine).  Building the envs afterwards has no limit: the pool only watches that the child is alive.
+#: A child must have connected and said its hello this long after the pool started the children (interpreter start
+#: and imports on a loaded machine); the children that have not are killed.  Building the envs afterwards has no
+#: limit: the pool only watches that the child is alive.
 CONNECT_TIMEOUT_S = 120.0
 #: How often a waiting pool looks whether the worker it waits for is still alive.
 POLL_S = 0.5
@@ -284,23 +302,41 @@ class _Block:
             else:
                 self.buf_obs[key][env_idx] = obs[key]
 
+    def _each(self, local, call) -> list:
+        """``call(env)`` for the block's envs ``local``, in that order.  An exception leaves as ``_Raised`` with its
+        place in ``local``: the pool raises the one that comes first in its caller's order."""
+        out = []
+        for at, j in enumerate(local):
+            try:
+                out.append(call(self.envs[j]))
+            except Exception as exc:
+                raise _Raised(at, exc) from exc
+        return out
+
     def get_attr(self, local, attr_name):
-        return [self.envs[j].get_wrapper_attr(attr_name) for j in local]
+        return self._each(local, lambda env: env.get_wrapper_attr(attr_name))
 
     def set_attr(self, local, attr_name, value_blob) -> None:
-        for j in local:
-            setattr(self.envs[j], attr_name, _load(value_blob))
+        self._each(local, lambda env: setattr(env, attr_name, _load(value_blob)))
 
     def env_method(self, local, method_name, call_blob):
-        out = []
-        for j in local:
+        def call(env):
             method_args, method_kwargs = _load(call_blob)
-            out.append(self.envs[j].get_wrapper_attr(method_name)(*method_args, **method_kwargs))
-        return out
+            return env.get_wrapper_attr(method_name)(*method_args, **method_kwargs)
+
+        return self._each(local, call)
 
     def close(self) -> None:
         for env in self.envs:
             env.close()
+
+
+class _Raised(Exception):
+    """In a worker: the exception ``error`` of the env at place ``at`` of a per-env command's list."""
+
+    def __init__(self, at: int, error: Exception):
+        super().__init__(at)
+        self.at, self.error = at, error
 
 
 def environment_problem(environ=None) -> str | None:
@@ -315,15 +351,16 @@ def environment_problem(environ=None) -> str | None:
             + ", ".join(f"{k}={v!r}" for k, v in bad.items()))
 
 
-def _pack_error(exc: BaseException) -> tuple:
-    """``(the pickled exception or None, the traceback's text, "Type: message")`` of an exception raised here."""
+def _pack_error(exc: BaseException, at: int | None = None) -> tuple:
+    """``(the pickled exception or None, the traceback's text, "Type: message", at)`` of an exception raised here;
+    ``at`` is the place, in a per-env command's list, of the env that raised it (None: not such a command)."""
     text = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
     try:
         blob = _dump(exc)
         _load(blob)
     except Exception:
         blob = None
-    return blob, text, f"{type(exc).__name__}: {exc}"
+    return blob, text, f"{type(exc).__name__}: {exc}", at
 
 
 def _serve(conn, index: int, problem: str | None) -> int:
@@ -364,6 +401,8 @@ def _serve(conn, index: int, problem: str | None) -> int:
                 else:
                     raise NotImplementedError(f"`{cmd}` is not implemented in the worker")
                 out = _dump((True, result))
+            except _Raised as raised:  # an env's, in a per-env command: with its place in the command's list
+                out = _dump((False, _pack_error(raised.error, raised.at)))
             except Exception as exc:  # the env's, the factory's or the pickle's: the parent raises it
                 out = _dump((False, _pack_error(exc)))
             try:
@@ -494,7 +533,7 @@ def _socket_dir() -> str:
 def _remote_error(worker: _Worker, payload) -> BaseException:
     """The exception a worker replied with: the same exception where it unpickles, a ``RuntimeError`` with its text
     otherwise; the worker's traceback is attached as a note."""
-    blob, text, summary = payload
+    blob, text, summary, _ = payload
     exc = None
     if blob is not None:
         try:
@@ -583,50 +622,77 @@ class _Pool:
         return observation_space, action_space, metadata
 
     def _accept(self, listener) -> None:
-        """Take one connection per child and its hello.  The wait is cut into ``POLL_S`` slices by a timeout on the
-        listening socket, so that a child that exits before it connects, or never connects, raises here instead of
-        blocking.  A connection that breaks or fails the key's handshake inside ``accept`` is dropped: the child
-        behind it is found dead at the next turn, or the wait ends at its limit."""
+        """Take one connection per child and its hello, within ``CONNECT_TIMEOUT_S`` of the children's start.  The
+        wait is cut into ``POLL_S`` slices by a timeout on the listening socket, so that a child that exits before it
+        connects, or never connects, raises here instead of blocking.  ``Listener.accept`` reads the key's handshake
+        from a connected child without a timeout, so a child that connects and then says nothing would hold the pool
+        there for as long as it lives: at the limit a timer kills the children that are still not connected, which
+        ends that read.  A connection that breaks or fails the key's handshake inside ``accept`` is dropped: the
+        child behind it is found dead at the next turn, or the wait ends at its limit."""
         sock = listening_socket(listener)
         if sock is not None:
             sock.settimeout(POLL_S)
-        deadline = time.monotonic() + CONNECT_TIMEOUT_S
+        limit = float(CONNECT_TIMEOUT_S)
+        deadline = time.monotonic() + limit
         pending = {w.index: w for w in self._workers}
-        while pending:
-            for w in pending.values():
-                code = w.proc.poll()
-                if code is not None:
-                    raise RuntimeError(f"{w} left before it connected: {_exit_text(code)}; its command line: "
-                                       f"{' '.join(self.worker_cmd)} <address>")
-            if time.monotonic() > deadline:
-                raise RuntimeError(f"vecpool workers {sorted(pending)} did not connect within "
-                                   f"{CONNECT_TIMEOUT_S:g} s; their command line: {' '.join(self.worker_cmd)} "
-                                   "<address>")
-            try:
-                conn = listener.accept()
-            except TimeoutError:
-                continue
-            except (AuthenticationError, EOFError, OSError):
-                time.sleep(POLL_S / 10.0)  # (a listener that fails at once must not spin until the limit)
-                continue
-            try:
-                if not conn.poll(CONNECT_TIMEOUT_S):
-                    raise EOFError
-                _, index, pid, problem = _load(conn.recv_bytes())
-            except (EOFError, OSError):
-                conn.close()  # a child that died between its connection and its hello: found dead above
-                continue
-            w = pending.pop(int(index))
-            w.conn, w.pid = conn, int(pid)
-            if problem is not None:
-                raise RuntimeError(f"{w}: {problem}")
+        lock = threading.Lock()
+        late: list[int] = []  # filled at the limit, by the timer: the workers not connected then (it killed them)
+
+        def at_the_limit() -> None:
+            with lock:
+                late.extend(sorted(pending))
+                for w in pending.values():
+                    w.proc.kill()
+
+        def too_late() -> RuntimeError:
+            return RuntimeError(f"vecpool workers {late or sorted(pending)} did not connect within {limit:g} s; "
+                                f"their command line: {' '.join(self.worker_cmd)} <address>")
+
+        timer = threading.Timer(limit, at_the_limit)
+        timer.daemon = True
+        timer.start()
+        try:
+            while pending:
+                if late or time.monotonic() > deadline:
+                    raise too_late()
+                for w in pending.values():
+                    code = w.proc.poll()
+                    if code is not None:
+                        raise RuntimeError(f"{w} left before it connected: {_exit_text(code)}; its command line: "
+                                           f"{' '.join(self.worker_cmd)} <address>")
+                try:
+                    conn = listener.accept()
+                except TimeoutError:
+                    continue
+                except (AuthenticationError, EOFError, OSError):
+                    time.sleep(POLL_S / 10.0)  # (a listener that fails at once must not spin until the limit)
+                    continue
+                try:
+                    if not conn.poll(max(0.0, deadline - time.monotonic())):
+                        raise EOFError
+                    _, index, pid, problem = _load(conn.recv_bytes())
+                except (EOFError, OSError):
+                    conn.close()  # a child that died between its connection and its hello: found dead above
+                    continue
+                with lock:  # (the timer kills what is pending: a worker is taken or killed, never both)
+                    if late:
+                        conn.close()
+                        raise too_late()
+                    w = pending.pop(int(index))
+                w.conn, w.pid = conn, int(pid)
+                if problem is not None:
+                    raise RuntimeError(f"{w}: {problem}")
+        finally:
+            timer.cancel()
+            timer.join()
 
     # -- the exchange --------------------------------------------------------------------------------------------
 
     def _local(self):
-        """The ``DummyVecEnv`` that does the work with ``workers=0`` (None otherwise); a closed pool refuses."""
-        if self._dummy is not None and self._closed:
-            raise RuntimeError("this PoolVecEnv is closed")
+        """The ``DummyVecEnv`` that does the work with ``workers=0`` (None otherwise); a closed pool refuses, and so
+        does one that an env's exception in ``reset`` or ``step`` has ended."""
+        if self._dummy is not None:
+            self._usable()
         return self._dummy
 
     def _usable(self) -> None:
@@ -637,6 +703,14 @@ class _Pool:
                             "replies; the pool cannot continue (close it and build a new one)")
         if self._broken is not None:
             raise RuntimeError(self._broken)
+
+    def _spent(self, call: str, summary: str) -> None:
+        """An env raised in ``reset`` or ``step``: the pool ends here, at every worker count.  ``DummyVecEnv`` stops
+        at the env that raised and has not touched the envs after it; a pool's other workers have gone through their
+        blocks meanwhile.  What the envs hold now therefore depends on the worker count, and no later call may build
+        on it.  (The workers are in step with the pool: ``close`` still asks them to close their envs.)"""
+        self._broken = (f"an env raised in `{call}` ({summary}); which envs that call has reset or stepped depends on "
+                        "the worker count, so the pool cannot continue (close it and build a new one)")
 
     def _lost(self, w: _Worker) -> RuntimeError:
         try:
@@ -655,10 +729,13 @@ class _Pool:
         except (EOFError, OSError):
             raise self._lost(w) from None
 
-    def _exchange(self, calls: list) -> list:
+    def _exchange(self, calls: list, ends_pool: str | None = None, place=None) -> list:
         """Send each ``(worker, command)`` of ``calls``, then read every reply: the workers run side by side.  The
-        replies' payloads in the order of ``calls``; a worker's exception is raised after all replies are read (the
-        first in worker order), a lost worker at once."""
+        replies' payloads in the order of ``calls``.  A lost worker raises at once.  A worker's exception is raised
+        after all replies are read; of several it is the one ``DummyVecEnv`` would have raised, the first in the
+        caller's order of envs: that is the first in worker order, or, for a per-env command, the one with the
+        smallest ``place(n, at)`` (the place in the caller's list of the env ``at`` of ``calls[n]``'s list).  With
+        ``ends_pool`` (``"reset"`` or ``"step"``) such an exception also ends the pool (``_spent``)."""
         self._usable()
         blobs = [_dump(command) for _, command in calls]  # a command that does not pickle touches no worker
         self._in_flight = True
@@ -669,15 +746,20 @@ class _Pool:
                 raise self._lost(w) from None
         raws = [self._read(w) for w, _ in calls]
         self._in_flight = False
-        out, error = [], None
-        for (w, _), raw in zip(calls, raws):
+        out, errors = [], []
+        for n, ((w, _), raw) in enumerate(zip(calls, raws)):
             ok, payload = _load(raw)
             if ok:
                 out.append(payload)
-            elif error is None:
-                error = _remote_error(w, payload)
-        if error is not None:
-            raise error
+            else:
+                errors.append((n, w, payload))
+        if errors:
+            if place is not None:
+                errors.sort(key=lambda e: place(e[0], e[2][3] or 0))
+            _, w, payload = errors[0]
+            if ends_pool is not None:
+                self._spent(ends_pool, payload[2])
+            raise _remote_error(w, payload)
         return out
 
     def _indices(self, indices) -> list[int]:
@@ -700,7 +782,8 @@ class _Pool:
             k = next(w.index for w in self._workers if w.lo <= i < w.hi)
             by_worker.setdefault(k, []).append((pos, i - self._workers[k].lo))
         order = sorted(by_worker)
-        replies = self._exchange([(self._workers[k], (cmd, ([j for _, j in by_worker[k]], *rest))) for k in order])
+        replies = self._exchange([(self._workers[k], (cmd, ([j for _, j in by_worker[k]], *rest))) for k in order],
+                                 place=lambda n, at: by_worker[order[n]][at][0])
         out = [None] * len(idx)
         for k, reply in zip(order, replies):
             if reply is not None:
@@ -716,9 +799,13 @@ class _Pool:
 
     def reset(self):
         if self._local() is not None:
-            return self._dummy.reset()
+            try:
+                return self._dummy.reset()
+            except Exception as exc:
+                self._spent("reset", f"{type(exc).__name__}: {exc}")
+                raise
         parts = self._exchange([(w, ("reset", (self._seeds[w.lo:w.hi], self._options[w.lo:w.hi])))
-                                for w in self._workers])
+                                for w in self._workers], ends_pool="reset")
         for w, (_, infos) in zip(self._workers, parts):
             for j, info in enumerate(infos):
                 self.reset_infos[w.lo + j] = info
@@ -733,9 +820,14 @@ class _Pool:
             self._dummy.step_async(actions)
 
     def step_wait(self):
+        actions = self.actions  # (before any ``step_async``: an AttributeError that no env has seen, at every W)
         if self._local() is not None:
-            return self._dummy.step_wait()
-        parts = self._exchange([(w, ("step", self.actions[w.lo:w.hi])) for w in self._workers])
+            try:
+                return self._dummy.step_wait()
+            except Exception as exc:
+                self._spent("step", f"{type(exc).__name__}: {exc}")
+                raise
+        parts = self._exchange([(w, ("step", actions[w.lo:w.hi])) for w in self._workers], ends_pool="step")
         for w, part in zip(self._workers, parts):
             for j, info in part[4].items():
                 self.reset_infos[w.lo + j] = info
@@ -804,7 +896,7 @@ class _Pool:
         if self._dummy is not None:
             self._dummy.close()
             return
-        if self._broken is None and not self._in_flight:
+        if not self._in_flight:  # every worker is there and in step with the pool (also after ``_spent``)
             blob = _dump(("close", None))
             for w in self._workers:
                 try:
@@ -851,9 +943,10 @@ def main(argv=None) -> int:
     return worker_main(args.worker)
 
 
-__all__ = ["AUTHKEY_VAR", "INDEX_VAR", "PoolVecEnv", "THREAD_VARS", "blocks", "child_env", "default_worker_cmd",
-           "environment_problem", "listening_socket", "main", "make_env", "pack_specs", "resolve", "study_dir",
-           "worker_main"]
+# (``PoolVecEnv`` is made by ``__getattr__`` above, on first access)
+__all__ = ["AUTHKEY_VAR", "INDEX_VAR", "PoolVecEnv", "THREAD_VARS", "blocks", "child_env",  # noqa: F822
+           "default_worker_cmd", "environment_problem", "listening_socket", "main", "make_env", "pack_specs",
+           "resolve", "study_dir", "worker_main"]
 
 if __name__ == "__main__":
     from designlab.stage2 import vecpool as _named  # the importable copy owns every class and all module state
