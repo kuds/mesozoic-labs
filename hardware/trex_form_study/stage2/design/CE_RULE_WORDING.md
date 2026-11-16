@@ -90,8 +90,8 @@ If the lead would rather have the heading penalty score a playback 0 in walking 
 
 ### 2b. The check
 
-**Old** (W2): "Check: `settings.env_configs[].reward` and the env description's `reward_scales` in every `run.json` equal
-this table."
+**Old** (W2): "Check: `settings.env_configs[].reward` and the env description's `reward_scales` in every `run.json`
+equal this table."
 
 **New**: "Check: `settings.env_configs[].reward` and the env description's `reward_scales` in every `run.json` equal
 this table, and the env description's `reward_rule` is the text of `r5core.REWARD_RULE` at the run's commit, which
