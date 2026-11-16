@@ -1132,25 +1132,33 @@ sheet gives the expected minutes of each item.
 | Y9 | an archive that loads here | the smoke's checkpoint tar, downloaded by the lead | the loader reproduces its fingerprint within 1e-5 in the study's venv |
 
 **Y10.** [NEW; lead, 15 Nov, before any Track B run: accepted as drafted; settled 15 Nov, before any Track B run: a
-pointer to Y11] `SMOKE.json` is written after Y7 and again after Y8. The smoke passes when Y1, Y3, Y4, Y6 and Y9 pass.
-Until it passes no training job is queued. [settled 15 Nov, before any Track B run] Y4 fails under 15,000,000 steps, and
-no job is then queued until the owner has set the budget (Y11). Check: `runs/<run_id>/smoke/SMOKE.json`;
-`stage2/tb/validation/colab_archive.json`.
+pointer to Y11; settled 16 Nov 2026, before any Track B run: when the smoke passes] `SMOKE.json` is written after Y7 and
+again after Y8. The smoke passes when Y1, Y3, Y6 and Y9 pass and Y4 passes or has been answered by the owner's budget
+(`QUEUE.json` `budget_by: owner`, with the date) [settled 16 Nov 2026, before any Track B run: this sentence, in place
+of the committed sentence "The smoke passes when Y1, Y3, Y4, Y6 and Y9 pass."; it changes ruling 12 of the first list in
+this rule's list of items]. Until it passes no training job is queued. [settled 15 Nov, before any Track B run] Y4 fails
+under 15,000,000 steps, and no job is then queued until the owner has set the budget (Y11). Check:
+`runs/<run_id>/smoke/SMOKE.json`; `stage2/tb/validation/colab_archive.json`; where Y4 failed, `QUEUE.json` `budget_by`
+(`owner`, with the date).
 
 **Y11. The budget (S2-8).** [plan section 6, as stated, with its "about 560 env steps/s" made exact;
-settled 15 Nov, before any Track B run: which smoke fixes the budget, and a rate under the floor]
+settled 15 Nov, before any Track B run: which smoke fixes the budget, and a rate under the floor;
+settled 16 Nov 2026, before any Track B run: the floor written as an inequality]
 [settled 15 Nov, before any Track B run] Fixed once for every Colab R5 and R6 run, from Y4's rate r in the first smoke
 session that records Y4 on the runtime type the launches use; every `SMOKE.json` is kept, and a later smoke changes the
 budget only by an amendment labelled with its reason. The budget is 40,000,000 env steps if `r x 72,000 >= 40,000,000`
-(r at least 555.56 env steps/s), else `r x 72,000` rounded down to a multiple of 5,000,000. Under 15,000,000 (r under
-208.34) Y4 fails and no job is queued until the owner has set the budget, recorded in `QUEUE.json` `budget_by`.
+(r at least 555.56 env steps/s), else `r x 72,000` rounded down to a multiple of 5,000,000. Under 15,000,000
+(`r x 72,000 < 15,000,000`) Y4 fails and no job is queued until the owner has set the budget, recorded in `QUEUE.json`
+`budget_by` [settled 16 Nov 2026, before any Track B run: "(`r x 72,000 < 15,000,000`)", the floor as the inequality
+alone, in place of a parenthesis that gave a rounded rate].
 
 That paragraph stands in place of this rule's first sentence as committed: "Fixed once after the smoke for every run:
 40,000,000 env steps, or, if Y4's rate r cannot reach that in 20 h (r under about 556 env steps/s; exactly, `r x 72,000
-< 40,000,000`, r under 555.56), `r x 72,000` rounded down to a multiple of 5,000,000; never under 15,000,000 (r under
-208.33) without the owner." Asked steps are run in whole rollouts. Runtime-hours per run (steps over rate, plus setup)
-are tabled per runtime type. Check: `QUEUE.json` `budget_steps`, `budget_by`; every `SMOKE.json` (`rate`, `budget`), the
-first that records Y4 on the launches' runtime type being the one the budget rests on.
+< 40,000,000`, r under 555.56), `r x 72,000` rounded down to a multiple of 5,000,000; never under 15,000,000 (...)
+without the owner." The parenthesis left out of this quotation gave a rounded rate; by the ruling of 16 Nov 2026 the
+floor is the inequality alone. Asked steps are run in whole rollouts. Runtime-hours per run (steps over rate, plus
+setup) are tabled per runtime type. Check: `QUEUE.json` `budget_steps`, `budget_by`; every `SMOKE.json` (`rate`,
+`budget`), the first that records Y4 on the launches' runtime type being the one the budget rests on.
 
 ## N. The notebook and the bundle
 
@@ -1199,14 +1207,17 @@ kill point, the sessions).
 
 **X1. Development and check episodes.** [`STAGE2_75_PLAN.md` rule R4 as settled; NEW for the look sets;
 settled 15 Nov, before any Track B run: the reading of rule R4, two checks on the view `S1`, episodes after S2-4's
-start, R2L's fits; differs: rule R4's wording; differs: plan section 7's order] Until task 3's first unit of the 75 cm
-round has run, no R2-mode, policy or training episode runs on V0, F25F9 or F25F9cl; the build's tests and acceptances
-use Stage 1's own run directory (the read-only view `S1`) or a synthetic set in a temporary directory. On a look set,
-for each body and head: no closed-loop episode before G9-ref passed; between G9-ref and S2-4's start only these: Z1's
-episodes, R0L's baseline and panel records, Z2's G9-run, the probes of O2-O4 (zero action, noise, freshly initialised
-policies), the rate measurement, K3's two runs, the acceptance run's tiny jobs, and R2L's fits (section Q; added by the
-lead, below). None but Z1's, R0L's and Z2's, and the fits', is a record; each is listed in `stage2/tb/dev_episodes.json`
-with its command, set, body, rows or mode, and count.
+start, R2L's fits; settled 16 Nov 2026, before any Track B run: the first sentence lifted for the frozen 75 cm sets;
+differs: rule R4's wording; differs: plan section 7's order] Until task 3's first unit of the 75 cm round has run, no
+R2-mode, policy or training episode runs on V0, F25F9 or F25F9cl (lifted for the frozen 75 cm sets on 16 Nov 2026, after
+the panels) [settled 16 Nov 2026, before any Track B run: "(lifted for the frozen 75 cm sets on 16 Nov 2026, after the
+panels)"; the lead's amendment 13 of `STAGE2_75_PLAN.md` records it there]; the build's tests and acceptances use Stage
+1's own run directory (the read-only view `S1`) or a synthetic set in a temporary directory. On a look set, for each
+body and head: no closed-loop episode before G9-ref passed; between G9-ref and S2-4's start only these: Z1's episodes,
+R0L's baseline and panel records, Z2's G9-run, the probes of O2-O4 (zero action, noise, freshly initialised policies),
+the rate measurement, K3's two runs, the acceptance run's tiny jobs, and R2L's fits (section Q; added by the lead,
+below). None but Z1's, R0L's and Z2's, and the fits', is a record; each is listed in `stage2/tb/dev_episodes.json` with
+its command, set, body, rows or mode, and count.
 
 [settled 15 Nov, before any Track B run; differs: rule R4's wording] `STAGE2_75_PLAN.md` rule R4's "a Stage 2 set" means
 the 75 cm round's three sets (V0, F25F9, F25F9cl); rule R4 is the 75 cm round's own by S2-16.
