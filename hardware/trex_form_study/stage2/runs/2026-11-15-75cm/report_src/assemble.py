@@ -72,7 +72,12 @@ def add_table(title_start, which=0):
             blocks.append(cur); cur = []
     if cur:
         blocks.append(cur)
-    return '\n'.join(blocks[which])
+    words = {'add-on A1': "new: the owner's delays", 'add-on A2': "new: the lead's addition", 'add-on A3': "new: the lead's addition"}
+    out = '\n'.join(blocks[which])
+    for k_, v_ in words.items():   # the unit names A1 to A3 would collide with the limit "A1" of the cells
+        out = out.replace(f'| {k_} |', f'| {v_} |')
+    assert 'add-on' not in out
+    return out
 fill['ADDON_FAST'] = add_table('## 1.')
 fill['ADDON_SLOW'] = add_table('## 2.')
 fill['ADDON_PATTERN_FAST'] = addj['pattern_fast']['sentence']
