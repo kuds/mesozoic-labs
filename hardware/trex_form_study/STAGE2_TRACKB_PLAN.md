@@ -131,21 +131,34 @@ record (`sessions[].commit`, or `commit` in a gate's, a probe's or a fit's recor
   and its files were not read.
 - When the fifth list was settled, later on 16 Nov 2026 (`stage2/design/TRACKB_RULINGS5_16NOV.md`: rulings 1 to 4 and
   the confirmations at 16:28 UTC, ruling 5 at 18:21 UTC, ruling 6 at 19:01 UTC): no Track B run, fit or training run had
-  been made and no look set was frozen, as that list states. Rulings 5 and 6 came from the reviews of two built
-  packages, the look reading and the trainer. What those packages' builders, reviewers and fixers had run by then is in
-  their reports (`stage2/design/checkpoint/reviews/roundC__{build,review,fix}_CK.md` and
-  `roundC__{build,review,fix}_CT.md`): none of it is a record, and none is a closed-loop episode or a training run on a
-  Stage 2 set. For the look reading: its tests; synthetic series; kinematic playbacks of the look ladder's rungs, of
-  items of the three frozen 75 cm sets and, read only, of the look work package's unfrozen builds; and closed-loop
-  episodes on the view `S1` alone (Stage 1's `walk/brisk` of `75-M-H-10`, seed 3042, under row `R0` and, once, under row
-  `R2/42`). The probe behind ruling 5 is that review's, on synthetic series: a tail of 1e-4 rad noise against a 0.12 rad
-  reference passed the tail term in 40 of 200 draws. For the trainer: its tests on a stub env; kills and resumes at
-  random moments on the stub; and tiny runs of 4,096 steps of R5 and of R6 on the view `S1`, also killed and resumed,
-  with the monitor's stand-in episodes on that view. Those tiny runs are training runs of the tooling on Stage 1's stock
-  references, the view on which X1 has the build's tests and acceptances run. When the wording was written in (from
-  19:04 UTC), the working branch (at `ffecc2c`) held no look set, and its `stage2/tb/` directory held one ignore file
-  and no record; branch `wt/wp-l` (at `de96fc0`) held no look set's `set.json` in its commit, and that package's
-  worktree was not read. The writing-in was made with no episode, fit, training run, dry run or test.
+  been made on a Stage 2 set and no look set was frozen. That list states it without the words "on a Stage 2 set"; they
+  are added here because the trainer's tiny runs on the view `S1`, named below, are training runs of the tooling.
+  Rulings 5 and 6 came from the reviews of two built packages, the look reading and the trainer. What those packages'
+  builders, reviewers and fixers had run by then is in their reports
+  (`stage2/design/checkpoint/reviews/roundC__{build,review,fix}_CK.md` and `roundC__{build,review,fix}_CT.md`): none of
+  it is a record, and none is a closed-loop episode or a training run on a Stage 2 set. For the look reading: its tests;
+  synthetic series; kinematic playbacks of the look ladder's rungs, of items of the three frozen 75 cm sets and, read
+  only, of the look work package's unfrozen builds; and closed-loop episodes on the view `S1` alone (Stage 1's
+  `walk/brisk` of `75-M-H-10`, seed 3042, under row `R0` and, once, under row `R2/42`). The probe behind ruling 5 is
+  that review's, on synthetic series: a tail of 1e-4 rad noise against a 0.12 rad reference passed the tail term in 40
+  of 200 draws. For the trainer: its tests on a stub env; kills and resumes at random moments on the stub; and tiny runs
+  of 4,096 steps of R5 and of R6 on the view `S1`, also killed and resumed, with the monitor's stand-in episodes on that
+  view. Those tiny runs are training runs of the tooling on Stage 1's stock references, the view on which X1 has the
+  build's tests and acceptances run. When the wording was written in (from 19:04 UTC), the working branch (at `ffecc2c`)
+  held no look set, and its `stage2/tb/` directory held one ignore file and no record; branch `wt/wp-l` held no look
+  set's `set.json` at `de96fc0`, the head that the writing-in named, and that package's worktree was not read. At
+  19:15:57 UTC, while the writing-in was being committed (its commits run from 19:14 to 19:20 UTC), the look work
+  package committed `33652cb` on that branch: set `V6` of `75-M-H-10`, built and screened by prescribed motion, with "no
+  episode of any kind" by its commit message. That set's `set.json` has `freezes` empty and records the set as blocked
+  by its `start` (`blocked.by`; `not_available.start.reason` is "no transition within the gates"). No look set was
+  frozen. Ruling 4 of the fifth list, on L12's "that body's other look sets", was given at 16:28 UTC, before that commit
+  [corrected after the independent review of this writing-in, which found the commit: the clause read "branch `wt/wp-l`
+  (at `de96fc0`) held no look set's `set.json` in its commit, and that package's worktree was not read"; the fix round
+  after the review read that commit's `set.json` for the three keys named here, to check the finding, and no rule's
+  wording rests on it]. The writing-in was made with no episode, fit, training run, dry run or test. Its independent
+  review ran none of these either: it made one probe of the look reading's tail fit and comparison on synthetic numbers
+  (pure functions; no model, no episode, no record). The fix round after it ran that probe once more and, beside it,
+  only git, text tools and the line that prints the two record-key hashes.
 - Scratch experiments of 15 Nov on Stage 1's own run directory (`stage1/runs/2026-11-08`: stock references, no Stage 2
   set), by the architect and by the three reviewers of the design, on a stub env (Stage 1's env with the open-loop base
   in place of the tracker; Stage 1's observation and reward), one to six episodes per setting. They are scratch: none is
