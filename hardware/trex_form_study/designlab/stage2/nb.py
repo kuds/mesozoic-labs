@@ -139,7 +139,7 @@ PARAMS = dict(REPO_REF="", RUN_ID="", QUEUE=[], BUNDLE_ID="", BUNDLE_SOURCE="dri
 #: adds on its way (``IN_COLAB``, ``SETUP_STARTED``, ``SETUP_RECORD``, the two directories).
 EXTRA = dict(SET="V6", TINY=False, DRIVE_DIR=None, LOCAL_DIR=None, MONITOR_EVERY=None, MONITOR_ALSO_K=[],
              PERIOD_S=None, BUDGET_BY=None, BUDGET_SET_ON=None, PREFLIGHT_BODIES=None, RETRY_CHECK=False, LR=None,
-             CONFIG=None, IN_COLAB=False, SETUP_STARTED=None, SETUP_RECORD=None, STUDY_DIR=None)
+             CONFIG=None, IN_COLAB=False, SETUP_STARTED=None, SETUP_RECORD=None, STUDY_DIR=None, COPY_PAUSE_S=None)
 
 #: Where the inputs are verified and unpacked: None is the study directory (a test's value is a scratch tree).
 ROOT = None
@@ -360,14 +360,17 @@ def sweep_parts(root) -> list:
     return sorted(out)
 
 
-def _copy_file(src: Path, dst: Path) -> None:
-    """``src`` to ``dst`` through ``<dst>.part`` and a rename."""
+def _copy_file(src: Path, dst: Path, pause: float = 0.0) -> None:
+    """``src`` to ``dst`` through ``<dst>.part`` and a rename.  ``pause``: seconds the part is left standing before
+    the rename (``COPY_PAUSE_S``: the acceptance run ends a launcher while a copy is in progress)."""
     dst.parent.mkdir(parents=True, exist_ok=True)
     tmp = _part(dst)
     try:
         with open(src, "rb") as a, open(tmp, "wb") as b:
             shutil.copyfileobj(a, b, 1 << 20)
             _fsync(b)
+        if pause:
+            time.sleep(pause)
         os.replace(tmp, dst)
     except BaseException:
         _unlink(tmp)
@@ -1659,6 +1662,7 @@ class _Launcher:
         self.jobs = parse_queue(q["queue"])
         self.workers, self.clips, self.period = int(workers), bool(clips), float(period)
         self.params = self.sess.get("params") or {}
+        self.pause = float(self.params.get("COPY_PAUSE_S") or 0.0)
         self.mine = {r["job"]: dict(state=None, retries=0, last_error=None, exit_codes=[], clip=None,
                                     last_checkpoint_copied=None, drive_errors=0) for r in self.jobs}
         self.copied: dict = {r["job"]: {} for r in self.jobs}   # job -> {steps: the cycle it was copied in}
@@ -1787,7 +1791,7 @@ class _Launcher:
         try:
             for e in rec["files"].values():  # the three binaries, each as <name>.part and renamed
                 self.fence()
-                _copy_file(src.parent / e["name"], dst.parent / e["name"])
+                _copy_file(src.parent / e["name"], dst.parent / e["name"], self.pause)
             self.fence()
             _copy_file(src, dst)             # the record, last
         except FileNotFoundError:            # (rule K2's local keep deleted it while it was being copied)
@@ -2878,7 +2882,7 @@ def _drill_checks(drill: dict, params: dict) -> dict:
     at = drill["attempts"]
     a, b, c, e = at["session0"], at["refused_live"], at["session1"], at["refused_finished"]
     jobs = parse_queue(params["QUEUE"])
-    bodies = list(dict.fromkeys(r["body"] for r in jobs))
+    bodies = list(dict.fromkeys([r["body"] for r in jobs] + list(params.get("PREFLIGHT_BODIES") or [])))
     status, done = _read_json(d / "STATUS.json") or {}, _read_json(d / "DONE.json") or {}
     s0, s1 = _read_json(d / "SESSION_0.json") or {}, _read_json(d / "SESSION_1.json") or {}
     runs = {r["job"]: _read_json(d / "jobs" / r["job"] / "run.json") or {} for r in jobs}
@@ -3016,8 +3020,8 @@ def acceptance(notebook, ref, parts_dir, scratch, record) -> dict:
     clones = {0: clone(1)}
     p = load_params(dict(
         RUN_ID="acceptance", QUEUE=["R5:75-M-H-10:42", "R6:75-M-H-10:42"], SET="V6", TINY=True, WORKERS=2, CLIPS=True,
-        PERIOD_S=2.0, REPO_REF=ref, BUNDLE_ID=bundle_id, BUNDLE_SOURCE="drive", USE_GOOGLE_DRIVE=False,
-        AUTO_DISCONNECT=False, DRIVE_DIR=str(drive), LOCAL_DIR=str(scratch / "local"),
+        PERIOD_S=2.0, COPY_PAUSE_S=0.5, REPO_REF=ref, BUNDLE_ID=bundle_id, BUNDLE_SOURCE="drive",
+        USE_GOOGLE_DRIVE=False, AUTO_DISCONNECT=False, DRIVE_DIR=str(drive), LOCAL_DIR=str(scratch / "local"),
         PREFLIGHT_BODIES=list(content.get("bodies") or [])))
     d, _, _ = run_dirs(p["RUN_ID"], p["DRIVE_DIR"], p["LOCAL_DIR"])
     first = parse_queue(p["QUEUE"])[0]["job"]
@@ -3057,7 +3061,8 @@ def acceptance(notebook, ref, parts_dir, scratch, record) -> dict:
         part_swept=bool((_read_json(d / "SESSION_1.json") or {}).get("swept_parts")),
         content_hash=bool(m2) and m2.group("manifest") == str(manifest.get("content_sha256"))[:12]
         and m2.group("bundle") == bundle_id and m2.group("ok") == m2.group("n") == str(len(content.get("files") or {})),
-        g8a_every_body=len(at["session1"]["lines"][3]) == len(p["PREFLIGHT_BODIES"]),
+        g8a_every_body={LINE_RE[3].match(x).group("body") for x in at["session1"]["lines"][3]} >= set(
+            p["PREFLIGHT_BODIES"]),
         monitor_six_judged=len((mon or {}).get("episodes") or []) == 6,
         gain_recorded=any(isinstance(e.get("gain"), dict) for e in run5.get("monitor") or []),
         g8b_read=(run5.get("gates") or {}).get("g8b") is not None,

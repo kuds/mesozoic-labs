@@ -985,6 +985,77 @@ def test_a_killed_launcher_is_resumed_from_the_stand_in_drive(tmp_path, stubs, m
     assert [s["session"] for s in rec["runs"]["r1"]["sessions"]] == [0, 1]
 
 
+def test_a_launcher_killed_while_a_copy_is_in_progress(tmp_path, stubs, monkeypatch):
+    """The acceptance run's kill point (design 3.10 step 4): a ``.part`` file exists on the stand-in Drive.  The
+    cut checkpoint has no record there; the resume sweeps the part and goes on from what Drive holds whole."""
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.05, budget=512 * 400)}))
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], COPY_PAUSE_S=0.4)
+    _session(p)
+    d = tmp_path / "drive" / "runs" / "r1"
+    ck = d / "jobs" / "R5-B1-s42" / "checkpoints"
+    pfile = tmp_path / "p.json"
+    pfile.write_text(json.dumps(p))
+    proc = subprocess.Popen([sys.executable, "-m", "designlab.stage2.nb", "launch", "--params", str(pfile)], cwd=STUDY,
+                            env=dict(os.environ, PYTHONPATH="."), stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT,
+                            start_new_session=True)
+    try:
+        deadline = time.time() + 60
+        while time.time() < deadline and not (ck.is_dir() and list(ck.glob("*.part"))):
+            assert proc.poll() is None
+            time.sleep(0.005)
+    finally:
+        nb.kill_session(proc.pid)
+        proc.wait()
+    parts = sorted(x.name for x in ck.glob("*.part"))
+    assert len(parts) == 1, parts
+    cut = int("".join(c for c in parts[0] if c.isdigit()))
+    assert not (ck / f"checkpoint_{cut}.json").exists()                           # the record is written last
+    whole = sorted(int(x.name[11:-5]) for x in ck.glob("checkpoint_*.json"))
+    shutil.rmtree(tmp_path / "local" / "r1")
+    s1 = _session(dict(p, COPY_PAUSE_S=None), RESUME=True, TAKEOVER=True)
+    assert s1["swept_parts"] == [f"jobs/R5-B1-s42/checkpoints/{parts[0]}"] and not list(d.rglob("*.part"))
+    assert int(nb.LINE_RE["resume"].match(s1["line"]).group("steps")) == max(whole, default=0)
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.0, budget=512 * 400)}))
+    assert _launch(dict(p, COPY_PAUSE_S=None))["state"] == "done"
+    run = json.loads((d / "jobs" / "R5-B1-s42" / "run.json").read_text())
+    assert run["status"] == "done" and run["sessions"][-1]["resumed_from"] == (max(whole) if whole else None)
+    assert all(_reads_back(d / "jobs" / "R5-B1-s42", n) for n in sorted(int(x.name[11:-5]) for x in ck.glob("checkpoint_*.json")))
+
+
+def test_an_interrupted_launcher_leaves_the_run_resumable(tmp_path, stubs, monkeypatch, capsys):
+    """SIGTERM to the launcher alone (an interrupted cell): it ends its job, writes no HALT.json and closes
+    LIVE.json, so the run is resumed at once and without TAKEOVER."""
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.05, budget=512 * 400)}))
+    p = _params(tmp_path, QUEUE=["R5:B1:42"])
+    _session(p)
+    d = tmp_path / "drive" / "runs" / "r1"
+    pfile = tmp_path / "p.json"
+    pfile.write_text(json.dumps(p))
+    proc = subprocess.Popen([sys.executable, "-m", "designlab.stage2.nb", "launch", "--params", str(pfile)], cwd=STUDY,
+                            env=dict(os.environ, PYTHONPATH="."), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            text=True, start_new_session=True)
+    try:
+        deadline = time.time() + 60
+        while time.time() < deadline and not list((d / "jobs" / "R5-B1-s42").glob("checkpoints/checkpoint_*.json")):
+            assert proc.poll() is None
+            time.sleep(0.02)
+        pid = json.loads((d / "jobs" / "R5-B1-s42" / "progress.json").read_text())["pid"]
+        proc.terminate()
+        out = proc.communicate(timeout=60)[0]
+    finally:
+        nb.kill_session(proc.pid)
+    assert proc.returncode == nb.EXIT_INTERRUPTED and "interrupted by signal 15" in out and not nb._alive(pid)
+    assert not (d / "HALT.json").exists() and not (d / "DONE.json").exists()
+    live = json.loads((d / "LIVE.json").read_text())
+    assert live["closed_reason"] == "interrupted by signal 15" and json.loads((d / "STATUS.json").read_text())["state"] == "running"
+    assert nb.finish("r1", p["DRIVE_DIR"], p["LOCAL_DIR"])["state"] == "unfinished"
+    s1 = _session(p, RESUME=True)                                                 # at once, and without TAKEOVER
+    assert s1["session"] == 1 and s1["took_over"] is None
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.0, budget=512 * 400)}))
+    capsys.readouterr()
+    assert _launch(p)["state"] == "done" and "started with --resume" in capsys.readouterr().out
+
+
 # ------------------------------------------------------------------------------------------------
 # inputs and preflight
 # ------------------------------------------------------------------------------------------------
@@ -1000,25 +1071,34 @@ def _tar(path: Path, root: Path, members: list) -> None:
                 tar.addfile(info, fh)
 
 
-def _bundle(tmp_path, bundle_id="tb-test") -> dict:
-    """A bundle of one body's two model files, made by hand under a scratch root: ``{root, drive, manifest}``."""
+def _bundle(tmp_path, bundle_id="tb-test", with_set=False) -> dict:
+    """A bundle of one body's two model files (and, ``with_set``, of two arrays of a set ``SX``), made by hand
+    under a scratch root: ``{root, drive, manifest, parts, src}``."""
     s2io = pytest.importorskip("designlab.stage2.s2io")
     src, root, drive = tmp_path / "src", tmp_path / "root", tmp_path / "drive"
-    files = {}
-    for name, data in (("round2/refine/case1/models/m1.xml", b"<mujoco/>" * 40), ("round2/refine/case1/models/m1.json", b"{}")):
+    files, sets, part_docs = {}, {}, {}
+    rows = [("round2/refine/case1/models/m1.xml", b"<mujoco/>" * 40, "models-B1.tar"),
+            ("round2/refine/case1/models/m1.json", b"{}", "models-B1.tar")]
+    if with_set:
+        rows += [("stage2/sets/SX/B1/refs/a.npz", b"walk " * 300, "SX-B1-1.tar"),
+                 ("stage2/sets/SX/B1/transitions/b.npz", b"move " * 200, "SX-B1-1.tar")]
+        sets = dict(SX=dict(B1=dict(freeze_index=0, manifest_sha256="5" * 64, files=2)))
+    for name, data, part in rows:
         (src / name).parent.mkdir(parents=True, exist_ok=True)
         (src / name).write_bytes(data)
-        files[name] = dict(sha256=hashlib.sha256(data).hexdigest(), bytes=len(data), part="models-B1.tar")
+        files[name] = dict(sha256=hashlib.sha256(data).hexdigest(), bytes=len(data), part=part)
     parts = drive / "inputs" / bundle_id
     parts.mkdir(parents=True)
-    _tar(parts / "models-B1.tar", src, list(files))
-    blob = (parts / "models-B1.tar").read_bytes()
-    content = dict(bundle_id=bundle_id, bodies=["B1"], sets={}, files=files,
+    for part in sorted({r[2] for r in rows}):
+        _tar(parts / part, src, [r[0] for r in rows if r[2] == part])
+        blob = (parts / part).read_bytes()
+        part_docs[part] = dict(sha256=hashlib.sha256(blob).hexdigest(), bytes=len(blob), files=2)
+    content = dict(bundle_id=bundle_id, bodies=["B1"], sets=sets, files=files,
                    models=dict(B1=dict(case="case1", xml=dict(path="round2/refine/case1/models/m1.xml",
                                                               sha256=files["round2/refine/case1/models/m1.xml"]["sha256"]),
                                        record=dict(path="round2/refine/case1/models/m1.json",
                                                    sha256=files["round2/refine/case1/models/m1.json"]["sha256"]))),
-                   parts={"models-B1.tar": dict(sha256=hashlib.sha256(blob).hexdigest(), bytes=len(blob), files=2)})
+                   parts=part_docs)
     doc = dict(schema="s2-bundle-2", content=content, content_sha256=s2io.sha256_json(content), provenance={})
     mpath = root / nb.BUNDLE_DIR / bundle_id / "MANIFEST.json"
     mpath.parent.mkdir(parents=True)
@@ -1064,6 +1144,89 @@ def test_inputs_verify_and_unpack_the_bundle(tmp_path, monkeypatch, capsys):
     ok.write_text(json.dumps(dict(allowed=True, content_sha256=sha)))
     res = nb.inputs("tb-test", b["drive"], "rebuild", local=tmp_path / "l2")
     assert res["ok"] and res["source"] == "rebuild", res                          # (a bundle of models: nothing to build)
+
+
+STUB_REBUILD = r'''
+import json, os, shutil, sys
+a = dict(zip(sys.argv[1::2], sys.argv[2::2]))
+plan = json.loads(os.environ["STUB_REBUILD"])
+open(plan["log"], "a").write(a["--set"] + " " + a["--body"] + "\n")
+src = os.path.join(plan["src"], "stage2", "sets", a["--set"], a["--body"])
+for base, _, names in os.walk(src):
+    for name in names:
+        dst = os.path.join(a["--root"], a["--set"], a["--body"], os.path.relpath(os.path.join(base, name), src))
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.copyfile(os.path.join(base, name), dst)
+        if plan.get("wrong"):
+            open(dst, "ab").write(b"x")
+'''
+STUB_CHILD = r'''
+import json, sys
+what, args = sys.argv[1], dict(zip(sys.argv[2::2], sys.argv[3::2]))
+assert what == "read-inputs"
+print(json.dumps(dict(ok=True, files=len(json.loads(args["--files"])), table_sha256="0" * 64)))
+'''
+
+
+def test_the_rebuild_fallback_and_rule_y8(tmp_path, stubs, monkeypatch, capsys):
+    """Rule N4's second fallback: allowed only after rule Y8 found every hash equal; the arrays a verified rebuild
+    made are kept on the stand-in Drive and reused; a rebuild whose bytes differ is refused."""
+    b = _bundle(tmp_path, with_set=True)
+    (stubs / "rebuild.py").write_text(STUB_REBUILD)
+    (stubs / "child.py").write_text(STUB_CHILD)
+    seams = json.loads((stubs / "seams.json").read_text())
+    seams.update(rebuild=[sys.executable, str(stubs / "rebuild.py")], child=[sys.executable, str(stubs / "child.py")])
+    (stubs / "seams.json").write_text(json.dumps(seams))
+    log = tmp_path / "rebuild.log"
+    plan = dict(src=str(b["src"]), log=str(log))
+    monkeypatch.setenv("STUB_REBUILD", json.dumps(plan))
+    monkeypatch.setattr(nb, "ROOT", b["root"])
+    full = nb.inputs("tb-test", b["drive"], local=tmp_path / "local")            # the smoke's own inputs: every part
+    assert full["ok"] and full["files"] == 4 and full["sets"] == dict(SX=dict(B1=True)), full
+    p = nb.load_params(dict(BUNDLE_ID="tb-test"))
+    work = tmp_path / "work"
+    (work / "logs").mkdir(parents=True)
+    cache = nb.rebuilt_dir(b["drive"], "tb-test")
+    # a rebuild with other bytes: every file compared, none equal: no permission, nothing kept
+    monkeypatch.setenv("STUB_REBUILD", json.dumps(dict(plan, wrong=True)))
+    y8 = nb._smoke_rebuild(p, "B1", work, b["drive"], "smoke-1")
+    assert (y8["compared"], y8["equal"], y8["total"], y8["allowed"]) == (2, 0, 2, False) and not cache.exists()
+    # the same bytes: allowed; the arrays and REBUILD_OK.json go to the stand-in Drive
+    monkeypatch.setenv("STUB_REBUILD", json.dumps(plan))
+    shutil.rmtree(work / "rebuild")
+    y8 = nb._smoke_rebuild(p, "B1", work, b["drive"], "smoke-1")
+    assert (y8["compared"], y8["equal"], y8["total"], y8["models_equal"]) == (2, 2, 2, 2) and y8["allowed"] and y8["finished"]
+    assert "the rebuild is an allowed fallback" in y8["value"] and "2 of 2 arrays of B1 compared, 2 equal" in y8["value"]
+    ok = json.loads((cache / "REBUILD_OK.json").read_text())
+    assert ok["allowed"] and ok["content_sha256"] == b["manifest"]["content_sha256"] and ok["smoke_run_id"] == "smoke-1"
+    assert (cache / "stage2/sets/SX/B1/refs/a.npz").read_bytes() == b"walk " * 300
+    # a launch on a new runtime with only the model part on Drive: the arrays come from the kept rebuild, nothing is built
+    (b["parts"] / "SX-B1-1.tar").unlink()
+    calls = len(log.read_text().splitlines())
+
+    def fresh(name):
+        root = tmp_path / name
+        shutil.copytree(b["root"] / nb.BUNDLE_DIR, root / nb.BUNDLE_DIR)
+        monkeypatch.setattr(nb, "ROOT", root)
+        return root
+
+    root = fresh("root2")
+    assert "FAILED (SX-B1-1.tar: missing" in nb.inputs("tb-test", b["drive"], local=tmp_path / "l2")["line"]
+    res = nb.inputs("tb-test", b["drive"], "rebuild", local=tmp_path / "l2")
+    assert res["ok"] and res["files_ok"] == 4 and len(log.read_text().splitlines()) == calls, res
+    assert (root / "stage2/sets/SX/B1/transitions/b.npz").read_bytes() == b"move " * 200
+    # without the kept arrays they are built again, verified, and kept for the next launch
+    shutil.rmtree(cache / "stage2")
+    root = fresh("root3")
+    res = nb.inputs("tb-test", b["drive"], "rebuild", local=tmp_path / "l3")
+    assert res["ok"] and log.read_text().splitlines()[calls:] == ["SX B1"] and (cache / "stage2/sets/SX/B1/refs/a.npz").is_file()
+    # a rebuild that gives other bytes is refused, and is not kept
+    shutil.rmtree(cache / "stage2")
+    monkeypatch.setenv("STUB_REBUILD", json.dumps(dict(plan, wrong=True)))
+    root = fresh("root4")
+    bad = nb.inputs("tb-test", b["drive"], "rebuild", local=tmp_path / "l4")
+    assert not bad["ok"] and "FAILED (stage2/sets/SX/B1/refs/a.npz:" in bad["line"] and bad["files_ok"] == 2
+    assert not (cache / "stage2").exists()
 
 
 @needs_git
@@ -1378,6 +1541,14 @@ def test_the_command_line(tmp_path, stubs):
     assert ok.returncode == 0 and nb.LINE_RE["new"].match(ok.stdout.strip().splitlines()[-1]), ok.stdout + ok.stderr
     again = run("session", "--params", str(pfile), "--set-param", f'REPO_REF="{head}"', "--set-param", "RESUME=true")
     assert again.returncode == nb.EXIT_REFUSED and nb.LINE_RE["live"].match(again.stdout.strip())   # the line itself
+    # a step that fails before any job could start closes the session: the next resume is not held back ten minutes
+    bad = run("inputs", "--params", str(pfile), "--set-param", f'REPO_REF="{head}"', "--set-param", 'SET="V6"')
+    assert bad.returncode == nb.EXIT_FAILED and "S2 LINE 2/4 inputs: bundle none" in bad.stdout and "FAILED (" in bad.stdout
+    d = tmp_path / "drive" / "runs" / "r1"
+    assert json.loads((d / "LIVE.json").read_text())["closed_reason"].startswith("line 2 failed")
+    assert json.loads((d / "STATUS.json").read_text())["lines"][-1].startswith("S2 LINE 2/4 inputs: bundle none")
+    more = run("session", "--params", str(pfile), "--set-param", f'REPO_REF="{head}"', "--set-param", "RESUME=true")
+    assert more.returncode == 0 and nb.LINE_RE["resume"].match(more.stdout.strip().splitlines()[-1]).group("session") == "1"
     go = run("launch", "--params", str(pfile), "--set-param", f'REPO_REF="{head}"')
     assert go.returncode == 0 and "S2 launch: DONE: the queue is finished" in go.stdout, go.stdout + go.stderr
     fin = run("finish", "--params", str(pfile))
