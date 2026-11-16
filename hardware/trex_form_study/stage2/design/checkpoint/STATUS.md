@@ -562,3 +562,18 @@ in the middle of a turn, and they are resumed after the switch.
 5. Open with the owner: whether to send the five maker questions as they stand
    (`../servo_model/MAKER_QUESTIONS.md`); gate 1's condition 4 and the numbers of gates 2 and 3; the draft
    decision-log rows F28, F29, E and a row for the add-on's result (F30).
+
+## Update, 16 Nov 2026, 21:20 UTC: both workflows paused at 97.3 % of the allocation
+
+The meter read $2,700.74 at 21:19 UTC, 97.3 %, with no reset showing. The lead stopped the two running workflows
+(tasks `w17pnouw7` and `wuysq2rgi`) so that no agent is cut by the limit mid-turn. No agent and no run is active.
+
+- wf_debdfcfc-4dd finished: build:CK, build:CT, review:CK, review:CT, fix:CK, fix:CT | cut mid-run: build:L
+- wf_fbceb97c-fa4 finished: build:CN, build:CW, review:CN, review:CW | cut mid-run: fix:CN, fix:CW
+- Worktrees at the stop: wpc-cw at 9952f5b, 8 commits ahead, 4 uncommitted files; wpc-cn at b54c0aa, 12 commits ahead, 0 uncommitted files; wp-l at b72c61c, 17 commits ahead, 1 uncommitted files; 
+- The build and review reports of the rows package and the notebook are saved under `reviews/`
+  (`roundC__{build,review}_CW.md`, `roundC__{build,review}_CN.md`). Neither package is merged: each fix round was
+  cut. An uncommitted file in a worktree is a cut agent's work in progress: look at it before resuming, and let
+  the resumed fixer decide what to keep.
+
+Resume as the 21:13 UTC block says.
