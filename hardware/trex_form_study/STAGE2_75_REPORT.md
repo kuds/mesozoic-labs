@@ -3,7 +3,7 @@
 15 Nov 2026. Body `75-M-H-10`. **Simulation only: nothing in this report was built or measured on hardware.** Nothing
 is adopted by it. Section 3 lists what is for the owner to decide.
 
-**Status: third version, 16 Nov, 00:10 UTC. Two rounds of independent review are folded in: every number recomputed from the records, every claim checked against the rules and sources, a plain reading as the owner, then a check of the rewrite and a fresh read of sections 1 to 3. A last check of sections 1 to 3 and 10 as they now stand is under way.**
+**Status: fourth version, 16 Nov 2026, 00:40 UTC. Three rounds of independent checks are folded in: every number recomputed from the records, every claim checked against the rules and sources, plain readings as the owner, and a last check of sections 1 to 3 and 10 that found no blocker and whose fixes are in this version. Nothing in it is adopted.**
 
 Paths are relative to `hardware/trex_form_study/`. Every count below is read from the committed records under
 `stage2/runs/2026-11-15-75cm/`; where anything here differs from the records, the records decide.
@@ -12,17 +12,18 @@ Paths are relative to `hardware/trex_form_study/`. Every count below is read fro
 
 *Words. **Delay**: the time between a command and the joint starting to move, in the model. **Today's walk**: the
 study's current reference walk. **The pull request's walk**: an outside proposal for a faster walk. **The
-candidate**: that walk with a small safety margin. **A run** lasts 14 to 24 s on a flat hard floor.*
+candidate**: that walk with a small safety margin. **A run** lasts 14 to 27 s on a flat hard floor.*
 
 **Will the 75 cm build walk?** In simulation, with today's walk and the balance controller carried over from
 Stage 1:
 
 - **It stays up when the delay is 6 ms or less.** At 0.24 to 0.40 m/s it stays up in 20 of 20 runs at every delay
-  tried up to 6 ms (runs of about 21 s, no push). At 0.40 m/s it falls in every run at 8 ms.
+  tried up to 6 ms (runs of 14 s at 0.24 m/s and about 21 s at the other speeds, no push). At 0.40 m/s it falls
+  in every run at 8 ms.
 - **At 10 ms, the delay the study assumes until one is measured, nothing passes and it hardly walks at all.** Of 20
-  runs, 0 to 3 stay up. It never reaches its 0.40 m/s walk: 64 of 76 falls come in the start from standing or the
-  speed-up and 12 in the first slow stride. Asked only to walk slowly (0.24 m/s), it stays up in 3 of 40 runs, and
-  27 of the 37 falls come during the slow walk itself.
+  runs, 0 to 3 stay up. In the 0.40 m/s walk records (80 runs: two fits, two floors) 76 fall, all before the
+  0.40 m/s walk begins: 64 in the start from standing or the speed-up and 12 in the first slow stride. Asked only
+  to walk slowly (0.24 m/s), it stays up in 3 of 40 runs, and 27 of the 37 falls come during the slow walk itself.
 - **The real delay is not measured.** The design estimate for the baseline wiring (a microcontroller with two CAN
   buses) is 2 to 4 ms, or 2 to 6 ms on the cautious reading. Every term in it is an estimate; none is measured.
   The cautious top end, 6 ms, is one 2 ms step below 8 ms, where every run falls.
@@ -30,10 +31,11 @@ Stage 1:
   0.24 and 0.30 m/s with no delay. At 4 ms it does not: at 0.30 m/s one fit has 17 of 20 and the other 12, and 2 ms
   was not run at these speeds. The limit it misses there is toe clearance (how high the foot is above the floor in
   mid-step; limit 20 mm), read this study's own, stricter way.
-- **The tail servo is over the study's planning limit at 0.35 m/s and faster.** At 0.35 and 0.40 m/s it is the one
-  limit that fails in every run, at up to 1.11 times the planning limit for continuous load. That limit is 0.57 of
-  the maker's rated torque, an assumption no bench test has checked, and most of the tail's load in the model comes
-  from a joint friction value that has no source.
+- **The tail servo is over the study's planning limit at 0.35 m/s and faster.** At 0.35 and 0.40 m/s, at 0 to 4 ms,
+  it is the one limit that fails in every run, at up to 1.11 times the planning limit for continuous load; at 6 ms
+  toe clearance fails in every run as well. That limit is 0.57 of the maker's rated torque, an assumption no bench
+  test has checked, and about half of the tail's load in the model comes from joint damping and friction values
+  that have no source.
 - **It is not yet robust.** No push test and no quick-turn test passes under both fits of the controller at any
   delay, not even with none. With no delay a light push (about 22 N for a tenth of a second) is survived in 19 or
   20 of 20 runs on the grippy floor; at 4 ms a sideways or backward push fells it in 3 to 8 of 20. It stays up
@@ -47,11 +49,14 @@ Stage 1:
 
 Runs that stayed up, of 20, walking at 0.40 m/s on the grippy floor (the two fits of the controller, side by side):
 
-| Walk | 0 ms | 2 ms | 4 ms | 6 ms | 8 ms | 10 ms |
-|---|---|---|---|---|---|---|
-| Today's walk | 20 · 20 | 20 · 20 | 20 · 20 | 20 · 20 | 0 · 0 | 0 · 1 |
-| The pull request's walk | 20 · 20 | 20 · 20 | 20 · 20 | 15 · 19 | 0 · 0 | 0 · 2 |
-| The candidate walk | 20 · 20 | 20 · 20 | 20 · 20 | 0 · 0 | 0 · 0 | 0 · 0 |
+| Delay | Today's walk | The pull request's walk | The candidate |
+|---|---|---|---|
+| 0 ms | 20 · 20 | 20 · 20 | 20 · 20 |
+| 2 ms | 20 · 20 | 20 · 20 | 20 · 20 |
+| 4 ms | 20 · 20 | 20 · 20 | 20 · 20 |
+| 6 ms | 20 · 20 | 15 · 19 | 0 · 0 |
+| 8 ms | 0 · 0 | 0 · 0 | 0 · 0 |
+| 10 ms (judged) | 0 · 1 | 0 · 2 | 0 · 0 |
 
 **The two other walks.** The candidate and the pull request's walk pass nothing. Both carry a tail that swings in
 counter-phase, and at 0.40 m/s their tail servo reads 0.40 to 0.48 of the planning limit, against 1.02 to 1.11 for
@@ -87,10 +92,11 @@ Nothing was cut. 592 records were written under the three walks, and 2 records o
 - **Ten records could not be run.** The fastest turn (57° per second) has no reference that fits the hip's range
   and the leg drives on either walk (8 records), and the pull request's walk cannot reach 0.50 m/s under this
   round's rules (2 records). The runner wrote each as "not run" with its reason.
-- **The slower turns, stronger pushes and one-step stop read nothing.** They were run at 10 ms alone, where the
-  robot falls before the command.
+- **The slower turns, stronger pushes and one-step stop read next to nothing.** They were run at 10 ms alone, where
+  the robot falls before the command in 19 or 20 of 20.
 - **The toe-clearance reading is this study's own**, changed after a result and labelled so in the plan before any
-  walk was frozen. It reads lower than Stage 1's on every walk here (section 5).
+  walk was frozen. It reads lower than Stage 1's on every walk here under the two controller fits at 0 to 6 ms
+  (section 5).
 
 ## 3. For the owner
 
@@ -110,10 +116,10 @@ exists, and the bench waits for a build that works in simulation. With the stand
   In Stage 1 this body fell at 10 ms and stayed up at 20 ms, meeting no limit there (three runs of the slow walk),
   and 10 ms is one period of this controller's 100 Hz feedback. Nobody has explained it. These runs would show
   whether 10 ms is a special point for this controller.
-- (d) Also read a second, labelled verdict at 4 ms or 6 ms. It reverses your decision that the other delays are
-  never read as the verdict (P30). On today's records only the stop would pass at 4 or 6 ms. At 2 ms the 0.40 m/s
-  walk passes with the tail servo's limit left out, on both floors; the turns, pushes and stop were not run at
-  2 ms.
+- (d) Also read a second, labelled verdict at 4 ms or 6 ms. No compute cost. It reverses your decision that the
+  other delays are never read as the verdict (P30). On today's records, of the bar's conditions only the stop
+  would pass at 4 or 6 ms. At 2 ms the 0.40 m/s walk passes with the tail servo's limit left out, on both floors;
+  the turns, pushes and stop were not run at 2 ms.
 - (e) Bring the delay bench forward: about $2,000 of catalogue parts for its first run, about $2,400 with two
   Teensy boards and small parts; a 24 V bench supply is not priced. This is before the simulation has chosen a
   build.
@@ -122,8 +128,10 @@ exists, and the bench waits for a build that works in simulation. With the stand
 **Question 2. The tail servo at 0.35 m/s and faster.** With no delay today's walk loads it at 5 % over the
 planning limit at 0.35 m/s, 8 % at 0.40 m/s (10 to 11 % on the slippery floor), 12 to 13 % at 0.45 m/s and 19 to
 27 % at 0.50 m/s. In the model nothing happens; on hardware a servo held over its continuous limit heats up, and
-how fast is not measured. Most of the tail's load in the model comes from the unsourced joint friction: as planned
-(no physics), the load at 0.40 m/s is 0.56 of the limit without it and 0.98 with it (`stage2/look/SCREEN.md`).
+how fast is not measured. About half of the tail's load in the model comes from the unsourced joint damping and
+friction: as planned (no physics), the load at 0.40 m/s is 0.56 of the limit without them and 0.98 with them
+(0.27 N·m from the motion, 0.27 N·m from damping and friction alone, 0.48 N·m together;
+`stage2/look/SCREEN.md`).
 
 - (a) Cruise at 0.30 m/s. With no delay every limit is met, with the tail at 0.96 of the limit; at 4 ms one of the
   two fits passes. No cost.
@@ -133,7 +141,7 @@ how fast is not measured. Most of the tail's load in the model comes from the un
   been simulated under a controller. No new cost: it comes with the look work already planned.
 - (c) Test a smaller tail swing or a stronger tail servo in simulation. A few core-hours (the lead's guess).
 - (d) A bench reading of the tail joint's friction and of the servo's heating. It would settle what the model
-  cannot. It needs the tail servo and its mount.
+  cannot. It needs a tail servo (about $22) and its mount; the time is not estimated.
 - **Lead's pick: (b).** If there is no answer: (b), since the look is already chosen.
 
 **Question 3. Keep the candidate walk in the 75 cm study?** On these records today's walk is ahead on most counts:
@@ -144,8 +152,8 @@ at 0.45 and 0.50 m/s with no delay, and on forward and backward pushes at 4 ms (
 - (a) Run nothing more on it. Its clips are still shown beside the look work, as already agreed (P30). No cost.
 - (b) Rebuild its first steps from standing with more hip room: a new freeze, and a few core-hours to run its
   panels again (the lead's guess).
-- (c) Change how the joint range is read for walks, pushes and stops. A rule change after a result. It would also
-  remove the contradiction the lead put into the rules (section 8).
+- (c) Change how the joint range is read for walks, pushes and stops. No compute cost. A rule change after a
+  result. It would also remove the contradiction the lead put into the rules (section 8).
 - **Lead's pick: (a).** If there is no answer: nothing more is run on it.
 
 **Question 4. Pull request #668.** Of the ten lines of its results table, two (the candidate at 0 and 2 ms) agree
@@ -154,20 +162,23 @@ two are about today's walk and agree, one of them only in part; five were not ru
 
 - (a) Leave it open as it is. No cost.
 - (b) Close it as superseded by this branch, which already holds its walk as the sets `F25F9` and `F25F9cl` with
-  its table checked line by line, and put a dated note at the top of its report here pointing to this one.
-- (c) Merge it relabelled, with the same note at the top of its report.
-- (d) Merge it by itself. Its report would then stand in the repository without these corrections.
+  its table checked line by line, and put a dated note at the top of its report here pointing to this one. No
+  cost.
+- (c) Merge it relabelled, with the same note at the top of its report. No cost.
+- (d) Merge it by itself. No cost, but its report would then stand in the repository without these corrections.
 - **Lead's pick: (b).** If there is no answer: (a).
 
-**Question 5. Carpet.** You asked for a thin-carpet model set from published figures (P36). None were found
-(`stage2/design/carpet_sources_15nov.md`), so no sourced model can be written. For scale: the study's existing
-carpet floor, whose values have no source, felled every walking start in Stage 1.
+**Question 5. Carpet.** You agreed to a carpet side-check after the main panels, recorded as a thin-carpet model
+set from published figures (P36). A first lookup, which could open none of the primary documents, found no figure
+for the foot pad's grip on such carpet or for how far it sinks (`stage2/design/carpet_sources_15nov.md`), so no
+sourced model can be written yet. For scale: the study's existing carpet floor, whose values have no source,
+felled every walking start in Stage 1.
 
 - (a) Run today's walk on a softer and on a grippier floor as a range, with floor values that have no source and
   with no verdict. About 1 core-hour (the lead's guess).
-- (b) A short bench measurement on a carpet sample (a luggage scale and a ruler), which turns the range into one
-  point.
-- (c) Leave carpet until a controller passes on the hard floor.
+- (b) A short bench measurement on a carpet sample (it needs the sample, a luggage scale and a ruler), which
+  turns the range into one point.
+- (c) Leave carpet until a controller passes on the hard floor. No cost.
 - **Lead's pick: (a), at 0 to 4 ms of delay.** If there is no answer: nothing is run on carpet.
 
 **The lead's reading of the results** (an interpretation, not a result).
@@ -571,10 +582,16 @@ at the limit with no delay and under it from 2 ms, and it falls at 6 ms where to
 ## 10. Turning room
 
 **How big a circle does it take to turn?** One body length is 1.76 m, snout tip to tail tip. All the numbers
-come from `stage2/runs/2026-11-15-75cm/views/turnpath/<set>/TURNPATH.md`, made by `designlab.stage2.barviews` and
-reviewed independently. Planned and simulated numbers are kept in separate tables.
+come from `stage2/runs/2026-11-15-75cm/views/turnpath/<set>/turnpath.json`, made by `designlab.stage2.barviews`.
+Its code was reviewed independently and fixed, the views were then made again after the chain's end, and this
+report's last check recomputed the two tables below from those files. Planned and simulated numbers are kept in
+separate tables.
 
-![Top view of the quick left turn of today's walk](stage2/runs/2026-11-15-75cm/views/turnpath/V0/turn_q90_left.png)
+![Top view of the quick left turn of today's walk](stage2/runs/2026-11-15-75cm/views/turnpath_fit42_0ms/turnpath/V0/turn_q90_left.png)
+
+*The figure: seen from above, walking up the page and turning left. Blue is the planned path of the robot's
+centre. Orange is 20 simulated runs of today's walk under the first fit of the controller with no delay (20 of 20
+stayed up); it is one of the records of the simulated table below.*
 
 **Planned** (the frozen reference played without physics; both sides, today's walk and the candidate together):
 
@@ -587,8 +604,8 @@ reviewed independently. Planned and simulated numbers are kept in separate table
 - **The tail sets the circle.** In the quick turn the tail tip is 1.11 m from the turn's centre and the head
   less; the centre itself only moves on a 0.51 m arc.
 - **At the moment of the command the tail still points straight back**, so for an instant the farthest point is
-  1.19 m from the centre the turn will have. A circle that holds the robot from the command on is
-  2.4 m across.
+  1.19 m from the centre the turn will have on today's walk (1.12 m on the candidate). A circle
+  that holds the robot from the command on is 2.4 m across (2.2 m on the candidate).
 - **The corridor** is the narrowest L-shaped passage of one width that holds every point of the robot's surface from
   the command to the end of the move.
 - **A turn at 1 rad/s (57° per second) has no reference** on either walk: the built motion is over a leg drive's
@@ -606,16 +623,19 @@ that stayed up):
 | The candidate | 4 ms | 19 to 20 | 2.23 m | 0.81 m | 83 to 84° |
 | The candidate | 6 ms | 1 | 2.23 to 2.25 m | 0.81 to 0.83 m | 77 to 91° |
 
+- **Planned, the trunk has turned 85° at that instant** and reaches 90° after
+  2.1 to 2.2 s. Read the last column against that, not against 90°.
 - **Where the turn is reached it takes the planned room**, within a few centimetres.
 - **The turn does not pass the bar at any delay** (section 7): the room it takes is right, but it fails other limits.
-- **At 10 ms no turn is reached**: the robot falls before the command.
+- **At 10 ms no quick turn is completed on the grippy floor**: 78 of 80 runs of today's walk fall before the
+  command and 2 during the turn; the candidate falls before the command in every run.
 
 **Clips.** 18 short clips were rendered from the committed records and the frozen references
 (`stage2/runs/2026-11-15-75cm/views/clips.json` lists each with its record, seed and checksum; the media are not in
 git and are made again with `python -m designlab.stage2.barviews clips ...`). Every frame is labelled as simulation
 or as planned motion. **Which records have a clip** was the lead's choice, made from the tables: today's walk under
-the first fit of the controller on the grippy floor, at the lowest delay run (walk, quick turn, push from the left,
-stop) and at the judged 10 ms (walk); the candidate's walk at 10 ms and its quick turn with no delay; and the planned
+the first fit of the controller on the grippy floor, at the lowest delay run (walk, quick turn, a light push to its
+left, stop) and at the judged 10 ms (walk); the candidate's walk at 10 ms and its quick turn with no delay; and the planned
 quick turn of both. **Which run of a record is shown** follows a rule written before any record existed: the first
 seed, and if its outcome is not the record's majority outcome, also the lowest seed with the majority outcome.
 

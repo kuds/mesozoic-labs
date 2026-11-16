@@ -323,7 +323,7 @@ These were answered in conversation after the Stage 1b report; P28 and `STAGE2_P
     - "Help me think" means discussion, not new runs ("Don't do any big experiments", 10 Nov).
 19. **A report's tables are right long before its prose is** (the 75 cm report, 15 to 16 Nov).
     Three rounds of independent checks recomputed every table cell from the records and found none wrong; they found
-    the lead's sentences wrong or too strong 50, 24 and then fewer times. What to do:
+    the lead's sentences wrong or too strong 50, 24 and 12 times (and the owner page's 10 times on its first check). What to do:
     - Write the short answer last, from a list of facts each of which a script printed, and send exactly that part
       to a reader who has seen no earlier review.
     - Say *where* a failure happens before saying *why*. "It falls at 10 ms" was true; "the walk falls" was not (the
