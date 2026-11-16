@@ -5,12 +5,14 @@ Run from hardware/trex_form_study (the fit's venv):
     OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 python -m pytest -p no:cacheprovider tests/test_stage2_lookread.py
 
 Fast tests on synthetic series (no model): each band on both sides of its limit, segmentation by the own events,
-"not read", too few steps, the window of a bar item.  Tests on a model (kinematics only, no physics and no episode):
-the look ladder's V6 rungs played from their own arrays against ``stage2/look/metrics.json`` within gate Z2 (b)'s
-limits, the playback through ``bar._Played`` (a rung written as a reference file under pytest's temporary directory,
-and Stage 1's own run directory with a real track), the negative controls of gate Z2 (c), and an ``-X`` body.  They
-need the round-two model files, the look ladder's arrays and Stage 1's arrays (git-ignored;
-``python tools/restore_inputs.py``) and skip without them.  Nothing is written outside ``tmp_path``.
+"not read", too few steps, a reference that lacks a value, the window of a bar item and its reference times.  Tests
+on a model (kinematics only, no physics and no episode): the look ladder's V6 rungs played from their own arrays
+against ``stage2/look/metrics.json`` within gate Z2 (b)'s limits, the playback through ``bar._Played`` (a rung
+written as a reference file under pytest's temporary directory, and Stage 1's own run directory with a real track),
+the window and the playback of real bar items (a frozen 75 cm set's tracks, played, never run), the negative controls
+of gate Z2 (c), and an ``-X`` body.  They need the round-two model files, the look ladder's arrays, Stage 1's arrays
+and the frozen sets' arrays (git-ignored; ``python tools/restore_inputs.py``) and skip without them.  Nothing is
+written outside ``tmp_path``.
 """
 
 from __future__ import annotations
@@ -264,6 +266,37 @@ def test_a_missing_own_value_fails_its_term():
     assert c["bob_ratio"] is None and c["terms"]["bob"] is False
 
 
+def test_a_reference_that_lacks_a_value_is_a_definition_fault():
+    """A term is left unread only for a reference value under 0.02 rad, never for want of the value: a reference
+    with enough steps that holds no finite bob, tail or toe-off is refused."""
+    ref, own = read(synth()), read(synth())
+    for bad, name in ((dict(ref, bob_pp_m=None), "bob_pp_m"), (dict(ref, toe_off_rad=None), "toe_off_rad"),
+                      (dict(ref, toe_off_rad=float("nan")), "toe_off_rad"),
+                      (dict(ref, tail=dict(phase_cycles=None, amp_rad=None, strides=0)), r"tail\.amp_rad"),
+                      (dict(ref, tail=dict(phase_cycles=None, amp_rad=0.12, strides=1)), r"tail\.phase_cycles"),
+                      ({k: v for k, v in ref.items() if k != "tail"}, r"tail\.amp_rad")):
+        with pytest.raises(lookread.LookError, match=f"holds no finite .*{name}.*rule U5"):
+            lookread.compare(own, bad)
+    with pytest.raises(lookread.LookError, match="bob_pp_m, tail.amp_rad, toe_off_rad"):
+        lookread.compare(own, dict(steps=6, lift_offs=6))
+    # a tail under the threshold needs no phase: it is not read
+    c = lookread.compare(own, dict(ref, tail=dict(phase_cycles=None, amp_rad=0.01, strides=1)))
+    assert c["not_read"] == ["tail"] and c["terms"]["tail"] is True and c["tail_phase_diff_cycles"] is None
+    # the reference's head pitch is not read at all (the band is absolute)
+    assert lookread.compare(own, dict(ref, head_world_pitch_rms_deg=None))["ok"] is True
+
+
+def test_the_tails_amplitude_is_recorded_and_no_band_reads_it():
+    ref = read(synth())
+    for k in (0.05, 0.5, 1.0, 3.0):
+        c = lookread.compare(read(synth(tail_amp=k * 0.12)), ref)
+        assert c["tail_amp_ratio"] == pytest.approx(k, abs=1e-9) and c["terms"]["tail"] is True and c["ok"] is True
+    c = lookread.compare(dict(read(synth()), tail=dict(phase_cycles=None, amp_rad=None)), ref)
+    assert c["tail_amp_ratio"] is None and c["terms"]["tail"] is False
+    flat = lookread.compare(read(synth()), read(synth(tail_amp=0.0)))
+    assert flat["not_read"] == ["tail"] and (flat["tail_amp_ratio"] is None or flat["tail_amp_ratio"] > 1e6)
+
+
 # ------------------------------------------------------------------------------------------------
 # The window of a bar item (attributes only)
 # ------------------------------------------------------------------------------------------------
@@ -280,7 +313,8 @@ def _built(judge, seconds=20.0, command=None, at_s=None, cut_from=None):
     resolved = dict(at_s=at_s)
     if cut_from is not None:
         resolved["cut_from_s"] = cut_from
-    return types.SimpleNamespace(cond=types.SimpleNamespace(judge=judge), seconds=seconds, resolved=resolved,
+    plant_ = types.SimpleNamespace(m=types.SimpleNamespace(opt=types.SimpleNamespace(timestep=0.002)))
+    return types.SimpleNamespace(cond=types.SimpleNamespace(judge=judge), seconds=seconds, resolved=resolved, p=plant_,
                                  command=None if command is None else dict(ref_s=command))
 
 
@@ -307,7 +341,31 @@ def test_the_window_of_a_turn_item_is_the_3s_after_the_judged_time():
 def test_nudge_and_stop_items_and_stock_conditions_have_no_window():
     for judge in ("bar_nudge", "bar_stop", "walk", None):
         assert lookread.window(_built(judge, command=8.4, at_s=2.0), _rec(19.99)) is None
+        assert lookread.window_ref(_built(judge, command=8.4, at_s=2.0)) is None
     assert lookread.window(types.SimpleNamespace(cond=types.SimpleNamespace()), _rec(19.99)) is None
+    assert lookread.window_ref(types.SimpleNamespace(cond=types.SimpleNamespace())) is None
+
+
+def test_the_windows_reference_times_are_the_window_on_the_nominal_clock():
+    """``window_ref``: from the built condition alone, the reference times ``playback`` takes.  On a trace whose
+    clock ran at the nominal rate they are ``RATE`` times the simulated window; on a slower clock the simulated
+    window moves and the reference times do not."""
+    # a walk item: 20 s are 10000 steps, the last update is step 9995 (19.99 s)
+    b = _built("bar_walk")
+    assert lookread.window_ref(b) == pytest.approx((RATE * 9.99, RATE * 19.99), abs=1e-12)
+    assert lookread.window_ref(b) == pytest.approx(tuple(RATE * x for x in lookread.window(b, _rec(19.99))), abs=1e-12)
+    # lengths that are no whole number of updates: 14.1917 s are 7096 steps (last update 14.19 s), 14.1899 s 7095
+    assert lookread.window_ref(_built("bar_walk", seconds=14.1917)) == pytest.approx((RATE * 4.19, RATE * 14.19), abs=1e-12)
+    assert lookread.window_ref(_built("bar_walk", seconds=14.1899)) == pytest.approx((RATE * 4.18, RATE * 14.18), abs=1e-12)
+    assert lookread.window_ref(_built("bar_walk", seconds=12.0, cut_from=20.0)) is None  # a cut episode has no window
+    assert lookread.window_ref(_built("bar_walk", seconds=0.0)) is None
+    # a turn item: from the command's reference time
+    b = _built("bar_turn", command=8.4, at_s=2.0)
+    assert lookread.window_ref(b) == pytest.approx((8.4 + RATE * 2.0, 8.4 + RATE * 5.0), abs=1e-12)
+    assert lookread.window_ref(b) == pytest.approx(tuple(RATE * x for x in lookread.window(b, _rec(13.2))), abs=1e-9)
+    slow = lookread.window(b, _rec(14.0, t_ref_rate=1.0))
+    assert slow == pytest.approx((10.4, 13.4)) and lookread.window_ref(b) == pytest.approx((10.5, 13.65), abs=1e-12)
+    assert lookread.window_ref(_built("bar_turn", at_s=2.0)) is None  # (no command)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -471,6 +529,10 @@ def test_a_ladder_rungs_playback_reproduces_the_ladders_own_numbers(body, speed)
     off = dict(lad, bob_pp_m=1.06 * lad["bob_pp_m"], head_world_pitch_rms_deg=lad["head_world_pitch_rms_deg"] + 0.12,
                tail=dict(lad["tail"], phase_cycles=lad["tail"]["phase_cycles"] + 0.012), toe_off_rad=1.15 * lad["toe_off_rad"])
     assert lookread.against_ladder(r, off)["terms"] == dict(bob=False, head=False, tail=False, toe_off=False)
+    # a number that is missing on either side fails its term (no exception)
+    gone = lookread.against_ladder(r, dict(lad, tail=dict(phase_cycles=None, amp_rad=None), toe_off_rad=None))
+    assert gone["terms"] == dict(bob=True, head=True, tail=False, toe_off=False) and gone["ok"] is False
+    assert lookread.against_ladder(dict(r, bob_pp_m=None), lad)["terms"]["bob"] is False
 
 
 @needs["75-M-H-10"]
@@ -489,7 +551,6 @@ def _stub_track(name: str, step: float, period: float, strides: int):
 
 @needs["75-M-H-10"]
 def test_playback_through_the_bars_player_is_the_rungs_own_reading(tmp_path):
-    pytest.importorskip("designlab.stage2.bar")
     body, speed = "75-M-H-10", "v040"
     p = plant_of(body)
     z = load(_rung(body, speed))
@@ -524,9 +585,9 @@ def test_playback_through_the_bars_player_is_the_rungs_own_reading(tmp_path):
 @needs["75-M-H-10"]
 def test_playback_of_a_real_track_is_the_bars_reference_recorder():
     """Stage 1's own run directory (kinematic only): the start and the nominal walk on a ``control.Track``."""
-    bar = pytest.importorskip("designlab.stage2.bar")
     from designlab.stage1 import control
     from designlab.stage1.refs import Reference
+    from designlab.stage2 import bar
 
     body = "75-M-H-10"
     run = RUN / body
@@ -555,6 +616,67 @@ def test_playback_of_a_real_track_is_the_bars_reference_recorder():
     if (run / "refs" / "walk_0.35_left.npz").exists():
         with pytest.raises(lookread.LookError, match="not played: walk_0.35_left: a periodic segment must be a straight"):
             lookread.playback(p, turning, run, 1.0, 2.0)
+
+
+@needs["75-M-H-10"]
+def test_the_window_and_the_playback_of_real_bar_items():
+    """The bar's own built conditions on a frozen 75 cm set (F25F9, a control set without the look's bob and
+    toe-off; kinematic only: its tracks are played, no episode runs).  A recorder filled by the bar's own playback
+    at the nominal clock, with the 50 Hz poses of the whole episode, stands for the robot: the window is the bar's,
+    its reference times are ``window_ref``'s, and the playback of just those times reads what the whole trace
+    reads inside the window."""
+    from designlab.stage1 import control, tune
+    from designlab.stage2 import bar, setio
+
+    body = "75-M-H-10"
+    d = setio.set_dir("F25F9", body)
+    if not (d / "refs" / "v0.4.npz").exists() or not (d / "transitions" / "turn90_pi4_left.npz").exists():
+        pytest.skip("needs the frozen sets' arrays (python tools/restore_inputs.py --group sets)")
+    docs = setio.load(d)
+    conds = {c.key: c for c in bar.conditions(docs, every=True)}
+    ctx = bar.BarContext(body, d, {"refs.json": docs["refs.json"], "transitions.json": docs["transitions.json"]},
+                         docs["set.json"])
+    every = tune.LEGS_EVERY * control.FEEDBACK_EVERY
+    assert every == EVERY
+    recs = {}
+    for key in ("walk/v0.4", "turn/q90_left"):
+        b = ctx.built(conds[key])
+        rec = recs[key] = bar.reference_recorder(b.p, b.track, b.seconds, d, rate=RATE)
+        a = lookread.played(b.p, b.track, d, 0.0, RATE * (rec.steps - 1) * rec.dt)  # the whole episode's poses
+        assert np.allclose(a["loads"], rec.loads, atol=1e-9, rtol=0) and len(a["poses"]) == (rec.rows + 1) // 2
+        rec.poses = list(a["poses"])  # (as a recorder with legs_every = tune.LEGS_EVERY holds them)
+        win = lookread.window(b, rec)
+        win_ref = lookread.window_ref(b)
+        if key == "walk/v0.4":
+            assert win == (float(rec.t[-1]) - 10.0, float(rec.t[-1])) and bar._ran_to_end(b, rec)
+        else:
+            turn = next(s for s in b.track.segments if s.name == conds[key].move)
+            assert b.resolved["at_s"] == 2.0 and b.command["ref_s"] == pytest.approx(turn.t0, abs=1e-9)
+            assert win == pytest.approx((turn.t0 / RATE + 2.0, turn.t0 / RATE + 5.0), abs=1e-9)
+        assert win_ref == pytest.approx((RATE * win[0], RATE * win[1]), abs=1e-9)
+        own = lookread.reading(lookread.series(b.p, rec.poses, rec.loads, rec.dt, every), *win)
+        ref = lookread.playback(b.p, b.track, b.track.run_dir, *win_ref)
+        assert ref["window"] == pytest.approx(list(win), abs=1e-9) and ref["window_ref"] == list(win_ref)
+        assert ref["steps"] >= lookread.MIN_STEPS and ref["lift_offs"] >= lookread.MIN_STEPS  # (what rule U5 relies on)
+        assert (own["steps"], own["lift_offs"], own["tail"]["strides"]) == (ref["steps"], ref["lift_offs"], ref["tail"]["strides"])
+        c = lookread.compare(own, ref)
+        # the two differ by the 50 Hz grid alone (the trace's poses fall on multiples of 20 ms, the playback's on
+        # the window's start)
+        assert abs(c["tail_phase_diff_cycles"]) < 0.005 and c["tail_amp_ratio"] == pytest.approx(1.0, abs=0.01)
+        assert own["head_world_pitch_rms_deg"] == pytest.approx(ref["head_world_pitch_rms_deg"], abs=0.02)
+        assert c["terms"]["tail"] is True and c["too_few_steps"] is False
+        # this set's walk has a level hip and flat feet: no toe-off to read, and no bob to be within 30 % of
+        assert c["not_read"] == ["toe_off"] and c["reference"]["toe_off_side"] == "under 0.02 rad"
+        assert ref["bob_pp_m"] < 1e-5 and abs(ref["toe_off_rad"]) < 1e-5
+    # a nudge and a stop item of the same set are not read
+    for key in ("nudge/forward", "stop/two_step"):
+        b = ctx.built(conds[key])
+        assert lookread.window(b, recs["walk/v0.4"]) is None and lookread.window_ref(b) is None
+    # a trace that ends before the walk's planned end has no window; its reference times stay the condition's
+    b = ctx.built(conds["walk/v0.4"])
+    rec = recs["walk/v0.4"]
+    short = types.SimpleNamespace(t=rec.t[:-3], rows=rec.rows - 3, dt=rec.dt, sim_time=rec.sim_time)
+    assert lookread.window(b, short) is None and lookread.window_ref(b) is not None
 
 
 @needs["75-M-H-10"]
@@ -637,4 +759,8 @@ def test_a_16_joint_body_builds_its_series_by_name():
     ra, rb = lookread.reading(a, 0.0, 10.0), lookread.reading(b, 0.0, 10.0)
     c = lookread.compare(rb, ra)
     assert c["ok"] and c["bob_ratio"] == pytest.approx(1.0, abs=1e-9) and abs(c["tail_phase_diff_cycles"]) < 1e-9
+    # gate Z2 (b)'s form for an -X body: its reading against the plain body's, within the ladder's limits
+    g = lookread.against_ladder(rb, ra)
+    assert g["ok"] and g["terms"] == dict(bob=True, head=True, tail=True, toe_off=True)
+    assert max(abs(v) for v in g["differences"].values()) < 1e-8
     assert lookread.controls(px, qx, loads * lookread.weight(px) / lookread.weight(p), DT, EVERY)["ok"] is True
