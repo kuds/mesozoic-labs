@@ -558,6 +558,28 @@ def test_a_file_that_changes_while_it_is_packed_is_refused(tree, tmp_path, monke
     assert _files_under(tmp_path / "out") == []  # not the parts written before it either
 
 
+def test_a_build_removes_the_temporary_parts_a_killed_build_left(tree, tmp_path):
+    """A killed build leaves ``<part>.tar.tmp`` files; the next build removes them all (it holds the lock), also the
+    ones of a build with other part names, and never writes through a link that stands at a temporary name."""
+    out = tmp_path / "out"
+    _put(out / "parts" / "SX-T-A-9.tar.tmp", b"half a part of a build with other part names")
+    _put(out / "parts" / "models-T-A.tar.tmp", b"half a part of this build")
+    victim = tmp_path / "victim"
+    victim.write_bytes(b"not to be written through a link")
+    (out / "parts" / "models-T-B.tar.tmp").symlink_to(victim)
+    doc = bundle.build("t1", BODIES, sets=("SX",), out=out, part_mb=0.06, root=tree)
+    assert _files_under(out) == ["MANIFEST.json"] + sorted(f"parts/{n}" for n in doc["content"]["parts"])
+    assert victim.read_bytes() == b"not to be written through a link"
+    assert not any((out / "parts" / n).is_symlink() for n in doc["content"]["parts"])
+    assert bundle.verify(doc, tree, out / "parts")["ok"]
+    # the writer itself makes a new file: a name at which something stands is refused, a link there is not followed
+    link = tmp_path / "x.tar.tmp"
+    link.symlink_to(victim)
+    with pytest.raises(bundle.BundleError, match="x.tar.tmp: not written"):
+        bundle._write_part(link, tree, [])
+    assert victim.read_bytes() == b"not to be written through a link" and link.is_symlink()
+
+
 def test_build_refuses_a_file_that_is_no_manifest_at_its_place(tree, tmp_path):
     """An existing ``MANIFEST.json`` that cannot be read as a manifest is refused with a sentence (never another
     exception) and left as it is; no part is written beside it."""

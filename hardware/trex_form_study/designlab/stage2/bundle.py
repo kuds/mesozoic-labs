@@ -389,9 +389,10 @@ def _uncommitted(root: Path, rels) -> list[str] | None:
 # ------------------------------------------------------------------------------------------------
 def _write_part(path: Path, root: Path, members: list) -> None:
     """One part under the tar rules: ``members`` (``[(path relative to the study, sha256, bytes)]``) in sorted order,
-    the bytes streamed from ``root``.  Written in place: the caller gives a temporary name."""
+    the bytes streamed from ``root``.  Written in place, as a new file: the caller gives a temporary name at which
+    nothing stands (whatever stood there, a link too, would be written into)."""
     try:
-        with open(path, "wb") as fh:
+        with os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666), "wb") as fh:
             with tarfile.open(fileobj=fh, mode="w", format=tarfile.USTAR_FORMAT) as tar:
                 for rel, _, size in sorted(members):
                     info = tarfile.TarInfo(rel)
@@ -522,6 +523,8 @@ def _build(bundle_id, bodies, sets, out, part_mb, root) -> tuple[dict, dict]:
         notes.append(f"{root} is no git checkout (or git could not tell): the records read were not compared with a "
                      "commit (provenance.records_committed is null)")
     with s2io.Lock(out_dir / ".lock"):
+        for left in parts_dir.glob("*.tar.tmp"):  # what a killed build left, whatever its parts were called; a link
+            _unlink(left)                         # at such a name is removed, never followed (the lock is held)
         try:
             parts = {}
             for name, packed in groups:
@@ -586,7 +589,8 @@ def build(bundle_id, bodies, sets=("V6",), out=None, part_mb=20, root=None) -> d
     committed, a file too large for a part.  Each part is written under a temporary name, read back member by member
     against the manifest and moved into place; the manifest is written last.  An existing manifest with the same
     content is left as it is (its provenance is the first build's); one with another content, or a part in
-    ``<out>/parts`` that is not this bundle's, is refused with nothing replaced."""
+    ``<out>/parts`` that is not this bundle's, is refused with nothing replaced.  Temporary parts a killed build
+    left in ``<out>/parts`` (``*.tar.tmp``) are removed, under the directory's lock."""
     return _build(bundle_id, bodies, sets, out, part_mb, root)[0]
 
 
