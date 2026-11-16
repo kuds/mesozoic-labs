@@ -35,8 +35,8 @@ ten conflicts between rules that the writing-in of the second list had left (the
 run, fit or training run and before any look set was frozen; the 75 cm round's panels and their add-on had run by then.
 Each of those wordings stands in its rule, marked "[settled 16 Nov 2026, before any Track B run]", and the amendment
 that closes the last section lists the ten. Paths are relative to `hardware/trex_form_study/`. A rule changed after a
-result is labelled so. Check: the commit that adds this file, the commit that adds the settled wording and the commit
-that adds the wording settled on 16 Nov 2026 are ancestors of the commit named in every Track B record
+result is labelled so. Check: the commit that adds this file, the commit that adds the settled wording and the last of
+the commits that add the wording settled on 16 Nov 2026 are ancestors of the commit named in every Track B record
 (`sessions[].commit`, or `commit` in a gate's, a probe's or a fit's record) and in every look set's `freezes[].commit`
 that a Track B record uses.
 
@@ -1967,7 +1967,23 @@ re-runs Q6 names are `R2/42` and `R2/43` on the candidate set from the R2L row's
 These follow the settled wording and are the author's: the sentence added to the Status, the bullet in "What had been
 run", the Tags entry, the brief's two changed sentences and its bullet, the change list's clauses marked "[settled 16
 Nov]", the additions to the "Check:" lines, the pointers in M4 and Q6, and L11's clause, which repeats L10's; in K5, the
-sentence that a check counted by M1 is not run again by a resume, which follows from M1's count; in Q5, the reading of
-"where the plan asks", the choice of the frozen set `F25F9cl` itself for the candidate's two dry runs, the labels of the
-stand-in numbers and the note on the unfrozen build of `V6noF5`; in U4, L10 and L13, the accounts of why a wording was
-settled; in Y11, the parenthesis left out of the quotation of the committed sentence.
+sentence that a check counted by M1 is not run again by a resume, a reading of M1's count that is labelled where it
+stands; in Q5, the reading of "where the plan asks", the choice of the frozen set `F25F9cl` itself for the candidate's
+two dry runs, the labels of the stand-in numbers and the note on the unfrozen build of `V6noF5`; in U4, L10 and L13, the
+accounts of why a wording was settled; in L12, the closing clause of the committed sentence set as a sentence of its
+own; in Y11, the parenthesis left out of the quotation of the committed sentence.
+
+Changed after the independent review of this writing-in (16 Nov 2026), by the author and not by the lead, on findings
+that needed no new decision. The Status's Check names the last of the commits that add the wording of 16 Nov (it named
+one commit, and there are several). U4: on any other set the sentence names the row `R2L-F25F9cl/42`, as the ruling does
+(it read "a Track B row"). Q5: the 60 cm body's caps no longer stand "until its own rates exist", a condition the ruling
+does not hold. K5: the author's sentence is labelled as such where it stands, with what the ruling does not say. L12:
+the mark quotes the whole committed sentence, and its closing clause again holds for every move that still fails (it
+read "such a move"); the Check's exception names the set in which the move fails, as the ruling's "that body's set" does
+(it read "no set of a body"). L13: the sentence on L10 is the ruling's own (it read "a walk's moves (its starts and
+changes, and its stop and turns from their command)"), and the note on L10's causal moves stands in the author's
+account. Seen in that review and left as written: this text calls the lead's rulings of 15 Nov session notes that are
+not in the repository (the Tags entry, and the two sections that list them); the working branch has held both lists as
+working papers since commit `a0314fc` (`stage2/design/TRACKB_RULINGS_15NOV.md`,
+`stage2/design/TRACKB_RULINGS2_15NOV.md`). The points of that review that need a decision are with the lead and are not
+written in.
