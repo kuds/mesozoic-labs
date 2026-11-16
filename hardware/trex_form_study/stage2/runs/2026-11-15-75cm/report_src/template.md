@@ -61,6 +61,10 @@ before its controller matters.
 **Compute.** The walk panels used 4.25 of their 16 core-hours and the turn, push and stop panels 5.51 of their 12.
 Nothing was cut. 592 records were written under the three walks, and 2 records of a registered control.
 
+**Added 16 Nov 2026: longer delays.** Today's walk was then run at 12 to 20 ms of delay (section 13). The 0.40 m/s
+walk does not come back at any longer delay, so 10 ms is not a lone bad point for the stand-in controller. Nothing
+above changes.
+
 ## 2. What this does not show
 
 - **Nothing about hardware.** No delay, friction or gear play of the real drives is measured. The delay estimate is
@@ -467,3 +471,94 @@ at the limit with no delay and under it from 2 ms, and it falls at 6 ms where to
 - Turning figures and clips: `python -m designlab.stage2.barviews turnpath --set <set>` and `... clips ...`
   (`stage2/runs/2026-11-15-75cm/views/`).
 - The sets as frozen: `stage2/sets/<set>/75-M-H-10/set.json`.
+
+## 13. Added 16 Nov 2026: today's walk at longer delays
+
+*Simulation; stand-in controller fitted with no delay; delays that are not the judged 10 ms; no verdict; added
+after the 75 cm results. The owner asked for these runs (`DECISION_LOG.md` P37). Their rules were written and
+independently reviewed before the first run (`STAGE2_75_ADDON_PLAN.md` section A). Records at 14, 16 and 20 ms:
+(P37: 14, 16 and 20 ms). Records at 12 and 18 ms and the slow walk at 8 ms: the lead's addition, not among the
+delays the owner approved. The slow walk and the no-feedback rows at 14, 16 and 20 ms are the lead's reading of
+"today's walk". The bar stays judged at 10 ms and no verdict of sections 1 to 12 changes.*
+
+**The question.** Is 10 ms a lone bad point for the stand-in controller, so that the walk comes back at a longer
+delay, or does delay simply get worse?
+
+**The answer, in the words fixed before the runs.** A record is "up" when at least 17 of its 20 runs stay up,
+"down" when at most 3 do, otherwise "mixed". A delay is up or down when all its records under the two controller
+fits agree.
+
+- The 0.40 m/s walk: {{ADDON_PATTERN_FAST}}
+- The slow walk (0.24 m/s): {{ADDON_PATTERN_SLOW}}
+- The lead's design estimate, that the curve would mirror about 10 ms (12 ms like 8 ms, 14 like 6, and so on):
+  {{ADDON_MIRROR}}
+
+**In plain words: 10 ms is not a lone bad point, and no longer delay gives a usable walk.**
+
+Each cell below reads: runs that stayed up · of those, runs that also covered the commanded distance · runs that
+met every limit · runs that met every limit but for A1. All of 20. Rows at 0 to 10 ms are the registered records
+of sections 5 and 6, apart from the slow walk at 8 ms.
+
+The 0.40 m/s walk:
+
+{{ADDON_FAST}}
+
+The slow walk:
+
+{{ADDON_SLOW}}
+
+What the tables show:
+
+- **The 0.40 m/s walk does not come back.** At 12, 14, 16 and 20 ms it stays up in 0 to 3 of 20 runs under both
+  controller fits on both floors, as at 8 and 10 ms. At 18 ms the two fits differ: 6 and 4 of 20 stay up under
+  fit 42, and 18 and 19 of 20 under fit 43 (grippy and slippery floor). None of the runs that stay up at 18 ms
+  covers the commanded distance. Under fit 43 every one of them fails the drive speed limit (the largest reading
+  is 1.90 to 1.95 times the limit, on an ankle drive) and toe clearance (median 0.6 to 0.7 mm against a limit of
+  20.1 mm).
+- **Where it falls changes with delay.** At 12, 14 and 16 ms most falls come in the start from standing, before
+  any walking at 0.40 m/s: 11 to 20 runs in each record, with a median fall time of 4.2 to 5.2 s. At 20 ms the
+  robot gets through the start and the change of speed in most runs and falls in the 0.40 m/s walk itself: 16 or
+  17 runs in each record, whose median fall time is 14.4 to 15.7 s into a 21 s run.
+- **The slow walk holds one step further than was known.** At 8 ms it stays up in 19 of 20 runs under both fits
+  and covers the distance. It fails toe clearance in all 19 (median 11.3 to 12.4 mm against 20.1 mm), so it meets
+  every limit in none. At 10 to 16 ms 0 to 3 of 20 stay up.
+- **At 18 and 20 ms the slow walk stays up again, outside its limits.** At 18 ms 10 of 20 runs stay up under
+  fit 42 and 18 of 20 under fit 43. At 20 ms 19 and 20 of 20 stay up. No run meets every limit. At 20 ms no run
+  covers the commanded distance (median speed 0.240 to 0.241 m/s, where the distance limit asks 0.243 m/s), and
+  every run fails the drive speed limit (up to 1.98 to 1.99 times the limit, on an ankle drive), the ground force
+  limit, stride length and toe clearance. That is staying up, not walking as asked. It agrees with Stage 1's three
+  runs at 20 ms (`DECISION_LOG.md` F26).
+- **With the balance feedback off, delay makes no difference.** The row with no feedback (`R0`) stays up in 18 to
+  20 of 20 runs at every delay from 0 to 20 ms on the 0.40 m/s walk. On the slow walk it stays up in 20 of 20 and
+  meets every limit in all 20, at each of 12, 14, 16, 18 and 20 ms. That row was not run with pushes here, and a
+  playback with no feedback cannot correct a disturbance.
+
+**The expectations written before the runs** (rule A-6's own numbers).
+
+- Expectation 1, the no-feedback row stays up in 18 to 20 of 20 at every delay on the 0.40 m/s walk: met. No flag
+  was raised.
+- Expectation 2, the slow walk under fit 43 at 20 ms reads up: met.
+- Expectation 3 stated that nothing could be expected for the other new records.
+- Expectation 4, no add-on record meets every limit in 17 of 20: **not met as written.** Five records do, all of
+  them the no-feedback row on the slow walk. The lead wrote this expectation with the controller's rows in mind
+  and did not say so. Under the controller's rows no run meets every limit at 12 to 20 ms.
+- The mirror estimate: not met. No other centre is fitted after the result.
+
+**What this means for the plan** (the lead's reading; an interpretation, not a result).
+
+- Keeping the judged delay at 10 ms loses nothing. The stand-in controller fails from 8 ms up at 0.40 m/s, so
+  there is no longer delay at which the hardware could be expected to be fine with it.
+- Survival is not a steady slide either: runs stay up again near 18 to 20 ms. These runs test no mechanism, and
+  the one estimate the lead wrote down in advance is refuted.
+- What fells the robot at these delays is the stand-in controller's feedback acting late, not the planned motion:
+  the same motion played with no feedback stays up at every delay. A controller trained or fitted with delay is
+  the remedy this points to. It is not shown to work: two earlier attempts with delay in training or fitting
+  still fell at 10 ms (`DECISION_LOG.md` F26, F27).
+- For the buy gate (`BUY_GATE_DRAFT.md`, a draft): the bench's measurement of the real delay matters as before.
+  With this controller, today's walk at 0.40 m/s stands at 6 ms and below and not at 8 ms and above.
+
+**Compute and records.** All six units ran and none was cut: 47 records, 940 runs, 0.495 of the section's
+1.0 core-hour (`stage2/runs/2026-11-16-75cm-addon/A/ADDON_LEDGER.json`). The records are under
+`stage2/runs/2026-11-16-75cm-addon/A/`. The tables, with where the falls come, the measures of the runs that
+stayed up and every record's path, are `stage2/runs/2026-11-16-75cm-addon/DELAYS_TABLE.md`, made by
+`python stage2/runs/2026-11-16-75cm-addon/delays_table.py`.
