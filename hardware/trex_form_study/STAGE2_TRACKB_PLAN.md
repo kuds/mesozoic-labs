@@ -117,7 +117,12 @@ a probe's or a fit's record) and in every look set's `freezes[].commit` that a T
   G8a's comparison on `V0` for one condition (`walk/v0.4`, seed 3042, at 0 and at 6 ms: 2 of 2 episodes identical), a
   smoke that wrote no file. None of it is a record and none is on a look set. The author of this writing-in ran none of
   it. The numbers that W1, W3, W5, E4 and E5 quote from that file are from those playbacks and readings, and are
-  labelled where they stand.
+  labelled where they stand. The independent review of this writing-in then made one dry run with the bar's runner, on
+  the frozen set `F25F9cl` (Q5's first command for the candidate's row): by its report it printed that command's total
+  again, 0.344 core-hours, and ran no episode. The fixes made after that review were written in with no episode, fit,
+  training run, dry run or test. The working branch (at `355e91a`) then held no look set, and the three look sets that
+  branch `wt/wp-l` holds in its commit `c9b8819` had `freezes` empty; that package's worktree was being changed then,
+  and its files were not read.
 - Scratch experiments of 15 Nov on Stage 1's own run directory (`stage1/runs/2026-11-08`: stock references, no Stage 2
   set), by the architect and by the three reviewers of the design, on a stub env (Stage 1's env with the open-loop base
   in place of the tracker; Stage 1's observation and reward), one to six episodes per setting. They are scratch: none is
@@ -333,11 +338,13 @@ As `STAGE2_75_PLAN.md`, whose list of words stands, with these additions.
   that branch. That file labels every entry as a wording change made before any training run, and says that no training
   run, policy episode or panel was run for it; its entries were written after the env's builders had played references
   kinematically and stepped the env on Stage 1's arrays and on the frozen set `V0` ("What had been run"), and a number
-  quoted from that file is theirs and is labelled so. **[dated 16 Nov 2026, ruling n of the fourth list]** stands after
-  a sentence of 15 Nov that rulings 13 and 14 of the fourth list correct or complete, and quotes the sentence as it was.
-  **[differs: C7]**, **[differs: A8, A11]**, **[differs: B6 and T1]** and **[differs: rule R4's wording]** are
-  departures from those rules of `STAGE2_75_PLAN.md` (T1 is this text's). Every rule ends with "Check:", the record
-  field or file a reviewer compares with it.
+  quoted from that file is theirs and is labelled so. In three places the same mark stands on wording that the author
+  added after the independent review of that writing-in, where the wording file is behind the env's code or holds no
+  entry (E4's closing sentences; a parenthesis in W2's joint row and one in W5's `range`): the mark says so there.
+  **[dated 16 Nov 2026, ruling n of the fourth list]** stands after a sentence of 15 Nov that rulings 13 and 14 of the
+  fourth list correct or complete, and quotes the sentence as it was. **[differs: C7]**, **[differs: A8, A11]**,
+  **[differs: B6 and T1]** and **[differs: rule R4's wording]** are departures from those rules of `STAGE2_75_PLAN.md`
+  (T1 is this text's). Every rule ends with "Check:", the record field or file a reviewer compares with it.
 
 ## E. The controllers
 
@@ -2422,7 +2429,8 @@ was measured on, and every penalty is "below 1e-4". By entry, with the rule afte
 - Entries 4a, 4b and 4c, `progress`, `heading` and the closing sentences; code unchanged by 4a and by 4b's wrap and
   `yaw_home`, changed for the turn in place and for the head command (entries 5a and 6a): W5.
 - Entries 5a, 5b and 5c, the commanded heading in the two turn-in-place tasks; code changed (commit `0dc39b8`): E4, and
-  T1's row and Check.
+  T1's row and Check. Entry 5a's last sentence is not written in as it stands (the paragraph on the review of this
+  writing-in, below).
 - Entries 6a, 6b and 6c, the gaze and jaw ranges and what the head command is added to in R6; code changed for the
   ranges (commit `ad64656`), unchanged by 6c: E5 and J4, with a pointer in E2.
 - Entries 7a, 7b and 7c, the holds of `stop` and `start_stop`, the `stand` task's plan, and when a head event starts;
@@ -2465,3 +2473,28 @@ ruling names J1. With the lead, because they change what a rule decides: the cas
 other delays after a row's cap has been committed (written in as the author's reading: the dry run is made again with
 all four delays, and the cap is 1.5 times its total from then on); and whether "no number is fixed now" holds for the
 candidate's two caps on `F25F9cl` too (written in as: yes).
+
+Changed after the independent review of this writing-in (16 Nov 2026), by the author and not by the lead, on findings
+that needed no new decision; each stands where it is, labelled. E4: its closing sentences follow the env's code, in
+which a plan given as a plan can name the reference's yaw (`from_plan`'s `heading`, commit `011f6e2` on `wt/wpc-ce`, as
+the lead had ruled at 03:02 UTC on 16 Nov 2026). Wording entry 5a's last sentence, written before that commit, said that
+only a task's definition names it; it is quoted in E4's mark and is the one "New" text of the wording file that this
+text does not hold word for word. W2's joint row and W5's `range` gain one parenthesis each, which states what the code
+computes and which no wording entry holds: on `-X` the head command's angles are added to the joint term's reference,
+and an end a joint rests on by design is no limit. Q5: S2-9's condition "may be known" only after a row's 10 ms records
+(it read "is known"), and the reading names the case in which S2-9 has asked before the first dry run; the report names
+each cap's run directory and its dry run, the rulings and this text naming no path; the Check's mark names rulings 1 and
+2. U4: the Check's mark names ruling 8. L11: two marks gain the label on the look work package's sets, and one its
+ruling (6); the Check's mark says that the item on L9 was set first. L12: an author's note and the Check name the place
+of the lead's decision on a body's other look sets, an amendment of this text, by this text's own rule for a later
+answer. Y10's Check: `budget_set_on` is a UTC date and time. "What had been run": the head of branch `wt/wp-l` while the
+wording was written in, and what the review and these fixes ran. The Tags entry: one sentence on the three places of E4,
+W2 and W5. Five labels that a line break had split are whole again (in the Status, the Tags entry, the opening
+paragraphs of the two sections that list the rulings of 15 Nov, and the paragraph that closes the second list); no word
+of those paragraphs is changed by it. The working branch was merged once more, at `355e91a` (the lead's rulings of 15:40
+UTC on the env's small fix round, and working papers); this file alone differs from it.
+
+The points of that review that need a decision are with the lead and are not written in: what a record of a check holds
+for a condition without a reference (M1); how a run goes on after the halt that follows two attempts never closed (M1,
+K5, M5); the case in Q5 named above, for which the Check as written does not allow a second dry run; and whether "that
+body's other look sets" in L12 takes in the sets of its `-X` head.
