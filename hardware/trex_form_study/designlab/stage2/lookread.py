@@ -28,9 +28,10 @@ contact after a step in (out of) it, by the 2 % load rule with the 20 ms debounc
 ``compare``   the four terms against a reference's reading (``BANDS``, ``NOT_READ_RAD``, ``MIN_STEPS``).
 ``playback``  the reference's reading: the track's own files placed in one world frame by ``bar._Played``, played
               at the nominal commanded clock over the window's reference times.
-``window``    rule U2 from a built bar condition and its recorder (simulated time); ``window_ref`` the reference
-              times that window covers at the nominal commanded clock, from the built condition alone (what
-              ``playback`` takes: one definition for the gate and for an episode's wrapper).
+``window``    rule U2 from a built bar condition and its recorder (simulated time; a walk episode that fell has
+              none, as the bar judges none); ``window_ref`` the reference times that window covers at the
+              nominal commanded clock, from the built condition alone (what ``playback`` takes: one definition
+              for the gate and for an episode's wrapper).
 
 For gate G9-ref: ``played`` (a playback's arrays), ``degrade`` and ``controls`` (part (c)'s negative controls),
 ``ladder_numbers`` and ``against_ladder`` (part (b): the four numbers of a ``stage2/look/metrics.json`` rung and
@@ -172,7 +173,8 @@ def series(p, poses, loads, dt, every, t0: float = 0.0) -> dict:
     """The look series of an episode (module docstring).  ``p`` is a ``plant.Plant`` (only ``p.m`` is read, on a
     private ``MjData``: the plant's own state is not touched); ``poses [n, nq]`` the full ``qpos`` every ``every``
     physics steps (50 Hz: ``every * dt = 0.02``); ``loads [steps, 2]`` the feet's vertical loads (N) at every
-    physics step; pose j and load ``j * every`` are one instant, ``t0 + j * every * dt``.
+    physics step; pose j and load ``j * every`` are one instant, ``t0 + j * every * dt``, and every pose needs its
+    load (``LookError`` for a pose past the last load).
 
     Returns ``t50 [n]``, ``hip_mid_z [n]`` (m, world), ``head_pitch_world [n]`` (rad), ``foot_pitch [n, 2]`` (rad,
     toe down positive), ``tail [n]`` (rad), ``contact [steps, 2]`` (bool, debounced), ``lift_offs`` and
@@ -189,7 +191,7 @@ def series(p, poses, loads, dt, every, t0: float = 0.0) -> dict:
     if not (dt > 0 and every >= 1):
         raise LookError(f"physics step {dt!r}, poses every {every!r} steps")
     n, steps = len(poses), len(loads)
-    if n and (n - 1) * every > steps:
+    if n and (n - 1) * every >= steps:  # pose j is physics step j * every, and the last load is step steps - 1
         raise LookError(f"{n} poses every {every} steps reach past the {steps} physics steps of the loads")
     d = mujoco.MjData(m)
     K = np.zeros((n, 4))
@@ -402,10 +404,14 @@ def window(b, rec) -> tuple[float, float] | None:
     None: the item is not read (a nudge, a stop, a stock condition) or its window was not reached.
 
     A walk item (``b.cond.judge == "bar_walk"``): the last ``WALK_WINDOW_S`` of an episode that ran to its planned
-    end, ``(t_end - 10, t_end)`` with ``t_end`` the trace's last update (the bar's own window and its own test of
-    the end, ``bar._ran_to_end``).  A turn item (``"bar_turn"``): ``(t_c + at_s, t_c + at_s + TURN_WINDOW_S)`` with
-    ``t_c = rec.sim_time(b.command["ref_s"])`` and ``at_s = b.resolved["at_s"]``, when the trace spans it.  Only
-    attributes of ``b`` and ``rec`` are read."""
+    end without a fall, ``(t_end - 10, t_end)`` with ``t_end`` the trace's last update (the bar's own window and
+    its own test of the end, ``bar._ran_to_end``).  An episode that fell has none, also when it fell inside the
+    last two updates, which the test of the end lets through: the bar judges no window after a fall
+    (``bar._judge``).  The fall is the recorder's own ``rec.out["fell"]`` (``metrics.Recorder.end``); a recorder
+    without ``out`` (a kinematic playback's) did not fall.  A turn item (``"bar_turn"``): ``(t_c + at_s, t_c + at_s
+    + TURN_WINDOW_S)`` with ``t_c = rec.sim_time(b.command["ref_s"])`` and ``at_s = b.resolved["at_s"]``, when the
+    trace spans it (also in an episode that fell later: the bar reads that window too).  Only attributes of ``b``
+    and ``rec`` are read."""
     judge = getattr(getattr(b, "cond", None), "judge", None)
     if judge not in ("bar_walk", "bar_turn") or not getattr(rec, "rows", 0):
         return None
@@ -413,6 +419,8 @@ def window(b, rec) -> tuple[float, float] | None:
     if judge == "bar_walk":
         from ..stage1 import control  # (the update interval: the bar's slack at the planned end)
 
+        if (getattr(rec, "out", None) or {}).get("fell"):
+            return None
         planned = float(b.resolved.get("cut_from_s", b.seconds))
         if t_end < planned - 2 * control.FEEDBACK_EVERY * float(rec.dt):
             return None

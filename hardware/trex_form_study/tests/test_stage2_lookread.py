@@ -420,6 +420,26 @@ def test_the_window_of_a_walk_item_is_its_judged_last_10s():
     assert lookread.window(_built("bar_walk"), types.SimpleNamespace(t=np.zeros(0), rows=0, dt=0.002)) is None
 
 
+def test_a_walk_episode_that_fell_has_no_window():
+    """The bar judges no walk window after a fall (``bar._judge``), also one inside the last two updates, which the
+    test of the planned end lets through.  The fall is the recorder's own ``out`` (``metrics.Recorder.end``)."""
+    b = _built("bar_walk")
+    for t_end in (19.99, 19.98):
+        rec = _rec(t_end)
+        assert lookread.window(b, rec) == pytest.approx((t_end - 10.0, t_end))  # (no ``out``: a playback's recorder)
+        rec.out = dict(fell=False, fall_time_s=None)
+        assert lookread.window(b, rec) == pytest.approx((t_end - 10.0, t_end))
+        rec.out = dict(fell=True, fall_time_s=t_end)
+        assert lookread.window(b, rec) is None
+        rec.out = None
+        assert lookread.window(b, rec) is not None
+    assert lookread.window_ref(b) is not None  # (the condition's reference times do not depend on an episode)
+    # a turn item's window is read whenever the trace spans it, as the bar reads it: also when the robot fell later
+    turn, rec = _built("bar_turn", command=8.4, at_s=2.0), _rec(13.2)
+    rec.out = dict(fell=True, fall_time_s=13.2)
+    assert lookread.window(turn, rec) == pytest.approx((10.0, 13.0))
+
+
 def test_the_window_of_a_turn_item_is_the_3s_after_the_judged_time():
     b = _built("bar_turn", command=8.4, at_s=2.0)
     assert lookread.window(b, _rec(13.2)) == pytest.approx((10.0, 13.0))
@@ -570,8 +590,12 @@ def test_the_series_are_the_look_arrays_own_columns_and_leave_the_plant_alone():
         lookread.series(p, z["q"][:5, :20], np.zeros((50, 2)), DT, EVERY)
     with pytest.raises(lookread.LookError, match=r"\[steps, 2\]"):
         lookread.series(p, z["q"][:5], np.zeros((50, 3)), DT, EVERY)
-    with pytest.raises(lookread.LookError, match="reach past"):
-        lookread.series(p, z["q"][:5], np.zeros((39, 2)), DT, EVERY)
+    # every pose needs its load: pose j is physics step j * every, the last load is step steps - 1
+    for n, steps in ((5, 39), (5, 40), (6, 50), (1, 0)):
+        with pytest.raises(lookread.LookError, match=f"{n} poses every 10 steps reach past the {steps} physics steps"):
+            lookread.series(p, z["q"][:n], np.zeros((steps, 2)), DT, EVERY)
+    assert len(lookread.series(p, z["q"][:5], np.zeros((41, 2)), DT, EVERY)["t50"]) == 5
+    assert len(lookread.series(p, z["q"][:0], np.zeros((0, 2)), DT, EVERY)["t50"]) == 0
 
 
 @needs["75-M-H-10"]
@@ -584,11 +608,11 @@ def test_contact_events_are_the_bars_rule_on_the_loads():
     loads[1000:1300, 0] = 0.019 * w  # the left foot under 2 % of the weight: in the air
     loads[1500:1505, 0] = 0.0  # 10 ms without load: merged by the 20 ms debounce
     loads[1700:1711, 1] = 0.5 * w  # 22 ms of load: a touchdown and a lift-off
-    ser = lookread.series(p, np.tile(p.q_home, (201, 1)), loads, DT, EVERY, t0=5.0)
+    ser = lookread.series(p, np.tile(p.q_home, (200, 1)), loads, DT, EVERY, t0=5.0)
     assert np.array_equal(ser["contact"], readings.contact_flags(loads, w, DT))
     assert ser["touchdowns"][1] == pytest.approx([5.2, 8.4]) and ser["lift_offs"][1] == pytest.approx([5.8, 8.422])
     assert ser["lift_offs"][0] == pytest.approx([7.0]) and ser["touchdowns"][0] == pytest.approx([7.6])
-    assert ser["t50"][0] == 5.0 and ser["t50"][-1] == pytest.approx(9.0) and ser["steps"] == 2000
+    assert ser["t50"][0] == 5.0 and ser["t50"][-1] == pytest.approx(8.98) and ser["steps"] == 2000
 
 
 @pytest.mark.parametrize("body", BODIES)
@@ -796,6 +820,7 @@ def test_a_live_recorders_poses_and_loads_are_what_series_takes():
     finally:
         del b.recorder
     assert "recorder" not in vars(b) and not out["fell"]
+    assert rec.out["fell"] is False  # (what ``window`` reads of a walk item's recorder: ``metrics.Recorder.end``)
     every = tune.LEGS_EVERY * control.FEEDBACK_EVERY
     assert len(rec.poses) == (rec.rows + 1) // 2 and rec.loads.shape == (rec.steps, 2)
     before = b.p.d.qpos.copy()
