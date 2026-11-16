@@ -2154,6 +2154,7 @@ class _Launcher:
         doc = _stamped(dict(schema=END_SCHEMA, run_id=self.sess["run_id"], session=self.k, session_uuid=self.uuid,
                             at=_now(), state=state, reason=reason, jobs=self._jobs_doc(), lines=list(self.st["lines"]),
                             commit=self.sess["repo"]["commit"], rules=dict(jobs=JOB_RULE, halt=HALT_RULE)))
+        written = False
         for attempt in range(3):
             try:
                 self.fence()
@@ -2165,12 +2166,15 @@ class _Launcher:
                     self.copy_logs()
                 _write_json(self.d / name, doc)
                 _write_live(self.st, closed=f"{state}: {reason}")
+                written = True
                 break
             except OSError as exc:
                 self.say(f"S2 WARNING: the run's last files could not be written ({exc}); attempt {attempt + 1} of 3")
                 time.sleep(min(self.period, 5.0))
-        self.say(f"S2 launch: {name[:-5]}: {reason}")
-        return dict(state=state, reason=reason, session=self.k, jobs=doc["jobs"], lines=doc["lines"], record=name)
+        self.say(f"S2 launch: {name[:-5]}: {reason}" + ("" if written else f" ({name} could NOT be written to the "
+                                                         "run directory: tell the lead)"))
+        return dict(state=state, reason=reason, session=self.k, jobs=doc["jobs"], lines=doc["lines"],
+                    record=name if written else None)
 
     def _superseded(self, by) -> dict:
         reason = f"superseded by session {by}"
