@@ -20,3 +20,7 @@ been made and no look set is frozen.
 Confirmed as the fixer left them: rule E4's sentence on a plan given as a plan (the lead's ruling of 03:02 UTC);
 the candidate's two caps are made again; K4 keeps the wording file's entry 8. Q5's run directories are named
 `stage2/tb/bar/<run>/`, each with a `DRY_RUN.json` at its top.
+
+5. **The look reading's tail term (added 18:21 UTC, from the review of the look reading).** The tail term fails when
+   the robot's fitted tail amplitude is under 0.02 rad while the reference's amplitude is read. It goes into the
+   draft's look rules with the next round, and into `lookread.py` before code state B.
