@@ -190,12 +190,13 @@ arrays when the design was written and are no record.
   no-go run (inside the plan's 10 for validation); about 5.2 for the 60 cm run, on top of the plan's estimate of about
   80; a budget of 12 for R2L in place of the plan's 8 (a third fit, on the candidate walk of the 75 cm track). R2L's
   panel records, and the re-runs of the 75 cm track's two balance-controller rows beside them, have caps of their own
-  beside that budget (Q5) [settled 16 Nov 2026, before any Track B run: this sentence]. On Colab: 40,000,000 steps per
-  run, or fewer if the smoke's rate cannot reach that in 20 hours (about 556 steps per second), never under 15,000,000
-  without you. The plan's cap of 220 runtime-hours or 8 days stands: when it is reached, running jobs stop at their next
-  checkpoint, every run is judged at the last checkpoint its comparison reached, and jobs not yet started are cut in the
-  plan's order (fine-tunes, then R6, then the expressive head's second seed); the 8 days count from the start of the
-  first training session. Nothing is adopted.
+  beside that budget (Q5). Each cap is set from a planning run on the frozen reference set before that row's first
+  record; none has a number yet [settled 16 Nov 2026, before any Track B run: these two sentences]. On Colab: 40,000,000
+  steps per run, or fewer if the smoke's rate cannot reach that in 20 hours (about 556 steps per second), never under
+  15,000,000 without you. The plan's cap of 220 runtime-hours or 8 days stands: when it is reached, running jobs stop at
+  their next checkpoint, every run is judged at the last checkpoint its comparison reached, and jobs not yet started are
+  cut in the plan's order (fine-tunes, then R6, then the expressive head's second seed); the 8 days count from the start
+  of the first training session. Nothing is adopted.
 - **Settled after the review.** The independent review of these rules left 25 points for the study's lead. The lead
   settled all of them on 15 Nov 2026, before any Track B run (the last section lists them), and this brief was changed
   where an answer touched it. Four answers have no bullet above. Each size trains at its own learning rate: a short
@@ -770,15 +771,16 @@ so whether the term is read there may turn on rounding. [settled 15 Nov, before 
 
 **U4. The readings on a look set.** [plan; settled 15 Nov, before any Track B run: a turn frozen with `a1_over`, reading
 1's words, one more term of the stop item; settled 16 Nov 2026, before any Track B run: where the companion's reading is
-the verdict, and where that term decides; differs: C7, by that term, for Track B rows] Reading 1 ("shown with the
-look"), the headline for walks and turns: the bar's `succeeded` and all four terms. For nudge and stop items reading 1
-is reading 2, labelled [NEW precision: the plan names walks and turns]. Readings 2 and 3 as `STAGE2_75_PLAN.md` C2.
-Printed beside: reading 3 with the bands kept; it is never a verdict but in the one case settled below, a turn frozen
-with `a1_over` (as committed it was "never a verdict"). Reading 1 counts on the sets V6 and V6noF5; on any other set the
-numbers are recorded and its count is null. It is held in a companion record beside each bar record (U6); the bar's own
-record keeps `counts_look: null`. A turn frozen with `a1_over` (`STAGE2_75_PLAN.md` A11 and C2, which S2-16 extends to
-the look sets): reading 2 gives it no verdict and only reading 3 can pass, so reading 1, which holds reading 2, gives it
-no pass either, and its cell reads "not read: `a1_over`".
+the verdict, where that term decides, and where the bar's reading is printed beside the companion's; differs: C7, by
+that term, for Track B rows] Reading 1 ("shown with the look"), the headline for walks and turns: the bar's `succeeded`
+and all four terms. For nudge and stop items reading 1 is reading 2, labelled [NEW precision: the plan names walks and
+turns]. Readings 2 and 3 as `STAGE2_75_PLAN.md` C2. Printed beside: reading 3 with the bands kept; it is never a verdict
+but in the one case settled below, a turn frozen with `a1_over` (as committed it was "never a verdict"). Reading 1
+counts on the sets V6 and V6noF5; on any other set the numbers are recorded and its count is null. It is held in a
+companion record beside each bar record (U6); the bar's own record keeps `counts_look: null`. A turn frozen with
+`a1_over` (`STAGE2_75_PLAN.md` A11 and C2, which S2-16 extends to the look sets): reading 2 gives it no verdict and only
+reading 3 can pass, so reading 1, which holds reading 2, gives it no pass either, and its cell reads "not read:
+`a1_over`".
 
 [settled 15 Nov, before any Track B run] On a turn frozen with `a1_over` reading 1 reads "not read: a1_over"; its
 headline on a look set is then reading 3 with the four bands kept, printed "shown but for A1, with the look" (or
@@ -797,6 +799,10 @@ the term `on_command_at_stop`. On any other set, `F25F9cl` included, reading 1 d
 paragraph says. The row `R2L-F25F9cl/42` is therefore judged there by the bar's own readings, exactly as `R2/42` and
 `R2/43` beside it. The term `on_command_at_stop` is recorded in its companion and decides nothing on that set (Q6).
 
+[settled 16 Nov 2026, before any Track B run; ruling 8 of the fourth list, which makes the paragraph above precise] The
+bar's own record is printed beside the companion's reading on stop items only: for walks and turns the bar's own record
+holds no reading 1 (`counts_look: null`). On any other set the companion's counts equal the bar's.
+
 Why this was settled (the author's account, not the lead's wording): `bar.py` is not edited (E6), so a stop item's bar
 record holds no such term and can differ from its companion; and on `F25F9cl` the row `R2L-F25F9cl/42` would have
 carried the term while `R2/42` and `R2/43` beside it carried none. The sentence "An episode that fails it succeeds in no
@@ -805,9 +811,11 @@ reading" of the paragraph settled on 15 Nov therefore holds for the companion's 
 Check: the companion's `counts_look`, `counts`, `counts_but_A1`, `reading_1`; in the companion, each stop episode's
 `on_command_at_stop` (the speed and the term); the report's cells of a turn frozen with `a1_over` (reading 1 "not read:
 `a1_over`"; its headline from the episodes' `succeeded_but_A1_look`, with its word).
-[settled 16 Nov 2026, before any Track B run] In the report's tables of a look set, beside each count of a Track B row
-from its companion, the bar's own count headed "the bar's reading (C7)"; where the two differ on a stop item, both, with
-the term's name; on any other set, the row's counts taken from the bar's own record.
+[settled 16 Nov 2026, before any Track B run] In the report's tables of a look set, each stop item of a Track B row
+shows the companion's count and, beside it, the bar's own count headed "the bar's reading (C7)"; where the two differ,
+both, with the term's name; on every other item the companion's count stands alone. On any other set, the row's counts
+are taken from the bar's own record, and the companion's counts there equal the bar's [the fourth list: the stop items
+and the equality; this Check read "beside each count of a Track B row from its companion, the bar's own count"].
 
 **U5. The reference's values; too few steps.** [NEW; lead, 15 Nov, before any Track B run; differs: C8, in this rule's
 second sentence] The same functions on a kinematic playback of the episode's own track over the window's reference times
@@ -938,11 +946,11 @@ a cell not reached reads "not run: budget" **[differs: S2-18's "the others repor
 `selection`, `by_delay` (the cells in the order run).
 
 **Q5. Budget.** [lead, 15 Nov, before any Track B run; settled 15 Nov, before any Track B run: how a fit's share is
-spent; settled 16 Nov 2026, before any Track B run: when a reported cell starts, and the caps of R2L's panel records and
-of the re-runs beside them; differs: plan section 6's 8 core-hours for R2L; NEW split] As the lead ruled: R2L's budget
-is 12 core-hours, counted as the sum of evaluation CPU seconds in `ledger.json`, for three fits in this order: `V6noF5`
-on `75-M-H-10`, then `V6noF5` on `60-N-T-10` (8 core-hours for the two), then the candidate `F25F9cl` on `75-M-H-10` (4
-core-hours).
+spent; settled 16 Nov 2026, before any Track B run: when a reported cell starts and what a fit's share then holds, and
+the caps of R2L's panel records and of the re-runs beside them, with where each cap's number comes from and how a cap is
+spent; differs: plan section 6's 8 core-hours for R2L; NEW split] As the lead ruled: R2L's budget is 12 core-hours,
+counted as the sum of evaluation CPU seconds in `ledger.json`, for three fits in this order: `V6noF5` on `75-M-H-10`,
+then `V6noF5` on `60-N-T-10` (8 core-hours for the two), then the candidate `F25F9cl` on `75-M-H-10` (4 core-hours).
 
 [settled 15 Nov, before any Track B run] The three fits have separate shares of 4.0 core-hours and run in that order; an
 overrun comes off no other fit's share. Within a share: block 0 (six generations) always runs; after each whole block
@@ -956,8 +964,11 @@ cuts one.
 [settled 16 Nov 2026, before any Track B run; in place of the committed sentence "The reported cells run in Q4's order
 while the share lasts; a started cell finishes." (settled 15 Nov), which stood in the paragraph above] The reported
 cells run in Q4's order. A reported cell starts only when the fit's share still holds its estimate: the decisive cell's
-mean seconds per episode, times 25, times 1.25. Otherwise it reads "not run: budget". A started cell finishes. If it
-passes the share all the same, the excess is recorded (`overrun_reported`) and no further cell starts.
+mean seconds per episode, times 25, times 1.25. What the share still holds is 4.0 core-hours less every second the fit
+has spent: its blocks, its decisive cell and its earlier reported cells [settled 16 Nov 2026, before any Track B run:
+this sentence, which says what "the share" is here; ruling 9 of the fourth list]. Otherwise it reads "not run: budget".
+A started cell finishes. If it passes the share all the same, the excess is recorded (`overrun_reported`) and no further
+cell starts.
 
 The paragraph settled on 15 Nov stands in place of these committed sentences, the first of which was the lead's ruling
 of 02:45 UTC (ruling 11 of the first list) and is made precise by it: "A fit that does not fit the budget is cut and
@@ -972,26 +983,44 @@ the candidate's row (Q6), each get a cap: 1.5 times the bar runner's dry-run tot
 16 gated conditions and `walk/nominal` at 10 ms, and the same at 0, 4 and 6 ms where the plan asks for them. When a cap
 is reached the 6, 4 and 0 ms records are cut first, in that order; the 10 ms records are never cut.
 
-Where the plan asks, as Q6 and S2-9 have it (the author's reading, not the lead's wording): on `V6noF5` the 17
-conditions at 10 ms, and the same at 0, 4 and 6 ms only for a body on which R5 failed G8b on both seeds; on `F25F9cl`
-the 22 records that Q6 names for the candidate's row (the 16 gated conditions at 10 ms, and `walk/v0.4` and
-`walk/v0.4_mu0.54` at 0, 4 and 6 ms; Q6 names no `walk/nominal` record there, and none is counted), and the same 22 for
-each of `R2/42` and `R2/43` where they are run again. The dry runs, made on 16 Nov 2026:
+[settled 16 Nov 2026, before any Track B run; rulings 1 and 2 of the fourth list, which say where each cap's number
+comes from and how a cap is spent] Each cap is 1.5 times the total that the dry run prints on the frozen set itself, for
+the 60 cm body as for the 75 cm body, at the same `COST.md`. For a `V6noF5` row the dry run is
+`--set V6noF5 --body <body> --rows R2/42@10ms --conditions @gated,walk/nominal` (the three other delays added where S2-9
+asks). It is made and committed with its printed total after the set's freeze and before the row's first panel record.
+No cap's number is fixed now: the numbers this rule holds are planning figures and cap nothing. Each cap is spent by the
+bar's unit rule (`STAGE2_75_PLAN.md` H6): a unit starts only if what the cap has spent plus the unit's estimate fits,
+and a started unit finishes. The 10 ms records are one unit and start first; then one unit per delay, in the order 0, 4,
+6 ms. The first unit that does not fit is cut with every later one. If the 10 ms unit passes the cap, the excess is
+recorded and no further unit starts. Fall attribution of these records is not in the dry-run total: it runs last and is
+cut first. Each cap has its own run directory and its own `budget.json`, under one task key. A cap is one and a half
+times a total that holds its 10 ms unit's estimate, so that unit always fits and starts: "never cut" holds.
 
-| Cap for | Records | Dry run made on | Episodes | Simulated hours | Dry-run total, core-hours | Cap (1.5 x), core-hours |
+How these two rulings are read where they name no case (the author's reading, not the lead's wording). On `V6noF5`,
+"where S2-9 asks" is a body on which R5 failed G8b on both seeds (Q6), which is known only after the row's 10 ms
+records. The first dry run therefore takes the 17 conditions at 10 ms. If S2-9 then asks, the dry run is made again with
+all four delays and committed before the first record at another delay; 1.5 times its total is the row's cap from then
+on, and what the 10 ms unit spent counts in it. On `F25F9cl` the dry runs are the two pairs of commands listed below,
+made again and committed before `R2L-F25F9cl/42`'s first panel record and before the first re-run record. They take the
+22 records that Q6 names for the candidate's row (the 16 gated conditions at 10 ms, which are its 10 ms unit, then
+`walk/v0.4` and `walk/v0.4_mu0.54` at 0, at 4 and at 6 ms; Q6 names no `walk/nominal` record there, and none is
+counted), and the same 22 for each of `R2/42` and `R2/43` where they are run again. The dry run of an R2L row names the
+row `R2/42`: the runner gives a row without a measured rate the largest measured one, which is R2's (`bar.rate_of`). The
+rulings name no path for a cap's run directory or for its committed dry run, and no task key.
+
+Planning figures. They cap nothing; each is an estimate and no record: a dry run plans each episode, multiplies its
+planned seconds by a rate and runs none. The rate is `COST.md`'s for an R2 row, 0.1574 wall seconds per simulated
+second, measured by this study on 15 Nov 2026 on Stage 1's own condition `walk/brisk` of `75-M-H-10`. The last column is
+the printed total times 1.5 (arithmetic), not rounded. The dry runs were made on 16 Nov 2026 from
+`hardware/trex_form_study` at commit `82ba1ad` of the working branch, when the third list was written in.
+
+| For | Records | Dry run made on | Episodes | Simulated hours | Printed total, core-hours | 1.5 x, core-hours |
 |---|---|---|---|---|---|---|
-| `R2L-V6noF5/42` on `75-M-H-10`, 10 ms | 17 | set `V0`, row `R2/42`: a stand-in set and a stand-in row | 340 | 1.882 | 0.296 | 0.444 |
-| the same with 0, 4 and 6 ms (S2-9) | 68 | set `V0`, row `R2/42`: a stand-in set and a stand-in row | 1,360 | 7.529 | 1.185 | 1.7775 |
-| `R2L-V6noF5/42` on `60-N-T-10`, 10 ms; with 0, 4 and 6 ms | 17; 68 | none of its own (no 60 cm set is frozen): the two rows above, at the same `COST.md` rates | - | - | 0.296; 1.185 | 0.444; 1.7775 |
-| `R2L-F25F9cl/42` on `75-M-H-10` | 22 | set `F25F9cl` itself, row `R2/42`: a stand-in row | 440 | 2.999 | 0.472 | 0.708 |
-| `R2/42` and `R2/43` beside it, where run again | 44 | set `F25F9cl` itself, the two rows themselves | 880 | 5.998 | 0.944 | 1.416 |
+| `R2L-V6noF5/42` on `75-M-H-10`, 10 ms | 17 | the look work package's unfrozen build of `V6noF5` (branch `wt/wp-l` at `e2696b2`, read through `--set-root`), row `R2/42` | 340 | 3.602 | 0.567 | 0.8505 |
+| `R2L-F25F9cl/42` on `75-M-H-10` | 22 | the frozen set `F25F9cl`, row `R2/42` | 440 | 2.999 | 0.472 | 0.708 |
+| `R2/42` and `R2/43` beside it, where run again | 44 | the frozen set `F25F9cl`, the two rows themselves | 880 | 5.998 | 0.944 | 1.416 |
 
-Every number of this table is an estimate and no record: a dry run plans each episode, multiplies its planned seconds by
-a rate and runs none. The rate is `COST.md`'s for an R2 row, 0.1574 wall seconds per simulated second, measured by this
-study on 15 Nov 2026 on Stage 1's own condition `walk/brisk` of `75-M-H-10`. The runner gives a row without a measured
-rate the largest measured one, which is that rate (`bar.rate_of`), so an R2L row is estimated as an R2 row. A cap is the
-printed total times 1.5 (arithmetic), not rounded. The dry runs were made from `hardware/trex_form_study` at commit
-`82ba1ad` of the working branch, each as
+Each was made as
 
 ```
 python -m designlab.stage2.bar dry-run --body 75-M-H-10 --cost stage2/runs/2026-11-15-75cm/COST.md \
@@ -1000,10 +1029,8 @@ python -m designlab.stage2.bar dry-run --body 75-M-H-10 --cost stage2/runs/2026-
 
 with these arguments; the totals are the runner's own printed lines:
 
-- `--set V0 --rows R2/42@10ms --conditions @gated,walk/nominal`: 340 episodes, 1.882 simulated hours, 0.296
-  core-hours (the same three numbers with `R2/42@0ms`, with `R2/42@4ms` and with `R2/42@6ms`);
-- `--set V0 --rows R2/42@10ms,R2/42@0ms,R2/42@4ms,R2/42@6ms --conditions @gated,walk/nominal`: 1,360 episodes,
-  7.529 simulated hours, 1.185 core-hours;
+- `--set V6noF5 --rows R2/42@10ms --conditions @gated,walk/nominal`, on the unfrozen build: 340 episodes, 3.602
+  simulated hours, 0.567 core-hours;
 - `--set F25F9cl --rows R2/42@10ms --conditions @gated`: 320 episodes, 2.186 simulated hours, 0.344 core-hours;
   `--set F25F9cl --rows R2/42@0ms,R2/42@4ms,R2/42@6ms --conditions @walk`: 120 episodes, 0.813 simulated hours,
   0.128 core-hours; the table's row is their sum;
@@ -1011,27 +1038,28 @@ with these arguments; the totals are the runner's own printed lines:
   core-hours; `--set F25F9cl --rows R2/42@0ms,R2/43@0ms,R2/42@4ms,R2/43@4ms,R2/42@6ms,R2/43@6ms --conditions
   @walk`: 240 episodes, 1.626 simulated hours, 0.256 core-hours; the table's row is their sum.
 
-No `V6noF5` set is frozen and no R2L row can be built yet. The two `V6noF5` caps are therefore estimates from a stand-in
-row (`R2/42`) on a stand-in set (the frozen `V0`) of the 75 cm body. The 60 cm body has no frozen set to plan on, and
-`COST.md` holds no rate measured on it: its caps are written with the 75 cm stand-in's numbers at `COST.md`'s rates, the
-only rates the ruling names, and are labelled so wherever they are printed [corrected after the review of this
-writing-in, by the author: this sentence read "it takes the 75 cm body's numbers until its own rates exist", a condition
-that the ruling does not hold].
+No dry run was made on a `V6noF5` set of `60-N-T-10`, so the table holds no figure for that body.
 
-Known when this was written in (the author's note, not the lead's wording): the stand-in understates a look set. The
-first of the dry runs above was also made on the look work package's unfrozen build of `V6noF5` on `75-M-H-10` (`--set
-V6noF5`, read through `--set-root` from branch `wt/wp-l` at `e2696b2`; planning only, no record). It printed 340
-episodes, 3.602 simulated hours and 0.567 core-hours: 1.9 times the stand-in's 0.296, and above the stand-in's cap of
-0.444. Its episodes are planned at 24.87 to 52.89 s each, against 14.06 to 21.08 s on `V0`; the likely reason, which was
-not checked, is that a look walk's file is a window of 9 to 14 strides and a plan counts whole windows ("Windows"). The
-ruling does not say whether a `V6noF5` cap stays at the stand-in's number or is taken from the dry run on the frozen set
-itself. No number above was changed on that reading.
+What went with ruling 1 of the fourth list (the author's account). As written in under ruling 6 of the third list, this
+rule held caps for the `V6noF5` rows of both bodies that were taken from dry runs on a stand-in, the frozen set `V0` of
+the 75 cm body under row `R2/42`: 0.444 core-hours at 10 ms (1.5 x 0.296) and 1.7775 with 0, 4 and 6 ms (1.5 x 1.185),
+with the same numbers standing in for the 60 cm body. They are gone and cap nothing. The table's first row shows why: on
+the unfrozen `V6noF5` build the same 17 conditions are planned at 0.567 core-hours, 1.9 times the stand-in's 0.296 and
+above its cap of 0.444, so the bar's ledger would have refused the 10 ms unit itself (H6: a unit whose estimate does not
+fit is cut). Its episodes are planned at 24.87 to 52.89 s each, against 14.06 to 21.08 s on `V0`; the likely reason,
+which was not checked, is that a look walk's file is a window of 9 to 14 strides and a plan counts whole windows
+("Windows"). Rulings 1 and 2 were given after these planning figures existed; no episode had run for them.
 
 Check: `ledger.json` (per fit: the seconds of each block, of the decisive cell and of each reported cell, in the order
 run); `r2lg5.json` `judged_at_generation`, `overrun`; the report's cell for a fit that was cut.
-[settled 16 Nov 2026, before any Track B run] `r2lg5.json` `overrun_reported`, and for each reported cell its estimate
-and whether it started; for each cap, the bar's `budget.json` (the cap, the units in the order started, and the cut
-units: 6 ms, then 4 ms, then 0 ms, and no 10 ms record among them).
+[settled 16 Nov 2026, before any Track B run] `r2lg5.json` `overrun_reported`, and for each reported cell its estimate,
+what the share still held when it was decided and whether it started; for each cap, its committed dry run (the command
+and the printed total, on the frozen set, in a commit that is an ancestor of the `sessions[].commit` of the row's first
+panel record) and its own run directory's `budget.json` (one task key; the cap, which is 1.5 times that total; the units
+in the order started, which is 10, 0, 4, 6 ms and then attribution; the cut units, which are the tail of that order,
+with no 10 ms unit among them; the excess of a 10 ms unit that passed its cap) [the fourth list: this Check read "the
+bar's `budget.json` (the cap, the units in the order started, and the cut units: 6 ms, then 4 ms, then 0 ms, and no 10
+ms record among them)"].
 
 **Q6. Rows and reading.** [plan; settled 15 Nov, before any Track B run: the row on the candidate set;
 settled 16 Nov 2026, before any Track B run: how that row is judged, and a pointer to Q5's caps] Rows are named by their
@@ -1058,7 +1086,7 @@ Check: the bar records' `controller.gains_info` (path and sha256 of `r2lg5.json`
 word); no `seeds5042` record under that row; its 8 + 14 records' conditions and delays; where `R2/42` and `R2/43` were
 run again, both directories and the `sessions[].commit` they share with the R2L row's records.
 [settled 16 Nov 2026, before any Track B run] In that row's companion records, each stop episode's `on_command_at_stop`,
-which enters no count of the report; Q5's caps in the bar's `budget.json`.
+which enters no count of the report; Q5's caps, each in its own run directory's `budget.json`.
 
 ## K. Checkpoints, resume, versions
 
@@ -1666,7 +1694,8 @@ closes that section). Items 7, 25, 27, 28, 29 and 30 also name rules of `STAGE2_
     read "not run: budget"; Q5 [settled 16 Nov]: it starts only when the fit's share still holds its estimate. Q5
     [settled 16 Nov]: R2L's panel records and the re-runs of `R2/42` and `R2/43` beside the candidate's row, which plan
     section 6 counts in "panels and attribution 45 (...; 0.8 per other row)", get caps of 1.5 times the bar runner's
-    dry-run total, per set and body.
+    dry-run total, per set and body; the dry run is made on the frozen set itself and committed before the row's first
+    panel record, and a cap is spent unit by unit in the order 10, 0, 4, 6 ms, attribution last.
 16. E5: in plan section 5's "`-X` runs the bar head neutral (the hardware's cost) and with gaze events and head-first
     turns (the cost of using it)", head-first turns are not run.
 17. N5: plan B.3's "a fresh-clone dry run of the bundle" and "the notebook on a tiny budget" are one acceptance run.
@@ -1716,7 +1745,8 @@ closes that section). Items 7, 25, 27, 28, 29 and 30 also name rules of `STAGE2_
     "Stop within a step or two" gain one term, `on_command_at_stop`: the CoM's mean forward speed over the stride before
     the command is at least 0.9 x the commanded speed [differs: C7]. U4 [settled 16 Nov]: the term decides on the look
     sets `V6` and `V6noF5`, where the companion's reading is the verdict of a Track B row and the bar's own record is
-    printed beside it as "the bar's reading (C7)"; on any other set it is recorded and decides nothing.
+    printed beside it, on stop items only, as "the bar's reading (C7)"; on any other set it is recorded and decides
+    nothing, and the companion's counts equal the bar's.
 30. L12 [settled]: for a join gate failed on a K-stride window, `STAGE2_75_PLAN.md` A8's "retried in this order and no
     other" and "A start and the stop have no fallback", and A11's "A turn has no other fallback", gain the look sets'
     cut 3, taken for a body [differs: A8, A11]; under cut 3, B6's "2 strides of `v0.4` (2.5 for the right turn)" and
