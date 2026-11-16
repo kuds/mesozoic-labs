@@ -295,3 +295,20 @@ another model with the lead and the independent reviewers unchanged.
 - **Not adopted:** the draft rows F28, F29 and E in report section 11.
 - **Paused, as before:** round C training tooling, the look sets, Track B rules, the milestone items after the
   75 cm track (R5/G8a/G9, R2L, B.3, S2-4, the notebook, the Drive bundle, the steps sheet).
+
+## Update, 16 Nov 2026, 01:10 UTC: the owner answered (P37); the add-on is being designed
+
+- **Answers (`DECISION_LOG.md` P37):** run today's walk at 14, 16 and 20 ms, then refit the stand-in controller with
+  delay on this body (two fits), 10 ms staying the judged delay; the counter-phased tail of look V6 as the tail
+  servo's remedy (nothing run now); no more runs on `F25F9cl`; pull request #668 closed as superseded (closed on
+  GitHub 16 Nov 00:33 UTC, not merged; a dated note stands on line 2 of its report here); carpet as a range with no
+  verdict.
+- **Running:** a design workflow (`wf_5204a798-a6e`): two designers (delays and carpet; the refit), each followed by
+  an independent reviewer. They change no file and run no episode. Brief: `stage2/design/WP_ADDON_75.md`; their
+  texts land in `<scratchpad>/addon/design_AB.md` and `design_C.md`.
+- **Next, in order:** read the designs and reviews, rule on the findings, write `STAGE2_75_ADDON_PLAN.md` and commit
+  it before any episode; item A (delays) first, since today's runner may already take it; then B and C, each with
+  its build reviewed before its run. Report each as an addition to `STAGE2_75_REPORT.md`, labelled as made after the
+  main panels' results.
+- **Usage:** the session's cost read 1,777 USD at 00:18 UTC, about 61 % of the week by the owner's 16:00
+  calibration (11 % at 1,433.50 USD; baseline 1,357.5; 1 % is about 6.9 USD).
