@@ -46,6 +46,13 @@ the ``range`` term's margin leaves out an end a joint rests on by design, as the
 (``Script.head_rp`` is the files'); a gaze train starts at the episode's first instant and training's jaw event is
 timed as the bar's (``HEAD_RULE``).
 
+Where a playback does not score exactly as rule W1 says (kinematic playbacks, 16 Nov 2026): the tracking term is
+Stage 1's and compares a speed over the 20 ms step with the reference's at the step's start: at least 0.989 on the
+walks of Stage 1's arrays and of the frozen set V0 (75-M-H-10), 0.962 in V0's quick turn, 0.951 in Stage 1's turn in
+place.  In a walking turn the commanded heading stays rule E4's integral of a rectangular pulse (the lead's ruling)
+while the reference's yaw ramps: on V0 the heading penalty reaches 0.35 in the quick turn, 0.14 at 0.5 rad/s and
+0.04 at 0.35 rad/s, for 98 to 208 of a task's 1,499 env steps.  Every other penalty of every task of V0 is 0.
+
 ``Core`` must be built while the plant's model is nominal (it reads the nominal weight).  This module imports
 ``r5lib``; it never imports ``r5env``.
 """
@@ -138,7 +145,10 @@ REWARD_RULE = (
     "foot loads are the plant's own after the env step's last physics step, which the simulator computes at that "
     "physics step's start, 2 ms before the env step's end (the plant's data is read, never recomputed).  A foot is "
     "loaded, or in contact, when its load is above 2 % of the true weight.  A kinematic playback of the reference "
-    "scores every positive term 1 and every penalty 0; duty, progress and clearance (a) are read so that it does.  "
+    "scores joint, foot, contact and head 1, tracking close to 1 (a speed over the 20 ms step against the "
+    "reference's at the step's start) and every penalty 0, except heading inside a finite walking turn, where the "
+    "commanded heading is the integral of a rectangular yaw-rate pulse and the reference's own yaw ramps; duty, "
+    "progress and clearance (a) are read so that it does.  "
     "joint: exp(-mean_j ((q_j - q_ref_j(c)) / 0.1 rad)^2) over all hinges, the reference with the head overlay.  "
     "tracking: Stage 1's gaussian_tracking_reward of the CoM's speed along the previous heading and the trunk's "
     "yaw rate over the step against the reference's own at c0 times the commanded clock rate.  foot: "

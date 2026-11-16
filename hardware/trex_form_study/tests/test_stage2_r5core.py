@@ -137,6 +137,7 @@ def test_the_reward_rule_states_the_readings_as_coded():
             "which the simulator computes at that physics step's start, 2 ms before the env step's end",
             "joint angles are those at the env step's end",
             "in a turn-in-place task the reference's own yaw",
+            "every penalty 0, except heading inside a finite walking turn",
             "below 0.30 m/s, else 0.55-0.65"):
         assert said in rule, said
     for gone in ("1 - v_bar", "Stage 1's:", "(Stage 1's)", "the planned swing time"):
