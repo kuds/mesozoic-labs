@@ -13,12 +13,17 @@ the window and the playback of real bar items (a frozen 75 cm set's tracks, play
 of gate Z2 (c), and an ``-X`` body.  They need the round-two model files, the look ladder's arrays, Stage 1's arrays
 and the frozen sets' arrays (git-ignored; ``python tools/restore_inputs.py``) and skip without them.  Nothing is
 written outside ``tmp_path``.
+
+Slow (``STAGE2_SLOW=1``; about 5 s): one closed-loop episode of Stage 1's own run directory (the view ``S1``; row
+R0, no record), its recorder lent 50 Hz poses as the row wrapper will lend them: what ``series`` takes of a live
+recorder.
 """
 
 from __future__ import annotations
 
 import json
 import math
+import os
 import subprocess
 import sys
 import types
@@ -37,6 +42,7 @@ RUN = ROOT / "stage1" / "runs" / "2026-11-08"
 BODIES = ("75-M-H-10", "60-N-T-10")
 SPEEDS = ("nominal", "v040", "fr05")
 RATE, DT, EVERY = 1.05, 0.002, 10
+SLOW = os.environ.get("STAGE2_SLOW") == "1"
 
 
 # ------------------------------------------------------------------------------------------------
@@ -677,6 +683,56 @@ def test_the_window_and_the_playback_of_real_bar_items():
     rec = recs["walk/v0.4"]
     short = types.SimpleNamespace(t=rec.t[:-3], rows=rec.rows - 3, dt=rec.dt, sim_time=rec.sim_time)
     assert lookread.window(b, short) is None and lookread.window_ref(b) is not None
+
+
+@pytest.mark.skipif(not SLOW, reason="one closed-loop episode on Stage 1's own run directory (STAGE2_SLOW=1)")
+@needs["75-M-H-10"]
+def test_a_live_recorders_poses_and_loads_are_what_series_takes():
+    """One closed-loop episode on the view ``S1`` (Stage 1's brisk walk, row R0, panel seed 3042; no record): the
+    built condition's recorder is lent 50 Hz poses on the instance for the episode, as ``lookbar.LookRow`` will
+    lend them, and ``series`` reads the recorder's own arrays."""
+    from designlab.stage1 import control, metrics, panels, tune
+    from designlab.stage2 import bar, setio
+
+    body = "75-M-H-10"
+    run = RUN / body
+    if not (run / "refs" / "brisk.npz").exists() or not (run / "transitions" / "start.npz").exists():
+        pytest.skip("needs the Stage 1 arrays (python tools/restore_inputs.py --group picks-arrays)")
+    _, docs = setio.stage1_view(RUN, body)
+    ctx = bar.BarContext(body, run, docs)
+    cond = next(c for c in panels.conditions() if c.key == "walk/brisk")
+    row = panels.tracker_rows(body, run, ("R0",))["R0"]
+    b = ctx.built(cond)
+    b.recorder = lambda: metrics.Recorder(legs_every=tune.LEGS_EVERY)
+    try:
+        b, out, rec = row.episode(ctx, cond, 3042)
+    finally:
+        del b.recorder
+    assert "recorder" not in vars(b) and not out["fell"]
+    every = tune.LEGS_EVERY * control.FEEDBACK_EVERY
+    assert len(rec.poses) == (rec.rows + 1) // 2 and rec.loads.shape == (rec.steps, 2)
+    before = b.p.d.qpos.copy()
+    ser = lookread.series(b.p, rec.poses, rec.loads, rec.dt, every)
+    assert np.array_equal(b.p.d.qpos, before)
+    # the series are on the recorder's own clock and contact
+    assert np.allclose(ser["t50"], rec.t[:: tune.LEGS_EVERY], atol=1e-9, rtol=0)
+    assert np.array_equal(ser["contact"], rec.contact()) and ser["weight"] == rec.weight
+    assert np.array_equal(ser["tail"], rec.Q[:: tune.LEGS_EVERY, b.p.joints.index("tail_yaw")])
+    td = readings.touchdowns(rec.contact(), rec.dt)
+    assert np.allclose(np.sort(np.concatenate(ser["touchdowns"])), [t for t, _ in td], atol=1e-12, rtol=0)
+    assert [len(x) for x in ser["touchdowns"]] == [sum(1 for _, i in td if i == j) for j in (0, 1)]
+    # a stock condition is no bar item: it has no window; read here over its last 10 s against the track's playback
+    assert lookread.window(b, rec) is None and lookread.window_ref(b) is None
+    tb = float(rec.t[-1])
+    own = lookread.reading(ser, tb - 10.0, tb)
+    ref = lookread.playback(b.p, b.track, run, RATE * (tb - 10.0), RATE * tb)
+    c = lookread.compare(own, ref)
+    assert ref["steps"] >= 20 and abs(own["steps"] - ref["steps"]) <= 1 and c["too_few_steps"] is False
+    assert abs(c["tail_phase_diff_cycles"]) < 0.02 and c["terms"]["tail"] is True
+    assert c["tail_amp_ratio"] == pytest.approx(1.0, abs=0.05)
+    # Stage 1's stock walk has flat feet and a level hip: the toe-off is not read, and the robot's own are small
+    assert c["not_read"] == ["toe_off"] and abs(own["toe_off_rad"]) < 0.01 and own["bob_pp_m"] < 0.003
+    assert all(math.isfinite(own[k]) for k in ("bob_pp_m", "head_world_pitch_rms_deg", "toe_off_rad"))
 
 
 @needs["75-M-H-10"]
