@@ -109,13 +109,14 @@ a probe's or a fit's record) and in every look set's `freezes[].commit` that a T
   for the fourth list: Q5's planning figures are those of the third list's writing-in. The reward's and the env's
   wording is the env work package's file `stage2/design/CE_RULE_WORDING.md`, read on branch `wt/wpc-ce` at commit
   `cd32e19` (the branch moved there from `cdc4762` while the wording was being written in, and the newer text is
-  followed). That file says what its builders ran for it: no training run, no policy episode and no panel; kinematic
-  playbacks (a script's own poses written into the plant's data, no physics step) on Stage 1's stock arrays of
-  `75-M-H-10` and on the frozen set `V0` of `75-M-H-10`; on Stage 1's arrays, resets and a few env steps of the zero
-  action or of noise actions; and, under X1 as lifted, gate G8a's comparison on `V0` for one condition (`walk/v0.4`,
-  seed 3042, at 0 and at 6 ms: 2 of 2 episodes identical), a smoke that wrote no file. None of it is a record and none
-  is on a look set. The author of this writing-in ran none of it. The numbers that W1, W3, W5, E4 and E5 quote from that
-  file are from those playbacks and readings, and are labelled where they stand.
+  followed; the working branch has held the same text since its commit `67cb6f5`). That file says what its builders ran
+  for it: no training run, no policy episode and no panel; kinematic playbacks (a script's own poses written into the
+  plant's data, no physics step) on Stage 1's stock arrays of `75-M-H-10` and on the frozen set `V0` of `75-M-H-10`; on
+  Stage 1's arrays, resets and a few env steps of the zero action or of noise actions; and, under X1 as lifted, gate
+  G8a's comparison on `V0` for one condition (`walk/v0.4`, seed 3042, at 0 and at 6 ms: 2 of 2 episodes identical), a
+  smoke that wrote no file. None of it is a record and none is on a look set. The author of this writing-in ran none of
+  it. The numbers that W1, W3, W5, E4 and E5 quote from that file are from those playbacks and readings, and are
+  labelled where they stand.
 - Scratch experiments of 15 Nov on Stage 1's own run directory (`stage1/runs/2026-11-08`: stock references, no Stage 2
   set), by the architect and by the three reviewers of the design, on a stub env (Stage 1's env with the open-loop base
   in place of the tracker; Stage 1's observation and reward), one to six episodes per setting. They are scratch: none is
