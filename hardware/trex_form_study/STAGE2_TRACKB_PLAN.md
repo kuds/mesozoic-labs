@@ -208,8 +208,9 @@ arrays when the design was written and are no record.
   gates, every look set of that body, for both heads, is rebuilt so that moves leave and enter the loop only at its end,
   and a command then comes after about 10 s of walking. There is no second fallback: a move that still fails is recorded
   "not available", but for two: if the start or the change to the 0.40 m/s walk still fails, that body's look set is not
-  frozen and the point goes to the lead, who also decides whether that body's other look sets are frozen
-  [settled 16 Nov 2026, before any Track B run: the two exceptions, and the lead's decision on the other sets].
+  frozen and the point goes to the lead, who also decides whether that body's other look sets, on either head, are
+  frozen [settled 16 Nov 2026, before any Track B run: the two exceptions, the lead's decision on the other sets and, by
+  ruling 4 of the fifth list, "on either head"].
 - **What may come back to you.** No gain at the go or no-go. A failing 60 cm local run. A body whose turn in place
   cannot be built within its gate: it then trains without it, and the report says the plan's list of references is not
   met there. A quick turn that cannot be built within its gates on a body: its turn items then read "not run". R5
@@ -1895,34 +1896,41 @@ stances L10 names; for a start or a change, the instant read from the entry's `m
 **L12. Join rule J1 is built as designed; its fallback order is fixed now.** [look choice; lead, 15 Nov, before any look
 set was built; settled 15 Nov, before any Track B run, after the look work package's first kinematic numbers existed:
 the trigger, the scope and the order of the fallback; settled 16 Nov 2026, before any Track B run: a `start` or a
-`nominal_to_v0.4` that still fails, and who then decides on the body's other look sets; differs: A8, A11, for a join
-gate failed on a K-stride window; cut 3 differs: B6 and T1] [settled 15 Nov, before any Track B run; labelled as changed
-after the look work package's first kinematic numbers existed, whose join numbers are what this trigger reads ("What had
-been run")] The fallback is taken only when a move of a look set, built by the builder after an independent review of
-its join code (the review's record named by path and sha256 in `set.json` `rules`), has `join_command` or `join_b`
-outside A7's limits. A change or a start that fails is first retried by A8's steps under join rule J1; cut 3 is taken
-for a causal move (the stop, a turn), or when A8 is exhausted. A cut is taken for a body, not for a move: every look set
-of that body and of its `-X` head (`V6`, `V6noF5`) is rebuilt under it, so that a body's two heads and its R2L set never
-differ in it; two bodies may differ, and the report says so. A `start` or a `nominal_to_v0.4` that still fails under the
-cuts open to it stops that body's set, which is then not frozen, and goes to the lead: A8 stands on a look set. Any
-other move that still fails is "not available" with its numbers: a ladder change (A8 step 3), the stop (its conditions
-are then "not run", H3), a turn (A11) and the turn in place (L13) [settled 16 Nov 2026, before any Track B run; labelled
-as changed after the look work package had built look sets (prescribed motion; none frozen): the two sentences before
-this mark, in place of the first clause of the committed sentence "A move that still fails under the cuts open to it is
-"not available" with its numbers (A8 step 3; A11 for a turn); no limit is changed for it without the label "changed
-after a result"" (settled 15 Nov); the sentence after this mark is that sentence's closing clause, set on its own by the
-author, and it holds as committed, for every move that still fails]. No limit is changed for a move that still fails
-without the label "changed after a result". Under cut 3 the "2 (2.5) strides of `v0.4`" of T1 and of B6 read "one window
-of `v0.4` (and half a stride for a right-foot command)", and the env description and every record say so.
+`nominal_to_v0.4` that still fails, and who then decides on the body's other look sets, those of its `-X` head among
+them; differs: A8, A11, for a join gate failed on a K-stride window; cut 3 differs: B6 and T1]
+[settled 15 Nov, before any Track B run; labelled as changed after the look work package's first kinematic numbers
+existed, whose join numbers are what this trigger reads ("What had been run")] The fallback is taken only when a move of
+a look set, built by the builder after an independent review of its join code (the review's record named by path and
+sha256 in `set.json` `rules`), has `join_command` or `join_b` outside A7's limits. A change or a start that fails is
+first retried by A8's steps under join rule J1; cut 3 is taken for a causal move (the stop, a turn), or when A8 is
+exhausted. A cut is taken for a body, not for a move: every look set of that body and of its `-X` head (`V6`, `V6noF5`)
+is rebuilt under it, so that a body's two heads and its R2L set never differ in it; two bodies may differ, and the
+report says so. A `start` or a `nominal_to_v0.4` that still fails under the cuts open to it stops that body's set, which
+is then not frozen, and goes to the lead: A8 stands on a look set. Any other move that still fails is "not available"
+with its numbers: a ladder change (A8 step 3), the stop (its conditions are then "not run", H3), a turn (A11) and the
+turn in place (L13) [settled 16 Nov 2026, before any Track B run; labelled as changed after the look work package had
+built look sets (prescribed motion; none frozen): the two sentences before this mark, in place of the first clause of
+the committed sentence "A move that still fails under the cuts open to it is "not available" with its numbers (A8 step
+3; A11 for a turn); no limit is changed for it without the label "changed after a result"" (settled 15 Nov); the
+sentence after this mark is that sentence's closing clause, set on its own by the author, and it holds as committed, for
+every move that still fails]. No limit is changed for a move that still fails without the label "changed after a
+result". Under cut 3 the "2 (2.5) strides of `v0.4`" of T1 and of B6 read "one window of `v0.4` (and half a stride for a
+right-foot command)", and the env description and every record say so.
 
 [settled 16 Nov 2026, before any Track B run; labelled as changed after the look work package had built look sets
 (prescribed motion; none frozen); ruling 7 of the fourth list, on what the paragraph above leaves open for the body's
 other sets] The set whose `start` or `nominal_to_v0.4` fails holds no freeze. Whether that body's other look sets are
 frozen is then the lead's decision, recorded with its date and reason, because a body's sets are meant to agree (the
-paragraph above: a cut is taken for a body). No rule freezes or blocks them by itself. [from here to the paragraph's
-end, the author's note, after the independent review of this writing-in, not the lead's wording] The ruling names no
-place for that record. By this text's own rule for a later answer of the lead it is an amendment of this text with its
-date, and one given after a result is labelled so (the two sections "Settled by the lead").
+paragraph above: a cut is taken for a body). No rule freezes or blocks them by itself.
+[settled 16 Nov 2026, before any Track B run; labelled as changed after the look work package had built look sets
+(prescribed motion; none frozen); ruling 4 of the fifth list] "That body's other look sets" takes in the sets of the
+body's `-X` head: the paragraph above itself takes a cut for every look set of that body and of its `-X` head. [from
+here to the paragraph's end, the author's note, after the independent review of this writing-in, not the lead's wording]
+The ruling names no place for that record. By this text's own rule for a later answer of the lead it is an amendment of
+this text with its date, and one given after a result is labelled so (the two sections "Settled by the lead"). Added
+when the fifth list was written in: its ruling 4 names the `-X` head's sets as among the other sets; where the set that
+fails is the `-X` head's own, the same reading is taken here, with the "body" of the paragraph above, which has two
+heads: the other sets are that body's look sets on either head.
 
 The design's cut 3 [differs: B6 and T1]: a move leaves and enters a K-stride window only at its boundary (a right-foot
 command at the exact time of phase 0.5 after the boundary); episodes then walk whole windows (about 10 s) before a
@@ -1949,9 +1957,10 @@ Check: `set.json` `rules` (the join code's review by path and sha256; the fallba
 move's `join_command` or `join_b` numbers; the same in every look set of the body and of its `-X` head); the move
 entries' `a_phase`, `a_time_s`, `join_command`, `join_b`, and `available: false` with its numbers for a move that still
 fails, other than `start` and `nominal_to_v0.4`: a set in which one of those two still fails holds no freeze (A8)
-[settled 16 Nov 2026, before any Track B run: this exception], and the lead's decision on that body's other look sets is
-on record with its date and reason, as an amendment of this text [settled 16 Nov 2026, before any Track B run: this
-item; ruling 7 of the fourth list; "as an amendment of this text" is the author's note in the rule]; under cut 3, the
+[settled 16 Nov 2026, before any Track B run: this exception], and the lead's decision on that body's other look sets,
+those of its `-X` head among them, is on record with its date and reason, as an amendment of this text
+[settled 16 Nov 2026, before any Track B run: this item; ruling 7 of the fourth list; "as an amendment of this text" is
+the author's note in the rule; "those of its `-X` head among them" is ruling 4 of the fifth list]; under cut 3, the
 reading of T1's and B6's stride counts in the env description and in the records' `plan`; a set rebuilt under a cut
 after a closed-loop episode on it carries the label "changed after a result", and one rebuilt before any does not.
 
@@ -2173,7 +2182,8 @@ wording written in under ruling 13 of the third list (the two amendments that cl
     cut 3, taken for a body [differs: A8, A11]; under cut 3, B6's "2 strides of `v0.4` (2.5 for the right turn)" and
     "2.5 strides of `v0.4`", and T1's, read one window of `v0.4` and half a stride for a right-foot command [differs: B6
     and T1]. L12 [settled 16 Nov]: A8's "A failed `start` or `nominal_to_v0.4` stops the set and goes to the lead"
-    stands on a look set; whether that body's other look sets are then frozen is the lead's decision.
+    stands on a look set; whether that body's other look sets, those of its `-X` head among them, are then frozen is the
+    lead's decision.
 31. "Not run in this round" [settled]: the list drops nothing of plan section 6. Its "at most 8 fine-tunes of 5M" and
     its "Freed hours go to fine-tunes, then third seeds for the head comparison" stand outside this text: a fine-tune
     runs under plan 4 D and section 6, by rule K8, and third seeds only from freed hours.
