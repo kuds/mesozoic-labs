@@ -481,7 +481,7 @@ def _build(bundle_id, bodies, sets, out, part_mb, root) -> tuple[dict, dict]:
         committed = None if loose is None else not loose
         bad += [f"{x} (a bundle is built from committed records only: commit it first)" for x in loose or ()]
     if bad:
-        raise BundleError(f"bundle {bundle_id} is not built ({len(bad)} differences): " + "; ".join(bad))
+        raise BundleError(f"bundle {bundle_id} is not built ({_count(len(bad), 'difference')}): " + "; ".join(bad))
 
     parts_dir, target = out_dir / PARTS, out_dir / MANIFEST
     parts_dir.mkdir(parents=True, exist_ok=True)
@@ -744,7 +744,8 @@ def unpack(manifest, parts_dir, root, *, parts=None) -> dict:
     doc = load(manifest)
     bad = manifest_problems(doc)
     if bad:
-        raise BundleError(f"the manifest has {len(bad)} problems, nothing is unpacked: " + "; ".join(bad[:5]))
+        raise BundleError(f"the manifest has {_count(len(bad), 'problem')}, nothing is unpacked: "
+                          + "; ".join(bad[:5]))
     content = doc["content"]
     names = sorted(content["parts"]) if parts is None else sorted(set(parts))
     unknown = [n for n in names if n not in content["parts"]]
@@ -814,6 +815,10 @@ def unpack(manifest, parts_dir, root, *, parts=None) -> dict:
 # ------------------------------------------------------------------------------------------------
 # CLI
 # ------------------------------------------------------------------------------------------------
+def _count(n: int, one: str, many: str | None = None) -> str:
+    return f"{n} {one if n == 1 else many or one + 's'}"
+
+
 def _csv(text: str) -> list[str]:
     return [x.strip() for x in text.split(",") if x.strip()]
 
@@ -854,13 +859,13 @@ def main(argv=None) -> int:
             print(f"S2 BUNDLE {args.bundle_id}: NOT BUILT: {exc}", flush=True)
             return 1
         c = doc["content"]
-        print(f"S2 BUNDLE {c['bundle_id']}: {len(c['bodies'])} bodies ({', '.join(c['bodies'])}), "
-              f"{len(c['sets'])} sets{' (' + ', '.join(sorted(c['sets'])) + ')' if c['sets'] else ''}: "
-              f"{len(c['files'])} files in {len(c['parts'])} parts, "
+        print(f"S2 BUNDLE {c['bundle_id']}: {_count(len(c['bodies']), 'body', 'bodies')} ({', '.join(c['bodies'])}), "
+              + (f"{_count(len(c['sets']), 'set')} ({', '.join(sorted(c['sets']))})" if c["sets"] else "no set")
+              + f": {_count(len(c['files']), 'file')} in {_count(len(c['parts']), 'part')}, "
               f"{sum(p['bytes'] for p in c['parts'].values())} bytes", flush=True)
         for name in sorted(c["parts"]):
             p = c["parts"][name]
-            print(f"  {name}: {p['bytes']} bytes, {p['files']} files, sha256 {p['sha256']}", flush=True)
+            print(f"  {name}: {p['bytes']} bytes, {_count(p['files'], 'file')}, sha256 {p['sha256']}", flush=True)
         for note in info["notes"]:
             print(f"  note: {note}", flush=True)
         print(f"S2 BUNDLE {c['bundle_id']}: content sha256 {doc['content_sha256']} (manifest "
@@ -883,9 +888,9 @@ def main(argv=None) -> int:
     except s2io.S2Error as exc:
         print(f"S2 BUNDLE: NOT UNPACKED: {exc}", flush=True)
         return 1
-    print(f"S2 BUNDLE {got['bundle_id']}: manifest {got['content_sha256'][:12]}, {got['files']} files of "
-          f"{len(got['parts'])} parts under {got['root']}: {len(got['written'])} written, {len(got['replaced'])} "
-          f"replaced, {len(got['left'])} already there: OK", flush=True)
+    print(f"S2 BUNDLE {got['bundle_id']}: manifest {got['content_sha256'][:12]}, {_count(got['files'], 'file')} of "
+          f"{_count(len(got['parts']), 'part')} under {got['root']}: {len(got['written'])} written, "
+          f"{len(got['replaced'])} replaced, {len(got['left'])} already there: OK", flush=True)
     return 0
 
 

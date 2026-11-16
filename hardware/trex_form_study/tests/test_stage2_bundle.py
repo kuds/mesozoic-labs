@@ -877,7 +877,7 @@ def test_cli_verify_and_unpack(built, tmp_path):
     # a part alone, and a spoiled part
     got = _run(cli + ["unpack", "--manifest", manifest, "--parts", parts, "--root", str(tmp_path / "one"), "--only",
                       "models-T-B.tar"])
-    assert got.returncode == 0 and ", 2 files of 1 parts under " in got.stdout
+    assert got.returncode == 0 and ", 2 files of 1 part under " in got.stdout
     spoiled = tmp_path / "parts"
     shutil.copytree(out / "parts", spoiled)
     (spoiled / PART).write_bytes((spoiled / PART).read_bytes()[:-512])
