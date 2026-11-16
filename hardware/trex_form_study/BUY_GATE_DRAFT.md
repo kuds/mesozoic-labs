@@ -16,7 +16,7 @@ hold, the next purchase is not made, and what was learned cost only the stage be
 | 1. Harsher simulation and a trained policy | nothing | no money (the owner's Colab hours, the lead's usage) | |
 | 2. Bench: one leg drive of each type, the tail servo, a microcontroller | bench parts | about $1,260 to $2,000 | `stage2/jetson75/BENCH_SHEET.md`: run 1 is $1,998 of catalogue parts, of which $736 is two USB-CAN adapters needed only to test the Jetson-direct wiring |
 | 3. Legs-only prototype with ballast for head and tail | the 12 leg drives, leg and pelvis structure | $3,546 for the drives; the structure is not yet priced | `BENCH_SHEET.md` (the drives are needed whatever the compute) |
-| 4. The full build | the rest | about $18,500 to $20,000 in all | `stage2/jetson75/BUDGET_75.md` and the published price page |
+| 4. The full build | the rest | about $20,000 in all (the owner's figure) | the itemised prices are in `stage2/jetson75/BUDGET_75.md` and on the published price page |
 
 ## Gate 1: before any hardware is bought (simulation only)
 
