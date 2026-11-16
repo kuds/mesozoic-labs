@@ -5,9 +5,10 @@ before about $20,000 is spent.
 
 **Status, 16 Nov 2026 (`DECISION_LOG.md` P40).** The owner approved the four stages, gate 1's speed, gate 1's
 numbers for delay, pushes, turn, stop, the two training runs and the two attempts, and that gate 1 is judged on
-hard floors only. Those parts are marked **approved**. Everything marked *proposed* is still the lead's proposal
-and has not been put to the owner: gate 1's conditions 2 and 4, and the numbers of gates 2 and 3. No purchase is
-decided by this file.
+hard floors only. Those parts are marked **approved**. On the same day the owner approved gate 1's condition 2 with the servo
+model's settings, its pass rule at an extreme, its repeat, and when the maker's answers are waited for
+(`DECISION_LOG.md` P41). Everything marked *proposed* is still the lead's proposal and has not been put to the
+owner: gate 1's condition 4, and the numbers of gates 2 and 3. No purchase is decided by this file.
 
 Paths are relative to `hardware/trex_form_study/`.
 
@@ -38,10 +39,22 @@ walk:
 1. **Walking (approved, P40).** The walk at 0.30 m/s passes on the grippy and on the slippery floor, at every delay
    from 0 to 10 ms in 2 ms steps, with the servo model at its nominal values. The walk at 0.40 m/s is run the same
    way and reported as a stretch; it does not block a purchase.
-2. **Robust to the servo (*proposed*).** The 0.30 m/s walk stays up in 20 of 20 at the corners of the servo
-   model's range (friction at half and at one and a half times nominal; gear play at 0 and at 1°; trunk mass at
-   0.9 and 1.1), at 4 ms and at 10 ms. The corners wait for the servo model's design
-   (`stage2/design/servo_model/README.md`).
+2. **Robust to the servo (approved, P41).** With the servo model of
+   `stage2/design/servo_model/SERVO_MODEL_DESIGN.md` (its section 4): the 0.30 m/s walk on the grippy floor, at 4
+   and at 10 ms, both policies, seeds 3042 to 3061, under seven settings. Six are extremes, one factor at a time:
+   friction low and high, gear play 0 and 1.0° on the leg drives, trunk mass 0.9 and 1.1. The seventh is a panel
+   of 20 sets of motor values drawn at random from the model's table. That is 28 records and 560 runs.
+   - **At an extreme all 20 runs must stay up; the other limits are recorded and shown, not judged.** This is an
+     exception to the sentence above that every condition uses the bar's whole rule (P41).
+   - The drawn panel must meet the bar's whole rule: 20 of 20 stay up and at least 17 meet every limit.
+   - Each drawn-panel record that passes is run once more on the bar's second block of seeds (5042 to 5061, 20
+     other drawn sets): 80 more runs. **The repeat must pass too** (P41).
+   - Run and shown, stopping nothing yet: the heavy rotor (it rests on a catalogue number the maker must explain)
+     and the weak battery (it rests on a wiring resistance nobody has measured). Also shown with no verdict: the
+     slippery floor, the drives' gain limits, today's torque-speed line, the other hip-pitch part that may ship,
+     and two combined extremes.
+   - For scale, by the study's arithmetic with runs taken as independent: a pair of policies that truly falls
+     once in 1,000 runs passes the 560 runs about 57 % of the time, and about 53 % with the repeat.
 3. **Pushes, turn and stop (approved, P40).** The four pushes, the two-step stop and a 90° turn pass at 4 ms. At
    10 ms they are reported.
 4. **The tail servo (*proposed*).** Its continuous load is under the planning limit at the speed gate 1 must pass.
@@ -49,6 +62,12 @@ walk:
 
 If gate 1 fails after two honest attempts at the training setup (approved, P40), the finding goes to the owner with
 what failed, and no bench parts are bought on this design.
+
+**The maker's answers (approved, P41).** Five facts about the leg drives are open and the maker can give them for
+free: which side of the gearbox the listed rotor inertia is on, the gain limits of the motion mode, the hip-pitch
+drive at 24 V, which hip-pitch part ships, and which encoder closes the loop. The five questions are in the servo
+note's appendix A. The owner sends them. Gate 1 is judged after the answers are in the model, or two weeks after
+they were sent without an answer, whichever comes first. Building and training go on meanwhile.
 
 **Floors (approved, P40).** Gate 1 is judged on the hard floors only. Carpet is run as a range and reported with no
 verdict (P37). A measured carpet sample joins the bench stage, and carpet is judged on the legs-only prototype
@@ -121,5 +140,13 @@ about 80 to 85 % if gate 2 is passed; about 90 % if gate 3 is passed.
    runs agree; two attempts): approved as drafted.
 4. Carpet: not in gate 1. Hard floors only.
 
-Still to be put to the owner: gate 1's conditions 2 and 4, once the servo model is designed, and the numbers of
-gates 2 and 3.
+## What the owner decided later on 16 Nov 2026 (`DECISION_LOG.md` P41)
+
+1. Condition 2's settings: six extremes and the random panel can stop the purchase of the bench parts; the heavy
+   rotor and the weak battery are shown and stop nothing yet.
+2. At an extreme the robot must only stay up; the other limits are recorded.
+3. A random-panel record that passes is repeated on other seeds, and the repeat must pass too.
+4. The owner sends the five questions to the maker; gate 1 is judged after the answers or after two weeks.
+
+Still to be put to the owner: gate 1's condition 4 (the tail servo, read with the servo model), and the numbers of
+gates 2 and 3, with the six measurements the servo note proposes to add to the bench sheet.
