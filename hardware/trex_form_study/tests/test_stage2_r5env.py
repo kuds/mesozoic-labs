@@ -1297,6 +1297,86 @@ def test_set_freeze_started_is_the_index_the_run_started_on(tmp_path):
 
 
 # ------------------------------------------------------------------------------------------------
+# The wording handed to the rules draft (``stage2/design/CE_RULE_WORDING.md``; the review of the second fix round)
+# ------------------------------------------------------------------------------------------------
+WORDING = ROOT / "stage2" / "design" / "CE_RULE_WORDING.md"
+
+
+def wording_entry(heading: str) -> str:
+    """The part of the wording file under the heading line that starts with ``heading`` (``### 3a.``, ``## 8.``),
+    up to the next heading or rule line, whitespace folded.  The file is a working paper for the lead: a test that
+    reads it skips in a checkout that no longer holds it."""
+    if not WORDING.is_file():
+        pytest.skip(f"{WORDING.name} is not in this checkout")
+    lines = WORDING.read_text().splitlines()
+    start = next(i for i, x in enumerate(lines) if x.startswith(heading))
+    stop = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("#") or lines[i] == "---"), len(lines))
+    return " ".join(" ".join(lines[start:stop]).split())
+
+
+def proposed(entry: str) -> str:
+    """What an entry proposes first: from its first ``**New**`` to its next ``**New**`` or to its ``**Label``."""
+    rest = entry.split("**New**", 1)[1]
+    return min((rest.split(mark, 1)[0] for mark in ("**New**", "**Label")), key=len)
+
+
+@needs_run
+def test_of_what_a_resume_compares_a_change_of_the_task_weights_moves_the_weights_alone(e0):
+    """``RESUME_KEYS`` hold ``tasks``, the resolved table with the task weights in force, and those weights are run
+    state (rule K5; rule M4's fix changes them).  What a resume compares is therefore the description of the env as
+    built from its stored config, before any weight is set on it: a change of the weights moves ``tasks`` alone of
+    the whole description, and in it the weights alone.  ``describe``'s docstring says "as built", and so does the
+    sentence proposed for rule K4 (the wording file's entry 8)."""
+    built = e0.describe()
+    try:
+        e0.set_task_weights(dict(walk=4.0))  # rule M4's fix
+        fixed = e0.describe()
+    finally:
+        e0.set_task_weights([1.0, 2.0, 2.0, 2.0])
+    assert changed_keys(built, fixed) == ["tasks"] and changed_keys(built, e0.describe()) == []
+    assert [k for k in r5env.RESUME_KEYS if built[k] != fixed[k]] == ["tasks"]
+
+    def less_weights(tasks: dict) -> dict:
+        return {t: {k: v for k, v in row.items() if k != "weight"} for t, row in tasks.items()}
+
+    assert less_weights(built["tasks"]) == less_weights(fixed["tasks"])
+    assert [row["weight"] for row in built["tasks"].values()] == [1.0, 2.0, 2.0, 2.0]
+    assert [row["weight"] for row in fixed["tasks"].values()] == [1.0, 4.0, 2.0, 2.0]
+    assert "compare the description of the env as built" in " ".join(r5env.R5Env.describe.__doc__.split())
+    k4 = proposed(wording_entry("## 8."))
+    assert ("of the description of the envs as built, `config`, `task_names`, `tasks`, `task_files` and "
+            "`set_freeze_started` (`r5env.RESUME_KEYS`), not the description whole") in k4
+    assert "`tasks` holds the task weights in force, and those are run state (K5), which M4's fix changes" in k4
+
+
+def test_the_wording_for_w3_states_dutys_bounds_and_clearance_as_guard():
+    """The review of the second fix round, finding 3: the sentences proposed for rule W3 state the two bounds that
+    ``r5core.REWARD_RULE`` states (``tests/test_stage2_r5core.py`` pins them there and what the code does): duty's
+    stride is kept between 1 and 256 env steps, and clearance (a) is not read where T is not above zero."""
+    clearance, duty = proposed(wording_entry("### 3a.")), proposed(wording_entry("### 3b."))
+    assert "a track that plans no complete swing has its gait's, (1 - duty) x the stride period" in clearance
+    assert "Where `T` is not above zero, (a) is not read" in clearance
+    assert ("the last n env steps, `n = round(stride period / 1.05 / 20 ms)`, kept between 1 and 256 env steps: the "
+            "history the env keeps") in duty
+    assert "until n env steps of the episode have been played" in duty and "until that many" not in duty
+    assert r5core.HISTORY_STEPS == 256
+
+
+def test_the_wording_file_asks_no_paste_for_x1_which_the_draft_holds():
+    """The review of the second fix round, finding 2: the lead wrote X1's lifting into the rules draft, so the
+    sentence the wording file quoted as old is no longer in the draft as quoted.  Entry 9 quotes no old sentence and
+    proposes none; the file says against which commit of the draft its other old sentences were compared (the draft
+    is on another branch: that comparison is made by hand), and how many there are."""
+    x1 = wording_entry("## 9.")
+    assert "**Old**" not in x1 and "**New**" not in x1 and "**No wording change is asked.**" in x1
+    assert "`405c218` of `wt/prereg-b`" in x1
+    assert "(lifted for the frozen 75 cm sets on 16 Nov 2026, after the panels)" in x1
+    head = wording_entry("# Work package CE")
+    assert "`c4a0ff8` of `wt/prereg-b`" in head and "all 19 are there word for word" in head
+    assert WORDING.read_text().count("**Old** (") == 19
+
+
+# ------------------------------------------------------------------------------------------------
 # R6
 # ------------------------------------------------------------------------------------------------
 @needs_run

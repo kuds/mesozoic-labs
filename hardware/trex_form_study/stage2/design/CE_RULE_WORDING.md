@@ -5,11 +5,17 @@ there). It follows the lead's rulings of 16 Nov 2026 on the nine findings of
 `stage2/design/checkpoint/reviews/roundC__review_CE.json`, and, since the env's second fix round of 16 Nov 2026, the
 eight minor findings of `stage2/design/checkpoint/reviews/roundC__review_fix_CE.md` with the lead's rulings on what was
 handed up (`stage2/design/checkpoint/STATUS.md`, the update of 16 Nov 2026, 03:02 UTC; `TRACKB_RULINGS3_16NOV.md`,
-ruling 13). Each entry gives the old sentence as the draft holds it, the exact new sentence, and one of two labels:
+ruling 13), and, since the third fix round of the same day, the three points of wording in the independent review of
+the second fix round (its findings 2, 3 and 4). Each entry gives the old sentence as the draft holds it, the exact new
+sentence, and one of two labels:
 
 - **Label A**: "a wording change made before any training run; the code is unchanged by it".
 - **Label B**: "a wording change made before any training run; the code was changed with it" (the finding and the
   commit on `wt/wpc-ce` are named).
+
+The old sentences were compared in the third fix round with the draft as commit `c4a0ff8` of `wt/prereg-b` holds it
+(that branch's last change to the draft then; its tip was `0d10a94`): all 19 are there word for word. Entry 9 quotes
+none, because the draft already holds what it asked for.
 
 No training run, no policy episode and no panel was run for this file. The numbers under "Why" are from kinematic
 playbacks (a script's own poses written into the plant's data, no physics step) on Stage 1's stock arrays of
@@ -28,6 +34,10 @@ the code now records.
 What the second fix round changed in this file: entry 1a (two sentences on the instants), entry 1b (rewritten to the
 lead's ruling, with the review's two corrections), entry 4a (one clause), entry 6c (new), entry 8 (rewritten: the
 code changed again) and entry 10 (new). The other entries are as the review of the fix round read them.
+
+What the third fix round changed in this file (no code changed with it): entry 3a (the swing length of a track that
+plans no complete swing, and `T` not above zero), entry 3b (the bounds of duty's stride), entry 8 (K4's sentence on
+the resume says "as built", with the reason) and entry 9 (withdrawn: the lead wrote X1's lifting into the draft).
 
 ---
 
@@ -158,7 +168,8 @@ reference clock at the foot's **own** lift-off (the physics step in which its co
 start, for the foot the reference has in swing, the clock less the reference's swing progress x T, and for the other
 foot the clock). `T` is the planned length, in reference time, of the reference's swing in progress at c; in double
 support, of its next swing; past its last swing, of that one. Each swing has its own length, also inside a change of
-gait;"
+gait; a track that plans no complete swing has its gait's, (1 - duty) x the stride period. Where `T` is not above
+zero, (a) is not read;"
 
 **Label A.**
 
@@ -167,17 +178,23 @@ steps, up to 0.78): a foot was "between 25 % and 75 % of its swing" by the const
 the floor. As coded the playback scores 0 at every env step. Test:
 `test_clearance_a_times_a_swing_by_the_references_swing_in_progress`.
 
+The words from "a track that plans no complete swing" to "(a) is not read" were added in the third fix round (the
+review of the second fix round, finding 3); the code is unchanged by them. `r5core.REWARD_RULE` holds both clauses,
+the second since commit `b4c223e`. The second is a guard: `u` divides by `T`; (b) is read all the same. Test:
+`test_clearance_a_is_not_read_without_a_swing_length`.
+
 ### 3b. Duty: the formula and the reference's own share
 
 **Old** (W3): "`duty`'s band is 0.55-0.72 while the commanded target speed is below 0.30 m/s (owner decision 2), else
 0.55-0.65."
 
 **New**: "`duty` is `min(1, sum over the feet read of max(0, lo - d_f, d_f - hi) / 0.05)`, d_f the foot's contact
-share over the last stride (the physics steps of the last `round(stride period / 1.05 / 20 ms)` env steps); zero
-while the reference stands and until that many env steps of the episode have been played. A foot is read only where
-the reference's own support share for it over the same physics steps lies inside the band, so that a start, a stop or
-a change, where the reference itself is outside the band, is not charged. The band [lo, hi] is 0.55-0.72 while the
-commanded gait's target speed is below 0.30 m/s (owner decision 2), else 0.55-0.65."
+share over the last stride (the physics steps of the last n env steps, `n = round(stride period / 1.05 / 20 ms)`, kept
+between 1 and 256 env steps: the history the env keeps); zero while the reference stands and until n env steps of the
+episode have been played. A foot is read only where the reference's own support share for it over the same physics
+steps lies inside the band, so that a start, a stop or a change, where the reference itself is outside the band, is
+not charged. The band [lo, hi] is 0.55-0.72 while the commanded gait's target speed is below 0.30 m/s (owner decision
+2), else 0.55-0.65."
 
 **Label A.**
 
@@ -186,6 +203,11 @@ env steps of Stage 1's walk task and 147 of 1,479 of its brisk task, up to 1.0 (
 the playback scores 0 at every env step, and a body that keeps both feet down while the reference steps is charged in
 full. Tests: `test_duty_reads_a_foot_only_where_the_references_own_share_is_inside_the_band`,
 `test_stage_1s_penalties_and_the_action_rate`.
+
+The bounds of n ("kept between 1 and 256 env steps: the history the env keeps") were added in the third fix round
+(the review of the second fix round, finding 3); the code is unchanged by them and `r5core.REWARD_RULE` holds them
+since commit `b4c223e` (`r5core.HISTORY_STEPS` is 256, 5.12 s of env steps). Test:
+`test_dutys_stride_is_kept_between_1_and_256_env_steps`.
 
 ### 3c. Duty: what "target speed" is
 
@@ -413,10 +435,12 @@ The env's library also refuses a set whose `set.json` `crouch_frac`, which no fr
 track's LIPM frequency is computed, differs from the `crouch_frac` of a walk entry it reads, as the bar does
 (`r5lib.CROUCH_RULE`). The env description holds both freezes (`set_freeze_started`, `set_freeze_now`: index and
 manifest sha256), the task names (`task_names`) and the files those tasks use with their hashes (`task_files`). On a
-resume the trainer compares the stored env configs and, of the env description, `config`, `task_names`, `tasks`,
-`task_files` and `set_freeze_started` (`r5env.RESUME_KEYS`), not the description whole: an accepted later freeze
-changes its `set_freeze`, `set_freeze_now` and `inputs.freeze`, and, where it made further tasks usable, its
-`inputs.files` and `absent` (`r5env.LATER_FREEZE_KEYS`)."
+resume the trainer compares the stored env configs and, of the description of the envs as built, `config`,
+`task_names`, `tasks`, `task_files` and `set_freeze_started` (`r5env.RESUME_KEYS`), not the description whole: an
+accepted later freeze changes its `set_freeze`, `set_freeze_now` and `inputs.freeze`, and, where it made further tasks
+usable, its `inputs.files` and `absent` (`r5env.LATER_FREEZE_KEYS`). "As built" is the env made from its stored config
+before any task weight is set on it, in the first session and in the resumed one alike: `tasks` holds the task
+weights in force, and those are run state (K5), which M4's fix changes."
 
 **New**, in K4's Check, after "`freeze_index`": "; the env description's `set_freeze_started`, `set_freeze_now`,
 `task_names` and `task_files`".
@@ -446,6 +470,11 @@ What the code does, for the lead to see:
   across a later freeze, and moved the track's LIPM frequency from 4.828 to 4.979 rad/s (the review of the fix round,
   finding 2, on a test's set; it says that only the critic's DCM-error inputs move with it). It is refused now with
   both values.
+- *"As built"* (added to the sentence in the third fix round: the review of the second fix round, finding 4; the code
+  is unchanged and `R5Env.describe`'s docstring has said it since commit `4523ed6`). `set_task_weights` changes the
+  weights inside the description's `tasks` and nothing else of `r5env.RESUME_KEYS`, and no other key of the
+  description; a trainer that compared `tasks` of a live env after M4's fix with what the first session stored would
+  refuse its own run. Test: `test_of_what_a_resume_compares_a_change_of_the_task_weights_moves_the_weights_alone`.
 
 Tests: `test_a_later_freeze_with_the_same_files_and_task_table_is_accepted`,
 `test_a_later_freeze_that_changes_what_the_run_uses_is_refused_with_what_differs`,
@@ -458,18 +487,24 @@ freeze and its 15 tasks named (a build, no episode).
 
 ---
 
-## 9. X1 (the 75 cm round's sets)
+## 9. X1 (the 75 cm round's sets): in the draft already, nothing to paste
 
-**Old** (X1): "Until task 3's first unit of the 75 cm round has run, no R2-mode, policy or training episode runs on V0,
-F25F9 or F25F9cl;"
+**No wording change is asked.** The draft holds the lifting in the lead's own words since commit `405c218` of
+`wt/prereg-b` (16 Nov 2026; a commit of that branch, not of this one): X1's first sentence there reads "Until task 3's
+first unit of the 75 cm round has run, no R2-mode, policy or training episode runs on V0, F25F9 or F25F9cl (lifted for
+the frozen 75 cm sets on 16 Nov 2026, after the panels)", with its tag and the lead's amendment 13 of
+`STAGE2_75_PLAN.md` beside it.
 
-**New**, added after X1's first sentence: "[lead, 16 Nov 2026, before any Track B run] The 75 cm round's panels
-finished on 15 Nov 2026 (task 3's and task 4's units have all run); this limit is lifted for the frozen 75 cm sets."
+Until the third fix round this entry quoted that sentence as it stood before the lifting and proposed a sentence of
+its own for the same lifting, to be added after it ("The 75 cm round's panels finished on 15 Nov 2026 (task 3's and
+task 4's units have all run); this limit is lifted for the frozen 75 cm sets."). That proposal is withdrawn (the
+review of the second fix round, finding 2: the quoted sentence is no longer in the draft as quoted). On the code's
+side nothing depends on it: no code refused a set, and `g8a.py`'s docstring says where the rule stands (commit
+`ebae071`).
 
-**Label A** (no code refused a set; `g8a.py`'s docstring now says where the rule stands, commit `ebae071`).
-
-The first episodes run under it: `g8a.bar_form` on V0 of `75-M-H-10`, `walk/v0.4`, seed 3042, at 0 ms and 6 ms, the
-whole condition (10,539 physics steps each): 2 of 2 identical. It is a smoke and no record; it wrote no file.
+The first episodes run under the lifted rule: `g8a.bar_form` on V0 of `75-M-H-10`, `walk/v0.4`, seed 3042, at 0 ms
+and 6 ms, the whole condition (10,539 physics steps each): 2 of 2 identical. It is a smoke and no record; it wrote no
+file.
 
 ---
 
