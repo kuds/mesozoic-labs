@@ -227,7 +227,8 @@ CLIP_RULE = (
     "failure is recorded and ignored; the trainer never waits for a clip")
 LINE4_RULE = (
     f"rule N1, line 4: the session's first_three rate of gates/rate.json (env steps per wall second over its first "
-    f"three rollouts), the budget in millions of steps and the hours the budget takes at that rate; BELOW FLOOR "
+    f"three rollouts; the session is the one of the trainer that this launcher started, by the pid in "
+    f"progress.json), the budget in millions of steps and the hours the budget takes at that rate; BELOW FLOOR "
     f"<f> when the rate is under budget / {FLOOR_SECONDS:,} (the rate at which the budget takes 22 h)")
 BUDGET_RULE = (
     f"rule Y11: the budget is {BUDGET_FULL:,} env steps if r x {BUDGET_SECONDS:,} >= {BUDGET_FULL:,}, else r x "
@@ -1785,6 +1786,7 @@ class _Launcher:
         self.pack_tries: dict = {}
         self.packed: set = set()
         self.line4_done: set = set()
+        self.pids: dict = {}                                   # job -> the pid of the trainer this launcher started
         self.echo_at: dict = {}
         self.stop = None
         (self.l / "logs").mkdir(parents=True, exist_ok=True)
@@ -2257,6 +2259,7 @@ class _Launcher:
         self.child = subprocess.Popen(self._cmd(row, resume), cwd=str(study()), env=_child_env("disable"),
                                       stdin=subprocess.DEVNULL, stdout=self.child_log, stderr=subprocess.STDOUT,
                                       **_new_group())
+        self.pids[job] = self.child.pid
         self.st["child"] = dict(job=job, pid=self.child.pid, proc_start=_proc_start(self.child.pid),
                                 boot_id=_boot_id(), host=socket.gethostname())
         _save_state(self.st)
@@ -2282,7 +2285,10 @@ class _Launcher:
         jd = self.l / "jobs" / job
         prog, rate = _read_json(jd / "progress.json") or {}, _read_json(jd / "gates" / "rate.json") or {}
         k = prog.get("session")
-        if k is None or (job, k) in self.line4_done:
+        # (rule N1: line 4 is this session's first rate.  A progress.json that the copy back brought, or that an
+        # earlier session left on this machine, is not written by this launcher's trainer and names an older
+        # session, whose rate gates/rate.json still holds)
+        if k is None or prog.get("pid") != self.pids.get(job) or (job, k) in self.line4_done:
             return
         row = next((s.get("first_three") for s in rate.get("sessions") or [] if s.get("session") == k), None)
         budget = prog.get("budget") or (_read_json(jd / "run.json") or {}).get("budget")

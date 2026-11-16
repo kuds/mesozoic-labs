@@ -74,6 +74,7 @@ for sub in ("checkpoints", "gates", "monitor"):
     os.makedirs(os.path.join(jd, sub), exist_ok=True)
 plans = json.loads(os.environ.get("STUB_PLAN") or "{}")
 p = dict(plans.get("*", {}), **plans.get(job, {}))
+time.sleep(float(p.get("start_delay", 0)))
 rollout, every = int(p.get("rollout", 512)), int(p.get("checkpoint_every", 1024))
 mon = int(a.monitor_every or p.get("monitor_every", 2048))
 budget, tick = int(a.steps or p.get("budget", 4096)), float(p.get("tick", 0.02))
@@ -1441,6 +1442,26 @@ def test_a_job_is_not_started_while_drive_holds_a_newer_checkpoint(tmp_path, stu
     assert _launch(p)["state"] == "done"
     run = json.loads((d / "jobs" / job / "run.json").read_text())
     assert run["sessions"][-1]["resumed_from"] == max(have) and len(_calls(p)) == 1
+
+
+def test_line_4_is_this_sessions_first_rate(tmp_path, stubs, monkeypatch, capsys):
+    """Rule N1.  After a resume the copy back brings the dead session's ``progress.json`` and ``gates/rate.json``;
+    until the resumed trainer has written its own, they name the older session.  As built, a cycle in that time
+    printed the older session's rate as this session's line 4 (seen in the slow local run of 16 Nov, when the
+    kill came after the job's third rollout)."""
+    p, d, job, have = _killed_run(tmp_path, monkeypatch)
+    rate = json.loads((d / "jobs" / job / "gates" / "rate.json").read_text())
+    assert rate["sessions"][0]["first_three"]["env_steps_per_wall_s"] == 500.0   # the dead session's, on Drive
+    assert json.loads((d / "jobs" / job / "progress.json").read_text())["session"] == 0
+    # the resumed trainer needs a while before its first progress.json, and runs at another rate
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(start_delay=0.6, tick=0.0, rate=700.0, budget=512 * 200)}))
+    _session(p, RESUME=True, TAKEOVER=True)
+    capsys.readouterr()
+    res = _launch(p)
+    lines = nb.lines_of(capsys.readouterr().out)[4]
+    assert res["state"] == "done" and len(lines) == 1, lines
+    assert nb.LINE_RE[4].match(lines[0]).group("rate") == "700"
+    assert [x for x in json.loads((d / "STATUS.json").read_text())["lines"] if x.startswith("S2 LINE 4/4")] == lines
 
 
 def test_a_session_closed_by_a_failed_line_launches_nothing(tmp_path, stubs, capsys):
