@@ -31,12 +31,17 @@ the same boundary at its first rollout start: a resumed run is the uninterrupted
 final checkpoint the monitor child runs on the checkpoint just saved; each attempt is logged in ``run.json``
 ``monitor[]`` before the child starts and closed with its exit code.  Everything read after a check is
 ``monitor2.decide`` on the records: the gain, G8b with its one fix (the task weights, in place:
-``env_method("set_task_weights")``), the stop rules.  A stop by a rule ends the job with exit code 0.
+``env_method("set_task_weights")``), the stop rules.  A stop by a rule ends the job with exit code 0.  A monitor
+that refuses to run (its exit code ``monitor2.EXIT_REFUSAL``: its sources have moved, the checkpoint is not intact,
+the checkpoint is another run's) made no attempt: the attempt is closed as ``refused`` with the monitor's reason,
+it is not one of the two closed attempts after which a check counts as without a record, the run halts, and a
+resume runs the check again (``monitor2.RULES["refusal"]``).
 
 **Exit codes** of ``run``: 0 done, or stopped by rule M4 or M5; 3 G8a failed ("G8a fails: no run"); 4 refused (a
 resume the rules refuse, or a start that cannot be made: nothing was run); 5 halted for the lead (R0L's baseline
-could not be made; two attempts at one check were never closed: ``run.json`` ``halt`` holds the reason, and
-``--retry-check`` on the resume lets that check run once more); any other code is a failure.
+could not be made; two attempts at one check were never closed: ``--retry-check`` on the resume lets that check run
+once more; the monitor refused to run on a check: a resume runs it again; ``run.json`` ``halt`` holds the reason,
+for a refusal the monitor's own); any other code is a failure.
 
 **The seams.**  ``_env_configs``, ``_env_specs``, ``_g8a_short``, ``_monitor_cmd`` and ``_validation`` are the
 places where the trainer meets the env, the gate, the monitor child and the validation records; the tests replace
@@ -1134,6 +1139,19 @@ class _Run:
             proc.wait()
             raise
 
+    def _refusal(self, code: int, steps: int | None = None) -> dict | None:
+        """``monitor2.RULES["refusal"]``: None unless the monitor child left with its refusal's exit code; then
+        ``{kind, reason}`` from the note it wrote beside the record (``steps`` None: the baseline's).  Without a
+        readable note ``kind`` is None and the reason names what a refusal can be."""
+        m2 = _monitor2()
+        if int(code) != m2.EXIT_REFUSAL:
+            return None
+        note = _read_record(m2.refusal_path(self.jd / "monitor", steps))
+        if isinstance(note, dict) and note.get("reason"):
+            return dict(kind=note.get("kind"), reason=str(note["reason"]))
+        return dict(kind=None, reason=f"exit code {int(code)} and no note of its reason: its sources have moved, the "
+                                      "checkpoint is not intact, or the checkpoint is another run's")
+
     def _end_children(self) -> None:
         """``CHILD_RULE``: end the monitor children of earlier sessions that outlived their trainer."""
         d, host, boot, ended = self.doc, socket.gethostname(), _boot_id(), []
@@ -1192,11 +1210,14 @@ class _Run:
                                att)
             rec = _read_record(path)
             ok = rec is not None and m2.baseline_problem(rec) is None
-            att.update(closed_at=s2io.now_utc(), exit_code=int(code), record=bool(ok))
+            why = None if ok else self._refusal(code)
+            att.update(closed_at=s2io.now_utc(), exit_code=int(code), record=bool(ok),
+                       **(dict(refused=True, refusal=why) if why else {}))
             self.write()
             if not ok:
+                what = m2.baseline_problem(rec) if why is None else f"the monitor refused to run: {why['reason']}"
                 raise Halt(f"{self.job}: the R0L baseline could not be made (the monitor child ended with code "
-                           f"{code}; {m2.baseline_problem(rec)}): rule M1: the fault is repaired and all its "
+                           f"{code}; {what}): rule M1: the fault is repaired and all its "
                            "episodes are run again before the run's first rollout")
             if was is not None:  # (the record run.json names was lost: the run's checks were read against it)
                 same = baseline_same(was, rec)
@@ -1253,7 +1274,9 @@ class _Run:
             return doc if m2.is_record(doc, hashes, pairs) else None
 
         rec = usable()
-        closed = sum(1 for a in entry["attempts"] if a.get("closed_at") is not None and not a.get("record"))
+        # (rule M1's two: closed, no record, and the monitor ran: a refusal is no attempt, ``RULES["refusal"]``)
+        closed = sum(1 for a in entry["attempts"] if a.get("closed_at") is not None and not a.get("record")
+                     and not a.get("refused"))
         while rec is None and closed < m2.ATTEMPTS:
             after_halt = sum(1 for a in entry["attempts"] if a.get("closed_at") is None) >= m2.ATTEMPTS
             if after_halt and (not self.retry_check or self.retry_used):
@@ -1271,8 +1294,15 @@ class _Run:
             code = self._child(["run", "--job", self.jd, "--steps", n, "--body", self.body, "--set", self.set,
                                 "--k", m2.K], att)
             rec = usable()
-            att.update(closed_at=s2io.now_utc(), exit_code=int(code), record=rec is not None)
+            why = None if rec is not None else self._refusal(code, n)
+            att.update(closed_at=s2io.now_utc(), exit_code=int(code), record=rec is not None,
+                       **(dict(refused=True, refusal=why) if why else {}))
             self.write()
+            if why is not None:  # (no attempt: it is not counted, nothing is read, and the run goes to the lead)
+                raise Halt(f"{self.job}: the monitor refused to run on the check of {n} steps ({why['reason']}): a "
+                           "monitor that refuses to run is no attempt and does not count toward the two after "
+                           "which a check counts as without a gain (rule M1; the lead's ruling of 16 Nov 2026): the "
+                           "run halts and goes to the lead; with the fault repaired, a resume runs the check again")
             if rec is None:
                 closed += 1
                 self.say(f"WARNING: the monitor left no record of the check at {n} steps (exit code {code})")
