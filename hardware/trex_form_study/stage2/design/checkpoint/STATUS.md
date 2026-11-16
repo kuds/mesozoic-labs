@@ -400,7 +400,7 @@ status now reads "allowed_warning".
 (3) the ten conflicts of the Track B rules draft and section 6's open points 6 and 7; (4) CT (trainer), CB (Drive
 bundle), CN (notebook) toward the day-one Colab smoke; (5) the look sets' review, CV, CK, CW, CF, CG.
 
-## Update, 16 Nov 2026, 03:05 UTC: the training env (CE) is merged; the lead's rulings on what was handed up
+## Update, 16 Nov 2026, 03:02 UTC: the training env (CE) is merged; the lead's rulings on what was handed up
 
 **Merged.** `wt/wpc-ce` is merged into the working branch at `9ecefa5` (nine files: the env's four modules, their
 four test files, `stage2/design/CE_RULE_WORDING.md`). The fixer's report and the independent review of the fix
