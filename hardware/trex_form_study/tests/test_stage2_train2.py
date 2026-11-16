@@ -695,6 +695,49 @@ def test_a_monitor_child_that_outlived_its_trainer_is_ended_at_the_resume(ref_fi
     same_updates(job(ref_fix / "out"), job(out))
 
 
+def test_a_resume_ends_only_a_live_child_of_its_own_run_on_this_host(stub):
+    """What ``_end_children`` may end with SIGKILL: a process that is alive, under an attempt that was never
+    closed, of an earlier session on this host and this boot, and that is the process the attempt started (the
+    same pid with another start time is another process).  Nothing else is touched."""
+    import socket
+
+    procs = [subprocess.Popen([PY, "-c", "import time; time.sleep(300)"]) for _ in range(5)]
+    try:
+        info = [stub._proc(p.pid) for p in procs]
+        assert all(i is not None and i[0] > 0 and i[1] != "Z" for i in info)
+        boot, host = stub._boot_id(), socket.gethostname()
+
+        def att(i, **kw):
+            return dict(dict(session=0, started_at="t", closed_at=None, exit_code=None, record=None,
+                             pid=procs[i].pid, pid_start=info[i][0], boot_id=boot), **kw)
+
+        r = object.__new__(stub._Run)
+        r.k, r.job, r.log, r.write = 2, "job", (lambda *x: None), (lambda: None)
+        r.session = dict(index=2, host=host)
+        r.doc = dict(sessions=[dict(host=host), dict(host="another-host"), r.session],
+                     baseline_attempts=[att(0)],                                # the baseline's child: ended
+                     monitor=[dict(at_steps=512, attempts=[
+                         att(1, pid_start=info[1][0] + 1),                      # another process has that pid now
+                         att(2, session=1),                                     # a session on another host
+                         att(3, closed_at="t", exit_code=0, record=True),       # a closed attempt
+                         att(4, boot_id="another-boot"),                        # the machine has booted since
+                         dict(session=0, closed_at=None)])])                    # an attempt of before this rule
+        r._end_children()
+        assert procs[0].wait(timeout=30) == -signal.SIGKILL
+        assert [p.poll() for p in procs[1:]] == [None] * 4  # (left alone)
+        assert r.session["ended_children"] == [dict(kind="baseline", at_steps=None, pid=procs[0].pid, session=0)]
+        assert r.doc["baseline_attempts"][0]["child_ended"]["session"] == 2
+        assert all("child_ended" not in a for a in r.doc["monitor"][0]["attempts"])
+        # asked again, with the child gone: nothing to end, nothing recorded
+        r.session = dict(index=2, host=host)
+        r._end_children()
+        assert "ended_children" not in r.session
+    finally:
+        for p in procs:
+            p.kill()
+            p.wait()
+
+
 # ---------------------------------------------------------------------------------------------------------------
 # Resume, in process (a session cut by an exception at a rollout start)
 # ---------------------------------------------------------------------------------------------------------------
