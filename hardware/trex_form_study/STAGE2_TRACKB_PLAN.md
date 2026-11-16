@@ -301,14 +301,16 @@ prices them). A zero action with the head neutral sends R0L's targets exactly. C
 `settings.env_configs[].action_leg_rad`, `action_other_rad`, `action_rate`; gate Z1.
 
 **E2. R6.** [plan B.2; lead, 15 Nov, before any Track B run: the expected outcome may be stated in advance, as drafted]
-Joint targets `clip(home + a x span, range)` with Stage 1's span rule, no feedforward, its own estimator; R5's inputs,
-commands, reward, starts, randomisation, settings and budget; one seed (42) per body with the current head. At a
-mid-task start its action history is set to the actions that give the reference's targets. **Expected outcome, stated in
-advance:** Stage 1's policy-only controller learned on every body only to stand still, and under the first draft's
-reward a body standing at home earned about a third of the positive weight (scratch); this text's `progress` term, which
-that draft did not have, takes up to 0.10 more per step from it. R6 standing or shuffling is not news, and its G8b
-reading (M4) can pass by standing. [settled 15 Nov, before any Track B run] On the stop item a row that stands or creeps
-succeeds in no reading: U4's term `on_command_at_stop`. Check: `run.json` `mode`, `settings`.
+Joint targets `clip(home + a x span, range)` with Stage 1's span rule (with a head command on `-X`, `clip(home + head
+command + a x span, range)`: E5 [settled 16 Nov 2026, before any Track B run: this parenthesis, a pointer to E5]), no
+feedforward, its own estimator; R5's inputs, commands, reward, starts, randomisation, settings and budget; one seed (42)
+per body with the current head. At a mid-task start its action history is set to the actions that give the reference's
+targets. **Expected outcome, stated in advance:** Stage 1's policy-only controller learned on every body only to stand
+still, and under the first draft's reward a body standing at home earned about a third of the positive weight (scratch);
+this text's `progress` term, which that draft did not have, takes up to 0.10 more per step from it. R6 standing or
+shuffling is not news, and its G8b reading (M4) can pass by standing. [settled 15 Nov, before any Track B run] On the
+stop item a row that stands or creeps succeeds in no reading: U4's term `on_command_at_stop`. Check: `run.json` `mode`,
+`settings`.
 
 **E3. Inputs.** [plan; NEW widths; lead, 15 Nov, before any Track B run; differs: plan B.1's input list, by one input,
 the heading error] The actor's blocks, in this order, with their first and last-plus-one index for 14 and for 16 joints:
@@ -336,22 +338,55 @@ times the noise scale, which is under 0.6 degree of drift in a 30 s episode; how
 session is not modelled and not shown. The input was proposed on the scratch drift of the zero action (scratch). Check:
 `run.json` `layout`; `checkpoint_<n>.json` `layout`.
 
-**E4. The command and the commanded heading.** [NEW; differs: S1, whose input was the reference's own speed] The input
-is `(v / 0.5 m/s, w / 1.0 rad/s)` times 1.05, piecewise constant on the reference clock: the gait's speed and yaw rate
-in a periodic gait; the next gait's from the first frame of a start or change; zero from the first frame of a stop; in a
-finite turn of angle A at rate w0 the walk's speed and `w0` for `A / |w0|` seconds of reference time from the turn's
-first frame, then zero. The commanded heading is the integral of w over reference time. Nothing before a segment's first
-frame depends on that segment. Check: `tests/test_stage2_r5lib.py`; the env description's `command_rule`.
+**E4. The command and the commanded heading.** [NEW; settled 16 Nov 2026, before any Track B run: the commanded heading
+in the turn-in-place tasks; differs: S1, whose input was the reference's own speed] The input is `(v / 0.5 m/s, w / 1.0
+rad/s)` times 1.05, piecewise constant on the reference clock: the gait's speed and yaw rate in a periodic gait; the
+next gait's from the first frame of a start or change; zero from the first frame of a stop; in a finite turn of angle A
+at rate w0 the walk's speed and `w0` for `A / |w0|` seconds of reference time from the turn's first frame, then zero.
+The commanded heading is the integral of w over reference time, except in the turn-in-place tasks (`inplace_left`,
+`inplace_right`), where it is the reference's own yaw less its yaw at the track's start, at every reference time; the
+command is the same. A start into the turn commands 0.5 rad/s from its first frame while the reference ramps up from
+rest, so the integral ran ahead of the reference through the whole turn and the heading penalty charged the reference
+itself. A walking turn keeps the integral, and so does a plan that is given as a plan (a bar condition's): only a task's
+definition names the reference's yaw [settled 16 Nov 2026, before any Track B run: from "except in the turn-in-place
+tasks" to this mark, added to the committed sentence "The commanded heading is the integral of w over reference time.";
+wording entry 5a; the env's code was changed with it, by commit `0dc39b8` on `wt/wpc-ce`, on the env review's finding on
+the turn in place. The env work package's reason, from its wording file, is a kinematic playback of Stage 1's turn in
+place on `75-M-H-10` (prescribed motion, no record): under the integral the reference's own playback had a mean heading
+penalty of 0.73, and under the task's definition it has 0 at every env step]. Nothing before a segment's first frame
+depends on that segment. Check: `tests/test_stage2_r5lib.py`; the env description's `command_rule`.
 
 **E5. The head command on `-X`, and the bar's head script.** [plan; NEW; lead, 15 Nov, before any Track B run: head
-script H1's numbers accepted as drafted] `[yaw now, jaw now, yaw goal, jaw goal] / 0.6 rad`; the commanded yaw and jaw
-angles are added to the reference's neck-yaw and jaw targets before the policy's offsets. Head neutral is all zero. The
-bar's "cost of using the head" (plan section 5) is run under the row `R5G/<seed>` with head script H1: for episode seed
-s, from the generator `SeedSequence([s, 77])`, a train of gaze shifts for the whole episode (yaw target uniform on +-0.5
-rad, minimum-jerk over 0.8-1.2 s, held 2-6 s) and one jaw event at a time uniform in the episode's middle half (open to
-0.3-0.6 rad over 0.4-0.6 s, held 1.0-1.5 s, closed over the same time); both always present. Head-first turns (F11) stay
-deferred by the lead's ruling of 14 Nov on the references' design and are not run [differs: plan section 5, labelled].
-Check: the env description's `head_rule`; the rows' `controller.head`; Z1 on the `-X` bodies with the head neutral.
+script H1's numbers accepted as drafted; settled 16 Nov 2026, before any Track B run: the gaze and jaw ranges, which
+change two of those numbers, and what the head command is added to in R6] `[yaw now, jaw now, yaw goal, jaw goal] / 0.6
+rad`; in R5 the commanded yaw and jaw angles are added to the reference's neck-yaw and jaw targets before the policy's
+offsets; in R6, which has no reference controller, they are added to the settled home pose's neck-yaw and jaw angles
+before the policy's term (E2: the joint targets are `clip(home + head command + a x span, range)`). The settled jaw
+rests a little open (0.0015 rad on `75-M-H-10-X`, 0.0007 rad on `60-N-T-10-X`), so an R6 jaw target reaches 0.4515 and
+0.4507 rad and keeps 0.1485 and 0.1493 rad from the jaw's limit, where the script's own value keeps 0.15 rad
+[settled 16 Nov 2026, before any Track B run: from "in R5" to this mark, in place of the committed clause "the commanded
+yaw and jaw angles are added to the reference's neck-yaw and jaw targets before the policy's offsets."; wording entry
+6c; the env's code is unchanged by it; the settled angles are the env work package's readings of the two `-X` models'
+settled home pose, quoted from its wording file]. Head neutral is all zero. The bar's "cost of using the head" (plan
+section 5) is run under the row `R5G/<seed>` with head script H1: for episode seed s, from the generator
+`SeedSequence([s, 77])`, a train of gaze shifts for the whole episode (yaw target uniform on +-0.45 rad, minimum-jerk
+over 0.8-1.2 s, held 2-6 s) and one jaw event at a time uniform in the episode's middle half (open to 0.3-0.45 rad over
+0.4-0.6 s, held 1.0-1.5 s, closed over the same time); both always present. A scripted head target keeps 0.15 rad from a
+joint limit: on both `-X` bodies the neck yaw's range is +-0.6 rad and the jaw's 0 to 0.6 rad (closed is the end the jaw
+rests on by design and is no limit), so a head that obeys its command keeps the 0.10 rad of joint range that W5's
+`range` term and the bar's `joint_range` ask, with 0.05 rad left for the servo's tracking
+[settled 16 Nov 2026, before any Track B run: "+-0.45 rad", "0.3-0.45 rad" and the sentence before this mark, in a
+passage that read as committed "a train of gaze shifts for the whole episode (yaw target uniform on +-0.5 rad,
+minimum-jerk over 0.8-1.2 s, held 2-6 s) and one jaw event at a time uniform in the episode's middle half (open to
+0.3-0.6 rad over 0.4-0.6 s, held 1.0-1.5 s, closed over the same time); both always present."; wording entry 6a; the
+env's code was changed with it, by commit `ad64656` on `wt/wpc-ce`. This changes two of H1's numbers as the lead
+accepted them on 15 Nov (ruling 7 of the first list): the wording file gives the 0.15 rad margin as the lead's ruling on
+the env's review, for the jaw, and the lead accepted the gaze range that follows from it on 16 Nov 2026 (03:02 UTC;
+`stage2/design/checkpoint/STATUS.md`). The reason the wording file gives: a jaw sitting exactly on a commanded opening
+above 0.5 rad was inside the 0.10 rad margin of its upper limit that `range` asks, and +-0.5 rad of gaze leaves 0.100
+rad on a range of +-0.6 rad]. Head-first turns (F11) stay deferred by the lead's ruling of 14 Nov on the references'
+design and are not run [differs: plan section 5, labelled]. Check: the env description's `head_rule`; the rows'
+`controller.head`; Z1 on the `-X` bodies with the head neutral.
 
 **E6. Where the code lives.** [lead, 15 Nov, before any Track B run; differs: plan B.4, which has the notebook run
 `designlab/stage1/train.py`, extended] Confirmed by the lead: the build of Track B's code (the code behind sections E to
@@ -369,29 +404,44 @@ designlab/stage2/s2io.py` is empty; `stage2/regress/regress.json` is current.
 ## T. Tasks and starts
 
 **T1. The task table.** [plan B.1; NEW weights; lead, 15 Nov, before any Track B run: the weights accepted as drafted;
-settled 15 Nov, before any Track B run: the stride counts under L12's cut 3] Each task is a plan over the run's set; `L`
-is `start`, one window of `nominal`, `nominal_to_v0.4`. Weights are relative.
+settled 15 Nov, before any Track B run: the stride counts under L12's cut 3;
+settled 16 Nov 2026, before any Track B run: the `stand` task's plan, the holds of `stop` and `start_stop`, the turn in
+place's commanded heading, and `heading` in the Check] Each task is a plan over the run's set; `L` is `start`, one
+window of `nominal`, `nominal_to_v0.4`. Weights are relative.
 
 | Task | Plan | Weight |
 |---|---|---|
-| `stand` | a 12 s hold of the home stance (10 s played) | 1 |
+| `stand` | a 12 s hold of the home stance, then `start` (10 s played: the start is never reached; the hold is of the start's first frame, as in Stage 1's stand task, so a set without a usable `start` has no `stand` task) [settled 16 Nov 2026, before any Track B run: "then `start`" and the parenthesis' second half] | 1 |
 | `walk_nominal` | `start`, `nominal` to the end | 2 |
 | `walk_v0.4` | L, `v0.4` to the end | 3 |
 | `walk_v0.3`, `walk_v0.35`, `walk_v0.45`, `walk_v0.5` | `start`, one window of `nominal`, the change to the rung, the rung to the end | 0.5 each |
 | `turn_q90_left`, `turn_q90_right` | L, 2 (right: 2.5) strides of `v0.4`, `turn90_pi4_<dir>`, `v0.4` to the end | 1.5 each |
 | `turn_<0.35, 0.5, 1>_<left, right>` | the same with `turn90_<rate>_<dir>` | 0.25 each |
-| `stop` | L, 2.5 strides of `v0.4`, `stop2_v0.4`, a hold | 2 |
-| `start_stop` | the `stop` task, a 2 s hold, `start`, 2 windows of `nominal` | 1 |
-| `inplace_left`, `inplace_right` | `start_inplace_0.5_<dir>`, 3 strides of `inplace_0.5_<dir>`, `stop_inplace_0.5_<dir>` | 0.5 each |
+| `stop` | L, 2.5 strides of `v0.4`, `stop2_v0.4`, a 4 s hold [settled 16 Nov 2026, before any Track B run: "4 s"] | 2 |
+| `start_stop` | the `stop` task's plan without its 4 s hold, a 2 s hold, `start`, 2 windows of `nominal` [settled 16 Nov 2026, before any Track B run: "'s plan without its 4 s hold"] | 1 |
+| `inplace_left`, `inplace_right` | `start_inplace_0.5_<dir>`, 3 strides of `inplace_0.5_<dir>`, `stop_inplace_0.5_<dir>`; the commanded heading is the reference's own yaw (E4) [settled 16 Nov 2026, before any Track B run: the clause after the semicolon] | 0.5 each |
 
 Episodes last at most 30 s. "To the end" means whole windows of the gait's file until the plan holds 30 s at the
 commanded clock, and at least one [NEW precision]. The weights were set by the architect on 15 Nov 2026, before any run
 and on no result (a judgement, not a measurement), and the lead accepted them. Nudges are no task: pushes are drawn on
 every task (J3). [settled 15 Nov, before any Track B run; differs: this table, under L12's cut 3] On a body whose look
 sets are rebuilt under L12's cut 3, the "2 (2.5) strides of `v0.4`" of this table read "one window of `v0.4` (and half a
-stride for a right-foot command)", and the env description and every record say so (L12). Check: `settings.tasks` (the
-resolved table: names, plans with their counts of windows, weights) equals this table less the absent tasks, with that
-reading where `set.json` `rules` names cut 3.
+stride for a right-foot command)", and the env description and every record say so (L12).
+
+What the four marks in the table replace (the author's account). As committed the four cells read: for `stand`, "a 12 s
+hold of the home stance (10 s played)"; for `stop`, "L, 2.5 strides of `v0.4`, `stop2_v0.4`, a hold"; for `start_stop`,
+"the `stop` task, a 2 s hold, `start`, 2 windows of `nominal`"; for the turn in place, "`start_inplace_0.5_<dir>`, 3
+strides of `inplace_0.5_<dir>`, `stop_inplace_0.5_<dir>`". The first three state what the rule had not stated and the
+env already did (wording entries 7a and 7b; the env's code is unchanged by them): the stop task's hold is 4.0 s of
+reference time (`r5lib.STOP_HOLD_S`), which covers the bar's stop item, whose hold after the rest is 2.0 s plus its end
+margin at the slowest clock. The fourth follows E4 (wording entry 5b; the env's code was changed with it, by commit
+`0dc39b8` on `wt/wpc-ce`).
+
+Check: `settings.tasks` (the resolved table: names, plans with their counts of windows, weights, and each task's
+`heading`, which is `reference` for the two turn-in-place tasks and `command` for every other
+[settled 16 Nov 2026, before any Track B run: the clause on `heading`, added; wording entry 5c; the env's code was
+changed with it: the resolved table gained that key, by commit `0dc39b8` on `wt/wpc-ce`]) equals this table less the
+absent tasks, with that reading where `set.json` `rules` names cut 3.
 
 **T2. Absent references; what is not trained.** [NEW; plan B.1 read; lead, 15 Nov, before any Track B run;
 settled 15 Nov, before any Track B run: a reference that fails part (a) of G9-ref; differs: plan B.1's list of
@@ -423,13 +473,20 @@ rules before any of them runs, and until then they read "not run".
 Check: the env description's `absent`; `set.json` `not_available`; the label of each no-loss counterpart in its record
 and in the report.
 
-**T3. Starts.** [plan] Half of the episodes of every task but `stand` start mid-task: the reference time is uniform over
-the task's non-hold segments between 0.2 s after the first non-hold frame and 2.0 s x 1.05 before the plan's end,
-snapped to a file frame (never inside a hold); the plant is set to that frame (rates x 1.05) with Stage 1's start noise
-(0.01 rad on the joints, 0.02 m/s on the root's velocity), the estimator is reset from that state, and the delay queue
-holds the k commands the zero action would have given before it. The others start from the settled stance with Stage 1's
-start noise. (scratch) Check: `settings.env_configs[].mid_start == 0.5`; `tests/test_stage2_r5env.py` (the mid-start
-tests).
+**T3. Starts.** [plan; settled 16 Nov 2026, before any Track B run: the estimator's first reading at a mid-task start]
+Half of the episodes of every task but `stand` start mid-task: the reference time is uniform over the task's non-hold
+segments between 0.2 s after the first non-hold frame and 2.0 s x 1.05 before the plan's end, snapped to a file frame
+(never inside a hold); the plant is set to that frame (rates x 1.05) with Stage 1's start noise (0.01 rad on the joints,
+0.02 m/s on the root's velocity), the estimator is reset from that state, and the delay queue holds the k commands the
+zero action would have given before it. The servos are then set to the oldest of those commands (without a delay, k = 0:
+to the command the zero action would have given one physics step before the start), the forward pass is computed once on
+that, and the estimator is reset again from the same state with a sensor reading of that pass (its foot loads,
+accelerometer and contact flags): the plant's first pass ran with the servos at their home targets, and its foot loads
+are not those of a body in mid-stride [settled 16 Nov 2026, before any Track B run: the sentence before this mark, added
+after a committed sentence that stands; wording entry 10; the env's code was changed with it, by commit `225f4b3` on
+`wt/wpc-ce`, on the env review's finding on the estimator's first reading at a mid-task start]. The others start from
+the settled stance with Stage 1's start noise. (scratch) Check: `settings.env_configs[].mid_start == 0.5`;
+`tests/test_stage2_r5env.py` (the mid-start tests).
 
 ## W. Reward
 
@@ -507,29 +564,30 @@ table"; wording entry 2b; the env's code is unchanged by it].
 **W3. Two of Stage 1's terms read differently.** [differs: S1; settled 16 Nov 2026, before any Track B run: clause (a)
 of `clearance`, and `duty`'s formula, the reference's own share in it and its target speed]
 [settled 16 Nov 2026, before any Track B run; wording entry 3a; the env's code is unchanged by it; clause (a), from "for
-a foot not in contact" to "also inside a change of gait", in place of the committed clause "(a) for a foot in the air
-between 25 % and 75 % of the planned swing time since its **own** lift-off and lower than 0.04 H: the shortfall over
-0.04 H"; clause (b) stands as committed] `clearance` is the larger of (a) for a foot not in contact at the env step's
-end whose `u = (c - c_lift) / T` lies between 0.25 and 0.75 and whose lowest point is lower than 0.04 H: the shortfall
-over 0.04 H. `c_lift` is the reference clock at the foot's **own** lift-off (the physics step in which its contact last
-ended; at an episode's start, for the foot the reference has in swing, the clock less the reference's swing progress x
-T, and for the other foot the clock). `T` is the planned length, in reference time, of the reference's swing in progress
-at c; in double support, of its next swing; past its last swing, of that one. Each swing has its own length, also inside
-a change of gait; (b) 1 if in any physics step of the env step a foot is loaded while the reference has that foot
+a foot not in contact" to "(a) is not read", in place of the committed clause "(a) for a foot in the air between 25 %
+and 75 % of the planned swing time since its **own** lift-off and lower than 0.04 H: the shortfall over 0.04 H"; clause
+(b) stands as committed] `clearance` is the larger of (a) for a foot not in contact at the env step's end whose
+`u = (c - c_lift) / T` lies between 0.25 and 0.75 and whose lowest point is lower than 0.04 H: the shortfall over 0.04
+H. `c_lift` is the reference clock at the foot's **own** lift-off (the physics step in which its contact last ended; at
+an episode's start, for the foot the reference has in swing, the clock less the reference's swing progress x T, and for
+the other foot the clock). `T` is the planned length, in reference time, of the reference's swing in progress at c; in
+double support, of its next swing; past its last swing, of that one. Each swing has its own length, also inside a change
+of gait; a track that plans no complete swing has its gait's, (1 - duty) x the stride period. Where `T` is not above
+zero, (a) is not read; (b) 1 if in any physics step of the env step a foot is loaded while the reference has that foot
 between 25 % and 75 % of its swing both at the clock and 24 ms x 1.05 earlier (a dragged foot or a stub step).
 
 [settled 16 Nov 2026, before any Track B run; wording entry 3b; the env's code is unchanged by it; in place of the
 committed sentence "`duty`'s band is 0.55-0.72 while the commanded target speed is below 0.30 m/s (owner decision 2),
 else 0.55-0.65."] `duty` is `min(1, sum over the feet read of max(0, lo - d_f, d_f - hi) / 0.05)`, d_f the foot's
-contact share over the last stride (the physics steps of the last `round(stride period / 1.05 / 20 ms)` env steps); zero
-while the reference stands and until that many env steps of the episode have been played. A foot is read only where the
-reference's own support share for it over the same physics steps lies inside the band, so that a start, a stop or a
-change, where the reference itself is outside the band, is not charged. The band [lo, hi] is 0.55-0.72 while the
-commanded gait's target speed is below 0.30 m/s (owner decision 2), else 0.55-0.65. The target speed is the speed a
-rung's name holds, as the bar takes it (`v0.3` is 0.30 m/s and is not below it, whatever float its entry computed); for
-a gait whose name holds no speed (the nominal walk) it is the entry's own [this last sentence: wording entry 3c, added;
-the env's code was changed with it, by commit `0dc39b8` on `wt/wpc-ce`, which made the env read the name's speed where
-it had compared the entry's float].
+contact share over the last stride (the physics steps of the last n env steps, `n = round(stride period / 1.05 / 20
+ms)`, kept between 1 and 256 env steps: the history the env keeps); zero while the reference stands and until n env
+steps of the episode have been played. A foot is read only where the reference's own support share for it over the same
+physics steps lies inside the band, so that a start, a stop or a change, where the reference itself is outside the band,
+is not charged. The band [lo, hi] is 0.55-0.72 while the commanded gait's target speed is below 0.30 m/s (owner decision
+2), else 0.55-0.65. The target speed is the speed a rung's name holds, as the bar takes it (`v0.3` is 0.30 m/s and is
+not below it, whatever float its entry computed); for a gait whose name holds no speed (the nominal walk) it is the
+entry's own [this last sentence: wording entry 3c, added; the env's code was changed with it, by commit `0dc39b8` on
+`wt/wpc-ce`, which made the env read the name's speed where it had compared the entry's float].
 
 Why these two were reworded (the env work package's account, quoted from its wording file; its numbers are kinematic
 playbacks of Stage 1's stock arrays of `75-M-H-10`, prescribed motion and no record). With one swing time per gait,
@@ -615,10 +673,18 @@ trunk's CoM at a time uniform in `[2 s, end - 2 s]`, direction uniform, `dv = u 
 own envelope screen; no default value), u uniform on 0-0.5 if the reference walks at that time and on 0-1.0 if it
 stands. Check: `env_configs[].push_walking`, `push_standing`; the env description's `push_bound_m_s`.
 
-**J4. Gaze and jaw events on `-X`.** [plan; NEW numbers, from `research_look.md` 5.1] With probability 0.5 a train of
-gaze shifts for the whole episode: yaw target uniform on +-0.5 rad, minimum-jerk over 0.8-1.2 s, held 2-6 s. With
-probability 0.25 one jaw event: open to 0.3-0.6 rad over 0.4-0.6 s, held 1.0-1.5 s, closed over the same time. Check:
-`env_configs[].gaze_prob`, `jaw_prob`; the env description's `head_rule`.
+**J4. Gaze and jaw events on `-X`.** [plan; NEW numbers, from `research_look.md` 5.1;
+settled 16 Nov 2026, before any Track B run: the two ranges, and when an event starts] With probability 0.5 a train of
+gaze shifts for the whole episode, the first starting at the episode's first instant: yaw target uniform on +-0.45 rad,
+minimum-jerk over 0.8-1.2 s, held 2-6 s. With probability 0.25 one jaw event, starting at a time uniform in the
+episode's middle half as H1's does (E5): open to 0.3-0.45 rad over 0.4-0.6 s, held 1.0-1.5 s, closed over the same time.
+The ranges keep 0.15 rad from a joint limit (E5) [settled 16 Nov 2026, before any Track B run: the three sentences
+before this mark, in place of the committed sentences "With probability 0.5 a train of gaze shifts for the whole
+episode: yaw target uniform on +-0.5 rad, minimum-jerk over 0.8-1.2 s, held 2-6 s. With probability 0.25 one jaw event:
+open to 0.3-0.6 rad over 0.4-0.6 s, held 1.0-1.5 s, closed over the same time."; wording entries 6b and 7c; the env's
+code was changed with the two ranges, by commit `ad64656` on `wt/wpc-ce`, and is unchanged by the two clauses on when an
+event starts, which state what it already did]. Check: `env_configs[].gaze_prob`, `jaw_prob`; the env description's
+`head_rule`.
 
 **J5. Floors and seeds.** [plan; S1] Env i of 8 runs on hard floor for `i % 4` in 0-2 and on robot_floor_carpet for `i %
 4 == 3`; no pile. The task, start, factors, push and head events come from the env's own generator; the start's and the
@@ -1235,16 +1301,37 @@ normalisation statistics (their count included) and the fingerprint actions of t
 (tolerance zero). If they are not, the build stops and goes to the lead; no tolerance is set after a difference has been
 seen without a label. Across machines or versions nothing is asserted. Check: `stage2/tb/validation/kill_resume.json`.
 
-**K4. What a resume refuses.** [S2-13; S1] Changed settings or env configs: always. Changed inputs (the sha256 or the
-entry hash of a used file; the plant's inputs): always; a later freeze of the set is accepted when every used file's and
-entry's hash and the resolved task table are unchanged, and both freeze indices are recorded. Changed sources (a fixed
-list of files, hashed per session, children included): unless `--allow-source-change`. Changed library versions (Python,
-numpy, MuJoCo, scipy, torch without its build label, stable-baselines3, gymnasium, cloudpickle): unless
-`--allow-version-change`. A checkpoint that fails its integrity check is skipped with its reason recorded; a resume
-needs one whose run id (`run_uuid`) and settings hash are the run's and whose fingerprint is reproduced within 1e-5. A
-flagged session records both sets and the flag, and every later record of the run carries it. In the notebook the two
-flags are the parameters `ALLOW_SOURCE_CHANGE` and `ALLOW_VERSION_CHANGE`, set only on the lead's word. Check:
-`sessions[]` (`version_change`, `source_change`, `skipped_checkpoints`, `fingerprint_max_abs_diff`, `freeze_index`).
+**K4. What a resume refuses.** [S2-13; S1; settled 16 Nov 2026, before any Track B run: how the env decides on a later
+freeze] Changed settings or env configs: always. Changed inputs (the sha256 or the entry hash of a used file; the
+plant's inputs): always; a later freeze of the set is accepted when every used file's and entry's hash and the resolved
+task table are unchanged, and both freeze indices are recorded. The env makes this comparison itself when it is built
+from the stored settings (`r5env.FREEZE_RULE`), whether the freeze they name is the set's latest or an earlier one: as
+the set is read today, every file its tasks use, and the nominal walk's, must have the sha256 and the entry hash that
+the named freeze's manifest holds, and the same tasks must be in the table (a task is in the table under a freeze
+exactly when that freeze's manifest holds every file of its plan); settings that name their tasks are read for those
+tasks alone. A job's env configs name the tasks the set holds when the run starts (`r5env.env_configs`), so a later
+freeze that makes a further task usable is accepted and the run plays on with its own tasks. A refusal lists every
+difference. The env's library also refuses a set whose `set.json` `crouch_frac`, which no freeze covers and with which
+the track's LIPM frequency is computed, differs from the `crouch_frac` of a walk entry it reads, as the bar does
+(`r5lib.CROUCH_RULE`). The env description holds both freezes (`set_freeze_started`, `set_freeze_now`: index and
+manifest sha256), the task names (`task_names`) and the files those tasks use with their hashes (`task_files`). On a
+resume the trainer compares the stored env configs and, of the description of the envs as built, `config`, `task_names`,
+`tasks`, `task_files` and `set_freeze_started` (`r5env.RESUME_KEYS`), not the description whole: an accepted later
+freeze changes its `set_freeze`, `set_freeze_now` and `inputs.freeze`, and, where it made further tasks usable, its
+`inputs.files` and `absent` (`r5env.LATER_FREEZE_KEYS`). "As built" is the env made from its stored config before any
+task weight is set on it, in the first session and in the resumed one alike: `tasks` holds the task weights in force,
+and those are run state (K5), which M4's fix changes [settled 16 Nov 2026, before any Track B run: from "The env makes
+this comparison itself" to this mark, added after a committed sentence that stands as written; wording entry 8; the
+env's code was changed with it, by commits `d1e667c`, `011f6e2` and `4523ed6` on `wt/wpc-ce`: the env had not followed
+that sentence and now does]. Changed sources (a fixed list of files, hashed per session, children included): unless
+`--allow-source-change`. Changed library versions (Python, numpy, MuJoCo, scipy, torch without its build label,
+stable-baselines3, gymnasium, cloudpickle): unless `--allow-version-change`. A checkpoint that fails its integrity check
+is skipped with its reason recorded; a resume needs one whose run id (`run_uuid`) and settings hash are the run's and
+whose fingerprint is reproduced within 1e-5. A flagged session records both sets and the flag, and every later record of
+the run carries it. In the notebook the two flags are the parameters `ALLOW_SOURCE_CHANGE` and `ALLOW_VERSION_CHANGE`,
+set only on the lead's word. Check: `sessions[]` (`version_change`, `source_change`, `skipped_checkpoints`,
+`fingerprint_max_abs_diff`, `freeze_index`); the env description's `set_freeze_started`, `set_freeze_now`, `task_names`
+and `task_files` [settled 16 Nov 2026, before any Track B run: the env description's four keys, added; wording entry 8].
 
 **K5. The state a resume starts from.** [NEW; settled 16 Nov 2026, before any Track B run: a check's attempts, beside
 M1] Every checkpoint's record holds the run state at its step: the task weights in force, the fix, the monitor history,
@@ -1405,13 +1492,14 @@ start, R2L's fits; settled 16 Nov 2026, before any Track B run: the first senten
 differs: rule R4's wording; differs: plan section 7's order] Until task 3's first unit of the 75 cm round has run, no
 R2-mode, policy or training episode runs on V0, F25F9 or F25F9cl (lifted for the frozen 75 cm sets on 16 Nov 2026, after
 the panels) [settled 16 Nov 2026, before any Track B run: "(lifted for the frozen 75 cm sets on 16 Nov 2026, after the
-panels)"; the lead's amendment 13 of `STAGE2_75_PLAN.md` records it there]; the build's tests and acceptances use Stage
-1's own run directory (the read-only view `S1`) or a synthetic set in a temporary directory. On a look set, for each
-body and head: no closed-loop episode before G9-ref passed; between G9-ref and S2-4's start only these: Z1's episodes,
-R0L's baseline and panel records, Z2's G9-run, the probes of O2-O4 (zero action, noise, freshly initialised policies),
-the rate measurement, K3's two runs, the acceptance run's tiny jobs, and R2L's fits (section Q; added by the lead,
-below). None but Z1's, R0L's and Z2's, and the fits', is a record; each is listed in `stage2/tb/dev_episodes.json` with
-its command, set, body, rows or mode, and count.
+panels)"; the lead's amendment 13 of `STAGE2_75_PLAN.md` records it there, with the day the panels ended, 15 Nov 2026;
+wording entry 9 asks for no further wording, this parenthesis holding the lifting in the lead's own words; no code
+refused a set]; the build's tests and acceptances use Stage 1's own run directory (the read-only view `S1`) or a
+synthetic set in a temporary directory. On a look set, for each body and head: no closed-loop episode before G9-ref
+passed; between G9-ref and S2-4's start only these: Z1's episodes, R0L's baseline and panel records, Z2's G9-run, the
+probes of O2-O4 (zero action, noise, freshly initialised policies), the rate measurement, K3's two runs, the acceptance
+run's tiny jobs, and R2L's fits (section Q; added by the lead, below). None but Z1's, R0L's and Z2's, and the fits', is
+a record; each is listed in `stage2/tb/dev_episodes.json` with its command, set, body, rows or mode, and count.
 
 [settled 15 Nov, before any Track B run; differs: rule R4's wording] `STAGE2_75_PLAN.md` rule R4's "a Stage 2 set" means
 the 75 cm round's three sets (V0, F25F9, F25F9cl); rule R4 is the 75 cm round's own by S2-16.
