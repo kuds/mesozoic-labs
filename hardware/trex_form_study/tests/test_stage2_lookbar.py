@@ -16,6 +16,7 @@ import dataclasses
 import json
 import os
 import shutil
+import subprocess
 import sys
 import types
 from pathlib import Path
@@ -664,6 +665,25 @@ def test_a_turn_frozen_with_a1_over_a_record_not_run_and_records_of_other_rows(t
     assert not (bdir / "look" / "R0@10ms").exists()
     assert lookbar.collect(tmp_path / "nothing", "V6", BODY)["records"] == []
     assert not (tmp_path / "nothing").exists()  # nothing to read: nothing is written, not even a lock
+
+
+def test_the_command_line_assigns_mujoco_gl_itself_and_one_thread(tmp_path):
+    """``python -m designlab.stage2.lookbar``: the module's own copy runs ``main``; whatever backend and thread
+    counts the caller's environment names, the process has no OpenGL and one BLAS thread."""
+    row = r0l()
+    write_run(tmp_path, "V6", row, "walk/v0.4", "bar_walk", twenty())
+    code = ("import os, runpy, sys\n"
+            f"sys.argv = ['lookbar', 'collect', '--set', 'V6', '--body', {BODY!r}, '--out', {str(tmp_path)!r}]\n"
+            "try:\n    runpy.run_module('designlab.stage2.lookbar', run_name='__main__')\n"
+            "except SystemExit as e:\n    code = e.code\n"
+            "print(code, os.environ['MUJOCO_GL'], os.environ['OMP_NUM_THREADS'], 'PYOPENGL_PLATFORM' in os.environ)\n")
+    env = {k: v for k, v in os.environ.items() if k not in s2io.THREAD_VARS}
+    out = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True,
+                         env=dict(env, PYTHONPATH=".", MUJOCO_GL="egl", PYOPENGL_PLATFORM="egl"))
+    assert out.returncode == 0, out.stderr[-2000:]
+    lines = out.stdout.strip().splitlines()
+    assert lines[-1] == "0 disable 1 False" and "with the look 20/20" in out.stdout
+    assert (bar.block_dir(tmp_path, "V6", BODY, bar.HEADLINE_BLOCK) / "look" / "summary.json").is_file()
 
 
 # ------------------------------------------------------------------------------------------------

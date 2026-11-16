@@ -37,8 +37,22 @@ reading of the companion.  On any other set the look numbers and the term are re
 ``succeeded_look`` and ``counts_look`` are null and the companion's counts are the bar's own, episode for episode
 (also for an episode the bar could not read: the bar's count stands there).
 
+**A block** (schema ``s2-look-ep-1``; the sidecar file): ``row`` (the bar row's name), ``look_row``, ``condition``,
+``seed``, ``set``, ``judge``, ``steps``, ``fell``, ``survival_s``, ``planned_s``, ``clock {mean_factor, min_factor,
+t_ref_reached, t_ref_planned, ...}``, then the look reading: ``read`` (whether there is one), ``reason`` (why an
+item is not read: a nudge, a stop or a stock item, a fall, a window not reached), ``fault`` (what went wrong in the
+reading itself), ``window``, ``window_ref``, ``own``, ``reference``, ``terms``, ``not_read``, ``too_few_steps``,
+``look_ok``, ``compare`` (the ratios and differences), ``air_runs``; ``on_command_at_stop`` (a stop item);
+``policy_check`` (a policy row's ``provenance()``); ``state_digest``; ``row_sha256``.  **A companion episode**:
+``condition``, ``seed``, ``outcome``, ``reason``, ``fell``, ``survival_s``, ``planned_s``, the four readings'
+``succeeded...``, ``failed_terms``, ``look`` (the block's reading, None where there is none), ``clock``,
+``on_command_at_stop``, ``error``, ``state_digest``, ``policy_check`` and the bar's own verdicts under ``bar``.
+
 No episode here is a record by itself: ``run`` writes the bar's records and their companions; ``episodes`` writes
-nothing but the traces it is asked for.  Which sets an episode may run on is the caller's to keep (rule X1).
+nothing but the traces it is asked for.  Which sets an episode may run on is the caller's to keep (rule X1), and
+the bar's runner keeps its own rule of what may run where (``bar.RULES["checks"]``: as built, on a reference set
+that is none of the 75 cm round's three it lets only rows of the controller ``R0`` run, so ``run`` is refused there
+for ``R0L``, ``R5``, ``R6`` and ``R2L`` rows; ``episodes`` does not go through the runner).
 
     python -m designlab.stage2.lookbar {run|collect} --set S --body B --rows R0L@10ms,R5/42@10ms --out DIR
         [--conditions walk/v0.4,...] [--procs 2] [--block seeds3042] [--episodes 20] [--task 3|4] [--unit NAME]
