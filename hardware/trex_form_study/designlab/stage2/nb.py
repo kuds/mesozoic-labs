@@ -46,6 +46,14 @@ process group and stops, and from then on writes nothing into the run directory 
 named after its own session (``SUPERSEDED_<k>.json``): the run's ``HALT.json`` on Drive is left to the session
 that owns the run (``HALT_RULE``).
 
+**A fault of Drive is no halt** (``COPY_RULE``'s end, ``BACK_RULE``, ``UNFINISHED_RULE``).  A copy to Drive that
+fails is counted and made again in the next period.  A job that has ended is finished on Drive only when its last
+checkpoint is there: until then its ``run.json`` is held back, the copy is tried again, and the run gets no
+``DONE.json``.  A job's directory is copied back from Drive all or nothing, and a job is never started while Drive
+holds a newer checkpoint of it than this machine.  Where Drive cannot be had, the launch ends ``"unfinished"``
+(exit code 6): no ``DONE.json``, no ``HALT.json`` (that file ends a run), ``LIVE.json`` closed, the run open to a
+resume.  ``finish`` says whether every finished job's last checkpoint is on Drive (exit code 6 when one is not).
+
 **Seams** (``_trainer_cmd``, ``_clip_cmd``, ``_pack_cmd``, ``_bundle_cmd``, ``_child_cmd``, ``_rebuild_cmd``,
 ``ROOT``): the places where this module meets the other tools; the tests replace them with stubs.
 """
@@ -60,6 +68,7 @@ if __name__ == "__main__":  # round A's module skeleton: before anything of this
         os.environ.setdefault(_v, "1")
 
 import argparse  # noqa: E402
+import errno  # noqa: E402
 import hashlib  # noqa: E402
 import json  # noqa: E402
 import math  # noqa: E402
@@ -89,6 +98,9 @@ LOCAL_RUN_SCHEMA = "s2-local-run-1"
 ACCEPTANCE_SCHEMA = "s2-acceptance-1"
 
 EXIT_OK, EXIT_FAILED, EXIT_REFUSED, EXIT_HALT, EXIT_INTERRUPTED = 0, 1, 4, 5, 130
+#: ``launch``: the session ended with no DONE.json and no HALT.json because something could not be read from or
+#: written to Drive (``UNFINISHED_RULE``); ``finish``: a finished job's last checkpoint is not on Drive.
+EXIT_UNFINISHED = 6
 #: The trainer's exit codes (``train2``): done or stopped by a rule; G8a failed; refused; halted for the lead.
 TRAIN_DONE, TRAIN_G8A, TRAIN_REFUSED, TRAIN_HALT = 0, 3, 4, 5
 
@@ -99,6 +111,12 @@ LIVE_FRESH_S = 600.0
 #: Design 3.9: a clip child's limit.
 CLIP_LIMIT_S = 300.0
 PACK_LIMIT_S = 120.0
+#: How often ``s2load pack`` is tried for one check's tar (a failed copy of a packed tar to Drive is not a try).
+PACK_TRIES = 3
+#: ``COPY_RULE``'s end: how many further periods a finished job's missing copies are tried again at its end.
+END_COPY_TRIES = 10
+#: How often a job's directory is copied back from Drive before the session ends unfinished.
+COPY_BACK_TRIES = 3
 #: Rule K2: the checkpoints copied to Drive are those at multiples of this many steps, and each check's.
 COPY_EVERY = 1_000_000
 N_ENVS = 8
@@ -174,8 +192,27 @@ COPY_RULE = (
     "sha256 (copied, not verified: the mount reads its own cache).  Drive keeps each check's and the newest two "
     "of the copied ones; an older one is deleted (the record first) only after a newer one was copied in an "
     "earlier cycle and reads back again in this one.  For each check's checkpoint ckpt_<n>.tar is written by "
-    "s2load pack and copied.  Text records (*.json, *.jsonl, *.txt outside checkpoints/ and traces/; the logs; a "
-    "clip with its record) are copied whenever they changed, each as <name>.part and renamed")
+    "s2load pack and copied (it is there when the copy has the packed tar's sha256).  Text records (*.json, "
+    "*.jsonl, *.txt outside checkpoints/ and traces/; the logs; a clip with its record) are copied whenever they "
+    "changed, each as <name>.part and renamed.  A job that has ended is finished on Drive only when its last "
+    "checkpoint and each check's read back from there and each check's tar that could be packed is there: until "
+    "then its run.json and progress.json are not copied (on Drive a job never reads finished before its last "
+    f"checkpoint is there), the missing copies are tried again every period, for {END_COPY_TRIES} further periods "
+    "at the job's end and then while later jobs run, and the run gets no DONE.json (UNFINISHED_RULE)")
+UNFINISHED_RULE = (
+    "a launch ends unfinished, with no DONE.json and no HALT.json, LIVE.json closed and the run open to a resume, "
+    "when what it needs of Drive cannot be had: a finished job's last checkpoint (or a check's, or a check's tar) "
+    "is not on Drive after the tries of the copy rule; a job's directory cannot be copied back from Drive in "
+    f"{COPY_BACK_TRIES} tries; Drive holds a checkpoint of a job that is newer than every one in this machine's "
+    "directory of it (a resume there would restart the job from step 0 or from an older step, silently); the "
+    "run's last files cannot be written.  HALT.json is not written for a fault of Drive: that file ends a run")
+BACK_RULE = (
+    "the copy back (design 3.9): before a job is started, its directory is copied from Drive when this machine "
+    "holds no run.json of it or when Drive holds a checkpoint that reads back whole and is newer than every whole "
+    "one here.  The copy is all or nothing: it is made beside the job's place, every checkpoint that reads back on "
+    "Drive must read back in the copy, and only then it is moved into place (a directory that was there is kept "
+    "aside under work/aside/, never deleted).  A job is never started while Drive holds a checkpoint newer than "
+    "every one here (UNFINISHED_RULE)")
 JOB_RULE = (
     "job rules (design 3.9; the trainer's exit codes): a job that ends with exit code 0 (done, or stopped by rule "
     "M4 or M5) or 3 (G8a failed: no run) lets the next job start; exit code 4 (refused: nothing was run) or 5 "
@@ -236,7 +273,15 @@ class _Superseded(Exception):
 # Small helpers (standard library only; the JSON layout and the hashes are s2io's)
 # ------------------------------------------------------------------------------------------------
 def _say(*text) -> None:
-    print(*text, flush=True)
+    """Print a line, and never raise: when nobody reads this process's output any more (the kernel that started
+    the step died alone and left a closed pipe) the step goes on, and a launcher's lines are in its log."""
+    try:
+        print(*text, flush=True)
+    except (OSError, ValueError):
+        try:  # (the lines that follow, and the interpreter's own flush at its end, go nowhere instead of failing)
+            sys.stdout = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+        except OSError:
+            pass
 
 
 def _now() -> str:
@@ -346,6 +391,20 @@ def _unlink(path) -> None:
         os.unlink(path)
     except FileNotFoundError:
         pass
+
+
+def _listing(path) -> list | None:
+    """The names in a directory, sorted; None when it is not there.  Any other error is raised: a mount that
+    cannot be read is not an empty directory (``Path.is_dir`` answers False for both)."""
+    try:
+        return sorted(os.listdir(path))
+    except (FileNotFoundError, NotADirectoryError):
+        return None
+
+
+def _walk_error(exc: OSError):
+    """``os.walk``'s ``onerror``: a directory that cannot be listed is an error, not an empty one."""
+    raise exc
 
 
 def sweep_parts(root) -> list:
@@ -1029,7 +1088,8 @@ def _job_entry(st: dict, row: dict, mine: dict | None = None) -> dict:
         checks_without_record=prog.get("checks_without_record") or [], halt=prog.get("halt"),
         run_status=status, run_uuid=run.get("run_uuid") or prog.get("run_uuid"),
         stopped=(run.get("stopped") or prog.get("stopped")), exit_codes=list(mine.get("exit_codes") or []),
-        clip=mine.get("clip"), drive_errors=int(mine.get("drive_errors") or 0))
+        clip=mine.get("clip"), drive_errors=int(mine.get("drive_errors") or 0),
+        not_on_drive=list(mine.get("not_on_drive") or []))
 
 
 def _write_status(st: dict, state: str, entries: list | None = None) -> dict:
@@ -1094,7 +1154,8 @@ def _queue_doc(run_id, jobs: list, repo_ref, commit, p: dict) -> dict:
                 monitor_also_k=also, lr=None if p["LR"] is None else float(p["LR"]),
                 config=p["CONFIG"] if isinstance(p["CONFIG"], dict) else None,
                 rules=dict(k6=K6_RULE, k7=K7_RULE, fence=FENCE_RULE, halt=HALT_RULE, copy=COPY_RULE, jobs=JOB_RULE,
-                           clips=CLIP_RULE, line4=LINE4_RULE, budget=BUDGET_RULE))
+                           clips=CLIP_RULE, line4=LINE4_RULE, budget=BUDGET_RULE, back=BACK_RULE,
+                           unfinished=UNFINISHED_RULE))
 
 
 def _resume_point(st_like: dict, jobs: list) -> dict:
@@ -1612,6 +1673,11 @@ class _Interrupted(Exception):
     """The launcher was told to stop by a signal: the run is left as it is and can be resumed."""
 
 
+class _Unfinished(Exception):
+    """The session cannot go on, or cannot call the run done, for a fault of Drive (``UNFINISHED_RULE``): it ends
+    with no DONE.json and no HALT.json, and the run can be resumed."""
+
+
 def at_or_past(n: int, every, rollout) -> bool:
     """Whether checkpoint ``n`` is the first rollout start at or past a positive multiple of ``every`` (rule K1
     saves there; a rollout is ``rollout`` steps)."""
@@ -1664,7 +1730,8 @@ class _Launcher:
         self.params = self.sess.get("params") or {}
         self.pause = float(self.params.get("COPY_PAUSE_S") or 0.0)
         self.mine = {r["job"]: dict(state=None, retries=0, last_error=None, exit_codes=[], clip=None,
-                                    last_checkpoint_copied=None, drive_errors=0) for r in self.jobs}
+                                    last_checkpoint_copied=None, drive_errors=0, not_on_drive=[])
+                     for r in self.jobs}
         self.copied: dict = {r["job"]: {} for r in self.jobs}   # job -> {steps: the cycle it was copied in}
         self.sent: dict = {}                                   # a copied text file -> (size, mtime_ns)
         self.cycle = 0
@@ -1723,11 +1790,23 @@ class _Launcher:
             self.say(f"S2 WARNING: a copy to Drive failed ({exc}); it is tried again in the next cycle")
             return None
 
+    def _final(self, job: str) -> int | None:
+        """A finished job's last checkpoint as this machine holds it (None: the job is not finished, or it saved
+        none after step 0)."""
+        jd = self.l / "jobs" / job
+        if not _finished((_read_json(jd / "run.json") or {}).get("status")):
+            return None
+        return max((n for n in _drive_checkpoints(jd) if n > 0), default=None)
+
     def copy_text(self, job: str) -> None:
         src, dst = self.l / "jobs" / job, self.d / "jobs" / job
         if not src.is_dir():
             return
+        final = self._final(job)
+        hold = final is not None and final not in self.copied[job]
         for rel in _walk_text(src):
+            if hold and rel.as_posix() in ("run.json", "progress.json"):
+                continue  # (COPY_RULE: on Drive a job never reads finished before its last checkpoint is there)
             self._send(src / rel, dst / rel)
 
     def copy_logs(self) -> None:
@@ -1756,9 +1835,13 @@ class _Launcher:
         return base / "jobs" / job / "checkpoints" / ("checkpoint_%d.json" % n)
 
     def _reads_back(self, job: str, n: int) -> bool:
-        """Whether checkpoint ``n`` reads back from Drive whole: its record parses and each of its three files has
-        the record's size and sha256 ("copied", ``COPY_RULE``)."""
-        path = self._record(self.d, job, n)
+        """Whether checkpoint ``n`` reads back from Drive whole ("copied", ``COPY_RULE``)."""
+        return self._whole(self._record(self.d, job, n), n)
+
+    @staticmethod
+    def _whole(path: Path, n: int) -> bool:
+        """Whether the checkpoint whose record is ``path`` reads whole: the record parses, is of step ``n``, and
+        each of its three files beside it has the record's size and sha256."""
         rec = _read_json(path)
         if not isinstance(rec, dict) or not isinstance(rec.get("files"), dict) or rec.get("steps") != n:
             return False
@@ -1802,12 +1885,13 @@ class _Launcher:
         return self._reads_back(job, n)
 
     def _kinds(self, job: str) -> dict:
-        """What the job's own settings say about its checkpoints: ``{tiny, monitor_every, rollout, last}``."""
+        """What the job's own settings say about its checkpoints: ``{tiny, monitor_every, rollout, last, final}``
+        (``last``: a finished job's step count; ``final``: its newest checkpoint here, ``_final``)."""
         run = _read_json(self.l / "jobs" / job / "run.json") or {}
         s = run.get("settings") if isinstance(run.get("settings"), dict) else {}
         rollout = int(s.get("n_envs") or N_ENVS) * int(s.get("n_steps") or 0)
         return dict(tiny=bool(s.get("tiny")), monitor_every=s.get("monitor_every"), rollout=rollout,
-                    last=run.get("num_timesteps") if _finished(run.get("status")) else None)
+                    last=run.get("num_timesteps") if _finished(run.get("status")) else None, final=self._final(job))
 
     def _is_check(self, job: str, n: int, kinds: dict) -> bool:
         mon = self.l / "jobs" / job / "monitor" / ("monitor_%d.json" % n)
@@ -1820,7 +1904,7 @@ class _Launcher:
             if n <= 0 or n in done:
                 continue
             check = self._is_check(job, n, kinds)
-            if not (kinds["tiny"] or at_or_past(n, COPY_EVERY, kinds["rollout"]) or check):
+            if not (kinds["tiny"] or at_or_past(n, COPY_EVERY, kinds["rollout"]) or check or n == kinds["final"]):
                 continue
             if done and n < max(done) and not check:
                 continue  # (older than what Drive holds and no check's: it would only be deleted again)
@@ -1841,53 +1925,202 @@ class _Launcher:
                 self._remove_on_drive(job, n)
                 del done[n]
 
+    def _packed(self, job: str, n: int) -> Path:
+        return self.l / "work" / "packs" / job / ("ckpt_%d.tar" % n)
+
+    def _can_pack(self, job: str, n: int) -> bool:
+        """Whether a check's tar can still reach Drive: it is packed and waits for its copy, or the pack tool has
+        tries left (``PACK_TRIES``; a tool that fails every time does not hold the run's end back)."""
+        return self._packed(job, n).is_file() or self.pack_tries.get((job, n), 0) < PACK_TRIES
+
     def _pack(self, job: str, n: int) -> None:
-        """``ckpt_<n>.tar`` of a check's checkpoint (``s2load pack``), copied to the job's directory on Drive."""
-        tries = self.pack_tries.get((job, n), 0)
-        if tries >= 3 or not self._record(self.l, job, n).is_file():
-            return
-        self.pack_tries[(job, n)] = tries + 1
-        out = self.l / "work" / "packs" / job
-        name = "ckpt_%d.tar" % n
-        try:
-            done = subprocess.run(_pack_cmd() + ["pack", str(self.l / "jobs" / job), str(n), "--out", str(out)],
-                                  cwd=str(study()), env=_child_env("disable"), capture_output=True, text=True,
-                                  timeout=PACK_LIMIT_S, stdin=subprocess.DEVNULL)
-            code, err = done.returncode, (done.stderr or done.stdout or "").strip().splitlines()[-1:]
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            code, err = 124, [str(exc)]
-        if code != 0 or not (out / name).is_file():
-            self.mine[job]["last_error"] = f"ckpt_{n}.tar was not packed (exit code {code}): {' '.join(err)}"
-            return
+        """``ckpt_<n>.tar`` of a check's checkpoint (``s2load pack``), copied to the job's directory on Drive.  A
+        tar that is packed stays here until its copy has its sha256: a copy to Drive that fails (``OSError``, for
+        ``_drive``) or reads back otherwise is made again in the next cycle and is no try of the pack tool."""
+        tar = self._packed(job, n)
+        if not tar.is_file():
+            tries = self.pack_tries.get((job, n), 0)
+            if tries >= PACK_TRIES or not self._record(self.l, job, n).is_file():
+                return
+            self.pack_tries[(job, n)] = tries + 1
+            try:
+                done = subprocess.run(_pack_cmd() + ["pack", str(self.l / "jobs" / job), str(n), "--out",
+                                                     str(tar.parent)],
+                                      cwd=str(study()), env=_child_env("disable"), capture_output=True, text=True,
+                                      timeout=PACK_LIMIT_S, stdin=subprocess.DEVNULL)
+                code, err = done.returncode, (done.stderr or done.stdout or "").strip().splitlines()[-1:]
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                code, err = 124, [str(exc)]
+            if code != 0 or not tar.is_file():
+                self.mine[job]["last_error"] = f"ckpt_{n}.tar was not packed (exit code {code}): {' '.join(err)}"
+                return
         self.fence()
-        _copy_file(out / name, self.d / "jobs" / job / name)
-        _unlink(out / name)
+        dst = self.d / "jobs" / job / tar.name
+        _copy_file(tar, dst)
+        if sha256_file(dst) != sha256_file(tar):
+            return
+        _unlink(tar)
         self.packed.add((job, n))
 
-    def copy_back(self, job: str) -> None:
-        """On a resume in a new runtime the job's directory is copied back from Drive first (design 3.9); what
-        Drive holds of its checkpoints is what was copied."""
-        src, dst = self.d / "jobs" / job, self.l / "jobs" / job
-        if self.same or not src.is_dir():
-            return
-        for n in _drive_checkpoints(src):
-            if self._reads_back(job, n):
-                self.copied[job][n] = -1
+    def _adopt(self, job: str) -> None:
+        """What Drive holds of a job's checkpoints is what was copied (an earlier session's work): each one that
+        reads back whole, and its tar when it is there.  Raises ``OSError`` when Drive cannot be listed."""
+        src = self.d / "jobs" / job
+        for name in _listing(src / "checkpoints") or []:
+            m = re.fullmatch(r"checkpoint_(\d+)\.json", name)
+            if m and self._reads_back(job, int(m.group(1))):
+                n = int(m.group(1))
+                self.copied[job].setdefault(n, -1)
                 if (src / ("ckpt_%d.tar" % n)).is_file():
                     self.packed.add((job, n))
         if self.copied[job]:
             self.mine[job]["last_checkpoint_copied"] = max(self.copied[job])
-        if (dst / "run.json").is_file():
-            return  # (the same runtime: its own files are at least as new as their copies)
-        n = 0
-        for base, _, names in os.walk(src):
+
+    def _from_drive(self, job: str, what, *args) -> None:
+        """Run a read from Drive that the session cannot go on without.  An ``OSError`` is counted and said, and
+        the read is made again, ``COPY_BACK_TRIES`` times in all; then the session ends unfinished
+        (``UNFINISHED_RULE``): a fault of Drive is no halt of the run."""
+        m, last = self.mine[job], None
+        for attempt in range(COPY_BACK_TRIES):
+            try:
+                what(*args)
+                return
+            except OSError as exc:
+                last = exc
+                m["drive_errors"] += 1
+                m["last_error"] = f"Drive: {type(exc).__name__}: {exc}"
+                self.say(f"S2 WARNING: {job}: reading from Drive failed ({exc}); attempt {attempt + 1} of "
+                         f"{COPY_BACK_TRIES}")
+                if attempt + 1 < COPY_BACK_TRIES:
+                    self._nap(min(self.period, 5.0))
+        raise _Unfinished(f"Drive could not be read for job {job} ({last}): the job was not started, and nothing "
+                          "was trained for it in this session")
+
+    def copy_back(self, job: str) -> None:
+        """``BACK_RULE``: on a resume in a new runtime the job's directory is copied back from Drive before the
+        job is started (design 3.9), all or nothing; what Drive holds of its checkpoints is what was copied."""
+        if not self.same:
+            self._from_drive(job, self._copy_back, job)
+
+    def _copy_back(self, job: str) -> None:
+        src, dst = self.d / "jobs" / job, self.l / "jobs" / job
+        self._adopt(job)
+        if _listing(src) is None:
+            return  # (Drive holds nothing of this job: it is new, or it was cut before its first copy)
+        on_drive = sorted(n for n in self.copied[job] if n > 0)
+        here = [n for n in _drive_checkpoints(dst) if n > 0 and self._whole(self._record(self.l, job, n), n)]
+        if (dst / "run.json").is_file() and (not on_drive or (here and max(here) >= on_drive[-1])):
+            return  # (this machine's own files are at least as new as their copies)
+        tmp = self.l / "work" / "copy_back" / job
+        shutil.rmtree(tmp, ignore_errors=True)
+        tmp.mkdir(parents=True)
+        count = 0
+        for base, dirs, names in os.walk(src, onerror=_walk_error):
+            dirs.sort()
             for name in sorted(names):
                 p = Path(base) / name
                 if p.suffix in (".part", ".tar", ".mp4"):
                     continue
-                _copy_file(p, dst / p.relative_to(src))
-                n += 1
-        self.say(f"S2 launch: {job}: {n} files copied back from Drive")
+                _copy_file(p, tmp / p.relative_to(src))
+                count += 1
+        cut = [n for n in on_drive if not self._whole(tmp / "checkpoints" / ("checkpoint_%d.json" % n), n)]
+        if cut:
+            raise OSError(errno.EIO, f"checkpoint {cut[0]} did not read back whole after its copy from Drive")
+        if dst.exists():  # (older than Drive's copy, or what a cut copy left: kept aside, never deleted)
+            aside, i = self.l / "work" / "aside" / f"{job}.s{self.k}", 0
+            while aside.exists():
+                aside, i = aside.with_name(f"{job}.s{self.k}.{i + 1}"), i + 1
+            aside.parent.mkdir(parents=True, exist_ok=True)
+            os.rename(dst, aside)
+            self.say(f"S2 NOTE: {job}: this machine's directory of the job was older than Drive's copy, or cut; it "
+                     f"is kept aside as {aside.relative_to(self.l)}")
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        os.rename(tmp, dst)
+        self.say(f"S2 launch: {job}: {count} files copied back from Drive")
+
+    def _guard(self, job: str, resume: bool) -> None:
+        """``BACK_RULE``'s last sentence: a job is never started while Drive holds a checkpoint of it that is
+        newer than every one in this machine's directory of it.  The trainer would restart the job from step 0 in
+        place, or go on from an older step, and say nothing that stops anyone."""
+        if self.same:
+            return
+        on_drive = max((n for n in self.copied[job] if n > 0), default=None)
+        if on_drive is None:
+            return
+        here = max((n for n in _drive_checkpoints(self.l / "jobs" / job) if n > 0), default=None)
+        if not resume or here is None or here < on_drive:
+            has = "no checkpoint" if here is None else f"none newer than {here}"
+            raise _Unfinished(f"job {job} was not started: Drive holds its checkpoint {on_drive} and this machine's "
+                              f"directory of the job holds {has}: a start here would restart the job from step 0 "
+                              "or go on from an older step")
+
+    def not_on_drive(self, job: str, tars: bool = True) -> list:
+        """What a finished job still lacks on Drive (``COPY_RULE``'s end), by name: its last checkpoint and each
+        check's that this machine holds, where it was not copied; with ``tars``, each check's tar, where it is not
+        there and can still get there.  Empty for a job that is not finished, or of which this machine holds
+        nothing."""
+        if self.same:
+            return []
+        kinds = self._kinds(job)
+        if kinds["final"] is None:
+            return []
+        have = self.copied[job]
+        want = [n for n in _drive_checkpoints(self.l / "jobs" / job)
+                if n > 0 and (n == kinds["final"] or self._is_check(job, n, kinds))]
+        out = ["checkpoint %d" % n for n in want if n not in have]
+        if not tars:
+            return out
+        return out + ["ckpt_%d.tar" % n for n in want if n in have and self._is_check(job, n, kinds)
+                      and (job, n) not in self.packed and self._can_pack(job, n)]
+
+    def _retry_pending(self, skip: str) -> None:
+        """The copies that another job of this queue still lacks on Drive are tried again (``COPY_RULE``'s end)."""
+        for r in self.jobs:
+            job, m = r["job"], self.mine[r["job"]]
+            if job == skip or not m.get("not_on_drive"):
+                continue
+            self._drive(job, self.copy_checkpoints, job)
+            m["not_on_drive"] = self.not_on_drive(job)
+            if not m["not_on_drive"]:
+                self._drive(job, self.copy_text, job)
+                self.say(f"S2 launch: {job}: its last copies are on Drive now")
+
+    def settle(self, row: dict) -> None:
+        """``COPY_RULE``'s end for a job that has ended: while its last checkpoint, a check's or a check's tar is
+        not on Drive the copies are tried again, one period apart, ``END_COPY_TRIES`` times.  What is still
+        missing then is said, kept in the job's entry (``not_on_drive``) and tried again in every later cycle of
+        this session; the run is not written DONE without it."""
+        job, m = row["job"], self.mine[row["job"]]
+        if self.same:
+            return
+        m["not_on_drive"] = self.not_on_drive(job)
+        waited = False
+        for _ in range(END_COPY_TRIES):
+            if not m["not_on_drive"]:
+                break
+            waited = True
+            self._nap(self.period)
+            self._copy_cycle(job)
+            m["not_on_drive"] = self.not_on_drive(job)
+        if m["not_on_drive"]:
+            self.say(f"S2 WARNING: {job}: not on Drive after {END_COPY_TRIES} further tries: "
+                     f"{', '.join(m['not_on_drive'])}.  It is tried again while this session lives; the run is not "
+                     "written DONE without it")
+            return
+        self._drive(job, self.copy_text, job)  # (now with the job's run.json and progress.json)
+        if waited:
+            self.say(f"S2 launch: {job}: its last copies are on Drive now")
+
+    def _nap(self, seconds: float) -> None:
+        """Sleep, unless the launcher was told to stop."""
+        end = time.time() + max(0.0, float(seconds))
+        while True:
+            if self.stop is not None:
+                raise _Interrupted(self.stop)
+            left = end - time.time()
+            if left <= 0:
+                return
+            time.sleep(min(0.5, left))
 
     # ---------------------------------------------------------------- clips (CLIP_RULE)
     def clip_tick(self, row: dict) -> None:
@@ -2038,11 +2271,19 @@ class _Launcher:
         self._line4(job)
         self._told(job)
         self.clip_tick(row)
+        self._copy_cycle(job, count=False)
+
+    def _copy_cycle(self, job: str, count: bool = True) -> None:
+        """The Drive half of a period: the fence, the live files, the job's copies, and the copies another job
+        still lacks (``COPY_RULE``'s end)."""
+        if count:
+            self.cycle += 1
         self.fence()
         self._drive(job, self.beat)
         if not self.same:
             self._drive(job, self.copy_text, job)
             self._drive(job, self.copy_checkpoints, job)
+            self._retry_pending(job)
             self._drive(job, self.copy_logs)
 
     def _watch(self, row: dict) -> int:
@@ -2079,7 +2320,9 @@ class _Launcher:
         jd = self.l / "jobs" / job
         self.copy_back(job)
         while True:
-            self._start(row, (jd / "run.json").is_file())
+            resume = (jd / "run.json").is_file()
+            self._guard(job, resume)
+            self._start(row, resume)
             m["state"] = "running"
             code = self._watch(row)
             self._end_child()  # (whatever the trainer left behind: its workers, its monitor child)
@@ -2097,6 +2340,7 @@ class _Launcher:
             if not self.same:
                 self._drive(job, self.copy_text, job)
             if m["state"] != "failed":
+                self.settle(row)
                 self.say(f"S2 launch: {job} ended: {m['state']} ({status}) at "
                          f"{(_read_json(jd / 'progress.json') or {}).get('steps')} steps")
                 return
@@ -2137,6 +2381,9 @@ class _Launcher:
             e = _job_entry(self.st, r)
             if e["state"] in ("done", "stopped"):
                 self.mine[r["job"]]["state"] = e["state"]
+                if not self.same and (self.l / "jobs" / r["job"] / "run.json").is_file():
+                    # (a job that ended here: what Drive holds of it, for COPY_RULE's end)
+                    self._from_drive(r["job"], self._adopt, r["job"])
         if self.st["lines"]:
             _say("S2 launch: the lines so far:")
             for text in self.st["lines"]:
@@ -2146,33 +2393,46 @@ class _Launcher:
         return {e["job"]: dict(state=e["state"], steps=e["steps"], last_checkpoint=e["last_checkpoint"],
                                last_checkpoint_copied=e["last_checkpoint_copied"], stopped=e["stopped"],
                                retries=e["retries"], exit_codes=e["exit_codes"], last_error=e["last_error"],
-                               run_uuid=e["run_uuid"]) for e in self.entries()}
+                               run_uuid=e["run_uuid"], not_on_drive=e["not_on_drive"]) for e in self.entries()}
 
     def _end(self, state: str, reason: str) -> dict:
-        """``DONE.json`` or ``HALT.json`` (``END_SCHEMA``), the last STATUS.json, ``LIVE.json`` closed."""
-        name = "DONE.json" if state == "done" else "HALT.json"
+        """The session's end: ``DONE.json`` or ``HALT.json`` (``END_SCHEMA``) or, for ``"unfinished"``, neither
+        (``UNFINISHED_RULE``); the last STATUS.json; ``LIVE.json`` closed.  A DONE.json that cannot be written is
+        no end of the run: the result is then ``"unfinished"`` too."""
+        name = dict(done="DONE.json", halted="HALT.json").get(state)
         doc = _stamped(dict(schema=END_SCHEMA, run_id=self.sess["run_id"], session=self.k, session_uuid=self.uuid,
                             at=_now(), state=state, reason=reason, jobs=self._jobs_doc(), lines=list(self.st["lines"]),
-                            commit=self.sess["repo"]["commit"], rules=dict(jobs=JOB_RULE, halt=HALT_RULE)))
+                            commit=self.sess["repo"]["commit"],
+                            rules=dict(jobs=JOB_RULE, halt=HALT_RULE, copy=COPY_RULE, unfinished=UNFINISHED_RULE)))
         written = False
         for attempt in range(3):
             try:
                 self.fence()
                 self.sess["ended"] = dict(at=doc["at"], state=state, reason=reason)
-                self.beat(state)
+                self.beat("running" if name is None else state)  # (design 3.9: STATUS.json has no fourth state)
                 if not self.same:
                     for r in self.jobs:
                         self.copy_text(r["job"])
                     self.copy_logs()
-                _write_json(self.d / name, doc)
+                if name is not None:
+                    _write_json(self.d / name, doc)
                 _write_live(self.st, closed=f"{state}: {reason}")
                 written = True
                 break
             except OSError as exc:
                 self.say(f"S2 WARNING: the run's last files could not be written ({exc}); attempt {attempt + 1} of 3")
                 time.sleep(min(self.period, 5.0))
-        self.say(f"S2 launch: {name[:-5]}: {reason}" + ("" if written else f" ({name} could NOT be written to the "
-                                                         "run directory: tell the lead)"))
+        if state == "done" and not written:
+            state, name = "unfinished", None
+            reason = f"{reason}, but DONE.json could not be written to the run directory"
+            self.sess["ended"] = dict(at=doc["at"], state=state, reason=reason)
+        if name is None:
+            self.say(f"S2 launch: UNFINISHED: {reason}.  The run has no DONE.json and no HALT.json and can be "
+                     "resumed: tell the lead" + ("" if written else " (the run's last files could NOT be written "
+                                                 "to the run directory)"))
+        else:
+            self.say(f"S2 launch: {name[:-5]}: {reason}" + ("" if written else f" ({name} could NOT be written to "
+                                                             "the run directory: tell the lead)"))
         return dict(state=state, reason=reason, session=self.k, jobs=doc["jobs"], lines=doc["lines"],
                     record=name if written else None)
 
@@ -2195,16 +2455,23 @@ class _Launcher:
                     record=f"SUPERSEDED_{self.k}.json")
 
     def run(self) -> dict:
-        """The queue; never raises (a failure becomes ``HALT.json``)."""
+        """The queue; never raises (a failure becomes ``HALT.json``; a fault of Drive ends the session unfinished
+        and writes none, ``UNFINISHED_RULE``)."""
         try:
             try:
                 self._prepare()
-                self.beat()
+                self._drive(self.jobs[0]["job"], self.beat)
                 for row in self.jobs:
                     if self.mine[row["job"]]["state"] in ("done", "stopped"):
                         self.say(f"S2 launch: {row['job']} is finished ({self.mine[row['job']]['state']}): skipped")
+                        self.settle(row)  # (what an earlier session of this machine could not copy of it)
                         continue
                     self.run_job(row)
+                lacks = [f"{r['job']}: {', '.join(self.mine[r['job']]['not_on_drive'])}" for r in self.jobs
+                         if self.mine[r["job"]]["not_on_drive"]]
+                if lacks:
+                    raise _Unfinished("the queue is finished, but not all of it is on Drive (" + "; ".join(lacks)
+                                      + "): what is missing is on this machine's disk only")
                 return self._end("done", "the queue is finished")
             except _Superseded as exc:
                 self._end_child()
@@ -2217,9 +2484,12 @@ class _Launcher:
                     if not self.same:
                         for r in self.jobs:
                             self._drive(r["job"], self.copy_text, r["job"])
-                    _write_live(self.st, closed=f"interrupted by signal {exc}")
+                    self._drive(self.jobs[0]["job"], _write_live, self.st, f"interrupted by signal {exc}")
                 return dict(state="interrupted", reason=f"signal {exc}", session=self.k, jobs=self._jobs_doc(),
                             lines=list(self.st["lines"]), record=None)
+            except _Unfinished as exc:
+                self._end_child()
+                return self._end("unfinished", str(exc))
             except _Halt as exc:
                 self._end_child()
                 return self._end("halted", str(exc))
@@ -2301,7 +2571,11 @@ def finish(run_id, drive, local=None) -> dict:
     """Cell 8: the run's end as its files say it (``DONE.json`` or ``HALT.json``; a smoke's session ends with
     ``DONE.json`` here), a last copy of the text records while this session still owns the run, and the summary.
     ``local``: the local root (default: the one the run's newest session recorded).  Returns ``{state, reason,
-    jobs, files}``; ``state`` is ``"done"``, ``"halted"``, ``"superseded"`` or ``"unfinished"``."""
+    jobs, files, on_drive, not_on_drive}``; ``state`` is ``"done"``, ``"halted"``, ``"superseded"`` or
+    ``"unfinished"``.  ``on_drive``: True when every finished job this machine holds has its last checkpoint and
+    each check's on Drive (``COPY_RULE``'s end), False when one has not or Drive could not be read (``not_on_drive``
+    names what is missing: it is on this machine's disk only), None when this session cannot tell (it does not own
+    the run).  A write to Drive that fails here is said, never raised: the cell's ``finally`` runs either way."""
     d = run_dirs(run_id, drive, None)[0]
     if local is None:
         recs = sorted(d.glob("SESSION_*.json"), key=lambda p: int(re.sub(r"\D", "", p.name) or 0))
@@ -2317,23 +2591,34 @@ def finish(run_id, drive, local=None) -> dict:
         end = _read_json(lrun / "HALT.json") or _read_json(d / f"SUPERSEDED_{st['session']['session']}.json") or {}
         _say(f"S2 FINISH {run_id}: this session no longer owns the run ({end.get('reason') or 'superseded'}); "
              "nothing was copied")
-        return dict(state="superseded", reason=end.get("reason"), jobs=end.get("jobs") or {}, files=str(d))
+        return dict(state="superseded", reason=end.get("reason"), jobs=end.get("jobs") or {}, files=str(d),
+                    on_drive=None, not_on_drive={})
     if owns and st["session"].get("smoke") and not (d / "DONE.json").exists() and not (d / "HALT.json").exists():
         ok = (d / "smoke" / "SMOKE.json").is_file()
         doc = _stamped(dict(schema=END_SCHEMA, run_id=run_id, session=st["session"]["session"],
                             session_uuid=st["session"]["session_uuid"], at=_now(), state="done" if ok else "halted",
                             reason="the smoke is written (smoke/SMOKE.json)" if ok else "the smoke left no SMOKE.json",
                             jobs={}, lines=list(st["lines"]), commit=st["session"]["repo"]["commit"]))
-        _write_json(d / ("DONE.json" if ok else "HALT.json"), doc)
-        _note(st, state="done" if ok else "halted")
-        _write_live(st, closed=doc["reason"])
+        try:
+            _write_json(d / ("DONE.json" if ok else "HALT.json"), doc)
+            _note(st, state="done" if ok else "halted")
+            _write_live(st, closed=doc["reason"])
+        except OSError as exc:
+            _say(f"S2 FINISH {run_id}: the smoke's end could not be written to the run directory ({exc})")
+    on_drive, lacks = (True if owns else None), {}
     if owns and not st["same"]:
         launcher = _Launcher(st, _read_json(d / "QUEUE.json") or dict(queue=st["session"]["queue"]), 0, False, 1.0)
         try:
             for r in launcher.jobs:
+                launcher._adopt(r["job"])
+            for r in launcher.jobs:
                 launcher.copy_text(r["job"])
             launcher.copy_logs()
+            lacks = {r["job"]: launcher.not_on_drive(r["job"], tars=False) for r in launcher.jobs}
+            lacks = {job: names for job, names in lacks.items() if names}
+            on_drive = not lacks
         except (OSError, _Superseded) as exc:
+            on_drive = False
             _say(f"S2 FINISH {run_id}: the last copy failed ({exc})")
         finally:
             launcher.log.close()
@@ -2346,13 +2631,21 @@ def finish(run_id, drive, local=None) -> dict:
     if st is not None and owns:
         st["session"]["last_status_at"] = _now()
         _save_state(st)
-        _write_json(d / f"SESSION_{st['session']['session']}.json", st["session"])
+        try:
+            _write_json(d / f"SESSION_{st['session']['session']}.json", st["session"])
+        except OSError as exc:
+            on_drive = False
+            _say(f"S2 FINISH {run_id}: the session's record could not be written to the run directory ({exc})")
     _say(f"S2 FINISH {run_id}: {state.upper()}: {reason}")
     for job, e in jobs.items():
         _say(f"S2 FINISH   {job}: {e.get('state')} at {e.get('steps')} steps; last checkpoint "
              f"{e.get('last_checkpoint')}, copied {e.get('last_checkpoint_copied')}")
+    if on_drive is False:
+        what = ("; ".join(f"{job}: {', '.join(names)}" for job, names in lacks.items())
+                or "Drive could not be read or written")
+        _say(f"S2 FINISH {run_id}: NOT ON DRIVE: {what}.  It is on this machine's disk only: tell the lead")
     _say(f"S2 FINISH the run's files are under {d}")
-    return dict(state=state, reason=reason, jobs=jobs, files=str(d))
+    return dict(state=state, reason=reason, jobs=jobs, files=str(d), on_drive=on_drive, not_on_drive=lacks)
 
 
 def release_runtime(reason: str, in_colab: bool, auto: bool, flush_drive: bool) -> None:
@@ -3163,13 +3456,15 @@ def _step_launch(p: dict, args) -> int:
     res = launch(p["RUN_ID"], p["DRIVE_DIR"], p["LOCAL_DIR"], p["QUEUE"], p["SET"], p["BUDGET_STEPS"], p["WORKERS"],
                  tiny=p["TINY"], clips=p["CLIPS"], monitor_every=p["MONITOR_EVERY"],
                  monitor_also_k=p["MONITOR_ALSO_K"] or ())
-    return {"done": EXIT_OK, "halted": EXIT_HALT, "refused": EXIT_REFUSED,
+    return {"done": EXIT_OK, "halted": EXIT_HALT, "refused": EXIT_REFUSED, "unfinished": EXIT_UNFINISHED,
             "interrupted": EXIT_INTERRUPTED}.get(res["state"], EXIT_FAILED)
 
 
 def _step_finish(p: dict, args) -> int:
     res = finish(p["RUN_ID"], p["DRIVE_DIR"], p["LOCAL_DIR"])
-    return EXIT_HALT if res["state"] == "halted" else EXIT_OK
+    if res["state"] == "halted":
+        return EXIT_HALT
+    return EXIT_UNFINISHED if res["on_drive"] is False else EXIT_OK
 
 
 STEPS = dict(setup=_step_setup, session=_step_session, inputs=_step_inputs, preflight=_step_preflight,

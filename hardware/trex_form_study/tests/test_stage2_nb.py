@@ -29,6 +29,7 @@ cells here with a tiny R5 and a tiny R6 job, a kill after the first copied check
 from __future__ import annotations
 
 import ast
+import errno
 import hashlib
 import json
 import os
@@ -1054,6 +1055,351 @@ def test_an_interrupted_launcher_leaves_the_run_resumable(tmp_path, stubs, monke
     monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.0, budget=512 * 400)}))
     capsys.readouterr()
     assert _launch(p)["state"] == "done" and "started with --resume" in capsys.readouterr().out
+
+
+# ------------------------------------------------------------------------------------------------
+# Faults of Drive: a job's last copy, the copy back, the launcher's own output (the review of 16 Nov)
+# ------------------------------------------------------------------------------------------------
+def _failing_copies(monkeypatch, fails):
+    """``nb._copy_file`` that raises ``OSError`` (EIO, as a mount that fails) whenever ``fails(src, dst)`` is true."""
+    real = nb._copy_file
+
+    def copy(src, dst, pause=0.0):
+        if fails(Path(src), Path(dst)):
+            raise OSError(errno.EIO, "Input/output error (the stand-in Drive fails)", str(dst))
+        return real(src, dst, pause)
+
+    monkeypatch.setattr(nb, "_copy_file", copy)
+
+
+def _on_drive(jobdir: Path) -> list:
+    ck = jobdir / "checkpoints"
+    return sorted(int(x.name[11:-5]) for x in ck.glob("checkpoint_*.json")) if ck.is_dir() else []
+
+
+def test_a_jobs_last_copy_is_tried_again(tmp_path, stubs, monkeypatch, capsys):
+    """One failed copy of a job's final checkpoint at the job's end is no end of the matter: the copy is made again
+    before the run is written DONE (as built, the end-of-job cycle was the only try and DONE.json named a last
+    checkpoint that Drive did not hold)."""
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02)}))
+    monkeypatch.setattr(nb, "END_COPY_TRIES", 4, raising=False)
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
+    _session(p)
+    d, job = tmp_path / "drive" / "runs" / "r1", "R5-B1-s42"
+    seen = dict(ended=False, after_end=0)
+    real_end = nb._Launcher._end_child
+
+    def end_child(self):  # (the launcher has seen its trainer end: what follows is the job's end-of-job cycle)
+        seen["ended"] = True
+        return real_end(self)
+
+    def fails(src, dst):  # every copy of the final checkpoint fails while the job runs, and once more at its end
+        if "_4096." not in src.name or "checkpoints" not in dst.parts or d not in dst.parents:
+            return False
+        if seen["ended"] and seen["after_end"] >= 1:
+            return False
+        seen["after_end"] += int(seen["ended"])
+        return True
+
+    monkeypatch.setattr(nb._Launcher, "_end_child", end_child)
+    _failing_copies(monkeypatch, fails)
+    res = _launch(p)
+    out = capsys.readouterr().out
+    assert seen["after_end"] == 1 and "S2 WARNING: a copy to Drive failed" in out
+    assert res["state"] == "done" and res["record"] == "DONE.json", res
+    done = json.loads((d / "DONE.json").read_text())["jobs"][job]
+    assert done["last_checkpoint"] == done["last_checkpoint_copied"] == 4096 and done["not_on_drive"] == []
+    assert 4096 in _on_drive(d / "jobs" / job) and _reads_back(d / "jobs" / job, 4096)
+    assert (d / "jobs" / job / "ckpt_4096.tar").is_file() and "its last copies are on Drive now" in out
+    assert json.loads((d / "jobs" / job / "run.json").read_text())["status"] == "done"
+    fin = nb.finish("r1", p["DRIVE_DIR"], p["LOCAL_DIR"])
+    assert fin["state"] == "done" and fin["on_drive"] is True and fin["not_on_drive"] == {}
+
+
+def test_an_earlier_jobs_last_copy_is_tried_again_while_the_next_job_runs(tmp_path, stubs, monkeypatch, capsys):
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02), "R6-B1-s42": dict(tick=0.05)}))
+    monkeypatch.setattr(nb, "END_COPY_TRIES", 2, raising=False)
+    p = _params(tmp_path, CLIPS=False)
+    _session(p)
+    d = tmp_path / "drive" / "runs" / "r1"
+    second = tmp_path / "local" / "r1" / "jobs" / "R6-B1-s42" / "progress.json"
+    # the first job's final checkpoint cannot be copied until the second job trains
+    _failing_copies(monkeypatch, lambda src, dst: "R5-B1-s42" in dst.parts and "_4096." in src.name
+                    and "checkpoints" in dst.parts and d in dst.parents and not second.is_file())
+    res = _launch(p)
+    out = capsys.readouterr().out
+    assert "S2 WARNING: R5-B1-s42: not on Drive after 2 further tries: checkpoint 4096" in out
+    assert "S2 launch: R5-B1-s42: its last copies are on Drive now" in out
+    assert out.index("not on Drive after 2 further tries") < out.index("R6-B1-s42 started") < out.index(
+        "R5-B1-s42: its last copies are on Drive now")
+    assert res["state"] == "done" and (d / "DONE.json").is_file(), res
+    for job in ("R5-B1-s42", "R6-B1-s42"):
+        assert _reads_back(d / "jobs" / job, 4096) and (d / "jobs" / job / "ckpt_4096.tar").is_file()
+        assert json.loads((d / "jobs" / job / "run.json").read_text())["status"] == "done"
+        assert res["jobs"][job]["last_checkpoint_copied"] == 4096 and res["jobs"][job]["not_on_drive"] == []
+
+
+def test_no_done_without_a_jobs_last_checkpoint_on_drive(tmp_path, stubs, monkeypatch, capsys):
+    """A final checkpoint that never reaches Drive: the launch ends unfinished (no DONE.json, no HALT.json), on
+    Drive the job does not read finished, ``finish`` names what is on this machine's disk only, and a resume on
+    the same machine makes the copy and ends the run without training again."""
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.05)}))
+    monkeypatch.setattr(nb, "END_COPY_TRIES", 2, raising=False)
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
+    _session(p)
+    d, job = tmp_path / "drive" / "runs" / "r1", "R5-B1-s42"
+    broken = dict(on=True)
+    _failing_copies(monkeypatch, lambda src, dst: broken["on"] and "_4096." in src.name
+                    and "checkpoints" in dst.parts and d in dst.parents)
+    res = _launch(p)
+    out = capsys.readouterr().out
+    assert res["state"] == "unfinished" and res["record"] is None, res
+    assert "checkpoint 4096" in res["reason"] and "S2 launch: UNFINISHED: " in out and "S2 launch: DONE" not in out
+    assert not (d / "DONE.json").exists() and not (d / "HALT.json").exists()
+    assert _on_drive(d / "jobs" / job) and 4096 not in _on_drive(d / "jobs" / job)
+    # on Drive the job never reads finished before its last checkpoint is there: a new runtime would resume it
+    assert json.loads((d / "jobs" / job / "run.json").read_text())["status"] == "running"
+    assert json.loads((tmp_path / "local" / "r1" / "jobs" / job / "run.json").read_text())["status"] == "done"
+    status = json.loads((d / "STATUS.json").read_text())
+    assert status["queue"][0]["not_on_drive"] == ["checkpoint 4096"] and status["state"] == "running"
+    assert status["queue"][0]["last_checkpoint"] == 4096 and status["queue"][0]["last_checkpoint_copied"] == 3072
+    live = json.loads((d / "LIVE.json").read_text())
+    assert live["closed_reason"].startswith("unfinished: ")
+    assert json.loads((d / "SESSION_0.json").read_text())["ended"]["state"] == "unfinished"
+    # the steps' exit codes: 6 for a launch that ended unfinished and for a finish that finds something off Drive
+    pfile = tmp_path / "p.json"
+    pfile.write_text(json.dumps(p))
+    assert nb.main(["launch", "--params", str(pfile)]) == 6          # (the same session again: still not on Drive)
+    fin = nb.finish("r1", p["DRIVE_DIR"], p["LOCAL_DIR"])
+    assert fin["state"] == "unfinished" and fin["on_drive"] is False and fin["not_on_drive"] == {job: ["checkpoint 4096"]}
+    assert nb.main(["finish", "--params", str(pfile)]) == 6
+    assert "NOT ON DRIVE: R5-B1-s42: checkpoint 4096" in capsys.readouterr().out
+    assert len(_calls(p)) == 1 and not (d / "HALT.json").exists()
+    # Drive takes the file again: a resume on the same machine copies it and ends the run; nothing is trained again
+    broken["on"] = False
+    s1 = _session(p, RESUME=True)                                    # (LIVE.json was closed: no TAKEOVER)
+    m = nb.LINE_RE["resume"].match(s1["line"])                       # (this machine's files say the job is done)
+    assert s1["session"] == 1 and m.group("job") == "none" and m.group("done") == "1"
+    res = _launch(p)
+    out = capsys.readouterr().out
+    assert res["state"] == "done" and "R5-B1-s42 is finished (done): skipped" in out and len(_calls(p)) == 1
+    assert _reads_back(d / "jobs" / job, 4096) and (d / "jobs" / job / "ckpt_4096.tar").is_file()
+    assert json.loads((d / "jobs" / job / "run.json").read_text())["status"] == "done"
+    assert json.loads((d / "DONE.json").read_text())["jobs"][job]["last_checkpoint_copied"] == 4096
+    assert nb.finish("r1", p["DRIVE_DIR"], p["LOCAL_DIR"])["on_drive"] is True
+
+
+def test_a_drive_that_is_gone_for_good_ends_the_launch_unfinished(tmp_path, stubs, monkeypatch, capsys):
+    """Every read and write under the stand-in Drive fails after the job's first copied checkpoint (a dead mount):
+    the launch does not call the run done, and ``finish`` reports instead of raising."""
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02)}))
+    monkeypatch.setattr(nb, "END_COPY_TRIES", 2, raising=False)
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
+    _session(p)
+    drive = (tmp_path / "drive").resolve()
+    d, job = drive / "runs" / "r1", "R5-B1-s42"
+    gone = dict(on=False)
+    real_copy, real_write, real_read = nb._copy_file, nb._write_json, nb._read_json
+
+    def dead(path):
+        if gone["on"] and drive in Path(path).parents:
+            raise OSError(errno.ENOTCONN, "Transport endpoint is not connected", str(path))
+
+    def copy(src, dst, pause=0.0):
+        dead(dst)
+        real_copy(src, dst, pause)
+        if Path(dst).name.startswith("checkpoint_") and drive in Path(dst).parents:
+            gone["on"] = True                                        # the first checkpoint is on Drive: now it dies
+
+    def write(path, obj):
+        dead(path)
+        return real_write(path, obj)
+
+    def read(path):
+        try:
+            dead(path)
+        except OSError:
+            return None
+        return real_read(path)
+
+    monkeypatch.setattr(nb, "_copy_file", copy)
+    monkeypatch.setattr(nb, "_write_json", write)
+    monkeypatch.setattr(nb, "_read_json", read)
+    res = _launch(p)
+    out = capsys.readouterr().out
+    assert gone["on"] and res["state"] == "unfinished" and res["record"] is None, res
+    assert "S2 launch: UNFINISHED: " in out and "could NOT be written" in out and "S2 launch: DONE" not in out
+    fin = nb.finish("r1", p["DRIVE_DIR"], p["LOCAL_DIR"])            # as built this raised OSError
+    assert fin["state"] == "unfinished" and fin["on_drive"] is False
+    assert "S2 FINISH r1: NOT ON DRIVE" in capsys.readouterr().out
+    monkeypatch.setattr(nb, "_read_json", real_read)
+    assert not (d / "DONE.json").exists() and not (d / "HALT.json").exists()
+    assert json.loads((tmp_path / "local" / "r1" / "jobs" / job / "run.json").read_text())["status"] == "done"
+
+
+def test_a_failed_first_write_to_drive_is_no_halt(tmp_path, stubs, monkeypatch, capsys):
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
+    _session(p)
+    d = tmp_path / "drive" / "runs" / "r1"
+    real, hit = nb._write_json, dict(n=0)
+
+    def write(path, obj):
+        if Path(path).name == "STATUS.json" and hit["n"] == 0:      # the launcher's first beat
+            hit["n"] += 1
+            raise OSError(errno.EIO, "Input/output error", str(path))
+        return real(path, obj)
+
+    monkeypatch.setattr(nb, "_write_json", write)
+    res = _launch(p)
+    assert hit["n"] == 1 and res["state"] == "done" and not (d / "HALT.json").exists(), res
+    assert res["jobs"]["R5-B1-s42"]["state"] == "done" and "a copy to Drive failed" in capsys.readouterr().out
+
+
+def test_the_launcher_goes_on_when_nobody_reads_its_output(tmp_path, stubs, monkeypatch):
+    """The reader of the launcher's output goes away (a kernel that died alone): the run goes on to its end.  As
+    built, the next printed line raised BrokenPipeError and the run was halted for good."""
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.05, budget=512 * 40)}))
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
+    _session(p)
+    d = tmp_path / "drive" / "runs" / "r1"
+    pfile = tmp_path / "p.json"
+    pfile.write_text(json.dumps(p))
+    proc = subprocess.Popen([sys.executable, "-m", "designlab.stage2.nb", "launch", "--params", str(pfile)], cwd=STUDY,
+                            env=dict(os.environ, PYTHONPATH="."), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            start_new_session=True)
+    try:
+        deadline = time.time() + 60
+        while time.time() < deadline and not _on_drive(d / "jobs" / "R5-B1-s42"):
+            assert proc.poll() is None
+            time.sleep(0.02)
+        proc.stdout.close()                                          # the reader goes; the launcher is not signalled
+        code = proc.wait(timeout=120)
+    finally:
+        nb.kill_session(proc.pid)
+    assert not (d / "HALT.json").exists(), json.loads((d / "HALT.json").read_text())["reason"]
+    assert code == 0 and json.loads((d / "DONE.json").read_text())["state"] == "done"
+    run = json.loads((d / "jobs" / "R5-B1-s42" / "run.json").read_text())
+    assert run["status"] == "done" and run["num_timesteps"] == 512 * 40
+    assert "done at 20480 steps" in (d / "logs" / "R5-B1-s42.s0.log").read_text()
+
+
+def _killed_run(tmp_path, monkeypatch, checkpoints=2):
+    """A launcher and its job killed together once the stand-in Drive holds ``checkpoints`` checkpoints of the
+    job, and the local run directory lost (a dead runtime): ``(params, the run directory, the job, what Drive
+    holds)``.  The stub's plan is then set so that a resume finishes at once."""
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.05, budget=512 * 200)}))
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
+    _session(p)
+    d, job = tmp_path / "drive" / "runs" / "r1", "R5-B1-s42"
+    pfile = tmp_path / "killed.json"
+    pfile.write_text(json.dumps(p))
+    proc = subprocess.Popen([sys.executable, "-m", "designlab.stage2.nb", "launch", "--params", str(pfile)], cwd=STUDY,
+                            env=dict(os.environ, PYTHONPATH="."), stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT,
+                            start_new_session=True)
+    try:
+        deadline = time.time() + 60
+        while time.time() < deadline and len(_on_drive(d / "jobs" / job)) < checkpoints:
+            assert proc.poll() is None
+            time.sleep(0.02)
+    finally:
+        nb.kill_session(proc.pid)
+        proc.wait()
+    shutil.rmtree(tmp_path / "local" / "r1")
+    nb.sweep_parts(d)
+    have = [n for n in _on_drive(d / "jobs" / job) if _reads_back(d / "jobs" / job, n)]
+    assert have and have == _on_drive(d / "jobs" / job)
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.0, budget=512 * 200)}))
+    return p, d, job, have
+
+
+def test_a_failed_read_during_the_copy_back_is_no_halt(tmp_path, stubs, monkeypatch, capsys):
+    """The copy back from Drive on a resume: a read that fails is made again; a Drive that cannot be read ends the
+    session unfinished, with nothing half copied, no HALT.json and the run open to the next resume.  As built, one
+    failed read wrote HALT.json ("launcher error: OSError") and the run was never resumed."""
+    p, d, job, have = _killed_run(tmp_path, monkeypatch)
+    lj = tmp_path / "local" / "r1" / "jobs" / job
+    broken = dict(mode="always", n=0)
+
+    def fails(src, dst):
+        if d not in src.parents or broken["mode"] is None:
+            return False
+        broken["n"] += 1
+        return broken["mode"] == "always" or (src.suffix == ".zip" and broken.pop("once", False))
+
+    _failing_copies(monkeypatch, fails)
+    _session(p, RESUME=True, TAKEOVER=True)
+    capsys.readouterr()
+    res = _launch(p)
+    out = capsys.readouterr().out
+    assert res["state"] == "unfinished" and "Drive could not be read" in res["reason"], res
+    assert out.count("reading from Drive failed") == nb.COPY_BACK_TRIES and "S2 launch: UNFINISHED: " in out
+    assert not (d / "HALT.json").exists() and not (d / "DONE.json").exists() and not _calls(p)
+    assert not lj.exists()                                           # all or nothing: nothing half copied
+    assert json.loads((d / "LIVE.json").read_text())["closed_reason"].startswith("unfinished: ")
+    # one failed read: the copy is made again, whole, and the job goes on from Drive's newest checkpoint
+    broken.update(mode="once", once=True)
+    s2 = _session(p, RESUME=True)                                    # (no HALT.json, LIVE.json closed: accepted)
+    assert s2["session"] == 2
+    res = _launch(p)
+    out = capsys.readouterr().out
+    assert res["state"] == "done" and out.count("reading from Drive failed") == 1 and "copied back from Drive" in out
+    run = json.loads((d / "jobs" / job / "run.json").read_text())
+    assert run["status"] == "done" and run["sessions"][-1]["resumed_from"] == max(have) > 0
+    assert len(_calls(p)) == 1 and "--resume" in _calls(p)[0]["argv"] and not (d / "HALT.json").exists()
+
+
+def test_a_resume_never_restarts_a_job_that_drive_holds(tmp_path, stubs, monkeypatch, capsys):
+    """As built, a local job directory that held a ``run.json`` was never copied back, so a directory that a cut
+    copy had left (``run.json`` and no checkpoint) made the trainer restart the job from step 0, silently, although
+    Drive held its checkpoints."""
+    p, d, job, have = _killed_run(tmp_path, monkeypatch)
+    lrun = tmp_path / "local" / "r1"
+    lj = lrun / "jobs" / job
+    lj.mkdir(parents=True)
+    shutil.copy(d / "jobs" / job / "run.json", lj / "run.json")     # what a cut copy back leaves: run.json alone
+    s1 = _session(p, RESUME=True, TAKEOVER=True)
+    assert int(nb.LINE_RE["resume"].match(s1["line"]).group("steps")) == max(have)
+    capsys.readouterr()
+    res = _launch(p)
+    out = capsys.readouterr().out
+    run = json.loads((d / "jobs" / job / "run.json").read_text())
+    resumed = [x["resumed_from"] for x in run["sessions"]]
+    assert resumed[-1] == max(have) > 0 and run["status"] == "done", resumed   # as built: None (from step 0)
+    assert res["state"] == "done" and f"stub session {len(resumed) - 1} from {max(have)} steps" in out
+    # the directory that was there is kept aside, never deleted, and the whole directory is copied again
+    assert "copied back from Drive" in out and "kept aside" in out
+    assert sorted(x.name for x in (lrun / "work" / "aside" / f"{job}.s1").iterdir()) == ["run.json"]
+    # this machine's own files are used as they are when they are at least as new as Drive's copies
+    launcher = nb._Launcher(nb._open_state("r1", p["DRIVE_DIR"], p["LOCAL_DIR"]),
+                            json.loads((d / "QUEUE.json").read_text()), 2, False, 0.05)
+    try:
+        before = sorted(x.name for x in (lj / "checkpoints").iterdir())
+        launcher.copy_back(job)
+        assert sorted(x.name for x in (lj / "checkpoints").iterdir()) == before
+        assert not (lrun / "work" / "aside" / f"{job}.s1.1").exists() and "copied back" not in capsys.readouterr().out
+        launcher._guard(job, True)                                   # (and nothing stops a start here)
+    finally:
+        launcher.log.close()
+
+
+def test_a_job_is_not_started_while_drive_holds_a_newer_checkpoint(tmp_path, stubs, monkeypatch, capsys):
+    """The guard behind the copy back: whatever the copy back did or left, a job is not started while Drive holds
+    a checkpoint of it that is newer than every one in this machine's directory.  The session ends unfinished."""
+    p, d, job, have = _killed_run(tmp_path, monkeypatch)
+    real = getattr(nb._Launcher, "_copy_back", None)
+    # (a copy back that learns what Drive holds and copies nothing)
+    monkeypatch.setattr(nb._Launcher, "_copy_back", lambda self, job: self._adopt(job), raising=False)
+    _session(p, RESUME=True, TAKEOVER=True)
+    res = _launch(p)
+    assert res["state"] == "unfinished" and f"Drive holds its checkpoint {max(have)}" in res["reason"], res
+    assert "was not started" in res["reason"] and not _calls(p)
+    assert not (d / "HALT.json").exists() and not (d / "DONE.json").exists()
+    assert "S2 launch: UNFINISHED: job R5-B1-s42 was not started" in capsys.readouterr().out
+    monkeypatch.setattr(nb._Launcher, "_copy_back", real)           # with the real copy back the run goes on
+    assert _session(p, RESUME=True)["session"] == 2
+    assert _launch(p)["state"] == "done"
+    run = json.loads((d / "jobs" / job / "run.json").read_text())
+    assert run["sessions"][-1]["resumed_from"] == max(have) and len(_calls(p)) == 1
 
 
 # ------------------------------------------------------------------------------------------------
