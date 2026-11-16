@@ -438,14 +438,14 @@ review phase will be cut to hold the owner's usage line, and the note labelled "
 
 **Usage.** $1,937.41 at 03:01 UTC, about 84 %. The owner read 81 % at 02:47 UTC, which agrees with the calibration.
 
-## Update, 16 Nov 2026, 03:26 UTC: the servo model's design is not written; its three inputs are saved
+## Update, 16 Nov 2026, 03:23 UTC: the servo model's design is not written; its three inputs are saved
 
 `stage2/design/servo_model/README.md` says where it stands. Three readers' reports are saved there (the code, the
 hardware facts in the repository, outside sources). The designer was stopped by the lead's mistake before it wrote
 the note (a watcher's time-out was taken for the designer's result), and was not restarted, to hold the owner's
 usage line. Finishing it (designer, then one independent reviewer) is the first job after the owner's reset.
 
-**Usage.** $1,950.41 at 03:12 UTC (about 86 %). The lead's estimate at 03:26 UTC is about 87 to 88 %. No agent and
+**Usage.** $1,950.41 at 03:12 UTC (about 86 %). The lead's estimate at 03:23 UTC is about 87 to 88 %. No agent and
 no run is active. The lead stops here except for the owner's answers on the buy gate and the notes they need.
 
 **Order of work after the reset:** (1) the servo model's design note and its review; (2) the eight minor points of
