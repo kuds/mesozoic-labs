@@ -164,7 +164,9 @@ RATE_RULE = (
     "gates/rate.json, per session: first_rollout (the session's first rollout: env steps per wall second, no "
     "update in it) and first_three (its first three rollouts, two updates included: S2-8's rate), each with the CPU "
     "seconds of the trainer and of the workers, the workers, the vCPUs, the resident memory of the trainer and of "
-    "each worker, and the machine's load")
+    "each worker, and the machine's load.  The clock starts after the session's first boundary, and what the "
+    "trainer does at later rollout starts (a checkpoint, a check with its monitor child, a boundary) is left out of "
+    "the wall seconds")
 GATES_RULE = (
     "gates false (--no-gates): no G8a short form, no R0L baseline and no check, so no G8b, no fix and no stop rule; "
     "for validation runs and tests; it is a setting of the run")
@@ -1195,6 +1197,7 @@ class _Run:
                 super().__init__()
                 self.first, self.pending, self.last = True, None, None
                 self.n0 = self.t0 = self.c0 = None
+                self.paused = 0.0  # (seconds spent at rollout starts since the clock started: RATE_RULE)
                 self.t_roll = time.perf_counter()
                 self.ep_len, self.ep_ret = np.zeros(n_envs, int), np.zeros(n_envs)
                 self.done_len, self.done_ret = [], []
@@ -1239,6 +1242,7 @@ class _Run:
                 self.last = [ran, possible]
 
             def _on_rollout_start(self) -> None:
+                t_in = time.perf_counter()
                 n = int(model.num_timesteps)
                 self._flush()
                 first, self.first = self.first, False
@@ -1259,6 +1263,8 @@ class _Run:
                     self.n0, self.t0, self.c0 = n, time.perf_counter(), self._cpu()
                 run._progress(n, self.rate, self.last)
                 self.t_roll = time.perf_counter()
+                if self.t0 < t_in:
+                    self.paused += self.t_roll - t_in
                 self.done_len, self.done_ret = [], []
 
             def _on_step(self) -> bool:
@@ -1277,10 +1283,11 @@ class _Run:
                                     ep_len_mean=float(np.mean(self.done_len)) if self.done_len else None,
                                     ep_rew_mean=float(np.mean(self.done_ret)) if self.done_ret else None)
                 done = (n - self.n0) // run.rollout
+                wall = max(time.perf_counter() - self.t0 - self.paused, 1e-9)
                 if done in (1, 3):
-                    run._rate_record("first_rollout" if done == 1 else "first_three", n - self.n0, self.t0,
-                                     self.c0, self._cpu())
-                self.rate = (n - self.n0) / max(time.perf_counter() - self.t0, 1e-9)
+                    run._rate_record("first_rollout" if done == 1 else "first_three", n - self.n0, wall, self.c0,
+                                     self._cpu())
+                self.rate = (n - self.n0) / wall
 
             def _on_training_end(self) -> None:
                 self._flush()
@@ -1293,10 +1300,9 @@ class _Run:
             except _StopTraining:
                 pass
 
-    def _rate_record(self, key: str, steps: int, t0: float, c0: tuple, c1: tuple) -> None:
+    def _rate_record(self, key: str, steps: int, wall: float, c0: tuple, c1: tuple) -> None:
         """``RATE_RULE``.  The third rollout's rate is read before its update: two updates are included."""
         d = self.doc
-        wall = time.perf_counter() - t0
         pids = list(getattr(self.venv, "worker_pids", []) or [])
         row = dict(env_steps=int(steps), wall_s=wall, env_steps_per_wall_s=steps / max(wall, 1e-9),
                    cpu_s_trainer=c1[0] - c0[0], cpu_s_workers=c1[1] - c0[1], workers=min(self.workers, N_ENVS),

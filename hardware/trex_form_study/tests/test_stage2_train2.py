@@ -909,6 +909,43 @@ def test_g8a_fails_no_run(stub, tmp_path, monkeypatch):
     assert stub.main(["run", "--mode", "R5", "--body", "stub", "--seed", "42", "--out", str(out), "--tiny"]) == 4
 
 
+def test_the_cli_hands_its_arguments_to_train(stub, tmp_path, monkeypatch):
+    """Every option of ``run`` reaches ``train``; ``--config`` takes any env config field by name (a further
+    named option of the env needs no change to the trainer)."""
+    seen = {}
+
+    def train(mode, body, seed, **kw):
+        seen.update(kw, mode=mode, body=body, seed=seed)
+        return dict(status="done")
+
+    monkeypatch.setattr(stub, "train", train)
+    monkeypatch.setenv("PYTHONHASHSEED", "0")
+    for v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+        monkeypatch.setenv(v, "1")
+    code = stub.main(["run", "--mode", "R6", "--body", "75-M-H-10-X", "--seed", "43", "--set", "V6", "--out",
+                      str(tmp_path), "--job", "ft", "--steps", "5000000", "--workers", "3", "--resume",
+                      "--allow-version-change", "--allow-source-change", "--from-checkpoint", "/runs/jobs/p:40001536",
+                      "--lr", "3e-5", "--monitor-every", "500000", "--monitor-also-k", "0,2", "--no-gates",
+                      "--run-id", "s2-4", "--config", '{"filter_hz": 20.0, "servo_model": "m1"}'])
+    log = seen.pop("log")
+    assert code == 0 and callable(log) and seen == dict(
+        mode="R6", body="75-M-H-10-X", seed=43, set_name="V6", out=str(tmp_path), job="ft", steps=5_000_000,
+        resume=True, workers=3, monitor_every=500_000, monitor_also_k=(0, 2), lr=3e-5,
+        config=dict(filter_hz=20.0, servo_model="m1"), gates=False, allow_version_change=True,
+        allow_source_change=True, parent="/runs/jobs/p:40001536", tiny=False, run_id="s2-4")
+    assert stub._parent_of("/runs/jobs/p:40001536") == (Path("/runs/jobs/p"), 40_001_536)
+    # the overrides reach every env config untouched (the stub's configs take any field)
+    monkeypatch.setenv("STUB_SET_FILE", str(tmp_path / "set.json"))
+    assert all(c["servo_model"] == "m1" and c["filter_hz"] == 20.0
+               for c in stub._env_configs("R5", "stub", "STUB", dict(filter_hz=20.0, servo_model="m1")))
+    # defaults: the design's intervals, one worker per vCPU, gates on
+    seen.clear()
+    assert stub.main(["run", "--mode", "R5", "--body", "b", "--seed", "42", "--out", str(tmp_path)]) == 0
+    assert (seen["monitor_every"], seen["workers"], seen["gates"], seen["tiny"], seen["set_name"]) == (
+        2_500_000, None, True, False, "V6")
+    assert stub.CHECKPOINT_EVERY == 250_000 and stub.N_ENVS == 8 and stub.N_STEPS == 1024
+
+
 def test_a_check_without_a_record_counts_after_two_closed_attempts(stub, tmp_path, monkeypatch):
     """Rule M1: the monitor leaves no record twice at the first check: two attempts, each logged and closed with
     its exit code; the check then counts as without a gain and as a failed G8b reading (every episode an error:
@@ -1284,6 +1321,17 @@ def test_tiny_probes_on_the_s1_view(tmp_path, monkeypatch):
     assert cut["10"]["sigma"] == 0.1 and cut["20"]["sigma"] == pytest.approx(0.081, abs=5e-4)
     assert doc["choice"]["body"] == BODY and doc["choice"]["filter_hz"] in (10.0, 20.0)
     assert doc["choice"]["filter_hz"] == (20.0 if doc["bodies"][BODY]["ratio"] >= 0.9 else 10.0)
+    # rule O3's probe on the real env: one rate, one update of 8 x 64 steps at each sigma, 2 workers
+    monkeypatch.setattr(train2, "N_STEPS", 64)
+    monkeypatch.chdir(STUDY)
+    doc = train2.probe_lr([BODY], "S1", tmp_path, rates=(3e-5,), updates=1, workers=2)
+    row = doc["bodies"][BODY]
+    assert [c["sigma"] for c in row["tried"][0]["cells"]] == [0.1, 0.03] and row["floors"].count("hard") == 6
+    assert all(len(c["updates"]) == 1 and c["updates"][0]["minibatch_steps_possible"] == 10
+               for c in row["tried"][0]["cells"])
+    assert row["tried"][0]["cells"][1]["updates"][0]["std_mean"] == pytest.approx(0.03, rel=1e-2)
+    assert doc["rates_by_body"][BODY]["rate"] == row["passed"] and row["task_names"] == ["stand", "walk", "brisk",
+                                                                                        "stop"]
 
 
 if __name__ == "__main__":
