@@ -437,3 +437,20 @@ look sets' review; CV, CK, CB, CT, CW, CF, CG, CN. The servo model's design is b
 review phase will be cut to hold the owner's usage line, and the note labelled "not yet reviewed").
 
 **Usage.** $1,937.41 at 03:01 UTC, about 84 %. The owner read 81 % at 02:47 UTC, which agrees with the calibration.
+
+## Update, 16 Nov 2026, 03:26 UTC: the servo model's design is not written; its three inputs are saved
+
+`stage2/design/servo_model/README.md` says where it stands. Three readers' reports are saved there (the code, the
+hardware facts in the repository, outside sources). The designer was stopped by the lead's mistake before it wrote
+the note (a watcher's time-out was taken for the designer's result), and was not restarted, to hold the owner's
+usage line. Finishing it (designer, then one independent reviewer) is the first job after the owner's reset.
+
+**Usage.** $1,950.41 at 03:12 UTC (about 86 %). The lead's estimate at 03:26 UTC is about 87 to 88 %. No agent and
+no run is active. The lead stops here except for the owner's answers on the buy gate and the notes they need.
+
+**Order of work after the reset:** (1) the servo model's design note and its review; (2) the eight minor points of
+the training env's review; (3) the Track B rules draft: its ten conflicts, the wording file `stage2/design/
+CE_RULE_WORDING.md`, section 6's open points 6 and 7; (4) CT (trainer; see the ruling on what a resumed run
+compares), CB (Drive bundle), CN (notebook), toward the day-one Colab smoke; (5) the look sets' review, CV, CK,
+CW, CF, CG; (6) only if room: the add-on's items C and B, after their rules are rewritten and reviewed. Owed to
+the owner: the draft decision-log rows F28, F29, E and a row for the add-on's result (proposed F30).
