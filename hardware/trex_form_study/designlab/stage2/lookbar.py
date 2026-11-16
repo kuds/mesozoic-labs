@@ -524,13 +524,14 @@ def rows(body: str, names, sidecar=None, stage1_run=bar.STAGE1_RUN) -> dict[str,
 # ------------------------------------------------------------------------------------------------
 # One companion episode
 # ------------------------------------------------------------------------------------------------
-_UNREADABLE = re.compile(r"(?m)^(?:[\w.]*\.)?Unreadable: ")
+_UNREADABLE = re.compile(r"^(?:[\w.]*\.)?Unreadable: ")
 
 
 def is_unreadable(error) -> bool:
-    """Whether an episode's error text is the bar's ``Unreadable`` (a traceback's last line, or the line
-    ``episodes`` writes)."""
-    return bool(error) and _UNREADABLE.search(str(error)) is not None
+    """Whether an episode's error text is the bar's ``Unreadable``: its last line names that exception (a
+    traceback's last line, or the line ``episodes`` writes)."""
+    lines = str(error).strip().splitlines() if error else []
+    return bool(lines) and _UNREADABLE.match(lines[-1]) is not None
 
 
 def companion_episode(condition: str, judge: str, seed: int, e: dict | None, block: dict | None, look_set: bool,

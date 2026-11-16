@@ -395,6 +395,9 @@ def test_a_fall_an_error_and_an_unread_episode():
     assert lookbar.companion_episode("w", "bar_walk", 1, bar_ep(error=UNREADABLE), fell_block, True)["outcome"] == "error"
     assert lookbar.is_unreadable(UNREADABLE) and lookbar.is_unreadable("Unreadable: x") and not lookbar.is_unreadable(boom)
     assert not lookbar.is_unreadable(None) and not lookbar.is_unreadable("this was not Unreadable: at all")
+    # the last line decides: an Unreadable that another fault followed is that fault
+    assert not lookbar.is_unreadable(UNREADABLE + "\n\nDuring handling of the above exception, another exception "
+                                     "occurred:\n\n" + boom)
 
 
 def test_a_look_reading_that_cannot_be_given_is_an_error_on_a_look_set_only():
