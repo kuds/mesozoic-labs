@@ -1,0 +1,3020 @@
+{
+ "schema": "bar-1",
+ "set": "V0",
+ "body": "75-M-H-10",
+ "block": "seeds3042",
+ "control": null,
+ "rules": {
+  "readings": "every episode is read three ways, in the plan's order and never pooled: (1) shown with the look: not defined for a set without look bands (the block is null with that reason); (2) every limit (success); (3) every limit but for A1 (success_but_A1): the same terms with the sustained-drive term read on the leg drives only (plant.leg_drives: every drive but the neck's and the tail's).  The drives' RMS is taken over the judged window for the walk and the turn and over the whole episode for nudges and the stop; both spans' per-drive ratios are recorded.  A turn frozen with a1_over runs and records both readings, but reading 2 gives it no verdict (not read: a1_over, which is not a pass)",
+  "pass_": "a record passes a reading if all 20 episodes of its block survive and at least 17 succeed in that reading; a record of fewer episodes, of other seeds or with an episode that failed to run is not judged.  The judged delay is 10 ms; at another delay a record 'passes at <ms> ms' and gives no verdict.  R0 rows, Stage 1's reading, the replication block alone and a control give no verdict",
+  "replication": "of the 75 cm round's sets only F25F9cl (the candidate) is replicated: every seeds3042 record of it under a row with a verdict that passes in reading 2 or in reading 3 is run again on seeds5042 with the same row; the controls are not run on seeds5042; the new record names the record and the reading that triggered it (replication_of); the blocks are never pooled; a pass of an R0 row is not replicated.  Beside a shown or provisional verdict stands, for each row's record that passed, 'replicated' (the second block's record passes in that reading), 'not replicated' or 'replication cut by the pre-registered order'",
+  "seeds": "blocks: seeds3042 (3042-3061, the headline) and seeds5042 (5042-5061, replication); an episode's start, sensor-noise and push seeds are tune.derived_seed(seed, 0, purpose) (panels.EPISODE_RULE with slot 0 for every item)",
+  "no_overwrite": "a finished record ('done' or 'not run') whose key differs is never replaced silently: the run stops with the differing key fields, and so it does for a record file that cannot be read; --supersede moves the old record to <record>.superseded/<first 12 hex of its key's sha256>.json and the new record states its reason (supersedes.reason): it is a re-run after a result.  The label is written beside the kept record (<12 hex>.reason.json) before the record is moved, and every later record at that path carries it, so a killed re-run keeps it; supersedes.registered names the first record made at the path, supersedes.replaces the one just moved; the moved record's traces go to eval/traces.superseded/<12 hex>/"
+ },
+ "grid": {
+  "walk/nominal": {
+   "R0@12ms": {
+    "status": "done",
+    "gated": false,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 20,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.8608916593317348,
+     "judged": true,
+     "pass_": true,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 20,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.8608916593317348,
+     "judged": true,
+     "pass_": true,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 0
+    },
+    "label": null,
+    "label_but_A1": null,
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "e36da2872cabc6f844a9549fb5f79424b2ce909401c7edd02b916ab86a22e1ea",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R0@14ms": {
+    "status": "done",
+    "gated": false,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 20,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.8608916593317348,
+     "judged": true,
+     "pass_": true,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 20,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.8608916593317348,
+     "judged": true,
+     "pass_": true,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 0
+    },
+    "label": null,
+    "label_but_A1": null,
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "a63ece59a25e5a858f07e8c4c0f7857365b7f589a7f53e5e1977ca34c4c0887b",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R0@16ms": {
+    "status": "done",
+    "gated": false,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 20,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.8608916593317348,
+     "judged": true,
+     "pass_": true,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 20,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.8608916593317348,
+     "judged": true,
+     "pass_": true,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 0
+    },
+    "label": null,
+    "label_but_A1": null,
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "6b60f40e9bdc3df6096c675818d7432a16c1a36cde967e558996d135d990a417",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R0@18ms": {
+    "status": "done",
+    "gated": false,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 20,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.8608916593317348,
+     "judged": true,
+     "pass_": true,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 20,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.8608916593317348,
+     "judged": true,
+     "pass_": true,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 0
+    },
+    "label": null,
+    "label_but_A1": null,
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "9e7983dcedca87a2d248f4297dcafca3ec83010a93df1026ab8784c4dcb2b2ea",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R0@20ms": {
+    "status": "done",
+    "gated": false,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 20,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.8608916593317348,
+     "judged": true,
+     "pass_": true,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 20,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.8608916593317348,
+     "judged": true,
+     "pass_": true,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 0
+    },
+    "label": null,
+    "label_but_A1": null,
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "4cd0c5e0bfcc129a8483c466b5554d0b9d4349d2fc4f125a8f8381fa1156c4a2",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/42@12ms": {
+    "status": "done",
+    "gated": false,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 20
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "a0ea5a8d79803f1dc97030e6864534cfa939a04310fe796e2b94393b5648d8fe",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/42@14ms": {
+    "status": "done",
+    "gated": false,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 1,
+     "succeeded": 0,
+     "falls": 19,
+     "errors": 0,
+     "survival_lcb": 0.0025613787765302806,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 1,
+     "succeeded": 0,
+     "falls": 19,
+     "errors": 0,
+     "survival_lcb": 0.0025613787765302806,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 19
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "2e43855e362e44940401533c7d2cfe9eb2b3a59e69a3a2113b71db325ad82b18",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/42@16ms": {
+    "status": "done",
+    "gated": false,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 20
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "29a3ab0396ca502e4c65c83bf56da3e8bf05c058fa6618e0d77acfdeccf3596d",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/42@18ms": {
+    "status": "done",
+    "gated": false,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 10,
+     "succeeded": 0,
+     "falls": 10,
+     "errors": 0,
+     "survival_lcb": 0.3019539112864935,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 10,
+     "succeeded": 0,
+     "falls": 10,
+     "errors": 0,
+     "survival_lcb": 0.3019539112864935,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 10
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "0e1a4c29f9f71265a16ae18131391bad9bd6b3124a193e9b87088fec77a44e2d",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/42@20ms": {
+    "status": "done",
+    "gated": false,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 1
+    },
+    "label": "body-limited: drive_speed",
+    "label_but_A1": "body-limited: drive_speed",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "fdfceed74e091bbe845e60282a62923f57d802255fe9167befa5f58bc82d052b",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/42@8ms": {
+    "status": "done",
+    "gated": false,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 1
+    },
+    "label": "controller-limited",
+    "label_but_A1": "controller-limited",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "fd8162656a5c3af95979b7b681095f4b7e726316c4f6d54ed0452021ca1e72d1",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/43@12ms": {
+    "status": "done",
+    "gated": false,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 20
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "f98a8276020028f56d30f6fcceced69c83847dea8c7bb6ac329061cb47c0ae0a",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/43@14ms": {
+    "status": "done",
+    "gated": false,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 3,
+     "succeeded": 0,
+     "falls": 17,
+     "errors": 0,
+     "survival_lcb": 0.04216940788577861,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 3,
+     "succeeded": 0,
+     "falls": 17,
+     "errors": 0,
+     "survival_lcb": 0.04216940788577861,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 17
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "6ca23bd4cd7391c99f7c78583c6251db647e1a0d0a459bfedf74794c6b0fb6eb",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/43@16ms": {
+    "status": "done",
+    "gated": false,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 3,
+     "succeeded": 0,
+     "falls": 17,
+     "errors": 0,
+     "survival_lcb": 0.04216940788577861,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 3,
+     "succeeded": 0,
+     "falls": 17,
+     "errors": 0,
+     "survival_lcb": 0.04216940788577861,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 17
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "b00ddb0b993ddf4c15a7568444e9fcf72867d685dd102aaec0a25f828025ff94",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/43@18ms": {
+    "status": "done",
+    "gated": false,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 18,
+     "succeeded": 0,
+     "falls": 2,
+     "errors": 0,
+     "survival_lcb": 0.7173814751141391,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 18,
+     "succeeded": 0,
+     "falls": 2,
+     "errors": 0,
+     "survival_lcb": 0.7173814751141391,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 2
+    },
+    "label": "controller-limited",
+    "label_but_A1": "controller-limited",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "77a3ae0c7f169ab6cca632877c3d0bb9327ce07c24050434e4a914f5cac9fabe",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/43@20ms": {
+    "status": "done",
+    "gated": false,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 0,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 0,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 0
+    },
+    "label": "body-limited: drive_speed",
+    "label_but_A1": "body-limited: drive_speed",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "e8388bc57a6db3ec9a730bc674bd49ba2aa6292fb74343d4c9a1bac3b55d08c4",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/43@8ms": {
+    "status": "done",
+    "gated": false,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 1
+    },
+    "label": "controller-limited",
+    "label_but_A1": "controller-limited",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "204d3b1b6dc80a016c8b58db18d5c13aff2bc19241156b28e3234103e590aca4",
+    "change_after_result": null,
+    "stand_in_walks": false
+   }
+  },
+  "walk/v0.4": {
+   "R0@12ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 1
+    },
+    "label": "body-limited: drive_sustained",
+    "label_but_A1": "controller-limited",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "84f318c999fe5633e796aee5e12a2c030661080e496a37c5c35d10b1ce98aca6",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R0@14ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 0,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 0,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 0
+    },
+    "label": "body-limited: drive_sustained",
+    "label_but_A1": "controller-limited",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "7b8188e71d90ff2afcd9936246dfa9d0a20fd610c11ec1c263df402c18d692b6",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R0@16ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 18,
+     "succeeded": 0,
+     "falls": 2,
+     "errors": 0,
+     "survival_lcb": 0.7173814751141391,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 18,
+     "succeeded": 0,
+     "falls": 2,
+     "errors": 0,
+     "survival_lcb": 0.7173814751141391,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 2
+    },
+    "label": "body-limited: drive_sustained",
+    "label_but_A1": "controller-limited",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "7a03885808c8fc5fe9a9ba038d9272eb3467a49f6da84bdb3a0ff47db9c26860",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R0@18ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 0,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 0,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 0
+    },
+    "label": "body-limited: drive_sustained",
+    "label_but_A1": "controller-limited",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "bd4af803c7c6e1121b2b387cc2a19938a6ac2d511e7abaa0c69bd12b571099ac",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R0@20ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 0,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 0,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 0
+    },
+    "label": "body-limited: drive_sustained",
+    "label_but_A1": "controller-limited",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "78e8c498f50782aec4316890262dc13436393b2a7360c754178f95222a298220",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/42@12ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 20
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "5799c00099187b7f413f275c8f199907dcc41ee81313afa44e057bba1e3e8ec0",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/42@14ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 1,
+     "succeeded": 0,
+     "falls": 19,
+     "errors": 0,
+     "survival_lcb": 0.0025613787765302806,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 1,
+     "succeeded": 0,
+     "falls": 19,
+     "errors": 0,
+     "survival_lcb": 0.0025613787765302806,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 19
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "64b1dbea2e5b0de45829c3f4cf597f23c23e7ce3a388f76dc11c4d628819aa6d",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/42@16ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 20
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "991577fe1c7f789742e11e6a29320b25db92703055467390a1a171d160870cd3",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/42@18ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 6,
+     "succeeded": 0,
+     "falls": 14,
+     "errors": 0,
+     "survival_lcb": 0.13955374900238637,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 6,
+     "succeeded": 0,
+     "falls": 14,
+     "errors": 0,
+     "survival_lcb": 0.13955374900238637,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 14
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "0113f87f80877021c626415e3a33cd732da342227547aee69cd6a39b74919cb9",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/42@20ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 1,
+     "succeeded": 0,
+     "falls": 19,
+     "errors": 0,
+     "survival_lcb": 0.0025613787765302806,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 1,
+     "succeeded": 0,
+     "falls": 19,
+     "errors": 0,
+     "survival_lcb": 0.0025613787765302806,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 19
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "576a2050ac81ab3c0d41114311931a1279078fe9ca70ba4df3b15730e3346a99",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/43@12ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 20
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "abcfe49b78f8c36729877334b95aff26bdaa2661d04168b8cf0f4dd3f30db2dd",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/43@14ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 3,
+     "succeeded": 0,
+     "falls": 17,
+     "errors": 0,
+     "survival_lcb": 0.04216940788577861,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 3,
+     "succeeded": 0,
+     "falls": 17,
+     "errors": 0,
+     "survival_lcb": 0.04216940788577861,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 17
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "a1e636316bcb61e8fdad69e7a374002c951fa468449b0593151ac1ea717d98f2",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/43@16ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 2,
+     "succeeded": 0,
+     "falls": 18,
+     "errors": 0,
+     "survival_lcb": 0.018065203085418632,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 2,
+     "succeeded": 0,
+     "falls": 18,
+     "errors": 0,
+     "survival_lcb": 0.018065203085418632,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 18
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "0ffb353933942e56d351ad5b3392de2d9268421738ba6f8e4cf33698ff1e4ac8",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/43@18ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 18,
+     "succeeded": 0,
+     "falls": 2,
+     "errors": 0,
+     "survival_lcb": 0.7173814751141391,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 18,
+     "succeeded": 0,
+     "falls": 2,
+     "errors": 0,
+     "survival_lcb": 0.7173814751141391,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 2
+    },
+    "label": "body-limited: drive_sustained, drive_speed",
+    "label_but_A1": "body-limited: drive_speed",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "bb87631a7f4548296bb8ae841b6df4941e0931890865b0472124d3981caf5fc4",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/43@20ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 1,
+     "succeeded": 0,
+     "falls": 19,
+     "errors": 0,
+     "survival_lcb": 0.0025613787765302806,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 1,
+     "succeeded": 0,
+     "falls": 19,
+     "errors": 0,
+     "survival_lcb": 0.0025613787765302806,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 19
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "1229b5e5c78adb5ad1ba999136791aeb85a902dbcda5609b7d4f0fd2ec124d0d",
+    "change_after_result": null,
+    "stand_in_walks": false
+   }
+  },
+  "walk/v0.4_mu0.54": {
+   "R0@12ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 1
+    },
+    "label": "body-limited: drive_sustained",
+    "label_but_A1": "controller-limited",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "8dc69a8efde3539cf8752d13c80b197c58c96aa0993a1830b57de58472918161",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R0@14ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 1
+    },
+    "label": "body-limited: drive_sustained",
+    "label_but_A1": "controller-limited",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "96cee95e351f4767ec4a7624cf4fb8a2bb086cd8b25cad88a4f24bbd81a18708",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R0@16ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 0,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 20,
+     "succeeded": 0,
+     "falls": 0,
+     "errors": 0,
+     "survival_lcb": 0.8608916593317348,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 0
+    },
+    "label": "body-limited: drive_sustained",
+    "label_but_A1": "controller-limited",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "af30c2102989e5ea10bf11c9fb9a4cf8e9d971038e96dab7dd83f3a2607f1456",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R0@18ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 1
+    },
+    "label": "body-limited: drive_sustained",
+    "label_but_A1": "controller-limited",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "c080e18cfde57344a94df2cffb24c5acafb12e3d01482ac8e89cba176cfc4649",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R0@20ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 1
+    },
+    "label": "body-limited: drive_sustained",
+    "label_but_A1": "controller-limited",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "3f7d90c71afe07e4ee35a9880eb019e4ae9bffc45f573665dd8c5fab4b6a0486",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/42@12ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 20
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "1b8378bc5b55fc18a5d6f5e5a542b50116ab370abccfb3928ae016ae8160d513",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/42@14ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 20
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "1c33719774f66e85f6960489c80785bb20a8730963565fdcc79709f3be20b640",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/42@16ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 20
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "73f574c5270c911a558ad3bbfd11cd4cd7c9be795a58803ba10ae39ebf49d9ef",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/42@18ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 4,
+     "succeeded": 0,
+     "falls": 16,
+     "errors": 0,
+     "survival_lcb": 0.0713538843086182,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 4,
+     "succeeded": 0,
+     "falls": 16,
+     "errors": 0,
+     "survival_lcb": 0.0713538843086182,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 16
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "956fae806660c309d6b37787976959f92c9ab94737936329c1b03fed849d8d49",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/42@20ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 1,
+     "succeeded": 0,
+     "falls": 19,
+     "errors": 0,
+     "survival_lcb": 0.0025613787765302806,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 1,
+     "succeeded": 0,
+     "falls": 19,
+     "errors": 0,
+     "survival_lcb": 0.0025613787765302806,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 19
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "031804c7f20b69341320ca1bbf16dae911b10cacf92d7d0bd2de05c684576b89",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/43@12ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 20
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "d45c8872b28bb946b44b8d4d590e0fb2df66573bfcce0bcc65d9f5f1fabbbeac",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/43@14ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 20
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "c9ec093713820f19d30129ef92fe047efc0d0f4139d947b8a2b1bf63579ee4a3",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/43@16ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 0,
+     "succeeded": 0,
+     "falls": 20,
+     "errors": 0,
+     "survival_lcb": 0.0,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 20
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "fdd5891a56d08572e57a8ceea35457751f3919a5d84c8f42cfd256217b238988",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/43@18ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 19,
+     "succeeded": 0,
+     "falls": 1,
+     "errors": 0,
+     "survival_lcb": 0.7838938357931526,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 1
+    },
+    "label": "body-limited: drive_sustained, drive_speed",
+    "label_but_A1": "body-limited: drive_speed",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "432587c848e62623c8dc552784e98bcc3aad531e6421a90aa9ae4681d5ce7338",
+    "change_after_result": null,
+    "stand_in_walks": false
+   },
+   "R2/43@20ms": {
+    "status": "done",
+    "gated": true,
+    "reason": null,
+    "counts": {
+     "episodes": 20,
+     "survived": 1,
+     "succeeded": 0,
+     "falls": 19,
+     "errors": 0,
+     "survival_lcb": 0.0025613787765302806,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_but_A1": {
+     "episodes": 20,
+     "survived": 1,
+     "succeeded": 0,
+     "falls": 19,
+     "errors": 0,
+     "survival_lcb": 0.0025613787765302806,
+     "success_lcb": 0.0,
+     "judged": true,
+     "pass_": false,
+     "not_read": null
+    },
+    "counts_look": null,
+    "a1_over": false,
+    "falls": {
+     "before_command": 0,
+     "after_command": 0,
+     "no_command": 19
+    },
+    "label": "not attributed (falls; run with --attribute)",
+    "label_but_A1": "not attributed (falls; run with --attribute)",
+    "attribution": null,
+    "replication_of": null,
+    "supersedes": null,
+    "control": null,
+    "key_sha256": "c959293710fa9379c74cb50da60699bbc97886b30cb2c801b2efcd2e47678be4",
+    "change_after_result": null,
+    "stand_in_walks": false
+   }
+  }
+ },
+ "verdicts": {
+  "walk/nominal": {
+   "R2@8ms": {
+    "rows": [
+     "R2/42@8ms",
+     "R2/43@8ms"
+    ],
+    "judged_delay": false,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "does not pass at 8 ms",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "does not pass at 8 ms but for A1",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   },
+   "R2@12ms": {
+    "rows": [
+     "R2/42@12ms",
+     "R2/43@12ms"
+    ],
+    "judged_delay": false,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "does not pass at 12 ms",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "does not pass at 12 ms but for A1",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   },
+   "R2@14ms": {
+    "rows": [
+     "R2/42@14ms",
+     "R2/43@14ms"
+    ],
+    "judged_delay": false,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "does not pass at 14 ms",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "does not pass at 14 ms but for A1",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   },
+   "R2@16ms": {
+    "rows": [
+     "R2/42@16ms",
+     "R2/43@16ms"
+    ],
+    "judged_delay": false,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "does not pass at 16 ms",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "does not pass at 16 ms but for A1",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   },
+   "R2@18ms": {
+    "rows": [
+     "R2/42@18ms",
+     "R2/43@18ms"
+    ],
+    "judged_delay": false,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "does not pass at 18 ms",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "does not pass at 18 ms but for A1",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   },
+   "R2@20ms": {
+    "rows": [
+     "R2/42@20ms",
+     "R2/43@20ms"
+    ],
+    "judged_delay": false,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "does not pass at 20 ms",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "does not pass at 20 ms but for A1",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   }
+  },
+  "walk/v0.4": {
+   "R2@12ms": {
+    "rows": [
+     "R2/42@12ms",
+     "R2/43@12ms"
+    ],
+    "judged_delay": false,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "does not pass at 12 ms",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "does not pass at 12 ms but for A1",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   },
+   "R2@14ms": {
+    "rows": [
+     "R2/42@14ms",
+     "R2/43@14ms"
+    ],
+    "judged_delay": false,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "does not pass at 14 ms",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "does not pass at 14 ms but for A1",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   },
+   "R2@16ms": {
+    "rows": [
+     "R2/42@16ms",
+     "R2/43@16ms"
+    ],
+    "judged_delay": false,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "does not pass at 16 ms",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "does not pass at 16 ms but for A1",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   },
+   "R2@18ms": {
+    "rows": [
+     "R2/42@18ms",
+     "R2/43@18ms"
+    ],
+    "judged_delay": false,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "does not pass at 18 ms",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "does not pass at 18 ms but for A1",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   },
+   "R2@20ms": {
+    "rows": [
+     "R2/42@20ms",
+     "R2/43@20ms"
+    ],
+    "judged_delay": false,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "does not pass at 20 ms",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "does not pass at 20 ms but for A1",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   }
+  },
+  "walk/v0.4_mu0.54": {
+   "R2@12ms": {
+    "rows": [
+     "R2/42@12ms",
+     "R2/43@12ms"
+    ],
+    "judged_delay": false,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "does not pass at 12 ms",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "does not pass at 12 ms but for A1",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   },
+   "R2@14ms": {
+    "rows": [
+     "R2/42@14ms",
+     "R2/43@14ms"
+    ],
+    "judged_delay": false,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "does not pass at 14 ms",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "does not pass at 14 ms but for A1",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   },
+   "R2@16ms": {
+    "rows": [
+     "R2/42@16ms",
+     "R2/43@16ms"
+    ],
+    "judged_delay": false,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "does not pass at 16 ms",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "does not pass at 16 ms but for A1",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   },
+   "R2@18ms": {
+    "rows": [
+     "R2/42@18ms",
+     "R2/43@18ms"
+    ],
+    "judged_delay": false,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "does not pass at 18 ms",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "does not pass at 18 ms but for A1",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   },
+   "R2@20ms": {
+    "rows": [
+     "R2/42@20ms",
+     "R2/43@20ms"
+    ],
+    "judged_delay": false,
+    "block": "seeds3042",
+    "reading_1": {
+     "verdict": null,
+     "reason": "not defined: the set has no look bands"
+    },
+    "reading_2": {
+     "verdict": "does not pass at 20 ms",
+     "reading": "success",
+     "passes": [
+      false,
+      false
+     ]
+    },
+    "reading_3": {
+     "verdict": "does not pass at 20 ms but for A1",
+     "reading": "but_A1",
+     "passes": [
+      false,
+      false
+     ]
+    }
+   }
+  }
+ },
+ "verdicts_note": null,
+ "sessions": [
+  {
+   "id": "2026-11-16T01:48:40Z/19169",
+   "started_at": "2026-11-16T01:48:40Z",
+   "commit": "f4a8b7d696aff5807aea93e78cfe26db40691add",
+   "dirty": false,
+   "dirty_paths": [],
+   "versions": {
+    "python": "3.13.18",
+    "numpy": "2.5.4",
+    "mujoco": "3.10.0",
+    "scipy": "1.18.1"
+   },
+   "blas_threads": 1,
+   "procs": 3,
+   "task": 3,
+   "unit": "A1-V0-14ms",
+   "block": "seeds3042",
+   "attribute": "none",
+   "traces": true,
+   "no_traces_for": [],
+   "set": "V0",
+   "body": "75-M-H-10",
+   "rows": [
+    "R2/42@14ms",
+    "R2/43@14ms",
+    "R0@14ms"
+   ],
+   "conditions": [
+    "walk/v0.4",
+    "walk/v0.4_mu0.54",
+    "walk/nominal"
+   ],
+   "seeds": [
+    3042,
+    3043,
+    3044,
+    3045,
+    3046,
+    3047,
+    3048,
+    3049,
+    3050,
+    3051,
+    3052,
+    3053,
+    3054,
+    3055,
+    3056,
+    3057,
+    3058,
+    3059,
+    3060,
+    3061
+   ],
+   "passed_of": null,
+   "control": null,
+   "episodes_run": 180,
+   "attribution_episodes_run": 0,
+   "skipped": [],
+   "reused_partial": [],
+   "rerun_failed": [],
+   "not_run": [],
+   "not_selected": [],
+   "superseded": [],
+   "attribution_cut": [],
+   "incomplete": [],
+   "incidents": [],
+   "ended_at": "2026-11-16T01:50:09Z",
+   "wall_s": 89.39662256099837
+  },
+  {
+   "id": "2026-11-16T01:50:11Z/19552",
+   "started_at": "2026-11-16T01:50:11Z",
+   "commit": "c16cc2c0e4b38acc5363b4b67cd97806b7043ff0",
+   "dirty": false,
+   "dirty_paths": [],
+   "versions": {
+    "python": "3.13.18",
+    "numpy": "2.5.4",
+    "mujoco": "3.10.0",
+    "scipy": "1.18.1"
+   },
+   "blas_threads": 1,
+   "procs": 3,
+   "task": 3,
+   "unit": "A1-V0-16ms",
+   "block": "seeds3042",
+   "attribute": "none",
+   "traces": true,
+   "no_traces_for": [],
+   "set": "V0",
+   "body": "75-M-H-10",
+   "rows": [
+    "R2/42@16ms",
+    "R2/43@16ms",
+    "R0@16ms"
+   ],
+   "conditions": [
+    "walk/v0.4",
+    "walk/v0.4_mu0.54",
+    "walk/nominal"
+   ],
+   "seeds": [
+    3042,
+    3043,
+    3044,
+    3045,
+    3046,
+    3047,
+    3048,
+    3049,
+    3050,
+    3051,
+    3052,
+    3053,
+    3054,
+    3055,
+    3056,
+    3057,
+    3058,
+    3059,
+    3060,
+    3061
+   ],
+   "passed_of": null,
+   "control": null,
+   "episodes_run": 180,
+   "attribution_episodes_run": 0,
+   "skipped": [],
+   "reused_partial": [],
+   "rerun_failed": [],
+   "not_run": [],
+   "not_selected": [],
+   "superseded": [],
+   "attribution_cut": [],
+   "incomplete": [],
+   "incidents": [],
+   "ended_at": "2026-11-16T01:51:38Z",
+   "wall_s": 87.60923693600489
+  },
+  {
+   "id": "2026-11-16T01:51:41Z/19730",
+   "started_at": "2026-11-16T01:51:41Z",
+   "commit": "c16cc2c0e4b38acc5363b4b67cd97806b7043ff0",
+   "dirty": false,
+   "dirty_paths": [],
+   "versions": {
+    "python": "3.13.18",
+    "numpy": "2.5.4",
+    "mujoco": "3.10.0",
+    "scipy": "1.18.1"
+   },
+   "blas_threads": 1,
+   "procs": 3,
+   "task": 3,
+   "unit": "A1-V0-20ms",
+   "block": "seeds3042",
+   "attribute": "none",
+   "traces": true,
+   "no_traces_for": [],
+   "set": "V0",
+   "body": "75-M-H-10",
+   "rows": [
+    "R2/42@20ms",
+    "R2/43@20ms",
+    "R0@20ms"
+   ],
+   "conditions": [
+    "walk/v0.4",
+    "walk/v0.4_mu0.54",
+    "walk/nominal"
+   ],
+   "seeds": [
+    3042,
+    3043,
+    3044,
+    3045,
+    3046,
+    3047,
+    3048,
+    3049,
+    3050,
+    3051,
+    3052,
+    3053,
+    3054,
+    3055,
+    3056,
+    3057,
+    3058,
+    3059,
+    3060,
+    3061
+   ],
+   "passed_of": null,
+   "control": null,
+   "episodes_run": 180,
+   "attribution_episodes_run": 0,
+   "skipped": [],
+   "reused_partial": [],
+   "rerun_failed": [],
+   "not_run": [],
+   "not_selected": [],
+   "superseded": [],
+   "attribution_cut": [],
+   "incomplete": [],
+   "incidents": [],
+   "ended_at": "2026-11-16T01:54:30Z",
+   "wall_s": 169.31510858600086
+  },
+  {
+   "id": "2026-11-16T01:54:33Z/20561",
+   "started_at": "2026-11-16T01:54:33Z",
+   "commit": "c16cc2c0e4b38acc5363b4b67cd97806b7043ff0",
+   "dirty": true,
+   "dirty_paths": [
+    " M hardware/trex_form_study/stage2/runs/2026-11-15-75cm/report_src/assemble.py"
+   ],
+   "versions": {
+    "python": "3.13.18",
+    "numpy": "2.5.4",
+    "mujoco": "3.10.0",
+    "scipy": "1.18.1"
+   },
+   "blas_threads": 1,
+   "procs": 3,
+   "task": 3,
+   "unit": "A2-V0-12ms",
+   "block": "seeds3042",
+   "attribute": "none",
+   "traces": true,
+   "no_traces_for": [],
+   "set": "V0",
+   "body": "75-M-H-10",
+   "rows": [
+    "R2/42@12ms",
+    "R2/43@12ms",
+    "R0@12ms"
+   ],
+   "conditions": [
+    "walk/v0.4",
+    "walk/v0.4_mu0.54",
+    "walk/nominal"
+   ],
+   "seeds": [
+    3042,
+    3043,
+    3044,
+    3045,
+    3046,
+    3047,
+    3048,
+    3049,
+    3050,
+    3051,
+    3052,
+    3053,
+    3054,
+    3055,
+    3056,
+    3057,
+    3058,
+    3059,
+    3060,
+    3061
+   ],
+   "passed_of": null,
+   "control": null,
+   "episodes_run": 180,
+   "attribution_episodes_run": 0,
+   "skipped": [],
+   "reused_partial": [],
+   "rerun_failed": [],
+   "not_run": [],
+   "not_selected": [],
+   "superseded": [],
+   "attribution_cut": [],
+   "incomplete": [],
+   "incidents": [],
+   "ended_at": "2026-11-16T01:55:53Z",
+   "wall_s": 81.490168463999
+  },
+  {
+   "id": "2026-11-16T01:55:56Z/20901",
+   "started_at": "2026-11-16T01:55:56Z",
+   "commit": "c16cc2c0e4b38acc5363b4b67cd97806b7043ff0",
+   "dirty": true,
+   "dirty_paths": [
+    " M hardware/trex_form_study/stage2/runs/2026-11-15-75cm/report_src/assemble.py"
+   ],
+   "versions": {
+    "python": "3.13.18",
+    "numpy": "2.5.4",
+    "mujoco": "3.10.0",
+    "scipy": "1.18.1"
+   },
+   "blas_threads": 1,
+   "procs": 3,
+   "task": 3,
+   "unit": "A2-V0-18ms",
+   "block": "seeds3042",
+   "attribute": "none",
+   "traces": true,
+   "no_traces_for": [],
+   "set": "V0",
+   "body": "75-M-H-10",
+   "rows": [
+    "R2/42@18ms",
+    "R2/43@18ms",
+    "R0@18ms"
+   ],
+   "conditions": [
+    "walk/v0.4",
+    "walk/v0.4_mu0.54",
+    "walk/nominal"
+   ],
+   "seeds": [
+    3042,
+    3043,
+    3044,
+    3045,
+    3046,
+    3047,
+    3048,
+    3049,
+    3050,
+    3051,
+    3052,
+    3053,
+    3054,
+    3055,
+    3056,
+    3057,
+    3058,
+    3059,
+    3060,
+    3061
+   ],
+   "passed_of": null,
+   "control": null,
+   "episodes_run": 180,
+   "attribution_episodes_run": 0,
+   "skipped": [],
+   "reused_partial": [],
+   "rerun_failed": [],
+   "not_run": [],
+   "not_selected": [],
+   "superseded": [],
+   "attribution_cut": [],
+   "incomplete": [],
+   "incidents": [],
+   "ended_at": "2026-11-16T01:58:30Z",
+   "wall_s": 154.11133877000248
+  },
+  {
+   "id": "2026-11-16T01:58:32Z/21478",
+   "started_at": "2026-11-16T01:58:32Z",
+   "commit": "c16cc2c0e4b38acc5363b4b67cd97806b7043ff0",
+   "dirty": true,
+   "dirty_paths": [
+    " M hardware/trex_form_study/stage2/runs/2026-11-15-75cm/report_src/assemble.py"
+   ],
+   "versions": {
+    "python": "3.13.18",
+    "numpy": "2.5.4",
+    "mujoco": "3.10.0",
+    "scipy": "1.18.1"
+   },
+   "blas_threads": 1,
+   "procs": 3,
+   "task": 3,
+   "unit": "A3-V0-nominal-8ms",
+   "block": "seeds3042",
+   "attribute": "none",
+   "traces": true,
+   "no_traces_for": [],
+   "set": "V0",
+   "body": "75-M-H-10",
+   "rows": [
+    "R2/42@8ms",
+    "R2/43@8ms"
+   ],
+   "conditions": [
+    "walk/nominal"
+   ],
+   "seeds": [
+    3042,
+    3043,
+    3044,
+    3045,
+    3046,
+    3047,
+    3048,
+    3049,
+    3050,
+    3051,
+    3052,
+    3053,
+    3054,
+    3055,
+    3056,
+    3057,
+    3058,
+    3059,
+    3060,
+    3061
+   ],
+   "passed_of": null,
+   "control": null,
+   "episodes_run": 40,
+   "attribution_episodes_run": 0,
+   "skipped": [],
+   "reused_partial": [],
+   "rerun_failed": [],
+   "not_run": [],
+   "not_selected": [],
+   "superseded": [],
+   "attribution_cut": [],
+   "incomplete": [],
+   "incidents": [],
+   "ended_at": "2026-11-16T01:59:15Z",
+   "wall_s": 42.82768230399961
+  }
+ ],
+ "written_at": "2026-11-16T01:59:15Z"
+}

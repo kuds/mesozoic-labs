@@ -1,0 +1,917 @@
+{
+ "schema": "bar-1",
+ "body": "75-M-H-10",
+ "set": "F25F9",
+ "block": "seeds3042",
+ "row": "R2/42@0ms",
+ "behavior": "walk",
+ "condition": "v0.5",
+ "key_name": "walk/v0.5",
+ "gated": false,
+ "plan_gated": false,
+ "status": "not run",
+ "reason": "no transition into v0.5 (the walk nominal is not a rung of the set (nominal: dropped from the ladder: over clearance swing_clearance 0.0382: blocks the freeze (clearance swing_clearance); a walk that is not frozen is dropped from the ladder with its numbers); no change from the neighbouring rung within the gates)",
+ "reference": "transitions/v0.45_to_v0.5",
+ "numbers": {
+  "walks": {
+   "nominal": {
+    "stage0": {
+     "source": "setscreen.judge_walk on the walk's look.price (at build time)",
+     "governing": [
+      "hip_yaw",
+      "cont",
+      0.7163237212730578
+     ],
+     "within_limits": false,
+     "over": [
+      {
+       "limit": "clearance swing_clearance",
+       "value": 0.0382
+      }
+     ],
+     "blocks_freeze": [
+      {
+       "limit": "clearance swing_clearance",
+       "value": 0.0382
+      }
+     ],
+     "a1_over": false,
+     "tightest_joint": [
+      "left_hip_roll",
+      "max",
+      0.1204
+     ],
+     "text": "over clearance swing_clearance 0.0382: blocks the freeze (clearance swing_clearance); a walk that is not frozen is dropped from the ladder with its numbers"
+    },
+    "speed_m_s": 0.24306007460404672,
+    "period_s": 1.5512320255693195,
+    "ik_ok": true,
+    "min_cop_margin_single_m": 0.04480646884986945,
+    "built_sha256": "deaf985a57ad06fcc31312f107dec2f91055c0101ab9feabd2fdd124fa8a46ac",
+    "built_look_sha256": "1a2f50aecf784e973b738d4d289244d1a10a17fe24d979e73e764019e6aaa9df",
+    "price": {
+     "dynamics": "look_inverse_dynamics (gait.inverse_dynamics with F5's rolling contact; accuracy r2)",
+     "drives_at": {
+      "bus_v": 24.0,
+      "margins": {
+       "peak": 1.25,
+       "speed": 1.15
+      }
+     },
+     "drives": {
+      "hip_roll": {
+       "actuator": "myactuator_rmd_x4_p36_36_e_l",
+       "rms": 3.880606939581565,
+       "peak": 4.882782111595117,
+       "speed": 0.8893774160541777,
+       "cont_ratio": 0.6483887952517235,
+       "peak_ratio": 0.29064179235685217,
+       "speed_ratio": 0.11767310880377169,
+       "worst": 0.6483887952517235
+      },
+      "hip_pitch": {
+       "actuator": "myactuator_rmd_x6_p20_60_e",
+       "rms": 6.321285093987286,
+       "peak": 11.2246558553894,
+       "speed": 3.001031355827445,
+       "cont_ratio": 0.5544986924550251,
+       "peak_ratio": 0.334067138553256,
+       "speed_ratio": 0.4308026045896212,
+       "worst": 0.5544986924550251
+      },
+      "hip_yaw": {
+       "actuator": "myactuator_rmd_x4_p36_36_e_l",
+       "rms": 4.28719747181925,
+       "peak": 7.761274080827426,
+       "speed": 1.315983646266513e-07,
+       "cont_ratio": 0.7163237212730578,
+       "peak_ratio": 0.4619806000492515,
+       "speed_ratio": 1.741171790465953e-08,
+       "worst": 0.7163237212730578
+      },
+      "knee": {
+       "actuator": "myactuator_rmd_x4_p36_36_e_l",
+       "rms": 4.059654835239268,
+       "peak": 6.264801492245875,
+       "speed": 3.4099704468072995,
+       "cont_ratio": 0.6783049014601952,
+       "peak_ratio": 0.3729048507289211,
+       "speed_ratio": 0.45117159055493467,
+       "worst": 0.6783049014601952
+      },
+      "ankle_a": {
+       "actuator": "myactuator_rmd_x4_p36_36_e_l",
+       "rms": 2.3112537346750948,
+       "peak": 4.1743522415207925,
+       "speed": 2.9884612108796955,
+       "cont_ratio": 0.3861743917585789,
+       "peak_ratio": 0.248473347709571,
+       "speed_ratio": 0.3954019012354545,
+       "worst": 0.3954019012354545
+      },
+      "ankle_b": {
+       "actuator": "myactuator_rmd_x4_p36_36_e_l",
+       "rms": 2.3112453815308145,
+       "peak": 4.174136327120939,
+       "speed": 2.9884027707426166,
+       "cont_ratio": 0.3861729960786658,
+       "peak_ratio": 0.24846049566196068,
+       "speed_ratio": 0.39539416904832575,
+       "worst": 0.39539416904832575
+      },
+      "neck": {
+       "actuator": "robotis_xm540_w270_t",
+       "rms": 1.169695053447349,
+       "peak": 1.2292541886891042,
+       "speed": 0.4046285503887767,
+       "cont_ratio": 0.660769999687803,
+       "peak_ratio": 0.49474136643099376,
+       "speed_ratio": 0.24686142999018046,
+       "worst": 0.660769999687803
+      },
+      "tail": {
+       "actuator": "feetech_sts3215_c018",
+       "rms": 0.10955437916830639,
+       "peak": 0.22474492914069952,
+       "speed": 0.5061759312848125,
+       "cont_ratio": 0.222982408741266,
+       "peak_ratio": 0.3259039512786157,
+       "speed_ratio": 0.2058765817085326,
+       "worst": 0.3259039512786157
+      }
+     },
+     "worst_group": "hip_yaw",
+     "worst_ratio": 0.7163237212730578,
+     "passive": {
+      "neck": {
+       "damping": 0.2,
+       "frictionloss": 0.15,
+       "cont_ratio": 0.6717623795844964,
+       "peak_ratio": 0.5875149425138713
+      },
+      "tail": {
+       "damping": 0.2,
+       "frictionloss": 0.15,
+       "cont_ratio": 0.28843221555506626,
+       "peak_ratio": 0.3359613559396436
+      }
+     },
+     "contact": {
+      "single_support_cop_margin_min_mm": 44.80646884986945,
+      "double_support_flat_cop_margin_min_mm": -30.45294128369274,
+      "rolling_frames": 0,
+      "rolling_cop_off_contact_max_mm": null,
+      "rolling_cop_along_min_mm": null,
+      "rolling_normal_max_N": null,
+      "friction_ratio_max": 0.291150671183113,
+      "split_failed_frames": 0,
+      "total_normal_frac_weight": [
+       0.9561048347493256,
+       1.0469180482733578
+      ],
+      "total_friction_need_max": 0.21264126453141757,
+      "cop_rule_mm": -10.0
+     },
+     "clearance": {
+      "gates": {
+       "swing_clearance": false,
+       "joint_range_margin": true,
+       "interference_free_home": true,
+       "interference_free_nominal_gait": true,
+       "component_overlap_free": true,
+       "tail_clearance": true
+      },
+      "walking_gates": false,
+      "mid_swing_min_frac_H": 0.0382,
+      "mid_swing_min_mm": 19.19,
+      "mid_swing_threshold_frac_H": 0.04,
+      "lateral_gap_mm": 67.53,
+      "tightest_joint": [
+       "left_hip_roll",
+       0.1204
+      ],
+      "joint_range_margin_rule_rad": 0.1,
+      "joint_range_margins": {
+       "left_hip_roll": {
+        "walk_min": -0.1764,
+        "walk_max": 0.1414,
+        "usable": [
+         -0.45,
+         0.2618
+        ],
+        "margin_min": 0.2736,
+        "margin_max": 0.1204
+       },
+       "left_hip_pitch": {
+        "walk_min": -0.3906,
+        "walk_max": 0.26,
+        "usable": [
+         -0.8037,
+         1.0
+        ],
+        "margin_min": 0.4131,
+        "margin_max": 0.74
+       },
+       "left_hip_yaw": {
+        "walk_min": -0.0,
+        "walk_max": 0.0,
+        "usable": [
+         -0.3,
+         0.3
+        ],
+        "margin_min": 0.3,
+        "margin_max": 0.3
+       },
+       "left_knee": {
+        "walk_min": -0.1149,
+        "walk_max": 0.4795,
+        "usable": [
+         -1.1,
+         0.9534
+        ],
+        "margin_min": 0.9851,
+        "margin_max": 0.4739
+       },
+       "left_ankle_pitch": {
+        "walk_min": -0.3666,
+        "walk_max": 0.3561,
+        "usable": [
+         -0.8,
+         0.8
+        ],
+        "margin_min": 0.4334,
+        "margin_max": 0.4439
+       },
+       "left_ankle_roll": {
+        "walk_min": -0.1414,
+        "walk_max": 0.1764,
+        "usable": [
+         -0.4,
+         0.4
+        ],
+        "margin_min": 0.2586,
+        "margin_max": 0.2236
+       },
+       "right_hip_roll": {
+        "walk_min": -0.1413,
+        "walk_max": 0.1766,
+        "usable": [
+         -0.2618,
+         0.45
+        ],
+        "margin_min": 0.1205,
+        "margin_max": 0.2734
+       },
+       "right_hip_pitch": {
+        "walk_min": -0.3908,
+        "walk_max": 0.2599,
+        "usable": [
+         -0.8037,
+         1.0
+        ],
+        "margin_min": 0.4129,
+        "margin_max": 0.7401
+       },
+       "right_hip_yaw": {
+        "walk_min": -0.0,
+        "walk_max": 0.0,
+        "usable": [
+         -0.3,
+         0.3
+        ],
+        "margin_min": 0.3,
+        "margin_max": 0.3
+       },
+       "right_knee": {
+        "walk_min": -0.1147,
+        "walk_max": 0.4796,
+        "usable": [
+         -1.1,
+         0.9534
+        ],
+        "margin_min": 0.9853,
+        "margin_max": 0.4738
+       },
+       "right_ankle_pitch": {
+        "walk_min": -0.3667,
+        "walk_max": 0.356,
+        "usable": [
+         -0.8,
+         0.8
+        ],
+        "margin_min": 0.4333,
+        "margin_max": 0.444
+       },
+       "right_ankle_roll": {
+        "walk_min": -0.1766,
+        "walk_max": 0.1413,
+        "usable": [
+         -0.4,
+         0.4
+        ],
+        "margin_min": 0.2234,
+        "margin_max": 0.2587
+       },
+       "neck_pitch": {
+        "walk_min": -0.05,
+        "walk_max": 0.05,
+        "usable": [
+         -0.35,
+         0.35
+        ],
+        "margin_min": 0.3,
+        "margin_max": 0.3
+       },
+       "tail_yaw": {
+        "walk_min": -0.125,
+        "walk_max": 0.125,
+        "usable": [
+         -0.45,
+         0.45
+        ],
+        "margin_min": 0.325,
+        "margin_max": 0.325
+       }
+      },
+      "nominal_gait_interference_pairs": 0,
+      "tail_min_frac_H": 0.7951,
+      "screen": "designlab.clearance.screen (gates r2)"
+     },
+     "over": [
+      {
+       "limit": "clearance swing_clearance",
+       "value": 0.0382
+      }
+     ],
+     "within_limits": false,
+     "verdict": "over clearance swing_clearance 0.038: under the plan's rule, over a drive limit (or a Stage 0 gate), a variant keeps its feature and loses that speed rung (character first) unless the owner decides otherwise"
+    }
+   }
+  },
+  "tried": [
+   {
+    "change": "nominal_to_v0.5",
+    "not_built": "the walk nominal is not a rung of the set (nominal: dropped from the ladder: over clearance swing_clearance 0.0382: blocks the freeze (clearance swing_clearance); a walk that is not frozen is dropped from the ladder with its numbers)"
+   },
+   {
+    "gates": {
+     "ik_ok": true,
+     "join_b": true,
+     "join_a": true,
+     "zmp_error": false
+    },
+    "pass_": false,
+    "ik_ok": true,
+    "ik_fail_frames": 0,
+    "join_a": {
+     "stride_phase": -2.0,
+     "reference": "v0.45",
+     "com_max_mm": 0.02504897192238191,
+     "com_mean_mm": 0.007741518040344132,
+     "zmp_max_mm": 1.5529244758333178,
+     "zmp_mean_mm": 0.11060388963166061,
+     "joint_max_rad": 0.00011029967160400278,
+     "joint_rate_max_rad_s": 0.0016248212278653362,
+     "at_join": {
+      "frame": "first output frame",
+      "com_mm": 0.02504897192238191,
+      "zmp_mm": 1.5529244758333178,
+      "joint_rad": 0.00011029967160400278,
+      "joint_rate_rad_s": 0.0008988679419559276,
+      "tau_Nm": 0.17127970505678114
+     },
+     "tau_max_Nm": 4.720023456278611,
+     "com_ok": true,
+     "zmp_ok": true
+    },
+    "join_b": {
+     "stride_phase": 3.0,
+     "reference": "v0.5",
+     "com_max_mm": 0.23569186400207964,
+     "com_mean_mm": 0.05881041091557173,
+     "zmp_max_mm": 1.7771202871018443,
+     "zmp_mean_mm": 0.14918032305644027,
+     "joint_max_rad": 0.0005003273942389488,
+     "joint_rate_max_rad_s": 0.002725043432213692,
+     "at_join": {
+      "frame": "last output frame",
+      "com_mm": 0.23569186400207964,
+      "zmp_mm": 0.46789636563586867,
+      "joint_rad": 0.0005003273942389488,
+      "joint_rate_rad_s": 0.002725043432213692,
+      "tau_Nm": 0.01550546383110385
+     },
+     "tau_max_Nm": 0.1988262458637644,
+     "com_ok": true,
+     "zmp_ok": true
+    },
+    "join_command": null,
+    "zmp_error_history_m": [
+     0.05231091007176848,
+     0.023165304296328248,
+     0.010226876143861724,
+     0.006130838558594252,
+     0.00575780907076653,
+     0.005376237646125063,
+     0.005063409634124177
+    ],
+    "zmp_consistency_history_m": null,
+    "post_window_zmp_error_m": null,
+    "zmp_consistency_all_m": null,
+    "cop_margin_single_min": {
+     "m": 0.04206822130951978,
+     "frame": 640,
+     "foot": "right"
+    },
+    "min_cop_margin_single_m": 0.04206822130951978,
+    "hip_yaw_range_use": 1.8897395520832424e-08,
+    "tightest_other": {
+     "joint": "left_hip_roll",
+     "end": "max",
+     "margin_rad": 0.19276295836431206
+    },
+    "reference": {
+     "accel_forward_lp1hz_peak_m_s2": 0.09108938056239614,
+     "accel_forward_lp1hz_peak_t_s": 2.208,
+     "accel_forward_raw_peak_m_s2": 2.2580839182198393,
+     "accel_forward_raw_peak_t_s": 2.6996796265258474,
+     "accel_filter": {
+      "hz": 1.0,
+      "order": 2,
+      "zero_phase": true,
+      "fs_hz": 500.0,
+      "of": "model CoM, along the planned heading: three-point second differences on the frames' own times, then interpolated to fs_hz for the filter; the first frame takes its neighbour's value, the last frame its neighbour's",
+      "history_s": 3.0,
+      "before": "the periodic stride of v0.45",
+      "after": "the periodic stride of v0.5",
+      "read_over": "the move's own frames only: the history enters the filter, not the peaks"
+     }
+    },
+    "frames": 960,
+    "duration_s": 5.349854121896625,
+    "failed_gates": [
+     "zmp_error"
+    ],
+    "stage0": {
+     "source": "setscreen.screen_move on the built file (at build time)",
+     "governing": [
+      "hip_pitch",
+      "speed",
+      0.7589082300784858
+     ],
+     "within_limits": true,
+     "over": [],
+     "blocks_freeze": [],
+     "a1_over": false,
+     "over_leg_drive": false,
+     "text": "within the Stage 0 limits",
+     "tightest_joint": [
+      "left_hip_roll",
+      "max",
+      0.1928
+     ],
+     "accel_forward_lp1hz_peak_m_s2": 0.6796819732349649
+    },
+    "built_sha256": "bb10a694cf4ca9bb12010ead38699d56903d0cef98add03f5047f24a051611f6",
+    "ramp_strides": 1.0,
+    "change": "v0.45_to_v0.5"
+   }
+  ]
+ },
+ "controller": {
+  "row": "R2/42",
+  "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen60",
+  "tracker_mode": "R2",
+  "terms": [
+   "ankle",
+   "step",
+   "trunk",
+   "heading",
+   "phase",
+   "capture"
+  ],
+  "ankle_cap": [
+   "box",
+   "pad"
+  ],
+  "inward_bound": "pad_clearance",
+  "rate": 1.05,
+  "gains": {
+   "k_dcm": 3.857222953757896,
+   "cop_x": 0.019041265270288696,
+   "cop_y": 0.013411046123719721,
+   "k_step": 0.09507879189691582,
+   "step_x": 0.03751235746092696,
+   "step_out": 0.025475161943357014,
+   "decay": 0.8540289391489068,
+   "k_trunk": 62.9825695670883,
+   "d_trunk": 0.5591442285309484,
+   "k_yaw": 0.008017599914222195,
+   "ki_yaw": 0.0,
+   "k_phase": 2.6036501549298086,
+   "ki_phase": 0.0,
+   "capture_margin": 0.0
+  },
+  "gains_info": {
+   "rule": "R2/s takes tune.json's seeds[s]: the candidate G5 selected for CMA-ES seed s (selected, selected_gains), refused if that seed has no selection",
+   "file": "stage1/runs/2026-11-08/75-M-H-10/tune.json",
+   "sha256": "d451e7c580396a2644f4270f148b7120892e60f93e034c9245a286218702ba62",
+   "cma_seed": 42,
+   "candidate": "seed42_gen60",
+   "g5_pass": true,
+   "g5_label": "passes G5"
+  },
+  "hard_only": false,
+  "policy": null,
+  "delayed_row": "R2/42@0ms",
+  "latency_steps": 0,
+  "latency_ms": 0,
+  "latency_rule": "R2/<s>@<ms>ms: Stage 1's fitted tracker of CMA-ES seed s with the gains of the Stage 1 run's tune.json unchanged; R0@<ms>ms: the panels' open-loop row; <any registered row>@<ms>ms likewise.  <ms> is a servo delay of k = ms / 2 whole physics steps for the whole episode (speedfit.servo_delay: every servo target reaches the servos k steps after the controller sets it); with k = 0 the wrapper changes nothing",
+  "servo_delay_rule": "the delay queue of speedfit.servo_delay (a queue of the last k + 1 servo targets, refilled with the reset's targets at every reset: each target reaches the servos k physics steps after the controller sets it; k = 0 changes nothing); k is the row's and the same for every episode: speedfit.LATENCY_RULE's random draw per episode is not used"
+ },
+ "definition": {
+  "behavior": "walk",
+  "name": "v0.5",
+  "gated": false,
+  "judge": "bar_walk",
+  "floor": "hard",
+  "friction": null,
+  "gait": "v0.5",
+  "case": null,
+  "direction": null,
+  "seconds": null,
+  "push_at": null,
+  "push_spread": null,
+  "recovery_s": 3.0,
+  "hold_s": 2.0,
+  "set": "F25F9",
+  "walk": "v0.5",
+  "move": null,
+  "frac": 0.25,
+  "block": "seeds3042",
+  "key": "walk/v0.5",
+  "stock": false
+ },
+ "counts": {
+  "reading": "success",
+  "episodes": 0,
+  "errors": 0,
+  "judged": false,
+  "pass_": null
+ },
+ "counts_but_A1": {
+  "reading": "but_A1",
+  "episodes": 0,
+  "errors": 0,
+  "judged": false,
+  "pass_": null
+ },
+ "counts_look": null,
+ "counts_look_reason": "not defined: the set has no look bands",
+ "failure": null,
+ "failure_but_A1": null,
+ "attribution": null,
+ "episodes": [],
+ "rules": {
+  "clocks": "three clocks: the reference clock (track time); simulated time; the bar's clock, simulated seconds since the command instant t_c = the simulated time at which the reference clock reaches the commanded move's first frame (a causal move's file begins at its command).  The track is played at the commanded rate 1.05, times the tracker's phase-rate factor (within +-5 %).  Every judged time (a turn's (pi/2)/|rate| s, the 3 s hold, the walk's 10 s) is in simulated seconds.  A nudge's command is its onset.  stop/one_step plays Stage 1's non-causal one-step stop and is read from Stage 1's command (decision 18's convention: where the reference's path speed begins to ramp down), labelled so",
+  "readings": "every episode is read three ways, in the plan's order and never pooled: (1) shown with the look: not defined for a set without look bands (the block is null with that reason); (2) every limit (success); (3) every limit but for A1 (success_but_A1): the same terms with the sustained-drive term read on the leg drives only (plant.leg_drives: every drive but the neck's and the tail's).  The drives' RMS is taken over the judged window for the walk and the turn and over the whole episode for nudges and the stop; both spans' per-drive ratios are recorded.  A turn frozen with a1_over runs and records both readings, but reading 2 gives it no verdict (not read: a1_over, which is not a pass)",
+  "plans": "every item starts with the walk item's lead-in (start, one stride of nominal, the change to the walk, or the path through the neighbouring rung toward 0.40 m/s where the direct change is not available) and takes the walk's seed slot (slot 0), so the items of a seed are not independent: a fall in the lead-in shows in all of them (this differs from Stage 1, which gives turns their own slots).  Walk: K strides of the walk, the fewest that hold the last 10 s in its steady part with the clock 5 % slow (Stage 1's rule).  Turn: 2 strides (2.5 for a right turn), the turn, then the walk; seconds = t_cmd / (slowest clock) + at_s + 3 + 0.2.  Nudge: seconds = the latest onset at the slowest clock + 0.1 + 3 + 2.  Stop: 2.5 strides (2 before the one-step stop), the stop, a hold; seconds = t_rest / (slowest clock) + 2 + 0.2.  A turn's, a nudge's and a stop's track is long enough at the fastest clock (1.05 x 1.05); a walk's track ends at its planned end on the commanded clock and its last walk segment repeats beyond it (Stage 1's rule).  walk/nominal is start, then nominal to the end.  A causal move is placed at the walk phase its entry was built for (the strides of the walk before it, modulo one, equal its command_phase), and a rung's entry holds the speed its name holds (a fixture's stand-in walk apart, which its records say): a set that breaks either is refused",
+  "rows": "R2/<s>@<ms>ms: Stage 1's fitted tracker of CMA-ES seed s with the gains of the Stage 1 run's tune.json unchanged; R0@<ms>ms: the panels' open-loop row; <any registered row>@<ms>ms likewise.  <ms> is a servo delay of k = ms / 2 whole physics steps for the whole episode (speedfit.servo_delay: every servo target reaches the servos k steps after the controller sets it); with k = 0 the wrapper changes nothing",
+  "delay": "the delay queue of speedfit.servo_delay (a queue of the last k + 1 servo targets, refilled with the reset's targets at every reset: each target reaches the servos k physics steps after the controller sets it; k = 0 changes nothing); k is the row's and the same for every episode: speedfit.LATENCY_RULE's random draw per episode is not used",
+  "seeds": "blocks: seeds3042 (3042-3061, the headline) and seeds5042 (5042-5061, replication); an episode's start, sensor-noise and push seeds are tune.derived_seed(seed, 0, purpose) (panels.EPISODE_RULE with slot 0 for every item)",
+  "pass_": "a record passes a reading if all 20 episodes of its block survive and at least 17 succeed in that reading; a record of fewer episodes, of other seeds or with an episode that failed to run is not judged.  The judged delay is 10 ms; at another delay a record 'passes at <ms> ms' and gives no verdict.  R0 rows, Stage 1's reading, the replication block alone and a control give no verdict",
+  "replication": "of the 75 cm round's sets only F25F9cl (the candidate) is replicated: every seeds3042 record of it under a row with a verdict that passes in reading 2 or in reading 3 is run again on seeds5042 with the same row; the controls are not run on seeds5042; the new record names the record and the reading that triggered it (replication_of); the blocks are never pooled; a pass of an R0 row is not replicated.  Beside a shown or provisional verdict stands, for each row's record that passed, 'replicated' (the second block's record passes in that reading), 'not replicated' or 'replication cut by the pre-registered order'",
+  "omega": "the track's LIPM frequency is the set's own: control.omega0(p, q_home, crouch_frac = the set's crouch); the controllers' gains are not refitted; omega and crouch_frac are in every record and in its key",
+  "error": "an episode that raised, or that did not fall and whose trace ends before its judged window, failed to run: it is recorded with its reason, the same seed is run again on the next run of the same key, and a record that still holds such an episode is not judged; it is never a failed term.  bar run exits 4 while a record of its session holds such an episode",
+  "key": "a record's key holds what an episode executes: the row's description and sources, the condition, the plan, seconds, seeds and command, omega and crouch_frac, panels.key_context(body), per input file its sha256 and the sha256 of the entry numbers the planner reads (setio.entry_sha256), and the source hashes of the panels' modules and of bar.py, readings.py, setio.py and speedfit.py",
+  "no_overwrite": "a finished record ('done' or 'not run') whose key differs is never replaced silently: the run stops with the differing key fields, and so it does for a record file that cannot be read; --supersede moves the old record to <record>.superseded/<first 12 hex of its key's sha256>.json and the new record states its reason (supersedes.reason): it is a re-run after a result.  The label is written beside the kept record (<12 hex>.reason.json) before the record is moved, and every later record at that path carries it, so a killed re-run keeps it; supersedes.registered names the first record made at the path, supersedes.replaces the one just moved; the moved record's traces go to eval/traces.superseded/<12 hex>/",
+  "trace": "each episode's trace (not the attribution's lifted runs): Stage 1's 50 Hz arrays (panels.TRACE_RULE) plus the 500 Hz contact flags (bit-packed), both feet's 100 Hz low points with their times, the reference's swing foot and that swing's planned duration at those updates, the per-swing table and the command instant; the episode record holds its sha256, and its path when the file is kept (a trace that is not kept is written, hashed and removed: the record says kept: false and why)",
+  "attribution": "decision 20 (panels.PANEL_ATTRIBUTION_RULE, gates.attribute) on R2 rows' records with 5 or more falls: each candidate limit lifted over the same seeds.  A turn, nudge or stop record with fewer than 5 falls after its command is not attributed itself: it cites the walk record of the same set, row, grip and block.  A record whose attribution the budget cut reads 'not attributed (budget, pre-registered order)'.  A unit's episodes all finish before any of its records is attributed; attribution then runs record by record in the order the records were made, and the record names the session that ran it",
+  "budget": "a task's budget is the sum of its episodes' wall seconds (attribution's lifted episodes and re-runs included) in budget.json.  It is spent unit by unit (one run command; one record's attribution): a unit starts only if the task's spent core-hours plus the unit's estimate (its planned simulated seconds x the committed rates) fit; a started unit finishes; the first unit that does not fit is cut with every unit after it",
+  "checks": "on the three sets of the 75 cm round (and a version of one: a name's part before its first dot) a run is either a task's unit (--task) or a build check: at most one episode (seed 3042) per condition and R0 row on set V0, each listed with its reason in the file --dev-episodes names, when it starts and again when it is recorded; a check is smoke and no record.  On any other reference set (a scratch or fixture set built from Stage 1's gaits) only R0 rows run, never an R2 row (STAGE2_75_PLAN.md, amendment 5 of 15 Nov).  A run without --task writes neither under stage2/runs/ nor into a directory that holds a budget.json, and no run writes under stage1/ or stage2/sets/",
+  "freeze": "a run reads a frozen set: every file played is in the latest freeze with its sha256 and its entry's hashed subset (setio.read_inputs), the freeze's manifest_sha256 is recomputed from its manifest (s2io.sha256_json) and a set whose stored value differs is refused, and set.json's crouch_frac must equal the crouch_frac of every walk entry played (which the freeze covers).  A record names the freeze (set_freeze) and, per input file, the first freeze that lists it; a freeze that set.json labels change_after_result is copied with its reason into every record that plays a file it added (change_after_result: 'change after a result'), and after_check_episodes likewise (which is no change after a result)",
+  "convention": "the recorder's convention: an update row's time is the start of the physics step just taken and a step's loads are read after it, so physics step a and a row with t = a dt are one instant (readings.STEP_OFFSET); convention_check reads it on a real episode",
+  "walk": "the walk item: window = the last 10 s of a complete episode; along: the CoM covers at least 10 s x the rung's target speed along the commanded heading (the home heading); line: the CoM stays within 0.25 m of the line along the commanded heading through its position at the window's first update (the deviation from the line through the episode's start is reported); Stage 1's limits over the window: duty 0.55-0.65 (0.55-0.72 for a rung whose target speed is below 0.3 m/s), no flight, roll and pitch 4 deg RMS and 8 deg peak, the own-swing toe clearance, slip 5 mm median and 15 mm worst, the drives' RMS over the window at most their sustained rating, and over the episode the drives' peak speed and 0.1 rad of every joint's range.  Peak ground reaction, cadence and stride are reported, and judged as Stage 1 judges them in walk/nominal only.  Stage 1's own reading of the same episode (tune.measure's terms restricted to the panels' list for that walk) is recorded under measures.stage1: it gives no verdict",
+  "toe": "toe clearance over each foot's own swing (readings.toe_clearance_own_swing): contact is Stage 1's (a foot's load above 2 % of weight, 20 ms debounce, per physics step); an air run of a foot is a swing if any 100 Hz update inside it falls in the reference's swing of that foot, or if it lasts at least half the shortest planned swing of the track on the simulated clock (its reference seconds / 1.05), else an air gap (counted, not read); each swing wholly inside the window is read as the foot's lowest point over [t_lo + 0.25 T_p, t_lo + 0.75 T_p] (interpolated at both edges, and every update between): t_lo is the swing's own lift-off and T_p the planned duration, on the simulated clock (its reference seconds / 1.05), of the reference swing of that foot it overlaps the longest (the track's shortest planned swing if it overlaps none); the interval is read to its end even if the foot has touched down before it; a swing whose interval runs past the window's end is neither read nor counted; a reference swing counts toward a foot's number only if no window edge cuts an own swing that overlaps it; the term passes when the smallest reading is at least 0.04 H, no reference swing in the window is interrupted and each foot has at least its number of reference swings less one.  The reading as first written (the middle half of the swing's own duration) is recorded beside it as toe_clearance_own_duration_m, reported and never judged, and so is Stage 1's reading (on the reference's clock) (middle half of the planned swing counted from the own lift-off; amended on 15 Nov after the reread of Stage 1's stock walks, before any Stage 2 set was frozen: STAGE2_75_PLAN.md C3)",
+  "stage1": {
+   "rows": "R0: the reference with feedforward and servo PD only, played on the commanded clock: control.Tracker with no feedback term and no ankle cap (terms=(), ankle_cap=(); its R1 mode, whose state view then sets nothing), which commands exactly R0's targets (control.Tracker's R0 mode refuses another clock than the references' own; at rate 1 the two are the same bit for bit).  R0 has no balance, step or capture: in a push it holds the reference through the servos' PD alone, in a turn it plays the turn reference open loop; both are judged by the same rules.  R1: the tracker on the true state with the body-level G5 selection (env.tuned_gains, env.GAINS_RULE).  R2/42 and R2/43: the tracker on the estimate with each CMA-ES seed's own G5-selected candidate (tune.json seeds[s].selected_gains).  Every row: control.TERMS (R1, R2), the decided ankle cap and inward bound, the capture margin as selected (0.0, tune.FIXED_RULE), clock rate 1.05",
+   "episode": "seeds 3042-3061 for every condition and row (pushes paired by seed); episode seed s of a condition starts from the plant's settled stance with tune's start noise (joint angles +-0.01 rad, root velocity +-0.02 m/s) drawn from tune.derived_seed(s, slot, 0) and R2's sensor noise (estimator.SensorNoise defaults) from tune.derived_seed(s, slot, 1), slot the episode kind's place in tune's mix (walk and carpet walk 0, walking turn 1, in-place turn 2, every other condition 0), so a panel episode on a G5 validation seed is G5's episode; a push's timing is drawn from tune.derived_seed(s, slot, 2); the nominal plant (no randomisation, no latency), the floor and friction of the condition, commanded 5 % above (tune.COMMAND_RATE, control.COMMAND_RATE_RULE); a fall is plant.Plant.fall_cause (an episode during which MuJoCo warned counts as a fall at its start, tune.FAILURE_RULE); an episode that raises, or whose worker is lost twice, failed to run and is not a result (FAILED_EPISODE_RULE)",
+   "failed_episode": "an episode that raises, or whose worker process dies or does not answer within 900 s on each of 2 attempts (tune.Pool), failed to run: it is recorded with the traceback or reason (error) as a fall at its start with every success term failed, but it is not a result: the counts give it apart (errors), a record that holds one is not judged (pass_ None, its verdict incomplete), the next eval of the same key runs those seeds again and merges them in (RESUME_RULE), and attribution leaves it out (PANEL_ATTRIBUTION_RULE)",
+   "limits": "every success also needs every drive's motor-space RMS at most its sustained torque and every drive's peak speed at most speed_at(24 V) (control.run's worst ratios), and every joint keeping its required usable range (walks, stands, pushes, starts and stops 0.1 rad; turns decision 14's margin, tune.SUCCESS_RULE): for walks, turns and the carpet walk read as tune.SUCCESS_RULE reads them (the drive RMS over the judged window, peak speed and range over the episode); for stands, pushes and starts and stops over the whole episode",
+   "lcb": "one-sided 95 % Clopper-Pearson lower bound on the success probability: the 0.05 quantile of Beta(k, n - k + 1), 0 for k = 0 (20/20 -> 0.861, 17/20 -> 0.656; the repository's recovery_gate.binomial_lcb by bisection gives the same)",
+   "success_label": "the success failures (episodes that survive but fail a term) are labelled from their failed terms: the hardware terms (drive_sustained, drive_speed, joint_range, slip_median, slip_worst, no_leg_interference: drive RMS, drive speed, joint range, slip at the pad, and the legs' clearance, legs.LegGap's interference, the leg-to-leg clearance that STAGE1_PLAN.md decision 20 puts in the body-limited list in place of the turn gap: on the narrow bodies the legs are 32-58 mm apart at the reference stance, so their spacing is the body's) against the controller's (speed, yaw rate, cadence, stride, duty, flight, GRF, roll, pitch and tilt, toe clearance and the carpet's toe terms, drift, start and stop, push recovery); body-limited by the hardware terms that failed in more than half of the failed episodes, else controller-limited; every failed term is listed with its class and count.  A fall's failed term is 'survived' alone: a fall fails every term (tune.SUCCESS_RULE), so its other terms say nothing about what bound, and falls do not count here.  The CoP at a pad edge with the ankle saturated and step reach are hardware limits with no success term of their own: they enter through falls (control.HW_LIMITS, decision 20)",
+   "attribution": "with --attribute, a condition of an R2 or R3 row with falls is attributed by decision 20 (gates.ATTRIBUTION_RULE, gates.attribute): every relaxable hardware limit that is a candidate of at least one of its falls (control.CANDIDATE_RULE) is lifted in turn (control.run's relax) over the same 20 seeds, and the condition is body-limited by the limits whose lifting improves survival significantly (gates.sign_test, one-sided, p < 0.05), else controller-limited; that costs (lifted limits x 20) episodes.  The sign test can reach p < 0.05 only with at least 5 falls (every one of them improved: 1/2^5 = 0.03125; with 4, 0.0625), so a condition with fewer falls is controller-limited by decision 20 and no limit is lifted for it (its label says so).  A candidate the plant cannot relax (control.RELAXES None: cop_at_pad_edge_with_ankle_saturated, the pad's size) cannot be tested; a controller-limited label names such candidates as untestable.  Episodes that failed to run (FAILED_EPISODE_RULE) give no candidates and are left out of the sign test's pairs; an attribution whose lifted runs had such failures is run again by the next --attribute.  The null (1 mm/s) and the together runs of G4 are diagnostics and are not run; R0 and R1 are not attributed",
+   "decision_20": "STAGE1_PLAN.md decision 20: a condition that fails is body-limited by a hardware limit only if lifting that limit from the start (control.relaxed), over the condition's 20 starts (the same root-velocity offsets and noise seeds), improves survival significantly: a one-sided exact sign test on the paired survival times (strides to the fall; a run that does not fall outlasts one that does; two runs that do not fall tie; ties are dropped), p < 0.05.  The limits tested are the relaxable hardware limits that are candidates of at least one of the condition's falls (control.CANDIDATE_RULE); otherwise its falls are controller-limited.  The null, the same starts with the root velocity changed by a further 1 mm/s in x and nothing lifted, is reported as a chaos diagnostic and does not change the label.  Candidates the plant cannot lift (the CoP at a pad edge: the pads' size) are listed; lifting the candidates together is reported, not the label",
+   "candidates": "the hardware limits (HW_LIMITS) active at an update of the 0.5 s before the fall's onset (the last time the trunk tilt rose through 0.2 rad)",
+   "failure_label": "a failing record's failure holds both labels: the falls' (decision 20's attribution label, PANEL_ATTRIBUTION_RULE, or 'not attributed' until it runs, R2 and R3, or because it is not run, R0 and R1) and the success failures' (SUCCESS_LABEL_RULE).  Its label is the success failures' when nothing falls, the falls' when the success failures alone would not fail it (at most 3 of them), and otherwise that of the kind with more failed episodes, the falls' on a tie (plan section 4: a hardware limit binds before most failures)",
+   "trace": "each panel episode's trace (not the attribution's lifted runs) is written to <out>/<body>/eval/traces/<row>/<behavior>/<condition>/<seed>.npz (git-ignored, stage1/.gitignore): the recorder's rows every 2 feedback updates (50 Hz; metrics.COLS: time and reference time, CoM and its velocity, feet, lowest points, roll, pitch and yaw, slip speeds, IMU acceleration, DCM error, the reference's swing, sole centres, loads, root) and the joint angles (plant order), the times in float64 and the rest in float32; the episode record holds its path and sha256",
+   "command_rate": "a command of r times the reference's speed plays the track r times faster than real time (the reference clock's rate r, the phase-rate term's +-5 % about it): cadence, speed and yaw rate times r, stride and footprints unchanged, the reference rates times r and accelerations times r^2 in the servo targets and the armature feedforward, the reference DCM c + r c' / omega0 (the CoM moving r times as fast), the inverse-dynamics torque and the reference ZMP as the reference's",
+   "failures": "an evaluation that raises scores as the worst case: every episode a fall at its start (survived share 0, S = 2 per episode, every term 1, J = 7), with its traceback in the evaluation log; an episode during which MuJoCo warned (mjWARN_INERTIA, mjWARN_CONTACTFULL, mjWARN_CNSTRFULL, mjWARN_BADQPOS, mjWARN_BADQVEL, mjWARN_BADQACC, mjWARN_BADCTRL; counted after the episode) counts as a fall at its start, the warnings recorded; a worker process that dies or does not answer within 900 s is replaced by a fresh one (on the same inputs and tuner sources, else the run stops) and its evaluation run again, up to 2 attempts, after which it scores as the worst case with the reason; every such incident is kept in the session record",
+   "recovery": "STAGE1_PLAN.md decision 30: back to the command within 3 s means a feedback update at most 3 s after the pulse's end (at or after it) from which the body is on its command to the episode's end (at least 2 s more).  Standing, on command at an update: the true CoM's horizontal speed below 5 % of the nominal walk's commanded speed (decision 18's 'stopped'), at every update to the end.  Walking, on command from an update: the CoM's mean velocity over the commanded stride that starts there (its displacement over that stride / the stride's time) is 90-110 % of the commanded speed along the episode's starting heading (the straight walk's) and at most 10 % of it across, for every stride that starts at an update from then until one stride before the episode's end.  The window starts at the pulse's end or later, so the reading after the pulse is not the walking before it.  An update at the pulse's end itself is 'never left the command'.  A trace a fall cut short has not recovered; the time from the pulse's end is recorded",
+   "success": "plan section 4 on each validation episode: the nominal walk succeeds if it survives and over the 10 s before the stop command its mean speed is at least the nominal speed, each foot's duty is 0.55-0.65, there is no flight, the cadence is 1.6-2.2 steps/s, the stride 0.5-0.65 H, the peak GRF at most 1.6 BW, roll and pitch about home at most 4 deg RMS and 8 deg peak, the toe clearance at least 0.04 H, the slip at most 5 mm median and 15 mm worst and every drive's motor-space RMS at most its sustained torque (the drive RMS is judged over the same window as the other limits), and over the whole episode every drive's peak speed is at most speed_at(24 V) and every joint keeps 0.1 rad of its range.  A turn succeeds if it survives, its yaw rate over the 180 deg turn is at least the target, the walk limits (duty, flight, GRF, roll and pitch, toe clearance, slip) and the drive RMS hold over its steady turning (the same window), the drives' peak speeds hold over the episode, every joint keeps decision 14's margin, the legs do not interfere (legs.LegGap at 50 Hz) and, in place, the drift (the root's displacement) is at most 0.1 m.  Cadence and stride are judged at nominal only (the Walk row's 'at nominal').  The measures are metrics' (its docstring): toe clearance on the reference's swing clock, flight on the 20 ms debounced contact, slip as the sole centre's largest displacement over each loaded stance, the drive RMS over the window's physics steps",
+   "stop": "decision 18: stopped = the forward CoM speed below 5 % of the commanded speed from then on, within 1.5 strides of the stop command (the start of the stop's speed ramp, the last lift-off); the time to rest (CoM slower than 1 mm/s from then on, for a reference also within 1 mm of its final stand) is reported",
+   "sources": "sha256 over the modules an episode and its judgement run: the designlab/stage1 modules panels.py imports, followed as tune.TUNER_SOURCES_RULE follows the tuner's (from panels.py and the package's __init__.py, transitively) except env.py and gates.py, and the designlab modules outside designlab/stage1 that these import when they are imported (module level), followed the same way through designlab's own module-level imports (statics, carpet, clearance, sizing, gait, ...; a missing model's rebuild through round2 and pipeline is a function-level import, and plant.verify checks the model against its record's xml_sha256 anyway), each set hashed as plant.SOURCES_RULE hashes files, the module lists recorded beside.  env.py (the PPO environments) and gates.py (the gates) are left out: the panels take from env.py the carpet walk's plan and friction, the push bound, the pile floors' foot tables, the rate residual's bound and the env step, which the key holds by value or by source (RESUME_RULE), and from gates.py only the attribution, whose record holds gates.py's sha256.  So a row added in its own module, or a change to env.py's training code, leaves the R0-R2 records' keys as they are"
+  },
+  "set": {
+   "rules": {
+    "S2S-sets": "three reference sets per body, each a directory stage2/sets/<set>/<body>/ in Stage 1's run-directory layout: V0 (control: today's walk), F25F9 (control: the pull request's _tuned_f9_spec, verbatim) and F25F9cl (candidate: that spec with duty 0.59 and lift 0.095 H at every speed) (STAGE2_75_PLAN.md A1)",
+    "S2S-speeds": "walks nominal (sizing.NOMINAL's Froude number) and v0.3, v0.35, v0.4, v0.45, v0.5 (A2).  V0: sizing.NOMINAL at the nominal speed; look.speed_spec between sizing.NOMINAL and sizing.BRISK below BRISK's speed and between sizing.BRISK and envelope.FAST from there to FAST's speed; above FAST's speed FAST's stride, duty and lift at the higher Froude number, labelled new.  F25F9cl: every rung other than 0.40, 0.45 and 0.50 m/s labelled new",
+    "S2S-margin": "duty and lift set after results on seeds 3042-3061 (JPS 2.3)",
+    "S2S-crouch": "every walk of a set and body has one crouch (a share of the hip height), read from its spec and recorded as set.json crouch_frac and in every walk entry; a move joins two walks of one crouch (one LIPM frequency)",
+    "S2S-process": "every array is made inside s2io.r2() (gait accuracy r2, checked on entry and on exit) with one BLAS thread, each item in a fresh process on a body rebuilt for it (look.source); a walk's inverse dynamics, summary and both array formats come from the one generation in the one block",
+    "S2S-formats": "a walk is written twice from one generation: refs/<name>.npz (Stage 1's reference format, which the bar plays and a freeze lists) and look/<name>.npz (the look ladder's format, which the Stage 0 screen and the clips read); the build stops unless q, qd and qdd of the two are equal",
+    "S2S-twins": "where Stage 1's run (stage1/runs/2026-11-08/<body>) holds a walk of the same spec, or a transition between walks of the same specs made with Stage 1's own schedule, the set's file must have its sha256; where the look ladder (stage2/look/look_refs.json) holds a rung of the same spec, the look-format file must have its sha256; a difference stops the build with both hashes (STAGE2_75_PLAN.md A4).  V0 owes them: on a body that has a Stage 1 run record its nominal and start must be Stage 1's own files, and on a body the look ladder holds its look-format nominal and v0.4 must be the ladder's rungs; a twin that is not found there stops the build and fails sets verify (SetDef.stage1_twins, ladder_twins)",
+    "S2S-stage0": "the Stage 0 gates that block a freeze (STAGE2_75_PLAN.md A12) are read where a reference is built, with the set screen's own functions: a walk by setscreen.judge_walk on its look.price, a move by setscreen.screen_move on its file; the set's screen.json is made afterwards by setscreen and must agree (sets verify)",
+    "S2S-fallback": "a start, change or stop that fails a gate of its entry (A7) or a blocking Stage 0 gate (A12) is retried in this order and no other (STAGE2_75_PLAN.md A8): (1) a change with a ramp of 2 strides instead of 1 (same name; the entry records ramp_strides 2 and this rule); (2) for a ladder rung other than 0.40 m/s, a change from the neighbouring rung toward 0.40 m/s (v0.4_to_v0.45, v0.45_to_v0.5, v0.4_to_v0.35, v0.35_to_v0.3), with one stride of ramp, the rung's plan then walking through 0.40 m/s; (3) the item is recorded 'no transition within the gates' with its numbers.  A start and the stops have no fallback and nominal_to_v0.4 has step (1) only.  A failed start or nominal_to_v0.4 stops the set and goes to the lead (a set that starts into its 0.40 m/s walk, S2S-lead-in: a failed start_v0.4)",
+    "S2S-lead-in": "a set whose nominal walk is a rung starts into it (start; set.json lead_in 'start').  A set whose nominal walk is not a rung (A12) but whose 0.40 m/s walk is starts from standing straight into its 0.40 m/s walk: start_v0.4, built and gated like start, with no fallback; set.json says lead_in 'start_v0.4', and so does every record of the set (an exception, labelled where its rows are printed).  The items that need the nominal walk are then not available, with that reason, and a ladder rung is reached by the fallback rule's step (2), a change from the neighbouring rung toward 0.40 m/s.  A start_v0.4 that fails a gate stops the set: it is not run.  A set with neither walk has no lead-in (lead_in null) and its conditions are not run (STAGE2_75_PLAN.md A8 as amended: the owner's decision of 15 Nov, DECISION_LOG.md P34, after the first builds of the three sets; changed after a result)",
+    "S2S-turns": "a turn rate is built once for both directions (STAGE2_75_PLAN.md A10, A11): moves.pick_stride_factor on the set's 0.40 m/s walk, both directions with all passes at the chosen factor, then moves.step_down on the built pair (ik_ok in both, the worse thigh-twist use, the tighter margin of another joint, a leg drive over a Stage 0 limit in either, a neck or tail limit in either).  No factor, or a leg drive over its limit: 'no reference within the thigh twist and the leg drives', and the reason also names the entry gates the last built pair missed.  A built turn that fails another gate (A7's, A10's heading readings, another blocking gate of A12) has no further retry and no reference; where only the heading readings fail: 'no reference within the heading rule'.  A turn over a neck or tail limit alone is kept with a1_over true",
+    "S2S-not-available": "an item with no reference is an entry with available false, a reason and its numbers, and no file; it is listed in set.json not_available; a walk that fails a blocking Stage 0 gate is dropped from the ladder in this way and no move is built from or to it (STAGE2_75_PLAN.md A8, A11, A12).  No ramp, grid, gate or constant is changed for it.  Its verdict is the code's that built it (built_by): while the set is not frozen, a build by other Stage 2 modules makes it again; an array an earlier build left under its name is removed",
+    "S2S-freeze": "a freeze lists every available entry: name -> kind, the file's sha256 and the sha256 of the entry's hashed subset (setio.entry_sha256), a walk's look-format sha256 beside them.  A later freeze may add entries and never drops or changes one.  It needs sets verify to pass, a passing stage2/sets/legacy_check.json made by today's moves.py, every entry a build decided built by that moves.py (A4; no flag waives it), entries built from one source state and a clean tree (else the manifest says mixed_sources or dirty; a tree git cannot read counts as dirty).  A later freeze that adds references says when it was made: change_after_result with its reason (after a registered episode of the round: 'a change after a result'), after_check_episodes true with reason (after check episodes only: no change after a result; rule R4), or before_any_episode.  Where the set directory holds refcheck.json (the bar's kinematic check of each reference: no physics, no verdict) it must be of the files being frozen, and the freeze cites its sha256, pass_ and failing conditions; sets verify prints them as notes (a report: no rule here makes it block a freeze).  On a frozen set a build never writes a frozen entry again and puts an array in place only when its sha256 is the manifest's (STAGE2_75_PLAN.md A13)",
+    "S2S-omega": "control.omega0(p, q_home, crouch_frac=<the set's crouch_frac>): the track's LIPM frequency is the set's own"
+   },
+   "margin_rule": null,
+   "label": null,
+   "omega_rule": "control.omega0(p, q_home, crouch_frac=<the set's crouch_frac>): the track's LIPM frequency is the set's own",
+   "move_margin_rule": null,
+   "move_label": null,
+   "move_rules": null
+  },
+  "lead_in": "an exception for a set whose nominal walk is not a rung (set.json lead_in 'start_v0.4'; STAGE2_75_PLAN.md A8 as amended by the owner's decision of 15 Nov, DECISION_LOG.md P34, after the first builds of the three sets; changed after a result): every item starts with the stand and start_v0.4, the start from standing straight into the 0.40 m/s walk, in place of start, one stride of nominal and the change to 0.40 m/s; the strides of the 0.40 m/s walk before a command, the seed slot, the planned seconds' rules and the judged windows are those of every other set (the start's own file ends with 2 strides of the 0.40 m/s walk after its steady point and the change's with 3, Stage 1's windows: counted from the steady point a command comes one stride earlier on such a set); another rung is reached from 0.40 m/s through the neighbouring rungs' changes, one stride of each rung on the way; the home pose of the track's LIPM frequency is read from the 0.40 m/s walk's file (every walk file of a set holds the body's one home pose); a condition that needs the nominal walk is not run.  Every record of such a set carries lead_in, and a table that prints its rows labels them (the summary's cells and lines, the kinematic check's record).  A set whose set.json and entries disagree is refused: lead_in 'start_v0.4' on a set that holds its nominal walk, or another lead_in on a set that holds start_v0.4 and the 0.40 m/s walk and no nominal walk"
+ },
+ "key": {
+  "schema": "bar-1",
+  "body": "75-M-H-10",
+  "set": "F25F9",
+  "block": "seeds3042",
+  "row": {
+   "row": "R2/42",
+   "controller": "R2: the tracker on the estimate, CMA-ES seed 42's G5 selection seed42_gen60",
+   "tracker_mode": "R2",
+   "terms": [
+    "ankle",
+    "step",
+    "trunk",
+    "heading",
+    "phase",
+    "capture"
+   ],
+   "ankle_cap": [
+    "box",
+    "pad"
+   ],
+   "inward_bound": "pad_clearance",
+   "rate": 1.05,
+   "gains": {
+    "k_dcm": 3.857222953757896,
+    "cop_x": 0.019041265270288696,
+    "cop_y": 0.013411046123719721,
+    "k_step": 0.09507879189691582,
+    "step_x": 0.03751235746092696,
+    "step_out": 0.025475161943357014,
+    "decay": 0.8540289391489068,
+    "k_trunk": 62.9825695670883,
+    "d_trunk": 0.5591442285309484,
+    "k_yaw": 0.008017599914222195,
+    "ki_yaw": 0.0,
+    "k_phase": 2.6036501549298086,
+    "ki_phase": 0.0,
+    "capture_margin": 0.0
+   },
+   "gains_info": {
+    "rule": "R2/s takes tune.json's seeds[s]: the candidate G5 selected for CMA-ES seed s (selected, selected_gains), refused if that seed has no selection",
+    "file": "stage1/runs/2026-11-08/75-M-H-10/tune.json",
+    "sha256": "d451e7c580396a2644f4270f148b7120892e60f93e034c9245a286218702ba62",
+    "cma_seed": 42,
+    "candidate": "seed42_gen60",
+    "g5_pass": true,
+    "g5_label": "passes G5"
+   },
+   "hard_only": false,
+   "policy": null,
+   "delayed_row": "R2/42@0ms",
+   "latency_steps": 0,
+   "latency_ms": 0,
+   "latency_rule": "R2/<s>@<ms>ms: Stage 1's fitted tracker of CMA-ES seed s with the gains of the Stage 1 run's tune.json unchanged; R0@<ms>ms: the panels' open-loop row; <any registered row>@<ms>ms likewise.  <ms> is a servo delay of k = ms / 2 whole physics steps for the whole episode (speedfit.servo_delay: every servo target reaches the servos k steps after the controller sets it); with k = 0 the wrapper changes nothing",
+   "servo_delay_rule": "the delay queue of speedfit.servo_delay (a queue of the last k + 1 servo targets, refilled with the reset's targets at every reset: each target reaches the servos k physics steps after the controller sets it; k = 0 changes nothing); k is the row's and the same for every episode: speedfit.LATENCY_RULE's random draw per episode is not used"
+  },
+  "row_sources": {
+   "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197",
+   "designlab/stage2/bar.py": "21ac6393a11932ca23746a429c2441d21c7fcfe97643f150d80cf22f24a52ce5"
+  },
+  "condition": {
+   "behavior": "walk",
+   "name": "v0.5",
+   "gated": false,
+   "judge": "bar_walk",
+   "floor": "hard",
+   "friction": null,
+   "gait": "v0.5",
+   "case": null,
+   "direction": null,
+   "seconds": null,
+   "push_at": null,
+   "push_spread": null,
+   "recovery_s": 3.0,
+   "hold_s": 2.0,
+   "set": "F25F9",
+   "walk": "v0.5",
+   "move": null,
+   "frac": 0.25,
+   "block": "seeds3042",
+   "key": "walk/v0.5",
+   "stock": false
+  },
+  "plan": null,
+  "seconds": null,
+  "seeds": [
+   3042,
+   3043,
+   3044,
+   3045,
+   3046,
+   3047,
+   3048,
+   3049,
+   3050,
+   3051,
+   3052,
+   3053,
+   3054,
+   3055,
+   3056,
+   3057,
+   3058,
+   3059,
+   3060,
+   3061
+  ],
+  "command": null,
+  "omega": null,
+  "crouch_frac": null,
+  "inputs": {},
+  "context": {
+   "plant_inputs": {
+    "record": "c24dcc4e928e3db7feff11e16cff3f8a8389d8c1bc27fefe72f22fa2df2734b7",
+    "mjcf": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c",
+    "ledger": "58f7cc2099374dd658b2323d7513669f8bce5ec01dee8c16a60b80233c741a90",
+    "clearance": "8a251f7e414e9e2c72656a16c5a55375b6a49a6a8418ad395b99c2968e0f6988"
+   },
+   "versions": {
+    "python": "3.13.18",
+    "numpy": "2.5.4",
+    "mujoco": "3.10.0",
+    "scipy": "1.18.1"
+   },
+   "env": {
+    "push_bound_m_s": 0.589,
+    "residual_rate": 0.25,
+    "env_substeps": 10,
+    "carpet_walk": [
+     [
+      "transition",
+      "start"
+     ],
+     [
+      "ref",
+      "carpet",
+      7
+     ],
+     [
+      "transition",
+      "stop"
+     ]
+    ],
+    "carpet_friction": 0.54,
+    "foot_tables_sha256": "fac1de69369e4b0d4ee808cdd01f62b278d414a2a74f4bde4d65ac1119b5f120"
+   }
+  },
+  "sources": {
+   "panels": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+   "bar": "45719d030359ec7d5d3914af3814d837fdc05d77652ba45c64792b511027528d"
+  }
+ },
+ "key_sha256": "375a7e462da98ec1277d3da6401690172aa526751becf85334368f6d8ea63ff7",
+ "provenance": {
+  "versions": {
+   "python": "3.13.18",
+   "numpy": "2.5.4",
+   "mujoco": "3.10.0",
+   "scipy": "1.18.1",
+   "gymnasium": "1.4.0",
+   "stable-baselines3": "2.9.2",
+   "torch": "2.15.0+cpu"
+  },
+  "git": {
+   "commit": "a6088670f3d453bd18dcd1e4bd10c008b54b7d25",
+   "dirty": false,
+   "dirty_paths": []
+  },
+  "stage1_sources": {
+   "sha256": "b698b59641ebd491c38c6410d871881ab0cc48fb42e5ac1a3eaf4f11c55a60d1",
+   "rule": "sha256 over designlab/stage1/*.py in path order, each file as its path relative to the package, a NUL byte, its bytes and a NUL byte",
+   "files": [
+    "__init__.py",
+    "__main__.py",
+    "control.py",
+    "drive.py",
+    "env.py",
+    "estimator.py",
+    "gates.py",
+    "ledger.py",
+    "legs.py",
+    "metrics.py",
+    "panels.py",
+    "plant.py",
+    "policy.py",
+    "policy_rows.py",
+    "refs.py",
+    "replay.py",
+    "report.py",
+    "speedfit.py",
+    "speedreport.py",
+    "train.py",
+    "transitions.py",
+    "tune.py"
+   ]
+  },
+  "panel_sources": {
+   "sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+   "rule": "sha256 over the modules an episode and its judgement run: the designlab/stage1 modules panels.py imports, followed as tune.TUNER_SOURCES_RULE follows the tuner's (from panels.py and the package's __init__.py, transitively) except env.py and gates.py, and the designlab modules outside designlab/stage1 that these import when they are imported (module level), followed the same way through designlab's own module-level imports (statics, carpet, clearance, sizing, gait, ...; a missing model's rebuild through round2 and pipeline is a function-level import, and plant.verify checks the model against its record's xml_sha256 anyway), each set hashed as plant.SOURCES_RULE hashes files, the module lists recorded beside.  env.py (the PPO environments) and gates.py (the gates) are left out: the panels take from env.py the carpet walk's plan and friction, the push bound, the pile floors' foot tables, the rate residual's bound and the env step, which the key holds by value or by source (RESUME_RULE), and from gates.py only the attribution, whose record holds gates.py's sha256.  So a row added in its own module, or a change to env.py's training code, leaves the R0-R2 records' keys as they are",
+   "modules": [
+    "__init__.py",
+    "control.py",
+    "drive.py",
+    "estimator.py",
+    "legs.py",
+    "metrics.py",
+    "panels.py",
+    "plant.py",
+    "refs.py",
+    "transitions.py",
+    "tune.py"
+   ],
+   "stage1_sha256": "ff1d2726abd72f139c65c69a511ae000901aabe7129433c5214df5ef19a4832f",
+   "designlab_modules": [
+    "__init__.py",
+    "build.py",
+    "carpet.py",
+    "catalog.py",
+    "clearance.py",
+    "envelope.py",
+    "gait.py",
+    "geometry.py",
+    "hardware.py",
+    "mjcf.py",
+    "params.py",
+    "shapes.py",
+    "sizing.py",
+    "skeleton.py",
+    "statics.py",
+    "template.py",
+    "turning.py"
+   ],
+   "designlab_sha256": "60951e5e1892eb874075835d582b8cee00daa0ea2b0c167847da546a5ff1e532",
+   "excluded": [
+    "env.py",
+    "gates.py"
+   ]
+  },
+  "bar_sources": {
+   "sha256": "45719d030359ec7d5d3914af3814d837fdc05d77652ba45c64792b511027528d",
+   "files": {
+    "designlab/stage2/bar.py": "21ac6393a11932ca23746a429c2441d21c7fcfe97643f150d80cf22f24a52ce5",
+    "designlab/stage2/readings.py": "e1ac0446692cda578cddc6598fc888ad33bcbe95d0a16d3dc42cb800c4bf876e",
+    "designlab/stage2/setio.py": "f25d8616e5e79f805cd0deded49cd34f85f1a0dc77a4114dce44b8b0cd354c91",
+    "designlab/stage1/speedfit.py": "f502ec7b255750bb0e64e76c05ed2c14d07fe1c934cf9a766bc1437ed8e09197"
+   },
+   "rule": "a record's key holds what an episode executes: the row's description and sources, the condition, the plan, seconds, seeds and command, omega and crouch_frac, panels.key_context(body), per input file its sha256 and the sha256 of the entry numbers the planner reads (setio.entry_sha256), and the source hashes of the panels' modules and of bar.py, readings.py, setio.py and speedfit.py"
+  }
+ },
+ "set_freeze": {
+  "index": 0,
+  "manifest_sha256": "1a5f606feed7a0287c4d13c23dc7c1a60dc19dbd3e8aecc6057d9e2b450e3d8f"
+ },
+ "sessions": [],
+ "ended_at": "2026-11-15T20:32:53Z",
+ "set_info": {
+  "role": "control",
+  "stand_in_walks": false,
+  "freeze": {
+   "index": 0,
+   "at": "2026-11-15T19:42:40Z",
+   "commit": "8eded6c72b9ea20cdf0ccae58a343bfc2fb38a7e",
+   "manifest_sha256": "1a5f606feed7a0287c4d13c23dc7c1a60dc19dbd3e8aecc6057d9e2b450e3d8f",
+   "change_after_result": null,
+   "after_check_episodes": null,
+   "reason": null,
+   "dirty": false,
+   "mixed_sources": false
+  },
+  "first_freeze": {},
+  "change_after_result": null,
+  "after_check_episodes": null
+ },
+ "change_after_result": null,
+ "stand_in_walks": false,
+ "lead_in": "start_v0.4"
+}
