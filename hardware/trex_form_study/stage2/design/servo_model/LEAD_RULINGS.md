@@ -40,7 +40,7 @@ and is marked so.
     `stage2/jetson75/BENCH_SHEET.md`; the gate draft's sentences on what the bench measures are reworded with them
     once the owner has seen them.
 
-## Second list (16 Nov 2026, 16:00 UTC), after the note's last revision
+## Second list (16 Nov 2026, 15:55 UTC), after the note's last revision
 
 The first list named 18 points; the note's section of open choices holds 27. The rest are ruled here.
 

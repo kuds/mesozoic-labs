@@ -12,7 +12,7 @@ random per run), for gate 1 of `BUY_GATE_DRAFT.md`.
 | `reader2_hardware_facts.md` | Every fact the repository holds on the real actuators of the 75 cm build, the study's own assumptions, and what the bench sheet plans to measure |
 | `reader3_outside_sources.md` | Makers' data and third-party measurements for the build's actuators, how others model such actuators for learned walking, and the ranges they draw from. 33 links, quoted as found and not checked a second time |
 
-**The design note (as of 16 Nov, 16:00 UTC).** `SERVO_MODEL_DESIGN.md` is the note after two independent checks
+**The design note (as of 16 Nov, 15:55 UTC).** `SERVO_MODEL_DESIGN.md` is the note after two independent checks
 and two revisions (834 lines). `REVIEW.md` is the first review of the first version, `FIX_REPORT.md` the first
 revision's report, `RECHECK.md` the second independent check, `FINISH_REPORT.md` the second revision's report, and
 `LEAD_RULINGS.md` the lead's rulings on its open choices. The second check's fixes and the rulings are in the note
