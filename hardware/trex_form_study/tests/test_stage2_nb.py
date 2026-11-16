@@ -33,6 +33,7 @@ import errno
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -487,8 +488,16 @@ def test_the_steps_sheet_quotes_the_programs_own_lines():
     assert all(len(r) <= 115 or r.strip().startswith("https://colab.research.google.com/") for r in rows)
     assert "\t" not in sheet and "DRAFT" in sheet.split("\n\n")[1] and "STILL OPEN IN THIS DRAFT" in sheet
     for field in ("<<C1>>", "<<BUNDLE_ID>>", "<<HASH12>>", "<<N_FILES>>", "<<G8A_STEPS>>", "<<BUDGET_STEPS", "<<RATE>>",
-                  "<<FLOOR>>", "<<MIN_Y1>>", "<<MIN_Y3>>", "<<MIN_Y5>>", "<<MIN_Y6>>", "<<MIN_Y8>>", "<<MIN_LINE4>>"):
+                  "<<FLOOR>>", "<<MIN_Y1>>", "<<MIN_Y3>>", "<<MIN_Y5>>", "<<MIN_Y6>>", "<<MIN_Y8>>", "<<MIN_LINE4>>",
+                  "<<RULES_FILE", "<<RULES_SHA256>>", "<<BACKGROUND", "<<RUNTIME_KEPT"):
         assert field in sheet, field                           # the commit, the bundle, the minutes: placeholders
+    # every field of the text is listed again at the end, for the one who fills them in
+    listed = sheet.split("STILL OPEN IN THIS DRAFT")[1]
+    named = set(re.findall(r"<<([A-Z0-9_]+)", sheet.split("STILL OPEN IN THIS DRAFT")[0]))
+    for name in sorted(named - {"LIKE", "TO"}):               # ("<<LIKE THIS>>"; section 8's "<<TO BE WRITTEN ...>>")
+        assert f"<<{name}" in listed, name
+    assert "section 8's first paragraph" in listed
+    assert "PREREG_TRACKB.md" not in sheet                      # the rules file's name is a field: the text is a draft
     fill = {"<<C1>>": COMMIT, "<<BUNDLE_ID>>": "tb-1", "<<HASH12>>": "0123456789ab", "<<N_FILES>>": "137",
             "<<G8A_STEPS>>": "6000", "<<RATE>>": "560", "<<W>>": "8", "<<VCPUS>>": "8", "<<BUDGET_M>>": "40",
             "<<HOURS>>": "19.8", "<RUN_ID>": "run-1", "<job>": "R5-75-M-H-10-s42", "<k>": "1", "<n>": "3000000",
@@ -530,8 +539,19 @@ def test_the_steps_sheet_quotes_the_programs_own_lines():
                  "S2 WARNING: a copy to Drive failed", "S2 FAILED", "G8a fails: no run", "BELOW FLOOR",
                  "no job is queued until the owner has set", "the rebuild is an allowed fallback",
                  "not made", "not finished", "Google Drive mounted. Stage 2 files are under:",
-                 "Disconnecting runtime in 5 seconds...", "Repository ref: "):
+                 "Disconnecting runtime in 5 seconds...", "Repository ref: ", "S2 launch: UNFINISHED: ",
+                 "NOT ON DRIVE: ", "was not started", "reading from Drive failed", "not on Drive after",
+                 "S2 launch: interrupted by signal ", "stopped with exit code"):
         assert said in source and said in sheet, said
+    assert "RuntimeError: S2 step ... stopped with exit code" in sheet
+    assert "S2 step {step!r} stopped with exit code {code}" in source          # (the cell's own RuntimeError)
+    # the review of 16 Nov: what only Colab does is marked; the resume's two traps; the queue is pasted, not typed
+    for row in ("You can close the tab; the run goes on.", "A lost browser does not end a run (inferred"):
+        assert any(row in r and "(inferred" in r for r in rows), row
+    for word in ("do not type it", "Wait ten\n        minutes, then do 5.4 again", "stay with the page until you have seen line (d)",
+                 'It is fine only if the line that begins "Run directory" said "from 0 steps"',
+                 "Its two numbers are the trainer's own", "leave the old one alone"):
+        assert (word in sheet) == (word != "leave the old one alone"), word
     for word in ("Never change RUN_ID or REPO_REF", "never set TAKEOVER", "(inferred)", "stop and tell me",
                  "s2-launch-1/hardware/trex_form_study/stage2/stage2_training.ipynb", "High-RAM", "220 hours"):
         assert word in sheet, word

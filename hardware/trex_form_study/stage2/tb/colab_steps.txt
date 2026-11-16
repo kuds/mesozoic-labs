@@ -25,7 +25,7 @@ Three rules for the whole sheet:
                 This is REPO_REF in every step below. The same version is also marked with the tag s2-launch-1.
    The inputs:  bundle <<BUNDLE_ID>>, manifest <<HASH12: FIRST 12 CHARACTERS OF THE CONTENT HASH>>,
                 <<N_FILES>> files in <<N_PARTS>> parts.
-   The rules:   fixed before any run, in hardware/trex_form_study/stage2/tb/PREREG_TRACKB.md,
+   The rules:   fixed before any run, in <<RULES_FILE: THE PATH OF THE COMMITTED RULES TEXT>>,
                 sha256 <<RULES_SHA256>>.
    The machine: Runtime type "CPU" with "High-RAM" switched on. No GPU: this training runs on the processor,
                 and a GPU would cost more and add nothing.
@@ -75,9 +75,11 @@ Three rules for the whole sheet:
           USE_GOOGLE_DRIVE      ticked
           AUTO_DISCONNECT       ticked
 
-   3.5  Menu Runtime > Run all.
-        A window asks whether this notebook may access your Google Drive files. Choose "Connect to Google Drive",
-        pick your account, allow. (inferred)
+   3.5  Menu Runtime > Run all. Then stay with the page until you have seen line (d) of 3.6.
+        The second grey box first installs the software. That takes about <<MIN_SETUP>> minutes, and nothing
+        asks you anything meanwhile.                                                                 (inferred)
+        Only after that a window asks whether this notebook may access your Google Drive files. Choose
+        "Connect to Google Drive", pick your account, allow. The run waits for your answer.          (inferred)
         If you refuse by mistake: nothing was written. Run all again and allow it, or tell me.
 
    3.6  Check these lines as they appear, in this order. They come within about <<MIN_SETUP>> minutes.
@@ -146,7 +148,9 @@ Three rules for the whole sheet:
    4.3  In the first grey box set:
           REPO_REF              <<C1>>
           RUN_ID                from the table
-          QUEUE                 from the table, typed exactly, with the square brackets and the quotation marks
+          QUEUE                 from the table. Copy it from this sheet and paste it; do not type it. (A phone
+                                keyboard turns the straight quotation marks into curly ones, and the box then
+                                stops with "SyntaxError".) It keeps its square brackets and quotation marks.
           BUNDLE_ID             <<BUNDLE_ID>>
           BUNDLE_SOURCE         drive
           RESUME                not ticked
@@ -178,10 +182,13 @@ Three rules for the whole sheet:
         running and tell me the line.
         If there is no line 4 after <<MIN_LINE4_LATE>> minutes: tell me the last lines on screen.
 
-   4.6  Leave it running: about <<HOURS_PER_JOB>> hours for each job in QUEUE. You can close the tab; the run
-        goes on. Once a minute it writes its state to
+   4.6  Leave it running: about <<HOURS_PER_JOB>> hours for each job in QUEUE. Once a minute it writes its
+        state to
           My Drive / mesozoic-labs / stage2 / runs / <RUN_ID> / STATUS.json
         A line "S2 LINE 4/4 ..." appears again when the second job of QUEUE starts.
+        You can close the tab; the run goes on.                                                      (inferred)
+        <<BACKGROUND: WHETHER COLAB'S "BACKGROUND EXECUTION" MUST BE SWITCHED ON FOR THAT, AND WHERE. I LOOK AT
+        IT DURING THE SMOKE AND FILL THIS IN. UNTIL IT IS FILLED IN, KEEP THE TAB OPEN.>>
 
    4.7  The end, on screen:
               S2 launch: DONE: the queue is finished
@@ -194,7 +201,7 @@ Three rules for the whole sheet:
 
 5. IF THE BROWSER SHOWS "DISCONNECTED", OR YOU ARE NOT SURE THE RUN IS ALIVE
 
-   A lost browser does not end a run. First look, do not restart.
+   A lost browser does not end a run (inferred; see 4.6). First look, do not restart.
 
    5.1  In Drive open the folder  My Drive / mesozoic-labs / stage2 / runs / <RUN_ID>.
    5.2  If it holds DONE.json or HALT.json: the run is finished. Do not resume. Tell me.
@@ -210,21 +217,27 @@ Three rules for the whole sheet:
    5.5  Expect: lines 1, 2 and 3 as before, and in place of "(new run)" (one line on screen):
               Run directory: /content/drive/MyDrive/mesozoic-labs/stage2/runs/<RUN_ID> (resuming session <k>:
               <job> from <n> steps; <m> jobs done)
-        <k> counts the sessions of this run (1 at the first resume), <n> is where it goes on, <m> is how many
-        jobs of QUEUE were already finished. Then, indented:
-              <job>: resuming session <k>: <job> from <n> steps
-        These are fine and need nothing from you:
-              WARNING: skipping checkpoint <n>: <reason>       the newest save was cut; it uses the one before
-              restarting <job> from step 0                      the run stopped before its first save reached
-                                                                Drive; only that short start is done again
+        <k> counts the sessions of this run (1 at the first resume), <n> is the newest save on your Drive,
+        <m> is how many jobs of QUEUE were already finished. Then, indented, the trainer's own line:
+              <job>: resuming session <j>: <job> from <p> steps
+        Its two numbers are the trainer's own and may differ from the line above: <j> counts the sessions of
+        this one job, and <p> is the save it really goes on from. <p> is <n>, or less than <n> when this line
+        stands before it (the newest save was cut and it uses the one before; that is fine):
+              <job>: WARNING: skipping checkpoint <n>: <reason>
+        One line needs a second look:
+              <job>: restarting <job> from step 0
+        It is fine only if the line that begins "Run directory" said "from 0 steps": the run had stopped
+        before its first save reached Drive, and only that short start is done again. If that line named any
+        other number of steps: stop and tell me. (The program is built to refuse such a start by itself; then
+        you read "S2 launch: UNFINISHED: ... was not started", see 6.)
         Then line 4 again, as in 4.5, and the run goes on as in 4.6.
         Tell me the RUN_ID, the <n> it resumed from, and the time.
    5.6  If instead you read (one line on screen):
               Run directory: /content/drive/MyDrive/mesozoic-labs/stage2/runs/<RUN_ID>: still running
               (LIVE.json written <s> s ago); nothing to do
-        and an error under the box: the run was alive after all. Nothing was changed. Close the new runtime
-        (Runtime > Disconnect and delete runtime) and leave the old one alone. If the same happens again ten
-        minutes later, tell me.
+        and an error under the box: the run was alive less than ten minutes ago. Nothing was changed by this
+        try. If you did 5.4 in the same copy, the runtime that ran it is gone now, and nothing runs. Wait ten
+        minutes, then do 5.4 again. If you read the same line again then, tell me.
 
 
 6. MESSAGES THAT MEAN: STOP AND TELL ME
@@ -241,14 +254,33 @@ Three rules for the whole sheet:
      ... crashed twice ...                        a job failed, was tried once more and failed again
      S2 NOTE: ... counted without a record ...    a check during training left no record
      S2 WARNING: a copy to Drive failed ...       once: nothing to do, it tries again a minute later.
-                                                  Again and again: your Drive may be full. Empty the Drive's
+     S2 WARNING: ... reading from Drive failed    Again and again: your Drive may be full. Empty the Drive's
                                                   bin first (deleted saves stay in the bin), then tell me.
+     S2 WARNING: ... not on Drive after ...       a finished job's last save has not reached your Drive yet.
+                                                  It goes on trying. Tell me at once, and see the next two.
+     S2 launch: UNFINISHED: ...                   the run stopped without its end being written, because your
+                                                  Drive could not be read or written. It can go on later.
+                                                  Tell me at once.
+     S2 FINISH ...: NOT ON DRIVE: ...             the last save of a job is on the machine only, not on your
+                                                  Drive. Tell me at once.
+                                                  <<RUNTIME_KEPT: WHETHER THE MACHINE THEN STAYS UNTIL I HAVE
+                                                  ANSWERED, AND WHAT YOU DO WITH IT. NOT DECIDED YET.>>
+     S2 launch: interrupted by signal ...         the run was stopped from outside (a box was stopped by hand,
+                                                  or the machine was told to stop). It is not finished.
+     RuntimeError: S2 step ... stopped with exit code ...
+                                                  the red text under a box. It only says that a step stopped.
+                                                  The reason is the last line that begins "S2" above it.
+                                                  Send me both.
      S2 FAILED setup: ...                         a software package did not install. Send me everything the
                                                   second grey box printed.
-     Anything in red that is not on this sheet.
+     Anything in red that is not on this sheet. One thing in red is fine: in the second grey box the lines
+     that git writes while it fetches the code ("Cloning into ...", "From https://github.com/...", "HEAD is
+     now at ...") may stand on a red background.                                                     (inferred)
 
    When the notebook has stopped like this and you have sent me the line, you may let the machine go
    (Runtime > Disconnect and delete runtime). What the run had saved is on your Drive and stays there.
+   The one exception is "NOT ON DRIVE" above: if the machine is still there, leave it as it is and wait for my
+   answer.
 
 
 7. FALLBACKS (only when I tell you to use one)
@@ -280,14 +312,16 @@ Three rules for the whole sheet:
    are not from that rehearsal: they are the <<...>> fields.
 
    Inferred (only Colab prints or shows them; I have not seen them): everything marked "(inferred)" above:
-   the "Repository ref" line, the Drive permission window and "Google Drive mounted", "Disconnecting runtime in
-   5 seconds..." and the runtime letting go by itself, "Runtime disconnected", and how soon a file written by the
+   the "Repository ref" line, when the Drive permission window comes and "Google Drive mounted", that a run goes
+   on with the tab closed or the browser lost, "Disconnecting runtime in 5 seconds..." and the runtime letting
+   go by itself, "Runtime disconnected", git's lines on a red background, and how soon a file written by the
    runtime shows in your Drive (the 10 minutes of 5.3).
 
 
 STILL OPEN IN THIS DRAFT (for me, not for you)
 
-   <<C1>> <<BUNDLE_ID>> <<HASH12>> <<N_FILES>> <<N_PARTS>> <<TOTAL_MB>> <<PART NAMES>> <<RULES_SHA256>>
+   <<C1>> <<BUNDLE_ID>> <<HASH12>> <<N_FILES>> <<N_PARTS>> <<TOTAL_MB>> <<PART NAMES>> <<RULES_FILE>>
+   <<RULES_SHA256>> <<BACKGROUND>> <<RUNTIME_KEPT>>
    <<G8A_STEPS>> <<SMOKE_TOTAL_MIN>> <<MIN_SETUP>> <<MIN_Y1>> <<MIN_Y3>> <<MIN_Y5>> <<MIN_Y6>> <<MIN_Y8>>
    <<TABLE OF LAUNCHES>> <<BUDGET_STEPS>> <<RATE>> <<W>> <<VCPUS>> <<BUDGET_M>> <<HOURS>> <<FLOOR>>
    <<MIN_LINE4>> <<MIN_LINE4_LATE>> <<HOURS_PER_JOB>> <<MIN_REBUILD>> <<DATA_REF>>
