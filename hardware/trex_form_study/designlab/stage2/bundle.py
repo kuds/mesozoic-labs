@@ -46,7 +46,9 @@ before it writes anything, a part whose size or sha256 differs, a member that is
 ``content.files``, a member that is no regular file (a link, a directory), a path that leaves the root (absolute,
 with ``..``, or through a symbolic link on the way) and a member whose bytes are not the manifest's; then it writes
 each file through a temporary name (``<name>.tmp`` beside it, ``s2io``'s convention).  A file already there with the
-right sha256 is left untouched, so a second ``unpack`` writes nothing.
+right sha256 is left untouched, so a second ``unpack`` writes nothing.  A record, a manifest, a part or a place that
+cannot be read or is not what it must be is a refusal (``BundleError``; for ``verify`` a reported problem) with its
+path, never another exception.
 
 A relative path given to any function or option is taken from the study directory (``hardware/trex_form_study``),
 never from the working directory (``setio``'s rule).
@@ -188,7 +190,7 @@ def _read_record(root: Path, rel: str, records: dict):
         raise BundleError(f"{rel}: the record cannot be read ({exc.strerror or exc})") from None
     try:
         doc = json.loads(raw)
-    except ValueError as exc:
+    except (ValueError, RecursionError) as exc:  # RecursionError: nested deeper than the parser goes
         raise BundleError(f"{rel}: the record is not JSON ({exc})") from None
     records[rel] = hashlib.sha256(raw).hexdigest()
     return doc
@@ -231,8 +233,11 @@ def _model(body: str, root: Path, lists: dict, records: dict, sources: dict, bad
     for rel, (files, sha) in lists.items():
         for path in (xml, ledger):
             if path in files:
-                held[path][f"{rel}: files"] = files[path]
                 records[rel] = sha
+                if isinstance(files[path], str) and _HEX64.match(files[path]):
+                    held[path][f"{rel}: files"] = files[path]
+                else:
+                    bad.append(f"{rel}: its entry for {path} is no sha256")
     out, packed = dict(case=PurePosixPath(case_rel).name), []
     for key, path in (("xml", xml), ("record", ledger)):
         shas = sorted(set(held[path].values()), key=str)
@@ -260,18 +265,42 @@ def _set(set_name: str, body: str, root: Path, records: dict, sources: dict, bad
     from designlab.stage2 import setio
 
     rel_dir = f"{SETS_DIR}/{set_name}/{body}"
+    names = ("set.json", "refs.json", "transitions.json")
     try:
         docs = setio.load(root / rel_dir)
     except tune.InputError as exc:
         bad.append(f"{rel_dir}: {str(exc).split(': ', 1)[-1]} (set {set_name} of {body})")
         return {}, []
-    for name in ("set.json", "refs.json", "transitions.json"):
+    except (OSError, ValueError, RecursionError) as exc:  # one of the set's records cannot be read as JSON: which
+        found = []
+        for name in (*names, "screen.json"):
+            try:
+                if os.path.lexists(root / rel_dir / name):
+                    _read_record(root, f"{rel_dir}/{name}", {})
+            except BundleError as why:
+                found.append(str(why))
+        bad.extend(found or [f"{rel_dir}: the set's records cannot be read ({exc})"])
+        return {}, []
+    shapes = [f"{rel_dir}/{name}: the record is not a JSON object" for name in names
+              if not isinstance(docs[name], dict)]
+    if shapes:
+        bad.extend(shapes)
+        return {}, []
+    for name in names:
         records[f"{rel_dir}/{name}"] = s2io.sha256_file(root / rel_dir / name)
-    fz = setio.frozen(docs["set.json"])
+    try:
+        fz = setio.frozen(docs["set.json"])
+    except (KeyError, IndexError, TypeError, AttributeError) as exc:
+        bad.append(f"{rel_dir}/set.json: its latest freeze is not {{index, manifest, manifest_sha256}} "
+                   f"({type(exc).__name__}: {exc})")
+        return {}, []
     if fz is None:
         bad.append(f"{rel_dir}/set.json: the set is not frozen (no freeze): a bundle packs a freeze's files only")
         return {}, []
     entries = fz["entries"]
+    if not isinstance(entries, dict):
+        bad.append(f"{rel_dir}/set.json: freeze {fz['index']}'s manifest is not a table of entries")
+        return {}, []
     if s2io.sha256_json(entries) != fz["manifest_sha256"]:
         bad.append(f"{rel_dir}/set.json: freeze {fz['index']}'s manifest_sha256 is not its manifest's")
         return {}, []
@@ -291,7 +320,8 @@ def _set(set_name: str, body: str, root: Path, records: dict, sources: dict, bad
         if why:
             bad.append(f"{rel_dir}/set.json: the frozen name {name!r} {why}")
             continue
-        e = (docs[record].get(key) or {}).get(name)
+        table = docs[record].get(key)
+        e = table.get(name) if isinstance(table, dict) else None
         if not isinstance(e, dict):
             bad.append(f"{path}: in freeze {fz['index']}, and {record} has no entry {name!r}")
             continue
@@ -509,11 +539,12 @@ def _build(bundle_id, bodies, sets, out, part_mb, root) -> tuple[dict, dict]:
                 try:
                     old = s2io.read_json(target)
                     old_digest = content_sha256(old)
-                except (OSError, ValueError, KeyError, TypeError) as exc:
-                    raise BundleError(f"{target} is there and cannot be read as a manifest ({exc}): nothing is "
-                                      "replaced; remove it or give another --out") from None
+                    old_id = old["content"].get("bundle_id")
+                except (OSError, ValueError, KeyError, TypeError, AttributeError, RecursionError) as exc:
+                    raise BundleError(f"{target} is there and cannot be read as a manifest ({type(exc).__name__}: "
+                                      f"{exc}): nothing is replaced; remove it or give another --out") from None
                 if old_digest != digest:
-                    raise BundleError(f"{target} holds bundle {old['content'].get('bundle_id')!r} with the content "
+                    raise BundleError(f"{target} holds bundle {old_id!r} with the content "
                                       f"hash {old_digest[:12]}..., this build gives {digest[:12]}...: a bundle id "
                                       "names one content; nothing is replaced (take another bundle id, or remove "
                                       "the old bundle's directory if it was never quoted)")
@@ -580,7 +611,7 @@ def load(manifest) -> dict:
         doc = json.loads(path.read_bytes())
     except OSError as exc:
         raise BundleError(f"{path}: the manifest cannot be read ({exc.strerror or exc})") from None
-    except ValueError as exc:
+    except (ValueError, RecursionError) as exc:  # RecursionError: nested deeper than the parser goes
         raise BundleError(f"{path}: the manifest is not JSON ({exc})") from None
     if not isinstance(doc, dict):
         raise BundleError(f"{path}: the manifest is not a JSON object")
@@ -609,7 +640,7 @@ def manifest_problems(doc) -> list[str]:
         out.append("MANIFEST: content holds no bundle_id")
     try:
         digest = s2io.sha256_json(content)
-    except TypeError as exc:
+    except (TypeError, ValueError, RecursionError) as exc:  # no JSON value in it, or nested too deep
         return out + [f"MANIFEST: the content block cannot be hashed ({exc})"]
     if doc.get("content_sha256") != digest:
         out.append(f"MANIFEST: content_sha256 is {str(doc.get('content_sha256'))[:12]}..., the content block's hash "
@@ -647,7 +678,8 @@ def _file_ok(e) -> bool:
 # ------------------------------------------------------------------------------------------------
 def verify(manifest, root, parts_dir=None) -> dict:
     """Re-hash every file of the manifest under ``root`` and, with ``parts_dir``, every part there.  Never raises on
-    a difference (a manifest that cannot be read is one): the caller prints the result.
+    a difference (a manifest that cannot be read is one, and so is a file or a part that cannot be looked at): the
+    caller prints the result.
 
     ``manifest``: the document or the path of ``MANIFEST.json``.  Returns ``{ok, bundle_id, content_sha256,
     files_ok, files, parts_ok, parts, first_problem, problems}``: ``files_ok`` of ``files`` files are under ``root``
@@ -672,14 +704,14 @@ def verify(manifest, root, parts_dir=None) -> dict:
         out["bundle_id"] = content["bundle_id"]
     try:
         out["content_sha256"] = s2io.sha256_json(content) if content else None
-    except TypeError:
+    except (TypeError, ValueError, RecursionError):
         pass
 
     def check(path: Path, label: str, e: dict) -> bool:
-        if not path.is_file():
-            problems.append(f"{label}: missing" if not os.path.lexists(path) else f"{label}: not a file")
-            return False
-        try:
+        try:  # is_file itself raises where the file cannot be looked at (a mount that went away)
+            if not path.is_file():
+                problems.append(f"{label}: missing" if not os.path.lexists(path) else f"{label}: not a file")
+                return False
             got, n = _hash(path)
         except OSError as exc:
             problems.append(f"{label}: cannot be read ({exc.strerror or exc})")
@@ -711,17 +743,21 @@ def _dest(root_real: str, rel: str) -> Path:
     symbolic link on the way), a directory stands at the file's place or something that is no directory stands
     where one of its directories must be."""
     dest = Path(root_real) / rel
-    parent = os.path.realpath(dest.parent)
-    if os.path.commonpath([root_real, parent]) != root_real:
-        raise BundleError(f"{rel}: its directory resolves to {parent}, outside the root {root_real} (a symbolic "
-                          "link on the way): it would leave the root")
-    if dest.is_dir() and not dest.is_symlink():
-        raise BundleError(f"{rel}: a directory stands at {dest}")
-    above = dest.parent
-    while not os.path.lexists(above) and above != above.parent:
-        above = above.parent
-    if not above.is_dir():
-        raise BundleError(f"{rel}: {above} is in its way and is no directory")
+    try:
+        parent = os.path.realpath(dest.parent)
+        if os.path.commonpath([root_real, parent]) != root_real:
+            raise BundleError(f"{rel}: its directory resolves to {parent}, outside the root {root_real} (a symbolic "
+                              "link on the way): it would leave the root")
+        if dest.is_dir() and not dest.is_symlink():
+            raise BundleError(f"{rel}: a directory stands at {dest}")
+        above = dest.parent
+        while not os.path.lexists(above) and above != above.parent:
+            above = above.parent
+        if not above.is_dir():
+            raise BundleError(f"{rel}: {above} is in its way and is no directory")
+    except OSError as exc:
+        raise BundleError(f"{rel}: its place {dest} cannot be looked at ({exc.strerror or exc}); nothing is "
+                          "unpacked") from None
     return dest
 
 
@@ -735,9 +771,10 @@ def unpack(manifest, parts_dir, root, *, parts=None) -> dict:
     problem (``manifest_problems``), a part that is missing or whose size or sha256 differs, and whatever
     ``scan_part`` refuses in a part (a member that is not one of the part's files in ``content.files``, a link or a
     directory, an absolute path or one with ``..``, a member with other bytes, a missing file); also a file whose
-    directory under ``root`` resolves outside it or cannot be made.  Then each file is written beside its place as ``<name>.tmp``,
-    flushed, compared once more with the manifest and moved into place.  A regular file already there with the
-    manifest's sha256 is left untouched, so a second call writes nothing.
+    directory under ``root`` resolves outside it or cannot be made, and a part or a place that cannot be looked at
+    (every such refusal is a ``BundleError``, never an ``OSError``).  Then each file is written beside its place as
+    ``<name>.tmp``, flushed, compared once more with the manifest and moved into place.  A regular file already
+    there with the manifest's sha256 is left untouched, so a second call writes nothing.
 
     Returns ``{ok: True, bundle_id, content_sha256, root, parts, files, written, replaced, left}``: the part names
     unpacked, the number of their files, and the paths written new, written over another file, and left."""
@@ -761,9 +798,13 @@ def unpack(manifest, parts_dir, root, *, parts=None) -> dict:
     dests = {}
     for name in names:  # every part and every member, before anything is written
         want, path = content["parts"][name], pdir / name
-        if not path.is_file():
-            raise BundleError(f"{name}: missing in {pdir}; nothing is unpacked")
-        got, n = _hash(path)
+        try:  # is_file itself raises where the part cannot be looked at (a mount that went away)
+            if not path.is_file():
+                raise BundleError(f"{name}: missing in {pdir}; nothing is unpacked")
+            got, n = _hash(path)
+        except OSError as exc:
+            raise BundleError(f"{name}: cannot be read in {pdir} ({exc.strerror or exc}); nothing is "
+                              "unpacked") from None
         if n != want["bytes"] or got != want["sha256"]:
             raise BundleError(f"{name}: {n} bytes and sha256 {got[:12]}..., the manifest holds {want['bytes']} and "
                               f"{want['sha256'][:12]}...; nothing is unpacked")

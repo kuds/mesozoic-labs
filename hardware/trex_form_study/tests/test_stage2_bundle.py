@@ -10,6 +10,7 @@ real frozen set skip where those git-ignored files are not here.  No test opens 
 from __future__ import annotations
 
 import copy
+import errno
 import hashlib
 import importlib.util
 import io
@@ -424,6 +425,10 @@ def _freeze_lists(name, kind):
     return lambda t: _edit(t / SETD / "set.json", lambda d: _refreeze(d, lambda m: m.update({name: row})))
 
 
+def _list_holds_no_sha256(t):
+    _edit(t / bundle.INPUT_LISTS[0], lambda d: d["files"].update({f"{MODEL_A}.json": ["0" * 64]}))
+
+
 #: what is spoiled in the tree -> (how, the start of the refusal's sentence about it)
 REFUSALS = {
     "a missing model file": (lambda t: (t / f"{MODEL_A}.json").unlink(), f"{MODEL_A}.json: missing"),
@@ -444,6 +449,31 @@ REFUSALS = {
     "a frozen entry with no record": (_freeze_lists("ghost", "turn"), f"{SETD}/transitions/ghost.npz: in freeze 1"),
     "a frozen entry of no kind": (_freeze_lists("odd", "dance"), f"{SETD}/set.json: freeze 1 lists 'odd'"),
     "a frozen name that is a path": (_freeze_lists("../../x", "walk"), "the frozen name '../../x' holds '..'"),
+    # records that are not what they must be: each a refusal with the record's path, never another exception
+    "a set record that is not JSON": (lambda t: (t / SETD / "set.json").write_text("{not json"),
+                                      f"{SETD}/set.json: the record is not JSON"),
+    "a move record that is not JSON": (lambda t: (t / SETD / "transitions.json").write_text("{not json"),
+                                       f"{SETD}/transitions.json: the record is not JSON"),
+    "a set record nested too deep": (lambda t: (t / SETD / "set.json").write_text("[" * 100_000 + "]" * 100_000),
+                                     f"{SETD}/set.json: the record is not JSON"),
+    "a set record that is a list": (lambda t: (t / SETD / "set.json").write_text("[1]"),
+                                    f"{SETD}/set.json: the record is not a JSON object"),
+    "a walk record that is a list": (lambda t: (t / SETD / "refs.json").write_text("[1]"),
+                                     f"{SETD}/refs.json: the record is not a JSON object"),
+    "a freeze without its index": (lambda t: _edit(t / SETD / "set.json", lambda d: _latest(d).pop("index")),
+                                   f"{SETD}/set.json: its latest freeze is not"),
+    "a freeze that is a number": (lambda t: _edit(t / SETD / "set.json", lambda d: d.update(freezes=[3])),
+                                  f"{SETD}/set.json: its latest freeze is not"),
+    "freezes that are a table": (lambda t: _edit(t / SETD / "set.json", lambda d: d.update(freezes={"a": 1})),
+                                 f"{SETD}/set.json: its latest freeze is not"),
+    "a freeze whose manifest is a list": (
+        lambda t: _edit(t / SETD / "set.json",
+                        lambda d: _latest(d).update(manifest=[1], manifest_sha256=s2io.sha256_json([1]))),
+        f"{SETD}/set.json: freeze 1's manifest is not a table"),
+    "a record whose table is a list": (lambda t: _edit(t / SETD / "refs.json", lambda d: d.update(references=[1])),
+                                       f"{SETD}/refs/nominal.npz: in freeze 1, and refs.json has no entry"),
+    "a list that holds no sha256": (_list_holds_no_sha256,
+                                    f"{bundle.INPUT_LISTS[0]}: its entry for {MODEL_A}.json is no sha256"),
 }
 
 
@@ -526,6 +556,19 @@ def test_a_file_that_changes_while_it_is_packed_is_refused(tree, tmp_path, monke
     with pytest.raises(bundle.BundleError, match=f"models-T-B.tar.tmp: member '{changed}' has 30000 bytes and sha256"):
         bundle.build("t1", BODIES, sets=("SX",), out=tmp_path / "out", root=tree)
     assert _files_under(tmp_path / "out") == []  # not the parts written before it either
+
+
+def test_build_refuses_a_file_that_is_no_manifest_at_its_place(tree, tmp_path):
+    """An existing ``MANIFEST.json`` that cannot be read as a manifest is refused with a sentence (never another
+    exception) and left as it is; no part is written beside it."""
+    texts = ('{"content": [1]}', "[1]", "{not json", '"x"', '{"content": {"bundle_id": 3}}', '{"content": "abc"}',
+             "[" * 100_000 + "]" * 100_000)
+    for i, text in enumerate(texts):
+        out = tmp_path / f"out{i}"
+        _put(out / "MANIFEST.json", text.encode())
+        with pytest.raises(bundle.BundleError, match="cannot be read as a manifest|a bundle id names one content"):
+            bundle.build("t1", BODIES, sets=(), out=out, root=tree)
+        assert _files_under(out) == ["MANIFEST.json"] and (out / "MANIFEST.json").read_text() == text
 
 
 def test_a_second_build_leaves_the_manifest_and_another_content_is_refused(built, tree, tmp_path):
@@ -655,6 +698,11 @@ def test_verify_never_raises_on_a_bad_manifest(built, tmp_path):
     junk.write_text("{not json")
     listy = tmp_path / "list.json"
     listy.write_text("[1, 2]")
+    deep = tmp_path / "deep.json"  # nested too deep to be parsed
+    deep.write_text("[" * 100_000 + "]" * 100_000)
+    nested = tmp_path / "nested.json"  # the manifest itself with a value in its content nested too deep to be hashed
+    nested.write_text(json.dumps(dict(doc, content=dict(doc["content"], extra=0)))
+                      .replace('"extra": 0', '"extra": ' + "[" * 3000 + "]" * 3000))
 
     def edited(change):
         d = copy.deepcopy(doc)
@@ -665,6 +713,7 @@ def test_verify_never_raises_on_a_bad_manifest(built, tmp_path):
 
     cases = [
         (tmp_path / "nothing.json", "MANIFEST: "), (junk, "MANIFEST: "), (listy, "MANIFEST: "), (3.5, "MANIFEST: "),
+        (deep, "MANIFEST: "), (nested, "MANIFEST: "),
         ({}, "MANIFEST: schema"), (dict(doc, schema="s2-bundle-1"), "MANIFEST: schema 's2-bundle-1'"),
         (dict(doc, content=None), "MANIFEST: no content block"),
         (dict(doc, content_sha256="0" * 64), "MANIFEST: content_sha256"),
@@ -688,10 +737,60 @@ def test_verify_never_raises_on_a_bad_manifest(built, tmp_path):
         assert got["ok"] is False and text in got["first_problem"], (text, got["first_problem"])
         assert set(got) == {"ok", "bundle_id", "content_sha256", "files_ok", "files", "parts_ok", "parts",
                             "first_problem", "problems"}
-        if isinstance(manifest, dict) and manifest:  # and unpack refuses the same manifests, before writing
-            with pytest.raises(bundle.BundleError):
-                bundle.unpack(manifest, out / "parts", tmp_path / "never")
+        with pytest.raises(bundle.BundleError):  # and unpack refuses the same manifests, before writing
+            bundle.unpack(manifest, out / "parts", tmp_path / "never")
     assert _files_under(tmp_path / "never") == []
+
+
+def _gone(path: Path):
+    """What a file on a mount that went away gives: an error that is not "no such file"."""
+    raise OSError(errno.ENOTCONN, "Transport endpoint is not connected", str(path))
+
+
+def test_a_part_that_cannot_be_read_is_reported_and_refused(built, tmp_path, monkeypatch):
+    """A part whose stat or read fails with another error than "no such file" (a Drive mount that went away):
+    ``verify`` reports it with the part's name and counts on, ``unpack`` refuses with a sentence and writes nothing;
+    neither ends in another exception."""
+    tree, out, doc = built
+    part = out / "parts" / PART
+    is_file, hash_ = Path.is_file, bundle._hash
+    patches = ((Path, "is_file", lambda self, **kw: _gone(self) if self == part else is_file(self, **kw)),
+               (bundle, "_hash", lambda path: _gone(path) if Path(path) == part else hash_(path)))
+    for target, name, fake in patches:
+        with monkeypatch.context() as m:
+            m.setattr(target, name, fake)
+            got = bundle.verify(doc, tree, out / "parts")
+            with pytest.raises(bundle.BundleError) as exc:
+                bundle.unpack(doc, out / "parts", tmp_path / "never")
+        assert got["problems"] == [f"{PART}: cannot be read (Transport endpoint is not connected)"], name
+        assert not got["ok"] and got["parts_ok"] == got["parts"] - 1 and got["files_ok"] == got["files"]
+        assert str(exc.value).startswith(f"{PART}: cannot be read ") and "nothing is unpacked" in str(exc.value)
+    assert _files_under(tmp_path / "never") == []
+    # a file under the root likewise
+    lost = tree / FIRST
+    with monkeypatch.context() as m:
+        m.setattr(Path, "is_file", lambda self, **kw: _gone(self) if self == lost else is_file(self, **kw))
+        got = bundle.verify(doc, tree)
+    assert got["problems"] == [f"{FIRST}: cannot be read (Transport endpoint is not connected)"]
+    assert got["files_ok"] == got["files"] - 1
+
+
+def test_unpack_refuses_a_place_it_cannot_look_at(built, tmp_path, monkeypatch):
+    """A file's place under the root that cannot be looked at (a directory on the way that may not be searched) is a
+    refusal with the path, before anything is written."""
+    tree, out, doc = built
+    root, is_dir = tmp_path / "unpacked", Path.is_dir
+    place = Path(os.path.realpath(root)) / FIRST
+
+    def fake(self, **kw):
+        if self == place:
+            raise PermissionError(errno.EACCES, "Permission denied", str(self))
+        return is_dir(self, **kw)
+
+    monkeypatch.setattr(Path, "is_dir", fake)
+    with pytest.raises(bundle.BundleError, match=f"{FIRST}: its place .* cannot be looked at .Permission denied"):
+        bundle.unpack(doc, out / "parts", root)
+    assert _files_under(root) == []
 
 
 def test_a_part_that_changes_while_it_is_unpacked_is_refused(built, tmp_path, monkeypatch):
