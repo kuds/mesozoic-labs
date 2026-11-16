@@ -14,31 +14,38 @@ baseline R6, the refitted tracker R2L, the gates G8a and G9, the monitor and the
 the Drive bundle and the day-one smoke; its section L holds the rules by which the look is carried through moves and the
 look sets are built. Sections A, B, C, H and R of `STAGE2_75_PLAN.md` apply to every body and set as S2-16 extends them;
 this text adds to them and names every place where it departs. It is self-contained: every formula, scale and number a
-rule needs is in it, and the designs that explain them (session notes of 14 and 15 Nov) are not in the repository. It
-was written from the architect's second draft, made after three independent reviews of the design, with the rulings that
-the study's lead gave on 15 Nov 2026 on every point that draft had left open: each ruling stands in the rule it settles,
-marked "[lead, 15 Nov, before any Track B run]", and the section "Settled by the lead" lists them. The text was then
-reviewed independently. What the review found wrong in wording, labels, arithmetic or cross-references is corrected
-here, and the last paragraph of "Settled by the lead" says where. The review also left 25 points on which it asked for a
-decision that nobody had made. The commit that adds this file (15 Nov 2026, 03:34 UTC) holds them in a closing section,
-"Open for the lead", each with the reviewers' proposed wording. The lead ruled on every one of them on 15 Nov 2026,
-after that commit and before any closed-loop episode on a look set, any fit and any training run of Track B: they too
-are rules fixed before results. Each settled wording stands in the rule it settles, marked
-"[settled 15 Nov, before any Track B run]", and the last section, "Settled by the lead on 15 Nov 2026, before any Track
-B run (second list)", lists the 25 by point. Some of them change or refine an earlier ruling of the lead and say so
-where they stand: the learning rate is one per body (O3; the ruling of 02:45 UTC had one rate for every body and head);
-inside a move the feet are flat while the gait is changing (L10 and L11; the choice of 02:45 UTC read "inside every
-move"); and the fallback of join rule J1 has one cut, taken per body (L12 and L13; the choice of 02:45 UTC had two cuts
-in order, for a V6 move). The settled wording of section L (points 4, 5 and 6) was fixed after the look work package's
-first kinematic numbers existed, which the next heading describes, and is labelled so. On 16 Nov 2026 the lead settled
-ten conflicts between rules that the writing-in of the second list had left (the third list), again before any Track B
-run, fit or training run and before any look set was frozen; the 75 cm round's panels and their add-on had run by then.
-Each of those wordings stands in its rule, marked "[settled 16 Nov 2026, before any Track B run]", and the amendment
-that closes the last section lists the ten. Paths are relative to `hardware/trex_form_study/`. A rule changed after a
-result is labelled so. Check: the commit that adds this file, the commit that adds the settled wording and the last of
-the commits that add the wording settled on 16 Nov 2026 are ancestors of the commit named in every Track B record
-(`sessions[].commit`, or `commit` in a gate's, a probe's or a fit's record) and in every look set's `freezes[].commit`
-that a Track B record uses.
+rule needs is in it, and the designs that explain them (session notes of 14 and 15 Nov) are working papers and no rules
+[dated 16 Nov 2026, ruling 13 of the fourth list: "are working papers and no rules" corrects the committed "are not in
+the repository", which was so when this file was committed; the working branch has held them since commit `a0314fc` (15
+Nov 2026, 03:56 UTC), as `stage2/design/ROUND_A_DESIGN.md` and `stage2/design/ROUND_C_DESIGN.md`]. It was written from
+the architect's second draft, made after three independent reviews of the design, with the rulings that the study's lead
+gave on 15 Nov 2026 on every point that draft had left open: each ruling stands in the rule it settles, marked "[lead,
+15 Nov, before any Track B run]", and the section "Settled by the lead" lists them. The text was then reviewed
+independently. What the review found wrong in wording, labels, arithmetic or cross-references is corrected here, and the
+last paragraph of "Settled by the lead" says where. The review also left 25 points on which it asked for a decision that
+nobody had made. The commit that adds this file (15 Nov 2026, 03:34 UTC) holds them in a closing section, "Open for the
+lead", each with the reviewers' proposed wording. The lead ruled on every one of them on 15 Nov 2026, after that commit
+and before any closed-loop episode on a look set, any fit and any training run of Track B: they too are rules fixed
+before results. Each settled wording stands in the rule it settles, marked "[settled 15 Nov, before any Track B run]",
+and the last section, "Settled by the lead on 15 Nov 2026, before any Track B run (second list)", lists the 25 by point.
+Some of them change or refine an earlier ruling of the lead and say so where they stand: the learning rate is one per
+body (O3; the ruling of 02:45 UTC had one rate for every body and head); inside a move the feet are flat while the gait
+is changing (L10 and L11; the choice of 02:45 UTC read "inside every move"); and the fallback of join rule J1 has one
+cut, taken per body (L12 and L13; the choice of 02:45 UTC had two cuts in order, for a V6 move). The settled wording of
+section L (points 4, 5 and 6) was fixed after the look work package's first kinematic numbers existed, which the next
+heading describes, and is labelled so. On 16 Nov 2026 the lead settled ten conflicts between rules that the writing-in
+of the second list had left (the third list), again before any Track B run, fit or training run and before any look set
+was frozen; the 75 cm round's panels and their add-on had run by then. Each of those wordings stands in its rule, marked
+"[settled 16 Nov 2026, before any Track B run]", and the first of the two amendments that close the last section lists
+the ten. Later on 16 Nov 2026 the lead ruled on fourteen points that the review of that writing-in had handed up (the
+fourth list), and the reward's and the training env's wording was brought to what the env's code does, under ruling 13
+of the third list. Both were written in before any Track B run, fit or training run and with no look set frozen; by then
+the env's builders had played references kinematically and stepped the env on Stage 1's arrays and on the frozen 75 cm
+set `V0`, none of it a record ("What had been run"). Those wordings carry the same mark, and the second amendment lists
+them. Paths are relative to `hardware/trex_form_study/`. A rule changed after a result is labelled so. Check: the commit
+that adds this file, the commit that adds the settled wording and the last of the commits that add the wording settled
+on 16 Nov 2026 are ancestors of the commit named in every Track B record (`sessions[].commit`, or `commit` in a gate's,
+a probe's or a fit's record) and in every look set's `freezes[].commit` that a Track B record uses.
 
 ## What had been run when these rules were fixed
 
@@ -79,8 +86,9 @@ that a Track B record uses.
   its citation convention by the lead.
 - When the second list was settled, later on 15 Nov 2026: the lead's rulings are headed "Fixed before any closed-loop
   episode on a look set, any fit and any training run of Track B". When their wording was written into this text (03:43
-  UTC) no look set had been frozen: the one look set on disk, `V6` on `75-M-H-10` in the look work package's worktree,
-  had a `set.json` with `freezes` empty.
+  UTC, as this text had it; the paragraph that closes the second list gives the three times on file) no look set had
+  been frozen: the one look set on disk, `V6` on `75-M-H-10` in the look work package's worktree, had a `set.json` with
+  `freezes` empty.
 - When the third list was settled, on 16 Nov 2026 (`stage2/design/TRACKB_RULINGS3_16NOV.md`): no Track B run, fit or
   training run had been made, and no look set was frozen (when the wording was written in, the look work package's
   builds of `V6` and `V6noF5`, in its own worktree on branch `wt/wp-l`, had `set.json` files with `freezes` empty, and
@@ -93,6 +101,21 @@ that a Track B record uses.
   plans episodes and runs none. It was also made once on the look work package's unfrozen build of `V6noF5`, as a probe
   that is no record (Q5). For L13 the arrays of that work package's unfrozen turn in place were read (prescribed
   motion).
+- When the fourth list was settled, later on 16 Nov 2026 (`stage2/design/TRACKB_RULINGS4_16NOV.md`), and when ruling 13
+  of the third list was written in with it: no Track B run, fit or training run had been made and no look set was
+  frozen, as that list states. When the wording was written in, the working branch held no look set, and its
+  `stage2/tb/` directory held one ignore file and no record; the look work package's five builds of `V6` and `V6noF5`
+  (branch `wt/wp-l` at `e2696b2`, in its own worktree) had `set.json` files with `freezes` empty. No dry run was made
+  for the fourth list: Q5's planning figures are those of the third list's writing-in. The reward's and the env's
+  wording is the env work package's file `stage2/design/CE_RULE_WORDING.md`, read on branch `wt/wpc-ce` at commit
+  `cd32e19` (the branch moved there from `cdc4762` while the wording was being written in, and the newer text is
+  followed). That file says what its builders ran for it: no training run, no policy episode and no panel; kinematic
+  playbacks (a script's own poses written into the plant's data, no physics step) on Stage 1's stock arrays of
+  `75-M-H-10` and on the frozen set `V0` of `75-M-H-10`; on Stage 1's arrays, resets and a few env steps of the zero
+  action or of noise actions; and, under X1 as lifted, gate G8a's comparison on `V0` for one condition (`walk/v0.4`,
+  seed 3042, at 0 and at 6 ms: 2 of 2 episodes identical), a smoke that wrote no file. None of it is a record and none
+  is on a look set. The author of this writing-in ran none of it. The numbers that W1, W3, W5, E4 and E5 quote from that
+  file are from those playbacks and readings, and are labelled where they stand.
 - Scratch experiments of 15 Nov on Stage 1's own run directory (`stage1/runs/2026-11-08`: stock references, no Stage 2
   set), by the architect and by the three reviewers of the design, on a stub env (Stage 1's env with the open-loop base
   in place of the tracker; Stage 1's observation and reward), one to six episodes per setting. They are scratch: none is
@@ -211,9 +234,14 @@ arrays when the design was written and are no record.
   for the two legs coming within 3 mm of each other, and a training episode ends when they overlap at two readings in a
   row.
 - **Settled on 16 Nov 2026.** Writing those answers in left ten places where two rules disagreed. The lead settled them
-  on 16 Nov 2026, again before any Track B run (the amendment that closes the last section lists them), and this brief
-  was changed where an answer touched it: the two exceptions to "not available" under the look choices, and the caps
-  under "Compute".
+  on 16 Nov 2026, again before any Track B run (the first of the two amendments that close the last section lists them),
+  and this brief was changed where an answer touched it: the two exceptions to "not available" under the look choices,
+  and the caps under "Compute". Later that day the lead settled fourteen smaller points that the check of that
+  writing-in had left, and the wording of the training reward and of the training setup was brought to what the code
+  does; both before any Track B run (the second amendment lists them). For you to know from these: no cap under
+  "Compute" has a number yet; if a body's start still fails, the lead decides on that body's other look sets; the head
+  script's gaze now stays within 0.45 rad and its jaw opens to at most 0.45 rad, so that the head keeps a margin from
+  its joint limits; and in a turn in place the heading the controller is asked to hold is the reference's own.
 
 ## Words, names and tags
 
@@ -223,8 +251,11 @@ As `STAGE2_75_PLAN.md`, whose list of words stands, with these additions.
   rule n, and S2-4 its go or no-go run. "Decision n" is `STAGE1_PLAN.md`'s. S1 and S1b are the Stage 1 and 1b reports.
   "Lesson n" is `LESSONS_LEARNED.md` section 3's. [look] is `stage2/research/research_look.md`. C8 and "rule R4" are
   rules of `STAGE2_75_PLAN.md`, and a rule of that text is cited with its file wherever it could be mistaken for one of
-  this text's. "The design" is the session notes of 14 and 15 Nov behind these rules; they are not in the repository,
-  and each rule states its content in full. Tracks C and D are the plan's agility tests and its hardware levers.
+  this text's. "The design" is the session notes of 14 and 15 Nov behind these rules; they are working papers and no
+  rules, and each rule states its content in full [dated 16 Nov 2026, ruling 13 of the fourth list: "they are working
+  papers and no rules" corrects the committed "they are not in the repository"; the working branch has held them since
+  commit `a0314fc`: `stage2/design/ROUND_A_DESIGN.md`, whose section 3.9 is the look in moves, and
+  `stage2/design/ROUND_C_DESIGN.md`]. Tracks C and D are the plan's agility tests and its hardware levers.
 - **Controllers (rows).** R5: the learned controller, the plan's judged policy (plan B.1). R6: the policy-only baseline.
   R0: the panels' open-loop row; R0L: that row in Stage 2, which is R5's zero action. R2: Stage 1's balance tracker;
   R2L: R2 refitted with servo delay in its mix. R5G: R5 on an expressive head with the bar's head script (E5). A "policy
@@ -274,7 +305,9 @@ As `STAGE2_75_PLAN.md`, whose list of words stands, with these additions.
   from the plan or from another rule the tag goes on "; differs:" and names what it departs from, and the rule's text
   says what was ruled. **[look choice]** marks a choice about the look that the lead made on 15 Nov 2026, before any
   look set was built, and that the owner is told about (the brief above). **[design]** marks a rule taken from the
-  design of 14 Nov that the lead let stand. The rulings are session notes, not in the repository.
+  design of 14 Nov that the lead let stand. The rulings are the working paper `stage2/design/TRACKB_RULINGS_15NOV.md`
+  [dated 16 Nov 2026, ruling 13 of the fourth list: this sentence corrects the committed "The rulings are session notes,
+  not in the repository."; the working branch has held the paper since commit `a0314fc`].
   **[settled 15 Nov, before any Track B run]** stands directly before wording that the study's lead settled on 15 Nov
   2026, after this file's commit, on one of the 25 points that the independent review of this text had left for the lead
   ("point n of the second list"; the last section lists them); the wording so marked runs to the end of its paragraph or
@@ -282,14 +315,27 @@ As `STAGE2_75_PLAN.md`, whose list of words stands, with these additions.
   cell, the mark follows it and names the phrase; in a rule's tags the mark names what was settled in that rule. Where
   such a ruling changes or refines an earlier ruling of the lead, the mark or the sentence after it says so; in section
   L the mark also says that the wording was settled after the look work package's first kinematic numbers existed. Those
-  rulings too are session notes. **[settled 16 Nov 2026, before any Track B run]** stands in the same way before wording
-  that the lead settled on 16 Nov 2026, on one of ten conflicts between rules that the writing-in of the second list had
-  left ("ruling n of the third list": the amendment that closes the last section lists them, and the rulings are
-  `stage2/design/TRACKB_RULINGS3_16NOV.md`, rulings 1 to 10). Where it follows the wording it names it, and a sentence
-  that it replaces is quoted once. In section L it also says that the look work package had built look sets by then
-  (prescribed motion; none frozen). **[differs: C7]**, **[differs: A8, A11]**, **[differs: B6 and T1]** and **[differs:
-  rule R4's wording]** are departures from those rules of `STAGE2_75_PLAN.md` (T1 is this text's). Every rule ends with
-  "Check:", the record field or file a reviewer compares with it.
+  rulings are the working paper `stage2/design/TRACKB_RULINGS2_15NOV.md` [dated 16 Nov 2026, ruling 13 of the fourth
+  list: this sentence corrects "Those rulings too are session notes."; the working branch has held the paper since
+  commit `a0314fc`]. **[settled 16 Nov 2026, before any Track B run]** stands in the same way before wording that the
+  lead settled on 16 Nov 2026, on one of ten conflicts between rules that the writing-in of the second list had left
+  ("ruling n of the third list": the first of the two amendments that close the last section lists them, and the rulings
+  are `stage2/design/TRACKB_RULINGS3_16NOV.md`, rulings 1 to 10). Where it follows the wording it names it, and a
+  sentence that it replaces is quoted once. In section L it also says that the look work package had built look sets by
+  then (prescribed motion; none frozen). The same mark stands on two later sets of wording of 16 Nov 2026, which the
+  second amendment lists. One is the lead's fourteen rulings on what the review of the third list's writing-in handed up
+  ("ruling n of the fourth list"; `stage2/design/TRACKB_RULINGS4_16NOV.md`). The other is the reward's and the env's
+  wording, written in under ruling 13 of the third list from the env work package's file
+  `stage2/design/CE_RULE_WORDING.md` as branch `wt/wpc-ce` holds it at commit `cd32e19` ("wording entry n" is that
+  file's entry n). There the mark also says whether the env's code was changed with the wording, and by which commit of
+  that branch. That file labels every entry as a wording change made before any training run, and says that no training
+  run, policy episode or panel was run for it; its entries were written after the env's builders had played references
+  kinematically and stepped the env on Stage 1's arrays and on the frozen set `V0` ("What had been run"), and a number
+  quoted from that file is theirs and is labelled so. **[dated 16 Nov 2026, ruling n of the fourth list]** stands after
+  a sentence of 15 Nov that rulings 13 and 14 of the fourth list correct or complete, and quotes the sentence as it was.
+  **[differs: C7]**, **[differs: A8, A11]**, **[differs: B6 and T1]** and **[differs: rule R4's wording]** are
+  departures from those rules of `STAGE2_75_PLAN.md` (T1 is this text's). Every rule ends with "Check:", the record
+  field or file a reviewer compares with it.
 
 ## E. The controllers
 
@@ -1869,8 +1915,9 @@ run".
 
 Each item names the sentence of `STAGE2_PLAN.md` that it replaces or makes precise. "[lead]" marks an item the lead
 ruled on at 02:45 UTC (the section "Settled by the lead"), "[settled]" an item or a clause that rests on a ruling of the
-second list (the last section), "[settled 16 Nov]" one that rests on a ruling of the third list (the amendment that
-closes that section). Items 7, 25, 27, 28, 29 and 30 also name rules of `STAGE2_75_PLAN.md`.
+second list (the last section), "[settled 16 Nov]" one that rests on a ruling of the third or the fourth list, or on the
+wording written in under ruling 13 of the third list (the two amendments that close that section). Items 7, 25, 27, 28,
+29 and 30 also name rules of `STAGE2_75_PLAN.md`.
 
 1. E6 [lead]: in plan B.4, "It runs `designlab/stage1/train.py`, extended with R5 and R6, a picklable schedule, ..." is
    replaced: the notebook runs the new module `designlab/stage2/train2.py`, which has those abilities, and `train.py` is
@@ -1883,14 +1930,17 @@ closes that section). Items 7, 25, 27, 28, 29 and 30 also name rules of `STAGE2_
 2. E3, W5 [lead]: plan B.1's "Inputs: Stage 1's deployable ones (`env.py:138`), the last three actions and, on `-X`, the
    head command" gains one input, the heading error. B.1's "Reward: Stage 1's (`REWARD_RULE`) plus foot and contact
    imitation, head attitude in the world, action rate, impact, and neck and tail torque over their limit" gains three
-   terms: `progress`, `heading`, `range`.
+   terms: `progress`, `heading`, `range`. W5 [settled 16 Nov]: `progress` is the shortfall against the reference's own
+   mean speed, where it was read against the constant 1.05 x the commanded speed.
 3. W4 [settled]: the same sentence of B.1 gains a fourth term, a leg-to-leg interference penalty, and an episode ends on
    interference at two consecutive env-step ends (plan section 5 judges interference in the turn item only). [NEW;
    accepted by the lead: point 3 of the second list]
 4. W3: within the same sentence, two of Stage 1's reward terms are read differently (`clearance`; the band of `duty`).
+   W3 [settled 16 Nov]: `clearance` times each swing by the reference's swing in progress, and `duty` reads a foot only
+   where the reference's own support share lies inside the band.
 5. E4, W2: plan B.1's "commanded by speed and yaw rate" is made precise: the policy's command input is piecewise
    constant on the reference clock, while the tracking reward keeps Stage 1's target, the reference's own speed and yaw
-   rate.
+   rate. E4 [settled 16 Nov]: in the two turn-in-place tasks the commanded heading is the reference's own yaw.
 6. T2 [lead]: in plan B.1's "References (the approved look): walks at nominal and 0.30–0.50 m/s, walking turns at
    0.35–1.0 rad/s, the 0.5 rad/s turn in place, their starts, two-step stops and changes", the walking turns are the
    finite 90 degree turns and no periodic walking-turn gait is built or trained; a set without the turn in place may be
@@ -1998,7 +2048,7 @@ closes that section). Items 7, 25, 27, 28, 29 and 30 also name rules of `STAGE2_
     cut 3, taken for a body [differs: A8, A11]; under cut 3, B6's "2 strides of `v0.4` (2.5 for the right turn)" and
     "2.5 strides of `v0.4`", and T1's, read one window of `v0.4` and half a stride for a right-foot command [differs: B6
     and T1]. L12 [settled 16 Nov]: A8's "A failed `start` or `nominal_to_v0.4` stops the set and goes to the lead"
-    stands on a look set.
+    stands on a look set; whether that body's other look sets are then frozen is the lead's decision.
 31. "Not run in this round" [settled]: the list drops nothing of plan section 6. Its "at most 8 fine-tunes of 5M" and
     its "Freed hours go to fine-tunes, then third seeds for the head comparison" stand outside this text: a fine-tune
     runs under plan 4 D and section 6, by rule K8, and third seeds only from freed hours.
@@ -2010,8 +2060,10 @@ ruling. The lead ruled on every one of them at 02:45 UTC on 15 Nov 2026, before 
 before any look set was built, and so before any Track B episode, fit or training run on a Stage 2 set: they are rules
 fixed before results. Each line below says what was decided and, after its last colon, in which rule the wording now
 stands; there it is marked "[lead, 15 Nov, before any Track B run]", or "[look choice]" in section L. The rulings
-themselves are session notes, not in the repository. A later answer is added as an amendment with its date; one given
-after a result is labelled so.
+themselves are the working paper `stage2/design/TRACKB_RULINGS_15NOV.md` [dated 16 Nov 2026, ruling 13 of the fourth
+list: this sentence corrects the committed "The rulings themselves are session notes, not in the repository.", which was
+so when this file was committed; the working branch has held the paper since commit `a0314fc` (15 Nov 2026, 03:56 UTC)].
+A later answer is added as an amendment with its date; one given after a result is labelled so.
 
 1. The further route to a gain when the survival route is closed is ruled in, as drafted, labelled as differing from
    S2-10; a "no gain" goes to the owner with the per-term failure table of both rows, whatever term it rests on: M3b,
@@ -2094,11 +2146,13 @@ each with what was unsettled and with the reviewers' proposed wording. The lead 
 are rules fixed before results. Each line below says what was decided and, after its last colon, in which rule the
 wording now stands; there it is marked "[settled 15 Nov, before any Track B run]". Where the lead accepted a proposed
 text word for word, the rule holds that text; where the lead gave another wording or chose one of two proposals, the
-rule holds that. The rulings themselves are session notes, not in the repository. Points 4, 5 and 6 are about section L
-and were settled after the look work package's first kinematic numbers existed ("What had been run"): each settled
-wording says so. Six rulings change, refine or make precise an earlier ruling or look choice of the lead (the first
-list): points 4, 5, 6, 8, 11 and 17; each says so in its rule and in its line below. A later answer is added as an
-amendment with its date; one given after a result is labelled so.
+rule holds that. The rulings themselves are the working paper `stage2/design/TRACKB_RULINGS2_15NOV.md` [dated 16 Nov
+2026, ruling 13 of the fourth list: this sentence corrects "The rulings themselves are session notes, not in the
+repository."; the working branch has held the paper since commit `a0314fc`]. Points 4, 5 and 6 are about section L and
+were settled after the look work package's first kinematic numbers existed ("What had been run"): each settled wording
+says so. Six rulings change, refine or make precise an earlier ruling or look choice of the lead (the first list):
+points 4, 5, 6, 8, 11 and 17; each says so in its rule and in its line below. A later answer is added as an amendment
+with its date; one given after a result is labelled so.
 
 1. G9-ref on `V6noF5`: part (b) makes no hash and no toe-off comparison with the ladder and records the toe-off as "not
    read"; bob, head and tail are compared with the same body's V6 set's own playback; part (c)'s flat-feet playback
@@ -2187,8 +2241,11 @@ are the author's: the paragraphs that quote a rule's committed wording and say w
 which the ruling names no limits; in L10, the account of what stands of the committed rule; in L13, the review's note on
 the look work package's first version; the pointers in E2, T1, T2, M3, M4, Q1, Q6 and Y10 to wording settled in another
 rule; in "Not run in this round", the words "while the gait is changing"; in the brief, the sentence on a 75 cm run
-stopped while ahead in the printed count, which follows from M3b and M5. The time of day of the second list's rulings is
-not given in this text.
+stopped while ahead in the printed count, which follows from M3b and M5. As written with the second list, this paragraph
+ended: "The time of day of the second list's rulings is not given in this text." [dated 16 Nov 2026, ruling 14 of the
+fourth list] Three times are on file for the second list, all of 15 Nov 2026, and no rule depends on them: its working
+paper `stage2/design/TRACKB_RULINGS2_15NOV.md` is headed 03:50 UTC; this text says that its wording was written in at
+03:43 UTC ("What had been run"); and the commit that wrote it in, `984f81d`, is dated 04:01:56 UTC by git.
 
 **Amendment of 16 Nov 2026: the third list.** Writing the second list in left ten places where two rules disagreed, or
 where a rule disagreed with `STAGE2_75_PLAN.md`
@@ -2198,7 +2255,8 @@ look set was frozen; the 75 cm round's panels and their add-on had run ("What ha
 was decided and, after its last colon, in which rule the wording now stands; there it is marked
 "[settled 16 Nov 2026, before any Track B run]". Rulings 2, 3 and 4 are about section L and were settled after the look
 work package had built look sets (prescribed motion; none frozen): each settled wording says so. Rulings 11 to 13 of
-that file are about the policy files and the reward's wording and are not written in here.
+that file are about the policy files and the reward's wording and are not written in here [ruling 13 was written in
+later on 16 Nov 2026: the next amendment].
 
 1. Which runs are judged: every run of the Colab queue that passed G8a, at its last kept checkpoint, whatever ended it.
    S2-4 and the local 60 cm run are not runs of the queue, and their checkpoints are never judged on the panels. This
@@ -2220,8 +2278,8 @@ that file are about the policy files and the reward's wording and are not writte
 6. The panel records of each R2L row, and the re-runs of `R2/42` and `R2/43` beside the candidate's row, each get a cap:
    1.5 times the bar runner's dry-run total at the committed rates, per set and body, counted in the bar's own
    `budget.json`; the 6, 4 and 0 ms records are cut first, in that order, and the 10 ms records never. The dry runs'
-   commands and numbers stand in the rule; the `V6noF5` numbers are estimates from stand-in rows: Q5, with a pointer in
-   Q6.
+   commands and numbers stand in the rule; the `V6noF5` numbers are estimates from stand-in rows [those numbers went
+   with ruling 1 of the fourth list: the next amendment]: Q5, with a pointer in Q6.
 7. An attempt at a check is logged before the monitor starts and closed with its exit code. M1's "once" counts closed
    attempts that left no record: after two the check counts as without a gain and as a failed G8b reading. An attempt
    never closed is an interruption, which K5's resume runs again and which does not count. This makes precise point 9 of
@@ -2261,5 +2319,118 @@ changes, and its stop and turns from their command)"), and the note on L10's cau
 account. Seen in that review and left as written: this text calls the lead's rulings of 15 Nov session notes that are
 not in the repository (the Tags entry, and the two sections that list them); the working branch has held both lists as
 working papers since commit `a0314fc` (`stage2/design/TRACKB_RULINGS_15NOV.md`,
-`stage2/design/TRACKB_RULINGS2_15NOV.md`). The points of that review that need a decision are with the lead and are not
-written in.
+`stage2/design/TRACKB_RULINGS2_15NOV.md`) [those sentences were corrected later on 16 Nov 2026, by ruling 13 of the
+fourth list: the next amendment]. The points of that review that need a decision are with the lead and are not written
+in.
+
+**Amendment of 16 Nov 2026: the fourth list, and ruling 13 of the third list.** The independent review of the third
+list's writing-in and the fix round after it handed fourteen points up to the lead
+(`stage2/design/checkpoint/reviews/trackb_rules3__review.md` and `trackb_rules3__fix.md`; the paragraph above calls them
+"with the lead"). The lead ruled on all fourteen on 16 Nov 2026 (`stage2/design/TRACKB_RULINGS4_16NOV.md`), before any
+Track B run, fit or training run and with no look set frozen ("What had been run"). Each line below says what was
+decided and, after its last colon, in which rule the wording now stands; there it carries the mark
+"[settled 16 Nov 2026, before any Track B run]" and names its ruling of the fourth list. Rulings 5, 6, 7 and 12 are
+about section L and were settled after the look work package had built look sets (prescribed motion; none frozen): each
+settled wording says so. Rulings 1 and 2 were given after the dry runs' planning figures existed (Q5; no episode). By
+that list, a later review's points of wording alone are fixed by the fixer and listed, and only a point that changes
+what a rule decides comes back to the lead.
+
+1. Where a cap's number comes from: each cap is 1.5 times the bar runner's dry-run total on the frozen set itself, the
+   60 cm body's included, committed before that row's first panel record. No number is fixed now, and the stand-in
+   numbers are gone. This makes precise ruling 6 of the third list: Q5, with the brief and a word in Q6's Check.
+2. How a cap is spent: by the bar's own unit rule, the units in the order 10, 0, 4, 6 ms; fall attribution, which the
+   dry-run total does not hold, runs last and is cut first; one run directory and one `budget.json` per cap; the 10 ms
+   unit always fits its cap, so "never cut" holds. This makes precise ruling 6 of the third list: Q5.
+3. K5's resume keeps the attempts logged for a check on the checkpoint it resumes from, so that M1's count of closed
+   attempts survives a resume. This makes precise ruling 7 of the third list: K5, with a pointer in M4.
+4. Three cases of M1 and M4. The 18 episodes of a check counted without a record are *errors*. After two attempts at one
+   check that were never closed, the run halts and goes to the lead. A record of a check is a `monitor_<n>.json` that
+   names the checkpoint's hashes and holds an outcome for all 18 episodes: M1, with pointers in M4 and K5.
+5. L8's Check says what is equal: on the shared strides the move's times and slow variations are the window's, and its
+   frames are read by the join gates: L8.
+6. A stance is flat when it ends after the instant and no later than the end of the move's last ramp. The Check reads
+   the lift-off `foot_pitch` and `rolling` before a change's instant as gait a's spec gives them on the move's own step
+   times. This makes precise ruling 3 of the third list and point 6 of the second: L10, L11.
+7. The set whose `start` or `nominal_to_v0.4` fails holds no freeze. Whether that body's other look sets are frozen is
+   then the lead's decision, recorded with its date and reason; no rule freezes or blocks them by itself. This makes
+   precise ruling 4 of the third list: L12, and the brief.
+8. The bar's reading is printed beside the companion's on stop items only, walks and turns having no reading 1 in the
+   bar's own record; on any other set the companion's counts equal the bar's. This makes precise ruling 5 of the third
+   list: U4.
+9. "The share" that a reported cell's estimate is held against is 4.0 core-hours less everything the fit has spent. This
+   makes precise ruling 9 of the third list: Q5.
+10. The owner's answer to a failed Y4 is the field `budget_set_on` beside `budget_by: owner`, written when the queue is
+    made and before its first job starts; the "(...)" in Y11's quotation of its committed sentence stays. This makes
+    precise ruling 8 of the third list: Y10, Y11.
+11. "The Colab queue" is the jobs of a launch's `QUEUE.json`; not the smoke's jobs, N5's tiny jobs or K3's two runs.
+    This makes precise ruling 1 of the third list: M5.
+12. L11's "every move" gains "but the turn in place's start and stop (L13)", in the rule and in its Check. This follows
+    ruling 2 of the third list: L11.
+13. The sentences of 15 Nov that say a ruling or a design is "not in the repository" are corrected by a dated sentence
+    where they stand, and each old sentence is kept as a quotation: the Status; "Words, names and tags" (the entry on
+    documents, and the Tags entry twice); the opening paragraphs of the two sections that list the rulings of 15 Nov.
+14. Three times are on file for the second list. One dated sentence states them as the files and git give them, and no
+    rule depends on them: the paragraph that closes the second list, with a pointer in "What had been run".
+
+Passed by the lead to the look work package, and no ruling: its `moves_look.py` still builds L10 as first committed, and
+its entries hold no `move.command_phase` for `start` and `nominal_to_v0.4`. It is brought to L10 as settled (ruling 3 of
+the third list and ruling 6 above) in its next round. L10's and L11's Checks name `move.command_phase` as before.
+
+Ruling 13 of the third list: the reward's and the env's wording. It was written in from
+`stage2/design/CE_RULE_WORDING.md` as branch `wt/wpc-ce` holds it at commit `cd32e19`. That file gives, entry by entry,
+an old sentence of this text and its replacement, with a label that says whether the env's code was changed with it.
+Each entry stands in its rule with the mark, the entry's number and that label, and each replaced sentence is quoted
+once. For W1 the entry holds the lead's ruling of 16 Nov 2026 (03:02 UTC; `stage2/design/checkpoint/STATUS.md`): rule E4
+stays in walking turns, a playback's heading penalty is not zero there, the tracking figure is scoped to the two sets it
+was measured on, and every penalty is "below 1e-4". By entry, with the rule after the colon:
+
+- Entries 1a and 1b, which instant the reward reads and what a playback scores; code unchanged: W1.
+- Entries 2a and 2b, `duty`'s own row and the Check's `reward_rule`; code unchanged: W2.
+- Entries 3a, 3b and 3c, clause (a) of `clearance`, `duty`'s formula with the reference's own share, and the target
+  speed; code unchanged by 3a and 3b, changed with 3c (commit `0dc39b8`): W3.
+- Entries 4a, 4b and 4c, `progress`, `heading` and the closing sentences; code unchanged by 4a and by 4b's wrap and
+  `yaw_home`, changed for the turn in place and for the head command (entries 5a and 6a): W5.
+- Entries 5a, 5b and 5c, the commanded heading in the two turn-in-place tasks; code changed (commit `0dc39b8`): E4, and
+  T1's row and Check.
+- Entries 6a, 6b and 6c, the gaze and jaw ranges and what the head command is added to in R6; code changed for the
+  ranges (commit `ad64656`), unchanged by 6c: E5 and J4, with a pointer in E2.
+- Entries 7a, 7b and 7c, the holds of `stop` and `start_stop`, the `stand` task's plan, and when a head event starts;
+  code unchanged: T1 and J4.
+- Entry 8, how the env decides on a later freeze, and four keys in the Check; code changed (commits `d1e667c`, `011f6e2`
+  and `4523ed6`): K4.
+- Entry 9 asks for no wording: X1's first sentence has held the lifting since ruling 10 of the third list.
+- Entry 10, the estimator's first reading at a mid-task start; code changed (commit `225f4b3`): T3.
+
+What that wording rests on. The wording file states that no training run, no policy episode and no panel was run for it.
+Its reasons are kinematic playbacks, and resets and a few env steps, on Stage 1's arrays and on the frozen set `V0`
+("What had been run"): prescribed motion or a few steps, none a record and none on a look set. The wording was therefore
+changed before any Track B run and after those readings, and is labelled so here. Several entries change what a rule
+says the reward, the command or a start is, to what the env's code computes: clause (a) of `clearance`, `duty`,
+`progress`, the commanded heading in a turn in place, the head script's and the training events' ranges, and the
+mid-task start. The wording file gives the lead's rulings on the env's reviews as the ground for each. Two of them
+change something the lead had accepted on 15 Nov, and say so where they stand: head script H1's two ranges (E5), and the
+reading of `progress` (W5).
+
+What else changed in this text with the fourth list and with ruling 13; this paragraph is the author's and not the
+lead's wording. The branch `wt/wpc-ce` moved from `cdc4762` to `cd32e19` while the wording was being written in: entries
+3a, 3b and 8 gained words and entry 9 was withdrawn, and the newer text is the one written in. These follow the settled
+wording and are the author's: the sentences added to the Status, the bullet in "What had been run", the Tags entry, the
+brief's sentences, the change list's clauses, and the additions to the "Check:" lines. In Q5: the reading of the case in
+which S2-9 asks for the three other delays after the 10 ms records exist, the reading that the candidate's two caps are
+made again like every other, the table of planning figures (the third list's, less the stand-in rows, with the unfrozen
+build's figure moved into it), and the account of what went. In M1: the note on what follows from the three sentences of
+ruling 4. In M4: the clause on the table, and the sentence on what the decision is a function of, which follows rulings
+3 and 4. In K5: the reading of the two cases in which a due check without a record is not run, in place of a caveat that
+ruling 3 answered (the caveat said that the reading held only if the attempts were kept). In Y10: the note on what
+"queued" means where the owner's answer lets the smoke pass. In U4's Check: that on every other item the companion's
+count stands alone. In L11: the repeat of L10's boundary. In L12's Check: the item on the lead's decision. In E2: the
+pointer to E5. In W1, W3, W5, E4, E5 and T1: the accounts of where a number comes from and of how a sentence read as
+committed. In X1: no second sentence on the lifting.
+
+Seen while this was written in, and left as written. Join rule J1 says that a move's warm-up stride, its initial state
+and its `join_command` frames "are the window resampled on the move's phase grid". Read as what the builder starts from,
+this agrees with L8's Check as settled and with L10; its own Check already reads `join_command` within A6's limits. No
+ruling names J1. With the lead, because they change what a rule decides: the case in Q5 in which S2-9 asks for the three
+other delays after a row's cap has been committed (written in as the author's reading: the dry run is made again with
+all four delays, and the cap is 1.5 times its total from then on); and whether "no number is fixed now" holds for the
+candidate's two caps on `F25F9cl` too (written in as: yes).
