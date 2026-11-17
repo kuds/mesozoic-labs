@@ -372,7 +372,10 @@ and nothing has to be run again under S2-17's last sentence. State B is the comm
 the `row_sources` of Track B's rows. From state B until the Colab phases end none of them changes without the
 affected rows being run again into a new directory. A fast test asserts that no round-A or Stage 1 file differs
 from state A (`git diff --stat <state A> -- designlab/stage1 designlab/stage2/{bar,readings,setio,s2io,moves,sets,
-setscreen,barreport}.py` is empty).
+setscreen,barreport}.py` is empty). [Amended 17 Nov 2026, ruling 27 of `ROUND_C_RULINGS_17NOV.md`: `barreport.py`
+and `sets.py` leave the test's list. The working branch changed the first for the 75 cm round's tables, and the look
+sets' work package added the look sets' registry and builder to the second. Neither is in any record's key, so
+`bar_sources()` and `panels.panel_sources()` are unchanged, and the round's three sets verify as before.]
 
 **D19. The notebook is thin and runs nothing heavy in the kernel** (`stage2/stage2_training.ipynb`; section 3.9).
 Each code cell calls one step of `python -m designlab.stage2.nb` in a subprocess whose environment the cell passes

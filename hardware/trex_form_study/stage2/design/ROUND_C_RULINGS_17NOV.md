@@ -188,3 +188,11 @@ Ruled before any look set is frozen and before any closed-loop episode on one.
     failed; `tail_phase.json` is rebuilt on a clean tree before anything is frozen (nothing is frozen from a
     dirty tree); the moves test writes into its tmp path. Finding 10 (the 60 cm change to 0.40 m/s) is not
     diagnosed and goes to the owner with its numbers after the rebuild if it still fails (ruling 18).
+27. **`sets.py` leaves D18's state-A test (on merging the look sets, 17 Nov 2026, ~06:45 UTC).** The look sets'
+    package adds the look sets' registry (`LOOK_SETS`) and their builder to `sets.py`, which D18's fast test
+    (`tests/test_stage2_lookbar.py`) lists among the files that must equal state A. D18 exists so that no record
+    key moves and state-A records stay comparable. `sets.py` is in no record key: the bar's and the panels' source
+    hashes stay the registered pair, and `sets verify` on V0, F25F9 and F25F9cl gives the same counts as before
+    (ruling 24). So `sets.py` leaves the test's list with this reason, as `barreport.py` did. The other files of
+    the list stay; `moves.py` is unchanged by the package. D18's text in `ROUND_C_DESIGN.md` carries the
+    amendment. The next independent check of a round C package reads this change.

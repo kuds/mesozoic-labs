@@ -2000,6 +2000,19 @@ column of `q`: a dip follows each touchdown of the plan by `settle_lag`.
 fraction of the swing, with `lift_peak` sampled at the swing's lift-off. Check: on the arrays (`feet`, `swing_u`), each
 swing's highest point falls at `lift_peak` of the swing.
 
+**L1 and L4 in a start.** [settled 17 Nov 2026, before any look set was frozen and before any closed-loop episode on
+one; labelled as changed after a result: on every look set and body the look start passed its entry gates and went
+over the knee's Stage 0 speed limit (75 cm: 1.126 of the limit; 60 cm: 1.234), because its first swing lifts a flat foot
+from an almost straight stand with the look walk's short swing and low lift peak; ruling 18 of
+`stage2/design/ROUND_C_RULINGS_17NOV.md`] In a start, whose gait a is the stand, each swing's lift law (L4: the lift
+profile and its `lift_peak`) and its duty (L1) mix the law of Stage 1's start for that body into the look walk's by the
+start's amplitude ramp `amp`, sampled at the swing's lift-off: at `amp` 0 a swing is Stage 1's, at `amp` 1 the look
+walk's. So the first swings are the stand's and the last are the look's. Nothing else of the start changes, and no
+other move is touched by this paragraph. All six look sets are built again under it, the 75 cm bodies first; a set
+whose start still fails is not frozen and goes to the owner with its numbers (L12, A8). Check: the entry's `move.rules`
+names the rule; on the arrays, each swing of a start has the duty and lift peak that this mix gives at its lift-off;
+the start's knee speed ratio is in the set's records.
+
 **L5. Bob (F1 and F2; fields `bob`, `bob_skew`, `bob_drop`).** [design; NEW] The pelvis height is `z = root0_z - amp x
 (crouch + bob(p) x gait.bob_profile(tau))`: `root0_z` is the home height, tau the fraction of the interval between the
 plan's consecutive touchdowns, and the trough is placed by `gait.bob_trough`. The bob's amplitude mixes with the ramp's
@@ -2078,6 +2091,12 @@ and at the command equal the look walk's, the test that before the instant of a 
 the law of the walk it leaves, read as the item above reads it [settled 16 Nov 2026, before any Track B run: these two
 tests, in place of one test "that the frames before the instant (in a causal move, before and at the command) equal the
 look walk's"], and the test that the move's last frame equals the walk's first, `foot_pitch` included.
+
+[settled 17 Nov 2026, after the look work package built sets (prescribed motion; none frozen), before any Track B run;
+ruling 25 of `stage2/design/ROUND_C_RULINGS_17NOV.md`; the reading the builder built, which this rule did not state]
+The toes-up reach of F5 (`toe_reach`) after a change's instant: a swing that lands at or before the instant keeps gait
+a's reach; a later swing has a reach only when both the stance it leaves and the stance it lands in follow a walk's law.
+Otherwise it has none.
 
 **Windows.** [design; settled 15 Nov, before any Track B run, after the look work package's first kinematic numbers
 existed: a nudge's onset] With F14 a look walk's file holds a window of K whole strides that is periodic as a whole (9
