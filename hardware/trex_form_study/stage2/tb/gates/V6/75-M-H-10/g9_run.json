@@ -1,7 +1,7 @@
 {
  "schema": "s2-gate-g9-run-1",
  "gate": "G9-run",
- "rule": "STAGE2_TRACKB_PLAN rule Z2, G9-run (after R0L's records of that set and body): (d) every episode of the body's R0L@10ms records holds every reading of its item and, where its window was reached, a finite look reading, and every 10 ms bar record holds both toe-clearance readings; (e) for the 60 cm body and head the re-run Stage 1b 10 ms turn episodes of 60-N-T-10 are trace-identical to their committed records (the bar's re-read record, cited).  If (d) or (e) fails, no training run of that body and head starts.  This module's own reading, which is not the rule's wording: every companion record of R0L@10ms under the bar's out directory is read with the bar record it names (its sha256 checked); every bar episode must have run (no error) and hold a success value for every term its record lists (and every term of reading 3); a companion episode must be read or fell; a walk or turn episode that reached its window must hold the four look numbers of the robot, finite.  The two toe-clearance readings are the own-swing reading (toe_clearance_own_swing_m) and Stage 1's reference-clock reading (stage1_toe_clearance_m), finite in every walk and turn episode of every 10 ms bar record that reached its window (a record none of whose episodes reached it is listed).  The records expected are those of every gated condition the set holds a reference for, and walk/nominal.  (e) cites the reread record given: schema bar-reread-1 of 60-N-T-10, its rows all 10 ms rows (names ending @10ms) and its conditions all turns (keys beginning turn/), complete, every trace equal; the -X head cites the plain body's.",
+ "rule": "STAGE2_TRACKB_PLAN rule Z2, G9-run (after R0L's records of that set and body): (d) every episode of the body's R0L@10ms records holds every reading of its item and, where its window was reached, a finite look reading, and every 10 ms bar record holds both toe-clearance readings; (e) for the 60 cm body and head the re-run Stage 1b 10 ms turn episodes of 60-N-T-10 are trace-identical to their committed records (the bar's re-read record, cited).  If (d) or (e) fails, no training run of that body and head starts.  This module's own reading, which is not the rule's wording: the companion record of R0L@10ms under the bar's out directory of every expected condition is read with the bar record it names (its sha256 checked); every bar episode must have run (no error) and hold a success value for every term its record lists (and every term of reading 3); a companion episode must be read or fell; a walk or turn episode that reached its window must hold the four look numbers of the robot, finite.  The two toe-clearance readings are the own-swing reading (toe_clearance_own_swing_m) and Stage 1's reference-clock reading (stage1_toe_clearance_m), finite in every walk and turn episode of every 10 ms bar record that reached its window (a record none of whose episodes reached it is listed).  The records expected are those of every gated condition the set holds a reference for, and walk/nominal; an expected record that is absent, or whose bar record is not done, fails (d).  A companion of any other condition is not read for (d) and fails nothing: one whose bar record is \"not run\" with no episode (rule H3: a reference marked not available leaves its conditions not run) is listed as not run, any other as not expected (the lead's ruling 42 of 17 Nov 2026: a code error, the rule unchanged; as first built every companion there was read).  (e) cites the reread record given: schema bar-reread-1 of 60-N-T-10, its rows all 10 ms rows (names ending @10ms) and its conditions all turns (keys beginning turn/), complete, every trace equal; the -X head cites the plain body's.",
  "body": "75-M-H-10",
  "set": "V6",
  "block": "seeds3042",
@@ -213,82 +213,6 @@
      "problems": [],
      "ok": true
     },
-    "turn/q90_left": {
-     "companion": {
-      "path": "stage2/tb/bar/r0l/V6/75-M-H-10/seeds3042/look/R0L@10ms/turn/q90_left.json",
-      "sha256": "f9ba4d025a1bf0616443abe0b16e9634f43c8a5551d667e7f96cbb3d35408b01"
-     },
-     "bar_record": {
-      "path": "V6/75-M-H-10/seeds3042/eval/R0L@10ms/turn/q90_left.json",
-      "sha256": "2d471bbb47a6d07258ea797a8a46bfbe6bfbfe60922b7346beaee35a5f1fc3da",
-      "key_sha256": "492b8510c2887b97eecaef0c7bfcacbf3cb0db980d576b0905da8162d6d3b7cd",
-      "status": "not run"
-     },
-     "judge": "bar_turn",
-     "episodes": 0,
-     "outcomes": {},
-     "problems": [
-      "its bar record is 'not run', not done"
-     ],
-     "ok": false
-    },
-    "turn/q90_left_mu0.54": {
-     "companion": {
-      "path": "stage2/tb/bar/r0l/V6/75-M-H-10/seeds3042/look/R0L@10ms/turn/q90_left_mu0.54.json",
-      "sha256": "fb173160dc8944aac95bab305c720ee99ac40d08c385c3f6041cdfbf2a801e48"
-     },
-     "bar_record": {
-      "path": "V6/75-M-H-10/seeds3042/eval/R0L@10ms/turn/q90_left_mu0.54.json",
-      "sha256": "37846dedcde2ea2bc4f67aa3c87322af22ef4053e04b70b2ea4102e0af22c88c",
-      "key_sha256": "aa740712a850a147aac9645ee15007fb962da7afd99e62068aeb4a08f00f27f9",
-      "status": "not run"
-     },
-     "judge": "bar_turn",
-     "episodes": 0,
-     "outcomes": {},
-     "problems": [
-      "its bar record is 'not run', not done"
-     ],
-     "ok": false
-    },
-    "turn/q90_right": {
-     "companion": {
-      "path": "stage2/tb/bar/r0l/V6/75-M-H-10/seeds3042/look/R0L@10ms/turn/q90_right.json",
-      "sha256": "6382949bebd7736f2f3b0cce0586f3e96677f4f8ddfe7ef461f5c022efe677df"
-     },
-     "bar_record": {
-      "path": "V6/75-M-H-10/seeds3042/eval/R0L@10ms/turn/q90_right.json",
-      "sha256": "a74be892593834960ac62f7ef205cbfaba6b9464e933b3f5f96609b781a16e7f",
-      "key_sha256": "061e7ed6f9cb3e72f476e68b8cc1875c8097b981211ae2c4c005ea480adcfd58",
-      "status": "not run"
-     },
-     "judge": "bar_turn",
-     "episodes": 0,
-     "outcomes": {},
-     "problems": [
-      "its bar record is 'not run', not done"
-     ],
-     "ok": false
-    },
-    "turn/q90_right_mu0.54": {
-     "companion": {
-      "path": "stage2/tb/bar/r0l/V6/75-M-H-10/seeds3042/look/R0L@10ms/turn/q90_right_mu0.54.json",
-      "sha256": "3d494bfdd86d1d5b3cfc5f167761d58b5fa1872eb16fb4d06ddfb7e72e4c5870"
-     },
-     "bar_record": {
-      "path": "V6/75-M-H-10/seeds3042/eval/R0L@10ms/turn/q90_right_mu0.54.json",
-      "sha256": "896ee673b9b394123bddb14ddc50fdf007b710cd4a68fe44666a5edbce293f91",
-      "key_sha256": "89489e707d21556001616c2bac0acf7c1739f945351ff14e902e3c0d9084dc8d",
-      "status": "not run"
-     },
-     "judge": "bar_turn",
-     "episodes": 0,
-     "outcomes": {},
-     "problems": [
-      "its bar record is 'not run', not done"
-     ],
-     "ok": false
-    },
     "walk/nominal": {
      "companion": {
       "path": "stage2/tb/bar/r0l/V6/75-M-H-10/seeds3042/look/R0L@10ms/walk/nominal.json",
@@ -347,6 +271,77 @@
      "ok": true
     }
    },
+   "not_run": {
+    "turn/q90_left": {
+     "companion": {
+      "path": "stage2/tb/bar/r0l/V6/75-M-H-10/seeds3042/look/R0L@10ms/turn/q90_left.json",
+      "sha256": "f9ba4d025a1bf0616443abe0b16e9634f43c8a5551d667e7f96cbb3d35408b01"
+     },
+     "bar_record": {
+      "path": "V6/75-M-H-10/seeds3042/eval/R0L@10ms/turn/q90_left.json",
+      "sha256": "2d471bbb47a6d07258ea797a8a46bfbe6bfbfe60922b7346beaee35a5f1fc3da",
+      "key_sha256": "492b8510c2887b97eecaef0c7bfcacbf3cb0db980d576b0905da8162d6d3b7cd",
+      "status": "not run"
+     },
+     "status": "not run",
+     "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit",
+     "episodes": 0,
+     "bar_episodes": 0,
+     "own_sha256_ok": true
+    },
+    "turn/q90_left_mu0.54": {
+     "companion": {
+      "path": "stage2/tb/bar/r0l/V6/75-M-H-10/seeds3042/look/R0L@10ms/turn/q90_left_mu0.54.json",
+      "sha256": "fb173160dc8944aac95bab305c720ee99ac40d08c385c3f6041cdfbf2a801e48"
+     },
+     "bar_record": {
+      "path": "V6/75-M-H-10/seeds3042/eval/R0L@10ms/turn/q90_left_mu0.54.json",
+      "sha256": "37846dedcde2ea2bc4f67aa3c87322af22ef4053e04b70b2ea4102e0af22c88c",
+      "key_sha256": "aa740712a850a147aac9645ee15007fb962da7afd99e62068aeb4a08f00f27f9",
+      "status": "not run"
+     },
+     "status": "not run",
+     "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit",
+     "episodes": 0,
+     "bar_episodes": 0,
+     "own_sha256_ok": true
+    },
+    "turn/q90_right": {
+     "companion": {
+      "path": "stage2/tb/bar/r0l/V6/75-M-H-10/seeds3042/look/R0L@10ms/turn/q90_right.json",
+      "sha256": "6382949bebd7736f2f3b0cce0586f3e96677f4f8ddfe7ef461f5c022efe677df"
+     },
+     "bar_record": {
+      "path": "V6/75-M-H-10/seeds3042/eval/R0L@10ms/turn/q90_right.json",
+      "sha256": "a74be892593834960ac62f7ef205cbfaba6b9464e933b3f5f96609b781a16e7f",
+      "key_sha256": "061e7ed6f9cb3e72f476e68b8cc1875c8097b981211ae2c4c005ea480adcfd58",
+      "status": "not run"
+     },
+     "status": "not run",
+     "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit",
+     "episodes": 0,
+     "bar_episodes": 0,
+     "own_sha256_ok": true
+    },
+    "turn/q90_right_mu0.54": {
+     "companion": {
+      "path": "stage2/tb/bar/r0l/V6/75-M-H-10/seeds3042/look/R0L@10ms/turn/q90_right_mu0.54.json",
+      "sha256": "3d494bfdd86d1d5b3cfc5f167761d58b5fa1872eb16fb4d06ddfb7e72e4c5870"
+     },
+     "bar_record": {
+      "path": "V6/75-M-H-10/seeds3042/eval/R0L@10ms/turn/q90_right_mu0.54.json",
+      "sha256": "896ee673b9b394123bddb14ddc50fdf007b710cd4a68fe44666a5edbce293f91",
+      "key_sha256": "89489e707d21556001616c2bac0acf7c1739f945351ff14e902e3c0d9084dc8d",
+      "status": "not run"
+     },
+     "status": "not run",
+     "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit",
+     "episodes": 0,
+     "bar_episodes": 0,
+     "own_sha256_ok": true
+    }
+   },
+   "not_expected": {},
    "bar_records_10ms": {
     "R0L@10ms/turn/q90_left.json": {
      "row": "R0L@10ms",
@@ -429,7 +424,7 @@
     "walk/nominal"
    ],
    "missing": [],
-   "ok": false
+   "ok": true
   },
   "e": {
    "applies": false,
@@ -438,11 +433,11 @@
   }
  },
  "parts_ok": {
-  "d": false,
+  "d": true,
   "e": true
  },
- "pass_": false,
- "followed": "no training run of this body and head starts; it goes to the lead",
+ "pass_": true,
+ "followed": "none",
  "g9_ref": {
   "path": "stage2/tb/gates/V6/75-M-H-10/g9_ref.json",
   "sha256": "af627ba90a65ef83e5eb3009d36c44d4425c99be15f5d262ada8a24f58b4cfdc",
@@ -450,13 +445,13 @@
  },
  "sources": {
   "track_b": {
-   "designlab/stage2/gates2.py": "2537cc2b73cd526d3127e900532d56e0259559a8e25f53ca468369cc11400e41",
+   "designlab/stage2/gates2.py": "df3f07299a9bdafc73a2caa310d16ae9d022cd2fbfbe8a4ab6a7b7a66552b0d4",
    "designlab/stage2/g8a.py": "b01013a310b1369d3cad39189610518a3592b2f0ce9794ae77a03af2faab1551",
    "designlab/stage2/r5lib.py": "f4c9f89b4d269df20abf3ce5750f5dd4e18662de6375f339ab3b2846170b91ba",
    "designlab/stage2/r5core.py": "a021696a36efbf63b6988714d729cf18e9dbd9e9dcd7e6a1049e20b9ae0e8755",
    "designlab/stage2/r5env.py": "4fb6cb3802d3274f91468839b7e931050cb5652f2b650c406130a0a59381991f",
    "designlab/stage2/lookread.py": "ff7b2e4e7836c25884ae1bae507febacd413c5efa3980dbddbb8568b66809c45",
-   "designlab/stage2/lookbar.py": "6a7d59e4c116289b3ab0eaec2786a49e46d9d6a0072769e93aa3c0177e89ece4",
+   "designlab/stage2/lookbar.py": "6d919fbd8febfdb3ce6e82ef220ce121cfbb99530a48a37c8a6c3ee0e7a3bf55",
    "designlab/stage2/s2rows.py": "30bbe6aada3666ae9304bfe79a66a195d9c9d1bbcb070e1f682cbc4ea2f3c6dc",
    "designlab/stage2/s2load.py": "5f40fccad4d0e722dea00fa109c7fabc3d46c3f4ffa325c17a36f83af98f64ea",
    "designlab/stage2/vecpool.py": "83acf1de2b1f602b0306ea18450f1260492224c6b669f26e0775799af255eea6",
@@ -468,7 +463,7 @@
   "bar": "45719d030359ec7d5d3914af3814d837fdc05d77652ba45c64792b511027528d",
   "panels": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1"
  },
- "commit": "aaa042de2451fad2585a6728e6334356cfe30f91",
+ "commit": "4a2f083e6660dcdd7f80ed0d611bc3f37e7af9c1",
  "dirty": false,
  "dirty_paths": [],
  "versions": {
@@ -478,7 +473,7 @@
   "scipy": "1.18.1"
  },
  "blas_threads": 1,
- "wall_s": 0.6538761720003095,
- "at": "2026-11-17T17:48:08Z",
- "sha256": "899f7d7f41ed15ee80f29d6d525855809926210dd075082d81ab92e2b866c3ae"
+ "wall_s": 0.5091703799989773,
+ "at": "2026-11-17T18:19:27Z",
+ "sha256": "b270b6fffd82b53cf04547e76b91e29d2b9ed75c29fdc7caab1735483884d53a"
 }
