@@ -20,7 +20,10 @@ goes through what it offers to any row (``bar.Delayed``, ``bar.evaluate(rows=<bu
   *companion episode* each.
 * ``collect`` joins each finished bar record of a ``LookRow`` row with its sidecars into a companion record
   ``<out>/<set>/<body>/<block>/look/<row>/<behaviour>/<condition>.json`` (schema ``s2-look-1``); ``run`` is
-  ``bar.evaluate`` with these rows, then ``collect``.
+  ``bar.evaluate`` with these rows, then ``collect``.  A record whose sidecars are missing or are not its episodes'
+  is refused one: a companion of another bar record left at its path is moved aside
+  (``<companion>.stale/<12 hex>.json``), and the summary (``look/summary.json``) lists the record under
+  ``refused_records`` with what became of its companion.
 
 **Outcome of an episode** (rules U6, M1; ``companion_episode``).  *read*: the bar judged it and it did not fall.
 *fell*.  *unread*: the bar could not read it (``bar.Unreadable``), it did not fall, and the row is a policy row (its
@@ -140,7 +143,7 @@ RULES = dict(
         "(built condition, outcome, recorder) is returned as it is.  The reading is computed from the recorder "
         "afterwards, reads the plant's final state and changes nothing; a fault in it is recorded in the episode's "
         "block and never raised"),
-    reference=(
+    reference_use=(  # (not "reference": that key is lookread.RULES' own text of rule U5; ``rule_texts``)
         "STAGE2_TRACKB_PLAN rule U5: the reference's values are lookread.playback of the built track over "
         "lookread.window_ref of the built condition (the reference times rule U2's window covers at the nominal "
         "commanded clock), the same for every episode of the condition.  A walk or turn item whose track cannot be "
@@ -191,13 +194,28 @@ RULES = dict(
     sidecar=(
         "one file per episode, written by the row before it returns: steps, fell and survival_s must equal the bar "
         "record's episode and row_sha256 the hash of the record's controller less the delay wrapper's keys, or the "
-        "record gets no companion (run that condition again so that record and sidecars are of one run)"),
+        "record gets no companion (run that condition again so that record and sidecars are of one run).  A "
+        "companion found at the refused record's path is moved aside to <companion>.stale/<first 12 hex of the "
+        "file's sha256>.json unless it names the bar record as it is (bar_record.sha256): that one was made of this "
+        "bar record while its sidecars were there, and stays.  The summary lists every refused record with what "
+        "became of its companion"),
 )
 
 
 class LookBarError(s2io.S2Error):
     """A companion record cannot be made (a sidecar is missing or is not its episode's), or ``episodes`` was given
     rows it cannot read."""
+
+
+def rule_texts() -> dict:
+    """The look reading's rule texts (``lookread.RULES``) and this module's (``RULES``) as one table: what a row's
+    description holds under ``look_reading.rule`` and a companion record under ``rules``.  The two tables must
+    share no key, or one text of the two would be left out of every description and record: ``LookBarError``."""
+    shared = sorted(set(lookread.RULES) & set(RULES))
+    if shared:
+        raise LookBarError(f"lookread.RULES and lookbar.RULES both hold the key(s) {', '.join(shared)}: one table of "
+                           "both would drop a rule text")
+    return dict(lookread.RULES, **RULES)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -326,8 +344,7 @@ class LookRow(panels.Row):
 
     def describe(self) -> dict:
         return dict(self.inner.describe(),
-                    look_reading=dict(bands=dict(lookread.BANDS), rule=dict(lookread.RULES, **RULES),
-                                      look_sets=list(LOOK_SETS)))
+                    look_reading=dict(bands=dict(lookread.BANDS), rule=rule_texts(), look_sets=list(LOOK_SETS)))
 
     def sources(self) -> dict:
         """The inner row's sources with this module and ``lookread.py`` by sha256."""
@@ -375,7 +392,7 @@ class LookRow(panels.Row):
         return built, out, rec
 
     def _reference(self, b, cond) -> dict:
-        """The reference's reading of a walk or turn item (``RULES["reference"]``), once per built condition:
+        """The reference's reading of a walk or turn item (``RULES["reference_use"]``), once per built condition:
         ``{window_ref, reading, fault}``."""
         kept = self._refs.get(cond)
         if kept is not None and kept[0] is b:
@@ -426,8 +443,8 @@ class LookRow(panels.Row):
         else:
             try:
                 self._read(block, b, out, rec, cond)
-            except Exception:  # noqa: BLE001
-                faults.append("look reading: " + traceback.format_exc(limit=4))
+            except Exception as exc:  # noqa: BLE001 - in the form of the other faults: no traceback, so no path of
+                faults.append(f"look reading: {type(exc).__name__}: {exc}")  # this machine in a sidecar or a record
                 block.update(read=False, look_ok=None, terms=None)
         if faults:
             block["fault"] = "; ".join(faults)
@@ -832,7 +849,7 @@ def companion(path, rec: dict, out, side_root, look_set: bool) -> dict:
         name=rec["condition"], judge=judge, gated=rec.get("gated"), look_set=bool(look_set),
         look_sets=list(LOOK_SETS), reading_1=(READING_1["not_counted"] if not look_set else READING_1["walk_turn"]
                                               if judge in READ_JUDGES else READING_1["other"]),
-        bands=dict(lookread.BANDS), rules=dict(lookread.RULES, **RULES), seeds=seeds, a1_over=a1_over,
+        bands=dict(lookread.BANDS), rules=rule_texts(), seeds=seeds, a1_over=a1_over,
         episodes=eps, counts_look=c1, counts=c2, counts_but_A1=c3, counts_but_A1_look=c13,
         counts_look_reason=None if c1 is not None else READING_1["not_counted"] if done else rec.get("reason"),
         counts_equal_bar=equal, outcomes=outcomes, unread_reasons=dict(sorted(reasons.items())),
@@ -854,21 +871,51 @@ def companion_path(out, set_name: str, body: str, block: str, row: str, behavior
     return bar.block_dir(out, set_name, body, block, control) / "look" / row / behavior / f"{name}.json"
 
 
+def stale_path(path, sha256: str) -> Path:
+    """Where a companion that is not its bar record's any more is moved to (``RULES["sidecar"]``):
+    ``<companion>.stale/<first 12 hex of the file's sha256>.json``."""
+    path = Path(path)
+    return path.with_name(path.name + ".stale") / f"{str(sha256)[:12]}.json"
+
+
+def _refused(q: Path, rec: dict, path: Path, out: Path, reason: str) -> dict:
+    """The summary's cell of a bar record that gets no companion (``RULES["sidecar"]``), after dealing with the
+    file at its companion's path: ``companion`` is ``none`` (there is none), ``kept`` (it names the bar record as
+    it is: ``record`` is its path) or ``moved_aside`` (it is another bar record's, or cannot be read:
+    ``moved_to``)."""
+    bar_sha = s2io.sha256_file(q)
+    state, kept, moved = "none", None, None
+    if path.is_file():
+        old = _read_json(path)
+        if old is not None and (old.get("bar_record") or {}).get("sha256") == bar_sha:
+            state, kept = "kept", Path(os.path.relpath(path, out)).as_posix()
+        else:
+            dest = stale_path(path, s2io.sha256_file(path))
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(path, dest)
+            state, moved = "moved_aside", Path(os.path.relpath(dest, out)).as_posix()
+    return dict(row=rec["row"], condition=rec["key_name"], status=rec.get("status"),
+                bar_record=Path(os.path.relpath(q, out)).as_posix(), bar_record_sha256=bar_sha, reason=reason,
+                companion=state, record=kept, moved_to=moved)
+
+
 def collect(out, set_name: str, body: str, block: str = bar.HEADLINE_BLOCK, control: str | None = None) -> dict:
     """The companion records of every bar record of a ``LookRow`` row under
     ``<out>/<set>/<body>/<block>/eval/`` (``companion``), and their summary ``.../look/summary.json`` (returned).
     A companion whose bar record, sidecars and sources are unchanged is left as it is.  A record with an episode
-    whose sidecar is missing or is not that episode's gets no companion: every other record's is written, then
-    ``LookBarError`` lists them."""
+    whose sidecar is missing or is not that episode's gets no companion: a companion of another bar record found
+    at its path is moved aside (``stale_path``; one that names the bar record as it is stays), the summary lists
+    the record under ``refused_records``, every other record's companion is written, then ``LookBarError`` lists
+    the refusals."""
     out = Path(out)
     bdir = bar.block_dir(out, set_name, body, block, control)
     edir, side_root, ldir = bdir / "eval", bdir / "look_partial", bdir / "look"
     look_set = set_name in LOOK_SETS
-    cells, refused = [], []
+    cells, refused, refused_cells = [], [], []
     reading_1 = READING_1["walk_turn"] if look_set else READING_1["not_counted"]
     if not edir.is_dir():  # (no bar record yet: nothing is read and nothing written, not even the lock)
         return dict(schema=SUMMARY_SCHEMA, set=set_name, body=body, block=block, control=control, look_set=look_set,
-                    look_sets=list(LOOK_SETS), reading_1=reading_1, records=[], refused=[])
+                    look_sets=list(LOOK_SETS), reading_1=reading_1, records=[], refused=[], refused_records=[])
     with s2io.Lock(out / ".lock"):
         for q in sorted(edir.glob("**/*.json")):
             parts = q.relative_to(edir).parts
@@ -877,12 +924,13 @@ def collect(out, set_name: str, body: str, block: str = bar.HEADLINE_BLOCK, cont
             rec = _read_json(q)
             if not is_look_record(rec):
                 continue
+            path = companion_path(out, set_name, body, block, rec["row"], rec["behavior"], rec["condition"], control)
             try:
                 doc = companion(q, rec, out, side_root, look_set)
             except LookBarError as exc:
                 refused.append(str(exc))
+                refused_cells.append(_refused(q, rec, path, out, str(exc)))
                 continue
-            path = companion_path(out, set_name, body, block, rec["row"], rec["behavior"], rec["condition"], control)
             old = _read_json(path)
             if old is not None and old.get("inputs_sha256") == doc["inputs_sha256"]:
                 doc = old
@@ -903,7 +951,8 @@ def collect(out, set_name: str, body: str, block: str = bar.HEADLINE_BLOCK, cont
                 fingerprint_max_abs_diff=(doc["policy"] or {}).get("fingerprint_max_abs_diff")))
         summary = dict(schema=SUMMARY_SCHEMA, set=set_name, body=body, block=block, control=control,
                        look_set=look_set, look_sets=list(LOOK_SETS), reading_1=reading_1, records=cells,
-                       refused=refused, rules={k: RULES[k] for k in ("readings", "outcome", "counts", "sidecar")},
+                       refused=refused, refused_records=refused_cells,
+                       rules={k: RULES[k] for k in ("readings", "outcome", "counts", "sidecar")},
                        provenance=s2io.git_state(own_outputs=[str(out.resolve())]), written_at=s2io.now_utc())
         summary = json.loads(json.dumps(s2io.plain(summary)))
         summary["sha256"] = s2io.sha256_json(summary)  # of the summary without this key
@@ -931,7 +980,8 @@ def run(set_name: str, body: str, out, row_names, conditions=None, block: str = 
 
 
 def summary_text(doc: dict) -> str:
-    """The look summary as lines: per row and condition the readings' counts and the outcomes."""
+    """The look summary as lines: per row and condition the readings' counts and the outcomes, then the records
+    that were refused a companion."""
     lines = [f"{doc['set']} {doc['body']} {doc['block']}: {doc['reading_1']}"]
     for c in doc["records"]:
         def n(x):
@@ -941,6 +991,14 @@ def summary_text(doc: dict) -> str:
         lines.append(f"  {c['row']} {c['condition']}: with the look {n(c['counts_look'])}, reading 2 {n(c['counts'])}, "
                      f"reading 3 {n(c['counts_but_A1'])}; read {o['read']}, fell {o['fell']}, unread {o['unread']}, "
                      f"error {o['error']}" + (f"; {c['look_faults']} look faults" if c["look_faults"] else ""))
+    for c in doc.get("refused_records") or []:
+        if c["companion"] == "kept":
+            what = f"the companion made earlier of this bar record is kept ({c['record']})"
+        elif c["companion"] == "moved_aside":
+            what = f"the companion of another bar record was moved aside to {c['moved_to']}"
+        else:
+            what = "it has no companion"
+        lines.append(f"  {c['row']} {c['condition']}: refused; {what}")
     return "\n".join(lines)
 
 
@@ -1019,7 +1077,8 @@ def main(argv=None) -> int:
 __all__ = ["COMPANION_SCHEMA", "DELAYED_KEYS", "LOOK_SETS", "LookBarError", "LookRow", "RULES", "SIDECAR_SCHEMA",
            "air_runs", "clock_block", "collect", "companion", "companion_episode", "companion_path", "counts_of",
            "episodes", "is_look_record", "is_unreadable", "look_of", "look_row_of", "main", "on_command_at_stop",
-           "open_set", "record_row_sha256", "rows", "run", "sidecar_path", "state_digest", "summary_text"]
+           "open_set", "record_row_sha256", "rows", "rule_texts", "run", "sidecar_path", "stale_path", "state_digest",
+           "summary_text"]
 
 if __name__ == "__main__":
     from designlab.stage2 import lookbar as _named  # the importable copy owns every class and all module state

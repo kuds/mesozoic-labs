@@ -159,12 +159,75 @@ def test_the_module_registers_r0l_and_names_the_look_sets():
     assert sorted(d["look_reading"]) == ["bands", "look_sets", "rule"]
     assert d["look_reading"]["bands"] == dict(lookread.BANDS) and d["look_reading"]["look_sets"] == ["V6", "V6noF5"]
     assert set(lookread.RULES) | set(lookbar.RULES) == set(d["look_reading"]["rule"])
+    # the two modules' tables share no key, so every rule text of both is in the description (it is in the key):
+    # the look reading's own rule U5 text under "reference", this module's use of it under "reference_use"
+    rule = d["look_reading"]["rule"]
+    assert not set(lookread.RULES) & set(lookbar.RULES) and len(rule) == len(lookread.RULES) + len(lookbar.RULES)
+    assert all(rule[k] == v for k, v in lookread.RULES.items()) and all(rule[k] == v for k, v in lookbar.RULES.items())
+    assert rule["reference"] == lookread.RULES["reference"] and lookread.MODULE_READING in rule["reference"]
+    assert rule["reference_use"].startswith("STAGE2_TRACKB_PLAN rule U5: the reference's values are lookread.playback")
+    assert rule == lookbar.rule_texts()
     assert sorted(row.sources()) == ["designlab/stage2/lookbar.py", "designlab/stage2/lookread.py"]
     assert row.sources()["designlab/stage2/lookread.py"] == next(iter(lookread.sources().values()))
     with pytest.raises(ValueError, match="no seed"):
         panels.tracker_rows(BODY, RUN / BODY, ("R0L/3",))
     with pytest.raises(ValueError, match="LookRow already"):
         lookbar.LookRow(row)
+
+
+def test_a_rule_key_of_both_modules_is_refused_and_never_drops_a_text(monkeypatch):
+    """A key that ``lookread.RULES`` and ``lookbar.RULES`` both hold would leave one text out of every row's
+    description and every companion record: the one table is not made then."""
+    monkeypatch.setitem(lookbar.RULES, "window", "a second text under the look reading's key")
+    with pytest.raises(lookbar.LookBarError, match="both hold the key.*window"):
+        lookbar.rule_texts()
+    with pytest.raises(lookbar.LookBarError, match="both hold the key"):
+        panels.tracker_rows(BODY, RUN / BODY, ("R0L",))["R0L"].describe()
+
+
+#: Code state A (``STAGE2_75_PLAN.md``: "Code state A is `c377ba1`", the commit that records the third freeze of the
+#: 75 cm sets), and the two hashes of the modules in every existing record's key as they are there (the registered
+#: pair: ``bar.bar_sources()`` over bar.py, readings.py, setio.py and speedfit.py; ``panels.panel_sources()``).
+STATE_A = "c377ba1"
+BAR_SOURCES_A = "45719d030359ec7d5d3914af3814d837fdc05d77652ba45c64792b511027528d"
+PANEL_SOURCES_A = "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1"
+#: Design D18's list of what round C edits nothing of, less ``barreport.py``: the working branch changed that file
+#: after state A for the 75 cm round's bar tables (it writes reports and is in no record's key).
+ROUND_A_PATHS = ("designlab/stage1",) + tuple(f"designlab/stage2/{m}.py" for m in (
+    "bar", "readings", "setio", "s2io", "moves", "sets", "setscreen"))
+
+
+def test_the_modules_of_every_existing_record_key_are_state_as():
+    """Design D18: code state B changes no module of any existing record key.  The two hashes a bar record's key
+    holds of its sources are the registered ones of state A (this runs in an export without git too)."""
+    assert bar.bar_sources()["sha256"] == BAR_SOURCES_A
+    assert panels.panel_sources()["sha256"] == PANEL_SOURCES_A
+    assert sorted(bar.bar_sources()["files"]) == ["designlab/stage1/speedfit.py"] + [
+        f"designlab/stage2/{m}.py" for m in ("bar", "readings", "setio")]
+
+
+def test_no_round_a_or_stage_1_file_differs_from_state_a():
+    """Design D18 and section 4: ``git diff <state A> -- designlab/stage1 designlab/stage2/{bar,readings,setio,
+    s2io,moves,sets,setscreen}.py`` names no file (the files as they are in this checkout, committed or not).
+    Skipped where git cannot tell: an export without a repository, or a clone whose history does not reach state
+    A; the hashes of the test above hold there all the same."""
+    env = dict(os.environ, GIT_OPTIONAL_LOCKS="0")  # (a read: no index.lock is left behind)
+
+    def git(*args):
+        return subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True, text=True, env=env)
+
+    try:
+        tracked = git("ls-files", "--error-unmatch", "designlab/stage2/bar.py")  # (this tree is the repository's own)
+        known = git("cat-file", "-e", STATE_A + "^{commit}")
+    except OSError:
+        pytest.skip("no git here")
+    if tracked.returncode != 0 or known.returncode != 0:
+        pytest.skip(f"git cannot tell: no repository here, or its history does not reach state A ({STATE_A})")
+    for path in ROUND_A_PATHS:
+        assert (ROOT / path).exists(), path
+    diff = git("diff", "--no-ext-diff", "--name-only", STATE_A, "--", *ROUND_A_PATHS)
+    assert diff.returncode == 0, diff.stderr[-2000:]
+    assert diff.stdout.split() == [], "differ from state A: " + diff.stdout
 
 
 def test_rows_are_the_bars_names_with_every_inner_row_a_look_row(tmp_path):
@@ -516,6 +579,9 @@ def test_collect_counts_the_three_readings_with_the_bars_arithmetic(tmp_path):
     assert doc["look_failures_by_term"] == dict(head=1) and doc["policy"] is None and doc["counts_equal_bar"] is None
     assert doc["short_air_runs"] == dict(episodes_read=19, episodes_with_any=19, total=19)
     assert doc["bands"] == dict(lookread.BANDS) and set(doc["rules"]) == set(lookread.RULES) | set(lookbar.RULES)
+    # every rule text of both modules, none dropped: the look reading's rule U5 text is the one under "reference"
+    assert doc["rules"] == plain(lookbar.rule_texts()) and len(doc["rules"]) == len(lookread.RULES) + len(lookbar.RULES)
+    assert doc["rules"]["reference"] == lookread.RULES["reference"] != doc["rules"]["reference_use"]
     assert sorted(doc["sidecars"]["sha256"]) == sorted(str(s) for s in SEEDS) and "commit" in doc["provenance"]
     assert sorted(doc["sources"]) == ["bar", "designlab/stage2/lookbar.py", "designlab/stage2/lookread.py"]
     assert doc["sha256"] == s2io.sha256_json({k: v for k, v in doc.items() if k != "sha256"})
@@ -581,6 +647,11 @@ def test_a_missing_or_foreign_sidecar_is_refused(tmp_path):
         assert not cpath.exists() and other.exists()
         summary = s2io.read_json(other.parents[2] / "summary.json")
         assert len(summary["records"]) == 1 and len(summary["refused"]) == 1 and "seed 3047" in summary["refused"][0]
+        # ... and the record itself, which has no companion
+        cells = summary["refused_records"]
+        assert [(c["row"], c["condition"], c["status"], c["companion"], c["record"], c["moved_to"]) for c in cells] == [
+            ("R0L@10ms", "walk/v0.4", "done", "none", None, None)]
+        assert cells[0]["reason"] == summary["refused"][0] and cells[0]["bar_record"].endswith("eval/R0L@10ms/walk/v0.4.json")
         assert lookbar.main(["collect", "--set", "V6", "--body", BODY, "--out", str(out)]) == 1
 
     def change(**kw):
@@ -598,6 +669,74 @@ def test_a_missing_or_foreign_sidecar_is_refused(tmp_path):
     write_run(out, "V6", row, "walk/v0.4", "bar_walk", twenty({3050: (bar_ep(3050, error=UNREADABLE), None)}))
     with pytest.raises(lookbar.LookBarError, match="seed 3050: no sidecar"):
         lookbar.collect(out, "V6", BODY)
+
+
+def test_a_refusal_leaves_no_companion_of_another_bar_record_and_the_summary_names_the_record(tmp_path):
+    """After a refusal the path of the record's companion holds no companion of *another* bar record: one made
+    before the bar record changed is moved aside.  One made of the bar record as it is stays (a tree copied
+    without its sidecars).  Either way the summary holds the refused record, with what became of its companion."""
+    row = r0l()
+    bdir = bar.block_dir(tmp_path, "V6", BODY, bar.HEADLINE_BLOCK)
+    path, cpath = write_run(tmp_path, "V6", row, "walk/v0.4", "bar_walk", twenty())
+    _, other = write_run(tmp_path, "V6", row, "walk/nominal", "bar_walk", twenty(key="walk/nominal"))
+    lookbar.collect(tmp_path, "V6", BODY)
+    old, old_file = s2io.read_json(cpath), s2io.sha256_file(cpath)
+    assert old["counts_look"]["succeeded"] == 20 and old["bar_record"]["sha256"] == s2io.sha256_file(path)
+    # the bar record changes (an episode of it now fell), and that episode's sidecar is not its episode's any more
+    rec = s2io.read_json(path)
+    rec["episodes"][3] = bar_ep(rec["episodes"][3]["seed"], fell=True, survival=4.0, steps=2000)
+    rec.update(counts=bar.counts(rec["episodes"], rec["seeds"], "success"),
+               counts_but_A1=bar.counts(rec["episodes"], rec["seeds"], "but_A1"))
+    s2io.write_json(path, plain(rec))
+    with pytest.raises(lookbar.LookBarError, match="seed 3045: the sidecar is not this episode's"):
+        lookbar.collect(tmp_path, "V6", BODY)
+    moved = lookbar.stale_path(cpath, old_file)  # (named by the first 12 hex of the file's own sha256)
+    assert moved == cpath.with_name("v0.4.json.stale") / f"{old_file[:12]}.json"
+    assert not cpath.exists() and s2io.read_json(moved) == old and other.exists()
+    summary = s2io.read_json(bdir / "look" / "summary.json")
+    assert [c["condition"] for c in summary["records"]] == ["walk/nominal"] and len(summary["refused"]) == 1
+    cell, = summary["refused_records"]
+    assert (cell["row"], cell["condition"], cell["status"], cell["companion"], cell["record"]) == (
+        "R0L@10ms", "walk/v0.4", "done", "moved_aside", None)
+    assert cell["moved_to"] == "V6/75-M-H-10/seeds3042/look/R0L@10ms/walk/v0.4.json.stale/" + moved.name
+    assert cell["bar_record"] == "V6/75-M-H-10/seeds3042/eval/R0L@10ms/walk/v0.4.json"
+    assert cell["bar_record_sha256"] == s2io.sha256_file(path) != old["bar_record"]["sha256"]
+    assert "seed 3045" in cell["reason"] and summary["sha256"] == s2io.sha256_json(
+        {k: v for k, v in summary.items() if k != "sha256"})
+    assert "R0L@10ms walk/v0.4: refused; the companion of another bar record was moved aside to" in lookbar.summary_text(summary)
+    # again: the same refusal, and nothing is left to move
+    with pytest.raises(lookbar.LookBarError, match="seed 3045"):
+        lookbar.collect(tmp_path, "V6", BODY)
+    cell, = s2io.read_json(bdir / "look" / "summary.json")["refused_records"]
+    assert (cell["companion"], cell["moved_to"]) == ("none", None) and sorted(p.name for p in moved.parent.iterdir()) == [moved.name]
+    # with that episode's sidecar its own again the companion is made anew; what was moved aside stays there
+    sp = lookbar.sidecar_path(bdir / "look_partial", row.name, "walk/v0.4", 3045)
+    s2io.write_json(sp, dict(s2io.read_json(sp), fell=True, survival_s=4.0, steps=2000, read=False, terms=None,
+                             look_ok=None, reason="fell"))
+    summary = lookbar.collect(tmp_path, "V6", BODY)
+    new = s2io.read_json(cpath)
+    assert new["bar_record"]["sha256"] == s2io.sha256_file(path) and new["counts_look"]["succeeded"] == 19
+    assert summary["refused_records"] == [] and len(summary["records"]) == 2 and s2io.read_json(moved) == old
+    # the sidecars are gone and the bar record is as it was (a copied tree of finished records): the companion is
+    # this bar record's and stays as it is; the summary says that it was kept and not made again
+    before = cpath.read_bytes()
+    shutil.rmtree(bdir / "look_partial" / row.name / "walk" / "v0.4")
+    with pytest.raises(lookbar.LookBarError, match="no sidecar"):
+        lookbar.collect(tmp_path, "V6", BODY)
+    assert cpath.read_bytes() == before and not lookbar.stale_path(cpath, s2io.sha256_file(cpath)).exists()
+    summary = s2io.read_json(bdir / "look" / "summary.json")
+    cell, = summary["refused_records"]
+    assert (cell["condition"], cell["companion"], cell["moved_to"]) == ("walk/v0.4", "kept", None)
+    assert cell["record"] == "V6/75-M-H-10/seeds3042/look/R0L@10ms/walk/v0.4.json"
+    assert [c["condition"] for c in summary["records"]] == ["walk/nominal"]
+    assert "R0L@10ms walk/v0.4: refused; the companion made earlier of this bar record is kept" in lookbar.summary_text(summary)
+    # a file at the companion's path that cannot be read is no companion of this bar record either
+    cpath.write_text("{")
+    with pytest.raises(lookbar.LookBarError, match="no sidecar"):
+        lookbar.collect(tmp_path, "V6", BODY)
+    cell, = s2io.read_json(bdir / "look" / "summary.json")["refused_records"]
+    assert cell["companion"] == "moved_aside" and not cpath.exists()
+    assert (tmp_path / cell["moved_to"]).read_text() == "{"
 
 
 def test_on_a_set_that_is_no_look_set_reading_1_is_null_and_the_counts_are_the_bars(tmp_path):
@@ -841,12 +980,36 @@ def test_a_fault_in_the_reading_is_recorded_and_never_raised(t0_set, monkeypatch
     def not_played(*a, **k):
         raise lookread.LookError("not played: a periodic segment must be a straight walk")
 
+    kept = {}
+    real_block, real_playback = lookbar.LookRow._block, lookread.playback
+
+    def block_of(self, *args):  # (what the row read the block from, for a second reading without a second episode)
+        kept["args"] = args
+        return real_block(self, *args)
+
+    monkeypatch.setattr(lookbar.LookRow, "_block", block_of)
     monkeypatch.setattr(lookread, "playback", not_played)
     e = bar.run_episode(row, ctx, cond, 6001)  # the bar's episode is the unwrapped row's
     blk = look.last
     assert e["succeeded"] is True and blk["read"] is False and blk["look_ok"] is None and blk["terms"] is None
     assert "LookError" in blk["fault"] and "not played" in blk["fault"] and blk["reason"] is None
     assert blk["clock"]["mean_factor"] is not None and blk["steps"] > 0
+    # the fault is recorded as "<what>: <type>: <message>", as every other fault of a block is: no traceback, and so
+    # no path of this machine, goes into a sidecar or a companion record
+    assert blk["fault"] == ("look reading: LookError: the reference of walk/nominal: LookError: not played: a periodic "
+                            "segment must be a straight walk")
+
+    def no_terms(*a, **k):
+        raise ValueError("terms that cannot be read")
+
+    monkeypatch.setattr(lookread, "playback", real_playback)
+    monkeypatch.setattr(lookread, "compare", no_terms)
+    blk2 = lookbar.LookRow(look.inner)._block(*kept["args"])  # a fault of any type inside the reading itself
+    assert blk2["fault"] == "look reading: ValueError: terms that cannot be read"
+    assert blk2["read"] is False and blk2["look_ok"] is None and blk2["terms"] is None
+    assert blk2["reference"]["steps"] >= lookread.MIN_STEPS and blk2["own"]["steps"] == blk2["reference"]["steps"]
+    for fault in (blk["fault"], blk2["fault"]):
+        assert "Traceback" not in fault and "\n" not in fault and str(ROOT) not in fault and ".py" not in fault
     # a walk or turn item that cannot be played is a fault of the definition: an error on a look set, never "no look"
     on = lookbar.companion_episode(cond.key, cond.judge, 6001, e, blk, True)
     off = lookbar.companion_episode(cond.key, cond.judge, 6001, e, blk, False)
