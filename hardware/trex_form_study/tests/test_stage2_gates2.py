@@ -762,7 +762,10 @@ def test_the_chain_parses_and_its_dry_run_prints_the_plan_in_order(tmp_path):
     r = _chain(tmp_path, TB_DRY="1")
     assert r.returncode == 0, r.stderr
     steps = _steps(r.stdout)
-    assert len(steps) == len(set(steps)) == 45
+    assert len(steps) == len(set(steps)) == 46
+    # rule M3: S2-4 starts only after the check that its baseline is committed, which follows the baseline's copy
+    i = steps.index("V8-baseline-committed")
+    assert steps[i - 2:i + 2] == ["V8-baseline", "V8-baseline-copy", "V8-baseline-committed", "V8-s2-4"]
     firsts = [next(i for i, s in enumerate(steps) if s.startswith(p)) for p in ORDER]
     lasts = [max(i for i, s in enumerate(steps) if s.startswith(p)) for p in ORDER]
     assert firsts == sorted(firsts) and all(lasts[i] < firsts[i + 1] for i in range(len(ORDER) - 1))
@@ -788,20 +791,124 @@ def test_a_steps_marker_makes_a_second_run_a_no_op(tmp_path):
     done.mkdir(parents=True)
     r = _chain(tmp_path, TB_DRY="1")
     steps = _steps(r.stdout)
-    for name in steps[:10] + ["V7-kill-resume"]:
+    for name in steps[:10] + ["V7-kill-resume", "V7-kill-resume.x1"]:
         (done / name).touch()
     r2 = _chain(tmp_path, TB_DRY="1")
     left = _steps(r2.stdout)
     assert left == [s for s in steps if s not in steps[:10] + ["V7-kill-resume"]]
     assert "skip V1-g9ref-V6-75-M-H-10 (done)" in r2.stdout and "skip V7-kill-resume (done)" in r2.stdout
     assert "V7-kill-resume in" not in r2.stdout  # (a done step is not listed again)
-    for name in steps:
+    # a listed step that ran but whose entry was not marked done: it is marked done, and not run or listed again
+    (done / "V7-kill-resume.x1").unlink()
+    r2b = _chain(tmp_path, TB_DRY="1")
+    assert _steps(r2b.stdout) == left and "skip V7-kill-resume (done)" in r2b.stdout
+    assert r2b.stdout.count("V7-kill-resume in") == 1
+    assert "V7-kill-resume in " + str(tmp_path / "dev.json") + " as done" in r2b.stdout
+    devsteps = ("V4-rates", "V5-filter", "V5-sigma-probe", "V6-lr-probe", "V7-kill-resume")
+    for name in steps + [f"{d}.x1" for d in devsteps]:
         (done / name).touch()
     r3 = _chain(tmp_path, TB_DRY="1")
     assert r3.returncode == 0 and _steps(r3.stdout) == [] and r3.stdout.count("skip ") == len(steps)
+    assert "(rule X1:" not in r3.stdout
     # a real run with every marker present runs nothing and exits 0
     r4 = _chain(tmp_path, PY="/nonexistent/python")
     assert r4.returncode == 0 and "all steps of the chain are done" in r4.stdout
+
+
+def _fake_py(tmp_path) -> tuple[Path, Path]:
+    """A python that records its arguments, one call per line, and exits 0."""
+    calls = tmp_path / "calls.txt"
+    fake = tmp_path / "py.sh"
+    fake.write_text(f'#!/bin/sh\necho "$*" >> "{calls}"\nexit 0\n')
+    fake.chmod(0o755)
+    return fake, calls
+
+
+def test_a_listed_step_whose_entry_was_not_marked_done_is_marked_on_the_next_run(tmp_path):
+    """Rule X1's second listing failed after kill-resume ran (its step's marker is there, the listing's is not): the
+    next real run lists it as done once, writes the second marker, and does not run kill-resume again."""
+    fake, calls = _fake_py(tmp_path)
+    steps = _steps(_chain(tmp_path, TB_DRY="1").stdout)
+    done = tmp_path / "work" / "done"
+    done.mkdir(parents=True)
+    devsteps = ("V4-rates", "V5-filter", "V5-sigma-probe", "V6-lr-probe")
+    for name in steps + [f"{d}.x1" for d in devsteps]:
+        (done / name).touch()
+    r = _chain(tmp_path, PY=str(fake))
+    assert r.returncode == 0, r.stdout + r.stderr
+    (line,) = calls.read_text().splitlines()
+    assert "gates2 dev-episode" in line and "--state done --step V7-kill-resume" in line and "--set V6" in line
+    assert (done / "V7-kill-resume.x1").exists()
+    r = _chain(tmp_path, PY=str(fake))
+    assert r.returncode == 0 and len(calls.read_text().splitlines()) == 1
+
+
+def test_s2_4_waits_until_rule_m3s_baseline_is_committed(tmp_path):
+    """Rule M3: R0L's baseline is committed before S2-4 starts.  In a copy of the chain inside a scratch git
+    repository, with every step before the check done: the chain stops before S2-4 (exit 1, a message for the lead,
+    no marker) while the baseline is absent, untracked, only staged, committed but changed since, or committed with
+    other bytes than the baseline made; once it is committed with those bytes the check passes and S2-4 starts."""
+    repo = tmp_path / "repo"
+    study = repo / "hardware" / "trex_form_study"
+    (study / "stage2" / "tb").mkdir(parents=True)
+    (study / "tools").mkdir()
+    chain = study / "stage2" / "tb" / "run_trackb.sh"
+    shutil.copyfile(CHAIN, chain)
+    shutil.copyfile(ROOT / "tools" / "lowprio.sh", study / "tools" / "lowprio.sh")
+
+    def git(*a):
+        subprocess.run(["git", "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "-c",
+                        "commit.gpgsign=false", *a], cwd=study, check=True, capture_output=True, timeout=60)
+
+    git("init", "-q")
+    git("add", ".")
+    git("commit", "-q", "-m", "the chain")
+    fake, calls = _fake_py(tmp_path)
+    work = tmp_path / "work"
+    env = _env(PY=str(fake), TB_WORK=str(work), TB_DEV=str(tmp_path / "dev.json"))
+
+    def run(**extra):
+        return subprocess.run(["sh", str(chain)], cwd=tmp_path, env=dict(env, **extra), capture_output=True, text=True,
+                              timeout=120)
+
+    steps = _steps(run(TB_DRY="1").stdout)
+    done = work / "done"
+    done.mkdir(parents=True)
+    for name in steps[:steps.index("V8-s2-4")]:
+        if name != "V8-baseline-committed":
+            (done / name).touch()
+            (done / f"{name}.x1").touch()
+    made = work / "s2-4-baseline" / "r0l.json"
+    made.parent.mkdir(parents=True)
+    made.write_text('{"episodes": 18}\n')
+    bl = study / "stage2" / "tb" / "runs" / "s2-4" / "R0L_BASELINE.json"
+    bl.parent.mkdir(parents=True)
+
+    def stops(why):
+        r = run()
+        assert r.returncode == 1, (why, r.stdout, r.stderr)
+        assert "STOP V8-baseline-committed: rule M3" in r.stdout and "goes to the lead" in r.stdout, why
+        assert not (done / "V8-baseline-committed").exists(), why
+        assert not calls.exists() or "designlab.stage2.train2 run" not in calls.read_text(), why
+
+    stops("absent")
+    shutil.copyfile(made, bl)
+    stops("untracked")
+    git("add", str(bl))
+    stops("staged, not committed")
+    bl.write_text('{"episodes": 17}\n')
+    git("add", str(bl))
+    git("commit", "-q", "-m", "another baseline")
+    shutil.copyfile(made, bl)
+    stops("committed with other bytes, changed since to the baseline's")
+    git("checkout", "--", str(bl))
+    stops("committed with other bytes than the baseline made")
+    shutil.copyfile(made, bl)
+    git("commit", "-q", "-am", "the baseline")
+    r = run()
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "done V8-baseline-committed (stage2/tb/runs/s2-4/R0L_BASELINE.json is committed: " in r.stdout
+    assert (done / "V8-baseline-committed").exists() and "designlab.stage2.train2 run --mode R5" in calls.read_text()
 
 
 def test_a_failing_step_stops_the_chain_and_leaves_no_marker(tmp_path):

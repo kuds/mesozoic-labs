@@ -19,8 +19,12 @@
 # collect` leaves a file that is already there with the same bytes.  Every long job writes under $TB_WORK and is
 # collected with `nb collect` when it ends (design D22).  One process at a time (the chain is sequential).
 #
+# One check is no command: V8-baseline-committed (rule M3) stops the chain until the lead has committed R0L's
+# baseline; it reads git only and writes its marker when it passes.
+#
 # Rule X1: each closed-loop step on a look set that is no record (the rates, the probes, kill-resume) is listed in
-# $TB_DEV before it runs and again when it is done (`gates2 dev-episode`); the records' own steps (G8a, R0L's records
+# $TB_DEV before it runs and again when it is done (`gates2 dev-episode`; a second marker $TB_WORK/done/<name>.x1
+# records the second listing); the records' own steps (G8a, R0L's records
 # and G9-run, S2-4, the 60 cm run, the R2L fits) are not.  gl-start and r6-start run on the view S1 (rule X1 as
 # settled on 15 Nov 2026): no look-set episode.  Every closed-loop gate refuses a look set whose g9_ref.json has not
 # passed (gates2.require_g9_ref).
@@ -101,13 +105,42 @@ dev() {  # dev <state> <step> <set> <body> <rows or mode> <count> <reason> <comm
 }
 
 devstep() {  # devstep <name> <set> <body> <rows or mode> <count> <reason> <command...>
+    # Two markers: the step's own ($DONE/<name>, written by `step`) and its entry marked done in rule X1's list
+    # ($DONE/<name>.x1).  A step that ran but whose entry was not marked done (the listing failed after it) is marked
+    # done on the next run of the chain, and is not run again.
     _dn=$1 _ds=$2 _db=$3 _dw=$4 _dc=$5 _dr=$6
     shift 6
-    [ -e "$DONE/$_dn" ] && { say "skip $_dn (done)"; return 0; }
+    [ -e "$DONE/$_dn.x1" ] && { say "skip $_dn (done)"; return 0; }
     [ -n "$DRY" ] || mkdir -p "$DONE" "$LOGS"
-    dev listed "$_dn" "$_ds" "$_db" "$_dw" "$_dc" "$_dr" "$*"
+    [ -e "$DONE/$_dn" ] || dev listed "$_dn" "$_ds" "$_db" "$_dw" "$_dc" "$_dr" "$*"
     step "$_dn" "$@"
     dev done "$_dn" "$_ds" "$_db" "$_dw" "$_dc" "$_dr" "$*"
+    [ -n "$DRY" ] || touch "$DONE/$_dn.x1"
+}
+
+committed() {  # committed <name> <file> <made>: rule M3, <file> committed before S2-4 starts
+    # Passes (and writes its marker) only when <file> has the bytes of <made>, is tracked, is in HEAD's tree, is
+    # unchanged since HEAD (staged or not) and has a commit in HEAD's history: then the commit that adds it is an
+    # ancestor of (or is) the commit S2-4 starts on (M3's check: `sessions[0].commit`).  Otherwise the chain stops
+    # with a message for the lead, who commits the file and runs the chain again.
+    if [ -e "$DONE/$1" ]; then
+        say "skip $1 (done)"
+        return 0
+    fi
+    if [ -n "$DRY" ]; then
+        echo "[$1] git: $2 tracked, in HEAD, unchanged since, the bytes of $3 (rule M3; else the chain stops for the lead)"
+        return 0
+    fi
+    mkdir -p "$DONE" "$LOGS"
+    _c=$(git log -1 --format=%H -- "$2" 2>/dev/null)
+    if cmp -s "$3" "$2" && git ls-files --error-unmatch -- "$2" > /dev/null 2>&1 \
+        && git cat-file -e "HEAD:./$2" 2> /dev/null && git diff --quiet HEAD -- "$2" 2> /dev/null && [ -n "$_c" ]; then
+        touch "$DONE/$1"
+        say "done $1 ($2 is committed: $_c)"
+    else
+        say "STOP $1: rule M3: $2 must be committed before S2-4 starts (tracked, in HEAD, unchanged since, the bytes of $3); it goes to the lead, who commits it and runs the chain again"
+        exit 1
+    fi
 }
 
 resume_flag() {  # --resume when the job directory holds a run.json (the trainer refuses a new run over one)
@@ -182,16 +215,20 @@ devstep V4-rates V6 75-M-H-10 "R5 env steps (rates)" 98304 "the rate and memory 
     $G rates --body 75-M-H-10 --set V6 --record "$TB/validation/rates.json"
 
 # ---------------------------------------------------------------------------------------------------------------
-# V8  S2-4 (rule M3): R0L's baseline made by the monitor's baseline function and committed as
-#     stage2/tb/runs/s2-4/R0L_BASELINE.json before S2-4 starts; the run (2,000,000 steps asked, checks every
-#     500,000, 3 workers); collected; S2-10's record against the committed baseline.  NOTE for the lead: the trainer
-#     takes no committed baseline, so "else the run stops before its first rollout" is checked after the run by
-#     s2-10 --committed-baseline, not before its first rollout; and the run plan's V8 line is to be rewritten to
-#     the notebook's real lines (the lead's ruling 6 of 17 Nov 2026): until then the trainer runs here directly.
+# V8  S2-4 (rule M3): R0L's baseline made by the monitor's baseline function, copied to
+#     stage2/tb/runs/s2-4/R0L_BASELINE.json, and committed there by the lead before S2-4 starts: the chain stops at
+#     V8-baseline-committed until git shows the file committed and unchanged (the commit that adds it is then an
+#     ancestor of S2-4's sessions[0].commit); the run (2,000,000 steps asked, checks every 500,000, 3 workers);
+#     collected; S2-10's record against the committed baseline.  NOTE for the lead: the trainer takes no committed
+#     baseline, so "else the run stops before its first rollout" is checked after the run by s2-10
+#     --committed-baseline, not before its first rollout; and the run plan's V8 line is to be rewritten to the
+#     notebook's real lines (the lead's ruling 6 of 17 Nov 2026): until then the trainer runs here directly.
 # ---------------------------------------------------------------------------------------------------------------
 J4=$W/local/s2-4/jobs/R5-75-M-H-10-s42
+BL=$TB/runs/s2-4/R0L_BASELINE.json
 step V8-baseline $PY -c "from designlab.stage2 import monitor2; monitor2.baseline('75-M-H-10', 'V6', '$W/s2-4-baseline')"
-step V8-baseline-commit sh -c "mkdir -p '$TB/runs/s2-4' && { [ -e '$TB/runs/s2-4/R0L_BASELINE.json' ] || cp '$W/s2-4-baseline/r0l.json' '$TB/runs/s2-4/R0L_BASELINE.json'; } && cmp '$W/s2-4-baseline/r0l.json' '$TB/runs/s2-4/R0L_BASELINE.json'"
+step V8-baseline-copy sh -c "mkdir -p '$TB/runs/s2-4' && { [ -e '$BL' ] || cp '$W/s2-4-baseline/r0l.json' '$BL'; } && cmp '$W/s2-4-baseline/r0l.json' '$BL'"
+committed V8-baseline-committed "$BL" "$W/s2-4-baseline/r0l.json"
 # shellcheck disable=SC2046
 step V8-s2-4 $T2 run --mode R5 --body 75-M-H-10 --seed 42 --set V6 --out "$W/local/s2-4" --run-id s2-4 \
     --steps 2000000 --monitor-every 500000 --workers 3 $(resume_flag "$J4")
