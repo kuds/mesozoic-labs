@@ -1761,6 +1761,65 @@ def _write_if_changed(path: Path, doc: dict, old: dict | None, point: str, group
     return True
 
 
+#: The groups whose failure stops a set (the start and the change into the bar's walk), in the order a build runs
+#: them (``build``); ``set.json`` ``blocked`` lists the failing ones in this order.
+STOP_GROUPS = (setio.START, setio.change_name(setio.NOMINAL, setio.walk_name(setio.BAR_SPEED)))
+
+
+def blocked_list(value) -> list[dict]:
+    """``set.json`` ``blocked`` as a list of ``{by, reason}``, one per failing group that stops the set (ruling 23
+    of 17 Nov 2026: a list, so that a set whose start and change into the bar's walk both fail names both).  It
+    reads the list this code writes, an older record's dict (one group) and null (the set is not stopped)."""
+    if not value:
+        return []
+    if isinstance(value, dict):
+        return [dict(value)]
+    return [dict(b) for b in value]
+
+
+def _stop_order(group: str) -> tuple:
+    return (STOP_GROUPS.index(group) if group in STOP_GROUPS else len(STOP_GROUPS), group)
+
+
+def blocks_in_records(docs: dict) -> dict:
+    """group -> the reason it stops the set, read from the records alone, as ``produce`` decides it (its
+    ``blocks_set``): the start that has no transition within its gates (``RULES["S2S-fallback"]``); the start into
+    the 0.40 m/s walk of a set whose nominal walk is no rung, when that has none (``RULES["S2S-lead-in"]``); the
+    change into the bar's walk that has none.  ``merge`` keeps these for the groups it is not merging, so that a
+    record whose ``blocked`` named one group only (the dict of older code, which the last blocking merge
+    overwrote) loses no stop when another group's merge passes."""
+    tr = docs["transitions.json"]["transitions"]
+    start, change = STOP_GROUPS
+    alt = setio.start_name(setio.walk_name(setio.BAR_SPEED))
+    out = {}
+    e = tr.get(start)
+    if e is not None and e.get("available") is False:
+        lead = e.get("lead_in") or {}
+        a = tr.get(alt) or {}
+        if e.get("reason") == NO_GATES:
+            out[start] = f"{start}: {NO_GATES} ({RULES['S2S-fallback']})"
+        elif lead.get("rule") == "S2S-lead-in" and lead.get("by") is None and a.get("available") is False \
+                and a.get("reason") == NO_GATES:
+            out[start] = f"{alt}: {NO_GATES} ({RULES['S2S-lead-in']})"
+    e = tr.get(change)
+    if e is not None and e.get("available") is False and e.get("reason") == NO_GATES:
+        out[change] = f"{change}: {NO_GATES} ({RULES['S2S-fallback']})"
+    return out
+
+
+def _blocked_after(set_doc: dict, docs: dict, group: str, blocks: str | None) -> list[dict] | None:
+    """``set.json`` ``blocked`` once ``group`` is merged: every other failing group it named, or the records show
+    (``blocks_in_records``), stays; ``group`` is named by its own result alone (``blocks``: its partial's
+    ``blocks_set``).  None when no group stops the set (as a set that was never stopped records it)."""
+    named = {b.get("by"): b.get("reason") for b in blocked_list(set_doc.get("blocked")) if b.get("by") != group}
+    for g, why in blocks_in_records(docs).items():
+        if g != group:
+            named.setdefault(g, why)
+    if blocks:
+        named[group] = blocks
+    return [dict(by=g, reason=named[g]) for g in sorted(named, key=_stop_order)] or None
+
+
 def merge(d: Path, part: dict, log=print) -> dict:
     """Merge one finished item (a ``partial/<group>.json``'s content) into the set's records and delete the partial.
     An entry the latest manifest holds is never written; an entry whose arrays were reproduced (same definition,
@@ -1818,10 +1877,7 @@ def merge(d: Path, part: dict, log=print) -> dict:
     if res["written"] and part.get("header") is not None:
         for k, v in part["header"].items():
             docs["refs.json"][k] = v
-    if part.get("blocks_set"):
-        set_doc["blocked"] = dict(by=group, reason=part["blocks_set"])
-    elif (set_doc.get("blocked") or {}).get("by") == group:
-        set_doc["blocked"] = None
+    set_doc["blocked"] = _blocked_after(set_doc, docs, group, part.get("blocks_set"))
     if not setio.frozen(set_doc):  # (a frozen set's lead-in is its freeze's: its walks are never written again)
         set_doc["lead_in"] = lead_in_of(docs["refs.json"]["references"])
     d.mkdir(parents=True, exist_ok=True)
@@ -1929,8 +1985,10 @@ def build(set_name: str, body: str, root=setio.ROOT, only=None, procs: int = 2, 
     """Build what the set lacks (module docstring, section 2), resumably, under the set's lock.  ``only``: item or
     group names (their walks must be there).  ``procs`` spawned workers at a time, each item in a fresh process (0:
     the items run in this process, one after another, for tests).  Returns ``{dir, ran, kept, recovered, restored,
-    skipped, mismatch, blocked, not_available, lead_in, seconds}``; ``SetError`` after the run if a frozen entry could
-    not be reproduced; ``GateError`` if a built-in gate stopped it."""
+    skipped, mismatch, blocked, not_available, lead_in, seconds}`` (``blocked``: the set's record's list of the
+    failing groups that stop it, ``{by, reason}`` each, this run's among them; None if nothing stops it);
+    ``SetError`` after the run if a frozen entry could not be reproduced; ``GateError`` if a built-in gate stopped
+    it."""
     s2io.require_one_thread()
     its = items(set_name, body)
     by_group = groups(its)
@@ -1945,6 +2003,7 @@ def build(set_name: str, body: str, root=setio.ROOT, only=None, procs: int = 2, 
     t0 = time.perf_counter()
     res = dict(dir=str(d), ran=[], kept=[], recovered=[], restored=[], skipped=[], mismatch=[], blocked=None,
                not_available={}, lead_in=None, seconds=None)
+    stopped: list = []  # the groups that stopped this run ({by, reason}); the set's record names them with the others
     with s2io.Lock(d / ".lock", log=log):
         for f in s2io.sweep_tmp(d):
             log(f"removed a stale temporary file: {f}")
@@ -1963,7 +2022,7 @@ def build(set_name: str, body: str, root=setio.ROOT, only=None, procs: int = 2, 
             if m["frozen"] and not part.get("mismatch"):
                 res["restored"] += m["frozen"]
             if part.get("blocks_set"):
-                res["blocked"] = dict(by=group, reason=part["blocks_set"])
+                stopped.append(dict(by=group, reason=part["blocks_set"]))
 
         # finished items a killed run left in partial/
         for p in sorted(pdir.glob("*.json")) if pdir.is_dir() else []:
@@ -1981,14 +2040,14 @@ def build(set_name: str, body: str, root=setio.ROOT, only=None, procs: int = 2, 
                 log(f"removed a partial item that is not of the set as it is now: {p.name}")
 
         def run(phase_groups: list) -> None:
-            if not phase_groups or res["blocked"]:
+            if not phase_groups or stopped:
                 return
             jobs = [(set_name, body, g, str(root), os.getpid()) for g in phase_groups]
             log(f"{set_name} {body}: building {len(jobs)} item(s) with {min(max(1, procs), len(jobs))} process(es): "
                 + ", ".join(phase_groups))
             if procs < 1:
                 for j in jobs:
-                    if res["blocked"]:
+                    if stopped:
                         res["skipped"].append(j[2])
                         continue
                     take(build_item(*j[:3], root=j[3], owner=j[4]), "ran")
@@ -2005,7 +2064,7 @@ def build(set_name: str, body: str, root=setio.ROOT, only=None, procs: int = 2, 
                             continue
                         group = fut.result()
                         take(s2io.read_json(partial_path(d, group)), "ran")
-                        if res["blocked"]:
+                        if stopped:
                             for other in futures:
                                 if other.cancel():
                                     res["skipped"].append(futures[other])
@@ -2030,15 +2089,15 @@ def build(set_name: str, body: str, root=setio.ROOT, only=None, procs: int = 2, 
                     continue
                 todo.append(group)
             if not phase:  # the start and the change into the bar's walk first: a failure of either stops the set
-                first = [setio.START, setio.change_name(setio.NOMINAL, setio.walk_name(setio.BAR_SPEED))]
+                first = list(STOP_GROUPS)
                 todo.sort(key=lambda g: (first.index(g) if g in first else len(first)))
             run(todo)
         docs = load_docs(d)
         if docs is not None:
             res["not_available"] = {n: v.get("reason") for n, v in docs["set.json"].get("not_available", {}).items()}
             res["lead_in"] = docs["set.json"].get("lead_in")
-            if res["blocked"] is None:
-                res["blocked"] = docs["set.json"].get("blocked")
+        # every failing group that stops the set: this run's and the record's (ruling 23); None: not stopped
+        res["blocked"] = (blocked_list(docs["set.json"].get("blocked")) if docs is not None else stopped) or None
     res["seconds"] = time.perf_counter() - t0
     if res["mismatch"]:
         raise SetError(f"{d}: a frozen entry was not reproduced; nothing of it was written: " + "; ".join(
@@ -2394,8 +2453,8 @@ def verify(set_name: str, body: str, root=setio.ROOT) -> dict:
     if lead is None and all(n in entries for n in walk_names()):
         notes.append("the set has no lead-in (neither its nominal nor its 0.40 m/s walk is a rung): its conditions "
                      "are not run")
-    if set_doc.get("blocked"):
-        bad.append(f"the set is stopped: {set_doc['blocked'].get('reason')} (it goes to the lead)")
+    for b in blocked_list(set_doc.get("blocked")):  # (a list; an older record's dict or null reads too)
+        bad.append(f"the set is stopped: {b.get('reason')} (it goes to the lead)")
     for name, rec in (set_doc.get("not_available") or {}).items():
         if name not in entries or entries[name][1].get("available") is not False:
             bad.append(f"{name}: set.json not_available lists it and its entry does not say so")
@@ -2739,7 +2798,7 @@ def status(set_name: str, body: str, root=setio.ROOT) -> dict:
     rows = {} if fz is None else fz["entries"]
     out["frozen"] = None if fz is None else dict(index=fz["index"], manifest_sha256=fz["manifest_sha256"],
                                                  entries=len(rows))
-    out["blocked"] = docs["set.json"].get("blocked")
+    out["blocked"] = blocked_list(docs["set.json"].get("blocked")) or None
     for i in its:
         e = _entry_of(docs, i.kind, i.name)
         if e is None and i.optional:
@@ -2854,7 +2913,7 @@ def main(argv=None) -> int:
                 say(f"  not available: {name}: {why}")
             say(f"  lead-in: {r['lead_in']}")
             if r["blocked"]:
-                say(f"  the set is stopped: {r['blocked']['reason']}"
+                say(f"  the set is stopped: {'; '.join(b['reason'] for b in r['blocked'])}"
                     + (f"; not built: {', '.join(r['skipped'])}" if r["skipped"] else ""))
                 return 1
             return 0
@@ -2880,7 +2939,7 @@ def main(argv=None) -> int:
         say(f"{a.set} {a.body}: " + ("not built" if not r["built"] else
                                      ("not frozen" if r["frozen"] is None else f"freeze {r['frozen']['index']}"))
             + (f"; missing {len(r['missing'])}" if r["missing"] else "") + f"; lead-in {r['lead_in']}"
-            + (f"; stopped: {r['blocked']['reason']}" if r["blocked"] else ""))
+            + (f"; stopped: {'; '.join(b['reason'] for b in r['blocked'])}" if r["blocked"] else ""))
         return 0
     except SetError as exc:
         say(f"{type(exc).__name__}: {exc}")

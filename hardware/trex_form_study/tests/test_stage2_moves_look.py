@@ -26,6 +26,7 @@ import inspect
 import json
 import math
 import os
+import shutil
 import subprocess
 import sys
 from dataclasses import replace
@@ -1199,6 +1200,46 @@ def test_the_turn_in_places_names_and_optional_items_in_verify_and_status(tmp_pa
     assert st["items"]["stop_inplace_0.5_right"].startswith("not built (optional") and st["items"]["start"] == "missing"
     with pytest.raises(sets.SetError, match="no item or group"):
         sets.build("V6", BODY, tmp_path, only=["inplace_1_left"], procs=0)
+
+
+V6_60 = ROOT / "stage2" / "sets" / "V6" / "60-N-T-10"
+
+
+@pytest.mark.skipif(not (V6_60 / "set.json").is_file(), reason="the V6 set on 60-N-T-10 is not built")
+def test_a_passing_merge_does_not_lift_another_groups_stop_on_a_look_sets_records(tmp_path):
+    """The look sets' check, finding 3, as the fixer showed it (stage2/design/checkpoint/reviews/roundC__fix_L_17nov.md;
+    ruled 23): on a copy of V6/60-N-T-10's records, whose start and nominal_to_v0.4 both fail and whose ``blocked``
+    (older code's dict) names nominal_to_v0.4 alone, nominal_to_v0.4's group is merged again as if built within its
+    gates (no ``blocks_set``).  The set stays stopped by its start: ``blocked`` is a list naming it, verify says so;
+    then the start's group merged within its gates lifts the stop.  The committed records are not touched."""
+    d = setio.set_dir("V6", "60-N-T-10", tmp_path)
+    d.mkdir(parents=True)
+    for name in ("refs.json", "transitions.json", "set.json", "screen.json"):
+        shutil.copy2(V6_60 / name, d / name)
+    before = {n: (V6_60 / n).read_bytes() for n in ("refs.json", "transitions.json", "set.json")}
+    sd = json.loads((d / "set.json").read_text())
+    tr = json.loads((d / "transitions.json").read_text())["transitions"]
+    if not (isinstance(sd["blocked"], dict) and sd["blocked"]["by"] == "nominal_to_v0.4"
+            and tr["start"].get("available") is False and tr["nominal_to_v0.4"].get("available") is False):
+        pytest.skip("V6/60-N-T-10's records are no longer the ones the fixer's demo read (rebuilt)")
+    stopped = lambda: [x for x in sets.verify("V6", "60-N-T-10", tmp_path)["failures"]  # noqa: E731
+                       if x.startswith("the set is stopped")]
+    assert stopped() == [f"the set is stopped: {sd['blocked']['reason']} (it goes to the lead)"]  # the dict reads
+
+    def part(group: str) -> dict:  # the group's entries, standing for ones built within their gates
+        made = {n: {**e, "available": True, "file": f"transitions/{n}.npz", "sha256": "0" * 64}
+                for n, e in tr.items() if e.get("group") == group}
+        return dict(set="V6", body="60-N-T-10", item=group, refs={}, transitions=made, look_entries={},
+                    stride_rules={}, header=None, blocks_set=None, log=[])
+
+    sets.merge(d, part("nominal_to_v0.4"), log=lambda *a: None)
+    got = json.loads((d / "set.json").read_text())["blocked"]
+    assert [b["by"] for b in got] == ["start"] and got[0]["reason"].startswith("start: no transition within the gates")
+    assert stopped() == [f"the set is stopped: {got[0]['reason']} (it goes to the lead)"]
+    assert sets.status("V6", "60-N-T-10", tmp_path)["blocked"] == got
+    sets.merge(d, part("start"), log=lambda *a: None)
+    assert json.loads((d / "set.json").read_text())["blocked"] is None and stopped() == []
+    assert before == {n: (V6_60 / n).read_bytes() for n in before}
 
 
 def test_the_turn_in_places_gait_is_verified_against_l13():

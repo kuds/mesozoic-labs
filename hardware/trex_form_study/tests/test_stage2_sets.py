@@ -710,10 +710,10 @@ def test_a_failed_start_stops_the_set(tmp_path, standin, capsys):
     standin["fail"] = {"start": sets.NO_GATES}
     standin["blocks_set"] = "start"
     r = build(tmp_path)
-    assert r["blocked"] == dict(by="start", reason="start: no transition within the gates")
+    assert r["blocked"] == [dict(by="start", reason="start: no transition within the gates")]
     assert r["ran"] == ["nominal", "v0.3", "v0.35", "v0.4", "v0.45", "v0.5", "start"] and len(r["skipped"]) == 11
     d = Path(r["dir"])
-    assert docs_of(d)["set.json"]["blocked"]["by"] == "start"
+    assert [b["by"] for b in docs_of(d)["set.json"]["blocked"]] == ["start"]
     write_screen(d)
     v = sets.verify(SET, BODY, tmp_path)
     assert not v["ok"] and any("the set is stopped" in x for x in v["failures"])
@@ -724,6 +724,84 @@ def test_a_failed_start_stops_the_set(tmp_path, standin, capsys):
     edit_json(d / "transitions.json", lambda doc: doc["transitions"].pop("start"))
     r = build(tmp_path)
     assert r["blocked"] is None and "start" in r["ran"] and docs_of(d)["set.json"]["blocked"] is None
+
+
+def test_blocked_names_every_failing_group_and_a_passing_merge_lifts_only_its_own(tmp_path, standin, monkeypatch,
+                                                                                   capsys):
+    """Ruling 23 of 17 Nov 2026 (the look sets' check, finding 3): ``set.json`` ``blocked`` is a list that names
+    every failing group that stops the set, the start and the change into the bar's walk both when both fail; a
+    group merged again within its gates lifts its own stop and no other.  An older record's dict (one group: the
+    last blocking merge of older code overwrote the other) or null still reads, and a stop that the records show
+    (``blocks_in_records``) is kept when another group's merge passes."""
+    both = ("start", "nominal_to_v0.4")
+    standin["fail"] = {g: sets.NO_GATES for g in both}
+    inner = fake["produce"]
+
+    def produce(*args, **kw):
+        out = inner(*args, **kw)
+        if out["item"] in MODE["fail"] and out["item"] in both:
+            out["blocks_set"] = f"{out['item']}: no transition within the gates"
+        return out
+
+    monkeypatch.setattr(sets, "produce", produce)
+    r = build(tmp_path)  # one process: the failed start stops this run before the change is built
+    assert [b["by"] for b in r["blocked"]] == ["start"] and "nominal_to_v0.4" in r["skipped"]
+    d = Path(r["dir"])
+    r = build(tmp_path, only=["nominal_to_v0.4"])
+    want = [dict(by=g, reason=f"{g}: no transition within the gates") for g in both]
+    assert r["blocked"] == want == docs_of(d)["set.json"]["blocked"] and r["ran"] == ["nominal_to_v0.4"]
+    write_screen(d)
+    v = sets.verify(SET, BODY, tmp_path)
+    assert [x for x in v["failures"] if x.startswith("the set is stopped")] == [
+        f"the set is stopped: {g}: no transition within the gates (it goes to the lead)" for g in both]
+    assert sets.status(SET, BODY, tmp_path)["blocked"] == want
+    argv = ["build", "--set", SET, "--body", BODY, "--root", str(tmp_path), "--procs", "0"]
+    assert sets.main(argv) == 1 and ("the set is stopped: start: no transition within the gates; nominal_to_v0.4: no "
+                                     "transition within the gates") in capsys.readouterr().out
+    # the change built again within its gates: the start still stops the set
+    del standin["fail"]["nominal_to_v0.4"]
+    edit_json(d / "transitions.json", lambda doc: doc["transitions"].pop("nominal_to_v0.4"))
+    r = build(tmp_path, only=["nominal_to_v0.4"])
+    assert r["blocked"] == want[:1] == docs_of(d)["set.json"]["blocked"]
+    write_screen(d)
+    v = sets.verify(SET, BODY, tmp_path)
+    assert [x for x in v["failures"] if x.startswith("the set is stopped")] == [
+        "the set is stopped: start: no transition within the gates (it goes to the lead)"]
+    # an older record: blocked a dict naming the change alone, though the start's record fails its gates
+    standin["fail"]["nominal_to_v0.4"] = sets.NO_GATES
+    edit_json(d / "transitions.json", lambda doc: doc["transitions"].pop("nominal_to_v0.4"))
+    build(tmp_path, only=["nominal_to_v0.4"])
+    old = dict(by="nominal_to_v0.4", reason="nominal_to_v0.4: no transition within the gates")
+    edit_json(d / "set.json", lambda doc: doc.update(blocked=old))
+    assert sets.status(SET, BODY, tmp_path)["blocked"] == [old] and sets.blocked_list(old) == [old]
+    assert sets.blocked_list(None) == [] and sets.blocked_list([old]) == [old]
+    assert [x for x in sets.verify(SET, BODY, tmp_path)["failures"] if x.startswith("the set is stopped")] == [
+        f"the set is stopped: {old['reason']} (it goes to the lead)"]
+    assert sets.blocks_in_records(docs_of(d)) == {g: f"{g}: {sets.NO_GATES} ({sets.RULES['S2S-fallback']})"
+                                                  for g in both}
+    del standin["fail"]["nominal_to_v0.4"]
+    edit_json(d / "transitions.json", lambda doc: doc["transitions"].pop("nominal_to_v0.4"))
+    r = build(tmp_path, only=["nominal_to_v0.4"])
+    assert r["blocked"] == [dict(by="start", reason=f"start: {sets.NO_GATES} ({sets.RULES['S2S-fallback']})")]
+    assert docs_of(d)["set.json"]["blocked"] == r["blocked"]
+    # the start within its gates: nothing stops the set, and the record says null as a set never stopped
+    del standin["fail"]["start"]
+    edit_json(d / "transitions.json", lambda doc: doc["transitions"].pop("start"))
+    r = build(tmp_path)
+    assert r["blocked"] is None and docs_of(d)["set.json"]["blocked"] is None and r["ran"] == ["start"]
+
+
+@pytest.mark.parametrize("set_name", list(sets.SETS))
+def test_the_frozen_sets_records_name_no_stop(set_name):
+    """The round's three sets on 75-M-H-10 record ``blocked`` null and their records show no stop, so a merge into
+    them writes null again (ruling 23 leaves their records as they are)."""
+    d = setio.ROOT / set_name / BODY
+    if not (d / "set.json").exists():
+        pytest.skip(f"the {set_name} set is not built (stage2/sets/{set_name})")
+    docs = docs_of(d)
+    assert docs["set.json"]["blocked"] is None and sets.blocks_in_records(docs) == {}
+    for group in sets.STOP_GROUPS + ("nominal",):
+        assert sets._blocked_after(docs["set.json"], docs, group, None) is None
 
 
 def test_a_fallbacks_change_is_merged_and_later_removed(tmp_path, standin):
@@ -2239,7 +2317,8 @@ def test_a_built_sets_lead_in_follows_its_walks(set_name):
     lead, alt = sets.lead_in_of(refs_), setio.start_name("v0.4")
     assert sd["lead_in"] == lead and (lead == alt) == (set_name == "F25F9")
     if lead == "start":
-        assert alt not in tr and (tr["start"].get("available") is not False or sd["blocked"]["by"] == "start")
+        assert alt not in tr and (tr["start"].get("available") is not False
+                                  or "start" in {b["by"] for b in sets.blocked_list(sd["blocked"])})
         return
     assert lead == alt and refs_["nominal"]["available"] is False and refs_["v0.4"].get("available") is not False
     e, start = tr[alt], tr["start"]
@@ -2247,7 +2326,7 @@ def test_a_built_sets_lead_in_follows_its_walks(set_name):
     assert start["available"] is False and start["lead_in"]["rule"] == "S2S-lead-in" and "file" not in start
     assert start["reason"].startswith("the walk nominal is not a rung of the set") and sd["not_available"]["start"]["reason"] == start["reason"]
     if e.get("available") is False:  # the set is stopped: it is not run
-        assert sd["blocked"]["by"] == "start" and start["lead_in"]["by"] is None
+        assert "start" in {b["by"] for b in sets.blocked_list(sd["blocked"])} and start["lead_in"]["by"] is None
     else:
         assert e["pass_"] is True and e["stage0"]["blocks_freeze"] == [] and e["fallback"] is None and sd["blocked"] is None
         assert (e["move"]["builder"], e["move"]["causal"], e["from_"], e["to"]) == ("start", False, "stand", "v0.4")
