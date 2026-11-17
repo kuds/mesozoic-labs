@@ -130,7 +130,8 @@ def ctx() -> dict:
 # 1. Today's laws
 # ------------------------------------------------------------------------------------------------
 def test_rules_are_recorded(ctx):
-    assert set(ml.LOOK_RULE_IDS) | set(ml.JOIN_RULE_IDS) | {"S2L-periodic", "S2L-L13", "S2L-L1L4-start"} == set(ml.RULES)
+    assert set(ml.LOOK_RULE_IDS) | set(ml.JOIN_RULE_IDS) | {"S2L-periodic", "S2L-L13", "S2L-L1L4-start",
+                                                            "S2L-causal-grid"} == set(ml.RULES)
     for key, text in {**ml.RULES, **sets.LOOK_RULES}.items():
         assert key.startswith("S2L-") and len(text) > 40
     assert "S2L-L9" not in ml.RULES  # rolling contact inside a move is not built (L11)
@@ -1110,6 +1111,8 @@ def test_set_items_and_names(set_name, body):
             want = "S2L-L13" if i.kind in sets.LOOK_KINDS else "S2L-L10"
             assert want in i.definition["rules"] and "S2L-L9" not in i.definition["rules"]
             assert ("S2L-L10" in i.definition["rules"]) != (i.kind in sets.LOOK_KINDS)
+            # the causal moves (the stop, the turns) name the causal preview grid (ruling 28), no other move does
+            assert ("S2L-causal-grid" in i.definition["rules"]) == (i.kind in ("stop_two_step", "turn"))
         if "inplace" not in i.name:
             assert setio.parse_name(i.name)["name"] == i.name
         else:
@@ -1160,14 +1163,27 @@ needs_phases = pytest.mark.skipif(not _tail_phases_here(BODY), reason="stage2/se
 @needs_phases
 def test_a_look_sets_records_hold_the_looks_rules_and_no_cut():
     """A new look set's three records: the builder's rules with the look's beside them, the look's laws' rules in
-    ``transitions.json``, and ``set.json`` ``look``: join rule J1 as designed, no cut in force, no review named (the
-    lead records it before a cut: STAGE2_TRACKB_PLAN.md L12).  A set of today's laws has none of this."""
+    ``transitions.json``, and ``set.json`` ``look``: join rule J1 as designed, no cut in force, and the join code's
+    independent review named by path and sha256 in ``rules`` and in ``look`` (STAGE2_TRACKB_PLAN.md L12; rulings 28
+    to 30 of 17 Nov 2026), with why no cut is taken: on 75-M-H-10 the review's probe of cut 3's leave point (ruling
+    29), elsewhere no probe.  A set of today's laws has none of this."""
     header = dict(model=dict(file_sha256="x"), H_m=0.5, q_home=[0.0], joints=["j"])
+    review = ROOT / sets.JOIN_REVIEW["path"]
+    assert sets.JOIN_REVIEW == dict(path="stage2/design/checkpoint/reviews/roundC__review_JR_17nov.md",
+                                    sha256="b3ff457673d537f65d8821c1910c27b6bebc7eb27acd43f0d0e0e96d9424212a")
+    assert review.is_file() and s2io.sha256_file(review) == sets.JOIN_REVIEW["sha256"]
+    text = sets.LOOK_RULES["S2L-join-review"]
+    assert sets.JOIN_REVIEW["path"] in text and sets.JOIN_REVIEW["sha256"] in text and "ruling 29" in text
+    probe = json.loads(sets.CUT3_PROBE_FILE.read_text())  # the review's cut-3 probe, per body, as a record
+    assert probe["review"] == sets.JOIN_REVIEW and set(probe["bodies"]) == {BODY} and "ruling 29" in probe["ruling"]
     for name in sets.LOOK_SETS:
         docs = sets._new_docs(name, BODY, header)
         sd, td, rd = docs["set.json"], docs["transitions.json"], docs["refs.json"]
         assert set(sets.RULES) | set(sets.LOOK_RULES) == set(sd["rules"]) and sd["role"].startswith("look")
-        assert sd["look"]["cut"] is None and sd["look"]["join_review"] is None and sd["look"]["pick"] == BODY
+        assert sd["look"]["cut"] is None and sd["look"]["join_review"] == sets.JOIN_REVIEW and sd["look"]["pick"] == BODY
+        assert "cut 3 is not taken for 75-M-H-10" in sd["look"]["cut_reason"] and "4.038" in sd["look"]["cut_reason"]
+        assert sd["look"]["cut3_probe"]["right_turns_mm"] == 4.361 and sd["look"]["joins_failed"] == {}
+        assert "S2L-causal-grid" in td["rules"]
         assert sd["look"]["leave_phase"] == dict(turn_left=2.0, turn_right=2.5, stop_two_step=2.5)
         assert set(ml.RULES) <= set(td["rules"]) and "S2L-moves" in td["rules"] and "S2A-gates" in td["rules"]
         assert "S2L-format" in rd["rules"] and "rolling contact" in rd["feedforward"]
@@ -1178,7 +1194,10 @@ def test_a_look_sets_records_hold_the_looks_rules_and_no_cut():
     committed = ROOT / "stage2" / "sets" / "V0" / BODY / "set.json"
     if committed.is_file():  # the frozen V0 set's rules are the ones a new V0 set would get: nothing of them moved
         assert json.loads(committed.read_text())["rules"] == v0["set.json"]["rules"]
-    assert sets._new_docs("V6", BODY + "-X", dict(header))["set.json"]["look"]["pick"] == BODY
+    x = sets._new_docs("V6", BODY + "-X", dict(header))["set.json"]["look"]
+    assert x["pick"] == BODY and x["cut_reason"] == sets.look_review(BODY)["cut_reason"]  # a cut is a body's (L12)
+    other = sets.look_review("60-N-T-10")
+    assert other["cut"] is None and other["cut3_probe"] is None and other["cut_reason"].startswith("no cut is in force")
 
 
 @needs_phases
@@ -1224,7 +1243,11 @@ def test_a_passing_merge_does_not_lift_another_groups_stop_on_a_look_sets_record
         pytest.skip("V6/60-N-T-10's records are no longer the ones the fixer's demo read (rebuilt)")
     stopped = lambda: [x for x in sets.verify("V6", "60-N-T-10", tmp_path)["failures"]  # noqa: E731
                        if x.startswith("the set is stopped")]
-    assert stopped() == [f"the set is stopped: {sd['blocked']['reason']} (it goes to the lead)"]  # the dict reads
+    # the dict reads, and the start's stop that the records show and the dict leaves out is named too (ruling 36)
+    start_why = sets.blocks_in_records(sets.load_docs(d))["start"]
+    assert stopped() == [f"the set is stopped: {sd['blocked']['reason']} (it goes to the lead)",
+                         f"the set is stopped: {start_why} (it goes to the lead; the records show it and set.json "
+                         "blocked does not name it)"]
 
     def part(group: str) -> dict:  # the group's entries, standing for ones built within their gates
         made = {n: {**e, "available": True, "file": f"transitions/{n}.npz", "sha256": "0" * 64}
@@ -1259,8 +1282,14 @@ def test_a_merge_into_a_look_set_built_before_a_rule_records_its_text(tmp_path):
     sets.merge(d, dict(set="V6", body="60-N-T-10", item="nominal_to_v0.4", refs={}, transitions=made, look_entries={},
                        stride_rules={}, header=None, blocks_set=None, log=[]), log=lambda *a: None)
     rules = json.loads((d / "transitions.json").read_text())["rules"]
-    assert rules["S2L-L1L4-start"] == ml.RULES["S2L-L1L4-start"] and set(ml.RULES) <= set(rules)
-    assert {k: v for k, v in rules.items() if k != "S2L-L1L4-start"} == old["rules"]
+    added = ("S2L-L1L4-start", "S2L-causal-grid")  # (rulings 18 and 28 of 17 Nov 2026)
+    assert all(rules[k] == ml.RULES[k] for k in added) and set(ml.RULES) <= set(rules)
+    assert {k: v for k, v in rules.items() if k not in added} == old["rules"]
+    # and set.json gains the look sets' rule on the join code's review, and L12's fields (ruling 30)
+    sd = json.loads((d / "set.json").read_text())
+    assert sd["rules"]["S2L-join-review"] == sets.LOOK_RULES["S2L-join-review"]
+    assert sd["look"]["join_review"] == sets.JOIN_REVIEW and sd["look"]["cut"] is None
+    assert sd["look"]["joins_failed"] == sets.joins_failed(sets.load_docs(d))
 
 
 def test_the_turn_in_places_gait_is_verified_against_l13():
@@ -1287,7 +1316,8 @@ def test_the_stride_pick_on_look_turns_keeps_the_rules_record(ctx, monkeypatch):
     seen = []
 
     def kinematic(src, mv, ref_a):
-        seen.append((mv.name, mv.laws.name, mv.args["stride_factor"], type(ref_a).__name__))
+        seen.append((mv.name, mv.laws.name, mv.args["stride_factor"], type(ref_a).__name__,
+                     getattr(moves.com_path_causal, ml.causal_grid.MARK, False)))
         f, left = mv.args["stride_factor"], mv.args["rate"] > 0
         return dict(range_use=dict(left_hip_yaw=0.79 + 0.1 * f if left else 0.5, right_hip_yaw=0.6), ik_ok=True,
                     ik_fail_frames=0,
@@ -1302,6 +1332,8 @@ def test_the_stride_pick_on_look_turns_keeps_the_rules_record(ctx, monkeypatch):
     assert rec["tried"][0]["tightest_other"]["left"] == dict(joint="left_knee", end="max", margin_rad=0.04)
     assert rec["limit_other_joints_rad"] == moves.OTHER_JOINT_MARGIN_RAD and rec["rule"] == "S2A-stride"
     assert all(s[1] == "look" and s[3] == "View" for s in seen) and len(seen) == 8
+    # each kinematic pass of a (causal) turn runs on the causal grid (ruling 28), and the function is put back after
+    assert all(s[4] for s in seen) and not getattr(moves.com_path_causal, ml.causal_grid.MARK, False)
     want = {"rule", "text", "grid", "limit_kinematic", "limit_final", "limit_other_joints_rad", "steps_down_max",
             "angle_rad", "rate_rad_s", "tried", "chosen", "steady_turn_kinematic", "steps_down", "builds", "outcome",
             "reason"}
@@ -1311,3 +1343,174 @@ def test_the_stride_pick_on_look_turns_keeps_the_rules_record(ctx, monkeypatch):
     # moves.step_down reads the record as it reads its own
     down = moves.step_down(rec, dict(ik_ok=True, hip_yaw_range_use=0.80, tightest_other_rad=0.07))
     assert down["outcome"] == "frozen"
+
+
+# ------------------------------------------------------------------------------------------------
+# 6. The causal preview grid on the look sets (ruling 28 of 17 Nov 2026; moves_look.RULES["S2L-causal-grid"])
+# ------------------------------------------------------------------------------------------------
+V6_75 = ROOT / "stage2" / "sets" / "V6" / BODY
+V0_75 = ROOT / "stage2" / "sets" / "V0" / BODY
+needs_v6_window = pytest.mark.skipif(
+    not ((V6_75 / "refs" / "v0.4.npz").is_file() and _tail_phases_here(BODY)),
+    reason="the git-ignored window of V6's 0.40 m/s walk on 75-M-H-10 is not here (python -m designlab.stage2.sets "
+           "build --set V6 --body 75-M-H-10 --only v0.4)")
+
+
+def _v6_window(zmp_iters=None):
+    H = sets.body_facts(BODY)[0]
+    spec = sets.walk_specs("V6", BODY, H)["v0.4"]
+    w = ml.Window.load(V6_75 / "refs" / "v0.4.npz", spec, H, "v0.4")
+    a = moves.GaitX.of("v0.4", spec if zmp_iters is None else replace(spec, zmp_iters=zmp_iters), H)
+    return w, a
+
+
+@needs_v6_window
+def test_a_look_causal_moves_preview_grid_is_its_frames_up_to_the_command(ctx):
+    """Ruling 28 (the join-code review, gate 3), on the controller: V6's left turn on 75-M-H-10 at stride factors
+    1.0, 0.8 and 0.6.  ``moves.com_path_causal``'s default grid, the smallest frame interval of the whole plan, lies
+    after the command in every one (the review's 5.140, 4.295 and 3.221 ms), so the controller's warm-up differs with
+    what follows the command; inside ``moves_look.causal_grid`` the grid is the frames' up to the command (5.2244 ms
+    on all three) and the warm-up (the CoM path and its cart-table ZMP up to the command frame) is the same, bit for
+    bit.  The context puts ``moves.com_path_causal`` back when it is left, also on an error, refuses to be entered
+    twice, and leaves (and says so) a function that something else put in its place."""
+    src = ctx["src"]
+    w, a = _v6_window()
+    own = moves.com_path_causal
+    runs = {}
+    with s2io.r2():
+        for f in (1.0, 0.8, 0.6):
+            bd = ml.turn(src, "turn90_0.35_left", a, w, math.pi / 2, 0.35, f)
+            cs = moves._causal_setup(src, bd.move, bd.ref_a)
+            args = (cs["pl"], cs["zref0"], cs["zpre_t"], cs["zpre"], cs["x0"], cs["geo"].omega, cs["k_cmd"])
+            with ml.causal_grid():
+                assert moves.com_path_causal is not own
+                causal = moves.com_path_causal(*args)
+            assert moves.com_path_causal is own
+            runs[f] = dict(k=cs["k_cmd"], grid=ml.causal_grid_s(cs["pl"], cs["k_cmd"]),
+                           whole=float(np.min(np.diff(cs["pl"].t))), causal=causal, default=own(*args), args=args)
+    k = runs[1.0]["k"]
+    assert {r["k"] for r in runs.values()} == {k}
+    assert all(r["grid"] == pytest.approx(5.2244e-3, abs=1e-7) for r in runs.values())
+    assert [round(1e3 * r["whole"], 3) for r in runs.values()] == [5.14, 4.295, 3.221]  # after the command
+    for f in (0.8, 0.6):
+        for i in (0, 1):  # the CoM path and the cart-table ZMP up to and at the command frame
+            assert np.array_equal(runs[f]["causal"][i][: k + 1], runs[1.0]["causal"][i][: k + 1]), (f, i)
+        assert np.abs(runs[f]["default"][0][: k + 1] - runs[1.0]["default"][0][: k + 1]).max() > 1e-6, f
+    # a grid the caller passes is used as given; the context is not entered twice
+    args = runs[0.6]["args"]
+    with ml.causal_grid():
+        assert np.array_equal(moves.com_path_causal(*args, dt=4e-3)[0], own(*args, dt=4e-3)[0])
+        with pytest.raises(ml.LookError, match="already replaced"):
+            with ml.causal_grid():
+                pass
+    assert moves.com_path_causal is own
+    with pytest.raises(ZeroDivisionError):
+        with ml.causal_grid():
+            1 / 0
+    assert moves.com_path_causal is own
+    stranger = lambda *a, **k: None  # noqa: E731
+    with pytest.raises(ml.LookError, match="not put back"):
+        with ml.causal_grid():
+            moves.com_path_causal = stranger
+    assert moves.com_path_causal is stranger
+    moves.com_path_causal = own
+
+
+@pytest.fixture(scope="module")
+def left_turns(ctx) -> dict:
+    """V6's quick left turn on 75-M-H-10 at stride factors 1.0, 0.8 and 0.6, each generated by
+    ``moves_look.generate`` on the set's own 0.40 m/s window (one solve: no correction pass, which leaves the warm-up
+    as it is, since the correction acts from the command on), with its ``join_command`` and its entry's look keys."""
+    src = ctx["src"]
+    w, a = _v6_window(zmp_iters=0)
+    out = {}
+    with s2io.r2():
+        for f in (1.0, 0.8, 0.6):
+            bd = ml.turn(src, "turn90_pi4_left", a, w, math.pi / 2, math.pi / 4, f)
+            g = ml.generate(src, bd.move, bd.ref_a)
+            entry = ml.entry_extra(bd, g, moves.summary(g, bd.ref_a, bd.ref_b, src["q_home"]))
+            out[f] = dict(warmup=g["warmup"], join_command=moves.join_command(g, bd.ref_a), entry=entry,
+                          frames=len(g["plan"].t))
+    return out
+
+
+@needs_v6_window
+def test_a_look_causal_moves_warmup_reads_the_same_whatever_follows_the_command(left_turns):
+    """Ruling 28 on the built move: the left turn's warm-up, generated by ``moves_look.generate`` (as a look set's
+    build does) at stride factors 1.0, 0.8 and 0.6, is the same frame for frame (joints, model CoM, and the multibody
+    ZMP on every frame ``join_command`` reads: all but the last two, whose central differences reach past the
+    command), so ``join_command``'s warm-up reading is one number (the review's 4.621 mm on the causal grid).  The
+    entry records the grid (``look.preview_grid``) and the rule in ``move.rules``."""
+    r = left_turns
+    assert len({x["frames"] for x in r.values()}) == 3  # what follows the command differs
+    for f in (0.8, 0.6):
+        for key in ("q", "com", "phase", "t"):
+            assert np.array_equal(r[f]["warmup"][key], r[1.0]["warmup"][key]), (f, key)
+        assert np.array_equal(r[f]["warmup"]["zmp_mb"][:-2], r[1.0]["warmup"]["zmp_mb"][:-2], equal_nan=True), f
+        for key in ("warmup_zmp_max_mm", "warmup_com_max_mm", "warmup_joint_max_rad"):
+            assert r[f]["join_command"][key] == r[1.0]["join_command"][key], (f, key)
+        assert r[f]["join_command"]["at_command"]["com_mm"] == r[1.0]["join_command"]["at_command"]["com_mm"]
+    assert r[1.0]["join_command"]["warmup_zmp_max_mm"] == pytest.approx(4.621, abs=5e-4)
+    for x in r.values():
+        grid = x["entry"]["look"]["preview_grid"]
+        assert grid["rule"] == "S2L-causal-grid" and grid["grid_s"] == pytest.approx(5.2244e-3, abs=1e-7)
+        assert grid["whole_plan_min_s"] < grid["grid_s"] and grid["command_frame"] == 160
+        assert "S2L-causal-grid" in x["entry"]["move"]["rules"] and "S2L-causal-grid" in x["entry"]["look"]["rules"]
+
+
+ROUND_CODE = r"""
+import json, math, sys
+import numpy as np
+from designlab.stage1 import refs
+from designlab.stage2 import look, moves, s2io, sets, setio
+from designlab.stage2 import moves_look as ml
+
+body, out_dir = sys.argv[1], sys.argv[2]
+d = setio.set_dir("V0", body)
+tr = json.load(open(d / "transitions.json"))["transitions"]
+fz = setio.frozen(json.load(open(d / "set.json")))
+its = {i.name: i for i in sets.items("V0", body)}
+H = sets.body_facts(body)[0]
+src = look.source(body)
+ref = refs.Reference.load(d / "refs" / "v0.4.npz")
+a = moves.GaitX.of("v0.4", sets.walk_specs("V0", body, H)["v0.4"], H)
+name = "turn90_pi4_right"
+args = its[name].definition["args"]
+mv = moves.turn(name, a, args["angle"], args["rate"], tr[name]["turn"]["stride_factor"], ramp_s=args["ramp_s"])
+own = moves.com_path_causal
+out = {}
+with s2io.r2():
+    # the look's path used first in this process, and left on an error too
+    with ml.causal_grid():
+        pass
+    try:
+        with ml.causal_grid():
+            raise KeyError("x")
+    except KeyError:
+        pass
+    cs = moves._causal_setup(src, mv, ref)
+    xs = (cs["pl"], cs["zref0"], cs["zpre_t"], cs["zpre"], cs["x0"], cs["geo"].omega, cs["k_cmd"])
+    k = cs["k_cmd"]
+    with ml.causal_grid():
+        causal = moves.com_path_causal(*xs)
+    default = moves.com_path_causal(*xs)
+    out.update(restored=moves.com_path_causal is own, grid=ml.causal_grid_s(cs["pl"], k),
+               whole=float(np.min(np.diff(cs["pl"].t))),
+               warmup_differs_on_causal_grid=float(np.abs(causal[0][: k + 1] - default[0][: k + 1]).max()))
+    g = moves.generate(src, mv, ref)  # a round set's move: moves.generate as it stands
+    sha = s2io.write_npz(out_dir + "/" + name + ".npz", moves.arrays(g))
+out.update(name=name, sha256=sha, recorded=tr[name]["sha256"], frozen=fz["entries"][name]["sha256"])
+print(json.dumps(out))
+"""
+
+
+@pytest.mark.skipif(not ((V0_75 / "refs" / "v0.4.npz").is_file() and (V0_75 / "set.json").is_file()),
+                    reason="the frozen V0 set's git-ignored arrays are not here")
+def test_the_round_sets_moves_build_bit_for_bit_as_before(tmp_path):
+    """Ruling 28 leaves the round's three frozen sets as they are: in a process that has used the look's causal
+    grid (and left it on an error), V0's quick right turn on 75-M-H-10, whose whole plan's smallest interval lies
+    after the command (so that the causal grid would change its warm-up), is generated by ``moves.generate`` to the
+    sha256 its frozen record holds."""
+    got = _run(ROUND_CODE, BODY, str(tmp_path), timeout=1800)
+    assert got["restored"] and got["whole"] < got["grid"] and got["warmup_differs_on_causal_grid"] > 1e-6
+    assert got["sha256"] == got["recorded"] == got["frozen"]

@@ -677,3 +677,14 @@ and the chain's `--resume` on V10); the servo model's S1 low points and S2 (the 
   numbers (the left turns against P34's 4.0 mm; any start or change still failing, the 60 cm change to 0.40 m/s
   most likely; the turn in place); then freeze (lead), G9-ref, the validation steps, S2-4, bundle, acceptance run.
 - **Meter:** $3,162 at 09:50 UTC, about 68.3 % of the week.
+
+## Update, 17 Nov 2026, ~13:00 UTC: usage
+
+- The owner's reading at 12:56 UTC: **75 % of the week** at $3,303.08 on the session meter. The calibration is
+  refitted: 1 % is about $32, so 85 % is about $3,623 and 95 % about $3,943. At today's pace, about 1.4 % an hour,
+  85 % is about 7 hours away. The rate-limit status turned "allowed_warning" at the same time.
+- Since 10:00 UTC: LT2, LT3, LT4 and servo S2 are merged (merged tests pass; hashes the registered pair); servo S3 is
+  built and in a fix round (fifth list); the three 75 cm look sets are rebuilt (wt/wp-l a3ea12c0, not frozen), and
+  their check is running, with the 60 cm rebuild after it.
+- Priority while usage lasts: what brings training closest. That is the look sets merged and frozen, the owner's
+  question on V6's left turns, G9-ref, the validation steps and S2-4. The servo work for gate 1 (S4) comes after.
