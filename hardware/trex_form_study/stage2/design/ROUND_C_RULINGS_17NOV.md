@@ -380,3 +380,26 @@ Merged as it stands.
     - The look sets' freeze text in `sets.py` names the placed refcheck in the six places the check lists (lines
       about 63, 145, 2478, 2662, 2768 and the `--refcheck` help at 2906). This is done by the next change to
       `sets.py` after the rebuild is merged, in the words the check suggests.
+
+## The 75 cm freezes and the first validation (`checkpoint/reviews/roundC__{do,check}_{freeze75,validate75}_17nov.md`), ruled 17 Nov 2026, ~18:00 UTC
+
+V6/75-M-H-10, V6noF5/75-M-H-10 and V6/75-M-H-10-X are frozen (freeze 0). G9-ref passed on each; the check re-ran it
+and found every part identical. G8a passed on V6/75-M-H-10 (32 of 32 episodes identical). R0L's records ran
+(13 conditions; the four quick-turn conditions not run, their references being unavailable). G9-run failed on part
+(d), and the validation stopped there.
+
+41. **The mixed freezes are accepted.** The three freezes used `--allow-mixed`: P42 rebuilt only the stop and turn
+    groups, so the entries come from two source states. Rule S2S-freeze allows a mixed freeze when it is recorded,
+    and each freeze records `mixed_sources: true` and `dirty: false`. The moves.py condition (A4) held. The P42
+    check found every rebuilt entry's arrays bit-equal where nothing else changed. The freezes stand. The check's
+    two small corrections are noted: in the -X form of (b), toe-off differs by 1e-9 to 3e-9 rad, not by exactly 0.0;
+    and a frozen entry cannot be rebuilt in place.
+42. **G9-run (d) and conditions that are not run (code error, not a rule change).** `gates2.part_d` reads every
+    companion under `look/R0L@10ms/` and fails any bar record whose status is not "done". The four quick-turn
+    conditions have no available reference, so the bar records them as "not run" with no episode. Rule Z2 (d) speaks
+    of the episodes of the records, and H3 says that a reference marked not available leaves its conditions "not run".
+    G9-ref (a), G8a and `_expected_conditions` already treat such a condition as "not run, ok". `part_d` is changed
+    to read only the expected conditions' companions and to list the not-run ones as "not run", with a test. The
+    companion of a not-run condition also carries the G9-ref citation (ruling 37 (c)). The failed record is kept
+    beside the new one as `g9_run.first.json`. The new run is labelled "settled after G9-run's first result: a code
+    error, the rule unchanged". Validation then goes on from G9-run: V5, V6, V7, then V4 alone.
