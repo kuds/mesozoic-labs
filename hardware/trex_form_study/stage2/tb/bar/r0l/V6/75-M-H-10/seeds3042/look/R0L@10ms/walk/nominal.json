@@ -1,0 +1,3632 @@
+{
+ "schema": "s2-look-1",
+ "bar_record": {
+  "path": "V6/75-M-H-10/seeds3042/eval/R0L@10ms/walk/nominal.json",
+  "sha256": "7b5a2040752abf356494349fdd23e6bb7b14fbce6197d4b5f0b950521ba80cdc",
+  "key_sha256": "cac101b10a2712d75ff6a1fd83744d8af0db0a1ef15f80b4deb4fdc0ca5fdb6f",
+  "status": "done"
+ },
+ "set": "V6",
+ "body": "75-M-H-10",
+ "block": "seeds3042",
+ "row": "R0L@10ms",
+ "condition": "walk/nominal",
+ "behavior": "walk",
+ "name": "nominal",
+ "judge": "bar_walk",
+ "gated": false,
+ "look_set": true,
+ "look_sets": [
+  "V6",
+  "V6noF5"
+ ],
+ "reading_1": "reading 1: the bar's succeeded and the four look terms",
+ "bands": {
+  "bob_rel": 0.3,
+  "head_world_pitch_rms_deg": 1.5,
+  "tail_phase_cycles": 0.1,
+  "toe_off_rel": 0.7
+ },
+ "rules": {
+  "measures": "STAGE2_TRACKB_PLAN rule U1.  From 50 Hz poses of an episode: bob = the mean, over the robot's own steps wholly inside the window (a step runs from one touchdown of either foot to the next), of the range of the hip midpoint's height; head = the RMS about its mean of the head's pitch in the world, degrees; tail phase = the phase, in cycles, of the least-squares sinusoid of the tail-yaw joint's angle on the robot's own phase (zero at each of its left lift-offs); toe-off = the mean, over its lift-offs in the window, of the lifting foot's pitch at that instant.  Contact is the 2 % load rule with the 20 ms debounce (readings.contact_flags).  This module's own reading, which is not the rule's wording: all by kinematics on the plant's model.  The hip midpoint is the midpoint of the two hip-roll joints' anchors; a step's range is taken over the poses between its two touchdowns and the height interpolated at each of them.  The head's pitch is the elevation of the head body's x axis.  The tail's fit is tail = A sin(2 pi phi + psi) + c with the phase psi / (2 pi) and the amplitude A; phi is 0 at the robot's first left lift-off in the window, one more at each later one and linear in time between them, and the fit takes the poses between the window's first and last left lift-off.  A foot's pitch is the elevation of the foot body's x axis below the horizontal, toe down positive, interpolated between poses at the lift-off instant.  A lift-off or touchdown is the first physics step after the change.",
+  "window": "STAGE2_TRACKB_PLAN rule U2.  A walk item: its judged last 10 s.  A turn item: the 3 s after t_c + at_s (t_c the simulated time at which the reference clock reached the command, at_s the item's judged time).  Nudge and stop items are not read.  This module's own reading, which is not the rule's wording: a walk item's window is the one the bar judges: the 10 s before the trace's last update, of an episode that did not fall and whose trace reaches its planned end to within two updates; an episode that fell, also inside its last two updates, has none.  A turn item's window is read when the trace spans it.",
+  "bands": "STAGE2_TRACKB_PLAN rule U3.  Against the reference's own values: bob |own / reference - 1| <= 0.3; head pitch own <= 1.5 deg RMS (not relative); tail phase |own - reference| wrapped to half a cycle <= 0.1 cycle; toe-off own >= 0.7 x reference.  The tail term is not read when the reference's tail amplitude in the window is under 0.02 rad, the toe-off term when the reference's toe-off is under 0.02 rad; both then pass, labelled, and the reference's value and its side of the threshold are recorded.  The lead's ruling of 16 Nov 2026 (TRACKB_RULINGS5_16NOV, item 5): the tail term fails when the robot's fitted tail amplitude is under 0.02 rad while the reference's amplitude is read.  This module's own reading, which is not the rule's wording: a value of the robot's that cannot be computed fails its term.  The bob has no such threshold: against a reference without a bob the term fails.  The reference's amplitude is read when the tail term is: at or over 0.02 rad in the window.  The robot's amplitude is the amplitude of the same fit that gives its phase, compared without slack: exactly 0.02 rad is not under it, and an amplitude that cannot be computed fails the term.  Both amplitudes and their ratio are recorded; no band reads the ratio.",
+  "reference": "STAGE2_TRACKB_PLAN rule U5.  The reference's values are the same functions on a kinematic playback of the episode's own track over the window's reference times at the nominal commanded clock (1.05).  When that playback has at least 4 steps and 4 lift-offs in the window and the robot has fewer, the bob, tail and toe-off terms fail (too_few_steps); it is no error.  When the playback itself has fewer, it is an error of the definition (LookError).  This module's own reading, which is not the rule's wording: the playback is the files' poses placed in one world frame by bar._Played, with contact from the files' support flags.  It begins 0.1 s of simulated time before the window, or at the track's start, and only what lies inside the window is read, so that a lift-off or touchdown on the window's first physics step is counted as an episode's trace counts it.  A playback that lacks one of its own values (its bob, its tail amplitude, its tail phase where the tail is read, its toe-off) is the same error of the definition.",
+  "wrapper": "the row is its inner row with the look reading read beside it.  For a bar walk or turn item the built condition lends the episode a recorder with 50 Hz poses (metrics.Recorder(legs_every=tune.LEGS_EVERY), an instance attribute for the one episode, taken back whatever happens); the inner row runs unchanged and its (built condition, outcome, recorder) is returned as it is.  The reading is computed from the recorder afterwards, reads the plant's final state and changes nothing; a fault in it is recorded in the episode's block and never raised",
+  "reference_use": "STAGE2_TRACKB_PLAN rule U5: the reference's values are lookread.playback of the built track over lookread.window_ref of the built condition (the reference times rule U2's window covers at the nominal commanded clock), the same for every episode of the condition.  A walk or turn item whose track cannot be played, or whose playback holds too few steps or lacks a value, is a fault of the definition, never an item without a look reading: on a look set such an episode is an error",
+  "readings": "STAGE2_TRACKB_PLAN rule U4 with the lead's rulings of 16 Nov 2026.  Reading 1 counts on the sets V6 and V6noF5: a walk or turn episode succeeds with the look when the bar's succeeded holds and all four look terms do; for a nudge or stop item reading 1 is reading 2, labelled; printed beside, reading 3 with the four terms kept.  On any other set the look numbers are recorded, reading 1 is null and the companion's counts are the bar's own",
+  "on_command_at_stop": "STAGE2_TRACKB_PLAN rule U4: a stop item of a Track B row has the term on_command_at_stop: the CoM's mean forward speed over the stride before t_c at least 0.9 x the commanded speed.  This module's own reading, which is not the rule's wording: t_c is the simulated time at which the reference clock reached the command (the bar's own); the stride is the walk's commanded stride on the simulated clock; the mean speed is the CoM's displacement from t_c less one stride to t_c along the commanded heading (the home heading), over the stride, both positions interpolated between update rows (STAGE2_75_PLAN.md C6 reads stride means so); the commanded speed is the walk's target speed x the commanded clock rate, as the bar's stop reading takes it; compared without slack.  A trace that does not reach t_c, or begins less than one stride before it, fails the term.  On a look set an episode that fails it succeeds in no reading of the companion; on any other set it is recorded and decides nothing",
+  "clock": "the clock factor is the slope of the recorder's reference time against its simulated time at the update rows over the commanded clock rate (mean: over the whole trace; min: over one update interval); t_ref_reached is the reference clock at the episode's end (control.run's reference_time_s; the last update row's where an outcome holds none); t_ref_planned is the commanded clock rate x the planned seconds from the track's start, which is 0 for a bar row.  A mean factor below 1 - 1e-9 is below 1",
+  "air_runs": "contact is read literally (rule U1: the 2 % load rule with the 20 ms debounce), so any air run longer than the debounce is a lift-off and a touchdown of the look reading.  Recorded beside it, deciding nothing: how many complete air runs lie wholly inside the window and how many of them are shorter than the bar's air_gap_max_s of the condition (half the track's shortest planned swing on the simulated clock)",
+  "outcome": "rules U6 and M1: an episode ends read; fell; unread (the bar could not read it, bar.Unreadable, it did not fall and the row is a policy row: not succeeding in any reading, with the reason clock_behind when its mean clock factor is below 1, else unreadable, and the reference time reached); or error (an infrastructure fault; an unreadable episode of a row without a policy, for which STAGE2_75_PLAN.md C8 stands; on a look set, a walk or turn item whose look reading cannot be given).  An episode during which MuJoCo warned is a fall at its start, as tune.warned_fall has it (the lead's ruling 9 of 17 Nov 2026): its companion episode holds warned true, fall_time_s 0 and survival_s 0, so no survival is credited for it; the time simulated is kept as simulated_s, and the sidecar and the bar record keep theirs",
+  "counts": "rule U6: the readings' counts by the bar's own arithmetic (bar.counts) on the companion's episodes: read and unread episodes survived, an unread episode succeeded in none; a fell episode is a fall; an error episode is counted as the bar counts an episode that failed to run, and leaves the record unjudged.  On a set that is not a look set the counts are bar.counts on the bar record's own episodes and equal the bar record's.  A turn frozen with a1_over reads \"not read: a1_over\" in readings 1 and 2, as the bar's record does in reading 2",
+  "sidecar": "one file per episode, written by the row before it returns: steps, fell and survival_s must equal the bar record's episode and row_sha256 the hash of the record's controller less the delay wrapper's keys, or the record gets no companion (run that condition again so that record and sidecars are of one run).  A companion found at the refused record's path is moved aside to <companion>.superseded/<first 12 hex of the file's sha256>.json unless it names the bar record as it is (bar_record.sha256): that one was made of this bar record while its sidecars were there, and stays.  The summary lists every refused record with what became of its companion",
+  "look_sets": "the lead's rulings 16 and 31 of 17 Nov 2026, with STAGE2_TRACKB_PLAN rule X1: the bar's own set check (bar._check_rule, bar.RULES['checks']) lets only R0 rows run on a set that is none of the 75 cm round's three, and bar.py is not edited (its hash is in every bar record's key).  lookbar.look_set_rule is a context, entered by lookbar run and by lookbar.episodes, inside which a bar evaluation (bar.evaluate) of the context's set, body and set root, where the set is a look set (V6, V6noF5) or a version of one (the part of its name before the first dot; a version is a look set in the context, in episodes and in collect), lets its rows run when every one of them is among the rows the context was entered with and every one of those is R0L, R5/<seed>, R6/<seed>, R5G/<seed> or R2L-<set>/<seed> (the fit of that very set), each with or without a delay @<ms>ms, and only once that set's G9-ref has passed: the record stage2/tb/gates/<set>/<body>/g9_ref.json, of schema s2-gate-g9-ref-1 with its own sha256 intact, of that set and body, with pass_ true, made on the set's latest freeze (its set_freeze an object whose manifest_sha256 is that freeze's), read when the evaluation is checked by gates2.require_g9_ref itself; without it the evaluation is refused and nothing runs.  Every row that runs then carries that record's citation (path and sha256) into each episode's block and its companion record (g9_ref), and the set's turns and stop leave the walk at join rule J1's leave point (leave_point).  On a look set every row outside those families (R0@<ms>ms included) is refused inside the context and in lookbar.episodes, whoever calls the check.  Every other evaluation inside the context (another set, body or set root, or these rows beside one the context was not entered with) goes through the bar's own check unchanged, and so does every evaluation outside it (python -m designlab.stage2.bar run on a look set stays the bar's own: rule X1 forbids it and no step of the chain calls it).  lookbar.episodes, which does not go through the bar's runner, checks a look set's rows in the same way before it reads the set and runs inside the context; it checks nothing on any other set.  The context enforces X1's first clause only (what runs between G9-ref and S2-4's start stays with the chain).  The bar's check is put back when the context ends, also after an exception, where the context's own check is the one in place; otherwise LookBarError and nothing is put back",
+  "leave_point": "join rule J1 (STAGE2_TRACKB_PLAN.md section L, 'Windows.' and J1; the lead's ruling 21 of 17 Nov 2026): on a look set the bar counts its lead before a turn or the two-step stop (bar.TURN_LEAD_STRIDES, bar.STOP_LEAD_STRIDES: 2 strides of v0.4 before a left turn, 2.5 before a right turn and the stop) in whole windows of the walk's file, which on a look set are K strides each, so the move would start at a frame it was not built from.  Inside lookbar.look_set_rule, where the rule lets the rows run, a bar evaluation of that set places such a move whose transitions.json entry carries look.window_a and an a_phase where it was built: the walk plays m + a_windows windows of its file (a_windows = a_time_s / window_s, the move's own leave time; m whole windows, m x K + a_phase = the lead in strides) and the move starts at its first frame; every other item and set is the bar's own plan.  This module's phase check counts the lead's strides inside the window (a left command at a whole stride, a right one at a half) by the env's reading (r5lib.leave_point, r5lib.LEAVE_RULE), because bar.check_phase reads a lead modulo one stride.  The bar's planner piece BarPlanner._resolve is stood in front of while the context is open, as _check_rule is, and put back at its end (where it is the context's own); a spawned worker of the evaluation, which rebuilds its rows from their specs, holds the same placement for its life.  The record's plan, seconds and command (command.leave) are those of the placed move.  Outside the context the bar's own placement in whole windows stands.  lookbar.look_set_placement is the same placement without the row rule and without the G9-ref requirement (the lead's ruling 37 (b) of 17 Nov 2026), and look_set_rule places through it; on a look set G9-ref part (a) (its bar.refcheck), G8a, s2rows.equivalence_check and R2L's fit and selection (in process and in every pool worker) run inside it, and off the look sets it does nothing.  On entry either context lets the process's cached bar context of the set forget its built conditions, so that nothing built outside is played inside; at its end the look sets' rule gives every row it stamped back its earlier citation and placement.  The phase check also reads the walk's file: a_time_s must lie in the frame interval over which the file's own phase array passes a_phase (r5lib.leave_point; ruling 37 (c))"
+ },
+ "seeds": [
+  3042,
+  3043,
+  3044,
+  3045,
+  3046,
+  3047,
+  3048,
+  3049,
+  3050,
+  3051,
+  3052,
+  3053,
+  3054,
+  3055,
+  3056,
+  3057,
+  3058,
+  3059,
+  3060,
+  3061
+ ],
+ "a1_over": false,
+ "episodes": [
+  {
+   "condition": "walk/nominal",
+   "seed": 3042,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005039531947729338,
+     "head_world_pitch_rms_deg": 0.6530922739873717,
+     "tail": {
+      "phase_cycles": -0.20543530616978212,
+      "amp_rad": 0.12527003904564457,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10514112950270559
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9548297588277375,
+     "head_world_pitch_rms_deg": 0.6530922739873717,
+     "tail_phase_diff_cycles": -0.05750211925270382,
+     "tail_amp_rad": 0.12527003904564457,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9869617259347863,
+     "toe_off_ratio": 0.3517665742891874,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "295a71d5ed21476d37e7f1175a827cca96944f1ea9df481b27356b9870cce3c6",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3042.npz",
+     "sha256": "d13f766f60d47e3c51ffecbe412d4131e65adde41e06184988c5369b5bedc7d4",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.9657969850013615
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3043,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.0050459156373369235,
+     "head_world_pitch_rms_deg": 0.6620061676163532,
+     "tail": {
+      "phase_cycles": -0.20485336064645496,
+      "amp_rad": 0.12525737256033728,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10863632378039256
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9560392633753153,
+     "head_world_pitch_rms_deg": 0.6620061676163532,
+     "tail_phase_diff_cycles": -0.05692017372937663,
+     "tail_amp_rad": 0.12525737256033728,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9868619308337737,
+     "toe_off_ratio": 0.3634603093988666,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "128b404a2361283264d0872fa4d5e8504ec16f6d5d1b30fd7a1e518e62b580c1",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3043.npz",
+     "sha256": "42f4d3069d845db1b8569adff42c4fdd81ff1d99515e9d84126ecd55e14905d3",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.8397318749994156
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3044,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.0050444936074975815,
+     "head_world_pitch_rms_deg": 0.6555053845097296,
+     "tail": {
+      "phase_cycles": -0.20612062608613446,
+      "amp_rad": 0.1252949549737311,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10821229126502988
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9557698343047929,
+     "head_world_pitch_rms_deg": 0.6555053845097296,
+     "tail_phase_diff_cycles": -0.058187439169056165,
+     "tail_amp_rad": 0.1252949549737311,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9871580303949341,
+     "toe_off_ratio": 0.36204164035829367,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "213552836fc676b56ea9f6359a06c1caff537b17b67a52c07b78ebbf9d8071a2",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3044.npz",
+     "sha256": "90d0a159959f7e4bf19c0f86d35d92e2f701e60f0b6ed507eb0b13f106760216",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.3114562740011024
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3045,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005062260778336301,
+     "head_world_pitch_rms_deg": 0.6520929336070644,
+     "tail": {
+      "phase_cycles": -0.2060721518615281,
+      "amp_rad": 0.12525335923849132,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10456250118948815
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9591361436412441,
+     "head_world_pitch_rms_deg": 0.6520929336070644,
+     "tail_phase_diff_cycles": -0.05813896494444981,
+     "tail_amp_rad": 0.12525335923849132,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9868303111816525,
+     "toe_off_ratio": 0.34983068012017915,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "6729e47b32d8b2a9371ec6170a6cfde211cdac141705737a4c2cb77e1165a962",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3045.npz",
+     "sha256": "a422046779924a831985503ff28c0ba8c0afbe1d626c8c165c2e7f86d2ed215d",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 1.9806648379963008
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3046,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005032243487591274,
+     "head_world_pitch_rms_deg": 0.6602505470190838,
+     "tail": {
+      "phase_cycles": -0.20519145242825235,
+      "amp_rad": 0.12528600841274937,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10575189217765464
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9534488292676048,
+     "head_world_pitch_rms_deg": 0.6602505470190838,
+     "tail_phase_diff_cycles": -0.05725826551117408,
+     "tail_amp_rad": 0.12528600841274937,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9870875433627995,
+     "toe_off_ratio": 0.3538099791383335,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "8671825742fb8875fd124fe0c5604cd9cb1944e86ae94ac8d85c1d28d78e6c4d",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3046.npz",
+     "sha256": "4d0a0353bb1d763909ec4bdbdae492d701bc68273f1a1fe4f3e67e513ab2f4fd",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.3196842790057417
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3047,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.00505566280837414,
+     "head_world_pitch_rms_deg": 0.6555367970238934,
+     "tail": {
+      "phase_cycles": -0.2069155086399783,
+      "amp_rad": 0.12526989556475232,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10257858335573823
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9578860398353617,
+     "head_world_pitch_rms_deg": 0.6555367970238934,
+     "tail_phase_diff_cycles": -0.058982321722899966,
+     "tail_amp_rad": 0.12526989556475232,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9869605954956954,
+     "toe_off_ratio": 0.343193163637807,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "3b633cbd4e78aacec42c488370e442aa36fed0bfa6b9232d515fc2b7996005fb",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3047.npz",
+     "sha256": "dad736beda5670965e9205242be19efd4ea0a5b639e9dad73822cca537353a62",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.251564961996337
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3048,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005051183399780535,
+     "head_world_pitch_rms_deg": 0.6629624699299467,
+     "tail": {
+      "phase_cycles": -0.2072975313265187,
+      "amp_rad": 0.12524088030550454,
+      "strides": 9
+     },
+     "toe_off_rad": 0.09864725465381778
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9570373354970452,
+     "head_world_pitch_rms_deg": 0.6629624699299467,
+     "tail_phase_diff_cycles": -0.059364344409440384,
+     "tail_amp_rad": 0.12524088030550454,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9867319937441209,
+     "toe_off_ratio": 0.3300402706032716,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "b5960f4fd701b7806ccf05469ed969c4113748d816a998f48e0f72658e7846a5",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3048.npz",
+     "sha256": "a7f250bd93030a4bd52f6e92f3f9022477b1ff89398ed56b5ecf616e16530562",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.7665153039997676
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3049,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005032211275872312,
+     "head_world_pitch_rms_deg": 0.6511698069118509,
+     "tail": {
+      "phase_cycles": -0.20621986957029736,
+      "amp_rad": 0.12525515234814744,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10374409653337978
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9534427261794277,
+     "head_world_pitch_rms_deg": 0.6511698069118509,
+     "tail_phase_diff_cycles": -0.05828668265321907,
+     "tail_amp_rad": 0.12525515234814744,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9868444385070249,
+     "toe_off_ratio": 0.3470925755970186,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "895d613c7eda060313b7d372d04f329b0def932e5ec7a8f3bf8a140829d16d98",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3049.npz",
+     "sha256": "e37a12e55d290e16cac4959a1c74bab4f7ccc95a106d9b3a903e7ab38918b1bd",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.2487495640016277
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3050,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005062753472024568,
+     "head_world_pitch_rms_deg": 0.6615969033318553,
+     "tail": {
+      "phase_cycles": -0.20668709862621965,
+      "amp_rad": 0.12528018569420857,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10101481593455343
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9592294933015744,
+     "head_world_pitch_rms_deg": 0.6615969033318553,
+     "tail_phase_diff_cycles": -0.05875391170914135,
+     "tail_amp_rad": 0.12528018569420857,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9870416680650472,
+     "toe_off_ratio": 0.3379613279961606,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "a89dbb98a7e162a4afbb3bd1dd1efb73232fa6a786b0a21708d6d7818212fa1a",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3050.npz",
+     "sha256": "2fd9f76d8f03454a2ec326802624a351e2fbe5664fbb83f77dcaace515e272b3",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.3281901580048725
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3051,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005034676127458683,
+     "head_world_pitch_rms_deg": 0.6573186788479092,
+     "tail": {
+      "phase_cycles": -0.20519305449968317,
+      "amp_rad": 0.12524552498049224,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10319687138003038
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9539097365427256,
+     "head_world_pitch_rms_deg": 0.6573186788479092,
+     "tail_phase_diff_cycles": -0.05725986758260487,
+     "tail_amp_rad": 0.12524552498049224,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9867685876214534,
+     "toe_off_ratio": 0.34526174575460533,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "7fb4abc7baab156b6235c3cc7481b06d4e80d8545e9883defc5932339dc9ab6f",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3051.npz",
+     "sha256": "5be708d8676f2a05bf9156a281aaf27e724a754b1ed930192067956079964c40",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.1162873139983276
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3052,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.0050577266626193485,
+     "head_world_pitch_rms_deg": 0.6514236610351242,
+     "tail": {
+      "phase_cycles": -0.20677513164885455,
+      "amp_rad": 0.12525880193985775,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10672959349166392
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9582770740567235,
+     "head_world_pitch_rms_deg": 0.6514236610351242,
+     "tail_phase_diff_cycles": -0.058841944731776286,
+     "tail_amp_rad": 0.12525880193985775,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9868731924481972,
+     "toe_off_ratio": 0.35708103627395454,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "07c73716969482af9d21f35860bb87fb6aafb36ffa48cdd1c9a4a2442740d50d",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3052.npz",
+     "sha256": "26d79765e0b163f30a6732123bb642f1c6d9baf95b727979ee959838686933b8",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.4041819070043857
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3053,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005070715458603843,
+     "head_world_pitch_rms_deg": 0.6452278094193398,
+     "tail": {
+      "phase_cycles": -0.20720655087124726,
+      "amp_rad": 0.12531638970353118,
+      "strides": 9
+     },
+     "toe_off_rad": 0.1039037495802954
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9607380345320163,
+     "head_world_pitch_rms_deg": 0.6452278094193398,
+     "tail_phase_diff_cycles": -0.059273363954168934,
+     "tail_amp_rad": 0.12531638970353118,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9873269076307009,
+     "toe_off_ratio": 0.3476267205662991,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "63221237fdfeb755c0539c4c0f3609c0b07effcc16f480269f79652a4885b9d4",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3053.npz",
+     "sha256": "b13daf83d228e1a6f6127ed933502db218eee1efcb6aa37f77101c0552c6c877",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.0533938569933525
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3054,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005040604357747974,
+     "head_world_pitch_rms_deg": 0.6625793922015205,
+     "tail": {
+      "phase_cycles": -0.20567159269532193,
+      "amp_rad": 0.1252386814589615,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10379815260558606
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9550329461495126,
+     "head_world_pitch_rms_deg": 0.6625793922015205,
+     "tail_phase_diff_cycles": -0.05773840577824363,
+     "tail_amp_rad": 0.1252386814589615,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9867146697503255,
+     "toe_off_ratio": 0.34727342888848955,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "7fb428cf041d62a286d7c3d77e71f3c71d69613cfcd4372fbced0b55257e0d16",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3054.npz",
+     "sha256": "9f1c0621e76c979ed84cbe85c219285312f35bc38380ad70118a19ac7345dff7",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.5941520939959446
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3055,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005019745060555497,
+     "head_world_pitch_rms_deg": 0.6499991590085482,
+     "tail": {
+      "phase_cycles": -0.20658230322168444,
+      "amp_rad": 0.12529131250864606,
+      "strides": 9
+     },
+     "toe_off_rad": 0.09966444472699644
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9510807779890185,
+     "head_world_pitch_rms_deg": 0.6499991590085482,
+     "tail_phase_diff_cycles": -0.05864911630460612,
+     "tail_amp_rad": 0.12529131250864606,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9871293326021148,
+     "toe_off_ratio": 0.3334434437395638,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "d572929580654f83e91ebd0759eae780266e712877a822b228df98d3699cec05",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3055.npz",
+     "sha256": "4070585da91bee5072f6b0de122bf1d0be2e8b0c73ab73bdfb3daaaca5b96477",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.39578433099814
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3056,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005019246269855029,
+     "head_world_pitch_rms_deg": 0.6471585589232303,
+     "tail": {
+      "phase_cycles": -0.20502609085921206,
+      "amp_rad": 0.12531430101893004,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10329883048428114
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9509862731403195,
+     "head_world_pitch_rms_deg": 0.6471585589232303,
+     "tail_phase_diff_cycles": -0.05709290394213373,
+     "tail_amp_rad": 0.12531430101893004,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9873104515668681,
+     "toe_off_ratio": 0.34560286635117415,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "f26c98d2af7cb45198f8c3a735085a186854fae349da291236587f5d4e1c7d70",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3056.npz",
+     "sha256": "88ab6906452558b533df0c477d9a417788d5ac775657c40d287460baeae70a33",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.3298862899973756
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3057,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005044165345680866,
+     "head_world_pitch_rms_deg": 0.6539063043402749,
+     "tail": {
+      "phase_cycles": -0.2065617055690369,
+      "amp_rad": 0.12526687162837255,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10395875067997577
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9557076392131578,
+     "head_world_pitch_rms_deg": 0.6539063043402749,
+     "tail_phase_diff_cycles": -0.05862851865195862,
+     "tail_amp_rad": 0.12526687162837255,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9869367708885408,
+     "toe_off_ratio": 0.3478107355993144,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "84bc6135ac4f9033b9894811678466398523695aa406c98e7f82c9a5d6df4a2a",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3057.npz",
+     "sha256": "bc4b96fb6a0c3a1f2331bc23ac441e4017515bca81f4172be332550b8edf7358",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.3436983220017282
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3058,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005049245861029077,
+     "head_world_pitch_rms_deg": 0.65756756558083,
+     "tail": {
+      "phase_cycles": -0.20496994474687438,
+      "amp_rad": 0.12527426251695326,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10959560842335495
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.956670234012629,
+     "head_world_pitch_rms_deg": 0.65756756558083,
+     "tail_phase_diff_cycles": -0.057036757829796114,
+     "tail_amp_rad": 0.12527426251695326,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9869950012858919,
+     "toe_off_ratio": 0.3666697505967988,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "b8f5913026b80eca4911facdfb9bedae76b557059234bc892aed6e3abc7b20ba",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3058.npz",
+     "sha256": "f7e27fd60578fd91eafbf97f9b8e7d573f57cfaffb0e5f250c253ca7c27cf29c",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.479794665996451
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3059,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005031520527120766,
+     "head_world_pitch_rms_deg": 0.6572216225857705,
+     "tail": {
+      "phase_cycles": -0.20643987296864993,
+      "amp_rad": 0.1252845089713648,
+      "strides": 9
+     },
+     "toe_off_rad": 0.1016983430147787
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9533118514333818,
+     "head_world_pitch_rms_deg": 0.6572216225857705,
+     "tail_phase_diff_cycles": -0.05850668605157161,
+     "tail_amp_rad": 0.1252845089713648,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9870757297538303,
+     "toe_off_ratio": 0.34024817787671613,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "71358b70f9cf20d7b66208e97cbd6dc13542e7eb5614934214a666fe041b4030",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3059.npz",
+     "sha256": "3669b7b09e1120f336c283a6bfd354d64ce15fcfa99000b419c483305e95cd7a",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.275828112004092
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3060,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005054739001934689,
+     "head_world_pitch_rms_deg": 0.6507375576061866,
+     "tail": {
+      "phase_cycles": -0.20679022013705953,
+      "amp_rad": 0.12523035627814877,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10459979717753147
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.957711008128264,
+     "head_world_pitch_rms_deg": 0.6507375576061866,
+     "tail_phase_diff_cycles": -0.05885703321998126,
+     "tail_amp_rad": 0.12523035627814877,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.986649078369607,
+     "toe_off_ratio": 0.34995545985205745,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "915c026993571a4ae5990d5ddf30759fdb096fc63f68bbdef289c16079e9fd2a",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3060.npz",
+     "sha256": "67c55a6aaf7a0edb9fdc59f8f221029c96c32c9f1d5af547c3616bde26efddc9",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.28494394000154
+   }
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 3061,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.004999584776085499,
+     "head_world_pitch_rms_deg": 0.6509402418915192,
+     "tail": {
+      "phase_cycles": -0.20665504525228617,
+      "amp_rad": 0.125294043313182,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10182357157517051
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9472610503321555,
+     "head_world_pitch_rms_deg": 0.6509402418915192,
+     "tail_phase_diff_cycles": -0.05872185833520788,
+     "tail_amp_rad": 0.125294043313182,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9871508477192052,
+     "toe_off_ratio": 0.3406671501847039,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "f4f7d293e32df91a1ceb243f2d5654bfb44cd060e08c0ad34219638cfd686bce",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/3061.npz",
+     "sha256": "942cef3487906e69186fa3c804b521b553412002df8bca388d0c075292915f4a",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.396063319996756
+   }
+  }
+ ],
+ "counts_look": {
+  "reading": "look",
+  "episodes": 20,
+  "survived": 20,
+  "succeeded": 0,
+  "falls": 0,
+  "errors": 0,
+  "survival_lcb": 0.8608916593317348,
+  "success_lcb": 0.0,
+  "judged": true,
+  "pass_": false
+ },
+ "counts": {
+  "reading": "success",
+  "episodes": 20,
+  "survived": 20,
+  "succeeded": 0,
+  "falls": 0,
+  "errors": 0,
+  "survival_lcb": 0.8608916593317348,
+  "success_lcb": 0.0,
+  "judged": true,
+  "pass_": false
+ },
+ "counts_but_A1": {
+  "reading": "but_A1",
+  "episodes": 20,
+  "survived": 20,
+  "succeeded": 0,
+  "falls": 0,
+  "errors": 0,
+  "survival_lcb": 0.8608916593317348,
+  "success_lcb": 0.0,
+  "judged": true,
+  "pass_": false
+ },
+ "counts_but_A1_look": {
+  "reading": "but_A1_look",
+  "episodes": 20,
+  "survived": 20,
+  "succeeded": 0,
+  "falls": 0,
+  "errors": 0,
+  "survival_lcb": 0.8608916593317348,
+  "success_lcb": 0.0,
+  "judged": true,
+  "pass_": false
+ },
+ "counts_look_reason": null,
+ "counts_equal_bar": null,
+ "outcomes": {
+  "read": 20,
+  "fell": 0,
+  "unread": 0,
+  "error": 0
+ },
+ "unread_reasons": {},
+ "failures_by_term": {
+  "look_toe_off": 20,
+  "toe_clearance_own_swing": 20
+ },
+ "look_failures_by_term": {
+  "toe_off": 20
+ },
+ "look_faults": [],
+ "short_air_runs": {
+  "episodes_read": 20,
+  "episodes_with_any": 0,
+  "total": 0
+ },
+ "policy": null,
+ "g9_ref": {
+  "path": "stage2/tb/gates/V6/75-M-H-10/g9_ref.json",
+  "sha256": "af627ba90a65ef83e5eb3009d36c44d4425c99be15f5d262ada8a24f58b4cfdc"
+ },
+ "sidecars": {
+  "root": "V6/75-M-H-10/seeds3042/look_partial",
+  "sha256": {
+   "3042": "3b324e9fab566bf62f1bdc82f969356fcbd5a1f7767ad99a26bd00739e48a1e7",
+   "3043": "eaff30149d477e1fcda3fb031bc4b96359521ed3138668561a8dbe9669da6a16",
+   "3044": "746824dfef79f396bd93d050c6aceb76e7c4f8a49471d18903e913ca47c84388",
+   "3045": "c2f3b72f43038cb3c2e72a08256dbae073a524fa8ffb9396384d6380b070f07b",
+   "3046": "c7971c058721a41fe2c9521e35a0b1250800d6d9ba64e2e2b47247caa54dec43",
+   "3047": "8ac52b800795d9e2a9b46201f21bd705324078bed7c4a42d89a53cdba5f9729a",
+   "3048": "46ae8c53309746d453c7ae74b0ba660ba24d7e04a8f021d8f31b41f350fcfb5b",
+   "3049": "894a6d402eda9ecf592d5730ede4626a3682be8d928997c28bf5c1e956a65438",
+   "3050": "45aaf0adb46e819d95982714168fff2f55509f9df3588afd77a8014a090fb865",
+   "3051": "4d062f9be28c30dced7929bc37450925ccc288520e1ae6f625ca895aaf1eae2b",
+   "3052": "326989df3c0d88a30da8077ad838414b2c44bbcf82a928214e22706567dfa84c",
+   "3053": "3b8fcbd9cb59f4ba3177d77d2bde7356677d599d61bf3337336b690d267f42c0",
+   "3054": "5ad790a5bb0acea21c71a47dcb9ca5344236efec98bd0482568e8e40cb2c5ec3",
+   "3055": "498a514a2474e871a40290d32595ea0e7449482522045dbece76154302dffecd",
+   "3056": "8e71147790baa5630c6621804cd5b02f116553f25c1bca72a20c4c1dfa449736",
+   "3057": "fd4e7061de2e827c6e2ea3c56e470cac98603fe3da81720955c9aa3fdaa77c7e",
+   "3058": "f9faf1fc1df1a36dbcbb6df961a5c4630d9cd56acb74b664942a766500245b3f",
+   "3059": "1773c99153f96c8eae6d45f4ba4fb3bb972a1cf4dda7264b445be8bf3871966a",
+   "3060": "07825db813b04b1bb90980e876ef655fcaf1576c3df3a2f61af67fe1b229f589",
+   "3061": "ec7797324fe0633b95dbb86db5058f40b4d22201529707bf6e805d9002914234"
+  }
+ },
+ "sources": {
+  "designlab/stage2/lookbar.py": "6a7d59e4c116289b3ab0eaec2786a49e46d9d6a0072769e93aa3c0177e89ece4",
+  "designlab/stage2/lookread.py": "ff7b2e4e7836c25884ae1bae507febacd413c5efa3980dbddbb8568b66809c45",
+  "bar": "45719d030359ec7d5d3914af3814d837fdc05d77652ba45c64792b511027528d"
+ },
+ "inputs_sha256": "11ccd5d9bfeef2272168a5ba6777a6f77cf4e558fe44dfc8fed4cb72d42e1613",
+ "provenance": {
+  "commit": "2b6e3b2a3daae53e4c601ae4de0f8c727ad068b0",
+  "dirty": false,
+  "dirty_paths": []
+ },
+ "versions": {
+  "python": "3.13.18",
+  "numpy": "2.5.4",
+  "mujoco": "3.10.0",
+  "scipy": "1.18.1"
+ },
+ "blas_threads": 1,
+ "at": "2026-11-17T17:47:27Z",
+ "sha256": "18810c43cd7a5f574adc92eb1b059fde06068850788ed1f297da37e72bb8291c"
+}
