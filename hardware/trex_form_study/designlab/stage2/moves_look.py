@@ -28,6 +28,13 @@ phase (its arrays are C2 in time: periodic cubic splines; its LIPM path spectral
 move sees it: the move's phase p is the window's phase p + offset.  A causal move leaves window a at the warp's own
 time of its command phase (``View.a_time_s``); every move enters window b at its boundary.
 
+**The look sets' warm-up join limit** (``RULES["S2L-P42-warmup"]``; the owner's decision of 17 Nov 2026,
+``DECISION_LOG.md`` P42, labelled changed after a result).  On a look set the warm-up reading of a causal move's
+``join_command`` (the multibody ZMP over the warm-up frames, against the walk's) is held to
+``LOOK_WARMUP_ZMP_LIMIT_MM`` (5.0 mm) in place of ``moves.WARMUP_ZMP_LIMIT_MM`` (P34's 4.0 mm, which the round's
+three sets keep).  ``moves.py`` is not edited: ``entry_extra`` reads ``moves.join_command``'s readings again against
+this limit (``join_command_look``); every other limit of ``join_command`` and every other gate is ``moves``' own.
+
 Run nothing from here: ``designlab.stage2.sets`` builds the look sets (``sets.LOOK_SETS``) and calls this module
 for what a look set needs beside a set of today's laws (``walk_arrays``, ``bind_move``, ``pick_stride_factor``,
 ``entry_extra`` and the turn in place's ``hold_move``, ``periodicity`` and ``periodic_cut``).
@@ -56,6 +63,12 @@ PERIODIC_JOINT_RAD = 1e-3
 #: the bar's lead strides before a command (bar.TURN_LEAD_STRIDES, bar.STOP_LEAD_STRIDES): a left turn's command is
 #: a left lift-off (an integer phase), a right turn's and the two-touchdown stop's a right lift-off.
 LEAVE_PHASE = {"turn_left": 2.0, "turn_right": 2.5, "stop_two_step": 2.5}
+#: The limit (mm) of a look set's causal move's warm-up ZMP reading in ``join_command`` (the multibody ZMP over the
+#: warm-up frames up to two frames before the command, against the walk's): the owner's decision of 17 Nov 2026
+#: (``DECISION_LOG.md`` P42; ``RULES["S2L-P42-warmup"]``), on the look sets only, in place of
+#: ``moves.WARMUP_ZMP_LIMIT_MM`` (P34's 4.0 mm, which the round's three sets keep).  The other limits of
+#: ``join_command`` are ``moves``' own (``join_command_look``).
+LOOK_WARMUP_ZMP_LIMIT_MM = 5.0
 
 RULES = {
     "S2L-L1": ("F3: a gait's duty is describe(H)['duty'] (moves.GaitX.legacy); inside a ramp it mixes with the ramp's "
@@ -166,6 +179,24 @@ RULES = {
         "moves.py as it stands.  Everything else is as coded, and every gate of the move, after the command "
         "included, is read on the arrays built so.  The entry's look.preview_grid holds the grid, the whole plan's "
         "smallest interval and the command frame"),
+    "S2L-P42-warmup": (
+        "the warm-up reading of a causal move's join_command on the look sets (the owner's decision of 17 Nov 2026, "
+        "DECISION_LOG.md P42; STAGE2_75_PLAN.md A7, P42's paragraph; STAGE2_TRACKB_PLAN.md L12, P42's sentence; "
+        "changed after a result: the 75 cm look sets as rebuilt and checked, prescribed motion, before any look set "
+        "was frozen and before any closed-loop episode on one).  On the look sets (V6, V6noF5 and their versions) "
+        "only, the multibody ZMP over a causal move's warm-up frames up to two frames before the command, against the "
+        f"walk's, is held to {LOOK_WARMUP_ZMP_LIMIT_MM:g} mm in place of P34's {moves.WARMUP_ZMP_LIMIT_MM:g} mm "
+        "(moves.WARMUP_ZMP_LIMIT_MM).  Every other limit of join_command stands as written (the model CoM within "
+        f"{transitions.G3_COM_MM:g} mm over the warm-up and at the command frame, the joints within "
+        f"{moves.JOINT_AT_COMMAND_RAD:g} rad at it), every other gate of the move stands, and the round's three sets "
+        f"keep {moves.WARMUP_ZMP_LIMIT_MM:g} mm.  moves.py is not edited (D18): moves.join_command reads the move as "
+        "coded, and a look set's entry reads its readings again against this limit (moves_look.entry_extra and "
+        "join_command_look): join_command.limits.zmp_mm is the limit used and join_command.limits.zmp_rule names "
+        "this rule, the gate join_command and pass_ follow, and join_events counts its frames against the same "
+        "limit.  A causal move that passes under it is available, and no cut is taken for it (L12).  Why: V6's left "
+        "turns on the 75 cm pick read 4.621 mm (4.582 mm on its -X head) with the CoM within 0.066 mm and the joints "
+        "within 4.2e-4 rad; the excess is two time differences of a CoM difference under 0.07 mm (the join-code "
+        "review)"),
 }
 LOOK_RULE_IDS = ("S2L-L1", "S2L-L2", "S2L-L3", "S2L-L4", "S2L-L5", "S2L-L6", "S2L-L7", "S2L-L8", "S2L-L10")
 JOIN_RULE_IDS = ("S2L-J1", "S2L-J2", "S2L-J3")
@@ -174,6 +205,9 @@ START_RULE_ID = "S2L-L1L4-start"
 #: The rule of a causal move's preview grid on the look sets (ruling 28: ``RULES["S2L-causal-grid"]``), named by the
 #: entries of the causal moves (the stop, the turns) only.
 CAUSAL_GRID_RULE_ID = "S2L-causal-grid"
+#: The rule of a causal move's warm-up join limit on the look sets (P42: ``RULES["S2L-P42-warmup"]``), named by the
+#: entries of the causal moves (the stop, the turns) only.
+WARMUP_RULE_ID = "S2L-P42-warmup"
 #: The rules of the turn in place's three references: L10 is not among them (its flat feet are its own law, L13).
 INPLACE_RULE_IDS = tuple(r for r in LOOK_RULE_IDS if r != "S2L-L10") + ("S2L-L13", "S2L-periodic")
 
@@ -187,15 +221,15 @@ def mixes_stage1_start(move: "moves.Move") -> bool:
 
 
 def causal_rule_ids() -> tuple:
-    """The look rule ids of a causal move's entry (the stop, a turn): ``LOOK_RULE_IDS``, the join rules and
-    ``CAUSAL_GRID_RULE_ID``."""
-    return LOOK_RULE_IDS + JOIN_RULE_IDS + (CAUSAL_GRID_RULE_ID,)
+    """The look rule ids of a causal move's entry (the stop, a turn): ``LOOK_RULE_IDS``, the join rules,
+    ``CAUSAL_GRID_RULE_ID`` and ``WARMUP_RULE_ID``."""
+    return LOOK_RULE_IDS + JOIN_RULE_IDS + (CAUSAL_GRID_RULE_ID, WARMUP_RULE_ID)
 
 
 def rule_ids(move: "moves.Move") -> tuple:
     """The look rule ids of a move's entry: ``LOOK_RULE_IDS`` and the join rules (and ``START_RULE_ID`` for a start
-    into a walk, ``CAUSAL_GRID_RULE_ID`` for a causal move: ``causal_rule_ids``), or ``INPLACE_RULE_IDS`` for a move
-    of the turn in place (its start and its stop)."""
+    into a walk, ``CAUSAL_GRID_RULE_ID`` and ``WARMUP_RULE_ID`` for a causal move: ``causal_rule_ids``), or
+    ``INPLACE_RULE_IDS`` for a move of the turn in place (its start and its stop)."""
     if move.a.in_place or move.b.in_place:
         return INPLACE_RULE_IDS
     if move.causal:
@@ -1022,6 +1056,27 @@ def preview_grid_record(g: dict) -> dict | None:
                 whole_plan_min_s=float(np.min(np.diff(np.asarray(pl.t, float)))), command_frame=k)
 
 
+# ------------------------------------------------------------------------------------------------
+# The warm-up join limit of a look set's causal move (P42: RULES["S2L-P42-warmup"])
+# ------------------------------------------------------------------------------------------------
+def join_command_look(jc: dict) -> dict:
+    """``moves.join_command``'s block of a look set's causal move with its warm-up ZMP reading held to
+    ``LOOK_WARMUP_ZMP_LIMIT_MM`` (``RULES["S2L-P42-warmup"]``) in place of ``moves.WARMUP_ZMP_LIMIT_MM``: the same
+    readings; ``limits.zmp_mm`` the limit used and ``limits.zmp_rule`` the rule; ``ok`` read again with every other
+    limit as ``moves.join_command`` reads it (the model CoM within ``transitions.G3_COM_MM`` over the warm-up and at
+    the command frame, the joints within ``moves.JOINT_AT_COMMAND_RAD`` at it).  A new dict (``jc`` is left as it
+    is).  A block whose other limits are not ``moves``' own is refused: only the warm-up ZMP's limit moves here."""
+    lim = dict(jc["limits"])
+    if (lim.get("com_mm"), lim.get("joint_rad")) != (transitions.G3_COM_MM, moves.JOINT_AT_COMMAND_RAD) \
+            or lim.get("zmp_mm") not in (moves.WARMUP_ZMP_LIMIT_MM, LOOK_WARMUP_ZMP_LIMIT_MM):
+        raise LookError(f"join_command's limits {lim} are not moves.join_command's: P42 moves the warm-up ZMP's alone")
+    at = jc["at_command"]
+    ok = bool(jc["warmup_com_max_mm"] <= transitions.G3_COM_MM and at["com_mm"] <= transitions.G3_COM_MM
+              and at["joint_rad"] <= moves.JOINT_AT_COMMAND_RAD and jc["warmup_zmp_max_mm"] <= LOOK_WARMUP_ZMP_LIMIT_MM)
+    lim.update(zmp_mm=LOOK_WARMUP_ZMP_LIMIT_MM, zmp_rule=WARMUP_RULE_ID)
+    return dict(jc, limits=lim, ok=ok)
+
+
 def pick_stride_factor(src: dict, a: moves.GaitX, wa: Window | None, angle: float, rate: float,
                        grid=moves.STRIDE_GRID, limit: float = moves.TWIST_KINEMATIC,
                        other_margin: float = moves.OTHER_JOINT_MARGIN_RAD) -> dict:
@@ -1073,6 +1128,8 @@ def entry_extra(bd: Bound, g: dict, entry: dict) -> dict:
       (``start_mix_record``: ``RULES["S2L-L1L4-start"]``);
     * ``join_events``: a causal move's warm-up ZMP read apart from the plan's events (a reading, not a gate);
     * ``look.preview_grid``: a causal move's preview grid (``preview_grid_record``; ``RULES["S2L-causal-grid"]``);
+    * ``join_command`` of a causal move read against the look sets' warm-up limit (``join_command_look``:
+      ``RULES["S2L-P42-warmup"]``, the owner's decision P42), and with it the gate ``join_command`` and ``pass_``;
     * ``rolling_split_failed_frames`` and the gate ``rolling_split``: on a move that has rolling frames, the frames
       whose rolling-contact split did not solve (``idyn``): any such frame fails the entry (its feedforward torque
       there is not the rolling contact's).  A move without a rolling frame has no such gate."""
@@ -1087,6 +1144,10 @@ def entry_extra(bd: Bound, g: dict, entry: dict) -> dict:
     grid = preview_grid_record(g)
     if grid is not None:  # (RULES["S2L-causal-grid"])
         entry["look"]["preview_grid"] = grid
+    if entry.get("join_command") is not None:  # a causal move on a look set (RULES["S2L-P42-warmup"]: P42)
+        entry["join_command"] = join_command_look(entry["join_command"])
+        entry["gates"]["join_command"] = bool(entry["join_command"]["ok"])
+        entry["pass_"] = bool(all(entry["gates"].values()))
     if bd.bind.start_law is not None:
         entry["look"]["start_mix"] = start_mix_record(bd, g["plan"])
     if rolls:
@@ -1474,7 +1535,8 @@ def join_events(g: dict, ref_a) -> dict | None:
     apart from the plan's events.  A window's frames are uniform in time and the move's in phase, so near a
     lift-off, a touchdown or a toe-off roll (features a few frames long) the two are different samplings of the same
     motion, and their second differences differ by millimetres whatever the join.  A reading for the record, on the
-    gate's frames and against the gate's limit (``moves.WARMUP_ZMP_LIMIT_MM``); the gate is ``join_command``'s."""
+    gate's frames and against the gate's limit on a look set (``LOOK_WARMUP_ZMP_LIMIT_MM``: ``RULES
+    ["S2L-P42-warmup"]``, the limit ``join_command_look`` reads); the gate is ``join_command``'s."""
     if not g.get("causal") or not _is_view(ref_a):
         return None
     w, pl = g["warmup"], g["plan"]
@@ -1485,11 +1547,11 @@ def join_events(g: dict, ref_a) -> dict | None:
                         None if foot is None else foot["rolling"][: len(ph)].any(axis=1))
     gated = np.arange(len(ph)) < len(ph) - 2  # the gate's frames: up to two frames before the command
     ok = gated & np.isfinite(dz)
-    over = ok & (dz > moves.WARMUP_ZMP_LIMIT_MM)
+    over = ok & (dz > LOOK_WARMUP_ZMP_LIMIT_MM)
     away = ok & ~near
     return dict(note="a reading, not a gate: the gate is join_command's warmup_zmp_max_mm",
                 frames=int(ok.sum()), zmp_max_mm=float(np.max(dz[ok])), zmp_p50_mm=float(np.percentile(dz[ok], 50)),
-                zmp_p90_mm=float(np.percentile(dz[ok], 90)), limit_mm=moves.WARMUP_ZMP_LIMIT_MM,
+                zmp_p90_mm=float(np.percentile(dz[ok], 90)), limit_mm=LOOK_WARMUP_ZMP_LIMIT_MM,
                 frames_over_limit=int(over.sum()), phases_over_limit=[float(x) for x in ph[over]],
                 frames_over_limit_away_from_events=int((over & ~near).sum()),
                 event_frames=int((ok & near).sum()), zmp_max_mm_away_from_events=float(np.max(dz[away])) if away.any() else None,

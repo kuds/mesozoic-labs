@@ -87,6 +87,11 @@ themselves are ``designlab.stage2.moves_look``'s, loaded by name where a look se
   up to its command: ruling 28, ``moves_look.RULES["S2L-causal-grid"]``), a turn's stride factor is picked on the
   bound turns (``moves_look.pick_stride_factor``), and its entry holds the look's keys beside the others (the
   move's instant in ``move.command_phase`` for a start and a change too; ``look``; ``join_events``);
+* a causal move's warm-up reading of ``join_command`` is held to 5.0 mm, the owner's decision P42
+  (``moves_look.LOOK_WARMUP_ZMP_LIMIT_MM``, ``moves_look.RULES["S2L-P42-warmup"]``, read by
+  ``moves_look.entry_extra``); every other limit and gate is the round's, whose three sets keep 4.0 mm.  The entry's
+  ``join_command.limits`` holds the limit used, and ``transitions.json`` ``causal_limits`` says so
+  (``look_causal_limits``);
 * ``set.json`` names the join code's independent review by path and sha256 (``JOIN_REVIEW``; ``LOOK_RULES
   ["S2L-join-review"]``; STAGE2_TRACKB_PLAN.md L12 with rulings 28 to 30), the cut in force (none) and why
   (``look_review``), and every move whose join gate fails with its numbers (``joins_failed``);
@@ -1690,6 +1695,7 @@ def _new_docs(set_name: str, body: str, header: dict) -> dict:
                                             "and friction not included")
         docs["transitions.json"]["rules"].update(ml.RULES)
         docs["transitions.json"]["rules"].update({k: LOOK_RULES[k] for k in ("S2L-moves", "S2L-inplace")})
+        docs["transitions.json"]["causal_limits"] = look_causal_limits(docs["transitions.json"]["causal_limits"])
         docs["transitions.json"]["method"] += ("; with the look's laws and solver (designlab.stage2.moves_look), each "
                                                "move bound to the windows of the walks it joins")
         docs["set.json"]["rules"] = dict(RULES, **LOOK_RULES)
@@ -1719,6 +1725,14 @@ def look_review(body: str) -> dict:
     return dict(join_review=dict(JOIN_REVIEW), cut=None, cut_reason=why, cut3_probe=None if probe is None else dict(probe),
                 note="join rule J1 as designed; the builder takes no cut of STAGE2_TRACKB_PLAN.md L12 (cut_reason); "
                      "joins_failed lists every move whose join_command or join_b gate fails, with those numbers")
+
+
+def look_causal_limits(limits: dict) -> dict:
+    """``transitions.json`` ``causal_limits`` of a look set: the round's (``_plain_docs``) with the warm-up reading
+    of ``join_command`` at the look sets' limit and the rule that sets it (``moves_look.LOOK_WARMUP_ZMP_LIMIT_MM``,
+    ``moves_look.RULES["S2L-P42-warmup"]``: the owner's decision P42).  Every other limit is left as it is."""
+    ml = _ml()
+    return dict(limits, warmup_zmp_mm=ml.LOOK_WARMUP_ZMP_LIMIT_MM, warmup_zmp_rule=ml.WARMUP_RULE_ID)
 
 
 def cut3_probe(pick: str) -> dict | None:
@@ -1997,6 +2011,8 @@ def merge(d: Path, part: dict, log=print) -> dict:
         for key, text in _ml().RULES.items():  # rule was added gains it; a text already recorded stays as it is)
             docs["transitions.json"]["rules"].setdefault(key, text)
         if not setio.frozen(set_doc):  # L12's record (ruling 30): the join code's review, the cut, the failing joins
+            # (and the causal limits as P42 holds them on a look set: a set built before P42 says so from now on)
+            docs["transitions.json"]["causal_limits"] = look_causal_limits(docs["transitions.json"]["causal_limits"])
             for key, text in LOOK_RULES.items():
                 set_doc["rules"].setdefault(key, text)
             look_doc = set_doc.setdefault("look", {})
