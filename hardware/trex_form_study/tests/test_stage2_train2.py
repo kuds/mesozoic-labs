@@ -1650,7 +1650,8 @@ def test_the_resume_takes_an_allowance_from_the_runs_record(stub, tmp_path):
     """``SOURCE_ALLOWANCE_RULE`` on a run.json made by hand: sources an earlier session given the parameter ran on
     are allowed without it, also when they are not the last session's (the allowance holds for the rest of the run
     for the same sources); sources only the first session ran on are not; a run.json without ``sources_allowed``
-    takes the sessions that resumed with the parameter."""
+    takes the sessions that resumed with the parameter, also one that holds only ``source_change`` (the check of the
+    follow-ups of 17 Nov 2026, finding 3)."""
     from designlab.stage2 import s2load
 
     vers = s2load.versions()
@@ -1679,6 +1680,18 @@ def test_the_resume_takes_an_allowance_from_the_runs_record(stub, tmp_path):
     assert stub.allowed_sources(dict(sessions=sess)) == {"B": 1, "C": 2}
     assert stub.allowed_sources(dict(sessions=sess[:1])) == {} and runner().source_allowance is None
     assert "SOURCE_ALLOWANCE_RULE" in stub.RESUME_RULE
+    # the check of the follow-ups of 17 Nov 2026, finding 3: a run.json without sources_allowed whose session
+    # resumed on moved sources (source_change) without the session's allow_source_change key: its sources are
+    # allowed too, and the resume on them takes that session's allowance
+    old = [dict(index=0, sources=dict(sha256="A"), versions=vers),
+           dict(index=1, sources=dict(sha256="F"), versions=vers, source_change=True),
+           dict(index=2, sources=dict(sha256="G"), versions=vers)]
+    assert stub.allowed_sources(dict(sessions=old)) == {"F": 1}
+    r = runner()
+    assert r._refuse_sources_versions(dict(sessions=old), dict(sha256="F", files={}), vers)["source_change"] is True
+    assert r.source_allowance == dict(sha256="F", by="sources_allowed", session=1)
+    with pytest.raises(stub.Refused, match="other sources.*pass --allow-source-change"):
+        runner()._refuse_sources_versions(dict(sessions=old), dict(sha256="A", files={}), vers)
 
 
 def test_a_refusal_without_its_note_and_a_refused_baseline(stub, tmp_path, monkeypatch):
