@@ -1617,6 +1617,12 @@ def test_a_halt_for_moved_sources_names_the_parameter_that_resolves_it(stub, tmp
     assert doc_of(out)["monitor"][0]["attempts"][0]["refusal"]["kind"] == "row"
     d = run(stub, out, gates=True, resume=True, allow_source_change=True)
     assert d["status"] == "done" and d["sources_allowed"][0]["session"] == 1
+    # the baseline's halt too, here for the monitor's own sources check (the checkout moved under the run)
+    monkeypatch.delenv("STUB_MON_K9")
+    monkeypatch.setenv("STUB_SOURCES", "0" * 64)
+    with pytest.raises(stub.Halt, match="R0L baseline could not be made") as info:
+        run(stub, tmp_path / "out2", gates=True)
+    assert "the sources differ" in str(info.value) and str(info.value).endswith(stub.SOURCE_REMEDY)
     # which refusals are for moved sources
     assert stub.moved_sources(dict(kind="sources", reason="the sources differ"))
     assert stub.moved_sources(dict(kind="row", reason="... not judged (rule K9; STAGE2_ALLOW_SOURCE_CHANGE=1 ...)"))
