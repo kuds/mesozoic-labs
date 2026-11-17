@@ -472,3 +472,20 @@ is whole on the stand-in Drive and a `.part` exists; the sheet's tests read `col
     the launch commit. The filled sheet names the commit's 40 characters in 3.1's address and drops the
     template's tag sentence, which `sheet-check` allows. Text only; rules unchanged. The acceptance workflow's
     check reviews this edit. C1 is the commit that holds it.
+
+## C1 named again (`checkpoint/reviews/roundC__{do,check}_accept2_17nov.md`), ruled 17 Nov 2026, ~23:35 UTC
+
+`nb acceptance` refused to start on 472e8d31 (exit 4, nothing written): the lead's handover commit 6abd75da was pushed
+after C1 was named, so C1 was no longer the head of a pushed ref, which design 3.10 step 1 requires. The check worked
+as designed. The error is the lead's.
+
+47. **C1 again, and the working branch held still.**
+    - C1 is the commit that holds this ruling. Its code, notebook, template and manifest are those of 472e8d31; it
+      adds this ruling, the design amendment below and the status.
+    - From naming C1 until the acceptance run has started, nothing is pushed to the working branch. While the run
+      lasts, nothing is left uncommitted or untracked in the main checkout (its `main_checkout_unchanged` check).
+    - Colab is not affected by later commits: the notebook fetches REPO_REF by its SHA, and the check fetched a
+      commit that heads no ref by its SHA (exit 0).
+    - Design text amended (labelled, ruling 46): D24's tag `s2-launch-1` on C1 is gone; the sheet's address names the
+      40 characters. The tracked `colab_steps.txt` at C1 stays the template's copy, with its draft banner, until C2
+      replaces it.

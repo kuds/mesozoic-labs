@@ -442,7 +442,8 @@ noise, freshly initialised policies) and the acceptance run's tiny jobs, each li
 **D24. One commit per launch series; REPO_REF is its 40-hex SHA** (rules K6, N1). Commit C1 holds the code at
 state B, the notebook, the frozen sets' JSON, the committed rules and `MANIFEST.json`. The acceptance run (3.10)
 runs on C1 from a fresh clone of the remote. Commit C2 adds `ACCEPTANCE.json` and the steps sheet, both naming C1.
-The sheet gives REPO_REF as C1's SHA (and the lightweight tag `s2-launch-1` on it for the notebook's URL); the
+The sheet gives REPO_REF as C1's SHA (and, amended 17 Nov by ruling 46, the same 40 characters in the notebook's
+URL; no tag is pushed); the
 notebook refuses a non-smoke launch whose REPO_REF is not 40 hex digits, and on RESUME takes REPO_REF from
 `QUEUE.json`. The working branch may move freely afterwards. A second launch commit is accepted by a run only with
 `ALLOW_SOURCE_CHANGE`, a moved Colab image only with `ALLOW_VERSION_CHANGE` (both parameters of cell 1, default

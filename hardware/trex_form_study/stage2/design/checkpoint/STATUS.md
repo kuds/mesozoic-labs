@@ -777,3 +777,10 @@ and the chain's `--resume` on V10); the servo model's S1 low points and S2 (the 
   (sheet from the template, ACCEPTANCE.json, dev_episodes.json, sheet-check OK) and its check (verdict, tip).
 - Next: merge C2 if the check says merge, push, send the owner the sheet with a push notification.
 - Meter: $3,536.41 at 23:17 UTC, about 84.4 % (85 % about $3,551; 95 % about $3,801).
+
+## Update, 17 Nov 2026, ~23:35 UTC (handover)
+
+- The acceptance run refused 472e8d31 (not the remote's head after the status commit 6abd75da was pushed). Ruling
+  47: **C1 is the commit that holds ruling 47**; nothing is pushed to the working branch until the acceptance run
+  has started, and the main checkout stays clean while it runs. Reports of the refused try: `roundC__{do,check}_accept2_17nov.md`.
+- Then: the acceptance run on C1, its check, C2 on wt/c2 and its check; merge, push, the sheet to the owner.
