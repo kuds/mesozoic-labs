@@ -589,3 +589,11 @@ files, uncommitted; `wt/wpc-cn` one more commit than at the stop; `wt/wp-l` one 
 
 **Usage.** The session's meter read $2,701.94 when work resumed. The owner's readings so far were per model; the
 lead takes this reading as the zero of the new model's allocation until the owner gives a percentage.
+
+## Update, 17 Nov 2026, 01:19 UTC: the usage calibration on the new model
+
+The owner's screenshot at about 01:17 UTC: the week's bar 57 % used, resetting Saturday 3:00 AM (owner's time);
+Fable capped at 50 % of the week and 97 % used of that. The new model draws on the week's remaining 43 %. With the
+session meter at $2,710.92: Fable's $659 since the reset was 97 % of its cap, so 1 % of the week is about $13.6
+on the meter (to be checked against the owner's next reading). The owner holds one reset. The lead pushes the owner
+at 85 % and at 95 % of the week, and recommends using the reset at about 95 %.
