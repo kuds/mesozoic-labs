@@ -2979,16 +2979,87 @@ KEEP_RUNTIME_TEXT = (
     "The waiting time counts toward the 220 hours; that is expected.")
 
 
+#: The finish step's exit codes on which cell 8 lets the runtime go (the lead's ruling 12 of 17 Nov 2026): 0 (the
+#: run is done, or nothing of it is on this machine only) and 5 (it halted, and every last save is on Drive).
+RELEASE_CODES = (EXIT_OK, EXIT_HALT)
+
+
+def keep_other_text(finish_code) -> str:
+    """What the notebook prints, in place of letting the runtime go, when the finish step ended with no exit code of
+    ``RELEASE_CODES`` and not ``EXIT_UNFINISHED`` (it crashed, was stopped, or could not start): one plain
+    paragraph, which begins as ``KEEP_RUNTIME_TEXT`` does (the steps sheet names both by those words)."""
+    how = (f"it stopped with exit code {finish_code}" if type(finish_code) is int
+           else "it was stopped, or it could not start")
+    return ("THIS MACHINE IS KEPT ON PURPOSE. The last grey box (8. FINISH) did not end as it should "
+            f"({how}), so it is not known whether every save of the training is on your Google Drive. The "
+            "machine is not let go: letting it go could delete a save that is on this machine only. Leave this tab "
+            "and the machine as they are, and tell me. In about 30 minutes, run the last grey box (8. FINISH) once "
+            "more: click into it and press its play button. If it then ends with \"Disconnecting runtime in 5 "
+            "seconds...\", everything is on your Drive. If this paragraph comes again, wait and run that box again "
+            "later. The waiting time counts toward the 220 hours; that is expected.")
+
+
 def release_or_keep(finish_code, reason: str, in_colab: bool, auto: bool, flush_drive: bool) -> bool:
-    """Cell 8's last step (design D19 and the lead's ruling 1 of 17 Nov 2026): the runtime is released
-    (``release_runtime``) unless ``finish_code``, the finish step's exit code, is ``EXIT_UNFINISHED`` (a job's
-    last save is on this machine only, or the finish could not tell): then ``KEEP_RUNTIME_TEXT`` is printed and
-    the runtime is kept.  Any other code, or none (the step could not be run), releases it.  True when released."""
-    if finish_code == EXIT_UNFINISHED:
-        print("\n" + KEEP_RUNTIME_TEXT, flush=True)
+    """Cell 8's last step (design D19; the lead's rulings 1 and 12 of 17 Nov 2026): the runtime is released
+    (``release_runtime``) only when ``finish_code``, the finish step's exit code, is one of ``RELEASE_CODES`` (0 or
+    5).  On ``EXIT_UNFINISHED`` (a job's last save is on this machine only, or the finish could not tell)
+    ``KEEP_RUNTIME_TEXT`` is printed, on any other code or none (the step crashed, was stopped or could not start)
+    ``keep_other_text``'s paragraph, and the runtime is kept.  True when released."""
+    if type(finish_code) is not int or finish_code not in RELEASE_CODES:
+        text = KEEP_RUNTIME_TEXT if finish_code == EXIT_UNFINISHED else keep_other_text(finish_code)
+        print("\n" + text, flush=True)
         return False
     release_runtime(reason, in_colab=in_colab, auto=auto, flush_drive=flush_drive)
     return True
+
+
+#: Where the notebook's cell 3 mounts Google Drive on Colab.
+DRIVE_MOUNT = "/content/drive"
+#: How a Drive mount whose own process has died answers: ``ENOTCONN`` (107, "Transport endpoint is not connected").
+DEAD_MOUNT_ERRNOS = (errno.ENOTCONN,)
+
+
+def _mount_dead(path) -> OSError | None:
+    """The error by which ``path`` answers when the mount under it has died (``DEAD_MOUNT_ERRNOS``), else None."""
+    try:
+        os.stat(path)
+        os.listdir(path)
+    except OSError as exc:
+        return exc if exc.errno in DEAD_MOUNT_ERRNOS else None
+    return None
+
+
+def remount_if_dead(drive_dir, in_colab: bool, use_drive: bool, mount=None, probe=None) -> bool | None:
+    """Cell 8's first step (the lead's ruling 12 of 17 Nov 2026): on Colab with Google Drive, when the mount itself
+    has died (``probe``, default ``_mount_dead``, on the run's Drive directory ``drive_dir``), Drive is mounted again
+    once (``mount``, default ``google.colab.drive.mount(DRIVE_MOUNT, force_remount=True)``) and that is said.
+    Returns None when nothing was tried (not Colab, no Google Drive, or the mount answers), True when Drive was
+    mounted again and the directory answers, False when the remount failed or the directory still does not
+    answer.  It never raises: the finish runs after it whatever happens here."""
+    try:
+        if not (in_colab and use_drive) or drive_dir is None:
+            return None
+        probe = probe or _mount_dead
+        dead = probe(drive_dir)
+        if dead is None:
+            return None
+        print(f"Google Drive's connection was lost ({type(dead).__name__}: {dead}). It is mounted again once "
+              "(force_remount=True) before the finish.", flush=True)
+        if mount is None:
+            from google.colab import drive
+
+            def mount():
+                drive.mount(DRIVE_MOUNT, force_remount=True)
+        mount()
+        again = probe(drive_dir)
+        ok = again is None and os.path.isdir(drive_dir)
+        print("Google Drive is mounted again." if ok else
+              f"Google Drive still does not answer after the remount ({again or 'the run directory is not there'}).",
+              flush=True)
+        return ok
+    except Exception as exc:  # noqa: BLE001 - the finish must still run, and the runtime's fate is its exit code's
+        print(f"Google Drive could not be mounted again ({type(exc).__name__}: {exc}).", flush=True)
+        return False
 
 
 def release_runtime(reason: str, in_colab: bool, auto: bool, flush_drive: bool) -> None:
@@ -4028,7 +4099,7 @@ __all__ = ["BACK_RULE", "BUDGET_RULE", "COPY_RULE", "FENCE_RULE", "HALT_RULE", "
            "at_or_past", "budget_for", "collect", "finish", "floor_rate", "g8a_counts", "hours", "inputs", "job_name",
            "keep_on_drive", "launch", "line1", "line2", "line3", "line4", "lines_of", "load_params", "local_run",
            "main", "parse_queue", "pin_differences", "pins", "pip_commands", "preflight", "read_lead",
-           "release_or_keep", "release_runtime", "run_cells", "session", "session_line", "setup", "sha256_json",
+           "release_or_keep", "release_runtime", "remount_if_dead", "run_cells", "session", "session_line", "setup", "sha256_json",
            "smoke", "smoke_line"]
 
 if __name__ == "__main__":

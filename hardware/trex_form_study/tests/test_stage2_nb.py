@@ -588,7 +588,8 @@ def test_the_steps_sheet_quotes_the_programs_own_lines():
                  "Disconnecting runtime in 5 seconds...", "Repository ref: ", "S2 launch: UNFINISHED: ",
                  "NOT ON DRIVE: ", "was not started", "reading from Drive failed", "not on Drive after",
                  "S2 launch: interrupted by signal ", "stopped with exit code", "S2 launch: REFUSED: ",
-                 "THIS MACHINE IS KEPT ON PURPOSE", "is resumed only on the lead's word"):
+                 "THIS MACHINE IS KEPT ON PURPOSE", "is resumed only on the lead's word",
+                 "Google Drive's connection was lost"):
         assert said in source and said in sheet, said
     assert 'notes.append("LEAD.json: "' in source and '"S2 NOTE: LEAD.json: ..."' in sheet     # (a session's note)
     assert "RuntimeError: S2 step ... stopped with exit code" in sheet
@@ -1620,31 +1621,135 @@ def test_the_finish_keeps_the_runtime_while_a_save_is_not_on_drive(tmp_path, stu
     fin = nb.finish("r1", p["DRIVE_DIR"], p["LOCAL_DIR"])
     assert fin["on_drive"] is False and "the finish could not be completed (OSError" in capsys.readouterr().out
     monkeypatch.setattr(nb._Launcher, "__init__", real_init)
-    # cell 8 as the notebook runs it: s2_step's exit code decides
+    # cell 8 as the notebook runs it: s2_step's exit code decides.  The lead's ruling 12 of 17 Nov: the runtime is
+    # released only on exit codes 0 and 5; on anything else (a save on this machine only, a crash of the step, a
+    # stop by hand) it is kept and one paragraph says so (as built, everything but 6 released it)
     released = []
     monkeypatch.setattr(nb, "release_runtime", lambda reason, in_colab, auto, flush_drive: released.append(reason))
     cell = "".join(_cells()[8]["source"])
-    for code, want in ((nb.EXIT_UNFINISHED, []), (0, ["Stage 2 session of run 'r1' is over."]),
-                       (nb.EXIT_HALT, ["Stage 2 session of run 'r1' is over."]), ("raise", ["Stage 2 session of run 'r1' is over."])):
+    over = ["Stage 2 session of run 'r1' is over."]
+    for code, want in ((nb.EXIT_UNFINISHED, []), (0, over), (nb.EXIT_HALT, over), ("raise", []), (1, []),
+                       (nb.EXIT_REFUSED, []), (nb.EXIT_INTERRUPTED, []), ("crash", [])):
         released.clear()
 
         def s2_step(step, check=True, code=code):
             assert step == "finish" and check is False
             if code == "raise":
                 raise KeyboardInterrupt
+            if code == "crash":
+                raise OSError(errno.EIO, "Input/output error")
             return code
 
         space = dict(s2_step=s2_step, STUDY=str(STUDY), sys=sys, RUN_ID="r1", IN_COLAB=True, AUTO_DISCONNECT=True,
-                     USE_GOOGLE_DRIVE=True)
-        if code == "raise":
-            with pytest.raises(KeyboardInterrupt):
+                     USE_GOOGLE_DRIVE=True, DRIVE=str(tmp_path / "drive"))
+        if code in ("raise", "crash"):
+            with pytest.raises((KeyboardInterrupt, OSError)):
                 exec(compile(cell, "<cell 8>", "exec"), space)
         else:
             exec(compile(cell, "<cell 8>", "exec"), space)
         out = capsys.readouterr().out
         assert released == want, code
-        assert ("THIS MACHINE IS KEPT ON PURPOSE" in out) is (code == nb.EXIT_UNFINISHED), code
+        assert ("THIS MACHINE IS KEPT ON PURPOSE" in out) is (not want), code
+        assert (nb.KEEP_RUNTIME_TEXT in out) is (code == nb.EXIT_UNFINISHED), code
+        if not want and code != nb.EXIT_UNFINISHED:
+            assert nb.keep_other_text(space["S2_FINISH_CODE"]) in out and "tell me" in out, code
+            assert (f"it stopped with exit code {code}" in out) is isinstance(code, int), code
     assert "run the last grey box (8. FINISH) once more" in nb.KEEP_RUNTIME_TEXT and "\n" not in nb.KEEP_RUNTIME_TEXT
+    for code in (None, 1, 4, 6, 130, True, "0"):
+        assert "\n" not in nb.keep_other_text(code) and "run the last grey box (8. FINISH) once more" in nb.keep_other_text(code)
+        assert nb.release_or_keep(code, "over", in_colab=True, auto=True, flush_drive=True) is False, code
+    released.clear()
+    assert all(nb.release_or_keep(code, "over", in_colab=True, auto=True, flush_drive=True) for code in (0, 5))
+    assert released == ["over", "over"] and nb.RELEASE_CODES == (0, 5)
+
+
+def test_cell_8_mounts_a_dead_drive_again_once(tmp_path, monkeypatch, capsys):
+    """The lead's ruling 12 of 17 Nov: when Google Drive's mount itself has died (errno 107, ENOTCONN), cell 8 tries
+    ``drive.mount(force_remount=True)`` once before the finish and says so; the finish runs whatever the remount
+    does, and the runtime's fate is the finish's exit code.  Outside Colab, without Google Drive, or with a mount
+    that answers, nothing is tried.  As built, running cell 8 again did not remount a dead Drive."""
+    import types
+
+    mounts, state = [], dict(dead=True, heals=True)
+    colab = types.ModuleType("google.colab")
+
+    def mount(path, force_remount=False):
+        mounts.append((path, force_remount))
+        if state["heals"]:
+            state["dead"] = False
+
+    colab.drive = types.SimpleNamespace(mount=mount)
+    google = types.ModuleType("google")
+    google.colab = colab
+    monkeypatch.setitem(sys.modules, "google", google)
+    monkeypatch.setitem(sys.modules, "google.colab", colab)
+    drive = tmp_path / "drive"
+    drive.mkdir()
+    monkeypatch.setattr(nb, "_mount_dead", lambda path: OSError(errno.ENOTCONN, "Transport endpoint is not connected")
+                        if state["dead"] and Path(path) == drive else None)
+    released, steps = [], []
+    monkeypatch.setattr(nb, "release_runtime", lambda reason, in_colab, auto, flush_drive: released.append(reason))
+    cell = "".join(_cells()[8]["source"])
+
+    def run(code, in_colab=True, use_drive=True):
+        def s2_step(step, check=True):
+            steps.append((step, list(mounts)))
+            return code
+
+        exec(compile(cell, "<cell 8>", "exec"), dict(s2_step=s2_step, STUDY=str(STUDY), sys=sys, RUN_ID="r1",
+                                                    IN_COLAB=in_colab, AUTO_DISCONNECT=True,
+                                                    USE_GOOGLE_DRIVE=use_drive, DRIVE=str(drive)))
+        return capsys.readouterr().out
+
+    out = run(0)
+    assert mounts == [(nb.DRIVE_MOUNT, True)] and steps == [("finish", mounts[:1])]    # (before the finish)
+    assert "Google Drive's connection was lost" in out and "force_remount=True" in out
+    assert "Google Drive is mounted again." in out and len(released) == 1
+    out = run(0)                                                     # (the mount answers: nothing is tried)
+    assert len(mounts) == 1 and "connection was lost" not in out and len(released) == 2
+    state.update(dead=True, heals=False)
+    out = run(nb.EXIT_UNFINISHED)                                    # (a remount that does not help: once only)
+    assert mounts[1:] == [(nb.DRIVE_MOUNT, True)] and "still does not answer after the remount" in out
+    assert steps[-1][0] == "finish" and len(released) == 2 and nb.KEEP_RUNTIME_TEXT in out
+    for colab_, use in ((False, True), (True, False)):               # (outside Colab, or no Google Drive)
+        run(0, in_colab=colab_, use_drive=use)
+        assert len(mounts) == 2
+    # the helper itself never raises, and a missing directory is no dead mount
+    def broken():
+        raise RuntimeError("no window")
+
+    assert nb.remount_if_dead(drive, True, True, mount=broken) is False
+    assert "could not be mounted again (RuntimeError: no window)" in capsys.readouterr().out
+    assert nb.remount_if_dead(drive, True, True, mount=lambda: None, probe=lambda p: None) is None
+    monkeypatch.undo()
+    assert nb._mount_dead(tmp_path) is None and nb._mount_dead(tmp_path / "missing") is None
+    assert nb.DEAD_MOUNT_ERRNOS == (errno.ENOTCONN,) and errno.ENOTCONN == 107
+
+
+def test_the_pack_tools_tries_are_kept_so_that_the_finish_knows_them(tmp_path, stubs, monkeypatch, capsys):
+    """Ruling 1 of 17 Nov with the check's finding 3: the pack tool's tries are kept in the session's state, so that
+    each later finish knows that a check's tar that cannot be packed has used its tries (PACK_TRIES) and does not
+    hold the run's end back: the finish answers 0 every time.  Without the state the finish's launcher began its
+    count again, the tar was always still "to come", the finish answered 6 for good and the runtime was never let
+    go."""
+    (stubs / "pack_fail.py").write_text("import sys\nprint('stub pack: fails', file=sys.stderr)\nsys.exit(2)\n")
+    seams = json.loads((stubs / "seams.json").read_text())
+    seams["pack"] = [sys.executable, str(stubs / "pack_fail.py")]
+    (stubs / "seams.json").write_text(json.dumps(seams))
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02)}))
+    monkeypatch.setattr(nb, "END_COPY_PERIODS", 1.0)
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
+    _session(p)
+    res = _launch(p)
+    st = json.loads((Path(p["LOCAL_DIR"]) / "r1" / "work" / "session.json").read_text())
+    assert st["pack_tries"] and set(st["pack_tries"].values()) == {nb.PACK_TRIES}, (res["state"], st["pack_tries"])
+    assert "was not packed" in res["jobs"]["R5-B1-s42"]["last_error"]
+    pfile = tmp_path / "p.json"
+    pfile.write_text(json.dumps(p))
+    codes = [nb.main(["finish", "--params", str(pfile)]) for _ in range(3)]
+    assert codes == [0, 0, 0], codes
+    assert set(json.loads((Path(p["LOCAL_DIR"]) / "r1" / "work" / "session.json").read_text())["pack_tries"].values()) \
+        == {nb.PACK_TRIES}                                       # (no finish packed again: the tries were used)
 
 
 def test_a_failed_first_write_to_drive_is_no_halt(tmp_path, stubs, monkeypatch, capsys):

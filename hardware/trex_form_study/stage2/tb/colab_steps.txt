@@ -277,12 +277,17 @@ check each one at the acceptance run or, where only Colab can show it, at the sm
                                                   Tell me at once.
      S2 FINISH ...: NOT ON DRIVE: ...             the last save of a job is on the machine only, not on your
                                                   Drive. Tell me at once.
-     THIS MACHINE IS KEPT ON PURPOSE. ...         the paragraph under the last box after "NOT ON DRIVE". The
-                                                  machine stays on purpose. Leave the tab and the machine as
+     THIS MACHINE IS KEPT ON PURPOSE. ...         the paragraph under the last box after "NOT ON DRIVE", or
+                                                  when that box did not end as it should (it was stopped, or
+                                                  it failed). The machine stays on purpose. Do not delete it
+                                                  (not even as in 5.4). Leave the tab and the machine as
                                                   they are, tell me, and in about 30 minutes run the last grey
                                                   box (8. FINISH) once more: click into it and press its play
                                                   button. Do this again later until it ends with
                                                   "Disconnecting runtime in 5 seconds...".
+     Google Drive's connection was lost ...       printed by the last box: it mounts your Drive again, once,
+                                                  by itself. If a window asks you to allow Drive, allow it as
+                                                  in 3.5. Tell me what the box printed. (expected, not yet seen)
      S2 launch: interrupted by signal ...         the run was stopped from outside (a box was stopped by hand,
                                                   or the machine was told to stop). It is not finished.
      RuntimeError: S2 step ... stopped with exit code ...
@@ -332,9 +337,10 @@ check each one at the acceptance run or, where only Colab can show it, at the sm
    Expected, not yet seen (only Colab prints or shows them): everything marked "(expected, not yet seen)"
    above: the "Repository ref" line, when the Drive permission window comes and "Google Drive mounted", that a
    run goes on with the tab closed or the browser lost, "Disconnecting runtime in 5 seconds..." and the
-   runtime letting go by itself, "Runtime disconnected", git's lines on a red background, and how soon a file
-   written by the runtime shows in your Drive (the 10 minutes of 5.3). I confirm each at the acceptance run or,
-   where only Colab can show it, at the smoke, and then remove its mark.
+   runtime letting go by itself, "Runtime disconnected", git's lines on a red background, the last box mounting
+   Drive again after "Google Drive's connection was lost", and how soon a file written by the runtime shows in
+   your Drive (the 10 minutes of 5.3). I confirm each at the acceptance run or, where only Colab can show it, at
+   the smoke, and then remove its mark.
 
 
 STILL OPEN IN THIS DRAFT (for me, not for you)
