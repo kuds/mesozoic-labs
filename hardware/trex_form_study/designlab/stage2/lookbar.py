@@ -986,9 +986,10 @@ def collect(out, set_name: str, body: str, block: str = bar.HEADLINE_BLOCK, cont
             path = companion_path(out, set_name, body, block, rec["row"], rec["behavior"], rec["condition"], control)
             try:
                 doc = companion(q, rec, out, side_root, look_set)
-            except LookBarError as exc:
-                refused.append(str(exc))
-                refused_cells.append(_refused(q, rec, path, out, str(exc)))
+            except LookBarError as exc:  # (the lead's ruling 12 of 17 Nov 2026: a refusal's text in the summary
+                why = _no_paths(str(exc), (out, out.resolve()))  # names no absolute path: relative to ``out``)
+                refused.append(why)
+                refused_cells.append(_refused(q, rec, path, out, why))
                 continue
             old = _read_json(path)
             if old is not None and old.get("inputs_sha256") == doc["inputs_sha256"]:

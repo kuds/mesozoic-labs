@@ -749,6 +749,11 @@ def test_a_missing_or_foreign_sidecar_is_refused(tmp_path):
         assert [(c["row"], c["condition"], c["status"], c["companion"], c["record"], c["moved_to"]) for c in cells] == [
             ("R0L@10ms", "walk/v0.4", "done", "none", None, None)]
         assert cells[0]["reason"] == summary["refused"][0] and cells[0]["bar_record"].endswith("eval/R0L@10ms/walk/v0.4.json")
+        # the lead's ruling 12 of 17 Nov 2026 (the check of the rows package, low point 3): a refusal's text in the
+        # summary names no absolute path (as built it held the output root's): its paths are relative to the root
+        for text in summary["refused"] + [c["reason"] for c in cells]:
+            assert str(out) not in text and str(tmp_path) not in text and not lookbar._ABS_PATH.search(text), text
+        assert summary["refused"][0].startswith(cells[0]["bar_record"] + ": seed 3047: ")
         assert lookbar.main(["collect", "--set", "V6", "--body", BODY, "--out", str(out)]) == 1
 
     def change(**kw):
