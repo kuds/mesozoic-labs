@@ -597,6 +597,77 @@ def test_g9_ref_part_b_plays_a_look_sets_turn_items_at_j1s_leave_point(tmp_path,
     assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
 
 
+@needs_s1
+def test_the_placed_refcheck_gives_a_look_sets_freeze_a_record_g9_ref_part_a_reads(tmp_path, capsys):
+    """The placed refcheck command (the lead's ruling 39 (b) of 17 Nov 2026), kinematic, on synthetic sets: on a look
+    set ``gates2 refcheck --out <the sets' root>`` runs ``bar.refcheck`` inside ``lookbar.look_set_placement`` and
+    writes ``bar refcheck``'s record (its schema and keys, item for item the same keys) into the set directory, its
+    turn and stop items holding the placed plans; ``sets``' freeze would cite it (``sets.refcheck_state``: current), and
+    G9-ref part (a), given a freeze that cites it, reads it as cited (``plans_placed``), where it passes the bar's own
+    whole-window record over.  On T0 (no look set) the record is ``bar refcheck``'s, item for item and in every key
+    but the time and the provenance, and the command says the placement is the bar's own.  A look set whose set.json
+    names another set is refused before anything runs.  Nothing stays placed."""
+    from designlab.stage2 import bar, lookbar, sets as sets_mod, setio
+
+    root = tmp_path / "sets"
+    sets = _synthetic_sets(root)
+    d = setio.set_dir("V6", BODY, root)
+    code = gates2.main(["refcheck", "--set", "V6", "--body", BODY, "--set-root", str(root), "--out", str(root)])
+    out = capsys.readouterr().out
+    rec = d / "refcheck.json"
+    doc = s2io.read_json(rec)
+    assert code == (0 if doc["pass_"] else 1) and f"refcheck V6 {BODY}: {'pass' if doc['pass_'] else 'FAIL'}" in out
+    assert "placement: every turn and stop item whose move carries a leave point is placed" in out
+    assert f"(sha256 {s2io.sha256_file(rec)})" in out
+    assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
+    whole = bar.refcheck("V6", BODY, root, log=lambda *a: None)  # (the bar's own, outside any context)
+    assert doc["schema"] == whole["schema"] == "bar-refcheck-1" and set(doc) == set(whole)
+    assert set(doc["items"]) == set(whole["items"]) and all(set(doc["items"][k]) == set(whole["items"][k])
+                                                             for k in doc["items"])
+    assert {k: doc["items"][k]["plan"] for k in LEAVE_KEYS} == sets["V6"]["placed"]
+    assert {k: whole["items"][k]["plan"] for k in LEAVE_KEYS} == {k: sets["V6"]["own"][k] for k in LEAVE_KEYS}
+    assert doc["items"]["walk/v0.4"] == {k: v for k, v in whole["items"]["walk/v0.4"].items()}
+    assert gates2.refcheck_unplaced("V6", BODY, doc, root) == [] and gates2.refcheck_unplaced("V6", BODY, whole, root)
+    # the freeze cites it (as sets freeze does), and G9-ref part (a) reads it as cited
+    docs = setio.load(d)
+    state = sets_mod.refcheck_state(d, docs)
+    assert state["current"] is True and state["sha256"] == s2io.sha256_file(rec)
+    sd = s2io.read_json(d / "set.json")
+    sd["freezes"][-1]["refcheck"] = {k: state[k] for k in ("file", "sha256", "pass_", "failing", "not_run")}
+    s2io.write_json(d / "set.json", sd)
+    v = gates2._SetView(BODY, "V6", root)
+    a = gates2.part_a(v)
+    assert a["refcheck"]["source"] == "cited by the set's latest freeze" and a["refcheck"]["plans_placed"] is True
+    assert a["refcheck"]["sha256"] == state["sha256"] and a["files_match_freeze"] is True and a["_doc"] == doc
+    assert a["same_set_and_body"] is True and a["ok"] is bool(doc["pass_"])
+    # the bar's own record cited instead: passed over, and the check run (placed)
+    s2io.write_json(rec, whole)
+    sd["freezes"][-1]["refcheck"] = {k: sets_mod.refcheck_state(d, docs)[k] for k in ("file", "sha256", "pass_",
+                                                                                     "failing", "not_run")}
+    s2io.write_json(d / "set.json", sd)
+    got, how = gates2._refcheck_record(gates2._SetView(BODY, "V6", root), None)
+    assert "whose turn or stop items are not placed" in how["tried"][0] and how["plans_placed"] is True
+    assert {k: got["items"][k]["plan"] for k in LEAVE_KEYS} == sets["V6"]["placed"]
+    # T0 (no look set): bar refcheck's record
+    t0 = gates2.main(["refcheck", "--set", "T0", "--body", BODY, "--set-root", str(root), "--out", str(tmp_path / "t0")])
+    assert "placement: the bar's own (no look set)" in capsys.readouterr().out
+    ours = s2io.read_json(tmp_path / "t0" / "T0" / BODY / "refcheck.json")
+    theirs = bar.refcheck("T0", BODY, root, out=tmp_path / "t0bar", log=lambda *a: None)
+    assert t0 == (0 if ours["pass_"] else 1) and ours["items"] == theirs["items"]
+    assert {k: x for k, x in ours.items() if k not in ("at", "provenance")} == {
+        k: x for k, x in theirs.items() if k not in ("at", "provenance")}
+    assert {k: ours["items"][k]["plan"] for k in LEAVE_KEYS + ("walk/v0.4",)} == sets["T0"]["own"]
+    assert gates2.refcheck_unplaced("T0", BODY, ours, root) is None
+    # a look set whose set.json does not name it: refused before anything runs
+    other = root / "V6.2" / BODY
+    other.mkdir(parents=True)
+    for f in ("set.json", "refs.json", "transitions.json"):
+        shutil.copyfile(d / f, other / f)
+    assert gates2.main(["refcheck", "--set", "V6.2", "--body", BODY, "--set-root", str(root), "--out", str(root)]) == 2
+    assert "set.json names the set 'V6'" in capsys.readouterr().err and not (other / "refcheck.json").exists()
+    assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
+
+
 def _fake_bar_form(calls: list, compared: int = 506):
     """A stand-in of ``g8a.bar_form``: every episode identical, with ``compared`` of 506 physics steps compared."""
 

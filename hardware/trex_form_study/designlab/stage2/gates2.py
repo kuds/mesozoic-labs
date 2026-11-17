@@ -6,6 +6,7 @@ references, kinematic or in the simulator; none is a measurement on hardware.
     python -m designlab.stage2.gates2 g8a --body B --set S [--record PATH] [--conditions K,...] [--seeds 3042,3043]
            [--delays 0,5] [--cut-s X] [--set-root DIR] [--g9-ref PATH]
     python -m designlab.stage2.gates2 g9-ref --body B --set S [--record PATH] [--set-root DIR] [--refcheck PATH]
+    python -m designlab.stage2.gates2 refcheck --body B --set S [--out DIR] [--set-root DIR]
     python -m designlab.stage2.gates2 g9-run --body B --set S --bar-out DIR [--stage1b-reread PATH] [--record PATH]
            [--block seeds3042] [--set-root DIR]
     python -m designlab.stage2.gates2 rates --body B --set S [--floors hard,robot_floor_carpet] [--workers 1,2,3,4]
@@ -44,6 +45,12 @@ of the record without that key), and returns it.  Exit code 0 when the gate pass
   two consecutive frames of the walk it leaves (the lead's ruling 15 of 17 Nov 2026, a change after a result), 2 s
   of the tracker's zero-action targets finite.  G9-ref fails while a failing item of (a) names a reference that is
   still available in the set (the lead's ruling 14 of 17 Nov 2026); its record names those references.
+* ``refcheck`` (no gate; the lead's ruling 39 (b) of 17 Nov 2026): ``bar.refcheck`` run inside
+  ``lookbar.look_set_placement`` on a look set or a version of one, its record ``bar refcheck``'s own, written where
+  ``bar refcheck`` writes it (``<out>/<set>/<body>/refcheck.json``; ``--out`` the sets' root: the set directory's
+  ``refcheck.json``, which ``sets freeze`` cites): a look set's freeze then cites a record whose turn and stop items
+  are placed at join rule J1's leave point, and G9-ref part (a) reads it.  Off the look sets it is ``bar refcheck``.
+  Exit 0 when the check passes, 1 when it fails, 2 on an error (on a look set: a turn or stop item not placed).
 * ``g9_run`` (Z2's G9-run, parts (d), (e)): the ``R0L@10ms`` companion records ``lookbar.collect`` wrote and the
   bar's 10 ms records under ``--bar-out``; round A's ``bar reread`` record of Stage 1b's 10 ms turn episodes cited
   for the 60 cm body and head.
@@ -749,6 +756,47 @@ def _refcheck_record(v: _SetView, record_dir, refcheck=None, run=True) -> tuple[
     p = out / v.set / v.body / "refcheck.json"
     return doc, dict(source="bar.refcheck, run by this gate", files_match_freeze=match, **cite(p), tried=tried,
                      **placed)
+
+
+def refcheck(set_name: str, body: str, root=None, out=None, log=print) -> dict:
+    """The placed reference check (the lead's ruling 39 (b) of 17 Nov 2026): ``bar.refcheck`` (each reference played
+    kinematically through the bar's own readings; no physics, no verdict) run inside
+    ``lookbar.look_set_placement`` on a look set or a version of one (``look_set_of``), so that its turn and stop
+    items hold the plans the bar's row and the env play there (the walk ending at join rule J1's leave point,
+    ``lookbar.leave_resolve``): the record a look set's freeze cites, and G9-ref part (a) reads
+    (``_refcheck_record``, ``_refcheck_unplaced``).  The record is ``bar.refcheck``'s own, in its format, and written
+    where ``bar refcheck`` writes it, ``<out>/<set>/<body>/refcheck.json`` (``out`` the sets' root: the set
+    directory's ``refcheck.json``, which ``sets freeze`` cites; none: nothing is written).  On a look set whose
+    ``set.json`` does not name this set and body the placement would place nothing (a planner is matched by them):
+    ``Refused``, and nothing runs.  On every other set the placement does nothing: the record is ``bar refcheck``'s,
+    item for item.  ``bar.py`` is not edited."""
+    from designlab.stage2 import bar, lookbar, setio
+
+    root = _set_root(root)
+    if look_set_of(set_name) is not None:
+        named = s2io.read_json(setio.set_dir(set_name, body, root) / "set.json")
+        if (named.get("set"), named.get("body")) != (set_name, body):
+            raise Refused(f"{set_name}/{body}: set.json names the set {named.get('set')!r} and the body "
+                          f"{named.get('body')!r}, so lookbar.look_set_placement would place none of its turns and "
+                          "stop (a bar planner is matched by set.json's set and body)")
+    with lookbar.look_set_placement(set_name, body, root):  # (off the look sets it does nothing)
+        return bar.refcheck(set_name, body, root, out=out, log=log)
+
+
+def refcheck_unplaced(set_name: str, body: str, doc: dict | None, root=None) -> list[str] | None:
+    """G9-ref part (a)'s reading of a refcheck record of the set (``_refcheck_unplaced``, with the set's records
+    alone: no plant): on a look set or a version of one, its turn and stop items whose move carries join rule J1's
+    leave point and whose plan is not the placed one, each with what is wrong ([] where every such item is placed);
+    None on any other set."""
+    import types
+
+    from designlab.stage2 import setio
+
+    d = setio.set_dir(set_name, body, _set_root(root))
+    docs = setio.load(d)
+    view = types.SimpleNamespace(set=set_name, body=body, dir=d, docs=docs, set_doc=docs["set.json"],
+                                 refs=docs["refs.json"]["references"], trs=docs["transitions.json"]["transitions"])
+    return _refcheck_unplaced(view, doc)
 
 
 def played_files(v: _SetView, items: bool = True) -> list[str]:
@@ -2199,6 +2247,12 @@ def main(argv=None) -> int:
         if name == "r6-start":
             a.add_argument("--out", default=None)
             a.add_argument("--workers", type=int, default=2)
+    a = sub.add_parser("refcheck", help="bar.refcheck inside a look set's placement (bar refcheck's record)")
+    a.add_argument("--body", required=True)
+    a.add_argument("--set", dest="set_name", required=True)
+    a.add_argument("--out", default=None, help="the record goes to <out>/<set>/<body>/refcheck.json, as bar refcheck "
+                                               "writes it (the sets' root: the set directory's; none: not written)")
+    a.add_argument("--set-root", default=None)
     a = sub.add_parser("gl-start")
     a.add_argument("--out", default=None)
     a.add_argument("--record", default=None)
@@ -2214,6 +2268,23 @@ def main(argv=None) -> int:
                                         rows_or_mode=args.what, count=args.count, reason=args.reason, state=args.state))
             print(f"dev episodes: {args.step} {args.set} {args.body} {args.state}", flush=True)
             return EXIT_PASS
+        if args.cmd == "refcheck":
+            doc = refcheck(args.set_name, args.body, args.set_root, args.out)
+            bad = refcheck_unplaced(args.set_name, args.body, doc, args.set_root)
+            print(f"refcheck {args.set_name} {args.body}: {'pass' if doc['pass_'] else 'FAIL'}", flush=True)
+            if args.out is not None:
+                rec = Path(args.out) / args.set_name / args.body / "refcheck.json"
+                print(f"record: {s2io.portable(str(rec.resolve()))} (sha256 {s2io.sha256_file(rec)})", flush=True)
+            if bad is None:
+                print("placement: the bar's own (no look set)", flush=True)
+            elif bad:
+                print("placement: turn or stop items NOT at join rule J1's leave point (G9-ref part (a) will not "
+                      f"read this record): {'; '.join(bad)}", file=sys.stderr, flush=True)
+                return EXIT_ERROR
+            else:
+                print("placement: every turn and stop item whose move carries a leave point is placed at join rule "
+                      "J1's leave point (lookbar.look_set_placement)", flush=True)
+            return EXIT_PASS if doc["pass_"] else EXIT_FAIL
         if args.cmd == "gl-start":
             doc = gl_start(args.out, args.record)
             _say(doc, [f"gl-start: {k} {v}" for k, v in doc["checks"].items() if not v])
@@ -2263,7 +2334,8 @@ __all__ = ["G8A_CONDITIONS", "GateError", "K3", "K3_TINY", "LOOK_SETS", "RULES",
            "checkpoint_items", "compare_checkpoints", "compare_items", "controls", "dev_episode", "finish", "g8a",
            "g9_ref", "g9_run", "gl_start", "inputs_of", "joins", "k3_asked", "kill_resume", "main", "part_a", "part_b",
            "item_reference", "look_set_of", "part_c", "part_d", "part_e", "part_f", "played_files", "r6_run_problems",
-           "r6_start", "r6_training", "rates", "record_sha_ok", "require_g9_ref", "rollout_rate", "run_settings_problems",
+           "r6_start", "r6_training", "rates", "record_sha_ok", "refcheck", "refcheck_unplaced", "require_g9_ref",
+           "rollout_rate", "run_settings_problems",
            "sources", "still_available", "tail_tenth", "walk_steps"]
 
 if __name__ == "__main__":
