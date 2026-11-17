@@ -714,6 +714,24 @@ def test_the_placed_refcheck_leaves_no_record_when_it_refuses_an_unplaced_item(t
     assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
 
 
+def test_g9_ref_refuses_a_set_json_that_names_another_body(tmp_path):
+    """The lead's ruling 40 of 17 Nov 2026 (the check of LT3, finding 2): ``gates2._SetView`` refuses a set.json that
+    names another body, as it refuses one that names another set (a planner is matched by set.json's set and body, so
+    on a look set the placement would place nothing).  Both are refused before any plant or array is read."""
+    root = tmp_path / "sets"
+    for set_name, body, named in (("V6", "60-N-T-10", dict(set="V6", body=BODY)),
+                                  ("V6.2", BODY, dict(set="V6", body=BODY))):
+        d = root / set_name / body
+        d.mkdir(parents=True)
+        s2io.write_json(d / "set.json", named)
+        s2io.write_json(d / "refs.json", dict(references={}))
+        s2io.write_json(d / "transitions.json", dict(transitions={}))
+    with pytest.raises(gates2.GateError, match=f"set.json names the body '{BODY}'"):
+        gates2._SetView("60-N-T-10", "V6", root)
+    with pytest.raises(gates2.GateError, match="set.json names the set 'V6'"):
+        gates2._SetView(BODY, "V6.2", root)
+
+
 def _built_digest(b) -> dict:
     """A built bar condition as the env and the row are given it: its plan, seconds and command, and per track
     segment its kind, name, start, length and the sha256 of its joint arrays."""

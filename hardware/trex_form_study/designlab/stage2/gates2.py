@@ -621,6 +621,10 @@ class _SetView:
             self.set_doc = self.docs["set.json"]
             if self.set_doc.get("set") != set_name:
                 raise GateError(f"{self.dir}: set.json names the set {self.set_doc.get('set')!r}")
+            if self.set_doc.get("body") != body:
+                # (the lead's ruling 40 of 17 Nov 2026, as another set is refused: a planner is matched by set.json's
+                # set and body, so on a look set the placement would place nothing)
+                raise GateError(f"{self.dir}: set.json names the body {self.set_doc.get('body')!r}")
             self.crouch = float(self.set_doc.get("crouch_frac", 0.03))
         self.refs = self.docs["refs.json"]["references"]
         self.trs = self.docs["transitions.json"]["transitions"]
