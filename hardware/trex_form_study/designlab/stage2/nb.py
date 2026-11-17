@@ -3,7 +3,7 @@
 Simulation tooling only: nothing here is a result.
 
 **Standard library only at import.**  This module runs before the pinned packages are trusted (its ``setup`` step
-installs them) and is imported by the notebook's kernel for ``release_runtime``.  It reaches the trainer, the
+installs them) and is imported by the notebook's kernel for ``release_or_keep``.  It reaches the trainer, the
 bundle tool, the loader, the clip tool and everything that needs numpy, torch or MuJoCo by subprocess only
 (``[sys.executable, "-m", "designlab.stage2.<module>", ...]`` with ``tbenv.child_env(...)`` and the study directory
 as working directory).  ``g8a``, ``r5env`` and ``setio`` have no command line of their own: they run in this
@@ -24,7 +24,8 @@ line 1.  ``session`` (cell 3): rule K6's and K7's refusals, ``QUEUE.json`` (a ne
 ``LIVE.json``, the run-directory line.  ``inputs`` (cell 4): the bundle's parts verified and unpacked, line 2.
 ``preflight`` (cell 5): the archive-load preflight, a policy built, every env of the queue built, G8a's short form
 per body, line 3.  ``smoke`` (cell 6, only with ``SMOKE``): rules Y1-Y8.  ``launch`` (cell 7): the queue, one job at
-a time, line 4 per job.  ``finish`` (cell 8), then ``release_runtime`` in the kernel.
+a time, line 4 per job.  ``finish`` (cell 8), then ``release_or_keep`` in the kernel (the runtime is kept while a
+job's last save is on it only).
 
 **Parameters** (``PARAMS``): the fifteen of the notebook's cell 1 and, for local runs and tests only, the keys of
 ``EXTRA`` (the set, ``TINY``, the two directories, the monitor options, the launcher's period).  The notebook writes

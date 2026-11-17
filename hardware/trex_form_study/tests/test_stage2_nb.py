@@ -16,7 +16,8 @@ a stub pack tool, named to the launcher through ``S2_NB_SEAMS``; every file unde
 * the launcher: a queue to DONE with its copies and line 4 per job; the copy cadence and the
   delete-one-cycle-later rule; a second launcher on a live stand-in Drive is refused; a superseded launcher halts
   with "superseded" and leaves the run's files alone; a crashed job is retried once and then HALT; a job stopped by
-  a rule (exit 0 or 3) lets the next start; exit 4 and 5 halt without a retry; a launcher killed with its job and
+  a rule (exit 0 or 3) lets the next start; exit 4 ends the session with no HALT.json and exit 5 halts the run,
+  resumable on the lead's LEAD.json, neither retried; a launcher killed with its job and
   resumed from the stand-in Drive in a new local directory;
 * ``inputs`` on a real ``bundle`` round trip (a hand-made bundle of model files), on a data branch of a scratch
   repository and on the rebuild fallback; ``preflight``'s line 3; ``collect``; ``hours``; ``smoke`` on the stubs;
