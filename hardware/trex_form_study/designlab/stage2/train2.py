@@ -5,7 +5,7 @@ are imported, not edited.
     python -m designlab.stage2.train2 run --mode R5|R6 --body B --seed N [--set V6] --out ROOT [--job NAME] [--steps N]
            [--workers W] [--resume] [--allow-version-change] [--allow-source-change] [--from-checkpoint JOBDIR:STEPS]
            [--lr X] [--monitor-every N] [--monitor-also-k K,...] [--no-gates] [--tiny] [--run-id ID] [--config JSON]
-           [--retry-check]
+           [--retry-check] [--expect-baseline PATH]
     python -m designlab.stage2.train2 {probe-lr|probe-sigma|filter} --bodies B,... --set S --out PATH
            [probe-lr: --workers W] [probe-lr, rule K8's probe: --parent JOBDIR:STEPS --mode R5|R6 --config JSON]
     python -m designlab.stage2.train2 preflight
@@ -44,12 +44,19 @@ the same sources (``SOURCE_ALLOWANCE_RULE``: an allowance holds for the rest of 
 it there (rule K9), and a value the trainer's own environment holds is not passed on.  A halt for moved sources
 (the monitor's own sources check, or the row's rule K9) names ``--allow-source-change``.
 
+**The committed baseline** (rule M3; the lead's ruling 17 of 17 Nov 2026; ``EXPECT_BASELINE_RULE``).  With
+``--expect-baseline PATH`` (S2-4: ``stage2/tb/runs/s2-4/R0L_BASELINE.json``, made by ``monitor2 baseline`` without a
+job and committed) the run's own R0L baseline must equal that file episode for episode (``monitor2.baseline_equal``:
+the outcome, the survival and the state digest), checked after the baseline and before the first rollout, else the
+run halts.  The file's sha256 is a setting of the run (``settings.expect_baseline``): a resume gives the same file.
+
 **Exit codes** of ``run``: 0 done, or stopped by rule M4 or M5; 3 G8a failed ("G8a fails: no run"); 4 refused (a
-resume the rules refuse, or a start that cannot be made: nothing was run); 5 halted for the lead (R0L's baseline
-could not be made; two attempts at one check were never closed: ``--retry-check`` on the resume lets that check run
-once more; the monitor refused to run on a check: a resume runs it again, with ``--retry-check`` when the refused
-attempt was the one that parameter let run, and the halt says so; ``run.json`` ``halt`` holds the reason, for a
-refusal the monitor's own); any other code is a failure.
+resume the rules refuse, or a start that cannot be made: nothing was run; among them an ``--expect-baseline`` file
+that is no baseline record, or one given without the gates); 5 halted for the lead (R0L's baseline could not be
+made, or is not the committed one that ``--expect-baseline`` names; two attempts at one check were never closed:
+``--retry-check`` on the resume lets that check run once more; the monitor refused to run on a check: a resume runs it
+again, with ``--retry-check`` when the refused attempt was the one that parameter let run, and the halt says so;
+``run.json`` ``halt`` holds the reason, for a refusal the monitor's own); any other code is a failure.
 
 **The seams.**  ``_env_configs``, ``_env_specs``, ``_g8a_short``, ``_monitor_cmd`` and ``_validation`` are the
 places where the trainer meets the env, the gate, the monitor child and the validation records; the tests replace
@@ -192,6 +199,17 @@ BASELINE_RULE = (
     "equal, the new record takes the old one's place and the session is named under baseline.remade; not equal, "
     "the new record is kept as r0l.differs.s<k>.json, nothing is replaced and the run halts and goes to the lead "
     "(the run's checks were read against the lost one)")
+#: Rule M3 as the lead ruled it on 17 Nov 2026 (ruling 17): S2-4's own baseline against the committed one.
+EXPECT_BASELINE_RULE = (
+    "rule M3 (the lead's ruling 17 of 17 Nov 2026): with --expect-baseline PATH, the committed R0L baseline (S2-4: "
+    "stage2/tb/runs/s2-4/R0L_BASELINE.json, made by the monitor's baseline command without a job), the run's own "
+    "monitor/r0l.json must equal it episode for episode: the condition, the seed, the outcome, the survival and the "
+    "state digest (monitor2.baseline_equal), with the digests compared in both; it is checked after the baseline is "
+    "made or read and before the first rollout, at every session, and recorded in run.json baseline_expected.  Not "
+    "equal: the run halts (exit code 5) and goes to the lead; no step is trained.  A file that is missing, cannot be "
+    "read or is no baseline record, or one given to a run without the gates, is refused before anything is "
+    "written.  The file's sha256 is a setting of the run (settings.expect_baseline): a resume must give the same "
+    "file (rule K4)")
 CHILD_RULE = (
     "an attempt at a check, or at the baseline, holds its monitor child's pid, that process's start time (clock "
     "ticks since boot) and the boot id, written when the child has started.  A resume ends, with SIGKILL, every "
@@ -621,7 +639,7 @@ def _parent_of(parent) -> tuple | None:
 def train(mode, body, seed, set_name="V6", out=None, job=None, steps=None, resume=False, workers=None,
           checkpoint_every=CHECKPOINT_EVERY, monitor_every=MONITOR_EVERY, monitor_also_k=(), lr=None, config=None,
           ppo=None, gates=True, allow_version_change=False, allow_source_change=False, parent=None, tiny=False,
-          run_id=None, log=print, retry_check=False) -> dict:
+          run_id=None, log=print, retry_check=False, expect_baseline=None) -> dict:
     """One training job (module docstring); its ``run.json``.
 
     ``out``: the root (``<out>/jobs/<job>``); ``job``: the job's name (default ``<mode>-<body>-s<seed>``; a
@@ -631,7 +649,8 @@ def train(mode, body, seed, set_name="V6", out=None, job=None, steps=None, resum
     PPO constructor arguments over design 2's (smoke checks; both are settings); ``gates`` False: ``GATES_RULE``;
     ``parent``: ``(job directory, steps)`` of a fine-tune's parent (rule K8); ``tiny``: design 3.6's tiny run;
     ``retry_check``: on a resume of a run that halted after two attempts at one check were never closed, let that
-    check run once more (``RETRY_RULE``; recorded in the session).
+    check run once more (``RETRY_RULE``; recorded in the session); ``expect_baseline``: the path of the committed R0L
+    baseline the run's own must equal before its first rollout (rule M3, ``EXPECT_BASELINE_RULE``).
 
     Raises ``Refused`` (a resume the rules refuse), ``Halt`` (rule M1: the lead) or ``TrainError``; a job that a
     rule stopped returns its ``run.json`` like one that finished (``status``)."""
@@ -639,7 +658,8 @@ def train(mode, body, seed, set_name="V6", out=None, job=None, steps=None, resum
                      workers=workers, checkpoint_every=checkpoint_every, monitor_every=monitor_every,
                      monitor_also_k=monitor_also_k, lr=lr, config=config, ppo=ppo, gates=gates,
                      allow_version_change=allow_version_change, allow_source_change=allow_source_change,
-                     parent=parent, tiny=tiny, run_id=run_id, log=log, retry_check=retry_check)).go()
+                     parent=parent, tiny=tiny, run_id=run_id, log=log, retry_check=retry_check,
+                     expect_baseline=expect_baseline)).go()
 
 
 class _Run:
@@ -681,6 +701,10 @@ class _Run:
         self.workers = min(N_ENVS, vcpus()) if w is None else max(0, min(int(w), N_ENVS))
         self.allow_version, self.allow_source = bool(a["allow_version_change"]), bool(a["allow_source_change"])
         self.retry_check, self.retry_used = bool(a.get("retry_check")), False
+        self.expected = expected_baseline(a.get("expect_baseline"))  # (EXPECT_BASELINE_RULE: before any write)
+        if self.expected is not None and not self.gates:
+            raise Refused("--expect-baseline: a run without the gates (--no-gates) makes no R0L baseline to compare "
+                          "with the committed one (rule M3)")
         self.source_allowance = None  # (SOURCE_ALLOWANCE_RULE: set by _refuse_sources_versions)
         self.log = a["log"] or (lambda *x: None)
         self.doc = self.session = self.venv = self.vecnorm = self.model = self.cb = None
@@ -699,7 +723,8 @@ class _Run:
                     gates=self.gates, checkpoint_every=self.every_ck, monitor_every=self.every_mon,
                     monitor_k=_monitor2().K, monitor_also_k=list(self.also_k), config=s2io.plain(self.config),
                     ppo_overrides=s2io.plain(self.ppo), n_steps=self.n_steps,
-                    parent=None if self.parent is None else dict(job=self.parent[0].name, steps=self.parent[1]))
+                    parent=None if self.parent is None else dict(job=self.parent[0].name, steps=self.parent[1]),
+                    expect_baseline=None if self.expected is None else self.expected["sha256"])
 
     def _refuse_settings(self, doc: dict) -> None:
         """``RESUME_RULE``: every argument given must be the run's."""
@@ -774,6 +799,7 @@ class _Run:
             self._model(loaded, new)
             if self.gates:
                 self._baseline()
+                self._expect_baseline()
             self._learn()
             return self._finish()
         except BaseException as exc:
@@ -805,10 +831,12 @@ class _Run:
             rules=dict(boundary=BOUNDARY_RULE, checkpoint=CHECKPOINT_RULE, resume=RESUME_RULE, updates=UPDATES_RULE,
                        kl_cut=KL_CUT_RULE, rate=RATE_RULE, gates=GATES_RULE, fine_tune=FINE_TUNE_RULE,
                        retry=RETRY_RULE, baseline=BASELINE_RULE, children=CHILD_RULE, filter=FILTER_NEED_RULE,
-                       source_allowance=SOURCE_ALLOWANCE_RULE, monitor=dict(m2.RULES)),
+                       source_allowance=SOURCE_ALLOWANCE_RULE, expect_baseline=EXPECT_BASELINE_RULE,
+                       monitor=dict(m2.RULES)),
             layout=None, sessions=[], sources_allowed=[], checkpoints=[], kept=[],
             gates=dict(g8a=None, rate=None, g8b=None, g8b_after_fix=None), monitor=[], baseline=None,
-            baseline_attempts=[], fix=None, flags=dict(kl_cut=False), no_gain_count=0, stopped=None, parent=None,
+            baseline_attempts=[], baseline_expected=[], fix=None, flags=dict(kl_cut=False), no_gain_count=0,
+            stopped=None, parent=None,
             final_check=None, halt=None, updates_file="updates.jsonl", status="running", budget=None,
             budget_asked=self.steps_asked, num_timesteps=0)
 
@@ -861,7 +889,9 @@ class _Run:
             skipped_checkpoints=list(self.skipped), fingerprint_max_abs_diff=None, version_change=False,
             source_change=False, freeze_index=self.freeze_index, boundary_seeds=[], discarded_after_resume=None,
             retry_check=self.retry_check, allow_source_change=self.allow_source,
-            source_allowance=self.source_allowance, error=None, env=None, other_envs=None)
+            source_allowance=self.source_allowance,
+            expect_baseline=None if self.expected is None else {k: self.expected[k] for k in ("path", "sha256")},
+            error=None, env=None, other_envs=None)
         session.update(flagged)
         if self.allow_source and src["sha256"] not in allowed_sources(doc):  # (SOURCE_ALLOWANCE_RULE)
             doc.setdefault("sources_allowed", []).append(dict(sha256=src["sha256"], session=self.k,
@@ -1318,6 +1348,28 @@ class _Run:
             d["baseline"]["remade"] = remade
         self.write()
 
+    def _expect_baseline(self) -> None:
+        """``EXPECT_BASELINE_RULE``: the run's own R0L baseline against the committed one, before the first rollout
+        (and again at every later session); recorded in ``run.json`` ``baseline_expected``; not equal: ``Halt``."""
+        if self.expected is None:
+            return
+        m2, d, exp = _monitor2(), self.doc, self.expected
+        eq = m2.baseline_equal(self.baseline, exp["record"])
+        differ = list(eq["differ"])
+        if not eq["digests_compared"]:
+            differ.append("the state digests were not compared (a record holds none)")
+        entry = dict(session=self.k, path=exp["path"], sha256=exp["sha256"], record_sha256=exp["record_sha256"],
+                     baseline_sha256=self.baseline.get("sha256"), equal=not differ, episodes=eq["episodes"],
+                     digests_compared=eq["digests_compared"], differ=differ, at=s2io.now_utc())
+        d.setdefault("baseline_expected", []).append(entry)
+        self.write()
+        if differ:
+            raise Halt(f"{self.job}: the run's R0L baseline (monitor/r0l.json) is not the committed one "
+                       f"({exp['path']}): {'; '.join(differ)}: rule M3: S2-4's own baseline must equal it episode for "
+                       "episode (outcome, survival and state digest), else the run stops before its first rollout; "
+                       "no step is trained and the run goes to the lead")
+        self.say(f"R0L's baseline equals the committed one ({exp['path']}): rule M3")
+
     def _hashes(self, n: int) -> dict:
         from designlab.stage2 import s2load
 
@@ -1677,6 +1729,27 @@ def baseline_same(was: dict, rec: dict) -> dict:
         differ += eps["differ"]
     return dict(equal=not differ, differ=differ, episodes_compared=None if eps is None else eps["episodes"],
                 digests_compared=None if eps is None else eps["digests_compared"])
+
+
+def expected_baseline(path) -> dict | None:
+    """The committed R0L baseline of ``--expect-baseline PATH`` (``EXPECT_BASELINE_RULE``): ``{path, sha256,
+    record_sha256, record}``, ``path`` relative to the study directory where it lies under it (``s2io.portable``),
+    ``sha256`` the file's.  None for None.  ``Refused`` when the file is missing, cannot be read or is no baseline
+    record (``monitor2.baseline_problem``)."""
+    if path is None:
+        return None
+    p = Path(path)
+    if not p.is_file():
+        raise Refused(f"--expect-baseline {p}: no such file (rule M3: the committed R0L baseline)")
+    try:
+        doc = s2io.read_json(p)
+    except (OSError, ValueError) as exc:
+        raise Refused(f"--expect-baseline {p}: the file cannot be read ({type(exc).__name__})") from exc
+    why = _monitor2().baseline_problem(doc)
+    if why is not None:
+        raise Refused(f"--expect-baseline {p}: {why}: it is no committed R0L baseline (rule M3)")
+    return dict(path=s2io.portable(str(p.resolve())), sha256=s2io.sha256_file(p), record_sha256=doc.get("sha256"),
+                record=doc)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -2129,6 +2202,8 @@ def main(argv=None) -> int:
     a.add_argument("--retry-check", action="store_true",
                    help="after a halt for two attempts at one check that were never closed: run it once more")
     a.add_argument("--config", default=None, help="a JSON object of env config fields for every env")
+    a.add_argument("--expect-baseline", default=None, metavar="PATH",
+                   help="the committed R0L baseline the run's own must equal before its first rollout (rule M3)")
     for name, text in (("probe-lr", "rule O3's learning-rate probe"), ("probe-sigma", "rule O2's sigma probe"),
                        ("filter", "rule O4's filter measurement")):
         a = sub.add_parser(name, help=text)
@@ -2175,7 +2250,8 @@ def main(argv=None) -> int:
                     config=json.loads(args.config) if args.config else None, gates=not args.no_gates,
                     allow_version_change=args.allow_version_change, allow_source_change=args.allow_source_change,
                     parent=args.from_checkpoint, tiny=args.tiny, run_id=args.run_id,
-                    retry_check=args.retry_check, log=lambda *x: print(*x, flush=True))
+                    retry_check=args.retry_check, expect_baseline=args.expect_baseline,
+                    log=lambda *x: print(*x, flush=True))
     except TrainError as exc:
         print(f"train2 {args.cmd}: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
         return exc.code
@@ -2183,9 +2259,10 @@ def main(argv=None) -> int:
 
 
 __all__ = ["ALLOW_SOURCE_ENV", "BOUNDARY_RULE", "CHECKPOINT_EVERY", "EXIT_DONE", "EXIT_FAILED", "EXIT_G8A", "EXIT_HALT",
-           "EXIT_REFUSED", "Halt", "MONITOR_EVERY", "N_ENVS", "N_STEPS", "Refused", "RESUME_RULE", "SCHEMA",
+           "EXIT_REFUSED", "EXPECT_BASELINE_RULE", "Halt", "MONITOR_EVERY", "N_ENVS", "N_STEPS", "Refused",
+           "RESUME_RULE", "SCHEMA",
            "SOURCE_ALLOWANCE_RULE", "SOURCE_FILES", "TINY", "TrainError", "allowed_sources", "base_body",
-           "boundary_seed", "count_optimizer_steps", "filter_choice",
+           "boundary_seed", "count_optimizer_steps", "expected_baseline", "filter_choice",
            "filter_sigma", "is_boundary", "job_name", "kl_share", "main", "monitor_env", "moved_sources", "preflight",
            "preflight_env",
            "probe_lr", "probe_sigma", "read_updates", "require_hashseed", "sources", "train"]
