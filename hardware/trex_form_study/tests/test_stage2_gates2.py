@@ -668,6 +668,84 @@ def test_the_placed_refcheck_gives_a_look_sets_freeze_a_record_g9_ref_part_a_rea
     assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
 
 
+def _built_digest(b) -> dict:
+    """A built bar condition as the env and the row are given it: its plan, seconds and command, and per track
+    segment its kind, name, start, length and the sha256 of its joint arrays."""
+    import hashlib
+
+    return dict(plan=[list(x) for x in b.plan], seconds=b.seconds, command=b.command,
+                segments=[(seg.kind, seg.name, seg.t0, seg.duration,
+                           hashlib.sha256(np.ascontiguousarray(seg.S).tobytes()).hexdigest())
+                          for seg in b.track.segments])
+
+
+@needs_v0
+def test_off_the_look_sets_part_a_and_g8a_on_v0_are_as_before(tmp_path, monkeypatch, _release):
+    """The lead's ruling 39 of 17 Nov 2026 (the check of LT2, finding 5), on V0's own arrays: off the look sets G9-ref
+    part (a) and G8a are as the code before ruling 37 (b) made them, which called the bar's own functions outside any
+    context.  Part (a) reads the record V0's latest freeze cites, found as before (nothing added to how it was found);
+    run (V0's records in a set root of the test with the freeze's citation left out, its arrays linked, no record
+    beside them) its record is ``bar.refcheck``'s, item for item and in every key but the time and the provenance.
+    G8a (episodes stood in) builds each of rule Z1's conditions with the plan, seconds, command and track (every
+    segment and its joint arrays) of the bar's own context outside any context.  Nothing is placed."""
+    from designlab.stage2 import bar, g8a, lookbar, setio
+
+    d0 = setio.set_dir("V0", BODY)
+    v = gates2._SetView(BODY, "V0")
+    # (a) as found: the record the latest freeze cites, read as before
+    cited = s2io.read_json(d0 / "set.json")["freezes"][-1]["refcheck"]
+    a = gates2.part_a(v)
+    assert set(a["refcheck"]) == {"source", "files_match_freeze", "path", "sha256"}
+    assert a["refcheck"]["source"] == "cited by the set's latest freeze" and a["refcheck"]["sha256"] == cited["sha256"]
+    assert a["_doc"] == s2io.read_json(s2io.STUDY / cited["file"]) and a["ok"] is True
+    # (a) run: V0 whose freeze cites no record and whose directory holds none
+    root = tmp_path / "sets"
+    d = root / "V0" / BODY
+    d.mkdir(parents=True)
+    for f in ("refs.json", "transitions.json", "screen.json"):
+        shutil.copyfile(d0 / f, d / f)
+    sd = s2io.read_json(d0 / "set.json")
+    sd["freezes"][-1].pop("refcheck")
+    s2io.write_json(d / "set.json", sd)
+    for sub in ("refs", "transitions"):
+        (d / sub).symlink_to((d0 / sub).resolve(), target_is_directory=True)
+    doc, how = gates2._refcheck_record(gates2._SetView(BODY, "V0", root), tmp_path / "rec")
+    assert set(how) == {"source", "path", "sha256", "files_match_freeze", "tried"} and how["tried"] == []
+    assert how["source"] == "bar.refcheck, run by this gate" and how["files_match_freeze"] is True
+    theirs = bar.refcheck("V0", BODY, root, log=lambda *a: None)
+    assert doc["items"] == theirs["items"] and any(x["status"] == "done" for x in doc["items"].values())
+    assert {k: x for k, x in doc.items() if k not in ("at", "provenance")} == {
+        k: x for k, x in theirs.items() if k not in ("at", "provenance")}
+    assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
+    # G8a: every condition of rule Z1 built as the bar's own context builds it
+    seen = {}
+
+    def episode(row, ctx, cond, seed, k, e):
+        b = ctx.built(cond)
+        seen[cond.key] = dict(_built_digest(b), placed=sorted(lookbar.placed()))
+        return dict(condition=cond.key, seed=seed, k=k, seconds=b.seconds, reference_steps=1, env_steps=1,
+                    compared_steps=1, first_difference=None, reference_fell_step=None, env_terminated_step=None,
+                    ends_alike=True, identical=True, interference_first_env_step=None, reference_fall_cause=None,
+                    reference_warned=False, env_fall_cause=None)
+
+    monkeypatch.setattr(g8a, "_episode", episode)
+    monkeypatch.setattr(g8a, "_env", lambda *a, **k: None)
+    rec = gates2.g8a(BODY, "V0", None, conditions=gates2.G8A_CONDITIONS, seeds=(3042,), delays=(0,))
+    assert rec["g9_ref"] is None and rec["of"] == len(seen) and rec["not_run"] == []
+    assert sorted(seen) == sorted(gates2.G8A_CONDITIONS) and all(x.pop("placed") == [] for x in seen.values())
+    set_docs = setio.load(d0)
+    planner = bar.BarPlanner(d0, set_docs["refs.json"]["references"], set_docs["transitions.json"]["transitions"],
+                             set_docs["set.json"])
+    conds = bar.choose(set_docs, bar.HEADLINE_BLOCK, list(gates2.G8A_CONDITIONS))
+    _, docs = setio.read_inputs(d0, sorted({f for c in conds for f in planner.resolve(c)["files"]}),
+                                require_frozen=True)
+    ctx = bar.BarContext(BODY, d0, docs, set_docs["set.json"], bar.set_crouch(set_docs["set.json"]))
+    own = {c.key: _built_digest(ctx.built(c)) for c in conds}
+    ctx.release()
+    assert seen == own
+    assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
+
+
 def _fake_bar_form(calls: list, compared: int = 506):
     """A stand-in of ``g8a.bar_form``: every episode identical, with ``compared`` of 506 physics steps compared."""
 
