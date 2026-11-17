@@ -513,6 +513,90 @@ def test_g8a_plays_a_look_sets_turns_and_stop_at_j1s_leave_point(tmp_path, monke
     assert lookbar.placed() == set()
 
 
+TURN_KEYS = ("turn/q90_left", "turn/q90_right")
+
+
+def _part_b_items(v, keys, placed: bool) -> dict:
+    """Part (b)'s window and readings of the items ``keys`` played as the code before the lead's ruling 39 (b) played
+    them, with the bar's own context (``placed`` False), or with that context inside ``lookbar.look_set_placement``:
+    ``{key: {plan, window_ref, steps, lift_offs, numbers}}``."""
+    import contextlib
+
+    from designlab.stage2 import bar, lookbar, lookread
+
+    out = {}
+    with lookbar.look_set_placement(v.set, v.body, v.dir.parent.parent) if placed else contextlib.nullcontext():
+        ctx = bar.BarContext(v.body, v.dir, {"refs.json": v.docs["refs.json"],
+                                             "transitions.json": v.docs["transitions.json"]}, v.set_doc)
+        for c in bar.conditions(v.docs, every=True):
+            if c.key not in keys:
+                continue
+            b = ctx.built(c)
+            wr = lookread.window_ref(b)
+            r = lookread.playback(b.p, b.track, b.track.run_dir, *wr)
+            out[c.key] = dict(plan=[list(x) for x in b.plan], window_ref=[float(x) for x in wr], steps=r.get("steps"),
+                              lift_offs=r.get("lift_offs"), numbers=gates2.four_numbers(r))
+        ctx.release()
+    return out
+
+
+@needs_s1
+def test_g9_ref_part_b_plays_a_look_sets_turn_items_at_j1s_leave_point(tmp_path, monkeypatch):
+    """G9-ref part (b)'s playback of the walk and turn items (the lead's ruling 39 (b) of 17 Nov 2026) on a look set
+    (a synthetic one, kinematic; no G9-ref has passed there) runs inside ``lookbar.look_set_placement``: each turn
+    item is built with the plan ``lookbar.leave_resolve`` gives (the walk before the turn ends at join rule J1's leave
+    point) and its window and readings are those of that track, not of the bar's own whole windows; a walk item is
+    the bar's own.  On T0 (no look set) nothing is placed and every item is as the code before the ruling played it
+    (window, steps, lift-offs and the four numbers).  Nothing stays placed."""
+    from designlab.stage2 import bar, lookbar, lookread
+
+    root = tmp_path / "sets"
+    sets = _synthetic_sets(root)
+    seen, real = [], lookread.window_ref
+
+    def window_ref(b):
+        seen.append((b.cond.set, b.cond.key, [list(x) for x in b.plan], sorted(lookbar.placed())))
+        return real(b)
+
+    monkeypatch.setattr(lookread, "window_ref", window_ref)
+    views, got = {}, {}
+    for set_name in ("V6", "T0"):
+        v = views[set_name] = gates2._SetView(BODY, set_name, root)
+        monkeypatch.setattr(v, "walks", lambda: [])  # (the walks' own playbacks are not what this test reads)
+        got[set_name] = gates2.part_b(v)["items"]
+    monkeypatch.undo()
+    assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
+    keys = TURN_KEYS + ("walk/v0.4",)
+    for set_name in ("V6", "T0"):
+        assert all(got[set_name][k]["status"] == "played" for k in keys), got[set_name]
+    # V6: played inside the set's placement; the turns at their leave point, the walk the bar's own
+    key = lookbar.placement_key("V6", BODY, views["V6"].dir)
+    six = {k: (plan, placed) for s, k, plan, placed in seen if s == "V6"}
+    assert set(six) == {k for k, x in got["V6"].items() if x["status"] == "played"} >= set(keys)
+    assert all(placed == [key] for _, placed in six.values())
+    assert {k: six[k][0] for k in TURN_KEYS} == {k: sets["V6"]["placed"][k] for k in TURN_KEYS}
+    assert six["walk/v0.4"][0] == sets["V6"]["own"]["walk/v0.4"]
+    inside = _part_b_items(views["V6"], keys, placed=True)
+    before = _part_b_items(views["V6"], keys, placed=False)
+    for k in TURN_KEYS:
+        x = got["V6"][k]
+        assert inside[k]["plan"] == sets["V6"]["placed"][k] and before[k]["plan"] == sets["V6"]["own"][k]
+        assert x["window_ref"] == inside[k]["window_ref"] != before[k]["window_ref"], k
+        assert (x["steps"], x["lift_offs"], x["numbers"]) == (inside[k]["steps"], inside[k]["lift_offs"],
+                                                               inside[k]["numbers"]), k
+    assert got["V6"]["walk/v0.4"]["window_ref"] == before["walk/v0.4"]["window_ref"]
+    # T0 (no look set): nothing placed, every item as before
+    t0 = {k: (plan, placed) for s, k, plan, placed in seen if s == "T0"}
+    assert all(placed == [] for _, placed in t0.values()) and {k: t0[k][0] for k in keys} == {
+        k: sets["T0"]["own"][k] for k in keys}
+    old = _part_b_items(views["T0"], set(t0), placed=False)
+    for k, x in old.items():
+        y = got["T0"][k]
+        assert (y["window_ref"], y["steps"], y["lift_offs"], y["numbers"]) == (
+            x["window_ref"], x["steps"], x["lift_offs"], x["numbers"]), k
+    assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
+
+
 def _fake_bar_form(calls: list, compared: int = 506):
     """A stand-in of ``g8a.bar_form``: every episode identical, with ``compared`` of 506 physics steps compared."""
 

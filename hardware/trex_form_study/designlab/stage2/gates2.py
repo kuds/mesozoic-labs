@@ -883,7 +883,11 @@ def _rung_walk(v: _SetView, speed: str, variant: str) -> str | None:
 
 def part_b(v: _SetView, comparand: _SetView | None = None) -> dict:
     """G9-ref (b) (``RULES["z2_ref"]``).  ``comparand``: the plain body's view of the same set (an ``-X`` body) or
-    the same body's V6 view (``V6noF5``)."""
+    the same body's V6 view (``V6noF5``).  On a look set or a version of one (``look_set_of``) the walk and turn items
+    are played inside ``lookbar.look_set_placement`` (the lead's ruling 39 (b) of 17 Nov 2026): each turn item's
+    window is that of the turn as the bar's row and the env play it there, the walk before it ending at join rule
+    J1's leave point (``lookbar.leave_resolve``), not the bar's own whole windows; on every other set the placement
+    does nothing and the items are as before."""
     from designlab.stage2 import bar, lookread
 
     toe = v.set != NO_TOE_OFF_SET
@@ -944,30 +948,36 @@ def part_b(v: _SetView, comparand: _SetView | None = None) -> dict:
             out["compared"][n] = dict(against=a, comparand_numbers=four_numbers(other), ok=bool(a["ok"]))
     elif v.set == STOCK_SET:
         out["rungs_note"] = "the Stage 1 view holds no look-format walk: no ladder comparison"
-    # every walk and turn item: its window's playback
+    # every walk and turn item: its window's playback; on a look set or a version of one inside
+    # lookbar.look_set_placement, so that its turns are played at join rule J1's leave point as the bar's row and the
+    # env play them there (the lead's ruling 39 (b) of 17 Nov 2026); off the look sets the context does nothing
     if v.set != STOCK_SET:
-        ctx = bar.BarContext(v.body, v.dir, {"refs.json": v.docs["refs.json"],
-                                             "transitions.json": v.docs["transitions.json"]}, v.set_doc)
-        planner = ctx.bar_planner
-        for c in bar.conditions(v.docs, every=True):
-            if c.judge not in ("bar_walk", "bar_turn") or c.friction is not None:
-                continue
-            why = planner.missing(c)
-            if why is not None:
-                out["items"][c.key] = dict(status="not run", reason=why.get("reason"), ok=True)
-                continue
-            try:
-                b = ctx.built(c)
-                wr = lookread.window_ref(b)
-                r = lookread.playback(b.p, b.track, b.track.run_dir, *wr)
-            except Exception as exc:  # noqa: BLE001 - rule U5: a fault of the definition, never "no look reading"
-                out["items"][c.key] = dict(status="fault", ok=False, fault=f"{type(exc).__name__}: {exc}")
-                continue
-            enough = (r.get("steps") or 0) >= lookread.MIN_STEPS and (r.get("lift_offs") or 0) >= lookread.MIN_STEPS
-            out["items"][c.key] = dict(status="played", window_ref=[float(x) for x in wr], gated=bool(c.gated),
-                                       steps=r.get("steps"), lift_offs=r.get("lift_offs"), numbers=four_numbers(r),
-                                       **toe_off_side(r), ok=bool(enough))
-        ctx.release()
+        from designlab.stage2 import lookbar
+
+        with lookbar.look_set_placement(v.set, v.body, v.dir.parent.parent):
+            ctx = bar.BarContext(v.body, v.dir, {"refs.json": v.docs["refs.json"],
+                                                 "transitions.json": v.docs["transitions.json"]}, v.set_doc)
+            planner = ctx.bar_planner
+            for c in bar.conditions(v.docs, every=True):
+                if c.judge not in ("bar_walk", "bar_turn") or c.friction is not None:
+                    continue
+                why = planner.missing(c)
+                if why is not None:
+                    out["items"][c.key] = dict(status="not run", reason=why.get("reason"), ok=True)
+                    continue
+                try:
+                    b = ctx.built(c)
+                    wr = lookread.window_ref(b)
+                    r = lookread.playback(b.p, b.track, b.track.run_dir, *wr)
+                except Exception as exc:  # noqa: BLE001 - rule U5: a fault of the definition, never "no look reading"
+                    out["items"][c.key] = dict(status="fault", ok=False, fault=f"{type(exc).__name__}: {exc}")
+                    continue
+                enough = ((r.get("steps") or 0) >= lookread.MIN_STEPS
+                          and (r.get("lift_offs") or 0) >= lookread.MIN_STEPS)
+                out["items"][c.key] = dict(status="played", window_ref=[float(x) for x in wr], gated=bool(c.gated),
+                                           steps=r.get("steps"), lift_offs=r.get("lift_offs"), numbers=four_numbers(r),
+                                           **toe_off_side(r), ok=bool(enough))
+            ctx.release()
     oks = ([w["ok"] for w in out["walks"].values()] + [r["ok"] for r in out["rungs"].values() if "ok" in r]
            + [c["ok"] for c in out["compared"].values()] + [i["ok"] for i in out["items"].values()])
     out["ok"] = bool(oks and all(oks) and not out["faults"])
