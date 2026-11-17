@@ -569,6 +569,17 @@ def test_a_fault_names_no_path_of_this_machine():
     assert lookbar._no_paths(keep) == keep and lookbar._fault("x", ValueError(keep)) == f"x: ValueError: {keep}"
     once = lookbar._no_paths(f"{s2io.STUDY}/a/b.npz and '/x/y/z/w.npz'")
     assert once == "a/b.npz and '.../y/z/w.npz'" and lookbar._no_paths(once) == once
+    # the lead's ruling 12 of 17 Nov 2026 (the check of the rows package, low point 2): no path keeps its first part,
+    # however short (as built a path of three parts or fewer was kept whole); one with a space is cut up to it
+    for text, cut in (("/home/user/a", ".../user/a"), ("at /content: gone", "at ...: gone"),
+                      ("/home/user/b c/d", ".../user/b c/d"), ("/a/b/c/d/e", ".../c/d/e"),
+                      ("/content/drive/My Drive/mesozoic/stage2/sets/V6/x.npz",
+                       ".../drive/My Drive/mesozoic/stage2/sets/V6/x.npz")):
+        assert lookbar._no_paths(text) == cut, text
+        assert text.split("/")[1].split()[0] not in cut and lookbar._no_paths(cut) == cut, text
+    # a path under an output root given to it is named relative to that root (a summary's own paths are)
+    assert lookbar._no_paths("/r/out/V6/B/eval/x.json: bad", roots=("/r/out",)) == "V6/B/eval/x.json: bad"
+    assert lookbar._no_paths("/r/out and /r/outer/x", roots=("/r/out",)) == ".../out and .../outer/x"
 
 
 # ------------------------------------------------------------------------------------------------
