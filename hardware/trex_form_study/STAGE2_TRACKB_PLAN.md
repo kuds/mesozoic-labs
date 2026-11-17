@@ -2213,7 +2213,10 @@ changed after a result: the join-code review's scratch probes (prescribed motion
 `stage2/design/ROUND_C_RULINGS_17NOV.md`] Cut 3 is not taken for a body when the join-code review's probe, on the
 causal grid (ruling 28), gives the failing reading at cut 3's leave point (the window's boundary) as over its limit too;
 the move that fails at J1's leave point is then "not available" with its numbers (A11 for a turn; H3 for the stop), and
-no limit is changed. On 75-M-H-10 the review read 4.038 mm (left turns) and 4.361 mm (right turns) there, against 4.0.
+no limit is changed. On 75-M-H-10 the review read 4.038 mm (left turns) and 4.361 mm (right turns) there, against 4.0. [settled 17 Nov 2026 by the owner (`DECISION_LOG.md` P42); labelled as changed after a result: the 75 cm look sets as
+rebuilt and checked, none frozen] On the look sets the warm-up reading of `join_command` is held to 5.0 mm (`STAGE2_75_PLAN.md`
+A7, P42's paragraph); every other limit is unchanged. A causal move that passes under it is available, and no cut is
+taken for it.
 
 [settled 16 Nov 2026, before any Track B run; labelled as changed after the look work package had built look sets
 (prescribed motion; none frozen); ruling 7 of the fourth list, on what the paragraph above leaves open for the body's

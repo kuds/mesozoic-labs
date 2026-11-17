@@ -266,6 +266,8 @@ controller's grid and not a difference in the motion before the command; the fir
 3.51 mm. Under the tighter limits V0's quick turn, F25F9's two-touchdown stop and every turn built on the two tuned
 sets had no reference. The readings stay in every entry as they were.
 
+[changed 17 Nov 2026 after a result, by the owner's decision (`DECISION_LOG.md` P42): the 75 cm look sets as rebuilt and checked; prescribed motion, before any look set was frozen and before any closed-loop episode on one] On the look sets (`V6`, `V6noF5` and their versions) only, the warm-up reading of a causal move's `join_command` (the multibody ZMP over the warm-up frames, against the walk's) is held to 5.0 mm. Every other limit of this paragraph stands, and the round's three sets keep 4.0 mm. The reason: V6's left turns read 4.621 mm (4.582 mm on the `-X` head) with the CoM within 0.066 mm and the joints within 4.2e-4 rad; the excess is two time differences of a CoM difference under 0.07 mm (the join-code review).
+
 **A8. Fallbacks for starts, changes and stops.** [NEW] A move that fails A7 or a blocking gate of A12 is retried in this
 order and no other: (1) a change with a ramp of 2 strides; (2) for a ladder rung, a change from the neighbouring rung
 toward 0.40 m/s; (3) recorded "no transition within the gates". A start and the stop have no fallback, and
