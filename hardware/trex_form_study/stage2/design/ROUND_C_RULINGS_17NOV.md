@@ -459,3 +459,16 @@ tests the draft sheet's placeholders, so a filled sheet cannot pass it, and C2 w
       parts stay on the data branch. The acceptance run is made again on it. Then C2 holds the filled sheet and
       `ACCEPTANCE.json`.
     - The acceptance run's tiny episodes on V6 are listed in `dev_episodes.json` (D23).
+
+## Ruling 45 merged; one link removed (`checkpoint/reviews/roundC__{fix,check}_N45_17nov.md`), ruled 17 Nov 2026, ~23:25 UTC
+
+The fix for ruling 45 passed its independent check and is merged: `nb acceptance` kills only once a checkpoint above 0
+is whole on the stand-in Drive and a `.part` exists; the sheet's tests read `colab_steps.template.txt`; and
+`nb sheet-check` holds a filled sheet to the records (`--before-smoke` at C2, the default after the smoke).
+
+46. **The notebook's link to a tag that was never pushed.** No launch tag is pushed (the lead pushes only the working
+    branch and the data branch, P46), so the notebook intro's link to the sheet "at the launch tag" led nowhere.
+    The lead removed the link and kept the sheet's path; the intro now says the lead sends the sheet filled in for
+    the launch commit. The filled sheet names the commit's 40 characters in 3.1's address and drops the
+    template's tag sentence, which `sheet-check` allows. Text only; rules unchanged. The acceptance workflow's
+    check reviews this edit. C1 is the commit that holds it.
