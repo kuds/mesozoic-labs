@@ -224,12 +224,15 @@ UNFINISHED_RULE = (
     "directory of it (a resume there would restart the job from step 0 or from an older step, silently); the "
     "run's last files cannot be written.  HALT.json is not written for a fault of Drive: that file ends a run")
 BACK_RULE = (
-    "the copy back (design 3.9): before a job is started, its directory is copied from Drive when this machine "
-    "holds no run.json of it or when Drive holds a checkpoint that reads back whole and is newer than every whole "
-    "one here.  The copy is all or nothing: it is made beside the job's place, every checkpoint that reads back on "
-    "Drive must read back in the copy, and only then it is moved into place (a directory that was there is kept "
-    "aside under work/aside/, never deleted).  A job is never started while Drive holds a checkpoint newer than "
-    "every one here (UNFINISHED_RULE)")
+    "the copy back (design 3.9; the lead's ruling 3 of 17 Nov 2026): before a job is started, its directory is "
+    "copied from Drive unless this machine's directory of it is known whole and is at least as new as Drive's: it "
+    "has its marker (work/whole/<job>.json, written when a copy back moved a whole copy into place, or when this "
+    "machine's launcher started the trainer on the directory, which is then the trainer's own), its run.json, "
+    "and a whole checkpoint at least as new as every one that reads back on Drive.  The copy is all or nothing: it "
+    "is made beside the job's place, every checkpoint that reads back on Drive must read back in the copy (each "
+    "against its record), and only then it is moved into place and the marker written (a directory that was there "
+    "is kept aside under work/aside/, never deleted).  A job is never started while Drive holds a checkpoint newer "
+    "than every one here (UNFINISHED_RULE)")
 JOB_RULE = (
     "job rules (design 3.9; the trainer's exit codes; the lead's ruling 2 of 17 Nov 2026): a job that ends with "
     "exit code 0 (done, or stopped by rule M4 or M5) or 3 (G8a failed: no run) lets the next job start; exit code "
@@ -2187,6 +2190,15 @@ class _Launcher:
         if not self.same:
             self._from_drive(job, self._copy_back, job)
 
+    def _whole_mark(self, job: str) -> Path:
+        """``BACK_RULE``'s marker: this machine's directory of the job is whole (a whole copy back, or the
+        trainer's own directory)."""
+        return self.l / "work" / "whole" / f"{job}.json"
+
+    def _mark_whole(self, job: str, how: str, **more) -> None:
+        _write_json(self._whole_mark(job), dict(job=job, session=self.k, session_uuid=self.uuid, at=_now(), how=how,
+                                                rule=BACK_RULE, **more))
+
     def _copy_back(self, job: str) -> None:
         src, dst = self.d / "jobs" / job, self.l / "jobs" / job
         self._adopt(job)
@@ -2194,8 +2206,9 @@ class _Launcher:
             return  # (Drive holds nothing of this job: it is new, or it was cut before its first copy)
         on_drive = sorted(n for n in self.copied[job] if n > 0)
         here = [n for n in _drive_checkpoints(dst) if n > 0 and self._whole(self._record(self.l, job, n), n)]
-        if (dst / "run.json").is_file() and (not on_drive or (here and max(here) >= on_drive[-1])):
-            return  # (this machine's own files are at least as new as their copies)
+        if (self._whole_mark(job).is_file() and (dst / "run.json").is_file()
+                and (not on_drive or (here and max(here) >= on_drive[-1]))):
+            return  # (this machine's own files are known whole and are at least as new as their copies)
         tmp = self.l / "work" / "copy_back" / job
         shutil.rmtree(tmp, ignore_errors=True)
         tmp.mkdir(parents=True)
@@ -2211,16 +2224,18 @@ class _Launcher:
         cut = [n for n in on_drive if not self._whole(tmp / "checkpoints" / ("checkpoint_%d.json" % n), n)]
         if cut:
             raise OSError(errno.EIO, f"checkpoint {cut[0]} did not read back whole after its copy from Drive")
-        if dst.exists():  # (older than Drive's copy, or what a cut copy left: kept aside, never deleted)
+        _unlink(self._whole_mark(job))
+        if dst.exists():  # (older than Drive's copy, not known whole, or what a cut copy left: kept aside)
             aside, i = self.l / "work" / "aside" / f"{job}.s{self.k}", 0
             while aside.exists():
                 aside, i = aside.with_name(f"{job}.s{self.k}.{i + 1}"), i + 1
             aside.parent.mkdir(parents=True, exist_ok=True)
             os.rename(dst, aside)
-            self.say(f"S2 NOTE: {job}: this machine's directory of the job was older than Drive's copy, or cut; it "
-                     f"is kept aside as {aside.relative_to(self.l)}")
+            self.say(f"S2 NOTE: {job}: this machine's directory of the job was older than Drive's copy, or not known "
+                     f"whole; it is kept aside as {aside.relative_to(self.l)}")
         dst.parent.mkdir(parents=True, exist_ok=True)
         os.rename(tmp, dst)
+        self._mark_whole(job, "copied back from Drive", files=count, checkpoints=on_drive)
         self.say(f"S2 launch: {job}: {count} files copied back from Drive")
 
     def _guard(self, job: str, resume: bool) -> None:
@@ -2393,6 +2408,8 @@ class _Launcher:
 
     def _start(self, row: dict, resume: bool) -> None:
         job = row["job"]
+        if not self.same:  # (BACK_RULE: from here the directory is the trainer's own, written on this machine)
+            self._mark_whole(job, "started here")
         path = self.l / "logs" / f"{job}.s{self.k}.log"
         self.child_log = open(path, "ab")
         self.echo_at[job] = path.stat().st_size
@@ -2862,7 +2879,8 @@ def _finish(run_id, drive, local=None) -> dict:
                 if launcher._final(job) is not None:
                     launcher._drive(job, launcher.copy_checkpoints, job)
                 launcher._drive(job, launcher.copy_text, job)
-            launcher._drive(launcher.jobs[0]["job"], launcher.copy_logs) if launcher.jobs else None
+            if launcher.jobs:
+                launcher._drive(launcher.jobs[0]["job"], launcher.copy_logs)
             lacks = {r["job"]: launcher.not_on_drive(r["job"]) for r in launcher.jobs}
             lacks = {job: names for job, names in lacks.items() if names}
             on_drive = not lacks

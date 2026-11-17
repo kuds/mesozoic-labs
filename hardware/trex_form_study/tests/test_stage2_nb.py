@@ -1427,7 +1427,7 @@ def test_the_end_of_job_copies_wait_longer_each_time_for_at_most_20_minutes(tmp_
     monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02)}))
     p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False, PERIOD_S=0.02)
     _session(p)
-    d, job = tmp_path / "drive" / "runs" / "r1", "R5-B1-s42"
+    d = tmp_path / "drive" / "runs" / "r1"
     _failing_copies(monkeypatch, lambda src, dst: "_4096." in src.name and "checkpoints" in dst.parts
                     and d in dst.parents)
     waits, fences, real_nap, real_fence = [], [], nb._Launcher._nap, nb._Launcher.fence
@@ -1680,6 +1680,34 @@ def test_a_resume_never_restarts_a_job_that_drive_holds(tmp_path, stubs, monkeyp
         launcher._guard(job, True)                                   # (and nothing stops a start here)
     finally:
         launcher.log.close()
+
+
+def test_the_copy_back_is_skipped_only_on_its_marker(tmp_path, stubs, monkeypatch, capsys):
+    """The lead's ruling 3 of 17 Nov: the copy back is skipped only on its marker (work/whole/<job>.json, written by
+    a whole copy back or when this machine's launcher starts the trainer).  A directory here that holds run.json and
+    a checkpoint as new as Drive's newest, but that no copy back and no trainer of this machine made whole (here: it
+    lacks updates.jsonl and the gates), is copied back and kept aside.  As built it was used as it was."""
+    p, d, job, have = _killed_run(tmp_path, monkeypatch)
+    lrun = tmp_path / "local" / "r1"
+    lj = lrun / "jobs" / job
+    (lj / "checkpoints").mkdir(parents=True)
+    shutil.copy(d / "jobs" / job / "run.json", lj / "run.json")
+    for f in (d / "jobs" / job / "checkpoints").iterdir():             # a whole checkpoint as new as Drive's newest
+        if f.name.endswith((f"_{max(have)}.json", f"_{max(have)}.zip", f"_{max(have)}.pkl", f"_{max(have)}.npz")):
+            shutil.copy(f, lj / "checkpoints" / f.name)
+    assert (d / "jobs" / job / "updates.jsonl").is_file() and not (lj / "updates.jsonl").exists()
+    _session(p, RESUME=True, TAKEOVER=True)
+    capsys.readouterr()
+    res = _launch(p)
+    out = capsys.readouterr().out
+    assert res["state"] == "done" and "copied back from Drive" in out and "not known whole" in out, res
+    assert (lrun / "work" / "aside" / f"{job}.s1" / "run.json").is_file()
+    mark = json.loads((lrun / "work" / "whole" / f"{job}.json").read_text())
+    assert mark["how"] == "started here" and mark["session"] == 1             # (rewritten when the trainer started)
+    run = json.loads((d / "jobs" / job / "run.json").read_text())
+    assert run["sessions"][-1]["resumed_from"] == max(have) and run["status"] == "done"
+    rows = [json.loads(x) for x in (d / "jobs" / job / "updates.jsonl").read_text().splitlines()]
+    assert rows[0]["session"] == 0                                             # (the first session's updates came back)
 
 
 def test_a_job_is_not_started_while_drive_holds_a_newer_checkpoint(tmp_path, stubs, monkeypatch, capsys):
