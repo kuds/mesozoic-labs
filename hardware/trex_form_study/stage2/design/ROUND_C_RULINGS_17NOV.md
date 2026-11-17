@@ -97,3 +97,53 @@ look reading's tests give "189 passed, 16 skipped". The acceptance run is not do
       which source hashes were allowed and passes the allowance on at every later session whose sources equal them;
       a halt for moved sources names the parameter that resolves it.
     - A checkpoint record without a `layout` or `fingerprint` object is a refusal of the monitor.
+
+## Added 05:27 UTC: the follow-up and the gates package merged; rulings on what the look sets' and the gates' builders found
+
+Merged: the follow-up before the acceptance run (`e8ff4f60`, `dfd2fbc2`, `a5aac7a8`; the notebook's, trainer's,
+monitor's, rows' and look reading's tests on the merged tree "196 passed, 16 skipped") and the gates package
+(`3a42df8a`; "41 passed, 1 skipped"). The record-key hashes are the registered pair.
+
+13. **The steps sheet's 5.3 (follow-up check, finding 1).** Before 5.4, the sheet tells the owner to reopen the
+    notebook tab; if the last box's output cannot be seen, the owner does not do 5.4 and tells the lead. Two test
+    gaps of that check go in with it.
+14. **G9-ref while part (a) fails for a reference that is still available (gates check, major 2).** Option A:
+    G9-ref fails (exit 1) while a failing item's reference is still available in the set, and its record names
+    those references. The lead marks them not available, freezes again and runs G9-ref again. Owed before any
+    record.
+15. **G9-ref (f)'s join rule (gates builder, point 2).** The rule as written, "a join's joint jump at most
+    1e-6 rad", fails on Stage 1's own arrays (up to 1.1e-4 rad) and on V0 (up to 5.3e-5 rad), where nothing is
+    wrong. **Changed after a result** (those arrays' numbers, seen on 17 Nov; before any look set is frozen and
+    before any closed-loop episode on one): a join's jump at a joint must not exceed the largest change between two
+    consecutive frames of the walk it leaves, at that joint. A join then never adds a step larger than the walk's own
+    motion. The gate records both numbers.
+16. **The bar's set check refuses every Track B row on a look set (gates builder, point 1).** `bar._check_rule`
+    lets only R0 rows run on a set that is not one of the 75 cm round's three; the design's sentence that "a look-set
+    run needs no --task" (`ROUND_C_DESIGN.md` 2.3) is wrong, the lead's error in the design. `bar.py` is not edited:
+    that would move the bar's hash and break D18 (state-A baselines stay comparable). Instead **`lookbar` carries its
+    own rule for the look sets**: a narrow, documented context in `lookbar.py` lets only the rows R0L, R5, R6 and
+    R2L run on `lookbar.LOOK_SETS`, and only after the set's G9-ref has passed (rule X1); every other set and row
+    goes through the bar's own check unchanged. The refit tool (CF) uses the same context. Owed as a change to the
+    rows package (and to CF), reviewed, before any look-set record.
+17. **The gates builder's other points:** its readings stand; the chain's order stands (V4 after V7; V9 a run rule
+    M6 names, not a development episode; V8 runs `train2` directly for the local run, the notebook being Colab's).
+    The trainer gains `--expect-baseline PATH` (rule M3, checked before the first rollout) and `monitor2 baseline`
+    works without a job; the monitor's S1 stand-in is deleted; the monitor child keeps no timeout;
+    `survival_credit` returns the survival time itself when the clock covered 1.05 times it, so R0L's S is exactly
+    its mean survival. Owed as the trainer's next change.
+18. **The look sets' start (look sets builder, point (b)).** On every set and body the look start passes its entry
+    gates and goes over the knee's Stage 0 speed limit (75 cm: 1.126; 60 cm: 1.234; limit 1.0). The cause: its first
+    swing lifts a flat foot from an almost straight stand with the look walk's short swing and low lift peak.
+    **Changed after a result** (these numbers, 17 Nov; before any look set is frozen and before any closed-loop
+    episode on one): a start's lift law, and its duty, mix the stand's law (Stage 1's) into the look walk's by the
+    start's amplitude ramp, so the first swings are the stand's and the last are the look's. The builder's
+    diagnostic gives a knee peak of 0.85 of the limit on V6/75-M-H-10 with the lift law alone (scratch, no record).
+    The moves of all six sets are built again. Any set whose start still fails, and the 60 cm bodies' change to
+    0.40 m/s (over the knee limit too, not diagnosed), go to the owner as a question with their numbers. **The 75 cm
+    sets come first** (P33).
+19. **The V6 turns on 75-M-H-10 fail join_command at events.** The independent review of the join code (L12) is
+    ordered before any cut 3; the builder's note that `join_command` may read frames that depend on the command frame
+    goes to that review.
+20. **The turn in place.** `setscreen` reads every entry as a walk, so a set holding the periodic turn cannot be
+    screened. The turn in place stays out of the look sets until `setscreen` learns it, which is a round-A module
+    and waits; rule T2 already allows a missing task, and `absent` lists it with its reason.

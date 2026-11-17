@@ -214,8 +214,12 @@ check each one at the acceptance run or, where only Colab can show it, at the sm
    5.3  Otherwise open STATUS.json and find "written_at". It is a time in UTC (search the web for "utc time"
         to see the present time in UTC).
           Less than 10 minutes old: the run is alive. Do nothing.                      (expected, not yet seen)
-          More than 10 minutes old: the run has stopped. Go on with 5.4.
-   5.4  Resume. In the same copy of the notebook: Runtime > Disconnect and delete runtime (if it is offered),
+          More than 10 minutes old: the run has stopped. Go on with 5.4, with one exception:
+        If the last grey box (8. FINISH) printed a paragraph that begins "THIS MACHINE IS KEPT ON PURPOSE",
+        do not do 5.4: that machine holds a save that is not on your Drive, and 5.4 would delete it. Run the
+        last grey box again as in 6 and tell me.
+   5.4  Resume (never after "THIS MACHINE IS KEPT ON PURPOSE", see 5.3). In the same copy of the notebook:
+        Runtime > Disconnect and delete runtime (if it is offered),
         then check the first grey box: every value as before, and now
           RESUME                ticked
         Nothing else changes: same REPO_REF, same RUN_ID, same QUEUE, same BUDGET_STEPS.
@@ -268,8 +272,9 @@ check each one at the acceptance run or, where only Colab can show it, at the sm
      ... crashed twice ...                        a job failed, was tried once more and failed again
      S2 NOTE: ... counted without a record ...    a check during training left no record
      S2 WARNING: a copy to Drive failed ...       once: nothing to do, it tries again a minute later.
-     S2 WARNING: ... reading from Drive failed    Again and again: your Drive may be full. Empty the Drive's
-                                                  bin first (deleted saves stay in the bin), then tell me.
+                                                  Again and again: your Drive may be full. Tell me; I may ask
+                                                  you to empty the Drive's bin. Delete nothing yourself.
+     S2 WARNING: ... reading from Drive failed    once: nothing to do, it tries again. Again and again: tell me.
      S2 WARNING: ... not on Drive after ...       a finished job's last save has not reached your Drive yet.
                                                   It goes on trying. Tell me at once, and see the next three.
      S2 launch: UNFINISHED: ...                   the run stopped without its end being written, because your
@@ -277,12 +282,17 @@ check each one at the acceptance run or, where only Colab can show it, at the sm
                                                   Tell me at once.
      S2 FINISH ...: NOT ON DRIVE: ...             the last save of a job is on the machine only, not on your
                                                   Drive. Tell me at once.
-     THIS MACHINE IS KEPT ON PURPOSE. ...         the paragraph under the last box after "NOT ON DRIVE". The
-                                                  machine stays on purpose. Leave the tab and the machine as
+     THIS MACHINE IS KEPT ON PURPOSE. ...         the paragraph under the last box after "NOT ON DRIVE", or
+                                                  when that box did not end as it should (it was stopped, or
+                                                  it failed). The machine stays on purpose. Do not delete it
+                                                  (not even as in 5.4). Leave the tab and the machine as
                                                   they are, tell me, and in about 30 minutes run the last grey
                                                   box (8. FINISH) once more: click into it and press its play
                                                   button. Do this again later until it ends with
                                                   "Disconnecting runtime in 5 seconds...".
+     Google Drive's connection was lost ...       printed by the last box: it mounts your Drive again, once,
+                                                  by itself. If a window asks you to allow Drive, allow it as
+                                                  in 3.5. Tell me what the box printed. (expected, not yet seen)
      S2 launch: interrupted by signal ...         the run was stopped from outside (a box was stopped by hand,
                                                   or the machine was told to stop). It is not finished.
      RuntimeError: S2 step ... stopped with exit code ...
@@ -332,9 +342,10 @@ check each one at the acceptance run or, where only Colab can show it, at the sm
    Expected, not yet seen (only Colab prints or shows them): everything marked "(expected, not yet seen)"
    above: the "Repository ref" line, when the Drive permission window comes and "Google Drive mounted", that a
    run goes on with the tab closed or the browser lost, "Disconnecting runtime in 5 seconds..." and the
-   runtime letting go by itself, "Runtime disconnected", git's lines on a red background, and how soon a file
-   written by the runtime shows in your Drive (the 10 minutes of 5.3). I confirm each at the acceptance run or,
-   where only Colab can show it, at the smoke, and then remove its mark.
+   runtime letting go by itself, "Runtime disconnected", git's lines on a red background, the last box mounting
+   Drive again after "Google Drive's connection was lost", and how soon a file written by the runtime shows in
+   your Drive (the 10 minutes of 5.3). I confirm each at the acceptance run or, where only Colab can show it, at
+   the smoke, and then remove its mark.
 
 
 STILL OPEN IN THIS DRAFT (for me, not for you)
