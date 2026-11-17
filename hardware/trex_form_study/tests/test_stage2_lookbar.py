@@ -1127,6 +1127,32 @@ def test_a_fault_in_the_reading_is_recorded_and_never_raised(t0_set, monkeypatch
                              f"{BODY}/refs/nominal.npz)")
     for fault in (blk3["fault"], blk4["fault"]):
         assert str(ROOT) not in fault and str(t0_set["run_dir"]) not in fault and "/tmp" not in fault
+    # the two other fault sites cut the same way (the check of the rows package, low point 1: as built only the look
+    # reading's site was tested end to end): the clock, state digest and policy check, and a stop item's term
+    monkeypatch.setattr(lookread, "compare", real_compare)
+    real_clock, real_stop = lookbar.clock_block, lookbar.on_command_at_stop
+
+    def clock_lost(*a, **k):
+        raise OSError(f"cannot read {there}")
+
+    def stop_lost(*a, **k):
+        raise FileNotFoundError(2, "No such file or directory", str(here))
+
+    monkeypatch.setattr(lookbar, "clock_block", clock_lost)
+    blk5 = lookbar.LookRow(look.inner)._block(*kept["args"])
+    assert blk5["fault"].split("; ")[0] == f"clock: OSError: cannot read .../{BODY}/refs/nominal.npz"
+    assert blk5["clock"] is None
+    monkeypatch.setattr(lookbar, "clock_block", real_clock)
+    monkeypatch.setattr(lookbar, "on_command_at_stop", stop_lost)
+    b, out, rec, _, seed, relax = kept["args"]
+    stop = t0_set["conds"]["stop/two_step"]
+    assert stop.judge == lookbar.STOP_JUDGE
+    blk6 = lookbar.LookRow(look.inner)._block(b, out, rec, stop, seed, relax)
+    assert blk6["fault"] == (f"{lookbar.ON_COMMAND_TERM}: FileNotFoundError: [Errno 2] No such file or directory: "
+                             f"'stage2/sets/{SET}/{BODY}/refs/nominal.npz'")
+    monkeypatch.setattr(lookbar, "on_command_at_stop", real_stop)
+    for fault in (blk5["fault"], blk6["fault"]):
+        assert str(ROOT) not in fault and str(t0_set["run_dir"]) not in fault and not lookbar._ABS_PATH.search(fault)
     # a walk or turn item that cannot be played is a fault of the definition: an error on a look set, never "no look"
     on = lookbar.companion_episode(cond.key, cond.judge, 6001, e, blk, True)
     off = lookbar.companion_episode(cond.key, cond.judge, 6001, e, blk, False)
