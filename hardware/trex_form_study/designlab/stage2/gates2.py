@@ -55,8 +55,9 @@ of the record without that key), and returns it.  Exit code 0 when the gate pass
 * ``r6_start``: an ``R6Env`` stepped with zero and random actions and from a mid start; a 2-rollout tiny R6 run.
 
 **Rule X1.**  ``g8a``, ``rates``, ``kill_resume`` and ``r6_start`` run closed-loop episodes: on a look set
-(``LOOK_SETS``) each is refused unless ``stage2/tb/gates/<set>/<body>/g9_ref.json`` (or ``--g9-ref``) is a passed
-G9-ref record of that set, body and the set's latest freeze (``require_g9_ref``).  ``g9_ref`` and ``g9_run`` run
+(``LOOK_SETS``) or a version of one (``V6.2``; ``look_set_of``) each is refused unless
+``stage2/tb/gates/<set>/<body>/g9_ref.json`` (or ``--g9-ref``) is a passed G9-ref record of that set, body and the
+set's latest freeze (``require_g9_ref``).  ``g9_ref`` and ``g9_run`` run
 no episode.  The chain ``stage2/tb/run_trackb.sh`` lists each closed-loop step on a look set that is no record in
 ``stage2/tb/dev_episodes.json`` before it runs (``dev-episode``).
 
@@ -214,7 +215,8 @@ RULES = dict(
         "set directory's refcheck.json when every file it read has the latest freeze's sha256, else bar.refcheck "
         "is run; whichever record is read, one given by path included, must be of the set and body and every file "
         "it read must have the latest freeze's sha256, else (a) is not read and blocks.  An item that fails names "
-        "its own reference (a walk item its walk, a turn or stop item its move) and a failing walk/nominal or "
+        "its own reference (a walk item its walk, a turn or stop item its move, the last move of the item's plan in "
+        "the plan's order: the lead's ruling 32 (D) of 17 Nov 2026) and a failing walk/nominal or "
         "walk/v0.4 item blocks; the start is played by every item and alone by none, so a failing start is read "
         "through the walk/nominal item (the start and the nominal walk alone) and blocks through it.  A failing "
         "item's reference is still available while its entry is usable as the env and the bar read it "
@@ -311,8 +313,9 @@ RULES = dict(
         "work directory is reused only when its run.json's settings are this one's (R6, the body, the set, seed "
         "42, tiny, gates off, the budget), else it is moved aside and made again.  Rule X1: on the view S1"),
     x1=(
-        "STAGE2_TRACKB_PLAN rule X1: on a look set, for each body and head, no closed-loop episode before G9-ref "
-        "passed; between G9-ref and S2-4's start only Z1's episodes, R0L's baseline and panel records, Z2's "
+        "STAGE2_TRACKB_PLAN rule X1: on a look set (or a version of one: the lead's ruling 31 of 17 Nov 2026), for "
+        "each body and head, no closed-loop episode before G9-ref passed; between G9-ref and S2-4's start only "
+        "Z1's episodes, R0L's baseline and panel records, Z2's "
         "G9-run, the probes of O2-O4, the rate measurement, K3's two runs, the acceptance run's tiny jobs and "
         "R2L's fits; none but Z1's, R0L's and Z2's, and the fits', is a record; each is listed in "
         "stage2/tb/dev_episodes.json with its command, set, body, rows or mode, and count"),
@@ -420,12 +423,22 @@ def _latest_freeze(set_name: str, body: str, root=None) -> dict | None:
     return None if fz is None else dict(index=fz["index"], manifest_sha256=fz["manifest_sha256"])
 
 
+def look_set_of(set_name) -> str | None:
+    """The look set a set's name stands for (the lead's ruling 31 of 17 Nov 2026, point 3): one of ``LOOK_SETS``,
+    the name itself or the part before its first dot (``V6.2`` is a version of ``V6``, as ``lookbar.look_set_of``
+    reads it); None for any other set."""
+    base = str(set_name).split(".", 1)[0]
+    return base if base in LOOK_SETS else None
+
+
 def require_g9_ref(body: str, set_name: str, path=None, root=None) -> dict | None:
-    """Rule X1 for a gate that runs closed-loop episodes: on a look set (``LOOK_SETS``) ``Refused`` unless
-    ``path`` (default ``gate_path(set, body, "g9_ref")``) is a G9-ref record (``SCHEMAS["g9_ref"]``, its own
-    sha256 intact) of this set and body that passed and was made on the set's latest freeze.  Returns its citation
-    (None on any other set)."""
-    if set_name not in LOOK_SETS:
+    """Rule X1 for a gate that runs closed-loop episodes: on a look set (``LOOK_SETS``) or a version of one
+    (``look_set_of``; the lead's ruling 31 of 17 Nov 2026) ``Refused`` unless ``path`` (default
+    ``gate_path(set, body, "g9_ref")``) is a G9-ref record (``SCHEMAS["g9_ref"]``, its own sha256 intact) of this
+    set and body that passed and was made on the set's latest freeze (its ``set_freeze``, an object, holds that
+    freeze's ``manifest_sha256``).  Returns its citation (None on any other set).  ``lookbar``'s look sets' rule
+    calls this check."""
+    if look_set_of(set_name) is None:
         return None
     p = Path(path) if path is not None else gate_path(set_name, body, "g9_ref")
     doc = _read(p) if p.is_file() else None
@@ -440,12 +453,14 @@ def require_g9_ref(body: str, set_name: str, path=None, root=None) -> dict | Non
         why = "G9-ref did not pass"
     else:
         now = _latest_freeze(set_name, body, root)
+        made = doc.get("set_freeze")
         if now is None:
             why = f"set {set_name} of {body} is not here or not frozen"
-        elif (doc.get("set_freeze") or {}).get("manifest_sha256") != now["manifest_sha256"]:
+        elif not isinstance(made, dict):
+            why = f"the G9-ref record names no freeze of the set (its set_freeze is {type(made).__name__}, not an object)"
+        elif made.get("manifest_sha256") != now["manifest_sha256"]:
             why = (f"the G9-ref record was made on another freeze of the set "
-                   f"({str((doc.get('set_freeze') or {}).get('manifest_sha256'))[:12]}..., the latest is "
-                   f"{now['manifest_sha256'][:12]}...)")
+                   f"({str(made.get('manifest_sha256'))[:12]}..., the latest is {now['manifest_sha256'][:12]}...)")
     if why is not None:
         raise Refused(f"{set_name}/{body}: {why} ({s2io.portable(str(p))}): rule X1, no closed-loop episode on a "
                       "look set before G9-ref has passed there")
@@ -729,6 +744,22 @@ def still_available(v: _SetView, ref: str | None) -> dict:
     return dict(entry_available=bool(entry), in_latest_freeze=bool(frozen), still_available=bool(entry or frozen))
 
 
+def item_reference(key: str, item: dict) -> str | None:
+    """The reference a refcheck item names as its own (``RULES["z2_ref"]``'s reading): a walk item's walk
+    (``refs/<walk>.npz``, from the item's key ``walk/<walk>``); a turn or stop item's move, the last move of the
+    item's ``plan`` in the plan's own order (``transitions/<move>.npz``; the lead's ruling 32 (D) of 17 Nov 2026:
+    not the last move of the item's sorted file list, which names the start where a move's name sorts before
+    ``start``).  None where it cannot be named (no plan, or a plan without a move): such a reference counts as
+    still available (``still_available``)."""
+    kind, _, name = str(key).partition("/")
+    if kind == "walk":
+        return f"refs/{name}.npz" if name else None
+    plan = (item or {}).get("plan")
+    moves = [x[1] for x in plan if isinstance(x, (list, tuple)) and len(x) >= 2 and x[0] == "transition"
+             and isinstance(x[1], str) and x[1]] if isinstance(plan, list) else []
+    return f"transitions/{moves[-1]}.npz" if moves else None
+
+
 def part_a(v: _SetView, record_dir=None, refcheck=None) -> dict:
     """G9-ref (a): the bar's reference check, cited; what follows a failure (``RULES["z2_ref"]``).  ``still_available``
     names the failing items' references that are still available in the set: while it is not empty G9-ref fails
@@ -745,9 +776,7 @@ def part_a(v: _SetView, record_dir=None, refcheck=None) -> dict:
     failing = {k: x for k, x in items.items() if x.get("status") == "done" and not x.get("pass_")}
     refs_out = []
     for k, x in sorted(failing.items()):
-        kind = k.split("/")[0]
-        ref = (f"refs/{k.split('/', 1)[1]}.npz" if kind == "walk" else
-               next((f for f in reversed(x.get("files") or []) if f.startswith("transitions/")), None))
+        ref = item_reference(k, x)
         bad = sorted(t for t, ok in (x.get("ok") or {}).items() if not ok)
         refs_out.append(dict(item=k, reference=ref, failing=bad, **still_available(v, ref)))
     still = sorted({x["reference"] or f"the reference of {x['item']} (not named)" for x in refs_out
@@ -2159,9 +2188,9 @@ def main(argv=None) -> int:
 __all__ = ["G8A_CONDITIONS", "GateError", "K3", "K3_TINY", "LOOK_SETS", "RULES", "Refused", "SCHEMAS",
            "checkpoint_items", "compare_checkpoints", "compare_items", "controls", "dev_episode", "finish", "g8a",
            "g9_ref", "g9_run", "gl_start", "inputs_of", "joins", "k3_asked", "kill_resume", "main", "part_a", "part_b",
-           "part_c", "part_d", "part_e", "part_f", "played_files", "r6_run_problems", "r6_start", "r6_training", "rates",
-           "record_sha_ok", "require_g9_ref", "rollout_rate", "run_settings_problems", "sources", "still_available",
-           "tail_tenth", "walk_steps"]
+           "item_reference", "look_set_of", "part_c", "part_d", "part_e", "part_f", "played_files", "r6_run_problems",
+           "r6_start", "r6_training", "rates", "record_sha_ok", "require_g9_ref", "rollout_rate", "run_settings_problems",
+           "sources", "still_available", "tail_tenth", "walk_steps"]
 
 if __name__ == "__main__":
     from designlab.stage2 import gates2 as _named  # the importable copy owns every class and all module state
