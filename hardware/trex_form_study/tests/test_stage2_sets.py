@@ -2030,6 +2030,49 @@ def test_turns_without_a_stride_factor_build_nothing(turns):
     assert left["numbers"]["stride_rule"]["tried"] and rec["references"] == {"turn90_pi4_left": False, "turn90_pi4_right": False}
 
 
+@pytest.fixture
+def look_turns(job_of, monkeypatch):
+    """``turns`` on a look set's job: ``_produce_turns`` takes the look's branch (``SetDef.look``), its stride pick
+    stubbed in ``moves_look``, its walk read once beforehand."""
+    def run(plan: dict, chosen=0.8, rate="pi4"):
+        left, right = f"turn90_{rate}_left", f"turn90_{rate}_right"
+        job, script, its = job_of(left, {left: list(plan.get("left", [])), right: list(plan.get("right", plan.get("left", [])))})
+        walk = job.walk(job.mine[0].depends[0])
+        job.walk = lambda name: walk
+        job.st = replace(job.st, look=True)
+        monkeypatch.setattr(sets._ml(), "pick_stride_factor", pick_stub(chosen))
+        job.source = lambda fresh=True: None
+        sets._produce_turns(job)
+        return job, script, job.out["stride_rules"][rate], job.out["transitions"][left], job.out["transitions"][right]
+
+    return run
+
+
+def test_a_look_sets_turn_reasons_name_only_the_gates_each_direction_failed(look_turns, turns):
+    """Ruling 26 of 17 Nov 2026 (the look sets' check, findings 5 to 8; review point (f): ``turn90_pi4_right``'s
+    reason said "also outside join_command", which its rate group's left turn failed): in a look set each direction's
+    reason names the entry gates its own build failed and no other; the rate's ``no_reference`` gives each
+    direction's where they differ.  The round's sets keep their words (one reason for both: tested above)."""
+    leg = [dict(limit="knee speed", value=1.04)]
+    over = dict(leg=True, failed=["join_command"], blocks=leg)
+    job, script, rec, left, right = look_turns(dict(left=[over], right=[dict(leg=True, blocks=leg)]))
+    base = f"{sets.NO_TWIST}: the built reference is over a leg drive's Stage 0 limit"
+    assert rec["outcome"] == "none" and left["reason"] == f"{base}; also outside join_command" and right["reason"] == base
+    assert rec["no_reference"] == f"turn90_pi4_left: {base}; also outside join_command; turn90_pi4_right: {base}"
+    assert left["numbers"]["failed_gates"] == ["join_command"] and right["numbers"]["failed_gates"] == []
+    # both directions failing the same gate: one reason, as before
+    job, script, rec, left, right = look_turns(dict(left=[over], right=[over]))
+    assert left["reason"] == right["reason"] == rec["no_reference"] == f"{base}; also outside join_command"
+    # outside the gates at a frozen stride factor: each direction its own gates
+    job, script, rec, left, right = look_turns(dict(left=[dict(failed=["join_command"])], right=[dict(failed=["zmp_error"])]))
+    assert left["reason"] == "no reference within the gates (entry gates: join_command)"
+    assert right["reason"] == "no reference within the gates (entry gates: zmp_error)"
+    assert rec["no_reference"] == f"turn90_pi4_left: {left['reason']}; turn90_pi4_right: {right['reason']}"
+    # the same pair in a set of today's laws: one reason for both, the union of the pair's gates (state A)
+    job, script, rec, left, right = turns(dict(left=[over], right=[dict(leg=True, blocks=leg)]))
+    assert left["reason"] == right["reason"] == rec["no_reference"] == f"{base}; also outside join_command"
+
+
 # ---------------------------------------------------------------- twins
 def test_v0_owes_its_twins_on_a_body_that_has_them(made, job_of, monkeypatch):
     """The plan's A4 asks of V0, on a body with a Stage 1 run record and ladder rungs, that ``nominal`` and ``start``

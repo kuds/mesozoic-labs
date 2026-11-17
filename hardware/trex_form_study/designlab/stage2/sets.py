@@ -1335,14 +1335,18 @@ def _produce_turns(job: _Job) -> None:
             stage0_blocks={d: fl["blocks"] for d, (_, fl) in built.items()})))
         job.note(f"stride rule {label}", 0.0, f"built at f {f:g}: {rec['outcome']}"
                  + ("" if rec["reason"] is None else f" ({rec['reason']})"))
-    references, why = {}, None
+    references, why, whys = {}, None, {}
     for direction, item in its.items():
         name = item.name
         if rec["outcome"] != "frozen":
             why = f"{NO_TWIST}: {rec['reason']}"
-            also = sorted({g for _, fl in built.values() for g in fl["failed"]})
-            if also:  # (the same words for both directions: what the last built pair missed beside the stride rule)
+            if job.st.look:  # (ruling 26 of 17 Nov 2026: each direction names the gates its own build failed)
+                also = sorted(built[direction][1]["failed"]) if direction in built else []
+            else:  # (the same words for both directions: what the last built pair missed beside the stride rule)
+                also = sorted({g for _, fl in built.values() for g in fl["failed"]})
+            if also:
                 why += f"; also outside {', '.join(also)}"
+            whys[name] = why
             if direction in built:
                 entry, fl = built[direction]
                 job.out["transitions"][name] = _to_unavailable(job, item, entry, fl, why)
@@ -1364,6 +1368,9 @@ def _produce_turns(job: _Job) -> None:
                 + ([f"Stage 0: {entry['stage0']['text']}"] if fl["blocks"] else [])) + ")")
         job.out["transitions"][name] = _to_unavailable(job, item, entry, fl, why)
         references[name] = False
+        whys[name] = why
+    if job.st.look and len(set(whys.values())) > 1:  # (each direction's own reason, where they differ)
+        why = "; ".join(f"{n}: {w}" for n, w in whys.items())
     rec = dict(rec, references=references, no_reference=None if all(references.values()) else why)
     job.out["stride_rules"][label] = rec
     for name in references:
