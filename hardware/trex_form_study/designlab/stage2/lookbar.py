@@ -1407,10 +1407,12 @@ def g9_ref_of(blocks) -> dict | list | None:
     return None if not cites else cites[0] if len(cites) == 1 else cites
 
 
-def companion(path, rec: dict, out, side_root, look_set: bool) -> dict:
+def companion(path, rec: dict, out, side_root, look_set: bool, g9_ref=None) -> dict:
     """The companion record of one bar record (``rec``, read from ``path``; schema ``s2-look-1``), with the G9-ref
-    citation its episodes ran under (``g9_ref_of``).  ``LookBarError`` where a judged episode's sidecar is missing or
-    is not that episode's (``RULES["sidecar"]``)."""
+    citation its episodes ran under (``g9_ref_of``); on a look set the companion of a record "not run", which has no
+    episode, cites ``g9_ref`` (the G9-ref record of the evaluation that wrote it, as ``run`` gives it to ``collect``:
+    path and sha256) as the others cite theirs (the lead's ruling 42 of 17 Nov 2026, after ruling 37 (c)).
+    ``LookBarError`` where a judged episode's sidecar is missing or is not that episode's (``RULES["sidecar"]``)."""
     path, out = Path(path), Path(out)
     row, key, judge = rec["row"], rec["key_name"], (rec.get("definition") or {}).get("judge")
     seeds = [int(s) for s in rec.get("seeds") or []]
@@ -1468,6 +1470,9 @@ def companion(path, rec: dict, out, side_root, look_set: bool) -> dict:
     terms = Counter(t for ep in eps for t in ep["failed_terms"])
     look_terms = Counter(t for ep in eps for t in ep["look_failed_terms"])
     short = [ep["look"]["air_runs"]["shorter_than_air_gap_max"] for ep in eps if ep["look"] and ep["look"]["air_runs"]]
+    cited = g9_ref_of(blocks)
+    if cited is None and look_set and g9_ref is not None and rec.get("status") == "not run" and not eps:
+        cited = dict(path=g9_ref["path"], sha256=g9_ref["sha256"])
     doc = dict(
         schema=COMPANION_SCHEMA,
         bar_record=dict(path=Path(os.path.relpath(path, out)).as_posix(), sha256=s2io.sha256_file(path),
@@ -1483,7 +1488,7 @@ def companion(path, rec: dict, out, side_root, look_set: bool) -> dict:
         failures_by_term=dict(sorted(terms.items())), look_failures_by_term=dict(sorted(look_terms.items())),
         look_faults=[dict(seed=ep["seed"], fault=ep["look_fault"]) for ep in eps if ep["look_fault"]],
         short_air_runs=dict(episodes_read=len(short), episodes_with_any=sum(1 for n in short if n), total=sum(short)),
-        policy=_policy_block(blocks), g9_ref=g9_ref_of(blocks),
+        policy=_policy_block(blocks), g9_ref=cited,
         sidecars=dict(root=Path(os.path.relpath(side_root, out)).as_posix(), sha256=hashes),
         sources={**panels.module_sha256(LookRow), **lookread.sources(), "bar": bar.bar_sources()["sha256"]})
     doc["inputs_sha256"] = s2io.sha256_json(dict(bar=doc["bar_record"]["sha256"], sidecars=hashes,
@@ -1528,14 +1533,17 @@ def _refused(q: Path, rec: dict, path: Path, out: Path, reason: str) -> dict:
                 companion=state, record=kept, moved_to=moved)
 
 
-def collect(out, set_name: str, body: str, block: str = bar.HEADLINE_BLOCK, control: str | None = None) -> dict:
+def collect(out, set_name: str, body: str, block: str = bar.HEADLINE_BLOCK, control: str | None = None,
+            g9_ref=None) -> dict:
     """The companion records of every bar record of a ``LookRow`` row under
     ``<out>/<set>/<body>/<block>/eval/`` (``companion``), and their summary ``.../look/summary.json`` (returned).
-    A companion whose bar record, sidecars and sources are unchanged is left as it is.  A record with an episode
-    whose sidecar is missing or is not that episode's gets no companion: a companion of another bar record found
-    at its path is moved aside (``stale_path``; one that names the bar record as it is stays), the summary lists
-    the record under ``refused_records``, every other record's companion is written, then ``LookBarError`` lists
-    the refusals."""
+    ``g9_ref``: the citation of the G9-ref record that let the evaluation run (``run`` gives it), which the companion
+    of a record "not run" on a look set cites (the lead's ruling 42 of 17 Nov 2026).  A companion whose bar record,
+    sidecars and sources are unchanged is left as it is, unless it cites no G9-ref record where one is now given.
+    A record with an episode whose sidecar is missing or is not that episode's gets no companion: a companion of
+    another bar record found at its path is moved aside (``stale_path``; one that names the bar record as it is
+    stays), the summary lists the record under ``refused_records``, every other record's companion is written, then
+    ``LookBarError`` lists the refusals."""
     out = Path(out)
     bdir = bar.block_dir(out, set_name, body, block, control)
     edir, side_root, ldir = bdir / "eval", bdir / "look_partial", bdir / "look"
@@ -1555,14 +1563,15 @@ def collect(out, set_name: str, body: str, block: str = bar.HEADLINE_BLOCK, cont
                 continue
             path = companion_path(out, set_name, body, block, rec["row"], rec["behavior"], rec["condition"], control)
             try:
-                doc = companion(q, rec, out, side_root, look_set)
+                doc = companion(q, rec, out, side_root, look_set, g9_ref)
             except LookBarError as exc:  # (the lead's ruling 12 of 17 Nov 2026: a refusal's text in the summary
                 why = _no_paths(str(exc), (out, out.resolve()))  # names no absolute path: relative to ``out``)
                 refused.append(why)
                 refused_cells.append(_refused(q, rec, path, out, why))
                 continue
             old = _read_json(path)
-            if old is not None and old.get("inputs_sha256") == doc["inputs_sha256"]:
+            if old is not None and old.get("inputs_sha256") == doc["inputs_sha256"] and (
+                    old.get("g9_ref") is not None or doc["g9_ref"] is None):
                 doc = old
             else:
                 doc.update(provenance=s2io.git_state(own_outputs=[str(out.resolve())]),
@@ -1598,12 +1607,12 @@ def run(set_name: str, body: str, out, row_names, conditions=None, block: str = 
         **kw) -> dict:
     """``bar.evaluate`` of ``row_names`` (``rows()``: every row a ``LookRow`` that writes its sidecars under
     ``<out>/<set>/<body>/<block>/look_partial``) on the set, without attribution unless ``attribute`` is given,
-    then ``collect``.  ``kw`` goes to ``bar.evaluate`` (``episodes``, ``task``, ``rates``, ``root``,
-    ``stage1_run``, ...).  Returns the look summary with the bar's own summary under ``bar`` and, under ``g9_ref``,
-    the G9-ref record that let the rows run on a look set (None where the bar's own check did).  The evaluation runs
-    inside ``look_set_rule`` (``RULES["look_sets"]``): on a look set the rows of ``LOOK_SET_ROWS`` run only once its
-    G9-ref has passed; any other set or row is the bar's own rule of what may run where (``bar.RULES["checks"]``),
-    unchanged."""
+    then ``collect`` (given the G9-ref citation, which the companions of conditions not run cite).  ``kw`` goes to
+    ``bar.evaluate`` (``episodes``, ``task``, ``rates``, ``root``, ``stage1_run``, ...).  Returns the look summary
+    with the bar's own summary under ``bar`` and, under ``g9_ref``, the G9-ref record that let the rows run on a look
+    set (None where the bar's own check did).  The evaluation runs inside ``look_set_rule`` (``RULES["look_sets"]``):
+    on a look set the rows of ``LOOK_SET_ROWS`` run only once its G9-ref has passed; any other set or row is the bar's
+    own rule of what may run where (``bar.RULES["checks"]``), unchanged."""
     out = Path(out)
     control_ = kw.get("control")
     side = bar.block_dir(out, set_name, body, block, control_) / "look_partial"
@@ -1612,7 +1621,7 @@ def run(set_name: str, body: str, out, row_names, conditions=None, block: str = 
     kw.setdefault("attribute", "none")
     with look_set_rule(set_name, body, names, kw.get("root", setio.ROOT)) as rule:
         doc = bar.evaluate(set_name, body, out, built, conditions, block, procs, **kw)
-    return dict(collect(out, set_name, body, block, control_), bar=doc, g9_ref=rule.cited)
+    return dict(collect(out, set_name, body, block, control_, g9_ref=rule.cited), bar=doc, g9_ref=rule.cited)
 
 
 def summary_text(doc: dict) -> str:
