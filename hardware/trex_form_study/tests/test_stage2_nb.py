@@ -1749,6 +1749,48 @@ def test_the_acceptance_kill_waits_for_a_whole_checkpoint_on_drive(tmp_path):
     assert nb.acceptance_kill(jd, whole) is None
 
 
+def test_the_acceptance_kill_on_a_live_launcher_leaves_a_checkpoint_to_resume_from(tmp_path, stubs, monkeypatch):
+    """Ruling 45 (1) on the stub trainer and the real launcher, with the acceptance run's copy pause (0.5 s): the kill
+    condition, polled every 0.05 s as ``run_cells`` polls it, fires while a later checkpoint is being copied; the
+    resume sweeps that cut copy and goes on from the checkpoint that was whole on the stand-in Drive (above 0), as
+    the acceptance run's check ``resumed_from_drive`` asks."""
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.05, budget=512 * 400)}))
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], COPY_PAUSE_S=0.5)
+    _session(p)
+    d = tmp_path / "drive" / "runs" / "r1"
+    jd, ck = d / "jobs" / "R5-B1-s42", d / "jobs" / "R5-B1-s42" / "checkpoints"
+    pfile = tmp_path / "p.json"
+    pfile.write_text(json.dumps(p))
+    proc = subprocess.Popen([sys.executable, "-m", "designlab.stage2.nb", "launch", "--params", str(pfile)], cwd=STUDY,
+                            env=dict(os.environ, PYTHONPATH="."), stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT,
+                            start_new_session=True)
+    whole, why = set(), None
+    try:
+        deadline = time.time() + 120
+        while time.time() < deadline and why is None:
+            assert proc.poll() is None, "the launcher ended before the kill"
+            why = nb.acceptance_kill(jd, whole)
+            time.sleep(0.05)
+    finally:
+        nb.kill_session(proc.pid)
+        proc.wait()
+    assert why and "(a copy in progress)" in why
+    parts = sorted(x.name for x in ck.glob("*.part"))
+    on_drive = [n for n in nb._drive_checkpoints(jd) if n > 0]
+    assert len(parts) == 1 and on_drive and all(_reads_back(jd, n) for n in on_drive), (parts, on_drive)
+    cut = int("".join(c for c in parts[0] if c.isdigit()))
+    assert cut > max(on_drive) >= min(whole) > 0 and not (ck / f"checkpoint_{cut}.json").exists()
+    shutil.rmtree(tmp_path / "local" / "r1")                                     # a dead runtime loses its disk
+    s1 = _session(dict(p, COPY_PAUSE_S=None), RESUME=True, TAKEOVER=True)
+    assert s1["swept_parts"] == [f"jobs/R5-B1-s42/checkpoints/{parts[0]}"]
+    steps = int(nb.LINE_RE["resume"].match(s1["line"]).group("steps"))
+    assert steps == max(on_drive) > 0
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.0, budget=512 * 400)}))
+    assert _launch(dict(p, COPY_PAUSE_S=None))["state"] == "done"
+    run = json.loads((jd / "run.json").read_text())
+    assert run["status"] == "done" and [x.get("resumed_from") for x in run["sessions"]] == [None, steps]
+
+
 def test_an_interrupted_launcher_leaves_the_run_resumable(tmp_path, stubs, monkeypatch, capsys):
     """SIGTERM to the launcher alone (an interrupted cell): it ends its job, writes no HALT.json and closes
     LIVE.json, so the run is resumed at once and without TAKEOVER."""
