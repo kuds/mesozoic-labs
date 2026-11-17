@@ -321,8 +321,9 @@ def leave_point(name: str, tr_entry, walk: str, walk_entry, lead_strides: float,
     places ``a_phase`` in time to within a frame and no closer; an error under one frame moves the walk's end by
     less than one frame, so the join it can add stays within the walk's own largest change between two frames (the
     join limit of the lead's ruling 15); an entry off by a frame or more (a stride, a window) is refused.  On the
-    committed V6noF5/75-M-H-10 the two differ by about 6e-9 s against a 5.38 ms frame.  None: not checked (the
-    env's ``place`` gives no file)."""
+    committed V6noF5/75-M-H-10 the two differ by about 6e-9 s against a 5.38 ms frame.  Both callers give the file,
+    ``lookbar.leave_of`` (the bar's planner, ``lookbar.leave_resolve``) and the env's ``place`` (the lead's ruling
+    39 (c) of 17 Nov 2026); None, which no caller passes, skips this check."""
     look = tr_entry.get("look") if isinstance(tr_entry, dict) else None
     wa = look.get("window_a") if isinstance(look, dict) else None
     if not isinstance(wa, dict) or look.get("a_phase") is None:
