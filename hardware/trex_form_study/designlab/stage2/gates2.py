@@ -40,7 +40,10 @@ of the record without that key), and returns it.  Exit code 0 when the gate pass
   ruling 7 of 16 Nov 2026); (c) the four degraded playbacks of ``lookread.controls``, the fifth of
   ``TRACKB_RULINGS6_16NOV.md`` ruling 2 (the tail scaled to a tenth about its mean: ``tail_tenth``) and the 3-step
   cut; (f) the ``setscreen`` record cited for every reference no reference check plays, and every task script of
-  ``r5lib.Library``: the joint targets' jump at every join, 2 s of the tracker's zero-action targets finite.
+  ``r5lib.Library``: the joint targets' jump at every join, at each joint no larger than the largest change between
+  two consecutive frames of the walk it leaves (the lead's ruling 15 of 17 Nov 2026, a change after a result), 2 s
+  of the tracker's zero-action targets finite.  G9-ref fails while a failing item of (a) names a reference that is
+  still available in the set (the lead's ruling 14 of 17 Nov 2026); its record names those references.
 * ``g9_run`` (Z2's G9-run, parts (d), (e)): the ``R0L@10ms`` companion records ``lookbar.collect`` wrote and the
   bar's 10 ms records under ``--bar-out``; round A's ``bar reread`` record of Stage 1b's 10 ms turn episodes cited
   for the 60 cm body and head.
@@ -122,8 +125,8 @@ REQUIRED_RUNGS = ("nominal", "v040")
 TAIL_SCALE = 0.1
 #: G9-ref (c): the walks whose playbacks the controls are made on.
 CONTROL_WALKS = ("nominal", "v0.4")
-#: G9-ref (f): the largest jump of a track's joint targets across a join (rad), and the seconds played.
-JOIN_TOL_RAD = 1e-6
+#: G9-ref (f): the seconds of the zero action played.  (A join's limit is no constant: at each joint, the largest
+#: change between two consecutive frames of the walk it leaves; the lead's ruling 15 of 17 Nov 2026.)
 ZERO_ACTION_S = 2.0
 #: G9-ref (a), what follows a failure: a failing item that plays one of these blocks the body and head.
 BLOCKING_ITEMS = ("walk/nominal", "walk/v0.4")
@@ -188,8 +191,16 @@ RULES = dict(
         "playback passes all four with ratio 1, a playback cut to 3 steps reads too_few_steps, and (the lead's "
         "ruling 2 of TRACKB_RULINGS6_16NOV) the tail scaled to a tenth about its mean fails the tail term and no "
         "other; (f) each reference no bar item plays has its screen record cited, every task's track is "
-        "continuous at its joins (joint targets within 1e-6 rad) and plays 2 s with finite targets.  If (a) fails "
-        "for a reference it is treated as not available and goes to the lead; a failing start, nominal or v0.4 "
+        "continuous at its joins and plays 2 s with finite targets: [changed after a result: the lead's ruling 15 "
+        "of 17 Nov 2026 (ROUND_C_RULINGS_17NOV.md), made after the numbers the joins gave on Stage 1's own arrays "
+        "(up to 1.1e-4 rad) and on V0 (up to 5.3e-5 rad), seen on 17 Nov, where nothing is wrong, and before any "
+        "look set was frozen and before any closed-loop episode on one; as first written: joint targets within "
+        "1e-6 rad] a join's jump at a joint does not exceed the largest change between two consecutive frames of "
+        "the walk it leaves, at that joint (a join never adds a step larger than the walk's own motion); the gate "
+        "records both numbers per join and joint.  If (a) fails for a reference it is treated as not available "
+        "and goes to the lead; [the lead's ruling 14 of 17 Nov 2026] G9-ref fails while a failing item's "
+        "reference is still available in the set, and its record names those references: the lead marks them "
+        "not available, freezes the set again and runs G9-ref again; a failing start, nominal or v0.4 "
         "blocks the body and head; if (b), (c) or (f) fails no closed-loop episode runs on that set and body.  "
         "The gates list each item's reference toe-off and its side of 0.02 rad (the lead's ruling 7 of 16 Nov "
         "2026).  "
@@ -204,7 +215,10 @@ RULES = dict(
         "it read must have the latest freeze's sha256, else (a) is not read and blocks.  An item that fails names "
         "its own reference (a walk item its walk, a turn or stop item its move) and a failing walk/nominal or "
         "walk/v0.4 item blocks; the start is played by every item and alone by none, so a failing start is read "
-        "through the walk/nominal item (the start and the nominal walk alone) and blocks through it.  (b) plays "
+        "through the walk/nominal item (the start and the nominal walk alone) and blocks through it.  A failing "
+        "item's reference is still available while its entry is usable as the env and the bar read it "
+        "(r5lib.why_not: an entry with a file, not recorded as not available) or the set's latest freeze lists "
+        "it; one that cannot be named counts as still available (still_available).  (b) plays "
         "each walk alone (whole windows of its "
         "file) over the reference times [2.0, 2.0 + 10 x 1.05] s through lookread.playback; a rung's walk is the "
         "entry whose ladder_twin names the rung, else nominal and v0.4 by name; its numbers are compared with "
@@ -216,10 +230,15 @@ RULES = dict(
         "track).  (c) is made on the playbacks of the walks nominal and v0.4, with lookread.controls' window "
         "(the lead of lookread.LEAD_S before it).  (f): a reference no reference check plays is one that no "
         "item of the cited refcheck record that was done names among its files; its block in the set's "
-        "screen.json must exist with the entry's hash (a walk: its look-format file).  The jump at a join is the "
-        "largest |q| difference between the joint targets segment i gives at its own end (its own formula at its "
-        "full duration) and segment i + 1's first frame; the zero-action targets are R5Tracker.zero_command at "
-        "every physics step of 2 s of simulated time at the commanded clock."),
+        "screen.json must exist with the entry's hash (a walk: its look-format file).  A join's jump at a joint "
+        "is the |difference| of that joint's target between segment i at its own end (its own formula at its "
+        "full duration) and segment i + 1's first frame.  The walk it leaves is the walk (a periodic segment) "
+        "segment i plays; where segment i is no walk (the start, a move or a hold), the walk the track played last "
+        "before the join (the walk it left through that move), else the first walk it plays after the join; a "
+        "track that plays no walk holds its joins to 0 at every joint.  A walk's largest change at a joint is "
+        "over every two consecutive frames of its file's window as the track plays them, the last frame to the "
+        "first included; 'does not exceed' is at most (<=).  The zero-action targets are R5Tracker.zero_command "
+        "at every physics step of 2 s of simulated time at the commanded clock."),
     z2_run=(
         "STAGE2_TRACKB_PLAN rule Z2, G9-run (after R0L's records of that set and body): (d) every episode of the "
         "body's R0L@10ms records holds every reading of its item and, where its window was reached, a finite look "
@@ -693,14 +712,34 @@ def inputs_of(v: _SetView, files) -> dict:
     return dict(files=rec["files"], freeze=rec["freeze"])
 
 
+def still_available(v: _SetView, ref: str | None) -> dict:
+    """Whether a failing item's reference (``refs/<name>.npz`` or ``transitions/<name>.npz``) is still available in
+    the set (the lead's ruling 14 of 17 Nov 2026; ``RULES["z2_ref"]``'s reading): its entry is usable as the env and
+    the bar read it (``r5lib.why_not``), or the set's latest freeze lists it.  A reference that cannot be named
+    counts as still available."""
+    from designlab.stage2 import r5lib
+
+    if not ref or "/" not in ref:
+        return dict(entry_available=None, in_latest_freeze=None, still_available=True)
+    sub, fname = ref.split("/", 1)
+    name = fname[:-len(".npz")] if fname.endswith(".npz") else fname
+    entry = r5lib.why_not(v.refs, v.trs, v.set_doc, sub, name) is None
+    frozen = name in ((v.freeze or {}).get("entries") or {})
+    return dict(entry_available=bool(entry), in_latest_freeze=bool(frozen), still_available=bool(entry or frozen))
+
+
 def part_a(v: _SetView, record_dir=None, refcheck=None) -> dict:
-    """G9-ref (a): the bar's reference check, cited; what follows a failure (``RULES["z2_ref"]``)."""
+    """G9-ref (a): the bar's reference check, cited; what follows a failure (``RULES["z2_ref"]``).  ``still_available``
+    names the failing items' references that are still available in the set: while it is not empty G9-ref fails
+    (the lead's ruling 14 of 17 Nov 2026)."""
     if v.set == STOCK_SET:
-        return dict(ok=None, applies=False, reason="the Stage 1 view has no frozen set of the bar's references "
-                                                   "(no set.json): bar.refcheck reads a set")
+        return dict(ok=None, applies=False, still_available=[],
+                    reason="the Stage 1 view has no frozen set of the bar's references (no set.json): bar.refcheck "
+                           "reads a set")
     doc, how = _refcheck_record(v, record_dir, refcheck)
     if doc is None:
-        return dict(ok=False, applies=True, refcheck=how, reason="no refcheck record could be read")
+        return dict(ok=False, applies=True, refcheck=how, still_available=[], blocks=True,
+                    reason="no refcheck record could be read")
     items = doc.get("items") or {}
     failing = {k: x for k, x in items.items() if x.get("status") == "done" and not x.get("pass_")}
     refs_out = []
@@ -708,22 +747,29 @@ def part_a(v: _SetView, record_dir=None, refcheck=None) -> dict:
         kind = k.split("/")[0]
         ref = (f"refs/{k.split('/', 1)[1]}.npz" if kind == "walk" else
                next((f for f in reversed(x.get("files") or []) if f.startswith("transitions/")), None))
-        refs_out.append(dict(item=k, reference=ref, failing=sorted(t for t, ok in (x.get("ok") or {}).items() if not ok)))
+        bad = sorted(t for t, ok in (x.get("ok") or {}).items() if not ok)
+        refs_out.append(dict(item=k, reference=ref, failing=bad, **still_available(v, ref)))
+    still = sorted({x["reference"] or f"the reference of {x['item']} (not named)" for x in refs_out
+                    if x["still_available"]})
     blocked = sorted(k for k in failing if k in BLOCKING_ITEMS)
     same_set = (doc.get("set"), doc.get("body")) == (v.set, v.body)
     files_ok = how.get("files_match_freeze") is True
     ok = bool(same_set and files_ok and doc.get("pass_"))
+    marks = (f"G9-ref fails while a failing item's reference is still available in the set ({', '.join(still)}): "
+             "the lead marks them not available, freezes the set again and runs G9-ref again (the lead's ruling 14 "
+             "of 17 Nov 2026)")
     followed = ("none: every reference passes its own item" if ok else
                 "the reference check cited is not of this set and body or did not read the latest freeze's files: "
                 "(a) is not read; it goes to the lead" if not (same_set and files_ok) else
                 "blocked: a failing walk/nominal or walk/v0.4 item blocks the body and head; it goes to the lead"
-                if blocked else "the failing items' references are treated as not available (rule T2, H3) and "
-                                "go to the lead")
+                if blocked else marks if still else
+                "the failing items' references are not available in the set and not in its latest freeze (rule T2, "
+                "H3); they go to the lead")
     return dict(_doc=doc, ok=ok, applies=True, refcheck=how, schema=doc.get("schema"), refcheck_pass=doc.get("pass_"),
                 same_set_and_body=same_set, files_match_freeze=files_ok,
                 items={k: dict(status=x.get("status"), pass_=x.get("pass_"), ok=x.get("ok")) for k, x in items.items()},
-                not_available=refs_out, blocked=blocked, blocks=bool(blocked or not same_set or not files_ok),
-                followed=followed)
+                failing_references=refs_out, still_available=still if (same_set and files_ok) else [],
+                blocked=blocked, blocks=bool(blocked or not same_set or not files_ok), followed=followed)
 
 
 def _ladder() -> tuple[dict, dict, dict]:
@@ -909,16 +955,49 @@ def _segment_end(seg) -> np.ndarray:
     return seg.S[-1]
 
 
-def joins(track, nj: int) -> list[dict]:
-    """Every join of a track: the segments' names and kinds and the largest |difference| of the joint targets
-    between segment i's end and segment i + 1's first frame (rad)."""
+def walk_steps(seg, nj: int) -> np.ndarray:
+    """A walk's largest change between two consecutive frames, per joint (rad): over every two consecutive frames of
+    its file's window as a periodic segment plays them, the last frame to the first included."""
+    S = np.asarray(seg.S, float)[:, :nj]
+    return np.max(np.abs(np.diff(np.vstack([S, S[:1]]), axis=0)), axis=0)
+
+
+def _walk_left(segs, i: int) -> tuple:
+    """The walk a join after segment ``i`` is held to (``RULES["z2_ref"]``'s reading): (segment or None, how)."""
+    walks = [k for k, s in enumerate(segs) if s.kind == "periodic"]
+    before = [k for k in walks if k <= i]
+    after = [k for k in walks if k > i]
+    if before and before[-1] == i:
+        return segs[i], "the walk it leaves"
+    if before:
+        return segs[before[-1]], "the walk the track played last before the join (it left that walk through a move)"
+    if after:
+        return segs[after[0]], "the first walk the track plays after the join (no walk before it)"
+    return None, "none: the track plays no walk (the join is held to 0 at every joint)"
+
+
+def joins(track, nj: int, joints=None) -> list[dict]:
+    """Every join of a track (G9-ref (f), the lead's ruling 15 of 17 Nov 2026): the segments' names and kinds, the
+    walk it is held to, and per joint (``joints``: the names of the first ``nj`` columns) the jump of the joint
+    target between segment i's end and segment i + 1's first frame with the largest change between two consecutive
+    frames of that walk (rad); ``over`` names the joints whose jump exceeds it, and the join is ``ok`` when none
+    does.  ``jump_rad``: the largest jump over the joints."""
+    names = list(joints) if joints is not None else [str(j) for j in range(nj)]
+    if len(names) != nj:
+        raise GateError(f"{len(names)} joint names for {nj} joint columns")
     segs = track.segments
     out = []
     for i in range(len(segs) - 1):
         a, b = segs[i], segs[i + 1]
-        jump = float(np.max(np.abs(_segment_end(a)[:nj] - b.S[0][:nj])))
-        out.append(dict(at_ref_s=float(b.t0), before=f"{a.kind} {a.name}", after=f"{b.kind} {b.name}", jump_rad=jump,
-                        ok=bool(jump <= JOIN_TOL_RAD)))
+        jump = np.abs(np.asarray(_segment_end(a), float)[:nj] - np.asarray(b.S[0], float)[:nj])
+        w, how = _walk_left(segs, i)
+        step = np.zeros(nj) if w is None else walk_steps(w, nj)
+        within = jump <= step  # (a NaN on either side is not within)
+        out.append(dict(at_ref_s=float(b.t0), before=f"{a.kind} {a.name}", after=f"{b.kind} {b.name}",
+                        walk=None if w is None else f"{w.kind} {w.name}", walk_is=how, jump_rad=float(np.max(jump)),
+                        joints={n: dict(jump_rad=float(jump[k]), walk_step_rad=float(step[k]))
+                                for k, n in enumerate(names)},
+                        over=[n for k, n in enumerate(names) if not within[k]], ok=bool(np.all(within))))
     return out
 
 
@@ -964,7 +1043,7 @@ def part_f(v: _SetView, refcheck_doc: dict | None = None) -> dict:
             continue
         try:
             s = lib.script(t)
-            js = joins(s.track, nj)
+            js = joins(s.track, nj, v.p.joints)
             tk = r5env.R5Tracker(v.p, s.track, "R2", gains=None, terms=(), ankle_cap=(), rate=lookread.RATE, model=v.p.m)
             n = int(round(ZERO_ACTION_S / dt))
             finite = True
@@ -984,7 +1063,9 @@ def part_f(v: _SetView, refcheck_doc: dict | None = None) -> dict:
     out["library_inputs"] = dict(files=lin["files"], freeze=lin["freeze"])
     oks = [x["ok"] for x in out["unplayed"].values()] + [x["ok"] for x in out["tasks"].values()]
     out["max_jump_rad"] = max((x.get("max_jump_rad", 0.0) for x in out["tasks"].values()), default=0.0)
-    out["join_tol_rad"] = JOIN_TOL_RAD
+    out["join_limit"] = ("at each joint, the largest change between two consecutive frames of the walk the join "
+                         "leaves (the lead's ruling 15 of 17 Nov 2026; changed after a result: as first written, 1e-6 "
+                         "rad)")
     out["ok"] = bool(oks and all(oks))
     return out
 
@@ -1014,7 +1095,9 @@ def g9_ref(body: str, set_name: str, record=None, *, root=None, refcheck=None) -
     f = part_f(v, a.pop("_doc", None))
     parts_ok = dict(a=a["ok"], b=b["ok"], c=c["ok"], f=f["ok"])
     applies = set_name != STOCK_SET
-    passes = bool(applies and not a.get("blocks") and a["ok"] is not None and b["ok"] and c["ok"] and f["ok"])
+    # the lead's ruling 14 of 17 Nov 2026: G9-ref fails while a failing item's reference is still available in the set
+    passes = bool(applies and not a.get("blocks") and not a.get("still_available") and a["ok"] is not None
+                  and b["ok"] and c["ok"] and f["ok"])
     if not applies:
         followed = "the development form on the Stage 1 view: no record of G9-ref"
     elif passes:
@@ -1041,6 +1124,10 @@ def g9_ref_lines(doc: dict) -> list[str]:
     b = doc["parts"]["b"]
     lines = [f"G9-ref {doc['set']} {doc['body']} ({doc['form']}): (a) {p['a']}, (b) {p['b']}, (c) {p['c']}, "
              f"(f) {p['f']}: {'PASS' if doc['pass_'] else 'FAIL'}; {doc['followed']}"]
+    for x in doc["parts"]["a"].get("failing_references") or []:
+        lines.append(f"  (a) item {x['item']} fails {', '.join(x['failing']) or '(no term named)'}: reference "
+                     f"{x['reference']}, entry available {x['entry_available']}, in the latest freeze "
+                     f"{x['in_latest_freeze']}")
     for k, x in sorted(b.get("items", {}).items()):
         if x.get("status") == "played":
             lines.append(f"  item {k}: {x['steps']} steps, {x['lift_offs']} lift-offs, reference toe-off "
@@ -1049,6 +1136,11 @@ def g9_ref_lines(doc: dict) -> list[str]:
         if x.get("available") and not x["ok"]:
             lines.append(f"  task {t}: joins ok {x.get('joins_ok')} (largest jump {x.get('max_jump_rad', math.nan):.3g} "
                          f"rad), zero action finite {x.get('zero_action_finite')}{' ' + x['fault'] if 'fault' in x else ''}")
+            for j in x.get("joins") or []:
+                for n in j["over"]:
+                    lines.append(f"    join {j['before']} -> {j['after']} at {j['at_ref_s']:.4f} s, {n}: jump "
+                                 f"{j['joints'][n]['jump_rad']:.3g} rad over {j['walk']}'s largest frame-to-frame "
+                                 f"change {j['joints'][n]['walk_step_rad']:.3g} rad")
     return lines
 
 
@@ -2067,7 +2159,8 @@ __all__ = ["G8A_CONDITIONS", "GateError", "K3", "K3_TINY", "LOOK_SETS", "RULES",
            "checkpoint_items", "compare_checkpoints", "compare_items", "controls", "dev_episode", "finish", "g8a",
            "g9_ref", "g9_run", "gl_start", "inputs_of", "joins", "k3_asked", "kill_resume", "main", "part_a", "part_b",
            "part_c", "part_d", "part_e", "part_f", "played_files", "r6_run_problems", "r6_start", "r6_training", "rates",
-           "record_sha_ok", "require_g9_ref", "rollout_rate", "run_settings_problems", "sources", "tail_tenth"]
+           "record_sha_ok", "require_g9_ref", "rollout_rate", "run_settings_problems", "sources", "still_available",
+           "tail_tenth", "walk_steps"]
 
 if __name__ == "__main__":
     from designlab.stage2 import gates2 as _named  # the importable copy owns every class and all module state
