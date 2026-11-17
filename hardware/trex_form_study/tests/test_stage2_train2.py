@@ -233,7 +233,10 @@ def _monitor_main(argv) -> int:
     ``STUB_MON_REFUSE`` names a file holding a count: while it is above zero a ``run`` takes one off and is given
     another sources hash than the trainer's, so that ``monitor2`` itself refuses to run (read before the others).
     ``STUB_MON_ENV`` names a file: every child appends a line with its command, its step count and the value of
-    ``STAGE2_ALLOW_SOURCE_CHANGE`` in its environment (first of all)."""
+    ``STAGE2_ALLOW_SOURCE_CHANGE`` in its environment (first of all).  ``STUB_SOURCES`` is a sources hash the child
+    takes for its own (a checkout whose sources moved, as the trainer of this process hashed them).
+    ``STUB_MON_K9`` set: a policy row refuses its checkpoint while it is built, by rule K9 as ``s2rows`` does on
+    moved sources, unless the child's environment holds ``STAGE2_ALLOW_SOURCE_CHANGE=1``."""
     log = os.environ.get("STUB_MON_ENV")
     if log:
         steps = int(argv[argv.index("--steps") + 1]) if "--steps" in argv else None
@@ -258,9 +261,22 @@ def _monitor_main(argv) -> int:
         Path(hold + ".started").write_text(str(os.getpid()))
         time.sleep(300)
         return 9
-    from designlab.stage2 import monitor2
+    from designlab.stage2 import monitor2, train2
 
-    monitor2._episodes = stub_episodes
+    fake = os.environ.get("STUB_SOURCES")
+    if fake:
+        own = train2.sources
+        train2.sources = lambda: dict(own(), sha256=fake)
+    episodes = stub_episodes
+    if os.environ.get("STUB_MON_K9"):
+        def episodes(body, set_name, row, pairs, policies=None, traces=None):
+            if policies and os.environ.get(train2.ALLOW_SOURCE_ENV) != "1":
+                raise monitor2._row_refused(row, "row", RuntimeError(
+                    f"{next(iter(policies))}: the code that builds its observations and applies its actions is not "
+                    "the run's (session 0: designlab/stage2/r5core.py): not judged (rule K9; "
+                    f"{train2.ALLOW_SOURCE_ENV}=1 runs it flagged)"))
+            return stub_episodes(body, set_name, row, pairs, policies, traces)
+    monitor2._episodes = episodes
     return monitor2.main(argv)
 
 
@@ -1428,7 +1444,8 @@ def test_a_monitor_that_refuses_to_run_is_no_attempt(ref_fix, stub, tmp_path, mo
         assert d["fix"] is None and d["gates"]["g8b"] is None and d["stopped"] is None
         halt = d["halt"]
         assert halt["session"] == k and "refused to run on the check of 512 steps" in halt["reason"]
-        assert halt["reason"].endswith("a resume runs the check again") and "--retry-check" not in halt["reason"]
+        assert halt["reason"].endswith("a resume runs the check again; " + stub.SOURCE_REMEDY)  # (its kind: sources)
+        assert "--retry-check" not in halt["reason"] and "--allow-source-change" in halt["reason"]
         assert e["attempts"][k]["refusal"]["reason"] in halt["reason"] and "no attempt" in halt["reason"]
         assert "the sources differ" in d["sessions"][k]["error"] and d["sessions"][k]["error"].startswith("Halt")
         prog = json.loads((jd / "progress.json").read_text())  # (the launcher reads the halt there)
@@ -1529,6 +1546,116 @@ def test_the_trainer_passes_its_allow_source_change_to_the_row(stub, tmp_path, m
     seen = [json.loads(x) for x in log.read_text().splitlines()]
     assert [(c["cmd"], c["steps"], c["allow"]) for c in seen] == [
         ("baseline", None, None), ("run", 512, None), ("run", 1024, "1"), ("run", FINAL, "1")]
+
+
+def test_an_allowance_for_moved_sources_holds_for_the_same_sources(stub, tmp_path, monkeypatch):
+    """The lead's ruling 12 of 17 Nov 2026 (the check of the third follow-up, finding 2): session 1 resumes on moved
+    sources with --allow-source-change, and run.json records their hash as allowed; session 2, on the same sources
+    without the parameter, is allowed too: its resume accepts them and its monitor children get the allowance, so
+    the policy row (here a stub that refuses by rule K9, as s2rows does, compares every session's recorded sources)
+    runs the run's last check.  As built session 2's row was refused (a halt with exit code 5 at its next check).
+    Sources that no session given the parameter ran on are still refused."""
+    out, log = tmp_path / "out", tmp_path / "children.jsonl"
+    real = stub.sources()
+    moved = dict(real, files=dict(real["files"], **{"designlab/stage2/r5core.py": "0" * 64}), sha256="1" * 64)
+
+    def session(cut=None, sources=None, **kw):
+        nonlocal stub
+        monkeypatch.undo()
+        stub = install_again(monkeypatch, tmp_path)
+        monkeypatch.setenv("STUB_MON_ENV", str(log))
+        if sources is not None:  # (moved against session 0's: the row compares every session's, rule K9)
+            monkeypatch.setenv("STUB_MON_K9", "1")
+            monkeypatch.setattr(stub, "sources", lambda: sources)
+            monkeypatch.setenv("STUB_SOURCES", sources["sha256"])
+        if cut is None:
+            return run(stub, out, gates=True, **kw)
+        cut_at(monkeypatch, stub, cut)
+        with pytest.raises(_Cut):
+            run(stub, out, gates=True, **kw)
+        return doc_of(out)
+
+    d = session(cut=640)                                       # session 0: the run's own sources
+    assert d["sources_allowed"] == [] and d["sessions"][0]["source_allowance"] is None
+    with pytest.raises(stub.Refused, match="other sources"):   # moved sources, no parameter: refused, nothing written
+        session(sources=moved, resume=True)
+    d = session(cut=1152, sources=moved, resume=True, allow_source_change=True)
+    s1 = d["sessions"][1]
+    assert d["sources_allowed"] == [dict(sha256=moved["sha256"], session=1, at=s1["started_at"])]
+    assert s1["allow_source_change"] is True and s1["source_change"] is True and s1["resumed_from"] == 512
+    assert s1["source_allowance"] == dict(sha256=moved["sha256"], by="--allow-source-change", session=1)
+    other = dict(moved, sha256="2" * 64)
+    with pytest.raises(stub.Refused, match="other sources"):   # other moved sources, never allowed: refused
+        session(sources=other, resume=True)
+    d = session(sources=moved, resume=True)                    # session 2: the same sources, no parameter
+    s2 = d["sessions"][2]
+    assert d["status"] == "done" and d["halt"] is None and s2["resumed_from"] == 1024
+    assert s2["allow_source_change"] is False and s2["source_change"] is False   # (the last session's sources)
+    assert s2["source_allowance"] == dict(sha256=moved["sha256"], by="sources_allowed", session=1)
+    assert len(d["sources_allowed"]) == 1 and d["rules"]["source_allowance"] == stub.SOURCE_ALLOWANCE_RULE
+    seen = [json.loads(x) for x in log.read_text().splitlines()]
+    assert [(c["cmd"], c["steps"], c["allow"]) for c in seen] == [
+        ("baseline", None, None), ("run", 512, None), ("run", 1024, "1"), ("run", FINAL, "1")], seen
+    assert all(e["counted_without_record"] is False for e in d["monitor"]) and len(d["monitor"]) == 3
+
+
+def test_a_halt_for_moved_sources_names_the_parameter_that_resolves_it(stub, tmp_path, monkeypatch):
+    """The lead's ruling 12 of 17 Nov 2026: a halt for moved sources (the row's refusal by rule K9; the monitor's own
+    sources check is in test_a_monitor_that_refuses_to_run_is_no_attempt) names --allow-source-change, and a
+    resume with it runs the check; a halt for another refusal does not name it.  As built the halt quoted only the
+    row's "STAGE2_ALLOW_SOURCE_CHANGE=1 runs it flagged", not the trainer's parameter."""
+    out = tmp_path / "out"
+    monkeypatch.setenv("STUB_MON_K9", "1")
+    with pytest.raises(stub.Halt, match="refused to run on the check of 512 steps") as info:
+        run(stub, out, gates=True)
+    halt = doc_of(out)["halt"]
+    assert halt["reason"] == str(info.value) and "(rule K9; STAGE2_ALLOW_SOURCE_CHANGE=1 runs it flagged)" in halt["reason"]
+    assert halt["reason"].endswith("a resume runs the check again; " + stub.SOURCE_REMEDY)
+    assert "a resume with --allow-source-change runs the check on them, flagged" in stub.SOURCE_REMEDY
+    assert doc_of(out)["monitor"][0]["attempts"][0]["refusal"]["kind"] == "row"
+    d = run(stub, out, gates=True, resume=True, allow_source_change=True)
+    assert d["status"] == "done" and d["sources_allowed"][0]["session"] == 1
+    # which refusals are for moved sources
+    assert stub.moved_sources(dict(kind="sources", reason="the sources differ"))
+    assert stub.moved_sources(dict(kind="row", reason="... not judged (rule K9; STAGE2_ALLOW_SOURCE_CHANGE=1 ...)"))
+    for why in (None, dict(kind="row", reason="R5/42: no checkpoint is configured for it"),
+                dict(kind="checkpoint", reason="rule K9"), dict(kind=None, reason="exit code 8 and no note")):
+        assert not stub.moved_sources(why), why
+
+
+def test_the_resume_takes_an_allowance_from_the_runs_record(stub, tmp_path):
+    """``SOURCE_ALLOWANCE_RULE`` on a run.json made by hand: sources an earlier session given the parameter ran on
+    are allowed without it, also when they are not the last session's (the allowance holds for the rest of the run
+    for the same sources); sources only the first session ran on are not; a run.json without ``sources_allowed``
+    takes the sessions that resumed with the parameter."""
+    from designlab.stage2 import s2load
+
+    vers = s2load.versions()
+
+    def runner(**kw):
+        a = dict(mode="R5", body="stub", seed=42, set_name="STUB", out=str(tmp_path), job=None, steps=None,
+                 resume=True, workers=0, checkpoint_every=256, monitor_every=512, monitor_also_k=(), lr=None,
+                 config=None, ppo=None, gates=False, allow_version_change=False, allow_source_change=False,
+                 parent=None, tiny=True, run_id=None, log=None, retry_check=False)
+        return stub._Run(dict(a, **kw))
+
+    sess = [dict(index=0, sources=dict(sha256="A"), versions=vers),
+            dict(index=1, sources=dict(sha256="B"), versions=vers, allow_source_change=True, source_change=True),
+            dict(index=2, sources=dict(sha256="C"), versions=vers, allow_source_change=True, source_change=True)]
+    doc = dict(sessions=sess, sources_allowed=[dict(sha256="B", session=1), dict(sha256="C", session=2)])
+    r = runner()
+    out = r._refuse_sources_versions(doc, dict(sha256="B", files={}), vers)
+    assert out == dict(source_change=True, sources_before=sess[2]["sources"])
+    assert r.source_allowance == dict(sha256="B", by="sources_allowed", session=1)
+    for h in ("A", "D"):
+        with pytest.raises(stub.Refused, match="other sources.*pass --allow-source-change"):
+            runner()._refuse_sources_versions(doc, dict(sha256=h, files={}), vers)
+    r = runner(allow_source_change=True)
+    assert r._refuse_sources_versions(doc, dict(sha256="D", files={}), vers)["source_change"] is True
+    assert r.source_allowance == dict(sha256="D", by="--allow-source-change", session=3)
+    assert stub.allowed_sources(dict(sessions=sess)) == {"B": 1, "C": 2}
+    assert stub.allowed_sources(dict(sessions=sess[:1])) == {} and runner().source_allowance is None
+    assert "SOURCE_ALLOWANCE_RULE" in stub.RESUME_RULE
 
 
 def test_a_refusal_without_its_note_and_a_refused_baseline(stub, tmp_path, monkeypatch):
