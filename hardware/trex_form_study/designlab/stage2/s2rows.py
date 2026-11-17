@@ -80,8 +80,9 @@ SET_RULE = (
     "(run.json settings.inputs.files) must be there under the set's latest freeze with the sha256 and the entry "
     "hash the run recorded, every task the run named must still be in the table, and the plant's inputs must be the "
     "run's; a later freeze of the set is then accepted and both freezes are recorded.  Anything else is refused "
-    "with what differs.  The row runs conditions of its run's set only, and its library is read from the directory "
-    "the bar's context reads, whose files of the run must again have the run's hashes")
+    "with what differs, and so is a run.json that records no input file, names no task or records no plant inputs.  "
+    "The row runs conditions of its run's set only, and its library is read from the directory the bar's context "
+    "reads, whose files of the run must again have the run's hashes")
 HEADING_RULE = (
     "rule E4: a plan given as a plan keeps the integral of the commanded yaw rate as its commanded heading, unless "
     "it plays a turn in place (a periodic gait with a yaw rate and no forward speed): the row then names the "
@@ -181,6 +182,14 @@ def set_check(run: dict, body: str, root=None) -> dict:
     where = f"{set_name}/{body}"
     if not files:
         raise RowError(f"{where}: run.json records no input file of its tasks (settings.inputs.files)")
+    # (a run.json without its task names or its plant inputs has nothing to compare: refused, never passed)
+    tasks = settings.get("task_names")
+    if not isinstance(tasks, list) or not tasks:
+        raise RowError(f"{where}: run.json names no task of its run (settings.task_names): rule K4 cannot be checked")
+    was = (settings.get("inputs") or {}).get("plant_inputs")
+    if not was:
+        raise RowError(f"{where}: run.json records no plant inputs (settings.inputs.plant_inputs): rule K4 cannot be "
+                       "checked")
     diff = []
     try:
         if set_name == r5lib.STOCK_SET:
@@ -200,10 +209,8 @@ def set_check(run: dict, body: str, root=None) -> dict:
         else:
             diff += [f"{f}: {k} {str(have.get(k))[:12]}..., the run recorded {str(files[f].get(k))[:12]}..."
                      for k in ("sha256", "entry_sha256") if have.get(k) != files[f].get(k)]
-    diff += [f"task {t} was in the run's table and is absent now" for t in settings.get("task_names") or []
-             if t not in names]
-    was = (settings.get("inputs") or {}).get("plant_inputs")
-    if was is not None and was != panels.key_context(body)["plant_inputs"]:
+    diff += [f"task {t} was in the run's table and is absent now" for t in tasks if t not in names]
+    if was != panels.key_context(body)["plant_inputs"]:
         diff.append("the plant's inputs (the body's round-two files) are not the run's")
     if diff:
         raise RowError(f"{where}: what the run used is not what the set holds today (rule K4): {'; '.join(diff)}")
@@ -267,7 +274,7 @@ def build(name: str, body: str, job_dir, steps, root=None) -> tuple[dict, dict]:
                  settings_sha256=run["settings_sha256"]),
         set_freeze_now=fz["now"], later_freeze=fz["later"], layout=layout, core=core,
         action=dict(scales=scales, rate=float(core["rate"]), filter_hz=float(core["filter_hz"])),
-        task_names=list(settings.get("task_names") or []), inputs_files=dict(settings["inputs"]["files"]),
+        task_names=list(settings["task_names"]), inputs_files=dict(settings["inputs"]["files"]),
         versions_trained=s2load.comparable(loaded["versions_saved"]),
         versions_judged=s2load.comparable(loaded["versions_here"]), cross_version=bool(loaded["cross_version"]),
         source_change=bool(src["changed"]),

@@ -416,6 +416,12 @@ def test_the_runs_set_as_it_is_today_rule_k4(job, tmp_path):
     changed(lambda s: s["task_names"].append("turn_q90_left"), "task turn_q90_left was in the run's table")
     changed(lambda s: s["inputs"].update(plant_inputs=dict(mjcf="0" * 64)), "the plant's inputs")
     changed(lambda s: s["inputs"].update(files={}), "records no input file")
+    # a run.json that holds no task names or no plant inputs has nothing to compare: refused, not passed
+    changed(lambda s: s.pop("task_names"), "names no task")
+    changed(lambda s: s.update(task_names=[]), "names no task")
+    changed(lambda s: s.update(task_names="walk_nominal"), "names no task")
+    changed(lambda s: s["inputs"].pop("plant_inputs"), "records no plant inputs")
+    changed(lambda s: s["inputs"].update(plant_inputs={}), "records no plant inputs")
     # the settings are hashed, so a run.json edited this way is refused before the set is read at all
     mine = copy_job(job, tmp_path / job.name)
     edit_run(mine, lambda d: d["settings"]["inputs"]["files"]["refs/brisk.npz"].update(sha256="0" * 64))
@@ -548,13 +554,15 @@ T0_MOVES = (("start", "start"), (setio.change_name("nominal", W), "nominal_to_br
             (setio.stop_name(2, W), "stop"), (setio.turn_name("pi4", "left"), "enter_walk_0.35_left"))
 
 
-def make_t0(root: Path) -> Path:
-    """``T0``: Stage 1's arrays of the 75 cm body under the bar's names, frozen (as the bar's own tests build it)."""
+def make_t0(root: Path, refs=T0_REFS) -> Path:
+    """``T0``: Stage 1's arrays of the 75 cm body under the bar's names, frozen (as the bar's own tests build it).
+    ``refs``: which of Stage 1's walks stands under each of the set's walk names."""
     src = RUN / BODY
+    t0_refs = tuple(refs)
     d = setio.set_dir(SET, BODY, root)
     refs1, trs1 = s2io.read_json(src / "refs.json"), s2io.read_json(src / "transitions.json")
     refs, trs, manifest = {}, {}, {}
-    for name, old in T0_REFS:
+    for name, old in t0_refs:
         e = copy.deepcopy(refs1["references"][old])
         e.update(name=name, file=f"refs/{name}.npz", set=SET, label=None, strides=1, window_s=e["period_s"],
                  crouch_frac=0.03, margin_rule="a fixture's")
@@ -574,7 +582,7 @@ def make_t0(root: Path) -> Path:
     for doc, sub, kind in ((refs, "refs", "walk"), (trs, "transitions", "move")):
         for name, e in doc.items():
             (d / sub).mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(src / sub / f"{dict(T0_REFS + T0_MOVES)[name]}.npz", d / e["file"])
+            shutil.copyfile(src / sub / f"{dict(t0_refs + T0_MOVES)[name]}.npz", d / e["file"])
             manifest[name] = dict(kind=kind, sha256=e["sha256"], entry_sha256=setio.entry_sha256(kind, e))
     s2io.write_json(d / "refs.json", dict(body=BODY, set=SET, schema=1, references=refs))
     s2io.write_json(d / "transitions.json", dict(body=BODY, set=SET, schema=1, transitions=trs))
@@ -634,6 +642,37 @@ def test_a_slowed_clock_leaves_a_bar_item_unread_and_a_later_freeze_is_accepted_
     s2io.write_json(d / "set.json", doc)
     with pytest.raises(s2rows.RowError, match="rule K4"):
         s2rows.policy_row("R5/42", BODY, job, 0, root=sets)
+
+
+@needs_run
+def test_rule_k4_at_the_episode_the_files_the_bar_reads_are_the_runs(tmp_path):
+    """A row is built, and checked by rule K4, against the set under one root; the bar is then given the same set
+    name under another root (``--set-root``, ``episodes(root=)``), where the 0.40 m/s walk is another file under a
+    freeze of its own.  The row's check at the episode (``S2Policy._check_files``) is the one guard there: the
+    episode is an error before anything is simulated."""
+    a, b = tmp_path / "A", tmp_path / "B"
+    make_t0(a)
+    make_t0(b, refs=(("nominal", "nominal"), (W, "nominal")))  # (Stage 1's nominal walk's file under the walk's name)
+    man = [s2io.read_json(setio.set_dir(SET, BODY, r) / "set.json")["freezes"][0]["manifest"] for r in (a, b)]
+    assert man[0][W]["sha256"] != man[1][W]["sha256"] and man[0]["nominal"] == man[1]["nominal"]
+    job = tmp_path / "jobs" / "R5-k4-s42"
+    run = make_job(job, BODY, SET, root=a)
+    assert f"refs/{W}.npz" in run["settings"]["inputs"]["files"]
+    s2rows.configure({"R5/42": dict(job_dir=job, steps=0, root=a)})  # built against root A: rule K4 holds there
+    rows = lookbar.rows(BODY, ["R5/42@10ms"])
+    policy = rows["R5/42@10ms"].inner.inner.policy
+    key = f"walk/{W}"
+    # the same row, the same condition: prepared on root A, refused on root B, by the file the run recorded
+    on_a = lookbar.open_set(BODY, SET, [key], root=a)
+    policy.prepare(on_a["ctx"], on_a["conds"][key], on_a["ctx"].built(on_a["conds"][key]))
+    on_b = lookbar.open_set(BODY, SET, [key], root=b)
+    with pytest.raises(s2rows.RowError, match=rf"R5/42: refs/{W}\.npz in .* are not the files the run recorded \(rule K4\)"):
+        policy.prepare(on_b["ctx"], on_b["conds"][key], on_b["ctx"].built(on_b["conds"][key]))
+    # through the monitor's entry: an error, and no step of the episode was simulated
+    e = lookbar.episodes(BODY, SET, rows, [(key, 6004)], root=b)[0]
+    assert e["outcome"] == "error" and "RowError" in e["error"] and "rule K4" in e["error"]
+    assert f"refs/{W}.npz" in e["error"] and str(setio.set_dir(SET, BODY, b)) in e["error"]
+    assert e["steps"] is None and e["clock"] is None and e["fell"] is None and not e["succeeded"]
 
 
 # ------------------------------------------------------------------------------------------------
