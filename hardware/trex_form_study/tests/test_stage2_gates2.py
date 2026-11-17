@@ -607,7 +607,8 @@ def test_the_placed_refcheck_gives_a_look_sets_freeze_a_record_g9_ref_part_a_rea
     whole-window record over.  On T0 (no look set) the record is ``bar refcheck``'s, item for item and in every key
     but the time and the provenance, and the command says the placement is the bar's own.  A look set whose set.json
     names another set is refused before anything runs.  Nothing stays placed."""
-    from designlab.stage2 import bar, lookbar, sets as sets_mod, setio
+    from designlab.stage2 import bar, lookbar, setio
+    from designlab.stage2 import sets as sets_mod
 
     root = tmp_path / "sets"
     sets = _synthetic_sets(root)
