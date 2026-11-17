@@ -341,3 +341,23 @@ before anything runs on a look set, and nothing can run there until G9-ref has p
     - CN4: readings (a) to (d) are accepted. Its check's optional test gap ("Run all" stands only in 3.5, 4.4 and
       5.4 (d)) goes into the next change to the sheet.
     - Rule M3 gains ruling 33's words, "in every episode that ran".
+
+## LT2 (`checkpoint/reviews/roundC__{build,check}_LT2_17nov.md`), ruled 17 Nov 2026, ~10:20 UTC
+
+Merged as it stands.
+
+39. **The last readers of a look set's turns, and the builder's choices.**
+    - (a) Option (i) is accepted: G9-ref part (a) reads a record from a file only if that record holds the placed
+      plan; otherwise it runs its own placed check, and a given unplaced record blocks.
+    - (b) The two remaining readers of a look set's turns run inside the placement-only context:
+      - G9-ref part (b)'s playback of walk and turn items (`gates2.part_b`);
+      - the owner's views (`barviews.SetView.planned`).
+      A placed refcheck command (in `gates2`, since `bar.py` is not edited) gives the look sets' freeze a placed
+      record. The look sets' freeze text in `sets.py` names it once the rebuild is merged.
+    - (c) The env's own task placement passes the walk file to `leave_point` (`r5lib.place`,
+      `Library.place`), so ruling 37 (c)'s check covers the env too.
+    - (d) and (e) are accepted: the rule texts that enter records stay unchanged and the docstrings carry the
+      change; the tolerance is one frame of the walk file.
+    - `bar dry-run`'s overstatement on a look set is written into the cap rule (Q5) and beside each cap's printed
+      total.
+    - A V0 comparison test for part (a) and G8a (`needs_v0`) is added where the arrays exist.
