@@ -261,6 +261,18 @@ def stubs(tmp_path, monkeypatch):
     return d
 
 
+@pytest.fixture
+def inproc_stubs(stubs, monkeypatch):
+    """The stub tools for a launcher that runs in this process, named by monkeypatching the seams instead of
+    ``S2_NB_SEAMS``: that variable is refused in a run that is not tiny (the lead's ruling 4 of 17 Nov), and these
+    tests read what a run that is not tiny does."""
+    seams = json.loads((stubs / "seams.json").read_text())
+    for name, attr in (("trainer", "_trainer_cmd"), ("clip", "_clip_cmd"), ("pack", "_pack_cmd")):
+        monkeypatch.setattr(nb, attr, lambda cmd=seams[name]: list(cmd))
+    monkeypatch.delenv("S2_NB_SEAMS")
+    return stubs
+
+
 def _params(tmp_path, **over) -> dict:
     p = dict(RUN_ID="r1", QUEUE=["R5:B1:42", "R6:B1:42"], SET="S1", TINY=True, REPO_REF=COMMIT, BUNDLE_ID="",
              WORKERS=2, CLIPS=True, PERIOD_S=0.05, DRIVE_DIR=str(tmp_path / "drive"), LOCAL_DIR=str(tmp_path / "local"),
@@ -783,7 +795,7 @@ def test_with_drive_equal_to_local_nothing_is_copied(tmp_path, stubs):
     assert not list(d.rglob("ckpt_*.tar")) and (d / "work" / "session.json").is_file()
 
 
-def test_the_copy_cadence_and_the_delete_one_cycle_later_rule(tmp_path, stubs):
+def test_the_copy_cadence_and_the_delete_one_cycle_later_rule(tmp_path, inproc_stubs):
     p = _params(tmp_path, TINY=False, BUDGET_STEPS=40_000_000, QUEUE=["R5:B1:42"])
     _session(p)
     st = nb._open_state("r1", p["DRIVE_DIR"], p["LOCAL_DIR"])
@@ -1084,7 +1096,7 @@ def test_lead_json(tmp_path, capsys):
     assert "lead" in s["rules"] and "resumable" in s["rules"]
 
 
-def test_launch_arguments_must_be_the_queues(tmp_path, stubs, capsys):
+def test_launch_arguments_must_be_the_queues(tmp_path, inproc_stubs, capsys):
     p = _params(tmp_path, MONITOR_EVERY=1024, MONITOR_ALSO_K=[0], TINY=False, BUDGET_STEPS=2048, LR=3e-5,
                 CONFIG=dict(filter_hz=10.0), QUEUE=["R5:B1:42"])
     _session(p)
@@ -1769,12 +1781,45 @@ def test_a_session_closed_by_a_failed_line_launches_nothing(tmp_path, stubs, cap
     assert _launch(p)["state"] == "done"
 
 
-def test_the_stub_hook_is_refused_on_colab(tmp_path, stubs):
+def test_the_stub_hook_is_refused_on_colab_and_in_a_run_that_is_not_tiny(tmp_path, stubs):
+    """The lead's ruling 4 of 17 Nov: S2_NB_SEAMS is refused on Colab and in any run that is not tiny (as built: on
+    Colab only), by the session and by the launch."""
     p = _params(tmp_path)
-    with pytest.raises(nb.Refused, match="S2_NB_SEAMS .* refused on Colab"):
+    with pytest.raises(nb.Refused, match="S2_NB_SEAMS .* refused on Colab and in any run that is not tiny"):
+        _session(p, IN_COLAB=True)
+    with pytest.raises(nb.Refused, match="S2_NB_SEAMS .* refused on Colab and in any run that is not tiny"):
+        _session(p, TINY=False, BUDGET_STEPS=40_000_000)
+    assert not (tmp_path / "drive").exists()
+    # a launch of a session opened without the hook, with the hook named afterwards
+    seams = os.environ.pop("S2_NB_SEAMS")
+    try:
+        _session(dict(p, TINY=False, BUDGET_STEPS=8192))
+    finally:
+        os.environ["S2_NB_SEAMS"] = seams
+    res = _launch(dict(p, TINY=False, BUDGET_STEPS=8192))
+    assert res["state"] == "refused" and "S2_NB_SEAMS" in res["reason"] and not _calls(p)
+    assert "differs in spelling" not in nb.K6_RULE                   # (a note that no launch could print is gone)
+
+
+def test_a_colab_launch_on_a_checkout_with_modified_tracked_files_is_refused(tmp_path, monkeypatch, capsys):
+    """The lead's ruling 4 of 17 Nov: a Colab launch is refused when tracked files of the checkout are modified;
+    untracked files are only reported (as built: line 1 said "checkout clean: no" and nothing stopped)."""
+    p = _params(tmp_path)
+    clean = dict(commit=COMMIT, dirty=False, dirty_paths=[], modified=[], untracked=[])
+    monkeypatch.setattr(nb, "repo_state", lambda: dict(clean, dirty=True, dirty_paths=[" M designlab/stage2/nb.py"],
+                                                       modified=[" M designlab/stage2/nb.py"]))
+    with pytest.raises(nb.Refused, match="tracked files of the checkout are modified .* M designlab/stage2/nb.py"):
         _session(p, IN_COLAB=True)
     assert not (tmp_path / "drive").exists()
-    assert "differs in spelling" not in nb.K6_RULE                   # (a note that no launch could print is gone)
+    assert _session(p, RUN_ID="here")["repo"]["modified"] == [" M designlab/stage2/nb.py"]   # (not on Colab: kept)
+    smoke = _session(p, RUN_ID="smoke1", IN_COLAB=True, SMOKE=True, QUEUE=[], REPO_REF="s2-launch-1")
+    assert smoke["repo"]["dirty"] is True                                       # (a smoke: reported, as line 1 does)
+    monkeypatch.setattr(nb, "repo_state", lambda: dict(clean, dirty=True, dirty_paths=["?? notes.txt"],
+                                                       untracked=["?? notes.txt"]))
+    capsys.readouterr()
+    s = _session(p, RUN_ID="r2", IN_COLAB=True)
+    assert s["repo"]["untracked"] == ["?? notes.txt"] and s["repo"]["modified"] == []
+    assert "S2 NOTE: untracked files in the checkout (reported, not refused): notes.txt" in capsys.readouterr().out
 
 
 # ------------------------------------------------------------------------------------------------

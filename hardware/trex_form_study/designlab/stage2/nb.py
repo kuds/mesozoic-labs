@@ -64,7 +64,7 @@ resume.  ``finish`` says whether every finished job's last checkpoint is on Driv
 
 **Seams** (``_trainer_cmd``, ``_clip_cmd``, ``_pack_cmd``, ``_bundle_cmd``, ``_child_cmd``, ``_rebuild_cmd``,
 ``ROOT``): the places where this module meets the other tools; the tests replace them with stubs.  ``S2_NB_SEAMS``
-is refused on Colab.
+is refused on Colab and in any run that is not tiny.
 """
 
 from __future__ import annotations
@@ -593,13 +593,16 @@ def _git(*args, cwd=None) -> str | None:
 
 
 def repo_state() -> dict:
-    """``{commit, dirty, dirty_paths}`` of the repository the study is in (the whole checkout, untracked files
-    included; ignored files are not dirt).  All None where git cannot tell."""
+    """``{commit, dirty, dirty_paths, modified, untracked}`` of the repository the study is in (the whole checkout,
+    untracked files included; ignored files are not dirt): ``modified`` the tracked files that changed (their
+    ``git status --porcelain`` lines), ``untracked`` the others.  All None where git cannot tell."""
     head, status = _git("rev-parse", "HEAD"), _git("status", "--porcelain")
     if head is None or status is None:
-        return dict(commit=None, dirty=None, dirty_paths=None)
+        return dict(commit=None, dirty=None, dirty_paths=None, modified=None, untracked=None)
     lines = [x for x in status.splitlines() if x.strip()]
-    return dict(commit=head.strip(), dirty=bool(lines), dirty_paths=lines[:50])
+    return dict(commit=head.strip(), dirty=bool(lines), dirty_paths=lines[:50],
+                modified=[x for x in lines if not x.startswith("??")][:50],
+                untracked=[x for x in lines if x.startswith("??")][:50])
 
 
 def _ram_gb() -> float | None:
@@ -1319,9 +1322,14 @@ def session(run_id, drive, local, queue, repo_ref, commit, resume, params) -> di
         raise Refused("BUDGET_STEPS is not set: a launch names its budget (rule Y11 fixes it after the smoke)")
     if str(p["BUNDLE_ID"] or "") == S1_BUNDLE:
         raise Refused(f"BUNDLE_ID {S1_BUNDLE!r} is the name line 2 gives the Stage 1 view; a bundle has another")
-    if p["IN_COLAB"] and seams() is not None:
+    if seams() is not None and (p["IN_COLAB"] or not tiny):
         raise Refused("S2_NB_SEAMS names stub commands in place of the trainer: it is a hook of the tests and is "
-                      "refused on Colab; nothing was changed")
+                      "refused on Colab and in any run that is not tiny (TINY); nothing was changed")
+    repo = repo_state()
+    if p["IN_COLAB"] and not smoke and repo["modified"]:
+        raise Refused("tracked files of the checkout are modified (" + "; ".join(repo["modified"][:5])
+                      + "): a launch on Colab runs its commit as it is (the lead's ruling 4 of 17 Nov 2026); start a "
+                      "fresh runtime; nothing was changed")
     lead = read_lead(d)
     ld = (lead or {}).get("doc") or {}
     allow_source = bool(p["ALLOW_SOURCE_CHANGE"]) or ld.get("allow_source_change") is True
@@ -1332,6 +1340,9 @@ def session(run_id, drive, local, queue, repo_ref, commit, resume, params) -> di
     want = _queue_doc(run_id, jobs, repo_ref, commit, dict(p, BUDGET_BY=budget_by, BUDGET_SET_ON=budget_set_on))
     qpath = d / "QUEUE.json"
     qdoc, notes, took_over, source_change, halt = _read_json(qpath), [], None, False, None
+    if repo["untracked"]:
+        notes.append("untracked files in the checkout (reported, not refused): "
+                     + "; ".join(x[3:] for x in repo["untracked"][:5]))
     known = qpath.exists() or (d.is_dir() and any(d.glob("SESSION_*.json")))
     if not resume:
         if known:
@@ -1391,13 +1402,13 @@ def session(run_id, drive, local, queue, repo_ref, commit, resume, params) -> di
     setup_doc = setup_doc if isinstance(setup_doc, dict) else {}
     pinned = pins()
     vers = versions(pinned)
-    repo = repo_state()
     prev = _read_json(_state_path(lrun))
     sess = dict(
         schema=SESSION_SCHEMA, run_id=run_id, session=k, session_uuid=uuid.uuid4().hex, started_at=_now(),
         last_status_at=None, resume=resume, takeover=bool(p["TAKEOVER"]), took_over=took_over, smoke=smoke,
         repo=dict(ref=qdoc.get("repo_ref") if resume else repo_ref, commit=commit, dirty=repo["dirty"],
-                  cell_ref=repo_ref, run_commit=qdoc.get("commit")),
+                  cell_ref=repo_ref, run_commit=qdoc.get("commit"), modified=repo["modified"],
+                  untracked=repo["untracked"]),
         runtime=machine(lrun, p["IN_COLAB"]), versions=vers, torch_build=torch_build(vers.get("torch")),
         pins=pinned, pins_match=not pin_differences(pinned, vers),
         python_minor_matches=sys.version_info[:2] == PYTHON_MINOR, ffmpeg=shutil.which("ffmpeg"),
@@ -2773,6 +2784,9 @@ def launch(run_id, drive, local, queue, set_name, budget, workers, tiny=False, c
                 raise Refused(f"{d}: the run is finished ({name}); nothing to launch")
         if q.get("smoke"):
             raise Refused(f"{d}: this run is a smoke: it queues no training job (rule Y10)")
+        if seams() is not None and ((s.get("params") or {}).get("IN_COLAB") or not q.get("tiny")):
+            raise Refused("S2_NB_SEAMS names stub commands in place of the trainer: it is refused on Colab and in "
+                          "any run that is not tiny (TINY)")
         _refuse_closed(st, "launches nothing")
         mine = dict(queue=[r["entry"] for r in parse_queue(queue)], set=str(set_name), budget_steps=int(budget or 0),
                     tiny=bool(tiny), monitor_every=None if monitor_every is None else int(monitor_every),
