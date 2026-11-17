@@ -103,10 +103,37 @@ def test_constants_are_the_rules():
     assert 2 * 32_768 < 81_920 < 3 * 32_768 and 81_920 % (8 * 1024) == 0
     t = gates2.K3_TINY
     assert t["checkpoint_every"] * 2 < t["kill_at"] < t["checkpoint_every"] * 3 and t["kill_at"] % (8 * 64) == 0
-    assert gates2.TAIL_SCALE == 0.1 and gates2.JOIN_TOL_RAD == 1e-6 and gates2.ZERO_ACTION_S == 2.0
+    assert gates2.TAIL_SCALE == 0.1 and gates2.ZERO_ACTION_S == 2.0
+    # (f)'s join limit is no constant since the lead's ruling 15 of 17 Nov 2026: each join is held to its walk
+    assert not hasattr(gates2, "JOIN_TOL_RAD")
     for key in ("z1", "z2_ref", "z2_run", "k3", "rates", "gl_start", "r6_start", "x1"):
         assert gates2.RULES[key]
     assert "a tenth about its mean" in gates2.RULES["z2_ref"] and "toe-off and its side of 0.02 rad" in gates2.RULES["z2_ref"]
+
+
+def test_the_rule_text_holds_rulings_14_and_15_of_17_nov():
+    """G9-ref's rule text: ruling 14 (G9-ref fails while a failing item's reference is still available; the lead
+    marks it not available, freezes again and runs G9-ref again) and ruling 15 (a join's jump at a joint no larger
+    than the largest change between two consecutive frames of the walk it leaves), labelled a change after a result
+    with the numbers it was made after, before any look set was frozen, and the rule as first written."""
+    rule = gates2.RULES["z2_ref"]
+    wording, reading = rule.split(gates2.MODULE_READING)
+    for text in ("[changed after a result (rule Z2's label: changed after G9's result): the lead's ruling 15 of 17 "
+                 "Nov 2026",
+                 "Stage 1's own arrays (up to 1.1e-4 rad)",
+                 "on V0 (up to 5.3e-5 rad), seen on 17 Nov", "before any look set was frozen",
+                 "before any closed-loop episode on one", "as first written: joint targets within 1e-6 rad]",
+                 "a join's jump at a joint does not exceed the largest change between two consecutive frames of the "
+                 "walk it leaves, at that joint", "records both numbers per join and joint",
+                 "[the lead's ruling 14 of 17 Nov 2026] G9-ref fails while a failing item's reference is still "
+                 "available in the set, and its record names those references: the lead marks them not available, "
+                 "freezes the set again and runs G9-ref again"):
+        assert text in wording, text
+    assert "(joint targets within 1e-6 rad) and plays" not in rule
+    for text in ("the walk the track played last before the join", "the first walk it plays after the join",
+                 "a track that plays no walk holds its joins to 0", "the last frame to the first included",
+                 "r5lib.why_not", "or the set's latest freeze lists it"):
+        assert text in reading, text
     for key in ("z1", "z2_ref", "z2_run", "k3"):
         assert gates2.MODULE_READING in gates2.RULES[key]
 
@@ -409,45 +436,141 @@ def _seg(kind, S, **kw):
 
 
 def test_the_join_rule_on_tables():
-    """G9-ref (f): the jump at a join is between the joint targets segment i gives at its own end and segment
-    i + 1's first frame; within 1e-6 rad passes."""
-    walk = np.array([[0.0, 1.0], [0.1, 1.1], [0.2, 1.2], [0.3, 1.3]])
+    """G9-ref (f), the lead's ruling 15 of 17 Nov 2026: a join's jump at a joint (segment i's joint target at its own
+    end against segment i + 1's first frame) must not exceed the largest change between two consecutive frames of the
+    walk it leaves, at that joint (the last frame to the first included); the record holds both numbers per joint."""
+    # joint a moves 0.1 rad a frame; joint b 0.01 a frame and 0.03 from its last frame back to its first
+    walk = np.array([[0.0, 1.0], [0.1, 1.01], [0.2, 1.02], [0.1, 1.03]])
     per = _seg("periodic", walk, duration=2 * 4 * 0.01, step=0.01, n=4)  # two whole strides: it ends at frame 0
     np.testing.assert_array_equal(gates2._segment_end(per), walk[0])
     half = _seg("periodic", walk, duration=2.5 * 4 * 0.01, step=0.01, n=4)  # two and a half: frame 2
     np.testing.assert_allclose(gates2._segment_end(half), walk[2], atol=1e-12)
-    for jump, ok in ((0.0, True), (9e-7, True), (1e-6, True), (2e-6, False), (3e-5, False)):
-        move = _seg("finite", [walk[0] + [jump, 0.0], walk[1]], t0=0.08)
-        track = types.SimpleNamespace(segments=[per, move])
-        (j,) = gates2.joins(track, 2)
-        assert j["jump_rad"] == pytest.approx(jump, abs=1e-15) and j["ok"] is ok and j["at_ref_s"] == 0.08
+    limit = gates2.walk_steps(per, 2)
+    np.testing.assert_allclose(limit, [0.1, 0.03], atol=1e-15)
+    for first, over in ((walk[0], []), (walk[0] + [0.05, 0.025], []),
+                        ([walk[1][0], walk[3][1]], []),  # each joint exactly at its limit (b's: the last to the first)
+                        ([np.nextafter(walk[1][0], 1.0), 1.0], ["a"]), ([0.0, 1.031], ["b"]), ([1.0, 2.0], ["a", "b"])):
+        move = _seg("finite", [first, walk[1]], t0=0.08)
+        (j,) = gates2.joins(types.SimpleNamespace(segments=[per, move]), 2, ["a", "b"])
+        assert j["over"] == over and j["ok"] is (not over) and j["at_ref_s"] == 0.08, first
+        assert j["walk"] == "periodic periodic" and j["walk_is"] == "the walk it leaves"
+        for k, n in enumerate("ab"):
+            assert j["joints"][n] == dict(jump_rad=abs(walk[0][k] - first[k]), walk_step_rad=limit[k]), (first, n)
+        assert j["jump_rad"] == max(abs(walk[0][k] - first[k]) for k in range(2))
+    # the old rule's 1e-6 rad is gone: a jump of 3e-5 rad passes under a walk that moves more than that a frame
+    move = _seg("finite", [walk[0] + [3e-5, 3e-5], walk[1]])
+    assert gates2.joins(types.SimpleNamespace(segments=[per, move]), 2)[0]["ok"] is True
+    # a NaN jump is not within its limit
+    move = _seg("finite", [walk[0] + [np.nan, 0.0], walk[1]])
+    assert gates2.joins(types.SimpleNamespace(segments=[per, move]), 2, ["a", "b"])[0]["over"] == ["a"]
+    # a join that leaves no walk is held to the walk the track played last before it, else to the first walk after it
+    slow = _seg("periodic", walk * [0.1, 1.0], duration=0.04, step=0.01, n=4)
+    slow.name = "slow"
+    segs = [_seg("finite", [[9.0, 9.0], walk[0]]), per, _seg("finite", [walk[0], [5.0, 5.0]]),
+            _seg("hold", [[5.02, 5.0]]), _seg("finite", [[5.0, 5.0], slow.S[0]]), slow,
+            _seg("finite", [gates2._segment_end(slow), [4.0, 4.0]]), _seg("hold", [[4.0 + 0.02, 4.0]])]
+    js = gates2.joins(types.SimpleNamespace(segments=segs), 2, ["a", "b"])
+    assert [j["walk"] for j in js] == ["periodic periodic"] * 5 + ["periodic slow"] * 2
+    assert [j["walk_is"].split(" (")[0] for j in js] == (
+        ["the first walk the track plays after the join", "the walk it leaves"]
+        + ["the walk the track played last before the join"] * 3 + ["the walk it leaves",
+                                                                     "the walk the track played last before the join"])
+    assert [j["over"] for j in js] == [[], [], [], [], [], [], ["a"]]  # (0.02 rad: under per's 0.1, over slow's 0.01)
+    assert js[6]["joints"]["a"]["jump_rad"] == pytest.approx(0.02)
+    assert js[6]["joints"]["a"]["walk_step_rad"] == pytest.approx(0.01)
+    # a track that plays no walk holds its joins to 0 at every joint
+    hold = _seg("hold", [[1.0, 1.0]])
+    alone = gates2.joins(types.SimpleNamespace(segments=[hold, _seg("finite", [[1.0, 1.0]])]), 2)
+    assert alone[0]["walk"] is None and alone[0]["ok"] is True and alone[0]["joints"]["0"]["walk_step_rad"] == 0.0
+    alone = gates2.joins(types.SimpleNamespace(segments=[hold, _seg("finite", [[1.0 + 1e-12, 1.0]])]), 2)
+    assert alone[0]["ok"] is False and alone[0]["over"] == ["0"]
     # a finite segment ends at its last row (the next segment's first frame, appended by control.Track); a hold
-    # holds its one frame
+    # holds its one frame; only the first nj columns (the joint targets) are read
     fin = _seg("finite", [[5.0, 5.0], [6.0, 6.0]])
-    hold = _seg("hold", [[6.0, 6.0]])
-    assert gates2.joins(types.SimpleNamespace(segments=[fin, hold]), 2)[0]["jump_rad"] == 0.0
-    # only the first nj columns (the joint targets) are read
+    assert gates2.joins(types.SimpleNamespace(segments=[fin, _seg("hold", [[6.0, 6.0]])]), 2)[0]["jump_rad"] == 0.0
     wide = _seg("hold", [[6.0, 6.0, 99.0]])
     assert gates2.joins(types.SimpleNamespace(segments=[fin, wide]), 2)[0]["jump_rad"] == 0.0
+    with pytest.raises(gates2.GateError, match="3 joint names for 2"):
+        gates2.joins(types.SimpleNamespace(segments=[per, fin]), 2, ["a", "b", "c"])
+
+
+def _joins_within_their_walks(x: dict, joints) -> None:
+    """Every join of a task holds both numbers at every joint, and each jump is at most its walk's own step."""
+    for j in x["joins"]:
+        assert set(j) == {"at_ref_s", "before", "after", "walk", "walk_is", "jump_rad", "joints", "over", "ok"}
+        assert list(j["joints"]) == list(joints) and j["over"] == [] and j["ok"] is True
+        assert all(set(n) == {"jump_rad", "walk_step_rad"} and n["jump_rad"] <= n["walk_step_rad"]
+                   for n in j["joints"].values())
+        assert j["jump_rad"] == max(n["jump_rad"] for n in j["joints"].values())
 
 
 @needs_s1
 def test_g9_ref_part_f_on_the_s1_view():
     """Every task of the S1 view's library: its joins measured and 2 s of the zero action's targets finite.  Stage
-    1's own moves do not join their walks to 1e-6 rad (the walk to stop: 3.8e-5 rad), so (f) fails there by the
-    rule as written; the measurement is what the gate records (for the lead)."""
+    1's own moves do not join their walks to 1e-6 rad (the walk to stop: 3.8e-5 rad; brisk to brisk_to_nominal:
+    1.1e-4 rad), where nothing is wrong: under the lead's ruling 15 of 17 Nov 2026 each jump is within the largest
+    change between two consecutive frames of the walk it leaves, at each joint, and (f) passes there."""
     v = gates2._SetView(BODY, "S1")
     f = gates2.part_f(v)
     assert sorted(f["tasks"]) == ["brisk", "stand", "stop", "walk"] and f["screen"] is None
     for t, x in f["tasks"].items():
         assert x["available"] and x["zero_action_finite"] is True and x["zero_action_s"] == 2.0, t
-        assert all(set(j) == {"at_ref_s", "before", "after", "jump_rad", "ok"} for j in x["joins"])
+        assert x["ok"] is True and x["joins_ok"] is True, t
+        _joins_within_their_walks(x, v.p.joints)
     stand = f["tasks"]["stand"]
-    assert stand["ok"] and [j["jump_rad"] for j in stand["joins"]] == [0.0]
+    assert [j["jump_rad"] for j in stand["joins"]] == [0.0] and stand["joins"][0]["walk"] is None
     walk = f["tasks"]["walk"]
     assert [j["after"] for j in walk["joins"]] == ["periodic nominal", "finite stop"]
     assert walk["joins"][0]["jump_rad"] == 0.0 and walk["joins"][1]["jump_rad"] == pytest.approx(3.77e-5, rel=0.01)
-    assert walk["ok"] is False and f["ok"] is False and f["max_jump_rad"] > gates2.JOIN_TOL_RAD
+    assert [j["walk"] for j in walk["joins"]] == ["periodic nominal"] * 2
+    assert walk["joins"][1]["walk_is"] == "the walk it leaves"
+    brisk = {j["before"] + " -> " + j["after"]: j for j in f["tasks"]["brisk"]["joins"]}
+    j = brisk["periodic brisk -> finite brisk_to_nominal"]
+    assert j["jump_rad"] == pytest.approx(1.11e-4, rel=0.01) and j["walk"] == "periodic brisk"
+    assert f["ok"] is True and f["max_jump_rad"] == pytest.approx(1.11e-4, rel=0.01)
+    assert f["max_jump_rad"] > 1e-6  # (the rule as first written fails here)
+    assert "ruling 15 of 17 Nov 2026" in f["join_limit"] and "changed after G9's result" in f["join_limit"]
+
+
+@needs_s1
+def test_g9_ref_part_f_fails_a_doctored_join_whose_jump_exceeds_its_walks_own_step(monkeypatch):
+    """On the S1 view the stop's first frame is moved at one joint (the left knee) so that the join from the nominal
+    walk jumps 1.5 times the walk's own largest change between two consecutive frames at that joint: (f) fails, that
+    join names the joint, and the record holds both numbers; at half the walk's step it passes."""
+    from designlab.stage2 import r5lib
+
+    v = gates2._SetView(BODY, "S1")
+    nj = len(v.p.joints)
+    k = v.p.joints.index("left_knee")
+    real = r5lib.Library.script
+    share = {}
+
+    def doctored(self, task):
+        sc = real(self, task)
+        if task == "walk":
+            nominal, stop = sc.track.segments[1], sc.track.segments[2]
+            assert (nominal.kind, nominal.name, stop.name) == ("periodic", "nominal", "stop")
+            S = stop.S.copy()
+            S[0, k] = gates2._segment_end(nominal)[k] + share["x"] * gates2.walk_steps(nominal, nj)[k]
+            stop.S = S
+        return sc
+
+    monkeypatch.setattr(r5lib.Library, "script", doctored)
+    share["x"] = 1.5
+    f = gates2.part_f(v)
+    walk = f["tasks"]["walk"]
+    j = walk["joins"][1]
+    assert j["over"] == ["left_knee"] and j["ok"] is False and walk["joins_ok"] is False and walk["ok"] is False
+    n = j["joints"]["left_knee"]
+    assert n["jump_rad"] == pytest.approx(1.5 * n["walk_step_rad"], rel=1e-9) and n["walk_step_rad"] > 1e-3
+    assert f["ok"] is False and all(f["tasks"][t]["ok"] for t in ("stand", "brisk", "stop"))
+    doc = dict(set="S1", body=BODY, form="development (S1)", pass_=False, followed="",
+               parts_ok=dict(a=None, b=True, c=True, f=False), parts=dict(a={}, b={}, f=f))
+    lines = gates2.g9_ref_lines(doc)
+    assert any("finite stop" in x and "left_knee" in x and "periodic nominal" in x for x in lines), lines
+    share["x"] = 0.5
+    f = gates2.part_f(v)
+    assert f["ok"] is True and f["tasks"]["walk"]["joins"][1]["over"] == []
 
 
 @needs_v0
@@ -456,7 +579,9 @@ def test_g9_ref_on_the_frozen_set_v0(tmp_path):
     the refcheck record the set's latest freeze cites, by path and sha256; (b) holds the ladder's two rungs of the
     body by their twins (V0's) and fails on L1_FREEZE's V6 hashes, lists every walk and turn item with its steps,
     lift-offs and its reference toe-off with its side of 0.02 rad; (c) is made without flat feet (not V6); (f) cites
-    the screen record and measures every task.  Exit 1: G9-ref does not pass on V0."""
+    the screen record and measures every task, and passes: V0's moves do not join their walks to 1e-6 rad (up to
+    5.3e-5 rad), but each jump is within the largest change between two consecutive frames of the walk it leaves at
+    every joint (the lead's ruling 15 of 17 Nov 2026).  Exit 1: G9-ref does not pass on V0 ((b) and (c))."""
     rec = tmp_path / "gates" / "g9_ref.json"
     code = gates2.main(["g9-ref", "--body", BODY, "--set", "V0", "--record", str(rec)])
     assert code == 1
@@ -466,7 +591,7 @@ def test_g9_ref_on_the_frozen_set_v0(tmp_path):
     a = doc["parts"]["a"]
     fz = s2io.read_json(ROOT / "stage2" / "sets" / "V0" / BODY / "set.json")["freezes"][-1]["refcheck"]
     assert a["ok"] is True and a["refcheck"]["path"] == fz["file"] and a["refcheck"]["sha256"] == fz["sha256"]
-    assert a["blocked"] == [] and a["not_available"] == [] and "_doc" not in a
+    assert a["blocked"] == [] and a["failing_references"] == [] and a["still_available"] == [] and "_doc" not in a
     assert not (tmp_path / "gates" / "refcheck").exists()  # (cited, not run again)
     b = doc["parts"]["b"]
     assert set(b["rungs"]) == {"nominal", "v040", "fr05"} and b["rungs"]["fr05"]["in_ladder"] is False
@@ -490,6 +615,22 @@ def test_g9_ref_on_the_frozen_set_v0(tmp_path):
     f = doc["parts"]["f"]
     assert f["screen"]["path"] == "stage2/sets/V0/75-M-H-10/screen.json" and f["unplayed"] == {}
     assert f["tasks"]["turn_1_left"]["available"] is False and f["tasks"]["walk_v0.4"]["zero_action_finite"]
+    # (f) passes on V0 where the rule as first written (1e-6 rad) failed
+    nj = gates2._SetView(BODY, "V0").p.joints
+    assert f["ok"] is True and doc["parts_ok"]["f"] is True and f["max_jump_rad"] == pytest.approx(5.33e-5, rel=0.01)
+    for t, x in f["tasks"].items():
+        if x["available"]:
+            assert x["ok"] and x["zero_action_finite"], t
+            _joins_within_their_walks(x, nj)
+    worst = max((j for x in f["tasks"].values() if x["available"] for j in x["joins"]), key=lambda j: j["jump_rad"])
+    assert (worst["before"], worst["after"], worst["walk"]) == ("periodic nominal", "finite nominal_to_v0.35",
+                                                                 "periodic nominal")
+    # the stand after the stop into the start again leaves no walk: it is held to the walk the track played last
+    again = [j for j in f["tasks"]["start_stop"]["joins"]
+             if (j["before"], j["after"]) == ("hold stand", "finite start")]
+    assert len(again) == 1 and again[0]["walk"] == "periodic v0.4" and 1e-6 < again[0]["jump_rad"] < 1e-5
+    assert again[0]["walk_is"].startswith("the walk the track played last before the join")
+    assert doc["parts_ok"]["b"] is False and doc["parts_ok"]["c"] is False
     assert doc["followed"].startswith("no closed-loop episode runs on this set and body")
     # the record holds every file it played, each with the latest freeze's sha256, and those (f)'s library read
     manifest = s2io.read_json(ROOT / "stage2" / "sets" / "V0" / BODY / "set.json")["freezes"][-1]["manifest"]
@@ -565,23 +706,91 @@ def _doctored_refcheck(tmp_path, name: str, fail=None, set_name=None, file_sha=N
     return p
 
 
+TURN = "turn90_pi4_left"
+TURN_FILE = f"transitions/{TURN}.npz"
+
+
+def _marked(v, name: str = TURN, refreeze: bool = False):
+    """The lead's step after a G9-ref that names a reference (ruling 14 of 17 Nov 2026), on a set view in memory:
+    the entry marked not available and, with ``refreeze``, a latest freeze that no longer lists it."""
+    v.trs = copy.deepcopy(v.trs)
+    v.trs[name] = dict(v.trs[name], available=False, reason="its reference check fails (a test)")
+    if refreeze:
+        v.freeze = copy.deepcopy(v.freeze)
+        del v.freeze["entries"][name]
+        v.freeze["index"] += 1
+    return v
+
+
+def _refcheck_after(tmp_path, item: str = "turn/q90_left", file: str = TURN_FILE) -> Path:
+    """V0's refcheck record as bar.refcheck writes it once the item's reference is not available: the item not run,
+    its file no longer read."""
+    doc = s2io.read_json(V0_REFCHECK)
+    doc["items"][item] = dict(condition=item, status="not run", reason="its reference check fails (a test)",
+                              reference=file, pass_=None)
+    del doc["inputs"]["files"][file]
+    p = tmp_path / "refcheck_after.json"
+    s2io.write_json(p, doc)
+    return p
+
+
 @needs_v0
 def test_g9_ref_part_a_on_a_doctored_reference_check(tmp_path):
-    """G9-ref (a) on V0 with its reference check doctored: a failing turn item names its move as not available and
-    does not block; a failing walk/v0.4 item blocks; a record of another set, or one that read a file the latest
-    freeze holds with another sha256 (given by path as with --refcheck), is not read and blocks."""
+    """G9-ref (a) on V0 with its reference check doctored: a failing turn item names its move, which is still
+    available in the set (ruling 14 of 17 Nov 2026), and does not block; it is still available while the set's
+    entry is marked not available but its latest freeze lists it, and no longer once the latest freeze does not; a
+    failing walk/v0.4 item blocks; a record of another set, or one that read a file the latest freeze holds with
+    another sha256 (given by path as with --refcheck), is not read and blocks."""
     v = gates2._SetView(BODY, "V0")
     a = gates2.part_a(v, refcheck=V0_REFCHECK)
-    assert a["ok"] is True and a["blocks"] is False and a["files_match_freeze"] is True and a["not_available"] == []
-    a = gates2.part_a(v, refcheck=_doctored_refcheck(tmp_path, "turn", fail={"turn/q90_left": ["heading"]}))
+    assert a["ok"] is True and a["blocks"] is False and a["files_match_freeze"] is True
+    assert a["failing_references"] == [] and a["still_available"] == []
+    turn = _doctored_refcheck(tmp_path, "turn", fail={"turn/q90_left": ["heading"]})
+    a = gates2.part_a(v, refcheck=turn)
     assert a["ok"] is False and a["blocks"] is False and a["blocked"] == []
-    assert a["not_available"] == [dict(item="turn/q90_left", reference="transitions/turn90_pi4_left.npz",
-                                       failing=["heading"])]
-    assert "treated as not available" in a["followed"]
+    assert a["failing_references"] == [dict(item="turn/q90_left", reference=TURN_FILE, failing=["heading"],
+                                            entry_available=True, in_latest_freeze=True, still_available=True)]
+    assert a["still_available"] == [TURN_FILE]
+    assert a["followed"].startswith("G9-ref fails while a failing item's reference is still available in the set "
+                                    f"({TURN_FILE}): the lead marks them not available, freezes the set again and "
+                                    "runs G9-ref again")
+    # the entry marked not available, the set not frozen again: still available (its latest freeze lists it)
+    a = gates2.part_a(_marked(gates2._SetView(BODY, "V0")), refcheck=turn)
+    assert a["still_available"] == [TURN_FILE] and a["failing_references"][0]["entry_available"] is False
+    assert a["failing_references"][0]["in_latest_freeze"] is True and a["blocks"] is False
+    # marked and frozen again without it: no longer available; the old record read it, so it is not read
+    marked = _marked(gates2._SetView(BODY, "V0"), refreeze=True)
+    a = gates2.part_a(marked, refcheck=turn)
+    assert a["files_match_freeze"] is False and a["blocks"] is True and a["still_available"] == []
+    assert "(a) is not read" in a["followed"]
+    # ... and a record that does not read that file but still holds the failing item: the reference is listed,
+    # not available and not frozen, and does not stop G9-ref
+    doc = s2io.read_json(turn)
+    del doc["inputs"]["files"][TURN_FILE]
+    s2io.write_json(tmp_path / "turn_unread.json", doc)
+    a = gates2.part_a(marked, refcheck=tmp_path / "turn_unread.json")
+    assert a["ok"] is False and a["blocks"] is False and a["still_available"] == []
+    assert a["failing_references"][0]["still_available"] is False and "not in its latest freeze" in a["followed"]
+    # (an entry the set still holds as available is still available though the latest freeze does not list it)
+    unmarked = gates2._SetView(BODY, "V0")
+    unmarked.freeze = marked.freeze
+    a = gates2.part_a(unmarked, refcheck=tmp_path / "turn_unread.json")
+    assert a["still_available"] == [TURN_FILE] and a["failing_references"][0]["entry_available"] is True
+    assert a["failing_references"][0]["in_latest_freeze"] is False
+    # the record bar.refcheck writes once the move is not available: the item is not run and (a) passes
+    a = gates2.part_a(marked, refcheck=_refcheck_after(tmp_path))
+    assert a["ok"] is True and a["blocks"] is False and a["still_available"] == [] and a["failing_references"] == []
+    assert a["items"]["turn/q90_left"]["status"] == "not run"
+    # a reference that cannot be named counts as still available
+    assert gates2.still_available(v, None) == dict(entry_available=None, in_latest_freeze=None, still_available=True)
+    assert gates2.still_available(v, "refs/v0.4.npz")["still_available"] is True
+    assert gates2.still_available(v, "refs/no_such_walk.npz") == dict(entry_available=False, in_latest_freeze=False,
+                                                                      still_available=False)
     a = gates2.part_a(v, refcheck=_doctored_refcheck(tmp_path, "walk", fail={"walk/v0.4": []}))
     assert a["ok"] is False and a["blocks"] is True and a["blocked"] == ["walk/v0.4"]
-    assert a["not_available"] == [dict(item="walk/v0.4", reference="refs/v0.4.npz", failing=[])]
-    assert a["followed"].startswith("blocked")
+    assert a["failing_references"] == [dict(item="walk/v0.4", reference="refs/v0.4.npz", failing=[],
+                                            entry_available=True, in_latest_freeze=True, still_available=True)]
+    assert a["followed"].startswith("blocked") and a["still_available"] == ["refs/v0.4.npz"]
     for name, kw in (("other_set", dict(set_name="V1")), ("other_file", dict(file_sha="refs/v0.4.npz"))):
         a = gates2.part_a(v, refcheck=_doctored_refcheck(tmp_path, name, **kw))
         assert a["ok"] is False and a["blocks"] is True and "(a) is not read" in a["followed"], name
@@ -591,8 +800,11 @@ def test_g9_ref_part_a_on_a_doctored_reference_check(tmp_path):
 @needs_v0
 def test_g9_ref_passes_only_when_every_part_does(tmp_path, monkeypatch):
     """The whole gate on V0 with parts (b), (c) and (f) stood in: it passes (exit 0) only when (a), (b), (c) and
-    (f) all pass; a blocking (a) fails it.  A failing reference that does not block is listed as not available and
-    the gate can pass: the builder's reading, which this fix round lists for the lead (it is not changed here)."""
+    (f) all pass; a blocking (a) fails it.  The lead's ruling 14 of 17 Nov 2026 (this test pins it): a failing item
+    whose reference is still available in the set fails G9-ref (exit 1) and its record names that reference; it
+    still fails once the entry is marked not available while the latest freeze lists it; once the lead has marked it
+    not available, frozen the set again without it and the reference check no longer plays it, G9-ref is run again
+    and passes."""
     outcome = dict(b=True, c=True, f=True)
     monkeypatch.setattr(gates2, "part_b", lambda v, comparand=None: dict(ok=outcome["b"], items={}, walks={}))
     monkeypatch.setattr(gates2, "part_c", lambda v: dict(ok=outcome["c"], walks={}))
@@ -612,9 +824,32 @@ def test_g9_ref_passes_only_when_every_part_does(tmp_path, monkeypatch):
         outcome[part] = True
     code, doc = run(_doctored_refcheck(tmp_path, "walk", fail={"walk/v0.4": ["along"]}))
     assert code == 1 and doc["pass_"] is False and doc["parts"]["a"]["blocked"] == ["walk/v0.4"]
-    code, doc = run(_doctored_refcheck(tmp_path, "turn", fail={"turn/q90_left": ["heading"]}))
+    turn = _doctored_refcheck(tmp_path, "turn", fail={"turn/q90_left": ["heading"]})
+    code, doc = run(turn)
     assert doc["parts_ok"]["a"] is False and doc["parts"]["a"]["blocks"] is False
-    assert code == 0 and doc["pass_"] is True and "treated as not available" in doc["followed"]
+    assert code == 1 and doc["pass_"] is False and doc["parts"]["a"]["still_available"] == [TURN_FILE]
+    assert doc["followed"] == ("no closed-loop episode runs on this set and body; it goes to the lead; (a): "
+                               + doc["parts"]["a"]["followed"]) and TURN_FILE in doc["followed"]
+    assert "the lead marks them not available, freezes the set again and runs G9-ref again" in doc["followed"]
+    # the lead's step, as the set view reads it
+    View = gates2._SetView
+    step = dict(refreeze=False)
+
+    class Marked(View):
+        def __init__(self, *a, **kw):
+            super().__init__(*a, **kw)
+            _marked(self, refreeze=step["refreeze"])
+
+    monkeypatch.setattr(gates2, "_SetView", Marked)
+    code, doc = run(turn)  # marked, not frozen again
+    assert code == 1 and doc["parts"]["a"]["still_available"] == [TURN_FILE]
+    assert doc["parts"]["a"]["failing_references"][0]["in_latest_freeze"] is True
+    step["refreeze"] = True
+    code, doc = run(turn)  # frozen again, the old reference check (it read the move): (a) is not read
+    assert code == 1 and doc["parts"]["a"]["blocks"] is True and doc["parts"]["a"]["still_available"] == []
+    code, doc = run(_refcheck_after(tmp_path))  # and the reference check run again: G9-ref passes
+    assert code == 0 and doc["pass_"] is True and doc["parts_ok"]["a"] is True and doc["followed"] == "none"
+    assert doc["parts"]["a"]["items"]["turn/q90_left"]["status"] == "not run"
 
 
 @needs_s1
