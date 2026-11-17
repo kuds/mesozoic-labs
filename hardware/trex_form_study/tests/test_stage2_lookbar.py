@@ -2316,6 +2316,66 @@ def test_the_companion_names_the_g9_ref_record_its_episodes_ran_under(tmp_path):
     assert s2io.read_json(cpath)["g9_ref"] is None and s2io.read_json(cpath)["look_set"] is False
 
 
+def test_the_companion_of_a_condition_not_run_cites_the_g9_ref_record_as_the_others_do(tmp_path):
+    """The lead's ruling 42 of 17 Nov 2026 (after ruling 37 (c)): on a look set the companion of a record "not run"
+    (no episode, so no block to cite from) cites the G9-ref record given to ``collect`` (path and sha256), which is
+    the one the run's episodes ran under; without one it cites nothing, and once it cites one it keeps it.  A record
+    that ran keeps citing what its episodes' blocks hold; off the look sets nothing is cited."""
+    row = r0l()
+    cite = dict(path="stage2/tb/gates/V6/75-M-H-10/g9_ref.json", sha256="9" * 64)
+    given = dict(cite, pass_=True, at="fixture", set_freeze=dict(index=0, manifest_sha256="7" * 64))
+    _, cpath = write_run(tmp_path, "V6", row, "walk/v0.4", "bar_walk", [(bar_ep(s), dict(block(s), g9_ref=cite))
+                                                                       for s in SEEDS])
+    _, npath = write_run(tmp_path, "V6", row, "turn/q90_right", "bar_turn", [], status="not run")
+    lookbar.collect(tmp_path, "V6", BODY)  # (as the command line's collect: no citation given)
+    assert s2io.read_json(npath)["g9_ref"] is None and s2io.read_json(cpath)["g9_ref"] == cite
+    ran = s2io.sha256_file(cpath)
+    summary = lookbar.collect(tmp_path, "V6", BODY, g9_ref=given)
+    nr = s2io.read_json(npath)
+    assert nr["g9_ref"] == cite and nr["bar_record"]["status"] == "not run" and nr["episodes"] == []
+    assert nr["sha256"] == s2io.sha256_json({k: v for k, v in nr.items() if k != "sha256"})
+    assert [c["g9_ref"] for c in summary["records"]] == [cite, cite] and s2io.sha256_file(cpath) == ran
+    first = s2io.sha256_file(npath)
+    lookbar.collect(tmp_path, "V6", BODY, g9_ref=dict(given, sha256="8" * 64))  # (kept: it cites one already)
+    lookbar.collect(tmp_path, "V6", BODY)
+    assert s2io.sha256_file(npath) == first and s2io.sha256_file(cpath) == ran
+    # off the look sets the companion of a record not run cites nothing, whatever is given
+    _, npath = write_run(tmp_path, "V0", row, "turn/q90_right", "bar_turn", [], status="not run")
+    lookbar.collect(tmp_path, "V0", BODY, g9_ref=given)
+    assert s2io.read_json(npath)["g9_ref"] is None and s2io.read_json(npath)["look_set"] is False
+
+
+def test_run_gives_collect_the_g9_ref_record_that_let_its_rows_in(look_root, tmp_path, monkeypatch):
+    """``lookbar.run`` on a look set: the companion of a condition not run cites the G9-ref record the look sets'
+    rule let the evaluation in with (``rule.cited``, path and sha256), the same citation the episodes' blocks give
+    the companion of a condition that ran (the lead's ruling 42 of 17 Nov 2026).  ``bar.evaluate`` stands in: it
+    takes the rule's check and stamp, as the bar's own check does inside the context, and writes one record that
+    ran and one not run."""
+    root, shas = look_root
+    g9_ref_record("V6", shas["V6"])
+    out = tmp_path / "out"
+
+    def evaluate(set_name, body, out_, built, conditions, block_, procs, **kw):
+        rule = bar._check_rule.__self__  # (the look sets' rule lookbar.run opened)
+        rule.require()
+        rule.stamp(built)
+        row = built["R0L@10ms"]
+        held = lookbar.look_row_of(row).g9_ref
+        write_run(out_, set_name, row, "walk/v0.4", "bar_walk", [(bar_ep(s), dict(block(s), g9_ref=held))
+                                                                 for s in SEEDS])
+        write_run(out_, set_name, row, "turn/q90_right", "bar_turn", [], status="not run")
+        return dict(sessions=[dict()])
+
+    monkeypatch.setattr(bar, "evaluate", evaluate)
+    doc = lookbar.run("V6", BODY, out, ["R0L@10ms"], root=root)
+    cite = dict(path=doc["g9_ref"]["path"], sha256=doc["g9_ref"]["sha256"])
+    assert cite["sha256"] == s2io.sha256_file(gates2.gate_path("V6", BODY, "g9_ref"))
+    assert [(c["condition"], c["status"], c["g9_ref"]) for c in doc["records"]] == [
+        ("turn/q90_right", "not run", cite), ("walk/v0.4", "done", cite)]
+    nr = s2io.read_json(lookbar.companion_path(out, "V6", BODY, bar.HEADLINE_BLOCK, "R0L@10ms", "turn", "q90_right"))
+    assert nr["g9_ref"] == cite and nr["episodes"] == []
+
+
 # ------------------------------------------------------------------------------------------------
 # Slow: whole episodes on the S1 view
 # ------------------------------------------------------------------------------------------------

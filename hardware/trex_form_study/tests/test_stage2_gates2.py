@@ -1473,6 +1473,64 @@ def test_g9_run_part_d_and_e(tmp_path, monkeypatch):
     assert d["records"]["walk/v0.4"]["ok"] and all(x["ok"] for x in d["bar_records_10ms"].values()) and not d["problems"]
 
 
+def _not_run_companion(out: Path, key: str = "turn/q90_left") -> Path:
+    """A bar record of R0L@10ms "not run" (the set holds no reference for ``key``: no episode) and its companion
+    under ``out``, as the bar and ``lookbar.collect`` write them."""
+    from designlab.stage2 import bar
+
+    behavior, name = key.split("/")
+    bdir = bar.block_dir(out, "V0", BODY, "seeds3042")
+    bpath = bdir / "eval" / "R0L@10ms" / behavior / f"{name}.json"
+    s2io.write_json(bpath, dict(schema=bar.SCHEMA, row="R0L@10ms", key_name=key, status="not run",
+                                reason="no reference (a test)", definition=dict(judge="bar_turn"), seeds=[],
+                                episodes=[]))
+    doc = dict(schema="s2-look-1", bar_record=dict(path=os.path.relpath(bpath, out), sha256=s2io.sha256_file(bpath),
+                                                   status="not run"),
+               set="V0", body=BODY, row="R0L@10ms", condition=key, judge="bar_turn", episodes=[])
+    cpath = bdir / "look" / "R0L@10ms" / behavior / f"{name}.json"
+    gates2.finish(doc, cpath)
+    return cpath
+
+
+@pytest.mark.skipif(not BAR_V0.exists(), reason="needs the committed 75 cm round's records")
+def test_g9_run_part_d_lists_the_companions_of_conditions_not_run(tmp_path, monkeypatch, capsys):
+    """The lead's ruling 42 of 17 Nov 2026: (d) reads only the companions of the expected conditions for its
+    verdict; the companion of a condition the set holds no reference for, its bar record "not run" with no
+    episode, is listed as not run and fails nothing (rule H3); the companion of an expected condition that is "not
+    run", or absent, still fails (d)."""
+    out = tmp_path / "bar"
+    _companion_run(out, s2io.read_json(BAR_V0))
+    q90 = _not_run_companion(out)
+    monkeypatch.setattr(gates2, "_expected_conditions", lambda body, set_name, root=None: ["walk/v0.4"])
+    d = gates2.part_d(out, BODY, "V0", "seeds3042")
+    assert d["ok"] is True and list(d["records"]) == ["walk/v0.4"] and d["missing"] == [] and not d["problems"]
+    assert list(d["not_run"]) == ["turn/q90_left"] and d["not_expected"] == {}
+    nr = d["not_run"]["turn/q90_left"]
+    assert (nr["status"], nr["episodes"], nr["bar_episodes"]) == ("not run", 0, 0) and "a test" in nr["reason"]
+    assert nr["companion"]["sha256"] == s2io.sha256_file(q90) and nr["own_sha256_ok"] is True
+    g = gates2.g9_run(BODY, "V0", out, None, tmp_path / "g9_run.json")
+    assert g["pass_"] is True and g["parts"]["d"]["not_run"] == d["not_run"]
+    capsys.readouterr()
+    assert gates2.main(["g9-run", "--body", BODY, "--set", "V0", "--bar-out", str(out)]) == 0
+    assert "(1 companion records, missing [], not run ['turn/q90_left']), (e) True" in capsys.readouterr().out
+    # a companion of a condition not expected whose bar record is not as it names is not read either: listed so
+    rec = s2io.read_json(out / s2io.read_json(q90)["bar_record"]["path"])
+    s2io.write_json(out / s2io.read_json(q90)["bar_record"]["path"], dict(rec, reason="changed"))
+    d = gates2.part_d(out, BODY, "V0", "seeds3042")
+    assert d["ok"] is True and d["not_run"] == {}
+    assert d["not_expected"]["turn/q90_left"]["found"] == "its bar record's sha256 is not the one it names"
+    s2io.write_json(out / s2io.read_json(q90)["bar_record"]["path"], rec)
+    # an expected condition whose companion is "not run" fails (d), and so does one whose companion is absent
+    monkeypatch.setattr(gates2, "_expected_conditions", lambda body, set_name, root=None: ["walk/v0.4", "turn/q90_left"])
+    d = gates2.part_d(out, BODY, "V0", "seeds3042")
+    assert d["ok"] is False and d["not_run"] == {} and d["missing"] == [] and d["records"]["walk/v0.4"]["ok"]
+    assert d["records"]["turn/q90_left"]["problems"] == ["its bar record is 'not run', not done"]
+    assert gates2.g9_run(BODY, "V0", out)["pass_"] is False
+    q90.unlink()
+    d = gates2.part_d(out, BODY, "V0", "seeds3042")
+    assert d["ok"] is False and d["missing"] == ["turn/q90_left"] and d["not_run"] == {}
+
+
 @needs_v0
 def test_g9_run_expects_every_gated_condition_and_walk_nominal():
     keys = gates2._expected_conditions(BODY, "V0")
