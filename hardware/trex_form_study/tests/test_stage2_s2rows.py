@@ -73,11 +73,12 @@ def plain(x):
 # A job directory as the trainer leaves one, with a freshly initialised policy
 # ------------------------------------------------------------------------------------------------
 def make_job(job_dir, body: str, set_name: str = "S1", mode: str = "R5", seed: int = 42, root=None, scale: float = 1.0,
-             clock: float | None = None, steps: int = 0) -> dict:
+             clock: float | None = None, steps: int = 0, servo: str | None = None) -> dict:
     """``run.json`` and checkpoint ``steps`` of a freshly initialised policy of the body's layout (nothing is
     trained).  ``scale`` multiplies the action layer's weights (1: actions of about 0.02; 20: about 0.4, which
     fells the robot); ``clock`` sets the clock action's bias (with ``scale`` 0 the policy then holds that clock
-    action and moves no joint).  The observation statistics are made non-trivial.  Returns ``run.json``."""
+    action and moves no joint); ``servo`` turns the env configs' servo option on (``R5Config.servo``, the layer's
+    joint factors fixed at 1).  The observation statistics are made non-trivial.  Returns ``run.json``."""
     import gymnasium as gym
     from designlab.stage1 import policy
     from designlab.stage2 import r5env, schedules, train2
@@ -87,6 +88,8 @@ def make_job(job_dir, body: str, set_name: str = "S1", mode: str = "R5", seed: i
     job_dir = Path(job_dir)
     kw = {} if root is None else dict(root=root)
     cfgs = r5env.env_configs(mode, body, set_name, 8, **kw)
+    if servo is not None:
+        cfgs = [dataclasses.replace(c, servo=servo, joint_damping=(1.0, 1.0), joint_friction=(1.0, 1.0)) for c in cfgs]
     e = (r5env.R6Env if mode == "R6" else r5env.R5Env)(cfgs[0], **kw)
     desc, layout = e.describe(), e.layout
     e.close()
@@ -825,3 +828,22 @@ def test_r6_row_against_the_r6_env(tmp_path):
     eps = m2._checked(lookbar.episodes(BODY, "S1", lookbar.rows(BODY, ["R6/42@10ms"]), pairs), pairs, policy=True)
     assert [e["outcome"] in ("read", "fell") for e in eps] == [True, True] and all(e["error"] is None for e in eps)
     assert all(e["policy_check"]["mode"] == "R6" and e["survival_credit"] > 0 for e in eps)
+
+
+@needs_run
+def test_the_equivalence_check_gives_a_servo_draw_run_an_episode_seed(job, tmp_path):
+    """The lead's fourth list (the builder's (f) of S2): a run whose config has the servo option's draw is given the
+    panel seed as the env's episode seed, so the env draws ``servo.training_draw(seed)`` instead of refusing the
+    reset; the result names the set.  The row as the bar runs it is not served, so the two run different models.  A
+    run without the option is checked as before (no episode seed given, no ``servo`` key)."""
+    from designlab.stage2 import servo
+
+    draw = tmp_path / "R5-75-M-H-10-s42-draw"
+    run = make_job(draw, BODY, servo="draw")
+    assert {c["servo"] for c in run["settings"]["env_configs"]} == {"draw"}
+    r = s2rows.equivalence_check(draw, 0, BODY, "S1", "walk/brisk", 3043, 0, seconds=0.1)
+    assert r["servo"] == dict(option="draw", episode_seed=3043, setting="train/3043")
+    assert servo.training_draw(3043).name == "train/3043"
+    assert r["reference_steps"] == 50 and not r["identical"] and r["first_difference"] is not None
+    plain_ = s2rows.equivalence_check(job, 0, BODY, "S1", "walk/brisk", 3043, 0, seconds=0.1)
+    assert "servo" not in plain_ and plain_["identical"] and plain_["reference_steps"] == 50
