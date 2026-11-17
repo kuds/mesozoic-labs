@@ -28,9 +28,12 @@ attempt; the sixth list of 16 Nov, 3, and the rulings of 17 Nov, 10 and 11).  ``
 ``MonitorRefusal`` before any episode when the sources are not the trainer's (kind ``sources``), when the run's
 ``run.json`` is missing, cannot be read or is no JSON object (``run``), when the checkpoint is not intact
 (``checkpoint``: no record, a record that cannot be read or has the wrong shape, a file that is not the one its
-record names), when the checkpoint is another run's (``other_run``) and when the row refuses the checkpoint while it
+record names), when the checkpoint is another run's (``other_run``), when the row refuses the checkpoint while it
 is built, before any episode (``ROW_REFUSALS``: ``s2rows.RowError``, kind ``row``; ``s2load.CheckpointError``, kind
-``checkpoint``, among them a fingerprint not reproduced at the row's load).  The CLI then leaves with its own exit
+``checkpoint``, among them a fingerprint not reproduced at the row's load), and when the set is a look set (or a
+version of one) whose G9-ref has not passed for the body on its latest freeze (``SET_REFUSALS``:
+``lookbar.LookSetRefused``, kind ``look_set``, which ``lookbar.episodes`` raises before the set is read: rule X1, the
+lead's ruling 31 of 17 Nov 2026, 6).  The CLI then leaves with its own exit
 code, ``EXIT_REFUSAL`` (8), and writes the reason beside where the record would be (``refusal_path``:
 ``monitor_<n>.refused.json``, the baseline's ``r0l.refused.json``); a later call of the same check takes that note
 away before it runs.  A row that refuses only after the check's episodes (the further delays of rule M6) is no
@@ -94,7 +97,7 @@ REFUSAL_SCHEMA = "s2-monitor-refusal-1"
 #: the trainer or of a pool worker has it (0, 1, 2, 3, 4, 5, 130).
 EXIT_REFUSAL = 8
 #: What a refusal can be (``MonitorRefusal.kind``).
-REFUSALS = ("sources", "checkpoint", "other_run", "run", "row")
+REFUSALS = ("sources", "checkpoint", "other_run", "run", "row", "look_set")
 #: How a row refuses a checkpoint while it is built (``s2rows.configure``, ``lookbar.rows``), before any episode:
 #: (module, class name, refusal kind).  The class is looked up in ``sys.modules`` and never imported for it: an
 #: exception of that class can only have been raised once its module was loaded (``s2rows`` is merged; the row
@@ -102,6 +105,10 @@ REFUSALS = ("sources", "checkpoint", "other_run", "run", "row")
 #: An exception of another class, of the same name or not, is no refusal (``_row_refusal``).
 ROW_REFUSALS = (("designlab.stage2.s2rows", "RowError", "row"),
                 ("designlab.stage2.s2load", "CheckpointError", "checkpoint"))
+#: How ``lookbar.episodes`` refuses the episodes before the set is read and before any episode (rule X1: a look set,
+#: or a version of one, whose G9-ref has not passed for the body on its latest freeze; the lead's ruling 31 of
+#: 17 Nov 2026, 6), in ``ROW_REFUSALS``' form.  Anything else that function raises is no refusal.
+SET_REFUSALS = (("designlab.stage2.lookbar", "LookSetRefused", "look_set"),)
 #: What makes a record's episodes (``episodes_by``): every set goes through ``lookbar`` (the lead's ruling 17 of
 #: 17 Nov 2026: the Stage 1 view's stand-in is deleted).
 EPISODES_BY = "lookbar.episodes"
@@ -209,9 +216,11 @@ RULES = dict(
         "cannot be read or is no JSON object, when the checkpoint is not intact (no record, a record that cannot be "
         "read or has the wrong shape: its files, and a layout and a fingerprint object, the rulings of 17 Nov 2026, "
         "12; or a file that is not the one its record names), when the checkpoint is "
-        "another run's (its run_uuid or settings hash is not the run's), and when the row refuses the checkpoint "
+        "another run's (its run_uuid or settings hash is not the run's), when the row refuses the checkpoint "
         "while it is built (s2rows.RowError; s2load.CheckpointError: among them a fingerprint not reproduced at the "
-        "row's load).  The monitor then leaves with exit code 8 and writes its reason to monitor_<n>.refused.json "
+        "row's load), and when the set is a look set, or a version of one, whose G9-ref has not passed for the body "
+        "on its latest freeze (rule X1: lookbar.LookSetRefused, raised before the set is read; the lead's ruling 31 "
+        "of 17 Nov 2026, 6).  The monitor then leaves with exit code 8 and writes its reason to monitor_<n>.refused.json "
         "(the baseline: r0l.refused.json).  The trainer closes the attempt with that exit code, marks it refused "
         "with the reason, does not count it toward the two closed attempts after which a check counts as without a "
         "gain, and halts with exit code 5: the run goes to the lead, and a resume runs the check again (a resume "
@@ -615,11 +624,11 @@ def s2_10(final: dict, earlier: list, baseline: dict) -> dict:
 # ------------------------------------------------------------------------------------------------
 # The episodes (the one indirection to lookbar and s2rows)
 # ------------------------------------------------------------------------------------------------
-def _row_refusal(exc: BaseException) -> str | None:
+def _row_refusal(exc: BaseException, table: tuple = ROW_REFUSALS) -> str | None:
     """The refusal kind of an exception raised while a row is built (``ROW_REFUSALS``), or None: an instance of
     ``s2rows.RowError`` (``row``) or of ``s2load.CheckpointError`` (``checkpoint``), each class looked up in
-    ``sys.modules``."""
-    for module, name, kind in ROW_REFUSALS:
+    ``sys.modules``.  With ``table`` ``SET_REFUSALS``: of one that ``lookbar.episodes`` raised."""
+    for module, name, kind in table:
         cls = getattr(sys.modules.get(module), name, None)
         if isinstance(cls, type) and isinstance(exc, cls):
             return kind
@@ -639,7 +648,9 @@ def _episodes(body: str, set_name: str, row: str, pairs: list, policies: dict | 
     and a checkout that cannot import ``lookbar`` raises its import error.
 
     The row is built before any episode: a ``ROW_REFUSALS`` exception raised there (by ``s2rows.configure`` or
-    ``lookbar.rows``) is the monitor's ``MonitorRefusal``.  Whatever ``lookbar.episodes`` raises is not (an
+    ``lookbar.rows``) is the monitor's ``MonitorRefusal``.  So is a ``SET_REFUSALS`` exception raised by
+    ``lookbar.episodes`` (``lookbar.LookSetRefused``: rule X1, checked before the set is read and before any
+    episode; the lead's ruling 31 of 17 Nov 2026, 6).  Whatever else ``lookbar.episodes`` raises is not (an
     episode's own fault is an *error* in its table)."""
     import importlib
 
@@ -655,7 +666,14 @@ def _episodes(body: str, set_name: str, row: str, pairs: list, policies: dict | 
         if kind is None:
             raise
         raise _row_refused(row, kind, exc) from exc
-    return lookbar.episodes(body, set_name, rows, list(pairs), traces=traces)
+    try:
+        return lookbar.episodes(body, set_name, rows, list(pairs), traces=traces)
+    except Exception as exc:
+        kind = _row_refusal(exc, SET_REFUSALS)
+        if kind is None:
+            raise
+        raise MonitorRefusal(kind, f"the look set {set_name} refused the row {row} before any episode "
+                                   f"({type(exc).__name__}: {exc})") from exc
 
 
 # ------------------------------------------------------------------------------------------------
@@ -959,7 +977,7 @@ __all__ = ["ATTEMPTS", "BASELINE_SCHEMA", "CONDITIONS", "CREDIT_RTOL", "DIGEST_K
            "G8B_AGAIN_AT", "G8B_AT",
            "G8B_CONDITION", "K", "MonitorError", "MonitorRefusal", "OUTCOMES", "REFUSALS", "REFUSAL_SCHEMA",
            "ROW_REFUSALS", "RULES",
-           "S1_CONDITIONS", "S1_FIX_TASKS", "S2_10_SCHEMA", "SCHEMA",
+           "S1_CONDITIONS", "S1_FIX_TASKS", "S2_10_SCHEMA", "SCHEMA", "SET_REFUSALS",
            "SEEDS", "STOP_CHECKS", "STOP_FROM", "baseline", "baseline_equal", "baseline_problem",
            "checkpoint_hashes", "conditions_down", "conditions_for", "decide", "digest_compared", "fix_tasks_for",
            "fix_weights", "g8b",

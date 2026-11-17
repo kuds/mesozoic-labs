@@ -34,9 +34,10 @@ final checkpoint the monitor child runs on the checkpoint just saved; each attem
 ``env_method("set_task_weights")``), the stop rules.  A stop by a rule ends the job with exit code 0.  A monitor
 that refuses to run (its exit code ``monitor2.EXIT_REFUSAL``: its sources have moved, the run's ``run.json`` is
 missing, the checkpoint is not intact, the checkpoint is another run's, the row refuses the checkpoint while it is
-built) made no attempt: the attempt is closed as ``refused`` with the monitor's reason, it is not one of the two
-closed attempts after which a check counts as without a record, the run halts, and a resume runs the check again
-(with ``--retry-check`` when the refused attempt was the one that parameter let run; ``monitor2.RULES["refusal"]``).
+built, the look set's G9-ref has not passed) made no attempt: the attempt is closed as ``refused`` with the
+monitor's reason, it is not one of the two closed attempts after which a check counts as without a record, the run
+halts, and a resume runs the check again (with ``--retry-check`` when the refused attempt was the one that
+parameter let run; ``monitor2.RULES["refusal"]``).
 The monitor child's environment holds ``STAGE2_ALLOW_SOURCE_CHANGE=1`` exactly when the session's sources are
 allowed (``ALLOW_SOURCE_ENV``): the session was given ``--allow-source-change``, or an earlier session given it ran on
 the same sources (``SOURCE_ALLOWANCE_RULE``: an allowance holds for the rest of the run for the same sources, and
@@ -1269,7 +1270,8 @@ class _Run:
             return dict(kind=note.get("kind"), reason=str(note["reason"]))
         return dict(kind=None, reason=f"exit code {int(code)} and no note of its reason: its sources have moved, the "
                                       "run's run.json is missing, the checkpoint is not intact, the checkpoint is "
-                                      "another run's, or the row refused the checkpoint while it was built")
+                                      "another run's, the row refused the checkpoint while it was built, or the "
+                                      "look set's G9-ref has not passed (rule X1)")
 
     def _end_children(self) -> None:
         """``CHILD_RULE``: end the monitor children of earlier sessions that outlived their trainer."""

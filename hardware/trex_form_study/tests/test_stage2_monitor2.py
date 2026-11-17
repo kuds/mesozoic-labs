@@ -32,7 +32,9 @@ indirection to ``lookbar``, is replaced by such a table; no episode is run):
   shape (among them one without a ``layout`` or ``fingerprint`` object: the rulings of 17 Nov 2026, 12), and a
   row that refuses the checkpoint while it is built (``s2rows.RowError``, here a stub class of that name and module
   in place of the merged rows package; ``s2load.CheckpointError``, a fingerprint not reproduced at the
-  row's load).  An exception of another class of the same name, one that ``lookbar.episodes`` raises and a row's
+  row's load), and ``lookbar.LookSetRefused`` (rule X1: a look set whose G9-ref has not passed), raised by
+  ``lookbar.episodes`` itself before the set is read (kind ``look_set``: the lead's ruling 31 of 17 Nov 2026, 6).
+  An exception of another class of the same name, anything else that ``lookbar.episodes`` raises and a row's
   refusal at a further delay (after the check's episodes) are none;
 * every set, the Stage 1 view's included, goes through ``lookbar``: the stand-in is deleted, and a checkout that
   cannot import ``lookbar`` runs no monitor on any set (the lead's ruling 17 of 17 Nov 2026);
@@ -293,7 +295,8 @@ def test_a_monitor_that_refuses_to_run_leaves_with_its_own_exit_code(monkeypatch
     own = train2.sources()["sha256"]
     mon = job / "monitor"
     note, base_note = mon / "monitor_512.refused.json", mon / "r0l.refused.json"
-    assert m2.EXIT_REFUSAL == 8 and m2.REFUSALS == ("sources", "checkpoint", "other_run", "run", "row")
+    assert m2.EXIT_REFUSAL == 8 and m2.REFUSALS == ("sources", "checkpoint", "other_run", "run", "row",
+                                                "look_set")
     assert m2.refusal_path(mon, 512) == note and m2.refusal_path(mon) == base_note
     assert "is no attempt" in m2.RULES["refusal"] and "refusal" in m2.RULES["attempts"]
     assert m2.rules(2_500_000)["texts"]["refusal"] == m2.RULES["refusal"]
@@ -534,6 +537,60 @@ def test_a_rows_refusal_before_any_episode_is_the_monitors(monkeypatch, tmp_path
     # the row built, the check runs
     raise_at.clear()
     assert m2.main(run + ["--also-k", "0"]) == 0 and (mon / "monitor_512.json").is_file()
+
+
+def test_a_look_sets_refusal_is_the_monitors(monkeypatch, tmp_path):
+    """The lead's ruling 31 of 17 Nov 2026 (6): ``lookbar.LookSetRefused`` (rule X1: on a look set, or a version of
+    one, no episode runs before the set's G9-ref has passed for the body on its latest freeze) is a refusal of the
+    monitor, of kind ``look_set``: exit code 8 and its note, at the baseline and at a check, before the set is read
+    and before any episode; not a crash.  Here ``lookbar.episodes`` itself refuses (no G9-ref record: the gates'
+    directory is a temporary one); the row is a ``LookRow`` around a bare row.  On a set that is no look set nothing
+    is refused, and what ``lookbar.episodes`` raises there stays no refusal."""
+    import types
+
+    from designlab.stage1 import panels
+    from designlab.stage2 import gates2, lookbar, train2
+
+    monkeypatch.setattr(gates2, "GATES", tmp_path / "gates")
+    seen = []
+
+    def open_set(*a, **k):
+        seen.append("open_set")
+        raise RuntimeError("the set was read")
+
+    monkeypatch.setattr(lookbar, "open_set", open_set)
+    monkeypatch.setattr(lookbar, "rows", lambda body, names: seen.append(("rows", names[0])) or {
+        names[0]: lookbar.LookRow(panels.Row())})
+    s2rows = types.ModuleType("designlab.stage2.s2rows")  # (the policy row is never built here)
+    s2rows.configure = lambda policies: seen.append("configure")
+    monkeypatch.setitem(sys.modules, "designlab.stage2.s2rows", s2rows)
+    job = _job(tmp_path)
+    own = train2.sources()["sha256"]
+    mon = job / "monitor"
+    for set_name in ("V6", "V6noF5", "V6.2"):
+        base = ["baseline", "--job", str(job), "--body", BODY, "--set", set_name, "--sources", own]
+        run = ["run", "--job", str(job), "--steps", "512", "--body", BODY, "--set", set_name, "--sources", own]
+        for argv, note, row in ((base, mon / "r0l.refused.json", "R0L@10ms"),
+                                (run, mon / "monitor_512.refused.json", "R5/42@10ms")):
+            seen.clear()
+            said = _cli_refused(argv, note, "look_set", f"{set_name}/{BODY}: there is no G9-ref record", [])
+            assert said["reason"].startswith(f"the look set {set_name} refused the row {row} before any episode "
+                                             "(LookSetRefused: ")
+            assert "rule X1" in said["reason"]
+            assert seen == ([("rows", row)] if argv[0] == "baseline" else ["configure", ("rows", row)])
+        with pytest.raises(m2.MonitorRefusal) as info:
+            m2.baseline(BODY, set_name, mon, sources_sha256=own, job_dir=job)
+        assert info.value.kind == "look_set" and isinstance(info.value.__cause__, lookbar.LookSetRefused)
+        assert not (mon / "r0l.json").exists() and not (mon / "monitor_512.json").exists()
+    # on a set that is no look set nothing is refused: the set is read (here that raises, and is no refusal)
+    seen.clear()
+    with pytest.raises(RuntimeError, match="the set was read"):
+        m2.main(["baseline", "--job", str(job), "--body", BODY, "--set", "F25F9", "--sources", own])
+    assert seen == [("rows", "R0L@10ms"), "open_set"] and not (mon / "r0l.refused.json").exists()
+    # the kind, and the rule's text
+    assert m2.REFUSALS == ("sources", "checkpoint", "other_run", "run", "row", "look_set")
+    assert m2.SET_REFUSALS == (("designlab.stage2.lookbar", "LookSetRefused", "look_set"),)
+    assert "G9-ref has not passed" in m2.RULES["refusal"] and "LookSetRefused" in m2.RULES["refusal"]
 
 
 def test_a_baseline_that_holds_an_error_is_no_baseline(monkeypatch, tmp_path):
