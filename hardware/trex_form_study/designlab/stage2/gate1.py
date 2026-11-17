@@ -18,13 +18,17 @@ What it holds
 * ``plan``: the records a run makes: each served row (``servo.NAME_RULE``: ``SV0`` the served R0 stand-in,
   ``SV2/<seed>`` the served R2 stand-in), setting (``servo.NAMED``, ``D`` the drawn panel: 20 drawn sets by seed),
   delay and condition on one of the bar's seed blocks.  The second block (5042-5061) takes the drawn panel alone, and
-  only a record whose headline reading passed (P41's repeat).
+  only a record of a row that gives a verdict whose headline reading passed (P41's repeat; the lead's fifth list: a
+  served stand-in row's D record is reported and never sent there).
 * ``dry_run``: the plan with each record's planned seconds and a cost estimate from committed rates; it runs no
   episode and writes nothing (``RULES["cost"]``).
 * ``run``: the episodes (``bar.run_episode`` in ``GateWorker``, ``bar.BarWorker``'s form, one process or a pool), one
   record per row and condition (``record_path``) with the servo model's readings of every run and of the record
   (``servo.record_readings``: reported only), resumable per episode; a finished record of another key is never
-  overwritten.
+  overwritten.  A run takes an episode cap (``max_episodes``) and refuses a plan over it (``RULES["cap"]``); it
+  refuses SV2 rows on a set that is not registered (``RULES["placement"]``); a run on V0, F25F9 or F25F9cl is a
+  development run, listed in ``DEV_RUNS`` (``RULES["development"]``); a cut condition (``--cut-s``, tests only) is
+  never judged (``RULES["cut"]``).
 * ``reading``: condition 2's pass rule as approved (``RULES["pass_"]``): at a corner only staying up is judged, the
   other limits recorded; the drawn panel by the bar's whole rule; its repeat on the second block.  ``verdict``: a
   served stand-in row gives none (``servo.NO_VERDICT_CONTROLLERS``) and no served row is attributed.
@@ -32,7 +36,8 @@ What it holds
   repeat; whether condition 2 holds needs served policy rows (``servo.SV5_HOOK``), which do not exist yet.
 
 Command line: ``python -m designlab.stage2.gate1 {dry-run,run,summary} --set V0 --body 75-M-H-10 --rows SV0,SV2/42
---settings @named,D --delays 4,10`` (``--root`` the sets' root; ``run --out`` a directory of its own).
+--settings @named,D --delays 4,10`` (``--root`` the sets' root; ``run --out`` a directory of its own and
+``--max-episodes`` its cap).
 """
 
 from __future__ import annotations
@@ -79,6 +84,17 @@ COST_MD = s2io.STUDY / "stage2" / "runs" / "2026-11-15-75cm" / "COST.md"
 LAYER_COST = 1.10
 #: Gate 1's servo rules (design package S5) are not registered: every record of this runner is a development record.
 RULES_REGISTERED = False
+#: This runner's own listing of its development runs on the registered sets (``RULES["development"]``; the lead's fifth
+#: list of 17 Nov 2026), beside rule X1's list ``stage2/tb/dev_episodes.json``, which is ``gates2``'s and which this
+#: runner does not write.  A run names another file with ``dev_runs`` (``--dev-runs``).
+DEV_RUNS = s2io.STUDY / "stage2" / "tb" / "gate1_dev_runs.json"
+DEV_RUNS_SCHEMA = "gate1-dev-runs-1"
+#: The settings whose runs that leave the supply window are not counted as stayed up (design section 4: ``V-``; ``W1``
+#: holds ``V-``; the lead's fifth list).  Both are reported only, so no verdict moves.
+SUPPLY_SETTINGS = ("V-", "W1")
+#: Why a served stand-in row's D record has no repeat (``RULES["repeat"]``; the lead's fifth list, the bar's form).
+NO_REPEAT = ("a served stand-in row gives no verdict: its D record is reported and never sent to the second block "
+             "(the bar's form)")
 
 RULES = dict(
     route=(
@@ -111,7 +127,10 @@ RULES = dict(
         "P41's repeat: a D record whose headline reading passes is run once more on the second block (5042-5061: by "
         "SeedSequence([s, 3]) 20 other drawn sets), and the repeat must pass too: the drawn panel passes only when "
         "both pass.  Printed beside the headline record as replicated, not replicated, repeat not judged or repeat not "
-        "run; only D has a second block, and a record is selected for it by its headline reading, whatever its row"),
+        "run.  The verdict (the lead's fifth list of 17 Nov 2026): replicated counts as passing, not replicated as "
+        "failing, and anything else (not run, not judged) as pending (None), so a repeat that has not run or could "
+        "not be read never counts (C8).  Only D has a second block, and only a row that gives a verdict is sent to "
+        "it (the bar's form): a served stand-in row's (SV0, SV2) D record is reported and never replicated"),
     verdict=(
         "a served stand-in row (SV0, SV2) gives no verdict (design 5.1; the lead's fourth list): its records carry "
         "their reading and the verdict None; no served row is attributed (no relax run, no attribution label).  A "
@@ -119,6 +138,14 @@ RULES = dict(
         "Condition 2 holds when the served policy rows of both training seeds pass all 28 judged records (7 settings "
         "x 2 delays x 2 policies) and every drawn panel's repeat; no served policy row exists yet (servo.SV5_HOOK), "
         "so this runner states no verdict on condition 2"),
+    supply=(
+        "design section 4 (the lead's fifth list of 17 Nov 2026): a run of V- or W1 (W1 holds V-) that did not fall "
+        "and left the supply window (a step below the leg drives' 20 V floor or a collapsed step: Layer.readings) "
+        "is not counted as stayed up: in the record's counts (both readings) and in the summary it is \"left the "
+        "supply window\" (counts' left_supply_window; survived and succeeded leave it out; by_the_bar keeps the bar's "
+        "own two numbers).  Both settings are reported only, so no verdict moves.  A run of any other setting that "
+        "left the window is reported (servo_readings) and counted as the bar counts it (the lead's ruling of 16 Nov "
+        "2026, choice 10)"),
     readings=servo.READINGS_RULE,
     key=(
         "a record's key: the bar's record key (bar.record_key: the body, set, block, the row's description and "
@@ -130,7 +157,27 @@ RULES = dict(
         "gate 1's servo rules (SERVO_MODEL_DESIGN.md package S5) are not registered: every record of this runner is a "
         "development record (development: true), never a gate 1 record; none is written under stage2/runs/, "
         "stage1/ or the sets' root.  On a look set this runner makes no episode (rule X1: not before its G9-ref has "
-        "passed; the look sets' row rule names no served row)"),
+        "passed; the look sets' row rule names no served row).  Until gate 1's servo rules are registered every run "
+        "of this runner on V0, F25F9 or F25F9cl (or a version of one) is a development run (the lead's fifth list of "
+        "17 Nov 2026): it is listed in this runner's own listing, stage2/tb/gate1_dev_runs.json beside rule X1's "
+        "stage2/tb/dev_episodes.json (or the file --dev-runs names), with its command, set, body, block, rows, "
+        "settings, delays, conditions, seeds and count (the episodes it starts), once before any episode runs and "
+        "again when its records are written, keyed by its session"),
+    placement=(
+        "the bar's placement rule as amendment 5 (STAGE2_75_PLAN.md, 15 Nov) says it of R2 rows (the lead's fifth "
+        "list of 17 Nov 2026): on a set that is not one of the 75 cm round's three (V0, F25F9, F25F9cl) or a version "
+        "of one (bar.registered_name: a scratch or fixture set) a served R2 row (SV2, R2 inside) is refused, by the "
+        "run and by the dry run, before anything is read or written; SV0 rows (R0 inside) run there"),
+    cap=(
+        "a run takes an episode cap (--max-episodes, required) and refuses a plan over it before anything is written "
+        "or run: the episodes it would start (every seed still to run of every selected record, a failed episode run "
+        "again included) must not exceed the cap.  The dry run states each block's count against a cap it is given.  "
+        "Package S4 sets the rates; a budget ledger comes with gate 1's servo rules (the lead's fifth list)"),
+    cut=(
+        "--cut-s cuts every episode of a run to that many seconds: for tests only.  A cut condition's episode is the "
+        "served row's episode alone, never judged (the bar's judge is not called: it reads no cut walk), recorded "
+        "with judged false and no success, never as an episode that failed to run, so a later run of the same key "
+        "keeps it; its record is read by no rule here"),
     cost=(
         "the dry run's estimate (it runs no episode and writes nothing): each record's planned simulated seconds x "
         "the episodes x the inner row's committed rate (the bar's COST.md: R0's for SV0, R2's for SV2; the largest "
@@ -196,6 +243,24 @@ def check_out(out, root=setio.ROOT) -> None:
                              f"({RULES['development']})")
 
 
+def registered_set(set_name: str) -> str | None:
+    """The registered set a run's set stands for (``bar.registered_name``: V0, F25F9, F25F9cl or a version of one): a
+    run on it is a development run, listed (``RULES["development"]``), and SV2 rows run there
+    (``RULES["placement"]``); None for a scratch or fixture set."""
+    return bar.registered_name(set_name)
+
+
+def check_rows(set_name: str, bases) -> None:
+    """``RULES["placement"]``: no served R2 row (``SV2``) on a set that is not registered (a scratch or fixture set),
+    as amendment 5 says of R2 rows."""
+    if registered_set(set_name) is not None:
+        return
+    bad = [b for b in bases if str(b).split("/", 1)[0] == servo.SERVED_R2]
+    if bad:
+        raise Gate1Error(f"{set_name} is a scratch or fixture set (not V0, F25F9, F25F9cl or a version of one): "
+                         f"{', '.join(bad)} serve an R2 row, which never runs there ({RULES['placement']})")
+
+
 def look_set(set_name: str) -> str | None:
     from . import lookbar  # (only to name the look sets)
 
@@ -218,13 +283,22 @@ def gate1_sources() -> dict:
     return {s2io.portable(str(p)): s2io.sha256_file(p)}
 
 
+def runner_sources() -> dict:
+    """The servo model's module and this runner by sha256: what ``GateWorker`` checks has not changed during a
+    session (the lead's fifth list of 17 Nov 2026), beside the bar's and the panels' sources ``bar.BarWorker``
+    checks."""
+    files = sorted({Path(servo.__file__).resolve(), Path(__file__).resolve()})
+    return {s2io.portable(str(f)): s2io.sha256_file(f) for f in files}
+
+
 def plan(set_name: str, body: str, bases, settings=("@judged",), delays_ms=DELAYS_MS, conditions=(CONDITION,),
          block: str = HEADLINE, episodes: int = bar.RUNS, cut_s: float | None = None, root=setio.ROOT,
          out=None) -> dict:
     """The records a run of ``block`` makes (module docstring): ``{set_docs, planner, run_dir, units}``, a unit per
-    row and condition: ``{row, base, setting, delay_ms, condition, cond, resolved, why, seeds, selected, reason}``.
-    On the second block only the drawn panel's rows are planned, each selected when its headline record under ``out``
-    has a reading that passed (``RULES["repeat"]``)."""
+    row and condition: ``{row, base, setting, delay_ms, condition, cond, resolved, why, seeds, selected, reason,
+    cut}``.  On the second block only the drawn panel's rows are planned: a row that gives a verdict is selected when
+    its headline record under ``out`` has a reading that passed, and a served stand-in row never is
+    (``RULES["repeat"]``)."""
     if block not in bar.BLOCKS:
         raise ValueError(f"block {block!r}: choose from {', '.join(bar.BLOCKS)}")
     seeds = [int(s) for s in bar.BLOCKS[block][: int(episodes)]]
@@ -244,11 +318,15 @@ def plan(set_name: str, body: str, bases, settings=("@judged",), delays_ms=DELAY
         res = None if why is not None else planner.resolve(cc)
         for name, s, ms in names:
             u = dict(row=name, base=base_of(name), setting=s, delay_ms=ms, condition=c.key, cond=cc, resolved=res,
-                     why=why, seeds=seeds, selected=True, reason=None)
+                     why=why, seeds=seeds, selected=True, reason=None,
+                     cut=res is not None and res.get("cut_from_s") is not None)
             if block == SECOND:
                 if s != DRAWN:
                     continue  # (only the drawn panel has a second block)
-                u["selected"], u["reason"] = headline_passed(out, set_name, body, name, cc)
+                if bar.controller_of(name) in servo.NO_VERDICT_CONTROLLERS:
+                    u["selected"], u["reason"] = False, NO_REPEAT
+                else:
+                    u["selected"], u["reason"] = headline_passed(out, set_name, body, name, cc)
             units.append(u)
     return dict(set_docs=set_docs, planner=planner, run_dir=run_dir, units=units, seeds=seeds, block=block,
                 settings=sets)
@@ -278,10 +356,33 @@ def rule_of(setting: str) -> str:
     return "corner" if setting in CORNERS else "whole" if setting == DRAWN else "reported"
 
 
+def left_supply_window(e: dict) -> bool:
+    """Whether an episode's run left the supply window (``Layer.readings``; False without readings)."""
+    return bool(((e.get("servo") or {}).get("readings") or {}).get("left_supply_window"))
+
+
+def counts(setting: str, episodes: list[dict], seeds, which: str = "success") -> dict:
+    """The bar's counts of a record in one reading (``bar.counts``), with ``RULES["supply"]``: for ``V-`` and ``W1``
+    a run that did not fall and left the supply window is not counted as stayed up (nor as meeting every limit) but
+    as ``left_supply_window``; ``by_the_bar`` keeps the bar's own two numbers.  Every other setting's counts are the
+    bar's, with ``left_supply_window`` 0."""
+    c = bar.counts(episodes, seeds, which)
+    if setting not in SUPPLY_SETTINGS:
+        return dict(c, left_supply_window=0)
+    skey = bar.READINGS[which][0]
+    left = [e for e in episodes if not e.get("error") and not e["fell"] and left_supply_window(e)]
+    n, surv = c["episodes"], c["survived"] - len(left)
+    succ = c["succeeded"] - int(sum(bool(e.get(skey)) for e in left))
+    return dict(c, survived=surv, succeeded=succ, left_supply_window=len(left),
+                survival_lcb=panels.lcb(surv, n), success_lcb=panels.lcb(succ, n),
+                pass_=bool(surv == bar.RUNS and succ >= bar.MIN_SUCCEED) if c["judged"] else None,
+                by_the_bar=dict(survived=c["survived"], succeeded=c["succeeded"]))
+
+
 def reading(setting: str, episodes: list[dict], seeds, applies: bool = True) -> dict:
     """Condition 2's reading of a record (``RULES["pass_"]``): ``pass_`` True or False when judged, else None.
     ``applies`` is False for a record off gate 1's walk, floor and delays, or of a cut condition."""
-    c = bar.counts(episodes, seeds, "success")
+    c = counts(setting, episodes, seeds, "success")
     rule = rule_of(setting)
     judged = bool(c["judged"]) and applies and rule != "reported"
     if not judged:
@@ -299,6 +400,7 @@ def reading(setting: str, episodes: list[dict], seeds, applies: bool = True) -> 
         why = "the record does not hold a block's 20 seeds in order, or an episode failed to run"
     return dict(setting=setting, rule=rule, judged=judged, pass_=pass_, reason=why, runs=c["episodes"],
                 survived=c["survived"], succeeded=c["succeeded"], errors=c["errors"],
+                left_supply_window=c["left_supply_window"],
                 limits=("recorded, not judged" if rule == "corner" else "judged" if rule == "whole" else "recorded"))
 
 
@@ -320,17 +422,41 @@ def served_of(row) -> servo.Served:
 # ------------------------------------------------------------------------------------------------
 # The worker: the bar's, with the servo readings of every episode
 # ------------------------------------------------------------------------------------------------
+def cut_episode(row, ctx, cond, seed: int) -> dict:
+    """``RULES["cut"]``: the episode of a cut condition (``--cut-s``, tests only): the row's episode alone, never
+    judged (the bar's judge reads no cut walk); no success, no limits, no trace, and no error."""
+    t0 = time.perf_counter()
+    b, out, rec = row.episode(ctx, cond, int(seed), ())
+    return dict(seed=int(seed), fell=bool(out.get("fell")), fall_time_s=out.get("fall_time_s"),
+                fall_cause=out.get("fall_cause"), fell_before_command=None, fall_candidates=[],
+                survival_s=float(rec.t[-1]) if rec.rows else 0.0, cut=True, judged=False,
+                not_judged="a cut condition (--cut-s, tests only): the episode is never judged (RULES['cut'])",
+                succeeded=None, succeeded_but_A1=None, failed_terms=[], failed_terms_but_A1=[], relaxed=[],
+                wall_s=time.perf_counter() - t0)
+
+
 class GateWorker(bar.BarWorker):
     """``bar.BarWorker`` (its checks of the bar's and the panels' sources, the set and the inputs), whose episode
-    record also holds the served row's parameters and the layer's readings of the run (``servo``)."""
+    record also holds the served row's parameters and the layer's readings of the run (``servo``).  It also refuses
+    to start when the servo model's module or this runner differ from the session's (``runner``: ``runner_sources``;
+    the lead's fifth list of 17 Nov 2026), and runs a cut condition's episode unjudged (``cut_episode``)."""
+
+    def __init__(self, *a, runner: dict | None = None, **kw):
+        if runner is not None and runner_sources() != runner:
+            raise tune.PoolError("the servo model's module or gate 1's runner (servo.py, gate1.py) changed during the "
+                                 "session: restore them and run again")
+        super().__init__(*a, **kw)
+        self.runner = runner
 
     def evaluate(self, job, seed) -> dict:
-        row, cond, relax, pdir, key_sha256 = job
+        row, cond, relax, pdir, key_sha256, cut = job
         t0 = time.perf_counter()
         r = self.rows[row]
         try:
             sv = served_of(r)
-            if self.traces is None:
+            if cut:
+                e = cut_episode(r, self.ctx, cond, int(seed))
+            elif self.traces is None:
                 e = bar.run_episode(r, self.ctx, cond, int(seed), tuple(relax))
             else:
                 why = self.not_kept(row)
@@ -353,7 +479,7 @@ def _worker(body, run_dir, mode, rate, expected_inputs=None, **kw):
 
 
 def _lost(job, reason: str) -> dict:
-    (row, cond, relax, pdir, key_sha256), seed = job
+    (row, cond, relax, pdir, key_sha256, cut), seed = job
     return dict(bar.failed_episode(cond, seed, f"worker lost: {reason}", relax), servo=None)
 
 
@@ -381,7 +507,8 @@ def condition_record(body: str, set_name: str, block: str, row, unit: dict, epis
         row=row.name, base=unit["base"], controller=bar.controller_of(row.name), setting=unit["setting"],
         delay_ms=unit["delay_ms"], behavior=cond.behavior, condition=cond.name, key_name=cond.key,
         gate1_condition=cond.key == CONDITION, cut=cut, seeds=list(seeds), plan=key["plan"], seconds=key["seconds"],
-        counts=bar.counts(episodes, seeds, "success"), counts_but_A1=bar.counts(episodes, seeds, "but_A1"),
+        counts=counts(unit["setting"], episodes, seeds, "success"),
+        counts_but_A1=counts(unit["setting"], episodes, seeds, "but_A1"),
         reading=rd, verdict=verdict(row.name, rd),
         attribution=dict(label="not attributed: no served row is attributed (design 5.1)", episodes=0),
         falls=bar.fall_split(episodes), success_label=bar.success_label(episodes),
@@ -412,12 +539,16 @@ def rate_of(rates: dict, row: str) -> tuple[float, str]:
 
 def dry_run(set_name: str, body: str, bases, settings=("@judged",), delays_ms=DELAYS_MS, conditions=(CONDITION,),
             blocks=(HEADLINE, SECOND), episodes: int = bar.RUNS, cut_s: float | None = None, root=setio.ROOT,
-            rates: dict | None = None, out=None, log=print) -> dict:
+            rates: dict | None = None, out=None, max_episodes: int | None = None, log=print) -> dict:
     """Every record a run would make on ``blocks``, its planned seconds and its cost (``RULES["cost"]``) from the
-    committed rates (``rates``: a ``bar.read_cost`` document; default ``COST_MD``'s).  Runs no episode and writes
-    nothing; ``text`` is logged."""
+    committed rates (``rates``: a ``bar.read_cost`` document; default ``COST_MD``'s), and each block's episodes
+    against the cap ``max_episodes`` when given (``RULES["cap"]``).  Refuses SV2 rows on a set that is not
+    registered (``RULES["placement"]``).  Runs no episode and writes nothing; ``text`` is logged."""
+    check_rows(set_name, bases)
     cost = rates if rates is not None else (bar.read_cost(COST_MD) if COST_MD.is_file() else None)
-    lines, totals = [], Counter()
+    lines, per_block = [], {b: Counter() for b in blocks}
+    totals = Counter({f"{k}_{x}": 0 for k in ("planned", "conditional")
+                      for x in ("records", "episodes", "simulated_s", "core_h")})
     for block in blocks:
         p = plan(set_name, body, bases, settings, delays_ms, conditions, block, episodes, cut_s, root, out)
         for u in p["units"]:
@@ -439,6 +570,7 @@ def dry_run(set_name: str, body: str, bases, settings=("@judged",), delays_ms=DE
                               status=status, rate=which, core_h=core_h,
                               core_h_with_layer=None if core_h is None else core_h * LAYER_COST))
             key = "conditional" if status.startswith("if selected") else "planned"
+            per_block[block][key] += n if status == "to run" or key == "conditional" else 0
             totals[f"{key}_records"] += 1 if n else 0
             totals[f"{key}_episodes"] += n
             totals[f"{key}_simulated_s"] += 0.0 if sec is None else n * sec
@@ -472,8 +604,20 @@ def dry_run(set_name: str, body: str, bases, settings=("@judged",), delays_ms=DE
              f"{totals['conditional_records']} records, {totals['conditional_episodes']} episodes, "
              f"{totals['conditional_core_h']:.3f} core-hours ({totals['conditional_core_h'] * LAYER_COST:.3f} with "
              "the layer's estimate).", ""]
+    cap = {}
+    for b, c in per_block.items():
+        most = c["planned"] + c["conditional"]
+        cap[b] = dict(to_run=c["planned"], up_to=most, max_episodes=max_episodes,
+                      within=None if max_episodes is None else most <= int(max_episodes))
+        text.append(f"Episodes a `run --block {b}` would start: {c['planned']}"
+                    + (f" (up to {most} if every conditional record is selected)" if c["conditional"] else "")
+                    + ("; no cap given (`run` requires --max-episodes)." if max_episodes is None else
+                       f"; cap {int(max_episodes)}: " + ("within it." if most <= int(max_episodes) else
+                                                         "over it, so `run` refuses it (RULES['cap'])."))
+                    )
+    text.append("")
     doc = dict(set=set_name, body=body, bases=list(bases), blocks=list(blocks), episodes=int(episodes),
-               cost=cost, records=lines, totals=dict(totals), layer_cost=LAYER_COST, text="\n".join(text))
+               cost=cost, records=lines, totals=dict(totals), layer_cost=LAYER_COST, cap=cap, text="\n".join(text))
     log(doc["text"])
     return doc
 
@@ -481,18 +625,68 @@ def dry_run(set_name: str, body: str, bases, settings=("@judged",), delays_ms=DE
 # ------------------------------------------------------------------------------------------------
 # Running
 # ------------------------------------------------------------------------------------------------
+def command_of(set_name, body, out, bases, settings, delays_ms, conditions, block, procs, episodes, cut_s, traces,
+               root, max_episodes, dev_runs) -> str:
+    """The command line that makes the run ``run``'s arguments name (``RULES["development"]``'s listing)."""
+    def j(xs):
+        return ",".join(str(x) for x in xs)
+
+    parts = ["python -m designlab.stage2.gate1 run", f"--set {set_name}", f"--body {body}", f"--rows {j(bases)}",
+             f"--settings {j(settings)}", f"--delays {j(int(x) for x in delays_ms)}", f"--conditions {j(conditions)}",
+             f"--episodes {int(episodes)}", f"--block {block}", f"--procs {int(procs)}",
+             f"--max-episodes {int(max_episodes)}", f"--root {s2io.portable(str(root))}",
+             f"--out {s2io.portable(str(out))}", f"--dev-runs {s2io.portable(str(dev_runs))}"]
+    if cut_s is not None:
+        parts.append(f"--cut-s {float(cut_s):g}")
+    if traces:
+        parts.append("--traces")
+    return " ".join(parts)
+
+
+def list_dev_run(path, entry: dict) -> dict:
+    """``RULES["development"]``: list one run on a registered set in ``path`` (``DEV_RUNS``), keyed by its session: a
+    later call for the same session updates the entry (its state ``done`` after ``started``).  Whatever else the
+    file holds is kept."""
+    path = Path(path)
+    doc = bar._read(path) if path.is_file() else None
+    doc = doc or dict(schema=DEV_RUNS_SCHEMA, rule=RULES["development"],
+                      note="gate 1's runner of the served panels: its development runs on V0, F25F9 and F25F9cl "
+                           "(simulation only; no record of these runs is a gate 1 record)", runs=[])
+    runs = doc.setdefault("runs", [])
+    for i, e in enumerate(runs):
+        if e.get("session") == entry["session"]:
+            runs[i] = dict(e, **entry)
+            break
+    else:
+        runs.append(dict(entry))
+    s2io.write_json(path, bar._plain_json(doc))
+    return doc
+
+
 def run(set_name: str, body: str, out, bases, settings=("@judged",), delays_ms=DELAYS_MS, conditions=(CONDITION,),
         block: str = HEADLINE, procs: int = 1, episodes: int = bar.RUNS, cut_s: float | None = None,
         traces: bool = False, root=setio.ROOT, stage1_run=bar.STAGE1_RUN, timeout_s: float = tune.EVAL_TIMEOUT_S,
-        log=print) -> dict:
+        log=print, *, max_episodes: int, dev_runs=DEV_RUNS, command: str | None = None) -> dict:
     """Run the plan's records (``plan``) into ``out`` (``record_path``); resumes per episode (partial files), keeps a
     finished record of the same key and never overwrites one of another key (``Gate1Error``).  ``traces`` false has
-    every episode's trace hashed and not kept.  Returns ``summarize``'s document with the session."""
+    every episode's trace hashed and not kept.  Refuses SV2 rows on a set that is not registered
+    (``RULES["placement"]``) and a plan that would start more than ``max_episodes`` episodes (``RULES["cap"]``),
+    before anything is written; a run on V0, F25F9 or F25F9cl is listed in ``dev_runs`` (``RULES["development"]``)
+    with ``command`` (default: the command line of these arguments).  Returns ``summarize``'s document with the
+    session."""
     s2io.require_one_thread()
     out = Path(out)
     check_out(out, root)
     if look_set(set_name) is not None:
         raise Gate1Error(f"{set_name} is a look set: {RULES['development']}")
+    check_rows(set_name, bases)
+    if isinstance(max_episodes, bool) or int(max_episodes) != max_episodes or int(max_episodes) < 0:
+        raise ValueError(f"max_episodes {max_episodes!r}: a whole number of episodes, 0 or more ({RULES['cap']})")
+    max_episodes = int(max_episodes)
+    dev = registered_set(set_name)
+    if command is None:
+        command = command_of(set_name, body, out, bases, settings, delays_ms, conditions, block, procs, episodes, cut_s,
+                             traces, root, max_episodes, dev_runs)
     t_start = time.perf_counter()
     p = plan(set_name, body, bases, settings, delays_ms, conditions, block, episodes, cut_s, root, out)
     set_docs, run_dir, seeds = p["set_docs"], p["run_dir"], p["seeds"]
@@ -508,7 +702,8 @@ def run(set_name: str, body: str, out, bases, settings=("@judged",), delays_ms=D
                 s2io.sweep_tmp(d)
         src, bsrc, kctx = panels.panel_sources(), bar.bar_sources(), panels.key_context(body)
         key_sources = dict(panels=src["sha256"], bar=bsrc["sha256"])
-        git = s2io.git_state(own_outputs=[str(out.resolve())])
+        git = s2io.git_state(own_outputs=[str(out.resolve())] + ([str(Path(dev_runs).resolve())] if dev else []))
+        rsrc = runner_sources()  # (taken once: every worker checks its own against these, GateWorker)
         prov = dict(plant.provenance(), git=git, panel_sources=src, bar_sources=bsrc, runner_sources=gate1_sources())
         started_at = s2io.now_utc()
         sess = dict(id=f"{started_at}/{os.getpid()}", started_at=started_at, commit=git["commit"], dirty=git["dirty"],
@@ -519,17 +714,12 @@ def run(set_name: str, body: str, out, bases, settings=("@judged",), delays_ms=D
                        not_selected=[f"{u['row']} {u['condition']}: {u['reason']}" for u in p["units"]
                                      if not u["selected"]], incomplete=[], incidents=[])
         trace_root = out / set_name / body / block / "gate1" / "traces"
-        items, mismatched = [], []
+        items, mismatched, not_run = [], [], []
         for u in todo_units:
             row = row_objs[u["row"]]
             path = record_path(out, set_name, body, block, u["row"], u["cond"])
             if u["why"] is not None:
-                if not path.exists():
-                    s2io.write_json(path, bar._plain_json(dict(
-                        schema=SCHEMA, development=not RULES_REGISTERED, status="not run", body=body, set=set_name,
-                        block=block, row=u["row"], setting=u["setting"], delay_ms=u["delay_ms"],
-                        key_name=u["cond"].key, why=u["why"], rules=RULES, ended_at=s2io.now_utc())))
-                session["not_run"].append(f"{u['row']} {u['condition']}: {u['why']['reason']}")
+                not_run.append((u, path))
                 continue
             key = record_key(body, set_name, block, row, u, inputs, kctx, key_sources, omega, crouch)
             kh = s2io.sha256_json(key)
@@ -552,9 +742,29 @@ def run(set_name: str, body: str, out, bases, settings=("@judged",), delays_ms=D
             raise Gate1Error("\n".join(f"{q}: a finished record holds another key:\n    " + "\n    ".join(d[:12])
                                        for q, d in mismatched)
                              + "\nA finished record is never overwritten: use a new --out.")
+        jobs = [((it["row"], it["cond"], (), str(it["pdir"]), it["kh"], bool(it["cut"])), s) for it in items
+                for s in it["run"]]
+        if len(jobs) > max_episodes:
+            raise Gate1Error(f"the plan would start {len(jobs)} episodes, over the cap of {max_episodes} "
+                             f"(--max-episodes; {RULES['cap']}): nothing was run or written")
+        for u, path in not_run:
+            if not path.exists():
+                s2io.write_json(path, bar._plain_json(dict(
+                    schema=SCHEMA, development=not RULES_REGISTERED, status="not run", body=body, set=set_name,
+                    block=block, row=u["row"], setting=u["setting"], delay_ms=u["delay_ms"],
+                    key_name=u["cond"].key, why=u["why"], rules=RULES, ended_at=s2io.now_utc())))
+            session["not_run"].append(f"{u['row']} {u['condition']}: {u['why']['reason']}")
+        entry = None
+        if dev is not None:  # listed before any episode runs: a killed run is still on the list
+            entry = dict(session=sess["id"], state="started", command=command, set=set_name, registered_set=dev,
+                         body=body, block=block, rows=sorted(row_objs), bases=list(bases),
+                         settings=list(p["settings"]), delays_ms=[int(x) for x in delays_ms],
+                         conditions=list(conditions), seeds=list(seeds), count=len(jobs), max_episodes=max_episodes,
+                         cut_s=cut_s, out=s2io.portable(str(out.resolve())), commit=git["commit"],
+                         started_at=started_at)
+            list_dev_run(dev_runs, entry)
         pool = None
         try:
-            jobs = [((it["row"], it["cond"], (), str(it["pdir"]), it["kh"]), s) for it in items for s in it["run"]]
             if jobs:
                 pool = tune.Pool(body, run_dir, procs, mode="bar", rate=bar.RATE, timeout_s=timeout_s,
                                  factory=functools.partial(
@@ -562,7 +772,7 @@ def run(set_name: str, body: str, out, bases, settings=("@judged",), delays_ms=D
                                      rows=[row_objs[r].spec() for r in sorted({it["row"] for it in items})],
                                      sources=panels.fingerprint(src["sha256"], kctx), bar=bsrc["sha256"],
                                      traces=str(trace_root), keep_traces=bool(traces), crouch_frac=None,
-                                     session=sess))
+                                     session=sess, runner=rsrc))
                 theirs = (pool.inputs or {}).get("files") or {}
                 diff = [f for f in files if theirs.get(f) != inputs["files"].get(f)]
                 if diff or (pool.inputs or {}).get("freeze") != inputs.get("freeze"):
@@ -599,11 +809,16 @@ def run(set_name: str, body: str, out, bases, settings=("@judged",), delays_ms=D
             c, rd, sr = rec["counts"], rec["reading"], rec["servo_readings"]
             if c["errors"]:
                 session["incomplete"].append(f"{it['row']} {it['condition']}: {c['errors']} episodes failed to run")
-            log(f"{set_name} {body} {block} {it['row']} {it['condition']}: {c['survived']}/{c['episodes']} stay up, "
-                f"{c['succeeded']} meet every limit; reading {rd['rule']}: "
+            log(f"{set_name} {body} {block} {it['row']} {it['condition']}: {c['survived']}/{c['episodes']} stay up"
+                + (f" ({c['left_supply_window']} more left the supply window, not counted as up)"
+                   if c["left_supply_window"] else "")
+                + f", {c['succeeded']} meet every limit; reading {rd['rule']}: "
                 + ("not judged" if rd["pass_"] is None else "pass" if rd["pass_"] else "FAIL")
                 + f"; verdict {rec['verdict']['value']}; {sr['runs_left_supply_window']} runs left the supply window")
         session.update(ended_at=s2io.now_utc(), wall_s=time.perf_counter() - t_start)
+        if entry is not None:
+            list_dev_run(dev_runs, dict(entry, state="done", episodes_run=session["episodes_run"],
+                                        incomplete=list(session["incomplete"]), ended_at=session["ended_at"]))
     return dict(summarize(out, set_name, body), session=session)
 
 
@@ -623,10 +838,16 @@ def records(out, set_name: str, body: str) -> list[dict]:
     return docs
 
 
+#: ``RULES["repeat"]``: a passing D record's verdict by its repeat's word; any other word is pending (None).
+REPEAT_VERDICT = {"replicated": True, "not replicated": False}
+
+
 def repeat_word(head: dict, second: dict | None) -> str | None:
     """``RULES["repeat"]``'s word for a drawn-panel headline record."""
     if head.get("setting") != DRAWN:
         return None
+    if bar.controller_of(head["row"]) in servo.NO_VERDICT_CONTROLLERS:
+        return f"no repeat ({NO_REPEAT})"
     if (head.get("reading") or {}).get("pass_") is not True:
         return "no repeat (the headline reading did not pass)"
     if not second or second.get("status") != "done":
@@ -649,12 +870,13 @@ def summarize(out, set_name: str, body: str, write: bool = True) -> dict:
         word = repeat_word(r, second.get((r["row"], r["key_name"]))) if r["block"] == HEADLINE else None
         v = r["verdict"]["value"]
         if v is True and r["setting"] == DRAWN and r["block"] == HEADLINE:
-            v = word == "replicated"  # (P41: the repeat must pass too)
+            v = REPEAT_VERDICT.get(word)  # (P41: the repeat must pass too; anything else is pending, C8)
         sr = r["servo_readings"]
         rows.append(dict(block=r["block"], row=r["row"], base=r["base"], setting=r["setting"], delay_ms=r["delay_ms"],
                          condition=r["key_name"], status="done", survived=r["counts"]["survived"],
                          succeeded=r["counts"]["succeeded"], runs=r["counts"]["episodes"], rule=r["reading"]["rule"],
                          reading=r["reading"]["pass_"], verdict=v, repeat=word,
+                         not_up_left_supply_window=int(r["counts"].get("left_supply_window") or 0),
                          left_supply_window=sr["runs_left_supply_window"],
                          inside_play_share_leg_mean=sr["inside_play_share_leg_mean"], development=r["development"],
                          path=r["path"]))
@@ -688,6 +910,8 @@ def summarize(out, set_name: str, body: str, write: bool = True) -> dict:
 
 
 def summary_text(doc: dict) -> str:
+    """The summary as a table.  "Up" leaves out a V- or W1 run that left the supply window (``RULES["supply"]``):
+    "Left supply window" then names it as such ("not up"); for every other setting that column is reported only."""
     lines = [f"Gate 1's served panels on {doc['set']}/{doc['body']} (development records; simulation only)",
              "| Block | Row | Rule | Up | Limits | Reading | Verdict | Repeat | Left supply window |",
              "|---|---|---|---|---|---|---|---|---|"]
@@ -695,8 +919,10 @@ def summary_text(doc: dict) -> str:
         if x["status"] != "done":
             lines.append(f"| {x['block']} | `{x['row']}` | - | - | - | {x['status']} | - | - | - |")
             continue
+        left = (f"{x['left_supply_window']}, of them {x['not_up_left_supply_window']} not up"
+                if x["setting"] in SUPPLY_SETTINGS else f"{x['left_supply_window']} (reported)")
         lines.append(f"| {x['block']} | `{x['row']}` | {x['rule']} | {x['survived']}/{x['runs']} | {x['succeeded']} | "
-                     f"{x['reading']} | {x['verdict']} | {x['repeat'] or '-'} | {x['left_supply_window']} |")
+                     f"{x['reading']} | {x['verdict']} | {x['repeat'] or '-'} | {left} |")
     lines.append(f"Condition 2: {doc['condition2']['holds']} ({doc['condition2']['reason']})")
     return "\n".join(lines)
 
@@ -724,16 +950,25 @@ def main(argv=None) -> int:
         a.add_argument("--delays", default=",".join(str(x) for x in DELAYS_MS), help="ms, comma-separated")
         a.add_argument("--conditions", default=CONDITION)
         a.add_argument("--episodes", type=int, default=bar.RUNS)
-        a.add_argument("--cut-s", type=float, default=None, help="cut every episode (a smoke check: not judged)")
+        a.add_argument("--cut-s", type=float, default=None,
+                       help="for tests only: cut every episode to this many seconds (a smoke check; a cut episode "
+                            "is never judged and its record is read by no rule)")
         if name == "dry-run":
             a.add_argument("--blocks", default=f"{HEADLINE},{SECOND}")
             a.add_argument("--cost", default=None, help="a COST.md with the bar's rates (default: the committed one)")
             a.add_argument("--out", default=None, help="a run directory whose records the plan reads (optional)")
+            a.add_argument("--max-episodes", type=int, default=None,
+                           help="a cap to state each block's episodes against (run refuses a plan over it)")
         else:
             a.add_argument("--out", required=True)
             a.add_argument("--block", default=HEADLINE)
             a.add_argument("--procs", type=int, default=1)
             a.add_argument("--traces", action="store_true", help="keep the episodes' traces")
+            a.add_argument("--max-episodes", type=int, required=True,
+                           help="the episode cap: a plan that would start more episodes is refused")
+            a.add_argument("--dev-runs", default=str(DEV_RUNS),
+                           help="the listing of development runs on V0, F25F9 and F25F9cl (default: "
+                                "stage2/tb/gate1_dev_runs.json)")
     args = ap.parse_args(argv)
     if args.cmd == "summary":
         print(summary_text(summarize(args.out, args.set, args.body)))
@@ -742,10 +977,12 @@ def main(argv=None) -> int:
               conditions=_csv(args.conditions), episodes=args.episodes, cut_s=args.cut_s, root=args.root)
     if args.cmd == "dry-run":
         dry_run(args.set, args.body, _csv(args.rows), blocks=_csv(args.blocks),
-                rates=None if args.cost is None else bar.read_cost(args.cost), out=args.out, **kw)
+                rates=None if args.cost is None else bar.read_cost(args.cost), out=args.out,
+                max_episodes=args.max_episodes, **kw)
         return 0
+    command = " ".join(["python -m designlab.stage2.gate1"] + [str(x) for x in (sys.argv[1:] if argv is None else argv)])
     doc = run(args.set, args.body, args.out, _csv(args.rows), block=args.block, procs=args.procs, traces=args.traces,
-              **kw)
+              max_episodes=args.max_episodes, dev_runs=args.dev_runs, command=command, **kw)
     print(summary_text(doc))
     print(json.dumps(dict(session=doc["session"]), default=str)[:4000], file=sys.stderr)
     return 0
@@ -755,6 +992,7 @@ if __name__ == "__main__":
     raise SystemExit(main())
 
 
-__all__ = ["CONDITION", "CORNERS", "DELAYS_MS", "DRAWN", "GateWorker", "RULES", "SCHEMA", "SETTING_GROUPS",
-           "SLIPPERY", "check_out", "dry_run", "headline_passed", "plan", "reading", "record_path", "records",
-           "repeat_word", "row_names", "run", "settings_of", "summarize", "summary_text", "verdict"]
+__all__ = ["CONDITION", "CORNERS", "DELAYS_MS", "DEV_RUNS", "DRAWN", "GateWorker", "NO_REPEAT", "REPEAT_VERDICT", "RULES",
+           "SCHEMA", "SETTING_GROUPS", "SLIPPERY", "SUPPLY_SETTINGS", "check_out", "check_rows", "counts", "cut_episode",
+           "dry_run", "headline_passed", "list_dev_run", "plan", "reading", "record_path", "records", "repeat_word",
+           "registered_set", "row_names", "run", "runner_sources", "settings_of", "summarize", "summary_text", "verdict"]
