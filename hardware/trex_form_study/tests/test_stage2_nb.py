@@ -614,6 +614,23 @@ def test_the_steps_sheet_quotes_the_programs_own_lines():
     for start, end in (("   3.4  ", "   3.5  "), ("   4.3  ", "   4.4  ")):
         table = sheet.split(start, 1)[1].split(end, 1)[0]
         assert re.findall(r"^ {10}([A-Z][A-Z_]+) {2,}", table, re.M) == list(nb.PARAMS), start
+    # the lead's ruling 12 of 17 Nov (the check's finding 2): the sheet never tells the owner to delete a runtime
+    # that the finish cell kept on purpose: every step that lets a machine go names that paragraph as its exception,
+    # and section 5 says so before its 5.4 (as built 5.3 sent an owner whose page was lost straight to 5.4)
+    flat = " ".join(r.strip() for r in rows)
+    for n, r in enumerate(rows):
+        if "Disconnect and delete runtime" in r or "let the machine go" in r:
+            near = " ".join(x.strip() for x in rows[max(0, n - 5): n + 3])
+            assert "KEPT ON PURPOSE" in near, r
+    five = flat.split("5.3  Otherwise open STATUS.json", 1)[1].split("5.5  Expect:", 1)[0]
+    assert ('If the last grey box (8. FINISH) printed a paragraph that begins "THIS MACHINE IS KEPT ON PURPOSE", do '
+            "not do 5.4") in five and five.index("do not do 5.4") < five.index("5.4  Resume")
+    # (the check's finding 4) one row per warning, and no irreversible deletion on the owner's own: the lead asks
+    write = flat.split("S2 WARNING: a copy to Drive failed ...", 1)[1].split("S2 WARNING: ... reading", 1)[0]
+    read = flat.split("S2 WARNING: ... reading from Drive failed", 1)[1].split("S2 WARNING: ... not on Drive", 1)[0]
+    assert "your Drive may be full. Tell me; I may ask you to empty the Drive's bin. Delete nothing yourself." in write
+    assert "full" not in read and "bin" not in read and "tell me" in read
+    assert "Empty the Drive's bin" not in sheet and "empty the Drive's bin first" not in flat.lower()
     # no instruction asks the owner to change RUN_ID, REPO_REF, TAKEOVER or an ALLOW parameter on an error's advice:
     # outside the two parameter tables each of them appears only with "not", "never", "same" or "do not"
     for n, r in enumerate(rows):
