@@ -42,8 +42,10 @@ the gain of every check, G8b at its two named checks with the one fix, M5's stop
 with M3b's route), ``no_record`` (a check counted without a record after two closed attempts: its episodes are
 errors), ``is_record`` (what "a record" of a check is).
 
-**The stand-in on the Stage 1 view.**  Until ``lookbar`` is merged it cannot be imported.  Then, on set ``S1``
-only, ``_episodes`` runs ``_stand_in``: the training env itself on the stock condition's plan, nominal plant, the
+**The stand-in on the Stage 1 view.**  ``lookbar`` and ``s2rows`` are merged (17 Nov 2026), so ``_episodes`` goes
+through them on every set, the Stage 1 view's included, and the stand-in is not reached from there: it is kept for
+a checkout without ``lookbar``, which cannot import it.  Then, on set ``S1`` only, ``_episodes`` runs
+``_stand_in``: the training env itself on the stock condition's plan, nominal plant, the
 delay k, with the zero action (R0L) or the checkpoint's deterministic actions.  Nothing is judged there: no episode
 succeeds in any reading, and survival, the fall and the clock are the env's.  The record names which of the two
 made its episodes (``episodes_by``).  On any other set a missing ``lookbar`` is an error.
@@ -92,7 +94,8 @@ EXIT_REFUSAL = 8
 REFUSALS = ("sources", "checkpoint", "other_run", "run", "row")
 #: How a row refuses a checkpoint while it is built (``lookbar.rows``, the stand-in's load), before any episode:
 #: (module, class name, refusal kind).  The class is looked up in ``sys.modules`` and never imported for it: an
-#: exception of that class can only have been raised once its module was loaded (``s2rows`` is not merged yet).
+#: exception of that class can only have been raised once its module was loaded (``s2rows`` is merged; the row
+#: imports it while it is built).
 #: An exception of another class, of the same name or not, is no refusal (``_row_refusal``).
 ROW_REFUSALS = (("designlab.stage2.s2rows", "RowError", "row"),
                 ("designlab.stage2.s2load", "CheckpointError", "checkpoint"))
@@ -595,7 +598,7 @@ def _episodes(body: str, set_name: str, row: str, pairs: list, policies: dict | 
     """One companion episode per ``(condition key, seed)`` of ``pairs`` under the row ``row`` (``R0L@10ms``, or a
     checkpoint's ``R5/42@10ms`` with ``policies = {"R5/42": {"job_dir", "steps"}}``): ``lookbar.episodes`` on
     ``lookbar.rows(body, [row])`` after ``s2rows.configure(policies)``.  ``traces``: where the episodes' traces
-    go.  Until ``lookbar`` can be imported, set ``S1`` is served by ``_stand_in`` (module docstring).
+    go.  ``lookbar`` is merged, so ``_stand_in`` serves set ``S1`` only in a checkout without it (module docstring).
 
     The row is built before any episode: a ``ROW_REFUSALS`` exception raised there (by ``s2rows.configure`` or
     ``lookbar.rows``) is the monitor's ``MonitorRefusal``.  Whatever ``lookbar.episodes`` raises is not (an
@@ -744,8 +747,9 @@ def _checkpoint(job_dir, steps: int) -> dict:
     """The checkpoint's record, after its three files' sizes and sha256 were checked against it (nothing is
     unpickled here: the row loads the checkpoint through ``s2load.load_checkpoint``).  ``MonitorRefusal`` on a
     checkpoint that is not intact: no record, a record that cannot be read, a record of the wrong shape (``files``
-    must map each of ``s2load.FILE_KINDS`` to ``{bytes: int, sha256: str}``), a file that is not the one its record
-    names."""
+    must map each of ``s2load.FILE_KINDS`` to ``{bytes: int, sha256: str}``, and ``layout`` and ``fingerprint``
+    must be objects: the row's load reads both, the lead's ruling 12 of 17 Nov 2026), a file that is not the one
+    its record names."""
     from designlab.stage2 import s2load
 
     files = s2load.checkpoint_files(job_dir, steps)
@@ -768,6 +772,10 @@ def _checkpoint(job_dir, steps: int) -> dict:
         raise MonitorRefusal("checkpoint", f"{files['record']}: the checkpoint's record has the wrong shape (files: "
                                            f"{', '.join(s2load.FILE_KINDS)} -> {{bytes, sha256}}; checkpoint {steps} "
                                            "is not intact)")
+    lacks = [key for key in ("layout", "fingerprint") if not isinstance(rec.get(key), dict)]
+    if lacks:
+        raise MonitorRefusal("checkpoint", f"{files['record']}: the checkpoint's record has the wrong shape (no "
+                                           f"{' and no '.join(lacks)} object; checkpoint {steps} is not intact)")
     for kind in s2load.FILE_KINDS:
         want = named[kind]
         p = files[kind]
