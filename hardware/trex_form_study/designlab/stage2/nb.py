@@ -248,10 +248,23 @@ RESUMABLE_RULE = (
     "what is final and what is resumable (the lead's ruling 2 of 17 Nov 2026): the trainer's exit code 4 (a "
     "refusal) writes no HALT.json: the session ends and LIVE.json is closed, as for an interruption.  The trainer's "
     "exit code 5 (a halt for the lead) and any error of the launcher itself write a HALT.json marked resumable, "
-    "with its halt_id and the remedy it names: retry_check when the trainer's halt names --retry-check, and in "
-    "every case the lead's word (LEAD.json's resume_halt names the halt).  session accepts a resume of such a run "
+    "with its halt_id and the remedy it names: retry_check when the trainer's halt names --retry-check, "
+    "allow_source_change when it names --allow-source-change, and in every case the lead's word (LEAD.json's "
+    "resume_halt names the halt).  session accepts a resume of such a run "
     "only with that remedy in LEAD.json, and then keeps the old halt as HALT_<k>.json (k: the session that "
     "halted).  Only a job that crashed twice halts the run for good (resumable false)")
+#: The trainer's parameters a halt of its may name, and the remedy of ``LEAD.json`` each one is (``RESUMABLE_RULE``):
+#: a halt for two attempts never closed names --retry-check; a halt for moved sources names --allow-source-change
+#: (the lead's ruling 12 of 17 Nov 2026: the halt names the parameter that resolves it).
+HALT_REMEDIES = (("--retry-check", "retry_check"), ("--allow-source-change", "allow_source_change"))
+
+
+def halt_remedy(said: str) -> list:
+    """The remedies a trainer's halt names (``HALT_REMEDIES``), in that order: ``said`` is its reason and the last
+    line of its log."""
+    return [remedy for flag, remedy in HALT_REMEDIES if flag in str(said)]
+
+
 LEAD_SCHEMA = "s2-lead-1"
 #: ``LEAD.json``'s true-or-false remedies, and every key it may hold (``LEAD_RULE``).
 LEAD_FLAGS = ("retry_check", "allow_source_change", "allow_version_change")
@@ -260,7 +273,9 @@ LEAD_RULE = (
     "the lead's remedies (ruling 2 of 17 Nov 2026): one small file the lead writes on Drive beside the run, "
     "runs/<run_id>/LEAD.json, which session reads and records in the session's record (lead, and the values in "
     "force): retry_check, allow_source_change and allow_version_change (true or false; passed to the trainer as "
-    "--retry-check on a resume, --allow-source-change, --allow-version-change), budget_by and budget_set_on (rule "
+    "--retry-check on a resume, --allow-source-change, --allow-version-change; retry_check only in the session "
+    "that resumes the halt whose remedy names it, never at a later resume: the lead's ruling 12 of 17 Nov 2026), "
+    "budget_by and budget_set_on (rule "
     "Y10: written to QUEUE.json when the run is made; budget_set_on a UTC time such as 2026-11-20T09:00:00Z), and "
     "resume_halt (the halt_id of the resumable halt a resume answers), with an optional note.  The owner is never "
     "asked to set these.  A file that cannot be read, a key it does not name here or a value of the wrong type "
@@ -1342,7 +1357,6 @@ def session(run_id, drive, local, queue, repo_ref, commit, resume, params) -> di
     ld = (lead or {}).get("doc") or {}
     allow_source = bool(p["ALLOW_SOURCE_CHANGE"]) or ld.get("allow_source_change") is True
     allow_version = bool(p["ALLOW_VERSION_CHANGE"]) or ld.get("allow_version_change") is True
-    retry_check = bool(p["RETRY_CHECK"]) or ld.get("retry_check") is True
     budget_by = ld.get("budget_by") if ld.get("budget_by") is not None else p["BUDGET_BY"]
     budget_set_on = ld.get("budget_set_on") if ld.get("budget_set_on") is not None else p["BUDGET_SET_ON"]
     want = _queue_doc(run_id, jobs, repo_ref, commit, dict(p, BUDGET_BY=budget_by, BUDGET_SET_ON=budget_set_on))
@@ -1385,6 +1399,11 @@ def session(run_id, drive, local, queue, repo_ref, commit, resume, params) -> di
             took_over = dict(session=live.get("session"), session_uuid=live.get("session_uuid"), age_s=age,
                              host=live.get("host"))
             notes.append(f"TAKEOVER: LIVE.json of session {live.get('session')} was written {age:.0f} s ago")
+
+    # (LEAD_RULE, the lead's ruling 12 of 17 Nov 2026: LEAD.json's retry_check answers the one halt whose remedy
+    # names it, in the session that resumes that halt; a later plain resume carries no --retry-check)
+    retry_check = bool(p["RETRY_CHECK"]) or (halt is not None and "retry_check" in halt["remedy"]
+                                             and ld.get("retry_check") is True)
 
     # ---- from here on the run directory is written
     swept = sweep_parts(d) + ([] if same else sweep_parts(lrun))
@@ -2578,7 +2597,7 @@ class _Launcher:
                 m["last_error"] = f"exit code {code}: {tail}"
                 said = str(((_read_json(jd / "run.json") or {}).get("halt") or {}).get("reason") or "") + " " + tail
                 raise _Halt(f"job {job} halted and goes to the lead (exit code {code}): {tail}", resumable=True,
-                            remedy=["retry_check"] if "--retry-check" in said else [])
+                            remedy=halt_remedy(said))
             m["last_error"] = f"crashed (exit code {code}): {tail}"
             if m["retries"] >= 1:
                 raise _Halt(f"job {job} crashed twice (exit codes {', '.join(map(str, m['exit_codes'][-2:]))}): {tail}",
@@ -2960,16 +2979,87 @@ KEEP_RUNTIME_TEXT = (
     "The waiting time counts toward the 220 hours; that is expected.")
 
 
+#: The finish step's exit codes on which cell 8 lets the runtime go (the lead's ruling 12 of 17 Nov 2026): 0 (the
+#: run is done, or nothing of it is on this machine only) and 5 (it halted, and every last save is on Drive).
+RELEASE_CODES = (EXIT_OK, EXIT_HALT)
+
+
+def keep_other_text(finish_code) -> str:
+    """What the notebook prints, in place of letting the runtime go, when the finish step ended with no exit code of
+    ``RELEASE_CODES`` and not ``EXIT_UNFINISHED`` (it crashed, was stopped, or could not start): one plain
+    paragraph, which begins as ``KEEP_RUNTIME_TEXT`` does (the steps sheet names both by those words)."""
+    how = (f"it stopped with exit code {finish_code}" if type(finish_code) is int
+           else "it was stopped, or it could not start")
+    return ("THIS MACHINE IS KEPT ON PURPOSE. The last grey box (8. FINISH) did not end as it should "
+            f"({how}), so it is not known whether every save of the training is on your Google Drive. The "
+            "machine is not let go: letting it go could delete a save that is on this machine only. Leave this tab "
+            "and the machine as they are, and tell me. In about 30 minutes, run the last grey box (8. FINISH) once "
+            "more: click into it and press its play button. If it then ends with \"Disconnecting runtime in 5 "
+            "seconds...\", everything is on your Drive. If this paragraph comes again, wait and run that box again "
+            "later. The waiting time counts toward the 220 hours; that is expected.")
+
+
 def release_or_keep(finish_code, reason: str, in_colab: bool, auto: bool, flush_drive: bool) -> bool:
-    """Cell 8's last step (design D19 and the lead's ruling 1 of 17 Nov 2026): the runtime is released
-    (``release_runtime``) unless ``finish_code``, the finish step's exit code, is ``EXIT_UNFINISHED`` (a job's
-    last save is on this machine only, or the finish could not tell): then ``KEEP_RUNTIME_TEXT`` is printed and
-    the runtime is kept.  Any other code, or none (the step could not be run), releases it.  True when released."""
-    if finish_code == EXIT_UNFINISHED:
-        print("\n" + KEEP_RUNTIME_TEXT, flush=True)
+    """Cell 8's last step (design D19; the lead's rulings 1 and 12 of 17 Nov 2026): the runtime is released
+    (``release_runtime``) only when ``finish_code``, the finish step's exit code, is one of ``RELEASE_CODES`` (0 or
+    5).  On ``EXIT_UNFINISHED`` (a job's last save is on this machine only, or the finish could not tell)
+    ``KEEP_RUNTIME_TEXT`` is printed, on any other code or none (the step crashed, was stopped or could not start)
+    ``keep_other_text``'s paragraph, and the runtime is kept.  True when released."""
+    if type(finish_code) is not int or finish_code not in RELEASE_CODES:
+        text = KEEP_RUNTIME_TEXT if finish_code == EXIT_UNFINISHED else keep_other_text(finish_code)
+        print("\n" + text, flush=True)
         return False
     release_runtime(reason, in_colab=in_colab, auto=auto, flush_drive=flush_drive)
     return True
+
+
+#: Where the notebook's cell 3 mounts Google Drive on Colab.
+DRIVE_MOUNT = "/content/drive"
+#: How a Drive mount whose own process has died answers: ``ENOTCONN`` (107, "Transport endpoint is not connected").
+DEAD_MOUNT_ERRNOS = (errno.ENOTCONN,)
+
+
+def _mount_dead(path) -> OSError | None:
+    """The error by which ``path`` answers when the mount under it has died (``DEAD_MOUNT_ERRNOS``), else None."""
+    try:
+        os.stat(path)
+        os.listdir(path)
+    except OSError as exc:
+        return exc if exc.errno in DEAD_MOUNT_ERRNOS else None
+    return None
+
+
+def remount_if_dead(drive_dir, in_colab: bool, use_drive: bool, mount=None, probe=None) -> bool | None:
+    """Cell 8's first step (the lead's ruling 12 of 17 Nov 2026): on Colab with Google Drive, when the mount itself
+    has died (``probe``, default ``_mount_dead``, on the run's Drive directory ``drive_dir``), Drive is mounted again
+    once (``mount``, default ``google.colab.drive.mount(DRIVE_MOUNT, force_remount=True)``) and that is said.
+    Returns None when nothing was tried (not Colab, no Google Drive, or the mount answers), True when Drive was
+    mounted again and the directory answers, False when the remount failed or the directory still does not
+    answer.  It never raises: the finish runs after it whatever happens here."""
+    try:
+        if not (in_colab and use_drive) or drive_dir is None:
+            return None
+        probe = probe or _mount_dead
+        dead = probe(drive_dir)
+        if dead is None:
+            return None
+        print(f"Google Drive's connection was lost ({type(dead).__name__}: {dead}). It is mounted again once "
+              "(force_remount=True) before the finish.", flush=True)
+        if mount is None:
+            from google.colab import drive
+
+            def mount():
+                drive.mount(DRIVE_MOUNT, force_remount=True)
+        mount()
+        again = probe(drive_dir)
+        ok = again is None and os.path.isdir(drive_dir)
+        print("Google Drive is mounted again." if ok else
+              f"Google Drive still does not answer after the remount ({again or 'the run directory is not there'}).",
+              flush=True)
+        return ok
+    except Exception as exc:  # noqa: BLE001 - the finish must still run, and the runtime's fate is its exit code's
+        print(f"Google Drive could not be mounted again ({type(exc).__name__}: {exc}).", flush=True)
+        return False
 
 
 def release_runtime(reason: str, in_colab: bool, auto: bool, flush_drive: bool) -> None:
@@ -3554,26 +3644,39 @@ def _drill_checks(drill: dict, params: dict) -> dict:
 #: Design 3.10 step 6 (``_remedies``): the cells of its sessions.  Lines 2 and 3 are the drill's, in the same
 #: checkout, whose inputs the drill's resume has unpacked: cells 4 and 5 are not run again.
 REMEDY_CELLS = (1, 2, 3, 7, 8)
-#: What ``_remedies`` fakes in the job's ``run.json`` (its last session's version of this library).
+#: What ``_remedies`` fakes in the job's ``run.json``: its last session's version of this library, and the hash its
+#: last session recorded of one source file that both the trainer's resume and the policy row compare (rule K9;
+#: ``train2.SOURCE_FILES``, ``s2rows.SOURCE_FILES``), the sources' own hash made again from it.
 FAKED_VERSION = ("numpy", "0.0.0-faked-for-design-3.10-step-6")
+FAKED_SOURCE = ("designlab/stage2/r5core.py", "0" * 64)
+#: The words of the trainer's two refusals of a resume (``train2``'s ``RESUME_RULE``) that step 6 tells apart.
+TRAINER_SOURCES_REFUSAL = "other sources than the run's last session"
+TRAINER_VERSIONS_REFUSAL = "other library versions than the run's last session"
 
 
 def _remedies(notebook, params: dict, logs: Path, cwd) -> dict:
     """Design 3.10 step 6, ``ALLOW_SOURCE_CHANGE`` and ``ALLOW_VERSION_CHANGE`` "each exercised with a faked session
-    record", as the lead's ruling 2 of 17 Nov 2026 has them: from ``LEAD.json`` beside the run, never from the
-    owner's cell 1.  A run of its own (``<RUN_ID>-remedies``: the queue's first job, tiny) in the checkout ``cwd``
-    (``REMEDY_CELLS``):
+    record", as the lead's rulings 2 and 12 of 17 Nov 2026 have them: from ``LEAD.json`` beside the run, never from
+    the owner's cell 1, and through the real trainer's own source check.  A run of its own (``<RUN_ID>-remedies``:
+    the queue's first job, tiny) in the checkout ``cwd`` (``REMEDY_CELLS``):
 
     0. a session ended with SIGKILL once the job's first checkpoint is on the stand-in Drive, and its local run
        directory deleted (a dead runtime);
-    1. the faked records: ``QUEUE.json``'s commit (as if the run had been made at another commit) and, in the
-       job's ``run.json``, its last session's ``FAKED_VERSION`` (as if it had trained on other library versions);
-    2. a RESUME (TAKEOVER: ``LIVE.json`` is fresh), refused by the session (rule K6: another commit and no
-       ``allow_source_change``); nothing written;
-    3. ``LEAD.json`` with ``allow_source_change``; a RESUME (TAKEOVER) that the session accepts and the trainer
-       refuses (exit code 4: other library versions): no ``HALT.json``, ``LIVE.json`` closed (ruling 2);
-    4. ``LEAD.json`` with ``allow_version_change`` too; a RESUME (no TAKEOVER: ``LIVE.json`` was closed) that
-       reaches DONE, with both remedies in the session's record and the version change in the job's ``run.json``.
+    1. the faked records in the job's ``run.json``: its last session's ``FAKED_VERSION`` (as if it had trained on
+       other library versions) and its recorded hash of ``FAKED_SOURCE`` (as if on other code);
+    2. a RESUME (TAKEOVER: ``LIVE.json`` is fresh) that the session accepts (the commit is the run's) and the
+       trainer's source check refuses (exit code 4, ``TRAINER_SOURCES_REFUSAL``: no ``--allow-source-change``): no
+       ``HALT.json``, ``LIVE.json`` closed (ruling 2);
+    3. the faked ``QUEUE.json`` commit (as if the run had been made at another commit); a RESUME refused by the
+       session (rule K6: another commit and no ``allow_source_change``); nothing written;
+    4. ``LEAD.json`` with ``allow_source_change``; a RESUME that the session accepts and the trainer refuses for
+       the versions (exit code 4, ``TRAINER_VERSIONS_REFUSAL``), no longer for the sources: the flag reached the
+       trainer;
+    5. ``LEAD.json`` with ``allow_version_change`` too; a RESUME that reaches DONE, with both remedies in the
+       session's record, and in the job's ``run.json`` the trainer's own record of both changes (its last session's
+       ``source_change`` and ``version_change``, its ``sources_before`` the faked hash).  On the real trainer the
+       checks of that session run the policy row on the faked record, which the row passes only with the
+       allowance the trainer gives it (rule K9).
 
     Returns ``{run_id, drive_run, kill, faked, attempts, checks}``."""
     first = parse_queue(params["QUEUE"])[0]
@@ -3593,37 +3696,60 @@ def _remedies(notebook, params: dict, logs: Path, cwd) -> dict:
     def attempt(name: str, **over) -> dict:
         return run_cells(notebook, dict(p, **over), logs / f"remedies-{name}.log", cwd, cells=REMEDY_CELLS)
 
+    def refused_by_the_trainer(x: dict) -> bool:
+        live = _read_json(d / "LIVE.json") or {}
+        return ("S2 launch: REFUSED: " in x["text"] and "(exit code 4)" in x["text"] and not (d / "HALT.json").exists()
+                and str(live.get("closed_reason") or "").startswith("refused: "))
+
     a = run_cells(notebook, p, logs / "remedies-0.log", cwd, cells=REMEDY_CELLS, until=copied)
     kill = dict(at=_now(), after_s=a["seconds"], when=a["killed"], on_drive=_drive_checkpoints(jd))
     shutil.rmtree(lrun, ignore_errors=True)
     q, run = _read_json(d / "QUEUE.json"), _read_json(jd / "run.json")
-    faked = dict(queue_commit=None, run_commit=None, version=None)
-    if isinstance(q, dict) and isinstance(run, dict) and run.get("sessions"):
-        faked.update(run_commit=q.get("commit"), queue_commit="0" * 40)
-        _write_json(d / "QUEUE.json", dict(q, commit=faked["queue_commit"]))
+    faked = dict(queue_commit=None, run_commit=None, version=None, source=None)
+    if isinstance(run, dict) and run.get("sessions"):
         last = run["sessions"][-1]
         key, value = FAKED_VERSION
         faked["version"] = dict(key=key, was=(last.get("versions") or {}).get(key), now=value)
         last["versions"] = dict(last.get("versions") or {}, **{key: value})
+        rel, value = FAKED_SOURCE
+        src = dict(last.get("sources") or {})
+        files = dict(src.get("files") or {})
+        faked["source"] = dict(file=rel, was=files.get(rel), now=value, sha256_was=src.get("sha256"))
+        src["files"] = dict(files, **{rel: value})
+        src["sha256"] = sha256_json({k: src.get(k) for k in ("files", "plant_sources", "panel_sources")})
+        faked["source"]["sha256_now"] = src["sha256"]
+        last["sources"] = src
         _write_json(jd / "run.json", run)
-    b = attempt("1-refused-source", RESUME=True, TAKEOVER=True)
+    b0 = attempt("1-refused-by-the-trainers-source-check", RESUME=True, TAKEOVER=True)
+    b0_refused = refused_by_the_trainer(b0)
+    if isinstance(q, dict):
+        faked.update(run_commit=q.get("commit"), queue_commit="0" * 40)
+        _write_json(d / "QUEUE.json", dict(q, commit=faked["queue_commit"]))
+    sessions_before_b = sorted(x.name for x in d.glob("SESSION_*.json"))
+    b = attempt("2-refused-source", RESUME=True)
     sessions_after_b = sorted(x.name for x in d.glob("SESSION_*.json"))
     lead(allow_source_change=True)
-    c = attempt("2-refused-by-the-trainer", RESUME=True, TAKEOVER=True)
-    halt_after_c, live_after_c = (d / "HALT.json").exists(), _read_json(d / "LIVE.json") or {}
+    c = attempt("3-refused-by-the-trainer", RESUME=True)
+    c_refused = refused_by_the_trainer(c)
     lead(allow_source_change=True, allow_version_change=True)
-    e = attempt("3-done", RESUME=True)
+    e = attempt("4-done", RESUME=True)
     recs = sorted(d.glob("SESSION_*.json"), key=lambda f: int(re.sub(r"\D", "", f.name) or 0))
     last_session = _read_json(recs[-1]) if recs else {}
     run = _read_json(jd / "run.json") or {}
     sess = run.get("sessions") or []
     checks = dict(
         remedies_killed=bool(a["killed"]) and a["exit_code"] != 0,
-        remedies_faked=faked["version"] is not None,
+        remedies_faked=faked["version"] is not None and faked["source"] is not None
+        and faked["queue_commit"] is not None,
+        source_change_refused_by_the_trainer=b0_refused
+        and TRAINER_SOURCES_REFUSAL in b0["text"] and "--allow-source-change" in b0["text"],
         source_change_refused_without_lead=b["exit_code"] != 0 and "only with allow_source_change" in b["text"]
-        and sessions_after_b == ["SESSION_0.json"],
-        version_change_refused_by_the_trainer="S2 launch: REFUSED: " in c["text"] and "(exit code 4)" in c["text"]
-        and not halt_after_c and str(live_after_c.get("closed_reason") or "").startswith("refused: "),
+        and sessions_after_b == sessions_before_b == ["SESSION_0.json", "SESSION_1.json"],
+        version_change_refused_by_the_trainer=c_refused
+        and TRAINER_VERSIONS_REFUSAL in c["text"],
+        allow_source_change_reached_the_trainer=TRAINER_SOURCES_REFUSAL not in c["text"]
+        and TRAINER_SOURCES_REFUSAL not in e["text"] and bool(sess) and sess[-1].get("source_change") is True
+        and (sess[-1].get("sources_before") or {}).get("sha256") == (faked["source"] or {}).get("sha256_now"),
         resumed_to_done_with_the_leads_remedies=e["exit_code"] == 0
         and (_read_json(d / "DONE.json") or {}).get("state") == "done"
         and bool(last_session.get("allow_source_change")) and bool(last_session.get("allow_version_change"))
@@ -3633,7 +3759,8 @@ def _remedies(notebook, params: dict, logs: Path, cwd) -> dict:
     return dict(run_id=p["RUN_ID"], drive_run=str(d), kill=kill, faked=faked, checks=checks,
                 attempts={k: dict(exit_code=v["exit_code"], killed=v["killed"], seconds=v["seconds"], log=v["log"],
                                   lines={str(n): rows for n, rows in v["lines"].items() if rows})
-                          for k, v in dict(session0=a, refused_source=b, refused_by_the_trainer=c, done=e).items()})
+                          for k, v in dict(session0=a, refused_by_the_source_check=b0, refused_source=b,
+                                           refused_by_the_trainer=c, done=e).items()})
 
 
 def local_run(notebook, drive_dir, params, record=None, remedies: bool = True) -> dict:
@@ -4009,7 +4136,7 @@ __all__ = ["BACK_RULE", "BUDGET_RULE", "COPY_RULE", "FENCE_RULE", "HALT_RULE", "
            "at_or_past", "budget_for", "collect", "finish", "floor_rate", "g8a_counts", "hours", "inputs", "job_name",
            "keep_on_drive", "launch", "line1", "line2", "line3", "line4", "lines_of", "load_params", "local_run",
            "main", "parse_queue", "pin_differences", "pins", "pip_commands", "preflight", "read_lead",
-           "release_or_keep", "release_runtime", "run_cells", "session", "session_line", "setup", "sha256_json",
+           "release_or_keep", "release_runtime", "remount_if_dead", "run_cells", "session", "session_line", "setup", "sha256_json",
            "smoke", "smoke_line"]
 
 if __name__ == "__main__":

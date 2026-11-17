@@ -232,16 +232,22 @@ def rule_texts() -> dict:
 _ABS_PATH = re.compile(r"(?<![\w.~-])/[^\s'\"`,;:()\[\]{}<>]+")
 
 
-def _no_paths(text: str) -> str:
-    """``text`` with no absolute path of this machine (the lead's ruling 8 of 17 Nov 2026): a path under the study
-    directory made relative to it, any other one cut to ``.../<its last three parts>``."""
-    study = str(s2io.STUDY) + os.sep
+def _no_paths(text: str, roots=()) -> str:
+    """``text`` with no absolute path of this machine (the lead's ruling 8 of 17 Nov 2026): a path under one of
+    ``roots`` (an output root: its summary's own paths are relative to it) or under the study directory made
+    relative to it, any other one cut to ``.../<its last three parts>``, and never to its first part (the lead's
+    ruling 12 of 17 Nov 2026: ``/home/user/a`` is ``.../user/a``, a one-part ``/content`` is ``...``)."""
+    bases = [str(Path(r)) + os.sep for r in roots if r is not None and Path(r).is_absolute()]
+    bases.append(str(s2io.STUDY) + os.sep)
 
     def cut(m) -> str:
         p = m.group(0)
-        if p.startswith(study):
-            return p[len(study):]
-        return ".../" + "/".join([x for x in p.split("/") if x][-3:])
+        for base in bases:
+            if p.startswith(base) and len(p) > len(base):
+                return p[len(base):]
+        parts = [x for x in p.split("/") if x]
+        keep = parts[1:][-3:]
+        return ".../" + "/".join(keep) if keep else "..."
 
     return _ABS_PATH.sub(cut, str(text))
 
@@ -980,9 +986,10 @@ def collect(out, set_name: str, body: str, block: str = bar.HEADLINE_BLOCK, cont
             path = companion_path(out, set_name, body, block, rec["row"], rec["behavior"], rec["condition"], control)
             try:
                 doc = companion(q, rec, out, side_root, look_set)
-            except LookBarError as exc:
-                refused.append(str(exc))
-                refused_cells.append(_refused(q, rec, path, out, str(exc)))
+            except LookBarError as exc:  # (the lead's ruling 12 of 17 Nov 2026: a refusal's text in the summary
+                why = _no_paths(str(exc), (out, out.resolve()))  # names no absolute path: relative to ``out``)
+                refused.append(why)
+                refused_cells.append(_refused(q, rec, path, out, why))
                 continue
             old = _read_json(path)
             if old is not None and old.get("inputs_sha256") == doc["inputs_sha256"]:
