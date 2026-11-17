@@ -11,14 +11,19 @@ indirection to ``lookbar``, is replaced by such a table; no episode is run):
 * a policy that stands (read, not succeeding), a policy whose clock lags (``unread``, reason ``clock_behind``) and
   a too-few-steps episode (read, its look terms failed): each counted as not succeeding, never an error, and the
   monitor asks for each episode exactly once;
-* the survival credit: a clock held at 0.75 earns 0.75 of its time, R0L its full time, an error nothing; a policy
-  row's episode that comes back without its clock times is not credited in full: its table is no record;
+* the survival credit: a clock held at 0.75 earns 0.75 of its time, R0L its full time, an error nothing; a clock
+  that covered 1.05 x the survival time is credited the time itself, also where the reference time summed step by
+  step rounds a hair below it, so R0L's S is exactly its mean survival (the lead's ruling 17 of 17 Nov 2026); a
+  policy row's episode that comes back without its clock times is not credited in full: its table is no record;
 * G8b's 2 of 3 (up is read or unread); the fix doubles the mapped tasks' weights only, each once; a second failure
   stops; three checks without a gain from 20M stop at the third; ``decide`` gives the same state from the records
   alone, however often and at whatever point of the history it is asked;
 * a check counted without a record (every episode an error); what a record of a check is; a baseline that holds
   an error is kept beside as a failed attempt and is no baseline;
-* S2-10's record with its earlier checks, its per-term table and M3b's route;
+* S2-10's record with its earlier checks, its per-term table and M3b's route; R0L's baseline against the committed
+  one (``baseline_equal``): the state digests are asked for only in the pairs of which at least one episode ran, so
+  an equal baseline with a condition not run (its episodes built by ``lookbar.episodes`` itself, which gives them no
+  digest) compares its digests, and a digest of None or "" is not compared (the lead's ruling 33 of 17 Nov 2026);
 * the monitor refuses to run on other sources than the trainer's, and on a checkpoint that is not intact; a
   refusal (other sources, a checkpoint that is not intact, another run's checkpoint) leaves the CLI with its own
   exit code 8 and a note of its reason, and any other fault keeps exit code 1;
@@ -27,8 +32,14 @@ indirection to ``lookbar``, is replaced by such a table; no episode is run):
   shape (among them one without a ``layout`` or ``fingerprint`` object: the rulings of 17 Nov 2026, 12), and a
   row that refuses the checkpoint while it is built (``s2rows.RowError``, here a stub class of that name and module
   in place of the merged rows package; ``s2load.CheckpointError``, a fingerprint not reproduced at the
-  row's load, also in the Stage 1 view's stand-in).  An exception of another class of the same name, one that
-  ``lookbar.episodes`` raises and a row's refusal at a further delay (after the check's episodes) are none;
+  row's load), and ``lookbar.LookSetRefused`` (rule X1: a look set whose G9-ref has not passed), raised by
+  ``lookbar.episodes`` itself before the set is read (kind ``look_set``: the lead's ruling 31 of 17 Nov 2026, 6).
+  An exception of another class of the same name, anything else that ``lookbar.episodes`` raises and a row's
+  refusal at a further delay (after the check's episodes) are none;
+* every set, the Stage 1 view's included, goes through ``lookbar``: the stand-in is deleted, and a checkout that
+  cannot import ``lookbar`` runs no monitor on any set (the lead's ruling 17 of 17 Nov 2026);
+* ``monitor2 baseline`` runs without a job, its record and a refusal's note under ``--out``; without both it is an
+  argument error (ruling 17);
 * ``monitor2``'s table of rule M4 is the task table's (``r5lib.TASKS``' ``monitor`` fields).
 
 ``clip2`` renders a real clip from a Stage 1 trace in a child process (OSMesa and ffmpeg; skipped without them)
@@ -284,7 +295,8 @@ def test_a_monitor_that_refuses_to_run_leaves_with_its_own_exit_code(monkeypatch
     own = train2.sources()["sha256"]
     mon = job / "monitor"
     note, base_note = mon / "monitor_512.refused.json", mon / "r0l.refused.json"
-    assert m2.EXIT_REFUSAL == 8 and m2.REFUSALS == ("sources", "checkpoint", "other_run", "run", "row")
+    assert m2.EXIT_REFUSAL == 8 and m2.REFUSALS == ("sources", "checkpoint", "other_run", "run", "row",
+                                                "look_set")
     assert m2.refusal_path(mon, 512) == note and m2.refusal_path(mon) == base_note
     assert "is no attempt" in m2.RULES["refusal"] and "refusal" in m2.RULES["attempts"]
     assert m2.rules(2_500_000)["texts"]["refusal"] == m2.RULES["refusal"]
@@ -407,6 +419,33 @@ def test_the_other_exits_before_any_episode_are_refusals(monkeypatch, tmp_path):
     assert m2.main(base) == 0 and len(called) == 2 and not base_note.exists() and (mon / "r0l.json").is_file()
 
 
+def test_the_baseline_runs_without_a_job(monkeypatch, tmp_path):
+    """The lead's ruling 17 of 17 Nov 2026: ``monitor2 baseline`` works without a job (the gates' chain makes the
+    R0L baseline that rule M3 commits before S2-4 starts): ``--out`` names the record's directory, and a refusal's
+    note goes there.  Without ``--job`` and without ``--out`` the arguments are wrong (exit code 2).  The trainer's
+    ``monitor`` entry is the same CLI."""
+    from designlab.stage2 import train2
+
+    called = []
+    monkeypatch.setattr(m2, "_episodes", lambda *a, **k: called.append(a) or table())
+    out = tmp_path / "s2-4-baseline"
+    own = train2.sources()["sha256"]
+    base = ["baseline", "--body", BODY, "--set", "V6", "--out", str(out)]
+    _cli_refused(base + ["--sources", "0" * 64], out / "r0l.refused.json", "sources", "the sources differ", called)
+    assert m2.main(base + ["--sources", own]) == 0 and not (out / "r0l.refused.json").exists()
+    doc = json.loads((out / "r0l.json").read_text())
+    assert doc["valid"] is True and (doc["job"], doc["run_uuid"], doc["run_id"]) == (None, None, None)
+    assert len(doc["episodes"]) == 18 and doc["sources"] == dict(given=own, own=own) and doc["row"] == "R0L@10ms"
+    assert len(called) == 1 and called[0][:3] == (BODY, "V6", "R0L@10ms") and called[0][4] is None
+    assert train2.main(["monitor"] + base) == 0 and len(called) == 2
+    with pytest.raises(SystemExit) as info:
+        m2.main(["baseline", "--body", BODY, "--set", "V6"])
+    assert info.value.code == 2
+    with pytest.raises(SystemExit) as info:
+        m2.main(["run", "--steps", "512", "--body", BODY, "--set", "V6", "--out", str(out)])
+    assert info.value.code == 2  # (a check needs its job)
+
+
 def _stub_rows(monkeypatch, rows=None, episodes=None):
     """``lookbar`` and ``s2rows`` stand-ins in ``sys.modules`` (in place of the merged modules, so that no row is
     built and no episode is run): ``s2rows.RowError`` is a
@@ -500,20 +539,58 @@ def test_a_rows_refusal_before_any_episode_is_the_monitors(monkeypatch, tmp_path
     assert m2.main(run + ["--also-k", "0"]) == 0 and (mon / "monitor_512.json").is_file()
 
 
-def test_the_stand_ins_load_refuses_as_the_row(monkeypatch, tmp_path):
-    """On the Stage 1 view without ``lookbar``, the stand-in loads the checkpoint before any episode: a fingerprint
-    not reproduced there (``s2load.CheckpointError``) is a refusal of kind ``checkpoint``."""
-    from designlab.stage2 import s2load
+def test_a_look_sets_refusal_is_the_monitors(monkeypatch, tmp_path):
+    """The lead's ruling 31 of 17 Nov 2026 (6): ``lookbar.LookSetRefused`` (rule X1: on a look set, or a version of
+    one, no episode runs before the set's G9-ref has passed for the body on its latest freeze) is a refusal of the
+    monitor, of kind ``look_set``: exit code 8 and its note, at the baseline and at a check, before the set is read
+    and before any episode; not a crash.  Here ``lookbar.episodes`` itself refuses (no G9-ref record: the gates'
+    directory is a temporary one); the row is a ``LookRow`` around a bare row.  On a set that is no look set nothing
+    is refused, and what ``lookbar.episodes`` raises there stays no refusal."""
+    import types
 
-    def load(job_dir, steps, *a, **k):
-        raise s2load.CheckpointError(f"checkpoint {steps} of {job_dir}: fingerprint not reproduced: max |difference| "
-                                     "0.25 > 1e-05 over 256 observations: not judged (S2-12)")
+    from designlab.stage1 import panels
+    from designlab.stage2 import gates2, lookbar, train2
 
-    monkeypatch.setattr(s2load, "load_checkpoint", load)
-    with pytest.raises(m2.MonitorRefusal, match="fingerprint not reproduced") as info:
-        m2._stand_in(BODY, "R5/42@10ms", m2.pairs_for("S1", tiny=True),
-                     {"R5/42": dict(job_dir=str(tmp_path), steps=512)})
-    assert info.value.kind == "checkpoint" and "before any episode" in str(info.value)
+    monkeypatch.setattr(gates2, "GATES", tmp_path / "gates")
+    seen = []
+
+    def open_set(*a, **k):
+        seen.append("open_set")
+        raise RuntimeError("the set was read")
+
+    monkeypatch.setattr(lookbar, "open_set", open_set)
+    monkeypatch.setattr(lookbar, "rows", lambda body, names: seen.append(("rows", names[0])) or {
+        names[0]: lookbar.LookRow(panels.Row())})
+    s2rows = types.ModuleType("designlab.stage2.s2rows")  # (the policy row is never built here)
+    s2rows.configure = lambda policies: seen.append("configure")
+    monkeypatch.setitem(sys.modules, "designlab.stage2.s2rows", s2rows)
+    job = _job(tmp_path)
+    own = train2.sources()["sha256"]
+    mon = job / "monitor"
+    for set_name in ("V6", "V6noF5", "V6.2"):
+        base = ["baseline", "--job", str(job), "--body", BODY, "--set", set_name, "--sources", own]
+        run = ["run", "--job", str(job), "--steps", "512", "--body", BODY, "--set", set_name, "--sources", own]
+        for argv, note, row in ((base, mon / "r0l.refused.json", "R0L@10ms"),
+                                (run, mon / "monitor_512.refused.json", "R5/42@10ms")):
+            seen.clear()
+            said = _cli_refused(argv, note, "look_set", f"{set_name}/{BODY}: there is no G9-ref record", [])
+            assert said["reason"].startswith(f"the look set {set_name} refused the row {row} before any episode "
+                                             "(LookSetRefused: ")
+            assert "rule X1" in said["reason"]
+            assert seen == ([("rows", row)] if argv[0] == "baseline" else ["configure", ("rows", row)])
+        with pytest.raises(m2.MonitorRefusal) as info:
+            m2.baseline(BODY, set_name, mon, sources_sha256=own, job_dir=job)
+        assert info.value.kind == "look_set" and isinstance(info.value.__cause__, lookbar.LookSetRefused)
+        assert not (mon / "r0l.json").exists() and not (mon / "monitor_512.json").exists()
+    # on a set that is no look set nothing is refused: the set is read (here that raises, and is no refusal)
+    seen.clear()
+    with pytest.raises(RuntimeError, match="the set was read"):
+        m2.main(["baseline", "--job", str(job), "--body", BODY, "--set", "F25F9", "--sources", own])
+    assert seen == [("rows", "R0L@10ms"), "open_set"] and not (mon / "r0l.refused.json").exists()
+    # the kind, and the rule's text
+    assert m2.REFUSALS == ("sources", "checkpoint", "other_run", "run", "row", "look_set")
+    assert m2.SET_REFUSALS == (("designlab.stage2.lookbar", "LookSetRefused", "look_set"),)
+    assert "G9-ref has not passed" in m2.RULES["refusal"] and "LookSetRefused" in m2.RULES["refusal"]
 
 
 def test_a_baseline_that_holds_an_error_is_no_baseline(monkeypatch, tmp_path):
@@ -558,6 +635,51 @@ def test_survival_credit():
     rec = record(table({"walk/nominal": dict(factor=0.5)}))
     assert rec["S"] == pytest.approx((15 * 12.0 + 3 * 6.0) / 18) and rec["mean_survival_s"] == pytest.approx(12.0)
     assert rec["L_planned_s"] == pytest.approx(12.0)
+
+
+def _clocked(cond, seed, survival, start=0.5, dt=0.002, behind=0) -> dict:
+    """An episode whose reference clock is advanced as the runner advances it, one ``dt x 1.05`` per physics step
+    summed in floats (``control``'s ``tau_ref``), from a track start of ``start``; ``behind``: steps fewer."""
+    e = ep(cond, seed, outcome="fell", survival=survival)
+    t = start
+    for _ in range(round(survival / dt) - behind):
+        t += dt * m2.RATE
+    e["clock"].update(t_ref_reached=t, t_ref_planned=start + m2.RATE * PLANNED)
+    return e
+
+
+def _product(e) -> float:
+    """The credit as a plain product, ``survival_s x min(1, covered / (1.05 x survival_s))`` (as built before the
+    lead's ruling 17 of 17 Nov 2026)."""
+    c = e["clock"]
+    covered = c["t_ref_reached"] - (c["t_ref_planned"] - m2.RATE * e["planned_s"])
+    return e["survival_s"] * min(1.0, max(0.0, covered) / (m2.RATE * e["survival_s"]))
+
+
+def test_r0ls_s_is_exactly_its_mean_survival():
+    """The lead's ruling 17 of 17 Nov 2026: a clock that covered 1.05 x the survival time is credited the survival
+    time itself, also where the reference time, summed step by step, rounds a little below 1.05 x the survival
+    time (there the plain product is a hair under it); R0L's S is then exactly its plain mean survival.  A clock
+    one physics step behind is credited its share."""
+    assert m2.CREDIT_RTOL == 1e-9 and "to within 1e-9 of it" in m2.RULES["survival"]
+    eps = [_clocked(c, s, 3.0 + 0.37 * i) for i, (c, s) in enumerate(m2.pairs_for("V6"))]
+    assert any(_product(e) != e["survival_s"] for e in eps)  # (the floats' rounding: the case the ruling is for)
+    for e in eps:
+        assert m2.survival_credit(e) == e["survival_s"]  # (exactly)
+    rec = record(eps)
+    assert rec["S"] == rec["mean_survival_s"]
+    # one physics step behind (2 ms in 5 s) is a clock that fell behind: credited its share
+    e = _clocked("walk/nominal", 6001, 5.0, behind=1)
+    got = m2.survival_credit(e)
+    assert got == pytest.approx(5.0 - 0.002, rel=1e-9) and got < 5.0
+    # within the share: the time itself; beyond it: the product
+    for rel, full in ((1e-12, True), (5e-10, True), (2e-9, False), (1e-6, False)):
+        e = ep("walk/nominal", 6001, outcome="fell", survival=7.0)
+        e["clock"].update(t_ref_reached=m2.RATE * 7.0 * (1.0 - rel), t_ref_planned=m2.RATE * PLANNED)
+        got = m2.survival_credit(e)
+        assert (got == 7.0) is full, rel
+        if not full:
+            assert got == pytest.approx(7.0 * (1.0 - rel), rel=1e-12, abs=0) and got < 7.0
 
 
 def test_a_policy_rows_episode_without_its_clock_is_no_record(monkeypatch, tmp_path):
@@ -863,6 +985,87 @@ def test_s2_10_record():
                                                  digests_compared=False)
 
 
+def lookbar_not_run(monkeypatch, set_name, pairs, row="R0L@10ms") -> list:
+    """Episodes of ``pairs`` not run, as ``lookbar.episodes`` builds them: that function itself, on a set whose
+    ``open_set`` holds none of their references (nothing is read and no episode runs; the row is a ``LookRow``
+    around a bare row).  On a look set its G9-ref check (rule X1) is let through: it is not what is held here."""
+    from designlab.stage1 import panels
+    from designlab.stage2 import lookbar
+
+    def open_set(body, set_name, keys, root, stage1_run):
+        return dict(ctx=None, conds={k: None for k in keys}, inputs=None, run_dir=None, set_docs=None,
+                    missing={k: dict(reference="transitions/turn90_pi4_left", numbers=None,
+                                     reason="a fixture's reason: the set holds no available reference") for k in keys})
+
+    monkeypatch.setattr(lookbar, "open_set", open_set)
+    monkeypatch.setattr(lookbar, "require_g9_ref", lambda *a, **k: dict(path="g9_ref.json", sha256="0" * 64,
+                                                                         pass_=True, at=None, set_freeze=None))
+    eps = lookbar.episodes(BODY, set_name, {row: lookbar.LookRow(panels.Row())}, list(pairs))
+    assert [e["outcome"] for e in eps] == [m2.NOT_RUN] * len(pairs) and lookbar.NOT_RUN == m2.NOT_RUN
+    return eps
+
+
+def test_an_equal_baseline_with_a_condition_not_run_compares_the_digests_of_the_episodes_that_ran(monkeypatch):
+    """The lead's ruling 33 of 17 Nov 2026 (the check of CT4, findings 1 and 2): ``baseline_equal`` asks for state
+    digests only in the pairs of which at least one episode ran.  R0L's baseline may hold a condition not run (rule
+    M1), and ``lookbar.episodes`` gives such an episode no digest (built here by that function): equal on both
+    sides, the baselines are equal and the digests were compared.  Two episodes not run are still compared on their
+    outcome and survival; one not run against one that ran differs, and that pair's digests were not compared.  A
+    digest counts as compared only where both sides hold a non-empty string: one of None (``lookbar``'s, when taking
+    it raised) or "" is not compared, on either side.  With no episode that ran, nothing was compared."""
+    import hashlib
+
+    left = m2.pairs_for("V6")[6:9]
+    assert {c for c, _ in left} == {"turn/q90_left"}
+    nr = {(e["condition"], e["seed"]): e for e in lookbar_not_run(monkeypatch, "V6", left)}
+    assert not any(k in e for e in nr.values() for k in ("state_digest", "digest"))  # (lookbar gives it none)
+    eps = [nr.get((e["condition"], e["seed"])) or dict(e, state_digest=hashlib.sha256(
+        f"{e['condition']}|{e['seed']}".encode()).hexdigest()) for e in table(terms=("tail_servo",))]
+    r0l = record(eps)
+    assert r0l["outcomes"]["not_run"] == 3 and m2.baseline_problem(r0l) is None
+    assert m2.baseline_equal(r0l, json.loads(json.dumps(r0l))) == dict(equal=True, episodes=18, differ=[],
+                                                                       digests_compared=True)
+
+    def changed(i, **kw) -> dict:
+        doc = json.loads(json.dumps(r0l))
+        doc["episodes"][i].update(kw)
+        return doc
+
+    # two episodes not run are compared on their outcome and survival; one that ran against one not run differs
+    assert m2.baseline_equal(r0l, changed(6, survival_s=1.0)) == dict(
+        equal=False, episodes=18, differ=["turn/q90_left seed 6007: survival_s"], digests_compared=True)
+    ran = changed(7, outcome="read", survival_s=12.0)
+    assert m2.baseline_equal(r0l, ran) == dict(equal=False, episodes=18, differ=["turn/q90_left seed 6008: outcome, "
+                                                                                 "survival_s"], digests_compared=False)
+    # a digest of None, or "", is not compared: on both sides (equal) and on one side (differs)
+    for bad in (None, ""):
+        for key in ("state_digest", "digest"):
+            both = changed(0, **{key: bad})
+            if key == "digest":
+                both["episodes"][0].pop("state_digest")
+            assert m2.baseline_equal(both, json.loads(json.dumps(both))) == dict(
+                equal=True, episodes=18, differ=[], digests_compared=False), (bad, key)
+            assert m2.digest_compared(both["episodes"][0], r0l["episodes"][0]) is False
+            assert m2.digest_compared(r0l["episodes"][0], both["episodes"][0]) is False
+        one = changed(0, state_digest=bad)
+        assert m2.baseline_equal(r0l, one) == dict(equal=False, episodes=18, differ=["walk/nominal seed 6001: "
+                                                                                     "state_digest"],
+                                                   digests_compared=False)
+    # an episode that ran without a digest on one side
+    lost = json.loads(json.dumps(r0l))
+    lost["episodes"][0].pop("state_digest")
+    assert m2.baseline_equal(r0l, lost) == dict(equal=True, episodes=18, differ=[], digests_compared=False)
+    # the older key holds a digest as well
+    old = [{("digest" if k == "state_digest" else k): v for k, v in e.items()} for e in r0l["episodes"]]
+    assert m2.baseline_equal(dict(episodes=old), dict(episodes=old))["digests_compared"] is True
+    # no episode ran: nothing was compared
+    none_ran = record(lookbar_not_run(monkeypatch, "V6", m2.pairs_for("V6")))
+    assert none_ran["outcomes"]["not_run"] == 18
+    assert m2.baseline_equal(none_ran, json.loads(json.dumps(none_ran))) == dict(equal=True, episodes=18, differ=[],
+                                                                                 digests_compared=False)
+    assert m2.baseline_equal(dict(episodes=[]), dict(episodes=[]))["digests_compared"] is False
+
+
 def test_s2_10_from_a_jobs_records(monkeypatch, tmp_path):
     job = _job(tmp_path)
     monkeypatch.setattr(m2, "_sources", lambda given: dict(given=given, own="x"))
@@ -881,7 +1084,7 @@ def test_s2_10_from_a_jobs_records(monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# The one indirection, and the stand-in on the Stage 1 view
+# The one indirection, on every set
 # ---------------------------------------------------------------------------------------------------------------
 def test_episodes_goes_through_lookbar_and_configures_the_rows(monkeypatch):
     """``_episodes`` is the module's one indirection: ``s2rows.configure`` with the checkpoint, ``lookbar.rows``
@@ -907,17 +1110,28 @@ def test_episodes_goes_through_lookbar_and_configures_the_rows(monkeypatch):
     assert [c[0] for c in calls] == ["rows", "episodes"]
 
 
-def test_without_lookbar_only_the_stage_1_view_has_a_stand_in(monkeypatch):
-    import importlib.util
-
-    if importlib.util.find_spec("designlab.stage2.lookbar") is not None:
-        pytest.skip("lookbar is merged: the stand-in is no longer reached")
-    with pytest.raises(ModuleNotFoundError):
-        m2._episodes(BODY, "V6", "R0L@10ms", m2.pairs_for("V6", tiny=True))
-    seen = []
-    monkeypatch.setattr(m2, "_stand_in", lambda body, row, pairs, policies: seen.append((body, row)) or [])
-    assert m2._episodes(BODY, "S1", "R0L@10ms", m2.pairs_for("S1", tiny=True)) == [] and seen == [(BODY, "R0L@10ms")]
-    assert "stand_in" in m2._episodes_by("S1") and m2._episodes_by("V6").startswith("none")
+def test_every_set_goes_through_lookbar_and_the_stand_in_is_gone(monkeypatch, tmp_path):
+    """The lead's ruling 17 of 17 Nov 2026: the Stage 1 view's stand-in is deleted.  On every set, ``S1``
+    included, ``_episodes`` builds the row and runs the episodes through ``lookbar``, and the record names it; a
+    checkout that cannot import ``lookbar`` runs no monitor, on ``S1`` as on any other set (its import error)."""
+    assert not hasattr(m2, "_stand_in") and not hasattr(m2, "_episodes_by")
+    assert m2.EPISODES_BY == "lookbar.episodes"
+    calls = []
+    s1 = table(set_name="S1", tiny=True)
+    _stub_rows(monkeypatch, rows=lambda body, names: calls.append(("rows", names[0])) or {names[0]: "row"},
+               episodes=lambda body, set_name, rows, pairs, traces=None: calls.append(("episodes", set_name)) or s1)
+    pairs = m2.pairs_for("S1", tiny=True)
+    assert m2._episodes(BODY, "S1", "R0L@10ms", pairs) == s1
+    assert calls == [("rows", "R0L@10ms"), ("episodes", "S1")]
+    monkeypatch.setattr(m2, "_sources", lambda given: dict(given=given, own="x"))
+    doc = m2.baseline(BODY, "S1", tmp_path / "monitor", tiny=True)
+    assert doc["episodes_by"] == "lookbar.episodes" and doc["valid"] is True and len(doc["episodes"]) == 2
+    monkeypatch.setitem(sys.modules, "designlab.stage2.lookbar", None)  # (a checkout without lookbar)
+    for set_name in ("S1", "V6"):
+        calls.clear()
+        with pytest.raises(ModuleNotFoundError):
+            m2._episodes(BODY, set_name, "R0L@10ms", m2.pairs_for(set_name, tiny=True))
+        assert calls == []
 
 
 # ---------------------------------------------------------------------------------------------------------------
