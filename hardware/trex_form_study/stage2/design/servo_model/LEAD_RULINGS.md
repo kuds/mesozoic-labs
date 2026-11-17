@@ -69,3 +69,25 @@ The first list named 18 points; the note's section of open choices holds 27. The
 - *`train2.SOURCE_FILES` (point 8).* S2 adds `servo` and `g8s`.
 - *The builder's (b):* the first box-servo target is taken at step 0, as built and tested.
 - *The builder's (d):* X6L's slope stays 6.23, as built, while X6L is reported only.
+
+## Fourth list (17 Nov 2026, ~12:15 UTC), on S2 (`S2_{build,check}_17nov.md`)
+
+S2 is merged as it stands.
+
+- *The builder's (a), (b) and (e)* are accepted as built:
+  - the option values are "draw", a named setting, or "D/<bar seed>";
+  - the env refuses joint factors other than (1, 1) rather than forcing them;
+  - the reset info names the setting only when the option is on.
+- *The builder's (c), the mid-start forward pass.* Accepted as built. Once per episode, the first reading's forward
+  pass runs on today's model arrays with the oldest queued command folded with the run's copies, and no command is
+  served in that pass. `SERVO_RULE`'s words "today's model's" are read as the model arrays only. S3's rule text says
+  this in a sentence; the existing string is not edited.
+- *The builder's (d).* G8s is run again against S3's `servo.Served` when S3 lands. The named settings use seed
+  3042 and D uses seeds 3042 to 3044, as built; the design names no seeds, and this list now does.
+- *The builder's (f) and the check's point 6*, for S3 and S4:
+  - `s2rows`' equivalence check gives an episode seed when the run's config has `servo="draw"`;
+  - G8a is run again after S2, as trap 13 says, in S4's measuring step.
+- *The check's finding 1.* Section 5.1's "Training env" row is amended to match 2d's split: copies at entry, model
+  gains at the first physics step. The line references to `r5env.py` are refreshed. Both are done in S3.
+- *The check's finding 2.* The early "draw" refusal's test matches `SERVO_RULE`. Done in S3.
+- *The check's points 4 and 5* stand as built (trap 2; T14's form at the env as at the plant).
