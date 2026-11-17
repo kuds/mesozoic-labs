@@ -1426,10 +1426,12 @@ def test_a_monitor_that_refuses_to_run_is_no_attempt(ref_fix, stub, tmp_path, mo
     monkeypatch.setenv("STUB_MON_REFUSE", str(refuse))
     run_uuid = doc_of(out)["run_uuid"]
     for k in (0, 1):
-        if k:  # the second refusal: a resume runs the check again, and the monitor refuses again
+        if k:  # the second refusal: a resume runs the check again, and the monitor refuses again; the resume has
+            # --retry-check, and no attempt was left open: the halt does not name that parameter (the check of the
+            # third follow-up, finding 3: as built only the two attempts never closed decided it, untested)
             with pytest.raises(stub.Halt, match="refused to run on the check of 512 steps.*the sources differ") as info:
-                run(stub, out, gates=True, resume=True)
-            assert info.value.code == 5
+                run(stub, out, gates=True, resume=True, retry_check=True)
+            assert info.value.code == 5 and doc_of(out)["sessions"][1]["retry_check"] is True
         d = doc_of(out)
         assert d["run_uuid"] == run_uuid
         (e,) = d["monitor"]
