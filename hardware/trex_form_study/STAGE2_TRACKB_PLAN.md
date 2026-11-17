@@ -2179,8 +2179,11 @@ of the lead it is an amendment of this text with its date, and one given after a
 here since the fifth list was written in: "Added when the fifth list was written in: its ruling 4 names the `-X` head's
 sets as among the other sets; where the set that fails is the `-X` head's own, the same reading is taken here, with the
 "body" of the paragraph above, which has two heads: the other sets are that body's look sets on either head."] When the
-set whose `start` or `nominal_to_v0.4` fails is the `-X` head's own, the lead's decision also takes in the plain head's
-sets of that body.
+set whose start fails is the `-X` head's own, the lead's decision also takes in the plain head's sets of that body.
+[the author's reading, not the lead's wording; until the independent review of the sixth list's writing-in, the
+sentence before this mark read "whose `start` or `nominal_to_v0.4` fails", in place of the ruling's words] "Whose start
+fails" is read as the set of the paragraph above whose `start` or `nominal_to_v0.4` fails: the reading that the ruling
+confirms says "the set that fails", and the paragraph above names both failures.
 
 The design's cut 3 [differs: B6 and T1]: a move leaves and enters a K-stride window only at its boundary (a right-foot
 command at the exact time of phase 0.5 after the boundary); episodes then walk whole windows (about 10 s) before a
