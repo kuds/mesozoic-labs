@@ -505,6 +505,57 @@ def test_a_stock_condition_has_stage_1s_one_reading():
     assert ep["failed_terms_but_A1"] is None and ep["look"] is None
 
 
+WARNED = dict(BADQACC=dict(number=1, lastinfo=0))
+WARNED_CAUSE = "MuJoCo warning BADQACC (x1)"  # (tune.warned_fall's cause of WARNED)
+
+
+def warned_pair(seed=3042, key="walk/v0.4", survival=20.0, policy=POLICY) -> tuple[dict, dict]:
+    """A bar episode and its block of an episode during which MuJoCo warned, as ``tune.warned_fall`` leaves them:
+    fell, at 0 s, with the warnings; the time simulated is the bar's ``survival_s``."""
+    e = dict(bar_ep(seed, fell=True, survival=survival), fall_time_s=0.0, fall_cause=WARNED_CAUSE,
+             mujoco_warnings=WARNED)
+    b = dict(block(seed, key=key, fell=True, survival=survival, read=False, reason="fell", policy=policy),
+             fall_time_s=0.0, fall_cause=WARNED_CAUSE, mujoco_warnings=WARNED)
+    return e, b
+
+
+def test_an_episode_during_which_mujoco_warned_is_a_fall_at_its_start_credited_no_survival():
+    """The lead's ruling 9 of 17 Nov 2026 (``tune.warned_fall``): such an episode is a fall at its start.  Its
+    companion episode holds ``warned`` and ``fall_time_s`` 0 and survived nothing (the time simulated is beside it),
+    so the monitor's rule M3 credits it no survival.  An ordinary fall keeps its fall time and its survival."""
+    m2 = pytest.importorskip("designlab.stage2.monitor2")
+    e, b = warned_pair()
+    for look_set in (True, False):
+        ep = lookbar.companion_episode("walk/v0.4", "bar_walk", 3042, e, b, look_set)
+        assert (ep["outcome"], ep["fell"], ep["warned"], ep["fall_time_s"], ep["survival_s"], ep["simulated_s"]) == (
+            "fell", True, True, 0.0, 0.0, 20.0)
+        assert ep["failed_terms"] == ["survived"] and ep["fall_cause"] == WARNED_CAUSE
+        assert not any(ep[k] for k in ("succeeded", "succeeded_but_A1", "succeeded_look", "succeeded_but_A1_look"))
+        assert m2.has_clock(ep) and m2.survival_credit(ep) == 0.0
+    s = m2.summarize([ep])
+    assert (s["S"], s["mean_survival_s"], s["outcomes"]["fell"]) == (0.0, 0.0, 1)
+    # either document says so: the block, the bar's episode record, or a fall cause of tune.warned_fall's alone
+    for ee, bb in ((bar_ep(fell=True), b), (e, block(fell=True, read=False)),
+                   (bar_ep(fell=True), dict(block(fell=True, read=False), fall_cause=WARNED_CAUSE))):
+        ep = lookbar.companion_episode("walk/v0.4", "bar_walk", 3042, ee, bb, True)
+        assert (ep["outcome"], ep["warned"], ep["fall_time_s"], ep["survival_s"], ep["simulated_s"]) == (
+            "fell", True, 0.0, 0.0, 20.0)
+    # an ordinary fall: its own fall time (the block's, else the bar's) and its survival, credited as its clock ran
+    for ee, bb in ((bar_ep(fell=True, survival=7.5), dict(block(fell=True, survival=7.5, read=False), fall_time_s=7.4)),
+                   (dict(bar_ep(fell=True, survival=7.5), fall_time_s=7.4), block(fell=True, survival=7.5, read=False))):
+        fell = lookbar.companion_episode("walk/v0.4", "bar_walk", 3042, ee, bb, True)
+        assert (fell["outcome"], fell["warned"], fell["fall_time_s"], fell["survival_s"], fell["simulated_s"]) == (
+            "fell", False, 7.4, 7.5, 7.5)
+        assert m2.survival_credit(fell) == pytest.approx(7.5)
+    read = lookbar.companion_episode("walk/v0.4", "bar_walk", 3042, bar_ep(), block(), True)
+    assert (read["warned"], read["fall_time_s"], read["survival_s"], read["simulated_s"]) == (False, None, 20.0, 20.0)
+    assert m2.survival_credit(read) == pytest.approx(20.0)
+    assert not lookbar.is_warned(None, {}, dict(fall_cause="tilt", mujoco_warnings={})) and lookbar.is_warned(None, e)
+    # the rule is in every row's description (and so in its key) and in every companion record
+    assert "MuJoCo warned is a fall at its start" in lookbar.RULES["outcome"]
+    assert "survival_s 0" in lookbar.rule_texts()["outcome"]
+
+
 def test_a_fault_names_no_path_of_this_machine():
     """The lead's ruling 8 of 17 Nov 2026: a fault is ``<what>: <Type>: <message>`` without this machine's paths: a
     file under the study is named relative to it, any other one by its last three parts; a condition key, a speed in
@@ -644,6 +695,26 @@ def test_an_unread_episode_survived_and_succeeded_in_no_reading(tmp_path):
     assert pol["versions_trained"] == POLICY["versions_trained"] and pol["versions_judged"] == POLICY["versions_judged"]
     assert (pol["cross_version"], pol["fingerprint_max_abs_diff"], pol["fingerprint_tol"]) == (False, 2e-7, 1e-5)
     assert pol["checkpoint"] == dict(steps=500000) and pol["episodes_checked"] == 20 and pol["same_checkpoint"] is True
+
+
+def test_collect_holds_an_episode_during_which_mujoco_warned_as_a_fall_at_its_start(tmp_path):
+    """Ruling 9 in the companion record: the bar record and the sidecar keep the time simulated (so the sidecar is
+    that episode's), the companion episode is a fall at 0 s that survived nothing, and the counts hold one fall."""
+    row = r0l()
+    path, cpath = write_run(tmp_path, "V6", row, "walk/v0.4", "bar_walk", twenty({3045: warned_pair(3045, policy=None)}))
+    lookbar.collect(tmp_path, "V6", BODY)
+    doc = s2io.read_json(cpath)
+    by = {e["seed"]: e for e in doc["episodes"]}
+    assert (by[3045]["outcome"], by[3045]["warned"], by[3045]["fall_time_s"], by[3045]["survival_s"],
+            by[3045]["simulated_s"], by[3045]["fall_cause"]) == ("fell", True, 0.0, 0.0, 20.0, WARNED_CAUSE)
+    assert all((e["warned"], e["fall_time_s"], e["survival_s"]) == (False, None, 20.0) for s, e in by.items() if s != 3045)
+    assert doc["outcomes"] == dict(read=19, fell=1, unread=0, error=0)
+    for key in ("counts", "counts_but_A1", "counts_look", "counts_but_A1_look"):
+        assert (doc[key]["survived"], doc[key]["falls"], doc[key]["errors"]) == (19, 1, 0), key
+    sp = lookbar.sidecar_path(bar.block_dir(tmp_path, "V6", BODY, bar.HEADLINE_BLOCK) / "look_partial", row.name,
+                              "walk/v0.4", 3045)
+    assert s2io.read_json(sp)["survival_s"] == 20.0 == s2io.read_json(path)["episodes"][3]["survival_s"]
+    assert doc["rules"]["outcome"] == lookbar.RULES["outcome"]
 
 
 def test_a_missing_or_foreign_sidecar_is_refused(tmp_path):
@@ -1165,6 +1236,31 @@ def test_the_monitor_reads_these_episodes(tmp_path):
     assert (tmp_path / "monitor" / "traces" / "r0l" / "R0L@10ms" / "walk" / "brisk" / "6004.npz").is_file()
     again = m2.baseline(BODY, "S1", tmp_path / "again", tiny=True)
     assert m2.baseline_equal(again, doc) == dict(equal=True, episodes=2, differ=[], digests_compared=True)
+
+
+@needs_run
+def test_an_episode_during_which_mujoco_warned_through_the_monitors_entry(monkeypatch):
+    """Ruling 9 end to end on the S1 view (one stock condition cut to 1 s): the same episode, once as it runs and once
+    with MuJoCo's warnings read as raised (``tune.sim_warnings``, which the row's episode hands to
+    ``tune.warned_fall``).  The plant ran the same; the warned one is a fall at 0 s, credited no survival."""
+    m2 = pytest.importorskip("designlab.stage2.monitor2")
+    stock_cut(monkeypatch, 1.0)
+    rows = lookbar.rows(BODY, ["R0L@10ms"])
+    look = lookbar.look_row_of(rows["R0L@10ms"])
+    calm, = lookbar.episodes(BODY, "S1", rows, [("walk/brisk", 6004)])
+    assert (calm["outcome"], calm["warned"], calm["fall_time_s"]) == ("read", False, None)
+    assert calm["survival_s"] == calm["simulated_s"] > 0.9 and m2.survival_credit(calm) == pytest.approx(calm["survival_s"])
+    warnings = dict(BADQACC=dict(number=2, lastinfo=7))
+    monkeypatch.setattr(tune, "sim_warnings", lambda d: warnings)
+    warned, = lookbar.episodes(BODY, "S1", rows, [("walk/brisk", 6004)])
+    blk = look.last
+    assert (blk["fell"], blk["fall_time_s"], blk["mujoco_warnings"]) == (True, 0.0, warnings)
+    assert blk["survival_s"] == calm["simulated_s"] and blk["fall_cause"].startswith(lookbar.WARNED_CAUSE)
+    assert warned["state_digest"] == calm["state_digest"] and warned["steps"] == calm["steps"]
+    assert (warned["outcome"], warned["fell"], warned["warned"], warned["fall_time_s"], warned["survival_s"]) == (
+        "fell", True, True, 0.0, 0.0)
+    assert warned["simulated_s"] == calm["simulated_s"] and warned["failed_terms"] == ["survived"]
+    assert m2.has_clock(warned) and m2.survival_credit(warned) == 0.0
 
 
 # ------------------------------------------------------------------------------------------------

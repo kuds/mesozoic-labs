@@ -32,6 +32,9 @@ clock factor is below 1 and ``unreadable`` otherwise.  *error*: anything else th
 (an infrastructure fault, or an unreadable episode of a row without a policy, for which ``STAGE2_75_PLAN.md`` C8
 stands), and, on a look set, a walk or turn item whose look reading cannot be given (rule U5: a reference that
 cannot be played, or whose own window holds too few steps, is a fault of the definition, never "no look reading").
+An episode during which MuJoCo warned is a fall at its start (``tune.warned_fall``; the lead's ruling 9 of 17 Nov
+2026): *fell*, with ``warned`` true, ``fall_time_s`` 0 and ``survival_s`` 0 in its companion episode, so no
+survival is credited for it (the time simulated is ``simulated_s``).
 
 **Readings** (rule U4; the lead's rulings of 16 Nov 2026).  Reading 1 counts on the look sets ``LOOK_SETS``.  There
 a walk or turn episode succeeds with the look when the bar's ``succeeded`` holds and all four terms do; a nudge or
@@ -41,13 +44,15 @@ reading of the companion.  On any other set the look numbers and the term are re
 (also for an episode the bar could not read: the bar's count stands there).
 
 **A block** (schema ``s2-look-ep-1``; the sidecar file): ``row`` (the bar row's name), ``look_row``, ``condition``,
-``seed``, ``set``, ``judge``, ``steps``, ``fell``, ``survival_s``, ``planned_s``, ``clock {mean_factor, min_factor,
-t_ref_reached, t_ref_planned, ...}``, then the look reading: ``read`` (whether there is one), ``reason`` (why an
-item is not read: a nudge, a stop or a stock item, a fall, a window not reached), ``fault`` (what went wrong in the
-reading itself), ``window``, ``window_ref``, ``own``, ``reference``, ``terms``, ``not_read``, ``too_few_steps``,
-``look_ok``, ``compare`` (the ratios and differences), ``air_runs``; ``on_command_at_stop`` (a stop item);
-``policy_check`` (a policy row's ``provenance()``); ``state_digest``; ``row_sha256``.  **A companion episode**:
-``condition``, ``seed``, ``outcome``, ``reason``, ``fell``, ``survival_s``, ``planned_s``, the four readings'
+``seed``, ``set``, ``judge``, ``steps``, ``fell``, ``survival_s``, ``planned_s``, ``fall_cause``, ``fall_time_s``,
+``mujoco_warnings``, ``clock {mean_factor, min_factor, t_ref_reached, t_ref_planned, ...}``, then the look reading:
+``read`` (whether there is one), ``reason`` (why an item is not read: a nudge, a stop or a stock item, a fall, a
+window not reached), ``fault`` (what went wrong in the reading itself, as ``<what>: <Type>: <message>`` with no
+absolute path of this machine), ``window``, ``window_ref``, ``own``, ``reference``, ``terms``, ``not_read``,
+``too_few_steps``, ``look_ok``, ``compare`` (the ratios and differences), ``air_runs``; ``on_command_at_stop`` (a stop
+item); ``policy_check`` (a policy row's ``provenance()``); ``state_digest``; ``row_sha256``.  **A companion episode**:
+``condition``, ``seed``, ``outcome``, ``reason``, ``fell``, ``warned``, ``fall_time_s``, ``survival_s`` (0 for an
+episode during which MuJoCo warned: ``RULES["outcome"]``), ``simulated_s``, ``planned_s``, the four readings'
 ``succeeded...``, ``failed_terms``, ``look`` (the block's reading, None where there is none), ``clock``,
 ``on_command_at_stop``, ``error``, ``state_digest``, ``policy_check`` and the bar's own verdicts under ``bar``.
 
@@ -116,6 +121,8 @@ T_REF_START = 0.0
 #: A mean clock factor below ``1 - CLOCK_TOL`` is "below 1" (the factor of a row that keeps the commanded clock is
 #: 1 to rounding).
 CLOCK_TOL = 1e-9
+#: How ``tune.warned_fall`` begins the fall cause of an episode during which MuJoCo warned (``is_warned``).
+WARNED_CAUSE = "MuJoCo warning "
 #: What a block holds of a read episode's look reading: the companion episode's ``look``.
 LOOK_KEYS = ("window", "window_ref", "own", "reference", "terms", "not_read", "too_few_steps", "look_ok", "compare",
              "air_runs")
@@ -183,7 +190,10 @@ RULES = dict(
         "fall and the row is a policy row: not succeeding in any reading, with the reason clock_behind when its "
         "mean clock factor is below 1, else unreadable, and the reference time reached); or error (an "
         "infrastructure fault; an unreadable episode of a row without a policy, for which STAGE2_75_PLAN.md C8 "
-        "stands; on a look set, a walk or turn item whose look reading cannot be given)"),
+        "stands; on a look set, a walk or turn item whose look reading cannot be given).  An episode during which "
+        "MuJoCo warned is a fall at its start, as tune.warned_fall has it (the lead's ruling 9 of 17 Nov 2026): its "
+        "companion episode holds warned true, fall_time_s 0 and survival_s 0, so no survival is credited for it; the "
+        "time simulated is kept as simulated_s, and the sidecar and the bar record keep theirs"),
     counts=(
         "rule U6: the readings' counts by the bar's own arithmetic (bar.counts) on the companion's episodes: read "
         "and unread episodes survived, an unread episode succeeded in none; a fell episode is a fall; an error "
@@ -440,11 +450,14 @@ class LookRow(panels.Row):
         is_bar = bar.is_bar(cond)
         judge = str(cond.judge)
         fell = bool(out["fell"])
+        fall_time = out.get("fall_time_s")
         block = dict(
             schema=SIDECAR_SCHEMA, row=self.sidecar_row, look_row=self.name, condition=cond.key, seed=int(seed),
             set=cond.set if is_bar else bar.STOCK_SET, judge=judge, relaxed=list(relax),
             steps=int(getattr(rec, "steps", 0) or 0), fell=fell, survival_s=float(out["seconds"]),
-            planned_s=float(b.seconds), fall_cause=out.get("fall_cause"), clock=None, read=False, reason=None,
+            planned_s=float(b.seconds), fall_cause=out.get("fall_cause"),
+            fall_time_s=None if fall_time is None else float(fall_time),
+            mujoco_warnings=out.get("mujoco_warnings") or None, clock=None, read=False, reason=None,
             fault=None, window=None, window_ref=None, own=None, reference=None, terms=None, not_read=None,
             too_few_steps=None, look_ok=None, compare=None, air_runs=None, on_command_at_stop=None,
             policy_check=None, state_digest=None, row_sha256=self.row_sha256(), at=s2io.now_utc())
@@ -575,6 +588,14 @@ def is_unreadable(error) -> bool:
     return bool(lines) and _UNREADABLE.match(lines[-1]) is not None
 
 
+def is_warned(*docs) -> bool:
+    """Whether an episode is one during which MuJoCo warned, by any of ``docs`` (its block, the bar's episode
+    record; None is skipped): it holds ``mujoco_warnings``, or its fall cause is the one ``tune.warned_fall``
+    writes (``WARNED_CAUSE``)."""
+    return any(bool(d.get("mujoco_warnings")) or str(d.get("fall_cause") or "").startswith(WARNED_CAUSE)
+               for d in docs if d)
+
+
 def companion_episode(condition: str, judge: str, seed: int, e: dict | None, block: dict | None, look_set: bool,
                       error: str | None = None) -> dict:
     """One episode as the companion holds it (module docstring: the outcome and the readings).
@@ -637,10 +658,15 @@ def companion_episode(condition: str, judge: str, seed: int, e: dict | None, blo
         ok1, ok13 = ok2, ok3
         reading_1 = READING_1["other"]
     src = block if block is not None else (e or {})
+    fell = None if block is None and (e is None or (e or {}).get("error")) else bool(src.get("fell"))
+    simulated = float(src.get("survival_s") or 0.0)
+    # (RULES["outcome"], the lead's ruling 9 of 17 Nov 2026: an episode during which MuJoCo warned fell at its start)
+    warned = is_warned(block, e)
+    fall_time = 0.0 if warned else None if not fell else src.get("fall_time_s", (e or {}).get("fall_time_s"))
     return dict(
         condition=condition, seed=int(seed), outcome=outcome, reason=reason, unreadable=unreadable,
-        fell=None if block is None and (e is None or (e or {}).get("error")) else bool(src.get("fell")),
-        survival_s=float(src.get("survival_s") or 0.0), planned_s=src.get("planned_s"),
+        fell=fell, warned=warned, fall_time_s=None if fall_time is None else float(fall_time),
+        survival_s=0.0 if warned else simulated, simulated_s=simulated, planned_s=src.get("planned_s"),
         steps=(block or {}).get("steps"),
         succeeded=ok2, succeeded_but_A1=ok3, succeeded_look=ok1, succeeded_but_A1_look=ok13, reading_1=reading_1,
         failed_terms=failed, failed_terms_but_A1=failed3, look=look, look_ok=None if look is None else look["look_ok"],
@@ -745,8 +771,9 @@ def episodes(body: str, set_name: str, rows: dict, pairs: list, traces=None, roo
                 out.append(dict(
                     row=name, set=set_name, condition=key, seed=seed, outcome=NOT_RUN,
                     reason=str(missing[key].get("reason")), reference=missing[key].get("reference"), fell=None,
-                    survival_s=0.0, planned_s=None, succeeded=False, succeeded_but_A1=False, succeeded_look=False,
-                    succeeded_but_A1_look=False, failed_terms=[], look=None, clock=None, error=None))
+                    warned=False, fall_time_s=None, survival_s=0.0, simulated_s=0.0, planned_s=None, succeeded=False,
+                    succeeded_but_A1=False, succeeded_look=False, succeeded_but_A1_look=False, failed_terms=[],
+                    look=None, clock=None, error=None))
                 continue
             t0 = time.perf_counter()
             look.last = None
@@ -1101,10 +1128,10 @@ def main(argv=None) -> int:
 
 
 __all__ = ["COMPANION_SCHEMA", "DELAYED_KEYS", "LOOK_SETS", "LookBarError", "LookRow", "RULES", "SIDECAR_SCHEMA",
-           "air_runs", "clock_block", "collect", "companion", "companion_episode", "companion_path", "counts_of",
-           "episodes", "is_look_record", "is_unreadable", "look_of", "look_row_of", "main", "on_command_at_stop",
-           "open_set", "record_row_sha256", "rows", "rule_texts", "run", "sidecar_path", "stale_path", "state_digest",
-           "summary_text"]
+           "WARNED_CAUSE", "air_runs", "clock_block", "collect", "companion", "companion_episode", "companion_path",
+           "counts_of", "episodes", "is_look_record", "is_unreadable", "is_warned", "look_of", "look_row_of", "main",
+           "on_command_at_stop", "open_set", "record_row_sha256", "rows", "rule_texts", "run", "sidecar_path",
+           "stale_path", "state_digest", "summary_text"]
 
 if __name__ == "__main__":
     from designlab.stage2 import lookbar as _named  # the importable copy owns every class and all module state
