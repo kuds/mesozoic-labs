@@ -97,3 +97,33 @@ S2 is merged as it stands.
   verdict and no served row is attributed (5.1). Every reader of their records carries its own lists.
 - *Choice 27* (a second-block record that fails) was settled by the owner (`DECISION_LOG.md` P41): the repeat must
   pass too.
+
+## Fifth list (17 Nov 2026, ~12:45 UTC), on S3 (`S3_{build,check}_17nov.md`)
+
+S3 goes to one fix round, with a re-check, before it is merged.
+
+- *Check, finding 1 (a repeat not run or not judged counts as a failure).* Fixed. "replicated" counts as passing,
+  "not replicated" as failing, and anything else as pending (None). A test covers each case. This keeps C8: an
+  episode that cannot be read is run again and never counts.
+- *Check, finding 2 (the runner applies none of the bar's placement rules).*
+  - The runner refuses SV2 rows (R2 inside) on a set that is not registered, as amendment 5 says of R2 rows.
+  - Every gate1 run on V0, F25F9 or F25F9cl is a development run until gate 1's servo rules are registered. It is
+    listed with its command, set, rows, settings, seeds and count in the runner's own listing, beside
+    `stage2/tb/dev_episodes.json`.
+  - The runner takes an episode cap (`--max-episodes`) and refuses a plan over it. S4 sets the rates; a budget
+    ledger comes with the rules.
+- *Check, finding 3.* A `V-` or `W1` run that leaves the supply window is not counted as stayed up, as the design's
+  section 4 says. It is "left the supply window" in the counts and in the summary. Both settings are reported only,
+  so no verdict moves.
+- *Check, finding 4.* `--cut-s` is for tests only: its help says so, and a cut walk episode is never judged.
+- *Check, finding 5.* Accepted as built: `describe()`'s `mid_start_rule` key when the option is on; `train2.sources()`
+  moving; the refresh note in 5.1's row. The design's Files paragraph (line 28) is refreshed at the next text edit.
+- *Check, finding 6.* `GateWorker` also checks that `servo.py` and `gate1.py` have not changed during a session.
+- *The builder's (a).* Until SV5 exists, the equivalence check gives an unserved row's env `options.servo="today"`
+  (the T3 identity, like with like). It compares against SV5 at the env's setting once SV5 exists.
+- *The builder's (c).* The runner keeps refusing look sets. Served rows join the look sets' rule (`lookbar`) when
+  SV5 is built: SV5 in the rule's families, after G9-ref like every row. SV0 and SV2 on a look set are development
+  runs under X1's list.
+- *The builder's (d).* The bar's form: a row that gives no verdict (SV0, SV2) is never sent to the second block. Its
+  D record is reported.
+- *The builder's (f).* Accepted: N and the reported settings are read by no rule here.
