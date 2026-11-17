@@ -628,15 +628,16 @@ def test_the_steps_sheet_quotes_the_programs_own_lines():
         assert re.findall(r"^ {10}([A-Z][A-Z_]+) {2,}", table, re.M) == list(nb.PARAMS), start
     # the lead's ruling 12 of 17 Nov (the check's finding 2): the sheet never tells the owner to delete a runtime
     # that the finish cell kept on purpose: every step that lets a machine go names that paragraph as its exception,
-    # and section 5 says so before its 5.4 (as built 5.3 sent an owner whose page was lost straight to 5.4)
+    # and section 5 says so before its 5.4 (as built 5.3 sent an owner whose page was lost straight to 5.4; the
+    # look at the last box that comes first is ruling 13's, tested in the next test)
     flat = " ".join(r.strip() for r in rows)
     for n, r in enumerate(rows):
         if "Disconnect and delete runtime" in r or "let the machine go" in r:
             near = " ".join(x.strip() for x in rows[max(0, n - 5): n + 3])
             assert "KEPT ON PURPOSE" in near, r
     five = flat.split("5.3  Otherwise open STATUS.json", 1)[1].split("5.5  Expect:", 1)[0]
-    assert ('If the last grey box (8. FINISH) printed a paragraph that begins "THIS MACHINE IS KEPT ON PURPOSE", do '
-            "not do 5.4") in five and five.index("do not do 5.4") < five.index("5.4  Resume")
+    assert ('If it printed a paragraph that begins "THIS MACHINE IS KEPT ON PURPOSE": do not do 5.4.' in five
+            and five.index("do not do 5.4") < five.index("5.4  Resume"))
     # (the check's finding 4) one row per warning, and no irreversible deletion on the owner's own: the lead asks
     write = flat.split("S2 WARNING: a copy to Drive failed ...", 1)[1].split("S2 WARNING: ... reading", 1)[0]
     read = flat.split("S2 WARNING: ... reading from Drive failed", 1)[1].split("S2 WARNING: ... not on Drive", 1)[0]
@@ -649,6 +650,41 @@ def test_the_steps_sheet_quotes_the_programs_own_lines():
         if any(w in r for w in ("TAKEOVER", "ALLOW_", "ALLOW box")) and "not ticked" not in r:
             near = " ".join(rows[max(0, n - 1): n + 2]).lower()
             assert any(w in near for w in ("never", "do not", "not for you")), r
+
+
+def test_the_steps_sheet_looks_at_the_last_box_before_a_resume():
+    """The lead's ruling 13 of 17 Nov (the follow-up check's finding 1): before 5.4 (a resume, whose first step
+    deletes the runtime) the sheet tells the owner to open the notebook's tab again and look under the last grey
+    box; when what that box printed cannot be seen, the owner does not do 5.4 and tells the lead.  As built, an
+    owner who had lost the page read "More than 10 minutes old" in STATUS.json (a kept runtime does not move its
+    "written_at") and went on to 5.4, whose "Disconnect and delete runtime" deletes a save on that machine only."""
+    sheet = (STUDY / "stage2" / "tb" / "colab_steps.txt").read_text(encoding="ascii")
+    flat = " ".join(r.strip() for r in sheet.splitlines())
+    five = flat.split("5.3  Otherwise open STATUS.json", 1)[1].split("5.5  Expect:", 1)[0]
+    stale = five.split("More than 10 minutes old:", 1)[1]
+    # a stopped run's branch leads to the look, steps (a) to (e) in this order, and only then to 5.4
+    resume = stale.index("5.4  Resume")
+    at = [stale.index(f"({c}) ") for c in "abcde"]
+    assert at == sorted(at) and at[-1] < resume
+    head = stale[:at[0]]
+    assert "Do not resume yet" in head and "5.4" not in head           # (as built: "Go on with 5.4, with one ...")
+    a, b, c, d, e = (stale[i:j] for i, j in zip(at, at[1:] + [resume], strict=True))
+    assert "Open the notebook's tab again" in a and "open that copy again" in a and "(expected, not yet seen)" in a
+    assert '"8. FINISH"' in b and "press nothing" in b
+    assert "If you cannot see what it printed" in c and "not sure" in c and "do not do 5.4. Tell me" in c
+    assert '"THIS MACHINE IS KEPT ON PURPOSE": do not do 5.4' in d and "again as in 6 and tell me" in d
+    assert e.startswith("(e) Only if you can see what it printed") and e.rstrip().endswith("go on with 5.4.")
+    # (e) is the one place of 5.3 that sends the owner on to 5.4, and 5.4 says where an owner comes to it from
+    assert stale[:resume].count("go on with 5.4") == 1 and "Go on with 5.4" not in five
+    assert stale[resume:].startswith('5.4  Resume (only when 5.3 (e), 5.6 or I send you here; never after "THIS '
+                                     'MACHINE IS KEPT ON PURPOSE").')
+    # the box the owner looks under is cell 8, and the paragraph it names begins both of that cell's keep texts
+    cells = json.loads(NOTEBOOK.read_text(encoding="utf-8"))["cells"]
+    assert "".join(cells[-1]["source"]).startswith("# ===== 8. FINISH:")
+    for text in (nb.KEEP_RUNTIME_TEXT, nb.keep_other_text(None), nb.keep_other_text(3)):
+        assert text.startswith("THIS MACHINE IS KEPT ON PURPOSE")
+    # what only Colab shows here is listed in section 8 as expected, not yet seen
+    assert "what its tab shows under the last box when you open it again (5.3 (a) to (c))" in flat
 
 
 def test_helpers_equal_the_modules_they_stand_in_for():

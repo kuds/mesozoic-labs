@@ -214,11 +214,19 @@ check each one at the acceptance run or, where only Colab can show it, at the sm
    5.3  Otherwise open STATUS.json and find "written_at". It is a time in UTC (search the web for "utc time"
         to see the present time in UTC).
           Less than 10 minutes old: the run is alive. Do nothing.                      (expected, not yet seen)
-          More than 10 minutes old: the run has stopped. Go on with 5.4, with one exception:
-        If the last grey box (8. FINISH) printed a paragraph that begins "THIS MACHINE IS KEPT ON PURPOSE",
-        do not do 5.4: that machine holds a save that is not on your Drive, and 5.4 would delete it. Run the
-        last grey box again as in 6 and tell me.
-   5.4  Resume (never after "THIS MACHINE IS KEPT ON PURPOSE", see 5.3). In the same copy of the notebook:
+          More than 10 minutes old: the run has stopped. Do not resume yet. First look at the notebook:
+        (a) Open the notebook's tab again: the tab of the copy in which you started this RUN_ID. If you closed
+            it, open that copy again from your Drive (My Drive / Colab Notebooks, named as in the table of 4).
+                                                                                       (expected, not yet seen)
+        (b) Scroll down to the last grey box, "8. FINISH". Only look at what is printed under it; press nothing.
+        (c) If you cannot see what it printed (nothing is printed under it, the page does not open, or you are
+            not sure): do not do 5.4. Tell me, and wait for my answer.
+        (d) If it printed a paragraph that begins "THIS MACHINE IS KEPT ON PURPOSE": do not do 5.4. That
+            machine holds a save that is not on your Drive, and 5.4 would delete it. Run the last grey box
+            again as in 6 and tell me.
+        (e) Only if you can see what it printed, and there is no such paragraph in it: go on with 5.4.
+   5.4  Resume (only when 5.3 (e), 5.6 or I send you here; never after "THIS MACHINE IS KEPT ON PURPOSE").
+        In the same copy of the notebook:
         Runtime > Disconnect and delete runtime (if it is offered),
         then check the first grey box: every value as before, and now
           RESUME                ticked
@@ -343,9 +351,10 @@ check each one at the acceptance run or, where only Colab can show it, at the sm
    above: the "Repository ref" line, when the Drive permission window comes and "Google Drive mounted", that a
    run goes on with the tab closed or the browser lost, "Disconnecting runtime in 5 seconds..." and the
    runtime letting go by itself, "Runtime disconnected", git's lines on a red background, the last box mounting
-   Drive again after "Google Drive's connection was lost", and how soon a file written by the runtime shows in
-   your Drive (the 10 minutes of 5.3). I confirm each at the acceptance run or, where only Colab can show it, at
-   the smoke, and then remove its mark.
+   Drive again after "Google Drive's connection was lost", how soon a file written by the runtime shows in your
+   Drive (the 10 minutes of 5.3), and where your copy of the notebook is kept and what its tab shows under the
+   last box when you open it again (5.3 (a) to (c)). I confirm each at the acceptance run or, where only Colab
+   can show it, at the smoke, and then remove its mark.
 
 
 STILL OPEN IN THIS DRAFT (for me, not for you)
