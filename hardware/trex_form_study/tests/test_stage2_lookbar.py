@@ -505,6 +505,21 @@ def test_a_stock_condition_has_stage_1s_one_reading():
     assert ep["failed_terms_but_A1"] is None and ep["look"] is None
 
 
+def test_a_fault_names_no_path_of_this_machine():
+    """The lead's ruling 8 of 17 Nov 2026: a fault is ``<what>: <Type>: <message>`` without this machine's paths: a
+    file under the study is named relative to it, any other one by its last three parts; a condition key, a speed in
+    m/s or a share is no path."""
+    here = s2io.STUDY / "stage2" / "sets" / "V6" / BODY / "refs" / "v0.4.npz"
+    f = lookbar._fault("look reading", FileNotFoundError(2, "No such file or directory", str(here)))
+    assert f == f"look reading: FileNotFoundError: [Errno 2] No such file or directory: 'stage2/sets/V6/{BODY}/refs/v0.4.npz'"
+    there = OSError(f"cannot read /var/tmp/pytest-of-x/test0/sets0/T0/{BODY}/refs/v0.4.npz: gone")
+    assert lookbar._fault("clock", there) == f"clock: OSError: cannot read .../{BODY}/refs/v0.4.npz: gone"
+    keep = "walk/v0.4 at 0.40 m/s over 1/2 a stride, R5/42@10ms (rule K4), the ratio 3 / 4"
+    assert lookbar._no_paths(keep) == keep and lookbar._fault("x", ValueError(keep)) == f"x: ValueError: {keep}"
+    once = lookbar._no_paths(f"{s2io.STUDY}/a/b.npz and '/x/y/z/w.npz'")
+    assert once == "a/b.npz and '.../y/z/w.npz'" and lookbar._no_paths(once) == once
+
+
 # ------------------------------------------------------------------------------------------------
 # collect, on synthetic bar records and sidecars
 # ------------------------------------------------------------------------------------------------
@@ -691,14 +706,20 @@ def test_a_refusal_leaves_no_companion_of_another_bar_record_and_the_summary_nam
     with pytest.raises(lookbar.LookBarError, match="seed 3045: the sidecar is not this episode's"):
         lookbar.collect(tmp_path, "V6", BODY)
     moved = lookbar.stale_path(cpath, old_file)  # (named by the first 12 hex of the file's own sha256)
-    assert moved == cpath.with_name("v0.4.json.stale") / f"{old_file[:12]}.json"
+    assert moved == cpath.with_name("v0.4.json.superseded") / f"{old_file[:12]}.json"
     assert not cpath.exists() and s2io.read_json(moved) == old and other.exists()
+    # beside it under the bar's own name for what was moved aside, so a reader that skips those (as the bar's
+    # summary and collect do) finds no companion at all for this record: no file under look/ but the other one's
+    look = bdir / "look"
+    current = [q for q in sorted(look.glob("**/*.json")) if q.name != "summary.json"
+               and not any(x.endswith(".superseded") for x in q.relative_to(look).parts)]
+    assert current == [other] and moved.parent.name.endswith(".superseded")
     summary = s2io.read_json(bdir / "look" / "summary.json")
     assert [c["condition"] for c in summary["records"]] == ["walk/nominal"] and len(summary["refused"]) == 1
     cell, = summary["refused_records"]
     assert (cell["row"], cell["condition"], cell["status"], cell["companion"], cell["record"]) == (
         "R0L@10ms", "walk/v0.4", "done", "moved_aside", None)
-    assert cell["moved_to"] == "V6/75-M-H-10/seeds3042/look/R0L@10ms/walk/v0.4.json.stale/" + moved.name
+    assert cell["moved_to"] == "V6/75-M-H-10/seeds3042/look/R0L@10ms/walk/v0.4.json.superseded/" + moved.name
     assert cell["bar_record"] == "V6/75-M-H-10/seeds3042/eval/R0L@10ms/walk/v0.4.json"
     assert cell["bar_record_sha256"] == s2io.sha256_file(path) != old["bar_record"]["sha256"]
     assert "seed 3045" in cell["reason"] and summary["sha256"] == s2io.sha256_json(
@@ -981,7 +1002,7 @@ def test_a_fault_in_the_reading_is_recorded_and_never_raised(t0_set, monkeypatch
         raise lookread.LookError("not played: a periodic segment must be a straight walk")
 
     kept = {}
-    real_block, real_playback = lookbar.LookRow._block, lookread.playback
+    real_block, real_playback, real_compare = lookbar.LookRow._block, lookread.playback, lookread.compare
 
     def block_of(self, *args):  # (what the row read the block from, for a second reading without a second episode)
         kept["args"] = args
@@ -1010,6 +1031,31 @@ def test_a_fault_in_the_reading_is_recorded_and_never_raised(t0_set, monkeypatch
     assert blk2["reference"]["steps"] >= lookread.MIN_STEPS and blk2["own"]["steps"] == blk2["reference"]["steps"]
     for fault in (blk["fault"], blk2["fault"]):
         assert "Traceback" not in fault and "\n" not in fault and str(ROOT) not in fault and ".py" not in fault
+    # a fault whose message names files (the lead's ruling 8 of 17 Nov 2026: no path of this machine): a file under
+    # the study is named relative to it, one elsewhere (here the fixture's set under pytest's temporary directory)
+    # by its last three parts; the same through the reference (``_reference``) and through the reading itself
+    here = ROOT / "stage2" / "sets" / SET / BODY / "refs" / "nominal.npz"
+    there = t0_set["run_dir"] / "refs" / "nominal.npz"
+    assert str(t0_set["run_dir"]).startswith("/") and not str(there).startswith(str(ROOT))
+
+    def lost(*a, **k):
+        raise FileNotFoundError(2, "No such file or directory", str(here))
+
+    def elsewhere(*a, **k):
+        raise OSError(f"cannot read {there} (nor {here})")
+
+    monkeypatch.setattr(lookread, "compare", real_compare)
+    monkeypatch.setattr(lookread, "playback", lost)
+    blk3 = lookbar.LookRow(look.inner)._block(*kept["args"])  # (a new row: the reference is read again)
+    assert blk3["fault"] == ("look reading: LookError: the reference of walk/nominal: FileNotFoundError: [Errno 2] No "
+                             f"such file or directory: 'stage2/sets/{SET}/{BODY}/refs/nominal.npz'")
+    monkeypatch.setattr(lookread, "playback", real_playback)
+    monkeypatch.setattr(lookread, "compare", elsewhere)
+    blk4 = lookbar.LookRow(look.inner)._block(*kept["args"])
+    assert blk4["fault"] == (f"look reading: OSError: cannot read .../{BODY}/refs/nominal.npz (nor stage2/sets/{SET}/"
+                             f"{BODY}/refs/nominal.npz)")
+    for fault in (blk3["fault"], blk4["fault"]):
+        assert str(ROOT) not in fault and str(t0_set["run_dir"]) not in fault and "/tmp" not in fault
     # a walk or turn item that cannot be played is a fault of the definition: an error on a look set, never "no look"
     on = lookbar.companion_episode(cond.key, cond.judge, 6001, e, blk, True)
     off = lookbar.companion_episode(cond.key, cond.judge, 6001, e, blk, False)

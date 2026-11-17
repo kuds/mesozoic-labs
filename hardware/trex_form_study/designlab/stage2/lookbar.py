@@ -22,8 +22,8 @@ goes through what it offers to any row (``bar.Delayed``, ``bar.evaluate(rows=<bu
   ``<out>/<set>/<body>/<block>/look/<row>/<behaviour>/<condition>.json`` (schema ``s2-look-1``); ``run`` is
   ``bar.evaluate`` with these rows, then ``collect``.  A record whose sidecars are missing or are not its episodes'
   is refused one: a companion of another bar record left at its path is moved aside
-  (``<companion>.stale/<12 hex>.json``), and the summary (``look/summary.json``) lists the record under
-  ``refused_records`` with what became of its companion.
+  (``<companion>.superseded/<12 hex>.json``, the bar's own convention), and the summary (``look/summary.json``)
+  lists the record under ``refused_records`` with what became of its companion.
 
 **Outcome of an episode** (rules U6, M1; ``companion_episode``).  *read*: the bar judged it and it did not fall.
 *fell*.  *unread*: the bar could not read it (``bar.Unreadable``), it did not fall, and the row is a policy row (its
@@ -195,7 +195,7 @@ RULES = dict(
         "one file per episode, written by the row before it returns: steps, fell and survival_s must equal the bar "
         "record's episode and row_sha256 the hash of the record's controller less the delay wrapper's keys, or the "
         "record gets no companion (run that condition again so that record and sidecars are of one run).  A "
-        "companion found at the refused record's path is moved aside to <companion>.stale/<first 12 hex of the "
+        "companion found at the refused record's path is moved aside to <companion>.superseded/<first 12 hex of the "
         "file's sha256>.json unless it names the bar record as it is (bar_record.sha256): that one was made of this "
         "bar record while its sidecars were there, and stays.  The summary lists every refused record with what "
         "became of its companion"),
@@ -216,6 +216,30 @@ def rule_texts() -> dict:
         raise LookBarError(f"lookread.RULES and lookbar.RULES both hold the key(s) {', '.join(shared)}: one table of "
                            "both would drop a rule text")
     return dict(lookread.RULES, **RULES)
+
+
+#: An absolute path in an exception's message (not the "/" of "m/s" or of a condition key "walk/v0.4").
+_ABS_PATH = re.compile(r"(?<![\w.~-])/[^\s'\"`,;:()\[\]{}<>]+")
+
+
+def _no_paths(text: str) -> str:
+    """``text`` with no absolute path of this machine (the lead's ruling 8 of 17 Nov 2026): a path under the study
+    directory made relative to it, any other one cut to ``.../<its last three parts>``."""
+    study = str(s2io.STUDY) + os.sep
+
+    def cut(m) -> str:
+        p = m.group(0)
+        if p.startswith(study):
+            return p[len(study):]
+        return ".../" + "/".join([x for x in p.split("/") if x][-3:])
+
+    return _ABS_PATH.sub(cut, str(text))
+
+
+def _fault(what: str, exc: BaseException) -> str:
+    """A fault as a block records it: ``<what>: <Type>: <message>``, no traceback and no absolute path of this
+    machine (``_no_paths``), so a sidecar and a companion record read the same wherever they were made."""
+    return _no_paths(f"{what}: {type(exc).__name__}: {exc}")
 
 
 # ------------------------------------------------------------------------------------------------
@@ -404,7 +428,7 @@ class LookRow(panels.Row):
                 entry["window_ref"] = [float(wr[0]), float(wr[1])]
                 entry["reading"] = lookread.playback(b.p, b.track, b.track.run_dir, *wr)
         except Exception as exc:  # noqa: BLE001 - a LookError, or whatever a faulty definition raises: recorded
-            entry["fault"] = f"{type(exc).__name__}: {exc}"
+            entry["fault"] = f"{type(exc).__name__}: {exc}"  # (its paths are cut where the reading records it)
         self._refs[cond] = (b, entry)
         return entry
 
@@ -430,12 +454,12 @@ class LookRow(panels.Row):
             try:
                 block[key] = fn()
             except Exception as exc:  # noqa: BLE001 - recorded, never raised (RULES["wrapper"])
-                faults.append(f"{key}: {type(exc).__name__}: {exc}")
+                faults.append(_fault(key, exc))
         if is_bar and judge == STOP_JUDGE:
             try:
                 block["on_command_at_stop"] = on_command_at_stop(b, rec)
             except Exception as exc:  # noqa: BLE001
-                faults.append(f"{ON_COMMAND_TERM}: {type(exc).__name__}: {exc}")
+                faults.append(_fault(ON_COMMAND_TERM, exc))
         if not is_bar:
             block["reason"] = "a stock condition has no look reading"
         elif judge not in READ_JUDGES:
@@ -443,8 +467,8 @@ class LookRow(panels.Row):
         else:
             try:
                 self._read(block, b, out, rec, cond)
-            except Exception as exc:  # noqa: BLE001 - in the form of the other faults: no traceback, so no path of
-                faults.append(f"look reading: {type(exc).__name__}: {exc}")  # this machine in a sidecar or a record
+            except Exception as exc:  # noqa: BLE001 - in the form of the other faults: no traceback and no path of
+                faults.append(_fault("look reading", exc))  # this machine in a sidecar or a record (``_fault``)
                 block.update(read=False, look_ok=None, terms=None)
         if faults:
             block["fault"] = "; ".join(faults)
@@ -873,9 +897,11 @@ def companion_path(out, set_name: str, body: str, block: str, row: str, behavior
 
 def stale_path(path, sha256: str) -> Path:
     """Where a companion that is not its bar record's any more is moved to (``RULES["sidecar"]``):
-    ``<companion>.stale/<first 12 hex of the file's sha256>.json``."""
+    ``<companion>.superseded/<first 12 hex of the file's sha256>.json``, beside it as the bar keeps a record it moved
+    aside (``bar.RULES["no_overwrite"]``), so that a reader which skips ``.superseded`` directories, as the bar's
+    and this module's do, never takes it for a current companion."""
     path = Path(path)
-    return path.with_name(path.name + ".stale") / f"{str(sha256)[:12]}.json"
+    return path.with_name(path.name + ".superseded") / f"{str(sha256)[:12]}.json"
 
 
 def _refused(q: Path, rec: dict, path: Path, out: Path, reason: str) -> dict:
