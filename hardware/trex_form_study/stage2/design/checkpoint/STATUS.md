@@ -697,3 +697,30 @@ and the chain's `--resume` on V10); the servo model's S1 low points and S2 (the 
 - State: the 75 cm look sets under P42 are built (wt/wp-p42 at 4ad729c5); their check is running. The 60 cm rebuild
   is on its last set (V6/60 and V6noF5/60 are stopped at nominal_to_v0.4, as before). After the check: freeze the
   75 cm sets, G9-ref, then the validation steps V2 to V7, then S2-4.
+
+## Update, 17 Nov 2026, ~19:20 UTC: the 75 cm look sets frozen, validation done, S2-4 running
+
+- **Owner's decisions today:**
+  - P42: on the look sets the warm-up join reading is held to 5.0 mm, so V6's left turns are available.
+  - P43: the 60 cm look sets are parked until the 75 cm training runs. Their records stay on wt/wp-l; their check
+    said merge after a test-only fix, by cherry-pick.
+- **75 cm look sets:** V6/75-M-H-10, V6noF5/75-M-H-10 and V6/75-M-H-10-X are frozen (freeze 0, mixed sources
+  accepted by ruling 41). G9-ref passed on each.
+- **Validation of 75-M-H-10 on V6 (merged 26674562, checked sound):**
+  - G8a passed: 32 of 32 episodes identical.
+  - R0L's records ran on 13 conditions; the 4 quick turns were not run.
+  - G9-run passed after the code fix of ruling 42 (merged ea6c0a94).
+  - Filter 10 Hz; learning rate 1e-5.
+  - gl-start, r6-start and kill-resume (K3) passed.
+  - Rates, provisional: about 536, 577 and 729 env steps/s at 2, 3 and 4 workers; 1 to 2 GB per worker.
+- **Servo:** S1 to S3 are merged, S3 being gate 1's runner and the served rows SV0 and SV2. S4 (measuring) waits for
+  the training path.
+- **Running:** wf_febb2c1a-ba8, S2-4 in wt/wp-p42: the R0L baseline committed, then 2,000,000 steps of R5 on
+  75-M-H-10 (V6, seed 42, 3 workers), collect, S2-10, then an independent check.
+- **Next after a go:**
+  - V11, the bundle;
+  - V0b, the upload route (the owner approves each upload);
+  - V12, the acceptance run;
+  - V13, the steps sheet;
+  - then the owner's day-one Colab smoke.
+- **Meter:** 79 % at $3,401 (owner's reading, 17:14 UTC); 1 % is about $25; 85 % is about $3,551.

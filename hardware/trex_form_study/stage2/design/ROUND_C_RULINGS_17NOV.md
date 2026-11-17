@@ -403,3 +403,22 @@ and found every part identical. G8a passed on V6/75-M-H-10 (32 of 32 episodes id
     companion of a not-run condition also carries the G9-ref citation (ruling 37 (c)). The failed record is kept
     beside the new one as `g9_run.first.json`. The new run is labelled "settled after G9-run's first result: a code
     error, the rule unchanged". Validation then goes on from G9-run: V5, V6, V7, then V4 alone.
+
+## S2-4's first start (`checkpoint/reviews/roundC__{do,check}_s2-4_17nov.md`), ruled 17 Nov 2026, ~19:35 UTC
+
+R0L's baseline was made, copied and committed (58109a17, sha256 f33e4eb1…0543) before the run, as M3 says. The
+trainer then stopped with exit 1 after 32 s, before G8a's record and before any rollout. The cause:
+`train2._g8a` passes `at=` beside `**res`, and on a look set G8a's bar form already returns `at`
+(`TypeError: dict() got multiple values for keyword argument 'at'`). Training on a look set had never been run, so
+the validation steps did not reach this path.
+
+43. **The fix, and S2-4 started afresh.**
+    - **Code error, rule unchanged:** `train2._g8a` keeps the form's own time as `form_at` and stamps the record's
+      `at` itself. A test on a synthetic look set in a temporary directory makes a bar-form G8a record and fails
+      without the fix. The builder also reads `train2.py` for any other `**` spread beside explicit keys on the
+      look-set path, and reports or fixes each one with a test.
+    - **M3's "S2-4 is run once":** the failed start does not count as S2-4's run. It took 0 steps, ran no rollout and
+      wrote no G8a record. Its `run.json`, `progress.json` and log are kept as a record under
+      `stage2/tb/runs/s2-4/failed_start_17nov/`. The ignored job directory under `stage2/tb/work/local/s2-4` is then
+      cleared, and S2-4 starts as a new run with the fixed code. The committed baseline stays: its commit is an
+      ancestor of the new run's first session.
