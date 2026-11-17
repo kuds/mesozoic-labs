@@ -1,0 +1,1507 @@
+{
+ "body": "60-N-T-10",
+ "set": "V6",
+ "schema": 1,
+ "transitions": {
+  "start": {
+   "name": "start",
+   "kind": "start",
+   "available": false,
+   "reason": "no transition within the gates",
+   "numbers": {
+    "gates": {
+     "ik_ok": true,
+     "join_b": true,
+     "join_a": true,
+     "zmp_error": true,
+     "rolling_split": true
+    },
+    "pass_": true,
+    "ik_ok": true,
+    "ik_fail_frames": 0,
+    "join_a": {
+     "stride_phase": -2.0,
+     "reference": "stand",
+     "com_max_mm": 0.3976929739112933,
+     "com_mean_mm": 0.07899026992776548,
+     "zmp_max_mm": 0.2852502069958969,
+     "zmp_mean_mm": 0.01511487043847074,
+     "joint_max_rad": 0.001455599479060557,
+     "joint_rate_max_rad_s": 0.00728684699896331,
+     "at_join": {
+      "frame": "first output frame",
+      "com_mm": 0.0025360771004036315,
+      "zmp_mm": 0.0014415134360997587,
+      "joint_rad": 9.290176206350198e-06,
+      "joint_rate_rad_s": 4.8140150363456186e-05
+     },
+     "com_ok": true,
+     "zmp_ok": true
+    },
+    "join_b": {
+     "stride_phase": 2.0,
+     "reference": "nominal",
+     "com_max_mm": 0.354342701921519,
+     "com_mean_mm": 0.06806801824762176,
+     "zmp_max_mm": 0.5226042838239995,
+     "zmp_mean_mm": 0.057586152120566704,
+     "joint_max_rad": 0.0012934282774184971,
+     "joint_rate_max_rad_s": 0.010501174393685142,
+     "at_join": {
+      "frame": "last output frame",
+      "com_mm": 0.354342701921519,
+      "zmp_mm": 0.1453103043881126,
+      "joint_rad": 0.0012934282774184971,
+      "joint_rate_rad_s": 0.007574615099734228,
+      "tau_Nm": 0.006960426338094017
+     },
+     "tau_max_Nm": 2.5980500286875268,
+     "window": {
+      "reference": "nominal",
+      "strides": 10,
+      "window_s": 10.19760932537567,
+      "period_s": 1.019760932537567,
+      "offset_strides": 7.0,
+      "a_phase": null,
+      "a_time_s": null,
+      "a_windows": null,
+      "varies": true,
+      "step_deviations": [
+       0.006856475687899751,
+       -0.027499999999999997,
+       0.02104352356646475,
+       -0.01442442733220874,
+       0.016835556842258168,
+       -0.005983072478506317,
+       0.01330703195238327,
+       -0.0030554415770181935,
+       0.002256799904067924,
+       -0.020186215535394333,
+       0.01146548033857556,
+       -0.015281219863402105,
+       0.018665511850221243,
+       -0.010978895046127899,
+       0.02099650151676142,
+       -0.013958047966196818,
+       -1.776089392911944e-05,
+       -0.008613331288322833,
+       0.022742382030528974,
+       -0.014170851708054707
+      ]
+     },
+     "window_phase": [
+      9.0,
+      9.99375
+     ],
+     "com_ok": true,
+     "zmp_ok": true
+    },
+    "join_command": null,
+    "zmp_error_history_m": [
+     0.05014419525467953,
+     0.0228536129250297,
+     0.012963857118078508,
+     0.007551181184826887,
+     0.004500824725112799,
+     0.002737667274514012,
+     0.0017333798026192134,
+     0.0015111756519332212,
+     0.0013441839994934467,
+     0.0012147586773673686,
+     0.0011120186487725344,
+     0.0010288228170005902,
+     0.0009602746585965315
+    ],
+    "zmp_consistency_history_m": null,
+    "post_window_zmp_error_m": null,
+    "zmp_consistency_all_m": null,
+    "cop_margin_single_min": {
+     "m": 0.0308073789913348,
+     "frame": 640,
+     "foot": "right"
+    },
+    "min_cop_margin_single_m": 0.0308073789913348,
+    "hip_yaw_range_use": 0.049857055381793275,
+    "tightest_other": {
+     "joint": "left_hip_roll",
+     "end": "max",
+     "margin_rad": 0.14888284838397614
+    },
+    "reference": {
+     "accel_forward_lp1hz_peak_m_s2": 0.348138275804177,
+     "accel_forward_lp1hz_peak_t_s": 2.224,
+     "accel_forward_raw_peak_m_s2": 1.5500266231664506,
+     "accel_forward_raw_peak_t_s": 2.351823650666333,
+     "accel_filter": {
+      "hz": 1.0,
+      "order": 2,
+      "zero_phase": true,
+      "fs_hz": 500.0,
+      "of": "model CoM, along the planned heading: three-point second differences on the frames' own times, then interpolated to fs_hz for the filter; the first frame takes its neighbour's value, the last frame its neighbour's",
+      "history_s": 3.0,
+      "before": "at rest (the stand)",
+      "after": "the periodic stride of nominal",
+      "read_over": "the move's own frames only: the history enters the filter, not the peaks"
+     }
+    },
+    "frames": 800,
+    "duration_s": 5.092959022780067,
+    "move": {
+     "kind": "start",
+     "builder": "start",
+     "causal": false,
+     "command_phase": -0.25,
+     "command_t_s": null,
+     "rules": [
+      "S2A-gates",
+      "S2L-L1",
+      "S2L-L2",
+      "S2L-L3",
+      "S2L-L4",
+      "S2L-L5",
+      "S2L-L6",
+      "S2L-L7",
+      "S2L-L8",
+      "S2L-L10",
+      "S2L-J1",
+      "S2L-J2",
+      "S2L-J3"
+     ],
+     "laws": "look"
+    },
+    "look": {
+     "laws": "look",
+     "rules": [
+      "S2L-L1",
+      "S2L-L2",
+      "S2L-L3",
+      "S2L-L4",
+      "S2L-L5",
+      "S2L-L6",
+      "S2L-L7",
+      "S2L-L8",
+      "S2L-L10",
+      "S2L-J1",
+      "S2L-J2",
+      "S2L-J3"
+     ],
+     "instant_phase": -0.25,
+     "flat_from_phase": null,
+     "flat_until_phase": 1.0,
+     "variation_a_until_phase": -1.0,
+     "window_a": null,
+     "window_b": {
+      "reference": "nominal",
+      "strides": 10,
+      "window_s": 10.19760932537567,
+      "period_s": 1.019760932537567,
+      "offset_strides": 7.0,
+      "a_phase": null,
+      "a_time_s": null,
+      "a_windows": null,
+      "varies": true,
+      "step_deviations": [
+       0.006856475687899751,
+       -0.027499999999999997,
+       0.02104352356646475,
+       -0.01442442733220874,
+       0.016835556842258168,
+       -0.005983072478506317,
+       0.01330703195238327,
+       -0.0030554415770181935,
+       0.002256799904067924,
+       -0.020186215535394333,
+       0.01146548033857556,
+       -0.015281219863402105,
+       0.018665511850221243,
+       -0.010978895046127899,
+       0.02099650151676142,
+       -0.013958047966196818,
+       -1.776089392911944e-05,
+       -0.008613331288322833,
+       0.022742382030528974,
+       -0.014170851708054707
+      ]
+     },
+     "a_phase": null,
+     "a_time_s": null,
+     "a_windows": null,
+     "feet": "flat in every stance that ends after the instant (instant_phase) and no later than the end of the move's last ramp (flat_until_phase; null: none ends later); the walk's own law before and after (S2L-L10)"
+    },
+    "join_events": null,
+    "rolling_frames": 56,
+    "rolling_split_failed_frames": 0,
+    "failed_gates": [],
+    "stage0": {
+     "source": "setscreen.screen_move on the built file (at build time)",
+     "governing": [
+      "knee",
+      "speed",
+      1.2340213156338726
+     ],
+     "within_limits": false,
+     "over": [
+      {
+       "limit": "knee speed",
+       "value": 1.2340213156338726
+      }
+     ],
+     "blocks_freeze": [
+      {
+       "limit": "knee speed",
+       "value": 1.2340213156338726
+      }
+     ],
+     "a1_over": false,
+     "over_leg_drive": true,
+     "text": "over knee speed 1.2340: blocks the freeze (knee speed)",
+     "tightest_joint": [
+      "left_hip_roll",
+      "max",
+      0.1489
+     ],
+     "accel_forward_lp1hz_peak_m_s2": 0.34808324072497693
+    },
+    "built_sha256": "ad41818ab94626ac8176a91b4494d2a3ebf5afc490b7c57971b5f7520777b868"
+   },
+   "item": {
+    "kind": "start",
+    "builder": "start",
+    "args": {},
+    "specs": {
+     "a": {
+      "name": "stand",
+      "spec": null,
+      "H": null,
+      "yaw_rate": 0.0,
+      "in_place": false,
+      "split": "statics"
+     },
+     "b": {
+      "name": "nominal",
+      "spec": {
+       "froude": 0.012,
+       "duty": 0.6,
+       "lift_frac": 0.1,
+       "head_amp": 0.05,
+       "tail_amp": 0.125,
+       "sway_gain": 1.0,
+       "stride_rel": 0.55,
+       "crouch": 0.03,
+       "zmp_iters": 12,
+       "zmp_gain": 0.5,
+       "n": 160,
+       "bob": 0.010525128865979382,
+       "bob_phase": 0.0,
+       "bob_skew": 0.125,
+       "swing_time": 0.31973042487574765,
+       "lift_peak": 0.375,
+       "toe_off": 0.3,
+       "toe_off_start": 0.825,
+       "toe_off_margin": 0.005,
+       "toe_reach": 0.075,
+       "roll_amp": 0.026179938779914945,
+       "roll_phase": 0.0,
+       "zmp_inset_y": 0.0,
+       "tail_phase": -1.7016960206944713,
+       "head_mode": "stabilise",
+       "head_gain": 0.9,
+       "head_settle": 0.015,
+       "settle_lag": 0.075,
+       "strides": 10,
+       "phase_jitter": 0.015,
+       "asym": 0.025,
+       "gaze_var": 0.015,
+       "tail_var": 0.2,
+       "var_band": [
+        0.05,
+        0.2
+       ],
+       "noise_seed": 2026,
+       "bob_drop": 0.1,
+       "toe_off_rate": 3.4,
+       "toe_off_accel": 220.0
+      },
+      "H": 0.40468919988052376,
+      "yaw_rate": 0.0,
+      "in_place": false,
+      "split": "statics"
+     }
+    },
+    "causal": false,
+    "laws": "look",
+    "rules": [
+     "S2A-gates",
+     "S2L-L1",
+     "S2L-L2",
+     "S2L-L3",
+     "S2L-L4",
+     "S2L-L5",
+     "S2L-L6",
+     "S2L-L7",
+     "S2L-L8",
+     "S2L-L10",
+     "S2L-J1",
+     "S2L-J2",
+     "S2L-J3"
+    ],
+    "body_model_sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4",
+    "fallback": null,
+    "lead_in": {
+     "rule": "S2S-lead-in",
+     "name": "start_v0.4",
+     "start": {
+      "builder": "start",
+      "args": {},
+      "specs": {
+       "a": {
+        "name": "stand",
+        "spec": null,
+        "H": null,
+        "yaw_rate": 0.0,
+        "in_place": false,
+        "split": "statics"
+       },
+       "b": {
+        "name": "v0.4",
+        "spec": {
+         "froude": 0.04030225633482698,
+         "duty": 0.5669786416188048,
+         "lift_frac": 0.11,
+         "head_amp": 0.05,
+         "tail_amp": 0.125,
+         "sway_gain": 1.0,
+         "stride_rel": 0.7423032491621555,
+         "crouch": 0.03,
+         "zmp_iters": 12,
+         "zmp_gain": 0.5,
+         "n": 160,
+         "bob": 0.01711968081875956,
+         "bob_phase": 0.0,
+         "bob_skew": 0.125,
+         "swing_time": 0.31973042487574765,
+         "lift_peak": 0.375,
+         "toe_off": 0.3,
+         "toe_off_start": 0.825,
+         "toe_off_margin": 0.005,
+         "toe_reach": 0.075,
+         "roll_amp": 0.026179938779914945,
+         "roll_phase": 0.0,
+         "zmp_inset_y": 0.0,
+         "tail_phase": -1.7802358370342162,
+         "head_mode": "stabilise",
+         "head_gain": 0.9,
+         "head_settle": 0.015,
+         "settle_lag": 0.075,
+         "strides": 14,
+         "phase_jitter": 0.015,
+         "asym": 0.025,
+         "gaze_var": 0.015,
+         "tail_var": 0.2,
+         "var_band": [
+          0.05,
+          0.2
+         ],
+         "noise_seed": 2026,
+         "bob_drop": 0.1,
+         "toe_off_rate": 3.4,
+         "toe_off_accel": 220.0
+        },
+        "H": 0.40468919988052376,
+        "yaw_rate": 0.0,
+        "in_place": false,
+        "split": "statics"
+       }
+      },
+      "causal": false,
+      "laws": "look",
+      "rules": [
+       "S2A-gates",
+       "S2L-L1",
+       "S2L-L2",
+       "S2L-L3",
+       "S2L-L4",
+       "S2L-L5",
+       "S2L-L6",
+       "S2L-L7",
+       "S2L-L8",
+       "S2L-L10",
+       "S2L-J1",
+       "S2L-J2",
+       "S2L-J3"
+      ]
+     }
+    }
+   },
+   "group": "start",
+   "inputs": {
+    "nominal": "00b953493f2c0ad1b682946d1fbff67ca6f3b6dcba625dff7bc635b30eebe9dd"
+   },
+   "set": "V6",
+   "pass_": true,
+   "gates": {
+    "ik_ok": true,
+    "join_b": true,
+    "join_a": true,
+    "zmp_error": true,
+    "rolling_split": true
+   },
+   "definition": {
+    "builder": "start",
+    "args": {},
+    "specs": {
+     "a": {
+      "name": "stand",
+      "spec": null,
+      "H": null,
+      "yaw_rate": 0.0,
+      "in_place": false,
+      "split": "statics"
+     },
+     "b": {
+      "name": "nominal",
+      "spec": {
+       "froude": 0.012,
+       "duty": 0.6,
+       "lift_frac": 0.1,
+       "head_amp": 0.05,
+       "tail_amp": 0.125,
+       "sway_gain": 1.0,
+       "stride_rel": 0.55,
+       "crouch": 0.03,
+       "zmp_iters": 12,
+       "zmp_gain": 0.5,
+       "n": 160,
+       "bob": 0.010525128865979382,
+       "bob_phase": 0.0,
+       "bob_skew": 0.125,
+       "swing_time": 0.31973042487574765,
+       "lift_peak": 0.375,
+       "toe_off": 0.3,
+       "toe_off_start": 0.825,
+       "toe_off_margin": 0.005,
+       "toe_reach": 0.075,
+       "roll_amp": 0.026179938779914945,
+       "roll_phase": 0.0,
+       "zmp_inset_y": 0.0,
+       "tail_phase": -1.7016960206944713,
+       "head_mode": "stabilise",
+       "head_gain": 0.9,
+       "head_settle": 0.015,
+       "settle_lag": 0.075,
+       "strides": 10,
+       "phase_jitter": 0.015,
+       "asym": 0.025,
+       "gaze_var": 0.015,
+       "tail_var": 0.2,
+       "var_band": [
+        0.05,
+        0.2
+       ],
+       "noise_seed": 2026,
+       "bob_drop": 0.1,
+       "toe_off_rate": 3.4,
+       "toe_off_accel": 220.0
+      },
+      "H": 0.40468919988052376,
+      "yaw_rate": 0.0,
+      "in_place": false,
+      "split": "statics"
+     }
+    },
+    "causal": false,
+    "laws": "look",
+    "rules": [
+     "S2A-gates",
+     "S2L-L1",
+     "S2L-L2",
+     "S2L-L3",
+     "S2L-L4",
+     "S2L-L5",
+     "S2L-L6",
+     "S2L-L7",
+     "S2L-L8",
+     "S2L-L10",
+     "S2L-J1",
+     "S2L-J2",
+     "S2L-J3"
+    ],
+    "body_model_sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4",
+    "ref_a_sha256": null,
+    "ref_b_sha256": "00b953493f2c0ad1b682946d1fbff67ca6f3b6dcba625dff7bc635b30eebe9dd"
+   },
+   "built_by": {
+    "commit": "75d4303613aafb69a234cbbe8393af53167bcbe6",
+    "dirty": false,
+    "dirty_paths": [],
+    "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+    "stage2_modules": {
+     "designlab/stage2/sets.py": "d55c8fbd00d88193546407436700a66f4c77d0e1df343632b07d6c7665924581",
+     "designlab/stage2/moves.py": "ccee9b2cdf5acfef7b1f1bf592d617b71f035617016b6ecffd3e727aa5b0e77e",
+     "designlab/stage2/setscreen.py": "36110ec2ba6222ce3a01e772124a92092a40d7afd9caf6f74b2300a709fc25ed",
+     "designlab/stage2/screen.py": "7c974e6240da25e8be09a83e0ba392bf37a716a6007c8e43c93835512e0a1b52",
+     "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
+     "designlab/stage2/setio.py": "f25d8616e5e79f805cd0deded49cd34f85f1a0dc77a4114dce44b8b0cd354c91",
+     "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16",
+     "designlab/stage2/moves_look.py": "202e928e734e3234e1fd8d8919a55574772dc318768c4d1dc61962602fc92d44"
+    },
+    "versions": {
+     "python": "3.13.18",
+     "numpy": "2.5.4",
+     "mujoco": "3.10.0",
+     "scipy": "1.18.1"
+    },
+    "blas_threads": 1,
+    "accuracy": "r2",
+    "at": "2026-11-17T01:40:59Z"
+   },
+   "fallback": {
+    "rule": "S2S-fallback",
+    "step": 3,
+    "tried": 1
+   },
+   "margin_rule": null
+  },
+  "nominal_to_v0.4": {
+   "name": "nominal_to_v0.4",
+   "kind": "change",
+   "available": false,
+   "reason": "no transition within the gates",
+   "numbers": {
+    "tried": [
+     {
+      "gates": {
+       "ik_ok": true,
+       "join_b": true,
+       "join_a": true,
+       "zmp_error": true,
+       "rolling_split": true
+      },
+      "pass_": true,
+      "ik_ok": true,
+      "ik_fail_frames": 0,
+      "join_a": {
+       "stride_phase": -2.0,
+       "reference": "nominal",
+       "com_max_mm": 0.073688571861447,
+       "com_mean_mm": 0.016874349761491114,
+       "zmp_max_mm": 0.47517702533168565,
+       "zmp_mean_mm": 0.044519362613087754,
+       "joint_max_rad": 0.00019942813548759833,
+       "joint_rate_max_rad_s": 0.011710173031374449,
+       "at_join": {
+        "frame": "first output frame",
+        "com_mm": 0.005014299813483832,
+        "zmp_mm": 0.23411225538141284,
+        "joint_rad": 1.861632581146022e-05,
+        "joint_rate_rad_s": 7.457616612810414e-05,
+        "tau_Nm": 0.023550143541325286
+       },
+       "tau_max_Nm": 1.3301557299302789,
+       "window": {
+        "reference": "nominal",
+        "strides": 10,
+        "window_s": 10.19760932537567,
+        "period_s": 1.019760932537567,
+        "offset_strides": 2.0,
+        "a_phase": null,
+        "a_time_s": null,
+        "a_windows": null,
+        "varies": true,
+        "step_deviations": [
+         0.006856475687899751,
+         -0.027499999999999997,
+         0.02104352356646475,
+         -0.01442442733220874,
+         0.016835556842258168,
+         -0.005983072478506317,
+         0.01330703195238327,
+         -0.0030554415770181935,
+         0.002256799904067924,
+         -0.020186215535394333,
+         0.01146548033857556,
+         -0.015281219863402105,
+         0.018665511850221243,
+         -0.010978895046127899,
+         0.02099650151676142,
+         -0.013958047966196818,
+         -1.776089392911944e-05,
+         -0.008613331288322833,
+         0.022742382030528974,
+         -0.014170851708054707
+        ]
+       },
+       "window_phase": [
+        0.0,
+        0.9937499999999999
+       ],
+       "com_ok": true,
+       "zmp_ok": true
+      },
+      "join_b": {
+       "stride_phase": 3.0,
+       "reference": "v0.4",
+       "com_max_mm": 0.23321489027085104,
+       "com_mean_mm": 0.06245972240521745,
+       "zmp_max_mm": 0.8816186549565869,
+       "zmp_mean_mm": 0.07640470181259049,
+       "joint_max_rad": 0.0006409935415465362,
+       "joint_rate_max_rad_s": 0.0048855606463673595,
+       "at_join": {
+        "frame": "last output frame",
+        "com_mm": 0.23321489027085104,
+        "zmp_mm": 0.530717444184844,
+        "joint_rad": 0.0006409935415465362,
+        "joint_rate_rad_s": 0.0048855606463673595,
+        "tau_Nm": 0.024199441325444604
+       },
+       "tau_max_Nm": 0.12636609580072822,
+       "window": {
+        "reference": "v0.4",
+        "strides": 14,
+        "window_s": 10.514073779025102,
+        "period_s": 0.7510052699303644,
+        "offset_strides": 10.0,
+        "a_phase": null,
+        "a_time_s": null,
+        "a_windows": null,
+        "varies": true,
+        "step_deviations": [
+         0.007609511882059306,
+         -0.0275,
+         0.022938374360180234,
+         -0.01337206746866054,
+         0.01839173831722101,
+         -0.0042513279893128956,
+         0.014579227550323535,
+         -0.0010880728949663836,
+         0.0026396409027112837,
+         -0.01959758103220714,
+         0.012589462542405951,
+         -0.014297817138032394,
+         0.020368973390953067,
+         -0.009649228790075556,
+         0.02288756784007038,
+         -0.012868152543905024,
+         0.00018201688050009063,
+         -0.007093277626944036,
+         0.02477396186142339,
+         -0.013098083345696261,
+         0.0201428041461731,
+         -0.024359521594157753,
+         0.007767230547532821,
+         -0.0006036013364298574,
+         0.007054501156923366,
+         -0.022451208946299407,
+         0.0003031645319879823,
+         -0.011998235203778268
+        ]
+       },
+       "window_phase": [
+        13.0,
+        13.99375
+       ],
+       "com_ok": true,
+       "zmp_ok": true
+      },
+      "join_command": null,
+      "zmp_error_history_m": [
+       0.060213612144312006,
+       0.023634727336849428,
+       0.01231692355876044,
+       0.007062236699253232,
+       0.005256845985365698,
+       0.004120421816370244,
+       0.00339393098983385,
+       0.0029178414387521223,
+       0.002594715513980357,
+       0.0023660965110734147,
+       0.0021972861056551163,
+       0.0020676034639773664,
+       0.001964492511209843
+      ],
+      "zmp_consistency_history_m": null,
+      "post_window_zmp_error_m": null,
+      "zmp_consistency_all_m": null,
+      "cop_margin_single_min": {
+       "m": 0.02965637829793827,
+       "frame": 720,
+       "foot": "left"
+      },
+      "min_cop_margin_single_m": 0.02965637829793827,
+      "hip_yaw_range_use": 0.04972026828744129,
+      "tightest_other": {
+       "joint": "left_hip_roll",
+       "end": "max",
+       "margin_rad": 0.20945266435502244
+      },
+      "reference": {
+       "accel_forward_lp1hz_peak_m_s2": 0.20833510472650593,
+       "accel_forward_lp1hz_peak_t_s": 2.66,
+       "accel_forward_raw_peak_m_s2": 2.1811958276264454,
+       "accel_forward_raw_peak_t_s": 2.819377640277996,
+       "accel_filter": {
+        "hz": 1.0,
+        "order": 2,
+        "zero_phase": true,
+        "fs_hz": 500.0,
+        "of": "model CoM, along the planned heading: three-point second differences on the frames' own times, then interpolated to fs_hz for the filter; the first frame takes its neighbour's value, the last frame its neighbour's",
+        "history_s": 3.0,
+        "before": "the periodic stride of nominal",
+        "after": "the periodic stride of v0.4",
+        "read_over": "the move's own frames only: the history enters the filter, not the peaks"
+       }
+      },
+      "frames": 960,
+      "duration_s": 5.159731373602951,
+      "move": {
+       "kind": "walk",
+       "builder": "change",
+       "causal": false,
+       "command_phase": 0.0,
+       "command_t_s": null,
+       "rules": [
+        "S2A-gates",
+        "S2L-L1",
+        "S2L-L2",
+        "S2L-L3",
+        "S2L-L4",
+        "S2L-L5",
+        "S2L-L6",
+        "S2L-L7",
+        "S2L-L8",
+        "S2L-L10",
+        "S2L-J1",
+        "S2L-J2",
+        "S2L-J3"
+       ],
+       "laws": "look"
+      },
+      "look": {
+       "laws": "look",
+       "rules": [
+        "S2L-L1",
+        "S2L-L2",
+        "S2L-L3",
+        "S2L-L4",
+        "S2L-L5",
+        "S2L-L6",
+        "S2L-L7",
+        "S2L-L8",
+        "S2L-L10",
+        "S2L-J1",
+        "S2L-J2",
+        "S2L-J3"
+       ],
+       "instant_phase": 0.0,
+       "flat_from_phase": 0.0,
+       "flat_until_phase": 1.0,
+       "variation_a_until_phase": -1.0,
+       "window_a": {
+        "reference": "nominal",
+        "strides": 10,
+        "window_s": 10.19760932537567,
+        "period_s": 1.019760932537567,
+        "offset_strides": 2.0,
+        "a_phase": null,
+        "a_time_s": null,
+        "a_windows": null,
+        "varies": true,
+        "step_deviations": [
+         0.006856475687899751,
+         -0.027499999999999997,
+         0.02104352356646475,
+         -0.01442442733220874,
+         0.016835556842258168,
+         -0.005983072478506317,
+         0.01330703195238327,
+         -0.0030554415770181935,
+         0.002256799904067924,
+         -0.020186215535394333,
+         0.01146548033857556,
+         -0.015281219863402105,
+         0.018665511850221243,
+         -0.010978895046127899,
+         0.02099650151676142,
+         -0.013958047966196818,
+         -1.776089392911944e-05,
+         -0.008613331288322833,
+         0.022742382030528974,
+         -0.014170851708054707
+        ]
+       },
+       "window_b": {
+        "reference": "v0.4",
+        "strides": 14,
+        "window_s": 10.514073779025102,
+        "period_s": 0.7510052699303644,
+        "offset_strides": 10.0,
+        "a_phase": null,
+        "a_time_s": null,
+        "a_windows": null,
+        "varies": true,
+        "step_deviations": [
+         0.007609511882059306,
+         -0.0275,
+         0.022938374360180234,
+         -0.01337206746866054,
+         0.01839173831722101,
+         -0.0042513279893128956,
+         0.014579227550323535,
+         -0.0010880728949663836,
+         0.0026396409027112837,
+         -0.01959758103220714,
+         0.012589462542405951,
+         -0.014297817138032394,
+         0.020368973390953067,
+         -0.009649228790075556,
+         0.02288756784007038,
+         -0.012868152543905024,
+         0.00018201688050009063,
+         -0.007093277626944036,
+         0.02477396186142339,
+         -0.013098083345696261,
+         0.0201428041461731,
+         -0.024359521594157753,
+         0.007767230547532821,
+         -0.0006036013364298574,
+         0.007054501156923366,
+         -0.022451208946299407,
+         0.0003031645319879823,
+         -0.011998235203778268
+        ]
+       },
+       "a_phase": null,
+       "a_time_s": null,
+       "a_windows": null,
+       "feet": "flat in every stance that ends after the instant (instant_phase) and no later than the end of the move's last ramp (flat_until_phase; null: none ends later); the walk's own law before and after (S2L-L10)"
+      },
+      "join_events": null,
+      "rolling_frames": 92,
+      "rolling_split_failed_frames": 0,
+      "failed_gates": [],
+      "stage0": {
+       "source": "setscreen.screen_move on the built file (at build time)",
+       "governing": [
+        "knee",
+        "speed",
+        1.095820233099267
+       ],
+       "within_limits": false,
+       "over": [
+        {
+         "limit": "knee speed",
+         "value": 1.095820233099267
+        }
+       ],
+       "blocks_freeze": [
+        {
+         "limit": "knee speed",
+         "value": 1.095820233099267
+        }
+       ],
+       "a1_over": false,
+       "over_leg_drive": true,
+       "text": "over knee speed 1.0958: blocks the freeze (knee speed)",
+       "tightest_joint": [
+        "left_hip_roll",
+        "max",
+        0.2095
+       ],
+       "accel_forward_lp1hz_peak_m_s2": 0.2594136966506009
+      },
+      "built_sha256": "f70a60f91293abbc9635cfc976d44d4b8b00639ed7b0203548b56afce2ac6168",
+      "ramp_strides": 1.0,
+      "change": "nominal_to_v0.4"
+     },
+     {
+      "gates": {
+       "ik_ok": true,
+       "join_b": true,
+       "join_a": true,
+       "zmp_error": true,
+       "rolling_split": true
+      },
+      "pass_": true,
+      "ik_ok": true,
+      "ik_fail_frames": 0,
+      "join_a": {
+       "stride_phase": -2.0,
+       "reference": "nominal",
+       "com_max_mm": 0.06774596989018548,
+       "com_mean_mm": 0.01565395459249142,
+       "zmp_max_mm": 0.4751756351154923,
+       "zmp_mean_mm": 0.04451957598380043,
+       "joint_max_rad": 0.00019571788156150585,
+       "joint_rate_max_rad_s": 0.011716778562397057,
+       "at_join": {
+        "frame": "first output frame",
+        "com_mm": 0.005027849561732759,
+        "zmp_mm": 0.23411212869358797,
+        "joint_rad": 1.8725779974693157e-05,
+        "joint_rate_rad_s": 7.479336647520096e-05,
+        "tau_Nm": 0.02355009156300958
+       },
+       "tau_max_Nm": 1.3301577302313672,
+       "window": {
+        "reference": "nominal",
+        "strides": 10,
+        "window_s": 10.19760932537567,
+        "period_s": 1.019760932537567,
+        "offset_strides": 2.0,
+        "a_phase": null,
+        "a_time_s": null,
+        "a_windows": null,
+        "varies": true,
+        "step_deviations": [
+         0.006856475687899751,
+         -0.027499999999999997,
+         0.02104352356646475,
+         -0.01442442733220874,
+         0.016835556842258168,
+         -0.005983072478506317,
+         0.01330703195238327,
+         -0.0030554415770181935,
+         0.002256799904067924,
+         -0.020186215535394333,
+         0.01146548033857556,
+         -0.015281219863402105,
+         0.018665511850221243,
+         -0.010978895046127899,
+         0.02099650151676142,
+         -0.013958047966196818,
+         -1.776089392911944e-05,
+         -0.008613331288322833,
+         0.022742382030528974,
+         -0.014170851708054707
+        ]
+       },
+       "window_phase": [
+        0.0,
+        0.9937499999999999
+       ],
+       "com_ok": true,
+       "zmp_ok": true
+      },
+      "join_b": {
+       "stride_phase": 4.0,
+       "reference": "v0.4",
+       "com_max_mm": 0.22600916772911245,
+       "com_mean_mm": 0.06102195022918333,
+       "zmp_max_mm": 0.89324831265898,
+       "zmp_mean_mm": 0.07558870506814949,
+       "joint_max_rad": 0.000631286070353676,
+       "joint_rate_max_rad_s": 0.004887299266294942,
+       "at_join": {
+        "frame": "last output frame",
+        "com_mm": 0.22600916772911245,
+        "zmp_mm": 0.5615712128784138,
+        "joint_rad": 0.000631286070353676,
+        "joint_rate_rad_s": 0.004887299266294942,
+        "tau_Nm": 0.021307533846759097
+       },
+       "tau_max_Nm": 0.12017331886997518,
+       "window": {
+        "reference": "v0.4",
+        "strides": 14,
+        "window_s": 10.514073779025102,
+        "period_s": 0.7510052699303644,
+        "offset_strides": 9.0,
+        "a_phase": null,
+        "a_time_s": null,
+        "a_windows": null,
+        "varies": true,
+        "step_deviations": [
+         0.007609511882059306,
+         -0.0275,
+         0.022938374360180234,
+         -0.01337206746866054,
+         0.01839173831722101,
+         -0.0042513279893128956,
+         0.014579227550323535,
+         -0.0010880728949663836,
+         0.0026396409027112837,
+         -0.01959758103220714,
+         0.012589462542405951,
+         -0.014297817138032394,
+         0.020368973390953067,
+         -0.009649228790075556,
+         0.02288756784007038,
+         -0.012868152543905024,
+         0.00018201688050009063,
+         -0.007093277626944036,
+         0.02477396186142339,
+         -0.013098083345696261,
+         0.0201428041461731,
+         -0.024359521594157753,
+         0.007767230547532821,
+         -0.0006036013364298574,
+         0.007054501156923366,
+         -0.022451208946299407,
+         0.0003031645319879823,
+         -0.011998235203778268
+        ]
+       },
+       "window_phase": [
+        13.0,
+        13.99375
+       ],
+       "com_ok": true,
+       "zmp_ok": true
+      },
+      "join_command": null,
+      "zmp_error_history_m": [
+       0.054383279876953766,
+       0.02286544291630683,
+       0.012352891756365487,
+       0.007113009958009978,
+       0.005252664304059881,
+       0.0041193417023827495,
+       0.003396191164357763,
+       0.002923330730596577,
+       0.002603036248413371,
+       0.0023767278032455156,
+       0.0022097126891131814,
+       0.002081380347276323,
+       0.0019792634209037487
+      ],
+      "zmp_consistency_history_m": null,
+      "post_window_zmp_error_m": null,
+      "zmp_consistency_all_m": null,
+      "cop_margin_single_min": {
+       "m": 0.02962177890756442,
+       "frame": 1040,
+       "foot": "left"
+      },
+      "min_cop_margin_single_m": 0.02962177890756442,
+      "hip_yaw_range_use": 0.049726213432350654,
+      "tightest_other": {
+       "joint": "left_hip_roll",
+       "end": "max",
+       "margin_rad": 0.2094450619220521
+      },
+      "reference": {
+       "accel_forward_lp1hz_peak_m_s2": 0.16762402292268083,
+       "accel_forward_lp1hz_peak_t_s": 3.254,
+       "accel_forward_raw_peak_m_s2": 2.0899520748786222,
+       "accel_forward_raw_peak_t_s": 3.7378134483349106,
+       "accel_filter": {
+        "hz": 1.0,
+        "order": 2,
+        "zero_phase": true,
+        "fs_hz": 500.0,
+        "of": "model CoM, along the planned heading: three-point second differences on the frames' own times, then interpolated to fs_hz for the filter; the first frame takes its neighbour's value, the last frame its neighbour's",
+        "history_s": 3.0,
+        "before": "the periodic stride of nominal",
+        "after": "the periodic stride of v0.4",
+        "read_over": "the move's own frames only: the history enters the filter, not the peaks"
+       }
+      },
+      "frames": 1120,
+      "duration_s": 6.0451144748369225,
+      "move": {
+       "kind": "walk",
+       "builder": "change",
+       "causal": false,
+       "command_phase": 0.0,
+       "command_t_s": null,
+       "rules": [
+        "S2A-gates",
+        "S2L-L1",
+        "S2L-L2",
+        "S2L-L3",
+        "S2L-L4",
+        "S2L-L5",
+        "S2L-L6",
+        "S2L-L7",
+        "S2L-L8",
+        "S2L-L10",
+        "S2L-J1",
+        "S2L-J2",
+        "S2L-J3"
+       ],
+       "laws": "look"
+      },
+      "look": {
+       "laws": "look",
+       "rules": [
+        "S2L-L1",
+        "S2L-L2",
+        "S2L-L3",
+        "S2L-L4",
+        "S2L-L5",
+        "S2L-L6",
+        "S2L-L7",
+        "S2L-L8",
+        "S2L-L10",
+        "S2L-J1",
+        "S2L-J2",
+        "S2L-J3"
+       ],
+       "instant_phase": 0.0,
+       "flat_from_phase": 0.0,
+       "flat_until_phase": 2.0,
+       "variation_a_until_phase": -1.0,
+       "window_a": {
+        "reference": "nominal",
+        "strides": 10,
+        "window_s": 10.19760932537567,
+        "period_s": 1.019760932537567,
+        "offset_strides": 2.0,
+        "a_phase": null,
+        "a_time_s": null,
+        "a_windows": null,
+        "varies": true,
+        "step_deviations": [
+         0.006856475687899751,
+         -0.027499999999999997,
+         0.02104352356646475,
+         -0.01442442733220874,
+         0.016835556842258168,
+         -0.005983072478506317,
+         0.01330703195238327,
+         -0.0030554415770181935,
+         0.002256799904067924,
+         -0.020186215535394333,
+         0.01146548033857556,
+         -0.015281219863402105,
+         0.018665511850221243,
+         -0.010978895046127899,
+         0.02099650151676142,
+         -0.013958047966196818,
+         -1.776089392911944e-05,
+         -0.008613331288322833,
+         0.022742382030528974,
+         -0.014170851708054707
+        ]
+       },
+       "window_b": {
+        "reference": "v0.4",
+        "strides": 14,
+        "window_s": 10.514073779025102,
+        "period_s": 0.7510052699303644,
+        "offset_strides": 9.0,
+        "a_phase": null,
+        "a_time_s": null,
+        "a_windows": null,
+        "varies": true,
+        "step_deviations": [
+         0.007609511882059306,
+         -0.0275,
+         0.022938374360180234,
+         -0.01337206746866054,
+         0.01839173831722101,
+         -0.0042513279893128956,
+         0.014579227550323535,
+         -0.0010880728949663836,
+         0.0026396409027112837,
+         -0.01959758103220714,
+         0.012589462542405951,
+         -0.014297817138032394,
+         0.020368973390953067,
+         -0.009649228790075556,
+         0.02288756784007038,
+         -0.012868152543905024,
+         0.00018201688050009063,
+         -0.007093277626944036,
+         0.02477396186142339,
+         -0.013098083345696261,
+         0.0201428041461731,
+         -0.024359521594157753,
+         0.007767230547532821,
+         -0.0006036013364298574,
+         0.007054501156923366,
+         -0.022451208946299407,
+         0.0003031645319879823,
+         -0.011998235203778268
+        ]
+       },
+       "a_phase": null,
+       "a_time_s": null,
+       "a_windows": null,
+       "feet": "flat in every stance that ends after the instant (instant_phase) and no later than the end of the move's last ramp (flat_until_phase; null: none ends later); the walk's own law before and after (S2L-L10)"
+      },
+      "join_events": null,
+      "rolling_frames": 92,
+      "rolling_split_failed_frames": 0,
+      "failed_gates": [],
+      "stage0": {
+       "source": "setscreen.screen_move on the built file (at build time)",
+       "governing": [
+        "knee",
+        "speed",
+        1.067826861490319
+       ],
+       "within_limits": false,
+       "over": [
+        {
+         "limit": "knee speed",
+         "value": 1.067826861490319
+        }
+       ],
+       "blocks_freeze": [
+        {
+         "limit": "knee speed",
+         "value": 1.067826861490319
+        }
+       ],
+       "a1_over": false,
+       "over_leg_drive": true,
+       "text": "over knee speed 1.0678: blocks the freeze (knee speed)",
+       "tightest_joint": [
+        "left_hip_roll",
+        "max",
+        0.2094
+       ],
+       "accel_forward_lp1hz_peak_m_s2": 0.2594165279590094
+      },
+      "built_sha256": "2b3f192eabbd941823711ba2cf6eb1024dbf8b78ae0d19d4c538726f566ad26c",
+      "ramp_strides": 2.0,
+      "change": "nominal_to_v0.4"
+     }
+    ]
+   },
+   "item": {
+    "kind": "change",
+    "builder": "change",
+    "args": {
+     "ramp_strides": 1.0
+    },
+    "specs": {
+     "a": {
+      "name": "nominal",
+      "spec": {
+       "froude": 0.012,
+       "duty": 0.6,
+       "lift_frac": 0.1,
+       "head_amp": 0.05,
+       "tail_amp": 0.125,
+       "sway_gain": 1.0,
+       "stride_rel": 0.55,
+       "crouch": 0.03,
+       "zmp_iters": 12,
+       "zmp_gain": 0.5,
+       "n": 160,
+       "bob": 0.010525128865979382,
+       "bob_phase": 0.0,
+       "bob_skew": 0.125,
+       "swing_time": 0.31973042487574765,
+       "lift_peak": 0.375,
+       "toe_off": 0.3,
+       "toe_off_start": 0.825,
+       "toe_off_margin": 0.005,
+       "toe_reach": 0.075,
+       "roll_amp": 0.026179938779914945,
+       "roll_phase": 0.0,
+       "zmp_inset_y": 0.0,
+       "tail_phase": -1.7016960206944713,
+       "head_mode": "stabilise",
+       "head_gain": 0.9,
+       "head_settle": 0.015,
+       "settle_lag": 0.075,
+       "strides": 10,
+       "phase_jitter": 0.015,
+       "asym": 0.025,
+       "gaze_var": 0.015,
+       "tail_var": 0.2,
+       "var_band": [
+        0.05,
+        0.2
+       ],
+       "noise_seed": 2026,
+       "bob_drop": 0.1,
+       "toe_off_rate": 3.4,
+       "toe_off_accel": 220.0
+      },
+      "H": 0.40468919988052376,
+      "yaw_rate": 0.0,
+      "in_place": false,
+      "split": "statics"
+     },
+     "b": {
+      "name": "v0.4",
+      "spec": {
+       "froude": 0.04030225633482698,
+       "duty": 0.5669786416188048,
+       "lift_frac": 0.11,
+       "head_amp": 0.05,
+       "tail_amp": 0.125,
+       "sway_gain": 1.0,
+       "stride_rel": 0.7423032491621555,
+       "crouch": 0.03,
+       "zmp_iters": 12,
+       "zmp_gain": 0.5,
+       "n": 160,
+       "bob": 0.01711968081875956,
+       "bob_phase": 0.0,
+       "bob_skew": 0.125,
+       "swing_time": 0.31973042487574765,
+       "lift_peak": 0.375,
+       "toe_off": 0.3,
+       "toe_off_start": 0.825,
+       "toe_off_margin": 0.005,
+       "toe_reach": 0.075,
+       "roll_amp": 0.026179938779914945,
+       "roll_phase": 0.0,
+       "zmp_inset_y": 0.0,
+       "tail_phase": -1.7802358370342162,
+       "head_mode": "stabilise",
+       "head_gain": 0.9,
+       "head_settle": 0.015,
+       "settle_lag": 0.075,
+       "strides": 14,
+       "phase_jitter": 0.015,
+       "asym": 0.025,
+       "gaze_var": 0.015,
+       "tail_var": 0.2,
+       "var_band": [
+        0.05,
+        0.2
+       ],
+       "noise_seed": 2026,
+       "bob_drop": 0.1,
+       "toe_off_rate": 3.4,
+       "toe_off_accel": 220.0
+      },
+      "H": 0.40468919988052376,
+      "yaw_rate": 0.0,
+      "in_place": false,
+      "split": "statics"
+     }
+    },
+    "causal": false,
+    "laws": "look",
+    "rules": [
+     "S2A-gates",
+     "S2L-L1",
+     "S2L-L2",
+     "S2L-L3",
+     "S2L-L4",
+     "S2L-L5",
+     "S2L-L6",
+     "S2L-L7",
+     "S2L-L8",
+     "S2L-L10",
+     "S2L-J1",
+     "S2L-J2",
+     "S2L-J3"
+    ],
+    "body_model_sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4",
+    "fallback": {
+     "rule": "S2S-fallback",
+     "steps": [
+      {
+       "step": 1,
+       "ramp_strides": 2.0
+      }
+     ]
+    }
+   },
+   "group": "nominal_to_v0.4",
+   "inputs": {
+    "nominal": "00b953493f2c0ad1b682946d1fbff67ca6f3b6dcba625dff7bc635b30eebe9dd",
+    "v0.4": "1dd71a5a478847734a646964bee1a8d2ba737fded2b6127b8bc8d275b0765571"
+   },
+   "set": "V6",
+   "pass_": false,
+   "fallback": {
+    "rule": "S2S-fallback",
+    "step": 3,
+    "tried": 2
+   },
+   "built_by": {
+    "commit": "75d4303613aafb69a234cbbe8393af53167bcbe6",
+    "dirty": false,
+    "dirty_paths": [],
+    "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+    "stage2_modules": {
+     "designlab/stage2/sets.py": "d55c8fbd00d88193546407436700a66f4c77d0e1df343632b07d6c7665924581",
+     "designlab/stage2/moves.py": "ccee9b2cdf5acfef7b1f1bf592d617b71f035617016b6ecffd3e727aa5b0e77e",
+     "designlab/stage2/setscreen.py": "36110ec2ba6222ce3a01e772124a92092a40d7afd9caf6f74b2300a709fc25ed",
+     "designlab/stage2/screen.py": "7c974e6240da25e8be09a83e0ba392bf37a716a6007c8e43c93835512e0a1b52",
+     "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
+     "designlab/stage2/setio.py": "f25d8616e5e79f805cd0deded49cd34f85f1a0dc77a4114dce44b8b0cd354c91",
+     "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16",
+     "designlab/stage2/moves_look.py": "202e928e734e3234e1fd8d8919a55574772dc318768c4d1dc61962602fc92d44"
+    },
+    "versions": {
+     "python": "3.13.18",
+     "numpy": "2.5.4",
+     "mujoco": "3.10.0",
+     "scipy": "1.18.1"
+    },
+    "blas_threads": 1,
+    "accuracy": "r2",
+    "at": "2026-11-17T01:48:12Z"
+   },
+   "margin_rule": null
+  }
+ },
+ "method": "designlab.stage2.moves: Stage 1's transition (ZMP preview control on the designlab model) with its schedule passed as data; a commanded move (a stop, a turn) is causal; with the look's laws and solver (designlab.stage2.moves_look), each move bound to the windows of the walks it joins",
+ "preview": {
+  "qe": 1.0,
+  "r": 1e-10,
+  "preview_s": 2.5
+ },
+ "shift_strides": 0.25,
+ "settle_strides": 0.25,
+ "path_half_width": 0.2,
+ "walk_ramp_strides": 1.0,
+ "windows": {
+  "start": [
+   -2,
+   3
+  ],
+  "stop": [
+   -2,
+   3
+  ],
+  "walk": [
+   -2,
+   4
+  ]
+ },
+ "g3_com_mm": 1.0,
+ "g3_zmp_mm": 2.0,
+ "causal_limits": {
+  "warmup_com_mm": 1.0,
+  "warmup_zmp_mm": 4.0,
+  "joint_at_command_rad": 0.001,
+  "consistency_first_stride_mm": 4.0,
+  "zmp_after_first_stride_mm": 4.0,
+  "cop_margin_single_mm": 10.0,
+  "joint_range_rad": 0.05
+ },
+ "rules": {
+  "S2A-causal": "a commanded move (a stop, a turn) is causal: its reference is the periodic walk, frame for frame, up to the command frame; the preview controller first sees the commanded plan at that frame (the control law in its incremental form, so that new preview information enters only through its own increments); the move's file begins at the command frame, which is the command instant on a track. Before the command frame every array of the plan is the continuing walk's exactly; the CoM path there is the walk's up to the preview grid's step (the smallest frame interval of the whole commanded plan, so the grid, though nothing previewed, depends on the plan): two commanded plans from one walk agree before the command to under 0.05 mm of CoM, and exactly on one grid. A command may only be given at a lift-off (a multiple of half a stride). Named and not used: Stage 1's convention (decision 18: the command is the start of the reference's own ramp), under which the reference's CoM leaves the walk before the command; decision 18's reading is kept in every stop record (reference.stage1_stop). Starts and speed changes stay Stage 1's construction",
+  "S2A-rule-F": "committed footprints: a stance that began before the command keeps the footprint of the walk's own path (gait a's constant period, speed and yaw rate, from the same origin); a swing that lifts at or after the command lands on the commanded path",
+  "S2A-fade": "the causal transient (the cart-table ZMP of the preview controller's own output less its ZMP reference: what a controller without foreknowledge cannot track) is excused from the multibody-ZMP correction with the weight 1 - s((p - c - 0.5) / 0.5), s the minimum-jerk step: in full up to 0.5 stride after the command phase c, not at all from 1 stride after it; from there the loop corrects the multibody ZMP against the plan's target, as Stage 1's",
+  "S2A-ramp": "a turn's yaw rate and stride period ramp together over 0.375 s of reference time (minimum-jerk), for every set, body and rate: r = 2 x 0.375 / (T_walk + T_turn) strides",
+  "S2A-appendage": "inside a move whose stride period T(p) is shorter than the walk's, the tail's and the neck's swing amplitudes are multiplied by (T(p) / T_walk)^2 (constant angular acceleration amplitude), for every set, look sets included; a look choice (lead's ruling 1)",
+  "S2A-stride": "inside the turn the stride period is f x T_walk at the same path speed; f is the largest value of 1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6 for which the finite turn's own kinematic pass (the causal plan solved once, no ZMP correction), in both directions, has ik_ok, uses at most 0.85 of the usable thigh-twist range on the worse leg and leaves every other gated joint at least 0.05 rad of its usable range; the reference built with all passes must show ik_ok, at most 0.87 and the same 0.05 rad, else f steps down once (at most 2 times in all); constants set on the 14 Nov prototypes of V0 on 75-M-H-10, before any closed-loop run; the 0.05 rad is Stage 0's joint-range limit of a move (STAGE2_75_PLAN.md A12 as amended: a start, change, stop or turn; every end of a joint's usable range but one it rests on by design; a walk keeps 0.1 rad), one constant with the set's screen; the rule read 0.1 rad from the morning of 15 Nov (A11's first amendment, withdrawn), under which V0's quick turn moved to f 0.7 and missed two gates and the two tuned sets had no factor (the owner's decision of 15 Nov, DECISION_LOG.md P34, after the first builds of the three sets; changed after a result)",
+  "S2A-gates": "a move passes when: ik_ok; its last output stride is within 1 mm of gait b's CoM and 2 mm of its multibody ZMP (the home stance for a stop); a move of Stage 1's construction: its first stride the same against gait a, and the final ZMP error at most 4 mm; a causal move: the warm-up stride and the command frame within 1 mm of the walk's CoM, joints within 0.001 rad at the command frame, multibody ZMP within 4 mm over the warm-up frames up to two frames before the command (the ZMP at the command frame is recorded, not gated: its central difference straddles the command), single-support CoP at least 10 mm inside the pad, consistency error over the first stride after the command at most 4.0 mm; ZMP error from one stride after it at most 4.0 mm (windows fixed on 15 Nov after the scratch builds of V0, before any set was frozen and before any closed-loop episode on a Stage 2 set: STAGE2_75_PLAN.md A7); a turn: total heading within 1e-09 rad of its angle, heading at the bar's instant at least 80 deg on the nominal commanded clock and on the slowest, thigh twist at most 0.87 of the usable range; the two-touchdown stop: exactly 2 touchdowns after the command, forward CoM speed below 5 % of the walk's within 1.5 strides of the command, 1 Hz low-passed forward CoM acceleration within 1.5 m/s^2 (a zero-phase order-2 Butterworth at 1 Hz turns a speed change dv into at most 2.22 x dv m/s^2, so this term detects rocking, not abruptness; the unfiltered peak is recorded beside it); constants set on the 14 Nov prototypes of V0 on 75-M-H-10, before any closed-loop run, but the ZMP readings of a causal move, which have one limit, Stage 1's 4 mm: the warm-up frames (it was 2 mm), the first stride after the command (it was 2.5 mm) and the frames after it (unchanged); the CoM's 1 mm and the joints' 0.001 rad at the command stand as written (the owner's decision of 15 Nov, DECISION_LOG.md P34, after the first builds of the three sets; changed after a result)",
+  "S2S-process": "every array is made inside s2io.r2() (gait accuracy r2, checked on entry and on exit) with one BLAS thread, each item in a fresh process on a body rebuilt for it (look.source); a walk's inverse dynamics, summary and both array formats come from the one generation in the one block",
+  "S2S-twins": "where Stage 1's run (stage1/runs/2026-11-08/<body>) holds a walk of the same spec, or a transition between walks of the same specs made with Stage 1's own schedule, the set's file must have its sha256; where the look ladder (stage2/look/look_refs.json) holds a rung of the same spec, the look-format file must have its sha256; a difference stops the build with both hashes (STAGE2_75_PLAN.md A4).  V0 owes them: on a body that has a Stage 1 run record its nominal and start must be Stage 1's own files, and on a body the look ladder holds its look-format nominal and v0.4 must be the ladder's rungs; a twin that is not found there stops the build and fails sets verify (SetDef.stage1_twins, ladder_twins)",
+  "S2S-stage0": "the Stage 0 gates that block a freeze (STAGE2_75_PLAN.md A12) are read where a reference is built, with the set screen's own functions: a walk by setscreen.judge_walk on its look.price, a move by setscreen.screen_move on its file; the set's screen.json is made afterwards by setscreen and must agree (sets verify)",
+  "S2S-fallback": "a start, change or stop that fails a gate of its entry (A7) or a blocking Stage 0 gate (A12) is retried in this order and no other (STAGE2_75_PLAN.md A8): (1) a change with a ramp of 2 strides instead of 1 (same name; the entry records ramp_strides 2 and this rule); (2) for a ladder rung other than 0.40 m/s, a change from the neighbouring rung toward 0.40 m/s (v0.4_to_v0.45, v0.45_to_v0.5, v0.4_to_v0.35, v0.35_to_v0.3), with one stride of ramp, the rung's plan then walking through 0.40 m/s; (3) the item is recorded 'no transition within the gates' with its numbers.  A start and the stops have no fallback and nominal_to_v0.4 has step (1) only.  A failed start or nominal_to_v0.4 stops the set and goes to the lead (a set that starts into its 0.40 m/s walk, S2S-lead-in: a failed start_v0.4)",
+  "S2S-lead-in": "a set whose nominal walk is a rung starts into it (start; set.json lead_in 'start').  A set whose nominal walk is not a rung (A12) but whose 0.40 m/s walk is starts from standing straight into its 0.40 m/s walk: start_v0.4, built and gated like start, with no fallback; set.json says lead_in 'start_v0.4', and so does every record of the set (an exception, labelled where its rows are printed).  The items that need the nominal walk are then not available, with that reason, and a ladder rung is reached by the fallback rule's step (2), a change from the neighbouring rung toward 0.40 m/s.  A start_v0.4 that fails a gate stops the set: it is not run.  A set with neither walk has no lead-in (lead_in null) and its conditions are not run (STAGE2_75_PLAN.md A8 as amended: the owner's decision of 15 Nov, DECISION_LOG.md P34, after the first builds of the three sets; changed after a result)",
+  "S2S-turns": "a turn rate is built once for both directions (STAGE2_75_PLAN.md A10, A11): moves.pick_stride_factor on the set's 0.40 m/s walk, both directions with all passes at the chosen factor, then moves.step_down on the built pair (ik_ok in both, the worse thigh-twist use, the tighter margin of another joint, a leg drive over a Stage 0 limit in either, a neck or tail limit in either).  No factor, or a leg drive over its limit: 'no reference within the thigh twist and the leg drives', and the reason also names the entry gates the last built pair missed.  A built turn that fails another gate (A7's, A10's heading readings, another blocking gate of A12) has no further retry and no reference; where only the heading readings fail: 'no reference within the heading rule'.  A turn over a neck or tail limit alone is kept with a1_over true",
+  "S2S-not-available": "an item with no reference is an entry with available false, a reason and its numbers, and no file; it is listed in set.json not_available; a walk that fails a blocking Stage 0 gate is dropped from the ladder in this way and no move is built from or to it (STAGE2_75_PLAN.md A8, A11, A12).  No ramp, grid, gate or constant is changed for it.  Its verdict is the code's that built it (built_by): while the set is not frozen, a build by other Stage 2 modules makes it again; an array an earlier build left under its name is removed",
+  "S2L-L1": "F3: a gait's duty is describe(H)['duty'] (moves.GaitX.legacy); inside a ramp it mixes with the ramp's weight like every other parameter, sampled at each lift-off",
+  "S2L-L2": "F9: tail = amp x tail_amp(p) x sin(2 pi p + tail_phase(p)), amplitude and phase mixed with the ramp's weight; a stand has amplitude 0; in a turn's quicker steps tail_amp(p) carries (T(p) / T_walk)^2 (S2A-appendage)",
+  "S2L-L3": "F10: a stabilising head holds the neck at minus head_gain x the trunk's pitch about home (zero in these plans) and dips by head_settle after each touchdown of the plan, deepest settle_lag after it (64 u^3 (1 - u)^3 over 2 settle_lag); depth and lag are mixed with the ramp's weight at the touchdown, a nodding gait's share nods; the whole is scaled by the plan's amplitude ramp and, in a turn's quicker steps, the depth by (T(p) / T_walk)^2 (S2A-appendage)",
+  "S2L-L4": "F4: the lift shape is gait.lift_profile(u, lift_peak), lift_peak mixed with the ramp's weight at the swing's lift-off",
+  "S2L-L5": "F1/F2: pelvis z = root0_z - amp x (crouch + bob(p) x H x gait.bob_profile(x)); a step runs from one swing's middle to the next swing's middle (the crests), x its phase fraction; the trough comes bob_skew x duty after the step's touchdown and the dip lasts bob_drop seconds, as in the periodic walk; bob amplitude mixed with the ramp's weight per frame, trough and drop at the touchdown; before the first swing and after the last there is no dip; the correction passes are the gait's own (look.LOOK_ZMP_ITERS)",
+  "S2L-L6": "F6: trunk quaternion = yaw(heading) x home x roll(-amp x roll_amp(p) x cos(2 pi (p - (1 - duty(p) / 2) - roll_phase(p)))), the walk's roll law in phase, amplitude and phase mixed with the ramp's weight",
+  "S2L-L7": "F14: step-time deviations enter the plan's period step by step: T(p) x (1 + env(p) x 2 e_j sin^2(2 pi u)), e_j the window's deviation of the step at the window's phase, u the phase inside the step (gait._Warp's rate).  The variation is a pure warp of time: path speed and yaw rate are divided by the same factor, so the path, the heading and every footprint are the unvaried plan's in phase (the window's own footprints are uniform in phase)",
+  "S2L-L8": "F14's variation envelope env(p) is 1 on the frames a move shares with a periodic window (its warm-up and join strides) and fades with the minimum-jerk step to 0 across the next stride inward: for window a, 1 up to the command (a causal move) or up to the end of the first output stride (Stage 1's construction), 0 from one stride later; for window b, 0 up to two strides before the end, 1 over the last output stride.  Between the fades a move has no F14 variation (step times, gaze, tail).  Past the last output frame (computed, not written) the step deviation is the one that makes the last computed stride last exactly T_b, which the preview's periodic continuation assumes; the ZMP target is constant there (single support)",
+  "S2L-L10": "flat feet while the gait is changing, stated per stance (STAGE2_TRACKB_PLAN.md L10 and L11 as the lead settled them on 15 and 16 Nov 2026).  The instant of a move is its command (a causal move: the stop, a turn) or the start of its first ramp (a start, a change: move.command_phase, Stage 1's convention).  A stance runs from a foot's touchdown to its lift-off.  A stance that ends at or before the instant follows the law of the walk the move leaves (gait a: the roll before its lift-off, amplitude gait.roll_amplitude at that lift-off, start by gait.rolling_entry of that gait, on the move's own step times).  A stance that ends after the instant and no later than the end of the move's last ramp is flat: no roll, no rolling entry, foot_pitch 0 and rolling false through it.  A stance that ends after the last ramp has ended follows the law of the walk the move enters (gait b), so that the move's last frame is the walk's first, foot pitch included.  A start has no stance before its instant but the stand's, which are flat; a stop has no last ramp's end, so every stance after its command is flat.  The swing that lifts at the instant carries the walk's toe-off pitch to zero by mid-swing, as in the walk.  The toes-up reach before landing (toe_reach) is part of the same law: a swing that lands at or before the instant has gait a's; a later swing has the reach only when the stance it leaves and the stance it lands into both follow a walk's law (the landing stance's gait's reach), so the swing that lifts at the instant of a move with a ramp, and every swing that leaves or lands into a flat stance, has none.  Before the instant a causal move's frames are the look walk's, foot pitch included; a start's and a change's are the move's own, built with foreknowledge (STAGE2_75_PLAN.md A5), with the foot pitch of the walk it leaves.  (L9, rolling contact inside a move while the gait is changing, is not built: cuts 1 and 2 of design 3.9, taken from the start by the lead's ruling of 15 Nov 2026.)",
+  "S2L-L13": "the turn in place has flat feet as its own law (the lead's ruling of 16 Nov 2026; STAGE2_TRACKB_PLAN.md L13): no toe-off and no rolling entry in any stride, its start and its stop included.  It is built from the set's nominal look gait with F5's fields at their defaults (toe_off 0, toe_reach 0) and without F14 (one stride: cut 4 of design 3.9); rule S2L-L10 is about a walk's moves and is not named by this gait's entries",
+  "S2L-J1": "a causal move leaves a window of K strides at the warp's own time of its command phase: a_phase strides after the window's first frame, a_time_s = _Warp.time(a_phase); the track plays the walk for whole windows plus a_time_s.  The move's warm-up, its start state and its join_command frames are the window resampled on the move's phase grid (q, com, zmp_mb by periodic cubic splines in time; the LIPM path and its derivatives spectrally).  The walk's ZMP correction is the window's own at every computed frame (it varies from stride to stride), for the continuing walk that the controller previews before the command and as the commanded plan's first reference",
+  "S2L-J2": "a move enters a window of K strides at its boundary: its last output stride is compared (join_b) with the window's last stride resampled on the move's phase grid, and the walk then starts at frame 0; a move of Stage 1's construction leaves window a at its boundary too (its first output stride is the window's first stride)",
+  "S2L-J3": "by S2L-L8 a move's own frames carry a window's variation on the shared strides only",
+  "S2L-periodic": "a periodic turn reference is one stride cut from the steady part of a long plan and gated for periodicity: the strides before and after it, mapped onto it by the plan's own stride motion, agree within 1 mm (model CoM), 2 mm (multibody ZMP) and 0.001 rad (joints); it carries no F14 variation (cut 4 of design 3.9) and flat feet (its own law: S2L-L13)",
+  "S2L-moves": "every move of a look set is built by designlab.stage2.moves with the look's laws and solver (designlab.stage2.moves_look; its rules are in transitions.json) bound to the windows of the walks it joins, and is gated, screened and given its fallbacks as every other set's (S2S-fallback, S2S-turns).  A causal move leaves its walk's window at the bar's lead (join rule J1 as designed: 2 strides after the window's first frame for a left turn, 2.5 for a right turn and for the two-touchdown stop; the entry's look.a_phase, look.a_time_s and look.a_windows, the windows of the walk's file a track plays before it).  No cut of STAGE2_TRACKB_PLAN.md L12 is taken by the builder: a move outside a join gate is recorded with its numbers, which are what L12's trigger reads",
+  "S2L-inplace": "the turn in place at 0.5 rad/s, left and right (inplace_0.5_<dir>, with start_inplace_0.5_<dir> and stop_inplace_0.5_<dir>; STAGE2_TRACKB_PLAN.md L13), is the set's nominal look gait stepping in place (path speed 0) with flat feet as its own law (F5's fields at their defaults) and without F14 (one stride).  It is cut from one long plan of the same builder and laws: the start from the stand, then 4 hold strides more than Stage 1's start writes.  The reference is the second of those hold strides; it is gated for periodicity against the hold stride before it and the one after it (model CoM 1.0 mm, multibody ZMP 2.0 mm, joints 1e-3 rad, each mapped by the plan's own stride motion); no other plan length and no other stride is tried.  Its start is the same plan up to that stride; its stop is Stage 1's one-step stop from the reference.  Each of the three files is screened at Stage 0 as a move (setscreen.screen_move).  A gait that fails is recorded not available with its numbers, and its start and stop with it.  The three references of a direction are one optional group: a build makes them when they are named (--only), because the set's screen (setscreen) reads every entry of refs.json as a walk with a look-format file and cannot yet read a periodic turn"
+ }
+}
