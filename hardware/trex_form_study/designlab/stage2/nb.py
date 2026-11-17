@@ -46,6 +46,14 @@ process group and stops, and from then on writes nothing into the run directory 
 named after its own session (``SUPERSEDED_<k>.json``): the run's ``HALT.json`` on Drive is left to the session
 that owns the run (``HALT_RULE``).
 
+**What is final and what is resumable** (``RESUMABLE_RULE``, ``LEAD_RULE``; the lead's ruling 2 of 17 Nov 2026).
+The trainer's refusal (exit code 4) writes no ``HALT.json``: the session ends with ``LIVE.json`` closed.  The
+trainer's halt (exit code 5) and an error of the launcher itself write a ``HALT.json`` marked resumable, with its
+``halt_id`` and the remedy it names; only a job that crashed twice halts a run for good.  The remedies are the
+lead's, in one small file beside the run (``LEAD.json``: ``retry_check``, ``allow_source_change``,
+``allow_version_change``, ``budget_by``, ``budget_set_on``, ``resume_halt``), which ``session`` reads and records;
+the owner is never asked to set them.  A resumed halt is kept as ``HALT_<k>.json``.
+
 **A fault of Drive is no halt** (``COPY_RULE``'s end, ``BACK_RULE``, ``UNFINISHED_RULE``).  A copy to Drive that
 fails is counted and made again in the next period.  A job that has ended is finished on Drive only when its last
 checkpoint is there: until then its ``run.json`` is held back, the copy is tried again, and the run gets no
@@ -150,15 +158,18 @@ _HEX40 = re.compile(r"[0-9a-f]{40}\Z")
 _HEX64 = re.compile(r"[0-9a-f]{64}\Z")
 _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
 
-#: The notebook's cell 1 (design 3.9): name -> default.
+#: The notebook's cell 1 (design 3.9, with the lead's rulings of 17 Nov 2026): name -> default.  Design 3.9's
+#: ``ALLOW_VERSION_CHANGE`` and ``ALLOW_SOURCE_CHANGE`` are not among them: the owner is never asked to set a remedy
+#: (ruling 2: they come from the lead's ``LEAD.json``, ``LEAD_RULE``); they stay parameters of an ``S2_PARAMS`` file
+#: (``EXTRA``) for the lead's own launches and the tests.
 PARAMS = dict(REPO_REF="", RUN_ID="", QUEUE=[], BUNDLE_ID="", BUNDLE_SOURCE="drive", RESUME=False, TAKEOVER=False,
-              SMOKE=False, BUDGET_STEPS=0, WORKERS=0, CLIPS=True, ALLOW_VERSION_CHANGE=False,
-              ALLOW_SOURCE_CHANGE=False, USE_GOOGLE_DRIVE=True, AUTO_DISCONNECT=True)
+              SMOKE=False, BUDGET_STEPS=0, WORKERS=0, CLIPS=True, USE_GOOGLE_DRIVE=True, AUTO_DISCONNECT=True)
 #: What an ``S2_PARAMS`` file may hold besides (local runs, tests, the lead's own launches), and what the notebook
 #: adds on its way (``IN_COLAB``, ``SETUP_STARTED``, ``SETUP_RECORD``, the two directories).
 EXTRA = dict(SET="V6", TINY=False, DRIVE_DIR=None, LOCAL_DIR=None, MONITOR_EVERY=None, MONITOR_ALSO_K=[],
              PERIOD_S=None, BUDGET_BY=None, BUDGET_SET_ON=None, PREFLIGHT_BODIES=None, RETRY_CHECK=False, LR=None,
-             CONFIG=None, IN_COLAB=False, SETUP_STARTED=None, SETUP_RECORD=None, STUDY_DIR=None, COPY_PAUSE_S=None)
+             CONFIG=None, IN_COLAB=False, SETUP_STARTED=None, SETUP_RECORD=None, STUDY_DIR=None, COPY_PAUSE_S=None,
+             ALLOW_VERSION_CHANGE=False, ALLOW_SOURCE_CHANGE=False)
 
 #: Where the inputs are verified and unpacked: None is the study directory (a test's value is a scratch tree).
 ROOT = None
@@ -169,11 +180,13 @@ K6_RULE = (
     "branch or a tag); when its RUN_ID has a run directory with QUEUE.json and RESUME is not set; when RESUME is "
     "set and there is no such run, or the run is a smoke; when RESUME comes with another queue, set, bundle or "
     "budget (or other trainer options) than QUEUE.json holds; when the checkout's commit is not QUEUE.json's, "
-    "unless ALLOW_SOURCE_CHANGE is set (recorded and noted).  On a resume REPO_REF is QUEUE.json's")
+    "unless allow_source_change is given (LEAD.json, LEAD_RULE; recorded and noted).  On a resume REPO_REF is "
+    "QUEUE.json's")
 K7_RULE = (
     f"rule K7: a session with RESUME is refused while LIVE.json is younger than {LIVE_FRESH_S:g} s and was not "
-    "closed by the session that wrote it, unless TAKEOVER is set (recorded); a run that has DONE.json or HALT.json "
-    "is finished and is not resumed")
+    "closed by the session that wrote it, unless TAKEOVER is set (recorded); a run that has DONE.json, or a "
+    "HALT.json that is not marked resumable, is finished and is not resumed; a resumable HALT.json is resumed only "
+    "with the lead's remedy (RESUMABLE_RULE)")
 FENCE_RULE = (
     "rule K7: the launcher writes LIVE.json (its session's uuid, the host, the time) with STATUS.json every period "
     "and re-reads it before every copy or delete on Drive; when it names another session the launcher ends its "
@@ -214,13 +227,35 @@ BACK_RULE = (
     "aside under work/aside/, never deleted).  A job is never started while Drive holds a checkpoint newer than "
     "every one here (UNFINISHED_RULE)")
 JOB_RULE = (
-    "job rules (design 3.9; the trainer's exit codes): a job that ends with exit code 0 (done, or stopped by rule "
-    "M4 or M5) or 3 (G8a failed: no run) lets the next job start; exit code 4 (refused: nothing was run) or 5 "
-    "(halted for the lead) halts the run without a retry; any other code or a signal is a crash: the job's "
-    "process group is ended and the job is started once more with --resume (the trainer chooses its newest "
-    "intact checkpoint, or restarts from step 0 in place), and a second crash halts the run.  The count of "
-    "retries is the job's, across sessions.  Finished jobs are skipped on a resume; on a new runtime the job's "
-    "directory is copied back from Drive first")
+    "job rules (design 3.9; the trainer's exit codes; the lead's ruling 2 of 17 Nov 2026): a job that ends with "
+    "exit code 0 (done, or stopped by rule M4 or M5) or 3 (G8a failed: no run) lets the next job start; exit code "
+    "4 (refused: nothing was run) ends the session without a retry and without HALT.json; exit code 5 (halted for "
+    "the lead) halts the run without a retry, resumable (RESUMABLE_RULE); any other code or a signal is a crash: "
+    "the job's process group is ended and the job is started once more with --resume (the trainer chooses its "
+    "newest intact checkpoint, or restarts from step 0 in place), and a second crash halts the run for good.  The "
+    "count of retries is the job's, across sessions.  Finished jobs are skipped on a resume; on a new runtime the "
+    "job's directory is copied back from Drive first")
+RESUMABLE_RULE = (
+    "what is final and what is resumable (the lead's ruling 2 of 17 Nov 2026): the trainer's exit code 4 (a "
+    "refusal) writes no HALT.json: the session ends and LIVE.json is closed, as for an interruption.  The trainer's "
+    "exit code 5 (a halt for the lead) and any error of the launcher itself write a HALT.json marked resumable, "
+    "with its halt_id and the remedy it names: retry_check when the trainer's halt names --retry-check, and in "
+    "every case the lead's word (LEAD.json's resume_halt names the halt).  session accepts a resume of such a run "
+    "only with that remedy in LEAD.json, and then keeps the old halt as HALT_<k>.json (k: the session that "
+    "halted).  Only a job that crashed twice halts the run for good (resumable false)")
+LEAD_SCHEMA = "s2-lead-1"
+#: ``LEAD.json``'s true-or-false remedies, and every key it may hold (``LEAD_RULE``).
+LEAD_FLAGS = ("retry_check", "allow_source_change", "allow_version_change")
+LEAD_KEYS = LEAD_FLAGS + ("budget_by", "budget_set_on", "resume_halt", "note", "schema", "written_at")
+LEAD_RULE = (
+    "the lead's remedies (ruling 2 of 17 Nov 2026): one small file the lead writes on Drive beside the run, "
+    "runs/<run_id>/LEAD.json, which session reads and records in the session's record (lead, and the values in "
+    "force): retry_check, allow_source_change and allow_version_change (true or false; passed to the trainer as "
+    "--retry-check on a resume, --allow-source-change, --allow-version-change), budget_by and budget_set_on (rule "
+    "Y10: written to QUEUE.json when the run is made; budget_set_on a UTC time such as 2026-11-20T09:00:00Z), and "
+    "resume_halt (the halt_id of the resumable halt a resume answers), with an optional note.  The owner is never "
+    "asked to set these.  A file that cannot be read, a key it does not name here or a value of the wrong type "
+    "refuses the session; nothing is changed")
 CLIP_RULE = (
     f"clips (design 3.9): one clip child at a time, started when a check has a record and traces and no clip yet; "
     f"the newest such check; its walk/v0.4 episode of seed 6004 when there is one; limit {CLIP_LIMIT_S:g} s; a "
@@ -1201,12 +1236,63 @@ def _resume_point(st_like: dict, jobs: list) -> dict:
     return dict(job=first["job"], steps=max(have, default=0), done=done)
 
 
+def read_lead(d) -> dict | None:
+    """``LEAD.json`` beside the run (``LEAD_RULE``): ``{path, sha256, doc}``, or None when the lead wrote none.
+    Raises ``Refused`` for a file that cannot be read, a key ``LEAD_KEYS`` does not name, or a value of the wrong
+    type: a misspelt remedy must not be silently no remedy."""
+    path = Path(d) / "LEAD.json"
+    try:
+        raw = path.read_bytes()
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise Refused(f"{path}: LEAD.json cannot be read ({exc}); nothing was changed") from exc
+    try:
+        doc = json.loads(raw.decode("utf-8"))
+    except ValueError:
+        doc = None
+    if not isinstance(doc, dict):
+        raise Refused(f"{path}: LEAD.json is not a JSON object; nothing was changed")
+    bad = [f"{k!r} is not a key of LEAD.json" for k in sorted(doc) if k not in LEAD_KEYS]
+    bad += [f"{k} must be true or false" for k in LEAD_FLAGS if k in doc and not isinstance(doc[k], bool)]
+    bad += [f"{k} must be a text" for k in ("budget_by", "resume_halt", "note")
+            if doc.get(k) is not None and not isinstance(doc[k], str)]
+    if doc.get("budget_set_on") is not None and _epoch(doc["budget_set_on"]) is None:
+        bad.append("budget_set_on must be a UTC time such as 2026-11-20T09:00:00Z (rule Y10)")
+    if bad:
+        raise Refused(f"{path}: {'; '.join(bad)} ({LEAD_RULE}); nothing was changed")
+    return dict(path=str(path), sha256=hashlib.sha256(raw).hexdigest(), doc=doc)
+
+
+def _halt_to_resume(d: Path, lead: dict) -> dict | None:
+    """``RESUMABLE_RULE`` for a RESUME: None when the run has no ``HALT.json``; the halt the resume answers when
+    ``LEAD.json`` (``lead``: its document) names it and holds its remedy; else ``Refused``."""
+    path = d / "HALT.json"
+    if not path.exists():
+        return None
+    halt = _read_json(path)
+    halt = halt if isinstance(halt, dict) else {}
+    why = halt.get("reason")
+    if halt.get("resumable") is not True:
+        raise Refused(f"{d}: the run is finished (HALT.json: {why}); it is not resumed (rule K7)")
+    hid = halt.get("halt_id")
+    need = [k for k in halt.get("remedy") or [] if k in LEAD_FLAGS]
+    missing = ([] if hid and lead.get("resume_halt") == hid else [f'"resume_halt": "{hid}"'])
+    missing += [f'"{k}": true' for k in need if lead.get(k) is not True]
+    if missing:
+        raise Refused(f"{d}: the run halted ({why}).  It is resumed only on the lead's word: LEAD.json beside the "
+                      f"run with {', '.join(missing)} (RESUMABLE_RULE); nothing was changed")
+    return dict(halt_id=hid, session=halt.get("session"), reason=why, remedy=need, at=halt.get("at"))
+
+
 def session(run_id, drive, local, queue, repo_ref, commit, resume, params) -> dict:
     """Open a session on a run (cell 3; ``K6_RULE``, ``K7_RULE``): the refusals, the stale ``*.part`` sweep,
     ``QUEUE.json`` (a new run), ``SESSION_<k>.json`` (``SESSION_SCHEMA``), ``LIVE.json``, ``STATUS.json`` and the
     run-directory line.  ``commit`` is the checkout's commit, ``repo_ref`` the cell's ``REPO_REF``, ``params`` the
-    whole parameter set (recorded).  Raises ``Refused`` before anything is written; returns the session's record
-    with ``line``."""
+    whole parameter set (recorded).  The lead's remedies are read from ``LEAD.json`` beside the run (``LEAD_RULE``;
+    a parameter file of the lead's own launches may give ``ALLOW_*`` and ``RETRY_CHECK`` too); a resumable halt is
+    resumed only with the remedy it names, and is then kept as ``HALT_<k>.json`` (``RESUMABLE_RULE``).  Raises
+    ``Refused`` before anything is written; returns the session's record with ``line``."""
     p = load_params(params)
     jobs = parse_queue(queue)
     d, lrun, same = run_dirs(run_id, drive, local)
@@ -1226,9 +1312,16 @@ def session(run_id, drive, local, queue, repo_ref, commit, resume, params) -> di
     if p["IN_COLAB"] and seams() is not None:
         raise Refused("S2_NB_SEAMS names stub commands in place of the trainer: it is a hook of the tests and is "
                       "refused on Colab; nothing was changed")
-    want = _queue_doc(run_id, jobs, repo_ref, commit, p)
+    lead = read_lead(d)
+    ld = (lead or {}).get("doc") or {}
+    allow_source = bool(p["ALLOW_SOURCE_CHANGE"]) or ld.get("allow_source_change") is True
+    allow_version = bool(p["ALLOW_VERSION_CHANGE"]) or ld.get("allow_version_change") is True
+    retry_check = bool(p["RETRY_CHECK"]) or ld.get("retry_check") is True
+    budget_by = ld.get("budget_by") if ld.get("budget_by") is not None else p["BUDGET_BY"]
+    budget_set_on = ld.get("budget_set_on") if ld.get("budget_set_on") is not None else p["BUDGET_SET_ON"]
+    want = _queue_doc(run_id, jobs, repo_ref, commit, dict(p, BUDGET_BY=budget_by, BUDGET_SET_ON=budget_set_on))
     qpath = d / "QUEUE.json"
-    qdoc, notes, took_over, source_change = _read_json(qpath), [], None, False
+    qdoc, notes, took_over, source_change, halt = _read_json(qpath), [], None, False, None
     known = qpath.exists() or (d.is_dir() and any(d.glob("SESSION_*.json")))
     if not resume:
         if known:
@@ -1239,20 +1332,21 @@ def session(run_id, drive, local, queue, repo_ref, commit, resume, params) -> di
             raise Refused("a smoke is not resumed (rule K6): nothing was changed")
         if not isinstance(qdoc, dict):
             raise Refused(f"{d}: nothing to resume (no QUEUE.json that can be read); nothing was changed")
-        for name in ("DONE.json", "HALT.json"):
-            if (d / name).exists():
-                why = (_read_json(d / name) or {}).get("reason")
-                raise Refused(f"{d}: the run is finished ({name}: {why}); it is not resumed (rule K7)")
+        if (d / "DONE.json").exists():
+            why = (_read_json(d / "DONE.json") or {}).get("reason")
+            raise Refused(f"{d}: the run is finished (DONE.json: {why}); it is not resumed (rule K7)")
+        halt = _halt_to_resume(d, ld)
         diff = [f"{k}: {qdoc.get(k)!r} -> {want[k]!r}" for k in RESUME_KEYS if qdoc.get(k) != want[k]]
         if diff:
             raise Refused(f"{d}: RESUME with other settings than the run's ({'; '.join(diff)}): refused, nothing "
                           "was changed (rule K6)")
         if qdoc.get("commit") != commit:
-            if not p["ALLOW_SOURCE_CHANGE"]:
+            if not allow_source:
                 raise Refused(f"{d}: this checkout is commit {commit}, the run's is {qdoc.get('commit')}: another "
-                              "commit is accepted only with ALLOW_SOURCE_CHANGE, on the lead's word (rule K6)")
+                              "commit is accepted only with allow_source_change, which the lead writes in LEAD.json "
+                              "beside the run (rule K6; LEAD_RULE)")
             source_change = True
-            notes.append(f"ALLOW_SOURCE_CHANGE: the run's commit is {qdoc.get('commit')}, this session's {commit}")
+            notes.append(f"allow_source_change: the run's commit is {qdoc.get('commit')}, this session's {commit}")
         # (with the same commit the cell's REPO_REF is QUEUE.json's: both are that commit's 40 hex digits)
         live = _read_json(d / "LIVE.json")
         age = _live_age(live)
@@ -1271,6 +1365,18 @@ def session(run_id, drive, local, queue, repo_ref, commit, resume, params) -> di
     if not resume:
         qdoc = dict(want, created_at=_now())
         _write_json(qpath, qdoc)
+    if halt is not None:  # (RESUMABLE_RULE: the halt the lead answered is kept beside the run, never deleted)
+        kept, i = d / f"HALT_{halt['session']}.json", 0
+        while kept.exists():
+            i += 1
+            kept = d / f"HALT_{halt['session']}.{i}.json"
+        os.replace(d / "HALT.json", kept)
+        halt["kept_as"] = kept.name
+        notes.append(f"the halt {halt['halt_id']} of session {halt['session']} ({halt['reason']}) is answered by "
+                     f"LEAD.json; it is kept as {kept.name}")
+    if lead is not None:
+        notes.append("LEAD.json: " + ", ".join(f"{k} {json.dumps(v)}" for k, v in sorted(ld.items())
+                                               if k in LEAD_KEYS and k not in ("schema", "note")))
     setup_doc = _read_json(p["SETUP_RECORD"]) if p["SETUP_RECORD"] else None
     setup_doc = setup_doc if isinstance(setup_doc, dict) else {}
     pinned = pins()
@@ -1288,11 +1394,12 @@ def session(run_id, drive, local, queue, repo_ref, commit, resume, params) -> di
         bundle=dict(id=qdoc.get("bundle_id"), content_sha256=(qdoc.get("bundle") or {}).get("content_sha256"),
                     files_ok=None, source=str(p["BUNDLE_SOURCE"] or "drive")),
         queue=list(qdoc["queue"]), budget_steps=qdoc["budget_steps"], workers=resolve_workers(p["WORKERS"]),
-        allow_version_change=bool(p["ALLOW_VERSION_CHANGE"]), allow_source_change=bool(p["ALLOW_SOURCE_CHANGE"]),
+        allow_version_change=allow_version, allow_source_change=allow_source, retry_check=retry_check,
+        budget_by=budget_by, budget_set_on=budget_set_on, lead=lead, halt_resumed=halt,
         source_change=source_change, setup_seconds=None, params=p, swept_parts=swept, notes=notes,
         setup=dict(started_epoch=setup_doc.get("started_epoch"), pip=setup_doc.get("pip"),
                    apt_exit_code=setup_doc.get("apt_exit_code"), versions_before=setup_doc.get("versions_before")),
-        lines=[], seams=seams(), rules=dict(k6=K6_RULE, k7=K7_RULE))
+        lines=[], seams=seams(), rules=dict(k6=K6_RULE, k7=K7_RULE, lead=LEAD_RULE, resumable=RESUMABLE_RULE))
     st = dict(session=sess, lines=[setup_doc["line"]] if setup_doc.get("line") else [], drive_run=str(d),
               local_run=str(lrun), same=same, child=None,
               stale_child=prev.get("child") if isinstance(prev, dict) else None)
@@ -1711,7 +1818,16 @@ def _child_g8a(args) -> dict:
 # launch (cell 7): the queue, the Drive copies, the fence, the job rules
 # ------------------------------------------------------------------------------------------------
 class _Halt(Exception):
-    """The run halts (``HALT.json``) with this reason."""
+    """The run halts (``HALT.json``) with this reason: ``resumable`` with the lead's remedy, which names the
+    ``LEAD_FLAGS`` of ``remedy`` besides the halt itself (``RESUMABLE_RULE``), or for good."""
+
+    def __init__(self, reason: str, resumable: bool = True, remedy=()):
+        super().__init__(reason)
+        self.resumable, self.remedy = bool(resumable), [str(x) for x in remedy]
+
+
+class _Refusal(Exception):
+    """The trainer refused a job (exit code 4): the session ends with no ``HALT.json`` (``RESUMABLE_RULE``)."""
 
 
 class _Interrupted(Exception):
@@ -2243,7 +2359,7 @@ class _Launcher:
             cmd += ["--config", json.dumps(q["config"], sort_keys=True)]
         if resume:
             cmd.append("--resume")
-            if p.get("RETRY_CHECK"):
+            if self.sess.get("retry_check") or p.get("RETRY_CHECK"):
                 cmd.append("--retry-check")
         if self.sess.get("allow_version_change"):
             cmd.append("--allow-version-change")
@@ -2395,13 +2511,18 @@ class _Launcher:
                          f"{(_read_json(jd / 'progress.json') or {}).get('steps')} steps")
                 return
             tail = self._tail(job)
-            if code in (TRAIN_REFUSED, TRAIN_HALT):
-                what = "was refused by the trainer" if code == TRAIN_REFUSED else "halted and goes to the lead"
+            if code == TRAIN_REFUSED:  # (RESUMABLE_RULE: a refusal is no halt; the session ends)
                 m["last_error"] = f"exit code {code}: {tail}"
-                raise _Halt(f"job {job} {what} (exit code {code}): {tail}")
+                raise _Refusal(f"job {job} was refused by the trainer (exit code {code}): {tail}")
+            if code == TRAIN_HALT:
+                m["last_error"] = f"exit code {code}: {tail}"
+                said = str(((_read_json(jd / "run.json") or {}).get("halt") or {}).get("reason") or "") + " " + tail
+                raise _Halt(f"job {job} halted and goes to the lead (exit code {code}): {tail}", resumable=True,
+                            remedy=["retry_check"] if "--retry-check" in said else [])
             m["last_error"] = f"crashed (exit code {code}): {tail}"
             if m["retries"] >= 1:
-                raise _Halt(f"job {job} crashed twice (exit codes {', '.join(map(str, m['exit_codes'][-2:]))}): {tail}")
+                raise _Halt(f"job {job} crashed twice (exit codes {', '.join(map(str, m['exit_codes'][-2:]))}): {tail}",
+                            resumable=False)
             m["retries"] += 1
             self.say(f"S2 NOTE: {job} crashed (exit code {code}); it is retried once from its newest intact checkpoint")
 
@@ -2445,15 +2566,22 @@ class _Launcher:
                                retries=e["retries"], exit_codes=e["exit_codes"], last_error=e["last_error"],
                                run_uuid=e["run_uuid"], not_on_drive=e["not_on_drive"]) for e in self.entries()}
 
-    def _end(self, state: str, reason: str) -> dict:
-        """The session's end: ``DONE.json`` or ``HALT.json`` (``END_SCHEMA``) or, for ``"unfinished"``, neither
-        (``UNFINISHED_RULE``); the last STATUS.json; ``LIVE.json`` closed.  A DONE.json that cannot be written is
-        no end of the run: the result is then ``"unfinished"`` too."""
+    def _end(self, state: str, reason: str, halt: _Halt | None = None, say: bool = True) -> dict:
+        """The session's end: ``DONE.json`` or ``HALT.json`` (``END_SCHEMA``; a halt with ``resumable``, its
+        ``halt_id`` and ``remedy``, ``RESUMABLE_RULE``) or, for ``"unfinished"`` (``UNFINISHED_RULE``) and
+        ``"refused"`` (the trainer's exit code 4), neither; the last STATUS.json; ``LIVE.json`` closed.  A DONE.json
+        that cannot be written is no end of the run: the result is then ``"unfinished"`` too."""
         name = dict(done="DONE.json", halted="HALT.json").get(state)
+        extra = {}
+        if state == "halted":
+            halt = halt if halt is not None else _Halt(reason)
+            extra = dict(resumable=halt.resumable, remedy=halt.remedy if halt.resumable else None,
+                         halt_id=f"{self.sess['run_id']}-s{self.k}-{uuid.uuid4().hex[:8]}" if halt.resumable else None)
         doc = _stamped(dict(schema=END_SCHEMA, run_id=self.sess["run_id"], session=self.k, session_uuid=self.uuid,
-                            at=_now(), state=state, reason=reason, jobs=self._jobs_doc(), lines=list(self.st["lines"]),
-                            commit=self.sess["repo"]["commit"],
-                            rules=dict(jobs=JOB_RULE, halt=HALT_RULE, copy=COPY_RULE, unfinished=UNFINISHED_RULE)))
+                            at=_now(), state=state, reason=reason, **extra, jobs=self._jobs_doc(),
+                            lines=list(self.st["lines"]), commit=self.sess["repo"]["commit"],
+                            rules=dict(jobs=JOB_RULE, halt=HALT_RULE, copy=COPY_RULE, unfinished=UNFINISHED_RULE,
+                                       resumable=RESUMABLE_RULE, lead=LEAD_RULE)))
         written = False
         for attempt in range(3):
             try:
@@ -2476,15 +2604,25 @@ class _Launcher:
             state, name = "unfinished", None
             reason = f"{reason}, but DONE.json could not be written to the run directory"
             self.sess["ended"] = dict(at=doc["at"], state=state, reason=reason)
-        if name is None:
+        lost = "" if written else " (the run's last files could NOT be written to the run directory)"
+        if not say:
+            pass
+        elif state == "refused":
+            self.say(f"S2 launch: REFUSED: {reason}.  No HALT.json: the run is not finished; it is resumed once the "
+                     "lead has answered: tell the lead" + lost)
+        elif name is None:
             self.say(f"S2 launch: UNFINISHED: {reason}.  The run has no DONE.json and no HALT.json and can be "
-                     "resumed: tell the lead" + ("" if written else " (the run's last files could NOT be written "
-                                                 "to the run directory)"))
+                     "resumed: tell the lead" + lost)
+        elif state == "halted":
+            then = (f"  The run is resumed only on the lead's word (LEAD.json; halt {extra['halt_id']}): tell the "
+                    "lead" if extra["resumable"] else "  The run is over: tell the lead")
+            self.say(f"S2 launch: HALT: {reason}." + then
+                     + ("" if written else " (HALT.json could NOT be written to the run directory)"))
         else:
             self.say(f"S2 launch: {name[:-5]}: {reason}" + ("" if written else f" ({name} could NOT be written to "
                                                              "the run directory: tell the lead)"))
         return dict(state=state, reason=reason, session=self.k, jobs=doc["jobs"], lines=doc["lines"],
-                    record=name if written else None)
+                    record=name if written else None, **extra)
 
     def _superseded(self, by) -> dict:
         reason = f"superseded by session {by}"
@@ -2505,8 +2643,9 @@ class _Launcher:
                     record=f"SUPERSEDED_{self.k}.json")
 
     def run(self) -> dict:
-        """The queue; never raises (a failure becomes ``HALT.json``; a fault of Drive ends the session unfinished
-        and writes none, ``UNFINISHED_RULE``)."""
+        """The queue; never raises (a failure becomes ``HALT.json``, resumable but for a job that crashed twice; a
+        refusal of the trainer ends the session with none, ``RESUMABLE_RULE``; a fault of Drive ends the session
+        unfinished and writes none, ``UNFINISHED_RULE``)."""
         try:
             try:
                 self._prepare()
@@ -2540,12 +2679,16 @@ class _Launcher:
             except _Unfinished as exc:
                 self._end_child()
                 return self._end("unfinished", str(exc))
+            except _Refusal as exc:
+                self._end_child()
+                return self._end("refused", str(exc))
             except _Halt as exc:
                 self._end_child()
-                return self._end("halted", str(exc))
-            except BaseException as exc:  # noqa: BLE001 - never raises: a failure becomes HALT.json
+                return self._end("halted", str(exc), halt=exc)
+            except BaseException as exc:  # noqa: BLE001 - never raises: a failure becomes HALT.json, resumable
                 self._end_child()
-                return self._end("halted", f"launcher error: {type(exc).__name__}: {_one_line(exc)[:400]}")
+                why = f"launcher error: {type(exc).__name__}: {_one_line(exc)[:400]}"
+                return self._end("halted", why, halt=_Halt(why, resumable=True))
         except _Superseded as exc:  # (found while the end itself was written)
             return self._superseded(exc.by)
         except BaseException as exc:  # noqa: BLE001 - the end could not be written either
@@ -2571,8 +2714,10 @@ def launch(run_id, drive, local, queue, set_name, budget, workers, tiny=False, c
     queue, the set, the budget, ``tiny`` and the two monitor options must be ``QUEUE.json``'s (they go to every
     ``train2 run``).  Never raises: returns ``{state: "done" | "halted" | "unfinished" | "interrupted" |
     "refused", reason, session, jobs, lines, record}`` (``DONE.json`` or ``HALT.json`` is written for the first
-    two; ``"unfinished"``: neither, for a fault of Drive, ``UNFINISHED_RULE``; a session that its own failed line
-    2 or line 3 closed is refused)."""
+    two, a halt with ``resumable``, ``halt_id`` and ``remedy``; ``"unfinished"``: neither, for a fault of Drive,
+    ``UNFINISHED_RULE``; ``"refused"``: neither, for the trainer's exit code 4 (``RESUMABLE_RULE``; ``session`` is
+    then the session's number) or a launch that is refused (``session`` None; a session that its own failed line
+    2 or line 3 closed is refused))."""
     try:
         st = _open_state(run_id, drive, local)
         d, s = Path(st["drive_run"]), st["session"]
@@ -2651,7 +2796,8 @@ def finish(run_id, drive, local=None) -> dict:
         doc = _stamped(dict(schema=END_SCHEMA, run_id=run_id, session=st["session"]["session"],
                             session_uuid=st["session"]["session_uuid"], at=_now(), state="done" if ok else "halted",
                             reason="the smoke is written (smoke/SMOKE.json)" if ok else "the smoke left no SMOKE.json",
-                            jobs={}, lines=list(st["lines"]), commit=st["session"]["repo"]["commit"]))
+                            jobs={}, lines=list(st["lines"]), commit=st["session"]["repo"]["commit"],
+                            **({} if ok else dict(resumable=False, remedy=None, halt_id=None))))
         try:
             _write_json(d / ("DONE.json" if ok else "HALT.json"), doc)
             _note(st, state="done" if ok else "halted")
@@ -3628,10 +3774,10 @@ def main(argv=None) -> int:
 
 
 __all__ = ["BACK_RULE", "BUDGET_RULE", "COPY_RULE", "FENCE_RULE", "HALT_RULE", "JOB_RULE", "K6_RULE", "K7_RULE",
-           "LINE_RE", "NbError", "PARAMS", "Refused", "UNFINISHED_RULE", "acceptance", "at_or_past", "budget_for",
-           "collect", "finish", "floor_rate", "g8a_counts", "hours", "inputs", "job_name", "keep_on_drive", "launch",
-           "line1", "line2", "line3", "line4", "lines_of",
-           "load_params", "local_run", "main", "parse_queue", "pin_differences", "pins", "pip_commands", "preflight",
+           "LEAD_RULE", "LINE_RE", "NbError", "PARAMS", "RESUMABLE_RULE", "Refused", "UNFINISHED_RULE", "acceptance",
+           "at_or_past", "budget_for", "collect", "finish", "floor_rate", "g8a_counts", "hours", "inputs", "job_name",
+           "keep_on_drive", "launch", "line1", "line2", "line3", "line4", "lines_of", "load_params", "local_run",
+           "main", "parse_queue", "pin_differences", "pins", "pip_commands", "preflight", "read_lead",
            "release_runtime", "run_cells", "session", "session_line", "setup", "sha256_json", "smoke", "smoke_line"]
 
 if __name__ == "__main__":

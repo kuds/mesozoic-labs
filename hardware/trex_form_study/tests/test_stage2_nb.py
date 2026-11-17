@@ -153,9 +153,12 @@ run["sessions"].append(dict(index=k, resumed_from=n if a.resume and have() else 
 run["status"] = "running"
 write(run_path, run)
 if p.get("halt"):
-    run["status"], run["halt"] = "partial", dict(reason="stub: two attempts at one check were never closed")
+    why = p["halt"] if isinstance(p["halt"], str) else (
+        "stub: two attempts at one check were never closed; with the fault repaired, a resume with --retry-check "
+        "lets the check run once more")
+    run["status"], run["halt"] = "partial", dict(session=k, reason=why)
     write(run_path, run)
-    print("stub: Halt: two attempts at one check were never closed", file=sys.stderr)
+    print("stub: Halt: " + why, file=sys.stderr)
     sys.exit(5)
 if p.get("g8a_fail"):
     run["status"], run["stopped"] = "stopped_g8a", dict(at_steps=0, reason="G8a fails: no run")
@@ -320,7 +323,9 @@ def test_notebook_cells_parse():
     tree = ast.parse("".join(cells[1]["source"]))
     names = [t.id for node in tree.body if isinstance(node, ast.Assign) for t in node.targets
              if isinstance(t, ast.Name) and t.id.isupper()]
-    assert names[:15] == list(nb.PARAMS) and "S2_PARAMS" in "".join(cells[1]["source"])
+    assert names[:len(nb.PARAMS)] == list(nb.PARAMS) and "S2_PARAMS" in "".join(cells[1]["source"])
+    # the lead's ruling 2 of 17 Nov: the owner is never asked to set a remedy (they come from LEAD.json)
+    assert not any(n.startswith("ALLOW_") or n == "RETRY_CHECK" for n in names) and "LEAD.json" in "".join(cells[1]["source"])
     values = {node.targets[0].id: ast.literal_eval(node.value) for node in tree.body
               if isinstance(node, ast.Assign) and node.targets[0].id in nb.PARAMS}
     assert values == nb.PARAMS                                                   # the cell's defaults are the module's
@@ -556,6 +561,11 @@ def test_the_steps_sheet_quotes_the_programs_own_lines():
     for word in ("Never change RUN_ID or REPO_REF", "never set TAKEOVER", "(inferred)", "stop and tell me",
                  "s2-launch-1/hardware/trex_form_study/stage2/stage2_training.ipynb", "High-RAM", "220 hours"):
         assert word in sheet, word
+    # the two parameter tables (3.4, the smoke; 4.3, a launch) name exactly the boxes of the notebook's cell 1: the
+    # owner is never asked to set a remedy (the lead's ruling 2 of 17 Nov: they are the lead's, in LEAD.json)
+    for start, end in (("   3.4  ", "   3.5  "), ("   4.3  ", "   4.4  ")):
+        table = sheet.split(start, 1)[1].split(end, 1)[0]
+        assert re.findall(r"^ {10}([A-Z][A-Z_]+) {2,}", table, re.M) == list(nb.PARAMS), start
     # no instruction asks the owner to change RUN_ID, REPO_REF, TAKEOVER or an ALLOW parameter on an error's advice:
     # outside the two parameter tables each of them appears only with "not", "never", "same" or "do not"
     for n, r in enumerate(rows):
@@ -641,8 +651,8 @@ def test_session_refusals(tmp_path, capsys):
                        (dict(SET="V6"), "set"), (dict(MONITOR_EVERY=500000), "monitor_every")):
         with pytest.raises(nb.Refused, match=f"RESUME with other settings.*{word}"):
             _session(p, RESUME=True, TAKEOVER=True, **over)
-    # another commit only with ALLOW_SOURCE_CHANGE
-    with pytest.raises(nb.Refused, match="ALLOW_SOURCE_CHANGE"):
+    # another commit only with allow_source_change (LEAD.json, or a parameter file of the lead's own launches)
+    with pytest.raises(nb.Refused, match="only with allow_source_change, which the lead writes in LEAD.json"):
         _session(p, RESUME=True, TAKEOVER=True, REPO_REF="d" * 40, commit="d" * 40)
     assert sorted(x.name for x in d.iterdir()) == before                          # none of them wrote anything
     # TAKEOVER on the lead's word: accepted and recorded
@@ -659,8 +669,8 @@ def test_session_refusals(tmp_path, capsys):
     # ALLOW_SOURCE_CHANGE: another commit accepted, flagged, and the run's REPO_REF kept
     s3 = _session(p, RESUME=True, TAKEOVER=True, ALLOW_SOURCE_CHANGE=True, REPO_REF="d" * 40, commit="d" * 40)
     assert s3["source_change"] and s3["repo"]["commit"] == "d" * 40 and s3["repo"]["run_commit"] == COMMIT
-    assert s3["repo"]["ref"] == COMMIT and "ALLOW_SOURCE_CHANGE" in capsys.readouterr().out
-    # a finished run is not resumed, with DONE.json and with HALT.json
+    assert s3["repo"]["ref"] == COMMIT and "S2 NOTE: allow_source_change: " in capsys.readouterr().out
+    # a finished run is not resumed, with DONE.json and with a HALT.json that is not marked resumable
     for name in ("DONE.json", "HALT.json"):
         (d / name).write_text(json.dumps(dict(reason="over")))
         with pytest.raises(nb.Refused, match=f"the run is finished \\({name}: over\\)"):
@@ -913,10 +923,12 @@ def test_job_rules(tmp_path, stubs, monkeypatch, capsys):
     p, res, d, out = go("twice", {"R5-B1-s42": dict(crash_at=1024, crash_times=2, crash_code=1)})
     halt = json.loads((d / "HALT.json").read_text())
     assert res["state"] == "halted" and "crashed twice (exit codes 1, 1)" in halt["reason"] and "boom" in halt["reason"]
+    assert halt["resumable"] is False and halt["halt_id"] is None and "The run is over" in out   # (the one final halt)
     assert [c["job"] for c in _calls(p)] == ["R5-B1-s42"] * 2 and not (d / "DONE.json").exists()
     assert halt["jobs"]["R5-B1-s42"]["state"] == "failed" and halt["jobs"]["R6-B1-s42"]["state"] == "queued"
     assert json.loads((d / "STATUS.json").read_text())["state"] == "halted"
-    with pytest.raises(nb.Refused, match="finished"):                             # a halted run is not resumed
+    (d / "LEAD.json").write_text(json.dumps(dict(resume_halt="anything", retry_check=True)))
+    with pytest.raises(nb.Refused, match="finished"):                             # whatever the lead writes
         _session(p, RESUME=True)
     # a job stopped by a rule (exit code 0) lets the next start
     p, res, d, out = go("stopped", {"R5-B1-s42": dict(stop_at=2048)})
@@ -927,21 +939,149 @@ def test_job_rules(tmp_path, stubs, monkeypatch, capsys):
     p, res, d, out = go("g8a", {"R5-B1-s42": dict(g8a_fail=True)})
     assert res["state"] == "done" and res["jobs"]["R5-B1-s42"]["state"] == "stopped" and "G8a fails: no run" in out
     assert res["jobs"]["R5-B1-s42"]["exit_codes"] == [3] and res["jobs"]["R6-B1-s42"]["state"] == "done"
-    # exit code 4 (refused) and 5 (halted for the lead) halt without a retry
-    for name, plan, word in (("refused", dict(refuse=True), "was refused by the trainer (exit code 4)"),
-                             ("halted", dict(halt=True), "halted and goes to the lead (exit code 5)")):
+    # exit code 4 (refused) ends the session with no HALT.json, exit code 5 (halted for the lead) halts the run,
+    # resumable: neither is retried (test_a_refusal_of_the_trainer_writes_no_halt, test_a_halt_is_resumed_only_...)
+    for name, plan, word, state in (("refused", dict(refuse=True), "was refused by the trainer (exit code 4)",
+                                     "refused"),
+                                    ("halted", dict(halt=True), "halted and goes to the lead (exit code 5)", "halted")):
         p, res, d, out = go(name, {"R5-B1-s42": plan})
-        assert res["state"] == "halted" and word in res["reason"] and len(_calls(p)) == 1, res
-        assert json.loads((d / "HALT.json").read_text())["jobs"]["R5-B1-s42"]["retries"] == 0
-        # AS BUILT, and handed to the lead (the review of 16 Nov, major 2): HALT.json ends the run for the notebook,
-        # so after these two halts neither rule K4's flags nor rule M1's parameter reach the trainer by a resume
-        with pytest.raises(nb.Refused, match=r"the run is finished \(HALT.json: "):
-            _session(p, RESUME=True, TAKEOVER=True, ALLOW_VERSION_CHANGE=True, ALLOW_SOURCE_CHANGE=True,
-                     RETRY_CHECK=True)
+        assert res["state"] == state and word in res["reason"] and len(_calls(p)) == 1, res
+        assert res["jobs"]["R5-B1-s42"]["retries"] == 0 and res["jobs"]["R6-B1-s42"]["state"] == "queued"
+        assert (d / "HALT.json").exists() is (state == "halted")
     # a check counted without a record is said once (the trainer's later progress key)
     p, res, d, out = go("told", {"*": dict(checks_without_record=[2048])}, queue=("R5:B1:42",))
     assert out.count("the check at 2048 steps was counted without a record") == 1
     assert json.loads((d / "STATUS.json").read_text())["queue"][0]["checks_without_record"] == [2048]
+
+
+def _lead(d: Path, **doc) -> None:
+    (d / "LEAD.json").write_text(json.dumps(dict(schema="s2-lead-1", **doc)))
+
+
+def test_a_refusal_of_the_trainer_writes_no_halt(tmp_path, stubs, monkeypatch, capsys):
+    """The lead's ruling 2 of 17 Nov (the review's major 2): the trainer's exit code 4 (here: other library versions
+    than the run's, rule K4) writes no HALT.json; the session ends with LIVE.json closed, and the run is resumed
+    with the lead's remedy from LEAD.json, which reaches the trainer.  As built, HALT.json ended the run and no
+    resume was accepted, with any flag."""
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"R5-B1-s42": dict(refuse=True)}))
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
+    _session(p)
+    d = tmp_path / "drive" / "runs" / "r1"
+    res = _launch(p)
+    out = capsys.readouterr().out
+    assert res["state"] == "refused" and res["session"] == 0 and res["record"] is None, res
+    assert "was refused by the trainer (exit code 4)" in res["reason"] and "S2 launch: REFUSED: job R5-B1-s42" in out
+    assert not (d / "HALT.json").exists() and not (d / "DONE.json").exists() and len(_calls(p)) == 1
+    live = json.loads((d / "LIVE.json").read_text())
+    assert live["closed_reason"].startswith("refused: job R5-B1-s42 was refused by the trainer")
+    assert json.loads((d / "SESSION_0.json").read_text())["ended"]["state"] == "refused"
+    pfile = tmp_path / "p.json"
+    pfile.write_text(json.dumps(dict(p, RESUME=True)))
+    # the lead's remedy: LEAD.json beside the run; the owner sets RESUME only (LIVE.json is closed: no TAKEOVER)
+    _lead(d, allow_version_change=True, note="other versions accepted on the lead's word")
+    monkeypatch.setenv("STUB_PLAN", "{}")
+    s1 = _session(p, RESUME=True)
+    assert s1["allow_version_change"] is True and s1["allow_source_change"] is False and s1["takeover"] is False
+    assert s1["lead"]["doc"]["allow_version_change"] is True and len(s1["lead"]["sha256"]) == 64
+    assert json.loads((d / "SESSION_1.json").read_text())["lead"]["path"] == str(d / "LEAD.json")
+    assert "S2 NOTE: LEAD.json: allow_version_change true" in capsys.readouterr().out
+    assert nb.main(["launch", "--params", str(pfile)]) == 0
+    argv = _calls(p)[-1]["argv"]          # (the stub refused before it wrote run.json: the job starts afresh)
+    assert len(_calls(p)) == 2 and "--allow-version-change" in argv and "--allow-source-change" not in argv
+    assert json.loads((d / "DONE.json").read_text())["state"] == "done"
+
+
+def test_a_halt_is_resumed_only_with_the_leads_remedy(tmp_path, stubs, monkeypatch, capsys):
+    """Ruling 2 of 17 Nov: the trainer's exit code 5 writes a HALT.json marked resumable, with its halt_id and the
+    remedy it names (retry_check when the trainer names --retry-check); a resume is refused until LEAD.json names
+    the halt and holds the remedy, and then the old halt is kept as HALT_<k>.json and the remedy reaches the trainer.
+    As built every resume was refused ("the run is finished")."""
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02), "R5-B1-s42": dict(halt=True)}))
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
+    _session(p)
+    d = tmp_path / "drive" / "runs" / "r1"
+    res = _launch(p)
+    out = capsys.readouterr().out
+    halt = json.loads((d / "HALT.json").read_text())
+    assert res["state"] == "halted" and res["record"] == "HALT.json" and res["resumable"] is True, res
+    assert halt["resumable"] is True and halt["remedy"] == ["retry_check"] and halt["halt_id"].startswith("r1-s0-")
+    assert halt["session"] == 0 and f"resumed only on the lead's word (LEAD.json; halt {halt['halt_id']})" in out
+    assert "closed_at" in json.loads((d / "LIVE.json").read_text())
+    # without the lead's word, or with half of it: refused, nothing changed
+    for doc, want in ((None, f'"resume_halt": "{halt["halt_id"]}", "retry_check": true'),
+                      (dict(resume_halt="r1-s0-other", retry_check=True), f'"resume_halt": "{halt["halt_id"]}"'),
+                      (dict(resume_halt=halt["halt_id"]), '"retry_check": true'),
+                      (dict(resume_halt=halt["halt_id"], retry_check=False), '"retry_check": true')):
+        if doc is not None:
+            _lead(d, **doc)
+        with pytest.raises(nb.Refused, match="the run halted") as exc:
+            _session(p, RESUME=True)
+        assert f"LEAD.json beside the run with {want}" in str(exc.value)
+        assert (d / "HALT.json").is_file() and not list(d.glob("HALT_*.json")) and not (d / "SESSION_1.json").exists()
+    # RETRY_CHECK in a parameter file is no answer to the halt either: the halt names itself
+    with pytest.raises(nb.Refused, match="the run halted"):
+        _session(p, RESUME=True, RETRY_CHECK=True)
+    _lead(d, resume_halt=halt["halt_id"], retry_check=True)
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02)}))
+    s1 = _session(p, RESUME=True)
+    assert s1["retry_check"] is True and s1["halt_resumed"]["halt_id"] == halt["halt_id"]
+    assert s1["halt_resumed"]["kept_as"] == "HALT_0.json" and s1["halt_resumed"]["remedy"] == ["retry_check"]
+    assert not (d / "HALT.json").exists() and json.loads((d / "HALT_0.json").read_text()) == halt
+    assert "is answered by LEAD.json; it is kept as HALT_0.json" in capsys.readouterr().out
+    res = _launch(p)
+    assert res["state"] == "done" and "--retry-check" in _calls(p)[-1]["argv"] and "--resume" in _calls(p)[-1]["argv"]
+    assert json.loads((d / "DONE.json").read_text())["state"] == "done"
+
+
+def test_a_launcher_error_is_a_resumable_halt(tmp_path, stubs, monkeypatch, capsys):
+    """Ruling 2 of 17 Nov: an error of the launcher itself writes a resumable halt whose remedy is the lead's word
+    alone (LEAD.json's resume_halt)."""
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02)}))
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
+    _session(p)
+    d = tmp_path / "drive" / "runs" / "r1"
+
+    def broken(self, job):
+        raise KeyError("a fault of the launcher's own")
+
+    real = nb._Launcher._line4
+    monkeypatch.setattr(nb._Launcher, "_line4", broken)
+    res = _launch(p)
+    halt = json.loads((d / "HALT.json").read_text())
+    assert res["state"] == "halted" and halt["reason"].startswith("launcher error: KeyError")
+    assert halt["resumable"] is True and halt["remedy"] == [] and halt["halt_id"]
+    monkeypatch.setattr(nb._Launcher, "_line4", real)
+    with pytest.raises(nb.Refused, match=f'with "resume_halt": "{halt["halt_id"]}" \\(RESUMABLE_RULE\\)'):
+        _session(p, RESUME=True)
+    _lead(d, resume_halt=halt["halt_id"])
+    assert _session(p, RESUME=True)["halt_resumed"]["kept_as"] == "HALT_0.json"
+    assert _launch(p)["state"] == "done" and "--retry-check" not in _calls(p)[-1]["argv"]
+
+
+def test_lead_json(tmp_path, capsys):
+    """LEAD_RULE: what LEAD.json may hold; budget_by and budget_set_on go to QUEUE.json when the run is made (rule
+    Y10's Check, which the notebook could not set on Colab before); every value is recorded in the session."""
+    p = _params(tmp_path)
+    d = tmp_path / "drive" / "runs" / "r1"
+    d.mkdir(parents=True)
+    for doc, word in ((dict(allow_sorce_change=True), "'allow_sorce_change' is not a key of LEAD.json"),
+                      (dict(retry_check="yes"), "retry_check must be true or false"),
+                      (dict(budget_set_on="20 Nov"), "budget_set_on must be a UTC time"),
+                      (dict(budget_by=1), "budget_by must be a text")):
+        _lead(d, **doc)
+        with pytest.raises(nb.Refused, match=re.escape(word)):
+            _session(p)
+        assert not (d / "QUEUE.json").exists()
+    (d / "LEAD.json").write_text("{")
+    with pytest.raises(nb.Refused, match="not a JSON object"):
+        _session(p)
+    _lead(d, budget_by="owner", budget_set_on="2026-11-20T09:00:00Z", note="Y4 failed; the owner set the budget")
+    s = _session(p)
+    q = json.loads((d / "QUEUE.json").read_text())
+    assert q["budget_by"] == "owner" and q["budget_set_on"] == "2026-11-20T09:00:00Z"
+    assert s["budget_by"] == "owner" and s["lead"]["doc"]["note"].startswith("Y4 failed")
+    assert s["allow_version_change"] is False and s["allow_source_change"] is False and s["retry_check"] is False
+    assert "lead" in s["rules"] and "resumable" in s["rules"]
 
 
 def test_launch_arguments_must_be_the_queues(tmp_path, stubs, capsys):
