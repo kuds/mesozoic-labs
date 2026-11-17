@@ -211,21 +211,21 @@ RULES = dict(
         "attempt and is not one of the two (refusal)"),
     refusal=(
         "rule M1 with the lead's ruling of 16 Nov 2026, 19:01 UTC (the fifth list, 6) and the sixth list of 16 Nov "
-        "2026 (3): a monitor that refuses to run is no attempt.  It refuses, before any episode, when its sources "
-        "are not the ones the trainer hashed (the checkout moved under the run), when the run's run.json is missing, "
+        "2026 (3): a monitor that refuses to run is no attempt.  It refuses, before any episode, when its sources are "
+        "not the ones the trainer hashed (the checkout moved under the run), when the run's run.json is missing, "
         "cannot be read or is no JSON object, when the checkpoint is not intact (no record, a record that cannot be "
         "read or has the wrong shape: its files, and a layout and a fingerprint object, the rulings of 17 Nov 2026, "
-        "12; or a file that is not the one its record names), when the checkpoint is "
-        "another run's (its run_uuid or settings hash is not the run's), when the row refuses the checkpoint "
-        "while it is built (s2rows.RowError; s2load.CheckpointError: among them a fingerprint not reproduced at the "
-        "row's load), and when the set is a look set, or a version of one, whose G9-ref has not passed for the body "
-        "on its latest freeze (rule X1: lookbar.LookSetRefused, raised before the set is read; the lead's ruling 31 "
-        "of 17 Nov 2026, 6).  The monitor then leaves with exit code 8 and writes its reason to monitor_<n>.refused.json "
-        "(the baseline: r0l.refused.json).  The trainer closes the attempt with that exit code, marks it refused "
-        "with the reason, does not count it toward the two closed attempts after which a check counts as without a "
-        "gain, and halts with exit code 5: the run goes to the lead, and a resume runs the check again (a resume "
-        "with --retry-check when the refused attempt was the one that parameter let run; a halt for moved sources, "
-        "the monitor's own or the row's rule K9, names --allow-source-change, which resolves it)"),
+        "12; or a file that is not the one its record names), when the checkpoint is another run's (its run_uuid or "
+        "settings hash is not the run's), when the row refuses the checkpoint while it is built (s2rows.RowError; "
+        "s2load.CheckpointError: among them a fingerprint not reproduced at the row's load), and when the set is a "
+        "look set, or a version of one, whose G9-ref has not passed for the body on its latest freeze (rule X1: "
+        "lookbar.LookSetRefused, raised before the set is read; the lead's ruling 31 of 17 Nov 2026, 6).  The monitor "
+        "then leaves with exit code 8 and writes its reason to monitor_<n>.refused.json (the baseline: "
+        "r0l.refused.json).  The trainer closes the attempt with that exit code, marks it refused with the reason, "
+        "does not count it toward the two closed attempts after which a check counts as without a gain, and halts with "
+        "exit code 5: the run goes to the lead, and a resume runs the check again (a resume with --retry-check when "
+        "the refused attempt was the one that parameter let run; a halt for moved sources, the monitor's own or the "
+        "row's rule K9, names --allow-source-change, which resolves it)"),
     sources=(
         "the trainer hashes its sources once per session and gives the hash to this process, which refuses to run "
         "if its own differs (train2.sources)"),

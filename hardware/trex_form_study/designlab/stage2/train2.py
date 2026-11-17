@@ -49,7 +49,8 @@ it there (rule K9), and a value the trainer's own environment holds is not passe
 ``--expect-baseline PATH`` (S2-4: ``stage2/tb/runs/s2-4/R0L_BASELINE.json``, made by ``monitor2 baseline`` without a
 job and committed) the run's own R0L baseline must equal that file episode for episode (``monitor2.baseline_equal``:
 the outcome, the survival and, in every episode that ran, the state digest: the lead's ruling 33 of 17 Nov 2026),
-checked after the baseline and before the first rollout, else the run halts.  The file's sha256 is a setting of the run (``settings.expect_baseline``): a resume gives the same file.
+checked after the baseline and before the first rollout, else the run halts.  The file's sha256 is a setting of the
+run (``settings.expect_baseline``): a resume gives the same file.
 
 **Exit codes** of ``run``: 0 done, or stopped by rule M4 or M5; 3 G8a failed ("G8a fails: no run"); 4 refused (a
 resume the rules refuse, or a start that cannot be made: nothing was run; among them an ``--expect-baseline`` file
