@@ -670,10 +670,21 @@ def test_the_steps_sheet_looks_at_the_last_box_before_a_resume():
     assert "Do not resume yet" in head and "5.4" not in head           # (as built: "Go on with 5.4, with one ...")
     a, b, c, d, e = (stale[i:j] for i, j in zip(at, at[1:] + [resume], strict=True))
     assert "Open the notebook's tab again" in a and "open that copy again" in a and "(expected, not yet seen)" in a
+    # the lead's ruling 34 of 17 Nov (the check of CN3, its point 3): (a) names the smoke's copy too, as 3.2 names it
+    assert 'Name the copy "s2 smoke-1"' in flat and 'named as in the table of 4, or "s2 smoke-1" for the smoke' in a
     assert '"8. FINISH"' in b and "press nothing" in b
     assert "If you cannot see what it printed" in c and "not sure" in c and "do not do 5.4. Tell me" in c
     assert '"THIS MACHINE IS KEPT ON PURPOSE": do not do 5.4' in d and "again as in 6 and tell me" in d
-    assert e.startswith("(e) Only if you can see what it printed") and e.rstrip().endswith("go on with 5.4.")
+    # ruling 34 (the check of CN3, its finding 1): (e) is a positive test.  The owner goes on to 5.4 only when the box
+    # has stopped and its last line is the one cell 8 prints as it lets the machine go (the next test holds that line
+    # to the code); a box still running, any other last line, or doubt: no 5.4, and the lead is told.  As built (e)
+    # read "there is no such paragraph in it", and a cell 8 still waiting on Drive (no paragraph yet) led to 5.4
+    go, stop = e.split("go on with 5.4.", 1)
+    assert go == ("(e) Read the last line printed under the box. Only if the box has stopped and its last line is "
+                  "Disconnecting runtime in 5 seconds... ")
+    assert ("If the box is still running, or its last line is anything else, or you are not sure: do not do 5.4. "
+            "Tell me, and wait for my answer." in stop and "(expected, not yet seen)" in stop)
+    assert "go on" not in stop and "no such paragraph" not in five
     # (e) is the one place of 5.3 that sends the owner on to 5.4, and 5.4 says where an owner comes to it from
     assert stale[:resume].count("go on with 5.4") == 1 and "Go on with 5.4" not in five
     assert stale[resume:].startswith('5.4  Resume (only when 5.3 (e), 5.6 or I send you here; never after "THIS '
@@ -684,7 +695,82 @@ def test_the_steps_sheet_looks_at_the_last_box_before_a_resume():
     for text in (nb.KEEP_RUNTIME_TEXT, nb.keep_other_text(None), nb.keep_other_text(3)):
         assert text.startswith("THIS MACHINE IS KEPT ON PURPOSE")
     # what only Colab shows here is listed in section 8 as expected, not yet seen
-    assert "what its tab shows under the last box when you open it again (5.3 (a) to (c))" in flat
+    assert "what its tab shows under the last box when you open it again (5.3 (a) to (e))" in flat
+    assert "how a box looks while it is still running (5.3 (e))" in flat
+
+
+def test_the_line_that_5_3_e_waits_for_is_the_last_one_a_released_machine_prints():
+    """The lead's ruling 34 of 17 Nov (the check of CN3, its finding 1): 5.3 (e) sends the owner on to 5.4 only
+    when the last line under cell 8 is the one it quotes on a row of its own.  That line is the last one
+    ``release_or_keep`` prints on Colab when it lets the runtime go (exit codes 0 and 5), on both of
+    ``release_runtime``'s paths (the repository's ``disconnect_runtime``, and its own when that cannot be
+    imported).  When it keeps the runtime (``EXIT_UNFINISHED``, another code, none) its last line is the paragraph
+    "THIS MACHINE IS KEPT ON PURPOSE ...", never that line.  In a subprocess with a stand-in ``google.colab``: the
+    repository's package is imported there, not in this process."""
+    rows = (STUDY / "stage2" / "tb" / "colab_steps.txt").read_text(encoding="ascii").splitlines()
+    n = next(i for i, r in enumerate(rows) if r.strip().startswith("(e) Read the last line printed under the box."))
+    quoted = rows[n + 1].strip()
+    assert quoted == "Disconnecting runtime in 5 seconds..." and rows[n + 1].startswith(" " * 14)
+    kept = (nb.EXIT_UNFINISHED, 1, None)
+    code = (
+        "import sys, time, types\n"
+        "from designlab.stage2 import nb\n"
+        "nb.tbenv.repo_on_path()\n"
+        "import environments.shared.notebook_runtime  # the repository's own, imported before the stand-in\n"
+        "colab, google = types.ModuleType('google.colab'), types.ModuleType('google')\n"
+        "google.colab = colab\n"
+        "colab.drive = types.SimpleNamespace(flush_and_unmount=lambda: None)\n"
+        "colab.runtime = types.SimpleNamespace(unassign=lambda: None)\n"
+        "sys.modules.update({'google': google, 'google.colab': colab})\n"
+        "time.sleep = lambda s: None\n"
+        "for path in ('repo', 'own'):\n"
+        "    if path == 'own':  # (no disconnect_runtime: the import fails, release_runtime uses its own)\n"
+        "        sys.modules['environments.shared.notebook_runtime'] = types.ModuleType('broken')\n"
+        f"    for code in {tuple(nb.RELEASE_CODES) + kept!r}:\n"
+        "        print(f'<<{path} {code}>>', flush=True)\n"
+        "        nb.release_or_keep(code, 'over', in_colab=True, auto=True, flush_drive=True)\n")
+    env = dict(os.environ, PYTHONPATH=".")
+    done = subprocess.run([sys.executable, "-c", code], cwd=STUDY, env=env, capture_output=True, text=True, timeout=120)
+    assert done.returncode == 0, done.stderr[-2000:]
+    parts = re.split(r"^<<(repo|own) (\S+)>>$", done.stdout, flags=re.M)[1:]
+    out = {(p, c): o.strip().splitlines() for p, c, o in zip(parts[0::3], parts[1::3], parts[2::3], strict=True)}
+    assert len(out) == 2 * (len(nb.RELEASE_CODES) + len(kept))
+    for path in ("repo", "own"):
+        for c in nb.RELEASE_CODES:
+            lines = out[(path, str(c))]
+            assert lines[-1] == quoted, (path, c, lines)
+            assert any("the repository's disconnect_runtime was not used" in x for x in lines) is (path == "own")
+        for c in kept:
+            lines = out[(path, str(c))]
+            assert lines[-1].startswith("THIS MACHINE IS KEPT ON PURPOSE") and lines[-1] != quoted, (path, c)
+
+
+def test_the_steps_sheet_clears_old_outputs_before_a_later_session():
+    """The lead's ruling 34 of 17 Nov (the check of CN3, its finding 2): from a copy's second session on, the owner
+    clears all outputs (Edit > Clear all outputs) before Run all, so that what an earlier session's last box printed
+    is not read in a later 5.3 as this session's (the check: an old printout without the paragraph, under a runtime
+    that is now kept).  Colab's own menu: marked expected, not yet seen.  A copy's first session (3.5, 4.4) starts
+    from the notebook on GitHub, which holds no outputs."""
+    flat = " ".join(r.strip() for r in (STUDY / "stage2" / "tb" / "colab_steps.txt").read_text(encoding="ascii")
+                    .splitlines())
+    resume = flat.split("5.4  Resume", 1)[1].split("5.5  Expect:", 1)[0]
+    at = [resume.index(f"({c}) ") for c in "abcd"]
+    assert at == sorted(at) and "in this order" in resume[:at[0]]
+    a, b, c, d = (resume[i:j] for i, j in zip(at, at[1:] + [len(resume)], strict=True))
+    assert a.startswith("(a) Runtime > Disconnect and delete runtime")
+    assert b.startswith("(b) Edit > Clear all outputs.") and "(expected, not yet seen)" in b
+    assert "The run's files on your Drive stay as they are." in b
+    assert c.startswith("(c) Check the first grey box") and re.search(r"RESUME +ticked", c)
+    assert "Nothing else changes: same REPO_REF, same RUN_ID, same QUEUE, same BUDGET_STEPS." in c
+    assert d.startswith("(d) Runtime > Run all.") and resume.count("Run all") == 1          # after the clearing
+    # a later session that is not told as 5.4 (7.1: a launch run again, or the smoke with a new RUN_ID) clears too
+    seven = flat.split("7.1  ", 1)[1].split("7.2  ", 1)[0]
+    assert "clear all outputs first (Edit > Clear all outputs, as in 5.4 (b))" in seven
+    # the first session of a copy has nothing to clear: the notebook on GitHub holds no outputs
+    cells = json.loads(NOTEBOOK.read_text(encoding="utf-8"))["cells"]
+    assert all(not cell.get("outputs") for cell in cells if cell["cell_type"] == "code")
+    # what only Colab shows is listed in section 8 as expected, not yet seen
+    assert "what Edit > Clear all outputs empties (5.4 (b))" in flat
 
 
 def test_helpers_equal_the_modules_they_stand_in_for():
