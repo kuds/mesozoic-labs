@@ -1300,7 +1300,8 @@ the new one, and any other change is a change after a result and is labelled so.
 `run.json` `gates.g8a`.
 
 **Z2. G9.** [plan B.3; S2-11 as settled; NEW order and limits; settled 15 Nov, before any Track B run: the toe-off limit
-of (b), G9-ref on `V6noF5`, what follows a failure] Two records per body and head.
+of (b), G9-ref on `V6noF5`, what follows a failure; settled 16 Nov 2026, before any Track B run: a fifth degraded
+playback in (c)] Two records per body and head.
 
 *G9-ref*, kinematic only; it must pass before the first closed-loop episode on that set and body: (a) every frozen
 reference played kinematically at the commanded clock passes its own item's readings, the quick turn also reaching 80
@@ -1311,12 +1312,29 @@ degree, tail phase within 0.01 cycle, toe-off within 0.02 rad and within 10 % of
 that rung equals `stage2/look/L1_FREEZE.json`'s; on a rung the ladder does not hold the four numbers are finite with at
 least 4 steps in the window; on an `-X` body each walk's playback agrees with the plain body's playback of the same rung
 within the same four limits; and for every walk and turn item the set has, the playback of its window (U2) holds at
-least 4 steps and 4 lift-offs (what U5 relies on); (c) four degraded playbacks each fail exactly their term (bob x 0.5;
-a 3 degree neck sinusoid; the tail 0.2 cycle late; flat feet), the unchanged playback passes all four with ratio 1, and
-a playback cut to 3 steps reads `too_few_steps`; (f) each reference no bar item plays (the turn in place with its start
-and stop; the changes to rungs other than 0.40 m/s) has its screen record cited, and every task's track is continuous at
-its joins (joint targets within 1e-6 rad) and plays 2 s with finite targets. As committed, (b)'s toe-off limit was 0.02
-rad alone, which is a third to two thirds of the ladder's own toe-off at 0.40 m/s (U3).
+least 4 steps and 4 lift-offs (what U5 relies on); (c) five degraded playbacks each fail exactly their term (bob x 0.5;
+a 3 degree neck sinusoid; the tail 0.2 cycle late; flat feet; the tail scaled to a tenth about its mean, which must fail
+the tail term and no other) [settled 16 Nov 2026, before any Track B run: "five" and the fifth playback, in place of
+"four degraded playbacks each fail exactly their term (bob x 0.5; a 3 degree neck sinusoid; the tail 0.2 cycle late;
+flat feet)"; ruling 2 of the sixth list, given after the look reading had been built and reviewed ("What had been
+run")], the unchanged playback passes all four with ratio 1, and a playback cut to 3 steps reads `too_few_steps`; (f)
+each reference no bar item plays (the turn in place with its start and stop; the changes to rungs other than 0.40 m/s)
+has its screen record cited, and every task's track is continuous at its joins (joint targets within 1e-6 rad) and plays
+2 s with finite targets. As committed, (b)'s toe-off limit was 0.02 rad alone, which is a third to two thirds of the
+ladder's own toe-off at 0.40 m/s (U3).
+
+Why the fifth playback, and how it fails (the author's note, not the lead's wording). The tail 0.2 cycle late fails the
+tail term by its phase, and so would a tail held still (0.27 cycle from the reference's, by the probe on synthetic
+numbers that the review of the fifth list's writing-in made and its fix round ran again; no record; the fifth
+amendment's last paragraph): before the sixth list no playback of (c) failed the term by the limit that ruling 5 of the
+fifth list added in U3. The tail scaled to a tenth about its mean keeps the
+reference's phase and fails by the robot's fitted tail amplitude alone, wherever that tenth is under 0.02 rad, that is
+wherever the reference's own tail amplitude is under 0.2 rad. Known when this was written in (the look reading's second
+follow-up, kinematic playbacks of the look ladder's rungs; no record): the reference's fitted tail amplitude lies
+between 0.120 and 0.125 rad on the rungs, a tenth of it under 0.013 rad. The playback changes the tail alone, while
+bob, head pitch and toe-off are read from the hips, the head and the feet, so "no other" is read, as "exactly their
+term" is for the other four, as: bob, head and toe-off pass. On `V6noF5` the fifth playback applies as on V6 (its walks
+keep the tail), and part (c) there has four playbacks, the flat feet being V6's only.
 
 *G9-ref on `V6noF5`.* As committed, parts (b) and (c) could not pass on `V6noF5`, whose walks have no toe-off (L11): its
 look-format hash and its toe-off cannot equal the ladder's V6 rungs', and a flat-feet playback fails no term there,
@@ -1347,7 +1365,10 @@ Check: `stage2/tb/gates/<set>/<body>/g9_ref.json`, `g9_run.json`; `g9_ref.json`'
 in `stage2/tb/dev_episodes.json` and in any record; in the two records, each part's outcome and what followed a failure
 (a reference treated as not available, a blocked body and head); in `g9_ref.json` of a `V6noF5` set, the form it was
 read in (no ladder hash; the toe-off under `not_read`; the V6 playbacks it was compared with, by path and sha256; no
-flat-feet playback); the label "changed after G9's result" wherever a definition, limit or band was changed.
+flat-feet playback); in every `g9_ref.json`, part (c)'s degraded playbacks by name, the tail scaled to a tenth among
+them, each with the terms it failed, and for that one the robot's fitted tail amplitude beside the reference's (U3's
+Check) [settled 16 Nov 2026, before any Track B run: this item; ruling 2 of the sixth list]; the label "changed after
+G9's result" wherever a definition, limit or band was changed.
 
 ## Q. R2L
 
