@@ -67,6 +67,28 @@ and one source state on a clean tree unless a flag says otherwise; it never drop
 freeze holds, a later freeze that adds references says when it was made, and it cites the kinematic check's record
 where there is one (``RULES["S2S-freeze"]``).
 
+4. The look sets (``LOOK_SETS``; ``STAGE2_TRACKB_PLAN.md`` section L)
+--------------------------------------------------------------------
+``V6`` (the look the owner picked: every look feature in the walks) and ``V6noF5`` (V6 without F5's toe-off, for the
+tracker fit) stand beside ``SETS`` in a registry of their own, and every function here takes either (``_set``).  They
+are built, verified and frozen as the other sets are, with these differences (``LOOK_RULES``; the look's laws
+themselves are ``designlab.stage2.moves_look``'s, loaded by name where a look set is built):
+
+* a walk is the look ladder's chain on today's walk at that speed (``v6_spec``), F9's tail phase from the ladder's
+  record at its two speeds and from ``stage2/sets/V6/tail_phase.json`` at the others (``make_tail_phases``; the
+  ``tail-phase`` command); its file holds a window of K strides (``look_walk_arrays``), and on a pick the look-format
+  files of ``nominal`` and ``v0.4`` must be the ladder's V6 rungs (``ladder_twins``);
+* a move is bound to the look's laws and to the windows of the walks it joins (``_Job.move``:
+  ``moves_look.bind_move``), a turn's stride factor is picked on the bound turns
+  (``moves_look.pick_stride_factor``), and its entry holds the look's keys beside the others (the move's instant in
+  ``move.command_phase`` for a start and a change too; ``look``; ``join_events``);
+* the turn in place (``inplace_0.5_<dir>`` with its start and its stop; ``_produce_inplace``) is an optional group
+  per direction: built when it is named (``--only inplace_0.5_left``), not missed by ``verify`` when it is not
+  built.  The set's screen (``setscreen``) reads every entry of ``refs.json`` as a walk with a look-format file and
+  cannot read a periodic turn, so a set that holds the turn in place cannot be screened as a whole until that
+  module learns it; its three files are screened where they are built (``_screen_file``);
+* a head body (``<pick>-X``) walks its pick's look on its own model.
+
 This module is in no record key.
 
 Run from hardware/trex_form_study:
@@ -76,6 +98,7 @@ Run from hardware/trex_form_study:
     python -m designlab.stage2.sets freeze --set V0 --body 75-M-H-10 [--allow-mixed] [--allow-dirty]
         [--change-after-result REASON | --after-check-episodes REASON | --before-any-episode] [--refcheck FILE]
         [--root DIR]
+    python -m designlab.stage2.sets tail-phase --body 75-M-H-10     (the look sets' F9 tail phases on a pick)
 """
 
 from __future__ import annotations
@@ -88,6 +111,8 @@ if __name__ == "__main__":  # before any numpy import: one core per process (bit
         os.environ.setdefault(_v, "1")
 
 import argparse  # noqa: E402
+import functools  # noqa: E402
+import importlib  # noqa: E402
 import importlib.util  # noqa: E402
 import json  # noqa: E402
 import math  # noqa: E402
@@ -122,6 +147,24 @@ REFCHECK = "refcheck.json"
 WALK_GENERATOR = "look.generate + gait.inverse_dynamics + refs.arrays"
 #: The item kinds, and the builders of ``moves`` they call.
 KINDS = ("walk", "start", "change", "stop_two_step", "stop_one_step", "turn")
+#: The look sets (``LOOK_SETS``; section 1): the Stage 2 module that holds their laws, loaded by name where a look
+#: set is built (``_ml``); their walks' generator; the kinds of the turn in place's three references (the periodic
+#: gait, its start from the stand and its stop to it: one group per direction).
+LOOK_MODULE = "moves_look.py"
+LOOK_WALK_GENERATOR = "look.generate + look.look_inverse_dynamics + Stage 1's keys with window_strides (moves_look.walk_arrays)"
+INPLACE, INPLACE_START, INPLACE_STOP = "inplace", "inplace_start", "inplace_stop"
+LOOK_KINDS = (INPLACE, INPLACE_START, INPLACE_STOP)
+#: The turn in place (STAGE2_TRACKB_PLAN.md L13): its rate (rad/s), the hold strides past Stage 1's start window, and
+#: which of them is the reference (the second).
+INPLACE_RATE = 0.5
+INPLACE_HOLD = 4
+INPLACE_CUT = 2
+NO_PERIODIC = "the turn in place is not periodic within its gate"
+#: F9's tail phases of the look sets' walks: the look ladder's own at its two speeds (``KNOTS``), this record's at
+#: the other rungs (``tail_phases``; ``RULES["S2L-tail-phase"]``).
+LOOK_TAIL = STUDY / "stage2" / "look" / "tail_phase.json"
+SET_TAIL = setio.ROOT / "V6" / "tail_phase.json"
+KNOTS = {setio.NOMINAL: "nominal", setio.walk_name(setio.BAR_SPEED): "v040"}
 #: The gates of a turn's entry that are the heading rule (the plan's A10): a turn that fails these and no other has
 #: "no reference within the heading rule".
 HEADING_GATES = ("heading_total", "heading_at_bar", "heading_at_slowest_clock")
@@ -219,6 +262,58 @@ RULES = {
         "place only when its sha256 is the manifest's (STAGE2_75_PLAN.md A13)"),
     "S2S-omega": "control.omega0(p, q_home, crouch_frac=<the set's crouch_frac>): the track's LIPM frequency is the set's own",
 }
+#: The look sets' rules (``LOOK_SETS``; STAGE2_TRACKB_PLAN.md section L).  They join ``RULES`` in a look set's records
+#: and in no other set's.
+LOOK_RULES = {
+    "S2L-sets": (
+        "the look sets: V6 (the look the owner picked at gate L1: every look feature in the walks) and V6noF5 (V6 "
+        "with F5, the toe-off and the toes-up reach, off in the walks as well: the tracker fit's set), each a "
+        "directory stage2/sets/<set>/<body>/ built, verified and frozen as every other set (STAGE2_TRACKB_PLAN.md "
+        "L14).  A head body (<pick>-X) walks its pick's look on its own model"),
+    "S2L-chain": (
+        "a V6 walk at a speed is look.ladder's chain on today's walk at that speed (the V0 set's, S2S-speeds): V1 = "
+        "F1/F2 (bob = look.BOB_SHARE x that walk's enforced shortening, bob_skew, bob_drop, 12 correction passes), "
+        "V2 = F3 (the animal pace's swing time), V3 = F4/F5, V4 = F6, V5 = F9/F10 with F9's tail phase, V6 = F14 "
+        "with the fewest whole strides lasting 10 s; F13 (the longer stride of the 75 cm animal pace) is in no walk "
+        "of a set.  At the nominal speed and at 0.40 m/s on the two picks that is the look ladder's V6 rung: its "
+        "look-format file must hash to the ladder's (S2S-twins)"),
+    "S2L-tail-phase": (
+        "F9's tail phase is the look ladder's own rule at every speed: look.tail_check on the walk's V4 (the phase "
+        "that minimises the single-support stance pad's yaw moment).  At the nominal speed and at 0.40 m/s it is the "
+        "ladder's recorded value (stage2/look/tail_phase.json), so that the walk is the ladder's rung; at the other "
+        "rungs it is read from stage2/sets/V6/tail_phase.json, made by python -m designlab.stage2.sets tail-phase "
+        "on the pick.  V6noF5 and a head body take the pick's V6 phases"),
+    "S2L-noF5": "V6noF5 is V6 with F5's fields at their defaults in the walks: toe_off 0, toe_reach 0, no rate or "
+                "acceleration cap, the default start and margin",
+    "S2L-format": (
+        "a look walk's file holds a window of K whole strides that is periodic as a whole: Stage 1's reference keys "
+        "with 160 K frames and the window's stride motion, the feedforward from look.look_inverse_dynamics (F5's "
+        "rolling split), then window_strides (K) and the look keys; its entry holds period_s (the stride's), "
+        "window_s and strides (K).  A plan item counts windows of the file"),
+    "S2L-moves": (
+        "every move of a look set is built by designlab.stage2.moves with the look's laws and solver "
+        "(designlab.stage2.moves_look; its rules are in transitions.json) bound to the windows of the walks it "
+        "joins, and is gated, screened and given its fallbacks as every other set's (S2S-fallback, S2S-turns).  A "
+        "causal move leaves its walk's window at the bar's lead (join rule J1 as designed: 2 strides after the "
+        "window's first frame for a left turn, 2.5 for a right turn and for the two-touchdown stop; the entry's "
+        "look.a_phase, look.a_time_s and look.a_windows, the windows of the walk's file a track plays before it).  "
+        "No cut of STAGE2_TRACKB_PLAN.md L12 is taken by the builder: a move outside a join gate is recorded with "
+        "its numbers, which are what L12's trigger reads"),
+    "S2L-inplace": (
+        f"the turn in place at {INPLACE_RATE:g} rad/s, left and right (inplace_{INPLACE_RATE:g}_<dir>, with "
+        f"start_inplace_{INPLACE_RATE:g}_<dir> and stop_inplace_{INPLACE_RATE:g}_<dir>; STAGE2_TRACKB_PLAN.md L13), "
+        "is the set's nominal look gait stepping in place (path speed 0) with flat feet as its own law (F5's fields "
+        "at their defaults) and without F14 (one stride).  It is cut from one long plan of the same builder and "
+        f"laws: the start from the stand, then {INPLACE_HOLD} hold strides more than Stage 1's start writes.  The "
+        "reference is the second of those hold strides; it is gated for periodicity against the hold stride before "
+        "it and the one after it (model CoM 1.0 mm, multibody ZMP 2.0 mm, joints 1e-3 rad, each mapped by the "
+        "plan's own stride motion); no other plan length and no other stride is tried.  Its start is the same plan "
+        "up to that stride; its stop is Stage 1's one-step stop from the reference.  Each of the three files is "
+        "screened at Stage 0 as a move (setscreen.screen_move).  A gait that fails is recorded not available with "
+        "its numbers, and its start and stop with it.  The three references of a direction are one optional group: "
+        "a build makes them when they are named (--only), because the set's screen (setscreen) reads every entry of "
+        "refs.json as a walk with a look-format file and cannot yet read a periodic turn"),
+}
 
 
 class SetError(s2io.S2Error):
@@ -295,6 +390,110 @@ def _cl_label(body: str, H: float, v: float | None) -> str | None:
     return None if v in CL_RUNGS else "new"
 
 
+def _ml():
+    """The look's side of the builder (``designlab.stage2.moves_look``), loaded by name as ``moves.generate`` loads
+    it: a set of today's laws never reaches it."""
+    return importlib.import_module("designlab.stage2.moves_look")
+
+
+def base_body(body: str) -> str:
+    """The pick a body walks the look of: itself, or ``<pick>`` for the head body ``<pick>-X``."""
+    return body[:-2] if body.endswith("-X") else body
+
+
+@functools.lru_cache(maxsize=8)
+def _json_at(path: str, mtime_ns: int):
+    return s2io.read_json(Path(path))
+
+
+def _doc(path: Path):
+    """A JSON record as it is on disk now (read once per change of the file), or None."""
+    path = Path(path)
+    return _json_at(str(path), path.stat().st_mtime_ns) if path.is_file() else None
+
+
+def tail_phase(body: str, v: float | None) -> float:
+    """F9's tail phase (rad) of a look set's walk at speed ``v`` (None: nominal) on ``body``
+    (``LOOK_RULES["S2L-tail-phase"]``); ``SetError`` where no record holds it."""
+    pick, name = base_body(body), setio.walk_name(v)
+    if name in KNOTS:
+        rec = (((_doc(LOOK_TAIL) or {}).get("bodies") or {}).get(pick) or {}).get(KNOTS[name]) or {}
+        val, where = rec.get("tail_phase_F9_rad"), LOOK_TAIL
+    else:
+        rec = (((_doc(SET_TAIL) or {}).get("bodies") or {}).get(pick) or {}).get(name) or {}
+        val, where = rec.get("tail_phase_rad"), SET_TAIL
+    if val is None:
+        raise SetError(f"no F9 tail phase of {pick} at {name} in {s2io.portable(str(where))}: the look sets are "
+                       "defined on the bodies the look ladder holds, their head bodies included (python -m "
+                       "designlab.stage2.sets tail-phase --body <pick> makes the phases of the other rungs)")
+    return float(val)
+
+
+def look_chain(body: str, H: float, v0: gait.GaitSpec, phase: float | None, upto: str = "V6") -> gait.GaitSpec:
+    """``look.ladder``'s chain on the walk ``v0`` (``LOOK_RULES["S2L-chain"]``) up to the rung ``upto`` ("V4" needs
+    no tail phase); ``body`` is the pick."""
+    f = look.feature_values(body, H, "nominal", phase)
+    s = replace(v0, **dict(f["F1F2"], bob=look.BOB_SHARE * look.enforced_shortening(v0)), zmp_iters=look.LOOK_ZMP_ITERS)
+    s = replace(s, **f["F3"])
+    s = replace(s, **f["F4F5"])
+    s = replace(s, **f["F6"])
+    if upto == "V4":
+        return s
+    if phase is None:
+        raise SetError("V5 and V6 need F9's tail phase")
+    s = replace(s, **f["F9F10"])
+    if upto == "V5":
+        return s
+    s = replace(s, **f["F14"])
+    return replace(s, strides=look.window_strides(s, H))
+
+
+def strip_f5(spec: gait.GaitSpec) -> gait.GaitSpec:
+    """``spec`` with F5's fields at their defaults (``LOOK_RULES["S2L-noF5"]``)."""
+    d = gait.LOOK_DEFAULTS
+    return replace(spec, **{k: d[k] for k in ("toe_off", "toe_reach", "toe_off_rate", "toe_off_accel", "toe_off_start",
+                                              "toe_off_margin")})
+
+
+def strip_f14(spec: gait.GaitSpec) -> gait.GaitSpec:
+    """``spec`` as one stride without F14's variation (step times, gaze, tail)."""
+    d = gait.LOOK_DEFAULTS
+    return replace(spec, strides=1, **{k: d[k] for k in ("phase_jitter", "asym", "gaze_var", "tail_var")})
+
+
+def v6_spec(body: str, H: float, v: float | None = None) -> gait.GaitSpec:
+    """The V6 walk at speed ``v`` (None: nominal) on ``body`` (``LOOK_RULES["S2L-chain"]``)."""
+    return look_chain(base_body(body), H, v0_spec(body, H, v), tail_phase(body, v))
+
+
+def v6nof5_spec(body: str, H: float, v: float | None = None) -> gait.GaitSpec:
+    return strip_f5(v6_spec(body, H, v))
+
+
+def inplace_spec(set_name: str, body: str, H: float) -> gait.GaitSpec:
+    """The gait of a look set's turn in place: its nominal walk with flat feet and no F14
+    (``LOOK_RULES["S2L-inplace"]``)."""
+    return strip_f14(strip_f5(_set(set_name).spec_of(body, H, None)))
+
+
+def inplace_names(direction: str) -> dict:
+    """The names of the turn in place's three references for one direction (design D5's, as ``r5lib`` reads them;
+    ``setio`` makes none of them)."""
+    if direction not in setio.DIRECTIONS:
+        raise ValueError(f"turn direction {direction!r}: choose from {', '.join(setio.DIRECTIONS)}")
+    tag = f"inplace_{INPLACE_RATE:g}_{direction}"
+    return dict(ref=tag, start=f"start_{tag}", stop=f"stop_{tag}")
+
+
+def inplace_of(name: str) -> dict | None:
+    """``{role, direction, group}`` of a name of the turn in place (``inplace_names``), else None."""
+    for d in setio.DIRECTIONS:
+        for role, n in inplace_names(d).items():
+            if n == name:
+                return dict(role=role, direction=d, group=inplace_names(d)["ref"])
+    return None
+
+
 @dataclass(frozen=True)
 class SetDef:
     """One reference set: its walk at a speed on a body, that walk's label, and what the set is."""
@@ -310,6 +509,10 @@ class SetDef:
     #: rungs, on every body that has a Stage 1 run record or ladder rungs (``RULES["S2S-twins"]``; the plan's A4).
     stage1_twins: tuple = ()
     ladder_twins: tuple = ()
+    #: A look set: its walks carry look features (a window of K strides, ``moves_look.walk_arrays``), its moves are
+    #: built with the look's laws and solver, and it has the turn in place (``LOOK_RULES``).
+    look: bool = False
+    features: tuple = ()  # the research's feature numbers its walks carry (its look entries' ``features``)
 
 
 SETS: dict[str, SetDef] = {
@@ -324,15 +527,29 @@ SETS: dict[str, SetDef] = {
 }
 
 
+#: The look sets (STAGE2_TRACKB_PLAN.md L14), beside ``SETS``: every function of this module takes either.
+LOOK_SETS: dict[str, SetDef] = {
+    "V6": SetDef("V6", "look", v6_spec, _v0_label,
+                 "the look the owner picked at gate L1: every look feature in the walks; inside a move the feet are "
+                 "flat while the gait is changing", look=True, features=tuple(look.features_of("V6")),
+                 ladder_twins=(setio.NOMINAL, setio.walk_name(setio.BAR_SPEED))),
+    "V6noF5": SetDef("V6noF5", "look, for the tracker fit R2L", v6nof5_spec, _v0_label,
+                     "V6 with F5 (toe-off, toes-up reach) off in the walks as well", look=True,
+                     features=tuple(f for f in look.features_of("V6") if f != "F5")),
+}
+
+
 @dataclass(frozen=True)
 class Item:
     """One thing a set holds.  ``definition`` is its identity as asked (JSON-plain); items that are built together
-    (the two directions of a turn rate) share ``definition["group"]``."""
+    (the two directions of a turn rate; the three references of a turn in place) share ``definition["group"]``.  An
+    ``optional`` item is built only when it is named (``build``'s ``only``), and a set without it verifies."""
 
     name: str
     kind: str
     depends: tuple
     definition: dict
+    optional: bool = False
 
     @property
     def group(self) -> str:
@@ -340,9 +557,17 @@ class Item:
 
 
 def _set(set_name: str) -> SetDef:
-    if set_name not in SETS:
-        raise SetError(f"{set_name!r} is not a reference set ({', '.join(SETS)})")
-    return SETS[set_name]
+    if set_name in SETS:
+        return SETS[set_name]
+    if set_name in LOOK_SETS:
+        return LOOK_SETS[set_name]
+    raise SetError(f"{set_name!r} is not a reference set ({', '.join([*SETS, *LOOK_SETS])})")
+
+
+def modules_of(st: SetDef) -> tuple:
+    """The Stage 2 modules that make an entry of the set (``s2io.built_by``): ``MODULES``, and the look's for a look
+    set."""
+    return MODULES + ((LOOK_MODULE,) if st.look else ())
 
 
 def body_facts(body: str) -> tuple[float, str]:
@@ -392,19 +617,22 @@ def items(set_name: str, body: str) -> list[Item]:
     """Everything the set holds on the body, in build order: the walks, then the moves (module docstring, section
     1).  No model is built: the body's height and model sha256 come from its record."""
     H, model = body_facts(body)
+    st = _set(set_name)
     specs = walk_specs(set_name, body, H)
     out = [Item(name, "walk", (), refs._plain(dict(kind="walk", spec=asdict(spec), body_model_sha256=model,
-                                                    generator=WALK_GENERATOR)))
+                                                    generator=LOOK_WALK_GENERATOR if st.look else WALK_GENERATOR)))
            for name, spec in specs.items()]
     gx = {name: moves.GaitX.of(name, spec, H) for name, spec in specs.items()}
     nom, bar = setio.NOMINAL, setio.walk_name(setio.BAR_SPEED)
 
+    def plain(mv: moves.Move) -> dict:  # a move's identity: with the look's laws for a look set
+        return _ml().definition_of(mv) if st.look else mv.definition()
+
     def of(kind: str, mv: moves.Move, depends: tuple, **more) -> Item:
-        return Item(mv.name, kind, depends, refs._plain(dict(kind=kind, **mv.definition(), body_model_sha256=model,
-                                                             **more)))
+        return Item(mv.name, kind, depends, refs._plain(dict(kind=kind, **plain(mv), body_model_sha256=model, **more)))
 
     out.append(of("start", moves.start(setio.START, gx[nom]), (nom, bar), fallback=None, lead_in=dict(
-        rule="S2S-lead-in", name=setio.start_name(bar), start=moves.start(setio.start_name(bar), gx[bar]).definition())))
+        rule="S2S-lead-in", name=setio.start_name(bar), start=plain(moves.start(setio.start_name(bar), gx[bar])))))
     for v in setio.SPEEDS:
         b, nb = setio.walk_name(v), neighbour(v)
         steps = [dict(step=1, ramp_strides=2.0)]
@@ -419,11 +647,28 @@ def items(set_name: str, body: str) -> list[Item]:
     for label, rate in setio.TURN_RATES.items():
         for direction in setio.DIRECTIONS:
             sign = 1.0 if direction == "left" else -1.0
-            out.append(Item(setio.turn_name(label, direction), "turn", (bar,), refs._plain(dict(
-                kind="turn", builder="turn", group=f"turn{setio.TURN_ANGLE_DEG}_{label}",
-                args=dict(angle=setio.TURN_ANGLE_RAD, rate=sign * rate, ramp_s=setio.RAMP_S),
-                specs=dict(a=gx[bar].plain(), b=gx[bar].plain()), causal=True, laws=moves.TODAY.name,
-                rules=list(TURN_RULES), stride_rule=stride_constants(), body_model_sha256=model))))
+            d = dict(kind="turn", builder="turn", group=f"turn{setio.TURN_ANGLE_DEG}_{label}",
+                     args=dict(angle=setio.TURN_ANGLE_RAD, rate=sign * rate, ramp_s=setio.RAMP_S),
+                     specs=dict(a=gx[bar].plain(), b=gx[bar].plain()), causal=True, laws=moves.TODAY.name,
+                     rules=list(TURN_RULES), stride_rule=stride_constants(), body_model_sha256=model)
+            if st.look:
+                ml = _ml()
+                d.update(laws="look", rules=list(TURN_RULES) + list(ml.LOOK_RULE_IDS + ml.JOIN_RULE_IDS),
+                         leave_phase=ml.LEAVE_PHASE[f"turn_{direction}"])
+            out.append(Item(setio.turn_name(label, direction), "turn", (bar,), refs._plain(d)))
+    if st.look:  # the turn in place: one optional group of three references per direction (S2L-inplace)
+        ml = _ml()
+        spec = inplace_spec(set_name, body, H)
+        for direction in setio.DIRECTIONS:
+            nm = inplace_names(direction)
+            sign = 1.0 if direction == "left" else -1.0
+            g = moves.GaitX.of(nm["ref"], spec, H, yaw_rate=sign * INPLACE_RATE, in_place=True)
+            common = dict(group=nm["ref"], gait=g.plain(), rate_rad_s=sign * INPLACE_RATE, hold_strides=INPLACE_HOLD,
+                          cut_hold_stride=INPLACE_CUT, laws="look", rules=list(ml.INPLACE_RULE_IDS),
+                          periodic=dict(com_mm=ml.PERIODIC_COM_MM, zmp_mm=ml.PERIODIC_ZMP_MM,
+                                        joint_rad=ml.PERIODIC_JOINT_RAD), body_model_sha256=model)
+            for kind, key in ((INPLACE, "ref"), (INPLACE_START, "start"), (INPLACE_STOP, "stop")):
+                out.append(Item(nm[key], kind, (nom,), refs._plain(dict(kind=kind, **common)), optional=True))
     return out
 
 
@@ -533,8 +778,7 @@ def walk_arrays(src: dict, spec: gait.GaitSpec) -> tuple[dict, dict, dict]:
     and ``flags`` as ``look.write`` computes them, and ``seconds`` (for the log).  ``GateError`` unless ``q``, ``qd``
     and ``qdd`` of the two formats are equal (the largest difference is reported)."""
     if gait.look_active(spec):
-        raise SetError("a walk with look features is built by the look phase's builder (moves_look.walk_arrays), not "
-                       "by sets.walk_arrays")
+        return look_walk_arrays(src, spec)
     t0 = time.perf_counter()
     with s2io.r2():
         M = src["M"]
@@ -564,6 +808,32 @@ def walk_arrays(src: dict, spec: gait.GaitSpec) -> tuple[dict, dict, dict]:
     parts = dict(info=look._plain({k: v for k, v in info.items() if k != "look"}), summary=summary,
                  frames=len(g["q"]), ik_ok=bool(g["ik_ok"]), ik_fail_frames=len(g["ik_fail_frames"]),
                  rolls=look._plain(rolls), measured=measured, price=price, flags=flags,
+                 seconds=time.perf_counter() - t0)
+    return s1, la, parts
+
+
+def look_walk_arrays(src: dict, spec: gait.GaitSpec) -> tuple[dict, dict, dict]:
+    """``walk_arrays`` for a walk with look features (``LOOK_RULES["S2L-format"]``): a window of ``spec.strides``
+    whole strides from one generation, inside ``s2io.r2()``.  The look-format arrays are ``look.arrays``' (the look
+    ladder's own file); the Stage 1-format arrays are Stage 1's keys with the feedforward of
+    ``look.look_inverse_dynamics`` (F5's rolling split), then ``window_strides`` and the look keys
+    (``moves_look.walk_arrays``).  ``parts`` has ``walk_arrays``' keys and, beside them, ``strides``,
+    ``rolling_frames`` and ``split_failed_frames``; its ``summary`` is ``gait.summarize`` on that feedforward."""
+    t0 = time.perf_counter()
+    with s2io.r2():
+        s1, la, got = _ml().walk_arrays(src, spec)
+        info = dict(got["info"], look=got["look_fields"])
+        rolls = got["rolls"]
+        measured = look._plain(look.measure(la, info, src["H"], crouch=spec.crouch))
+        price = look._plain(look.price(src, la, info))
+        flags = look.flags(spec, info, measured, price, rolls)
+    for key in ("q", "qd", "qdd"):
+        if not np.array_equal(np.asarray(s1[key]), np.asarray(la[key])):
+            raise GateError(f"the two formats of one look walk differ in {key}; nothing is written")
+    parts = dict(info=look._plain(got["info"]), summary=got["summary"], frames=got["frames"],
+                 ik_ok=bool(np.asarray(la["ik_ok"])), ik_fail_frames=int(len(np.asarray(la["ik_fail_frames"]).reshape(-1))),
+                 rolls=look._plain(rolls), measured=measured, price=price, flags=flags, strides=int(got["strides"]),
+                 rolling_frames=int(got["rolling_frames"]), split_failed_frames=int(got["split_failed_frames"]),
                  seconds=time.perf_counter() - t0)
     return s1, la, parts
 
@@ -657,13 +927,14 @@ class _Job:
     def built_by(self) -> dict:
         """The provenance of what is being built now (call it inside the item's ``r2()`` block); kept as ``by`` for
         an entry with no reference that this build decided."""
-        self.by = s2io.built_by(list(MODULES), own_outputs=[str(self.dir)])
+        self.by = s2io.built_by(list(modules_of(self.st)), own_outputs=[str(self.dir)])
         return self.by
 
     # --- the walks a move reads
     def walk(self, name: str) -> tuple[moves.GaitX, refs.Reference, dict, dict | None] | None:
         """(gait, reference, entry, Stage 1 twin) of a walk the set holds, its file checked against its entry and
-        its entry against the definition made now; None where the set records it as not available."""
+        its entry against the definition made now; None where the set records it as not available.  In a look set
+        the reference is the walk's window of K strides (``moves_look.Window``), which a move is bound to."""
         e = self.refs.get(name)
         if e is None:
             raise SetError(f"{self.set_name} {self.body}: the walk {name!r} is not built yet")
@@ -676,6 +947,8 @@ class _Job:
         path = self.dir / e["file"]
         if not path.is_file() or s2io.sha256_file(path) != e["sha256"]:
             raise SetError(f"{path} is missing or is not the file its entry records")
+        if self.st.look:
+            return moves.GaitX.of(name, spec, self.H), _ml().Window.load(path, spec, self.H, name), e, None
         return (moves.GaitX.of(name, spec, self.H), refs.Reference.load(path), e,
                 stage1_walk_twin(self.body, spec))
 
@@ -713,12 +986,24 @@ class _Job:
              twin_a: dict | None, twin_b: dict | None, depends) -> tuple[dict, dict]:
         """Generate one move on a body rebuilt for it, write its file into the scratch directory and screen it at
         Stage 0: (entry, flags).  ``flags``: ``ok`` (the entry's gates pass and nothing blocks the freeze),
-        ``over_leg_drive`` and ``a1_over`` (``setscreen.drive_flags``), ``tightest_other``."""
+        ``over_leg_drive`` and ``a1_over`` (``setscreen.drive_flags``), ``tightest_other``.  In a look set ``mv`` is
+        first bound to the look's laws and to the windows ``ref_a`` and ``ref_b`` (``moves_look.bind_move``; a
+        reference of one stride, the turn in place's, is passed on as it is), and its entry gains the look's keys
+        (``moves_look.entry_extra``: the instant in ``move.command_phase``, ``look``, ``join_events``)."""
         t0 = time.perf_counter()
         src = self.source()
+        bound = None
+        if self.st.look:
+            ml = _ml()
+            wa, wb = (r if isinstance(r, ml.Window) else None for r in (ref_a, ref_b))
+            bound = ml.bind_move(src, mv, wa, wb)
+            mv = bound.move
+            ref_a, ref_b = (b if w is not None else r for b, w, r in ((bound.ref_a, wa, ref_a), (bound.ref_b, wb, ref_b)))
         with s2io.r2():
             g = moves.generate(src, mv, ref_a)
             entry = moves.summary(g, ref_a, ref_b, src["q_home"])
+            if bound is not None:
+                _ml().entry_extra(bound, g, entry)
             arrs = moves.arrays(g)
             sha = self.put("transitions", mv.name, arrs)
             other = moves.tightest_other(src, g["q"])
@@ -771,6 +1056,8 @@ def _numbers(entry: dict, flags: dict, **more) -> dict:
             "zmp_consistency_history_m", "post_window_zmp_error_m", "zmp_consistency_all_m", "cop_margin_single_min",
             "min_cop_margin_single_m", "hip_yaw_range_use", "tightest_other", "reference", "turn", "frames",
             "duration_s")
+    if "look" in entry:  # a look set's move: its instant, its joins and its rolling frames stay with its numbers
+        keep += ("move", "look", "join_events", "rolling_frames", "rolling_split_failed_frames")
     out = {k: entry[k] for k in keep if k in entry}
     if isinstance(out.get("turn"), dict):
         out["turn"] = {k: v for k, v in out["turn"].items() if k != "stride_rule"}
@@ -810,7 +1097,8 @@ def _produce_walk(job: _Job, item: Item) -> None:
         raise GateError(f"{job.set_name} {body} {name}: its look-format file hashes to {sha_look}, the look ladder's "
                         f"{ladder['speed']} {ladder['variant']} ({ladder['record']}) to {ladder['sha256']}")
     info, summ, price = parts["info"], parts["summary"], parts["price"]
-    le = dict(body=body, speed=name, variant=job.set_name, features=[], file=f"look/{name}.npz", sha256=sha_look,
+    le = dict(body=body, speed=name, variant=job.set_name, features=list(st.features), file=f"look/{name}.npz",
+              sha256=sha_look,
               frames=parts["frames"], spec=look._plain(asdict(spec)), info=info, ik_ok=parts["ik_ok"],
               ik_fail_frames=parts["ik_fail_frames"], zmp_error_final_mm=1e3 * info["zmp_error_history_m"][-1],
               zmp_margin_min_mm=1e3 * info["zmp_margin_min_m"], rolls=parts["rolls"], measured=parts["measured"],
@@ -823,7 +1111,9 @@ def _produce_walk(job: _Job, item: Item) -> None:
         stride_motion=[float(x) for x in s1["stride_motion"]],
         min_cop_margin_single_m=float(summ["min_cop_margin_single"]),
         max_friction_ratio=float(summ["max_friction_ratio"]), ik_ok=bool(summ["ik_ok"]),
-        generator="look.generate (gait.generate at accuracy r2)", dynamics="gait.inverse_dynamics",
+        generator="look.generate (gait.generate at accuracy r2)",
+        dynamics="look.look_inverse_dynamics (gait.inverse_dynamics with F5's rolling contact)" if st.look
+        else "gait.inverse_dynamics",
         spec=look._plain(asdict(spec)), info=info,
         set=job.set_name, kind="walk", label=st.label_of(body, job.H, v), margin_rule=st.margin_rule,
         crouch_frac=float(spec.crouch), strides=int(info.get("strides", 1)), window_s=float(info["window_s"]),
@@ -833,7 +1123,13 @@ def _produce_walk(job: _Job, item: Item) -> None:
         ladder_sha256=None if ladder is None else ladder["sha256"], equals_ladder=None if ladder is None else True,
         ladder_twin=None if ladder is None else [ladder["speed"], ladder["variant"]],
         stage0=stage0, available=True, group=item.group, definition=item.definition, built_by=prov)
-    if entry["strides"] != 1 or entry["window_s"] != entry["period_s"]:
+    if st.look:  # a window of K whole strides (S2L-format)
+        entry.update(duty=float(info["duty"]), tail_phase_rad=float(spec.tail_phase),
+                     rolling_frames=parts["rolling_frames"], split_failed_frames=parts["split_failed_frames"])
+        if entry["strides"] != int(spec.strides) or abs(entry["window_s"] - entry["strides"] * entry["period_s"]) > 1e-9:
+            raise SetError(f"{name}: the window is not {spec.strides} strides of the spec's walk (strides "
+                           f"{entry['strides']}, window {entry['window_s']!r} s, period {entry['period_s']!r} s)")
+    elif entry["strides"] != 1 or entry["window_s"] != entry["period_s"]:
         raise SetError(f"{name}: a walk of today's laws is one stride (strides {entry['strides']}, window "
                        f"{entry['window_s']!r} s, period {entry['period_s']!r} s)")
     text = (f"ik {entry['ik_ok']}; governing {stage0['governing'][0]} {stage0['governing'][1]} "
@@ -1008,8 +1304,9 @@ def _produce_turns(job: _Job) -> None:
     t0 = time.perf_counter()
     c = first.definition["stride_rule"]
     with s2io.r2():
-        rec = moves.pick_stride_factor(job.source(), ga, ra, angle, rate, grid=tuple(c["grid"]),
-                                       limit=c["limit_kinematic"], other_margin=c["limit_other_joints_rad"])
+        pick = _ml().pick_stride_factor if job.st.look else moves.pick_stride_factor
+        rec = pick(job.source(), ga, ra, angle, rate, grid=tuple(c["grid"]),
+                   limit=c["limit_kinematic"], other_margin=c["limit_other_joints_rad"])
         picked_by = job.built_by()
     rec = refs._plain(dict(rec, walk=bar, walk_sha256=ea["sha256"]))
     job.note(f"stride rule {label}", time.perf_counter() - t0, "tried " + "; ".join(
@@ -1077,6 +1374,150 @@ def _produce_turns(job: _Job) -> None:
             e["numbers"]["stride_rule"] = {k: v for k, v in rec.items() if k != "text"}
 
 
+def _screen_file(job: _Job, sub: str, name: str, entry: dict, kind: str) -> tuple[dict, dict]:
+    """One file of the turn in place screened at Stage 0 as a move (``setscreen.screen_move`` on the file in the
+    scratch directory, with the gates of ``kind``: "start", "stop" or "turn"): (the entry's ``stage0`` block,
+    flags).  The file has a move's keys; ``entry`` gives ``split``, ``ik_ok`` and the two recorded contact numbers."""
+    src = job.source(fresh=False)
+    probe = dict(entry, name=name, file=f"{sub}/{name}.npz", move=dict(kind=kind, builder=kind, causal=False))
+    block = setscreen.screen_move(src, job.scratch, name, probe, None)
+    with np.load(job.scratch / probe["file"], allow_pickle=False) as z:
+        with s2io.r2():
+            df = setscreen.drive_flags(src, z["tau"], z["omega"], z["t"])
+    v = block["verdict"]
+    stage0 = dict(source=f"setscreen.screen_move on the built file, with the gates of a {kind} (at build time)",
+                  governing=block["governing"], within_limits=v["within_limits"], over=v["over"],
+                  blocks_freeze=v["blocks_freeze"], a1_over=v["a1_over"], over_leg_drive=bool(df["over_leg_drive"]),
+                  text=v["text"], tightest_joint=block["range"].get("tightest"),
+                  hip_yaw_range_use=block["range"].get("hip_yaw_range_use"),
+                  accel_forward_lp1hz_peak_m_s2=block["accel"].get("com_forward_lp1hz_peak"))
+    return s2io.plain(stage0), dict(blocks=v["blocks_freeze"], a1_over=bool(v["a1_over"]))
+
+
+def _produce_inplace(job: _Job) -> None:
+    """The turn in place of one direction: its periodic gait, its start and its stop
+    (``LOOK_RULES["S2L-inplace"]``; STAGE2_TRACKB_PLAN.md L13)."""
+    ml = _ml()
+    its = {i.kind: i for i in job.mine}
+    ref_it, start_it, stop_it = its[INPLACE], its[INPLACE_START], its[INPLACE_STOP]
+    nom = ref_it.depends[0]
+
+    def put(item: Item, entry: dict) -> None:
+        entry = dict(entry)
+        entry.setdefault("margin_rule", job.st.margin_rule)
+        (job.out["refs"] if item.kind == INPLACE else job.out["transitions"])[item.name] = refs._plain(entry)
+
+    gone = job.missing_walk(ref_it, (nom,))
+    if gone is not None:
+        for it in job.mine:
+            put(it, dict(gone, name=it.name, kind=it.kind, item=it.definition, definition=it.definition))
+        job.note(ref_it.name, 0.0, "not available: " + gone["reason"])
+        return
+    _, _, e_nom, _ = job.walk(nom)
+    d = ref_it.definition
+    spec = inplace_spec(job.set_name, job.body, job.H)
+    b = moves.GaitX.of(ref_it.name, spec, job.H, yaw_rate=float(d["rate_rad_s"]), in_place=True)
+    if b.plain() != d["gait"]:
+        raise SetError(f"{ref_it.name}: the gait built now is not the item's")
+    src = job.source()
+    t0 = time.perf_counter()
+    bd = ml.hold_move(src, start_it.name, b, int(d["hold_strides"]))
+    first = float(bd.move.schedule.window[0])
+    cut = float(transitions.WINDOWS["start"][1]) + int(d["cut_hold_stride"]) - 1.0  # the reference's first phase
+    n = moves.N_FRAMES
+    with s2io.r2():
+        g = moves.generate(src, bd.move, None)
+        per = ml.periodicity(g, cut)
+        full = moves.summary(g, None, None, src["q_home"])
+        ml.entry_extra(bd, g, full)
+        use = moves.range_use(src, g["q"])
+        arr = ml.periodic_cut(src, g, cut)
+        full_arr = moves.arrays(g)
+        prov = job.built_by()
+    k1 = int(round((cut - first) * n))
+    start_arr = {k: (v[:k1] if getattr(v, "ndim", 0) >= 1 and len(v) == full["frames"] else v) for k, v in full_arr.items()}
+    inputs = job.inputs((nom,))
+    common = dict(available=True, set=job.set_name, group=ref_it.group, inputs=inputs, built_by=prov,
+                  margin_rule=job.st.margin_rule, crouch_frac=float(spec.crouch))
+    numbers = dict(periodicity=per, ik_ok=bool(g["ik_ok"]), hip_yaw_range_use=moves.hip_yaw_use(use),
+                   zmp_error_history_m=g["zmp_error_history_m"],
+                   long_plan=dict(output_phase=full["output_phase"], frames=full["frames"], gates=full["gates"]))
+    job.note(ref_it.name, time.perf_counter() - t0,
+             f"periodicity CoM {per['com_mm']:.4f} mm, ZMP {per['zmp_mm']:.4f} mm, joints {per['joint_rad']:.3e} rad: "
+             f"{'ok' if per['ok'] else 'FAILS'}; ik {g['ik_ok']}; thigh twist {numbers['hip_yaw_range_use']:.4f}")
+
+    def none(reason: str, more: dict | None = None) -> None:
+        for it in job.mine:
+            put(it, _unavailable(it.name, it.kind, reason, dict(numbers, **(more or {})), item=it.definition,
+                                 definition=it.definition, group=it.group, inputs=inputs, set=job.set_name,
+                                 pass_=False, built_by=prov, margin_rule=job.st.margin_rule))
+
+    if not (per["ok"] and g["ik_ok"]):
+        none(NO_PERIODIC if not per["ok"] else "the turn in place's long plan has frames whose IK did not solve")
+        return
+    sha = job.put("refs", ref_it.name, arr)
+    sha_s = job.put("transitions", start_it.name, start_arr)
+    single = np.sum(arr["swing"], axis=1) == 1
+    T = float(arr["dt"]) * n
+    split = full["split"]
+    e_ref = dict(
+        common, name=ref_it.name, kind="turn_in_place", file=f"refs/{ref_it.name}.npz", sha256=sha, frames=n,
+        dt_s=float(arr["dt"]), period_s=T, speed_m_s=0.0, stride_m=0.0, lift_m=float(spec.lift_frac * job.H),
+        cadence_steps_s=2.0 / T, yaw_rate_rad_s=float(d["rate_rad_s"]), in_place=True,
+        stride_motion=[float(x) for x in arr["stride_motion"]],
+        min_cop_margin_single_m=float(np.nanmin(arr["cop_margin"][single])),
+        max_friction_ratio=float(np.max(arr["friction"])), ik_ok=bool(g["ik_ok"]), ik_fail_frames=0, split=split,
+        generator="one stride cut from a long plan of designlab.stage2.moves (moves_look.periodic_cut)",
+        dynamics="moves_look.idyn (the exact split of a turn gait)", spec=look._plain(asdict(spec)),
+        label="turn in place", strides=1, window_s=T, look_file=None, look_sha256=None, periodicity=per,
+        hip_yaw_range_use=numbers["hip_yaw_range_use"], range_use=use,
+        cut=dict(from_plan=start_it.name, stride_phase=[cut, cut + 1.0], hold_strides=int(d["hold_strides"]),
+                 hold_stride=int(d["cut_hold_stride"])),
+        zmp_error_history_m=g["zmp_error_history_m"], rules=list(ml.INPLACE_RULE_IDS), definition=ref_it.definition,
+        gates=dict(ik_ok=bool(g["ik_ok"]), periodicity=bool(per["ok"]),
+                   zmp_error=bool(g["zmp_error_history_m"][-1] <= moves.ZMP_HISTORY_LIMIT_M)))
+    e_ref["pass_"] = bool(all(e_ref["gates"].values()))
+    e_ref["stage0"], fl_ref = _screen_file(job, "refs", ref_it.name, e_ref, "turn")
+    e_start = dict(
+        full, **common, name=start_it.name, file=f"transitions/{start_it.name}.npz", sha256=sha_s, frames=k1,
+        duration_s=float(start_arr["t"][-1] - start_arr["t"][0]), output_phase=[full["output_phase"][0], cut],
+        to=ref_it.name, item=start_it.definition,
+        definition=refs._plain(dict(bd.move.definition(), body_model_sha256=job.model, ref_a_sha256=None,
+                                    ref_b_sha256=sha)),
+        fallback=None, tightest_other=moves.tightest_other(src, start_arr["q"]),
+        join_b=dict(note="the periodic reference is the next stride of the same plan: the join is exact; the "
+                         "reference's own periodicity is gated", periodicity=per, com_ok=True, zmp_ok=True,
+                    com_max_mm=0.0, zmp_max_mm=0.0),
+        g3=None, label="the long plan up to the hold stride cut as the periodic reference")
+    e_start["gates"] = dict(ik_ok=bool(g["ik_ok"]), join_a=bool(full["gates"]["join_a"]), periodicity=bool(per["ok"]),
+                            zmp_error=bool(g["zmp_error_history_m"][-1] <= moves.ZMP_HISTORY_LIMIT_M))
+    e_start["pass_"] = bool(all(e_start["gates"].values()))
+    e_start["stage0"], fl_start = _screen_file(job, "transitions", start_it.name, e_start, "start")
+    e_start["a1_over"] = fl_start["a1_over"]
+    bad = [f"{nm}: " + ("its gates " + ", ".join(k for k, x in e["gates"].items() if not x) if not e["pass_"] else
+                        "Stage 0: " + e["stage0"]["text"])
+           for nm, e, fl in ((ref_it.name, e_ref, fl_ref), (start_it.name, e_start, fl_start))
+           if not e["pass_"] or fl["blocks"]]
+    if bad:
+        job.drop("refs", ref_it.name)
+        job.drop("transitions", start_it.name)
+        none("the turn in place has no reference within the gates (" + "; ".join(bad) + ")",
+             dict(reference=dict(gates=e_ref["gates"], stage0=e_ref["stage0"]),
+                  start=dict(gates=e_start["gates"], stage0=e_start["stage0"])))
+        return
+    # the stop: Stage 1's one-step stop from the reference
+    ref = refs.Reference.load(job.scratch / "refs" / f"{ref_it.name}.npz")
+    e_stop, fl = job.move(stop_it, moves.stop_one_step(stop_it.name, b), ref, None, dict(sha256=sha), None, None,
+                          None, (nom,))
+    e_stop["label"] = "Stage 1's one-step stop from the turn in place (not causal)"
+    put(ref_it, e_ref)
+    put(start_it, e_start)
+    if fl["ok"]:
+        put(stop_it, e_stop)
+    else:
+        put(stop_it, _to_unavailable(job, stop_it, e_stop, fl, NO_GATES))
+
+
 def produce(set_name: str, body: str, name: str, root=setio.ROOT) -> dict:
     """Everything of one item, or of the group it is built with, made in this process: the arrays written into the
     group's scratch directory (``partial/build-<group>/``), and the result ``{item, set, body, refs, transitions,
@@ -1092,6 +1533,8 @@ def produce(set_name: str, body: str, name: str, root=setio.ROOT) -> dict:
         _produce_walk(job, job.mine[0])
     elif kind == "turn":
         _produce_turns(job)
+    elif kind in LOOK_KINDS:
+        _produce_inplace(job)
     else:
         _produce_straight(job, job.mine[0])
     for e in job.out["transitions"].values():  # every entry of a set carries its margin rule (the plan's A3)
@@ -1179,6 +1622,29 @@ def _new_docs(set_name: str, body: str, header: dict) -> dict:
     specs = walk_specs(set_name, body, H)
     crouch = float(next(iter(specs.values())).crouch)
     speeds = {setio.walk_name(v): (nominal_speed(H) if v is None else float(v)) for v in (None, *setio.SPEEDS)}
+    docs = _plain_docs(set_name, body, header, st, crouch, speeds)
+    if st.look:  # the look's rules beside the builder's; what is in force of STAGE2_TRACKB_PLAN.md L12
+        ml = _ml()
+        docs["refs.json"]["rules"].update({k: LOOK_RULES[k] for k in ("S2L-sets", "S2L-chain", "S2L-tail-phase",
+                                                                     "S2L-noF5", "S2L-format", "S2L-inplace")})
+        docs["refs.json"]["feedforward"] = ("inverse-dynamics joint torque, contact-consistent (a walk: "
+                                            "look.look_inverse_dynamics, F5's rolling contact); MJCF joint damping "
+                                            "and friction not included")
+        docs["transitions.json"]["rules"].update(ml.RULES)
+        docs["transitions.json"]["rules"].update({k: LOOK_RULES[k] for k in ("S2L-moves", "S2L-inplace")})
+        docs["transitions.json"]["method"] += ("; with the look's laws and solver (designlab.stage2.moves_look), each "
+                                               "move bound to the windows of the walks it joins")
+        docs["set.json"]["rules"] = dict(RULES, **LOOK_RULES)
+        docs["set.json"]["spec_rule"] = RULES["S2S-speeds"] + "; " + LOOK_RULES["S2L-chain"]
+        docs["set.json"]["look"] = dict(
+            pick=base_body(body), join_rule="J1 as designed (moves_look.RULES S2L-J1 to S2L-J3)", cut=None,
+            join_review=None, leave_phase=dict(ml.LEAVE_PHASE),
+            note="no cut of STAGE2_TRACKB_PLAN.md L12 is in force: the builder takes none; join_review is the "
+                 "independent review of the join code (path and sha256), which the lead records before a cut")
+    return docs
+
+
+def _plain_docs(set_name: str, body: str, header: dict, st: SetDef, crouch: float, speeds: dict) -> dict:
     return {
         "refs.json": dict(
             body=body, set=set_name, schema=SCHEMA, accuracy=s2io.ACCURACY, model=header["model"], H_m=header["H_m"],
@@ -1231,7 +1697,7 @@ def _files_ok(d: Path, entry: dict, look_too: bool) -> bool:
 
 
 def _entry_of(docs: dict, item_kind: str, name: str) -> dict | None:
-    if item_kind == "walk":
+    if item_kind in ("walk", INPLACE):  # (the periodic gaits: refs.json)
         return docs["refs.json"]["references"].get(name)
     return docs["transitions.json"]["transitions"].get(name)
 
@@ -1262,13 +1728,14 @@ def current(d: Path, docs: dict | None, item: Item, rows: dict, frozen: bool | N
         return False
     if item.name in rows:
         return _files_ok(d, e, item.kind == "walk")
-    if e.get("item" if item.kind != "walk" else "definition") != item.definition or not _same_inputs(docs, e):
+    if e.get("item" if item.kind not in ("walk", INPLACE) else "definition") != item.definition \
+            or not _same_inputs(docs, e):
         return False
     if e.get("available") is False:
         # no array pins it: the verdict is the code's that built it, so other code builds it again (an entry that
         # follows from its walks alone has no built_by); a frozen set's records are not rebuilt for a change of code
         by = e.get("built_by")
-        return bool(frozen) or by is None or by.get("stage2_modules") == modules_now()
+        return bool(frozen) or by is None or by.get("stage2_modules") == modules_for(docs["set.json"].get("set"))
     return _files_ok(d, e, item.kind == "walk")
 
 
@@ -1341,7 +1808,8 @@ def merge(d: Path, part: dict, log=print) -> dict:
                 orphans += [f"{key}/{name}.npz"] + ([f"look/{name}.npz"] if key == "refs" else [])
             else:
                 set_doc["not_available"].pop(name, None)
-                if key == "refs" and (set_doc["look_entries"].get(name) or {}).get("sha256") != now["look_sha256"]:
+                if (key == "refs" and now.get("look_sha256") is not None  # (the turn in place has no look-format file)
+                        and (set_doc["look_entries"].get(name) or {}).get("sha256") != now["look_sha256"]):
                     set_doc["look_entries"][name] = part["look_entries"][name]
     for label, rec in part.get("stride_rules", {}).items():
         names = [setio.turn_name(label, x) for x in setio.DIRECTIONS]
@@ -1434,7 +1902,7 @@ def _partial_ok(d: Path, part: dict, set_name: str, body: str, names: set) -> bo
         return False
     for name, e in made.items():
         it = its.get(name)
-        if it is not None and e.get("item" if it.kind != "walk" else "definition") != it.definition:
+        if it is not None and e.get("item" if it.kind not in ("walk", INPLACE) else "definition") != it.definition:
             return False
         if it is None and e.get("group") not in names:
             return False
@@ -1553,6 +2021,8 @@ def build(set_name: str, body: str, root=setio.ROOT, only=None, procs: int = 2, 
             for group, members in by_group.items():
                 if (members[0].kind == "walk") != phase or (wanted is not None and group not in wanted):
                     continue
+                if members[0].optional and (wanted is None or group not in wanted):  # built only when named
+                    continue
                 if (all(current(d, docs, i, rows) for i in members)
                         and extras_current(d, docs, group, {i.name for i in members}, rows)):
                     if group not in res["recovered"]:
@@ -1622,10 +2092,23 @@ def modules_now() -> dict:
     return {s2io.portable(str(s2io.module_path(m))): s2io.sha256_file(s2io.module_path(m)) for m in MODULES}
 
 
+def modules_for(set_name) -> dict:
+    """``modules_now`` for an entry of the set ``set_name``: with the look's module for a look set (``modules_of``)."""
+    now = modules_now()
+    if set_name in LOOK_SETS:
+        now[s2io.portable(str(s2io.module_path(LOOK_MODULE)))] = s2io.sha256_file(s2io.module_path(LOOK_MODULE))
+    return now
+
+
 def _check_name(name: str, kind: str, e: dict, item: Item | None, bad: list) -> None:
     """A name against its entry: it parses back (``setio.parse_name``) to the values its definition holds."""
     if kind != "walk" and (name == "stop" or name.startswith("stop_in_place_")):
         bad.append(f"{name}: a transition may not carry a name by which Stage 1 registers its own stop command")
+        return
+    tip = inplace_of(name)
+    if tip is not None:  # the turn in place's names are design D5's, not setio's
+        if item is None or item.kind not in LOOK_KINDS or (tip["role"] == "ref") != (kind == "walk"):
+            bad.append(f"{name}: a name of the turn in place on an entry that is not its {tip['role']}")
         return
     try:
         p = setio.parse_name(name)
@@ -1698,10 +2181,12 @@ def verify(set_name: str, body: str, root=setio.ROOT) -> dict:
     blocks = (screen or {}).get("blocks", {})
     if screen is None:
         bad.append("screen.json is missing: the set is not screened (python -m designlab.stage2.setscreen run)")
-    now_modules = modules_now()
+    now_modules = modules_for(set_name)
     sources, dirty_entries = {}, []
-    for name in its:
-        if name not in entries:
+    for name, it in its.items():
+        if name not in entries and it.optional:
+            notes.append(f"{name}: not built (an optional item: python -m designlab.stage2.sets build --only {it.group})")
+        elif name not in entries:
             bad.append(f"{name}: not built (python -m designlab.stage2.sets build)")
     for name, (kind, e) in entries.items():
         item = its.get(name)
@@ -1733,6 +2218,7 @@ def verify(set_name: str, body: str, root=setio.ROOT) -> dict:
             if e.get("label") != want:
                 bad.append(f"{name}: its entry's label is {e.get('label')!r}, the set's at this speed is {want!r} "
                            "(STAGE2_75_PLAN.md A2)")
+        tip = e.get("kind") == "turn_in_place" or (item is not None and item.kind == INPLACE)  # (in refs.json)
         if item is not None and (e.get("item" if kind != "walk" else "definition") != item.definition
                                  or not _same_inputs(docs, e)):
             bad.append(f"{name}: its entry is not of the definition made now, or was built from another file of its "
@@ -1757,7 +2243,7 @@ def verify(set_name: str, body: str, root=setio.ROOT) -> dict:
             if by.get("dirty"):
                 dirty_entries.append(name)
         # ---- item 1: files against entries and the latest manifest
-        files = [("file", "sha256")] + ([("look_file", "look_sha256")] if kind == "walk" else [])
+        files = [("file", "sha256")] + ([("look_file", "look_sha256")] if kind == "walk" and not tip else [])
         here = True
         for key_f, key_s in files:
             p = d / e[key_f]
@@ -1780,7 +2266,9 @@ def verify(set_name: str, body: str, root=setio.ROOT) -> dict:
                 bad.append(f"{name}: its look-format file is {e['look_sha256']}, the freeze holds {row['look_sha256']}")
         elif fz is not None:
             notes.append(f"{name}: not in the latest freeze (index {fz['index']})")
-        if kind == "walk":
+        if tip:
+            _verify_inplace(name, e, set_doc, bad)
+        elif kind == "walk":
             _verify_walk(d, name, e, specs.get(name), set_doc, body, here, bad)
         else:
             _verify_move(d, name, e, body, bad, notes)
@@ -1798,10 +2286,10 @@ def verify(set_name: str, body: str, root=setio.ROOT) -> dict:
             if b is None:
                 bad.append(f"{name}: no block in screen.json (python -m designlab.stage2.setscreen run)")
                 continue
-            want = e["look_sha256"] if kind == "walk" else e["sha256"]
+            want = e["look_sha256"] if kind == "walk" and not tip else e["sha256"]
             if (b.get("arrays") or {}).get("sha256") != want:
                 bad.append(f"{name}: its screen block is of another file ({(b.get('arrays') or {}).get('sha256')})")
-            if kind == "walk" and (b.get("reference") or {}).get("sha256") != e["sha256"]:
+            if kind == "walk" and not tip and (b.get("reference") or {}).get("sha256") != e["sha256"]:
                 bad.append(f"{name}: its screen block names another Stage 1-format file")
             v = b.get("verdict") or {}
             if v.get("blocks_freeze"):
@@ -1983,6 +2471,20 @@ def _verify_walk(d: Path, name: str, e: dict, spec, set_doc: dict, body: str, he
                        f"{ladder['variant']} ({e['look_sha256']} against {ladder['sha256']})")
 
 
+def _verify_inplace(name: str, e: dict, set_doc: dict, bad: list) -> None:
+    """The turn in place's periodic gait against ``LOOK_RULES["S2L-inplace"]`` (STAGE2_TRACKB_PLAN.md L13's check)."""
+    if e.get("pass_") is not True or (e.get("periodicity") or {}).get("ok") is not True:
+        bad.append(f"{name}: held as a reference with pass_ {e.get('pass_')!r} and periodicity "
+                   f"{(e.get('periodicity') or {}).get('ok')!r}")
+    if (e.get("stage0") or {}).get("blocks_freeze"):
+        bad.append(f"{name}: held as a reference although a Stage 0 gate blocked it where it was built")
+    if abs(float(e.get("yaw_rate_rad_s") or 0.0)) != INPLACE_RATE or e.get("speed_m_s") != 0.0 or e.get("strides") != 1:
+        bad.append(f"{name}: yaw rate {e.get('yaw_rate_rad_s')!r} rad/s, speed {e.get('speed_m_s')!r} m/s, strides "
+                   f"{e.get('strides')!r} (a turn in place at {INPLACE_RATE:g} rad/s is one stride at speed 0)")
+    if e.get("crouch_frac") is None or float(e["crouch_frac"]) != float(set_doc.get("crouch_frac", math.nan)):
+        bad.append(f"{name}: its entry's crouch_frac is {e.get('crouch_frac')!r}, set.json's {set_doc.get('crouch_frac')!r}")
+
+
 def _verify_move(d: Path, name: str, e: dict, body: str, bad: list, notes: list) -> None:
     """Items 2 and 3 of the round-A design's 4.3 for one move the set holds as a reference."""
     if e.get("pass_") is not True:
@@ -2106,7 +2608,7 @@ def manifest_of(docs: dict) -> dict:
     for name, e in docs["refs.json"]["references"].items():
         if e.get("available") is not False:
             out[name] = dict(kind="walk", sha256=e["sha256"], entry_sha256=setio.entry_sha256("walk", e),
-                             look_sha256=e["look_sha256"])
+                             look_sha256=e.get("look_sha256"))
     for name, e in docs["transitions.json"]["transitions"].items():
         if e.get("available") is not False:
             kind = (e.get("item") or {}).get("kind") or (e.get("move") or {}).get("builder") or "move"
@@ -2230,8 +2732,8 @@ def status(set_name: str, body: str, root=setio.ROOT) -> dict:
     out = dict(dir=str(d), built=docs is not None, frozen=None, items={}, missing=[], not_available={}, blocked=None,
                lead_in=None)
     if docs is None:
-        out["missing"] = [i.name for i in its]
-        out["items"] = {i.name: "missing" for i in its}
+        out["missing"] = [i.name for i in its if not i.optional]
+        out["items"] = {i.name: "not built (optional: built when it is named)" if i.optional else "missing" for i in its}
         return out
     fz = setio.frozen(docs["set.json"])
     rows = {} if fz is None else fz["entries"]
@@ -2240,7 +2742,9 @@ def status(set_name: str, body: str, root=setio.ROOT) -> dict:
     out["blocked"] = docs["set.json"].get("blocked")
     for i in its:
         e = _entry_of(docs, i.kind, i.name)
-        if e is None:
+        if e is None and i.optional:
+            state = "not built (optional: built when it is named)"
+        elif e is None:
             state = "missing"
             out["missing"].append(i.name)
         elif e.get("available") is False:
@@ -2262,15 +2766,59 @@ def status(set_name: str, body: str, root=setio.ROOT) -> dict:
 
 
 # ------------------------------------------------------------------------------------------------
+# The look sets' tail phases
+# ------------------------------------------------------------------------------------------------
+def make_tail_phases(body: str, log=print, path=None) -> dict:
+    """F9's tail phase of every rung the look ladder does not hold, on a pick (``LOOK_RULES["S2L-tail-phase"]``):
+    ``look.tail_check`` on the rung's V4 walk (six generations of one stride each), written into
+    ``stage2/sets/V6/tail_phase.json`` under the pick with the check's numbers; the other bodies' records are kept.
+    Prescribed motion on the round-two model; no episode.  Returns the pick's record."""
+    s2io.require_one_thread()
+    if base_body(body) != body:
+        raise SetError(f"{body}: a head body takes its pick's tail phases (make them on {base_body(body)})")
+    path = SET_TAIL if path is None else Path(path)
+    H, model = body_facts(body)
+    src = look.source(body)
+    amp = look.feature_values(body, H, "nominal")["F9F10"]["tail_amp"]
+    out = {}
+    for v in setio.SPEEDS:
+        name = setio.walk_name(v)
+        if name in KNOTS:
+            continue
+        v4 = look_chain(body, H, v0_spec(body, H, v), None, upto="V4")
+        t0 = time.perf_counter()
+        with s2io.r2():
+            tc = look.tail_check(src, v4, amp=amp)
+            prov = s2io.built_by(["sets.py", "look.py", "s2io.py"], own_outputs=[str(path)])
+        out[name] = s2io.plain(dict(
+            tail_phase_rad=float(tc["best_phase_rad"]), speed_m_s=float(v), body_model_sha256=model,
+            source="look.tail_check on this rung's V4 walk (designlab.stage2.sets make_tail_phases)",
+            v4_spec=look._plain(asdict(v4)),
+            check={k: tc[k] for k in ("amp_rad", "fit_max_residual_nm", "predicted_peak_nm", "confirmed", "no_tail",
+                                      "best_phase_cycles_from_today")}, built_by=prov))
+        log(f"{body} {name}: tail phase {tc['best_phase_rad']:.6f} rad (confirmed peak "
+            f"{tc['confirmed']['peak_nm']:.4f} N m, no tail {tc['no_tail']['peak_nm']:.4f}); "
+            f"{time.perf_counter() - t0:.0f} s")
+    doc = _read(path) or dict(what="F9's tail phases of the look sets' walks at the rungs the look ladder does not "
+                                   "hold (stage2/look/tail_phase.json holds nominal and v0.4)",
+                              rule=LOOK_RULES["S2L-tail-phase"], bodies={})
+    doc["bodies"][body] = out
+    s2io.write_json(path, doc)
+    return out
+
+
+# ------------------------------------------------------------------------------------------------
 # CLI
 # ------------------------------------------------------------------------------------------------
 def main(argv=None) -> int:
     s2io.require_one_thread()
     ap = argparse.ArgumentParser(prog="python -m designlab.stage2.sets", description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
+    p = sub.add_parser("tail-phase", help="F9's tail phases of the look sets' rungs on a pick (LOOK_RULES)")
+    p.add_argument("--body", required=True, choices=list(look.BODIES))
     for cmd in ("build", "verify", "freeze", "status"):
         p = sub.add_parser(cmd)
-        p.add_argument("--set", required=True, choices=list(SETS))
+        p.add_argument("--set", required=True, choices=[*SETS, *LOOK_SETS])
         p.add_argument("--body", required=True, choices=list(stage1.BODIES))
         p.add_argument("--root", default=str(setio.ROOT), help="the directory that holds the sets (default: stage2/sets)")
         if cmd == "build":
@@ -2294,6 +2842,9 @@ def main(argv=None) -> int:
         print(line, flush=True)
 
     try:
+        if a.cmd == "tail-phase":
+            make_tail_phases(a.body, log=say)
+            return 0
         if a.cmd == "build":
             r = build(a.set, a.body, a.root, a.only, a.procs, log=say)
             say(f"{a.set} {a.body}: built {len(r['ran'])}, kept {len(r['kept'])}, recovered {len(r['recovered'])}"

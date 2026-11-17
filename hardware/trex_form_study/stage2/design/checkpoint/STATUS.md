@@ -615,3 +615,46 @@ The owner's second reading: 59 % of the week at about 03:32 UTC, with the meter 
 $2,710.92. So 1 % of the week is about $40 on the meter (between $27 and $72, the readings being whole percents),
 not the $13.6 first estimated. The owner said to keep working through the night without stopping; the owner holds one
 reset. The lead pushes the owner at 85 % (about $3,830) and at 95 % (about $4,230).
+
+## Update, 17 Nov 2026, 05:42 UTC: overnight handover (what is merged, what runs, what is owed)
+
+**Merged overnight on the working branch** (each built, independently checked, fixed; reports in `reviews/` and
+`../servo_model/`; the record-key hashes are the registered pair throughout): the rows (CW), the notebook and steps
+sheet (CN), the trainer's third follow-up (CT3), the follow-up before the acceptance run (CN, CT, CW), the gates
+(CG), the R2L refit tool (CF), the servo model's core layer (S1), and the Track B draft with the sixth list.
+
+**Rulings of the night** are in `../ROUND_C_RULINGS_17NOV.md` (1 to 20). The two that matter most: ruling 18 (no look
+set can be frozen as built: the look start is over the knee's speed limit, 1.126 at 75 cm and 1.234 at 60 cm; the
+start now mixes the stand's law by the amplitude ramp, a change after a result; the sets are built again, 75 cm
+first) and ruling 16 (the bar refuses Track B rows on a look set; `bar.py` is not edited; `lookbar` carries its own
+narrow rule for the look sets, after a passed G9-ref).
+
+**Running at 05:42 UTC.** Workflow `wf_daa54001-cce`: the look sets' fix round (its check said: merge by cherry-pick;
+one major point outside the package for the lead: the env and the bar place a look set's turns and stop2 after
+whole windows, not at J1's leave point). Workflow `wf_5fdcc198-2b2`: the lookbar look-set rule (16), the gates'
+G9-ref fixes (14, 15), the trainer's owed points (17), the sheet's 5.3 (13), each with a check; and the
+independent review of the join code (19).
+
+**Owed next.** Bring in the look sets (cherry-pick) and launch their rebuild under ruling 18 with a check; rule on
+the check's major point (turns and stop2 placement); a CF follow-up (its integration with G9-ref's record format,
+and the chain's `--resume` on V10); the servo model's S1 low points and S2 (the env option and G8s); then, once a
+75 cm look set is frozen: G9-ref, G8a, the validation steps, S2-4, the bundle and the acceptance run.
+
+## Update, 17 Nov 2026, ~07:00 UTC
+
+- **Merged:** the look sets package (WP L), squashed as 036ec9d6 (tree equal to the reviewed tip 628d60b7);
+  merged-tree tests "244 passed, 3 skipped"; hashes the registered pair. Ruling 27: `sets.py` leaves D18's state-A
+  test (lookbar state-A tests "2 passed").
+- **Ruled:** 21–26 (the look sets check: turns and stop begin at J1's leave point, a code error; turn in place
+  recorded as not available; minor points into the rebuild), 27, and 28–30 on the join-code review
+  (`reviews/roundC__review_JR_17nov.md`): a causal move's preview grid comes from the frames up to the command on
+  the look sets (A6; frozen sets keep their records, dated note in A6); cut 3 not taken where the review shows it
+  fails at the boundary too (labelled, written into L12). Rules draft: "L1 and L4 in a start" (ruling 18) and
+  L10's toes-up reach (ruling 25) written in.
+- **Running:** wf_5fdcc198-2b2 (checks of LB16, CG2, CT4, CN3); wf_3ccbe5e7-793 (build:LS, the start's law, then
+  its check).
+- **Owed next:** merge LB16, CG2, CT4, CN3 as their checks allow; then the ruling-21 package (r5lib and lookbar)
+  and the CF follow-up; after check:LS, the 75 cm look-set rebuild of ruling 30 with a check; then the 60 cm sets.
+  For the owner later: the left turns of the look sets (by the review's scratch numbers 4.62 mm on the causal grid,
+  against the owner's 4.0 mm limit of P34), with the rebuilt numbers.
+- **Meter:** $3,012 at 06:44 UTC, about 64.5 % of the week.
