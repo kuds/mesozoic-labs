@@ -1770,15 +1770,13 @@ def test_the_pack_tools_tries_are_kept_so_that_the_finish_knows_them(tmp_path, s
     p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
     _session(p)
     res = _launch(p)
-    st = json.loads((Path(p["LOCAL_DIR"]) / "r1" / "work" / "session.json").read_text())
-    assert st["pack_tries"] and set(st["pack_tries"].values()) == {nb.PACK_TRIES}, (res["state"], st["pack_tries"])
     assert "was not packed" in res["jobs"]["R5-B1-s42"]["last_error"]
     pfile = tmp_path / "p.json"
     pfile.write_text(json.dumps(p))
     codes = [nb.main(["finish", "--params", str(pfile)]) for _ in range(3)]
-    assert codes == [0, 0, 0], codes
-    assert set(json.loads((Path(p["LOCAL_DIR"]) / "r1" / "work" / "session.json").read_text())["pack_tries"].values()) \
-        == {nb.PACK_TRIES}                                       # (no finish packed again: the tries were used)
+    assert codes == [0, 0, 0], codes                             # (without the kept tries: [6, 6, 6])
+    st = json.loads((Path(p["LOCAL_DIR"]) / "r1" / "work" / "session.json").read_text())
+    assert set(st["pack_tries"].values()) == {nb.PACK_TRIES}      # (no finish packed again: the tries were used)
 
 
 def test_a_failed_first_write_to_drive_is_no_halt(tmp_path, stubs, monkeypatch, capsys):
