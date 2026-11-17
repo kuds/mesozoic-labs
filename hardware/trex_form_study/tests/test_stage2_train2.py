@@ -26,6 +26,7 @@ What is held here, on a stub env and a stub monitor (no plant, no reference set)
   holds two interruptions, and a refusal under ``--retry-check`` then halts with a message that names that
   parameter; the monitor child's environment holds ``STAGE2_ALLOW_SOURCE_CHANGE=1`` exactly when the session was
   given ``--allow-source-change`` (the rulings of 17 Nov 2026, 10 and 11);
+* the trainer waits for its monitor child without a timeout (the lead's ruling 17 of 17 Nov 2026);
 * **the committed baseline** (rule M3, the lead's ruling 17 of 17 Nov 2026): with ``--expect-baseline`` the run's
   own R0L baseline, equal to the one ``monitor2 baseline`` made without a job, lets the run train; another survival,
   another state digest or a record without digests halts it before its first rollout, also on a resume; a file
@@ -1871,6 +1872,39 @@ def test_an_expected_baseline_is_refused_or_kept_as_a_setting(stub, tmp_path, mo
     d = run(stub, out, gates=True, resume=True, expect_baseline=str(committed))
     assert d["status"] == "done" and d["sessions"][1]["resumed_from"] == 512
     assert [(x["session"], x["equal"]) for x in d["baseline_expected"]] == [(0, True), (1, True)]
+
+
+def test_the_trainer_waits_for_its_monitor_child_without_a_timeout(monkeypatch):
+    """The lead's ruling 17 of 17 Nov 2026: the monitor child keeps no timeout.  A timeout would close a hung
+    attempt with an exit code (one of the two closed attempts of rule M1); a hang is ended by whoever watches the
+    run, who kills the job's process group, and the attempt never closed is an interruption.  The rule text says so
+    and ``_child`` waits without one."""
+    import types
+
+    from designlab.stage2 import train2
+
+    assert "without a timeout" in train2.CHILD_RULE and "timeout" not in train2.CHILD_RULE.split("without a")[0]
+    seen = []
+
+    class Child:
+        pid = 4242
+
+        def wait(self, *args, **kw):
+            seen.append(("wait", args, kw))
+            return 0
+
+        def kill(self):
+            seen.append(("kill",))
+
+    def popen(cmd, **kw):
+        seen.append(("popen", sorted(kw)))
+        return Child()
+
+    monkeypatch.setattr(train2, "subprocess", types.SimpleNamespace(Popen=popen, DEVNULL=subprocess.DEVNULL))
+    r = object.__new__(train2._Run)
+    r.session, r.tiny, r.also_k, r.source_allowance = dict(sources=dict(sha256="s" * 64)), False, (), None
+    assert r._child(["baseline", "--job", "j"]) == 0
+    assert seen == [("popen", ["cwd", "env", "stdin"]), ("wait", (), {})]
 
 
 def test_a_failed_set_task_weights_ends_the_session(stub, tmp_path, monkeypatch):

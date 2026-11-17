@@ -216,7 +216,10 @@ CHILD_RULE = (
     "such child of an earlier session on this host that is still alive under an attempt that was never closed "
     "(the trainer was killed alone while its monitor ran), before any check or baseline is run: two monitors "
     "never write one record.  The attempt stays what it was, an interruption (rule M1); the session lists what it "
-    "ended under ended_children")
+    "ended under ended_children.  The trainer waits for its monitor child without a timeout (the lead's ruling 17 "
+    "of 17 Nov 2026): a timeout would close a hung attempt with an exit code and count it toward the two closed "
+    "attempts; a hang is ended by whoever watches the run, who kills the job's process group, and the attempt that "
+    "was never closed is an interruption")
 UPDATES_RULE = (
     "updates.jsonl holds one line per PPO update: session, update (the run's count), steps (the env steps the "
     "policy was trained on after it), minibatch_steps_run (the optimizer steps PPO really made, counted by a "
@@ -1230,7 +1233,8 @@ class _Run:
     def _child(self, args: list, att: dict | None = None) -> int:
         """Run the monitor child and wait for it (a subprocess: nothing forks while the pool is open).  ``att``:
         the attempt's log entry, already written; it takes the child's pid, start time and boot id as soon as the
-        child has started (``CHILD_RULE``).  The child's environment is ``monitor_env``'s: the session's allowance
+        child has started (``CHILD_RULE``).  The wait has no timeout (``CHILD_RULE``; the lead's ruling 17 of 17 Nov
+        2026).  The child's environment is ``monitor_env``'s: the session's allowance
         of its sources (``--allow-source-change``, or ``SOURCE_ALLOWANCE_RULE``) passed to the row."""
         cmd = _monitor_cmd() + [str(x) for x in args]
         cmd += ["--sources", self.session["sources"]["sha256"]]
