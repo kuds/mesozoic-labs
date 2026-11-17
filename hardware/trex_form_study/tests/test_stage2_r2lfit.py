@@ -10,6 +10,7 @@ R2 row bit for bit on set V0 (two development episodes).
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
 import json
 import os
@@ -24,7 +25,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from designlab.stage1 import panels, plant, speedfit, tune  # noqa: E402
+from designlab.stage1 import control, panels, plant, speedfit, tune  # noqa: E402
 from designlab.stage2 import bar, lookbar, r2lfit, s2io, setio  # noqa: E402
 
 BODY = "75-M-H-10"
@@ -622,7 +623,7 @@ def test_importing_r2lfit_changes_no_file_or_table():
 
 
 # ------------------------------------------------------------------------------------------------
-# The review's findings: roles, a finished fit's resume, what is published
+# The review's findings: roles, a finished fit's resume, what is published, the episode's seeds and the other refusals
 # ------------------------------------------------------------------------------------------------
 def test_a_fit_on_another_seed_is_a_development_fit(env):
     assert r2lfit.role_of("V6noF5", BODY)["role"] == "fit"
@@ -673,6 +674,69 @@ def test_a_resume_of_a_finished_fit_changes_nothing(env):
         assert {p.name: s2io.sha256_file(p) for p in sorted(d.iterdir())} == before
 
 
+def test_a_resume_on_other_settings_is_refused(env):
+    env.use(Stub(kill_after=12 * 2))
+    with pytest.raises(Killed):
+        r2lfit.fit(BODY, "F25F9cl", out=env.out, log=quiet)
+    env.use(Stub())
+    for kw in (dict(budget_core_h=2.0), dict(max_generations=24), dict(popsize=10)):
+        with pytest.raises(r2lfit.R2LError, match="settings differ"):
+            r2lfit.fit(BODY, "F25F9cl", out=env.out, resume=True, log=quiet, **kw)
+    assert env.stub.calls == []
+    assert r2lfit.fit(BODY, "F25F9cl", out=env.out, resume=True, log=quiet)["status"] == "done"
+
+
+def test_select_refuses_a_running_fit_and_a_fit_on_other_sources(env):
+    env.use(Stub(costs(fit=150.0), kill_after=12 * 2))
+    with pytest.raises(Killed):
+        r2lfit.fit(BODY, "F25F9cl", out=env.out, log=quiet)
+    env.use(Stub(costs(fit=150.0)))
+    with pytest.raises(r2lfit.R2LError, match="running at generation 2: resume it first"):
+        r2lfit.select(BODY, "F25F9cl", out=env.out, log=quiet)
+    r2lfit.fit(BODY, "F25F9cl", out=env.out, resume=True, log=quiet)
+    p = r2lfit.fit_dir(env.out, "F25F9cl", BODY, 42) / "cma.json"
+    doc = s2io.read_json(p)
+    doc["sessions"][0]["sources"]["sha256"] = "0" * 64
+    s2io.write_json(p, doc)
+    with pytest.raises(r2lfit.R2LError, match="other sources"):
+        r2lfit.select(BODY, "F25F9cl", out=env.out, log=quiet)
+    assert env.stub.calls == [] or all(kind_of(s) == "fit" for _, s in env.stub.calls)
+
+
+def test_gains_of_checks_the_selections_set_body_and_seed(tmp_path):
+    good = dict(set="V6noF5", body=BODY, seed=42, judged=True, role=dict(role="fit"), selected="gen10",
+                selected_gains=speedfit.start_record(BODY)["gains"], judged_at_generation=30)
+    p = tmp_path / "r2lg5.json"
+    s2io.write_json(p, good)
+    gains, info = r2lfit.gains_of(p, s2io.sha256_file(p), "V6noF5", BODY, 42)
+    assert np.array_equal(gains, speedfit.gains_vector(good["selected_gains"])) and info["candidate"] == "gen10"
+    for key, value in (("set", "V6"), ("body", "60-N-T-10"), ("seed", 43)):
+        s2io.write_json(p, dict(good, **{key: value}))
+        with pytest.raises(r2lfit.R2LError, match="the selection of"):
+            r2lfit.gains_of(p, s2io.sha256_file(p), "V6noF5", BODY, 42)
+    s2io.write_json(p, dict(good, judged=False))
+    with pytest.raises(r2lfit.R2LError, match="not a judged selection"):
+        r2lfit.gains_of(p, s2io.sha256_file(p), "V6noF5", BODY, 42)
+
+
+def test_publish_refuses_a_development_fit_and_a_changed_cma(env):
+    fitted(env)
+    p = r2lfit.fit_dir(env.out, "V6noF5", BODY, 42) / "cma.json"
+    good = p.read_bytes()
+    doc = s2io.read_json(p)
+    doc["note"] = "changed after the selection"
+    s2io.write_json(p, doc)
+    with pytest.raises(r2lfit.R2LError, match="cma.json changed after the selection was made"):
+        r2lfit.publish(BODY, "V6noF5", out=env.out, index=r2lfit.INDEX)
+    doc["settings"]["role"] = dict(role="development", reasons=["x"])
+    s2io.write_json(p, doc)
+    with pytest.raises(r2lfit.R2LError, match="development fit is not published"):
+        r2lfit.publish(BODY, "V6noF5", out=env.out, index=r2lfit.INDEX)
+    p.write_bytes(good)
+    assert not r2lfit.INDEX.exists() and not (r2lfit.INDEX.parent / "V6noF5").exists()
+    assert r2lfit.publish(BODY, "V6noF5", out=env.out, index=r2lfit.INDEX)["seed"] == 42
+
+
 def test_publish_copies_only_the_fits_own_records(env):
     passed_gate(env)
     env.use(Stub())
@@ -703,6 +767,100 @@ def test_publish_refuses_while_the_set_and_body_are_locked(env):
     finally:
         lock.release()
     assert not r2lfit.INDEX.exists()
+
+
+def test_run_slot_gives_each_slot_its_own_start_and_noise_seeds(monkeypatch):
+    """Rule Q2: slot j's start and noise seeds are derived_seed(episode, j, 0 | 1), five different starts per
+    evaluation; the push is the episode seed's (no physics: the episode's parts are stand-ins)."""
+    seen = {}
+
+    class Built:
+        p = types.SimpleNamespace(d=None)
+        track, seconds = "track", 1.0
+
+        def recorder(self):
+            return "recorder"
+
+        def push(self, seed):
+            seen["push_seed"] = seed
+            return "the push"
+
+    ctx = types.SimpleNamespace(built=lambda cond: Built())
+
+    @contextlib.contextmanager
+    def servo_delay(p, k):
+        seen["k"] = k
+        yield
+
+    def run(tk, seconds, **kw):
+        seen.update(kw, tracker=tk, seconds=seconds)
+        return dict(fell=False)
+
+    monkeypatch.setattr(control, "Tracker", lambda *a, **k: ("tracker", a[2], k["rate"]))
+    monkeypatch.setattr(control, "run", run)
+    monkeypatch.setattr(speedfit, "servo_delay", servo_delay)
+    monkeypatch.setattr(tune, "sim_warnings", lambda d: [])
+    monkeypatch.setattr(tune, "warned_fall", lambda out, w: out)
+    starts = set()
+    for j in range(5):
+        b, out, rec = r2lfit.run_slot(ctx, None, np.zeros(14), 1234, j, (j + 1) % 6)
+        assert seen["seed"] == tune.derived_seed(1234, j, 0) and seen["noise_seed"] == tune.derived_seed(1234, j, 1)
+        assert seen["push_seed"] == 1234 and seen["push"] == "the push" and seen["k"] == (j + 1) % 6
+        assert seen["start"] == "stance" and seen["recorder"] == "recorder"
+        assert seen["tracker"] == ("tracker", "R2", r2lfit.RATE) and rec == "recorder" and out == dict(fell=False)
+        starts.add((seen["seed"], seen["noise_seed"]))
+    assert len(starts) == 5
+
+
+class FallStub(Stub):
+    """The stub, but in the decisive cell the start never falls and scores 1 on every term, and every other
+    candidate scores 0 on every term with one fall (walk/v0.4 at seed 2000, 99 % survived): fewer falls against a
+    lower mean J."""
+
+    def evaluate(self, gains, spec):
+        if kind_of(spec) == "fit":
+            return super().evaluate(gains, spec)
+        self.calls.append((np.asarray(gains, float).copy(), spec))
+        start = np.allclose(gains, speedfit.gains_vector(speedfit.start_record(BODY)["gains"]))
+        eps = {}
+        for s in spec["slots"]:
+            e = r2lfit.blank_episode(s)
+            e["seconds"] = 20.0
+            if start:
+                e["tracking"] = {n: 1.0 for n in e["tracking"]}
+                e["limits"] = {n: 1.0 for n in e["limits"]}
+            elif spec["seed"] == 2000 and s["kind"] == "walk":
+                e.update(fell=True, survived_frac=0.99, succeeded=False)
+            eps[s["kind"]] = e
+        return r2lfit.scored(spec, eps, 0.0, 1.0)
+
+
+def test_the_selection_ranks_fewer_falls_first(env):
+    env.use(FallStub(costs(fit=150.0)))
+    r2lfit.fit(BODY, "F25F9cl", out=env.out, log=quiet)
+    sel = r2lfit.select(BODY, "F25F9cl", out=env.out, log=quiet)
+    by = {x["candidate"]: x for x in sel["selection"]}
+    assert by["start"]["falls"] == 0 and all(by[n]["falls"] == 1 for n in by if n != "start")
+    assert all(by[n]["J_mean"] < by["start"]["J_mean"] for n in by if n != "start")  # the start's J is the worst
+    assert sel["selected"] == "start" and by["start"]["rank"] == 1
+    assert [x["rank"] for x in sel["selection"]] == [1, 2, 3, 4]  # the others tie: the earlier candidate first
+
+
+def test_the_fitness_adds_the_box_repair(env, monkeypatch):
+    seen = []
+
+    def penalty(x):
+        seen.append(np.asarray(x, float).copy())
+        return 0.25
+
+    monkeypatch.setattr(tune, "repair_penalty", penalty)
+    env.use(Stub(costs(fit=150.0)))
+    r2lfit.fit(BODY, "F25F9cl", out=env.out, log=quiet)
+    lines = read_lines(r2lfit.fit_dir(env.out, "F25F9cl", BODY, 42) / "evals.jsonl")
+    assert len(lines) == 72 and len(seen) == 72
+    for x, s in zip(lines, seen, strict=True):
+        assert x["fitness"] == pytest.approx(x["J"] + 0.25)
+        assert np.array_equal(np.asarray(x["x"]), s)  # the member in the [0, 1] scaling, before its repair
 
 
 # ------------------------------------------------------------------------------------------------
