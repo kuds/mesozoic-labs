@@ -2189,7 +2189,12 @@ the committed sentence "A move that still fails under the cuts open to it is "no
 sentence after this mark is that sentence's closing clause, set on its own by the author, and it holds as committed, for
 every move that still fails]. No limit is changed for a move that still fails without the label "changed after a
 result". Under cut 3 the "2 (2.5) strides of `v0.4`" of T1 and of B6 read "one window of `v0.4` (and half a stride for a
-right-foot command)", and the env description and every record say so.
+right-foot command)", and the env description and every record say so. [settled 17 Nov 2026, before any Track B run; labelled as
+changed after a result: the join-code review's scratch probes (prescribed motion; none frozen), ruling 29 of
+`stage2/design/ROUND_C_RULINGS_17NOV.md`] Cut 3 is not taken for a body when the join-code review's probe, on the
+causal grid (ruling 28), gives the failing reading at cut 3's leave point (the window's boundary) as over its limit too;
+the move that fails at J1's leave point is then "not available" with its numbers (A11 for a turn; H3 for the stop), and
+no limit is changed. On 75-M-H-10 the review read 4.038 mm (left turns) and 4.361 mm (right turns) there, against 4.0.
 
 [settled 16 Nov 2026, before any Track B run; labelled as changed after the look work package had built look sets
 (prescribed motion; none frozen); ruling 7 of the fourth list, on what the paragraph above leaves open for the body's
