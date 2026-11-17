@@ -986,12 +986,14 @@ been built and reviewed ("What had been run")] The monitor's other exits before 
 checkpoint record that cannot be read or has the wrong shape; a fingerprint not reproduced at the row's load) are each a
 refusal as ruling 6 of the fifth list, the paragraph above, has it: no attempt, and the trainer halts.
 
-What follows from the three paragraphs above (the author's note, not the lead's wording). By the paragraph settled on 15
-Nov an *error* of a policy row's episode is not succeeding, zero credited survival and not up. A check counted without a
-record therefore has N = 0 and S = 0 (M3), and at a G8b reading every condition of M4's table has fewer than 2 of 3 up.
-A file that names other hashes, or that holds neither an outcome nor "not run" for one of the 18 episodes, is no record
-[with ruling 1 of the fifth list; this sentence read "A file that names other hashes, or holds fewer than 18 outcomes,
-is no record."]. Each of the two halts is one of M5's five endings [with rulings 2 and 6 of the fifth list; this
+What follows from the paragraphs above (the author's note, not the lead's wording) [until the independent review of the
+sixth list's writing-in: "the three paragraphs above", a count that the paragraphs settled since, with rulings 2 and 6
+of the fifth list and ruling 3 of the sixth, had made wrong]. By the paragraph settled on 15 Nov an *error* of a policy
+row's episode is not succeeding, zero credited survival and not up. A check counted without a record therefore has
+N = 0 and S = 0 (M3), and at a G8b reading every condition of M4's table has fewer than 2 of 3 up. A file that names
+other hashes, or that holds neither an outcome nor "not run" for one of the 18 episodes, is no record [with ruling 1
+of the fifth list; this sentence read "A file that names other hashes, or holds fewer than 18 outcomes, is no
+record."]. Each of the two halts is one of M5's five endings [with rulings 2 and 6 of the fifth list; this
 sentence read "The halt is one of M5's five endings, and what follows it is the lead's to say."].
 
 Further to ruling 2 of the fifth list (the author's note, not the lead's wording). After the halt for attempts never
@@ -1007,13 +1009,19 @@ Ruling 6's three: "the sources differ" (the sources hash that the trainer gave i
 `train2.sources`; kind `sources`); "checkpoint <n> is not intact" (one of the checkpoint's three files is missing, or
 its size or its sha256 is not what the checkpoint's record names; kind `checkpoint`); "another run's checkpoint is not
 judged" (the record's `run_uuid` or `settings_sha256` is not the run's; kind `other_run`). Ruling 3's three: a
-`run.json` that is missing, cannot be read or is no JSON object (kind `run`); a checkpoint record that cannot be read,
-is no JSON object or has the wrong shape, the shape being that its `files` name each of the three files
-with a whole number of bytes and a sha256 (kind `checkpoint`, and worded as "not intact", so that ruling 3's case is
-read as one of ruling 6's); and a fingerprint not reproduced within 1e-5 when the row loads the checkpoint (K9), which
-the loader raises as `s2load.CheckpointError` while the row is built, before any episode (kind `checkpoint`). A
-checkpoint whose record is missing is not intact: the record is the last of a checkpoint's four files, and the loader
-calls a checkpoint intact when the record is there with matching hashes (`s2load.py`) [until the sixth list was written
+`run.json` that is missing (kind `run`, under which the code also refuses a `run.json` that cannot be read or is no JSON
+object, which the ruling does not name); a checkpoint record that cannot be read, is no JSON object or has the wrong
+shape (kind `checkpoint`, and worded as "not intact", so that ruling 3's case is read as one of ruling 6's), the shape
+being that its `files` name each of the three files with a whole number of bytes and a sha256 and that its `layout`
+and its `fingerprint` are objects, both of which the row's load reads: these two by the lead's ruling 12 of 17 Nov
+2026, which the code holds since the follow-up before the acceptance run, merged at `dfd2fbc2` [until the independent
+review of the sixth list's writing-in: "a `run.json` that is missing, cannot be read or is no JSON object (kind `run`)",
+which gave the code's two further cases as the ruling's, and "the shape being that its `files` name each of the three
+files with a whole number of bytes and a sha256", all that the code checked when the list was written in]; and a
+fingerprint not reproduced within 1e-5 when the row loads the checkpoint (K9), which the loader raises as
+`s2load.CheckpointError` while the row is built, before any episode (kind `checkpoint`). A checkpoint whose record is
+missing is not intact: the record is the last of a checkpoint's four files, and the loader calls a checkpoint intact
+when the record is there with matching hashes (`s2load.py`) [until the sixth list was written
 in, this sentence read "A checkpoint whose record is missing is read here as not intact too", a reading of the author's
 that the code now holds]. The code also takes as a refusal the row's own refusal of the checkpoint while the row is
 built (`s2rows.RowError`, kind `row`; among its grounds sources that differ from the run's recorded ones without K4's
@@ -1041,7 +1049,12 @@ case: where the refused attempt was the one that ruling 2's recorded parameter l
 still stand, so that a resume without the parameter halts on them again and only a resume with it runs the check. The
 trainer's halt then names the parameter, as the sixth list's closing paragraph rules for the code ("the halt message
 after a refusal under `--retry-check` names that parameter"; the trainer reads "under" as "of the attempt that the
-parameter let run") [until the sixth list was written in, this sentence ended at "for that resume."].
+parameter let run") [until the sixth list was written in, this sentence ended at "for that resume."]. Where the refusal
+was for moved sources (kind `sources`, or the row's refusal by K9), at a check or at R0L's baseline, the halt also names
+K4's `--allow-source-change`, the flag by which K4 lets a resume run on other sources than the last session's: by the
+lead's ruling 12 of 17 Nov 2026 on the trainer a halt for moved sources names the parameter that resolves it, and the
+trainer does so since the follow-up before the acceptance run [added after the independent review of the sixth list's
+writing-in, with the working branch merged again].
 
 A condition without a reference is "not run" and counts as not succeeding and as zero survival for both rows. Each
 record holds the failures per term, the mean clock factor and the number of distinct start seeds. Check:
