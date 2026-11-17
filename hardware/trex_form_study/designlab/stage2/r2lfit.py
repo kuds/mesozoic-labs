@@ -36,7 +36,9 @@ Run from hardware/trex_form_study (one BLAS thread)::
 0; 1 a refusal.  A fit on a (set, body) that rule Q1 does not name, or with another seed, population, budget or
 generation cap than the rules', is a development fit (``ROLE_RULE``): no record, and ``select`` and ``publish`` refuse
 it; a selection with another ``--reported-core-h`` than 0.4 is a development selection, which ``publish`` refuses.  A
-fit on a look set waits for G9-ref as the gates package (``gates2.require_g9_ref``) reads it (``GATE_RULE``).
+fit or a selection on a look set, or on a version of one, waits for G9-ref: as the gates package reads it
+(``gates2.require_g9_ref``) and as ``lookbar``'s look-set rule lets the row ``R2L-<set>/<seed>`` run there
+(``lookbar.look_set_rule``, the lead's ruling 16 of 17 Nov 2026) (``GATE_RULE``, ``gate``).
 
 This file is in the sources of every R2L row (``R2LRow.sources``) and of every R2L record (``sources``).
 """
@@ -98,7 +100,8 @@ REPORTED_CORE_H = 0.4
 REPORTED_MARGIN = 1.25
 #: Rule Q1's fits (set, body): the two heads on V6noF5 and the candidate on F25F9cl.
 FITS = (("V6noF5", "75-M-H-10"), ("V6noF5", "60-N-T-10"), ("F25F9cl", "75-M-H-10"))
-#: The look sets (``lookbar.LOOK_SETS``; a test holds the two equal): a fit there waits for G9-ref (rules Q1, X1).
+#: The look sets (``lookbar.LOOK_SETS``; a test holds the two equal): a fit or a selection there, or on a version of
+#: one (``look_set_of``), waits for G9-ref (rules Q1, X1; ``GATE_RULE``).
 LOOK_SETS = ("V6", "V6noF5")
 #: Where things live (tests point these elsewhere).
 WORK = s2io.STUDY / "stage2" / "tb" / "work" / "r2l"
@@ -224,13 +227,19 @@ ROLE_RULE = (
     "than rule Q5's 4.0) is a development selection: r2lg5.json says so (role), publish refuses it and no row reads "
     "it")
 GATE_RULE = (
-    "STAGE2_TRACKB_PLAN rules Q1, X1 and Z2: a fit on a look set (V6, V6noF5) starts only after G9-ref passed for "
-    "that set and body as the gates package reads it: gates2.require_g9_ref(body, set, "
-    "stage2/tb/gates/<set>/<body>/g9_ref.json) must return its citation (there: a G9-ref record of its schema, its "
-    "own sha256 intact, of this set and body, pass_ true, made on the set's latest freeze); its refusal refuses the "
-    "fit, and where the gates package (designlab/stage2/gates2.py) is not here no fit on a look set starts; each "
-    "session records the citation (path, sha256, the record's time and freeze), the file's modification time and "
-    "what checked it")
+    "STAGE2_TRACKB_PLAN rules Q1, X1 and Z2, with the lead's rulings 16, 31 and 35 of 17 Nov 2026: a fit, and a "
+    "selection, on a look set (V6, V6noF5) or on a version of one (lookbar.look_set_of: the part of the set's name "
+    "before its first dot) starts only after G9-ref passed for that set and body, read in two ways before anything "
+    "is written or run: (1) as the gates package reads it, the one way a G9-ref record is accepted: "
+    "gates2.require_g9_ref(body, set, stage2/tb/gates/<set>/<body>/g9_ref.json) must return its citation (there: a "
+    "G9-ref record of its schema, its own sha256 intact, of this set and body, pass_ true, made on the set's latest "
+    "freeze); its refusal refuses, and so does no citation (the gates package not reading the set as a look set, a "
+    "version of one included) or no gates package (designlab/stage2/gates2.py); (2) as lookbar's look-set rule lets "
+    "the row R2L-<set>/<seed> run there (lookbar.look_set_rule(set, body, [R2L-<set>/<seed>], the set root, that "
+    "record) and its check, as lookbar.episodes asks it), whose refusal refuses; the two must cite the same file "
+    "with the same sha256; each fit session (gate) and each selection (g9_ref) records the citation (path, sha256, "
+    "the record's time and freeze), the file's modification time, what checked it and the look-set rule's row and "
+    "citation; on any other set nothing is read and the record holds None")
 PUBLISH_RULE = (
     "publish copies only the fit's own finished records: start.json, r2lg5.json, r2lg5_evals.jsonl and "
     "r2lfit/<seed>/ (nothing else under <set>/<body>/, such as another seed's development fit), staged under "
@@ -727,29 +736,75 @@ def _gates2():
         raise
 
 
-def gate(set_name: str, body: str) -> dict | None:
-    """``GATE_RULE``: on a look set, the citation of the passed G9-ref record as ``gates2.require_g9_ref`` gives it,
-    with the file's modification time; None elsewhere.  ``R2LError`` where the gates package refuses it, or is not
-    here."""
-    if set_name not in LOOK_SETS:
+def look_set_of(set_name) -> str | None:
+    """The look set ``set_name`` stands for, as ``lookbar`` reads it (``lookbar.look_set_of``: one of ``LOOK_SETS``,
+    the name itself or the part before its first dot, a version of one; the lead's ruling 31 of 17 Nov 2026, point
+    3); None for any other set."""
+    from designlab.stage2 import lookbar
+
+    return lookbar.look_set_of(set_name)
+
+
+def row_name(set_name: str, seed: int = SEED) -> str:
+    """The R2L row of the fit of ``seed`` on ``set_name`` (``ROWS_RULE``): ``R2L-<set>/<seed>``."""
+    return f"{CONTROLLER}-{set_name}/{int(seed)}"
+
+
+def look_rule(set_name: str, body: str, seed: int = SEED, g9_ref=None) -> dict:
+    """``GATE_RULE``'s second reading: ``lookbar``'s look-set rule (``lookbar.look_set_rule``; the lead's ruling 16 of
+    17 Nov 2026) for the row ``R2L-<set>/<seed>`` on ``set_name``, ``body`` and the set root ``SET_ROOT``, with the
+    G9-ref record ``g9_ref``, asked as ``lookbar.episodes`` asks it (``LookSetRule.check``, before anything is read or
+    run).  Returns ``{checked_by, row, look_set, cited: {path, sha256}}``; ``R2LError`` where the rule refuses the row
+    or lets it in without a G9-ref citation."""
+    from designlab.stage2 import lookbar
+
+    row = row_name(set_name, seed)
+    try:
+        with lookbar.look_set_rule(set_name, body, [row], SET_ROOT, g9_ref=g9_ref) as rule:
+            cited = rule.check()
+    except (lookbar.LookBarError, bar.BarError) as exc:
+        raise R2LError(f"{set_name}/{body}: lookbar's look-set rule does not let {row} run ({exc}): nothing starts "
+                       "(rule X1; the lead's ruling 16 of 17 Nov 2026; GATE_RULE)") from None
+    if not isinstance(cited, dict) or not cited.get("path") or not cited.get("sha256"):
+        raise R2LError(f"{set_name}/{body}: lookbar's look-set rule cited no G9-ref record for {row} ({cited!r}): "
+                       "nothing starts (GATE_RULE)")
+    return dict(checked_by="designlab.stage2.lookbar.look_set_rule", row=row, look_set=rule.look_set,
+                cited=dict(path=cited["path"], sha256=cited["sha256"]))
+
+
+def gate(set_name: str, body: str, seed: int = SEED) -> dict | None:
+    """``GATE_RULE``: on a look set or a version of one (``look_set_of``), the citation of the passed G9-ref record as
+    ``gates2.require_g9_ref`` gives it, with the file's modification time and ``look_set_rule``, ``lookbar``'s rule
+    letting ``R2L-<set>/<seed>`` run (``look_rule``) on the same file; None on any other set (nothing is read).
+    ``R2LError`` where the gates package refuses it, gives no citation or is not here, where lookbar's rule refuses,
+    or where the two read different files."""
+    look = look_set_of(set_name)
+    if look is None:
         return None
     path = Path(GATES) / set_name / body / "g9_ref.json"
     g2 = _gates2()
     if g2 is None:
         raise R2LError(f"{path}: the gates package ({GATES2}) is not here, so G9-ref cannot be read: R2L's set "
                        f"{set_name} must pass G9-ref for {body} before its first episode (rules Q1, X1, Z2; "
-                       "GATE_RULE): no fit starts")
+                       "GATE_RULE): nothing starts")
     try:
         cite = g2.require_g9_ref(body, set_name, path=path, root=SET_ROOT)
     except g2.GateError as exc:
-        raise R2LError(f"{path}: G9-ref has not passed as the gates package reads it ({exc}): no fit starts "
+        raise R2LError(f"{path}: G9-ref has not passed as the gates package reads it ({exc}): nothing starts "
                        "(rules Q1, X1, Z2)") from None
     if not isinstance(cite, dict) or not cite.get("path") or not cite.get("sha256"):
+        what = "a look set" if look == set_name else f"a version of the look set {look}"
         raise R2LError(f"{path}: {GATES2}.require_g9_ref gave no citation (path, sha256) of a G9-ref record "
-                       f"({cite!r}; None: the set is no look set there): no fit starts")
+                       f"({cite!r}; None: the gates package does not read {set_name}, {what}, as a look set): "
+                       "nothing starts (GATE_RULE)")
+    ctx = look_rule(set_name, body, seed, path)
+    if (ctx["cited"]["path"], ctx["cited"]["sha256"]) != (cite["path"], cite["sha256"]):
+        raise R2LError(f"{path}: the gates package and lookbar's look-set rule cite different G9-ref records "
+                       f"({cite['path']} {str(cite['sha256'])[:12]}..., {ctx['cited']['path']} "
+                       f"{str(ctx['cited']['sha256'])[:12]}...): nothing starts (GATE_RULE)")
     st = path.stat()
     return dict(cite, modified_at=datetime.fromtimestamp(st.st_mtime, timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%S.%fZ"), checked_by=f"{GATES2}.require_g9_ref", rule=GATE_RULE)
+        "%Y-%m-%dT%H:%M:%S.%fZ"), checked_by=f"{GATES2}.require_g9_ref", look_set_rule=ctx, rule=GATE_RULE)
 
 
 def start_key(rec: dict) -> dict:
@@ -896,7 +951,7 @@ def fit(body: str, set_name: str, seed: int = SEED, out=None, workers: int = 1, 
         raise ValueError(f"popsize {popsize!r}: at least 2")
     sd, d = set_body_dir(out, set_name, body), fit_dir(out, set_name, body, seed)
     rot_path, path, elog, lpath = d / "rotation.json", d / "cma.json", d / "evals.jsonl", d / "ledger.json"
-    gate_rec = gate(set_name, body)
+    gate_rec = gate(set_name, body, seed)
     start = speedfit.start_record(body)
     table = rotation(seed, GENERATIONS)
     settings = _settings(body, set_name, seed, start, budget_core_h, max_generations, popsize, table)
@@ -1162,10 +1217,12 @@ def select(body: str, set_name: str, seed: int = SEED, out=None, workers: int = 
            reported_core_h: float = REPORTED_CORE_H, *, log=print) -> dict:
     """Rule Q4's selection with rule Q5's budget (``SELECTION_RULE``, ``BUDGET_RULE``) into
     ``<out>/<set>/<body>/r2lg5.json``; the validation evaluations are kept in ``r2lg5_evals.jsonl`` and reused by a
-    rerun; the ledger gets the decisive and the reported cells."""
+    rerun; the ledger gets the decisive and the reported cells.  On a look set, or a version of one, it starts only
+    once G9-ref has passed (``GATE_RULE``, ``gate``; r2lg5.json's ``g9_ref``)."""
     out = _out(out)
     sd, d = set_body_dir(out, set_name, body), fit_dir(out, set_name, body, seed)
     path, lpath = d / "cma.json", d / "ledger.json"
+    gate_rec = gate(set_name, body, seed)
     src = sources()
     with s2io.Lock(sd / ".lock", log=log):
         s2io.sweep_tmp(sd)
@@ -1255,7 +1312,7 @@ def select(body: str, set_name: str, seed: int = SEED, out=None, workers: int = 
         rot = panels._read(d / "rotation.json") or {}
         res = dict(
             schema=SCHEMA, kind="selection", gate="R2L G5 (rule Q4)", body=body, set=set_name, seed=int(seed),
-            role=role, rules=RULES, objective=OBJECTIVE, judged=True, judged_at_generation=n_gen,
+            role=role, g9_ref=gate_rec, rules=RULES, objective=OBJECTIVE, judged=True, judged_at_generation=n_gen,
             fit_status=doc["status"],
             fit_ended=doc.get("ended"), rotation_met=doc.get("rotation_met"),
             fit_record=dict(path=s2io.portable(str(path.resolve())), sha256=s2io.sha256_file(path)),
@@ -1566,9 +1623,9 @@ def main(argv=None) -> int:
 
 __all__ = ["BUDGET_RULE", "CONDITIONS", "Evaluator", "EvalLog", "FITS", "INDEX", "KINDS", "LIMITS", "LOOK_SETS",
            "OBJECTIVE", "PUBLISH_RULE", "R2LError", "R2LRow", "ROTATION_RULE", "RULES", "SELECTION_RULE", "TRACKING",
-           "blank_episode", "coverage", "episode_terms", "failed_evaluation", "fit", "gate", "index_entry", "main",
-           "publish", "publish_files", "r2l_row", "read_index", "register", "role_of", "rotation", "run_slot", "scored",
-           "select", "selection_role", "sources", "spec_of", "validation_spec"]
+           "blank_episode", "coverage", "episode_terms", "failed_evaluation", "fit", "gate", "index_entry", "look_rule",
+           "look_set_of", "main", "publish", "publish_files", "r2l_row", "read_index", "register", "role_of", "rotation",
+           "row_name", "run_slot", "scored", "select", "selection_role", "sources", "spec_of", "validation_spec"]
 
 if __name__ == "__main__":
     from designlab.stage2 import r2lfit as _named  # the importable copy owns every class and all module state

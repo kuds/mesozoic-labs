@@ -1336,7 +1336,7 @@ def test_the_chain_parses_and_its_dry_run_prints_the_plan_in_order(tmp_path):
     r = _chain(tmp_path, TB_DRY="1")
     assert r.returncode == 0, r.stderr
     steps = _steps(r.stdout)
-    assert len(steps) == len(set(steps)) == 46
+    assert len(steps) == len(set(steps)) == 45  # (no V10-collect: ruling 35)
     # rule M3: S2-4 starts only after the check that its baseline is committed, which follows the baseline's copy
     i = steps.index("V8-baseline-committed")
     assert steps[i - 2:i + 2] == ["V8-baseline", "V8-baseline-copy", "V8-baseline-committed", "V8-s2-4"]
@@ -1483,6 +1483,62 @@ def test_s2_4_waits_until_rule_m3s_baseline_is_committed(tmp_path):
     assert r.returncode == 0, r.stdout + r.stderr
     assert "done V8-baseline-committed (stage2/tb/runs/s2-4/R0L_BASELINE.json is committed: " in r.stdout
     assert (done / "V8-baseline-committed").exists() and "designlab.stage2.train2 run --mode R5" in calls.read_text()
+
+
+def test_r2ls_fit_resumes_only_when_its_cma_json_exists_and_publish_is_its_collect(tmp_path):
+    """The lead's ruling 35 of 17 Nov 2026, point 3: step V10's fit passes --resume only when that fit's cma.json
+    exists (r2lfit refuses a resume of none, and a new fit over one), body by body; and the chain has no V10-collect
+    step (publish is R2L's collect; a copy of the whole work directory would publish what publish leaves out)."""
+    work = tmp_path / "work"
+    fits = {b: work / "r2l" / "V6noF5" / b / "r2lfit" / "42" for b in ("75-M-H-10", "60-N-T-10")}
+    r = _chain(tmp_path, TB_DRY="1")
+    assert r.returncode == 0, r.stderr
+    steps = _steps(r.stdout)
+    assert [s for s in steps if s.startswith("V10-")] == [
+        f"V10-r2l-{what}-{b}" for b in fits for what in ("rotation", "fit", "select", "publish")]
+    assert "collect --src " + str(work / "r2l") not in r.stdout and "--kind r2l" not in r.stdout
+
+    def dry_fit_lines():
+        out = _chain(tmp_path, TB_DRY="1").stdout
+        return [line for line in out.splitlines() if line.startswith("[V10-r2l-fit-")]
+
+    assert [line.endswith(f"--out {work / 'r2l'} --workers 2") for line in dry_fit_lines()] == [True, True]
+    # a real run with a python that records its calls, every step before V10 done: neither fit resumes
+    fake, calls = _fake_py(tmp_path)
+    done = work / "done"
+    done.mkdir(parents=True)
+    for name in steps:
+        if not name.startswith("V10-"):
+            (done / name).touch()
+            (done / f"{name}.x1").touch()
+    r = _chain(tmp_path, PY=str(fake))
+    assert r.returncode == 0, r.stdout + r.stderr
+
+    def fit_calls():
+        return [line for line in calls.read_text().splitlines() if "designlab.stage2.r2lfit fit " in line]
+
+    lines = calls.read_text().splitlines()
+    assert len(lines) == 8 and all("designlab.stage2.r2lfit " in line for line in lines)  # no collect of $W/r2l
+    assert [("--body " + b in line, line.split()[-2:]) for b, line in zip(fits, fit_calls(), strict=True)] == [
+        (True, ["--workers", "2"])] * 2
+    # the 75 cm fit was killed after its first checkpoint (its cma.json is there): the next run resumes it, and
+    # only it; the 60 cm fit, which has none, starts afresh
+    fits["75-M-H-10"].mkdir(parents=True)
+    (fits["75-M-H-10"] / "cma.json").write_text("{}\n")
+    for b in fits:
+        for what in ("fit", "select", "publish"):
+            (done / f"V10-r2l-{what}-{b}").unlink()
+    calls.unlink()
+    r = _chain(tmp_path, PY=str(fake))
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert [("--body " + b in line, line.endswith(f"--out {work / 'r2l'} --workers 2 --resume"),
+             line.endswith(f"--out {work / 'r2l'} --workers 2")) for b, line in zip(fits, fit_calls(), strict=True)] == [
+        (True, True, False), (True, False, True)]
+    assert len(calls.read_text().splitlines()) == 6
+    # the dry run prints the same
+    (done / "V10-r2l-fit-75-M-H-10").unlink()
+    (done / "V10-r2l-fit-60-N-T-10").unlink()
+    assert [line.endswith("--workers 2 --resume") for line in dry_fit_lines()] == [True, False]
 
 
 def test_a_failing_step_stops_the_chain_and_leaves_no_marker(tmp_path):
