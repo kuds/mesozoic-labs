@@ -577,3 +577,15 @@ The meter read $2,700.74 at 21:19 UTC, 97.3 %, with no reset showing. The lead s
   the resumed fixer decide what to keep.
 
 Resume as the 21:13 UTC block says.
+
+## Update, 17 Nov 2026, 01:13 UTC: the session resumes on another model
+
+The owner switched the session's model after the pause of 21:19 UTC on 16 Nov. The session's instructions now give
+other attribution lines for commits; every commit from here ends with them. The two workflows of 16 Nov are not
+resumed from their saved scripts, because their prompts carry the earlier lines: the stages that were cut (the
+rows package's and the notebook's fix rounds, the look sets' build) run from new scripts, with the lead's rulings
+of 17 Nov (`../ROUND_C_RULINGS_17NOV.md`). The worktrees hold the cut agents' work: `wt/wpc-cw` four modified
+files, uncommitted; `wt/wpc-cn` one more commit than at the stop; `wt/wp-l` one untracked set directory.
+
+**Usage.** The session's meter read $2,701.94 when work resumed. The owner's readings so far were per model; the
+lead takes this reading as the zero of the new model's allocation until the owner gives a percentage.
