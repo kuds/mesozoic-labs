@@ -2,7 +2,9 @@
 reference's own values against the bands, and the reference's values by kinematic playback of a track.
 
 Rules: ``STAGE2_TRACKB_PLAN.md`` U1 (the measures), U2 (the window), U3 (the bands and what is not read), U5 (the
-reference's values; too few steps); gate Z2 (G9-ref) parts (b) and (c) are read with the helpers at the end.  The
+reference's values; too few steps); the lead's ruling of 16 Nov 2026 on the tail's own amplitude
+(``stage2/design/TRACKB_RULINGS5_16NOV.md`` item 5; ``TAIL_AMP_MIN_RAD``), which the plan's wording does not hold
+yet; gate Z2 (G9-ref) parts (b) and (c) are read with the helpers at the end.  The
 readings of rule U4 (what "success with the look" is on which set and item, the stop item's
 ``on_command_at_stop``) and rule U6's companion record are not here: they are the row wrapper's (``lookbar``).  No
 module of the bar is edited, and ``bar`` itself is not imported at module level (``readings``, whose contact rule
@@ -25,7 +27,8 @@ contact after a step in (out of) it, by the 2 % load rule with the 20 ms debounc
 ``reading``   the four numbers over a window, from what lies inside the window alone (samples, lift-offs and
               touchdowns with ``ta <= t <= tb``; a value at a lift-off or touchdown is interpolated between the
               two poses around it), so that an episode's trace and a playback of the window are read alike.
-``compare``   the four terms against a reference's reading (``BANDS``, ``NOT_READ_RAD``, ``MIN_STEPS``).
+``compare``   the four terms against a reference's reading (``BANDS``, ``NOT_READ_RAD``, ``TAIL_AMP_MIN_RAD``,
+              ``MIN_STEPS``).
 ``playback``  the reference's reading: the track's own files placed in one world frame by ``bar._Played``, played
               at the nominal commanded clock over the window's reference times.  The playback begins ``LEAD_S``
               before the window (or at the track's start) and only the window is read: a contact change is an
@@ -63,6 +66,13 @@ MIN_STEPS = 4
 #: The tail term is not read when the reference's tail amplitude in the window is under this, the toe-off term when
 #: the reference's toe-off is (rad; rule U3).  Compared without slack: ``reference < NOT_READ_RAD``.
 NOT_READ_RAD = 0.02
+#: The tail term fails when the robot's own fitted tail amplitude in the window is under this while the reference's
+#: amplitude is read (rad; the lead's ruling of 16 Nov 2026, ``TRACKB_RULINGS5_16NOV.md`` item 5: a tail that does not
+#: swing cannot pass a reading of how it swings).  Compared without slack: ``own < TAIL_AMP_MIN_RAD``.
+TAIL_AMP_MIN_RAD = 0.02
+#: The mark that stands, in the bands' rule text, before a rule decision of the lead that the plan's wording does
+#: not hold yet.
+LEAD_RULING = "The lead's ruling of 16 Nov 2026 (TRACKB_RULINGS5_16NOV, item 5): "
 TERMS = ("bob", "head", "tail", "toe_off")
 #: The terms that are segmented by the robot's own steps, which too few steps fail (rule U5).
 STEP_TERMS = ("bob", "tail", "toe_off")
@@ -119,10 +129,16 @@ RULES = dict(
         f"in the window is under {NOT_READ_RAD:g} rad, the toe-off term when the reference's toe-off is under "
         f"{NOT_READ_RAD:g} rad; both then pass, labelled, and the reference's value and its side of the threshold "
         "are recorded.  "
+        + LEAD_RULING +
+        f"the tail term fails when the robot's fitted tail amplitude is under {TAIL_AMP_MIN_RAD:g} rad while the "
+        "reference's amplitude is read.  "
         + MODULE_READING +
         "a value of the robot's that cannot be computed fails its term.  The bob has no such threshold: against a "
-        "reference without a bob the term fails.  The tail term reads the phase alone: the ratio of the two "
-        "amplitudes is recorded and no band reads it."),
+        "reference without a bob the term fails.  The reference's amplitude is read when the tail term is: at or "
+        f"over {NOT_READ_RAD:g} rad in the window.  The robot's amplitude is the amplitude of the same fit that "
+        f"gives its phase, compared without slack: exactly {TAIL_AMP_MIN_RAD:g} rad is not under it, and an "
+        "amplitude that cannot be computed fails the term.  Both amplitudes and their ratio are recorded; no band "
+        "reads the ratio."),
     reference=(
         f"STAGE2_TRACKB_PLAN rule U5.  The reference's values are the same functions on a kinematic playback of "
         f"the episode's own track over the window's reference times at the nominal commanded clock ({RATE:g}).  "
@@ -324,8 +340,13 @@ def compare(own: dict, ref: dict) -> dict:
     amplitude, its tail phase where the tail is read, its toe-off.  A term is never left unread for want of the
     reference's value: only for a value under ``NOT_READ_RAD``.
     Beside them ``bob_ratio``, ``tail_phase_diff_cycles``, ``toe_off_ratio`` (None where a value of ``own`` is
-    missing, or the reference's is not above zero), ``tail_amp_ratio`` (recorded: no band reads the tail's
-    amplitude) and ``reference`` (its tail amplitude and toe-off, and the side of ``NOT_READ_RAD`` each lies on).
+    missing, or the reference's is not above zero), ``tail_amp_rad`` (the robot's own fitted amplitude),
+    ``tail_amp_side`` (its side of ``TAIL_AMP_MIN_RAD``, None where it cannot be computed), ``tail_amp_min_rad``,
+    ``tail_amp_ratio`` (recorded: no band reads the ratio) and ``reference`` (its tail amplitude and toe-off, and
+    the side of ``NOT_READ_RAD`` each lies on).
+    The tail term, where it is read, needs both: the phase inside its band and the robot's own amplitude not under
+    ``TAIL_AMP_MIN_RAD`` (the lead's ruling of 16 Nov 2026).  Where the reference leaves the tail unread, the
+    robot's amplitude is recorded and fails nothing.
     A value of ``own`` that is missing fails its term.  Limits are compared without slack."""
     if int(ref["steps"]) < MIN_STEPS or int(ref["lift_offs"]) < MIN_STEPS:
         raise LookError(f"the reference's own window holds {ref['steps']} steps and {ref['lift_offs']} lift-offs: at "
@@ -336,6 +357,7 @@ def compare(own: dict, ref: dict) -> dict:
     oh = _num(own.get("head_world_pitch_rms_deg"))
     ot, rt = own.get("tail") or {}, ref.get("tail") or {}
     r_amp, r_ph, o_ph = _num(rt.get("amp_rad")), _num(rt.get("phase_cycles")), _num(ot.get("phase_cycles"))
+    o_amp = _num(ot.get("amp_rad"))
     oo, ro = _num(own.get("toe_off_rad")), _num(ref.get("toe_off_rad"))
     tail_read = r_amp is not None and not r_amp < NOT_READ_RAD
     toe_read = ro is not None and not ro < NOT_READ_RAD
@@ -352,8 +374,9 @@ def compare(own: dict, ref: dict) -> dict:
     terms["head"] = bool(oh is not None and oh <= BANDS["head_world_pitch_rms_deg"])
     # tail
     diff = wrap_cycles(o_ph - r_ph) if (o_ph is not None and r_ph is not None) else None
-    if tail_read:
-        terms["tail"] = bool(diff is not None and abs(diff) <= BANDS["tail_phase_cycles"])
+    if tail_read:  # (the phase in its band, and a tail that swings: the lead's ruling of 16 Nov 2026)
+        terms["tail"] = bool(diff is not None and abs(diff) <= BANDS["tail_phase_cycles"]
+                             and o_amp is not None and not o_amp < TAIL_AMP_MIN_RAD)
     else:
         terms["tail"] = True
         not_read.append("tail")
@@ -366,13 +389,14 @@ def compare(own: dict, ref: dict) -> dict:
     if too_few:
         for k in STEP_TERMS:
             terms[k] = False
-    o_amp = _num(ot.get("amp_rad"))
 
-    def side(v):
-        return f"under {NOT_READ_RAD:g} rad" if v < NOT_READ_RAD else f"at or over {NOT_READ_RAD:g} rad"
+    def side(v, limit=NOT_READ_RAD):
+        return f"under {limit:g} rad" if v < limit else f"at or over {limit:g} rad"
 
     return dict(terms={k: terms[k] for k in TERMS}, ok=all(terms[k] for k in TERMS), not_read=not_read,
                 too_few_steps=bool(too_few), bob_ratio=ratio, head_world_pitch_rms_deg=oh, tail_phase_diff_cycles=diff,
+                tail_amp_rad=o_amp, tail_amp_side=None if o_amp is None else side(o_amp, TAIL_AMP_MIN_RAD),
+                tail_amp_min_rad=TAIL_AMP_MIN_RAD,
                 tail_amp_ratio=(o_amp / r_amp if (o_amp is not None and r_amp > 0.0) else None),
                 toe_off_ratio=(oo / ro if (oo is not None and ro > 0.0) else None),
                 steps=dict(own=int(own["steps"]), reference=int(ref["steps"]), needed=MIN_STEPS),

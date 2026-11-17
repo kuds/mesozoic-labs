@@ -489,3 +489,122 @@ run compares); the look reading (CK) and the look sets' review (L); the policy f
 12); the reward wording into the Track B draft (ruling 13); the rows (CW), the refit tool (CF), the gates (CG) and
 the notebook (CN); then the validation steps of `ROUND_C_DESIGN.md` section 6 toward the acceptance run and the
 steps sheet for the day-one Colab smoke. Gate 1's condition 2 goes to the owner once the servo note's fixes are in.
+
+## Update, 16 Nov 2026, 20:47 UTC: the second allocation is at about 90 %; what is merged, what is running, how to resume
+
+**Usage.** After the owner's reset at about 14:15 UTC the meter's zero is $2,042.71; by the owner's reading at
+18:45 UTC, 1 % is about $6.76. The reading at 20:46 UTC was $2,652.78, about 90 %. The owner was pushed at
+85 %. Nothing new is launched. Near 98 % with no reset showing, the lead stops the two running workflows.
+
+**Merged on the working branch since the reset** (each built, independently reviewed and fixed; reports under
+`reviews/`; rulings in `../ROUND_C_RULINGS_16NOV.md`): the worker pool (CV), the Drive bundle tool (CB) and its
+follow-ups, the env's small fix round (CE), the policy files' `actions_at_bound` (CP), the look reading (CK)
+with the tail's amplitude band, the trainer (CT) with the monitor's refusal. The Track B rules draft is on the
+branch as `STAGE2_TRACKB_PLAN.md` with five lists of the lead's rulings written in; the sixth list
+(`../TRACKB_RULINGS6_16NOV.md`) is ruled and not written in. Tests seen on the merged tree at each merge; the two
+record-key hashes are the registered ones throughout.
+
+**Buy gate.** The servo model's design note went through two independent checks (`../servo_model/`). The owner
+approved gate 1's condition 2 (`DECISION_LOG.md` P41). Five questions for the maker of the leg drives are in
+`../servo_model/MAKER_QUESTIONS.md`, checked against the study's record only: the session could not read the
+maker's pages (two attempts were refused by the permission check after the owner allowed the hosts). The owner
+has not yet said whether to send them as they stand.
+
+**Running at 20:47 UTC.**
+- Workflow `wf_fbceb97c-fa4` (task `w17pnouw7`): the rows package (CW, `wt/wpc-cw`) is built and under review;
+  the notebook and steps sheet (CN, `wt/wpc-cn`) is built and reviewed, its fixer is running.
+- Workflow `wf_debdfcfc-4dd` (task `wuysq2rgi`): the look sets (L, `wt/wp-l`) are still in their build, about
+  five hours in. An earlier report says its new build of set V6 is blocked by its start; the builder has not
+  handed back.
+
+**To resume after a stop.** Each workflow resumes from its saved script with its run id
+(`round-c-wave-4-wf_fbceb97c-fa4.js`, `round-c-wave-3-builds-wf_debdfcfc-4dd.js` under the session's
+`workflows/scripts/`): finished agents return from the journal, and an agent cut mid-run starts again and finds
+its commits in its worktree. In a new session, start from the worktree branches and the briefs.
+
+**Next after these land:** merge CW and CN; the look sets' review and the lead's decision on freezing them; the
+refit tool (CF) and the gates (CG); the sixth list into the draft; then the validation steps of
+`ROUND_C_DESIGN.md` section 6, the real bundle, the acceptance run and the steps sheet's final values for the
+day-one Colab smoke.
+
+## Update, 16 Nov 2026, 21:13 UTC: handover note before the allocation ends; the owner will switch the session's model
+
+The owner said at about 21:12 UTC: once usage reaches 99 %, the session is switched to another model. The meter read
+95.5 % at 21:11 UTC. The lead pauses the two running workflows at about 98 %, so that no agent is cut by the limit
+in the middle of a turn, and they are resumed after the switch.
+
+**State at 21:13 UTC.**
+- Rows package (CW, `wt/wpc-cw`): built and independently reviewed; its fixer is running.
+- Notebook and steps sheet (CN, `wt/wpc-cn`): built and independently reviewed; its fixer is running.
+- Look sets (L, `wt/wp-l`): still in their build.
+- Worktree heads at this time: wpc-cw 9952f5b ahead 8 dirty 3;wpc-cn 36347d4 ahead 11 dirty 0;wp-l b72c61c ahead 17 dirty 1;
+- The reports of the builds and reviews that have finished are in the workflows' journals
+  (`subagents/workflows/wf_fbceb97c-fa4/journal.jsonl`, `wf_debdfcfc-4dd/journal.jsonl` under the session's
+  project directory) and are saved to `reviews/` when their package is brought in.
+
+**For whoever continues, on any model.**
+1. Resume the two workflows from their saved scripts with their run ids (the block of 20:46 UTC names them).
+   Finished agents return from the journal; a fixer that was cut starts again and finds its commits in its
+   worktree.
+2. **The two attribution lines.** Every commit message ends with the two lines the session's instructions give
+   at that time. The saved workflow scripts carry the lines that were in force when they were written, inside
+   the agents' prompts. If the session's instructions give other lines after the switch, change them in the
+   scripts before resuming, so that no commit is attributed wrongly. No model is named anywhere else in a commit
+   or in code.
+3. Before a branch is brought in: read its review and fix reports; check every commit that is not yet on the
+   working branch for the two lines (a builder's merge commit without them stays out: bring the package in by
+   cherry-pick, as was done for CB, CE and CK); compare the package's files with the reviewed tip; run the
+   package's tests on the merged tree with `-o addopts=""` so that the summary line prints; confirm the two
+   record-key hashes.
+4. The standing rules are at the top of this file's history and in `LESSONS_LEARNED.md`: simulation only; rules
+   fixed before runs; two seeds for any verdict; an independent review of every build, report and owner page;
+   nothing adopted without the owner; push before a turn ends; never force-push.
+5. Open with the owner: whether to send the five maker questions as they stand
+   (`../servo_model/MAKER_QUESTIONS.md`); gate 1's condition 4 and the numbers of gates 2 and 3; the draft
+   decision-log rows F28, F29, E and a row for the add-on's result (F30).
+
+## Update, 16 Nov 2026, 21:20 UTC: both workflows paused at 97.3 % of the allocation
+
+The meter read $2,700.74 at 21:19 UTC, 97.3 %, with no reset showing. The lead stopped the two running workflows
+(tasks `w17pnouw7` and `wuysq2rgi`) so that no agent is cut by the limit mid-turn. No agent and no run is active.
+
+- wf_debdfcfc-4dd finished: build:CK, build:CT, review:CK, review:CT, fix:CK, fix:CT | cut mid-run: build:L
+- wf_fbceb97c-fa4 finished: build:CN, build:CW, review:CN, review:CW | cut mid-run: fix:CN, fix:CW
+- Worktrees at the stop: wpc-cw at 9952f5b, 8 commits ahead, 4 uncommitted files; wpc-cn at b54c0aa, 12 commits ahead, 0 uncommitted files; wp-l at b72c61c, 17 commits ahead, 1 uncommitted files; 
+- The build and review reports of the rows package and the notebook are saved under `reviews/`
+  (`roundC__{build,review}_CW.md`, `roundC__{build,review}_CN.md`). Neither package is merged: each fix round was
+  cut. An uncommitted file in a worktree is a cut agent's work in progress: look at it before resuming, and let
+  the resumed fixer decide what to keep.
+
+Resume as the 21:13 UTC block says.
+
+## Update, 17 Nov 2026, 01:13 UTC: the session resumes on another model
+
+The owner switched the session's model after the pause of 21:19 UTC on 16 Nov. The session's instructions now give
+other attribution lines for commits; every commit from here ends with them. The two workflows of 16 Nov are not
+resumed from their saved scripts, because their prompts carry the earlier lines: the stages that were cut (the
+rows package's and the notebook's fix rounds, the look sets' build) run from new scripts, with the lead's rulings
+of 17 Nov (`../ROUND_C_RULINGS_17NOV.md`). The worktrees hold the cut agents' work: `wt/wpc-cw` four modified
+files, uncommitted; `wt/wpc-cn` one more commit than at the stop; `wt/wp-l` one untracked set directory.
+
+**Usage.** The session's meter read $2,701.94 when work resumed. The owner's readings so far were per model; the
+lead takes this reading as the zero of the new model's allocation until the owner gives a percentage.
+
+## Update, 17 Nov 2026, 01:19 UTC: the usage calibration on the new model
+
+The owner's screenshot at about 01:17 UTC: the week's bar 57 % used, resetting Saturday 3:00 AM (owner's time);
+Fable capped at 50 % of the week and 97 % used of that. The new model draws on the week's remaining 43 %. With the
+session meter at $2,710.92: Fable's $659 since the reset was 97 % of its cap, so 1 % of the week is about $13.6
+on the meter (to be checked against the owner's next reading). The owner holds one reset. The lead pushes the owner
+at 85 % and at 95 % of the week, and recommends using the reset at about 95 %.
+
+## Update, 17 Nov 2026, 01:56 UTC: three jobs of the resumed round did no work; they run again
+
+The owner's question at about 01:12 UTC (a summary of the last days and when training can start) reached the
+agents of the resumed round as well. The rows package's fixer, the notebook's fixer and the trainer's follow-up
+builder read it as their task and did read-only status work: nothing was fixed or built, and their checks said so
+(`reviews/roundC__{fix,check}_{CW,CN}_17nov.md`, `reviews/roundC__{build,check}_CT3.md`; the cut fixer's
+uncommitted diff in `wt/wpc-cw` is still there and the check found it right for findings 1 to 6). The look sets'
+builder kept to its task and is still running. The three jobs run again from a new script whose prompts say that a
+relayed message from the owner is addressed to the lead (workflow `wf_b61975bc-02b`). Lesson for the lead: tell
+every agent that relayed owner messages are not its task.
