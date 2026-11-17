@@ -409,6 +409,7 @@ def stub(monkeypatch, tmp_path):
     from designlab.stage2 import train2
 
     REAL.setdefault("_validation", train2._validation)
+    REAL.setdefault("_g8a_short", train2._g8a_short)
     for name, fn in (("_env_configs", stub_configs), ("_env_specs", stub_specs), ("_g8a_short", stub_g8a),
                      ("_monitor_cmd", stub_monitor_cmd), ("_validation", stub_validation)):
         monkeypatch.setattr(train2, name, fn)
@@ -1309,6 +1310,57 @@ def test_g8a_fails_no_run(stub, tmp_path, monkeypatch):
     assert stub.main(["run", "--mode", "R5", "--body", "stub", "--seed", "42", "--out", str(out), "--tiny"]) == 0
     monkeypatch.setenv("PYTHONHASHSEED", "7")
     assert stub.main(["run", "--mode", "R5", "--body", "stub", "--seed", "42", "--out", str(out), "--tiny"]) == 4
+
+
+def _plain(x):
+    return json.loads(json.dumps(x))
+
+
+def test_g8a_on_a_look_set_keeps_the_forms_own_time_as_form_at(stub, tmp_path, monkeypatch):
+    """The lead's ruling 43 of 17 Nov 2026.  On a look set G8a's short form is the bar form (``g8a.bar_form``),
+    which stamps its own ``at``: the trainer keeps that time as ``form_at`` and stamps the record's ``at`` itself
+    (before the fix, ``dict() got multiple values for keyword argument 'at'``: S2-4's first start).  A synthetic look
+    set ``V6`` (``tests/test_stage2_r5lib.py``'s ``make_look``, frozen, in a temporary directory; not the study's look
+    set) and the trainer's own ``_g8a_short`` (tiny: ``walk/v0.4``, seed 3042, 0 and 10 ms, cut to 2 s); the env, the
+    monitor and the validation records are the stubs.  The record holds the form as it returned it, its time under
+    ``form_at``, and hashes to its own sha256; the run trains to its budget."""
+    from tests import test_stage2_r5lib as R
+
+    if not (R.HAVE and R.ONE_THREAD):
+        pytest.skip("needs the Stage 1 arrays and the round-two models (tools/restore_inputs.py) and one BLAS thread")
+    from designlab.stage2 import g8a, s2io
+
+    root = tmp_path / "sets"
+    R.make_look(root, set_name="V6", stand_in_walks=True)
+    real, forms = g8a.bar_form, []
+
+    def bar_form(*a, **k):  # (the synthetic set's root; the form itself unchanged)
+        forms.append(real(*a, **dict(k, root=root)))
+        return forms[-1]
+
+    monkeypatch.setattr(g8a, "bar_form", bar_form)
+    monkeypatch.setattr(stub, "_g8a_short", REAL["_g8a_short"])
+    out = tmp_path / "out"
+    d = run(stub, out, gates=True, body=BODY, set_name="V6", steps=ROLLOUT, checkpoint_every=ROLLOUT,
+            monitor_every=ROLLOUT)
+    (form,) = forms
+    assert form["set"] == "V6" and form["cut_s"] == 2.0 and isinstance(form["at"], str)
+    jd = job(out, f"R5-{BODY}-s42")
+    rec = json.loads((jd / "gates" / "g8a.json").read_text())
+    own = ("schema", "job", "run_uuid", "tiny", "session", "at", "sha256")
+    assert {k: rec[k] for k in own[:5]} == dict(schema="s2-run-g8a-1", job=f"R5-{BODY}-s42", run_uuid=d["run_uuid"],
+                                                 tiny=True, session=0)
+    assert rec["form"] == "bar" and rec["form_at"] == form["at"] and isinstance(rec["at"], str)
+    assert rec["at"] >= rec["form_at"] and d["sessions"][0]["started_at"] <= rec["at"]
+    assert {k: v for k, v in rec.items() if k not in own + ("form", "form_at")} == _plain(
+        s2io.plain({k: v for k, v in form.items() if k != "at"}))
+    assert rec["passes"] is True and (rec["identical"], rec["of"]) == (2, 2) and rec["not_run"] == []
+    assert [(e["condition"], e["seed"], e["row"]) for e in rec["episodes"]] == [("walk/v0.4", 3042, "R0@0ms"),
+                                                                                ("walk/v0.4", 3042, "R0@10ms")]
+    assert rec["sha256"] == s2io.sha256_json({k: v for k, v in rec.items() if k != "sha256"})
+    assert d["gates"]["g8a"] == dict(record="gates/g8a.json", sha256=rec["sha256"], passes=True, identical=2, of=2,
+                                     form="bar")
+    assert d["status"] == "done" and d["num_timesteps"] == ROLLOUT and d["stopped"] is None
 
 
 def test_the_cli_hands_its_arguments_to_train(stub, tmp_path, monkeypatch):
