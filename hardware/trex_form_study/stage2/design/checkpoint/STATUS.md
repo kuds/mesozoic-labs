@@ -724,3 +724,31 @@ and the chain's `--resume` on V10); the servo model's S1 low points and S2 (the 
   - V13, the steps sheet;
   - then the owner's day-one Colab smoke.
 - **Meter:** 79 % at $3,401 (owner's reading, 17:14 UTC); 1 % is about $25; 85 % is about $3,551.
+
+## Update, 17 Nov 2026, ~21:35 UTC: launch preparation (handover)
+
+- **Owner's decisions since 19:20 UTC:**
+  - P44: go on to Colab after S2-4's no gain. S2-4 ran 2,007,040 steps; at 2.0 M, 14 of 15 episodes stayed up with
+    mean survival 25.04 s, but N was 0 against the baseline's 6.
+  - P45: Drive uploads approved.
+  - P46: the bundle reaches Colab on a data branch, because the Drive connector carries only about 3.1 MB per file
+    (`stage2/tb/validation/drive_route.json`). A 170 kB dummy file is left on the owner's Drive in
+    mesozoic-labs/stage2/route-test.
+- **Rulings:** 43 (the trainer fix; S2-4 started afresh) and 44 (launch series 1 is the plain 75 cm head only; the -X
+  head's learning-rate probe runs now because of rule O; the sheet names the rules by path and sha256 at C1).
+- **Bundle s2-b1:** 75-M-H-10, V6 freeze 0, content 9227d8a0bf0b…, 3 parts (models 972,800 bytes; V6 parts
+  16,281,600 and 16,558,080 bytes). Checked sound and deterministic.
+  - C1 candidate: b914088bee0507f5d90a7333d157a6b72491dd36.
+  - Data branch: `claude/mesozoic-trex-stage2-bundle-s2-b1` at ecf95a81. It is pushed, and a fresh fetch gives each
+    part's sha256 as built.
+  - Worktree of the data branch: /home/user/mesozoic-wt/bundle-s2-b1.
+- **Running:** wf_3015694a-f41, rule O's learning-rate probe on 75-M-H-10-X, with a check that returns body_rate. If
+  the body's rate for later runs changes from 1e-5, C1 becomes the commit that holds the new `lr_probe.json`.
+- **Next:**
+  - V12, the acceptance run from a fresh clone of C1 with BUNDLE_SOURCE `git:<data branch>`;
+  - V13, the steps sheet C2: C1's SHA, the tag s2-launch-1, the bundle id and content hash, BUNDLE_SOURCE git, the
+    queue for 75-M-H-10 only, and the rules by sha256;
+  - then the sheet goes to the owner for the day-one Colab smoke.
+- **Parked:** 60 cm (P43); servo S4; the -X preconditions (V0); add-on items B and C; R2L fits (V10).
+- **Meter:** 79 % at $3,401 (owner, 17:14 UTC); 1 % is about $25; $3,505 at 21:33 UTC is about 83.1 %; 85 % is
+  about $3,551.
