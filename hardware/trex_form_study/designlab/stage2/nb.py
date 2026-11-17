@@ -14,7 +14,7 @@ module's ``child`` entry, a subprocess whose functions import them (never this m
     python -m designlab.stage2.nb collect --src DIR --dst DIR --kind run|bar|r2l
     python -m designlab.stage2.nb hours --runs-root DIR [--out stage2/tb/hours.json]
     python -m designlab.stage2.nb local-run --drive DIR [--notebook stage2/stage2_training.ipynb] [--params FILE]
-                                  [--record PATH]
+                                  [--record PATH] [--no-remedies]
     python -m designlab.stage2.nb acceptance --ref <40 hex> --parts DIR --scratch DIR --record PATH [--notebook PATH]
     python -m designlab.stage2.nb child {read-inputs|archive-preflight|envs|g8a} ...     # this module's own children
 
@@ -3550,14 +3550,101 @@ def _drill_checks(drill: dict, params: dict) -> dict:
     return out
 
 
-def local_run(notebook, drive_dir, params, record=None) -> dict:
+#: Design 3.10 step 6 (``_remedies``): the cells of its sessions.  Lines 2 and 3 are the drill's, in the same
+#: checkout, whose inputs the drill's resume has unpacked: cells 4 and 5 are not run again.
+REMEDY_CELLS = (1, 2, 3, 7, 8)
+#: What ``_remedies`` fakes in the job's ``run.json`` (its last session's version of this library).
+FAKED_VERSION = ("numpy", "0.0.0-faked-for-design-3.10-step-6")
+
+
+def _remedies(notebook, params: dict, logs: Path, cwd) -> dict:
+    """Design 3.10 step 6, ``ALLOW_SOURCE_CHANGE`` and ``ALLOW_VERSION_CHANGE`` "each exercised with a faked session
+    record", as the lead's ruling 2 of 17 Nov 2026 has them: from ``LEAD.json`` beside the run, never from the
+    owner's cell 1.  A run of its own (``<RUN_ID>-remedies``: the queue's first job, tiny) in the checkout ``cwd``
+    (``REMEDY_CELLS``):
+
+    0. a session ended with SIGKILL once the job's first checkpoint is on the stand-in Drive, and its local run
+       directory deleted (a dead runtime);
+    1. the faked records: ``QUEUE.json``'s commit (as if the run had been made at another commit) and, in the
+       job's ``run.json``, its last session's ``FAKED_VERSION`` (as if it had trained on other library versions);
+    2. a RESUME (TAKEOVER: ``LIVE.json`` is fresh), refused by the session (rule K6: another commit and no
+       ``allow_source_change``); nothing written;
+    3. ``LEAD.json`` with ``allow_source_change``; a RESUME (TAKEOVER) that the session accepts and the trainer
+       refuses (exit code 4: other library versions): no ``HALT.json``, ``LIVE.json`` closed (ruling 2);
+    4. ``LEAD.json`` with ``allow_version_change`` too; a RESUME (no TAKEOVER: ``LIVE.json`` was closed) that
+       reaches DONE, with both remedies in the session's record and the version change in the job's ``run.json``.
+
+    Returns ``{run_id, drive_run, kill, faked, attempts, checks}``."""
+    first = parse_queue(params["QUEUE"])[0]
+    p = load_params(dict(params, RUN_ID=f"{params['RUN_ID']}-remedies", QUEUE=[first["entry"]], RESUME=False,
+                         TAKEOVER=False, ALLOW_SOURCE_CHANGE=False, ALLOW_VERSION_CHANGE=False, RETRY_CHECK=False))
+    d, lrun, _ = run_dirs(p["RUN_ID"], p["DRIVE_DIR"], p["LOCAL_DIR"])
+    jd = d / "jobs" / first["job"]
+
+    def copied():
+        have = [n for n in _drive_checkpoints(jd) if n > 0]
+        return f"checkpoint {min(have)} of {first['job']} is on the stand-in Drive" if have else None
+
+    def lead(**doc) -> None:
+        _write_json(d / "LEAD.json", dict(schema=LEAD_SCHEMA, **doc, written_at=_now(),
+                                          note="design 3.10 step 6: the lead's remedies after a faked record"))
+
+    def attempt(name: str, **over) -> dict:
+        return run_cells(notebook, dict(p, **over), logs / f"remedies-{name}.log", cwd, cells=REMEDY_CELLS)
+
+    a = run_cells(notebook, p, logs / "remedies-0.log", cwd, cells=REMEDY_CELLS, until=copied)
+    kill = dict(at=_now(), after_s=a["seconds"], when=a["killed"], on_drive=_drive_checkpoints(jd))
+    shutil.rmtree(lrun, ignore_errors=True)
+    q, run = _read_json(d / "QUEUE.json"), _read_json(jd / "run.json")
+    faked = dict(queue_commit=None, run_commit=None, version=None)
+    if isinstance(q, dict) and isinstance(run, dict) and run.get("sessions"):
+        faked.update(run_commit=q.get("commit"), queue_commit="0" * 40)
+        _write_json(d / "QUEUE.json", dict(q, commit=faked["queue_commit"]))
+        last = run["sessions"][-1]
+        key, value = FAKED_VERSION
+        faked["version"] = dict(key=key, was=(last.get("versions") or {}).get(key), now=value)
+        last["versions"] = dict(last.get("versions") or {}, **{key: value})
+        _write_json(jd / "run.json", run)
+    b = attempt("1-refused-source", RESUME=True, TAKEOVER=True)
+    sessions_after_b = sorted(x.name for x in d.glob("SESSION_*.json"))
+    lead(allow_source_change=True)
+    c = attempt("2-refused-by-the-trainer", RESUME=True, TAKEOVER=True)
+    halt_after_c, live_after_c = (d / "HALT.json").exists(), _read_json(d / "LIVE.json") or {}
+    lead(allow_source_change=True, allow_version_change=True)
+    e = attempt("3-done", RESUME=True)
+    recs = sorted(d.glob("SESSION_*.json"), key=lambda f: int(re.sub(r"\D", "", f.name) or 0))
+    last_session = _read_json(recs[-1]) if recs else {}
+    run = _read_json(jd / "run.json") or {}
+    sess = run.get("sessions") or []
+    checks = dict(
+        remedies_killed=bool(a["killed"]) and a["exit_code"] != 0,
+        remedies_faked=faked["version"] is not None,
+        source_change_refused_without_lead=b["exit_code"] != 0 and "only with allow_source_change" in b["text"]
+        and sessions_after_b == ["SESSION_0.json"],
+        version_change_refused_by_the_trainer="S2 launch: REFUSED: " in c["text"] and "(exit code 4)" in c["text"]
+        and not halt_after_c and str(live_after_c.get("closed_reason") or "").startswith("refused: "),
+        resumed_to_done_with_the_leads_remedies=e["exit_code"] == 0
+        and (_read_json(d / "DONE.json") or {}).get("state") == "done"
+        and bool(last_session.get("allow_source_change")) and bool(last_session.get("allow_version_change"))
+        and bool(last_session.get("source_change")) and isinstance(last_session.get("lead"), dict),
+        version_change_recorded_by_the_trainer=bool(sess) and sess[-1].get("version_change") is True
+        and run.get("status") == "done")
+    return dict(run_id=p["RUN_ID"], drive_run=str(d), kill=kill, faked=faked, checks=checks,
+                attempts={k: dict(exit_code=v["exit_code"], killed=v["killed"], seconds=v["seconds"], log=v["log"],
+                                  lines={str(n): rows for n, rows in v["lines"].items() if rows})
+                          for k, v in dict(session0=a, refused_source=b, refused_by_the_trainer=c, done=e).items()})
+
+
+def local_run(notebook, drive_dir, params, record=None, remedies: bool = True) -> dict:
     """Development (design 3.10's last sentence): the notebook's cells 1-5 and 7-8 executed as Python in this
     checkout with ``S2_PARAMS``, on the Stage 1 view with ``--tiny`` and a directory standing in for Drive
     (``drive_dir``); the launcher's session ended with SIGKILL once the first job's first checkpoint is on the
-    stand-in Drive; the local run directory deleted; then ``_drill``'s resumes.  ``params`` replaces the defaults
-    (a queue of a tiny R5 and a tiny R6 job on ``75-M-H-10``, 2 workers, a 2 s period); a run that is not tiny is
-    refused.  Returns the record (``LOCAL_RUN_SCHEMA``; written to ``record`` when given): the attempts' lines,
-    the kill point, the checks, the seconds and whether ``git status --porcelain`` of this checkout changed."""
+    stand-in Drive; the local run directory deleted; then ``_drill``'s resumes; then, with ``remedies``, design
+    3.10 step 6 as the acceptance run makes it (``_remedies``: one more tiny job, the lead's remedies from
+    ``LEAD.json`` after a faked record).  ``params`` replaces the defaults (a queue of a tiny R5 and a tiny R6 job
+    on ``75-M-H-10``, 2 workers, a 2 s period); a run that is not tiny is refused.  Returns the record
+    (``LOCAL_RUN_SCHEMA``; written to ``record`` when given): the attempts' lines, the kill point, the checks, the
+    seconds and whether ``git status --porcelain`` of this checkout changed."""
     drive = _anchored(drive_dir).resolve()
     head = repo_state()
     p = dict(RUN_ID="local-" + time.strftime("%Y%m%d-%H%M%S"), QUEUE=["R5:75-M-H-10:42", "R6:75-M-H-10:42"],
@@ -3580,6 +3667,9 @@ def local_run(notebook, drive_dir, params, record=None) -> dict:
     t0 = time.time()
     drill = _drill(notebook, p, logs, lambda i: study(), copied)
     checks = _drill_checks(drill, p)
+    rem = _remedies(notebook, p, logs, study()) if remedies else None
+    if rem is not None:
+        checks.update(rem["checks"])
     after = _git("status", "--porcelain")
     checks["git_status_unchanged"] = before is not None and before == after
     rec = _stamped(dict(
@@ -3588,8 +3678,8 @@ def local_run(notebook, drive_dir, params, record=None) -> dict:
         attempts={k: dict(exit_code=v["exit_code"], killed=v["killed"], seconds=v["seconds"], log=v["log"],
                           lines={str(n): rows for n, rows in v["lines"].items() if rows})
                   for k, v in drill["attempts"].items()},
-        git_status_before=before, git_status_after=after, commit=head["commit"], dirty=head["dirty"], at=_now(),
-        note="development on the Stage 1 view; nothing here is a record of a run"))
+        remedies=rem, git_status_before=before, git_status_after=after, commit=head["commit"], dirty=head["dirty"],
+        at=_now(), note="development on the Stage 1 view; nothing here is a record of a run"))
     if record is not None:
         _write_json(_anchored(record), rec)
     _say(f"S2 LOCAL RUN {p['RUN_ID']}: {'OK' if rec['ok'] else 'FAILED'} in {rec['seconds']:.0f} s"
@@ -3621,7 +3711,8 @@ def acceptance(notebook, ref, parts_dir, scratch, record) -> dict:
     tiny R6 job on ``75-M-H-10`` and set V6, preflight over every body of the bundle; the launcher's session ended
     with SIGKILL at the moment a ``.part`` file exists on the stand-in Drive; the clone and the whole local
     directory deleted (a dead VM loses both: the run directory and the inputs' local copies); a second clone;
-    ``_drill``'s resumes; then the record ``ACCEPTANCE.json`` (``ACCEPTANCE_SCHEMA``).  ``scratch`` is deleted
+    ``_drill``'s resumes; step 6's remedies after a faked record (``_remedies``, in the second clone); then the
+    record ``ACCEPTANCE.json`` (``ACCEPTANCE_SCHEMA``).  ``scratch`` is deleted
     first, so it must be new, empty or an earlier acceptance run's own (``ACCEPTANCE_MARK``); any other directory
     is refused.
 
@@ -3712,6 +3803,10 @@ def acceptance(notebook, ref, parts_dir, scratch, record) -> dict:
     # (STUDY_DIR stays unset: the cells then take their working directory, which is each attempt's clone)
     drill = _drill(notebook, dict(p, STUDY_DIR=None), scratch / "logs", cwd_of, part_exists, wipe=dead_vm)
     checks = _drill_checks(drill, p)
+    # step 6's two flags with a faked record, as the lead's ruling 2 of 17 Nov 2026 has them (LEAD.json), in the
+    # second clone, whose inputs the drill's resume has unpacked
+    rem = _remedies(notebook, dict(p, STUDY_DIR=None), scratch / "logs", cwd_of(1))
+    checks.update(rem["checks"])
     at = drill["attempts"]
     jobs = parse_queue(p["QUEUE"])
     r5 = d / "jobs" / jobs[0]["job"]
@@ -3753,8 +3848,11 @@ def acceptance(notebook, ref, parts_dir, scratch, record) -> dict:
         sessions=[_read_json(f) for f in sorted(d.glob("SESSION_*.json"))], versions=versions(pins()),
         takeover_note="the resume ran with TAKEOVER: LIVE.json is fresh right after the kill, and the session "
                       "before it, without TAKEOVER, was refused as rule K7 asks",
-        not_done=["ALLOW_VERSION_CHANGE and ALLOW_SOURCE_CHANGE with a faked session record (design 3.10 step 6) "
-                  "are not exercised by this function"],
+        remedies=rem,
+        step6_note="design 3.10 step 6: a third session on the finished run refused (refused_finished), a second "
+                   "session while LIVE.json is fresh refused (refused_live), and the two remedies of rule K4 and K6 "
+                   "each exercised with a faked record, from LEAD.json (the lead's ruling 2 of 17 Nov 2026; "
+                   "remedies: its sessions run cells 1-3 and 7-8 in the second clone)",
         at=_now(), rule="rule N5; design 3.10"))
     _write_json(_anchored(record), rec)
     _say(f"S2 ACCEPTANCE {ref[:12]} bundle {bundle_id}: {'OK' if rec['ok'] else 'FAILED'} in {rec['seconds']:.0f} s"
@@ -3868,6 +3966,7 @@ def main(argv=None) -> int:
     a.add_argument("--drive", required=True, help="a directory standing in for Drive (scratch, or stage2/tb/work/...)")
     a.add_argument("--params", default=None, help="a JSON file of parameters over the defaults")
     a.add_argument("--record", default=None)
+    a.add_argument("--no-remedies", action="store_true", help="leave out design 3.10 step 6's remedies (_remedies)")
     a = sub.add_parser("acceptance", help="design 3.10: a fresh clone and the bundle; kill; resume (the lead's step)")
     a.add_argument("--notebook", default=NOTEBOOK)
     a.add_argument("--ref", required=True)
@@ -3892,7 +3991,8 @@ def main(argv=None) -> int:
             return EXIT_OK
         if args.cmd == "local-run":
             extra = _read_json(args.params) if args.params else {}
-            return EXIT_OK if local_run(args.notebook, args.drive, extra, args.record)["ok"] else EXIT_FAILED
+            rec = local_run(args.notebook, args.drive, extra, args.record, remedies=not args.no_remedies)
+            return EXIT_OK if rec["ok"] else EXIT_FAILED
         return EXIT_OK if acceptance(args.notebook, args.ref, args.parts, args.scratch, args.record)["ok"] \
             else EXIT_FAILED
     except Refused as exc:

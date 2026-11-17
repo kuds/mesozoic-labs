@@ -104,6 +104,13 @@ if run is None and a.resume:
 if p.get("refuse"):
     print("stub: Refused: other settings than the run's", file=sys.stderr)
     sys.exit(4)
+VERSIONS, version_change = dict(numpy="stub-1"), False      # (train2's rule K4 on the library versions)
+if a.resume and run is not None and run["sessions"] and run["sessions"][-1].get("versions") not in (None, VERSIONS):
+    if not a.allow_version_change:
+        print("stub: Refused: other library versions than the run's last session (pass --allow-version-change to "
+              "resume on them, flagged)", file=sys.stderr)
+        sys.exit(4)
+    version_change = True
 if run is None:
     run = dict(schema="s2-run-1", run_uuid="uuid-" + job, run_id=a.run_id, job=job, mode=a.mode, body=a.body,
                status="running", num_timesteps=0, budget=budget, sessions=[], stopped=None, halt=None,
@@ -149,7 +156,8 @@ n = max(have(), default=0) if a.resume else 0
 k = len(run["sessions"])
 run["sessions"].append(dict(index=k, resumed_from=n if a.resume and have() else None, pid=os.getpid(),
                             host=socket.gethostname(), fingerprint_max_abs_diff=0.0 if a.resume else None,
-                            skipped_checkpoints=[], workers=a.workers, argv=sys.argv[1:]))
+                            skipped_checkpoints=[], workers=a.workers, argv=sys.argv[1:], versions=VERSIONS,
+                            version_change=version_change))
 run["status"] = "running"
 write(run_path, run)
 if p.get("halt"):
@@ -2412,8 +2420,13 @@ def test_the_acceptance_runs_plumbing_on_stubs(tmp_path, monkeypatch):
                     first_job="R5-75-M-H-10-s42", kill=dict(when="model_1024.zip.part exists (a copy in progress)"),
                     attempts=dict(session0=one, refused_live=one, session1=one, refused_finished=one))
 
+    def remedies(notebook, params, logs, cwd):
+        seen["remedies_cwd"] = cwd
+        return dict(run_id=params["RUN_ID"] + "-remedies", checks=dict(remedies_stand_in=True))
+
     monkeypatch.setattr(nb, "_drill", drill)
     monkeypatch.setattr(nb, "_drill_checks", lambda drill, params: dict(stand_in=True))
+    monkeypatch.setattr(nb, "_remedies", remedies)
     rec = nb.acceptance("stage2/stage2_training.ipynb", ref, parts, scratch, tmp_path / "ACCEPTANCE.json")
     assert json.loads((tmp_path / "ACCEPTANCE.json").read_text())["sha256"] == rec["sha256"]
     # design 3.10: the remote URL, ls-remote's SHA, the clone's HEAD, the content hash, the G8a counts per body
@@ -2423,7 +2436,10 @@ def test_the_acceptance_runs_plumbing_on_stubs(tmp_path, monkeypatch):
     assert rec["checks"]["head_is_ref"] and rec["checks"]["fresh_clones_hold_nothing_ignored"]
     assert rec["checks"]["content_hash"] and rec["checks"]["g8a_every_body"] and rec["bodies"] == ["B1"]
     # step 4: a dead VM loses the clone and its whole local disk; the stand-in Drive keeps the parts
+    assert seen.pop("remedies_cwd") == scratch / "clone2" / "study"            # step 6 runs in the second clone
     assert seen == dict(clone_gone=True, local_gone=True, on_drive=["models-B1.tar"])
+    assert rec["checks"]["remedies_stand_in"] and rec["remedies"]["run_id"] == "acceptance-remedies"
+    assert "not_done" not in rec and "step 6" in rec["step6_note"]
     # the scratch directory is marked as this function's own, so a second run may delete and remake it
     assert (scratch / nb.ACCEPTANCE_MARK).is_file()
     (scratch / "left-over.txt").write_text("of the first run")
@@ -2431,6 +2447,44 @@ def test_the_acceptance_runs_plumbing_on_stubs(tmp_path, monkeypatch):
     assert again["clone_head"] == ref and not (scratch / "left-over.txt").exists()
     assert nb.g8a_counts([nb.line3("B2", "V6", 1, 2, 5000, "the gate ended with exit code 1"), "noise"]) == {
         "B2": dict(set="V6", identical=1, of=2, steps=5000, passes=False)}
+
+
+def test_design_3_10_step_6_the_leads_remedies_after_a_faked_record(tmp_path, stubs, monkeypatch):
+    """Design 3.10 step 6 as the lead's ruling 2 of 17 Nov has it (``_remedies``, which ``acceptance`` and
+    ``local_run`` run), on the stub trainer through the notebook's own cells: a session killed once its job's first
+    checkpoint is on the stand-in Drive; a faked record (QUEUE.json's commit, the job's last session's library
+    versions); a resume refused for the commit; LEAD.json's allow_source_change, and a resume that the trainer
+    refuses for the versions (exit code 4: no HALT.json); LEAD.json's allow_version_change too, and a resume to
+    DONE.  As built, step 6 was not done by acceptance at all ("not_done")."""
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.05, budget=512 * 200)}))
+    real, logs = nb.run_cells, []
+
+    def run_cells(*a, **k):
+        res = real(*a, **k)
+        logs.append(Path(a[2]).name)
+        os.environ["STUB_PLAN"] = json.dumps({"*": dict(tick=0.0, budget=512 * 200)})   # (later sessions: at once)
+        return res
+
+    monkeypatch.setattr(nb, "run_cells", run_cells)
+    p = _params(tmp_path, RUN_ID="acc", REPO_REF=nb.repo_state()["commit"], PERIOD_S=0.2, CLIPS=False,
+                STUDY_DIR=str(STUDY))
+    rem = nb._remedies(NOTEBOOK, p, tmp_path / "logs", STUDY)
+    assert rem["checks"] and all(rem["checks"].values()), json.dumps(rem, indent=1)[:4000]
+    assert logs == ["remedies-0.log", "remedies-1-refused-source.log", "remedies-2-refused-by-the-trainer.log",
+                    "remedies-3-done.log"]
+    d = tmp_path / "drive" / "runs" / "acc-remedies"
+    assert rem["run_id"] == "acc-remedies" and rem["faked"]["queue_commit"] == "0" * 40
+    assert rem["faked"]["version"] == dict(key="numpy", was="stub-1", now=nb.FAKED_VERSION[1])
+    assert sorted(x.name for x in d.glob("SESSION_*.json")) == ["SESSION_0.json", "SESSION_1.json", "SESSION_2.json"]
+    s1, s2 = (json.loads((d / f"SESSION_{k}.json").read_text()) for k in (1, 2))
+    assert s1["ended"]["state"] == "refused" and s1["allow_source_change"] and not s1["allow_version_change"]
+    assert s2["lead"]["doc"]["allow_version_change"] is True and s2["source_change"] is True
+    assert not (d / "HALT.json").exists() and json.loads((d / "DONE.json").read_text())["state"] == "done"
+    argv = [c["argv"] for c in _calls(dict(p, RUN_ID="acc-remedies"))]
+    assert "--allow-source-change" in argv[-2] and "--allow-version-change" not in argv[-2]
+    assert "--allow-version-change" in argv[-1] and "--resume" in argv[-1]
+    run = json.loads((d / "jobs" / "R5-B1-s42" / "run.json").read_text())
+    assert run["sessions"][-1]["version_change"] is True and run["sessions"][-1]["resumed_from"] >= 1024
 
 
 @needs_git
