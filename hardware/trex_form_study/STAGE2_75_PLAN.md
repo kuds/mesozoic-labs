@@ -231,6 +231,8 @@ true`, `move.command_phase` a multiple of 0.5, `join_command` (model CoM within 
 the command frame, joints within 1e-3 rad at it, multibody ZMP within 2.0 mm up to two frames before it; the ZMP at the
 command frame recorded, not gated).
 
+[note, 17 Nov 2026, after the independent review of the join code (`stage2/design/checkpoint/reviews/roundC__review_JR_17nov.md`; ruling 28 of `stage2/design/ROUND_C_RULINGS_17NOV.md`); records of the three frozen sets unchanged] As built, the preview controller of a causal move takes its grid from the smallest frame interval of the whole plan, which can lie after the command, so a move's warm-up and its state at the command depend slightly on the move. The three frozen sets were built so and their records stand: their warm-up ZMP readings are all within 4.0 mm (V0 1.349, 1.289, 2.114; F25F9 2.083, 3.485; F25F9cl 1.249, 2.321, 1.307 mm) and their joints at the command within 1e-3 rad. The look sets take the grid from the frames up to the command.
+
 **A7. Gates of every move.** [S1 for G3's limits; NEW for the rest; constants (prototype)] `ik_ok`; last stride against
 the periodic walk (or the stand): CoM within 1.0 mm, multibody ZMP within 2.0 mm (G3); non-causal moves: first stride
 the same, final ZMP error at most 4.0 mm; causal moves: `join_command` (A6), consistency error at most 2.5 mm, the

@@ -196,3 +196,42 @@ Ruled before any look set is frozen and before any closed-loop episode on one.
     (ruling 24). So `sets.py` leaves the test's list with this reason, as `barreport.py` did. The other files of
     the list stay; `moves.py` is unchanged by the package. D18's text in `ROUND_C_DESIGN.md` carries the
     amendment. The next independent check of a round C package reads this change.
+
+## The join-code review (`checkpoint/reviews/roundC__review_JR_17nov.md`, sha256 `b3ff457673d537f65d8821c1910c27b6bebc7eb27acd43f0d0e0e96d9424212a`), ruled 17 Nov 2026, ~06:55 UTC
+
+This is the independent review of the join code that L12 requires, ordered by ruling 19. Its record is the file
+named above. Every rebuilt look set names it, by path and sha256, in `set.json` `rules`. Ruled before any look
+set is frozen and before any closed-loop episode on one.
+
+28. **The preview grid of a causal move is made causal on the look sets (review, gate 3).** A6 says that the
+    preview controller first sees the command at the command frame. But `moves.com_path_causal` takes its grid,
+    and so its gains, preview length and switch frame, from the smallest frame interval of the whole plan, and on
+    the V6 turns that interval lies after the command (the turn's quicker steps, or window b's fade-in). So the
+    warm-up, and `join_command`'s warm-up reading, depend on what comes after the command. On the V6 turns of
+    75-M-H-10 this is the whole spread of 5.54, 4.40 and 3.54 mm (left) at stride factors 1.0, 0.8 and 0.6.
+    **This is a code error against A6, not a rule change.** On the look sets, a causal move's controller run
+    takes its grid from the frames up to the command frame alone, `min(diff(t[:k_cmd + 1]))` (5.2244 ms on
+    every V6 move). Everything else stays as coded, and every gate of the move, after the command included, is
+    read again on the rebuilt arrays. `moves.py` is not edited (D18). The look path passes this grid from
+    `moves_look.py`; if no path exists without a change to `moves.py`, the builder stops and reports it to
+    the lead. The round's three frozen sets keep their records: they were built with the same grid, and their
+    warm-up readings are all within 4.0 mm (V0: 1.349, 1.289 and 2.114 mm; F25F9: 2.083 and 3.485 mm; F25F9cl:
+    1.249, 2.321 and 1.307 mm; joints at the command within 1e-3 rad). A6 gains a dated note that records this
+    and says the records stand. The review's scratch reading on the causal grid: the left turns read 4.621 mm
+    (over 4.0 mm, at every stride factor), the right turns and the stop read 3.868 mm.
+29. **Cut 3 is not taken where it does not lower the failing reading.** **Changed after a result**: the review's
+    scratch probes of 17 Nov, prescribed motion only, before any look set was frozen and before any Track B run.
+    L12 takes cut 3 for a causal move that fails `join_command`. On 75-M-H-10, at cut 3's leave point (the
+    window's boundary) and on the causal grid, the same reading is 4.038 mm for the left turns and 4.361 mm for
+    the right turns. So cut 3 would fail every turn, and by the same reading the stop too, where J1's leave point
+    fails only the left turns. The cause is not J1's leave point: the controller re-runs the walk, the CoM differs
+    from the window's by at most 0.066 mm, and two differences in time turn that into about 4 mm of ZMP. That is
+    what A7's P34 paragraph says of the round's sets. So L12 gains a sentence: cut 3 is not taken for a body when
+    the join-code review's probe, on the causal grid, gives the failing reading at cut 3's leave point as over
+    its limit too. The move that fails at J1's leave point is then "not available" with its numbers (A11 for a
+    turn; H3 for the stop). No limit is changed. The 4.0 mm limit is the owner's (P34), and whether to change it
+    for the look sets' left turns goes to the owner as a question with the rebuilt numbers, not before.
+30. **What runs next.** After the start's law (ruling 18, building now) is checked, one rebuild of the 75 cm
+    look sets carries rulings 18, 22, 23, 26 and 28 together and names this review in `set.json` `rules`.
+    Then comes an independent check, then the 60 cm sets. Nothing is frozen until the lead has read the rebuilt
+    numbers and, where a question goes to the owner, the owner's answer.
