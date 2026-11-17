@@ -1130,7 +1130,9 @@ read on its final checkpoint against R0L by this rule; its earlier checks are re
 [settled 15 Nov, before any Track B run; in place of the committed sentence "R0L's 18 episodes are run and committed
 before S2-4 starts."] R0L's 18 episodes are run by the monitor's baseline command and committed as
 `stage2/tb/runs/s2-4/R0L_BASELINE.json` before S2-4 starts; S2-4's own `monitor/r0l.json` must equal it episode for
-episode (outcome, survival and state digest), else the run stops before its first rollout. S2-4 is run once: its
+episode (outcome, survival and state digest) [settled 17 Nov 2026, before any Track B run; ruling 33 of
+`stage2/design/ROUND_C_RULINGS_17NOV.md`: the state digest in every episode that ran; a condition not run is compared
+on its outcome and survival], else the run stops before its first rollout. S2-4 is run once: its
 checkpoint is never judged on the panels, and a second go or no-go run, whatever its settings, is a change after a
 result and is labelled so.
 

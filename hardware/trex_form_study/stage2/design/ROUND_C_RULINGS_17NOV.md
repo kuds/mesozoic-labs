@@ -303,3 +303,41 @@ scratch build (75 cm: knee 0.80, 0.85 and 0.79 of the limit; 60 cm: 0.92, 0.98 a
     - The check's two low points go into the rebuild's code: `verify` also names a stop that `blocks_in_records`
       shows and an older `blocked` leaves out, and a test builds with two processes so that the start and the
       change are both named.
+
+## Wave 8 (`checkpoint/reviews/roundC__{build,check}_{LT,CT5,CF2,CN4}_17nov.md`), ruled 17 Nov 2026, ~09:05 UTC
+
+CT5, CN4 and CF2 are merged as they stand. LT is merged on its check's condition: its two latent faults are fixed
+before anything runs on a look set, and nothing can run there until G9-ref has passed.
+
+37. **The look sets' placement, everywhere it is read.**
+    - (a) LT's reading of ruling 21 is confirmed. The bar's own runner, outside `lookbar`'s context, keeps its
+      whole-window placement. A record made inside the context (`lookbar run` on a look set) holds the placed plan,
+      its seconds and `command.leave`, because a record describes the episodes it ran.
+    - (b) Every reader that plays a look set's turns or stop plays them at J1's leave point. `lookbar` exposes a
+      placement-only context (placement without the row rule or the G9-ref requirement, because G9-ref itself runs
+      before G9-ref has passed). These run inside it on a look set:
+      - G9-ref part (a) (`gates2._refcheck_record` and `bar.refcheck`);
+      - G8a (`gates2.g8a`);
+      - `s2rows.equivalence_check`;
+      - R2L's fit and selection (`r2lfit`: its evaluators are built inside the set's placement, in process and in
+        every pool worker; check of CF2, finding 1).
+      A test shows that a fit's turn plan on a look set equals `lookbar.leave_resolve`'s. `bar dry-run` keeps the
+      bar's own placement: it estimates cost and decides nothing, and its overstatement (about 20 s per turn and
+      stop) is written beside its numbers.
+    - (c) and (d) accepted as built: `LookRow.sources` leaves out `r5lib.py`, because the key carries the placed
+      plan; the companion always holds `g9_ref`. The optional hardening is taken: `leave_point` checks `a_time_s`
+      against the walk file's own `phase` array.
+    - The check's F1 and F2 are fixed:
+      - F1: on entry, the context releases the process's cached bar context for the set.
+      - F2: on exit, the context resets the rows it stamped.
+      Each fix gets the test the check proposes.
+38. **The other points.**
+    - CT5: the refusal kind `look_set`, exit 1 at a further delay (M6), and a pair whose digests sit under different
+      keys counting as not compared are all accepted.
+    - CF2: `select` is gated as well as `fit` (X1).
+    - CF2: G9-ref is read by the gates and by the context, with the same-file check.
+    - CF2: a version of `V6noF5` counts as `V6noF5` for Q1 (`FITS` and `role_of` read `look_set_of`), as
+      ruling 31 (3) says.
+    - CN4: readings (a) to (d) are accepted. Its check's optional test gap ("Run all" stands only in 3.5, 4.4 and
+      5.4 (d)) goes into the next change to the sheet.
+    - Rule M3 gains ruling 33's words, "in every episode that ran".
