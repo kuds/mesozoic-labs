@@ -36,7 +36,7 @@ section L (points 4, 5 and 6) was fixed after the look work package's first kine
 heading describes, and is labelled so. On 16 Nov 2026 the lead settled ten conflicts between rules that the writing-in
 of the second list had left (the third list), again before any Track B run, fit or training run and before any look set
 was frozen; the 75 cm round's panels and their add-on had run by then. Each of those wordings stands in its rule, marked
-"[settled 16 Nov 2026, before any Track B run]", and the first of the three amendments that close the last section lists
+"[settled 16 Nov 2026, before any Track B run]", and the first of the four amendments that close the last section lists
 the ten. Later on 16 Nov 2026 the lead ruled on fourteen points that the review of that writing-in had handed up (the
 fourth list), and the reward's and the training env's wording was brought to what the env's code does, under ruling 13
 of the third list. Both were written in before any Track B run, fit or training run and with no look set frozen; by then
@@ -47,7 +47,13 @@ fourth list's writing-in had handed up, one from the review of the look reading'
 trainer's. They were written in before any Track B run, fit or training run on a Stage 2 set and with no look set
 frozen; by then the builders and reviewers of the look reading and of the trainer had run their tests, with closed-loop
 episodes and tiny training runs on the view `S1` alone, none of it a record ("What had been run"). Those wordings carry
-the same mark, and the third amendment lists them. Paths are relative to `hardware/trex_form_study/`. A rule changed
+the same mark, and the third amendment lists them. Later again on 16 Nov 2026 the lead ruled on the four points that the
+review of the fifth list's writing-in had handed up (the sixth list), with two rulings for the code. They were written
+in on 17 Nov 2026, before any Track B run, fit or training run on a Stage 2 set and with no look set frozen; by then the
+rows for the bar runner, the notebook and the trainer's third follow-up had been built, reviewed and merged, and their
+builders and reviewers had run their tests, closed-loop episodes on the view `S1`, check episodes on the frozen 75 cm
+set `V0` and tiny training runs on `S1`, none of it a record ("What had been run"). Those wordings carry the same mark,
+and the fourth amendment lists them. Paths are relative to `hardware/trex_form_study/`. A rule changed
 after a result is labelled so. Check: the commit that adds this file, the commit that adds the settled wording and the
 last of the commits that add the wording settled on 16 Nov 2026 are ancestors of the commit named in every Track B
 record (`sessions[].commit`, or `commit` in a gate's, a probe's or a fit's record) and in every look set's
@@ -159,6 +165,35 @@ record (`sessions[].commit`, or `commit` in a gate's, a probe's or a fit's recor
   review ran none of these either: it made one probe of the look reading's tail fit and comparison on synthetic numbers
   (pure functions; no model, no episode, no record). The fix round after it ran that probe once more and, beside it,
   only git, text tools and the line that prints the two record-key hashes.
+- When the sixth list was settled, at 19:52 UTC on 16 Nov 2026 (`stage2/design/TRACKB_RULINGS6_16NOV.md`): no Track B
+  run, fit or training run had been made on a Stage 2 set and no look set was frozen. The list states it without "on a
+  Stage 2 set", as the fifth did. Its four points are those that the independent review of the fifth list's writing-in
+  and its fix round had handed up, and those two had run what the bullet above names. By the time the list was committed
+  (19:56 UTC), the look reading's and the trainer's second follow-ups (the tail's amplitude limit; the monitor's
+  refusal) had been built and reviewed (`stage2/design/checkpoint/reviews/roundC__{build,review}_followups2.md`): their
+  tests, kinematic playbacks of the look ladder's rungs (no physics step) and, by the reviewer, one closed-loop episode
+  on the view `S1`, none of it a record. The reference tail amplitudes that Z2's note quotes are from those playbacks.
+  Between the list and its writing-in three packages were built, reviewed, fixed and merged into the working branch: the
+  rows for the bar runner (`roundC__{build,review}_CW.md`, `roundC__{fix,check}_CW_17nov.md` and `..._17nov_2.md`), the
+  notebook with its launcher (`roundC__{build,review}_CN.md`, `roundC__{fix,check}_CN_17nov.md` and `..._17nov_2.md`)
+  and the trainer's third follow-up (`roundC__{build,check}_CT3.md` and `..._CT3_2.md`). By their reports they ran their
+  tests on stub envs, a stub trainer, a stub monitor and the view `S1`; closed-loop episodes on `S1`; tiny R5 and R6
+  jobs on `S1`, training runs of the tooling as above; and, under X1 as lifted, check episodes on the frozen 75 cm set
+  `V0` of `75-M-H-10` (49 by the rows package's builder and 8 by its reviewer: `R0L` against `R0`, and a freshly
+  initialised, untrained `R5/42` against the env). None of it is a record, and none is an episode on a look set or a
+  training run on a Stage 2 set. When the wording was written in (17 Nov 2026, from 04:19 UTC), the working branch (at
+  `fccebe42`) held no look set, and its `stage2/tb/` directory held its ignore file, the notebook's steps sheet and its
+  requirements file, and no record. Branch `wt/wp-l` (at `2237ba9c`, its head when the writing-in began) held six look
+  sets' `set.json` files, `V6` on the four bodies and `V6noF5` on the two current heads, built by prescribed motion.
+  Each has `freezes` empty and is recorded as blocked (`blocked.by`): by its `start` for `V6` on `75-M-H-10` and on
+  `75-M-H-10-X` and for `V6noF5` on `75-M-H-10`; by `nominal_to_v0.4` for `V6` on `60-N-T-10` and on `60-N-T-10-X` and
+  for `V6noF5` on `60-N-T-10`. The first of them is commit `33652cb` of the bullet above (19:15:57 UTC on 16 Nov, before
+  the list); the five others were committed after the list (20:53 UTC on 16 Nov to 04:04 UTC on 17 Nov). Those two keys
+  were read for this bullet, and no rule's wording rests on them. No look set was frozen. The gates package (branch
+  `wt/wpc-cg`) and the look work package were at work in their own worktrees, which were not read. The writing-in was
+  made with no episode, fit, training run or dry run. Beside reading the code that M1's note and the fourth amendment
+  describe, it ran six of the monitor's tests, which stub every episode (`tests/test_stage2_monitor2.py`, those of its
+  refusals and of its baseline), and the line that prints the two record-key hashes.
 - Scratch experiments of 15 Nov on Stage 1's own run directory (`stage1/runs/2026-11-08`: stock references, no Stage 2
   set), by the architect and by the three reviewers of the design, on a stub env (Stage 1's env with the open-loop base
   in place of the tracker; Stage 1's observation and reward), one to six episodes per setting. They are scratch: none is
@@ -279,7 +314,7 @@ arrays when the design was written and are no record.
   for the two legs coming within 3 mm of each other, and a training episode ends when they overlap at two readings in a
   row.
 - **Settled on 16 Nov 2026.** Writing those answers in left ten places where two rules disagreed. The lead settled them
-  on 16 Nov 2026, again before any Track B run (the first of the three amendments that close the last section lists
+  on 16 Nov 2026, again before any Track B run (the first of the four amendments that close the last section lists
   them), and this brief was changed where an answer touched it: the two exceptions to "not available" under the look
   choices, and the caps under "Compute". Later that day the lead settled fourteen smaller points that the check of that
   writing-in had left, and the wording of the training reward and of the training setup was brought to what the code
@@ -292,7 +327,13 @@ arrays when the design was written and are no record.
   third amendment lists them). For you to know from these: a tail that does not swing (under 0.02 rad) fails the tail
   reading wherever the reference's tail does swing; a check that the monitor refuses to make, because the code or the
   saved policy is not what the run recorded, halts the run for the lead and is not counted as a failed check; and where
-  a body's start still fails, the lead's decision takes in that body's look sets on both heads.
+  a body's start still fails, the lead's decision takes in that body's look sets on both heads. Last that day the lead
+  settled the four points that the check of the third writing-in had left, again before any Track B run (the fourth
+  amendment lists them). For you to know from these: the monitor also refuses, with the same halt and nothing counted,
+  when the run's own record is missing, when the saved policy's record cannot be read or is malformed, and when the
+  saved policy does not give back its fingerprint here; the check of the look readings on the reference motions gains a
+  tail that swings a tenth as far, which must fail the tail reading and no other; and the lead's decision on a body's
+  look sets takes in both heads whichever head's set fails.
 
 ## Words, names and tags
 
@@ -371,7 +412,7 @@ As `STAGE2_75_PLAN.md`, whose list of words stands, with these additions.
   [dated 16 Nov 2026, ruling 13 of the fourth list: this sentence corrects "Those rulings too are session notes."; the
   working branch has held the paper since commit `a0314fc`]. **[settled 16 Nov 2026, before any Track B run]** stands in
   the same way before wording that the lead settled on 16 Nov 2026, on one of ten conflicts between rules that the
-  writing-in of the second list had left ("ruling n of the third list": the first of the three amendments that close the
+  writing-in of the second list had left ("ruling n of the third list": the first of the four amendments that close the
   last section lists them, and the rulings are `stage2/design/TRACKB_RULINGS3_16NOV.md`, rulings 1 to 10). Where it
   follows the wording it names it, and a sentence that it replaces is quoted once. In section L it also says that the
   look work package had built look sets by then (prescribed motion; none frozen). The same mark stands on two later sets
@@ -391,8 +432,13 @@ As `STAGE2_75_PLAN.md`, whose list of words stands, with these additions.
   no ruling's number: the mark that stands there says that the list confirms it (E4's closing sentences; in Q5, the
   candidate's two caps and the name of a cap's run directory), and K4, which the list also confirms, has no word changed
   and no new mark. The marks of its rulings 5 and 6 also say that the look reading and the trainer had been built and
-  reviewed by then ("What had been run"). **[dated 16 Nov 2026, ruling n of the fourth list]** stands after a sentence
-  of 15 Nov that rulings 13 and 14 of the fourth list correct or complete, and quotes the sentence as it was.
+  reviewed by then ("What had been run"). The same mark stands, with "ruling n of the sixth list", on the lead's four
+  rulings of the sixth list (`stage2/design/TRACKB_RULINGS6_16NOV.md`; the fourth amendment lists them), and on wording
+  that rests on that list's closing paragraph of rulings for the code, which the mark names as "the sixth list's closing
+  paragraph". The marks of its rulings 2 and 3 also say that the look reading, and the trainer and its monitor, had been
+  built and reviewed by then; that of its ruling 4, which is about section L, says that the look work package had built
+  look sets by then (prescribed motion; none frozen). **[dated 16 Nov 2026, ruling n of the fourth list]** stands after
+  a sentence of 15 Nov that rulings 13 and 14 of the fourth list correct or complete, and quotes the sentence as it was.
   **[differs: C7]**, **[differs: A8, A11]**, **[differs: B6 and T1]** and **[differs: rule R4's wording]** are
   departures from those rules of `STAGE2_75_PLAN.md` (T1 is this text's). Every rule ends with "Check:", the record
   field or file a reviewer compares with it.
@@ -2239,8 +2285,9 @@ run".
 
 Each item names the sentence of `STAGE2_PLAN.md` that it replaces or makes precise. "[lead]" marks an item the lead
 ruled on at 02:45 UTC (the section "Settled by the lead"), "[settled]" an item or a clause that rests on a ruling of the
-second list (the last section), "[settled 16 Nov]" one that rests on a ruling of the third, the fourth or the fifth
-list, or on the wording written in under ruling 13 of the third list (the three amendments that close that section).
+second list (the last section), "[settled 16 Nov]" one that rests on a ruling of the third, the fourth, the fifth or
+the sixth list, or on the wording written in under ruling 13 of the third list (the four amendments that close that
+section).
 Items 7, 25, 27, 28, 29 and 30 also name rules of `STAGE2_75_PLAN.md`.
 
 1. E6 [lead]: in plan B.4, "It runs `designlab/stage1/train.py`, extended with R5 and R6, a picklable schedule, ..." is
