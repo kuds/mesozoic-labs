@@ -1885,6 +1885,9 @@ def merge(d: Path, part: dict, log=print) -> dict:
         for k, v in part["header"].items():
             docs["refs.json"][k] = v
     set_doc["blocked"] = _blocked_after(set_doc, docs, group, part.get("blocks_set"))
+    if _set(set_name).look:  # the text of every rule of the look's laws that an entry may name (a set built before a
+        for key, text in _ml().RULES.items():  # rule was added gains it; a text already recorded stays as it is)
+            docs["transitions.json"]["rules"].setdefault(key, text)
     if not setio.frozen(set_doc):  # (a frozen set's lead-in is its freeze's: its walks are never written again)
         set_doc["lead_in"] = lead_in_of(docs["refs.json"]["references"])
     d.mkdir(parents=True, exist_ok=True)

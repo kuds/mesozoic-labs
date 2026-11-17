@@ -1242,6 +1242,27 @@ def test_a_passing_merge_does_not_lift_another_groups_stop_on_a_look_sets_record
     assert before == {n: (V6_60 / n).read_bytes() for n in before}
 
 
+@pytest.mark.skipif(not (V6_60 / "set.json").is_file(), reason="the V6 set on 60-N-T-10 is not built")
+def test_a_merge_into_a_look_set_built_before_a_rule_records_its_text(tmp_path):
+    """A look set built before S2L-L1L4-start existed gains the rule's text in ``transitions.json`` ``rules`` at its
+    next merge, so that a rebuilt start's ``move.rules`` names a rule its records state; a text already recorded is
+    left as it was."""
+    d = setio.set_dir("V6", "60-N-T-10", tmp_path)
+    d.mkdir(parents=True)
+    for name in ("refs.json", "transitions.json", "set.json"):
+        shutil.copy2(V6_60 / name, d / name)
+    old = json.loads((d / "transitions.json").read_text())
+    if "S2L-L1L4-start" in old["rules"]:
+        pytest.skip("V6/60-N-T-10's records already state S2L-L1L4-start (rebuilt)")
+    tr = old["transitions"]
+    made = {n: dict(e) for n, e in tr.items() if e.get("group") == "nominal_to_v0.4"}
+    sets.merge(d, dict(set="V6", body="60-N-T-10", item="nominal_to_v0.4", refs={}, transitions=made, look_entries={},
+                       stride_rules={}, header=None, blocks_set=None, log=[]), log=lambda *a: None)
+    rules = json.loads((d / "transitions.json").read_text())["rules"]
+    assert rules["S2L-L1L4-start"] == ml.RULES["S2L-L1L4-start"] and set(ml.RULES) <= set(rules)
+    assert {k: v for k, v in rules.items() if k != "S2L-L1L4-start"} == old["rules"]
+
+
 def test_the_turn_in_places_gait_is_verified_against_l13():
     """``sets._verify_inplace``: 0.5 rad/s signed, speed 0, one stride, periodic within its gate, not blocked at
     Stage 0, the set's crouch (STAGE2_TRACKB_PLAN.md L13's check)."""
