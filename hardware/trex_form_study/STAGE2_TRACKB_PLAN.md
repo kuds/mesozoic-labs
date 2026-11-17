@@ -1541,7 +1541,11 @@ is reached the 6, 4 and 0 ms records are cut first, in that order; the 10 ms rec
 comes from and how a cap is spent] Each cap is 1.5 times the total that the dry run prints on the frozen set itself, for
 the 60 cm body as for the 75 cm body, at the same `COST.md`. For a `V6noF5` row the dry run is
 `--set V6noF5 --body <body> --rows R2/42@10ms --conditions @gated,walk/nominal` (the three other delays added where S2-9
-asks). It is made and committed with its printed total after the set's freeze and before the row's first panel record.
+asks). It is made and committed with its printed total after the set's freeze and before the row's first panel record. [settled 17 Nov 2026,
+before any Track B run; ruling 39 of `stage2/design/ROUND_C_RULINGS_17NOV.md`] On a look set the dry run keeps the
+bar's own whole-window placement of the turns and the stop (`bar.py` is not edited), while the records play them at
+J1's leave point (ruling 21), so its total overstates each turn and stop by about 19 to 24 s at the commanded clock.
+The cap is taken from the total as printed; the overstatement is written beside it in the committed `DRY_RUN.json`.
 No cap's number is fixed now: the numbers this rule holds are planning figures and cap nothing. Each cap is spent by the
 bar's unit rule (`STAGE2_75_PLAN.md` H6): a unit starts only if what the cap has spent plus the unit's estimate fits,
 and a started unit finishes. The 10 ms records are one unit and start first; then one unit per delay, in the order 0, 4,

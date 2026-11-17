@@ -658,3 +658,22 @@ and the chain's `--resume` on V10); the servo model's S1 low points and S2 (the 
   For the owner later: the left turns of the look sets (by the review's scratch numbers 4.62 mm on the causal grid,
   against the owner's 4.0 mm limit of P34), with the rebuilt numbers.
 - **Meter:** $3,012 at 06:44 UTC, about 64.5 % of the week.
+
+## Update, 17 Nov 2026, ~10:00 UTC
+
+- **Merged and pushed since 07:00:** LB16, CG2, CN3 (32b5ecc5; merged tests 60, 43, 66 passed); the start's law
+  (ruling 18; cherry-picked c5544698..7cb824ec; merged tests 298 passed, 9 skipped): every look start now passes
+  on a scratch build (75 cm knee 0.80, 0.85, 0.79; 60 cm 0.92, 0.98, 0.90 of the limit); wave 8, i.e. CT5, CN4,
+  CF2, LT (96d38d2d; merged tests 47, 36, 94, 68, 86 passed; run_trackb.sh syntax ok). Hashes the registered pair
+  throughout. Disk cleared from 99 % to 60 % (old scratch deleted).
+- **Ruled:** 31–38 (the look sets' rule in lookbar; G9-ref; the trainer; the sheet; CF; the start's law; the
+  placement wherever turns and stops are played; wave 8's points). Old texts updated: G9-ref (f) and (a) in the
+  draft and the design, X1, M3.
+- **Running:** wf_348ef162-856 (look-set rebuild: code of rulings 28, 32 A, 36 committed on wt/wp-l at 07347c77;
+  75 cm tail phases rebuilt; the three 75 cm records building; then their check; then 60 cm and its check);
+  wf_2b4a8be6-560 (LT2: placement-only context for G9-ref (a), G8a, the equivalence check and R2L's fit; F1 and F2;
+  four commits so far on wt/wpc-cw).
+- **Owed next:** merge LT2 and the rebuild as their checks allow; draft the owner's questions from the rebuilt
+  numbers (the left turns against P34's 4.0 mm; any start or change still failing, the 60 cm change to 0.40 m/s
+  most likely; the turn in place); then freeze (lead), G9-ref, the validation steps, S2-4, bundle, acceptance run.
+- **Meter:** $3,162 at 09:50 UTC, about 68.3 % of the week.
