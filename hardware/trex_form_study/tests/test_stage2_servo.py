@@ -904,3 +904,136 @@ def test_t14_the_box_servos_scales_leave_the_copies_nominal(p):
                 want = min(max(want, p.m.actuator_forcerange[i, 0]), p.m.actuator_forcerange[i, 1])
                 assert p.d.actuator_force[i] == pytest.approx(want, abs=1e-9)
             p.d.ctrl[:] = lay._c
+
+
+# ------------------------------------------------------------------------------------------------
+# Package S3: the served row, its names and factories, the reported readings
+# ------------------------------------------------------------------------------------------------
+RUN = ROOT / "stage1" / "runs" / "2026-11-08"
+needs_run = pytest.mark.skipif(not (_have() and (RUN / BODY / "transitions" / "stop.npz").exists()),
+                               reason="needs the Stage 1 arrays and the round-two models (tools/restore_inputs.py)")
+
+
+def test_served_names_follow_the_leads_fourth_list():
+    """NAME_RULE: SV0/<setting>, SV2/<seed>/<setting>, SV5/<policy>/<setting>; settings of NAMED or D/<s>."""
+    assert (servo.SERVED_R0, servo.SERVED_R2, servo.SERVED_POLICY) == ("SV0", "SV2", "SV5")
+    cases = {"SV0/F+": ("SV0", "R0", "F+"), "SV0/D": ("SV0", "R0", "D"), "SV0/D/3042": ("SV0", "R0", "D/3042"),
+             "SV2/42/M-": ("SV2", "R2/42", "M-"), "SV2/42/D/5042": ("SV2", "R2/42", "D/5042"),
+             "SV5/R5/42/N": ("SV5", "R5/42", "N"), "SV5/R5/42/D/3043": ("SV5", "R5/42", "D/3043")}
+    for name, want in cases.items():
+        assert servo.parse_name(name) == want
+        assert servo.served_name(want[1], want[2]) == name
+    for bad in ("SV0", "SV1/N", "SV2/x/N", "SV2/42", "SV0/nominal", "SV0/D/x", "R0/N", "SV5/N", ""):
+        with pytest.raises(ValueError):
+            servo.parse_name(bad)
+    assert servo.setting_params("D/3043") == servo.panel_draw(3043)
+    assert servo.setting_params("F+") is servo.setting("F+")
+    assert servo.setting_params("D", 3044) == servo.panel_draw(3044)
+    with pytest.raises(ValueError, match="bar seed"):
+        servo.setting_params("D")
+    # a served stand-in row gives no verdict; no served row is attributed (design 5.1)
+    assert servo.NO_VERDICT_CONTROLLERS == ("SV0", "SV2") and servo.ATTRIBUTED_CONTROLLERS == ()
+
+
+def test_served_rows_are_registered_and_sv5_waits_for_s2rows():
+    """SV0 and SV2 are registered through panels.register_rows (panels.py unedited); SV5 is a documented hook only."""
+    from designlab.stage1 import panels
+
+    assert panels.ROW_FACTORIES["SV0"] is servo._factory and panels.ROW_FACTORIES["SV2"] is servo._factory
+    assert "SV5" not in panels.ROW_FACTORIES and "s2rows" in servo.SV5_HOOK
+    rows = panels.tracker_rows(BODY, RUN / BODY, ("SV0/F+", "SV2/42/D"))
+    sv0, sv2 = rows["SV0/F+"], rows["SV2/42/D"]
+    assert isinstance(sv0, servo.Served) and sv0.inner.name == "R0" and sv0.setting == "F+"
+    assert isinstance(sv2, servo.Served) and sv2.inner.name == "R2/42" and sv2.setting == "D"
+    assert sv0.hard_only is True and sv2.hard_only is False  # (the inner rows')
+    with pytest.raises(ValueError, match="registered controller"):
+        panels.tracker_rows(BODY, RUN / BODY, ("SV5/R5/42/N",))
+    with pytest.raises(ValueError, match="s2rows"):
+        servo._factory(BODY, RUN / BODY, "SV5/R5/42/N")
+    # the hook builds a served policy row from s2rows' row when it is called (it is not, here)
+    made = servo.served_policy_factory(lambda body, run_dir, name: panels.tracker_rows(body, run_dir, ("R0",))["R0"])
+    x = made(BODY, RUN / BODY, "SV5/R5/42/M+")
+    assert isinstance(x, servo.Served) and x.name == "SV5/R5/42/M+" and x.gives_verdict and x.setting == "M+"
+
+
+def test_served_describe_sources_spec_and_no_verdict():
+    from designlab.stage1 import panels
+
+    r0 = panels.tracker_rows(BODY, RUN / BODY, ("R0",))["R0"]
+    for st in ("F+", "D", "D/3042", "M-"):
+        row = servo.Served(r0, st)
+        d = row.describe()
+        assert d["served_row"] == f"SV0/{st}" and d["row"] == "R0"
+        assert d["servo"]["setting"] == st and d["servo"]["table_sha256"] == servo.TABLE_SHA256
+        assert d["servo"]["verdict"] is False and d["servo"]["attributed"] is False
+        if st == "D":
+            assert "panel_draw" in d["servo"]["params"] and row.params_for(3050) == servo.panel_draw(3050)
+        else:
+            assert d["servo"]["params"] == servo.setting_params(st).as_dict()
+            assert row.params_for(3050) is row.params_for(3051)
+        src = row.sources()
+        assert list(src) == ["designlab/stage2/servo.py"]  # (R0 has no sources of its own)
+        assert src["designlab/stage2/servo.py"] == plant.sha256(ROOT / "designlab" / "stage2" / "servo.py")
+        back = panels.row_from_spec(row.spec())
+        assert type(back) is servo.Served and back.describe() == d and back.name == row.name
+        cond = next(c for c in panels.conditions() if c.key == "walk/brisk")
+        assert row.gated(cond) is False  # a served stand-in row gives no verdict
+        with pytest.raises(ValueError, match="attributed"):
+            row.episode(None, cond, 3042, ("drive_speed",))
+    given = servo.Served(r0, _neutral(sense_steps=1))
+    assert given.describe()["servo"]["given_params"] is True and given.name == "SV0/test"
+    assert panels.row_from_spec(given.spec()).params_for(1) == given.params_for(1)
+
+
+@needs_run
+def test_a_served_row_runs_its_inner_episode_inside_the_layer():
+    """SERVED_RULE: the run's parameters (D: the run's bar seed's set), the setting's trunk mass during the episode,
+    the layer's readings after it, and the plant given back bit for bit."""
+    import dataclasses
+
+    from designlab.stage1 import panels
+
+    run_dir = RUN / BODY
+    _, docs = __import__("designlab.stage2.setio", fromlist=["x"]).stage1_view(RUN, BODY)
+    ctx = panels.Context(BODY, run_dir, docs)
+    cond = dataclasses.replace(next(c for c in panels.conditions() if c.key == "walk/brisk"), seconds=0.2)
+    rows = panels.tracker_rows(BODY, run_dir, ("SV0/D", "SV0/M+"))
+    p = ctx.built(cond).p
+    saved = copy.deepcopy(p.m)
+    seen = {}
+    real = rows["SV0/M+"].inner.episode
+
+    def probe(ctx_, c, s, relax=()):
+        seen.update(mass=float(p.m.body_mass[p.trunk]), step="step" in p.__dict__)
+        return real(ctx_, c, s, relax)
+
+    rows["SV0/M+"].inner.episode = probe
+    b, out, rec = rows["SV0/D"].episode(ctx, cond, 3043)
+    sv = rows["SV0/D"]
+    assert sv.params == servo.panel_draw(3043) and sv.readings["physics_steps"] == 100
+    assert set(sv.readings["inside_play_share"]) == set(servo.LEG_DRIVES)
+    rows["SV0/M+"].episode(ctx, cond, 3042)
+    assert seen == dict(mass=1.1 * float(saved.body_mass[p.trunk]), step=True)
+    assert env.model_differences(p.m, saved) == [] and "step" not in p.__dict__
+    assert type(p.envelope) is drive.Envelope
+
+
+def test_record_readings_count_the_runs():
+    """READINGS_RULE: per record, the runs that left the supply window, the lowest bus, the inside-play shares."""
+    legs = servo.LEG_DRIVES[:2]
+
+    def one(below, collapsed, vmin, shares):
+        return dict(physics_steps=100, bus_v_min=vmin, bus_v_mean=vmin + 1, supply_floor_v=20.0,
+                    steps_below_supply_floor=below, collapsed_steps=collapsed,
+                    left_supply_window=bool(below or collapsed), inside_play_share=dict(zip(legs, shares)))
+
+    r = servo.record_readings([one(0, 0, 21.5, (0.1, 0.3)), one(3, 0, 19.2, (0.2, 0.5)), None,
+                               one(0, 1, 11.0, (0.0, 0.4))])
+    assert (r["runs"], r["runs_read"], r["runs_without_readings"]) == (4, 3, 1)
+    assert (r["runs_left_supply_window"], r["runs_with_collapse"], r["steps_below_supply_floor"]) == (2, 1, 3)
+    assert r["bus_v_min"] == 11.0 and r["supply_floor_v"] == 20.0 and r["reported_only"] is True
+    assert r["inside_play_share"][legs[0]] == dict(mean=pytest.approx(0.1), max=0.2)
+    assert r["inside_play_share"][legs[1]] == dict(mean=pytest.approx(0.4), max=0.5)
+    assert r["inside_play_share_leg_mean"] == pytest.approx(0.25)
+    empty = servo.record_readings([None])
+    assert empty["runs_read"] == 0 and empty["bus_v_min"] is None and empty["inside_play_share_leg_mean"] is None
