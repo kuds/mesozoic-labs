@@ -248,10 +248,23 @@ RESUMABLE_RULE = (
     "what is final and what is resumable (the lead's ruling 2 of 17 Nov 2026): the trainer's exit code 4 (a "
     "refusal) writes no HALT.json: the session ends and LIVE.json is closed, as for an interruption.  The trainer's "
     "exit code 5 (a halt for the lead) and any error of the launcher itself write a HALT.json marked resumable, "
-    "with its halt_id and the remedy it names: retry_check when the trainer's halt names --retry-check, and in "
-    "every case the lead's word (LEAD.json's resume_halt names the halt).  session accepts a resume of such a run "
+    "with its halt_id and the remedy it names: retry_check when the trainer's halt names --retry-check, "
+    "allow_source_change when it names --allow-source-change, and in every case the lead's word (LEAD.json's "
+    "resume_halt names the halt).  session accepts a resume of such a run "
     "only with that remedy in LEAD.json, and then keeps the old halt as HALT_<k>.json (k: the session that "
     "halted).  Only a job that crashed twice halts the run for good (resumable false)")
+#: The trainer's parameters a halt of its may name, and the remedy of ``LEAD.json`` each one is (``RESUMABLE_RULE``):
+#: a halt for two attempts never closed names --retry-check; a halt for moved sources names --allow-source-change
+#: (the lead's ruling 12 of 17 Nov 2026: the halt names the parameter that resolves it).
+HALT_REMEDIES = (("--retry-check", "retry_check"), ("--allow-source-change", "allow_source_change"))
+
+
+def halt_remedy(said: str) -> list:
+    """The remedies a trainer's halt names (``HALT_REMEDIES``), in that order: ``said`` is its reason and the last
+    line of its log."""
+    return [remedy for flag, remedy in HALT_REMEDIES if flag in str(said)]
+
+
 LEAD_SCHEMA = "s2-lead-1"
 #: ``LEAD.json``'s true-or-false remedies, and every key it may hold (``LEAD_RULE``).
 LEAD_FLAGS = ("retry_check", "allow_source_change", "allow_version_change")
@@ -260,7 +273,9 @@ LEAD_RULE = (
     "the lead's remedies (ruling 2 of 17 Nov 2026): one small file the lead writes on Drive beside the run, "
     "runs/<run_id>/LEAD.json, which session reads and records in the session's record (lead, and the values in "
     "force): retry_check, allow_source_change and allow_version_change (true or false; passed to the trainer as "
-    "--retry-check on a resume, --allow-source-change, --allow-version-change), budget_by and budget_set_on (rule "
+    "--retry-check on a resume, --allow-source-change, --allow-version-change; retry_check only in the session "
+    "that resumes the halt whose remedy names it, never at a later resume: the lead's ruling 12 of 17 Nov 2026), "
+    "budget_by and budget_set_on (rule "
     "Y10: written to QUEUE.json when the run is made; budget_set_on a UTC time such as 2026-11-20T09:00:00Z), and "
     "resume_halt (the halt_id of the resumable halt a resume answers), with an optional note.  The owner is never "
     "asked to set these.  A file that cannot be read, a key it does not name here or a value of the wrong type "
@@ -1342,7 +1357,6 @@ def session(run_id, drive, local, queue, repo_ref, commit, resume, params) -> di
     ld = (lead or {}).get("doc") or {}
     allow_source = bool(p["ALLOW_SOURCE_CHANGE"]) or ld.get("allow_source_change") is True
     allow_version = bool(p["ALLOW_VERSION_CHANGE"]) or ld.get("allow_version_change") is True
-    retry_check = bool(p["RETRY_CHECK"]) or ld.get("retry_check") is True
     budget_by = ld.get("budget_by") if ld.get("budget_by") is not None else p["BUDGET_BY"]
     budget_set_on = ld.get("budget_set_on") if ld.get("budget_set_on") is not None else p["BUDGET_SET_ON"]
     want = _queue_doc(run_id, jobs, repo_ref, commit, dict(p, BUDGET_BY=budget_by, BUDGET_SET_ON=budget_set_on))
@@ -1385,6 +1399,11 @@ def session(run_id, drive, local, queue, repo_ref, commit, resume, params) -> di
             took_over = dict(session=live.get("session"), session_uuid=live.get("session_uuid"), age_s=age,
                              host=live.get("host"))
             notes.append(f"TAKEOVER: LIVE.json of session {live.get('session')} was written {age:.0f} s ago")
+
+    # (LEAD_RULE, the lead's ruling 12 of 17 Nov 2026: LEAD.json's retry_check answers the one halt whose remedy
+    # names it, in the session that resumes that halt; a later plain resume carries no --retry-check)
+    retry_check = bool(p["RETRY_CHECK"]) or (halt is not None and "retry_check" in halt["remedy"]
+                                             and ld.get("retry_check") is True)
 
     # ---- from here on the run directory is written
     swept = sweep_parts(d) + ([] if same else sweep_parts(lrun))
@@ -2578,7 +2597,7 @@ class _Launcher:
                 m["last_error"] = f"exit code {code}: {tail}"
                 said = str(((_read_json(jd / "run.json") or {}).get("halt") or {}).get("reason") or "") + " " + tail
                 raise _Halt(f"job {job} halted and goes to the lead (exit code {code}): {tail}", resumable=True,
-                            remedy=["retry_check"] if "--retry-check" in said else [])
+                            remedy=halt_remedy(said))
             m["last_error"] = f"crashed (exit code {code}): {tail}"
             if m["retries"] >= 1:
                 raise _Halt(f"job {job} crashed twice (exit codes {', '.join(map(str, m['exit_codes'][-2:]))}): {tail}",

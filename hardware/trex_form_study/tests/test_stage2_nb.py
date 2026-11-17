@@ -1080,6 +1080,69 @@ def test_a_halt_is_resumed_only_with_the_leads_remedy(tmp_path, stubs, monkeypat
     assert json.loads((d / "DONE.json").read_text())["state"] == "done"
 
 
+def test_the_leads_retry_check_answers_only_the_halt_that_names_it(tmp_path, stubs, monkeypatch, capsys):
+    """The lead's ruling 12 of 17 Nov (the check's finding 1): LEAD.json's retry_check applies only to the session
+    that resumes the halt whose remedy names it.  Session 0 halts (remedy retry_check); session 1 answers it with
+    LEAD.json and is refused by the trainer (exit code 4: no halt); session 2 is a plain resume and answers no halt:
+    it carries no --retry-check, although LEAD.json still holds retry_check.  As built session 2's trainer got
+    --retry-check (an old LEAD.json reopened every later halt of two attempts never closed)."""
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02), "R5-B1-s42": dict(halt=True)}))
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
+    _session(p)
+    d = tmp_path / "drive" / "runs" / "r1"
+    assert _launch(p)["state"] == "halted"
+    halt = json.loads((d / "HALT.json").read_text())
+    assert halt["remedy"] == ["retry_check"]
+    _lead(d, resume_halt=halt["halt_id"], retry_check=True)
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02), "R5-B1-s42": dict(refuse=True)}))
+    s1 = _session(p, RESUME=True)
+    assert s1["retry_check"] is True and s1["halt_resumed"]["remedy"] == ["retry_check"]
+    assert _launch(p)["state"] == "refused" and not (d / "HALT.json").exists()
+    assert "--retry-check" in _calls(p)[-1]["argv"]
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02)}))
+    s2 = _session(p, RESUME=True)
+    assert s2["halt_resumed"] is None and s2["lead"]["doc"]["retry_check"] is True
+    assert s2["retry_check"] is False and json.loads((d / "SESSION_2.json").read_text())["retry_check"] is False
+    assert _launch(p)["state"] == "done"
+    argv = _calls(p)[-1]["argv"]
+    assert len(_calls(p)) == 3 and "--resume" in argv and "--retry-check" not in argv
+    assert "retry_check only in the session that resumes the halt whose remedy names it" in nb.LEAD_RULE
+    # the lead's own launch may still name it in a parameter file (RETRY_CHECK), and then it is passed on
+    s = _session(_params(tmp_path, RUN_ID="r2", QUEUE=["R5:B1:42"], CLIPS=False, RETRY_CHECK=True))
+    assert s["retry_check"] is True
+
+
+def test_a_halt_for_moved_sources_asks_the_lead_for_allow_source_change(tmp_path, stubs, monkeypatch, capsys):
+    """The lead's ruling 12 of 17 Nov: a halt for moved sources names the parameter that resolves it
+    (--allow-source-change, as train2's halt does); the notebook takes it as that halt's remedy: a resume is refused
+    until LEAD.json names the halt and holds allow_source_change, which then reaches the trainer.  As built only
+    --retry-check was taken from a halt's text, and the lead had to know to write allow_source_change."""
+    why = ("stub: the monitor refused to run on the check of 2048 steps (the row R5/42@10ms refused the checkpoint "
+           "while it was built, before any episode (RowError: not judged (rule K9; STAGE2_ALLOW_SOURCE_CHANGE=1 runs "
+           "it flagged))): the run halts and goes to the lead; the sources moved: a resume with "
+           "--allow-source-change runs the check on them, flagged")
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02), "R5-B1-s42": dict(halt=why)}))
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
+    _session(p)
+    d = tmp_path / "drive" / "runs" / "r1"
+    assert _launch(p)["state"] == "halted"
+    halt = json.loads((d / "HALT.json").read_text())
+    assert halt["resumable"] is True and halt["remedy"] == ["allow_source_change"], halt
+    _lead(d, resume_halt=halt["halt_id"])
+    with pytest.raises(nb.Refused, match='LEAD.json beside the run with "allow_source_change": true'):
+        _session(p, RESUME=True)
+    _lead(d, resume_halt=halt["halt_id"], allow_source_change=True)
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02)}))
+    s1 = _session(p, RESUME=True)
+    assert s1["allow_source_change"] is True and s1["retry_check"] is False
+    assert s1["halt_resumed"]["remedy"] == ["allow_source_change"]
+    assert _launch(p)["state"] == "done"
+    argv = _calls(p)[-1]["argv"]
+    assert "--allow-source-change" in argv and "--retry-check" not in argv and "--resume" in argv
+    assert nb.halt_remedy("a --retry-check and an --allow-source-change") == ["retry_check", "allow_source_change"]
+    assert nb.halt_remedy("nothing") == [] and "allow_source_change when it names" in nb.RESUMABLE_RULE
+
+
 def test_a_launcher_error_is_a_resumable_halt(tmp_path, stubs, monkeypatch, capsys):
     """Ruling 2 of 17 Nov: an error of the launcher itself writes a resumable halt whose remedy is the lead's word
     alone (LEAD.json's resume_halt)."""
