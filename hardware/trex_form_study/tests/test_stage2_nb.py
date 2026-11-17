@@ -1472,6 +1472,56 @@ def test_a_launcher_killed_while_a_copy_is_in_progress(tmp_path, stubs, monkeypa
     assert all(_reads_back(d / "jobs" / "R5-B1-s42", n) for n in sorted(int(x.name[11:-5]) for x in ck.glob("checkpoint_*.json")))
 
 
+def _whole_checkpoint(ck: Path, n: int) -> None:
+    """Checkpoint ``n`` on a stand-in Drive as the launcher leaves it whole: three files, then the record."""
+    ck.mkdir(parents=True, exist_ok=True)
+    files = {}
+    for kind, name in (("model", f"model_{n}.zip"), ("vecnormalize", f"vecnormalize_{n}.pkl"),
+                       ("fingerprint", f"fingerprint_{n}.npz")):
+        data = f"{kind} {n} ".encode() * 30
+        (ck / name).write_bytes(data)
+        files[kind] = dict(name=name, bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
+    (ck / f"checkpoint_{n}.json").write_text(json.dumps(dict(schema="s2-ckpt-2", steps=n, files=files)))
+
+
+def test_the_acceptance_kill_waits_for_a_whole_checkpoint_on_drive(tmp_path):
+    """The lead's ruling 45 of 17 Nov 2026 (1): ``acceptance``'s kill fires only once a checkpoint above 0 is whole
+    on the stand-in Drive and a ``.part`` exists, as ``local_run``'s and ``_remedies``' kills wait for a checkpoint.
+    As built it fired at the first ``.part``, which in a tiny run is always the first checkpoint's own copy: the V12
+    run on C1 was killed at ``model_1024.zip.part`` with nothing on Drive, session 1 resumed from 0 and
+    ``resumed_from_drive`` failed.  Design 3.10 step 4 wants a copy cut, step 5 a checkpoint to copy back."""
+    jd = tmp_path / "drive" / "runs" / "acceptance" / "jobs" / "R5-75-M-H-10-s42"
+    ck = jd / "checkpoints"
+    assert nb.acceptance_kill(jd) is None                                       # nothing on Drive yet
+    ck.mkdir(parents=True)
+    (ck / "model_1024.zip.part").write_bytes(b"the first checkpoint's own copy")
+    assert nb.acceptance_kill(jd) is None                                       # V12's kill point: no kill now
+    _whole_checkpoint(ck, 0)
+    assert nb.acceptance_kill(jd) is None                                       # step 0 is no save to resume from
+    (ck / "model_1024.zip.part").unlink()
+    _whole_checkpoint(ck, 1024)
+    assert nb.acceptance_kill(jd) is None                                       # whole, but no copy in progress
+    (ck / "model_2048.zip.part").write_bytes(b"a later checkpoint's copy")
+    whole: set = set()
+    want = ("model_2048.zip.part exists on the stand-in Drive (a copy in progress), and checkpoint 1024 of "
+            "R5-75-M-H-10-s42 is whole there")
+    assert nb.acceptance_kill(jd, whole) == want and whole == {1024}
+    # "whole" is the launcher's own test (_Launcher._whole): a record beside a file of another size or sha256, or
+    # beside a missing file, is no checkpoint to resume from
+    for spoil in ("vecnormalize_1024.pkl", "fingerprint_1024.npz"):
+        keep = (ck / spoil).read_bytes()
+        (ck / spoil).write_bytes(keep[:-1] + b"?")
+        assert nb.acceptance_kill(jd) is None, spoil
+        (ck / spoil).unlink()
+        assert nb.acceptance_kill(jd) is None, spoil
+        (ck / spoil).write_bytes(keep)
+    assert nb.acceptance_kill(jd) == want
+    # a checkpoint found whole once is not hashed again; one whose record is gone since (Drive's keep) is not counted
+    assert nb.acceptance_kill(jd, whole) == want and whole == {1024}
+    (ck / "checkpoint_1024.json").unlink()
+    assert nb.acceptance_kill(jd, whole) is None
+
+
 def test_an_interrupted_launcher_leaves_the_run_resumable(tmp_path, stubs, monkeypatch, capsys):
     """SIGTERM to the launcher alone (an interrupted cell): it ends its job, writes no HALT.json and closes
     LIVE.json, so the run is resumed at once and without TAKEOVER."""
@@ -2694,10 +2744,12 @@ def test_acceptance_refuses_a_scratch_directory_that_is_not_its_own(tmp_path):
 
 @needs_git
 def test_the_acceptance_runs_plumbing_on_stubs(tmp_path, monkeypatch):
-    """``acceptance`` needs the pushed launch commit and the built bundle and **has never run**.  Here its own
-    plumbing runs on a scratch repository with the drill replaced by a stand-in: the remote's SHA, the two fresh
-    clones and their HEADs, what a dead VM loses (the clone and the whole local directory, the inputs' local copies
-    included), the record's fields of design 3.10, and the scratch directory's mark."""
+    """``acceptance`` needs the pushed launch commit and the built bundle (its one run, V12 on C1, failed on its kill
+    condition: the lead's ruling 45).  Here its own plumbing runs on a scratch repository with the drill replaced by
+    a stand-in: the remote's SHA, the two fresh clones and their HEADs, the kill condition it hands the drill (ruling
+    45: no kill at V12's point, a kill once a checkpoint above 0 is whole on the stand-in Drive and a ``.part``
+    exists), what a dead VM loses (the clone and the whole local directory, the inputs' local copies included), the
+    record's fields of design 3.10, and the scratch directory's mark."""
     b = _bundle(tmp_path)
     parts = b["root"] / nb.BUNDLE_DIR / "tb-test" / "parts"
     parts.mkdir()
@@ -2727,6 +2779,14 @@ def test_the_acceptance_runs_plumbing_on_stubs(tmp_path, monkeypatch):
     def drill(notebook, params, logs, cwd_of, kill_when, wipe=None):
         local, first = Path(params["LOCAL_DIR"]), cwd_of(0)
         assert first == scratch / "clone1" / "study" and (first / "README").is_file() and kill_when() is None
+        ck = drive / "runs" / "acceptance" / "jobs" / "R5-75-M-H-10-s42" / "checkpoints"
+        ck.mkdir(parents=True)
+        (ck / "model_1024.zip.part").write_bytes(b"the first checkpoint's own copy")
+        seen["kill_at_the_first_part"] = kill_when()                  # (V12's kill point)
+        (ck / "model_1024.zip.part").unlink()
+        _whole_checkpoint(ck, 1024)
+        (ck / "model_2048.zip.part").write_bytes(b"a later checkpoint's copy")
+        seen["kill"] = kill_when()
         (local / "inputs" / "tb-test" / "parts").mkdir(parents=True)  # what the inputs step leaves on the local disk
         (local / "inputs" / "tb-test" / "parts" / "models-B1.tar").write_bytes(b"a local copy")
         (local / "acceptance" / "jobs").mkdir(parents=True)
@@ -2740,7 +2800,7 @@ def test_the_acceptance_runs_plumbing_on_stubs(tmp_path, monkeypatch):
         lines[2], lines[3] = [nb.line2("tb-test", sha, 2, 2)], [nb.line3("B1", "V6", 2, 2, 6000)]
         one = dict(exit_code=0, killed=None, seconds=1.0, text="", lines=lines, log="x")
         return dict(drive_run=str(drive / "runs" / "acceptance"), local_run=str(local / "acceptance"),
-                    first_job="R5-75-M-H-10-s42", kill=dict(when="model_1024.zip.part exists (a copy in progress)"),
+                    first_job="R5-75-M-H-10-s42", kill=dict(when=seen["kill"], on_drive=[1024]),
                     attempts=dict(session0=one, refused_live=one, session1=one, refused_finished=one))
 
     def remedies(notebook, params, logs, cwd):
@@ -2760,6 +2820,10 @@ def test_the_acceptance_runs_plumbing_on_stubs(tmp_path, monkeypatch):
     assert rec["checks"]["content_hash"] and rec["checks"]["g8a_every_body"] and rec["bodies"] == ["B1"]
     # step 4: a dead VM loses the clone and its whole local disk; the stand-in Drive keeps the parts
     assert seen.pop("remedies_cwd") == scratch / "clone2" / "study"            # step 6 runs in the second clone
+    assert seen.pop("kill_at_the_first_part") is None                         # ruling 45: no kill at V12's point
+    assert seen.pop("kill") == ("model_2048.zip.part exists on the stand-in Drive (a copy in progress), and "
+                                "checkpoint 1024 of R5-75-M-H-10-s42 is whole there")
+    assert rec["checks"]["killed_during_a_copy"] and rec["kill"]["on_drive"] == [1024]
     assert seen == dict(clone_gone=True, local_gone=True, on_drive=["models-B1.tar"])
     assert rec["checks"]["remedies_stand_in"] and rec["remedies"]["run_id"] == "acceptance-remedies"
     assert "not_done" not in rec and "step 6" in rec["step6_note"]

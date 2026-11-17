@@ -3819,6 +3819,32 @@ def local_run(notebook, drive_dir, params, record=None, remedies: bool = True) -
 ACCEPTANCE_MARK = "S2_ACCEPTANCE_SCRATCH"
 
 
+def acceptance_kill(jobdir, whole: set | None = None) -> str | None:
+    """The acceptance run's kill condition (design 3.10 steps 4 and 5; the lead's ruling 45 of 17 Nov 2026), polled
+    on the first job's directory on the stand-in Drive: the reason to kill, only once a checkpoint above 0 is whole
+    there (its record, and each of its three files with the record's size and sha256: ``_Launcher._whole``) **and**
+    a ``.part`` file exists beside it (a later copy in progress); else None.  So the kill cuts a copy (step 4) and
+    the resume has a checkpoint to copy back (step 5), as ``local_run``'s and ``_remedies``' kills wait for one.  As
+    first built it fired at the first ``.part``, which in a tiny run is always the first checkpoint's own copy:
+    nothing was whole on Drive, session 1 resumed from 0 and ``resumed_from_drive`` failed (the V12 run on C1).
+    ``whole``: the checkpoints already found whole, kept by a caller that polls (each is hashed once); a checkpoint
+    whose record is gone since is not counted.  The ``.part`` files are looked for last, just before the kill."""
+    ck = Path(jobdir) / "checkpoints"
+    if not ck.is_dir():
+        return None
+    whole = set() if whole is None else whole
+    listed = [n for n in _drive_checkpoints(jobdir) if n > 0]
+    for n in listed:
+        if n not in whole and _Launcher._whole(ck / ("checkpoint_%d.json" % n), n):
+            whole.add(n)
+    have = [n for n in listed if n in whole]
+    parts = sorted(x.name for x in ck.glob("*.part")) if have else []
+    if not parts:
+        return None
+    return (f"{parts[0]} exists on the stand-in Drive (a copy in progress), and checkpoint {max(have)} of "
+            f"{Path(jobdir).name} is whole there")
+
+
 def g8a_counts(lines) -> dict:
     """Line 3's counts per body as the printed lines give them: ``{body: {set, identical, of, steps, passes}}``
     (the acceptance run's record: design 3.10, "the G8a counts per body")."""
@@ -3837,15 +3863,18 @@ def acceptance(notebook, ref, parts_dir, scratch, record) -> dict:
     git ignores, the bundle's parts (``parts_dir``: ``stage2/tb/bundle/<bundle_id>/parts``) in a directory standing
     in for Drive under ``scratch`` (outside the checkout), the notebook's cells 1-5 and 7-8 with a tiny R5 and a
     tiny R6 job on ``75-M-H-10`` and set V6, preflight over every body of the bundle; the launcher's session ended
-    with SIGKILL at the moment a ``.part`` file exists on the stand-in Drive; the clone and the whole local
+    with SIGKILL once a checkpoint above 0 of the first job is whole on the stand-in Drive and a ``.part`` file
+    exists there (``acceptance_kill``: a later copy in progress); the clone and the whole local
     directory deleted (a dead VM loses both: the run directory and the inputs' local copies); a second clone;
     ``_drill``'s resumes; step 6's remedies after a faked record (``_remedies``, in the second clone); then the
     record ``ACCEPTANCE.json`` (``ACCEPTANCE_SCHEMA``).  ``scratch`` is deleted
     first, so it must be new, empty or an earlier acceptance run's own (``ACCEPTANCE_MARK``); any other directory
     is refused.
 
-    It needs the pushed commit and the built bundle and is the lead's step: **this function was written with the
-    package and has not been run** (its drill is ``local_run``'s, which has)."""
+    It needs the pushed commit and the built bundle and is the lead's step.  Its first run (V12, on C1 b7527a66,
+    17 Nov 2026) failed one check, ``resumed_from_drive``, on its own kill condition, which then fired at the first
+    ``.part`` (the first checkpoint's own copy); ruling 45 made it ``acceptance_kill``, which a test covers and no
+    acceptance run has used yet (its drill is ``local_run``'s, which has run)."""
     ref, scratch = str(ref), _anchored(scratch).resolve()
     if not _HEX40.match(ref):
         raise Refused(f"--ref {ref!r}: the 40 hex digits of the launch commit (rule K6)")
@@ -3912,11 +3941,10 @@ def acceptance(notebook, ref, parts_dir, scratch, record) -> dict:
         PREFLIGHT_BODIES=list(content.get("bodies") or [])))
     d, _, _ = run_dirs(p["RUN_ID"], p["DRIVE_DIR"], p["LOCAL_DIR"])
     first = parse_queue(p["QUEUE"])[0]["job"]
+    whole: set = set()
 
-    def part_exists():
-        ck = d / "jobs" / first / "checkpoints"
-        hit = sorted(x.name for x in ck.glob("*.part")) if ck.is_dir() else []
-        return f"{hit[0]} exists on the stand-in Drive (a copy in progress)" if hit else None
+    def cut_copy():  # (ruling 45: a .part once a checkpoint above 0 is whole on the stand-in Drive)
+        return acceptance_kill(d / "jobs" / first, whole)
 
     def cwd_of(i: int) -> Path:
         """Session 0 runs in the first clone; every later attempt in the second, which is made when it is first
@@ -3929,7 +3957,7 @@ def acceptance(notebook, ref, parts_dir, scratch, record) -> dict:
 
     t0 = time.time()
     # (STUDY_DIR stays unset: the cells then take their working directory, which is each attempt's clone)
-    drill = _drill(notebook, dict(p, STUDY_DIR=None), scratch / "logs", cwd_of, part_exists, wipe=dead_vm)
+    drill = _drill(notebook, dict(p, STUDY_DIR=None), scratch / "logs", cwd_of, cut_copy, wipe=dead_vm)
     checks = _drill_checks(drill, p)
     # step 6's two flags with a faked record, as the lead's ruling 2 of 17 Nov 2026 has them (LEAD.json), in the
     # second clone, whose inputs the drill's resume has unpacked
@@ -3951,7 +3979,8 @@ def acceptance(notebook, ref, parts_dir, scratch, record) -> dict:
     checks.update(
         head_is_ref=len(heads) == 2 and all(h == ref for h in heads.values()),
         fresh_clones_hold_nothing_ignored=len(fresh) == 2 and all(fresh.values()),
-        killed_during_a_copy=bool(drill["kill"]["when"]) and "copy in progress" in str(drill["kill"]["when"]),
+        killed_during_a_copy=bool(drill["kill"]["when"]) and "copy in progress" in str(drill["kill"]["when"])
+        and any(n > 0 for n in drill["kill"].get("on_drive") or []),  # (ruling 45: after a whole checkpoint)
         part_swept=bool((_read_json(d / "SESSION_1.json") or {}).get("swept_parts")),
         content_hash=bool(m2) and m2.group("manifest") == str(manifest.get("content_sha256"))[:12]
         and m2.group("bundle") == bundle_id and m2.group("ok") == m2.group("n") == str(len(content.get("files") or {})),
@@ -4133,7 +4162,8 @@ def main(argv=None) -> int:
 
 __all__ = ["BACK_RULE", "BUDGET_RULE", "COPY_RULE", "FENCE_RULE", "HALT_RULE", "JOB_RULE", "K6_RULE", "K7_RULE",
            "LEAD_RULE", "LINE_RE", "NbError", "PARAMS", "RESUMABLE_RULE", "Refused", "UNFINISHED_RULE", "acceptance",
-           "at_or_past", "budget_for", "collect", "finish", "floor_rate", "g8a_counts", "hours", "inputs", "job_name",
+           "acceptance_kill", "at_or_past", "budget_for", "collect", "finish", "floor_rate", "g8a_counts", "hours",
+           "inputs", "job_name",
            "keep_on_drive", "launch", "line1", "line2", "line3", "line4", "lines_of", "load_params", "local_run",
            "main", "parse_queue", "pin_differences", "pins", "pip_commands", "preflight", "read_lead",
            "release_or_keep", "release_runtime", "remount_if_dead", "run_cells", "session", "session_line", "setup", "sha256_json",
