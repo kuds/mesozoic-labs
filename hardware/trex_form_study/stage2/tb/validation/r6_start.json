@@ -1,0 +1,253 @@
+{
+ "schema": "s2-val-r6-start-1",
+ "gate": "r6-start",
+ "rule": "plan B.3: R6's start.  An R6Env of the body and set (training's first env config: hard floor, training's randomisation): 200 env steps of the zero action and 200 of actions uniform on [-1, 1], episodes reset as they end; after every step the joint targets inside the joint ranges, the clock factor in [0.75, 1.25], the observation and the reward finite; a mid-task start: the history and the filter hold the reference's actions and the targets are the reference's (design D8), then up to 50 zero-action steps under the same checks; then a tiny R6 training run of 2 rollouts (8 x 64 steps each, gates off) that ends done with its final checkpoint's fingerprint reproduced; a run already under the work directory is reused only when its run.json's settings are this one's (R6, the body, the set, seed 42, tiny, gates off, the budget), else it is moved aside and made again.  Rule X1: on the view S1",
+ "body": "75-M-H-10",
+ "set": "S1",
+ "env_config": {
+  "body": "75-M-H-10",
+  "set": "S1",
+  "mode": "R6",
+  "floor": "hard",
+  "rate": 1.05,
+  "max_seconds": 30.0,
+  "tasks": [
+   "stand",
+   "walk",
+   "brisk",
+   "stop"
+  ],
+  "task_weights": null,
+  "mid_start": 0.5,
+  "randomize": true,
+  "friction": [
+   0.4,
+   1.2
+  ],
+  "mass": [
+   0.9,
+   1.1
+  ],
+  "kp": [
+   0.6,
+   1.2
+  ],
+  "latency_steps": [
+   0,
+   12
+  ],
+  "noise_scale": [
+   0.5,
+   1.5
+  ],
+  "joint_damping": [
+   0.5,
+   1.5
+  ],
+  "joint_friction": [
+   0.5,
+   1.5
+  ],
+  "push_prob": 0.5,
+  "push_walking": [
+   0.0,
+   0.5
+  ],
+  "push_standing": [
+   0.0,
+   1.0
+  ],
+  "push_s": 0.1,
+  "head_events": true,
+  "gaze_prob": 0.5,
+  "jaw_prob": 0.25,
+  "start_joint_noise": 0.01,
+  "start_root_velocity_noise": 0.02,
+  "action_leg_rad": 0.35,
+  "action_other_rad": 0.15,
+  "action_rate": 0.25,
+  "filter_hz": 10.0,
+  "heading_input": true,
+  "reward": [
+   [
+    "joint",
+    0.55
+   ],
+   [
+    "tracking",
+    0.35
+   ],
+   [
+    "foot",
+    0.15
+   ],
+   [
+    "contact",
+    0.1
+   ],
+   [
+    "head",
+    0.1
+   ],
+   [
+    "duty",
+    0.02
+   ],
+   [
+    "slip",
+    0.02
+   ],
+   [
+    "flight",
+    0.05
+   ],
+   [
+    "impact",
+    0.02
+   ],
+   [
+    "clearance",
+    0.02
+   ],
+   [
+    "tilt",
+    0.02
+   ],
+   [
+    "action_rate",
+    0.03
+   ],
+   [
+    "touchdown",
+    0.02
+   ],
+   [
+    "servo",
+    0.05
+   ],
+   [
+    "interference",
+    0.1
+   ],
+   [
+    "progress",
+    0.1
+   ],
+   [
+    "heading",
+    0.05
+   ],
+   [
+    "range",
+    0.05
+   ]
+  ],
+  "interference": "terminate",
+  "set_freeze": null
+ },
+ "span": [
+  0.1,
+  0.15000000618676385,
+  0.19598023818505722,
+  0.525073189941035,
+  0.1,
+  0.7198269579145584,
+  0.4420824479068617,
+  0.1971801444929972,
+  0.19441570316882556,
+  0.5252623866361024,
+  0.1,
+  0.7202902620292551,
+  0.43801484345336067,
+  0.19321786993673612
+ ],
+ "zero_action": {
+  "steps": 200,
+  "episodes_ended": 0,
+  "problems": [],
+  "problems_n": 0,
+  "ok": true
+ },
+ "random_actions": {
+  "steps": 200,
+  "episodes_ended": 5,
+  "problems": [],
+  "problems_n": 0,
+  "ok": true
+ },
+ "mid_start": {
+  "task": "walk",
+  "start": "mid",
+  "t_start": 1.653720085823096,
+  "history_is_reference": true,
+  "targets_are_reference": true,
+  "steps": {
+   "steps": 50,
+   "episodes_ended": 0,
+   "problems": [],
+   "problems_n": 0,
+   "ok": true
+  },
+  "ok": true
+ },
+ "training": {
+  "job": "R6-75-M-H-10-s42",
+  "out": "stage2/tb/work/r6_start",
+  "status": "done",
+  "steps": 1024,
+  "budget": 1024,
+  "rollouts": 2,
+  "updates": 2,
+  "minibatch_steps": [
+   10,
+   10
+  ],
+  "fingerprint_max_abs_diff": 0.0,
+  "checkpoint_error": null,
+  "made": {},
+  "settings_problems": [],
+  "ok": true
+ },
+ "checks": {
+  "zero": true,
+  "random": true,
+  "mid": true,
+  "training": true
+ },
+ "pass_": true,
+ "g9_ref": null,
+ "set_freeze": null,
+ "sources": {
+  "track_b": {
+   "designlab/stage2/gates2.py": "df3f07299a9bdafc73a2caa310d16ae9d022cd2fbfbe8a4ab6a7b7a66552b0d4",
+   "designlab/stage2/g8a.py": "b01013a310b1369d3cad39189610518a3592b2f0ce9794ae77a03af2faab1551",
+   "designlab/stage2/r5lib.py": "f4c9f89b4d269df20abf3ce5750f5dd4e18662de6375f339ab3b2846170b91ba",
+   "designlab/stage2/r5core.py": "a021696a36efbf63b6988714d729cf18e9dbd9e9dcd7e6a1049e20b9ae0e8755",
+   "designlab/stage2/r5env.py": "4fb6cb3802d3274f91468839b7e931050cb5652f2b650c406130a0a59381991f",
+   "designlab/stage2/lookread.py": "ff7b2e4e7836c25884ae1bae507febacd413c5efa3980dbddbb8568b66809c45",
+   "designlab/stage2/lookbar.py": "6d919fbd8febfdb3ce6e82ef220ce121cfbb99530a48a37c8a6c3ee0e7a3bf55",
+   "designlab/stage2/s2rows.py": "30bbe6aada3666ae9304bfe79a66a195d9c9d1bbcb070e1f682cbc4ea2f3c6dc",
+   "designlab/stage2/s2load.py": "5f40fccad4d0e722dea00fa109c7fabc3d46c3f4ffa325c17a36f83af98f64ea",
+   "designlab/stage2/vecpool.py": "83acf1de2b1f602b0306ea18450f1260492224c6b669f26e0775799af255eea6",
+   "designlab/stage2/train2.py": "3e1294835f2dfa91d51bf7807fa05e542e09755a5acdad3ec2b6053d06239bba",
+   "designlab/stage2/monitor2.py": "f7f1b180533df8008dd6c82647bab37beeb454f00b2c02dd9a2523b1a1cd8efa",
+   "designlab/stage2/tbenv.py": "5877976407cc006d5dc8b56d927b5c9f27f80eb54335d29fabfcf93a2d437eb0",
+   "designlab/stage2/schedules.py": "3deb1c2b4e93a31f6f03f202f33fb84bc714867296b8a3589975b4dd11fd3758"
+  },
+  "bar": "45719d030359ec7d5d3914af3814d837fdc05d77652ba45c64792b511027528d",
+  "panels": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1"
+ },
+ "commit": "ee434be9258dd3a2216e798942f28332ca2a1c18",
+ "dirty": false,
+ "dirty_paths": [],
+ "versions": {
+  "python": "3.13.18",
+  "numpy": "2.5.4",
+  "mujoco": "3.10.0",
+  "scipy": "1.18.1"
+ },
+ "blas_threads": 1,
+ "wall_s": 17.86233191499923,
+ "at": "2026-11-17T18:39:27Z",
+ "sha256": "02a89f45b80f432b3db2d7cd1e927a96a49eeba45b023d7943e41af6470c842e"
+}
