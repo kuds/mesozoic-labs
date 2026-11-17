@@ -118,7 +118,8 @@ def test_the_rule_text_holds_rulings_14_and_15_of_17_nov():
     with the numbers it was made after, before any look set was frozen, and the rule as first written."""
     rule = gates2.RULES["z2_ref"]
     wording, reading = rule.split(gates2.MODULE_READING)
-    for text in ("[changed after a result: the lead's ruling 15 of 17 Nov 2026",
+    for text in ("[changed after a result (rule Z2's label: changed after G9's result): the lead's ruling 15 of 17 "
+                 "Nov 2026",
                  "Stage 1's own arrays (up to 1.1e-4 rad)",
                  "on V0 (up to 5.3e-5 rad), seen on 17 Nov", "before any look set was frozen",
                  "before any closed-loop episode on one", "as first written: joint targets within 1e-6 rad]",
@@ -528,7 +529,7 @@ def test_g9_ref_part_f_on_the_s1_view():
     assert j["jump_rad"] == pytest.approx(1.11e-4, rel=0.01) and j["walk"] == "periodic brisk"
     assert f["ok"] is True and f["max_jump_rad"] == pytest.approx(1.11e-4, rel=0.01)
     assert f["max_jump_rad"] > 1e-6  # (the rule as first written fails here)
-    assert "ruling 15 of 17 Nov 2026" in f["join_limit"]
+    assert "ruling 15 of 17 Nov 2026" in f["join_limit"] and "changed after G9's result" in f["join_limit"]
 
 
 @needs_s1

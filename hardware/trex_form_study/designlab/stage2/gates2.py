@@ -191,8 +191,9 @@ RULES = dict(
         "playback passes all four with ratio 1, a playback cut to 3 steps reads too_few_steps, and (the lead's "
         "ruling 2 of TRACKB_RULINGS6_16NOV) the tail scaled to a tenth about its mean fails the tail term and no "
         "other; (f) each reference no bar item plays has its screen record cited, every task's track is "
-        "continuous at its joins and plays 2 s with finite targets: [changed after a result: the lead's ruling 15 "
-        "of 17 Nov 2026 (ROUND_C_RULINGS_17NOV.md), made after the numbers the joins gave on Stage 1's own arrays "
+        "continuous at its joins and plays 2 s with finite targets: [changed after a result (rule Z2's label: "
+        "changed after G9's result): the lead's ruling 15 of 17 Nov 2026 (ROUND_C_RULINGS_17NOV.md), made after "
+        "the numbers the joins gave on Stage 1's own arrays "
         "(up to 1.1e-4 rad) and on V0 (up to 5.3e-5 rad), seen on 17 Nov, where nothing is wrong, and before any "
         "look set was frozen and before any closed-loop episode on one; as first written: joint targets within "
         "1e-6 rad] a join's jump at a joint does not exceed the largest change between two consecutive frames of "
@@ -1064,8 +1065,8 @@ def part_f(v: _SetView, refcheck_doc: dict | None = None) -> dict:
     oks = [x["ok"] for x in out["unplayed"].values()] + [x["ok"] for x in out["tasks"].values()]
     out["max_jump_rad"] = max((x.get("max_jump_rad", 0.0) for x in out["tasks"].values()), default=0.0)
     out["join_limit"] = ("at each joint, the largest change between two consecutive frames of the walk the join "
-                         "leaves (the lead's ruling 15 of 17 Nov 2026; changed after a result: as first written, 1e-6 "
-                         "rad)")
+                         "leaves (the lead's ruling 15 of 17 Nov 2026; changed after a result, changed after G9's "
+                         "result: as first written, 1e-6 rad)")
     out["ok"] = bool(oks and all(oks))
     return out
 
