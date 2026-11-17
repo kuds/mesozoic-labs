@@ -613,6 +613,7 @@ def test_a_slowed_clock_leaves_a_bar_item_unread_and_a_later_freeze_is_accepted_
     monkeypatch.setattr(gates2, "GATES", tmp_path / "gates")
     for look_sets in (lookbar.LOOK_SETS, ("V6", SET)):
         monkeypatch.setattr(lookbar, "LOOK_SETS", look_sets)
+        monkeypatch.setattr(gates2, "LOOK_SETS", look_sets)  # (lookbar calls the gates' own check of rule X1)
         if SET in look_sets:  # a look set: the row runs there only once its G9-ref has passed (lookbar.RULES["look_sets"])
             with pytest.raises(lookbar.LookSetRefused, match=f"{SET}/{BODY}: there is no G9-ref record"):
                 lookbar.episodes(BODY, SET, rows, pairs, root=sets)

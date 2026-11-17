@@ -205,6 +205,87 @@ def test_closed_loop_gates_refuse_a_look_set_without_a_passed_g9_ref(tmp_path, c
         gates2.require_g9_ref(BODY, "V6noF5", _write_g9(tmp_path / "nof5.json", set_name="V6noF5"), root)
 
 
+def test_a_version_of_a_look_set_is_a_look_set_and_a_set_freeze_that_is_no_object_is_refused(tmp_path, capsys):
+    """The lead's ruling 31 of 17 Nov 2026, points 3 and 4: ``require_g9_ref`` covers a version of a look set
+    (``V6.2``), whose record names the version itself; a G9-ref record whose ``set_freeze`` is not an object (its
+    own sha256 intact) is refused with the gates' refusal, not an ``AttributeError``."""
+    root = tmp_path / "sets"
+    assert [gates2.look_set_of(s) for s in ("V6", "V6noF5", "V6.2", "V6noF5.1", "V0", "F25F9cl.2", "S1", "V6x")] == [
+        "V6", "V6noF5", "V6", "V6noF5", None, None, None, None]
+    for set_name in ("V6.2", "V6noF5.1"):
+        _look_set(root, set_name)
+        with pytest.raises(gates2.Refused, match=f"{set_name}/{BODY}: there is no G9-ref record"):
+            gates2.require_g9_ref(BODY, set_name, tmp_path / "none.json", root)
+        with pytest.raises(gates2.Refused, match=f"the G9-ref record is of V6/{BODY}"):
+            gates2.require_g9_ref(BODY, set_name, _write_g9(tmp_path / f"{set_name}_base.json"), root)
+        good = _write_g9(tmp_path / f"{set_name}.json", set_name=set_name)
+        assert gates2.require_g9_ref(BODY, set_name, good, root)["sha256"] == s2io.sha256_file(good)
+        code = gates2.main(["g8a", "--body", BODY, "--set", set_name, "--g9-ref", str(tmp_path / "none.json"),
+                            "--set-root", str(root)])
+        err = capsys.readouterr().err
+        assert code == gates2.EXIT_ERROR and "there is no G9-ref record" in err and "rule X1" in err
+    for bad in ([dict(index=0, manifest_sha256="f" * 64)], "f" * 64, None, 0):
+        path = tmp_path / "bad.json"
+        doc = dict(schema=gates2.SCHEMAS["g9_ref"], gate="G9-ref", body=BODY, set="V6.2", pass_=True, set_freeze=bad,
+                   at="2026-11-17T00:00:00Z")
+        gates2.finish(doc, path)
+        assert gates2.record_sha_ok(gates2._read(path))
+        with pytest.raises(gates2.Refused) as refused:
+            gates2.require_g9_ref(BODY, "V6.2", path, root)
+        assert refused.type is gates2.Refused and str(refused.value).startswith(
+            f"V6.2/{BODY}: the G9-ref record names no freeze of the set (its set_freeze is {type(bad).__name__}, "
+            "not an object)"), bad
+
+
+def test_a_turn_or_stop_items_reference_is_read_from_its_plan():
+    """The lead's ruling 32 (D) of 17 Nov 2026: a failing turn or stop item names the last move of its plan, in the
+    plan's order, not the last move of its sorted file list (which names the start for a move whose name sorts
+    before it); a walk item its walk; an item whose plan holds no move names none."""
+    lead = [["transition", "start"], ["ref", "nominal", 1], ["transition", "nominal_to_v0.4"]]
+    turn = dict(plan=lead + [["ref", "v0.4", 2.0], ["transition", "turn90_pi4_left"], ["ref", "v0.4", 3]],
+                files=["refs/nominal.npz", "refs/v0.4.npz", "transitions/nominal_to_v0.4.npz", "transitions/start.npz",
+                       "transitions/turn90_pi4_left.npz"])
+    assert gates2.item_reference("turn/q90_left", turn) == "transitions/turn90_pi4_left.npz"
+    early = dict(plan=lead + [["ref", "v0.4", 2.5], ["transition", "arc90_left"], ["ref", "v0.4", 3]],
+                 files=sorted(turn["files"][:-1] + ["transitions/arc90_left.npz"]))
+    assert early["files"][-1] == "transitions/start.npz"  # (what the sorted file list's last move would name)
+    assert gates2.item_reference("turn/q90_left", early) == "transitions/arc90_left.npz"
+    stop = dict(plan=lead + [["ref", "v0.4", 0.2084], ["transition", "stop2_v0.4"], ["hold", 6.1]],
+                files=["refs/nominal.npz", "refs/v0.4.npz", "transitions/nominal_to_v0.4.npz", "transitions/start.npz",
+                       "transitions/stop2_v0.4.npz"])
+    assert gates2.item_reference("stop/two_step", stop) == "transitions/stop2_v0.4.npz"
+    assert gates2.item_reference("walk/v0.4", dict(plan=lead, files=[])) == "refs/v0.4.npz"
+    for x in (dict(files=turn["files"]), dict(plan=[["ref", "v0.4", 3]]), dict(plan="turn90_pi4_left"), {}, None):
+        assert gates2.item_reference("turn/q90_left", x) is None, x
+    assert gates2.still_available(None, None)["still_available"] is True  # (one not named counts as available)
+
+
+def test_the_printed_lines_name_each_failing_reference():
+    """``g9_ref_lines`` prints, after the verdict, one line per failing item of (a) with its terms and the reference
+    it names, whether that entry is available and whether the latest freeze lists it (the check of CG2, finding 1)."""
+    doc = dict(set="V6", body=BODY, form="plain", pass_=False, followed="no closed-loop episode runs (a test)",
+               parts_ok=dict(a=False, b=True, c=True, f=True),
+               parts=dict(a=dict(failing_references=[
+                   dict(item="stop/two_step", reference="transitions/stop2_v0.4.npz", failing=["stopped_by_end"],
+                        entry_available=False, in_latest_freeze=True, still_available=True),
+                   dict(item="turn/q90_left", reference="transitions/turn90_pi4_left.npz",
+                        failing=["heading", "toe_clearance_own_swing"], entry_available=True, in_latest_freeze=True,
+                        still_available=True),
+                   dict(item="walk/v0.3", reference="refs/v0.3.npz", failing=[], entry_available=False,
+                        in_latest_freeze=False, still_available=False)]),
+                          b=dict(items={}), f=dict(tasks={})))
+    lines = gates2.g9_ref_lines(doc)
+    assert lines[0] == ("G9-ref V6 75-M-H-10 (plain): (a) False, (b) True, (c) True, (f) True: FAIL; no closed-loop "
+                        "episode runs (a test)")
+    assert lines[1:] == [
+        "  (a) item stop/two_step fails stopped_by_end: reference transitions/stop2_v0.4.npz, entry available False, "
+        "in the latest freeze True",
+        "  (a) item turn/q90_left fails heading, toe_clearance_own_swing: reference transitions/turn90_pi4_left.npz, "
+        "entry available True, in the latest freeze True",
+        "  (a) item walk/v0.3 fails (no term named): reference refs/v0.3.npz, entry available False, in the latest "
+        "freeze False"]
+
+
 def test_a_record_holds_its_own_sha256(tmp_path):
     doc = gates2.finish(dict(gate="x", value=1.5, nested=dict(a=[1, 2])), tmp_path / "r.json")
     assert doc == json.loads((tmp_path / "r.json").read_text()) and gates2.record_sha_ok(doc)
@@ -754,6 +835,14 @@ def test_g9_ref_part_a_on_a_doctored_reference_check(tmp_path):
     assert a["followed"].startswith("G9-ref fails while a failing item's reference is still available in the set "
                                     f"({TURN_FILE}): the lead marks them not available, freezes the set again and "
                                     "runs G9-ref again")
+    # (the lead's ruling 32 (D)) the reference is the move of the item's plan, whatever its file list holds
+    doc = s2io.read_json(turn)
+    x = doc["items"]["turn/q90_left"]
+    assert ["transition", TURN] in x["plan"]
+    x["files"] = sorted(x["files"] + ["transitions/zz_not_the_move.npz"])
+    s2io.write_json(tmp_path / "turn_files.json", doc)
+    a = gates2.part_a(v, refcheck=tmp_path / "turn_files.json")
+    assert [r["reference"] for r in a["failing_references"]] == [TURN_FILE] and a["still_available"] == [TURN_FILE]
     # the entry marked not available, the set not frozen again: still available (its latest freeze lists it)
     a = gates2.part_a(_marked(gates2._SetView(BODY, "V0")), refcheck=turn)
     assert a["still_available"] == [TURN_FILE] and a["failing_references"][0]["entry_available"] is False
@@ -830,6 +919,8 @@ def test_g9_ref_passes_only_when_every_part_does(tmp_path, monkeypatch):
     assert code == 1 and doc["pass_"] is False and doc["parts"]["a"]["still_available"] == [TURN_FILE]
     assert doc["followed"] == ("no closed-loop episode runs on this set and body; it goes to the lead; (a): "
                                + doc["parts"]["a"]["followed"]) and TURN_FILE in doc["followed"]
+    assert ("  (a) item turn/q90_left fails heading: reference transitions/turn90_pi4_left.npz, entry available True, "
+            "in the latest freeze True") in gates2.g9_ref_lines(doc)  # (the check of CG2, finding 1)
     assert "the lead marks them not available, freezes the set again and runs G9-ref again" in doc["followed"]
     # the lead's step, as the set view reads it
     View = gates2._SetView
