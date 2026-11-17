@@ -4,16 +4,18 @@
 Run from hardware/trex_form_study (the fit's venv):
     OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 python -m pytest -p no:cacheprovider tests/test_stage2_lookread.py
 
-Fast tests on synthetic series (no model): each band on both sides of its limit, segmentation by the own events,
-the bob per step, "not read", too few steps, a reference that lacks a value, the window of a bar item and its
-reference times, gate Z2 (b)'s limits one at a time, the rule texts.  Tests on a model (kinematics only, no physics
-and no episode): the look ladder's V6 rungs played from their own arrays against ``stage2/look/metrics.json`` within
-gate Z2 (b)'s limits, the playback through ``bar._Played`` (a rung written as a reference file under pytest's
+Fast tests on synthetic series (no model): each band on both sides of its limit, segmentation by the own events, the
+bob per step, "not read", too few steps, a reference that lacks a value, the tail's own amplitude under 0.02 rad (the
+term fails while the reference's amplitude is read: the lead's ruling of 16 Nov 2026), the window of a bar item and
+its reference times, gate Z2 (b)'s limits one at a time, the rule texts.  Tests on a model (kinematics only, no
+physics and no episode): the look ladder's V6 rungs played from their own arrays against ``stage2/look/metrics.json``
+within gate Z2 (b)'s limits, the playback through ``bar._Played`` (a rung written as a reference file under pytest's
 temporary directory, and Stage 1's own run directory with a real track), a lift-off or touchdown on a window's first
 physics step, the window and the playback of real bar items (a frozen 75 cm set's tracks, played, never run), the
-negative controls of gate Z2 (c), and an ``-X`` body.  They need the round-two model files, the look ladder's
-arrays, Stage 1's arrays and the frozen sets' arrays (git-ignored; ``python tools/restore_inputs.py restore``) and
-skip without them.  Nothing is written outside ``tmp_path``.
+negative controls of gate Z2 (c), a tail held still or swung too little on a rung's own poses, the tail amplitude of
+every rung of the ladder, and an ``-X`` body.  They need the round-two model files, the look ladder's arrays, Stage
+1's arrays and the frozen sets' arrays (git-ignored; ``python tools/restore_inputs.py restore``) and skip without
+them.  Nothing is written outside ``tmp_path``.
 
 Slow (``STAGE2_SLOW=1``; about 5 s): one closed-loop episode of Stage 1's own run directory (the view ``S1``; row
 R0, no record), its recorder lent 50 Hz poses as the row wrapper will lend them: what ``series`` takes of a live
@@ -94,7 +96,7 @@ def test_constants_are_the_plans_and_stage1s():
 
     assert lookread.BANDS is motion.BANDS
     assert lookread.BANDS == dict(bob_rel=0.30, head_world_pitch_rms_deg=1.5, tail_phase_cycles=0.1, toe_off_rel=0.70)
-    assert lookread.MIN_STEPS == 4 and lookread.NOT_READ_RAD == 0.02
+    assert lookread.MIN_STEPS == 4 and lookread.NOT_READ_RAD == 0.02 and lookread.TAIL_AMP_MIN_RAD == 0.02
     assert lookread.G == control.G and lookread.RATE == panels.RATE == 1.05
     assert lookread.WALK_WINDOW_S == tune.WALK_WINDOW_S == 10.0 and lookread.TURN_WINDOW_S == readings.HEADING_HOLD_S == 3.0
     assert lookread.POSE_S == tune.LEGS_EVERY * control.FEEDBACK_EVERY * 0.002
@@ -113,15 +115,19 @@ def test_the_rule_texts_mark_what_is_the_modules_own_reading():
         measures=("hip-roll joints' anchors", "elevation of the head body's x axis", "first and last left lift-off",
                   "elevation of the foot body's x axis", "first physics step after the change"),
         window=("did not fall", "an episode that fell", "two updates", "when the trace spans it"),
-        bands=("cannot be computed fails its term", "The bob has no such threshold", "reads the phase alone",
-               "no band reads it"),
+        bands=("cannot be computed fails its term", "The bob has no such threshold",
+               "at or over 0.02 rad in the window", "the same fit that gives its phase",
+               "exactly 0.02 rad is not under it", "Both amplitudes and their ratio are recorded",
+               "no band reads the ratio"),
         reference=("bar._Played", "support flags", "0.1 s of simulated time before the window",
                    "lacks one of its own values"))
     rule = dict(
         measures=("rule U1", "own steps", "RMS about its mean", "zero at each of its left lift-offs", "2 % load rule"),
         window=("rule U2", "judged last 10 s", "3 s after t_c + at_s", "Nudge and stop items are not read"),
         bands=("rule U3", "<= 0.3;", "<= 1.5 deg RMS (not relative)", "<= 0.1 cycle", ">= 0.7 x reference",
-               "under 0.02 rad", "both then pass, labelled"),
+               "under 0.02 rad", "both then pass, labelled",
+               "the tail term fails when the robot's fitted tail amplitude is under 0.02 rad while the reference's "
+               "amplitude is read."),
         reference=("rule U5", "nominal commanded clock (1.05)", "at least 4 steps and 4 lift-offs", "too_few_steps",
                    "When the playback itself has fewer, it is an error of the definition"))
     for key, text in lookread.RULES.items():
@@ -132,6 +138,15 @@ def test_the_rule_texts_mark_what_is_the_modules_own_reading():
             assert phrase in after and phrase not in before, (key, phrase)
         for phrase in rule[key]:
             assert phrase in before, (key, phrase)
+    # the tail's amplitude limit is a rule decision of the lead that the plan's wording does not hold yet: it stands
+    # under its own mark, after the plan's rule and before the module's reading, in the bands' text alone
+    lead = lookread.LEAD_RULING
+    assert lead == "The lead's ruling of 16 Nov 2026 (TRACKB_RULINGS5_16NOV, item 5): "
+    assert [key for key, text in lookread.RULES.items() if lead in text] == ["bands"]
+    plan, ruling = lookread.RULES["bands"].split(mark)[0].split(lead)
+    assert plan.startswith("STAGE2_TRACKB_PLAN rule U3") and "fitted tail amplitude" not in plan
+    assert ruling == ("the tail term fails when the robot's fitted tail amplitude is under 0.02 rad while the "
+                      "reference's amplitude is read.  ")
 
 
 def test_the_module_does_not_import_the_bar_and_names_its_own_file():
@@ -354,15 +369,67 @@ def test_a_reference_that_lacks_a_value_is_a_definition_fault():
     assert lookread.compare(own, dict(ref, head_world_pitch_rms_deg=None))["ok"] is True
 
 
-def test_the_tails_amplitude_is_recorded_and_no_band_reads_it():
+@pytest.mark.parametrize("amp, ok", [(0.019, False), (0.021, True), (0.0, False), (0.006, False), (0.06, True),
+                                     (0.12, True), (0.36, True)])
+def test_the_tail_term_fails_under_0_02_rad_of_own_amplitude_while_the_reference_is_read(amp, ok):
+    """The lead's ruling of 16 Nov 2026 (the fifth list, 5): a tail that does not swing cannot pass a reading of how
+    it swings.  The robot's tail keeps the reference's phase here, so that its amplitude alone decides; the
+    reference's amplitude (0.12 rad) is read."""
+    ref, own = read(synth()), read(synth(tail_amp=amp))
+    assert own["tail"]["amp_rad"] == pytest.approx(amp, abs=1e-9) and ref["tail"]["amp_rad"] == pytest.approx(0.12)
+    c = lookread.compare(own, ref)
+    assert c["not_read"] == [] and c["reference"]["tail_amp_side"] == "at or over 0.02 rad"
+    assert c["terms"] == dict(bob=True, head=True, tail=ok, toe_off=True) and c["ok"] is ok
+    if amp > 0.0:  # (the phase is the reference's: where the term fails, the amplitude alone fails it)
+        assert abs(c["tail_phase_diff_cycles"]) < 1e-9
+    # both amplitudes are still printed, with the robot's side of the limit; no band reads their ratio
+    assert c["tail_amp_rad"] == own["tail"]["amp_rad"] and c["reference"]["tail_amp_rad"] == ref["tail"]["amp_rad"]
+    assert c["tail_amp_ratio"] == pytest.approx(amp / 0.12, abs=1e-9) and c["tail_amp_min_rad"] == 0.02
+    assert c["tail_amp_side"] == ("at or over 0.02 rad" if ok else "under 0.02 rad")
+
+
+def test_the_tails_amplitude_limit_is_exact_and_bites_only_where_the_tail_is_read():
     ref = read(synth())
-    for k in (0.05, 0.5, 1.0, 3.0):
-        c = lookread.compare(read(synth(tail_amp=k * 0.12)), ref)
-        assert c["tail_amp_ratio"] == pytest.approx(k, abs=1e-9) and c["terms"]["tail"] is True and c["ok"] is True
+
+    def swung(amp, of=ref):  # the reference's own reading with another tail amplitude (its phase kept)
+        return dict(of, tail=dict(of["tail"], amp_rad=amp))
+
+    # compared without slack: exactly 0.02 rad is not under the limit, the next float below it is
+    c = lookread.compare(swung(0.02), ref)
+    assert c["terms"]["tail"] is True and c["ok"] is True and c["tail_amp_side"] == "at or over 0.02 rad"
+    c = lookread.compare(swung(math.nextafter(0.02, 0.0)), ref)
+    assert c["terms"] == dict(bob=True, head=True, tail=False, toe_off=True)
+    assert c["tail_amp_side"] == "under 0.02 rad"
+    # an amplitude that cannot be computed fails the term, also beside a phase inside its band
+    for bad in (None, float("nan")):
+        c = lookread.compare(swung(bad), ref)
+        assert c["terms"]["tail"] is False and c["tail_phase_diff_cycles"] == 0.0
+        assert c["tail_amp_rad"] is None and c["tail_amp_side"] is None and c["tail_amp_ratio"] is None
     c = lookread.compare(dict(read(synth()), tail=dict(phase_cycles=None, amp_rad=None)), ref)
     assert c["tail_amp_ratio"] is None and c["terms"]["tail"] is False
+    # the phase band still bites on a tail that swings: the term needs both
+    late = lookread.compare(read(synth(tail_phase=-0.28 + 0.11)), ref)
+    assert late["terms"]["tail"] is False and late["tail_amp_side"] == "at or over 0.02 rad"
+    # no band reads the ratio: a tail that swings a sixth of the reference's, or three times it, passes
+    for k in (0.17, 0.5, 1.0, 3.0):
+        c = lookread.compare(read(synth(tail_amp=k * 0.12)), ref)
+        assert c["tail_amp_ratio"] == pytest.approx(k, abs=1e-9) and c["terms"]["tail"] is True and c["ok"] is True
+    # "while the reference's amplitude is read": under 0.02 rad in the reference the term is not read and passes,
+    # labelled, whatever the robot's tail does; both amplitudes are recorded all the same
+    for amp in (0.0, 0.019, 0.12):
+        c = lookread.compare(read(synth(tail_amp=amp)), read(synth(tail_amp=0.019)))
+        assert c["not_read"] == ["tail"] and c["terms"]["tail"] is True and c["ok"] is True
+        assert c["tail_amp_rad"] == pytest.approx(amp, abs=1e-9)
+        assert c["reference"]["tail_amp_rad"] == pytest.approx(0.019)
+        assert c["tail_amp_side"] == ("under 0.02 rad" if amp < 0.02 else "at or over 0.02 rad")
     flat = lookread.compare(read(synth()), read(synth(tail_amp=0.0)))
     assert flat["not_read"] == ["tail"] and (flat["tail_amp_ratio"] is None or flat["tail_amp_ratio"] > 1e6)
+    # a reference exactly at its threshold is read: a still tail fails against it, its own amplitude passes
+    exact = swung(0.02)
+    assert lookread.compare(read(synth(tail_amp=0.019)), exact)["terms"]["tail"] is False
+    assert lookread.compare(swung(0.02), exact)["ok"] is True and lookread.compare(exact, exact)["not_read"] == []
+    # too few own steps fail the term whatever the amplitude, and a reference read against itself passes
+    assert lookread.compare(ref, ref)["ok"] is True and lookread.compare(ref, ref)["tail_amp_ratio"] == 1.0
 
 
 # ------------------------------------------------------------------------------------------------
@@ -670,6 +737,13 @@ def test_a_ladder_rungs_playback_reproduces_the_ladders_own_numbers(body, speed)
     assert abs(d["bob_rel"]) < 0.005 and abs(d["head_deg"]) < 0.02 and abs(d["tail_cycles"]) < 0.002
     assert -0.003 < d["toe_off_rad"] <= 0.0 and -0.08 < d["toe_off_rel"] <= 0.0
     assert r["tail"]["amp_rad"] == pytest.approx(lad["tail"]["amp_rad"], rel=0.02)
+    # the playback read as the robot against its own reading passes every term, the tail's amplitude limit too (the
+    # lead's ruling of 16 Nov 2026): the rung's tail swings 0.12 rad or more, six times the limit
+    same = lookread.compare(r, r)
+    assert same["ok"] and same["terms"] == dict(bob=True, head=True, tail=True, toe_off=True)
+    assert "tail" not in same["not_read"]  # (the 60 cm body's fr05 rung leaves the toe-off unread: under 0.02 rad)
+    assert same["tail_amp_side"] == "at or over 0.02 rad" and same["tail_amp_rad"] == r["tail"]["amp_rad"] >= 0.12
+    assert same["reference"]["tail_amp_rad"] == r["tail"]["amp_rad"] and same["tail_amp_ratio"] == 1.0
     # the same window read 3 s long (a turn item's): at least 4 steps and 4 lift-offs on every rung
     short = rung_reading(body, speed, tb_ref=TA_REF + 3.0 * RATE)
     assert short["steps"] >= 4 and short["lift_offs"] >= 4 and short["tail"]["strides"] >= 2
@@ -683,6 +757,55 @@ def test_a_ladder_rungs_playback_reproduces_the_ladders_own_numbers(body, speed)
     gone = lookread.against_ladder(r, dict(lad, tail=dict(phase_cycles=None, amp_rad=None), toe_off_rad=None))
     assert gone["terms"] == dict(bob=True, head=True, tail=False, toe_off=False) and gone["ok"] is False
     assert lookread.against_ladder(dict(r, bob_pp_m=None), lad)["terms"]["bob"] is False
+
+
+@pytest.mark.parametrize("body", BODIES)
+def test_every_rung_of_the_ladder_swings_its_tail_well_over_the_limit(body):
+    """Every rung of the look ladder that has arrays (every variant at the three speeds), played from its own arrays:
+    the fitted tail amplitude is ``metrics.json``'s within 2 % and at least 0.11 rad (the limit is 0.02 rad), so
+    that on the ladder the reference's amplitude is always read and a playback of the reference passes the tail term
+    against itself."""
+    if not HAVE[body]:
+        pytest.skip(needs[body].kwargs["reason"])
+    rungs = json.loads((LOOK / "metrics.json").read_text())["bodies"][body]
+    amps = {}
+    for speed in SPEEDS:
+        for variant, rung in sorted(rungs[speed].items()):
+            if not _rung(body, speed, variant).exists():
+                continue
+            r = rung_reading(body, speed, variant)
+            amps[speed, variant] = r["tail"]["amp_rad"]
+            assert r["tail"]["amp_rad"] == pytest.approx(rung["tail"]["amp_rad"], rel=0.02), (speed, variant)
+            c = lookread.compare(r, r)  # (a rung without a bob fails the bob term against itself: the tail is read)
+            assert c["terms"]["tail"] is True and "tail" not in c["not_read"], (speed, variant)
+            assert c["tail_amp_side"] == "at or over 0.02 rad" == c["reference"]["tail_amp_side"], (speed, variant)
+    assert {(speed, "V6") for speed in SPEEDS} <= set(amps) and len(amps) >= 3
+    assert min(amps.values()) > 0.11 > 5 * lookread.TAIL_AMP_MIN_RAD, min(amps.items(), key=lambda kv: kv[1])
+
+
+@needs["75-M-H-10"]
+def test_a_tail_held_still_on_a_rungs_own_poses_fails_exactly_the_tail_term():
+    """A tail that does not swing cannot pass a reading of how it swings: the 0.40 m/s rung of the 75 cm body with
+    its tail-yaw joint held at its mean, or swung a tenth of its own, fails the tail term and no other; swung half
+    its own (0.06 rad) it passes, for no band reads the ratio."""
+    body, speed = "75-M-H-10", "v040"
+    p = plant_of(body)
+    poses, loads = rung_arrays(load(_rung(body, speed)), lookread.weight(p), TA_REF, TB_REF)
+    win = (TA_REF / RATE, TB_REF / RATE)
+    ref = lookread.reading(lookread.series(p, poses, loads, DT, EVERY, t0=win[0]), *win)
+    tail = lookread._ids(p.m)["tail"]
+    mean = poses[:, tail].mean()
+    for k, ok in ((0.0, False), (0.1, False), (0.5, True)):
+        q = poses.copy()
+        q[:, tail] = mean + k * (poses[:, tail] - mean)
+        own = lookread.reading(lookread.series(p, q, loads, DT, EVERY, t0=win[0]), *win)
+        c = lookread.compare(own, ref)
+        assert own["tail"]["amp_rad"] == pytest.approx(k * ref["tail"]["amp_rad"], abs=1e-9)
+        assert [name for name in lookread.TERMS if not c["terms"][name]] == ([] if ok else ["tail"]), k
+        assert c["tail_amp_side"] == ("at or over 0.02 rad" if ok else "under 0.02 rad") and c["not_read"] == []
+        assert c["bob_ratio"] == 1.0 and c["toe_off_ratio"] == 1.0
+        if k:
+            assert abs(c["tail_phase_diff_cycles"]) < 1e-9 and c["tail_amp_ratio"] == pytest.approx(k, abs=1e-9)
 
 
 @needs["75-M-H-10"]

@@ -23,6 +23,19 @@ sources hash the trainer gave beside this process's own (``run`` refuses to run 
 traces go under ``monitor/traces/<n>/`` (the baseline's under ``monitor/traces/r0l/``), at the bar's own relative
 paths (``<row>/<behaviour>/<condition>/<seed>.npz``): ``clip2`` draws a clip from one of them.
 
+**Refusals** (rule M1 with the lead's ruling of 16 Nov 2026, 19:01 UTC: a monitor that refuses to run is no
+attempt; the sixth list of 16 Nov, 3, and the rulings of 17 Nov, 10 and 11).  ``run`` and ``baseline`` raise
+``MonitorRefusal`` before any episode when the sources are not the trainer's (kind ``sources``), when the run's
+``run.json`` is missing, cannot be read or is no JSON object (``run``), when the checkpoint is not intact
+(``checkpoint``: no record, a record that cannot be read or has the wrong shape, a file that is not the one its
+record names), when the checkpoint is another run's (``other_run``) and when the row refuses the checkpoint while it
+is built, before any episode (``ROW_REFUSALS``: ``s2rows.RowError``, kind ``row``; ``s2load.CheckpointError``, kind
+``checkpoint``, among them a fingerprint not reproduced at the row's load).  The CLI then leaves with its own exit
+code, ``EXIT_REFUSAL`` (8), and writes the reason beside where the record would be (``refusal_path``:
+``monitor_<n>.refused.json``, the baseline's ``r0l.refused.json``); a later call of the same check takes that note
+away before it runs.  A row that refuses only after the check's episodes (the further delays of rule M6) is no
+refusal: the call ends with exit code 1.
+
 **Rules on records** (pure functions: the same state from the same records, live or at a resume):
 ``survival_credit``, ``gain`` (M3), ``g8b`` and ``fix_weights`` (M4), ``decide`` (everything read after a check:
 the gain of every check, G8b at its two named checks with the one fix, M5's stop), ``s2_10`` (S2-10's one record,
@@ -42,7 +55,8 @@ made its episodes (``episodes_by``).  On any other set a missing ``lookbar`` is 
     python -m designlab.stage2.monitor2 s2-10 --job DIR [--committed-baseline PATH] [--out PATH]
 
 (also reachable as ``python -m designlab.stage2.train2 monitor ...``).  Exit code 0: the record was written (for
-``baseline``: and holds no error); 1: no usable record, with the reason on stderr.
+``baseline``: and holds no error); 1: no usable record, with the reason on stderr; 8: the monitor refused to run
+(**Refusals**): no attempt was made.
 """
 
 from __future__ import annotations
@@ -70,6 +84,18 @@ from designlab.stage2 import s2io  # noqa: E402
 SCHEMA = "s2-monitor-1"
 BASELINE_SCHEMA = "s2-monitor-r0l-1"
 S2_10_SCHEMA = "s2-10-1"
+REFUSAL_SCHEMA = "s2-monitor-refusal-1"
+#: The CLI's exit code when the monitor refuses to run (``RULES["refusal"]``): no other ending of this process, of
+#: the trainer or of a pool worker has it (0, 1, 2, 3, 4, 5, 130).
+EXIT_REFUSAL = 8
+#: What a refusal can be (``MonitorRefusal.kind``).
+REFUSALS = ("sources", "checkpoint", "other_run", "run", "row")
+#: How a row refuses a checkpoint while it is built (``lookbar.rows``, the stand-in's load), before any episode:
+#: (module, class name, refusal kind).  The class is looked up in ``sys.modules`` and never imported for it: an
+#: exception of that class can only have been raised once its module was loaded (``s2rows`` is not merged yet).
+#: An exception of another class, of the same name or not, is no refusal (``_row_refusal``).
+ROW_REFUSALS = (("designlab.stage2.s2rows", "RowError", "row"),
+                ("designlab.stage2.s2load", "CheckpointError", "checkpoint"))
 
 #: Rule M1: the bar's conditions of the monitor, in the order that gives each its seeds.
 CONDITIONS = ("walk/nominal", "walk/v0.4", "turn/q90_left", "stop/two_step", "nudge/forward", "nudge/left")
@@ -157,7 +183,21 @@ RULES = dict(
         "as a failed G8b reading, each of its episodes an error.  An attempt that was never closed (the session "
         "died while the check ran) is an interruption: the resume runs the check again and it does not count; after "
         "two of them at one check the run halts and goes to the lead.  A condition without a reference is held in a "
-        "record as \"not run\" (the lead's fifth list of 16 Nov 2026, 1)"),
+        "record as \"not run\" (the lead's fifth list of 16 Nov 2026, 1).  A monitor that refuses to run is no "
+        "attempt and is not one of the two (refusal)"),
+    refusal=(
+        "rule M1 with the lead's ruling of 16 Nov 2026, 19:01 UTC (the fifth list, 6) and the sixth list of 16 Nov "
+        "2026 (3): a monitor that refuses to run is no attempt.  It refuses, before any episode, when its sources "
+        "are not the ones the trainer hashed (the checkout moved under the run), when the run's run.json is missing, "
+        "cannot be read or is no JSON object, when the checkpoint is not intact (no record, a record that cannot be "
+        "read or has the wrong shape, or a file that is not the one its record names), when the checkpoint is "
+        "another run's (its run_uuid or settings hash is not the run's), and when the row refuses the checkpoint "
+        "while it is built (s2rows.RowError; s2load.CheckpointError: among them a fingerprint not reproduced at the "
+        "row's load).  The monitor then leaves with exit code 8 and writes its reason to monitor_<n>.refused.json "
+        "(the baseline: r0l.refused.json).  The trainer closes the attempt with that exit code, marks it refused "
+        "with the reason, does not count it toward the two closed attempts after which a check counts as without a "
+        "gain, and halts with exit code 5: the run goes to the lead, and a resume runs the check again (a resume "
+        "with --retry-check when the refused attempt was the one that parameter let run)"),
     sources=(
         "the trainer hashes its sources once per session and gives the hash to this process, which refuses to run "
         "if its own differs (train2.sources)"),
@@ -166,6 +206,17 @@ RULES = dict(
 
 class MonitorError(RuntimeError):
     """The monitor cannot run or cannot write a usable record: nothing is recorded as a check's result."""
+
+
+class MonitorRefusal(MonitorError):
+    """The monitor refuses to run (``RULES["refusal"]``): no episode was run and no attempt at the check was made.
+    ``kind``: one of ``REFUSALS``."""
+
+    def __init__(self, kind: str, message: str):
+        if kind not in REFUSALS:
+            raise ValueError(f"refusal kind {kind!r} is none of {', '.join(REFUSALS)}")
+        super().__init__(message)
+        self.kind = kind
 
 
 # ------------------------------------------------------------------------------------------------
@@ -208,7 +259,7 @@ def rules(monitor_every: int, tiny: bool = False, set_name: str = "V6") -> dict:
                 g8b=dict(condition=G8B_CONDITION, at=every if tiny else G8B_AT,
                          again_at=2 * every if tiny else G8B_AGAIN_AT, fix_tasks=fix_tasks_for(set_name)),
                 stop=dict(start=None if tiny else STOP_FROM, checks=STOP_CHECKS), attempts=ATTEMPTS,
-                texts={k: RULES[k] for k in ("gain", "g8b", "stop", "attempts")})
+                texts={k: RULES[k] for k in ("gain", "g8b", "stop", "attempts", "refusal")})
 
 
 # ------------------------------------------------------------------------------------------------
@@ -524,11 +575,31 @@ def s2_10(final: dict, earlier: list, baseline: dict) -> dict:
 # ------------------------------------------------------------------------------------------------
 # The episodes (the one indirection to lookbar and s2rows)
 # ------------------------------------------------------------------------------------------------
+def _row_refusal(exc: BaseException) -> str | None:
+    """The refusal kind of an exception raised while a row is built (``ROW_REFUSALS``), or None: an instance of
+    ``s2rows.RowError`` (``row``) or of ``s2load.CheckpointError`` (``checkpoint``), each class looked up in
+    ``sys.modules``."""
+    for module, name, kind in ROW_REFUSALS:
+        cls = getattr(sys.modules.get(module), name, None)
+        if isinstance(cls, type) and isinstance(exc, cls):
+            return kind
+    return None
+
+
+def _row_refused(row: str, kind: str, exc: BaseException) -> MonitorRefusal:
+    return MonitorRefusal(kind, f"the row {row} refused the checkpoint while it was built, before any episode "
+                                f"({type(exc).__name__}: {exc})")
+
+
 def _episodes(body: str, set_name: str, row: str, pairs: list, policies: dict | None = None, traces=None) -> list:
     """One companion episode per ``(condition key, seed)`` of ``pairs`` under the row ``row`` (``R0L@10ms``, or a
     checkpoint's ``R5/42@10ms`` with ``policies = {"R5/42": {"job_dir", "steps"}}``): ``lookbar.episodes`` on
     ``lookbar.rows(body, [row])`` after ``s2rows.configure(policies)``.  ``traces``: where the episodes' traces
-    go.  Until ``lookbar`` can be imported, set ``S1`` is served by ``_stand_in`` (module docstring)."""
+    go.  Until ``lookbar`` can be imported, set ``S1`` is served by ``_stand_in`` (module docstring).
+
+    The row is built before any episode: a ``ROW_REFUSALS`` exception raised there (by ``s2rows.configure`` or
+    ``lookbar.rows``) is the monitor's ``MonitorRefusal``.  Whatever ``lookbar.episodes`` raises is not (an
+    episode's own fault is an *error* in its table)."""
     import importlib
 
     try:
@@ -537,10 +608,18 @@ def _episodes(body: str, set_name: str, row: str, pairs: list, policies: dict | 
         if exc.name != "designlab.stage2.lookbar" or set_name != S1_SET:
             raise
         return _stand_in(body, row, pairs, policies)
-    if policies:
-        s2rows = importlib.import_module("designlab.stage2.s2rows")
-        s2rows.configure({name: dict(job_dir=str(p["job_dir"]), steps=int(p["steps"])) for name, p in policies.items()})
-    return lookbar.episodes(body, set_name, lookbar.rows(body, [row]), list(pairs), traces=traces)
+    try:
+        if policies:
+            s2rows = importlib.import_module("designlab.stage2.s2rows")
+            s2rows.configure({name: dict(job_dir=str(p["job_dir"]), steps=int(p["steps"]))
+                              for name, p in policies.items()})
+        rows = lookbar.rows(body, [row])
+    except Exception as exc:
+        kind = _row_refusal(exc)
+        if kind is None:
+            raise
+        raise _row_refused(row, kind, exc) from exc
+    return lookbar.episodes(body, set_name, rows, list(pairs), traces=traces)
 
 
 def _episodes_by(set_name: str) -> str:
@@ -559,7 +638,8 @@ def _stand_in(body: str, row: str, pairs: list, policies: dict | None) -> list:
     training env on the stock condition's plan (``panels.Planner``: no plant of the panels is built), nominal
     plant, stance start with the panels' start and noise seeds, the row's delay, interference termination off (the
     bar has none); R0L by the zero action, a checkpoint by its deterministic actions through
-    ``s2load.normalize``.  Nothing is judged: every reading is False."""
+    ``s2load.normalize``.  Nothing is judged: every reading is False.  The checkpoint is loaded before any episode:
+    a ``CheckpointError`` there (a fingerprint not reproduced at the row's load, among others) is a refusal."""
     import numpy as np
 
     from designlab.stage1 import panels
@@ -572,7 +652,10 @@ def _stand_in(body: str, row: str, pairs: list, policies: dict | None) -> list:
     if name != "R0L":
         mode = name.split("/", 1)[0]
         pol = (policies or {})[name]
-        ck = s2load.load_checkpoint(pol["job_dir"], int(pol["steps"]))
+        try:
+            ck = s2load.load_checkpoint(pol["job_dir"], int(pol["steps"]))
+        except s2load.CheckpointError as exc:  # (ROW_REFUSALS: the stand-in's load is the row's)
+            raise _row_refused(row, "checkpoint", exc) from exc
         model, stats = ck["model"], ck["stats"]
         # the run's own env config (its tasks: R6's joint spans are taken over the env's task scripts)
         base = dict(_job_doc(pol["job_dir"])["settings"]["env_configs"][0])
@@ -626,50 +709,88 @@ def _stand_in(body: str, row: str, pairs: list, policies: dict | None) -> list:
 # ------------------------------------------------------------------------------------------------
 # The records
 # ------------------------------------------------------------------------------------------------
-def _job_doc(job_dir) -> dict:
+def _job_doc(job_dir, refuse: bool = False) -> dict:
+    """The run's ``run.json``.  One that is missing, cannot be read or is no JSON object raises ``MonitorError``;
+    with ``refuse`` (``run`` and ``baseline``, before any episode: the sixth list of 16 Nov 2026, 3) it is a
+    ``MonitorRefusal`` of kind ``run``."""
     path = Path(job_dir) / "run.json"
+
+    def fail(text: str) -> MonitorError:
+        return MonitorRefusal("run", text) if refuse else MonitorError(text)
+
     if not path.is_file():
-        raise MonitorError(f"{path}: no run.json (the monitor reads the run's mode, seed and run id from it)")
-    return s2io.read_json(path)
+        raise fail(f"{path}: no run.json (the monitor reads the run's mode, seed and run id from it)")
+    try:
+        doc = s2io.read_json(path)
+    except (OSError, ValueError) as exc:
+        raise fail(f"{path}: the run's run.json cannot be read ({type(exc).__name__})") from exc
+    if not isinstance(doc, dict):
+        raise fail(f"{path}: the run's run.json is no JSON object")
+    return doc
 
 
 def _sources(given: str | None) -> dict:
-    """``{given, own}``: the trainer's sources hash and this process's; ``MonitorError`` if they differ."""
+    """``{given, own}``: the trainer's sources hash and this process's; ``MonitorRefusal`` if they differ."""
     from designlab.stage2 import train2
 
     own = train2.sources()["sha256"]
     if given is not None and str(given) != own:
-        raise MonitorError(f"the sources differ: the trainer gave {str(given)[:16]}..., this process has "
-                           f"{own[:16]}... (the checkout moved under the run): no episode is run")
+        raise MonitorRefusal("sources", f"the sources differ: the trainer gave {str(given)[:16]}..., this process "
+                                        f"has {own[:16]}... (the checkout moved under the run): no episode is run")
     return dict(given=None if given is None else str(given), own=own)
 
 
 def _checkpoint(job_dir, steps: int) -> dict:
     """The checkpoint's record, after its three files' sizes and sha256 were checked against it (nothing is
-    unpickled here: the row loads the checkpoint through ``s2load.load_checkpoint``)."""
+    unpickled here: the row loads the checkpoint through ``s2load.load_checkpoint``).  ``MonitorRefusal`` on a
+    checkpoint that is not intact: no record, a record that cannot be read, a record of the wrong shape (``files``
+    must map each of ``s2load.FILE_KINDS`` to ``{bytes: int, sha256: str}``), a file that is not the one its record
+    names."""
     from designlab.stage2 import s2load
 
     files = s2load.checkpoint_files(job_dir, steps)
     if not files["record"].is_file():
-        raise MonitorError(f"{files['record']}: no checkpoint record")
-    rec = s2io.read_json(files["record"])
+        raise MonitorRefusal("checkpoint", f"{files['record']}: no checkpoint record (checkpoint {steps} is not "
+                                           "intact)")
+    try:
+        rec = s2io.read_json(files["record"])
+    except (OSError, ValueError) as exc:
+        raise MonitorRefusal("checkpoint", f"{files['record']}: the checkpoint's record cannot be read "
+                                           f"({type(exc).__name__}; checkpoint {steps} is not intact)") from exc
+    if not isinstance(rec, dict):
+        raise MonitorRefusal("checkpoint", f"{files['record']}: the checkpoint's record is no JSON object "
+                                           f"(checkpoint {steps} is not intact)")
+    named = rec.get("files")
+    shaped = isinstance(named, dict) and all(
+        isinstance(named.get(kind), dict) and type(named[kind].get("bytes")) is int
+        and isinstance(named[kind].get("sha256"), str) for kind in s2load.FILE_KINDS)
+    if not shaped:
+        raise MonitorRefusal("checkpoint", f"{files['record']}: the checkpoint's record has the wrong shape (files: "
+                                           f"{', '.join(s2load.FILE_KINDS)} -> {{bytes, sha256}}; checkpoint {steps} "
+                                           "is not intact)")
     for kind in s2load.FILE_KINDS:
-        want = (rec.get("files") or {}).get(kind) or {}
+        want = named[kind]
         p = files[kind]
         if not p.is_file() or p.stat().st_size != want.get("bytes") or s2io.sha256_file(p) != want.get("sha256"):
-            raise MonitorError(f"{p}: not the file its record names (checkpoint {steps} is not intact)")
+            raise MonitorRefusal("checkpoint", f"{p}: not the file its record names (checkpoint {steps} is not "
+                                               "intact)")
     return rec
 
 
 def _also(body, set_name, mode, seed, pairs, policies, also_k, k) -> dict:
-    """The same episodes at further delays (rule M6: reported; they decide nothing)."""
+    """The same episodes at further delays (rule M6: reported; they decide nothing).  They run after the check's
+    own episodes: a row that refuses here makes no refusal of the call (``MonitorError``)."""
     out = {}
     for kk in also_k:
         kk = int(kk)
         if kk == int(k):
             continue
         row = row_name(mode, seed, kk)
-        eps = _checked(_episodes(body, set_name, row, pairs, policies, None), pairs, policy=mode is not None)
+        try:
+            got = _episodes(body, set_name, row, pairs, policies, None)
+        except MonitorRefusal as exc:
+            raise MonitorError(f"{exc} (at a further delay, after the check's own episodes: no refusal)") from exc
+        eps = _checked(got, pairs, policy=mode is not None)
         out["%d" % kk] = dict(row=row, k=kk, episodes=eps, **summarize(eps), note="reported (rule M6)")
     return out
 
@@ -691,6 +812,22 @@ def installed_versions() -> dict:
     return out
 
 
+def refusal_path(out, steps=None) -> Path:
+    """Where the CLI writes a refusal's reason: ``<out>/monitor_<steps>.refused.json`` for a check,
+    ``<out>/r0l.refused.json`` for the baseline (``steps`` None)."""
+    return Path(out) / ("r0l.refused.json" if steps is None else "monitor_%d.refused.json" % int(steps))
+
+
+def _note_refusal(path: Path, cmd: str, steps, exc: MonitorRefusal) -> None:
+    """The refusal's note (``RULES["refusal"]``): what the trainer names in its halt.  A note that cannot be written
+    changes nothing: the exit code alone says that the monitor refused."""
+    try:
+        s2io.write_json(path, dict(schema=REFUSAL_SCHEMA, cmd=cmd, at_steps=None if steps is None else int(steps),
+                                   kind=exc.kind, reason=str(exc), rule=RULES["refusal"], at=s2io.now_utc()))
+    except OSError as err:
+        print(f"monitor2 {cmd}: the refusal's note {path} could not be written ({err})", file=sys.stderr, flush=True)
+
+
 def _write(path: Path, doc: dict) -> dict:
     doc = s2io.plain(doc)
     doc["sha256"] = s2io.sha256_json(doc)  # of the record without this key
@@ -701,17 +838,20 @@ def _write(path: Path, doc: dict) -> dict:
 def run(job_dir, steps, body, set_name, out, k=K, tiny=False, also_k=(), sources_sha256=None) -> dict:
     """The check of checkpoint ``steps`` of a job: its episodes under the checkpoint's row, the record
     ``<out>/monitor_<steps>.json`` (also returned).  ``sources_sha256``: the trainer's sources hash; with it this
-    process refuses to run when its own differs.  ``MonitorError`` (and no record) when the run's ``run.json`` or
-    the checkpoint cannot be read, the sources differ, or the episodes that come back are not the check's."""
+    process refuses to run when its own differs.  ``MonitorRefusal`` (no episode, no record: no attempt) when the
+    sources differ, the run's ``run.json`` is missing or cannot be read, the checkpoint is not intact, the
+    checkpoint is another run's or the row refuses it while it is built; ``MonitorError`` (and no record) when the
+    episodes that come back are not the check's."""
     t0 = time.perf_counter()
     n = int(steps)
     job_dir, out = Path(job_dir), Path(out)
-    job = _job_doc(job_dir)
+    job = _job_doc(job_dir, refuse=True)
     src = _sources(sources_sha256)
     ck = _checkpoint(job_dir, n)
     for key in ("run_uuid", "settings_sha256"):
         if ck.get(key) != job.get(key):
-            raise MonitorError(f"checkpoint {n}: its {key} is not the run's: another run's checkpoint is not judged")
+            raise MonitorRefusal("other_run", f"checkpoint {n}: its {key} is not the run's: another run's "
+                                              "checkpoint is not judged")
     mode, seed = job["mode"], int(job["seed"])
     pairs = pairs_for(set_name, tiny)
     row = row_name(mode, seed, k)
@@ -741,7 +881,7 @@ def baseline(body, set_name, out, k=K, tiny=False, also_k=(), sources_sha256=Non
     t0 = time.perf_counter()
     out = Path(out)
     src = _sources(sources_sha256)
-    job = _job_doc(job_dir) if job_dir is not None else {}
+    job = _job_doc(job_dir, refuse=True) if job_dir is not None else {}
     pairs = pairs_for(set_name, tiny)
     row = row_name(None, None, k)
     traces = out / "traces" / "r0l"
@@ -819,6 +959,7 @@ def main(argv=None) -> int:
     a.add_argument("--out", default=None, help="default: <job>/S2_10.json")
     args = ap.parse_args(argv)
     s2io.require_one_thread()
+    note = steps = None
     try:
         if args.cmd == "s2-10":
             doc = write_s2_10(args.job, args.out, args.committed_baseline)
@@ -827,6 +968,9 @@ def main(argv=None) -> int:
                   f"{'a gain' if doc['go'] else 'no gain'}", flush=True)
             return 0
         out = Path(args.out) if args.out else Path(args.job) / "monitor"
+        steps = args.steps if args.cmd == "run" else None
+        note = refusal_path(out, steps)
+        note.unlink(missing_ok=True)  # (a note is its last call's: an earlier refusal of this check is in run.json)
         if args.cmd == "run":
             doc = run(args.job, args.steps, args.body, args.set, out, k=args.k, tiny=args.tiny,
                       also_k=_ks(args.also_k), sources_sha256=args.sources)
@@ -838,17 +982,24 @@ def main(argv=None) -> int:
             print(f"baseline {doc['row']}: N {doc['N']}, S {doc['S']:.3f} s ({len(doc['episodes'])} episodes, "
                   f"{doc['wall_s']:.0f} s)", flush=True)
         return 0
+    except MonitorRefusal as exc:  # (no attempt was made: the trainer halts and does not count it, rule M1)
+        print(f"monitor2 {args.cmd}: refused to run: {exc}", file=sys.stderr, flush=True)
+        if note is not None:
+            _note_refusal(note, args.cmd, steps, exc)
+        return EXIT_REFUSAL
     except MonitorError as exc:
         print(f"monitor2 {args.cmd}: {exc}", file=sys.stderr, flush=True)
         return 1
 
 
-__all__ = ["ATTEMPTS", "BASELINE_SCHEMA", "CONDITIONS", "FIX_TASKS", "G8B_AGAIN_AT", "G8B_AT", "G8B_CONDITION",
-           "K", "MonitorError", "OUTCOMES", "RULES", "S1_CONDITIONS", "S1_FIX_TASKS", "S2_10_SCHEMA", "SCHEMA",
+__all__ = ["ATTEMPTS", "BASELINE_SCHEMA", "CONDITIONS", "EXIT_REFUSAL", "FIX_TASKS", "G8B_AGAIN_AT", "G8B_AT",
+           "G8B_CONDITION", "K", "MonitorError", "MonitorRefusal", "OUTCOMES", "REFUSALS", "REFUSAL_SCHEMA",
+           "ROW_REFUSALS", "RULES",
+           "S1_CONDITIONS", "S1_FIX_TASKS", "S2_10_SCHEMA", "SCHEMA",
            "SEEDS", "STOP_CHECKS", "STOP_FROM", "baseline", "baseline_equal", "baseline_problem",
            "checkpoint_hashes", "conditions_down", "conditions_for", "decide", "fix_tasks_for", "fix_weights", "g8b",
            "gain", "has_clock", "installed_versions", "is_record", "main", "need_up", "no_record", "pairs_for",
-           "row_name", "rules", "run", "s2_10",
+           "refusal_path", "row_name", "rules", "run", "s2_10",
            "seeds_for", "summarize", "survival_credit", "write_s2_10"]
 
 if __name__ == "__main__":

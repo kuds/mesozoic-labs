@@ -20,7 +20,12 @@ What is held here, on a stub env and a stub monitor (no plant, no reference set)
   the trainer refuses to start without ``PYTHONHASHSEED=0``;
 * **a check's attempts** (rule M1): logged before the monitor starts and closed with its exit code; after two closed
   attempts without a record the check counts as a failed G8b reading; after two attempts that were never closed
-  the run halts; ``progress.json`` names a check counted without a record, and a halt;
+  the run halts; ``progress.json`` names a check counted without a record, and a halt; a monitor that refuses to
+  run is no attempt (the run halts with exit code 5 and the monitor's reason, the refusal is not one of the two,
+  a resume runs the check again); a trainer killed twice between the monitor's refusal and the attempt's closing
+  holds two interruptions, and a refusal under ``--retry-check`` then halts with a message that names that
+  parameter; the monitor child's environment holds ``STAGE2_ALLOW_SOURCE_CHANGE=1`` exactly when the session was
+  given ``--allow-source-change`` (the rulings of 17 Nov 2026, 10 and 11);
 * **lesson 16**: with a learning rate that trips ``target_kl`` ``minibatch_steps_run < minibatch_steps_possible``,
   and the ``kl_cut`` flag is set from the median share over a check interval;
 * **``MUJOCO_GL``**: a trainer started with ``MUJOCO_GL=osmesa`` runs a rollout with ``disable`` in itself and in
@@ -224,7 +229,26 @@ def stub_episodes(body, set_name, row, pairs, policies=None, traces=None) -> lis
 def _monitor_main(argv) -> int:
     """The stub monitor child: ``monitor2``'s own CLI with ``_episodes`` replaced.  ``STUB_MON_CRASH`` names a file
     holding a count: while it is above zero the child takes one off and leaves with code 7 and no record.
-    ``STUB_MON_HOLD`` names a file: while it exists, a ``run`` writes ``<file>.started`` and waits to be killed."""
+    ``STUB_MON_HOLD`` names a file: while it exists, a ``run`` writes ``<file>.started`` and waits to be killed.
+    ``STUB_MON_REFUSE`` names a file holding a count: while it is above zero a ``run`` takes one off and is given
+    another sources hash than the trainer's, so that ``monitor2`` itself refuses to run (read before the others).
+    ``STUB_MON_ENV`` names a file: every child appends a line with its command, its step count and the value of
+    ``STAGE2_ALLOW_SOURCE_CHANGE`` in its environment (first of all)."""
+    log = os.environ.get("STUB_MON_ENV")
+    if log:
+        steps = int(argv[argv.index("--steps") + 1]) if "--steps" in argv else None
+        with open(log, "a") as fh:
+            fh.write(json.dumps(dict(cmd=argv[0], steps=steps, allow=os.environ.get("STAGE2_ALLOW_SOURCE_CHANGE")))
+                     + "\n")
+    refuse = os.environ.get("STUB_MON_REFUSE")
+    if refuse and argv[:1] == ["run"] and Path(refuse).is_file() and int(Path(refuse).read_text() or 0) > 0:
+        Path(refuse).write_text(str(int(Path(refuse).read_text()) - 1))
+        i = argv.index("--sources")
+        argv = argv[:i + 1] + ["0" * 64] + argv[i + 2:]
+        from designlab.stage2 import monitor2
+
+        monitor2._episodes = stub_episodes
+        return monitor2.main(argv)
     crash = os.environ.get("STUB_MON_CRASH")
     if crash and argv[:1] == ["run"] and Path(crash).is_file() and int(Path(crash).read_text() or 0) > 0:
         Path(crash).write_text(str(int(Path(crash).read_text()) - 1))
@@ -243,8 +267,20 @@ def _monitor_main(argv) -> int:
 def _drive_main(argv) -> int:
     """A trainer on the stub in its own process: ``drive <JSON kwargs of train2.train>``.  ``STUB_KILL_AT=n``: the
     process kills itself with SIGKILL at the rollout start with n steps done, after everything that rollout start
-    does (the checkpoint, the check, the boundary, ``progress.json``)."""
+    does (the checkpoint, the check, the boundary, ``progress.json``).  ``STUB_KILL_IN_REFUSAL=before_close``: the
+    process kills itself with SIGKILL when a check's monitor child has left with the refusal's exit code, before the
+    attempt is closed (the review of the second follow-ups, 16 Nov 2026)."""
     t = install()
+    if os.environ.get("STUB_KILL_IN_REFUSAL") == "before_close":
+        inner_refusal = t._Run._refusal
+
+        def refusal(self, code, steps=None):
+            why = inner_refusal(self, code, steps)
+            if why is not None and steps is not None:
+                os.kill(os.getpid(), signal.SIGKILL)
+            return why
+
+        t._Run._refusal = refusal
     kill_at = os.environ.get("STUB_KILL_AT")
     if kill_at:
         inner = t._Run._progress
@@ -1354,6 +1390,178 @@ def test_two_attempts_never_closed_halt_the_run(stub, tmp_path, monkeypatch):
     assert d["monitor"][0]["counted_without_record"] is False and len(d["monitor"][1]["attempts"]) == 1
     assert "after_halt" not in d["monitor"][1]["attempts"][0] and d["sessions"][3]["retry_check"] is True
     assert json.loads((jd / "progress.json").read_text())["halt"] is None
+
+
+def test_a_monitor_that_refuses_to_run_is_no_attempt(ref_fix, stub, tmp_path, monkeypatch):
+    """The lead's ruling of 16 Nov 2026 (19:01 UTC): the monitor refuses to run at the first check (its sources are
+    not the trainer's).  The attempt is closed with the monitor's own exit code and marked refused, the trainer
+    halts with exit code 5 and its halt names the monitor's reason, and nothing is read.  Refused twice, the check
+    is still not counted without a record.  The next resume runs the check again: one crash there is the first of
+    the two attempts, the record follows, and the run ends as the uninterrupted one."""
+    out, refuse, crash = tmp_path / "out", tmp_path / "refuse", tmp_path / "crash"
+    jd = job(out)
+    note = jd / "monitor" / "monitor_512.refused.json"
+    refuse.write_text("2")
+    # the first refusal, in a trainer process of its own: the process's exit code
+    r = drive(tmp_path, out, env=dict(STUB_MON_FAIL_AT="512", STUB_MON_REFUSE=refuse), workers=0)
+    assert r.returncode == stub.EXIT_HALT == 5, (r.returncode, r.stderr[-3000:])
+    assert "Halt" in r.stderr and "the monitor refused to run on the check of 512 steps" in r.stderr
+    monkeypatch.setenv("STUB_MON_FAIL_AT", "512")
+    monkeypatch.setenv("STUB_MON_REFUSE", str(refuse))
+    run_uuid = doc_of(out)["run_uuid"]
+    for k in (0, 1):
+        if k:  # the second refusal: a resume runs the check again, and the monitor refuses again
+            with pytest.raises(stub.Halt, match="refused to run on the check of 512 steps.*the sources differ") as info:
+                run(stub, out, gates=True, resume=True)
+            assert info.value.code == 5
+        d = doc_of(out)
+        assert d["run_uuid"] == run_uuid
+        (e,) = d["monitor"]
+        assert d["status"] == "partial" and d["num_timesteps"] == 512 and d["kept"][-1] == 512
+        assert refuse.read_text() == str(1 - k) and len(e["attempts"]) == k + 1
+        for i, a in enumerate(e["attempts"]):
+            assert (a["exit_code"], a["record"], a["refused"], a["session"]) == (8, False, True, i) and a["closed_at"]
+            assert a["refusal"]["kind"] == "sources" and "the sources differ" in a["refusal"]["reason"]
+            assert a["checkpoint_sha256"] == e["checkpoint_sha256"] and "interrupted" not in a
+        # nothing was read: the check is not decided, not counted without a record, and made no fix
+        assert not any(key in e for key in ("decided", "counted_without_record", "record", "gain", "episodes"))
+        assert d["fix"] is None and d["gates"]["g8b"] is None and d["stopped"] is None
+        halt = d["halt"]
+        assert halt["session"] == k and "refused to run on the check of 512 steps" in halt["reason"]
+        assert halt["reason"].endswith("a resume runs the check again") and "--retry-check" not in halt["reason"]
+        assert e["attempts"][k]["refusal"]["reason"] in halt["reason"] and "no attempt" in halt["reason"]
+        assert "the sources differ" in d["sessions"][k]["error"] and d["sessions"][k]["error"].startswith("Halt")
+        prog = json.loads((jd / "progress.json").read_text())  # (the launcher reads the halt there)
+        assert prog["status"] == "partial" and prog["halt"] == halt and prog["checks_without_record"] == []
+        assert prog["last_monitor"] is None and prog["steps"] == 512
+        said = json.loads(note.read_text())  # the monitor's own note, beside where the record would be
+        assert (said["schema"], said["cmd"], said["at_steps"], said["kind"]) == (
+            "s2-monitor-refusal-1", "run", 512, "sources")
+        assert said["reason"] == e["attempts"][k]["refusal"]["reason"]
+        assert not (jd / "monitor" / "monitor_512.json").exists()
+    # the monitor runs again: one crash (the first of rule M1's two), then the record
+    crash.write_text("1")
+    monkeypatch.setenv("STUB_MON_CRASH", str(crash))
+    d = run(stub, out, gates=True, resume=True)
+    e = d["monitor"][0]
+    assert d["status"] == "done" and d["halt"] is None and d["sessions"][2]["resumed_from"] == 512
+    assert [(a["exit_code"], a["record"], bool(a.get("refused")), a["session"]) for a in e["attempts"]] == [
+        (8, False, True, 0), (8, False, True, 1), (7, False, False, 2), (0, True, False, 2)]
+    assert e["counted_without_record"] is False and e["record"] == "monitor/monitor_512.json" and e["decided"]
+    assert d["fix"]["at_steps"] == 512 and d["fix"]["tasks"] == ["walk_nominal"] and not note.exists()
+    assert [len(x["attempts"]) for x in d["monitor"]] == [4, 1, 1]
+    prog = json.loads((jd / "progress.json").read_text())
+    assert prog["halt"] is None and prog["checks_without_record"] == [] and prog["status"] == "done"
+    for n in (1024, FINAL):
+        assert_same_checkpoint(job(ref_fix / "out"), jd, n)
+    same_updates(job(ref_fix / "out"), jd)
+
+
+def test_a_kill_around_a_refusal_and_the_halt_under_retry_check(ref_fix, stub, tmp_path, monkeypatch):
+    """The review of the second follow-ups (16 Nov 2026, finding 2; its third scratch test) and the rulings of 17 Nov
+    2026, 11.  The trainer is killed with SIGKILL after its monitor child left with the refusal's exit code and
+    before the attempt was closed, twice at one check: two interruptions (rule M1), so a resume halts for two
+    attempts never closed.  Under ``--retry-check`` the check runs and the monitor refuses: the run halts again, the
+    refusal is not counted, and the halt names ``--retry-check``, for a plain resume halts on the two attempts never
+    closed.  The next resume with ``--retry-check`` goes to the run's end, bit for bit the uninterrupted run."""
+    out, refuse = tmp_path / "out", tmp_path / "refuse"
+    jd = job(out)
+    note = jd / "monitor" / "monitor_512.refused.json"
+    for k in (0, 1):
+        refuse.write_text("1")
+        r = drive(tmp_path, out, env=dict(STUB_MON_FAIL_AT="512", STUB_MON_REFUSE=refuse,
+                                          STUB_KILL_IN_REFUSAL="before_close"), workers=0,
+                  **(dict(resume=True) if k else {}))
+        assert r.returncode == -signal.SIGKILL, (k, r.returncode, r.stderr[-3000:])
+        d = doc_of(out)
+        (e,) = d["monitor"]
+        assert len(e["attempts"]) == k + 1 and refuse.read_text() == "0" and note.is_file()
+        a = e["attempts"][k]
+        assert (a["closed_at"], a["exit_code"], a["record"], a.get("refused")) == (None, None, None, None)
+        assert d["halt"] is None and d["status"] == "running" and "decided" not in e
+    monkeypatch.setenv("STUB_MON_FAIL_AT", "512")
+    monkeypatch.setenv("STUB_MON_REFUSE", str(refuse))
+    with pytest.raises(stub.Halt, match="never closed"):
+        run(stub, out, gates=True, resume=True)
+    refuse.write_text("1")
+    with pytest.raises(stub.Halt, match="refused to run on the check of 512 steps") as info:
+        run(stub, out, gates=True, resume=True, retry_check=True)
+    assert info.value.code == stub.EXIT_HALT == 5
+    d = doc_of(out)
+    e = d["monitor"][0]
+    assert [(x["exit_code"], x.get("refused"), x.get("interrupted"), x.get("after_halt")) for x in e["attempts"]] == [
+        (None, None, True, None), (None, None, True, None), (8, True, None, True)]
+    assert "decided" not in e and "counted_without_record" not in e and d["halt"]["session"] == 3
+    assert d["halt"]["reason"] == str(info.value) and "the sources differ" in d["halt"]["reason"]
+    assert "with the fault repaired, a resume with --retry-check runs the check again" in d["halt"]["reason"]
+    with pytest.raises(stub.Halt, match="never closed"):  # (without the parameter the check does not run)
+        run(stub, out, gates=True, resume=True)
+    d = run(stub, out, gates=True, resume=True, retry_check=True)
+    e = d["monitor"][0]
+    assert d["status"] == "done" and d["halt"] is None and e["counted_without_record"] is False and not note.exists()
+    assert len(e["attempts"]) == 4 and e["attempts"][3]["record"] is True and e["attempts"][3]["after_halt"] is True
+    for n in (1024, FINAL):
+        assert_same_checkpoint(job(ref_fix / "out"), jd, n)
+    same_updates(job(ref_fix / "out"), jd)
+
+
+def test_the_trainer_passes_its_allow_source_change_to_the_row(stub, tmp_path, monkeypatch):
+    """The rulings of 17 Nov 2026, 10: the monitor child's environment holds ``STAGE2_ALLOW_SOURCE_CHANGE=1``
+    exactly when the session was given ``--allow-source-change`` (the policy row reads it there, rule K9); a value
+    the trainer's own environment holds is not passed on."""
+    name = stub.ALLOW_SOURCE_ENV
+    assert name == "STAGE2_ALLOW_SOURCE_CHANGE"
+    base = {name: "1", "PATH": os.environ.get("PATH", "")}
+    assert name not in stub.monitor_env(False, base) and stub.monitor_env(True, {})[name] == "1"
+    assert base[name] == "1" and stub.monitor_env(True, base)["MUJOCO_GL"] == "disable"
+    out, log = tmp_path / "out", tmp_path / "children.jsonl"
+    cut_at(monkeypatch, stub, 640)
+    monkeypatch.setenv(name, "1")  # (the trainer's own environment holds it; the session has no flag)
+    monkeypatch.setenv("STUB_MON_ENV", str(log))
+    with pytest.raises(_Cut):
+        run(stub, out, gates=True)
+    monkeypatch.undo()
+    stub = install_again(monkeypatch, tmp_path)
+    monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("STUB_MON_ENV", str(log))
+    d = run(stub, out, gates=True, resume=True, allow_source_change=True)
+    assert d["status"] == "done" and d["sessions"][1]["resumed_from"] == 512
+    seen = [json.loads(x) for x in log.read_text().splitlines()]
+    assert [(c["cmd"], c["steps"], c["allow"]) for c in seen] == [
+        ("baseline", None, None), ("run", 512, None), ("run", 1024, "1"), ("run", FINAL, "1")]
+
+
+def test_a_refusal_without_its_note_and_a_refused_baseline(stub, tmp_path, monkeypatch):
+    """The exit code alone says that the monitor refused: a child that leaves with it and writes no note still
+    halts the run, at the baseline and at a check, and the halt names what a refusal can be."""
+    out = tmp_path / "out"
+    code = stub._monitor2().EXIT_REFUSAL
+    assert code == 8 and code not in (stub.EXIT_DONE, stub.EXIT_FAILED, stub.EXIT_G8A, stub.EXIT_REFUSED,
+                                      stub.EXIT_HALT)
+    monkeypatch.setattr(stub, "_monitor_cmd", lambda: [PY, "-c", f"import sys; sys.exit({code})"])
+    with pytest.raises(stub.Halt, match="R0L baseline could not be made.*the monitor refused to run: exit code 8"):
+        run(stub, out, gates=True)
+    d = doc_of(out)
+    (a,) = d["baseline_attempts"]
+    assert (a["exit_code"], a["record"], a["refused"]) == (8, False, True) and a["refusal"]["kind"] is None
+    assert "its sources have moved" in d["halt"]["reason"] and d["baseline"] is None and d["checkpoints"] == []
+    # the baseline is made on the resume; the first check's child then leaves with the refusal's code alone
+    monkeypatch.setattr(stub, "_monitor_cmd", stub_monitor_cmd)
+    real = stub._Run._child
+
+    def child(self, args, att=None):
+        if args[0] == "run":
+            monkeypatch.setattr(stub, "_monitor_cmd", lambda: [PY, "-c", f"import sys; sys.exit({code})"])
+        return real(self, args, att)
+
+    monkeypatch.setattr(stub._Run, "_child", child)
+    with pytest.raises(stub.Halt, match="refused to run on the check of 512 steps \\(exit code 8 and no note"):
+        run(stub, out, gates=True, resume=True)
+    d = doc_of(out)
+    (a,) = d["monitor"][0]["attempts"]
+    assert (a["exit_code"], a["record"], a["refused"], a["refusal"]["kind"]) == (8, False, True, None)
+    assert d["baseline"]["record"] == "monitor/r0l.json" and "decided" not in d["monitor"][0]
+    assert "the checkpoint is not intact" in d["halt"]["reason"] and d["halt"]["session"] == 1
 
 
 def test_a_second_g8b_failure_stops_the_run(stub, tmp_path, monkeypatch):
