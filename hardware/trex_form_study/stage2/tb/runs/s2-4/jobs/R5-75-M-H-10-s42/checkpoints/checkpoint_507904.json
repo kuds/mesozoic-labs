@@ -1,0 +1,177 @@
+{
+ "schema": "s2-ckpt-2",
+ "run_uuid": "18d46b9903e34b958ee433c528e2d605",
+ "run_id": "s2-4",
+ "job": "R5-75-M-H-10-s42",
+ "settings_sha256": "e33b1228f6ab62854729789804991544e8cf5699ffcf9f2f9bc1fef35ea56807",
+ "steps": 507904,
+ "num_timesteps": 507904,
+ "files": {
+  "model": {
+   "name": "model_507904.zip",
+   "bytes": 2347790,
+   "sha256": "b97be4d06e5f5e10b17a57621adc1064fa35f2847d737fcabb5b9a339f40ee10"
+  },
+  "vecnormalize": {
+   "name": "vecnormalize_507904.pkl",
+   "bytes": 9521,
+   "sha256": "a310833264d6866af1540c702899cec130f49ad8e5fd15b920cbb49bf81b5181"
+  },
+  "fingerprint": {
+   "name": "fingerprint_507904.npz",
+   "bytes": 152328,
+   "sha256": "49452cd2cfd36dd51bd3861ce6e40e64d6dfa02b674af795f7b9ab695dc96b25"
+  }
+ },
+ "versions": {
+  "python": "3.13.18",
+  "numpy": "2.5.4",
+  "mujoco": "3.10.0",
+  "scipy": "1.18.1",
+  "torch": "2.15.0+cpu",
+  "stable_baselines3": "2.9.2",
+  "gymnasium": "1.4.0",
+  "cloudpickle": "3.1.2"
+ },
+ "layout": {
+  "blocks": {
+   "q": [
+    0,
+    14
+   ],
+   "qd": [
+    14,
+    28
+   ],
+   "gravity": [
+    28,
+    31
+   ],
+   "gyro": [
+    31,
+    34
+   ],
+   "foot_load": [
+    34,
+    36
+   ],
+   "phase": [
+    36,
+    38
+   ],
+   "support": [
+    38,
+    40
+   ],
+   "command": [
+    40,
+    42
+   ],
+   "heading": [
+    42,
+    43
+   ],
+   "prev_actions": [
+    43,
+    88
+   ],
+   "root_vel": [
+    88,
+    91
+   ],
+   "height": [
+    91,
+    92
+   ],
+   "roll_pitch": [
+    92,
+    94
+   ],
+   "dcm_error": [
+    94,
+    96
+   ],
+   "joint_error": [
+    96,
+    110
+   ],
+   "heading_error": [
+    110,
+    111
+   ],
+   "friction": [
+    111,
+    112
+   ],
+   "floor": [
+    112,
+    114
+   ],
+   "push": [
+    114,
+    117
+   ],
+   "plant_factors": [
+    117,
+    122
+   ],
+   "foot_error": [
+    122,
+    128
+   ],
+   "ref_contact": [
+    128,
+    130
+   ]
+  },
+  "actor_dim": 88,
+  "obs_dim": 130,
+  "action_dim": 15,
+  "head_x": false,
+  "nj": 14,
+  "heading": true
+ },
+ "fingerprint": {
+  "rows": 256,
+  "seed": [
+   20261115,
+   130,
+   88
+  ],
+  "obs_sha256": "0a9aa56cd5df322d815cb088add1cead8cca01d05f31e67a40c1a86910bc7527",
+  "tol": 1e-05,
+  "clipped_rows": 254,
+  "actions_at_bound": 0,
+  "rule": "every checkpoint is saved with 256 observations drawn from numpy.random.default_rng([20261115, observation width, actor width]) (each actor block from a fixed distribution of its kind: joint angles 0.3 z, rates 2 z, gravity (0, 0, -1) + 0.05 z renormalised, gyro 0.5 z, foot loads uniform on 0-1, phase a point of the unit circle, support bits, commands uniform on their ranges, the heading 0.3 z, previous actions 0.1 z, the head command uniform on +-1; the critic's columns zero), with the deterministic float32 actions that its policy and its normalisation statistics give them at save time, and with the statistics as plain arrays; a load must reproduce every action within 1e-5 (absolute), and a checkpoint that does not is not used and not judged (STAGE2_PLAN.md S2-12; Track B rule K9)"
+ },
+ "run_state": {
+  "task_weights": {
+   "stand": 1.0,
+   "walk_nominal": 2.0,
+   "walk_v0.4": 3.0,
+   "walk_v0.3": 0.5,
+   "walk_v0.35": 0.5,
+   "walk_v0.45": 0.5,
+   "turn_0.35_left": 0.25,
+   "turn_0.35_right": 0.25,
+   "turn_0.5_left": 0.25,
+   "turn_0.5_right": 0.25,
+   "stop": 2.0,
+   "start_stop": 1.0
+  },
+  "fix": null,
+  "monitor": [],
+  "gates": {
+   "g8b": null,
+   "g8b_after_fix": null
+  },
+  "no_gain_count": 0,
+  "checks_done": [],
+  "stopped": null,
+  "flags": {
+   "kl_cut": false
+  }
+ },
+ "saved_at": "2026-11-17T20:23:51Z",
+ "sha256": "70466c9111223604af9470a8b7b1093055b90bda695daed4d4518c6af43e1b36"
+}

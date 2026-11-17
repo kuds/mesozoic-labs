@@ -1,0 +1,418 @@
+{
+ "schema": "s2-ckpt-2",
+ "run_uuid": "18d46b9903e34b958ee433c528e2d605",
+ "run_id": "s2-4",
+ "job": "R5-75-M-H-10-s42",
+ "settings_sha256": "e33b1228f6ab62854729789804991544e8cf5699ffcf9f2f9bc1fef35ea56807",
+ "steps": 1753088,
+ "num_timesteps": 1753088,
+ "files": {
+  "model": {
+   "name": "model_1753088.zip",
+   "bytes": 2347793,
+   "sha256": "fd9ed40e5e046169ba4bf453cb33bf298a069d68290271edcc60d02029a05c4b"
+  },
+  "vecnormalize": {
+   "name": "vecnormalize_1753088.pkl",
+   "bytes": 9520,
+   "sha256": "d4c5d844baa05fa637947bcfbfc636fb8657a65e9b11939ca6be36330e95d265"
+  },
+  "fingerprint": {
+   "name": "fingerprint_1753088.npz",
+   "bytes": 152328,
+   "sha256": "f93555c72ecc9425119a61721f9d1b9910245f8e97106cf32fac78f1abe45877"
+  }
+ },
+ "versions": {
+  "python": "3.13.18",
+  "numpy": "2.5.4",
+  "mujoco": "3.10.0",
+  "scipy": "1.18.1",
+  "torch": "2.15.0+cpu",
+  "stable_baselines3": "2.9.2",
+  "gymnasium": "1.4.0",
+  "cloudpickle": "3.1.2"
+ },
+ "layout": {
+  "blocks": {
+   "q": [
+    0,
+    14
+   ],
+   "qd": [
+    14,
+    28
+   ],
+   "gravity": [
+    28,
+    31
+   ],
+   "gyro": [
+    31,
+    34
+   ],
+   "foot_load": [
+    34,
+    36
+   ],
+   "phase": [
+    36,
+    38
+   ],
+   "support": [
+    38,
+    40
+   ],
+   "command": [
+    40,
+    42
+   ],
+   "heading": [
+    42,
+    43
+   ],
+   "prev_actions": [
+    43,
+    88
+   ],
+   "root_vel": [
+    88,
+    91
+   ],
+   "height": [
+    91,
+    92
+   ],
+   "roll_pitch": [
+    92,
+    94
+   ],
+   "dcm_error": [
+    94,
+    96
+   ],
+   "joint_error": [
+    96,
+    110
+   ],
+   "heading_error": [
+    110,
+    111
+   ],
+   "friction": [
+    111,
+    112
+   ],
+   "floor": [
+    112,
+    114
+   ],
+   "push": [
+    114,
+    117
+   ],
+   "plant_factors": [
+    117,
+    122
+   ],
+   "foot_error": [
+    122,
+    128
+   ],
+   "ref_contact": [
+    128,
+    130
+   ]
+  },
+  "actor_dim": 88,
+  "obs_dim": 130,
+  "action_dim": 15,
+  "head_x": false,
+  "nj": 14,
+  "heading": true
+ },
+ "fingerprint": {
+  "rows": 256,
+  "seed": [
+   20261115,
+   130,
+   88
+  ],
+  "obs_sha256": "0a9aa56cd5df322d815cb088add1cead8cca01d05f31e67a40c1a86910bc7527",
+  "tol": 1e-05,
+  "clipped_rows": 254,
+  "actions_at_bound": 0,
+  "rule": "every checkpoint is saved with 256 observations drawn from numpy.random.default_rng([20261115, observation width, actor width]) (each actor block from a fixed distribution of its kind: joint angles 0.3 z, rates 2 z, gravity (0, 0, -1) + 0.05 z renormalised, gyro 0.5 z, foot loads uniform on 0-1, phase a point of the unit circle, support bits, commands uniform on their ranges, the heading 0.3 z, previous actions 0.1 z, the head command uniform on +-1; the critic's columns zero), with the deterministic float32 actions that its policy and its normalisation statistics give them at save time, and with the statistics as plain arrays; a load must reproduce every action within 1e-5 (absolute), and a checkpoint that does not is not used and not judged (STAGE2_PLAN.md S2-12; Track B rule K9)"
+ },
+ "run_state": {
+  "task_weights": {
+   "stand": 1.0,
+   "walk_nominal": 2.0,
+   "walk_v0.4": 3.0,
+   "walk_v0.3": 0.5,
+   "walk_v0.35": 0.5,
+   "walk_v0.45": 0.5,
+   "turn_0.35_left": 0.25,
+   "turn_0.35_right": 0.25,
+   "turn_0.5_left": 0.25,
+   "turn_0.5_right": 0.25,
+   "stop": 2.0,
+   "start_stop": 1.0
+  },
+  "fix": null,
+  "monitor": [
+   {
+    "at_steps": 507904,
+    "multiple": 500000,
+    "checkpoint_sha256": {
+     "model": "b97be4d06e5f5e10b17a57621adc1064fa35f2847d737fcabb5b9a339f40ee10",
+     "vecnormalize": "a310833264d6866af1540c702899cec130f49ad8e5fd15b920cbb49bf81b5181",
+     "fingerprint": "49452cd2cfd36dd51bd3861ce6e40e64d6dfa02b674af795f7b9ab695dc96b25"
+    },
+    "attempts": [
+     {
+      "session": 0,
+      "started_at": "2026-11-17T20:23:51Z",
+      "checkpoint_sha256": {
+       "model": "b97be4d06e5f5e10b17a57621adc1064fa35f2847d737fcabb5b9a339f40ee10",
+       "vecnormalize": "a310833264d6866af1540c702899cec130f49ad8e5fd15b920cbb49bf81b5181",
+       "fingerprint": "49452cd2cfd36dd51bd3861ce6e40e64d6dfa02b674af795f7b9ab695dc96b25"
+      },
+      "closed_at": "2026-11-17T20:24:59Z",
+      "exit_code": 0,
+      "record": true,
+      "pid": 25829,
+      "pid_start": 6919162,
+      "boot_id": "a041fc2c-f276-4c32-b859-1b55bd643140"
+     }
+    ],
+    "record": "monitor/monitor_507904.json",
+    "record_sha256": "2c98cf09503eabee554f321af6b62264c1a382a1d7baeea87c2517c6fd8fbe0e",
+    "counted_without_record": false,
+    "no_record": false,
+    "N": 0,
+    "S": 17.676666666665934,
+    "N_reading2": 0,
+    "N_reading3": 0,
+    "N_but_A1_look": 0,
+    "mean_survival_s": 17.676666666665934,
+    "mean_clock_factor": 1.000438251809525,
+    "failures_by_term": {
+     "along": 3,
+     "grf": 3,
+     "line": 3,
+     "look_toe_off": 3,
+     "survived": 12,
+     "toe_clearance_own_swing": 3
+    },
+    "outcomes": {
+     "read": 3,
+     "fell": 12,
+     "unread": 0,
+     "error": 0,
+     "not_run": 3
+    },
+    "gain": {
+     "N": 0,
+     "S": 17.676666666665934,
+     "N_star": 6,
+     "S_star": 25.03222222221989,
+     "by_N": false,
+     "by_S": false,
+     "gain": false,
+     "against": {
+      "baseline": true,
+      "earlier_checks": 0
+     }
+    },
+    "no_gain_count": 0,
+    "kl_cut": {
+     "after_steps": 0,
+     "to_steps": 507904,
+     "updates": 62,
+     "median_share": 1.0,
+     "cut": false
+    },
+    "decided": true
+   },
+   {
+    "at_steps": 1007616,
+    "multiple": 1000000,
+    "checkpoint_sha256": {
+     "model": "b63fa54738ba46b71fec0af90f2d0452a3fb1f5ea4741e0ffe9238171870f902",
+     "vecnormalize": "4e83b96abfbb75e6f6c147faa4269ca5534ac52d2eac23e2ba4a4e47762d4ea9",
+     "fingerprint": "027b79f68243a11ad8b928f4b02070bb86b10558ebea9d1c69f9691d8476af7d"
+    },
+    "attempts": [
+     {
+      "session": 0,
+      "started_at": "2026-11-17T20:39:03Z",
+      "checkpoint_sha256": {
+       "model": "b63fa54738ba46b71fec0af90f2d0452a3fb1f5ea4741e0ffe9238171870f902",
+       "vecnormalize": "4e83b96abfbb75e6f6c147faa4269ca5534ac52d2eac23e2ba4a4e47762d4ea9",
+       "fingerprint": "027b79f68243a11ad8b928f4b02070bb86b10558ebea9d1c69f9691d8476af7d"
+      },
+      "closed_at": "2026-11-17T20:40:20Z",
+      "exit_code": 0,
+      "record": true,
+      "pid": 26387,
+      "pid_start": 7010324,
+      "boot_id": "a041fc2c-f276-4c32-b859-1b55bd643140"
+     }
+    ],
+    "record": "monitor/monitor_1007616.json",
+    "record_sha256": "d59f84d43ec7f5f398b1e7ca91333273719431d12429feb67438c0b1f0183cbc",
+    "counted_without_record": false,
+    "no_record": false,
+    "N": 0,
+    "S": 22.784666666663682,
+    "N_reading2": 0,
+    "N_reading3": 0,
+    "N_but_A1_look": 0,
+    "mean_survival_s": 22.784666666663682,
+    "mean_clock_factor": 1.0005682145817258,
+    "failures_by_term": {
+     "along": 3,
+     "drive_speed": 1,
+     "line": 3,
+     "look_toe_off": 3,
+     "on_command_at_stop": 2,
+     "recovered": 1,
+     "survived": 9,
+     "toe_clearance_own_swing": 3,
+     "touchdowns_after_command": 2
+    },
+    "outcomes": {
+     "read": 6,
+     "fell": 9,
+     "unread": 0,
+     "error": 0,
+     "not_run": 3
+    },
+    "gain": {
+     "N": 0,
+     "S": 22.784666666663682,
+     "N_star": 6,
+     "S_star": 25.03222222221989,
+     "by_N": false,
+     "by_S": false,
+     "gain": false,
+     "against": {
+      "baseline": true,
+      "earlier_checks": 1
+     }
+    },
+    "no_gain_count": 0,
+    "kl_cut": {
+     "after_steps": 507904,
+     "to_steps": 1007616,
+     "updates": 61,
+     "median_share": 1.0,
+     "cut": false
+    },
+    "decided": true
+   },
+   {
+    "at_steps": 1507328,
+    "multiple": 1500000,
+    "checkpoint_sha256": {
+     "model": "a6485d427d1a4f619ba25137dbb011883b99d2674b07f6446af4a58bccf5e8fa",
+     "vecnormalize": "3bfdd806e0cf4fecbb38fa3c1a38c5d8effeebf04aa8a2e5d4b4e2eacb34a95c",
+     "fingerprint": "7f3cc8a68be789c6c259bf5904db6e8840b573f4ad77e5a5d23cd732f3c59bd0"
+    },
+    "attempts": [
+     {
+      "session": 0,
+      "started_at": "2026-11-17T20:53:55Z",
+      "checkpoint_sha256": {
+       "model": "a6485d427d1a4f619ba25137dbb011883b99d2674b07f6446af4a58bccf5e8fa",
+       "vecnormalize": "3bfdd806e0cf4fecbb38fa3c1a38c5d8effeebf04aa8a2e5d4b4e2eacb34a95c",
+       "fingerprint": "7f3cc8a68be789c6c259bf5904db6e8840b573f4ad77e5a5d23cd732f3c59bd0"
+      },
+      "closed_at": "2026-11-17T20:55:19Z",
+      "exit_code": 0,
+      "record": true,
+      "pid": 26907,
+      "pid_start": 7099483,
+      "boot_id": "a041fc2c-f276-4c32-b859-1b55bd643140"
+     }
+    ],
+    "record": "monitor/monitor_1507328.json",
+    "record_sha256": "27d0e740006be22112f4583a24559c490952866e74e86a963058f4a04a7aaecc",
+    "counted_without_record": false,
+    "no_record": false,
+    "N": 0,
+    "S": 24.06432391760916,
+    "N_reading2": 0,
+    "N_reading3": 0,
+    "N_but_A1_look": 0,
+    "mean_survival_s": 24.10044444444165,
+    "mean_clock_factor": 0.998571118073585,
+    "failures_by_term": {
+     "along": 4,
+     "drive_sustained": 2,
+     "duty": 1,
+     "grf": 3,
+     "line": 4,
+     "look_bob": 4,
+     "look_head": 1,
+     "look_toe_off": 4,
+     "no_flight": 1,
+     "on_command_at_stop": 1,
+     "recovered": 4,
+     "slip_median": 1,
+     "stride": 3,
+     "survived": 6,
+     "toe_clearance_own_swing": 4,
+     "touchdowns_after_command": 1
+    },
+    "outcomes": {
+     "read": 9,
+     "fell": 6,
+     "unread": 0,
+     "error": 0,
+     "not_run": 3
+    },
+    "gain": {
+     "N": 0,
+     "S": 24.06432391760916,
+     "N_star": 6,
+     "S_star": 25.03222222221989,
+     "by_N": false,
+     "by_S": false,
+     "gain": false,
+     "against": {
+      "baseline": true,
+      "earlier_checks": 2
+     }
+    },
+    "no_gain_count": 0,
+    "kl_cut": {
+     "after_steps": 1007616,
+     "to_steps": 1507328,
+     "updates": 61,
+     "median_share": 1.0,
+     "cut": false
+    },
+    "decided": true
+   }
+  ],
+  "gates": {
+   "g8b": null,
+   "g8b_after_fix": null
+  },
+  "no_gain_count": 0,
+  "checks_done": [
+   507904,
+   1007616,
+   1507328
+  ],
+  "stopped": null,
+  "flags": {
+   "kl_cut": false,
+   "kl_cut_ever": false
+  }
+ },
+ "saved_at": "2026-11-17T21:01:55Z",
+ "sha256": "66397547095f18247d0784ba60fc56284f1c696f94ad1c85a6f32eefc8edac80"
+}
