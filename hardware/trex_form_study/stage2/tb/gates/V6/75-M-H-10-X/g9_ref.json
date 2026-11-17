@@ -1,0 +1,4924 @@
+{
+ "schema": "s2-gate-g9-ref-1",
+ "gate": "G9-ref",
+ "rule": "STAGE2_TRACKB_PLAN rule Z2, G9-ref (kinematic only; before the first closed-loop episode on the set and body): (a) every frozen reference played kinematically at the commanded clock passes its own item's readings, the quick turn also reaching 80 degrees at the slowest clock (the bar's reference check, cited); (b) on each rung the look ladder holds for the body the walk's playback agrees with the ladder's numbers (bob within 5 %, head pitch within 0.1 degree, tail phase within 0.01 cycle, toe-off within 0.02 rad and within 10 % of the ladder's number) and the set's look-format hash for that rung equals L1_FREEZE.json's; on a rung the ladder does not hold the four numbers are finite with at least 4 steps in the window; on an -X body each walk's playback agrees with the plain body's playback of the same rung within the same limits; for every walk and turn item the playback of its window (U2) holds at least 4 steps and 4 lift-offs; on V6noF5 no hash and no toe-off comparison (the toe-off 'not read'), bob, head and tail against the same body's V6 playback; (c) four degraded playbacks each fail exactly their term (bob x 0.5; a 3 degree neck sinusoid; the tail 0.2 cycle late; flat feet, on V6 only), the unchanged playback passes all four with ratio 1, a playback cut to 3 steps reads too_few_steps, and (the lead's ruling 2 of TRACKB_RULINGS6_16NOV) the tail scaled to a tenth about its mean fails the tail term and no other; (f) each reference no bar item plays has its screen record cited, every task's track is continuous at its joins and plays 2 s with finite targets: [changed after a result (rule Z2's label: changed after G9's result): the lead's ruling 15 of 17 Nov 2026 (ROUND_C_RULINGS_17NOV.md), made after the numbers the joins gave on Stage 1's own arrays (up to 1.1e-4 rad) and on V0 (up to 5.3e-5 rad), seen on 17 Nov, where nothing is wrong, and before any look set was frozen and before any closed-loop episode on one; as first written: joint targets within 1e-6 rad] a join's jump at a joint does not exceed the largest change between two consecutive frames of the walk it leaves, at that joint (a join never adds a step larger than the walk's own motion); the gate records both numbers per join and joint.  If (a) fails for a reference it is treated as not available and goes to the lead; [the lead's ruling 14 of 17 Nov 2026] G9-ref fails while a failing item's reference is still available in the set, and its record names those references: the lead marks them not available, freezes the set again and runs G9-ref again; a failing start, nominal or v0.4 blocks the body and head; if (b), (c) or (f) fails no closed-loop episode runs on that set and body.  The gates list each item's reference toe-off and its side of 0.02 rad (the lead's ruling 7 of 16 Nov 2026).  This module's own reading, which is not the rule's wording: G9-ref reads a frozen set (any set but the Stage 1 view): an unfrozen set is refused, and every file parts (b) and (c) play, and the comparand's walks, is checked against the latest freeze (setio.read_inputs, require_frozen) before anything is played (a file that differs is refused); the record lists them with their sha256 and those (f)'s library read (inputs).  (a) cites the refcheck record the set's latest freeze cites when its sha256 is the cited one, else the set directory's refcheck.json when every file it read has the latest freeze's sha256, else bar.refcheck is run; whichever record is read, one given by path included, must be of the set and body and every file it read must have the latest freeze's sha256, else (a) is not read and blocks.  An item that fails names its own reference (a walk item its walk, a turn or stop item its move, the last move of the item's plan in the plan's order: the lead's ruling 32 (D) of 17 Nov 2026) and a failing walk/nominal or walk/v0.4 item blocks; the start is played by every item and alone by none, so a failing start is read through the walk/nominal item (the start and the nominal walk alone) and blocks through it.  A failing item's reference is still available while its entry is usable as the env and the bar read it (r5lib.why_not: an entry with a file, not recorded as not available) or the set's latest freeze lists it; one that cannot be named counts as still available (still_available).  (b) plays each walk alone (whole windows of its file) over the reference times [2.0, 2.0 + 10 x 1.05] s through lookread.playback; a rung's walk is the entry whose ladder_twin names the rung, else nominal and v0.4 by name; its numbers are compared with the ladder rung its entry names as its twin (the rung of L1_FREEZE where it names none); a rung of the ladder the set does not hold fails (b) for nominal and v040 and is listed for any other.  An -X body's and V6noF5's walks are compared by name with the comparand set's walks of the same name (the comparand's files cited by path and their own sha256).  The items are the bar's walk and turn conditions at mu 0.9 that the set holds (a mu 0.54 item plays the same track).  (c) is made on the playbacks of the walks nominal and v0.4, with lookread.controls' window (the lead of lookread.LEAD_S before it).  (f): a reference no reference check plays is one that no item of the cited refcheck record that was done names among its files; its block in the set's screen.json must exist with the entry's hash (a walk: its look-format file).  A join's jump at a joint is the |difference| of that joint's target between segment i at its own end (its own formula at its full duration) and segment i + 1's first frame.  The walk it leaves is the walk (a periodic segment) segment i plays; where segment i is no walk (the start, a move or a hold), the walk the track played last before the join (the walk it left through that move), else the first walk it plays after the join; a track that plays no walk holds its joins to 0 at every joint.  A walk's largest change at a joint is over every two consecutive frames of its file's window as the track plays them, the last frame to the first included; 'does not exceed' is at most (<=).  The zero-action targets are R5Tracker.zero_command at every physics step of 2 s of simulated time at the commanded clock.",
+ "body": "75-M-H-10-X",
+ "set": "V6",
+ "form": "-X",
+ "set_freeze": {
+  "index": 0,
+  "manifest_sha256": "77516680b66203cff886be35fc4527eb47222cc22017dab89d6176f94f5747ed"
+ },
+ "inputs": {
+  "played": {
+   "files": {
+    "refs/nominal.npz": {
+     "sha256": "60a9956313fe43052af16bef73763dadc088923ae364c460abaa7e90805db793",
+     "entry_sha256": "f633a0429c35e978c1000a2bce22abf43e1c659cd933d3f183227381cda5676d"
+    },
+    "refs/v0.3.npz": {
+     "sha256": "86aa3cd755d8224b4bf64adb9dd5495823bea66712321f6f388b601c1f1dea9e",
+     "entry_sha256": "57d10946db84bfbcbaecb161e37a2655ae27b27e26649f1cb9a35ed4689dae78"
+    },
+    "refs/v0.35.npz": {
+     "sha256": "bfea2b7821152ec58fe3fde1fe73e2e29cb28ee8ecd7b7abc7f6ab1b40d33c2d",
+     "entry_sha256": "cc01aa09b66c69808f8995f7c18f70ce7bb4eab10f41e0879434df12b51a1a96"
+    },
+    "refs/v0.4.npz": {
+     "sha256": "54d5947d10122a52de7f10f095a39ea1e749f397a269c9a9c3a1487e6af7d915",
+     "entry_sha256": "891074c00e2f6db3b14892daebf148b2aadb44bc9a69673350b9d2f87be0dc4b"
+    },
+    "refs/v0.45.npz": {
+     "sha256": "97a3f5f399f7dd348c249cbdacdfd5b1d35a9d644bd612edb24f21f2fede6f7e",
+     "entry_sha256": "d48a1b70a974d6510b87c50a3b2ab2a6f1d57599c9a3528e6204803ea032f5a7"
+    },
+    "refs/v0.5.npz": {
+     "sha256": "595cad5ebe0e369188c0da54c1e58f74886aefba5c9e140447f388d415dbaa84",
+     "entry_sha256": "9a5e5386a8e1ddacb613376e9a66786e8e0f6e07c822e445f60b5a06d4bf8bcc"
+    },
+    "transitions/nominal_to_v0.3.npz": {
+     "sha256": "b66d32b7faa70bac34dc187d99496278e0eca35a97e51e58089266179c1e7dc1",
+     "entry_sha256": "a81308bfec6aef5c54c4abb760d4ec1fead1172fc69bbb16b9454e35ea41fe7f"
+    },
+    "transitions/nominal_to_v0.35.npz": {
+     "sha256": "05d65e573ff3f2561c4276421cd8dcc472d5bda5d8f63579df30df7db4c902f6",
+     "entry_sha256": "5e697958ff429062bd607e0dfeee2c0aae0f936c1f7a0d260d6d7a871194815b"
+    },
+    "transitions/nominal_to_v0.4.npz": {
+     "sha256": "a4673b58a28358493e45a030fb92d8f9521a56c31b98bb90e9d420b11d7086ac",
+     "entry_sha256": "15570adc68c0aba87cfadd06cf218acf86384afc5e146f70fd13b01797a376d2"
+    },
+    "transitions/nominal_to_v0.45.npz": {
+     "sha256": "3252ff9d712ccd2f3d474100e3daf4591d575fc0222a0511abe0b228bb599a19",
+     "entry_sha256": "4bebc2ce2489b838fa546ac12e931717a221ab291e2ece67f76ebd6a56faabe7"
+    },
+    "transitions/start.npz": {
+     "sha256": "3eb0ab0d6edba36719d324fda137b0e4c4e7a39e70ceab949a782a9958965ad3",
+     "entry_sha256": "13bd71c5b45a6fd71301d1bc157b6e850379118d6969f69bf41e3e293eca499a"
+    },
+    "transitions/turn90_0.35_left.npz": {
+     "sha256": "e6d7544664dc18de0c5445bc0f9a00fcb583f4c94f4740f8073b4651e6a0a767",
+     "entry_sha256": "3f5bf997bd1c1b28b06478e85a172144fc56c3e6be688c683d9b3164fe47f894"
+    },
+    "transitions/turn90_0.35_right.npz": {
+     "sha256": "03ff8bab1cabd149d3bb5c00382e455ab0efaec7f0265ed585f1f2679a8277de",
+     "entry_sha256": "50d4d38379ffc7dc5d6435e7816b565f751063240d2e6b5e0bd4babd932ba23e"
+    },
+    "transitions/turn90_0.5_left.npz": {
+     "sha256": "a5488af457649004ec80a9ebb6eb9894f59d0ae71f503ea6a54af319a50f2b82",
+     "entry_sha256": "ae42f6e062bc612825f9e20a6052d4171495906338c95aa03229243a16f05c99"
+    },
+    "transitions/turn90_0.5_right.npz": {
+     "sha256": "800ad3c27590f2dd2817fbfcf92673d17822181651f961d1de3acdbb5aea9748",
+     "entry_sha256": "36f8323db5dfa24650833463802d917495c4a98b174098682ea1fcbcec53f069"
+    }
+   },
+   "freeze": {
+    "index": 0,
+    "manifest_sha256": "77516680b66203cff886be35fc4527eb47222cc22017dab89d6176f94f5747ed"
+   }
+  },
+  "library": {
+   "files": {
+    "refs/nominal.npz": {
+     "sha256": "60a9956313fe43052af16bef73763dadc088923ae364c460abaa7e90805db793",
+     "entry_sha256": "f633a0429c35e978c1000a2bce22abf43e1c659cd933d3f183227381cda5676d"
+    },
+    "refs/v0.3.npz": {
+     "sha256": "86aa3cd755d8224b4bf64adb9dd5495823bea66712321f6f388b601c1f1dea9e",
+     "entry_sha256": "57d10946db84bfbcbaecb161e37a2655ae27b27e26649f1cb9a35ed4689dae78"
+    },
+    "refs/v0.35.npz": {
+     "sha256": "bfea2b7821152ec58fe3fde1fe73e2e29cb28ee8ecd7b7abc7f6ab1b40d33c2d",
+     "entry_sha256": "cc01aa09b66c69808f8995f7c18f70ce7bb4eab10f41e0879434df12b51a1a96"
+    },
+    "refs/v0.4.npz": {
+     "sha256": "54d5947d10122a52de7f10f095a39ea1e749f397a269c9a9c3a1487e6af7d915",
+     "entry_sha256": "891074c00e2f6db3b14892daebf148b2aadb44bc9a69673350b9d2f87be0dc4b"
+    },
+    "refs/v0.45.npz": {
+     "sha256": "97a3f5f399f7dd348c249cbdacdfd5b1d35a9d644bd612edb24f21f2fede6f7e",
+     "entry_sha256": "d48a1b70a974d6510b87c50a3b2ab2a6f1d57599c9a3528e6204803ea032f5a7"
+    },
+    "transitions/nominal_to_v0.3.npz": {
+     "sha256": "b66d32b7faa70bac34dc187d99496278e0eca35a97e51e58089266179c1e7dc1",
+     "entry_sha256": "a81308bfec6aef5c54c4abb760d4ec1fead1172fc69bbb16b9454e35ea41fe7f"
+    },
+    "transitions/nominal_to_v0.35.npz": {
+     "sha256": "05d65e573ff3f2561c4276421cd8dcc472d5bda5d8f63579df30df7db4c902f6",
+     "entry_sha256": "5e697958ff429062bd607e0dfeee2c0aae0f936c1f7a0d260d6d7a871194815b"
+    },
+    "transitions/nominal_to_v0.4.npz": {
+     "sha256": "a4673b58a28358493e45a030fb92d8f9521a56c31b98bb90e9d420b11d7086ac",
+     "entry_sha256": "15570adc68c0aba87cfadd06cf218acf86384afc5e146f70fd13b01797a376d2"
+    },
+    "transitions/nominal_to_v0.45.npz": {
+     "sha256": "3252ff9d712ccd2f3d474100e3daf4591d575fc0222a0511abe0b228bb599a19",
+     "entry_sha256": "4bebc2ce2489b838fa546ac12e931717a221ab291e2ece67f76ebd6a56faabe7"
+    },
+    "transitions/start.npz": {
+     "sha256": "3eb0ab0d6edba36719d324fda137b0e4c4e7a39e70ceab949a782a9958965ad3",
+     "entry_sha256": "13bd71c5b45a6fd71301d1bc157b6e850379118d6969f69bf41e3e293eca499a"
+    },
+    "transitions/stop2_v0.4.npz": {
+     "sha256": "70d80db31decd78dab7ccbf89b8d7d20413b5e278f9b5b06afd91c55f281ef1b",
+     "entry_sha256": "54ca092538fba7074a67ec319064c637c031fa8f51912e36c61e73ff1ea210f7"
+    },
+    "transitions/turn90_0.35_left.npz": {
+     "sha256": "e6d7544664dc18de0c5445bc0f9a00fcb583f4c94f4740f8073b4651e6a0a767",
+     "entry_sha256": "3f5bf997bd1c1b28b06478e85a172144fc56c3e6be688c683d9b3164fe47f894"
+    },
+    "transitions/turn90_0.35_right.npz": {
+     "sha256": "03ff8bab1cabd149d3bb5c00382e455ab0efaec7f0265ed585f1f2679a8277de",
+     "entry_sha256": "50d4d38379ffc7dc5d6435e7816b565f751063240d2e6b5e0bd4babd932ba23e"
+    },
+    "transitions/turn90_0.5_left.npz": {
+     "sha256": "a5488af457649004ec80a9ebb6eb9894f59d0ae71f503ea6a54af319a50f2b82",
+     "entry_sha256": "ae42f6e062bc612825f9e20a6052d4171495906338c95aa03229243a16f05c99"
+    },
+    "transitions/turn90_0.5_right.npz": {
+     "sha256": "800ad3c27590f2dd2817fbfcf92673d17822181651f961d1de3acdbb5aea9748",
+     "entry_sha256": "36f8323db5dfa24650833463802d917495c4a98b174098682ea1fcbcec53f069"
+    }
+   },
+   "freeze": {
+    "index": 0,
+    "manifest_sha256": "77516680b66203cff886be35fc4527eb47222cc22017dab89d6176f94f5747ed"
+   }
+  },
+  "comparand": {
+   "set": "V6",
+   "body": "75-M-H-10",
+   "files": {
+    "refs/nominal.npz": {
+     "sha256": "b3dd607d91f6938c229a4b4e66112aa85e200be760fe2903bc44ceba20911cfc",
+     "entry_sha256": "05c182680617c78a82579edb3f59aedee5a84061f770e6d82f732299c2bfc569"
+    },
+    "refs/v0.3.npz": {
+     "sha256": "a4c314ec4e9ecd2c8fc5b6ac59da2f9edcddc3920e8dbd795344e988c8147c73",
+     "entry_sha256": "f5efc559e8369a3b6ee783ad1ed213e9ba051bb6b53cd07b3169339f8239a7ed"
+    },
+    "refs/v0.35.npz": {
+     "sha256": "fc063317d27f086a0795136097e522379ab18b4028fb331f5d1677aa5bb9961c",
+     "entry_sha256": "dd8f2584fff455da3301a454430cad2d0d3a3d8b8ff1d11bf04fbd4fd1b1ca62"
+    },
+    "refs/v0.4.npz": {
+     "sha256": "c4f44b48d0fb9daa4b42957addbda3e82b96e43678482d1e0dec8ac597912a62",
+     "entry_sha256": "8fa78f2ad1db28416637684b594622b49ef82d5be63af89163ff1d86622e0a3d"
+    },
+    "refs/v0.45.npz": {
+     "sha256": "39e80ce7c8bced995680159ec3710cdb728d83f1dfc9665cfc5201dc7a0d9148",
+     "entry_sha256": "4f8e0658182ddc79c128e6918681c62a2f07c66e02d7de808c4ece52bbf0b2a4"
+    },
+    "refs/v0.5.npz": {
+     "sha256": "7d52402c645c9ef4fbdf36ec68d1b7fb95edcff78b08f6f7928e300d50bb2d47",
+     "entry_sha256": "dfe5a4ca4caf307ff55ea3c6470bf5448ba31dcd7a47bc93a3a58e062c9fd8ea"
+    }
+   },
+   "freeze": {
+    "index": 0,
+    "manifest_sha256": "2eeaebe8d37cf0f60fda90bd9c71df4e828d35b51fc6411efc072d23e7e38def"
+   }
+  }
+ },
+ "parts": {
+  "a": {
+   "ok": true,
+   "applies": true,
+   "refcheck": {
+    "source": "cited by the set's latest freeze",
+    "files_match_freeze": true,
+    "path": "stage2/sets/V6/75-M-H-10-X/refcheck.json",
+    "sha256": "1b7308e961cc63ed95e29f23b4c84aecdfe05ebba977deb16a59e45ef9bb210c",
+    "plans_placed": true
+   },
+   "schema": "bar-refcheck-1",
+   "refcheck_pass": true,
+   "same_set_and_body": true,
+   "files_match_freeze": true,
+   "items": {
+    "walk/v0.4": {
+     "status": "done",
+     "pass_": true,
+     "ok": {
+      "along": true,
+      "line": true,
+      "toe_clearance_own_swing": true
+     }
+    },
+    "turn/q90_left": {
+     "status": "not run",
+     "pass_": null,
+     "ok": null
+    },
+    "turn/q90_right": {
+     "status": "not run",
+     "pass_": null,
+     "ok": null
+    },
+    "stop/two_step": {
+     "status": "done",
+     "pass_": true,
+     "ok": {
+      "stopped_by_end": true,
+      "touchdowns_after_command": true
+     }
+    },
+    "walk/nominal": {
+     "status": "done",
+     "pass_": true,
+     "ok": {
+      "along": true,
+      "line": true,
+      "toe_clearance_own_swing": true
+     }
+    },
+    "walk/v0.3": {
+     "status": "done",
+     "pass_": true,
+     "ok": {
+      "along": true,
+      "line": true,
+      "toe_clearance_own_swing": true
+     }
+    },
+    "walk/v0.35": {
+     "status": "done",
+     "pass_": true,
+     "ok": {
+      "along": true,
+      "line": true,
+      "toe_clearance_own_swing": true
+     }
+    },
+    "walk/v0.45": {
+     "status": "done",
+     "pass_": true,
+     "ok": {
+      "along": true,
+      "line": true,
+      "toe_clearance_own_swing": true
+     }
+    },
+    "walk/v0.5": {
+     "status": "not run",
+     "pass_": null,
+     "ok": null
+    },
+    "turn/t90_0.35_left": {
+     "status": "done",
+     "pass_": true,
+     "ok": {
+      "heading": true,
+      "toe_clearance_own_swing": true,
+      "heading_at_80deg": true
+     }
+    },
+    "turn/t90_0.35_right": {
+     "status": "done",
+     "pass_": true,
+     "ok": {
+      "heading": true,
+      "toe_clearance_own_swing": true,
+      "heading_at_80deg": true
+     }
+    },
+    "turn/t90_0.5_left": {
+     "status": "done",
+     "pass_": true,
+     "ok": {
+      "heading": true,
+      "toe_clearance_own_swing": true,
+      "heading_at_80deg": true
+     }
+    },
+    "turn/t90_0.5_right": {
+     "status": "done",
+     "pass_": true,
+     "ok": {
+      "heading": true,
+      "toe_clearance_own_swing": true,
+      "heading_at_80deg": true
+     }
+    },
+    "turn/t90_1_left": {
+     "status": "not run",
+     "pass_": null,
+     "ok": null
+    },
+    "turn/t90_1_right": {
+     "status": "not run",
+     "pass_": null,
+     "ok": null
+    },
+    "stop/one_step": {
+     "status": "done",
+     "pass_": true,
+     "ok": {
+      "stopped_by_end": true,
+      "touchdowns_after_command": true
+     }
+    }
+   },
+   "failing_references": [],
+   "still_available": [],
+   "blocked": [],
+   "blocks": false,
+   "followed": "none: every reference passes its own item"
+  },
+  "b": {
+   "toe_off": "read",
+   "walks": {
+    "nominal": {
+     "bob_pp_m": 0.00527806274849369,
+     "head_world_pitch_rms_deg": 0.5314570231131078,
+     "tail_phase_cycles": -0.14783294997469656,
+     "tail_amp_rad": 0.1249550863278072,
+     "toe_off_rad": 0.2988621549864313,
+     "finite": true,
+     "steps": 18,
+     "lift_offs": 19,
+     "window_ref": [
+      2.0,
+      12.5
+     ],
+     "entry_look_sha256": "1e9406d5d33683c9744e4f9a7fe8bd7299ec5677bbde76d9631aacbc659797c2",
+     "ladder_twin": null,
+     "ok": true
+    },
+    "v0.3": {
+     "bob_pp_m": 0.006065676074541676,
+     "head_world_pitch_rms_deg": 0.5431890299794128,
+     "tail_phase_cycles": -0.27575686531442595,
+     "tail_amp_rad": 0.12494898798010176,
+     "toe_off_rad": 0.20424559484893218,
+     "finite": true,
+     "steps": 20,
+     "lift_offs": 21,
+     "window_ref": [
+      2.0,
+      12.5
+     ],
+     "entry_look_sha256": "149e8c43a2a68f73a845f333702ecf7aa129e897676b258d1d52080b8bff80f5",
+     "ladder_twin": null,
+     "ok": true
+    },
+    "v0.35": {
+     "bob_pp_m": 0.006264972764785946,
+     "head_world_pitch_rms_deg": 0.5313319732858406,
+     "tail_phase_cycles": -0.2753322917026006,
+     "tail_amp_rad": 0.12525785072598927,
+     "toe_off_rad": 0.07455124983672144,
+     "finite": true,
+     "steps": 23,
+     "lift_offs": 24,
+     "window_ref": [
+      2.0,
+      12.5
+     ],
+     "entry_look_sha256": "7d89af7097302eb9be9cdc0ae28facbd02173ff3277cd79c87c0ffe15172feaa",
+     "ladder_twin": null,
+     "ok": true
+    },
+    "v0.4": {
+     "bob_pp_m": 0.007494034086271073,
+     "head_world_pitch_rms_deg": 0.541850888200361,
+     "tail_phase_cycles": -0.2811786984551234,
+     "tail_amp_rad": 0.12525428899694058,
+     "toe_off_rad": 0.0542303142078506,
+     "finite": true,
+     "steps": 24,
+     "lift_offs": 25,
+     "window_ref": [
+      2.0,
+      12.5
+     ],
+     "entry_look_sha256": "7cb336ca7f07bc394c68fdc98950ff15677ac431fff09597ea621ed3230359c0",
+     "ladder_twin": null,
+     "ok": true
+    },
+    "v0.45": {
+     "bob_pp_m": 0.008686850068715017,
+     "head_world_pitch_rms_deg": 0.5501319346032748,
+     "tail_phase_cycles": -0.2809331428793267,
+     "tail_amp_rad": 0.1252631286729069,
+     "toe_off_rad": 0.037378034248035784,
+     "finite": true,
+     "steps": 25,
+     "lift_offs": 25,
+     "window_ref": [
+      2.0,
+      12.5
+     ],
+     "entry_look_sha256": "c414e67a1a7e05669c2ae2e74c328bc2d2033d17cc00643decdf6e8f11c0bae5",
+     "ladder_twin": null,
+     "ok": true
+    },
+    "v0.5": {
+     "bob_pp_m": 0.009714787665357853,
+     "head_world_pitch_rms_deg": 0.5407507464823039,
+     "tail_phase_cycles": -0.28051960395151143,
+     "tail_amp_rad": 0.12519913297234728,
+     "toe_off_rad": 0.0211592500144474,
+     "finite": true,
+     "steps": 25,
+     "lift_offs": 27,
+     "window_ref": [
+      2.0,
+      12.5
+     ],
+     "entry_look_sha256": "d66c85ca5eb2b0502525d751b7056786b3872b696850cee17b4fc764cec83fc2",
+     "ladder_twin": null,
+     "ok": true
+    }
+   },
+   "rungs": {},
+   "compared": {
+    "nominal": {
+     "against": {
+      "differences": {
+       "bob_rel": 0.0,
+       "head_deg": 0.0,
+       "tail_cycles": 0.0,
+       "toe_off_rad": 2.721713854292318e-09,
+       "toe_off_rel": 9.106920477108648e-09
+      },
+      "terms": {
+       "bob": true,
+       "head": true,
+       "tail": true,
+       "toe_off": true
+      },
+      "ok": true,
+      "toe_off": "read",
+      "limits": {
+       "bob_rel": 0.05,
+       "head_deg": 0.1,
+       "tail_cycles": 0.01,
+       "toe_off_rad": 0.02,
+       "toe_off_rel": 0.1
+      },
+      "ladder": {
+       "window": [
+        1.9047619047619047,
+        11.904761904761905
+       ],
+       "samples": 501,
+       "steps": 18,
+       "lift_offs": 19,
+       "bob_pp_m": 0.00527806274849369,
+       "head_world_pitch_rms_deg": 0.5314570231131078,
+       "tail": {
+        "phase_cycles": -0.14783294997469656,
+        "amp_rad": 0.1249550863278072,
+        "strides": 9
+       },
+       "toe_off_rad": 0.29886215226471746,
+       "window_ref": [
+        2.0,
+        12.5
+       ],
+       "clock_rate": 1.05,
+       "lead_s": 0.1
+      }
+     },
+     "comparand_numbers": {
+      "bob_pp_m": 0.00527806274849369,
+      "head_world_pitch_rms_deg": 0.5314570231131078,
+      "tail_phase_cycles": -0.14783294997469656,
+      "tail_amp_rad": 0.1249550863278072,
+      "toe_off_rad": 0.29886215226471746,
+      "finite": true,
+      "steps": 18,
+      "lift_offs": 19
+     },
+     "ok": true
+    },
+    "v0.3": {
+     "against": {
+      "differences": {
+       "bob_rel": 0.0,
+       "head_deg": 0.0,
+       "tail_cycles": 0.0,
+       "toe_off_rad": 2.8516443650872247e-09,
+       "toe_off_rel": 1.3961840435337728e-08
+      },
+      "terms": {
+       "bob": true,
+       "head": true,
+       "tail": true,
+       "toe_off": true
+      },
+      "ok": true,
+      "toe_off": "read",
+      "limits": {
+       "bob_rel": 0.05,
+       "head_deg": 0.1,
+       "tail_cycles": 0.01,
+       "toe_off_rad": 0.02,
+       "toe_off_rel": 0.1
+      },
+      "ladder": {
+       "window": [
+        1.9047619047619047,
+        11.904761904761905
+       ],
+       "samples": 501,
+       "steps": 20,
+       "lift_offs": 21,
+       "bob_pp_m": 0.006065676074541676,
+       "head_world_pitch_rms_deg": 0.5431890299794128,
+       "tail": {
+        "phase_cycles": -0.27575686531442595,
+        "amp_rad": 0.12494898798010176,
+        "strides": 10
+       },
+       "toe_off_rad": 0.2042455919972878,
+       "window_ref": [
+        2.0,
+        12.5
+       ],
+       "clock_rate": 1.05,
+       "lead_s": 0.1
+      }
+     },
+     "comparand_numbers": {
+      "bob_pp_m": 0.006065676074541676,
+      "head_world_pitch_rms_deg": 0.5431890299794128,
+      "tail_phase_cycles": -0.27575686531442595,
+      "tail_amp_rad": 0.12494898798010176,
+      "toe_off_rad": 0.2042455919972878,
+      "finite": true,
+      "steps": 20,
+      "lift_offs": 21
+     },
+     "ok": true
+    },
+    "v0.35": {
+     "against": {
+      "differences": {
+       "bob_rel": 0.0,
+       "head_deg": 0.0,
+       "tail_cycles": 0.0,
+       "toe_off_rad": 1.2921238662366719e-09,
+       "toe_off_rel": 1.733202181669306e-08
+      },
+      "terms": {
+       "bob": true,
+       "head": true,
+       "tail": true,
+       "toe_off": true
+      },
+      "ok": true,
+      "toe_off": "read",
+      "limits": {
+       "bob_rel": 0.05,
+       "head_deg": 0.1,
+       "tail_cycles": 0.01,
+       "toe_off_rad": 0.02,
+       "toe_off_rel": 0.1
+      },
+      "ladder": {
+       "window": [
+        1.9047619047619047,
+        11.904761904761905
+       ],
+       "samples": 501,
+       "steps": 23,
+       "lift_offs": 24,
+       "bob_pp_m": 0.006264972764785946,
+       "head_world_pitch_rms_deg": 0.5313319732858406,
+       "tail": {
+        "phase_cycles": -0.2753322917026006,
+        "amp_rad": 0.12525785072598927,
+        "strides": 11
+       },
+       "toe_off_rad": 0.07455124854459758,
+       "window_ref": [
+        2.0,
+        12.5
+       ],
+       "clock_rate": 1.05,
+       "lead_s": 0.1
+      }
+     },
+     "comparand_numbers": {
+      "bob_pp_m": 0.006264972764785946,
+      "head_world_pitch_rms_deg": 0.5313319732858406,
+      "tail_phase_cycles": -0.2753322917026006,
+      "tail_amp_rad": 0.12525785072598927,
+      "toe_off_rad": 0.07455124854459758,
+      "finite": true,
+      "steps": 23,
+      "lift_offs": 24
+     },
+     "ok": true
+    },
+    "v0.4": {
+     "against": {
+      "differences": {
+       "bob_rel": 0.0,
+       "head_deg": 0.0,
+       "tail_cycles": 0.0,
+       "toe_off_rad": 1.161315148212605e-09,
+       "toe_off_rel": 2.1414502018752344e-08
+      },
+      "terms": {
+       "bob": true,
+       "head": true,
+       "tail": true,
+       "toe_off": true
+      },
+      "ok": true,
+      "toe_off": "read",
+      "limits": {
+       "bob_rel": 0.05,
+       "head_deg": 0.1,
+       "tail_cycles": 0.01,
+       "toe_off_rad": 0.02,
+       "toe_off_rel": 0.1
+      },
+      "ladder": {
+       "window": [
+        1.9047619047619047,
+        11.904761904761905
+       ],
+       "samples": 501,
+       "steps": 24,
+       "lift_offs": 25,
+       "bob_pp_m": 0.007494034086271073,
+       "head_world_pitch_rms_deg": 0.541850888200361,
+       "tail": {
+        "phase_cycles": -0.2811786984551234,
+        "amp_rad": 0.12525428899694058,
+        "strides": 11
+       },
+       "toe_off_rad": 0.05423031304653545,
+       "window_ref": [
+        2.0,
+        12.5
+       ],
+       "clock_rate": 1.05,
+       "lead_s": 0.1
+      }
+     },
+     "comparand_numbers": {
+      "bob_pp_m": 0.007494034086271073,
+      "head_world_pitch_rms_deg": 0.541850888200361,
+      "tail_phase_cycles": -0.2811786984551234,
+      "tail_amp_rad": 0.12525428899694058,
+      "toe_off_rad": 0.05423031304653545,
+      "finite": true,
+      "steps": 24,
+      "lift_offs": 25
+     },
+     "ok": true
+    },
+    "v0.45": {
+     "against": {
+      "differences": {
+       "bob_rel": 0.0,
+       "head_deg": 0.0,
+       "tail_cycles": 0.0,
+       "toe_off_rad": 9.150559407422598e-10,
+       "toe_off_rel": 2.448111522055058e-08
+      },
+      "terms": {
+       "bob": true,
+       "head": true,
+       "tail": true,
+       "toe_off": true
+      },
+      "ok": true,
+      "toe_off": "read",
+      "limits": {
+       "bob_rel": 0.05,
+       "head_deg": 0.1,
+       "tail_cycles": 0.01,
+       "toe_off_rad": 0.02,
+       "toe_off_rel": 0.1
+      },
+      "ladder": {
+       "window": [
+        1.9047619047619047,
+        11.904761904761905
+       ],
+       "samples": 501,
+       "steps": 25,
+       "lift_offs": 25,
+       "bob_pp_m": 0.008686850068715017,
+       "head_world_pitch_rms_deg": 0.5501319346032748,
+       "tail": {
+        "phase_cycles": -0.2809331428793267,
+        "amp_rad": 0.1252631286729069,
+        "strides": 11
+       },
+       "toe_off_rad": 0.03737803333297984,
+       "window_ref": [
+        2.0,
+        12.5
+       ],
+       "clock_rate": 1.05,
+       "lead_s": 0.1
+      }
+     },
+     "comparand_numbers": {
+      "bob_pp_m": 0.008686850068715017,
+      "head_world_pitch_rms_deg": 0.5501319346032748,
+      "tail_phase_cycles": -0.2809331428793267,
+      "tail_amp_rad": 0.1252631286729069,
+      "toe_off_rad": 0.03737803333297984,
+      "finite": true,
+      "steps": 25,
+      "lift_offs": 25
+     },
+     "ok": true
+    },
+    "v0.5": {
+     "against": {
+      "differences": {
+       "bob_rel": 0.0,
+       "head_deg": 0.0,
+       "tail_cycles": 0.0,
+       "toe_off_rad": 6.584398928866086e-10,
+       "toe_off_rel": 3.111830111778825e-08
+      },
+      "terms": {
+       "bob": true,
+       "head": true,
+       "tail": true,
+       "toe_off": true
+      },
+      "ok": true,
+      "toe_off": "read",
+      "limits": {
+       "bob_rel": 0.05,
+       "head_deg": 0.1,
+       "tail_cycles": 0.01,
+       "toe_off_rad": 0.02,
+       "toe_off_rel": 0.1
+      },
+      "ladder": {
+       "window": [
+        1.9047619047619047,
+        11.904761904761905
+       ],
+       "samples": 501,
+       "steps": 25,
+       "lift_offs": 27,
+       "bob_pp_m": 0.009714787665357853,
+       "head_world_pitch_rms_deg": 0.5407507464823039,
+       "tail": {
+        "phase_cycles": -0.28051960395151143,
+        "amp_rad": 0.12519913297234728,
+        "strides": 12
+       },
+       "toe_off_rad": 0.021159249356007506,
+       "window_ref": [
+        2.0,
+        12.5
+       ],
+       "clock_rate": 1.05,
+       "lead_s": 0.1
+      }
+     },
+     "comparand_numbers": {
+      "bob_pp_m": 0.009714787665357853,
+      "head_world_pitch_rms_deg": 0.5407507464823039,
+      "tail_phase_cycles": -0.28051960395151143,
+      "tail_amp_rad": 0.12519913297234728,
+      "toe_off_rad": 0.021159249356007506,
+      "finite": true,
+      "steps": 25,
+      "lift_offs": 27
+     },
+     "ok": true
+    }
+   },
+   "items": {
+    "walk/v0.4": {
+     "status": "played",
+     "window_ref": [
+      31.878,
+      42.378
+     ],
+     "gated": true,
+     "steps": 24,
+     "lift_offs": 24,
+     "numbers": {
+      "bob_pp_m": 0.007493662742410576,
+      "head_world_pitch_rms_deg": 0.5377547669419703,
+      "tail_phase_cycles": -0.28087844373577936,
+      "tail_amp_rad": 0.1264261106550867,
+      "toe_off_rad": 0.05448120539838162,
+      "finite": true,
+      "steps": 24,
+      "lift_offs": 24
+     },
+     "toe_off_rad": 0.05448120539838162,
+     "side": "at or over 0.02 rad",
+     "toe_off_term": "read",
+     "ok": true
+    },
+    "turn/q90_left": {
+     "status": "not run",
+     "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit",
+     "ok": true
+    },
+    "turn/q90_right": {
+     "status": "not run",
+     "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit",
+     "ok": true
+    },
+    "walk/nominal": {
+     "status": "played",
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "gated": false,
+     "steps": 18,
+     "lift_offs": 18,
+     "numbers": {
+      "bob_pp_m": 0.005277937664947169,
+      "head_world_pitch_rms_deg": 0.5280821690969392,
+      "tail_phase_cycles": -0.1479331869170783,
+      "tail_amp_rad": 0.12692492095070546,
+      "toe_off_rad": 0.2988946025864132,
+      "finite": true,
+      "steps": 18,
+      "lift_offs": 18
+     },
+     "toe_off_rad": 0.2988946025864132,
+     "side": "at or over 0.02 rad",
+     "toe_off_term": "read",
+     "ok": true
+    },
+    "walk/v0.3": {
+     "status": "played",
+     "window_ref": [
+      31.815000000000005,
+      42.315000000000005
+     ],
+     "gated": false,
+     "steps": 20,
+     "lift_offs": 20,
+     "numbers": {
+      "bob_pp_m": 0.006067535263817708,
+      "head_world_pitch_rms_deg": 0.5313663489402783,
+      "tail_phase_cycles": -0.2754856853272995,
+      "tail_amp_rad": 0.12680089853145404,
+      "toe_off_rad": 0.20404569290777994,
+      "finite": true,
+      "steps": 20,
+      "lift_offs": 20
+     },
+     "toe_off_rad": 0.20404569290777994,
+     "side": "at or over 0.02 rad",
+     "toe_off_term": "read",
+     "ok": true
+    },
+    "walk/v0.35": {
+     "status": "played",
+     "window_ref": [
+      32.655,
+      43.155
+     ],
+     "gated": false,
+     "steps": 23,
+     "lift_offs": 23,
+     "numbers": {
+      "bob_pp_m": 0.006265963222158931,
+      "head_world_pitch_rms_deg": 0.5397121594790428,
+      "tail_phase_cycles": -0.2754575924677509,
+      "tail_amp_rad": 0.12758923709978282,
+      "toe_off_rad": 0.07508260049912878,
+      "finite": true,
+      "steps": 23,
+      "lift_offs": 23
+     },
+     "toe_off_rad": 0.07508260049912878,
+     "side": "at or over 0.02 rad",
+     "toe_off_term": "read",
+     "ok": true
+    },
+    "walk/v0.45": {
+     "status": "played",
+     "window_ref": [
+      31.143000000000004,
+      41.64300000000001
+     ],
+     "gated": false,
+     "steps": 25,
+     "lift_offs": 25,
+     "numbers": {
+      "bob_pp_m": 0.00868878809556617,
+      "head_world_pitch_rms_deg": 0.5423144009044019,
+      "tail_phase_cycles": -0.28114140431972773,
+      "tail_amp_rad": 0.12642833947472648,
+      "toe_off_rad": 0.03791648243255268,
+      "finite": true,
+      "steps": 25,
+      "lift_offs": 25
+     },
+     "toe_off_rad": 0.03791648243255268,
+     "side": "at or over 0.02 rad",
+     "toe_off_term": "read",
+     "ok": true
+    },
+    "walk/v0.5": {
+     "status": "not run",
+     "reason": "no transition into v0.5 (no transition within the gates)",
+     "ok": true
+    },
+    "turn/t90_0.35_left": {
+     "status": "played",
+     "window_ref": [
+      28.159577845078076,
+      31.309577845078074
+     ],
+     "gated": false,
+     "steps": 6,
+     "lift_offs": 8,
+     "numbers": {
+      "bob_pp_m": 0.00749173451340555,
+      "head_world_pitch_rms_deg": 0.4356649528375334,
+      "tail_phase_cycles": -0.2832068223529715,
+      "tail_amp_rad": 0.11414347117031211,
+      "toe_off_rad": 0.04731944856242311,
+      "finite": true,
+      "steps": 6,
+      "lift_offs": 8
+     },
+     "toe_off_rad": 0.04731944856242311,
+     "side": "at or over 0.02 rad",
+     "toe_off_term": "read",
+     "ok": true
+    },
+    "turn/t90_0.35_right": {
+     "status": "played",
+     "window_ref": [
+      28.59716819816363,
+      31.747168198163628
+     ],
+     "gated": false,
+     "steps": 6,
+     "lift_offs": 8,
+     "numbers": {
+      "bob_pp_m": 0.007492267516895024,
+      "head_world_pitch_rms_deg": 0.40088887382817956,
+      "tail_phase_cycles": -0.2825462449720011,
+      "tail_amp_rad": 0.11758686454686004,
+      "toe_off_rad": 0.04690268662827431,
+      "finite": true,
+      "steps": 6,
+      "lift_offs": 8
+     },
+     "toe_off_rad": 0.04690268662827431,
+     "side": "at or over 0.02 rad",
+     "toe_off_term": "read",
+     "ok": true
+    },
+    "turn/t90_0.5_left": {
+     "status": "played",
+     "window_ref": [
+      26.74586115096267,
+      29.895861150962673
+     ],
+     "gated": false,
+     "steps": 7,
+     "lift_offs": 7,
+     "numbers": {
+      "bob_pp_m": 0.007491972257743618,
+      "head_world_pitch_rms_deg": 0.399200209427009,
+      "tail_phase_cycles": -0.2819630105563645,
+      "tail_amp_rad": 0.11751794172675727,
+      "toe_off_rad": 0.04518552526913838,
+      "finite": true,
+      "steps": 7,
+      "lift_offs": 7
+     },
+     "toe_off_rad": 0.04518552526913838,
+     "side": "at or over 0.02 rad",
+     "toe_off_term": "read",
+     "ok": true
+    },
+    "turn/t90_0.5_right": {
+     "status": "played",
+     "window_ref": [
+      27.183451504048225,
+      30.333451504048227
+     ],
+     "gated": false,
+     "steps": 7,
+     "lift_offs": 8,
+     "numbers": {
+      "bob_pp_m": 0.007486531145527363,
+      "head_world_pitch_rms_deg": 0.4206929622918559,
+      "tail_phase_cycles": -0.2829556190527737,
+      "tail_amp_rad": 0.11402181491978704,
+      "toe_off_rad": 0.0469374558711885,
+      "finite": true,
+      "steps": 7,
+      "lift_offs": 8
+     },
+     "toe_off_rad": 0.0469374558711885,
+     "side": "at or over 0.02 rad",
+     "toe_off_term": "read",
+     "ok": true
+    },
+    "turn/t90_1_left": {
+     "status": "not run",
+     "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock, post_window_zmp",
+     "ok": true
+    },
+    "turn/t90_1_right": {
+     "status": "not run",
+     "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock",
+     "ok": true
+    }
+   },
+   "faults": [],
+   "comparand": {
+    "set": "V6",
+    "body": "75-M-H-10",
+    "files": {
+     "nominal": {
+      "path": "stage2/sets/V6/75-M-H-10/refs/nominal.npz",
+      "sha256": "b3dd607d91f6938c229a4b4e66112aa85e200be760fe2903bc44ceba20911cfc",
+      "entry_sha256": "b3dd607d91f6938c229a4b4e66112aa85e200be760fe2903bc44ceba20911cfc"
+     },
+     "v0.3": {
+      "path": "stage2/sets/V6/75-M-H-10/refs/v0.3.npz",
+      "sha256": "a4c314ec4e9ecd2c8fc5b6ac59da2f9edcddc3920e8dbd795344e988c8147c73",
+      "entry_sha256": "a4c314ec4e9ecd2c8fc5b6ac59da2f9edcddc3920e8dbd795344e988c8147c73"
+     },
+     "v0.35": {
+      "path": "stage2/sets/V6/75-M-H-10/refs/v0.35.npz",
+      "sha256": "fc063317d27f086a0795136097e522379ab18b4028fb331f5d1677aa5bb9961c",
+      "entry_sha256": "fc063317d27f086a0795136097e522379ab18b4028fb331f5d1677aa5bb9961c"
+     },
+     "v0.4": {
+      "path": "stage2/sets/V6/75-M-H-10/refs/v0.4.npz",
+      "sha256": "c4f44b48d0fb9daa4b42957addbda3e82b96e43678482d1e0dec8ac597912a62",
+      "entry_sha256": "c4f44b48d0fb9daa4b42957addbda3e82b96e43678482d1e0dec8ac597912a62"
+     },
+     "v0.45": {
+      "path": "stage2/sets/V6/75-M-H-10/refs/v0.45.npz",
+      "sha256": "39e80ce7c8bced995680159ec3710cdb728d83f1dfc9665cfc5201dc7a0d9148",
+      "entry_sha256": "39e80ce7c8bced995680159ec3710cdb728d83f1dfc9665cfc5201dc7a0d9148"
+     },
+     "v0.5": {
+      "path": "stage2/sets/V6/75-M-H-10/refs/v0.5.npz",
+      "sha256": "7d52402c645c9ef4fbdf36ec68d1b7fb95edcff78b08f6f7928e300d50bb2d47",
+      "entry_sha256": "7d52402c645c9ef4fbdf36ec68d1b7fb95edcff78b08f6f7928e300d50bb2d47"
+     }
+    }
+   },
+   "ok": true
+  },
+  "c": {
+   "flat_feet": true,
+   "flat_feet_rule": "(c)'s flat-feet playback applies to V6 only (Z2 as settled)",
+   "walks": {
+    "nominal": {
+     "window": [
+      1.9047619047619047,
+      11.904761904761905
+     ],
+     "brief": {
+      "unchanged": true,
+      "cut": true,
+      "bob_half": {
+       "failed": [
+        "bob"
+       ],
+       "expected": [
+        "bob"
+       ],
+       "ok": true
+      },
+      "neck_3deg": {
+       "failed": [
+        "head"
+       ],
+       "expected": [
+        "head"
+       ],
+       "ok": true
+      },
+      "tail_late": {
+       "failed": [
+        "tail"
+       ],
+       "expected": [
+        "tail"
+       ],
+       "ok": true
+      },
+      "flat_feet": {
+       "failed": [
+        "toe_off"
+       ],
+       "expected": [
+        "toe_off"
+       ],
+       "ok": true
+      },
+      "tail_tenth": {
+       "failed": [
+        "tail"
+       ],
+       "expected": [
+        "tail"
+       ],
+       "ok": true
+      }
+     },
+     "ok": true,
+     "tail_tenth": {
+      "own_amp_rad": 0.012495508632780719,
+      "reference_amp_rad": 0.1249550863278072
+     }
+    },
+    "v0.4": {
+     "window": [
+      1.9047619047619047,
+      11.904761904761905
+     ],
+     "brief": {
+      "unchanged": true,
+      "cut": true,
+      "bob_half": {
+       "failed": [
+        "bob"
+       ],
+       "expected": [
+        "bob"
+       ],
+       "ok": true
+      },
+      "neck_3deg": {
+       "failed": [
+        "head"
+       ],
+       "expected": [
+        "head"
+       ],
+       "ok": true
+      },
+      "tail_late": {
+       "failed": [
+        "tail"
+       ],
+       "expected": [
+        "tail"
+       ],
+       "ok": true
+      },
+      "flat_feet": {
+       "failed": [
+        "toe_off"
+       ],
+       "expected": [
+        "toe_off"
+       ],
+       "ok": true
+      },
+      "tail_tenth": {
+       "failed": [
+        "tail"
+       ],
+       "expected": [
+        "tail"
+       ],
+       "ok": true
+      }
+     },
+     "ok": true,
+     "tail_tenth": {
+      "own_amp_rad": 0.012525428899694062,
+      "reference_amp_rad": 0.12525428899694058
+     }
+    }
+   },
+   "ok": true
+  },
+  "f": {
+   "unplayed": {
+    "v0.5": {
+     "file": "refs/v0.5.npz",
+     "block": true,
+     "block_sha256": "d66c85ca5eb2b0502525d751b7056786b3872b696850cee17b4fc764cec83fc2",
+     "entry_sha256": "d66c85ca5eb2b0502525d751b7056786b3872b696850cee17b4fc764cec83fc2",
+     "within_limits": true,
+     "blocks_freeze": [],
+     "verdict": "within the Stage 0 limits",
+     "ok": true
+    }
+   },
+   "tasks": {
+    "stand": {
+     "available": true,
+     "joins": [
+      {
+       "at_ref_s": 12.0,
+       "before": "hold stand",
+       "after": "finite start",
+       "walk": null,
+       "walk_is": "none: the track plays no walk (the join is held to 0 at every joint)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        }
+       },
+       "over": [],
+       "ok": true
+      }
+     ],
+     "max_jump_rad": 0.0,
+     "joins_ok": true,
+     "zero_action_s": 2.0,
+     "zero_action_finite": true,
+     "ok": true
+    },
+    "walk_nominal": {
+     "available": true,
+     "joins": [
+      {
+       "at_ref_s": 5.66834249515884,
+       "before": "finite start",
+       "after": "periodic nominal",
+       "walk": "periodic nominal",
+       "walk_is": "the first walk the track plays after the join (no walk before it)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      }
+     ],
+     "max_jump_rad": 0.0,
+     "joins_ok": true,
+     "zero_action_s": 2.0,
+     "zero_action_finite": true,
+     "ok": true
+    },
+    "walk_v0.4": {
+     "available": true,
+     "joins": [
+      {
+       "at_ref_s": 5.66834249515884,
+       "before": "finite start",
+       "after": "periodic nominal",
+       "walk": "periodic nominal",
+       "walk_is": "the first walk the track plays after the join (no walk before it)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 15.888758476215852,
+       "before": "periodic nominal",
+       "after": "finite nominal_to_v0.4",
+       "walk": "periodic nominal",
+       "walk_is": "the walk it leaves",
+       "jump_rad": 5.144376646622206e-06,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 5.551115123125783e-17,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 4.097041497515275e-06,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 4.750498687061677e-07,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 1.7250285573762458e-06,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 3.363394394773067e-06,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 2.8252986345317366e-06,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 5.144376646622206e-06,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 4.768270813235165e-06,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 2.519432131004029e-06,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 2.2899915191106762e-09,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 1.917137585238926e-06,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 5.962954956490601e-07,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 4.772790009363592e-06,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 21.731905593417853,
+       "before": "finite nominal_to_v0.4",
+       "after": "periodic v0.4",
+       "walk": "periodic nominal",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      }
+     ],
+     "max_jump_rad": 5.144376646622206e-06,
+     "joins_ok": true,
+     "zero_action_s": 2.0,
+     "zero_action_finite": true,
+     "ok": true
+    },
+    "walk_v0.3": {
+     "available": true,
+     "joins": [
+      {
+       "at_ref_s": 5.66834249515884,
+       "before": "finite start",
+       "after": "periodic nominal",
+       "walk": "periodic nominal",
+       "walk_is": "the first walk the track plays after the join (no walk before it)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 15.888758476215852,
+       "before": "periodic nominal",
+       "after": "finite nominal_to_v0.3",
+       "walk": "periodic nominal",
+       "walk_is": "the walk it leaves",
+       "jump_rad": 7.406455027669789e-06,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 5.551115123125783e-17,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 5.996866305816445e-06,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 5.600854565704361e-06,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 2.4365053547283078e-06,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 6.691936236979945e-06,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 9.995582860578e-07,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 7.406455027669789e-06,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 6.921667776119134e-06,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 1.4948961517824433e-06,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 8.495994535066137e-10,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 5.207606329271641e-06,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 3.7214157867729997e-06,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 6.924044717818156e-06,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 22.24126913012863,
+       "before": "finite nominal_to_v0.3",
+       "after": "periodic v0.3",
+       "walk": "periodic nominal",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      }
+     ],
+     "max_jump_rad": 7.406455027669789e-06,
+     "joins_ok": true,
+     "zero_action_s": 2.0,
+     "zero_action_finite": true,
+     "ok": true
+    },
+    "walk_v0.35": {
+     "available": true,
+     "joins": [
+      {
+       "at_ref_s": 5.66834249515884,
+       "before": "finite start",
+       "after": "periodic nominal",
+       "walk": "periodic nominal",
+       "walk_is": "the first walk the track plays after the join (no walk before it)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 15.888758476215852,
+       "before": "periodic nominal",
+       "after": "finite nominal_to_v0.35",
+       "walk": "periodic nominal",
+       "walk_is": "the walk it leaves",
+       "jump_rad": 7.1688204824893464e-06,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 5.551115123125783e-17,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 5.745821304223991e-06,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 2.4875611754487936e-06,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 2.386402611589955e-06,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 5.373690710519519e-06,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 2.79799411406767e-06,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 7.1688204824893464e-06,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 6.665758340421157e-06,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 2.7191809057192096e-06,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 2.2825119880102995e-09,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 3.580297469385485e-06,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 8.695018883838473e-07,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 6.670522777238452e-06,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 21.830398415860017,
+       "before": "finite nominal_to_v0.35",
+       "after": "periodic v0.35",
+       "walk": "periodic nominal",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      }
+     ],
+     "max_jump_rad": 7.1688204824893464e-06,
+     "joins_ok": true,
+     "zero_action_s": 2.0,
+     "zero_action_finite": true,
+     "ok": true
+    },
+    "walk_v0.45": {
+     "available": true,
+     "joins": [
+      {
+       "at_ref_s": 5.66834249515884,
+       "before": "finite start",
+       "after": "periodic nominal",
+       "walk": "periodic nominal",
+       "walk_is": "the first walk the track plays after the join (no walk before it)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 15.888758476215852,
+       "before": "periodic nominal",
+       "after": "finite nominal_to_v0.45",
+       "walk": "periodic nominal",
+       "walk_is": "the walk it leaves",
+       "jump_rad": 4.389637731749829e-06,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 5.551115123125783e-17,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 2.7087171278299127e-06,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 3.630797654113893e-06,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 1.2116028429882963e-06,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 8.011303115340596e-07,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 4.389637731749829e-06,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 3.5003960117477306e-06,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 3.19888195388085e-06,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 3.429117732850484e-06,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 3.526291775073076e-09,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 6.636351617406167e-07,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 4.088726174372552e-06,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 3.2052777650115605e-06,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 21.63853425492983,
+       "before": "finite nominal_to_v0.45",
+       "after": "periodic v0.45",
+       "walk": "periodic nominal",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      }
+     ],
+     "max_jump_rad": 4.389637731749829e-06,
+     "joins_ok": true,
+     "zero_action_s": 2.0,
+     "zero_action_finite": true,
+     "ok": true
+    },
+    "walk_v0.5": {
+     "available": false,
+     "reason": "transitions/nominal_to_v0.5: no transition within the gates",
+     "ok": true
+    },
+    "turn_q90_left": {
+     "available": false,
+     "reason": "transitions/turn90_pi4_left: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit",
+     "ok": true
+    },
+    "turn_q90_right": {
+     "available": false,
+     "reason": "transitions/turn90_pi4_right: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit",
+     "ok": true
+    },
+    "turn_0.35_left": {
+     "available": true,
+     "joins": [
+      {
+       "at_ref_s": 5.66834249515884,
+       "before": "finite start",
+       "after": "periodic nominal",
+       "walk": "periodic nominal",
+       "walk_is": "the first walk the track plays after the join (no walk before it)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 15.888758476215852,
+       "before": "periodic nominal",
+       "after": "finite nominal_to_v0.4",
+       "walk": "periodic nominal",
+       "walk_is": "the walk it leaves",
+       "jump_rad": 5.144376646622206e-06,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 5.551115123125783e-17,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 4.097041497515275e-06,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 4.750498687061677e-07,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 1.7250285573762458e-06,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 3.363394394773067e-06,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 2.8252986345317366e-06,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 5.144376646622206e-06,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 4.768270813235165e-06,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 2.519432131004029e-06,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 2.2899915191106762e-09,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 1.917137585238926e-06,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 5.962954956490601e-07,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 4.772790009363592e-06,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 21.731905593417853,
+       "before": "finite nominal_to_v0.4",
+       "after": "periodic v0.4",
+       "walk": "periodic nominal",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 23.447188864693388,
+       "before": "periodic v0.4",
+       "after": "finite turn90_0.35_left",
+       "walk": "periodic v0.4",
+       "walk_is": "the walk it leaves",
+       "jump_rad": 0.00013717741535398953,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 2.1403237252616125e-05,
+         "walk_step_rad": 0.0019125974715321955
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 8.645063230977579e-06,
+         "walk_step_rad": 0.00604953862321913
+        },
+        "left_hip_roll": {
+         "jump_rad": 3.448356713485045e-05,
+         "walk_step_rad": 0.0027883353462020387
+        },
+        "left_hip_pitch": {
+         "jump_rad": 5.23908753946728e-05,
+         "walk_step_rad": 0.01889818377193514
+        },
+        "left_hip_yaw": {
+         "jump_rad": 9.869997919526984e-07,
+         "walk_step_rad": 0.0005605055473500299
+        },
+        "left_knee": {
+         "jump_rad": 0.00013717741535398953,
+         "walk_step_rad": 0.029777487129453578
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 1.0534451759802721e-05,
+         "walk_step_rad": 0.023456932098048056
+        },
+        "left_ankle_roll": {
+         "jump_rad": 3.398224752483581e-05,
+         "walk_step_rad": 0.003876871281698481
+        },
+        "right_hip_roll": {
+         "jump_rad": 3.4993967947878624e-05,
+         "walk_step_rad": 0.002794896030151383
+        },
+        "right_hip_pitch": {
+         "jump_rad": 1.4255178202027263e-05,
+         "walk_step_rad": 0.01924006340584769
+        },
+        "right_hip_yaw": {
+         "jump_rad": 5.6403458695720304e-08,
+         "walk_step_rad": 0.000530018131360038
+        },
+        "right_knee": {
+         "jump_rad": 2.2798454210576358e-05,
+         "walk_step_rad": 0.031450551808192645
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 3.7011062728131705e-05,
+         "walk_step_rad": 0.024906082959215453
+        },
+        "right_ankle_roll": {
+         "jump_rad": 3.447526501861031e-05,
+         "walk_step_rad": 0.0038909049427033673
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 30.331843922384863,
+       "before": "finite turn90_0.35_left",
+       "after": "periodic v0.4",
+       "walk": "periodic v0.4",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0019125974715321955
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00604953862321913
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0027883353462020387
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.01889818377193514
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0005605055473500299
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.029777487129453578
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.023456932098048056
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.003876871281698481
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.002794896030151383
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.01924006340584769
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.000530018131360038
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.031450551808192645
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.024906082959215453
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0038909049427033673
+        }
+       },
+       "over": [],
+       "ok": true
+      }
+     ],
+     "max_jump_rad": 0.00013717741535398953,
+     "joins_ok": true,
+     "zero_action_s": 2.0,
+     "zero_action_finite": true,
+     "ok": true
+    },
+    "turn_0.35_right": {
+     "available": true,
+     "joins": [
+      {
+       "at_ref_s": 5.66834249515884,
+       "before": "finite start",
+       "after": "periodic nominal",
+       "walk": "periodic nominal",
+       "walk_is": "the first walk the track plays after the join (no walk before it)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 15.888758476215852,
+       "before": "periodic nominal",
+       "after": "finite nominal_to_v0.4",
+       "walk": "periodic nominal",
+       "walk_is": "the walk it leaves",
+       "jump_rad": 5.144376646622206e-06,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 5.551115123125783e-17,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 4.097041497515275e-06,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 4.750498687061677e-07,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 1.7250285573762458e-06,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 3.363394394773067e-06,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 2.8252986345317366e-06,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 5.144376646622206e-06,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 4.768270813235165e-06,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 2.519432131004029e-06,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 2.2899915191106762e-09,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 1.917137585238926e-06,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 5.962954956490601e-07,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 4.772790009363592e-06,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 21.731905593417853,
+       "before": "finite nominal_to_v0.4",
+       "after": "periodic v0.4",
+       "walk": "periodic nominal",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 23.88477921777894,
+       "before": "periodic v0.4",
+       "after": "finite turn90_0.35_right",
+       "walk": "periodic v0.4",
+       "walk_is": "the walk it leaves",
+       "jump_rad": 0.00022331589732890733,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 4.33366949102597e-05,
+         "walk_step_rad": 0.0019125974715321955
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 1.7362645585938807e-05,
+         "walk_step_rad": 0.00604953862321913
+        },
+        "left_hip_roll": {
+         "jump_rad": 3.0361572091193445e-05,
+         "walk_step_rad": 0.0027883353462020387
+        },
+        "left_hip_pitch": {
+         "jump_rad": 1.0813781120222465e-05,
+         "walk_step_rad": 0.01889818377193514
+        },
+        "left_hip_yaw": {
+         "jump_rad": 1.4361053010366123e-07,
+         "walk_step_rad": 0.0005605055473500299
+        },
+        "left_knee": {
+         "jump_rad": 0.0001434746487243843,
+         "walk_step_rad": 0.029777487129453578
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0001326384124453739,
+         "walk_step_rad": 0.023456932098048056
+        },
+        "left_ankle_roll": {
+         "jump_rad": 3.151010103366603e-05,
+         "walk_step_rad": 0.003876871281698481
+        },
+        "right_hip_roll": {
+         "jump_rad": 2.9259295399566582e-05,
+         "walk_step_rad": 0.002794896030151383
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.00020530195324450218,
+         "walk_step_rad": 0.01924006340584769
+        },
+        "right_hip_yaw": {
+         "jump_rad": 2.1750982729085676e-06,
+         "walk_step_rad": 0.000530018131360038
+        },
+        "right_knee": {
+         "jump_rad": 0.00022331589732890733,
+         "walk_step_rad": 0.031450551808192645
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 3.6933185376619715e-05,
+         "walk_step_rad": 0.024906082959215453
+        },
+        "right_ankle_roll": {
+         "jump_rad": 3.1331949221046276e-05,
+         "walk_step_rad": 0.0038909049427033673
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 31.19219336630284,
+       "before": "finite turn90_0.35_right",
+       "after": "periodic v0.4",
+       "walk": "periodic v0.4",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0019125974715321955
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00604953862321913
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0027883353462020387
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.01889818377193514
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0005605055473500299
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.029777487129453578
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.023456932098048056
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.003876871281698481
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.002794896030151383
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.01924006340584769
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.000530018131360038
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.031450551808192645
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.024906082959215453
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0038909049427033673
+        }
+       },
+       "over": [],
+       "ok": true
+      }
+     ],
+     "max_jump_rad": 0.00022331589732890733,
+     "joins_ok": true,
+     "zero_action_s": 2.0,
+     "zero_action_finite": true,
+     "ok": true
+    },
+    "turn_0.5_left": {
+     "available": true,
+     "joins": [
+      {
+       "at_ref_s": 5.66834249515884,
+       "before": "finite start",
+       "after": "periodic nominal",
+       "walk": "periodic nominal",
+       "walk_is": "the first walk the track plays after the join (no walk before it)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 15.888758476215852,
+       "before": "periodic nominal",
+       "after": "finite nominal_to_v0.4",
+       "walk": "periodic nominal",
+       "walk_is": "the walk it leaves",
+       "jump_rad": 5.144376646622206e-06,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 5.551115123125783e-17,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 4.097041497515275e-06,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 4.750498687061677e-07,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 1.7250285573762458e-06,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 3.363394394773067e-06,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 2.8252986345317366e-06,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 5.144376646622206e-06,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 4.768270813235165e-06,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 2.519432131004029e-06,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 2.2899915191106762e-09,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 1.917137585238926e-06,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 5.962954956490601e-07,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 4.772790009363592e-06,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 21.731905593417853,
+       "before": "finite nominal_to_v0.4",
+       "after": "periodic v0.4",
+       "walk": "periodic nominal",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 23.447188864693388,
+       "before": "periodic v0.4",
+       "after": "finite turn90_0.5_left",
+       "walk": "periodic v0.4",
+       "walk_is": "the walk it leaves",
+       "jump_rad": 0.00013717741535398953,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 2.1403237252616125e-05,
+         "walk_step_rad": 0.0019125974715321955
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 8.645063230977579e-06,
+         "walk_step_rad": 0.00604953862321913
+        },
+        "left_hip_roll": {
+         "jump_rad": 3.448356713485045e-05,
+         "walk_step_rad": 0.0027883353462020387
+        },
+        "left_hip_pitch": {
+         "jump_rad": 5.23908753946728e-05,
+         "walk_step_rad": 0.01889818377193514
+        },
+        "left_hip_yaw": {
+         "jump_rad": 9.869997919526984e-07,
+         "walk_step_rad": 0.0005605055473500299
+        },
+        "left_knee": {
+         "jump_rad": 0.00013717741535398953,
+         "walk_step_rad": 0.029777487129453578
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 1.0534451759802721e-05,
+         "walk_step_rad": 0.023456932098048056
+        },
+        "left_ankle_roll": {
+         "jump_rad": 3.398224752483581e-05,
+         "walk_step_rad": 0.003876871281698481
+        },
+        "right_hip_roll": {
+         "jump_rad": 3.4993967947878624e-05,
+         "walk_step_rad": 0.002794896030151383
+        },
+        "right_hip_pitch": {
+         "jump_rad": 1.4255178202027263e-05,
+         "walk_step_rad": 0.01924006340584769
+        },
+        "right_hip_yaw": {
+         "jump_rad": 5.6403458695720304e-08,
+         "walk_step_rad": 0.000530018131360038
+        },
+        "right_knee": {
+         "jump_rad": 2.2798454210576358e-05,
+         "walk_step_rad": 0.031450551808192645
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 3.7011062728131705e-05,
+         "walk_step_rad": 0.024906082959215453
+        },
+        "right_ankle_roll": {
+         "jump_rad": 3.447526501861031e-05,
+         "walk_step_rad": 0.0038909049427033673
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 29.471232987037382,
+       "before": "finite turn90_0.5_left",
+       "after": "periodic v0.4",
+       "walk": "periodic v0.4",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0019125974715321955
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00604953862321913
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0027883353462020387
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.01889818377193514
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0005605055473500299
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.029777487129453578
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.023456932098048056
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.003876871281698481
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.002794896030151383
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.01924006340584769
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.000530018131360038
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.031450551808192645
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.024906082959215453
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0038909049427033673
+        }
+       },
+       "over": [],
+       "ok": true
+      }
+     ],
+     "max_jump_rad": 0.00013717741535398953,
+     "joins_ok": true,
+     "zero_action_s": 2.0,
+     "zero_action_finite": true,
+     "ok": true
+    },
+    "turn_0.5_right": {
+     "available": true,
+     "joins": [
+      {
+       "at_ref_s": 5.66834249515884,
+       "before": "finite start",
+       "after": "periodic nominal",
+       "walk": "periodic nominal",
+       "walk_is": "the first walk the track plays after the join (no walk before it)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 15.888758476215852,
+       "before": "periodic nominal",
+       "after": "finite nominal_to_v0.4",
+       "walk": "periodic nominal",
+       "walk_is": "the walk it leaves",
+       "jump_rad": 5.144376646622206e-06,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 5.551115123125783e-17,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 4.097041497515275e-06,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 4.750498687061677e-07,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 1.7250285573762458e-06,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 3.363394394773067e-06,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 2.8252986345317366e-06,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 5.144376646622206e-06,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 4.768270813235165e-06,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 2.519432131004029e-06,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 2.2899915191106762e-09,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 1.917137585238926e-06,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 5.962954956490601e-07,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 4.772790009363592e-06,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 21.731905593417853,
+       "before": "finite nominal_to_v0.4",
+       "after": "periodic v0.4",
+       "walk": "periodic nominal",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 23.88477921777894,
+       "before": "periodic v0.4",
+       "after": "finite turn90_0.5_right",
+       "walk": "periodic v0.4",
+       "walk_is": "the walk it leaves",
+       "jump_rad": 0.00022331589732890733,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 4.33366949102597e-05,
+         "walk_step_rad": 0.0019125974715321955
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 1.7362645585938807e-05,
+         "walk_step_rad": 0.00604953862321913
+        },
+        "left_hip_roll": {
+         "jump_rad": 3.0361572091193445e-05,
+         "walk_step_rad": 0.0027883353462020387
+        },
+        "left_hip_pitch": {
+         "jump_rad": 1.0813781120222465e-05,
+         "walk_step_rad": 0.01889818377193514
+        },
+        "left_hip_yaw": {
+         "jump_rad": 1.4361053010366123e-07,
+         "walk_step_rad": 0.0005605055473500299
+        },
+        "left_knee": {
+         "jump_rad": 0.0001434746487243843,
+         "walk_step_rad": 0.029777487129453578
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0001326384124453739,
+         "walk_step_rad": 0.023456932098048056
+        },
+        "left_ankle_roll": {
+         "jump_rad": 3.151010103366603e-05,
+         "walk_step_rad": 0.003876871281698481
+        },
+        "right_hip_roll": {
+         "jump_rad": 2.9259295399566582e-05,
+         "walk_step_rad": 0.002794896030151383
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.00020530195324450218,
+         "walk_step_rad": 0.01924006340584769
+        },
+        "right_hip_yaw": {
+         "jump_rad": 2.1750982729085676e-06,
+         "walk_step_rad": 0.000530018131360038
+        },
+        "right_knee": {
+         "jump_rad": 0.00022331589732890733,
+         "walk_step_rad": 0.031450551808192645
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 3.6933185376619715e-05,
+         "walk_step_rad": 0.024906082959215453
+        },
+        "right_ankle_roll": {
+         "jump_rad": 3.1331949221046276e-05,
+         "walk_step_rad": 0.0038909049427033673
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 29.470971495607397,
+       "before": "finite turn90_0.5_right",
+       "after": "periodic v0.4",
+       "walk": "periodic v0.4",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0019125974715321955
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00604953862321913
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0027883353462020387
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.01889818377193514
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0005605055473500299
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.029777487129453578
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.023456932098048056
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.003876871281698481
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.002794896030151383
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.01924006340584769
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.000530018131360038
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.031450551808192645
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.024906082959215453
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0038909049427033673
+        }
+       },
+       "over": [],
+       "ok": true
+      }
+     ],
+     "max_jump_rad": 0.00022331589732890733,
+     "joins_ok": true,
+     "zero_action_s": 2.0,
+     "zero_action_finite": true,
+     "ok": true
+    },
+    "turn_1_left": {
+     "available": false,
+     "reason": "transitions/turn90_1_left: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock, post_window_zmp",
+     "ok": true
+    },
+    "turn_1_right": {
+     "available": false,
+     "reason": "transitions/turn90_1_right: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock",
+     "ok": true
+    },
+    "stop": {
+     "available": true,
+     "joins": [
+      {
+       "at_ref_s": 5.66834249515884,
+       "before": "finite start",
+       "after": "periodic nominal",
+       "walk": "periodic nominal",
+       "walk_is": "the first walk the track plays after the join (no walk before it)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 15.888758476215852,
+       "before": "periodic nominal",
+       "after": "finite nominal_to_v0.4",
+       "walk": "periodic nominal",
+       "walk_is": "the walk it leaves",
+       "jump_rad": 5.144376646622206e-06,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 5.551115123125783e-17,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 4.097041497515275e-06,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 4.750498687061677e-07,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 1.7250285573762458e-06,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 3.363394394773067e-06,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 2.8252986345317366e-06,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 5.144376646622206e-06,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 4.768270813235165e-06,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 2.519432131004029e-06,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 2.2899915191106762e-09,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 1.917137585238926e-06,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 5.962954956490601e-07,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 4.772790009363592e-06,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 21.731905593417853,
+       "before": "finite nominal_to_v0.4",
+       "after": "periodic v0.4",
+       "walk": "periodic nominal",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 23.88477921777894,
+       "before": "periodic v0.4",
+       "after": "finite stop2_v0.4",
+       "walk": "periodic v0.4",
+       "walk_is": "the walk it leaves",
+       "jump_rad": 0.00022331589732857426,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 4.33366949102597e-05,
+         "walk_step_rad": 0.0019125974715321955
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 1.7362645585952685e-05,
+         "walk_step_rad": 0.00604953862321913
+        },
+        "left_hip_roll": {
+         "jump_rad": 3.0361572091186506e-05,
+         "walk_step_rad": 0.0027883353462020387
+        },
+        "left_hip_pitch": {
+         "jump_rad": 1.0813781120277977e-05,
+         "walk_step_rad": 0.01889818377193514
+        },
+        "left_hip_yaw": {
+         "jump_rad": 1.4361053010431175e-07,
+         "walk_step_rad": 0.0005605055473500299
+        },
+        "left_knee": {
+         "jump_rad": 0.00014347464872430105,
+         "walk_step_rad": 0.029777487129453578
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.00013263841244527674,
+         "walk_step_rad": 0.023456932098048056
+        },
+        "left_ankle_roll": {
+         "jump_rad": 3.151010103366603e-05,
+         "walk_step_rad": 0.003876871281698481
+        },
+        "right_hip_roll": {
+         "jump_rad": 2.9259295399552488e-05,
+         "walk_step_rad": 0.002794896030151383
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.00020530195324414136,
+         "walk_step_rad": 0.01924006340584769
+        },
+        "right_hip_yaw": {
+         "jump_rad": 2.175098272909435e-06,
+         "walk_step_rad": 0.000530018131360038
+        },
+        "right_knee": {
+         "jump_rad": 0.00022331589732857426,
+         "walk_step_rad": 0.031450551808192645
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 3.6933185376675226e-05,
+         "walk_step_rad": 0.024906082959215453
+        },
+        "right_ankle_roll": {
+         "jump_rad": 3.133194922104454e-05,
+         "walk_step_rad": 0.0038909049427033673
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 26.895426404949323,
+       "before": "finite stop2_v0.4",
+       "after": "hold stand",
+       "walk": "periodic v0.4",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0019125974715321955
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00604953862321913
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0027883353462020387
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.01889818377193514
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0005605055473500299
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.029777487129453578
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.023456932098048056
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.003876871281698481
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.002794896030151383
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.01924006340584769
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.000530018131360038
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.031450551808192645
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.024906082959215453
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0038909049427033673
+        }
+       },
+       "over": [],
+       "ok": true
+      }
+     ],
+     "max_jump_rad": 0.00022331589732857426,
+     "joins_ok": true,
+     "zero_action_s": 2.0,
+     "zero_action_finite": true,
+     "ok": true
+    },
+    "start_stop": {
+     "available": true,
+     "joins": [
+      {
+       "at_ref_s": 5.66834249515884,
+       "before": "finite start",
+       "after": "periodic nominal",
+       "walk": "periodic nominal",
+       "walk_is": "the first walk the track plays after the join (no walk before it)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 15.888758476215852,
+       "before": "periodic nominal",
+       "after": "finite nominal_to_v0.4",
+       "walk": "periodic nominal",
+       "walk_is": "the walk it leaves",
+       "jump_rad": 5.144376646622206e-06,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 5.551115123125783e-17,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 4.097041497515275e-06,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 4.750498687061677e-07,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 1.7250285573762458e-06,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 3.363394394773067e-06,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 2.8252986345317366e-06,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 5.144376646622206e-06,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 4.768270813235165e-06,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 2.519432131004029e-06,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 2.2899915191106762e-09,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 1.917137585238926e-06,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 5.962954956490601e-07,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 4.772790009363592e-06,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 21.731905593417853,
+       "before": "finite nominal_to_v0.4",
+       "after": "periodic v0.4",
+       "walk": "periodic nominal",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0025140910712254903
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.005998649281355401
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00374032419609208
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02262331053624394
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00233978081456279
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04119835460484739
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.026820250649585597
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0048099099064780985
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0037478026296947874
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.022461466818972008
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00223862898616237
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.04081080642297502
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.02843244686343796
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.004812301387377399
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 23.88477921777894,
+       "before": "periodic v0.4",
+       "after": "finite stop2_v0.4",
+       "walk": "periodic v0.4",
+       "walk_is": "the walk it leaves",
+       "jump_rad": 0.00022331589732857426,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 4.33366949102597e-05,
+         "walk_step_rad": 0.0019125974715321955
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 1.7362645585952685e-05,
+         "walk_step_rad": 0.00604953862321913
+        },
+        "left_hip_roll": {
+         "jump_rad": 3.0361572091186506e-05,
+         "walk_step_rad": 0.0027883353462020387
+        },
+        "left_hip_pitch": {
+         "jump_rad": 1.0813781120277977e-05,
+         "walk_step_rad": 0.01889818377193514
+        },
+        "left_hip_yaw": {
+         "jump_rad": 1.4361053010431175e-07,
+         "walk_step_rad": 0.0005605055473500299
+        },
+        "left_knee": {
+         "jump_rad": 0.00014347464872430105,
+         "walk_step_rad": 0.029777487129453578
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.00013263841244527674,
+         "walk_step_rad": 0.023456932098048056
+        },
+        "left_ankle_roll": {
+         "jump_rad": 3.151010103366603e-05,
+         "walk_step_rad": 0.003876871281698481
+        },
+        "right_hip_roll": {
+         "jump_rad": 2.9259295399552488e-05,
+         "walk_step_rad": 0.002794896030151383
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.00020530195324414136,
+         "walk_step_rad": 0.01924006340584769
+        },
+        "right_hip_yaw": {
+         "jump_rad": 2.175098272909435e-06,
+         "walk_step_rad": 0.000530018131360038
+        },
+        "right_knee": {
+         "jump_rad": 0.00022331589732857426,
+         "walk_step_rad": 0.031450551808192645
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 3.6933185376675226e-05,
+         "walk_step_rad": 0.024906082959215453
+        },
+        "right_ankle_roll": {
+         "jump_rad": 3.133194922104454e-05,
+         "walk_step_rad": 0.0038909049427033673
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 26.895426404949323,
+       "before": "finite stop2_v0.4",
+       "after": "hold stand",
+       "walk": "periodic v0.4",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0019125974715321955
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00604953862321913
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0027883353462020387
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.01889818377193514
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0005605055473500299
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.029777487129453578
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.023456932098048056
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.003876871281698481
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.002794896030151383
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.01924006340584769
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.000530018131360038
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.031450551808192645
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.024906082959215453
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0038909049427033673
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 28.895426404949323,
+       "before": "hold stand",
+       "after": "finite start",
+       "walk": "periodic v0.4",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 2.913676800797918e-06,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0019125974715321955
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00604953862321913
+        },
+        "left_hip_roll": {
+         "jump_rad": 4.1970375229058443e-07,
+         "walk_step_rad": 0.0027883353462020387
+        },
+        "left_hip_pitch": {
+         "jump_rad": 2.1712235843199257e-06,
+         "walk_step_rad": 0.01889818377193514
+        },
+        "left_hip_yaw": {
+         "jump_rad": 8.788412518813105e-11,
+         "walk_step_rad": 0.0005605055473500299
+        },
+        "left_knee": {
+         "jump_rad": 3.4662024291434723e-07,
+         "walk_step_rad": 0.029777487129453578
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 2.5178809732627136e-06,
+         "walk_step_rad": 0.023456932098048056
+        },
+        "left_ankle_roll": {
+         "jump_rad": 4.1967266754122656e-07,
+         "walk_step_rad": 0.003876871281698481
+        },
+        "right_hip_roll": {
+         "jump_rad": 4.197217636572881e-07,
+         "walk_step_rad": 0.002794896030151383
+        },
+        "right_hip_pitch": {
+         "jump_rad": 1.6044819501591367e-06,
+         "walk_step_rad": 0.01924006340584769
+        },
+        "right_hip_yaw": {
+         "jump_rad": 8.632497641236178e-11,
+         "walk_step_rad": 0.000530018131360038
+        },
+        "right_knee": {
+         "jump_rad": 1.3092224574948186e-06,
+         "walk_step_rad": 0.031450551808192645
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 2.913676800797918e-06,
+         "walk_step_rad": 0.024906082959215453
+        },
+        "right_ankle_roll": {
+         "jump_rad": 4.19690058716532e-07,
+         "walk_step_rad": 0.0038909049427033673
+        }
+       },
+       "over": [],
+       "ok": true
+      },
+      {
+       "at_ref_s": 34.563768900108165,
+       "before": "finite start",
+       "after": "periodic nominal",
+       "walk": "periodic v0.4",
+       "walk_is": "the walk the track played last before the join (it left that walk through a move)",
+       "jump_rad": 0.0,
+       "joints": {
+        "neck_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "neck_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0019125974715321955
+        },
+        "jaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0
+        },
+        "tail_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.00604953862321913
+        },
+        "left_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0027883353462020387
+        },
+        "left_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.01889818377193514
+        },
+        "left_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0005605055473500299
+        },
+        "left_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.029777487129453578
+        },
+        "left_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.023456932098048056
+        },
+        "left_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.003876871281698481
+        },
+        "right_hip_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.002794896030151383
+        },
+        "right_hip_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.01924006340584769
+        },
+        "right_hip_yaw": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.000530018131360038
+        },
+        "right_knee": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.031450551808192645
+        },
+        "right_ankle_pitch": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.024906082959215453
+        },
+        "right_ankle_roll": {
+         "jump_rad": 0.0,
+         "walk_step_rad": 0.0038909049427033673
+        }
+       },
+       "over": [],
+       "ok": true
+      }
+     ],
+     "max_jump_rad": 0.00022331589732857426,
+     "joins_ok": true,
+     "zero_action_s": 2.0,
+     "zero_action_finite": true,
+     "ok": true
+    },
+    "inplace_left": {
+     "available": false,
+     "reason": "transitions/start_inplace_0.5_left: the turn in place has no reference within the gates (inplace_0.5_left: Stage 0: over thigh twist use above 0.87 0.9215: blocks the freeze (thigh twist use above 0.87); start_inplace_0.5_left: Stage 0: over knee speed 1.1089; joint range margin under 0.05 rad (left_hip_yaw max) 0.0235: blocks the freeze (knee speed; joint range margin under 0.05 rad (left_hip_yaw max)))",
+     "ok": true
+    },
+    "inplace_right": {
+     "available": false,
+     "reason": "transitions/start_inplace_0.5_right: the turn in place has no reference within the gates (inplace_0.5_right: Stage 0: over thigh twist use above 0.87 0.9216: blocks the freeze (thigh twist use above 0.87); start_inplace_0.5_right: Stage 0: over knee speed 1.1705; joint range margin under 0.05 rad (right_hip_yaw min) 0.0235: blocks the freeze (knee speed; joint range margin under 0.05 rad (right_hip_yaw min)))",
+     "ok": true
+    }
+   },
+   "screen": {
+    "path": "stage2/sets/V6/75-M-H-10-X/screen.json",
+    "sha256": "0605445a2e439d5d0e7d8de8066922b0a578487b85b770bda10a50a8dc55e08b"
+   },
+   "max_jump_rad": 0.00022331589732890733,
+   "join_limit": "at each joint, the largest change between two consecutive frames of the walk the join leaves (the lead's ruling 15 of 17 Nov 2026; changed after a result, changed after G9's result: as first written, 1e-6 rad)",
+   "ok": true
+  }
+ },
+ "parts_ok": {
+  "a": true,
+  "b": true,
+  "c": true,
+  "f": true
+ },
+ "pass_": true,
+ "followed": "none",
+ "kinematic_only": true,
+ "sources": {
+  "track_b": {
+   "designlab/stage2/gates2.py": "2537cc2b73cd526d3127e900532d56e0259559a8e25f53ca468369cc11400e41",
+   "designlab/stage2/g8a.py": "b01013a310b1369d3cad39189610518a3592b2f0ce9794ae77a03af2faab1551",
+   "designlab/stage2/r5lib.py": "f4c9f89b4d269df20abf3ce5750f5dd4e18662de6375f339ab3b2846170b91ba",
+   "designlab/stage2/r5core.py": "a021696a36efbf63b6988714d729cf18e9dbd9e9dcd7e6a1049e20b9ae0e8755",
+   "designlab/stage2/r5env.py": "4fb6cb3802d3274f91468839b7e931050cb5652f2b650c406130a0a59381991f",
+   "designlab/stage2/lookread.py": "ff7b2e4e7836c25884ae1bae507febacd413c5efa3980dbddbb8568b66809c45",
+   "designlab/stage2/lookbar.py": "6a7d59e4c116289b3ab0eaec2786a49e46d9d6a0072769e93aa3c0177e89ece4",
+   "designlab/stage2/s2rows.py": "30bbe6aada3666ae9304bfe79a66a195d9c9d1bbcb070e1f682cbc4ea2f3c6dc",
+   "designlab/stage2/s2load.py": "5f40fccad4d0e722dea00fa109c7fabc3d46c3f4ffa325c17a36f83af98f64ea",
+   "designlab/stage2/vecpool.py": "83acf1de2b1f602b0306ea18450f1260492224c6b669f26e0775799af255eea6",
+   "designlab/stage2/train2.py": "3e1294835f2dfa91d51bf7807fa05e542e09755a5acdad3ec2b6053d06239bba",
+   "designlab/stage2/monitor2.py": "f7f1b180533df8008dd6c82647bab37beeb454f00b2c02dd9a2523b1a1cd8efa",
+   "designlab/stage2/tbenv.py": "5877976407cc006d5dc8b56d927b5c9f27f80eb54335d29fabfcf93a2d437eb0",
+   "designlab/stage2/schedules.py": "3deb1c2b4e93a31f6f03f202f33fb84bc714867296b8a3589975b4dd11fd3758"
+  },
+  "bar": "45719d030359ec7d5d3914af3814d837fdc05d77652ba45c64792b511027528d",
+  "panels": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1"
+ },
+ "commit": "84e712357941bf5a6b56b59c6e71fc4d5de70164",
+ "dirty": false,
+ "dirty_paths": [],
+ "versions": {
+  "python": "3.13.18",
+  "numpy": "2.5.4",
+  "mujoco": "3.10.0",
+  "scipy": "1.18.1"
+ },
+ "blas_threads": 1,
+ "wall_s": 32.167950027993356,
+ "at": "2026-11-17T17:27:09Z",
+ "sha256": "8efa5e7eb72dad59bd9dc9951adda2958d118b073bc7c85c77e3a44852679c56"
+}
