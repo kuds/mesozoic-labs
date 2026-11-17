@@ -59,8 +59,12 @@ both hashes; entries the manifest does not hold may still be added.
 their entries and the latest manifest, names, definitions, the moves' gates, the stops' and turns' own readings, the
 walks' two formats, the hash gates, the labels (a walk's ``label``, every entry's ``margin_rule``), the screen
 (``screen.json``: a current block for every available entry, none blocking the freeze) and provenance; its notes
-also give the bar's kinematic check of the references where the set directory holds its record (``refcheck.json``,
-made by ``python -m designlab.stage2.bar refcheck --out <the sets' root>``; a report, not a gate).  ``freeze`` (the
+also give the bar's kinematic check of the references where the set directory holds its record (``refcheck.json``;
+a report, not a gate).  On a look set or a version of one (V6, V6noF5, V6.2, ...) the record is made with
+``python -m designlab.stage2.gates2 refcheck --set S --body B --out <the sets' root>`` (bar refcheck's record made
+inside lookbar.look_set_placement, its turns and stop at join rule J1's leave point, the only kind G9-ref part (a)
+reads); on any other set with ``python -m designlab.stage2.bar refcheck --set S --body B --out <the sets' root>``
+(``REFCHECK_HOW``; ruling 40 of 17 Nov 2026).  ``freeze`` (the
 lead's act) appends a manifest of every available entry to ``set.json`` ``freezes``; it needs ``verify`` to pass, a
 passing ``stage2/sets/legacy_check.json`` of today's ``moves.py`` and every built entry made by that ``moves.py``,
 and one source state on a clean tree unless a flag says otherwise; it never drops or changes an entry an earlier
@@ -156,9 +160,19 @@ MODULES = ("sets.py", "moves.py", "setscreen.py", "screen.py", "look.py", "setio
 PARTIAL = "partial"
 SCRATCH_PREFIX = "build-"
 LOG_FILE = "logs/sets.log"
-#: The bar's kinematic check of a set's references, where it is kept beside the set's records (``refcheck_state``):
-#: ``python -m designlab.stage2.bar refcheck --set S --body B --out <the sets' root>`` writes it there.
+#: The bar's kinematic check of a set's references, where it is kept beside the set's records (``refcheck_state``).
+#: What writes it there (``REFCHECK_HOW``; ruling 40 of 17 Nov 2026, in the words of LT3's check,
+#: stage2/design/checkpoint/reviews/roundC__check_LT3_17nov.md): on a look set or a version of one (V6, V6noF5,
+#: V6.2, ...) ``python -m designlab.stage2.gates2 refcheck --set S --body B --out <the sets' root>`` (bar refcheck's
+#: record made inside lookbar.look_set_placement, its turns and stop at join rule J1's leave point, the only kind
+#: G9-ref part (a) reads); on any other set ``python -m designlab.stage2.bar refcheck --set S --body B --out <the
+#: sets' root>``.
 REFCHECK = "refcheck.json"
+REFCHECK_HOW = (
+    "On a look set or a version of one (V6, V6noF5, V6.2, ...) the record is made with `python -m "
+    "designlab.stage2.gates2 refcheck --set S --body B --out <the sets' root>` (bar refcheck's record made inside "
+    "lookbar.look_set_placement, its turns and stop at join rule J1's leave point, the only kind G9-ref part (a) "
+    "reads); on any other set with `python -m designlab.stage2.bar refcheck --set S --body B --out <the sets' root>`.")
 WALK_GENERATOR = "look.generate + gait.inverse_dynamics + refs.arrays"
 #: The item kinds, and the builders of ``moves`` they call.
 KINDS = ("walk", "start", "change", "stop_two_step", "stop_one_step", "turn")
@@ -2631,7 +2645,7 @@ def verify(set_name: str, body: str, root=setio.ROOT) -> dict:
     rc = refcheck_state(d, docs)
     if rc is None:
         notes.append(f"no {REFCHECK} beside the set's records: its references were not played through the bar's own "
-                     "readings (python -m designlab.stage2.bar refcheck --out <the sets' root>)")
+                     f"readings. {REFCHECK_HOW}")
     else:
         notes += refcheck_lines(rc)
     cited = (set_doc["freezes"][-1].get("refcheck") if fz is not None else None)
@@ -2815,7 +2829,7 @@ def refcheck_lines(state: dict) -> list[str]:
     """What a kinematic check says, one line per failing condition (``sets verify``'s notes)."""
     head = "refcheck (each reference played kinematically through the bar's own readings; no physics)"
     if not state["current"]:
-        return [f"{head}: {state['file']} is not current: {state['why']} (python -m designlab.stage2.bar refcheck)"]
+        return [f"{head}: {state['file']} is not current: {state['why']}. {REFCHECK_HOW}"]
     if not state["failing"]:
         return [f"{head}: every reference that was played passes its own bar item"]
     out = []
@@ -2935,7 +2949,7 @@ def freeze(set_name: str, body: str, root=setio.ROOT, allow_mixed: bool = False,
             if not cited["current"] or beyond:
                 why.append(f"the refcheck record {cited['file']} is not of the files being frozen ("
                            + (cited["why"] or f"it read {', '.join(beyond[:4])}")
-                           + "): run python -m designlab.stage2.bar refcheck again")
+                           + f"): make it again. {REFCHECK_HOW}")
         if why:
             raise SetError(f"{d} is not frozen: " + "; ".join(why))
         if freezes and manifest == prev:
@@ -3200,8 +3214,9 @@ def main(argv=None) -> int:
                               help="a freeze made after check episodes only (no change after a result)")
             when.add_argument("--before-any-episode", action="store_true",
                               help="a later freeze made before any episode on the set")
-            p.add_argument("--refcheck", metavar="FILE", help="the record of bar refcheck to cite (default: the set "
-                                                              f"directory's {REFCHECK}, where there is one)")
+            p.add_argument("--refcheck", metavar="FILE", help="the refcheck record to cite (default: the set "
+                                                              f"directory's {REFCHECK}, where there is one). "
+                                                              f"{REFCHECK_HOW}")
     a = ap.parse_args(argv)
 
     def say(line: str) -> None:
