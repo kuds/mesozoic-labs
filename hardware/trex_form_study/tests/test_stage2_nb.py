@@ -32,6 +32,7 @@ from __future__ import annotations
 import ast
 import errno
 import hashlib
+import inspect
 import json
 import os
 import re
@@ -777,6 +778,39 @@ def test_the_steps_sheet_clears_old_outputs_before_a_later_session():
     assert "what Edit > Clear all outputs empties (5.4 (b))" in flat
 
 
+def test_section_8_of_the_template_says_when_the_refused_start_came():
+    """The lead's ruling 45 of 17 Nov 2026 (3): the check of the sheet (V13) found one wrong sentence in section 8,
+    that the "still running" line came "for a second start while the first was alive".  In ``_drill`` (and the
+    record's ``takeover_note``) that start comes right after session 0 has been stopped with SIGKILL: its LIVE.json
+    is fresh, but nothing runs.  The template now says so, and that the resume after it had TAKEOVER, which the owner
+    never sets (5.6), and printed the same line as without it.  The fragments it quotes are the program's forms, and
+    the order it tells is ``_drill``'s; the values are fields that ``sheet_check`` holds to the acceptance record."""
+    flat = " ".join(r.strip() for r in TEMPLATE.read_text(encoding="ascii").splitlines())
+    eight = flat.split("8. WHICH LINES WERE MEASURED", 1)[1].split("STILL OPEN IN THIS DRAFT", 1)[0]
+    assert nb.SHEET_WRONG_SECTION_8 not in flat and "alive" not in eight
+    for said in ('the acceptance run printed "(new run)" in its first session',
+                 "That session was then stopped by force while it copied a save",
+                 "after an earlier save had reached that folder whole",                 # (ruling 45 (1))
+                 "A second start made right after that printed",
+                 "nothing was running any more, but the stopped session's LIVE.json was that recent",
+                 "went on from that save, copied back from the folder",
+                 "That start had TAKEOVER set, which only I set: you never set it, and wait ten minutes instead (5.6)",
+                 "The line it printed does not depend on TAKEOVER"):
+        assert said in eight, said
+    quotes = re.findall(r'"([^"]*)"', eight)
+    live = next(q for q in quotes if q.startswith("still running"))
+    resume = next(q for q in quotes if q.startswith("(resuming session"))
+    assert "Run directory: x: " + live.replace("<<LIVE_S>>", "41") == nb.session_line("x", "live", age_s=41)
+    assert "Run directory: x " + resume.replace("<<RESUME_STEPS>>", "1024") == nb.session_line(
+        "x", "resume", session=1, job=nb.parse_queue("R5:75-M-H-10:42")[0]["job"], steps=1024, done=0)
+    assert "(5.6)" in eight and "Wait ten minutes, then do 5.4 again" in " ".join(flat.split("5.6  ", 1)[1].split()[:80])
+    # _drill's order: session 0 to its kill, the start refused for a fresh LIVE.json, then the resume with TAKEOVER;
+    # the acceptance run's first job is R5 on 75-M-H-10 with seed 42
+    drill = inspect.getsource(nb._drill)
+    assert drill.index('"session0.log"') < drill.index('"session1-refused.log"') < drill.index("TAKEOVER=True")
+    assert 'QUEUE=["R5:75-M-H-10:42", "R6:75-M-H-10:42"]' in inspect.getsource(nb.acceptance)
+
+
 def test_the_templates_fields_are_the_acceptance_runs_or_the_smokes():
     """The lead's ruling 45 of 17 Nov 2026 (2): ``sheet_check`` tells the fields the acceptance run's records fill
     (none may be left in the sheet of C2) from those only the smoke fills (``before_smoke`` lists them): every field
@@ -855,7 +889,8 @@ def test_a_filled_sheet_is_held_to_the_records(tmp_path, monkeypatch, capsys):
             "<<N_FILES>>": "2", "<<N_PARTS>>": str(len(names)), "<<TOTAL_MB>>": "1",
             "<<PART NAMES, ONE PER LINE>>": " ".join(names),
             "<<RULES_FILE: THE COMMITTED RULES TEXT; TODAY STAGE2_TRACKB_PLAN.md>>": "STAGE2_TRACKB_PLAN.md",
-            "<<RULES_SHA256>>": rules, "<<G8A_STEPS>>": "6000", "<<DATA_REF>>": "data",
+            "<<RULES_SHA256>>": rules, "<<G8A_STEPS>>": "6000", "<<DATA_REF>>": "data", "<<LIVE_S>>": "41",
+            "<<RESUME_STEPS>>": "1024",
             "/blob/s2-launch-1/hardware/trex_form_study/": "/blob/s2-launch-1/study/"}   # (the scratch repo's study)
     text = TEMPLATE.read_text(encoding="ascii").split("STILL OPEN IN THIS DRAFT")[0]
     for a, z in fill.items():
@@ -924,6 +959,10 @@ def test_a_filled_sheet_is_held_to_the_records(tmp_path, monkeypatch, capsys):
     assert only(rec, "lines") and "says ok: False (failed: resumed_from_drive)" in " ".join(rec["problems"]["lines"])
     record(ref="e" * 40)
     assert only(check(final), "lines")
+    resume = nb.session_line(run, "resume", session=1, job="R5-75-M-H-10-s42", steps=2048, done=0)
+    record()                                               # (section 8 quotes the record's resume from 1024 steps)
+    assert only(check(final), "section_8")
+    resume = nb.session_line(run, "resume", session=1, job="R5-75-M-H-10-s42", steps=1024, done=0)
     record()
     doc_ = json.loads((mdir / "ACCEPTANCE.json").read_text())
     (mdir / "ACCEPTANCE.json").write_text(json.dumps(dict(doc_, ok="yes")))

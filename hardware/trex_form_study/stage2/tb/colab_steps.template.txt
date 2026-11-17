@@ -349,6 +349,14 @@ check each one at the acceptance run or, where only Colab can show it, at the sm
    Measured: <<TO BE WRITTEN FROM THE ACCEPTANCE RUN'S RECORD (ACCEPTANCE.json): every line it printed is quoted
    on this sheet from that record, with its values; the minutes of each smoke item come from the smoke itself
    and are measured here only where they could be.>>
+   Of the lines that begin "Run directory", the acceptance run printed "(new run)" in its first session. That
+   session was then stopped by force while it copied a save to the folder that stood in for your Drive, after
+   an earlier save had reached that folder whole. A second start made right after that printed "still running
+   (LIVE.json written <<LIVE_S>> s ago); nothing to do": nothing was running any more, but the stopped
+   session's LIVE.json was that recent. The start after it printed "(resuming session 1: R5-75-M-H-10-s42 from
+   <<RESUME_STEPS>> steps; 0 jobs done)" and went on from that save, copied back from the folder. That start
+   had TAKEOVER set, which only I set: you never set it, and wait ten minutes instead (5.6). The line it
+   printed does not depend on TAKEOVER: you see the same one.
 
    In this draft, the wording of every line that begins "S2 LINE", "S2 SMOKE", "S2 FINISH", "S2 launch:",
    "S2 REFUSED" or "Run directory:" is the program's own (the same functions print it), and I have seen these
@@ -373,5 +381,5 @@ STILL OPEN IN THIS DRAFT (for me, not for you)
    <<RULES_SHA256>> <<BACKGROUND>>
    <<G8A_STEPS>> <<SMOKE_TOTAL_MIN>> <<MIN_SETUP>> <<MIN_Y1>> <<MIN_Y3>> <<MIN_Y5>> <<MIN_Y6>> <<MIN_Y8>>
    <<TABLE OF LAUNCHES>> <<BUDGET_STEPS>> <<RATE>> <<W>> <<VCPUS>> <<BUDGET_M>> <<HOURS>> <<FLOOR>>
-   <<MIN_LINE4>> <<MIN_LINE4_LATE>> <<HOURS_PER_JOB>> <<MIN_REBUILD>> <<DATA_REF>>
+   <<MIN_LINE4>> <<MIN_LINE4_LATE>> <<HOURS_PER_JOB>> <<MIN_REBUILD>> <<DATA_REF>> <<LIVE_S>> <<RESUME_STEPS>>
    and section 8's first paragraph, and each "(expected, not yet seen)" mark.

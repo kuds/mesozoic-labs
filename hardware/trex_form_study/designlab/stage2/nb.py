@@ -4030,7 +4030,8 @@ SHEET_CHECK_SCHEMA = "s2-sheet-check-1"
 #: The template's fields the acceptance run's records fill (the launch commit, the bundle, the rules, its own lines;
 #: ``TO BE WRITTEN ...`` is section 8's first paragraph): a sheet checked by ``sheet_check`` holds none of them.
 SHEET_ACCEPTANCE_FIELDS = ("C1", "BUNDLE_ID", "HASH12", "N_FILES", "N_PARTS", "TOTAL_MB", "PART NAMES", "RULES_FILE",
-                           "RULES_SHA256", "G8A_STEPS", "DATA_REF", "TO BE WRITTEN FROM THE ACCEPTANCE RUN")
+                           "RULES_SHA256", "G8A_STEPS", "DATA_REF", "LIVE_S", "RESUME_STEPS",
+                           "TO BE WRITTEN FROM THE ACCEPTANCE RUN")
 #: The template's fields only the smoke fills (its minutes, rates and what is fixed after it), and its two words for
 #: a field (``<<LIKE THIS>>``, ``<<...>>``): only a sheet checked ``before_smoke`` (the sheet of C2) may hold them.
 SHEET_SMOKE_FIELDS = ("BACKGROUND", "SMOKE_TOTAL_MIN", "MIN_SETUP", "MIN_Y1", "MIN_Y3", "MIN_Y5", "MIN_Y6", "MIN_Y8",
