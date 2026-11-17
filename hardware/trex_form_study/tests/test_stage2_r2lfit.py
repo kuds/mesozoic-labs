@@ -435,9 +435,34 @@ def test_a_look_set_waits_for_g9_ref_as_the_gates_package_reads_it(env):
 @pytest.mark.skipif(importlib.util.find_spec(GATES2) is None,
                     reason="the gates package (work package CG) is not on this branch")
 def test_the_gate_calls_the_real_gates_package(env):
-    """With the real gates package: its signature is the one r2lfit calls, and a set without a record is refused."""
-    with pytest.raises(r2lfit.R2LError, match="G9-ref has not passed as the gates package reads it"):
+    """With the real gates package: the look sets agree, a set without a record is refused, and a record written in
+    its own form (``gates2.finish``) on the set's latest freeze passes, on a synthetic frozen ``set.json``."""
+    import importlib
+
+    g2 = importlib.import_module(GATES2)
+    assert tuple(g2.LOOK_SETS) == r2lfit.LOOK_SETS
+    env.mp.setattr(r2lfit, "SET_ROOT", env.tmp / "sets")
+    s2io.write_json(env.tmp / "sets" / "V6noF5" / BODY / "set.json",
+                    dict(set="V6noF5", freezes=[dict(index=1, manifest_sha256="d" * 64, manifest={})]))
+    path = env.tmp / "gates" / "V6noF5" / BODY / "g9_ref.json"
+    with pytest.raises(r2lfit.R2LError, match="G9-ref has not passed as the gates package reads it.*no G9-ref"):
         r2lfit.gate("V6noF5", BODY)
+
+    def rec(**kw):
+        return g2.finish(dict(dict(schema=g2.SCHEMAS["g9_ref"], gate="G9-ref", body=BODY, set="V6noF5", pass_=True,
+                                   at="2026-11-17T00:00:00.000000Z",
+                                   set_freeze=dict(index=1, manifest_sha256="d" * 64)), **kw))
+
+    for doc, why in ((rec(pass_=False), "did not pass"), (rec(set_freeze=dict(index=0, manifest_sha256="e" * 64)),
+                                                          "another freeze"),
+                     (dict(passed=True, status="passed", outcome="passed", body=BODY, set="V6noF5"), "is not one")):
+        s2io.write_json(path, doc)
+        with pytest.raises(r2lfit.R2LError, match=why):
+            r2lfit.gate("V6noF5", BODY)
+    s2io.write_json(path, rec())
+    cite = r2lfit.gate("V6noF5", BODY)
+    assert cite["sha256"] == s2io.sha256_file(path) and cite["pass_"] is True
+    assert cite["checked_by"] == f"{GATES2}.require_g9_ref" and cite["set_freeze"]["manifest_sha256"] == "d" * 64
 
 
 def test_a_development_fit_is_not_selected_or_published(env):
