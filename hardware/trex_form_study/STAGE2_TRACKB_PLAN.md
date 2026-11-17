@@ -2662,7 +2662,8 @@ later on 16 Nov 2026: the next amendment].
 7. An attempt at a check is logged before the monitor starts and closed with its exit code. M1's "once" counts closed
    attempts that left no record: after two the check counts as without a gain and as a failed G8b reading. An attempt
    never closed is an interruption, which K5's resume runs again and which does not count [a monitor's refusal to run is
-   no attempt either, by ruling 6 of the fifth list: the last amendment]. This makes precise point 9 of the second list:
+   no attempt either, by ruling 6 of the fifth list, and so are its other exits before any episode, by ruling 3 of the
+   sixth: the last two amendments]. This makes precise point 9 of the second list:
    M1, K5, with a pointer in M4.
 8. The smoke passes when Y1, Y3, Y6 and Y9 pass and Y4 passes or has been answered by the owner's budget; Y11's floor is
    the inequality `r x 72,000 < 15,000,000` alone, with no rounded rate beside it. This changes ruling 12 of the first
@@ -2863,7 +2864,8 @@ Rulings 5 and 6 were given after the code they are about had been built and revi
 
 1. A record of a check holds, for each of the 18 episodes, an outcome or, for a condition without a reference, "not
    run". Read to the letter as it stood, a body without a quick turn would have failed every check. This corrects ruling
-   4 of the fourth list in its sentence on what a record is: M1 (the rule, the author's note and the Check).
+   4 of the fourth list in its sentence on what a record is: M1 (the rule, the author's note and the Check) [R0L's
+   baseline reads the same, by ruling 1 of the sixth list: the next amendment].
 2. After the halt for two attempts at one check that were never closed, the lead has the fault repaired and resumes with
    a recorded parameter, which lets the check run once more per resume. A run that cannot be resumed is `unfinished:
    <reason>`. This says what follows the halt of ruling 4 of the fourth list: M1, with K5's reading and Check and a
@@ -2873,13 +2875,16 @@ Rulings 5 and 6 were given after the code they are about had been built and revi
    reading of that case: Q5, with the brief and the change list's item 15.
 4. "That body's other look sets" takes in the sets of the body's `-X` head, as L12 itself takes a cut for every look set
    of that body and of its `-X` head. This makes precise ruling 7 of the fourth list: L12, with the brief and the change
-   list's item 30.
+   list's item 30 [the case in which the failing set is the `-X` head's own was confirmed by ruling 4 of the sixth list:
+   the next amendment].
 5. The tail term fails when the robot's fitted tail amplitude is under 0.02 rad while the reference's amplitude is read.
    It is new, and it departs from plan section 5, whose tail term reads the phase alone: U3, with the amplitude's name
-   in U1 and the change list's item 24.
+   in U1 and the change list's item 24 [its control in G9-ref came with ruling 2 of the sixth list: the next
+   amendment].
 6. A monitor that refuses to run (its sources have moved, the checkpoint is not intact, or the checkpoint is another
    run's) is no attempt: the trainer halts, and the refusal does not count toward the two attempts after which a check
-   counts as without a gain. This makes precise ruling 7 of the third list: M1, with pointers in M4, M5 and K5.
+   counts as without a gain. This makes precise ruling 7 of the third list: M1, with pointers in M4, M5 and K5 [the
+   monitor's other exits before any episode are refusals too, by ruling 3 of the sixth list: the next amendment].
 
 Confirmed by the lead as the fixer left them: "rule E4's sentence on a plan given as a plan" (the list's words; the
 fixer had left three sentences there), which the lead had ruled at 03:02 UTC (E4's mark says so); that the candidate's
@@ -2893,14 +2898,16 @@ changed for this text.
   reads the tail term from the phase alone wherever the reference's amplitude is not under 0.02 rad (`NOT_READ_RAD`). It
   records the ratio of the two amplitudes as `tail_amp_ratio`, and its own rule text says that no band reads it. The
   robot's fitted amplitude is in a reading as `tail.amp_rad`. By the ruling the limit goes into that file before code
-  state B.
+  state B [it has been there since commit `34afe717`, on the working branch since 19:52 UTC on 16 Nov 2026: the next
+  amendment says what the code holds today].
 - `designlab/stage2/monitor2.py` and `designlab/stage2/train2.py` (last changed by commit `bc7ca20`) do not hold ruling
   6 yet. Each of the three refusals raises `MonitorError`, the monitor leaves with exit code 1 as it does for any other
   failure, and the trainer closes the attempt and counts it: two refusals count the check without a record. The lead's
   ruling of 19:01 UTC on the trainer (`stage2/design/ROUND_C_RULINGS_16NOV.md`) gives the change that is owed: the
   monitor leaves with an exit code of its own when it refuses, and the trainer halts with exit code 5. On a resume that
   starts from an earlier checkpoint the trainer moves a later check's entry, its attempts with it, to that session's
-  `discarded_after_resume` (`train2._rollback`).
+  `discarded_after_resume` (`train2._rollback`) [the change has been made since: the next amendment says what the code
+  holds today].
 - The same two files hold rulings 1 and 2. `monitor2.is_record` takes `not_run` as an episode's entry, on any episode:
   it does not read whether the condition has a reference. The trainer has `--retry-check`, recorded as
   `sessions[].retry_check`; the attempt it allows is marked `after_halt`, and it is one attempt per resumed session. If
@@ -2927,7 +2934,8 @@ are the four terms; in the list of words, "four terms" for "four limits". In L12
 failing set is the `-X` head's own.
 
 Seen while this was written in. These are with the lead, because each changes what a rule decides; none is written in
-but the last, which is written in as the author's reading. M1's sentence on R0L's baseline, "each must end *read* or
+but the last, which is written in as the author's reading [the lead ruled on the four with the sixth list: the next
+amendment]. M1's sentence on R0L's baseline, "each must end *read* or
 *fell*", names no condition without a reference, which is "not run" for both rows: read to the letter, a body without a
 quick turn has no baseline that a check can be read against (the monitor's code takes "not run" there,
 `monitor2.baseline_problem`). Z2 (c) has no degraded playback that fails the tail term by its new limit, such as a tail
@@ -2954,7 +2962,8 @@ and the line on the confirmations above: the list's own words on E4, and which c
 branch had not moved (`ffecc2c`); this file alone differs from it.
 
 The points of that review that need a decision are with the lead and are not written in. They are the four that the
-paragraph "Seen while this was written in" names, and the review made two of them more exact. For Z2 (c) it probed the
+paragraph "Seen while this was written in" names, and the review made two of them more exact [the lead ruled on the
+four with the sixth list, which follows the review's two refinements: the next amendment]. For Z2 (c) it probed the
 look reading's fit and comparison on synthetic numbers (pure functions; no record), and the fix round ran that probe
 once more: a tail held at 0 already fails today's tail term by its phase (0.27 cycle from the reference's), while a tail
 scaled to a tenth about its mean (0.0125 rad against 0.125 rad) keeps the reference's phase and passes today's term. So
@@ -2963,3 +2972,107 @@ exits before any episode that ruling 6 does not list, the review names two besid
 record that cannot be read (the reader's own error, not the monitor's), and a checkpoint whose fingerprint is not
 reproduced when the row loads it (`s2load.CheckpointError`, which the monitor's command does not catch; seen on the
 stand-in's path for the view `S1`, the only path on the branch).
+
+**Amendment of 16 Nov 2026: the sixth list.** The independent review of the fifth list's writing-in and the fix round
+after it handed four points up to the lead (`stage2/design/checkpoint/reviews/trackb_rules5__review.md` and
+`trackb_rules5__fix.md`; the paragraph above names them). The lead ruled on the four on 16 Nov 2026, at 19:52 UTC, and
+closed the list with two rulings for the code (`stage2/design/TRACKB_RULINGS6_16NOV.md`). All were given before any
+Track B run, fit or training run on a Stage 2 set and with no look set frozen, and they were written in on 17 Nov 2026,
+still before any; "What had been run" says what had run by then. Each line below says what was decided and, after its
+last colon, in which rule the wording now stands; there it carries the mark
+"[settled 16 Nov 2026, before any Track B run]" and names its ruling of the sixth list. Ruling 4 is about section L and
+was settled after the look work package had built look sets (prescribed motion; none frozen): its wording says so.
+Rulings 2 and 3 were given after the code they bear on, the look reading and the trainer with its monitor, had been
+built and reviewed: their marks say so.
+
+1. Each of R0L's 18 baseline episodes must end *read* or *fell* or, for a condition without a reference, be "not run";
+   the monitor's code already reads it so. Read to the letter as it stood, a body without a quick turn had no baseline
+   that a check could be read against. This carries ruling 1 of the fifth list to the baseline: M1 (the rule and the
+   Check).
+2. A fifth degraded playback joins the controls of Z2 (c): the tail scaled to a tenth about its mean. It must fail the
+   tail term and no other. It goes to the gates package's brief. This gives the limit of ruling 5 of the fifth list a
+   control: Z2 (the rule, an author's note and the Check).
+3. The monitor's other exits before any episode (a missing `run.json`; a checkpoint record that cannot be read or has
+   the wrong shape; a fingerprint not reproduced at the row's load) are each a refusal as ruling 6 of the fifth list
+   has it: no attempt, and the trainer halts. The list named it as owed, a small change to the monitor; it has been
+   made since, but for one wrong shape of a checkpoint record (below). This makes precise ruling 6 of the fifth list: M1
+   (the rule, the author's note and the Check), with pointers in M4, M5 and K5.
+4. When the set whose start fails is the `-X` head's own, the lead's decision also takes in the plain head's sets of
+   that body. This confirms the author's reading written in with the fifth list, as written: L12 (the rule, in place of
+   that reading, and its Check), with the brief's mark and the change list's item 30.
+
+Also ruled, for the code (the list's closing paragraph): the monitor keeps its note files `monitor_<n>.refused.json` and
+`r0l.refused.json`; the halt message after a refusal under `--retry-check` names that parameter. Both stand in M1's note
+and Check, and the second also in K5's reading.
+
+What the code holds while this is written in; the author's account, read on the working branch at `fccebe42`. No code
+was changed for this text.
+
+- Ruling 5 of the fifth list: `designlab/stage2/lookread.py` holds it, since commit `34afe717`, on the working branch
+  since 19:52 UTC on 16 Nov 2026. Where the reference's tail amplitude in the window is not under 0.02 rad
+  (`NOT_READ_RAD`), `compare` passes the tail term only when the phase lies within its band and the robot's own fitted
+  amplitude, from the same fit as its phase (`tail.amp_rad`), is not under `TAIL_AMP_MIN_RAD` (0.02 rad). Both are
+  compared without slack, and an amplitude that cannot be computed fails the term. Where the reference leaves the tail
+  unread, the robot's amplitude is recorded and fails nothing. Beside the terms the comparison records `tail_amp_rad`,
+  its side of the limit (`tail_amp_side`), the limit itself and `tail_amp_ratio`, which no band reads; the reference's
+  amplitude stands under `reference` with its side of 0.02 rad (U3's Check).
+- Ruling 6 of the fifth list: `designlab/stage2/monitor2.py` and `designlab/stage2/train2.py` hold it, since commits
+  `0ad2072d` and `bf9bc434`, on the working branch since 19:52 UTC on 16 Nov 2026; and ruling 3 of the sixth list, with
+  the lead's rulings 10 and 11 of 17 Nov 2026 on the trainer, since the trainer's third follow-up (`695e8429`,
+  `9c348ca7`, `eee35062`), merged at `ff04355a` (03:27 UTC on 17 Nov). The monitor's `run` and `baseline` raise
+  `MonitorRefusal` before any episode on the grounds that M1's note names. Its command line then leaves with
+  `EXIT_REFUSAL` (8) and writes the reason to `monitor_<n>.refused.json` (the baseline's `r0l.refused.json`), which a
+  later call of the same check removes before it runs. The trainer closes the attempt with that exit code, marks it
+  `refused` with the note's kind and reason, leaves it out of M1's count of closed attempts, and halts with exit code 5;
+  `run.json` `halt` quotes the monitor's reason. At a check whose refused attempt was the one that `--retry-check` let
+  run, the halt names `--retry-check`; in every other case it says that a resume runs the check again. The trainer
+  passes its `--allow-source-change` to the row in the monitor child's environment (`STAGE2_ALLOW_SOURCE_CHANGE`).
+- Not yet held: one wrong shape of a checkpoint record. The monitor checks the shape of the record's `files` alone. A
+  record without a `layout` object, or one whose `fingerprint` entry is no object, passes that check and fails inside
+  the row's load with an error that is no refusal: the monitor ends with exit code 1, and the trainer counts a closed
+  attempt without a record. The independent check of the trainer's third follow-up found it
+  (`stage2/design/checkpoint/reviews/roundC__check_CT3_2.md`, finding 1: by a probe on the merged tree for the first,
+  by reading for the second; such a record must still hash to itself, so a write cut short cannot make one). The lead's
+  ruling 12 of 17 Nov 2026 makes it a refusal, in the follow-up before the acceptance run, which is not merged.
+- The halt on Colab: the notebook's launcher (`designlab/stage2/nb.py`, merged at `8348a3a8`) writes, on the trainer's
+  exit 5, a `HALT.json` marked resumable whose `remedy` is `retry_check` when the trainer's halt names `--retry-check`;
+  the trainer's exit 4 (a resume or start it refuses) writes none. The remedies come from a file that the lead writes
+  beside the run, `LEAD.json` (the lead's ruling 2 of 17 Nov 2026), which is how "the lead ... resumes" of ruling 2 of
+  the fifth list, read in M1's note as the lead's word, is given on Colab.
+- Ruling 1: `monitor2.baseline_problem`, which the trainer's baseline uses, takes an episode that is `read`, `fell` or
+  `not_run` and no other. Like `monitor2.is_record` it does not read whether a condition has a reference: the rows give
+  `not_run` for a condition whose reference the set does not hold (`lookbar.episodes`).
+- Ruling 2: `lookread.controls` and `lookread.DEGRADED` hold part (c)'s four controls (`bob_half`, `neck_3deg`,
+  `tail_late`, `flat_feet`), and not the fifth. No code of gate G9 is on the working branch: the gates package works on
+  its own branch (`wt/wpc-cg`), which was not read. By the ruling the fifth control goes to that package's brief.
+
+What else changed in this text with the sixth list; this paragraph is the author's and not the lead's wording. These
+follow the settled wording and are the author's: the sentence added to the Status, the bullet in "What had been run",
+the Tags entry, the brief's sentences and a mark among its look choices, the change list's opening and item 30, and
+the additions to the "Check:" lines; "the three amendments" reads "the four amendments" in the Status, the brief, the
+Tags entry and the change list's opening. One line of the third amendment points to this one (ruling 7 of the third
+list, where "the last amendment" now reads "the last two amendments"), as do, in the fifth, the lines of its rulings 1,
+4, 5 and 6, its two bullets on the code and its two paragraphs that named points with the lead. In M1: the head's
+tags; the note on rulings 6 and 3, which now names the code's grounds of refusal, its exit code and its notes, reads
+ruling 3's "wrong shape" as the shape of the record's `files` that the code checks and as one of ruling 6's "not
+intact", names the row's own refusal while it is built as a refusal by the lead's ruling 10 of 17 Nov, and says when a
+resume after a refusal needs ruling 2's parameter; the Check's items on the baseline and on a refusal. In M4 and M5: the
+pointers. In K5: the reading of a resume after a refusal of the attempt that the parameter let run, and the test in its
+Check. In Z2: the head's tag, "five" for "four" with the fifth playback where it stands in (c), the note on why and how
+it fails, with the reference tail amplitudes of the look ladder (no record), and the Check's item. In L12: the head's
+tag and the Check's parenthesis.
+
+Seen while this was written in. These two are with the lead, because each changes what a rule decides; M1's note and
+K5 hold them only as the code reads them. The row's own refusal of a checkpoint while the row is built
+(`s2rows.RowError`) is a refusal in the code by the lead's ruling 10 of 17 Nov, which names ruling 3 of this list for
+it; ruling 3's words do not list it, and M1's ruled sentences do not name it (M1's note does). And the halt "after a
+refusal under `--retry-check`" names that parameter in the trainer only when the refused attempt was the one that the
+parameter let run, not after the refusal of a fresh attempt in a session that has the parameter, where no resume needs
+it.
+
+Seen and left, needing no decision. Z2 (c)'s scaled tail fails the tail term only where the reference's own tail
+amplitude is under 0.2 rad (Z2's note); on the look ladder's rungs it is 0.120 to 0.125 rad. Were a frozen set's
+reference at 0.2 rad or more, that control would pass the term, and G9-ref would fail and go to the lead by Z2's own
+rule. And the six look sets on branch `wt/wp-l` are each blocked by their `start` or their `nominal_to_v0.4`, `V6` on
+both heads of both bodies ("What had been run"): the case of L12 in which the lead decides whether a body's other look
+sets are frozen stands for every body; no rule of this text decides it.
