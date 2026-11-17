@@ -1392,7 +1392,13 @@ flat feet)"; ruling 2 of the sixth list, given after the look reading had been b
 run")], the unchanged playback passes all four with ratio 1, and a playback cut to 3 steps reads `too_few_steps`; (f)
 each reference no bar item plays (the turn in place with its start and stop; the changes to rungs other than 0.40 m/s)
 has its screen record cited, and every task's track is continuous at its joins (joint targets within 1e-6 rad) and plays
-2 s with finite targets. As committed, (b)'s toe-off limit was 0.02 rad alone, which is a third to two thirds of the
+2 s with finite targets. [settled 17 Nov 2026, before any look set was frozen and before any Track B run; labelled as
+changed after a result: the joins read on Stage 1's arrays and on V0 (prescribed motion); rulings 15 and 32 of
+`stage2/design/ROUND_C_RULINGS_17NOV.md`] In (f), "continuous at its joins" reads: at each joint, a join's jump is no
+larger than the largest change between two consecutive frames of the walk it leaves (its whole window, the wrap from
+its last frame to its first included); a join that leaves no walk is held to the walk the track played last before it,
+else the first after it, and the stand task to 0. The record holds both numbers per join and joint. The 1e-6 rad
+limit of the sentence before is replaced. As committed, (b)'s toe-off limit was 0.02 rad alone, which is a third to two thirds of the
 ladder's own toe-off at 0.40 m/s (U3).
 
 Why the fifth playback, and how it fails (the author's note, not the lead's wording). The tail 0.2 cycle late fails the
@@ -1428,7 +1434,10 @@ trace-identical to their committed records (the bar's re-read record, cited).
 
 *What follows a failure.* [settled 15 Nov, before any Track B run; in place of the committed sentence "If (b) fails,
 U1's definitions go back to the lead before any look-set episode."] If (a) fails for a reference, Track B treats that
-reference as not available (its tasks absent, T2; its conditions "not run", H3) and it goes to the lead; a failing
+reference as not available (its tasks absent, T2; its conditions "not run", H3) and it goes to the lead; [settled 17 Nov 2026, before any look set was frozen; rulings 14 and 32 of `stage2/design/ROUND_C_RULINGS_17NOV.md`]
+G9-ref fails while that reference is still available in the set and its record names it; the lead marks it not
+available (`sets`, citing the record), freezes again (the freeze records the dropped entry and the record) and runs
+G9-ref again; a failing
 `start`, `nominal` or `v0.4` blocks the body and head. If (b), (c) or (f) fails, no closed-loop episode runs on that set
 and body and it goes to the lead. If (d) or (e) fails, no training run of that body and head starts. A definition, limit
 or band changed on any such account is labelled "changed after G9's result" (G9-ref's result is kinematic).
@@ -1918,7 +1927,11 @@ synthetic set in a temporary directory. On a look set, for each body and head: n
 passed; between G9-ref and S2-4's start only these: Z1's episodes, R0L's baseline and panel records, Z2's G9-run, the
 probes of O2-O4 (zero action, noise, freshly initialised policies), the rate measurement, K3's two runs, the acceptance
 run's tiny jobs, and R2L's fits (section Q; added by the lead, below). None but Z1's, R0L's and Z2's, and the fits', is
-a record; each is listed in `stage2/tb/dev_episodes.json` with its command, set, body, rows or mode, and count.
+a record; each is listed in `stage2/tb/dev_episodes.json` with its command, set, body, rows or mode, and count. [settled 17 Nov 2026, before any look set was frozen and before any Track B run; ruling 31 of
+`stage2/design/ROUND_C_RULINGS_17NOV.md`] `lookbar` enforces the first clause on a look set and on every version of
+one: it runs only the rows R0L, R5, R6, R5G and R2L there, and only after G9-ref passed. The bar's own command (`python
+-m designlab.stage2.bar run`) cannot refuse an R0 row on a look set, because `bar.py` is not edited; it is never run on a
+look set, and no step of the chain calls it there.
 
 [settled 15 Nov, before any Track B run; differs: rule R4's wording] `STAGE2_75_PLAN.md` rule R4's "a Stage 2 set" means
 the 75 cm round's three sets (V0, F25F9, F25F9cl); rule R4 is the 75 cm round's own by S2-16.
@@ -2000,6 +2013,19 @@ column of `q`: a dip follows each touchdown of the plan by `settle_lag`.
 fraction of the swing, with `lift_peak` sampled at the swing's lift-off. Check: on the arrays (`feet`, `swing_u`), each
 swing's highest point falls at `lift_peak` of the swing.
 
+**L1 and L4 in a start.** [settled 17 Nov 2026, before any look set was frozen and before any closed-loop episode on
+one; labelled as changed after a result: on every look set and body the look start passed its entry gates and went
+over the knee's Stage 0 speed limit (75 cm: 1.126 of the limit; 60 cm: 1.234), because its first swing lifts a flat foot
+from an almost straight stand with the look walk's short swing and low lift peak; ruling 18 of
+`stage2/design/ROUND_C_RULINGS_17NOV.md`] In a start, whose gait a is the stand, each swing's lift law (L4: the lift
+profile and its `lift_peak`) and its duty (L1) mix the law of Stage 1's start for that body into the look walk's by the
+start's amplitude ramp `amp`, sampled at the swing's lift-off: at `amp` 0 a swing is Stage 1's, at `amp` 1 the look
+walk's. So the first swings are the stand's and the last are the look's. Nothing else of the start changes, and no
+other move is touched by this paragraph. All six look sets are built again under it, the 75 cm bodies first; a set
+whose start still fails is not frozen and goes to the owner with its numbers (L12, A8). Check: the entry's `move.rules`
+names the rule; on the arrays, each swing of a start has the duty and lift peak that this mix gives at its lift-off;
+the start's knee speed ratio is in the set's records.
+
 **L5. Bob (F1 and F2; fields `bob`, `bob_skew`, `bob_drop`).** [design; NEW] The pelvis height is `z = root0_z - amp x
 (crouch + bob(p) x gait.bob_profile(tau))`: `root0_z` is the home height, tau the fraction of the interval between the
 plan's consecutive touchdowns, and the trough is placed by `gait.bob_trough`. The bob's amplitude mixes with the ramp's
@@ -2078,6 +2104,12 @@ and at the command equal the look walk's, the test that before the instant of a 
 the law of the walk it leaves, read as the item above reads it [settled 16 Nov 2026, before any Track B run: these two
 tests, in place of one test "that the frames before the instant (in a causal move, before and at the command) equal the
 look walk's"], and the test that the move's last frame equals the walk's first, `foot_pitch` included.
+
+[settled 17 Nov 2026, after the look work package built sets (prescribed motion; none frozen), before any Track B run;
+ruling 25 of `stage2/design/ROUND_C_RULINGS_17NOV.md`; the reading the builder built, which this rule did not state]
+The toes-up reach of F5 (`toe_reach`) after a change's instant: a swing that lands at or before the instant keeps gait
+a's reach; a later swing has a reach only when both the stance it leaves and the stance it lands in follow a walk's law.
+Otherwise it has none.
 
 **Windows.** [design; settled 15 Nov, before any Track B run, after the look work package's first kinematic numbers
 existed: a nudge's onset] With F14 a look walk's file holds a window of K whole strides that is periodic as a whole (9
@@ -2170,7 +2202,12 @@ the committed sentence "A move that still fails under the cuts open to it is "no
 sentence after this mark is that sentence's closing clause, set on its own by the author, and it holds as committed, for
 every move that still fails]. No limit is changed for a move that still fails without the label "changed after a
 result". Under cut 3 the "2 (2.5) strides of `v0.4`" of T1 and of B6 read "one window of `v0.4` (and half a stride for a
-right-foot command)", and the env description and every record say so.
+right-foot command)", and the env description and every record say so. [settled 17 Nov 2026, before any Track B run; labelled as
+changed after a result: the join-code review's scratch probes (prescribed motion; none frozen), ruling 29 of
+`stage2/design/ROUND_C_RULINGS_17NOV.md`] Cut 3 is not taken for a body when the join-code review's probe, on the
+causal grid (ruling 28), gives the failing reading at cut 3's leave point (the window's boundary) as over its limit too;
+the move that fails at J1's leave point is then "not available" with its numbers (A11 for a turn; H3 for the stop), and
+no limit is changed. On 75-M-H-10 the review read 4.038 mm (left turns) and 4.361 mm (right turns) there, against 4.0.
 
 [settled 16 Nov 2026, before any Track B run; labelled as changed after the look work package had built look sets
 (prescribed motion; none frozen); ruling 7 of the fourth list, on what the paragraph above leaves open for the body's

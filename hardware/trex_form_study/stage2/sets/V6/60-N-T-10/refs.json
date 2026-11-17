@@ -1,0 +1,1889 @@
+{
+ "body": "60-N-T-10",
+ "set": "V6",
+ "schema": 1,
+ "accuracy": "r2",
+ "model": {
+  "file": "rebuilt by pipeline.build_candidate",
+  "file_sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4",
+  "record_sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4",
+  "plan_prefix": "993c5ac5",
+  "matches_record": true,
+  "matches_plan": true
+ },
+ "H_m": 0.40468919988052376,
+ "q_home": [
+  0.0,
+  0.0,
+  0.40468919988052376,
+  0.9990482215818578,
+  0.0,
+  -0.04361938736533599,
+  0.0,
+  0.0,
+  0.0,
+  -0.04699511837807405,
+  -0.0038789159617387972,
+  2.8514634037825272e-09,
+  0.06853754709514531,
+  -0.06465867576063757,
+  0.04699511731010834,
+  0.046995118378074026,
+  -0.003878915961738774,
+  -2.8514634038197967e-09,
+  0.06853754709514528,
+  -0.06465867576063757,
+  -0.04699511731010832
+ ],
+ "joints": [
+  "neck_pitch",
+  "tail_yaw",
+  "left_hip_roll",
+  "left_hip_pitch",
+  "left_hip_yaw",
+  "left_knee",
+  "left_ankle_pitch",
+  "left_ankle_roll",
+  "right_hip_roll",
+  "right_hip_pitch",
+  "right_hip_yaw",
+  "right_knee",
+  "right_ankle_pitch",
+  "right_ankle_roll"
+ ],
+ "feedforward": "inverse-dynamics joint torque, contact-consistent (a walk: look.look_inverse_dynamics, F5's rolling contact); MJCF joint damping and friction not included",
+ "rules": {
+  "S2S-sets": "three reference sets per body, each a directory stage2/sets/<set>/<body>/ in Stage 1's run-directory layout: V0 (control: today's walk), F25F9 (control: the pull request's _tuned_f9_spec, verbatim) and F25F9cl (candidate: that spec with duty 0.59 and lift 0.095 H at every speed) (STAGE2_75_PLAN.md A1)",
+  "S2S-speeds": "walks nominal (sizing.NOMINAL's Froude number) and v0.3, v0.35, v0.4, v0.45, v0.5 (A2).  V0: sizing.NOMINAL at the nominal speed; look.speed_spec between sizing.NOMINAL and sizing.BRISK below BRISK's speed and between sizing.BRISK and envelope.FAST from there to FAST's speed; above FAST's speed FAST's stride, duty and lift at the higher Froude number, labelled new.  F25F9cl: every rung other than 0.40, 0.45 and 0.50 m/s labelled new",
+  "S2S-margin": "duty and lift set after results on seeds 3042-3061 (JPS 2.3)",
+  "S2S-crouch": "every walk of a set and body has one crouch (a share of the hip height), read from its spec and recorded as set.json crouch_frac and in every walk entry; a move joins two walks of one crouch (one LIPM frequency)",
+  "S2S-process": "every array is made inside s2io.r2() (gait accuracy r2, checked on entry and on exit) with one BLAS thread, each item in a fresh process on a body rebuilt for it (look.source); a walk's inverse dynamics, summary and both array formats come from the one generation in the one block",
+  "S2S-formats": "a walk is written twice from one generation: refs/<name>.npz (Stage 1's reference format, which the bar plays and a freeze lists) and look/<name>.npz (the look ladder's format, which the Stage 0 screen and the clips read); the build stops unless q, qd and qdd of the two are equal",
+  "S2S-twins": "where Stage 1's run (stage1/runs/2026-11-08/<body>) holds a walk of the same spec, or a transition between walks of the same specs made with Stage 1's own schedule, the set's file must have its sha256; where the look ladder (stage2/look/look_refs.json) holds a rung of the same spec, the look-format file must have its sha256; a difference stops the build with both hashes (STAGE2_75_PLAN.md A4).  V0 owes them: on a body that has a Stage 1 run record its nominal and start must be Stage 1's own files, and on a body the look ladder holds its look-format nominal and v0.4 must be the ladder's rungs; a twin that is not found there stops the build and fails sets verify (SetDef.stage1_twins, ladder_twins)",
+  "S2S-stage0": "the Stage 0 gates that block a freeze (STAGE2_75_PLAN.md A12) are read where a reference is built, with the set screen's own functions: a walk by setscreen.judge_walk on its look.price, a move by setscreen.screen_move on its file; the set's screen.json is made afterwards by setscreen and must agree (sets verify)",
+  "S2S-not-available": "an item with no reference is an entry with available false, a reason and its numbers, and no file; it is listed in set.json not_available; a walk that fails a blocking Stage 0 gate is dropped from the ladder in this way and no move is built from or to it (STAGE2_75_PLAN.md A8, A11, A12).  No ramp, grid, gate or constant is changed for it.  Its verdict is the code's that built it (built_by): while the set is not frozen, a build by other Stage 2 modules makes it again; an array an earlier build left under its name is removed",
+  "S2L-sets": "the look sets: V6 (the look the owner picked at gate L1: every look feature in the walks) and V6noF5 (V6 with F5, the toe-off and the toes-up reach, off in the walks as well: the tracker fit's set), each a directory stage2/sets/<set>/<body>/ built, verified and frozen as every other set (STAGE2_TRACKB_PLAN.md L14).  A head body (<pick>-X) walks its pick's look on its own model",
+  "S2L-chain": "a V6 walk at a speed is look.ladder's chain on today's walk at that speed (the V0 set's, S2S-speeds): V1 = F1/F2 (bob = look.BOB_SHARE x that walk's enforced shortening, bob_skew, bob_drop, 12 correction passes), V2 = F3 (the animal pace's swing time), V3 = F4/F5, V4 = F6, V5 = F9/F10 with F9's tail phase, V6 = F14 with the fewest whole strides lasting 10 s; F13 (the longer stride of the 75 cm animal pace) is in no walk of a set.  At the nominal speed and at 0.40 m/s on the two picks that is the look ladder's V6 rung: its look-format file must hash to the ladder's (S2S-twins)",
+  "S2L-tail-phase": "F9's tail phase is the look ladder's own rule at every speed: look.tail_check on the walk's V4 (the phase that minimises the single-support stance pad's yaw moment).  At the nominal speed and at 0.40 m/s it is the ladder's recorded value (stage2/look/tail_phase.json), so that the walk is the ladder's rung; at the other rungs it is read from stage2/sets/V6/tail_phase.json, made by python -m designlab.stage2.sets tail-phase on the pick.  V6noF5 and a head body take the pick's V6 phases",
+  "S2L-noF5": "V6noF5 is V6 with F5's fields at their defaults in the walks: toe_off 0, toe_reach 0, no rate or acceleration cap, the default start and margin",
+  "S2L-format": "a look walk's file holds a window of K whole strides that is periodic as a whole: Stage 1's reference keys with 160 K frames and the window's stride motion, the feedforward from look.look_inverse_dynamics (F5's rolling split), then window_strides (K) and the look keys; its entry holds period_s (the stride's), window_s and strides (K).  A plan item counts windows of the file",
+  "S2L-inplace": "the turn in place at 0.5 rad/s, left and right (inplace_0.5_<dir>, with start_inplace_0.5_<dir> and stop_inplace_0.5_<dir>; STAGE2_TRACKB_PLAN.md L13), is the set's nominal look gait stepping in place (path speed 0) with flat feet as its own law (F5's fields at their defaults) and without F14 (one stride).  It is cut from one long plan of the same builder and laws: the start from the stand, then 4 hold strides more than Stage 1's start writes.  The reference is the second of those hold strides; it is gated for periodicity against the hold stride before it and the one after it (model CoM 1.0 mm, multibody ZMP 2.0 mm, joints 1e-3 rad, each mapped by the plan's own stride motion); no other plan length and no other stride is tried.  Its start is the same plan up to that stride; its stop is Stage 1's one-step stop from the reference.  Each of the three files is screened at Stage 0 as a move (setscreen.screen_move).  A gait that fails is recorded not available with its numbers, and its start and stop with it.  The three references of a direction are one optional group: a build makes them when they are named (--only), because the set's screen (setscreen) reads every entry of refs.json as a walk with a look-format file and cannot yet read a periodic turn"
+ },
+ "references": {
+  "nominal": {
+   "name": "nominal",
+   "file": "refs/nominal.npz",
+   "sha256": "00b953493f2c0ad1b682946d1fbff67ca6f3b6dcba625dff7bc635b30eebe9dd",
+   "frames": 1600,
+   "dt_s": 0.006373505828359794,
+   "period_s": 1.019760932537567,
+   "speed_m_s": 0.21826592177876797,
+   "stride_m": 0.2225790599342881,
+   "lift_m": 0.04046891998805238,
+   "cadence_steps_s": 1.9612439898273137,
+   "yaw_rate_rad_s": 0.0,
+   "stride_motion": [
+    0.0,
+    0.0,
+    0.0,
+    2.225790599342881,
+    0.0
+   ],
+   "min_cop_margin_single_m": 0.031088955386604417,
+   "max_friction_ratio": 0.806228491873656,
+   "ik_ok": true,
+   "generator": "look.generate (gait.generate at accuracy r2)",
+   "dynamics": "look.look_inverse_dynamics (gait.inverse_dynamics with F5's rolling contact)",
+   "spec": {
+    "froude": 0.012,
+    "duty": 0.6,
+    "lift_frac": 0.1,
+    "head_amp": 0.05,
+    "tail_amp": 0.125,
+    "sway_gain": 1.0,
+    "stride_rel": 0.55,
+    "crouch": 0.03,
+    "zmp_iters": 12,
+    "zmp_gain": 0.5,
+    "n": 160,
+    "bob": 0.010525128865979382,
+    "bob_phase": 0.0,
+    "bob_skew": 0.125,
+    "swing_time": 0.31973042487574765,
+    "lift_peak": 0.375,
+    "toe_off": 0.3,
+    "toe_off_start": 0.825,
+    "toe_off_margin": 0.005,
+    "toe_reach": 0.075,
+    "roll_amp": 0.026179938779914945,
+    "roll_phase": 0.0,
+    "zmp_inset_y": 0.0,
+    "tail_phase": -1.7016960206944713,
+    "head_mode": "stabilise",
+    "head_gain": 0.9,
+    "head_settle": 0.015,
+    "settle_lag": 0.075,
+    "strides": 10,
+    "phase_jitter": 0.015,
+    "asym": 0.025,
+    "gaze_var": 0.015,
+    "tail_var": 0.2,
+    "var_band": [
+     0.05,
+     0.2
+    ],
+    "noise_seed": 2026,
+    "bob_drop": 0.1,
+    "toe_off_rate": 3.4,
+    "toe_off_accel": 220.0
+   },
+   "info": {
+    "speed": 0.21826592177876797,
+    "stride": 0.2225790599342881,
+    "period": 1.019760932537567,
+    "froude": 0.012,
+    "duty": 0.6864653129237532,
+    "stride_rel": 0.55,
+    "cadence_hz": 1.9612439898273137,
+    "sway_amp": 0.03328146840693798,
+    "lift": 0.04046891998805238,
+    "omega": 5.455991644871417,
+    "zmp_error_history_m": [
+     0.050336341456381835,
+     0.01678880288459629,
+     0.007173463331823397,
+     0.004123625722085153,
+     0.0024299968128158,
+     0.0014743695584746325,
+     0.0010993773840072389,
+     0.0009082206885606336,
+     0.0007749752208369009,
+     0.0006784254871534383,
+     0.000606161948547374,
+     0.0005505322950150569,
+     0.0005066225565347357
+    ],
+    "accuracy": "r2",
+    "strides": 10,
+    "window_s": 10.19760932537567,
+    "swing_time": 0.31973042487574765,
+    "bob_m": 0.0042594059794126005,
+    "bob_trough_step": 0.4851510153071851,
+    "bob_drop_step": 0.1961243989827314,
+    "step_deviations": [
+     0.006856475687899751,
+     -0.027499999999999997,
+     0.02104352356646475,
+     -0.01442442733220874,
+     0.016835556842258168,
+     -0.005983072478506317,
+     0.01330703195238327,
+     -0.0030554415770181935,
+     0.002256799904067924,
+     -0.020186215535394333,
+     0.01146548033857556,
+     -0.015281219863402105,
+     0.018665511850221243,
+     -0.010978895046127899,
+     0.02099650151676142,
+     -0.013958047966196818,
+     -1.776089392911944e-05,
+     -0.008613331288322833,
+     0.022742382030528974,
+     -0.014170851708054707
+    ],
+    "gaze_freqs_hz": [
+     0.09806219949136569,
+     0.19612439898273137
+    ],
+    "tail_freqs_hz": [
+     0.09806219949136569,
+     0.19612439898273137
+    ],
+    "rolling_entry": {
+     "right": {
+      "a": 0.5086713010427486,
+      "margin_at_end_m": 0.03155274151857886,
+      "by_support": {
+       "toe_edge": 0.5086713010427486,
+       "claw": 0.6122365801093282
+      }
+     },
+     "left": {
+      "a": 0.5086713010427487,
+      "margin_at_end_m": 0.03155274151857886,
+      "by_support": {
+       "toe_edge": 0.5086713010427487,
+       "claw": 0.6122365801093284
+      }
+     }
+    },
+    "zmp_margin_min_m": 0.0051521505740769365,
+    "zmp_margin_ref_min_m": 0.005258559871035759
+   },
+   "set": "V6",
+   "kind": "walk",
+   "label": null,
+   "margin_rule": null,
+   "crouch_frac": 0.03,
+   "strides": 10,
+   "window_s": 10.19760932537567,
+   "look_file": "look/nominal.npz",
+   "look_sha256": "dfc1aeebe5fec6679a873fcf9d31d4144565b96f0c9ce3774263bbb7903e2522",
+   "stage1_sha256": null,
+   "equals_stage1": null,
+   "stage1_twin": null,
+   "ladder_sha256": "dfc1aeebe5fec6679a873fcf9d31d4144565b96f0c9ce3774263bbb7903e2522",
+   "equals_ladder": true,
+   "ladder_twin": [
+    "nominal",
+    "V6"
+   ],
+   "stage0": {
+    "source": "setscreen.judge_walk on the walk's look.price (at build time)",
+    "governing": [
+     "neck",
+     "peak",
+     0.788863299831808
+    ],
+    "within_limits": true,
+    "over": [],
+    "blocks_freeze": [],
+    "a1_over": false,
+    "tightest_joint": [
+     "left_hip_roll",
+     "max",
+     0.2087
+    ],
+    "text": "within the Stage 0 limits"
+   },
+   "available": true,
+   "group": "nominal",
+   "definition": {
+    "kind": "walk",
+    "spec": {
+     "froude": 0.012,
+     "duty": 0.6,
+     "lift_frac": 0.1,
+     "head_amp": 0.05,
+     "tail_amp": 0.125,
+     "sway_gain": 1.0,
+     "stride_rel": 0.55,
+     "crouch": 0.03,
+     "zmp_iters": 12,
+     "zmp_gain": 0.5,
+     "n": 160,
+     "bob": 0.010525128865979382,
+     "bob_phase": 0.0,
+     "bob_skew": 0.125,
+     "swing_time": 0.31973042487574765,
+     "lift_peak": 0.375,
+     "toe_off": 0.3,
+     "toe_off_start": 0.825,
+     "toe_off_margin": 0.005,
+     "toe_reach": 0.075,
+     "roll_amp": 0.026179938779914945,
+     "roll_phase": 0.0,
+     "zmp_inset_y": 0.0,
+     "tail_phase": -1.7016960206944713,
+     "head_mode": "stabilise",
+     "head_gain": 0.9,
+     "head_settle": 0.015,
+     "settle_lag": 0.075,
+     "strides": 10,
+     "phase_jitter": 0.015,
+     "asym": 0.025,
+     "gaze_var": 0.015,
+     "tail_var": 0.2,
+     "var_band": [
+      0.05,
+      0.2
+     ],
+     "noise_seed": 2026,
+     "bob_drop": 0.1,
+     "toe_off_rate": 3.4,
+     "toe_off_accel": 220.0
+    },
+    "body_model_sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4",
+    "generator": "look.generate + look.look_inverse_dynamics + Stage 1's keys with window_strides (moves_look.walk_arrays)"
+   },
+   "built_by": {
+    "commit": "b72c61c73e0776b3813784f2707f077d25caa9b8",
+    "dirty": false,
+    "dirty_paths": [],
+    "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+    "stage2_modules": {
+     "designlab/stage2/sets.py": "d55c8fbd00d88193546407436700a66f4c77d0e1df343632b07d6c7665924581",
+     "designlab/stage2/moves.py": "ccee9b2cdf5acfef7b1f1bf592d617b71f035617016b6ecffd3e727aa5b0e77e",
+     "designlab/stage2/setscreen.py": "36110ec2ba6222ce3a01e772124a92092a40d7afd9caf6f74b2300a709fc25ed",
+     "designlab/stage2/screen.py": "7c974e6240da25e8be09a83e0ba392bf37a716a6007c8e43c93835512e0a1b52",
+     "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
+     "designlab/stage2/setio.py": "f25d8616e5e79f805cd0deded49cd34f85f1a0dc77a4114dce44b8b0cd354c91",
+     "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16",
+     "designlab/stage2/moves_look.py": "202e928e734e3234e1fd8d8919a55574772dc318768c4d1dc61962602fc92d44"
+    },
+    "versions": {
+     "python": "3.13.18",
+     "numpy": "2.5.4",
+     "mujoco": "3.10.0",
+     "scipy": "1.18.1"
+    },
+    "blas_threads": 1,
+    "accuracy": "r2",
+    "at": "2026-11-16T20:58:27Z"
+   },
+   "duty": 0.6864653129237532,
+   "tail_phase_rad": -1.7016960206944713,
+   "rolling_frames": 294,
+   "split_failed_frames": 0
+  },
+  "v0.3": {
+   "name": "v0.3",
+   "file": "refs/v0.3.npz",
+   "sha256": "ac26e2061680c291ccb6f18c0b263097b0d977c4b014acd78e5047d73eb5ef43",
+   "frames": 2080,
+   "dt_s": 0.005194616806352074,
+   "period_s": 0.8311386890163318,
+   "speed_m_s": 0.3,
+   "stride_m": 0.24934160670489952,
+   "lift_m": 0.04388688009020536,
+   "cadence_steps_s": 2.4063372652848556,
+   "yaw_rate_rad_s": 0.0,
+   "stride_motion": [
+    0.0,
+    0.0,
+    0.0,
+    3.241440887163694,
+    0.0
+   ],
+   "min_cop_margin_single_m": 0.03070045383497534,
+   "max_friction_ratio": 0.5791047076936402,
+   "ik_ok": true,
+   "generator": "look.generate (gait.generate at accuracy r2)",
+   "dynamics": "look.look_inverse_dynamics (gait.inverse_dynamics with F5's rolling contact)",
+   "spec": {
+    "froude": 0.02267001918834017,
+    "duty": 0.5831082218000279,
+    "lift_frac": 0.10844588909998604,
+    "head_amp": 0.05,
+    "tail_amp": 0.125,
+    "sway_gain": 1.0,
+    "stride_rel": 0.6161311119212288,
+    "crouch": 0.03,
+    "zmp_iters": 12,
+    "zmp_gain": 0.5,
+    "n": 160,
+    "bob": 0.012475103307925214,
+    "bob_phase": 0.0,
+    "bob_skew": 0.125,
+    "swing_time": 0.31973042487574765,
+    "lift_peak": 0.375,
+    "toe_off": 0.3,
+    "toe_off_start": 0.825,
+    "toe_off_margin": 0.005,
+    "toe_reach": 0.075,
+    "roll_amp": 0.026179938779914945,
+    "roll_phase": 0.0,
+    "zmp_inset_y": 0.0,
+    "tail_phase": -1.7366026057343578,
+    "head_mode": "stabilise",
+    "head_gain": 0.9,
+    "head_settle": 0.015,
+    "settle_lag": 0.075,
+    "strides": 13,
+    "phase_jitter": 0.015,
+    "asym": 0.025,
+    "gaze_var": 0.015,
+    "tail_var": 0.2,
+    "var_band": [
+     0.05,
+     0.2
+    ],
+    "noise_seed": 2026,
+    "bob_drop": 0.1,
+    "toe_off_rate": 3.4,
+    "toe_off_accel": 220.0
+   },
+   "info": {
+    "speed": 0.3,
+    "stride": 0.24934160670489952,
+    "period": 0.8311386890163318,
+    "froude": 0.02267001918834017,
+    "duty": 0.6153103818880642,
+    "stride_rel": 0.6161311119212288,
+    "cadence_hz": 2.4063372652848556,
+    "sway_amp": 0.02582328829047853,
+    "lift": 0.04388688009020536,
+    "omega": 5.455991644871417,
+    "zmp_error_history_m": [
+     0.04696994246542353,
+     0.018231467722128483,
+     0.008473457552468004,
+     0.004983178735816767,
+     0.0031453306746359287,
+     0.002033395259186786,
+     0.0014030066306945724,
+     0.0011940741183438229,
+     0.0010850778465524374,
+     0.0010146647915328254,
+     0.0009562880268958381,
+     0.0009069279809152784,
+     0.0008645208550564449
+    ],
+    "accuracy": "r2",
+    "strides": 13,
+    "window_s": 10.804802957212313,
+    "swing_time": 0.31973042487574765,
+    "bob_m": 0.0050485395761111305,
+    "bob_trough_step": 0.5385172135839519,
+    "bob_drop_step": 0.24063372652848558,
+    "step_deviations": [
+     0.007315180523398973,
+     -0.027499999999999997,
+     0.02219775390541532,
+     -0.013783392330387063,
+     0.01778348998679507,
+     -0.004928196793641374,
+     0.014081977800938825,
+     -0.0018570376561095998,
+     0.0024900038571674886,
+     -0.019827654426316437,
+     0.012150143407775697,
+     -0.014682189446446316,
+     0.019703159246031648,
+     -0.010168941492790299,
+     0.022148426581558182,
+     -0.013294148535769464,
+     0.00010393183726586382,
+     -0.007687405057816823,
+     0.023979899562038894,
+     -0.013517385063289242,
+     0.019483574760425008,
+     -0.024450954423637417,
+     0.007468307320379084,
+     -0.001386671147719898,
+     0.0067763285468461585,
+     -0.022598200962112257
+    ],
+    "gaze_freqs_hz": [
+     0.09255143328018675,
+     0.1851028665603735
+    ],
+    "tail_freqs_hz": [
+     0.09255143328018675,
+     0.1851028665603735
+    ],
+    "rolling_entry": {
+     "right": {
+      "a": 0.4998556679843535,
+      "margin_at_end_m": 0.031552741518578856,
+      "by_support": {
+       "toe_edge": 0.4998556679843535,
+       "claw": 0.6105621242118542
+      }
+     },
+     "left": {
+      "a": 0.4998556679843533,
+      "margin_at_end_m": 0.031552741518578876,
+      "by_support": {
+       "toe_edge": 0.4998556679843533,
+       "claw": 0.6105621242118541
+      }
+     }
+    },
+    "zmp_margin_min_m": 0.0049461382072514635,
+    "zmp_margin_ref_min_m": 0.005125270297333288
+   },
+   "set": "V6",
+   "kind": "walk",
+   "label": null,
+   "margin_rule": null,
+   "crouch_frac": 0.03,
+   "strides": 13,
+   "window_s": 10.804802957212313,
+   "look_file": "look/v0.3.npz",
+   "look_sha256": "dd5a099416770c533a151b216d43d56d28f963908139b7db57d77d9a5cfc5de5",
+   "stage1_sha256": null,
+   "equals_stage1": null,
+   "stage1_twin": null,
+   "ladder_sha256": null,
+   "equals_ladder": null,
+   "ladder_twin": null,
+   "stage0": {
+    "source": "setscreen.judge_walk on the walk's look.price (at build time)",
+    "governing": [
+     "knee",
+     "speed",
+     0.7880481868249793
+    ],
+    "within_limits": true,
+    "over": [],
+    "blocks_freeze": [],
+    "a1_over": false,
+    "tightest_joint": [
+     "left_hip_roll",
+     "max",
+     0.2346
+    ],
+    "text": "within the Stage 0 limits"
+   },
+   "available": true,
+   "group": "v0.3",
+   "definition": {
+    "kind": "walk",
+    "spec": {
+     "froude": 0.02267001918834017,
+     "duty": 0.5831082218000279,
+     "lift_frac": 0.10844588909998604,
+     "head_amp": 0.05,
+     "tail_amp": 0.125,
+     "sway_gain": 1.0,
+     "stride_rel": 0.6161311119212288,
+     "crouch": 0.03,
+     "zmp_iters": 12,
+     "zmp_gain": 0.5,
+     "n": 160,
+     "bob": 0.012475103307925214,
+     "bob_phase": 0.0,
+     "bob_skew": 0.125,
+     "swing_time": 0.31973042487574765,
+     "lift_peak": 0.375,
+     "toe_off": 0.3,
+     "toe_off_start": 0.825,
+     "toe_off_margin": 0.005,
+     "toe_reach": 0.075,
+     "roll_amp": 0.026179938779914945,
+     "roll_phase": 0.0,
+     "zmp_inset_y": 0.0,
+     "tail_phase": -1.7366026057343578,
+     "head_mode": "stabilise",
+     "head_gain": 0.9,
+     "head_settle": 0.015,
+     "settle_lag": 0.075,
+     "strides": 13,
+     "phase_jitter": 0.015,
+     "asym": 0.025,
+     "gaze_var": 0.015,
+     "tail_var": 0.2,
+     "var_band": [
+      0.05,
+      0.2
+     ],
+     "noise_seed": 2026,
+     "bob_drop": 0.1,
+     "toe_off_rate": 3.4,
+     "toe_off_accel": 220.0
+    },
+    "body_model_sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4",
+    "generator": "look.generate + look.look_inverse_dynamics + Stage 1's keys with window_strides (moves_look.walk_arrays)"
+   },
+   "built_by": {
+    "commit": "b72c61c73e0776b3813784f2707f077d25caa9b8",
+    "dirty": false,
+    "dirty_paths": [],
+    "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+    "stage2_modules": {
+     "designlab/stage2/sets.py": "d55c8fbd00d88193546407436700a66f4c77d0e1df343632b07d6c7665924581",
+     "designlab/stage2/moves.py": "ccee9b2cdf5acfef7b1f1bf592d617b71f035617016b6ecffd3e727aa5b0e77e",
+     "designlab/stage2/setscreen.py": "36110ec2ba6222ce3a01e772124a92092a40d7afd9caf6f74b2300a709fc25ed",
+     "designlab/stage2/screen.py": "7c974e6240da25e8be09a83e0ba392bf37a716a6007c8e43c93835512e0a1b52",
+     "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
+     "designlab/stage2/setio.py": "f25d8616e5e79f805cd0deded49cd34f85f1a0dc77a4114dce44b8b0cd354c91",
+     "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16",
+     "designlab/stage2/moves_look.py": "202e928e734e3234e1fd8d8919a55574772dc318768c4d1dc61962602fc92d44"
+    },
+    "versions": {
+     "python": "3.13.18",
+     "numpy": "2.5.4",
+     "mujoco": "3.10.0",
+     "scipy": "1.18.1"
+    },
+    "blas_threads": 1,
+    "accuracy": "r2",
+    "at": "2026-11-16T21:05:11Z"
+   },
+   "duty": 0.6153103818880642,
+   "tail_phase_rad": -1.7366026057343578,
+   "rolling_frames": 242,
+   "split_failed_frames": 0
+  },
+  "v0.35": {
+   "name": "v0.35",
+   "file": "refs/v0.35.npz",
+   "sha256": "85a5ab3501e1cc2ee4ba21ae2d5caa0168318dcdda8e3def085b50654a00619c",
+   "frames": 2080,
+   "dt_s": 0.004860866249656624,
+   "period_s": 0.7777385999450598,
+   "speed_m_s": 0.35,
+   "stride_m": 0.2722085099807709,
+   "lift_m": 0.04451581198685761,
+   "cadence_steps_s": 2.5715581046656064,
+   "yaw_rate_rad_s": 0.0,
+   "stride_motion": [
+    0.0,
+    0.0,
+    0.0,
+    3.5387106297500215,
+    0.0
+   ],
+   "min_cop_margin_single_m": 0.030522151421380827,
+   "max_friction_ratio": 0.4470473264343365,
+   "ik_ok": true,
+   "generator": "look.generate (gait.generate at accuracy r2)",
+   "dynamics": "look.look_inverse_dynamics (gait.inverse_dynamics with F5's rolling contact)",
+   "spec": {
+    "froude": 0.030856415006351896,
+    "duty": 0.5746418453223869,
+    "lift_frac": 0.11,
+    "head_amp": 0.05,
+    "tail_amp": 0.125,
+    "sway_gain": 1.0,
+    "stride_rel": 0.6726359637497984,
+    "crouch": 0.03,
+    "zmp_iters": 12,
+    "zmp_gain": 0.5,
+    "n": 160,
+    "bob": 0.014439568196160098,
+    "bob_phase": 0.0,
+    "bob_skew": 0.125,
+    "swing_time": 0.31973042487574765,
+    "lift_peak": 0.375,
+    "toe_off": 0.3,
+    "toe_off_start": 0.825,
+    "toe_off_margin": 0.005,
+    "toe_reach": 0.075,
+    "roll_amp": 0.026179938779914945,
+    "roll_phase": 0.0,
+    "zmp_inset_y": 0.0,
+    "tail_phase": -1.7715091907742444,
+    "head_mode": "stabilise",
+    "head_gain": 0.9,
+    "head_settle": 0.015,
+    "settle_lag": 0.075,
+    "strides": 13,
+    "phase_jitter": 0.015,
+    "asym": 0.025,
+    "gaze_var": 0.015,
+    "tail_var": 0.2,
+    "var_band": [
+     0.05,
+     0.2
+    ],
+    "noise_seed": 2026,
+    "bob_drop": 0.1,
+    "toe_off_rate": 3.4,
+    "toe_off_accel": 220.0
+   },
+   "info": {
+    "speed": 0.35,
+    "stride": 0.2722085099807709,
+    "period": 0.7777385999450598,
+    "froude": 0.030856415006351896,
+    "duty": 0.5888973173012967,
+    "stride_rel": 0.6726359637497984,
+    "cadence_hz": 2.5715581046656064,
+    "sway_amp": 0.02347233064011226,
+    "lift": 0.04451581198685761,
+    "omega": 5.455991644871417,
+    "zmp_error_history_m": [
+     0.0509922153741696,
+     0.01981093028054474,
+     0.010535311552880847,
+     0.006010829037485082,
+     0.003438486812348954,
+     0.002147773562204263,
+     0.0017191125305187332,
+     0.0014719267800499735,
+     0.0013305428106975073,
+     0.00124640071526452,
+     0.0011761545923118964,
+     0.0011168808946252996,
+     0.0010662613713336396
+    ],
+    "accuracy": "r2",
+    "strides": 13,
+    "window_s": 10.110601799285778,
+    "swing_time": 0.31973042487574765,
+    "bob_m": 0.005843537299924288,
+    "bob_trough_step": 0.5583270120240275,
+    "bob_drop_step": 0.2571558104665606,
+    "step_deviations": [
+     0.007315180523398973,
+     -0.027499999999999997,
+     0.02219775390541532,
+     -0.013783392330387063,
+     0.01778348998679507,
+     -0.004928196793641374,
+     0.014081977800938825,
+     -0.0018570376561095998,
+     0.0024900038571674886,
+     -0.019827654426316437,
+     0.012150143407775697,
+     -0.014682189446446316,
+     0.019703159246031648,
+     -0.010168941492790299,
+     0.022148426581558182,
+     -0.013294148535769464,
+     0.00010393183726586382,
+     -0.007687405057816823,
+     0.023979899562038894,
+     -0.013517385063289242,
+     0.019483574760425008,
+     -0.024450954423637417,
+     0.007468307320379084,
+     -0.001386671147719898,
+     0.0067763285468461585,
+     -0.022598200962112257
+    ],
+    "gaze_freqs_hz": [
+     0.09890608094867714,
+     0.1978121618973543
+    ],
+    "tail_freqs_hz": [
+     0.09890608094867714,
+     0.1978121618973543
+    ],
+    "rolling_entry": {
+     "right": {
+      "a": 0.49268670085974026,
+      "margin_at_end_m": 0.031552741518578856,
+      "by_support": {
+       "toe_edge": 0.49268670085974026,
+       "claw": 0.6062951818765017
+      }
+     },
+     "left": {
+      "a": 0.49268670085974015,
+      "margin_at_end_m": 0.031552741518578876,
+      "by_support": {
+       "toe_edge": 0.49268670085974015,
+       "claw": 0.6062951818765017
+      }
+     }
+    },
+    "zmp_margin_min_m": 0.0049873853426014875,
+    "zmp_margin_ref_min_m": 0.005217459736367006
+   },
+   "set": "V6",
+   "kind": "walk",
+   "label": null,
+   "margin_rule": null,
+   "crouch_frac": 0.03,
+   "strides": 13,
+   "window_s": 10.110601799285778,
+   "look_file": "look/v0.35.npz",
+   "look_sha256": "063f5171595172dce1f6c6ff5e375503dd179ef982e77516d72a2fe0038339aa",
+   "stage1_sha256": null,
+   "equals_stage1": null,
+   "stage1_twin": null,
+   "ladder_sha256": null,
+   "equals_ladder": null,
+   "ladder_twin": null,
+   "stage0": {
+    "source": "setscreen.judge_walk on the walk's look.price (at build time)",
+    "governing": [
+     "knee",
+     "speed",
+     0.861692965030987
+    ],
+    "within_limits": true,
+    "over": [],
+    "blocks_freeze": [],
+    "a1_over": false,
+    "tightest_joint": [
+     "left_hip_roll",
+     "max",
+     0.2429
+    ],
+    "text": "within the Stage 0 limits"
+   },
+   "available": true,
+   "group": "v0.35",
+   "definition": {
+    "kind": "walk",
+    "spec": {
+     "froude": 0.030856415006351896,
+     "duty": 0.5746418453223869,
+     "lift_frac": 0.11,
+     "head_amp": 0.05,
+     "tail_amp": 0.125,
+     "sway_gain": 1.0,
+     "stride_rel": 0.6726359637497984,
+     "crouch": 0.03,
+     "zmp_iters": 12,
+     "zmp_gain": 0.5,
+     "n": 160,
+     "bob": 0.014439568196160098,
+     "bob_phase": 0.0,
+     "bob_skew": 0.125,
+     "swing_time": 0.31973042487574765,
+     "lift_peak": 0.375,
+     "toe_off": 0.3,
+     "toe_off_start": 0.825,
+     "toe_off_margin": 0.005,
+     "toe_reach": 0.075,
+     "roll_amp": 0.026179938779914945,
+     "roll_phase": 0.0,
+     "zmp_inset_y": 0.0,
+     "tail_phase": -1.7715091907742444,
+     "head_mode": "stabilise",
+     "head_gain": 0.9,
+     "head_settle": 0.015,
+     "settle_lag": 0.075,
+     "strides": 13,
+     "phase_jitter": 0.015,
+     "asym": 0.025,
+     "gaze_var": 0.015,
+     "tail_var": 0.2,
+     "var_band": [
+      0.05,
+      0.2
+     ],
+     "noise_seed": 2026,
+     "bob_drop": 0.1,
+     "toe_off_rate": 3.4,
+     "toe_off_accel": 220.0
+    },
+    "body_model_sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4",
+    "generator": "look.generate + look.look_inverse_dynamics + Stage 1's keys with window_strides (moves_look.walk_arrays)"
+   },
+   "built_by": {
+    "commit": "b72c61c73e0776b3813784f2707f077d25caa9b8",
+    "dirty": false,
+    "dirty_paths": [],
+    "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+    "stage2_modules": {
+     "designlab/stage2/sets.py": "d55c8fbd00d88193546407436700a66f4c77d0e1df343632b07d6c7665924581",
+     "designlab/stage2/moves.py": "ccee9b2cdf5acfef7b1f1bf592d617b71f035617016b6ecffd3e727aa5b0e77e",
+     "designlab/stage2/setscreen.py": "36110ec2ba6222ce3a01e772124a92092a40d7afd9caf6f74b2300a709fc25ed",
+     "designlab/stage2/screen.py": "7c974e6240da25e8be09a83e0ba392bf37a716a6007c8e43c93835512e0a1b52",
+     "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
+     "designlab/stage2/setio.py": "f25d8616e5e79f805cd0deded49cd34f85f1a0dc77a4114dce44b8b0cd354c91",
+     "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16",
+     "designlab/stage2/moves_look.py": "202e928e734e3234e1fd8d8919a55574772dc318768c4d1dc61962602fc92d44"
+    },
+    "versions": {
+     "python": "3.13.18",
+     "numpy": "2.5.4",
+     "mujoco": "3.10.0",
+     "scipy": "1.18.1"
+    },
+    "blas_threads": 1,
+    "accuracy": "r2",
+    "at": "2026-11-16T21:11:40Z"
+   },
+   "duty": 0.5888973173012967,
+   "tail_phase_rad": -1.7715091907742444,
+   "rolling_frames": 189,
+   "split_failed_frames": 0
+  },
+  "v0.4": {
+   "name": "v0.4",
+   "file": "refs/v0.4.npz",
+   "sha256": "1dd71a5a478847734a646964bee1a8d2ba737fded2b6127b8bc8d275b0765571",
+   "frames": 2240,
+   "dt_s": 0.004693782937064778,
+   "period_s": 0.7510052699303644,
+   "speed_m_s": 0.4,
+   "stride_m": 0.3004021079721458,
+   "lift_m": 0.04451581198685761,
+   "cadence_steps_s": 2.663097158007222,
+   "yaw_rate_rad_s": 0.0,
+   "stride_motion": [
+    0.0,
+    0.0,
+    0.0,
+    4.205629511610041,
+    0.0
+   ],
+   "min_cop_margin_single_m": 0.03037524021368548,
+   "max_friction_ratio": 0.38672067835884993,
+   "ik_ok": true,
+   "generator": "look.generate (gait.generate at accuracy r2)",
+   "dynamics": "look.look_inverse_dynamics (gait.inverse_dynamics with F5's rolling contact)",
+   "spec": {
+    "froude": 0.04030225633482698,
+    "duty": 0.5669786416188048,
+    "lift_frac": 0.11,
+    "head_amp": 0.05,
+    "tail_amp": 0.125,
+    "sway_gain": 1.0,
+    "stride_rel": 0.7423032491621555,
+    "crouch": 0.03,
+    "zmp_iters": 12,
+    "zmp_gain": 0.5,
+    "n": 160,
+    "bob": 0.01711968081875956,
+    "bob_phase": 0.0,
+    "bob_skew": 0.125,
+    "swing_time": 0.31973042487574765,
+    "lift_peak": 0.375,
+    "toe_off": 0.3,
+    "toe_off_start": 0.825,
+    "toe_off_margin": 0.005,
+    "toe_reach": 0.075,
+    "roll_amp": 0.026179938779914945,
+    "roll_phase": 0.0,
+    "zmp_inset_y": 0.0,
+    "tail_phase": -1.7802358370342162,
+    "head_mode": "stabilise",
+    "head_gain": 0.9,
+    "head_settle": 0.015,
+    "settle_lag": 0.075,
+    "strides": 14,
+    "phase_jitter": 0.015,
+    "asym": 0.025,
+    "gaze_var": 0.015,
+    "tail_var": 0.2,
+    "var_band": [
+     0.05,
+     0.2
+    ],
+    "noise_seed": 2026,
+    "bob_drop": 0.1,
+    "toe_off_rate": 3.4,
+    "toe_off_accel": 220.0
+   },
+   "info": {
+    "speed": 0.4,
+    "stride": 0.3004021079721458,
+    "period": 0.7510052699303644,
+    "froude": 0.04030225633482698,
+    "duty": 0.5742634070924775,
+    "stride_rel": 0.7423032491621555,
+    "cadence_hz": 2.663097158007222,
+    "sway_amp": 0.022267610501972037,
+    "lift": 0.04451581198685761,
+    "omega": 5.455991644871417,
+    "zmp_error_history_m": [
+     0.055900409428636486,
+     0.02167990703620004,
+     0.011395925424122466,
+     0.006543493068003151,
+     0.003762445496141721,
+     0.0026677741791176733,
+     0.0021379279115148796,
+     0.0018169727393394339,
+     0.0016090097417567266,
+     0.0014642311328522098,
+     0.0013569779020237733,
+     0.001273662414667651,
+     0.0012216286017335462
+    ],
+    "accuracy": "r2",
+    "strides": 14,
+    "window_s": 10.514073779025102,
+    "swing_time": 0.31973042487574765,
+    "bob_m": 0.006928149932753756,
+    "bob_trough_step": 0.5693024446806418,
+    "bob_drop_step": 0.2663097158007222,
+    "step_deviations": [
+     0.007609511882059306,
+     -0.0275,
+     0.022938374360180234,
+     -0.01337206746866054,
+     0.01839173831722101,
+     -0.0042513279893128956,
+     0.014579227550323535,
+     -0.0010880728949663836,
+     0.0026396409027112837,
+     -0.01959758103220714,
+     0.012589462542405951,
+     -0.014297817138032394,
+     0.020368973390953067,
+     -0.009649228790075556,
+     0.02288756784007038,
+     -0.012868152543905024,
+     0.00018201688050009063,
+     -0.007093277626944036,
+     0.02477396186142339,
+     -0.013098083345696261,
+     0.0201428041461731,
+     -0.024359521594157753,
+     0.007767230547532821,
+     -0.0006036013364298574,
+     0.007054501156923366,
+     -0.022451208946299407,
+     0.0003031645319879823,
+     -0.011998235203778268
+    ],
+    "gaze_freqs_hz": [
+     0.09511061278597222,
+     0.19022122557194443
+    ],
+    "tail_freqs_hz": [
+     0.09511061278597222,
+     0.19022122557194443
+    ],
+    "rolling_entry": {
+     "right": {
+      "a": 0.48428093227341185,
+      "margin_at_end_m": 0.031552741518578856,
+      "by_support": {
+       "toe_edge": 0.48428093227341185,
+       "claw": 0.601413822180303
+      }
+     },
+     "left": {
+      "a": 0.4842809322734117,
+      "margin_at_end_m": 0.031552741518578876,
+      "by_support": {
+       "toe_edge": 0.4842809322734117,
+       "claw": 0.6014138221803029
+      }
+     }
+    },
+    "zmp_margin_min_m": 0.005505502123424509,
+    "zmp_margin_ref_min_m": 0.005711326233890664
+   },
+   "set": "V6",
+   "kind": "walk",
+   "label": null,
+   "margin_rule": null,
+   "crouch_frac": 0.03,
+   "strides": 14,
+   "window_s": 10.514073779025102,
+   "look_file": "look/v0.4.npz",
+   "look_sha256": "91b5c12658ec01cbc2e5d015e4184b93e52cb2bc4d13007e94786406724fa094",
+   "stage1_sha256": null,
+   "equals_stage1": null,
+   "stage1_twin": null,
+   "ladder_sha256": "91b5c12658ec01cbc2e5d015e4184b93e52cb2bc4d13007e94786406724fa094",
+   "equals_ladder": true,
+   "ladder_twin": [
+    "v040",
+    "V6"
+   ],
+   "stage0": {
+    "source": "setscreen.judge_walk on the walk's look.price (at build time)",
+    "governing": [
+     "knee",
+     "speed",
+     0.8845060180151323
+    ],
+    "within_limits": true,
+    "over": [],
+    "blocks_freeze": [],
+    "a1_over": false,
+    "tightest_joint": [
+     "left_hip_roll",
+     "max",
+     0.247
+    ],
+    "text": "within the Stage 0 limits"
+   },
+   "available": true,
+   "group": "v0.4",
+   "definition": {
+    "kind": "walk",
+    "spec": {
+     "froude": 0.04030225633482698,
+     "duty": 0.5669786416188048,
+     "lift_frac": 0.11,
+     "head_amp": 0.05,
+     "tail_amp": 0.125,
+     "sway_gain": 1.0,
+     "stride_rel": 0.7423032491621555,
+     "crouch": 0.03,
+     "zmp_iters": 12,
+     "zmp_gain": 0.5,
+     "n": 160,
+     "bob": 0.01711968081875956,
+     "bob_phase": 0.0,
+     "bob_skew": 0.125,
+     "swing_time": 0.31973042487574765,
+     "lift_peak": 0.375,
+     "toe_off": 0.3,
+     "toe_off_start": 0.825,
+     "toe_off_margin": 0.005,
+     "toe_reach": 0.075,
+     "roll_amp": 0.026179938779914945,
+     "roll_phase": 0.0,
+     "zmp_inset_y": 0.0,
+     "tail_phase": -1.7802358370342162,
+     "head_mode": "stabilise",
+     "head_gain": 0.9,
+     "head_settle": 0.015,
+     "settle_lag": 0.075,
+     "strides": 14,
+     "phase_jitter": 0.015,
+     "asym": 0.025,
+     "gaze_var": 0.015,
+     "tail_var": 0.2,
+     "var_band": [
+      0.05,
+      0.2
+     ],
+     "noise_seed": 2026,
+     "bob_drop": 0.1,
+     "toe_off_rate": 3.4,
+     "toe_off_accel": 220.0
+    },
+    "body_model_sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4",
+    "generator": "look.generate + look.look_inverse_dynamics + Stage 1's keys with window_strides (moves_look.walk_arrays)"
+   },
+   "built_by": {
+    "commit": "b72c61c73e0776b3813784f2707f077d25caa9b8",
+    "dirty": false,
+    "dirty_paths": [],
+    "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+    "stage2_modules": {
+     "designlab/stage2/sets.py": "d55c8fbd00d88193546407436700a66f4c77d0e1df343632b07d6c7665924581",
+     "designlab/stage2/moves.py": "ccee9b2cdf5acfef7b1f1bf592d617b71f035617016b6ecffd3e727aa5b0e77e",
+     "designlab/stage2/setscreen.py": "36110ec2ba6222ce3a01e772124a92092a40d7afd9caf6f74b2300a709fc25ed",
+     "designlab/stage2/screen.py": "7c974e6240da25e8be09a83e0ba392bf37a716a6007c8e43c93835512e0a1b52",
+     "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
+     "designlab/stage2/setio.py": "f25d8616e5e79f805cd0deded49cd34f85f1a0dc77a4114dce44b8b0cd354c91",
+     "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16",
+     "designlab/stage2/moves_look.py": "202e928e734e3234e1fd8d8919a55574772dc318768c4d1dc61962602fc92d44"
+    },
+    "versions": {
+     "python": "3.13.18",
+     "numpy": "2.5.4",
+     "mujoco": "3.10.0",
+     "scipy": "1.18.1"
+    },
+    "blas_threads": 1,
+    "accuracy": "r2",
+    "at": "2026-11-16T21:18:36Z"
+   },
+   "duty": 0.5742634070924775,
+   "tail_phase_rad": -1.7802358370342162,
+   "rolling_frames": 170,
+   "split_failed_frames": 0
+  },
+  "v0.45": {
+   "name": "v0.45",
+   "file": "refs/v0.45.npz",
+   "sha256": "4cda55ea9a504923f5ce796b209e76840c0d4b3db24511524103bd5f42963468",
+   "frames": 2240,
+   "dt_s": 0.004496546665339154,
+   "period_s": 0.7194474664542646,
+   "speed_m_s": 0.45,
+   "stride_m": 0.32375135990441906,
+   "lift_m": 0.04451581198685761,
+   "cadence_steps_s": 2.779911102970213,
+   "yaw_rate_rad_s": 0.0,
+   "stride_motion": [
+    0.0,
+    0.0,
+    0.0,
+    4.532519038661867,
+    0.0
+   ],
+   "min_cop_margin_single_m": 0.029547995288246608,
+   "max_friction_ratio": 0.36476733452663807,
+   "ik_ok": true,
+   "generator": "look.generate (gait.generate at accuracy r2)",
+   "dynamics": "look.look_inverse_dynamics (gait.inverse_dynamics with F5's rolling contact)",
+   "spec": {
+    "froude": 0.051007543173765386,
+    "duty": 0.56,
+    "lift_frac": 0.11,
+    "head_amp": 0.05,
+    "tail_amp": 0.125,
+    "sway_gain": 1.0,
+    "stride_rel": 0.8,
+    "crouch": 0.03,
+    "zmp_iters": 12,
+    "zmp_gain": 0.5,
+    "n": 160,
+    "bob": 0.019397938144329902,
+    "bob_phase": 0.0,
+    "bob_skew": 0.125,
+    "swing_time": 0.31973042487574765,
+    "lift_peak": 0.375,
+    "toe_off": 0.3,
+    "toe_off_start": 0.825,
+    "toe_off_margin": 0.005,
+    "toe_reach": 0.075,
+    "roll_amp": 0.026179938779914945,
+    "roll_phase": 0.0,
+    "zmp_inset_y": 0.0,
+    "tail_phase": -1.7802358370342162,
+    "head_mode": "stabilise",
+    "head_gain": 0.9,
+    "head_settle": 0.015,
+    "settle_lag": 0.075,
+    "strides": 14,
+    "phase_jitter": 0.015,
+    "asym": 0.025,
+    "gaze_var": 0.015,
+    "tail_var": 0.2,
+    "var_band": [
+     0.05,
+     0.2
+    ],
+    "noise_seed": 2026,
+    "bob_drop": 0.1,
+    "toe_off_rate": 3.4,
+    "toe_off_accel": 220.0
+   },
+   "info": {
+    "speed": 0.45,
+    "stride": 0.32375135990441906,
+    "period": 0.7194474664542646,
+    "froude": 0.051007543173765386,
+    "duty": 0.5555889209652627,
+    "stride_rel": 0.8,
+    "cadence_hz": 2.779911102970213,
+    "sway_amp": 0.02082116428749834,
+    "lift": 0.04451581198685761,
+    "omega": 5.455991644871417,
+    "zmp_error_history_m": [
+     0.059889782382293345,
+     0.02329352620934774,
+     0.011891844524646984,
+     0.0073740223166890865,
+     0.0054354547447095485,
+     0.004268874410656814,
+     0.0035432625465230353,
+     0.003072368945587021,
+     0.0027509752168285244,
+     0.0025196743831572242,
+     0.0023447137134623578,
+     0.0022065702352646504,
+     0.0020936218973175965
+    ],
+    "accuracy": "r2",
+    "strides": 14,
+    "window_s": 10.072264530359705,
+    "swing_time": 0.3197304248757477,
+    "bob_m": 0.00785013606696076,
+    "bob_trough_step": 0.5833083092760529,
+    "bob_drop_step": 0.27799111029702134,
+    "step_deviations": [
+     0.007609511882059306,
+     -0.0275,
+     0.022938374360180234,
+     -0.01337206746866054,
+     0.01839173831722101,
+     -0.0042513279893128956,
+     0.014579227550323535,
+     -0.0010880728949663836,
+     0.0026396409027112837,
+     -0.01959758103220714,
+     0.012589462542405951,
+     -0.014297817138032394,
+     0.020368973390953067,
+     -0.009649228790075556,
+     0.02288756784007038,
+     -0.012868152543905024,
+     0.00018201688050009063,
+     -0.007093277626944036,
+     0.02477396186142339,
+     -0.013098083345696261,
+     0.0201428041461731,
+     -0.024359521594157753,
+     0.007767230547532821,
+     -0.0006036013364298574,
+     0.007054501156923366,
+     -0.022451208946299407,
+     0.0003031645319879823,
+     -0.011998235203778268
+    ],
+    "gaze_freqs_hz": [
+     0.09928253939179331,
+     0.19856507878358662
+    ],
+    "tail_freqs_hz": [
+     0.09928253939179331,
+     0.19856507878358662
+    ],
+    "rolling_entry": {
+     "right": {
+      "a": 0.477656066098388,
+      "margin_at_end_m": 0.031552741518578856,
+      "by_support": {
+       "toe_edge": 0.477656066098388,
+       "claw": 0.5976715503974975
+      }
+     },
+     "left": {
+      "a": 0.47765606609838784,
+      "margin_at_end_m": 0.031552741518578876,
+      "by_support": {
+       "toe_edge": 0.47765606609838784,
+       "claw": 0.5976715503974975
+      }
+     }
+    },
+    "zmp_margin_min_m": 0.00514371706209819,
+    "zmp_margin_ref_min_m": 0.005367521525558164
+   },
+   "set": "V6",
+   "kind": "walk",
+   "label": "new",
+   "margin_rule": null,
+   "crouch_frac": 0.03,
+   "strides": 14,
+   "window_s": 10.072264530359705,
+   "look_file": "look/v0.45.npz",
+   "look_sha256": "cf5d3656c491c15b06126d51571ce44d17155ea69e224ede7c4030fb99071b8d",
+   "stage1_sha256": null,
+   "equals_stage1": null,
+   "stage1_twin": null,
+   "ladder_sha256": null,
+   "equals_ladder": null,
+   "ladder_twin": null,
+   "stage0": {
+    "source": "setscreen.judge_walk on the walk's look.price (at build time)",
+    "governing": [
+     "knee",
+     "speed",
+     0.9146879665342397
+    ],
+    "within_limits": true,
+    "over": [],
+    "blocks_freeze": [],
+    "a1_over": false,
+    "tightest_joint": [
+     "left_hip_roll",
+     "max",
+     0.2519
+    ],
+    "text": "within the Stage 0 limits"
+   },
+   "available": true,
+   "group": "v0.45",
+   "definition": {
+    "kind": "walk",
+    "spec": {
+     "froude": 0.051007543173765386,
+     "duty": 0.56,
+     "lift_frac": 0.11,
+     "head_amp": 0.05,
+     "tail_amp": 0.125,
+     "sway_gain": 1.0,
+     "stride_rel": 0.8,
+     "crouch": 0.03,
+     "zmp_iters": 12,
+     "zmp_gain": 0.5,
+     "n": 160,
+     "bob": 0.019397938144329902,
+     "bob_phase": 0.0,
+     "bob_skew": 0.125,
+     "swing_time": 0.31973042487574765,
+     "lift_peak": 0.375,
+     "toe_off": 0.3,
+     "toe_off_start": 0.825,
+     "toe_off_margin": 0.005,
+     "toe_reach": 0.075,
+     "roll_amp": 0.026179938779914945,
+     "roll_phase": 0.0,
+     "zmp_inset_y": 0.0,
+     "tail_phase": -1.7802358370342162,
+     "head_mode": "stabilise",
+     "head_gain": 0.9,
+     "head_settle": 0.015,
+     "settle_lag": 0.075,
+     "strides": 14,
+     "phase_jitter": 0.015,
+     "asym": 0.025,
+     "gaze_var": 0.015,
+     "tail_var": 0.2,
+     "var_band": [
+      0.05,
+      0.2
+     ],
+     "noise_seed": 2026,
+     "bob_drop": 0.1,
+     "toe_off_rate": 3.4,
+     "toe_off_accel": 220.0
+    },
+    "body_model_sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4",
+    "generator": "look.generate + look.look_inverse_dynamics + Stage 1's keys with window_strides (moves_look.walk_arrays)"
+   },
+   "built_by": {
+    "commit": "b72c61c73e0776b3813784f2707f077d25caa9b8",
+    "dirty": false,
+    "dirty_paths": [],
+    "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+    "stage2_modules": {
+     "designlab/stage2/sets.py": "d55c8fbd00d88193546407436700a66f4c77d0e1df343632b07d6c7665924581",
+     "designlab/stage2/moves.py": "ccee9b2cdf5acfef7b1f1bf592d617b71f035617016b6ecffd3e727aa5b0e77e",
+     "designlab/stage2/setscreen.py": "36110ec2ba6222ce3a01e772124a92092a40d7afd9caf6f74b2300a709fc25ed",
+     "designlab/stage2/screen.py": "7c974e6240da25e8be09a83e0ba392bf37a716a6007c8e43c93835512e0a1b52",
+     "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
+     "designlab/stage2/setio.py": "f25d8616e5e79f805cd0deded49cd34f85f1a0dc77a4114dce44b8b0cd354c91",
+     "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16",
+     "designlab/stage2/moves_look.py": "202e928e734e3234e1fd8d8919a55574772dc318768c4d1dc61962602fc92d44"
+    },
+    "versions": {
+     "python": "3.13.18",
+     "numpy": "2.5.4",
+     "mujoco": "3.10.0",
+     "scipy": "1.18.1"
+    },
+    "blas_threads": 1,
+    "accuracy": "r2",
+    "at": "2026-11-16T21:25:47Z"
+   },
+   "duty": 0.5555889209652627,
+   "tail_phase_rad": -1.7802358370342162,
+   "rolling_frames": 130,
+   "split_failed_frames": 0
+  },
+  "v0.5": {
+   "name": "v0.5",
+   "kind": "walk",
+   "available": false,
+   "reason": "dropped from the ladder: over knee speed 1.0163: blocks the freeze (knee speed); a walk that is not frozen is dropped from the ladder with its numbers",
+   "numbers": {
+    "stage0": {
+     "source": "setscreen.judge_walk on the walk's look.price (at build time)",
+     "governing": [
+      "knee",
+      "speed",
+      1.0162685504927076
+     ],
+     "within_limits": false,
+     "over": [
+      {
+       "limit": "knee speed",
+       "value": 1.0162685504927076
+      }
+     ],
+     "blocks_freeze": [
+      {
+       "limit": "knee speed",
+       "value": 1.0162685504927076
+      }
+     ],
+     "a1_over": false,
+     "tightest_joint": [
+      "left_hip_roll",
+      "max",
+      0.264
+     ],
+     "text": "over knee speed 1.0163: blocks the freeze (knee speed); a walk that is not frozen is dropped from the ladder with its numbers"
+    },
+    "speed_m_s": 0.5,
+    "period_s": 0.6475027198088381,
+    "ik_ok": true,
+    "min_cop_margin_single_m": 0.029416050982681727,
+    "built_sha256": "383fab42def1dd0acc5ed81c32e40d331c05d2ba9b165fb632ed67076304c643",
+    "built_look_sha256": "41d6ffac1e81631fdff720be2870d700e7e27c0b3eead942948bdef70804686b",
+    "price": {
+     "dynamics": "look_inverse_dynamics (gait.inverse_dynamics with F5's rolling contact; accuracy r2)",
+     "drives_at": {
+      "bus_v": 24.0,
+      "margins": {
+       "peak": 1.25,
+       "speed": 1.15
+      }
+     },
+     "drives": {
+      "hip_roll": {
+       "actuator": "cubemars_ak45_36_v3",
+       "rms": 2.558800308607784,
+       "peak": 5.147066201393493,
+       "speed": 0.5745120844108104,
+       "cont_ratio": 0.5611404185543386,
+       "peak_ratio": 0.38296623522273016,
+       "speed_ratio": 0.157727855722515,
+       "worst": 0.5611404185543386
+      },
+      "hip_pitch": {
+       "actuator": "myactuator_rmd_x4_p36_36_e_l",
+       "rms": 4.234770073716135,
+       "peak": 10.988889084558842,
+       "speed": 5.498487769224962,
+       "cont_ratio": 0.7075639220912506,
+       "peak_ratio": 0.6541005407475501,
+       "speed_ratio": 0.7275023379779663,
+       "worst": 0.7275023379779663
+      },
+      "hip_yaw": {
+       "actuator": "cubemars_ak45_36_v3",
+       "rms": 3.168656184375533,
+       "peak": 10.813853408021773,
+       "speed": 0.07189750046008074,
+       "cont_ratio": 0.694880742187617,
+       "peak_ratio": 0.8046021880968582,
+       "speed_ratio": 0.019738903474949582,
+       "worst": 0.8046021880968582
+      },
+      "knee": {
+       "actuator": "myactuator_rmd_x4_p36_36_e_l",
+       "rms": 3.214404313202227,
+       "peak": 7.806944288346307,
+       "speed": 7.680992765828574,
+       "cont_ratio": 0.5370767440605225,
+       "peak_ratio": 0.46469906478251827,
+       "speed_ratio": 1.0162685504927076,
+       "worst": 1.0162685504927076
+      },
+      "ankle_a": {
+       "actuator": "myactuator_rmd_x4_p12_10_e",
+       "rms": 1.2693365545316375,
+       "peak": 3.2271494170166606,
+       "speed": 5.984881654388709,
+       "cont_ratio": 0.5567265590051043,
+       "peak_ratio": 0.5762766816101179,
+       "speed_ratio": 0.27615177075210706,
+       "worst": 0.5762766816101179
+      },
+      "ankle_b": {
+       "actuator": "myactuator_rmd_x4_p12_10_e",
+       "rms": 1.2676686063071583,
+       "peak": 3.2156114981613477,
+       "speed": 6.152434863935071,
+       "cont_ratio": 0.5559950027662975,
+       "peak_ratio": 0.5742163389573836,
+       "speed_ratio": 0.283882937078094,
+       "worst": 0.5742163389573836
+      },
+      "neck": {
+       "actuator": "feetech_sts3250",
+       "rms": 0.6448317041861189,
+       "peak": 1.0069105343707125,
+       "speed": 0.35450636303053523,
+       "cont_ratio": 0.7875316519961736,
+       "peak_ratio": 0.8761357140563734,
+       "speed_ratio": 0.08651287471855408,
+       "worst": 0.8761357140563734
+      },
+      "tail": {
+       "actuator": "feetech_sts3215_c018",
+       "rms": 0.15606612028311942,
+       "peak": 0.3820588781513375,
+       "speed": 1.5138981752243714,
+       "cont_ratio": 0.31765046443439304,
+       "peak_ratio": 0.5540258393667468,
+       "speed_ratio": 0.6157467435854952,
+       "worst": 0.6157467435854952
+      }
+     },
+     "worst_group": "knee",
+     "worst_ratio": 1.0162685504927076,
+     "passive": {
+      "neck": {
+       "damping": 0.2,
+       "frictionloss": 0.15,
+       "cont_ratio": 0.7929489926323093,
+       "peak_ratio": 1.0009920576504763
+      },
+      "tail": {
+       "damping": 0.2,
+       "frictionloss": 0.15,
+       "cont_ratio": 0.5212317466573618,
+       "peak_ratio": 0.6792289846895339
+      }
+     },
+     "contact": {
+      "single_support_cop_margin_min_mm": 29.41605098268173,
+      "double_support_flat_cop_margin_min_mm": -21.983656721520994,
+      "rolling_frames": 136,
+      "rolling_cop_off_contact_max_mm": 1.0608676436005874e-12,
+      "rolling_cop_along_min_mm": -1.3877787807814457e-14,
+      "rolling_normal_max_N": 74.84143090849955,
+      "friction_ratio_max": 0.35538983062948165,
+      "split_failed_frames": 0,
+      "total_normal_frac_weight": [
+       0.7296357498077625,
+       1.3874750784577758
+      ],
+      "total_friction_need_max": 0.3019575641125558,
+      "cop_rule_mm": -10.0
+     },
+     "clearance": {
+      "gates": {
+       "swing_clearance": true,
+       "joint_range_margin": true,
+       "interference_free_home": true,
+       "interference_free_nominal_gait": true,
+       "component_overlap_free": true,
+       "tail_clearance": true
+      },
+      "walking_gates": true,
+      "mid_swing_min_frac_H": 0.0471,
+      "mid_swing_min_mm": 19.05,
+      "mid_swing_threshold_frac_H": 0.04,
+      "lateral_gap_mm": 69.51,
+      "tightest_joint": [
+       "left_hip_roll",
+       0.264
+      ],
+      "joint_range_margin_rule_rad": 0.1,
+      "joint_range_margins": {
+       "left_hip_roll": {
+        "walk_min": -0.0792,
+        "walk_max": -0.0128,
+        "usable": [
+         -0.45,
+         0.2512
+        ],
+        "margin_min": 0.3708,
+        "margin_max": 0.264
+       },
+       "left_hip_pitch": {
+        "walk_min": -0.435,
+        "walk_max": 0.2272,
+        "usable": [
+         -1.0,
+         1.0
+        ],
+        "margin_min": 0.565,
+        "margin_max": 0.7728
+       },
+       "left_hip_yaw": {
+        "walk_min": -0.0026,
+        "walk_max": 0.0031,
+        "usable": [
+         -0.3,
+         0.3
+        ],
+        "margin_min": 0.2974,
+        "margin_max": 0.2969
+       },
+       "left_knee": {
+        "walk_min": 0.0841,
+        "walk_max": 0.6295,
+        "usable": [
+         -1.1,
+         1.0509
+        ],
+        "margin_min": 1.1841,
+        "margin_max": 0.4214
+       },
+       "left_ankle_pitch": {
+        "walk_min": -0.5256,
+        "walk_max": 0.1856,
+        "usable": [
+         -0.8,
+         0.8
+        ],
+        "margin_min": 0.2744,
+        "margin_max": 0.6144
+       },
+       "left_ankle_roll": {
+        "walk_min": -0.0136,
+        "walk_max": 0.1041,
+        "usable": [
+         -0.4,
+         0.4
+        ],
+        "margin_min": 0.3864,
+        "margin_max": 0.2959
+       },
+       "right_hip_roll": {
+        "walk_min": 0.0184,
+        "walk_max": 0.084,
+        "usable": [
+         -0.2512,
+         0.45
+        ],
+        "margin_min": 0.2696,
+        "margin_max": 0.366
+       },
+       "right_hip_pitch": {
+        "walk_min": -0.44,
+        "walk_max": 0.2313,
+        "usable": [
+         -1.0,
+         1.0
+        ],
+        "margin_min": 0.56,
+        "margin_max": 0.7687
+       },
+       "right_hip_yaw": {
+        "walk_min": -0.0037,
+        "walk_max": 0.0026,
+        "usable": [
+         -0.3,
+         0.3
+        ],
+        "margin_min": 0.2963,
+        "margin_max": 0.2974
+       },
+       "right_knee": {
+        "walk_min": 0.0847,
+        "walk_max": 0.6351,
+        "usable": [
+         -1.1,
+         1.0509
+        ],
+        "margin_min": 1.1847,
+        "margin_max": 0.4158
+       },
+       "right_ankle_pitch": {
+        "walk_min": -0.5302,
+        "walk_max": 0.1899,
+        "usable": [
+         -0.8,
+         0.8
+        ],
+        "margin_min": 0.2698,
+        "margin_max": 0.6101
+       },
+       "right_ankle_roll": {
+        "walk_min": -0.1097,
+        "walk_max": 0.0074,
+        "usable": [
+         -0.4,
+         0.4
+        ],
+        "margin_min": 0.2903,
+        "margin_max": 0.3926
+       },
+       "neck_pitch": {
+        "walk_min": -0.03,
+        "walk_max": 0.0128,
+        "usable": [
+         -0.35,
+         0.35
+        ],
+        "margin_min": 0.32,
+        "margin_max": 0.3372
+       },
+       "tail_yaw": {
+        "walk_min": -0.1498,
+        "walk_max": 0.1496,
+        "usable": [
+         -0.45,
+         0.45
+        ],
+        "margin_min": 0.3002,
+        "margin_max": 0.3004
+       }
+      },
+      "nominal_gait_interference_pairs": 0,
+      "tail_min_frac_H": 0.8001,
+      "screen": "designlab.clearance.screen (gates r2)"
+     },
+     "over": [
+      {
+       "limit": "knee speed",
+       "value": 1.0162685504927076
+      }
+     ],
+     "within_limits": false,
+     "verdict": "over knee speed 1.016: under the plan's rule, over a drive limit (or a Stage 0 gate), a variant keeps its feature and loses that speed rung (character first) unless the owner decides otherwise"
+    }
+   },
+   "set": "V6",
+   "label": "new",
+   "margin_rule": null,
+   "crouch_frac": 0.03,
+   "spec": {
+    "froude": 0.06297227552316714,
+    "duty": 0.56,
+    "lift_frac": 0.11,
+    "head_amp": 0.05,
+    "tail_amp": 0.125,
+    "sway_gain": 1.0,
+    "stride_rel": 0.8,
+    "crouch": 0.03,
+    "zmp_iters": 12,
+    "zmp_gain": 0.5,
+    "n": 160,
+    "bob": 0.019397938144329902,
+    "bob_phase": 0.0,
+    "bob_skew": 0.125,
+    "swing_time": 0.31973042487574765,
+    "lift_peak": 0.375,
+    "toe_off": 0.3,
+    "toe_off_start": 0.825,
+    "toe_off_margin": 0.005,
+    "toe_reach": 0.075,
+    "roll_amp": 0.026179938779914945,
+    "roll_phase": 0.0,
+    "zmp_inset_y": 0.0,
+    "tail_phase": -1.7802358370342162,
+    "head_mode": "stabilise",
+    "head_gain": 0.9,
+    "head_settle": 0.015,
+    "settle_lag": 0.075,
+    "strides": 16,
+    "phase_jitter": 0.015,
+    "asym": 0.025,
+    "gaze_var": 0.015,
+    "tail_var": 0.2,
+    "var_band": [
+     0.05,
+     0.2
+    ],
+    "noise_seed": 2026,
+    "bob_drop": 0.1,
+    "toe_off_rate": 3.4,
+    "toe_off_accel": 220.0
+   },
+   "dropped": true,
+   "group": "v0.5",
+   "definition": {
+    "kind": "walk",
+    "spec": {
+     "froude": 0.06297227552316714,
+     "duty": 0.56,
+     "lift_frac": 0.11,
+     "head_amp": 0.05,
+     "tail_amp": 0.125,
+     "sway_gain": 1.0,
+     "stride_rel": 0.8,
+     "crouch": 0.03,
+     "zmp_iters": 12,
+     "zmp_gain": 0.5,
+     "n": 160,
+     "bob": 0.019397938144329902,
+     "bob_phase": 0.0,
+     "bob_skew": 0.125,
+     "swing_time": 0.31973042487574765,
+     "lift_peak": 0.375,
+     "toe_off": 0.3,
+     "toe_off_start": 0.825,
+     "toe_off_margin": 0.005,
+     "toe_reach": 0.075,
+     "roll_amp": 0.026179938779914945,
+     "roll_phase": 0.0,
+     "zmp_inset_y": 0.0,
+     "tail_phase": -1.7802358370342162,
+     "head_mode": "stabilise",
+     "head_gain": 0.9,
+     "head_settle": 0.015,
+     "settle_lag": 0.075,
+     "strides": 16,
+     "phase_jitter": 0.015,
+     "asym": 0.025,
+     "gaze_var": 0.015,
+     "tail_var": 0.2,
+     "var_band": [
+      0.05,
+      0.2
+     ],
+     "noise_seed": 2026,
+     "bob_drop": 0.1,
+     "toe_off_rate": 3.4,
+     "toe_off_accel": 220.0
+    },
+    "body_model_sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4",
+    "generator": "look.generate + look.look_inverse_dynamics + Stage 1's keys with window_strides (moves_look.walk_arrays)"
+   },
+   "built_by": {
+    "commit": "75d4303613aafb69a234cbbe8393af53167bcbe6",
+    "dirty": false,
+    "dirty_paths": [],
+    "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+    "stage2_modules": {
+     "designlab/stage2/sets.py": "d55c8fbd00d88193546407436700a66f4c77d0e1df343632b07d6c7665924581",
+     "designlab/stage2/moves.py": "ccee9b2cdf5acfef7b1f1bf592d617b71f035617016b6ecffd3e727aa5b0e77e",
+     "designlab/stage2/setscreen.py": "36110ec2ba6222ce3a01e772124a92092a40d7afd9caf6f74b2300a709fc25ed",
+     "designlab/stage2/screen.py": "7c974e6240da25e8be09a83e0ba392bf37a716a6007c8e43c93835512e0a1b52",
+     "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
+     "designlab/stage2/setio.py": "f25d8616e5e79f805cd0deded49cd34f85f1a0dc77a4114dce44b8b0cd354c91",
+     "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16",
+     "designlab/stage2/moves_look.py": "202e928e734e3234e1fd8d8919a55574772dc318768c4d1dc61962602fc92d44"
+    },
+    "versions": {
+     "python": "3.13.18",
+     "numpy": "2.5.4",
+     "mujoco": "3.10.0",
+     "scipy": "1.18.1"
+    },
+    "blas_threads": 1,
+    "accuracy": "r2",
+    "at": "2026-11-17T01:38:54Z"
+   }
+  }
+ }
+}

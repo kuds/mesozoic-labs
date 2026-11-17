@@ -193,9 +193,11 @@ STATE_A = "c377ba1"
 BAR_SOURCES_A = "45719d030359ec7d5d3914af3814d837fdc05d77652ba45c64792b511027528d"
 PANEL_SOURCES_A = "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1"
 #: Design D18's list of what round C edits nothing of, less ``barreport.py``: the working branch changed that file
-#: after state A for the 75 cm round's bar tables (it writes reports and is in no record's key).
+#: after state A for the 75 cm round's bar tables (it writes reports and is in no record's key).  Less ``sets.py``
+#: too (ruling 27 of ``stage2/design/ROUND_C_RULINGS_17NOV.md``): the look sets' work package added the look sets'
+#: registry and builder to it after state A; it is in no record's key, and the round's three sets verify as before.
 ROUND_A_PATHS = ("designlab/stage1",) + tuple(f"designlab/stage2/{m}.py" for m in (
-    "bar", "readings", "setio", "s2io", "moves", "sets", "setscreen"))
+    "bar", "readings", "setio", "s2io", "moves", "setscreen"))
 
 
 def test_the_modules_of_every_existing_record_key_are_state_as():
