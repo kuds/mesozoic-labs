@@ -1068,9 +1068,11 @@ def look_set_placement(set_name: str, body: str, root=setio.ROOT):
     the one in place (else ``LookBarError``).  On entry the process's cached bar context of the set forgets what it
     built (``_release_cached``; F1 of the check of LT), so that a condition built before, outside the placement, is
     built again inside it; at its end a cached condition placed inside is forgotten in the same way (``_let_go``).
-    These run inside it on a look set: G9-ref part (a) (``gates2._refcheck_record``, ``bar.refcheck``), G8a
-    (``gates2.g8a``), ``s2rows.equivalence_check`` and R2L's fit and selection (``r2lfit``).  ``bar.py`` is not
-    edited and its hash does not move."""
+    These run inside it on a look set: G9-ref part (a) (``gates2._refcheck_record``, ``bar.refcheck``) and part (b)
+    (``gates2.part_b``, its walk and turn items), G8a (``gates2.g8a``), ``s2rows.equivalence_check``, R2L's fit and
+    selection (``r2lfit``), the owner's views (``barviews.SetView.resolve``, in a child process where this process
+    renders) and the placed refcheck command (``gates2.refcheck``, ``gates2 refcheck``; the lead's ruling 39 (b)).
+    ``bar.py`` is not edited and its hash does not move."""
     if look_set_of(set_name) is None:
         yield None
         return
