@@ -615,3 +615,27 @@ The owner's second reading: 59 % of the week at about 03:32 UTC, with the meter 
 $2,710.92. So 1 % of the week is about $40 on the meter (between $27 and $72, the readings being whole percents),
 not the $13.6 first estimated. The owner said to keep working through the night without stopping; the owner holds one
 reset. The lead pushes the owner at 85 % (about $3,830) and at 95 % (about $4,230).
+
+## Update, 17 Nov 2026, 05:42 UTC: overnight handover (what is merged, what runs, what is owed)
+
+**Merged overnight on the working branch** (each built, independently checked, fixed; reports in `reviews/` and
+`../servo_model/`; the record-key hashes are the registered pair throughout): the rows (CW), the notebook and steps
+sheet (CN), the trainer's third follow-up (CT3), the follow-up before the acceptance run (CN, CT, CW), the gates
+(CG), the R2L refit tool (CF), the servo model's core layer (S1), and the Track B draft with the sixth list.
+
+**Rulings of the night** are in `../ROUND_C_RULINGS_17NOV.md` (1 to 20). The two that matter most: ruling 18 (no look
+set can be frozen as built: the look start is over the knee's speed limit, 1.126 at 75 cm and 1.234 at 60 cm; the
+start now mixes the stand's law by the amplitude ramp, a change after a result; the sets are built again, 75 cm
+first) and ruling 16 (the bar refuses Track B rows on a look set; `bar.py` is not edited; `lookbar` carries its own
+narrow rule for the look sets, after a passed G9-ref).
+
+**Running at 05:42 UTC.** Workflow `wf_daa54001-cce`: the look sets' fix round (its check said: merge by cherry-pick;
+one major point outside the package for the lead: the env and the bar place a look set's turns and stop2 after
+whole windows, not at J1's leave point). Workflow `wf_5fdcc198-2b2`: the lookbar look-set rule (16), the gates'
+G9-ref fixes (14, 15), the trainer's owed points (17), the sheet's 5.3 (13), each with a check; and the
+independent review of the join code (19).
+
+**Owed next.** Bring in the look sets (cherry-pick) and launch their rebuild under ruling 18 with a check; rule on
+the check's major point (turns and stop2 placement); a CF follow-up (its integration with G9-ref's record format,
+and the chain's `--resume` on V10); the servo model's S1 low points and S2 (the env option and G8s); then, once a
+75 cm look set is frozen: G9-ref, G8a, the validation steps, S2-4, the bundle and the acceptance run.
