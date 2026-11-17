@@ -10,6 +10,7 @@ R2 row bit for bit on set V0 (two development episodes).
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import subprocess
@@ -30,6 +31,7 @@ BODY = "75-M-H-10"
 SLOW = os.environ.get("STAGE2_SLOW") == "1"
 ONE_THREAD = all(os.environ.get(v) == "1" for v in s2io.THREAD_VARS)
 V0 = setio.set_dir("V0", BODY)
+GATES2 = "designlab.stage2.gates2"  # the gates package (work package CG)
 
 
 def quiet(*a, **k):
@@ -94,7 +96,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(r2lfit, "GATES", tmp_path / "gates")
     monkeypatch.setattr(r2lfit, "INDEX", tmp_path / "r2l" / "index.json")
     monkeypatch.setattr(panels, "ROW_FACTORIES", dict(panels.ROW_FACTORIES))
-    ns = types.SimpleNamespace(out=tmp_path / "work", tmp=tmp_path, stub=None)
+    ns = types.SimpleNamespace(out=tmp_path / "work", tmp=tmp_path, stub=None, mp=monkeypatch, gates2=None)
 
     def use(stub):
         ns.stub = stub
@@ -105,8 +107,51 @@ def env(tmp_path, monkeypatch):
     return ns
 
 
-def passed_gate(env, set_name="V6noF5", body=BODY, passed=True):
-    s2io.write_json(env.tmp / "gates" / set_name / body / "g9_ref.json", dict(passed=passed, written_at="x"))
+class GateError(RuntimeError):
+    pass
+
+
+class Refused(GateError):
+    pass
+
+
+def gates2_stub():
+    """The gates package as r2lfit calls it (``gates2.require_g9_ref(body, set_name, path=, root=)``, its
+    ``GateError`` and ``Refused``), on a record in its form (``pass_``, its set and body); ``calls`` logs the calls."""
+    calls = []
+
+    def require_g9_ref(body, set_name, path=None, root=None):
+        calls.append(dict(body=body, set=set_name, path=Path(path), root=root))
+        doc = s2io.read_json(path) if Path(path).is_file() else None
+        if not isinstance(doc, dict):
+            raise Refused("there is no G9-ref record")
+        if (doc.get("body"), doc.get("set")) != (body, set_name):
+            raise Refused(f"the G9-ref record is of {doc.get('set')}/{doc.get('body')}")
+        if doc.get("pass_") is not True:
+            raise Refused("G9-ref did not pass")
+        return dict(path=s2io.portable(str(Path(path).resolve())), sha256=s2io.sha256_file(path), pass_=True,
+                    at=doc.get("at"), set_freeze=doc.get("set_freeze"))
+
+    return types.SimpleNamespace(GateError=GateError, Refused=Refused, require_g9_ref=require_g9_ref, calls=calls)
+
+
+def g9_record(set_name="V6noF5", body=BODY, pass_=True, **extra):
+    """A G9-ref record in the gates package's form (schema, set, body, ``pass_``, the freeze, its own sha256)."""
+    doc = dict(schema="s2-gate-g9-ref-1", gate="G9-ref", body=body, set=set_name, pass_=pass_,
+               at="2026-11-17T00:00:00.000000Z", set_freeze=dict(index=1, manifest_sha256="d" * 64), **extra)
+    doc["sha256"] = s2io.sha256_json(doc)
+    return doc
+
+
+def passed_gate(env, set_name="V6noF5", body=BODY, passed=True, doc=None):
+    """A G9-ref record of ``set_name`` and ``body`` (``doc``, or one in the gates package's form that passed or
+    not) and the gates package's stub."""
+    s2io.write_json(env.tmp / "gates" / set_name / body / "g9_ref.json",
+                    doc if doc is not None else g9_record(set_name, body, pass_=passed))
+    if env.gates2 is None:
+        env.gates2 = gates2_stub()
+        env.mp.setattr(r2lfit, "_gates2", lambda: env.gates2)
+    return env.gates2
 
 
 def read_lines(path):
@@ -349,16 +394,49 @@ def test_a_resume_refuses_another_rotation_table(env):
     assert r2lfit.fit(BODY, "F25F9cl", out=out, resume=True, log=quiet)["status"] == "done"
 
 
-def test_a_look_set_waits_for_g9_ref(env):
+def test_a_look_set_waits_for_g9_ref_as_the_gates_package_reads_it(env):
     env.use(Stub())
-    with pytest.raises(r2lfit.R2LError, match="G9-ref"):
+    path = env.tmp / "gates" / "V6noF5" / BODY / "g9_ref.json"
+    # the gates package is not here: no fit on a look set starts
+    assert r2lfit.GATES2 == GATES2
+    env.mp.setitem(sys.modules, GATES2, None)
+    assert r2lfit._gates2() is None
+    with pytest.raises(r2lfit.R2LError, match="gates package"):
         r2lfit.fit(BODY, "V6noF5", out=env.out, log=quiet)
-    passed_gate(env, passed=False)
-    with pytest.raises(r2lfit.R2LError, match="not passed"):
+    env.mp.delitem(sys.modules, GATES2)
+    g2 = passed_gate(env, passed=False)
+    with pytest.raises(r2lfit.R2LError, match="G9-ref has not passed.*did not pass"):
         r2lfit.fit(BODY, "V6noF5", out=env.out, log=quiet)
+    path.unlink()
+    with pytest.raises(r2lfit.R2LError, match="no G9-ref record"):
+        r2lfit.fit(BODY, "V6noF5", out=env.out, log=quiet)
+    # a record that says "passed" in another form than the gates package's is not a pass
+    passed_gate(env, doc=dict(passed=True, status="passed", outcome="passed", body=BODY, set="V6noF5"))
+    with pytest.raises(r2lfit.R2LError, match="did not pass"):
+        r2lfit.fit(BODY, "V6noF5", out=env.out, log=quiet)
+    passed_gate(env, set_name="V6noF5", doc=g9_record("V6", BODY))
+    with pytest.raises(r2lfit.R2LError, match="of V6/"):
+        r2lfit.fit(BODY, "V6noF5", out=env.out, log=quiet)
+    assert not (env.out / "V6noF5").exists()  # nothing was written by a refused fit
+    # the gates package's record that passed: the fit starts and cites it
     passed_gate(env)
-    doc = r2lfit.fit(BODY, "V6noF5", out=env.out, max_generations=30, log=quiet)
-    assert doc["sessions"][0]["gate"]["sha256"] == s2io.sha256_file(env.tmp / "gates" / "V6noF5" / BODY / "g9_ref.json")
+    doc = r2lfit.fit(BODY, "V6noF5", out=env.out, log=quiet)
+    gate = doc["sessions"][0]["gate"]
+    assert gate["sha256"] == s2io.sha256_file(path) and gate["pass_"] is True
+    assert gate["at"] == s2io.read_json(path)["at"] and gate["set_freeze"] == s2io.read_json(path)["set_freeze"]
+    assert gate["checked_by"] == "designlab.stage2.gates2.require_g9_ref" and gate["modified_at"]
+    assert g2.calls[-1] == dict(body=BODY, set="V6noF5", path=path, root=r2lfit.SET_ROOT)
+    assert len(g2.calls) == 5
+    # not on a set that is no look set
+    assert r2lfit.gate("F25F9cl", BODY) is None and len(g2.calls) == 5
+
+
+@pytest.mark.skipif(importlib.util.find_spec(GATES2) is None,
+                    reason="the gates package (work package CG) is not on this branch")
+def test_the_gate_calls_the_real_gates_package(env):
+    """With the real gates package: its signature is the one r2lfit calls, and a set without a record is refused."""
+    with pytest.raises(r2lfit.R2LError, match="G9-ref has not passed as the gates package reads it"):
+        r2lfit.gate("V6noF5", BODY)
 
 
 def test_a_development_fit_is_not_selected_or_published(env):

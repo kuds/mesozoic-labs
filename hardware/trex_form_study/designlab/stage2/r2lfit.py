@@ -217,9 +217,12 @@ ROLE_RULE = (
     "refuse it")
 GATE_RULE = (
     "STAGE2_TRACKB_PLAN rules Q1, X1 and Z2: a fit on a look set (V6, V6noF5) starts only after G9-ref passed for "
-    "that set and body: stage2/tb/gates/<set>/<body>/g9_ref.json must exist and read passed (its key passed true, or "
-    "status or outcome 'passed'; anything else is refused, so a record whose verdict cannot be read never lets a "
-    "fit start); each session records the file's path, sha256 and modification time")
+    "that set and body as the gates package reads it: gates2.require_g9_ref(body, set, "
+    "stage2/tb/gates/<set>/<body>/g9_ref.json) must return its citation (there: a G9-ref record of its schema, its "
+    "own sha256 intact, of this set and body, pass_ true, made on the set's latest freeze); its refusal refuses the "
+    "fit, and where the gates package (designlab/stage2/gates2.py) is not here no fit on a look set starts; each "
+    "session records the citation (path, sha256, the record's time and freeze), the file's modification time and "
+    "what checked it")
 ROWS_RULE = (
     "STAGE2_TRACKB_PLAN rule Q6: R2L-<set>/<seed> is the panels' tracker row in mode R2 (control.TERMS, "
     "control.ANKLE_CAP, the bar's clock) with the gains of the fit of seed <seed> on set <set> and the row's body, "
@@ -694,26 +697,44 @@ def role_of(set_name: str, body: str, popsize: int = POPSIZE, budget_core_h: flo
     return dict(role="development" if why else "fit", reasons=why, rule=ROLE_RULE)
 
 
+GATES2 = "designlab.stage2.gates2"
+
+
+def _gates2():
+    """The gates package's module (``GATE_RULE``), or None where it is not here; any other import error is raised."""
+    import importlib
+
+    try:
+        return importlib.import_module(GATES2)
+    except ModuleNotFoundError as exc:
+        if exc.name == GATES2:
+            return None
+        raise
+
+
 def gate(set_name: str, body: str) -> dict | None:
-    """``GATE_RULE``: on a look set, the passed G9-ref record (path, sha256, modification time); None elsewhere.
-    ``R2LError`` where there is none, or its verdict is not 'passed'."""
+    """``GATE_RULE``: on a look set, the citation of the passed G9-ref record as ``gates2.require_g9_ref`` gives it,
+    with the file's modification time; None elsewhere.  ``R2LError`` where the gates package refuses it, or is not
+    here."""
     if set_name not in LOOK_SETS:
         return None
     path = Path(GATES) / set_name / body / "g9_ref.json"
+    g2 = _gates2()
+    if g2 is None:
+        raise R2LError(f"{path}: the gates package ({GATES2}) is not here, so G9-ref cannot be read: R2L's set "
+                       f"{set_name} must pass G9-ref for {body} before its first episode (rules Q1, X1, Z2; "
+                       "GATE_RULE): no fit starts")
     try:
-        doc = s2io.read_json(path)
-    except (OSError, ValueError):
-        raise R2LError(f"{path}: no readable G9-ref record: R2L's set {set_name} must pass G9-ref for {body} before "
-                       "its first episode (rules Q1, X1, Z2)") from None
-    ok = isinstance(doc, dict) and (doc.get("passed") is True or doc.get("status") == "passed"
-                                    or doc.get("outcome") == "passed")
-    if not ok:
-        raise R2LError(f"{path}: G9-ref has not passed, or its verdict cannot be read (GATE_RULE: passed true, or "
-                       "status or outcome 'passed'): no fit starts")
+        cite = g2.require_g9_ref(body, set_name, path=path, root=SET_ROOT)
+    except g2.GateError as exc:
+        raise R2LError(f"{path}: G9-ref has not passed as the gates package reads it ({exc}): no fit starts "
+                       "(rules Q1, X1, Z2)") from None
+    if not isinstance(cite, dict) or not cite.get("path") or not cite.get("sha256"):
+        raise R2LError(f"{path}: {GATES2}.require_g9_ref gave no citation (path, sha256) of a G9-ref record "
+                       f"({cite!r}; None: the set is no look set there): no fit starts")
     st = path.stat()
-    return dict(path=s2io.portable(str(path.resolve())), sha256=s2io.sha256_file(path),
-                modified_at=datetime.fromtimestamp(st.st_mtime, timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-                rule=GATE_RULE)
+    return dict(cite, modified_at=datetime.fromtimestamp(st.st_mtime, timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%S.%fZ"), checked_by=f"{GATES2}.require_g9_ref", rule=GATE_RULE)
 
 
 def start_key(rec: dict) -> dict:
