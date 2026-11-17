@@ -22,6 +22,12 @@ indirection to ``lookbar``, is replaced by such a table; no episode is run):
 * the monitor refuses to run on other sources than the trainer's, and on a checkpoint that is not intact; a
   refusal (other sources, a checkpoint that is not intact, another run's checkpoint) leaves the CLI with its own
   exit code 8 and a note of its reason, and any other fault keeps exit code 1;
+* the other exits before any episode are refusals too (the sixth list of 16 Nov 2026, 3; the rulings of 17 Nov,
+  10 and 11): a ``run.json`` that is missing, cannot be read or is no JSON object, a checkpoint record of the wrong
+  shape, and a row that refuses the checkpoint while it is built (``s2rows.RowError``, here a stub class of that
+  name and module: the rows package is not merged; ``s2load.CheckpointError``, a fingerprint not reproduced at the
+  row's load, also in the Stage 1 view's stand-in).  An exception of another class of the same name, one that
+  ``lookbar.episodes`` raises and a row's refusal at a further delay (after the check's episodes) are none;
 * ``monitor2``'s table of rule M4 is the task table's (``r5lib.TASKS``' ``monitor`` fields).
 
 ``clip2`` renders a real clip from a Stage 1 trace in a child process (OSMesa and ffmpeg; skipped without them)
@@ -276,7 +282,7 @@ def test_a_monitor_that_refuses_to_run_leaves_with_its_own_exit_code(monkeypatch
     own = train2.sources()["sha256"]
     mon = job / "monitor"
     note, base_note = mon / "monitor_512.refused.json", mon / "r0l.refused.json"
-    assert m2.EXIT_REFUSAL == 8 and m2.REFUSALS == ("sources", "checkpoint", "other_run")
+    assert m2.EXIT_REFUSAL == 8 and m2.REFUSALS == ("sources", "checkpoint", "other_run", "run", "row")
     assert m2.refusal_path(mon, 512) == note and m2.refusal_path(mon) == base_note
     assert "is no attempt" in m2.RULES["refusal"] and "refusal" in m2.RULES["attempts"]
     assert m2.rules(2_500_000)["texts"]["refusal"] == m2.RULES["refusal"]
@@ -321,11 +327,178 @@ def test_a_monitor_that_refuses_to_run_leaves_with_its_own_exit_code(monkeypatch
     # a call that runs takes an earlier refusal's note away and writes its record
     assert note.is_file() and m2.main(run + ["--sources", own]) == 0
     assert not note.exists() and len(called) == 1 and (mon / "monitor_512.json").is_file()
-    # a fault that is no refusal keeps exit code 1 and leaves no note: episodes that are not the check's; no run.json
+    # a fault that is no refusal keeps exit code 1 and leaves no note: episodes that are not the check's
     monkeypatch.setattr(m2, "_episodes", lambda *a, **k: table()[:-1])
     assert m2.main(run + ["--sources", own]) == 1 and not note.exists()
-    (job / "run.json").unlink()
-    assert m2.main(run + ["--sources", own]) == 1 and not note.exists()
+
+
+def _cli_refused(argv, path, kind, text, called) -> dict:
+    """``monitor2.main(argv)`` refuses to run: exit code 8, a note of ``kind`` whose reason holds ``text``, no
+    episode and no record."""
+    path.unlink(missing_ok=True)
+    assert m2.main(argv) == m2.EXIT_REFUSAL
+    said = json.loads(path.read_text())
+    assert (said["schema"], said["kind"], said["rule"]) == (m2.REFUSAL_SCHEMA, kind, m2.RULES["refusal"])
+    assert text in said["reason"] and said["cmd"] == argv[0], said
+    assert not called and not (path.parent / "monitor_512.json").exists() and not (path.parent / "r0l.json").exists()
+    return said
+
+
+def test_the_other_exits_before_any_episode_are_refusals(monkeypatch, tmp_path):
+    """The sixth list of 16 Nov 2026, 3 (and the rulings of 17 Nov, 11): a run.json that is missing (also one that
+    cannot be read, or is no JSON object: at a check and at the baseline) and a checkpoint record of the wrong shape
+    (at a check) are refusals: exit code 8 and the note, no episode, no attempt.  ``s2-10`` reads records and keeps
+    exit code 1."""
+    from designlab.stage2 import train2
+
+    called = []
+    monkeypatch.setattr(m2, "_episodes", lambda *a, **k: called.append(a) or table())
+    job = _job(tmp_path)
+    own = train2.sources()["sha256"]
+    mon = job / "monitor"
+    note, base_note = mon / "monitor_512.refused.json", mon / "r0l.refused.json"
+    run = ["run", "--job", str(job), "--steps", "512", "--body", BODY, "--set", "V6", "--sources", own]
+    base = ["baseline", "--job", str(job), "--body", BODY, "--set", "V6", "--sources", own]
+    assert "run.json is missing" in m2.RULES["refusal"] and "has the wrong shape" in m2.RULES["refusal"]
+    # the run's run.json: missing, cut short, no JSON object
+    run_json = job / "run.json"
+    good = run_json.read_text()
+    for text, why in ((None, "no run.json"), (good[: len(good) // 2], "run.json cannot be read"),
+                      ("[1, 2]", "run.json is no JSON object")):
+        if text is None:
+            run_json.unlink()
+        else:
+            run_json.write_text(text)
+        _cli_refused(run, note, "run", why, called)
+        _cli_refused(base, base_note, "run", why, called)
+        with pytest.raises(m2.MonitorRefusal, match=why.replace(".", "\\.")) as info:
+            m2.run(job, 512, BODY, "V6", mon, sources_sha256=own)
+        assert info.value.kind == "run"
+    assert m2.main(["s2-10", "--job", str(job)]) == 1  # (not a check: no refusal)
+    run_json.write_text(good)
+    # a checkpoint record that parses and has the wrong shape (review of the second follow-ups, finding 3)
+    rec_path = job / "checkpoints" / "checkpoint_512.json"
+    rec = json.loads(rec_path.read_text())
+    files = rec["files"]
+    for bad in ([files["model"]], "model_512.zip", None, dict(files, model=[files["model"]["sha256"]]),
+                dict(files, vecnormalize="v"), {k: v for k, v in files.items() if k != "fingerprint"},
+                dict(files, model=dict(files["model"], bytes="10")), dict(files, model=dict(files["model"], bytes=True)),
+                dict(files, fingerprint=dict(files["fingerprint"], sha256=None))):
+        rec_path.write_text(json.dumps(dict(rec, files=bad)))
+        _cli_refused(run, note, "checkpoint", "the checkpoint's record has the wrong shape", called)
+    rec_path.write_text(json.dumps({k: v for k, v in rec.items() if k != "files"}))
+    _cli_refused(run, note, "checkpoint", "has the wrong shape", called)
+    rec_path.write_text(json.dumps(rec))
+    assert m2.main(run) == 0 and len(called) == 1 and not note.exists() and (mon / "monitor_512.json").is_file()
+    assert m2.main(base) == 0 and len(called) == 2 and not base_note.exists() and (mon / "r0l.json").is_file()
+
+
+def _stub_rows(monkeypatch, rows=None, episodes=None):
+    """``lookbar`` and ``s2rows`` stand-ins in ``sys.modules`` (neither is merged here): ``s2rows.RowError`` is a
+    class of that name and module.  ``rows(body, names)`` and ``episodes(...)`` default to a row and the check's
+    table."""
+    import importlib.machinery
+    import types
+
+    s2rows = types.ModuleType("designlab.stage2.s2rows")
+    s2rows.RowError = type("RowError", (RuntimeError,), {"__module__": "designlab.stage2.s2rows"})
+    s2rows.configure = lambda policies: None
+    lookbar = types.ModuleType("designlab.stage2.lookbar")
+    for mod in (s2rows, lookbar):  # (the record names its episodes' maker: importlib.util.find_spec)
+        mod.__spec__ = importlib.machinery.ModuleSpec(mod.__name__, None)
+    lookbar.rows = rows or (lambda body, names: {names[0]: "row"})
+    lookbar.episodes = episodes or (lambda body, set_name, rows, pairs, traces=None: table())
+    monkeypatch.setitem(sys.modules, "designlab.stage2.lookbar", lookbar)
+    monkeypatch.setitem(sys.modules, "designlab.stage2.s2rows", s2rows)
+    return s2rows, lookbar
+
+
+def test_a_rows_refusal_before_any_episode_is_the_monitors(monkeypatch, tmp_path):
+    """The rulings of 17 Nov 2026, 10 and 11: a row that refuses the checkpoint while it is built (``lookbar.rows``,
+    before any episode) makes the monitor refuse: ``s2rows.RowError`` (kind ``row``; rule K9's refusal of moved
+    sources among them) and ``s2load.CheckpointError`` (kind ``checkpoint``: a fingerprint not reproduced at the
+    row's load).  An exception of another class of the same name, one raised by ``lookbar.episodes``, and a row's
+    refusal at a further delay (after the check's own episodes) are no refusal."""
+    from designlab.stage2 import s2load, train2
+
+    job = _job(tmp_path)
+    own = train2.sources()["sha256"]
+    mon = job / "monitor"
+    note = mon / "monitor_512.refused.json"
+    run = ["run", "--job", str(job), "--steps", "512", "--body", BODY, "--set", "V6", "--sources", own]
+    seen, raise_at = [], {}
+
+    def rows(body, names):
+        seen.append(("rows", names[0]))
+        if names[0] in raise_at:
+            raise raise_at[names[0]]
+        return {names[0]: "row"}
+
+    def episodes(*a, **k):
+        seen.append("episodes")
+        return table()
+
+    s2rows, lookbar = _stub_rows(monkeypatch, rows=rows, episodes=episodes)
+    assert m2.ROW_REFUSALS == (("designlab.stage2.s2rows", "RowError", "row"),
+                               ("designlab.stage2.s2load", "CheckpointError", "checkpoint"))
+    moved = ("R5/42: the code that builds its observations and applies its actions is not the run's (session 0: "
+             "designlab/stage2/r5core.py): not judged (rule K9; STAGE2_ALLOW_SOURCE_CHANGE=1 runs it flagged)")
+    fingerprint = (f"checkpoint 512 of {job}: fingerprint not reproduced: max |difference| 0.25 > 1e-05 over 256 "
+                   "observations: not judged (S2-12)")
+    for exc, kind, text in ((s2rows.RowError(moved), "row", "not judged (rule K9"),
+                            (s2load.CheckpointError(fingerprint), "checkpoint", "fingerprint not reproduced")):
+        raise_at["R5/42@10ms"] = exc
+        seen.clear()
+        said = _cli_refused(run, note, kind, text, [])
+        assert seen == [("rows", "R5/42@10ms")] and "before any episode" in said["reason"]
+        assert said["reason"].endswith(f"({type(exc).__name__}: {exc})")
+        with pytest.raises(m2.MonitorRefusal) as info:
+            m2.run(job, 512, BODY, "V6", mon, sources_sha256=own)
+        assert info.value.kind == kind and isinstance(info.value.__cause__, type(exc))
+    # an exception of another class of the same name is no refusal
+    other = type("RowError", (RuntimeError,), {"__module__": "tests.elsewhere"})
+    raise_at["R5/42@10ms"] = other("not the rows package's")
+    with pytest.raises(other):
+        m2.main(run)
+    assert not note.exists()
+    # what lookbar.episodes raises is not the row's refusal before any episode
+    raise_at.clear()
+
+    def late(*a, **k):
+        raise s2rows.RowError("late")
+
+    lookbar.episodes = late
+    with pytest.raises(s2rows.RowError, match="late"):
+        m2.main(run)
+    assert not note.exists()
+    # a row that refuses at a further delay, after the check's own episodes: exit code 1, no note, no record
+    lookbar.episodes = episodes
+    raise_at["R5/42@0ms"] = s2rows.RowError(moved)
+    seen.clear()
+    assert m2.main(run + ["--also-k", "0"]) == 1 and not note.exists() and not (mon / "monitor_512.json").exists()
+    assert seen == [("rows", "R5/42@10ms"), "episodes", ("rows", "R5/42@0ms")]
+    with pytest.raises(m2.MonitorError, match="at a further delay, after the check's own episodes: no refusal") as info:
+        m2.run(job, 512, BODY, "V6", mon, also_k=(0,), sources_sha256=own)
+    assert not isinstance(info.value, m2.MonitorRefusal)
+    # the row built, the check runs
+    raise_at.clear()
+    assert m2.main(run + ["--also-k", "0"]) == 0 and (mon / "monitor_512.json").is_file()
+
+
+def test_the_stand_ins_load_refuses_as_the_row(monkeypatch, tmp_path):
+    """On the Stage 1 view without ``lookbar``, the stand-in loads the checkpoint before any episode: a fingerprint
+    not reproduced there (``s2load.CheckpointError``) is a refusal of kind ``checkpoint``."""
+    from designlab.stage2 import s2load
+
+    def load(job_dir, steps, *a, **k):
+        raise s2load.CheckpointError(f"checkpoint {steps} of {job_dir}: fingerprint not reproduced: max |difference| "
+                                     "0.25 > 1e-05 over 256 observations: not judged (S2-12)")
+
+    monkeypatch.setattr(s2load, "load_checkpoint", load)
+    with pytest.raises(m2.MonitorRefusal, match="fingerprint not reproduced") as info:
+        m2._stand_in(BODY, "R5/42@10ms", m2.pairs_for("S1", tiny=True),
+                     {"R5/42": dict(job_dir=str(tmp_path), steps=512)})
+    assert info.value.kind == "checkpoint" and "before any episode" in str(info.value)
 
 
 def test_a_baseline_that_holds_an_error_is_no_baseline(monkeypatch, tmp_path):
