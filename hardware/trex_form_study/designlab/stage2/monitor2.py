@@ -47,15 +47,21 @@ deleted).  ``lookbar`` and ``s2rows`` are merged, so ``_episodes`` builds the ro
 on every set, the Stage 1 view's included; a checkout that cannot import ``lookbar`` runs no monitor (the import
 error is raised).  The record names its episodes' maker (``episodes_by``: ``EPISODES_BY``).
 
+**R0L's baseline without a job** (ruling 17).  ``baseline`` takes a job's directory only to name the run in its
+record and to refuse a ``run.json`` that cannot be read; without one (``--out`` then names the directory) it makes the
+baseline that rule M3 commits as ``R0L_BASELINE.json`` before S2-4 starts (the gates' chain, step V8), and the
+trainer compares S2-4's own baseline with that file (``train2 run --expect-baseline``).
+
     python -m designlab.stage2.monitor2 run --job DIR --steps N --body B --set S [--k 5] [--tiny] [--also-k 0,..]
                                             [--sources SHA256] [--out DIR]
-    python -m designlab.stage2.monitor2 baseline --job DIR --body B --set S [--k 5] [--tiny] [--also-k 0,..]
-                                            [--sources SHA256] [--out DIR]
+    python -m designlab.stage2.monitor2 baseline [--job DIR] --body B --set S [--k 5] [--tiny] [--also-k 0,..]
+                                            [--sources SHA256] [--out DIR]     (--out is required without --job)
     python -m designlab.stage2.monitor2 s2-10 --job DIR [--committed-baseline PATH] [--out PATH]
 
 (also reachable as ``python -m designlab.stage2.train2 monitor ...``).  Exit code 0: the record was written (for
-``baseline``: and holds no error); 1: no usable record, with the reason on stderr; 8: the monitor refused to run
-(**Refusals**): no attempt was made.
+``baseline``: and holds no error); 1: no usable record, with the reason on stderr; 2: the arguments are wrong (no
+``--out`` for a baseline without a job, among others); 8: the monitor refused to run (**Refusals**): no attempt was
+made.
 """
 
 from __future__ import annotations
@@ -878,7 +884,9 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     for name in ("run", "baseline"):
         a = sub.add_parser(name, help="the checkpoint's episodes" if name == "run" else "R0L on the same episodes")
-        a.add_argument("--job", required=True, help="the job's directory (<root>/jobs/<job>)")
+        a.add_argument("--job", required=name == "run", default=None,
+                       help="the job's directory (<root>/jobs/<job>)" + ("" if name == "run" else
+                                                                        "; a baseline without a job needs --out"))
         if name == "run":
             a.add_argument("--steps", type=int, required=True)
         a.add_argument("--body", required=True)
@@ -887,12 +895,15 @@ def main(argv=None) -> int:
         a.add_argument("--tiny", action="store_true")
         a.add_argument("--also-k", default="", help="further delays, reported (rule M6), e.g. 0")
         a.add_argument("--sources", default=None, help="the trainer's sources hash")
-        a.add_argument("--out", default=None, help="default: <job>/monitor")
+        a.add_argument("--out", default=None, help="default: <job>/monitor" + ("" if name == "run" else
+                                                                                  " (required without --job)"))
     a = sub.add_parser("s2-10", help="S2-10's one record from a job's records")
     a.add_argument("--job", required=True)
     a.add_argument("--committed-baseline", default=None)
     a.add_argument("--out", default=None, help="default: <job>/S2_10.json")
     args = ap.parse_args(argv)
+    if args.cmd == "baseline" and args.job is None and args.out is None:  # (the lead's ruling 17 of 17 Nov 2026)
+        ap.error("baseline: without --job, --out names the directory of R0L's record")
     s2io.require_one_thread()
     note = steps = None
     try:

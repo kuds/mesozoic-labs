@@ -33,6 +33,8 @@ indirection to ``lookbar``, is replaced by such a table; no episode is run):
   refusal at a further delay (after the check's episodes) are none;
 * every set, the Stage 1 view's included, goes through ``lookbar``: the stand-in is deleted, and a checkout that
   cannot import ``lookbar`` runs no monitor on any set (the lead's ruling 17 of 17 Nov 2026);
+* ``monitor2 baseline`` runs without a job, its record and a refusal's note under ``--out``; without both it is an
+  argument error (ruling 17);
 * ``monitor2``'s table of rule M4 is the task table's (``r5lib.TASKS``' ``monitor`` fields).
 
 ``clip2`` renders a real clip from a Stage 1 trace in a child process (OSMesa and ffmpeg; skipped without them)
@@ -409,6 +411,33 @@ def test_the_other_exits_before_any_episode_are_refusals(monkeypatch, tmp_path):
     rec_path.write_text(json.dumps(rec))
     assert m2.main(run) == 0 and len(called) == 1 and not note.exists() and (mon / "monitor_512.json").is_file()
     assert m2.main(base) == 0 and len(called) == 2 and not base_note.exists() and (mon / "r0l.json").is_file()
+
+
+def test_the_baseline_runs_without_a_job(monkeypatch, tmp_path):
+    """The lead's ruling 17 of 17 Nov 2026: ``monitor2 baseline`` works without a job (the gates' chain makes the
+    R0L baseline that rule M3 commits before S2-4 starts): ``--out`` names the record's directory, and a refusal's
+    note goes there.  Without ``--job`` and without ``--out`` the arguments are wrong (exit code 2).  The trainer's
+    ``monitor`` entry is the same CLI."""
+    from designlab.stage2 import train2
+
+    called = []
+    monkeypatch.setattr(m2, "_episodes", lambda *a, **k: called.append(a) or table())
+    out = tmp_path / "s2-4-baseline"
+    own = train2.sources()["sha256"]
+    base = ["baseline", "--body", BODY, "--set", "V6", "--out", str(out)]
+    _cli_refused(base + ["--sources", "0" * 64], out / "r0l.refused.json", "sources", "the sources differ", called)
+    assert m2.main(base + ["--sources", own]) == 0 and not (out / "r0l.refused.json").exists()
+    doc = json.loads((out / "r0l.json").read_text())
+    assert doc["valid"] is True and (doc["job"], doc["run_uuid"], doc["run_id"]) == (None, None, None)
+    assert len(doc["episodes"]) == 18 and doc["sources"] == dict(given=own, own=own) and doc["row"] == "R0L@10ms"
+    assert len(called) == 1 and called[0][:3] == (BODY, "V6", "R0L@10ms") and called[0][4] is None
+    assert train2.main(["monitor"] + base) == 0 and len(called) == 2
+    with pytest.raises(SystemExit) as info:
+        m2.main(["baseline", "--body", BODY, "--set", "V6"])
+    assert info.value.code == 2
+    with pytest.raises(SystemExit) as info:
+        m2.main(["run", "--steps", "512", "--body", BODY, "--set", "V6", "--out", str(out)])
+    assert info.value.code == 2  # (a check needs its job)
 
 
 def _stub_rows(monkeypatch, rows=None, episodes=None):
