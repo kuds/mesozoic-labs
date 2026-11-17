@@ -11,6 +11,7 @@ of ``R0L`` against ``R0`` on the S1 view.
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import dataclasses
 import inspect
@@ -1259,9 +1260,11 @@ def test_episodes_on_the_fixture_set(t0, tmp_path, monkeypatch):
     g9 = passed_g9_ref(SET, t0)
     on = lookbar.episodes(BODY, SET, rows, PAIRS[:2], root=t0)
     assert [e["state_digest"] for e in on] == [e["state_digest"] for e in eps[:2]]  # the same episodes
-    # (the lead's ruling 31, point 5) the row carries the G9-ref record its episodes ran under, and its blocks hold it
+    # (the lead's ruling 31, point 5) the row carried the G9-ref record its episodes ran under, and its blocks hold
+    # it; when episodes is done the row holds what it held before (F2 of the check of LT, ruling 37)
     cite = dict(path=s2io.portable(str(g9.resolve())), sha256=s2io.sha256_file(g9))
-    assert lookbar.look_row_of(rows["R0L@10ms"]).g9_ref == cite and lookbar.look_row_of(rows["R0L@10ms"]).last["g9_ref"] == cite
+    assert lookbar.look_row_of(rows["R0L@10ms"]).last["g9_ref"] == cite
+    assert lookbar.look_row_of(rows["R0L@10ms"]).g9_ref is None
     assert lookbar.placed() == set()  # (nothing is placed once episodes is done)
     assert on[0]["succeeded"] is True and on[0]["succeeded_look"] is False and on[0]["failed_terms"] == ["look_bob", "look_head"]
     assert on[0]["reading_1"] == lookbar.READING_1["walk_turn"] and on[1]["succeeded_look"] is False
@@ -1844,16 +1847,20 @@ def test_the_g9_ref_check_is_gates2s(look_root, monkeypatch):
 @needs_one_thread
 def test_episodes_on_a_version_of_a_look_set_count_reading_1(look_root, tmp_path, monkeypatch):
     """The lead's ruling 31 of 17 Nov 2026, point 3: a version of a look set is a look set in ``episodes`` (reading 1
-    counts there), and its rows carry the G9-ref record's citation.  The set's reading and the bar's episode are
-    stood in (``open_set``, ``bar.run_episode``): nothing is simulated."""
+    counts there), and its rows carry the G9-ref record's citation while its episodes run; the same rows used again
+    on T0 carry none (F2 of the check of LT, ruling 37).  The set's reading and the bar's episode are stood in
+    (``open_set``, ``bar.run_episode``): nothing is simulated."""
     root, shas = look_root
     g9 = g9_ref_record("V6.2", shas["V6.2"])
     cond = types.SimpleNamespace(key="walk/v0.4", judge="bar_walk")
     monkeypatch.setattr(lookbar, "open_set", lambda *a, **k: dict(ctx=None, conds={"walk/v0.4": cond}, missing={}))
     monkeypatch.setattr(panels, "episode_seeds", lambda c, seed: dict(start=seed, noise=seed))
 
+    ran_under = []
+
     def run_episode(row, ctx, c, seed, **kw):
         lookbar.look_row_of(row).last = dict(block(seed), g9_ref=lookbar.look_row_of(row).g9_ref)
+        ran_under.append(lookbar.look_row_of(row).g9_ref)
         return bar_ep(seed)
 
     monkeypatch.setattr(bar, "run_episode", run_episode)
@@ -1862,7 +1869,8 @@ def test_episodes_on_a_version_of_a_look_set_count_reading_1(look_root, tmp_path
         (e,) = lookbar.episodes(BODY, set_name, rows, [("walk/v0.4", 3042)], root=root)
         assert e["outcome"] == "read" and (e["succeeded_look"] is not None) is counted, set_name
         assert e["reading_1"] == lookbar.READING_1["walk_turn" if counted else "not_counted"]
-    assert rows["R0L@10ms"].g9_ref == dict(path=s2io.portable(str(g9.resolve())), sha256=s2io.sha256_file(g9))
+    assert ran_under == [dict(path=s2io.portable(str(g9.resolve())), sha256=s2io.sha256_file(g9)), None]
+    assert rows["R0L@10ms"].g9_ref is None and rows["R0L@10ms"].placement is None
 
 
 @needs_one_thread
@@ -2064,7 +2072,9 @@ def test_a_built_look_set_turn_or_stop_joins_its_walk_within_its_step_and_nothin
 def test_a_spawned_worker_places_what_the_runner_planned(look6, tmp_path, monkeypatch):
     """A bar worker rebuilds the evaluation's rows from their specs in a fresh process: a look set's row carries the
     set's placement (``LookSetRule.stamp``) and the worker holds it for its life (``hold_for_life``), so it plans a
-    turn as the runner's context does; a spec without it plans the bar's own placement."""
+    turn as the runner's context does; a spec without it plans the bar's own placement.  (The spec is taken inside
+    the context, as ``bar.evaluate`` takes its rows' specs: at the context's end the row is given back what it held
+    before, F2 of the check of LT.)"""
     monkeypatch.setattr(gates2, "GATES", tmp_path / "gates")
     passed_g9_ref("V6", look6)
     planner, conds = look_planner(look6)
@@ -2073,6 +2083,9 @@ def test_a_spawned_worker_places_what_the_runner_planned(look6, tmp_path, monkey
         rule.require()
         rule.stamp(rows)  # (what the check does for bar.evaluate's own rows)
         placed_plan = planner.resolve(conds["turn/q90_right"])["plan"]
+        spec = rows["R0L@10ms"].spec()
+        cite = lookbar.look_row_of(rows["R0L@10ms"]).g9_ref
+    assert cite is not None and lookbar.look_row_of(rows["R0L@10ms"]).g9_ref is None
     own_plan = planner.resolve(conds["turn/q90_right"])["plan"]
     assert placed_plan != own_plan
     code = ("import json, sys\n"
@@ -2087,7 +2100,6 @@ def test_a_spawned_worker_places_what_the_runner_planned(look6, tmp_path, monkey
             "print(json.dumps(dict(plan=pl.resolve(cond)['plan'], placed=sorted(lookbar.placed()), "
             "g9_ref=lookbar.look_row_of(row).g9_ref)))\n")
     env = dict(os.environ, PYTHONPATH=".", MUJOCO_GL="disable", PYTHONDONTWRITEBYTECODE="1")
-    spec = rows["R0L@10ms"].spec()
     plain_spec = lookbar.rows(BODY, ["R0L@10ms"])["R0L@10ms"].spec()
     out = {}
     for name, sp in (("stamped", spec), ("plain", plain_spec)):
@@ -2097,8 +2109,180 @@ def test_a_spawned_worker_places_what_the_runner_planned(look6, tmp_path, monkey
         out[name] = json.loads(r.stdout.strip().splitlines()[-1])
     assert out["stamped"]["plan"] == plain(placed_plan) and out["plain"]["plan"] == plain(own_plan)
     assert out["stamped"]["placed"] == [list(rule.placement)] and out["plain"]["placed"] == []
-    assert out["stamped"]["g9_ref"] == lookbar.look_row_of(rows["R0L@10ms"]).g9_ref is not None
+    assert out["stamped"]["g9_ref"] == cite
     assert lookbar.placed() == set()  # (this process holds nothing: the context let go of it)
+
+
+# ------------------------------------------------------------------------------------------------
+# The placement alone (the lead's ruling 37 (b) of 17 Nov 2026) and the check of LT's F1 and F2 (ruling 37)
+# ------------------------------------------------------------------------------------------------
+@needs_run
+def test_the_placement_alone_places_a_look_sets_turns_and_stop_and_nothing_else(look6, t0, tmp_path, monkeypatch):
+    """``look_set_placement``: on a look set its planners place the turns and the two-step stop at join rule J1's
+    leave point as ``leave_resolve`` does, without the look sets' row rule (the bar's check stays the bar's) and
+    without any G9-ref record (there is none here); it yields the placement a worker holds; another set directory's
+    planner keeps the bar's own; it nests, and puts the bar's piece back at its end, also after an exception.  Off the
+    look sets (T0, V0, S1) it yields None and touches nothing: neither the planner piece nor the bar's check nor the
+    process's cached bar context.  ``look_set_rule`` places through it, where its rule applies.  The phase check now
+    reads the walk's file: a doctored ``a_time_s`` (with ``a_windows`` to match) is refused there (ruling 37 (c))."""
+    monkeypatch.setattr(gates2, "GATES", tmp_path / "gates")  # (empty: no G9-ref record of any set)
+    planner, conds = look_planner(look6)
+    own = {k: planner.resolve(conds[k]) for k in LEAVE_KEYS + ("walk/v0.4",)}
+    check, key = bar._check_rule, lookbar.placement_key("V6", BODY, setio.set_dir("V6", BODY, look6))
+    assert not gates2.gate_path("V6", BODY, "g9_ref").exists()
+    with lookbar.look_set_placement("V6", BODY, look6) as placement:
+        assert placement == lookbar.placement_of(key) == dict(set="V6", body=BODY, set_dir=key[2])
+        assert lookbar.placed() == {key} and bar._check_rule is check
+        got = {k: planner.resolve(conds[k]) for k in own}
+        elsewhere, _ = look_planner(look6)
+        elsewhere.set_dir = Path(str(elsewhere.set_dir) + "_elsewhere")
+        assert elsewhere.resolve(conds["turn/q90_left"]) == own["turn/q90_left"]
+        with lookbar.look_set_placement("V6", BODY, look6):
+            assert lookbar.placed() == {key}
+        assert lookbar.placed() == {key} and vars(bar.BarPlanner)["_resolve"] is lookbar._placed_resolve
+    assert got["walk/v0.4"] == own["walk/v0.4"]
+    for k in LEAVE_KEYS:
+        assert {x: y for x, y in got[k].items() if x != "files"} == lookbar.leave_resolve(planner, conds[k]), k
+        assert got[k]["files"] == own[k]["files"] and got[k]["plan"] != own[k]["plan"], k
+    assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
+    assert {k: planner.resolve(conds[k]) for k in own} == own
+    with pytest.raises(KeyError, match="inside"):
+        with lookbar.look_set_placement("V6", BODY, look6):
+            raise KeyError("inside")
+    assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
+    # off the look sets nothing is touched, not even a cached bar context of that set
+    released = []
+    for set_name, root in (("T0", t0), ("V0", setio.ROOT), ("S1", setio.ROOT)):
+        fake = types.SimpleNamespace(run_dir=setio.set_dir(set_name, BODY, root), release=lambda: released.append(1))
+        monkeypatch.setattr(bar, "_CONTEXT", dict(key="a test's", ctx=fake))
+        with lookbar.look_set_placement(set_name, BODY, root) as placement:
+            assert placement is None and lookbar.placed() == set() and bar._check_rule is check
+            assert vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
+    assert released == []
+    t0_planner, t0_conds = look_planner(t0, SET)
+    t0_out = {k: t0_planner.resolve(t0_conds[k]) for k in ("turn/q90_left", "stop/two_step")}
+    with lookbar.look_set_placement(SET, BODY, t0):
+        assert {k: t0_planner.resolve(t0_conds[k]) for k in t0_out} == t0_out
+    # on a look set its entry lets that set's cached bar context forget what it built (F1), and its end does not
+    # where nothing was placed (``_let_go``)
+    fake = types.SimpleNamespace(run_dir=setio.set_dir("V6", BODY, look6), release=lambda: released.append("V6"))
+    monkeypatch.setattr(bar, "_CONTEXT", dict(key="a test's", ctx=fake))
+    with lookbar.look_set_placement("V6", BODY, look6):
+        assert released == ["V6"]
+    assert released == ["V6"]
+    monkeypatch.undo()
+    # the look sets' rule places through it, where it applies
+    calls, real = [], lookbar.look_set_placement
+
+    @contextlib.contextmanager
+    def spy(*a):
+        calls.append(a)
+        with real(*a) as p:
+            yield p
+
+    monkeypatch.setattr(lookbar, "look_set_placement", spy)
+    with lookbar.look_set_rule("V6", BODY, ["R0L@10ms"], look6):
+        assert lookbar.placed() == {key}
+    with lookbar.look_set_rule("V6", BODY, ["R0@10ms"], look6):
+        assert lookbar.placed() == set()
+    assert calls == [("V6", BODY, look6)] and lookbar.placed() == set()
+    monkeypatch.undo()
+    # ruling 37 (c): the walk file's own phase, read by this module's phase check
+    bent, _ = look_planner(look6)
+    bent.tr_doc = copy.deepcopy(bent.tr_doc)
+    e = bent.tr_doc[conds["turn/q90_left"].move]["look"]
+    e["a_time_s"] += e["window_a"]["period_s"]
+    e["a_windows"] = e["a_time_s"] / e["window_a"]["window_s"]
+    with lookbar.look_set_placement("V6", BODY, look6):
+        with pytest.raises(tune.InputError, match="turn/q90_left: .*the walk file's own phase array reaches a_phase 2 "):
+            bent.resolve(conds["turn/q90_left"])
+
+
+@needs_run
+def test_a_spawned_worker_holds_the_placement_alone_for_its_life(look6):
+    """The placement ``look_set_placement`` yields, given to a fresh process (as a pool worker of R2L's fit is given
+    it), is held there for the process's life (``hold_for_life``): its planner plans the look set's turn as the
+    context does in this process."""
+    planner, conds = look_planner(look6)
+    with lookbar.look_set_placement("V6", BODY, look6) as placement:
+        want = planner.resolve(conds["turn/q90_right"])["plan"]
+    assert want != planner.resolve(conds["turn/q90_right"])["plan"]
+    code = ("import json, sys\n"
+            "from designlab.stage2 import bar, lookbar, setio\n"
+            "held = lookbar.hold_for_life(json.loads(sys.argv[1]))\n"
+            "d = setio.set_dir('V6', sys.argv[2], sys.argv[3])\n"
+            "docs = setio.load(d)\n"
+            "cond = next(c for c in bar.conditions(docs, every=True) if c.key == 'turn/q90_right')\n"
+            "pl = bar.BarPlanner(d, docs['refs.json']['references'], docs['transitions.json']['transitions'], "
+            "docs['set.json'])\n"
+            "print(json.dumps(dict(held=held, plan=pl.resolve(cond)['plan'], placed=sorted(lookbar.placed()))))\n")
+    env = dict(os.environ, PYTHONPATH=".", MUJOCO_GL="disable", PYTHONDONTWRITEBYTECODE="1")
+    r = subprocess.run([sys.executable, "-c", code, json.dumps(placement), BODY, str(look6)], cwd=ROOT, env=env,
+                       capture_output=True, text=True, timeout=600)
+    assert r.returncode == 0, r.stderr[-3000:]
+    out = json.loads(r.stdout.strip().splitlines()[-1])
+    assert out["held"] is True and out["plan"] == plain(want)
+    assert out["placed"] == [[placement["set"], placement["body"], placement["set_dir"]]]
+    assert lookbar.placed() == set()
+
+
+@needs_run
+def test_f1_a_turn_built_before_a_context_is_built_again_inside_it(look6):
+    """F1 of the check of LT (ruling 37 of 17 Nov 2026): a look set's turn built through ``open_set`` outside any
+    context (the process's cached bar context, ``bar.context_for``: the bar's whole windows) is not played inside
+    the look sets' rule or the placement alone: on entry the cached context of the set forgets it, so ``open_set``
+    inside gives the same context, which builds the placed turn, whose join is within the walk's own step."""
+    planner, conds = look_planner(look6)
+    cond = conds["turn/q90_right"]
+    want = lookbar.leave_resolve(planner, cond)
+    for enter in (lambda: lookbar.look_set_rule("V6", BODY, ["R0L@10ms"], look6),
+                  lambda: lookbar.look_set_placement("V6", BODY, look6)):
+        outside = lookbar.open_set(BODY, "V6", ["turn/q90_right"], look6)
+        before = outside["ctx"].built(cond)
+        assert before.plan[3] == ("ref", W, 2.5) and "leave" not in before.command
+        with enter():
+            inside = lookbar.open_set(BODY, "V6", ["turn/q90_right"], look6)
+            assert inside["ctx"] is outside["ctx"]  # (the process's one cached context)
+            b = inside["ctx"].built(cond)
+        assert b is not before and b.plan == want["plan"] and b.command["leave"] == want["command"]["leave"]
+        (j,) = [x for x in gates2.joins(b.track, len(b.p.joints), b.p.joints) if x["after"] == f"finite {cond.move}"]
+        assert j["ok"] and j["jump_rad"] < 1e-9, j
+    assert lookbar.placed() == set()
+
+
+def test_f2_the_rule_gives_the_rows_it_stamped_their_citation_and_placement_back(look_root, tmp_path):
+    """F2 of the check of LT (ruling 37 of 17 Nov 2026): the rows the look sets' rule stamps (the G9-ref citation and
+    the placement, ``LookSetRule.stamp``, also through the bar's own check) get back the values they held before when
+    the context ends, after an exception too; a row stamped twice gets its first values back."""
+    root, sha = look_root
+    g9_ref_record("V6", sha["V6"])
+    names = ["R0L@10ms", "R5/42@10ms"]
+    rows = {n: stand_in(n) for n in names}
+    earlier = (dict(path="an earlier record", sha256="0" * 64), dict(set="V6.2", body=BODY, set_dir="elsewhere"))
+    rows["R5/42@10ms"].g9_ref, rows["R5/42@10ms"].placement = copy.deepcopy(earlier)
+
+    def held():
+        return {n: (r.g9_ref, r.placement) for n, r in rows.items()}
+
+    before = held()
+    assert before == {"R0L@10ms": (None, None), "R5/42@10ms": earlier}
+    with lookbar.look_set_rule("V6", BODY, names, root) as rule:
+        rule.require()
+        rule.stamp(rows)
+        rule.stamp(rows)
+        cite = dict(path=rule.cited["path"], sha256=rule.cited["sha256"])
+        assert held() == {n: (cite, lookbar.placement_of(rule.placement)) for n in names}
+    assert held() == before
+    with pytest.raises(Reached, match="inside"):
+        with lookbar.look_set_rule("V6", BODY, names, root) as rule:
+            rule.require()
+            rule.stamp(rows)
+            raise Reached("inside")
+    assert held() == before
+    with lookbar.look_set_rule("V6", BODY, names, root) as rule:
+        assert bar_check("V6", names, tmp_path / "out", root, rows=rows) == "runs"
+        assert all(r.g9_ref == dict(path=rule.cited["path"], sha256=rule.cited["sha256"]) for r in rows.values())
+    assert held() == before
 
 
 def test_the_companion_names_the_g9_ref_record_its_episodes_ran_under(tmp_path):
