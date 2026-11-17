@@ -26,6 +26,7 @@ import inspect
 import json
 import math
 import os
+import shutil
 import subprocess
 import sys
 from dataclasses import replace
@@ -39,7 +40,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import designlab  # noqa: E402,F401  (selects the GL backend before mujoco is imported)
-from designlab import gait  # noqa: E402
+from designlab import gait, sizing  # noqa: E402
 from designlab.stage1 import control, refs, transitions  # noqa: E402
 from designlab.stage2 import look, moves, s2io, setio, sets  # noqa: E402
 from designlab.stage2 import moves_look as ml  # noqa: E402
@@ -129,7 +130,7 @@ def ctx() -> dict:
 # 1. Today's laws
 # ------------------------------------------------------------------------------------------------
 def test_rules_are_recorded(ctx):
-    assert set(ml.LOOK_RULE_IDS) | set(ml.JOIN_RULE_IDS) | {"S2L-periodic", "S2L-L13"} == set(ml.RULES)
+    assert set(ml.LOOK_RULE_IDS) | set(ml.JOIN_RULE_IDS) | {"S2L-periodic", "S2L-L13", "S2L-L1L4-start"} == set(ml.RULES)
     for key, text in {**ml.RULES, **sets.LOOK_RULES}.items():
         assert key.startswith("S2L-") and len(text) > 40
     assert "S2L-L9" not in ml.RULES  # rolling contact inside a move is not built (L11)
@@ -399,6 +400,110 @@ def test_l4_lift_peak_at_each_swing(ctx):
             assert pl.swing_u[k, j] == pytest.approx(lp, abs=1.5 / (b - a))
             n += 1
     assert n >= 10
+
+
+def _swing_peaks(pl) -> dict:
+    """(side, lift-off phase) -> swing_u at the highest frame of that swing, for every swing wholly in the plan."""
+    out = {}
+    for j, side in enumerate(transitions.SIDES):
+        z = pl.foot_pos[:, j, 2]
+        runs = np.flatnonzero(np.diff(np.concatenate([[0], pl.swing[:, j].astype(int), [0]])))
+        for a, b in zip(runs[::2], runs[1::2], strict=True):
+            if a == 0 or b == len(z):
+                continue
+            lo = next(s[1] for s in pl.swings if s[0] == side and abs(s[1] - pl.phase[a]) <= 1.0 / N + 1e-9)
+            out[(side, lo)] = (float(pl.swing_u[a + int(np.argmax(z[a:b])), j]), b - a)
+    return out
+
+
+@pytest.mark.parametrize("walk", ["nominal", "v0.4"])
+def test_l1_l4_in_a_start_mix_stage1s_start_in_by_the_amplitude_ramp(ctx, walk):
+    """STAGE2_TRACKB_PLAN.md "L1 and L4 in a start" (ruling 18): in a start (the stand to a walk; ``start`` and the
+    lead-in ``start_v0.4``) each swing's duty and lift peak are Stage 1's start's (duty 0.60, lift peak 0.5: Stage 1's
+    nominal walk under Stage 1's laws) mixed into the look walk's by the start's amplitude ramp sampled at the swing's
+    lift-off: x_stage1 + (x_look - x_stage1) amp, the look walk's exactly once amp is 1.  On the plan's arrays
+    (``swing``, ``phase``, ``foot_pos``, ``swing_u``), then the entry: ``move.rules`` names S2L-L1L4-start and
+    ``look.start_mix`` holds the numbers."""
+    src, geo, H = ctx["src"], ctx["geo"], ctx["H"]
+    g, w = (ctx["nominal"], ctx["wn"]) if walk == "nominal" else (ctx["v04"], ctx["wv"])
+    name = "start" if walk == "nominal" else setio.start_name(walk)
+    # Stage 1's start on the body: the stand to Stage 1's nominal walk, Stage 1's schedule and laws
+    s1 = moves.stage1(BODY, "start", H)
+    d1, lp1 = float(s1.schedule.fn["duty"](0.0)), float(s1.b.spec.lift_peak)
+    assert (d1, lp1) == (0.6, 0.5) and s1.b.spec == sizing.NOMINAL and s1.laws is moves.TODAY
+    u = np.linspace(0.0, 1.0, 41)
+    assert np.allclose([moves.TODAY.lift(x, None, None) for x in u], gait.lift_profile(u, lp1), rtol=0, atol=1e-15)
+    d_look, lp_look = g.legacy().duty, g.spec.lift_peak
+    assert d_look != d1 and lp_look == 0.375
+    bd = ml.start(src, name, g, w)
+    pl = moves.plan(bd.move, geo)
+    peaks = _swing_peaks(pl)
+    seen = []
+    for side, lo, td, *_ in pl.swings:
+        amp = float(transitions._ramp((lo + transitions.SHIFT_STRIDES) / (1.0 + transitions.SHIFT_STRIDES)))
+        if amp >= 1.0:  # the look walk's own swing, bit for bit
+            assert td == lo + 1.0 - d_look, (side, lo)
+            want_d, want_lp = d_look, lp_look
+        else:
+            want_d, want_lp = d1 + (d_look - d1) * amp, lp1 + (lp_look - lp1) * amp
+            assert 1.0 - (td - lo) == pytest.approx(want_d, abs=1e-12), (side, lo, amp)
+            seen.append(round(amp, 4))
+        sw = next(s for s in pl.swings if s[0] == side and s[1] == lo)
+        got = [bd.move.laws.lift(x, pl.ctx, sw) for x in u]
+        assert np.allclose(got, gait.lift_profile(u, want_lp), rtol=0, atol=1e-14), (side, lo)
+        if (side, lo) in peaks:  # the highest frame of the swing in the plan's feet
+            k_u, frames = peaks[(side, lo)]
+            assert k_u == pytest.approx(want_lp, abs=1.5 / frames), (side, lo)
+    assert seen == [0.0579, 0.6826]  # the first two swings (lift-offs 0 and 0.5) lie inside the ramp
+    first = pl.swings[0]
+    assert (first[2] - first[1]) * g.legacy().period > 0.95 * (1.0 - d1) * g.legacy().period  # nearly Stage 1's swing
+    # the entry: the rule, and the numbers
+    assert ml.START_RULE_ID == "S2L-L1L4-start" and "S2L-L1L4-start" in bd.move.rules
+    assert "S2L-L1L4-start" in ml.definition_of(moves.start(name, g))["rules"] and ml.RULES["S2L-L1L4-start"]
+    law = ml.stage1_start_law(BODY, H)
+    assert bd.bind.start_law == law and (law["duty"], law["lift_peak"], law["walk"]) == (0.6, 0.5, "nominal")
+    e = ml.entry_extra(bd, dict(plan=pl), dict(move=dict(command_phase=None), gates={}, pass_=True))
+    rec = e["look"]["start_mix"]
+    assert rec["rule"] == "S2L-L1L4-start" and rec["stage1"] == law and json.dumps(rec)
+    assert rec["look"] == dict(walk=g.name, duty=d_look, lift_peak=lp_look)
+    assert [(s["side"], s["lift_off_phase"]) for s in rec["swings"]] == [("left", 0.0), ("right", 0.5)]
+    for s in rec["swings"]:
+        amp = s["amp"]
+        assert s["duty"] == pytest.approx(d1 + (d_look - d1) * amp, abs=1e-15) == pytest.approx(s["duty_plan"], abs=1e-12)
+        assert s["lift_peak"] == pytest.approx(lp1 + (lp_look - lp1) * amp, abs=1e-15)
+
+
+def test_the_start_mix_is_no_other_moves_law(ctx, monkeypatch):
+    """Ruling 18 touches no other move: a change, the two stops, a turn and the turn in place's start (its own law,
+    L13) bind no Stage 1 law, name no S2L-L1L4-start and keep their schedule's own duty function, and their plans are
+    the plans of the code with the start's mix switched off, bit for bit.  ``start_mix`` is the identity at amp 1
+    and Stage 1's value at amp 0."""
+    src, geo, H = ctx["src"], ctx["geo"], ctx["H"]
+    n, v, wn, wv = ctx["nominal"], ctx["v04"], ctx["wn"], ctx["wv"]
+    inplace = moves.GaitX.of("inplace", sets.inplace_spec("V6", BODY, H), H, yaw_rate=0.5, in_place=True)
+    cases = [(moves.change("nominal_to_v0.4", n, v), wn, wv), (moves.change("nominal_to_v0.4", n, v, 2.0), wn, wv),
+             (moves.stop_two_step("stop2_v0.4", v), wv, None), (moves.stop_one_step("stop1_v0.4", v), wv, None),
+             (moves.turn("turn90_pi4_left", v, math.pi / 2, math.pi / 4, 0.8), wv, wv)]
+    bounds = [ml.bind_move(src, mv, wa, wb) for mv, wa, wb in cases] + [ml.hold_move(src, "start_inplace", inplace, 4)]
+    plans = [moves.plan(bd.move, geo) for bd in bounds]
+    for bd, (mv, *_ ) in zip(bounds, cases + [(None,)], strict=True):
+        assert bd.bind.start_law is None and "S2L-L1L4-start" not in bd.move.rules
+        if mv is not None:
+            assert bd.move.schedule.fn["duty"] is mv.schedule.fn["duty"], mv.name
+    monkeypatch.setattr(ml, "mixes_stage1_start", lambda move: False)
+    again = [moves.plan(ml.bind_move(src, mv, wa, wb).move, geo) for mv, wa, wb in cases]
+    again.append(moves.plan(ml.hold_move(src, "start_inplace", inplace, 4).move, geo))
+    for p1, p2 in zip(plans, again, strict=True):
+        for key in PLAN_ARRAYS:
+            assert _same(getattr(p1, key), getattr(p2, key)), (p1.name, key)
+    # the start itself does change (its first two swings)
+    st_off = moves.plan(ml.start(src, "start", n, wn).move, geo)
+    monkeypatch.undo()
+    st_on = moves.plan(ml.start(src, "start", n, wn).move, geo)
+    assert not _same(st_on.swing, st_off.swing) and _same(st_on.phase, st_off.phase)
+    d = n.legacy().duty
+    assert float(ml.start_mix(0.6, d, 1.0)) == d and float(ml.start_mix(0.6, d, 0.0)) == 0.6
+    assert float(ml.start_mix(0.6, d, 2.0)) == d and float(ml.start_mix(0.6, d, -0.5)) == 0.6
 
 
 def _bob_of(spec: gait.GaitSpec, H: float, phase: np.ndarray) -> np.ndarray:
@@ -1095,6 +1200,67 @@ def test_the_turn_in_places_names_and_optional_items_in_verify_and_status(tmp_pa
     assert st["items"]["stop_inplace_0.5_right"].startswith("not built (optional") and st["items"]["start"] == "missing"
     with pytest.raises(sets.SetError, match="no item or group"):
         sets.build("V6", BODY, tmp_path, only=["inplace_1_left"], procs=0)
+
+
+V6_60 = ROOT / "stage2" / "sets" / "V6" / "60-N-T-10"
+
+
+@pytest.mark.skipif(not (V6_60 / "set.json").is_file(), reason="the V6 set on 60-N-T-10 is not built")
+def test_a_passing_merge_does_not_lift_another_groups_stop_on_a_look_sets_records(tmp_path):
+    """The look sets' check, finding 3, as the fixer showed it (stage2/design/checkpoint/reviews/roundC__fix_L_17nov.md;
+    ruled 23): on a copy of V6/60-N-T-10's records, whose start and nominal_to_v0.4 both fail and whose ``blocked``
+    (older code's dict) names nominal_to_v0.4 alone, nominal_to_v0.4's group is merged again as if built within its
+    gates (no ``blocks_set``).  The set stays stopped by its start: ``blocked`` is a list naming it, verify says so;
+    then the start's group merged within its gates lifts the stop.  The committed records are not touched."""
+    d = setio.set_dir("V6", "60-N-T-10", tmp_path)
+    d.mkdir(parents=True)
+    for name in ("refs.json", "transitions.json", "set.json", "screen.json"):
+        shutil.copy2(V6_60 / name, d / name)
+    before = {n: (V6_60 / n).read_bytes() for n in ("refs.json", "transitions.json", "set.json")}
+    sd = json.loads((d / "set.json").read_text())
+    tr = json.loads((d / "transitions.json").read_text())["transitions"]
+    if not (isinstance(sd["blocked"], dict) and sd["blocked"]["by"] == "nominal_to_v0.4"
+            and tr["start"].get("available") is False and tr["nominal_to_v0.4"].get("available") is False):
+        pytest.skip("V6/60-N-T-10's records are no longer the ones the fixer's demo read (rebuilt)")
+    stopped = lambda: [x for x in sets.verify("V6", "60-N-T-10", tmp_path)["failures"]  # noqa: E731
+                       if x.startswith("the set is stopped")]
+    assert stopped() == [f"the set is stopped: {sd['blocked']['reason']} (it goes to the lead)"]  # the dict reads
+
+    def part(group: str) -> dict:  # the group's entries, standing for ones built within their gates
+        made = {n: {**e, "available": True, "file": f"transitions/{n}.npz", "sha256": "0" * 64}
+                for n, e in tr.items() if e.get("group") == group}
+        return dict(set="V6", body="60-N-T-10", item=group, refs={}, transitions=made, look_entries={},
+                    stride_rules={}, header=None, blocks_set=None, log=[])
+
+    sets.merge(d, part("nominal_to_v0.4"), log=lambda *a: None)
+    got = json.loads((d / "set.json").read_text())["blocked"]
+    assert [b["by"] for b in got] == ["start"] and got[0]["reason"].startswith("start: no transition within the gates")
+    assert stopped() == [f"the set is stopped: {got[0]['reason']} (it goes to the lead)"]
+    assert sets.status("V6", "60-N-T-10", tmp_path)["blocked"] == got
+    sets.merge(d, part("start"), log=lambda *a: None)
+    assert json.loads((d / "set.json").read_text())["blocked"] is None and stopped() == []
+    assert before == {n: (V6_60 / n).read_bytes() for n in before}
+
+
+@pytest.mark.skipif(not (V6_60 / "set.json").is_file(), reason="the V6 set on 60-N-T-10 is not built")
+def test_a_merge_into_a_look_set_built_before_a_rule_records_its_text(tmp_path):
+    """A look set built before S2L-L1L4-start existed gains the rule's text in ``transitions.json`` ``rules`` at its
+    next merge, so that a rebuilt start's ``move.rules`` names a rule its records state; a text already recorded is
+    left as it was."""
+    d = setio.set_dir("V6", "60-N-T-10", tmp_path)
+    d.mkdir(parents=True)
+    for name in ("refs.json", "transitions.json", "set.json"):
+        shutil.copy2(V6_60 / name, d / name)
+    old = json.loads((d / "transitions.json").read_text())
+    if "S2L-L1L4-start" in old["rules"]:
+        pytest.skip("V6/60-N-T-10's records already state S2L-L1L4-start (rebuilt)")
+    tr = old["transitions"]
+    made = {n: dict(e) for n, e in tr.items() if e.get("group") == "nominal_to_v0.4"}
+    sets.merge(d, dict(set="V6", body="60-N-T-10", item="nominal_to_v0.4", refs={}, transitions=made, look_entries={},
+                       stride_rules={}, header=None, blocks_set=None, log=[]), log=lambda *a: None)
+    rules = json.loads((d / "transitions.json").read_text())["rules"]
+    assert rules["S2L-L1L4-start"] == ml.RULES["S2L-L1L4-start"] and set(ml.RULES) <= set(rules)
+    assert {k: v for k, v in rules.items() if k != "S2L-L1L4-start"} == old["rules"]
 
 
 def test_the_turn_in_places_gait_is_verified_against_l13():

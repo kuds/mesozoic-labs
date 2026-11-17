@@ -287,3 +287,19 @@ LB16, CG2 and CN3 are merged as they stand. CT4 goes to a fix round.
     versions included) and runs its look-set records through `lookbar`'s context (ruling 16). The chain resumes V10
     with `--resume` only when `cma.json` exists, and the V10-collect step goes. The stale V3 note of
     `run_trackb.sh` is corrected.
+
+## The start's law (`checkpoint/reviews/roundC__{build,check}_LS_17nov.md`), ruled 17 Nov 2026, ~08:00 UTC
+
+Brought in by cherry-pick: the check found no defect, and with the new start law every start passes its gates on a
+scratch build (75 cm: knee 0.80, 0.85 and 0.79 of the limit; 60 cm: 0.92, 0.98 and 0.90).
+
+36. **The builder's points**, all accepted as built:
+    - The turn in place's start keeps its own law (L13), so it is not mixed.
+    - The start's mixed duty also times the bob's trough and the roll's phase in the first stride, as it does in a
+      change.
+    - `start_v0.4` takes the same mix from Stage 1's start into nominal (Stage 1 has no start into `v0.4`).
+    - The turn reasons are per direction on the look sets only.
+    - `blocks_in_records` stays, and so does the rule-text merge of 403987c6.
+    - The check's two low points go into the rebuild's code: `verify` also names a stop that `blocks_in_records`
+      shows and an older `blocked` leaves out, and a test builds with two processes so that the start and the
+      change are both named.
