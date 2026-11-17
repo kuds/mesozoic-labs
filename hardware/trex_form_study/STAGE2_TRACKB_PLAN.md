@@ -183,8 +183,10 @@ record (`sessions[].commit`, or `commit` in a gate's, a probe's or a fit's recor
   initialised, untrained `R5/42` against the env). None of it is a record, and none is an episode on a look set or a
   training run on a Stage 2 set. When the wording was written in (17 Nov 2026, from 04:19 UTC), the working branch (at
   `fccebe42`) held no look set, and its `stage2/tb/` directory held its ignore file, the notebook's steps sheet and its
-  requirements file, and no record. Branch `wt/wp-l` (at `2237ba9c`, its head when the writing-in began) held six look
-  sets' `set.json` files, `V6` on the four bodies and `V6noF5` on the two current heads, built by prescribed motion.
+  requirements file, and no record. Branch `wt/wp-l` (at `2237ba9c`, its head when it was read, 04:23 UTC on 17 Nov
+  [until the independent review of this writing-in: "its head when the writing-in began"; at 04:19 UTC its head was
+  `a024cbe8`, whose `stage2/sets/` is the same]) held six look sets' `set.json` files, `V6` on the four bodies and
+  `V6noF5` on the two current heads, built by prescribed motion.
   Each has `freezes` empty and is recorded as blocked (`blocked.by`): by its `start` for `V6` on `75-M-H-10` and on
   `75-M-H-10-X` and for `V6noF5` on `75-M-H-10`; by `nominal_to_v0.4` for `V6` on `60-N-T-10` and on `60-N-T-10-X` and
   for `V6noF5` on `60-N-T-10`. The first of them is commit `33652cb` of the bullet above (19:15:57 UTC on 16 Nov, before
@@ -193,7 +195,16 @@ record (`sessions[].commit`, or `commit` in a gate's, a probe's or a fit's recor
   `wt/wpc-cg`) and the look work package were at work in their own worktrees, which were not read. The writing-in was
   made with no episode, fit, training run or dry run. Beside reading the code that M1's note and the fourth amendment
   describe, it ran six of the monitor's tests, which stub every episode (`tests/test_stage2_monitor2.py`, those of its
-  refusals and of its baseline), and the line that prints the two record-key hashes.
+  refusals and of its baseline), and the line that prints the two record-key hashes. Its independent review ran the
+  monitor's tests (the whole file) and four of the trainer's on its refusals (`tests/test_stage2_train2.py`, on a stub
+  env and a stub monitor: no plant, no reference set), probes of those tests by mutation on a scratch copy of the code,
+  and the hashes line. The fix round after it merged the working branch again, twice: at `a5aac7a8`, which held the
+  follow-up before the acceptance run on the notebook, the trainer and the rows (merged at 05:16 UTC on 17 Nov), and at
+  `6c62f30e`, which held the gates package (merged at 05:25 UTC) and the lead's rulings 13 to 20 of 17 Nov 2026. It did
+  not read those packages' reports, and of their code only what M1's note and the fourth amendment describe. By the
+  lead's rulings of 05:27 UTC no look set was frozen and no closed-loop episode on one had been run. The fix round ran
+  the monitor's tests and those of the trainer's on its refusals and on moved sources, on the same stubs, a check of
+  its own text and the hashes line: no episode on a set, no fit, no training run on a Stage 2 set and no dry run.
 - Scratch experiments of 15 Nov on Stage 1's own run directory (`stage1/runs/2026-11-08`: stock references, no Stage 2
   set), by the architect and by the three reviewers of the design, on a stub env (Stage 1's env with the open-loop base
   in place of the tracker; Stage 1's observation and reward), one to six episodes per setting. They are scratch: none is
