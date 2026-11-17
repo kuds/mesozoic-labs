@@ -1,0 +1,27 @@
+2026-11-17T19:19:26Z /home/user/mesozoic-labs/hardware/trex_form_study/.venv/bin/python -m designlab.stage2.train2 run --mode R5 --body 75-M-H-10 --seed 42 --set V6 --out stage2/tb/work/local/s2-4 --run-id s2-4 --steps 2000000 --monitor-every 500000 --workers 3 --expect-baseline stage2/tb/runs/s2-4/R0L_BASELINE.json
+R5-75-M-H-10-s42: G8a's short form on set V6
+Traceback (most recent call last):
+  File "<frozen runpy>", line 203, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/user/mesozoic-wt/wp-p42/hardware/trex_form_study/designlab/stage2/train2.py", line 2285, in <module>
+    sys.exit(_named.main())
+             ~~~~~~~~~~~^^
+  File "/home/user/mesozoic-wt/wp-p42/hardware/trex_form_study/designlab/stage2/train2.py", line 2259, in main
+    doc = train(args.mode, args.body, args.seed, set_name=args.set, out=args.out, job=args.job, steps=args.steps,
+                resume=args.resume, workers=args.workers, monitor_every=args.monitor_every,
+    ...<4 lines>...
+                retry_check=args.retry_check, expect_baseline=args.expect_baseline,
+                log=lambda *x: print(*x, flush=True))
+  File "/home/user/mesozoic-wt/wp-p42/hardware/trex_form_study/designlab/stage2/train2.py", line 671, in train
+    expect_baseline=expect_baseline)).go()
+                                      ~~^^
+  File "/home/user/mesozoic-wt/wp-p42/hardware/trex_form_study/designlab/stage2/train2.py", line 804, in go
+    if self.gates and not (doc["gates"].get("g8a") or {}).get("passes") and not self._g8a():
+                                                                                ~~~~~~~~~^^
+  File "/home/user/mesozoic-wt/wp-p42/hardware/trex_form_study/designlab/stage2/train2.py", line 920, in _g8a
+    rec = s2io.plain(dict(schema="s2-run-g8a-1", job=self.job, run_uuid=self.doc["run_uuid"], tiny=self.tiny,
+                     ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                          **res, session=self.k, at=s2io.now_utc()))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: dict() got multiple values for keyword argument 'at'
+2026-11-17T19:19:58Z exit 1
