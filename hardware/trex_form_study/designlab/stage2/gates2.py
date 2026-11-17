@@ -168,8 +168,10 @@ RULES = dict(
         + MODULE_READING +
         "the gate's form is the ten conditions x two seeds x two delays with no cut (complete); a record of fewer "
         "(--conditions, --seeds, --delays, --cut-s) is a check of the command and says so (complete false): its "
-        "exit code is that of the episodes it ran.  On the Stage 1 view the development form g8a.stock on "
-        "monitor2.S1_CONDITIONS stands in (no bar set exists there)."),
+        "exit code is that of the episodes it ran, and it is refused (nothing runs) when its record would lie under "
+        "stage2/tb/gates/, where only the gate's form is written (Z1's check reads that record).  On the Stage 1 "
+        "view the development form g8a.stock on monitor2.S1_CONDITIONS stands in (no bar set exists there; it is "
+        "never the gate's form)."),
     z2_ref=(
         "STAGE2_TRACKB_PLAN rule Z2, G9-ref (kinematic only; before the first closed-loop episode on the set and "
         "body): (a) every frozen reference played kinematically at the commanded clock passes its own item's "
@@ -192,15 +194,24 @@ RULES = dict(
         "The gates list each item's reference toe-off and its side of 0.02 rad (the lead's ruling 7 of 16 Nov "
         "2026).  "
         + MODULE_READING +
+        "G9-ref reads a frozen set (any set but the Stage 1 view): an unfrozen set is refused, and every file "
+        "parts (b) and (c) play, and the comparand's walks, is checked against the latest freeze "
+        "(setio.read_inputs, require_frozen) before anything is played (a file that differs is refused); the "
+        "record lists them with their sha256 and those (f)'s library read (inputs).  "
         "(a) cites the refcheck record the set's latest freeze cites when its sha256 is the cited one, else the "
         "set directory's refcheck.json when every file it read has the latest freeze's sha256, else bar.refcheck "
-        "is run; an item that fails names its own reference (a walk item its walk, a turn or stop item its move) "
-        "and a failing walk/nominal or walk/v0.4 item blocks.  (b) plays each walk alone (whole windows of its "
+        "is run; whichever record is read, one given by path included, must be of the set and body and every file "
+        "it read must have the latest freeze's sha256, else (a) is not read and blocks.  An item that fails names "
+        "its own reference (a walk item its walk, a turn or stop item its move) and a failing walk/nominal or "
+        "walk/v0.4 item blocks; the start is played by every item and alone by none, so a failing start is read "
+        "through the walk/nominal item (the start and the nominal walk alone) and blocks through it.  (b) plays "
+        "each walk alone (whole windows of its "
         "file) over the reference times [2.0, 2.0 + 10 x 1.05] s through lookread.playback; a rung's walk is the "
         "entry whose ladder_twin names the rung, else nominal and v0.4 by name; its numbers are compared with "
         "the ladder rung its entry names as its twin (the rung of L1_FREEZE where it names none); a rung of the "
         "ladder the set does not hold fails (b) for nominal and v040 and is listed for any other.  An -X body's "
-        "and V6noF5's walks are compared by name with the comparand set's walks of the same name.  The items "
+        "and V6noF5's walks are compared by name with the comparand set's walks of the same name (the comparand's "
+        "files cited by path and their own sha256).  The items "
         "are the bar's walk and turn conditions at mu 0.9 that the set holds (a mu 0.54 item plays the same "
         "track).  (c) is made on the playbacks of the walks nominal and v0.4, with lookread.controls' window "
         "(the lead of lookread.LEAD_S before it).  (f): a reference no reference check plays is one that no "
@@ -224,8 +235,9 @@ RULES = dict(
         "clock reading (stage1_toe_clearance_m), finite in every walk and turn episode of every 10 ms bar record "
         "that reached its window (a record none of whose episodes reached it is listed).  The records expected "
         "are those of every gated condition the set holds a reference for, and walk/nominal.  (e) cites the "
-        "reread record given: schema bar-reread-1 of 60-N-T-10, complete, every trace equal; the -X head cites "
-        "the plain body's."),
+        "reread record given: schema bar-reread-1 of 60-N-T-10, its rows all 10 ms rows (names ending @10ms) "
+        "and its conditions all turns (keys beginning turn/), complete, every trace equal; the -X head cites the "
+        "plain body's."),
     k3=(
         "STAGE2_TRACKB_PLAN rule K3: on this machine, with one set of library versions, on the real env: "
         "75-M-H-10, set V6, R5, seed 42, 8 envs, n_steps 1024, a checkpoint every 32,768 steps, 131,072 steps in "
@@ -241,7 +253,13 @@ RULES = dict(
         "unless given.  The kill is made by this process at its first reading of the killed run's progress.json "
         "at or past 81,920 steps (read every 20 ms); a reading past it is no kill as ruled and that run is made "
         "again.  A run that was interrupted otherwise (a restart of the machine) is moved aside and made again: "
-        "the uninterrupted run has one session, the killed run two.  Compared, on every checkpoint both runs "
+        "the uninterrupted run has one session, the killed run two.  A run already on disk is reused only when its "
+        "run.json's settings are the ones asked (mode, body, seed, set, 8 envs and n_steps 1024 as the trainer "
+        "records them, tiny, gates, the checkpoint and check intervals, the budget, the config and PPO overrides, "
+        "the starting rate and the filter, as train2 resolves them from the validation records when not given); "
+        "otherwise it is moved aside and made again, and the record lists what differed.  The trainer is refused "
+        "before any run when it would not run 8 envs of 1024 steps.  Pass also needs both runs' settings_sha256 "
+        "equal and each run's settings the ones asked.  Compared, on every checkpoint both runs "
         "hold after the resumed step (the final one among them): the archive's policy.pth, "
         "policy.optimizer.pth and pytorch_variables.pth tensors, the VecNormalize statistics (observation and "
         "return running mean, variance and count, and the wrapper's clip and gamma), loaded through "
@@ -269,7 +287,9 @@ RULES = dict(
         "factor in [0.75, 1.25], the observation and the reward finite; a mid-task start: the history and the "
         "filter hold the reference's actions and the targets are the reference's (design D8), then up to 50 "
         "zero-action steps under the same checks; then a tiny R6 training run of 2 rollouts (8 x 64 steps each, "
-        "gates off) that ends done with its final checkpoint's fingerprint reproduced.  Rule X1: on the view S1"),
+        "gates off) that ends done with its final checkpoint's fingerprint reproduced; a run already under the "
+        "work directory is reused only when its run.json's settings are this one's (R6, the body, the set, seed "
+        "42, tiny, gates off, the budget), else it is moved aside and made again.  Rule X1: on the view S1"),
     x1=(
         "STAGE2_TRACKB_PLAN rule X1: on a look set, for each body and head, no closed-loop episode before G9-ref "
         "passed; between G9-ref and S2-4's start only Z1's episodes, R0L's baseline and panel records, Z2's "
@@ -352,6 +372,15 @@ def gate_path(set_name: str, body: str, name: str) -> Path:
     return GATES / set_name / body / f"{name}.json"
 
 
+def _under(path, directory) -> bool:
+    """Whether ``path`` lies under ``directory`` (both resolved)."""
+    try:
+        Path(path).resolve().relative_to(Path(directory).resolve())
+    except ValueError:
+        return False
+    return True
+
+
 def _set_root(root):
     from designlab.stage2 import setio
 
@@ -419,10 +448,16 @@ def g8a(body: str, set_name: str, record=None, *, conditions=None, seeds=None, d
     seed, delay and first differing physics step."""
     s2io.require_one_thread()
     g9 = require_g9_ref(body, set_name, g9_ref, root)
-    from designlab.stage2 import g8a as G
-
     seeds = tuple(int(s) for s in (seeds or G8A_SEEDS))
     delays = tuple(int(k) for k in (delays if delays is not None else G8A_DELAYS))
+    gate_form = (set_name != STOCK_SET and tuple(conditions or G8A_CONDITIONS) == G8A_CONDITIONS
+                 and seeds == G8A_SEEDS and delays == G8A_DELAYS and cut_s is None)
+    if record is not None and not gate_form and _under(record, GATES):
+        raise Refused(f"{s2io.portable(str(Path(record).resolve()))}: a record of fewer conditions, seeds or delays, a "
+                      "cut, or the Stage 1 view's form is a check of the command, never rule Z1's record: it is not "
+                      f"written under {s2io.portable(str(GATES.resolve()))}/ (write it elsewhere)")
+    from designlab.stage2 import g8a as G
+
     t0 = time.perf_counter()
     if set_name == STOCK_SET:
         from designlab.stage2 import monitor2
@@ -523,9 +558,11 @@ class _SetView:
         from designlab.stage2 import r5lib, setio
 
         self.body, self.set = body, set_name
+        self.view_files = None
         if set_name == STOCK_SET:
             self.dir = setio._anchored(r5lib.s1_root(body)) / body
-            _, docs = setio.stage1_view(self.dir.parent, body)
+            view, docs = setio.stage1_view(self.dir.parent, body)
+            self.view_files = view["files"]
             self.set_doc, self.crouch = {}, r5lib.S1_CROUCH
             self.docs = dict(docs, **{"set.json": None})
         else:
@@ -563,8 +600,24 @@ class _SetView:
                                  WALK_TA_REF + lookread.RATE * WALK_WINDOW_S)
 
 
+def _freeze_files(v: _SetView) -> dict:
+    """``{file: sha256}`` of the set's latest freeze (an entry's file under its kind's directory)."""
+    from designlab.stage2 import setio
+
+    return {f"{'refs' if e.get('kind') in setio.WALK_KINDS else 'transitions'}/{n}.npz": e.get("sha256")
+            for n, e in ((v.freeze or {}).get("entries") or {}).items()}
+
+
+def _refcheck_files_match(doc: dict | None, v: _SetView) -> bool:
+    """Whether every file a refcheck record read has the sha256 the set's latest freeze holds for it."""
+    files = ((doc or {}).get("inputs") or {}).get("files") or {}
+    want = _freeze_files(v)
+    return bool(files) and all(want.get(f) == (x or {}).get("sha256") for f, x in files.items())
+
+
 def _refcheck_record(v: _SetView, record_dir, refcheck=None, run=True) -> tuple[dict | None, dict]:
-    """Part (a)'s record and how it was found (``RULES["z2_ref"]``'s reading)."""
+    """Part (a)'s record and how it was found (``RULES["z2_ref"]``'s reading); ``files_match_freeze``: whether
+    every file it read has the latest freeze's sha256 (for every source, a record given by path included)."""
     from designlab.stage2 import bar
 
     study = s2io.STUDY
@@ -572,34 +625,72 @@ def _refcheck_record(v: _SetView, record_dir, refcheck=None, run=True) -> tuple[
     if refcheck is not None:
         p = Path(refcheck)
         doc = _read(p)
-        return doc, dict(source="given", **(cite(p) if p.is_file() else dict(path=str(p), sha256=None)))
-    fz_entries = (v.freeze or {}).get("entries") or {}
+        return doc, dict(source="given", files_match_freeze=_refcheck_files_match(doc, v),
+                         **(cite(p) if p.is_file() else dict(path=str(p), sha256=None)))
     last = (v.set_doc.get("freezes") or [{}])[-1] if v.set_doc.get("freezes") else {}
     c = last.get("refcheck") or {}
     if c.get("file"):
         p = study / c["file"]
         if p.is_file() and s2io.sha256_file(p) == c.get("sha256"):
-            return _read(p), dict(source="cited by the set's latest freeze", **cite(p))
+            doc = _read(p)
+            return doc, dict(source="cited by the set's latest freeze", files_match_freeze=_refcheck_files_match(doc, v),
+                             **cite(p))
         tried.append(f"the latest freeze cites {c['file']} with another sha256 or it is not here")
     p = v.dir / "refcheck.json"
     if p.is_file():
         doc = _read(p) or {}
-        files = ((doc.get("inputs") or {}).get("files") or {})
-        want = {f"{'refs' if (e.get('kind') == 'walk') else 'transitions'}/{n}.npz": e.get("sha256")
-                for n, e in fz_entries.items()}
-        same = bool(files) and all(want.get(f) == (x or {}).get("sha256") for f, x in files.items())
-        if same:
-            return doc, dict(source="the set directory's refcheck.json (its files are the latest freeze's)", **cite(p))
+        if _refcheck_files_match(doc, v):
+            return doc, dict(source="the set directory's refcheck.json (its files are the latest freeze's)",
+                             files_match_freeze=True, **cite(p))
         tried.append("the set directory's refcheck.json read other files than the latest freeze's")
     if not run:
         return None, dict(source="none", tried=tried)
     out = None if record_dir is None else Path(record_dir) / "refcheck"
     doc = bar.refcheck(v.set, v.body, v.dir.parent.parent, out=out, log=lambda *a: None)
+    match = _refcheck_files_match(doc, v)
     if out is None:
         return doc, dict(source="bar.refcheck, run by this gate (not written: no record)", path=None,
-                         sha256=s2io.sha256_json(doc), tried=tried)
+                         sha256=s2io.sha256_json(doc), files_match_freeze=match, tried=tried)
     p = out / v.set / v.body / "refcheck.json"
-    return doc, dict(source="bar.refcheck, run by this gate", **cite(p), tried=tried)
+    return doc, dict(source="bar.refcheck, run by this gate", files_match_freeze=match, **cite(p), tried=tried)
+
+
+def played_files(v: _SetView, items: bool = True) -> list[str]:
+    """The files G9-ref's parts (b) and (c) play on a set: the nominal walk's (the LIPM frequency), every walk's,
+    and (``items``) those of every walk and turn item at mu 0.9 the bar's planner resolves there."""
+    from designlab.stage2 import bar, setio
+
+    files = {f"refs/{setio.NOMINAL}.npz"} | {v.refs[n]["file"] for n in v.walks()}
+    if items and v.set != STOCK_SET:
+        planner = bar.BarPlanner(v.dir, v.refs, v.trs, v.set_doc)
+        for c in bar.conditions(v.docs, every=True):
+            if c.judge not in ("bar_walk", "bar_turn") or c.friction is not None or planner.missing(c) is not None:
+                continue
+            try:
+                files.update(planner.resolve(c)["files"])
+            except Exception:  # noqa: BLE001 - part (b) records that item's fault
+                continue
+    return sorted(files)
+
+
+def inputs_of(v: _SetView, files) -> dict:
+    """``{files: {file: {sha256, entry_sha256}}, freeze}`` of ``files`` on the set, each checked against the set's
+    latest freeze (``setio.read_inputs``, ``require_frozen``); ``Refused`` for a set that is not frozen or a file
+    that is not the freeze's.  On the Stage 1 view: its files as ``setio.stage1_view`` hashed them (no freeze)."""
+    from designlab.stage2 import setio
+
+    files = sorted(set(files))
+    if v.set == STOCK_SET:
+        missing = [f for f in files if f not in (v.view_files or {})]
+        if missing:
+            raise Refused(f"S1/{v.body}: {', '.join(missing)} not listed by the Stage 1 view")
+        return dict(files={f: dict(v.view_files[f]) for f in files}, freeze=None)
+    try:
+        rec, _ = setio.read_inputs(v.dir, files, require_frozen=True)
+    except setio.tune.InputError as exc:
+        raise Refused(f"{v.set}/{v.body}: {exc}: G9-ref plays the set's latest freeze only (rule Z2: every frozen "
+                      "reference)") from None
+    return dict(files=rec["files"], freeze=rec["freeze"])
 
 
 def part_a(v: _SetView, record_dir=None, refcheck=None) -> dict:
@@ -620,15 +711,19 @@ def part_a(v: _SetView, record_dir=None, refcheck=None) -> dict:
         refs_out.append(dict(item=k, reference=ref, failing=sorted(t for t, ok in (x.get("ok") or {}).items() if not ok)))
     blocked = sorted(k for k in failing if k in BLOCKING_ITEMS)
     same_set = (doc.get("set"), doc.get("body")) == (v.set, v.body)
-    ok = bool(same_set and doc.get("pass_"))
+    files_ok = how.get("files_match_freeze") is True
+    ok = bool(same_set and files_ok and doc.get("pass_"))
     followed = ("none: every reference passes its own item" if ok else
+                "the reference check cited is not of this set and body or did not read the latest freeze's files: "
+                "(a) is not read; it goes to the lead" if not (same_set and files_ok) else
                 "blocked: a failing walk/nominal or walk/v0.4 item blocks the body and head; it goes to the lead"
                 if blocked else "the failing items' references are treated as not available (rule T2, H3) and "
                                 "go to the lead")
     return dict(_doc=doc, ok=ok, applies=True, refcheck=how, schema=doc.get("schema"), refcheck_pass=doc.get("pass_"),
-                same_set_and_body=same_set, items={k: dict(status=x.get("status"), pass_=x.get("pass_"),
-                                                            ok=x.get("ok")) for k, x in items.items()},
-                not_available=refs_out, blocked=blocked, blocks=bool(blocked or not same_set), followed=followed)
+                same_set_and_body=same_set, files_match_freeze=files_ok,
+                items={k: dict(status=x.get("status"), pass_=x.get("pass_"), ok=x.get("ok")) for k, x in items.items()},
+                not_available=refs_out, blocked=blocked, blocks=bool(blocked or not same_set or not files_ok),
+                followed=followed)
 
 
 def _ladder() -> tuple[dict, dict, dict]:
@@ -693,8 +788,8 @@ def part_b(v: _SetView, comparand: _SetView | None = None) -> dict:
                                        ok=bool(a["ok"] and hash_ok))
     elif comparand is not None:
         out["comparand"] = dict(set=comparand.set, body=comparand.body,
-                                files={n: dict(path=s2io.portable(str((comparand.dir / comparand.refs[n]["file"]).resolve())),
-                                               sha256=comparand.refs[n].get("sha256"))
+                                files={n: dict(cite(comparand.dir / comparand.refs[n]["file"]),
+                                               entry_sha256=comparand.refs[n].get("sha256"))
                                        for n in comparand.walks()})
         for n in readings:
             if n not in comparand.walks():
@@ -885,6 +980,8 @@ def part_f(v: _SetView, refcheck_doc: dict | None = None) -> dict:
         out["tasks"][t] = dict(available=True, joins=js, max_jump_rad=worst, joins_ok=all(j["ok"] for j in js),
                                zero_action_s=ZERO_ACTION_S, zero_action_finite=finite,
                                ok=bool(finite and all(j["ok"] for j in js)))
+    lin = lib.inputs
+    out["library_inputs"] = dict(files=lin["files"], freeze=lin["freeze"])
     oks = [x["ok"] for x in out["unplayed"].values()] + [x["ok"] for x in out["tasks"].values()]
     out["max_jump_rad"] = max((x.get("max_jump_rad", 0.0) for x in out["tasks"].values()), default=0.0)
     out["join_tol_rad"] = JOIN_TOL_RAD
@@ -897,13 +994,21 @@ def g9_ref(body: str, set_name: str, record=None, *, root=None, refcheck=None) -
     s2io.require_one_thread()
     t0 = time.perf_counter()
     v = _SetView(body, set_name, root)
-    rdir = None if record is None else Path(record).parent
-    a = part_a(v, rdir, refcheck)
+    if set_name != STOCK_SET and v.freeze is None:
+        raise Refused(f"{set_name}/{body}: the set is not frozen (set.json has no freeze): G9-ref reads a frozen "
+                      "set's references (rule Z2: every frozen reference)")
     comparand = None
     if set_name != STOCK_SET and (body.endswith("-X") or set_name == NO_TOE_OFF_SET):
         cb = body[:-2] if body.endswith("-X") else body
         cs = "V6" if set_name == NO_TOE_OFF_SET else set_name
         comparand = _SetView(cb, cs, root)
+        if comparand.freeze is None:
+            raise Refused(f"{cs}/{cb} (the comparand): the set is not frozen (set.json has no freeze)")
+    # every file (b) and (c) play, and the comparand's walks, checked against the latest freeze before any is played
+    inputs = inputs_of(v, played_files(v))
+    comparand_inputs = None if comparand is None else inputs_of(comparand, played_files(comparand, items=False))
+    rdir = None if record is None else Path(record).parent
+    a = part_a(v, rdir, refcheck)
     b = part_b(v, comparand)
     c = part_c(v)
     f = part_f(v, a.pop("_doc", None))
@@ -918,10 +1023,13 @@ def g9_ref(body: str, set_name: str, record=None, *, root=None, refcheck=None) -
         followed = ("no closed-loop episode runs on this set and body; it goes to the lead"
                     + ("" if a["ok"] else f"; (a): {a['followed']}"))
     fz = v.freeze
+    lib_inputs = f.pop("library_inputs", None)
     out = dict(schema=SCHEMAS["g9_ref"], gate="G9-ref", rule=RULES["z2_ref"], body=body, set=set_name,
                form="development (S1)" if not applies else ("V6noF5" if set_name == NO_TOE_OFF_SET else
                                                              "-X" if body.endswith("-X") else "plain"),
                set_freeze=None if fz is None else dict(index=fz["index"], manifest_sha256=fz["manifest_sha256"]),
+               inputs=dict(played=inputs, library=lib_inputs, comparand=None if comparand is None else dict(
+                   set=comparand.set, body=comparand.body, **comparand_inputs)),
                parts=dict(a=a, b=b, c=c, f=f), parts_ok=parts_ok, pass_=passes, followed=followed,
                kinematic_only=True, sources=sources(), **provenance([record, None if rdir is None else rdir / "refcheck"]),
                wall_s=time.perf_counter() - t0, at=s2io.now_utc())
@@ -1054,7 +1162,11 @@ def part_e(body: str, stage1b_reread=None) -> dict:
         return dict(applies=True, ok=False, reason="no reread record given (round A's `bar reread` of 60-N-T-10's "
                                                    "Stage 1b 10 ms turn episodes: --stage1b-reread PATH)")
     doc = _read(stage1b_reread) or {}
+    rows, conds = doc.get("rows"), doc.get("conditions")
     checks = dict(schema=doc.get("schema") == "bar-reread-1", body=doc.get("body") == STAGE1B_BODY,
+                  rows_10ms=bool(isinstance(rows, list) and rows and all(str(r).endswith(f"@{RUN_MS}ms") for r in rows)),
+                  turn_conditions=bool(isinstance(conds, list) and conds
+                                       and all(str(c).startswith("turn/") for c in conds)),
                   complete=doc.get("complete") is True, traces_equal=bool(doc.get("pass_") is True and doc.get(
                       "traces") and doc.get("traces_equal") == doc.get("traces")))
     return dict(applies=True, record=cite(stage1b_reread), cited_for=body, of_body=doc.get("body"),
@@ -1397,6 +1509,57 @@ def _running(job_dir: Path) -> int | None:
     return int(pid) if "designlab.stage2" in cmd and int(pid) != os.getpid() else None
 
 
+def k3_asked(s: dict, body: str, set_name: str, lr=None, config=None) -> dict:
+    """The settings kill-resume asks of each of its runs, as ``train2`` records them in ``run.json``
+    ``settings`` (``RULES["k3"]``'s reading): ``s`` (``K3``, ``K3_TINY`` or a test's), the body and set, and the
+    starting rate and filter the trainer takes when they are not given (``train2._validation``: rules O3, O4).
+    ``Refused`` when the trainer cannot run ``s``'s number of envs or rollout length."""
+    from designlab.stage2 import train2
+
+    ppo = dict(s.get("ppo") or {})
+    tiny = bool(s["tiny"])
+    n_steps = int(ppo.get("n_steps", train2.TINY["n_steps"] if tiny else train2.N_STEPS))
+    if train2.N_ENVS != int(s["n_envs"]) or n_steps != int(s["n_steps"]):
+        raise Refused(f"the settings ask {s['n_envs']} envs of {s['n_steps']} steps per rollout; the trainer runs "
+                      f"{train2.N_ENVS} envs of {n_steps}: no run is made (rule K3 fixes both)")
+    ck, mon = int(s["checkpoint_every"]), int(s["monitor_every"])
+    if tiny:  # (as train2: the tiny run's intervals stand in for the trainer's defaults)
+        ck = train2.TINY["checkpoint_every"] if ck == train2.CHECKPOINT_EVERY else ck
+        mon = train2.TINY["monitor_every"] if mon == train2.MONITOR_EVERY else mon
+    val = train2._validation(body, set_name)
+    cfg = dict(config or {})
+    if lr is not None:
+        lr_start = float(lr)
+    elif val.get("lr_probe"):
+        lr_start = float(val["lr_probe"]["rate"])
+    else:
+        lr_start = float(train2.TINY["lr"]) if tiny else None
+    hz = cfg.get("filter_hz", (val.get("filter") or {}).get("filter_hz"))
+    rollout = train2.N_ENVS * n_steps
+    return dict(mode=s["mode"], body=body, seed=int(s["seed"]), set=set_name, n_envs=int(s["n_envs"]), n_steps=n_steps,
+                tiny=tiny, gates=bool(s["gates"]), checkpoint_every=ck, monitor_every=mon, config=s2io.plain(cfg),
+                ppo_overrides=s2io.plain(ppo), budget=-(-int(s["steps"]) // rollout) * rollout, lr_start=lr_start,
+                filter_hz=None if hz is None else float(hz))
+
+
+def run_settings_problems(doc: dict | None, asked: dict) -> list[str]:
+    """Every way a run's ``run.json`` ``settings`` differ from ``asked`` (``k3_asked``); [] when they are the ones
+    asked.  A starting rate that cannot be asked (none given, no probe record, not tiny) is a difference."""
+    s = (doc or {}).get("settings") or {}
+    got = {k: s.get(k) for k in ("mode", "body", "seed", "set", "n_envs", "n_steps", "tiny", "gates",
+                                 "checkpoint_every", "monitor_every", "budget")}
+    got.update(config=s.get("config") or {}, ppo_overrides=s.get("ppo_overrides") or {},
+               lr_start=(s.get("lr") or {}).get("start"))
+    out = [f"{k}: {got[k]!r} (asked {asked[k]!r})" for k in got if got[k] != asked[k]]
+    if asked["lr_start"] is None:
+        out.append("lr_start: no starting rate is asked (no --lr, no lr_probe.json rate, not tiny)")
+    if asked["filter_hz"] is not None:
+        hz = sorted({c.get("filter_hz") for c in s.get("env_configs") or [] if isinstance(c, dict)}, key=str)
+        if hz != [asked["filter_hz"]]:
+            out.append(f"filter_hz: {hz!r} (asked {asked['filter_hz']!r})")
+    return out
+
+
 def _aside(path: Path) -> Path:
     k = 0
     while True:
@@ -1420,6 +1583,7 @@ def kill_resume(body: str, set_name: str, out, record=None, *, tiny=False, setti
     from designlab.stage2 import train2
 
     s = dict(K3_TINY if tiny else K3, **(settings or {}))
+    asked = k3_asked(s, body, set_name, lr, config)
     out = Path(out)
     roots = dict(uninterrupted=out / "uninterrupted", killed=out / "killed")
     job = train2.job_name(s["mode"], body, s["seed"])
@@ -1451,8 +1615,11 @@ def kill_resume(body: str, set_name: str, out, record=None, *, tiny=False, setti
 
     # --- the uninterrupted run (one session)
     d = run_doc("uninterrupted")
-    if d is not None and not (d.get("status") == "done" and len(d.get("sessions") or []) == 1):
+    why = [] if d is None else run_settings_problems(d, asked)
+    if d is not None and (why or not (d.get("status") == "done" and len(d.get("sessions") or []) == 1)):
         runs["uninterrupted_discarded"] = s2io.portable(str(_aside(roots["uninterrupted"])))
+        if why:
+            runs["uninterrupted_discarded_settings"] = why
         d = None
     if d is None:
         p, fh = _start(cmd(dict(base, out=str(roots["uninterrupted"]), workers=w_a)), out / "uninterrupted.log", env)
@@ -1467,10 +1634,13 @@ def kill_resume(body: str, set_name: str, out, record=None, *, tiny=False, setti
     kill = _read(marker) if marker.is_file() else None
     if d is not None:
         n_sess = len(d.get("sessions") or [])
-        good = kill is not None and kill.get("as_ruled") and (
+        why = run_settings_problems(d, asked)
+        good = not why and kill is not None and kill.get("as_ruled") and (
             (n_sess == 1 and d.get("status") != "done") or (n_sess == 2 and d.get("status") == "done"))
         if not good:
             runs["killed_discarded"] = s2io.portable(str(_aside(roots["killed"])))
+            if why:
+                runs["killed_discarded_settings"] = why
             d, kill = None, None
     if d is None:
         kw = dict(base, out=str(roots["killed"]), workers=w_a)
@@ -1527,7 +1697,10 @@ def kill_resume(body: str, set_name: str, out, record=None, *, tiny=False, setti
     compared = [compare_checkpoints(jobs["uninterrupted"], jobs["killed"], n) for n in sorted(set(steps))]
     final = next((c for c in compared if c["steps"] == budget), None)
     first = next((dict(steps=c["steps"], **c["first_difference"]) for c in compared if not c["equal"]), None)
+    problems = {k: run_settings_problems(x, asked) for k, x in (("uninterrupted", da), ("killed", db))}
     settings_ok = dict(
+        uninterrupted_settings_as_asked=not problems["uninterrupted"], killed_settings_as_asked=not problems["killed"],
+        same_settings=bool(da.get("settings_sha256") and da.get("settings_sha256") == db.get("settings_sha256")),
         uninterrupted_one_session=len(sa) == 1, uninterrupted_workers=sa[0].get("workers") == w_a,
         killed_two_sessions=len(sb) == 2, killed_workers=sb[0].get("workers") == w_a,
         resumed_workers=len(sb) == 2 and sb[1].get("workers") == w_b, kill_as_ruled=bool(kill and kill.get("as_ruled")),
@@ -1538,7 +1711,8 @@ def kill_resume(body: str, set_name: str, out, record=None, *, tiny=False, setti
     out_doc = dict(
         schema=SCHEMAS["kill_resume"], gate="K3", rule=RULES["k3"],
         form="K3" if (s == K3 and (body, set_name) == K3_ON) else K3_CHECK, body=body, set=set_name,
-        settings=dict(s, workers=list(s["workers"])), lr_given=lr, config_given=config, job=job,
+        settings=dict(s, workers=list(s["workers"])), lr_given=lr, config_given=config, settings_asked=asked,
+        settings_problems=problems, job=job,
         out=s2io.portable(str(out.resolve())),
         runs={k: dict(run_uuid=x["run_uuid"], status=x["status"], num_timesteps=x.get("num_timesteps"),
                       budget=x.get("budget"), settings_sha256=x.get("settings_sha256"),
@@ -1643,11 +1817,67 @@ def _r6_steps(e, actions, n: int) -> dict:
     return dict(steps=done, episodes_ended=ends, problems=bad[:20], problems_n=len(bad), ok=not bad)
 
 
+def r6_run_problems(doc: dict | None, body: str, set_name: str, steps: int) -> list[str]:
+    """Every way a run's ``run.json`` ``settings`` differ from r6-start's tiny R6 run of ``body`` on ``set_name``
+    (``steps``: its budget); [] when they are its."""
+    s = (doc or {}).get("settings") or {}
+    want = dict(mode="R6", body=body, seed=42, set=set_name, tiny=True, gates=False)
+    out = [f"{k}: {s.get(k)!r} (asked {v!r})" for k, v in want.items() if s.get(k) != v]
+    budget = s.get("budget") if s.get("budget") is not None else s.get("budget_asked")
+    if budget != int(steps):
+        out.append(f"budget: {budget!r} (asked {int(steps)})")
+    return out
+
+
+def r6_training(body: str, set_name: str, work, workers: int = 2, train=None) -> dict:
+    """r6-start's tiny R6 run (``RULES["r6_start"]``) under ``work``: a run already there is reused (resumed when it
+    is not done) only when its settings are this one's (``r6_run_problems``), else it is moved aside
+    (``<job>.discarded.<k>``) and made again; ``Refused`` while its trainer is alive.  ``train``: ``train2.train``
+    (tests: a stand-in)."""
+    from designlab.stage2 import s2load, train2
+
+    train = train or train2.train
+    work = Path(work)
+    rollout = train2.N_ENVS * train2.TINY["n_steps"]
+    steps = R6_ROLLOUTS * rollout
+    job = train2.job_name("R6", body, 42)
+    jd = work / "jobs" / job
+    made: dict = {}
+    if (jd / "run.json").is_file():
+        pid = _running(jd)
+        if pid is not None:
+            raise Refused(f"{jd}: its trainer (process {pid}) is still running")
+        why = r6_run_problems(_read(jd / "run.json"), body, set_name, steps)
+        if why:
+            made = dict(discarded=s2io.portable(str(_aside(jd))), discarded_settings=why)
+    resume = (jd / "run.json").is_file()
+    doc = (_read(jd / "run.json") or {}) if resume else {}
+    if doc.get("status") != "done":
+        doc = train("R6", body, 42, set_name=set_name, out=str(work), steps=steps, tiny=True, gates=False,
+                    workers=int(workers), resume=resume, run_id="r6-start", log=lambda *x: None)
+    n = int(doc.get("num_timesteps") or 0)
+    ups = train2.read_updates(jd / "updates.jsonl") if (jd / "updates.jsonl").is_file() else []
+    try:
+        ck = s2load.load_checkpoint(jd, n)
+        fp = float(ck["fingerprint_max_abs_diff"])
+    except Exception as exc:  # noqa: BLE001
+        fp = None
+        ck_err = f"{type(exc).__name__}: {exc}"
+    else:
+        ck_err = None
+    return dict(job=job, out=s2io.portable(str(work.resolve())), status=doc.get("status"), steps=n, budget=steps,
+                rollouts=R6_ROLLOUTS, updates=len(ups), minibatch_steps=[u.get("minibatch_steps_run") for u in ups],
+                fingerprint_max_abs_diff=fp, checkpoint_error=ck_err, made=made,
+                settings_problems=r6_run_problems(doc, body, set_name, steps),
+                ok=bool(doc.get("status") == "done" and n == steps and fp is not None and fp <= s2load.FINGERPRINT_TOL
+                        and not r6_run_problems(doc, body, set_name, steps)))
+
+
 def r6_start(body: str, set_name: str, record=None, *, out=None, workers: int = 2, g9_ref=None, root=None) -> dict:
     """``RULES["r6_start"]``."""
     s2io.require_one_thread()
     g9 = require_g9_ref(body, set_name, g9_ref, root)
-    from designlab.stage2 import r5env, s2load, train2
+    from designlab.stage2 import r5env
 
     t0 = time.perf_counter()
     cfg = r5env.env_configs("R6", body, set_name, 1)[0]
@@ -1676,29 +1906,7 @@ def r6_start(body: str, set_name: str, record=None, *, out=None, workers: int = 
     finally:
         e.close()
     work = Path(out) if out is not None else WORK / "r6_start"
-    rollout = train2.N_ENVS * train2.TINY["n_steps"]
-    steps = R6_ROLLOUTS * rollout
-    job = train2.job_name("R6", body, 42)
-    jd = work / "jobs" / job
-    resume = (jd / "run.json").is_file()
-    doc = (_read(jd / "run.json") or {}) if resume else {}
-    if doc.get("status") != "done":
-        doc = train2.train("R6", body, 42, set_name=set_name, out=str(work), steps=steps, tiny=True, gates=False,
-                           workers=int(workers), resume=resume, run_id="r6-start", log=lambda *x: None)
-    n = int(doc.get("num_timesteps") or 0)
-    ups = train2.read_updates(jd / "updates.jsonl") if (jd / "updates.jsonl").is_file() else []
-    try:
-        ck = s2load.load_checkpoint(jd, n)
-        fp = float(ck["fingerprint_max_abs_diff"])
-    except Exception as exc:  # noqa: BLE001
-        fp = None
-        ck_err = f"{type(exc).__name__}: {exc}"
-    else:
-        ck_err = None
-    training = dict(job=job, out=s2io.portable(str(work.resolve())), status=doc.get("status"), steps=n, budget=steps,
-                    rollouts=R6_ROLLOUTS, updates=len(ups), minibatch_steps=[u.get("minibatch_steps_run") for u in ups],
-                    fingerprint_max_abs_diff=fp, checkpoint_error=ck_err,
-                    ok=bool(doc.get("status") == "done" and n == steps and fp is not None and fp <= s2load.FINGERPRINT_TOL))
+    training = r6_training(body, set_name, work, workers)
     checks = dict(zero=zero["ok"], random=rand["ok"], mid=mid["ok"], training=training["ok"])
     out_doc = dict(schema=SCHEMAS["r6_start"], gate="r6-start", rule=RULES["r6_start"], body=body, set=set_name,
                    env_config=cfg.describe(), span=span, zero_action=zero, random_actions=rand, mid_start=mid,
@@ -1857,9 +2065,9 @@ def main(argv=None) -> int:
 
 __all__ = ["G8A_CONDITIONS", "GateError", "K3", "K3_TINY", "LOOK_SETS", "RULES", "Refused", "SCHEMAS",
            "checkpoint_items", "compare_checkpoints", "compare_items", "controls", "dev_episode", "finish", "g8a",
-           "g9_ref", "g9_run", "gl_start", "joins", "kill_resume", "main", "part_a", "part_b", "part_c", "part_d",
-           "part_e", "part_f", "r6_start", "rates", "record_sha_ok", "require_g9_ref", "rollout_rate", "sources",
-           "tail_tenth"]
+           "g9_ref", "g9_run", "gl_start", "inputs_of", "joins", "k3_asked", "kill_resume", "main", "part_a", "part_b",
+           "part_c", "part_d", "part_e", "part_f", "played_files", "r6_run_problems", "r6_start", "r6_training", "rates",
+           "record_sha_ok", "require_g9_ref", "rollout_rate", "run_settings_problems", "sources", "tail_tenth"]
 
 if __name__ == "__main__":
     from designlab.stage2 import gates2 as _named  # the importable copy owns every class and all module state

@@ -283,6 +283,62 @@ def test_g8a_bar_form_on_a_synthetic_set_with_a_condition_not_run(tmp_path, _rel
     assert doc["sources"]["bar"] and doc["sources"]["panels"] and doc["key_context"]
 
 
+def _fake_bar_form(calls: list, compared: int = 506):
+    """A stand-in of ``g8a.bar_form``: every episode identical, with ``compared`` of 506 physics steps compared."""
+
+    def bar_form(body, set_name, conds, seeds, delays, cut_s=None, root=None):
+        calls.append((body, set_name, tuple(conds), tuple(seeds), tuple(delays), cut_s))
+        eps = [dict(condition=c, seed=s, k=k, reference_steps=506, env_steps=51, compared_steps=compared,
+                    first_difference=None, reference_fell_step=None, env_terminated_step=None, ends_alike=True,
+                    identical=True, interference_first_env_step=None) for c in conds for s in seeds for k in delays]
+        return dict(rule="stand-in", episodes=eps, identical=len(eps), of=len(eps), not_run=[], set_freeze=None,
+                    key_context=None)
+
+    return bar_form
+
+
+def test_g8a_counts_a_short_comparison_as_a_difference(tmp_path, monkeypatch):
+    """Rule Z1's check: compared_steps == reference_steps in every episode.  An episode flagged identical that
+    compared fewer physics steps than the row ran is a difference (exit 1), not a pass."""
+    from designlab.stage2 import g8a
+
+    calls = []
+    monkeypatch.setattr(g8a, "bar_form", _fake_bar_form(calls, compared=500))
+    argv = ["g8a", "--body", BODY, "--set", "T9", "--conditions", "walk/v0.4", "--seeds", "3042", "--delays", "0",
+            "--record", str(tmp_path / "g8a.json")]
+    assert gates2.main(argv) == 1
+    doc = _record(tmp_path / "g8a.json")
+    assert doc["pass_"] is False and doc["identical"] == doc["of"] == 1
+    assert [(d["condition"], d["seed"], d["k"]) for d in doc["differences"]] == [("walk/v0.4", 3042, 0)]
+    monkeypatch.setattr(g8a, "bar_form", _fake_bar_form(calls, compared=506))
+    assert gates2.main(argv) == 0 and _record(tmp_path / "g8a.json")["pass_"] is True
+
+
+def test_g8a_writes_no_reduced_record_where_the_gates_record_lies(tmp_path, monkeypatch):
+    """A run of fewer conditions, seeds or delays, a cut, or the Stage 1 view's form is a check of the command: it is
+    refused (exit 2, nothing run or written) when its record would lie under stage2/tb/gates/ (here a stand-in
+    directory), and runs anywhere else; the gate's own form is written there."""
+    from designlab.stage2 import g8a
+
+    gates = tmp_path / "gates"
+    monkeypatch.setattr(gates2, "GATES", gates)
+    calls = []
+    monkeypatch.setattr(g8a, "bar_form", _fake_bar_form(calls))
+    rec = gates / "T9" / BODY / "g8a.json"
+    for extra in (["--conditions", "walk/v0.4"], ["--seeds", "3042"], ["--delays", "0"], ["--cut-s", "1.0"]):
+        assert gates2.main(["g8a", "--body", BODY, "--set", "T9", "--record", str(rec)] + extra) == 2, extra
+    assert gates2.main(["g8a", "--body", BODY, "--set", "S1", "--record", str(gates / "S1" / BODY / "g8a.json")]) == 2
+    assert calls == [] and not gates.exists()
+    with pytest.raises(gates2.Refused, match="never rule Z1's record"):
+        gates2.g8a(BODY, "T9", rec, seeds=(3042,))
+    assert gates2.main(["g8a", "--body", BODY, "--set", "T9", "--record", str(tmp_path / "check.json"),
+                        "--seeds", "3042"]) == 0
+    assert gates2.main(["g8a", "--body", BODY, "--set", "T9", "--record", str(rec)]) == 0
+    doc = _record(rec)
+    assert doc["complete"] is True and doc["of"] == 40 and calls[-1][2:] == (gates2.G8A_CONDITIONS, (3042, 3043),
+                                                                             (0, 5), None)
+
+
 @needs_v0
 def test_rule_z1s_keys_are_the_conditions_g8a_finds_on_v0():
     from designlab.stage2 import g8a, setio
@@ -435,6 +491,15 @@ def test_g9_ref_on_the_frozen_set_v0(tmp_path):
     assert f["screen"]["path"] == "stage2/sets/V0/75-M-H-10/screen.json" and f["unplayed"] == {}
     assert f["tasks"]["turn_1_left"]["available"] is False and f["tasks"]["walk_v0.4"]["zero_action_finite"]
     assert doc["followed"].startswith("no closed-loop episode runs on this set and body")
+    # the record holds every file it played, each with the latest freeze's sha256, and those (f)'s library read
+    manifest = s2io.read_json(ROOT / "stage2" / "sets" / "V0" / BODY / "set.json")["freezes"][-1]["manifest"]
+    played = doc["inputs"]["played"]
+    assert played["freeze"] == doc["set_freeze"] and doc["inputs"]["comparand"] is None
+    assert {"refs/v0.4.npz", "refs/v0.5.npz", "transitions/start.npz", "transitions/turn90_pi4_left.npz"} <= set(
+        played["files"])
+    for fname, x in list(played["files"].items()) + list(doc["inputs"]["library"]["files"].items()):
+        assert x["sha256"] == manifest[fname.split("/", 1)[1][:-len(".npz")]]["sha256"], fname
+    assert doc["inputs"]["library"]["freeze"] == doc["set_freeze"] and "library_inputs" not in f
 
 
 @needs_s1
@@ -463,13 +528,113 @@ def test_g9_ref_part_b_against_a_comparand(monkeypatch):
     comparand's files are cited by path and sha256."""
     v = gates2._SetView(BODY, "V0")
     monkeypatch.setattr(v, "walks", lambda: ["nominal", "v0.4"])
+    # (the comparand's files are cited by their own sha256, not by what their entries say: one entry is changed)
+    v.refs = copy.deepcopy(v.refs)
+    v.refs["v0.4"]["sha256"] = "0" * 64
     b = gates2.part_b(v, comparand=v)
     assert set(b["compared"]) == {"nominal", "v0.4"} and b["rungs"] == {}
     for n, x in b["compared"].items():
         d = x["against"]["differences"]
         assert x["against"]["terms"]["head"] and x["against"]["terms"]["tail"], n
         assert d["head_deg"] == 0.0 and d["tail_cycles"] == 0.0 and d["toe_off_rad"] == 0.0, n
-    assert b["comparand"]["set"] == "V0" and b["comparand"]["files"]["v0.4"]["sha256"] == v.refs["v0.4"]["sha256"]
+    own = s2io.sha256_file(v.dir / "refs" / "v0.4.npz")
+    assert b["comparand"]["set"] == "V0" and b["comparand"]["files"]["v0.4"]["sha256"] == own != "0" * 64
+    assert b["comparand"]["files"]["v0.4"]["entry_sha256"] == "0" * 64
+    assert b["comparand"]["files"]["v0.4"]["path"] == "stage2/sets/V0/75-M-H-10/refs/v0.4.npz"
+
+
+V0_REFCHECK = ROOT / "stage2" / "sets" / "V0" / BODY / "refcheck.json"
+
+
+def _doctored_refcheck(tmp_path, name: str, fail=None, set_name=None, file_sha=None) -> Path:
+    """V0's own refcheck record with items made to fail (``fail``: ``{item: [terms]}``), another set named, or one
+    file it read given another sha256 (``file_sha``)."""
+    doc = s2io.read_json(V0_REFCHECK)
+    for key, terms in (fail or {}).items():
+        x = doc["items"][key]
+        x["pass_"] = False
+        for t in terms:
+            x["ok"][t] = False
+        doc["pass_"] = False
+    if set_name is not None:
+        doc["set"] = set_name
+    if file_sha is not None:
+        doc["inputs"]["files"][file_sha]["sha256"] = "0" * 64
+    p = tmp_path / f"{name}.json"
+    s2io.write_json(p, doc)
+    return p
+
+
+@needs_v0
+def test_g9_ref_part_a_on_a_doctored_reference_check(tmp_path):
+    """G9-ref (a) on V0 with its reference check doctored: a failing turn item names its move as not available and
+    does not block; a failing walk/v0.4 item blocks; a record of another set, or one that read a file the latest
+    freeze holds with another sha256 (given by path as with --refcheck), is not read and blocks."""
+    v = gates2._SetView(BODY, "V0")
+    a = gates2.part_a(v, refcheck=V0_REFCHECK)
+    assert a["ok"] is True and a["blocks"] is False and a["files_match_freeze"] is True and a["not_available"] == []
+    a = gates2.part_a(v, refcheck=_doctored_refcheck(tmp_path, "turn", fail={"turn/q90_left": ["heading"]}))
+    assert a["ok"] is False and a["blocks"] is False and a["blocked"] == []
+    assert a["not_available"] == [dict(item="turn/q90_left", reference="transitions/turn90_pi4_left.npz",
+                                       failing=["heading"])]
+    assert "treated as not available" in a["followed"]
+    a = gates2.part_a(v, refcheck=_doctored_refcheck(tmp_path, "walk", fail={"walk/v0.4": []}))
+    assert a["ok"] is False and a["blocks"] is True and a["blocked"] == ["walk/v0.4"]
+    assert a["not_available"] == [dict(item="walk/v0.4", reference="refs/v0.4.npz", failing=[])]
+    assert a["followed"].startswith("blocked")
+    for name, kw in (("other_set", dict(set_name="V1")), ("other_file", dict(file_sha="refs/v0.4.npz"))):
+        a = gates2.part_a(v, refcheck=_doctored_refcheck(tmp_path, name, **kw))
+        assert a["ok"] is False and a["blocks"] is True and "(a) is not read" in a["followed"], name
+    assert a["files_match_freeze"] is False and a["refcheck"]["source"] == "given"
+
+
+@needs_v0
+def test_g9_ref_passes_only_when_every_part_does(tmp_path, monkeypatch):
+    """The whole gate on V0 with parts (b), (c) and (f) stood in: it passes (exit 0) only when (a), (b), (c) and
+    (f) all pass; a blocking (a) fails it.  A failing reference that does not block is listed as not available and
+    the gate can pass: the builder's reading, which this fix round lists for the lead (it is not changed here)."""
+    outcome = dict(b=True, c=True, f=True)
+    monkeypatch.setattr(gates2, "part_b", lambda v, comparand=None: dict(ok=outcome["b"], items={}, walks={}))
+    monkeypatch.setattr(gates2, "part_c", lambda v: dict(ok=outcome["c"], walks={}))
+    monkeypatch.setattr(gates2, "part_f", lambda v, refcheck_doc=None: dict(ok=outcome["f"], tasks={}, unplayed={}))
+    rec = tmp_path / "g9_ref.json"
+
+    def run(refcheck=V0_REFCHECK) -> tuple[int, dict]:
+        code = gates2.main(["g9-ref", "--body", BODY, "--set", "V0", "--record", str(rec), "--refcheck", str(refcheck)])
+        return code, _record(rec)
+
+    code, doc = run()
+    assert code == 0 and doc["pass_"] is True and doc["parts_ok"] == dict(a=True, b=True, c=True, f=True)
+    for part in ("b", "c", "f"):
+        outcome[part] = False
+        code, doc = run()
+        assert code == 1 and doc["pass_"] is False and doc["parts_ok"][part] is False, part
+        outcome[part] = True
+    code, doc = run(_doctored_refcheck(tmp_path, "walk", fail={"walk/v0.4": ["along"]}))
+    assert code == 1 and doc["pass_"] is False and doc["parts"]["a"]["blocked"] == ["walk/v0.4"]
+    code, doc = run(_doctored_refcheck(tmp_path, "turn", fail={"turn/q90_left": ["heading"]}))
+    assert doc["parts_ok"]["a"] is False and doc["parts"]["a"]["blocks"] is False
+    assert code == 0 and doc["pass_"] is True and "treated as not available" in doc["followed"]
+
+
+@needs_s1
+def test_g9_ref_refuses_a_set_that_is_not_frozen_or_whose_files_are_not_the_freezes(tmp_path):
+    """G9-ref reads a frozen set: on the synthetic set T0 without its freeze it refuses (exit 2), and with a walk's
+    file changed after the freeze it refuses before anything is played, naming the file."""
+    from tests import test_stage2_g8a as G
+
+    d = G.make_t0(tmp_path)
+    sd = s2io.read_json(d / "set.json")
+    s2io.write_json(d / "set.json", dict(sd, freezes=[]))
+    with pytest.raises(gates2.Refused, match="the set is not frozen"):
+        gates2.g9_ref(BODY, "T0", None, root=tmp_path)
+    assert gates2.main(["g9-ref", "--body", BODY, "--set", "T0", "--set-root", str(tmp_path)]) == 2
+    s2io.write_json(d / "set.json", sd)
+    with open(d / "refs" / "v0.4.npz", "ab") as fh:
+        fh.write(b"\0")
+    with pytest.raises(gates2.Refused, match="refs/v0.4.npz"):
+        gates2.g9_ref(BODY, "T0", tmp_path / "rec" / "g9_ref.json", root=tmp_path)
+    assert not (tmp_path / "rec").exists()
 
 
 # ------------------------------------------------------------------------------------------------
@@ -513,13 +678,22 @@ def test_g9_run_part_d_and_e(tmp_path, monkeypatch):
     assert gates2.part_e(BODY)["applies"] is False
     assert gates2.part_e("60-N-T-10")["ok"] is False and "no reread record" in gates2.part_e("60-N-T-10-X")["reason"]
     rr = tmp_path / "reread.json"
-    s2io.write_json(rr, dict(schema="bar-reread-1", body="60-N-T-10", complete=True, pass_=True, traces=40,
-                             traces_equal=40, rows=["R0@10ms"], conditions=["turn/a"]))
+    good = dict(schema="bar-reread-1", body="60-N-T-10", complete=True, pass_=True, traces=40, traces_equal=40,
+                rows=["R2s/42@10ms", "R2@10ms"], conditions=["turn/walking_0.35_left", "turn/in_place_0.50_right"])
+    s2io.write_json(rr, good)
     e = gates2.part_e("60-N-T-10-X", rr)
     assert e["ok"] and e["record"]["sha256"] == s2io.sha256_file(rr) and e["of_body"] == "60-N-T-10"
-    s2io.write_json(rr, dict(schema="bar-reread-1", body="60-N-T-10", complete=True, pass_=False, traces=40,
-                             traces_equal=39))
-    assert gates2.part_e("60-N-T-10", rr)["ok"] is False
+    assert all(e["checks"].values()) and set(e["checks"]) >= {"rows_10ms", "turn_conditions"}
+    # what fails (e): a failed re-read; rows that are not all 10 ms rows; conditions that are not all turns; another
+    # body; a record that is not complete
+    for change, check in ((dict(pass_=False, traces_equal=39), "traces_equal"),
+                          (dict(rows=["R2@10ms", "R2@0ms"]), "rows_10ms"), (dict(rows=[]), "rows_10ms"),
+                          (dict(conditions=["turn/walking_0.35_left", "walk/nominal"]), "turn_conditions"),
+                          (dict(conditions=None), "turn_conditions"), (dict(body="75-M-H-10"), "body"),
+                          (dict(complete=False), "complete")):
+        s2io.write_json(rr, dict(good, **change))
+        e = gates2.part_e("60-N-T-10", rr)
+        assert e["ok"] is False and [k for k, v in e["checks"].items() if not v] == [check], change
     # the whole record
     g = gates2.g9_run(BODY, "V0", out, None, tmp_path / "g9_run.json")
     assert g == _record(tmp_path / "g9_run.json") and g["pass_"] and g["schema"] == "s2-gate-g9-run-1"
@@ -545,8 +719,13 @@ def test_g9_run_part_d_and_e(tmp_path, monkeypatch):
     probs = d["records"]["walk/v0.4"]["problems"]
     assert not d["ok"] and "sha256 is not the one it names" in probs[0] and "seed 3047: its readings" in probs[1]
     assert list(d["bar_records_10ms"].values())[0]["missing_toe_readings"] == [3044]
+    # an expected record that is absent fails (d) by itself: every record there is sound
+    s2io.write_json(out / comp["bar_record"]["path"], rec)
+    assert gates2.part_d(out, BODY, "V0", "seeds3042")["ok"] is True
     monkeypatch.setattr(gates2, "_expected_conditions", lambda body, set_name, root=None: ["walk/v0.4", "turn/q90_left"])
-    assert gates2.part_d(out, BODY, "V0", "seeds3042")["missing"] == ["turn/q90_left"]
+    d = gates2.part_d(out, BODY, "V0", "seeds3042")
+    assert d["missing"] == ["turn/q90_left"] and d["ok"] is False
+    assert d["records"]["walk/v0.4"]["ok"] and all(x["ok"] for x in d["bar_records_10ms"].values()) and not d["problems"]
 
 
 @needs_v0
@@ -597,7 +776,7 @@ def test_rates_record_on_a_stub_env_with_2_workers(tmp_path, monkeypatch):
 
 
 STUB_K3 = dict(steps=1536, checkpoint_every=256, monitor_every=512, kill_at=896, workers=(2, 3), tiny=True,
-               ppo=dict(n_steps=16, batch_size=64))
+               n_steps=16, ppo=dict(n_steps=16, batch_size=64))
 STUB_CHILD = ("import sys; from tests import test_stage2_train2 as t; t.install(); "
               "from designlab.stage2 import gates2; sys.exit(gates2.main(['_train', 'designlab.stage2.train2', sys.argv[1]]))")
 
@@ -609,14 +788,30 @@ def _stub_child(kw: dict) -> list:
 @pytest.fixture(scope="module")
 def stub_kr(tmp_path_factory):
     """Rule K3's two runs on the stub (rollouts of 8 x 16 steps, a checkpoint every 256 steps, 1,536 in all): the
-    second killed (the whole process group, SIGKILL) when its progress reads 896, resumed with 3 workers."""
+    second killed (the whole process group, SIGKILL) when its progress reads 896, resumed with 3 workers.  The
+    settings asked are read with the stub's validation records (none), as its children read them."""
     T = _stub()
+    from designlab.stage2 import train2
+
     tmp = tmp_path_factory.mktemp("kr")
     T.write_set(tmp / "set.json")
-    os.chdir(ROOT)
-    doc = gates2.kill_resume("stub", "STUB", tmp / "out", tmp / "kill_resume.json", settings=STUB_K3,
-                             child_cmd=_stub_child, child_env=dict(STUB_SET_FILE=str(tmp / "set.json")), hold=True)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.chdir(ROOT)
+        mp.setattr(train2, "_validation", T.stub_validation)
+        doc = gates2.kill_resume("stub", "STUB", tmp / "out", tmp / "kill_resume.json", settings=STUB_K3,
+                                 child_cmd=_stub_child, child_env=dict(STUB_SET_FILE=str(tmp / "set.json")), hold=True)
     return tmp, doc
+
+
+@pytest.fixture
+def stub_seams(monkeypatch):
+    """The stub's validation records (none) in this process, and the study as the working directory."""
+    T = _stub()
+    from designlab.stage2 import train2
+
+    monkeypatch.chdir(ROOT)
+    monkeypatch.setattr(train2, "_validation", T.stub_validation)
+    return T
 
 
 def test_kill_resume_on_the_stub_env(stub_kr):
@@ -651,7 +846,7 @@ def test_kill_resume_on_the_stub_env(stub_kr):
     assert {p.name for p in (tmp / "out").glob("*.log")} == {"uninterrupted.log", "killed.log", "resumed.log"}
 
 
-def test_kill_resume_is_resumable(stub_kr):
+def test_kill_resume_is_resumable(stub_kr, stub_seams):
     """A second call reuses both finished runs (nothing is run again) and gives the same comparison; a killed run
     whose kill was not as ruled is moved aside and made again."""
     tmp, first = stub_kr
@@ -701,7 +896,7 @@ def test_the_difference_report_names_the_first_tensor_that_differs(stub_kr, tmp_
     assert cc["equal"] is False and cc["intact"]["b"] and cc["first_difference"]["name"] == "integrity"
 
 
-def test_a_kill_that_was_not_as_ruled_is_made_again(stub_kr, tmp_path):
+def test_a_kill_that_was_not_as_ruled_is_made_again(stub_kr, stub_seams, tmp_path):
     tmp, _ = stub_kr
     out = tmp_path / "out"
     shutil.copytree(tmp / "out", out)
@@ -711,6 +906,150 @@ def test_a_kill_that_was_not_as_ruled_is_made_again(stub_kr, tmp_path):
                              child_env=dict(STUB_SET_FILE=str(tmp / "set.json")), hold=True)
     assert doc["made"]["killed_discarded"].endswith("killed.discarded.0") and (out / "killed.discarded.0").is_dir()
     assert doc["pass_"] and doc["kill"]["progress_steps_read"] == 896 and doc["equal"]
+
+
+def test_the_comparison_has_tolerance_zero():
+    """Rule K3: equal is tolerance zero.  One ulp in a float32 or a float64 array is a difference, named with its
+    index and both values; so is the same value in another dtype; NaN equals NaN in the same place."""
+    for dtype in (np.float32, np.float64):
+        a = np.array([[0.1, 0.2], [0.3, 1e3]], dtype)
+        b = a.copy()
+        b[1, 1] = np.nextafter(b[1, 1], dtype(np.inf))
+        assert not gates2._same(a, b) and gates2._same(a, a.copy())
+        c = gates2.compare_items({"model/w": a, "fingerprint/actions": a}, {"model/w": a.copy(), "fingerprint/actions": b})
+        f = c["first_difference"]
+        assert c["equal"] is False and f["name"] == "fingerprint/actions" and f["index"] == [1, 1] and f["differing"] == 1
+        assert f["a"] == float(a[1, 1]) and f["b"] == float(b[1, 1]) and f["b"] != f["a"]
+        assert c["by_kind"] == {"fingerprint": dict(items=1, equal=False), "model": dict(items=1, equal=True)}
+    x = np.array([1.0, np.nan], np.float32)
+    assert gates2._same(x, x.copy()) and not gates2._same(x, x.astype(np.float64))
+    assert not gates2._same(np.array([1, 2]), np.array([1, 3])) and gates2._same(np.array(5), np.array(5))
+
+
+#: A killed run's stand-in whose first progress reading is past the kill step (1,024 > 896): it writes that reading
+#: and waits to be killed.
+PAST_CHILD = ("import json, sys, time; from pathlib import Path; kw = json.loads(sys.argv[1]); "
+              "p = Path(kw['out']) / 'jobs' / 'R5-stub-s42'; p.mkdir(parents=True, exist_ok=True); "
+              "(p / 'progress.json').write_text(json.dumps(dict(steps=1024))); time.sleep(60)")
+
+
+def test_a_kill_whose_first_progress_reading_is_past_the_kill_step_is_no_kill_as_ruled(stub_kr, stub_seams, tmp_path):
+    """Rule K3's kill is at 81,920 steps (here 896): a first reading past it (1,024) is killed but is no kill as
+    ruled; the marker says so, the gate stops (an error, not a pass), and the next call makes that run again."""
+    tmp, _ = stub_kr
+    out = tmp_path / "out"
+    shutil.copytree(tmp / "out", out)
+    shutil.rmtree(out / "killed")
+    with pytest.raises(gates2.GateError, match="no kill as ruled"):
+        gates2.kill_resume("stub", "STUB", out, None, settings=STUB_K3,
+                           child_cmd=lambda kw: [PY, "-c", PAST_CHILD, json.dumps(kw)])
+    k = s2io.read_json(out / "killed" / "KILLED.json")
+    assert k["as_ruled"] is False and k["progress_steps_read"] == 1024 and k["kill_at"] == 896
+    assert k["exit_code"] == -9 and k["group_gone"]
+
+
+def test_a_run_made_with_other_settings_is_not_reused(stub_kr, stub_seams, tmp_path):
+    """Kill-resume reuses a run on disk only when its run.json's settings are the ones asked: another starting rate
+    or filter (asked by --lr and --config) moves both runs aside and makes them again; a killed run of another env
+    count, the uninterrupted one being right, is moved aside alone.  (The stand-in child exits 7 at once: only what
+    the gate does before a run is looked at.)"""
+    tmp, first = stub_kr
+    started = []
+
+    def child(kw):
+        started.append(kw)
+        return [PY, "-c", "import sys; sys.exit(7)"]
+
+    out = tmp_path / "a"
+    shutil.copytree(tmp / "out", out)
+    with pytest.raises(gates2.GateError, match="uninterrupted run ended with exit 7"):
+        gates2.kill_resume("stub", "STUB", out, None, settings=STUB_K3, lr=1e-3, config={"filter_hz": 20.0},
+                           child_cmd=child)
+    assert (out / "uninterrupted.discarded.0" / "jobs" / "R5-stub-s42" / "run.json").is_file()
+    assert started[0]["lr"] == 1e-3 and started[0]["config"] == {"filter_hz": 20.0}
+    out = tmp_path / "b"
+    shutil.copytree(tmp / "out", out)
+    p = out / "killed" / "jobs" / "R5-stub-s42" / "run.json"
+    s2io.write_json(p, dict(s2io.read_json(p), settings=dict(s2io.read_json(p)["settings"], n_envs=4)))
+    started.clear()
+    with pytest.raises(gates2.GateError, match="killed run ended .exit 7. before its progress read 896"):
+        gates2.kill_resume("stub", "STUB", out, None, settings=STUB_K3, child_cmd=child)
+    assert len(started) == 1 and started[0]["out"] == str(out / "killed") and "resume" not in started[0]
+    assert (out / "killed.discarded.0" / "KILLED.json").is_file() and not (out / "uninterrupted.discarded.0").exists()
+    # the record of the first call holds what was asked and that both runs' settings were it
+    assert first["settings_problems"] == {"uninterrupted": [], "killed": []} and first["settings_asked"]["n_envs"] == 8
+    assert first["settings_ok"]["same_settings"] and first["settings_ok"]["killed_settings_as_asked"]
+
+
+def test_what_a_runs_settings_are_compared_with(stub_kr, stub_seams):
+    """``run_settings_problems`` names every setting of rule K3's list that is not the one asked, from the run's
+    run.json as the trainer wrote it; the trainer's own env count and rollout length are refused before any run when
+    they are not the settings'."""
+    tmp, _ = stub_kr
+    doc = s2io.read_json(tmp / "out" / "uninterrupted" / "jobs" / "R5-stub-s42" / "run.json")
+    asked = gates2.k3_asked(dict(gates2.K3_TINY, **STUB_K3), "stub", "STUB")
+    assert gates2.run_settings_problems(doc, asked) == []
+    assert asked["lr_start"] == 3e-5 and asked["filter_hz"] is None and asked["budget"] == 1536
+    for key, value in (("seed", 43), ("set", "V6"), ("body", "75-M-H-10"), ("n_envs", 4), ("n_steps", 32),
+                       ("checkpoint_every", 512), ("monitor_every", 1024), ("budget", 2048), ("gates", True),
+                       ("tiny", False), ("config", {"filter_hz": 20.0}), ("ppo_overrides", {})):
+        (why,) = gates2.run_settings_problems(doc, dict(asked, **{key: value}))
+        assert why.startswith(f"{key}: "), (key, why)
+    (why,) = gates2.run_settings_problems(doc, dict(asked, lr_start=1e-3))
+    assert why == "lr_start: 3e-05 (asked 0.001)"
+    (why,) = gates2.run_settings_problems(doc, dict(asked, filter_hz=20.0))
+    assert why == "filter_hz: [10.0] (asked 20.0)"
+    assert gates2.run_settings_problems(doc, dict(asked, filter_hz=10.0)) == []
+    assert "no starting rate is asked" in gates2.run_settings_problems(doc, dict(asked, lr_start=None))[-1]
+    with pytest.raises(gates2.Refused, match="the trainer runs 8 envs"):
+        gates2.k3_asked(dict(gates2.K3_TINY, **STUB_K3, n_envs=4), "stub", "STUB")
+    with pytest.raises(gates2.Refused, match="of 16"):
+        gates2.k3_asked(dict(gates2.K3_TINY, **dict(STUB_K3, n_steps=64)), "stub", "STUB")
+    # rule K3's own settings are the trainer's defaults
+    k3 = gates2.k3_asked(gates2.K3, "75-M-H-10", "V6", lr=1e-4, config={"filter_hz": 10.0})
+    assert (k3["n_envs"], k3["n_steps"], k3["budget"], k3["checkpoint_every"]) == (8, 1024, 131_072, 32_768)
+
+
+def test_r6_starts_tiny_run_is_reused_only_when_it_is_this_ones(tmp_path):
+    """r6-start's tiny R6 run: a finished run of another set under the work directory is moved aside and made again
+    (fresh, not resumed); a finished run of this body and set is reused; a run whose trainer is alive is refused."""
+    _stub()
+    from designlab.stage2 import train2
+
+    work = tmp_path / "work"
+    jd = work / "jobs" / "R6-75-M-H-10-s42"
+    calls = []
+
+    def fake_train(mode, body, seed, **kw):
+        calls.append(dict(kw, mode=mode, body=body, seed=seed))
+        doc = dict(status="done", num_timesteps=kw["steps"], settings=dict(
+            mode=mode, body=body, seed=seed, set=kw["set_name"], tiny=kw["tiny"], gates=kw["gates"],
+            budget=kw["steps"]))
+        s2io.write_json(jd / "run.json", doc)
+        return doc
+
+    steps = 2 * train2.N_ENVS * train2.TINY["n_steps"]
+    other = dict(status="done", num_timesteps=steps, settings=dict(mode="R6", body=BODY, seed=42, set="V0", tiny=True,
+                                                                   gates=False, budget=steps))
+    s2io.write_json(jd / "run.json", other)
+    t = gates2.r6_training(BODY, "S1", work, 2, train=fake_train)
+    assert len(calls) == 1 and calls[0]["resume"] is False and calls[0]["set_name"] == "S1"
+    assert t["made"]["discarded"].endswith("R6-75-M-H-10-s42.discarded.0")
+    assert t["made"]["discarded_settings"] == ["set: 'V0' (asked 'S1')"] and t["settings_problems"] == []
+    assert s2io.read_json(work / "jobs" / "R6-75-M-H-10-s42.discarded.0" / "run.json") == other
+    calls.clear()
+    t = gates2.r6_training(BODY, "S1", work, 2, train=fake_train)
+    assert calls == [] and t["made"] == {} and t["status"] == "done" and t["steps"] == steps
+    assert gates2.r6_run_problems(dict(settings=dict(other["settings"], budget=steps + 1)), BODY, "V0", steps) == [
+        f"budget: {steps + 1} (asked {steps})"]
+    p = subprocess.Popen([PY, "-c", "import time; time.sleep(60)", "designlab.stage2.train2"])
+    try:
+        s2io.write_json(jd / "progress.json", dict(pid=p.pid, steps=0))
+        with pytest.raises(gates2.Refused, match="still running"):
+            gates2.r6_training(BODY, "S1", work, 2, train=fake_train)
+    finally:
+        p.kill()
+        p.wait()
 
 
 # ------------------------------------------------------------------------------------------------
