@@ -22,7 +22,8 @@ What is held here, on a stub env and a stub monitor (no plant, no reference set)
   attempts without a record the check counts as a failed G8b reading; after two attempts that were never closed
   the run halts; ``progress.json`` names a check counted without a record, and a halt; a monitor that refuses to
   run is no attempt (the run halts with exit code 5 and the monitor's reason, the refusal is not one of the two,
-  a resume runs the check again);
+  a resume runs the check again); the monitor child's environment holds ``STAGE2_ALLOW_SOURCE_CHANGE=1`` exactly
+  when the session was given ``--allow-source-change`` (the rulings of 17 Nov 2026, 10);
 * **lesson 16**: with a learning rate that trips ``target_kl`` ``minibatch_steps_run < minibatch_steps_possible``,
   and the ``kl_cut`` flag is set from the median share over a check interval;
 * **``MUJOCO_GL``**: a trainer started with ``MUJOCO_GL=osmesa`` runs a rollout with ``disable`` in itself and in
@@ -228,7 +229,15 @@ def _monitor_main(argv) -> int:
     holding a count: while it is above zero the child takes one off and leaves with code 7 and no record.
     ``STUB_MON_HOLD`` names a file: while it exists, a ``run`` writes ``<file>.started`` and waits to be killed.
     ``STUB_MON_REFUSE`` names a file holding a count: while it is above zero a ``run`` takes one off and is given
-    another sources hash than the trainer's, so that ``monitor2`` itself refuses to run (read before the others)."""
+    another sources hash than the trainer's, so that ``monitor2`` itself refuses to run (read before the others).
+    ``STUB_MON_ENV`` names a file: every child appends a line with its command, its step count and the value of
+    ``STAGE2_ALLOW_SOURCE_CHANGE`` in its environment (first of all)."""
+    log = os.environ.get("STUB_MON_ENV")
+    if log:
+        steps = int(argv[argv.index("--steps") + 1]) if "--steps" in argv else None
+        with open(log, "a") as fh:
+            fh.write(json.dumps(dict(cmd=argv[0], steps=steps, allow=os.environ.get("STAGE2_ALLOW_SOURCE_CHANGE")))
+                     + "\n")
     refuse = os.environ.get("STUB_MON_REFUSE")
     if refuse and argv[:1] == ["run"] and Path(refuse).is_file() and int(Path(refuse).read_text() or 0) > 0:
         Path(refuse).write_text(str(int(Path(refuse).read_text()) - 1))
@@ -1431,6 +1440,32 @@ def test_a_monitor_that_refuses_to_run_is_no_attempt(ref_fix, stub, tmp_path, mo
     for n in (1024, FINAL):
         assert_same_checkpoint(job(ref_fix / "out"), jd, n)
     same_updates(job(ref_fix / "out"), jd)
+
+
+def test_the_trainer_passes_its_allow_source_change_to_the_row(stub, tmp_path, monkeypatch):
+    """The rulings of 17 Nov 2026, 10: the monitor child's environment holds ``STAGE2_ALLOW_SOURCE_CHANGE=1``
+    exactly when the session was given ``--allow-source-change`` (the policy row reads it there, rule K9); a value
+    the trainer's own environment holds is not passed on."""
+    name = stub.ALLOW_SOURCE_ENV
+    assert name == "STAGE2_ALLOW_SOURCE_CHANGE"
+    base = {name: "1", "PATH": os.environ.get("PATH", "")}
+    assert name not in stub.monitor_env(False, base) and stub.monitor_env(True, {})[name] == "1"
+    assert base[name] == "1" and stub.monitor_env(True, base)["MUJOCO_GL"] == "disable"
+    out, log = tmp_path / "out", tmp_path / "children.jsonl"
+    cut_at(monkeypatch, stub, 640)
+    monkeypatch.setenv(name, "1")  # (the trainer's own environment holds it; the session has no flag)
+    monkeypatch.setenv("STUB_MON_ENV", str(log))
+    with pytest.raises(_Cut):
+        run(stub, out, gates=True)
+    monkeypatch.undo()
+    stub = install_again(monkeypatch, tmp_path)
+    monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("STUB_MON_ENV", str(log))
+    d = run(stub, out, gates=True, resume=True, allow_source_change=True)
+    assert d["status"] == "done" and d["sessions"][1]["resumed_from"] == 512
+    seen = [json.loads(x) for x in log.read_text().splitlines()]
+    assert [(c["cmd"], c["steps"], c["allow"]) for c in seen] == [
+        ("baseline", None, None), ("run", 512, None), ("run", 1024, "1"), ("run", FINAL, "1")]
 
 
 def test_a_refusal_without_its_note_and_a_refused_baseline(stub, tmp_path, monkeypatch):

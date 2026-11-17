@@ -36,6 +36,9 @@ that refuses to run (its exit code ``monitor2.EXIT_REFUSAL``: its sources have m
 the checkpoint is another run's) made no attempt: the attempt is closed as ``refused`` with the monitor's reason,
 it is not one of the two closed attempts after which a check counts as without a record, the run halts, and a
 resume runs the check again (``monitor2.RULES["refusal"]``).
+The monitor child's environment holds ``STAGE2_ALLOW_SOURCE_CHANGE=1`` exactly when the session was given
+``--allow-source-change`` (``ALLOW_SOURCE_ENV``): the trainer passes its flag to the policy row, which reads it there
+(rule K9), and a value the trainer's own environment holds is not passed on.
 
 **Exit codes** of ``run``: 0 done, or stopped by rule M4 or M5; 3 G8a failed ("G8a fails: no run"); 4 refused (a
 resume the rules refuse, or a start that cannot be made: nothing was run); 5 halted for the lead (R0L's baseline
@@ -323,6 +326,23 @@ def _g8a_short(body: str, set_name: str, tiny: bool) -> dict:
 def _monitor_cmd() -> list:
     """The monitor child's command line before its own arguments."""
     return [sys.executable, "-m", "designlab.stage2.train2", "monitor"]
+
+
+#: The environment variable by which a policy row is told that it may run on moved sources, flagged (rule K9;
+#: ``s2rows.SOURCE_CHANGE_ENV``): the monitor child gets it from the trainer's ``--allow-source-change`` alone
+#: (the rulings of 17 Nov 2026, 10).
+ALLOW_SOURCE_ENV = "STAGE2_ALLOW_SOURCE_CHANGE"
+
+
+def monitor_env(allow_source_change: bool, base=None) -> dict:
+    """The monitor child's environment: ``tbenv.child_env("disable", base)`` with ``ALLOW_SOURCE_ENV`` = ``"1"``
+    when the session was given ``--allow-source-change``, and without it otherwise (a value ``base`` holds is not
+    passed on: the row's allowance is the trainer's flag)."""
+    env = tbenv.child_env("disable", base)
+    env.pop(ALLOW_SOURCE_ENV, None)
+    if allow_source_change:
+        env[ALLOW_SOURCE_ENV] = "1"
+    return env
 
 
 def base_body(body: str) -> str:
@@ -1121,14 +1141,16 @@ class _Run:
     def _child(self, args: list, att: dict | None = None) -> int:
         """Run the monitor child and wait for it (a subprocess: nothing forks while the pool is open).  ``att``:
         the attempt's log entry, already written; it takes the child's pid, start time and boot id as soon as the
-        child has started (``CHILD_RULE``)."""
+        child has started (``CHILD_RULE``).  The child's environment is ``monitor_env``'s: the session's
+        ``--allow-source-change`` passed to the row."""
         cmd = _monitor_cmd() + [str(x) for x in args]
         cmd += ["--sources", self.session["sources"]["sha256"]]
         if self.tiny:
             cmd.append("--tiny")
         if self.also_k:
             cmd += ["--also-k", ",".join("%d" % k for k in self.also_k)]
-        proc = subprocess.Popen(cmd, env=tbenv.child_env("disable"), cwd=tbenv.study_dir(), stdin=subprocess.DEVNULL)
+        proc = subprocess.Popen(cmd, env=monitor_env(self.allow_source), cwd=tbenv.study_dir(),
+                                stdin=subprocess.DEVNULL)
         try:
             if att is not None:
                 att.update(pid=int(proc.pid), pid_start=(_proc(proc.pid) or (None,))[0], boot_id=_boot_id())
@@ -2028,7 +2050,9 @@ def main(argv=None) -> int:
     a.add_argument("--workers", type=int, default=None)
     a.add_argument("--resume", action="store_true")
     a.add_argument("--allow-version-change", action="store_true")
-    a.add_argument("--allow-source-change", action="store_true")
+    a.add_argument("--allow-source-change", action="store_true",
+                   help="resume on moved sources, flagged; also passed to the policy row in the monitor child "
+                        f"({ALLOW_SOURCE_ENV}=1)")
     a.add_argument("--from-checkpoint", default=None, metavar="JOBDIR:STEPS")
     a.add_argument("--lr", type=float, default=None)
     a.add_argument("--monitor-every", type=int, default=MONITOR_EVERY)
@@ -2092,11 +2116,11 @@ def main(argv=None) -> int:
     return {"stopped_g8a": EXIT_G8A, "partial": EXIT_FAILED}.get(doc["status"], EXIT_DONE)
 
 
-__all__ = ["BOUNDARY_RULE", "CHECKPOINT_EVERY", "EXIT_DONE", "EXIT_FAILED", "EXIT_G8A", "EXIT_HALT", "EXIT_REFUSED",
-           "Halt", "MONITOR_EVERY", "N_ENVS", "N_STEPS", "Refused", "RESUME_RULE", "SCHEMA", "SOURCE_FILES", "TINY",
-           "TrainError", "base_body", "boundary_seed", "count_optimizer_steps", "filter_choice", "filter_sigma",
-           "is_boundary", "job_name", "kl_share", "main", "preflight", "preflight_env", "probe_lr", "probe_sigma",
-           "read_updates", "require_hashseed", "sources", "train"]
+__all__ = ["ALLOW_SOURCE_ENV", "BOUNDARY_RULE", "CHECKPOINT_EVERY", "EXIT_DONE", "EXIT_FAILED", "EXIT_G8A", "EXIT_HALT",
+           "EXIT_REFUSED", "Halt", "MONITOR_EVERY", "N_ENVS", "N_STEPS", "Refused", "RESUME_RULE", "SCHEMA",
+           "SOURCE_FILES", "TINY", "TrainError", "base_body", "boundary_seed", "count_optimizer_steps", "filter_choice",
+           "filter_sigma", "is_boundary", "job_name", "kl_share", "main", "monitor_env", "preflight", "preflight_env",
+           "probe_lr", "probe_sigma", "read_updates", "require_hashseed", "sources", "train"]
 
 if __name__ == "__main__":
     from designlab.stage2 import train2 as _named  # the importable copy owns every class and all module state
