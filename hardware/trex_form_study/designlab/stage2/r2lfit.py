@@ -16,8 +16,9 @@ simulated episode's.  ``designlab/stage1/speedfit.py`` is imported and never edi
 * **Selection** (``select``, rule Q4): the decisive cell first and whole (every candidate on validation seeds
   2000-2019 at k = 5), then the reported cells at k = 0, 2, 4, 1, 3 (the selected candidate, then the start) while
   the fit's share holds each cell's estimate (rule Q5 as settled on 16 Nov 2026); ``r2lg5.json``.
-* **Publish** (``publish``): the finished records copied to ``stage2/tb/r2l/<set>/<body>/`` (``nb.collect``, each
-  verified by sha256) and the entry ``{set, body, seed, r2lg5: {path, sha256}}`` added to ``index.json``.
+* **Publish** (``publish``): the fit's own finished records (``PUBLISH_RULE``) copied to
+  ``stage2/tb/r2l/<set>/<body>/`` (``nb.collect``, each verified by sha256) and the entry
+  ``{set, body, seed, r2lg5: {path, sha256}}`` added to ``index.json``.
 * **Rows** (``r2l_row``, rule Q6): importing this module registers ``R2L-<set>`` for every set of the committed
   index (``panels.register_rows``); ``R2L-<set>/<seed>`` is ``lookbar.LookRow`` around ``R2LRow`` (the panels' R2
   tracker row with the indexed gains, their file's sha256 checked), which refuses a condition of another set.
@@ -32,8 +33,10 @@ Run from hardware/trex_form_study (one BLAS thread)::
         [--popsize 12] [--reported-core-h 0.4] [--index stage2/tb/r2l/index.json]
 
 ``rotation`` prints the table (and whether it equals a written ``rotation.json``) and writes nothing.  Exit codes:
-0; 1 a refusal.  A fit on a (set, body) that rule Q1 does not name, or with another population, budget or generation
-cap than the rules', is a development fit (``ROLE_RULE``): no record, and ``select`` and ``publish`` refuse it.
+0; 1 a refusal.  A fit on a (set, body) that rule Q1 does not name, or with another seed, population, budget or
+generation cap than the rules', is a development fit (``ROLE_RULE``): no record, and ``select`` and ``publish`` refuse
+it; a selection with another ``--reported-core-h`` than 0.4 is a development selection, which ``publish`` refuses.  A
+fit on a look set waits for G9-ref as the gates package (``gates2.require_g9_ref``) reads it (``GATE_RULE``).
 
 This file is in the sources of every R2L row (``R2LRow.sources``) and of every R2L record (``sources``).
 """
@@ -103,6 +106,8 @@ INDEX = s2io.STUDY / "stage2" / "tb" / "r2l" / "index.json"
 GATES = s2io.STUDY / "stage2" / "tb" / "gates"
 SET_ROOT = setio.ROOT
 EVAL_LOG = "r2lg5_evals.jsonl"
+#: A fit's finished states (``cma.json`` ``status``).
+FINISHED = ("done", "ended_by_budget")
 #: The item terms' scales (rule Q3).
 LINE_SCALE_M = readings.LINE_MAX_M  # 0.25 m
 HEADING_SCALE_DEG = 20.0
@@ -209,12 +214,15 @@ RESUME_RULE = (
     "after the generation's evaluations are appended to evals.jsonl and synced); resume continues from it exactly "
     "(tune.CMA.from_state) and drops evaluations logged after the checkpoint; refused if the settings, the rotation "
     "table (rotation.json against rotation(seed)), the sources (sources()), the library versions or the inputs (the "
-    "set's files and freeze) differ from the run's first session; an existing run is never restarted over")
+    "set's files and freeze) differ from the run's first session; an existing run is never restarted over; a resume "
+    "of a finished fit (done, ended_by_budget) changes nothing and returns its record")
 ROLE_RULE = (
     "a fit is a record only on the (set, body) pairs rule Q1 names (V6noF5 on 75-M-H-10 and 60-N-T-10; F25F9cl on "
-    "75-M-H-10, the candidate) with the rules' population 12, budget 2.4 core-hours and cap of 30 generations; any "
-    "other fit is a development fit (a smoke check): its records say so, it is no record, and select and publish "
-    "refuse it")
+    "75-M-H-10, the candidate) with the rules' seed 42 (rules Q1, Q2), population 12, budget 2.4 core-hours and cap "
+    "of 30 generations; any other fit is a development fit (a smoke check): its records say so, it is no record, and "
+    "select and publish refuse it; a selection whose reported cells' part is not 0.4 core-hours (so a share other "
+    "than rule Q5's 4.0) is a development selection: r2lg5.json says so (role), publish refuses it and no row reads "
+    "it")
 GATE_RULE = (
     "STAGE2_TRACKB_PLAN rules Q1, X1 and Z2: a fit on a look set (V6, V6noF5) starts only after G9-ref passed for "
     "that set and body as the gates package reads it: gates2.require_g9_ref(body, set, "
@@ -223,6 +231,11 @@ GATE_RULE = (
     "fit, and where the gates package (designlab/stage2/gates2.py) is not here no fit on a look set starts; each "
     "session records the citation (path, sha256, the record's time and freeze), the file's modification time and "
     "what checked it")
+PUBLISH_RULE = (
+    "publish copies only the fit's own finished records: start.json, r2lg5.json, r2lg5_evals.jsonl and "
+    "r2lfit/<seed>/ (nothing else under <set>/<body>/, such as another seed's development fit), staged under "
+    "<set>/<body>/.publish/<seed>/ and collected from there by nb.collect (each copy verified by sha256, "
+    "COLLECTED.json), under the set and body's lock; a published file is never replaced")
 ROWS_RULE = (
     "STAGE2_TRACKB_PLAN rule Q6: R2L-<set>/<seed> is the panels' tracker row in mode R2 (control.TERMS, "
     "control.ANKLE_CAP, the bar's clock) with the gains of the fit of seed <seed> on set <set> and the row's body, "
@@ -233,7 +246,7 @@ ROWS_RULE = (
 
 RULES = dict(rotation=ROTATION_RULE, episode=EPISODE_RULE, terms=TERMS_RULE, score=SCORE_RULE, failures=FAILURE_RULE,
              search=SEARCH_RULE, budget=BUDGET_RULE, selection=SELECTION_RULE, resume=RESUME_RULE, role=ROLE_RULE,
-             gate=GATE_RULE, rows=ROWS_RULE)
+             gate=GATE_RULE, publish=PUBLISH_RULE, rows=ROWS_RULE)
 
 
 def _now() -> str:
@@ -683,11 +696,13 @@ def _out(out) -> Path:
 
 
 def role_of(set_name: str, body: str, popsize: int = POPSIZE, budget_core_h: float = FIT_CORE_H,
-            max_generations: int = GENERATIONS) -> dict:
+            max_generations: int = GENERATIONS, seed: int = SEED) -> dict:
     """``ROLE_RULE``: ``{role: "fit" | "development", reasons}``."""
     why = []
     if (set_name, body) not in FITS:
         why.append(f"rule Q1 names no fit of {body} on {set_name}")
+    if int(seed) != SEED:
+        why.append(f"seed {seed}, not {SEED} (rules Q1, Q2)")
     if int(popsize) != POPSIZE:
         why.append(f"population {popsize}, not {POPSIZE}")
     if float(budget_core_h) != FIT_CORE_H:
@@ -787,7 +802,7 @@ def _settings(body, set_name, seed, start, budget_core_h, max_generations, popsi
     return dict(body=body, set=set_name, seed=int(seed), mode=MODE, rate=RATE, objective=OBJECTIVE_NAME,
                 cma=cma_settings(popsize, max_generations), budget_core_h=float(budget_core_h),
                 max_generations=int(max_generations), block=BLOCK, rotation_sha256=s2io.sha256_json(table["table"]),
-                start=start_key(start), role=role_of(set_name, body, popsize, budget_core_h, max_generations))
+                start=start_key(start), role=role_of(set_name, body, popsize, budget_core_h, max_generations, seed))
 
 
 def _episode_line(e: dict) -> dict:
@@ -902,6 +917,10 @@ def fit(body: str, set_name: str, seed: int = SEED, out=None, workers: int = 1, 
             if rot is None or s2io.sha256_json(rot.get("table")) != s2io.sha256_json(table["table"]):
                 raise R2LError(f"{rot_path}: missing, or another table than rotation({seed}) (ROTATION_RULE): "
                                "refusing to resume")
+            if doc.get("status") in FINISHED:
+                log(f"{set_name}/{body} seed {seed}: the fit is {doc['status']} at generation {len(doc['history'])}: "
+                    "nothing to resume, nothing written (RESUME_RULE)")
+                return doc
             first = doc["sessions"][0]
             if (first.get("sources") or {}).get("sha256") != src["sha256"]:
                 raise R2LError(f"{path}: R2L's sources changed since the fit started; a resumed fit would not continue "
@@ -1127,6 +1146,18 @@ def _charge(glog: EvalLog, jobs: list, vals: list, counted: set) -> float:
     return total
 
 
+def selection_role(settings: dict, reported_core_h: float) -> dict:
+    """``ROLE_RULE`` for a selection: ``{role: "fit" | "development", reasons, rule}`` from the fit's role and the
+    reported cells' part (a share other than rule Q5's 4.0 makes a development selection)."""
+    why = list((settings.get("role") or {}).get("reasons") or [])
+    if (settings.get("role") or {}).get("role") != "fit" and not why:
+        why.append("the fit is not one")
+    if float(reported_core_h) != REPORTED_CORE_H:
+        why.append(f"the reported cells' part {float(reported_core_h):g} core-hours, not {REPORTED_CORE_H:g} (a share "
+                   f"of {share_core_h(settings['budget_core_h'], reported_core_h):g}, not {SHARE_CORE_H:g}: rule Q5)")
+    return dict(role="development" if why else "fit", reasons=why, rule=ROLE_RULE)
+
+
 def select(body: str, set_name: str, seed: int = SEED, out=None, workers: int = 1,
            reported_core_h: float = REPORTED_CORE_H, *, log=print) -> dict:
     """Rule Q4's selection with rule Q5's budget (``SELECTION_RULE``, ``BUDGET_RULE``) into
@@ -1144,11 +1175,12 @@ def select(body: str, set_name: str, seed: int = SEED, out=None, workers: int = 
         st = doc["settings"]
         if st["role"]["role"] != "fit":
             raise R2LError(f"{path}: a development fit ({'; '.join(st['role']['reasons'])}) is not judged (ROLE_RULE)")
-        if doc["status"] not in ("done", "ended_by_budget"):
+        if doc["status"] not in FINISHED:
             raise R2LError(f"{path}: the fit is {doc['status']} at generation {len(doc['history'])}: resume it first")
         fit_src = [(s.get("sources") or {}).get("sha256") for s in doc["sessions"]]
         if any(x != src["sha256"] for x in fit_src):
             raise R2LError(f"{path}: the fit ran on other sources than this selection's: refusing to judge it")
+        role = selection_role(st, reported_core_h)
         n_gen = len(doc["history"])
         gens = tune.candidate_generations(n_gen)
         start = doc["start"]
@@ -1223,7 +1255,8 @@ def select(body: str, set_name: str, seed: int = SEED, out=None, workers: int = 
         rot = panels._read(d / "rotation.json") or {}
         res = dict(
             schema=SCHEMA, kind="selection", gate="R2L G5 (rule Q4)", body=body, set=set_name, seed=int(seed),
-            rules=RULES, objective=OBJECTIVE, judged=True, judged_at_generation=n_gen, fit_status=doc["status"],
+            role=role, rules=RULES, objective=OBJECTIVE, judged=True, judged_at_generation=n_gen,
+            fit_status=doc["status"],
             fit_ended=doc.get("ended"), rotation_met=doc.get("rotation_met"),
             fit_record=dict(path=s2io.portable(str(path.resolve())), sha256=s2io.sha256_file(path)),
             rotation_record=dict(path=s2io.portable(str((d / "rotation.json").resolve())),
@@ -1246,7 +1279,9 @@ def select(body: str, set_name: str, seed: int = SEED, out=None, workers: int = 
 
 
 def selection_text(doc: dict) -> str:
-    lines = [f"R2L selection {doc['set']}/{doc['body']} seed {doc['seed']}: judged at generation "
+    role = doc.get("role") or {}
+    lines = [f"R2L selection {doc['set']}/{doc['body']} seed {doc['seed']} ({role.get('role')}"
+             + (f": {'; '.join(role['reasons'])}" if role.get("reasons") else "") + "): judged at generation "
              f"{doc['judged_at_generation']} ({doc['fit_status']}); selected {doc['selected']}"]
     for x in doc["selection"]:
         lines.append(f"   {x['rank']}. {x['candidate']}: falls {x['falls']}, mean S {x['S_mean']:.4f}, mean P "
@@ -1286,48 +1321,96 @@ def index_entry(set_name: str, body: str, seed: int, index=None) -> dict:
     return hits[0]
 
 
+#: What ``publish`` copies from ``<out>/<set>/<body>/`` besides the fit's own ``r2lfit/<seed>/`` (``PUBLISH_RULE``).
+PUBLISHED_FILES = ("start.json", "r2lg5.json", EVAL_LOG)
+#: The files a published fit must hold (``r2lfit/<seed>/`` ones relative to that directory).
+REQUIRED_FILES = ("start.json", "r2lg5.json")
+REQUIRED_FIT_FILES = ("rotation.json", "cma.json", "evals.jsonl", "ledger.json")
+
+
+def publish_files(src, seed: int) -> list[str]:
+    """``PUBLISH_RULE``: the records ``publish`` copies from ``src`` (``<out>/<set>/<body>/``), of what
+    ``nb.collect_files`` finds there: ``start.json``, ``r2lg5.json``, ``r2lg5_evals.jsonl`` and the fit's own
+    ``r2lfit/<seed>/``; nothing else (another seed's fit, a staging copy)."""
+    from designlab.stage2 import nb
+
+    own = f"r2lfit/{int(seed)}/"
+    return [r for r in nb.collect_files(src) if r in PUBLISHED_FILES or r.startswith(own)]
+
+
 def publish(body: str, set_name: str, seed: int = SEED, out=None, index=INDEX) -> dict:
-    """Copy the finished records of a fit and its selection to ``<index's directory>/<set>/<body>/`` (``nb.collect``:
-    each copy verified by sha256, ``COLLECTED.json``; a published file is never replaced) and add the entry
-    ``{set, body, seed, r2lg5: {path, sha256}}`` to the index.  Returns the entry."""
+    """Copy the finished records of a fit and its selection (``publish_files``: ``PUBLISH_RULE``) to ``<index's
+    directory>/<set>/<body>/`` (staged, then ``nb.collect``: each copy verified by sha256, ``COLLECTED.json``; a
+    published file is never replaced) and add the entry ``{set, body, seed, r2lg5: {path, sha256}}`` to the index,
+    holding the set and body's lock.  Returns the entry."""
+    import shutil
+
     from designlab.stage2 import nb
 
     out = _out(out)
     idx_path = _anchored(index)
     src = set_body_dir(out, set_name, body)
-    sel = panels._read(src / "r2lg5.json")
-    doc = panels._read(fit_dir(out, set_name, body, seed) / "cma.json")
-    if sel is None or doc is None:
-        raise R2LError(f"{src}: no r2lg5.json or no cma.json (run fit and select first)")
-    if (sel.get("set"), sel.get("body"), int(sel.get("seed", -1))) != (set_name, body, int(seed)):
-        raise R2LError(f"{src / 'r2lg5.json'}: the selection of {sel.get('body')} on {sel.get('set')} seed "
-                       f"{sel.get('seed')}, not {body} on {set_name} seed {seed}")
-    if doc["settings"]["role"]["role"] != "fit" or not sel.get("judged"):
-        raise R2LError(f"{src}: a development fit is not published (ROLE_RULE)")
-    if s2io.sha256_file(fit_dir(out, set_name, body, seed) / "cma.json") != sel["fit_record"]["sha256"]:
-        raise R2LError(f"{src}: cma.json changed after the selection was made: select again")
-    idx = read_index(idx_path)
-    dst = idx_path.parent / set_name / body
-    sha = s2io.sha256_file(src / "r2lg5.json")
-    entry = dict(set=set_name, body=body, seed=int(seed),
-                 r2lg5=dict(path=s2io.portable(str((dst / "r2lg5.json").resolve())), sha256=sha))
-    same = [e for e in idx["fits"] if (e.get("set"), e.get("body"), int(e.get("seed", -1))) == (set_name, body,
-                                                                                                int(seed))]
-    if same and s2io.plain(same[0]) != s2io.plain(entry):
-        raise R2LError(f"{idx_path}: the fit of {body} on {set_name} seed {seed} is indexed already with another "
-                       "gains file: an indexed fit is never replaced")
-    rels = nb.collect_files(src)
-    if same and all((dst / r).is_file() and s2io.sha256_file(dst / r) == s2io.sha256_file(src / r) for r in rels):
-        return entry  # published already, every file the same: nothing is written again
-    try:
-        nb.collect(src, dst, "r2l")
-    except nb.NbError as exc:
-        raise R2LError(f"publish {set_name}/{body}: {exc}") from exc
-    if s2io.sha256_file(dst / "r2lg5.json") != sha:
-        raise R2LError(f"{dst / 'r2lg5.json'}: the copy's sha256 is not the source's")
-    if not same:
-        idx["fits"].append(entry)
-        s2io.write_json(idx_path, idx)
+    fd = fit_dir(out, set_name, body, seed)
+    if not src.is_dir():
+        raise R2LError(f"{src}: no such directory (run fit and select first)")
+    with s2io.Lock(src / ".lock"):
+        sel = panels._read(src / "r2lg5.json")
+        doc = panels._read(fd / "cma.json")
+        if sel is None or doc is None:
+            raise R2LError(f"{src}: no r2lg5.json or no cma.json (run fit and select first)")
+        if (sel.get("set"), sel.get("body"), int(sel.get("seed", -1))) != (set_name, body, int(seed)):
+            raise R2LError(f"{src / 'r2lg5.json'}: the selection of {sel.get('body')} on {sel.get('set')} seed "
+                           f"{sel.get('seed')}, not {body} on {set_name} seed {seed}")
+        if doc["settings"]["role"]["role"] != "fit" or not sel.get("judged"):
+            raise R2LError(f"{src}: a development fit is not published (ROLE_RULE)")
+        role = sel.get("role") or {}
+        if role.get("role") != "fit":
+            raise R2LError(f"{src / 'r2lg5.json'}: a development selection is not published (ROLE_RULE: "
+                           f"{'; '.join(role.get('reasons') or ['it names no role'])})")
+        if s2io.sha256_file(fd / "cma.json") != sel["fit_record"]["sha256"]:
+            raise R2LError(f"{src}: cma.json changed after the selection was made: select again")
+        rels = publish_files(src, seed)
+        missing = [r for r in REQUIRED_FILES + tuple(f"r2lfit/{int(seed)}/{x}" for x in REQUIRED_FIT_FILES)
+                   if r not in rels]
+        if missing:
+            raise R2LError(f"{src}: the fit's records are not all there ({', '.join(missing)} missing): nothing was "
+                           "published")
+        idx = read_index(idx_path)
+        dst = idx_path.parent / set_name / body
+        sha = s2io.sha256_file(src / "r2lg5.json")
+        entry = dict(set=set_name, body=body, seed=int(seed),
+                     r2lg5=dict(path=s2io.portable(str((dst / "r2lg5.json").resolve())), sha256=sha))
+        same = [e for e in idx["fits"] if (e.get("set"), e.get("body"), int(e.get("seed", -1))) == (set_name, body,
+                                                                                                    int(seed))]
+        if same and s2io.plain(same[0]) != s2io.plain(entry):
+            raise R2LError(f"{idx_path}: the fit of {body} on {set_name} seed {seed} is indexed already with another "
+                           "gains file: an indexed fit is never replaced")
+        if same and all((dst / r).is_file() and s2io.sha256_file(dst / r) == s2io.sha256_file(src / r) for r in rels):
+            return entry  # published already, every file the same: nothing is written again
+        stage = src / ".publish" / str(int(seed))
+        try:
+            if stage.exists():
+                shutil.rmtree(stage)
+            for r in rels:
+                (stage / r).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(src / r, stage / r)
+                if s2io.sha256_file(stage / r) != s2io.sha256_file(src / r):
+                    raise R2LError(f"{stage / r}: the staged copy's sha256 is not the source's")
+            try:
+                nb.collect(stage, dst, "r2l")
+            except nb.NbError as exc:
+                raise R2LError(f"publish {set_name}/{body}: {exc}") from exc
+        finally:
+            shutil.rmtree(stage, ignore_errors=True)
+            try:
+                stage.parent.rmdir()
+            except OSError:
+                pass
+        if s2io.sha256_file(dst / "r2lg5.json") != sha:
+            raise R2LError(f"{dst / 'r2lg5.json'}: the copy's sha256 is not the source's")
+        if not same:
+            idx["fits"].append(entry)
+            s2io.write_json(idx_path, idx)
     return entry
 
 
@@ -1359,6 +1442,8 @@ def gains_of(path, sha256: str, set_name: str, body: str, seed: int) -> tuple[np
                        f"{body} on {set_name} seed {seed}")
     if not doc.get("judged"):
         raise R2LError(f"{p}: not a judged selection")
+    if (doc.get("role") or {}).get("role") != "fit":
+        raise R2LError(f"{p}: a development selection is no row's gains (ROLE_RULE)")
     gains = speedfit.gains_vector(doc["selected_gains"])
     info = dict(rule=ROWS_RULE, file=s2io.portable(str(p.resolve())), sha256=got, set=set_name, body=body,
                 seed=int(seed), candidate=doc.get("selected"), judged_at_generation=doc.get("judged_at_generation"),
@@ -1480,10 +1565,10 @@ def main(argv=None) -> int:
 
 
 __all__ = ["BUDGET_RULE", "CONDITIONS", "Evaluator", "EvalLog", "FITS", "INDEX", "KINDS", "LIMITS", "LOOK_SETS",
-           "OBJECTIVE", "R2LError", "R2LRow", "ROTATION_RULE", "RULES", "SELECTION_RULE", "TRACKING", "blank_episode",
-           "coverage", "episode_terms", "failed_evaluation", "fit", "gate", "index_entry", "main", "publish",
-           "r2l_row", "read_index", "register", "role_of", "rotation", "run_slot", "scored", "select", "sources",
-           "spec_of", "validation_spec"]
+           "OBJECTIVE", "PUBLISH_RULE", "R2LError", "R2LRow", "ROTATION_RULE", "RULES", "SELECTION_RULE", "TRACKING",
+           "blank_episode", "coverage", "episode_terms", "failed_evaluation", "fit", "gate", "index_entry", "main",
+           "publish", "publish_files", "r2l_row", "read_index", "register", "role_of", "rotation", "run_slot", "scored",
+           "select", "selection_role", "sources", "spec_of", "validation_spec"]
 
 if __name__ == "__main__":
     from designlab.stage2 import r2lfit as _named  # the importable copy owns every class and all module state

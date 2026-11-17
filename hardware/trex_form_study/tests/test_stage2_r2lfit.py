@@ -622,6 +622,90 @@ def test_importing_r2lfit_changes_no_file_or_table():
 
 
 # ------------------------------------------------------------------------------------------------
+# The review's findings: roles, a finished fit's resume, what is published
+# ------------------------------------------------------------------------------------------------
+def test_a_fit_on_another_seed_is_a_development_fit(env):
+    assert r2lfit.role_of("V6noF5", BODY)["role"] == "fit"
+    assert r2lfit.role_of("V6noF5", BODY, seed=42)["role"] == "fit"
+    role = r2lfit.role_of("V6noF5", BODY, seed=43)
+    assert role["role"] == "development" and role["reasons"] == ["seed 43, not 42 (rules Q1, Q2)"]
+    env.use(Stub(costs(fit=150.0)))
+    doc = r2lfit.fit(BODY, "F25F9cl", seed=43, out=env.out, log=quiet)
+    assert doc["settings"]["role"]["role"] == "development" and len(doc["history"]) == 6
+    with pytest.raises(r2lfit.R2LError, match="development"):
+        r2lfit.select(BODY, "F25F9cl", seed=43, out=env.out, log=quiet)
+
+
+def test_a_selection_on_another_share_is_a_development_selection(env):
+    sel = fitted(env)
+    assert sel["role"] == dict(role="fit", reasons=[], rule=r2lfit.ROLE_RULE)
+    dev = r2lfit.select(BODY, "V6noF5", out=env.out, reported_core_h=0.2, log=quiet)
+    assert dev["role"]["role"] == "development" and dev["share_core_h"] == pytest.approx(3.8)
+    assert dev["role"]["reasons"] == ["the reported cells' part 0.2 core-hours, not 0.4 (a share of 3.8, not 4: rule Q5)"]
+    assert "(development: the reported cells' part 0.2" in r2lfit.selection_text(dev)
+    with pytest.raises(r2lfit.R2LError, match="development selection is not published"):
+        r2lfit.publish(BODY, "V6noF5", out=env.out, index=r2lfit.INDEX)
+    assert not r2lfit.INDEX.exists()
+    # nor does a row read it (an index that points at it all the same)
+    src = env.out / "V6noF5" / BODY / "r2lg5.json"
+    s2io.write_json(r2lfit.INDEX, dict(schema=r2lfit.INDEX_SCHEMA, fits=[dict(
+        set="V6noF5", body=BODY, seed=42, r2lg5=dict(path=str(src), sha256=s2io.sha256_file(src)))]))
+    with pytest.raises(r2lfit.R2LError, match="development selection is no row"):
+        r2lfit.r2l_row(BODY, None, "R2L-V6noF5/42")
+    r2lfit.INDEX.unlink()
+    again = r2lfit.select(BODY, "V6noF5", out=env.out, log=quiet)
+    assert again["role"]["role"] == "fit"
+    assert r2lfit.publish(BODY, "V6noF5", out=env.out, index=r2lfit.INDEX)["seed"] == 42
+
+
+def test_a_resume_of_a_finished_fit_changes_nothing(env):
+    for set_name, kw, status in (("F25F9cl", {}, "ended_by_budget"), ("V0", dict(max_generations=2, popsize=4),
+                                                                      "done")):
+        env.use(Stub(costs(fit=150.0)))
+        doc = r2lfit.fit(BODY, set_name, out=env.out, log=quiet, **kw)
+        assert doc["status"] == status
+        d = r2lfit.fit_dir(env.out, set_name, BODY, 42)
+        before = {p.name: s2io.sha256_file(p) for p in sorted(d.iterdir())}
+        env.stub.calls.clear()
+        again = r2lfit.fit(BODY, set_name, out=env.out, resume=True, log=quiet, **kw)
+        assert env.stub.calls == [] and len(again["sessions"]) == 1
+        assert again == s2io.read_json(d / "cma.json")
+        assert {p.name: s2io.sha256_file(p) for p in sorted(d.iterdir())} == before
+
+
+def test_publish_copies_only_the_fits_own_records(env):
+    passed_gate(env)
+    env.use(Stub())
+    r2lfit.fit(BODY, "V6noF5", seed=43, out=env.out, max_generations=2, popsize=4, log=quiet)  # a development fit
+    fitted(env)
+    src = env.out / "V6noF5" / BODY
+    (src / "notes.txt").write_text("a note beside the records\n")
+    assert (src / "r2lfit" / "43" / "cma.json").exists()
+    want = ["r2lg5.json", "r2lg5_evals.jsonl", "start.json", "r2lfit/42/cma.json", "r2lfit/42/evals.jsonl",
+            "r2lfit/42/ledger.json", "r2lfit/42/rotation.json"]
+    assert sorted(r2lfit.publish_files(src, 42)) == sorted(want)
+    r2lfit.publish(BODY, "V6noF5", out=env.out, index=r2lfit.INDEX)
+    dst = r2lfit.INDEX.parent / "V6noF5" / BODY
+    got = sorted(p.relative_to(dst).as_posix() for p in dst.rglob("*") if p.is_file())
+    assert got == sorted(want + ["COLLECTED.json"])
+    assert sorted(s2io.read_json(dst / "COLLECTED.json")["files"]) == sorted(want)
+    assert not (src / ".publish").exists()  # the staging copy is gone
+    for rel in want:
+        assert s2io.sha256_file(dst / rel) == s2io.sha256_file(src / rel)
+
+
+def test_publish_refuses_while_the_set_and_body_are_locked(env):
+    fitted(env)
+    lock = s2io.Lock(env.out / "V6noF5" / BODY / ".lock").acquire()
+    try:
+        with pytest.raises(s2io.S2Error, match="held by pid"):
+            r2lfit.publish(BODY, "V6noF5", out=env.out, index=r2lfit.INDEX)
+    finally:
+        lock.release()
+    assert not r2lfit.INDEX.exists()
+
+
+# ------------------------------------------------------------------------------------------------
 # Slow: slot 0 is the bar's R2 row, bit for bit (two development episodes on V0)
 # ------------------------------------------------------------------------------------------------
 def _have_v0() -> bool:
