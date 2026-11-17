@@ -91,3 +91,9 @@ S2 is merged as it stands.
   gains at the first physics step. The line references to `r5env.py` are refreshed. Both are done in S3.
 - *The check's finding 2.* The early "draw" refusal's test matches `SERVO_RULE`. Done in S3.
 - *The check's points 4 and 5* stand as built (trap 2; T14's form at the env as at the plant).
+- *The names of the served rows (section 8, choice 18; the second list left them to the build's brief).* The
+  design's examples: `SV0/<setting>` (the served R0 stand-in), `SV2/<seed>/<setting>` (the served R2 stand-in), and
+  `SV5/<policy>/<setting>` for a served policy row once `s2rows.py` serves one. A served stand-in row gives no
+  verdict and no served row is attributed (5.1). Every reader of their records carries its own lists.
+- *Choice 27* (a second-block record that fails) was settled by the owner (`DECISION_LOG.md` P41): the repeat must
+  pass too.
