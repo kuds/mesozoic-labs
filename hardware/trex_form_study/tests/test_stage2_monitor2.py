@@ -24,8 +24,9 @@ indirection to ``lookbar``, is replaced by such a table; no episode is run):
   exit code 8 and a note of its reason, and any other fault keeps exit code 1;
 * the other exits before any episode are refusals too (the sixth list of 16 Nov 2026, 3; the rulings of 17 Nov,
   10 and 11): a ``run.json`` that is missing, cannot be read or is no JSON object, a checkpoint record of the wrong
-  shape, and a row that refuses the checkpoint while it is built (``s2rows.RowError``, here a stub class of that
-  name and module: the rows package is not merged; ``s2load.CheckpointError``, a fingerprint not reproduced at the
+  shape (among them one without a ``layout`` or ``fingerprint`` object: the rulings of 17 Nov 2026, 12), and a
+  row that refuses the checkpoint while it is built (``s2rows.RowError``, here a stub class of that name and module
+  in place of the merged rows package; ``s2load.CheckpointError``, a fingerprint not reproduced at the
   row's load, also in the Stage 1 view's stand-in).  An exception of another class of the same name, one that
   ``lookbar.episodes`` raises and a row's refusal at a further delay (after the check's episodes) are none;
 * ``monitor2``'s table of rule M4 is the task table's (``r5lib.TASKS``' ``monitor`` fields).
@@ -220,7 +221,8 @@ def _job(tmp_path, steps=512) -> Path:
     (job / "run.json").write_text(json.dumps(dict(job="R5-x-s42", run_uuid="u" * 32, run_id=None, mode="R5", seed=42,
                                                   settings_sha256="h" * 64, flags=dict(kl_cut=False))))
     (ck / f"checkpoint_{steps}.json").write_text(json.dumps(dict(
-        run_uuid="u" * 32, settings_sha256="h" * 64, steps=steps, files=files)))
+        run_uuid="u" * 32, settings_sha256="h" * 64, steps=steps, files=files, layout=dict(obs_dim=12, actor_dim=8),
+        fingerprint=dict(rows=4, obs_sha256="o" * 64))))
     return job
 
 
@@ -388,13 +390,26 @@ def test_the_other_exits_before_any_episode_are_refusals(monkeypatch, tmp_path):
         _cli_refused(run, note, "checkpoint", "the checkpoint's record has the wrong shape", called)
     rec_path.write_text(json.dumps({k: v for k, v in rec.items() if k != "files"}))
     _cli_refused(run, note, "checkpoint", "has the wrong shape", called)
+    # the lead's ruling 12 of 17 Nov 2026 (the check of the third follow-up, finding 1): a record without a layout
+    # or a fingerprint object is refused too (as built it got past and s2load raised a KeyError in the row's load:
+    # a traceback, exit code 1 and a counted attempt)
+    for key, bad in (("layout", None), ("layout", "R5"), ("layout", [12, 8]), ("fingerprint", None),
+                     ("fingerprint", "o" * 64), ("fingerprint", [4])):
+        doc = {k: v for k, v in rec.items() if k != key}
+        if bad is not None:
+            doc[key] = bad
+        rec_path.write_text(json.dumps(doc))
+        _cli_refused(run, note, "checkpoint", f"has the wrong shape (no {key} object", called)
+    rec_path.write_text(json.dumps({k: v for k, v in rec.items() if k not in ("layout", "fingerprint")}))
+    _cli_refused(run, note, "checkpoint", "no layout and no fingerprint object", called)
     rec_path.write_text(json.dumps(rec))
     assert m2.main(run) == 0 and len(called) == 1 and not note.exists() and (mon / "monitor_512.json").is_file()
     assert m2.main(base) == 0 and len(called) == 2 and not base_note.exists() and (mon / "r0l.json").is_file()
 
 
 def _stub_rows(monkeypatch, rows=None, episodes=None):
-    """``lookbar`` and ``s2rows`` stand-ins in ``sys.modules`` (neither is merged here): ``s2rows.RowError`` is a
+    """``lookbar`` and ``s2rows`` stand-ins in ``sys.modules`` (in place of the merged modules, so that no row is
+    built and no episode is run): ``s2rows.RowError`` is a
     class of that name and module.  ``rows(body, names)`` and ``episodes(...)`` default to a row and the check's
     table."""
     import importlib.machinery

@@ -37,9 +37,12 @@ missing, the checkpoint is not intact, the checkpoint is another run's, the row 
 built) made no attempt: the attempt is closed as ``refused`` with the monitor's reason, it is not one of the two
 closed attempts after which a check counts as without a record, the run halts, and a resume runs the check again
 (with ``--retry-check`` when the refused attempt was the one that parameter let run; ``monitor2.RULES["refusal"]``).
-The monitor child's environment holds ``STAGE2_ALLOW_SOURCE_CHANGE=1`` exactly when the session was given
-``--allow-source-change`` (``ALLOW_SOURCE_ENV``): the trainer passes its flag to the policy row, which reads it there
-(rule K9), and a value the trainer's own environment holds is not passed on.
+The monitor child's environment holds ``STAGE2_ALLOW_SOURCE_CHANGE=1`` exactly when the session's sources are
+allowed (``ALLOW_SOURCE_ENV``): the session was given ``--allow-source-change``, or an earlier session given it ran on
+the same sources (``SOURCE_ALLOWANCE_RULE``: an allowance holds for the rest of the run for the same sources, and
+``run.json`` ``sources_allowed`` records the hashes).  The trainer passes the allowance to the policy row, which reads
+it there (rule K9), and a value the trainer's own environment holds is not passed on.  A halt for moved sources
+(the monitor's own sources check, or the row's rule K9) names ``--allow-source-change``.
 
 **Exit codes** of ``run``: 0 done, or stopped by rule M4 or M5; 3 G8a failed ("G8a fails: no run"); 4 refused (a
 resume the rules refuse, or a start that cannot be made: nothing was run); 5 halted for the lead (R0L's baseline
@@ -168,7 +171,8 @@ RESUME_RULE = (
     "names, must be the run's); other inputs (the envs are built from the run's stored configs, which name the "
     "freeze the run started on and its tasks: a used file's sha256 or entry hash, the plant's inputs or the "
     "resolved task table that differs; a later freeze of the set is accepted when these are unchanged, and both "
-    "freezes are recorded); other sources than the last session's unless --allow-source-change; other library "
+    "freezes are recorded); other sources than the last session's unless --allow-source-change, or unless an "
+    "earlier session given it ran on the same sources (SOURCE_ALLOWANCE_RULE); other library "
     "versions than the last session's (s2load.comparable) unless --allow-version-change; a checkpoint whose "
     "run_uuid or settings hash is not the run's; a fingerprint that is not reproduced within 1e-5.  A checkpoint "
     "that fails its integrity check is skipped with its reason.  No intact checkpoint is no refusal: the job "
@@ -336,10 +340,51 @@ def _monitor_cmd() -> list:
 ALLOW_SOURCE_ENV = "STAGE2_ALLOW_SOURCE_CHANGE"
 
 
+#: The lead's ruling 12 of 17 Nov 2026 (the check of the third follow-up, finding 2).
+SOURCE_ALLOWANCE_RULE = (
+    "the lead's ruling 12 of 17 Nov 2026: an allowance for moved sources holds for the rest of the run for the same "
+    "sources.  A session given --allow-source-change records the hash of the sources it runs on in run.json "
+    "sources_allowed (with its index), once per hash; a later session whose sources hash is one of them is allowed "
+    "as if it had been given the parameter: its resume accepts those sources against the last session's (flagged, "
+    f"as with the parameter) and its monitor children get {ALLOW_SOURCE_ENV}=1 for the policy row (rule K9); the "
+    "session's source_allowance names the session whose parameter allowed them.  Sources that no session given the "
+    "parameter ran on are allowed only by the parameter.  A halt for moved sources (the monitor's own sources "
+    "check, or the row's refusal by rule K9) names --allow-source-change, the parameter that resolves it")
+#: What a halt for moved sources adds to its reason (``SOURCE_ALLOWANCE_RULE``).
+SOURCE_REMEDY = ("the sources moved (the monitor's sources check, or the row's rule K9): a resume with "
+                 "--allow-source-change runs the check on them, flagged")
+
+
+def allowed_sources(doc: dict) -> dict:
+    """``{sources sha256: the session whose --allow-source-change allowed it}`` of a ``run.json``
+    (``SOURCE_ALLOWANCE_RULE``): its ``sources_allowed``, and, for a ``run.json`` written before that key, the
+    sources of every session that was given the parameter or resumed on moved sources with it."""
+    out = {}
+    for e in doc.get("sources_allowed") or []:
+        if isinstance(e, dict) and isinstance(e.get("sha256"), str):
+            out.setdefault(e["sha256"], e.get("session"))
+    for i, sess in enumerate(doc.get("sessions") or []):
+        h = (sess.get("sources") or {}).get("sha256")
+        if isinstance(h, str) and (sess.get("allow_source_change") is True or sess.get("source_change") is True):
+            out.setdefault(h, sess.get("index", i))
+    return out
+
+
+def moved_sources(why: dict | None) -> bool:
+    """Whether a refusal of the monitor (``_Run._refusal``'s ``{kind, reason}``) is one for moved sources: the
+    monitor's own sources check (kind ``sources``) or the row's rule K9 (kind ``row``, a reason that cites rule K9
+    or ``ALLOW_SOURCE_ENV``, as ``s2rows``' refusal of moved sources does)."""
+    if not why:
+        return False
+    kind, reason = why.get("kind"), str(why.get("reason") or "")
+    return kind == "sources" or (kind == "row" and ("rule K9" in reason or ALLOW_SOURCE_ENV in reason))
+
+
 def monitor_env(allow_source_change: bool, base=None) -> dict:
     """The monitor child's environment: ``tbenv.child_env("disable", base)`` with ``ALLOW_SOURCE_ENV`` = ``"1"``
-    when the session was given ``--allow-source-change``, and without it otherwise (a value ``base`` holds is not
-    passed on: the row's allowance is the trainer's flag)."""
+    when the session's sources are allowed (``--allow-source-change``, or ``SOURCE_ALLOWANCE_RULE``: sources an
+    earlier session given the parameter ran on), and without it otherwise (a value ``base`` holds is not passed on:
+    the row's allowance is the trainer's)."""
     env = tbenv.child_env("disable", base)
     env.pop(ALLOW_SOURCE_ENV, None)
     if allow_source_change:
@@ -636,6 +681,7 @@ class _Run:
         self.workers = min(N_ENVS, vcpus()) if w is None else max(0, min(int(w), N_ENVS))
         self.allow_version, self.allow_source = bool(a["allow_version_change"]), bool(a["allow_source_change"])
         self.retry_check, self.retry_used = bool(a.get("retry_check")), False
+        self.source_allowance = None  # (SOURCE_ALLOWANCE_RULE: set by _refuse_sources_versions)
         self.log = a["log"] or (lambda *x: None)
         self.doc = self.session = self.venv = self.vecnorm = self.model = self.cb = None
         self.k, self.skipped, self.freeze_index, self.val, self.env_described = 0, [], None, {}, {}
@@ -759,8 +805,8 @@ class _Run:
             rules=dict(boundary=BOUNDARY_RULE, checkpoint=CHECKPOINT_RULE, resume=RESUME_RULE, updates=UPDATES_RULE,
                        kl_cut=KL_CUT_RULE, rate=RATE_RULE, gates=GATES_RULE, fine_tune=FINE_TUNE_RULE,
                        retry=RETRY_RULE, baseline=BASELINE_RULE, children=CHILD_RULE, filter=FILTER_NEED_RULE,
-                       monitor=dict(m2.RULES)),
-            layout=None, sessions=[], checkpoints=[], kept=[],
+                       source_allowance=SOURCE_ALLOWANCE_RULE, monitor=dict(m2.RULES)),
+            layout=None, sessions=[], sources_allowed=[], checkpoints=[], kept=[],
             gates=dict(g8a=None, rate=None, g8b=None, g8b_after_fix=None), monitor=[], baseline=None,
             baseline_attempts=[], fix=None, flags=dict(kl_cut=False), no_gain_count=0, stopped=None, parent=None,
             final_check=None, halt=None, updates_file="updates.jsonl", status="running", budget=None,
@@ -768,16 +814,23 @@ class _Run:
 
     def _refuse_sources_versions(self, doc: dict, src: dict, vers: dict) -> dict:
         """``RESUME_RULE``: the sources and the library versions against the last session's; what the new session
-        records of an allowed change."""
+        records of an allowed change.  The session's sources are allowed (``self.source_allowance``) by its
+        ``--allow-source-change`` or, without it, when an earlier session given it ran on the same sources
+        (``SOURCE_ALLOWANCE_RULE``)."""
         from designlab.stage2 import s2load
 
         out = {}
+        allowed = allowed_sources(doc)
+        if self.allow_source:
+            self.source_allowance = dict(sha256=src["sha256"], by="--allow-source-change", session=len(doc["sessions"]))
+        elif src["sha256"] in allowed:
+            self.source_allowance = dict(sha256=src["sha256"], by="sources_allowed", session=allowed[src["sha256"]])
         if not doc["sessions"]:
             return out
         last = doc["sessions"][-1]
         was = (last.get("sources") or {}).get("sha256")
         if was != src["sha256"]:
-            if not self.allow_source:
+            if self.source_allowance is None:
                 files = (last.get("sources") or {}).get("files") or {}
                 changed = sorted(f for f in src["files"] if files.get(f) != src["files"][f])
                 raise Refused(f"{self.path}: other sources than the run's last session ({str(was)[:12]}... -> "
@@ -807,8 +860,12 @@ class _Run:
             pythonhashseed=os.environ.get("PYTHONHASHSEED"), resumed_from=None, restarted_from_zero=False,
             skipped_checkpoints=list(self.skipped), fingerprint_max_abs_diff=None, version_change=False,
             source_change=False, freeze_index=self.freeze_index, boundary_seeds=[], discarded_after_resume=None,
-            retry_check=self.retry_check, error=None, env=None, other_envs=None)
+            retry_check=self.retry_check, allow_source_change=self.allow_source,
+            source_allowance=self.source_allowance, error=None, env=None, other_envs=None)
         session.update(flagged)
+        if self.allow_source and src["sha256"] not in allowed_sources(doc):  # (SOURCE_ALLOWANCE_RULE)
+            doc.setdefault("sources_allowed", []).append(dict(sha256=src["sha256"], session=self.k,
+                                                              at=session["started_at"]))
         session.update(self.env_described)
         doc["sessions"].append(session)
         doc["status"], doc["halt"] = "running", None
@@ -1143,15 +1200,15 @@ class _Run:
     def _child(self, args: list, att: dict | None = None) -> int:
         """Run the monitor child and wait for it (a subprocess: nothing forks while the pool is open).  ``att``:
         the attempt's log entry, already written; it takes the child's pid, start time and boot id as soon as the
-        child has started (``CHILD_RULE``).  The child's environment is ``monitor_env``'s: the session's
-        ``--allow-source-change`` passed to the row."""
+        child has started (``CHILD_RULE``).  The child's environment is ``monitor_env``'s: the session's allowance
+        of its sources (``--allow-source-change``, or ``SOURCE_ALLOWANCE_RULE``) passed to the row."""
         cmd = _monitor_cmd() + [str(x) for x in args]
         cmd += ["--sources", self.session["sources"]["sha256"]]
         if self.tiny:
             cmd.append("--tiny")
         if self.also_k:
             cmd += ["--also-k", ",".join("%d" % k for k in self.also_k)]
-        proc = subprocess.Popen(cmd, env=monitor_env(self.allow_source), cwd=tbenv.study_dir(),
+        proc = subprocess.Popen(cmd, env=monitor_env(self.source_allowance is not None), cwd=tbenv.study_dir(),
                                 stdin=subprocess.DEVNULL)
         try:
             if att is not None:
@@ -1241,9 +1298,10 @@ class _Run:
             self.write()
             if not ok:
                 what = m2.baseline_problem(rec) if why is None else f"the monitor refused to run: {why['reason']}"
+                moved = f"; {SOURCE_REMEDY}" if moved_sources(why) else ""
                 raise Halt(f"{self.job}: the R0L baseline could not be made (the monitor child ended with code "
                            f"{code}; {what}): rule M1: the fault is repaired and all its "
-                           "episodes are run again before the run's first rollout")
+                           f"episodes are run again before the run's first rollout{moved}")
             if was is not None:  # (the record run.json names was lost: the run's checks were read against it)
                 same = baseline_same(was, rec)
                 if not same["equal"]:
@@ -1328,10 +1386,11 @@ class _Run:
                 again = ("a resume with --retry-check runs the check again (the refused attempt was the one "
                          "--retry-check let run after two attempts at this check were never closed)" if after_halt
                          else "a resume runs the check again")
+                moved = f"; {SOURCE_REMEDY}" if moved_sources(why) else ""  # (SOURCE_ALLOWANCE_RULE)
                 raise Halt(f"{self.job}: the monitor refused to run on the check of {n} steps ({why['reason']}): a "
                            "monitor that refuses to run is no attempt and does not count toward the two after "
                            "which a check counts as without a gain (rule M1; the lead's ruling of 16 Nov 2026): the "
-                           f"run halts and goes to the lead; with the fault repaired, {again}")
+                           f"run halts and goes to the lead; with the fault repaired, {again}{moved}")
             if rec is None:
                 closed += 1
                 self.say(f"WARNING: the monitor left no record of the check at {n} steps (exit code {code})")
@@ -2125,8 +2184,10 @@ def main(argv=None) -> int:
 
 __all__ = ["ALLOW_SOURCE_ENV", "BOUNDARY_RULE", "CHECKPOINT_EVERY", "EXIT_DONE", "EXIT_FAILED", "EXIT_G8A", "EXIT_HALT",
            "EXIT_REFUSED", "Halt", "MONITOR_EVERY", "N_ENVS", "N_STEPS", "Refused", "RESUME_RULE", "SCHEMA",
-           "SOURCE_FILES", "TINY", "TrainError", "base_body", "boundary_seed", "count_optimizer_steps", "filter_choice",
-           "filter_sigma", "is_boundary", "job_name", "kl_share", "main", "monitor_env", "preflight", "preflight_env",
+           "SOURCE_ALLOWANCE_RULE", "SOURCE_FILES", "TINY", "TrainError", "allowed_sources", "base_body",
+           "boundary_seed", "count_optimizer_steps", "filter_choice",
+           "filter_sigma", "is_boundary", "job_name", "kl_share", "main", "monitor_env", "moved_sources", "preflight",
+           "preflight_env",
            "probe_lr", "probe_sigma", "read_updates", "require_hashseed", "sources", "train"]
 
 if __name__ == "__main__":

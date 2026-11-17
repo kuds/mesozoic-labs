@@ -569,6 +569,17 @@ def test_a_fault_names_no_path_of_this_machine():
     assert lookbar._no_paths(keep) == keep and lookbar._fault("x", ValueError(keep)) == f"x: ValueError: {keep}"
     once = lookbar._no_paths(f"{s2io.STUDY}/a/b.npz and '/x/y/z/w.npz'")
     assert once == "a/b.npz and '.../y/z/w.npz'" and lookbar._no_paths(once) == once
+    # the lead's ruling 12 of 17 Nov 2026 (the check of the rows package, low point 2): no path keeps its first part,
+    # however short (as built a path of three parts or fewer was kept whole); one with a space is cut up to it
+    for text, cut in (("/home/user/a", ".../user/a"), ("at /content: gone", "at ...: gone"),
+                      ("/home/user/b c/d", ".../user/b c/d"), ("/a/b/c/d/e", ".../c/d/e"),
+                      ("/content/drive/My Drive/mesozoic/stage2/sets/V6/x.npz",
+                       ".../drive/My Drive/mesozoic/stage2/sets/V6/x.npz")):
+        assert lookbar._no_paths(text) == cut, text
+        assert text.split("/")[1].split()[0] not in cut and lookbar._no_paths(cut) == cut, text
+    # a path under an output root given to it is named relative to that root (a summary's own paths are)
+    assert lookbar._no_paths("/r/out/V6/B/eval/x.json: bad", roots=("/r/out",)) == "V6/B/eval/x.json: bad"
+    assert lookbar._no_paths("/r/out and /r/outer/x", roots=("/r/out",)) == ".../out and .../outer/x"
 
 
 # ------------------------------------------------------------------------------------------------
@@ -738,6 +749,11 @@ def test_a_missing_or_foreign_sidecar_is_refused(tmp_path):
         assert [(c["row"], c["condition"], c["status"], c["companion"], c["record"], c["moved_to"]) for c in cells] == [
             ("R0L@10ms", "walk/v0.4", "done", "none", None, None)]
         assert cells[0]["reason"] == summary["refused"][0] and cells[0]["bar_record"].endswith("eval/R0L@10ms/walk/v0.4.json")
+        # the lead's ruling 12 of 17 Nov 2026 (the check of the rows package, low point 3): a refusal's text in the
+        # summary names no absolute path (as built it held the output root's): its paths are relative to the root
+        for text in summary["refused"] + [c["reason"] for c in cells]:
+            assert str(out) not in text and str(tmp_path) not in text and not lookbar._ABS_PATH.search(text), text
+        assert summary["refused"][0].startswith(cells[0]["bar_record"] + ": seed 3047: ")
         assert lookbar.main(["collect", "--set", "V6", "--body", BODY, "--out", str(out)]) == 1
 
     def change(**kw):
@@ -1127,6 +1143,32 @@ def test_a_fault_in_the_reading_is_recorded_and_never_raised(t0_set, monkeypatch
                              f"{BODY}/refs/nominal.npz)")
     for fault in (blk3["fault"], blk4["fault"]):
         assert str(ROOT) not in fault and str(t0_set["run_dir"]) not in fault and "/tmp" not in fault
+    # the two other fault sites cut the same way (the check of the rows package, low point 1: as built only the look
+    # reading's site was tested end to end): the clock, state digest and policy check, and a stop item's term
+    monkeypatch.setattr(lookread, "compare", real_compare)
+    real_clock, real_stop = lookbar.clock_block, lookbar.on_command_at_stop
+
+    def clock_lost(*a, **k):
+        raise OSError(f"cannot read {there}")
+
+    def stop_lost(*a, **k):
+        raise FileNotFoundError(2, "No such file or directory", str(here))
+
+    monkeypatch.setattr(lookbar, "clock_block", clock_lost)
+    blk5 = lookbar.LookRow(look.inner)._block(*kept["args"])
+    assert blk5["fault"].split("; ")[0] == f"clock: OSError: cannot read .../{BODY}/refs/nominal.npz"
+    assert blk5["clock"] is None
+    monkeypatch.setattr(lookbar, "clock_block", real_clock)
+    monkeypatch.setattr(lookbar, "on_command_at_stop", stop_lost)
+    b, out, rec, _, seed, relax = kept["args"]
+    stop = t0_set["conds"]["stop/two_step"]
+    assert stop.judge == lookbar.STOP_JUDGE
+    blk6 = lookbar.LookRow(look.inner)._block(b, out, rec, stop, seed, relax)
+    assert blk6["fault"] == (f"{lookbar.ON_COMMAND_TERM}: FileNotFoundError: [Errno 2] No such file or directory: "
+                             f"'stage2/sets/{SET}/{BODY}/refs/nominal.npz'")
+    monkeypatch.setattr(lookbar, "on_command_at_stop", real_stop)
+    for fault in (blk5["fault"], blk6["fault"]):
+        assert str(ROOT) not in fault and str(t0_set["run_dir"]) not in fault and not lookbar._ABS_PATH.search(fault)
     # a walk or turn item that cannot be played is a fault of the definition: an error on a look set, never "no look"
     on = lookbar.companion_episode(cond.key, cond.judge, 6001, e, blk, True)
     off = lookbar.companion_episode(cond.key, cond.judge, 6001, e, blk, False)

@@ -105,6 +105,17 @@ if run is None and a.resume:
 if p.get("refuse"):
     print("stub: Refused: other settings than the run's", file=sys.stderr)
     sys.exit(4)
+SOURCES = dict(files={"designlab/stage2/r5core.py": "stub-r5core"}, plant_sources="stub", panel_sources="stub")
+SOURCES["sha256"] = hashlib.sha256(json.dumps(SOURCES, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+source_change, sources_before = False, None                 # (train2's rule K4 on the sources, before the versions)
+was = (run["sessions"][-1].get("sources") or {}) if run is not None and a.resume and run["sessions"] else {}
+if was.get("sha256") not in (None, SOURCES["sha256"]):
+    if not a.allow_source_change:
+        print("stub: Refused: other sources than the run's last session (%s... -> %s...): refusing to resume (pass "
+              "--allow-source-change to resume on them, flagged)" % (was["sha256"][:12], SOURCES["sha256"][:12]),
+              file=sys.stderr)
+        sys.exit(4)
+    source_change, sources_before = True, was
 VERSIONS, version_change = dict(numpy="stub-1"), False      # (train2's rule K4 on the library versions)
 if a.resume and run is not None and run["sessions"] and run["sessions"][-1].get("versions") not in (None, VERSIONS):
     if not a.allow_version_change:
@@ -158,7 +169,8 @@ k = len(run["sessions"])
 run["sessions"].append(dict(index=k, resumed_from=n if a.resume and have() else None, pid=os.getpid(),
                             host=socket.gethostname(), fingerprint_max_abs_diff=0.0 if a.resume else None,
                             skipped_checkpoints=[], workers=a.workers, argv=sys.argv[1:], versions=VERSIONS,
-                            version_change=version_change))
+                            version_change=version_change, sources=SOURCES, source_change=source_change,
+                            sources_before=sources_before))
 run["status"] = "running"
 write(run_path, run)
 if p.get("halt"):
@@ -588,7 +600,8 @@ def test_the_steps_sheet_quotes_the_programs_own_lines():
                  "Disconnecting runtime in 5 seconds...", "Repository ref: ", "S2 launch: UNFINISHED: ",
                  "NOT ON DRIVE: ", "was not started", "reading from Drive failed", "not on Drive after",
                  "S2 launch: interrupted by signal ", "stopped with exit code", "S2 launch: REFUSED: ",
-                 "THIS MACHINE IS KEPT ON PURPOSE", "is resumed only on the lead's word"):
+                 "THIS MACHINE IS KEPT ON PURPOSE", "is resumed only on the lead's word",
+                 "Google Drive's connection was lost"):
         assert said in source and said in sheet, said
     assert 'notes.append("LEAD.json: "' in source and '"S2 NOTE: LEAD.json: ..."' in sheet     # (a session's note)
     assert "RuntimeError: S2 step ... stopped with exit code" in sheet
@@ -613,6 +626,23 @@ def test_the_steps_sheet_quotes_the_programs_own_lines():
     for start, end in (("   3.4  ", "   3.5  "), ("   4.3  ", "   4.4  ")):
         table = sheet.split(start, 1)[1].split(end, 1)[0]
         assert re.findall(r"^ {10}([A-Z][A-Z_]+) {2,}", table, re.M) == list(nb.PARAMS), start
+    # the lead's ruling 12 of 17 Nov (the check's finding 2): the sheet never tells the owner to delete a runtime
+    # that the finish cell kept on purpose: every step that lets a machine go names that paragraph as its exception,
+    # and section 5 says so before its 5.4 (as built 5.3 sent an owner whose page was lost straight to 5.4)
+    flat = " ".join(r.strip() for r in rows)
+    for n, r in enumerate(rows):
+        if "Disconnect and delete runtime" in r or "let the machine go" in r:
+            near = " ".join(x.strip() for x in rows[max(0, n - 5): n + 3])
+            assert "KEPT ON PURPOSE" in near, r
+    five = flat.split("5.3  Otherwise open STATUS.json", 1)[1].split("5.5  Expect:", 1)[0]
+    assert ('If the last grey box (8. FINISH) printed a paragraph that begins "THIS MACHINE IS KEPT ON PURPOSE", do '
+            "not do 5.4") in five and five.index("do not do 5.4") < five.index("5.4  Resume")
+    # (the check's finding 4) one row per warning, and no irreversible deletion on the owner's own: the lead asks
+    write = flat.split("S2 WARNING: a copy to Drive failed ...", 1)[1].split("S2 WARNING: ... reading", 1)[0]
+    read = flat.split("S2 WARNING: ... reading from Drive failed", 1)[1].split("S2 WARNING: ... not on Drive", 1)[0]
+    assert "your Drive may be full. Tell me; I may ask you to empty the Drive's bin. Delete nothing yourself." in write
+    assert "full" not in read and "bin" not in read and "tell me" in read
+    assert "Empty the Drive's bin" not in sheet and "empty the Drive's bin first" not in flat.lower()
     # no instruction asks the owner to change RUN_ID, REPO_REF, TAKEOVER or an ALLOW parameter on an error's advice:
     # outside the two parameter tables each of them appears only with "not", "never", "same" or "do not"
     for n, r in enumerate(rows):
@@ -1078,6 +1108,69 @@ def test_a_halt_is_resumed_only_with_the_leads_remedy(tmp_path, stubs, monkeypat
     res = _launch(p)
     assert res["state"] == "done" and "--retry-check" in _calls(p)[-1]["argv"] and "--resume" in _calls(p)[-1]["argv"]
     assert json.loads((d / "DONE.json").read_text())["state"] == "done"
+
+
+def test_the_leads_retry_check_answers_only_the_halt_that_names_it(tmp_path, stubs, monkeypatch, capsys):
+    """The lead's ruling 12 of 17 Nov (the check's finding 1): LEAD.json's retry_check applies only to the session
+    that resumes the halt whose remedy names it.  Session 0 halts (remedy retry_check); session 1 answers it with
+    LEAD.json and is refused by the trainer (exit code 4: no halt); session 2 is a plain resume and answers no halt:
+    it carries no --retry-check, although LEAD.json still holds retry_check.  As built session 2's trainer got
+    --retry-check (an old LEAD.json reopened every later halt of two attempts never closed)."""
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02), "R5-B1-s42": dict(halt=True)}))
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
+    _session(p)
+    d = tmp_path / "drive" / "runs" / "r1"
+    assert _launch(p)["state"] == "halted"
+    halt = json.loads((d / "HALT.json").read_text())
+    assert halt["remedy"] == ["retry_check"]
+    _lead(d, resume_halt=halt["halt_id"], retry_check=True)
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02), "R5-B1-s42": dict(refuse=True)}))
+    s1 = _session(p, RESUME=True)
+    assert s1["retry_check"] is True and s1["halt_resumed"]["remedy"] == ["retry_check"]
+    assert _launch(p)["state"] == "refused" and not (d / "HALT.json").exists()
+    assert "--retry-check" in _calls(p)[-1]["argv"]
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02)}))
+    s2 = _session(p, RESUME=True)
+    assert s2["halt_resumed"] is None and s2["lead"]["doc"]["retry_check"] is True
+    assert s2["retry_check"] is False and json.loads((d / "SESSION_2.json").read_text())["retry_check"] is False
+    assert _launch(p)["state"] == "done"
+    argv = _calls(p)[-1]["argv"]
+    assert len(_calls(p)) == 3 and "--resume" in argv and "--retry-check" not in argv
+    assert "retry_check only in the session that resumes the halt whose remedy names it" in nb.LEAD_RULE
+    # the lead's own launch may still name it in a parameter file (RETRY_CHECK), and then it is passed on
+    s = _session(_params(tmp_path, RUN_ID="r2", QUEUE=["R5:B1:42"], CLIPS=False, RETRY_CHECK=True))
+    assert s["retry_check"] is True
+
+
+def test_a_halt_for_moved_sources_asks_the_lead_for_allow_source_change(tmp_path, stubs, monkeypatch, capsys):
+    """The lead's ruling 12 of 17 Nov: a halt for moved sources names the parameter that resolves it
+    (--allow-source-change, as train2's halt does); the notebook takes it as that halt's remedy: a resume is refused
+    until LEAD.json names the halt and holds allow_source_change, which then reaches the trainer.  As built only
+    --retry-check was taken from a halt's text, and the lead had to know to write allow_source_change."""
+    why = ("stub: the monitor refused to run on the check of 2048 steps (the row R5/42@10ms refused the checkpoint "
+           "while it was built, before any episode (RowError: not judged (rule K9; STAGE2_ALLOW_SOURCE_CHANGE=1 runs "
+           "it flagged))): the run halts and goes to the lead; the sources moved: a resume with "
+           "--allow-source-change runs the check on them, flagged")
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02), "R5-B1-s42": dict(halt=why)}))
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
+    _session(p)
+    d = tmp_path / "drive" / "runs" / "r1"
+    assert _launch(p)["state"] == "halted"
+    halt = json.loads((d / "HALT.json").read_text())
+    assert halt["resumable"] is True and halt["remedy"] == ["allow_source_change"], halt
+    _lead(d, resume_halt=halt["halt_id"])
+    with pytest.raises(nb.Refused, match='LEAD.json beside the run with "allow_source_change": true'):
+        _session(p, RESUME=True)
+    _lead(d, resume_halt=halt["halt_id"], allow_source_change=True)
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02)}))
+    s1 = _session(p, RESUME=True)
+    assert s1["allow_source_change"] is True and s1["retry_check"] is False
+    assert s1["halt_resumed"]["remedy"] == ["allow_source_change"]
+    assert _launch(p)["state"] == "done"
+    argv = _calls(p)[-1]["argv"]
+    assert "--allow-source-change" in argv and "--retry-check" not in argv and "--resume" in argv
+    assert nb.halt_remedy("a --retry-check and an --allow-source-change") == ["retry_check", "allow_source_change"]
+    assert nb.halt_remedy("nothing") == [] and "allow_source_change when it names" in nb.RESUMABLE_RULE
 
 
 def test_a_launcher_error_is_a_resumable_halt(tmp_path, stubs, monkeypatch, capsys):
@@ -1557,31 +1650,133 @@ def test_the_finish_keeps_the_runtime_while_a_save_is_not_on_drive(tmp_path, stu
     fin = nb.finish("r1", p["DRIVE_DIR"], p["LOCAL_DIR"])
     assert fin["on_drive"] is False and "the finish could not be completed (OSError" in capsys.readouterr().out
     monkeypatch.setattr(nb._Launcher, "__init__", real_init)
-    # cell 8 as the notebook runs it: s2_step's exit code decides
+    # cell 8 as the notebook runs it: s2_step's exit code decides.  The lead's ruling 12 of 17 Nov: the runtime is
+    # released only on exit codes 0 and 5; on anything else (a save on this machine only, a crash of the step, a
+    # stop by hand) it is kept and one paragraph says so (as built, everything but 6 released it)
     released = []
     monkeypatch.setattr(nb, "release_runtime", lambda reason, in_colab, auto, flush_drive: released.append(reason))
     cell = "".join(_cells()[8]["source"])
-    for code, want in ((nb.EXIT_UNFINISHED, []), (0, ["Stage 2 session of run 'r1' is over."]),
-                       (nb.EXIT_HALT, ["Stage 2 session of run 'r1' is over."]), ("raise", ["Stage 2 session of run 'r1' is over."])):
+    over = ["Stage 2 session of run 'r1' is over."]
+    for code, want in ((nb.EXIT_UNFINISHED, []), (0, over), (nb.EXIT_HALT, over), ("raise", []), (1, []),
+                       (nb.EXIT_REFUSED, []), (nb.EXIT_INTERRUPTED, []), ("crash", [])):
         released.clear()
 
         def s2_step(step, check=True, code=code):
             assert step == "finish" and check is False
             if code == "raise":
                 raise KeyboardInterrupt
+            if code == "crash":
+                raise OSError(errno.EIO, "Input/output error")
             return code
 
         space = dict(s2_step=s2_step, STUDY=str(STUDY), sys=sys, RUN_ID="r1", IN_COLAB=True, AUTO_DISCONNECT=True,
-                     USE_GOOGLE_DRIVE=True)
-        if code == "raise":
-            with pytest.raises(KeyboardInterrupt):
+                     USE_GOOGLE_DRIVE=True, DRIVE=str(tmp_path / "drive"))
+        if code in ("raise", "crash"):
+            with pytest.raises((KeyboardInterrupt, OSError)):
                 exec(compile(cell, "<cell 8>", "exec"), space)
         else:
             exec(compile(cell, "<cell 8>", "exec"), space)
         out = capsys.readouterr().out
         assert released == want, code
-        assert ("THIS MACHINE IS KEPT ON PURPOSE" in out) is (code == nb.EXIT_UNFINISHED), code
+        assert ("THIS MACHINE IS KEPT ON PURPOSE" in out) is (not want), code
+        assert (nb.KEEP_RUNTIME_TEXT in out) is (code == nb.EXIT_UNFINISHED), code
+        if not want and code != nb.EXIT_UNFINISHED:
+            assert nb.keep_other_text(space["S2_FINISH_CODE"]) in out and "tell me" in out, code
+            assert (f"it stopped with exit code {code}" in out) is isinstance(code, int), code
     assert "run the last grey box (8. FINISH) once more" in nb.KEEP_RUNTIME_TEXT and "\n" not in nb.KEEP_RUNTIME_TEXT
+    for code in (None, 1, 4, 6, 130, True, "0"):
+        assert "\n" not in nb.keep_other_text(code) and "run the last grey box (8. FINISH) once more" in nb.keep_other_text(code)
+        assert nb.release_or_keep(code, "over", in_colab=True, auto=True, flush_drive=True) is False, code
+    released.clear()
+    assert all(nb.release_or_keep(code, "over", in_colab=True, auto=True, flush_drive=True) for code in (0, 5))
+    assert released == ["over", "over"] and nb.RELEASE_CODES == (0, 5)
+
+
+def test_cell_8_mounts_a_dead_drive_again_once(tmp_path, monkeypatch, capsys):
+    """The lead's ruling 12 of 17 Nov: when Google Drive's mount itself has died (errno 107, ENOTCONN), cell 8 tries
+    ``drive.mount(force_remount=True)`` once before the finish and says so; the finish runs whatever the remount
+    does, and the runtime's fate is the finish's exit code.  Outside Colab, without Google Drive, or with a mount
+    that answers, nothing is tried.  As built, running cell 8 again did not remount a dead Drive."""
+    import types
+
+    mounts, state = [], dict(dead=True, heals=True)
+    colab = types.ModuleType("google.colab")
+
+    def mount(path, force_remount=False):
+        mounts.append((path, force_remount))
+        if state["heals"]:
+            state["dead"] = False
+
+    colab.drive = types.SimpleNamespace(mount=mount)
+    google = types.ModuleType("google")
+    google.colab = colab
+    monkeypatch.setitem(sys.modules, "google", google)
+    monkeypatch.setitem(sys.modules, "google.colab", colab)
+    drive = tmp_path / "drive"
+    drive.mkdir()
+    monkeypatch.setattr(nb, "_mount_dead", lambda path: OSError(errno.ENOTCONN, "Transport endpoint is not connected")
+                        if state["dead"] and Path(path) == drive else None)
+    released, steps = [], []
+    monkeypatch.setattr(nb, "release_runtime", lambda reason, in_colab, auto, flush_drive: released.append(reason))
+    cell = "".join(_cells()[8]["source"])
+
+    def run(code, in_colab=True, use_drive=True):
+        def s2_step(step, check=True):
+            steps.append((step, list(mounts)))
+            return code
+
+        exec(compile(cell, "<cell 8>", "exec"), dict(s2_step=s2_step, STUDY=str(STUDY), sys=sys, RUN_ID="r1",
+                                                    IN_COLAB=in_colab, AUTO_DISCONNECT=True,
+                                                    USE_GOOGLE_DRIVE=use_drive, DRIVE=str(drive)))
+        return capsys.readouterr().out
+
+    out = run(0)
+    assert mounts == [(nb.DRIVE_MOUNT, True)] and steps == [("finish", mounts[:1])]    # (before the finish)
+    assert "Google Drive's connection was lost" in out and "force_remount=True" in out
+    assert "Google Drive is mounted again." in out and len(released) == 1
+    out = run(0)                                                     # (the mount answers: nothing is tried)
+    assert len(mounts) == 1 and "connection was lost" not in out and len(released) == 2
+    state.update(dead=True, heals=False)
+    out = run(nb.EXIT_UNFINISHED)                                    # (a remount that does not help: once only)
+    assert mounts[1:] == [(nb.DRIVE_MOUNT, True)] and "still does not answer after the remount" in out
+    assert steps[-1][0] == "finish" and len(released) == 2 and nb.KEEP_RUNTIME_TEXT in out
+    for colab_, use in ((False, True), (True, False)):               # (outside Colab, or no Google Drive)
+        run(0, in_colab=colab_, use_drive=use)
+        assert len(mounts) == 2
+    # the helper itself never raises, and a missing directory is no dead mount
+    def broken():
+        raise RuntimeError("no window")
+
+    assert nb.remount_if_dead(drive, True, True, mount=broken) is False
+    assert "could not be mounted again (RuntimeError: no window)" in capsys.readouterr().out
+    assert nb.remount_if_dead(drive, True, True, mount=lambda: None, probe=lambda p: None) is None
+    monkeypatch.undo()
+    assert nb._mount_dead(tmp_path) is None and nb._mount_dead(tmp_path / "missing") is None
+    assert nb.DEAD_MOUNT_ERRNOS == (errno.ENOTCONN,) and errno.ENOTCONN == 107
+
+
+def test_the_pack_tools_tries_are_kept_so_that_the_finish_knows_them(tmp_path, stubs, monkeypatch, capsys):
+    """Ruling 1 of 17 Nov with the check's finding 3: the pack tool's tries are kept in the session's state, so that
+    each later finish knows that a check's tar that cannot be packed has used its tries (PACK_TRIES) and does not
+    hold the run's end back: the finish answers 0 every time.  Without the state the finish's launcher began its
+    count again, the tar was always still "to come", the finish answered 6 for good and the runtime was never let
+    go."""
+    (stubs / "pack_fail.py").write_text("import sys\nprint('stub pack: fails', file=sys.stderr)\nsys.exit(2)\n")
+    seams = json.loads((stubs / "seams.json").read_text())
+    seams["pack"] = [sys.executable, str(stubs / "pack_fail.py")]
+    (stubs / "seams.json").write_text(json.dumps(seams))
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02)}))
+    monkeypatch.setattr(nb, "END_COPY_PERIODS", 1.0)
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
+    _session(p)
+    res = _launch(p)
+    assert "was not packed" in res["jobs"]["R5-B1-s42"]["last_error"]
+    pfile = tmp_path / "p.json"
+    pfile.write_text(json.dumps(p))
+    codes = [nb.main(["finish", "--params", str(pfile)]) for _ in range(3)]
+    assert codes == [0, 0, 0], codes                             # (without the kept tries: [6, 6, 6])
+    st = json.loads((Path(p["LOCAL_DIR"]) / "r1" / "work" / "session.json").read_text())
+    assert set(st["pack_tries"].values()) == {nb.PACK_TRIES}      # (no finish packed again: the tries were used)
 
 
 def test_a_failed_first_write_to_drive_is_no_halt(tmp_path, stubs, monkeypatch, capsys):
@@ -2451,12 +2646,14 @@ def test_the_acceptance_runs_plumbing_on_stubs(tmp_path, monkeypatch):
 
 
 def test_design_3_10_step_6_the_leads_remedies_after_a_faked_record(tmp_path, stubs, monkeypatch):
-    """Design 3.10 step 6 as the lead's ruling 2 of 17 Nov has it (``_remedies``, which ``acceptance`` and
-    ``local_run`` run), on the stub trainer through the notebook's own cells: a session killed once its job's first
-    checkpoint is on the stand-in Drive; a faked record (QUEUE.json's commit, the job's last session's library
-    versions); a resume refused for the commit; LEAD.json's allow_source_change, and a resume that the trainer
-    refuses for the versions (exit code 4: no HALT.json); LEAD.json's allow_version_change too, and a resume to
-    DONE.  As built, step 6 was not done by acceptance at all ("not_done")."""
+    """Design 3.10 step 6 as the lead's rulings 2 and 12 of 17 Nov have it (``_remedies``, which ``acceptance`` and
+    ``local_run`` run), on the stub trainer (with train2's source check and version check, in that order) through
+    the notebook's own cells: a session killed once its job's first checkpoint is on the stand-in Drive; a faked
+    record (the job's last session's library versions and recorded source hash); a resume that the trainer's own
+    source check refuses (exit code 4: no HALT.json); the faked commit of QUEUE.json and a resume refused for it;
+    LEAD.json's allow_source_change, and a resume that the trainer refuses for the versions only (the flag reached
+    it); LEAD.json's allow_version_change too, and a resume to DONE whose run.json records both changes.  As built
+    (ruling 12's point) the trainer's source check was never exercised: only QUEUE.json's commit was faked."""
     monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.05, budget=512 * 200)}))
     real, logs = nb.run_cells, []
 
@@ -2471,21 +2668,32 @@ def test_design_3_10_step_6_the_leads_remedies_after_a_faked_record(tmp_path, st
                 STUDY_DIR=str(STUDY))
     rem = nb._remedies(NOTEBOOK, p, tmp_path / "logs", STUDY)
     assert rem["checks"] and all(rem["checks"].values()), json.dumps(rem, indent=1)[:4000]
-    assert logs == ["remedies-0.log", "remedies-1-refused-source.log", "remedies-2-refused-by-the-trainer.log",
-                    "remedies-3-done.log"]
+    assert "source_change_refused_by_the_trainer" in rem["checks"]
+    assert "allow_source_change_reached_the_trainer" in rem["checks"]
+    assert logs == ["remedies-0.log", "remedies-1-refused-by-the-trainers-source-check.log",
+                    "remedies-2-refused-source.log", "remedies-3-refused-by-the-trainer.log", "remedies-4-done.log"]
     d = tmp_path / "drive" / "runs" / "acc-remedies"
     assert rem["run_id"] == "acc-remedies" and rem["faked"]["queue_commit"] == "0" * 40
     assert rem["faked"]["version"] == dict(key="numpy", was="stub-1", now=nb.FAKED_VERSION[1])
-    assert sorted(x.name for x in d.glob("SESSION_*.json")) == ["SESSION_0.json", "SESSION_1.json", "SESSION_2.json"]
-    s1, s2 = (json.loads((d / f"SESSION_{k}.json").read_text()) for k in (1, 2))
-    assert s1["ended"]["state"] == "refused" and s1["allow_source_change"] and not s1["allow_version_change"]
-    assert s2["lead"]["doc"]["allow_version_change"] is True and s2["source_change"] is True
+    src = rem["faked"]["source"]
+    assert (src["file"], src["was"], src["now"]) == ("designlab/stage2/r5core.py", "stub-r5core", "0" * 64)
+    assert src["sha256_now"] != src["sha256_was"] and len(src["sha256_now"]) == 64
+    assert sorted(x.name for x in d.glob("SESSION_*.json")) == [f"SESSION_{k}.json" for k in range(4)]
+    s1, s2, s3 = (json.loads((d / f"SESSION_{k}.json").read_text()) for k in (1, 2, 3))
+    assert s1["ended"]["state"] == "refused" and not s1["allow_source_change"] and s1["lead"] is None
+    assert s2["ended"]["state"] == "refused" and s2["allow_source_change"] and not s2["allow_version_change"]
+    assert s3["lead"]["doc"]["allow_version_change"] is True and s3["source_change"] is True
     assert not (d / "HALT.json").exists() and json.loads((d / "DONE.json").read_text())["state"] == "done"
+    # (the stub's log of its calls is in the local run directory, which the dead runtime lost after session 0)
     argv = [c["argv"] for c in _calls(dict(p, RUN_ID="acc-remedies"))]
-    assert "--allow-source-change" in argv[-2] and "--allow-version-change" not in argv[-2]
-    assert "--allow-version-change" in argv[-1] and "--resume" in argv[-1]
+    assert len(argv) == 3 and "--resume" in argv[0] and "--allow-source-change" not in argv[0]
+    assert "--allow-source-change" in argv[1] and "--allow-version-change" not in argv[1]
+    assert "--allow-version-change" in argv[2] and "--allow-source-change" in argv[2] and "--resume" in argv[2]
     run = json.loads((d / "jobs" / "R5-B1-s42" / "run.json").read_text())
-    assert run["sessions"][-1]["version_change"] is True and run["sessions"][-1]["resumed_from"] >= 1024
+    last = run["sessions"][-1]
+    assert len(run["sessions"]) == 2 and last["version_change"] is True and last["resumed_from"] >= 1024
+    assert last["source_change"] is True and last["sources_before"]["sha256"] == src["sha256_now"]
+    assert run["sessions"][0]["sources"]["files"]["designlab/stage2/r5core.py"] == "0" * 64   # (the faked record)
 
 
 @needs_git
