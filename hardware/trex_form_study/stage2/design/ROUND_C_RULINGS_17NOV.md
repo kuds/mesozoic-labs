@@ -147,3 +147,52 @@ monitor's, rows' and look reading's tests on the merged tree "196 passed, 16 ski
 20. **The turn in place.** `setscreen` reads every entry as a walk, so a set holding the periodic turn cannot be
     screened. The turn in place stays out of the look sets until `setscreen` learns it, which is a round-A module
     and waits; rule T2 already allows a missing task, and `absent` lists it with its reason.
+
+## The look sets' check (`checkpoint/reviews/roundC__check_L_17nov.md`), ruled 17 Nov 2026, ~06:20 UTC
+
+Ruled before any look set is frozen and before any closed-loop episode on one.
+
+21. **Where a look set's turns and stop begin (check, finding 1, major).** T1 and B6 say "2 (2.5) strides of
+    `v0.4`" before a turn or the stop, and J1 builds the look set's moves to leave the walk there
+    (`look.window_a`: a_phase 2.0 or 2.5 strides, a_time_s, a_windows). The env (`r5lib.py` `TURN_LEAD`,
+    `STOP_LEAD`) and the bar count that lead in whole windows of the walk's file. On the round's three sets a
+    window is one stride, so the two readings agree; on a look set a window is K strides (K = 12 for `v0.4` on
+    V6noF5/75-M-H-10), so the env plays about 20 s of walk and then jumps 0.42 rad into a move built for a
+    different instant. **This is a code error, not a rule change: the rules as written stand.** On a set whose
+    `set.json` carries `look.window_a`, the env and `lookbar`'s look-set context (ruling 16) end the walk at J1's
+    leave point: they play the walk for `a_windows` of its window (the move's own `a_time_s` at the commanded
+    clock) and start the move at the frame it was built from. Every other set keeps today's code, bit for bit.
+    The phase check for a look set counts strides inside the window (left at a whole stride, right at a half),
+    in `lookbar`, because `bar.check_phase` reads a lead mod 1 and `bar.py` is not edited. The bar's own record
+    of a look-set turn or stop keeps its whole-window placement and is printed as "the bar's reading (C7)" beside
+    the companion's, as ruling 5 of the third Track B list says. A test plays each look-set turn and the stop
+    through the env and asserts that the largest joint change at the join is within the walk's own largest
+    frame-to-frame change (ruling 15's limit). Owed as a small package after the `lookbar` rule (16) is merged,
+    reviewed, before G9-ref is run on any look set. Cut 3 is not taken for this.
+22. **The turn in place's numbers (check, finding 2).** Ruling 20 is amended: `setscreen` lists a turn in place
+    that is not available without screening it, so the rebuild under ruling 18 builds `inplace_0.5_left` and
+    `inplace_0.5_right` for each set and records them as "not available" with their numbers (75 cm, as the check
+    measured them on a copy: thigh-twist use 0.9114 and 0.9115 against 0.87; hip-yaw margin 0.0266 rad against
+    0.05). They stay out of training: a turn in place that is not available is never a task (T2).
+23. **`blocked` names every failing group (check, finding 3).** `set.json` `blocked` keeps a list, so a 60 cm set
+    whose `start` and `nominal_to_v0.4` both fail names both. In the rebuild.
+24. **The sets builder's scope (check, finding 4).** Accepted as built: the look sets live in their own registry
+    (`LOOK_SETS`), `sets.py` is in no record key, and the round's three sets verify as before (the check ran them).
+25. **The reach of a toes-up swing after a change (check, finding 9).** The builder's reading is accepted and
+    written into L10 with the label "settled 17 Nov 2026, after the look work package built sets (prescribed
+    motion; none frozen), before any Track B run": a swing that lands at or before the change's instant keeps
+    gait a's reach; a later swing has a reach only when both its leaving and its landing stance follow a walk's
+    law. Otherwise it has none.
+26. **The other minor points (check, findings 5 to 8).** All go into the rebuild under ruling 18: `join_events`
+    uses the moves' join limit (4.0 mm) and pads instead of wrapping; turn reasons name only the gates that
+    failed; `tail_phase.json` is rebuilt on a clean tree before anything is frozen (nothing is frozen from a
+    dirty tree); the moves test writes into its tmp path. Finding 10 (the 60 cm change to 0.40 m/s) is not
+    diagnosed and goes to the owner with its numbers after the rebuild if it still fails (ruling 18).
+27. **`sets.py` leaves D18's state-A test (on merging the look sets, 17 Nov 2026, ~06:45 UTC).** The look sets'
+    package adds the look sets' registry (`LOOK_SETS`) and their builder to `sets.py`, which D18's fast test
+    (`tests/test_stage2_lookbar.py`) lists among the files that must equal state A. D18 exists so that no record
+    key moves and state-A records stay comparable. `sets.py` is in no record key: the bar's and the panels' source
+    hashes stay the registered pair, and `sets verify` on V0, F25F9 and F25F9cl gives the same counts as before
+    (ruling 24). So `sets.py` leaves the test's list with this reason, as `barreport.py` did. The other files of
+    the list stay; `moves.py` is unchanged by the package. D18's text in `ROUND_C_DESIGN.md` carries the
+    amendment. The next independent check of a round C package reads this change.
