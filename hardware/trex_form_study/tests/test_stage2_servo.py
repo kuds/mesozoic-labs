@@ -539,6 +539,31 @@ def test_t6_the_ankle_reads_its_two_motors_errors(p):
             assert any(abs(e[i] - lay.offset[i]) > 0 for i in lay.joint_idx if lay.b[i])  # some play shift
 
 
+@needs_plant
+def test_t6_the_inside_play_share_is_the_count_by_hand(p):
+    """The reading P41 reports: each leg drive's share of physics steps with |u / kp| inside half its play, u / kp =
+    c - o - L - (kv / kp) w (no lag, no hold here, so the command served is the controller's less the offset)."""
+    rng = np.random.default_rng(17)
+    params = replace(servo.setting("P+"), enc_offset=tuple(rng.uniform(-0.015, 0.015, 14)), cmd_lag_ms=(0.0,) * 4,
+                     cmd_hold=False, bus_r=0.0)
+    b, o = np.deg2rad(np.array(params.play_deg)) / 2, np.array(params.enc_offset)
+    n, inside = 200, np.zeros(14)
+    p.reset(seed=4, joint_noise=0.01)
+    with servo.served(p, params) as lay:
+        kp, kv, moment = lay.kp_model, lay.kv_model, p.envelope.moment
+        for k in range(n):
+            p.command(p.q_settled[p.qadr] + 0.01 * math.sin(0.09 * k), np.zeros(14), np.zeros(14))
+            x = (p.d.ctrl - o - p.G @ p.d.qpos[p.qadr]) - (kv / kp) * (moment @ p.d.qvel)
+            inside += np.abs(x) < b
+            p.step()
+        got = lay.readings()["inside_play_share"]
+    legs = np.flatnonzero(lay.is_leg)
+    assert list(got) == [servo.ACTUATORS[i] for i in legs]
+    share = inside[legs] / n
+    assert share.min() > 0.0 and share.max() < 1.0 and np.any(np.abs(share - 0.5) > 0.05)  # both sides visited
+    assert np.allclose([got[servo.ACTUATORS[i]] for i in legs], share, rtol=0, atol=1.0 / n)  # (a count at the edge)
+
+
 # ------------------------------------------------------------------------------------------------
 # T7: the torque-speed line and the bus
 # ------------------------------------------------------------------------------------------------
@@ -577,6 +602,34 @@ def test_t7_the_force_range_on_the_plant(p):
             assert fr[i, 1] == pytest.approx(servo.line_limits(
                 [w], [lay.peak_run[i]], [lay.corner24[i]], [lay.zero24[i]], lay.zero_at(v0)[i:i + 1])[1][0])
             p.d.ctrl[:] = lay._c
+
+
+@needs_plant
+def test_t7_the_force_range_follows_the_sagged_bus(p):
+    """V- at a fast state: the bus sags well below V0, and the force ranges are line_limits at that voltage (the
+    zero-torque speed follows the bus, the slope stays the 24 V line's), physics step by physics step."""
+    q, qd = p.q_settled.copy(), np.zeros(p.m.nv)
+    kn = [p.joints.index(f"{s}_knee") for s in ("left", "right")]
+    hp = [p.joints.index(f"{s}_hip_pitch") for s in ("left", "right")]
+    q[p.qadr[kn]] -= 0.10
+    qd[p.dofs[kn]] = (7.6, 9.4)  # past the X4's nominal corner 5.76
+    q[p.qadr[hp]] -= 0.06
+    qd[p.dofs[hp]] = (3.0, 6.5)  # one below and one past the X6's nominal corner 4.16
+    with servo.served(p, servo.setting("V-")) as lay:
+        p.set_state(q, qd)
+        moment, w_prev, leg = p.envelope.moment, None, lay.is_leg
+        for k in range(3):
+            f, w = p.d.actuator_force.copy(), moment @ p.d.qvel
+            w_prev = w if w_prev is None else w_prev  # (the first step: the reset's own speeds)
+            P = (np.maximum(f * w_prev, 0.0)[leg].sum() + (lay.c_cu * f * f).sum()) / 0.92 + lay.aux_w
+            p.step()
+            V, collapsed = servo.bus_voltage(21.0, 0.15, P)
+            assert not collapsed and lay.V == pytest.approx(V, rel=1e-12, abs=0) and V < 20.0, (k, V)
+            lo, hi = servo.line_limits(w, lay.peak_run, lay.corner24, lay.zero24, lay.zero_at(V))
+            fr = p.m.actuator_forcerange
+            assert np.allclose(fr[:, 0], lo, rtol=0, atol=1e-12) and np.allclose(fr[:, 1], hi, rtol=0, atol=1e-12), k
+            assert np.any(fr[leg, 1] < lay.peak_run[leg])  # some leg drive is on its line
+            w_prev = w
 
 
 @needs_plant
@@ -630,7 +683,7 @@ def test_t8_the_box_servos_take_a_new_target_every_fifth_step(p):
         box, leg = lay.box_idx, np.flatnonzero(lay.is_leg)
         c0, held, prev_leg = p.d.ctrl.copy(), None, None
         for k in range(23):
-            c = c0 + 1e-3 * k
+            c = c0 + 1e-3 * (k + 1)  # (nonzero from the first step: the neck's and tail's home command is 0)
             p.d.ctrl[:] = c
             p.step()
             if k == 0 or (k - 2) % 5 == 0:
@@ -639,6 +692,30 @@ def test_t8_the_box_servos_take_a_new_target_every_fifth_step(p):
             if prev_leg is not None:
                 assert not np.array_equal(lay._y[leg], prev_leg)  # the leg drives follow every step
             prev_leg = lay._y[leg].copy()
+
+
+@needs_plant
+def test_t8_the_box_servos_readings_refresh_with_their_targets(p):
+    """Under the hold the neck's and tail's encoder readings (angle and speed) are those of their last refresh step;
+    the leg drives' are the step's own every step."""
+    p.reset(seed=4, joint_noise=0.01)
+    with servo.served(p, _neutral(cmd_hold=True, hold_phase=3)) as lay:
+        box = lay.box_idx  # (the box servos' drives and joints: index for index)
+        legj = [i for i, jn in enumerate(p.joints) if not jn.startswith(("neck", "tail"))]
+        held, stale = None, 0
+        for k in range(14):
+            p.command(p.q_settled[p.qadr] + 0.02 * (k + 1), np.zeros(14), np.zeros(14))
+            q0, qd0 = p.d.qpos[p.qadr].copy(), p.d.qvel[p.dofs].copy()
+            p.step()
+            rq, rqd = p.d.sensordata[lay._q_adr], p.d.sensordata[lay._qd_adr]
+            assert np.array_equal(rq[legj], q0[legj]) and np.array_equal(rqd[legj], qd0[legj]), k
+            if k == 0 or (k - 3) % 5 == 0:
+                assert np.array_equal(rq[box], q0[box]) and np.array_equal(rqd[box], qd0[box]), k
+                held = (rq[box].copy(), rqd[box].copy())
+            else:
+                assert np.array_equal(rq[box], held[0]) and np.array_equal(rqd[box], held[1]), k
+                stale += not np.array_equal(rq[box], q0[box])
+        assert stale >= 8  # the neck and tail moved: their readings were held, not the step's own
 
 
 # ------------------------------------------------------------------------------------------------
@@ -724,11 +801,16 @@ def test_t10_the_mass_matrix_rises_by_the_drawn_difference(p):
 
 
 @needs_plant
-def test_t10_set_const_after_the_undo_leaves_the_model_bit_for_bit(p):
+def test_t10_set_const_inside_the_layer_and_after_the_undo(p):
+    """Inside the layer MuJoCo's constants are those of the drawn inertia (mj_setConst would change nothing);
+    after the undo the model is as built, bit for bit."""
     saved = _arrays(p.m)
     p.reset(seed=1)
-    with servo.served(p, replace(servo.setting("W1"), mass=1.0)):
-        p.step(10)
+    with servo.served(p, replace(servo.setting("W1"), mass=1.0)) as lay:
+        p.step()
+        assert np.any(lay.arm_changed) and not np.array_equal(p.m.dof_M0, saved["dof_M0"])
+        assert env.setconst_changes(p.m) == []
+        p.step(9)
     assert _model_diff(p.m, saved) == []
     assert env.setconst_changes(p.m) == []
 
