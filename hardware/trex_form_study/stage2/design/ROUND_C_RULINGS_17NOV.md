@@ -361,3 +361,22 @@ Merged as it stands.
     - `bar dry-run`'s overstatement on a look set is written into the cap rule (Q5) and beside each cap's printed
       total.
     - A V0 comparison test for part (a) and G8a (`needs_v0`) is added where the arrays exist.
+
+## LT3 (`checkpoint/reviews/roundC__{build,check}_LT3_17nov.md`), ruled 17 Nov 2026, ~11:50 UTC
+
+Merged as it stands.
+
+40. **LT3's points.**
+    - The builder's (a) to (g) are accepted as built:
+      - `place` requires the set's directory;
+      - the refcheck record keeps bar refcheck's own format, with no "placed" key;
+      - in a rendering process a look set's plan is made by a child process.
+    - Owed as one small tidy-up package, with a check, before G9-ref runs on any look set:
+      - the check's finding 1: the placed refcheck command removes the record it wrote when it refuses an
+        unplaced item, with a test;
+      - finding 2: `gates2._SetView` refuses a set.json that names another body, as it refuses another set;
+      - the stale docstrings: `r5lib.leave_point`'s "None: not checked"; `lookbar.look_set_placement`'s list of
+        readers, which gains part (b), the views and the placed refcheck.
+    - The look sets' freeze text in `sets.py` names the placed refcheck in the six places the check lists (lines
+      about 63, 145, 2478, 2662, 2768 and the `--refcheck` help at 2906). This is done by the next change to
+      `sets.py` after the rebuild is merged, in the words the check suggests.
