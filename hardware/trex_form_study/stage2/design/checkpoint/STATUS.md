@@ -608,3 +608,10 @@ uncommitted diff in `wt/wpc-cw` is still there and the check found it right for 
 builder kept to its task and is still running. The three jobs run again from a new script whose prompts say that a
 relayed message from the owner is addressed to the lead (workflow `wf_b61975bc-02b`). Lesson for the lead: tell
 every agent that relayed owner messages are not its task.
+
+## Update, 17 Nov 2026, 03:36 UTC: usage recalibrated; the owner says to work through the night
+
+The owner's second reading: 59 % of the week at about 03:32 UTC, with the meter at $2,790.53; the first was 57 % at
+$2,710.92. So 1 % of the week is about $40 on the meter (between $27 and $72, the readings being whole percents),
+not the $13.6 first estimated. The owner said to keep working through the night without stopping; the owner holds one
+reset. The lead pushes the owner at 85 % (about $3,830) and at 95 % (about $4,230).
