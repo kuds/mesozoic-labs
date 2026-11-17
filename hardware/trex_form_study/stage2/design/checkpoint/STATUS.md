@@ -597,3 +597,14 @@ Fable capped at 50 % of the week and 97 % used of that. The new model draws on t
 session meter at $2,710.92: Fable's $659 since the reset was 97 % of its cap, so 1 % of the week is about $13.6
 on the meter (to be checked against the owner's next reading). The owner holds one reset. The lead pushes the owner
 at 85 % and at 95 % of the week, and recommends using the reset at about 95 %.
+
+## Update, 17 Nov 2026, 01:56 UTC: three jobs of the resumed round did no work; they run again
+
+The owner's question at about 01:12 UTC (a summary of the last days and when training can start) reached the
+agents of the resumed round as well. The rows package's fixer, the notebook's fixer and the trainer's follow-up
+builder read it as their task and did read-only status work: nothing was fixed or built, and their checks said so
+(`reviews/roundC__{fix,check}_{CW,CN}_17nov.md`, `reviews/roundC__{build,check}_CT3.md`; the cut fixer's
+uncommitted diff in `wt/wpc-cw` is still there and the check found it right for findings 1 to 6). The look sets'
+builder kept to its task and is still running. The three jobs run again from a new script whose prompts say that a
+relayed message from the owner is addressed to the lead (workflow `wf_b61975bc-02b`). Lesson for the lead: tell
+every agent that relayed owner messages are not its task.
