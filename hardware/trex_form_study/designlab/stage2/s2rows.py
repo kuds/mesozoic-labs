@@ -585,7 +585,19 @@ def equivalence_check(job_dir, steps, body: str, set_name: str, condition: str, 
     and noise seeds, friction, push; the delay ``k``; for ``R5G`` the head script H1 of the episode seed).  ``row``
     names the row (default: the run's ``<mode>/<seed>``; ``R5G/<seed>`` for the head script); ``seconds`` cuts the
     condition; ``root`` is where the set is read from.  Nothing is written.  ``r5env`` is imported here, through
-    ``g8a``, and nowhere else in this module.  Which sets it may run on is the caller's to keep (rule X1)."""
+    ``g8a``, and nowhere else in this module.  Which sets it may run on is the caller's to keep (rule X1).
+
+    On a look set (or a version of one) the whole check runs inside ``lookbar.look_set_placement`` (the lead's
+    ruling 37 (b) of 17 Nov 2026): the row plays the set's turns and stop at join rule J1's leave point, as a bar
+    record made inside ``lookbar``'s context does, and the env is given that plan.  Off the look sets the context
+    does nothing."""
+    with lookbar.look_set_placement(set_name, body, setio.ROOT if root is None else root):
+        return _equivalence_check(job_dir, steps, body, set_name, condition, seed, k, root, row, seconds)
+
+
+def _equivalence_check(job_dir, steps, body: str, set_name: str, condition: str, seed: int, k: int, root,
+                       row: str | None, seconds: float | None) -> dict:
+    """``equivalence_check``'s episode and comparison, inside its placement."""
     from designlab.stage2 import bar, g8a, r5env  # (inside the function: no row imports the env)
 
     job_dir = Path(job_dir).resolve()

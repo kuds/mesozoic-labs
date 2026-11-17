@@ -653,6 +653,47 @@ def test_a_slowed_clock_leaves_a_bar_item_unread_and_a_later_freeze_is_accepted_
 
 
 @needs_run
+def test_the_equivalence_check_plays_a_look_sets_turn_at_j1s_leave_point(job, tmp_path, monkeypatch):
+    """The lead's ruling 37 (b) of 17 Nov 2026: ``equivalence_check`` on a look set (a synthetic one under
+    ``tmp_path``, built from Stage 1's arrays; a freshly initialised policy; the episode cut to 1 s) runs inside
+    ``lookbar.look_set_placement``: the row's built condition, whose plan the env is given, plays the turn at join
+    rule J1's leave point (``lookbar.leave_resolve``), and the row and the env stay digest for digest.  On the S1
+    view nothing is placed: the row's plan is the bar's own and the comparison is as before."""
+    from designlab.stage2 import g8a
+    from tests import test_stage2_r5lib as R
+
+    sets = tmp_path / "sets"
+    R.make_look(sets, set_name="V6", stand_in_walks=True)
+    look_job = tmp_path / "jobs" / "R5-look-s42"
+    make_job(look_job, BODY, "V6", root=sets)
+    seen, real = [], g8a.row_episode
+
+    def spy(row, ctx, cond, seed):
+        r = real(row, ctx, cond, seed)
+        seen.append((cond, [list(x) for x in r["built"].plan], sorted(lookbar.placed())))
+        return r
+
+    monkeypatch.setattr(g8a, "row_episode", spy)
+    r = s2rows.equivalence_check(look_job, 0, BODY, "V6", "turn/q90_right", 3042, 0, root=sets, seconds=1.0)
+    ((cond, plan, placed),) = seen
+    d = setio.set_dir("V6", BODY, sets)
+    docs = setio.load(d)
+    planner = bar.BarPlanner(d, docs["refs.json"]["references"], docs["transitions.json"]["transitions"],
+                             docs["set.json"])
+    want = [list(x) for x in lookbar.leave_resolve(planner, cond)["plan"]]
+    assert plan == want and want != [list(x) for x in planner.resolve(cond)["plan"]]
+    assert placed == [lookbar.placement_key("V6", BODY, d)] and lookbar.placed() == set()
+    assert (r["set"], r["condition"], r["identical"], r["first_difference"]) == ("V6", "turn/q90_right", True, None)
+    assert r["reference_steps"] == r["compared_steps"] == 500
+    # the S1 view: nothing placed
+    seen.clear()
+    r = s2rows.equivalence_check(job, 0, BODY, "S1", "walk/brisk", 3042, 0, seconds=1.0)
+    ((cond, plan, placed),) = seen
+    assert placed == [] and r["identical"] and r["reference_steps"] == r["compared_steps"] == 500
+    assert vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
+
+
+@needs_run
 def test_rule_k4_at_the_episode_the_files_the_bar_reads_are_the_runs(tmp_path):
     """A row is built, and checked by rule K4, against the set under one root; the bar is then given the same set
     name under another root (``--set-root``, ``episodes(root=)``), where the 0.40 m/s walk is another file under a

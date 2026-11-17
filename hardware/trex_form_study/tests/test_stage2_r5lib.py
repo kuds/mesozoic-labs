@@ -855,6 +855,51 @@ def test_a_leave_point_that_does_not_fit_is_refused():
     assert "ruling 21 of 17 Nov 2026" in r5lib.LEAVE_RULE and "m + a_windows" in r5lib.LEAVE_RULE
 
 
+@needs_run
+def test_a_leave_points_a_time_s_is_checked_against_its_walk_files_own_phase(tmp_path):
+    """The lead's ruling 37 (c) of 17 Nov 2026: given the walk's file, ``leave_point`` checks the entry's ``a_time_s``
+    against the file's own ``phase`` array (the time at which the window's phase reaches ``a_phase``), to within one
+    frame of the file.  On the synthetic look set every move's entry passes, its leave point unchanged; a doctored
+    entry whose ``a_time_s`` is off by 1.5 frames, by a stride or by minus a stride (``a_windows`` doctored to match,
+    so that no earlier check sees it) is refused, and let in without the file; an error under one frame is let in
+    (the tolerance); a file that holds no phase array, or a phase that does not increase, is refused."""
+    d = make_look(tmp_path)
+    refs = s2io.read_json(d / "refs.json")["references"]
+    trs = s2io.read_json(d / "transitions.json")["transitions"]
+    walk, wf = refs[W], d / refs[W]["file"]
+    with np.load(wf) as z:
+        dt = float(z["dt"])
+    for name, _, _, a_phase in LOOK_MOVES:
+        e = trs[name]
+        T, Wn = e["look"]["window_a"]["period_s"], e["look"]["window_a"]["window_s"]
+        lp = r5lib.leave_point(name, e, W, walk, a_phase)
+        assert r5lib.leave_point(name, e, W, walk, a_phase, walk_file=wf) == lp and lp["a_phase"] == a_phase
+        for shift, ok in ((0.4 * dt, True), (-0.4 * dt, True), (1.5 * dt, False), (-1.5 * dt, False), (T, False),
+                          (-T, False)):
+            bad = copy.deepcopy(e)
+            bad["look"]["a_time_s"] = e["look"]["a_time_s"] + shift
+            bad["look"]["a_windows"] = bad["look"]["a_time_s"] / Wn
+            assert r5lib.leave_point(name, bad, W, walk, a_phase)["a_time_s"] == bad["look"]["a_time_s"]
+            if ok:
+                got = r5lib.leave_point(name, bad, W, walk, a_phase, walk_file=wf)
+                assert got["a_time_s"] == bad["look"]["a_time_s"], (name, shift)
+            else:
+                with pytest.raises(tune.InputError, match=f"{name}: .* has a_time_s .* the walk file's own phase "
+                                                          f"array reaches a_phase {a_phase:g} at "):
+                    r5lib.leave_point(name, bad, W, walk, a_phase, walk_file=wf)
+    arrays = dict(np.load(wf))
+    name, _, _, a_phase = LOOK_MOVES[0]
+    no_phase, flat = tmp_path / "no_phase.npz", tmp_path / "flat.npz"
+    np.savez(no_phase, **{k: v for k, v in arrays.items() if k != "phase"})
+    np.savez(flat, **dict(arrays, phase=np.zeros_like(arrays["phase"])))
+    with pytest.raises(tune.InputError, match=r"cannot be checked against the walk file's own phase array \(KeyError"):
+        r5lib.leave_point(name, trs[name], W, walk, a_phase, walk_file=no_phase)
+    with pytest.raises(tune.InputError, match="holds no phase that increases over its frames"):
+        r5lib.leave_point(name, trs[name], W, walk, a_phase, walk_file=flat)
+    with pytest.raises(tune.InputError, match="cannot be checked against the walk file's own phase array"):
+        r5lib.leave_point(name, trs[name], W, walk, a_phase, walk_file=tmp_path / "not_here.npz")
+
+
 #: A set root that holds the look work package's arrays of the committed look sets (read only; the records are the
 #: committed ones of this checkout): without it the committed look sets are read under ``setio.ROOT``.
 LOOK_ARRAYS = os.environ.get("STAGE2_LOOK_SET_ROOT")
@@ -926,6 +971,29 @@ def test_the_committed_look_sets_turns_and_stop_join_within_their_walks_step(p, 
             played.append((set_name, td.name, f"{j['jump_rad']:.3g}", f"before: {j_old['jump_rad']:.3g}"))
     assert played, "no turn or stop of a committed look set was played"
     print("played:", played)
+
+
+@needs_run
+def test_the_committed_look_sets_leave_points_are_where_their_walk_files_phase_reaches_them(tmp_path):
+    """The lead's ruling 37 (c) on the committed look sets' own arrays: every move with a leave point that a set
+    holds as available passes ``leave_point``'s check against its walk file's own phase array.  Needs the look sets'
+    arrays (as ``test_the_committed_look_sets_turns_and_stop_join_within_their_walks_step`` does)."""
+    root = _committed_look_sets(tmp_path)
+    if root is None:
+        pytest.skip("the look sets' arrays are not here (STAGE2_LOOK_SET_ROOT: a set root that holds them)")
+    checked = []
+    for d in sorted(root.glob("*/*/")):
+        refs = s2io.read_json(d / "refs.json")["references"]
+        for name, e in s2io.read_json(d / "transitions.json")["transitions"].items():
+            look = (e.get("look") or {}) if isinstance(e, dict) else {}
+            if look.get("a_phase") is None or e.get("available") is False:
+                continue
+            walk = look["window_a"]["reference"]
+            lp = r5lib.leave_point(name, e, walk, refs[walk], look["a_phase"], walk_file=d / refs[walk]["file"])
+            assert lp == r5lib.leave_point(name, e, walk, refs[walk], look["a_phase"])
+            checked.append((d.parent.name, name))
+    assert checked
+    print("checked:", checked)
 
 
 # ------------------------------------------------------------------------------------------------
