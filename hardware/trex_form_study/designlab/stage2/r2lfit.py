@@ -38,7 +38,11 @@ generation cap than the rules', is a development fit (``ROLE_RULE``): no record,
 it; a selection with another ``--reported-core-h`` than 0.4 is a development selection, which ``publish`` refuses.  A
 fit or a selection on a look set, or on a version of one, waits for G9-ref: as the gates package reads it
 (``gates2.require_g9_ref``) and as ``lookbar``'s look-set rule lets the row ``R2L-<set>/<seed>`` run there
-(``lookbar.look_set_rule``, the lead's ruling 16 of 17 Nov 2026) (``GATE_RULE``, ``gate``).
+(``lookbar.look_set_rule``, the lead's ruling 16 of 17 Nov 2026) (``GATE_RULE``, ``gate``).  There its evaluators
+and pools are built and run inside the set's placement (``lookbar.look_set_placement``, ``PlacedPool``: in this
+process and in every pool worker), so its turns and stop leave the walk at join rule J1's leave point as the bar's
+records of the row do (the lead's ruling 37 (b) of 17 Nov 2026).  A version of ``V6noF5`` counts as ``V6noF5`` for
+rule Q1 (``is_fit``; ruling 38).
 
 This file is in the sources of every R2L row (``R2LRow.sources``) and of every R2L record (``sources``).
 """
@@ -57,6 +61,7 @@ if __name__ == "__main__":  # before any numpy import (round A's module skeleton
         os.environ.setdefault(_v, "1")
 
 import argparse  # noqa: E402
+import contextlib  # noqa: E402
 import functools  # noqa: E402
 import json  # noqa: E402
 import re  # noqa: E402
@@ -221,11 +226,12 @@ RESUME_RULE = (
     "of a finished fit (done, ended_by_budget) changes nothing and returns its record")
 ROLE_RULE = (
     "a fit is a record only on the (set, body) pairs rule Q1 names (V6noF5 on 75-M-H-10 and 60-N-T-10; F25F9cl on "
-    "75-M-H-10, the candidate) with the rules' seed 42 (rules Q1, Q2), population 12, budget 2.4 core-hours and cap "
-    "of 30 generations; any other fit is a development fit (a smoke check): its records say so, it is no record, and "
-    "select and publish refuse it; a selection whose reported cells' part is not 0.4 core-hours (so a share other "
-    "than rule Q5's 4.0) is a development selection: r2lg5.json says so (role), publish refuses it and no row reads "
-    "it")
+    "75-M-H-10, the candidate; a version of a look set counts as that look set, lookbar.look_set_of, so V6noF5.2 "
+    "counts as V6noF5: the lead's rulings 31 (3) and 38 of 17 Nov 2026) with the rules' seed 42 (rules Q1, Q2), "
+    "population 12, budget 2.4 core-hours and cap of 30 generations; any other fit is a development fit (a smoke "
+    "check): its records say so, it is no record, and select and publish refuse it; a selection whose reported "
+    "cells' part is not 0.4 core-hours (so a share other than rule Q5's 4.0) is a development selection: r2lg5.json "
+    "says so (role), publish refuses it and no row reads it")
 GATE_RULE = (
     "STAGE2_TRACKB_PLAN rules Q1, X1 and Z2, with the lead's rulings 16, 31 and 35 of 17 Nov 2026: a fit, and a "
     "selection, on a look set (V6, V6noF5) or on a version of one (lookbar.look_set_of: the part of the set's name "
@@ -564,7 +570,10 @@ class Evaluator:
     """One body's plant and the fit's nine bar conditions on its frozen set, built once (``bar.BarContext``);
     ``evaluate(gains, spec)`` runs an evaluation's five episodes (``EPISODE_RULE``) and scores them
     (``SCORE_RULE``).  The set must be frozen and every file its conditions read must be in the freeze
-    (``setio.read_inputs``); ``expected_inputs`` (a replacement worker's) must be equal."""
+    (``setio.read_inputs``); ``expected_inputs`` (a replacement worker's) must be equal.  On a look set (or a version
+    of one) it is built only while the set's placement holds in its process (``lookbar.placed()``: the pool's
+    ``lookbar.look_set_placement``, or a worker's ``lookbar.hold_for_life``), else ``R2LError``: its conditions are
+    resolved, and its turns and stop built, at join rule J1's leave point (the lead's ruling 37 (b))."""
 
     def __init__(self, body: str, set_name: str, run_dir, expected_inputs: dict | None = None):
         s2io.require_one_thread()
@@ -574,6 +583,15 @@ class Evaluator:
         set_doc = docs_all["set.json"]
         if set_doc.get("set") != self.set_name:
             raise R2LError(f"{self.run_dir}: set.json names the set {set_doc.get('set')!r}, not {self.set_name!r}")
+        if look_set_of(self.set_name) is not None:  # (the lead's ruling 37 (b) of 17 Nov 2026)
+            from designlab.stage2 import lookbar
+
+            key = lookbar.placement_key(self.set_name, body, self.run_dir)
+            if key not in lookbar.placed():
+                raise R2LError(f"{self.set_name}/{body}: an evaluator on a look set is built only inside the set's "
+                               "placement (lookbar.look_set_placement in this process, or a pool worker's hold: "
+                               "PlacedPool), so that its turns and stop leave the walk at join rule J1's leave point "
+                               "(the lead's ruling 37 (b) of 17 Nov 2026)")
         bar.check_manifest(set_doc)
         planner = bar.BarPlanner(self.run_dir, docs_all["refs.json"]["references"],
                                  docs_all["transitions.json"]["transitions"], set_doc)
@@ -648,9 +666,11 @@ def sources() -> dict:
 
 
 def _evaluator(body: str, run_dir: str, mode: str, rate: float, expected_inputs: dict | None = None, *,
-               set_name: str, sources_sha256: str | None = None) -> Evaluator:
+               set_name: str, sources_sha256: str | None = None, placement: dict | None = None) -> Evaluator:
     """``tune.Pool``'s factory (top level, bound with ``functools.partial``): an evaluator, refused on other sources
-    than the session's (``RESUME_RULE``)."""
+    than the session's (``RESUME_RULE``).  ``placement`` (a look set's, ``PlacedPool``): the process holds it for its
+    life before the evaluator is built (``lookbar.hold_for_life``: a spawned worker; in the pool's own process the
+    pool's context holds it already and nothing more is held)."""
     if mode != MODE or float(rate) != RATE:
         raise ValueError(f"mode {mode!r} at rate {rate!r}: R2L runs {MODE} at {RATE:g}")
     if sources_sha256 is not None:
@@ -658,6 +678,10 @@ def _evaluator(body: str, run_dir: str, mode: str, rate: float, expected_inputs:
         if mine != sources_sha256:
             raise tune.PoolError(f"R2L's sources changed during the session ({mine[:12]}..., the session's "
                                  f"{sources_sha256[:12]}...): restore them and resume")
+    if placement is not None:
+        from designlab.stage2 import lookbar
+
+        lookbar.hold_for_life(placement)
     return Evaluator(body, set_name, run_dir, expected_inputs)
 
 
@@ -665,10 +689,47 @@ def _evaluator(body: str, run_dir: str, mode: str, rate: float, expected_inputs:
 Pool = tune.Pool
 
 
+class PlacedPool:
+    """The evaluation pool of a look set (or a version of one), built and run inside the set's placement (the lead's
+    ruling 37 (b) of 17 Nov 2026; the check of CF2, finding 1): ``lookbar.look_set_placement`` is entered before the
+    pool (``Pool``) is built and left when it is closed, so a pool of one worker (its evaluator in this process)
+    resolves and builds the set's turns and stop at join rule J1's leave point, and every spawned worker, a
+    replacement included, is given the placement to hold for its life (``_evaluator``'s ``placement``).
+    ``placement``: the set's (``{set, body, set_dir}``); everything else is the pool's."""
+
+    def __init__(self, body: str, set_name: str, run_dir, workers: int, factory):
+        from designlab.stage2 import lookbar
+
+        stack = contextlib.ExitStack()
+        try:
+            self.placement = stack.enter_context(lookbar.look_set_placement(set_name, body, SET_ROOT))
+            self.pool = Pool(body, run_dir, workers, mode=MODE, rate=RATE,
+                             factory=functools.partial(factory, placement=self.placement))
+        except BaseException:
+            stack.close()
+            raise
+        self._placing = stack
+
+    def __getattr__(self, name):
+        if name == "pool":
+            raise AttributeError(name)
+        return getattr(self.pool, name)
+
+    def close(self) -> None:
+        try:
+            self.pool.close()
+        finally:
+            self._placing.close()
+
+
 def _pool(body: str, set_name: str, workers: int, sources_sha256: str):
+    """The fit's and the selection's evaluation pool: ``Pool``, and on a look set or a version of one
+    ``PlacedPool`` (its evaluators inside the set's placement, in this process and in every worker)."""
     run_dir = setio.set_dir(set_name, body, SET_ROOT)
-    return Pool(body, run_dir, workers, mode=MODE, rate=RATE,
-                factory=functools.partial(_evaluator, set_name=set_name, sources_sha256=sources_sha256))
+    factory = functools.partial(_evaluator, set_name=set_name, sources_sha256=sources_sha256)
+    if look_set_of(set_name) is not None:
+        return PlacedPool(body, set_name, run_dir, workers, factory)
+    return Pool(body, run_dir, workers, mode=MODE, rate=RATE, factory=factory)
 
 
 def input_differences(a: dict | None, b: dict | None) -> list[str]:
@@ -704,11 +765,18 @@ def _out(out) -> Path:
     return WORK if out is None else _anchored(out)
 
 
+def is_fit(set_name: str, body: str) -> bool:
+    """Whether rule Q1 names a fit of ``body`` on ``set_name`` (``FITS``), a version of a look set counting as that
+    look set (``look_set_of``: ``V6noF5.2`` counts as ``V6noF5``; the lead's rulings 31 (3) and 38 of 17 Nov 2026)."""
+    return (look_set_of(set_name) or str(set_name), str(body)) in FITS
+
+
 def role_of(set_name: str, body: str, popsize: int = POPSIZE, budget_core_h: float = FIT_CORE_H,
             max_generations: int = GENERATIONS, seed: int = SEED) -> dict:
-    """``ROLE_RULE``: ``{role: "fit" | "development", reasons}``."""
+    """``ROLE_RULE``: ``{role: "fit" | "development", reasons}``; rule Q1's pairs by ``is_fit`` (a version of
+    ``V6noF5`` counts as ``V6noF5``)."""
     why = []
-    if (set_name, body) not in FITS:
+    if not is_fit(set_name, body):
         why.append(f"rule Q1 names no fit of {body} on {set_name}")
     if int(seed) != SEED:
         why.append(f"seed {seed}, not {SEED} (rules Q1, Q2)")
@@ -1621,11 +1689,12 @@ def main(argv=None) -> int:
         return 1
 
 
-__all__ = ["BUDGET_RULE", "CONDITIONS", "Evaluator", "EvalLog", "FITS", "INDEX", "KINDS", "LIMITS", "LOOK_SETS",
-           "OBJECTIVE", "PUBLISH_RULE", "R2LError", "R2LRow", "ROTATION_RULE", "RULES", "SELECTION_RULE", "TRACKING",
-           "blank_episode", "coverage", "episode_terms", "failed_evaluation", "fit", "gate", "index_entry", "look_rule",
-           "look_set_of", "main", "publish", "publish_files", "r2l_row", "read_index", "register", "role_of", "rotation",
-           "row_name", "run_slot", "scored", "select", "selection_role", "sources", "spec_of", "validation_spec"]
+__all__ = ["BUDGET_RULE", "CONDITIONS", "EvalLog", "Evaluator", "FITS", "INDEX", "KINDS", "LIMITS", "LOOK_SETS",
+           "OBJECTIVE", "PUBLISH_RULE", "PlacedPool", "R2LError", "R2LRow", "ROTATION_RULE", "RULES", "SELECTION_RULE",
+           "TRACKING", "blank_episode", "coverage", "episode_terms", "failed_evaluation", "fit", "gate", "index_entry",
+           "is_fit", "look_rule", "look_set_of", "main", "publish", "publish_files", "r2l_row", "read_index",
+           "register", "role_of", "rotation", "row_name", "run_slot", "scored", "select", "selection_role", "sources",
+           "spec_of", "validation_spec"]
 
 if __name__ == "__main__":
     from designlab.stage2 import r2lfit as _named  # the importable copy owns every class and all module state

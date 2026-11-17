@@ -1038,6 +1038,125 @@ def test_the_fitness_adds_the_box_repair(env, monkeypatch):
 
 
 # ------------------------------------------------------------------------------------------------
+# A look set's placement in the fit and the selection, and versions in rule Q1 (the lead's rulings 37 (b) and 38)
+# ------------------------------------------------------------------------------------------------
+def test_a_version_of_v6nof5_counts_as_v6nof5_for_rule_q1(env):
+    """Ruling 38 (with ruling 31 (3)): ``FITS`` is read through ``look_set_of`` (``is_fit``, ``role_of``), so a fit of
+    a version of ``V6noF5`` on a body rule Q1 names is a fit, selected and published as one; a version of ``V6`` or of
+    ``F25F9cl`` (no look set's version of ``V6noF5``) stays a development fit, and so does a name that is no version."""
+    for set_name, body, role in (("V6noF5.1", BODY, "fit"), ("V6noF5.12", "60-N-T-10", "fit"), ("V6noF5", BODY, "fit"),
+                                 ("V6.2", BODY, "development"), ("F25F9cl.1", BODY, "development"),
+                                 ("V6noF5x", BODY, "development"), ("V6noF5.1", "75-M-H-10-X", "development")):
+        got = r2lfit.role_of(set_name, body)
+        assert got["role"] == role and r2lfit.is_fit(set_name, body) is (role == "fit"), (set_name, body)
+        assert got["reasons"] == ([] if role == "fit" else [f"rule Q1 names no fit of {body} on {set_name}"])
+    assert "V6noF5.2 counts as V6noF5" in r2lfit.ROLE_RULE and "38 of 17 Nov 2026" in r2lfit.ROLE_RULE
+    sel = fitted(env, "V6noF5.1")
+    assert sel["role"]["role"] == "fit" and sel["g9_ref"]["look_set_rule"]["look_set"] == "V6noF5"
+    assert r2lfit.publish(BODY, "V6noF5.1", out=env.out, index=r2lfit.INDEX)["set"] == "V6noF5.1"
+
+
+def test_on_a_look_set_every_evaluation_runs_inside_the_sets_placement(env):
+    """The lead's ruling 37 (b) (check of CF2, finding 1): on a look set the fit's and the selection's pool is built
+    and run inside ``lookbar.look_set_placement`` (``PlacedPool``): its evaluator is built, and every evaluation runs,
+    while the set's placement holds, and the factory is given the placement a spawned worker holds for its life; when
+    the pool closes nothing stays placed.  Off the look sets the pool is ``tune.Pool`` itself, nothing is placed and
+    the factory gets no placement."""
+    made, during = [], []
+    real_stub = Stub(costs(fit=20.0, decisive=50.0, reported=50.0))
+    real_evaluate = real_stub.evaluate
+
+    def evaluate(gains, spec):
+        during.append(sorted(lookbar.placed()))
+        return real_evaluate(gains, spec)
+
+    real_stub.evaluate = evaluate
+
+    def factory(*a, **k):
+        made.append((a, dict(k), sorted(lookbar.placed())))
+        return real_stub
+
+    passed_gate(env)
+    env.mp.setattr(r2lfit, "_evaluator", factory)
+    env.stub = real_stub
+    key = lookbar.placement_key("V6noF5", BODY, setio.set_dir("V6noF5", BODY, r2lfit.SET_ROOT))
+    r2lfit.fit(BODY, "V6noF5", out=env.out, log=quiet)
+    assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
+    r2lfit.select(BODY, "V6noF5", out=env.out, log=quiet)
+    assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
+    assert len(made) == 2 and all(k["placement"] == lookbar.placement_of(key) and p == [key] for _, k, p in made)
+    assert len(during) > 400 and all(p == [key] for p in during)
+    assert isinstance(r2lfit._pool(BODY, "V6noF5", 1, "x"), r2lfit.PlacedPool)
+    # off the look sets: tune.Pool itself, nothing placed, no placement given
+    made.clear(), during.clear()
+    pool = r2lfit._pool(BODY, "F25F9cl", 1, "x")
+    assert type(pool) is tune.Pool and made[-1][1] == dict(set_name="F25F9cl", sources_sha256="x") and made[-1][2] == []
+    pool.close()
+    r2lfit.fit(BODY, "V0", out=env.out, max_generations=1, popsize=2, log=quiet)
+    assert "placement" not in made[-1][1] and during and all(p == [] for p in during)
+
+
+def _look_root(tmp_path, set_name="V6noF5") -> Path:
+    from tests import test_stage2_r5lib as R
+
+    root = tmp_path / "sets"
+    R.make_look(root, set_name=set_name, stand_in_walks=True)
+    return root
+
+
+def _have_run() -> bool:
+    try:
+        return ((ROOT / "stage1" / "runs" / "2026-11-08" / BODY / "transitions" / "stop.npz").exists()
+                and all(Path(f).exists() for f in plant.model_files(BODY)))
+    except Exception:  # noqa: BLE001  (no model record: the same skip)
+        return False
+
+
+@pytest.mark.skipif(not (ONE_THREAD and _have_run()), reason=(
+    "needs the Stage 1 arrays and the round-two models (tools/restore_inputs.py) and one BLAS thread"))
+def test_a_fits_turn_plan_on_a_look_set_is_lookbars_leave_resolve(tmp_path, monkeypatch):
+    """Check of CF2, finding 1 (ruling 37 (b)): on a look set (a synthetic one named V6noF5 under ``tmp_path``, built
+    from Stage 1's arrays; nothing is simulated) the evaluator of a pool of one worker plans and builds the fit's
+    turns and stop as ``lookbar.leave_resolve`` places them (its description, which the fit records as its mix, and
+    the built condition its episodes play, whose join is within the walk's own step), and so does the evaluator of
+    each of two spawned workers (the mix a worker reports); the walks are the bar's own.  An evaluator built on a
+    look set outside its placement is refused.  Nothing stays placed."""
+    from designlab.stage2 import gates2
+
+    root = _look_root(tmp_path)
+    monkeypatch.setattr(r2lfit, "SET_ROOT", root)
+    d = setio.set_dir("V6noF5", BODY, root)
+    docs = setio.load(d)
+    planner = bar.BarPlanner(d, docs["refs.json"]["references"], docs["transitions.json"]["transitions"],
+                             docs["set.json"])
+    conds = {c.key: c for c in bar.conditions(docs, bar.HEADLINE_BLOCK, every=True)}
+    keys = ("turn/q90_left", "turn/q90_right", "stop/two_step")
+    placed = {k: [list(x) for x in lookbar.leave_resolve(planner, conds[k])["plan"]] for k in keys}
+    own = {k: [list(x) for x in planner.resolve(conds[k])["plan"]] for k in keys + ("walk/v0.4", "walk/nominal")}
+    assert all(placed[k] != own[k] for k in keys)
+    src = r2lfit.sources()["sha256"]
+    for workers in (1, 2):
+        pool = r2lfit._pool(BODY, "V6noF5", workers, src)
+        try:
+            assert isinstance(pool, r2lfit.PlacedPool) and pool.workers == workers
+            mix = pool.describe()["conditions"]
+            assert {k: mix[k]["plan"] for k in keys} == placed, workers
+            assert {k: mix[k]["plan"] for k in ("walk/v0.4", "walk/nominal")} == {k: own[k] for k in ("walk/v0.4",
+                                                                                                   "walk/nominal")}
+            if workers == 1:
+                b = pool.local.ctx.built(conds["turn/q90_right"])
+                assert [list(x) for x in b.plan] == placed["turn/q90_right"]
+                move = conds["turn/q90_right"].move
+                (j,) = [x for x in gates2.joins(b.track, len(b.p.joints), b.p.joints) if x["after"] == f"finite {move}"]
+                assert j["ok"] and j["jump_rad"] < 1e-9, j
+        finally:
+            pool.close()
+        assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
+    with pytest.raises(r2lfit.R2LError, match="built only inside the set's placement"):
+        r2lfit.Evaluator(BODY, "V6noF5", d)
+
+
+# ------------------------------------------------------------------------------------------------
 # Slow: slot 0 is the bar's R2 row, bit for bit (two development episodes on V0)
 # ------------------------------------------------------------------------------------------------
 def _have_v0() -> bool:
