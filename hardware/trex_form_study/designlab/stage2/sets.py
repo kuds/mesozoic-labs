@@ -59,8 +59,12 @@ both hashes; entries the manifest does not hold may still be added.
 their entries and the latest manifest, names, definitions, the moves' gates, the stops' and turns' own readings, the
 walks' two formats, the hash gates, the labels (a walk's ``label``, every entry's ``margin_rule``), the screen
 (``screen.json``: a current block for every available entry, none blocking the freeze) and provenance; its notes
-also give the bar's kinematic check of the references where the set directory holds its record (``refcheck.json``,
-made by ``python -m designlab.stage2.bar refcheck --out <the sets' root>``; a report, not a gate).  ``freeze`` (the
+also give the bar's kinematic check of the references where the set directory holds its record (``refcheck.json``;
+a report, not a gate).  On a look set or a version of one (V6, V6noF5, V6.2, ...) the record is made with
+``python -m designlab.stage2.gates2 refcheck --set S --body B --out <the sets' root>`` (bar refcheck's record made
+inside lookbar.look_set_placement, its turns and stop at join rule J1's leave point, the only kind G9-ref part (a)
+reads); on any other set with ``python -m designlab.stage2.bar refcheck --set S --body B --out <the sets' root>``
+(``REFCHECK_HOW``; ruling 40 of 17 Nov 2026).  ``freeze`` (the
 lead's act) appends a manifest of every available entry to ``set.json`` ``freezes``; it needs ``verify`` to pass, a
 passing ``stage2/sets/legacy_check.json`` of today's ``moves.py`` and every built entry made by that ``moves.py``,
 and one source state on a clean tree unless a flag says otherwise; it never drops or changes an entry an earlier
@@ -87,6 +91,11 @@ themselves are ``designlab.stage2.moves_look``'s, loaded by name where a look se
   up to its command: ruling 28, ``moves_look.RULES["S2L-causal-grid"]``), a turn's stride factor is picked on the
   bound turns (``moves_look.pick_stride_factor``), and its entry holds the look's keys beside the others (the
   move's instant in ``move.command_phase`` for a start and a change too; ``look``; ``join_events``);
+* a causal move's warm-up reading of ``join_command`` is held to 5.0 mm, the owner's decision P42
+  (``moves_look.LOOK_WARMUP_ZMP_LIMIT_MM``, ``moves_look.RULES["S2L-P42-warmup"]``, read by
+  ``moves_look.entry_extra``); every other limit and gate is the round's, whose three sets keep 4.0 mm.  The entry's
+  ``join_command.limits`` holds the limit used, and ``transitions.json`` ``causal_limits`` says so
+  (``look_causal_limits``);
 * ``set.json`` names the join code's independent review by path and sha256 (``JOIN_REVIEW``; ``LOOK_RULES
   ["S2L-join-review"]``; STAGE2_TRACKB_PLAN.md L12 with rulings 28 to 30), the cut in force (none) and why
   (``look_review``), and every move whose join gate fails with its numbers (``joins_failed``);
@@ -151,9 +160,19 @@ MODULES = ("sets.py", "moves.py", "setscreen.py", "screen.py", "look.py", "setio
 PARTIAL = "partial"
 SCRATCH_PREFIX = "build-"
 LOG_FILE = "logs/sets.log"
-#: The bar's kinematic check of a set's references, where it is kept beside the set's records (``refcheck_state``):
-#: ``python -m designlab.stage2.bar refcheck --set S --body B --out <the sets' root>`` writes it there.
+#: The bar's kinematic check of a set's references, where it is kept beside the set's records (``refcheck_state``).
+#: What writes it there (``REFCHECK_HOW``; ruling 40 of 17 Nov 2026, in the words of LT3's check,
+#: stage2/design/checkpoint/reviews/roundC__check_LT3_17nov.md): on a look set or a version of one (V6, V6noF5,
+#: V6.2, ...) ``python -m designlab.stage2.gates2 refcheck --set S --body B --out <the sets' root>`` (bar refcheck's
+#: record made inside lookbar.look_set_placement, its turns and stop at join rule J1's leave point, the only kind
+#: G9-ref part (a) reads); on any other set ``python -m designlab.stage2.bar refcheck --set S --body B --out <the
+#: sets' root>``.
 REFCHECK = "refcheck.json"
+REFCHECK_HOW = (
+    "On a look set or a version of one (V6, V6noF5, V6.2, ...) the record is made with `python -m "
+    "designlab.stage2.gates2 refcheck --set S --body B --out <the sets' root>` (bar refcheck's record made inside "
+    "lookbar.look_set_placement, its turns and stop at join rule J1's leave point, the only kind G9-ref part (a) "
+    "reads); on any other set with `python -m designlab.stage2.bar refcheck --set S --body B --out <the sets' root>`.")
 WALK_GENERATOR = "look.generate + gait.inverse_dynamics + refs.arrays"
 #: The item kinds, and the builders of ``moves`` they call.
 KINDS = ("walk", "start", "change", "stop_two_step", "stop_one_step", "turn")
@@ -1690,6 +1709,7 @@ def _new_docs(set_name: str, body: str, header: dict) -> dict:
                                             "and friction not included")
         docs["transitions.json"]["rules"].update(ml.RULES)
         docs["transitions.json"]["rules"].update({k: LOOK_RULES[k] for k in ("S2L-moves", "S2L-inplace")})
+        docs["transitions.json"]["causal_limits"] = look_causal_limits(docs["transitions.json"]["causal_limits"])
         docs["transitions.json"]["method"] += ("; with the look's laws and solver (designlab.stage2.moves_look), each "
                                                "move bound to the windows of the walks it joins")
         docs["set.json"]["rules"] = dict(RULES, **LOOK_RULES)
@@ -1719,6 +1739,14 @@ def look_review(body: str) -> dict:
     return dict(join_review=dict(JOIN_REVIEW), cut=None, cut_reason=why, cut3_probe=None if probe is None else dict(probe),
                 note="join rule J1 as designed; the builder takes no cut of STAGE2_TRACKB_PLAN.md L12 (cut_reason); "
                      "joins_failed lists every move whose join_command or join_b gate fails, with those numbers")
+
+
+def look_causal_limits(limits: dict) -> dict:
+    """``transitions.json`` ``causal_limits`` of a look set: the round's (``_plain_docs``) with the warm-up reading
+    of ``join_command`` at the look sets' limit and the rule that sets it (``moves_look.LOOK_WARMUP_ZMP_LIMIT_MM``,
+    ``moves_look.RULES["S2L-P42-warmup"]``: the owner's decision P42).  Every other limit is left as it is."""
+    ml = _ml()
+    return dict(limits, warmup_zmp_mm=ml.LOOK_WARMUP_ZMP_LIMIT_MM, warmup_zmp_rule=ml.WARMUP_RULE_ID)
 
 
 def cut3_probe(pick: str) -> dict | None:
@@ -1997,6 +2025,8 @@ def merge(d: Path, part: dict, log=print) -> dict:
         for key, text in _ml().RULES.items():  # rule was added gains it; a text already recorded stays as it is)
             docs["transitions.json"]["rules"].setdefault(key, text)
         if not setio.frozen(set_doc):  # L12's record (ruling 30): the join code's review, the cut, the failing joins
+            # (and the causal limits as P42 holds them on a look set: a set built before P42 says so from now on)
+            docs["transitions.json"]["causal_limits"] = look_causal_limits(docs["transitions.json"]["causal_limits"])
             for key, text in LOOK_RULES.items():
                 set_doc["rules"].setdefault(key, text)
             look_doc = set_doc.setdefault("look", {})
@@ -2615,7 +2645,7 @@ def verify(set_name: str, body: str, root=setio.ROOT) -> dict:
     rc = refcheck_state(d, docs)
     if rc is None:
         notes.append(f"no {REFCHECK} beside the set's records: its references were not played through the bar's own "
-                     "readings (python -m designlab.stage2.bar refcheck --out <the sets' root>)")
+                     f"readings. {REFCHECK_HOW}")
     else:
         notes += refcheck_lines(rc)
     cited = (set_doc["freezes"][-1].get("refcheck") if fz is not None else None)
@@ -2799,7 +2829,7 @@ def refcheck_lines(state: dict) -> list[str]:
     """What a kinematic check says, one line per failing condition (``sets verify``'s notes)."""
     head = "refcheck (each reference played kinematically through the bar's own readings; no physics)"
     if not state["current"]:
-        return [f"{head}: {state['file']} is not current: {state['why']} (python -m designlab.stage2.bar refcheck)"]
+        return [f"{head}: {state['file']} is not current: {state['why']}. {REFCHECK_HOW}"]
     if not state["failing"]:
         return [f"{head}: every reference that was played passes its own bar item"]
     out = []
@@ -2919,7 +2949,7 @@ def freeze(set_name: str, body: str, root=setio.ROOT, allow_mixed: bool = False,
             if not cited["current"] or beyond:
                 why.append(f"the refcheck record {cited['file']} is not of the files being frozen ("
                            + (cited["why"] or f"it read {', '.join(beyond[:4])}")
-                           + "): run python -m designlab.stage2.bar refcheck again")
+                           + f"): make it again. {REFCHECK_HOW}")
         if why:
             raise SetError(f"{d} is not frozen: " + "; ".join(why))
         if freezes and manifest == prev:
@@ -3184,8 +3214,9 @@ def main(argv=None) -> int:
                               help="a freeze made after check episodes only (no change after a result)")
             when.add_argument("--before-any-episode", action="store_true",
                               help="a later freeze made before any episode on the set")
-            p.add_argument("--refcheck", metavar="FILE", help="the record of bar refcheck to cite (default: the set "
-                                                              f"directory's {REFCHECK}, where there is one)")
+            p.add_argument("--refcheck", metavar="FILE", help="the refcheck record to cite (default: the set "
+                                                              f"directory's {REFCHECK}, where there is one). "
+                                                              f"{REFCHECK_HOW}")
     a = ap.parse_args(argv)
 
     def say(line: str) -> None:

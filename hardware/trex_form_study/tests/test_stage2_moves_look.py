@@ -131,7 +131,15 @@ def ctx() -> dict:
 # ------------------------------------------------------------------------------------------------
 def test_rules_are_recorded(ctx):
     assert set(ml.LOOK_RULE_IDS) | set(ml.JOIN_RULE_IDS) | {"S2L-periodic", "S2L-L13", "S2L-L1L4-start",
-                                                            "S2L-causal-grid"} == set(ml.RULES)
+                                                            "S2L-causal-grid", "S2L-P42-warmup"} == set(ml.RULES)
+    # P42 (the owner's, 17 Nov 2026): a causal move's warm-up join reading on the look sets, 5.0 mm; the round keeps 4.0
+    p42 = ml.RULES["S2L-P42-warmup"]
+    for text in ("DECISION_LOG.md P42", "changed after a result", "held to 5 mm in place of P34's 4 mm",
+                 "the round's three sets keep 4 mm", "within 1 mm over the warm-up", "within 0.001 rad at it",
+                 "join_command.limits.zmp_mm is the limit used"):
+        assert text in p42, text
+    assert ml.WARMUP_RULE_ID == "S2L-P42-warmup" and ml.causal_rule_ids()[-2:] == ("S2L-causal-grid", "S2L-P42-warmup")
+    assert (ml.LOOK_WARMUP_ZMP_LIMIT_MM, moves.WARMUP_ZMP_LIMIT_MM) == (5.0, 4.0)
     for key, text in {**ml.RULES, **sets.LOOK_RULES}.items():
         assert key.startswith("S2L-") and len(text) > 40
     assert "S2L-L9" not in ml.RULES  # rolling contact inside a move is not built (L11)
@@ -259,7 +267,7 @@ with s2io.r2():
     out["stop"].update(accel_err=float(np.abs(got - fd).max()), accel_peak=float(np.abs(fd).max()),
                        accel_before=e["reference"]["accel_filter"]["before"], command_phase=e["move"]["command_phase"],
                        rolling_frames=e["rolling_frames"], rolling_split_failed=e["rolling_split_failed_frames"],
-                       gates2=e["gates"], pass_=e["pass_"])
+                       gates2=e["gates"], pass_=e["pass_"], look_join_command=e["join_command"])
     cs = moves._causal_setup(src, bd.move, bd.ref_a)
     tb = ml.bind_move(src, moves._turn("turn", a, math.pi / 2, -math.pi / 4, 0.8, p0=-0.5), w, w)
     ct = moves._causal_setup(src, tb.move, tb.ref_a)
@@ -907,20 +915,28 @@ def test_a_causal_move_leaves_a_window_as_the_walk(built):
     ev = r["join_events"]  # the ZMP reading apart from the plan's events: a reading, never a gate
     assert ev["frames_over_limit"] >= ev["frames_over_limit_away_from_events"] and ev["zmp_max_mm"] == pytest.approx(
         jc["warmup_zmp_max_mm"])
-    assert ev["limit_mm"] == jc["limits"]["zmp_mm"] == moves.WARMUP_ZMP_LIMIT_MM
+    # moves.join_command reads the move as coded (P34's 4.0 mm); the look set's entry reads it against P42's 5.0 mm,
+    # and join_events counts its frames against the limit the entry's gate reads
+    lj = r["look_join_command"]
+    assert jc["limits"]["zmp_mm"] == moves.WARMUP_ZMP_LIMIT_MM == 4.0
+    assert ev["limit_mm"] == lj["limits"]["zmp_mm"] == ml.LOOK_WARMUP_ZMP_LIMIT_MM == 5.0
+    assert lj["limits"]["zmp_rule"] == "S2L-P42-warmup" and r["gates2"]["join_command"] == lj["ok"]
+    assert {k: v for k, v in lj.items() if k not in ("limits", "ok")} == {k: v for k, v in jc.items() if k not in ("limits", "ok")}
 
 
 def test_join_events_reads_join_commands_limit_and_no_event_across_the_warmups_ends(monkeypatch):
     """``join_events`` (a reading beside ``join_command``, never a gate) on a warm-up made by hand: it counts the
-    frames over ``join_command``'s own warm-up limit (``moves.WARMUP_ZMP_LIMIT_MM``, A7 as amended), on the gate's
-    frames (from the first with an acceleration to two before the command), and a frame is "at an event" only for a
-    planned lift-off or touchdown, or a frame of the warm-up itself on which a stance foot rolls, within
-    ``EVENT_FRAMES`` of it: a foot that rolls on the warm-up's last frame marks none of its first frames (no wrap)."""
+    frames over ``join_command``'s own warm-up limit on a look set (``moves_look.LOOK_WARMUP_ZMP_LIMIT_MM``: A7 as
+    amended by P42), on the gate's frames (from the first with an acceleration to two before the command), and a
+    frame is "at an event" only for a planned lift-off or touchdown, or a frame of the warm-up itself on which a
+    stance foot rolls, within ``EVENT_FRAMES`` of it: a foot that rolls on the warm-up's last frame marks none of its
+    first frames (no wrap)."""
     n = 60
     ph = -1.0 + np.arange(n) / N
     mm = np.full(n, 0.5)
     mm[:2] = np.nan  # (as a move's own: no acceleration on the first two computed frames)
-    mm[2], mm[3] = 3.0, 5.0  # over transitions.G3_ZMP_MM (2.0 mm) and under the gate's 4.0 mm; over both
+    # over transitions.G3_ZMP_MM (2.0 mm) and under P34's 4.0 mm; over every limit; over P34's and under P42's 5.0 mm
+    mm[2], mm[3], mm[4] = 3.0, 5.5, 4.5
     zmp = np.zeros((n, 2))
     zmp[:, 0] = 1e-3 * mm
     rolling = np.zeros((n + 40, 2), bool)
@@ -930,12 +946,12 @@ def test_join_events_reads_join_commands_limit_and_no_event_across_the_warmups_e
     monkeypatch.setattr(ml, "_is_view", lambda ref: True)
     monkeypatch.setattr(ml, "walk_frames", lambda ref, phases, first, key: np.zeros((len(phases), 2)))
     ev = ml.join_events(g, object())
-    assert ev["limit_mm"] == moves.WARMUP_ZMP_LIMIT_MM == 4.0
-    assert ev["frames"] == n - 4 and ev["zmp_max_mm"] == pytest.approx(5.0)
+    assert ev["limit_mm"] == ml.LOOK_WARMUP_ZMP_LIMIT_MM == 5.0 and moves.WARMUP_ZMP_LIMIT_MM == 4.0
+    assert ev["frames"] == n - 4 and ev["zmp_max_mm"] == pytest.approx(5.5)
     assert ev["frames_over_limit"] == 1 and ev["phases_over_limit"] == [pytest.approx(ph[3])]
     # the rolling frame marks frames n-4 to n-1, of which n-4 and n-3 are the gate's; frames 0 to 2 are not near it
     assert ev["event_frames"] == 2 and ev["frames_over_limit_away_from_events"] == 1
-    assert ev["zmp_max_mm_away_from_events"] == pytest.approx(5.0)
+    assert ev["zmp_max_mm_away_from_events"] == pytest.approx(5.5)
 
 
 def test_the_windows_own_acceleration_is_the_moves_filter_history(built):
@@ -1111,8 +1127,10 @@ def test_set_items_and_names(set_name, body):
             want = "S2L-L13" if i.kind in sets.LOOK_KINDS else "S2L-L10"
             assert want in i.definition["rules"] and "S2L-L9" not in i.definition["rules"]
             assert ("S2L-L10" in i.definition["rules"]) != (i.kind in sets.LOOK_KINDS)
-            # the causal moves (the stop, the turns) name the causal preview grid (ruling 28), no other move does
+            # the causal moves (the stop, the turns) name the causal preview grid (ruling 28) and the warm-up join
+            # limit (P42), no other move does
             assert ("S2L-causal-grid" in i.definition["rules"]) == (i.kind in ("stop_two_step", "turn"))
+            assert ("S2L-P42-warmup" in i.definition["rules"]) == (i.kind in ("stop_two_step", "turn"))
         if "inplace" not in i.name:
             assert setio.parse_name(i.name)["name"] == i.name
         else:
@@ -1183,7 +1201,10 @@ def test_a_look_sets_records_hold_the_looks_rules_and_no_cut():
         assert sd["look"]["cut"] is None and sd["look"]["join_review"] == sets.JOIN_REVIEW and sd["look"]["pick"] == BODY
         assert "cut 3 is not taken for 75-M-H-10" in sd["look"]["cut_reason"] and "4.038" in sd["look"]["cut_reason"]
         assert sd["look"]["cut3_probe"]["right_turns_mm"] == 4.361 and sd["look"]["joins_failed"] == {}
-        assert "S2L-causal-grid" in td["rules"]
+        assert "S2L-causal-grid" in td["rules"] and td["rules"]["S2L-P42-warmup"] == ml.RULES["S2L-P42-warmup"]
+        # the causal limits as P42 holds them on a look set: the warm-up ZMP 5.0 mm, named; every other limit the round's
+        assert td["causal_limits"] == dict(sets._new_docs("V0", BODY, header)["transitions.json"]["causal_limits"],
+                                           warmup_zmp_mm=5.0, warmup_zmp_rule="S2L-P42-warmup")
         assert sd["look"]["leave_phase"] == dict(turn_left=2.0, turn_right=2.5, stop_two_step=2.5)
         assert set(ml.RULES) <= set(td["rules"]) and "S2L-moves" in td["rules"] and "S2A-gates" in td["rules"]
         assert "S2L-format" in rd["rules"] and "rolling contact" in rd["feedforward"]
@@ -1191,6 +1212,9 @@ def test_a_look_sets_records_hold_the_looks_rules_and_no_cut():
         json.dumps(docs, allow_nan=False)
     v0 = sets._new_docs("V0", BODY, header)
     assert "look" not in v0["set.json"] and not any(k.startswith("S2L-") for d in v0.values() for k in d["rules"])
+    assert v0["transitions.json"]["causal_limits"] == dict(  # the round's sets: P34's limits, unchanged
+        warmup_com_mm=1.0, warmup_zmp_mm=4.0, joint_at_command_rad=1e-3, consistency_first_stride_mm=4.0,
+        zmp_after_first_stride_mm=4.0, cop_margin_single_mm=10.0, joint_range_rad=0.05)
     committed = ROOT / "stage2" / "sets" / "V0" / BODY / "set.json"
     if committed.is_file():  # the frozen V0 set's rules are the ones a new V0 set would get: nothing of them moved
         assert json.loads(committed.read_text())["rules"] == v0["set.json"]["rules"]
@@ -1281,10 +1305,14 @@ def test_a_merge_into_a_look_set_built_before_a_rule_records_its_text(tmp_path):
     made = {n: dict(e) for n, e in tr.items() if e.get("group") == "nominal_to_v0.4"}
     sets.merge(d, dict(set="V6", body="60-N-T-10", item="nominal_to_v0.4", refs={}, transitions=made, look_entries={},
                        stride_rules={}, header=None, blocks_set=None, log=[]), log=lambda *a: None)
-    rules = json.loads((d / "transitions.json").read_text())["rules"]
-    added = ("S2L-L1L4-start", "S2L-causal-grid")  # (rulings 18 and 28 of 17 Nov 2026)
+    td = json.loads((d / "transitions.json").read_text())
+    rules = td["rules"]
+    added = ("S2L-L1L4-start", "S2L-causal-grid", "S2L-P42-warmup")  # (rulings 18 and 28, P42: 17 Nov 2026)
     assert all(rules[k] == ml.RULES[k] for k in added) and set(ml.RULES) <= set(rules)
     assert {k: v for k, v in rules.items() if k not in added} == old["rules"]
+    # and the causal limits say P42's warm-up limit from now on, every other limit as it was
+    assert old["causal_limits"]["warmup_zmp_mm"] == 4.0 and "warmup_zmp_rule" not in old["causal_limits"]
+    assert td["causal_limits"] == dict(old["causal_limits"], warmup_zmp_mm=5.0, warmup_zmp_rule="S2L-P42-warmup")
     # and set.json gains the look sets' rule on the join code's review, and L12's fields (ruling 30)
     sd = json.loads((d / "set.json").read_text())
     assert sd["rules"]["S2L-join-review"] == sets.LOOK_RULES["S2L-join-review"]
@@ -1428,9 +1456,12 @@ def left_turns(ctx) -> dict:
         for f in (1.0, 0.8, 0.6):
             bd = ml.turn(src, "turn90_pi4_left", a, w, math.pi / 2, math.pi / 4, f)
             g = ml.generate(src, bd.move, bd.ref_a)
-            entry = ml.entry_extra(bd, g, moves.summary(g, bd.ref_a, bd.ref_b, src["q_home"]))
+            s = moves.summary(g, bd.ref_a, bd.ref_b, src["q_home"])
+            # what a round set's move reads (moves.summary as it stands: P34's 4.0 mm), before the look's keys
+            round_ = json.loads(json.dumps(dict(gates=s["gates"], pass_=s["pass_"], join_command=s["join_command"])))
+            entry = ml.entry_extra(bd, g, s)
             out[f] = dict(warmup=g["warmup"], join_command=moves.join_command(g, bd.ref_a), entry=entry,
-                          frames=len(g["plan"].t))
+                          frames=len(g["plan"].t), round=round_)
     return out
 
 
@@ -1456,6 +1487,65 @@ def test_a_look_causal_moves_warmup_reads_the_same_whatever_follows_the_command(
         assert grid["rule"] == "S2L-causal-grid" and grid["grid_s"] == pytest.approx(5.2244e-3, abs=1e-7)
         assert grid["whole_plan_min_s"] < grid["grid_s"] and grid["command_frame"] == 160
         assert "S2L-causal-grid" in x["entry"]["move"]["rules"] and "S2L-causal-grid" in x["entry"]["look"]["rules"]
+
+
+@needs_v6_window
+def test_p42_a_look_causal_move_whose_warmup_reads_between_4_and_5_mm_passes_and_a_round_move_fails(left_turns):
+    """The owner's decision P42 on the built move: V6's quick left turn on 75-M-H-10, whose warm-up reads 4.621 mm
+    (between P34's 4.0 mm and P42's 5.0 mm, with the CoM and the joints well inside theirs).  A round set's move is
+    read by ``moves.summary`` as it stands (P34's 4.0 mm): its gate ``join_command`` fails.  The look set's entry
+    (``moves_look.entry_extra``) reads the same numbers against 5.0 mm: its gate passes, its ``join_command.limits``
+    holds the limit used and the rule, and every other limit and reading is the round's."""
+    for f, x in left_turns.items():
+        rd, e = x["round"], x["entry"]
+        jr, jl = rd["join_command"], e["join_command"]
+        assert 4.0 < jl["warmup_zmp_max_mm"] == jr["warmup_zmp_max_mm"] < 5.0, f
+        assert jr["warmup_com_max_mm"] < 0.1 and jr["at_command"]["joint_rad"] < 1e-3, f
+        # a round set's move: P34's 4.0 mm, failed by this reading alone
+        assert jr["limits"] == dict(com_mm=1.0, zmp_mm=4.0, joint_rad=1e-3, zmp_frames=jr["limits"]["zmp_frames"])
+        assert jr["ok"] is False and rd["gates"]["join_command"] is False and x["join_command"]["ok"] is False, f
+        # the look set's entry: P42's 5.0 mm, every other limit unchanged, the same readings, the gate passes
+        assert jl["limits"] == dict(jr["limits"], zmp_mm=5.0, zmp_rule="S2L-P42-warmup"), f
+        assert jl["ok"] is True and e["gates"]["join_command"] is True and e["pass_"] == all(e["gates"].values()), f
+        assert {k: v for k, v in jl.items() if k not in ("limits", "ok")} == {
+            k: v for k, v in jr.items() if k not in ("limits", "ok")}, f
+        # no other gate moved: the entry's gates are the round's but join_command (and a rolling-split gate, a look key)
+        assert {k: v for k, v in e["gates"].items() if k not in ("join_command", "rolling_split")} == {
+            k: v for k, v in rd["gates"].items() if k != "join_command"}, f
+        assert e["join_events"]["limit_mm"] == 5.0 and e["join_events"]["frames_over_limit"] == 0, f
+        assert "S2L-P42-warmup" in e["move"]["rules"] and "S2L-P42-warmup" in e["look"]["rules"], f
+
+
+def test_p42_join_command_look_moves_the_warmup_zmp_limit_alone():
+    """``moves_look.join_command_look`` on blocks made by hand: the warm-up ZMP reading passes up to 5.0 mm (P42)
+    where ``moves.join_command``'s 4.0 mm (P34) fails it; the warm-up CoM, the CoM at the command and the joints at
+    it keep their limits (1.0 mm, 1.0 mm, 1e-3 rad); the block given is left as it is; a block whose other limits are
+    not ``moves``' is refused."""
+    lim = dict(com_mm=transitions.G3_COM_MM, zmp_mm=moves.WARMUP_ZMP_LIMIT_MM, joint_rad=moves.JOINT_AT_COMMAND_RAD,
+               zmp_frames="the warm-up frames up to two frames before the command")
+
+    def block(zmp=1.0, com=0.05, com_c=0.02, joint_c=2e-4):
+        jc = dict(reference="v0.4", frames=161, warmup_com_max_mm=com, warmup_zmp_max_mm=zmp, warmup_joint_max_rad=4e-4,
+                  warmup_ik_ok=True, at_command=dict(com_mm=com_c, joint_rad=joint_c, zmp_mm=1.0, zmp_note="n"),
+                  limits=dict(lim))
+        jc["ok"] = bool(com <= 1.0 and com_c <= 1.0 and joint_c <= 1e-3 and zmp <= 4.0)  # moves.join_command's reading
+        return jc
+
+    for zmp, round_ok, look_ok in ((3.99, True, True), (4.0, True, True), (4.001, False, True), (4.621, False, True),
+                                   (5.0, False, True), (5.001, False, False)):
+        jc = block(zmp=zmp)
+        before = json.dumps(jc)
+        got = ml.join_command_look(jc)
+        assert jc["ok"] is round_ok and got["ok"] is look_ok, zmp
+        assert json.dumps(jc) == before  # (a new block)
+        assert got["limits"] == dict(lim, zmp_mm=5.0, zmp_rule="S2L-P42-warmup") and got["warmup_zmp_max_mm"] == zmp
+        assert ml.join_command_look(got) == got  # (read twice, the same)
+    for edit in (dict(com=1.001), dict(com_c=1.001), dict(joint_c=1.001e-3)):  # every other limit holds as it was
+        assert ml.join_command_look(block(zmp=4.5, **edit))["ok"] is False, edit
+        assert ml.join_command_look(block(zmp=0.5, **edit))["ok"] is False, edit
+    for other in (dict(com_mm=2.0), dict(joint_rad=2e-3), dict(zmp_mm=6.0)):
+        with pytest.raises(ml.LookError, match="P42 moves the warm-up ZMP's alone"):
+            ml.join_command_look(dict(block(), limits=dict(lim, **other)))
 
 
 ROUND_CODE = r"""

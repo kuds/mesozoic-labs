@@ -1485,7 +1485,8 @@ def test_verify_and_freeze_cite_the_bars_kinematic_check(made, legacy_ok):
     through the bar's own readings): ``verify`` prints what fails as notes, never as a failure; a freeze cites the
     record and refuses one that is not of the files being frozen."""
     root = made.parents[1]
-    assert any(x.startswith("no refcheck.json beside the set's records") for x in verify(made)["notes"])
+    assert (f"no refcheck.json beside the set's records: its references were not played through the bar's own "
+            f"readings. {sets.REFCHECK_HOW}") in verify(made)["notes"]  # (ruling 40: the placed refcheck on a look set)
     docs = docs_of(made)
     files = {"refs/v0.4.npz": dict(sha256=docs["refs.json"]["references"]["v0.4"]["sha256"]),
              "transitions/turn90_pi4_left.npz": dict(sha256=docs["transitions.json"]["transitions"]["turn90_pi4_left"]["sha256"])}
@@ -1510,9 +1511,11 @@ def test_verify_and_freeze_cite_the_bars_kinematic_check(made, legacy_ok):
     files["refs/v0.4.npz"]["sha256"] = "0" * 64
     s2io.write_json(made / "refcheck.json", doc)
     v = verify(made)
-    assert v["ok"] and any("is not current: 1 of the files it read are not the set's now (refs/v0.4.npz)" in x for x in v["notes"])
-    with pytest.raises(sets.SetError, match="the refcheck record .* is not of the files being frozen"):
+    assert v["ok"] and any("is not current: 1 of the files it read are not the set's now (refs/v0.4.npz). "
+                           + sets.REFCHECK_HOW in x for x in v["notes"])
+    with pytest.raises(sets.SetError, match="the refcheck record .* is not of the files being frozen") as refused:
         sets.freeze(SET, BODY, root, log=lambda line: None)
+    assert str(refused.value).endswith(f"(refs/v0.4.npz)): make it again. {sets.REFCHECK_HOW}")
     with pytest.raises(sets.SetError, match="no such refcheck record"):
         sets.freeze(SET, BODY, root, refcheck=made / "none.json", log=lambda line: None)
     # every reference passing: one line says so
@@ -1524,6 +1527,52 @@ def test_verify_and_freeze_cite_the_bars_kinematic_check(made, legacy_ok):
     assert rec["refcheck"]["pass_"] is True and rec["refcheck"]["failing"] == {}
     assert sets.refcheck_lines(sets.refcheck_state(made, setio.load(made), made / "elsewhere.json"))[0].endswith(
         "every reference that was played passes its own bar item")
+
+
+#: LT3's check's suggested line for the look sets' freeze text (stage2/design/checkpoint/reviews/
+#: roundC__check_LT3_17nov.md, finding 3), which ruling 40 of 17 Nov 2026 puts into sets.py word for word.
+LT3_REFCHECK_LINE = (
+    "On a look set or a version of one (V6, V6noF5, V6.2, ...) the record is made with `python -m "
+    "designlab.stage2.gates2 refcheck --set S --body B --out <the sets' root>` (bar refcheck's record made inside "
+    "lookbar.look_set_placement, its turns and stop at join rule J1's leave point, the only kind G9-ref part (a) "
+    "reads); on any other set with `python -m designlab.stage2.bar refcheck --set S --body B --out <the sets' root>`.")
+
+
+def test_the_freeze_text_names_the_placed_refcheck_for_a_look_set(capsys):
+    """Ruling 40 of 17 Nov 2026 (LT3's check, finding 3): the six places of ``sets.py`` that named ``bar refcheck``
+    alone name the placed refcheck for a look set in the check's words: the module docstring (section 3),
+    ``REFCHECK``'s comment and ``REFCHECK_HOW`` beside it, ``verify``'s note on a set with no record and
+    ``refcheck_lines`` on a record that is not current, ``freeze``'s refusal of such a record (the three read in
+    ``test_verify_and_freeze_cite_the_bars_kinematic_check``), and the ``--refcheck`` help.  No place names ``bar
+    refcheck`` alone any more."""
+    assert sets.REFCHECK_HOW == LT3_REFCHECK_LINE
+    check = ROOT / "stage2" / "design" / "checkpoint" / "reviews" / "roundC__check_LT3_17nov.md"
+    if check.is_file():
+        assert LT3_REFCHECK_LINE in check.read_text()
+    flat = lambda s: " ".join(s.replace("``", "`").split())  # noqa: E731
+    bare = lambda s: "".join(s.split())  # noqa: E731  (argparse wraps its help: compared without whitespace)
+    assert LT3_REFCHECK_LINE[:-1] + " (`REFCHECK_HOW`; ruling 40 of 17 Nov 2026)." in flat(sets.__doc__)
+    src = (ROOT / "designlab" / "stage2" / "sets.py").read_text()
+    lines = src.splitlines()
+    i = lines.index('REFCHECK = "refcheck.json"')
+    j = i
+    while lines[j - 1].startswith("#:"):
+        j -= 1
+    comment = flat(" ".join(x[2:] for x in lines[j:i]))
+    for words in ("ruling 40 of 17 Nov 2026, in the words of LT3's check", "on a look set or a version of one (V6, "
+                  "V6noF5, V6.2, ...) `python -m designlab.stage2.gates2 refcheck --set S --body B --out <the sets' "
+                  "root>`", "on any other set `python -m designlab.stage2.bar refcheck --set S --body B --out <the "
+                  "sets' root>`"):
+        assert words in comment, words
+    assert lines[i + 1].startswith("REFCHECK_HOW = (")
+    for old in ("made by ``python -m designlab.stage2.bar refcheck --out", "(python -m designlab.stage2.bar refcheck --out",
+                "(python -m designlab.stage2.bar refcheck)", "run python -m designlab.stage2.bar refcheck again",
+                "the record of bar refcheck to cite"):
+        assert old not in src, old
+    with pytest.raises(SystemExit):
+        sets.main(["freeze", "--help"])
+    assert bare("the refcheck record to cite (default: the set directory's refcheck.json, where there is one). "
+                + LT3_REFCHECK_LINE) in bare(capsys.readouterr().out)
 
 
 def test_a_frozen_entry_is_never_dropped_or_changed(made, legacy_ok, standin):
