@@ -1146,7 +1146,10 @@ def test_a_halt_for_moved_sources_asks_the_lead_for_allow_source_change(tmp_path
     """The lead's ruling 12 of 17 Nov: a halt for moved sources names the parameter that resolves it
     (--allow-source-change, as train2's halt does); the notebook takes it as that halt's remedy: a resume is refused
     until LEAD.json names the halt and holds allow_source_change, which then reaches the trainer.  As built only
-    --retry-check was taken from a halt's text, and the lead had to know to write allow_source_change."""
+    --retry-check was taken from a halt's text, and the lead had to know to write allow_source_change.  The check
+    of 17 Nov (its finding 2): LEAD.json here also holds retry_check, left from an earlier halt; it answers no halt
+    whose remedy does not name it, so the session passes no --retry-check (a mutant without the remedy's condition
+    survived the earlier version of this test)."""
     why = ("stub: the monitor refused to run on the check of 2048 steps (the row R5/42@10ms refused the checkpoint "
            "while it was built, before any episode (RowError: not judged (rule K9; STAGE2_ALLOW_SOURCE_CHANGE=1 runs "
            "it flagged))): the run halts and goes to the lead; the sources moved: a resume with "
@@ -1158,13 +1161,15 @@ def test_a_halt_for_moved_sources_asks_the_lead_for_allow_source_change(tmp_path
     assert _launch(p)["state"] == "halted"
     halt = json.loads((d / "HALT.json").read_text())
     assert halt["resumable"] is True and halt["remedy"] == ["allow_source_change"], halt
-    _lead(d, resume_halt=halt["halt_id"])
+    _lead(d, resume_halt=halt["halt_id"], retry_check=True)              # (retry_check is not this halt's remedy)
     with pytest.raises(nb.Refused, match='LEAD.json beside the run with "allow_source_change": true'):
         _session(p, RESUME=True)
-    _lead(d, resume_halt=halt["halt_id"], allow_source_change=True)
+    _lead(d, resume_halt=halt["halt_id"], allow_source_change=True, retry_check=True)
     monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02)}))
     s1 = _session(p, RESUME=True)
+    assert s1["lead"]["doc"]["retry_check"] is True                          # read, and not taken: no remedy names it
     assert s1["allow_source_change"] is True and s1["retry_check"] is False
+    assert json.loads((d / "SESSION_1.json").read_text())["retry_check"] is False
     assert s1["halt_resumed"]["remedy"] == ["allow_source_change"]
     assert _launch(p)["state"] == "done"
     argv = _calls(p)[-1]["argv"]
