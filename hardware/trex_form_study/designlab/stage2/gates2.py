@@ -136,6 +136,9 @@ STAGE1B_BODY = "60-N-T-10"
 K3 = dict(mode="R5", seed=42, steps=131_072, checkpoint_every=32_768, monitor_every=131_072, kill_at=81_920,
           workers=(2, 3), tiny=False, gates=False, n_envs=8, n_steps=1024)
 K3_TINY = dict(K3, steps=4096, checkpoint_every=1024, monitor_every=4096, kill_at=2560, tiny=True, n_steps=64)
+#: Rule K3's body and set; a record of other settings, body or set is a check of the command and says so.
+K3_ON = ("75-M-H-10", "V6")
+K3_CHECK = "a check of the command (not rule K3's settings, body and set): no record of K3"
 TRAINER = "designlab.stage2.train2"
 CHILD_TIMEOUT_S = 4 * 3600.0
 GROUP_WAIT_S = 30.0
@@ -1132,7 +1135,8 @@ def rollout_rate(specs: list, workers: int, steps: int, n_steps: int | None = No
         vecnorm = VecNormalize(venv, norm_obs=True, norm_reward=True, clip_obs=d["clip_obs"],
                                clip_reward=d["clip_reward"], gamma=d["gamma"])
         kw = policy.model_kwargs(int(layout["actor_dim"]), log_std_init=math.log(RATE_SIGMA))
-        kw.update(learning_rate=schedules.ConstantSchedule(3e-5), n_steps=n_steps, clip_range=d["clip_range"])
+        kw.update(learning_rate=schedules.ConstantSchedule(3e-5), n_steps=n_steps, clip_range=d["clip_range"],
+                  batch_size=min(int(d["batch_size"]), n_steps * len(specs)))  # (no update runs: no effect on rates)
         model = PPO(env=vecnorm, seed=0, device="cpu", verbose=0, **kw)
         _, callback = model._setup_learn(int(steps), callback=None, reset_num_timesteps=True, progress_bar=False)
         callback.on_training_start(locals(), globals())
@@ -1509,12 +1513,14 @@ def kill_resume(body: str, set_name: str, out, record=None, *, tiny=False, setti
         uninterrupted_one_session=len(sa) == 1, uninterrupted_workers=sa[0].get("workers") == w_a,
         killed_two_sessions=len(sb) == 2, killed_workers=sb[0].get("workers") == w_a,
         resumed_workers=len(sb) == 2 and sb[1].get("workers") == w_b, kill_as_ruled=bool(kill and kill.get("as_ruled")),
-        resumed_between_boundaries=resumed_from is not None and int(resumed_from) < int(s["kill_at"]),
+        resumed_from_the_last_checkpoint_before_the_kill=resumed_from is not None and int(resumed_from) == (
+            int(s["kill_at"]) // int(s["checkpoint_every"])) * int(s["checkpoint_every"]),
         same_budget=int(db["budget"]) == budget, final_compared=final is not None)
     equal = bool(final is not None and all(c["equal"] for c in compared))
     out_doc = dict(
-        schema=SCHEMAS["kill_resume"], gate="K3", rule=RULES["k3"], form="tiny smoke (not K3's record)" if tiny else
-        "K3", body=body, set=set_name, settings=dict(s, workers=list(s["workers"])), job=job,
+        schema=SCHEMAS["kill_resume"], gate="K3", rule=RULES["k3"],
+        form="K3" if (s == K3 and (body, set_name) == K3_ON) else K3_CHECK, body=body, set=set_name,
+        settings=dict(s, workers=list(s["workers"])), lr_given=lr, config_given=config, job=job,
         out=s2io.portable(str(out.resolve())),
         runs={k: dict(run_uuid=x["run_uuid"], status=x["status"], num_timesteps=x.get("num_timesteps"),
                       budget=x.get("budget"), settings_sha256=x.get("settings_sha256"),
