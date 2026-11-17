@@ -422,3 +422,20 @@ the validation steps did not reach this path.
       `stage2/tb/runs/s2-4/failed_start_17nov/`. The ignored job directory under `stage2/tb/work/local/s2-4` is then
       cleared, and S2-4 starts as a new run with the fixed code. The committed baseline stays: its commit is an
       ancestor of the new run's first session.
+
+## The launch (`checkpoint/reviews/roundC__{do,check}_bundle_17nov.md`), ruled 17 Nov 2026, ~21:45 UTC
+
+The bundle s2-b1 (75-M-H-10, V6 freeze 0; content 9227d8a0bf0b…; three parts, 33,812,480 bytes) is checked sound.
+The launch commit C1 is b914088b. Its parts are on the data branch `claude/mesozoic-trex-stage2-bundle-s2-b1`
+(ecf95a81, P46), and a fresh fetch gives each part's sha256 as built.
+
+44. **The first launch series and the -X head.**
+    - Launch series 1 trains 75-M-H-10, the plain head, alone (P33, P43, P44). The -X head waits for D5's
+      preconditions (V0: G1 of the -X bodies on an idle machine, and the jaw cover decision), so it is not in s2-b1.
+      A later bundle with its own id adds it (K6).
+    - Rule O says that a body's -X head is probed before any Colab job of that body is queued. That is met now:
+      rule O3's learning-rate probe runs on 75-M-H-10-X on V6 (frozen, G9-ref passed; X1 allows the probes between
+      G9-ref and S2-4) and its record joins `lr_probe.json`, before the steps sheet names the queue. If the jaw cover
+      later changes the -X records, the probe is run again then.
+    - D24's committed rules are named in the steps sheet by path and by sha256 at C1:
+      `STAGE2_TRACKB_PLAN.md`, `stage2/design/ROUND_C_DESIGN.md` and this file.
