@@ -1343,8 +1343,9 @@ def main(argv=None) -> int:
         return 1
 
 
-__all__ = ["COMPANION_SCHEMA", "DELAYED_KEYS", "LOOK_SETS", "LOOK_SET_ROWS", "LookBarError", "LookRow", "LookSetRefused",
-           "LookSetRule", "RULES", "SIDECAR_SCHEMA", "WARNED_CAUSE", "air_runs", "clock_block", "collect", "companion",
+__all__ = ["COMPANION_SCHEMA", "DELAYED_KEYS", "LOOK_SETS", "LOOK_SET_ROWS", "LookBarError", "LookRow",
+           "LookSetRefused", "LookSetRule", "RULES", "SIDECAR_SCHEMA", "WARNED_CAUSE", "air_runs", "clock_block",
+           "collect", "companion",
            "companion_episode", "companion_path", "counts_of", "episodes", "is_look_record", "is_unreadable",
            "is_warned", "look_of", "look_row_of", "look_set_of", "look_set_row", "look_set_rule", "main",
            "on_command_at_stop", "open_set", "record_row_sha256", "require_g9_ref", "rows", "rule_texts", "run",
