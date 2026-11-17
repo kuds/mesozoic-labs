@@ -889,8 +889,9 @@ pooled mean held. (scratch) Check: `stage2/tb/validation/filter.json` (the body 
 settled 15 Nov, before any Track B run: an *error* episode, R0L's baseline, a check without a record;
 settled 16 Nov 2026, before any Track B run: how the attempts at a check are counted, what a record of a check is and
 what it holds for a condition that is not run, a check counted without one, attempts never closed and what follows their
-halt, and a monitor that refuses to run; differs: C8, for policy rows] 18 episodes: the bar's conditions `walk/nominal`,
-`walk/v0.4`, `turn/q90_left`, `stop/two_step`, `nudge/forward`, `nudge/left` of the run's set at mu 0.9, three episodes
+halt, a monitor that refuses to run and its other exits before any episode, and R0L's baseline where a condition has no
+reference; differs: C8, for policy rows] 18 episodes: the bar's conditions `walk/nominal`, `walk/v0.4`,
+`turn/q90_left`, `stop/two_step`, `nudge/forward`, `nudge/left` of the run's set at mu 0.9, three episodes
 each, **every episode on its own seed**: condition i (0-5 in that order), repetition r (0-2): seed `6001 + 3 i + r`
 (6001-6018; none is a panel, fit or validation seed), at 10 ms, as the bar builds and judges them. Each episode has one
 outcome: *read*; *fell*; *unread* (an episode of a policy row, `R5`, `R6` or `R5G`, that did not fall and that the bar
@@ -902,7 +903,10 @@ again; C8 stands for rows without a policy.
 
 [settled 15 Nov, before any Track B run; in place of the committed sentence "The monitor never runs an episode twice."]
 The monitor never runs a policy row's episode twice: an *error* there counts as not succeeding, as zero credited
-survival and as not up (M4), and the record names it. R0L's 18 episodes are a baseline: each must end *read* or *fell*;
+survival and as not up (M4), and the record names it. R0L's 18 episodes are a baseline: each must end *read* or *fell*
+or, for a condition without a reference, be "not run" [settled 16 Nov 2026, before any Track B run: "or, for a condition
+without a reference, be "not run"", added after "each must end *read* or *fell*" (settled 15 Nov); read to the letter, a
+body without a quick turn had no baseline that a check could be read against; ruling 1 of the sixth list];
 if one ends *error* the fault is repaired and all 18 are run again before the run's first rollout (C8), the failed
 attempt kept beside them, and no check is read against a baseline that holds an error. A check whose monitor leaves no
 record is run again on the same checkpoint files, once; if it again leaves none, that check counts as without a gain and
@@ -931,6 +935,11 @@ been built and reviewed ("What had been run")] A monitor that refuses to run (it
 not intact, or the checkpoint is another run's) is no attempt: the trainer halts, and the refusal does not count toward
 the two attempts after which a check counts as without a gain.
 
+[settled 16 Nov 2026, before any Track B run; ruling 3 of the sixth list, given after the trainer and its monitor had
+been built and reviewed ("What had been run")] The monitor's other exits before any episode (a missing `run.json`; a
+checkpoint record that cannot be read or has the wrong shape; a fingerprint not reproduced at the row's load) are each a
+refusal as ruling 6 of the fifth list, the paragraph above, has it: no attempt, and the trainer halts.
+
 What follows from the three paragraphs above (the author's note, not the lead's wording). By the paragraph settled on 15
 Nov an *error* of a policy row's episode is not succeeding, zero credited survival and not up. A check counted without a
 record therefore has N = 0 and S = 0 (M3), and at a G8b reading every condition of M4's table has fewer than 2 of 3 up.
@@ -945,28 +954,55 @@ resume without the parameter does and what follows when that attempt is closed w
 check needs one more resume with the parameter. On Colab, where the owner starts the sessions, the parameter is set on
 the lead's word, as K4's two flags are (the author's reading of "the lead ... resumes").
 
-Further to ruling 6 of the fifth list (the author's note, not the lead's wording). A refusal is the monitor's own, made
-before it runs any episode. The monitor's code (`designlab/stage2/monitor2.py`) names the three so: "the sources differ"
-(the sources hash that the trainer gave is not the monitor process's own; `train2.sources`); "checkpoint <n> is not
-intact" (one of the checkpoint's three files is missing, or its size or its sha256 is not what the checkpoint's record
-names); "another run's checkpoint is not judged" (the record's `run_uuid` or `settings_sha256` is not the run's). A
-checkpoint whose record is missing is read here as not intact too: the record is the last of a checkpoint's four files,
-and the loader calls a checkpoint intact when the record is there with matching hashes (`s2load.py`). The entry that was
-logged before the monitor started is closed with the monitor's exit code, which for a refusal is a code of its own (the
-lead's ruling of 19:01 UTC on the trainer, `stage2/design/ROUND_C_RULINGS_16NOV.md`; it gives no number). Where the run
-resumes from the same checkpoint the entry stays in `monitor[]`; where the resume starts from an earlier one it moves,
-with the check's whole entry, to that session's `discarded_after_resume`, as K5 moves every later entry [until the
-independent review of this writing-in, this note had the entry stay in `monitor[]` in every case]. It is not one of the
-two closed attempts that count a check without a record: the paragraphs of 15 and 16 Nov on a check whose monitor leaves
-no record are read with this ruling, and they count the attempts in which the monitor ran. After the halt the check has
-no record, so the resumed run makes it once the cause is repaired (K5): at the step it resumes from, or, where that
-checkpoint was not intact and the resume starts from an earlier one (K4), when it reaches the check's step again. No
-parameter is ruled for that resume.
+Further to ruling 6 of the fifth list and ruling 3 of the sixth (the author's note, not the lead's wording). A refusal
+is the monitor's own, made before it runs any episode, at a check or at R0L's baseline. The monitor's code
+(`designlab/stage2/monitor2.py`: `MonitorRefusal`, whose kinds are `REFUSALS`) holds the grounds of the two rulings so.
+Ruling 6's three: "the sources differ" (the sources hash that the trainer gave is not the monitor process's own;
+`train2.sources`; kind `sources`); "checkpoint <n> is not intact" (one of the checkpoint's three files is missing, or
+its size or its sha256 is not what the checkpoint's record names; kind `checkpoint`); "another run's checkpoint is not
+judged" (the record's `run_uuid` or `settings_sha256` is not the run's; kind `other_run`). Ruling 3's three: a
+`run.json` that is missing, cannot be read or is no JSON object (kind `run`); a checkpoint record that cannot be read,
+is no JSON object or has the wrong shape, the shape being that its `files` name each of the three files
+with a whole number of bytes and a sha256 (kind `checkpoint`, and worded as "not intact", so that ruling 3's case is
+read as one of ruling 6's); and a fingerprint not reproduced within 1e-5 when the row loads the checkpoint (K9), which
+the loader raises as `s2load.CheckpointError` while the row is built, before any episode (kind `checkpoint`). A
+checkpoint whose record is missing is not intact: the record is the last of a checkpoint's four files, and the loader
+calls a checkpoint intact when the record is there with matching hashes (`s2load.py`) [until the sixth list was written
+in, this sentence read "A checkpoint whose record is missing is read here as not intact too", a reading of the author's
+that the code now holds]. The code also takes as a refusal the row's own refusal of the checkpoint while the row is
+built (`s2rows.RowError`, kind `row`; among its grounds sources that differ from the run's recorded ones without K4's
+flag (K9), and a set that K4 refuses), by the lead's ruling 10 of 17 Nov 2026 on the trainer
+(`stage2/design/ROUND_C_RULINGS_17NOV.md`), which names ruling 6 of the fifth list and ruling 3 of the sixth for it;
+ruling 3's own words do not list it. An exit after an episode has run is no
+refusal: a row that refuses only at one of M6's further delays, after the check's own episodes, ends the monitor as any
+other failure does. The entry that was logged before the monitor started is closed with the monitor's exit code for a
+refusal, `monitor2.EXIT_REFUSAL`, which the code sets to 8, a code that no other ending of the monitor, of the trainer
+or of a pool worker has; no ruling gives the number [until the sixth list was written in: "which for a refusal is a
+code of its own (the lead's ruling of 19:01 UTC on the trainer, `stage2/design/ROUND_C_RULINGS_16NOV.md`; it gives no
+number)"]. The trainer marks the entry `refused`, with the kind and the reason (`refusal`) that the monitor writes in a
+note beside where the record would be: `monitor/monitor_<n>.refused.json`, for R0L's baseline `monitor/r0l.refused.json`
+(a later call of the same check removes the note before it runs, and the entry keeps what it said). The sixth list's
+closing paragraph keeps those notes. The trainer then halts with exit code 5; at R0L's baseline it halts as for a
+baseline that could not be made. Where the run resumes from the same checkpoint the entry stays in `monitor[]`; where
+the resume starts from an earlier one it moves, with the check's whole entry, to that session's
+`discarded_after_resume`, as K5 moves every later entry [until the independent review of this writing-in, this note had
+the entry stay in `monitor[]` in every case]. It is not one of the two closed attempts that count a check without a
+record: the paragraphs of 15 and 16 Nov on a check whose monitor leaves no record are read with this ruling, and they
+count the attempts in which the monitor ran. After the halt the check has no record, so the resumed run makes it once
+the cause is repaired (K5): at the step it resumes from, or, where that checkpoint was not intact and the resume starts
+from an earlier one (K4), when it reaches the check's step again. No parameter is ruled for that resume, but for one
+case: where the refused attempt was the one that ruling 2's recorded parameter let run, the two attempts never closed
+still stand, so that a resume without the parameter halts on them again and only a resume with it runs the check. The
+trainer's halt then names the parameter, as the sixth list's closing paragraph rules for the code ("the halt message
+after a refusal under `--retry-check` names that parameter"; the trainer reads "under" as "of the attempt that the
+parameter let run") [until the sixth list was written in, this sentence ended at "for that resume."].
 
 A condition without a reference is "not run" and counts as not succeeding and as zero survival for both rows. Each
 record holds the failures per term, the mean clock factor and the number of distinct start seeds. Check:
 `monitor2.CONDITIONS`, `SEEDS` (committed before any run); each monitor record's `episodes[].outcome` (an *error*
-named); `monitor/r0l.json` holds no *error* episode, and a failed attempt at the baseline is kept beside it; a check
+named); `monitor/r0l.json` holds no *error* episode, each of its episodes being *read*, *fell* or, for a condition
+without a reference, `not_run` (`monitor2.baseline_problem`) [settled 16 Nov 2026, before any Track B run: from "each of
+its episodes"; ruling 1 of the sixth list], and a failed attempt at the baseline is kept beside it; a check
 that was run a second time names the same checkpoint file hashes; `run.json` `monitor[]`: every attempt at a check,
 logged before its monitor started with the checkpoint's file hashes and closed with the monitor's exit code, and for a
 check counted without a record its two closed attempts and its 18 episodes entered as *error*; each `monitor_<n>.json`
@@ -983,11 +1019,19 @@ independent review of their writing-in, so that each item is read from the recor
 every attempt at a check made after two attempts at it were never closed is marked `after_halt` in `monitor[]`, lies in
 a session whose recorded parameter `sessions[].retry_check` is true (an attempt names its `session`), and is that
 session's only such attempt (the names are the trainer's, `designlab/stage2/train2.py`); the report's cell
-`unfinished: <reason>` for a run that could not be resumed. For a monitor that refused to run: `HALT.json` `reason`; the
-entry logged for it before the monitor started, closed with the exit code that `monitor2.py` is to name for a refusal (a
-constant of that module; no ruling gives the number), in `monitor[]` or, where the resume started from an earlier
-checkpoint, in that session's `discarded_after_resume` (K5); and no entry closed with that code among the two closed
-attempts of a check counted without a record.
+`unfinished: <reason>` for a run that could not be resumed. For a monitor that refused to run, on any ground of rulings
+6 and 3 (M1's note names the code's kinds): `HALT.json` `reason`; the entry logged for it before the monitor started,
+closed with the monitor's exit code for a refusal, `monitor2.EXIT_REFUSAL`, and marked `refused` with its `refusal`
+(kind and reason), in `monitor[]` or, where the resume started from an earlier checkpoint, in that session's
+`discarded_after_resume` (K5), and for R0L's baseline in `run.json` `baseline_attempts`; the monitor's note of the
+refusal, `monitor/monitor_<n>.refused.json` or `monitor/r0l.refused.json`, until a later call of the same check removes
+it; where the refused attempt is the one marked `after_halt`, a halt whose reason (`run.json` `halt`) names
+`--retry-check` (on Colab, `HALT.json` `remedy` holds `retry_check`); and no entry closed with that code among the two
+closed attempts of a check counted without a record [settled 16 Nov 2026, before any Track B run; ruling 3 of the sixth
+list and the sixth list's closing paragraph: "on any ground of rulings 6 and 3", the baseline's attempts, the note and
+the halt's parameter were added, and "the monitor's exit code for a refusal, `monitor2.EXIT_REFUSAL`, and marked
+`refused` with its `refusal` (kind and reason)" stands in place of "the exit code that `monitor2.py` is to name for a
+refusal (a constant of that module; no ruling gives the number)", that module now naming it].
 
 **M2. Rows.** [NEW] The checkpoint's row `R5/<seed>@10ms` (or `R6/...`), loaded from its saved files through the loader
 of K9, and once per run `R0L@10ms` on the same 18 episodes. A check runs at the first rollout start at or past each
@@ -1054,8 +1098,9 @@ counts as not up, and a check with two closed attempts that left no record count
 episodes being an *error*, so that every condition of the table below then has fewer than 2 of 3 up
 [settled 16 Nov 2026, before any Track B run: the clause from "each of its 18 episodes"; ruling 4 of the fourth list]; a
 monitor's refusal to run is no attempt and is not one of those two (M1) [settled 16 Nov 2026, before any Track B run:
-this pointer; ruling 6 of the fifth list]). A policy that stands still or slows its clock therefore passes this reading
-(the plan's wording is "stays up"); S (M3) does not credit a slowed clock. Otherwise, once, inside the running job: each
+this pointer; ruling 6 of the fifth list, and ruling 3 of the sixth for the monitor's other exits before any episode]).
+A policy that stands still or slows its clock therefore passes this reading (the plan's wording is "stays up"); S (M3)
+does not credit a slowed clock. Otherwise, once, inside the running job: each
 training task that this table gives to at least one monitor condition with fewer than 2 of 3 up has its weight doubled,
 once, however many such conditions name it: `walk/nominal`: `walk_nominal`; `walk/v0.4`, `nudge/forward`, `nudge/left`:
 `walk_v0.4`; `turn/q90_left`: `turn_q90_left` and `turn_q90_right`; `stop/two_step`: `stop` and `start_stop`. The
@@ -1091,7 +1136,8 @@ at their next checkpoint and jobs not started are cut in the plan's order.
 Their checkpoints are never judged on the panels, as M3 and M6 say. The Colab queue is the jobs of a launch's
 `QUEUE.json`; not the smoke's jobs, N5's tiny jobs or K3's two runs [this last sentence: ruling 11 of the fourth list].
 
-[settled 16 Nov 2026, before any Track B run; a pointer to M1, where rulings 2 and 6 of the fifth list stand] Two of the
+[settled 16 Nov 2026, before any Track B run; a pointer to M1, where rulings 2 and 6 of the fifth list and ruling 3 of
+the sixth stand] Two of the
 halts are M1's: the halt after two attempts at one check that were never closed, and the halt after a monitor's refusal
 to run. Each is a halt of the paragraph settled on 15 Nov: the run is resumed, and one that cannot be resumed is
 `unfinished: <reason>`. After the first of the two the lead has the fault repaired and resumes with M1's recorded
@@ -1605,27 +1651,32 @@ checkpoint, and then applies M3-M5 to the records exactly as the uninterrupted r
 checkpoint restarts from step 0 in place and is the same run (`restarted_from_zero`).
 [settled 16 Nov 2026, before any Track B run] An attempt at a check that was never closed (M1: the session died while
 the check ran) is an interruption: the resume runs that check again, and the attempt does not count toward M1's two.
-[from here to "Check:", the author's reading of M1, of rulings 3 and 4 of the fourth list and of rulings 2 and 6 of the
-fifth, not the lead's wording] A record is what M1 says it is. In two cases a resume does not run a due check that has
-no record. A check that M1 has counted, after two closed attempts that left none, stays counted and is not run again.
-And after two attempts at one check that were never closed, a resume without M1's recorded parameter does not run the
-check a third time: the run halts and goes to the lead (M1). A resume with that parameter, which the lead starts once
-the fault is repaired, runs the check once more; if that attempt is never closed either, the next resume halts again
-unless it too has the parameter [changed with ruling 2 of the fifth list, which stands in M1 in the lead's words; the
-sentence before this one read "And after two attempts at one check that were never closed, the check is not run a third
-time: the run halts and goes to the lead (M1)."]. If the attempt that the parameter allows is closed without a record,
-it is one of M1's closed attempts that left none: as the second of them it counts the check without a record; as the
-first, the run halts again, since the parameter lets the check run once per resume, and the check's next run needs the
-next resume with the parameter [added after the independent review of the fifth list's writing-in; it follows from M1's
-count of closed attempts and from ruling 2's "once more per resume", and it is what the trainer does]. A monitor's
-refusal to run is no attempt (M1; ruling 6 of the fifth list): after the halt it brings, the check has no record, and
-the resumed run makes it, at the step it resumes from or when it reaches the check's step again. Check:
+[from here to "Check:", the author's reading of M1, of rulings 3 and 4 of the fourth list, of rulings 2 and 6 of the
+fifth and of ruling 3 and the closing paragraph of the sixth, not the lead's wording] A record is what M1 says it is. In
+two cases a resume does not run a due check that has no record. A check that M1 has counted, after two closed attempts
+that left none, stays counted and is not run again. And after two attempts at one check that were never closed, a resume
+without M1's recorded parameter does not run the check a third time: the run halts and goes to the lead (M1). A resume
+with that parameter, which the lead starts once the fault is repaired, runs the check once more; if that attempt is
+never closed either, the next resume halts again unless it too has the parameter [changed with ruling 2 of the fifth
+list, which stands in M1 in the lead's words; the sentence before this one read "And after two attempts at one check
+that were never closed, the check is not run a third time: the run halts and goes to the lead (M1)."]. If the attempt
+that the parameter allows is closed without a record, it is one of M1's closed attempts that left none: as the second of
+them it counts the check without a record; as the first, the run halts again, since the parameter lets the check run
+once per resume, and the check's next run needs the next resume with the parameter [added after the independent review
+of the fifth list's writing-in; it follows from M1's count of closed attempts and from ruling 2's "once more per
+resume", and it is what the trainer does]. A monitor's refusal to run is no attempt (M1; ruling 6 of the fifth list and
+ruling 3 of the sixth): after the halt it brings, the check has no record, and the resumed run makes it, at the step it
+resumes from or when it reaches the check's step again. Where the refused attempt was the one that M1's recorded
+parameter let run, the two attempts never closed still stand: a resume without the parameter halts on them, and the
+resumed run makes the check only with it, which the halt names [added with the sixth list, whose closing paragraph rules
+that the halt after a refusal under `--retry-check` names that parameter; it is what the trainer does]. Check:
 `checkpoint_<n>.json` `run_state`; `sessions[].discarded_after_resume`; `tests/test_stage2_train2.py` (a kill during a
-check; after a fix); after a resume, `run.json` `monitor[]` still holds every attempt logged for a check on the
-checkpoint resumed from [settled 16 Nov 2026, before any Track B run: this last item]; `sessions[].retry_check`, which
-is true in every session that made an attempt marked `after_halt` (M1's Check) [added with ruling 2 of the fifth list;
-worded anew after the independent review of its writing-in: a session may resume after M1's halt for two attempts never
-closed without the parameter, and then halts again].
+check; after a fix; a kill around a monitor's refusal, and the halt under `--retry-check` [added with the sixth list]);
+after a resume, `run.json` `monitor[]` still holds every attempt logged for a check on the checkpoint resumed from
+[settled 16 Nov 2026, before any Track B run: this last item]; `sessions[].retry_check`, which is true in every session
+that made an attempt marked `after_halt` (M1's Check) [added with ruling 2 of the fifth list; worded anew after the
+independent review of its writing-in: a session may resume after M1's halt for two attempts never closed without the
+parameter, and then halts again].
 
 **K6. One commit, one path, one queue.** [S2-13; NEW precision] A run keeps one RUN_ID, one bundle, one queue, one
 budget and one commit for its whole life: REPO_REF is the 40-hex SHA of the launch commit (the notebook refuses any
