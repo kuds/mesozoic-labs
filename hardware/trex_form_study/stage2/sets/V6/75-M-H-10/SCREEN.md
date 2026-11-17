@@ -29,12 +29,15 @@ Columns: the governing ratio (largest of all drives); the worst ratio of the dri
 | `v0.4` | walk | 1920 | 0.7522 (knee speed) | 0.7522 (knee speed) | 0.6731 / 0.7253 / 0.2155 | 0.3905 / 0.6370 / 0.4573 | 45.1523 | -10 | 0.5846 | yes | no | 0.0472 | 0.2282 (left_hip_roll max) | 0.0123 | 0.0374 | within the Stage 0 limits |
 | `v0.45` | walk | 1920 | 0.7864 (knee speed) | 0.7864 (knee speed) | 0.6774 / 0.7337 / 0.2156 | 0.4154 / 0.6756 / 0.4720 | 45.0913 | -10 | 0.6303 | yes | no | 0.0469 | 0.2316 (left_hip_roll max) | 0.0103 | 0.0383 | within the Stage 0 limits |
 | `v0.5` | walk | 2080 | 0.8045 (knee speed) | 0.8045 (knee speed) | 0.6826 / 0.7590 / 0.2157 | 0.4488 / 0.7230 / 0.4831 | 43.9404 | -10 | 0.6819 | yes | no | 0.0474 | 0.2350 (left_hip_roll max) | 0.0103 | 0.0388 | within the Stage 0 limits |
+| `start` | start | 800 | 0.8041 (knee speed) | 0.8041 (knee speed) | 0.6639 / 0.7526 / 0.2172 | 0.2633 / 0.5285 / 0.2812 | 45.4376 | -10 | 0.6058 | yes | no | 0.0440 | 0.1315 (left_hip_roll max) | 0.0736 | 0.4219 | within the Stage 0 limits |
 | `nominal_to_v0.4` | change | 960 | 0.9188 (knee speed) | 0.9188 (knee speed) | 0.6691 / 0.7569 / 0.2270 | 0.3612 / 0.5770 / 0.3711 | 44.0642 | -10 | 0.7493 | yes | no | 0.0440 | 0.1980 (left_hip_roll max) | 0.0758 | 0.1666 | within the Stage 0 limits |
-| `stop2_v0.4` | stop | 560 | 0.7582 (knee speed) | 0.7582 (knee speed) | 0.6648 / 0.7102 / 0.2238 | 0.2276 / 0.5732 / 0.3638 | 43.5284 | 10 | 0.5903 | yes | no | 0.0490 | 0.1631 (left_hip_roll max) | 0.0115 | 0.6425 (at the file's end; 0.1829 at least 1 s from both ends) | within the Stage 0 limits |
 | `nominal_to_v0.3` | change | 960 | 0.8775 (knee speed) | 0.8775 (knee speed) | 0.6697 / 0.7510 / 0.2210 | 0.3159 / 0.5486 / 0.3180 | 45.2169 | -10 | 0.6958 | yes | no | 0.0440 | 0.1980 (left_hip_roll max) | 0.0758 | 0.1401 (at the file's end; 0.0780 at least 1 s from both ends) | within the Stage 0 limits |
 | `nominal_to_v0.35` | change | 960 | 0.9022 (knee speed) | 0.9022 (knee speed) | 0.6684 / 0.7510 / 0.2247 | 0.3542 / 0.5612 / 0.3593 | 44.5695 | -10 | 0.7155 | yes | no | 0.0440 | 0.1980 (left_hip_roll max) | 0.0758 | 0.1272 (at the file's end; 0.1203 at least 1 s from both ends) | within the Stage 0 limits |
 | `nominal_to_v0.45` | change | 960 | 0.9353 (knee speed) | 0.9353 (knee speed) | 0.6702 / 0.7625 / 0.2276 | 0.3727 / 0.6101 / 0.3830 | 44.4647 | -10 | 0.7838 | yes | no | 0.0440 | 0.1980 (left_hip_roll max) | 0.0758 | 0.2192 | within the Stage 0 limits |
+| `stop2_v0.4` | stop | 560 | 0.7582 (knee speed) | 0.7582 (knee speed) | 0.6648 / 0.7102 / 0.2238 | 0.2276 / 0.5732 / 0.3638 | 43.5284 | 10 | 0.5903 | yes | no | 0.0490 | 0.1631 (left_hip_roll max) | 0.0115 | 0.6425 (at the file's end; 0.1829 at least 1 s from both ends) | within the Stage 0 limits |
 | `stop1_v0.4` | stop | 800 | 0.7528 (knee speed) | 0.7528 (knee speed) | 0.6673 / 0.7303 / 0.2173 | 0.2813 / 0.5938 / 0.3713 | 44.1269 | -10 | 0.5819 | yes | no | 0.0490 | 0.1630 (left_hip_roll max) | 0.0161 | 0.6220 | within the Stage 0 limits |
+| `turn90_0.35_right` | turn | 1360 | 0.8545 (knee speed) | 0.8545 (knee speed) | 0.6743 / 0.7249 / 0.2270 | 0.3949 / 0.7523 / 0.3711 | 38.4980 | 10 | 0.7133 | yes | no | 0.0490 | 0.1608 (right_hip_roll min) | 0.4466 (margin 0.1660 rad, left_hip_yaw max) | 0.2894 (at the file's end; 0.0507 at least 1 s from both ends) | within the Stage 0 limits |
+| `turn90_0.5_right` | turn | 1040 | 0.8749 (thigh twist peak) | 0.8749 (thigh twist peak) | 0.6751 / 0.7248 / 0.2270 | 0.3743 / 0.5876 / 0.3711 | 35.4773 | 10 | 0.7430 | yes | no | 0.0490 | 0.1314 (right_hip_roll min) | 0.6468 (margin 0.1060 rad, left_hip_yaw max) | 0.2996 (at the file's end; 0.0716 at least 1 s from both ends) | within the Stage 0 limits |
 
 ## What blocks a freeze
 
@@ -56,22 +59,28 @@ The frames of a move are not uniform in time where its stride period changes; th
 | `v0.4` | yes | 0.6731 / 0.6731 | 0.3905 / 0.3905 | 0.6740 / 0.7723 | 0.3940 / 0.5370 | 0.2716 | 0.1109 | 2.5135 | - | yes |
 | `v0.45` | yes | 0.6774 / 0.6774 | 0.4154 / 0.4154 | 0.6780 / 0.8028 | 0.4106 / 0.5651 | 0.2791 | 0.1056 | 2.6353 | - | yes |
 | `v0.5` | yes | 0.6826 / 0.6826 | 0.4488 / 0.4488 | 0.6811 / 0.8252 | 0.4348 / 0.5890 | 0.2842 | 0.0998 | 3.8704 | - | yes |
+| `start` | no | 0.6639 / 0.6638 | 0.2633 / 0.2637 | 0.6699 / 0.8133 | 0.2421 / 0.4544 | 0.3673 | 0.1900 | 2.2177 | - | no |
 | `nominal_to_v0.4` | no | 0.6691 / 0.6695 | 0.3612 / 0.3634 | 0.6798 / 0.8068 | 0.3302 / 0.4329 | 0.3727 | 0.1605 | 2.6203 | - | no |
-| `stop2_v0.4` | no | 0.6648 / 0.6648 | 0.2276 / 0.2277 | 0.6547 / 0.7807 | 0.2510 / 0.7152 | 0.2124 | 0.0860 | 2.6991 | - | yes |
 | `nominal_to_v0.3` | no | 0.6697 / 0.6699 | 0.3159 / 0.3143 | 0.6819 / 0.8071 | 0.3085 / 0.4186 | 0.5393 | 0.1605 | 2.3751 | - | no |
 | `nominal_to_v0.35` | no | 0.6684 / 0.6686 | 0.3542 / 0.3554 | 0.6798 / 0.8070 | 0.3213 / 0.4186 | 0.4012 | 0.1605 | 2.4668 | - | no |
 | `nominal_to_v0.45` | no | 0.6702 / 0.6707 | 0.3727 / 0.3769 | 0.6814 / 0.8067 | 0.3377 / 0.4525 | 0.3727 | 0.1605 | 2.7957 | - | no |
+| `stop2_v0.4` | no | 0.6648 / 0.6648 | 0.2276 / 0.2277 | 0.6547 / 0.7807 | 0.2510 / 0.7152 | 0.2124 | 0.0860 | 2.6991 | - | yes |
 | `stop1_v0.4` | no | 0.6673 / 0.6672 | 0.2813 / 0.2814 | 0.6778 / 0.7795 | 0.2954 / 0.7151 | 0.3693 | 0.1076 | 2.6105 | - | no |
+| `turn90_0.35_right` | no | 0.6743 / 0.6743 | 0.3949 / 0.3949 | 0.6722 / 0.7768 | 0.3957 / 0.5503 | 0.3629 | 0.1166 | 2.7805 | - | no |
+| `turn90_0.5_right` | no | 0.6751 / 0.6750 | 0.3743 / 0.3743 | 0.6714 / 0.7786 | 0.4087 / 0.6127 | 0.3621 | 0.1208 | 2.9137 | - | no |
 
 ## Not available
 
-- `start`: no transition within the gates
-- `turn90_pi4_left`: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside join_command
-- `turn90_pi4_right`: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside join_command
+- `inplace_0.5_left`: the turn in place has no reference within the gates (inplace_0.5_left: Stage 0: over thigh twist use above 0.87 0.9114: blocks the freeze (thigh twist use above 0.87); start_inplace_0.5_left: Stage 0: over knee speed 1.1071; joint range margin under 0.05 rad (left_hip_yaw max) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (left_hip_yaw max)))
+- `inplace_0.5_right`: the turn in place has no reference within the gates (inplace_0.5_right: Stage 0: over thigh twist use above 0.87 0.9115: blocks the freeze (thigh twist use above 0.87); start_inplace_0.5_right: Stage 0: over knee speed 1.1664; joint range margin under 0.05 rad (right_hip_yaw min) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (right_hip_yaw min)))
 - `nominal_to_v0.5`: no transition within the gates
 - `turn90_0.35_left`: no reference within the gates (entry gates: join_command)
-- `turn90_0.35_right`: no reference within the gates (entry gates: join_command)
 - `turn90_0.5_left`: no reference within the gates (entry gates: join_command)
-- `turn90_0.5_right`: no reference within the gates (entry gates: join_command)
-- `turn90_1_left`: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock
+- `turn90_pi4_left`: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside join_command
+- `turn90_pi4_right`: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit
+- `turn90_1_left`: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock, join_command, post_window_zmp
 - `turn90_1_right`: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock
+- `start_inplace_0.5_left`: the turn in place has no reference within the gates (inplace_0.5_left: Stage 0: over thigh twist use above 0.87 0.9114: blocks the freeze (thigh twist use above 0.87); start_inplace_0.5_left: Stage 0: over knee speed 1.1071; joint range margin under 0.05 rad (left_hip_yaw max) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (left_hip_yaw max)))
+- `stop_inplace_0.5_left`: the turn in place has no reference within the gates (inplace_0.5_left: Stage 0: over thigh twist use above 0.87 0.9114: blocks the freeze (thigh twist use above 0.87); start_inplace_0.5_left: Stage 0: over knee speed 1.1071; joint range margin under 0.05 rad (left_hip_yaw max) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (left_hip_yaw max)))
+- `start_inplace_0.5_right`: the turn in place has no reference within the gates (inplace_0.5_right: Stage 0: over thigh twist use above 0.87 0.9115: blocks the freeze (thigh twist use above 0.87); start_inplace_0.5_right: Stage 0: over knee speed 1.1664; joint range margin under 0.05 rad (right_hip_yaw min) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (right_hip_yaw min)))
+- `stop_inplace_0.5_right`: the turn in place has no reference within the gates (inplace_0.5_right: Stage 0: over thigh twist use above 0.87 0.9115: blocks the freeze (thigh twist use above 0.87); start_inplace_0.5_right: Stage 0: over knee speed 1.1664; joint range margin under 0.05 rad (right_hip_yaw min) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (right_hip_yaw min)))
