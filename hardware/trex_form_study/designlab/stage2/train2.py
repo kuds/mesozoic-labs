@@ -14,7 +14,9 @@ are imported, not edited.
 
 **A run** (``train``) is one job directory ``<root>/jobs/<job>``: ``run.json`` (schema ``s2-run-1``),
 ``updates.jsonl`` (one line per PPO update), ``progress.json`` (rewritten at every rollout start),
-``gates/g8a.json`` and ``gates/rate.json``, ``checkpoints/`` (``s2load``'s four files per checkpoint) and
+``gates/g8a.json`` (G8a's short form as it returned it, a bar form's own time as ``form_at``, the record's ``at`` the
+trainer's: the lead's ruling 43 of 17 Nov 2026) and ``gates/rate.json``, ``checkpoints/`` (``s2load``'s four files
+per checkpoint) and
 ``monitor/`` (``monitor2``'s records).  8 envs in W worker processes (``vecpool.PoolVecEnv``; the workers are this
 module's ``worker`` entry, so every process of a run carries ``designlab.stage2.train2`` on its command line);
 design 2's PPO with ``n_steps`` 1024, sigma 0.1 and schedules that are objects (``schedules``), so that an archive
@@ -145,6 +147,9 @@ LR_PROBE_SCHEMA, FILTER_SCHEMA = "s2-lr-probe-1", "s2-filter-1"
 #: How long a resume waits for a monitor child of an earlier session to be gone after its SIGKILL (``CHILD_RULE``).
 CHILD_WAIT_S = 20.0
 WORKER_CMD = ("-m", "designlab.stage2.train2", "worker")
+#: The arguments ``_Run._fresh`` gives PPO itself, beside the spread of the caller's ``ppo`` overrides: an override
+#: that names one is refused before anything is written (the lead's ruling 43 of 17 Nov 2026, the read for spreads).
+PPO_OWN_ARGS = ("env", "seed", "device", "verbose")
 
 #: The files whose hash a session records and gives to its children (design 3.6 "Sources"): every Track B module
 #: of the design's section 2.1, the round-A and Stage 2 modules the bar and the look reading execute, and the four
@@ -693,6 +698,10 @@ class _Run:
         self.jd = self.root / "jobs" / self.job
         self.path = self.jd / "run.json"
         self.config, self.ppo = dict(a["config"] or {}), dict(a["ppo"] or {})
+        own = sorted(k for k in self.ppo if k in PPO_OWN_ARGS)  # (spread beside them in _fresh: ruling 43's read)
+        if own:
+            raise Refused(f"ppo: {', '.join(own)}: the trainer gives the model these itself (the run's seed, its "
+                          "envs, the CPU, no output); an override of PPO's arguments may not name them")
         self.lr_asked = None if a["lr"] is None else float(a["lr"])
         self.steps_asked = None if a["steps"] is None else int(a["steps"])
         every_ck, every_mon = int(a["checkpoint_every"]), int(a["monitor_every"])
@@ -917,8 +926,11 @@ class _Run:
     def _g8a(self) -> bool:
         self.say(f"G8a's short form on set {self.set}")
         res = _g8a_short(self.body, self.set, self.tiny)
+        # (the lead's ruling 43 of 17 Nov 2026: the bar form stamps its own time; the record keeps it as form_at and
+        # its own at is the trainer's)
+        form = {("form_at" if k == "at" else k): v for k, v in res.items()}
         rec = s2io.plain(dict(schema="s2-run-g8a-1", job=self.job, run_uuid=self.doc["run_uuid"], tiny=self.tiny,
-                              **res, session=self.k, at=s2io.now_utc()))
+                              **form, session=self.k, at=s2io.now_utc()))
         rec["sha256"] = s2io.sha256_json(rec)
         s2io.write_json(self.jd / "gates" / "g8a.json", rec)
         self.doc["gates"]["g8a"] = dict(record="gates/g8a.json", sha256=rec["sha256"], passes=bool(res["passes"]),
