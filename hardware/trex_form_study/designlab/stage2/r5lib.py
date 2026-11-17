@@ -303,14 +303,26 @@ def _close(a: float, b: float) -> bool:
     return abs(float(a) - float(b)) <= LEAVE_TOL * max(1.0, abs(float(a)), abs(float(b)))
 
 
-def leave_point(name: str, tr_entry, walk: str, walk_entry, lead_strides: float) -> dict | None:
+def leave_point(name: str, tr_entry, walk: str, walk_entry, lead_strides: float, walk_file=None) -> dict | None:
     """Where the walk ``walk`` before the move ``name`` ends (``LEAVE_RULE``, join rule J1): None when the move's
     entry ``tr_entry`` carries no J1 leave point (``look.window_a`` with an ``a_phase``), and the count before it
     stays in windows of the walk's file; else ``{windows, whole_windows, strides, window_s, lead_strides, a_phase,
     a_time_s, a_windows, command_phase}``, ``windows`` (``whole_windows + a_windows``) being what the plan plays.
     ``walk_entry`` is the walk's ``refs.json`` entry; ``lead_strides`` the lead in strides (``TURN_LEAD``,
     ``STOP_LEAD``).  ``tune.InputError`` where the leave point does not fit (``LEAVE_RULE``): the move would not
-    start at the frame it was built from."""
+    start at the frame it was built from.
+
+    ``walk_file`` (the walk's ``.npz``; the lead's ruling 37 (c) of 17 Nov 2026): the entry's ``a_time_s`` is also
+    checked against the file's own ``phase`` array, the window's phase (strides, 0 at its first frame) at each frame
+    of its ``t`` (taken from the first frame), and the window's end, one ``dt`` after its last frame, at phase K.
+    The time at which that phase reaches ``a_phase`` (linear between the two frames it lies between) must be within
+    one frame (``dt``) of ``a_time_s``, else the leave point is refused; a file that holds no such increasing phase
+    is refused too.  The tolerance is the file's own resolution: the file gives the phase at its frames only, so it
+    places ``a_phase`` in time to within a frame and no closer; an error under one frame moves the walk's end by
+    less than one frame, so the join it can add stays within the walk's own largest change between two frames (the
+    join limit of the lead's ruling 15); an entry off by a frame or more (a stride, a window) is refused.  On the
+    committed V6noF5/75-M-H-10 the two differ by about 6e-9 s against a 5.38 ms frame.  None: not checked (the
+    env's ``place`` gives no file)."""
     look = tr_entry.get("look") if isinstance(tr_entry, dict) else None
     wa = look.get("window_a") if isinstance(look, dict) else None
     if not isinstance(wa, dict) or look.get("a_phase") is None:
@@ -346,6 +358,32 @@ def leave_point(name: str, tr_entry, walk: str, walk_entry, lead_strides: float)
             why = (f"the plan's lead of {float(lead_strides):g} strides of {walk} does not reach it: it is "
                    f"{a_phase:g} strides into a window of {K} strides, so the lead less it is no whole number of "
                    "windows")
+    if why is None and walk_file is not None:  # (the lead's ruling 37 (c): the walk file's own phase)
+        try:
+            with np.load(walk_file, allow_pickle=False) as z:
+                t, ph = np.asarray(z["t"], float), np.asarray(z["phase"], float)
+                dt = float(z["dt"]) if "dt" in z.files else float(np.median(np.diff(t)))
+        except (OSError, KeyError, TypeError, ValueError) as exc:
+            why = (f"cannot be checked against the walk file's own phase array ({type(exc).__name__}: {exc}; "
+                   "the lead's ruling 37 (c))")
+        else:
+            ok = t.ndim == 1 and t.shape == ph.shape and len(t) >= 2 and dt > 0
+            if ok:  # (the window's end, one frame after its last, is at phase K: the window is periodic)
+                tt, pp = np.r_[t - t[0], t[-1] - t[0] + dt], np.r_[ph, float(K)]
+                ok = bool(np.all(np.isfinite(tt)) and np.all(np.isfinite(pp)) and np.all(np.diff(tt) > 0)
+                          and np.all(np.diff(pp) > 0))
+            if not ok:
+                why = (f"cannot be checked: the walk file of {walk!r} holds no phase that increases over its frames "
+                       f"to {K} strides at its end (the lead's ruling 37 (c))")
+            elif not pp[0] <= a_phase <= pp[-1]:
+                why = (f"lies outside the walk file's own phase ({pp[0]:g} to {pp[-1]:g} strides; the lead's ruling "
+                       "37 (c))")
+            else:
+                t_own = float(np.interp(a_phase, pp, tt))
+                if not abs(a_time - t_own) < dt:
+                    why = (f"has a_time_s {a_time!r} s, but the walk file's own phase array reaches a_phase "
+                           f"{a_phase:g} at {t_own!r} s after the window's first frame: more than one frame "
+                           f"({dt:g} s) apart (the lead's ruling 37 (c))")
     if why is not None:
         raise tune.InputError(f"{where} {why} ({LEAVE_RULE})")
     whole = int(round((float(lead_strides) - a_phase) / K))
