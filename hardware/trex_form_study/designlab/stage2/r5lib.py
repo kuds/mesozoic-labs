@@ -391,17 +391,23 @@ def leave_point(name: str, tr_entry, walk: str, walk_entry, lead_strides: float,
                 a_phase=a_phase, a_time_s=a_time, a_windows=a_windows, command_phase=cmd)
 
 
-def place(plan, refs_doc: dict, tr_doc: dict) -> tuple[list, dict]:
+def place(plan, refs_doc: dict, tr_doc: dict, set_dir) -> tuple[list, dict]:
     """A task's plan with join rule J1's leave point in place (``LEAVE_RULE``): every periodic item ``("ref", W,
     n)`` (``n`` a number of strides) that leads straight into a move whose entry carries a leave point is given
     ``leave_point``'s ``windows``; every other item is left as it is (on a set whose moves carry no leave point the
-    plan is returned item for item).  Returns ``(plan, {index of the walk item: its leave point})``."""
+    plan is returned item for item, and no file is read).  Returns ``(plan, {index of the walk item: its leave
+    point})``.  ``set_dir``: the set's directory; ``leave_point`` is given the walk's file there (its entry's ``file``,
+    else ``refs/<walk>.npz``), so that the entry's ``a_time_s`` is checked against the file's own ``phase`` array in
+    the env too (the lead's ruling 39 (c) of 17 Nov 2026, of ruling 37 (c)'s check)."""
     plan = [tuple(x) for x in plan]
     out, leaves = [], {}
     for i, item in enumerate(plan):
         nxt = plan[i + 1] if i + 1 < len(plan) else None
         if (item[0] == "ref" and item[2] != END and nxt is not None and nxt[0] == "transition"):
-            lp = leave_point(nxt[1], tr_doc.get(nxt[1]), item[1], refs_doc.get(item[1]), float(item[2]))
+            entry = refs_doc.get(item[1])
+            rel = entry.get("file") if isinstance(entry, dict) and entry.get("file") else f"refs/{item[1]}.npz"
+            lp = leave_point(nxt[1], tr_doc.get(nxt[1]), item[1], entry, float(item[2]),
+                             walk_file=setio._anchored(set_dir) / rel)
             if lp is not None:
                 leaves[i] = lp
                 item = ("ref", item[1], lp["windows"])
@@ -950,8 +956,10 @@ class Library:
 
     def place(self, template) -> tuple[list, dict]:
         """``place`` on this set's records: a table row's plan with join rule J1's leave point before a look set's
-        causal move (``LEAVE_RULE``); on a set whose moves carry none, the plan item for item."""
-        return place(template, self.refs_doc, self.tr_doc)
+        causal move (``LEAVE_RULE``); on a set whose moves carry none, the plan item for item.  The walk files are
+        this set's (``self.dir``): each leave point's ``a_time_s`` is checked against its walk file's own phase (the
+        lead's ruling 39 (c) of 17 Nov 2026)."""
+        return place(template, self.refs_doc, self.tr_doc, self.dir)
 
     def _resolve(self, template) -> list:
         """A table row's plan with every "to the end" item sized: whole windows of its file until the plan reaches

@@ -48,6 +48,9 @@ CHILD = "BARVIEWS_RENDER_CHILD"
 _SET = ROOT / "stage2" / "sets" / "V0" / BODY
 needs_set = pytest.mark.skipif(not (_SET / "transitions" / "turn90_pi4_left.npz").exists(),
                                reason="the git-ignored arrays of the frozen set V0 are not here")
+_S1 = ROOT / "stage1" / "runs" / "2026-11-08" / BODY
+needs_s1 = pytest.mark.skipif(not (_S1 / "transitions" / "stop.npz").exists(),
+                              reason="the git-ignored Stage 1 arrays (the synthetic sets are made of them) are not here")
 ROW = "R2/42@10ms"
 BEFORE_ROW = "R2/43@10ms"  # the made-up run's record whose episodes fell before their command
 BLOCK = bar.HEADLINE_BLOCK
@@ -448,6 +451,120 @@ def test_planned_turn_of_the_frozen_set(v0):
     have, missing = bv.turn_conditions(v0)
     assert [c.key for c in have][:2] == ["turn/q90_left", "turn/q90_right"]
     assert all(c.friction is None for c in have) and all(x["reason"] for x in missing)
+
+
+# ------------------------------------------------------------------------------------------------
+# A look set's turns and stop are planned at join rule J1's leave point (the lead's ruling 39 (b) of 17 Nov 2026)
+# ------------------------------------------------------------------------------------------------
+LEAVE_KEYS = ("turn/q90_left", "turn/q90_right", "stop/two_step")
+
+
+def _look_and_t0(root: Path) -> dict:
+    """A synthetic look set ``V6`` (``tests/test_stage2_r5lib.py``'s ``make_look``: a walk window of 3 strides, its quick
+    turns and two-step stop built to leave it at join rule J1's leave point) and ``T0`` (no look set) under ``root``,
+    frozen, made of Stage 1's arrays (no record; not the study's look set); per set the plans of ``LEAVE_KEYS`` and
+    ``walk/v0.4``: ``placed`` (``lookbar.leave_resolve``, None where it gives none) and ``own`` (the bar's)."""
+    from designlab.stage2 import lookbar, s2io
+    from tests import test_stage2_r5lib as R
+
+    R.make_look(root, set_name="V6", stand_in_walks=True)
+    t0 = R.make_t0(root) / "set.json"
+    s2io.write_json(t0, dict(s2io.read_json(t0), stand_in_walks=True))
+    out = {}
+    for set_name in ("V6", "T0"):
+        d = setio.set_dir(set_name, BODY, root)
+        docs = setio.load(d)
+        planner = bar.BarPlanner(d, docs["refs.json"]["references"], docs["transitions.json"]["transitions"],
+                                 docs["set.json"])
+        conds = {c.key: c for c in bar.conditions(docs, every=True)}
+        placed = {k: lookbar.leave_resolve(planner, conds[k]) for k in LEAVE_KEYS}
+        out[set_name] = dict(placed=placed, own={k: planner.resolve(conds[k]) for k in LEAVE_KEYS + ("walk/v0.4",)})
+    return out
+
+
+def _plan(res) -> list:
+    return [list(x) for x in res["plan"]]
+
+
+def test_the_look_sets_are_lookbars():
+    if not bv._lookbar_here():
+        pytest.skip("lookbar cannot be imported in a process that renders")
+    from designlab.stage2 import lookbar
+
+    assert bv.LOOK_SETS == lookbar.LOOK_SETS
+    for name in ("V6", "V6noF5", "V6.2", "V6noF5.12", "V6x", "V0", "F25F9cl", "F25F9cl.1", "S1", "T6", ""):
+        assert bv.look_set_of(name) == lookbar.look_set_of(name), name
+
+
+@needs_s1
+def test_a_look_sets_planned_turns_and_stop_leave_the_walk_at_j1s_leave_point(tmp_path, monkeypatch):
+    """The owner's views (``SetView.planned``) on a look set (a synthetic one, kinematic) plan its turns and its stop
+    inside ``lookbar.look_set_placement``: the plan, the command and the seconds are ``lookbar.leave_resolve``'s (the
+    walk before the move ends at join rule J1's leave point), the reference is played on that plan, and the planned
+    turn's block holds it; a walk is the bar's own.  On T0 (no look set) nothing is placed: the plans are the bar's
+    own, as before.  Nothing stays placed."""
+    from designlab.stage2 import lookbar
+
+    if not bv._lookbar_here():
+        pytest.skip("lookbar cannot be imported in a process that renders")
+    root = tmp_path / "sets"
+    sets = _look_and_t0(root)
+    six = sets["V6"]
+    assert all(six["placed"][k] is not None and _plan(six["placed"][k]) != _plan(six["own"][k]) for k in LEAVE_KEYS)
+    sv = bv.SetView("V6", BODY, root)
+    for k in LEAVE_KEYS:
+        cond, want = sv.condition(k), six["placed"][k]
+        pl = sv.planned(cond)
+        res = pl["res"]
+        assert _plan(res) == _plan(want) and res["seconds"] == want["seconds"] == pl["seconds"], k
+        assert res["command"] == want["command"] and res["command"]["leave"]["a_phase"] > 0, k
+        assert pl["t_c"] == want["command_ref_s"] / bar.RATE, k
+        assert pl["t_end"] == sv.move_end_ref_s(want["plan"], cond.move) / bar.RATE, k
+        assert pl["trace"]["t"][-1] <= want["seconds"] + 1e-9 and len(pl["trace"]["t"]) > 100, k
+        assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
+    turn = bv.planned_turn(sv, sv.condition("turn/q90_left"))
+    assert turn["what"] == "planned" and turn["plan"] == _plan(six["placed"]["turn/q90_left"])
+    assert _plan(sv.resolve(sv.condition("walk/v0.4"))) == _plan(six["own"]["walk/v0.4"])
+    # T0 (no look set): the bar's own plans, nothing placed while they are made
+    t0, during = bv.SetView("T0", BODY, root), []
+    real = t0.planner.resolve
+
+    def resolve(cond):
+        during.append(sorted(lookbar.placed()))
+        return real(cond)
+
+    monkeypatch.setattr(t0.planner, "resolve", resolve)
+    for k in LEAVE_KEYS:
+        res = t0.planned(t0.condition(k))["res"]
+        assert _plan(res) == _plan(sets["T0"]["own"][k]) and "leave" not in (res["command"] or {}), k
+    assert during == [[]] * len(LEAVE_KEYS) and all(x is None for x in sets["T0"]["placed"].values())
+    assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
+
+
+@needs_s1
+def test_in_a_process_that_renders_a_look_sets_turn_is_planned_inside_the_placement(tmp_path):
+    """A process that renders (``MUJOCO_GL=osmesa``, as ``barviews clips`` runs) cannot import ``lookbar`` (it sets
+    ``MUJOCO_GL=disable`` when imported): there ``SetView.planned`` has a child process with ``MUJOCO_GL=disable`` plan
+    a look set's turn inside ``lookbar.look_set_placement`` and reads the plan back.  The plan, the command and the
+    seconds are ``lookbar.leave_resolve``'s, exactly; the rendering process keeps its backend and never imports
+    ``lookbar``."""
+    if not bv._lookbar_here():
+        pytest.skip("lookbar cannot be imported in a process that renders")
+    root = tmp_path / "sets"
+    want = _look_and_t0(root)["V6"]["placed"]["turn/q90_left"]
+    code = ("import json, os, sys; from designlab.stage2 import barviews as bv; "
+            "sv = bv.SetView('V6', sys.argv[1], sys.argv[2]); pl = sv.planned(sv.condition('turn/q90_left')); "
+            "print(json.dumps(dict(gl=os.environ['MUJOCO_GL'], lookbar='designlab.stage2.lookbar' in sys.modules, "
+            "here=bv._lookbar_here(), plan=[list(x) for x in pl['res']['plan']], command=pl['res']['command'], "
+            "seconds=pl['seconds'], t_c=pl['t_c'], rows=len(pl['trace']['t']))))")
+    env = dict(os.environ, MUJOCO_GL="osmesa", PYOPENGL_PLATFORM="osmesa", PYTHONPATH=".")
+    r = subprocess.run([sys.executable, "-c", code, BODY, str(root)], cwd=ROOT, env=env, capture_output=True, text=True,
+                       timeout=900)
+    assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-3000:]
+    got = json.loads(r.stdout.strip().splitlines()[-1])
+    assert (got["gl"], got["lookbar"], got["here"]) == ("osmesa", False, False)
+    assert got["plan"] == _plan(want) and got["command"] == json.loads(json.dumps(want["command"]))
+    assert got["seconds"] == want["seconds"] and got["t_c"] == want["command_ref_s"] / bar.RATE and got["rows"] > 100
 
 
 @pytest.fixture(scope="module")

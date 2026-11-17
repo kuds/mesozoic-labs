@@ -801,7 +801,7 @@ def test_on_the_75cm_rounds_sets_and_the_fixture_every_plan_is_as_before(t0):
         trs = s2io.read_json(d / "transitions.json")["transitions"]
         assert not any(isinstance(x, dict) and x.get("look") for x in trs.values()), set_name
         for td in r5lib.TASKS:
-            plan, leaves = r5lib.place(td.plan, refs, trs)
+            plan, leaves = r5lib.place(td.plan, refs, trs, d)
             assert plan == [tuple(x) for x in td.plan] and leaves == {}, (set_name, td.name)
     for name, t in t0.tasks.items():
         assert "leave" not in t, name
@@ -898,6 +898,62 @@ def test_a_leave_points_a_time_s_is_checked_against_its_walk_files_own_phase(tmp
         r5lib.leave_point(name, trs[name], W, walk, a_phase, walk_file=flat)
     with pytest.raises(tune.InputError, match="cannot be checked against the walk file's own phase array"):
         r5lib.leave_point(name, trs[name], W, walk, a_phase, walk_file=tmp_path / "not_here.npz")
+
+
+def _refreeze(d: Path) -> None:
+    """``make_look``'s freeze of the set at ``d`` made again from its entries as they stand now."""
+    refs, trs = s2io.read_json(d / "refs.json"), s2io.read_json(d / "transitions.json")
+    manifest = {}
+    for doc, kind in ((refs["references"], "walk"), (trs["transitions"], "move")):
+        for name, x in doc.items():
+            if x.get("file"):
+                manifest[name] = dict(kind=kind, sha256=x["sha256"], entry_sha256=setio.entry_sha256(kind, x))
+    sd = s2io.read_json(d / "set.json")
+    sd["freezes"] = [dict(index=0, at="fixture", commit=None, manifest=manifest, manifest_sha256=s2io.sha256_json(manifest))]
+    s2io.write_json(d / "set.json", sd)
+
+
+@needs_run
+def test_the_envs_own_placement_checks_a_time_s_against_the_walk_file(p, tmp_path):
+    """The lead's ruling 39 (c) of 17 Nov 2026: the env's own task placement (``r5lib.place``, ``Library.place``)
+    gives ``leave_point`` the walk's file, so ruling 37 (c)'s check covers the env too.  On the synthetic look set
+    the library's leave points are as before (the check passes); a frozen entry of the quick left turn whose
+    ``a_time_s`` is off by 1.5 frames of its walk file (``a_windows`` doctored to match, so that no earlier check sees
+    it: ``leave_point`` without the file lets it in) is refused by ``place`` given the set's directory, when the
+    library is built and when the R5 env is built on the set (``tune.InputError`` naming the walk file's own
+    phase)."""
+    from designlab.stage2 import r5env
+
+    good = make_look(tmp_path / "good")
+    lib = r5lib.Library(p, BODY, LOOK_SET, RATE, root=tmp_path / "good")
+    for task in LEAVE_TASKS:
+        assert lib.tasks[task]["available"] and len(lib.tasks[task]["leave"]) == 1, task
+    td = next(x for x in r5lib.TASKS if x.name == "turn_q90_left")
+    plan, leaves = r5lib.place(td.plan, lib.refs_doc, lib.tr_doc, good)
+    assert lib.place(td.plan) == (plan, leaves) and len(leaves) == 1
+    # the doctored entry, frozen
+    d = make_look(tmp_path / "bad", freeze=False)
+    trs = s2io.read_json(d / "transitions.json")
+    name, _, _, a_phase = LOOK_MOVES[0]
+    look = trs["transitions"][name]["look"]
+    with np.load(d / "refs" / f"{W}.npz") as z:
+        dt = float(z["dt"])
+    look["a_time_s"] += 1.5 * dt
+    look["a_windows"] = look["a_time_s"] / look["window_a"]["window_s"]
+    s2io.write_json(d / "transitions.json", trs)
+    _refreeze(d)
+    refs, tr_doc = s2io.read_json(d / "refs.json")["references"], trs["transitions"]
+    assert r5lib.leave_point(name, tr_doc[name], W, refs[W], a_phase)["a_time_s"] == look["a_time_s"]  # (no file)
+    why = f"{name}: .* has a_time_s .* the walk file's own phase array reaches a_phase {a_phase:g} at "
+    with pytest.raises(tune.InputError, match=why):
+        r5lib.place(td.plan, refs, tr_doc, d)
+    with pytest.raises(tune.InputError, match=why):
+        r5lib.Library(p, BODY, LOOK_SET, RATE, root=tmp_path / "bad")
+    cfg = r5env.R5Config(body=BODY, set=LOOK_SET, tasks=("stand",), randomize=False, push_prob=0.0, head_events=False,
+                         mid_start=0.0)
+    with pytest.raises(tune.InputError, match=why):
+        r5env.R5Env(cfg, root=tmp_path / "bad")
+    r5env.R5Env(cfg, root=tmp_path / "good").close()  # (the env on the set as built: no refusal)
 
 
 #: A set root that holds the look work package's arrays of the committed look sets (read only; the records are the

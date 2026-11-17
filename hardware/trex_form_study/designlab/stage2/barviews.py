@@ -672,6 +672,85 @@ def summarize(readings: list[dict]) -> dict:
 # ------------------------------------------------------------------------------------------------
 # A set: its frozen files, plans and planned (kinematic) traces
 # ------------------------------------------------------------------------------------------------
+#: The look sets (``lookbar.LOOK_SETS``; a test compares them).  On one, or on a version of one (``V6.2``), the planned
+#: motion of a turn or of the stop is planned inside ``lookbar.look_set_placement`` (``SetView.resolve``; the lead's
+#: ruling 39 (b) of 17 Nov 2026): the walk before the move ends at join rule J1's leave point, as the bar's row and the
+#: env play it there.
+LOOK_SETS = ("V6", "V6noF5")
+#: A plan made by a child process (``_resolve_in_child``): the line of its output that holds it, and how long it may take.
+PLACED_MARK = "barviews-placed-resolve: "
+PLACED_CHILD_TIMEOUT_S = 600.0
+
+
+def look_set_of(set_name) -> str | None:
+    """The look set a set's name stands for, as ``lookbar.look_set_of`` reads it (a test compares them): one of
+    ``LOOK_SETS``, the name itself or the part before its first dot; None for any other set.  This module does not
+    import ``lookbar`` to read it: ``lookbar`` sets ``MUJOCO_GL=disable`` when it is imported, which a process that
+    renders cannot take (``_lookbar_here``)."""
+    base = str(set_name).split(".", 1)[0]
+    return base if base in LOOK_SETS else None
+
+
+def _lookbar_here() -> bool:
+    """Whether ``lookbar`` can be used in this process: it is imported already, or ``MUJOCO_GL`` is a value MuJoCo reads
+    as no OpenGL (``tbenv.GL_DISABLED``).  A process that renders (``clips``: ``MUJOCO_GL=osmesa`` or ``egl``, MuJoCo
+    imported with it) cannot import ``lookbar``: its ``tbenv.assign_gl("disable")`` refuses there."""
+    from . import tbenv
+
+    return ("designlab.stage2.lookbar" in sys.modules
+            or (os.environ.get("MUJOCO_GL") or "").lower().strip() in tbenv.GL_DISABLED)
+
+
+def _resolve_placed(planner, set_name: str, body: str, root, cond) -> dict:
+    """``planner.resolve(cond)`` inside ``lookbar.look_set_placement(set_name, body, root)``.  The placement matches a
+    planner by its ``set.json``'s set and body: a ``set.json`` that names others is refused (``ViewError``), since
+    nothing would be placed."""
+    from . import lookbar
+
+    doc = planner.set_doc or {}
+    if (doc.get("set"), doc.get("body")) != (set_name, body):
+        raise ViewError(f"{set_name}/{body}: set.json names the set {doc.get('set')!r} and the body {doc.get('body')!r}: "
+                        "lookbar.look_set_placement would place none of its turns and stop")
+    with lookbar.look_set_placement(set_name, body, root):
+        return planner.resolve(cond)
+
+
+def _placed_child(argv) -> int:
+    """A child process's part of ``_resolve_in_child`` (``MUJOCO_GL=disable``): ``argv`` = set, body, set root,
+    condition key; prints ``PLACED_MARK`` and the resolved plan as JSON on one line."""
+    set_name, body, root, key = argv
+    d = setio.set_dir(set_name, body, root)
+    docs = setio.load(d)
+    planner = bar.BarPlanner(d, docs["refs.json"]["references"], docs["transitions.json"]["transitions"],
+                             docs["set.json"])
+    cond = next((c for c in bar.conditions(docs, every=True) if c.key == key), None)
+    if cond is None:
+        print(f"{set_name}: no condition {key!r}", file=sys.stderr)
+        return 1
+    print(PLACED_MARK + json.dumps(s2io.plain(_resolve_placed(planner, set_name, body, root, cond))), flush=True)
+    return 0
+
+
+def _resolve_in_child(set_name: str, body: str, root, key: str) -> dict:
+    """``_resolve_placed`` of the condition ``key``, made by a child process with ``MUJOCO_GL=disable``
+    (``tbenv.child_env``), for a process that renders and so cannot import ``lookbar`` (``_lookbar_here``).  The plan
+    comes back as JSON (exact for every number), its items as tuples."""
+    import subprocess
+
+    from . import tbenv
+
+    code = "import sys; from designlab.stage2 import barviews as b; sys.exit(b._placed_child(sys.argv[1:]))"
+    r = subprocess.run([sys.executable, "-c", code, set_name, body, str(root), key], cwd=tbenv.study_dir(),
+                       env=tbenv.child_env("disable"), capture_output=True, text=True, timeout=PLACED_CHILD_TIMEOUT_S)
+    line = next((x for x in reversed(r.stdout.splitlines()) if x.startswith(PLACED_MARK)), None)
+    if r.returncode != 0 or line is None:
+        raise ViewError(f"{set_name}/{body} {key}: the plan inside lookbar.look_set_placement was not made by its child "
+                        f"process (exit {r.returncode}): {r.stderr.strip()[-800:]}")
+    res = json.loads(line[len(PLACED_MARK):])
+    res["plan"] = [tuple(x) for x in res["plan"]]
+    return res
+
+
 class SetView:
     """One frozen set read for the views: its documents, the bar's planner and the body's model.  ``planned``
     plays a condition's reference kinematically at the bar's commanded clock (``bar.reference_recorder``: no
@@ -719,12 +798,27 @@ class SetView:
         return sorted(f for f, x in ((record.get("inputs") or {}).get("files") or {}).items()
                       if listed.get(f) != x.get("sha256"))
 
+    def resolve(self, cond) -> dict:
+        """The bar's plan of ``cond`` on this set (``bar.BarPlanner.resolve``).  On a look set or a version of one
+        (``look_set_of``) it is planned inside ``lookbar.look_set_placement`` (the lead's ruling 39 (b) of 17 Nov
+        2026): a turn's or the stop's walk ends at join rule J1's leave point (``lookbar.leave_resolve``), as the bar's
+        row and the env play it there; in a process that renders, by a child process (``_resolve_in_child``).  On any
+        other set it is the bar's own, as before."""
+        if look_set_of(self.name) is None:
+            return self.planner.resolve(cond)
+        root = self.dir.parent.parent
+        if _lookbar_here():
+            return _resolve_placed(self.planner, self.name, self.body, root, cond)
+        return _resolve_in_child(self.name, self.body, root, cond.key)
+
     def planned(self, cond) -> dict:
         """The condition's reference played kinematically: ``dict(trace, pose, res, t_c, t_end, freeze, files)``;
-        the files are checked against their entries and the set's latest freeze first (``setio.read_inputs``)."""
+        the files are checked against their entries and the set's latest freeze first (``setio.read_inputs``).  The
+        plan is ``resolve``'s: on a look set a turn and the stop leave the walk at join rule J1's leave point (the
+        lead's ruling 39 (b) of 17 Nov 2026)."""
         if cond.key in self._planned:
             return self._planned[cond.key]
-        res = self.planner.resolve(cond)
+        res = self.resolve(cond)
         inputs, _ = setio.read_inputs(self.dir, res["files"], require_frozen=True)
         p = self.model.p
         track = setio.build_track(p, self.dir, res["plan"], self.omega(res["files"]), self.trs)
