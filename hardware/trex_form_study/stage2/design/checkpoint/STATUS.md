@@ -763,3 +763,17 @@ and the chain's `--resume` on V10); the servo model's S1 low points and S2 (the 
 - The filled sheet is in the worktree /home/user/mesozoic-wt/c2 (branch wt/c2, uncommitted) and the acceptance
   record in /home/user/mesozoic-wt/tb-accept-bundle/stage2/tb/bundle/s2-b1/ACCEPTANCE.json (ok false).
 - Meter: $3,517 at 22:26 UTC, about 83.6 %; 85 % is about $3,551.
+
+## Update, 17 Nov 2026, ~23:20 UTC (handover)
+
+- Ruling 45's fix passed its check and is merged (6b70887c; reports `roundC__{fix,check}_N45_17nov.md`):
+  the acceptance kill waits for a whole checkpoint above 0 on the stand-in Drive; the sheet's tests read
+  `colab_steps.template.txt`; `nb sheet-check` holds a filled sheet to the records (`--before-smoke` at C2).
+  `tests/test_stage2_nb.py` on the merged tree: 74 passed, 1 skipped.
+- Ruling 46: the notebook intro's link to the never-pushed tag `s2-launch-1` removed. **C1 is now 472e8d31**
+  (pushed). The bundle s2-b1 and its data branch are unchanged.
+- Running: wf_26ff66ca-694 (task w0d3peyb1): the acceptance run again on C1 from a fresh clone (old record kept as
+  `ACCEPTANCE.v12-b7527a66.json` in tb-accept-bundle), its check (also of ruling 46's edit), then C2 on wt/c2
+  (sheet from the template, ACCEPTANCE.json, dev_episodes.json, sheet-check OK) and its check (verdict, tip).
+- Next: merge C2 if the check says merge, push, send the owner the sheet with a push notification.
+- Meter: $3,536.41 at 23:17 UTC, about 84.4 % (85 % about $3,551; 95 % about $3,801).
