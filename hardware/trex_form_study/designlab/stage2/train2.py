@@ -32,10 +32,11 @@ final checkpoint the monitor child runs on the checkpoint just saved; each attem
 ``monitor[]`` before the child starts and closed with its exit code.  Everything read after a check is
 ``monitor2.decide`` on the records: the gain, G8b with its one fix (the task weights, in place:
 ``env_method("set_task_weights")``), the stop rules.  A stop by a rule ends the job with exit code 0.  A monitor
-that refuses to run (its exit code ``monitor2.EXIT_REFUSAL``: its sources have moved, the checkpoint is not intact,
-the checkpoint is another run's) made no attempt: the attempt is closed as ``refused`` with the monitor's reason,
-it is not one of the two closed attempts after which a check counts as without a record, the run halts, and a
-resume runs the check again (``monitor2.RULES["refusal"]``).
+that refuses to run (its exit code ``monitor2.EXIT_REFUSAL``: its sources have moved, the run's ``run.json`` is
+missing, the checkpoint is not intact, the checkpoint is another run's, the row refuses the checkpoint while it is
+built) made no attempt: the attempt is closed as ``refused`` with the monitor's reason, it is not one of the two
+closed attempts after which a check counts as without a record, the run halts, and a resume runs the check again
+(with ``--retry-check`` when the refused attempt was the one that parameter let run; ``monitor2.RULES["refusal"]``).
 The monitor child's environment holds ``STAGE2_ALLOW_SOURCE_CHANGE=1`` exactly when the session was given
 ``--allow-source-change`` (``ALLOW_SOURCE_ENV``): the trainer passes its flag to the policy row, which reads it there
 (rule K9), and a value the trainer's own environment holds is not passed on.
@@ -43,8 +44,9 @@ The monitor child's environment holds ``STAGE2_ALLOW_SOURCE_CHANGE=1`` exactly w
 **Exit codes** of ``run``: 0 done, or stopped by rule M4 or M5; 3 G8a failed ("G8a fails: no run"); 4 refused (a
 resume the rules refuse, or a start that cannot be made: nothing was run); 5 halted for the lead (R0L's baseline
 could not be made; two attempts at one check were never closed: ``--retry-check`` on the resume lets that check run
-once more; the monitor refused to run on a check: a resume runs it again; ``run.json`` ``halt`` holds the reason,
-for a refusal the monitor's own); any other code is a failure.
+once more; the monitor refused to run on a check: a resume runs it again, with ``--retry-check`` when the refused
+attempt was the one that parameter let run, and the halt says so; ``run.json`` ``halt`` holds the reason, for a
+refusal the monitor's own); any other code is a failure.
 
 **The seams.**  ``_env_configs``, ``_env_specs``, ``_g8a_short``, ``_monitor_cmd`` and ``_validation`` are the
 places where the trainer meets the env, the gate, the monitor child and the validation records; the tests replace
@@ -1172,7 +1174,8 @@ class _Run:
         if isinstance(note, dict) and note.get("reason"):
             return dict(kind=note.get("kind"), reason=str(note["reason"]))
         return dict(kind=None, reason=f"exit code {int(code)} and no note of its reason: its sources have moved, the "
-                                      "checkpoint is not intact, or the checkpoint is another run's")
+                                      "run's run.json is missing, the checkpoint is not intact, the checkpoint is "
+                                      "another run's, or the row refused the checkpoint while it was built")
 
     def _end_children(self) -> None:
         """``CHILD_RULE``: end the monitor children of earlier sessions that outlived their trainer."""
@@ -1321,10 +1324,14 @@ class _Run:
                        **(dict(refused=True, refusal=why) if why else {}))
             self.write()
             if why is not None:  # (no attempt: it is not counted, nothing is read, and the run goes to the lead)
+                # (under --retry-check the two attempts never closed stay: a plain resume would halt on them)
+                again = ("a resume with --retry-check runs the check again (the refused attempt was the one "
+                         "--retry-check let run after two attempts at this check were never closed)" if after_halt
+                         else "a resume runs the check again")
                 raise Halt(f"{self.job}: the monitor refused to run on the check of {n} steps ({why['reason']}): a "
                            "monitor that refuses to run is no attempt and does not count toward the two after "
                            "which a check counts as without a gain (rule M1; the lead's ruling of 16 Nov 2026): the "
-                           "run halts and goes to the lead; with the fault repaired, a resume runs the check again")
+                           f"run halts and goes to the lead; with the fault repaired, {again}")
             if rec is None:
                 closed += 1
                 self.say(f"WARNING: the monitor left no record of the check at {n} steps (exit code {code})")
