@@ -16,6 +16,8 @@ module's ``child`` entry, a subprocess whose functions import them (never this m
     python -m designlab.stage2.nb local-run --drive DIR [--notebook stage2/stage2_training.ipynb] [--params FILE]
                                   [--record PATH] [--no-remedies]
     python -m designlab.stage2.nb acceptance --ref <40 hex> --parts DIR --scratch DIR --record PATH [--notebook PATH]
+    python -m designlab.stage2.nb sheet-check --sheet stage2/tb/colab_steps.txt --manifest PATH --ref <40 hex>
+                                  [--acceptance PATH] [--before-smoke] [--record PATH]
     python -m designlab.stage2.nb child {read-inputs|archive-preflight|envs|g8a} ...     # this module's own children
 
 **The owner's path** (``stage2/stage2_training.ipynb``): each code cell runs one step in a subprocess and prints its
@@ -4018,6 +4020,302 @@ def acceptance(notebook, ref, parts_dir, scratch, record) -> dict:
 
 
 # ------------------------------------------------------------------------------------------------
+# The steps sheet as filled (design 3.12; the lead's ruling 45 of 17 Nov 2026)
+# ------------------------------------------------------------------------------------------------
+#: The sheet the owner is sent, and the template it is filled from (which keeps the ``<<...>>`` fields; the tests
+#: read the template).
+SHEET = "stage2/tb/colab_steps.txt"
+SHEET_TEMPLATE = "stage2/tb/colab_steps.template.txt"
+SHEET_CHECK_SCHEMA = "s2-sheet-check-1"
+#: The template's fields the acceptance run's records fill (the launch commit, the bundle, the rules, its own lines;
+#: ``TO BE WRITTEN ...`` is section 8's first paragraph): a sheet checked by ``sheet_check`` holds none of them.
+SHEET_ACCEPTANCE_FIELDS = ("C1", "BUNDLE_ID", "HASH12", "N_FILES", "N_PARTS", "TOTAL_MB", "PART NAMES", "RULES_FILE",
+                           "RULES_SHA256", "G8A_STEPS", "DATA_REF", "TO BE WRITTEN FROM THE ACCEPTANCE RUN")
+#: The template's fields only the smoke fills (its minutes, rates and what is fixed after it), and its two words for
+#: a field (``<<LIKE THIS>>``, ``<<...>>``): only a sheet checked ``before_smoke`` (the sheet of C2) may hold them.
+SHEET_SMOKE_FIELDS = ("BACKGROUND", "SMOKE_TOTAL_MIN", "MIN_SETUP", "MIN_Y1", "MIN_Y3", "MIN_Y5", "MIN_Y6", "MIN_Y8",
+                      "TABLE OF LAUNCHES", "BUDGET_STEPS", "RATE", "W", "VCPUS", "BUDGET_M", "HOURS", "FLOOR",
+                      "MIN_LINE4", "MIN_LINE4_LATE", "HOURS_PER_JOB", "MIN_REBUILD", "LIKE THIS", "...")
+#: Section 8's sentence that the check of the sheet (17 Nov 2026) found wrong: the refused start came right after
+#: the first session had been stopped, not while it was alive (``_drill``: the kill, then the start refused for a
+#: fresh ``LIVE.json``, then the resume with TAKEOVER).
+SHEET_WRONG_SECTION_8 = "while the first was alive"
+_FIELD = re.compile(r"<<(.*?)>>", re.S)
+_HEX40_IN = re.compile(r"(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])")
+_HEX64_IN = re.compile(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])")
+
+
+def sheet_fields(text: str) -> list:
+    """The names of the ``<<...>>`` fields of a sheet's text, in order (a field's name is its leading capitals:
+    ``<<C1: THE 40 CHARACTERS ...>>`` is ``C1``; ``<<...>>`` is ``...``)."""
+    out = []
+    for m in _FIELD.finditer(text):
+        inner = " ".join(m.group(1).split())
+        name = re.match(r"[A-Z0-9_]+(?: [A-Z0-9_]+)*", inner)
+        out.append(name.group(0) if name else inner[:40])
+    return out
+
+
+def _sheet_table(text: str, start: str, end: str) -> str | None:
+    return text.split(start, 1)[1].split(end, 1)[0] if start in text and end in text.split(start, 1)[1] else None
+
+
+def _blob_sha256(spec: str) -> str | None:
+    """The sha256 of the blob ``<commit>:<path>`` of the study's repository (None: it is not there)."""
+    env = dict(os.environ, GIT_OPTIONAL_LOCKS="0")
+    h = hashlib.sha256()
+    try:
+        with subprocess.Popen(["git", "-C", str(study()), "cat-file", "blob", spec], stdout=subprocess.PIPE,
+                              stderr=subprocess.DEVNULL, env=env) as proc:
+            for block in iter(lambda: proc.stdout.read(1 << 20), b""):
+                h.update(block)
+            code = proc.wait()
+    except OSError:
+        return None
+    return h.hexdigest() if code == 0 else None
+
+
+def _quoted_lines(rows: list, kinds=(1, 2, 3)) -> tuple:
+    """The sheet's quotations of lines ``kinds`` (a row that begins ``S2 LINE <k>/4``, after a step's letter, and
+    the next row when the line is shown on two): ``({kind: [line, ...]}, [a quotation in no line's form, ...])``."""
+    found: dict = {k: [] for k in kinds}
+    odd = []
+    for i, raw in enumerate(rows):
+        row = raw.strip()
+        row = row[4:] if row[:1] == "(" and row[2:4] == ") " else row
+        k = next((k for k in kinds if row.startswith(f"S2 LINE {k}/4 ")), None)
+        if k is None:
+            continue
+        if not LINE_RE[k].match(row) and i + 1 < len(rows):
+            row = row + " " + rows[i + 1].strip()
+        (found[k] if LINE_RE[k].match(row) else odd).append(row)
+    return found, odd
+
+
+def sheet_check(sheet, manifest, ref, acceptance=None, before_smoke: bool = False, record=None) -> dict:
+    """The check of a filled steps sheet (the lead's ruling 45 of 17 Nov 2026; design 3.12): the sheet's tests read
+    the template (``SHEET_TEMPLATE``), and a sheet filled from it is checked here against the records.
+
+    * ``fields``: no ``<<...>>`` field is left (``before_smoke``, the sheet of C2: only ``SHEET_SMOKE_FIELDS``,
+      which are listed);
+    * ``repo_ref``: ``ref`` is a commit of this repository; every 40-hex value of the sheet is ``ref``; each REPO_REF
+      of the two parameter tables (3.4, 4.3) is ``ref``; the Colab address names ``ref`` (or a tag of it here) and
+      the notebook's path at ``ref``; line 1 is ``line1(ref)``;
+    * ``bundle_id``: the manifest is the one at ``ref`` byte for byte; its bundle id is each BUNDLE_ID of the tables
+      and each "bundle <id>, manifest ..." of the text;
+    * ``content_hash``: the manifest's ``content_sha256`` is the hash of its content; each "manifest <12 hex>" is
+      its first 12; each "<n> files in <p> parts" its counts; line 2 is ``line2`` of them;
+    * ``sha256_values``: every other 64-hex value of the sheet is the sha256, at ``ref``, of a file named just before
+      it (the rules texts), or of the acceptance record;
+    * ``bundle_source``: the BUNDLE_SOURCE of the two tables (one value): ``git:<branch>`` (each ``git:<branch>`` of
+      the text) is a branch known here (``origin/<branch>`` first: the notebook fetches from origin) whose
+      ``<bundle dir>/parts`` holds every part with the manifest's sha256; ``drive``: every part is named;
+    * ``lines``: the acceptance record (``acceptance``, default ``ACCEPTANCE.json`` beside the manifest) is whole
+      (its own sha256), passed (``ok``), of ``ref``, of this bundle and content hash, and every quoted line 1, 2
+      and 3 is one it printed;
+    * ``section_8``: the values of the run-directory lines the text quotes (a resume's session, job, steps and
+      jobs done; the age of a fresh LIVE.json) are the record's, and ``SHEET_WRONG_SECTION_8`` is not in it.
+
+    Prints each problem and ``S2 SHEET CHECK <sheet>: OK | FAILED``; returns the record (``SHEET_CHECK_SCHEMA``;
+    written to ``record`` when given).  Reads only: it fetches nothing (fetch the data branch first)."""
+    ref = str(ref)
+    if not _HEX40.match(ref):
+        raise Refused(f"--ref {ref!r}: the 40 hex digits of the launch commit (rule K6)")
+    spath, mpath = _anchored(sheet), _anchored(manifest)
+    try:
+        text = spath.read_text(encoding="ascii")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise Refused(f"{spath}: not a sheet of plain ASCII text ({exc})") from None
+    doc = _read_json(mpath)
+    content = doc.get("content") if isinstance(doc, dict) else None
+    if not isinstance(content, dict) or not isinstance(content.get("parts"), dict):
+        raise Refused(f"{mpath}: not a bundle's MANIFEST.json")
+    apath = _anchored(acceptance) if acceptance else mpath.parent / "ACCEPTANCE.json"
+    rec = _read_json(apath)
+    rows = text.splitlines()
+    flat = " ".join(r.strip() for r in rows)
+    prefix = (_git("rev-parse", "--show-prefix") or "").strip()
+    bundle_id, csha = str(content.get("bundle_id")), str(doc.get("content_sha256"))
+    files, parts = content.get("files") or {}, content["parts"]
+    tables = {name: _sheet_table(text, start, end) for name, start, end in
+              (("3.4", "   3.4  ", "   3.5  "), ("4.3", "   4.3  ", "   4.4  "))}
+    quoted, odd = _quoted_lines(rows)
+    out: dict = {k: [] for k in ("fields", "repo_ref", "bundle_id", "content_hash", "sha256_values",
+                                 "bundle_source", "lines", "section_8")}
+
+    def column(name: str) -> list:  # (a parameter's values in the two tables)
+        got = []
+        for t, table in tables.items():
+            vals = re.findall(r"^ {10}" + name + r" {2,}(\S+)", table, re.M) if table is not None else []
+            if table is not None and not vals:
+                out[name.lower()].append(f"{t} sets no {name}")
+            got += [(t, v) for v in vals]
+        return got
+
+    # the fields
+    left = sheet_fields(text)
+    allowed = set(SHEET_SMOKE_FIELDS) if before_smoke else set()
+    for name in dict.fromkeys(left):
+        if name not in allowed:
+            out["fields"].append(f"the field <<{name}>> is not filled")
+    rest = _FIELD.sub("", text)
+    if "<<" in rest or ">>" in rest:
+        out["fields"].append("a << or >> without its pair")
+    # REPO_REF
+    out["repo_ref"] += [f"the parameter table of {t} is not in the sheet" for t, x in tables.items() if x is None]
+    if (_git("cat-file", "-t", ref) or "").strip() != "commit":
+        out["repo_ref"].append(f"{ref} is not a commit of this repository")
+    hexes = _HEX40_IN.findall(text)
+    if ref not in hexes:
+        out["repo_ref"].append(f"the sheet does not name {ref}")
+    for other in sorted(set(hexes) - {ref}):
+        out["repo_ref"].append(f"a commit other than REPO_REF: {other}")
+    for t, v in column("REPO_REF"):
+        if v != ref:
+            out["repo_ref"].append(f"{t}: REPO_REF {v}")
+    urls = re.findall(r"https://colab\.research\.google\.com/github/[^/\s]+/[^/\s]+/blob/([^/\s]+)/(\S+)", text)
+    if not urls:
+        out["repo_ref"].append("no Colab address of the notebook")
+    for name, path in urls:
+        target = name if _HEX40.match(name) else (_git("rev-parse", "--verify", "--quiet",
+                                                        f"refs/tags/{name}^{{commit}}") or "").strip()
+        if target != ref:
+            out["repo_ref"].append(f"the Colab address names {name}, which is not {ref} (nor a tag of it here)")
+        if path != prefix + NOTEBOOK or _git("cat-file", "-e", f"{ref}:{path}") is None:
+            out["repo_ref"].append(f"the Colab address names {path}, not the notebook {prefix + NOTEBOOK} at "
+                                   f"{ref[:12]}")
+    want1 = line1(ref, True, True)
+    if not quoted[1]:
+        out["repo_ref"].append("line 1 is not quoted")
+    out["repo_ref"] += [f"line 1 is quoted as {q!r}, not {want1!r}" for q in quoted[1] if q != want1]
+    # the bundle id
+    at_ref = _git("show", f"{ref}:{prefix}{BUNDLE_DIR}/{bundle_id}/MANIFEST.json")
+    if at_ref is None or at_ref != mpath.read_text(encoding="utf-8"):
+        out["bundle_id"].append(f"{mpath} is not {BUNDLE_DIR}/{bundle_id}/MANIFEST.json at {ref[:12]}")
+    if mpath.parent.name != bundle_id:
+        out["bundle_id"].append(f"the manifest's bundle id {bundle_id} is not its directory's name")
+    for t, v in column("BUNDLE_ID"):
+        if v != bundle_id:
+            out["bundle_id"].append(f"{t}: BUNDLE_ID {v}")
+    named = re.findall(r"bundle (\S+), manifest (\S+?),", flat)
+    if not named:
+        out["bundle_id"].append('the sheet names no "bundle <id>, manifest <hash>"')
+    for b, h in named:
+        if b != bundle_id:
+            out["bundle_id"].append(f"bundle {b}, not {bundle_id}")
+        if h != csha[:12]:
+            out["content_hash"].append(f"manifest {h}, not {csha[:12]}")
+    # the content hash
+    if sha256_json(content) != csha:
+        out["content_hash"].append(f"the manifest's content_sha256 {csha[:12]} is not the hash of its content")
+    for n, p in re.findall(r"(\d+) files in (\d+) parts", flat):
+        if (int(n), int(p)) != (len(files), len(parts)):
+            out["content_hash"].append(f"{n} files in {p} parts, not {len(files)} in {len(parts)}")
+    want2 = line2(bundle_id, csha, len(files), len(files))
+    if not quoted[2]:
+        out["content_hash"].append("line 2 is not quoted")
+    out["content_hash"] += [f"line 2 is quoted as {q!r}, not {want2!r}" for q in quoted[2] if q != want2]
+    # every other sha256
+    known = {csha: "the content hash"}
+    if apath.is_file():
+        known[sha256_file(apath)] = apath.name
+    if isinstance(rec, dict) and isinstance(rec.get("sha256"), str):
+        known[rec["sha256"]] = f"{apath.name}'s own sha256"
+    for i, row in enumerate(rows):
+        for m in _HEX64_IN.finditer(row):
+            h = m.group(0)
+            if h in known:
+                continue
+            before = (rows[i - 1] if i else "") + " " + row[:m.start()]
+            paths = re.findall(r"[A-Za-z0-9_][A-Za-z0-9_./-]*\.[A-Za-z]+", before)
+            if not any(_blob_sha256(f"{ref}:{base}{p}") == h for p in paths for base in (prefix, "")):
+                out["sha256_values"].append(f"row {i + 1}: sha256 {h} is not, at {ref[:12]}, the sha256 of a file "
+                                            f"named before it ({', '.join(paths) or 'none named'})")
+    # BUNDLE_SOURCE
+    sources = column("BUNDLE_SOURCE")
+    if len({v for _, v in sources}) > 1:
+        out["bundle_source"].append("the two tables set BUNDLE_SOURCE differently: "
+                                    + ", ".join(f"{t} {v}" for t, v in sources))
+    for t, v in sources:
+        if v != "drive" and not v.startswith("git:"):
+            out["bundle_source"].append(f"{t}: BUNDLE_SOURCE {v} (a table gives drive or git:<branch>; the rebuild "
+                                        f"is 7.2's fallback, on the lead's word)")
+        if v == "drive":
+            out["bundle_source"] += [f"{t}: BUNDLE_SOURCE drive, and the sheet does not name the part {name}"
+                                     for name in sorted(parts) if name not in text]
+    data = {}
+    for branch in dict.fromkeys(x.rstrip(".,;:)") for x in re.findall(r"git:([A-Za-z0-9._/-]+)", text)):
+        sha = next((s for s in ((_git("rev-parse", "--verify", "--quiet", f"{c}^{{commit}}") or "").strip()
+                                for c in (f"refs/remotes/origin/{branch}", f"refs/heads/{branch}")) if s), "")
+        data[branch] = sha or None
+        if not sha:
+            out["bundle_source"].append(f"git:{branch}: no such branch here (git fetch origin {branch} first)")
+            continue
+        for name in sorted(parts):
+            got = _blob_sha256(f"{sha}:{prefix}{BUNDLE_DIR}/{bundle_id}/parts/{name}")
+            if got != parts[name].get("sha256"):
+                out["bundle_source"].append(f"git:{branch} ({sha[:12]}): the part {name} is "
+                                            + ("not there" if got is None else f"another file ({got[:12]})"))
+    # the acceptance run's lines
+    printed: dict = {}
+    if not isinstance(rec, dict):
+        out["lines"].append(f"no acceptance record at {apath}: the quoted lines cannot be held to it")
+    else:
+        if _stamped(rec).get("sha256") != rec.get("sha256"):
+            out["lines"].append(f"{apath.name} is not whole (its own sha256 does not hold)")
+        if rec.get("ok") is not True:
+            out["lines"].append(f"{apath.name} says ok: {rec.get('ok')} (failed: "
+                                + ", ".join(k for k, v in (rec.get("checks") or {}).items() if not v) + ")")
+        for key, want in (("ref", ref), ("bundle_id", bundle_id), ("content_sha256", csha)):
+            if rec.get(key) != want:
+                out["lines"].append(f"{apath.name}: {key} {rec.get(key)}, not {want}")
+        for att in (rec.get("attempts") or {}).values():
+            for kind, rows_ in ((att or {}).get("lines") or {}).items():
+                printed.setdefault(kind, set()).update(rows_)
+        for k in (1, 2, 3):
+            out["lines"] += [f"line {k} {q!r} is not one the acceptance run printed" for q in quoted[k]
+                             if q not in printed.get(str(k), set())]
+    out["lines"] += [f"a quoted line in no line's form: {q!r}" for q in odd]
+    if not quoted[3]:
+        out["lines"].append("line 3 is not quoted")
+    # section 8
+    if SHEET_WRONG_SECTION_8 in flat:
+        out["section_8"].append(f'it says "{SHEET_WRONG_SECTION_8}": the start refused for a fresh LIVE.json came '
+                                "right after the first session had been stopped (ruling 45)")
+    if isinstance(rec, dict):
+        att = rec.get("attempts") or {}
+        said = {k: ((att.get(k) or {}).get("lines") or {}) for k in ("session1", "refused_live")}
+        resumes = [LINE_RE["resume"].match(x) for x in said["session1"].get("resume", [])]
+        lives = [LINE_RE["live"].match(x) for x in said["refused_live"].get("live", [])]
+        mine = {(m.group("session"), m.group("job"), m.group("steps"), m.group("done")) for m in resumes if m}
+        ages = {m.group("age") for m in lives if m}
+        for got in re.findall(r"resuming session (\d+): (\S+) from (\d+) steps; (\d+) jobs done", flat):
+            if got not in mine:
+                out["section_8"].append("resuming session {}: {} from {} steps; {} jobs done: not the acceptance "
+                                        "run's resume".format(*got))
+        for age in re.findall(r"LIVE\.json written (\d+) s ago", flat):
+            if age not in ages:
+                out["section_8"].append(f"LIVE.json written {age} s ago: not the acceptance run's refused start")
+    checks = {k: not v for k, v in out.items()}
+    doc_out = _stamped(dict(
+        schema=SHEET_CHECK_SCHEMA, ok=all(checks.values()), checks=checks, problems={k: v for k, v in out.items() if v},
+        sheet=str(spath), sheet_sha256=sha256_file(spath), ref=ref, manifest=str(mpath), bundle_id=bundle_id,
+        content_sha256=csha, acceptance=str(apath) if isinstance(rec, dict) else None,
+        acceptance_sha256=sha256_file(apath) if apath.is_file() else None, before_smoke=bool(before_smoke),
+        left=list(dict.fromkeys(left)), data_branches=data, at=_now(), rule="the lead's ruling 45 of 17 Nov 2026"))
+    if record is not None:
+        _write_json(_anchored(record), doc_out)
+    for name, problems in out.items():
+        for problem in problems:
+            _say(f"S2 SHEET CHECK {name}: {problem}")
+    if before_smoke and left:
+        _say("S2 SHEET CHECK: left for the smoke: " + " ".join(f"<<{x}>>" for x in dict.fromkeys(left)))
+    _say(f"S2 SHEET CHECK {spath.name} at {ref[:12]}: {'OK' if doc_out['ok'] else 'FAILED'}"
+         + ("" if doc_out["ok"] else ": " + ", ".join(k for k, v in checks.items() if not v)))
+    return doc_out
+
+
+# ------------------------------------------------------------------------------------------------
 # CLI
 # ------------------------------------------------------------------------------------------------
 def _bodies(p: dict) -> list:
@@ -4130,6 +4428,15 @@ def main(argv=None) -> int:
     a.add_argument("--parts", required=True)
     a.add_argument("--scratch", required=True)
     a.add_argument("--record", required=True)
+    a = sub.add_parser("sheet-check", help="a filled steps sheet against the records (the lead's ruling 45)")
+    a.add_argument("--sheet", default=SHEET)
+    a.add_argument("--manifest", required=True, help="stage2/tb/bundle/<bundle_id>/MANIFEST.json")
+    a.add_argument("--ref", required=True, help="the launch commit's 40 hex digits (REPO_REF)")
+    a.add_argument("--acceptance", default=None, help="the acceptance record (default: ACCEPTANCE.json beside the "
+                                                      "manifest)")
+    a.add_argument("--before-smoke", action="store_true",
+                   help="the sheet of C2: the fields only the smoke fills may stay (they are listed)")
+    a.add_argument("--record", default=None)
     args = ap.parse_args(argv)
     try:
         if args.cmd in STEPS:
@@ -4150,6 +4457,9 @@ def main(argv=None) -> int:
             extra = _read_json(args.params) if args.params else {}
             rec = local_run(args.notebook, args.drive, extra, args.record, remedies=not args.no_remedies)
             return EXIT_OK if rec["ok"] else EXIT_FAILED
+        if args.cmd == "sheet-check":
+            rec = sheet_check(args.sheet, args.manifest, args.ref, args.acceptance, args.before_smoke, args.record)
+            return EXIT_OK if rec["ok"] else EXIT_FAILED
         return EXIT_OK if acceptance(args.notebook, args.ref, args.parts, args.scratch, args.record)["ok"] \
             else EXIT_FAILED
     except Refused as exc:
@@ -4167,7 +4477,7 @@ __all__ = ["BACK_RULE", "BUDGET_RULE", "COPY_RULE", "FENCE_RULE", "HALT_RULE", "
            "keep_on_drive", "launch", "line1", "line2", "line3", "line4", "lines_of", "load_params", "local_run",
            "main", "parse_queue", "pin_differences", "pins", "pip_commands", "preflight", "read_lead",
            "release_or_keep", "release_runtime", "remount_if_dead", "run_cells", "session", "session_line", "setup", "sha256_json",
-           "smoke", "smoke_line"]
+           "sheet_check", "sheet_fields", "smoke", "smoke_line"]
 
 if __name__ == "__main__":
     from designlab.stage2 import nb as _named  # the importable copy owns every class and all module state

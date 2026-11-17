@@ -48,6 +48,9 @@ from designlab.stage2 import nb
 
 STUDY = Path(__file__).resolve().parents[1]
 NOTEBOOK = STUDY / "stage2" / "stage2_training.ipynb"
+#: The steps sheet's template (the lead's ruling 45 of 17 Nov 2026): the sheet's tests read it, with its <<...>> fields;
+#: the sheet the lead fills from it (``nb.SHEET``) is held to the records by ``nb.sheet_check``.
+TEMPLATE = STUDY / "stage2" / "tb" / "colab_steps.template.txt"
 COMMIT = "c" * 40
 slow = pytest.mark.skipif(not os.environ.get("STAGE2_SLOW"), reason="the real trainer on the S1 view; set STAGE2_SLOW=1")
 needs_git = pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
@@ -535,10 +538,12 @@ def test_queue_is_a_text_field():
 
 
 def test_the_steps_sheet_quotes_the_programs_own_lines():
-    """``stage2/tb/colab_steps.txt`` (design 3.12): plain text of 115 columns; every line it quotes is the
-    formatter's once its fields are filled; every message it names is one this module prints.  It is a draft
-    until the acceptance run: the values only that run can supply are marked ``<<...>>``."""
-    sheet = (STUDY / "stage2" / "tb" / "colab_steps.txt").read_text(encoding="ascii")          # plain ASCII
+    """The steps sheet's template ``stage2/tb/colab_steps.template.txt`` (design 3.12; the lead's ruling 45 of 17 Nov
+    2026): plain text of 115 columns; every line it quotes is the formatter's once its fields are filled; every
+    message it names is one this module prints.  The values only the acceptance run and the smoke can supply are
+    marked ``<<...>>``.  As built these tests read ``colab_steps.txt``, the sheet itself, so a sheet filled
+    correctly could not pass them (V13); a filled sheet is checked by ``nb.sheet_check``."""
+    sheet = TEMPLATE.read_text(encoding="ascii")                                               # plain ASCII
     rows = sheet.splitlines()
     assert all(len(r) <= 115 or r.strip().startswith("https://colab.research.google.com/") for r in rows)
     assert "\t" not in sheet and "DRAFT" in sheet.split("\n\n")[1] and "STILL OPEN IN THIS DRAFT" in sheet
@@ -658,7 +663,7 @@ def test_the_steps_sheet_looks_at_the_last_box_before_a_resume():
     box; when what that box printed cannot be seen, the owner does not do 5.4 and tells the lead.  As built, an
     owner who had lost the page read "More than 10 minutes old" in STATUS.json (a kept runtime does not move its
     "written_at") and went on to 5.4, whose "Disconnect and delete runtime" deletes a save on that machine only."""
-    sheet = (STUDY / "stage2" / "tb" / "colab_steps.txt").read_text(encoding="ascii")
+    sheet = TEMPLATE.read_text(encoding="ascii")
     flat = " ".join(r.strip() for r in sheet.splitlines())
     five = flat.split("5.3  Otherwise open STATUS.json", 1)[1].split("5.5  Expect:", 1)[0]
     stale = five.split("More than 10 minutes old:", 1)[1]
@@ -707,7 +712,7 @@ def test_the_line_that_5_3_e_waits_for_is_the_last_one_a_released_machine_prints
     imported).  When it keeps the runtime (``EXIT_UNFINISHED``, another code, none) its last line is the paragraph
     "THIS MACHINE IS KEPT ON PURPOSE ...", never that line.  In a subprocess with a stand-in ``google.colab``: the
     repository's package is imported there, not in this process."""
-    rows = (STUDY / "stage2" / "tb" / "colab_steps.txt").read_text(encoding="ascii").splitlines()
+    rows = TEMPLATE.read_text(encoding="ascii").splitlines()
     n = next(i for i, r in enumerate(rows) if r.strip().startswith("(e) Read the last line printed under the box."))
     quoted = rows[n + 1].strip()
     assert quoted == "Disconnecting runtime in 5 seconds..." and rows[n + 1].startswith(" " * 14)
@@ -751,8 +756,7 @@ def test_the_steps_sheet_clears_old_outputs_before_a_later_session():
     is not read in a later 5.3 as this session's (the check: an old printout without the paragraph, under a runtime
     that is now kept).  Colab's own menu: marked expected, not yet seen.  A copy's first session (3.5, 4.4) starts
     from the notebook on GitHub, which holds no outputs."""
-    flat = " ".join(r.strip() for r in (STUDY / "stage2" / "tb" / "colab_steps.txt").read_text(encoding="ascii")
-                    .splitlines())
+    flat = " ".join(r.strip() for r in TEMPLATE.read_text(encoding="ascii").splitlines())
     resume = flat.split("5.4  Resume", 1)[1].split("5.5  Expect:", 1)[0]
     at = [resume.index(f"({c}) ") for c in "abcd"]
     assert at == sorted(at) and "in this order" in resume[:at[0]]
@@ -771,6 +775,190 @@ def test_the_steps_sheet_clears_old_outputs_before_a_later_session():
     assert all(not cell.get("outputs") for cell in cells if cell["cell_type"] == "code")
     # what only Colab shows is listed in section 8 as expected, not yet seen
     assert "what Edit > Clear all outputs empties (5.4 (b))" in flat
+
+
+def test_the_templates_fields_are_the_acceptance_runs_or_the_smokes():
+    """The lead's ruling 45 of 17 Nov 2026 (2): ``sheet_check`` tells the fields the acceptance run's records fill
+    (none may be left in the sheet of C2) from those only the smoke fills (``before_smoke`` lists them): every field
+    of the template is in exactly one of the two lists, and each list names only fields of the template."""
+    names = set(nb.sheet_fields(TEMPLATE.read_text(encoding="ascii")))
+    acc, smoke = set(nb.SHEET_ACCEPTANCE_FIELDS), set(nb.SHEET_SMOKE_FIELDS)
+    assert not acc & smoke and names == acc | smoke, (sorted(names - acc - smoke), sorted(acc | smoke - names))
+    assert nb.sheet_fields("<<C1: THE 40 CHARACTERS>> <<PART NAMES, ONE\n PER LINE>> <<...>> <<LIKE THIS>>") == [
+        "C1", "PART NAMES", "...", "LIKE THIS"]
+    # the sheet the lead fills is the template's copy until C2 (the notebook's link names that file)
+    assert nb.SHEET == "stage2/tb/colab_steps.txt" and STUDY / nb.SHEET_TEMPLATE == TEMPLATE
+
+
+def _git_env(monkeypatch) -> None:
+    for name, value in dict(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull, GIT_AUTHOR_NAME="t",
+                            GIT_AUTHOR_EMAIL="t@example.invalid", GIT_COMMITTER_NAME="t",
+                            GIT_COMMITTER_EMAIL="t@example.invalid").items():
+        monkeypatch.setenv(name, value)
+
+
+@needs_git
+def test_a_filled_sheet_is_held_to_the_records(tmp_path, monkeypatch, capsys):
+    """The lead's ruling 45 of 17 Nov 2026 (2): a sheet filled from the template is checked by ``sheet_check``:
+    no field left (before the smoke, only the smoke's), and its REPO_REF, bundle id, content hash, BUNDLE_SOURCE,
+    the rules' sha256 and the quoted lines 1-3 equal the records (the commit, the manifest at that commit, the data
+    branch's parts, the acceptance record).  On a scratch repository: a launch commit with the notebook, a rules
+    text and a bundle's manifest, a tag on it, and a data branch with the bundle's parts.  The template filled with
+    those values passes; each wrong value fails its own check and no other."""
+    _git_env(monkeypatch)
+    b = _bundle(tmp_path)
+    doc, csha = b["manifest"], b["manifest"]["content_sha256"]
+    names = sorted(doc["content"]["parts"])
+
+    def git(*args):
+        return subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True).stdout
+
+    repo = tmp_path / "repo"
+    study, mdir = repo / "study", repo / "study" / nb.BUNDLE_DIR / "tb-test"
+    mdir.mkdir(parents=True)
+    (study / "stage2" / "stage2_training.ipynb").write_text("{}")
+    (study / "STAGE2_TRACKB_PLAN.md").write_text("the rules\n")
+    shutil.copy(b["root"] / nb.BUNDLE_DIR / "tb-test" / "MANIFEST.json", mdir / "MANIFEST.json")
+    git("init", "-q", "-b", "main")
+    git("add", ".")
+    git("commit", "-q", "-m", "the launch commit")
+    ref = git("rev-parse", "HEAD").strip()
+    git("tag", "s2-launch-1")
+    for branch, spoil in (("data", None), ("data-bad", names[0])):     # the data branch, and one with a wrong part
+        git("checkout", "-q", "-b", branch, ref)
+        (mdir / "parts").mkdir()
+        for name in names:
+            (mdir / "parts" / name).write_bytes((b["parts"] / name).read_bytes() + (b"!" if name == spoil else b""))
+        git("add", ".")
+        git("commit", "-q", "-m", "the parts")
+        git("checkout", "-q", "main")
+    monkeypatch.setattr(nb, "study", lambda: study)
+    manifest = mdir / "MANIFEST.json"
+    run = "/content/drive/MyDrive/mesozoic-labs/stage2/runs/acceptance"
+    l1, l2, l3 = nb.line1(ref, True, True), nb.line2("tb-test", csha, 2, 2), nb.line3("75-M-H-10", "V6", 2, 2, 6000)
+    resume = nb.session_line(run, "resume", session=1, job="R5-75-M-H-10-s42", steps=1024, done=0)
+
+    def record(**over) -> Path:
+        att = dict(session0=dict(lines={"1": [l1], "2": [l2], "3": [l3], "new": [nb.session_line(run, "new")]}),
+                   refused_live=dict(lines={"live": [nb.session_line(run, "live", age_s=41)]}),
+                   session1=dict(lines={"1": [l1], "2": [l2], "3": [l3], "resume": [resume]}),
+                   refused_finished=dict(lines={}))
+        rec = nb._stamped(dict(dict(schema=nb.ACCEPTANCE_SCHEMA, ok=True, checks=dict(resumed_from_drive=True), ref=ref,
+                                    bundle_id="tb-test", content_sha256=csha, attempts=att), **over))
+        (mdir / "ACCEPTANCE.json").write_text(json.dumps(rec))
+        return mdir / "ACCEPTANCE.json"
+
+    record()
+    rules = hashlib.sha256(b"the rules\n").hexdigest()
+    fill = {"<<C1: THE 40 CHARACTERS OF THE LAUNCH COMMIT>>": ref, "<<C1>>": ref, "<<BUNDLE_ID>>": "tb-test",
+            "<<HASH12: FIRST 12 CHARACTERS OF THE CONTENT HASH>>": csha[:12], "<<HASH12>>": csha[:12],
+            "<<N_FILES>>": "2", "<<N_PARTS>>": str(len(names)), "<<TOTAL_MB>>": "1",
+            "<<PART NAMES, ONE PER LINE>>": " ".join(names),
+            "<<RULES_FILE: THE COMMITTED RULES TEXT; TODAY STAGE2_TRACKB_PLAN.md>>": "STAGE2_TRACKB_PLAN.md",
+            "<<RULES_SHA256>>": rules, "<<G8A_STEPS>>": "6000", "<<DATA_REF>>": "data",
+            "/blob/s2-launch-1/hardware/trex_form_study/": "/blob/s2-launch-1/study/"}   # (the scratch repo's study)
+    text = TEMPLATE.read_text(encoding="ascii").split("STILL OPEN IN THIS DRAFT")[0]
+    for a, z in fill.items():
+        text = text.replace(a, z)
+    c2 = re.sub(r"<<TO BE WRITTEN .*?>>", "the acceptance run's record, quoted.", text, flags=re.S)
+    final = re.sub(r"<<.*?>>", "7", c2.replace("<<LIKE THIS>>", "LIKE THIS").replace("<<...>>", "..."), flags=re.S)
+    sheet = tmp_path / "colab_steps.txt"
+
+    def check(body: str, **kw) -> dict:
+        sheet.write_text(body, encoding="ascii")
+        return nb.sheet_check(sheet, manifest, ref, **kw)
+
+    def only(rec: dict, *failed) -> bool:
+        return {k for k, v in rec["checks"].items() if not v} == set(failed)
+
+    rec = check(final, record=tmp_path / "SHEET_CHECK.json")
+    assert rec["ok"] and only(rec) and rec["left"] == [] and rec["data_branches"]["data"], rec["problems"]
+    assert json.loads((tmp_path / "SHEET_CHECK.json").read_text())["sha256"] == rec["sha256"]
+    assert capsys.readouterr().out.strip().splitlines()[-1] == f"S2 SHEET CHECK colab_steps.txt at {ref[:12]}: OK"
+    # the data branch as the tables' source; an address that names the commit itself rather than its tag
+    on_git = final.replace("BUNDLE_SOURCE         drive", "BUNDLE_SOURCE         git:data")
+    assert on_git.count("git:data") == 3 and check(on_git)["ok"]
+    assert check(final.replace("/blob/s2-launch-1/", f"/blob/{ref}/"))["ok"]
+    # the template itself, and a sheet of C2 that keeps the smoke's fields
+    rec = check(TEMPLATE.read_text(encoding="ascii"))
+    assert not rec["checks"]["fields"] and "C1" in rec["left"]
+    assert "the field <<C1>> is not filled" in capsys.readouterr().out
+    rec = check(c2)
+    assert only(rec, "fields") and set(rec["left"]) <= set(nb.SHEET_SMOKE_FIELDS) and "RATE" in rec["left"]
+    rec = check(c2, before_smoke=True)
+    assert rec["ok"] and rec["before_smoke"] and "<<RATE>>" in capsys.readouterr().out
+    assert only(check(c2.replace("Everything here is", "<<HALF>> Everything here is"), before_smoke=True), "fields")
+    # each wrong value fails its own check
+    wrong = {
+        "repo_ref": [final.replace(f"REPO_REF              {ref}", "REPO_REF              " + "0" * 40, 1),
+                     final.replace("/blob/s2-launch-1/", "/blob/s2-launch-2/"),
+                     final.replace("/blob/s2-launch-1/study/", "/blob/s2-launch-1/hardware/trex_form_study/")],
+        "bundle_id": [final.replace("BUNDLE_ID             tb-test", "BUNDLE_ID             tb-other")],
+        "content_hash": [final.replace(f"manifest {csha[:12]},", "manifest 0123456789ab,", 1),
+                         final.replace("2 files in", "3 files in")],
+        "sha256_values": [final.replace(rules, "f" * 64)],
+        "bundle_source": [final.replace("BUNDLE_SOURCE         drive", "BUNDLE_SOURCE         git:data-bad"),
+                          final.replace("BUNDLE_SOURCE         drive", "BUNDLE_SOURCE         git:nowhere"),
+                          final.replace("BUNDLE_SOURCE         drive", "BUNDLE_SOURCE         rebuild"),
+                          final.replace("BUNDLE_SOURCE         drive", "BUNDLE_SOURCE         git:data", 1),
+                          final.replace(" ".join(names), "the parts")],
+        "lines": [final.replace("(6000 physics steps)", "(6001 physics steps)")],
+        "section_8": [final.replace("the acceptance run's record, quoted.", "It printed a line for a second start "
+                                    "while the first was alive."),
+                      final.replace("the acceptance run's record, quoted.", 'It printed "(resuming session 1: '
+                                    'R5-75-M-H-10-s42 from 0 steps; 0 jobs done)".'),
+                      final.replace("the acceptance run's record, quoted.", 'It printed "still running '
+                                    '(LIVE.json written 40 s ago); nothing to do".')],
+    }
+    for name, bodies in wrong.items():
+        for i, body in enumerate(bodies):
+            assert body != final, (name, i)
+            rec = check(body)
+            assert only(rec, name), (name, i, rec["problems"])
+    assert check(final.replace("the acceptance run's record, quoted.", 'It printed "(resuming session 1: '
+                               'R5-75-M-H-10-s42 from 1024 steps; 0 jobs done)" and "still running (LIVE.json '
+                               'written 41 s ago); nothing to do".'))["ok"]
+    # the acceptance record: whole, passed, of this commit and bundle; without one the lines are not held to anything
+    record(ok=False, checks=dict(resumed_from_drive=False))
+    rec = check(final)
+    assert only(rec, "lines") and "says ok: False (failed: resumed_from_drive)" in " ".join(rec["problems"]["lines"])
+    record(ref="e" * 40)
+    assert only(check(final), "lines")
+    record()
+    doc_ = json.loads((mdir / "ACCEPTANCE.json").read_text())
+    (mdir / "ACCEPTANCE.json").write_text(json.dumps(dict(doc_, ok="yes")))
+    assert only(check(final), "lines")
+    assert only(check(final, acceptance=tmp_path / "none.json"), "lines")
+    record()
+    # the manifest must be the one at the commit
+    other = json.loads(manifest.read_text())
+    manifest.write_text(json.dumps(other))                                     # (the same values, other bytes)
+    assert only(check(final), "bundle_id")
+    with pytest.raises(nb.Refused, match="40 hex digits"):
+        nb.sheet_check(sheet, manifest, "main")
+
+
+def test_the_sheet_check_on_the_command_line(tmp_path):
+    """``python -m designlab.stage2.nb sheet-check``: on the template (this checkout's commit and bundle s2-b1's
+    manifest) it names the fields left and ends with exit code 1; a REPO_REF that is not 40 hex is refused."""
+    head = nb.repo_state()["commit"]
+    env = dict(os.environ, PYTHONPATH=".")
+    manifest = "stage2/tb/bundle/s2-b1/MANIFEST.json"
+    if head is None or not (STUDY / manifest).is_file():
+        pytest.skip("no git checkout or no manifest of s2-b1")
+
+    def run(*args):
+        return subprocess.run([sys.executable, "-m", "designlab.stage2.nb", "sheet-check", *args], cwd=STUDY, env=env,
+                              capture_output=True, text=True, timeout=120)
+
+    done = run("--sheet", str(TEMPLATE), "--manifest", manifest, "--ref", head, "--record", str(tmp_path / "c.json"))
+    assert done.returncode == nb.EXIT_FAILED, done.stdout + done.stderr
+    assert "S2 SHEET CHECK fields: the field <<C1>> is not filled" in done.stdout
+    assert done.stdout.strip().splitlines()[-1].startswith(f"S2 SHEET CHECK colab_steps.template.txt at {head[:12]}: "
+                                                           "FAILED: fields")
+    assert json.loads((tmp_path / "c.json").read_text())["schema"] == nb.SHEET_CHECK_SCHEMA
+    bad = run("--manifest", manifest, "--ref", "main")
+    assert bad.returncode == nb.EXIT_REFUSED and "40 hex digits" in bad.stdout
 
 
 def test_helpers_equal_the_modules_they_stand_in_for():
