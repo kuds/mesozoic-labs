@@ -1625,7 +1625,8 @@ def test_the_option_draws_nothing_from_the_envs_stream():
         assert {k: a[k] for k in keys} == {k: b[k] for k in keys}
         assert b["servo"] == f"train/{b['episode_seed']}" and on.servo_params == servo.training_draw(b["episode_seed"])
         assert b["factors"]["joint_damping"] == b["factors"]["joint_friction"] == 1.0
-    with pytest.raises(ValueError, match="episode seed"):
+    # the env's own early refusal (its message names SERVO_RULE; servo.draw's later one would not)
+    with pytest.raises(ValueError, match="SERVO_RULE"):
         on.reset(options=dict(task="walk", seeds=dict(start=1, noise=2)))
     _, info = on.reset(options=dict(task="walk", seeds=dict(start=1, noise=2), servo="F-"))  # a named setting runs
     assert info["servo"] == "F-" and info["episode_seed"] is None
@@ -1693,3 +1694,58 @@ def test_t14_a_mid_start_delay_queue_is_served_with_the_runs_gains(case):
     assert np.array_equal(p.kp, lay.kp_copy0) and np.array_equal(p.kv, lay.kv_copy0)
     e.close()
     assert np.array_equal(p.kp, lay.kp_copy0) and np.array_equal(p.kv, lay.kv_copy0)
+
+
+#: The rule texts as package S2 left them (sha256 of each string): S3 adds a sentence and edits none of them.
+S2_RULE_TEXTS = {
+    "SERVO_RULE": "b606daa369940611bcec83e9f1ff32f2a34869aaaa358c0238e413ada682ae9e",
+    "SERVO_RESET_ORDER": "d6d79627a40e5c932533304722576b39cbc02433778d4ef94a98711a5b668444",
+    "SERVO_DRAW_ORDER": "4aa52bddc1f4d66927067463a9b8a3a7a5b6f67e1573ee0b7f02f0e5d6df8b29",
+    "SERVO_FACTOR_RULE": "57a7bd15e4a34eb72a756c792584f6fb82fd3a32184ffb8ecb9df63b498d125c",
+    "RESET_ORDER": "1393ffd5e5ad2a5a426faae23218e8fd6ffd377bf1fafa08edea4a8a3fdb0859",
+    "DRAW_ORDER": "7594df9b1797aa7fbbd69b16bbb2937c53bad9fef9d3cd41f66cc4279d12bcad",
+    "FACTOR_RULE": "52d20323826af08c99dac85a6030e6bf308ec9b941bae41050c3723695b9e475",
+    "MID_START_RULE": "ba2475794cec1356395ad79d65070d3939d8bfc3deb9272b4dff1c49ec34aa38",
+}
+
+
+def test_the_mid_start_forward_pass_has_its_own_sentence_and_no_old_text_moved():
+    """The lead's fourth list, the builder's (c): a new rule text says how the mid-start forward pass reads with the
+    option on; no existing string is edited (each as S2 left it), and the env prints the sentence beside SERVO_RULE
+    only when the option is on."""
+    for name, sha in S2_RULE_TEXTS.items():
+        assert hashlib.sha256(getattr(r5env, name).encode()).hexdigest() == sha, name
+    rule = r5env.SERVO_MID_START_RULE
+    assert "today's model's" in r5env.SERVO_RULE and "\"today's model's\" are read as the model arrays only" in rule
+    for words in ("once per episode", "forward pass runs on today's model arrays", "oldest queued command",
+                  "folded with the run's gain copies", "no command is served in that pass", "first physics step"):
+        assert words in rule, words
+
+
+@needs_run
+def test_the_sentence_is_printed_with_the_option_and_names_the_copies_it_moves():
+    """The env's description holds the sentence only with the option on; the settings it names are those whose
+    gain copies the layer moves (printed from ``servo.Layer`` on the env's plant)."""
+    on = r5env.R5Env(nominal(servo="N"))
+    assert on.describe()["servo"]["mid_start_rule"] == r5env.SERVO_MID_START_RULE
+    off = r5env.R5Env(nominal())
+    assert "servo" not in off.describe() and r5env.SERVO_MID_START_RULE not in json.dumps(off.describe())
+    p = on.p
+    moved = {}
+    for name in servo.NAMED[:-1] + ("D/3042", "train/7"):
+        prm = servo.training_draw(7) if name == "train/7" else servo.setting_params(name)
+        with servo.trunk_mass(p, prm.mass):
+            lay = servo.Layer(p, prm)
+        moved[name] = ({servo.ACTUATORS[i] for i in np.flatnonzero(lay.kp_copy != lay.kp_copy0)},
+                       {servo.ACTUATORS[i] for i in np.flatnonzero(lay.kv_copy != lay.kv_copy0)})
+    every, legs = set(servo.ACTUATORS), set(servo.LEG_DRIVES)
+    assert moved["today"] == (set(), set())
+    for name, (kp, kv) in moved.items():
+        if name in ("J+", "W1", "train/7"):
+            assert kp == set() and kv == every, name
+        elif name == "G5":
+            assert kp and kp <= legs and kv - {"tail_yaw_servo"} <= legs and "tail_yaw_servo" in kv, name
+        elif name != "today":
+            assert (kp, kv) == (set(), {"tail_yaw_servo"}), name
+    on.close()
+    off.close()

@@ -187,6 +187,17 @@ SERVO_FACTOR_RULE = (
     "(M-, M+, W1, W2) is the episode's mass factor; servo stiffness x kp, the floor's friction, the delay and the "
     "IMU noise stay, and the layer's gains (the gain cap, kv by the plant's rule under the run's inertia, the box "
     "servos' kp and kv scales) act on the plant as they leave it; the feedforward keeps today's friction (A18)")
+#: The mid-task start's forward pass with the servo option on, in a sentence (the lead's fourth list of 17 Nov 2026,
+#: on the builder's (c) of package S2; added in package S3 beside ``SERVO_RULE`` and ``SERVO_RESET_ORDER``, which are
+#: not edited).
+SERVO_MID_START_RULE = (
+    "with the servo option on, once per episode at a mid-task start the first reading's forward pass runs on today's "
+    "model arrays with the servos set to the oldest queued command (without a delay, the zero action's command of the "
+    "physics step before the start), which was folded with the run's gain copies (the plant's kp and kv where the "
+    "run's inertia or the gain cap moves them: the tail's kv in every setting but today, every drive's kv under J+, "
+    "W1 and every training draw, the leg drives' kp and kv under G5); no command is served in that pass, and the "
+    "run's model gains, damping, friction-loss, inertia and force ranges act from the first physics step.  "
+    "SERVO_RULE's words \"today's model's\" are read as the model arrays only")
 
 
 @dataclass(frozen=True)
@@ -782,7 +793,8 @@ class R5Env(gym.Env):
         files = lib["inputs"]["files"]
         extra = {} if not on else dict(servo=dict(
             option=self.cfg.servo, body=servo.BODY, table_sha256=servo.TABLE_SHA256, rule=SERVO_RULE,
-            draw_rule=servo.DRAW_RULE, layer_rule=servo.LAYER_RULE, hooks_rule=servo.HOOKS_RULE,
+            mid_start_rule=SERVO_MID_START_RULE, draw_rule=servo.DRAW_RULE, layer_rule=servo.LAYER_RULE,
+            hooks_rule=servo.HOOKS_RULE,
             kind_counts=servo.kind_counts(), named=list(servo.NAMED),
             simulation_only="a prospective design built in code: no value of the servo model is measured on this "
                             "build's hardware, and nothing the env runs with it is a result"))
