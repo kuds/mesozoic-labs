@@ -752,3 +752,14 @@ and the chain's `--resume` on V10); the servo model's S1 low points and S2 (the 
 - **Parked:** 60 cm (P43); servo S4; the -X preconditions (V0); add-on items B and C; R2L fits (V10).
 - **Meter:** 79 % at $3,401 (owner, 17:14 UTC); 1 % is about $25; $3,505 at 21:33 UTC is about 83.1 %; 85 % is
   about $3,551.
+
+## Update, 17 Nov 2026, ~22:50 UTC (handover)
+
+- C1 (first) = b7527a66; data branch `claude/mesozoic-trex-stage2-bundle-s2-b1` (ecf95a81) holds the parts of s2-b1
+  (content 9227d8a0bf0b…).
+- The acceptance run on b7527a66 passed 35 of 36 checks and failed `resumed_from_drive` on a fault in its own kill
+  condition. The sheet was filled correctly but the tests are written for the template. Both are ruled in 45: fix
+  in the notebook package (wt/wpc-cn), merge, new C1 = the tip, then the acceptance run again and C2.
+- The filled sheet is in the worktree /home/user/mesozoic-wt/c2 (branch wt/c2, uncommitted) and the acceptance
+  record in /home/user/mesozoic-wt/tb-accept-bundle/stage2/tb/bundle/s2-b1/ACCEPTANCE.json (ok false).
+- Meter: $3,517 at 22:26 UTC, about 83.6 %; 85 % is about $3,551.

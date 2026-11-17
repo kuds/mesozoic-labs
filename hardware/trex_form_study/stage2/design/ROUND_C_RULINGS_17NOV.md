@@ -439,3 +439,23 @@ The launch commit C1 is b914088b. Its parts are on the data branch `claude/mesoz
       later changes the -X records, the probe is run again then.
     - D24's committed rules are named in the steps sheet by path and by sha256 at C1:
       `STAGE2_TRACKB_PLAN.md`, `stage2/design/ROUND_C_DESIGN.md` and this file.
+
+## The acceptance run and the sheet (`checkpoint/reviews/roundC__{do,check}_{accept,sheet}_17nov.md`), ruled 17 Nov 2026, ~22:50 UTC
+
+The acceptance run on C1 (b7527a66) passed 35 of its 36 checks: line 1, the bundle's 19 of 19 files, G8a, the tiny R5
+and R6 jobs, the monitor, the remedies and the refusals. The one that failed, `resumed_from_drive`, failed on a fault in
+`nb acceptance`'s own kill condition, not in the pipeline. The kill fires at the first `.part` file, which in a tiny
+run is always the first checkpoint's copy. Session 1 then resumes from 0, and the check wants a resume from a
+checkpoint. The sheet was filled correctly, apart from one sentence in section 8, but `tests/test_stage2_nb.py`
+tests the draft sheet's placeholders, so a filled sheet cannot pass it, and C2 was not committed.
+
+45. **The fixes, then C1 again.** Code errors, rules unchanged.
+    - (1) `nb acceptance`'s kill fires only once a checkpoint above 0 is whole on the stand-in Drive and a `.part`
+      exists, as `local_run`'s and the remedies' kills already do. A test covers it.
+    - (2) The sheet's tests read a template, `colab_steps.template.txt`, which keeps the placeholders. A filled
+      sheet is checked separately: every placeholder filled, and every value equal to the records.
+    - (3) Section 8's sentence is corrected.
+    - After (1) and (2) are merged, the launch commit C1 is the new tip. The bundle's content is unchanged and its
+      parts stay on the data branch. The acceptance run is made again on it. Then C2 holds the filled sheet and
+      `ACCEPTANCE.json`.
+    - The acceptance run's tiny episodes on V6 are listed in `dev_episodes.json` (D23).
