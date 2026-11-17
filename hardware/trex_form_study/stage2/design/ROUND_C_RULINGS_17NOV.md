@@ -77,3 +77,23 @@ reverts caught). On the merged tree the rows', the look reading's and the monito
 skipped". Left for the next change to `lookbar.py`, with the check's three low points: a test of the path cut at the
 two other fault sites; `_no_paths` keeps no path's first part; a refusal's text in `look/summary.json` carries no
 absolute path.
+
+## Added 03:34 UTC, after the notebook (CN) and the trainer's third follow-up (CT3) were merged (`8348a3a8`, `ff04355a`)
+
+Both checks: merge as they stand. On the merged tree the notebook's, the trainer's, the monitor's, the rows' and the
+look reading's tests give "189 passed, 16 skipped". The acceptance run is not done.
+
+12. **The follow-up before the acceptance run** takes every minor point of the two checks
+    (`checkpoint/reviews/roundC__check_CN_17nov_2.md`, `roundC__check_CT3_2.md`) and the three low points of the
+    rows package's check, with these rulings:
+    - `LEAD.json`'s `retry_check` applies only to the session that resumes the halt whose remedy names it; a later
+      plain resume carries no `--retry-check`.
+    - The steps sheet never tells the owner to delete a runtime that the finish cell kept on purpose.
+    - Cell 8 releases the runtime only on finish's exit codes 0 and 5; on anything else it keeps it and says so.
+      Cell 8 tries `drive.mount(force_remount=True)` once when the mount itself has died, and says so.
+    - The acceptance run's step 6 exercises the real trainer's source check and asserts that
+      `--allow-source-change` reaches the trainer.
+    - **An allowance for moved sources holds for the rest of the run for the same sources**: the trainer records
+      which source hashes were allowed and passes the allowance on at every later session whose sources equal them;
+      a halt for moved sources names the parameter that resolves it.
+    - A checkpoint record without a `layout` or `fingerprint` object is a refusal of the monitor.
