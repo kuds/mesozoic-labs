@@ -831,19 +831,20 @@ def test_r6_row_against_the_r6_env(tmp_path):
 
 
 @needs_run
-def test_the_equivalence_check_gives_a_servo_draw_run_an_episode_seed(job, tmp_path):
-    """The lead's fourth list (the builder's (f) of S2): a run whose config has the servo option's draw is given the
-    panel seed as the env's episode seed, so the env draws ``servo.training_draw(seed)`` instead of refusing the
-    reset; the result names the set.  The row as the bar runs it is not served, so the two run different models.  A
-    run without the option is checked as before (no episode seed given, no ``servo`` key)."""
-    from designlab.stage2 import servo
-
+def test_the_equivalence_check_gives_an_unserved_rows_env_the_setting_today(job, tmp_path):
+    """The lead's fifth list (the builder's (a) of S3): until a served policy row exists (SV5), the row the bar runs
+    is not served, so a run whose config has the servo option on (here its draw, which with the panel seed as the
+    episode seed could never come out identical) gives the env ``options.servo="today"``, the T3 identity: like with
+    like, and the check comes out identical.  The result names the setting.  A run without the option is checked as
+    before (no ``servo`` key)."""
     draw = tmp_path / "R5-75-M-H-10-s42-draw"
     run = make_job(draw, BODY, servo="draw")
     assert {c["servo"] for c in run["settings"]["env_configs"]} == {"draw"}
     r = s2rows.equivalence_check(draw, 0, BODY, "S1", "walk/brisk", 3043, 0, seconds=0.1)
-    assert r["servo"] == dict(option="draw", episode_seed=3043, setting="train/3043")
-    assert servo.training_draw(3043).name == "train/3043"
-    assert r["reference_steps"] == 50 and not r["identical"] and r["first_difference"] is not None
+    assert {k: r["servo"][k] for k in ("option", "given", "setting")} == dict(option="draw", given="today",
+                                                                             setting="today")
+    assert "SV5" in r["servo"]["reason"] and "T3" in r["servo"]["reason"]
+    assert r["reference_steps"] == 50 and r["identical"] and r["ends_alike"] and r["first_difference"] is None
+    assert r["compared_steps"] == r["reference_steps"]
     plain_ = s2rows.equivalence_check(job, 0, BODY, "S1", "walk/brisk", 3043, 0, seconds=0.1)
     assert "servo" not in plain_ and plain_["identical"] and plain_["reference_steps"] == 50
