@@ -127,3 +127,15 @@ S3 goes to one fix round, with a re-check, before it is merged.
 - *The builder's (d).* The bar's form: a row that gives no verdict (SV0, SV2) is never sent to the second block. Its
   D record is reported.
 - *The builder's (f).* Accepted: N and the reported settings are read by no rule here.
+
+## Sixth list (17 Nov 2026, ~13:30 UTC), on S3's fix round (`S3_{fix,recheck}_17nov.md`)
+
+S3 is merged as it stands. For its next edit:
+- The summary's supply-window cell names the runs that left the window while on their feet ("4; 3 on their feet,
+  counted as left the supply window").
+- A run refused by its cap leaves no empty directory behind.
+- SV5, once built, is refused on scratch sets as SV2 is.
+- `stage2/tb/gate1_dev_runs.json` is a tracked record, like `dev_episodes.json`, and each entry gains a reason, as X1
+  asks there.
+- The builder's readings stand: the cap counts episodes to start; SV2 is refused on S1; every cut condition is
+  unjudged; "today" for every servo option in the equivalence check.
