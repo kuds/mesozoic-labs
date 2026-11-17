@@ -587,6 +587,12 @@ def equivalence_check(job_dir, steps, body: str, set_name: str, condition: str, 
     condition; ``root`` is where the set is read from.  Nothing is written.  ``r5env`` is imported here, through
     ``g8a``, and nowhere else in this module.  Which sets it may run on is the caller's to keep (rule X1).
 
+    A run whose config has the servo option on (``servo="draw"``, a named setting or ``"D/<s>"``) is checked like
+    with like (the lead's fifth list of 17 Nov 2026, the builder's (a) of S3): the row as the bar runs it is not
+    served (no served policy row exists until ``servo.SV5_HOOK`` is built), so the env is given
+    ``options.servo="today"``, the setting whose layer adds nothing of its own (the design's test T3), and the result
+    names it (``servo``).  Once SV5 exists the check compares against SV5 at the env's setting.
+
     On a look set (or a version of one) the whole check runs inside ``lookbar.look_set_placement`` (the lead's
     ruling 37 (b) of 17 Nov 2026): the row plays the set's turns and stop at join rule J1's leave point, as a bar
     record made inside ``lookbar``'s context does, and the env is given that plan.  Off the look sets the context
@@ -625,6 +631,12 @@ def _equivalence_check(job_dir, steps, body: str, set_name: str, condition: str,
     e = (r5env.R6Env if mode == "R6" else r5env.R5Env)(cfg, **({} if root is None else dict(root=root)))
     head = r5core.HeadScript.fixed(int(seed), float(b.seconds)) if inner.ck["head"] == "H1" else None
     seeds = panels.episode_seeds(cond, int(seed))
+    # a run trained with the servo option on: until a served policy row exists (servo.SV5_HOOK) the row the bar runs
+    # is not served, so its env is given options.servo="today" (the lead's fifth list of 17 Nov 2026, the builder's
+    # (a) of S3: the T3 identity, like with like), which draws nothing and needs no episode seed
+    servo_on = cfg.servo is not None
+    unserved = dict(servo="today") if servo_on else {}
+    servo_set = None
     digests: list = []
     e._step_hook = lambda p: digests.append(env._state_digest(p.d))
     term = cause = None
@@ -635,7 +647,11 @@ def _equivalence_check(job_dir, steps, body: str, set_name: str, condition: str,
             seeds=dict(start=seeds["start"], noise=seeds["noise"]),
             factors=dict(friction=cond.friction, mass=1.0, kp=1.0, joint_damping=1.0, joint_friction=1.0,
                          latency_steps=int(k), noise_scale=1.0),
-            push=b.push(int(seed)), head=head, terminate_on_interference=False))
+            push=b.push(int(seed)), head=head, terminate_on_interference=False, **unserved))
+        if servo_on:
+            servo_set = dict(option=cfg.servo, given=unserved["servo"], setting=e.servo_params.name,
+                             reason="the row the bar runs is not served until SV5 exists: its env runs the setting "
+                                    "today, the T3 identity (the lead's fifth list of 17 Nov 2026)")
         actor = int(e.layout["actor_dim"])
         while True:
             a, _ = ld["model"].predict(s2load.normalize(ld["stats"], obs[:actor]), deterministic=True)
@@ -658,7 +674,8 @@ def _equivalence_check(job_dir, steps, body: str, set_name: str, condition: str,
                 action_abs_max=a_max, clock_factor_min=min(factors) if factors else None,
                 clock_factor_max=max(factors) if factors else None, look=look.last,
                 checkpoint=dict(job=run.get("job"), steps=int(steps), run_uuid=run.get("run_uuid")),
-                fingerprint_max_abs_diff=float(ld["fingerprint_max_abs_diff"]), cross_version=bool(ld["cross_version"]))
+                fingerprint_max_abs_diff=float(ld["fingerprint_max_abs_diff"]), cross_version=bool(ld["cross_version"]),
+                **({} if servo_set is None else dict(servo=servo_set)))
 
 
 __all__ = ["CONTROLLERS", "R5Row", "R6Row", "RowError", "S2Policy", "SET_RULE", "SOURCE_RULE", "build", "configure",

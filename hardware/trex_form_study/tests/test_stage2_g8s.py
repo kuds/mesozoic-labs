@@ -71,7 +71,10 @@ def test_module_assigns_mujoco_gl_and_names_t13s_cases():
     assert g8s.cases() == [(s, 3042) for s in g8s.SETTINGS] + [("D", 3042), ("D", 3043), ("D", 3044)]
     assert g8s.params_of("D", 3043) == servo.panel_draw(3043) and g8s.params_of("M+", 1) is servo.setting("M+")
     doc = " ".join(g8s.__doc__.split())
-    assert "Simulation only" in doc and "S3's row ``servo.Served`` and its names are not built yet" in doc
+    assert "Simulation only" in doc and "package S3's ``servo.Served`` under its names" in doc
+    # G8s against S3's row (the lead's fourth list, the builder's (d)): S2's own judging side is gone
+    assert not hasattr(g8s, "ServedRow") and g8s.trunk_mass is servo.trunk_mass
+    assert "servo.Served" in g8s.ALIGN_RULE and "ServedRow" not in g8s.ALIGN_RULE
 
 
 # ------------------------------------------------------------------------------------------------
@@ -91,6 +94,7 @@ def test_t13_the_env_is_the_served_r0_row(case, k):
     want = servo.setting(setting, seed) if setting == "D" else servo.setting(setting)
     assert r["setting"] == want.name and r["trunk_mass"] == want.mass and r["table_sha256"] == servo.TABLE_SHA256
     assert (r["set"], r["row"], r["condition"], r["seed"], r["k"]) == ("S1", "R0", "walk/brisk", seed, k)
+    assert r["served_row"] == f"SV0/{setting}"  # (the served SV0 row, built by servo's registered factory)
     sr = r["servo_readings"]
     assert sr["row"] == sr["env"] and sr["row"]["physics_steps"] == 500  # (500 = a whole number of env steps)
     parts = g8s._STOCK[BODY]
@@ -115,13 +119,16 @@ def test_g8s_tells_another_model_apart():
     b = ctx.built(cond)
     seeds = panels.episode_seeds(cond, 3042)
     for mine, other in (("N", "P+"), ("N", "M+"), ("F-", "F+"), ("D/3042", "D/3043")):
-        ref = g8a.row_episode(g8s._Delayed(g8s.ServedRow(row, r5env.servo_params(mine)), 0), ctx, cond, 3042)
+        ref = g8a.row_episode(g8s._Delayed(servo.Served(row, r5env.servo_params(mine)), 0), ctx, cond, 3042)
         x = g8s.env_episode(e, b.plan, b.seconds, seeds, cond.friction, 0, b.push(3042), r5env.servo_params(other))
         c = g8a.compare(ref["digests"], ref["fell_step"], x["digests"], x["terminated_step"])
         assert not c["identical"] and c["first_difference"] is not None and c["first_difference"] < 10, (mine, other)
     with pytest.raises(ValueError, match="not the served row"):
-        g8s.episode(g8s._Delayed(g8s.ServedRow(row, servo.setting("N")), 0), ctx, cond, 3042, 0, e,
-                    servo.setting("F+"))
+        g8s.episode(g8s._Delayed(servo.Served(row, "N"), 0), ctx, cond, 3042, 0, e, servo.setting("F+"))
+    with pytest.raises(ValueError, match="not the served row"):  # (the drawn panel: the set of the run's own seed)
+        g8s.episode(g8s._Delayed(servo.Served(row, "D"), 0), ctx, cond, 3042, 0, e, servo.panel_draw(3043))
+    with pytest.raises(ValueError, match="not the served row"):
+        g8s.episode(g8s._Delayed(row, 0), ctx, cond, 3042, 0, e, servo.setting("N"))
     with pytest.raises(servo.ServoError, match="trunk"):
         with servo.served(b.p, servo.setting("M+")):
             pass
@@ -139,7 +146,7 @@ def test_t3_today_adds_nothing_on_either_side(k):
     cond = next(c for c in ctx._built if c.key == "walk/brisk" and c.seconds == 1.0)
     b = ctx.built(cond)
     plain = g8a.row_episode(g8s._Delayed(row, k), ctx, cond, 3042)
-    served = g8a.row_episode(g8s._Delayed(g8s.ServedRow(row, servo.setting("today")), k), ctx, cond, 3042)
+    served = g8a.row_episode(g8s._Delayed(servo.Served(row, "today"), k), ctx, cond, 3042)
     assert served["digests"] == plain["digests"] and len(plain["digests"]) == 500
     off = r5env.R5Env(r5env.R5Config(body=BODY, set=r5lib.STOCK_SET, floor="hard", tasks=("stand",), randomize=False,
                                      push_prob=0.0, head_events=False, mid_start=0.0))
@@ -153,7 +160,7 @@ def test_t3_today_adds_nothing_on_either_side(k):
 
 @needs_run
 def test_the_served_row_gives_the_plant_back_and_trunk_mass_undoes_itself():
-    """``ServedRow``: the trunk mass of a setting is applied before the inner episode and undone after (the model
+    """``servo.Served``: the trunk mass of a setting is applied before the inner episode and undone after (the model
     bit for bit as before), the layer's own undo inside it; a factor of 1 touches nothing."""
     g8s.stock("N", "walk/brisk", 3042, 0, 0.2)
     parts = g8s._STOCK[BODY]
@@ -172,11 +179,11 @@ def test_the_served_row_gives_the_plant_back_and_trunk_mass_undoes_itself():
             seen["step"] = "step" in p.__dict__
             return row.episode(ctx_, c, s, relax)
 
-    sr = g8s.ServedRow(Probe, servo.setting("M-"))
+    sr = servo.Served(Probe, "M-")
     g8a.row_episode(g8s._Delayed(sr, 2), ctx, cond, 3042)
     assert seen == dict(mass=0.9 * float(saved.body_mass[p.trunk]), step=True)
     assert env.model_differences(p.m, saved) == [] and "step" not in p.__dict__
-    assert sr.readings["physics_steps"] == 100 and sr.name == "probe/servo:M-"
+    assert sr.readings["physics_steps"] == 100 and sr.params is servo.setting("M-")
     with g8s.trunk_mass(p, 1.0):
         assert env.model_differences(p.m, saved) == []
 
@@ -195,8 +202,8 @@ def test_the_served_row_gives_the_plant_back_and_trunk_mass_undoes_itself():
 # ------------------------------------------------------------------------------------------------
 @needs_run
 def test_bar_form_on_a_synthetic_set(tmp_path):
-    """The env against ``bar.Delayed(ServedRow(the bar's own R0 row))`` on a frozen set, for a named setting and the
-    drawn panel of the run's seed."""
+    """The env against the bar's served rows ``SV0/<setting>@<ms>ms`` (``bar.Delayed`` around ``servo.Served``) on a
+    frozen set, for a named setting and the drawn panel of the run's seed."""
     bar = pytest.importorskip("designlab.stage2.bar")
     from tests import test_stage2_g8a as G
 
@@ -205,8 +212,7 @@ def test_bar_form_on_a_synthetic_set(tmp_path):
                        cut_s=1.013, root=tmp_path)
     assert (doc["identical"], doc["of"], doc["passes"]) == (4, 4, True)
     assert [(e["setting"], e["k"], e["row"]) for e in doc["episodes"]] == [
-        ("M+", 0, "R0@0ms/servo:M+"), ("M+", 3, "R0@6ms/servo:M+"), ("D/3042", 0, "R0@0ms/servo:D/3042"),
-        ("D/3042", 3, "R0@6ms/servo:D/3042")]
+        ("M+", 0, "SV0/M+@0ms"), ("M+", 3, "SV0/M+@6ms"), ("D/3042", 0, "SV0/D@0ms"), ("D/3042", 3, "SV0/D@6ms")]
     for e in doc["episodes"]:
         assert e["identical"] and e["compared_steps"] == e["reference_steps"] == 506 and e["env_steps"] == 51
     assert [n["condition"] for n in doc["not_run"]] == ["turn/t90_0.35_left"]

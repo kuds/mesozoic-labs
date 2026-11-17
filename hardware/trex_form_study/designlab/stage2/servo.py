@@ -20,10 +20,19 @@ What it holds
   manager that restores the plant exactly on exit (``HOOKS_RULE``).  The model file on disk, the screened model,
   the references and every record are untouched: the layer changes arrays of the plant's model in memory.
 
-Not here (other packages of section 6): the env option and ``g8s.py`` (S2), the served row and gate 1's runner (S3),
-any measurement with the layer (S4).  The trunk mass of ``M-``, ``M+``, ``W1`` and ``W2`` is not the layer's: the
-setting carries the factor (``ServoParams.mass``) for the caller, who applies it before the reset on both sides
-(design 5.1; ``env.set_trunk_mass``).
+Not here (other packages of section 6): the env option and ``g8s.py`` (S2), any measurement with the layer (S4).  The
+trunk mass of ``M-``, ``M+``, ``W1`` and ``W2`` is not the layer's: the setting carries the factor
+(``ServoParams.mass``) for the caller, who applies it before the reset on both sides (design 5.1;
+``env.set_trunk_mass``).
+
+The served rows (package S3, at the end of this module): ``Served(inner, setting)``, a panels row in the form of
+``bar.Delayed``, runs the inner row's episode inside the layer at the setting (``SERVED_RULE``), registered through
+``panels.register_rows`` under the lead's names (``NAME_RULE``): ``SV0/<setting>`` (the served R0 stand-in) and
+``SV2/<seed>/<setting>`` (the served R2 stand-in); ``SV5/<policy>/<setting>`` waits for ``s2rows`` to serve a policy
+row (``SV5_HOOK``: nothing here runs it).  A served stand-in row gives no verdict and no served row is attributed
+(``NO_VERDICT_CONTROLLERS``, ``ATTRIBUTED_CONTROLLERS``).  ``record_readings`` reads the layer's per-run readings
+into a record's (``READINGS_RULE``: reported only).  Gate 1's runner of the served panels is
+``designlab/stage2/gate1.py`` (the route the lead ruled on 16 Nov 2026: a runner outside ``bar.py``).
 """
 
 from __future__ import annotations
@@ -31,6 +40,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import types
 from contextlib import contextmanager
 from dataclasses import dataclass, fields, replace
 
@@ -38,7 +48,8 @@ import mujoco
 import numpy as np
 
 from .. import carpet, catalog, power
-from ..stage1 import drive
+from ..stage1 import drive, panels
+from ..stage1 import env as env_mod
 from ..stage1 import plant as plant_mod
 
 # ------------------------------------------------------------------------------------------------
@@ -1332,3 +1343,243 @@ def describe_lines(params: ServoParams) -> list[str]:
                     f"range {rng}, {r['distribution']}) | {r['kind']}{tag}: {r['source']} | replaced by: "
                     f"{r['replaced_by']}")
     return head + rows
+
+
+# ------------------------------------------------------------------------------------------------
+# The served rows (package S3): the wrapper row, its names and factories, and the reported readings
+# ------------------------------------------------------------------------------------------------
+#: The served rows' controllers, as the lead's fourth list (17 Nov 2026) settles them (design 5.1; section 8, choice
+#: 18): the served R0 stand-in, the served R2 stand-in, and the served policy row (not built here: ``SV5_HOOK``).
+SERVED_R0, SERVED_R2, SERVED_POLICY = "SV0", "SV2", "SV5"
+SERVED_CONTROLLERS = (SERVED_R0, SERVED_R2)
+#: A served stand-in row gives no verdict, and no served row is attributed (design 5.1): the relax labels cannot lift
+#: play, friction or sag.  The bar's branches key on ``R0`` and ``R2`` alone (``bar.NO_VERDICT_CONTROLLERS``,
+#: ``bar.ATTRIBUTED_CONTROLLERS``), so every reader of a served row's records carries these lists.
+NO_VERDICT_CONTROLLERS = (SERVED_R0, SERVED_R2)
+ATTRIBUTED_CONTROLLERS = ()
+NAME_RULE = (
+    "the served rows' names (the lead's fourth list of 17 Nov 2026; design section 8, choice 18): SV0/<setting> is "
+    "the panels' R0 row served at the setting, SV2/<seed>/<setting> the panels' R2/<seed> row served at it, and "
+    "SV5/<policy>/<setting> a served policy row once s2rows serves one (not registered: SV5_HOOK).  <setting> is a "
+    "name of NAMED (D: the drawn panel, its set drawn per run from the run's bar seed, panel_draw) or D/<s> (the "
+    "drawn panel's set of bar seed s for every run).  The bar's delay is outside: bar.rows names them "
+    "<name>@<ms>ms (bar.Delayed around the served row), so the layer is entered after the delay")
+SERVED_RULE = (
+    "a served row (design 5.1, package S3; the form of bar.Delayed): the inner row's episode on the condition's "
+    "plant with the setting's trunk mass factor applied before it and undone after (env.set_trunk_mass, from the "
+    "masses at entry; M-, M+, W1, W2) and inside servo.served(plant, the run's parameters), the one context manager "
+    "the env's servo option uses (r5env.SERVO_RULE); the drawn panel's parameters are panel_draw(the run's bar seed), "
+    "a named setting's are fixed.  Its description names the setting and the table's sha256, its sources add "
+    "servo.py to the inner row's.  A served stand-in row (SV0, SV2) gives no verdict; no served row is attributed, "
+    "and a served row refuses lifted limits (relax).  After each run it holds the layer's readings of that run "
+    "(Layer.readings: reported only)")
+SV5_HOOK = (
+    "the served policy row SV5/<policy>/<setting> waits for s2rows to serve one (the lead's fourth list; design "
+    "package S8 for the mass corners: a policy row needs a nominal-model estimator before M- and M+ can be judged on "
+    "it).  The hook: served_policy_factory(policy_row) gives the factory of Served(policy_row(body, run_dir, "
+    "<policy>), <setting>), and panels.register_rows('SV5', that factory) registers it; neither call is made here, "
+    "so no SV5 row is built or run by this package")
+READINGS_RULE = (
+    "the reported readings of the servo model (design 2b, 2c, section 4; the lead's ruling of 16 Nov 2026, choice "
+    "10): per run, the layer's own counts (Layer.readings: the physics steps, the bus's lowest and mean voltage, the "
+    "steps below the leg drives' 20 V supply floor and the collapsed steps, whether the run left the supply window, "
+    "each leg drive's share of steps inside its play); per record, the runs that left the supply window and those "
+    "with a collapsed step, the steps below the floor summed, the lowest bus voltage of any run, and each leg drive's "
+    "share of steps inside its play as the mean and the largest over the runs, with the mean over the 12 leg "
+    "drives.  Reported only: a judged run is not failed on any of them, and a run without readings (it failed to "
+    "run) is counted apart")
+
+
+def trunk_mass_factor(p: plant_mod.Plant) -> float:
+    """The plant's trunk mass as a factor of its built mass (the plant's built mass less every other body's)."""
+    bm = p.m.body_mass
+    trunk0 = float(p.meta["mass_kg"]) - (float(bm.sum()) - float(bm[p.trunk]))
+    return float(bm[p.trunk]) / trunk0
+
+
+@contextmanager
+def trunk_mass(p: plant_mod.Plant, factor: float):
+    """The trunk mass and inertia of ``p`` x ``factor`` for the block (``env.set_trunk_mass``, from the masses as they
+    are at entry), undone when it ends whatever happens in it; nothing for a factor of 1."""
+    factor = float(factor)
+    if factor == 1.0:
+        yield
+        return
+    m = p.m
+    nominal_ = types.SimpleNamespace(body_mass=m.body_mass.copy(), body_inertia=m.body_inertia.copy())
+    scratch = mujoco.MjData(m)
+    env_mod.set_trunk_mass(m, p.trunk, factor, nominal_, scratch)
+    try:
+        yield
+    finally:
+        env_mod.set_trunk_mass(m, p.trunk, 1.0, nominal_, scratch)
+
+
+def setting_params(spec, seed: int | None = None) -> ServoParams:
+    """The parameters of a served row's setting ``spec`` for the run with bar seed ``seed``: a ``ServoParams`` as
+    given; ``D`` the drawn panel's set of that seed (``panel_draw``); ``D/<s>`` the set of bar seed s; any other name
+    a named setting of ``NAMED``."""
+    if isinstance(spec, ServoParams):
+        return spec
+    if not isinstance(spec, str) or not spec:
+        raise ValueError(f"servo setting {spec!r}: a name of {', '.join(NAMED)}, D/<bar seed> or a ServoParams")
+    if spec.startswith("D/"):
+        s = spec[2:]
+        if not s.isdigit():
+            raise ValueError(f"servo setting {spec!r}: D/<bar seed>, a whole number")
+        return panel_draw(int(s))
+    return setting(spec, seed) if spec == "D" else _named_setting(spec)
+
+
+def _named_setting(name: str) -> ServoParams:
+    if name not in _SETTINGS:
+        raise ValueError(f"servo setting {name!r}: choose from {', '.join(NAMED)} or D/<bar seed>")
+    return _SETTINGS[name]
+
+
+def parse_name(name: str) -> tuple[str, str, str]:
+    """(controller, inner row, setting) of a served row's name (``NAME_RULE``): ``SV0/F+`` -> ("SV0", "R0", "F+"),
+    ``SV2/42/D`` -> ("SV2", "R2/42", "D"), ``SV5/R5/42/N`` -> ("SV5", "R5/42", "N"); ``ValueError`` otherwise."""
+    parts = name.split("/") if isinstance(name, str) else []
+    if len(parts) < 2:
+        parts = []
+    # the setting: the last part, or the last two for D/<s>
+    cut = 2 if len(parts) >= 3 and parts[-2] == "D" and parts[-1].isdigit() else 1
+    ctrl, middle, setting_ = (parts[0], parts[1:-cut], "/".join(parts[-cut:])) if parts else (None, [], "")
+    if ctrl == SERVED_R0 and not middle:
+        inner = "R0"
+    elif ctrl == SERVED_R2 and len(middle) == 1 and middle[0].isdigit():
+        inner = f"R2/{middle[0]}"
+    elif ctrl == SERVED_POLICY and middle and all(middle):
+        inner = "/".join(middle)
+    else:
+        raise ValueError(f"served row {name!r}: SV0/<setting>, SV2/<seed>/<setting> or SV5/<policy>/<setting> "
+                         f"({NAME_RULE})")
+    setting_params(setting_, 0 if setting_ == "D" else None)  # (a known setting, or ValueError)
+    return ctrl, inner, setting_
+
+
+def served_name(inner_name: str, setting_: str) -> str:
+    """The name ``NAME_RULE`` gives the inner row ``inner_name`` served at ``setting_``."""
+    if inner_name == "R0":
+        return f"{SERVED_R0}/{setting_}"
+    if inner_name.startswith("R2/") and inner_name[3:].isdigit():
+        return f"{SERVED_R2}/{inner_name[3:]}/{setting_}"
+    return f"{SERVED_POLICY}/{inner_name}/{setting_}"
+
+
+class Served(panels.Row):
+    """The inner row ``inner`` (a ``panels.Row``) served at ``setting`` (``SERVED_RULE``): a name of ``NAMED``, ``D``
+    (the drawn panel: each run's set from its bar seed), ``D/<s>`` or a ``ServoParams`` (a row for a gate or a test;
+    its description then holds every parameter).  ``params`` and ``readings`` are the last run's parameters and the
+    layer's readings of it (None until a run has ended inside the layer)."""
+
+    def __init__(self, inner: panels.Row, setting, name: str | None = None):
+        self.inner = inner
+        if isinstance(setting, ServoParams):
+            self.setting, self._fixed, self._given = setting.name, setting, True
+        else:
+            self._fixed = None if setting == "D" else setting_params(setting)
+            self.setting, self._given = str(setting), False
+        self.name = name or served_name(inner.name, self.setting)
+        self.hard_only = bool(getattr(inner, "hard_only", False))
+        self.params = self.readings = None
+
+    @property
+    def controller(self) -> str:
+        return panels.controller_of(self.name)
+
+    @property
+    def gives_verdict(self) -> bool:
+        return self.controller not in NO_VERDICT_CONTROLLERS
+
+    def params_for(self, seed: int) -> ServoParams:
+        """The parameters of the run with bar seed ``seed``."""
+        return panel_draw(int(seed)) if self._fixed is None else self._fixed
+
+    def runs(self, cond) -> bool:
+        return self.inner.runs(cond)
+
+    def gated(self, cond) -> bool:
+        """No verdict for a served stand-in row; otherwise the inner row's gating."""
+        return self.gives_verdict and bool(self.inner.gated(cond))
+
+    def describe(self) -> dict:
+        drawn = self._fixed is None
+        return dict(self.inner.describe(), served_row=self.name, servo=dict(
+            setting=self.setting, body=BODY, table_sha256=TABLE_SHA256, rule=SERVED_RULE, name_rule=NAME_RULE,
+            params=("panel_draw(the run's bar seed): SeedSequence([bar seed, 3]) in DRAW_RULE's order, armature and "
+                    "bus_r at nominal" if drawn else self._fixed.as_dict()),
+            given_params=self._given, verdict=self.gives_verdict, attributed=False,
+            simulation_only="a prospective design built in code: no value of the servo model is measured on this "
+                            "build's hardware"))
+
+    def sources(self) -> dict:
+        """The inner row's sources with this module (the layer, its table and this row) by sha256."""
+        return {**self.inner.sources(), **panels.module_sha256(Served)}
+
+    def spec(self) -> dict:
+        return dict(cls=f"{type(self).__module__}.{type(self).__qualname__}", name=self.name,
+                    setting=None if self._given else self.setting, params=self._fixed if self._given else None,
+                    inner=self.inner.spec())
+
+    @classmethod
+    def from_spec(cls, s: dict) -> "Served":
+        return cls(panels.row_from_spec(s["inner"]), s["params"] if s.get("params") is not None else s["setting"],
+                   s["name"])
+
+    def episode(self, ctx, cond, seed: int, relax=()):
+        if tuple(relax):
+            raise ValueError(f"{self.name}: no served row is attributed, and its limits are not lifted (SERVED_RULE)")
+        p = ctx.built(cond).p
+        params = self.params_for(seed)
+        self.params, self.readings = params, None
+        with trunk_mass(p, params.mass), served(p, params) as lay:
+            out = self.inner.episode(ctx, cond, seed, relax)
+            self.readings = lay.readings()
+        return out
+
+
+def _factory(body: str, run_dir, name: str) -> Served:
+    """``panels.register_rows``' factory of ``SV0`` and ``SV2`` (``NAME_RULE``): the panels' own inner row, served."""
+    ctrl, inner, setting_ = parse_name(name)
+    if ctrl not in SERVED_CONTROLLERS:
+        raise ValueError(f"served row {name!r}: {SV5_HOOK}")
+    return Served(panels.tracker_rows(body, run_dir, (inner,))[inner], setting_, name)
+
+
+def served_policy_factory(policy_row):
+    """``SV5_HOOK``: the factory of the served policy rows, given ``policy_row(body, run_dir, policy name)`` -> the
+    bare policy row.  Not called here: no served policy row exists until ``s2rows`` serves one."""
+    def factory(body: str, run_dir, name: str) -> Served:
+        ctrl, inner, setting_ = parse_name(name)
+        if ctrl != SERVED_POLICY:
+            raise ValueError(f"served policy row {name!r}: {SERVED_POLICY}/<policy>/<setting>")
+        return Served(policy_row(body, run_dir, inner), setting_, name)
+
+    return factory
+
+
+for _c in SERVED_CONTROLLERS:
+    panels.register_rows(_c, _factory)
+
+
+def record_readings(runs: list) -> dict:
+    """``READINGS_RULE``'s record readings of the runs' layer readings (``Layer.readings``; None for a run that failed
+    to run)."""
+    read = [r for r in runs if r is not None]
+    shares: dict = {}
+    for r in read:
+        for a, v in (r.get("inside_play_share") or {}).items():
+            shares.setdefault(a, []).append(float(v))
+    per = {a: dict(mean=float(np.mean(v)), max=float(np.max(v))) for a, v in shares.items()}
+    vmins = [r["bus_v_min"] for r in read if r.get("bus_v_min") is not None]
+    return dict(rule=READINGS_RULE, reported_only=True, runs=len(runs), runs_read=len(read),
+                runs_without_readings=len(runs) - len(read),
+                runs_left_supply_window=int(sum(bool(r["left_supply_window"]) for r in read)),
+                runs_with_collapse=int(sum(int(r["collapsed_steps"]) > 0 for r in read)),
+                steps_below_supply_floor=int(sum(int(r["steps_below_supply_floor"]) for r in read)),
+                supply_floor_v=read[0]["supply_floor_v"] if read else None,
+                bus_v_min=min(vmins) if vmins else None,
+                inside_play_share=per,
+                inside_play_share_leg_mean=float(np.mean([x["mean"] for x in per.values()])) if per else None)
