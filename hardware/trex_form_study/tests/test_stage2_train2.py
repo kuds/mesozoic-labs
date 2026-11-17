@@ -2070,7 +2070,7 @@ def test_sources():
     s = train2.sources()
     assert sorted(s["files"]) == sorted(train2.SOURCE_FILES) and len(s["sha256"]) == 64
     for m in ("tbenv", "schedules", "s2load", "r5lib", "r5core", "r5env", "g8a", "vecpool", "train2", "monitor2",
-              "clip2", "bar", "readings", "setio", "s2io", "motion"):
+              "clip2", "bar", "readings", "setio", "s2io", "motion", "servo", "g8s"):
         assert len(s["files"][f"designlab/stage2/{m}.py"]) == 64, m
     for m in ("direction_commands", "command_frame", "policy_loading", "curriculum/checkpoints"):
         assert len(s["files"][f"../../environments/shared/{m}.py"]) == 64, m

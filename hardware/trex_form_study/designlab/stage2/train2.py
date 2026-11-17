@@ -149,11 +149,12 @@ WORKER_CMD = ("-m", "designlab.stage2.train2", "worker")
 #: The files whose hash a session records and gives to its children (design 3.6 "Sources"): every Track B module
 #: of the design's section 2.1, the round-A and Stage 2 modules the bar and the look reading execute, and the four
 #: repository files the reward and the loader execute.  Relative to the study directory; a file that is not there
-#: yet (a later work package's) is recorded as absent.
+#: yet (a later work package's) is recorded as absent.  ``servo`` (the env's servo option imports it) and ``g8s`` (its
+#: gate) are the servo model's (the lead's third list of 17 Nov 2026, point 8).
 SOURCE_FILES = tuple(f"designlab/stage2/{m}.py" for m in (
     "tbenv", "schedules", "s2load", "r5lib", "r5core", "r5env", "g8a", "lookread", "lookbar", "s2rows", "vecpool",
     "train2", "monitor2", "clip2", "gates2", "r2lfit", "bundle", "nb", "bar", "readings", "setio", "s2io",
-    "motion")) + tuple(f"../../environments/shared/{m}.py" for m in (
+    "motion", "servo", "g8s")) + tuple(f"../../environments/shared/{m}.py" for m in (
         "direction_commands", "command_frame", "policy_loading", "curriculum/checkpoints"))
 
 BOUNDARY_RULE = (

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import hashlib
 import json
 import math
 import os
@@ -24,8 +25,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from designlab.stage1 import control, env, plant, tune  # noqa: E402
-from designlab.stage2 import r5core, r5env, r5lib, s2io, setio  # noqa: E402
+from designlab.stage1 import control, drive, env, plant, tune  # noqa: E402
+from designlab.stage2 import r5core, r5env, r5lib, s2io, servo, setio  # noqa: E402
 
 BODY, BODY_X = "75-M-H-10", "75-M-H-10-X"
 RATE = 1.05
@@ -1451,3 +1452,244 @@ def test_r6_mid_start_history():
     e.reset(options=dict(task="brisk", start="stance"))
     assert not e.core.hist.any() and not e.core.a_f.any()
     e.close()
+
+
+# ------------------------------------------------------------------------------------------------
+# The servo option (R5Config.servo; SERVO_MODEL_DESIGN.md 5.1, 5.5; package S2).  Simulation only: the servo
+# model's values are a model, none is measured.
+# ------------------------------------------------------------------------------------------------
+#: R5Config's keys before the servo option (the working branch at 4a9d2aad): ``describe`` with the option off.
+TODAY_CONFIG_KEYS = (
+    "body", "set", "mode", "floor", "rate", "max_seconds", "tasks", "task_weights", "mid_start", "randomize", "friction",
+    "mass", "kp", "latency_steps", "noise_scale", "joint_damping", "joint_friction", "push_prob", "push_walking",
+    "push_standing", "push_s", "head_events", "gaze_prob", "jaw_prob", "start_joint_noise",
+    "start_root_velocity_noise", "action_leg_rad", "action_other_rad", "action_rate", "filter_hz", "heading_input",
+    "reward", "interference", "set_freeze")
+#: Pinned with the env as it was before the servo option (``r5env.py`` at 4a9d2aad, loaded beside the new one in one
+#: process, every digest equal): the sha256 over every physics step's ``env._state_digest`` of two episodes on the
+#: S1 view, and of two configs' ``describe()``.  A later change elsewhere that moves these episodes moves the pins.
+TODAY_EPISODES = {
+    "quiet brisk mid k5": "371c9020556e5e5de852b7e475075bf2c0ccc707471dbefb8efbbd6c812bb3cd",
+    "default seed 7 first episode": "d208abed106acc2e9bad88a8f7438ded2a1a9fdd175aff652ce3dfde48660bb1",
+}
+TODAY_CONFIGS = {"quiet": "1c1df4df69d2557f1d979f6d5c7f8e668894ddba0b3b10e792c1b1b6aa6adfd5",
+                 "default": "71df9822ef86bece65ea87bb151b1392f886a14c49b5c30f242025c500b17a6d"}
+FIXED = dict(joint_damping=(1.0, 1.0), joint_friction=(1.0, 1.0))
+
+
+def _digest_sha(e, n_steps: int, sigma: float, act_seed: int, **reset) -> tuple[str, int]:
+    rows: list = []
+    e._step_hook = lambda p: rows.append(env._state_digest(p.d))
+    try:
+        e.reset(**reset)
+        rng = np.random.default_rng(act_seed)
+        for _ in range(n_steps):
+            _, _, term, trunc, _ = e.step((sigma * rng.standard_normal(e.layout["action_dim"])).astype(np.float32))
+            if term or trunc:
+                break
+    finally:
+        e._step_hook = None
+    h = hashlib.sha256()
+    for d in rows:
+        h.update(d)
+    return h.hexdigest(), len(rows)
+
+
+def _neutral(**kw) -> servo.ServoParams:
+    """``today`` with the named fields changed: the layer's gains alone (servo tests' form)."""
+    return dataclasses.replace(servo.setting("today"), name="test", **kw)
+
+
+@needs_run
+def test_the_option_off_is_todays_env_bit_for_bit():
+    """Default off: with the option absent every physics step's state of two episodes, and the config's description,
+    are today's (pinned on the env before the option); the plant keeps its own step and envelope throughout."""
+    assert r5env.R5Config(body=BODY).servo is None
+    quiet, full = nominal(), cfg_of()
+    for name, c in (("quiet", quiet), ("default", full)):
+        assert tuple(c.describe()) == TODAY_CONFIG_KEYS and "servo" not in c.describe()
+        assert s2io.sha256_json(c.describe()) == TODAY_CONFIGS[name]
+    e = r5env.R5Env(quiet)
+    got = _digest_sha(e, 30, 0.1, 1, options=dict(task="brisk", start=9.6, seeds=dict(start=5, noise=6),
+                                                  factors=dict(latency_steps=5)))
+    assert got == (TODAY_EPISODES["quiet brisk mid k5"], 300)
+    assert "step" not in e.p.__dict__ and type(e.p.envelope) is drive.Envelope and e.servo_layer is None
+    doc = e.describe()
+    assert "servo" not in doc and "servo" not in doc["config"]
+    assert (doc["factor_rule"], doc["reset_order"], doc["draw_order"]) == (r5env.FACTOR_RULE, r5env.RESET_ORDER,
+                                                                         r5env.DRAW_ORDER)
+    with pytest.raises(ValueError, match="option off"):
+        e.reset(options=dict(task="walk", servo="N"))
+    e.close()
+    e = r5env.R5Env(full)
+    assert _digest_sha(e, 25, 0.1, 10, seed=7) == (TODAY_EPISODES["default seed 7 first episode"], 250)
+    e.close()
+
+
+def test_t2_the_config_with_and_without_the_option():
+    """T2: ``describe`` drops ``servo`` when it is None (today's dictionary) and holds it last when set;
+    ``config_from`` gives back the same config either way, also across JSON."""
+    off = r5env.R5Config(body=BODY, set="S1")
+    assert tuple(off.describe()) == TODAY_CONFIG_KEYS
+    back = r5env.config_from(json.loads(json.dumps(off.describe())))
+    assert back == off and back.servo is None
+    for value in ("draw", "N", "M+", "D/3042"):
+        on = dataclasses.replace(off, servo=value, **FIXED)
+        doc = on.describe()
+        assert tuple(doc) == TODAY_CONFIG_KEYS + ("servo",) and doc["servo"] == value
+        assert r5env.config_from(json.loads(json.dumps(doc))) == on
+    # what a resume compares (rule K4): the config, which holds the option
+    assert r5env.RESUME_KEYS[0] == "config"
+
+
+def test_the_options_refusals_before_anything_is_built():
+    on = dict(set="S1", servo="draw", **FIXED)
+    with pytest.raises(ValueError, match="joint_damping"):
+        r5env.R5Env(r5env.R5Config(body=BODY, set="S1", servo="draw"))
+    with pytest.raises(ValueError, match=f"for {servo.BODY} only"):
+        r5env.R5Env(r5env.R5Config(body=BODY_X, **on))
+    with pytest.raises(ValueError, match="choose from"):
+        r5env.R5Env(r5env.R5Config(body=BODY, **dict(on, servo="nominal")))
+    with pytest.raises(ValueError, match="D/<seed>"):
+        r5env.R5Env(r5env.R5Config(body=BODY, **dict(on, servo="D")))
+    with pytest.raises(ValueError, match="whole number"):
+        r5env.R5Env(r5env.R5Config(body=BODY, **dict(on, servo="D/x")))
+    with pytest.raises(ValueError, match="None"):
+        r5env.R5Env(r5env.R5Config(body=BODY, **dict(on, servo="")))
+    # the parameters of a setting: one object for a name, the panel's set for D/<s>, the training draw by seed
+    assert r5env.servo_params("F+") is servo.setting("F+")
+    assert r5env.servo_params("D/3043") == servo.panel_draw(3043)
+    assert r5env.servo_params("draw", 77) == servo.training_draw(77)
+    with pytest.raises(ValueError, match="no seed"):
+        r5env.servo_params("draw", None)
+    p = servo.setting("P+")
+    assert r5env.servo_params(p) is p
+
+
+@needs_run
+def test_the_option_on_runs_the_layer_after_the_delay_and_leaves_it_first():
+    """SERVO_RULE: the layer is in from the reset (after the delay: both hooks on the plant), acts from the first
+    physics step, and is out at the next reset before anything else and at close; the env's description prints the
+    servo variants of its three rule texts with the table's sha256."""
+    e = r5env.R5Env(nominal(servo="N"))
+    p, nom = e.p, e.nominal_model
+    # an episode with factors of its own, then one without: the layer, which saved the first one's arrays at its
+    # entry, is out before the env restores the nominal arrays, so the second starts on the nominal model
+    e.reset(options=dict(task="walk", start="stance", servo="J+", factors=dict(latency_steps=3, kp=0.8, mass=1.1)))
+    e.step(np.zeros(15, np.float32))
+    _, info = e.reset(options=dict(task="walk", start="stance", servo="J+", factors=dict(latency_steps=3)))
+    assert info["servo"] == "J+" and e.servo_params is servo.setting("J+")
+    assert "command" in p.__dict__ and "step" in p.__dict__ and isinstance(p.envelope, servo.ServoEnvelope)
+    assert env.model_differences(p.m, nom) == []  # (nothing of the run before the first physics step)
+    lay = e.servo_layer
+    assert np.array_equal(p.kv, lay.kv_copy) and not np.array_equal(p.kv, lay.kv_copy0)  # the copies: at entry
+    e.step(np.zeros(15, np.float32))
+    assert "dof_armature" in env.model_differences(p.m, nom)
+    assert lay.readings()["physics_steps"] == 10
+    # the next reset leaves the layer first: today's model and copies before the next episode's layer acts
+    _, info = e.reset(options=dict(task="walk", start="stance"))
+    assert info["servo"] == "N" and e.servo_layer is not lay and env.model_differences(p.m, nom) == []
+    e.close()
+    assert "step" not in p.__dict__ and "command" not in p.__dict__ and type(p.envelope) is drive.Envelope
+    assert env.model_differences(p.m, nom) == [] and np.array_equal(p.kv, lay.kv_copy0)
+    assert e.servo_layer is None and e.servo_params is None
+    doc = e.describe()
+    assert doc["config"]["servo"] == "N" and doc["servo"]["table_sha256"] == servo.TABLE_SHA256
+    assert doc["servo"]["option"] == "N" and doc["servo"]["rule"] == r5env.SERVO_RULE
+    assert doc["servo"]["draw_rule"] == servo.DRAW_RULE and doc["servo"]["kind_counts"] == servo.kind_counts()
+    assert (doc["factor_rule"], doc["reset_order"], doc["draw_order"]) == (
+        r5env.SERVO_FACTOR_RULE, r5env.SERVO_RESET_ORDER, r5env.SERVO_DRAW_ORDER)
+    assert servo.TABLE_SHA256 in r5env.SERVO_DRAW_ORDER and r5env.SERVO_DRAW_ORDER.startswith(r5env.DRAW_ORDER)
+    assert r5env.SERVO_FACTOR_RULE.startswith(r5env.FACTOR_RULE)
+    assert r5env.SERVO_RESET_ORDER.startswith("0 the servo layer left") and "servo layer entered" in (
+        r5env.SERVO_RESET_ORDER)
+    # the other keys of the description are today's
+    off = r5env.R5Env(nominal()).describe()
+    assert sorted(set(doc) - set(off)) == ["servo"] and doc["config"] == dict(off["config"], servo="N")
+    assert all(doc[k] == off[k] for k in off if k not in ("config", "factor_rule", "reset_order", "draw_order"))
+
+
+@needs_run
+def test_the_option_draws_nothing_from_the_envs_stream():
+    """Design section 4 (T12's env part): the env's task, start, factors, push and seeds are the same with the option
+    on or off; a training draw is the episode seed's (``SeedSequence([e, 2])``); with options.seeds and no
+    episode_seed a draw is refused; the layer's factors are 1 and a named setting's trunk mass is the episode's."""
+    off = r5env.R5Env(cfg_of(**FIXED))
+    on = r5env.R5Env(cfg_of(servo="draw", **FIXED))
+    keys = ("task", "start", "t_start", "factors", "push", "seeds", "episode_seed", "n_steps", "head")
+    for e in (off, on):
+        e.reset(seed=5)
+    for _ in range(4):
+        _, a = off.reset()
+        _, b = on.reset()
+        assert {k: a[k] for k in keys} == {k: b[k] for k in keys}
+        assert b["servo"] == f"train/{b['episode_seed']}" and on.servo_params == servo.training_draw(b["episode_seed"])
+        assert b["factors"]["joint_damping"] == b["factors"]["joint_friction"] == 1.0
+    with pytest.raises(ValueError, match="episode seed"):
+        on.reset(options=dict(task="walk", seeds=dict(start=1, noise=2)))
+    _, info = on.reset(options=dict(task="walk", seeds=dict(start=1, noise=2), servo="F-"))  # a named setting runs
+    assert info["servo"] == "F-" and info["episode_seed"] is None
+    with pytest.raises(ValueError, match="joint_friction"):
+        on.reset(options=dict(task="walk", factors=dict(joint_friction=1.5)))
+    # a named setting's trunk mass factor is the episode's, in the place of the drawn one (the draw stays)
+    _, a = off.reset(seed=9)
+    _, b = on.reset(seed=9, options=dict(servo="M+"))
+    assert b["factors"] == dict(a["factors"], mass=1.1) and a["factors"]["mass"] != 1.1
+    p = on.p
+    assert p.m.body_mass[p.trunk] == 1.1 * on.nominal_model.body_mass[p.trunk]
+    with pytest.raises(ValueError, match="the setting's is the episode's"):
+        on.reset(options=dict(servo="M-", factors=dict(mass=1.0)))
+    off.close()
+    on.close()
+
+
+@needs_run
+@pytest.mark.parametrize("case", ["J+", "G5", "tail N"])
+def test_t14_a_mid_start_delay_queue_is_served_with_the_runs_gains(case):
+    """T14's case of the delay queue at a mid-task start (design 2d): the k commands the queue holds were folded with
+    the run's gain copies (the layer is entered before the fill), and at each of the first k physics steps the force
+    MuJoCo applies is kp (q* - q) + kv (q*' - q') + tau_ff with the run's gains, (q*, q*', tau_ff) the zero action's
+    command of that time.  Under J+ and for the tail at N (kv 3.59) the run's kv differs from today's; under G5 kp
+    and kv are capped."""
+    params = {"J+": _neutral(armature=servo.setting("J+").armature), "G5": _neutral(gain_cap=True),
+              "tail N": _neutral(armature=servo.setting("N").armature)}[case]
+    e = r5env.R5Env(nominal(servo="today"))
+    p, k, t = e.p, 5, 9.6
+    G, GinvT = p.G, np.linalg.inv(p.G.T)
+    seen: list = []
+    _, info = e.reset(options=dict(task="brisk", start=t, seeds=dict(start=5, noise=6),
+                                   factors=dict(latency_steps=k), servo=params))
+    lay, tk = e.servo_layer, e.tk
+    assert np.array_equal(p.kp, lay.kp_copy) and np.array_equal(p.kv, lay.kv_copy)
+    moved = lay.kv_copy != lay.kv_copy0
+    assert moved.any() and (case != "tail N" or np.flatnonzero(moved).tolist() == [1])
+    before = (p.d.qpos.copy(), p.d.qvel.copy())
+    e._step_hook = lambda pp: seen.append((pp.d.qpos.copy(), pp.d.qvel.copy(), pp.d.ctrl.copy(),
+                                           pp.d.actuator_force.copy(), pp.m.actuator_forcerange.copy()))
+    try:
+        e.step(np.zeros(15, np.float32))
+    finally:
+        e._step_hook = None
+    kp, kv = p.m.actuator_gainprm[:, 0].copy(), -p.m.actuator_biasprm[:, 2].copy()
+    assert np.array_equal(kp, lay.kp_model) and np.array_equal(kv, lay.kv_model)
+    assert np.array_equal(kp, lay.kp_copy) and np.array_equal(kv, lay.kv_copy)  # (no box-servo scale here)
+    step = 0.002 * RATE
+    gap = []
+    for j in range(k):  # physics step j + 1 serves the queue's j-th command: the zero action's at t0 - (k - j) step
+        qs, qds, tau = tk.zero_command(max(info["t_start"] - (k - j) * step, 0.0))
+        fold = G @ qs + (lay.kv_copy * (G @ qds) + GinvT @ tau) / lay.kp_copy
+        q, qd, ctrl, force, fr = seen[j]
+        np.testing.assert_allclose(ctrl, fold, rtol=0, atol=1e-12)
+        q0, qd0 = before if j == 0 else seen[j - 1][:2]
+        L, w = G @ q0[p.qadr], G @ qd0[p.dofs]
+        want = kp * (G @ qs - L) + kv * (G @ qds - w) + GinvT @ tau
+        np.testing.assert_allclose(force, np.clip(want, fr[:, 0], fr[:, 1]), rtol=0, atol=1e-9)
+        # what a queue folded with today's copies would have been served (the order this test guards)
+        today = G @ qs + (lay.kv_copy0 * (G @ qds) + GinvT @ tau) / lay.kp_copy0
+        gap.append(float(np.max(np.abs(kp * (today - fold)))))
+    assert max(gap) > 1e-3  # (the run's copies matter here: a fold with today's would serve other torques)
+    # the copies are today's again at the next reset and after close
+    e.reset(options=dict(task="walk", start="stance"))
+    assert np.array_equal(p.kp, lay.kp_copy0) and np.array_equal(p.kv, lay.kv_copy0)
+    e.close()
+    assert np.array_equal(p.kp, lay.kp_copy0) and np.array_equal(p.kv, lay.kv_copy0)
