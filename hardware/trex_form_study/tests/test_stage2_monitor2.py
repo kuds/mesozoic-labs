@@ -29,8 +29,10 @@ indirection to ``lookbar``, is replaced by such a table; no episode is run):
   shape (among them one without a ``layout`` or ``fingerprint`` object: the rulings of 17 Nov 2026, 12), and a
   row that refuses the checkpoint while it is built (``s2rows.RowError``, here a stub class of that name and module
   in place of the merged rows package; ``s2load.CheckpointError``, a fingerprint not reproduced at the
-  row's load, also in the Stage 1 view's stand-in).  An exception of another class of the same name, one that
-  ``lookbar.episodes`` raises and a row's refusal at a further delay (after the check's episodes) are none;
+  row's load).  An exception of another class of the same name, one that ``lookbar.episodes`` raises and a row's
+  refusal at a further delay (after the check's episodes) are none;
+* every set, the Stage 1 view's included, goes through ``lookbar``: the stand-in is deleted, and a checkout that
+  cannot import ``lookbar`` runs no monitor on any set (the lead's ruling 17 of 17 Nov 2026);
 * ``monitor2``'s table of rule M4 is the task table's (``r5lib.TASKS``' ``monitor`` fields).
 
 ``clip2`` renders a real clip from a Stage 1 trace in a child process (OSMesa and ffmpeg; skipped without them)
@@ -502,22 +504,6 @@ def test_a_rows_refusal_before_any_episode_is_the_monitors(monkeypatch, tmp_path
     assert m2.main(run + ["--also-k", "0"]) == 0 and (mon / "monitor_512.json").is_file()
 
 
-def test_the_stand_ins_load_refuses_as_the_row(monkeypatch, tmp_path):
-    """On the Stage 1 view without ``lookbar``, the stand-in loads the checkpoint before any episode: a fingerprint
-    not reproduced there (``s2load.CheckpointError``) is a refusal of kind ``checkpoint``."""
-    from designlab.stage2 import s2load
-
-    def load(job_dir, steps, *a, **k):
-        raise s2load.CheckpointError(f"checkpoint {steps} of {job_dir}: fingerprint not reproduced: max |difference| "
-                                     "0.25 > 1e-05 over 256 observations: not judged (S2-12)")
-
-    monkeypatch.setattr(s2load, "load_checkpoint", load)
-    with pytest.raises(m2.MonitorRefusal, match="fingerprint not reproduced") as info:
-        m2._stand_in(BODY, "R5/42@10ms", m2.pairs_for("S1", tiny=True),
-                     {"R5/42": dict(job_dir=str(tmp_path), steps=512)})
-    assert info.value.kind == "checkpoint" and "before any episode" in str(info.value)
-
-
 def test_a_baseline_that_holds_an_error_is_no_baseline(monkeypatch, tmp_path):
     """Rule M1: R0L's episodes must each end read or fell; the failed attempt is kept beside."""
     job = _job(tmp_path)
@@ -928,7 +914,7 @@ def test_s2_10_from_a_jobs_records(monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------------------------------------------
-# The one indirection, and the stand-in on the Stage 1 view
+# The one indirection, on every set
 # ---------------------------------------------------------------------------------------------------------------
 def test_episodes_goes_through_lookbar_and_configures_the_rows(monkeypatch):
     """``_episodes`` is the module's one indirection: ``s2rows.configure`` with the checkpoint, ``lookbar.rows``
@@ -954,17 +940,28 @@ def test_episodes_goes_through_lookbar_and_configures_the_rows(monkeypatch):
     assert [c[0] for c in calls] == ["rows", "episodes"]
 
 
-def test_without_lookbar_only_the_stage_1_view_has_a_stand_in(monkeypatch):
-    import importlib.util
-
-    if importlib.util.find_spec("designlab.stage2.lookbar") is not None:
-        pytest.skip("lookbar is merged: the stand-in is no longer reached")
-    with pytest.raises(ModuleNotFoundError):
-        m2._episodes(BODY, "V6", "R0L@10ms", m2.pairs_for("V6", tiny=True))
-    seen = []
-    monkeypatch.setattr(m2, "_stand_in", lambda body, row, pairs, policies: seen.append((body, row)) or [])
-    assert m2._episodes(BODY, "S1", "R0L@10ms", m2.pairs_for("S1", tiny=True)) == [] and seen == [(BODY, "R0L@10ms")]
-    assert "stand_in" in m2._episodes_by("S1") and m2._episodes_by("V6").startswith("none")
+def test_every_set_goes_through_lookbar_and_the_stand_in_is_gone(monkeypatch, tmp_path):
+    """The lead's ruling 17 of 17 Nov 2026: the Stage 1 view's stand-in is deleted.  On every set, ``S1``
+    included, ``_episodes`` builds the row and runs the episodes through ``lookbar``, and the record names it; a
+    checkout that cannot import ``lookbar`` runs no monitor, on ``S1`` as on any other set (its import error)."""
+    assert not hasattr(m2, "_stand_in") and not hasattr(m2, "_episodes_by")
+    assert m2.EPISODES_BY == "lookbar.episodes"
+    calls = []
+    s1 = table(set_name="S1", tiny=True)
+    _stub_rows(monkeypatch, rows=lambda body, names: calls.append(("rows", names[0])) or {names[0]: "row"},
+               episodes=lambda body, set_name, rows, pairs, traces=None: calls.append(("episodes", set_name)) or s1)
+    pairs = m2.pairs_for("S1", tiny=True)
+    assert m2._episodes(BODY, "S1", "R0L@10ms", pairs) == s1
+    assert calls == [("rows", "R0L@10ms"), ("episodes", "S1")]
+    monkeypatch.setattr(m2, "_sources", lambda given: dict(given=given, own="x"))
+    doc = m2.baseline(BODY, "S1", tmp_path / "monitor", tiny=True)
+    assert doc["episodes_by"] == "lookbar.episodes" and doc["valid"] is True and len(doc["episodes"]) == 2
+    monkeypatch.setitem(sys.modules, "designlab.stage2.lookbar", None)  # (a checkout without lookbar)
+    for set_name in ("S1", "V6"):
+        calls.clear()
+        with pytest.raises(ModuleNotFoundError):
+            m2._episodes(BODY, set_name, "R0L@10ms", m2.pairs_for(set_name, tiny=True))
+        assert calls == []
 
 
 # ---------------------------------------------------------------------------------------------------------------

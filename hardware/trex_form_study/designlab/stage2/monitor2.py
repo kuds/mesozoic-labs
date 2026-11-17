@@ -42,13 +42,10 @@ the gain of every check, G8b at its two named checks with the one fix, M5's stop
 with M3b's route), ``no_record`` (a check counted without a record after two closed attempts: its episodes are
 errors), ``is_record`` (what "a record" of a check is).
 
-**The stand-in on the Stage 1 view.**  ``lookbar`` and ``s2rows`` are merged (17 Nov 2026), so ``_episodes`` goes
-through them on every set, the Stage 1 view's included, and the stand-in is not reached from there: it is kept for
-a checkout without ``lookbar``, which cannot import it.  Then, on set ``S1`` only, ``_episodes`` runs
-``_stand_in``: the training env itself on the stock condition's plan, nominal plant, the
-delay k, with the zero action (R0L) or the checkpoint's deterministic actions.  Nothing is judged there: no episode
-succeeds in any reading, and survival, the fall and the clock are the env's.  The record names which of the two
-made its episodes (``episodes_by``).  On any other set a missing ``lookbar`` is an error.
+**Every set goes through ``lookbar``** (the lead's ruling 17 of 17 Nov 2026: the Stage 1 view's stand-in is
+deleted).  ``lookbar`` and ``s2rows`` are merged, so ``_episodes`` builds the row and runs the episodes through them
+on every set, the Stage 1 view's included; a checkout that cannot import ``lookbar`` runs no monitor (the import
+error is raised).  The record names its episodes' maker (``episodes_by``: ``EPISODES_BY``).
 
     python -m designlab.stage2.monitor2 run --job DIR --steps N --body B --set S [--k 5] [--tiny] [--also-k 0,..]
                                             [--sources SHA256] [--out DIR]
@@ -92,13 +89,16 @@ REFUSAL_SCHEMA = "s2-monitor-refusal-1"
 EXIT_REFUSAL = 8
 #: What a refusal can be (``MonitorRefusal.kind``).
 REFUSALS = ("sources", "checkpoint", "other_run", "run", "row")
-#: How a row refuses a checkpoint while it is built (``lookbar.rows``, the stand-in's load), before any episode:
+#: How a row refuses a checkpoint while it is built (``s2rows.configure``, ``lookbar.rows``), before any episode:
 #: (module, class name, refusal kind).  The class is looked up in ``sys.modules`` and never imported for it: an
 #: exception of that class can only have been raised once its module was loaded (``s2rows`` is merged; the row
 #: imports it while it is built).
 #: An exception of another class, of the same name or not, is no refusal (``_row_refusal``).
 ROW_REFUSALS = (("designlab.stage2.s2rows", "RowError", "row"),
                 ("designlab.stage2.s2load", "CheckpointError", "checkpoint"))
+#: What makes a record's episodes (``episodes_by``): every set goes through ``lookbar`` (the lead's ruling 17 of
+#: 17 Nov 2026: the Stage 1 view's stand-in is deleted).
+EPISODES_BY = "lookbar.episodes"
 
 #: Rule M1: the bar's conditions of the monitor, in the order that gives each its seeds.
 CONDITIONS = ("walk/nominal", "walk/v0.4", "turn/q90_left", "stop/two_step", "nudge/forward", "nudge/left")
@@ -613,19 +613,15 @@ def _episodes(body: str, set_name: str, row: str, pairs: list, policies: dict | 
     """One companion episode per ``(condition key, seed)`` of ``pairs`` under the row ``row`` (``R0L@10ms``, or a
     checkpoint's ``R5/42@10ms`` with ``policies = {"R5/42": {"job_dir", "steps"}}``): ``lookbar.episodes`` on
     ``lookbar.rows(body, [row])`` after ``s2rows.configure(policies)``.  ``traces``: where the episodes' traces
-    go.  ``lookbar`` is merged, so ``_stand_in`` serves set ``S1`` only in a checkout without it (module docstring).
+    go.  Every set, the Stage 1 view's included, goes through ``lookbar`` (module docstring): there is no stand-in,
+    and a checkout that cannot import ``lookbar`` raises its import error.
 
     The row is built before any episode: a ``ROW_REFUSALS`` exception raised there (by ``s2rows.configure`` or
     ``lookbar.rows``) is the monitor's ``MonitorRefusal``.  Whatever ``lookbar.episodes`` raises is not (an
     episode's own fault is an *error* in its table)."""
     import importlib
 
-    try:
-        lookbar = importlib.import_module("designlab.stage2.lookbar")
-    except ModuleNotFoundError as exc:
-        if exc.name != "designlab.stage2.lookbar" or set_name != S1_SET:
-            raise
-        return _stand_in(body, row, pairs, policies)
+    lookbar = importlib.import_module("designlab.stage2.lookbar")
     try:
         if policies:
             s2rows = importlib.import_module("designlab.stage2.s2rows")
@@ -638,90 +634,6 @@ def _episodes(body: str, set_name: str, row: str, pairs: list, policies: dict | 
             raise
         raise _row_refused(row, kind, exc) from exc
     return lookbar.episodes(body, set_name, rows, list(pairs), traces=traces)
-
-
-def _episodes_by(set_name: str) -> str:
-    import importlib.util
-
-    if importlib.util.find_spec("designlab.stage2.lookbar") is not None:
-        return "lookbar.episodes"
-    if set_name == S1_SET:
-        return ("monitor2._stand_in: lookbar is not importable; the training env's own episodes on the Stage 1 "
-                "view, nothing judged (development only)")
-    return "none: lookbar is not importable"
-
-
-def _stand_in(body: str, row: str, pairs: list, policies: dict | None) -> list:
-    """The Stage 1 view's stand-in for ``lookbar.episodes`` (module docstring): per pair one episode of the
-    training env on the stock condition's plan (``panels.Planner``: no plant of the panels is built), nominal
-    plant, stance start with the panels' start and noise seeds, the row's delay, interference termination off (the
-    bar has none); R0L by the zero action, a checkpoint by its deterministic actions through
-    ``s2load.normalize``.  Nothing is judged: every reading is False.  The checkpoint is loaded before any episode:
-    a ``CheckpointError`` there (a fingerprint not reproduced at the row's load, among others) is a refusal."""
-    import numpy as np
-
-    from designlab.stage1 import panels
-    from designlab.stage2 import r5env, r5lib, s2load, setio
-
-    name, _, ms = row.partition("@")
-    k = int(round(float(ms[:-2]) / STEP_MS))
-    mode, model, stats = "R5", None, None
-    base = dict(body=body, set=S1_SET, mode=mode, tasks=("stand",))
-    if name != "R0L":
-        mode = name.split("/", 1)[0]
-        pol = (policies or {})[name]
-        try:
-            ck = s2load.load_checkpoint(pol["job_dir"], int(pol["steps"]))
-        except s2load.CheckpointError as exc:  # (ROW_REFUSALS: the stand-in's load is the row's)
-            raise _row_refused(row, "checkpoint", exc) from exc
-        model, stats = ck["model"], ck["stats"]
-        # the run's own env config (its tasks: R6's joint spans are taken over the env's task scripts)
-        base = dict(_job_doc(pol["job_dir"])["settings"]["env_configs"][0])
-    run_dir = setio._anchored(r5lib.s1_root(body)) / body
-    _, docs = setio.stage1_view(run_dir.parent, body)
-    planner = panels.Planner(run_dir, docs["refs.json"]["references"], docs["transitions.json"]["transitions"])
-    conds = {c.key: c for c in panels.conditions()}
-    envs: dict = {}
-    out = []
-    for key, seed in pairs:
-        cond = conds[key]
-        if cond.floor not in envs:
-            cfg = r5env.config_from(dict(base, mode=mode, floor=cond.floor, randomize=False, push_prob=0.0,
-                                         head_events=False, mid_start=0.0))
-            envs[cond.floor] = r5env.make(mode, cfg)
-        e = envs[cond.floor]
-        res = planner.resolve(cond)
-        seeds = panels.episode_seeds(cond, int(seed))
-        obs, _ = e.reset(seed=0, options=dict(
-            plan=res["plan"], seconds=float(res["seconds"]), start="stance",
-            seeds=dict(start=seeds["start"], noise=seeds["noise"]),
-            factors=dict(friction=cond.friction, mass=1.0, kp=1.0, joint_damping=1.0, joint_friction=1.0,
-                         latency_steps=k, noise_scale=1.0),
-            push=None, head=None, terminate_on_interference=False))
-        actor = e.layout["actor_dim"]
-        zero = np.zeros(e.layout["action_dim"], np.float32)
-        t0, factors = float(e.tk.tau_ref), []
-        while True:
-            if model is None:
-                a = zero
-            else:
-                a, _ = model.predict(s2load.normalize(stats, obs[:actor]), deterministic=True)
-            obs, _, terminated, truncated, info = e.step(a)
-            factors.append(float(info["clock_factor"]))
-            if terminated or truncated:
-                break
-        planned = float(res["seconds"])
-        survival = float(e.k_env * e.dt_env) if terminated else planned
-        e.close()
-        out.append(dict(
-            condition=key, seed=int(seed), outcome="fell" if terminated else "read", reason=None,
-            fell=bool(terminated), survival_s=survival, planned_s=planned, succeeded=False, succeeded_but_A1=False,
-            succeeded_look=False, succeeded_but_A1_look=False, failed_terms=["not_judged"], look=None,
-            clock=dict(mean_factor=float(np.mean(factors)), min_factor=float(np.min(factors)),
-                       t_ref_reached=t0 + (float(e.tk.tau_ref) - t0) * min(1.0, survival / (e.k_env * e.dt_env)),
-                       t_ref_planned=t0 + RATE * planned),
-            error=None, fall_cause=info.get("fall_cause"), env_steps=int(e.k_env), stand_in=True))
-    return out
 
 
 # ------------------------------------------------------------------------------------------------
@@ -888,7 +800,7 @@ def run(job_dir, steps, body, set_name, out, k=K, tiny=False, also_k=(), sources
         pairs=[[c, s] for c, s in pairs], fix_tasks=fix_tasks_for(set_name),
         checkpoint=dict(steps=n, files=ck["files"]), checkpoint_sha256=checkpoint_hashes(ck), episodes=eps,
         **summarize(eps), also=_also(body, set_name, mode, seed, pairs, policies, also_k, k),
-        traces="traces/%d" % n if traces.is_dir() else None, episodes_by=_episodes_by(set_name),
+        traces="traces/%d" % n if traces.is_dir() else None, episodes_by=EPISODES_BY,
         sources=src, flags=dict(job.get("flags") or {}),
         rules={key: RULES[key] for key in ("episodes", "outcomes", "survival", "sources")},
         provenance=s2io.git_state(own_outputs=[str(job_dir.resolve())]), versions=installed_versions(),
@@ -914,7 +826,7 @@ def baseline(body, set_name, out, k=K, tiny=False, also_k=(), sources_sha256=Non
         run_id=job.get("run_id"), body=body, set=set_name, row=row, k=int(k), tiny=bool(tiny),
         conditions=list(conditions_for(set_name)), pairs=[[c, s] for c, s in pairs], episodes=eps, **summarize(eps),
         also=_also(body, set_name, None, None, pairs, None, also_k, k),
-        traces="traces/r0l" if traces.is_dir() else None, episodes_by=_episodes_by(set_name),
+        traces="traces/r0l" if traces.is_dir() else None, episodes_by=EPISODES_BY,
         sources=src, rules={key: RULES[key] for key in ("episodes", "outcomes", "survival", "sources")},
         provenance=s2io.git_state(own_outputs=[str(Path(job_dir).resolve())] if job_dir is not None else [str(out)]),
         versions=installed_versions(), wall_s=time.perf_counter() - t0, at=s2io.now_utc())
@@ -1015,7 +927,8 @@ def main(argv=None) -> int:
         return 1
 
 
-__all__ = ["ATTEMPTS", "BASELINE_SCHEMA", "CONDITIONS", "EXIT_REFUSAL", "FIX_TASKS", "G8B_AGAIN_AT", "G8B_AT",
+__all__ = ["ATTEMPTS", "BASELINE_SCHEMA", "CONDITIONS", "CREDIT_RTOL", "EPISODES_BY", "EXIT_REFUSAL", "FIX_TASKS",
+           "G8B_AGAIN_AT", "G8B_AT",
            "G8B_CONDITION", "K", "MonitorError", "MonitorRefusal", "OUTCOMES", "REFUSALS", "REFUSAL_SCHEMA",
            "ROW_REFUSALS", "RULES",
            "S1_CONDITIONS", "S1_FIX_TASKS", "S2_10_SCHEMA", "SCHEMA",
