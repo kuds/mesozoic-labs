@@ -1200,7 +1200,9 @@ the sixth stand] Two of the
 halts are M1's: the halt after two attempts at one check that were never closed, and the halt after a monitor's refusal
 to run. Each is a halt of the paragraph settled on 15 Nov: the run is resumed, and one that cannot be resumed is
 `unfinished: <reason>`. After the first of the two the lead has the fault repaired and resumes with M1's recorded
-parameter.
+parameter; after the second, where the refused attempt was the one that parameter let run, again with it (M1's note,
+K5) [this clause from "after the second": added after the independent review of the sixth list's writing-in, from the
+sixth list's closing paragraph as M1's note and K5 read it].
 
 Check: `run.json` `monitor[]`, `stopped`, `status`; `stage2/tb/hours.json` (the first training session's `started_at`);
 `HALT.json` `reason`; the report's cells `unfinished: <reason>`; in every table, each run's ending.
