@@ -18,7 +18,9 @@ L1 duty from ``describe``; L2 the tail's amplitude and phase mixed with the ramp
 settle dip after each touchdown of the plan; L4 the lift shape sampled at lift-off; L5 the pelvis bob between the
 plan's steps; L6 trunk roll; L7 step times through the period; L8 the variation envelope; L10 flat feet while the gait is changing, per stance, as
 the lead settled it on 15 and 16 Nov 2026 (``STAGE2_TRACKB_PLAN.md`` L10, L11; F5's toe-off lives in the periodic
-walks; L9, rolling contact inside a move, is not built); L13 the turn in place, whose flat feet are its own law.
+walks; L9, rolling contact inside a move, is not built); L13 the turn in place, whose flat feet are its own law; and,
+in a start into a walk, L1 and L4 with Stage 1's start's duty and lift peak mixed in by the start's amplitude ramp at
+each lift-off (S2L-L1L4-start, ruling 18 of 17 Nov 2026).
 
 **Joins to a window of K strides** (J1-J3).  F14 samples a window uniformly in time and warps its phase, so no
 lift-off inside a window falls on a frame; a move's frames are uniform in phase.  ``Window`` reads a window at any
@@ -132,19 +134,89 @@ RULES = {
                      f"agree within {PERIODIC_COM_MM:g} mm (model CoM), {PERIODIC_ZMP_MM:g} mm (multibody ZMP) and "
                      f"{PERIODIC_JOINT_RAD:g} rad (joints); it carries no F14 variation (cut 4 of design 3.9) and "
                      "flat feet (its own law: S2L-L13)"),
+    "S2L-L1L4-start": (
+        "L1 and L4 in a start (STAGE2_TRACKB_PLAN.md, the paragraph of that name; ruling 18 of "
+        "stage2/design/ROUND_C_RULINGS_17NOV.md; settled 17 Nov 2026 after the look sets' starts were built over the "
+        "knee's Stage 0 speed limit, before any look set was frozen and before any closed-loop episode on one).  In a "
+        "start, whose gait a is the stand, into a walk, each swing's lift law (L4: gait.lift_profile and its "
+        "lift_peak) and its duty (L1) mix the law of Stage 1's start for that body into the look walk's by the "
+        "start's amplitude ramp amp (Stage 1's, transitions._param_fns('start')), sampled at the swing's lift-off: "
+        "x = x_stage1 + (x_look - x_stage1) amp, exactly x_stage1 at amp 0 and exactly x_look at amp 1.  Stage 1's "
+        "start for a body is moves.stage1(body, 'start', H): the stand to Stage 1's nominal walk (refs.walk_specs: "
+        "sizing.NOMINAL, which has no swing_time, so that its duty is spec.duty, the constant duty of "
+        "transitions._param_fns('start')) under Stage 1's laws (moves.TODAY: the lift sin^2(pi u), which is "
+        "gait.lift_profile(u, 0.5), the GaitSpec's lift_peak).  The duty is mixed in the start's schedule (its duty "
+        "function), so that every law that reads the duty reads the mixed one, as in a change (L1); the lift height "
+        "(lift_frac H) stays the walk's.  Nothing else of the start changes and no other move is touched: a change, a "
+        "stop, a turn and the turn in place (its own law, S2L-L13) keep their laws.  The entry's look.start_mix holds "
+        "Stage 1's values, the look walk's, and each mixed swing's lift-off, amp, duty and lift peak"),
 }
 LOOK_RULE_IDS = ("S2L-L1", "S2L-L2", "S2L-L3", "S2L-L4", "S2L-L5", "S2L-L6", "S2L-L7", "S2L-L8", "S2L-L10")
 JOIN_RULE_IDS = ("S2L-J1", "S2L-J2", "S2L-J3")
+#: The rule of a start's lift law and duty (ruling 18: ``RULES["S2L-L1L4-start"]``), named by a start's entry only.
+START_RULE_ID = "S2L-L1L4-start"
 #: The rules of the turn in place's three references: L10 is not among them (its flat feet are its own law, L13).
 INPLACE_RULE_IDS = tuple(r for r in LOOK_RULE_IDS if r != "S2L-L10") + ("S2L-L13", "S2L-periodic")
 
 
+def mixes_stage1_start(move: "moves.Move") -> bool:
+    """Whether ``RULES["S2L-L1L4-start"]`` is a law of ``move``: a start (``moves.start``: gait a the stand) into a
+    walk; not a start into a turn gait or into the turn in place."""
+    b = move.b
+    return bool(move.builder == "start" and move.a.spec is None and b.spec is not None and not b.in_place
+                and b.yaw_rate == 0.0)
+
+
 def rule_ids(move: "moves.Move") -> tuple:
-    """The look rule ids of a move's entry: ``LOOK_RULE_IDS`` and the join rules, or ``INPLACE_RULE_IDS`` for a move
-    of the turn in place (its start and its stop)."""
+    """The look rule ids of a move's entry: ``LOOK_RULE_IDS`` and the join rules (and ``START_RULE_ID`` for a start
+    into a walk), or ``INPLACE_RULE_IDS`` for a move of the turn in place (its start and its stop)."""
     if move.a.in_place or move.b.in_place:
         return INPLACE_RULE_IDS
-    return LOOK_RULE_IDS + JOIN_RULE_IDS
+    return LOOK_RULE_IDS + JOIN_RULE_IDS + ((START_RULE_ID,) if mixes_stage1_start(move) else ())
+
+
+def stage1_start_law(body: str, H: float) -> dict:
+    """The law of Stage 1's start on ``body`` that ``RULES["S2L-L1L4-start"]`` mixes into a look start, read from
+    Stage 1's own start (``moves.stage1(body, "start", H)``: the stand to Stage 1's nominal walk, Stage 1's schedule
+    and laws): its duty (the schedule's duty function, one constant) and its lift peak.  ``LookError`` where that
+    start's duty is not one constant or its laws are not ``moves.TODAY`` (whose lift, sin^2(pi u), is
+    ``gait.lift_profile(u, 0.5)``)."""
+    s1 = moves.stage1(body, "start", float(H))
+    g = s1.b
+    if s1.laws is not moves.TODAY or g.spec is None or s1.a.spec is not None:
+        raise LookError(f"{body}: Stage 1's start is not the stand to a walk under Stage 1's laws")
+    probe = np.asarray(s1.schedule.fn["duty"](np.linspace(-3.0, 4.0, 57)), float)
+    duty = float(probe[0])
+    if not np.all(probe == duty) or duty != g.legacy().duty:
+        raise LookError(f"{body}: Stage 1's start has no single duty ({probe.min()!r} to {probe.max()!r})")
+    lift_peak = float(g.spec.lift_peak)
+    if lift_peak != 0.5:  # moves.TODAY's lift is sin^2(pi u): gait.lift_profile's at a peak of 0.5 only
+        raise LookError(f"{body}: Stage 1's nominal walk has lift_peak {lift_peak!r}; Stage 1's lift law has 0.5")
+    return dict(start=s1.name, walk=g.name, duty=duty, lift_peak=lift_peak,
+                source=(f"moves.stage1({body!r}, 'start', H): transitions.TRANSITIONS['start'], the stand to "
+                        f"{g.name!r} (refs.walk_specs: sizing.NOMINAL; swing_time None, so its duty is spec.duty, "
+                        "transitions._param_fns('start')'s constant duty); moves.TODAY's lift sin^2(pi u), "
+                        "gait.lift_profile(u, 0.5)"))
+
+
+def start_mix(x_stage1, x_look, amp):
+    """``RULES["S2L-L1L4-start"]``'s mix: ``x_stage1 + (x_look - x_stage1) amp``, exactly ``x_stage1`` where amp
+    <= 0 and exactly ``x_look`` where amp >= 1 (outside the start's amplitude ramp nothing moves)."""
+    amp = np.asarray(amp, float)
+    x_look = np.asarray(x_look, float)
+    return np.where(amp >= 1.0, x_look, np.where(amp <= 0.0, x_stage1 + 0.0 * x_look,
+                                                 x_stage1 + (x_look - x_stage1) * amp))
+
+
+def _start_duty(fn: dict, duty_stage1: float) -> dict:
+    """A start's schedule functions with the duty mixed by ``start_mix`` at the start's own amplitude ramp
+    (``fn["amp"]``): a swing that lifts off at phase e lands at e + 1 - duty(e) (``moves.plan``)."""
+    duty_look, amp = fn["duty"], fn["amp"]
+
+    def duty(p):
+        return start_mix(duty_stage1, duty_look(p), amp(p))
+
+    return dict(fn, duty=duty)
 
 #: Keys of a window's arrays whose first column advances with the walk (x); every other key is periodic.
 _ADVANCING = ("com", "com_ref", "zmp_mb", "zmp_ref", "q")
@@ -390,6 +462,7 @@ class Bind:
     vb: View | None = None
     geometry: dict | None = None  # gait.foot_geometry at home
     entry: dict | None = None  # {"a" | "b": gait.rolling_entry's dict of that gait}
+    start_law: dict | None = None  # a start into a walk: Stage 1's start's duty and lift peak (S2L-L1L4-start)
 
     def env_a(self, p, continuing: bool = False) -> np.ndarray:
         p = np.asarray(p, float)
@@ -535,6 +608,8 @@ def laws_for(a: moves.GaitX, b: moves.GaitX, bind: Bind | None = None, force: bo
     # --- L4
     def lift(u, ctx, swing):
         lp = _mix(sa.lift_peak, sb.lift_peak, _weight_at(ctx, swing[1]))
+        if bind.start_law is not None:  # S2L-L1L4-start: Stage 1's start's lift peak mixed in by amp at lift-off
+            lp = float(start_mix(bind.start_law["lift_peak"], lp, ctx.fn["amp"](swing[1])))
         if lp == 0.5:
             return math.sin(math.pi * u) ** 2
         return float(gait.lift_profile(u, lp))
@@ -791,7 +866,12 @@ def bind_move(src: dict, move: moves.Move, wa: Window | None, wb: Window | None,
     laws = laws_for(move.a, move.b, bind)
     if laws is moves.TODAY:
         return Bound(move, va, vb, bind)
+    if mixes_stage1_start(move):  # S2L-L1L4-start: the lift law (laws_for's lift) and the duty mixed by amp
+        bind = replace(bind, start_law=stage1_start_law(src["body"], move.b.H))
+        laws = laws_for(move.a, move.b, bind)
     fn = sch.fn if laws.period_factor is None else _warped(sch.fn, period_factor_of(bind))
+    if bind.start_law is not None:
+        fn = _start_duty(fn, bind.start_law["duty"])
     new = replace(move, schedule=replace(sch, fn=fn), laws=laws, rules=tuple(move.rules) + rule_ids(move))
     return Bound(new, va, vb, bind)
 
@@ -885,7 +965,8 @@ def entry_extra(bd: Bound, g: dict, entry: dict) -> dict:
       Stage 1's construction (a start, a change, the one-step stop) it gives None, and rule L10 names the instant
       there too: the start of the move's first ramp (``Bind.instant``; Stage 1's convention).  ``move.causal`` and
       ``move.command_t_s`` stay as they are: the file of such a move does not begin at its instant;
-    * ``look``: the laws' frame and the joins (``Bound.look``);
+    * ``look``: the laws' frame and the joins (``Bound.look``), and in a start into a walk ``look.start_mix``
+      (``start_mix_record``: ``RULES["S2L-L1L4-start"]``);
     * ``join_events``: a causal move's warm-up ZMP read apart from the plan's events (a reading, not a gate);
     * ``rolling_split_failed_frames`` and the gate ``rolling_split``: on a move that has rolling frames, the frames
       whose rolling-contact split did not solve (``idyn``): any such frame fails the entry (its feedforward torque
@@ -898,10 +979,32 @@ def entry_extra(bd: Bound, g: dict, entry: dict) -> dict:
     rolls = int(np.count_nonzero(foot["rolling"][g["plan"].out].any(axis=1)))
     entry.update(look=bd.look(), join_events=join_events(g, bd.ref_a), rolling_frames=rolls,
                  rolling_split_failed_frames=failed)
+    if bd.bind.start_law is not None:
+        entry["look"]["start_mix"] = start_mix_record(bd, g["plan"])
     if rolls:
         entry["gates"]["rolling_split"] = bool(failed == 0)
         entry["pass_"] = bool(all(entry["gates"].values()))
     return entry
+
+
+def start_mix_record(bd: Bound, pl: transitions.Plan) -> dict:
+    """What a start's entry records of ``RULES["S2L-L1L4-start"]`` (``look.start_mix``): Stage 1's start's duty and
+    lift peak and where they come from, the look walk's, and every swing whose lift-off lies inside the start's
+    amplitude ramp (amp < 1; the later swings are the look walk's exactly): its side, lift-off phase, amp there, the
+    duty and lift peak the mix gives (``duty`` is the schedule's at the lift-off, ``duty_plan`` 1 minus the swing's
+    length in the plan)."""
+    law, b, fn = bd.bind.start_law, bd.move.b, pl.ctx.fn
+    swings = []
+    for side, lo, td, *_ in pl.swings:
+        amp = float(fn["amp"](lo))
+        if amp >= 1.0:
+            continue
+        lp_walk = _mix(b.spec.lift_peak, b.spec.lift_peak, _weight_at(pl.ctx, lo))  # (laws_for's lift: weight 1)
+        swings.append(dict(side=side, lift_off_phase=float(lo), amp=amp, duty=float(fn["duty"](lo)),
+                           duty_plan=float(1.0 - (td - lo)),
+                           lift_peak=float(start_mix(law["lift_peak"], lp_walk, amp))))
+    return refs._plain(dict(rule=START_RULE_ID, stage1=dict(law), look=dict(
+        walk=b.name, duty=float(b.legacy().duty), lift_peak=float(b.spec.lift_peak)), swings=swings))
 
 
 # ------------------------------------------------------------------------------------------------
