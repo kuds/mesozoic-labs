@@ -550,22 +550,38 @@ def baseline_problem(doc) -> str | None:
     return ("R0L's baseline holds episodes that are neither read nor fell (" + "; ".join(bad) + ")") if bad else None
 
 
+#: The keys an episode holds its state digest under (``lookbar``'s ``state_digest``; ``digest``).
+DIGEST_KEYS = ("state_digest", "digest")
+
+
+def digest_compared(x: dict, y: dict) -> bool:
+    """Whether two episodes' state digests are compared (the lead's ruling 33 of 17 Nov 2026): under one of
+    ``DIGEST_KEYS`` both hold a non-empty string (a digest of None, which ``lookbar`` writes when taking it
+    raised, is none)."""
+    return any(isinstance(x.get(k), str) and x[k] != "" and isinstance(y.get(k), str) and y[k] != ""
+               for k in DIGEST_KEYS)
+
+
 def baseline_equal(r0l: dict, committed: dict) -> dict:
     """Rule M3: S2-4's own ``monitor/r0l.json`` against the committed ``R0L_BASELINE.json``, episode for episode:
-    the outcome, the survival and, where both hold one, the state digest."""
+    the condition, the seed, the outcome, the survival and, where both hold one, the state digest.
+    ``digests_compared`` (the lead's ruling 33 of 17 Nov 2026): the digests were compared in every episode that
+    ran, that is in every pair of which at least one episode ran (its outcome is not ``NOT_RUN``) both hold one
+    (``digest_compared``); two episodes not run (``lookbar`` gives a condition without a reference no digest) are
+    compared on their outcome and survival alone.  False when no episode ran."""
     a, b = list(r0l.get("episodes") or []), list(committed.get("episodes") or [])
-    differ = []
+    differ, ran = [], []
     if len(a) != len(b):
         differ.append(f"{len(a)} episodes against {len(b)}")
     for x, y in zip(a, b, strict=False):
         keys = ["condition", "seed", "outcome", "survival_s"]
-        keys += [k for k in ("state_digest", "digest") if k in x and k in y]
+        keys += [k for k in DIGEST_KEYS if k in x and k in y]
         bad = [k for k in keys if x.get(k) != y.get(k)]
         if bad:
             differ.append(f"{x.get('condition')} seed {x.get('seed')}: {', '.join(bad)}")
-    return dict(equal=not differ, episodes=len(a), differ=differ,
-                digests_compared=bool(a) and all(("state_digest" in x and "state_digest" in y) or
-                                                 ("digest" in x and "digest" in y) for x, y in zip(a, b, strict=False)))
+        if x.get("outcome") != NOT_RUN or y.get("outcome") != NOT_RUN:
+            ran.append(digest_compared(x, y))
+    return dict(equal=not differ, episodes=len(a), differ=differ, digests_compared=bool(ran) and all(ran))
 
 
 def s2_10(final: dict, earlier: list, baseline: dict) -> dict:
@@ -938,13 +954,15 @@ def main(argv=None) -> int:
         return 1
 
 
-__all__ = ["ATTEMPTS", "BASELINE_SCHEMA", "CONDITIONS", "CREDIT_RTOL", "EPISODES_BY", "EXIT_REFUSAL", "FIX_TASKS",
+__all__ = ["ATTEMPTS", "BASELINE_SCHEMA", "CONDITIONS", "CREDIT_RTOL", "DIGEST_KEYS", "EPISODES_BY", "EXIT_REFUSAL",
+           "FIX_TASKS",
            "G8B_AGAIN_AT", "G8B_AT",
            "G8B_CONDITION", "K", "MonitorError", "MonitorRefusal", "OUTCOMES", "REFUSALS", "REFUSAL_SCHEMA",
            "ROW_REFUSALS", "RULES",
            "S1_CONDITIONS", "S1_FIX_TASKS", "S2_10_SCHEMA", "SCHEMA",
            "SEEDS", "STOP_CHECKS", "STOP_FROM", "baseline", "baseline_equal", "baseline_problem",
-           "checkpoint_hashes", "conditions_down", "conditions_for", "decide", "fix_tasks_for", "fix_weights", "g8b",
+           "checkpoint_hashes", "conditions_down", "conditions_for", "decide", "digest_compared", "fix_tasks_for",
+           "fix_weights", "g8b",
            "gain", "has_clock", "installed_versions", "is_record", "main", "need_up", "no_record", "pairs_for",
            "refusal_path", "row_name", "rules", "run", "s2_10",
            "seeds_for", "summarize", "survival_credit", "write_s2_10"]

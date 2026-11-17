@@ -20,7 +20,10 @@ indirection to ``lookbar``, is replaced by such a table; no episode is run):
   alone, however often and at whatever point of the history it is asked;
 * a check counted without a record (every episode an error); what a record of a check is; a baseline that holds
   an error is kept beside as a failed attempt and is no baseline;
-* S2-10's record with its earlier checks, its per-term table and M3b's route;
+* S2-10's record with its earlier checks, its per-term table and M3b's route; R0L's baseline against the committed
+  one (``baseline_equal``): the state digests are asked for only in the pairs of which at least one episode ran, so
+  an equal baseline with a condition not run (its episodes built by ``lookbar.episodes`` itself, which gives them no
+  digest) compares its digests, and a digest of None or "" is not compared (the lead's ruling 33 of 17 Nov 2026);
 * the monitor refuses to run on other sources than the trainer's, and on a checkpoint that is not intact; a
   refusal (other sources, a checkpoint that is not intact, another run's checkpoint) leaves the CLI with its own
   exit code 8 and a note of its reason, and any other fault keeps exit code 1;
@@ -923,6 +926,87 @@ def test_s2_10_record():
     moved["episodes"][4]["survival_s"] = 11.98
     assert m2.baseline_equal(r0l, moved) == dict(equal=False, episodes=18, differ=["walk/v0.4 seed 6005: survival_s"],
                                                  digests_compared=False)
+
+
+def lookbar_not_run(monkeypatch, set_name, pairs, row="R0L@10ms") -> list:
+    """Episodes of ``pairs`` not run, as ``lookbar.episodes`` builds them: that function itself, on a set whose
+    ``open_set`` holds none of their references (nothing is read and no episode runs; the row is a ``LookRow``
+    around a bare row).  On a look set its G9-ref check (rule X1) is let through: it is not what is held here."""
+    from designlab.stage1 import panels
+    from designlab.stage2 import lookbar
+
+    def open_set(body, set_name, keys, root, stage1_run):
+        return dict(ctx=None, conds={k: None for k in keys}, inputs=None, run_dir=None, set_docs=None,
+                    missing={k: dict(reference="transitions/turn90_pi4_left", numbers=None,
+                                     reason="a fixture's reason: the set holds no available reference") for k in keys})
+
+    monkeypatch.setattr(lookbar, "open_set", open_set)
+    monkeypatch.setattr(lookbar, "require_g9_ref", lambda *a, **k: dict(path="g9_ref.json", sha256="0" * 64,
+                                                                         pass_=True, at=None, set_freeze=None))
+    eps = lookbar.episodes(BODY, set_name, {row: lookbar.LookRow(panels.Row())}, list(pairs))
+    assert [e["outcome"] for e in eps] == [m2.NOT_RUN] * len(pairs) and lookbar.NOT_RUN == m2.NOT_RUN
+    return eps
+
+
+def test_an_equal_baseline_with_a_condition_not_run_compares_the_digests_of_the_episodes_that_ran(monkeypatch):
+    """The lead's ruling 33 of 17 Nov 2026 (the check of CT4, findings 1 and 2): ``baseline_equal`` asks for state
+    digests only in the pairs of which at least one episode ran.  R0L's baseline may hold a condition not run (rule
+    M1), and ``lookbar.episodes`` gives such an episode no digest (built here by that function): equal on both
+    sides, the baselines are equal and the digests were compared.  Two episodes not run are still compared on their
+    outcome and survival; one not run against one that ran differs, and that pair's digests were not compared.  A
+    digest counts as compared only where both sides hold a non-empty string: one of None (``lookbar``'s, when taking
+    it raised) or "" is not compared, on either side.  With no episode that ran, nothing was compared."""
+    import hashlib
+
+    left = m2.pairs_for("V6")[6:9]
+    assert {c for c, _ in left} == {"turn/q90_left"}
+    nr = {(e["condition"], e["seed"]): e for e in lookbar_not_run(monkeypatch, "V6", left)}
+    assert not any(k in e for e in nr.values() for k in ("state_digest", "digest"))  # (lookbar gives it none)
+    eps = [nr.get((e["condition"], e["seed"])) or dict(e, state_digest=hashlib.sha256(
+        f"{e['condition']}|{e['seed']}".encode()).hexdigest()) for e in table(terms=("tail_servo",))]
+    r0l = record(eps)
+    assert r0l["outcomes"]["not_run"] == 3 and m2.baseline_problem(r0l) is None
+    assert m2.baseline_equal(r0l, json.loads(json.dumps(r0l))) == dict(equal=True, episodes=18, differ=[],
+                                                                       digests_compared=True)
+
+    def changed(i, **kw) -> dict:
+        doc = json.loads(json.dumps(r0l))
+        doc["episodes"][i].update(kw)
+        return doc
+
+    # two episodes not run are compared on their outcome and survival; one that ran against one not run differs
+    assert m2.baseline_equal(r0l, changed(6, survival_s=1.0)) == dict(
+        equal=False, episodes=18, differ=["turn/q90_left seed 6007: survival_s"], digests_compared=True)
+    ran = changed(7, outcome="read", survival_s=12.0)
+    assert m2.baseline_equal(r0l, ran) == dict(equal=False, episodes=18, differ=["turn/q90_left seed 6008: outcome, "
+                                                                                 "survival_s"], digests_compared=False)
+    # a digest of None, or "", is not compared: on both sides (equal) and on one side (differs)
+    for bad in (None, ""):
+        for key in ("state_digest", "digest"):
+            both = changed(0, **{key: bad})
+            if key == "digest":
+                both["episodes"][0].pop("state_digest")
+            assert m2.baseline_equal(both, json.loads(json.dumps(both))) == dict(
+                equal=True, episodes=18, differ=[], digests_compared=False), (bad, key)
+            assert m2.digest_compared(both["episodes"][0], r0l["episodes"][0]) is False
+            assert m2.digest_compared(r0l["episodes"][0], both["episodes"][0]) is False
+        one = changed(0, state_digest=bad)
+        assert m2.baseline_equal(r0l, one) == dict(equal=False, episodes=18, differ=["walk/nominal seed 6001: "
+                                                                                     "state_digest"],
+                                                   digests_compared=False)
+    # an episode that ran without a digest on one side
+    lost = json.loads(json.dumps(r0l))
+    lost["episodes"][0].pop("state_digest")
+    assert m2.baseline_equal(r0l, lost) == dict(equal=True, episodes=18, differ=[], digests_compared=False)
+    # the older key holds a digest as well
+    old = [{("digest" if k == "state_digest" else k): v for k, v in e.items()} for e in r0l["episodes"]]
+    assert m2.baseline_equal(dict(episodes=old), dict(episodes=old))["digests_compared"] is True
+    # no episode ran: nothing was compared
+    none_ran = record(lookbar_not_run(monkeypatch, "V6", m2.pairs_for("V6")))
+    assert none_ran["outcomes"]["not_run"] == 18
+    assert m2.baseline_equal(none_ran, json.loads(json.dumps(none_ran))) == dict(equal=True, episodes=18, differ=[],
+                                                                                 digests_compared=False)
+    assert m2.baseline_equal(dict(episodes=[]), dict(episodes=[]))["digests_compared"] is False
 
 
 def test_s2_10_from_a_jobs_records(monkeypatch, tmp_path):

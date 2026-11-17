@@ -47,8 +47,8 @@ it there (rule K9), and a value the trainer's own environment holds is not passe
 **The committed baseline** (rule M3; the lead's ruling 17 of 17 Nov 2026; ``EXPECT_BASELINE_RULE``).  With
 ``--expect-baseline PATH`` (S2-4: ``stage2/tb/runs/s2-4/R0L_BASELINE.json``, made by ``monitor2 baseline`` without a
 job and committed) the run's own R0L baseline must equal that file episode for episode (``monitor2.baseline_equal``:
-the outcome, the survival and the state digest), checked after the baseline and before the first rollout, else the
-run halts.  The file's sha256 is a setting of the run (``settings.expect_baseline``): a resume gives the same file.
+the outcome, the survival and, in every episode that ran, the state digest: the lead's ruling 33 of 17 Nov 2026),
+checked after the baseline and before the first rollout, else the run halts.  The file's sha256 is a setting of the run (``settings.expect_baseline``): a resume gives the same file.
 
 **Exit codes** of ``run``: 0 done, or stopped by rule M4 or M5; 3 G8a failed ("G8a fails: no run"); 4 refused (a
 resume the rules refuse, or a start that cannot be made: nothing was run; among them an ``--expect-baseline`` file
@@ -204,7 +204,10 @@ EXPECT_BASELINE_RULE = (
     "rule M3 (the lead's ruling 17 of 17 Nov 2026): with --expect-baseline PATH, the committed R0L baseline (S2-4: "
     "stage2/tb/runs/s2-4/R0L_BASELINE.json, made by the monitor's baseline command without a job), the run's own "
     "monitor/r0l.json must equal it episode for episode: the condition, the seed, the outcome, the survival and the "
-    "state digest (monitor2.baseline_equal), with the digests compared in both; it is checked after the baseline is "
+    "state digest (monitor2.baseline_equal), with the digests compared in both in every episode that ran (the "
+    "lead's ruling 33 of 17 Nov 2026: in every pair of which at least one episode ran, both hold a digest that is a "
+    "non-empty string; two episodes not run, which hold none, are compared on their outcome and survival; with no "
+    "episode that ran no digest was compared); it is checked after the baseline is "
     "made or read and before the first rollout, at every session, and recorded in run.json baseline_expected.  Not "
     "equal: the run halts (exit code 5) and goes to the lead; no step is trained.  A file that is missing, cannot be "
     "read or is no baseline record, or one given to a run without the gates, is refused before anything is "
@@ -1361,7 +1364,8 @@ class _Run:
         eq = m2.baseline_equal(self.baseline, exp["record"])
         differ = list(eq["differ"])
         if not eq["digests_compared"]:
-            differ.append("the state digests were not compared (a record holds none)")
+            differ.append("the state digests were not compared in every episode that ran (a record holds none, or "
+                          "none that is a non-empty string, or no episode ran)")
         entry = dict(session=self.k, path=exp["path"], sha256=exp["sha256"], record_sha256=exp["record_sha256"],
                      baseline_sha256=self.baseline.get("sha256"), equal=not differ, episodes=eq["episodes"],
                      digests_compared=eq["digests_compared"], differ=differ, at=s2io.now_utc())
@@ -1370,8 +1374,8 @@ class _Run:
         if differ:
             raise Halt(f"{self.job}: the run's R0L baseline (monitor/r0l.json) is not the committed one "
                        f"({exp['path']}): {'; '.join(differ)}: rule M3: S2-4's own baseline must equal it episode for "
-                       "episode (outcome, survival and state digest), else the run stops before its first rollout; "
-                       "no step is trained and the run goes to the lead")
+                       "episode (outcome, survival and, in every episode that ran, state digest), else the run "
+                       "stops before its first rollout; no step is trained and the run goes to the lead")
         self.say(f"R0L's baseline equals the committed one ({exp['path']}): rule M3")
 
     def _hashes(self, n: int) -> dict:

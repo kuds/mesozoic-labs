@@ -28,8 +28,10 @@ What is held here, on a stub env and a stub monitor (no plant, no reference set)
   given ``--allow-source-change`` (the rulings of 17 Nov 2026, 10 and 11);
 * the trainer waits for its monitor child without a timeout (the lead's ruling 17 of 17 Nov 2026);
 * **the committed baseline** (rule M3, the lead's ruling 17 of 17 Nov 2026): with ``--expect-baseline`` the run's
-  own R0L baseline, equal to the one ``monitor2 baseline`` made without a job, lets the run train; another survival,
-  another state digest or a record without digests halts it before its first rollout, also on a resume; a file
+  own R0L baseline, equal to the one ``monitor2 baseline`` made without a job, lets the run train, also with a
+  condition not run (built by ``lookbar.episodes``, without a digest: the lead's ruling 33 of 17 Nov 2026); another
+  survival, another state digest or a record without digests in an episode that ran halts it before its first
+  rollout, also on a resume; a file
   that is missing, cannot be read or is no baseline record, or one given without the gates, is refused before
   anything is written; the file's sha256 is a setting of the run (a resume without it, or with another file, is
   refused);
@@ -218,15 +220,39 @@ def _steps_env(name: str) -> list:
     return [int(x) for x in os.environ.get(name, "").split(",") if x]
 
 
+def lookbar_not_run(body, set_name, pairs, row) -> list:
+    """Episodes of ``pairs`` not run, as ``lookbar.episodes`` builds them: that function itself, on a set (no look
+    set) whose ``open_set`` holds none of their references; nothing is read and no episode runs, and the row is a
+    ``LookRow`` around a bare row."""
+    from designlab.stage1 import panels
+    from designlab.stage2 import lookbar
+
+    def open_set(body, set_name, keys, root, stage1_run):
+        return dict(ctx=None, conds={k: None for k in keys}, inputs=None, run_dir=None, set_docs=None,
+                    missing={k: dict(reference="transitions/turn90_pi4_left", numbers=None,
+                                     reason="a fixture's reason: the set holds no available reference") for k in keys})
+
+    real, lookbar.open_set = lookbar.open_set, open_set
+    try:
+        return lookbar.episodes(body, set_name, {row: lookbar.LookRow(panels.Row())}, list(pairs))
+    finally:
+        lookbar.open_set = real
+
+
 def stub_episodes(body, set_name, row, pairs, policies=None, traces=None) -> list:
     """The stub of ``lookbar.episodes``: R0L reads every episode (survival 10 s, or ``STUB_R0L_SURVIVAL``); a
     policy row reads them too and survives 10.5 s, but ``walk/nominal`` falls at the steps of
     ``STUB_MON_FAIL_AT``.  ``STUB_DIGESTS`` set: every episode holds a ``state_digest`` of its row's mode, its
-    condition, seed and survival (as the bar's episodes hold the digest of their end state)."""
+    condition, seed and survival (as the bar's episodes hold the digest of their end state).  ``STUB_NOT_RUN``
+    names a condition that is not run in every row, its episodes built by ``lookbar.episodes`` (``lookbar_not_run``:
+    a condition without a reference, with no digest)."""
     n = None if not policies else int(next(iter(policies.values()))["steps"])
     down = n is not None and n in _steps_env("STUB_MON_FAIL_AT")
     out = []
     for cond, seed in pairs:
+        if cond == os.environ.get("STUB_NOT_RUN"):
+            out += lookbar_not_run(body, set_name, [(cond, seed)], row)
+            continue
         fell = bool(down and cond == "walk/nominal")
         surv = float(os.environ.get("STUB_R0L_SURVIVAL", 10.0)) if n is None else (3.0 if fell else 10.5)
         out.append(dict(condition=cond, seed=int(seed), outcome="fell" if fell else "read", reason=None, fell=fell,
@@ -1842,6 +1868,37 @@ def test_a_baseline_that_is_not_the_committed_one_stops_the_run_before_its_first
     other.write_text(json.dumps(doc))
     with pytest.raises(stub.Halt, match="the state digests were not compared"):
         run(stub, tmp_path / "no_digest", gates=True, expect_baseline=str(other))
+
+
+def test_a_committed_baseline_with_a_condition_not_run_lets_the_run_train(stub, tmp_path, monkeypatch):
+    """The lead's ruling 33 of 17 Nov 2026 (the check of CT4, finding 1): rule M1 lets R0L's baseline hold a
+    condition not run (S2-4's case when the set marks a turn's reference not available, ruling 29), and
+    ``lookbar.episodes`` gives such an episode no state digest.  A committed baseline with one condition not run,
+    equal to the run's own on both sides, lets the run train: the digests are compared in every episode that ran.
+    A digest lost from an episode that ran still halts the run."""
+    monkeypatch.setenv("STUB_NOT_RUN", "turn/q90_left")
+    committed = _committed(tmp_path, monkeypatch)
+    doc = json.loads(committed.read_text())
+    assert [e["outcome"] for e in doc["episodes"]] == ["read", "read", "not_run", "read", "read", "read"]
+    assert doc["valid"] is True and doc["outcomes"]["not_run"] == 1
+    assert "state_digest" not in doc["episodes"][2] and doc["episodes"][2]["reason"].startswith("a fixture's reason")
+    assert all(len(e["state_digest"]) == 64 for i, e in enumerate(doc["episodes"]) if i != 2)
+    d = run(stub, tmp_path / "equal", gates=True, expect_baseline=str(committed))
+    assert d["status"] == "done" and d["num_timesteps"] == FINAL and d["halt"] is None
+    (e,) = d["baseline_expected"]
+    assert (e["session"], e["equal"], e["episodes"], e["digests_compared"], e["differ"]) == (0, True, 6, True, [])
+    assert [x["outcome"] for x in d["baseline"]["episodes"]] == ["read", "read", "not_run", "read", "read", "read"]
+    assert "in every episode that ran" in stub.EXPECT_BASELINE_RULE
+    assert d["rules"]["expect_baseline"] == stub.EXPECT_BASELINE_RULE
+    # the checks hold the condition not run as well, and are records
+    mon = json.loads((job(tmp_path / "equal") / "monitor" / "monitor_512.json").read_text())
+    assert mon["outcomes"]["not_run"] == 1 and mon["episodes"][2]["outcome"] == "not_run"
+    # an episode that ran and lost its digest in the committed file: the digests were not compared, the run halts
+    doc["episodes"][0].pop("state_digest")
+    other = tmp_path / "lost_digest.json"
+    other.write_text(json.dumps(doc))
+    with pytest.raises(stub.Halt, match="the state digests were not compared in every episode that ran"):
+        run(stub, tmp_path / "lost", gates=True, expect_baseline=str(other))
 
 
 def test_an_expected_baseline_is_refused_or_kept_as_a_setting(stub, tmp_path, monkeypatch):
