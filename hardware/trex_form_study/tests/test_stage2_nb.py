@@ -105,6 +105,17 @@ if run is None and a.resume:
 if p.get("refuse"):
     print("stub: Refused: other settings than the run's", file=sys.stderr)
     sys.exit(4)
+SOURCES = dict(files={"designlab/stage2/r5core.py": "stub-r5core"}, plant_sources="stub", panel_sources="stub")
+SOURCES["sha256"] = hashlib.sha256(json.dumps(SOURCES, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+source_change, sources_before = False, None                 # (train2's rule K4 on the sources, before the versions)
+was = (run["sessions"][-1].get("sources") or {}) if run is not None and a.resume and run["sessions"] else {}
+if was.get("sha256") not in (None, SOURCES["sha256"]):
+    if not a.allow_source_change:
+        print("stub: Refused: other sources than the run's last session (%s... -> %s...): refusing to resume (pass "
+              "--allow-source-change to resume on them, flagged)" % (was["sha256"][:12], SOURCES["sha256"][:12]),
+              file=sys.stderr)
+        sys.exit(4)
+    source_change, sources_before = True, was
 VERSIONS, version_change = dict(numpy="stub-1"), False      # (train2's rule K4 on the library versions)
 if a.resume and run is not None and run["sessions"] and run["sessions"][-1].get("versions") not in (None, VERSIONS):
     if not a.allow_version_change:
@@ -158,7 +169,8 @@ k = len(run["sessions"])
 run["sessions"].append(dict(index=k, resumed_from=n if a.resume and have() else None, pid=os.getpid(),
                             host=socket.gethostname(), fingerprint_max_abs_diff=0.0 if a.resume else None,
                             skipped_checkpoints=[], workers=a.workers, argv=sys.argv[1:], versions=VERSIONS,
-                            version_change=version_change))
+                            version_change=version_change, sources=SOURCES, source_change=source_change,
+                            sources_before=sources_before))
 run["status"] = "running"
 write(run_path, run)
 if p.get("halt"):
@@ -2636,12 +2648,14 @@ def test_the_acceptance_runs_plumbing_on_stubs(tmp_path, monkeypatch):
 
 
 def test_design_3_10_step_6_the_leads_remedies_after_a_faked_record(tmp_path, stubs, monkeypatch):
-    """Design 3.10 step 6 as the lead's ruling 2 of 17 Nov has it (``_remedies``, which ``acceptance`` and
-    ``local_run`` run), on the stub trainer through the notebook's own cells: a session killed once its job's first
-    checkpoint is on the stand-in Drive; a faked record (QUEUE.json's commit, the job's last session's library
-    versions); a resume refused for the commit; LEAD.json's allow_source_change, and a resume that the trainer
-    refuses for the versions (exit code 4: no HALT.json); LEAD.json's allow_version_change too, and a resume to
-    DONE.  As built, step 6 was not done by acceptance at all ("not_done")."""
+    """Design 3.10 step 6 as the lead's rulings 2 and 12 of 17 Nov have it (``_remedies``, which ``acceptance`` and
+    ``local_run`` run), on the stub trainer (with train2's source check and version check, in that order) through
+    the notebook's own cells: a session killed once its job's first checkpoint is on the stand-in Drive; a faked
+    record (the job's last session's library versions and recorded source hash); a resume that the trainer's own
+    source check refuses (exit code 4: no HALT.json); the faked commit of QUEUE.json and a resume refused for it;
+    LEAD.json's allow_source_change, and a resume that the trainer refuses for the versions only (the flag reached
+    it); LEAD.json's allow_version_change too, and a resume to DONE whose run.json records both changes.  As built
+    (ruling 12's point) the trainer's source check was never exercised: only QUEUE.json's commit was faked."""
     monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.05, budget=512 * 200)}))
     real, logs = nb.run_cells, []
 
@@ -2656,21 +2670,32 @@ def test_design_3_10_step_6_the_leads_remedies_after_a_faked_record(tmp_path, st
                 STUDY_DIR=str(STUDY))
     rem = nb._remedies(NOTEBOOK, p, tmp_path / "logs", STUDY)
     assert rem["checks"] and all(rem["checks"].values()), json.dumps(rem, indent=1)[:4000]
-    assert logs == ["remedies-0.log", "remedies-1-refused-source.log", "remedies-2-refused-by-the-trainer.log",
-                    "remedies-3-done.log"]
+    assert "source_change_refused_by_the_trainer" in rem["checks"]
+    assert "allow_source_change_reached_the_trainer" in rem["checks"]
+    assert logs == ["remedies-0.log", "remedies-1-refused-by-the-trainers-source-check.log",
+                    "remedies-2-refused-source.log", "remedies-3-refused-by-the-trainer.log", "remedies-4-done.log"]
     d = tmp_path / "drive" / "runs" / "acc-remedies"
     assert rem["run_id"] == "acc-remedies" and rem["faked"]["queue_commit"] == "0" * 40
     assert rem["faked"]["version"] == dict(key="numpy", was="stub-1", now=nb.FAKED_VERSION[1])
-    assert sorted(x.name for x in d.glob("SESSION_*.json")) == ["SESSION_0.json", "SESSION_1.json", "SESSION_2.json"]
-    s1, s2 = (json.loads((d / f"SESSION_{k}.json").read_text()) for k in (1, 2))
-    assert s1["ended"]["state"] == "refused" and s1["allow_source_change"] and not s1["allow_version_change"]
-    assert s2["lead"]["doc"]["allow_version_change"] is True and s2["source_change"] is True
+    src = rem["faked"]["source"]
+    assert (src["file"], src["was"], src["now"]) == ("designlab/stage2/r5core.py", "stub-r5core", "0" * 64)
+    assert src["sha256_now"] != src["sha256_was"] and len(src["sha256_now"]) == 64
+    assert sorted(x.name for x in d.glob("SESSION_*.json")) == [f"SESSION_{k}.json" for k in range(4)]
+    s1, s2, s3 = (json.loads((d / f"SESSION_{k}.json").read_text()) for k in (1, 2, 3))
+    assert s1["ended"]["state"] == "refused" and not s1["allow_source_change"] and s1["lead"] is None
+    assert s2["ended"]["state"] == "refused" and s2["allow_source_change"] and not s2["allow_version_change"]
+    assert s3["lead"]["doc"]["allow_version_change"] is True and s3["source_change"] is True
     assert not (d / "HALT.json").exists() and json.loads((d / "DONE.json").read_text())["state"] == "done"
+    # (the stub's log of its calls is in the local run directory, which the dead runtime lost after session 0)
     argv = [c["argv"] for c in _calls(dict(p, RUN_ID="acc-remedies"))]
-    assert "--allow-source-change" in argv[-2] and "--allow-version-change" not in argv[-2]
-    assert "--allow-version-change" in argv[-1] and "--resume" in argv[-1]
+    assert len(argv) == 3 and "--resume" in argv[0] and "--allow-source-change" not in argv[0]
+    assert "--allow-source-change" in argv[1] and "--allow-version-change" not in argv[1]
+    assert "--allow-version-change" in argv[2] and "--allow-source-change" in argv[2] and "--resume" in argv[2]
     run = json.loads((d / "jobs" / "R5-B1-s42" / "run.json").read_text())
-    assert run["sessions"][-1]["version_change"] is True and run["sessions"][-1]["resumed_from"] >= 1024
+    last = run["sessions"][-1]
+    assert len(run["sessions"]) == 2 and last["version_change"] is True and last["resumed_from"] >= 1024
+    assert last["source_change"] is True and last["sources_before"]["sha256"] == src["sha256_now"]
+    assert run["sessions"][0]["sources"]["files"]["designlab/stage2/r5core.py"] == "0" * 64   # (the faked record)
 
 
 @needs_git

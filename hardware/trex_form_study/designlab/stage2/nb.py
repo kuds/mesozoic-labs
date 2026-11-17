@@ -3644,26 +3644,39 @@ def _drill_checks(drill: dict, params: dict) -> dict:
 #: Design 3.10 step 6 (``_remedies``): the cells of its sessions.  Lines 2 and 3 are the drill's, in the same
 #: checkout, whose inputs the drill's resume has unpacked: cells 4 and 5 are not run again.
 REMEDY_CELLS = (1, 2, 3, 7, 8)
-#: What ``_remedies`` fakes in the job's ``run.json`` (its last session's version of this library).
+#: What ``_remedies`` fakes in the job's ``run.json``: its last session's version of this library, and the hash its
+#: last session recorded of one source file that both the trainer's resume and the policy row compare (rule K9;
+#: ``train2.SOURCE_FILES``, ``s2rows.SOURCE_FILES``), the sources' own hash made again from it.
 FAKED_VERSION = ("numpy", "0.0.0-faked-for-design-3.10-step-6")
+FAKED_SOURCE = ("designlab/stage2/r5core.py", "0" * 64)
+#: The words of the trainer's two refusals of a resume (``train2``'s ``RESUME_RULE``) that step 6 tells apart.
+TRAINER_SOURCES_REFUSAL = "other sources than the run's last session"
+TRAINER_VERSIONS_REFUSAL = "other library versions than the run's last session"
 
 
 def _remedies(notebook, params: dict, logs: Path, cwd) -> dict:
     """Design 3.10 step 6, ``ALLOW_SOURCE_CHANGE`` and ``ALLOW_VERSION_CHANGE`` "each exercised with a faked session
-    record", as the lead's ruling 2 of 17 Nov 2026 has them: from ``LEAD.json`` beside the run, never from the
-    owner's cell 1.  A run of its own (``<RUN_ID>-remedies``: the queue's first job, tiny) in the checkout ``cwd``
-    (``REMEDY_CELLS``):
+    record", as the lead's rulings 2 and 12 of 17 Nov 2026 have them: from ``LEAD.json`` beside the run, never from
+    the owner's cell 1, and through the real trainer's own source check.  A run of its own (``<RUN_ID>-remedies``:
+    the queue's first job, tiny) in the checkout ``cwd`` (``REMEDY_CELLS``):
 
     0. a session ended with SIGKILL once the job's first checkpoint is on the stand-in Drive, and its local run
        directory deleted (a dead runtime);
-    1. the faked records: ``QUEUE.json``'s commit (as if the run had been made at another commit) and, in the
-       job's ``run.json``, its last session's ``FAKED_VERSION`` (as if it had trained on other library versions);
-    2. a RESUME (TAKEOVER: ``LIVE.json`` is fresh), refused by the session (rule K6: another commit and no
-       ``allow_source_change``); nothing written;
-    3. ``LEAD.json`` with ``allow_source_change``; a RESUME (TAKEOVER) that the session accepts and the trainer
-       refuses (exit code 4: other library versions): no ``HALT.json``, ``LIVE.json`` closed (ruling 2);
-    4. ``LEAD.json`` with ``allow_version_change`` too; a RESUME (no TAKEOVER: ``LIVE.json`` was closed) that
-       reaches DONE, with both remedies in the session's record and the version change in the job's ``run.json``.
+    1. the faked records in the job's ``run.json``: its last session's ``FAKED_VERSION`` (as if it had trained on
+       other library versions) and its recorded hash of ``FAKED_SOURCE`` (as if on other code);
+    2. a RESUME (TAKEOVER: ``LIVE.json`` is fresh) that the session accepts (the commit is the run's) and the
+       trainer's source check refuses (exit code 4, ``TRAINER_SOURCES_REFUSAL``: no ``--allow-source-change``): no
+       ``HALT.json``, ``LIVE.json`` closed (ruling 2);
+    3. the faked ``QUEUE.json`` commit (as if the run had been made at another commit); a RESUME refused by the
+       session (rule K6: another commit and no ``allow_source_change``); nothing written;
+    4. ``LEAD.json`` with ``allow_source_change``; a RESUME that the session accepts and the trainer refuses for
+       the versions (exit code 4, ``TRAINER_VERSIONS_REFUSAL``), no longer for the sources: the flag reached the
+       trainer;
+    5. ``LEAD.json`` with ``allow_version_change`` too; a RESUME that reaches DONE, with both remedies in the
+       session's record, and in the job's ``run.json`` the trainer's own record of both changes (its last session's
+       ``source_change`` and ``version_change``, its ``sources_before`` the faked hash).  On the real trainer the
+       checks of that session run the policy row on the faked record, which the row passes only with the
+       allowance the trainer gives it (rule K9).
 
     Returns ``{run_id, drive_run, kill, faked, attempts, checks}``."""
     first = parse_queue(params["QUEUE"])[0]
@@ -3683,37 +3696,60 @@ def _remedies(notebook, params: dict, logs: Path, cwd) -> dict:
     def attempt(name: str, **over) -> dict:
         return run_cells(notebook, dict(p, **over), logs / f"remedies-{name}.log", cwd, cells=REMEDY_CELLS)
 
+    def refused_by_the_trainer(x: dict) -> bool:
+        live = _read_json(d / "LIVE.json") or {}
+        return ("S2 launch: REFUSED: " in x["text"] and "(exit code 4)" in x["text"] and not (d / "HALT.json").exists()
+                and str(live.get("closed_reason") or "").startswith("refused: "))
+
     a = run_cells(notebook, p, logs / "remedies-0.log", cwd, cells=REMEDY_CELLS, until=copied)
     kill = dict(at=_now(), after_s=a["seconds"], when=a["killed"], on_drive=_drive_checkpoints(jd))
     shutil.rmtree(lrun, ignore_errors=True)
     q, run = _read_json(d / "QUEUE.json"), _read_json(jd / "run.json")
-    faked = dict(queue_commit=None, run_commit=None, version=None)
-    if isinstance(q, dict) and isinstance(run, dict) and run.get("sessions"):
-        faked.update(run_commit=q.get("commit"), queue_commit="0" * 40)
-        _write_json(d / "QUEUE.json", dict(q, commit=faked["queue_commit"]))
+    faked = dict(queue_commit=None, run_commit=None, version=None, source=None)
+    if isinstance(run, dict) and run.get("sessions"):
         last = run["sessions"][-1]
         key, value = FAKED_VERSION
         faked["version"] = dict(key=key, was=(last.get("versions") or {}).get(key), now=value)
         last["versions"] = dict(last.get("versions") or {}, **{key: value})
+        rel, value = FAKED_SOURCE
+        src = dict(last.get("sources") or {})
+        files = dict(src.get("files") or {})
+        faked["source"] = dict(file=rel, was=files.get(rel), now=value, sha256_was=src.get("sha256"))
+        src["files"] = dict(files, **{rel: value})
+        src["sha256"] = sha256_json({k: src.get(k) for k in ("files", "plant_sources", "panel_sources")})
+        faked["source"]["sha256_now"] = src["sha256"]
+        last["sources"] = src
         _write_json(jd / "run.json", run)
-    b = attempt("1-refused-source", RESUME=True, TAKEOVER=True)
+    b0 = attempt("1-refused-by-the-trainers-source-check", RESUME=True, TAKEOVER=True)
+    b0_refused = refused_by_the_trainer(b0)
+    if isinstance(q, dict):
+        faked.update(run_commit=q.get("commit"), queue_commit="0" * 40)
+        _write_json(d / "QUEUE.json", dict(q, commit=faked["queue_commit"]))
+    sessions_before_b = sorted(x.name for x in d.glob("SESSION_*.json"))
+    b = attempt("2-refused-source", RESUME=True)
     sessions_after_b = sorted(x.name for x in d.glob("SESSION_*.json"))
     lead(allow_source_change=True)
-    c = attempt("2-refused-by-the-trainer", RESUME=True, TAKEOVER=True)
-    halt_after_c, live_after_c = (d / "HALT.json").exists(), _read_json(d / "LIVE.json") or {}
+    c = attempt("3-refused-by-the-trainer", RESUME=True)
+    c_refused = refused_by_the_trainer(c)
     lead(allow_source_change=True, allow_version_change=True)
-    e = attempt("3-done", RESUME=True)
+    e = attempt("4-done", RESUME=True)
     recs = sorted(d.glob("SESSION_*.json"), key=lambda f: int(re.sub(r"\D", "", f.name) or 0))
     last_session = _read_json(recs[-1]) if recs else {}
     run = _read_json(jd / "run.json") or {}
     sess = run.get("sessions") or []
     checks = dict(
         remedies_killed=bool(a["killed"]) and a["exit_code"] != 0,
-        remedies_faked=faked["version"] is not None,
+        remedies_faked=faked["version"] is not None and faked["source"] is not None
+        and faked["queue_commit"] is not None,
+        source_change_refused_by_the_trainer=b0_refused
+        and TRAINER_SOURCES_REFUSAL in b0["text"] and "--allow-source-change" in b0["text"],
         source_change_refused_without_lead=b["exit_code"] != 0 and "only with allow_source_change" in b["text"]
-        and sessions_after_b == ["SESSION_0.json"],
-        version_change_refused_by_the_trainer="S2 launch: REFUSED: " in c["text"] and "(exit code 4)" in c["text"]
-        and not halt_after_c and str(live_after_c.get("closed_reason") or "").startswith("refused: "),
+        and sessions_after_b == sessions_before_b == ["SESSION_0.json", "SESSION_1.json"],
+        version_change_refused_by_the_trainer=c_refused
+        and TRAINER_VERSIONS_REFUSAL in c["text"],
+        allow_source_change_reached_the_trainer=TRAINER_SOURCES_REFUSAL not in c["text"]
+        and TRAINER_SOURCES_REFUSAL not in e["text"] and bool(sess) and sess[-1].get("source_change") is True
+        and (sess[-1].get("sources_before") or {}).get("sha256") == (faked["source"] or {}).get("sha256_now"),
         resumed_to_done_with_the_leads_remedies=e["exit_code"] == 0
         and (_read_json(d / "DONE.json") or {}).get("state") == "done"
         and bool(last_session.get("allow_source_change")) and bool(last_session.get("allow_version_change"))
@@ -3723,7 +3759,8 @@ def _remedies(notebook, params: dict, logs: Path, cwd) -> dict:
     return dict(run_id=p["RUN_ID"], drive_run=str(d), kill=kill, faked=faked, checks=checks,
                 attempts={k: dict(exit_code=v["exit_code"], killed=v["killed"], seconds=v["seconds"], log=v["log"],
                                   lines={str(n): rows for n, rows in v["lines"].items() if rows})
-                          for k, v in dict(session0=a, refused_source=b, refused_by_the_trainer=c, done=e).items()})
+                          for k, v in dict(session0=a, refused_by_the_source_check=b0, refused_source=b,
+                                           refused_by_the_trainer=c, done=e).items()})
 
 
 def local_run(notebook, drive_dir, params, record=None, remedies: bool = True) -> dict:
