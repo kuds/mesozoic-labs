@@ -437,6 +437,41 @@ def test_g9_ref_on_the_frozen_set_v0(tmp_path):
     assert doc["followed"].startswith("no closed-loop episode runs on this set and body")
 
 
+@needs_s1
+def test_g9_ref_runs_round_as_refcheck_where_no_record_is_cited(tmp_path):
+    """On the synthetic frozen set ``T0`` (no refcheck record anywhere) part (a) runs ``bar.refcheck`` and cites the
+    record it wrote beside the gate's own, by path and sha256; the gate's other parts run and are recorded."""
+    from tests import test_stage2_g8a as G
+
+    G.make_t0(tmp_path)
+    rec = tmp_path / "rec" / "g9_ref.json"
+    doc = gates2.g9_ref(BODY, "T0", rec, root=tmp_path)
+    assert doc == _record(rec)
+    a = doc["parts"]["a"]
+    written = tmp_path / "rec" / "refcheck" / "T0" / BODY / "refcheck.json"
+    assert a["refcheck"]["source"] == "bar.refcheck, run by this gate" and written.is_file()
+    assert a["refcheck"]["sha256"] == s2io.sha256_file(written) and a["schema"] == "bar-refcheck-1"
+    assert a["same_set_and_body"] is True and set(a["items"]) >= {"walk/v0.4", "walk/nominal", "stop/two_step"}
+    assert doc["parts"]["f"]["screen"] is None and doc["parts"]["f"]["unplayed"] == {}
+    assert set(doc["parts_ok"]) == {"a", "b", "c", "f"} and doc["form"] == "plain"
+
+
+@needs_v0
+def test_g9_ref_part_b_against_a_comparand(monkeypatch):
+    """The form of (b) for an ``-X`` body and for V6noF5: each walk's playback against the comparand set's playback
+    of the walk of the same name within (b)'s limits (here V0 against itself: every difference is zero); the
+    comparand's files are cited by path and sha256."""
+    v = gates2._SetView(BODY, "V0")
+    monkeypatch.setattr(v, "walks", lambda: ["nominal", "v0.4"])
+    b = gates2.part_b(v, comparand=v)
+    assert set(b["compared"]) == {"nominal", "v0.4"} and b["rungs"] == {}
+    for n, x in b["compared"].items():
+        d = x["against"]["differences"]
+        assert x["against"]["terms"]["head"] and x["against"]["terms"]["tail"], n
+        assert d["head_deg"] == 0.0 and d["tail_cycles"] == 0.0 and d["toe_off_rad"] == 0.0, n
+    assert b["comparand"]["set"] == "V0" and b["comparand"]["files"]["v0.4"]["sha256"] == v.refs["v0.4"]["sha256"]
+
+
 # ------------------------------------------------------------------------------------------------
 # G9-run (rule Z2): synthetic companion records over a real 10 ms bar record
 # ------------------------------------------------------------------------------------------------
@@ -597,6 +632,7 @@ def test_kill_resume_on_the_stub_env(stub_kr):
     assert [s["workers"] for s in ru["sessions"]] == [2] and [s["workers"] for s in rk["sessions"]] == [2, 3]
     assert rk["sessions"][1]["resumed_from"] == 768 and rk["sessions"][1]["fingerprint_max_abs_diff"] == 0.0
     assert ru["run_uuid"] != rk["run_uuid"] and ru["status"] == rk["status"] == "done"
+    assert ru["filter_hz"] == rk["filter_hz"] == [10.0] and ru["lr"] == rk["lr"]
     final = doc["compared"][-1]
     assert final["steps"] == 1536 and final["equal"] and final["intact"] == {"a": None, "b": None}
     kinds = final["by_kind"]

@@ -1384,6 +1384,19 @@ def _progress_steps(path: Path) -> int | None:
     return None if doc is None or doc.get("steps") is None else int(doc["steps"])
 
 
+def _running(job_dir: Path) -> int | None:
+    """The process that a job's ``progress.json`` names when it is alive and is a Track B trainer (its command line
+    names ``designlab.stage2``), else None: a run directory in use is never moved aside."""
+    pid = (_read(job_dir / "progress.json") or {}).get("pid")
+    if not pid:
+        return None
+    try:
+        cmd = Path(f"/proc/{int(pid)}/cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")
+    except OSError:
+        return None
+    return int(pid) if "designlab.stage2" in cmd and int(pid) != os.getpid() else None
+
+
 def _aside(path: Path) -> Path:
     k = 0
     while True:
@@ -1430,6 +1443,11 @@ def kill_resume(body: str, set_name: str, out, record=None, *, tiny=False, setti
     def run_doc(name):
         p = jobs[name] / "run.json"
         return _read(p) if p.is_file() else None
+
+    for name, jd in jobs.items():
+        pid = _running(jd)
+        if pid is not None:
+            raise Refused(f"{jd}: its trainer (process {pid}) is still running: one kill-resume at a time")
 
     # --- the uninterrupted run (one session)
     d = run_doc("uninterrupted")
@@ -1525,6 +1543,8 @@ def kill_resume(body: str, set_name: str, out, record=None, *, tiny=False, setti
         runs={k: dict(run_uuid=x["run_uuid"], status=x["status"], num_timesteps=x.get("num_timesteps"),
                       budget=x.get("budget"), settings_sha256=x.get("settings_sha256"),
                       lr=(x.get("settings") or {}).get("lr"),
+                      filter_hz=sorted({c.get("filter_hz") for c in (x.get("settings") or {}).get("env_configs") or []
+                                        if isinstance(c, dict)}, key=str),
                       sessions=[dict(index=q.get("index"), workers=q.get("workers"), resumed_from=q.get("resumed_from"),
                                      fingerprint_max_abs_diff=q.get("fingerprint_max_abs_diff"),
                                      boundary_seeds=q.get("boundary_seeds"), started_at=q.get("started_at"),
