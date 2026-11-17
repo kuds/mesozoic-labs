@@ -9,16 +9,17 @@ none is measured on this build's hardware, and no episode here is a record or a 
   env's through its step hook.
 * ``ALIGN_RULE``: G8a's alignment, and on both sides the one parameter object (``servo.ServoParams``), the same
   context manager (``servo.served``) entered after the delay, and a setting's trunk mass applied before the start.
-* ``stock``: the development form on the S1 view (Stage 1's own run directory), the env against the panels' R0 row
-  inside ``speedfit.servo_delay`` and ``ServedRow``.  No ``bar`` import.  ``check`` runs T13's settings on it.
-* ``bar_form``: the gate's form on a frozen set, the env against ``bar.Delayed(ServedRow(the bar's R0 row))``
-  (``bar`` is imported inside the function).
+* ``stock``: the development form on the S1 view (Stage 1's own run directory), the env against the served ``SV0``
+  row of the setting (``servo.Served`` around the panels' R0 row, built by the factory ``servo`` registers) inside
+  ``speedfit.servo_delay``.  No ``bar`` import.  ``check`` runs T13's settings on it.
+* ``bar_form``: the gate's form on a frozen set, the env against the bar's row ``SV0/<setting>@<ms>ms``
+  (``bar.rows``: ``bar.Delayed`` around the served row; ``bar`` is imported inside the function).
 
-**The served row.**  Package S3's row ``servo.Served`` and its names are not built yet.  ``ServedRow`` is this gate's
-judging side, in the form design 5.1 gives that row: the setting's trunk mass applied before the inner episode and
-undone after (``env.set_trunk_mass``), the inner row's episode inside ``servo.served`` on the condition's plant, and
-the bar's delay outside it (``bar.rows`` wraps a registered row in ``bar.Delayed``).  When S3's row exists this gate
-should compare the env against it (G8s run again then).
+**The served row** is package S3's ``servo.Served`` under its names (``servo.NAME_RULE``; the lead's fourth list of
+17 Nov 2026, the builder's (d): G8s is run again against it): the setting's trunk mass applied before the inner
+episode and undone after (``servo.trunk_mass``), the inner row's episode inside ``servo.served`` on the condition's
+plant, and the bar's delay outside it.  Package S2 compared the env against a judging side of its own form here
+(``ServedRow``), which ``servo.Served`` replaces.
 
 **Sets.**  As G8a's: ``stock`` reads Stage 1's run directory only; ``bar_form`` refuses no set, and on a look set
 rule X1's limits are the caller's to keep (no closed-loop episode there before G9-ref has passed).
@@ -31,10 +32,7 @@ from designlab.stage2 import tbenv
 tbenv.assign_gl("disable")
 
 import dataclasses  # noqa: E402
-import types  # noqa: E402
-from contextlib import contextmanager  # noqa: E402
 
-import mujoco  # noqa: E402
 import numpy as np  # noqa: E402
 
 from ..stage1 import env, panels, speedfit  # noqa: E402
@@ -45,11 +43,11 @@ BODY = servo.BODY
 RULE = g8a.RULE
 ALIGN_RULE = (
     "G8a's alignment (g8a.py), and with the servo layer: one parameter object (servo.ServoParams) is given to both "
-    "sides, the env through options.servo (r5env.SERVO_RULE) and the row through ServedRow; on both sides the layer "
-    "is servo.served on the plant, entered after the delay (the env: after speedfit.servo_delay at its reset's step "
-    "12; the row: bar.Delayed outside ServedRow), and acts from the first physics step; a setting's trunk mass factor "
-    "(M-, M+, W1, W2) is applied before the start on both sides (the env: its mass factor at step 6, before the "
-    "start at step 11; the row: env.set_trunk_mass before the inner episode, which starts it, and undone after); the "
+    "sides, the env through options.servo (r5env.SERVO_RULE) and the row through servo.Served; on both sides the "
+    "layer is servo.served on the plant, entered after the delay (the env: after speedfit.servo_delay at its reset's "
+    "step 12; the row: bar.Delayed outside servo.Served), and acts from the first physics step; a setting's trunk mass "
+    "factor (M-, M+, W1, W2) is applied before the start on both sides (the env: its mass factor at step 6, before the "
+    "start at step 11; the row: servo.trunk_mass before the inner episode, which starts it, and undone after); the "
     "drawn panel D's set is drawn from the run's own bar seed (servo.panel_draw).  An episode is identical by "
     "g8a.RULE")
 #: Test T13's named settings (design 5.5); the drawn panel D runs at ``D_SEEDS`` (three runs), each from its own seed.
@@ -69,42 +67,8 @@ def params_of(setting, seed: int) -> servo.ServoParams:
     return r5env.servo_params(setting)
 
 
-@contextmanager
-def trunk_mass(p, factor: float):
-    """The trunk mass and inertia of ``p`` x ``factor`` for the block (``env.set_trunk_mass``, from the masses as they
-    are at entry), undone when it ends whatever happens in it; nothing for a factor of 1."""
-    factor = float(factor)
-    if factor == 1.0:
-        yield
-        return
-    m = p.m
-    nominal = types.SimpleNamespace(body_mass=m.body_mass.copy(), body_inertia=m.body_inertia.copy())
-    scratch = mujoco.MjData(m)
-    env.set_trunk_mass(m, p.trunk, factor, nominal, scratch)
-    try:
-        yield
-    finally:
-        env.set_trunk_mass(m, p.trunk, 1.0, nominal, scratch)
-
-
-class ServedRow:
-    """This gate's judging side (module docstring): ``inner``'s episode with the setting's trunk mass and inside
-    ``servo.served(p, params)`` on the condition's plant.  ``readings`` holds the layer's readings of the last
-    episode."""
-
-    def __init__(self, inner, params: servo.ServoParams):
-        self.inner, self.params = inner, params
-        self.name = f"{getattr(inner, 'name', 'row')}/servo:{params.name}"
-        self.hard_only = bool(getattr(inner, "hard_only", False))
-        self.readings = None
-
-    def episode(self, ctx, cond, seed: int, relax=()):
-        p = ctx.built(cond).p
-        self.readings = None
-        with trunk_mass(p, self.params.mass), servo.served(p, self.params) as lay:
-            out = self.inner.episode(ctx, cond, seed, relax)
-            self.readings = lay.readings()
-        return out
+#: The served row's trunk mass (``servo.trunk_mass``; package S2 defined it here).
+trunk_mass = servo.trunk_mass
 
 
 class _Delayed:
@@ -150,9 +114,10 @@ def env_episode(e: r5env.R5Env, plan, seconds: float, seeds: dict, friction, k: 
 
 
 def episode(row, ctx, cond, seed: int, k: int, e: r5env.R5Env, params: servo.ServoParams) -> dict:
-    """One comparison: ``row`` (a delayed ``ServedRow`` of ``params``) against the env given ``params``."""
+    """One comparison: ``row`` (a delayed ``servo.Served`` whose run of ``seed`` is served at ``params``) against the
+    env given ``params``."""
     served = row.inner
-    if not isinstance(served, ServedRow) or served.params is not params:
+    if not isinstance(served, servo.Served) or served.params_for(int(seed)) != params:
         raise ValueError("the row is not the served row of this parameter object (ALIGN_RULE)")
     r = g8a.row_episode(row, ctx, cond, seed)
     b = r["built"]
@@ -184,9 +149,11 @@ def release() -> None:
 
 def stock(setting, condition: str = CONDITION, seed: int = SEED, k: int = 0, seconds: float | None = None,
           body: str = BODY, params: servo.ServoParams | None = None) -> dict:
-    """The development form on the S1 view: the env given the setting against ``_Delayed(ServedRow(the panels' R0
-    row))`` on the stock condition (``g8a.stock``'s).  ``params`` is the parameter object (default: ``setting``'s for
-    this seed, ``params_of``); ``seconds`` cuts the condition."""
+    """The development form on the S1 view: the env given the setting against ``_Delayed(the served SV0 row)`` on the
+    stock condition (``g8a.stock``'s).  The row is ``SV0/<setting>`` as ``servo``'s registered factory builds it
+    (``panels.tracker_rows``); with ``params`` (a parameter object) it is ``servo.Served`` around the panels' R0 row
+    at ``params``.  ``params`` defaults to ``setting``'s for this seed (``params_of``); ``seconds`` cuts the
+    condition."""
     conds = {c.key: c for c in panels.conditions()}
     if condition not in conds:
         raise ValueError(f"condition {condition!r}: choose from {', '.join(conds)}")
@@ -196,15 +163,19 @@ def stock(setting, condition: str = CONDITION, seed: int = SEED, k: int = 0, sec
     if body not in _STOCK:
         run_root = setio._anchored(r5lib.s1_root(body))
         _, docs = setio.stage1_view(run_root, body)
-        _STOCK[body] = dict(ctx=panels.Context(body, run_root / body, docs),
+        _STOCK[body] = dict(ctx=panels.Context(body, run_root / body, docs), run_dir=run_root / body,
                             row=panels.tracker_rows(body, run_root / body, ("R0",))["R0"], envs={})
     parts = _STOCK[body]
     if cond.floor not in parts["envs"]:
         parts["envs"][cond.floor] = _env(body, r5lib.STOCK_SET, cond.floor)
-    params = params_of(setting, seed) if params is None else params
-    row = _Delayed(ServedRow(parts["row"], params), k)
-    out = episode(row, parts["ctx"], cond, seed, k, parts["envs"][cond.floor], params)
-    return dict(rule=RULE, align_rule=ALIGN_RULE, body=body, set=r5lib.STOCK_SET, row="R0",
+    if params is None:
+        name = servo.served_name("R0", setting)
+        served = panels.tracker_rows(body, parts["run_dir"], (name,))[name]
+        params = params_of(setting, seed)
+    else:
+        served = servo.Served(parts["row"], params)
+    out = episode(_Delayed(served, k), parts["ctx"], cond, seed, k, parts["envs"][cond.floor], params)
+    return dict(rule=RULE, align_rule=ALIGN_RULE, body=body, set=r5lib.STOCK_SET, row="R0", served_row=served.name,
                 table_sha256=servo.TABLE_SHA256, **out)
 
 
@@ -228,9 +199,10 @@ def check(condition: str = CONDITION, seconds: float | None = 1.0, delays=DELAYS
 
 def bar_form(body: str, set_name: str, conditions, seeds, delays, settings, cut_s: float | None = None,
              root=setio.ROOT) -> dict:
-    """The gate's form (``g8a.bar_form``'s): for every condition, panel seed, setting (``params_of``: ``"D"`` draws
-    from the seed) and delay, the env against ``bar.Delayed(ServedRow(the bar's R0 row))`` on the frozen set.  A
-    condition whose reference the set does not hold is listed under ``not_run``.  Nothing is written."""
+    """The gate's form (``g8a.bar_form``'s): for every condition, panel seed, setting (a name of ``servo.NAMED`` or
+    ``D/<s>``; ``params_of``: ``"D"`` draws from the seed) and delay, the env against the bar's row
+    ``SV0/<setting>@<ms>ms`` (``bar.rows``: ``bar.Delayed`` around the served row) on the frozen set.  A condition
+    whose reference the set does not hold is listed under ``not_run``.  Nothing is written."""
     from . import bar
 
     d = setio.set_dir(set_name, body, root)
@@ -247,7 +219,9 @@ def bar_form(body: str, set_name: str, conditions, seeds, delays, settings, cut_
     files = sorted({f for c in todo for f in planner.resolve(c)["files"]})
     inputs, docs = setio.read_inputs(d, files, require_frozen=True)
     ctx = bar.BarContext(body, d, docs, set_docs["set.json"], bar.set_crouch(set_docs["set.json"]))
-    rows = bar.rows(body, [f"R0@{bar.STEP_MS * int(k):d}ms" for k in delays])
+    names = {(st, int(k)): f"{servo.served_name('R0', st)}@{bar.STEP_MS * int(k):d}ms" for st in settings
+             for k in delays}
+    rows = bar.rows(body, sorted(set(names.values())))
     envs: dict = {}
     episodes = []
     for c in todo:
@@ -257,8 +231,7 @@ def bar_form(body: str, set_name: str, conditions, seeds, delays, settings, cut_
             for setting in settings:
                 params = params_of(setting, seed)
                 for k in delays:
-                    base = rows[f"R0@{bar.STEP_MS * int(k):d}ms"]
-                    row = bar.Delayed(ServedRow(base.inner, params), base.k, f"{base.name}/servo:{params.name}")
+                    row = rows[names[(setting, int(k))]]
                     episodes.append(dict(episode(row, ctx, c, int(seed), int(k), envs[c.floor], params),
                                          row=row.name))
     ctx.release()
@@ -274,5 +247,5 @@ def bar_form(body: str, set_name: str, conditions, seeds, delays, settings, cut_
                 blas_threads=s2io.blas_threads(), **s2io.git_state(), at=s2io.now_utc())
 
 
-__all__ = ["ALIGN_RULE", "CONDITION", "DELAYS", "D_SEEDS", "RULE", "SEED", "SETTINGS", "ServedRow", "bar_form", "cases",
-           "check", "env_episode", "episode", "params_of", "release", "stock", "trunk_mass"]
+__all__ = ["ALIGN_RULE", "CONDITION", "DELAYS", "D_SEEDS", "RULE", "SEED", "SETTINGS", "bar_form", "cases", "check",
+           "env_episode", "episode", "params_of", "release", "stock", "trunk_mass"]
