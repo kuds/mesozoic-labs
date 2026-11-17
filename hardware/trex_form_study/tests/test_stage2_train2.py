@@ -1363,6 +1363,21 @@ def test_g8a_on_a_look_set_keeps_the_forms_own_time_as_form_at(stub, tmp_path, m
     assert d["status"] == "done" and d["num_timesteps"] == ROLLOUT and d["stopped"] is None
 
 
+def test_ppo_overrides_that_name_what_the_trainer_sets_itself_are_refused(stub, tmp_path):
+    """``ppo`` (the PPO constructor's arguments over design 2's) is spread beside the arguments the trainer gives
+    the model itself (``env``, ``seed``, ``device``, ``verbose``; the lead's ruling 43 of 17 Nov 2026, the read for
+    other spreads): an override that names one of them is refused before anything is written (it would have raised
+    ``TypeError`` at the model's construction, after the session began).  Other overrides are taken."""
+    for key, value in (("seed", 7), ("env", None), ("device", "cuda"), ("verbose", 1)):
+        out = tmp_path / key
+        with pytest.raises(stub.Refused, match=f"ppo: {key}"):
+            run(stub, out, ppo=dict(KW["ppo"], **{key: value}))
+        assert not out.exists()
+    d = run(stub, tmp_path / "ok", steps=ROLLOUT, checkpoint_every=ROLLOUT, monitor_every=ROLLOUT,
+            ppo=dict(KW["ppo"], n_epochs=2))
+    assert d["status"] == "done" and d["settings"]["ppo"]["n_epochs"] == 2
+
+
 def test_the_cli_hands_its_arguments_to_train(stub, tmp_path, monkeypatch):
     """Every option of ``run`` reaches ``train``; ``--config`` takes any env config field by name (a further
     named option of the env needs no change to the trainer)."""

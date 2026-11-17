@@ -147,6 +147,9 @@ LR_PROBE_SCHEMA, FILTER_SCHEMA = "s2-lr-probe-1", "s2-filter-1"
 #: How long a resume waits for a monitor child of an earlier session to be gone after its SIGKILL (``CHILD_RULE``).
 CHILD_WAIT_S = 20.0
 WORKER_CMD = ("-m", "designlab.stage2.train2", "worker")
+#: The arguments ``_Run._fresh`` gives PPO itself, beside the spread of the caller's ``ppo`` overrides: an override
+#: that names one is refused before anything is written (the lead's ruling 43 of 17 Nov 2026, the read for spreads).
+PPO_OWN_ARGS = ("env", "seed", "device", "verbose")
 
 #: The files whose hash a session records and gives to its children (design 3.6 "Sources"): every Track B module
 #: of the design's section 2.1, the round-A and Stage 2 modules the bar and the look reading execute, and the four
@@ -695,6 +698,10 @@ class _Run:
         self.jd = self.root / "jobs" / self.job
         self.path = self.jd / "run.json"
         self.config, self.ppo = dict(a["config"] or {}), dict(a["ppo"] or {})
+        own = sorted(k for k in self.ppo if k in PPO_OWN_ARGS)  # (spread beside them in _fresh: ruling 43's read)
+        if own:
+            raise Refused(f"ppo: {', '.join(own)}: the trainer gives the model these itself (the run's seed, its "
+                          "envs, the CPU, no output); an override of PPO's arguments may not name them")
         self.lr_asked = None if a["lr"] is None else float(a["lr"])
         self.steps_asked = None if a["steps"] is None else int(a["steps"])
         every_ck, every_mon = int(a["checkpoint_every"]), int(a["monitor_every"])
