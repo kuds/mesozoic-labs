@@ -69,3 +69,11 @@ whose fix rounds were cut by the usage limit at 21:19 UTC on 16 Nov
 The session runs on another model from 17 Nov. Every commit message ends with the two lines the session's
 instructions now give. The saved workflow scripts of 16 Nov carry the earlier lines inside their prompts and are
 not resumed as they are: the remaining stages run from new scripts.
+
+## Added 03:11 UTC, after the rows package (CW) was merged (`f64094e2`)
+
+Its second fix round did every finding and rulings 7 to 9; the independent check: merge as it stands (33 of 35
+reverts caught). On the merged tree the rows', the look reading's and the monitor's tests give "75 passed, 12
+skipped". Left for the next change to `lookbar.py`, with the check's three low points: a test of the path cut at the
+two other fault sites; `_no_paths` keeps no path's first part; a refusal's text in `look/summary.json` carries no
+absolute path.
