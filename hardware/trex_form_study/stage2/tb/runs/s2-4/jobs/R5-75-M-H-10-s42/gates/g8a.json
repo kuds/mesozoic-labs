@@ -1,0 +1,121 @@
+{
+ "schema": "s2-run-g8a-1",
+ "job": "R5-75-M-H-10-s42",
+ "run_uuid": "18d46b9903e34b958ee433c528e2d605",
+ "tiny": false,
+ "form": "bar",
+ "rule": "an episode is identical when (1) no digest (sha256 of qpos, qvel, ctrl and sensordata after a physics step) differs over the physics steps both ran, and the env ran every step the row ran; (2) the ends agree: if the row fell at physics step j, the env terminates in the env step that holds j (falls are read at env-step ends); if the row did not fall, the env does not terminate in any env step that lies wholly inside the row's steps (the env's last, partial step, up to 9 physics steps past the row's end, is not read).  The row runs round(seconds / dt) physics steps or to its fall, the env ceil of a tenth of that many env steps.  A row episode during which MuJoCo warned is not identical to anything",
+ "body": "75-M-H-10",
+ "set": "V6",
+ "set_freeze": {
+  "index": 0,
+  "manifest_sha256": "2eeaebe8d37cf0f60fda90bd9c71df4e828d35b51fc6411efc072d23e7e38def"
+ },
+ "cut_s": null,
+ "episodes": [
+  {
+   "condition": "walk/v0.4",
+   "seed": 3042,
+   "k": 0,
+   "seconds": 40.368160039779916,
+   "reference_steps": 20184,
+   "env_physics_steps": 20190,
+   "compared_steps": 20184,
+   "first_difference": null,
+   "reference_fell_step": null,
+   "env_terminated_step": null,
+   "ends_alike": true,
+   "identical": true,
+   "env_steps": 2019,
+   "reference_fall_cause": null,
+   "reference_warned": false,
+   "env_fall_cause": null,
+   "interference_first_env_step": null,
+   "row": "R0@0ms"
+  },
+  {
+   "condition": "walk/v0.4",
+   "seed": 3042,
+   "k": 5,
+   "seconds": 40.368160039779916,
+   "reference_steps": 20184,
+   "env_physics_steps": 20190,
+   "compared_steps": 20184,
+   "first_difference": null,
+   "reference_fell_step": null,
+   "env_terminated_step": null,
+   "ends_alike": true,
+   "identical": true,
+   "env_steps": 2019,
+   "reference_fall_cause": null,
+   "reference_warned": false,
+   "env_fall_cause": null,
+   "interference_first_env_step": null,
+   "row": "R0@10ms"
+  }
+ ],
+ "identical": 2,
+ "of": 2,
+ "not_run": [],
+ "passes": true,
+ "sources": {
+  "panels": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+  "bar": "45719d030359ec7d5d3914af3814d837fdc05d77652ba45c64792b511027528d",
+  "track_b": {
+   "designlab/stage2/r5lib.py": "f4c9f89b4d269df20abf3ce5750f5dd4e18662de6375f339ab3b2846170b91ba",
+   "designlab/stage2/r5core.py": "a021696a36efbf63b6988714d729cf18e9dbd9e9dcd7e6a1049e20b9ae0e8755",
+   "designlab/stage2/r5env.py": "4fb6cb3802d3274f91468839b7e931050cb5652f2b650c406130a0a59381991f",
+   "designlab/stage2/g8a.py": "b01013a310b1369d3cad39189610518a3592b2f0ce9794ae77a03af2faab1551"
+  }
+ },
+ "key_context": {
+  "plant_inputs": {
+   "record": "c24dcc4e928e3db7feff11e16cff3f8a8389d8c1bc27fefe72f22fa2df2734b7",
+   "mjcf": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c",
+   "ledger": "58f7cc2099374dd658b2323d7513669f8bce5ec01dee8c16a60b80233c741a90",
+   "clearance": "8a251f7e414e9e2c72656a16c5a55375b6a49a6a8418ad395b99c2968e0f6988"
+  },
+  "versions": {
+   "python": "3.13.18",
+   "numpy": "2.5.4",
+   "mujoco": "3.10.0",
+   "scipy": "1.18.1"
+  },
+  "env": {
+   "push_bound_m_s": 0.589,
+   "residual_rate": 0.25,
+   "env_substeps": 10,
+   "carpet_walk": [
+    [
+     "transition",
+     "start"
+    ],
+    [
+     "ref",
+     "carpet",
+     7
+    ],
+    [
+     "transition",
+     "stop"
+    ]
+   ],
+   "carpet_friction": 0.54,
+   "foot_tables_sha256": "fac1de69369e4b0d4ee808cdd01f62b278d414a2a74f4bde4d65ac1119b5f120"
+  }
+ },
+ "versions": {
+  "python": "3.13.18",
+  "numpy": "2.5.4",
+  "mujoco": "3.10.0",
+  "scipy": "1.18.1"
+ },
+ "blas_threads": 1,
+ "commit": "bbf707b87f5a470ba29f433779f026030ad5e410",
+ "dirty": false,
+ "dirty_paths": [],
+ "form_at": "2026-11-17T20:07:20Z",
+ "session": 0,
+ "at": "2026-11-17T20:07:20Z",
+ "sha256": "09c7c26af54e9c563d65a93f4b11e6d5527971920b06026780b2965e0ede62c4"
+}

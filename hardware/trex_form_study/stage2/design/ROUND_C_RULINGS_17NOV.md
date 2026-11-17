@@ -303,3 +303,159 @@ scratch build (75 cm: knee 0.80, 0.85 and 0.79 of the limit; 60 cm: 0.92, 0.98 a
     - The check's two low points go into the rebuild's code: `verify` also names a stop that `blocks_in_records`
       shows and an older `blocked` leaves out, and a test builds with two processes so that the start and the
       change are both named.
+
+## Wave 8 (`checkpoint/reviews/roundC__{build,check}_{LT,CT5,CF2,CN4}_17nov.md`), ruled 17 Nov 2026, ~09:05 UTC
+
+CT5, CN4 and CF2 are merged as they stand. LT is merged on its check's condition: its two latent faults are fixed
+before anything runs on a look set, and nothing can run there until G9-ref has passed.
+
+37. **The look sets' placement, everywhere it is read.**
+    - (a) LT's reading of ruling 21 is confirmed. The bar's own runner, outside `lookbar`'s context, keeps its
+      whole-window placement. A record made inside the context (`lookbar run` on a look set) holds the placed plan,
+      its seconds and `command.leave`, because a record describes the episodes it ran.
+    - (b) Every reader that plays a look set's turns or stop plays them at J1's leave point. `lookbar` exposes a
+      placement-only context (placement without the row rule or the G9-ref requirement, because G9-ref itself runs
+      before G9-ref has passed). These run inside it on a look set:
+      - G9-ref part (a) (`gates2._refcheck_record` and `bar.refcheck`);
+      - G8a (`gates2.g8a`);
+      - `s2rows.equivalence_check`;
+      - R2L's fit and selection (`r2lfit`: its evaluators are built inside the set's placement, in process and in
+        every pool worker; check of CF2, finding 1).
+      A test shows that a fit's turn plan on a look set equals `lookbar.leave_resolve`'s. `bar dry-run` keeps the
+      bar's own placement: it estimates cost and decides nothing, and its overstatement (about 20 s per turn and
+      stop) is written beside its numbers.
+    - (c) and (d) accepted as built: `LookRow.sources` leaves out `r5lib.py`, because the key carries the placed
+      plan; the companion always holds `g9_ref`. The optional hardening is taken: `leave_point` checks `a_time_s`
+      against the walk file's own `phase` array.
+    - The check's F1 and F2 are fixed:
+      - F1: on entry, the context releases the process's cached bar context for the set.
+      - F2: on exit, the context resets the rows it stamped.
+      Each fix gets the test the check proposes.
+38. **The other points.**
+    - CT5: the refusal kind `look_set`, exit 1 at a further delay (M6), and a pair whose digests sit under different
+      keys counting as not compared are all accepted.
+    - CF2: `select` is gated as well as `fit` (X1).
+    - CF2: G9-ref is read by the gates and by the context, with the same-file check.
+    - CF2: a version of `V6noF5` counts as `V6noF5` for Q1 (`FITS` and `role_of` read `look_set_of`), as
+      ruling 31 (3) says.
+    - CN4: readings (a) to (d) are accepted. Its check's optional test gap ("Run all" stands only in 3.5, 4.4 and
+      5.4 (d)) goes into the next change to the sheet.
+    - Rule M3 gains ruling 33's words, "in every episode that ran".
+
+## LT2 (`checkpoint/reviews/roundC__{build,check}_LT2_17nov.md`), ruled 17 Nov 2026, ~10:20 UTC
+
+Merged as it stands.
+
+39. **The last readers of a look set's turns, and the builder's choices.**
+    - (a) Option (i) is accepted: G9-ref part (a) reads a record from a file only if that record holds the placed
+      plan; otherwise it runs its own placed check, and a given unplaced record blocks.
+    - (b) The two remaining readers of a look set's turns run inside the placement-only context:
+      - G9-ref part (b)'s playback of walk and turn items (`gates2.part_b`);
+      - the owner's views (`barviews.SetView.planned`).
+      A placed refcheck command (in `gates2`, since `bar.py` is not edited) gives the look sets' freeze a placed
+      record. The look sets' freeze text in `sets.py` names it once the rebuild is merged.
+    - (c) The env's own task placement passes the walk file to `leave_point` (`r5lib.place`,
+      `Library.place`), so ruling 37 (c)'s check covers the env too.
+    - (d) and (e) are accepted: the rule texts that enter records stay unchanged and the docstrings carry the
+      change; the tolerance is one frame of the walk file.
+    - `bar dry-run`'s overstatement on a look set is written into the cap rule (Q5) and beside each cap's printed
+      total.
+    - A V0 comparison test for part (a) and G8a (`needs_v0`) is added where the arrays exist.
+
+## LT3 (`checkpoint/reviews/roundC__{build,check}_LT3_17nov.md`), ruled 17 Nov 2026, ~11:50 UTC
+
+Merged as it stands.
+
+40. **LT3's points.**
+    - The builder's (a) to (g) are accepted as built:
+      - `place` requires the set's directory;
+      - the refcheck record keeps bar refcheck's own format, with no "placed" key;
+      - in a rendering process a look set's plan is made by a child process.
+    - Owed as one small tidy-up package, with a check, before G9-ref runs on any look set:
+      - the check's finding 1: the placed refcheck command removes the record it wrote when it refuses an
+        unplaced item, with a test;
+      - finding 2: `gates2._SetView` refuses a set.json that names another body, as it refuses another set;
+      - the stale docstrings: `r5lib.leave_point`'s "None: not checked"; `lookbar.look_set_placement`'s list of
+        readers, which gains part (b), the views and the placed refcheck.
+    - The look sets' freeze text in `sets.py` names the placed refcheck in the six places the check lists (lines
+      about 63, 145, 2478, 2662, 2768 and the `--refcheck` help at 2906). This is done by the next change to
+      `sets.py` after the rebuild is merged, in the words the check suggests.
+
+## The 75 cm freezes and the first validation (`checkpoint/reviews/roundC__{do,check}_{freeze75,validate75}_17nov.md`), ruled 17 Nov 2026, ~18:00 UTC
+
+V6/75-M-H-10, V6noF5/75-M-H-10 and V6/75-M-H-10-X are frozen (freeze 0). G9-ref passed on each; the check re-ran it
+and found every part identical. G8a passed on V6/75-M-H-10 (32 of 32 episodes identical). R0L's records ran
+(13 conditions; the four quick-turn conditions not run, their references being unavailable). G9-run failed on part
+(d), and the validation stopped there.
+
+41. **The mixed freezes are accepted.** The three freezes used `--allow-mixed`: P42 rebuilt only the stop and turn
+    groups, so the entries come from two source states. Rule S2S-freeze allows a mixed freeze when it is recorded,
+    and each freeze records `mixed_sources: true` and `dirty: false`. The moves.py condition (A4) held. The P42
+    check found every rebuilt entry's arrays bit-equal where nothing else changed. The freezes stand. The check's
+    two small corrections are noted: in the -X form of (b), toe-off differs by 1e-9 to 3e-9 rad, not by exactly 0.0;
+    and a frozen entry cannot be rebuilt in place.
+42. **G9-run (d) and conditions that are not run (code error, not a rule change).** `gates2.part_d` reads every
+    companion under `look/R0L@10ms/` and fails any bar record whose status is not "done". The four quick-turn
+    conditions have no available reference, so the bar records them as "not run" with no episode. Rule Z2 (d) speaks
+    of the episodes of the records, and H3 says that a reference marked not available leaves its conditions "not run".
+    G9-ref (a), G8a and `_expected_conditions` already treat such a condition as "not run, ok". `part_d` is changed
+    to read only the expected conditions' companions and to list the not-run ones as "not run", with a test. The
+    companion of a not-run condition also carries the G9-ref citation (ruling 37 (c)). The failed record is kept
+    beside the new one as `g9_run.first.json`. The new run is labelled "settled after G9-run's first result: a code
+    error, the rule unchanged". Validation then goes on from G9-run: V5, V6, V7, then V4 alone.
+
+## S2-4's first start (`checkpoint/reviews/roundC__{do,check}_s2-4_17nov.md`), ruled 17 Nov 2026, ~19:35 UTC
+
+R0L's baseline was made, copied and committed (58109a17, sha256 f33e4eb1…0543) before the run, as M3 says. The
+trainer then stopped with exit 1 after 32 s, before G8a's record and before any rollout. The cause:
+`train2._g8a` passes `at=` beside `**res`, and on a look set G8a's bar form already returns `at`
+(`TypeError: dict() got multiple values for keyword argument 'at'`). Training on a look set had never been run, so
+the validation steps did not reach this path.
+
+43. **The fix, and S2-4 started afresh.**
+    - **Code error, rule unchanged:** `train2._g8a` keeps the form's own time as `form_at` and stamps the record's
+      `at` itself. A test on a synthetic look set in a temporary directory makes a bar-form G8a record and fails
+      without the fix. The builder also reads `train2.py` for any other `**` spread beside explicit keys on the
+      look-set path, and reports or fixes each one with a test.
+    - **M3's "S2-4 is run once":** the failed start does not count as S2-4's run. It took 0 steps, ran no rollout and
+      wrote no G8a record. Its `run.json`, `progress.json` and log are kept as a record under
+      `stage2/tb/runs/s2-4/failed_start_17nov/`. The ignored job directory under `stage2/tb/work/local/s2-4` is then
+      cleared, and S2-4 starts as a new run with the fixed code. The committed baseline stays: its commit is an
+      ancestor of the new run's first session.
+
+## The launch (`checkpoint/reviews/roundC__{do,check}_bundle_17nov.md`), ruled 17 Nov 2026, ~21:45 UTC
+
+The bundle s2-b1 (75-M-H-10, V6 freeze 0; content 9227d8a0bf0b…; three parts, 33,812,480 bytes) is checked sound.
+The launch commit C1 is b914088b. Its parts are on the data branch `claude/mesozoic-trex-stage2-bundle-s2-b1`
+(ecf95a81, P46), and a fresh fetch gives each part's sha256 as built.
+
+44. **The first launch series and the -X head.**
+    - Launch series 1 trains 75-M-H-10, the plain head, alone (P33, P43, P44). The -X head waits for D5's
+      preconditions (V0: G1 of the -X bodies on an idle machine, and the jaw cover decision), so it is not in s2-b1.
+      A later bundle with its own id adds it (K6).
+    - Rule O says that a body's -X head is probed before any Colab job of that body is queued. That is met now:
+      rule O3's learning-rate probe runs on 75-M-H-10-X on V6 (frozen, G9-ref passed; X1 allows the probes between
+      G9-ref and S2-4) and its record joins `lr_probe.json`, before the steps sheet names the queue. If the jaw cover
+      later changes the -X records, the probe is run again then.
+    - D24's committed rules are named in the steps sheet by path and by sha256 at C1:
+      `STAGE2_TRACKB_PLAN.md`, `stage2/design/ROUND_C_DESIGN.md` and this file.
+
+## The acceptance run and the sheet (`checkpoint/reviews/roundC__{do,check}_{accept,sheet}_17nov.md`), ruled 17 Nov 2026, ~22:50 UTC
+
+The acceptance run on C1 (b7527a66) passed 35 of its 36 checks: line 1, the bundle's 19 of 19 files, G8a, the tiny R5
+and R6 jobs, the monitor, the remedies and the refusals. The one that failed, `resumed_from_drive`, failed on a fault in
+`nb acceptance`'s own kill condition, not in the pipeline. The kill fires at the first `.part` file, which in a tiny
+run is always the first checkpoint's copy. Session 1 then resumes from 0, and the check wants a resume from a
+checkpoint. The sheet was filled correctly, apart from one sentence in section 8, but `tests/test_stage2_nb.py`
+tests the draft sheet's placeholders, so a filled sheet cannot pass it, and C2 was not committed.
+
+45. **The fixes, then C1 again.** Code errors, rules unchanged.
+    - (1) `nb acceptance`'s kill fires only once a checkpoint above 0 is whole on the stand-in Drive and a `.part`
+      exists, as `local_run`'s and the remedies' kills already do. A test covers it.
+    - (2) The sheet's tests read a template, `colab_steps.template.txt`, which keeps the placeholders. A filled
+      sheet is checked separately: every placeholder filled, and every value equal to the records.
+    - (3) Section 8's sentence is corrected.
+    - After (1) and (2) are merged, the launch commit C1 is the new tip. The bundle's content is unchanged and its
+      parts stay on the data branch. The acceptance run is made again on it. Then C2 holds the filled sheet and
+      `ACCEPTANCE.json`.
+    - The acceptance run's tiny episodes on V6 are listed in `dev_episodes.json` (D23).

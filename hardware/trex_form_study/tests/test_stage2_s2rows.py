@@ -73,11 +73,12 @@ def plain(x):
 # A job directory as the trainer leaves one, with a freshly initialised policy
 # ------------------------------------------------------------------------------------------------
 def make_job(job_dir, body: str, set_name: str = "S1", mode: str = "R5", seed: int = 42, root=None, scale: float = 1.0,
-             clock: float | None = None, steps: int = 0) -> dict:
+             clock: float | None = None, steps: int = 0, servo: str | None = None) -> dict:
     """``run.json`` and checkpoint ``steps`` of a freshly initialised policy of the body's layout (nothing is
     trained).  ``scale`` multiplies the action layer's weights (1: actions of about 0.02; 20: about 0.4, which
     fells the robot); ``clock`` sets the clock action's bias (with ``scale`` 0 the policy then holds that clock
-    action and moves no joint).  The observation statistics are made non-trivial.  Returns ``run.json``."""
+    action and moves no joint); ``servo`` turns the env configs' servo option on (``R5Config.servo``, the layer's
+    joint factors fixed at 1).  The observation statistics are made non-trivial.  Returns ``run.json``."""
     import gymnasium as gym
     from designlab.stage1 import policy
     from designlab.stage2 import r5env, schedules, train2
@@ -87,6 +88,8 @@ def make_job(job_dir, body: str, set_name: str = "S1", mode: str = "R5", seed: i
     job_dir = Path(job_dir)
     kw = {} if root is None else dict(root=root)
     cfgs = r5env.env_configs(mode, body, set_name, 8, **kw)
+    if servo is not None:
+        cfgs = [dataclasses.replace(c, servo=servo, joint_damping=(1.0, 1.0), joint_friction=(1.0, 1.0)) for c in cfgs]
     e = (r5env.R6Env if mode == "R6" else r5env.R5Env)(cfgs[0], **kw)
     desc, layout = e.describe(), e.layout
     e.close()
@@ -613,6 +616,7 @@ def test_a_slowed_clock_leaves_a_bar_item_unread_and_a_later_freeze_is_accepted_
     monkeypatch.setattr(gates2, "GATES", tmp_path / "gates")
     for look_sets in (lookbar.LOOK_SETS, ("V6", SET)):
         monkeypatch.setattr(lookbar, "LOOK_SETS", look_sets)
+        monkeypatch.setattr(gates2, "LOOK_SETS", look_sets)  # (lookbar calls the gates' own check of rule X1)
         if SET in look_sets:  # a look set: the row runs there only once its G9-ref has passed (lookbar.RULES["look_sets"])
             with pytest.raises(lookbar.LookSetRefused, match=f"{SET}/{BODY}: there is no G9-ref record"):
                 lookbar.episodes(BODY, SET, rows, pairs, root=sets)
@@ -649,6 +653,47 @@ def test_a_slowed_clock_leaves_a_bar_item_unread_and_a_later_freeze_is_accepted_
     s2io.write_json(d / "set.json", doc)
     with pytest.raises(s2rows.RowError, match="rule K4"):
         s2rows.policy_row("R5/42", BODY, job, 0, root=sets)
+
+
+@needs_run
+def test_the_equivalence_check_plays_a_look_sets_turn_at_j1s_leave_point(job, tmp_path, monkeypatch):
+    """The lead's ruling 37 (b) of 17 Nov 2026: ``equivalence_check`` on a look set (a synthetic one under
+    ``tmp_path``, built from Stage 1's arrays; a freshly initialised policy; the episode cut to 1 s) runs inside
+    ``lookbar.look_set_placement``: the row's built condition, whose plan the env is given, plays the turn at join
+    rule J1's leave point (``lookbar.leave_resolve``), and the row and the env stay digest for digest.  On the S1
+    view nothing is placed: the row's plan is the bar's own and the comparison is as before."""
+    from designlab.stage2 import g8a
+    from tests import test_stage2_r5lib as R
+
+    sets = tmp_path / "sets"
+    R.make_look(sets, set_name="V6", stand_in_walks=True)
+    look_job = tmp_path / "jobs" / "R5-look-s42"
+    make_job(look_job, BODY, "V6", root=sets)
+    seen, real = [], g8a.row_episode
+
+    def spy(row, ctx, cond, seed):
+        r = real(row, ctx, cond, seed)
+        seen.append((cond, [list(x) for x in r["built"].plan], sorted(lookbar.placed())))
+        return r
+
+    monkeypatch.setattr(g8a, "row_episode", spy)
+    r = s2rows.equivalence_check(look_job, 0, BODY, "V6", "turn/q90_right", 3042, 0, root=sets, seconds=1.0)
+    ((cond, plan, placed),) = seen
+    d = setio.set_dir("V6", BODY, sets)
+    docs = setio.load(d)
+    planner = bar.BarPlanner(d, docs["refs.json"]["references"], docs["transitions.json"]["transitions"],
+                             docs["set.json"])
+    want = [list(x) for x in lookbar.leave_resolve(planner, cond)["plan"]]
+    assert plan == want and want != [list(x) for x in planner.resolve(cond)["plan"]]
+    assert placed == [lookbar.placement_key("V6", BODY, d)] and lookbar.placed() == set()
+    assert (r["set"], r["condition"], r["identical"], r["first_difference"]) == ("V6", "turn/q90_right", True, None)
+    assert r["reference_steps"] == r["compared_steps"] == 500
+    # the S1 view: nothing placed
+    seen.clear()
+    r = s2rows.equivalence_check(job, 0, BODY, "S1", "walk/brisk", 3042, 0, seconds=1.0)
+    ((cond, plan, placed),) = seen
+    assert placed == [] and r["identical"] and r["reference_steps"] == r["compared_steps"] == 500
+    assert vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
 
 
 @needs_run
@@ -783,3 +828,23 @@ def test_r6_row_against_the_r6_env(tmp_path):
     eps = m2._checked(lookbar.episodes(BODY, "S1", lookbar.rows(BODY, ["R6/42@10ms"]), pairs), pairs, policy=True)
     assert [e["outcome"] in ("read", "fell") for e in eps] == [True, True] and all(e["error"] is None for e in eps)
     assert all(e["policy_check"]["mode"] == "R6" and e["survival_credit"] > 0 for e in eps)
+
+
+@needs_run
+def test_the_equivalence_check_gives_an_unserved_rows_env_the_setting_today(job, tmp_path):
+    """The lead's fifth list (the builder's (a) of S3): until a served policy row exists (SV5), the row the bar runs
+    is not served, so a run whose config has the servo option on (here its draw, which with the panel seed as the
+    episode seed could never come out identical) gives the env ``options.servo="today"``, the T3 identity: like with
+    like, and the check comes out identical.  The result names the setting.  A run without the option is checked as
+    before (no ``servo`` key)."""
+    draw = tmp_path / "R5-75-M-H-10-s42-draw"
+    run = make_job(draw, BODY, servo="draw")
+    assert {c["servo"] for c in run["settings"]["env_configs"]} == {"draw"}
+    r = s2rows.equivalence_check(draw, 0, BODY, "S1", "walk/brisk", 3043, 0, seconds=0.1)
+    assert {k: r["servo"][k] for k in ("option", "given", "setting")} == dict(option="draw", given="today",
+                                                                             setting="today")
+    assert "SV5" in r["servo"]["reason"] and "T3" in r["servo"]["reason"]
+    assert r["reference_steps"] == 50 and r["identical"] and r["ends_alike"] and r["first_difference"] is None
+    assert r["compared_steps"] == r["reference_steps"]
+    plain_ = s2rows.equivalence_check(job, 0, BODY, "S1", "walk/brisk", 3043, 0, seconds=0.1)
+    assert "servo" not in plain_ and plain_["identical"] and plain_["reference_steps"] == 50

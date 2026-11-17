@@ -6,6 +6,7 @@ references, kinematic or in the simulator; none is a measurement on hardware.
     python -m designlab.stage2.gates2 g8a --body B --set S [--record PATH] [--conditions K,...] [--seeds 3042,3043]
            [--delays 0,5] [--cut-s X] [--set-root DIR] [--g9-ref PATH]
     python -m designlab.stage2.gates2 g9-ref --body B --set S [--record PATH] [--set-root DIR] [--refcheck PATH]
+    python -m designlab.stage2.gates2 refcheck --body B --set S [--out DIR] [--set-root DIR]
     python -m designlab.stage2.gates2 g9-run --body B --set S --bar-out DIR [--stage1b-reread PATH] [--record PATH]
            [--block seeds3042] [--set-root DIR]
     python -m designlab.stage2.gates2 rates --body B --set S [--floors hard,robot_floor_carpet] [--workers 1,2,3,4]
@@ -44,6 +45,13 @@ of the record without that key), and returns it.  Exit code 0 when the gate pass
   two consecutive frames of the walk it leaves (the lead's ruling 15 of 17 Nov 2026, a change after a result), 2 s
   of the tracker's zero-action targets finite.  G9-ref fails while a failing item of (a) names a reference that is
   still available in the set (the lead's ruling 14 of 17 Nov 2026); its record names those references.
+* ``refcheck`` (no gate; the lead's ruling 39 (b) of 17 Nov 2026): ``bar.refcheck`` run inside
+  ``lookbar.look_set_placement`` on a look set or a version of one, its record ``bar refcheck``'s own, written where
+  ``bar refcheck`` writes it (``<out>/<set>/<body>/refcheck.json``; ``--out`` the sets' root: the set directory's
+  ``refcheck.json``, which ``sets freeze`` cites): a look set's freeze then cites a record whose turn and stop items
+  are placed at join rule J1's leave point, and G9-ref part (a) reads it.  Off the look sets it is ``bar refcheck``.
+  Exit 0 when the check passes, 1 when it fails, 2 on an error (on a look set: a turn or stop item not placed; the
+  record written under ``--out`` is then removed, so that ``sets freeze`` cannot cite it: the lead's ruling 40).
 * ``g9_run`` (Z2's G9-run, parts (d), (e)): the ``R0L@10ms`` companion records ``lookbar.collect`` wrote and the
   bar's 10 ms records under ``--bar-out``; round A's ``bar reread`` record of Stage 1b's 10 ms turn episodes cited
   for the 60 cm body and head.
@@ -55,8 +63,9 @@ of the record without that key), and returns it.  Exit code 0 when the gate pass
 * ``r6_start``: an ``R6Env`` stepped with zero and random actions and from a mid start; a 2-rollout tiny R6 run.
 
 **Rule X1.**  ``g8a``, ``rates``, ``kill_resume`` and ``r6_start`` run closed-loop episodes: on a look set
-(``LOOK_SETS``) each is refused unless ``stage2/tb/gates/<set>/<body>/g9_ref.json`` (or ``--g9-ref``) is a passed
-G9-ref record of that set, body and the set's latest freeze (``require_g9_ref``).  ``g9_ref`` and ``g9_run`` run
+(``LOOK_SETS``) or a version of one (``V6.2``; ``look_set_of``) each is refused unless
+``stage2/tb/gates/<set>/<body>/g9_ref.json`` (or ``--g9-ref``) is a passed G9-ref record of that set, body and the
+set's latest freeze (``require_g9_ref``).  ``g9_ref`` and ``g9_run`` run
 no episode.  The chain ``stage2/tb/run_trackb.sh`` lists each closed-loop step on a look set that is no record in
 ``stage2/tb/dev_episodes.json`` before it runs (``dev-episode``).
 
@@ -214,7 +223,8 @@ RULES = dict(
         "set directory's refcheck.json when every file it read has the latest freeze's sha256, else bar.refcheck "
         "is run; whichever record is read, one given by path included, must be of the set and body and every file "
         "it read must have the latest freeze's sha256, else (a) is not read and blocks.  An item that fails names "
-        "its own reference (a walk item its walk, a turn or stop item its move) and a failing walk/nominal or "
+        "its own reference (a walk item its walk, a turn or stop item its move, the last move of the item's plan in "
+        "the plan's order: the lead's ruling 32 (D) of 17 Nov 2026) and a failing walk/nominal or "
         "walk/v0.4 item blocks; the start is played by every item and alone by none, so a failing start is read "
         "through the walk/nominal item (the start and the nominal walk alone) and blocks through it.  A failing "
         "item's reference is still available while its entry is usable as the env and the bar read it "
@@ -247,17 +257,22 @@ RULES = dict(
         "the re-run Stage 1b 10 ms turn episodes of 60-N-T-10 are trace-identical to their committed records "
         "(the bar's re-read record, cited).  If (d) or (e) fails, no training run of that body and head starts.  "
         + MODULE_READING +
-        "every companion record of R0L@10ms under the bar's out directory is read with the bar record it names "
-        "(its sha256 checked); every bar episode must have run (no error) and hold a success value for every "
-        "term its record lists (and every term of reading 3); a companion episode must be read or fell; a walk "
-        "or turn episode that reached its window must hold the four look numbers of the robot, finite.  The two "
+        "the companion record of R0L@10ms under the bar's out directory of every expected condition is read "
+        "with the bar record it names (its sha256 checked); every bar episode must have run (no error) and hold "
+        "a success value for every term its record lists (and every term of reading 3); a companion episode must "
+        "be read or fell; a walk or turn episode that reached its window must hold the four look numbers of the "
+        "robot, finite.  The two "
         "toe-clearance readings are the own-swing reading (toe_clearance_own_swing_m) and Stage 1's reference-"
         "clock reading (stage1_toe_clearance_m), finite in every walk and turn episode of every 10 ms bar record "
         "that reached its window (a record none of whose episodes reached it is listed).  The records expected "
-        "are those of every gated condition the set holds a reference for, and walk/nominal.  (e) cites the "
-        "reread record given: schema bar-reread-1 of 60-N-T-10, its rows all 10 ms rows (names ending @10ms) "
-        "and its conditions all turns (keys beginning turn/), complete, every trace equal; the -X head cites the "
-        "plain body's."),
+        "are those of every gated condition the set holds a reference for, and walk/nominal; an expected record "
+        "that is absent, or whose bar record is not done, fails (d).  A companion of any other condition is not "
+        "read for (d) and fails nothing: one whose bar record is \"not run\" with no episode (rule H3: a reference "
+        "marked not available leaves its conditions not run) is listed as not run, any other as not expected (the "
+        "lead's ruling 42 of 17 Nov 2026: a code error, the rule unchanged; as first built every companion there "
+        "was read).  (e) cites the reread record given: schema bar-reread-1 of 60-N-T-10, its rows all 10 ms "
+        "rows (names ending @10ms) and its conditions all turns (keys beginning turn/), complete, every trace "
+        "equal; the -X head cites the plain body's."),
     k3=(
         "STAGE2_TRACKB_PLAN rule K3: on this machine, with one set of library versions, on the real env: "
         "75-M-H-10, set V6, R5, seed 42, 8 envs, n_steps 1024, a checkpoint every 32,768 steps, 131,072 steps in "
@@ -311,8 +326,9 @@ RULES = dict(
         "work directory is reused only when its run.json's settings are this one's (R6, the body, the set, seed "
         "42, tiny, gates off, the budget), else it is moved aside and made again.  Rule X1: on the view S1"),
     x1=(
-        "STAGE2_TRACKB_PLAN rule X1: on a look set, for each body and head, no closed-loop episode before G9-ref "
-        "passed; between G9-ref and S2-4's start only Z1's episodes, R0L's baseline and panel records, Z2's "
+        "STAGE2_TRACKB_PLAN rule X1: on a look set (or a version of one: the lead's ruling 31 of 17 Nov 2026), for "
+        "each body and head, no closed-loop episode before G9-ref passed; between G9-ref and S2-4's start only "
+        "Z1's episodes, R0L's baseline and panel records, Z2's "
         "G9-run, the probes of O2-O4, the rate measurement, K3's two runs, the acceptance run's tiny jobs and "
         "R2L's fits; none but Z1's, R0L's and Z2's, and the fits', is a record; each is listed in "
         "stage2/tb/dev_episodes.json with its command, set, body, rows or mode, and count"),
@@ -420,12 +436,22 @@ def _latest_freeze(set_name: str, body: str, root=None) -> dict | None:
     return None if fz is None else dict(index=fz["index"], manifest_sha256=fz["manifest_sha256"])
 
 
+def look_set_of(set_name) -> str | None:
+    """The look set a set's name stands for (the lead's ruling 31 of 17 Nov 2026, point 3): one of ``LOOK_SETS``,
+    the name itself or the part before its first dot (``V6.2`` is a version of ``V6``, as ``lookbar.look_set_of``
+    reads it); None for any other set."""
+    base = str(set_name).split(".", 1)[0]
+    return base if base in LOOK_SETS else None
+
+
 def require_g9_ref(body: str, set_name: str, path=None, root=None) -> dict | None:
-    """Rule X1 for a gate that runs closed-loop episodes: on a look set (``LOOK_SETS``) ``Refused`` unless
-    ``path`` (default ``gate_path(set, body, "g9_ref")``) is a G9-ref record (``SCHEMAS["g9_ref"]``, its own
-    sha256 intact) of this set and body that passed and was made on the set's latest freeze.  Returns its citation
-    (None on any other set)."""
-    if set_name not in LOOK_SETS:
+    """Rule X1 for a gate that runs closed-loop episodes: on a look set (``LOOK_SETS``) or a version of one
+    (``look_set_of``; the lead's ruling 31 of 17 Nov 2026) ``Refused`` unless ``path`` (default
+    ``gate_path(set, body, "g9_ref")``) is a G9-ref record (``SCHEMAS["g9_ref"]``, its own sha256 intact) of this
+    set and body that passed and was made on the set's latest freeze (its ``set_freeze``, an object, holds that
+    freeze's ``manifest_sha256``).  Returns its citation (None on any other set).  ``lookbar``'s look sets' rule
+    calls this check."""
+    if look_set_of(set_name) is None:
         return None
     p = Path(path) if path is not None else gate_path(set_name, body, "g9_ref")
     doc = _read(p) if p.is_file() else None
@@ -440,12 +466,14 @@ def require_g9_ref(body: str, set_name: str, path=None, root=None) -> dict | Non
         why = "G9-ref did not pass"
     else:
         now = _latest_freeze(set_name, body, root)
+        made = doc.get("set_freeze")
         if now is None:
             why = f"set {set_name} of {body} is not here or not frozen"
-        elif (doc.get("set_freeze") or {}).get("manifest_sha256") != now["manifest_sha256"]:
+        elif not isinstance(made, dict):
+            why = f"the G9-ref record names no freeze of the set (its set_freeze is {type(made).__name__}, not an object)"
+        elif made.get("manifest_sha256") != now["manifest_sha256"]:
             why = (f"the G9-ref record was made on another freeze of the set "
-                   f"({str((doc.get('set_freeze') or {}).get('manifest_sha256'))[:12]}..., the latest is "
-                   f"{now['manifest_sha256'][:12]}...)")
+                   f"({str(made.get('manifest_sha256'))[:12]}..., the latest is {now['manifest_sha256'][:12]}...)")
     if why is not None:
         raise Refused(f"{set_name}/{body}: {why} ({s2io.portable(str(p))}): rule X1, no closed-loop episode on a "
                       "look set before G9-ref has passed there")
@@ -464,7 +492,9 @@ def g8a(body: str, set_name: str, record=None, *, conditions=None, seeds=None, d
     """Rule Z1's record (design 3.7's schema): ``g8a.bar_form(body, set_name, G8A_CONDITIONS, (3042, 3043), (0, 5))``;
     the conditions the set holds no reference for are ``not_run`` with the set's reason.  On the Stage 1 view
     ``g8a.stock`` on ``monitor2.S1_CONDITIONS``.  ``conditions``, ``seeds``, ``delays`` and ``cut_s`` make a check
-    of the command (``complete`` false).  ``differences`` names every episode that is not identical: condition,
+    of the command (``complete`` false).  On a look set (or a version of one) ``g8a.bar_form`` runs inside
+    ``lookbar.look_set_placement``: the row and the env play the set's turns and stop at join rule J1's leave point
+    (the lead's ruling 37 (b) of 17 Nov 2026).  ``differences`` names every episode that is not identical: condition,
     seed, delay and first differing physics step."""
     s2io.require_one_thread()
     g9 = require_g9_ref(body, set_name, g9_ref, root)
@@ -503,8 +533,13 @@ def g8a(body: str, set_name: str, record=None, *, conditions=None, seeds=None, d
         complete = False
         expected = list(conds)
     else:
+        from designlab.stage2 import lookbar
+
         conds = tuple(conditions or G8A_CONDITIONS)
-        doc = G.bar_form(body, set_name, conds, seeds, delays, cut_s=cut_s, root=_set_root(root))
+        # on a look set the bar's row plays its turns and stop at join rule J1's leave point, and the env the plan it
+        # is given (the lead's ruling 37 (b) of 17 Nov 2026); off the look sets the context does nothing
+        with lookbar.look_set_placement(set_name, body, _set_root(root)):
+            doc = G.bar_form(body, set_name, conds, seeds, delays, cut_s=cut_s, root=_set_root(root))
         doc["form"] = "bar"
         complete = (conds == G8A_CONDITIONS and seeds == G8A_SEEDS and delays == G8A_DELAYS and cut_s is None)
         expected = list(G8A_CONDITIONS)
@@ -591,6 +626,10 @@ class _SetView:
             self.set_doc = self.docs["set.json"]
             if self.set_doc.get("set") != set_name:
                 raise GateError(f"{self.dir}: set.json names the set {self.set_doc.get('set')!r}")
+            if self.set_doc.get("body") != body:
+                # (the lead's ruling 40 of 17 Nov 2026, as another set is refused: a planner is matched by set.json's
+                # set and body, so on a look set the placement would place nothing)
+                raise GateError(f"{self.dir}: set.json names the body {self.set_doc.get('body')!r}")
             self.crouch = float(self.set_doc.get("crouch_frac", 0.03))
         self.refs = self.docs["refs.json"]["references"]
         self.trs = self.docs["transitions.json"]["transitions"]
@@ -635,44 +674,139 @@ def _refcheck_files_match(doc: dict | None, v: _SetView) -> bool:
     return bool(files) and all(want.get(f) == (x or {}).get("sha256") for f, x in files.items())
 
 
+def _refcheck_unplaced(v: _SetView, doc: dict | None) -> list[str] | None:
+    """On a look set or a version of one (``look_set_of``): the turn and stop items of a refcheck record whose move
+    carries join rule J1's leave point and whose ``plan`` is not the plan the bar's planner gives the item inside
+    ``lookbar.look_set_placement`` (the lead's ruling 37 (b) of 17 Nov 2026), each with what is wrong; [] where every
+    such item holds its placed plan.  None on any other set (nothing is read)."""
+    from designlab.stage2 import bar, lookbar
+
+    if look_set_of(v.set) is None:
+        return None
+    planner = bar.BarPlanner(v.dir, v.refs, v.trs, v.set_doc)
+    conds = {c.key: c for c in bar.conditions(v.docs, every=True)}
+    out = []
+    with lookbar.look_set_placement(v.set, v.body, v.dir.parent.parent):
+        for key, x in sorted(((doc or {}).get("items") or {}).items()):
+            c = conds.get(key)
+            if not isinstance(x, dict) or x.get("status") != "done" or c is None:
+                continue
+            try:
+                if lookbar.leave_of(planner, c) is None:
+                    continue
+                want = [list(item) for item in planner.resolve(c)["plan"]]
+            except Exception as exc:  # noqa: BLE001 - a leave point that does not fit: the item is not placed
+                out.append(f"{key} ({type(exc).__name__}: {exc})")
+                continue
+            if json.loads(json.dumps(s2io.plain(x.get("plan")))) != json.loads(json.dumps(want)):
+                out.append(f"{key} (its plan {x.get('plan')!r}, placed {want!r})")
+    return out
+
+
 def _refcheck_record(v: _SetView, record_dir, refcheck=None, run=True) -> tuple[dict | None, dict]:
     """Part (a)'s record and how it was found (``RULES["z2_ref"]``'s reading); ``files_match_freeze``: whether
-    every file it read has the latest freeze's sha256 (for every source, a record given by path included)."""
-    from designlab.stage2 import bar
+    every file it read has the latest freeze's sha256 (for every source, a record given by path included).
+
+    On a look set or a version of one part (a) reads the set's turns and stop at join rule J1's leave point (the
+    lead's ruling 37 (b) of 17 Nov 2026): ``bar.refcheck`` runs inside ``lookbar.look_set_placement`` (placement
+    only: G9-ref runs before G9-ref has passed), and a record read from a file counts only where each of its turn and
+    stop items holds the placed plan (``plans_placed``; ``_refcheck_unplaced``): one the freeze cites or the set
+    directory holds that does not is passed over (``tried``) and the check is run, and one given is not read (part
+    (a) goes to the lead).  On every other set nothing of this is read or added."""
+    from designlab.stage2 import bar, lookbar
 
     study = s2io.STUDY
     tried = []
     if refcheck is not None:
         p = Path(refcheck)
         doc = _read(p)
-        return doc, dict(source="given", files_match_freeze=_refcheck_files_match(doc, v),
-                         **(cite(p) if p.is_file() else dict(path=str(p), sha256=None)))
+        how = dict(source="given", files_match_freeze=_refcheck_files_match(doc, v),
+                   **(cite(p) if p.is_file() else dict(path=str(p), sha256=None)))
+        bad = _refcheck_unplaced(v, doc)
+        if bad is not None:
+            how.update(plans_placed=not bad, not_placed=bad)
+        return doc, how
     last = (v.set_doc.get("freezes") or [{}])[-1] if v.set_doc.get("freezes") else {}
     c = last.get("refcheck") or {}
     if c.get("file"):
         p = study / c["file"]
+        bad = None
         if p.is_file() and s2io.sha256_file(p) == c.get("sha256"):
             doc = _read(p)
-            return doc, dict(source="cited by the set's latest freeze", files_match_freeze=_refcheck_files_match(doc, v),
-                             **cite(p))
-        tried.append(f"the latest freeze cites {c['file']} with another sha256 or it is not here")
+            bad = _refcheck_unplaced(v, doc)
+            if not bad:
+                return doc, dict(source="cited by the set's latest freeze", files_match_freeze=_refcheck_files_match(doc, v),
+                                 **cite(p), **({} if bad is None else dict(plans_placed=True)))
+        tried.append(f"the latest freeze cites {c['file']} with another sha256 or it is not here" if bad is None else
+                     f"the latest freeze cites {c['file']}, whose turn or stop items are not placed at join rule J1's "
+                     f"leave point: {'; '.join(bad)}")
     p = v.dir / "refcheck.json"
     if p.is_file():
         doc = _read(p) or {}
         if _refcheck_files_match(doc, v):
-            return doc, dict(source="the set directory's refcheck.json (its files are the latest freeze's)",
-                             files_match_freeze=True, **cite(p))
-        tried.append("the set directory's refcheck.json read other files than the latest freeze's")
+            bad = _refcheck_unplaced(v, doc)
+            if not bad:
+                return doc, dict(source="the set directory's refcheck.json (its files are the latest freeze's)",
+                                 files_match_freeze=True, **cite(p), **({} if bad is None else dict(plans_placed=True)))
+            tried.append("the set directory's refcheck.json holds turn or stop items not placed at join rule J1's "
+                         f"leave point: {'; '.join(bad)}")
+        else:
+            tried.append("the set directory's refcheck.json read other files than the latest freeze's")
     if not run:
         return None, dict(source="none", tried=tried)
     out = None if record_dir is None else Path(record_dir) / "refcheck"
-    doc = bar.refcheck(v.set, v.body, v.dir.parent.parent, out=out, log=lambda *a: None)
+    with lookbar.look_set_placement(v.set, v.body, v.dir.parent.parent):  # (off the look sets it does nothing)
+        doc = bar.refcheck(v.set, v.body, v.dir.parent.parent, out=out, log=lambda *a: None)
     match = _refcheck_files_match(doc, v)
+    bad = _refcheck_unplaced(v, doc)
+    placed = {} if bad is None else dict(plans_placed=not bad, not_placed=bad)
     if out is None:
         return doc, dict(source="bar.refcheck, run by this gate (not written: no record)", path=None,
-                         sha256=s2io.sha256_json(doc), files_match_freeze=match, tried=tried)
+                         sha256=s2io.sha256_json(doc), files_match_freeze=match, tried=tried, **placed)
     p = out / v.set / v.body / "refcheck.json"
-    return doc, dict(source="bar.refcheck, run by this gate", files_match_freeze=match, **cite(p), tried=tried)
+    return doc, dict(source="bar.refcheck, run by this gate", files_match_freeze=match, **cite(p), tried=tried,
+                     **placed)
+
+
+def refcheck(set_name: str, body: str, root=None, out=None, log=print) -> dict:
+    """The placed reference check (the lead's ruling 39 (b) of 17 Nov 2026): ``bar.refcheck`` (each reference played
+    kinematically through the bar's own readings; no physics, no verdict) run inside
+    ``lookbar.look_set_placement`` on a look set or a version of one (``look_set_of``), so that its turn and stop
+    items hold the plans the bar's row and the env play there (the walk ending at join rule J1's leave point,
+    ``lookbar.leave_resolve``): the record a look set's freeze cites, and G9-ref part (a) reads
+    (``_refcheck_record``, ``_refcheck_unplaced``).  The record is ``bar.refcheck``'s own, in its format, and written
+    where ``bar refcheck`` writes it, ``<out>/<set>/<body>/refcheck.json`` (``out`` the sets' root: the set
+    directory's ``refcheck.json``, which ``sets freeze`` cites; none: nothing is written).  On a look set whose
+    ``set.json`` does not name this set and body the placement would place nothing (a planner is matched by them):
+    ``Refused``, and nothing runs.  On every other set the placement does nothing: the record is ``bar refcheck``'s,
+    item for item.  ``bar.py`` is not edited."""
+    from designlab.stage2 import bar, lookbar, setio
+
+    root = _set_root(root)
+    if look_set_of(set_name) is not None:
+        named = s2io.read_json(setio.set_dir(set_name, body, root) / "set.json")
+        if (named.get("set"), named.get("body")) != (set_name, body):
+            raise Refused(f"{set_name}/{body}: set.json names the set {named.get('set')!r} and the body "
+                          f"{named.get('body')!r}, so lookbar.look_set_placement would place none of its turns and "
+                          "stop (a bar planner is matched by set.json's set and body)")
+    with lookbar.look_set_placement(set_name, body, root):  # (off the look sets it does nothing)
+        return bar.refcheck(set_name, body, root, out=out, log=log)
+
+
+def refcheck_unplaced(set_name: str, body: str, doc: dict | None, root=None) -> list[str] | None:
+    """G9-ref part (a)'s reading of a refcheck record of the set (``_refcheck_unplaced``, with the set's records
+    alone: no plant): on a look set or a version of one, its turn and stop items whose move carries join rule J1's
+    leave point and whose plan is not the placed one, each with what is wrong ([] where every such item is placed);
+    None on any other set."""
+    import types
+
+    from designlab.stage2 import setio
+
+    d = setio.set_dir(set_name, body, _set_root(root))
+    docs = setio.load(d)
+    view = types.SimpleNamespace(set=set_name, body=body, dir=d, docs=docs, set_doc=docs["set.json"],
+                                 refs=docs["refs.json"]["references"], trs=docs["transitions.json"]["transitions"])
+    return _refcheck_unplaced(view, doc)
 
 
 def played_files(v: _SetView, items: bool = True) -> list[str]:
@@ -729,6 +863,22 @@ def still_available(v: _SetView, ref: str | None) -> dict:
     return dict(entry_available=bool(entry), in_latest_freeze=bool(frozen), still_available=bool(entry or frozen))
 
 
+def item_reference(key: str, item: dict) -> str | None:
+    """The reference a refcheck item names as its own (``RULES["z2_ref"]``'s reading): a walk item's walk
+    (``refs/<walk>.npz``, from the item's key ``walk/<walk>``); a turn or stop item's move, the last move of the
+    item's ``plan`` in the plan's own order (``transitions/<move>.npz``; the lead's ruling 32 (D) of 17 Nov 2026:
+    not the last move of the item's sorted file list, which names the start where a move's name sorts before
+    ``start``).  None where it cannot be named (no plan, or a plan without a move): such a reference counts as
+    still available (``still_available``)."""
+    kind, _, name = str(key).partition("/")
+    if kind == "walk":
+        return f"refs/{name}.npz" if name else None
+    plan = (item or {}).get("plan")
+    moves = [x[1] for x in plan if isinstance(x, (list, tuple)) and len(x) >= 2 and x[0] == "transition"
+             and isinstance(x[1], str) and x[1]] if isinstance(plan, list) else []
+    return f"transitions/{moves[-1]}.npz" if moves else None
+
+
 def part_a(v: _SetView, record_dir=None, refcheck=None) -> dict:
     """G9-ref (a): the bar's reference check, cited; what follows a failure (``RULES["z2_ref"]``).  ``still_available``
     names the failing items' references that are still available in the set: while it is not empty G9-ref fails
@@ -745,9 +895,7 @@ def part_a(v: _SetView, record_dir=None, refcheck=None) -> dict:
     failing = {k: x for k, x in items.items() if x.get("status") == "done" and not x.get("pass_")}
     refs_out = []
     for k, x in sorted(failing.items()):
-        kind = k.split("/")[0]
-        ref = (f"refs/{k.split('/', 1)[1]}.npz" if kind == "walk" else
-               next((f for f in reversed(x.get("files") or []) if f.startswith("transitions/")), None))
+        ref = item_reference(k, x)
         bad = sorted(t for t, ok in (x.get("ok") or {}).items() if not ok)
         refs_out.append(dict(item=k, reference=ref, failing=bad, **still_available(v, ref)))
     still = sorted({x["reference"] or f"the reference of {x['item']} (not named)" for x in refs_out
@@ -755,13 +903,16 @@ def part_a(v: _SetView, record_dir=None, refcheck=None) -> dict:
     blocked = sorted(k for k in failing if k in BLOCKING_ITEMS)
     same_set = (doc.get("set"), doc.get("body")) == (v.set, v.body)
     files_ok = how.get("files_match_freeze") is True
-    ok = bool(same_set and files_ok and doc.get("pass_"))
+    placed_ok = how.get("plans_placed") is not False  # (on a look set: join rule J1's leave point, ruling 37 (b))
+    ok = bool(same_set and files_ok and placed_ok and doc.get("pass_"))
     marks = (f"G9-ref fails while a failing item's reference is still available in the set ({', '.join(still)}): "
              "the lead marks them not available, freezes the set again and runs G9-ref again (the lead's ruling 14 "
              "of 17 Nov 2026)")
     followed = ("none: every reference passes its own item" if ok else
                 "the reference check cited is not of this set and body or did not read the latest freeze's files: "
                 "(a) is not read; it goes to the lead" if not (same_set and files_ok) else
+                "the reference check given does not play the look set's turns and stop at join rule J1's leave point "
+                "(the lead's ruling 37 (b) of 17 Nov 2026): (a) is not read; it goes to the lead" if not placed_ok else
                 "blocked: a failing walk/nominal or walk/v0.4 item blocks the body and head; it goes to the lead"
                 if blocked else marks if still else
                 "the failing items' references are not available in the set and not in its latest freeze (rule T2, "
@@ -769,8 +920,8 @@ def part_a(v: _SetView, record_dir=None, refcheck=None) -> dict:
     return dict(_doc=doc, ok=ok, applies=True, refcheck=how, schema=doc.get("schema"), refcheck_pass=doc.get("pass_"),
                 same_set_and_body=same_set, files_match_freeze=files_ok,
                 items={k: dict(status=x.get("status"), pass_=x.get("pass_"), ok=x.get("ok")) for k, x in items.items()},
-                failing_references=refs_out, still_available=still if (same_set and files_ok) else [],
-                blocked=blocked, blocks=bool(blocked or not same_set or not files_ok), followed=followed)
+                failing_references=refs_out, still_available=still if (same_set and files_ok and placed_ok) else [],
+                blocked=blocked, blocks=bool(blocked or not same_set or not files_ok or not placed_ok), followed=followed)
 
 
 def _ladder() -> tuple[dict, dict, dict]:
@@ -790,7 +941,11 @@ def _rung_walk(v: _SetView, speed: str, variant: str) -> str | None:
 
 def part_b(v: _SetView, comparand: _SetView | None = None) -> dict:
     """G9-ref (b) (``RULES["z2_ref"]``).  ``comparand``: the plain body's view of the same set (an ``-X`` body) or
-    the same body's V6 view (``V6noF5``)."""
+    the same body's V6 view (``V6noF5``).  On a look set or a version of one (``look_set_of``) the walk and turn items
+    are played inside ``lookbar.look_set_placement`` (the lead's ruling 39 (b) of 17 Nov 2026): each turn item's
+    window is that of the turn as the bar's row and the env play it there, the walk before it ending at join rule
+    J1's leave point (``lookbar.leave_resolve``), not the bar's own whole windows; on every other set the placement
+    does nothing and the items are as before."""
     from designlab.stage2 import bar, lookread
 
     toe = v.set != NO_TOE_OFF_SET
@@ -851,30 +1006,36 @@ def part_b(v: _SetView, comparand: _SetView | None = None) -> dict:
             out["compared"][n] = dict(against=a, comparand_numbers=four_numbers(other), ok=bool(a["ok"]))
     elif v.set == STOCK_SET:
         out["rungs_note"] = "the Stage 1 view holds no look-format walk: no ladder comparison"
-    # every walk and turn item: its window's playback
+    # every walk and turn item: its window's playback; on a look set or a version of one inside
+    # lookbar.look_set_placement, so that its turns are played at join rule J1's leave point as the bar's row and the
+    # env play them there (the lead's ruling 39 (b) of 17 Nov 2026); off the look sets the context does nothing
     if v.set != STOCK_SET:
-        ctx = bar.BarContext(v.body, v.dir, {"refs.json": v.docs["refs.json"],
-                                             "transitions.json": v.docs["transitions.json"]}, v.set_doc)
-        planner = ctx.bar_planner
-        for c in bar.conditions(v.docs, every=True):
-            if c.judge not in ("bar_walk", "bar_turn") or c.friction is not None:
-                continue
-            why = planner.missing(c)
-            if why is not None:
-                out["items"][c.key] = dict(status="not run", reason=why.get("reason"), ok=True)
-                continue
-            try:
-                b = ctx.built(c)
-                wr = lookread.window_ref(b)
-                r = lookread.playback(b.p, b.track, b.track.run_dir, *wr)
-            except Exception as exc:  # noqa: BLE001 - rule U5: a fault of the definition, never "no look reading"
-                out["items"][c.key] = dict(status="fault", ok=False, fault=f"{type(exc).__name__}: {exc}")
-                continue
-            enough = (r.get("steps") or 0) >= lookread.MIN_STEPS and (r.get("lift_offs") or 0) >= lookread.MIN_STEPS
-            out["items"][c.key] = dict(status="played", window_ref=[float(x) for x in wr], gated=bool(c.gated),
-                                       steps=r.get("steps"), lift_offs=r.get("lift_offs"), numbers=four_numbers(r),
-                                       **toe_off_side(r), ok=bool(enough))
-        ctx.release()
+        from designlab.stage2 import lookbar
+
+        with lookbar.look_set_placement(v.set, v.body, v.dir.parent.parent):
+            ctx = bar.BarContext(v.body, v.dir, {"refs.json": v.docs["refs.json"],
+                                                 "transitions.json": v.docs["transitions.json"]}, v.set_doc)
+            planner = ctx.bar_planner
+            for c in bar.conditions(v.docs, every=True):
+                if c.judge not in ("bar_walk", "bar_turn") or c.friction is not None:
+                    continue
+                why = planner.missing(c)
+                if why is not None:
+                    out["items"][c.key] = dict(status="not run", reason=why.get("reason"), ok=True)
+                    continue
+                try:
+                    b = ctx.built(c)
+                    wr = lookread.window_ref(b)
+                    r = lookread.playback(b.p, b.track, b.track.run_dir, *wr)
+                except Exception as exc:  # noqa: BLE001 - rule U5: a fault of the definition, never "no look reading"
+                    out["items"][c.key] = dict(status="fault", ok=False, fault=f"{type(exc).__name__}: {exc}")
+                    continue
+                enough = ((r.get("steps") or 0) >= lookread.MIN_STEPS
+                          and (r.get("lift_offs") or 0) >= lookread.MIN_STEPS)
+                out["items"][c.key] = dict(status="played", window_ref=[float(x) for x in wr], gated=bool(c.gated),
+                                           steps=r.get("steps"), lift_offs=r.get("lift_offs"), numbers=four_numbers(r),
+                                           **toe_off_side(r), ok=bool(enough))
+            ctx.release()
     oks = ([w["ok"] for w in out["walks"].values()] + [r["ok"] for r in out["rungs"].values() if "ok" in r]
            + [c["ok"] for c in out["compared"].values()] + [i["ok"] for i in out["items"].values()])
     out["ok"] = bool(oks and all(oks) and not out["faults"])
@@ -1169,13 +1330,39 @@ def _toe_pair(e: dict) -> dict:
                 present=_num_ok(m.get("toe_clearance_own_swing_m")) and _num_ok(m.get("stage1_toe_clearance_m")))
 
 
+def _not_read(q: Path, doc: dict, bar_out) -> tuple[str, dict]:
+    """Where ``part_d`` lists the companion ``doc`` (read from ``q``) of a condition it does not expect, which it
+    does not read for its verdict (the lead's ruling 42 of 17 Nov 2026): ``"not_run"`` where the bar record it names
+    is here with that sha256, its status "not run" and no episode, and the companion holds no episode either (rule
+    H3: a reference marked not available leaves its conditions not run); else ``"not_expected"``, with what was
+    found."""
+    named = doc.get("bar_record") if isinstance(doc.get("bar_record"), dict) else {}
+    bpath = Path(bar_out) / str(named.get("path")) if named.get("path") else None
+    rec = _read(bpath) if bpath is not None and bpath.is_file() else None
+    same = rec is not None and s2io.sha256_file(bpath) == named.get("sha256")
+    n_bar, n_own = len((rec or {}).get("episodes") or []), len(doc.get("episodes") or [])
+    cell = dict(companion=cite(q), bar_record=named, status=(rec or {}).get("status"), reason=(rec or {}).get("reason"),
+                episodes=n_own, bar_episodes=None if rec is None else n_bar, own_sha256_ok=record_sha_ok(doc))
+    if same and rec.get("status") == "not run" and n_bar == 0 and n_own == 0:
+        return "not_run", cell
+    found = ("its bar record is not here" if rec is None else "its bar record's sha256 is not the one it names"
+             if not same else f"its bar record is {rec.get('status')!r} with {n_bar} episodes")
+    return "not_expected", dict(cell, found=found)
+
+
 def part_d(bar_out, body: str, set_name: str, block: str, root=None) -> dict:
-    """G9-run (d) (``RULES["z2_run"]``'s reading)."""
+    """G9-run (d) (``RULES["z2_run"]``'s reading).  Only the companions of the expected conditions
+    (``_expected_conditions``: ``expected``) are read for the verdict (``records``); a companion of any other
+    condition is not read for it and fails nothing (``_not_read``): under ``not_run`` where its bar record is "not
+    run" with no episode, else under ``not_expected`` (the lead's ruling 42 of 17 Nov 2026).  An expected condition
+    whose companion is absent (``missing``) or whose bar record is not done fails (d)."""
     from designlab.stage2 import bar
 
     bdir = bar.block_dir(bar_out, set_name, body, block)
     edir, ldir = bdir / "eval", bdir / "look" / R0L_ROW
-    out = dict(block_dir=s2io.portable(str(Path(bdir).resolve())), records={}, bar_records_10ms={}, problems=[])
+    expected = _expected_conditions(body, set_name, root)
+    out = dict(block_dir=s2io.portable(str(Path(bdir).resolve())), records={}, not_run={}, not_expected={},
+               bar_records_10ms={}, problems=[])
     comps = sorted(q for q in ldir.glob("**/*.json") if not any(x.endswith(".superseded") for x in q.parts))
     for q in comps:
         doc = _read(q)
@@ -1183,6 +1370,10 @@ def part_d(bar_out, body: str, set_name: str, block: str, root=None) -> dict:
         probs = []
         if doc is None or doc.get("schema") != "s2-look-1":
             out["problems"].append(f"{rel}: not a companion record")
+            continue
+        if doc.get("condition") not in expected:
+            where, cell = _not_read(q, doc, bar_out)
+            out[where][str(doc.get("condition"))] = cell
             continue
         if not record_sha_ok(doc):
             probs.append("its sha256 is not its own")
@@ -1239,7 +1430,6 @@ def part_d(bar_out, body: str, set_name: str, block: str, root=None) -> dict:
         out["bar_records_10ms"][q.relative_to(edir).as_posix()] = dict(
             row=rec.get("row"), condition=rec.get("key_name"), episodes=len(rec["episodes"]),
             reached_window=len(reached), missing_toe_readings=missing, no_window=not reached, ok=not missing)
-    expected = _expected_conditions(body, set_name, root)
     out["expected"] = expected
     out["missing"] = [c for c in expected if c not in out["records"]]
     oks = [x["ok"] for x in out["records"].values()] + [x["ok"] for x in out["bar_records_10ms"].values()]
@@ -2096,6 +2286,12 @@ def main(argv=None) -> int:
         if name == "r6-start":
             a.add_argument("--out", default=None)
             a.add_argument("--workers", type=int, default=2)
+    a = sub.add_parser("refcheck", help="bar.refcheck inside a look set's placement (bar refcheck's record)")
+    a.add_argument("--body", required=True)
+    a.add_argument("--set", dest="set_name", required=True)
+    a.add_argument("--out", default=None, help="the record goes to <out>/<set>/<body>/refcheck.json, as bar refcheck "
+                                               "writes it (the sets' root: the set directory's; none: not written)")
+    a.add_argument("--set-root", default=None)
     a = sub.add_parser("gl-start")
     a.add_argument("--out", default=None)
     a.add_argument("--record", default=None)
@@ -2111,6 +2307,27 @@ def main(argv=None) -> int:
                                         rows_or_mode=args.what, count=args.count, reason=args.reason, state=args.state))
             print(f"dev episodes: {args.step} {args.set} {args.body} {args.state}", flush=True)
             return EXIT_PASS
+        if args.cmd == "refcheck":
+            doc = refcheck(args.set_name, args.body, args.set_root, args.out)
+            bad = refcheck_unplaced(args.set_name, args.body, doc, args.set_root)
+            rec = None if args.out is None else Path(args.out) / args.set_name / args.body / "refcheck.json"
+            print(f"refcheck {args.set_name} {args.body}: {'pass' if doc['pass_'] else 'FAIL'}", flush=True)
+            if bad:
+                # (the lead's ruling 40 of 17 Nov 2026: no unplaced record is left where sets freeze would cite it)
+                if rec is not None:
+                    rec.unlink(missing_ok=True)
+                print("placement: turn or stop items NOT at join rule J1's leave point (G9-ref part (a) will not "
+                      f"read this record{'' if rec is None else '; the record written is removed'}): "
+                      f"{'; '.join(bad)}", file=sys.stderr, flush=True)
+                return EXIT_ERROR
+            if rec is not None:
+                print(f"record: {s2io.portable(str(rec.resolve()))} (sha256 {s2io.sha256_file(rec)})", flush=True)
+            if bad is None:
+                print("placement: the bar's own (no look set)", flush=True)
+            else:
+                print("placement: every turn and stop item whose move carries a leave point is placed at join rule "
+                      "J1's leave point (lookbar.look_set_placement)", flush=True)
+            return EXIT_PASS if doc["pass_"] else EXIT_FAIL
         if args.cmd == "gl-start":
             doc = gl_start(args.out, args.record)
             _say(doc, [f"gl-start: {k} {v}" for k, v in doc["checks"].items() if not v])
@@ -2126,7 +2343,9 @@ def main(argv=None) -> int:
                          root=args.set_root)
             d = doc["parts"]["d"]
             _say(doc, [f"G9-run {doc['set']} {doc['body']}: (d) {d['ok']} ({len(d['records'])} companion records, "
-                       f"missing {d['missing']}), (e) {doc['parts']['e']['ok']}"])
+                       f"missing {d['missing']}, not run {sorted(d['not_run'])}"
+                       + (f", not expected {sorted(d['not_expected'])}" if d["not_expected"] else "")
+                       + f"), (e) {doc['parts']['e']['ok']}"])
         elif args.cmd == "rates":
             doc = rates(args.body, args.set_name, tuple(_csv(args.floors)), _ints(args.workers), args.steps, args.record,
                         g9_ref=args.g9_ref, root=args.set_root)
@@ -2159,9 +2378,10 @@ def main(argv=None) -> int:
 __all__ = ["G8A_CONDITIONS", "GateError", "K3", "K3_TINY", "LOOK_SETS", "RULES", "Refused", "SCHEMAS",
            "checkpoint_items", "compare_checkpoints", "compare_items", "controls", "dev_episode", "finish", "g8a",
            "g9_ref", "g9_run", "gl_start", "inputs_of", "joins", "k3_asked", "kill_resume", "main", "part_a", "part_b",
-           "part_c", "part_d", "part_e", "part_f", "played_files", "r6_run_problems", "r6_start", "r6_training", "rates",
-           "record_sha_ok", "require_g9_ref", "rollout_rate", "run_settings_problems", "sources", "still_available",
-           "tail_tenth", "walk_steps"]
+           "item_reference", "look_set_of", "part_c", "part_d", "part_e", "part_f", "played_files", "r6_run_problems",
+           "r6_start", "r6_training", "rates", "record_sha_ok", "refcheck", "refcheck_unplaced", "require_g9_ref",
+           "rollout_rate", "run_settings_problems",
+           "sources", "still_available", "tail_tenth", "walk_steps"]
 
 if __name__ == "__main__":
     from designlab.stage2 import gates2 as _named  # the importable copy owns every class and all module state

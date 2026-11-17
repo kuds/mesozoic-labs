@@ -1130,7 +1130,9 @@ read on its final checkpoint against R0L by this rule; its earlier checks are re
 [settled 15 Nov, before any Track B run; in place of the committed sentence "R0L's 18 episodes are run and committed
 before S2-4 starts."] R0L's 18 episodes are run by the monitor's baseline command and committed as
 `stage2/tb/runs/s2-4/R0L_BASELINE.json` before S2-4 starts; S2-4's own `monitor/r0l.json` must equal it episode for
-episode (outcome, survival and state digest), else the run stops before its first rollout. S2-4 is run once: its
+episode (outcome, survival and state digest) [settled 17 Nov 2026, before any Track B run; ruling 33 of
+`stage2/design/ROUND_C_RULINGS_17NOV.md`: the state digest in every episode that ran; a condition not run is compared
+on its outcome and survival], else the run stops before its first rollout. S2-4 is run once: its
 checkpoint is never judged on the panels, and a second go or no-go run, whatever its settings, is a change after a
 result and is labelled so.
 
@@ -1539,7 +1541,11 @@ is reached the 6, 4 and 0 ms records are cut first, in that order; the 10 ms rec
 comes from and how a cap is spent] Each cap is 1.5 times the total that the dry run prints on the frozen set itself, for
 the 60 cm body as for the 75 cm body, at the same `COST.md`. For a `V6noF5` row the dry run is
 `--set V6noF5 --body <body> --rows R2/42@10ms --conditions @gated,walk/nominal` (the three other delays added where S2-9
-asks). It is made and committed with its printed total after the set's freeze and before the row's first panel record.
+asks). It is made and committed with its printed total after the set's freeze and before the row's first panel record. [settled 17 Nov 2026,
+before any Track B run; ruling 39 of `stage2/design/ROUND_C_RULINGS_17NOV.md`] On a look set the dry run keeps the
+bar's own whole-window placement of the turns and the stop (`bar.py` is not edited), while the records play them at
+J1's leave point (ruling 21), so its total overstates each turn and stop by about 19 to 24 s at the commanded clock.
+The cap is taken from the total as printed; the overstatement is written beside it in the committed `DRY_RUN.json`.
 No cap's number is fixed now: the numbers this rule holds are planning figures and cap nothing. Each cap is spent by the
 bar's unit rule (`STAGE2_75_PLAN.md` H6): a unit starts only if what the cap has spent plus the unit's estimate fits,
 and a started unit finishes. The 10 ms records are one unit and start first; then one unit per delay, in the order 0, 4,
@@ -2207,7 +2213,10 @@ changed after a result: the join-code review's scratch probes (prescribed motion
 `stage2/design/ROUND_C_RULINGS_17NOV.md`] Cut 3 is not taken for a body when the join-code review's probe, on the
 causal grid (ruling 28), gives the failing reading at cut 3's leave point (the window's boundary) as over its limit too;
 the move that fails at J1's leave point is then "not available" with its numbers (A11 for a turn; H3 for the stop), and
-no limit is changed. On 75-M-H-10 the review read 4.038 mm (left turns) and 4.361 mm (right turns) there, against 4.0.
+no limit is changed. On 75-M-H-10 the review read 4.038 mm (left turns) and 4.361 mm (right turns) there, against 4.0. [settled 17 Nov 2026 by the owner (`DECISION_LOG.md` P42); labelled as changed after a result: the 75 cm look sets as
+rebuilt and checked, none frozen] On the look sets the warm-up reading of `join_command` is held to 5.0 mm (`STAGE2_75_PLAN.md`
+A7, P42's paragraph); every other limit is unchanged. A causal move that passes under it is available, and no cut is
+taken for it.
 
 [settled 16 Nov 2026, before any Track B run; labelled as changed after the look work package had built look sets
 (prescribed motion; none frozen); ruling 7 of the fourth list, on what the paragraph above leaves open for the body's

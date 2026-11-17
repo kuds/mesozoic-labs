@@ -1,0 +1,59 @@
+{
+ "schema": "s2-rate-1",
+ "job": "R5-75-M-H-10-s42",
+ "run_uuid": "18d46b9903e34b958ee433c528e2d605",
+ "rule": "gates/rate.json, per session: first_rollout (the session's first rollout: env steps per wall second, no update in it) and first_three (its first three rollouts, two updates included: S2-8's rate), each with the CPU seconds of the trainer and of the workers, the workers, the vCPUs, the resident memory of the trainer and of each worker, and the machine's load.  The clock starts after the session's first boundary, and what the trainer does at later rollout starts (a checkpoint, a check with its monitor child, a boundary) is left out of the wall seconds",
+ "sessions": [
+  {
+   "session": 0,
+   "first_rollout": {
+    "env_steps": 8192,
+    "wall_s": 13.078133711998817,
+    "env_steps_per_wall_s": 626.3890689910957,
+    "cpu_s_trainer": 1.5684394919999995,
+    "cpu_s_workers": 27.090135208000007,
+    "workers": 3,
+    "vcpus": 4,
+    "n_envs": 8,
+    "rss_mb": {
+     "trainer": 570.04296875,
+     "workers": [
+      1457.5546875,
+      1462.11328125,
+      1020.66796875
+     ]
+    },
+    "load_average": [
+     1.35546875,
+     0.92724609375,
+     0.8232421875
+    ],
+    "at": "2026-11-17T20:09:08Z"
+   },
+   "first_three": {
+    "env_steps": 24576,
+    "wall_s": 40.06866257598449,
+    "env_steps_per_wall_s": 613.3471501175046,
+    "cpu_s_trainer": 6.506294339999997,
+    "cpu_s_workers": 79.58318556899998,
+    "workers": 3,
+    "vcpus": 4,
+    "n_envs": 8,
+    "rss_mb": {
+     "trainer": 578.5546875,
+     "workers": [
+      1487.84765625,
+      1505.32421875,
+      1060.234375
+     ]
+    },
+    "load_average": [
+     1.58154296875,
+     1.02880859375,
+     0.861328125
+    ],
+    "at": "2026-11-17T20:09:35Z"
+   }
+  }
+ ]
+}

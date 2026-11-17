@@ -1,0 +1,85 @@
+{
+ "schema": "s2-dev-episodes-1",
+ "rule": "STAGE2_TRACKB_PLAN rule X1: on a look set (or a version of one: the lead's ruling 31 of 17 Nov 2026), for each body and head, no closed-loop episode before G9-ref passed; between G9-ref and S2-4's start only Z1's episodes, R0L's baseline and panel records, Z2's G9-run, the probes of O2-O4, the rate measurement, K3's two runs, the acceptance run's tiny jobs and R2L's fits; none but Z1's, R0L's and Z2's, and the fits', is a record; each is listed in stage2/tb/dev_episodes.json with its command, set, body, rows or mode, and count",
+ "note": "check episodes on the look sets that are no record (rule X1): each listed by stage2/tb/run_trackb.sh before its step runs, and again when it is done",
+ "episodes": [
+  {
+   "step": "V5-sigma-probe",
+   "command": "/home/user/mesozoic-labs/hardware/trex_form_study/.venv/bin/python -m designlab.stage2.train2 probe-sigma --bodies 75-M-H-10 --set V6 --out stage2/tb/validation/sigma_probe.json",
+   "set": "V6",
+   "body": "75-M-H-10",
+   "rows_or_mode": "R5 noise episodes",
+   "count": 120,
+   "reason": "rule O2's sigma probe (reported)",
+   "state": "done",
+   "listed_at": "2026-11-17T18:21:38Z",
+   "commit": "9f6a5e508b70b9b01b2fccaf7a2a91e04224eb97",
+   "done_at": "2026-11-17T18:25:45Z"
+  },
+  {
+   "step": "V5-filter",
+   "command": "/home/user/mesozoic-labs/hardware/trex_form_study/.venv/bin/python -m designlab.stage2.train2 filter --bodies 75-M-H-10 --set V6 --out stage2/tb/validation/filter.json",
+   "set": "V6",
+   "body": "75-M-H-10",
+   "rows_or_mode": "R5 noise episodes",
+   "count": 40,
+   "reason": "rule O4's filter measurement",
+   "state": "done",
+   "listed_at": "2026-11-17T18:26:14Z",
+   "commit": "18fddf16219fabd3241d614730cb07f658721bdd",
+   "done_at": "2026-11-17T18:26:37Z"
+  },
+  {
+   "step": "V6-lr-probe",
+   "command": "/home/user/mesozoic-labs/hardware/trex_form_study/.venv/bin/python -m designlab.stage2.train2 probe-lr --bodies 75-M-H-10 --set V6 --out stage2/tb/validation/lr_probe.json --workers 2",
+   "set": "V6",
+   "body": "75-M-H-10",
+   "rows_or_mode": "R5 training env steps",
+   "count": 294912,
+   "reason": "rule O3's learning-rate probe",
+   "state": "done",
+   "listed_at": "2026-11-17T18:27:06Z",
+   "commit": "7658bb50e41e9d62a40da8f6abadf5b72a79596e",
+   "done_at": "2026-11-17T18:38:25Z"
+  },
+  {
+   "step": "V7-kill-resume",
+   "command": "/home/user/mesozoic-labs/hardware/trex_form_study/.venv/bin/python -m designlab.stage2.gates2 kill-resume --body 75-M-H-10 --set V6 --out stage2/tb/work/kill_resume --record stage2/tb/validation/kill_resume.json",
+   "set": "V6",
+   "body": "75-M-H-10",
+   "rows_or_mode": "R5 training env steps (K3's two runs)",
+   "count": 278528,
+   "reason": "rule K3's kill and resume",
+   "state": "done",
+   "listed_at": "2026-11-17T18:39:55Z",
+   "commit": "a2a0501426f3e176528a741d0809d4da117ceee6",
+   "done_at": "2026-11-17T18:51:52Z"
+  },
+  {
+   "step": "V4-rates",
+   "command": "/home/user/mesozoic-labs/hardware/trex_form_study/.venv/bin/python -m designlab.stage2.gates2 rates --body 75-M-H-10 --set V6 --record stage2/tb/validation/rates.json",
+   "set": "V6",
+   "body": "75-M-H-10",
+   "rows_or_mode": "R5 env steps (rates)",
+   "count": 98304,
+   "reason": "the rate and memory measurement",
+   "state": "done",
+   "listed_at": "2026-11-17T18:56:16Z",
+   "commit": "cfd19cdb446fad6f9d6cbf073b63cc7a57532219",
+   "done_at": "2026-11-17T19:05:40Z"
+  },
+  {
+   "step": "V6-lr-probe",
+   "command": "/home/user/mesozoic-labs/hardware/trex_form_study/.venv/bin/python -m designlab.stage2.train2 probe-lr --bodies 75-M-H-10-X --set V6 --out stage2/tb/validation/lr_probe.json --workers 2",
+   "set": "V6",
+   "body": "75-M-H-10-X",
+   "rows_or_mode": "R5 training env steps",
+   "count": 294912,
+   "reason": "rule O3's learning-rate probe",
+   "state": "done",
+   "listed_at": "2026-11-17T21:34:53Z",
+   "commit": "9f644c0bf95be9d09d274e6614ec2b86cf40db3a",
+   "done_at": "2026-11-17T21:47:29Z"
+  }
+ ]
+}

@@ -40,6 +40,13 @@ and for any plan (``from_plan``: a bar condition's; its ``heading`` argument nam
 plan that plays a turn in place).  The pseudo-set ``S1`` is Stage 1's own run directory through
 ``setio.stage1_view`` with the small table ``S1_TASKS``: for development and tests only.
 
+**Join rule J1's leave point** (``LEAVE_RULE``; the lead's ruling 21 of 17 Nov 2026): on a look set a walk's
+file holds a window of K strides, and its turns and its two-step stop leave that window where they were built
+(``look.window_a``, ``a_phase`` strides into it).  Before such a move the task table's lead (``TURN_LEAD``,
+``STOP_LEAD``) is read in strides, and the walk plays ``m + a_windows`` windows of its file (``place``,
+``leave_point``): the move starts at the frame it was built from.  A set whose moves carry no leave point (the
+75 cm round's three sets, the S1 view, the synthetic sets of the tests) keeps every plan item for item.
+
 **The crouch** (``CROUCH_RULE``): the track's LIPM frequency is computed with ``set.json``'s ``crouch_frac``, which
 no freeze covers; a freeze covers each walk entry's own ``crouch_frac``.  A set whose ``set.json`` value differs
 from that of a walk entry the library reads is refused with both values, as ``bar.set_crouch`` refuses it.
@@ -75,9 +82,13 @@ MAX_SECONDS = 30.0
 STAND_HOLD_S = 12.0
 STAND_SECONDS = env.STAND_SECONDS
 #: The bar's lead strides before a turn and before the two-step stop (``bar.TURN_LEAD_STRIDES``,
-#: ``bar.STOP_LEAD_STRIDES[2]``: a test compares them), in windows of the walk's file.
+#: ``bar.STOP_LEAD_STRIDES[2]``: a test compares them), in windows of the walk's file: on the 75 cm round's sets a
+#: window is one stride.  Before a move whose entry carries join rule J1's leave point (a look set's turn or stop:
+#: ``leave_point``, ``LEAVE_RULE``) the same numbers are strides of the walk, as T1 and B6 write them.
 TURN_LEAD = {"left": 2.0, "right": 2.5}
 STOP_LEAD = 2.5
+#: How close two phases or times must be to count as equal where a leave point is checked (``leave_point``).
+LEAVE_TOL = 1e-9
 #: The stop task's final hold (reference s).  Rule T1 says "a hold" and gives no length: this covers the bar's
 #: stop item, whose hold after the rest is 2.0 s plus its end margin at the slowest clock.
 STOP_HOLD_S = 4.0
@@ -116,6 +127,19 @@ CROUCH_RULE = (
     "library reads (the walks of every task the set holds, the nominal walk, the walks of a plan given as a plan) "
     "must record the same value: a set where they differ, or where such an entry records none, is refused with both "
     "values (as bar.set_crouch refuses it)")
+LEAVE_RULE = (
+    "join rule J1 (STAGE2_TRACKB_PLAN.md section L, 'Windows.' and J1; the lead's ruling 21 of 17 Nov 2026): before "
+    "a causal move whose transitions.json entry carries look.window_a and an a_phase (a look set's turn or two-step "
+    "stop), T1's \"2 (2.5) strides of v0.4\" are strides of the walk, not windows of its file: j = 2 strides into "
+    "the window, j + 0.5 for a right-foot command.  The track plays the walk for m + a_windows windows, m whole "
+    "windows with m x K + a_phase = the lead in strides (K the window's strides; m is 0 for a lead shorter than a "
+    "window), a_windows = a_time_s / window_s the move's own leave time, and the move starts at the frame it was "
+    "built from.  The leave point must fit: window_a names the walk the plan plays before the move, with that "
+    "walk entry's strides and window_s; a_phase less the move's command_phase is a whole number of strides (a left "
+    "command at a whole stride, a right one at a half); a_windows x window_s is a_time_s; and m is a whole number "
+    "of windows, not below 0; else the set is refused.  A move whose entry carries no such leave point (every move "
+    "of the 75 cm round's sets, a move of Stage 1's construction, a non-causal move) keeps the count in windows of "
+    "the walk's file, as before")
 
 
 class Absent(Exception):
@@ -273,6 +297,123 @@ def plan_files(plan) -> list[str]:
         if f is not None and f not in out:
             out.append(f)
     return sorted(out)
+
+
+def _close(a: float, b: float) -> bool:
+    return abs(float(a) - float(b)) <= LEAVE_TOL * max(1.0, abs(float(a)), abs(float(b)))
+
+
+def leave_point(name: str, tr_entry, walk: str, walk_entry, lead_strides: float, walk_file=None) -> dict | None:
+    """Where the walk ``walk`` before the move ``name`` ends (``LEAVE_RULE``, join rule J1): None when the move's
+    entry ``tr_entry`` carries no J1 leave point (``look.window_a`` with an ``a_phase``), and the count before it
+    stays in windows of the walk's file; else ``{windows, whole_windows, strides, window_s, lead_strides, a_phase,
+    a_time_s, a_windows, command_phase}``, ``windows`` (``whole_windows + a_windows``) being what the plan plays.
+    ``walk_entry`` is the walk's ``refs.json`` entry; ``lead_strides`` the lead in strides (``TURN_LEAD``,
+    ``STOP_LEAD``).  ``tune.InputError`` where the leave point does not fit (``LEAVE_RULE``): the move would not
+    start at the frame it was built from.
+
+    ``walk_file`` (the walk's ``.npz``; the lead's ruling 37 (c) of 17 Nov 2026): the entry's ``a_time_s`` is also
+    checked against the file's own ``phase`` array, the window's phase (strides, 0 at its first frame) at each frame
+    of its ``t`` (taken from the first frame), and the window's end, one ``dt`` after its last frame, at phase K.
+    The time at which that phase reaches ``a_phase`` (linear between the two frames it lies between) must be within
+    one frame (``dt``) of ``a_time_s``, else the leave point is refused; a file that holds no such increasing phase
+    is refused too.  The tolerance is the file's own resolution: the file gives the phase at its frames only, so it
+    places ``a_phase`` in time to within a frame and no closer; an error under one frame moves the walk's end by
+    less than one frame, so the join it can add stays within the walk's own largest change between two frames (the
+    join limit of the lead's ruling 15); an entry off by a frame or more (a stride, a window) is refused.  On the
+    committed V6noF5/75-M-H-10 the two differ by about 6e-9 s against a 5.38 ms frame.  Both callers give the file,
+    ``lookbar.leave_of`` (the bar's planner, ``lookbar.leave_resolve``) and the env's ``place`` (the lead's ruling
+    39 (c) of 17 Nov 2026); None, which no caller passes, skips this check."""
+    look = tr_entry.get("look") if isinstance(tr_entry, dict) else None
+    wa = look.get("window_a") if isinstance(look, dict) else None
+    if not isinstance(wa, dict) or look.get("a_phase") is None:
+        return None
+    move = tr_entry.get("move") if isinstance(tr_entry.get("move"), dict) else {}
+    where = f"{name}: its leave point (look.a_phase {look.get('a_phase')!r})"
+    if not move.get("causal") or move.get("command_phase") is None:
+        raise tune.InputError(f"{where} is a causal move's (join rule J1), but the move is not causal or has no "
+                              "command_phase")
+    walk_entry = walk_entry if isinstance(walk_entry, dict) else {}
+    try:
+        K, W = int(wa["strides"]), float(wa["window_s"])
+        a_phase, a_time, a_windows = float(look["a_phase"]), float(look["a_time_s"]), float(look["a_windows"])
+        own_k, own_w = int(walk_entry["strides"]), float(walk_entry["window_s"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise tune.InputError(f"{where}: look.window_a, look.a_time_s, look.a_windows or the walk entry's strides "
+                              f"and window_s are missing or not numbers ({type(exc).__name__}: {exc})") from None
+    cmd = float(move["command_phase"])
+    why = None
+    if wa.get("reference") != walk:
+        why = f"leaves the window of {wa.get('reference')!r}, the plan plays {walk!r} before it"
+    elif K < 1 or K != own_k or not _close(W, own_w):
+        why = (f"was built from a window of {K} strides and {W!r} s, the walk entry {walk!r} holds {own_k} strides "
+               f"and {own_w!r} s")
+    elif not _close(a_windows * W, a_time):
+        why = f"a_windows {a_windows!r} x window_s {W!r} is not a_time_s {a_time!r}"
+    elif not _close(a_phase - cmd, round(a_phase - cmd)):
+        why = (f"a_phase {a_phase:g} strides into the window is not at the command's foot (command_phase {cmd:g}: a "
+               "left command at a whole stride, a right one at a half)")
+    else:
+        m = (float(lead_strides) - a_phase) / K
+        if not _close(m, round(m)) or round(m) < 0:
+            why = (f"the plan's lead of {float(lead_strides):g} strides of {walk} does not reach it: it is "
+                   f"{a_phase:g} strides into a window of {K} strides, so the lead less it is no whole number of "
+                   "windows")
+    if why is None and walk_file is not None:  # (the lead's ruling 37 (c): the walk file's own phase)
+        try:
+            with np.load(walk_file, allow_pickle=False) as z:
+                t, ph = np.asarray(z["t"], float), np.asarray(z["phase"], float)
+                dt = float(z["dt"]) if "dt" in z.files else float(np.median(np.diff(t)))
+        except (OSError, KeyError, TypeError, ValueError) as exc:
+            why = (f"cannot be checked against the walk file's own phase array ({type(exc).__name__}: {exc}; "
+                   "the lead's ruling 37 (c))")
+        else:
+            ok = t.ndim == 1 and t.shape == ph.shape and len(t) >= 2 and dt > 0
+            if ok:  # (the window's end, one frame after its last, is at phase K: the window is periodic)
+                tt, pp = np.r_[t - t[0], t[-1] - t[0] + dt], np.r_[ph, float(K)]
+                ok = bool(np.all(np.isfinite(tt)) and np.all(np.isfinite(pp)) and np.all(np.diff(tt) > 0)
+                          and np.all(np.diff(pp) > 0))
+            if not ok:
+                why = (f"cannot be checked: the walk file of {walk!r} holds no phase that increases over its frames "
+                       f"to {K} strides at its end (the lead's ruling 37 (c))")
+            elif not pp[0] <= a_phase <= pp[-1]:
+                why = (f"lies outside the walk file's own phase ({pp[0]:g} to {pp[-1]:g} strides; the lead's ruling "
+                       "37 (c))")
+            else:
+                t_own = float(np.interp(a_phase, pp, tt))
+                if not abs(a_time - t_own) < dt:
+                    why = (f"has a_time_s {a_time!r} s, but the walk file's own phase array reaches a_phase "
+                           f"{a_phase:g} at {t_own!r} s after the window's first frame: more than one frame "
+                           f"({dt:g} s) apart (the lead's ruling 37 (c))")
+    if why is not None:
+        raise tune.InputError(f"{where} {why} ({LEAVE_RULE})")
+    whole = int(round((float(lead_strides) - a_phase) / K))
+    return dict(windows=whole + a_windows, whole_windows=whole, strides=K, window_s=W, lead_strides=float(lead_strides),
+                a_phase=a_phase, a_time_s=a_time, a_windows=a_windows, command_phase=cmd)
+
+
+def place(plan, refs_doc: dict, tr_doc: dict, set_dir) -> tuple[list, dict]:
+    """A task's plan with join rule J1's leave point in place (``LEAVE_RULE``): every periodic item ``("ref", W,
+    n)`` (``n`` a number of strides) that leads straight into a move whose entry carries a leave point is given
+    ``leave_point``'s ``windows``; every other item is left as it is (on a set whose moves carry no leave point the
+    plan is returned item for item, and no file is read).  Returns ``(plan, {index of the walk item: its leave
+    point})``.  ``set_dir``: the set's directory; ``leave_point`` is given the walk's file there (its entry's ``file``,
+    else ``refs/<walk>.npz``), so that the entry's ``a_time_s`` is checked against the file's own ``phase`` array in
+    the env too (the lead's ruling 39 (c) of 17 Nov 2026, of ruling 37 (c)'s check)."""
+    plan = [tuple(x) for x in plan]
+    out, leaves = [], {}
+    for i, item in enumerate(plan):
+        nxt = plan[i + 1] if i + 1 < len(plan) else None
+        if (item[0] == "ref" and item[2] != END and nxt is not None and nxt[0] == "transition"):
+            entry = refs_doc.get(item[1])
+            rel = entry.get("file") if isinstance(entry, dict) and entry.get("file") else f"refs/{item[1]}.npz"
+            lp = leave_point(nxt[1], tr_doc.get(nxt[1]), item[1], entry, float(item[2]),
+                             walk_file=setio._anchored(set_dir) / rel)
+            if lp is not None:
+                leaves[i] = lp
+                item = ("ref", item[1], lp["windows"])
+        out.append(item)
+    return out, leaves
 
 
 # ------------------------------------------------------------------------------------------------
@@ -680,11 +821,14 @@ class Library:
         for td in table:  # (the table's order: the resolved table lists the absent tasks in place)
             if td.name not in templates:
                 continue
-            plan = self._resolve(td.plan)
+            plan, leaves = self.place(td.plan)
+            plan = self._resolve(plan)
             t_end = sum(d for _, d in self.segment_times(plan))
             seconds = float(td.seconds) if td.seconds is not None else min(t_end / self.rate, MAX_SECONDS)
             self.tasks[td.name] = dict(plan=[list(x) for x in plan], weight=float(td.weight), available=True,
                                        reason=None, seconds=seconds, monitor=list(td.monitor), heading=td.heading)
+            if leaves:  # (join rule J1's leave point: a look set's turn or stop; LEAVE_RULE)
+                self.tasks[td.name]["leave"] = [dict(item=i, **lp) for i, lp in sorted(leaves.items())]
             self._defs[td.name] = td
         self.tasks = {td.name: self.tasks[td.name] for td in table}
 
@@ -810,6 +954,13 @@ class Library:
             out.append((t, dur))
             t = t + dur
         return out
+
+    def place(self, template) -> tuple[list, dict]:
+        """``place`` on this set's records: a table row's plan with join rule J1's leave point before a look set's
+        causal move (``LEAVE_RULE``); on a set whose moves carry none, the plan item for item.  The walk files are
+        this set's (``self.dir``): each leave point's ``a_time_s`` is checked against its walk file's own phase (the
+        lead's ruling 39 (c) of 17 Nov 2026)."""
+        return place(template, self.refs_doc, self.tr_doc, self.dir)
 
     def _resolve(self, template) -> list:
         """A table row's plan with every "to the end" item sized: whole windows of its file until the plan reaches
@@ -938,14 +1089,17 @@ class Library:
     def describe(self) -> dict:
         """The resolved task table, the absent tasks with their reasons and the files read with their hashes: what
         a run's settings hold of its references (no path)."""
-        return dict(set=self.set, body=self.body, rate=self.rate, omega=self.omega, crouch_frac=self.crouch_frac,
-                    max_seconds=MAX_SECONDS, command_rule=COMMAND_RULE, crouch_rule=CROUCH_RULE,
-                    tasks={n: dict(t) for n, t in self.tasks.items() if t["available"]},
-                    absent={n: t["reason"] for n, t in self.tasks.items() if not t["available"]},
-                    inputs=self.inputs)
+        out = dict(set=self.set, body=self.body, rate=self.rate, omega=self.omega, crouch_frac=self.crouch_frac,
+                   max_seconds=MAX_SECONDS, command_rule=COMMAND_RULE, crouch_rule=CROUCH_RULE,
+                   tasks={n: dict(t) for n, t in self.tasks.items() if t["available"]},
+                   absent={n: t["reason"] for n, t in self.tasks.items() if not t["available"]},
+                   inputs=self.inputs)
+        if any(t.get("leave") for t in self.tasks.values()):  # (a look set's turn or stop: join rule J1)
+            out["leave_rule"] = LEAVE_RULE
+        return out
 
 
-__all__ = ["Absent", "COMMAND_RULE", "CROUCH_RULE", "END", "HEADING_COMMAND", "HEADING_REFERENCE", "Library",
-           "MAX_SECONDS", "S1_TASKS", "STOCK_SET", "Script", "TASKS", "TaskDef", "absent_reason", "fk_tables",
-           "foot_rel_of", "head_body", "head_home", "head_rp_of", "plan_files", "s1_root", "target_speed_of",
-           "task_names", "why_not"]
+__all__ = ["Absent", "COMMAND_RULE", "CROUCH_RULE", "END", "HEADING_COMMAND", "HEADING_REFERENCE", "LEAVE_RULE",
+           "Library", "MAX_SECONDS", "S1_TASKS", "STOCK_SET", "Script", "TASKS", "TaskDef", "absent_reason",
+           "fk_tables", "foot_rel_of", "head_body", "head_home", "head_rp_of", "leave_point", "place", "plan_files",
+           "s1_root", "target_speed_of", "task_names", "why_not"]

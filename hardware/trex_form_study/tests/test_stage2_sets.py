@@ -775,10 +775,13 @@ def test_blocked_names_every_failing_group_and_a_passing_merge_lifts_only_its_ow
     edit_json(d / "set.json", lambda doc: doc.update(blocked=old))
     assert sets.status(SET, BODY, tmp_path)["blocked"] == [old] and sets.blocked_list(old) == [old]
     assert sets.blocked_list(None) == [] and sets.blocked_list([old]) == [old]
-    assert [x for x in sets.verify(SET, BODY, tmp_path)["failures"] if x.startswith("the set is stopped")] == [
-        f"the set is stopped: {old['reason']} (it goes to the lead)"]
     assert sets.blocks_in_records(docs_of(d)) == {g: f"{g}: {sets.NO_GATES} ({sets.RULES['S2S-fallback']})"
                                                   for g in both}
+    # verify names the dict's stop and the start's, which the records show and the dict leaves out (ruling 36)
+    assert [x for x in sets.verify(SET, BODY, tmp_path)["failures"] if x.startswith("the set is stopped")] == [
+        f"the set is stopped: {old['reason']} (it goes to the lead)",
+        f"the set is stopped: start: {sets.NO_GATES} ({sets.RULES['S2S-fallback']}) (it goes to the lead; the "
+        "records show it and set.json blocked does not name it)"]
     del standin["fail"]["nominal_to_v0.4"]
     edit_json(d / "transitions.json", lambda doc: doc["transitions"].pop("nominal_to_v0.4"))
     r = build(tmp_path, only=["nominal_to_v0.4"])
@@ -789,6 +792,57 @@ def test_blocked_names_every_failing_group_and_a_passing_merge_lifts_only_its_ow
     edit_json(d / "transitions.json", lambda doc: doc["transitions"].pop("start"))
     r = build(tmp_path)
     assert r["blocked"] is None and docs_of(d)["set.json"]["blocked"] is None and r["ran"] == ["start"]
+
+
+#: A build with two spawned processes, the stand-in installed in each: the script's top level runs again in every
+#: spawned child (as ``__mp_main__``), so the children build with the stand-in too.
+TWO_PROCS = r"""
+import json, sys
+import fake_sets
+from designlab.stage2 import sets, setio
+
+root, set_name, body = sys.argv[1:4]
+both = ("start", "nominal_to_v0.4")
+fake_sets.MODE["fail"] = {g: sets.NO_GATES for g in both}
+_inner = fake_sets.produce
+
+
+def produce(*args, **kw):
+    out = _inner(*args, **kw)
+    if out["item"] in both:
+        out["blocks_set"] = f"{out['item']}: no transition within the gates"
+    return out
+
+
+sets.produce = produce
+sets._require_models = lambda body: None
+
+if __name__ == "__main__":
+    sets.build(set_name, body, root=root, procs=0, only=sets.walk_names(), log=lambda line: None)  # the walks here
+    r = sets.build(set_name, body, root=root, procs=2, log=lambda line: None)
+    doc = json.load(open(setio.set_dir(set_name, body, root) / "set.json"))
+    print(json.dumps(dict(blocked=r["blocked"], recorded=doc["blocked"], ran=r["ran"], skipped=r["skipped"])))
+"""
+
+
+def test_a_build_with_two_processes_names_both_stops(tmp_path):
+    """Ruling 36 of 17 Nov 2026 (the start law's check, low point 2): with two processes the start and the change
+    into the bar's walk run together; when both fail, the build and ``set.json`` ``blocked`` name both, in that
+    order, and the groups not yet started are not built."""
+    mod = tmp_path / "fake_sets.py"
+    mod.write_text(FAKE_CODE)
+    script = tmp_path / "two_procs.py"
+    script.write_text(TWO_PROCS)
+    env = dict(os.environ, PYTHONPATH=os.pathsep.join([str(tmp_path), str(ROOT)]), MUJOCO_GL="disable")
+    env.pop(sets.FAIL_AT, None)
+    r = subprocess.run([PY, str(script), str(tmp_path / "root"), SET, BODY], capture_output=True, text=True, env=env,
+                       cwd=ROOT, timeout=900)
+    assert r.returncode == 0, r.stderr[-3000:]
+    got = json.loads(r.stdout.strip().splitlines()[-1])
+    want = [dict(by=g, reason=f"{g}: no transition within the gates") for g in ("start", "nominal_to_v0.4")]
+    assert got["blocked"] == want == got["recorded"]
+    assert {"start", "nominal_to_v0.4"} <= set(got["ran"]) and got["skipped"]
+    assert not set(got["ran"]) & set(got["skipped"])
 
 
 @pytest.mark.parametrize("set_name", list(sets.SETS))
@@ -1431,7 +1485,8 @@ def test_verify_and_freeze_cite_the_bars_kinematic_check(made, legacy_ok):
     through the bar's own readings): ``verify`` prints what fails as notes, never as a failure; a freeze cites the
     record and refuses one that is not of the files being frozen."""
     root = made.parents[1]
-    assert any(x.startswith("no refcheck.json beside the set's records") for x in verify(made)["notes"])
+    assert (f"no refcheck.json beside the set's records: its references were not played through the bar's own "
+            f"readings. {sets.REFCHECK_HOW}") in verify(made)["notes"]  # (ruling 40: the placed refcheck on a look set)
     docs = docs_of(made)
     files = {"refs/v0.4.npz": dict(sha256=docs["refs.json"]["references"]["v0.4"]["sha256"]),
              "transitions/turn90_pi4_left.npz": dict(sha256=docs["transitions.json"]["transitions"]["turn90_pi4_left"]["sha256"])}
@@ -1456,9 +1511,11 @@ def test_verify_and_freeze_cite_the_bars_kinematic_check(made, legacy_ok):
     files["refs/v0.4.npz"]["sha256"] = "0" * 64
     s2io.write_json(made / "refcheck.json", doc)
     v = verify(made)
-    assert v["ok"] and any("is not current: 1 of the files it read are not the set's now (refs/v0.4.npz)" in x for x in v["notes"])
-    with pytest.raises(sets.SetError, match="the refcheck record .* is not of the files being frozen"):
+    assert v["ok"] and any("is not current: 1 of the files it read are not the set's now (refs/v0.4.npz). "
+                           + sets.REFCHECK_HOW in x for x in v["notes"])
+    with pytest.raises(sets.SetError, match="the refcheck record .* is not of the files being frozen") as refused:
         sets.freeze(SET, BODY, root, log=lambda line: None)
+    assert str(refused.value).endswith(f"(refs/v0.4.npz)): make it again. {sets.REFCHECK_HOW}")
     with pytest.raises(sets.SetError, match="no such refcheck record"):
         sets.freeze(SET, BODY, root, refcheck=made / "none.json", log=lambda line: None)
     # every reference passing: one line says so
@@ -1470,6 +1527,52 @@ def test_verify_and_freeze_cite_the_bars_kinematic_check(made, legacy_ok):
     assert rec["refcheck"]["pass_"] is True and rec["refcheck"]["failing"] == {}
     assert sets.refcheck_lines(sets.refcheck_state(made, setio.load(made), made / "elsewhere.json"))[0].endswith(
         "every reference that was played passes its own bar item")
+
+
+#: LT3's check's suggested line for the look sets' freeze text (stage2/design/checkpoint/reviews/
+#: roundC__check_LT3_17nov.md, finding 3), which ruling 40 of 17 Nov 2026 puts into sets.py word for word.
+LT3_REFCHECK_LINE = (
+    "On a look set or a version of one (V6, V6noF5, V6.2, ...) the record is made with `python -m "
+    "designlab.stage2.gates2 refcheck --set S --body B --out <the sets' root>` (bar refcheck's record made inside "
+    "lookbar.look_set_placement, its turns and stop at join rule J1's leave point, the only kind G9-ref part (a) "
+    "reads); on any other set with `python -m designlab.stage2.bar refcheck --set S --body B --out <the sets' root>`.")
+
+
+def test_the_freeze_text_names_the_placed_refcheck_for_a_look_set(capsys):
+    """Ruling 40 of 17 Nov 2026 (LT3's check, finding 3): the six places of ``sets.py`` that named ``bar refcheck``
+    alone name the placed refcheck for a look set in the check's words: the module docstring (section 3),
+    ``REFCHECK``'s comment and ``REFCHECK_HOW`` beside it, ``verify``'s note on a set with no record and
+    ``refcheck_lines`` on a record that is not current, ``freeze``'s refusal of such a record (the three read in
+    ``test_verify_and_freeze_cite_the_bars_kinematic_check``), and the ``--refcheck`` help.  No place names ``bar
+    refcheck`` alone any more."""
+    assert sets.REFCHECK_HOW == LT3_REFCHECK_LINE
+    check = ROOT / "stage2" / "design" / "checkpoint" / "reviews" / "roundC__check_LT3_17nov.md"
+    if check.is_file():
+        assert LT3_REFCHECK_LINE in check.read_text()
+    flat = lambda s: " ".join(s.replace("``", "`").split())  # noqa: E731
+    bare = lambda s: "".join(s.split())  # noqa: E731  (argparse wraps its help: compared without whitespace)
+    assert LT3_REFCHECK_LINE[:-1] + " (`REFCHECK_HOW`; ruling 40 of 17 Nov 2026)." in flat(sets.__doc__)
+    src = (ROOT / "designlab" / "stage2" / "sets.py").read_text()
+    lines = src.splitlines()
+    i = lines.index('REFCHECK = "refcheck.json"')
+    j = i
+    while lines[j - 1].startswith("#:"):
+        j -= 1
+    comment = flat(" ".join(x[2:] for x in lines[j:i]))
+    for words in ("ruling 40 of 17 Nov 2026, in the words of LT3's check", "on a look set or a version of one (V6, "
+                  "V6noF5, V6.2, ...) `python -m designlab.stage2.gates2 refcheck --set S --body B --out <the sets' "
+                  "root>`", "on any other set `python -m designlab.stage2.bar refcheck --set S --body B --out <the "
+                  "sets' root>`"):
+        assert words in comment, words
+    assert lines[i + 1].startswith("REFCHECK_HOW = (")
+    for old in ("made by ``python -m designlab.stage2.bar refcheck --out", "(python -m designlab.stage2.bar refcheck --out",
+                "(python -m designlab.stage2.bar refcheck)", "run python -m designlab.stage2.bar refcheck again",
+                "the record of bar refcheck to cite"):
+        assert old not in src, old
+    with pytest.raises(SystemExit):
+        sets.main(["freeze", "--help"])
+    assert bare("the refcheck record to cite (default: the set directory's refcheck.json, where there is one). "
+                + LT3_REFCHECK_LINE) in bare(capsys.readouterr().out)
 
 
 def test_a_frozen_entry_is_never_dropped_or_changed(made, legacy_ok, standin):
@@ -1499,6 +1602,145 @@ def test_a_frozen_entry_is_never_dropped_or_changed(made, legacy_ok, standin):
         build(root)
     assert len(standin["calls"]) == calls and mtimes(made) == before
     assert sets.main(["build", "--set", SET, "--body", BODY, "--root", str(root), "--procs", "0"]) == 1
+
+
+def _g9_ref(path: Path, made: Path, refs_named, blocked=(), **over) -> Path:
+    """A G9-ref record of the synthetic set's latest freeze (``gates2``'s shape: its own sha256) whose part (a) names
+    ``refs_named`` among the failing items' references still available."""
+    sd = docs_of(made)["set.json"]
+    last = sd["freezes"][-1]
+    doc = dict(schema=sets.G9_REF_SCHEMA, gate="G9-ref", body=BODY, set=SET,
+               set_freeze=dict(index=last["index"], manifest_sha256=last["manifest_sha256"]),
+               parts=dict(a=dict(ok=False, still_available=sorted(refs_named), blocked=list(blocked), failing_references=[
+                   dict(item=f"item/{r}", reference=r, failing=["toe_clearance"], entry_available=True,
+                        in_latest_freeze=True, still_available=True) for r in refs_named])), pass_=False)
+    doc.update(over)
+    doc["sha256"] = s2io.sha256_json(doc)
+    s2io.write_json(path, doc)
+    return path
+
+
+def test_the_g9_ref_schema_is_the_gates_own():
+    """``sets.G9_REF_SCHEMA`` is ``gates2.SCHEMAS["g9_ref"]`` (read in a child: importing ``gates2`` selects MuJoCo's
+    GL backend)."""
+    code = "from designlab.stage2 import gates2; print(gates2.SCHEMAS['g9_ref'])"
+    env = dict(os.environ, PYTHONPATH=str(ROOT), MUJOCO_GL="disable")
+    r = subprocess.run([PY, "-c", code], capture_output=True, text=True, env=env, cwd=ROOT, timeout=300)
+    assert r.returncode == 0, r.stderr[-2000:]
+    assert r.stdout.strip().splitlines()[-1] == sets.G9_REF_SCHEMA
+
+
+def test_a_freeze_drops_an_entry_marked_on_the_g9_ref_record_that_named_it(made, legacy_ok, standin, tmp_path, capsys):
+    """Ruling 32 (A) of 17 Nov 2026 (after ruling 14): ``sets mark`` marks a frozen entry that a G9-ref record of the
+    latest freeze names as still available not available, with the lead's reason and that record (path and sha256);
+    the next freeze drops it and records the drop with the mark and the record.  The earlier freeze is not rewritten,
+    the entry keeps its definition and provenance, a build builds nothing for it, and ``verify`` passes before and
+    after the drop.  A turn's stride rule record no longer holds the marked direction as a reference."""
+    root = made.parents[1]
+    first = sets.freeze(SET, BODY, root, log=lambda line: None)
+    before = docs_of(made)
+    rec = _g9_ref(tmp_path / "g9_ref.json", made, ["transitions/stop1_v0.4.npz", "transitions/turn90_pi4_left.npz"])
+    argv = ["mark", "--set", SET, "--body", BODY, "--root", str(root), "--name", "stop1_v0.4", "--reason",
+            "the bar's reference check fails its toe clearance", "--g9-ref", str(rec)]
+    assert sets.main(argv) == 0 and "the next freeze drops it" in capsys.readouterr().out
+    sets.mark(SET, BODY, "turn90_pi4_left", "the same, on the left turn", rec, root, log=lambda line: None)
+    docs = docs_of(made)
+    cite = dict(path=s2io.portable(str(rec.resolve())), sha256=s2io.sha256_file(rec))
+    for name in ("stop1_v0.4", "turn90_pi4_left"):
+        e, old = docs["transitions.json"]["transitions"][name], before["transitions.json"]["transitions"][name]
+        mk = e["marked"]
+        assert e["available"] is False and "file" not in e and "sha256" not in e and mk["g9_ref"] == cite
+        assert mk["was"] == dict(file=old["file"], sha256=old["sha256"], entry_sha256=setio.entry_sha256("move", old))
+        assert mk["freeze"] == dict(index=0, manifest_sha256=first["manifest_sha256"]) and mk["rule"] == sets.MARK_RULE
+        assert e["numbers"] == dict(g9_ref=[dict(item=f"item/transitions/{name}.npz", failing=["toe_clearance"])])
+        assert e["definition"] == old["definition"] and e["built_by"] == old["built_by"] and e["item"] == old["item"]
+        assert docs["set.json"]["not_available"][name] == dict(reason=e["reason"], numbers=e["numbers"])
+        assert cite["path"] in e["reason"]
+    assert docs["set.json"]["stride_rules"]["pi4"]["references"] == {"turn90_pi4_left": False, "turn90_pi4_right": True}
+    assert docs["set.json"]["freezes"] == [first]  # nothing of the freeze moved
+    v = verify(made)
+    assert v["ok"], v["failures"]
+    assert any(x.startswith("stop1_v0.4: marked not available on the G9-ref record") and "the next freeze drops it"
+               in x for x in v["notes"])
+    assert sets.status(SET, BODY, root)["items"]["stop1_v0.4"].startswith("not available: the bar's reference check")
+    calls = len(standin["calls"])
+    build(root)  # a build builds nothing for a marked entry (nor for the rest: all current)
+    assert len(standin["calls"]) == calls
+    second = sets.freeze(SET, BODY, root, log=lambda line: None)
+    doc = docs_of(made)["set.json"]
+    assert doc["freezes"] == [first, second] and second["index"] == 1 and second["added"] == []
+    assert set(first["manifest"]) - set(second["manifest"]) == {"stop1_v0.4", "turn90_pi4_left"}
+    for name in ("stop1_v0.4", "turn90_pi4_left"):
+        row = first["manifest"][name]
+        assert second["dropped"][name] == dict(kind=row["kind"], sha256=row["sha256"], entry_sha256=row["entry_sha256"],
+                                               reason=docs["transitions.json"]["transitions"][name]["marked"]["reason"],
+                                               marked_at=docs["transitions.json"]["transitions"][name]["marked"]["at"],
+                                               g9_ref=cite, rule=sets.MARK_RULE)
+    v = verify(made)
+    assert v["ok"] and v["frozen"]["index"] == 1 and "stop1_v0.4" in v["not_available"]
+    # a freeze with nothing to add or drop appends nothing
+    assert sets.freeze(SET, BODY, root, log=lambda line: None) == second
+
+
+def test_a_freeze_that_drops_an_entry_nobody_marked_is_refused(made, legacy_ok, standin, tmp_path):
+    """Ruling 32 (A) opens one door only: an entry of the latest freeze that the set holds as not available without
+    the mark of a G9-ref record is still refused by ``freeze`` (and by ``verify`` and ``build``), and so is a mark that
+    rests on a record the set cannot be held to (another set, freeze or entry; a blocking item; a sha256 not its
+    own), or on an entry another reference was built from."""
+    root = made.parents[1]
+    sets.freeze(SET, BODY, root, log=lambda line: None)
+    rec = _g9_ref(tmp_path / "g9_ref.json", made, ["transitions/stop1_v0.4.npz", "refs/v0.3.npz"])
+    refuse = [  # (the record, the entry, what the refusal says)
+        (rec, "stop2_v0.4", "does not name transitions/stop2_v0.4.npz"),
+        (rec, "v0.3", "were built from v0.3"),
+        (_g9_ref(tmp_path / "other.json", made, ["transitions/stop1_v0.4.npz"], set="V0"), "stop1_v0.4", "of V0/"),
+        (_g9_ref(tmp_path / "old.json", made, ["transitions/stop1_v0.4.npz"], set_freeze=dict(index=0, manifest_sha256="0" * 64)),
+         "stop1_v0.4", "made on another freeze"),
+        (_g9_ref(tmp_path / "blk.json", made, ["transitions/stop1_v0.4.npz"], blocked=["walk/v0.4"]), "stop1_v0.4",
+         "failing blocking items"),
+        (tmp_path / "none.json", "stop1_v0.4", "no G9-ref record can be read"),
+        (rec, "stop9", "has no entry"),
+    ]
+    bad = _g9_ref(tmp_path / "bad.json", made, ["transitions/stop1_v0.4.npz"])
+    edit_json(bad, lambda doc: doc.update(pass_=True))  # its sha256 is no longer its own
+    refuse.append((bad, "stop1_v0.4", "not a G9-ref record"))
+    before = {n: (made / n).read_bytes() for n in ("refs.json", "transitions.json", "set.json")}
+    for path, name, text in refuse:
+        with pytest.raises(sets.SetError, match=re.escape(text)):
+            sets.mark(SET, BODY, name, "a reason", path, root, log=lambda line: None)
+    with pytest.raises(sets.SetError, match="needs the lead's reason"):
+        sets.mark(SET, BODY, "stop1_v0.4", " ", rec, root, log=lambda line: None)
+    assert before == {n: (made / n).read_bytes() for n in before}  # nothing was written
+    # the entry set not available by hand, with no mark: verify, freeze and build refuse it as before
+    def unmark(doc):
+        e = doc["transitions"]["stop1_v0.4"]
+        for k in ("file", "sha256"):
+            e.pop(k)
+        e.update(available=False, reason="by hand", numbers={})
+    edit_json(made / "transitions.json", unmark)
+    edit_json(made / "set.json", lambda doc: doc["not_available"].update({"stop1_v0.4": dict(reason="by hand",
+                                                                                           numbers={})}))
+    assert "stop1_v0.4: the latest freeze lists it and its entry is not available" in verify(made)["failures"]
+    with pytest.raises(sets.SetError, match="stop1_v0.4: an earlier freeze holds it and the set no longer does"):
+        sets.freeze(SET, BODY, root, log=lambda line: None)
+    with pytest.raises(sets.SetError, match="the latest freeze lists stop1_v0.4 and transitions.json holds it as not "
+                                            "available"):
+        build(root)
+    assert len(docs_of(made)["set.json"]["freezes"]) == 1
+
+
+@pytest.mark.parametrize("set_name", list(sets.SETS))
+def test_the_round_sets_records_hold_no_mark_and_no_drop(set_name):
+    """Ruling 32 (A) rewrites no record of the round's three frozen sets: none of their entries is marked, none of
+    their freezes drops one, and their rules are the ones a new set of theirs gets (no mark rule among them)."""
+    d = setio.ROOT / set_name / BODY
+    if not (d / "set.json").exists():
+        pytest.skip(f"the {set_name} set is not built (stage2/sets/{set_name})")
+    docs = docs_of(d)
+    entries = {**docs["refs.json"]["references"], **docs["transitions.json"]["transitions"]}
+    assert not any("marked" in e for e in entries.values())
+    assert docs["set.json"]["freezes"] and not any("dropped" in f for f in docs["set.json"]["freezes"])
+    assert "S2S-mark" not in docs["set.json"]["rules"] and sets.MARK_RULE not in json.dumps(docs)
 
 
 def test_build_on_a_frozen_set_only_puts_matching_arrays_back(made, legacy_ok, standin):

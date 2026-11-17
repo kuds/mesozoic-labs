@@ -1,0 +1,1922 @@
+{
+ "schema": "s2-monitor-r0l-1",
+ "kind": "baseline",
+ "job": null,
+ "run_uuid": null,
+ "run_id": null,
+ "body": "75-M-H-10",
+ "set": "V6",
+ "row": "R0L@10ms",
+ "k": 5,
+ "tiny": false,
+ "conditions": [
+  "walk/nominal",
+  "walk/v0.4",
+  "turn/q90_left",
+  "stop/two_step",
+  "nudge/forward",
+  "nudge/left"
+ ],
+ "pairs": [
+  [
+   "walk/nominal",
+   6001
+  ],
+  [
+   "walk/nominal",
+   6002
+  ],
+  [
+   "walk/nominal",
+   6003
+  ],
+  [
+   "walk/v0.4",
+   6004
+  ],
+  [
+   "walk/v0.4",
+   6005
+  ],
+  [
+   "walk/v0.4",
+   6006
+  ],
+  [
+   "turn/q90_left",
+   6007
+  ],
+  [
+   "turn/q90_left",
+   6008
+  ],
+  [
+   "turn/q90_left",
+   6009
+  ],
+  [
+   "stop/two_step",
+   6010
+  ],
+  [
+   "stop/two_step",
+   6011
+  ],
+  [
+   "stop/two_step",
+   6012
+  ],
+  [
+   "nudge/forward",
+   6013
+  ],
+  [
+   "nudge/forward",
+   6014
+  ],
+  [
+   "nudge/forward",
+   6015
+  ],
+  [
+   "nudge/left",
+   6016
+  ],
+  [
+   "nudge/left",
+   6017
+  ],
+  [
+   "nudge/left",
+   6018
+  ]
+ ],
+ "episodes": [
+  {
+   "condition": "walk/nominal",
+   "seed": 6001,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005050853649144291,
+     "head_world_pitch_rms_deg": 0.6462699683507536,
+     "tail": {
+      "phase_cycles": -0.2065814096592231,
+      "amp_rad": 0.1252241906733974,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10362110316196249
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9569748583218345,
+     "head_world_pitch_rms_deg": 0.6462699683507536,
+     "tail_phase_diff_cycles": -0.05864822274214476,
+     "tail_amp_rad": 0.1252241906733974,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9866005015833843,
+     "toe_off_ratio": 0.3466810814735641,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "6041c7751eee7099b94f4eeb76a7c1e293dd584a3fd4764648e390539b1c2fa4",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/6001.npz",
+     "sha256": "bcfc701e66ad1ce7c61270e1f0d9fb7c1fd22a85093e87d6dd6c5d39014a36d9",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 3.614085558001534
+   },
+   "row": "R0L@10ms",
+   "set": "V6",
+   "start_seed": 870037,
+   "wall_s": 3.6149483299959684,
+   "survival_credit": 24.865999999997097
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 6002,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005035595284629848,
+     "head_world_pitch_rms_deg": 0.6566058171824353,
+     "tail": {
+      "phase_cycles": -0.20751707316543894,
+      "amp_rad": 0.1252816269628134,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10086971700854476
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9540838873625183,
+     "head_world_pitch_rms_deg": 0.6566058171824353,
+     "tail_phase_diff_cycles": -0.05958388624836064,
+     "tail_amp_rad": 0.1252816269628134,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9870530233496834,
+     "toe_off_ratio": 0.33747587618128544,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "f0a95bea6c3df7e27d0239a24336b6ffbe881ee4b3d9d371d0090133badc5663",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/6002.npz",
+     "sha256": "1484f1a0f36b6ad6a180499d901d7dc0fc2ea5b4e326d55ba26ef808cbd5fe16",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.5518006150014116
+   },
+   "row": "R0L@10ms",
+   "set": "V6",
+   "start_seed": 1906478996,
+   "wall_s": 2.552512565998768,
+   "survival_credit": 24.865999999997097
+  },
+  {
+   "condition": "walk/nominal",
+   "seed": 6003,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 24.865999999997097,
+   "simulated_s": 24.865999999997097,
+   "planned_s": 24.86588043549796,
+   "steps": 12433,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "failed_terms_but_A1": [
+    "toe_clearance_own_swing",
+    "look_toe_off"
+   ],
+   "look": {
+    "window": [
+     14.8599999999971,
+     24.8599999999971
+    ],
+    "window_ref": [
+     15.603,
+     26.103
+    ],
+    "own": {
+     "window": [
+      14.8599999999971,
+      24.8599999999971
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 19,
+     "bob_pp_m": 0.005039278400078534,
+     "head_world_pitch_rms_deg": 0.6620441762239015,
+     "tail": {
+      "phase_cycles": -0.2062509214520903,
+      "amp_rad": 0.12528543367125863,
+      "strides": 9
+     },
+     "toe_off_rad": 0.10377899426775232
+    },
+    "reference": {
+     "window": [
+      14.86,
+      24.86
+     ],
+     "samples": 501,
+     "steps": 18,
+     "lift_offs": 18,
+     "bob_pp_m": 0.005277937664947169,
+     "head_world_pitch_rms_deg": 0.5280821690969392,
+     "tail": {
+      "phase_cycles": -0.1479331869170783,
+      "amp_rad": 0.12692492095070546,
+      "strides": 8
+     },
+     "toe_off_rad": 0.2988945999635231,
+     "window_ref": [
+      15.603,
+      26.103
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": false
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": false,
+    "compare": {
+     "bob_ratio": 0.9547817196755346,
+     "head_world_pitch_rms_deg": 0.6620441762239015,
+     "tail_phase_diff_cycles": -0.05831773453501199,
+     "tail_amp_rad": 0.12528543367125863,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 0.9870830151622977,
+     "toe_off_ratio": 0.3472093315851723,
+     "steps": {
+      "own": 18,
+      "reference": 18,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 19,
+      "reference": 18,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.12692492095070546,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.2988945999635231,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 18,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16560859228564576,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": false,
+   "look_failed_terms": [
+    "toe_off"
+   ],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.10929999999601,
+    "t_ref_planned": 26.10917445727286,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.102999999996015,
+    "rate": 1.05,
+    "updates": 2487
+   },
+   "error": null,
+   "state_digest": "95220768f1ec80c2ac0af45dee0aa4a415439c27d2f0b5f92ae416df18d432fb",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "toe_clearance_own_swing"
+    ],
+    "failed_terms_but_A1": [
+     "toe_clearance_own_swing"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/nominal/6003.npz",
+     "sha256": "809795fd09247ca275f303365986884f4abf099182d039f0081094cd3e8c878e",
+     "rows": 1244,
+     "every_s": 0.02,
+     "updates": 2487,
+     "steps": 12433
+    },
+    "wall_s": 2.203416736003419
+   },
+   "row": "R0L@10ms",
+   "set": "V6",
+   "start_seed": 1181382135,
+   "wall_s": 2.204678264002723,
+   "survival_credit": 24.865999999997097
+  },
+  {
+   "condition": "walk/v0.4",
+   "seed": 6004,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 40.36800000000337,
+   "simulated_s": 40.36800000000337,
+   "planned_s": 40.368160039779916,
+   "steps": 20184,
+   "succeeded": true,
+   "succeeded_but_A1": true,
+   "succeeded_look": true,
+   "succeeded_but_A1_look": true,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [],
+   "failed_terms_but_A1": [],
+   "look": {
+    "window": [
+     30.36000000000336,
+     40.36000000000336
+    ],
+    "window_ref": [
+     31.878,
+     42.378
+    ],
+    "own": {
+     "window": [
+      30.36000000000336,
+      40.36000000000336
+     ],
+     "samples": 501,
+     "steps": 24,
+     "lift_offs": 24,
+     "bob_pp_m": 0.00843825122676188,
+     "head_world_pitch_rms_deg": 0.5579169266049187,
+     "tail": {
+      "phase_cycles": -0.2805022119037178,
+      "amp_rad": 0.12726471700511516,
+      "strides": 11
+     },
+     "toe_off_rad": 0.05424069558917676
+    },
+    "reference": {
+     "window": [
+      30.36,
+      40.36
+     ],
+     "samples": 501,
+     "steps": 24,
+     "lift_offs": 24,
+     "bob_pp_m": 0.007493662742410576,
+     "head_world_pitch_rms_deg": 0.5377547669419703,
+     "tail": {
+      "phase_cycles": -0.28087844373577936,
+      "amp_rad": 0.1264261106550867,
+      "strides": 11
+     },
+     "toe_off_rad": 0.05448120430198685,
+     "window_ref": [
+      31.878,
+      42.378
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": true
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": true,
+    "compare": {
+     "bob_ratio": 1.1260516408091574,
+     "head_world_pitch_rms_deg": 0.5579169266049187,
+     "tail_phase_diff_cycles": 0.0003762318320614799,
+     "tail_amp_rad": 0.12726471700511516,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 1.006633173682898,
+     "toe_off_ratio": 0.9955854736345959,
+     "steps": {
+      "own": 24,
+      "reference": 24,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 24,
+      "reference": 24,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.1264261106550867,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.05448120430198685,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 24,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16126698153013444,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": true,
+   "look_failed_terms": [],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999995772,
+    "min_factor": 0.999999999998139,
+    "t_ref_reached": 42.38639999998561,
+    "t_ref_planned": 42.38656804176891,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 42.37799999998562,
+    "rate": 1.05,
+    "updates": 4037
+   },
+   "error": null,
+   "state_digest": "fe25abf132a6ee1dce63ff5ed2e17127122fc2c29699cb26e1ad46969d712caa",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": true,
+    "succeeded_but_A1": true,
+    "failed_terms": [],
+    "failed_terms_but_A1": [],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/v0.4/6004.npz",
+     "sha256": "32188891f913fee290ef18c831dc15e65338073cb7c190ba5ebcb263554cb43e",
+     "rows": 2019,
+     "every_s": 0.02,
+     "updates": 4037,
+     "steps": 20184
+    },
+    "wall_s": 6.121988539001904
+   },
+   "row": "R0L@10ms",
+   "set": "V6",
+   "start_seed": 1474457988,
+   "wall_s": 6.122807933999866,
+   "survival_credit": 40.36800000000337
+  },
+  {
+   "condition": "walk/v0.4",
+   "seed": 6005,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 40.36800000000337,
+   "simulated_s": 40.36800000000337,
+   "planned_s": 40.368160039779916,
+   "steps": 20184,
+   "succeeded": true,
+   "succeeded_but_A1": true,
+   "succeeded_look": true,
+   "succeeded_but_A1_look": true,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [],
+   "failed_terms_but_A1": [],
+   "look": {
+    "window": [
+     30.36000000000336,
+     40.36000000000336
+    ],
+    "window_ref": [
+     31.878,
+     42.378
+    ],
+    "own": {
+     "window": [
+      30.36000000000336,
+      40.36000000000336
+     ],
+     "samples": 501,
+     "steps": 24,
+     "lift_offs": 24,
+     "bob_pp_m": 0.008412037532386278,
+     "head_world_pitch_rms_deg": 0.5548383819644995,
+     "tail": {
+      "phase_cycles": -0.28030540522827696,
+      "amp_rad": 0.1271739995363082,
+      "strides": 11
+     },
+     "toe_off_rad": 0.05435573900774371
+    },
+    "reference": {
+     "window": [
+      30.36,
+      40.36
+     ],
+     "samples": 501,
+     "steps": 24,
+     "lift_offs": 24,
+     "bob_pp_m": 0.007493662742410576,
+     "head_world_pitch_rms_deg": 0.5377547669419703,
+     "tail": {
+      "phase_cycles": -0.28087844373577936,
+      "amp_rad": 0.1264261106550867,
+      "strides": 11
+     },
+     "toe_off_rad": 0.05448120430198685,
+     "window_ref": [
+      31.878,
+      42.378
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": true
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": true,
+    "compare": {
+     "bob_ratio": 1.1225535257649288,
+     "head_world_pitch_rms_deg": 0.5548383819644995,
+     "tail_phase_diff_cycles": 0.0005730385075024547,
+     "tail_amp_rad": 0.1271739995363082,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 1.0059156204153261,
+     "toe_off_ratio": 0.9976970902928707,
+     "steps": {
+      "own": 24,
+      "reference": 24,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 24,
+      "reference": 24,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.1264261106550867,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.05448120430198685,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 24,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16126698153013444,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": true,
+   "look_failed_terms": [],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999995772,
+    "min_factor": 0.999999999998139,
+    "t_ref_reached": 42.38639999998561,
+    "t_ref_planned": 42.38656804176891,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 42.37799999998562,
+    "rate": 1.05,
+    "updates": 4037
+   },
+   "error": null,
+   "state_digest": "c1ea63932bd7444b8f16b8b9f739970afa04baa93d2010f4efe91c20cdf6dbb9",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": true,
+    "succeeded_but_A1": true,
+    "failed_terms": [],
+    "failed_terms_but_A1": [],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/v0.4/6005.npz",
+     "sha256": "46f8ba171f7dde21b62d19d92d3eb2ef347441996bfae1adeebd3b1e9c0b8085",
+     "rows": 2019,
+     "every_s": 0.02,
+     "updates": 4037,
+     "steps": 20184
+    },
+    "wall_s": 5.415709793000133
+   },
+   "row": "R0L@10ms",
+   "set": "V6",
+   "start_seed": 1923948735,
+   "wall_s": 5.416992848004156,
+   "survival_credit": 40.36800000000337
+  },
+  {
+   "condition": "walk/v0.4",
+   "seed": 6006,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 40.36800000000337,
+   "simulated_s": 40.36800000000337,
+   "planned_s": 40.368160039779916,
+   "steps": 20184,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1: the bar's succeeded and the four look terms",
+   "failed_terms": [
+    "line"
+   ],
+   "failed_terms_but_A1": [
+    "line"
+   ],
+   "look": {
+    "window": [
+     30.36000000000336,
+     40.36000000000336
+    ],
+    "window_ref": [
+     31.878,
+     42.378
+    ],
+    "own": {
+     "window": [
+      30.36000000000336,
+      40.36000000000336
+     ],
+     "samples": 501,
+     "steps": 24,
+     "lift_offs": 24,
+     "bob_pp_m": 0.00847736916685081,
+     "head_world_pitch_rms_deg": 0.5494165443852471,
+     "tail": {
+      "phase_cycles": -0.2799614156743567,
+      "amp_rad": 0.12714371826291546,
+      "strides": 11
+     },
+     "toe_off_rad": 0.05490118979767864
+    },
+    "reference": {
+     "window": [
+      30.36,
+      40.36
+     ],
+     "samples": 501,
+     "steps": 24,
+     "lift_offs": 24,
+     "bob_pp_m": 0.007493662742410576,
+     "head_world_pitch_rms_deg": 0.5377547669419703,
+     "tail": {
+      "phase_cycles": -0.28087844373577936,
+      "amp_rad": 0.1264261106550867,
+      "strides": 11
+     },
+     "toe_off_rad": 0.05448120430198685,
+     "window_ref": [
+      31.878,
+      42.378
+     ],
+     "clock_rate": 1.05,
+     "lead_s": 0.1
+    },
+    "terms": {
+     "bob": true,
+     "head": true,
+     "tail": true,
+     "toe_off": true
+    },
+    "not_read": [],
+    "too_few_steps": false,
+    "look_ok": true,
+    "compare": {
+     "bob_ratio": 1.131271777000708,
+     "head_world_pitch_rms_deg": 0.5494165443852471,
+     "tail_phase_diff_cycles": 0.0009170280614226867,
+     "tail_amp_rad": 0.12714371826291546,
+     "tail_amp_side": "at or over 0.02 rad",
+     "tail_amp_min_rad": 0.02,
+     "tail_amp_ratio": 1.0056761028565258,
+     "toe_off_ratio": 1.007708814463128,
+     "steps": {
+      "own": 24,
+      "reference": 24,
+      "needed": 4
+     },
+     "lift_offs": {
+      "own": 24,
+      "reference": 24,
+      "needed": 4
+     },
+     "reference": {
+      "tail_amp_rad": 0.1264261106550867,
+      "tail_amp_side": "at or over 0.02 rad",
+      "toe_off_rad": 0.05448120430198685,
+      "toe_off_side": "at or over 0.02 rad",
+      "not_read_under_rad": 0.02
+     },
+     "bands": {
+      "bob_rel": 0.3,
+      "head_world_pitch_rms_deg": 1.5,
+      "tail_phase_cycles": 0.1,
+      "toe_off_rel": 0.7
+     }
+    },
+    "air_runs": {
+     "in_window": 24,
+     "shorter_than_air_gap_max": 0,
+     "air_gap_max_s": 0.16126698153013444,
+     "short": [],
+     "short_cols": [
+      "foot",
+      "t_lo_s",
+      "duration_s"
+     ]
+    }
+   },
+   "look_ok": true,
+   "look_failed_terms": [],
+   "look_reason": null,
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999995772,
+    "min_factor": 0.999999999998139,
+    "t_ref_reached": 42.38639999998561,
+    "t_ref_planned": 42.38656804176891,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 42.37799999998562,
+    "rate": 1.05,
+    "updates": 4037
+   },
+   "error": null,
+   "state_digest": "2a5fde33eea44dd22558ad0dc0352f2d2019f5f596812a09b40a69ff7f57e14d",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "line"
+    ],
+    "failed_terms_but_A1": [
+     "line"
+    ],
+    "command_s": null,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/walk/v0.4/6006.npz",
+     "sha256": "f774eb2140b93103a322486d9b9d393b95915cdd9e2e7937f47ecf7ce612aa6c",
+     "rows": 2019,
+     "every_s": 0.02,
+     "updates": 4037,
+     "steps": 20184
+    },
+    "wall_s": 5.210490814002696
+   },
+   "row": "R0L@10ms",
+   "set": "V6",
+   "start_seed": 1301944868,
+   "wall_s": 5.211746378998214,
+   "survival_credit": 40.36800000000337
+  },
+  {
+   "row": "R0L@10ms",
+   "set": "V6",
+   "condition": "turn/q90_left",
+   "seed": 6007,
+   "outcome": "not_run",
+   "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit",
+   "reference": "transitions/turn90_pi4_left",
+   "fell": null,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 0.0,
+   "simulated_s": 0.0,
+   "planned_s": null,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "failed_terms": [],
+   "look": null,
+   "clock": null,
+   "error": null,
+   "survival_credit": 0.0
+  },
+  {
+   "row": "R0L@10ms",
+   "set": "V6",
+   "condition": "turn/q90_left",
+   "seed": 6008,
+   "outcome": "not_run",
+   "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit",
+   "reference": "transitions/turn90_pi4_left",
+   "fell": null,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 0.0,
+   "simulated_s": 0.0,
+   "planned_s": null,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "failed_terms": [],
+   "look": null,
+   "clock": null,
+   "error": null,
+   "survival_credit": 0.0
+  },
+  {
+   "row": "R0L@10ms",
+   "set": "V6",
+   "condition": "turn/q90_left",
+   "seed": 6009,
+   "outcome": "not_run",
+   "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit",
+   "reference": "transitions/turn90_pi4_left",
+   "fell": null,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 0.0,
+   "simulated_s": 0.0,
+   "planned_s": null,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "failed_terms": [],
+   "look": null,
+   "clock": null,
+   "error": null,
+   "survival_credit": 0.0
+  },
+  {
+   "condition": "stop/two_step",
+   "seed": 6010,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 29.161999999994716,
+   "simulated_s": 29.161999999994716,
+   "planned_s": 29.162833488671,
+   "steps": 14581,
+   "succeeded": true,
+   "succeeded_but_A1": true,
+   "succeeded_look": true,
+   "succeeded_but_A1_look": true,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [],
+   "failed_terms_but_A1": [],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": {
+    "term": true,
+    "speed_m_s": 0.41155086645766337,
+    "needed_m_s": 0.37800000000000006,
+    "command_speed_m_s": 0.42000000000000004,
+    "frac": 0.9,
+    "stride_s": 0.8196294622361532,
+    "heading_rad": 0.0,
+    "command_s": 22.747408778837805,
+    "reason": null
+   },
+   "clock": {
+    "mean_factor": 0.9999999999999568,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 30.62009999999313,
+    "t_ref_planned": 30.620975163104553,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 30.61799999999313,
+    "rate": 1.05,
+    "updates": 2917
+   },
+   "error": null,
+   "state_digest": "bbcc4b59839111da1f965020ac27b3b2759a7d7ae13ca2f14c153d0c07ac195f",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": true,
+    "succeeded_but_A1": true,
+    "failed_terms": [],
+    "failed_terms_but_A1": [],
+    "command_s": 22.747408778837805,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/stop/two_step/6010.npz",
+     "sha256": "4d9ea25ccb954d4304e1a2d985d9266f6d0fd44083a098b054a2a711d78e681c",
+     "rows": 1459,
+     "every_s": 0.02,
+     "updates": 2917,
+     "steps": 14581
+    },
+    "wall_s": 4.782202548994974
+   },
+   "row": "R0L@10ms",
+   "set": "V6",
+   "start_seed": 2843429692,
+   "wall_s": 4.782581728002697,
+   "survival_credit": 29.161999999994716
+  },
+  {
+   "condition": "stop/two_step",
+   "seed": 6011,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 29.161999999994716,
+   "simulated_s": 29.161999999994716,
+   "planned_s": 29.162833488671,
+   "steps": 14581,
+   "succeeded": true,
+   "succeeded_but_A1": true,
+   "succeeded_look": true,
+   "succeeded_but_A1_look": true,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [],
+   "failed_terms_but_A1": [],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": {
+    "term": true,
+    "speed_m_s": 0.4188793406624381,
+    "needed_m_s": 0.37800000000000006,
+    "command_speed_m_s": 0.42000000000000004,
+    "frac": 0.9,
+    "stride_s": 0.8196294622361532,
+    "heading_rad": 0.0,
+    "command_s": 22.747408778837805,
+    "reason": null
+   },
+   "clock": {
+    "mean_factor": 0.9999999999999568,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 30.62009999999313,
+    "t_ref_planned": 30.620975163104553,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 30.61799999999313,
+    "rate": 1.05,
+    "updates": 2917
+   },
+   "error": null,
+   "state_digest": "ec5196e11a7ee607b762884ebb11278babaea7c566b14448696c1852bd92eee4",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": true,
+    "succeeded_but_A1": true,
+    "failed_terms": [],
+    "failed_terms_but_A1": [],
+    "command_s": 22.747408778837805,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/stop/two_step/6011.npz",
+     "sha256": "0b807c1ac8fd6355cce82fa333b48635039aca5f9746bc004a9fb02cd1412a74",
+     "rows": 1459,
+     "every_s": 0.02,
+     "updates": 2917,
+     "steps": 14581
+    },
+    "wall_s": 3.2828189689971623
+   },
+   "row": "R0L@10ms",
+   "set": "V6",
+   "start_seed": 2067968936,
+   "wall_s": 3.2890993149994756,
+   "survival_credit": 29.161999999994716
+  },
+  {
+   "condition": "stop/two_step",
+   "seed": 6012,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 29.161999999994716,
+   "simulated_s": 29.161999999994716,
+   "planned_s": 29.162833488671,
+   "steps": 14581,
+   "succeeded": true,
+   "succeeded_but_A1": true,
+   "succeeded_look": true,
+   "succeeded_but_A1_look": true,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [],
+   "failed_terms_but_A1": [],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": {
+    "term": true,
+    "speed_m_s": 0.41489175641149295,
+    "needed_m_s": 0.37800000000000006,
+    "command_speed_m_s": 0.42000000000000004,
+    "frac": 0.9,
+    "stride_s": 0.8196294622361532,
+    "heading_rad": 0.0,
+    "command_s": 22.747408778837805,
+    "reason": null
+   },
+   "clock": {
+    "mean_factor": 0.9999999999999568,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 30.62009999999313,
+    "t_ref_planned": 30.620975163104553,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 30.61799999999313,
+    "rate": 1.05,
+    "updates": 2917
+   },
+   "error": null,
+   "state_digest": "838190c21919e97cfcbf0937c4b31a8ff74a7ff740feaef131cb71f257203b8d",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": true,
+    "succeeded_but_A1": true,
+    "failed_terms": [],
+    "failed_terms_but_A1": [],
+    "command_s": 22.747408778837805,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/stop/two_step/6012.npz",
+     "sha256": "c6e554f879305acf2253482695268ee2f9617f8c67dc6449765d30b2b504a923",
+     "rows": 1459,
+     "every_s": 0.02,
+     "updates": 2917,
+     "steps": 14581
+    },
+    "wall_s": 3.0685474229976535
+   },
+   "row": "R0L@10ms",
+   "set": "V6",
+   "start_seed": 1038759011,
+   "wall_s": 3.068965564998507,
+   "survival_credit": 29.161999999994716
+  },
+  {
+   "condition": "nudge/forward",
+   "seed": 6013,
+   "outcome": "fell",
+   "reason": null,
+   "unreadable": null,
+   "fell": true,
+   "warned": false,
+   "fall_time_s": 24.78599999999714,
+   "survival_s": 24.78599999999714,
+   "simulated_s": 24.78599999999714,
+   "planned_s": 29.474675087179687,
+   "steps": 12393,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.999999999999964,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.025299999996065,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.01899999999607,
+    "rate": 1.05,
+    "updates": 2479
+   },
+   "error": null,
+   "state_digest": "afa9a22778f9aececc9da3e33a1f20507e244874bdfe97e7e9d9f2fd7c37b787",
+   "policy_check": null,
+   "fall_cause": "tilt",
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "survived"
+    ],
+    "failed_terms_but_A1": [
+     "survived"
+    ],
+    "command_s": 22.769933633942017,
+    "window_reached": false,
+    "trace": {
+     "path": "R0L@10ms/nudge/forward/6013.npz",
+     "sha256": "254630eee0ec917d746f7659bc1fd007a1ea02a7d906a081a55e10bc5069a912",
+     "rows": 1240,
+     "every_s": 0.02,
+     "updates": 2479,
+     "steps": 12393
+    },
+    "wall_s": 3.5335334359988337
+   },
+   "row": "R0L@10ms",
+   "set": "V6",
+   "start_seed": 2283508857,
+   "wall_s": 3.5339040780017967,
+   "survival_credit": 24.78599999999714
+  },
+  {
+   "condition": "nudge/forward",
+   "seed": 6014,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 29.473999999994543,
+   "simulated_s": 29.473999999994543,
+   "planned_s": 29.474675087179687,
+   "steps": 14737,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "recovered"
+   ],
+   "failed_terms_but_A1": [
+    "recovered"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999565,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 30.94769999999292,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 30.943499999992923,
+    "rate": 1.05,
+    "updates": 2948
+   },
+   "error": null,
+   "state_digest": "880d66e2686249677dc367404d007723413ff09d49468b58f06082d8ea032e46",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "recovered"
+    ],
+    "failed_terms_but_A1": [
+     "recovered"
+    ],
+    "command_s": 22.860458149424858,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/nudge/forward/6014.npz",
+     "sha256": "8654806ae498e3ac59be9f785e04070aeba0fa4c5ee856e9ebff24c82b15d3d2",
+     "rows": 1474,
+     "every_s": 0.02,
+     "updates": 2948,
+     "steps": 14737
+    },
+    "wall_s": 3.794007397002133
+   },
+   "row": "R0L@10ms",
+   "set": "V6",
+   "start_seed": 2196739970,
+   "wall_s": 3.7945816080027726,
+   "survival_credit": 29.473999999994543
+  },
+  {
+   "condition": "nudge/forward",
+   "seed": 6015,
+   "outcome": "fell",
+   "reason": null,
+   "unreadable": null,
+   "fell": true,
+   "warned": false,
+   "fall_time_s": 24.709999999997184,
+   "survival_s": 24.709999999997184,
+   "simulated_s": 24.709999999997184,
+   "planned_s": 29.474675087179687,
+   "steps": 12355,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999643,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 25.945499999996116,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 25.934999999996123,
+    "rate": 1.05,
+    "updates": 2471
+   },
+   "error": null,
+   "state_digest": "9b242c9fd0a7d59d4e6ae954de4c8771525d73fb5c56bce58cca3ae55473599f",
+   "policy_check": null,
+   "fall_cause": "tilt",
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "survived"
+    ],
+    "failed_terms_but_A1": [
+     "survived"
+    ],
+    "command_s": 22.723594353732008,
+    "window_reached": false,
+    "trace": {
+     "path": "R0L@10ms/nudge/forward/6015.npz",
+     "sha256": "a1853c23eecd3236f0dcaf5eb7c8468c0ecd995a77342892c814221e449a7be9",
+     "rows": 1236,
+     "every_s": 0.02,
+     "updates": 2471,
+     "steps": 12355
+    },
+    "wall_s": 2.579086081001151
+   },
+   "row": "R0L@10ms",
+   "set": "V6",
+   "start_seed": 1847007809,
+   "wall_s": 2.579475234997517,
+   "survival_credit": 24.709999999997184
+  },
+  {
+   "condition": "nudge/left",
+   "seed": 6016,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 29.473999999994543,
+   "simulated_s": 29.473999999994543,
+   "planned_s": 29.474675087179687,
+   "steps": 14737,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "recovered"
+   ],
+   "failed_terms_but_A1": [
+    "recovered"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999565,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 30.94769999999292,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 30.943499999992923,
+    "rate": 1.05,
+    "updates": 2948
+   },
+   "error": null,
+   "state_digest": "5a1ac6f631944a13908c9641d777616950dc5103e0879cbdff8bced80ebaba9e",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "recovered"
+    ],
+    "failed_terms_but_A1": [
+     "recovered"
+    ],
+    "command_s": 22.354987840337337,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/nudge/left/6016.npz",
+     "sha256": "5155a0a425e708b2d6ffb8aa1f6d4571e95e969c748cd6a83be4e61b4c7d3c98",
+     "rows": 1474,
+     "every_s": 0.02,
+     "updates": 2948,
+     "steps": 14737
+    },
+    "wall_s": 4.755178959996556
+   },
+   "row": "R0L@10ms",
+   "set": "V6",
+   "start_seed": 2619495144,
+   "wall_s": 4.755649238999467,
+   "survival_credit": 29.473999999994543
+  },
+  {
+   "condition": "nudge/left",
+   "seed": 6017,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 29.473999999994543,
+   "simulated_s": 29.473999999994543,
+   "planned_s": 29.474675087179687,
+   "steps": 14737,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "recovered"
+   ],
+   "failed_terms_but_A1": [
+    "recovered"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999565,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 30.94769999999292,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 30.943499999992923,
+    "rate": 1.05,
+    "updates": 2948
+   },
+   "error": null,
+   "state_digest": "93169f9c0d371ade04c5d5d764ecb12f8d07816909c330081f4a2f4fa0b823af",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "recovered"
+    ],
+    "failed_terms_but_A1": [
+     "recovered"
+    ],
+    "command_s": 23.024149094568028,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/nudge/left/6017.npz",
+     "sha256": "fcb94975d4db01c9f3e8bef72567a64ee13d21171e2f91319197d24445624ef7",
+     "rows": 1474,
+     "every_s": 0.02,
+     "updates": 2948,
+     "steps": 14737
+    },
+    "wall_s": 2.7230165939981816
+   },
+   "row": "R0L@10ms",
+   "set": "V6",
+   "start_seed": 710759678,
+   "wall_s": 2.723413330000767,
+   "survival_credit": 29.473999999994543
+  },
+  {
+   "condition": "nudge/left",
+   "seed": 6018,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 29.473999999994543,
+   "simulated_s": 29.473999999994543,
+   "planned_s": 29.474675087179687,
+   "steps": 14737,
+   "succeeded": true,
+   "succeeded_but_A1": true,
+   "succeeded_look": true,
+   "succeeded_but_A1_look": true,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [],
+   "failed_terms_but_A1": [],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999565,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 30.94769999999292,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 30.943499999992923,
+    "rate": 1.05,
+    "updates": 2948
+   },
+   "error": null,
+   "state_digest": "31adcb7b60c027cd487ad092f71b95c1a476ae2f51160d83c9cd5bbca2324f94",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": true,
+    "succeeded_but_A1": true,
+    "failed_terms": [],
+    "failed_terms_but_A1": [],
+    "command_s": 22.352617557901517,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/nudge/left/6018.npz",
+     "sha256": "5ad7ec804bc4a852b64bc0a61e87daf9255c4b867183fb7bc7cfe76abc6987b1",
+     "rows": 1474,
+     "every_s": 0.02,
+     "updates": 2948,
+     "steps": 14737
+    },
+    "wall_s": 3.3446446579982876
+   },
+   "row": "R0L@10ms",
+   "set": "V6",
+   "start_seed": 2771879904,
+   "wall_s": 3.345023019996006,
+   "survival_credit": 29.473999999994543
+  }
+ ],
+ "n_episodes": 18,
+ "N": 6,
+ "S": 25.03222222221989,
+ "N_reading2": 6,
+ "N_reading3": 6,
+ "N_but_A1_look": 6,
+ "mean_survival_s": 25.03222222221989,
+ "L_planned_s": 25.557704023051375,
+ "outcomes": {
+  "read": 13,
+  "fell": 2,
+  "unread": 0,
+  "error": 0,
+  "not_run": 3
+ },
+ "unread_reasons": {},
+ "up_by_condition": {
+  "walk/nominal": {
+   "up": 3,
+   "of": 3
+  },
+  "walk/v0.4": {
+   "up": 3,
+   "of": 3
+  },
+  "turn/q90_left": {
+   "up": 0,
+   "of": 3
+  },
+  "stop/two_step": {
+   "up": 3,
+   "of": 3
+  },
+  "nudge/forward": {
+   "up": 1,
+   "of": 3
+  },
+  "nudge/left": {
+   "up": 3,
+   "of": 3
+  }
+ },
+ "failures_by_term": {
+  "line": 1,
+  "look_toe_off": 3,
+  "recovered": 3,
+  "survived": 2,
+  "toe_clearance_own_swing": 3
+ },
+ "mean_clock_factor": 0.9999999999998832,
+ "distinct_start_seeds": 18,
+ "also": {},
+ "traces": "traces/r0l",
+ "episodes_by": "lookbar.episodes",
+ "sources": {
+  "given": null,
+  "own": "71de79c19c9bc4df2f27bfa7625c86705e01e3c500d8f8a1b3a1d72cd77a11b6"
+ },
+ "rules": {
+  "episodes": "rule M1: 18 episodes: the bar's conditions walk/nominal, walk/v0.4, turn/q90_left, stop/two_step, nudge/forward, nudge/left of the run's set at mu 0.9, three each, condition i (0-5), repetition r (0-2) on seed 6001 + 3 i + r, at 10 ms, as the bar builds and judges them; once per run the same under R0L@10ms.  A tiny run takes each condition's first seed; on the Stage 1 view (set S1, development) the conditions are the stock walk/nominal and walk/brisk",
+  "outcomes": "rule M1: each episode ends read, fell, unread (a policy row's episode that did not fall and that the bar could not read: not succeeding in any reading; reason clock_behind when its mean clock factor is below 1, else unreadable) or error (an infrastructure fault).  A policy row's episode is never run twice: an error there counts as not succeeding, as zero credited survival and as not up.  A condition without a reference is not_run: not succeeding and zero survival for both rows.  R0L's episodes must each end read or fell: a baseline that holds an error is kept beside as a failed attempt and no check is read against it",
+  "survival": "rule M3: an episode's credited survival is its survival time (the fall time, or the episode's length) times min(1, reference time covered / (1.05 x survival time)): the survival time itself for a row that does not slow its clock.  A clock that covered at least 1.05 x the survival time, to within 1e-9 of it (float rounding), is credited the survival time itself, so that R0L's S is exactly its plain mean survival (the lead's ruling 17 of 17 Nov 2026).  S is the mean over the episodes; N the number succeeding with the look (reading 1).  Printed beside: the counts in readings 2 and 3, the count succeeding but for A1 with the look bands kept, and the plain mean survival, which decide nothing.  The credit needs the episode's clock times (clock.t_ref_reached, clock.t_ref_planned) and its planned length: a policy row's episode that ended read, fell or unread and came back without them is not credited its survival time (a slowed clock would buy it); its table is no record of the check.  R0L, which has no clock to slow, is then credited its survival time",
+  "sources": "the trainer hashes its sources once per session and gives the hash to this process, which refuses to run if its own differs (train2.sources)"
+ },
+ "provenance": {
+  "commit": "26674562e83d59b133be84bad95a5eaea9b3bc97",
+  "dirty": false,
+  "dirty_paths": []
+ },
+ "versions": {
+  "python": "3.13.18",
+  "numpy": "2.5.4",
+  "mujoco": "3.10.0",
+  "scipy": "1.18.1",
+  "torch": "2.15.0+cpu",
+  "stable_baselines3": "2.9.2",
+  "gymnasium": "1.4.0",
+  "cloudpickle": "3.1.2"
+ },
+ "wall_s": 58.4406291790001,
+ "at": "2026-11-17T19:18:31Z",
+ "valid": true,
+ "sha256": "4d91bf1d4be005d6414d055e5d8d22407a52d10a4a7f834ca343c86cd90ef3c7"
+}

@@ -56,16 +56,17 @@ MORE_MOVES = ((setio.change_name("nominal", "v0.3"), "nominal_to_brisk"),) + tup
     (f"{k}_inplace_0.5_{d}", f"{k}_in_place_0.50_{d}") for d in ("left", "right") for k in ("start", "stop"))
 
 
-def make_t0(root: Path, freeze: bool = True, more: bool = False) -> Path:
-    """The synthetic set ``T0`` under ``root`` (module docstring); ``more``: with ``MORE_REFS`` and ``MORE_MOVES``."""
+def make_t0(root: Path, freeze: bool = True, more: bool = False, set_name: str = SET) -> Path:
+    """The synthetic set ``T0`` under ``root`` (module docstring); ``more``: with ``MORE_REFS`` and ``MORE_MOVES``;
+    ``set_name``: the name it is made under (``make_look``)."""
     src = RUN / BODY
-    d = setio.set_dir(SET, BODY, root)
+    d = setio.set_dir(set_name, BODY, root)
     refs1, trs1 = s2io.read_json(src / "refs.json"), s2io.read_json(src / "transitions.json")
     refs, trs, manifest = {}, {}, {}
     t0_refs, t0_moves = T0_REFS + (MORE_REFS if more else ()), T0_MOVES + (MORE_MOVES if more else ())
     for name, old in t0_refs:
         e = copy.deepcopy(refs1["references"][old])
-        e.update(name=name, file=f"refs/{name}.npz", set=SET, strides=1, window_s=e["period_s"], crouch_frac=0.03)
+        e.update(name=name, file=f"refs/{name}.npz", set=set_name, strides=1, window_s=e["period_s"], crouch_frac=0.03)
         if name == "v0.3":
             e["speed_m_s"] = V03_BELOW
         refs[name] = e
@@ -97,13 +98,96 @@ def make_t0(root: Path, freeze: bool = True, more: bool = False) -> Path:
             (d / sub).mkdir(parents=True, exist_ok=True)
             shutil.copyfile(src / sub / f"{dict(t0_refs + t0_moves)[name]}.npz", d / e["file"])
             manifest[name] = dict(kind=kind, sha256=e["sha256"], entry_sha256=setio.entry_sha256(kind, e))
-    s2io.write_json(d / "refs.json", dict(body=BODY, set=SET, schema=1, references=refs))
-    s2io.write_json(d / "transitions.json", dict(body=BODY, set=SET, schema=1, transitions=trs))
+    s2io.write_json(d / "refs.json", dict(body=BODY, set=set_name, schema=1, references=refs))
+    s2io.write_json(d / "transitions.json", dict(body=BODY, set=set_name, schema=1, transitions=trs))
     freezes = [dict(index=0, at="fixture", commit=None, manifest=manifest,
                     manifest_sha256=s2io.sha256_json(manifest))] if freeze else []
-    s2io.write_json(d / "set.json", dict(set=SET, body=BODY, role="fixture", crouch_frac=0.03,
+    s2io.write_json(d / "set.json", dict(set=set_name, body=BODY, role="fixture", crouch_frac=0.03,
                                          not_available={"v0.3": dict(reason=NOTE_V03, numbers=None)},
                                          freezes=freezes))
+    return d
+
+#: The synthetic look set ``make_look`` builds: the walk ``v0.4`` a window of ``LOOK_K`` strides that varies from
+#: stride to stride, and the causal moves that leave it at join rule J1's leave point (move, Stage 1's file,
+#: command phase, a_phase strides into the window: ``moves_look.LEAVE_PHASE``).
+LOOK_SET = "T6"
+LOOK_K = 3
+LOOK_AMP_RAD = 0.02
+LOOK_MOVES = ((setio.turn_name("pi4", "left"), "enter_walk_0.35_left", 0.0, 2.0),
+              (setio.turn_name("pi4", "right"), "enter_walk_0.35_right", 0.5, 2.5),
+              (setio.stop_name(2, W), "stop", -0.5, 2.5))
+LOOK_FADE_FRAMES = 60
+
+
+def make_look(root: Path, set_name: str = LOOK_SET, freeze: bool = True, stand_in_walks: bool = False) -> Path:
+    """A synthetic look set under ``root``: ``T0`` (``make_t0``) with ``v0.4`` a window of ``LOOK_K`` strides of
+    Stage 1's brisk walk (each stride advanced by the stride motion, the window's own ``phase`` 0..K) whose joints
+    carry a variation over the window, ``LOOK_AMP_RAD x sin(2 pi t / W)`` (periodic in the window as a whole, as
+    F14's is, so no two strides of it are alike), and the quick turns and the two-step stop moved to the frame the
+    window holds at their leave point (a_phase strides into it; the window is uniform in time, so a_time_s is
+    a_phase x the stride period and lies on a frame), with ``look.window_a``, ``a_phase``, ``a_time_s`` and
+    ``a_windows`` in their entries as ``moves_look.Bound.look`` writes them.  Each move is Stage 1's file with its
+    joints shifted onto that frame, the shift fading over its first ``LOOK_FADE_FRAMES`` frames: it starts at the
+    frame it was built from and joins nothing else.  ``stand_in_walks``: ``set.json`` says its walks stand in for
+    the rungs they are named after (the bar's planner then reads the brisk walk as ``v0.4``)."""
+    d = make_t0(root, freeze=False, set_name=set_name)
+    one = dict(np.load(RUN / BODY / "refs" / "brisk.npz"))
+    n, dt = len(one["t"]), float(one["dt"])
+    T = n * dt
+    adv = np.asarray(one["stride_motion"], float)
+    win = {}
+    for key, x in one.items():
+        if x.ndim and len(x) == n and key not in ("q_home", "joints", "stride_motion"):
+            parts = []
+            for k in range(LOOK_K):
+                y = np.array(x, copy=True)
+                if key == "t":
+                    y = y + k * T
+                elif key in ("q", "com", "com_ref", "zmp_ref", "zmp_mb", "feet"):
+                    y[..., 0:2] += k * adv[3:5]
+                parts.append(y)
+            win[key] = np.concatenate(parts)
+        else:
+            win[key] = x
+    Wn = LOOK_K * T
+    t = win["t"]
+    win["q"][:, 7:] += LOOK_AMP_RAD * np.sin(2.0 * np.pi * t / Wn)[:, None]
+    win["qd"][:, 6:] += (LOOK_AMP_RAD * 2.0 * np.pi / Wn * np.cos(2.0 * np.pi * t / Wn))[:, None]
+    win["stride_motion"] = np.r_[adv[:3], LOOK_K * adv[3:5]]
+    win["phase"] = np.arange(LOOK_K * n) / n
+    win["window_strides"] = np.array(LOOK_K)
+    refs, trs = s2io.read_json(d / "refs.json"), s2io.read_json(d / "transitions.json")
+    e = refs["references"][W]
+    e.update(sha256=s2io.write_npz(d / "refs" / f"{W}.npz", win), frames=LOOK_K * n, strides=LOOK_K, window_s=Wn)
+    for name, src, cmd, a_phase in LOOK_MOVES:
+        arr = dict(np.load(RUN / BODY / "transitions" / f"{src}.npz"))
+        ka = int(round(a_phase * n))
+        m = min(LOOK_FADE_FRAMES, len(arr["q"]))
+        fade = np.zeros(len(arr["q"]))
+        fade[:m] = 0.5 * (1.0 + np.cos(np.pi * np.arange(m) / m))
+        arr["q"][:, 7:] += np.outer(fade, win["q"][ka, 7:] - arr["q"][0, 7:])
+        a_time = a_phase * T
+        te = trs["transitions"][name]
+        window_a = dict(reference=W, strides=LOOK_K, window_s=Wn, period_s=T, offset_strides=a_phase - cmd,
+                        a_phase=a_phase, a_time_s=a_time, a_windows=a_time / Wn, varies=True)
+        te.update(sha256=s2io.write_npz(d / te["file"], arr),
+                  look=dict(laws="look", window_a=window_a, window_b=None, a_phase=a_phase, a_time_s=a_time,
+                            a_windows=a_time / Wn))
+        assert te["move"]["causal"] and te["move"]["command_phase"] == cmd
+    s2io.write_json(d / "refs.json", refs)
+    s2io.write_json(d / "transitions.json", trs)
+    sd = s2io.read_json(d / "set.json")
+    if stand_in_walks:
+        sd["stand_in_walks"] = True
+    if freeze:
+        manifest = {}
+        for doc, kind in ((refs["references"], "walk"), (trs["transitions"], "move")):
+            for name, x in doc.items():
+                if x.get("file"):
+                    manifest[name] = dict(kind=kind, sha256=x["sha256"], entry_sha256=setio.entry_sha256(kind, x))
+        sd["freezes"] = [dict(index=0, at="fixture", commit=None, manifest=manifest,
+                              manifest_sha256=s2io.sha256_json(manifest))]
+    s2io.write_json(d / "set.json", sd)
     return d
 
 
@@ -639,6 +723,333 @@ def test_a_k_stride_window_is_read_by_its_own_phase(p, tmp_path, wrapped):
         assert s.support(a).tolist() == s.support(b).tolist() and s.mid_swing(a).tolist() == s.mid_swing(b).tolist()
     t, q, _ = s.start_state(seg.t0 + 1.25 * stride)
     assert np.array_equal(q, two["q"][n + n // 4]) and t == pytest.approx(seg.t0 + 1.25 * stride)
+
+
+# ------------------------------------------------------------------------------------------------
+# Join rule J1's leave point (the lead's ruling 21 of 17 Nov 2026)
+# ------------------------------------------------------------------------------------------------
+LEAVE_TASKS = ("turn_q90_left", "turn_q90_right", "stop", "start_stop")
+
+
+def _the_join_into(track, move: str, p) -> dict:
+    """``gates2.joins``' join of ``track`` into the move ``move`` (ruling 15's limit: each joint's jump within the
+    largest frame-to-frame change of the walk it leaves)."""
+    from designlab.stage2 import gates2
+
+    js = [j for j in gates2.joins(track, len(p.joints), p.joints) if j["after"] == f"finite {move}"]
+    assert len(js) == 1, js
+    return js[0]
+
+
+@needs_run
+def test_a_look_sets_turns_and_stop_leave_the_walk_at_j1s_leave_point(p, tmp_path):
+    """On a set whose moves carry ``look.window_a`` (here ``make_look``'s: a window of 3 strides that varies from
+    stride to stride) the env plays the walk before a turn or the stop for ``m + a_windows`` windows (T1's 2 or 2.5
+    strides are join rule J1's leave point, m = 0 whole windows) and the move starts at the frame it was built from:
+    each such task's join into its move is within the walk's own largest frame-to-frame change at every joint (the
+    lead's ruling 15's limit).  The plan as before (2 or 2.5 whole windows of the file) jumps far past that limit."""
+    from designlab.stage2 import gates2
+
+    make_look(tmp_path)
+    lib = r5lib.Library(p, BODY, LOOK_SET, RATE, root=tmp_path)
+    refs = lib.refs_doc
+    T, Wn = refs[W]["period_s"], refs[W]["window_s"]
+    assert refs[W]["strides"] == LOOK_K and Wn == pytest.approx(LOOK_K * T)
+    names = [n for n, *_ in LOOK_MOVES]
+    for task in LEAVE_TASKS:
+        t = lib.tasks[task]
+        assert t["available"], task
+        td = next(x for x in r5lib.TASKS if x.name == task)
+        i = next(k for k, it in enumerate(td.plan) if it[0] == "transition" and it[1] in names) - 1
+        move = td.plan[i + 1][1]
+        e = lib.tr_doc[move]["look"]
+        lead = td.plan[i][2]
+        assert lead == (r5lib.STOP_LEAD if "stop" in move else r5lib.TURN_LEAD[setio.parse_name(move)["direction"]])
+        assert t["plan"][i] == ["ref", W, e["a_windows"]] and e["a_phase"] == lead  # (m = 0: the lead is j strides)
+        assert [tuple(x) for x in t["plan"][:i]] == [tuple(x) for x in td.plan[:i]]
+        (leave,) = t["leave"]
+        assert leave == dict(item=i, windows=e["a_windows"], whole_windows=0, strides=LOOK_K, window_s=Wn,
+                             lead_strides=lead, a_phase=e["a_phase"], a_time_s=e["a_time_s"], a_windows=e["a_windows"],
+                             command_phase=lib.tr_doc[move]["move"]["command_phase"])
+        s = lib.script(task)
+        walk, seg = s.track.segments[i], s.track.segments[i + 1]
+        assert (walk.name, seg.name) == (W, move) and seg.duration > 0
+        assert seg.t0 - walk.t0 == pytest.approx(e["a_time_s"], abs=1e-9)  # the walk ends at the move's own time
+        j = _the_join_into(s.track, move, p)
+        assert j["ok"] and j["over"] == [] and j["walk"] == f"periodic {W}", (task, j)
+        assert j["jump_rad"] < 1e-9  # (the window is uniform in time: the leave point lies on a frame)
+        assert all(x["ok"] for x in gates2.joins(s.track, len(p.joints), p.joints)), task
+        # the plan as it was before the ruling: the move built for a_phase strides into the window starts at the
+        # window's boundary (left) or 1.5 strides into it (right): a jump past the walk's own step at most joints
+        old = [tuple(x) for x in t["plan"]]
+        old[i] = ("ref", W, lead)
+        j_old = _the_join_into(lib.from_plan(old).track, move, p)
+        assert not j_old["ok"] and j_old["jump_rad"] > 0.8 * LOOK_AMP_RAD and len(j_old["over"]) >= 6, (task, j_old)
+    d = lib.describe()
+    assert d["leave_rule"] == r5lib.LEAVE_RULE and d["tasks"]["stop"]["leave"] == lib.tasks["stop"]["leave"]
+    assert all("leave" not in d["tasks"][k] for k in ("stand", "walk_nominal", "walk_v0.4"))
+
+
+@needs_run
+def test_on_the_75cm_rounds_sets_and_the_fixture_every_plan_is_as_before(t0):
+    """No move of the 75 cm round's three sets carries a leave point: ``place`` returns every task's plan item for
+    item there, from the committed records alone (no array is read), and on the synthetic set ``T0`` the library's
+    resolved plans are the table's with "to the end" sized, its description holding no leave rule."""
+    for set_name in ("V0", "F25F9", "F25F9cl"):
+        d = setio.set_dir(set_name, BODY)
+        refs = s2io.read_json(d / "refs.json")["references"]
+        trs = s2io.read_json(d / "transitions.json")["transitions"]
+        assert not any(isinstance(x, dict) and x.get("look") for x in trs.values()), set_name
+        for td in r5lib.TASKS:
+            plan, leaves = r5lib.place(td.plan, refs, trs, d)
+            assert plan == [tuple(x) for x in td.plan] and leaves == {}, (set_name, td.name)
+    for name, t in t0.tasks.items():
+        assert "leave" not in t, name
+        if t["available"]:
+            td = next(x for x in r5lib.TASKS if x.name == name)
+            assert t["plan"] == [list(x) for x in t0._resolve(td.plan)], name
+    assert "leave_rule" not in t0.describe()
+    assert t0.tasks["turn_q90_left"]["plan"][3] == ["ref", W, 2.0] and t0.tasks["stop"]["plan"][3] == ["ref", W, 2.5]
+
+
+def test_a_leave_point_that_does_not_fit_is_refused():
+    """``leave_point`` (``LEAVE_RULE``): None where the move carries no leave point; the windows the walk plays when
+    it does; ``tune.InputError`` where the window is another walk's or of other strides or length, where a_windows is
+    not a_time_s over the window, where a_phase is not at the command's foot, where the lead in strides does not
+    reach it by whole windows, or where the move is not causal."""
+    K, T = 12, 0.86
+    Wn = K * T
+
+    def entry(a_phase=2.0, cmd=0.0, ref=W, k=K, w=Wn, a_time=None, causal=True):
+        a_time = a_phase * T if a_time is None else a_time
+        return dict(move=dict(causal=causal, command_phase=cmd),
+                    look=dict(window_a=dict(reference=ref, strides=k, window_s=w), a_phase=a_phase, a_time_s=a_time,
+                              a_windows=a_phase * T / Wn))
+
+    walk = dict(strides=K, window_s=Wn, period_s=T)
+    assert r5lib.leave_point("x", None, W, walk, 2.0) is None
+    assert r5lib.leave_point("x", dict(move=dict(causal=True, command_phase=0.0)), W, walk, 2.0) is None
+    no_phase = entry()
+    no_phase["look"]["a_phase"] = None
+    assert r5lib.leave_point("x", no_phase, W, walk, 2.0) is None  # (a move of Stage 1's construction)
+    lp = r5lib.leave_point("x", entry(), W, walk, 2.0)
+    assert lp["windows"] == pytest.approx(2.0 / K) and lp["whole_windows"] == 0 and lp["strides"] == K
+    assert r5lib.leave_point("x", entry(2.5, 0.5), W, walk, 2.5)["windows"] == pytest.approx(2.5 / K)
+    assert r5lib.leave_point("x", entry(2.5, -0.5), W, walk, 2.5)["windows"] == pytest.approx(2.5 / K)
+    lp = r5lib.leave_point("x", entry(2.0), W, walk, 2.0 + 2 * K)  # (a lead of two windows and two strides)
+    assert lp["whole_windows"] == 2 and lp["windows"] == pytest.approx(2.0 + 2.0 / K)
+    bad = ((entry(ref="nominal"), 2.0, "leaves the window of 'nominal'"),
+           (entry(k=9), 2.0, "built from a window of 9 strides"),
+           (entry(w=Wn * 1.01), 2.0, "built from a window of 12 strides"),
+           (entry(a_time=2.0 * T + 0.01), 2.0, "is not a_time_s"),
+           (entry(2.0, 0.5), 2.0, "is not at the command's foot"),
+           (entry(2.5, 0.0), 2.5, "is not at the command's foot"),
+           (entry(2.5, 0.5), 2.0, "does not reach it"),
+           (entry(2.0, 0.0), 2.0 + 0.5 * K, "does not reach it"),
+           (entry(causal=False), 2.0, "the move is not causal"))
+    for e, lead, why in bad:
+        with pytest.raises(tune.InputError, match=why):
+            r5lib.leave_point("x", e, W, walk, lead)
+    with pytest.raises(tune.InputError, match="missing or not numbers"):
+        r5lib.leave_point("x", entry(), W, dict(strides=K), 2.0)
+    assert "ruling 21 of 17 Nov 2026" in r5lib.LEAVE_RULE and "m + a_windows" in r5lib.LEAVE_RULE
+
+
+@needs_run
+def test_a_leave_points_a_time_s_is_checked_against_its_walk_files_own_phase(tmp_path):
+    """The lead's ruling 37 (c) of 17 Nov 2026: given the walk's file, ``leave_point`` checks the entry's ``a_time_s``
+    against the file's own ``phase`` array (the time at which the window's phase reaches ``a_phase``), to within one
+    frame of the file.  On the synthetic look set every move's entry passes, its leave point unchanged; a doctored
+    entry whose ``a_time_s`` is off by 1.5 frames, by a stride or by minus a stride (``a_windows`` doctored to match,
+    so that no earlier check sees it) is refused, and let in without the file; an error under one frame is let in
+    (the tolerance); a file that holds no phase array, or a phase that does not increase, is refused."""
+    d = make_look(tmp_path)
+    refs = s2io.read_json(d / "refs.json")["references"]
+    trs = s2io.read_json(d / "transitions.json")["transitions"]
+    walk, wf = refs[W], d / refs[W]["file"]
+    with np.load(wf) as z:
+        dt = float(z["dt"])
+    for name, _, _, a_phase in LOOK_MOVES:
+        e = trs[name]
+        T, Wn = e["look"]["window_a"]["period_s"], e["look"]["window_a"]["window_s"]
+        lp = r5lib.leave_point(name, e, W, walk, a_phase)
+        assert r5lib.leave_point(name, e, W, walk, a_phase, walk_file=wf) == lp and lp["a_phase"] == a_phase
+        for shift, ok in ((0.4 * dt, True), (-0.4 * dt, True), (1.5 * dt, False), (-1.5 * dt, False), (T, False),
+                          (-T, False)):
+            bad = copy.deepcopy(e)
+            bad["look"]["a_time_s"] = e["look"]["a_time_s"] + shift
+            bad["look"]["a_windows"] = bad["look"]["a_time_s"] / Wn
+            assert r5lib.leave_point(name, bad, W, walk, a_phase)["a_time_s"] == bad["look"]["a_time_s"]
+            if ok:
+                got = r5lib.leave_point(name, bad, W, walk, a_phase, walk_file=wf)
+                assert got["a_time_s"] == bad["look"]["a_time_s"], (name, shift)
+            else:
+                with pytest.raises(tune.InputError, match=f"{name}: .* has a_time_s .* the walk file's own phase "
+                                                          f"array reaches a_phase {a_phase:g} at "):
+                    r5lib.leave_point(name, bad, W, walk, a_phase, walk_file=wf)
+    arrays = dict(np.load(wf))
+    name, _, _, a_phase = LOOK_MOVES[0]
+    no_phase, flat = tmp_path / "no_phase.npz", tmp_path / "flat.npz"
+    np.savez(no_phase, **{k: v for k, v in arrays.items() if k != "phase"})
+    np.savez(flat, **dict(arrays, phase=np.zeros_like(arrays["phase"])))
+    with pytest.raises(tune.InputError, match=r"cannot be checked against the walk file's own phase array \(KeyError"):
+        r5lib.leave_point(name, trs[name], W, walk, a_phase, walk_file=no_phase)
+    with pytest.raises(tune.InputError, match="holds no phase that increases over its frames"):
+        r5lib.leave_point(name, trs[name], W, walk, a_phase, walk_file=flat)
+    with pytest.raises(tune.InputError, match="cannot be checked against the walk file's own phase array"):
+        r5lib.leave_point(name, trs[name], W, walk, a_phase, walk_file=tmp_path / "not_here.npz")
+
+
+def _refreeze(d: Path) -> None:
+    """``make_look``'s freeze of the set at ``d`` made again from its entries as they stand now."""
+    refs, trs = s2io.read_json(d / "refs.json"), s2io.read_json(d / "transitions.json")
+    manifest = {}
+    for doc, kind in ((refs["references"], "walk"), (trs["transitions"], "move")):
+        for name, x in doc.items():
+            if x.get("file"):
+                manifest[name] = dict(kind=kind, sha256=x["sha256"], entry_sha256=setio.entry_sha256(kind, x))
+    sd = s2io.read_json(d / "set.json")
+    sd["freezes"] = [dict(index=0, at="fixture", commit=None, manifest=manifest, manifest_sha256=s2io.sha256_json(manifest))]
+    s2io.write_json(d / "set.json", sd)
+
+
+@needs_run
+def test_the_envs_own_placement_checks_a_time_s_against_the_walk_file(p, tmp_path):
+    """The lead's ruling 39 (c) of 17 Nov 2026: the env's own task placement (``r5lib.place``, ``Library.place``)
+    gives ``leave_point`` the walk's file, so ruling 37 (c)'s check covers the env too.  On the synthetic look set
+    the library's leave points are as before (the check passes); a frozen entry of the quick left turn whose
+    ``a_time_s`` is off by 1.5 frames of its walk file (``a_windows`` doctored to match, so that no earlier check sees
+    it: ``leave_point`` without the file lets it in) is refused by ``place`` given the set's directory, when the
+    library is built and when the R5 env is built on the set (``tune.InputError`` naming the walk file's own
+    phase)."""
+    from designlab.stage2 import r5env
+
+    good = make_look(tmp_path / "good")
+    lib = r5lib.Library(p, BODY, LOOK_SET, RATE, root=tmp_path / "good")
+    for task in LEAVE_TASKS:
+        assert lib.tasks[task]["available"] and len(lib.tasks[task]["leave"]) == 1, task
+    td = next(x for x in r5lib.TASKS if x.name == "turn_q90_left")
+    plan, leaves = r5lib.place(td.plan, lib.refs_doc, lib.tr_doc, good)
+    assert lib.place(td.plan) == (plan, leaves) and len(leaves) == 1
+    # the doctored entry, frozen
+    d = make_look(tmp_path / "bad", freeze=False)
+    trs = s2io.read_json(d / "transitions.json")
+    name, _, _, a_phase = LOOK_MOVES[0]
+    look = trs["transitions"][name]["look"]
+    with np.load(d / "refs" / f"{W}.npz") as z:
+        dt = float(z["dt"])
+    look["a_time_s"] += 1.5 * dt
+    look["a_windows"] = look["a_time_s"] / look["window_a"]["window_s"]
+    s2io.write_json(d / "transitions.json", trs)
+    _refreeze(d)
+    refs, tr_doc = s2io.read_json(d / "refs.json")["references"], trs["transitions"]
+    assert r5lib.leave_point(name, tr_doc[name], W, refs[W], a_phase)["a_time_s"] == look["a_time_s"]  # (no file)
+    why = f"{name}: .* has a_time_s .* the walk file's own phase array reaches a_phase {a_phase:g} at "
+    with pytest.raises(tune.InputError, match=why):
+        r5lib.place(td.plan, refs, tr_doc, d)
+    with pytest.raises(tune.InputError, match=why):
+        r5lib.Library(p, BODY, LOOK_SET, RATE, root=tmp_path / "bad")
+    cfg = r5env.R5Config(body=BODY, set=LOOK_SET, tasks=("stand",), randomize=False, push_prob=0.0, head_events=False,
+                         mid_start=0.0)
+    with pytest.raises(tune.InputError, match=why):
+        r5env.R5Env(cfg, root=tmp_path / "bad")
+    r5env.R5Env(cfg, root=tmp_path / "good").close()  # (the env on the set as built: no refusal)
+
+
+#: A set root that holds the look work package's arrays of the committed look sets (read only; the records are the
+#: committed ones of this checkout): without it the committed look sets are read under ``setio.ROOT``.
+LOOK_ARRAYS = os.environ.get("STAGE2_LOOK_SET_ROOT")
+
+
+def _committed_look_sets(tmp_path) -> Path | None:
+    """A set root in ``tmp_path`` with the committed records of the look sets whose moves carry a leave point and,
+    linked (never copied), the arrays of those whose walk ``v0.4`` is found with the records' sha256 (under
+    ``LOOK_ARRAYS`` or ``setio.ROOT``); None when no array is found.  (The Library checks every file it reads
+    against its entry's sha256.)"""
+    root, found = tmp_path / "look_sets", 0
+    for d in sorted(setio.ROOT.glob("V6*/*/")):
+        if not (d / "transitions.json").is_file():
+            continue
+        trs = s2io.read_json(d / "transitions.json")["transitions"]
+        if not any(isinstance(x, dict) and (x.get("look") or {}).get("a_phase") is not None for x in trs.values()):
+            continue
+        rel = d.relative_to(setio.ROOT)
+        bases = [Path(LOOK_ARRAYS)] if LOOK_ARRAYS else []
+        src = next((b / rel for b in bases + [setio.ROOT] if (b / rel / "refs" / f"{W}.npz").is_file()), None)
+        want = s2io.read_json(d / "refs.json")["references"][W].get("sha256")
+        if src is None or s2io.sha256_file(src / "refs" / f"{W}.npz") != want:
+            continue
+        (root / rel).mkdir(parents=True)
+        for f in ("set.json", "refs.json", "transitions.json"):
+            shutil.copyfile(d / f, root / rel / f)
+        for sub in ("refs", "transitions"):
+            (root / rel / sub).symlink_to((src / sub).resolve(), target_is_directory=True)
+        found += 1
+    return root if found else None
+
+
+@needs_run
+def test_the_committed_look_sets_turns_and_stop_join_within_their_walks_step(p, tmp_path):
+    """Each turn and the stop that a committed look set holds as available (today V6noF5/75-M-H-10's four turns and
+    its stop, V6/75-M-H-10's stop), played through the env's plan (``Library.place``, then ``_resolve``) on the set's
+    own arrays: the join into the move is within the walk's own largest frame-to-frame change at every joint
+    (ruling 15's limit).  The look sets' ``start`` is not available today, so the task's plan is played from its
+    first walk (its start left out); the walk it leaves and the move are the task's.  Needs the look sets' arrays
+    (under ``setio.ROOT``, or a set root holding them in ``STAGE2_LOOK_SET_ROOT``)."""
+    root = _committed_look_sets(tmp_path)
+    if root is None:
+        pytest.skip("the look sets' arrays are not here (STAGE2_LOOK_SET_ROOT: a set root that holds them)")
+    played = []
+    for d in sorted(root.glob("*/*/")):
+        set_name = d.parent.name
+        lib = r5lib.Library(p, BODY, set_name, RATE, root=root, require_frozen=False)
+        for td in r5lib.TASKS:
+            if td.name == "start_stop":
+                continue  # (its stop is the stop task's; its second start is not available)
+            moves = [it[1] for it in td.plan if it[0] == "transition" and lib.why_not("transitions", it[1]) is None
+                     and (lib.tr_doc[it[1]].get("look") or {}).get("a_phase") is not None]
+            usable = all(lib.why_not("transitions" if it[0] == "transition" else "refs", it[1]) is None
+                         for it in td.plan[1:] if it[0] != "hold")
+            if not moves or not usable:
+                continue
+            assert td.plan[0] == ("transition", setio.START)
+            plan, leaves = lib.place(td.plan[1:])
+            ((i, lp),) = leaves.items()
+            e = lib.tr_doc[moves[0]]["look"]
+            assert plan[i] == ("ref", W, e["a_windows"]) and lp["whole_windows"] == 0
+            assert lp["a_phase"] == td.plan[i + 1][2] == e["a_phase"]
+            s = lib.from_plan(lib._resolve(plan))
+            j = _the_join_into(s.track, moves[0], p)
+            assert j["ok"], (set_name, td.name, j["over"], j["jump_rad"])
+            old = list(plan)
+            old[i] = ("ref", W, td.plan[i + 1][2])
+            j_old = _the_join_into(lib.from_plan(lib._resolve(old)).track, moves[0], p)
+            played.append((set_name, td.name, f"{j['jump_rad']:.3g}", f"before: {j_old['jump_rad']:.3g}"))
+    assert played, "no turn or stop of a committed look set was played"
+    print("played:", played)
+
+
+@needs_run
+def test_the_committed_look_sets_leave_points_are_where_their_walk_files_phase_reaches_them(tmp_path):
+    """The lead's ruling 37 (c) on the committed look sets' own arrays: every move with a leave point that a set
+    holds as available passes ``leave_point``'s check against its walk file's own phase array.  Needs the look sets'
+    arrays (as ``test_the_committed_look_sets_turns_and_stop_join_within_their_walks_step`` does)."""
+    root = _committed_look_sets(tmp_path)
+    if root is None:
+        pytest.skip("the look sets' arrays are not here (STAGE2_LOOK_SET_ROOT: a set root that holds them)")
+    checked = []
+    for d in sorted(root.glob("*/*/")):
+        refs = s2io.read_json(d / "refs.json")["references"]
+        for name, e in s2io.read_json(d / "transitions.json")["transitions"].items():
+            look = (e.get("look") or {}) if isinstance(e, dict) else {}
+            if look.get("a_phase") is None or e.get("available") is False:
+                continue
+            walk = look["window_a"]["reference"]
+            lp = r5lib.leave_point(name, e, walk, refs[walk], look["a_phase"], walk_file=d / refs[walk]["file"])
+            assert lp == r5lib.leave_point(name, e, walk, refs[walk], look["a_phase"])
+            checked.append((d.parent.name, name))
+    assert checked
+    print("checked:", checked)
 
 
 # ------------------------------------------------------------------------------------------------

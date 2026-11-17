@@ -30,6 +30,12 @@ today (``FREEZE_RULE``), whether the named freeze is the latest or an earlier on
 keys of the env description a trainer compares on a resume (``RESUME_KEYS``) and which an accepted later freeze
 changes (``LATER_FREEZE_KEYS``); ``env_configs`` names a job's tasks in its configs, so that a later freeze which
 makes a further task usable leaves a resumed run its own tasks.
+
+**The servo option** (``R5Config.servo``; ``stage2/design/servo_model/SERVO_MODEL_DESIGN.md`` 5.1, package S2;
+``SERVO_RULE``).  Off by default: the env then runs today's code path and prints today's description.  On, every
+episode runs under ``servo.served`` at a named setting or a training draw (simulation only: the servo model's
+values are a model, none is measured), and the env prints the servo variants of its reset order, draw order and
+factor rule (``SERVO_RESET_ORDER``, ``SERVO_DRAW_ORDER``, ``SERVO_FACTOR_RULE``) with the table's sha256.
 """
 
 from __future__ import annotations
@@ -47,7 +53,7 @@ import numpy as np
 from gymnasium import spaces
 
 from ..stage1 import control, env, estimator, legs, plant, speedfit, tune
-from . import r5core, r5lib, s2io, setio
+from . import r5core, r5lib, s2io, servo, setio
 
 SUBSTEPS = r5core.SUBSTEPS
 MODES = ("R5", "R6")
@@ -130,6 +136,69 @@ FACTOR_RULE = (
     "joint damping and joint friction-loss, one factor each for all hinges; IMU noise scale.  The controller's "
     "model and feedforward stay nominal: every tracker is built on the nominal model before any episode")
 
+#: ``R5Config.servo``'s value for a training draw per episode (``SERVO_RULE``).
+SERVO_DRAW = "draw"
+SERVO_RULE = (
+    "the servo option (SERVO_MODEL_DESIGN.md 5.1, package S2): R5Config.servo None (the default) is off, and the env "
+    "runs today's code path with today's description.  On, every episode runs inside servo.served(plant, the "
+    "episode's parameters), the one context manager the judging side's served rows use.  The episode's parameters: "
+    "options.servo if given, else the config's; \"draw\" is the training draw servo.training_draw(episode seed), "
+    "SeedSequence([episode seed, 2]) (refused with options.seeds and no episode_seed: the env has no episode seed "
+    "then, design section 4); a name of servo.NAMED but D is that named setting, which draws nothing; \"D/<s>\" is "
+    "the drawn panel's set of bar seed s (servo.panel_draw); options.servo may also be a servo.ServoParams, the one "
+    "parameter object the judging side is given.  options.servo with the option off is refused.  The layer is left "
+    "first thing in reset, before the env restores its arrays (trap 9); it is entered after the delay is entered and "
+    "before a mid-task start fills the delay queue, so that the queue's commands are folded with the plant's gain "
+    "copies the layer sets at entry (design 2d, test T14); it acts from the first physics step, so the reset's "
+    "forward pass (a mid start's included), the start's first reading and every tracker's copy of the friction are "
+    "today's model's (traps 1 and 9).  The layer owns the drives' damping and friction: joint_damping and "
+    "joint_friction are 1 (with randomize their ranges are (1, 1), and options.factors may not move them; the draws "
+    "stay, so the env's stream does not shift).  A setting with a trunk mass factor (M-, M+, W1, W2) gives the "
+    "episode's mass factor, in the place of the drawn one and before the start, as the judging side applies it "
+    "before the inner episode (design 5.1); options.factors may not name another.  Every other factor (servo "
+    "stiffness x kp, the floor's friction, the delay, the IMU noise) stays the env's, and the layer acts on the "
+    "plant as they leave it.  Body 75-M-H-10 only (the table's)")
+SERVO_RESET_ORDER = (
+    "0 the servo layer left (every model array it wrote, the envelope, the step and the plant's gain copies back, bit "
+    "for bit); 1 the generator (a seeded reset restarts the episode stream); 2 the model's nominal arrays restored "
+    "(friction, servo stiffness, joint damping and friction-loss, the masses and the constants MuJoCo derives from "
+    "them); 3 the script (options.plan with options.seconds, else options.task, else a draw by the task weights) and "
+    "its tracker, whose damping and friction-loss copies must be the nominal ones; 4 the start (options.start, else "
+    "\"mid\" with probability mid_start where the script has mid spans, the reference time uniform on their union "
+    "and snapped to a file frame); 5 the length; 6 the factors, drawn in the order friction, mass, kp, "
+    "latency_steps, noise_scale, joint_damping, joint_friction, then options.factors, then a named servo setting's "
+    "trunk mass factor, then applied (joint damping and joint friction-loss 1: the layer's); 7 the push and, on a "
+    "body with a neck yaw and a jaw, the head script; 8 the episode seed and its start and noise seeds, then the "
+    "episode's servo parameters (a named setting, or the training draw from the episode seed); 9 counters; 10 the "
+    "previous episode's delay left; 11 the start; 12 the delay entered, then the servo layer entered at the "
+    "episode's parameters (the plant's gain copies the run's from here, its model arrays from the first physics "
+    "step); a mid start then refills the delay queue (its commands folded with the run's gain copies), sets the "
+    "servos to the zero action's command before the start, computes the forward pass on today's model arrays and "
+    "gives the estimator its first reading from it; 13 the core's baselines, histories and accumulators, the "
+    "observation")
+SERVO_DRAW_ORDER = (
+    DRAW_ORDER + ".  The servo layer's parameters come from neither: a named setting draws nothing, and the option "
+    "\"draw\" draws the episode's set from its own generator, SeedSequence([episode seed, 2]), in servo.DRAW_RULE's "
+    f"order (table sha256 {servo.TABLE_SHA256}); the env's own generator is not touched, so the task, the factors, "
+    "the push and the head script of an episode are the same with the option on or off")
+SERVO_FACTOR_RULE = (
+    FACTOR_RULE + ".  With the servo layer on (SERVO_RULE): joint damping and joint friction-loss are 1, since the "
+    "layer writes the drives' damping and friction itself (servo.LAYER_RULE); a named setting's trunk mass factor "
+    "(M-, M+, W1, W2) is the episode's mass factor; servo stiffness x kp, the floor's friction, the delay and the "
+    "IMU noise stay, and the layer's gains (the gain cap, kv by the plant's rule under the run's inertia, the box "
+    "servos' kp and kv scales) act on the plant as they leave it; the feedforward keeps today's friction (A18)")
+#: The mid-task start's forward pass with the servo option on, in a sentence (the lead's fourth list of 17 Nov 2026,
+#: on the builder's (c) of package S2; added in package S3 beside ``SERVO_RULE`` and ``SERVO_RESET_ORDER``, which are
+#: not edited).
+SERVO_MID_START_RULE = (
+    "with the servo option on, once per episode at a mid-task start the first reading's forward pass runs on today's "
+    "model arrays with the servos set to the oldest queued command (without a delay, the zero action's command of the "
+    "physics step before the start), which was folded with the run's gain copies (the plant's kp and kv where the "
+    "run's inertia or the gain cap moves them: the tail's kv in every setting but today, every drive's kv under J+, "
+    "W1 and every training draw, the leg drives' kp and kv under G5); no command is served in that pass, and the "
+    "run's model gains, damping, friction-loss, inertia and force ranges act from the first physics step.  "
+    "SERVO_RULE's words \"today's model's\" are read as the model arrays only")
+
 
 @dataclass(frozen=True)
 class R5Config:
@@ -139,7 +208,8 @@ class R5Config:
     of the set that makes a further task usable changes nothing the run plays.  No field is a path: the set is
     named and pinned by ``set_freeze`` (the manifest sha256 of the freeze the run started on; a later freeze of
     the set is accepted by ``FREEZE_RULE``, rule K4), and ``setio.set_dir`` resolves it under the study
-    directory."""
+    directory.  ``servo`` None is the servo option off (``SERVO_RULE``: "draw", a named setting or "D/<s>" turn it
+    on); ``describe`` then leaves the key out, so that today's dictionary is unchanged."""
 
     body: str
     set: str = "V6"
@@ -175,9 +245,13 @@ class R5Config:
     reward: tuple = r5core.REWARD_WEIGHTS_ITEMS
     interference: str = "terminate"
     set_freeze: str | None = None
+    servo: str | None = None
 
     def describe(self) -> dict:
-        return {k: _plain(v) for k, v in asdict(self).items()}
+        doc = {k: _plain(v) for k, v in asdict(self).items()}
+        if doc["servo"] is None:  # the option off: today's dictionary (design 5.2, trap 12; test T2)
+            del doc["servo"]
+        return doc
 
 
 def _plain(x):
@@ -225,6 +299,8 @@ class R5Env(gym.Env):
                                                                       tune.START_ROOT_VELOCITY_NOISE_M_S):
             raise ValueError("the start noise is Stage 1's (tune.START_JOINT_NOISE_RAD, "
                              "START_ROOT_VELOCITY_NOISE_M_S): the bar's rows start with it")
+        if cfg.servo is not None:
+            _check_servo_config(cfg)
         self.p = p = plant.build(cfg.body, cfg.floor)
         m = p.m
         #: The model as built: the plant's nominal model and the controller's model throughout (``env.MASS_RULE``).
@@ -282,6 +358,10 @@ class R5Env(gym.Env):
         self._stream, self._stream_k = None, 0  # the last seeded reset's seed, episodes since (env.EPISODE_SEED_RULE)
         self.episode_seed = None
         self._delay = ExitStack()
+        self._servo = ExitStack()
+        #: The episode's servo parameters and the layer in (None: the option off, or between episodes).
+        self.servo_params: servo.ServoParams | None = None
+        self.servo_layer: servo.Layer | None = None
         self.tk = self.trackers[self.tasks[0]]
         self.script = self.scripts[self.tasks[0]]
         if seed is not None:
@@ -454,17 +534,60 @@ class R5Env(gym.Env):
         self._delay.close()
         self._delay = ExitStack()
 
+    # ------------------------------------------------------------------ the servo option (SERVO_RULE)
+    def _leave_servo(self) -> None:
+        """The servo layer out (``servo.Layer.exit``: the plant back bit for bit); nothing while the option is
+        off."""
+        self.servo_params = self.servo_layer = None
+        self._servo.close()
+        self._servo = ExitStack()
+
+    def _servo_spec(self, opts: dict):
+        """The episode's servo setting before anything is drawn: None (the option off), ``SERVO_DRAW`` (drawn at step
+        8 from the episode seed) or a ``servo.ServoParams``; ``SERVO_RULE``'s refusals."""
+        given = opts.get("servo")
+        if self.cfg.servo is None:
+            if given is not None:
+                raise ValueError("options['servo'] with the servo option off (R5Config.servo None): the config turns "
+                                 "it on (SERVO_RULE)")
+            return None
+        spec = self.cfg.servo if given is None else given
+        if isinstance(spec, str) and spec == SERVO_DRAW:
+            if opts.get("seeds") is not None and opts.get("episode_seed") is None:
+                raise ValueError("a servo draw needs the episode seed, and with options['seeds'] and no episode_seed "
+                                 "the env has none: give a named setting (design section 4; SERVO_RULE)")
+            return spec
+        return servo_params(spec)
+
+    def _servo_factors(self, spec, given: dict) -> None:
+        """Step 6 with the option on: the factors the layer owns are 1, and a named setting's trunk mass factor is the
+        episode's (``SERVO_RULE``); ``given`` is options.factors."""
+        f = self.factors
+        for k in ("joint_damping", "joint_friction"):
+            if f[k] != 1.0:
+                raise ValueError(f"{k} {f[k]!r}: with the servo option on the layer owns the drives' damping and "
+                                 "friction, and this factor is 1 (design section 4; SERVO_RULE)")
+        mass = 1.0 if isinstance(spec, str) else float(spec.mass)  # (a training draw carries no mass)
+        if mass != 1.0:
+            if "mass" in given and float(given["mass"]) != mass:
+                raise ValueError(f"options['factors'] mass {given['mass']!r} and the servo setting {spec.name}'s "
+                                 f"trunk mass x {mass:g}: the setting's is the episode's (SERVO_RULE)")
+            f["mass"] = mass
+
     # ------------------------------------------------------------------ episode
     def reset(self, *, seed: int | None = None, options: dict | None = None):
         """``RESET_ORDER``.  ``options``: ``task`` | ``plan`` (+ ``seconds``), ``start`` ("stance", "mid" or a
         reference time), ``factors``, ``push``, ``head`` (a ``r5core.HeadScript`` or None), ``episode_seed``,
-        ``seeds`` ({"start", "noise"}), ``terminate_on_interference``."""
+        ``seeds`` ({"start", "noise"}), ``terminate_on_interference``; with the servo option on, ``servo``
+        (``SERVO_RULE``; the order is then ``SERVO_RESET_ORDER``)."""
+        self._leave_servo()  # (0 of SERVO_RESET_ORDER: before the arrays are restored; nothing while it is off)
         super().reset(seed=seed)  # 1
         if seed is not None:
             self._stream, self._stream_k = int(seed), 0
         rng = self.np_random
         opts = options or {}
         cfg, p = self.cfg, self.p
+        spec = self._servo_spec(opts)  # (None while the option is off)
         self._apply_factors(NOMINAL_FACTORS)  # 2
         if opts.get("plan") is not None:  # 3
             script, tk = self._plan(opts["plan"])
@@ -501,6 +624,8 @@ class R5Env(gym.Env):
             self.n_steps = int(round(self.seconds / self.dt_env))
         drawn = self._draw_factors(rng)  # 6
         self.factors = dict(drawn, **(opts.get("factors") or {}))
+        if spec is not None:
+            self._servo_factors(spec, dict(opts.get("factors") or {}))
         self._apply_factors(self.factors)
         self.push = opts["push"] if "push" in opts else self._draw_push(rng, script, t_start, self.seconds)  # 7
         self.head = None
@@ -523,6 +648,8 @@ class R5Env(gym.Env):
             seeds = dict(start=int(np.random.SeedSequence([ep, 0]).generate_state(1)[0]),
                          noise=int(np.random.SeedSequence([ep, 1]).generate_state(1)[0]))
         self.episode_seed, self.episode_seeds = ep, seeds
+        if spec is not None:
+            self.servo_params = servo_params(spec, ep)
         self.k_env = 0  # 9
         self._below, self.interference_step = 0, None
         self.terminate_on_interference = (cfg.interference == "terminate"
@@ -540,6 +667,8 @@ class R5Env(gym.Env):
             self._mid(tk, t_start, qpos, qvel, seeds)
         k = int(self.factors["latency_steps"])  # 12
         queue = self._delay.enter_context(speedfit.servo_delay(p, k)) if k else None
+        if self.servo_params is not None:  # after the delay and before a mid start's queue is filled (SERVO_RULE)
+            self.servo_layer = self._servo.enter_context(servo.served(p, self.servo_params))
         if start == "mid":
             # The servos hold what the zero action commanded before the start, not their home targets
             # (``Plant.set_state``'s): the queue's oldest command, or without a delay the one of the physics step
@@ -556,8 +685,12 @@ class R5Env(gym.Env):
             tk.est.reset(p.d.qpos.copy(), p.d.qvel.copy(), tk.sensors.read())
         self.core.begin(lambda: self.tk.tau_ref, lambda: r5core.tracker_estimate(self.tk), script, self.head)  # 13
         self._after_begin(start, t_start)
-        return self._observation(), dict(self._info(), seconds=self.seconds, n_steps=self.n_steps, seeds=dict(seeds),
-                                         head=None if self.head is None else self.head.describe())
+        obs = self._observation()
+        info = dict(self._info(), seconds=self.seconds, n_steps=self.n_steps, seeds=dict(seeds),
+                    head=None if self.head is None else self.head.describe())
+        if self.servo_params is not None:
+            info["servo"] = self.servo_params.name
+        return obs, info
 
     def step(self, action):
         """``STEP_ORDER``."""
@@ -601,6 +734,7 @@ class R5Env(gym.Env):
                     t_start=self.t_start, t_ref=float(self.tk.tau_ref), clock_factor=float(self.tk.rate_factor))
 
     def close(self) -> None:
+        self._leave_servo()
         self._leave_delay()
 
     # ------------------------------------------------------------------ records
@@ -647,10 +781,23 @@ class R5Env(gym.Env):
         ``set_freeze_now`` and ``inputs.freeze`` always; ``inputs.files`` (every file the library read: it reads
         the files of every task the set holds, and of every plan given by options since) and ``absent`` where the
         later freeze made further tasks usable.  A trainer that compared the description whole would refuse what
-        rule K4 accepts."""
+        rule K4 accepts.
+
+        **The servo option** (``SERVO_RULE``).  Off, the description is today's.  On, ``config`` holds ``servo``,
+        ``factor_rule``, ``reset_order`` and ``draw_order`` are the servo variants (``SERVO_FACTOR_RULE``,
+        ``SERVO_RESET_ORDER``, ``SERVO_DRAW_ORDER``) and ``servo`` holds the option, the table's sha256, the rules
+        and the kinds of the table's rows."""
+        on = self.cfg.servo is not None
         settle = self.p.meta.get("settle") or {}
         lib = self.lib.describe()
         files = lib["inputs"]["files"]
+        extra = {} if not on else dict(servo=dict(
+            option=self.cfg.servo, body=servo.BODY, table_sha256=servo.TABLE_SHA256, rule=SERVO_RULE,
+            mid_start_rule=SERVO_MID_START_RULE, draw_rule=servo.DRAW_RULE, layer_rule=servo.LAYER_RULE,
+            hooks_rule=servo.HOOKS_RULE,
+            kind_counts=servo.kind_counts(), named=list(servo.NAMED),
+            simulation_only="a prospective design built in code: no value of the servo model is measured on this "
+                            "build's hardware, and nothing the env runs with it is a result"))
         return dict(mode=self.mode, config=self.cfg.describe(), floor=self.cfg.floor,
                     floor_params=self.p.meta.get("floor_params"), settled=settle.get("status"),
                     task_names=list(self.tasks),
@@ -666,9 +813,10 @@ class R5Env(gym.Env):
                     reward_rule=r5core.REWARD_RULE, head_rule=r5core.HEAD_RULE if self.layout["head_x"] else None,
                     interference=self.cfg.interference, interference_rule=r5core.INTERFERENCE_RULE,
                     fixed_pairs=self.fixed_pairs, push_bound_m_s=self.push_bound, push_rule=PUSH_RULE,
-                    factor_rule=FACTOR_RULE, mid_start_rule=MID_START_RULE, reset_order=RESET_ORDER,
-                    step_order=STEP_ORDER, draw_order=DRAW_ORDER, mass_rule=env.MASS_RULE,
-                    episode_seed_rule=env.EPISODE_SEED_RULE, nominal_weight_N=self.weight, substeps=SUBSTEPS)
+                    factor_rule=SERVO_FACTOR_RULE if on else FACTOR_RULE, mid_start_rule=MID_START_RULE,
+                    reset_order=SERVO_RESET_ORDER if on else RESET_ORDER, step_order=STEP_ORDER,
+                    draw_order=SERVO_DRAW_ORDER if on else DRAW_ORDER, mass_rule=env.MASS_RULE,
+                    episode_seed_rule=env.EPISODE_SEED_RULE, nominal_weight_N=self.weight, substeps=SUBSTEPS, **extra)
 
     def process_cpu(self) -> tuple[int, float]:
         """This env's process and its CPU seconds so far (the trainer sums its env processes' CPU time)."""
@@ -736,6 +884,41 @@ def mid_start_time(spans, u: float) -> float:
     return float(np.nextafter(b, a)) if t >= b else t
 
 
+def servo_params(spec, episode_seed: int | None = None) -> servo.ServoParams:
+    """The servo parameters of a setting (``SERVO_RULE``): a ``servo.ServoParams`` as given; ``SERVO_DRAW`` the
+    training draw of ``episode_seed`` (refused without one); ``"D/<s>"`` the drawn panel's set of bar seed s; any
+    other name a named setting of ``servo.NAMED``."""
+    if isinstance(spec, servo.ServoParams):
+        return spec
+    if not isinstance(spec, str):
+        raise ValueError(f"servo setting {spec!r}: a name, \"{SERVO_DRAW}\", \"D/<bar seed>\" or a servo.ServoParams")
+    if spec == SERVO_DRAW:
+        return servo.training_draw(episode_seed)
+    if spec.startswith("D/"):
+        s = spec[2:]
+        if not s.isdigit():
+            raise ValueError(f"servo setting {spec!r}: the drawn panel is \"D/<bar seed>\" (a whole number)")
+        return servo.panel_draw(int(s))
+    if spec == "D":
+        raise ValueError("servo setting 'D': the drawn panel draws from a bar seed, \"D/<seed>\"")
+    return servo.setting(spec)
+
+
+def _check_servo_config(cfg: R5Config) -> None:
+    """``SERVO_RULE``'s refusals of a config with the option on, before anything is built."""
+    if not isinstance(cfg.servo, str) or not cfg.servo:
+        raise ValueError(f"servo {cfg.servo!r}: None (off), \"{SERVO_DRAW}\", a named setting or \"D/<bar seed>\"")
+    if cfg.body != servo.BODY:
+        raise ValueError(f"servo {cfg.servo!r} on {cfg.body}: the servo table is for {servo.BODY} only (design, status "
+                         "line; its own table first, choice 14)")
+    if cfg.servo != SERVO_DRAW:
+        servo_params(cfg.servo)
+    if cfg.randomize and (tuple(cfg.joint_damping) != (1.0, 1.0) or tuple(cfg.joint_friction) != (1.0, 1.0)):
+        raise ValueError(f"servo {cfg.servo!r} with joint_damping {cfg.joint_damping} and joint_friction "
+                         f"{cfg.joint_friction}: the layer owns the drives' damping and friction, so both ranges are "
+                         "(1, 1) (the draws stay and the stream does not shift; design section 4)")
+
+
 def make(mode: str, cfg: R5Config, seed: int | None = None) -> R5Env:
     """The factory the worker pool names (``"designlab.stage2.r5env:make"``).  ``cfg`` may be a config's
     ``describe()`` (a plain dict crosses a process boundary as JSON)."""
@@ -751,7 +934,7 @@ def make(mode: str, cfg: R5Config, seed: int | None = None) -> R5Env:
 
 
 def config_from(doc: dict) -> R5Config:
-    """A config from its ``describe()`` (lists back to tuples)."""
+    """A config from its ``describe()`` (lists back to tuples; no ``servo`` key: the option off)."""
     def tup(x):
         return tuple(tup(v) for v in x) if isinstance(x, (list, tuple)) else x
 
@@ -826,5 +1009,6 @@ def throughput(mode: str, cfg: R5Config, env_steps: int = 2000, sigma: float = 0
 
 
 __all__ = ["DRAW_ORDER", "FLOOR_SPREAD", "FREEZE_RULE", "LATER_FREEZE_KEYS", "MODES", "R5Config", "R5Env", "R5Tracker",
-           "R6Env", "RESET_ORDER", "RESUME_KEYS", "STEP_ORDER", "config_from", "env_configs", "make", "mid_start_time",
-           "set_freeze", "throughput"]
+           "R6Env", "RESET_ORDER", "RESUME_KEYS", "SERVO_DRAW", "SERVO_DRAW_ORDER", "SERVO_FACTOR_RULE",
+           "SERVO_RESET_ORDER", "SERVO_RULE", "STEP_ORDER", "config_from", "env_configs", "make", "mid_start_time",
+           "servo_params", "set_freeze", "throughput"]

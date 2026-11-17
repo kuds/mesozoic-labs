@@ -26,6 +26,15 @@ What is held here, on a stub env and a stub monitor (no plant, no reference set)
   holds two interruptions, and a refusal under ``--retry-check`` then halts with a message that names that
   parameter; the monitor child's environment holds ``STAGE2_ALLOW_SOURCE_CHANGE=1`` exactly when the session was
   given ``--allow-source-change`` (the rulings of 17 Nov 2026, 10 and 11);
+* the trainer waits for its monitor child without a timeout (the lead's ruling 17 of 17 Nov 2026);
+* **the committed baseline** (rule M3, the lead's ruling 17 of 17 Nov 2026): with ``--expect-baseline`` the run's
+  own R0L baseline, equal to the one ``monitor2 baseline`` made without a job, lets the run train, also with a
+  condition not run (built by ``lookbar.episodes``, without a digest: the lead's ruling 33 of 17 Nov 2026); another
+  survival, another state digest or a record without digests in an episode that ran halts it before its first
+  rollout, also on a resume; a file
+  that is missing, cannot be read or is no baseline record, or one given without the gates, is refused before
+  anything is written; the file's sha256 is a setting of the run (a resume without it, or with another file, is
+  refused);
 * **lesson 16**: with a learning rate that trips ``target_kl`` ``minibatch_steps_run < minibatch_steps_possible``,
   and the ``kl_cut`` flag is set from the median share over a check interval;
 * **``MUJOCO_GL``**: a trainer started with ``MUJOCO_GL=osmesa`` runs a rollout with ``disable`` in itself and in
@@ -45,10 +54,13 @@ therefore imports neither torch nor stable-baselines3 at its top.
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import os
 import pickle
+import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -208,14 +220,39 @@ def _steps_env(name: str) -> list:
     return [int(x) for x in os.environ.get(name, "").split(",") if x]
 
 
+def lookbar_not_run(body, set_name, pairs, row) -> list:
+    """Episodes of ``pairs`` not run, as ``lookbar.episodes`` builds them: that function itself, on a set (no look
+    set) whose ``open_set`` holds none of their references; nothing is read and no episode runs, and the row is a
+    ``LookRow`` around a bare row."""
+    from designlab.stage1 import panels
+    from designlab.stage2 import lookbar
+
+    def open_set(body, set_name, keys, root, stage1_run):
+        return dict(ctx=None, conds={k: None for k in keys}, inputs=None, run_dir=None, set_docs=None,
+                    missing={k: dict(reference="transitions/turn90_pi4_left", numbers=None,
+                                     reason="a fixture's reason: the set holds no available reference") for k in keys})
+
+    real, lookbar.open_set = lookbar.open_set, open_set
+    try:
+        return lookbar.episodes(body, set_name, {row: lookbar.LookRow(panels.Row())}, list(pairs))
+    finally:
+        lookbar.open_set = real
+
+
 def stub_episodes(body, set_name, row, pairs, policies=None, traces=None) -> list:
     """The stub of ``lookbar.episodes``: R0L reads every episode (survival 10 s, or ``STUB_R0L_SURVIVAL``); a
     policy row reads them too and survives 10.5 s, but ``walk/nominal`` falls at the steps of
-    ``STUB_MON_FAIL_AT``."""
+    ``STUB_MON_FAIL_AT``.  ``STUB_DIGESTS`` set: every episode holds a ``state_digest`` of its row's mode, its
+    condition, seed and survival (as the bar's episodes hold the digest of their end state).  ``STUB_NOT_RUN``
+    names a condition that is not run in every row, its episodes built by ``lookbar.episodes`` (``lookbar_not_run``:
+    a condition without a reference, with no digest)."""
     n = None if not policies else int(next(iter(policies.values()))["steps"])
     down = n is not None and n in _steps_env("STUB_MON_FAIL_AT")
     out = []
     for cond, seed in pairs:
+        if cond == os.environ.get("STUB_NOT_RUN"):
+            out += lookbar_not_run(body, set_name, [(cond, seed)], row)
+            continue
         fell = bool(down and cond == "walk/nominal")
         surv = float(os.environ.get("STUB_R0L_SURVIVAL", 10.0)) if n is None else (3.0 if fell else 10.5)
         out.append(dict(condition=cond, seed=int(seed), outcome="fell" if fell else "read", reason=None, fell=fell,
@@ -223,6 +260,8 @@ def stub_episodes(body, set_name, row, pairs, policies=None, traces=None) -> lis
                         succeeded_look=False, succeeded_but_A1_look=False, failed_terms=["tail_servo"], look=None,
                         clock=dict(mean_factor=1.0, min_factor=1.0, t_ref_reached=1.05 * surv,
                                    t_ref_planned=1.05 * 12.0), error=None))
+        if os.environ.get("STUB_DIGESTS"):
+            out[-1]["state_digest"] = hashlib.sha256(f"{n is None}|{cond}|{seed}|{surv!r}".encode()).hexdigest()
     return out
 
 
@@ -370,6 +409,7 @@ def stub(monkeypatch, tmp_path):
     from designlab.stage2 import train2
 
     REAL.setdefault("_validation", train2._validation)
+    REAL.setdefault("_g8a_short", train2._g8a_short)
     for name, fn in (("_env_configs", stub_configs), ("_env_specs", stub_specs), ("_g8a_short", stub_g8a),
                      ("_monitor_cmd", stub_monitor_cmd), ("_validation", stub_validation)):
         monkeypatch.setattr(train2, name, fn)
@@ -1272,6 +1312,72 @@ def test_g8a_fails_no_run(stub, tmp_path, monkeypatch):
     assert stub.main(["run", "--mode", "R5", "--body", "stub", "--seed", "42", "--out", str(out), "--tiny"]) == 4
 
 
+def _plain(x):
+    return json.loads(json.dumps(x))
+
+
+def test_g8a_on_a_look_set_keeps_the_forms_own_time_as_form_at(stub, tmp_path, monkeypatch):
+    """The lead's ruling 43 of 17 Nov 2026.  On a look set G8a's short form is the bar form (``g8a.bar_form``),
+    which stamps its own ``at``: the trainer keeps that time as ``form_at`` and stamps the record's ``at`` itself
+    (before the fix, ``dict() got multiple values for keyword argument 'at'``: S2-4's first start).  A synthetic look
+    set ``V6`` (``tests/test_stage2_r5lib.py``'s ``make_look``, frozen, in a temporary directory; not the study's look
+    set) and the trainer's own ``_g8a_short`` (tiny: ``walk/v0.4``, seed 3042, 0 and 10 ms, cut to 2 s); the env, the
+    monitor and the validation records are the stubs.  The record holds the form as it returned it, its time under
+    ``form_at``, and hashes to its own sha256; the run trains to its budget."""
+    from tests import test_stage2_r5lib as R
+
+    if not (R.HAVE and R.ONE_THREAD):
+        pytest.skip("needs the Stage 1 arrays and the round-two models (tools/restore_inputs.py) and one BLAS thread")
+    from designlab.stage2 import g8a, s2io
+
+    root = tmp_path / "sets"
+    R.make_look(root, set_name="V6", stand_in_walks=True)
+    real, forms = g8a.bar_form, []
+
+    def bar_form(*a, **k):  # (the synthetic set's root; the form itself unchanged)
+        forms.append(real(*a, **dict(k, root=root)))
+        return forms[-1]
+
+    monkeypatch.setattr(g8a, "bar_form", bar_form)
+    monkeypatch.setattr(stub, "_g8a_short", REAL["_g8a_short"])
+    out = tmp_path / "out"
+    d = run(stub, out, gates=True, body=BODY, set_name="V6", steps=ROLLOUT, checkpoint_every=ROLLOUT,
+            monitor_every=ROLLOUT)
+    (form,) = forms
+    assert form["set"] == "V6" and form["cut_s"] == 2.0 and isinstance(form["at"], str)
+    jd = job(out, f"R5-{BODY}-s42")
+    rec = json.loads((jd / "gates" / "g8a.json").read_text())
+    own = ("schema", "job", "run_uuid", "tiny", "session", "at", "sha256")
+    assert {k: rec[k] for k in own[:5]} == dict(schema="s2-run-g8a-1", job=f"R5-{BODY}-s42", run_uuid=d["run_uuid"],
+                                                 tiny=True, session=0)
+    assert rec["form"] == "bar" and rec["form_at"] == form["at"] and isinstance(rec["at"], str)
+    assert rec["at"] >= rec["form_at"] and d["sessions"][0]["started_at"] <= rec["at"]
+    assert {k: v for k, v in rec.items() if k not in own + ("form", "form_at")} == _plain(
+        s2io.plain({k: v for k, v in form.items() if k != "at"}))
+    assert rec["passes"] is True and (rec["identical"], rec["of"]) == (2, 2) and rec["not_run"] == []
+    assert [(e["condition"], e["seed"], e["row"]) for e in rec["episodes"]] == [("walk/v0.4", 3042, "R0@0ms"),
+                                                                                ("walk/v0.4", 3042, "R0@10ms")]
+    assert rec["sha256"] == s2io.sha256_json({k: v for k, v in rec.items() if k != "sha256"})
+    assert d["gates"]["g8a"] == dict(record="gates/g8a.json", sha256=rec["sha256"], passes=True, identical=2, of=2,
+                                     form="bar")
+    assert d["status"] == "done" and d["num_timesteps"] == ROLLOUT and d["stopped"] is None
+
+
+def test_ppo_overrides_that_name_what_the_trainer_sets_itself_are_refused(stub, tmp_path):
+    """``ppo`` (the PPO constructor's arguments over design 2's) is spread beside the arguments the trainer gives
+    the model itself (``env``, ``seed``, ``device``, ``verbose``; the lead's ruling 43 of 17 Nov 2026, the read for
+    other spreads): an override that names one of them is refused before anything is written (it would have raised
+    ``TypeError`` at the model's construction, after the session began).  Other overrides are taken."""
+    for key, value in (("seed", 7), ("env", None), ("device", "cuda"), ("verbose", 1)):
+        out = tmp_path / key
+        with pytest.raises(stub.Refused, match=f"ppo: {key}"):
+            run(stub, out, ppo=dict(KW["ppo"], **{key: value}))
+        assert not out.exists()
+    d = run(stub, tmp_path / "ok", steps=ROLLOUT, checkpoint_every=ROLLOUT, monitor_every=ROLLOUT,
+            ppo=dict(KW["ppo"], n_epochs=2))
+    assert d["status"] == "done" and d["settings"]["ppo"]["n_epochs"] == 2
+
+
 def test_the_cli_hands_its_arguments_to_train(stub, tmp_path, monkeypatch):
     """Every option of ``run`` reaches ``train``; ``--config`` takes any env config field by name (a further
     named option of the env needs no change to the trainer)."""
@@ -1289,13 +1395,15 @@ def test_the_cli_hands_its_arguments_to_train(stub, tmp_path, monkeypatch):
                       str(tmp_path), "--job", "ft", "--steps", "5000000", "--workers", "3", "--resume",
                       "--allow-version-change", "--allow-source-change", "--from-checkpoint", "/runs/jobs/p:40001536",
                       "--lr", "3e-5", "--monitor-every", "500000", "--monitor-also-k", "0,2", "--no-gates",
-                      "--run-id", "s2-4", "--retry-check", "--config", '{"filter_hz": 20.0, "servo_model": "m1"}'])
+                      "--run-id", "s2-4", "--retry-check", "--config", '{"filter_hz": 20.0, "servo_model": "m1"}',
+                      "--expect-baseline", "stage2/tb/runs/s2-4/R0L_BASELINE.json"])
     log = seen.pop("log")
     assert code == 0 and callable(log) and seen == dict(
         mode="R6", body="75-M-H-10-X", seed=43, set_name="V6", out=str(tmp_path), job="ft", steps=5_000_000,
         resume=True, workers=3, monitor_every=500_000, monitor_also_k=(0, 2), lr=3e-5,
         config=dict(filter_hz=20.0, servo_model="m1"), gates=False, allow_version_change=True,
-        allow_source_change=True, parent="/runs/jobs/p:40001536", tiny=False, run_id="s2-4", retry_check=True)
+        allow_source_change=True, parent="/runs/jobs/p:40001536", tiny=False, run_id="s2-4", retry_check=True,
+        expect_baseline="stage2/tb/runs/s2-4/R0L_BASELINE.json")
     assert stub._parent_of("/runs/jobs/p:40001536") == (Path("/runs/jobs/p"), 40_001_536)
     # the overrides reach every env config untouched (the stub's configs take any field)
     monkeypatch.setenv("STUB_SET_FILE", str(tmp_path / "set.json"))
@@ -1316,7 +1424,7 @@ def test_the_cli_hands_its_arguments_to_train(stub, tmp_path, monkeypatch):
     seen.clear()
     assert stub.main(["run", "--mode", "R5", "--body", "b", "--seed", "42", "--out", str(tmp_path)]) == 0
     assert (seen["monitor_every"], seen["workers"], seen["gates"], seen["tiny"], seen["set_name"],
-            seen["retry_check"]) == (2_500_000, None, True, False, "V6", False)
+            seen["retry_check"], seen["expect_baseline"]) == (2_500_000, None, True, False, "V6", False, None)
     assert stub.CHECKPOINT_EVERY == 250_000 and stub.N_ENVS == 8 and stub.N_STEPS == 1024
 
 
@@ -1635,7 +1743,8 @@ def test_the_resume_takes_an_allowance_from_the_runs_record(stub, tmp_path):
     """``SOURCE_ALLOWANCE_RULE`` on a run.json made by hand: sources an earlier session given the parameter ran on
     are allowed without it, also when they are not the last session's (the allowance holds for the rest of the run
     for the same sources); sources only the first session ran on are not; a run.json without ``sources_allowed``
-    takes the sessions that resumed with the parameter."""
+    takes the sessions that resumed with the parameter, also one that holds only ``source_change`` (the check of the
+    follow-ups of 17 Nov 2026, finding 3)."""
     from designlab.stage2 import s2load
 
     vers = s2load.versions()
@@ -1664,6 +1773,18 @@ def test_the_resume_takes_an_allowance_from_the_runs_record(stub, tmp_path):
     assert stub.allowed_sources(dict(sessions=sess)) == {"B": 1, "C": 2}
     assert stub.allowed_sources(dict(sessions=sess[:1])) == {} and runner().source_allowance is None
     assert "SOURCE_ALLOWANCE_RULE" in stub.RESUME_RULE
+    # the check of the follow-ups of 17 Nov 2026, finding 3: a run.json without sources_allowed whose session
+    # resumed on moved sources (source_change) without the session's allow_source_change key: its sources are
+    # allowed too, and the resume on them takes that session's allowance
+    old = [dict(index=0, sources=dict(sha256="A"), versions=vers),
+           dict(index=1, sources=dict(sha256="F"), versions=vers, source_change=True),
+           dict(index=2, sources=dict(sha256="G"), versions=vers)]
+    assert stub.allowed_sources(dict(sessions=old)) == {"F": 1}
+    r = runner()
+    assert r._refuse_sources_versions(dict(sessions=old), dict(sha256="F", files={}), vers)["source_change"] is True
+    assert r.source_allowance == dict(sha256="F", by="sources_allowed", session=1)
+    with pytest.raises(stub.Refused, match="other sources.*pass --allow-source-change"):
+        runner()._refuse_sources_versions(dict(sessions=old), dict(sha256="A", files={}), vers)
 
 
 def test_a_refusal_without_its_note_and_a_refused_baseline(stub, tmp_path, monkeypatch):
@@ -1744,6 +1865,183 @@ def test_a_failed_baseline_halts_before_the_first_rollout(stub, tmp_path, monkey
     assert not (job(out) / "checkpoints").exists() and not (job(out) / "updates.jsonl").exists()
     prog = json.loads((job(out) / "progress.json").read_text())
     assert prog["status"] == "partial" and "R0L baseline could not be made" in prog["halt"]["reason"]
+
+
+def _committed(tmp_path, monkeypatch) -> Path:
+    """R0L's baseline as the gates' chain makes it before S2-4: ``monitor2 baseline`` without a job (here on the
+    stub's episodes, the stub's set, tiny), copied to the path rule M3 commits it under."""
+    from designlab.stage2 import monitor2, tbenv
+
+    for v in tbenv.THREAD_VARS:
+        monkeypatch.setenv(v, "1")
+    monkeypatch.setenv("STUB_DIGESTS", "1")
+    monkeypatch.setattr(monitor2, "_episodes", stub_episodes)
+    made = tmp_path / "work" / "s2-4-baseline"
+    assert monitor2.main(["baseline", "--body", "stub", "--set", "STUB", "--tiny", "--out", str(made)]) == 0
+    path = tmp_path / "runs" / "s2-4" / "R0L_BASELINE.json"
+    path.parent.mkdir(parents=True)
+    shutil.copy(made / "r0l.json", path)
+    return path
+
+
+def test_a_baseline_that_is_not_the_committed_one_stops_the_run_before_its_first_rollout(stub, tmp_path,
+                                                                                         monkeypatch):
+    """Rule M3 (the lead's ruling 17 of 17 Nov 2026): with ``--expect-baseline`` the run's own R0L baseline must
+    equal the committed one episode for episode (outcome, survival, state digest) before the first rollout.
+    Equal: the run trains, and run.json records the comparison.  Another survival, another digest, or a record
+    without digests: the run halts with exit code 5 and no step is trained; a resume with the same file halts
+    again."""
+    from designlab.stage2 import s2io
+
+    committed = _committed(tmp_path, monkeypatch)
+    sha = s2io.sha256_file(committed)
+    assert "rule M3" in stub.EXPECT_BASELINE_RULE and "--expect-baseline" in stub.__doc__
+    d = run(stub, tmp_path / "equal", gates=True, expect_baseline=str(committed))
+    assert d["status"] == "done" and d["num_timesteps"] == FINAL and d["halt"] is None
+    assert d["settings"]["expect_baseline"] == sha and d["rules"]["expect_baseline"] == stub.EXPECT_BASELINE_RULE
+    (e,) = d["baseline_expected"]
+    assert (e["session"], e["sha256"], e["equal"], e["episodes"], e["digests_compared"], e["differ"]) == (
+        0, sha, True, 6, True, [])
+    assert e["record_sha256"] == json.loads(committed.read_text())["sha256"]
+    assert e["baseline_sha256"] == d["baseline"]["sha256"] != e["record_sha256"]  # (two records, equal episodes)
+    assert d["sessions"][0]["expect_baseline"] == dict(path=s2io.portable(str(committed.resolve())), sha256=sha)
+    assert run(stub, tmp_path / "plain", gates=True)["settings"]["expect_baseline"] is None
+    # another survival (and so another digest): the run halts before its first rollout
+    monkeypatch.setenv("STUB_R0L_SURVIVAL", "9.0")
+    out = tmp_path / "differs"
+    with pytest.raises(stub.Halt, match="is not the committed one") as info:
+        run(stub, out, gates=True, expect_baseline=str(committed))
+    assert info.value.code == stub.EXIT_HALT and "walk/nominal seed 6001: survival_s, state_digest" in str(info.value)
+    d = doc_of(out)
+    assert d["status"] == "partial" and d["halt"]["session"] == 0 and d["num_timesteps"] == 0
+    assert d["checkpoints"] == [] and d["baseline"]["record"] == "monitor/r0l.json"
+    assert not (job(out) / "checkpoints").exists() and not (job(out) / "updates.jsonl").exists()
+    assert [x["equal"] for x in d["baseline_expected"]] == [False]
+    assert json.loads((job(out) / "progress.json").read_text())["halt"]["reason"] == d["halt"]["reason"]
+    with pytest.raises(stub.Halt, match="is not the committed one"):  # (the same file again: the same halt)
+        run(stub, out, gates=True, resume=True, expect_baseline=str(committed))
+    d = doc_of(out)
+    assert [x["session"] for x in d["baseline_expected"]] == [0, 1] and d["num_timesteps"] == 0
+    monkeypatch.delenv("STUB_R0L_SURVIVAL")
+    # a state digest alone, and a committed record without digests
+    doc = json.loads(committed.read_text())
+    doc["episodes"][2]["state_digest"] = "0" * 64
+    other = tmp_path / "other_digest.json"
+    other.write_text(json.dumps(doc))
+    with pytest.raises(stub.Halt, match="turn/q90_left seed 6007: state_digest: rule M3"):
+        run(stub, tmp_path / "digest", gates=True, expect_baseline=str(other))
+    for ep in doc["episodes"]:
+        ep.pop("state_digest")
+    other.write_text(json.dumps(doc))
+    with pytest.raises(stub.Halt, match="the state digests were not compared"):
+        run(stub, tmp_path / "no_digest", gates=True, expect_baseline=str(other))
+
+
+def test_a_committed_baseline_with_a_condition_not_run_lets_the_run_train(stub, tmp_path, monkeypatch):
+    """The lead's ruling 33 of 17 Nov 2026 (the check of CT4, finding 1): rule M1 lets R0L's baseline hold a
+    condition not run (S2-4's case when the set marks a turn's reference not available, ruling 29), and
+    ``lookbar.episodes`` gives such an episode no state digest.  A committed baseline with one condition not run,
+    equal to the run's own on both sides, lets the run train: the digests are compared in every episode that ran.
+    A digest lost from an episode that ran still halts the run."""
+    monkeypatch.setenv("STUB_NOT_RUN", "turn/q90_left")
+    committed = _committed(tmp_path, monkeypatch)
+    doc = json.loads(committed.read_text())
+    assert [e["outcome"] for e in doc["episodes"]] == ["read", "read", "not_run", "read", "read", "read"]
+    assert doc["valid"] is True and doc["outcomes"]["not_run"] == 1
+    assert "state_digest" not in doc["episodes"][2] and doc["episodes"][2]["reason"].startswith("a fixture's reason")
+    assert all(len(e["state_digest"]) == 64 for i, e in enumerate(doc["episodes"]) if i != 2)
+    d = run(stub, tmp_path / "equal", gates=True, expect_baseline=str(committed))
+    assert d["status"] == "done" and d["num_timesteps"] == FINAL and d["halt"] is None
+    (e,) = d["baseline_expected"]
+    assert (e["session"], e["equal"], e["episodes"], e["digests_compared"], e["differ"]) == (0, True, 6, True, [])
+    assert [x["outcome"] for x in d["baseline"]["episodes"]] == ["read", "read", "not_run", "read", "read", "read"]
+    assert "in every episode that ran" in stub.EXPECT_BASELINE_RULE
+    assert d["rules"]["expect_baseline"] == stub.EXPECT_BASELINE_RULE
+    # the checks hold the condition not run as well, and are records
+    mon = json.loads((job(tmp_path / "equal") / "monitor" / "monitor_512.json").read_text())
+    assert mon["outcomes"]["not_run"] == 1 and mon["episodes"][2]["outcome"] == "not_run"
+    # an episode that ran and lost its digest in the committed file: the digests were not compared, the run halts
+    doc["episodes"][0].pop("state_digest")
+    other = tmp_path / "lost_digest.json"
+    other.write_text(json.dumps(doc))
+    with pytest.raises(stub.Halt, match="the state digests were not compared in every episode that ran"):
+        run(stub, tmp_path / "lost", gates=True, expect_baseline=str(other))
+
+
+def test_an_expected_baseline_is_refused_or_kept_as_a_setting(stub, tmp_path, monkeypatch):
+    """``--expect-baseline``: a file that is missing, cannot be read or is no baseline record, and one given to a
+    run without the gates, are refused before anything is written (exit code 4).  The file's sha256 is a setting of
+    the run: a resume without it, or with another file, is refused (rule K4); with it, the run goes on and the
+    comparison is made again."""
+    committed = _committed(tmp_path, monkeypatch)
+    cut = tmp_path / "cut.json"
+    cut.write_text(committed.read_text()[:200])
+    check = tmp_path / "a_check.json"
+    check.write_text(json.dumps(dict(json.loads(committed.read_text()), schema="s2-monitor-1")))
+    error = json.loads(committed.read_text())
+    error["episodes"][0]["outcome"] = "error"
+    errs = tmp_path / "an_error.json"
+    errs.write_text(json.dumps(error))
+    out = tmp_path / "out"
+    for path, why in ((tmp_path / "missing.json", "no such file"),
+                      (cut, r"the file cannot be read \(JSONDecodeError\)"),
+                      (check, "no baseline record: it is no committed R0L baseline"),
+                      (errs, r"R0L.s baseline holds episodes that are neither read nor fell "
+                             r"\(walk/nominal seed 6001: error\)")):
+        with pytest.raises(stub.Refused, match=re.escape(f"--expect-baseline {path}: ") + why) as info:
+            run(stub, out, gates=True, expect_baseline=str(path))
+        assert info.value.code == stub.EXIT_REFUSED and not out.exists()
+    with pytest.raises(stub.Refused, match="without the gates"):
+        run(stub, out, gates=False, expect_baseline=str(committed))
+    assert not out.exists()
+    # a setting of the run (rule K4)
+    cut_at(monkeypatch, stub, 640)
+    with pytest.raises(_Cut):
+        run(stub, out, gates=True, expect_baseline=str(committed))
+    monkeypatch.undo()
+    stub = install_again(monkeypatch, tmp_path)
+    monkeypatch.setenv("STUB_DIGESTS", "1")
+    sha = json.loads((job(out) / "run.json").read_text())["settings"]["expect_baseline"]
+    _refused(stub, out, f"other settings than the run's \\(expect_baseline: '{sha}' -> None\\)", gates=True)
+    moved = tmp_path / "moved.json"
+    moved.write_text(json.dumps(json.loads(committed.read_text()), indent=2))  # (equal episodes, other bytes)
+    _refused(stub, out, f"expect_baseline: '{sha}' -> '", gates=True, expect_baseline=str(moved))
+    d = run(stub, out, gates=True, resume=True, expect_baseline=str(committed))
+    assert d["status"] == "done" and d["sessions"][1]["resumed_from"] == 512
+    assert [(x["session"], x["equal"]) for x in d["baseline_expected"]] == [(0, True), (1, True)]
+
+
+def test_the_trainer_waits_for_its_monitor_child_without_a_timeout(monkeypatch):
+    """The lead's ruling 17 of 17 Nov 2026: the monitor child keeps no timeout.  A timeout would close a hung
+    attempt with an exit code (one of the two closed attempts of rule M1); a hang is ended by whoever watches the
+    run, who kills the job's process group, and the attempt never closed is an interruption.  The rule text says so
+    and ``_child`` waits without one."""
+    import types
+
+    from designlab.stage2 import train2
+
+    assert "without a timeout" in train2.CHILD_RULE and "timeout" not in train2.CHILD_RULE.split("without a")[0]
+    seen = []
+
+    class Child:
+        pid = 4242
+
+        def wait(self, *args, **kw):
+            seen.append(("wait", args, kw))
+            return 0
+
+        def kill(self):
+            seen.append(("kill",))
+
+    def popen(cmd, **kw):
+        seen.append(("popen", sorted(kw)))
+        return Child()
+
+    monkeypatch.setattr(train2, "subprocess", types.SimpleNamespace(Popen=popen, DEVNULL=subprocess.DEVNULL))
+    r = object.__new__(train2._Run)
+    r.session, r.tiny, r.also_k, r.source_allowance = dict(sources=dict(sha256="s" * 64)), False, (), None
+    assert r._child(["baseline", "--job", "j"]) == 0
+    assert seen == [("popen", ["cwd", "env", "stdin"]), ("wait", (), {})]
 
 
 def test_a_failed_set_task_weights_ends_the_session(stub, tmp_path, monkeypatch):
@@ -1839,7 +2137,7 @@ def test_sources():
     s = train2.sources()
     assert sorted(s["files"]) == sorted(train2.SOURCE_FILES) and len(s["sha256"]) == 64
     for m in ("tbenv", "schedules", "s2load", "r5lib", "r5core", "r5env", "g8a", "vecpool", "train2", "monitor2",
-              "clip2", "bar", "readings", "setio", "s2io", "motion"):
+              "clip2", "bar", "readings", "setio", "s2io", "motion", "servo", "g8s"):
         assert len(s["files"][f"designlab/stage2/{m}.py"]) == 64, m
     for m in ("direction_commands", "command_frame", "policy_loading", "curriculum/checkpoints"):
         assert len(s["files"][f"../../environments/shared/{m}.py"]) == 64, m

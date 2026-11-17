@@ -28,9 +28,12 @@ attempt; the sixth list of 16 Nov, 3, and the rulings of 17 Nov, 10 and 11).  ``
 ``MonitorRefusal`` before any episode when the sources are not the trainer's (kind ``sources``), when the run's
 ``run.json`` is missing, cannot be read or is no JSON object (``run``), when the checkpoint is not intact
 (``checkpoint``: no record, a record that cannot be read or has the wrong shape, a file that is not the one its
-record names), when the checkpoint is another run's (``other_run``) and when the row refuses the checkpoint while it
+record names), when the checkpoint is another run's (``other_run``), when the row refuses the checkpoint while it
 is built, before any episode (``ROW_REFUSALS``: ``s2rows.RowError``, kind ``row``; ``s2load.CheckpointError``, kind
-``checkpoint``, among them a fingerprint not reproduced at the row's load).  The CLI then leaves with its own exit
+``checkpoint``, among them a fingerprint not reproduced at the row's load), and when the set is a look set (or a
+version of one) whose G9-ref has not passed for the body on its latest freeze (``SET_REFUSALS``:
+``lookbar.LookSetRefused``, kind ``look_set``, which ``lookbar.episodes`` raises before the set is read: rule X1, the
+lead's ruling 31 of 17 Nov 2026, 6).  The CLI then leaves with its own exit
 code, ``EXIT_REFUSAL`` (8), and writes the reason beside where the record would be (``refusal_path``:
 ``monitor_<n>.refused.json``, the baseline's ``r0l.refused.json``); a later call of the same check takes that note
 away before it runs.  A row that refuses only after the check's episodes (the further delays of rule M6) is no
@@ -42,23 +45,26 @@ the gain of every check, G8b at its two named checks with the one fix, M5's stop
 with M3b's route), ``no_record`` (a check counted without a record after two closed attempts: its episodes are
 errors), ``is_record`` (what "a record" of a check is).
 
-**The stand-in on the Stage 1 view.**  ``lookbar`` and ``s2rows`` are merged (17 Nov 2026), so ``_episodes`` goes
-through them on every set, the Stage 1 view's included, and the stand-in is not reached from there: it is kept for
-a checkout without ``lookbar``, which cannot import it.  Then, on set ``S1`` only, ``_episodes`` runs
-``_stand_in``: the training env itself on the stock condition's plan, nominal plant, the
-delay k, with the zero action (R0L) or the checkpoint's deterministic actions.  Nothing is judged there: no episode
-succeeds in any reading, and survival, the fall and the clock are the env's.  The record names which of the two
-made its episodes (``episodes_by``).  On any other set a missing ``lookbar`` is an error.
+**Every set goes through ``lookbar``** (the lead's ruling 17 of 17 Nov 2026: the Stage 1 view's stand-in is
+deleted).  ``lookbar`` and ``s2rows`` are merged, so ``_episodes`` builds the row and runs the episodes through them
+on every set, the Stage 1 view's included; a checkout that cannot import ``lookbar`` runs no monitor (the import
+error is raised).  The record names its episodes' maker (``episodes_by``: ``EPISODES_BY``).
+
+**R0L's baseline without a job** (ruling 17).  ``baseline`` takes a job's directory only to name the run in its
+record and to refuse a ``run.json`` that cannot be read; without one (``--out`` then names the directory) it makes the
+baseline that rule M3 commits as ``R0L_BASELINE.json`` before S2-4 starts (the gates' chain, step V8), and the
+trainer compares S2-4's own baseline with that file (``train2 run --expect-baseline``).
 
     python -m designlab.stage2.monitor2 run --job DIR --steps N --body B --set S [--k 5] [--tiny] [--also-k 0,..]
                                             [--sources SHA256] [--out DIR]
-    python -m designlab.stage2.monitor2 baseline --job DIR --body B --set S [--k 5] [--tiny] [--also-k 0,..]
-                                            [--sources SHA256] [--out DIR]
+    python -m designlab.stage2.monitor2 baseline [--job DIR] --body B --set S [--k 5] [--tiny] [--also-k 0,..]
+                                            [--sources SHA256] [--out DIR]     (--out is required without --job)
     python -m designlab.stage2.monitor2 s2-10 --job DIR [--committed-baseline PATH] [--out PATH]
 
 (also reachable as ``python -m designlab.stage2.train2 monitor ...``).  Exit code 0: the record was written (for
-``baseline``: and holds no error); 1: no usable record, with the reason on stderr; 8: the monitor refused to run
-(**Refusals**): no attempt was made.
+``baseline``: and holds no error); 1: no usable record, with the reason on stderr; 2: the arguments are wrong (no
+``--out`` for a baseline without a job, among others); 8: the monitor refused to run (**Refusals**): no attempt was
+made.
 """
 
 from __future__ import annotations
@@ -91,14 +97,21 @@ REFUSAL_SCHEMA = "s2-monitor-refusal-1"
 #: the trainer or of a pool worker has it (0, 1, 2, 3, 4, 5, 130).
 EXIT_REFUSAL = 8
 #: What a refusal can be (``MonitorRefusal.kind``).
-REFUSALS = ("sources", "checkpoint", "other_run", "run", "row")
-#: How a row refuses a checkpoint while it is built (``lookbar.rows``, the stand-in's load), before any episode:
+REFUSALS = ("sources", "checkpoint", "other_run", "run", "row", "look_set")
+#: How a row refuses a checkpoint while it is built (``s2rows.configure``, ``lookbar.rows``), before any episode:
 #: (module, class name, refusal kind).  The class is looked up in ``sys.modules`` and never imported for it: an
 #: exception of that class can only have been raised once its module was loaded (``s2rows`` is merged; the row
 #: imports it while it is built).
 #: An exception of another class, of the same name or not, is no refusal (``_row_refusal``).
 ROW_REFUSALS = (("designlab.stage2.s2rows", "RowError", "row"),
                 ("designlab.stage2.s2load", "CheckpointError", "checkpoint"))
+#: How ``lookbar.episodes`` refuses the episodes before the set is read and before any episode (rule X1: a look set,
+#: or a version of one, whose G9-ref has not passed for the body on its latest freeze; the lead's ruling 31 of
+#: 17 Nov 2026, 6), in ``ROW_REFUSALS``' form.  Anything else that function raises is no refusal.
+SET_REFUSALS = (("designlab.stage2.lookbar", "LookSetRefused", "look_set"),)
+#: What makes a record's episodes (``episodes_by``): every set goes through ``lookbar`` (the lead's ruling 17 of
+#: 17 Nov 2026: the Stage 1 view's stand-in is deleted).
+EPISODES_BY = "lookbar.episodes"
 
 #: Rule M1: the bar's conditions of the monitor, in the order that gives each its seeds.
 CONDITIONS = ("walk/nominal", "walk/v0.4", "turn/q90_left", "stop/two_step", "nudge/forward", "nudge/left")
@@ -113,6 +126,11 @@ STEP_MS = 2
 #: The commanded clock (``tune.COMMAND_RATE``): a row that does not slow its clock covers 1.05 s of reference time
 #: per simulated second.
 RATE = 1.05
+#: Rule M3's credit (the lead's ruling 17 of 17 Nov 2026): a reference clock that covered at least 1.05 x the
+#: survival time, to within this share of it, covered it, and the credit is the survival time itself.  The share
+#: is float rounding only (the reference time is a sum of one increment per physics step: ~1e-13 of it over an
+#: episode); a clock that falls behind by one 2 ms physics step in 20 s is 1e-4 behind.
+CREDIT_RTOL = 1e-9
 OUTCOMES = ("read", "fell", "unread", "error")
 NOT_RUN = "not_run"
 #: Rule M4: "up" is an episode that did not fall and is no error.
@@ -152,9 +170,12 @@ RULES = dict(
     survival=(
         "rule M3: an episode's credited survival is its survival time (the fall time, or the episode's length) "
         "times min(1, reference time covered / (1.05 x survival time)): the survival time itself for a row that "
-        "does not slow its clock.  S is the mean over the episodes; N the number succeeding with the look (reading "
-        "1).  Printed beside: the counts in readings 2 and 3, the count succeeding but for A1 with the look bands "
-        "kept, and the plain mean survival, which decide nothing.  The credit needs the episode's clock times "
+        "does not slow its clock.  A clock that covered at least 1.05 x the survival time, to within 1e-9 of it "
+        "(float rounding), is credited the survival time itself, so that R0L's S is exactly its plain mean "
+        "survival (the lead's ruling 17 of 17 Nov 2026).  S is the mean over the episodes; N the number succeeding "
+        "with the look (reading 1).  Printed beside: the counts in readings 2 and 3, the count succeeding but for "
+        "A1 with the look bands kept, and the plain mean survival, which decide nothing.  The credit needs the "
+        "episode's clock times "
         "(clock.t_ref_reached, clock.t_ref_planned) and its planned length: a policy row's episode that ended read, "
         "fell or unread and came back without them is not credited its survival time (a slowed clock would buy "
         "it); its table is no record of the check.  R0L, which has no clock to slow, is then credited its survival "
@@ -190,19 +211,21 @@ RULES = dict(
         "attempt and is not one of the two (refusal)"),
     refusal=(
         "rule M1 with the lead's ruling of 16 Nov 2026, 19:01 UTC (the fifth list, 6) and the sixth list of 16 Nov "
-        "2026 (3): a monitor that refuses to run is no attempt.  It refuses, before any episode, when its sources "
-        "are not the ones the trainer hashed (the checkout moved under the run), when the run's run.json is missing, "
+        "2026 (3): a monitor that refuses to run is no attempt.  It refuses, before any episode, when its sources are "
+        "not the ones the trainer hashed (the checkout moved under the run), when the run's run.json is missing, "
         "cannot be read or is no JSON object, when the checkpoint is not intact (no record, a record that cannot be "
         "read or has the wrong shape: its files, and a layout and a fingerprint object, the rulings of 17 Nov 2026, "
-        "12; or a file that is not the one its record names), when the checkpoint is "
-        "another run's (its run_uuid or settings hash is not the run's), and when the row refuses the checkpoint "
-        "while it is built (s2rows.RowError; s2load.CheckpointError: among them a fingerprint not reproduced at the "
-        "row's load).  The monitor then leaves with exit code 8 and writes its reason to monitor_<n>.refused.json "
-        "(the baseline: r0l.refused.json).  The trainer closes the attempt with that exit code, marks it refused "
-        "with the reason, does not count it toward the two closed attempts after which a check counts as without a "
-        "gain, and halts with exit code 5: the run goes to the lead, and a resume runs the check again (a resume "
-        "with --retry-check when the refused attempt was the one that parameter let run; a halt for moved sources, "
-        "the monitor's own or the row's rule K9, names --allow-source-change, which resolves it)"),
+        "12; or a file that is not the one its record names), when the checkpoint is another run's (its run_uuid or "
+        "settings hash is not the run's), when the row refuses the checkpoint while it is built (s2rows.RowError; "
+        "s2load.CheckpointError: among them a fingerprint not reproduced at the row's load), and when the set is a "
+        "look set, or a version of one, whose G9-ref has not passed for the body on its latest freeze (rule X1: "
+        "lookbar.LookSetRefused, raised before the set is read; the lead's ruling 31 of 17 Nov 2026, 6).  The monitor "
+        "then leaves with exit code 8 and writes its reason to monitor_<n>.refused.json (the baseline: "
+        "r0l.refused.json).  The trainer closes the attempt with that exit code, marks it refused with the reason, "
+        "does not count it toward the two closed attempts after which a check counts as without a gain, and halts with "
+        "exit code 5: the run goes to the lead, and a resume runs the check again (a resume with --retry-check when "
+        "the refused attempt was the one that parameter let run; a halt for moved sources, the monitor's own or the "
+        "row's rule K9, names --allow-source-change, which resolves it)"),
     sources=(
         "the trainer hashes its sources once per session and gives the hash to this process, which refuses to run "
         "if its own differs (train2.sources)"),
@@ -281,9 +304,11 @@ def _num(x, default: float = 0.0) -> float:
 def survival_credit(e: dict) -> float:
     """Rule M3's S of one episode: ``survival_s x min(1, reference time covered / (1.05 x survival_s))``.  The
     reference time covered is ``clock.t_ref_reached`` less the track's start, ``clock.t_ref_planned - 1.05 x
-    planned_s``; an episode whose record holds no clock times is credited its survival time: that is R0L's case
-    alone, for ``run`` takes no policy row's table that holds such an episode (``has_clock``; ``_checked``).  An
-    *error* and a condition that was not run are credited 0."""
+    planned_s``.  A clock that covered at least 1.05 x ``survival_s`` (to within ``CREDIT_RTOL`` of it: float
+    rounding) is credited the survival time itself, not a product that rounds below it: R0L's S is then exactly
+    its mean survival (the lead's ruling 17 of 17 Nov 2026).  An episode whose record holds no clock times is
+    credited its survival time: that is R0L's case alone, for ``run`` takes no policy row's table that holds such
+    an episode (``has_clock``; ``_checked``).  An *error* and a condition that was not run are credited 0."""
     if e.get("outcome") in ("error", NOT_RUN):
         return 0.0
     surv = _num(e.get("survival_s"))
@@ -294,7 +319,10 @@ def survival_credit(e: dict) -> float:
     if reached is None or planned is None or e.get("planned_s") is None:
         return surv
     covered = _num(reached) - (_num(planned) - RATE * _num(e["planned_s"]))
-    return surv * min(1.0, max(0.0, covered) / (RATE * surv))
+    full = RATE * surv
+    if covered >= full * (1.0 - CREDIT_RTOL):
+        return surv
+    return surv * max(0.0, covered) / full
 
 
 def has_clock(e: dict) -> bool:
@@ -531,22 +559,38 @@ def baseline_problem(doc) -> str | None:
     return ("R0L's baseline holds episodes that are neither read nor fell (" + "; ".join(bad) + ")") if bad else None
 
 
+#: The keys an episode holds its state digest under (``lookbar``'s ``state_digest``; ``digest``).
+DIGEST_KEYS = ("state_digest", "digest")
+
+
+def digest_compared(x: dict, y: dict) -> bool:
+    """Whether two episodes' state digests are compared (the lead's ruling 33 of 17 Nov 2026): under one of
+    ``DIGEST_KEYS`` both hold a non-empty string (a digest of None, which ``lookbar`` writes when taking it
+    raised, is none)."""
+    return any(isinstance(x.get(k), str) and x[k] != "" and isinstance(y.get(k), str) and y[k] != ""
+               for k in DIGEST_KEYS)
+
+
 def baseline_equal(r0l: dict, committed: dict) -> dict:
     """Rule M3: S2-4's own ``monitor/r0l.json`` against the committed ``R0L_BASELINE.json``, episode for episode:
-    the outcome, the survival and, where both hold one, the state digest."""
+    the condition, the seed, the outcome, the survival and, where both hold one, the state digest.
+    ``digests_compared`` (the lead's ruling 33 of 17 Nov 2026): the digests were compared in every episode that
+    ran, that is in every pair of which at least one episode ran (its outcome is not ``NOT_RUN``) both hold one
+    (``digest_compared``); two episodes not run (``lookbar`` gives a condition without a reference no digest) are
+    compared on their outcome and survival alone.  False when no episode ran."""
     a, b = list(r0l.get("episodes") or []), list(committed.get("episodes") or [])
-    differ = []
+    differ, ran = [], []
     if len(a) != len(b):
         differ.append(f"{len(a)} episodes against {len(b)}")
     for x, y in zip(a, b, strict=False):
         keys = ["condition", "seed", "outcome", "survival_s"]
-        keys += [k for k in ("state_digest", "digest") if k in x and k in y]
+        keys += [k for k in DIGEST_KEYS if k in x and k in y]
         bad = [k for k in keys if x.get(k) != y.get(k)]
         if bad:
             differ.append(f"{x.get('condition')} seed {x.get('seed')}: {', '.join(bad)}")
-    return dict(equal=not differ, episodes=len(a), differ=differ,
-                digests_compared=bool(a) and all(("state_digest" in x and "state_digest" in y) or
-                                                 ("digest" in x and "digest" in y) for x, y in zip(a, b, strict=False)))
+        if x.get("outcome") != NOT_RUN or y.get("outcome") != NOT_RUN:
+            ran.append(digest_compared(x, y))
+    return dict(equal=not differ, episodes=len(a), differ=differ, digests_compared=bool(ran) and all(ran))
 
 
 def s2_10(final: dict, earlier: list, baseline: dict) -> dict:
@@ -580,11 +624,11 @@ def s2_10(final: dict, earlier: list, baseline: dict) -> dict:
 # ------------------------------------------------------------------------------------------------
 # The episodes (the one indirection to lookbar and s2rows)
 # ------------------------------------------------------------------------------------------------
-def _row_refusal(exc: BaseException) -> str | None:
+def _row_refusal(exc: BaseException, table: tuple = ROW_REFUSALS) -> str | None:
     """The refusal kind of an exception raised while a row is built (``ROW_REFUSALS``), or None: an instance of
     ``s2rows.RowError`` (``row``) or of ``s2load.CheckpointError`` (``checkpoint``), each class looked up in
-    ``sys.modules``."""
-    for module, name, kind in ROW_REFUSALS:
+    ``sys.modules``.  With ``table`` ``SET_REFUSALS``: of one that ``lookbar.episodes`` raised."""
+    for module, name, kind in table:
         cls = getattr(sys.modules.get(module), name, None)
         if isinstance(cls, type) and isinstance(exc, cls):
             return kind
@@ -600,19 +644,17 @@ def _episodes(body: str, set_name: str, row: str, pairs: list, policies: dict | 
     """One companion episode per ``(condition key, seed)`` of ``pairs`` under the row ``row`` (``R0L@10ms``, or a
     checkpoint's ``R5/42@10ms`` with ``policies = {"R5/42": {"job_dir", "steps"}}``): ``lookbar.episodes`` on
     ``lookbar.rows(body, [row])`` after ``s2rows.configure(policies)``.  ``traces``: where the episodes' traces
-    go.  ``lookbar`` is merged, so ``_stand_in`` serves set ``S1`` only in a checkout without it (module docstring).
+    go.  Every set, the Stage 1 view's included, goes through ``lookbar`` (module docstring): there is no stand-in,
+    and a checkout that cannot import ``lookbar`` raises its import error.
 
     The row is built before any episode: a ``ROW_REFUSALS`` exception raised there (by ``s2rows.configure`` or
-    ``lookbar.rows``) is the monitor's ``MonitorRefusal``.  Whatever ``lookbar.episodes`` raises is not (an
+    ``lookbar.rows``) is the monitor's ``MonitorRefusal``.  So is a ``SET_REFUSALS`` exception raised by
+    ``lookbar.episodes`` (``lookbar.LookSetRefused``: rule X1, checked before the set is read and before any
+    episode; the lead's ruling 31 of 17 Nov 2026, 6).  Whatever else ``lookbar.episodes`` raises is not (an
     episode's own fault is an *error* in its table)."""
     import importlib
 
-    try:
-        lookbar = importlib.import_module("designlab.stage2.lookbar")
-    except ModuleNotFoundError as exc:
-        if exc.name != "designlab.stage2.lookbar" or set_name != S1_SET:
-            raise
-        return _stand_in(body, row, pairs, policies)
+    lookbar = importlib.import_module("designlab.stage2.lookbar")
     try:
         if policies:
             s2rows = importlib.import_module("designlab.stage2.s2rows")
@@ -624,91 +666,14 @@ def _episodes(body: str, set_name: str, row: str, pairs: list, policies: dict | 
         if kind is None:
             raise
         raise _row_refused(row, kind, exc) from exc
-    return lookbar.episodes(body, set_name, rows, list(pairs), traces=traces)
-
-
-def _episodes_by(set_name: str) -> str:
-    import importlib.util
-
-    if importlib.util.find_spec("designlab.stage2.lookbar") is not None:
-        return "lookbar.episodes"
-    if set_name == S1_SET:
-        return ("monitor2._stand_in: lookbar is not importable; the training env's own episodes on the Stage 1 "
-                "view, nothing judged (development only)")
-    return "none: lookbar is not importable"
-
-
-def _stand_in(body: str, row: str, pairs: list, policies: dict | None) -> list:
-    """The Stage 1 view's stand-in for ``lookbar.episodes`` (module docstring): per pair one episode of the
-    training env on the stock condition's plan (``panels.Planner``: no plant of the panels is built), nominal
-    plant, stance start with the panels' start and noise seeds, the row's delay, interference termination off (the
-    bar has none); R0L by the zero action, a checkpoint by its deterministic actions through
-    ``s2load.normalize``.  Nothing is judged: every reading is False.  The checkpoint is loaded before any episode:
-    a ``CheckpointError`` there (a fingerprint not reproduced at the row's load, among others) is a refusal."""
-    import numpy as np
-
-    from designlab.stage1 import panels
-    from designlab.stage2 import r5env, r5lib, s2load, setio
-
-    name, _, ms = row.partition("@")
-    k = int(round(float(ms[:-2]) / STEP_MS))
-    mode, model, stats = "R5", None, None
-    base = dict(body=body, set=S1_SET, mode=mode, tasks=("stand",))
-    if name != "R0L":
-        mode = name.split("/", 1)[0]
-        pol = (policies or {})[name]
-        try:
-            ck = s2load.load_checkpoint(pol["job_dir"], int(pol["steps"]))
-        except s2load.CheckpointError as exc:  # (ROW_REFUSALS: the stand-in's load is the row's)
-            raise _row_refused(row, "checkpoint", exc) from exc
-        model, stats = ck["model"], ck["stats"]
-        # the run's own env config (its tasks: R6's joint spans are taken over the env's task scripts)
-        base = dict(_job_doc(pol["job_dir"])["settings"]["env_configs"][0])
-    run_dir = setio._anchored(r5lib.s1_root(body)) / body
-    _, docs = setio.stage1_view(run_dir.parent, body)
-    planner = panels.Planner(run_dir, docs["refs.json"]["references"], docs["transitions.json"]["transitions"])
-    conds = {c.key: c for c in panels.conditions()}
-    envs: dict = {}
-    out = []
-    for key, seed in pairs:
-        cond = conds[key]
-        if cond.floor not in envs:
-            cfg = r5env.config_from(dict(base, mode=mode, floor=cond.floor, randomize=False, push_prob=0.0,
-                                         head_events=False, mid_start=0.0))
-            envs[cond.floor] = r5env.make(mode, cfg)
-        e = envs[cond.floor]
-        res = planner.resolve(cond)
-        seeds = panels.episode_seeds(cond, int(seed))
-        obs, _ = e.reset(seed=0, options=dict(
-            plan=res["plan"], seconds=float(res["seconds"]), start="stance",
-            seeds=dict(start=seeds["start"], noise=seeds["noise"]),
-            factors=dict(friction=cond.friction, mass=1.0, kp=1.0, joint_damping=1.0, joint_friction=1.0,
-                         latency_steps=k, noise_scale=1.0),
-            push=None, head=None, terminate_on_interference=False))
-        actor = e.layout["actor_dim"]
-        zero = np.zeros(e.layout["action_dim"], np.float32)
-        t0, factors = float(e.tk.tau_ref), []
-        while True:
-            if model is None:
-                a = zero
-            else:
-                a, _ = model.predict(s2load.normalize(stats, obs[:actor]), deterministic=True)
-            obs, _, terminated, truncated, info = e.step(a)
-            factors.append(float(info["clock_factor"]))
-            if terminated or truncated:
-                break
-        planned = float(res["seconds"])
-        survival = float(e.k_env * e.dt_env) if terminated else planned
-        e.close()
-        out.append(dict(
-            condition=key, seed=int(seed), outcome="fell" if terminated else "read", reason=None,
-            fell=bool(terminated), survival_s=survival, planned_s=planned, succeeded=False, succeeded_but_A1=False,
-            succeeded_look=False, succeeded_but_A1_look=False, failed_terms=["not_judged"], look=None,
-            clock=dict(mean_factor=float(np.mean(factors)), min_factor=float(np.min(factors)),
-                       t_ref_reached=t0 + (float(e.tk.tau_ref) - t0) * min(1.0, survival / (e.k_env * e.dt_env)),
-                       t_ref_planned=t0 + RATE * planned),
-            error=None, fall_cause=info.get("fall_cause"), env_steps=int(e.k_env), stand_in=True))
-    return out
+    try:
+        return lookbar.episodes(body, set_name, rows, list(pairs), traces=traces)
+    except Exception as exc:
+        kind = _row_refusal(exc, SET_REFUSALS)
+        if kind is None:
+            raise
+        raise MonitorRefusal(kind, f"the look set {set_name} refused the row {row} before any episode "
+                                   f"({type(exc).__name__}: {exc})") from exc
 
 
 # ------------------------------------------------------------------------------------------------
@@ -875,7 +840,7 @@ def run(job_dir, steps, body, set_name, out, k=K, tiny=False, also_k=(), sources
         pairs=[[c, s] for c, s in pairs], fix_tasks=fix_tasks_for(set_name),
         checkpoint=dict(steps=n, files=ck["files"]), checkpoint_sha256=checkpoint_hashes(ck), episodes=eps,
         **summarize(eps), also=_also(body, set_name, mode, seed, pairs, policies, also_k, k),
-        traces="traces/%d" % n if traces.is_dir() else None, episodes_by=_episodes_by(set_name),
+        traces="traces/%d" % n if traces.is_dir() else None, episodes_by=EPISODES_BY,
         sources=src, flags=dict(job.get("flags") or {}),
         rules={key: RULES[key] for key in ("episodes", "outcomes", "survival", "sources")},
         provenance=s2io.git_state(own_outputs=[str(job_dir.resolve())]), versions=installed_versions(),
@@ -901,7 +866,7 @@ def baseline(body, set_name, out, k=K, tiny=False, also_k=(), sources_sha256=Non
         run_id=job.get("run_id"), body=body, set=set_name, row=row, k=int(k), tiny=bool(tiny),
         conditions=list(conditions_for(set_name)), pairs=[[c, s] for c, s in pairs], episodes=eps, **summarize(eps),
         also=_also(body, set_name, None, None, pairs, None, also_k, k),
-        traces="traces/r0l" if traces.is_dir() else None, episodes_by=_episodes_by(set_name),
+        traces="traces/r0l" if traces.is_dir() else None, episodes_by=EPISODES_BY,
         sources=src, rules={key: RULES[key] for key in ("episodes", "outcomes", "survival", "sources")},
         provenance=s2io.git_state(own_outputs=[str(Path(job_dir).resolve())] if job_dir is not None else [str(out)]),
         versions=installed_versions(), wall_s=time.perf_counter() - t0, at=s2io.now_utc())
@@ -953,7 +918,9 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     for name in ("run", "baseline"):
         a = sub.add_parser(name, help="the checkpoint's episodes" if name == "run" else "R0L on the same episodes")
-        a.add_argument("--job", required=True, help="the job's directory (<root>/jobs/<job>)")
+        a.add_argument("--job", required=name == "run", default=None,
+                       help="the job's directory (<root>/jobs/<job>)" + ("" if name == "run" else
+                                                                        "; a baseline without a job needs --out"))
         if name == "run":
             a.add_argument("--steps", type=int, required=True)
         a.add_argument("--body", required=True)
@@ -962,12 +929,15 @@ def main(argv=None) -> int:
         a.add_argument("--tiny", action="store_true")
         a.add_argument("--also-k", default="", help="further delays, reported (rule M6), e.g. 0")
         a.add_argument("--sources", default=None, help="the trainer's sources hash")
-        a.add_argument("--out", default=None, help="default: <job>/monitor")
+        a.add_argument("--out", default=None, help="default: <job>/monitor" + ("" if name == "run" else
+                                                                                  " (required without --job)"))
     a = sub.add_parser("s2-10", help="S2-10's one record from a job's records")
     a.add_argument("--job", required=True)
     a.add_argument("--committed-baseline", default=None)
     a.add_argument("--out", default=None, help="default: <job>/S2_10.json")
     args = ap.parse_args(argv)
+    if args.cmd == "baseline" and args.job is None and args.out is None:  # (the lead's ruling 17 of 17 Nov 2026)
+        ap.error("baseline: without --job, --out names the directory of R0L's record")
     s2io.require_one_thread()
     note = steps = None
     try:
@@ -1002,12 +972,15 @@ def main(argv=None) -> int:
         return 1
 
 
-__all__ = ["ATTEMPTS", "BASELINE_SCHEMA", "CONDITIONS", "EXIT_REFUSAL", "FIX_TASKS", "G8B_AGAIN_AT", "G8B_AT",
+__all__ = ["ATTEMPTS", "BASELINE_SCHEMA", "CONDITIONS", "CREDIT_RTOL", "DIGEST_KEYS", "EPISODES_BY", "EXIT_REFUSAL",
+           "FIX_TASKS",
+           "G8B_AGAIN_AT", "G8B_AT",
            "G8B_CONDITION", "K", "MonitorError", "MonitorRefusal", "OUTCOMES", "REFUSALS", "REFUSAL_SCHEMA",
            "ROW_REFUSALS", "RULES",
-           "S1_CONDITIONS", "S1_FIX_TASKS", "S2_10_SCHEMA", "SCHEMA",
+           "S1_CONDITIONS", "S1_FIX_TASKS", "S2_10_SCHEMA", "SCHEMA", "SET_REFUSALS",
            "SEEDS", "STOP_CHECKS", "STOP_FROM", "baseline", "baseline_equal", "baseline_problem",
-           "checkpoint_hashes", "conditions_down", "conditions_for", "decide", "fix_tasks_for", "fix_weights", "g8b",
+           "checkpoint_hashes", "conditions_down", "conditions_for", "decide", "digest_compared", "fix_tasks_for",
+           "fix_weights", "g8b",
            "gain", "has_clock", "installed_versions", "is_record", "main", "need_up", "no_record", "pairs_for",
            "refusal_path", "row_name", "rules", "run", "s2_10",
            "seeds_for", "summarize", "survival_credit", "write_s2_10"]

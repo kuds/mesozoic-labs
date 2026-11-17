@@ -658,3 +658,108 @@ and the chain's `--resume` on V10); the servo model's S1 low points and S2 (the 
   For the owner later: the left turns of the look sets (by the review's scratch numbers 4.62 mm on the causal grid,
   against the owner's 4.0 mm limit of P34), with the rebuilt numbers.
 - **Meter:** $3,012 at 06:44 UTC, about 64.5 % of the week.
+
+## Update, 17 Nov 2026, ~10:00 UTC
+
+- **Merged and pushed since 07:00:** LB16, CG2, CN3 (32b5ecc5; merged tests 60, 43, 66 passed); the start's law
+  (ruling 18; cherry-picked c5544698..7cb824ec; merged tests 298 passed, 9 skipped): every look start now passes
+  on a scratch build (75 cm knee 0.80, 0.85, 0.79; 60 cm 0.92, 0.98, 0.90 of the limit); wave 8, i.e. CT5, CN4,
+  CF2, LT (96d38d2d; merged tests 47, 36, 94, 68, 86 passed; run_trackb.sh syntax ok). Hashes the registered pair
+  throughout. Disk cleared from 99 % to 60 % (old scratch deleted).
+- **Ruled:** 31–38 (the look sets' rule in lookbar; G9-ref; the trainer; the sheet; CF; the start's law; the
+  placement wherever turns and stops are played; wave 8's points). Old texts updated: G9-ref (f) and (a) in the
+  draft and the design, X1, M3.
+- **Running:** wf_348ef162-856 (look-set rebuild: code of rulings 28, 32 A, 36 committed on wt/wp-l at 07347c77;
+  75 cm tail phases rebuilt; the three 75 cm records building; then their check; then 60 cm and its check);
+  wf_2b4a8be6-560 (LT2: placement-only context for G9-ref (a), G8a, the equivalence check and R2L's fit; F1 and F2;
+  four commits so far on wt/wpc-cw).
+- **Owed next:** merge LT2 and the rebuild as their checks allow; draft the owner's questions from the rebuilt
+  numbers (the left turns against P34's 4.0 mm; any start or change still failing, the 60 cm change to 0.40 m/s
+  most likely; the turn in place); then freeze (lead), G9-ref, the validation steps, S2-4, bundle, acceptance run.
+- **Meter:** $3,162 at 09:50 UTC, about 68.3 % of the week.
+
+## Update, 17 Nov 2026, ~13:00 UTC: usage
+
+- The owner's reading at 12:56 UTC: **75 % of the week** at $3,303.08 on the session meter. The calibration is
+  refitted: 1 % is about $32, so 85 % is about $3,623 and 95 % about $3,943. At today's pace, about 1.4 % an hour,
+  85 % is about 7 hours away. The rate-limit status turned "allowed_warning" at the same time.
+- Since 10:00 UTC: LT2, LT3, LT4 and servo S2 are merged (merged tests pass; hashes the registered pair); servo S3 is
+  built and in a fix round (fifth list); the three 75 cm look sets are rebuilt (wt/wp-l a3ea12c0, not frozen), and
+  their check is running, with the 60 cm rebuild after it.
+- Priority while usage lasts: what brings training closest. That is the look sets merged and frozen, the owner's
+  question on V6's left turns, G9-ref, the validation steps and S2-4. The servo work for gate 1 (S4) comes after.
+
+## Update, 17 Nov 2026, ~17:15 UTC: usage
+
+- The owner's second reading: **79 %** at $3,401.33 (17:14 UTC). Refitted: 1 % is about $25, so 85 % is about $3,551
+  and 95 % about $3,801. Pace about 1 % an hour. Scheduled check-ins written before this carry the older figures
+  ($32 a point); use these.
+- State: the 75 cm look sets under P42 are built (wt/wp-p42 at 4ad729c5); their check is running. The 60 cm rebuild
+  is on its last set (V6/60 and V6noF5/60 are stopped at nominal_to_v0.4, as before). After the check: freeze the
+  75 cm sets, G9-ref, then the validation steps V2 to V7, then S2-4.
+
+## Update, 17 Nov 2026, ~19:20 UTC: the 75 cm look sets frozen, validation done, S2-4 running
+
+- **Owner's decisions today:**
+  - P42: on the look sets the warm-up join reading is held to 5.0 mm, so V6's left turns are available.
+  - P43: the 60 cm look sets are parked until the 75 cm training runs. Their records stay on wt/wp-l; their check
+    said merge after a test-only fix, by cherry-pick.
+- **75 cm look sets:** V6/75-M-H-10, V6noF5/75-M-H-10 and V6/75-M-H-10-X are frozen (freeze 0, mixed sources
+  accepted by ruling 41). G9-ref passed on each.
+- **Validation of 75-M-H-10 on V6 (merged 26674562, checked sound):**
+  - G8a passed: 32 of 32 episodes identical.
+  - R0L's records ran on 13 conditions; the 4 quick turns were not run.
+  - G9-run passed after the code fix of ruling 42 (merged ea6c0a94).
+  - Filter 10 Hz; learning rate 1e-5.
+  - gl-start, r6-start and kill-resume (K3) passed.
+  - Rates, provisional: about 536, 577 and 729 env steps/s at 2, 3 and 4 workers; 1 to 2 GB per worker.
+- **Servo:** S1 to S3 are merged, S3 being gate 1's runner and the served rows SV0 and SV2. S4 (measuring) waits for
+  the training path.
+- **Running:** wf_febb2c1a-ba8, S2-4 in wt/wp-p42: the R0L baseline committed, then 2,000,000 steps of R5 on
+  75-M-H-10 (V6, seed 42, 3 workers), collect, S2-10, then an independent check.
+- **Next after a go:**
+  - V11, the bundle;
+  - V0b, the upload route (the owner approves each upload);
+  - V12, the acceptance run;
+  - V13, the steps sheet;
+  - then the owner's day-one Colab smoke.
+- **Meter:** 79 % at $3,401 (owner's reading, 17:14 UTC); 1 % is about $25; 85 % is about $3,551.
+
+## Update, 17 Nov 2026, ~21:35 UTC: launch preparation (handover)
+
+- **Owner's decisions since 19:20 UTC:**
+  - P44: go on to Colab after S2-4's no gain. S2-4 ran 2,007,040 steps; at 2.0 M, 14 of 15 episodes stayed up with
+    mean survival 25.04 s, but N was 0 against the baseline's 6.
+  - P45: Drive uploads approved.
+  - P46: the bundle reaches Colab on a data branch, because the Drive connector carries only about 3.1 MB per file
+    (`stage2/tb/validation/drive_route.json`). A 170 kB dummy file is left on the owner's Drive in
+    mesozoic-labs/stage2/route-test.
+- **Rulings:** 43 (the trainer fix; S2-4 started afresh) and 44 (launch series 1 is the plain 75 cm head only; the -X
+  head's learning-rate probe runs now because of rule O; the sheet names the rules by path and sha256 at C1).
+- **Bundle s2-b1:** 75-M-H-10, V6 freeze 0, content 9227d8a0bf0b…, 3 parts (models 972,800 bytes; V6 parts
+  16,281,600 and 16,558,080 bytes). Checked sound and deterministic.
+  - C1 candidate: b914088bee0507f5d90a7333d157a6b72491dd36.
+  - Data branch: `claude/mesozoic-trex-stage2-bundle-s2-b1` at ecf95a81. It is pushed, and a fresh fetch gives each
+    part's sha256 as built.
+  - Worktree of the data branch: /home/user/mesozoic-wt/bundle-s2-b1.
+- **Running:** wf_3015694a-f41, rule O's learning-rate probe on 75-M-H-10-X, with a check that returns body_rate. If
+  the body's rate for later runs changes from 1e-5, C1 becomes the commit that holds the new `lr_probe.json`.
+- **Next:**
+  - V12, the acceptance run from a fresh clone of C1 with BUNDLE_SOURCE `git:<data branch>`;
+  - V13, the steps sheet C2: C1's SHA, the tag s2-launch-1, the bundle id and content hash, BUNDLE_SOURCE git, the
+    queue for 75-M-H-10 only, and the rules by sha256;
+  - then the sheet goes to the owner for the day-one Colab smoke.
+- **Parked:** 60 cm (P43); servo S4; the -X preconditions (V0); add-on items B and C; R2L fits (V10).
+- **Meter:** 79 % at $3,401 (owner, 17:14 UTC); 1 % is about $25; $3,505 at 21:33 UTC is about 83.1 %; 85 % is
+  about $3,551.
+
+## Update, 17 Nov 2026, ~22:50 UTC (handover)
+
+- C1 (first) = b7527a66; data branch `claude/mesozoic-trex-stage2-bundle-s2-b1` (ecf95a81) holds the parts of s2-b1
+  (content 9227d8a0bf0b…).
+- The acceptance run on b7527a66 passed 35 of 36 checks and failed `resumed_from_drive` on a fault in its own kill
+  condition. The sheet was filled correctly but the tests are written for the template. Both are ruled in 45: fix
+  in the notebook package (wt/wpc-cn), merge, new C1 = the tip, then the acceptance run again and C2.
+- The filled sheet is in the worktree /home/user/mesozoic-wt/c2 (branch wt/c2, uncommitted) and the acceptance
+  record in /home/user/mesozoic-wt/tb-accept-bundle/stage2/tb/bundle/s2-b1/ACCEPTANCE.json (ok false).
+- Meter: $3,517 at 22:26 UTC, about 83.6 %; 85 % is about $3,551.

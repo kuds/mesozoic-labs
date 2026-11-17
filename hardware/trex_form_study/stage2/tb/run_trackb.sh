@@ -15,9 +15,11 @@
 # $TB_WORK/done/<name> exists; otherwise run through tools/lowprio.sh with the command and its exit code appended to
 # $TB_WORK/logs/<name>.log, and the marker written on exit 0 only.  Any other exit code stops the chain (a gate that
 # fails goes to the lead).  Every command resumes by itself: a gate writes its one record again; kill-resume, the
-# probes, the trainer (--resume when its run.json exists), the bar runner and R2L keep what they finished; `nb
-# collect` leaves a file that is already there with the same bytes.  Every long job writes under $TB_WORK and is
-# collected with `nb collect` when it ends (design D22).  One process at a time (the chain is sequential).
+# probes, the trainer (--resume when its run.json exists), the bar runner and R2L (its fit --resume when its cma.json
+# exists) keep what they finished; `nb collect` leaves a file that is already there with the same bytes.  Every long
+# job writes under $TB_WORK and is collected with `nb collect` when it ends (design D22); R2L's own records are
+# collected by `r2lfit publish` (nb.collect of the fit's records only).  One process at a time (the chain is
+# sequential).
 #
 # One check is no command: V8-baseline-committed (rule M3) stops the chain until the lead has committed R0L's
 # baseline; it reads git only and writes its marker when it passes.
@@ -143,8 +145,9 @@ committed() {  # committed <name> <file> <made>: rule M3, <file> committed befor
     fi
 }
 
-resume_flag() {  # --resume when the job directory holds a run.json (the trainer refuses a new run over one)
-    [ -f "$1/run.json" ] && echo "--resume"
+resume_flag() {  # resume_flag <dir> [<file>]: --resume when <dir> holds <file> (default run.json): the trainer and
+    # R2L's fit (cma.json) refuse a new run over one, and R2L's fit refuses a resume of none
+    [ -f "$1/${2:-run.json}" ] && echo "--resume"
     return 0
 }
 
@@ -168,8 +171,14 @@ done
 
 # ---------------------------------------------------------------------------------------------------------------
 # V3  R0L's records (the 16 gated conditions and walk/nominal, 20 seeds each), collected, then G9-run.
-#     NOTE for the lead: as built, the bar's runner lets only rows of the controller R0 run on a set outside the 75 cm
-#     round's three (bar._check_rule, RULES["checks"]), so `lookbar run` refuses R0L on V6 until that is ruled.
+#     The bar's own check (bar._check_rule, RULES["checks"]) lets only rows of the controller R0 run on a set outside
+#     the 75 cm round's three, and bar.py is not edited (the lead's ruling 16 of 17 Nov 2026: the design's "a look-set
+#     run needs no --task", 2.3, was wrong).  `lookbar run` evaluates inside lookbar's own rule for the look sets
+#     (lookbar.look_set_rule, LB16): on V6 or V6noF5, or a version of one, it lets R0L, R5/<seed>, R6/<seed> and
+#     R2L-<set>/<seed> run only once the set's G9-ref has passed for the body on its latest freeze (rule X1, V1 above),
+#     and refuses them otherwise; as LB16 built it, every other row there goes to the bar's own check (ruling 31 (1)
+#     admits R5G/<seed> too and refuses every other row).  So R0L runs here after V1, with no --task.  `python -m
+#     designlab.stage2.bar run` on a look set is not that rule, and no step here calls it (X1).
 # ---------------------------------------------------------------------------------------------------------------
 for B in $BODIES; do
     step "V3-r0l-$B" $PY -m designlab.stage2.lookbar run --set V6 --body "$B" --rows R0L@10ms \
@@ -248,16 +257,21 @@ step V9-collect $NB collect --src "$W/local/local-60" --dst "$TB/runs/local-60" 
 # ---------------------------------------------------------------------------------------------------------------
 # V10 R2L (rules Q1-Q6): the rotation table, the fit, the selection and the row's publication for (V6noF5,
 #     75-M-H-10) and (V6noF5, 60-N-T-10), 2 workers; the candidate (F25F9cl, 75-M-H-10) only if granted (not here).
-#     NOTE: designlab.stage2.r2lfit (work package CF) is not on the working branch yet.
+#     The fit resumes (--resume) only when its cma.json exists (r2lfit refuses a resume of none, and a new fit over
+#     one).  The fit and the selection start on V6noF5 only once its G9-ref has passed (r2lfit's GATE_RULE: through
+#     gates2.require_g9_ref and lookbar's look-set rule).  `publish` is R2L's collect: it copies the fit's own records
+#     to stage2/tb/r2l/<set>/<body>/ (nb.collect, each verified by sha256) and adds the index entry; nothing else of
+#     $W/r2l is collected.
 # ---------------------------------------------------------------------------------------------------------------
 for B in $PLAIN; do
+    F=$W/r2l/V6noF5/$B/r2lfit/42
     step "V10-r2l-rotation-$B" $PY -m designlab.stage2.r2lfit rotation --body "$B" --set V6noF5 --seed 42 --out "$W/r2l"
+    # shellcheck disable=SC2046
     step "V10-r2l-fit-$B" $PY -m designlab.stage2.r2lfit fit --body "$B" --set V6noF5 --seed 42 --out "$W/r2l" \
-        --workers 2 --resume
+        --workers 2 $(resume_flag "$F" cma.json)
     step "V10-r2l-select-$B" $PY -m designlab.stage2.r2lfit select --body "$B" --set V6noF5 --seed 42 --out "$W/r2l"
     step "V10-r2l-publish-$B" $PY -m designlab.stage2.r2lfit publish --body "$B" --set V6noF5 --seed 42 --out "$W/r2l"
 done
-step V10-collect $NB collect --src "$W/r2l" --dst "$TB/r2l" --kind r2l
 
 if [ -n "$DRY" ]; then
     say "dry run (TB_DRY): nothing was run or written"

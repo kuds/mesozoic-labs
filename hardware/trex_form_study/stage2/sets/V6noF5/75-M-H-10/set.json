@@ -37,7 +37,8 @@
   "S2L-noF5": "V6noF5 is V6 with F5's fields at their defaults in the walks: toe_off 0, toe_reach 0, no rate or acceleration cap, the default start and margin",
   "S2L-format": "a look walk's file holds a window of K whole strides that is periodic as a whole: Stage 1's reference keys with 160 K frames and the window's stride motion, the feedforward from look.look_inverse_dynamics (F5's rolling split), then window_strides (K) and the look keys; its entry holds period_s (the stride's), window_s and strides (K).  A plan item counts windows of the file",
   "S2L-moves": "every move of a look set is built by designlab.stage2.moves with the look's laws and solver (designlab.stage2.moves_look; its rules are in transitions.json) bound to the windows of the walks it joins, and is gated, screened and given its fallbacks as every other set's (S2S-fallback, S2S-turns).  A causal move leaves its walk's window at the bar's lead (join rule J1 as designed: 2 strides after the window's first frame for a left turn, 2.5 for a right turn and for the two-touchdown stop; the entry's look.a_phase, look.a_time_s and look.a_windows, the windows of the walk's file a track plays before it).  No cut of STAGE2_TRACKB_PLAN.md L12 is taken by the builder: a move outside a join gate is recorded with its numbers, which are what L12's trigger reads",
-  "S2L-inplace": "the turn in place at 0.5 rad/s, left and right (inplace_0.5_<dir>, with start_inplace_0.5_<dir> and stop_inplace_0.5_<dir>; STAGE2_TRACKB_PLAN.md L13), is the set's nominal look gait stepping in place (path speed 0) with flat feet as its own law (F5's fields at their defaults) and without F14 (one stride).  It is cut from one long plan of the same builder and laws: the start from the stand, then 4 hold strides more than Stage 1's start writes.  The reference is the second of those hold strides; it is gated for periodicity against the hold stride before it and the one after it (model CoM 1.0 mm, multibody ZMP 2.0 mm, joints 1e-3 rad, each mapped by the plan's own stride motion); no other plan length and no other stride is tried.  Its start is the same plan up to that stride; its stop is Stage 1's one-step stop from the reference.  Each of the three files is screened at Stage 0 as a move (setscreen.screen_move).  A gait that fails is recorded not available with its numbers, and its start and stop with it.  The three references of a direction are one optional group: a build makes them when they are named (--only), because the set's screen (setscreen) reads every entry of refs.json as a walk with a look-format file and cannot yet read a periodic turn"
+  "S2L-inplace": "the turn in place at 0.5 rad/s, left and right (inplace_0.5_<dir>, with start_inplace_0.5_<dir> and stop_inplace_0.5_<dir>; STAGE2_TRACKB_PLAN.md L13), is the set's nominal look gait stepping in place (path speed 0) with flat feet as its own law (F5's fields at their defaults) and without F14 (one stride).  It is cut from one long plan of the same builder and laws: the start from the stand, then 4 hold strides more than Stage 1's start writes.  The reference is the second of those hold strides; it is gated for periodicity against the hold stride before it and the one after it (model CoM 1.0 mm, multibody ZMP 2.0 mm, joints 1e-3 rad, each mapped by the plan's own stride motion); no other plan length and no other stride is tried.  Its start is the same plan up to that stride; its stop is Stage 1's one-step stop from the reference.  Each of the three files is screened at Stage 0 as a move (setscreen.screen_move).  A gait that fails is recorded not available with its numbers, and its start and stop with it.  The three references of a direction are one optional group: a build makes them when they are named (--only), because the set's screen (setscreen) reads every entry of refs.json as a walk with a look-format file and cannot yet read a periodic turn",
+  "S2L-join-review": "the join code of the look sets was reviewed independently before any cut (STAGE2_TRACKB_PLAN.md L12; ruling 19 of stage2/design/ROUND_C_RULINGS_17NOV.md): the review's record is stage2/design/checkpoint/reviews/roundC__review_JR_17nov.md, sha256 b3ff457673d537f65d8821c1910c27b6bebc7eb27acd43f0d0e0e96d9424212a, ruled on 17 Nov 2026 (rulings 28 to 30).  Its gate 3 is built: a causal move's preview grid comes from the frames up to the command (ruling 28; moves_look.RULES S2L-causal-grid, in transitions.json).  L12's fallback, cut 3, is not taken for a body when the review's probe, on the causal grid, gives the failing reading at cut 3's leave point (the window's boundary) as over its limit too (L12's sentence settled 17 Nov 2026, labelled changed after a result: ruling 29); the move that fails at J1's leave point is then not available with its numbers (A11 for a turn; H3 for the stop; a start or nominal_to_v0.4 that fails stops the set, A8), and no limit is changed.  The probe's readings per body are recorded in stage2/sets/V6/cut3_probe.json (the review's numbers, copied); a body it lists takes no cut 3, for its V6 and V6noF5 sets on both heads (a cut is a body's, L12).  set.json look holds the review (join_review), the cut in force (cut, null for none), why (cut_reason) and the probe's readings for the body (cut3_probe), and every move whose join_command or join_b gate fails, with those numbers (joins_failed)"
  },
  "lead_in": "start",
  "look_entries": {
@@ -3097,208 +3098,6 @@
   }
  },
  "stride_rules": {
-  "pi4": {
-   "rule": "S2A-stride",
-   "text": "inside the turn the stride period is f x T_walk at the same path speed; f is the largest value of 1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6 for which the finite turn's own kinematic pass (the causal plan solved once, no ZMP correction), in both directions, has ik_ok, uses at most 0.85 of the usable thigh-twist range on the worse leg and leaves every other gated joint at least 0.05 rad of its usable range; the reference built with all passes must show ik_ok, at most 0.87 and the same 0.05 rad, else f steps down once (at most 2 times in all); constants set on the 14 Nov prototypes of V0 on 75-M-H-10, before any closed-loop run; the 0.05 rad is Stage 0's joint-range limit of a move (STAGE2_75_PLAN.md A12 as amended: a start, change, stop or turn; every end of a joint's usable range but one it rests on by design; a walk keeps 0.1 rad), one constant with the set's screen; the rule read 0.1 rad from the morning of 15 Nov (A11's first amendment, withdrawn), under which V0's quick turn moved to f 0.7 and missed two gates and the two tuned sets had no factor (the owner's decision of 15 Nov, DECISION_LOG.md P34, after the first builds of the three sets; changed after a result)",
-   "grid": [
-    1.0,
-    0.95,
-    0.9,
-    0.85,
-    0.8,
-    0.75,
-    0.7,
-    0.65,
-    0.6
-   ],
-   "limit_kinematic": 0.85,
-   "limit_final": 0.87,
-   "limit_other_joints_rad": 0.05,
-   "steps_down_max": 2,
-   "angle_rad": 1.5707963267948966,
-   "rate_rad_s": 0.7853981633974483,
-   "tried": [
-    {
-     "f": 1.0,
-     "left": 1.0,
-     "right": 1.0,
-     "tightest_other": {
-      "left": {
-       "joint": "left_hip_roll",
-       "end": "max",
-       "margin_rad": 0.0723419186184984
-      },
-      "right": {
-       "joint": "right_hip_roll",
-       "end": "min",
-       "margin_rad": 0.07609437920085033
-      }
-     },
-     "ik_fail_frames": {
-      "left": 18,
-      "right": 18
-     },
-     "ik_ok": false,
-     "pass_": false
-    },
-    {
-     "f": 0.95,
-     "left": 1.0,
-     "right": 1.0,
-     "tightest_other": {
-      "left": {
-       "joint": "left_hip_roll",
-       "end": "max",
-       "margin_rad": 0.08274354573031298
-      },
-      "right": {
-       "joint": "right_hip_roll",
-       "end": "min",
-       "margin_rad": 0.08612343961693017
-      }
-     },
-     "ik_fail_frames": {
-      "left": 2,
-      "right": 2
-     },
-     "ik_ok": false,
-     "pass_": false
-    },
-    {
-     "f": 0.9,
-     "left": 0.9471036573520124,
-     "right": 0.946204100647931,
-     "tightest_other": {
-      "left": {
-       "joint": "left_hip_roll",
-       "end": "max",
-       "margin_rad": 0.09320186297822014
-      },
-      "right": {
-       "joint": "right_hip_roll",
-       "end": "min",
-       "margin_rad": 0.096518390449015
-      }
-     },
-     "ik_fail_frames": {
-      "left": 0,
-      "right": 0
-     },
-     "ik_ok": true,
-     "pass_": false
-    },
-    {
-     "f": 0.85,
-     "left": 0.8910587315269596,
-     "right": 0.8901239894793421,
-     "tightest_other": {
-      "left": {
-       "joint": "left_hip_roll",
-       "end": "max",
-       "margin_rad": 0.10328847447194445
-      },
-      "right": {
-       "joint": "right_hip_roll",
-       "end": "min",
-       "margin_rad": 0.10699882372231698
-      }
-     },
-     "ik_fail_frames": {
-      "left": 0,
-      "right": 0
-     },
-     "ik_ok": true,
-     "pass_": false
-    },
-    {
-     "f": 0.8,
-     "left": 0.8348634328912874,
-     "right": 0.8340489029846021,
-     "tightest_other": {
-      "left": {
-       "joint": "left_hip_roll",
-       "end": "max",
-       "margin_rad": 0.11338216311715146
-      },
-      "right": {
-       "joint": "right_hip_roll",
-       "end": "min",
-       "margin_rad": 0.11709315168832349
-      }
-     },
-     "ik_fail_frames": {
-      "left": 0,
-      "right": 0
-     },
-     "ik_ok": true,
-     "pass_": true
-    }
-   ],
-   "chosen": null,
-   "steady_turn_kinematic": {
-    "available": false,
-    "reason": "turning.generate builds today's walk only (a look spec is refused)"
-   },
-   "steps_down": 0,
-   "builds": [
-    {
-     "f": 0.8,
-     "ik_ok": true,
-     "hip_yaw_range_use": 0.8327786383056748,
-     "tightest_other_rad": 0.11867595160402933,
-     "tightest_other": {
-      "left": {
-       "joint": "left_hip_roll",
-       "end": "max",
-       "margin_rad": 0.11867595160402933
-      },
-      "right": {
-       "joint": "right_hip_roll",
-       "end": "min",
-       "margin_rad": 0.12235293275442022
-      }
-     },
-     "over_leg_drive": true,
-     "a1_over": false,
-     "pass_": {
-      "left": true,
-      "right": true
-     },
-     "stage0_blocks": {
-      "left": [
-       {
-        "limit": "hip_yaw peak",
-        "value": 1.144465978512481
-       },
-       {
-        "limit": "knee speed",
-        "value": 1.0384038593398566
-       }
-      ],
-      "right": [
-       {
-        "limit": "hip_yaw peak",
-        "value": 1.1455188952920967
-       },
-       {
-        "limit": "knee speed",
-        "value": 1.0386478355297686
-       }
-      ]
-     }
-    }
-   ],
-   "outcome": "none",
-   "reason": "the built reference is over a leg drive's Stage 0 limit",
-   "walk": "v0.4",
-   "walk_sha256": "b1f32214114a0be77003415ecfecc04d10118ab921aaa089788dbdd2939f0c06",
-   "a1_over": null,
-   "references": {
-    "turn90_pi4_left": false,
-    "turn90_pi4_right": false
-   },
-   "no_reference": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit"
-  },
   "0.35": {
    "rule": "S2A-stride",
    "text": "inside the turn the stride period is f x T_walk at the same path speed; f is the largest value of 1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6 for which the finite turn's own kinematic pass (the causal plan solved once, no ZMP correction), in both directions, has ik_ok, uses at most 0.85 of the usable thigh-twist range on the worse leg and leaves every other gated joint at least 0.05 rad of its usable range; the reference built with all passes must show ik_ok, at most 0.87 and the same 0.05 rad, else f steps down once (at most 2 times in all); constants set on the 14 Nov prototypes of V0 on 75-M-H-10, before any closed-loop run; the 0.05 rad is Stage 0's joint-range limit of a move (STAGE2_75_PLAN.md A12 as amended: a start, change, stop or turn; every end of a joint's usable range but one it rests on by design; a walk keeps 0.1 rad), one constant with the set's screen; the rule read 0.1 rad from the morning of 15 Nov (A11's first amendment, withdrawn), under which V0's quick turn moved to f 0.7 and missed two gates and the two tuned sets had no factor (the owner's decision of 15 Nov, DECISION_LOG.md P34, after the first builds of the three sets; changed after a result)",
@@ -3322,18 +3121,18 @@
    "tried": [
     {
      "f": 1.0,
-     "left": 0.447861356896366,
-     "right": 0.44735262595613473,
+     "left": 0.4478553778604452,
+     "right": 0.4473297171140189,
      "tightest_other": {
       "left": {
        "joint": "left_hip_roll",
        "end": "max",
-       "margin_rad": 0.15346060498305675
+       "margin_rad": 0.1535498145095065
       },
       "right": {
        "joint": "right_hip_roll",
        "end": "min",
-       "margin_rad": 0.15776995642745675
+       "margin_rad": 0.15783939598531443
       }
      },
      "ik_fail_frames": {
@@ -3354,18 +3153,18 @@
     {
      "f": 1.0,
      "ik_ok": true,
-     "hip_yaw_range_use": 0.44687419416904733,
-     "tightest_other_rad": 0.15637716270221572,
+     "hip_yaw_range_use": 0.4468681862179791,
+     "tightest_other_rad": 0.1564283071469777,
      "tightest_other": {
       "left": {
        "joint": "left_hip_roll",
        "end": "max",
-       "margin_rad": 0.15637716270221572
+       "margin_rad": 0.1564283071469777
       },
       "right": {
        "joint": "right_hip_roll",
        "end": "min",
-       "margin_rad": 0.1605667610504474
+       "margin_rad": 0.16072392722402784
       }
      },
      "over_leg_drive": false,
@@ -3414,18 +3213,18 @@
    "tried": [
     {
      "f": 1.0,
-     "left": 0.6493320595136788,
-     "right": 0.6485584724159597,
+     "left": 0.6493181324964435,
+     "right": 0.6485187162271978,
      "tightest_other": {
       "left": {
        "joint": "left_hip_roll",
        "end": "max",
-       "margin_rad": 0.12323100543376594
+       "margin_rad": 0.12333797981656891
       },
       "right": {
        "joint": "right_hip_roll",
        "end": "min",
-       "margin_rad": 0.12735745006105445
+       "margin_rad": 0.12744713648987963
       }
      },
      "ik_fail_frames": {
@@ -3446,18 +3245,18 @@
     {
      "f": 1.0,
      "ik_ok": true,
-     "hip_yaw_range_use": 0.6472195457520526,
-     "tightest_other_rad": 0.12707153711861682,
+     "hip_yaw_range_use": 0.6472086605214608,
+     "tightest_other_rad": 0.12712769846300614,
      "tightest_other": {
       "left": {
        "joint": "left_hip_roll",
        "end": "max",
-       "margin_rad": 0.12707153711861682
+       "margin_rad": 0.12712769846300614
       },
       "right": {
        "joint": "right_hip_roll",
        "end": "min",
-       "margin_rad": 0.13108704842714067
+       "margin_rad": 0.13128730032058175
       }
      },
      "over_leg_drive": false,
@@ -3482,6 +3281,208 @@
     "turn90_0.5_right": true
    },
    "no_reference": null
+  },
+  "pi4": {
+   "rule": "S2A-stride",
+   "text": "inside the turn the stride period is f x T_walk at the same path speed; f is the largest value of 1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6 for which the finite turn's own kinematic pass (the causal plan solved once, no ZMP correction), in both directions, has ik_ok, uses at most 0.85 of the usable thigh-twist range on the worse leg and leaves every other gated joint at least 0.05 rad of its usable range; the reference built with all passes must show ik_ok, at most 0.87 and the same 0.05 rad, else f steps down once (at most 2 times in all); constants set on the 14 Nov prototypes of V0 on 75-M-H-10, before any closed-loop run; the 0.05 rad is Stage 0's joint-range limit of a move (STAGE2_75_PLAN.md A12 as amended: a start, change, stop or turn; every end of a joint's usable range but one it rests on by design; a walk keeps 0.1 rad), one constant with the set's screen; the rule read 0.1 rad from the morning of 15 Nov (A11's first amendment, withdrawn), under which V0's quick turn moved to f 0.7 and missed two gates and the two tuned sets had no factor (the owner's decision of 15 Nov, DECISION_LOG.md P34, after the first builds of the three sets; changed after a result)",
+   "grid": [
+    1.0,
+    0.95,
+    0.9,
+    0.85,
+    0.8,
+    0.75,
+    0.7,
+    0.65,
+    0.6
+   ],
+   "limit_kinematic": 0.85,
+   "limit_final": 0.87,
+   "limit_other_joints_rad": 0.05,
+   "steps_down_max": 2,
+   "angle_rad": 1.5707963267948966,
+   "rate_rad_s": 0.7853981633974483,
+   "tried": [
+    {
+     "f": 1.0,
+     "left": 1.0,
+     "right": 1.0,
+     "tightest_other": {
+      "left": {
+       "joint": "left_hip_roll",
+       "end": "max",
+       "margin_rad": 0.07247630680251091
+      },
+      "right": {
+       "joint": "right_hip_roll",
+       "end": "min",
+       "margin_rad": 0.07621514467752949
+      }
+     },
+     "ik_fail_frames": {
+      "left": 18,
+      "right": 18
+     },
+     "ik_ok": false,
+     "pass_": false
+    },
+    {
+     "f": 0.95,
+     "left": 1.0,
+     "right": 1.0,
+     "tightest_other": {
+      "left": {
+       "joint": "left_hip_roll",
+       "end": "max",
+       "margin_rad": 0.08272221018535181
+      },
+      "right": {
+       "joint": "right_hip_roll",
+       "end": "min",
+       "margin_rad": 0.08646208966546118
+      }
+     },
+     "ik_fail_frames": {
+      "left": 2,
+      "right": 2
+     },
+     "ik_ok": false,
+     "pass_": false
+    },
+    {
+     "f": 0.9,
+     "left": 0.9471767295095731,
+     "right": 0.946099518148472,
+     "tightest_other": {
+      "left": {
+       "joint": "left_hip_roll",
+       "end": "max",
+       "margin_rad": 0.09300156774693519
+      },
+      "right": {
+       "joint": "right_hip_roll",
+       "end": "min",
+       "margin_rad": 0.09679859183287196
+      }
+     },
+     "ik_fail_frames": {
+      "left": 0,
+      "right": 0
+     },
+     "ik_ok": true,
+     "pass_": false
+    },
+    {
+     "f": 0.85,
+     "left": 0.8910652949314184,
+     "right": 0.8900852911397555,
+     "tightest_other": {
+      "left": {
+       "joint": "left_hip_roll",
+       "end": "max",
+       "margin_rad": 0.10324285793787674
+      },
+      "right": {
+       "joint": "right_hip_roll",
+       "end": "min",
+       "margin_rad": 0.1071132973184502
+      }
+     },
+     "ik_fail_frames": {
+      "left": 0,
+      "right": 0
+     },
+     "ik_ok": true,
+     "pass_": false
+    },
+    {
+     "f": 0.8,
+     "left": 0.83485339866609,
+     "right": 0.8339647348565549,
+     "tightest_other": {
+      "left": {
+       "joint": "left_hip_roll",
+       "end": "max",
+       "margin_rad": 0.11341177798361732
+      },
+      "right": {
+       "joint": "right_hip_roll",
+       "end": "min",
+       "margin_rad": 0.11728396023135848
+      }
+     },
+     "ik_fail_frames": {
+      "left": 0,
+      "right": 0
+     },
+     "ik_ok": true,
+     "pass_": true
+    }
+   ],
+   "chosen": null,
+   "steady_turn_kinematic": {
+    "available": false,
+    "reason": "turning.generate builds today's walk only (a look spec is refused)"
+   },
+   "steps_down": 0,
+   "builds": [
+    {
+     "f": 0.8,
+     "ik_ok": true,
+     "hip_yaw_range_use": 0.83275651016824,
+     "tightest_other_rad": 0.11873096956762136,
+     "tightest_other": {
+      "left": {
+       "joint": "left_hip_roll",
+       "end": "max",
+       "margin_rad": 0.11873096956762136
+      },
+      "right": {
+       "joint": "right_hip_roll",
+       "end": "min",
+       "margin_rad": 0.12273189467432025
+      }
+     },
+     "over_leg_drive": true,
+     "a1_over": false,
+     "pass_": {
+      "left": true,
+      "right": true
+     },
+     "stage0_blocks": {
+      "left": [
+       {
+        "limit": "hip_yaw peak",
+        "value": 1.1443311191416945
+       },
+       {
+        "limit": "knee speed",
+        "value": 1.0384185878245737
+       }
+      ],
+      "right": [
+       {
+        "limit": "hip_yaw peak",
+        "value": 1.1456612443168597
+       },
+       {
+        "limit": "knee speed",
+        "value": 1.0386769144378707
+       }
+      ]
+     }
+    }
+   ],
+   "outcome": "none",
+   "reason": "the built reference is over a leg drive's Stage 0 limit",
+   "walk": "v0.4",
+   "walk_sha256": "b1f32214114a0be77003415ecfecc04d10118ab921aaa089788dbdd2939f0c06",
+   "a1_over": null,
+   "references": {
+    "turn90_pi4_left": false,
+    "turn90_pi4_right": false
+   },
+   "no_reference": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit"
   },
   "1": {
    "rule": "S2A-stride",
@@ -3512,12 +3513,12 @@
       "left": {
        "joint": "left_hip_roll",
        "end": "max",
-       "margin_rad": 0.03853650786653118
+       "margin_rad": 0.03868334603700768
       },
       "right": {
        "joint": "right_hip_roll",
        "end": "min",
-       "margin_rad": 0.04198253937981977
+       "margin_rad": 0.042119815606913386
       }
      },
      "ik_fail_frames": {
@@ -3535,12 +3536,12 @@
       "left": {
        "joint": "left_hip_roll",
        "end": "max",
-       "margin_rad": 0.05057722493555383
+       "margin_rad": 0.05055256455222795
       },
       "right": {
        "joint": "right_hip_roll",
        "end": "min",
-       "margin_rad": 0.05367424837115517
+       "margin_rad": 0.05407028972532493
       }
      },
      "ik_fail_frames": {
@@ -3558,12 +3559,12 @@
       "left": {
        "joint": "left_hip_roll",
        "end": "max",
-       "margin_rad": 0.06248979289345191
+       "margin_rad": 0.06225500208634471
       },
       "right": {
        "joint": "right_hip_roll",
        "end": "min",
-       "margin_rad": 0.06553888769603655
+       "margin_rad": 0.065865673306051
       }
      },
      "ik_fail_frames": {
@@ -3581,12 +3582,12 @@
       "left": {
        "joint": "left_hip_roll",
        "end": "max",
-       "margin_rad": 0.07395408899399863
+       "margin_rad": 0.07390053670814822
       },
       "right": {
        "joint": "right_hip_roll",
        "end": "min",
-       "margin_rad": 0.07746750449486026
+       "margin_rad": 0.0776009126245159
       }
      },
      "ik_fail_frames": {
@@ -3604,12 +3605,12 @@
       "left": {
        "joint": "left_hip_roll",
        "end": "max",
-       "margin_rad": 0.08553276924066891
+       "margin_rad": 0.08556001914335501
       },
       "right": {
        "joint": "right_hip_roll",
        "end": "min",
-       "margin_rad": 0.08905188375931813
+       "margin_rad": 0.08927614728569494
       }
      },
      "ik_fail_frames": {
@@ -3627,12 +3628,12 @@
       "left": {
        "joint": "left_hip_roll",
        "end": "max",
-       "margin_rad": 0.09733209058541767
+       "margin_rad": 0.09708506618626056
       },
       "right": {
        "joint": "right_hip_roll",
        "end": "min",
-       "margin_rad": 0.1008175783677098
+       "margin_rad": 0.1008677445870198
       }
      },
      "ik_fail_frames": {
@@ -3644,18 +3645,18 @@
     },
     {
      "f": 0.7,
-     "left": 0.9375756406350518,
-     "right": 0.9367357485565341,
+     "left": 0.9378136759861576,
+     "right": 0.936738672230265,
      "tightest_other": {
       "left": {
        "joint": "left_hip_roll",
        "end": "max",
-       "margin_rad": 0.1088504516036651
+       "margin_rad": 0.10841107140708611
       },
       "right": {
        "joint": "right_hip_roll",
        "end": "min",
-       "margin_rad": 0.1122969467392694
+       "margin_rad": 0.11224515351914716
       }
      },
      "ik_fail_frames": {
@@ -3667,18 +3668,18 @@
     },
     {
      "f": 0.65,
-     "left": 0.8642373948381481,
-     "right": 0.86350260647717,
+     "left": 0.8643186742720231,
+     "right": 0.8635537074097999,
      "tightest_other": {
       "left": {
        "joint": "left_hip_roll",
        "end": "max",
-       "margin_rad": 0.11980924813207514
+       "margin_rad": 0.11951889001512939
       },
       "right": {
        "joint": "right_hip_roll",
        "end": "min",
-       "margin_rad": 0.12320525519645681
+       "margin_rad": 0.12322298538355178
       }
      },
      "ik_fail_frames": {
@@ -3690,18 +3691,18 @@
     },
     {
      "f": 0.6,
-     "left": 0.7930455583973232,
-     "right": 0.7924079098732644,
+     "left": 0.793228202144238,
+     "right": 0.7922788693307617,
      "tightest_other": {
       "left": {
        "joint": "left_hip_roll",
        "end": "max",
-       "margin_rad": 0.1303127546748343
+       "margin_rad": 0.13005416054208754
       },
       "right": {
        "joint": "right_hip_roll",
        "end": "min",
-       "margin_rad": 0.1336997189687767
+       "margin_rad": 0.13395515246629391
       }
      },
      "ik_fail_frames": {
@@ -3722,18 +3723,18 @@
     {
      "f": 0.6,
      "ik_ok": true,
-     "hip_yaw_range_use": 0.792100002773427,
-     "tightest_other_rad": 0.136005595756184,
+     "hip_yaw_range_use": 0.7923148068517262,
+     "tightest_other_rad": 0.13559327091563286,
      "tightest_other": {
       "left": {
        "joint": "left_hip_roll",
        "end": "max",
-       "margin_rad": 0.136005595756184
+       "margin_rad": 0.13559327091563286
       },
       "right": {
        "joint": "right_hip_roll",
        "end": "min",
-       "margin_rad": 0.13912881742469646
+       "margin_rad": 0.13965847666120013
       }
      },
      "over_leg_drive": true,
@@ -3746,37 +3747,37 @@
       "left": [
        {
         "limit": "hip_roll peak",
-        "value": 1.0035705270411355
+        "value": 1.0033029864266414
        },
        {
         "limit": "hip_pitch peak",
-        "value": 1.006257515280337
+        "value": 1.0062448031078617
        },
        {
         "limit": "hip_yaw peak",
-        "value": 1.6694414799459834
+        "value": 1.6694849697463956
        },
        {
         "limit": "knee speed",
-        "value": 1.3412968312724363
+        "value": 1.341264383414888
        }
       ],
       "right": [
        {
         "limit": "hip_roll peak",
-        "value": 1.0048019211118246
+        "value": 1.0048612730459086
        },
        {
         "limit": "hip_pitch peak",
-        "value": 1.006365256207666
+        "value": 1.0063540917695835
        },
        {
         "limit": "hip_yaw peak",
-        "value": 1.6711828363605417
+        "value": 1.671382403117097
        },
        {
         "limit": "knee speed",
-        "value": 1.341439872028342
+        "value": 1.3413777416261283
        }
       ]
      }
@@ -3791,1448 +3792,10 @@
     "turn90_1_left": false,
     "turn90_1_right": false
    },
-   "no_reference": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock"
+   "no_reference": "turn90_1_left: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock, post_window_zmp; turn90_1_right: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock"
   }
  },
  "not_available": {
-  "start": {
-   "reason": "no transition within the gates",
-   "numbers": {
-    "gates": {
-     "ik_ok": true,
-     "join_b": true,
-     "join_a": true,
-     "zmp_error": true
-    },
-    "pass_": true,
-    "ik_ok": true,
-    "ik_fail_frames": 0,
-    "join_a": {
-     "stride_phase": -2.0,
-     "reference": "stand",
-     "com_max_mm": 0.49584532253523544,
-     "com_mean_mm": 0.09912541192362886,
-     "zmp_max_mm": 0.2478523258794339,
-     "zmp_mean_mm": 0.01164617180268433,
-     "joint_max_rad": 0.0015142215225580347,
-     "joint_rate_max_rad_s": 0.0067054431875950655,
-     "at_join": {
-      "frame": "first output frame",
-      "com_mm": 0.003275201086765808,
-      "zmp_mm": 1.668073035133966e-05,
-      "joint_rad": 1.0031210848655131e-05,
-      "joint_rate_rad_s": 4.4695781520282535e-05
-     },
-     "com_ok": true,
-     "zmp_ok": true
-    },
-    "join_b": {
-     "stride_phase": 2.0,
-     "reference": "nominal",
-     "com_max_mm": 0.26323657153811497,
-     "com_mean_mm": 0.05040871967418532,
-     "zmp_max_mm": 0.5112799522989042,
-     "zmp_mean_mm": 0.04938737805407869,
-     "joint_max_rad": 0.0008261333217375044,
-     "joint_rate_max_rad_s": 0.009561464833639288,
-     "at_join": {
-      "frame": "last output frame",
-      "com_mm": 0.26323657153811497,
-      "zmp_mm": 0.26183006840675443,
-      "joint_rad": 0.0008261333217375044,
-      "joint_rate_rad_s": 0.0053223007041343084,
-      "tau_Nm": 0.02464088606863668
-     },
-     "tau_max_Nm": 4.289489281623986,
-     "window": {
-      "reference": "nominal",
-      "strides": 9,
-      "window_s": 10.22041598105701,
-      "period_s": 1.1356017756730012,
-      "offset_strides": 6.0,
-      "a_phase": null,
-      "a_time_s": null,
-      "a_windows": null,
-      "varies": true,
-      "step_deviations": [
-       0.007163249143634136,
-       -0.027500000000000004,
-       0.02181545183577975,
-       -0.013995714775600285,
-       0.017469517297979673,
-       -0.005277590795794161,
-       0.013825301649081956,
-       -0.0022539708190684716,
-       0.0024127624687647034,
-       -0.019946416383497305,
-       0.011923370553584188,
-       -0.014880599209600762,
-       0.01935947156638622,
-       -0.010437212832834246,
-       0.02176688806062718,
-       -0.013514044095362032,
-       6.362499258723162e-05,
-       -0.007994088656667772
-      ]
-     },
-     "window_phase": [
-      8.0,
-      8.99375
-     ],
-     "com_ok": true,
-     "zmp_ok": true
-    },
-    "join_command": null,
-    "zmp_error_history_m": [
-     0.04969107145752536,
-     0.027347822792085228,
-     0.015506825862254643,
-     0.009024160800003768,
-     0.005376220018747391,
-     0.0032716570505673,
-     0.002061441755698045,
-     0.0018261269189443845,
-     0.0016476901913319948,
-     0.0015048044819042533,
-     0.001388300331552807,
-     0.0012918844938790944,
-     0.0012110363963995414
-    ],
-    "zmp_consistency_history_m": null,
-    "post_window_zmp_error_m": null,
-    "zmp_consistency_all_m": null,
-    "cop_margin_single_min": {
-     "m": 0.045764565166557074,
-     "frame": 720,
-     "foot": "left"
-    },
-    "min_cop_margin_single_m": 0.045764565166557074,
-    "hip_yaw_range_use": 0.010174997400021245,
-    "tightest_other": {
-     "joint": "left_hip_roll",
-     "end": "max",
-     "margin_rad": 0.13877601374796755
-    },
-    "reference": {
-     "accel_forward_lp1hz_peak_m_s2": 0.37279911083941136,
-     "accel_forward_lp1hz_peak_t_s": 2.49,
-     "accel_forward_raw_peak_m_s2": 1.6176581098621972,
-     "accel_forward_raw_peak_t_s": 2.6189815951447315,
-     "accel_filter": {
-      "hz": 1.0,
-      "order": 2,
-      "zero_phase": true,
-      "fs_hz": 500.0,
-      "of": "model CoM, along the planned heading: three-point second differences on the frames' own times, then interpolated to fs_hz for the filter; the first frame takes its neighbour's value, the last frame its neighbour's",
-      "history_s": 3.0,
-      "before": "at rest (the stand)",
-      "after": "the periodic stride of nominal",
-      "read_over": "the move's own frames only: the history enters the filter, not the peaks"
-     }
-    },
-    "frames": 800,
-    "duration_s": 5.661244984060884,
-    "move": {
-     "kind": "start",
-     "builder": "start",
-     "causal": false,
-     "command_phase": -0.25,
-     "command_t_s": null,
-     "rules": [
-      "S2A-gates",
-      "S2L-L1",
-      "S2L-L2",
-      "S2L-L3",
-      "S2L-L4",
-      "S2L-L5",
-      "S2L-L6",
-      "S2L-L7",
-      "S2L-L8",
-      "S2L-L10",
-      "S2L-J1",
-      "S2L-J2",
-      "S2L-J3"
-     ],
-     "laws": "look"
-    },
-    "look": {
-     "laws": "look",
-     "rules": [
-      "S2L-L1",
-      "S2L-L2",
-      "S2L-L3",
-      "S2L-L4",
-      "S2L-L5",
-      "S2L-L6",
-      "S2L-L7",
-      "S2L-L8",
-      "S2L-L10",
-      "S2L-J1",
-      "S2L-J2",
-      "S2L-J3"
-     ],
-     "instant_phase": -0.25,
-     "flat_from_phase": null,
-     "flat_until_phase": 1.0,
-     "variation_a_until_phase": -1.0,
-     "window_a": null,
-     "window_b": {
-      "reference": "nominal",
-      "strides": 9,
-      "window_s": 10.22041598105701,
-      "period_s": 1.1356017756730012,
-      "offset_strides": 6.0,
-      "a_phase": null,
-      "a_time_s": null,
-      "a_windows": null,
-      "varies": true,
-      "step_deviations": [
-       0.007163249143634136,
-       -0.027500000000000004,
-       0.02181545183577975,
-       -0.013995714775600285,
-       0.017469517297979673,
-       -0.005277590795794161,
-       0.013825301649081956,
-       -0.0022539708190684716,
-       0.0024127624687647034,
-       -0.019946416383497305,
-       0.011923370553584188,
-       -0.014880599209600762,
-       0.01935947156638622,
-       -0.010437212832834246,
-       0.02176688806062718,
-       -0.013514044095362032,
-       6.362499258723162e-05,
-       -0.007994088656667772
-      ]
-     },
-     "a_phase": null,
-     "a_time_s": null,
-     "a_windows": null,
-     "feet": "flat in every stance that ends after the instant (instant_phase) and no later than the end of the move's last ramp (flat_until_phase; null: none ends later); the walk's own law before and after (S2L-L10)"
-    },
-    "join_events": null,
-    "rolling_frames": 0,
-    "rolling_split_failed_frames": 0,
-    "failed_gates": [],
-    "stage0": {
-     "source": "setscreen.screen_move on the built file (at build time)",
-     "governing": [
-      "knee",
-      "speed",
-      1.1261212024244684
-     ],
-     "within_limits": false,
-     "over": [
-      {
-       "limit": "knee speed",
-       "value": 1.1261212024244684
-      }
-     ],
-     "blocks_freeze": [
-      {
-       "limit": "knee speed",
-       "value": 1.1261212024244684
-      }
-     ],
-     "a1_over": false,
-     "over_leg_drive": true,
-     "text": "over knee speed 1.1261: blocks the freeze (knee speed)",
-     "tightest_joint": [
-      "left_hip_roll",
-      "max",
-      0.1388
-     ],
-     "accel_forward_lp1hz_peak_m_s2": 0.37281433885834353
-    },
-    "built_sha256": "84c460f08612095b89750257f8ec58aa061d6c1e1e3afc57516e99a3fea52ceb"
-   }
-  },
-  "turn90_pi4_left": {
-   "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit",
-   "numbers": {
-    "gates": {
-     "ik_ok": true,
-     "join_b": true,
-     "join_command": true,
-     "zmp_consistency": true,
-     "post_window_zmp": true,
-     "cop_margin_single": true,
-     "heading_total": true,
-     "heading_at_bar": true,
-     "heading_at_slowest_clock": true,
-     "thigh_twist": true
-    },
-    "pass_": true,
-    "ik_ok": true,
-    "ik_fail_frames": 0,
-    "join_a": null,
-    "join_b": {
-     "stride_phase": 5.0,
-     "reference": "v0.4",
-     "com_max_mm": 0.22136298465762985,
-     "com_mean_mm": 0.08543447855103653,
-     "zmp_max_mm": 1.6741177802124487,
-     "zmp_mean_mm": 0.049220438435088346,
-     "joint_max_rad": 0.0006627570804391414,
-     "joint_rate_max_rad_s": 0.006440514813189413,
-     "at_join": {
-      "frame": "last output frame",
-      "com_mm": 0.22136298465762985,
-      "zmp_mm": 0.24487796977724993,
-      "joint_rad": 0.0006627570804391414,
-      "joint_rate_rad_s": 0.006440514813189413,
-      "tau_Nm": 0.019255369296717895
-     },
-     "tau_max_Nm": 4.892417853623787,
-     "window": {
-      "reference": "v0.4",
-      "strides": 12,
-      "window_s": 10.32733122417553,
-      "period_s": 0.8606109353479608,
-      "offset_strides": 6.0,
-      "a_phase": null,
-      "a_time_s": null,
-      "a_windows": null,
-      "varies": true,
-      "step_deviations": [
-       0.006901967388740248,
-       -0.0275,
-       0.021157993476561554,
-       -0.014360853176729388,
-       0.016929567386056187,
-       -0.005878455990154798,
-       0.013383886613554885,
-       -0.0029365907857534378,
-       0.0022799277275574697,
-       -0.020150655511943838,
-       0.011533381274232127,
-       -0.015221811480464843,
-       0.018768419736197098,
-       -0.010898568522639148,
-       0.021110742803059114,
-       -0.013892206248517284,
-       -5.692110490287487e-06,
-       -0.008521503263373618,
-       0.02286511188417669,
-       -0.014106044653905036,
-       0.01855807962397754,
-       -0.024579317389282578,
-       0.007048647640633433,
-       -0.0024860264214920905
-      ]
-     },
-     "window_phase": [
-      11.0,
-      11.99375
-     ],
-     "com_ok": true,
-     "zmp_ok": true
-    },
-    "join_command": {
-     "reference": "v0.4",
-     "frames": 161,
-     "warmup_com_max_mm": 0.0619387428519288,
-     "warmup_zmp_max_mm": 3.246980749579536,
-     "warmup_joint_max_rad": 0.0003400212867136765,
-     "warmup_ik_ok": true,
-     "at_command": {
-      "com_mm": 0.04899255365471016,
-      "joint_rad": 0.00019279812783604133,
-      "zmp_mm": 2.9326186193902903,
-      "zmp_note": "recorded, not gated: the multibody ZMP's central difference at the command frame straddles the command"
-     },
-     "limits": {
-      "com_mm": 1.0,
-      "zmp_mm": 4.0,
-      "joint_rad": 0.001,
-      "zmp_frames": "the warm-up frames up to two frames before the command"
-     },
-     "ok": true
-    },
-    "zmp_error_history_m": [
-     0.05786514488471953,
-     0.023101748201310158,
-     0.025351752339414075,
-     0.0265305466080519,
-     0.02714922808292566,
-     0.027475803789101767,
-     0.02764936169682444,
-     0.027742174735415966,
-     0.027792036123936416,
-     0.027818876357797145,
-     0.027833300136752132,
-     0.02784099850515799,
-     0.027845048433991874
-    ],
-    "zmp_consistency_history_m": [
-     0.05645489643853388,
-     0.017026488871372796,
-     0.009664454328114903,
-     0.006029709808793754,
-     0.0037702517827324245,
-     0.0023622849947217465,
-     0.0018148791747514454,
-     0.0015103323233611006,
-     0.0013285881827473272,
-     0.0012931226787923516,
-     0.0012645473320868302,
-     0.0012407422719811485,
-     0.0012203246545121377
-    ],
-    "post_window_zmp_error_m": [
-     0.05786514488471953,
-     0.017595678027566047,
-     0.01070795188613446,
-     0.006789730957530419,
-     0.004366135434651472,
-     0.003360282527079175,
-     0.0027775155655491773,
-     0.0024205849950561112,
-     0.0021877183031407685,
-     0.0020465614460126306,
-     0.0019478549769532197,
-     0.0018810700022042397,
-     0.0018362877953163807
-    ],
-    "zmp_consistency_all_m": 0.0018362877953163807,
-    "cop_margin_single_min": {
-     "m": 0.023444705747530954,
-     "frame": 3,
-     "foot": "right"
-    },
-    "min_cop_margin_single_m": 0.023444705747530954,
-    "hip_yaw_range_use": 0.8327786383056748,
-    "tightest_other": {
-     "joint": "left_hip_roll",
-     "end": "max",
-     "margin_rad": 0.11867595160402933
-    },
-    "reference": {
-     "accel_forward_lp1hz_peak_m_s2": 0.1011492276304483,
-     "accel_forward_lp1hz_peak_t_s": 0.728,
-     "accel_forward_raw_peak_m_s2": 1.780063429411567,
-     "accel_forward_raw_peak_t_s": 1.7038323381840654,
-     "accel_filter": {
-      "hz": 1.0,
-      "order": 2,
-      "zero_phase": true,
-      "fs_hz": 500.0,
-      "of": "model CoM, along the planned heading: three-point second differences on the frames' own times, then interpolated to fs_hz for the filter; the first frame's from the computed frame before the command, the last frame its neighbour's",
-      "history_s": 3.0,
-      "before": "the periodic stride of v0.4",
-      "after": "the periodic stride of v0.4",
-      "read_over": "the move's own frames only: the history enters the filter, not the peaks"
-     },
-     "at_s": 2.0,
-     "command_rate": 1.05,
-     "slowest_clock": 0.95,
-     "heading_at_bar_deg": 85.22571695339897,
-     "heading_at_slowest_clock_deg": 80.55881121207678,
-     "heading_at_ref_clock_deg": 80.78381121207676,
-     "time_to_80deg_bar_s": 1.8881733076809137,
-     "heading_min_deg": 80.0
-    },
-    "turn": {
-     "angle_rad": 1.5707963267948966,
-     "rate_rad_s": 0.7853981633974483,
-     "direction": "left",
-     "first_swing": "left",
-     "ramp_s": 0.375,
-     "ramp_strides": 0.4841521871880476,
-     "hold_strides": 2.3945622245123133,
-     "stride_factor": 0.8,
-     "period_in_turn_s": 0.6884887482783687,
-     "kappa": 1.0000000000000588,
-     "heading_total_rad": 1.5707963267948872,
-     "appendage_rule": "inside a move whose stride period T(p) is shorter than the walk's, the tail's and the neck's swing amplitudes are multiplied by (T(p) / T_walk)^2 (constant angular acceleration amplitude), for every set, look sets included; a look choice (lead's ruling 1)"
-    },
-    "frames": 960,
-    "duration_s": 4.661998078837463,
-    "move": {
-     "kind": "turn",
-     "builder": "turn",
-     "causal": true,
-     "command_phase": 0.0,
-     "command_t_s": 0.0,
-     "rules": [
-      "S2A-causal",
-      "S2A-rule-F",
-      "S2A-fade",
-      "S2A-ramp",
-      "S2A-appendage",
-      "S2A-stride",
-      "S2A-gates",
-      "S2L-L1",
-      "S2L-L2",
-      "S2L-L3",
-      "S2L-L4",
-      "S2L-L5",
-      "S2L-L6",
-      "S2L-L7",
-      "S2L-L8",
-      "S2L-L10",
-      "S2L-J1",
-      "S2L-J2",
-      "S2L-J3"
-     ],
-     "laws": "look"
-    },
-    "look": {
-     "laws": "look",
-     "rules": [
-      "S2L-L1",
-      "S2L-L2",
-      "S2L-L3",
-      "S2L-L4",
-      "S2L-L5",
-      "S2L-L6",
-      "S2L-L7",
-      "S2L-L8",
-      "S2L-L10",
-      "S2L-J1",
-      "S2L-J2",
-      "S2L-J3"
-     ],
-     "instant_phase": 0.0,
-     "flat_from_phase": 0.0,
-     "flat_until_phase": 3.3628665988884086,
-     "variation_a_until_phase": 0.0,
-     "window_a": {
-      "reference": "v0.4",
-      "strides": 12,
-      "window_s": 10.32733122417553,
-      "period_s": 0.8606109353479608,
-      "offset_strides": 2.0,
-      "a_phase": 2.0,
-      "a_time_s": 1.7152832712755346,
-      "a_windows": 0.16609162948702383,
-      "varies": true,
-      "step_deviations": [
-       0.006901967388740248,
-       -0.0275,
-       0.021157993476561554,
-       -0.014360853176729388,
-       0.016929567386056187,
-       -0.005878455990154798,
-       0.013383886613554885,
-       -0.0029365907857534378,
-       0.0022799277275574697,
-       -0.020150655511943838,
-       0.011533381274232127,
-       -0.015221811480464843,
-       0.018768419736197098,
-       -0.010898568522639148,
-       0.021110742803059114,
-       -0.013892206248517284,
-       -5.692110490287487e-06,
-       -0.008521503263373618,
-       0.02286511188417669,
-       -0.014106044653905036,
-       0.01855807962397754,
-       -0.024579317389282578,
-       0.007048647640633433,
-       -0.0024860264214920905
-      ]
-     },
-     "window_b": {
-      "reference": "v0.4",
-      "strides": 12,
-      "window_s": 10.32733122417553,
-      "period_s": 0.8606109353479608,
-      "offset_strides": 6.0,
-      "a_phase": null,
-      "a_time_s": null,
-      "a_windows": null,
-      "varies": true,
-      "step_deviations": [
-       0.006901967388740248,
-       -0.0275,
-       0.021157993476561554,
-       -0.014360853176729388,
-       0.016929567386056187,
-       -0.005878455990154798,
-       0.013383886613554885,
-       -0.0029365907857534378,
-       0.0022799277275574697,
-       -0.020150655511943838,
-       0.011533381274232127,
-       -0.015221811480464843,
-       0.018768419736197098,
-       -0.010898568522639148,
-       0.021110742803059114,
-       -0.013892206248517284,
-       -5.692110490287487e-06,
-       -0.008521503263373618,
-       0.02286511188417669,
-       -0.014106044653905036,
-       0.01855807962397754,
-       -0.024579317389282578,
-       0.007048647640633433,
-       -0.0024860264214920905
-      ]
-     },
-     "a_phase": 2.0,
-     "a_time_s": 1.7152832712755346,
-     "a_windows": 0.16609162948702383,
-     "feet": "flat in every stance that ends after the instant (instant_phase) and no later than the end of the move's last ramp (flat_until_phase; null: none ends later); the walk's own law before and after (S2L-L10)"
-    },
-    "join_events": {
-     "note": "a reading, not a gate: the gate is join_command's warmup_zmp_max_mm",
-     "frames": 157,
-     "zmp_max_mm": 3.246980749579536,
-     "zmp_p50_mm": 0.11318913550669729,
-     "zmp_p90_mm": 0.4328551742048751,
-     "limit_mm": 2.0,
-     "frames_over_limit": 5,
-     "phases_over_limit": [
-      -0.59375,
-      -0.5875,
-      -0.5,
-      -0.09375,
-      -0.0875
-     ],
-     "frames_over_limit_away_from_events": 0,
-     "event_frames": 25,
-     "zmp_max_mm_away_from_events": 0.5379485787702488,
-     "events_rule": "within 3 frames of a planned lift-off or touchdown, or of a frame on which a stance foot rolls"
-    },
-    "rolling_frames": 0,
-    "rolling_split_failed_frames": 0,
-    "failed_gates": [],
-    "stage0": {
-     "source": "setscreen.screen_move on the built file (at build time)",
-     "governing": [
-      "hip_yaw",
-      "peak",
-      1.144465978512481
-     ],
-     "within_limits": false,
-     "over": [
-      {
-       "limit": "hip_yaw peak",
-       "value": 1.144465978512481
-      },
-      {
-       "limit": "knee speed",
-       "value": 1.0384038593398566
-      }
-     ],
-     "blocks_freeze": [
-      {
-       "limit": "hip_yaw peak",
-       "value": 1.144465978512481
-      },
-      {
-       "limit": "knee speed",
-       "value": 1.0384038593398566
-      }
-     ],
-     "a1_over": false,
-     "over_leg_drive": true,
-     "text": "over hip_yaw peak 1.1445; knee speed 1.0384: blocks the freeze (hip_yaw peak; knee speed)",
-     "tightest_joint": [
-      "right_hip_yaw",
-      "min",
-      0.0502
-     ],
-     "accel_forward_lp1hz_peak_m_s2": 0.2576743102856093
-    },
-    "built_sha256": "d16c60a51ce3560654cfc445ec9422e4a7c6cc4e0e6cba797abafd79b26c2095",
-    "stride_rule": {
-     "rule": "S2A-stride",
-     "grid": [
-      1.0,
-      0.95,
-      0.9,
-      0.85,
-      0.8,
-      0.75,
-      0.7,
-      0.65,
-      0.6
-     ],
-     "limit_kinematic": 0.85,
-     "limit_final": 0.87,
-     "limit_other_joints_rad": 0.05,
-     "steps_down_max": 2,
-     "angle_rad": 1.5707963267948966,
-     "rate_rad_s": 0.7853981633974483,
-     "tried": [
-      {
-       "f": 1.0,
-       "left": 1.0,
-       "right": 1.0,
-       "tightest_other": {
-        "left": {
-         "joint": "left_hip_roll",
-         "end": "max",
-         "margin_rad": 0.0723419186184984
-        },
-        "right": {
-         "joint": "right_hip_roll",
-         "end": "min",
-         "margin_rad": 0.07609437920085033
-        }
-       },
-       "ik_fail_frames": {
-        "left": 18,
-        "right": 18
-       },
-       "ik_ok": false,
-       "pass_": false
-      },
-      {
-       "f": 0.95,
-       "left": 1.0,
-       "right": 1.0,
-       "tightest_other": {
-        "left": {
-         "joint": "left_hip_roll",
-         "end": "max",
-         "margin_rad": 0.08274354573031298
-        },
-        "right": {
-         "joint": "right_hip_roll",
-         "end": "min",
-         "margin_rad": 0.08612343961693017
-        }
-       },
-       "ik_fail_frames": {
-        "left": 2,
-        "right": 2
-       },
-       "ik_ok": false,
-       "pass_": false
-      },
-      {
-       "f": 0.9,
-       "left": 0.9471036573520124,
-       "right": 0.946204100647931,
-       "tightest_other": {
-        "left": {
-         "joint": "left_hip_roll",
-         "end": "max",
-         "margin_rad": 0.09320186297822014
-        },
-        "right": {
-         "joint": "right_hip_roll",
-         "end": "min",
-         "margin_rad": 0.096518390449015
-        }
-       },
-       "ik_fail_frames": {
-        "left": 0,
-        "right": 0
-       },
-       "ik_ok": true,
-       "pass_": false
-      },
-      {
-       "f": 0.85,
-       "left": 0.8910587315269596,
-       "right": 0.8901239894793421,
-       "tightest_other": {
-        "left": {
-         "joint": "left_hip_roll",
-         "end": "max",
-         "margin_rad": 0.10328847447194445
-        },
-        "right": {
-         "joint": "right_hip_roll",
-         "end": "min",
-         "margin_rad": 0.10699882372231698
-        }
-       },
-       "ik_fail_frames": {
-        "left": 0,
-        "right": 0
-       },
-       "ik_ok": true,
-       "pass_": false
-      },
-      {
-       "f": 0.8,
-       "left": 0.8348634328912874,
-       "right": 0.8340489029846021,
-       "tightest_other": {
-        "left": {
-         "joint": "left_hip_roll",
-         "end": "max",
-         "margin_rad": 0.11338216311715146
-        },
-        "right": {
-         "joint": "right_hip_roll",
-         "end": "min",
-         "margin_rad": 0.11709315168832349
-        }
-       },
-       "ik_fail_frames": {
-        "left": 0,
-        "right": 0
-       },
-       "ik_ok": true,
-       "pass_": true
-      }
-     ],
-     "chosen": null,
-     "steady_turn_kinematic": {
-      "available": false,
-      "reason": "turning.generate builds today's walk only (a look spec is refused)"
-     },
-     "steps_down": 0,
-     "builds": [
-      {
-       "f": 0.8,
-       "ik_ok": true,
-       "hip_yaw_range_use": 0.8327786383056748,
-       "tightest_other_rad": 0.11867595160402933,
-       "tightest_other": {
-        "left": {
-         "joint": "left_hip_roll",
-         "end": "max",
-         "margin_rad": 0.11867595160402933
-        },
-        "right": {
-         "joint": "right_hip_roll",
-         "end": "min",
-         "margin_rad": 0.12235293275442022
-        }
-       },
-       "over_leg_drive": true,
-       "a1_over": false,
-       "pass_": {
-        "left": true,
-        "right": true
-       },
-       "stage0_blocks": {
-        "left": [
-         {
-          "limit": "hip_yaw peak",
-          "value": 1.144465978512481
-         },
-         {
-          "limit": "knee speed",
-          "value": 1.0384038593398566
-         }
-        ],
-        "right": [
-         {
-          "limit": "hip_yaw peak",
-          "value": 1.1455188952920967
-         },
-         {
-          "limit": "knee speed",
-          "value": 1.0386478355297686
-         }
-        ]
-       }
-      }
-     ],
-     "outcome": "none",
-     "reason": "the built reference is over a leg drive's Stage 0 limit",
-     "walk": "v0.4",
-     "walk_sha256": "b1f32214114a0be77003415ecfecc04d10118ab921aaa089788dbdd2939f0c06",
-     "a1_over": null,
-     "references": {
-      "turn90_pi4_left": false,
-      "turn90_pi4_right": false
-     },
-     "no_reference": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit"
-    }
-   }
-  },
-  "turn90_pi4_right": {
-   "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit",
-   "numbers": {
-    "gates": {
-     "ik_ok": true,
-     "join_b": true,
-     "join_command": true,
-     "zmp_consistency": true,
-     "post_window_zmp": true,
-     "cop_margin_single": true,
-     "heading_total": true,
-     "heading_at_bar": true,
-     "heading_at_slowest_clock": true,
-     "thigh_twist": true
-    },
-    "pass_": true,
-    "ik_ok": true,
-    "ik_fail_frames": 0,
-    "join_a": null,
-    "join_b": {
-     "stride_phase": 5.0,
-     "reference": "v0.4",
-     "com_max_mm": 0.22157595390957677,
-     "com_mean_mm": 0.0804461253114063,
-     "zmp_max_mm": 1.790862479422784,
-     "zmp_mean_mm": 0.049456962624789914,
-     "joint_max_rad": 0.0006755600373935244,
-     "joint_rate_max_rad_s": 0.006656746562625715,
-     "at_join": {
-      "frame": "last output frame",
-      "com_mm": 0.22157595390957677,
-      "zmp_mm": 0.16420335793271532,
-      "joint_rad": 0.0006755600373935244,
-      "joint_rate_rad_s": 0.006656746562625715,
-      "tau_Nm": 0.012937513378443732
-     },
-     "tau_max_Nm": 4.89399608519563,
-     "window": {
-      "reference": "v0.4",
-      "strides": 12,
-      "window_s": 10.32733122417553,
-      "period_s": 0.8606109353479608,
-      "offset_strides": 6.0,
-      "a_phase": null,
-      "a_time_s": null,
-      "a_windows": null,
-      "varies": true,
-      "step_deviations": [
-       0.006901967388740248,
-       -0.0275,
-       0.021157993476561554,
-       -0.014360853176729388,
-       0.016929567386056187,
-       -0.005878455990154798,
-       0.013383886613554885,
-       -0.0029365907857534378,
-       0.0022799277275574697,
-       -0.020150655511943838,
-       0.011533381274232127,
-       -0.015221811480464843,
-       0.018768419736197098,
-       -0.010898568522639148,
-       0.021110742803059114,
-       -0.013892206248517284,
-       -5.692110490287487e-06,
-       -0.008521503263373618,
-       0.02286511188417669,
-       -0.014106044653905036,
-       0.01855807962397754,
-       -0.024579317389282578,
-       0.007048647640633433,
-       -0.0024860264214920905
-      ]
-     },
-     "window_phase": [
-      11.0,
-      11.99375
-     ],
-     "com_ok": true,
-     "zmp_ok": true
-    },
-    "join_command": {
-     "reference": "v0.4",
-     "frames": 161,
-     "warmup_com_max_mm": 0.024575517805395398,
-     "warmup_zmp_max_mm": 2.296559372917865,
-     "warmup_joint_max_rad": 0.00012394882606899405,
-     "warmup_ik_ok": true,
-     "at_command": {
-      "com_mm": 0.015916140516764,
-      "joint_rad": 5.479645566547342e-05,
-      "zmp_mm": 3.885705312728574,
-      "zmp_note": "recorded, not gated: the multibody ZMP's central difference at the command frame straddles the command"
-     },
-     "limits": {
-      "com_mm": 1.0,
-      "zmp_mm": 4.0,
-      "joint_rad": 0.001,
-      "zmp_frames": "the warm-up frames up to two frames before the command"
-     },
-     "ok": true
-    },
-    "zmp_error_history_m": [
-     0.05804101053634043,
-     0.023362936243432202,
-     0.025558348686138432,
-     0.02668019292598471,
-     0.02725022706563829,
-     0.027536715461633113,
-     0.02767695937943817,
-     0.027741616380594636,
-     0.027767376303032887,
-     0.027773460091585534,
-     0.027769995939125283,
-     0.02776231944337999,
-     0.027753211885621267
-    ],
-    "zmp_consistency_history_m": [
-     0.05633832833401098,
-     0.016959133973581002,
-     0.009584055811726673,
-     0.0059596537007301715,
-     0.0037132663249485206,
-     0.00231799817901297,
-     0.001731897364667903,
-     0.0014309899720508878,
-     0.0012373670904531888,
-     0.0011509438405781234,
-     0.0011247877405564791,
-     0.0011035553986212282,
-     0.0010857239582651866
-    ],
-    "post_window_zmp_error_m": [
-     0.05804101053634043,
-     0.017617713319939145,
-     0.010818120192581252,
-     0.006868655023837193,
-     0.004376648927180265,
-     0.0032085418962777695,
-     0.002629900117549764,
-     0.0022759048456033153,
-     0.0020898074427920963,
-     0.00198948431064787,
-     0.0019144003841026433,
-     0.0018550495998799713,
-     0.0018057664125418972
-    ],
-    "zmp_consistency_all_m": 0.0018057664125418972,
-    "cop_margin_single_min": {
-     "m": 0.023758132535863733,
-     "frame": 3,
-     "foot": "left"
-    },
-    "min_cop_margin_single_m": 0.023758132535863733,
-    "hip_yaw_range_use": 0.8322064982478597,
-    "tightest_other": {
-     "joint": "right_hip_roll",
-     "end": "min",
-     "margin_rad": 0.12235293275442022
-    },
-    "reference": {
-     "accel_forward_lp1hz_peak_m_s2": 0.10223181111436373,
-     "accel_forward_lp1hz_peak_t_s": 0.716,
-     "accel_forward_raw_peak_m_s2": 1.7924214059594312,
-     "accel_forward_raw_peak_t_s": 1.6969257495511059,
-     "accel_filter": {
-      "hz": 1.0,
-      "order": 2,
-      "zero_phase": true,
-      "fs_hz": 500.0,
-      "of": "model CoM, along the planned heading: three-point second differences on the frames' own times, then interpolated to fs_hz for the filter; the first frame's from the computed frame before the command, the last frame its neighbour's",
-      "history_s": 3.0,
-      "before": "the periodic stride of v0.4",
-      "after": "the periodic stride of v0.4",
-      "read_over": "the move's own frames only: the history enters the filter, not the peaks"
-     },
-     "at_s": 2.0,
-     "command_rate": 1.05,
-     "slowest_clock": 0.95,
-     "heading_at_bar_deg": 85.51254572018443,
-     "heading_at_slowest_clock_deg": 80.86960770055991,
-     "heading_at_ref_clock_deg": 81.0946077005599,
-     "time_to_80deg_bar_s": 1.881595604220952,
-     "heading_min_deg": 80.0
-    },
-    "turn": {
-     "angle_rad": 1.5707963267948966,
-     "rate_rad_s": -0.7853981633974483,
-     "direction": "right",
-     "first_swing": "right",
-     "ramp_s": 0.375,
-     "ramp_strides": 0.4841521871880476,
-     "hold_strides": 2.3945622245123133,
-     "stride_factor": 0.8,
-     "period_in_turn_s": 0.6884887482783687,
-     "kappa": 1.0000000000000588,
-     "heading_total_rad": -1.5707963267948872,
-     "appendage_rule": "inside a move whose stride period T(p) is shorter than the walk's, the tail's and the neck's swing amplitudes are multiplied by (T(p) / T_walk)^2 (constant angular acceleration amplitude), for every set, look sets included; a look choice (lead's ruling 1)"
-    },
-    "frames": 880,
-    "duration_s": 4.224786022529934,
-    "move": {
-     "kind": "turn",
-     "builder": "turn",
-     "causal": true,
-     "command_phase": 0.5,
-     "command_t_s": 0.0,
-     "rules": [
-      "S2A-causal",
-      "S2A-rule-F",
-      "S2A-fade",
-      "S2A-ramp",
-      "S2A-appendage",
-      "S2A-stride",
-      "S2A-gates",
-      "S2L-L1",
-      "S2L-L2",
-      "S2L-L3",
-      "S2L-L4",
-      "S2L-L5",
-      "S2L-L6",
-      "S2L-L7",
-      "S2L-L8",
-      "S2L-L10",
-      "S2L-J1",
-      "S2L-J2",
-      "S2L-J3"
-     ],
-     "laws": "look"
-    },
-    "look": {
-     "laws": "look",
-     "rules": [
-      "S2L-L1",
-      "S2L-L2",
-      "S2L-L3",
-      "S2L-L4",
-      "S2L-L5",
-      "S2L-L6",
-      "S2L-L7",
-      "S2L-L8",
-      "S2L-L10",
-      "S2L-J1",
-      "S2L-J2",
-      "S2L-J3"
-     ],
-     "instant_phase": 0.5,
-     "flat_from_phase": 0.5,
-     "flat_until_phase": 3.8628665988884086,
-     "variation_a_until_phase": 0.5,
-     "window_a": {
-      "reference": "v0.4",
-      "strides": 12,
-      "window_s": 10.32733122417553,
-      "period_s": 0.8606109353479608,
-      "offset_strides": 2.0,
-      "a_phase": 2.5,
-      "a_time_s": 2.15287362436109,
-      "a_windows": 0.20846369479477617,
-      "varies": true,
-      "step_deviations": [
-       0.006901967388740248,
-       -0.0275,
-       0.021157993476561554,
-       -0.014360853176729388,
-       0.016929567386056187,
-       -0.005878455990154798,
-       0.013383886613554885,
-       -0.0029365907857534378,
-       0.0022799277275574697,
-       -0.020150655511943838,
-       0.011533381274232127,
-       -0.015221811480464843,
-       0.018768419736197098,
-       -0.010898568522639148,
-       0.021110742803059114,
-       -0.013892206248517284,
-       -5.692110490287487e-06,
-       -0.008521503263373618,
-       0.02286511188417669,
-       -0.014106044653905036,
-       0.01855807962397754,
-       -0.024579317389282578,
-       0.007048647640633433,
-       -0.0024860264214920905
-      ]
-     },
-     "window_b": {
-      "reference": "v0.4",
-      "strides": 12,
-      "window_s": 10.32733122417553,
-      "period_s": 0.8606109353479608,
-      "offset_strides": 6.0,
-      "a_phase": null,
-      "a_time_s": null,
-      "a_windows": null,
-      "varies": true,
-      "step_deviations": [
-       0.006901967388740248,
-       -0.0275,
-       0.021157993476561554,
-       -0.014360853176729388,
-       0.016929567386056187,
-       -0.005878455990154798,
-       0.013383886613554885,
-       -0.0029365907857534378,
-       0.0022799277275574697,
-       -0.020150655511943838,
-       0.011533381274232127,
-       -0.015221811480464843,
-       0.018768419736197098,
-       -0.010898568522639148,
-       0.021110742803059114,
-       -0.013892206248517284,
-       -5.692110490287487e-06,
-       -0.008521503263373618,
-       0.02286511188417669,
-       -0.014106044653905036,
-       0.01855807962397754,
-       -0.024579317389282578,
-       0.007048647640633433,
-       -0.0024860264214920905
-      ]
-     },
-     "a_phase": 2.5,
-     "a_time_s": 2.15287362436109,
-     "a_windows": 0.20846369479477617,
-     "feet": "flat in every stance that ends after the instant (instant_phase) and no later than the end of the move's last ramp (flat_until_phase; null: none ends later); the walk's own law before and after (S2L-L10)"
-    },
-    "join_events": {
-     "note": "a reading, not a gate: the gate is join_command's warmup_zmp_max_mm",
-     "frames": 157,
-     "zmp_max_mm": 2.296559372917865,
-     "zmp_p50_mm": 0.10442300666774204,
-     "zmp_p90_mm": 0.4400514889255984,
-     "limit_mm": 2.0,
-     "frames_over_limit": 1,
-     "phases_over_limit": [
-      0.4125
-     ],
-     "frames_over_limit_away_from_events": 0,
-     "event_frames": 25,
-     "zmp_max_mm_away_from_events": 0.614844733420698,
-     "events_rule": "within 3 frames of a planned lift-off or touchdown, or of a frame on which a stance foot rolls"
-    },
-    "rolling_frames": 0,
-    "rolling_split_failed_frames": 0,
-    "failed_gates": [],
-    "stage0": {
-     "source": "setscreen.screen_move on the built file (at build time)",
-     "governing": [
-      "hip_yaw",
-      "peak",
-      1.1455188952920967
-     ],
-     "within_limits": false,
-     "over": [
-      {
-       "limit": "hip_yaw peak",
-       "value": 1.1455188952920967
-      },
-      {
-       "limit": "knee speed",
-       "value": 1.0386478355297686
-      }
-     ],
-     "blocks_freeze": [
-      {
-       "limit": "hip_yaw peak",
-       "value": 1.1455188952920967
-      },
-      {
-       "limit": "knee speed",
-       "value": 1.0386478355297686
-      }
-     ],
-     "a1_over": false,
-     "over_leg_drive": true,
-     "text": "over hip_yaw peak 1.1455; knee speed 1.0386: blocks the freeze (hip_yaw peak; knee speed)",
-     "tightest_joint": [
-      "left_hip_yaw",
-      "max",
-      0.0503
-     ],
-     "accel_forward_lp1hz_peak_m_s2": 0.25370243852147584
-    },
-    "built_sha256": "d6d7d669510497a1481ca49fbaadf4b3044377003b5cc10b1b4a835186d6b17c",
-    "stride_rule": {
-     "rule": "S2A-stride",
-     "grid": [
-      1.0,
-      0.95,
-      0.9,
-      0.85,
-      0.8,
-      0.75,
-      0.7,
-      0.65,
-      0.6
-     ],
-     "limit_kinematic": 0.85,
-     "limit_final": 0.87,
-     "limit_other_joints_rad": 0.05,
-     "steps_down_max": 2,
-     "angle_rad": 1.5707963267948966,
-     "rate_rad_s": 0.7853981633974483,
-     "tried": [
-      {
-       "f": 1.0,
-       "left": 1.0,
-       "right": 1.0,
-       "tightest_other": {
-        "left": {
-         "joint": "left_hip_roll",
-         "end": "max",
-         "margin_rad": 0.0723419186184984
-        },
-        "right": {
-         "joint": "right_hip_roll",
-         "end": "min",
-         "margin_rad": 0.07609437920085033
-        }
-       },
-       "ik_fail_frames": {
-        "left": 18,
-        "right": 18
-       },
-       "ik_ok": false,
-       "pass_": false
-      },
-      {
-       "f": 0.95,
-       "left": 1.0,
-       "right": 1.0,
-       "tightest_other": {
-        "left": {
-         "joint": "left_hip_roll",
-         "end": "max",
-         "margin_rad": 0.08274354573031298
-        },
-        "right": {
-         "joint": "right_hip_roll",
-         "end": "min",
-         "margin_rad": 0.08612343961693017
-        }
-       },
-       "ik_fail_frames": {
-        "left": 2,
-        "right": 2
-       },
-       "ik_ok": false,
-       "pass_": false
-      },
-      {
-       "f": 0.9,
-       "left": 0.9471036573520124,
-       "right": 0.946204100647931,
-       "tightest_other": {
-        "left": {
-         "joint": "left_hip_roll",
-         "end": "max",
-         "margin_rad": 0.09320186297822014
-        },
-        "right": {
-         "joint": "right_hip_roll",
-         "end": "min",
-         "margin_rad": 0.096518390449015
-        }
-       },
-       "ik_fail_frames": {
-        "left": 0,
-        "right": 0
-       },
-       "ik_ok": true,
-       "pass_": false
-      },
-      {
-       "f": 0.85,
-       "left": 0.8910587315269596,
-       "right": 0.8901239894793421,
-       "tightest_other": {
-        "left": {
-         "joint": "left_hip_roll",
-         "end": "max",
-         "margin_rad": 0.10328847447194445
-        },
-        "right": {
-         "joint": "right_hip_roll",
-         "end": "min",
-         "margin_rad": 0.10699882372231698
-        }
-       },
-       "ik_fail_frames": {
-        "left": 0,
-        "right": 0
-       },
-       "ik_ok": true,
-       "pass_": false
-      },
-      {
-       "f": 0.8,
-       "left": 0.8348634328912874,
-       "right": 0.8340489029846021,
-       "tightest_other": {
-        "left": {
-         "joint": "left_hip_roll",
-         "end": "max",
-         "margin_rad": 0.11338216311715146
-        },
-        "right": {
-         "joint": "right_hip_roll",
-         "end": "min",
-         "margin_rad": 0.11709315168832349
-        }
-       },
-       "ik_fail_frames": {
-        "left": 0,
-        "right": 0
-       },
-       "ik_ok": true,
-       "pass_": true
-      }
-     ],
-     "chosen": null,
-     "steady_turn_kinematic": {
-      "available": false,
-      "reason": "turning.generate builds today's walk only (a look spec is refused)"
-     },
-     "steps_down": 0,
-     "builds": [
-      {
-       "f": 0.8,
-       "ik_ok": true,
-       "hip_yaw_range_use": 0.8327786383056748,
-       "tightest_other_rad": 0.11867595160402933,
-       "tightest_other": {
-        "left": {
-         "joint": "left_hip_roll",
-         "end": "max",
-         "margin_rad": 0.11867595160402933
-        },
-        "right": {
-         "joint": "right_hip_roll",
-         "end": "min",
-         "margin_rad": 0.12235293275442022
-        }
-       },
-       "over_leg_drive": true,
-       "a1_over": false,
-       "pass_": {
-        "left": true,
-        "right": true
-       },
-       "stage0_blocks": {
-        "left": [
-         {
-          "limit": "hip_yaw peak",
-          "value": 1.144465978512481
-         },
-         {
-          "limit": "knee speed",
-          "value": 1.0384038593398566
-         }
-        ],
-        "right": [
-         {
-          "limit": "hip_yaw peak",
-          "value": 1.1455188952920967
-         },
-         {
-          "limit": "knee speed",
-          "value": 1.0386478355297686
-         }
-        ]
-       }
-      }
-     ],
-     "outcome": "none",
-     "reason": "the built reference is over a leg drive's Stage 0 limit",
-     "walk": "v0.4",
-     "walk_sha256": "b1f32214114a0be77003415ecfecc04d10118ab921aaa089788dbdd2939f0c06",
-     "a1_over": null,
-     "references": {
-      "turn90_pi4_left": false,
-      "turn90_pi4_right": false
-     },
-     "no_reference": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit"
-    }
-   }
-  },
   "nominal_to_v0.5": {
    "reason": "no transition within the gates",
    "numbers": {
@@ -6237,8 +4800,8 @@
     ]
    }
   },
-  "turn90_1_left": {
-   "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock",
+  "turn90_pi4_left": {
+   "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit",
    "numbers": {
     "gates": {
      "ik_ok": true,
@@ -6249,31 +4812,31 @@
      "cop_margin_single": true,
      "heading_total": true,
      "heading_at_bar": true,
-     "heading_at_slowest_clock": false,
+     "heading_at_slowest_clock": true,
      "thigh_twist": true
     },
-    "pass_": false,
+    "pass_": true,
     "ik_ok": true,
     "ik_fail_frames": 0,
     "join_a": null,
     "join_b": {
      "stride_phase": 5.0,
      "reference": "v0.4",
-     "com_max_mm": 0.2227057109820521,
-     "com_mean_mm": 0.0879329442858425,
-     "zmp_max_mm": 1.632845508460424,
-     "zmp_mean_mm": 0.04702500375035218,
-     "joint_max_rad": 0.0006763350448455718,
-     "joint_rate_max_rad_s": 0.006440554297947543,
+     "com_max_mm": 0.22335888817911545,
+     "com_mean_mm": 0.08611579340402117,
+     "zmp_max_mm": 1.1812124293488704,
+     "zmp_mean_mm": 0.05521902069274441,
+     "joint_max_rad": 0.0006733252070239837,
+     "joint_rate_max_rad_s": 0.0066817837693136095,
      "at_join": {
       "frame": "last output frame",
-      "com_mm": 0.2227057109820521,
-      "zmp_mm": 0.07804470317439312,
-      "joint_rad": 0.0006763350448455718,
-      "joint_rate_rad_s": 0.006440554297947543,
-      "tau_Nm": 0.007906758456824647
+      "com_mm": 0.22335888817911545,
+      "zmp_mm": 0.232045830503189,
+      "joint_rad": 0.0006733252070239837,
+      "joint_rate_rad_s": 0.0066817837693136095,
+      "tau_Nm": 0.012924605264608147
      },
-     "tau_max_Nm": 4.889495254793928,
+     "tau_max_Nm": 4.904680113178706,
      "window": {
       "reference": "v0.4",
       "strides": 12,
@@ -6321,86 +4884,1285 @@
     "join_command": {
      "reference": "v0.4",
      "frames": 161,
-     "warmup_com_max_mm": 0.03412948915572653,
-     "warmup_zmp_max_mm": 2.18374125039283,
-     "warmup_joint_max_rad": 0.00019092704806573067,
+     "warmup_com_max_mm": 0.04990248770174151,
+     "warmup_zmp_max_mm": 3.206675149126493,
+     "warmup_joint_max_rad": 0.0002797958527739966,
      "warmup_ik_ok": true,
      "at_command": {
-      "com_mm": 0.025895799676549255,
-      "joint_rad": 9.021824243413135e-05,
-      "zmp_mm": 7.33871622972615,
+      "com_mm": 0.017091416378855768,
+      "joint_rad": 5.647893798699233e-05,
+      "zmp_mm": 2.7337896052010904,
       "zmp_note": "recorded, not gated: the multibody ZMP's central difference at the command frame straddles the command"
      },
      "limits": {
       "com_mm": 1.0,
-      "zmp_mm": 4.0,
+      "zmp_mm": 5.0,
       "joint_rad": 0.001,
-      "zmp_frames": "the warm-up frames up to two frames before the command"
+      "zmp_frames": "the warm-up frames up to two frames before the command",
+      "zmp_rule": "S2L-P42-warmup"
      },
      "ok": true
     },
     "zmp_error_history_m": [
-     0.19468812733287635,
-     0.04414092650687958,
-     0.03262525940716411,
-     0.03225291839010495,
-     0.03297375904179416,
-     0.03333681090467334,
-     0.033523410216819836,
-     0.03361991286688224,
-     0.03366936671275695,
-     0.03369368120407458,
-     0.03370434496622899,
-     0.03370756292886454,
-     0.03370678060512687
+     0.05780188790149336,
+     0.022977688426593573,
+     0.025263940039423713,
+     0.0264739793305941,
+     0.02711806428337474,
+     0.027464539523120404,
+     0.027653283408370918,
+     0.027757468760578122,
+     0.027815728610365804,
+     0.02784870708685085,
+     0.02786758303731453,
+     0.027878492825078833,
+     0.027884850296500424
     ],
     "zmp_consistency_history_m": [
-     0.18463352941769398,
-     0.038766002849742465,
-     0.026950100168221157,
-     0.018876006017294607,
-     0.013263119885094201,
-     0.009346191793274226,
-     0.006601467471352516,
-     0.004672891947349146,
-     0.0033148183646495395,
-     0.0023567092278405453,
-     0.0016796141305562703,
-     0.0012853220488390873,
-     0.001160636765672873
+     0.05645813369981657,
+     0.01709981279710579,
+     0.009493457226297809,
+     0.0058880152101429785,
+     0.0037111545522296474,
+     0.0027823213630152987,
+     0.002230741523083589,
+     0.0018838287810503001,
+     0.0016512700559570524,
+     0.001527747855391522,
+     0.001488753125663123,
+     0.0014559932680177606,
+     0.0014277172955377403
     ],
     "post_window_zmp_error_m": [
-     0.19468812733287635,
-     0.040188431272738745,
-     0.028285618200187594,
-     0.020050596472959394,
-     0.01424958616652231,
-     0.010155081421225667,
-     0.0072565406907363055,
-     0.0052004241494504055,
-     0.003739254228980008,
-     0.003133959654975118,
-     0.002867486538600857,
-     0.0027382441493299364,
-     0.0026144278524651583
+     0.05780188790149336,
+     0.01765677646391565,
+     0.010721090578425364,
+     0.006987208021746717,
+     0.005106885334558018,
+     0.004050134749322136,
+     0.0034276135917234276,
+     0.00303977606804568,
+     0.0027828475798569036,
+     0.0026018342529650312,
+     0.002466885886790686,
+     0.0023613207960529983,
+     0.002275490633800824
     ],
-    "zmp_consistency_all_m": 0.0026144278524651583,
+    "zmp_consistency_all_m": 0.002275490633800824,
     "cop_margin_single_min": {
-     "m": 0.017855432611936572,
+     "m": 0.023609675214534637,
      "frame": 3,
      "foot": "right"
     },
-    "min_cop_margin_single_m": 0.017855432611936572,
-    "hip_yaw_range_use": 0.792100002773427,
+    "min_cop_margin_single_m": 0.023609675214534637,
+    "hip_yaw_range_use": 0.83275651016824,
     "tightest_other": {
      "joint": "left_hip_roll",
      "end": "max",
-     "margin_rad": 0.136005595756184
+     "margin_rad": 0.11873096956762136
     },
     "reference": {
-     "accel_forward_lp1hz_peak_m_s2": 0.11693931358153267,
+     "accel_forward_lp1hz_peak_m_s2": 0.10117799687854713,
+     "accel_forward_lp1hz_peak_t_s": 0.728,
+     "accel_forward_raw_peak_m_s2": 1.8050819267420488,
+     "accel_forward_raw_peak_t_s": 1.7038323381840654,
+     "accel_filter": {
+      "hz": 1.0,
+      "order": 2,
+      "zero_phase": true,
+      "fs_hz": 500.0,
+      "of": "model CoM, along the planned heading: three-point second differences on the frames' own times, then interpolated to fs_hz for the filter; the first frame's from the computed frame before the command, the last frame its neighbour's",
+      "history_s": 3.0,
+      "before": "the periodic stride of v0.4",
+      "after": "the periodic stride of v0.4",
+      "read_over": "the move's own frames only: the history enters the filter, not the peaks"
+     },
+     "at_s": 2.0,
+     "command_rate": 1.05,
+     "slowest_clock": 0.95,
+     "heading_at_bar_deg": 85.22571695339897,
+     "heading_at_slowest_clock_deg": 80.55881121207678,
+     "heading_at_ref_clock_deg": 80.78381121207676,
+     "time_to_80deg_bar_s": 1.8881733076809137,
+     "heading_min_deg": 80.0
+    },
+    "turn": {
+     "angle_rad": 1.5707963267948966,
+     "rate_rad_s": 0.7853981633974483,
+     "direction": "left",
+     "first_swing": "left",
+     "ramp_s": 0.375,
+     "ramp_strides": 0.4841521871880476,
+     "hold_strides": 2.3945622245123133,
+     "stride_factor": 0.8,
+     "period_in_turn_s": 0.6884887482783687,
+     "kappa": 1.0000000000000588,
+     "heading_total_rad": 1.5707963267948872,
+     "appendage_rule": "inside a move whose stride period T(p) is shorter than the walk's, the tail's and the neck's swing amplitudes are multiplied by (T(p) / T_walk)^2 (constant angular acceleration amplitude), for every set, look sets included; a look choice (lead's ruling 1)"
+    },
+    "frames": 960,
+    "duration_s": 4.661998078837463,
+    "move": {
+     "kind": "turn",
+     "builder": "turn",
+     "causal": true,
+     "command_phase": 0.0,
+     "command_t_s": 0.0,
+     "rules": [
+      "S2A-causal",
+      "S2A-rule-F",
+      "S2A-fade",
+      "S2A-ramp",
+      "S2A-appendage",
+      "S2A-stride",
+      "S2A-gates",
+      "S2L-L1",
+      "S2L-L2",
+      "S2L-L3",
+      "S2L-L4",
+      "S2L-L5",
+      "S2L-L6",
+      "S2L-L7",
+      "S2L-L8",
+      "S2L-L10",
+      "S2L-J1",
+      "S2L-J2",
+      "S2L-J3",
+      "S2L-causal-grid",
+      "S2L-P42-warmup"
+     ],
+     "laws": "look"
+    },
+    "look": {
+     "laws": "look",
+     "rules": [
+      "S2L-L1",
+      "S2L-L2",
+      "S2L-L3",
+      "S2L-L4",
+      "S2L-L5",
+      "S2L-L6",
+      "S2L-L7",
+      "S2L-L8",
+      "S2L-L10",
+      "S2L-J1",
+      "S2L-J2",
+      "S2L-J3",
+      "S2L-causal-grid",
+      "S2L-P42-warmup"
+     ],
+     "instant_phase": 0.0,
+     "flat_from_phase": 0.0,
+     "flat_until_phase": 3.3628665988884086,
+     "variation_a_until_phase": 0.0,
+     "window_a": {
+      "reference": "v0.4",
+      "strides": 12,
+      "window_s": 10.32733122417553,
+      "period_s": 0.8606109353479608,
+      "offset_strides": 2.0,
+      "a_phase": 2.0,
+      "a_time_s": 1.7152832712755346,
+      "a_windows": 0.16609162948702383,
+      "varies": true,
+      "step_deviations": [
+       0.006901967388740248,
+       -0.0275,
+       0.021157993476561554,
+       -0.014360853176729388,
+       0.016929567386056187,
+       -0.005878455990154798,
+       0.013383886613554885,
+       -0.0029365907857534378,
+       0.0022799277275574697,
+       -0.020150655511943838,
+       0.011533381274232127,
+       -0.015221811480464843,
+       0.018768419736197098,
+       -0.010898568522639148,
+       0.021110742803059114,
+       -0.013892206248517284,
+       -5.692110490287487e-06,
+       -0.008521503263373618,
+       0.02286511188417669,
+       -0.014106044653905036,
+       0.01855807962397754,
+       -0.024579317389282578,
+       0.007048647640633433,
+       -0.0024860264214920905
+      ]
+     },
+     "window_b": {
+      "reference": "v0.4",
+      "strides": 12,
+      "window_s": 10.32733122417553,
+      "period_s": 0.8606109353479608,
+      "offset_strides": 6.0,
+      "a_phase": null,
+      "a_time_s": null,
+      "a_windows": null,
+      "varies": true,
+      "step_deviations": [
+       0.006901967388740248,
+       -0.0275,
+       0.021157993476561554,
+       -0.014360853176729388,
+       0.016929567386056187,
+       -0.005878455990154798,
+       0.013383886613554885,
+       -0.0029365907857534378,
+       0.0022799277275574697,
+       -0.020150655511943838,
+       0.011533381274232127,
+       -0.015221811480464843,
+       0.018768419736197098,
+       -0.010898568522639148,
+       0.021110742803059114,
+       -0.013892206248517284,
+       -5.692110490287487e-06,
+       -0.008521503263373618,
+       0.02286511188417669,
+       -0.014106044653905036,
+       0.01855807962397754,
+       -0.024579317389282578,
+       0.007048647640633433,
+       -0.0024860264214920905
+      ]
+     },
+     "a_phase": 2.0,
+     "a_time_s": 1.7152832712755346,
+     "a_windows": 0.16609162948702383,
+     "feet": "flat in every stance that ends after the instant (instant_phase) and no later than the end of the move's last ramp (flat_until_phase; null: none ends later); the walk's own law before and after (S2L-L10)",
+     "preview_grid": {
+      "rule": "S2L-causal-grid",
+      "grid_s": 0.00522440904905741,
+      "whole_plan_min_s": 0.004295095299752916,
+      "command_frame": 160
+     }
+    },
+    "join_events": {
+     "note": "a reading, not a gate: the gate is join_command's warmup_zmp_max_mm",
+     "frames": 157,
+     "zmp_max_mm": 3.206675149126493,
+     "zmp_p50_mm": 0.14178961428162462,
+     "zmp_p90_mm": 0.5066007661533924,
+     "limit_mm": 5.0,
+     "frames_over_limit": 0,
+     "phases_over_limit": [],
+     "frames_over_limit_away_from_events": 0,
+     "event_frames": 25,
+     "zmp_max_mm_away_from_events": 0.5863698768321782,
+     "events_rule": "within 3 frames of a planned lift-off or touchdown, or of a frame of the warm-up on which a stance foot rolls (no frame beyond either end of the warm-up)"
+    },
+    "rolling_frames": 0,
+    "rolling_split_failed_frames": 0,
+    "failed_gates": [],
+    "stage0": {
+     "source": "setscreen.screen_move on the built file (at build time)",
+     "governing": [
+      "hip_yaw",
+      "peak",
+      1.1443311191416945
+     ],
+     "within_limits": false,
+     "over": [
+      {
+       "limit": "hip_yaw peak",
+       "value": 1.1443311191416945
+      },
+      {
+       "limit": "knee speed",
+       "value": 1.0384185878245737
+      }
+     ],
+     "blocks_freeze": [
+      {
+       "limit": "hip_yaw peak",
+       "value": 1.1443311191416945
+      },
+      {
+       "limit": "knee speed",
+       "value": 1.0384185878245737
+      }
+     ],
+     "a1_over": false,
+     "over_leg_drive": true,
+     "text": "over hip_yaw peak 1.1443; knee speed 1.0384: blocks the freeze (hip_yaw peak; knee speed)",
+     "tightest_joint": [
+      "right_hip_yaw",
+      "min",
+      0.0502
+     ],
+     "accel_forward_lp1hz_peak_m_s2": 0.2617275021843831
+    },
+    "built_sha256": "240a2547ca538e9245e197384345a2b713f37d4dbb01bbb26542def2a66b6e8d",
+    "stride_rule": {
+     "rule": "S2A-stride",
+     "grid": [
+      1.0,
+      0.95,
+      0.9,
+      0.85,
+      0.8,
+      0.75,
+      0.7,
+      0.65,
+      0.6
+     ],
+     "limit_kinematic": 0.85,
+     "limit_final": 0.87,
+     "limit_other_joints_rad": 0.05,
+     "steps_down_max": 2,
+     "angle_rad": 1.5707963267948966,
+     "rate_rad_s": 0.7853981633974483,
+     "tried": [
+      {
+       "f": 1.0,
+       "left": 1.0,
+       "right": 1.0,
+       "tightest_other": {
+        "left": {
+         "joint": "left_hip_roll",
+         "end": "max",
+         "margin_rad": 0.07247630680251091
+        },
+        "right": {
+         "joint": "right_hip_roll",
+         "end": "min",
+         "margin_rad": 0.07621514467752949
+        }
+       },
+       "ik_fail_frames": {
+        "left": 18,
+        "right": 18
+       },
+       "ik_ok": false,
+       "pass_": false
+      },
+      {
+       "f": 0.95,
+       "left": 1.0,
+       "right": 1.0,
+       "tightest_other": {
+        "left": {
+         "joint": "left_hip_roll",
+         "end": "max",
+         "margin_rad": 0.08272221018535181
+        },
+        "right": {
+         "joint": "right_hip_roll",
+         "end": "min",
+         "margin_rad": 0.08646208966546118
+        }
+       },
+       "ik_fail_frames": {
+        "left": 2,
+        "right": 2
+       },
+       "ik_ok": false,
+       "pass_": false
+      },
+      {
+       "f": 0.9,
+       "left": 0.9471767295095731,
+       "right": 0.946099518148472,
+       "tightest_other": {
+        "left": {
+         "joint": "left_hip_roll",
+         "end": "max",
+         "margin_rad": 0.09300156774693519
+        },
+        "right": {
+         "joint": "right_hip_roll",
+         "end": "min",
+         "margin_rad": 0.09679859183287196
+        }
+       },
+       "ik_fail_frames": {
+        "left": 0,
+        "right": 0
+       },
+       "ik_ok": true,
+       "pass_": false
+      },
+      {
+       "f": 0.85,
+       "left": 0.8910652949314184,
+       "right": 0.8900852911397555,
+       "tightest_other": {
+        "left": {
+         "joint": "left_hip_roll",
+         "end": "max",
+         "margin_rad": 0.10324285793787674
+        },
+        "right": {
+         "joint": "right_hip_roll",
+         "end": "min",
+         "margin_rad": 0.1071132973184502
+        }
+       },
+       "ik_fail_frames": {
+        "left": 0,
+        "right": 0
+       },
+       "ik_ok": true,
+       "pass_": false
+      },
+      {
+       "f": 0.8,
+       "left": 0.83485339866609,
+       "right": 0.8339647348565549,
+       "tightest_other": {
+        "left": {
+         "joint": "left_hip_roll",
+         "end": "max",
+         "margin_rad": 0.11341177798361732
+        },
+        "right": {
+         "joint": "right_hip_roll",
+         "end": "min",
+         "margin_rad": 0.11728396023135848
+        }
+       },
+       "ik_fail_frames": {
+        "left": 0,
+        "right": 0
+       },
+       "ik_ok": true,
+       "pass_": true
+      }
+     ],
+     "chosen": null,
+     "steady_turn_kinematic": {
+      "available": false,
+      "reason": "turning.generate builds today's walk only (a look spec is refused)"
+     },
+     "steps_down": 0,
+     "builds": [
+      {
+       "f": 0.8,
+       "ik_ok": true,
+       "hip_yaw_range_use": 0.83275651016824,
+       "tightest_other_rad": 0.11873096956762136,
+       "tightest_other": {
+        "left": {
+         "joint": "left_hip_roll",
+         "end": "max",
+         "margin_rad": 0.11873096956762136
+        },
+        "right": {
+         "joint": "right_hip_roll",
+         "end": "min",
+         "margin_rad": 0.12273189467432025
+        }
+       },
+       "over_leg_drive": true,
+       "a1_over": false,
+       "pass_": {
+        "left": true,
+        "right": true
+       },
+       "stage0_blocks": {
+        "left": [
+         {
+          "limit": "hip_yaw peak",
+          "value": 1.1443311191416945
+         },
+         {
+          "limit": "knee speed",
+          "value": 1.0384185878245737
+         }
+        ],
+        "right": [
+         {
+          "limit": "hip_yaw peak",
+          "value": 1.1456612443168597
+         },
+         {
+          "limit": "knee speed",
+          "value": 1.0386769144378707
+         }
+        ]
+       }
+      }
+     ],
+     "outcome": "none",
+     "reason": "the built reference is over a leg drive's Stage 0 limit",
+     "walk": "v0.4",
+     "walk_sha256": "b1f32214114a0be77003415ecfecc04d10118ab921aaa089788dbdd2939f0c06",
+     "a1_over": null,
+     "references": {
+      "turn90_pi4_left": false,
+      "turn90_pi4_right": false
+     },
+     "no_reference": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit"
+    }
+   }
+  },
+  "turn90_pi4_right": {
+   "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit",
+   "numbers": {
+    "gates": {
+     "ik_ok": true,
+     "join_b": true,
+     "join_command": true,
+     "zmp_consistency": true,
+     "post_window_zmp": true,
+     "cop_margin_single": true,
+     "heading_total": true,
+     "heading_at_bar": true,
+     "heading_at_slowest_clock": true,
+     "thigh_twist": true
+    },
+    "pass_": true,
+    "ik_ok": true,
+    "ik_fail_frames": 0,
+    "join_a": null,
+    "join_b": {
+     "stride_phase": 5.0,
+     "reference": "v0.4",
+     "com_max_mm": 0.22327021133304267,
+     "com_mean_mm": 0.08160790001126181,
+     "zmp_max_mm": 1.1725789133016635,
+     "zmp_mean_mm": 0.05485228284417774,
+     "joint_max_rad": 0.0006695431634484161,
+     "joint_rate_max_rad_s": 0.006664276884092102,
+     "at_join": {
+      "frame": "last output frame",
+      "com_mm": 0.22327021133304267,
+      "zmp_mm": 0.26000900326047927,
+      "joint_rad": 0.0006695431634484161,
+      "joint_rate_rad_s": 0.006664276884092102,
+      "tau_Nm": 0.014732380154555358
+     },
+     "tau_max_Nm": 4.90441398252951,
+     "window": {
+      "reference": "v0.4",
+      "strides": 12,
+      "window_s": 10.32733122417553,
+      "period_s": 0.8606109353479608,
+      "offset_strides": 6.0,
+      "a_phase": null,
+      "a_time_s": null,
+      "a_windows": null,
+      "varies": true,
+      "step_deviations": [
+       0.006901967388740248,
+       -0.0275,
+       0.021157993476561554,
+       -0.014360853176729388,
+       0.016929567386056187,
+       -0.005878455990154798,
+       0.013383886613554885,
+       -0.0029365907857534378,
+       0.0022799277275574697,
+       -0.020150655511943838,
+       0.011533381274232127,
+       -0.015221811480464843,
+       0.018768419736197098,
+       -0.010898568522639148,
+       0.021110742803059114,
+       -0.013892206248517284,
+       -5.692110490287487e-06,
+       -0.008521503263373618,
+       0.02286511188417669,
+       -0.014106044653905036,
+       0.01855807962397754,
+       -0.024579317389282578,
+       0.007048647640633433,
+       -0.0024860264214920905
+      ]
+     },
+     "window_phase": [
+      11.0,
+      11.99375
+     ],
+     "com_ok": true,
+     "zmp_ok": true
+    },
+    "join_command": {
+     "reference": "v0.4",
+     "frames": 161,
+     "warmup_com_max_mm": 0.03937854351909376,
+     "warmup_zmp_max_mm": 2.785449758997573,
+     "warmup_joint_max_rad": 0.0002253021219746562,
+     "warmup_ik_ok": true,
+     "at_command": {
+      "com_mm": 0.025057918139159547,
+      "joint_rad": 0.00012927325123260336,
+      "zmp_mm": 11.544785111897884,
+      "zmp_note": "recorded, not gated: the multibody ZMP's central difference at the command frame straddles the command"
+     },
+     "limits": {
+      "com_mm": 1.0,
+      "zmp_mm": 5.0,
+      "joint_rad": 0.001,
+      "zmp_frames": "the warm-up frames up to two frames before the command",
+      "zmp_rule": "S2L-P42-warmup"
+     },
+     "ok": true
+    },
+    "zmp_error_history_m": [
+     0.058087488369265604,
+     0.023539946263615108,
+     0.02577164331429725,
+     0.026933451892808474,
+     0.027529945553079894,
+     0.027825910692677387,
+     0.02796068435291093,
+     0.028008466112868342,
+     0.028009387572235533,
+     0.02798550384461475,
+     0.02794910417415293,
+     0.02790710019054912,
+     0.027863386887077464
+    ],
+    "zmp_consistency_history_m": [
+     0.05636501220701777,
+     0.017211052395586117,
+     0.00960428378496107,
+     0.005972679054956345,
+     0.0037193171234331224,
+     0.002370711752414491,
+     0.0018996545289822638,
+     0.001607593484759047,
+     0.0015669911845528428,
+     0.001537423793315378,
+     0.0015152573040971183,
+     0.0014981880490443052,
+     0.0014847081799096388
+    ],
+    "post_window_zmp_error_m": [
+     0.058087488369265604,
+     0.017614633149499247,
+     0.010901631985074947,
+     0.006940156350371532,
+     0.004815994606175132,
+     0.0037900670175298862,
+     0.003191465177841901,
+     0.0028227186418166134,
+     0.0026403226889251414,
+     0.0025287490441632536,
+     0.0024380478480528585,
+     0.002364493463636702,
+     0.0023046123578366576
+    ],
+    "zmp_consistency_all_m": 0.0023046123578366576,
+    "cop_margin_single_min": {
+     "m": 0.02366626351533695,
+     "frame": 2,
+     "foot": "left"
+    },
+    "min_cop_margin_single_m": 0.02366626351533695,
+    "hip_yaw_range_use": 0.8320812798662407,
+    "tightest_other": {
+     "joint": "right_hip_roll",
+     "end": "min",
+     "margin_rad": 0.12273189467432025
+    },
+    "reference": {
+     "accel_forward_lp1hz_peak_m_s2": 0.10211169008420433,
+     "accel_forward_lp1hz_peak_t_s": 0.716,
+     "accel_forward_raw_peak_m_s2": 1.8104679719557657,
+     "accel_forward_raw_peak_t_s": 1.6969257495511059,
+     "accel_filter": {
+      "hz": 1.0,
+      "order": 2,
+      "zero_phase": true,
+      "fs_hz": 500.0,
+      "of": "model CoM, along the planned heading: three-point second differences on the frames' own times, then interpolated to fs_hz for the filter; the first frame's from the computed frame before the command, the last frame its neighbour's",
+      "history_s": 3.0,
+      "before": "the periodic stride of v0.4",
+      "after": "the periodic stride of v0.4",
+      "read_over": "the move's own frames only: the history enters the filter, not the peaks"
+     },
+     "at_s": 2.0,
+     "command_rate": 1.05,
+     "slowest_clock": 0.95,
+     "heading_at_bar_deg": 85.51254572018443,
+     "heading_at_slowest_clock_deg": 80.86960770055991,
+     "heading_at_ref_clock_deg": 81.0946077005599,
+     "time_to_80deg_bar_s": 1.881595604220952,
+     "heading_min_deg": 80.0
+    },
+    "turn": {
+     "angle_rad": 1.5707963267948966,
+     "rate_rad_s": -0.7853981633974483,
+     "direction": "right",
+     "first_swing": "right",
+     "ramp_s": 0.375,
+     "ramp_strides": 0.4841521871880476,
+     "hold_strides": 2.3945622245123133,
+     "stride_factor": 0.8,
+     "period_in_turn_s": 0.6884887482783687,
+     "kappa": 1.0000000000000588,
+     "heading_total_rad": -1.5707963267948872,
+     "appendage_rule": "inside a move whose stride period T(p) is shorter than the walk's, the tail's and the neck's swing amplitudes are multiplied by (T(p) / T_walk)^2 (constant angular acceleration amplitude), for every set, look sets included; a look choice (lead's ruling 1)"
+    },
+    "frames": 880,
+    "duration_s": 4.224786022529934,
+    "move": {
+     "kind": "turn",
+     "builder": "turn",
+     "causal": true,
+     "command_phase": 0.5,
+     "command_t_s": 0.0,
+     "rules": [
+      "S2A-causal",
+      "S2A-rule-F",
+      "S2A-fade",
+      "S2A-ramp",
+      "S2A-appendage",
+      "S2A-stride",
+      "S2A-gates",
+      "S2L-L1",
+      "S2L-L2",
+      "S2L-L3",
+      "S2L-L4",
+      "S2L-L5",
+      "S2L-L6",
+      "S2L-L7",
+      "S2L-L8",
+      "S2L-L10",
+      "S2L-J1",
+      "S2L-J2",
+      "S2L-J3",
+      "S2L-causal-grid",
+      "S2L-P42-warmup"
+     ],
+     "laws": "look"
+    },
+    "look": {
+     "laws": "look",
+     "rules": [
+      "S2L-L1",
+      "S2L-L2",
+      "S2L-L3",
+      "S2L-L4",
+      "S2L-L5",
+      "S2L-L6",
+      "S2L-L7",
+      "S2L-L8",
+      "S2L-L10",
+      "S2L-J1",
+      "S2L-J2",
+      "S2L-J3",
+      "S2L-causal-grid",
+      "S2L-P42-warmup"
+     ],
+     "instant_phase": 0.5,
+     "flat_from_phase": 0.5,
+     "flat_until_phase": 3.8628665988884086,
+     "variation_a_until_phase": 0.5,
+     "window_a": {
+      "reference": "v0.4",
+      "strides": 12,
+      "window_s": 10.32733122417553,
+      "period_s": 0.8606109353479608,
+      "offset_strides": 2.0,
+      "a_phase": 2.5,
+      "a_time_s": 2.15287362436109,
+      "a_windows": 0.20846369479477617,
+      "varies": true,
+      "step_deviations": [
+       0.006901967388740248,
+       -0.0275,
+       0.021157993476561554,
+       -0.014360853176729388,
+       0.016929567386056187,
+       -0.005878455990154798,
+       0.013383886613554885,
+       -0.0029365907857534378,
+       0.0022799277275574697,
+       -0.020150655511943838,
+       0.011533381274232127,
+       -0.015221811480464843,
+       0.018768419736197098,
+       -0.010898568522639148,
+       0.021110742803059114,
+       -0.013892206248517284,
+       -5.692110490287487e-06,
+       -0.008521503263373618,
+       0.02286511188417669,
+       -0.014106044653905036,
+       0.01855807962397754,
+       -0.024579317389282578,
+       0.007048647640633433,
+       -0.0024860264214920905
+      ]
+     },
+     "window_b": {
+      "reference": "v0.4",
+      "strides": 12,
+      "window_s": 10.32733122417553,
+      "period_s": 0.8606109353479608,
+      "offset_strides": 6.0,
+      "a_phase": null,
+      "a_time_s": null,
+      "a_windows": null,
+      "varies": true,
+      "step_deviations": [
+       0.006901967388740248,
+       -0.0275,
+       0.021157993476561554,
+       -0.014360853176729388,
+       0.016929567386056187,
+       -0.005878455990154798,
+       0.013383886613554885,
+       -0.0029365907857534378,
+       0.0022799277275574697,
+       -0.020150655511943838,
+       0.011533381274232127,
+       -0.015221811480464843,
+       0.018768419736197098,
+       -0.010898568522639148,
+       0.021110742803059114,
+       -0.013892206248517284,
+       -5.692110490287487e-06,
+       -0.008521503263373618,
+       0.02286511188417669,
+       -0.014106044653905036,
+       0.01855807962397754,
+       -0.024579317389282578,
+       0.007048647640633433,
+       -0.0024860264214920905
+      ]
+     },
+     "a_phase": 2.5,
+     "a_time_s": 2.15287362436109,
+     "a_windows": 0.20846369479477617,
+     "feet": "flat in every stance that ends after the instant (instant_phase) and no later than the end of the move's last ramp (flat_until_phase; null: none ends later); the walk's own law before and after (S2L-L10)",
+     "preview_grid": {
+      "rule": "S2L-causal-grid",
+      "grid_s": 0.00522440904905741,
+      "whole_plan_min_s": 0.004302323374795414,
+      "command_frame": 160
+     }
+    },
+    "join_events": {
+     "note": "a reading, not a gate: the gate is join_command's warmup_zmp_max_mm",
+     "frames": 157,
+     "zmp_max_mm": 2.785449758997573,
+     "zmp_p50_mm": 0.13477364132842526,
+     "zmp_p90_mm": 0.5527621471267768,
+     "limit_mm": 5.0,
+     "frames_over_limit": 0,
+     "phases_over_limit": [],
+     "frames_over_limit_away_from_events": 0,
+     "event_frames": 25,
+     "zmp_max_mm_away_from_events": 0.6923863390590208,
+     "events_rule": "within 3 frames of a planned lift-off or touchdown, or of a frame of the warm-up on which a stance foot rolls (no frame beyond either end of the warm-up)"
+    },
+    "rolling_frames": 0,
+    "rolling_split_failed_frames": 0,
+    "failed_gates": [],
+    "stage0": {
+     "source": "setscreen.screen_move on the built file (at build time)",
+     "governing": [
+      "hip_yaw",
+      "peak",
+      1.1456612443168597
+     ],
+     "within_limits": false,
+     "over": [
+      {
+       "limit": "hip_yaw peak",
+       "value": 1.1456612443168597
+      },
+      {
+       "limit": "knee speed",
+       "value": 1.0386769144378707
+      }
+     ],
+     "blocks_freeze": [
+      {
+       "limit": "hip_yaw peak",
+       "value": 1.1456612443168597
+      },
+      {
+       "limit": "knee speed",
+       "value": 1.0386769144378707
+      }
+     ],
+     "a1_over": false,
+     "over_leg_drive": true,
+     "text": "over hip_yaw peak 1.1457; knee speed 1.0387: blocks the freeze (hip_yaw peak; knee speed)",
+     "tightest_joint": [
+      "left_hip_yaw",
+      "max",
+      0.0504
+     ],
+     "accel_forward_lp1hz_peak_m_s2": 0.25332532951330705
+    },
+    "built_sha256": "681fb214f8ce098126ce33973a76106190d4b632a5673629f796fa43b5edcd9b",
+    "stride_rule": {
+     "rule": "S2A-stride",
+     "grid": [
+      1.0,
+      0.95,
+      0.9,
+      0.85,
+      0.8,
+      0.75,
+      0.7,
+      0.65,
+      0.6
+     ],
+     "limit_kinematic": 0.85,
+     "limit_final": 0.87,
+     "limit_other_joints_rad": 0.05,
+     "steps_down_max": 2,
+     "angle_rad": 1.5707963267948966,
+     "rate_rad_s": 0.7853981633974483,
+     "tried": [
+      {
+       "f": 1.0,
+       "left": 1.0,
+       "right": 1.0,
+       "tightest_other": {
+        "left": {
+         "joint": "left_hip_roll",
+         "end": "max",
+         "margin_rad": 0.07247630680251091
+        },
+        "right": {
+         "joint": "right_hip_roll",
+         "end": "min",
+         "margin_rad": 0.07621514467752949
+        }
+       },
+       "ik_fail_frames": {
+        "left": 18,
+        "right": 18
+       },
+       "ik_ok": false,
+       "pass_": false
+      },
+      {
+       "f": 0.95,
+       "left": 1.0,
+       "right": 1.0,
+       "tightest_other": {
+        "left": {
+         "joint": "left_hip_roll",
+         "end": "max",
+         "margin_rad": 0.08272221018535181
+        },
+        "right": {
+         "joint": "right_hip_roll",
+         "end": "min",
+         "margin_rad": 0.08646208966546118
+        }
+       },
+       "ik_fail_frames": {
+        "left": 2,
+        "right": 2
+       },
+       "ik_ok": false,
+       "pass_": false
+      },
+      {
+       "f": 0.9,
+       "left": 0.9471767295095731,
+       "right": 0.946099518148472,
+       "tightest_other": {
+        "left": {
+         "joint": "left_hip_roll",
+         "end": "max",
+         "margin_rad": 0.09300156774693519
+        },
+        "right": {
+         "joint": "right_hip_roll",
+         "end": "min",
+         "margin_rad": 0.09679859183287196
+        }
+       },
+       "ik_fail_frames": {
+        "left": 0,
+        "right": 0
+       },
+       "ik_ok": true,
+       "pass_": false
+      },
+      {
+       "f": 0.85,
+       "left": 0.8910652949314184,
+       "right": 0.8900852911397555,
+       "tightest_other": {
+        "left": {
+         "joint": "left_hip_roll",
+         "end": "max",
+         "margin_rad": 0.10324285793787674
+        },
+        "right": {
+         "joint": "right_hip_roll",
+         "end": "min",
+         "margin_rad": 0.1071132973184502
+        }
+       },
+       "ik_fail_frames": {
+        "left": 0,
+        "right": 0
+       },
+       "ik_ok": true,
+       "pass_": false
+      },
+      {
+       "f": 0.8,
+       "left": 0.83485339866609,
+       "right": 0.8339647348565549,
+       "tightest_other": {
+        "left": {
+         "joint": "left_hip_roll",
+         "end": "max",
+         "margin_rad": 0.11341177798361732
+        },
+        "right": {
+         "joint": "right_hip_roll",
+         "end": "min",
+         "margin_rad": 0.11728396023135848
+        }
+       },
+       "ik_fail_frames": {
+        "left": 0,
+        "right": 0
+       },
+       "ik_ok": true,
+       "pass_": true
+      }
+     ],
+     "chosen": null,
+     "steady_turn_kinematic": {
+      "available": false,
+      "reason": "turning.generate builds today's walk only (a look spec is refused)"
+     },
+     "steps_down": 0,
+     "builds": [
+      {
+       "f": 0.8,
+       "ik_ok": true,
+       "hip_yaw_range_use": 0.83275651016824,
+       "tightest_other_rad": 0.11873096956762136,
+       "tightest_other": {
+        "left": {
+         "joint": "left_hip_roll",
+         "end": "max",
+         "margin_rad": 0.11873096956762136
+        },
+        "right": {
+         "joint": "right_hip_roll",
+         "end": "min",
+         "margin_rad": 0.12273189467432025
+        }
+       },
+       "over_leg_drive": true,
+       "a1_over": false,
+       "pass_": {
+        "left": true,
+        "right": true
+       },
+       "stage0_blocks": {
+        "left": [
+         {
+          "limit": "hip_yaw peak",
+          "value": 1.1443311191416945
+         },
+         {
+          "limit": "knee speed",
+          "value": 1.0384185878245737
+         }
+        ],
+        "right": [
+         {
+          "limit": "hip_yaw peak",
+          "value": 1.1456612443168597
+         },
+         {
+          "limit": "knee speed",
+          "value": 1.0386769144378707
+         }
+        ]
+       }
+      }
+     ],
+     "outcome": "none",
+     "reason": "the built reference is over a leg drive's Stage 0 limit",
+     "walk": "v0.4",
+     "walk_sha256": "b1f32214114a0be77003415ecfecc04d10118ab921aaa089788dbdd2939f0c06",
+     "a1_over": null,
+     "references": {
+      "turn90_pi4_left": false,
+      "turn90_pi4_right": false
+     },
+     "no_reference": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit"
+    }
+   }
+  },
+  "turn90_1_left": {
+   "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock, post_window_zmp",
+   "numbers": {
+    "gates": {
+     "ik_ok": true,
+     "join_b": true,
+     "join_command": true,
+     "zmp_consistency": true,
+     "post_window_zmp": false,
+     "cop_margin_single": true,
+     "heading_total": true,
+     "heading_at_bar": true,
+     "heading_at_slowest_clock": false,
+     "thigh_twist": true
+    },
+    "pass_": false,
+    "ik_ok": true,
+    "ik_fail_frames": 0,
+    "join_a": null,
+    "join_b": {
+     "stride_phase": 5.0,
+     "reference": "v0.4",
+     "com_max_mm": 0.2187863686711809,
+     "com_mean_mm": 0.08667054831581857,
+     "zmp_max_mm": 1.6612553411143158,
+     "zmp_mean_mm": 0.05408061042415148,
+     "joint_max_rad": 0.0006807119276157625,
+     "joint_rate_max_rad_s": 0.006664224074779845,
+     "at_join": {
+      "frame": "last output frame",
+      "com_mm": 0.2187863686711809,
+      "zmp_mm": 0.1448380828827245,
+      "joint_rad": 0.0006807119276157625,
+      "joint_rate_rad_s": 0.006664224074779845,
+      "tau_Nm": 0.013643913584832745
+     },
+     "tau_max_Nm": 4.885017715893261,
+     "window": {
+      "reference": "v0.4",
+      "strides": 12,
+      "window_s": 10.32733122417553,
+      "period_s": 0.8606109353479608,
+      "offset_strides": 6.0,
+      "a_phase": null,
+      "a_time_s": null,
+      "a_windows": null,
+      "varies": true,
+      "step_deviations": [
+       0.006901967388740248,
+       -0.0275,
+       0.021157993476561554,
+       -0.014360853176729388,
+       0.016929567386056187,
+       -0.005878455990154798,
+       0.013383886613554885,
+       -0.0029365907857534378,
+       0.0022799277275574697,
+       -0.020150655511943838,
+       0.011533381274232127,
+       -0.015221811480464843,
+       0.018768419736197098,
+       -0.010898568522639148,
+       0.021110742803059114,
+       -0.013892206248517284,
+       -5.692110490287487e-06,
+       -0.008521503263373618,
+       0.02286511188417669,
+       -0.014106044653905036,
+       0.01855807962397754,
+       -0.024579317389282578,
+       0.007048647640633433,
+       -0.0024860264214920905
+      ]
+     },
+     "window_phase": [
+      11.0,
+      11.99375
+     ],
+     "com_ok": true,
+     "zmp_ok": true
+    },
+    "join_command": {
+     "reference": "v0.4",
+     "frames": 161,
+     "warmup_com_max_mm": 0.04990248770174151,
+     "warmup_zmp_max_mm": 3.206675149126493,
+     "warmup_joint_max_rad": 0.0002797958527739966,
+     "warmup_ik_ok": true,
+     "at_command": {
+      "com_mm": 0.017091416378855768,
+      "joint_rad": 5.647893798699233e-05,
+      "zmp_mm": 3.464111866992673,
+      "zmp_note": "recorded, not gated: the multibody ZMP's central difference at the command frame straddles the command"
+     },
+     "limits": {
+      "com_mm": 1.0,
+      "zmp_mm": 5.0,
+      "joint_rad": 0.001,
+      "zmp_frames": "the warm-up frames up to two frames before the command",
+      "zmp_rule": "S2L-P42-warmup"
+     },
+     "ok": true
+    },
+    "zmp_error_history_m": [
+     0.19490135447890417,
+     0.04482611779057676,
+     0.033622628298916574,
+     0.03257342895595118,
+     0.03340720172307264,
+     0.03386236471094151,
+     0.03412224858357338,
+     0.03427743131173249,
+     0.03437383239331941,
+     0.03443572607840987,
+     0.034476506904487336,
+     0.03450389813363609,
+     0.03452254872408563
+    ],
+    "zmp_consistency_history_m": [
+     0.18467845898687132,
+     0.038374025584316594,
+     0.02655941512320027,
+     0.01848123534071956,
+     0.01288639058696706,
+     0.008998831639146035,
+     0.006290078144125132,
+     0.004399409324477647,
+     0.0036723897561425113,
+     0.0034719876209918865,
+     0.003310389680812323,
+     0.003180928739900109,
+     0.003077470374536865
+    ],
+    "post_window_zmp_error_m": [
+     0.19490135447890417,
+     0.04094007364451443,
+     0.028515881199342456,
+     0.020274413258157216,
+     0.014457421898902662,
+     0.010342054910128599,
+     0.007421595274127588,
+     0.005735814714173566,
+     0.005326091643562461,
+     0.005322100721179458,
+     0.005262948427979974,
+     0.005179864476739251,
+     0.005089689179419866
+    ],
+    "zmp_consistency_all_m": 0.005089689179419866,
+    "cop_margin_single_min": {
+     "m": 0.017393819853537995,
+     "frame": 3,
+     "foot": "right"
+    },
+    "min_cop_margin_single_m": 0.017393819853537995,
+    "hip_yaw_range_use": 0.7923148068517262,
+    "tightest_other": {
+     "joint": "left_hip_roll",
+     "end": "max",
+     "margin_rad": 0.13559327091563286
+    },
+    "reference": {
+     "accel_forward_lp1hz_peak_m_s2": 0.11757862064484305,
      "accel_forward_lp1hz_peak_t_s": 0.6,
-     "accel_forward_raw_peak_m_s2": 1.940268559177309,
+     "accel_forward_raw_peak_m_s2": 1.947920890054143,
      "accel_forward_raw_peak_t_s": 1.3413943392299923,
      "accel_filter": {
       "hz": 1.0,
@@ -6463,7 +6225,9 @@
       "S2L-L10",
       "S2L-J1",
       "S2L-J2",
-      "S2L-J3"
+      "S2L-J3",
+      "S2L-causal-grid",
+      "S2L-P42-warmup"
      ],
      "laws": "look"
     },
@@ -6481,7 +6245,9 @@
       "S2L-L10",
       "S2L-J1",
       "S2L-J2",
-      "S2L-J3"
+      "S2L-J3",
+      "S2L-causal-grid",
+      "S2L-P42-warmup"
      ],
      "instant_phase": 0.0,
      "flat_from_phase": 0.0,
@@ -6564,84 +6330,89 @@
      "a_phase": 2.0,
      "a_time_s": 1.7152832712755346,
      "a_windows": 0.16609162948702383,
-     "feet": "flat in every stance that ends after the instant (instant_phase) and no later than the end of the move's last ramp (flat_until_phase; null: none ends later); the walk's own law before and after (S2L-L10)"
+     "feet": "flat in every stance that ends after the instant (instant_phase) and no later than the end of the move's last ramp (flat_until_phase; null: none ends later); the walk's own law before and after (S2L-L10)",
+     "preview_grid": {
+      "rule": "S2L-causal-grid",
+      "grid_s": 0.00522440904905741,
+      "whole_plan_min_s": 0.003221321474815131,
+      "command_frame": 160
+     }
     },
     "join_events": {
      "note": "a reading, not a gate: the gate is join_command's warmup_zmp_max_mm",
      "frames": 157,
-     "zmp_max_mm": 2.18374125039283,
-     "zmp_p50_mm": 0.0915581702295826,
-     "zmp_p90_mm": 0.4002993448102242,
-     "limit_mm": 2.0,
-     "frames_over_limit": 1,
-     "phases_over_limit": [
-      -0.0875
-     ],
+     "zmp_max_mm": 3.206675149126493,
+     "zmp_p50_mm": 0.14178961428162462,
+     "zmp_p90_mm": 0.5066007661533924,
+     "limit_mm": 5.0,
+     "frames_over_limit": 0,
+     "phases_over_limit": [],
      "frames_over_limit_away_from_events": 0,
      "event_frames": 25,
-     "zmp_max_mm_away_from_events": 0.4567726289118199,
-     "events_rule": "within 3 frames of a planned lift-off or touchdown, or of a frame on which a stance foot rolls"
+     "zmp_max_mm_away_from_events": 0.5863698768321782,
+     "events_rule": "within 3 frames of a planned lift-off or touchdown, or of a frame of the warm-up on which a stance foot rolls (no frame beyond either end of the warm-up)"
     },
     "rolling_frames": 0,
     "rolling_split_failed_frames": 0,
     "failed_gates": [
-     "heading_at_slowest_clock"
+     "heading_at_slowest_clock",
+     "post_window_zmp"
     ],
     "stage0": {
      "source": "setscreen.screen_move on the built file (at build time)",
      "governing": [
       "hip_yaw",
       "peak",
-      1.6694414799459834
+      1.6694849697463956
      ],
      "within_limits": false,
      "over": [
       {
        "limit": "hip_roll peak",
-       "value": 1.0035705270411355
+       "value": 1.0033029864266414
       },
       {
        "limit": "hip_pitch peak",
-       "value": 1.006257515280337
+       "value": 1.0062448031078617
       },
       {
        "limit": "hip_yaw peak",
-       "value": 1.6694414799459834
+       "value": 1.6694849697463956
       },
       {
        "limit": "knee speed",
-       "value": 1.3412968312724363
+       "value": 1.341264383414888
       }
      ],
      "blocks_freeze": [
       {
        "limit": "hip_roll peak",
-       "value": 1.0035705270411355
+       "value": 1.0033029864266414
       },
       {
        "limit": "hip_pitch peak",
-       "value": 1.006257515280337
+       "value": 1.0062448031078617
       },
       {
        "limit": "hip_yaw peak",
-       "value": 1.6694414799459834
+       "value": 1.6694849697463956
       },
       {
        "limit": "knee speed",
-       "value": 1.3412968312724363
+       "value": 1.341264383414888
       }
      ],
      "a1_over": false,
      "over_leg_drive": true,
-     "text": "over hip_roll peak 1.0036; hip_pitch peak 1.0063; hip_yaw peak 1.6694; knee speed 1.3413: blocks the freeze (hip_roll peak; hip_pitch peak; hip_yaw peak; knee speed)",
+     "text": "over hip_roll peak 1.0033; hip_pitch peak 1.0062; hip_yaw peak 1.6695; knee speed 1.3413: blocks the freeze (hip_roll peak; hip_pitch peak; hip_yaw peak; knee speed)",
      "tightest_joint": [
       "right_hip_yaw",
       "min",
-      0.0624
+      0.0623
      ],
-     "accel_forward_lp1hz_peak_m_s2": 0.25656472161048
+     "accel_forward_lp1hz_peak_m_s2": 0.26367534742219306
     },
-    "built_sha256": "5028b21722f8b8ad530671807968982abbf2c04cb1448442638299a074f69c6b",
+    "built_sha256": "b83be4f33b9bfac20a1a8c657095dcaddfe86b48919dc1a346b9d975096ea833",
     "stride_rule": {
      "rule": "S2A-stride",
      "grid": [
@@ -6670,12 +6441,12 @@
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.03853650786653118
+         "margin_rad": 0.03868334603700768
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.04198253937981977
+         "margin_rad": 0.042119815606913386
         }
        },
        "ik_fail_frames": {
@@ -6693,12 +6464,12 @@
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.05057722493555383
+         "margin_rad": 0.05055256455222795
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.05367424837115517
+         "margin_rad": 0.05407028972532493
         }
        },
        "ik_fail_frames": {
@@ -6716,12 +6487,12 @@
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.06248979289345191
+         "margin_rad": 0.06225500208634471
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.06553888769603655
+         "margin_rad": 0.065865673306051
         }
        },
        "ik_fail_frames": {
@@ -6739,12 +6510,12 @@
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.07395408899399863
+         "margin_rad": 0.07390053670814822
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.07746750449486026
+         "margin_rad": 0.0776009126245159
         }
        },
        "ik_fail_frames": {
@@ -6762,12 +6533,12 @@
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.08553276924066891
+         "margin_rad": 0.08556001914335501
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.08905188375931813
+         "margin_rad": 0.08927614728569494
         }
        },
        "ik_fail_frames": {
@@ -6785,12 +6556,12 @@
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.09733209058541767
+         "margin_rad": 0.09708506618626056
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.1008175783677098
+         "margin_rad": 0.1008677445870198
         }
        },
        "ik_fail_frames": {
@@ -6802,18 +6573,18 @@
       },
       {
        "f": 0.7,
-       "left": 0.9375756406350518,
-       "right": 0.9367357485565341,
+       "left": 0.9378136759861576,
+       "right": 0.936738672230265,
        "tightest_other": {
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.1088504516036651
+         "margin_rad": 0.10841107140708611
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.1122969467392694
+         "margin_rad": 0.11224515351914716
         }
        },
        "ik_fail_frames": {
@@ -6825,18 +6596,18 @@
       },
       {
        "f": 0.65,
-       "left": 0.8642373948381481,
-       "right": 0.86350260647717,
+       "left": 0.8643186742720231,
+       "right": 0.8635537074097999,
        "tightest_other": {
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.11980924813207514
+         "margin_rad": 0.11951889001512939
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.12320525519645681
+         "margin_rad": 0.12322298538355178
         }
        },
        "ik_fail_frames": {
@@ -6848,18 +6619,18 @@
       },
       {
        "f": 0.6,
-       "left": 0.7930455583973232,
-       "right": 0.7924079098732644,
+       "left": 0.793228202144238,
+       "right": 0.7922788693307617,
        "tightest_other": {
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.1303127546748343
+         "margin_rad": 0.13005416054208754
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.1336997189687767
+         "margin_rad": 0.13395515246629391
         }
        },
        "ik_fail_frames": {
@@ -6880,18 +6651,18 @@
       {
        "f": 0.6,
        "ik_ok": true,
-       "hip_yaw_range_use": 0.792100002773427,
-       "tightest_other_rad": 0.136005595756184,
+       "hip_yaw_range_use": 0.7923148068517262,
+       "tightest_other_rad": 0.13559327091563286,
        "tightest_other": {
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.136005595756184
+         "margin_rad": 0.13559327091563286
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.13912881742469646
+         "margin_rad": 0.13965847666120013
         }
        },
        "over_leg_drive": true,
@@ -6904,37 +6675,37 @@
         "left": [
          {
           "limit": "hip_roll peak",
-          "value": 1.0035705270411355
+          "value": 1.0033029864266414
          },
          {
           "limit": "hip_pitch peak",
-          "value": 1.006257515280337
+          "value": 1.0062448031078617
          },
          {
           "limit": "hip_yaw peak",
-          "value": 1.6694414799459834
+          "value": 1.6694849697463956
          },
          {
           "limit": "knee speed",
-          "value": 1.3412968312724363
+          "value": 1.341264383414888
          }
         ],
         "right": [
          {
           "limit": "hip_roll peak",
-          "value": 1.0048019211118246
+          "value": 1.0048612730459086
          },
          {
           "limit": "hip_pitch peak",
-          "value": 1.006365256207666
+          "value": 1.0063540917695835
          },
          {
           "limit": "hip_yaw peak",
-          "value": 1.6711828363605417
+          "value": 1.671382403117097
          },
          {
           "limit": "knee speed",
-          "value": 1.341439872028342
+          "value": 1.3413777416261283
          }
         ]
        }
@@ -6949,7 +6720,7 @@
       "turn90_1_left": false,
       "turn90_1_right": false
      },
-     "no_reference": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock"
+     "no_reference": "turn90_1_left: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock, post_window_zmp; turn90_1_right: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock"
     }
    }
   },
@@ -6975,21 +6746,21 @@
     "join_b": {
      "stride_phase": 6.0,
      "reference": "v0.4",
-     "com_max_mm": 0.20691445832168143,
-     "com_mean_mm": 0.08085780520231005,
-     "zmp_max_mm": 1.6428640444804585,
-     "zmp_mean_mm": 0.05008419085084479,
-     "joint_max_rad": 0.0006765820811527046,
-     "joint_rate_max_rad_s": 0.006754393376955603,
+     "com_max_mm": 0.21048787048730572,
+     "com_mean_mm": 0.08130307235541745,
+     "zmp_max_mm": 1.6265231957492272,
+     "zmp_mean_mm": 0.05932398310249507,
+     "joint_max_rad": 0.0006845705479189557,
+     "joint_rate_max_rad_s": 0.0068325738024557214,
      "at_join": {
       "frame": "last output frame",
-      "com_mm": 0.20691445832168143,
-      "zmp_mm": 0.06555595677173462,
-      "joint_rad": 0.0006765820811527046,
-      "joint_rate_rad_s": 0.006754393376955603,
-      "tau_Nm": 0.007540522642305092
+      "com_mm": 0.21048787048730572,
+      "zmp_mm": 0.09429082046154985,
+      "joint_rad": 0.0006845705479189557,
+      "joint_rate_rad_s": 0.0068325738024557214,
+      "tau_Nm": 0.009489985966385284
      },
-     "tau_max_Nm": 4.883816625991777,
+     "tau_max_Nm": 4.89430307977643,
      "window": {
       "reference": "v0.4",
       "strides": 12,
@@ -7037,86 +6808,87 @@
     "join_command": {
      "reference": "v0.4",
      "frames": 161,
-     "warmup_com_max_mm": 0.033629736497508604,
-     "warmup_zmp_max_mm": 1.9367459720604459,
-     "warmup_joint_max_rad": 0.00018526104088338602,
+     "warmup_com_max_mm": 0.03937854351909376,
+     "warmup_zmp_max_mm": 2.785449758997573,
+     "warmup_joint_max_rad": 0.0002253021219746562,
      "warmup_ik_ok": true,
      "at_command": {
-      "com_mm": 0.03299678746766839,
-      "joint_rad": 0.0001635296115735374,
-      "zmp_mm": 6.741389254193603,
+      "com_mm": 0.025057918139159547,
+      "joint_rad": 0.00012927325123260336,
+      "zmp_mm": 14.356550520495338,
       "zmp_note": "recorded, not gated: the multibody ZMP's central difference at the command frame straddles the command"
      },
      "limits": {
       "com_mm": 1.0,
-      "zmp_mm": 4.0,
+      "zmp_mm": 5.0,
       "joint_rad": 0.001,
-      "zmp_frames": "the warm-up frames up to two frames before the command"
+      "zmp_frames": "the warm-up frames up to two frames before the command",
+      "zmp_rule": "S2L-P42-warmup"
      },
      "ok": true
     },
     "zmp_error_history_m": [
-     0.19502433207092276,
-     0.04466383829649261,
-     0.03345505938268584,
-     0.03263725781191115,
-     0.03333012126310773,
-     0.033668822672536056,
-     0.033833949557529316,
-     0.033911489909819716,
-     0.033943981990479544,
-     0.033953003436286926,
-     0.03394984043072593,
-     0.033940570001318796,
-     0.033928543582289424
+     0.1951062181250185,
+     0.04473394077837991,
+     0.033524098564057726,
+     0.03311068147466095,
+     0.03390780968351262,
+     0.03431337238964025,
+     0.034513935696397616,
+     0.0346031946417303,
+     0.034630447412536895,
+     0.03462261756652609,
+     0.034594991927753116,
+     0.03455654976858023,
+     0.034512704749909855
     ],
     "zmp_consistency_history_m": [
-     0.18253865009806725,
-     0.038092676831491624,
-     0.026303490618471103,
-     0.018278265190894157,
-     0.012729283818473252,
-     0.00887984937112629,
-     0.006201157875319486,
-     0.004333810977651258,
-     0.003030522393829709,
-     0.002120168675595884,
-     0.0016665980153195707,
-     0.0015520066821814362,
-     0.001460419789859806
+     0.1826373874702598,
+     0.03791483870470631,
+     0.02616706992888953,
+     0.018340862354594836,
+     0.012955793763311749,
+     0.009195394406097207,
+     0.006554957343063597,
+     0.004692544078884634,
+     0.003373479952432777,
+     0.0026798963978434797,
+     0.002637302717504154,
+     0.00257093879024051,
+     0.0024942273164604745
     ],
     "post_window_zmp_error_m": [
-     0.19502433207092276,
-     0.04029222017856372,
-     0.02837016075347519,
-     0.02011239133584368,
-     0.014293831315392675,
-     0.010187214665481937,
-     0.00728078660942068,
-     0.005219677183558148,
-     0.003755366232184136,
-     0.0030550661161849076,
-     0.0028961651834435932,
-     0.002771166486015963,
-     0.002643060014192469
+     0.1951062181250185,
+     0.040500948248418774,
+     0.028598662161611835,
+     0.0203365930810941,
+     0.014502642987954607,
+     0.01037444547128896,
+     0.007444404915200288,
+     0.005368704220601698,
+     0.0047735080162636945,
+     0.004368442877059953,
+     0.004085502459731614,
+     0.0038822950646437175,
+     0.0037321242601130104
     ],
-    "zmp_consistency_all_m": 0.002643060014192469,
+    "zmp_consistency_all_m": 0.0037321242601130104,
     "cop_margin_single_min": {
-     "m": 0.01804281031935125,
-     "frame": 3,
+     "m": 0.017514445864398532,
+     "frame": 2,
      "foot": "left"
     },
-    "min_cop_margin_single_m": 0.01804281031935125,
-    "hip_yaw_range_use": 0.7916754047716071,
+    "min_cop_margin_single_m": 0.017514445864398532,
+    "hip_yaw_range_use": 0.791474936980555,
     "tightest_other": {
      "joint": "right_hip_roll",
      "end": "min",
-     "margin_rad": 0.13912881742469646
+     "margin_rad": 0.13965847666120013
     },
     "reference": {
-     "accel_forward_lp1hz_peak_m_s2": 0.12052601205538474,
-     "accel_forward_lp1hz_peak_t_s": 0.59,
-     "accel_forward_raw_peak_m_s2": 1.9399261857936105,
+     "accel_forward_lp1hz_peak_m_s2": 0.12029372353935887,
+     "accel_forward_lp1hz_peak_t_s": 0.588,
+     "accel_forward_raw_peak_m_s2": 1.8906336091520335,
      "accel_forward_raw_peak_t_s": 1.3348401087916644,
      "accel_filter": {
       "hz": 1.0,
@@ -7179,7 +6951,9 @@
       "S2L-L10",
       "S2L-J1",
       "S2L-J2",
-      "S2L-J3"
+      "S2L-J3",
+      "S2L-causal-grid",
+      "S2L-P42-warmup"
      ],
      "laws": "look"
     },
@@ -7197,7 +6971,9 @@
       "S2L-L10",
       "S2L-J1",
       "S2L-J2",
-      "S2L-J3"
+      "S2L-J3",
+      "S2L-causal-grid",
+      "S2L-P42-warmup"
      ],
      "instant_phase": 0.5,
      "flat_from_phase": 0.5,
@@ -7280,21 +7056,27 @@
      "a_phase": 2.5,
      "a_time_s": 2.15287362436109,
      "a_windows": 0.20846369479477617,
-     "feet": "flat in every stance that ends after the instant (instant_phase) and no later than the end of the move's last ramp (flat_until_phase; null: none ends later); the walk's own law before and after (S2L-L10)"
+     "feet": "flat in every stance that ends after the instant (instant_phase) and no later than the end of the move's last ramp (flat_until_phase; null: none ends later); the walk's own law before and after (S2L-L10)",
+     "preview_grid": {
+      "rule": "S2L-causal-grid",
+      "grid_s": 0.00522440904905741,
+      "whole_plan_min_s": 0.0032272910075619166,
+      "command_frame": 160
+     }
     },
     "join_events": {
      "note": "a reading, not a gate: the gate is join_command's warmup_zmp_max_mm",
      "frames": 157,
-     "zmp_max_mm": 1.9367459720604459,
-     "zmp_p50_mm": 0.08553328404851562,
-     "zmp_p90_mm": 0.42732504601562776,
-     "limit_mm": 2.0,
+     "zmp_max_mm": 2.785449758997573,
+     "zmp_p50_mm": 0.13477364132842526,
+     "zmp_p90_mm": 0.5527621471267768,
+     "limit_mm": 5.0,
      "frames_over_limit": 0,
      "phases_over_limit": [],
      "frames_over_limit_away_from_events": 0,
      "event_frames": 25,
-     "zmp_max_mm_away_from_events": 0.4716079860190506,
-     "events_rule": "within 3 frames of a planned lift-off or touchdown, or of a frame on which a stance foot rolls"
+     "zmp_max_mm_away_from_events": 0.6923863390590208,
+     "events_rule": "within 3 frames of a planned lift-off or touchdown, or of a frame of the warm-up on which a stance foot rolls (no frame beyond either end of the warm-up)"
     },
     "rolling_frames": 0,
     "rolling_split_failed_frames": 0,
@@ -7306,56 +7088,56 @@
      "governing": [
       "hip_yaw",
       "peak",
-      1.6711828363605417
+      1.671382403117097
      ],
      "within_limits": false,
      "over": [
       {
        "limit": "hip_roll peak",
-       "value": 1.0048019211118246
+       "value": 1.0048612730459086
       },
       {
        "limit": "hip_pitch peak",
-       "value": 1.006365256207666
+       "value": 1.0063540917695835
       },
       {
        "limit": "hip_yaw peak",
-       "value": 1.6711828363605417
+       "value": 1.671382403117097
       },
       {
        "limit": "knee speed",
-       "value": 1.341439872028342
+       "value": 1.3413777416261283
       }
      ],
      "blocks_freeze": [
       {
        "limit": "hip_roll peak",
-       "value": 1.0048019211118246
+       "value": 1.0048612730459086
       },
       {
        "limit": "hip_pitch peak",
-       "value": 1.006365256207666
+       "value": 1.0063540917695835
       },
       {
        "limit": "hip_yaw peak",
-       "value": 1.6711828363605417
+       "value": 1.671382403117097
       },
       {
        "limit": "knee speed",
-       "value": 1.341439872028342
+       "value": 1.3413777416261283
       }
      ],
      "a1_over": false,
      "over_leg_drive": true,
-     "text": "over hip_roll peak 1.0048; hip_pitch peak 1.0064; hip_yaw peak 1.6712; knee speed 1.3414: blocks the freeze (hip_roll peak; hip_pitch peak; hip_yaw peak; knee speed)",
+     "text": "over hip_roll peak 1.0049; hip_pitch peak 1.0064; hip_yaw peak 1.6714; knee speed 1.3414: blocks the freeze (hip_roll peak; hip_pitch peak; hip_yaw peak; knee speed)",
      "tightest_joint": [
       "left_hip_yaw",
       "max",
-      0.0625
+      0.0626
      ],
-     "accel_forward_lp1hz_peak_m_s2": 0.2559815055968468
+     "accel_forward_lp1hz_peak_m_s2": 0.255958276856371
     },
-    "built_sha256": "1dab89fbafc2bacf233fd27f38f583aeac9d8b9ea6fbb3179363290a4713fc77",
+    "built_sha256": "22c7d4330228e38b16a77a6717be14917c5e430b792a37976e0a0aed2e74a3fc",
     "stride_rule": {
      "rule": "S2A-stride",
      "grid": [
@@ -7384,12 +7166,12 @@
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.03853650786653118
+         "margin_rad": 0.03868334603700768
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.04198253937981977
+         "margin_rad": 0.042119815606913386
         }
        },
        "ik_fail_frames": {
@@ -7407,12 +7189,12 @@
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.05057722493555383
+         "margin_rad": 0.05055256455222795
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.05367424837115517
+         "margin_rad": 0.05407028972532493
         }
        },
        "ik_fail_frames": {
@@ -7430,12 +7212,12 @@
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.06248979289345191
+         "margin_rad": 0.06225500208634471
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.06553888769603655
+         "margin_rad": 0.065865673306051
         }
        },
        "ik_fail_frames": {
@@ -7453,12 +7235,12 @@
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.07395408899399863
+         "margin_rad": 0.07390053670814822
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.07746750449486026
+         "margin_rad": 0.0776009126245159
         }
        },
        "ik_fail_frames": {
@@ -7476,12 +7258,12 @@
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.08553276924066891
+         "margin_rad": 0.08556001914335501
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.08905188375931813
+         "margin_rad": 0.08927614728569494
         }
        },
        "ik_fail_frames": {
@@ -7499,12 +7281,12 @@
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.09733209058541767
+         "margin_rad": 0.09708506618626056
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.1008175783677098
+         "margin_rad": 0.1008677445870198
         }
        },
        "ik_fail_frames": {
@@ -7516,18 +7298,18 @@
       },
       {
        "f": 0.7,
-       "left": 0.9375756406350518,
-       "right": 0.9367357485565341,
+       "left": 0.9378136759861576,
+       "right": 0.936738672230265,
        "tightest_other": {
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.1088504516036651
+         "margin_rad": 0.10841107140708611
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.1122969467392694
+         "margin_rad": 0.11224515351914716
         }
        },
        "ik_fail_frames": {
@@ -7539,18 +7321,18 @@
       },
       {
        "f": 0.65,
-       "left": 0.8642373948381481,
-       "right": 0.86350260647717,
+       "left": 0.8643186742720231,
+       "right": 0.8635537074097999,
        "tightest_other": {
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.11980924813207514
+         "margin_rad": 0.11951889001512939
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.12320525519645681
+         "margin_rad": 0.12322298538355178
         }
        },
        "ik_fail_frames": {
@@ -7562,18 +7344,18 @@
       },
       {
        "f": 0.6,
-       "left": 0.7930455583973232,
-       "right": 0.7924079098732644,
+       "left": 0.793228202144238,
+       "right": 0.7922788693307617,
        "tightest_other": {
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.1303127546748343
+         "margin_rad": 0.13005416054208754
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.1336997189687767
+         "margin_rad": 0.13395515246629391
         }
        },
        "ik_fail_frames": {
@@ -7594,18 +7376,18 @@
       {
        "f": 0.6,
        "ik_ok": true,
-       "hip_yaw_range_use": 0.792100002773427,
-       "tightest_other_rad": 0.136005595756184,
+       "hip_yaw_range_use": 0.7923148068517262,
+       "tightest_other_rad": 0.13559327091563286,
        "tightest_other": {
         "left": {
          "joint": "left_hip_roll",
          "end": "max",
-         "margin_rad": 0.136005595756184
+         "margin_rad": 0.13559327091563286
         },
         "right": {
          "joint": "right_hip_roll",
          "end": "min",
-         "margin_rad": 0.13912881742469646
+         "margin_rad": 0.13965847666120013
         }
        },
        "over_leg_drive": true,
@@ -7618,37 +7400,37 @@
         "left": [
          {
           "limit": "hip_roll peak",
-          "value": 1.0035705270411355
+          "value": 1.0033029864266414
          },
          {
           "limit": "hip_pitch peak",
-          "value": 1.006257515280337
+          "value": 1.0062448031078617
          },
          {
           "limit": "hip_yaw peak",
-          "value": 1.6694414799459834
+          "value": 1.6694849697463956
          },
          {
           "limit": "knee speed",
-          "value": 1.3412968312724363
+          "value": 1.341264383414888
          }
         ],
         "right": [
          {
           "limit": "hip_roll peak",
-          "value": 1.0048019211118246
+          "value": 1.0048612730459086
          },
          {
           "limit": "hip_pitch peak",
-          "value": 1.006365256207666
+          "value": 1.0063540917695835
          },
          {
           "limit": "hip_yaw peak",
-          "value": 1.6711828363605417
+          "value": 1.671382403117097
          },
          {
           "limit": "knee speed",
-          "value": 1.341439872028342
+          "value": 1.3413777416261283
          }
         ]
        }
@@ -7663,26 +7445,1051 @@
       "turn90_1_left": false,
       "turn90_1_right": false
      },
-     "no_reference": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock"
+     "no_reference": "turn90_1_left: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock, post_window_zmp; turn90_1_right: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock"
+    }
+   }
+  },
+  "inplace_0.5_right": {
+   "reason": "the turn in place has no reference within the gates (inplace_0.5_right: Stage 0: over thigh twist use above 0.87 0.9115: blocks the freeze (thigh twist use above 0.87); start_inplace_0.5_right: Stage 0: over knee speed 1.1664; joint range margin under 0.05 rad (right_hip_yaw min) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (right_hip_yaw min)))",
+   "numbers": {
+    "periodicity": {
+     "before": {
+      "com_mm": 6.874162456315207e-06,
+      "zmp_mm": 1.525627498998935e-06,
+      "joint_rad": 2.1562479413095303e-08
+     },
+     "after": {
+      "com_mm": 0.0004643292836183306,
+      "zmp_mm": 8.328806248828346e-06,
+      "joint_rad": 1.296281722171222e-06
+     },
+     "stride_phase": [
+      4.0,
+      5.0
+     ],
+     "com_mm": 0.0004643292836183306,
+     "zmp_mm": 8.328806248828346e-06,
+     "joint_rad": 1.296281722171222e-06,
+     "limits": {
+      "com_mm": 1.0,
+      "zmp_mm": 2.0,
+      "joint_rad": 0.001
+     },
+     "rule": "a periodic turn reference is one stride cut from the steady part of a long plan and gated for periodicity: the strides before and after it, mapped onto it by the plan's own stride motion, agree within 1 mm (model CoM), 2 mm (multibody ZMP) and 0.001 rad (joints); it carries no F14 variation (cut 4 of design 3.9) and flat feet (its own law: S2L-L13)",
+     "ok": true
+    },
+    "ik_ok": true,
+    "hip_yaw_range_use": 0.9114957245296346,
+    "zmp_error_history_m": [
+     0.06285826414350172,
+     0.026156492614230205,
+     0.014945643607140721,
+     0.008772154544131704,
+     0.005267132152903526,
+     0.0032248543509289826,
+     0.0020074173350727426,
+     0.0012692719798779763,
+     0.000996065576443253,
+     0.0008654163993777298,
+     0.0007685001893564265,
+     0.0006955691278579236,
+     0.0006405884705593572
+    ],
+    "long_plan": {
+     "output_phase": [
+      -2,
+      7
+     ],
+     "frames": 1440,
+     "gates": {
+      "ik_ok": true,
+      "join_b": false,
+      "join_a": true,
+      "zmp_error": true
+     }
+    },
+    "reference": {
+     "gates": {
+      "ik_ok": true,
+      "periodicity": true,
+      "zmp_error": true
+     },
+     "stage0": {
+      "source": "setscreen.screen_move on the built file, with the gates of a turn (at build time)",
+      "governing": [
+       "knee",
+       "speed",
+       0.7599105977719761
+      ],
+      "within_limits": false,
+      "over": [
+       {
+        "limit": "thigh twist use above 0.87",
+        "value": 0.9114939031735236
+       }
+      ],
+      "blocks_freeze": [
+       {
+        "limit": "thigh twist use above 0.87",
+        "value": 0.9114939031735236
+       }
+      ],
+      "a1_over": false,
+      "over_leg_drive": false,
+      "text": "over thigh twist use above 0.87 0.9115: blocks the freeze (thigh twist use above 0.87)",
+      "tightest_joint": [
+       "right_hip_yaw",
+       "min",
+       0.0266
+      ],
+      "hip_yaw_range_use": 0.9114939031735236,
+      "accel_forward_lp1hz_peak_m_s2": 0.08961143226303236
+     }
+    },
+    "start": {
+     "gates": {
+      "ik_ok": true,
+      "join_a": true,
+      "periodicity": true,
+      "zmp_error": true
+     },
+     "stage0": {
+      "source": "setscreen.screen_move on the built file, with the gates of a start (at build time)",
+      "governing": [
+       "knee",
+       "speed",
+       1.1663734100237675
+      ],
+      "within_limits": false,
+      "over": [
+       {
+        "limit": "knee speed",
+        "value": 1.1663734100237675
+       },
+       {
+        "limit": "joint range margin under 0.05 rad (right_hip_yaw min)",
+        "value": 0.0266
+       }
+      ],
+      "blocks_freeze": [
+       {
+        "limit": "knee speed",
+        "value": 1.1663734100237675
+       },
+       {
+        "limit": "joint range margin under 0.05 rad (right_hip_yaw min)",
+        "value": 0.0266
+       }
+      ],
+      "a1_over": false,
+      "over_leg_drive": true,
+      "text": "over knee speed 1.1664; joint range margin under 0.05 rad (right_hip_yaw min) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (right_hip_yaw min))",
+      "tightest_joint": [
+       "right_hip_yaw",
+       "min",
+       0.0266
+      ],
+      "hip_yaw_range_use": 0.9114939028536677,
+      "accel_forward_lp1hz_peak_m_s2": 0.0623167707327463
+     }
+    }
+   }
+  },
+  "start_inplace_0.5_right": {
+   "reason": "the turn in place has no reference within the gates (inplace_0.5_right: Stage 0: over thigh twist use above 0.87 0.9115: blocks the freeze (thigh twist use above 0.87); start_inplace_0.5_right: Stage 0: over knee speed 1.1664; joint range margin under 0.05 rad (right_hip_yaw min) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (right_hip_yaw min)))",
+   "numbers": {
+    "periodicity": {
+     "before": {
+      "com_mm": 6.874162456315207e-06,
+      "zmp_mm": 1.525627498998935e-06,
+      "joint_rad": 2.1562479413095303e-08
+     },
+     "after": {
+      "com_mm": 0.0004643292836183306,
+      "zmp_mm": 8.328806248828346e-06,
+      "joint_rad": 1.296281722171222e-06
+     },
+     "stride_phase": [
+      4.0,
+      5.0
+     ],
+     "com_mm": 0.0004643292836183306,
+     "zmp_mm": 8.328806248828346e-06,
+     "joint_rad": 1.296281722171222e-06,
+     "limits": {
+      "com_mm": 1.0,
+      "zmp_mm": 2.0,
+      "joint_rad": 0.001
+     },
+     "rule": "a periodic turn reference is one stride cut from the steady part of a long plan and gated for periodicity: the strides before and after it, mapped onto it by the plan's own stride motion, agree within 1 mm (model CoM), 2 mm (multibody ZMP) and 0.001 rad (joints); it carries no F14 variation (cut 4 of design 3.9) and flat feet (its own law: S2L-L13)",
+     "ok": true
+    },
+    "ik_ok": true,
+    "hip_yaw_range_use": 0.9114957245296346,
+    "zmp_error_history_m": [
+     0.06285826414350172,
+     0.026156492614230205,
+     0.014945643607140721,
+     0.008772154544131704,
+     0.005267132152903526,
+     0.0032248543509289826,
+     0.0020074173350727426,
+     0.0012692719798779763,
+     0.000996065576443253,
+     0.0008654163993777298,
+     0.0007685001893564265,
+     0.0006955691278579236,
+     0.0006405884705593572
+    ],
+    "long_plan": {
+     "output_phase": [
+      -2,
+      7
+     ],
+     "frames": 1440,
+     "gates": {
+      "ik_ok": true,
+      "join_b": false,
+      "join_a": true,
+      "zmp_error": true
+     }
+    },
+    "reference": {
+     "gates": {
+      "ik_ok": true,
+      "periodicity": true,
+      "zmp_error": true
+     },
+     "stage0": {
+      "source": "setscreen.screen_move on the built file, with the gates of a turn (at build time)",
+      "governing": [
+       "knee",
+       "speed",
+       0.7599105977719761
+      ],
+      "within_limits": false,
+      "over": [
+       {
+        "limit": "thigh twist use above 0.87",
+        "value": 0.9114939031735236
+       }
+      ],
+      "blocks_freeze": [
+       {
+        "limit": "thigh twist use above 0.87",
+        "value": 0.9114939031735236
+       }
+      ],
+      "a1_over": false,
+      "over_leg_drive": false,
+      "text": "over thigh twist use above 0.87 0.9115: blocks the freeze (thigh twist use above 0.87)",
+      "tightest_joint": [
+       "right_hip_yaw",
+       "min",
+       0.0266
+      ],
+      "hip_yaw_range_use": 0.9114939031735236,
+      "accel_forward_lp1hz_peak_m_s2": 0.08961143226303236
+     }
+    },
+    "start": {
+     "gates": {
+      "ik_ok": true,
+      "join_a": true,
+      "periodicity": true,
+      "zmp_error": true
+     },
+     "stage0": {
+      "source": "setscreen.screen_move on the built file, with the gates of a start (at build time)",
+      "governing": [
+       "knee",
+       "speed",
+       1.1663734100237675
+      ],
+      "within_limits": false,
+      "over": [
+       {
+        "limit": "knee speed",
+        "value": 1.1663734100237675
+       },
+       {
+        "limit": "joint range margin under 0.05 rad (right_hip_yaw min)",
+        "value": 0.0266
+       }
+      ],
+      "blocks_freeze": [
+       {
+        "limit": "knee speed",
+        "value": 1.1663734100237675
+       },
+       {
+        "limit": "joint range margin under 0.05 rad (right_hip_yaw min)",
+        "value": 0.0266
+       }
+      ],
+      "a1_over": false,
+      "over_leg_drive": true,
+      "text": "over knee speed 1.1664; joint range margin under 0.05 rad (right_hip_yaw min) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (right_hip_yaw min))",
+      "tightest_joint": [
+       "right_hip_yaw",
+       "min",
+       0.0266
+      ],
+      "hip_yaw_range_use": 0.9114939028536677,
+      "accel_forward_lp1hz_peak_m_s2": 0.0623167707327463
+     }
+    }
+   }
+  },
+  "stop_inplace_0.5_right": {
+   "reason": "the turn in place has no reference within the gates (inplace_0.5_right: Stage 0: over thigh twist use above 0.87 0.9115: blocks the freeze (thigh twist use above 0.87); start_inplace_0.5_right: Stage 0: over knee speed 1.1664; joint range margin under 0.05 rad (right_hip_yaw min) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (right_hip_yaw min)))",
+   "numbers": {
+    "periodicity": {
+     "before": {
+      "com_mm": 6.874162456315207e-06,
+      "zmp_mm": 1.525627498998935e-06,
+      "joint_rad": 2.1562479413095303e-08
+     },
+     "after": {
+      "com_mm": 0.0004643292836183306,
+      "zmp_mm": 8.328806248828346e-06,
+      "joint_rad": 1.296281722171222e-06
+     },
+     "stride_phase": [
+      4.0,
+      5.0
+     ],
+     "com_mm": 0.0004643292836183306,
+     "zmp_mm": 8.328806248828346e-06,
+     "joint_rad": 1.296281722171222e-06,
+     "limits": {
+      "com_mm": 1.0,
+      "zmp_mm": 2.0,
+      "joint_rad": 0.001
+     },
+     "rule": "a periodic turn reference is one stride cut from the steady part of a long plan and gated for periodicity: the strides before and after it, mapped onto it by the plan's own stride motion, agree within 1 mm (model CoM), 2 mm (multibody ZMP) and 0.001 rad (joints); it carries no F14 variation (cut 4 of design 3.9) and flat feet (its own law: S2L-L13)",
+     "ok": true
+    },
+    "ik_ok": true,
+    "hip_yaw_range_use": 0.9114957245296346,
+    "zmp_error_history_m": [
+     0.06285826414350172,
+     0.026156492614230205,
+     0.014945643607140721,
+     0.008772154544131704,
+     0.005267132152903526,
+     0.0032248543509289826,
+     0.0020074173350727426,
+     0.0012692719798779763,
+     0.000996065576443253,
+     0.0008654163993777298,
+     0.0007685001893564265,
+     0.0006955691278579236,
+     0.0006405884705593572
+    ],
+    "long_plan": {
+     "output_phase": [
+      -2,
+      7
+     ],
+     "frames": 1440,
+     "gates": {
+      "ik_ok": true,
+      "join_b": false,
+      "join_a": true,
+      "zmp_error": true
+     }
+    },
+    "reference": {
+     "gates": {
+      "ik_ok": true,
+      "periodicity": true,
+      "zmp_error": true
+     },
+     "stage0": {
+      "source": "setscreen.screen_move on the built file, with the gates of a turn (at build time)",
+      "governing": [
+       "knee",
+       "speed",
+       0.7599105977719761
+      ],
+      "within_limits": false,
+      "over": [
+       {
+        "limit": "thigh twist use above 0.87",
+        "value": 0.9114939031735236
+       }
+      ],
+      "blocks_freeze": [
+       {
+        "limit": "thigh twist use above 0.87",
+        "value": 0.9114939031735236
+       }
+      ],
+      "a1_over": false,
+      "over_leg_drive": false,
+      "text": "over thigh twist use above 0.87 0.9115: blocks the freeze (thigh twist use above 0.87)",
+      "tightest_joint": [
+       "right_hip_yaw",
+       "min",
+       0.0266
+      ],
+      "hip_yaw_range_use": 0.9114939031735236,
+      "accel_forward_lp1hz_peak_m_s2": 0.08961143226303236
+     }
+    },
+    "start": {
+     "gates": {
+      "ik_ok": true,
+      "join_a": true,
+      "periodicity": true,
+      "zmp_error": true
+     },
+     "stage0": {
+      "source": "setscreen.screen_move on the built file, with the gates of a start (at build time)",
+      "governing": [
+       "knee",
+       "speed",
+       1.1663734100237675
+      ],
+      "within_limits": false,
+      "over": [
+       {
+        "limit": "knee speed",
+        "value": 1.1663734100237675
+       },
+       {
+        "limit": "joint range margin under 0.05 rad (right_hip_yaw min)",
+        "value": 0.0266
+       }
+      ],
+      "blocks_freeze": [
+       {
+        "limit": "knee speed",
+        "value": 1.1663734100237675
+       },
+       {
+        "limit": "joint range margin under 0.05 rad (right_hip_yaw min)",
+        "value": 0.0266
+       }
+      ],
+      "a1_over": false,
+      "over_leg_drive": true,
+      "text": "over knee speed 1.1664; joint range margin under 0.05 rad (right_hip_yaw min) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (right_hip_yaw min))",
+      "tightest_joint": [
+       "right_hip_yaw",
+       "min",
+       0.0266
+      ],
+      "hip_yaw_range_use": 0.9114939028536677,
+      "accel_forward_lp1hz_peak_m_s2": 0.0623167707327463
+     }
+    }
+   }
+  },
+  "inplace_0.5_left": {
+   "reason": "the turn in place has no reference within the gates (inplace_0.5_left: Stage 0: over thigh twist use above 0.87 0.9114: blocks the freeze (thigh twist use above 0.87); start_inplace_0.5_left: Stage 0: over knee speed 1.1071; joint range margin under 0.05 rad (left_hip_yaw max) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (left_hip_yaw max)))",
+   "numbers": {
+    "periodicity": {
+     "before": {
+      "com_mm": 4.574118525762951e-06,
+      "zmp_mm": 1.6120152971945695e-06,
+      "joint_rad": 1.3315518021528305e-08
+     },
+     "after": {
+      "com_mm": 0.000785098094147109,
+      "zmp_mm": 1.4151800081250542e-05,
+      "joint_rad": 2.230269865899359e-06
+     },
+     "stride_phase": [
+      4.0,
+      5.0
+     ],
+     "com_mm": 0.000785098094147109,
+     "zmp_mm": 1.4151800081250542e-05,
+     "joint_rad": 2.230269865899359e-06,
+     "limits": {
+      "com_mm": 1.0,
+      "zmp_mm": 2.0,
+      "joint_rad": 0.001
+     },
+     "rule": "a periodic turn reference is one stride cut from the steady part of a long plan and gated for periodicity: the strides before and after it, mapped onto it by the plan's own stride motion, agree within 1 mm (model CoM), 2 mm (multibody ZMP) and 0.001 rad (joints); it carries no F14 variation (cut 4 of design 3.9) and flat feet (its own law: S2L-L13)",
+     "ok": true
+    },
+    "ik_ok": true,
+    "hip_yaw_range_use": 0.911422917275528,
+    "zmp_error_history_m": [
+     0.06283848595162322,
+     0.023786681805419128,
+     0.013517941125901298,
+     0.0078810960704836,
+     0.004698265873205252,
+     0.0028555713069830326,
+     0.0017642592297637582,
+     0.0011927764575285853,
+     0.0010080405970723661,
+     0.0008729148892019894,
+     0.0007731590587964945,
+     0.0006984073748421025,
+     0.0006413185298417346
+    ],
+    "long_plan": {
+     "output_phase": [
+      -2,
+      7
+     ],
+     "frames": 1440,
+     "gates": {
+      "ik_ok": true,
+      "join_b": false,
+      "join_a": true,
+      "zmp_error": true
+     }
+    },
+    "reference": {
+     "gates": {
+      "ik_ok": true,
+      "periodicity": true,
+      "zmp_error": true
+     },
+     "stage0": {
+      "source": "setscreen.screen_move on the built file, with the gates of a turn (at build time)",
+      "governing": [
+       "knee",
+       "speed",
+       0.7599689281469386
+      ],
+      "within_limits": false,
+      "over": [
+       {
+        "limit": "thigh twist use above 0.87",
+        "value": 0.9114227694866144
+       }
+      ],
+      "blocks_freeze": [
+       {
+        "limit": "thigh twist use above 0.87",
+        "value": 0.9114227694866144
+       }
+      ],
+      "a1_over": false,
+      "over_leg_drive": false,
+      "text": "over thigh twist use above 0.87 0.9114: blocks the freeze (thigh twist use above 0.87)",
+      "tightest_joint": [
+       "left_hip_yaw",
+       "max",
+       0.0266
+      ],
+      "hip_yaw_range_use": 0.9114227694866144,
+      "accel_forward_lp1hz_peak_m_s2": 0.13414397636824205
+     }
+    },
+    "start": {
+     "gates": {
+      "ik_ok": true,
+      "join_a": true,
+      "periodicity": true,
+      "zmp_error": true
+     },
+     "stage0": {
+      "source": "setscreen.screen_move on the built file, with the gates of a start (at build time)",
+      "governing": [
+       "knee",
+       "speed",
+       1.107139532393052
+      ],
+      "within_limits": false,
+      "over": [
+       {
+        "limit": "knee speed",
+        "value": 1.107139532393052
+       },
+       {
+        "limit": "joint range margin under 0.05 rad (left_hip_yaw max)",
+        "value": 0.0266
+       }
+      ],
+      "blocks_freeze": [
+       {
+        "limit": "knee speed",
+        "value": 1.107139532393052
+       },
+       {
+        "limit": "joint range margin under 0.05 rad (left_hip_yaw max)",
+        "value": 0.0266
+       }
+      ],
+      "a1_over": false,
+      "over_leg_drive": true,
+      "text": "over knee speed 1.1071; joint range margin under 0.05 rad (left_hip_yaw max) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (left_hip_yaw max))",
+      "tightest_joint": [
+       "left_hip_yaw",
+       "max",
+       0.0266
+      ],
+      "hip_yaw_range_use": 0.911422917275528,
+      "accel_forward_lp1hz_peak_m_s2": 0.06353817925055377
+     }
+    }
+   }
+  },
+  "start_inplace_0.5_left": {
+   "reason": "the turn in place has no reference within the gates (inplace_0.5_left: Stage 0: over thigh twist use above 0.87 0.9114: blocks the freeze (thigh twist use above 0.87); start_inplace_0.5_left: Stage 0: over knee speed 1.1071; joint range margin under 0.05 rad (left_hip_yaw max) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (left_hip_yaw max)))",
+   "numbers": {
+    "periodicity": {
+     "before": {
+      "com_mm": 4.574118525762951e-06,
+      "zmp_mm": 1.6120152971945695e-06,
+      "joint_rad": 1.3315518021528305e-08
+     },
+     "after": {
+      "com_mm": 0.000785098094147109,
+      "zmp_mm": 1.4151800081250542e-05,
+      "joint_rad": 2.230269865899359e-06
+     },
+     "stride_phase": [
+      4.0,
+      5.0
+     ],
+     "com_mm": 0.000785098094147109,
+     "zmp_mm": 1.4151800081250542e-05,
+     "joint_rad": 2.230269865899359e-06,
+     "limits": {
+      "com_mm": 1.0,
+      "zmp_mm": 2.0,
+      "joint_rad": 0.001
+     },
+     "rule": "a periodic turn reference is one stride cut from the steady part of a long plan and gated for periodicity: the strides before and after it, mapped onto it by the plan's own stride motion, agree within 1 mm (model CoM), 2 mm (multibody ZMP) and 0.001 rad (joints); it carries no F14 variation (cut 4 of design 3.9) and flat feet (its own law: S2L-L13)",
+     "ok": true
+    },
+    "ik_ok": true,
+    "hip_yaw_range_use": 0.911422917275528,
+    "zmp_error_history_m": [
+     0.06283848595162322,
+     0.023786681805419128,
+     0.013517941125901298,
+     0.0078810960704836,
+     0.004698265873205252,
+     0.0028555713069830326,
+     0.0017642592297637582,
+     0.0011927764575285853,
+     0.0010080405970723661,
+     0.0008729148892019894,
+     0.0007731590587964945,
+     0.0006984073748421025,
+     0.0006413185298417346
+    ],
+    "long_plan": {
+     "output_phase": [
+      -2,
+      7
+     ],
+     "frames": 1440,
+     "gates": {
+      "ik_ok": true,
+      "join_b": false,
+      "join_a": true,
+      "zmp_error": true
+     }
+    },
+    "reference": {
+     "gates": {
+      "ik_ok": true,
+      "periodicity": true,
+      "zmp_error": true
+     },
+     "stage0": {
+      "source": "setscreen.screen_move on the built file, with the gates of a turn (at build time)",
+      "governing": [
+       "knee",
+       "speed",
+       0.7599689281469386
+      ],
+      "within_limits": false,
+      "over": [
+       {
+        "limit": "thigh twist use above 0.87",
+        "value": 0.9114227694866144
+       }
+      ],
+      "blocks_freeze": [
+       {
+        "limit": "thigh twist use above 0.87",
+        "value": 0.9114227694866144
+       }
+      ],
+      "a1_over": false,
+      "over_leg_drive": false,
+      "text": "over thigh twist use above 0.87 0.9114: blocks the freeze (thigh twist use above 0.87)",
+      "tightest_joint": [
+       "left_hip_yaw",
+       "max",
+       0.0266
+      ],
+      "hip_yaw_range_use": 0.9114227694866144,
+      "accel_forward_lp1hz_peak_m_s2": 0.13414397636824205
+     }
+    },
+    "start": {
+     "gates": {
+      "ik_ok": true,
+      "join_a": true,
+      "periodicity": true,
+      "zmp_error": true
+     },
+     "stage0": {
+      "source": "setscreen.screen_move on the built file, with the gates of a start (at build time)",
+      "governing": [
+       "knee",
+       "speed",
+       1.107139532393052
+      ],
+      "within_limits": false,
+      "over": [
+       {
+        "limit": "knee speed",
+        "value": 1.107139532393052
+       },
+       {
+        "limit": "joint range margin under 0.05 rad (left_hip_yaw max)",
+        "value": 0.0266
+       }
+      ],
+      "blocks_freeze": [
+       {
+        "limit": "knee speed",
+        "value": 1.107139532393052
+       },
+       {
+        "limit": "joint range margin under 0.05 rad (left_hip_yaw max)",
+        "value": 0.0266
+       }
+      ],
+      "a1_over": false,
+      "over_leg_drive": true,
+      "text": "over knee speed 1.1071; joint range margin under 0.05 rad (left_hip_yaw max) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (left_hip_yaw max))",
+      "tightest_joint": [
+       "left_hip_yaw",
+       "max",
+       0.0266
+      ],
+      "hip_yaw_range_use": 0.911422917275528,
+      "accel_forward_lp1hz_peak_m_s2": 0.06353817925055377
+     }
+    }
+   }
+  },
+  "stop_inplace_0.5_left": {
+   "reason": "the turn in place has no reference within the gates (inplace_0.5_left: Stage 0: over thigh twist use above 0.87 0.9114: blocks the freeze (thigh twist use above 0.87); start_inplace_0.5_left: Stage 0: over knee speed 1.1071; joint range margin under 0.05 rad (left_hip_yaw max) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (left_hip_yaw max)))",
+   "numbers": {
+    "periodicity": {
+     "before": {
+      "com_mm": 4.574118525762951e-06,
+      "zmp_mm": 1.6120152971945695e-06,
+      "joint_rad": 1.3315518021528305e-08
+     },
+     "after": {
+      "com_mm": 0.000785098094147109,
+      "zmp_mm": 1.4151800081250542e-05,
+      "joint_rad": 2.230269865899359e-06
+     },
+     "stride_phase": [
+      4.0,
+      5.0
+     ],
+     "com_mm": 0.000785098094147109,
+     "zmp_mm": 1.4151800081250542e-05,
+     "joint_rad": 2.230269865899359e-06,
+     "limits": {
+      "com_mm": 1.0,
+      "zmp_mm": 2.0,
+      "joint_rad": 0.001
+     },
+     "rule": "a periodic turn reference is one stride cut from the steady part of a long plan and gated for periodicity: the strides before and after it, mapped onto it by the plan's own stride motion, agree within 1 mm (model CoM), 2 mm (multibody ZMP) and 0.001 rad (joints); it carries no F14 variation (cut 4 of design 3.9) and flat feet (its own law: S2L-L13)",
+     "ok": true
+    },
+    "ik_ok": true,
+    "hip_yaw_range_use": 0.911422917275528,
+    "zmp_error_history_m": [
+     0.06283848595162322,
+     0.023786681805419128,
+     0.013517941125901298,
+     0.0078810960704836,
+     0.004698265873205252,
+     0.0028555713069830326,
+     0.0017642592297637582,
+     0.0011927764575285853,
+     0.0010080405970723661,
+     0.0008729148892019894,
+     0.0007731590587964945,
+     0.0006984073748421025,
+     0.0006413185298417346
+    ],
+    "long_plan": {
+     "output_phase": [
+      -2,
+      7
+     ],
+     "frames": 1440,
+     "gates": {
+      "ik_ok": true,
+      "join_b": false,
+      "join_a": true,
+      "zmp_error": true
+     }
+    },
+    "reference": {
+     "gates": {
+      "ik_ok": true,
+      "periodicity": true,
+      "zmp_error": true
+     },
+     "stage0": {
+      "source": "setscreen.screen_move on the built file, with the gates of a turn (at build time)",
+      "governing": [
+       "knee",
+       "speed",
+       0.7599689281469386
+      ],
+      "within_limits": false,
+      "over": [
+       {
+        "limit": "thigh twist use above 0.87",
+        "value": 0.9114227694866144
+       }
+      ],
+      "blocks_freeze": [
+       {
+        "limit": "thigh twist use above 0.87",
+        "value": 0.9114227694866144
+       }
+      ],
+      "a1_over": false,
+      "over_leg_drive": false,
+      "text": "over thigh twist use above 0.87 0.9114: blocks the freeze (thigh twist use above 0.87)",
+      "tightest_joint": [
+       "left_hip_yaw",
+       "max",
+       0.0266
+      ],
+      "hip_yaw_range_use": 0.9114227694866144,
+      "accel_forward_lp1hz_peak_m_s2": 0.13414397636824205
+     }
+    },
+    "start": {
+     "gates": {
+      "ik_ok": true,
+      "join_a": true,
+      "periodicity": true,
+      "zmp_error": true
+     },
+     "stage0": {
+      "source": "setscreen.screen_move on the built file, with the gates of a start (at build time)",
+      "governing": [
+       "knee",
+       "speed",
+       1.107139532393052
+      ],
+      "within_limits": false,
+      "over": [
+       {
+        "limit": "knee speed",
+        "value": 1.107139532393052
+       },
+       {
+        "limit": "joint range margin under 0.05 rad (left_hip_yaw max)",
+        "value": 0.0266
+       }
+      ],
+      "blocks_freeze": [
+       {
+        "limit": "knee speed",
+        "value": 1.107139532393052
+       },
+       {
+        "limit": "joint range margin under 0.05 rad (left_hip_yaw max)",
+        "value": 0.0266
+       }
+      ],
+      "a1_over": false,
+      "over_leg_drive": true,
+      "text": "over knee speed 1.1071; joint range margin under 0.05 rad (left_hip_yaw max) 0.0266: blocks the freeze (knee speed; joint range margin under 0.05 rad (left_hip_yaw max))",
+      "tightest_joint": [
+       "left_hip_yaw",
+       "max",
+       0.0266
+      ],
+      "hip_yaw_range_use": 0.911422917275528,
+      "accel_forward_lp1hz_peak_m_s2": 0.06353817925055377
+     }
     }
    }
   }
  },
- "blocked": {
-  "by": "start",
-  "reason": "start: no transition within the gates (a start, change or stop that fails a gate of its entry (A7) or a blocking Stage 0 gate (A12) is retried in this order and no other (STAGE2_75_PLAN.md A8): (1) a change with a ramp of 2 strides instead of 1 (same name; the entry records ramp_strides 2 and this rule); (2) for a ladder rung other than 0.40 m/s, a change from the neighbouring rung toward 0.40 m/s (v0.4_to_v0.45, v0.45_to_v0.5, v0.4_to_v0.35, v0.35_to_v0.3), with one stride of ramp, the rung's plan then walking through 0.40 m/s; (3) the item is recorded 'no transition within the gates' with its numbers.  A start and the stops have no fallback and nominal_to_v0.4 has step (1) only.  A failed start or nominal_to_v0.4 stops the set and goes to the lead (a set that starts into its 0.40 m/s walk, S2S-lead-in: a failed start_v0.4))"
- },
- "freezes": [],
+ "blocked": null,
+ "freezes": [
+  {
+   "index": 0,
+   "at": "2026-11-17T17:24:34Z",
+   "commit": "172530517b0ca10c3d25db85fb0245ccfc78f02c",
+   "manifest": {
+    "nominal": {
+     "kind": "walk",
+     "sha256": "2e9dd6a8953bdb8c0b4f0098d5e52efa6b564f2c3c30e84c483c5cbaa69a5f01",
+     "entry_sha256": "cf05aff7ef8e11f046c452f7566715bfbdbb83a20eeb410787f1777bf74abd63",
+     "look_sha256": "4204d36abcede25a47b0afe9781699459c9df2458ec72dfe4ff063296dad41d5"
+    },
+    "v0.3": {
+     "kind": "walk",
+     "sha256": "bf4c959cba418a32b6b2af2976a3478bfd882308c0b3d579075ef7097a97381e",
+     "entry_sha256": "e1155981d516ad5570ff6b9263cbfbbeda423bc9722a43a5a32fc65d114a2d9c",
+     "look_sha256": "9183be0e978b0ddc64d20b0c14d204eb90190291fc5ec89db528233fbb7d4df5"
+    },
+    "v0.35": {
+     "kind": "walk",
+     "sha256": "bad3e2b4b6849ad54486bc9c02d9d834ec49070c1040e4eb197abbfc4129d6ea",
+     "entry_sha256": "5d73b51c3db27018cfd6062f2fa73d2ab8d16ab7279c71a9ee10ac926c3ae00c",
+     "look_sha256": "f534e4640ba84515851791f67779e28efcec11ece6f737e6befd0f7dbfe73a14"
+    },
+    "v0.4": {
+     "kind": "walk",
+     "sha256": "b1f32214114a0be77003415ecfecc04d10118ab921aaa089788dbdd2939f0c06",
+     "entry_sha256": "06d8dfcc165a5d2f0937bb0f35d6a96bae2d91ff4d991396c133285428f02d48",
+     "look_sha256": "aa82c9d014ec345790f83007cad5a51f3dabb33a7c8f1129daa753c00aa4813f"
+    },
+    "v0.45": {
+     "kind": "walk",
+     "sha256": "cac1a529b6f955920adadea17958838c7d92c8e1c4390c245ac3752d58e99f9f",
+     "entry_sha256": "9e76cc48865be29354174e61a3729e7ea795767698f067604f25d6ce934e3ade",
+     "look_sha256": "c91f3a35898404404c15a4f41bdc2ff8773fcd393bb22e7e50cec56b41ea1e8b"
+    },
+    "v0.5": {
+     "kind": "walk",
+     "sha256": "e416048af9bcdde472d1101c261a55406d93d372639d4d4c87c564cbbc203855",
+     "entry_sha256": "453adcf30fba197d27627c963b251d81a7a1f68ef011bf02b7d41d36c288dec4",
+     "look_sha256": "90cc2a133491c9bf2b7628b8dd75a2858490f8d92fdc64da4ce8f447654af5da"
+    },
+    "start": {
+     "kind": "start",
+     "sha256": "4e57018c213c96b696322e09a2c101463b561689e34de9ad9de381a6fd682198",
+     "entry_sha256": "28a63c89280a00252dd79b2ed0a270bea453c1097dd28c4648445a619e373540"
+    },
+    "nominal_to_v0.4": {
+     "kind": "change",
+     "sha256": "5441580506e94e6ef51bc82ce9a3f3a8b4e1b94bd6689b5df01bde8ad3b9d361",
+     "entry_sha256": "b067b8c6f6b8dea176af4a08ac1558693df7a9597e0db995a6511a7d44353619"
+    },
+    "nominal_to_v0.3": {
+     "kind": "change",
+     "sha256": "5eedeef7dc9a9a3c868391474b134d2fd058bbefab230cb4933f2315cf27d7bf",
+     "entry_sha256": "9ae4e2397f4cc6468f2502ef5008bb5796b51477bfca447b7a293e5033249caa"
+    },
+    "nominal_to_v0.35": {
+     "kind": "change",
+     "sha256": "0b5126710f07a5f14eaaf2b6e5956e45efaf4862acc8df99c7fe433a7889bbbb",
+     "entry_sha256": "e320b8385c40f3b11fb2f4611f21c62927bd67fe7fa4fb0f57c4c594863fce5b"
+    },
+    "nominal_to_v0.45": {
+     "kind": "change",
+     "sha256": "c37dffec872126135e2f0950111f654b2798493a8718e207a41ca1a321263ceb",
+     "entry_sha256": "92fd180241b657e7670a8e8dcda68201a202510511da809f6e7dd44e04bfa989"
+    },
+    "stop2_v0.4": {
+     "kind": "stop_two_step",
+     "sha256": "214a6445f042b19c8b1b8875f1a54154550bbc498a9c0a926dab667609a7a496",
+     "entry_sha256": "edc04654743d6da0a13fa593e4761eaf16862cc0796c22b0348ca012d220b037"
+    },
+    "stop1_v0.4": {
+     "kind": "stop_one_step",
+     "sha256": "734b280ce72495e13f27fbc8fccb57d65d92be0d8d6cfc68883b4aaf87f1f8a8",
+     "entry_sha256": "31d2171440fcab44ef04717b82109ddbca0b7ee013aac0a7ccb6499a46e849af"
+    },
+    "turn90_0.35_left": {
+     "kind": "turn",
+     "sha256": "90f34305529a812199e93b18fb25fd6c182b81f9bf4d0e65e270bbcacf71ae3c",
+     "entry_sha256": "cc76cea514cc75dd92c558ec4531fd8b7fd4d4067b29e0371021a15e91929f02"
+    },
+    "turn90_0.35_right": {
+     "kind": "turn",
+     "sha256": "b5c06de65d03cd8e25872f5b6eda60ac336a35d5490ba7b80983db3130977697",
+     "entry_sha256": "93951c16a6f995879e14df94f688d3b93d3fd859271743b37f502fd042faf442"
+    },
+    "turn90_0.5_left": {
+     "kind": "turn",
+     "sha256": "22f0b02f5b695041e52efb59200d7e817ba882c885f63d6e15cce5915c68aff4",
+     "entry_sha256": "42c15332b29a287775a368424cc10bc069626b13110ca88d11ee7b57bb4affc3"
+    },
+    "turn90_0.5_right": {
+     "kind": "turn",
+     "sha256": "d108ada8c6632f86a188ce3477be72ab2a8cbd4dc2722250b605c4c42937a0f2",
+     "entry_sha256": "cf1cf54c19f77603f8364fa20685a6b0e8c837684fd8af39eea7fdacbb11eeaf"
+    }
+   },
+   "manifest_sha256": "ff2e79b3695e0c69bb4f5dbbe0576e79d622923093260f0ed437a1025c82e15a",
+   "legacy_check_sha256": "1cb3483a2677437dd386b8be874443536067a1319f3dd2a6b97a3fd627d99698",
+   "mixed_sources": true,
+   "dirty": false,
+   "added": [
+    "nominal",
+    "nominal_to_v0.3",
+    "nominal_to_v0.35",
+    "nominal_to_v0.4",
+    "nominal_to_v0.45",
+    "start",
+    "stop1_v0.4",
+    "stop2_v0.4",
+    "turn90_0.35_left",
+    "turn90_0.35_right",
+    "turn90_0.5_left",
+    "turn90_0.5_right",
+    "v0.3",
+    "v0.35",
+    "v0.4",
+    "v0.45",
+    "v0.5"
+   ],
+   "refcheck": {
+    "file": "stage2/sets/V6noF5/75-M-H-10/refcheck.json",
+    "sha256": "37389fa9011e1f4810df1c2d8668ad2553a3700459ecfad9e1ac93339e745e31",
+    "pass_": true,
+    "failing": {},
+    "not_run": [
+     "turn/q90_left",
+     "turn/q90_right",
+     "turn/t90_1_left",
+     "turn/t90_1_right",
+     "walk/v0.5"
+    ]
+   }
+  }
+ ],
  "look": {
   "pick": "75-M-H-10",
   "join_rule": "J1 as designed (moves_look.RULES S2L-J1 to S2L-J3)",
-  "cut": null,
-  "join_review": null,
   "leave_phase": {
    "turn_left": 2.0,
    "turn_right": 2.5,
    "stop_two_step": 2.5
   },
-  "note": "no cut of STAGE2_TRACKB_PLAN.md L12 is in force: the builder takes none; join_review is the independent review of the join code (path and sha256), which the lead records before a cut"
+  "join_review": {
+   "path": "stage2/design/checkpoint/reviews/roundC__review_JR_17nov.md",
+   "sha256": "b3ff457673d537f65d8821c1910c27b6bebc7eb27acd43f0d0e0e96d9424212a"
+  },
+  "cut": null,
+  "cut_reason": "cut 3 is not taken for 75-M-H-10 (L12 with ruling 29 of 17 Nov 2026): the join-code review's probe on the causal grid reads 4.038 mm (left turns) and 4.361 mm (right turns) at cut 3's leave point, over the 4.0 mm limit; a move that fails a join gate at J1's leave point is not available with its numbers (A11 for a turn, H3 for the stop; a start or nominal_to_v0.4 stops the set, A8), and no limit is changed",
+  "cut3_probe": {
+   "reading": "join_command warm-up multibody ZMP at cut 3's leave point (a_phase 12.0 left, 12.5 right), on the causal grid (ruling 28)",
+   "left_turns_mm": 4.038,
+   "right_turns_mm": 4.361,
+   "limit_mm": 4.0,
+   "at_j1_leave_point": {
+    "left_turns_mm": 4.621,
+    "right_turns_mm": 3.868,
+    "stop_mm": 3.868
+   },
+   "probed": "V6 on 75-M-H-10, every stride factor (V6noF5 and the -X head were not probed; a cut is taken or not for a body, both heads and its R2L set, L12)"
+  },
+  "note": "join rule J1 as designed; the builder takes no cut of STAGE2_TRACKB_PLAN.md L12 (cut_reason); joins_failed lists every move whose join_command or join_b gate fails, with those numbers",
+  "joins_failed": {}
  }
 }
