@@ -3024,8 +3024,10 @@ built and reviewed: their marks say so.
 3. The monitor's other exits before any episode (a missing `run.json`; a checkpoint record that cannot be read or has
    the wrong shape; a fingerprint not reproduced at the row's load) are each a refusal as ruling 6 of the fifth list
    has it: no attempt, and the trainer halts. The list named it as owed, a small change to the monitor; it has been
-   made since, but for one wrong shape of a checkpoint record (below). This makes precise ruling 6 of the fifth list: M1
-   (the rule, the author's note and the Check), with pointers in M4, M5 and K5.
+   made since (below) [until the independent review of this writing-in: "it has been made since, but for one wrong
+   shape of a checkpoint record (below)"; the follow-up before the acceptance run, merged into the working branch
+   after the writing-in began, made the rest]. This makes precise ruling 6 of the fifth list: M1 (the rule, the
+   author's note and the Check), with pointers in M4, M5 and K5.
 4. When the set whose start fails is the `-X` head's own, the lead's decision also takes in the plain head's sets of
    that body. This confirms the author's reading written in with the fifth list, as written: L12 (the rule, in place of
    that reading, and its Check), with the brief's mark and the change list's item 30.
@@ -3034,8 +3036,11 @@ Also ruled, for the code (the list's closing paragraph): the monitor keeps its n
 `r0l.refused.json`; the halt message after a refusal under `--retry-check` names that parameter. Both stand in M1's note
 and Check, and the second also in K5's reading.
 
-What the code holds while this is written in; the author's account, read on the working branch at `fccebe42`. No code
-was changed for this text.
+What the code holds while this is written in; the author's account, read on the working branch at `fccebe42` and, in
+the fix round after the independent review of this writing-in, again at `6c62f30e`, the working branch once the
+follow-up before the acceptance run on the notebook, the trainer and the rows (05:16 UTC on 17 Nov) and the gates
+package (05:25 UTC) had been merged into it [until that fix round: "read on the working branch at `fccebe42`."]. No
+code was changed for this text.
 
 - Ruling 5 of the fifth list: `designlab/stage2/lookread.py` holds it, since commit `34afe717`, on the working branch
   since 19:52 UTC on 16 Nov 2026. Where the reference's tail amplitude in the window is not under 0.02 rad
@@ -3055,25 +3060,48 @@ was changed for this text.
   `refused` with the note's kind and reason, leaves it out of M1's count of closed attempts, and halts with exit code 5;
   `run.json` `halt` quotes the monitor's reason. At a check whose refused attempt was the one that `--retry-check` let
   run, the halt names `--retry-check`; in every other case it says that a resume runs the check again. The trainer
-  passes its `--allow-source-change` to the row in the monitor child's environment (`STAGE2_ALLOW_SOURCE_CHANGE`).
-- Not yet held: one wrong shape of a checkpoint record. The monitor checks the shape of the record's `files` alone. A
-  record without a `layout` object, or one whose `fingerprint` entry is no object, passes that check and fails inside
-  the row's load with an error that is no refusal: the monitor ends with exit code 1, and the trainer counts a closed
-  attempt without a record. The independent check of the trainer's third follow-up found it
+  passes its allowance of the session's sources to the row in the monitor child's environment
+  (`STAGE2_ALLOW_SOURCE_CHANGE`): its `--allow-source-change` and, since the follow-up before the acceptance run (commit
+  `a24a9c6a`, merged at `dfd2fbc2`; the lead's ruling 12 of 17 Nov 2026), sources that an earlier session given that
+  parameter ran on (`run.json` `sources_allowed`). Since then a halt after a refusal for moved sources (kind `sources`,
+  or the row's refusal by K9), at a check or at R0L's baseline, also names `--allow-source-change` (M1's note) [until
+  the fix round after the independent review of this writing-in, the bullet's last sentence read "The trainer passes
+  its `--allow-source-change` to the row in the monitor child's environment (`STAGE2_ALLOW_SOURCE_CHANGE`)."].
+- The last wrong shape of a checkpoint record, held in code merged after the writing-in began. At `fccebe42` the
+  monitor checked the shape of the record's `files` alone: a record without a `layout` object, or one whose
+  `fingerprint` entry is no object, passed that check and failed inside the row's load with an error that is no
+  refusal, the monitor ending with exit code 1 and the trainer counting a closed attempt without a record. The
+  independent check of the trainer's third follow-up found it
   (`stage2/design/checkpoint/reviews/roundC__check_CT3_2.md`, finding 1: by a probe on the merged tree for the first,
-  by reading for the second; such a record must still hash to itself, so a write cut short cannot make one). The lead's
-  ruling 12 of 17 Nov 2026 makes it a refusal, in the follow-up before the acceptance run, which is not merged.
+  by reading for the second; such a record must still hash to itself, so a write cut short cannot make one), and the
+  lead's ruling 12 of 17 Nov 2026 made it a refusal. `monitor2._checkpoint` now refuses such a record as not intact
+  (kind `checkpoint`), since commit `fd1f88ff` of the follow-up before the acceptance run, merged at `dfd2fbc2`
+  (05:16 UTC on 17 Nov) [until the fix round after the independent review of this writing-in, this
+  bullet began "Not yet held: one wrong shape of a checkpoint record. The monitor checks the shape of the record's
+  `files` alone." and ended "The lead's ruling 12 of 17 Nov 2026 makes it a refusal, in the follow-up before the
+  acceptance run, which is not merged."].
 - The halt on Colab: the notebook's launcher (`designlab/stage2/nb.py`, merged at `8348a3a8`) writes, on the trainer's
-  exit 5, a `HALT.json` marked resumable whose `remedy` is `retry_check` when the trainer's halt names `--retry-check`;
-  the trainer's exit 4 (a resume or start it refuses) writes none. The remedies come from a file that the lead writes
-  beside the run, `LEAD.json` (the lead's ruling 2 of 17 Nov 2026), which is how "the lead ... resumes" of ruling 2 of
-  the fifth list, read in M1's note as the lead's word, is given on Colab.
+  exit 5, a `HALT.json` marked resumable whose `remedy` holds `retry_check` when the trainer's halt names
+  `--retry-check` and, since the follow-up before the acceptance run (`nb.halt_remedy`, merged at `e8ff4f60`),
+  `allow_source_change` when it names `--allow-source-change`; the trainer's exit 4 (a resume or start it refuses)
+  writes none. The remedies come from a file that the lead writes beside the run, `LEAD.json` (the lead's ruling 2 of
+  17 Nov 2026), which is how "the lead ... resumes" of ruling 2 of the fifth list, read in M1's note as the lead's word,
+  is given on Colab; since that follow-up its `retry_check` is passed to the trainer only in the session that resumes
+  the halt whose remedy names it (the lead's ruling 12 of 17 Nov 2026) [until the fix round after the independent
+  review of this writing-in, this bullet named `retry_check` alone and ended at "is given on Colab."].
 - Ruling 1: `monitor2.baseline_problem`, which the trainer's baseline uses, takes an episode that is `read`, `fell` or
   `not_run` and no other. Like `monitor2.is_record` it does not read whether a condition has a reference: the rows give
   `not_run` for a condition whose reference the set does not hold (`lookbar.episodes`).
 - Ruling 2: `lookread.controls` and `lookread.DEGRADED` hold part (c)'s four controls (`bob_half`, `neck_3deg`,
-  `tail_late`, `flat_feet`), and not the fifth. No code of gate G9 is on the working branch: the gates package works on
-  its own branch (`wt/wpc-cg`), which was not read. By the ruling the fifth control goes to that package's brief.
+  `tail_late`, `flat_feet`), and not the fifth. The gates package, merged at `3a42df8a` (05:25 UTC on 17 Nov), holds
+  it in G9-ref's code (`designlab/stage2/gates2.py`): `gates2.controls` adds to `lookread.controls` the playback
+  `tail_tenth`, whose tail-yaw angle is scaled to `TAIL_SCALE` (0.1) of its deviation from its mean over the poses and
+  nothing else changed, and passes it only when the tail term is the one term it fails; part (c) records, for each of
+  the walks `nominal` and `v0.4` (on the Stage 1 view `S1`, `nominal` alone), the terms each playback failed and
+  that playback's fitted tail amplitude beside the reference's, and leaves out the flat feet on a set other than V6
+  [until the fix round after the independent review of this writing-in, this bullet ended "and not the fifth. No code
+  of gate G9 is on the working branch: the gates package works on its own branch (`wt/wpc-cg`), which was not read. By
+  the ruling the fifth control goes to that package's brief."].
 
 What else changed in this text with the sixth list; this paragraph is the author's and not the lead's wording. These
 follow the settled wording and are the author's: the sentence added to the Status, the bullet in "What had been run",
@@ -3083,13 +3111,22 @@ Tags entry and the change list's opening. One line of the third amendment points
 list, where "the last amendment" now reads "the last two amendments"), as do, in the fifth, the lines of its rulings 1,
 4, 5 and 6, its two bullets on the code and its two paragraphs that named points with the lead. In M1: the head's
 tags; the note on rulings 6 and 3, which now names the code's grounds of refusal, its exit code and its notes, reads
-ruling 3's "wrong shape" as the shape of the record's `files` that the code checks and as one of ruling 6's "not
-intact", names the row's own refusal while it is built as a refusal by the lead's ruling 10 of 17 Nov, and says when a
-resume after a refusal needs ruling 2's parameter; the Check's items on the baseline and on a refusal. In M4 and M5: the
-pointers. In K5: the reading of a resume after a refusal of the attempt that the parameter let run, and the test in its
-Check. In Z2: the head's tag, "five" for "four" with the fifth playback where it stands in (c), the note on why and how
-it fails, with the reference tail amplitudes of the look ladder (no record), and the Check's item. In L12: the head's
-tag and the Check's parenthesis.
+ruling 3's "wrong shape" as the shape that the code checks, of the record's `files` and, by the lead's ruling 12 of 17
+Nov, of its `layout` and `fingerprint`, and as one of ruling 6's "not intact", names the row's own refusal while it is
+built as a refusal by the lead's ruling 10 of 17 Nov, and says when a resume after a refusal needs ruling 2's
+parameter [until the independent review of this writing-in: "reads ruling 3's "wrong shape" as the shape of the
+record's `files` that the code checks and as one of ruling 6's "not intact""]; the Check's items on the baseline and on
+a refusal. In M4 and M5: the pointers. In K5: the reading of a resume after a refusal of the attempt that the parameter
+let run, and the test in its Check. In Z2: the head's tag, "five" for "four" with the fifth playback where it stands in
+(c), the note on why and how it fails, with the reference tail amplitudes of the look ladder (no record), and the
+Check's item. In L12: the head's tag and the Check's parenthesis.
+
+After the independent review of this writing-in, its fix round merged the working branch again, twice, and changed,
+each with its mark: in M1's note, the shape of a checkpoint record, the kind `run` told apart from ruling 3's missing
+`run.json`, the halt for moved sources, and "the paragraphs above" for "the three paragraphs above"; in M5's pointer,
+the resume after the second of M1's two halts; in L12, the ruled sentence in the ruling's own words with the author's
+reading after it; in "What had been run", the head of `wt/wp-l` and what the review and the fix round ran; in this
+amendment, ruling 3's line, the account of the code, this paragraph and the paragraph of what the fix round saw.
 
 Seen while this was written in. These two are with the lead, because each changes what a rule decides; M1's note and
 K5 hold them only as the code reads them. The row's own refusal of a checkpoint while the row is built
@@ -3098,6 +3135,13 @@ it; ruling 3's words do not list it, and M1's ruled sentences do not name it (M1
 refusal under `--retry-check`" names that parameter in the trainer only when the refused attempt was the one that the
 parameter let run, not after the refusal of a fresh attempt in a session that has the parameter, where no resume needs
 it.
+
+Seen in the fix round after the independent review of this writing-in, with the merged follow-up before the acceptance
+run; with the lead, because it changes what a rule decides, and not written into any rule here, being no ruling of the
+sixth list. By the lead's ruling 12 of 17 Nov 2026 on the trainer an allowance for moved sources holds for the rest of
+the run for the same sources, and the trainer holds it (`train2.SOURCE_ALLOWANCE_RULE`): a session on sources that an
+earlier session given `--allow-source-change` ran on is allowed as if it had the flag. K4 reads "Changed sources (...):
+unless `--allow-source-change`" and does not say so.
 
 Seen and left, needing no decision. Z2 (c)'s scaled tail fails the tail term only where the reference's own tail
 amplitude is under 0.2 rad (Z2's note); on the look ladder's rungs it is 0.120 to 0.125 rad. Were a frozen set's
