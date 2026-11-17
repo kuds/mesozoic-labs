@@ -235,3 +235,55 @@ set is frozen and before any closed-loop episode on one.
     look sets carries rulings 18, 22, 23, 26 and 28 together and names this review in `set.json` `rules`.
     Then comes an independent check, then the 60 cm sets. Nothing is frozen until the lead has read the rebuilt
     numbers and, where a question goes to the owner, the owner's answer.
+
+## The checks of LB16, CG2, CT4 and CN3, ruled 17 Nov 2026, ~07:30 UTC
+
+LB16, CG2 and CN3 are merged as they stand. CT4 goes to a fix round.
+
+31. **The look sets' rule in `lookbar` (check of LB16).**
+    - (1) On a look set (or a version of one), `lookbar` refuses every row outside the families R0L, R5/<seed>,
+      R6/<seed>, R5G/<seed> and R2L-<set>/<seed>, inside the context and in `episodes`. Every admitted row needs a
+      passed G9-ref, so a closed-loop R0@ row on a look set before G9-ref is refused (X1). R5G is admitted: the
+      rules draft lists it among the Track B rows with bar records (rule at line 1348). `python -m
+      designlab.stage2.bar run` on a look set stays open, because `bar.py` is not edited. X1 forbids it, and no
+      step of the chain calls it; X1's text says so.
+    - (2) `R2L-<set>` names the evaluated set exactly, as built.
+    - (3) A version of a look set (V6.2) is a look set everywhere: in the context, in `episodes`, in `collect`
+      (reading 1) and in `gates2.require_g9_ref`, which covers versions. `lookbar` then calls the gates' check
+      instead of its own copy.
+    - (4) The context restores the bar's check only if its own is the one installed, and raises otherwise. A G9-ref
+      record whose `set_freeze` is not an object is refused cleanly, in both modules. The check's two test gaps
+      (a non-`evaluate` caller; `pass_` missing, None or 1) get tests.
+    - (5) The companion record carries the G9-ref citation (path and sha256) under which its episodes ran.
+    - (6) The monitor treats `LookSetRefused` as a refusal of the monitor (exit 8), not a crash.
+    - (7) The context enforces X1's first clause only; "between G9-ref and S2-4's start only these" stays with the
+      chain.
+32. **G9-ref (check of CG2).**
+    - (A) Ruling 14's procedure cannot finish today, because `sets.freeze` refuses to drop a frozen entry.
+      Option (i): `sets freeze` may drop an entry that the set marks not available, and the freeze records it with
+      the G9-ref record (path and sha256) that named it. A `sets` command marks an entry not available, with its
+      reason and that record. Built with the look sets' rebuild (ruling 30), in `sets.py`.
+    - (B) "The walk it leaves" (ruling 15) is the walk's whole window, as built. On a look set fewer frames are
+      played before a turn, but the window is the walk's own law, which the policy meets in every walk.
+    - (C) The builder's readings stand: a join that leaves no walk is held to the walk the track played last
+      before it (else the first after it; the stand task to 0), and the wrap from the window's last frame to its
+      first counts as a consecutive pair.
+    - (D) A turn or stop item's reference is read from the refcheck item's `plan`, not from the sorted file list.
+      The printed lines that name a failing reference get a test.
+    - (E) The lead writes rulings 14 and 15's words into the old texts: the rules draft (the 1e-6 rad sentence,
+      and "treats that reference as not available") and the design's section on G9-ref.
+33. **The trainer (check of CT4).** Findings 1 and 2 are fixed as the check proposes. `baseline_equal` requires
+    digests only for pairs in which at least one episode ran. A digest counts as compared only when both sides hold
+    a non-empty string. The rule's text says "in every episode that ran". Tests: an equal baseline with a not-run
+    condition lets the run train, in `train2` and in `monitor2`. Point 3 stands as built: a mismatch halts (exit 5).
+34. **The steps sheet (check of CN3).**
+    - 5.3 (e) becomes a positive test: go on to 5.4 only if what the last box printed ends with "Disconnecting
+      runtime in 5 seconds..."; if the box is still running, or it printed anything else, do not do 5.4 and tell
+      the lead.
+    - Before Run all, from the second session on, the sheet has the owner clear all outputs ("Edit > Clear all
+      outputs"; expected, not yet seen).
+    - 5.3 (a) names the smoke's copy, "s2 smoke-1".
+35. **The CF follow-up**, as owed. `r2lfit` accepts a G9-ref record through `gates2.require_g9_ref` (CG's format,
+    versions included) and runs its look-set records through `lookbar`'s context (ruling 16). The chain resumes V10
+    with `--resume` only when `cma.json` exists, and the V10-collect step goes. The stale V3 note of
+    `run_trackb.sh` is corrected.
