@@ -11,8 +11,10 @@ indirection to ``lookbar``, is replaced by such a table; no episode is run):
 * a policy that stands (read, not succeeding), a policy whose clock lags (``unread``, reason ``clock_behind``) and
   a too-few-steps episode (read, its look terms failed): each counted as not succeeding, never an error, and the
   monitor asks for each episode exactly once;
-* the survival credit: a clock held at 0.75 earns 0.75 of its time, R0L its full time, an error nothing; a policy
-  row's episode that comes back without its clock times is not credited in full: its table is no record;
+* the survival credit: a clock held at 0.75 earns 0.75 of its time, R0L its full time, an error nothing; a clock
+  that covered 1.05 x the survival time is credited the time itself, also where the reference time summed step by
+  step rounds a hair below it, so R0L's S is exactly its mean survival (the lead's ruling 17 of 17 Nov 2026); a
+  policy row's episode that comes back without its clock times is not credited in full: its table is no record;
 * G8b's 2 of 3 (up is read or unread); the fix doubles the mapped tasks' weights only, each once; a second failure
   stops; three checks without a gain from 20M stop at the third; ``decide`` gives the same state from the records
   alone, however often and at whatever point of the history it is asked;
@@ -558,6 +560,51 @@ def test_survival_credit():
     rec = record(table({"walk/nominal": dict(factor=0.5)}))
     assert rec["S"] == pytest.approx((15 * 12.0 + 3 * 6.0) / 18) and rec["mean_survival_s"] == pytest.approx(12.0)
     assert rec["L_planned_s"] == pytest.approx(12.0)
+
+
+def _clocked(cond, seed, survival, start=0.5, dt=0.002, behind=0) -> dict:
+    """An episode whose reference clock is advanced as the runner advances it, one ``dt x 1.05`` per physics step
+    summed in floats (``control``'s ``tau_ref``), from a track start of ``start``; ``behind``: steps fewer."""
+    e = ep(cond, seed, outcome="fell", survival=survival)
+    t = start
+    for _ in range(round(survival / dt) - behind):
+        t += dt * m2.RATE
+    e["clock"].update(t_ref_reached=t, t_ref_planned=start + m2.RATE * PLANNED)
+    return e
+
+
+def _product(e) -> float:
+    """The credit as a plain product, ``survival_s x min(1, covered / (1.05 x survival_s))`` (as built before the
+    lead's ruling 17 of 17 Nov 2026)."""
+    c = e["clock"]
+    covered = c["t_ref_reached"] - (c["t_ref_planned"] - m2.RATE * e["planned_s"])
+    return e["survival_s"] * min(1.0, max(0.0, covered) / (m2.RATE * e["survival_s"]))
+
+
+def test_r0ls_s_is_exactly_its_mean_survival():
+    """The lead's ruling 17 of 17 Nov 2026: a clock that covered 1.05 x the survival time is credited the survival
+    time itself, also where the reference time, summed step by step, rounds a little below 1.05 x the survival
+    time (there the plain product is a hair under it); R0L's S is then exactly its plain mean survival.  A clock
+    one physics step behind is credited its share."""
+    assert m2.CREDIT_RTOL == 1e-9 and "to within 1e-9 of it" in m2.RULES["survival"]
+    eps = [_clocked(c, s, 3.0 + 0.37 * i) for i, (c, s) in enumerate(m2.pairs_for("V6"))]
+    assert any(_product(e) != e["survival_s"] for e in eps)  # (the floats' rounding: the case the ruling is for)
+    for e in eps:
+        assert m2.survival_credit(e) == e["survival_s"]  # (exactly)
+    rec = record(eps)
+    assert rec["S"] == rec["mean_survival_s"]
+    # one physics step behind (2 ms in 5 s) is a clock that fell behind: credited its share
+    e = _clocked("walk/nominal", 6001, 5.0, behind=1)
+    got = m2.survival_credit(e)
+    assert got == pytest.approx(5.0 - 0.002, rel=1e-9) and got < 5.0
+    # within the share: the time itself; beyond it: the product
+    for rel, full in ((1e-12, True), (5e-10, True), (2e-9, False), (1e-6, False)):
+        e = ep("walk/nominal", 6001, outcome="fell", survival=7.0)
+        e["clock"].update(t_ref_reached=m2.RATE * 7.0 * (1.0 - rel), t_ref_planned=m2.RATE * PLANNED)
+        got = m2.survival_credit(e)
+        assert (got == 7.0) is full, rel
+        if not full:
+            assert got == pytest.approx(7.0 * (1.0 - rel), rel=1e-12, abs=0) and got < 7.0
 
 
 def test_a_policy_rows_episode_without_its_clock_is_no_record(monkeypatch, tmp_path):

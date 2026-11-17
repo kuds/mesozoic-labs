@@ -113,6 +113,11 @@ STEP_MS = 2
 #: The commanded clock (``tune.COMMAND_RATE``): a row that does not slow its clock covers 1.05 s of reference time
 #: per simulated second.
 RATE = 1.05
+#: Rule M3's credit (the lead's ruling 17 of 17 Nov 2026): a reference clock that covered at least 1.05 x the
+#: survival time, to within this share of it, covered it, and the credit is the survival time itself.  The share
+#: is float rounding only (the reference time is a sum of one increment per physics step: ~1e-13 of it over an
+#: episode); a clock that falls behind by one 2 ms physics step in 20 s is 1e-4 behind.
+CREDIT_RTOL = 1e-9
 OUTCOMES = ("read", "fell", "unread", "error")
 NOT_RUN = "not_run"
 #: Rule M4: "up" is an episode that did not fall and is no error.
@@ -152,9 +157,12 @@ RULES = dict(
     survival=(
         "rule M3: an episode's credited survival is its survival time (the fall time, or the episode's length) "
         "times min(1, reference time covered / (1.05 x survival time)): the survival time itself for a row that "
-        "does not slow its clock.  S is the mean over the episodes; N the number succeeding with the look (reading "
-        "1).  Printed beside: the counts in readings 2 and 3, the count succeeding but for A1 with the look bands "
-        "kept, and the plain mean survival, which decide nothing.  The credit needs the episode's clock times "
+        "does not slow its clock.  A clock that covered at least 1.05 x the survival time, to within 1e-9 of it "
+        "(float rounding), is credited the survival time itself, so that R0L's S is exactly its plain mean "
+        "survival (the lead's ruling 17 of 17 Nov 2026).  S is the mean over the episodes; N the number succeeding "
+        "with the look (reading 1).  Printed beside: the counts in readings 2 and 3, the count succeeding but for "
+        "A1 with the look bands kept, and the plain mean survival, which decide nothing.  The credit needs the "
+        "episode's clock times "
         "(clock.t_ref_reached, clock.t_ref_planned) and its planned length: a policy row's episode that ended read, "
         "fell or unread and came back without them is not credited its survival time (a slowed clock would buy "
         "it); its table is no record of the check.  R0L, which has no clock to slow, is then credited its survival "
@@ -281,9 +289,11 @@ def _num(x, default: float = 0.0) -> float:
 def survival_credit(e: dict) -> float:
     """Rule M3's S of one episode: ``survival_s x min(1, reference time covered / (1.05 x survival_s))``.  The
     reference time covered is ``clock.t_ref_reached`` less the track's start, ``clock.t_ref_planned - 1.05 x
-    planned_s``; an episode whose record holds no clock times is credited its survival time: that is R0L's case
-    alone, for ``run`` takes no policy row's table that holds such an episode (``has_clock``; ``_checked``).  An
-    *error* and a condition that was not run are credited 0."""
+    planned_s``.  A clock that covered at least 1.05 x ``survival_s`` (to within ``CREDIT_RTOL`` of it: float
+    rounding) is credited the survival time itself, not a product that rounds below it: R0L's S is then exactly
+    its mean survival (the lead's ruling 17 of 17 Nov 2026).  An episode whose record holds no clock times is
+    credited its survival time: that is R0L's case alone, for ``run`` takes no policy row's table that holds such
+    an episode (``has_clock``; ``_checked``).  An *error* and a condition that was not run are credited 0."""
     if e.get("outcome") in ("error", NOT_RUN):
         return 0.0
     surv = _num(e.get("survival_s"))
@@ -294,7 +304,10 @@ def survival_credit(e: dict) -> float:
     if reached is None or planned is None or e.get("planned_s") is None:
         return surv
     covered = _num(reached) - (_num(planned) - RATE * _num(e["planned_s"]))
-    return surv * min(1.0, max(0.0, covered) / (RATE * surv))
+    full = RATE * surv
+    if covered >= full * (1.0 - CREDIT_RTOL):
+        return surv
+    return surv * max(0.0, covered) / full
 
 
 def has_clock(e: dict) -> bool:
