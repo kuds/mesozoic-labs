@@ -688,3 +688,12 @@ and the chain's `--resume` on V10); the servo model's S1 low points and S2 (the 
   their check is running, with the 60 cm rebuild after it.
 - Priority while usage lasts: what brings training closest. That is the look sets merged and frozen, the owner's
   question on V6's left turns, G9-ref, the validation steps and S2-4. The servo work for gate 1 (S4) comes after.
+
+## Update, 17 Nov 2026, ~17:15 UTC: usage
+
+- The owner's second reading: **79 %** at $3,401.33 (17:14 UTC). Refitted: 1 % is about $25, so 85 % is about $3,551
+  and 95 % about $3,801. Pace about 1 % an hour. Scheduled check-ins written before this carry the older figures
+  ($32 a point); use these.
+- State: the 75 cm look sets under P42 are built (wt/wp-p42 at 4ad729c5); their check is running. The 60 cm rebuild
+  is on its last set (V6/60 and V6noF5/60 are stopped at nominal_to_v0.4, as before). After the check: freeze the
+  75 cm sets, G9-ref, then the validation steps V2 to V7, then S2-4.
