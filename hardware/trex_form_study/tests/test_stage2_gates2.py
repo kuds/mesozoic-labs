@@ -669,6 +669,51 @@ def test_the_placed_refcheck_gives_a_look_sets_freeze_a_record_g9_ref_part_a_rea
     assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
 
 
+@needs_s1
+def test_the_placed_refcheck_leaves_no_record_when_it_refuses_an_unplaced_item(tmp_path, capsys, monkeypatch):
+    """The lead's ruling 40 of 17 Nov 2026 (the check of LT3, finding 1): when the placed refcheck command refuses a
+    look set's record because a turn or stop item is not placed at join rule J1's leave point (exit 2), the record it
+    wrote under ``--out`` is removed, so that no unplaced record is left in the set directory where ``sets freeze``
+    would cite it.  The placement inside the command is stood in for by one that places nothing (a synthetic look
+    set, kinematic); the check of the record is the command's own."""
+    import contextlib
+
+    from designlab.stage2 import bar, lookbar, setio
+
+    root = tmp_path / "sets"
+    _synthetic_sets(root)
+    rec = setio.set_dir("V6", BODY, root) / "refcheck.json"
+    assert not rec.exists()
+    real, written = gates2.refcheck, []
+
+    @contextlib.contextmanager
+    def places_nothing(*a, **k):
+        yield None
+
+    def unplaced_refcheck(*a, **k):  # the command's refcheck with a placement that places nothing
+        with monkeypatch.context() as m:
+            m.setattr(lookbar, "look_set_placement", places_nothing)
+            doc = real(*a, **k)
+        written.append(rec.is_file())
+        return doc
+
+    monkeypatch.setattr(gates2, "refcheck", unplaced_refcheck)
+    args = ["refcheck", "--set", "V6", "--body", BODY, "--set-root", str(root)]
+    code = gates2.main(args + ["--out", str(root)])
+    out, err = capsys.readouterr()
+    assert code == 2 and written == [True]  # the record was written into the set directory, and refused
+    assert not rec.exists() and "record:" not in out and "Traceback" not in err
+    line = next(x for x in err.splitlines() if "NOT at join rule J1's leave point" in x)
+    assert "will not read this record; the record written is removed): " in line
+    assert sorted(x.split(" ")[0] for x in line.split("is removed): ", 1)[1].split("; ")) == sorted(LEAVE_KEYS)
+    # without --out: nothing written, the same refusal
+    code = gates2.main(args)
+    out, err = capsys.readouterr()
+    assert code == 2 and written == [True, False] and not rec.exists() and "Traceback" not in err
+    assert "NOT at join rule J1's leave point (G9-ref part (a) will not read this record): " in err
+    assert lookbar.placed() == set() and vars(bar.BarPlanner)["_resolve"] is lookbar._BAR_RESOLVE
+
+
 def _built_digest(b) -> dict:
     """A built bar condition as the env and the row are given it: its plan, seconds and command, and per track
     segment its kind, name, start, length and the sha256 of its joint arrays."""

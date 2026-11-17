@@ -50,7 +50,8 @@ of the record without that key), and returns it.  Exit code 0 when the gate pass
   ``bar refcheck`` writes it (``<out>/<set>/<body>/refcheck.json``; ``--out`` the sets' root: the set directory's
   ``refcheck.json``, which ``sets freeze`` cites): a look set's freeze then cites a record whose turn and stop items
   are placed at join rule J1's leave point, and G9-ref part (a) reads it.  Off the look sets it is ``bar refcheck``.
-  Exit 0 when the check passes, 1 when it fails, 2 on an error (on a look set: a turn or stop item not placed).
+  Exit 0 when the check passes, 1 when it fails, 2 on an error (on a look set: a turn or stop item not placed; the
+  record written under ``--out`` is then removed, so that ``sets freeze`` cannot cite it: the lead's ruling 40).
 * ``g9_run`` (Z2's G9-run, parts (d), (e)): the ``R0L@10ms`` companion records ``lookbar.collect`` wrote and the
   bar's 10 ms records under ``--bar-out``; round A's ``bar reread`` record of Stage 1b's 10 ms turn episodes cited
   for the 60 cm body and head.
@@ -2271,16 +2272,20 @@ def main(argv=None) -> int:
         if args.cmd == "refcheck":
             doc = refcheck(args.set_name, args.body, args.set_root, args.out)
             bad = refcheck_unplaced(args.set_name, args.body, doc, args.set_root)
+            rec = None if args.out is None else Path(args.out) / args.set_name / args.body / "refcheck.json"
             print(f"refcheck {args.set_name} {args.body}: {'pass' if doc['pass_'] else 'FAIL'}", flush=True)
-            if args.out is not None:
-                rec = Path(args.out) / args.set_name / args.body / "refcheck.json"
+            if bad:
+                # (the lead's ruling 40 of 17 Nov 2026: no unplaced record is left where sets freeze would cite it)
+                if rec is not None:
+                    rec.unlink(missing_ok=True)
+                print("placement: turn or stop items NOT at join rule J1's leave point (G9-ref part (a) will not "
+                      f"read this record{'' if rec is None else '; the record written is removed'}): "
+                      f"{'; '.join(bad)}", file=sys.stderr, flush=True)
+                return EXIT_ERROR
+            if rec is not None:
                 print(f"record: {s2io.portable(str(rec.resolve()))} (sha256 {s2io.sha256_file(rec)})", flush=True)
             if bad is None:
                 print("placement: the bar's own (no look set)", flush=True)
-            elif bad:
-                print("placement: turn or stop items NOT at join rule J1's leave point (G9-ref part (a) will not "
-                      f"read this record): {'; '.join(bad)}", file=sys.stderr, flush=True)
-                return EXIT_ERROR
             else:
                 print("placement: every turn and stop item whose move carries a leave point is placed at join rule "
                       "J1's leave point (lookbar.look_set_placement)", flush=True)
