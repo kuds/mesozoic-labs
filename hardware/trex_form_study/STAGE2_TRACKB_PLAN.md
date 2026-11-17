@@ -246,7 +246,7 @@ arrays when the design was written and are no record.
   "not available", but for two: if the start or the change to the 0.40 m/s walk still fails, that body's look set is not
   frozen and the point goes to the lead, who also decides whether that body's other look sets, on either head, are
   frozen [settled 16 Nov 2026, before any Track B run: the two exceptions, the lead's decision on the other sets and, by
-  ruling 4 of the fifth list, "on either head"].
+  ruling 4 of the fifth list, "on either head"; ruling 4 of the sixth list confirms it whichever head's set fails].
 - **What may come back to you.** No gain at the go or no-go. A failing 60 cm local run. A body whose turn in place
   cannot be built within its gate: it then trains without it, and the report says the plan's list of references is not
   met there. A quick turn that cannot be built within its gates on a body: its turn items then read "not run". R5
@@ -2079,7 +2079,8 @@ stances L10 names; for a start or a change, the instant read from the entry's `m
 set was built; settled 15 Nov, before any Track B run, after the look work package's first kinematic numbers existed:
 the trigger, the scope and the order of the fallback; settled 16 Nov 2026, before any Track B run: a `start` or a
 `nominal_to_v0.4` that still fails, and who then decides on the body's other look sets, those of its `-X` head among
-them; differs: A8, A11, for a join gate failed on a K-stride window; cut 3 differs: B6 and T1]
+them and, where the `-X` head's set fails, those of its plain head; differs: A8, A11, for a join gate failed on a
+K-stride window; cut 3 differs: B6 and T1]
 [settled 15 Nov, before any Track B run; labelled as changed after the look work package's first kinematic numbers
 existed, whose join numbers are what this trigger reads ("What had been run")] The fallback is taken only when a move of
 a look set, built by the builder after an independent review of its join code (the review's record named by path and
@@ -2110,9 +2111,15 @@ body's `-X` head: the paragraph above itself takes a cut for every look set of t
 here to the paragraph's end, the author's note, after the independent review of the fourth list's writing-in, not the
 lead's wording] Ruling 7 of the fourth list names no place for that record. By this text's own rule for a later answer
 of the lead it is an amendment of this text with its date, and one given after a result is labelled so (the two sections
-"Settled by the lead"). Added when the fifth list was written in: its ruling 4 names the `-X` head's sets as among the
-other sets; where the set that fails is the `-X` head's own, the same reading is taken here, with the "body" of the
-paragraph above, which has two heads: the other sets are that body's look sets on either head.
+"Settled by the lead").
+
+[settled 16 Nov 2026, before any Track B run; labelled as changed after the look work package had built look sets
+(prescribed motion; none frozen); ruling 4 of the sixth list, which confirms as written the author's reading that stood
+here since the fifth list was written in: "Added when the fifth list was written in: its ruling 4 names the `-X` head's
+sets as among the other sets; where the set that fails is the `-X` head's own, the same reading is taken here, with the
+"body" of the paragraph above, which has two heads: the other sets are that body's look sets on either head."] When the
+set whose `start` or `nominal_to_v0.4` fails is the `-X` head's own, the lead's decision also takes in the plain head's
+sets of that body.
 
 The design's cut 3 [differs: B6 and T1]: a move leaves and enters a K-stride window only at its boundary (a right-foot
 command at the exact time of phase 0.5 after the boundary); episodes then walk whole windows (about 10 s) before a
@@ -2140,9 +2147,11 @@ move's `join_command` or `join_b` numbers; the same in every look set of the bod
 entries' `a_phase`, `a_time_s`, `join_command`, `join_b`, and `available: false` with its numbers for a move that still
 fails, other than `start` and `nominal_to_v0.4`: a set in which one of those two still fails holds no freeze (A8)
 [settled 16 Nov 2026, before any Track B run: this exception], and the lead's decision on that body's other look sets,
-those of its `-X` head among them, is on record with its date and reason, as an amendment of this text
+those of its `-X` head among them (and those of its plain head where the set that fails is the `-X` head's own), is on
+record with its date and reason, as an amendment of this text
 [settled 16 Nov 2026, before any Track B run: this item; ruling 7 of the fourth list; "as an amendment of this text" is
-the author's note in the rule; "those of its `-X` head among them" is ruling 4 of the fifth list]; under cut 3, the
+the author's note in the rule; "those of its `-X` head among them" is ruling 4 of the fifth list, and the parenthesis
+after it ruling 4 of the sixth]; under cut 3, the
 reading of T1's and B6's stride counts in the env description and in the records' `plan`; a set rebuilt under a cut
 after a closed-loop episode on it carries the label "changed after a result", and one rebuilt before any does not.
 
@@ -2368,7 +2377,8 @@ Items 7, 25, 27, 28, 29 and 30 also name rules of `STAGE2_75_PLAN.md`.
     "2.5 strides of `v0.4`", and T1's, read one window of `v0.4` and half a stride for a right-foot command [differs: B6
     and T1]. L12 [settled 16 Nov]: A8's "A failed `start` or `nominal_to_v0.4` stops the set and goes to the lead"
     stands on a look set; whether that body's other look sets, those of its `-X` head among them, are then frozen is the
-    lead's decision.
+    lead's decision; where the set that fails is the `-X` head's own, that decision also takes in the plain head's sets
+    of the body [settled 16 Nov].
 31. "Not run in this round" [settled]: the list drops nothing of plan section 6. Its "at most 8 fine-tunes of 5M" and
     its "Freed hours go to fine-tunes, then third seeds for the head comparison" stand outside this text: a fine-tune
     runs under plan 4 D and section 6, by rule K8, and third seeds only from freed hours.
