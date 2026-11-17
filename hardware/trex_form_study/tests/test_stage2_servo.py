@@ -203,8 +203,8 @@ def test_t4_exact_undo(p, name):
         for k in range(120):
             p.command(p.q_settled[p.qadr] + 0.02 * math.sin(0.05 * k), np.zeros(14), np.zeros(14))
             p.step()
-        p.reset(seed=4, joint_noise=0.01)  # a reset inside: the model's arrays back, the layer armed again
-        assert _model_diff(p.m, saved) == ([] if params.peak == (None,) * 4 else ["actuator_forcerange"])
+        p.reset(seed=4, joint_noise=0.01)  # a reset inside: the model's arrays back (X6L's peak too), armed again
+        assert _model_diff(p.m, saved) == []
         p.step(30)
         assert lay.readings()["physics_steps"] == 30
     assert _model_diff(p.m, saved) == []
@@ -244,17 +244,25 @@ def test_t4_undo_after_an_error_and_the_refusals(p):
 
 @needs_plant
 def test_a_mass_setting_needs_the_callers_trunk_mass(p):
-    """M-, M+, W1 and W2 carry a trunk mass factor the layer never applies: refused while the trunk is as built,
-    accepted once the caller has applied it (design 5.1)."""
+    """M-, M+, W1 and W2 carry a trunk mass factor the layer never applies: refused unless the caller has applied
+    that factor (design 5.1): not while the trunk is as built, nor at another factor."""
     saved = _arrays(p.m)
     with pytest.raises(servo.ServoError, match="caller"):
         servo.Layer(p, servo.setting("M+"))
     nominal, scratch = copy.deepcopy(p.m), mujoco.MjData(p.m)
-    env.set_trunk_mass(p.m, p.trunk, 1.1, nominal, scratch)
     try:
-        p.reset(seed=1)
-        with servo.served(p, servo.setting("M+")):
-            p.step(10)
+        for factor, name, ok in ((1.1, "M+", True), (0.9, "M+", False), (0.9, "M-", True), (1.1, "M-", False),
+                                 (1.1, "W1", True), (0.9, "W2", True), (1.05, "M+", False)):
+            env.set_trunk_mass(p.m, p.trunk, factor, nominal, scratch)
+            p.reset(seed=1)
+            if not ok:
+                with pytest.raises(servo.ServoError, match="caller"):
+                    servo.Layer(p, servo.setting(name))
+                continue
+            with servo.served(p, servo.setting(name)):
+                p.step(10)
+            with servo.served(p, servo.setting("N")):  # (a factor of 1: the env's own trunk draw is left alone)
+                p.step(2)
     finally:
         env.set_trunk_mass(p.m, p.trunk, 1.0, nominal, scratch)
     assert _model_diff(p.m, saved) == []
@@ -271,6 +279,37 @@ def test_t4_a_step_hook_removed_inside_is_refused_and_restored(p):
             with pytest.raises(servo.ServoError, match="outside the layer"):
                 p.step()  # the class's step would skip the layer's after-step: refused
     assert _model_diff(p.m, saved) == [] and "step" not in p.__dict__
+
+
+@needs_plant
+def test_t4_an_envelope_swapped_inside_is_refused_and_restored(p):
+    """The layer owns the torque-speed line: another envelope bound inside it (the ledger's drive variants swap
+    one in, ``ledger.py:777-799``) would be half applied, so the next physics step is refused and exit says so."""
+    saved, env0 = _arrays(p.m), p.envelope
+    p.reset(seed=1)
+    with pytest.raises(servo.ServoError, match="envelope was replaced inside"):
+        with servo.served(p, servo.setting("N")) as lay:
+            p.step(3)
+            old = p.envelope
+            swapped = drive.Envelope(old.drives, old.moment, torque_scale=0.7)
+            p.envelope = swapped
+            swapped.bind(p.m, p.d)
+            k = lay.readings()["physics_steps"]
+            with pytest.raises(servo.ServoError, match="envelope was replaced"):
+                p.step()
+            assert lay.readings()["physics_steps"] == k  # no step taken
+    assert _model_diff(p.m, saved) == [] and "step" not in p.__dict__
+    assert p.envelope is env0 and env0.bound_to(p.m, p.d)
+    p.reset(seed=1)
+    with servo.served(p, servo.setting("N")):  # swapped and put back before the next step (the ledger's undo): fine
+        p.step(2)
+        old = p.envelope
+        p.envelope = drive.Envelope(old.drives, old.moment, torque_scale=0.7)
+        p.envelope.bind(p.m, p.d)
+        p.envelope = old
+        old.bind(p.m, p.d)
+        p.step(2)
+    assert _model_diff(p.m, saved) == []
 
 
 @needs_plant
@@ -310,6 +349,44 @@ def test_hooks_arm_at_entry_and_act_at_the_first_physics_step(p):
         assert np.array_equal(-p.m.actuator_biasprm[:, 2], lay.kv_model)
         assert np.array_equal(p.m.tendon_armature, lay.j_run[lay.tendon_idx])
     assert _model_diff(p.m, saved) == []
+
+
+@needs_plant
+@pytest.mark.parametrize("name", ["X6L", "N"])
+def test_hooks_the_entry_order_does_not_change_the_reset(p, name):
+    """The layer entered before the reset (the judging side) or after it (the env's order, design 5.1) gives the
+    same forward pass, first reading and physics: the reset's force ranges are today's, X6L's lower peak included,
+    and the run's are written at the first physics step (HOOKS_RULE)."""
+    q, qd = p.q_settled.copy(), np.zeros(p.m.nv)
+    hp = [p.joints.index(f"{s}_hip_pitch") for s in ("left", "right")]
+    q[p.qadr[hp]] += 0.06  # the hold servos ask about 68 N m at home: clipped at today's 42 N m
+    ih = [servo.ACTUATORS.index(f"{s}_hip_pitch_servo") for s in ("left", "right")]
+
+    def run(order):
+        if order == "after":
+            p.set_state(q, qd)
+        lay = servo.Layer(p, servo.setting(name)).enter()
+        try:
+            if order == "before":
+                p.set_state(q, qd)
+            out = [p.d.actuator_force.copy(), p.d.sensordata.copy(), p.m.actuator_forcerange.copy()]
+            for _ in range(20):
+                p.hold()
+                p.step()
+                out.append(_digest(p))
+            out.append(p.m.actuator_forcerange[ih].copy())
+        finally:
+            lay.exit()
+        return out
+
+    a, b = run("before"), run("after")
+    assert np.array_equal(a[0][ih], [-p.drives[i].peak for i in ih])  # today's peak in the reset's forward pass
+    assert np.array_equal(a[2][:, 1], p.envelope.peak) and np.array_equal(a[2][:, 0], -p.envelope.peak)
+    for x, y in zip(a[:3], b[:3], strict=True):
+        assert np.array_equal(x, y)
+    assert a[3:-1] == b[3:-1]
+    if name == "X6L":  # the run's peak from the first physics step
+        assert np.array_equal(np.abs(a[-1]), np.full((2, 2), servo.X6L_PEAK))
 
 
 @needs_plant

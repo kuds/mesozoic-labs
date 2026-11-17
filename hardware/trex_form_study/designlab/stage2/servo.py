@@ -678,13 +678,15 @@ HOOKS_RULE = (
     "one is there already), and sets the plant's own gain copies p.kp and p.kv where the run's inertia or the gain cap "
     "changes them (the box servos' kp and kv scales leave them nominal on purpose, design 2d): every command folded "
     "after entry is folded with the gains it is served with.  It acts from the first physics step after entry or "
-    "after a reset (the envelope's bind): then it writes the run's model gains, damping, friction and armature, so "
-    "the reset's forward pass, its first reading and every tracker's copy of the friction are today's (traps 1 and "
-    "9).  A reset inside the layer restores those arrays and arms again.  Exit restores, bit for bit, every model "
-    "array the layer or mj_setConst writes, the envelope object, the step and the gain copies.  The trunk mass is "
-    "not the layer's (the caller's, before the reset; a setting with a mass factor is refused while the trunk is as "
-    "built).  The layer's states (the lag, the hold, the load filter, the readings' age) are in no snapshot: it is not "
-    "offered to control.run(confirm=True) or to the ledger (trap 6)")
+    "after a reset (the envelope's bind): then it writes the run's model gains, damping, friction, armature and peak "
+    "force range (X6L's), so the reset's forward pass, its first reading and every tracker's copy of the friction "
+    "are today's (traps 1 and 9).  A reset inside the layer restores those arrays and arms again.  A physics step "
+    "while p.envelope is another object is refused (the layer owns the line).  Exit restores, bit for bit, every "
+    "model array the layer or mj_setConst writes, the envelope object, the step and the gain copies, and raises "
+    "after it if the step or the envelope was replaced inside.  The trunk mass is not the layer's (the caller's, "
+    "before the reset; a setting with a mass factor is refused unless the plant's trunk is at that factor of its "
+    "built mass).  The layer's states (the lag, the hold, the load filter, the readings' age) are in no snapshot: it "
+    "is not offered to control.run(confirm=True) or to the ledger (trap 6)")
 #: Every model array the layer writes, and every one mj_setConst overwrites (found on this plant by perturbing each
 #: float array of a copy and seeing which ones mj_setConst writes back; tests/test_stage2_servo.py repeats it), with
 #: the model's ``stat`` fields.
@@ -751,13 +753,15 @@ class ServoEnvelope:
         return self._m is m and self._d is d
 
     def restore(self) -> None:
-        """Every force range back to the run's peak (a plant at rest)."""
+        """Every force range back to the peak (a plant at rest): the run's while the layer acts, today's (the nominal
+        ``peak``) from a bind to the first physics step, so the reset's forward pass is today's (``HOOKS_RULE``)."""
         lay = self._layer
         if lay._today_env is not None:
             lay._today_env.restore()
         elif lay.m is not None:
-            lay.m.actuator_forcerange[:, 1] = lay.peak_run
-            lay.m.actuator_forcerange[:, 0] = -lay.peak_run
+            pk = lay.peak_run if lay._acting else self.peak
+            lay.m.actuator_forcerange[:, 1] = pk
+            lay.m.actuator_forcerange[:, 0] = -pk
             lay._narrowed = False
 
     def limits(self, qvel) -> tuple[np.ndarray, np.ndarray]:
@@ -803,9 +807,16 @@ class Layer:
                              f"{BUS_V} V: the layer models the bus itself")
         if float(p.m.opt.timestep) != DT:
             raise ServoError(f"physics step {p.m.opt.timestep} s: the layer's hold and lag are for {DT} s")
-        if params.mass != 1.0 and float(p.m.body_subtreemass[p.trunk]) == float(p.meta["mass_kg"]):
-            raise ServoError(f"setting {params.name}: its trunk mass x {params.mass:g} is the caller's, applied before "
-                             "the reset (env.set_trunk_mass), and the plant's trunk is as built")
+        if params.mass != 1.0:
+            # the trunk as built: the plant's built mass less every other body's (env.set_trunk_mass keeps them as
+            # built); the caller's factor must be the setting's (a factor of 1 leaves the env's own draw alone)
+            bm = p.m.body_mass
+            trunk0 = float(p.meta["mass_kg"]) - (float(bm.sum()) - float(bm[p.trunk]))
+            factor = float(bm[p.trunk]) / trunk0
+            if not math.isclose(factor, params.mass, rel_tol=1e-9, abs_tol=0.0):
+                raise ServoError(f"setting {params.name}: its trunk mass x {params.mass:g} is the caller's, applied "
+                                 f"before the reset (env.set_trunk_mass), and the plant's trunk is x {factor:.6g} of "
+                                 "its built mass")
         self.p, self.params = p, params
         m = p.m
         self.m = self.d = None
@@ -1016,11 +1027,13 @@ class Layer:
             setattr(m.stat, k, v.copy() if v.ndim else v.item())
 
     def exit(self) -> None:
-        """Restore the plant exactly (``HOOKS_RULE``); raises after restoring if the step hook was changed under it."""
+        """Restore the plant exactly (``HOOKS_RULE``); raises after restoring if the step hook or the envelope was
+        changed under it."""
         if not self._entered:
             return
         p = self.p
         step_ok = p.__dict__.get("step") is self._step_fn
+        env_ok = p.envelope is self._env
         p.__dict__.pop("step", None)
         p.envelope = self._old_env
         if not self._old_env.bound_to(p.m, p.d):
@@ -1030,8 +1043,10 @@ class Layer:
         p.kv[:] = self.kv_copy0
         self._entered = self._acting = False
         self._today_env = None
-        if not step_ok:
-            raise ServoError(f"{p.body}: the plant's step was replaced inside the servo layer; restored on exit")
+        changed = [w for w, ok in (("step", step_ok), ("envelope", env_ok)) if not ok]
+        if changed:
+            raise ServoError(f"{p.body}: the plant's {' and '.join(changed)} {'was' if len(changed) == 1 else 'were'} "
+                             "replaced inside the servo layer; restored on exit")
 
     # ---------------------------------------------------------------- the physics step
     def _start(self) -> None:
@@ -1053,6 +1068,10 @@ class Layer:
             if self._scratch is None:
                 self._scratch = mujoco.MjData(m)
             mujoco.mj_setConst(m, self._scratch)
+        if self._today_env is None:  # the run's peak (X6L's 31.5 N m): today's until now (ServoEnvelope.restore)
+            self._fr_hi[:] = self.peak_run
+            self._fr_lo[:] = self._neg_peak
+            self._narrowed = False
         np.abs(self._f, out=self._tbar)
         np.dot(self._moment, self._qvel, out=self._w_prev)
         if self._friction:
@@ -1201,7 +1220,12 @@ class Layer:
         self._k += 1
 
     def _step(self, n: int = 1) -> None:
-        """``n`` physics steps under the layer (``Plant.step``'s place while the layer is in)."""
+        """``n`` physics steps under the layer (``Plant.step``'s place while the layer is in); refused when
+        ``p.envelope`` is no longer the layer's (the layer owns the torque-speed line: another envelope bound inside it
+        would be half applied)."""
+        if self.p.envelope is not self._env:
+            raise ServoError(f"{self.p.body}: the plant's envelope was replaced inside the servo layer (the layer owns "
+                             "the torque-speed line); no physics step is taken")
         m, d = self.m, self.d
         for _ in range(n):
             self._in_step = True
