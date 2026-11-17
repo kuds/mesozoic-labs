@@ -336,7 +336,7 @@ def test_notebook_cells_parse():
     for c, step in zip(cells[2:], steps, strict=True):
         assert f's2_step("{step}"' in "".join(c["source"])
     last = ast.parse("".join(cells[8]["source"])).body
-    assert isinstance(last[-1], ast.Try) and "release_runtime" in ast.unparse(last[-1].finalbody)
+    assert isinstance(last[-1], ast.Try) and "release_or_keep(S2_FINISH_CODE" in ast.unparse(last[-1].finalbody)
     two = "".join(cells[2]["source"])
     assert 'fullmatch(r"[0-9a-f]{40}", REPO_REF)' in two and '"designlab"' in two and "--no-checkout" in two
     assert 'MUJOCO_GL="disable"' in two and 'PYTHONHASHSEED="0"' in two and 'PYTHONPATH="."' in two
@@ -1264,7 +1264,7 @@ def test_a_jobs_last_copy_is_tried_again(tmp_path, stubs, monkeypatch, capsys):
     before the run is written DONE (as built, the end-of-job cycle was the only try and DONE.json named a last
     checkpoint that Drive did not hold)."""
     monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02)}))
-    monkeypatch.setattr(nb, "END_COPY_TRIES", 4, raising=False)
+    monkeypatch.setattr(nb, "END_COPY_PERIODS", 4.0)
     p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
     _session(p)
     d, job = tmp_path / "drive" / "runs" / "r1", "R5-B1-s42"
@@ -1300,7 +1300,7 @@ def test_a_jobs_last_copy_is_tried_again(tmp_path, stubs, monkeypatch, capsys):
 
 def test_an_earlier_jobs_last_copy_is_tried_again_while_the_next_job_runs(tmp_path, stubs, monkeypatch, capsys):
     monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02), "R6-B1-s42": dict(tick=0.05)}))
-    monkeypatch.setattr(nb, "END_COPY_TRIES", 2, raising=False)
+    monkeypatch.setattr(nb, "END_COPY_PERIODS", 2.0)
     p = _params(tmp_path, CLIPS=False)
     _session(p)
     d = tmp_path / "drive" / "runs" / "r1"
@@ -1310,9 +1310,9 @@ def test_an_earlier_jobs_last_copy_is_tried_again_while_the_next_job_runs(tmp_pa
                     and "checkpoints" in dst.parts and d in dst.parents and not second.is_file())
     res = _launch(p)
     out = capsys.readouterr().out
-    assert "S2 WARNING: R5-B1-s42: not on Drive after 2 further tries: checkpoint 4096" in out
+    assert re.search(r"S2 WARNING: R5-B1-s42: not on Drive after 3 further tries in \d+ s: checkpoint 4096", out)
     assert "S2 launch: R5-B1-s42: its last copies are on Drive now" in out
-    assert out.index("not on Drive after 2 further tries") < out.index("R6-B1-s42 started") < out.index(
+    assert out.index("not on Drive after 3 further tries") < out.index("R6-B1-s42 started") < out.index(
         "R5-B1-s42: its last copies are on Drive now")
     assert res["state"] == "done" and (d / "DONE.json").is_file(), res
     for job in ("R5-B1-s42", "R6-B1-s42"):
@@ -1326,7 +1326,7 @@ def test_no_done_without_a_jobs_last_checkpoint_on_drive(tmp_path, stubs, monkey
     Drive the job does not read finished, ``finish`` names what is on this machine's disk only, and a resume on
     the same machine makes the copy and ends the run without training again."""
     monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.05)}))
-    monkeypatch.setattr(nb, "END_COPY_TRIES", 2, raising=False)
+    monkeypatch.setattr(nb, "END_COPY_PERIODS", 2.0)
     p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
     _session(p)
     d, job = tmp_path / "drive" / "runs" / "r1", "R5-B1-s42"
@@ -1375,7 +1375,7 @@ def test_a_drive_that_is_gone_for_good_ends_the_launch_unfinished(tmp_path, stub
     """Every read and write under the stand-in Drive fails after the job's first copied checkpoint (a dead mount):
     the launch does not call the run done, and ``finish`` reports instead of raising."""
     monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02)}))
-    monkeypatch.setattr(nb, "END_COPY_TRIES", 2, raising=False)
+    monkeypatch.setattr(nb, "END_COPY_PERIODS", 2.0)
     p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
     _session(p)
     drive = (tmp_path / "drive").resolve()
@@ -1417,6 +1417,124 @@ def test_a_drive_that_is_gone_for_good_ends_the_launch_unfinished(tmp_path, stub
     monkeypatch.setattr(nb, "_read_json", real_read)
     assert not (d / "DONE.json").exists() and not (d / "HALT.json").exists()
     assert json.loads((tmp_path / "local" / "r1" / "jobs" / job / "run.json").read_text())["status"] == "done"
+
+
+def test_the_end_of_job_copies_wait_longer_each_time_for_at_most_20_minutes(tmp_path, stubs, monkeypatch, capsys):
+    """The lead's ruling 1 of 17 Nov: at a job's end its missing copies are tried again, fenced and with a growing
+    wait, for at most 20 minutes (as built: ten tries one period apart, ten minutes)."""
+    assert nb.end_copy_waits(60.0) == [30.0, 60.0, 120.0, 240.0, 300.0, 300.0, 150.0]
+    assert sum(nb.end_copy_waits(60.0)) == 1200.0 and sum(nb.end_copy_waits(0.05)) == pytest.approx(1.0)
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02)}))
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False, PERIOD_S=0.02)
+    _session(p)
+    d, job = tmp_path / "drive" / "runs" / "r1", "R5-B1-s42"
+    _failing_copies(monkeypatch, lambda src, dst: "_4096." in src.name and "checkpoints" in dst.parts
+                    and d in dst.parents)
+    waits, fences, real_nap, real_fence = [], [], nb._Launcher._nap, nb._Launcher.fence
+
+    def nap(self, seconds):
+        waits.append(round(seconds, 6))
+        return real_nap(self, seconds)
+
+    def fence(self):
+        fences.append(len(waits))
+        return real_fence(self)
+
+    monkeypatch.setattr(nb._Launcher, "_nap", nap)
+    monkeypatch.setattr(nb._Launcher, "fence", fence)
+    res = _launch(p)
+    out = capsys.readouterr().out
+    assert waits == [round(w, 6) for w in nb.end_copy_waits(0.02)] and len(waits) == 7, waits
+    assert all(b > a for a, b in zip(waits[:4], waits[1:5], strict=True))          # each wait twice the one before
+    assert all(i in fences for i in range(1, 8))                                    # every try is fenced
+    assert res["state"] == "unfinished" and "not on Drive after 7 further tries in " in out
+
+
+def test_finish_makes_the_last_copy_and_ends_the_run(tmp_path, stubs, monkeypatch, capsys):
+    """Ruling 1 of 17 Nov: the finish cell, run again later, tries the copies a finished job still lacks (its last
+    checkpoint and the check's tar); once they are on Drive the run is written DONE there, and the finish answers
+    that everything is on Drive (as built it only looked: the run stayed unfinished and the save stayed on this
+    machine's disk)."""
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02)}))
+    monkeypatch.setattr(nb, "END_COPY_PERIODS", 1.0)
+    p = _params(tmp_path, QUEUE=["R5:B1:42"], CLIPS=False)
+    _session(p)
+    d, job = tmp_path / "drive" / "runs" / "r1", "R5-B1-s42"
+    broken = dict(on=True)
+    _failing_copies(monkeypatch, lambda src, dst: broken["on"] and src.name in ("model_4096.zip", "ckpt_4096.tar")
+                    and d in dst.parents)
+    assert _launch(p)["state"] == "unfinished"
+    pfile = tmp_path / "p.json"
+    pfile.write_text(json.dumps(p))
+    assert nb.main(["finish", "--params", str(pfile)]) == nb.EXIT_UNFINISHED        # Drive still fails: kept
+    capsys.readouterr()
+    broken["on"] = False
+    fin = nb.finish("r1", p["DRIVE_DIR"], p["LOCAL_DIR"])
+    out = capsys.readouterr().out
+    assert fin["state"] == "done" and fin["on_drive"] is True and fin["not_on_drive"] == {}, fin
+    assert _reads_back(d / "jobs" / job, 4096) and (d / "jobs" / job / "ckpt_4096.tar").is_file()
+    assert json.loads((d / "jobs" / job / "run.json").read_text())["status"] == "done"
+    done = json.loads((d / "DONE.json").read_text())
+    assert done["reason"].startswith("the queue is finished") and done["jobs"][job]["last_checkpoint_copied"] == 4096
+    assert "S2 FINISH r1: DONE: the queue is finished" in out and "closed_at" in json.loads((d / "LIVE.json").read_text())
+    rec = json.loads((d / "SESSION_0.json").read_text())
+    assert [f["on_drive"] for f in rec["finishes"]] == [False, True] and rec["last_status_at"] == rec["finishes"][-1]["at"]
+    assert nb.main(["finish", "--params", str(pfile)]) == 0 and len(_calls(p)) == 1  # (nothing was trained again)
+
+
+def test_the_finish_keeps_the_runtime_while_a_save_is_not_on_drive(tmp_path, stubs, monkeypatch, capsys):
+    """Ruling 1 of 17 Nov: when a job's last save is not on Drive the finish step says so by its exit code (also
+    when the run halted afterwards: as built a halt's exit code 5 came first and the runtime was let go), and the
+    notebook's cell 8 then keeps the runtime and prints one plain paragraph; in every other case it releases it.
+    The finish never raises."""
+    monkeypatch.setenv("STUB_PLAN", json.dumps({"*": dict(tick=0.02), "R6-B1-s42": dict(halt=True)}))
+    monkeypatch.setattr(nb, "END_COPY_PERIODS", 1.0)
+    p = _params(tmp_path, CLIPS=False)
+    _session(p)
+    d = tmp_path / "drive" / "runs" / "r1"
+    _failing_copies(monkeypatch, lambda src, dst: "R5-B1-s42" in dst.parts and src.name == "model_4096.zip"
+                    and d in dst.parents)
+    res = _launch(p)
+    assert res["state"] == "halted" and (d / "HALT.json").is_file(), res      # (job 2 halted; job 1's save is here)
+    pfile = tmp_path / "p.json"
+    pfile.write_text(json.dumps(p))
+    assert nb.main(["finish", "--params", str(pfile)]) == nb.EXIT_UNFINISHED
+    assert "NOT ON DRIVE: R5-B1-s42: checkpoint 4096" in capsys.readouterr().out
+    # a fault in the finish itself (here: this machine's disk is full) is no traceback: it cannot tell, so it keeps
+    real_init = nb._Launcher.__init__
+
+    def full(self, *a, **k):
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(nb._Launcher, "__init__", full)
+    fin = nb.finish("r1", p["DRIVE_DIR"], p["LOCAL_DIR"])
+    assert fin["on_drive"] is False and "the finish could not be completed (OSError" in capsys.readouterr().out
+    monkeypatch.setattr(nb._Launcher, "__init__", real_init)
+    # cell 8 as the notebook runs it: s2_step's exit code decides
+    released = []
+    monkeypatch.setattr(nb, "release_runtime", lambda reason, in_colab, auto, flush_drive: released.append(reason))
+    cell = "".join(_cells()[8]["source"])
+    for code, want in ((nb.EXIT_UNFINISHED, []), (0, ["Stage 2 session of run 'r1' is over."]),
+                       (nb.EXIT_HALT, ["Stage 2 session of run 'r1' is over."]), ("raise", ["Stage 2 session of run 'r1' is over."])):
+        released.clear()
+
+        def s2_step(step, check=True, code=code):
+            assert step == "finish" and check is False
+            if code == "raise":
+                raise KeyboardInterrupt
+            return code
+
+        space = dict(s2_step=s2_step, STUDY=str(STUDY), sys=sys, RUN_ID="r1", IN_COLAB=True, AUTO_DISCONNECT=True,
+                     USE_GOOGLE_DRIVE=True)
+        if code == "raise":
+            with pytest.raises(KeyboardInterrupt):
+                exec(compile(cell, "<cell 8>", "exec"), space)
+        else:
+            exec(compile(cell, "<cell 8>", "exec"), space)
+        out = capsys.readouterr().out
+        assert released == want, code
+        assert ("THIS MACHINE IS KEPT ON PURPOSE" in out) is (code == nb.EXIT_UNFINISHED), code
+    assert "run the last grey box (8. FINISH) once more" in nb.KEEP_RUNTIME_TEXT and "\n" not in nb.KEEP_RUNTIME_TEXT
 
 
 def test_a_failed_first_write_to_drive_is_no_halt(tmp_path, stubs, monkeypatch, capsys):
@@ -2025,6 +2143,14 @@ def test_hours(tmp_path, capsys):
     (root / "a" / "SESSION_2.json").write_text(json.dumps(dict(session=2, started_at="2026-11-01T00:00:00Z",
                                                                last_status_at="2026-11-09T08:00:00Z")))
     assert nb.hours(root, out=None)["over_cap"] is True
+    # ruling 1 of 17 Nov: a runtime kept for a save on it only counts to the last finish, and is listed
+    (root / "c").mkdir()
+    (root / "c" / "SESSION_0.json").write_text(json.dumps(dict(
+        session=0, started_at="2026-11-24T00:00:00Z", last_status_at="2026-11-24T21:00:00Z",
+        finishes=[dict(at="2026-11-24T20:00:00Z", on_drive=False), dict(at="2026-11-24T21:00:00Z", on_drive=False)])))
+    rec = nb.hours(root, out=None)
+    assert rec["runs"]["c"]["hours"] == pytest.approx(21.0) and rec["kept_runtime"] == ["c/SESSION_0.json"]
+    assert rec["runs"]["c"]["sessions"][0]["kept_runtime"] is True and "kept the runtime" in capsys.readouterr().out
 
 
 def test_release_runtime(monkeypatch, capsys):

@@ -122,8 +122,10 @@ CLIP_LIMIT_S = 300.0
 PACK_LIMIT_S = 120.0
 #: How often ``s2load pack`` is tried for one check's tar (a failed copy of a packed tar to Drive is not a try).
 PACK_TRIES = 3
-#: ``COPY_RULE``'s end: how many further periods a finished job's missing copies are tried again at its end.
-END_COPY_TRIES = 10
+#: ``COPY_RULE``'s end (the lead's ruling 1 of 17 Nov 2026): at a job's end its missing copies are tried again, fenced
+#: and with a growing wait, for at most this many periods in all (20 minutes at the 60 s period): the first wait is
+#: ``END_COPY_FIRST`` periods, each later one twice the one before, none longer than ``END_COPY_LONGEST``.
+END_COPY_PERIODS, END_COPY_FIRST, END_COPY_LONGEST = 20.0, 0.5, 5.0
 #: How often a job's directory is copied back from Drive before the session ends unfinished.
 COPY_BACK_TRIES = 3
 #: Rule K2: the checkpoints copied to Drive are those at multiples of this many steps, and each check's.
@@ -210,8 +212,10 @@ COPY_RULE = (
     "changed, each as <name>.part and renamed.  A job that has ended is finished on Drive only when its last "
     "checkpoint and each check's read back from there and each check's tar that could be packed is there: until "
     "then its run.json and progress.json are not copied (on Drive a job never reads finished before its last "
-    f"checkpoint is there), the missing copies are tried again every period, for {END_COPY_TRIES} further periods "
-    "at the job's end and then while later jobs run, and the run gets no DONE.json (UNFINISHED_RULE)")
+    "checkpoint is there), the missing copies are tried again, fenced, with a growing wait (half a period first, "
+    f"then twice the wait before, at most {END_COPY_LONGEST:g} periods) for at most {END_COPY_PERIODS:g} periods at "
+    "the job's end (20 minutes; the lead's ruling 1 of 17 Nov 2026), then while later jobs run and at every finish, "
+    "and the run gets no DONE.json (UNFINISHED_RULE)")
 UNFINISHED_RULE = (
     "a launch ends unfinished, with no DONE.json and no HALT.json, LIVE.json closed and the run open to a resume, "
     "when what it needs of Drive cannot be had: a finished job's last checkpoint (or a check's, or a check's tar) "
@@ -277,7 +281,10 @@ COLLECT_RULE = (
     "run.json that reads running whose process is alive); a file already there with other bytes is refused")
 HOURS_RULE = (
     f"runtime-hours (design 3.9): per run, each session from started_at to last_status_at, summed, against the cap "
-    f"of {HOURS_CAP:g} h; a session that never wrote a status counts nothing and is listed")
+    f"of {HOURS_CAP:g} h; a session that never wrote a status counts nothing and is listed.  A runtime kept because "
+    "a job's last save was on it only (the lead's ruling 1 of 17 Nov 2026) is counted to the session's last finish, "
+    "which moves last_status_at each time it runs; a session whose last finish kept the runtime is listed (kept), "
+    "since its time after that finish is not known")
 
 
 class NbError(RuntimeError):
@@ -1846,6 +1853,18 @@ def at_or_past(n: int, every, rollout) -> bool:
     return every > 0 and n >= every and n % every < max(int(rollout or 0), 1)
 
 
+def end_copy_waits(period) -> list:
+    """``COPY_RULE``'s end: the waits, in seconds, before each further try of a finished job's missing copies
+    (30, 60, 120, 240, 300, 300 and 150 s at the 60 s period: 20 minutes, ``END_COPY_PERIODS``)."""
+    period, out, wait = float(period), [], END_COPY_FIRST * float(period)
+    left = END_COPY_PERIODS * period
+    while left > 1e-9 * max(period, 1.0):
+        step = min(wait, END_COPY_LONGEST * period, left)
+        out.append(step)
+        left, wait = left - step, wait * 2.0
+    return out
+
+
 def keep_on_drive(copied, checks) -> list:
     """Rule K2 on Drive: of the copied checkpoints, each check's and the newest two; ascending."""
     copied = sorted(set(int(n) for n in copied))
@@ -1899,7 +1918,10 @@ class _Launcher:
         self.child = self.child_log = None
         self.clip = None
         self.clip_tried: set = set()
-        self.pack_tries: dict = {}
+        self.pack_tries: dict = {}                             # (job, n) -> how often s2load pack was tried
+        for key, tries in (st.get("pack_tries") or {}).items():  # (kept in the session's state: finish knows them)
+            name, _, n = str(key).rpartition(":")
+            self.pack_tries[(name, int(n))] = int(tries)
         self.packed: set = set()
         self.line4_done: set = set()
         self.pids: dict = {}                                   # job -> the pid of the trainer this launcher started
@@ -2105,6 +2127,7 @@ class _Launcher:
             if tries >= PACK_TRIES or not self._record(self.l, job, n).is_file():
                 return
             self.pack_tries[(job, n)] = tries + 1
+            self.st["pack_tries"] = {f"{j}:{m}": t for (j, m), t in self.pack_tries.items()}
             try:
                 done = subprocess.run(_pack_cmd() + ["pack", str(self.l / "jobs" / job), str(n), "--out",
                                                      str(tar.parent)],
@@ -2249,25 +2272,26 @@ class _Launcher:
 
     def settle(self, row: dict) -> None:
         """``COPY_RULE``'s end for a job that has ended: while its last checkpoint, a check's or a check's tar is
-        not on Drive the copies are tried again, one period apart, ``END_COPY_TRIES`` times.  What is still
-        missing then is said, kept in the job's entry (``not_on_drive``) and tried again in every later cycle of
-        this session; the run is not written DONE without it."""
+        not on Drive the copies are tried again, fenced (``_copy_cycle``), after each wait of ``end_copy_waits``
+        (at most 20 minutes in all).  What is still missing then is said, kept in the job's entry
+        (``not_on_drive``) and tried again in every later cycle of this session and at the finish; the run is not
+        written DONE without it."""
         job, m = row["job"], self.mine[row["job"]]
         if self.same:
             return
         m["not_on_drive"] = self.not_on_drive(job)
-        waited = False
-        for _ in range(END_COPY_TRIES):
+        waited, tries, t0 = False, 0, time.time()
+        for wait in end_copy_waits(self.period):
             if not m["not_on_drive"]:
                 break
-            waited = True
-            self._nap(self.period)
+            waited, tries = True, tries + 1
+            self._nap(wait)
             self._copy_cycle(job)
             m["not_on_drive"] = self.not_on_drive(job)
         if m["not_on_drive"]:
-            self.say(f"S2 WARNING: {job}: not on Drive after {END_COPY_TRIES} further tries: "
-                     f"{', '.join(m['not_on_drive'])}.  It is tried again while this session lives; the run is not "
-                     "written DONE without it")
+            self.say(f"S2 WARNING: {job}: not on Drive after {tries} further tries in {time.time() - t0:.0f} s: "
+                     f"{', '.join(m['not_on_drive'])}.  It is tried again while this session lives and at the "
+                     "finish; the run is not written DONE without it")
             return
         self._drive(job, self.copy_text, job)  # (now with the job's run.json and progress.json)
         if waited:
@@ -2767,16 +2791,38 @@ def launch(run_id, drive, local, queue, set_name, budget, workers, tiny=False, c
 # ------------------------------------------------------------------------------------------------
 def finish(run_id, drive, local=None) -> dict:
     """Cell 8: the run's end as its files say it (``DONE.json`` or ``HALT.json``; a smoke's session ends with
-    ``DONE.json`` here), a last copy of the text records while this session still owns the run, and the summary.
+    ``DONE.json`` here), a last try of the copies while this session still owns the run, and the summary.
     ``local``: the local root (default: the one the run's newest session recorded).  Returns ``{state, reason,
     jobs, files, on_drive, not_on_drive}``; ``state`` is ``"done"``, ``"halted"``, ``"superseded"`` or
-    ``"unfinished"``.  ``on_drive``: True when every finished job this machine holds has its last checkpoint and
-    each check's on Drive (``COPY_RULE``'s end), False when one has not or Drive could not be read (``not_on_drive``
-    names what is missing: it is on this machine's disk only), None when this session cannot tell (it does not own
-    the run).  A write to Drive that fails here is said, never raised: the cell's ``finally`` runs either way."""
+    ``"unfinished"``.
+
+    The last try (``COPY_RULE``'s end; the lead's ruling 1 of 17 Nov 2026): for every finished job this machine
+    holds, its last checkpoint, each check's and each check's tar that are not on Drive are copied, fenced (a job's
+    ``run.json`` follows once its last checkpoint is there); when the whole queue is then finished and on Drive and
+    the run has no end yet, ``DONE.json`` is written here.  ``on_drive``: True when every finished job this machine
+    holds has all of these on Drive, False when one has not or Drive could not be read or written (``not_on_drive``
+    names what is missing: it is on this machine's disk only, and the notebook keeps the runtime,
+    ``release_or_keep``), None when this session cannot tell (it does not own the run).  Each run of it moves the
+    session's ``last_status_at`` (the hours count the time the runtime is kept) and is listed in the session's
+    ``finishes``.  **It never raises**: a fault of Drive, or any other, is said and returned as ``on_drive``
+    False."""
+    try:
+        return _finish(run_id, drive, local)
+    except Exception as exc:  # noqa: BLE001 - the cell's next step depends on an answer, never on a traceback
+        why = f"{type(exc).__name__}: {_one_line(exc)[:300]}"
+        _say(f"S2 FINISH {run_id}: the finish could not be completed ({why}): whether every last save is on Drive "
+             "is not known")
+        return dict(state="unfinished", reason=f"the finish could not be completed ({why})", jobs={}, files=None,
+                    on_drive=False, not_on_drive={})
+
+
+def _finish(run_id, drive, local=None) -> dict:
     d = run_dirs(run_id, drive, None)[0]
     if local is None:
-        recs = sorted(d.glob("SESSION_*.json"), key=lambda p: int(re.sub(r"\D", "", p.name) or 0))
+        try:
+            recs = sorted(d.glob("SESSION_*.json"), key=lambda p: int(re.sub(r"\D", "", p.name) or 0))
+        except OSError:
+            recs = []
         newest = _read_json(recs[-1]) if recs else None
         local = ((newest or {}).get("params") or {}).get("LOCAL_DIR") or drive
     try:
@@ -2791,7 +2837,8 @@ def finish(run_id, drive, local=None) -> dict:
              "nothing was copied")
         return dict(state="superseded", reason=end.get("reason"), jobs=end.get("jobs") or {}, files=str(d),
                     on_drive=None, not_on_drive={})
-    if owns and st["session"].get("smoke") and not (d / "DONE.json").exists() and not (d / "HALT.json").exists():
+    smoke = bool(st and st["session"].get("smoke"))
+    if owns and smoke and not (d / "DONE.json").exists() and not (d / "HALT.json").exists():
         ok = (d / "smoke" / "SMOKE.json").is_file()
         doc = _stamped(dict(schema=END_SCHEMA, run_id=run_id, session=st["session"]["session"],
                             session_uuid=st["session"]["session_uuid"], at=_now(), state="done" if ok else "halted",
@@ -2804,22 +2851,33 @@ def finish(run_id, drive, local=None) -> dict:
             _write_live(st, closed=doc["reason"])
         except OSError as exc:
             _say(f"S2 FINISH {run_id}: the smoke's end could not be written to the run directory ({exc})")
-    on_drive, lacks = (True if owns else None), {}
+    on_drive, lacks, wrote_done = (True if owns else None), {}, False
     if owns and not st["same"]:
         launcher = _Launcher(st, _read_json(d / "QUEUE.json") or dict(queue=st["session"]["queue"]), 0, False, 1.0)
         try:
             for r in launcher.jobs:
                 launcher._adopt(r["job"])
-            for r in launcher.jobs:
-                launcher.copy_text(r["job"])
-            launcher.copy_logs()
-            lacks = {r["job"]: launcher.not_on_drive(r["job"], tars=False) for r in launcher.jobs}
+            for r in launcher.jobs:  # (the copies a finished job still lacks: its last checkpoint, a check's, a tar;
+                job = r["job"]       # a copy that fails is said and counted, and what is missing is named below)
+                if launcher._final(job) is not None:
+                    launcher._drive(job, launcher.copy_checkpoints, job)
+                launcher._drive(job, launcher.copy_text, job)
+            launcher._drive(launcher.jobs[0]["job"], launcher.copy_logs) if launcher.jobs else None
+            lacks = {r["job"]: launcher.not_on_drive(r["job"]) for r in launcher.jobs}
             lacks = {job: names for job, names in lacks.items() if names}
             on_drive = not lacks
+            finished = bool(launcher.jobs) and all(e["state"] in ("done", "stopped") for e in launcher.entries())
+            if (on_drive and finished and not smoke and not (d / "DONE.json").exists()
+                    and not (d / "HALT.json").exists()):
+                launcher._end("done", "the queue is finished (its last copies reached Drive at the finish)",
+                              say=False)
+                wrote_done = (d / "DONE.json").is_file()
+                on_drive = on_drive and wrote_done
         except (OSError, _Superseded) as exc:
             on_drive = False
             _say(f"S2 FINISH {run_id}: the last copy failed ({exc})")
         finally:
+            _save_state(st)
             launcher.log.close()
     done, halt = _read_json(d / "DONE.json"), _read_json(d / "HALT.json")
     end = done or halt
@@ -2829,6 +2887,8 @@ def finish(run_id, drive, local=None) -> dict:
         state, reason, jobs = "unfinished", "no DONE.json and no HALT.json: the run can be resumed", {}
     if st is not None and owns:
         st["session"]["last_status_at"] = _now()
+        st["session"].setdefault("finishes", []).append(dict(at=st["session"]["last_status_at"], state=state,
+                                                             on_drive=on_drive, not_on_drive=lacks))
         _save_state(st)
         try:
             _write_json(d / f"SESSION_{st['session']['session']}.json", st["session"])
@@ -2836,6 +2896,8 @@ def finish(run_id, drive, local=None) -> dict:
             on_drive = False
             _say(f"S2 FINISH {run_id}: the session's record could not be written to the run directory ({exc})")
     _say(f"S2 FINISH {run_id}: {state.upper()}: {reason}")
+    if state == "halted" and isinstance(halt, dict) and halt.get("resumable"):
+        _say(f"S2 FINISH {run_id}: the halt {halt.get('halt_id')} is resumed only on the lead's word (LEAD.json)")
     for job, e in jobs.items():
         _say(f"S2 FINISH   {job}: {e.get('state')} at {e.get('steps')} steps; last checkpoint "
              f"{e.get('last_checkpoint')}, copied {e.get('last_checkpoint_copied')}")
@@ -2845,6 +2907,29 @@ def finish(run_id, drive, local=None) -> dict:
         _say(f"S2 FINISH {run_id}: NOT ON DRIVE: {what}.  It is on this machine's disk only: tell the lead")
     _say(f"S2 FINISH the run's files are under {d}")
     return dict(state=state, reason=reason, jobs=jobs, files=str(d), on_drive=on_drive, not_on_drive=lacks)
+
+
+#: Ruling 1 of 17 Nov 2026: what the notebook prints, in place of letting the runtime go, when ``finish`` says that a
+#: job's last save is on this machine only (exit code ``EXIT_UNFINISHED``).  For the owner: plain, one paragraph.
+KEEP_RUNTIME_TEXT = (
+    "THIS MACHINE IS KEPT ON PURPOSE. The last save of a training job could not be copied to your Google Drive. "
+    "It is on this machine only, so the machine is not let go: letting it go would delete that save. Leave this "
+    "tab and the machine as they are, and tell me. In about 30 minutes, run the last grey box (8. FINISH) once "
+    "more: click into it and press its play button. If it then ends with \"Disconnecting runtime in 5 "
+    "seconds...\", everything is on your Drive. If this paragraph comes again, wait and run that box again later. "
+    "The waiting time counts toward the 220 hours; that is expected.")
+
+
+def release_or_keep(finish_code, reason: str, in_colab: bool, auto: bool, flush_drive: bool) -> bool:
+    """Cell 8's last step (design D19 and the lead's ruling 1 of 17 Nov 2026): the runtime is released
+    (``release_runtime``) unless ``finish_code``, the finish step's exit code, is ``EXIT_UNFINISHED`` (a job's
+    last save is on this machine only, or the finish could not tell): then ``KEEP_RUNTIME_TEXT`` is printed and
+    the runtime is kept.  Any other code, or none (the step could not be run), releases it.  True when released."""
+    if finish_code == EXIT_UNFINISHED:
+        print("\n" + KEEP_RUNTIME_TEXT, flush=True)
+        return False
+    release_runtime(reason, in_colab=in_colab, auto=auto, flush_drive=flush_drive)
+    return True
 
 
 def release_runtime(reason: str, in_colab: bool, auto: bool, flush_drive: bool) -> None:
@@ -2990,7 +3075,7 @@ def collect(src, dst, kind) -> dict:
 def hours(runs_root, out="stage2/tb/hours.json") -> dict:
     """Runtime-hours per run and session (``HOURS_RULE``): every ``<runs_root>/<run_id>/SESSION_<k>.json`` from
     ``started_at`` to ``last_status_at``, summed into ``out`` (None: not written) against the cap.  The record."""
-    root, runs, total, never = _anchored(runs_root), {}, 0.0, []
+    root, runs, total, never, kept = _anchored(runs_root), {}, 0.0, [], []
     for d in sorted(p for p in root.iterdir() if p.is_dir()) if root.is_dir() else []:
         rows = []
         for f in sorted(d.glob("SESSION_*.json"), key=lambda p: int(re.sub(r"\D", "", p.name) or 0)):
@@ -2999,19 +3084,25 @@ def hours(runs_root, out="stage2/tb/hours.json") -> dict:
             h = 0.0 if a is None or b is None else max(0.0, b - a) / 3600.0
             if a is None or b is None:
                 never.append(f"{d.name}/{f.name}")
+            fins = s.get("finishes") if isinstance(s.get("finishes"), list) else []
+            kept_runtime = bool(fins) and isinstance(fins[-1], dict) and fins[-1].get("on_drive") is False
+            if kept_runtime:
+                kept.append(f"{d.name}/{f.name}")
             rows.append(dict(session=s.get("session"), session_uuid=s.get("session_uuid"),
                              started_at=s.get("started_at"), last_status_at=s.get("last_status_at"), hours=h,
-                             in_colab=(s.get("runtime") or {}).get("in_colab"), smoke=s.get("smoke")))
+                             in_colab=(s.get("runtime") or {}).get("in_colab"), smoke=s.get("smoke"),
+                             finishes=len(fins), kept_runtime=kept_runtime))
         if rows:
             runs[d.name] = dict(sessions=rows, hours=sum(r["hours"] for r in rows))
             total += runs[d.name]["hours"]
     rec = _stamped(dict(schema=HOURS_SCHEMA, runs_root=str(root), runs=runs, total_hours=total, cap_hours=HOURS_CAP,
                         remaining_hours=HOURS_CAP - total, over_cap=total > HOURS_CAP, without_status=never,
-                        rule=HOURS_RULE, at=_now()))
+                        kept_runtime=kept, rule=HOURS_RULE, at=_now()))
     if out is not None:
         _write_json(_anchored(out), rec)
     _say(f"S2 HOURS {root}: {len(runs)} runs, {total:.2f} of {HOURS_CAP:g} runtime-hours"
-         + (" OVER THE CAP" if rec["over_cap"] else ""))
+         + (" OVER THE CAP" if rec["over_cap"] else "")
+         + (f"; {len(kept)} session(s) kept the runtime after their last finish: {', '.join(kept)}" if kept else ""))
     return rec
 
 
@@ -3704,9 +3795,9 @@ def _step_launch(p: dict, args) -> int:
 
 def _step_finish(p: dict, args) -> int:
     res = finish(p["RUN_ID"], p["DRIVE_DIR"], p["LOCAL_DIR"])
-    if res["state"] == "halted":
-        return EXIT_HALT
-    return EXIT_UNFINISHED if res["on_drive"] is False else EXIT_OK
+    if res["on_drive"] is False:  # (first: a halted run's earlier job may hold its last save on this disk only)
+        return EXIT_UNFINISHED
+    return EXIT_HALT if res["state"] == "halted" else EXIT_OK
 
 
 STEPS = dict(setup=_step_setup, session=_step_session, inputs=_step_inputs, preflight=_step_preflight,
@@ -3778,7 +3869,8 @@ __all__ = ["BACK_RULE", "BUDGET_RULE", "COPY_RULE", "FENCE_RULE", "HALT_RULE", "
            "at_or_past", "budget_for", "collect", "finish", "floor_rate", "g8a_counts", "hours", "inputs", "job_name",
            "keep_on_drive", "launch", "line1", "line2", "line3", "line4", "lines_of", "load_params", "local_run",
            "main", "parse_queue", "pin_differences", "pins", "pip_commands", "preflight", "read_lead",
-           "release_runtime", "run_cells", "session", "session_line", "setup", "sha256_json", "smoke", "smoke_line"]
+           "release_or_keep", "release_runtime", "run_cells", "session", "session_line", "setup", "sha256_json",
+           "smoke", "smoke_line"]
 
 if __name__ == "__main__":
     from designlab.stage2 import nb as _named  # the importable copy owns every class and all module state
