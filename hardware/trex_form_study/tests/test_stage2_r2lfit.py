@@ -97,7 +97,8 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(r2lfit, "GATES", tmp_path / "gates")
     monkeypatch.setattr(r2lfit, "INDEX", tmp_path / "r2l" / "index.json")
     monkeypatch.setattr(panels, "ROW_FACTORIES", dict(panels.ROW_FACTORIES))
-    ns = types.SimpleNamespace(out=tmp_path / "work", tmp=tmp_path, stub=None, mp=monkeypatch, gates2=None)
+    ns = types.SimpleNamespace(out=tmp_path / "work", tmp=tmp_path, stub=None, mp=monkeypatch, gates2=None,
+                               lookbar=None)
 
     def use(stub):
         ns.stub = stub
@@ -136,6 +137,29 @@ def gates2_stub():
     return types.SimpleNamespace(GateError=GateError, Refused=Refused, require_g9_ref=require_g9_ref, calls=calls)
 
 
+def lookbar_stub(mp):
+    """``lookbar``'s G9-ref check as its look-set rule calls it (``lookbar.require_g9_ref(set, body, root, path)``,
+    ``LookSetRefused``), on a record in the gates package's form, put in place of the real one (which reads a frozen
+    set); ``refuse``: a text it refuses with whatever the record; ``sha256``: another sha256 it cites; ``calls`` logs
+    the calls."""
+    ns = types.SimpleNamespace(calls=[], refuse=None, sha256=None)
+
+    def require_g9_ref(set_name, body, root=None, path=None):
+        ns.calls.append(dict(set=set_name, body=body, root=root, path=Path(path)))
+        doc = s2io.read_json(path) if Path(path).is_file() else None
+        if ns.refuse:
+            raise lookbar.LookSetRefused(ns.refuse)
+        if not isinstance(doc, dict) or (doc.get("body"), doc.get("set")) != (body, set_name):
+            raise lookbar.LookSetRefused("no G9-ref record of this set and body")
+        if doc.get("pass_") is not True:
+            raise lookbar.LookSetRefused("G9-ref did not pass")
+        return dict(path=s2io.portable(str(Path(path).resolve())), sha256=ns.sha256 or s2io.sha256_file(path),
+                    pass_=True, at=doc.get("at"), set_freeze=doc.get("set_freeze"))
+
+    mp.setattr(lookbar, "require_g9_ref", require_g9_ref)
+    return ns
+
+
 def g9_record(set_name="V6noF5", body=BODY, pass_=True, **extra):
     """A G9-ref record in the gates package's form (schema, set, body, ``pass_``, the freeze, its own sha256)."""
     doc = dict(schema="s2-gate-g9-ref-1", gate="G9-ref", body=body, set=set_name, pass_=pass_,
@@ -146,12 +170,14 @@ def g9_record(set_name="V6noF5", body=BODY, pass_=True, **extra):
 
 def passed_gate(env, set_name="V6noF5", body=BODY, passed=True, doc=None):
     """A G9-ref record of ``set_name`` and ``body`` (``doc``, or one in the gates package's form that passed or
-    not) and the gates package's stub."""
+    not), the gates package's stub and lookbar's G9-ref check's stub (``env.lookbar``)."""
     s2io.write_json(env.tmp / "gates" / set_name / body / "g9_ref.json",
                     doc if doc is not None else g9_record(set_name, body, pass_=passed))
     if env.gates2 is None:
         env.gates2 = gates2_stub()
         env.mp.setattr(r2lfit, "_gates2", lambda: env.gates2)
+    if env.lookbar is None:
+        env.lookbar = lookbar_stub(env.mp)
     return env.gates2
 
 
@@ -463,6 +489,129 @@ def test_the_gate_calls_the_real_gates_package(env):
     cite = r2lfit.gate("V6noF5", BODY)
     assert cite["sha256"] == s2io.sha256_file(path) and cite["pass_"] is True
     assert cite["checked_by"] == f"{GATES2}.require_g9_ref" and cite["set_freeze"]["manifest_sha256"] == "d" * 64
+    # lookbar's real look-set rule let R2L-V6noF5/42 in on the same record (ruling 16)
+    assert cite["look_set_rule"] == dict(checked_by="designlab.stage2.lookbar.look_set_rule", row="R2L-V6noF5/42",
+                                         look_set="V6noF5", cited=dict(path=cite["path"], sha256=cite["sha256"]))
+
+
+@pytest.mark.skipif(importlib.util.find_spec(GATES2) is None,
+                    reason="the gates package (work package CG) is not on this branch")
+def test_a_version_of_a_look_set_waits_for_g9_ref_through_the_gates_package(env):
+    """Ruling 35 (1), with ruling 31 (3): a version of a look set (``V6noF5.1``) is a look set, and r2lfit accepts its
+    G9-ref record only through ``gates2.require_g9_ref``: it asks that function for the version, refuses where it
+    refuses or gives no citation (the gates package reading the version as no look set, as the working branch's
+    does), and lets the fit start, citing the record, where it gives one.  Nothing is copied: a stub of the gates
+    package that covers versions (the change built in parallel) is followed, and so is the real one."""
+    import importlib
+
+    ver = "V6noF5.1"
+    assert r2lfit.look_set_of(ver) == "V6noF5" and r2lfit.look_set_of("V6.2") == "V6"
+    assert r2lfit.look_set_of("V6noF5x") is None and r2lfit.look_set_of("F25F9cl.2") is None
+    stub = env.use(Stub())
+    path = env.tmp / "gates" / ver / BODY / "g9_ref.json"
+    g2 = passed_gate(env, set_name=ver, passed=False)
+    with pytest.raises(r2lfit.R2LError, match="G9-ref has not passed as the gates package reads it.*did not pass"):
+        r2lfit.fit(BODY, ver, out=env.out, max_generations=1, popsize=2, log=quiet)
+    assert g2.calls == [dict(body=BODY, set=ver, path=path, root=r2lfit.SET_ROOT)]
+    # the gates package that gives no citation for a version (the working branch's gates2.require_g9_ref)
+    passed_gate(env, set_name=ver)
+    covers = g2.require_g9_ref
+    g2.require_g9_ref = lambda body, set_name, path=None, root=None: None
+    with pytest.raises(r2lfit.R2LError, match=r"gave no citation.*V6noF5\.1, a version of the look set V6noF5"):
+        r2lfit.fit(BODY, ver, out=env.out, max_generations=1, popsize=2, log=quiet)
+    # the record is accepted only through the gates package: lookbar's rule letting it in is not enough
+    def refuses(body, set_name, path=None, root=None):
+        raise Refused("not a pass")
+
+    g2.require_g9_ref = refuses
+    with pytest.raises(r2lfit.R2LError, match="G9-ref has not passed as the gates package reads it.*not a pass"):
+        r2lfit.fit(BODY, ver, out=env.out, max_generations=1, popsize=2, log=quiet)
+    assert not (env.out / ver).exists() and stub.calls == []  # nothing was written or run
+    # the gates package that covers versions: the fit starts and cites the record it gave
+    g2.require_g9_ref = covers
+    doc = r2lfit.fit(BODY, ver, out=env.out, max_generations=1, popsize=2, log=quiet)
+    gate = doc["sessions"][0]["gate"]
+    assert gate["sha256"] == s2io.sha256_file(path) and gate["checked_by"] == f"{GATES2}.require_g9_ref"
+    assert gate["look_set_rule"]["row"] == "R2L-V6noF5.1/42" and gate["look_set_rule"]["look_set"] == "V6noF5"
+    assert g2.calls[-1] == dict(body=BODY, set=ver, path=path, root=r2lfit.SET_ROOT) and len(stub.calls) == 2
+    # the real gates package and lookbar's real rule, on a synthetic frozen version: refused without a record; with
+    # a passed record on its latest freeze, let in exactly where the gates package gives a citation for a version
+    env.mp.undo()  # (the real gates package and lookbar's real G9-ref check)
+    env.mp.setattr(r2lfit, "GATES", env.tmp / "gates")
+    env.mp.setattr(r2lfit, "SET_ROOT", env.tmp / "sets")
+    real = importlib.import_module(GATES2)
+    s2io.write_json(env.tmp / "sets" / ver / BODY / "set.json",
+                    dict(set=ver, freezes=[dict(index=1, manifest_sha256="d" * 64, manifest={})]))
+    path.unlink()
+    with pytest.raises(r2lfit.R2LError, match="no G9-ref record|gave no citation"):
+        r2lfit.gate(ver, BODY)
+    s2io.write_json(path, real.finish(g9_record(ver, BODY)))
+    if real.require_g9_ref(BODY, ver, path=path, root=env.tmp / "sets") is None:  # the working branch's gates2
+        with pytest.raises(r2lfit.R2LError, match="gave no citation"):
+            r2lfit.gate(ver, BODY)
+    else:  # the gates package that covers versions (ruling 31, point 3)
+        cite = r2lfit.gate(ver, BODY)
+        assert cite["sha256"] == s2io.sha256_file(path) and cite["look_set_rule"]["row"] == "R2L-V6noF5.1/42"
+
+
+def test_fit_and_selection_run_on_a_look_set_only_as_lookbars_look_set_rule_lets_their_row(env):
+    """Ruling 35 (2), with ruling 16: on a look set the fit and the selection go through ``lookbar``'s look-set rule
+    (``lookbar.look_set_rule`` for ``R2L-<set>/<seed>``, the set root and the G9-ref record, asked before anything is
+    written or run), so an R2L record there needs a G9-ref that rule lets in, even where the gates package passes
+    the record; the two must cite the same file; the bar's check is put back; on a set that is no look set nothing
+    is asked."""
+    entered = []
+    real_rule = lookbar.look_set_rule
+
+    @contextlib.contextmanager
+    def spy(set_name, body, row_names, root=setio.ROOT, g9_ref=None):
+        entered.append(dict(set=set_name, body=body, rows=list(row_names), root=root, g9_ref=Path(g9_ref)))
+        with real_rule(set_name, body, row_names, root, g9_ref) as rule:
+            yield rule
+
+    env.mp.setattr(lookbar, "look_set_rule", spy)
+    own = bar._check_rule
+    path = env.tmp / "gates" / "V6noF5" / BODY / "g9_ref.json"
+    g2 = passed_gate(env)
+    lb = env.lookbar
+    stub = env.use(Stub(costs(fit=20.0, decisive=50.0, reported=50.0)))
+    # lookbar's rule refuses (its G9-ref check): no fit starts although the gates package passes the record
+    lb.refuse = "the look-set rule's own refusal"
+    with pytest.raises(r2lfit.R2LError, match=r"look-set rule does not let R2L-V6noF5/42 run.*own refusal"):
+        r2lfit.fit(BODY, "V6noF5", out=env.out, log=quiet)
+    assert len(g2.calls) == 1 and not (env.out / "V6noF5").exists() and stub.calls == []
+    # lookbar's rule cites another file than the gates package's: no fit starts
+    lb.refuse, lb.sha256 = None, "e" * 64
+    with pytest.raises(r2lfit.R2LError, match="cite different G9-ref records"):
+        r2lfit.fit(BODY, "V6noF5", out=env.out, log=quiet)
+    assert not (env.out / "V6noF5").exists() and stub.calls == [] and bar._check_rule is own
+    # both let it in: the fit runs, its session names the rule's row and citation
+    lb.sha256 = None
+    doc = r2lfit.fit(BODY, "V6noF5", out=env.out, log=quiet)
+    want = dict(checked_by="designlab.stage2.lookbar.look_set_rule", row="R2L-V6noF5/42", look_set="V6noF5",
+                cited=dict(path=s2io.portable(str(path.resolve())), sha256=s2io.sha256_file(path)))
+    assert doc["sessions"][0]["gate"]["look_set_rule"] == want
+    assert entered[-1] == dict(set="V6noF5", body=BODY, rows=["R2L-V6noF5/42"], root=r2lfit.SET_ROOT, g9_ref=path)
+    assert lb.calls[-1] == dict(set="V6noF5", body=BODY, root=r2lfit.SET_ROOT, path=path)
+    n_fit = len(stub.calls)
+    # the selection asks again: refused while lookbar's rule refuses, and while the gates package does
+    lb.refuse = "G9-ref failed again"
+    with pytest.raises(r2lfit.R2LError, match="look-set rule does not let R2L-V6noF5/42 run.*failed again"):
+        r2lfit.select(BODY, "V6noF5", out=env.out, log=quiet)
+    lb.refuse = None
+    s2io.write_json(path, g9_record(pass_=False))
+    with pytest.raises(r2lfit.R2LError, match="G9-ref has not passed as the gates package reads it"):
+        r2lfit.select(BODY, "V6noF5", out=env.out, log=quiet)
+    assert len(stub.calls) == n_fit and not (env.out / "V6noF5" / BODY / "r2lg5.json").exists()
+    s2io.write_json(path, g9_record())
+    sel = r2lfit.select(BODY, "V6noF5", out=env.out, log=quiet)
+    assert sel["g9_ref"]["look_set_rule"] == want and sel["g9_ref"]["sha256"] == s2io.sha256_file(path)
+    assert sel["g9_ref"]["checked_by"] == f"{GATES2}.require_g9_ref" and bar._check_rule is own
+    assert len(entered) == 5 and all(e["rows"] == ["R2L-V6noF5/42"] for e in entered)
+    # on a set that is no look set nothing is read and the records hold None
+    env.use(Stub())
+    other = r2lfit.fit(BODY, "V0", out=env.out, max_generations=1, popsize=2, log=quiet)
+    assert other["sessions"][0]["gate"] is None and len(entered) == 5 and r2lfit.gate("F25F9cl", BODY) is None
 
 
 def test_a_development_fit_is_not_selected_or_published(env):
