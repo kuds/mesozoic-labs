@@ -163,8 +163,9 @@ _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
 #: The notebook's cell 1 (design 3.9, with the lead's rulings of 17 Nov 2026): name -> default.  Design 3.9's
 #: ``ALLOW_VERSION_CHANGE`` and ``ALLOW_SOURCE_CHANGE`` are not among them: the owner is never asked to set a remedy
 #: (ruling 2: they come from the lead's ``LEAD.json``, ``LEAD_RULE``); they stay parameters of an ``S2_PARAMS`` file
-#: (``EXTRA``) for the lead's own launches and the tests.
-PARAMS = dict(REPO_REF="", RUN_ID="", QUEUE=[], BUNDLE_ID="", BUNDLE_SOURCE="drive", RESUME=False, TAKEOVER=False,
+#: (``EXTRA``) for the lead's own launches and the tests.  ``QUEUE`` is a text field (ruling 5): the jobs separated by
+#: commas (``parse_queue``; a parameter file may give a list).
+PARAMS = dict(REPO_REF="", RUN_ID="", QUEUE="", BUNDLE_ID="", BUNDLE_SOURCE="drive", RESUME=False, TAKEOVER=False,
               SMOKE=False, BUDGET_STEPS=0, WORKERS=0, CLIPS=True, USE_GOOGLE_DRIVE=True, AUTO_DISCONNECT=True)
 #: What an ``S2_PARAMS`` file may hold besides (local runs, tests, the lead's own launches), and what the notebook
 #: adds on its way (``IN_COLAB``, ``SETUP_STARTED``, ``SETUP_RECORD``, the two directories).
@@ -778,11 +779,17 @@ def job_name(mode: str, body: str, seed: int) -> str:
     return "%s-%s-s%d" % (mode, body, int(seed))
 
 
+#: What a queue typed or pasted into cell 1's text field may carry around its entries and is not part of them:
+#: brackets, and straight or curly quotation marks (a phone keyboard makes curly ones).
+_QUEUE_WRAP = "[]\"'\u201c\u201d\u2018\u2019 \t"
+
+
 def parse_queue(queue) -> list:
-    """``["R5:75-M-H-10:42", ...]`` as ``[{entry, job, mode, body, seed}]``; a queue that is no list of
-    ``MODE:BODY:SEED`` with MODE R5 or R6, or that names a job twice, is refused."""
+    """``"R5:75-M-H-10:42, R6:75-M-H-10:42"`` (cell 1's text field; brackets and quotation marks around the entries
+    are dropped) or ``["R5:75-M-H-10:42", ...]`` as ``[{entry, job, mode, body, seed}]``; a queue that is no list
+    of ``MODE:BODY:SEED`` with MODE R5 or R6, or that names a job twice, is refused."""
     if isinstance(queue, str):
-        queue = [x for x in queue.split(",") if x.strip()]
+        queue = [x.strip(_QUEUE_WRAP) for x in queue.split(",") if x.strip(_QUEUE_WRAP)]
     if not isinstance(queue, (list, tuple)):
         raise Refused(f"QUEUE is a list of MODE:BODY:SEED, not {queue!r}")
     out = []
