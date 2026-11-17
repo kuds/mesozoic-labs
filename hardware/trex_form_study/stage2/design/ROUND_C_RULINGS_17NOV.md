@@ -196,3 +196,94 @@ Ruled before any look set is frozen and before any closed-loop episode on one.
     (ruling 24). So `sets.py` leaves the test's list with this reason, as `barreport.py` did. The other files of
     the list stay; `moves.py` is unchanged by the package. D18's text in `ROUND_C_DESIGN.md` carries the
     amendment. The next independent check of a round C package reads this change.
+
+## The join-code review (`checkpoint/reviews/roundC__review_JR_17nov.md`, sha256 `b3ff457673d537f65d8821c1910c27b6bebc7eb27acd43f0d0e0e96d9424212a`), ruled 17 Nov 2026, ~06:55 UTC
+
+This is the independent review of the join code that L12 requires, ordered by ruling 19. Its record is the file
+named above. Every rebuilt look set names it, by path and sha256, in `set.json` `rules`. Ruled before any look
+set is frozen and before any closed-loop episode on one.
+
+28. **The preview grid of a causal move is made causal on the look sets (review, gate 3).** A6 says that the
+    preview controller first sees the command at the command frame. But `moves.com_path_causal` takes its grid,
+    and so its gains, preview length and switch frame, from the smallest frame interval of the whole plan, and on
+    the V6 turns that interval lies after the command (the turn's quicker steps, or window b's fade-in). So the
+    warm-up, and `join_command`'s warm-up reading, depend on what comes after the command. On the V6 turns of
+    75-M-H-10 this is the whole spread of 5.54, 4.40 and 3.54 mm (left) at stride factors 1.0, 0.8 and 0.6.
+    **This is a code error against A6, not a rule change.** On the look sets, a causal move's controller run
+    takes its grid from the frames up to the command frame alone, `min(diff(t[:k_cmd + 1]))` (5.2244 ms on
+    every V6 move). Everything else stays as coded, and every gate of the move, after the command included, is
+    read again on the rebuilt arrays. `moves.py` is not edited (D18). The look path passes this grid from
+    `moves_look.py`; if no path exists without a change to `moves.py`, the builder stops and reports it to
+    the lead. The round's three frozen sets keep their records: they were built with the same grid, and their
+    warm-up readings are all within 4.0 mm (V0: 1.349, 1.289 and 2.114 mm; F25F9: 2.083 and 3.485 mm; F25F9cl:
+    1.249, 2.321 and 1.307 mm; joints at the command within 1e-3 rad). A6 gains a dated note that records this
+    and says the records stand. The review's scratch reading on the causal grid: the left turns read 4.621 mm
+    (over 4.0 mm, at every stride factor), the right turns and the stop read 3.868 mm.
+29. **Cut 3 is not taken where it does not lower the failing reading.** **Changed after a result**: the review's
+    scratch probes of 17 Nov, prescribed motion only, before any look set was frozen and before any Track B run.
+    L12 takes cut 3 for a causal move that fails `join_command`. On 75-M-H-10, at cut 3's leave point (the
+    window's boundary) and on the causal grid, the same reading is 4.038 mm for the left turns and 4.361 mm for
+    the right turns. So cut 3 would fail every turn, and by the same reading the stop too, where J1's leave point
+    fails only the left turns. The cause is not J1's leave point: the controller re-runs the walk, the CoM differs
+    from the window's by at most 0.066 mm, and two differences in time turn that into about 4 mm of ZMP. That is
+    what A7's P34 paragraph says of the round's sets. So L12 gains a sentence: cut 3 is not taken for a body when
+    the join-code review's probe, on the causal grid, gives the failing reading at cut 3's leave point as over
+    its limit too. The move that fails at J1's leave point is then "not available" with its numbers (A11 for a
+    turn; H3 for the stop). No limit is changed. The 4.0 mm limit is the owner's (P34), and whether to change it
+    for the look sets' left turns goes to the owner as a question with the rebuilt numbers, not before.
+30. **What runs next.** After the start's law (ruling 18, building now) is checked, one rebuild of the 75 cm
+    look sets carries rulings 18, 22, 23, 26 and 28 together and names this review in `set.json` `rules`.
+    Then comes an independent check, then the 60 cm sets. Nothing is frozen until the lead has read the rebuilt
+    numbers and, where a question goes to the owner, the owner's answer.
+
+## The checks of LB16, CG2, CT4 and CN3, ruled 17 Nov 2026, ~07:30 UTC
+
+LB16, CG2 and CN3 are merged as they stand. CT4 goes to a fix round.
+
+31. **The look sets' rule in `lookbar` (check of LB16).**
+    - (1) On a look set (or a version of one), `lookbar` refuses every row outside the families R0L, R5/<seed>,
+      R6/<seed>, R5G/<seed> and R2L-<set>/<seed>, inside the context and in `episodes`. Every admitted row needs a
+      passed G9-ref, so a closed-loop R0@ row on a look set before G9-ref is refused (X1). R5G is admitted: the
+      rules draft lists it among the Track B rows with bar records (rule at line 1348). `python -m
+      designlab.stage2.bar run` on a look set stays open, because `bar.py` is not edited. X1 forbids it, and no
+      step of the chain calls it; X1's text says so.
+    - (2) `R2L-<set>` names the evaluated set exactly, as built.
+    - (3) A version of a look set (V6.2) is a look set everywhere: in the context, in `episodes`, in `collect`
+      (reading 1) and in `gates2.require_g9_ref`, which covers versions. `lookbar` then calls the gates' check
+      instead of its own copy.
+    - (4) The context restores the bar's check only if its own is the one installed, and raises otherwise. A G9-ref
+      record whose `set_freeze` is not an object is refused cleanly, in both modules. The check's two test gaps
+      (a non-`evaluate` caller; `pass_` missing, None or 1) get tests.
+    - (5) The companion record carries the G9-ref citation (path and sha256) under which its episodes ran.
+    - (6) The monitor treats `LookSetRefused` as a refusal of the monitor (exit 8), not a crash.
+    - (7) The context enforces X1's first clause only; "between G9-ref and S2-4's start only these" stays with the
+      chain.
+32. **G9-ref (check of CG2).**
+    - (A) Ruling 14's procedure cannot finish today, because `sets.freeze` refuses to drop a frozen entry.
+      Option (i): `sets freeze` may drop an entry that the set marks not available, and the freeze records it with
+      the G9-ref record (path and sha256) that named it. A `sets` command marks an entry not available, with its
+      reason and that record. Built with the look sets' rebuild (ruling 30), in `sets.py`.
+    - (B) "The walk it leaves" (ruling 15) is the walk's whole window, as built. On a look set fewer frames are
+      played before a turn, but the window is the walk's own law, which the policy meets in every walk.
+    - (C) The builder's readings stand: a join that leaves no walk is held to the walk the track played last
+      before it (else the first after it; the stand task to 0), and the wrap from the window's last frame to its
+      first counts as a consecutive pair.
+    - (D) A turn or stop item's reference is read from the refcheck item's `plan`, not from the sorted file list.
+      The printed lines that name a failing reference get a test.
+    - (E) The lead writes rulings 14 and 15's words into the old texts: the rules draft (the 1e-6 rad sentence,
+      and "treats that reference as not available") and the design's section on G9-ref.
+33. **The trainer (check of CT4).** Findings 1 and 2 are fixed as the check proposes. `baseline_equal` requires
+    digests only for pairs in which at least one episode ran. A digest counts as compared only when both sides hold
+    a non-empty string. The rule's text says "in every episode that ran". Tests: an equal baseline with a not-run
+    condition lets the run train, in `train2` and in `monitor2`. Point 3 stands as built: a mismatch halts (exit 5).
+34. **The steps sheet (check of CN3).**
+    - 5.3 (e) becomes a positive test: go on to 5.4 only if what the last box printed ends with "Disconnecting
+      runtime in 5 seconds..."; if the box is still running, or it printed anything else, do not do 5.4 and tell
+      the lead.
+    - Before Run all, from the second session on, the sheet has the owner clear all outputs ("Edit > Clear all
+      outputs"; expected, not yet seen).
+    - 5.3 (a) names the smoke's copy, "s2 smoke-1".
+35. **The CF follow-up**, as owed. `r2lfit` accepts a G9-ref record through `gates2.require_g9_ref` (CG's format,
+    versions included) and runs its look-set records through `lookbar`'s context (ruling 16). The chain resumes V10
+    with `--resume` only when `cma.json` exists, and the V10-collect step goes. The stale V3 note of
+    `run_trackb.sh` is corrected.

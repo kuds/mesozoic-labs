@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import inspect
 import json
 import os
 import shutil
@@ -28,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from designlab.stage1 import metrics, panels, plant, tune  # noqa: E402
-from designlab.stage2 import bar, g8a, lookbar, lookread, s2io, setio  # noqa: E402
+from designlab.stage2 import bar, g8a, gates2, lookbar, lookread, s2io, setio  # noqa: E402
 
 BODY = "75-M-H-10"
 RUN = ROOT / "stage1" / "runs" / "2026-11-08"
@@ -287,6 +288,13 @@ def test_what_is_relied_on_from_the_bar():
         bar._check_rule("V6", ["R0L@10ms"], 20, None, None, None, None)
     bar._check_rule("V6", ["R0@10ms"], 20, None, None, None, None)
     bar._check_rule("S1", ["R0L@10ms", "R5/42@10ms"], 20, None, None, None, None)
+    # the look sets' own rule (RULES["look_sets"]) stands in front of that check where bar.evaluate calls it, and
+    # reads the evaluation's body and set root in its frame
+    assert list(inspect.signature(bar._check_rule).parameters) == [
+        "set_name", "row_names", "episodes", "task", "dev_episodes", "passed_of", "control", "block"]
+    code = bar.evaluate.__code__
+    assert "_check_rule" in code.co_names and {"body", "root"} <= set(code.co_varnames) and lookbar._EVALUATE_CODE is code
+    assert bar._ROW_NAME.match("R0L@10ms").group("inner", "ms") == ("R0L", "10")
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1185,6 +1193,24 @@ PAIRS = [("walk/nominal", 6001), ("walk/v0.4", 6004), ("turn/q90_left", 6007), (
          ("nudge/forward", 6013), ("turn/q90_right", 6016)]
 
 
+# (rule X1, RULES["look_sets"]: an episode on a look set runs only once its G9-ref has passed; gates2.GATES is a
+# temporary directory in every test that writes one)
+def g9_ref_record(set_name, manifest_sha256, pass_=True, body=BODY, of=None, schema=None) -> Path:
+    """A G9-ref record (``gates2.finish``: its sha256 its own) at ``gates2.gate_path(set_name, body, "g9_ref")``;
+    ``of``: the (set, body) it names, when not these."""
+    s, b = of or (set_name, body)
+    path = gates2.gate_path(set_name, body, "g9_ref")
+    gates2.finish(dict(schema=schema or gates2.SCHEMAS["g9_ref"], set=s, body=b, pass_=pass_, at="fixture",
+                       set_freeze=dict(index=0, manifest_sha256=manifest_sha256)), path)
+    return path
+
+
+def passed_g9_ref(set_name, root, body=BODY) -> Path:
+    """A passed G9-ref record of a frozen set under ``root``, made on its latest freeze."""
+    fz = setio.frozen(s2io.read_json(setio.set_dir(set_name, body, root) / "set.json"))
+    return g9_ref_record(set_name, fz["manifest_sha256"], body=body)
+
+
 @needs_run
 def test_episodes_on_the_fixture_set(t0, tmp_path, monkeypatch):
     rows = lookbar.rows(BODY, ["R0L@10ms"])
@@ -1214,8 +1240,13 @@ def test_episodes_on_the_fixture_set(t0, tmp_path, monkeypatch):
     assert stop["on_command_at_stop"]["command_s"] is not None and stop["on_command_at_stop"]["speed_m_s"] > 0.3
     assert stop["look"] is None and stop["look_reason"].startswith("nudge and stop items")
     assert by["turn/q90_left"]["look_reason"] == "fell before its window" and by["turn/q90_left"]["failed_terms"] == ["survived"]
-    # the same episodes on a look set (the fixture named one for this test): the look terms decide reading 1
+    # the same episodes on a look set (the fixture named one for this test): the look terms decide reading 1; they
+    # run there only once its G9-ref has passed on its latest freeze (rule X1, RULES["look_sets"])
     monkeypatch.setattr(lookbar, "LOOK_SETS", ("V6", SET))
+    monkeypatch.setattr(gates2, "GATES", tmp_path / "gates")
+    with pytest.raises(lookbar.LookSetRefused, match=f"{SET}/{BODY}: there is no G9-ref record"):
+        lookbar.episodes(BODY, SET, rows, PAIRS[:2], root=t0)
+    passed_g9_ref(SET, t0)
     on = lookbar.episodes(BODY, SET, rows, PAIRS[:2], root=t0)
     assert [e["state_digest"] for e in on] == [e["state_digest"] for e in eps[:2]]  # the same episodes
     assert on[0]["succeeded"] is True and on[0]["succeeded_look"] is False and on[0]["failed_terms"] == ["look_bob", "look_head"]
@@ -1223,7 +1254,7 @@ def test_episodes_on_the_fixture_set(t0, tmp_path, monkeypatch):
 
 
 @needs_run
-def test_episodes_catches_the_bars_unreadable_apart_from_any_other_fault(t0, monkeypatch):
+def test_episodes_catches_the_bars_unreadable_apart_from_any_other_fault(t0, tmp_path, monkeypatch):
     rows = lookbar.rows(BODY, ["R0L@0ms"])
     real = bar.run_episode
     calls = []
@@ -1239,6 +1270,8 @@ def test_episodes_catches_the_bars_unreadable_apart_from_any_other_fault(t0, mon
 
     monkeypatch.setattr(bar, "run_episode", run_episode)
     monkeypatch.setattr(lookbar, "LOOK_SETS", ("V6", SET))
+    monkeypatch.setattr(gates2, "GATES", tmp_path / "gates")
+    passed_g9_ref(SET, t0)  # (rule X1 on a look set: RULES["look_sets"])
     eps = lookbar.episodes(BODY, SET, rows, [("walk/nominal", 6001), ("walk/nominal", 6002), ("walk/nominal", 6003)], root=t0)
     assert calls == [("walk/nominal", s) for s in (6001, 6002, 6003)]  # the others go on, none is run twice
     # R0L has no policy: its unreadable episode is an error, for which C8 stands
@@ -1369,6 +1402,359 @@ def test_run_on_a_fixture_set_and_what_the_bar_refuses_there(t0, tmp_path):
         lookbar.run(SET, BODY, tmp_path / "refused", ["R0L@10ms"], ["walk/nominal"], episodes=1, procs=1, root=t0, log=quiet)
     assert lookbar.main(["run", "--set", SET, "--body", BODY, "--rows", "R0L@10ms", "--set-root", str(t0),
                          "--out", str(tmp_path / "refused")]) == 1
+
+
+# ------------------------------------------------------------------------------------------------
+# The look sets' own rule of what may run there (RULES["look_sets"]; the lead's ruling 16 of 17 Nov 2026; rule X1)
+# ------------------------------------------------------------------------------------------------
+# Nothing here simulates or reads a reference: a look set is a set.json with its freezes under a temporary root,
+# gates2.GATES is a temporary directory, and bar.evaluate stops right after its set check (``bar._check_out``, the
+# next thing it does, stands in), so what it decides there is all that is seen.
+needs_one_thread = pytest.mark.skipif(not ONE_THREAD, reason=(
+    "bar.evaluate and lookbar.episodes need one BLAS thread (OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1)"))
+OTHER_BODY = "60-N-T-10"
+
+
+class Reached(Exception):
+    """An evaluation got past the set check (or ``episodes`` past its rule): the stand-in raised this."""
+
+
+def stop_past_the_check(monkeypatch):
+    def stop(out, set_name, task, root=setio.ROOT):
+        raise Reached(set_name)
+
+    monkeypatch.setattr(bar, "_check_out", stop)
+
+
+def bar_check(set_name, names, out, root, body=BODY, **kw):
+    """What ``bar.evaluate`` of rows named ``names`` decides at its set check: ``"runs"``, or the refusal's class and
+    text.  The rows are placeholders: nothing of them is used before the check."""
+    try:
+        bar.evaluate(set_name, body, out, {n: object() for n in names}, root=root, log=quiet, **kw)
+    except Reached:
+        return "runs"
+    except bar.BarError as exc:
+        return type(exc).__name__, str(exc)
+    raise AssertionError("bar.evaluate went past its stand-in")
+
+
+def frozen_set(root, set_name, freezes=1, body=BODY) -> str | None:
+    """A ``set.json`` of ``set_name`` with ``freezes`` freezes under ``root`` and nothing else (nothing here reads
+    more of a set); the latest freeze's ``manifest_sha256`` (None: never frozen)."""
+    fz = []
+    for i in range(freezes):
+        manifest = {"walk": dict(kind="walk", sha256=f"{i:064x}", entry_sha256="0" * 64)}
+        fz.append(dict(index=i, at="fixture", commit=None, manifest=manifest, manifest_sha256=s2io.sha256_json(manifest)))
+    s2io.write_json(setio.set_dir(set_name, body, root) / "set.json", dict(set=set_name, body=body, role="fixture",
+                                                                           freezes=fz))
+    return fz[-1]["manifest_sha256"] if fz else None
+
+
+@pytest.fixture
+def look_root(tmp_path, monkeypatch):
+    """The two look sets and a version of each, frozen once under a temporary root; ``gates2.GATES`` empty in a
+    temporary directory; ``bar.evaluate`` stopping past its set check.  ``(root, {set: latest manifest_sha256})``."""
+    monkeypatch.setattr(gates2, "GATES", tmp_path / "gates")
+    stop_past_the_check(monkeypatch)
+    root = tmp_path / "sets"
+    return root, {s: frozen_set(root, s) for s in ("V6", "V6noF5", "V6.2", "V6noF5.1")}
+
+
+def test_the_rows_and_sets_of_the_look_sets_rule_and_its_text_in_every_row():
+    assert lookbar.LOOK_SET_ROWS == ("R0L", "R5/<seed>", "R6/<seed>", "R2L-<set>/<seed>")
+    assert [lookbar.look_set_of(s) for s in ("V6", "V6noF5", "V6.2", "V6noF5.1", "V0", "F25F9cl.2", "S1", "T0", "V6x",
+                                              "V6noF5x")] == ["V6", "V6noF5", "V6", "V6noF5"] + [None] * 6
+    for name in ("R0L", "R0L@10ms", "R0L@0ms", "R0L@20ms", "R5/42", "R5/42@10ms", "R6/43@6ms", "R2L-V6/42",
+                 "R2L-V6/42@10ms"):
+        assert lookbar.look_set_row(name, "V6"), name
+    for name in ("R0", "R0@10ms", "R1@10ms", "R2/42@10ms", "R5G/42@10ms", "R9/1@10ms", "R2L-V6noF5/42@10ms",
+                 "R2L-V6.2/42@10ms", "R2L/42@10ms", "R0L@3ms", "R0L@22ms", "R0L/3@10ms", "R5@10ms", "R5/x@10ms",
+                 "R5/42/1@10ms", "R0L@10ms ", "", None):
+        assert not lookbar.look_set_row(name, "V6"), name
+    assert lookbar.look_set_row("R2L-V6noF5/42@10ms", "V6noF5") and lookbar.look_set_row("R2L-V6.2/42@10ms", "V6.2")
+    # the rule's text is in every Track B row's description (so in its records' keys) and names what it lets run
+    text = lookbar.RULES["look_sets"]
+    assert lookbar.rows(BODY, ["R0L@10ms"])["R0L@10ms"].describe()["look_reading"]["rule"]["look_sets"] == text
+    for words in ("ruling 16 of 17 Nov 2026", "rule X1", "R0L, R5/<seed>, R6/<seed> or R2L-<set>/<seed>",
+                  "stage2/tb/gates/<set>/<body>/g9_ref.json", gates2.SCHEMAS["g9_ref"], "latest freeze",
+                  "the bar's own check unchanged", "lookbar.episodes", "also after an exception"):
+        assert words in text, words
+
+
+@needs_one_thread
+def test_a_look_set_evaluation_of_each_allowed_row_runs_only_once_its_g9_ref_passed(look_root, tmp_path):
+    root, shas = look_root
+    out, own = tmp_path / "out", bar._check_rule
+    cases = (("V6", ["R0L@10ms"]), ("V6", ["R0L"]), ("V6", ["R5/42@10ms"]), ("V6", ["R6/43@0ms"]),
+             ("V6", ["R2L-V6/42@10ms"]), ("V6", ["R0L@10ms", "R5/42@10ms", "R6/42@4ms", "R2L-V6/42@6ms"]),
+             ("V6noF5", ["R2L-V6noF5/42@6ms", "R0L@10ms"]), ("V6.2", ["R5/43@10ms", "R2L-V6.2/42@10ms"]),
+             ("V6noF5.1", ["R6/42@10ms"]))
+    for set_name, names in cases:
+        gates2.gate_path(set_name, BODY, "g9_ref").unlink(missing_ok=True)
+        scratch = bar_check(set_name, names, out, root)  # as built, the bar refuses them there
+        assert scratch[0] == "BarError" and scratch[1].startswith(f"{set_name} is a scratch or fixture set: only R0 rows")
+        with lookbar.look_set_rule(set_name, BODY, names, root) as rule:
+            assert rule.applies and bar._check_rule == rule.bar_check
+            kind, text = bar_check(set_name, names, out, root)  # without a G9-ref record: rule X1
+            assert kind == "LookSetRefused" and text.startswith(f"{set_name}/{BODY}: there is no G9-ref record")
+            assert "rule X1, no closed-loop episode on a look set before G9-ref has passed there" in text
+            assert rule.cited is None
+        assert bar._check_rule is own
+        path = g9_ref_record(set_name, shas[set_name])
+        with lookbar.look_set_rule(set_name, BODY, names, root) as rule:
+            assert bar_check(set_name, names, out, root) == "runs"
+            assert rule.cited["pass_"] is True and rule.cited["sha256"] == s2io.sha256_file(path)
+            assert rule.cited["set_freeze"]["manifest_sha256"] == shas[set_name]
+        assert bar._check_rule is own and bar_check(set_name, names, out, root) == scratch  # outside: the bar's again
+    # a G9-ref that failed, is of another set or body, is not one, cannot be read, or was made on another freeze
+    for set_name, names in (("V6", ["R0L@10ms"]), ("V6.2", ["R5/42@10ms"])):
+        bad = (("G9-ref did not pass", lambda: g9_ref_record(set_name, shas[set_name], pass_=False)),
+               (f"the G9-ref record is of V6noF5/{BODY}", lambda: g9_ref_record(set_name, shas[set_name], of=("V6noF5", BODY))),
+               (f"the G9-ref record is of {set_name}/{OTHER_BODY}",
+                lambda: g9_ref_record(set_name, shas[set_name], of=(set_name, OTHER_BODY))),
+               ("the G9-ref record is not one", lambda: g9_ref_record(set_name, shas[set_name], schema=gates2.SCHEMAS["g8a"])),
+               ("the G9-ref record is not one", lambda: s2io.write_json(
+                   gates2.gate_path(set_name, BODY, "g9_ref"),
+                   dict(s2io.read_json(g9_ref_record(set_name, shas[set_name])), at="changed after it was made"))),
+               ("the G9-ref record cannot be read", lambda: gates2.gate_path(set_name, BODY, "g9_ref").write_text("{")),
+               ("the G9-ref record was made on another freeze of the set",
+                lambda: (g9_ref_record(set_name, shas[set_name]), frozen_set(root, set_name, freezes=2))),
+               (f"set {set_name} of {BODY} is not here or not frozen",
+                lambda: (g9_ref_record(set_name, shas[set_name]), frozen_set(root, set_name, freezes=0))))
+        for why, make in bad:
+            frozen_set(root, set_name)
+            make()
+            with lookbar.look_set_rule(set_name, BODY, names, root):
+                kind, text = bar_check(set_name, names, out, root)
+            assert kind == "LookSetRefused" and text.startswith(f"{set_name}/{BODY}: {why}"), (why, text)
+            assert bar._check_rule is own
+        frozen_set(root, set_name)
+        g9_ref_record(set_name, shas[set_name])
+        with lookbar.look_set_rule(set_name, BODY, names, root):
+            assert bar_check(set_name, names, out, root) == "runs"
+    # the record's path can be given (the default is gates2.gate_path's)
+    elsewhere = tmp_path / "elsewhere.json"
+    shutil.copyfile(gates2.gate_path("V6", BODY, "g9_ref"), elsewhere)
+    gates2.gate_path("V6", BODY, "g9_ref").unlink()
+    with lookbar.look_set_rule("V6", BODY, ["R0L@10ms"], root, g9_ref=elsewhere) as rule:
+        assert bar_check("V6", ["R0L@10ms"], out, root) == "runs" and rule.cited["sha256"] == s2io.sha256_file(elsewhere)
+    with lookbar.look_set_rule("V6", BODY, ["R0L@10ms"], root):
+        assert bar_check("V6", ["R0L@10ms"], out, root)[1].startswith(f"V6/{BODY}: there is no G9-ref record")
+
+
+@needs_one_thread
+def test_any_other_row_or_evaluation_on_a_look_set_is_the_bars_own_check_inside_the_context(look_root, tmp_path):
+    root, shas = look_root
+    out, own = tmp_path / "out", bar._check_rule
+    for s in shas:
+        g9_ref_record(s, shas[s])  # passed: it lets none of the following in
+    # an R2 row, a stock row, an unknown row, R5G, another set's fit, a delay the bar refuses, a mix with any of them
+    for names in (["R2/42@10ms"], ["R1@10ms"], ["R9/1@10ms"], ["R5G/42@10ms"], ["R2L-V6noF5/42@10ms"], ["R0L@3ms"],
+                  ["R0L@10ms", "R2/42@10ms"], ["R5/42@10ms", "R0@10ms"], ["R0L@10ms", "R1@10ms"]):
+        alone = bar_check("V6", names, out, root)
+        assert alone[0] == "BarError" and "only R0 rows run on it" in alone[1], names
+        with lookbar.look_set_rule("V6", BODY, names, root) as rule:
+            assert not rule.applies and bar._check_rule is own  # nothing is replaced
+            assert bar_check("V6", names, out, root) == alone and rule.cited is None
+            with pytest.raises(bar.BarError, match="only R0 rows run on it") as asked:  # (what episodes asks)
+                rule.check()
+            assert asked.type is bar.BarError and str(asked.value) == alone[1]
+    # R0 rows: the bar's own check lets them run on a look set, as it does without the context, and reads no G9-ref
+    for s in shas:
+        gates2.gate_path(s, BODY, "g9_ref").unlink()
+    assert bar_check("V6", ["R0@10ms", "R0@0ms"], out, root) == "runs"
+    with lookbar.look_set_rule("V6", BODY, ["R0@10ms", "R0@0ms"], root) as rule:
+        assert not rule.applies and bar_check("V6", ["R0@10ms", "R0@0ms"], out, root) == "runs" and rule.cited is None
+    g9_ref_record("V6", shas["V6"])
+    # evaluations the context was not entered for: other rows, another body, another set root, another look set, the
+    # same rows beside one more, a call of the check that is not bar.evaluate's
+    other_root = tmp_path / "other_sets"
+    frozen_set(other_root, "V6")
+    expect = {key: bar_check(*call, **kw) for key, call, kw in (
+        ("rows", ("V6", ["R6/42@10ms"], out, root), {}),
+        ("body", ("V6", ["R0L@10ms"], out, root), dict(body=OTHER_BODY)),
+        ("root", ("V6", ["R0L@10ms"], out, other_root), {}),
+        ("set", ("V6noF5", ["R0L@10ms"], out, root), {}),
+        ("more", ("V6", ["R0L@10ms", "R5/42@10ms", "R6/42@10ms"], out, root), {}))}
+    assert all(v[0] == "BarError" and "only R0 rows run on it" in v[1] for v in expect.values())
+    with pytest.raises(bar.BarError, match="only R0 rows") as direct:
+        bar._check_rule("V6", ["R0L@10ms"], 20, None, None, None, None)
+    with lookbar.look_set_rule("V6", BODY, ["R0L@10ms", "R5/42@10ms"], root) as rule:
+        assert rule.applies
+        assert bar_check("V6", ["R6/42@10ms"], out, root) == expect["rows"]
+        assert bar_check("V6", ["R0L@10ms"], out, root, body=OTHER_BODY) == expect["body"]
+        assert bar_check("V6", ["R0L@10ms"], out, other_root) == expect["root"]
+        assert bar_check("V6noF5", ["R0L@10ms"], out, root) == expect["set"]
+        assert bar_check("V6", ["R0L@10ms", "R5/42@10ms", "R6/42@10ms"], out, root) == expect["more"]
+        with pytest.raises(bar.BarError, match="only R0 rows") as inside:
+            bar._check_rule("V6", ["R0L@10ms"], 20, None, None, None, None)
+        assert inside.type is direct.type and str(inside.value) == str(direct.value) and rule.cited is None
+        # ... while the evaluation it was entered for runs, with fewer of its rows too
+        assert bar_check("V6", ["R5/42@10ms", "R0L@10ms"], out, root) == "runs"
+        assert bar_check("V6", ["R5/42@10ms"], out, root) == "runs"
+
+
+@needs_one_thread
+def test_on_v0_s1_and_a_scratch_set_the_bars_check_is_unchanged_inside_the_context(look_root, tmp_path):
+    root, shas = look_root
+    out, own, dev = tmp_path / "out", bar._check_rule, tmp_path / "dev_episodes.json"
+    for s in shas:
+        g9_ref_record(s, shas[s])
+    calls = (("V0", ["R0@10ms"], dict(episodes=1, dev_episodes=dev)),
+             ("V0", ["R0@10ms"], dict(episodes=20, dev_episodes=dev)),
+             ("V0", ["R0@10ms"], dict(episodes=1)),
+             ("V0", ["R0L@10ms"], dict(episodes=1, dev_episodes=dev)),
+             ("V0", ["R5/42@10ms"], dict(episodes=1, dev_episodes=dev)),
+             ("V0", ["R5/42@10ms", "R0L@10ms"], dict(task=3)),
+             ("F25F9cl.2", ["R2L-F25F9cl.2/42@10ms"], dict(episodes=1, dev_episodes=dev)),
+             ("S1", ["R0L@10ms", "R5/42@10ms", "R6/42@10ms"], {}),
+             ("T0", ["R0@10ms"], {}),
+             ("T0", ["R0L@10ms"], {}),
+             ("T0", ["R5/42@10ms", "R2L-T0/42@10ms"], {}))
+    alone = [bar_check(s, n, out, root, **kw) for s, n, kw in calls]
+    runs = [i for i, a in enumerate(alone) if a == "runs"]
+    assert runs == [0, 5, 7, 8] and all(alone[i][0] == "BarError" for i in range(len(calls)) if i not in runs)
+    assert "without --task must be a build check" in alone[1][1] and "only R0 rows run on it" in alone[9][1]
+    # a context of that very set and rows replaces nothing; a look set's context open beside changes no answer
+    for (s, n, kw), a in zip(calls, alone, strict=True):
+        with lookbar.look_set_rule(s, BODY, n, root) as rule:
+            assert not rule.applies and rule.look_set is None and bar._check_rule is own
+            assert bar_check(s, n, out, root, **kw) == a and rule.check() is None
+    with lookbar.look_set_rule("V6", BODY, ["R0L@10ms", "R5/42@10ms", "R6/42@10ms"], root) as rule:
+        assert rule.applies and bar._check_rule == rule.bar_check
+        inside = [bar_check(s, n, out, root, **kw) for s, n, kw in calls]
+    assert inside == alone and rule.cited is None and bar._check_rule is own
+
+
+@needs_one_thread
+def test_the_context_puts_the_bars_check_back_whatever_happens_and_the_bars_hash_stays(look_root, tmp_path):
+    root, shas = look_root
+    out, own = tmp_path / "out", bar._check_rule
+    names_before = {k: v for k, v in vars(bar).items()}
+    assert bar.bar_sources()["sha256"] == BAR_SOURCES_A and panels.panel_sources()["sha256"] == PANEL_SOURCES_A
+    assert inspect.signature(lookbar.LookSetRule("V6", BODY, ["R0L"]).bar_check) == inspect.signature(own)
+    with pytest.raises(RuntimeError, match="anything at all"):
+        with lookbar.look_set_rule("V6", BODY, ["R0L@10ms"], root) as rule:
+            assert bar._check_rule == rule.bar_check and rule.own is own
+            assert bar.bar_sources()["sha256"] == BAR_SOURCES_A
+            raise RuntimeError("anything at all")
+    assert bar._check_rule is own
+    # rule X1's refusal raised from inside bar.evaluate, inside the context: the bar's kind and this module's
+    with pytest.raises(lookbar.LookSetRefused, match="there is no G9-ref record") as refused:
+        with lookbar.look_set_rule("V6", BODY, ["R0L@10ms"], root):
+            bar.evaluate("V6", BODY, out, {"R0L@10ms": object()}, root=root, log=quiet)
+    assert isinstance(refused.value, bar.BarError) and isinstance(refused.value, lookbar.LookBarError)
+    assert bar._check_rule is own
+    # an exception raised past the check, from the run itself (the stand-in's), inside the context
+    g9_ref_record("V6", shas["V6"])
+    with pytest.raises(Reached):
+        with lookbar.look_set_rule("V6", BODY, ["R0L@10ms"], root):
+            bar.evaluate("V6", BODY, out, {"R0L@10ms": object()}, root=root, log=quiet)
+    assert bar._check_rule is own
+    # nested contexts: each puts back what it found
+    with lookbar.look_set_rule("V6", BODY, ["R0L@10ms"], root) as a:
+        with lookbar.look_set_rule("V6noF5", BODY, ["R5/42@10ms"], root) as b:
+            assert bar._check_rule == b.bar_check and b.own == a.bar_check
+            assert bar_check("V6", ["R0L@10ms"], out, root) == "runs"  # (the inner one hands the outer's on)
+        assert bar._check_rule == a.bar_check
+    assert bar._check_rule is own
+    # after all of it the bar's own check stands: the evaluation that ran inside is refused as built
+    assert bar_check("V6", ["R0L@10ms"], out, root)[1].startswith("V6 is a scratch or fixture set: only R0 rows")
+    assert set(vars(bar)) == set(names_before) and all(vars(bar)[k] is v for k, v in names_before.items())
+    assert bar.bar_sources()["sha256"] == BAR_SOURCES_A and panels.panel_sources()["sha256"] == PANEL_SOURCES_A
+
+
+def test_the_g9_ref_check_is_gates2s(look_root):
+    """``lookbar.require_g9_ref`` answers as ``gates2.require_g9_ref`` on the look sets, word for word, and checks a
+    version of one, which ``gates2.require_g9_ref`` lets pass."""
+    root, shas = look_root
+
+    def both(set_name):
+        out = []
+        for fn in (lambda: lookbar.require_g9_ref(set_name, BODY, root), lambda: gates2.require_g9_ref(BODY, set_name, None, root)):
+            try:
+                out.append(fn())
+            except (lookbar.LookSetRefused, gates2.Refused) as exc:
+                out.append((type(exc).__name__, str(exc)))
+        return out
+
+    path = gates2.gate_path("V6", BODY, "g9_ref")
+    steps = (("there is no G9-ref record", lambda: None),
+             ("the G9-ref record cannot be read", lambda: (path.parent.mkdir(parents=True), path.write_text("{"))),
+             ("G9-ref did not pass", lambda: g9_ref_record("V6", shas["V6"], pass_=False)),
+             (f"the G9-ref record is of V6noF5/{BODY}", lambda: g9_ref_record("V6", shas["V6"], of=("V6noF5", BODY))),
+             ("the G9-ref record is not one", lambda: g9_ref_record("V6", shas["V6"], schema="s2-gate-g9-ref-0")),
+             (None, lambda: g9_ref_record("V6", shas["V6"])),
+             ("the G9-ref record was made on another freeze", lambda: frozen_set(root, "V6", freezes=3)),
+             ("set V6 of 75-M-H-10 is not here or not frozen", lambda: frozen_set(root, "V6", freezes=0)))
+    for why, make in steps:
+        make()
+        mine, theirs = both("V6")
+        if why is None:
+            assert mine == theirs and mine["pass_"] is True and mine["sha256"] == s2io.sha256_file(path)
+        else:
+            assert (mine[0], theirs[0]) == ("LookSetRefused", "Refused") and mine[1] == theirs[1], why
+            assert mine[1].startswith(f"V6/{BODY}: {why}"), mine[1]
+    # a version of a look set: gates2's check names the two sets only; this one checks the version as the set
+    assert gates2.require_g9_ref(BODY, "V6.2", None, root) is None
+    with pytest.raises(lookbar.LookSetRefused, match=f"V6.2/{BODY}: there is no G9-ref record"):
+        lookbar.require_g9_ref("V6.2", BODY, root)
+    g9_ref_record("V6.2", shas["V6.2"])
+    assert lookbar.require_g9_ref("V6.2", BODY, root)["set_freeze"]["manifest_sha256"] == shas["V6.2"]
+
+
+@needs_one_thread
+def test_lookbar_run_and_episodes_go_through_the_rule(look_root, tmp_path, monkeypatch, capsys):
+    root, shas = look_root
+    out, own = tmp_path / "out", bar._check_rule
+    cli = ["run", "--set", "V6", "--body", BODY, "--rows", "R0L@10ms", "--set-root", str(root), "--out", str(out)]
+    # run: refused without a G9-ref (the command line's exit code 1), past the check with one
+    with pytest.raises(lookbar.LookSetRefused, match=f"V6/{BODY}: there is no G9-ref record"):
+        lookbar.run("V6", BODY, out, ["R0L@10ms"], root=root, log=quiet)
+    assert bar._check_rule is own
+    assert lookbar.main(cli) == 1 and "rule X1" in capsys.readouterr().err and bar._check_rule is own
+    # (an R0 row is the bar's own check's: it runs there as without the context)
+    with pytest.raises(Reached):
+        lookbar.run("V6", BODY, out, ["R0@10ms"], root=root, log=quiet)
+    g9_ref_record("V6", shas["V6"])
+    with pytest.raises(Reached):
+        lookbar.run("V6", BODY, out, ["R0L@10ms"], root=root, log=quiet)
+    with pytest.raises(Reached):
+        lookbar.main(cli)
+    assert bar._check_rule is own
+    # ... and on another set R0L is the bar's own check's (refused on a set that is no look set and not the round's)
+    frozen_set(root, "T0")
+    with pytest.raises(bar.BarError, match="only R0 rows run on it"):
+        lookbar.run("T0", BODY, out, ["R0L@10ms"], root=root, log=quiet)
+    # episodes: on a look set, before the set is read (open_set stands in), as the bar's check would be answered
+    def opened(*a, **k):
+        raise Reached("open_set")
+
+    monkeypatch.setattr(lookbar, "open_set", opened)
+    pairs = [("walk/v0.4", 3042)]
+    r0l = lookbar.rows(BODY, ["R0L@10ms"])
+    with pytest.raises(Reached):
+        lookbar.episodes(BODY, "V6", r0l, pairs, root=root)
+    for make, why in ((lambda: frozen_set(root, "V6", freezes=2), "the G9-ref record was made on another freeze"),
+                      (lambda: gates2.gate_path("V6", BODY, "g9_ref").unlink(), "there is no G9-ref record")):
+        make()
+        with pytest.raises(lookbar.LookSetRefused, match=f"V6/{BODY}: {why}"):
+            lookbar.episodes(BODY, "V6", r0l, pairs, root=root)
+        assert bar._check_rule is own
+    stub = panels.Row()
+    stub.name = "R2/42"
+    r2 = {"R2/42@10ms": bar.Delayed(lookbar.LookRow(stub), 5, "R2/42@10ms")}
+    with pytest.raises(bar.BarError, match="V6 is a scratch or fixture set: only R0 rows run on it") as plain_refusal:
+        lookbar.episodes(BODY, "V6", r2, pairs, root=root)
+    assert plain_refusal.type is bar.BarError
+    with pytest.raises(Reached):
+        lookbar.episodes(BODY, "V6", lookbar.rows(BODY, ["R0@10ms"]), pairs, root=root)
+    for s in ("T0", "S1", "V0"):  # nothing is checked on any other set (as before)
+        with pytest.raises(Reached):
+            lookbar.episodes(BODY, s, r2, pairs, root=root)
+    with pytest.raises(lookbar.LookBarError, match="hold a LookRow"):  # (what episodes refuses first)
+        lookbar.episodes(BODY, "V6", {"R0L@10ms": object()}, pairs, root=root)
+    assert bar._check_rule is own
 
 
 # ------------------------------------------------------------------------------------------------

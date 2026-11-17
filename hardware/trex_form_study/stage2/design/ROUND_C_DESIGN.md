@@ -1186,7 +1186,9 @@ fails `tail` only; the foot pitch zeroed fails `toe_off` only; the unchanged pla
 and difference 0; a playback cut to 3 steps gives `too_few_steps`;
 (f) references no bar item plays (the turn in place with its start and stop, the changes to rungs other than
 0.40 m/s): their `setscreen` records cited, and each task script of the library builds with joints continuous at
-every join (the largest jump of the track's joint targets across a join under 1e-6 rad at the join's own frames)
+every join (the largest jump of the track's joint targets across a join under 1e-6 rad at the join's own frames) [amended 17 Nov 2026, rulings 15 and 32 of `ROUND_C_RULINGS_17NOV.md`: at each joint, no larger than the largest
+change between two consecutive frames of the walk the join leaves; and a failing (a) item's reference still
+available fails G9-ref (ruling 14)]
 and plays 2 s under the zero action kinematically (the tracker's targets finite); the turn in place is **not**
 played by `bar._Played` (it refuses a periodic turning gait) and has no look reading.
 If (b) fails, U1's definitions go back to the lead before any look-set episode.

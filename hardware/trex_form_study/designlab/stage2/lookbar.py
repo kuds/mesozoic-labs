@@ -57,10 +57,19 @@ episode during which MuJoCo warned: ``RULES["outcome"]``), ``simulated_s``, ``pl
 ``on_command_at_stop``, ``error``, ``state_digest``, ``policy_check`` and the bar's own verdicts under ``bar``.
 
 No episode here is a record by itself: ``run`` writes the bar's records and their companions; ``episodes`` writes
-nothing but the traces it is asked for.  Which sets an episode may run on is the caller's to keep (rule X1), and
-the bar's runner keeps its own rule of what may run where (``bar.RULES["checks"]``: as built, on a reference set
-that is none of the 75 cm round's three it lets only rows of the controller ``R0`` run, so ``run`` is refused there
-for ``R0L``, ``R5``, ``R6`` and ``R2L`` rows; ``episodes`` does not go through the runner).
+nothing but the traces it is asked for.
+
+**What may run on a look set** (``RULES["look_sets"]``; the lead's ruling 16 of 17 Nov 2026; rule X1).  The bar's
+runner keeps its own rule of what may run where (``bar.RULES["checks"]``): on a reference set that is none of the
+75 cm round's three it lets only rows of the controller ``R0`` run, so ``R0L``, ``R5``, ``R6`` and ``R2L`` rows are
+refused there, and ``bar.py`` is not edited.  ``look_set_rule(set, body, rows, root)`` is a context inside which a
+bar evaluation of that set, body and set root, the set one of ``LOOK_SETS`` or a version of one, lets the rows of
+``LOOK_SET_ROWS`` (``R0L``, ``R5/<seed>``, ``R6/<seed>``, ``R2L-<set>/<seed>``, each with or without a delay) run,
+and only once the set's G9-ref has passed for the body on its latest freeze (``require_g9_ref``).  It stands in
+front of ``bar._check_rule`` for that evaluation only: every other set, body, root or row, and every call outside
+it, is the bar's own check unchanged, and the bar's check is put back when the context ends, whatever happens.
+``run`` evaluates inside it; ``episodes`` (which does not go through the runner) asks it before it reads a look
+set.  The refit tool (``r2lfit``) is to use the same context.
 
     python -m designlab.stage2.lookbar {run|collect} --set S --body B --rows R0L@10ms,R5/42@10ms --out DIR
         [--conditions walk/v0.4,...] [--procs 2] [--block seeds3042] [--episodes 20] [--task 3|4] [--unit NAME]
@@ -87,6 +96,7 @@ if __name__ == "__main__":  # before any numpy import (round A's module skeleton
         os.environ.setdefault(_v, "1")
 
 import argparse  # noqa: E402
+import contextlib  # noqa: E402
 import hashlib  # noqa: E402
 import importlib  # noqa: E402
 import json  # noqa: E402
@@ -209,6 +219,24 @@ RULES = dict(
         "file's sha256>.json unless it names the bar record as it is (bar_record.sha256): that one was made of this "
         "bar record while its sidecars were there, and stays.  The summary lists every refused record with what "
         "became of its companion"),
+    look_sets=(
+        "the lead's ruling 16 of 17 Nov 2026, with STAGE2_TRACKB_PLAN rule X1: the bar's own set check "
+        "(bar._check_rule, bar.RULES['checks']) lets only R0 rows run on a set that is none of the 75 cm round's "
+        "three, and bar.py is not edited (its hash is in every bar record's key).  lookbar.look_set_rule is a "
+        "context, entered by lookbar run and by lookbar.episodes, inside which a bar evaluation (bar.evaluate) of "
+        "the context's set, body and set root, where the set is a look set (V6, V6noF5) or a version of one (the "
+        "part of its name before the first dot), lets its rows run when every one of them is among the rows the "
+        "context was entered with and every one of those is R0L, R5/<seed>, R6/<seed> or R2L-<set>/<seed> (the fit "
+        "of that very set), each with or without a delay @<ms>ms, and only once that set's G9-ref has passed: the "
+        "record stage2/tb/gates/<set>/<body>/g9_ref.json, of schema s2-gate-g9-ref-1 with its own sha256 intact, of "
+        "that set and body, with pass_ true, made on the set's latest freeze (its set_freeze.manifest_sha256 that "
+        "freeze's), read when the evaluation is checked (gates2.require_g9_ref's check); without it the evaluation "
+        "is refused and nothing runs.  Every other evaluation inside the context (another set, body, set root or "
+        "row, or these rows beside any other) and every evaluation outside it goes through the bar's own check "
+        "unchanged: on a look set that lets R0 rows run and refuses any other row.  lookbar.episodes, which does "
+        "not go through the bar's runner, checks a look set's rows in the same way before it reads the set (the "
+        "G9-ref check for these rows, the bar's own check for any other) and checks nothing on any other set.  "
+        "The bar's check is put back when the context ends, also after an exception"),
 )
 
 
@@ -582,6 +610,175 @@ def rows(body: str, names, sidecar=None, stage1_run=bar.STAGE1_RUN) -> dict[str,
 
 
 # ------------------------------------------------------------------------------------------------
+# The look sets' own rule of what may run there (``RULES["look_sets"]``; the lead's ruling 16 of 17 Nov 2026)
+# ------------------------------------------------------------------------------------------------
+#: The rows ``look_set_rule`` lets run on a look set, by family, each with or without a delay ``@<ms>ms``
+#: (``look_set_row``): ``R2L``'s ``<set>`` is the set evaluated.
+LOOK_SET_ROWS = ("R0L", "R5/<seed>", "R6/<seed>", "R2L-<set>/<seed>")
+_LOOK_SET_ROW = re.compile(r"^(?:R0L|R5/\d+|R6/\d+|R2L-(?P<set>[^/@\s]+)/\d+)$")
+#: The code of ``bar.evaluate``: the one caller of the bar's set check that ``LookSetRule`` answers itself.
+_EVALUATE_CODE = bar.evaluate.__code__
+
+
+class LookSetRefused(LookBarError, bar.BarError):
+    """Rule X1 on a look set (``RULES["look_sets"]``): the set's G9-ref has not passed for the body on its latest
+    freeze, so nothing runs.  A refusal of the bar's kind (``bar.BarError``) and of this module's."""
+
+
+def look_set_of(set_name) -> str | None:
+    """The look set a set's name stands for: one of ``LOOK_SETS``, the name itself or the part before its first
+    dot (``V6noF5.2`` is a version of ``V6noF5``, as ``bar.registered_name`` reads a version of the 75 cm round's
+    sets); None for any other set."""
+    base = str(set_name).split(".", 1)[0]
+    return base if base in LOOK_SETS else None
+
+
+def look_set_row(name, set_name: str) -> bool:
+    """Whether ``name`` is a row ``look_set_rule`` lets run on the look set ``set_name`` (``LOOK_SET_ROWS``):
+    ``R0L``, ``R5/<seed>``, ``R6/<seed>`` or ``R2L-<set_name>/<seed>`` (the fit of that very set), with or without
+    a delay ``@<ms>ms`` that ``bar.ms_steps`` accepts."""
+    if not isinstance(name, str):
+        return False
+    inner, m = name, bar._ROW_NAME.match(name)
+    if m:
+        try:
+            bar.ms_steps(int(m.group("ms")), name)
+        except ValueError:
+            return False
+        inner = m.group("inner")
+    r = _LOOK_SET_ROW.match(inner)
+    return r is not None and r.group("set") in (None, str(set_name))
+
+
+def require_g9_ref(set_name: str, body: str, root=setio.ROOT, path=None) -> dict:
+    """Rule X1 on a look set or a version of one: ``gates2.require_g9_ref``'s check, made of that module's own
+    pieces, for any set's name (``gates2.require_g9_ref`` checks the two look sets by name and lets every other
+    name pass, a version of one too).  ``LookSetRefused``, with ``gates2``'s words, unless ``path`` (default
+    ``gates2.gate_path(set, body, "g9_ref")``) is a G9-ref record (``gates2.SCHEMAS["g9_ref"]``, its own sha256
+    intact) of this set and body that passed and was made on the set's latest freeze under ``root``.  Returns its
+    citation (``{path, sha256, pass_, at, set_freeze}``, as ``gates2.require_g9_ref`` does)."""
+    from designlab.stage2 import gates2
+
+    p = Path(path) if path is not None else gates2.gate_path(set_name, body, "g9_ref")
+    doc = gates2._read(p) if p.is_file() else None
+    why = None
+    if doc is None:
+        why = "there is no G9-ref record" if not p.is_file() else "the G9-ref record cannot be read"
+    elif doc.get("schema") != gates2.SCHEMAS["g9_ref"] or not gates2.record_sha_ok(doc):
+        why = "the G9-ref record is not one (schema, or its sha256 is not its own)"
+    elif (doc.get("body"), doc.get("set")) != (body, set_name):
+        why = f"the G9-ref record is of {doc.get('set')}/{doc.get('body')}"
+    elif doc.get("pass_") is not True:
+        why = "G9-ref did not pass"
+    else:
+        now = gates2._latest_freeze(set_name, body, root)
+        if now is None:
+            why = f"set {set_name} of {body} is not here or not frozen"
+        elif (doc.get("set_freeze") or {}).get("manifest_sha256") != now["manifest_sha256"]:
+            why = (f"the G9-ref record was made on another freeze of the set "
+                   f"({str((doc.get('set_freeze') or {}).get('manifest_sha256'))[:12]}..., the latest is "
+                   f"{now['manifest_sha256'][:12]}...)")
+    if why is not None:
+        raise LookSetRefused(f"{set_name}/{body}: {why} ({s2io.portable(str(p))}): rule X1, no closed-loop episode on "
+                             "a look set before G9-ref has passed there")
+    return dict(gates2.cite(p), pass_=True, at=doc.get("at"), set_freeze=doc.get("set_freeze"))
+
+
+def _same_root(a, b) -> bool:
+    return Path(setio._anchored(a)).resolve() == Path(setio._anchored(b)).resolve()
+
+
+class LookSetRule:
+    """What ``look_set_rule`` yields: the set, body, set root and rows it was opened for; ``look_set`` (the look
+    set the set's name stands for, None for any other set); ``applies`` (the set is a look set and every row is
+    one of ``LOOK_SET_ROWS`` for it: only then is the bar's check stood in front of); ``own`` (the bar's check in
+    place when the context was entered); ``cited`` (the G9-ref record that let the last evaluation in, None when
+    none did)."""
+
+    def __init__(self, set_name: str, body: str, row_names, root=setio.ROOT, g9_ref=None):
+        self.set_name, self.body, self.root = str(set_name), str(body), root
+        self.rows = tuple(str(r) for r in row_names)
+        self.g9_ref = None if g9_ref is None else str(g9_ref)
+        self.look_set = look_set_of(self.set_name)
+        self.applies = bool(self.look_set and self.rows and all(look_set_row(r, self.set_name) for r in self.rows))
+        self.own = bar._check_rule
+        self.cited: dict | None = None
+
+    def covers(self, set_name, row_names, body, root) -> bool:
+        """Whether an evaluation is the one the rule answers: of this set, body and set root, every row one the
+        context was opened for (all of ``LOOK_SET_ROWS``: ``applies``)."""
+        names = list(row_names)
+        return bool(self.applies and str(set_name) == self.set_name and str(body) == self.body
+                    and _same_root(root, self.root) and names and all(r in self.rows for r in names))
+
+    def require(self) -> dict:
+        """The G9-ref check (``require_g9_ref``) for this set and body, read now; ``cited`` its citation."""
+        self.cited = None
+        self.cited = require_g9_ref(self.set_name, self.body, self.root, self.g9_ref)
+        return self.cited
+
+    def bar_check(self, set_name, row_names, episodes, task, dev_episodes, passed_of, control,
+                  block: str = bar.HEADLINE_BLOCK) -> None:
+        """``bar._check_rule`` while the context is open (its signature): a call by ``bar.evaluate`` (its own frame:
+        the body and set root are read there) that ``covers`` is let in once ``require`` holds, and refused
+        (``LookSetRefused``) when it does not; any other call is the bar's own check, with the same arguments."""
+        caller = sys._getframe(1)
+        try:
+            at = ((caller.f_locals.get("body"), caller.f_locals.get("root")) if caller.f_code is _EVALUATE_CODE
+                  else None)
+        finally:
+            del caller
+        return self._decide(at, (set_name, row_names, episodes, task, dev_episodes, passed_of, control, block))
+
+    def _decide(self, at, args: tuple) -> None:
+        """``bar_check``'s answer for the evaluation ``at`` (its ``(body, root)``, None: no call of ``bar.evaluate``)
+        and the check's arguments ``args``; a call it does not cover goes to the check it found in place, which is
+        another context's when contexts are nested (that one is asked with the same evaluation)."""
+        if at is not None and self.covers(args[0], args[1], *at):
+            self.require()
+            return None
+        outer = getattr(self.own, "__self__", None)
+        if isinstance(outer, LookSetRule) and getattr(self.own, "__func__", None) is LookSetRule.bar_check:
+            return outer._decide(at, args)
+        return self.own(*args)
+
+    def check(self) -> dict | None:
+        """What the rule decides for its own set, body, root and rows, as ``episodes`` asks it (that function does
+        not go through the bar's runner): off the look sets nothing is checked (None); on a look set the G9-ref
+        check when ``applies`` (its citation), else the bar's own check of these rows on this set (None when it
+        lets them run)."""
+        if self.look_set is None:
+            return None
+        if self.applies:
+            return self.require()
+        self.own(self.set_name, list(self.rows), 1, None, None, None, None)
+        return None
+
+
+@contextlib.contextmanager
+def look_set_rule(set_name: str, body: str, row_names, root=setio.ROOT, g9_ref=None):
+    """The look sets' own rule of what may run there (``RULES["look_sets"]``; the lead's ruling 16 of 17 Nov 2026):
+    a context, yielding its ``LookSetRule``, inside which a bar evaluation (``bar.evaluate``) of ``set_name`` (a look
+    set or a version of one), ``body`` and the set root ``root`` whose rows are all of ``row_names`` lets those rows
+    run if every one of ``row_names`` is of ``LOOK_SET_ROWS`` (``R0L``, ``R5/<seed>``, ``R6/<seed>``,
+    ``R2L-<set>/<seed>``, each with or without a delay), and only once the set's G9-ref has passed for the body on
+    its latest freeze (rule X1, ``require_g9_ref``, read at the evaluation's check; ``g9_ref``: the record's path,
+    default ``stage2/tb/gates/<set>/<body>/g9_ref.json``).  Every other evaluation inside it, of another set, body,
+    root or rows, goes through the bar's own check unchanged; outside it the bar's check is the bar's.  Where the
+    rule does not apply (``LookSetRule.applies`` false) nothing is replaced at all.  The bar's ``_check_rule`` is put
+    back when the context ends, also after an exception; ``bar.py`` is not edited and its hash does not move."""
+    rule = LookSetRule(set_name, body, row_names, root, g9_ref)
+    if not rule.applies:
+        yield rule
+        return
+    bar._check_rule = rule.bar_check
+    try:
+        yield rule
+    finally:
+        bar._check_rule = rule.own
+
+
+# ------------------------------------------------------------------------------------------------
 # One companion episode
 # ------------------------------------------------------------------------------------------------
 _UNREADABLE = re.compile(r"^(?:[\w.]*\.)?Unreadable: ")
@@ -757,7 +954,12 @@ def episodes(body: str, set_name: str, rows: dict, pairs: list, traces=None, roo
     workers read it (``open_set``), ``bar.Unreadable`` and any other exception caught apart, then
     ``companion_episode``.  A condition whose reference the set does not hold is ``not_run``.  ``traces``: where
     the episodes' traces go (the bar's relative paths), None: none is written.  Each episode also holds its
-    ``row``, ``set``, ``start_seed`` and ``wall_s``."""
+    ``row``, ``set``, ``start_seed`` and ``wall_s``.
+
+    On a look set (or a version of one) the rows are checked first, before the set is read
+    (``RULES["look_sets"]``, ``LookSetRule.check``): rows of ``LOOK_SET_ROWS`` only once the set's G9-ref has
+    passed for the body on its latest freeze under ``root`` (``LookSetRefused`` otherwise), any other rows by the
+    bar's own check of what may run on that set.  On any other set nothing is checked here."""
     s2io.require_one_thread()
     rows = dict(rows)
     looks = {name: look_row_of(row) for name, row in rows.items()}
@@ -765,6 +967,8 @@ def episodes(body: str, set_name: str, rows: dict, pairs: list, traces=None, roo
     if plain or not rows:
         raise LookBarError(f"episodes takes rows that hold a LookRow (lookbar.rows): {plain or 'none given'}")
     pairs = [(str(k), int(s)) for k, s in pairs]
+    with look_set_rule(set_name, body, list(rows), root) as rule:  # (rule X1: before anything is read or run)
+        rule.check()
     opened = open_set(body, set_name, [k for k, _ in pairs], root, stage1_run)
     ctx, conds, missing = opened["ctx"], opened["conds"], opened["missing"]
     look_set = set_name in LOOK_SETS
@@ -1028,15 +1232,20 @@ def run(set_name: str, body: str, out, row_names, conditions=None, block: str = 
     """``bar.evaluate`` of ``row_names`` (``rows()``: every row a ``LookRow`` that writes its sidecars under
     ``<out>/<set>/<body>/<block>/look_partial``) on the set, without attribution unless ``attribute`` is given,
     then ``collect``.  ``kw`` goes to ``bar.evaluate`` (``episodes``, ``task``, ``rates``, ``root``,
-    ``stage1_run``, ...).  Returns the look summary with the bar's own summary under ``bar``.  The bar's own rules
-    of what may run where apply unchanged (``bar.RULES["checks"]``)."""
+    ``stage1_run``, ...).  Returns the look summary with the bar's own summary under ``bar`` and, under ``g9_ref``,
+    the G9-ref record that let the rows run on a look set (None where the bar's own check did).  The evaluation runs
+    inside ``look_set_rule`` (``RULES["look_sets"]``): on a look set the rows of ``LOOK_SET_ROWS`` run only once its
+    G9-ref has passed; any other set or row is the bar's own rule of what may run where (``bar.RULES["checks"]``),
+    unchanged."""
     out = Path(out)
     control_ = kw.get("control")
     side = bar.block_dir(out, set_name, body, block, control_) / "look_partial"
-    built = rows(body, list(row_names), sidecar=str(side), stage1_run=kw.get("stage1_run", bar.STAGE1_RUN))
+    names = list(row_names)
+    built = rows(body, names, sidecar=str(side), stage1_run=kw.get("stage1_run", bar.STAGE1_RUN))
     kw.setdefault("attribute", "none")
-    doc = bar.evaluate(set_name, body, out, built, conditions, block, procs, **kw)
-    return dict(collect(out, set_name, body, block, control_), bar=doc)
+    with look_set_rule(set_name, body, names, kw.get("root", setio.ROOT)) as rule:
+        doc = bar.evaluate(set_name, body, out, built, conditions, block, procs, **kw)
+    return dict(collect(out, set_name, body, block, control_), bar=doc, g9_ref=rule.cited)
 
 
 def summary_text(doc: dict) -> str:
@@ -1134,11 +1343,13 @@ def main(argv=None) -> int:
         return 1
 
 
-__all__ = ["COMPANION_SCHEMA", "DELAYED_KEYS", "LOOK_SETS", "LookBarError", "LookRow", "RULES", "SIDECAR_SCHEMA",
-           "WARNED_CAUSE", "air_runs", "clock_block", "collect", "companion", "companion_episode", "companion_path",
-           "counts_of", "episodes", "is_look_record", "is_unreadable", "is_warned", "look_of", "look_row_of", "main",
-           "on_command_at_stop", "open_set", "record_row_sha256", "rows", "rule_texts", "run", "sidecar_path",
-           "stale_path", "state_digest", "summary_text"]
+__all__ = ["COMPANION_SCHEMA", "DELAYED_KEYS", "LOOK_SETS", "LOOK_SET_ROWS", "LookBarError", "LookRow",
+           "LookSetRefused", "LookSetRule", "RULES", "SIDECAR_SCHEMA", "WARNED_CAUSE", "air_runs", "clock_block",
+           "collect", "companion",
+           "companion_episode", "companion_path", "counts_of", "episodes", "is_look_record", "is_unreadable",
+           "is_warned", "look_of", "look_row_of", "look_set_of", "look_set_row", "look_set_rule", "main",
+           "on_command_at_stop", "open_set", "record_row_sha256", "require_g9_ref", "rows", "rule_texts", "run",
+           "sidecar_path", "stale_path", "state_digest", "summary_text"]
 
 if __name__ == "__main__":
     from designlab.stage2 import lookbar as _named  # the importable copy owns every class and all module state
