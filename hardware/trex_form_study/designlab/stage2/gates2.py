@@ -257,17 +257,22 @@ RULES = dict(
         "the re-run Stage 1b 10 ms turn episodes of 60-N-T-10 are trace-identical to their committed records "
         "(the bar's re-read record, cited).  If (d) or (e) fails, no training run of that body and head starts.  "
         + MODULE_READING +
-        "every companion record of R0L@10ms under the bar's out directory is read with the bar record it names "
-        "(its sha256 checked); every bar episode must have run (no error) and hold a success value for every "
-        "term its record lists (and every term of reading 3); a companion episode must be read or fell; a walk "
-        "or turn episode that reached its window must hold the four look numbers of the robot, finite.  The two "
+        "the companion record of R0L@10ms under the bar's out directory of every expected condition is read "
+        "with the bar record it names (its sha256 checked); every bar episode must have run (no error) and hold "
+        "a success value for every term its record lists (and every term of reading 3); a companion episode must "
+        "be read or fell; a walk or turn episode that reached its window must hold the four look numbers of the "
+        "robot, finite.  The two "
         "toe-clearance readings are the own-swing reading (toe_clearance_own_swing_m) and Stage 1's reference-"
         "clock reading (stage1_toe_clearance_m), finite in every walk and turn episode of every 10 ms bar record "
         "that reached its window (a record none of whose episodes reached it is listed).  The records expected "
-        "are those of every gated condition the set holds a reference for, and walk/nominal.  (e) cites the "
-        "reread record given: schema bar-reread-1 of 60-N-T-10, its rows all 10 ms rows (names ending @10ms) "
-        "and its conditions all turns (keys beginning turn/), complete, every trace equal; the -X head cites the "
-        "plain body's."),
+        "are those of every gated condition the set holds a reference for, and walk/nominal; an expected record "
+        "that is absent, or whose bar record is not done, fails (d).  A companion of any other condition is not "
+        "read for (d) and fails nothing: one whose bar record is \"not run\" with no episode (rule H3: a reference "
+        "marked not available leaves its conditions not run) is listed as not run, any other as not expected (the "
+        "lead's ruling 42 of 17 Nov 2026: a code error, the rule unchanged; as first built every companion there "
+        "was read).  (e) cites the reread record given: schema bar-reread-1 of 60-N-T-10, its rows all 10 ms "
+        "rows (names ending @10ms) and its conditions all turns (keys beginning turn/), complete, every trace "
+        "equal; the -X head cites the plain body's."),
     k3=(
         "STAGE2_TRACKB_PLAN rule K3: on this machine, with one set of library versions, on the real env: "
         "75-M-H-10, set V6, R5, seed 42, 8 envs, n_steps 1024, a checkpoint every 32,768 steps, 131,072 steps in "
@@ -1325,13 +1330,39 @@ def _toe_pair(e: dict) -> dict:
                 present=_num_ok(m.get("toe_clearance_own_swing_m")) and _num_ok(m.get("stage1_toe_clearance_m")))
 
 
+def _not_read(q: Path, doc: dict, bar_out) -> tuple[str, dict]:
+    """Where ``part_d`` lists the companion ``doc`` (read from ``q``) of a condition it does not expect, which it
+    does not read for its verdict (the lead's ruling 42 of 17 Nov 2026): ``"not_run"`` where the bar record it names
+    is here with that sha256, its status "not run" and no episode, and the companion holds no episode either (rule
+    H3: a reference marked not available leaves its conditions not run); else ``"not_expected"``, with what was
+    found."""
+    named = doc.get("bar_record") if isinstance(doc.get("bar_record"), dict) else {}
+    bpath = Path(bar_out) / str(named.get("path")) if named.get("path") else None
+    rec = _read(bpath) if bpath is not None and bpath.is_file() else None
+    same = rec is not None and s2io.sha256_file(bpath) == named.get("sha256")
+    n_bar, n_own = len((rec or {}).get("episodes") or []), len(doc.get("episodes") or [])
+    cell = dict(companion=cite(q), bar_record=named, status=(rec or {}).get("status"), reason=(rec or {}).get("reason"),
+                episodes=n_own, bar_episodes=None if rec is None else n_bar, own_sha256_ok=record_sha_ok(doc))
+    if same and rec.get("status") == "not run" and n_bar == 0 and n_own == 0:
+        return "not_run", cell
+    found = ("its bar record is not here" if rec is None else "its bar record's sha256 is not the one it names"
+             if not same else f"its bar record is {rec.get('status')!r} with {n_bar} episodes")
+    return "not_expected", dict(cell, found=found)
+
+
 def part_d(bar_out, body: str, set_name: str, block: str, root=None) -> dict:
-    """G9-run (d) (``RULES["z2_run"]``'s reading)."""
+    """G9-run (d) (``RULES["z2_run"]``'s reading).  Only the companions of the expected conditions
+    (``_expected_conditions``: ``expected``) are read for the verdict (``records``); a companion of any other
+    condition is not read for it and fails nothing (``_not_read``): under ``not_run`` where its bar record is "not
+    run" with no episode, else under ``not_expected`` (the lead's ruling 42 of 17 Nov 2026).  An expected condition
+    whose companion is absent (``missing``) or whose bar record is not done fails (d)."""
     from designlab.stage2 import bar
 
     bdir = bar.block_dir(bar_out, set_name, body, block)
     edir, ldir = bdir / "eval", bdir / "look" / R0L_ROW
-    out = dict(block_dir=s2io.portable(str(Path(bdir).resolve())), records={}, bar_records_10ms={}, problems=[])
+    expected = _expected_conditions(body, set_name, root)
+    out = dict(block_dir=s2io.portable(str(Path(bdir).resolve())), records={}, not_run={}, not_expected={},
+               bar_records_10ms={}, problems=[])
     comps = sorted(q for q in ldir.glob("**/*.json") if not any(x.endswith(".superseded") for x in q.parts))
     for q in comps:
         doc = _read(q)
@@ -1339,6 +1370,10 @@ def part_d(bar_out, body: str, set_name: str, block: str, root=None) -> dict:
         probs = []
         if doc is None or doc.get("schema") != "s2-look-1":
             out["problems"].append(f"{rel}: not a companion record")
+            continue
+        if doc.get("condition") not in expected:
+            where, cell = _not_read(q, doc, bar_out)
+            out[where][str(doc.get("condition"))] = cell
             continue
         if not record_sha_ok(doc):
             probs.append("its sha256 is not its own")
@@ -1395,7 +1430,6 @@ def part_d(bar_out, body: str, set_name: str, block: str, root=None) -> dict:
         out["bar_records_10ms"][q.relative_to(edir).as_posix()] = dict(
             row=rec.get("row"), condition=rec.get("key_name"), episodes=len(rec["episodes"]),
             reached_window=len(reached), missing_toe_readings=missing, no_window=not reached, ok=not missing)
-    expected = _expected_conditions(body, set_name, root)
     out["expected"] = expected
     out["missing"] = [c for c in expected if c not in out["records"]]
     oks = [x["ok"] for x in out["records"].values()] + [x["ok"] for x in out["bar_records_10ms"].values()]
@@ -2309,7 +2343,9 @@ def main(argv=None) -> int:
                          root=args.set_root)
             d = doc["parts"]["d"]
             _say(doc, [f"G9-run {doc['set']} {doc['body']}: (d) {d['ok']} ({len(d['records'])} companion records, "
-                       f"missing {d['missing']}), (e) {doc['parts']['e']['ok']}"])
+                       f"missing {d['missing']}, not run {sorted(d['not_run'])}"
+                       + (f", not expected {sorted(d['not_expected'])}" if d["not_expected"] else "")
+                       + f"), (e) {doc['parts']['e']['ok']}"])
         elif args.cmd == "rates":
             doc = rates(args.body, args.set_name, tuple(_csv(args.floors)), _ints(args.workers), args.steps, args.record,
                         g9_ref=args.g9_ref, root=args.set_root)
