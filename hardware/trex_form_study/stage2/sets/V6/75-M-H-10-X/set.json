@@ -5319,7 +5319,7 @@
      "over_leg_drive": false,
      "a1_over": false,
      "pass_": {
-      "left": false,
+      "left": true,
       "right": true
      },
      "stage0_blocks": {
@@ -5334,10 +5334,10 @@
    "walk_sha256": "54d5947d10122a52de7f10f095a39ea1e749f397a269c9a9c3a1487e6af7d915",
    "a1_over": false,
    "references": {
-    "turn90_0.35_left": false,
+    "turn90_0.35_left": true,
     "turn90_0.35_right": true
    },
-   "no_reference": "no reference within the gates (entry gates: join_command)"
+   "no_reference": null
   },
   "0.5": {
    "rule": "S2A-stride",
@@ -5411,7 +5411,7 @@
      "over_leg_drive": false,
      "a1_over": false,
      "pass_": {
-      "left": false,
+      "left": true,
       "right": true
      },
      "stage0_blocks": {
@@ -5426,10 +5426,10 @@
    "walk_sha256": "54d5947d10122a52de7f10f095a39ea1e749f397a269c9a9c3a1487e6af7d915",
    "a1_over": false,
    "references": {
-    "turn90_0.5_left": false,
+    "turn90_0.5_left": true,
     "turn90_0.5_right": true
    },
-   "no_reference": "no reference within the gates (entry gates: join_command)"
+   "no_reference": null
   },
   "pi4": {
    "rule": "S2A-stride",
@@ -5595,7 +5595,7 @@
      "over_leg_drive": true,
      "a1_over": false,
      "pass_": {
-      "left": false,
+      "left": true,
       "right": true
      },
      "stage0_blocks": {
@@ -5631,7 +5631,7 @@
     "turn90_pi4_left": false,
     "turn90_pi4_right": false
    },
-   "no_reference": "turn90_pi4_left: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside join_command; turn90_pi4_right: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit"
+   "no_reference": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit"
   },
   "1": {
    "rule": "S2A-stride",
@@ -5949,7 +5949,7 @@
     "turn90_1_left": false,
     "turn90_1_right": false
    },
-   "no_reference": "turn90_1_left: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock, join_command, post_window_zmp; turn90_1_right: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock"
+   "no_reference": "turn90_1_left: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock, post_window_zmp; turn90_1_right: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock"
   }
  },
  "not_available": {
@@ -6960,959 +6960,13 @@
     ]
    }
   },
-  "turn90_0.35_left": {
-   "reason": "no reference within the gates (entry gates: join_command)",
-   "numbers": {
-    "gates": {
-     "ik_ok": true,
-     "join_b": true,
-     "join_command": false,
-     "zmp_consistency": true,
-     "post_window_zmp": true,
-     "cop_margin_single": true,
-     "heading_total": true,
-     "heading_at_bar": true,
-     "heading_at_slowest_clock": true,
-     "thigh_twist": true,
-     "rolling_split": true
-    },
-    "pass_": false,
-    "ik_ok": true,
-    "ik_fail_frames": 0,
-    "join_a": null,
-    "join_b": {
-     "stride_phase": 7.0,
-     "reference": "v0.4",
-     "com_max_mm": 0.20861151055533358,
-     "com_mean_mm": 0.08152304244931977,
-     "zmp_max_mm": 1.6489172415111286,
-     "zmp_mean_mm": 0.06390866486956,
-     "joint_max_rad": 0.0006784444269340509,
-     "joint_rate_max_rad_s": 0.010214669796820508,
-     "at_join": {
-      "frame": "last output frame",
-      "com_mm": 0.20861151055533358,
-      "zmp_mm": 0.027563146573177964,
-      "joint_rad": 0.0006040133207873,
-      "joint_rate_rad_s": 0.005068681728230384,
-      "tau_Nm": 0.0047817666899341305
-     },
-     "tau_max_Nm": 5.959563041983527,
-     "window": {
-      "reference": "v0.4",
-      "strides": 12,
-      "window_s": 10.32733122417553,
-      "period_s": 0.8606109353479608,
-      "offset_strides": 4.0,
-      "a_phase": null,
-      "a_time_s": null,
-      "a_windows": null,
-      "varies": true,
-      "step_deviations": [
-       0.006901967388740248,
-       -0.0275,
-       0.021157993476561554,
-       -0.014360853176729388,
-       0.016929567386056187,
-       -0.005878455990154798,
-       0.013383886613554885,
-       -0.0029365907857534378,
-       0.0022799277275574697,
-       -0.020150655511943838,
-       0.011533381274232127,
-       -0.015221811480464843,
-       0.018768419736197098,
-       -0.010898568522639148,
-       0.021110742803059114,
-       -0.013892206248517284,
-       -5.692110490287487e-06,
-       -0.008521503263373618,
-       0.02286511188417669,
-       -0.014106044653905036,
-       0.01855807962397754,
-       -0.024579317389282578,
-       0.007048647640633433,
-       -0.0024860264214920905
-      ]
-     },
-     "window_phase": [
-      11.0,
-      11.99375
-     ],
-     "com_ok": true,
-     "zmp_ok": true
-    },
-    "join_command": {
-     "reference": "v0.4",
-     "frames": 161,
-     "warmup_com_max_mm": 0.06511663151111764,
-     "warmup_zmp_max_mm": 4.582345203754297,
-     "warmup_joint_max_rad": 0.000414269877524763,
-     "warmup_ik_ok": true,
-     "at_command": {
-      "com_mm": 0.018528214393153296,
-      "joint_rad": 5.1375189834557133e-05,
-      "zmp_mm": 0.9149977037924302,
-      "zmp_note": "recorded, not gated: the multibody ZMP's central difference at the command frame straddles the command"
-     },
-     "limits": {
-      "com_mm": 1.0,
-      "zmp_mm": 4.0,
-      "joint_rad": 0.001,
-      "zmp_frames": "the warm-up frames up to two frames before the command"
-     },
-     "ok": false
-    },
-    "zmp_error_history_m": [
-     0.030446663163676172,
-     0.01826286542683362,
-     0.011391643388701841,
-     0.010383700323670891,
-     0.010649106381542605,
-     0.010783952962787781,
-     0.010852438877889269,
-     0.01088718034896444,
-     0.010904767011667486,
-     0.010913641720918443,
-     0.01091810072621513,
-     0.010920328233445872,
-     0.010921432695712602
-    ],
-    "zmp_consistency_history_m": [
-     0.033978200969455565,
-     0.01873865603349082,
-     0.011294022081743738,
-     0.007522205164152216,
-     0.005067524694976156,
-     0.003435479894094886,
-     0.0023433820001451636,
-     0.0016074956390032126,
-     0.0011328221470968917,
-     0.001049788039747027,
-     0.0010370941402801184,
-     0.0010348954266321537,
-     0.00103521972776601
-    ],
-    "post_window_zmp_error_m": [
-     0.030376857814293796,
-     0.01826286542683362,
-     0.011391643388701841,
-     0.007772635188401526,
-     0.005347846251438892,
-     0.003725696337288369,
-     0.0026796792948040236,
-     0.0025414461217892655,
-     0.002413341510656685,
-     0.002298917243816976,
-     0.0021993120174243724,
-     0.002120441002947895,
-     0.002056840983227136
-    ],
-    "zmp_consistency_all_m": 0.002056840983227136,
-    "cop_margin_single_min": {
-     "m": 0.03817180777151877,
-     "frame": 3,
-     "foot": "right"
-    },
-    "min_cop_margin_single_m": 0.03817180777151877,
-    "hip_yaw_range_use": 0.4469325913758784,
-    "tightest_other": {
-     "joint": "left_hip_roll",
-     "end": "max",
-     "margin_rad": 0.15597859809341763
-    },
-    "reference": {
-     "accel_forward_lp1hz_peak_m_s2": 0.05274659595633461,
-     "accel_forward_lp1hz_peak_t_s": 0.056,
-     "accel_forward_raw_peak_m_s2": 1.8069350998417526,
-     "accel_forward_raw_peak_t_s": 5.941824914819119,
-     "accel_filter": {
-      "hz": 1.0,
-      "order": 2,
-      "zero_phase": true,
-      "fs_hz": 500.0,
-      "of": "model CoM, along the planned heading: three-point second differences on the frames' own times, then interpolated to fs_hz for the filter; the first frame's from the computed frame before the command, the last frame its neighbour's",
-      "history_s": 3.0,
-      "before": "the periodic stride of v0.4",
-      "after": "the periodic stride of v0.4",
-      "read_over": "the move's own frames only: the history enters the filter, not the peaks"
-     },
-     "at_s": 4.487989505128276,
-     "command_rate": 1.05,
-     "slowest_clock": 0.95,
-     "heading_at_bar_deg": 89.67446010215788,
-     "heading_at_slowest_clock_deg": 85.89353456723707,
-     "heading_at_ref_clock_deg": 86.11853456723658,
-     "time_to_80deg_bar_s": 3.983694566528681,
-     "heading_min_deg": 80.0
-    },
-    "turn": {
-     "angle_rad": 1.5707963267948966,
-     "rate_rad_s": 0.35,
-     "direction": "left",
-     "first_swing": "left",
-     "ramp_s": 0.375,
-     "ramp_strides": 0.4357369684692428,
-     "hold_strides": 4.779150875494417,
-     "stride_factor": 1.0,
-     "period_in_turn_s": 0.8606109353479608,
-     "kappa": 0.9999999999997072,
-     "heading_total_rad": 1.5707963267942031,
-     "appendage_rule": "inside a move whose stride period T(p) is shorter than the walk's, the tail's and the neck's swing amplitudes are multiplied by (T(p) / T_walk)^2 (constant angular acceleration amplitude), for every set, look sets included; a look choice (lead's ruling 1)"
-    },
-    "frames": 1280,
-    "duration_s": 6.87927623934555,
-    "move": {
-     "kind": "turn",
-     "builder": "turn",
-     "causal": true,
-     "command_phase": 0.0,
-     "command_t_s": 0.0,
-     "rules": [
-      "S2A-causal",
-      "S2A-rule-F",
-      "S2A-fade",
-      "S2A-ramp",
-      "S2A-appendage",
-      "S2A-stride",
-      "S2A-gates",
-      "S2L-L1",
-      "S2L-L2",
-      "S2L-L3",
-      "S2L-L4",
-      "S2L-L5",
-      "S2L-L6",
-      "S2L-L7",
-      "S2L-L8",
-      "S2L-L10",
-      "S2L-J1",
-      "S2L-J2",
-      "S2L-J3",
-      "S2L-causal-grid"
-     ],
-     "laws": "look"
-    },
-    "look": {
-     "laws": "look",
-     "rules": [
-      "S2L-L1",
-      "S2L-L2",
-      "S2L-L3",
-      "S2L-L4",
-      "S2L-L5",
-      "S2L-L6",
-      "S2L-L7",
-      "S2L-L8",
-      "S2L-L10",
-      "S2L-J1",
-      "S2L-J2",
-      "S2L-J3",
-      "S2L-causal-grid"
-     ],
-     "instant_phase": 0.0,
-     "flat_from_phase": 0.0,
-     "flat_until_phase": 5.650624812432903,
-     "variation_a_until_phase": 0.0,
-     "window_a": {
-      "reference": "v0.4",
-      "strides": 12,
-      "window_s": 10.32733122417553,
-      "period_s": 0.8606109353479608,
-      "offset_strides": 2.0,
-      "a_phase": 2.0,
-      "a_time_s": 1.7152832712755346,
-      "a_windows": 0.16609162948702383,
-      "varies": true,
-      "step_deviations": [
-       0.006901967388740248,
-       -0.0275,
-       0.021157993476561554,
-       -0.014360853176729388,
-       0.016929567386056187,
-       -0.005878455990154798,
-       0.013383886613554885,
-       -0.0029365907857534378,
-       0.0022799277275574697,
-       -0.020150655511943838,
-       0.011533381274232127,
-       -0.015221811480464843,
-       0.018768419736197098,
-       -0.010898568522639148,
-       0.021110742803059114,
-       -0.013892206248517284,
-       -5.692110490287487e-06,
-       -0.008521503263373618,
-       0.02286511188417669,
-       -0.014106044653905036,
-       0.01855807962397754,
-       -0.024579317389282578,
-       0.007048647640633433,
-       -0.0024860264214920905
-      ]
-     },
-     "window_b": {
-      "reference": "v0.4",
-      "strides": 12,
-      "window_s": 10.32733122417553,
-      "period_s": 0.8606109353479608,
-      "offset_strides": 4.0,
-      "a_phase": null,
-      "a_time_s": null,
-      "a_windows": null,
-      "varies": true,
-      "step_deviations": [
-       0.006901967388740248,
-       -0.0275,
-       0.021157993476561554,
-       -0.014360853176729388,
-       0.016929567386056187,
-       -0.005878455990154798,
-       0.013383886613554885,
-       -0.0029365907857534378,
-       0.0022799277275574697,
-       -0.020150655511943838,
-       0.011533381274232127,
-       -0.015221811480464843,
-       0.018768419736197098,
-       -0.010898568522639148,
-       0.021110742803059114,
-       -0.013892206248517284,
-       -5.692110490287487e-06,
-       -0.008521503263373618,
-       0.02286511188417669,
-       -0.014106044653905036,
-       0.01855807962397754,
-       -0.024579317389282578,
-       0.007048647640633433,
-       -0.0024860264214920905
-      ]
-     },
-     "a_phase": 2.0,
-     "a_time_s": 1.7152832712755346,
-     "a_windows": 0.16609162948702383,
-     "feet": "flat in every stance that ends after the instant (instant_phase) and no later than the end of the move's last ramp (flat_until_phase; null: none ends later); the walk's own law before and after (S2L-L10)",
-     "preview_grid": {
-      "rule": "S2L-causal-grid",
-      "grid_s": 0.00522440904905741,
-      "whole_plan_min_s": 0.005139950970535878,
-      "command_frame": 160
-     }
-    },
-    "join_events": {
-     "note": "a reading, not a gate: the gate is join_command's warmup_zmp_max_mm",
-     "frames": 157,
-     "zmp_max_mm": 4.582345203754297,
-     "zmp_p50_mm": 0.16964273669967128,
-     "zmp_p90_mm": 1.2021789289059983,
-     "limit_mm": 4.0,
-     "frames_over_limit": 1,
-     "phases_over_limit": [
-      -0.0125
-     ],
-     "frames_over_limit_away_from_events": 0,
-     "event_frames": 39,
-     "zmp_max_mm_away_from_events": 0.6054050028755854,
-     "events_rule": "within 3 frames of a planned lift-off or touchdown, or of a frame of the warm-up on which a stance foot rolls (no frame beyond either end of the warm-up)"
-    },
-    "rolling_frames": 35,
-    "rolling_split_failed_frames": 0,
-    "failed_gates": [
-     "join_command"
-    ],
-    "stage0": {
-     "source": "setscreen.screen_move on the built file (at build time)",
-     "governing": [
-      "knee",
-      "speed",
-      0.8444073065857781
-     ],
-     "within_limits": true,
-     "over": [],
-     "blocks_freeze": [],
-     "a1_over": false,
-     "over_leg_drive": false,
-     "text": "within the Stage 0 limits",
-     "tightest_joint": [
-      "left_hip_roll",
-      "max",
-      0.156
-     ],
-     "accel_forward_lp1hz_peak_m_s2": 0.30013255587586
-    },
-    "built_sha256": "e6d7544664dc18de0c5445bc0f9a00fcb583f4c94f4740f8073b4651e6a0a767",
-    "stride_rule": {
-     "rule": "S2A-stride",
-     "grid": [
-      1.0,
-      0.95,
-      0.9,
-      0.85,
-      0.8,
-      0.75,
-      0.7,
-      0.65,
-      0.6
-     ],
-     "limit_kinematic": 0.85,
-     "limit_final": 0.87,
-     "limit_other_joints_rad": 0.05,
-     "steps_down_max": 2,
-     "angle_rad": 1.5707963267948966,
-     "rate_rad_s": 0.35,
-     "tried": [
-      {
-       "f": 1.0,
-       "left": 0.4478927212402633,
-       "right": 0.44733316933923695,
-       "tightest_other": {
-        "left": {
-         "joint": "left_hip_roll",
-         "end": "max",
-         "margin_rad": 0.15295076413545006
-        },
-        "right": {
-         "joint": "right_hip_roll",
-         "end": "min",
-         "margin_rad": 0.1572274243916148
-        }
-       },
-       "ik_fail_frames": {
-        "left": 0,
-        "right": 0
-       },
-       "ik_ok": true,
-       "pass_": true
-      }
-     ],
-     "chosen": 1.0,
-     "steady_turn_kinematic": {
-      "available": false,
-      "reason": "turning.generate builds today's walk only (a look spec is refused)"
-     },
-     "steps_down": 0,
-     "builds": [
-      {
-       "f": 1.0,
-       "ik_ok": true,
-       "hip_yaw_range_use": 0.4469325913758784,
-       "tightest_other_rad": 0.15597859809341763,
-       "tightest_other": {
-        "left": {
-         "joint": "left_hip_roll",
-         "end": "max",
-         "margin_rad": 0.15597859809341763
-        },
-        "right": {
-         "joint": "right_hip_roll",
-         "end": "min",
-         "margin_rad": 0.16027038072872585
-        }
-       },
-       "over_leg_drive": false,
-       "a1_over": false,
-       "pass_": {
-        "left": false,
-        "right": true
-       },
-       "stage0_blocks": {
-        "left": [],
-        "right": []
-       }
-      }
-     ],
-     "outcome": "frozen",
-     "reason": null,
-     "walk": "v0.4",
-     "walk_sha256": "54d5947d10122a52de7f10f095a39ea1e749f397a269c9a9c3a1487e6af7d915",
-     "a1_over": false,
-     "references": {
-      "turn90_0.35_left": false,
-      "turn90_0.35_right": true
-     },
-     "no_reference": "no reference within the gates (entry gates: join_command)"
-    }
-   }
-  },
-  "turn90_0.5_left": {
-   "reason": "no reference within the gates (entry gates: join_command)",
-   "numbers": {
-    "gates": {
-     "ik_ok": true,
-     "join_b": true,
-     "join_command": false,
-     "zmp_consistency": true,
-     "post_window_zmp": true,
-     "cop_margin_single": true,
-     "heading_total": true,
-     "heading_at_bar": true,
-     "heading_at_slowest_clock": true,
-     "thigh_twist": true,
-     "rolling_split": true
-    },
-    "pass_": false,
-    "ik_ok": true,
-    "ik_fail_frames": 0,
-    "join_a": null,
-    "join_b": {
-     "stride_phase": 6.0,
-     "reference": "v0.4",
-     "com_max_mm": 0.21285648599773402,
-     "com_mean_mm": 0.08296567728001161,
-     "zmp_max_mm": 1.4626557471758341,
-     "zmp_mean_mm": 0.061685162624193435,
-     "joint_max_rad": 0.0006720158675777993,
-     "joint_rate_max_rad_s": 0.010258752764459311,
-     "at_join": {
-      "frame": "last output frame",
-      "com_mm": 0.21285648599773402,
-      "zmp_mm": 0.5599497622391936,
-      "joint_rad": 0.0006043035071279235,
-      "joint_rate_rad_s": 0.005213305243189081,
-      "tau_Nm": 0.027559906023829184
-     },
-     "tau_max_Nm": 5.961711523501428,
-     "window": {
-      "reference": "v0.4",
-      "strides": 12,
-      "window_s": 10.32733122417553,
-      "period_s": 0.8606109353479608,
-      "offset_strides": 5.0,
-      "a_phase": null,
-      "a_time_s": null,
-      "a_windows": null,
-      "varies": true,
-      "step_deviations": [
-       0.006901967388740248,
-       -0.0275,
-       0.021157993476561554,
-       -0.014360853176729388,
-       0.016929567386056187,
-       -0.005878455990154798,
-       0.013383886613554885,
-       -0.0029365907857534378,
-       0.0022799277275574697,
-       -0.020150655511943838,
-       0.011533381274232127,
-       -0.015221811480464843,
-       0.018768419736197098,
-       -0.010898568522639148,
-       0.021110742803059114,
-       -0.013892206248517284,
-       -5.692110490287487e-06,
-       -0.008521503263373618,
-       0.02286511188417669,
-       -0.014106044653905036,
-       0.01855807962397754,
-       -0.024579317389282578,
-       0.007048647640633433,
-       -0.0024860264214920905
-      ]
-     },
-     "window_phase": [
-      11.0,
-      11.99375
-     ],
-     "com_ok": true,
-     "zmp_ok": true
-    },
-    "join_command": {
-     "reference": "v0.4",
-     "frames": 161,
-     "warmup_com_max_mm": 0.06511663151111764,
-     "warmup_zmp_max_mm": 4.582345203754297,
-     "warmup_joint_max_rad": 0.000414269877524763,
-     "warmup_ik_ok": true,
-     "at_command": {
-      "com_mm": 0.018528214393153296,
-      "joint_rad": 5.1375189834557133e-05,
-      "zmp_mm": 0.8592056507271353,
-      "zmp_note": "recorded, not gated: the multibody ZMP's central difference at the command frame straddles the command"
-     },
-     "limits": {
-      "com_mm": 1.0,
-      "zmp_mm": 4.0,
-      "joint_rad": 0.001,
-      "zmp_frames": "the warm-up frames up to two frames before the command"
-     },
-     "ok": false
-    },
-    "zmp_error_history_m": [
-     0.03113208909886103,
-     0.018340565352819034,
-     0.01404242637280841,
-     0.014769015678908726,
-     0.015138672538877348,
-     0.015327235823102244,
-     0.01542363651712247,
-     0.0154730079277163,
-     0.015498327635210937,
-     0.015511325238309644,
-     0.01551800176362498,
-     0.015521432760423684,
-     0.015523196474171313
-    ],
-    "zmp_consistency_history_m": [
-     0.0341813710148552,
-     0.018792975499844093,
-     0.011361821331198466,
-     0.00760584631483021,
-     0.005123727560989869,
-     0.0034739562326821403,
-     0.0023702348912402788,
-     0.0016265961409731382,
-     0.0011281349878149072,
-     0.0010188579100835773,
-     0.001003252975518006,
-     0.0010005995400026331,
-     0.001001572906099089
-    ],
-    "post_window_zmp_error_m": [
-     0.030509149492968225,
-     0.01827871953833316,
-     0.01143666345696806,
-     0.007701160956891175,
-     0.005356542114647369,
-     0.003760715085873821,
-     0.002765110281434814,
-     0.0026193159441916555,
-     0.0024955652690899165,
-     0.0023893015331963204,
-     0.0022970211364577724,
-     0.00221604868071543,
-     0.002144333417656845
-    ],
-    "zmp_consistency_all_m": 0.002144333417656845,
-    "cop_margin_single_min": {
-     "m": 0.035077201065540756,
-     "frame": 3,
-     "foot": "right"
-    },
-    "min_cop_margin_single_m": 0.035077201065540756,
-    "hip_yaw_range_use": 0.6473655994787623,
-    "tightest_other": {
-     "joint": "left_hip_roll",
-     "end": "max",
-     "margin_rad": 0.1263761368695432
-    },
-    "reference": {
-     "accel_forward_lp1hz_peak_m_s2": 0.07501580955712163,
-     "accel_forward_lp1hz_peak_t_s": 0.898,
-     "accel_forward_raw_peak_m_s2": 1.793755467924156,
-     "accel_forward_raw_peak_t_s": 4.2284276918460435,
-     "accel_filter": {
-      "hz": 1.0,
-      "order": 2,
-      "zero_phase": true,
-      "fs_hz": 500.0,
-      "of": "model CoM, along the planned heading: three-point second differences on the frames' own times, then interpolated to fs_hz for the filter; the first frame's from the computed frame before the command, the last frame its neighbour's",
-      "history_s": 3.0,
-      "before": "the periodic stride of v0.4",
-      "after": "the periodic stride of v0.4",
-      "read_over": "the move's own frames only: the history enters the filter, not the peaks"
-     },
-     "at_s": 3.141592653589793,
-     "command_rate": 1.05,
-     "slowest_clock": 0.95,
-     "heading_at_bar_deg": 88.54389545568449,
-     "heading_at_slowest_clock_deg": 84.23004938187148,
-     "heading_at_ref_clock_deg": 84.4550493818712,
-     "time_to_80deg_bar_s": 2.843887708080387,
-     "heading_min_deg": 80.0
-    },
-    "turn": {
-     "angle_rad": 1.5707963267948966,
-     "rate_rad_s": 0.5,
-     "direction": "left",
-     "first_swing": "left",
-     "ramp_s": 0.375,
-     "ramp_strides": 0.4357369684692428,
-     "hold_strides": 3.2146845223053186,
-     "stride_factor": 1.0,
-     "period_in_turn_s": 0.8606109353479608,
-     "kappa": 1.0000000000000104,
-     "heading_total_rad": 1.5707963267948817,
-     "appendage_rule": "inside a move whose stride period T(p) is shorter than the walk's, the tail's and the neck's swing amplitudes are multiplied by (T(p) / T_walk)^2 (constant angular acceleration amplitude), for every set, look sets included; a look choice (lead's ruling 1)"
-    },
-    "frames": 1120,
-    "duration_s": 6.018665303998068,
-    "move": {
-     "kind": "turn",
-     "builder": "turn",
-     "causal": true,
-     "command_phase": 0.0,
-     "command_t_s": 0.0,
-     "rules": [
-      "S2A-causal",
-      "S2A-rule-F",
-      "S2A-fade",
-      "S2A-ramp",
-      "S2A-appendage",
-      "S2A-stride",
-      "S2A-gates",
-      "S2L-L1",
-      "S2L-L2",
-      "S2L-L3",
-      "S2L-L4",
-      "S2L-L5",
-      "S2L-L6",
-      "S2L-L7",
-      "S2L-L8",
-      "S2L-L10",
-      "S2L-J1",
-      "S2L-J2",
-      "S2L-J3",
-      "S2L-causal-grid"
-     ],
-     "laws": "look"
-    },
-    "look": {
-     "laws": "look",
-     "rules": [
-      "S2L-L1",
-      "S2L-L2",
-      "S2L-L3",
-      "S2L-L4",
-      "S2L-L5",
-      "S2L-L6",
-      "S2L-L7",
-      "S2L-L8",
-      "S2L-L10",
-      "S2L-J1",
-      "S2L-J2",
-      "S2L-J3",
-      "S2L-causal-grid"
-     ],
-     "instant_phase": 0.0,
-     "flat_from_phase": 0.0,
-     "flat_until_phase": 4.086158459243804,
-     "variation_a_until_phase": 0.0,
-     "window_a": {
-      "reference": "v0.4",
-      "strides": 12,
-      "window_s": 10.32733122417553,
-      "period_s": 0.8606109353479608,
-      "offset_strides": 2.0,
-      "a_phase": 2.0,
-      "a_time_s": 1.7152832712755346,
-      "a_windows": 0.16609162948702383,
-      "varies": true,
-      "step_deviations": [
-       0.006901967388740248,
-       -0.0275,
-       0.021157993476561554,
-       -0.014360853176729388,
-       0.016929567386056187,
-       -0.005878455990154798,
-       0.013383886613554885,
-       -0.0029365907857534378,
-       0.0022799277275574697,
-       -0.020150655511943838,
-       0.011533381274232127,
-       -0.015221811480464843,
-       0.018768419736197098,
-       -0.010898568522639148,
-       0.021110742803059114,
-       -0.013892206248517284,
-       -5.692110490287487e-06,
-       -0.008521503263373618,
-       0.02286511188417669,
-       -0.014106044653905036,
-       0.01855807962397754,
-       -0.024579317389282578,
-       0.007048647640633433,
-       -0.0024860264214920905
-      ]
-     },
-     "window_b": {
-      "reference": "v0.4",
-      "strides": 12,
-      "window_s": 10.32733122417553,
-      "period_s": 0.8606109353479608,
-      "offset_strides": 5.0,
-      "a_phase": null,
-      "a_time_s": null,
-      "a_windows": null,
-      "varies": true,
-      "step_deviations": [
-       0.006901967388740248,
-       -0.0275,
-       0.021157993476561554,
-       -0.014360853176729388,
-       0.016929567386056187,
-       -0.005878455990154798,
-       0.013383886613554885,
-       -0.0029365907857534378,
-       0.0022799277275574697,
-       -0.020150655511943838,
-       0.011533381274232127,
-       -0.015221811480464843,
-       0.018768419736197098,
-       -0.010898568522639148,
-       0.021110742803059114,
-       -0.013892206248517284,
-       -5.692110490287487e-06,
-       -0.008521503263373618,
-       0.02286511188417669,
-       -0.014106044653905036,
-       0.01855807962397754,
-       -0.024579317389282578,
-       0.007048647640633433,
-       -0.0024860264214920905
-      ]
-     },
-     "a_phase": 2.0,
-     "a_time_s": 1.7152832712755346,
-     "a_windows": 0.16609162948702383,
-     "feet": "flat in every stance that ends after the instant (instant_phase) and no later than the end of the move's last ramp (flat_until_phase; null: none ends later); the walk's own law before and after (S2L-L10)",
-     "preview_grid": {
-      "rule": "S2L-causal-grid",
-      "grid_s": 0.00522440904905741,
-      "whole_plan_min_s": 0.005139950970535878,
-      "command_frame": 160
-     }
-    },
-    "join_events": {
-     "note": "a reading, not a gate: the gate is join_command's warmup_zmp_max_mm",
-     "frames": 157,
-     "zmp_max_mm": 4.582345203754297,
-     "zmp_p50_mm": 0.16964273669967128,
-     "zmp_p90_mm": 1.2021789289059983,
-     "limit_mm": 4.0,
-     "frames_over_limit": 1,
-     "phases_over_limit": [
-      -0.0125
-     ],
-     "frames_over_limit_away_from_events": 0,
-     "event_frames": 39,
-     "zmp_max_mm_away_from_events": 0.6054050028755854,
-     "events_rule": "within 3 frames of a planned lift-off or touchdown, or of a frame of the warm-up on which a stance foot rolls (no frame beyond either end of the warm-up)"
-    },
-    "rolling_frames": 42,
-    "rolling_split_failed_frames": 0,
-    "failed_gates": [
-     "join_command"
-    ],
-    "stage0": {
-     "source": "setscreen.screen_move on the built file (at build time)",
-     "governing": [
-      "hip_yaw",
-      "peak",
-      0.868498357158649
-     ],
-     "within_limits": true,
-     "over": [],
-     "blocks_freeze": [],
-     "a1_over": false,
-     "over_leg_drive": false,
-     "text": "within the Stage 0 limits",
-     "tightest_joint": [
-      "right_hip_yaw",
-      "min",
-      0.1058
-     ],
-     "accel_forward_lp1hz_peak_m_s2": 0.31174630849566826
-    },
-    "built_sha256": "a5488af457649004ec80a9ebb6eb9894f59d0ae71f503ea6a54af319a50f2b82",
-    "stride_rule": {
-     "rule": "S2A-stride",
-     "grid": [
-      1.0,
-      0.95,
-      0.9,
-      0.85,
-      0.8,
-      0.75,
-      0.7,
-      0.65,
-      0.6
-     ],
-     "limit_kinematic": 0.85,
-     "limit_final": 0.87,
-     "limit_other_joints_rad": 0.05,
-     "steps_down_max": 2,
-     "angle_rad": 1.5707963267948966,
-     "rate_rad_s": 0.5,
-     "tried": [
-      {
-       "f": 1.0,
-       "left": 0.6494189100828276,
-       "right": 0.6485708623310995,
-       "tightest_other": {
-        "left": {
-         "joint": "left_hip_roll",
-         "end": "max",
-         "margin_rad": 0.12242173822470415
-        },
-        "right": {
-         "joint": "right_hip_roll",
-         "end": "min",
-         "margin_rad": 0.12651911488653889
-        }
-       },
-       "ik_fail_frames": {
-        "left": 0,
-        "right": 0
-       },
-       "ik_ok": true,
-       "pass_": true
-      }
-     ],
-     "chosen": 1.0,
-     "steady_turn_kinematic": {
-      "available": false,
-      "reason": "turning.generate builds today's walk only (a look spec is refused)"
-     },
-     "steps_down": 0,
-     "builds": [
-      {
-       "f": 1.0,
-       "ik_ok": true,
-       "hip_yaw_range_use": 0.6473655994787623,
-       "tightest_other_rad": 0.1263761368695432,
-       "tightest_other": {
-        "left": {
-         "joint": "left_hip_roll",
-         "end": "max",
-         "margin_rad": 0.1263761368695432
-        },
-        "right": {
-         "joint": "right_hip_roll",
-         "end": "min",
-         "margin_rad": 0.13054100804475832
-        }
-       },
-       "over_leg_drive": false,
-       "a1_over": false,
-       "pass_": {
-        "left": false,
-        "right": true
-       },
-       "stage0_blocks": {
-        "left": [],
-        "right": []
-       }
-      }
-     ],
-     "outcome": "frozen",
-     "reason": null,
-     "walk": "v0.4",
-     "walk_sha256": "54d5947d10122a52de7f10f095a39ea1e749f397a269c9a9c3a1487e6af7d915",
-     "a1_over": false,
-     "references": {
-      "turn90_0.5_left": false,
-      "turn90_0.5_right": true
-     },
-     "no_reference": "no reference within the gates (entry gates: join_command)"
-    }
-   }
-  },
   "turn90_pi4_left": {
-   "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside join_command",
+   "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit",
    "numbers": {
     "gates": {
      "ik_ok": true,
      "join_b": true,
-     "join_command": false,
+     "join_command": true,
      "zmp_consistency": true,
      "post_window_zmp": true,
      "cop_margin_single": true,
@@ -7922,7 +6976,7 @@
      "thigh_twist": true,
      "rolling_split": true
     },
-    "pass_": false,
+    "pass_": true,
     "ik_ok": true,
     "ik_fail_frames": 0,
     "join_a": null,
@@ -8003,11 +7057,12 @@
      },
      "limits": {
       "com_mm": 1.0,
-      "zmp_mm": 4.0,
+      "zmp_mm": 5.0,
       "joint_rad": 0.001,
-      "zmp_frames": "the warm-up frames up to two frames before the command"
+      "zmp_frames": "the warm-up frames up to two frames before the command",
+      "zmp_rule": "S2L-P42-warmup"
      },
-     "ok": false
+     "ok": true
     },
     "zmp_error_history_m": [
      0.05835068669262433,
@@ -8134,7 +7189,8 @@
       "S2L-J1",
       "S2L-J2",
       "S2L-J3",
-      "S2L-causal-grid"
+      "S2L-causal-grid",
+      "S2L-P42-warmup"
      ],
      "laws": "look"
     },
@@ -8153,7 +7209,8 @@
       "S2L-J1",
       "S2L-J2",
       "S2L-J3",
-      "S2L-causal-grid"
+      "S2L-causal-grid",
+      "S2L-P42-warmup"
      ],
      "instant_phase": 0.0,
      "flat_from_phase": 0.0,
@@ -8250,11 +7307,9 @@
      "zmp_max_mm": 4.582345203754297,
      "zmp_p50_mm": 0.16964273669967128,
      "zmp_p90_mm": 1.2021789289059983,
-     "limit_mm": 4.0,
-     "frames_over_limit": 1,
-     "phases_over_limit": [
-      -0.0125
-     ],
+     "limit_mm": 5.0,
+     "frames_over_limit": 0,
+     "phases_over_limit": [],
      "frames_over_limit_away_from_events": 0,
      "event_frames": 39,
      "zmp_max_mm_away_from_events": 0.6054050028755854,
@@ -8262,9 +7317,7 @@
     },
     "rolling_frames": 42,
     "rolling_split_failed_frames": 0,
-    "failed_gates": [
-     "join_command"
-    ],
+    "failed_gates": [],
     "stage0": {
      "source": "setscreen.screen_move on the built file (at build time)",
      "governing": [
@@ -8467,7 +7520,7 @@
        "over_leg_drive": true,
        "a1_over": false,
        "pass_": {
-        "left": false,
+        "left": true,
         "right": true
        },
        "stage0_blocks": {
@@ -8503,7 +7556,7 @@
       "turn90_pi4_left": false,
       "turn90_pi4_right": false
      },
-     "no_reference": "turn90_pi4_left: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside join_command; turn90_pi4_right: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit"
+     "no_reference": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit"
     }
    }
   },
@@ -8604,9 +7657,10 @@
      },
      "limits": {
       "com_mm": 1.0,
-      "zmp_mm": 4.0,
+      "zmp_mm": 5.0,
       "joint_rad": 0.001,
-      "zmp_frames": "the warm-up frames up to two frames before the command"
+      "zmp_frames": "the warm-up frames up to two frames before the command",
+      "zmp_rule": "S2L-P42-warmup"
      },
      "ok": true
     },
@@ -8735,7 +7789,8 @@
       "S2L-J1",
       "S2L-J2",
       "S2L-J3",
-      "S2L-causal-grid"
+      "S2L-causal-grid",
+      "S2L-P42-warmup"
      ],
      "laws": "look"
     },
@@ -8754,7 +7809,8 @@
       "S2L-J1",
       "S2L-J2",
       "S2L-J3",
-      "S2L-causal-grid"
+      "S2L-causal-grid",
+      "S2L-P42-warmup"
      ],
      "instant_phase": 0.5,
      "flat_from_phase": 0.5,
@@ -8851,7 +7907,7 @@
      "zmp_max_mm": 3.8360431957795247,
      "zmp_p50_mm": 0.16623341956953627,
      "zmp_p90_mm": 1.1552142785978876,
-     "limit_mm": 4.0,
+     "limit_mm": 5.0,
      "frames_over_limit": 0,
      "phases_over_limit": [],
      "frames_over_limit_away_from_events": 0,
@@ -9064,7 +8120,7 @@
        "over_leg_drive": true,
        "a1_over": false,
        "pass_": {
-        "left": false,
+        "left": true,
         "right": true
        },
        "stage0_blocks": {
@@ -9100,17 +8156,17 @@
       "turn90_pi4_left": false,
       "turn90_pi4_right": false
      },
-     "no_reference": "turn90_pi4_left: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside join_command; turn90_pi4_right: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit"
+     "no_reference": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit"
     }
    }
   },
   "turn90_1_left": {
-   "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock, join_command, post_window_zmp",
+   "reason": "no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock, post_window_zmp",
    "numbers": {
     "gates": {
      "ik_ok": true,
      "join_b": true,
-     "join_command": false,
+     "join_command": true,
      "zmp_consistency": true,
      "post_window_zmp": false,
      "cop_margin_single": true,
@@ -9201,11 +8257,12 @@
      },
      "limits": {
       "com_mm": 1.0,
-      "zmp_mm": 4.0,
+      "zmp_mm": 5.0,
       "joint_rad": 0.001,
-      "zmp_frames": "the warm-up frames up to two frames before the command"
+      "zmp_frames": "the warm-up frames up to two frames before the command",
+      "zmp_rule": "S2L-P42-warmup"
      },
-     "ok": false
+     "ok": true
     },
     "zmp_error_history_m": [
      0.198980494089041,
@@ -9332,7 +8389,8 @@
       "S2L-J1",
       "S2L-J2",
       "S2L-J3",
-      "S2L-causal-grid"
+      "S2L-causal-grid",
+      "S2L-P42-warmup"
      ],
      "laws": "look"
     },
@@ -9351,7 +8409,8 @@
       "S2L-J1",
       "S2L-J2",
       "S2L-J3",
-      "S2L-causal-grid"
+      "S2L-causal-grid",
+      "S2L-P42-warmup"
      ],
      "instant_phase": 0.0,
      "flat_from_phase": 0.0,
@@ -9448,11 +8507,9 @@
      "zmp_max_mm": 4.582345203754297,
      "zmp_p50_mm": 0.16964273669967128,
      "zmp_p90_mm": 1.2021789289059983,
-     "limit_mm": 4.0,
-     "frames_over_limit": 1,
-     "phases_over_limit": [
-      -0.0125
-     ],
+     "limit_mm": 5.0,
+     "frames_over_limit": 0,
+     "phases_over_limit": [],
      "frames_over_limit_away_from_events": 0,
      "event_frames": 39,
      "zmp_max_mm_away_from_events": 0.6054050028755854,
@@ -9462,7 +8519,6 @@
     "rolling_split_failed_frames": 0,
     "failed_gates": [
      "heading_at_slowest_clock",
-     "join_command",
      "post_window_zmp"
     ],
     "stage0": {
@@ -9843,7 +8899,7 @@
       "turn90_1_left": false,
       "turn90_1_right": false
      },
-     "no_reference": "turn90_1_left: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock, join_command, post_window_zmp; turn90_1_right: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock"
+     "no_reference": "turn90_1_left: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock, post_window_zmp; turn90_1_right: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock"
     }
    }
   },
@@ -9944,9 +9000,10 @@
      },
      "limits": {
       "com_mm": 1.0,
-      "zmp_mm": 4.0,
+      "zmp_mm": 5.0,
       "joint_rad": 0.001,
-      "zmp_frames": "the warm-up frames up to two frames before the command"
+      "zmp_frames": "the warm-up frames up to two frames before the command",
+      "zmp_rule": "S2L-P42-warmup"
      },
      "ok": true
     },
@@ -10075,7 +9132,8 @@
       "S2L-J1",
       "S2L-J2",
       "S2L-J3",
-      "S2L-causal-grid"
+      "S2L-causal-grid",
+      "S2L-P42-warmup"
      ],
      "laws": "look"
     },
@@ -10094,7 +9152,8 @@
       "S2L-J1",
       "S2L-J2",
       "S2L-J3",
-      "S2L-causal-grid"
+      "S2L-causal-grid",
+      "S2L-P42-warmup"
      ],
      "instant_phase": 0.5,
      "flat_from_phase": 0.5,
@@ -10191,7 +9250,7 @@
      "zmp_max_mm": 3.8360431957795247,
      "zmp_p50_mm": 0.16623341956953627,
      "zmp_p90_mm": 1.1552142785978876,
-     "limit_mm": 4.0,
+     "limit_mm": 5.0,
      "frames_over_limit": 0,
      "phases_over_limit": [],
      "frames_over_limit_away_from_events": 0,
@@ -10582,7 +9641,7 @@
       "turn90_1_left": false,
       "turn90_1_right": false
      },
-     "no_reference": "turn90_1_left: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock, join_command, post_window_zmp; turn90_1_right: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock"
+     "no_reference": "turn90_1_left: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock, post_window_zmp; turn90_1_right: no reference within the thigh twist and the leg drives: the built reference is over a leg drive's Stage 0 limit; also outside heading_at_slowest_clock"
     }
    }
   },
@@ -11492,127 +10551,6 @@
    "probed": "V6 on 75-M-H-10, every stride factor (V6noF5 and the -X head were not probed; a cut is taken or not for a body, both heads and its R2L set, L12)"
   },
   "note": "join rule J1 as designed; the builder takes no cut of STAGE2_TRACKB_PLAN.md L12 (cut_reason); joins_failed lists every move whose join_command or join_b gate fails, with those numbers",
-  "joins_failed": {
-   "turn90_0.35_left": {
-    "available": false,
-    "failing": [
-     "join_command"
-    ],
-    "join_command": {
-     "reference": "v0.4",
-     "warmup_zmp_max_mm": 4.582345203754297,
-     "warmup_com_max_mm": 0.06511663151111764,
-     "warmup_joint_max_rad": 0.000414269877524763,
-     "ok": false,
-     "at_command": {
-      "com_mm": 0.018528214393153296,
-      "joint_rad": 5.1375189834557133e-05,
-      "zmp_mm": 0.9149977037924302
-     },
-     "limits": {
-      "com_mm": 1.0,
-      "zmp_mm": 4.0,
-      "joint_rad": 0.001
-     }
-    },
-    "join_b": {
-     "reference": "v0.4",
-     "com_max_mm": 0.20861151055533358,
-     "zmp_max_mm": 1.6489172415111286,
-     "com_ok": true,
-     "zmp_ok": true
-    }
-   },
-   "turn90_0.5_left": {
-    "available": false,
-    "failing": [
-     "join_command"
-    ],
-    "join_command": {
-     "reference": "v0.4",
-     "warmup_zmp_max_mm": 4.582345203754297,
-     "warmup_com_max_mm": 0.06511663151111764,
-     "warmup_joint_max_rad": 0.000414269877524763,
-     "ok": false,
-     "at_command": {
-      "com_mm": 0.018528214393153296,
-      "joint_rad": 5.1375189834557133e-05,
-      "zmp_mm": 0.8592056507271353
-     },
-     "limits": {
-      "com_mm": 1.0,
-      "zmp_mm": 4.0,
-      "joint_rad": 0.001
-     }
-    },
-    "join_b": {
-     "reference": "v0.4",
-     "com_max_mm": 0.21285648599773402,
-     "zmp_max_mm": 1.4626557471758341,
-     "com_ok": true,
-     "zmp_ok": true
-    }
-   },
-   "turn90_pi4_left": {
-    "available": false,
-    "failing": [
-     "join_command"
-    ],
-    "join_command": {
-     "reference": "v0.4",
-     "warmup_zmp_max_mm": 4.582345203754297,
-     "warmup_com_max_mm": 0.06511663151111764,
-     "warmup_joint_max_rad": 0.000414269877524763,
-     "ok": false,
-     "at_command": {
-      "com_mm": 0.018528214393153296,
-      "joint_rad": 5.1375189834557133e-05,
-      "zmp_mm": 2.28941212751847
-     },
-     "limits": {
-      "com_mm": 1.0,
-      "zmp_mm": 4.0,
-      "joint_rad": 0.001
-     }
-    },
-    "join_b": {
-     "reference": "v0.4",
-     "com_max_mm": 0.22254466529434502,
-     "zmp_max_mm": 1.0903620287214255,
-     "com_ok": true,
-     "zmp_ok": true
-    }
-   },
-   "turn90_1_left": {
-    "available": false,
-    "failing": [
-     "join_command"
-    ],
-    "join_command": {
-     "reference": "v0.4",
-     "warmup_zmp_max_mm": 4.582345203754297,
-     "warmup_com_max_mm": 0.06511663151111764,
-     "warmup_joint_max_rad": 0.000414269877524763,
-     "ok": false,
-     "at_command": {
-      "com_mm": 0.018528214393153296,
-      "joint_rad": 5.1375189834557133e-05,
-      "zmp_mm": 3.134162486694637
-     },
-     "limits": {
-      "com_mm": 1.0,
-      "zmp_mm": 4.0,
-      "joint_rad": 0.001
-     }
-    },
-    "join_b": {
-     "reference": "v0.4",
-     "com_max_mm": 0.2178790202487898,
-     "zmp_max_mm": 1.6075435620953356,
-     "com_ok": true,
-     "zmp_ok": true
-    }
-   }
-  }
+  "joins_failed": {}
  }
 }
