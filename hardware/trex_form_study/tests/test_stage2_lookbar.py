@@ -1842,6 +1842,30 @@ def test_the_g9_ref_check_is_gates2s(look_root, monkeypatch):
 
 
 @needs_one_thread
+def test_episodes_on_a_version_of_a_look_set_count_reading_1(look_root, tmp_path, monkeypatch):
+    """The lead's ruling 31 of 17 Nov 2026, point 3: a version of a look set is a look set in ``episodes`` (reading 1
+    counts there), and its rows carry the G9-ref record's citation.  The set's reading and the bar's episode are
+    stood in (``open_set``, ``bar.run_episode``): nothing is simulated."""
+    root, shas = look_root
+    g9 = g9_ref_record("V6.2", shas["V6.2"])
+    cond = types.SimpleNamespace(key="walk/v0.4", judge="bar_walk")
+    monkeypatch.setattr(lookbar, "open_set", lambda *a, **k: dict(ctx=None, conds={"walk/v0.4": cond}, missing={}))
+    monkeypatch.setattr(panels, "episode_seeds", lambda c, seed: dict(start=seed, noise=seed))
+
+    def run_episode(row, ctx, c, seed, **kw):
+        lookbar.look_row_of(row).last = dict(block(seed), g9_ref=lookbar.look_row_of(row).g9_ref)
+        return bar_ep(seed)
+
+    monkeypatch.setattr(bar, "run_episode", run_episode)
+    rows = {"R0L@10ms": stand_in("R0L@10ms")}
+    for set_name, counted in (("V6.2", True), ("T0", False)):
+        (e,) = lookbar.episodes(BODY, set_name, rows, [("walk/v0.4", 3042)], root=root)
+        assert e["outcome"] == "read" and (e["succeeded_look"] is not None) is counted, set_name
+        assert e["reading_1"] == lookbar.READING_1["walk_turn" if counted else "not_counted"]
+    assert rows["R0L@10ms"].g9_ref == dict(path=s2io.portable(str(g9.resolve())), sha256=s2io.sha256_file(g9))
+
+
+@needs_one_thread
 def test_lookbar_run_and_episodes_go_through_the_rule(look_root, tmp_path, monkeypatch, capsys):
     root, shas = look_root
     out, own = tmp_path / "out", bar._check_rule
