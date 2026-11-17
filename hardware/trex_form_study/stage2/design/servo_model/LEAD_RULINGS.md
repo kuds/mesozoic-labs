@@ -55,3 +55,17 @@ The first list named 18 points; the note's section of open choices holds 27. The
 - *The names of the served rows:* settled in the build's brief, not here.
 - *A failed repeat of the drawn panel on the second block of seeds:* whether it stops a purchase is the owner's,
   and is asked with condition 2. The lead recommends that the repeat must pass too.
+
+## Third list (17 Nov 2026, ~10:55 UTC), on S1's fix round (`S1_fix_17nov.md`)
+
+- *The gain-copy split (fix report, point 1).* Kept. Section 2d's gain-copies table and the note to ruling 21 are
+  amended to say what the code does. A served R2 row whose tracker is built inside the episode takes the run's kv
+  in its ankle cap at J+ and W1, and both are reported only.
+- *The five cells with no kind (point 6):* the armature of the neck, kp_scale of the tail, kv_scale of the neck and
+  the tail, and latency_steps. Option (c): section 3 names their kind as "the study's assumption [A]", which is what
+  the code already writes, so `TABLE_SHA256` does not move.
+- *Trap 8 (point 7).* The stricter refusal stays: the layer refuses to enter over a step hook it did not install.
+  Trap 8 is reworded to say so.
+- *`train2.SOURCE_FILES` (point 8).* S2 adds `servo` and `g8s`.
+- *The builder's (b):* the first box-servo target is taken at step 0, as built and tested.
+- *The builder's (d):* X6L's slope stays 6.23, as built, while X6L is reported only.
