@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import inspect
 import json
 import os
 import shutil
@@ -28,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from designlab.stage1 import metrics, panels, plant, tune  # noqa: E402
-from designlab.stage2 import bar, g8a, lookbar, lookread, s2io, setio  # noqa: E402
+from designlab.stage2 import bar, g8a, gates2, lookbar, lookread, s2io, setio  # noqa: E402
 
 BODY = "75-M-H-10"
 RUN = ROOT / "stage1" / "runs" / "2026-11-08"
@@ -285,6 +286,13 @@ def test_what_is_relied_on_from_the_bar():
         bar._check_rule("V6", ["R0L@10ms"], 20, None, None, None, None)
     bar._check_rule("V6", ["R0@10ms"], 20, None, None, None, None)
     bar._check_rule("S1", ["R0L@10ms", "R5/42@10ms"], 20, None, None, None, None)
+    # the look sets' own rule (RULES["look_sets"]) stands in front of that check where bar.evaluate calls it, and
+    # reads the evaluation's body and set root in its frame
+    assert list(inspect.signature(bar._check_rule).parameters) == [
+        "set_name", "row_names", "episodes", "task", "dev_episodes", "passed_of", "control", "block"]
+    code = bar.evaluate.__code__
+    assert "_check_rule" in code.co_names and {"body", "root"} <= set(code.co_varnames) and lookbar._EVALUATE_CODE is code
+    assert bar._ROW_NAME.match("R0L@10ms").group("inner", "ms") == ("R0L", "10")
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1183,6 +1191,24 @@ PAIRS = [("walk/nominal", 6001), ("walk/v0.4", 6004), ("turn/q90_left", 6007), (
          ("nudge/forward", 6013), ("turn/q90_right", 6016)]
 
 
+# (rule X1, RULES["look_sets"]: an episode on a look set runs only once its G9-ref has passed; gates2.GATES is a
+# temporary directory in every test that writes one)
+def g9_ref_record(set_name, manifest_sha256, pass_=True, body=BODY, of=None, schema=None) -> Path:
+    """A G9-ref record (``gates2.finish``: its sha256 its own) at ``gates2.gate_path(set_name, body, "g9_ref")``;
+    ``of``: the (set, body) it names, when not these."""
+    s, b = of or (set_name, body)
+    path = gates2.gate_path(set_name, body, "g9_ref")
+    gates2.finish(dict(schema=schema or gates2.SCHEMAS["g9_ref"], set=s, body=b, pass_=pass_, at="fixture",
+                       set_freeze=dict(index=0, manifest_sha256=manifest_sha256)), path)
+    return path
+
+
+def passed_g9_ref(set_name, root, body=BODY) -> Path:
+    """A passed G9-ref record of a frozen set under ``root``, made on its latest freeze."""
+    fz = setio.frozen(s2io.read_json(setio.set_dir(set_name, body, root) / "set.json"))
+    return g9_ref_record(set_name, fz["manifest_sha256"], body=body)
+
+
 @needs_run
 def test_episodes_on_the_fixture_set(t0, tmp_path, monkeypatch):
     rows = lookbar.rows(BODY, ["R0L@10ms"])
@@ -1212,8 +1238,13 @@ def test_episodes_on_the_fixture_set(t0, tmp_path, monkeypatch):
     assert stop["on_command_at_stop"]["command_s"] is not None and stop["on_command_at_stop"]["speed_m_s"] > 0.3
     assert stop["look"] is None and stop["look_reason"].startswith("nudge and stop items")
     assert by["turn/q90_left"]["look_reason"] == "fell before its window" and by["turn/q90_left"]["failed_terms"] == ["survived"]
-    # the same episodes on a look set (the fixture named one for this test): the look terms decide reading 1
+    # the same episodes on a look set (the fixture named one for this test): the look terms decide reading 1; they
+    # run there only once its G9-ref has passed on its latest freeze (rule X1, RULES["look_sets"])
     monkeypatch.setattr(lookbar, "LOOK_SETS", ("V6", SET))
+    monkeypatch.setattr(gates2, "GATES", tmp_path / "gates")
+    with pytest.raises(lookbar.LookSetRefused, match=f"{SET}/{BODY}: there is no G9-ref record"):
+        lookbar.episodes(BODY, SET, rows, PAIRS[:2], root=t0)
+    passed_g9_ref(SET, t0)
     on = lookbar.episodes(BODY, SET, rows, PAIRS[:2], root=t0)
     assert [e["state_digest"] for e in on] == [e["state_digest"] for e in eps[:2]]  # the same episodes
     assert on[0]["succeeded"] is True and on[0]["succeeded_look"] is False and on[0]["failed_terms"] == ["look_bob", "look_head"]
@@ -1221,7 +1252,7 @@ def test_episodes_on_the_fixture_set(t0, tmp_path, monkeypatch):
 
 
 @needs_run
-def test_episodes_catches_the_bars_unreadable_apart_from_any_other_fault(t0, monkeypatch):
+def test_episodes_catches_the_bars_unreadable_apart_from_any_other_fault(t0, tmp_path, monkeypatch):
     rows = lookbar.rows(BODY, ["R0L@0ms"])
     real = bar.run_episode
     calls = []
@@ -1237,6 +1268,8 @@ def test_episodes_catches_the_bars_unreadable_apart_from_any_other_fault(t0, mon
 
     monkeypatch.setattr(bar, "run_episode", run_episode)
     monkeypatch.setattr(lookbar, "LOOK_SETS", ("V6", SET))
+    monkeypatch.setattr(gates2, "GATES", tmp_path / "gates")
+    passed_g9_ref(SET, t0)  # (rule X1 on a look set: RULES["look_sets"])
     eps = lookbar.episodes(BODY, SET, rows, [("walk/nominal", 6001), ("walk/nominal", 6002), ("walk/nominal", 6003)], root=t0)
     assert calls == [("walk/nominal", s) for s in (6001, 6002, 6003)]  # the others go on, none is run twice
     # R0L has no policy: its unreadable episode is an error, for which C8 stands

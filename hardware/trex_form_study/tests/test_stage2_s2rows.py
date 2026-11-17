@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from designlab.stage1 import panels, plant  # noqa: E402
-from designlab.stage2 import bar, lookbar, r5lib, s2io, s2load, s2rows, setio  # noqa: E402
+from designlab.stage2 import bar, gates2, lookbar, r5lib, s2io, s2load, s2rows, setio  # noqa: E402
 
 BODY, BODY_X = "75-M-H-10", "75-M-H-10-X"
 RUN = ROOT / "stage1" / "runs" / "2026-11-08"
@@ -610,8 +610,15 @@ def test_a_slowed_clock_leaves_a_bar_item_unread_and_a_later_freeze_is_accepted_
     inner = rows["R5/42@10ms"].inner.inner
     assert inner.describe()["run"]["set_freeze"] == fz and inner.provenance()["later_freeze"] is False
     pairs = [("walk/v0.4", 6004), ("walk/nominal", 6001), ("turn/q90_left", 6007)]
+    monkeypatch.setattr(gates2, "GATES", tmp_path / "gates")
     for look_sets in (lookbar.LOOK_SETS, ("V6", SET)):
         monkeypatch.setattr(lookbar, "LOOK_SETS", look_sets)
+        if SET in look_sets:  # a look set: the row runs there only once its G9-ref has passed (lookbar.RULES["look_sets"])
+            with pytest.raises(lookbar.LookSetRefused, match=f"{SET}/{BODY}: there is no G9-ref record"):
+                lookbar.episodes(BODY, SET, rows, pairs, root=sets)
+            gates2.finish(dict(schema=gates2.SCHEMAS["g9_ref"], set=SET, body=BODY, pass_=True, at="fixture",
+                               set_freeze=setio.frozen(s2io.read_json(d / "set.json"))),
+                          gates2.gate_path(SET, BODY, "g9_ref"))
         eps = lookbar.episodes(BODY, SET, rows, pairs, root=sets)
         walk, nominal, turn = eps
         assert (walk["outcome"], walk["reason"], walk["fell"], walk["error"]) == ("unread", "clock_behind", False, None)
