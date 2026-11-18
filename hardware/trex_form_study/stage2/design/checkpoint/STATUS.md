@@ -805,3 +805,10 @@ and the chain's `--resume` on V10); the servo model's S1 low points and S2 (the 
 - Preservation (P47 to P49), with checks: the unpushed local branches (wt/wp-l, wt/wpc-ck, wt/wpc-cb, wt/wpc-ce)
   archived as a git bundle in the working branch; the frozen arrays not in s2-b1 packed on a second data branch;
   `RESUME.md`; then a pull request into main (P48).
+
+## Update, 18 Nov 2026, ~06:00 UTC: final handover (paused)
+
+- The T. rex study is paused and preserved (P47 to P51): `RESUME.md`; archive branch `claude/mesozoic-trex-stage2-archive-a1`
+  at f71cba4b; data branch s2-b1 unchanged; the branch bundle of 18 Nov. Pull request #670 merges the study and the
+  Triceratops kickoff docs (`hardware/triceratops_kickoff/`) into main (P48); the owner reviews and merges it.
+- The Triceratops work continues in a new session from `hardware/triceratops_kickoff/NEW_SESSION_PROMPT.md`.
