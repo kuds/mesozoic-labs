@@ -797,3 +797,11 @@ and the chain's `--resume` on V10); the servo model's S1 low points and S2 (the 
   Waiting on the owner's smoke. After it: read SMOKE.json from Drive, fill the smoke fields (sheet-check without
   --before-smoke), set BUDGET_STEPS and the table of launches, send the sheet again.
 - Meter: owner said 84 % at about $3,556 (00:13 UTC); 1 % is about $31; 95 % about $3,897.
+
+## Update, 18 Nov 2026, ~00:55 UTC: the T. rex is paused (P47 to P50)
+
+- The owner paused T. rex development (P47) and moves the project to a Triceratops build. The day-one smoke is
+  skipped (P50); the sheet stays valid for a restart while C1 cc437b6a and the data branch are not moved.
+- Preservation (P47 to P49), with checks: the unpushed local branches (wt/wp-l, wt/wpc-ck, wt/wpc-cb, wt/wpc-ce)
+  archived as a git bundle in the working branch; the frozen arrays not in s2-b1 packed on a second data branch;
+  `RESUME.md`; then a pull request into main (P48).
