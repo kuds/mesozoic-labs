@@ -1,5 +1,7 @@
 # T. rex form, size and posture study
 
+**Paused on 18 Nov 2026 by the owner's decision P47 ([DECISION_LOG.md](DECISION_LOG.md)): to restart, read [RESUME.md](RESUME.md).**
+
 A design study for the Mesozoic Labs robotic *T. rex*. Round one compared four sizes (60, 75, 100 and
 120 cm crown height), three widths, three body families and three postures, with real
 component envelopes, load-based actuator sizing, power, cost and mechanical screening. Round two
@@ -15,6 +17,7 @@ trained on Colab. Every result is simulation. Nothing is measured on hardware an
 
 | Read first | What it is |
 |---|---|
+| [RESUME.md](RESUME.md) | The pause of 18 Nov 2026 (P47): what the study reached, what is kept and where, how to restart, what was open, what carries over to other builds |
 | [LESSONS_LEARNED.md](LESSONS_LEARNED.md) | Where the work stands, what the robot can and cannot do in simulation, method and operating lessons, traps, next steps (14 Nov 2026) |
 | [NEXT_SESSION_PROMPT.md](NEXT_SESSION_PROMPT.md) | The prompt that starts the next working session |
 | [JETSON_PLEM_REVIEW.md](JETSON_PLEM_REVIEW.md) | Review of PR #668 (the 75 cm build with a Jetson Orin Nano Super): what to keep, what to treat with care, the next session's 75 cm + Jetson track and its owner decisions |
