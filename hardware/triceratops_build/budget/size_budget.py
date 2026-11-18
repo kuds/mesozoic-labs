@@ -157,10 +157,18 @@ ADDONS = [("Wireless safety stop, PL d, handler-held, with machine-side receiver
           ("Padded road case", 800, "PL EST")]
 
 
-def overheads(hw, duty_base):
+def overheads(hw, duty_base, duty=0.25, brokerage=0.0):
+    """T. rex way: hardware + 7.2 %. Landed: freight 5 %, duty on the drives, brokerage, sales tax 7 %, contingency 7 %."""
     trex = hw * 1.072
-    landed = (hw + 0.05 * hw + 0.25 * duty_base + 0.07 * hw) * 1.07
+    landed = (hw + 0.05 * hw + duty * duty_base + brokerage + 0.07 * hw) * 1.07
     return trex, landed
+
+
+# Duty scenarios for the MyActuator drives (owner-reported 18 Nov 2026, to confirm per order): items in stock at the
+# US store's Fremont warehouse have cleared customs (no duty); units dispatched from the factory in China pay about
+# 41.5 % in stacked US tariffs (HTS 8501.31.40.00) plus brokerage (no de minimis exemption since August 2025).
+DUTY_SCENARIOS = [("Fremont stock, duty paid (0 %)", 0.0, 0.0), ("planning nominal so far (25 %)", 0.25, 0.0),
+                  ("factory dispatch from China (41.5 % + brokerage, $150 EST)", 0.415, 150.0)]
 
 
 def main():
@@ -211,6 +219,18 @@ def main():
         for cat, item, usd, _ in bom(cfg, 0.5):
             cats[cat] = cats.get(cat, 0) + usd
         print("   hardware by category (half frame fixed, before expression):", {k: round(x) for k, x in cats.items()})
+    print("\n== Duty scenarios, option C (60 cm), full expression, museum-ready ==")
+    cfg = CONFIGS[2]
+    for ff, tag in ((0.0, "frame cost by area"), (0.5, "half the frame cost fixed")):
+        lines = bom(cfg, ff)
+        hw = sum(l[2] for l in lines) + expression("full", cfg[1])[1] + 2700
+        duty_base = sum(l[2] for l in lines if l[3])
+        for label, rate, brok in DUTY_SCENARIOS:
+            _, landed = overheads(hw, duty_base, rate, brok)
+            print(f"   [{tag}] {label:58s}: landed ${landed:,.0f}")
+    drives = sum(l[2] for l in bom(cfg, 0.0) if l[3])
+    print(f"   if the store's 20 % educational / research discount applied to the drives (${drives:,.0f}): "
+          f"-${0.2 * drives:,.0f} of hardware (eligibility not known)")
     print("\n== Optional add-ons (hardware, before overheads) ==")
     for item, usd, note in ADDONS:
         print(f"   +${usd:,.0f}  {item}  [{note}]")

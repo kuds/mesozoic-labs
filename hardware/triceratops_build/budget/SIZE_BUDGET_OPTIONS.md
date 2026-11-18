@@ -15,8 +15,11 @@ freight 5 %, duty 25 % on the drives (an assumption), sales tax 7 %, then 7 % co
 
 **Option C, 60 cm with the T. rex's drive set; the $20k ceiling counted landed, all-in; the wireless stop bought
 before any public demo; the full expression package.** On that basis the build is about $24.2k-$25.0k landed with
-contingency today, and near $19.9k-$20.8k if the four savings below come through, so the duty question to MyActuator
-and a quote for the wireless stop's receiver come first. Recorded in `../DECISION_LOG.md` (D1, D2, D12-D14).
+contingency at the planning duty of 25 %. **Update, same day (the owner's duty information and the store pages):**
+with all drives shipped from MyActuator's Fremont stock (no duty) it is $23.0k-$23.9k landed; dispatched from the
+factory in China (about 41.5 % tariffs plus brokerage) $25.1k-$25.9k. With Fremont stock, the receiver included in
+the stop kit, half the bench gear counted against the T. rex and the spares bought later, about $19.9k-$20.7k; a 20 %
+educational / research discount on the drives, if the project qualifies, would take about $1.0k more off. Recorded in `../DECISION_LOG.md` (D1, D2, D12-D14).
 
 ## Answer
 
@@ -77,7 +80,10 @@ labour, and PLEM.
 ## Getting a museum-ready 60 cm robot to $20k
 
 From option C's $23.9k-$24.7k landed:
-- **Duty:** if MyActuator's US store price is already landed (drafted question M4), about -$1.1k.
+- **Duty:** items in stock at MyActuator's US store (Fremont, California) have already cleared customs, so they carry
+  no duty (owner's information, 18 Nov 2026); all three drive pages showed "In Stock" that day. About -$1.1k against
+  the 25 % planning assumption. Units dispatched from the factory in China instead pay about 41.5 % plus brokerage
+  (+$0.9k against it). Confirm Fremont dispatch, or delivered-duty-paid terms, before ordering.
 - **Wireless stop:** if the kit includes its receiver, about -$1.0k landed; other makers' quotes may be lower.
 - **Bench gear:** the T. rex will reuse the $2.2k of bench gear (supply, torque rig, CAN adapter, camera, gantry); counting half of
   it against the T. rex is about -$1.3k landed. A team-built catch gantry saves more.
@@ -87,7 +93,10 @@ Taken together (about -$4.3k: the duty and spares savings overlap by $0.2k), C l
 full expression package, about $0.3k more. Option B is $1.2k cheaper in hardware ($1.6k landed) but
 has no heat margin at the elbows.
 
-**Price risk.** All drive prices are MyActuator's own US store (read 7 Nov 2026). At US reseller prices found on
+**Price risk.** All drive prices are MyActuator's own US store (read 7 Nov 2026; re-read 18 Nov 2026: X4-36-L $269,
+X6 $428, X8-150 $725, each "In Stock", "Maximum 50 units per product"; the X6 page lists 0.78 kg and 50 N·m, the
+X6-50-L's figures, which still pass option C's elbows at 0.53 of the peak rule; the pages also advertise 20 % off for
+educational and research institutions). At US reseller prices found on
 18 Nov 2026, option C's drives with spares rise from $4.2k to $5.9k (backordered listings) or $9.0k (RobotShop,
 tariffs included; it showed 2 X6 left, and its X4 listing is the X4-P36-36-E). Ask the maker before budgeting.
 

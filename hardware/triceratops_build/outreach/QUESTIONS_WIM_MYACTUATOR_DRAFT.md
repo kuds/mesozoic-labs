@@ -116,7 +116,12 @@ battery, 42-50 V.
 Thank you.
 ```
 
-### M4. The X6-80, the X6-60's heat data, and the US store's prices (PARTS_PREMIUM.md section 8, items 3 and 13)
+### M4. The X6-80, the X6-60's heat data, and the US store's stock and terms (PARTS_PREMIUM.md section 8, items 3 and 13)
+
+*Revised 18 Nov 2026 after the owner's information on duties: items in stock at the Fremont warehouse have cleared
+customs; factory-dispatched units pay about 41.5 % in tariffs plus brokerage. Questions (3) and (4) now ask about
+dispatch, the X6 variant and the educational discount. The owner has a contact address for MyActuator USA; it is not
+recorded here.*
 
 ```
 Subject: RMD-X6-P30-80-E price and heat data; RMD-X6-P20-60-E heat data; US store prices and lead times
@@ -127,9 +132,12 @@ send its temperature-rise table: how much torque does it hold continuously at 0 
 motor passing 100 °C?
 (2) RMD-X6-P20-60-E (V4): is there a temperature-rise table for it, like the one published for the
 RMD-X6-P20-50-E-L?
-(3) Do the prices on myactuator.us include US import duty and tariffs, or are they charged on delivery?
-(4) What are the current lead times from myactuator.us for the RMD-X4-P36-36-E-L, RMD-X6-P20-60-E and
-RMD-X8-P20-150-E, for 2 to 4 pieces of each?
+(3) I am considering an order of about 11 RMD-X4-P36-36-E-L and 3 RMD-X6 units from myactuator.us. Would they all
+ship from your Fremont, California stock, with no duties due on delivery? If any would ship from the factory, can
+you quote delivered-duty-paid terms?
+(4) The store listing "RMD-X6-P20-60" shows 0.78 kg and 50 N·m. Is the unit shipped the RMD-X6-P20-60-E (V4) or
+the RMD-X6-P20-50-E-L (V4.1)?
+(5) The store advertises 20 % off for educational and research institutions. What are the conditions?
 Thank you.
 ```
 
@@ -146,4 +154,6 @@ Thank you.
 | M3 | Whether 0.30 m/s is the X4's walking limit on 12S (E1); also the T. rex's X4 swing speeds if it moves to 12S |
 | M4 (1) | Whether an X6-80 can replace the front X8: 0.52 kg lighter per front leg, about 1.0 kg for the pair (parts list, 2.5) |
 | M4 (2) | The hind-knee and roll heat check, now judged against the X6-50-L's table as a stand-in |
-| M4 (3), (4) | Whether the totals' 25 % nominal duty applies; whether drive delivery (the critical path) fits T2 and T4 |
+| M4 (3) | Whether the build lands near $20k: no duty from Fremont stock, about +41.5 % from the factory |
+| M4 (4) | Which X6 the model and bench should use (bench question B2) |
+| M4 (5) | A possible -$0.85k on the drives |
