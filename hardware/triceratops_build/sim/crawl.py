@@ -30,8 +30,10 @@ PARAMS = {
     "lift_m": 0.04,        # swing foot clearance
     "shift_s": 0.50,       # four-foot body shift before each swing
     "swing_s": 0.50,       # swing duration
-    "margin_plan_m": 0.030,
-    "body_y_max_m": 0.070,
+    "margin_plan_m": 0.045,
+    "body_y_max_m": 0.090,
+    "lift_frac": 0.25,     # fraction of the swing spent lifting, and again lowering
+    "stance_press_m": 0.004,  # planted feet commanded this far below the floor (contact preload)
     "cycles": 8,
     "stand_s": 1.0,
     "control_dt": 0.010,
@@ -155,19 +157,20 @@ def plan(model, P):
 
 def trajectory(kin, steps, P):
     """Joint targets every control step, plus the phase table (swing windows)."""
-    feet = {c: kin.neutral_ankle[c].copy() for c in CORNERS}
+    press = np.array([0.0, 0.0, P["stance_press_m"]])
+    feet = {c: kin.neutral_ankle[c].copy() - press for c in CORNERS}
     b = np.array([0.0, 0.0])
     dt = P["control_dt"]
     t = P["stand_s"]
     times, targets, phases = [0.0, t], [], []
     qg = {c: np.zeros(3) for c in CORNERS}
-    q0 = np.zeros(12)
-    targets += [q0.copy(), q0.copy()]
+    qp, _, _ = kin.pose(0.0, 0.0, feet, qg)
+    targets += [np.zeros(12), np.concatenate([qp[c] for c in CORNERS])]
     leg_index = {c: i for i, c in enumerate(CORNERS)}
     for s in steps:
         b0, b1 = b.copy(), np.array(s["body"])
         L = s["leg"]
-        p0, p1 = np.array(s["from"]), np.array(s["to"])
+        p0, p1 = np.array(s["from"]) - press, np.array(s["to"]) - press
         n_shift, n_swing = round(P["shift_s"] / dt), round(P["swing_s"] / dt)
         for i in range(1, n_shift + n_swing + 1):
             if i <= n_shift:
@@ -178,8 +181,9 @@ def trajectory(kin, steps, P):
                 v = (i - n_shift) / n_swing
                 bb = b1
                 ft = dict(feet)
-                p = p0 + min_jerk(v) * (p1 - p0)
-                p[2] = p0[2] + P["lift_m"] * math.sin(math.pi * v) ** 2
+                f = P["lift_frac"]
+                p = p0 + min_jerk((v - f / 2) / (1 - f)) * (p1 - p0)
+                p[2] = p0[2] + P["lift_m"] * min(min_jerk(v / f), min_jerk((1 - v) / f))
                 ft[L] = p
             q, ok, _ = kin.pose(bb[0], bb[1], ft, qg)
             qg = q
@@ -336,7 +340,7 @@ def judge(r):
     info["joint_peak_rpm"] = dict(zip(names, (qv.max(0) * 60 / (2 * math.pi)).round(1).tolist()))
     info["plan_min_margin_m"] = min(s["margin_plan_m"] for s in r["plan"])
     info["plan_all_meet"] = all(s["meets_plan"] for s in r["plan"])
-    return out, info
+    return {k: bool(v) for k, v in out.items()}, info
 
 
 def main():

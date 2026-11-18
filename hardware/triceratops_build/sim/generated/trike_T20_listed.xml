@@ -134,6 +134,10 @@
       <geom name="right_shell_seam" type="capsule" fromto="-0.26 -0.121 -0.028 0.25 -0.121 -0.028" size="0.006" material="skin" mass="0.067105" />
       <geom name="torso_contact" type="ellipsoid" size="0.3 0.116 0.099" pos="0 0 0.005" material="skin" mass="0" rgba="0 0 0 0" class="chassis_collision" />
       <geom name="service_tray_contact" type="box" size="0.192 0.075 0.006" pos="-0.08 0 -0.075" material="bracket" mass="0" rgba="0 0 0 0" class="chassis_collision" />
+      <geom name="left_fore_x6_roll_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="chassis_collision" type="cylinder" fromto="0.29125 0.095 0 0.35875 0.095 0" size="0.0400" />
+      <geom name="right_fore_x6_roll_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="chassis_collision" type="cylinder" fromto="0.29125 -0.095 0 0.35875 -0.095 0" size="0.0400" />
+      <geom name="left_hind_x6_roll_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="chassis_collision" type="cylinder" fromto="-0.35875 0.095 0 -0.29125 0.095 0" size="0.0400" />
+      <geom name="right_hind_x6_roll_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="chassis_collision" type="cylinder" fromto="-0.35875 -0.095 0 -0.29125 -0.095 0" size="0.0400" />
       <geom name="jetson_orin_nano_super_kit" type="box" pos="-0.018 0 -0.046" size="0.05 0.04 0.0175" material="compute" mass="0.174" />
       <geom name="nvme_and_vibration_tray" type="box" pos="-0.018 0 -0.067" size="0.06 0.05 0.003" material="bracket" mass="0.10" />
       <geom name="oak_d_usb_c_lock_cable" type="capsule" fromto="0.25 0 0.055 0.15 0 0" size="0.003" material="harness" mass="0.03" />
@@ -180,6 +184,7 @@
         <geom name="left_fore_shoulder_yoke" type="capsule" fromto="0 0 0 0 0.08 0" size="0.014" material="bracket" mass="0.035" />
         <geom name="left_fore_x4_pitch_stator" type="cylinder" fromto="0 0.048 0 0 0.112 0" size="0.03" material="rotor" mass="0.36" />
         <geom name="left_fore_pitch_bearing_cap" type="cylinder" fromto="0 0.11 0 0 0.112 0" size="0.021" material="cap" mass="0" />
+        <geom name="left_fore_x4_pitch_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="0 0.048 0 0 0.112 0" size="0.03" />
         <body name="left_fore_upper_link" pos="0 0.08 0">
           <joint name="left_fore_pitch" axis="0 1 0" range="-38 38" armature="0.003240" />
           <geom name="left_fore_upper_strut" type="capsule" fromto="0 0 0 -0.15015168 0 -0.18077465" size="0.014" material="rail" mass="0.125" class="upper_collision" />
@@ -190,6 +195,7 @@
           <geom name="left_fore_drive_crank" type="cylinder" fromto="-0.0575049 -0.04775 -0.0692328 -0.0575049 -0.03575 -0.0692328" size="0.0430" material="bracket" mass="0.06800" />
           <geom name="left_fore_pushrod" type="capsule" fromto="-0.030581 -0.04175 -0.0915959 -0.123228 -0.04175 -0.203138" size="0.005" material="rail" mass="0.05100" />
           <geom name="left_fore_upper_limb_cover" type="capsule" fromto="0 0 0 -0.150152 0 -0.180775" size="0.03" material="skin" mass="0.06" rgba=".55 .50 .40 .35" />
+          <geom name="left_fore_x8_flexion_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="-0.0575049 -0.0355 -0.0692328 -0.0575049 0.0355 -0.0692328" size="0.0480" />
           <body name="left_fore_lower_link" pos="-0.15015168 0 -0.18077465">
             <joint name="left_fore_flexion" axis="0 -1 0" range="-47 36" armature="0.008925" damping=".20" />
             <geom name="left_fore_elbow_axle" type="cylinder" fromto="0 -0.045 0 0 0.005 0" size="0.008" material="cap" mass="0.01" />
@@ -213,6 +219,7 @@
         <geom name="right_fore_shoulder_yoke" type="capsule" fromto="0 0 0 0 -0.08 0" size="0.014" material="bracket" mass="0.035" />
         <geom name="right_fore_x4_pitch_stator" type="cylinder" fromto="0 -0.112 0 0 -0.048 0" size="0.03" material="rotor" mass="0.36" />
         <geom name="right_fore_pitch_bearing_cap" type="cylinder" fromto="0 -0.112 0 0 -0.11 0" size="0.021" material="cap" mass="0" />
+        <geom name="right_fore_x4_pitch_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="0 -0.112 0 0 -0.048 0" size="0.03" />
         <body name="right_fore_upper_link" pos="0 -0.08 0">
           <joint name="right_fore_pitch" axis="0 1 0" range="-38 38" armature="0.003240" />
           <geom name="right_fore_upper_strut" type="capsule" fromto="0 0 0 -0.15015168 0 -0.18077465" size="0.014" material="rail" mass="0.125" class="upper_collision" />
@@ -223,6 +230,7 @@
           <geom name="right_fore_drive_crank" type="cylinder" fromto="-0.0575049 0.03575 -0.0692328 -0.0575049 0.04775 -0.0692328" size="0.0430" material="bracket" mass="0.06800" />
           <geom name="right_fore_pushrod" type="capsule" fromto="-0.030581 0.04175 -0.0915959 -0.123228 0.04175 -0.203138" size="0.005" material="rail" mass="0.05100" />
           <geom name="right_fore_upper_limb_cover" type="capsule" fromto="0 0 0 -0.150152 0 -0.180775" size="0.03" material="skin" mass="0.06" rgba=".55 .50 .40 .35" />
+          <geom name="right_fore_x8_flexion_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="-0.0575049 -0.0355 -0.0692328 -0.0575049 0.0355 -0.0692328" size="0.0480" />
           <body name="right_fore_lower_link" pos="-0.15015168 0 -0.18077465">
             <joint name="right_fore_flexion" axis="0 -1 0" range="-47 36" armature="0.008925" damping=".20" />
             <geom name="right_fore_elbow_axle" type="cylinder" fromto="0 -0.005 0 0 0.045 0" size="0.008" material="cap" mass="0.01" />
@@ -246,6 +254,7 @@
         <geom name="left_hind_shoulder_yoke" type="capsule" fromto="0 0 0 0 0.08 0" size="0.014" material="bracket" mass="0.035" />
         <geom name="left_hind_x4_pitch_stator" type="cylinder" fromto="0 0.048 0 0 0.112 0" size="0.03" material="rotor" mass="0.36" />
         <geom name="left_hind_pitch_bearing_cap" type="cylinder" fromto="0 0.11 0 0 0.112 0" size="0.021" material="cap" mass="0" />
+        <geom name="left_hind_x4_pitch_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="0 0.048 0 0 0.112 0" size="0.03" />
         <body name="left_hind_upper_link" pos="0 0.08 0">
           <joint name="left_hind_pitch" axis="0 1 0" range="-38 38" armature="0.003240" />
           <geom name="left_hind_upper_strut" type="capsule" fromto="0 0 0 0.15015168 0 -0.18077465" size="0.014" material="rail" mass="0.125" class="upper_collision" />
@@ -256,6 +265,7 @@
           <geom name="left_hind_drive_crank" type="cylinder" fromto="0.0575049 -0.04775 -0.0692328 0.0575049 -0.03575 -0.0692328" size="0.0357" material="bracket" mass="0.06800" />
           <geom name="left_hind_pushrod" type="capsule" fromto="0.0788073 -0.04175 -0.051539 0.177845 -0.04175 -0.157773" size="0.005" material="rail" mass="0.05100" />
           <geom name="left_hind_upper_limb_cover" type="capsule" fromto="0 0 0 0.150152 0 -0.180775" size="0.03" material="skin" mass="0.06" rgba=".55 .50 .40 .35" />
+          <geom name="left_hind_x6_flexion_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="0.0575049 -0.03375 -0.0692328 0.0575049 0.03375 -0.0692328" size="0.0400" />
           <body name="left_hind_lower_link" pos="0.15015168 0 -0.18077465">
             <joint name="left_hind_flexion" axis="0 1 0" range="-47 36" armature="0.007274" damping=".20" />
             <geom name="left_hind_elbow_axle" type="cylinder" fromto="0 -0.045 0 0 0.005 0" size="0.008" material="cap" mass="0.01" />
@@ -279,6 +289,7 @@
         <geom name="right_hind_shoulder_yoke" type="capsule" fromto="0 0 0 0 -0.08 0" size="0.014" material="bracket" mass="0.035" />
         <geom name="right_hind_x4_pitch_stator" type="cylinder" fromto="0 -0.112 0 0 -0.048 0" size="0.03" material="rotor" mass="0.36" />
         <geom name="right_hind_pitch_bearing_cap" type="cylinder" fromto="0 -0.112 0 0 -0.11 0" size="0.021" material="cap" mass="0" />
+        <geom name="right_hind_x4_pitch_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="0 -0.112 0 0 -0.048 0" size="0.03" />
         <body name="right_hind_upper_link" pos="0 -0.08 0">
           <joint name="right_hind_pitch" axis="0 1 0" range="-38 38" armature="0.003240" />
           <geom name="right_hind_upper_strut" type="capsule" fromto="0 0 0 0.15015168 0 -0.18077465" size="0.014" material="rail" mass="0.125" class="upper_collision" />
@@ -289,6 +300,7 @@
           <geom name="right_hind_drive_crank" type="cylinder" fromto="0.0575049 0.03575 -0.0692328 0.0575049 0.04775 -0.0692328" size="0.0357" material="bracket" mass="0.06800" />
           <geom name="right_hind_pushrod" type="capsule" fromto="0.0788073 0.04175 -0.051539 0.177845 0.04175 -0.157773" size="0.005" material="rail" mass="0.05100" />
           <geom name="right_hind_upper_limb_cover" type="capsule" fromto="0 0 0 0.150152 0 -0.180775" size="0.03" material="skin" mass="0.06" rgba=".55 .50 .40 .35" />
+          <geom name="right_hind_x6_flexion_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="0.0575049 -0.03375 -0.0692328 0.0575049 0.03375 -0.0692328" size="0.0400" />
           <body name="right_hind_lower_link" pos="0.15015168 0 -0.18077465">
             <joint name="right_hind_flexion" axis="0 1 0" range="-47 36" armature="0.007274" damping=".20" />
             <geom name="right_hind_elbow_axle" type="cylinder" fromto="0 -0.005 0 0 0.045 0" size="0.008" material="cap" mass="0.01" />
@@ -309,18 +321,18 @@
     </body>
   </worldbody>
   <actuator>
-    <position name="left_fore_roll" joint="left_fore_roll" kp="200" kv="5.333" ctrlrange="-0.314159 0.418879" forcerange="-42.0000 42.0000" />
-    <position name="left_fore_pitch" joint="left_fore_pitch" kp="266.7" kv="6.667" ctrlrange="-0.663225 0.663225" forcerange="-21.0000 21.0000" />
-    <position name="left_fore_flexion" joint="left_fore_flexion" kp="440" kv="9.6" ctrlrange="-0.820305 0.628319" forcerange="-75.6000 75.6000" />
-    <position name="right_fore_roll" joint="right_fore_roll" kp="200" kv="5.333" ctrlrange="-0.314159 0.418879" forcerange="-42.0000 42.0000" />
-    <position name="right_fore_pitch" joint="right_fore_pitch" kp="266.7" kv="6.667" ctrlrange="-0.663225 0.663225" forcerange="-21.0000 21.0000" />
-    <position name="right_fore_flexion" joint="right_fore_flexion" kp="440" kv="9.6" ctrlrange="-0.820305 0.628319" forcerange="-75.6000 75.6000" />
-    <position name="left_hind_roll" joint="left_hind_roll" kp="200" kv="5.333" ctrlrange="-0.314159 0.418879" forcerange="-42.0000 42.0000" />
-    <position name="left_hind_pitch" joint="left_hind_pitch" kp="266.7" kv="6.667" ctrlrange="-0.663225 0.663225" forcerange="-21.0000 21.0000" />
-    <position name="left_hind_flexion" joint="left_hind_flexion" kp="440" kv="9.6" ctrlrange="-0.820305 0.628319" forcerange="-49.1400 49.1400" />
-    <position name="right_hind_roll" joint="right_hind_roll" kp="200" kv="5.333" ctrlrange="-0.314159 0.418879" forcerange="-42.0000 42.0000" />
-    <position name="right_hind_pitch" joint="right_hind_pitch" kp="266.7" kv="6.667" ctrlrange="-0.663225 0.663225" forcerange="-21.0000 21.0000" />
-    <position name="right_hind_flexion" joint="right_hind_flexion" kp="440" kv="9.6" ctrlrange="-0.820305 0.628319" forcerange="-49.1400 49.1400" />
+    <position name="left_fore_roll" joint="left_fore_roll" kp="598.5" kv="24.48" ctrlrange="-0.314159 0.418879" forcerange="-42.0000 42.0000" />
+    <position name="left_fore_pitch" joint="left_fore_pitch" kp="598.5" kv="11.51" ctrlrange="-0.663225 0.663225" forcerange="-21.0000 21.0000" />
+    <position name="left_fore_flexion" joint="left_fore_flexion" kp="598.5" kv="11.51" ctrlrange="-0.820305 0.628319" forcerange="-75.6000 75.6000" />
+    <position name="right_fore_roll" joint="right_fore_roll" kp="598.5" kv="24.48" ctrlrange="-0.314159 0.418879" forcerange="-42.0000 42.0000" />
+    <position name="right_fore_pitch" joint="right_fore_pitch" kp="598.5" kv="11.51" ctrlrange="-0.663225 0.663225" forcerange="-21.0000 21.0000" />
+    <position name="right_fore_flexion" joint="right_fore_flexion" kp="598.5" kv="11.51" ctrlrange="-0.820305 0.628319" forcerange="-75.6000 75.6000" />
+    <position name="left_hind_roll" joint="left_hind_roll" kp="598.5" kv="24.48" ctrlrange="-0.314159 0.418879" forcerange="-42.0000 42.0000" />
+    <position name="left_hind_pitch" joint="left_hind_pitch" kp="598.5" kv="11.51" ctrlrange="-0.663225 0.663225" forcerange="-21.0000 21.0000" />
+    <position name="left_hind_flexion" joint="left_hind_flexion" kp="1011" kv="19.45" ctrlrange="-0.820305 0.628319" forcerange="-49.1400 49.1400" />
+    <position name="right_hind_roll" joint="right_hind_roll" kp="598.5" kv="24.48" ctrlrange="-0.314159 0.418879" forcerange="-42.0000 42.0000" />
+    <position name="right_hind_pitch" joint="right_hind_pitch" kp="598.5" kv="11.51" ctrlrange="-0.663225 0.663225" forcerange="-21.0000 21.0000" />
+    <position name="right_hind_flexion" joint="right_hind_flexion" kp="1011" kv="19.45" ctrlrange="-0.820305 0.628319" forcerange="-49.1400 49.1400" />
     <position name="neck_pitch" joint="neck_pitch" kp="14" kv="0.6" ctrlrange="-0.349066 0.349066" forcerange="-3.1080 3.1080" />
     <position name="neck_yaw" joint="neck_yaw" kp="10" kv="0.4" ctrlrange="-0.610865 0.610865" forcerange="-2.1420 2.1420" />
     <position name="tail_yaw" joint="tail_yaw" kp="8" kv="0.25" ctrlrange="-0.418879 0.418879" forcerange="-1.2040 1.2040" />

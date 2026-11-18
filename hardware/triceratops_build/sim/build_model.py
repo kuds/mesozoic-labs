@@ -51,8 +51,11 @@ BUILD_DRIVES = {
             "flexion": {"fore": ("X6-60", 1.3), "hind": ("X6-60", 1.3)}},
 }
 
-# Joint-side position-servo gains. PR #669's gains at 15 kg, scaled with mass for T20 (assumption A2).
-PR_GAINS = {"roll": (150.0, 4.0), "pitch": (200.0, 5.0), "flexion": (330.0, 7.2)}
+# Leg position-servo gains at the drive output (assumption A2, revised 18 Nov 2026 after the first crawl runs): the
+# T. rex servo model's nominal for the same drive family (kp 598.5 N·m/rad; kv 24.48 hip roll, 11.51 knee;
+# hardware/trex_form_study/stage2/design/servo_model/SERVO_MODEL_DESIGN.md, "Gains", an assumption there too, not a
+# maker figure). Joint side through a ratio n: kp x n^2, kv x n^2. PR #669's 150 / 200 / 330 N·m/rad were softer.
+DRIVE_GAINS = {"roll": (598.5, 24.48), "pitch": (598.5, 11.51), "flexion": (598.5, 11.51)}
 
 # Per-leg added transmission and mount mass over the PR's belt parts (parts list 6.2: +0.50 kg T20, +0.15 kg T15).
 TRANS_DELTA_PER_LEG = {"T20": 0.125, "T15": 0.0375}
@@ -83,6 +86,8 @@ def category_of(name):
         return "compute"
     if n.startswith("gtech_6s_3300"):
         return "battery"
+    if n.startswith("reserve_"):
+        return "reserve_items"
     if n in ("power_board_diode_or_precharge_clamp", "safety_relay_contactor_fuse_stop_rx", "dc_dc_rails",
              "left_can_and_power_loom", "right_can_and_power_loom", "drive_bay_blowers_and_ducts",
              "orion_bms_jr2_and_current_sensor"):
@@ -234,6 +239,17 @@ def build(build_name, variant, battery_x=-0.200):
             m.add_geom(lower, name=f"{c}_lower_limb_cover", type="capsule", fromto=lft, size="0.024",
                        material="skin", mass="0.04", rgba=".55 .50 .40 .35")
 
+    # 2b. Collision twins (massless) for the drive housings, so a crawl or walk cannot pass a drive through the torso
+    #     or another leg unseen (added after the independent model check).
+    cls_of_body = {"chassis": "chassis_collision"}
+    for b in r.iter("body"):
+        for g in list(b.findall("geom")):
+            n = g.get("name") or ""
+            if n.endswith("_stator"):
+                twin = {k: v for k, v in g.attrib.items() if k in ("type", "fromto", "size", "pos")}
+                cls = cls_of_body.get(b.get("name"), "upper_collision")
+                m.add_geom(b, name=n + "_collision", mass="0", rgba="0 0 0 0", group="3", **{"class": cls}, **twin)
+
     # 3. Shells: body shell to 0.85 kg in both builds (parts list 6.2; T20's extra 0.40 kg is the limb covers).
     shell_geoms = [g for b in r.iter("body") for g in b.findall("geom")
                    if (g.get("name") or "").startswith("PA11_rib") or "shell_seam" in (g.get("name") or "")]
@@ -327,17 +343,29 @@ def build(build_name, variant, battery_x=-0.200):
         m.add_geom(chassis, name="orion_bms_jr2_and_current_sensor", type="box", pos=[-0.105, 0, -0.05],
                    size="0.024 0.05 0.02", material="compute", mass="0.35")
 
-    # 9. Closed variant: reserve as pro-rata growth of shells, harness and frame structure.
+    # 9. Closed variant (revised after the independent model check): the parts list's reserve first covers the
+    #    wireless-stop machine-side receiver (mass unpublished; "several hundred grams", taken as 0.30 kg) and
+    #    0.1-0.2 kg of small added parts (fans, 5 V rail, foot links, BMS current sensor; taken as 0.15 kg), both on
+    #    the chassis (section 6.2 notes); T15's 0.39 kg does not cover both, so all of it goes there. The rest (T20
+    #    0.72 kg) is pro-rata growth of shells, harness and frame structure, legs included.
     all_geoms = [g for b in r.iter("body") for g in b.findall("geom") if g.get("mass") and float(g.get("mass")) > 0]
     growth = [g for g in all_geoms if is_growth(g.get("name"))]
     if variant == "closed":
-        gsum = sum(float(g.get("mass")) for g in growth)
-        f = (gsum + budget["reserve"]) / gsum
-        for g in growth:
-            g.set("mass", f"{float(g.get('mass')) * f:.6f}")
+        rx = min(0.30, budget["reserve"])
+        small = min(0.15, budget["reserve"] - rx)
+        m.add_geom(chassis, name="reserve_stop_receiver_est", type="box", pos=[0.17, 0.05, -0.05],
+                   size="0.03 0.02 0.02", material="power", mass=f"{rx:.4f}")
+        if small > 0:
+            m.add_geom(chassis, name="reserve_small_parts_est", type="box", pos=[0.0, -0.06, -0.02],
+                       size="0.04 0.012 0.01", material="harness", mass=f"{small:.4f}")
+        rest = budget["reserve"] - rx - small
+        if rest > 1e-9:
+            gsum = sum(float(g.get("mass")) for g in growth)
+            f = (gsum + rest) / gsum
+            for g in growth:
+                g.set("mass", f"{float(g.get('mass')) * f:.6f}")
 
     # 10. Actuators and sensors: rewrite the leg actuators with joint-side limits; add neck yaw and tail pitch.
-    scale = BUDGET[build_name]["total"] / 15.0
     act = r.find("actuator")
     for a in list(act):
         act.remove(a)
@@ -348,12 +376,13 @@ def build(build_name, variant, battery_x=-0.200):
             d = DRIVES["leg_drives"][dname]
             eta = ETA if axis == "flexion" else 1.0
             limit = 0.70 * d["peak_nm"] * ratio * eta
-            kp, kv = PR_GAINS[axis]
+            kp, kv = DRIVE_GAINS[axis]
+            kp, kv = kp * ratio ** 2, kv * ratio ** 2
             j = next(jj for jj in r.iter("joint") if jj.get("name") == f"{c}_{axis}")
             lo, hi = parse_vec(j.get("range"))
             j.set("armature", f"{d['armature_kgm2'] * ratio ** 2:.6f}")
             ET.SubElement(act, "position", {
-                "name": f"{c}_{axis}", "joint": f"{c}_{axis}", "kp": f"{kp * scale:.4g}", "kv": f"{kv * scale:.4g}",
+                "name": f"{c}_{axis}", "joint": f"{c}_{axis}", "kp": f"{kp:.4g}", "kv": f"{kv:.4g}",
                 "ctrlrange": f"{math.radians(lo):.6f} {math.radians(hi):.6f}", "forcerange": f"{-limit:.4f} {limit:.4f}"})
             drive_table[f"{c}_{axis}"] = {"drive": dname, "ratio": ratio, "eta": eta,
                                           "joint_peak_limit_nm": round(limit, 4),
