@@ -36,7 +36,6 @@ for p in (str(HERE), str(REPO_ROOT)):
         sys.path.insert(0, p)
 
 import numpy as np  # noqa: E402
-
 from trike_env import TrikeEnv, TrikeEnvConfig  # noqa: E402
 
 NAME_PREFIX = "trike60"

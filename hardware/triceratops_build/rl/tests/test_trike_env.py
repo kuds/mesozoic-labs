@@ -9,7 +9,6 @@ from pathlib import Path
 import mujoco
 import numpy as np
 import pytest
-
 from trike_env import CORNERS, LEG_ACTUATORS, TrikeEnv, TrikeEnvConfig
 
 RL_DIR = Path(__file__).resolve().parents[1]
@@ -303,3 +302,31 @@ def test_parameters_cell_refuses_a_branch_name(tmp_path, monkeypatch):
     monkeypatch.setenv("TRIKE60_PARAMS", str(params))
     with pytest.raises(ValueError, match="40 hex"):
         exec(compile(cell1, "cell1", "exec"), {})
+
+
+@pytest.mark.parametrize("sig", ["SIGINT", "SIGTERM"])
+def test_train_saves_a_pair_when_stopped(tmp_path, sig):
+    """The notebook's stop button sends SIGINT to train.py (a killed runtime may send SIGTERM): it saves and exits."""
+    import signal
+    import time
+
+    out = tmp_path / "run"
+    proc = subprocess.Popen([sys.executable, "-u", str(RL_DIR / "train.py"), "--out", str(out), "--n-envs", "2",
+                             "--n-steps", "256", "--total-steps", "10000000", "--log-every", "512"],
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=str(RL_DIR))
+    lines = []
+    deadline = time.time() + 300
+    for line in proc.stdout:  # wait until learning is under way
+        lines.append(line)
+        if line.startswith("steps ") or time.time() > deadline:
+            break
+    proc.send_signal(getattr(signal, sig))
+    rest, _ = proc.communicate(timeout=300)
+    text = "".join(lines) + rest
+    assert proc.returncode == 130, text
+    assert "Session interrupted" in text
+    rec = json.loads((out / "run_record.json").read_text())
+    s = rec["sessions"][0]
+    assert s["status"] == "interrupted" and s["steps_end"] > 0
+    assert (out / "checkpoints" / f"trike60_{s['steps_end']}_steps.zip").exists()
+    assert (out / "checkpoints" / f"trike60_vecnormalize_{s['steps_end']}_steps.pkl").exists()

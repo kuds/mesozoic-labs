@@ -14,7 +14,8 @@ Writes into RUN_DIR:
                         of every session (also on Ctrl-C / SIGTERM)
   run_record.json       arguments, env config, PPO settings, package versions, commit, one entry per session with
                         its measured env steps per second
-  monitor/              SB3 Monitor CSVs (episode reward, length, final forward speed and command), one per env
+  monitor/session<k>/    SB3 Monitor CSVs (episode return, length, final forward speed, command, termination
+                        reason), one per env and session
 """
 
 from __future__ import annotations
@@ -134,7 +135,6 @@ def build_venv(cfg, args, monitor_dir: Path):
 
 def _monitored_env(cfg_dict: dict, monitor_path: str):
     from stable_baselines3.common.monitor import Monitor
-
     from trike_env import make_env
 
     return Monitor(make_env(cfg_dict), filename=monitor_path,
@@ -233,7 +233,8 @@ def main(argv=None) -> int:
     )
     policy_kwargs = dict(net_arch=dict(pi=net, vf=net), activation_fn=torch.nn.ELU, log_std_init=args.log_std_init)
 
-    venv = build_venv(cfg, args, out / "monitor")
+    session_index = len(record.get("sessions", []))
+    venv = build_venv(cfg, args, out / "monitor" / f"session{session_index}")  # Monitor would overwrite old CSVs
     session_seed = args.seed if pair is None else args.seed + int(pair[0])  # a resumed session draws new episodes
 
     if pair is None:

@@ -1,8 +1,8 @@
 """Gymnasium environment: the 60 cm Triceratops build model walking forward at a commanded speed.
 
 Simulation only. The robot is ``../sim/generated/trike60_C_closed.xml`` (or its passive-roll-ankle variant), built
-by ``../sim/build_model60.py``: 12.44 kg, 1 ms physics step, 12 position-servo leg drives plus four small head and
-tail servos. This module is standalone (it does not subclass ``environments.shared.base_env.BaseDinoEnv``); the
+by ``../sim/build_model60.py`` (about 12.7 kg in revision 2; everything here is read from the model file), 1 ms
+physics step, 12 position-servo leg drives plus four small head and tail servos. This module is standalone (it does not subclass ``environments.shared.base_env.BaseDinoEnv``); the
 README says why.
 
 Task, per episode: walk forward along the heading the robot had at reset (+x of the robot frame), at a commanded
