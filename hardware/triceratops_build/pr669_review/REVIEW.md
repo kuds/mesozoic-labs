@@ -7,9 +7,10 @@ to the PR's branch and nothing was posted on the PR.
 ## Verdict
 
 **Sound as a concept study; merge it once the errata section is in.** Its main dimensions (stance 650 mm, track
-350 mm, joints at 400 mm, links 235 / 230 mm, 110 × 80 mm pads), its 15.00 kg mass budget and its load arithmetic agree
-across the PDF, the OpenSCAD envelope and the MuJoCo model, and its own check passes under mujoco 3.10.0. The PDF's
-p.6 packaging boxes are schematic and do not match the tray layout of the other two files (finding 2). It is not a
+350 mm, joints at 400 mm, links 235 / 230 mm, 110 × 80 mm pads) agree across the PDF, the OpenSCAD envelope and the
+MuJoCo model; its 15.00 kg mass budget and load arithmetic agree between the PDF and the model (the OpenSCAD file
+defines no masses), and its own check passes under mujoco 3.10.0. The PDF's
+p.6 drawing, which is to scale, places the compute and battery boxes differently from the other two files (finding 2). It is not a
 build specification: the parts list (`hardware/triceratops_kickoff/PARTS_PREMIUM.md`) proposes replacing its drives,
 transmission and power choices, which are open decisions for the owner.
 
@@ -46,9 +47,12 @@ are additions.
 1. **p.6 "Orin / MCU" label** contradicts p.2 (Pi 5 + AI HAT+) and the model (`pi5_ai_hat_enclosure`, 0.39 kg).
 2. **Battery and bay.** Model geom `6s_5ah_pack` is 160 × 90 × 65 mm and 0.70 kg; the OpenSCAD `pack_bay_mm =
    [160,90,65]`. The repository catalog's 6S 5000 mAh G-Tech pack (`designlab/data/parts.json`, `lipo_6s_5000`, maker
-   page read 7 Nov 2026) is 0.755 kg and 165 × 45 × 47 mm: the bay is 5 mm short. The PDF's p.6 gives no bay dimension;
-   its compute and battery boxes are schematic, drawn above the frame rails, the battery box about 200 mm long at the
-   drawing's scale (checked on a render of the page and by the independent check's vector measurement, 198 mm).
+   page read 7 Nov 2026) is 0.755 kg and 165 × 45 × 47 mm: the bay is 5 mm short. The PDF's p.6 gives no bay dimension,
+   but it is drawn to scale ("Dimensions in millimetres", a scale bar), and its battery box disagrees with the files in
+   size, height and fore-aft position: about 200 mm long, drawn above the frame rails, from about 16 mm ahead of the
+   body centre to about 185 mm behind it, where the files put the bay 120-280 mm behind the centre on the tray between
+   the rails (the position that sets the 55 % front share). Measured on a render of the page and by the independent
+   check's vector measurement (198 mm long, 16 mm ahead to 182 mm aft).
 3. **The 1:1 belt is not sized**: 1.34 kN (15 kg) and 1.79 kN (20 kg) at a 20 mm radius at the trot design torque
    (parts list, Appendix A). No belt maker's table was read (here or in the parts list); the survey's one unverified
    retailer figure is 285 N working tension for a 12 mm HTD 5M belt. The model maps the drive to the joint rigidly, so
@@ -58,9 +62,9 @@ are additions.
    Appendix A).
 5. **T. rex pages 7-9, and p.5's "reached the Colab smoke-test handoff"**, predate the pause (T. rex decision log
    P47-P51 in `hardware/trex_form_study/DECISION_LOG.md`).
-6. **0.40 m/s stretch** (pp.1, 4, 7): not credible with X4 pitch drives on either bus (79 % of no-load on 6S; 91-93 % of
+6. **0.40 m/s stretch** (pp.1, 4, 7): not credible with X4 pitch drives on either bus (77-79 % of no-load on 6S; 91-93 % of
    the 83 rpm cap on 12S; parts list F1).
-7. **6S and the X6** (pp.2, 6, 8 and the README): the PR's 1:1 swing fits at 59-62 % of the X6's 6S no-load speed,
+7. **6S and the X6** (pp.2, 6, 8 and the README): the PR's 1:1 swing fits at 62 % of the X6's 6S no-load speed at 21 V (59 % at 22.2 V),
    but 6S rules out the 1.3:1 linkage and the larger front drive that finding 4 calls for.
 8. **Two CAN buses of six drives** load 67-81 % at the PDF's 500 Hz, with a 2.2 ms worst-case exchange against a 2 ms
    cycle; there is no room for 1 kHz.
@@ -83,13 +87,13 @@ are additions.
 
 ## Independent check (18 Nov 2026)
 
-A separate reviewer, given the PR's files, the parts list, the kickoff documents and this folder's records (not this
-review's conclusions), re-ran both scripts, wrote its own balance and force-balance scripts, measured p.6's vectors and
+A separate reviewer, given the drafts to check together with the PR's files, the parts list and the kickoff documents,
+and told not to assume the drafts are right, re-ran both scripts, wrote its own balance and force-balance scripts, measured p.6's vectors and
 mutated the PR's model. Verdict: **sound after fixes**. Its fourteen findings and what was done:
 
 | # | Finding | Done |
 |---|---|---|
-| 1 | "Bay drawn 160 mm" was wrong: the PDF gives no dimension; p.6's boxes are schematic and above the rails | Fixed (erratum 2, PDF row 2b, finding 2, verdict) after checking a render of p.6 |
+| 1 | "Bay drawn 160 mm" was wrong: the PDF gives no dimension; p.6's to-scale battery box is about 198 mm long and above the frame | Fixed (erratum 2, PDF row 2b, finding 2, verdict) after checking a render of p.6 |
 | 2 | Link counts wrong (23 file links, 15 PR links) | Fixed |
 | 3 | X6-80 saving is 0.52 kg per front leg, 1.0 kg for the pair | Fixed in the outreach draft |
 | 4 | Erratum 8 corrected a 1 kHz claim the PDF never makes | Restated around the 500 Hz load and 2.2 ms exchange |
