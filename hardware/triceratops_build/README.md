@@ -4,8 +4,10 @@ The working folder for the four-legged Triceratops museum robot, started 18 Nov 
 then a walking controller in simulation, then a one-foreleg bench plan. **Nothing here is built, bought, quoted or
 measured.** Simulation results are labelled as simulation; targets and estimates are labelled as such.
 
-- **The robot (targets):** 75 cm to the top of the frill, 1.5 m long, 15 or 20 kg (owner's decision D1), walking
-  slowly at 0.30 m/s (0.7 mph).
+- **The robot (targets), decided 18 Nov 2026:** 60 cm to the top of the frill, 1.2 m long, about 12 kg, the T. rex's
+  drive types (10 × X4 + 2 × X6) on a 48 V (12S) bus, walking at about 0.25-0.27 m/s (0.6 mph), with a full
+  expressive head and tail; budget $20k landed, all-in (decisions D2, D12-D14; `budget/SIZE_BUDGET_OPTIONS.md`). The
+  work recorded here up to that decision used the earlier 75 cm design.
 - **Museum dates (the owner's):** first contact mid-December 2026 with simulation renders; live demos in Q3 2027.
 - **The T. rex** is paused and preserved, and stays the flagship for end 2027 / early 2028. This folder does not touch
   its files; where a choice here affects hardware the two robots share, the file says so.
@@ -19,7 +21,9 @@ measured.** Simulation results are labelled as simulation; targets and estimates
 | [outreach/QUESTIONS_WIM_MYACTUATOR_DRAFT.md](outreach/QUESTIONS_WIM_MYACTUATOR_DRAFT.md) | Draft questions for WIM Robotics (PLEM) and MyActuator, for the owner to send |
 | [sim/STAND_REPORT.md](sim/STAND_REPORT.md) | Task 3: the T20 and T15 models with the parts list's mass distribution; four-foot standing (all pass) |
 | [sim/CRAWL_REPORT.md](sim/CRAWL_REPORT.md) | Task 4: scripted crawl; fails with PR #669's foot, passes with a passive roll ankle (design proposal) |
-| [renders/](renders/README.md) | Task 9: labelled simulation stills for the December museum contact; clip script |
+| [renders/](renders/README.md) | Task 9: labelled simulation stills for the December museum contact (75 cm; to be redone at 60 cm); clip script |
+| [budget/SIZE_BUDGET_OPTIONS.md](budget/SIZE_BUDGET_OPTIONS.md) | Size, speed and budget options for $10k-$20k, with the owner's decision (60 cm) |
+| [bench/BENCH_PLAN_FORELEG.md](bench/BENCH_PLAN_FORELEG.md) | Task 8: one-foreleg bench plan with pass and fail rules (written for the 75 cm T20 foreleg; to be revised for 60 cm) |
 
 The simulation code is in [sim/](sim/): `build_model.py` (models, mass ledgers), `check_stand.py`, `crawl.py`,
 `crawl_judged.py`, `crawl_extra.py`, `support_margin.py`; pre-registrations `PREREG_STAND.md`, `PREREG_CRAWL.md`;
@@ -57,25 +61,23 @@ python hardware/triceratops_build/pr669_review/stance_balance_check.py \
 9. Museum renders by 8 Dec 2026 (start by 1 Dec 2026), each labelled "simulation". *Stills done 18 Nov 2026; the
    clip waits for the owner's choice of where clips go.*
 
-## Next steps (18 Nov 2026)
+## Next steps (18 Nov 2026, after the size decision)
+
+**For the session**
+1. **A checked 60 cm parts list** for option C (drives, linkages, head and tail with mid-range ROBOTIS servos, power,
+   safety, frame, shells), replacing the T20 / T15 lists; independently checked.
+2. **The 60 cm model:** PR #669's 60 cm geometry (its PDF and OpenSCAD file) with the new parts' masses; re-run the
+   standing check and the crawl under the same pre-registered rules; confirm or correct the budget's scaled loads.
+3. **Renders at 60 cm** before 8 Dec 2026 (start by 1 Dec); clips on the data branch.
+4. **Task 5, the walk:** a model-based controller first (D10), judged at 10 ms of delay (D9), at the new speed target;
+   check every result under a stiffer contact setting too.
+5. **The foot:** a sole that stays flat in roll (F7); try a roll hinge that centres the sole to the ground.
+6. **Bench plan:** revise for the 60 cm foreleg (X4 roll and pitch, X6 elbow at 1:1).
 
 **For the owner**
-- PR #669: paste `pr669_review/ERRATA_README_SECTION.md` into its README, send `ERRATA_PDF_FOR_MAINTAINER.md` to the
-  PDF's maintainer, merge with a merge commit.
-- Round 1 decisions by 15 Dec 2026 (all still open; the first ask was declined): mass (D1), size (D2), compute (D3),
-  bus voltage (D4), chassis (D5), now including **the foot**: a sole that stays flat in roll is needed (F7); a passive
-  roll hinge is the first candidate but is not yet robust in simulation.
-- Send the drafted questions in `outreach/` to WIM Robotics and MyActuator (and the T. rex's five maker questions, if
-  not sent), and tell the session the date.
-
-**For the session (decided 18 Nov 2026: D9, D10)**
-- Task 5, the 0.30 m/s walk: a model-based controller first, in this container (CPU); the learned policy on Colab
-  later, after its own cost estimate. Verdict judged at 10 ms of servo delay. Pre-register before any judged run. Port
-  the T. rex delay queue (`designlab/stage1/speedfit.py`, `servo_delay`) and the parts of its servo model
-  (`designlab/stage2/servo.py`) that apply; check every result under at least one stiffer contact setting (the crawl's
-  lesson); measure sole slip and tilt separately from pin motion.
-- The foot: try a roll hinge whose spring centres the sole to the ground rather than to the leg, and re-test the crawl
-  under both contact settings.
-- Model: an angle-dependent ratio for the 1.3:1 pushrod (A5).
-- Renders: redo before 8 Dec 2026 if round-1 decisions change the build; walking clips go on the data branch
-  `claude/triceratops-build-clips`.
+- **Price answers first:** send MyActuator question M4 (does the US store price include duty?) and ask for a quote on
+  the wireless stop's receiver (`outreach/`). With shared bench gear and later spares they decide whether the build
+  lands near $20k ($24.2k-$25.0k landed today, $19.9k-$20.8k if all four savings come through).
+- **PR #669:** paste the errata into its README and merge with a merge commit.
+- **Still open:** compute (D3; the budget assumes the Jetson Orin Nano Super), chassis and foot (D5), and round 2 (D6
+  the T. rex milestone, D7 a PLEM pilot, D8 the pull-request triage) by 15 Jan 2027.
