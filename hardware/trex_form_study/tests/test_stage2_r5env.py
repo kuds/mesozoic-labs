@@ -1,0 +1,1751 @@
+"""R5's and R6's env (``designlab/stage2/r5env.py``; round C design D1, D6, D8, D10, D16, section 3.2; rules E1-E5,
+T3, W4, J1-J5).
+
+Every episode here runs on the S1 view (Stage 1's own run directory; ``stage2/x`` for the 16-joint body): no
+Stage 2 reference set is touched (rule X1).  Digests are ``env._state_digest`` after every physics step.
+"""
+
+from __future__ import annotations
+
+import copy
+import dataclasses
+import hashlib
+import json
+import math
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import mujoco
+import numpy as np
+import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from designlab.stage1 import control, drive, env, plant, tune  # noqa: E402
+from designlab.stage2 import r5core, r5env, r5lib, s2io, servo, setio  # noqa: E402
+
+BODY, BODY_X = "75-M-H-10", "75-M-H-10-X"
+RATE = 1.05
+ONE_THREAD = all(os.environ.get(v) == "1" for v in s2io.THREAD_VARS)
+SLOW = os.environ.get("STAGE2_SLOW") == "1"
+
+
+def _have(body: str) -> bool:
+    try:
+        return ((r5lib.s1_root(body) / body / "transitions" / "stop.npz").exists()
+                and all(Path(f).exists() for f in plant.model_files(body)))
+    except Exception:  # noqa: BLE001  (no model record: the same skip)
+        return False
+
+
+needs_run = pytest.mark.skipif(not (_have(BODY) and ONE_THREAD), reason=(
+    "needs the Stage 1 arrays and the round-two models (tools/restore_inputs.py) and one BLAS thread"))
+needs_x = pytest.mark.skipif(not (_have(BODY_X) and ONE_THREAD), reason=(
+    "needs the expressive-head body's models and arrays (tools/restore_inputs.py --group x) and one BLAS thread"))
+BODIES = [BODY, pytest.param(BODY_X, marks=needs_x)]
+
+
+def cfg_of(body: str = BODY, **over) -> r5env.R5Config:
+    return r5env.R5Config(body=body, set="S1", **over)
+
+
+def nominal(body: str = BODY, **over) -> r5env.R5Config:
+    """No randomisation, no push, no head event, every start as the test gives it."""
+    return cfg_of(body, **{**dict(randomize=False, push_prob=0.0, head_events=False, mid_start=0.0), **over})
+
+
+@pytest.fixture(scope="module")
+def e0():
+    """A nominal 14-joint env on hard floor, shared (every test resets it: reset is history-free)."""
+    e = r5env.R5Env(nominal())
+    yield e
+    e.close()
+
+
+def play(e, actions, **reset) -> dict:
+    """One episode: reset, then ``actions`` until they run out or it ends; every physics step's digest, every
+    observation, reward and what the reset drew."""
+    rows: list = []
+    e._step_hook = lambda p: rows.append(env._state_digest(p.d))
+    try:
+        obs, info = e.reset(**reset)
+        out = dict(digests=rows, obs=[obs], rewards=[], ended=None, task=info["task"], start=info["start"],
+                   t_start=info["t_start"], factors=dict(info["factors"]), push=info["push"], head=info["head"],
+                   seeds=info["seeds"], n_steps=info["n_steps"])
+        for k, a in enumerate(actions):
+            obs, r, term, trunc, info = e.step(a)
+            out["obs"].append(obs)
+            out["rewards"].append(r)
+            if term or trunc:
+                out["ended"] = (k, term, trunc, info["fall_cause"])
+                break
+    finally:
+        e._step_hook = None
+    return out
+
+
+def same(a: dict, b: dict) -> None:
+    assert len(a["digests"]) == len(b["digests"]) > 0
+    first = next((i for i, (x, y) in enumerate(zip(a["digests"], b["digests"], strict=True)) if x != y), None)
+    assert first is None, f"physics step {first} differs"
+    assert all(np.array_equal(x, y) for x, y in zip(a["obs"], b["obs"], strict=True))
+    assert a["rewards"] == b["rewards"]
+    for k in ("ended", "task", "start", "t_start", "factors", "push", "head", "seeds", "n_steps"):
+        assert a[k] == b[k], k
+
+
+def noise(n: int, steps: int, sigma: float, seed: int) -> list:
+    rng = np.random.default_rng(seed)
+    return [(sigma * rng.standard_normal(n)).astype(np.float32) for _ in range(steps)]
+
+
+# ------------------------------------------------------------------------------------------------
+# Zero is zero
+# ------------------------------------------------------------------------------------------------
+@needs_run
+def test_zero_action_leaves_residual_none_and_rate_one(e0):
+    e0.reset(seed=3, options=dict(task="walk", start="stance"))
+    zero = np.zeros(15, np.float32)
+    for _ in range(12):
+        _, _, term, _, info = e0.step(zero)
+        assert e0.tk.residual is None and e0.tk.rate_factor == 1.0 and type(e0.tk.rate_factor) is float
+        assert info["clock_factor"] == 1.0 and info["reward_terms"]["action_rate"] == 0.0 and not term
+    assert e0.core.clock_stats() == dict(steps=12, mean=1.0, min=1.0, reference_s=pytest.approx(12 * 0.02 * RATE))
+    assert isinstance(e0.tk, r5env.R5Tracker) and (e0.tk.mode, e0.tk.terms, e0.tk.ankle_cap) == ("R2", frozenset(), ())
+    assert e0.tk.rate == RATE and e0.tk.model is e0.nominal_model
+
+
+@needs_run
+def test_any_offset_breaks_the_digest(e0):
+    """A zero action is not "almost" zero: one action entry at 1e-6 moves the first env step's physics."""
+    opts = dict(task="walk", start="stance", episode_seed=11)
+    zero = play(e0, [np.zeros(15, np.float32)], seed=0, options=opts)
+    again = play(e0, [np.zeros(15, np.float32)], seed=0, options=opts)
+    same(zero, again)
+    for entry in (4, 14):  # a leg joint's offset; the clock
+        a = np.zeros(15, np.float32)
+        a[entry] = 1e-6
+        moved = play(e0, [a], seed=0, options=opts)
+        assert len(moved["digests"]) == 10 and moved["digests"] != zero["digests"]
+        assert moved["digests"][-1] != zero["digests"][-1]
+        assert (e0.tk.residual is None) == (entry == 14) and (e0.tk.rate_factor == 1.0) == (entry != 14)
+
+
+@needs_run
+def test_the_reward_reads_positions_as_of_the_last_physics_steps_start(e0):
+    """``r5core.REWARD_RULE``: joint angles are those at the env step's end; body positions and orientations are
+    the plant's own after the env step's last physics step, which MuJoCo computes at that step's start (the plant's
+    data is only read).  After 15 env steps of noise actions the foot term is the one of the pose 2 ms before the
+    env step's end, not of the pose at its end; the joint term is the one of the angles at its end."""
+    p, core = e0.p, e0.core
+    before: list = []
+    e0.reset(seed=5, options=dict(task="walk", start=8.3, seeds=dict(start=1, noise=2)))
+    e0._step_hook = lambda pp: before.append(pp.d.qpos.copy())  # (after every physics step)
+    try:
+        for a in noise(15, 15, 0.1, 1):
+            before.clear()
+            _, _, term, _, info = e0.step(a)
+            assert not term
+    finally:
+        e0._step_hook = None
+    s, c, terms = e0.script, e0.tk.tau_ref, info["reward_terms"]
+    kd = mujoco.MjData(p.m)
+
+    def foot_term(qpos) -> float:
+        kd.qpos[:] = qpos
+        mujoco.mj_kinematics(p.m, kd)
+        d = r5lib.foot_rel_of(kd.xpos, kd.xmat, p.trunk, p.feet) - s.foot_rel(c)
+        return math.exp(-float(np.mean(np.sum(d * d, axis=1))) / (0.10 * core.H) ** 2)
+
+    assert len(before) == 10 and np.array_equal(before[-1], p.d.qpos)
+    start_of_last, at_end = foot_term(before[-2]), foot_term(p.d.qpos)
+    assert terms["foot"] == pytest.approx(start_of_last, abs=1e-9) and 0.8 < terms["foot"] < 0.95
+    assert abs(start_of_last - at_end) > 1e-3 and abs(terms["foot"] - at_end) > 1e-3
+    q_ref = s.track.joint(c)[:14]
+    joint = lambda q: math.exp(-float(np.mean(np.square((q[p.qadr] - q_ref) / 0.1))))  # noqa: E731
+    assert terms["joint"] == pytest.approx(joint(p.d.qpos), abs=1e-12)
+    assert abs(joint(before[-2]) - terms["joint"]) > 1e-3
+
+
+@needs_run
+def test_the_first_env_steps_displacement_runs_from_the_reset_and_spans_18_ms(e0):
+    """``r5core.REWARD_RULE``: the displacement behind tracking's speed and yaw rate and behind progress's sample
+    runs from the previous reading to the env step's; the first reading is the reset's, of the episode's start
+    itself, and every later one is of the state one physics step before an env step's end.  So in an episode's
+    first env step the displacement spans 18 ms, and it is divided by 20 ms all the same.  Shown at a start in
+    motion (mid-stride of the brisk walk, sensor noise off): the first step's tracking term is the one of the
+    displacement over the first nine physics steps, and the brisk walk's two extra millimetres per 20 ms are not
+    in it."""
+    p, core = e0.p, e0.core
+    kd = mujoco.MjData(p.m)
+
+    def com_yaw(qpos) -> tuple[np.ndarray, float]:
+        kd.qpos[:] = qpos
+        mujoco.mj_kinematics(p.m, kd)
+        mujoco.mj_comPos(p.m, kd)
+        return kd.subtree_com[p.trunk][:2].copy(), control._yaw(kd.xmat[p.trunk])
+
+    s = e0.scripts["brisk"]
+    seg = s.track.segments[3]
+    assert seg.name == "brisk" and seg.kind == "periodic"
+    e0.reset(options=dict(task="brisk", start=seg.t0 + 1.3 * seg.period, seeds=dict(start=1, noise=2),
+                          factors=dict(noise_scale=0.0)))
+    com_r, yaw_r = com_yaw(p.d.qpos)  # the reset's reading is of the episode's start
+    np.testing.assert_allclose(core._com0, com_r, rtol=0, atol=1e-12)
+    assert core._yaw0 == pytest.approx(yaw_r, abs=1e-12)
+    qs: list = []
+    e0._step_hook = lambda pp: qs.append(pp.d.qpos.copy())
+    try:
+        c0 = e0.tk.tau_ref
+        _, _, term, _, info = e0.step(np.zeros(15, np.float32))
+        first, c1 = list(qs), e0.tk.tau_ref
+        vb1 = core._vb
+        qs.clear()
+        _, _, term2, _, info2 = e0.step(np.zeros(15, np.float32))
+    finally:
+        e0._step_hook = None
+    assert not term and not term2 and len(first) == len(qs) == 10
+
+    def tracking(a, b, clock0: float) -> tuple[float, float]:
+        (com_a, yaw_a), (com_b, yaw_b) = a, b
+        d = com_b - com_a
+        speed = float(d[0] * math.cos(yaw_a) + d[1] * math.sin(yaw_a)) / 0.02
+        v_ref, w_ref = core._reference_motion(clock0)
+        rate = control._wrap(yaw_b - yaw_a) / 0.02
+        return float(core.gaussian_tracking_reward(abs(speed - v_ref), abs(rate - w_ref))), speed
+
+    at9, at10 = com_yaw(first[8]), com_yaw(first[9])  # after nine physics steps (18 ms); at the env step's end
+    want, speed18 = tracking((com_r, yaw_r), at9, c0)
+    assert info["reward_terms"]["tracking"] == pytest.approx(want, abs=1e-9)
+    other, speed20 = tracking((com_r, yaw_r), at10, c0)  # the displacement over the whole 20 ms: not what is read
+    assert speed20 - speed18 > 0.02 and abs(info["reward_terms"]["tracking"] - other) > 1e-4
+    # progress's sample is the same displacement, along the commanded heading, over 20 ms
+    a = 1.0 - math.exp(-0.02 / (s.stride_s(c1) / RATE))
+    h = core.yaw_home + s.heading(c1)
+    along = float((at9[0] - com_r) @ np.array([math.cos(h), math.sin(h)])) / 0.02
+    assert vb1 == pytest.approx(a * along, abs=1e-12) and along == pytest.approx(speed18, abs=0.02)
+    # every later step: 20 ms, from the previous step's reading to this step's
+    want2, speed2 = tracking(at9, com_yaw(qs[8]), c1)
+    assert info2["reward_terms"]["tracking"] == pytest.approx(want2, abs=1e-9) and speed2 > speed18
+
+
+@needs_run
+def test_what_is_read_at_every_physics_step_is_the_plants_own_computed_at_that_steps_start(e0):
+    """``r5core.REWARD_RULE``: the foot loads, the foot bodies' heights and the actuator forces that the core reads
+    after every physics step are the plant's own, which the simulator computed at that physics step's start, and
+    the reference's flags beside them are read at the reference clock after the physics step.  Each physics step's
+    readings equal a forward pass on the state before it and differ from one on the state after it; the contact,
+    flight and impact terms are those of these readings."""
+    p, core = e0.p, e0.core
+    scratch = mujoco.MjData(p.m)
+
+    def forward(qpos, qvel, ctrl) -> tuple[np.ndarray, list, np.ndarray]:
+        scratch.qpos[:], scratch.qvel[:], scratch.ctrl[:] = qpos, qvel, ctrl
+        mujoco.mj_forward(p.m, scratch)
+        return (scratch.sensordata[p._load_adr].copy(), [float(scratch.xpos[f, 2]) for f in p.feet],
+                scratch.actuator_force.copy())
+
+    e0.reset(seed=5, options=dict(task="brisk", start=8.3, seeds=dict(start=1, noise=2)))
+    s, w, lag = e0.script, e0.weight_true, core._lag
+    assert w == e0.weight and lag == 0.024 * RATE
+    state = [p.d.qpos.copy(), p.d.qvel.copy()]
+    rows: list = []
+
+    def hook(pp):  # (after every physics step, before the core reads it)
+        d = pp.d
+        rows.append(dict(loads=d.sensordata[pp._load_adr].copy(), z=[float(d.xpos[f, 2]) for f in pp.feet],
+                         force=d.actuator_force.copy(), clock=float(e0.tk.tau_ref),
+                         before=forward(state[0], state[1], d.ctrl), after=forward(d.qpos, d.qvel, d.ctrl)))
+        state[:] = [d.qpos.copy(), d.qvel.copy()]
+
+    e0._step_hook = hook
+    apart_loads, apart_z = [], []
+    try:
+        for a in noise(15, 15, 0.1, 1):
+            rows.clear()
+            clock0 = e0.tk.tau_ref
+            _, _, term, _, info = e0.step(a)
+            assert not term and len(rows) == 10
+            for k, r in enumerate(rows):
+                np.testing.assert_allclose(r["loads"], r["before"][0], rtol=0, atol=1e-6 * w)
+                np.testing.assert_allclose(r["z"], r["before"][1], rtol=0, atol=1e-12)
+                np.testing.assert_allclose(r["force"], r["before"][2], rtol=0,
+                                           atol=1e-6 * (1.0 + np.abs(r["force"]).max()))
+                apart_loads.append(float(np.max(np.abs(r["loads"] - r["after"][0]))) / w)
+                apart_z.append(float(np.max(np.abs(np.array(r["z"]) - np.array(r["after"][1])))))
+                assert r["clock"] > clock0 and (k == 0 or r["clock"] > rows[k - 1]["clock"])  # the clock after it
+            assert rows[-1]["clock"] == e0.tk.tau_ref
+            loads = np.array([r["loads"] for r in rows])
+            down = loads > 0.02 * w
+            terms = info["reward_terms"]
+            assert terms["flight"] == float(np.mean(~down.any(axis=1)))
+            assert terms["impact"] == min(1.0, max(0.0, float(loads.sum(axis=1).max()) / w - 1.6) / 1.6)
+            match = 0
+            for r, now in zip(rows, down, strict=True):
+                ref, back = s.contact_ref(r["clock"]), s.contact_ref(max(r["clock"] - lag, 0.0))
+                match += sum(int(now[f] == ref[f] or now[f] == back[f]) for f in (0, 1))
+            assert terms["contact"] == match / 20.0
+    finally:
+        e0._step_hook = None
+    assert max(apart_loads) > 0.02 and max(apart_z) > 1e-4  # the pass on the state after a step is another reading
+
+
+# ------------------------------------------------------------------------------------------------
+# Reset is history-free (design D16)
+# ------------------------------------------------------------------------------------------------
+@needs_run
+@pytest.mark.parametrize("mode,body,floor", [("R5", BODY, "hard"), ("R5", BODY, "robot_floor_carpet"),
+                                             pytest.param("R5", BODY_X, "hard", marks=needs_x), ("R6", BODY, "hard")])
+def test_reset_is_history_free(mode, body, floor):
+    """An env after six randomised episodes (noise actions, drawn tasks, starts, factors, pushes and head events)
+    against a fresh env: after ``reset(seed)`` and the same actions, every physics step's digest, every
+    observation and reward and everything the reset drew are equal: from the stance, from mid-task and with the
+    start drawn."""
+    cfg = cfg_of(body, floor=floor, mode=mode)
+    used, fresh = r5env.make(mode, cfg), r5env.make(mode, cfg)
+    n = used.layout["action_dim"]
+    assert n == (17 if body == BODY_X else 15)
+    seen = []
+    used.reset(seed=991)
+    for ep in range(6):
+        for a in noise(n, 40, 0.3, ep):
+            _, _, term, trunc, info = used.step(a)
+            if term or trunc:
+                break
+        seen.append((info["task"], info["start"], info["factors"]["latency_steps"], info["push"] is not None))
+        used.reset()
+    assert len({s[2] for s in seen}) > 2 and any(f["joint_damping"] != 1.0 for f in [used.factors])
+    acts = noise(n, 60, 0.2, 77)
+    for seed, opts in ((4242, dict(start="stance")), (4243, dict(task="brisk", start="mid")), (4244, {}), (4245, {})):
+        a, b = play(used, acts, seed=seed, options=opts), play(fresh, acts, seed=seed, options=opts)
+        same(a, b)
+        assert len(a["digests"]) >= 10
+        if "start" in opts:
+            assert a["start"] == opts["start"]
+    # the stream goes on alike without a seed (env.EPISODE_SEED_RULE: the next episode of the same reset)
+    same(play(used, acts[:20]), play(fresh, acts[:20]))
+    assert used.episode_stream() == fresh.episode_stream() == dict(reset_seed=4245, episodes=2,
+                                                                  first_episode_seed=4245 * 1_000_000)
+    used.close()
+    fresh.close()
+
+
+@needs_run
+def test_trackers_are_built_nominal():
+    e = r5env.R5Env(cfg_of())
+    p, m = e.p, e.p.m
+    damp0, fric0 = e.nominal_model.dof_damping[p.dofs].copy(), e.nominal_model.dof_frictionloss[p.dofs].copy()
+    assert sorted(e.trackers) == ["brisk", "stand", "stop", "walk"] and fric0.any() and damp0.any()
+    e.reset(seed=5)
+    for ep in range(4):
+        for a in noise(15, 15, 0.3, ep):
+            if any(e.step(a)[2:4]):
+                break
+        e.reset()
+    for tk in e.trackers.values():
+        assert np.array_equal(tk.damp, damp0) and np.array_equal(tk.fric, fric0) and tk.model is e.nominal_model
+        assert tk.mass == float(e.nominal_model.body_subtreemass[p.trunk])
+    # a tracker for a plan given by options, first used right after a randomised episode
+    e.reset(options=dict(factors=dict(joint_damping=1.5, joint_friction=0.5, mass=1.1, kp=0.7, friction=0.5)))
+    assert np.array_equal(m.dof_damping[p.dofs], 1.5 * damp0)
+    assert m.body_mass[p.trunk] > e.nominal_model.body_mass[p.trunk]
+    plan = [("transition", "start"), ("ref", "nominal", 3)]
+    e.reset(options=dict(plan=plan, seconds=1.0, factors=dict(joint_damping=0.6)))
+    script, tk = e._plans[tuple(plan)]
+    assert e.tk is tk and e.script is script and e.task == "plan"
+    assert np.array_equal(tk.damp, damp0) and np.array_equal(tk.fric, fric0)
+    assert np.array_equal(m.dof_damping[p.dofs], 0.6 * damp0)  # the episode's own factor, applied after the build
+    fresh = plant.build(BODY, "hard")
+    ref = r5lib.Library(fresh, BODY, "S1", RATE).from_plan(plan)
+    assert e.lib.omega == ref.track.omega == script.track.omega
+    for a, b in zip(script.track.segments, ref.track.segments, strict=True):  # the track read the nominal masses
+        for key in ("dcm_rel", "comv_rel", "zmp_rel", "yaw"):
+            assert np.array_equal(a.info[key], b.info[key]), key
+    e.reset(options=dict(plan=[list(x) for x in plan], seconds=1.0))
+    assert e.tk is tk and len(e._plans) == 1  # kept by the plan
+    # a tracker built on a randomised model is refused at the reset that would use it
+    e.reset(options=dict(task="walk", factors=dict(joint_damping=1.4)))
+    e.trackers["walk"] = e._tracker(e.scripts["walk"])
+    with pytest.raises(RuntimeError, match="not the nominal"):
+        e.reset(options=dict(task="walk"))
+    e.close()
+
+
+@needs_run
+def test_factors_are_applied_and_restored(e0):
+    p, m, nom = e0.p, e0.p.m, e0.nominal_model
+    e0.reset(options=dict(task="walk"))  # (the env is shared: after a step the drive envelope's force ranges are
+    assert env.model_differences(m, nom) == []  # that step's, until the next reset)
+    f = dict(friction=0.5, mass=1.1, kp=0.8, latency_steps=4, noise_scale=1.3, joint_damping=1.5, joint_friction=0.5)
+    _, info = e0.reset(seed=1, options=dict(task="walk", factors=f))
+    assert info["factors"] == f and e0.tk.noise.scale == 1.3
+    assert np.array_equal(m.dof_damping[p.dofs], 1.5 * nom.dof_damping[p.dofs])
+    assert np.array_equal(m.dof_frictionloss[p.dofs], 0.5 * nom.dof_frictionloss[p.dofs])
+    assert np.array_equal(m.dof_damping[:6], nom.dof_damping[:6])  # the hinges only
+    assert np.array_equal(m.actuator_gainprm[:, 0], 0.8 * nom.actuator_gainprm[:, 0])
+    assert np.array_equal(m.actuator_biasprm[:, 1], 0.8 * nom.actuator_biasprm[:, 1])
+    assert m.body_mass[p.trunk] == 1.1 * nom.body_mass[p.trunk]
+    np.testing.assert_array_equal(m.body_inertia[p.trunk], 1.1 * nom.body_inertia[p.trunk])
+    colliding = (m.geom_contype | m.geom_conaffinity) > 0
+    assert np.all(m.geom_friction[colliding, 0] == 0.5)
+    assert e0.weight_true > e0.weight and e0.core.weight_true == e0.weight_true and e0.core.weight == e0.weight
+    changed = env.model_differences(m, nom)
+    assert {"dof_damping", "dof_frictionloss", "body_mass", "geom_friction", "actuator_gainprm"} <= set(changed)
+    assert "command" in p.__dict__  # the delay is the bar's wrapper on the plant
+    for _ in range(3):
+        e0.step(np.zeros(15, np.float32))
+    # the next nominal episode's model is the nominal one bit for bit, damping and friction-loss included
+    e0.reset(options=dict(task="walk"))
+    assert env.model_differences(m, nom) == [] and e0.weight_true == e0.weight
+    assert "command" not in p.__dict__ and "reset" not in p.__dict__
+    for tk in e0.trackers.values():  # the controller's copies never moved
+        assert np.array_equal(tk.damp, nom.dof_damping[p.dofs])
+        assert np.array_equal(tk.fric, nom.dof_frictionloss[p.dofs])
+    # training's ranges (rules J1, J2): a drawn episode's factors lie in them, in the env's own order of draws
+    e = e0.cfg
+    assert (e.latency_steps, e.kp, e.friction, e.mass) == ((0, 12), (0.6, 1.2), (0.4, 1.2), (0.9, 1.1))
+    assert (e.joint_damping, e.joint_friction, e.noise_scale) == ((0.5, 1.5), (0.5, 1.5), (0.5, 1.5))
+    rng = np.random.default_rng(8)
+    drawn = dataclasses.replace(e, randomize=True)
+    probe = r5env.R5Env.__new__(r5env.R5Env)
+    probe.cfg = drawn
+    got = probe._draw_factors(rng)
+    rng = np.random.default_rng(8)
+    want = dict(friction=float(rng.uniform(0.4, 1.2)), mass=float(rng.uniform(0.9, 1.1)),
+                kp=float(rng.uniform(0.6, 1.2)), latency_steps=int(rng.integers(0, 13)),
+                noise_scale=float(rng.uniform(0.5, 1.5)),
+                joint_damping=float(rng.uniform(0.5, 1.5)), joint_friction=float(rng.uniform(0.5, 1.5)))
+    assert got == want and list(got) == list(r5env.FACTORS)
+
+
+# ------------------------------------------------------------------------------------------------
+# Mid-task starts (design D6, rule T3)
+# ------------------------------------------------------------------------------------------------
+@needs_run
+def test_mid_start_state_is_the_files_frame(e0):
+    s = e0.scripts["brisk"]
+    seeds = dict(start=123, noise=456)
+    for t in (8.31, 14.02, 20.9):
+        t_frame, q, qd = s.start_state(t)
+        _, info = e0.reset(options=dict(task="brisk", start=t, seeds=seeds))
+        p = e0.p
+        r = np.random.default_rng(123)
+        q[p.qadr] += r.uniform(-0.01, 0.01, 14)
+        qd = qd * RATE
+        qd[:3] += r.uniform(-0.02, 0.02, 3)
+        assert np.array_equal(p.d.qpos, q) and np.array_equal(p.d.qvel, qd) and p.d.time == 0.0
+        assert info["start"] == "mid" and info["t_start"] == t_frame == e0.tk.tau_ref and t - 0.008 < t_frame <= t
+        assert info["seconds"] == pytest.approx(min((s.t_end - t_frame) / RATE, 30.0))
+        est = e0.tk.est  # reset from the known state: Stage 1's Estimator.reset
+        np.testing.assert_array_equal(est.q, q[p.qadr])
+        np.testing.assert_array_equal(est.base, q[:3])
+        # the track got its own first frame back
+        assert np.array_equal(s.track.q0, s.start_state(0.0)[1]) and e0.tk.start == "frame"
+        obs = e0._observation()
+        lay = e0.layout["blocks"]
+        assert not obs[lay["prev_actions"][0] : lay["prev_actions"][1]].any()
+        assert abs(obs[lay["heading"][0]]) < 1e-3 and abs(obs[lay["heading_error"][0]]) < 1e-3
+        np.testing.assert_allclose(obs[lay["joint_error"][0] : lay["joint_error"][1]], 0.0, atol=0.0101)
+    with pytest.raises(ValueError, match="no mid-task start"):
+        e0.reset(options=dict(task="stand", start="mid"))
+    with pytest.raises(ValueError, match="hold"):
+        e0.reset(options=dict(task="stop", start=e0.scripts["stop"].t_end - 1.0))
+    with pytest.raises(ValueError, match="start"):
+        e0.reset(options=dict(task="walk", start="frame"))
+
+
+@needs_run
+def test_mid_start_queue_holds_the_references_commands(e0):
+    """k = 3: the servos get the commands of an undelayed replay, three physics steps late, from the first step on:
+    the queue was refilled with what the zero action would have given before the start."""
+    t, k = 9.6, 3
+    seeds = dict(start=5, noise=6)
+    ctrl: list = []
+
+    def run(latency: int) -> list:
+        ctrl.clear()
+        e0.reset(options=dict(task="brisk", start=t, seeds=seeds, factors=dict(latency_steps=latency)))
+        at_reset = e0.p.d.ctrl.copy()
+        e0._step_hook = lambda p: ctrl.append(p.d.ctrl.copy())
+        try:
+            e0.step(np.zeros(15, np.float32))
+        finally:
+            e0._step_hook = None
+        return [at_reset] + list(ctrl)
+
+    late, now = run(k), run(0)
+    assert len(late) == len(now) == 11
+    for j in range(k, 10):  # c(j - 3) reaches the servos at step j: bit for bit, the same code computed it
+        assert np.array_equal(late[1 + j], now[1 + j - k])
+    assert np.array_equal(late[0], late[1])  # the oldest of the queue, set at the reset
+    assert not np.array_equal(late[0], e0.p.ctrl_home)
+    # no delay: the servos are set to the command of one physics step before the start (the newest the delayed
+    # run's queue holds), not left at Plant.set_state's home targets
+    assert np.array_equal(now[0], late[k]) and not np.array_equal(now[0], e0.p.ctrl_home)
+    # the three before the start, against an undelayed tracker played from three steps earlier
+    e0.close()
+    t_frame, q, qd = e0.scripts["brisk"].start_state(t)
+    tk = e0._tracker(e0.scripts["brisk"])
+    tk.reset_at(t_frame - k * 0.002 * RATE, q, qd * RATE, 6)
+    for j in range(k):
+        tk.step()
+        np.testing.assert_allclose(e0.p.d.ctrl, late[1 + j], rtol=0, atol=1e-12)
+    tk.step()
+    np.testing.assert_allclose(e0.p.d.ctrl, now[1], rtol=0, atol=1e-12)
+    # and R5Tracker.zero_command is what the tracker's own step commands
+    type(e0.p).command(e0.p, *tk.zero_command(tk.tau_ref))
+    want = e0.p.d.ctrl.copy()
+    tk.step()
+    assert np.array_equal(e0.p.d.ctrl, want)
+
+
+@needs_run
+@pytest.mark.parametrize("k", [0, 5])
+def test_mid_start_first_reading_is_of_the_zero_actions_command(e0, k):
+    """At a mid-task start the plant's first forward pass (``Plant.set_state``) runs with the servos at their home
+    targets while the pose is mid-stride.  The env sets the servos to what the zero action commanded before the
+    start, computes the pass again and resets the estimator from it, with and without a delay: the first
+    observation's foot loads and the estimator's and the core's first contact flags are that pass's.  (With the
+    sensor noise off, so that the numbers can be compared exactly.)"""
+    p, w = e0.p, e0.weight
+    lay = e0.layout["blocks"]["foot_load"]
+    scratch = mujoco.MjData(p.m)
+
+    def loads_under(ctrl) -> np.ndarray:  # the forward pass on the plant's state with these servo targets
+        scratch.qpos[:], scratch.qvel[:], scratch.ctrl[:] = p.d.qpos, p.d.qvel, ctrl
+        mujoco.mj_forward(p.m, scratch)
+        return scratch.sensordata[p._load_adr].copy()
+
+    apart = []
+    for t in (6.2, 8.31, 9.6, 14.02, 20.9):
+        obs, info = e0.reset(options=dict(task="brisk", start=t, seeds=dict(start=123, noise=456),
+                                          factors=dict(latency_steps=k, noise_scale=0.0)))
+        tk, est = e0.tk, e0.tk.est
+        step = 0.002 * RATE
+        want = e0._zero_ctrl(tk, info["t_start"] - (k if k else 1) * step)  # (d.ctrl is its workspace ...)
+        p.d.ctrl[:] = want  # (... and holds the same values again)
+        loads = p.d.sensordata[p._load_adr].copy()
+        np.testing.assert_allclose(loads, loads_under(want), rtol=0, atol=1e-9 * w)
+        np.testing.assert_array_equal(est.load, loads)
+        np.testing.assert_allclose(obs[lay[0] : lay[1]], loads / w, rtol=1e-6, atol=1e-7)
+        np.testing.assert_array_equal(est.q, p.d.qpos[p.qadr])  # still reset from the known state
+        np.testing.assert_array_equal(est.base, p.d.qpos[:3])
+        assert est.contact.tolist() == (loads > est.g.contact_on * est.weight).tolist()
+        assert e0.core._contact == (loads > 0.02 * w).tolist()
+        apart.append(float(np.max(np.abs(loads_under(p.ctrl_home) - loads))) / w)
+        assert np.max(loads) < 2.5 * w
+    assert min(apart) > 0.3 and max(apart) > 2.0  # the home targets' pass: body weights away at every start
+    # with the default noise the first observation is still that pass's, within the load noise
+    obs, info = e0.reset(options=dict(task="brisk", start=9.6, seeds=dict(start=123, noise=456),
+                                      factors=dict(latency_steps=k)))
+    np.testing.assert_allclose(obs[lay[0] : lay[1]], p.d.sensordata[p._load_adr] / w, rtol=0, atol=0.05)
+
+
+def test_mid_start_time_stays_inside_its_span():
+    """The uniform draw laid along the spans (rule T3): inside a span the time is the span's start plus what is
+    left of the draw; a draw that the subtractions along the spans leave a rounding step past the last span, or that
+    falls on a span's end, gives the last instant before that end (a span may end where a hold begins)."""
+    spans = [(0.2, 5.678), (5.678, 7.949), (7.949, 13.627)]  # Stage 1's stop task: the hold begins at 13.627
+    total = sum(b - a for a, b in spans)
+    f = r5env.mid_start_time
+    assert f(spans, 0.0) == 0.2 and f(spans, 1.0) == 1.2 and f(spans, 5.478 + 1.0) == pytest.approx(6.678, abs=1e-12)
+    assert f(spans, 5.478 + 2.271 + 3.0) == pytest.approx(10.949, abs=1e-9)
+    for u in (total, float(np.nextafter(total, np.inf)), total + 1e-9, total + 5.0):
+        t = f(spans, u)
+        assert t == float(np.nextafter(13.627, 0.0)) and 7.949 <= t < 13.627
+    for a, b in spans:  # a draw that falls on a span's end, or just short of it
+        on_end = sum(y - x for x, y in spans if y <= a) + (b - a)
+        assert a <= f(spans, on_end) < b
+        t = f(spans, on_end - 1e-9)
+        assert a <= t < b and t == pytest.approx(b - 1e-9, abs=1e-12)
+    rng = np.random.default_rng(3)
+    for u in rng.uniform(0.0, total, 2000):
+        t = f(spans, float(u))
+        assert any(a <= t < b for a, b in spans)
+    assert f([(1.0, 1.0 + 1e-12)], 5.0) < 1.0 + 1e-12 and f(spans, -1.0) == 0.2
+    with pytest.raises(ValueError, match="no span"):
+        f([], 0.3)
+
+
+@needs_run
+def test_a_mid_start_draw_at_the_end_of_the_last_span_does_not_land_in_the_hold(e0):
+    """The stop task's last span ends where its hold begins, and a start in the hold is refused: the largest value
+    the draw can take still gives a start, in the stop itself."""
+    s = e0.scripts["stop"]
+    spans = s.mid_spans()
+    hold = next(seg for seg in s.track.segments if seg.kind == "hold")
+    assert spans[-1][1] == hold.t0  # (2 s x the clock rate before the plan's end lies inside the 4 s hold)
+    with pytest.raises(ValueError, match="hold"):
+        s.start_state(spans[-1][1])
+    total = sum(b - a for a, b in spans)
+    for u in (total, float(np.nextafter(total, np.inf))):
+        t = r5env.mid_start_time(spans, u)
+        t_frame, _, _ = s.start_state(t)
+        assert s.kind(t) == "finite" and t_frame <= t < hold.t0
+        _, info = e0.reset(options=dict(task="stop", start=t))
+        assert info["start"] == "mid" and info["t_start"] == t_frame
+
+
+class _Top:
+    """A stand-in for the env's generator whose uniform draw is ``at``: the draw's upper end, or just past it (numpy:
+    the upper end "may be included ... due to floating-point rounding")."""
+
+    def __init__(self, at: float):
+        self.at, self.calls = float(at), []
+
+    def uniform(self, lo: float, hi: float) -> float:
+        self.calls.append((lo, hi))
+        return self.at
+
+
+def _inline_time(spans, u: float) -> float:
+    """The reference time the env's reset computed inline before ``r5env.mid_start_time`` (commit 225f4b3)."""
+    for a, b in spans:
+        if u <= b - a:
+            break
+        u -= b - a
+    return min(a + u, b)
+
+
+@needs_run
+def test_the_envs_own_draw_at_the_end_of_the_last_span_starts_just_before_the_hold(e0, monkeypatch):
+    """The fix of the mid-start draw, through the env's own reset: with the env's generator drawing the largest
+    values the uniform draw can give (its upper end, and a few rounding steps either side), a mid-task start of
+    the stop task lands on the last file frame before the hold.  The inline arithmetic this replaced puts every
+    one of these draws in the hold (where the reset raises) or back at the last span's first instant."""
+    s = e0.scripts["stop"]
+    spans = s.mid_spans()
+    hold = next(seg for seg in s.track.segments if seg.kind == "hold")
+    total = sum(b - a for a, b in spans)
+    last_frame = s.start_state(float(np.nextafter(hold.t0, 0.0)))[0]
+    assert spans[-1][1] == hold.t0 and hold.t0 - 0.01 < last_frame < hold.t0
+    ulp = float(np.spacing(total))
+    draws = [total + j * ulp for j in range(-2, 4)]
+    wrong = 0
+    for u in draws:
+        gen = _Top(u)
+        monkeypatch.setattr(e0, "_np_random", gen)
+        _, info = e0.reset(options=dict(task="stop", start="mid", seeds=dict(start=1, noise=2)))
+        assert gen.calls == [(0.0, total)]  # the env's own draw: one uniform over the spans' total length
+        assert info["start"] == "mid" and s.kind(info["t_start"]) == "finite"
+        assert hold.t0 - 0.01 < info["t_start"] <= last_frame  # in the stop itself, at its end
+        if u >= total:
+            assert info["t_start"] == last_frame
+        old = _inline_time(spans, u)
+        if old >= hold.t0:  # the hold's first instant: the reset raised there
+            wrong += 1
+            with pytest.raises(ValueError, match="hold"):
+                s.start_state(old)
+        elif old < hold.t0 - 1.0:  # carried past the last span: back at its first instant
+            wrong += 1
+            assert old == pytest.approx(spans[-1][0], abs=1e-9)
+    assert wrong >= 3, wrong
+
+
+@needs_run
+def test_mid_start_never_lands_in_a_hold():
+    e = r5env.R5Env(nominal(tasks=("stop", "stand", "walk"), mid_start=1.0, interference="off"))
+    count = {"stop": 0, "stand": 0, "walk": 0}
+    e.reset(seed=17)
+    for _ in range(150):
+        _, info = e.reset()
+        task, s = info["task"], e.script
+        count[task] += 1
+        if task == "stand":  # rule T3: every task but the stand
+            assert info["start"] == "stance" and info["t_start"] == 0.0 and info["seconds"] == 10.0
+            continue
+        assert info["start"] == "mid" and s.kind(info["t_start"]) != "hold"
+        spans = s.mid_spans()
+        assert any(a - 0.008 <= info["t_start"] <= b for a, b in spans)
+        assert spans[0][0] - 0.008 <= info["t_start"] <= s.t_end - 2.0 * RATE
+        assert 2.0 - 1e-9 <= info["seconds"] <= 30.0 and info["n_steps"] == round(info["seconds"] / 0.02)
+    assert min(count.values()) > 20
+    # with the rule's one half, about half of the walk's episodes start mid-task; none with zero
+    e2 = r5env.R5Env(nominal(tasks=("walk",), mid_start=0.5, interference="off"))
+    e2.reset(seed=3)
+    mids = sum(1 for _ in range(200) if e2.reset()[1]["start"] == "mid")
+    assert 75 <= mids <= 125
+    e2.close()
+    e.close()
+
+
+@needs_run
+@pytest.mark.skipif(not SLOW, reason="slow: set STAGE2_SLOW=1")
+def test_mid_start_walks_on(e0):
+    """Scratch C3 through the real env: the zero action from three frames of the walk, at 0 and at 10 ms, stays up
+    for 4 s on hard floor."""
+    for t in (6.2, 8.9, 11.4):
+        for k in (0, 5):
+            _, info = e0.reset(options=dict(task="walk", start=t, seeds=dict(start=1, noise=2),
+                                            factors=dict(latency_steps=k)))
+            assert info["start"] == "mid" and info["seconds"] > 4.0
+            for step in range(200):
+                _, _, term, trunc, info = e0.step(np.zeros(15, np.float32))
+                assert not term, (t, k, step, info["fall_cause"])
+            assert e0.p.tilt_from_home() < math.radians(3.0)
+
+
+# ------------------------------------------------------------------------------------------------
+# Episodes: lengths, seeds, pushes, the clock past the plan's end, interference
+# ------------------------------------------------------------------------------------------------
+@needs_run
+def test_lengths_seeds_and_the_plan_by_options(e0):
+    _, info = e0.reset(seed=7, options=dict(task="stand"))
+    assert (info["seconds"], info["n_steps"], info["start"]) == (10.0, 500, "stance")
+    assert info["episode_seed"] == 7_000_000 and e0.reset()[1]["episode_seed"] == 7_000_001
+    assert info["seeds"] == dict(start=int(np.random.SeedSequence([7_000_000, 0]).generate_state(1)[0]),
+                                 noise=int(np.random.SeedSequence([7_000_000, 1]).generate_state(1)[0]))
+    _, info = e0.reset(options=dict(task="walk"))
+    assert info["seconds"] == pytest.approx(e0.scripts["walk"].t_end / RATE)
+    assert info["n_steps"] == round(info["seconds"] / 0.02)
+    assert e0.reset(options=dict(task="walk", episode_seed=99))[1]["episode_seed"] == 99
+    # a plan given by options with its seconds: ceil(round(seconds / dt) / 10) env steps (the bar's lengths)
+    plan = [("transition", "start"), ("ref", "nominal", 2)]
+    for seconds, n in ((1.0, 50), (1.013, 51), (0.999, 50), (1.0021, 51)):
+        _, info = e0.reset(options=dict(plan=plan, seconds=seconds, seeds=dict(start=1, noise=2)))
+        assert info["n_steps"] == n == math.ceil(round(seconds / 0.002) / 10) and info["task"] == "plan"
+        assert info["seeds"] == dict(start=1, noise=2) and info["episode_seed"] is None
+    steps = 0
+    while True:
+        _, _, term, trunc, _ = e0.step(np.zeros(15, np.float32))
+        steps += 1
+        if term or trunc:
+            break
+    assert (steps, term, trunc) == (51, False, True)
+    short = dataclasses.replace(e0.cfg, max_seconds=3.0)
+    assert short.max_seconds == 3.0 and e0.cfg.max_seconds == 30.0
+
+
+@needs_run
+def test_pushes_are_drawn_by_rule_j3():
+    e = r5env.R5Env(nominal(tasks=("walk", "stand"), push_prob=1.0, interference="off"))
+    bound, mass = env.PUSH_BOUND_M_S[BODY], float(e.p.m.body_subtreemass[e.p.trunk])
+    assert e.push_bound == bound == 0.589 and e.cfg.push_walking == (0.0, 0.5) and e.cfg.push_standing == (0.0, 1.0)
+    e.reset(seed=1)
+    us = {"walk": [], "stand": [], "start": []}
+    for _ in range(120):
+        _, info = e.reset()
+        t0, dur, fx, fy = info["push"]
+        assert dur == 0.1 and 2.0 <= t0 <= info["seconds"] - 2.0
+        u = math.hypot(fx, fy) * dur / mass / bound
+        walking = e.script.walking(info["t_start"] + t0 * RATE)
+        us["walk" if walking else ("stand" if info["task"] == "stand" else "start")].append(u)
+        assert u <= (0.5 if walking else 1.0) + 1e-9
+    assert len(us["walk"]) > 20 and len(us["stand"]) > 20 and max(us["stand"]) > 0.6 and max(us["walk"]) > 0.3
+    # an episode of 4 s or less gets none; neither does push_prob 0
+    assert e.reset(options=dict(task="walk", start=e.scripts["walk"].t_end - 3.0 * RATE))[1]["push"] is None
+    e.close()
+    with pytest.raises(KeyError):
+        env.PUSH_BOUND_M_S["no-such-body"]  # no default bound (the env's build reads it by key)
+
+
+@needs_run
+def test_env_steps_past_the_plans_end_at_the_fastest_clock(e0):
+    """A clock 25 % fast passes the end of an episode sized for the commanded clock: the tables continue."""
+    fast = np.zeros(15, np.float32)
+    fast[-1] = 1.0
+    for task in ("walk", "stop"):
+        s = e0.scripts[task]
+        tail = 2.4 * RATE if task == "walk" else None
+        if tail is None:  # the stop task ends in a hold: start in its last move, as late as rule T3 allows
+            t = s.mid_spans()[-1][1] - 0.01
+        else:
+            t = s.t_end - tail
+        _, info = e0.reset(options=dict(task=task, start=t, seeds=dict(start=3, noise=4)))
+        ended = None
+        for k in range(info["n_steps"]):
+            obs, r, term, trunc, info = e0.step(fast)
+            assert np.all(np.isfinite(obs)) and all(0.0 <= v <= 1.0 for v in info["reward_terms"].values())
+            if term or trunc:
+                ended = (k + 1, term, trunc)
+                break
+        assert ended is not None and ended[2] and not ended[1], (task, ended, info["fall_cause"])
+        assert info["t_ref"] > s.t_end + 0.2 and info["clock_factor"] > 1.24
+        stats = e0.core.clock_stats()
+        assert 1.15 < stats["mean"] <= 1.25 and stats["reference_s"] == pytest.approx(info["t_ref"] - info["t_start"])
+
+
+class _Gaps:
+    cap = 0.025
+    moving = np.array([False, True])
+
+    def __init__(self):
+        self.d = np.array([0.004, 0.020])
+
+    def at(self, qpos):
+        return self.d.copy()
+
+
+@needs_run
+def test_interference_terminates_at_two_step_ends_in_a_row():
+    e = r5env.R5Env(nominal(tasks=("stand",)))
+    assert e.lg is not None and e.cfg.interference == "terminate" and e.describe()["fixed_pairs"] == e.fixed_pairs
+    gaps = e.core.lg = _Gaps()
+    zero = np.zeros(15, np.float32)
+    e.reset(options=dict(task="stand"))
+    gaps.d[:] = (0.004, 0.001)  # tight: penalised, never terminated
+    _, _, term, _, info = e.step(zero)
+    assert not term and info["interference"]["penalty"] == pytest.approx(2.0 / 3.0)
+    assert info["reward_terms"]["interference"] == pytest.approx(2.0 / 3.0) and not info["interference"]["below_zero"]
+    gaps.d[:] = (0.004, -0.001)  # one pose in contact: penalised, not terminated (rule W4)
+    _, _, term, _, info = e.step(zero)
+    assert not term and info["interference"] == dict(penalty=1.0, below_zero=True, consecutive=1, min_gap_m=-0.001,
+                                                     first_env_step=None)
+    gaps.d[:] = (0.004, 0.02)
+    assert e.step(zero)[4]["interference"]["consecutive"] == 0
+    gaps.d[:] = (-0.0005, 0.02)  # a fixed pair below zero: no penalty, but it counts for the termination
+    assert e.step(zero)[2] is False
+    _, _, term, trunc, info = e.step(zero)
+    assert term and not trunc and info["fall_cause"] == "leg interference"
+    assert info["interference"]["first_env_step"] == 5
+    assert info["reward_terms"]["interference"] == 0.0
+    # the gates switch the termination off for an episode and read when it would have fired
+    e.reset(options=dict(task="stand", terminate_on_interference=False))
+    for k in range(4):
+        _, _, term, _, info = e.step(zero)
+        assert not term and info["fall_cause"] is None
+    assert e.interference_step == 2 and info["interference"]["consecutive"] == 4
+    e.close()
+    # "reward": the penalty without the termination; "off": no reading at all
+    e = r5env.R5Env(nominal(tasks=("stand",), interference="reward"))
+    e.core.lg = gaps
+    e.reset()
+    assert [e.step(zero)[2] for _ in range(3)] == [False] * 3 and e.interference_step == 2
+    e.close()
+    e = r5env.R5Env(nominal(tasks=("stand",), interference="off"))
+    assert e.lg is None and e.fixed_pairs == []
+    e.reset()
+    assert e.step(zero)[4]["interference"] == dict(penalty=0.0, below_zero=False, consecutive=0, min_gap_m=None,
+                                                   first_env_step=None)
+    e.close()
+
+
+def test_importing_the_env_loads_neither_torch_nor_sb3():
+    """A worker process hosts envs without the trainer's libraries (design D13): about 245 MB less each."""
+    code = ("import sys; from designlab.stage2 import r5env, r5core, r5lib; "
+            "print(*(int(m in sys.modules) for m in ('torch', 'stable_baselines3', 'designlab.stage2.bar')))")
+    out = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=True,
+                         env={**os.environ, "PYTHONPATH": ".", "MUJOCO_GL": "disable"})
+    assert out.stdout.split() == ["0", "0", "0"], out.stdout + out.stderr
+
+
+# ------------------------------------------------------------------------------------------------
+# What the env says of itself
+# ------------------------------------------------------------------------------------------------
+@needs_run
+def test_describe_holds_the_rules_and_no_path(e0):
+    doc = e0.describe()
+    text = json.dumps(s2io.plain(doc))
+    assert str(ROOT) not in text and "/home" not in text and "/tmp" not in text and "stage1/runs" not in text
+    assert doc["mode"] == "R5" and doc["config"] == e0.cfg.describe() and doc["config"]["set"] == "S1"
+    assert doc["reward"] == r5core.REWARD_WEIGHTS
+    assert doc["config"]["reward"] == [list(x) for x in r5core.REWARD_WEIGHTS_ITEMS]
+    scales = {k: (list(v) if isinstance(v, tuple) else v) for k, v in r5core.REWARD_SCALES.items()}
+    assert doc["reward_scales"] == scales
+    assert doc["reward_rule"] == r5core.REWARD_RULE and doc["command_rule"] == r5lib.COMMAND_RULE
+    assert doc["layout"] == r5core.layout(e0.p.joints) and doc["head_rule"] is None and doc["set_freeze"] is None
+    assert doc["set_freeze_started"] is None and doc["set_freeze_now"] is None  # the S1 view has no freeze
+    assert doc["freeze_rule"] == r5env.FREEZE_RULE and doc["crouch_rule"] == r5lib.CROUCH_RULE
+    assert list(doc["tasks"]) == ["stand", "walk", "brisk", "stop"] and doc["absent"] == {}
+    # what a trainer compares on a resume (rule K4): the config, the task names in the draw's order, the resolved
+    # table and the files these tasks use; the config is the settings as given (this one names no task)
+    assert doc["task_names"] == ["stand", "walk", "brisk", "stop"] == e0.tasks and doc["config"]["tasks"] == []
+    assert doc["task_files"] == doc["inputs"]["files"] and len(doc["task_files"]) == 6  # (every task of the view)
+    assert r5env.RESUME_KEYS == ("config", "task_names", "tasks", "task_files", "set_freeze_started")
+    assert r5env.LATER_FREEZE_KEYS == ("set_freeze", "set_freeze_now", "inputs.freeze", "inputs.files", "absent")
+    assert all(k in doc for k in r5env.RESUME_KEYS) and all(k.split(".")[0] in doc for k in r5env.LATER_FREEZE_KEYS)
+    said = " ".join(r5env.R5Env.describe.__doc__.split())
+    for key in r5env.RESUME_KEYS + r5env.LATER_FREEZE_KEYS:
+        assert f"``{key}``" in said, key
+    assert "A trainer that compared the description whole would refuse what rule K4 accepts" in said
+    assert [doc["tasks"][t]["weight"] for t in doc["tasks"]] == [1.0, 2.0, 2.0, 2.0]
+    assert doc["inputs"] == e0.lib.inputs and doc["push_bound_m_s"] == 0.589 and doc["interference"] == "terminate"
+    assert doc["core"]["action"] == dict(leg_rad=0.35, other_rad=0.15, clock=0.25, scale=[0.15] * 2 + [0.35] * 12)
+    assert doc["core"]["filter_hz"] == 10.0 and doc["core"]["span"] is None
+    for key in ("reset_order", "step_order", "draw_order", "mid_start_rule", "push_rule", "factor_rule"):
+        assert isinstance(doc[key], str) and len(doc[key]) > 100
+    # a config crosses a process boundary as its description
+    back = r5env.config_from(json.loads(json.dumps(e0.cfg.describe())))
+    assert back == e0.cfg and isinstance(back.reward, tuple) and isinstance(back.reward[0], tuple)
+    assert e0.process_cpu()[0] == os.getpid()
+    with pytest.raises(ValueError, match="mode"):
+        r5env.R6Env(e0.cfg)
+    with pytest.raises(ValueError, match="pile"):
+        r5env.R5Env(nominal(floor="low"))
+    with pytest.raises(ValueError, match="start noise"):
+        r5env.R5Env(nominal(start_joint_noise=0.0))
+    with pytest.raises(ValueError, match="not available"):  # (no row of the view's table: the settings' own error)
+        r5env.R5Env(nominal(tasks=("walk_v0.4",)))
+    assert (e0.cfg.start_joint_noise, e0.cfg.start_root_velocity_noise) == (tune.START_JOINT_NOISE_RAD,
+                                                                          tune.START_ROOT_VELOCITY_NOISE_M_S)
+
+
+@needs_run
+def test_task_weights_and_env_configs(e0):
+    np.testing.assert_allclose(e0.task_p, np.array([1, 2, 2, 2]) / 7.0)
+    try:
+        e0.set_task_weights(dict(walk=4.0))  # rule M4's fix doubles the named tasks' weights
+        np.testing.assert_allclose(e0.task_p, np.array([1, 4, 2, 2]) / 9.0)
+        assert e0.describe()["tasks"]["walk"]["weight"] == 4.0
+        e0.set_task_weights([0.0, 0.0, 1.0, 0.0])
+        e0.reset(seed=2)
+        assert {e0.reset()[1]["task"] for _ in range(8)} == {"brisk"}
+        for bad in (dict(run=1.0), [1.0, 2.0], [0.0] * 4, [1.0, -1.0, 1.0, 1.0]):
+            with pytest.raises(ValueError):
+                e0.set_task_weights(bad)
+    finally:
+        e0.set_task_weights([1.0, 2.0, 2.0, 2.0])
+    cfgs = r5env.env_configs("R5", BODY, "S1")
+    assert [c.floor for c in cfgs] == ["hard", "hard", "hard", "robot_floor_carpet"] * 2  # design D13, rule J5
+    c = cfgs[0]
+    assert (c.mode, c.set, c.set_freeze, c.randomize, c.mid_start, c.push_prob) == ("R5", "S1", None, True, 0.5, 0.5)
+    assert (c.latency_steps, c.interference, c.heading_input) == ((0, 12), "terminate", True)
+    assert (c.filter_hz, c.rate, c.gaze_prob, c.jaw_prob) == (10.0, 1.05, 0.5, 0.25)
+    assert (c.action_leg_rad, c.action_other_rad, c.action_rate) == (0.35, 0.15, 0.25)
+    assert dict(c.reward) == r5core.REWARD_WEIGHTS and c.max_seconds == 30.0
+    # the configs name the tasks the set holds today, in the table's order (rule K4: a resumed run keeps them)
+    assert all(x.tasks == ("stand", "walk", "brisk", "stop") == tuple(e0.tasks) for x in cfgs)
+    assert r5env.env_configs("R5", BODY, "S1", n_envs=1, overrides=dict(tasks=("walk",)))[0].tasks == ("walk",)
+    r6 = r5env.env_configs("R6", BODY, "S1", n_envs=3, overrides=dict(floor="hard", mid_start=0.0))
+    assert [(x.mode, x.floor, x.mid_start) for x in r6] == [("R6", "hard", 0.0)] * 3
+    with pytest.raises(ValueError, match="mode"):
+        r5env.env_configs("R3", BODY, "S1")
+    assert r5env.FLOOR_SPREAD == ("hard", "hard", "hard", "robot_floor_carpet")
+
+
+# ------------------------------------------------------------------------------------------------
+# A later freeze of the set (rule K4)
+# ------------------------------------------------------------------------------------------------
+SET = "T0"
+
+
+def freeze_t0(root: Path, refs=(), moves=(), edit=None) -> dict:
+    """The synthetic set ``T0`` under ``root`` frozen once more: Stage 1's arrays under the names given
+    (``(name, Stage 1's name)``) are added to its records (a first call makes the set), ``edit(references,
+    transitions, directory)`` then changes what it likes, and a freeze is appended to ``set.json`` as
+    ``sets.freeze`` writes it (the manifest: each available entry's kind, sha256 and hashed subset, as
+    ``sets.manifest_of`` lists them: an entry recorded as not available is in no manifest), without that command's
+    checks.  Returns the freeze."""
+    src = r5lib.s1_root(BODY) / BODY
+    d = setio.set_dir(SET, BODY, root)
+    refs1, trs1 = s2io.read_json(src / "refs.json"), s2io.read_json(src / "transitions.json")
+    if (d / "set.json").is_file():
+        docs = setio.load(d)
+        set_doc, have_refs, have_trs = docs["set.json"], docs["refs.json"]["references"], docs["transitions.json"][
+            "transitions"]
+    else:
+        set_doc = dict(set=SET, body=BODY, role="fixture", crouch_frac=0.03, not_available={}, freezes=[])
+        have_refs, have_trs = {}, {}
+    for name, old in refs:
+        e = copy.deepcopy(refs1["references"][old])
+        e.update(name=name, file=f"refs/{name}.npz", set=SET, strides=1, window_s=e["period_s"], crouch_frac=0.03)
+        have_refs[name] = e
+        (d / "refs").mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src / "refs" / f"{old}.npz", d / e["file"])
+    for name, old in moves:
+        e = copy.deepcopy(trs1["transitions"][old])
+        e.update(name=name, file=f"transitions/{name}.npz", a1_over=None,
+                 move=dict(kind=e["kind"], builder="fixture", causal=False, command_phase=None))
+        have_trs[name] = e
+        (d / "transitions").mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src / "transitions" / f"{old}.npz", d / e["file"])
+    if edit is not None:
+        edit(have_refs, have_trs, d)
+    manifest = {n: dict(kind="walk", sha256=e["sha256"], entry_sha256=setio.entry_sha256("walk", e))
+                for n, e in have_refs.items() if e.get("available") is not False}
+    manifest.update({n: dict(kind="move", sha256=e["sha256"], entry_sha256=setio.entry_sha256("move", e))
+                     for n, e in have_trs.items() if e.get("available") is not False})
+    freeze = dict(index=len(set_doc["freezes"]), at="fixture", commit=None, manifest=manifest,
+                  manifest_sha256=s2io.sha256_json(manifest))
+    set_doc["freezes"] = set_doc["freezes"] + [freeze]
+    s2io.write_json(d / "refs.json", dict(body=BODY, set=SET, schema=1, references=have_refs))
+    s2io.write_json(d / "transitions.json", dict(body=BODY, set=SET, schema=1, transitions=have_trs))
+    s2io.write_json(d / "set.json", set_doc)
+    return freeze
+
+
+QUIET = dict(randomize=False, push_prob=0.0, head_events=False, mid_start=0.0, interference="off")
+CHANGE = setio.change_name("nominal", "v0.4")
+
+
+def frozen_cfg(freeze: dict, **over) -> r5env.R5Config:
+    return r5env.R5Config(body=BODY, set=SET, set_freeze=freeze["manifest_sha256"], **{**QUIET, **over})
+
+
+def changed_keys(a: dict, b: dict) -> list[str]:
+    """The keys of two env descriptions that differ, sorted; inside ``inputs`` by its own keys (dotted)."""
+    out = []
+    for k in sorted(set(a) | set(b)):
+        if a.get(k) != b.get(k):
+            out += [f"{k}.{j}" for j in sorted(set(a[k]) | set(b[k])) if a[k].get(j) != b[k].get(j)] \
+                if k == "inputs" else [k]
+    return out
+
+
+def _edit(path: Path, change) -> None:
+    doc = s2io.read_json(path)
+    change(doc)
+    s2io.write_json(path, doc)
+
+
+@needs_run
+def test_a_later_freeze_with_the_same_files_and_task_table_is_accepted(tmp_path):
+    """Rule K4: a run's stored settings name the freeze it started on.  After a later freeze of the same set and
+    body that changes no used file, no used entry and no task of the resolved table, the same settings build the
+    same env, and its description holds both freezes."""
+    f0 = freeze_t0(tmp_path, refs=(("nominal", "nominal"),), moves=(("start", "start"),))
+    cfg = frozen_cfg(f0)
+    assert r5env.set_freeze(BODY, SET, tmp_path) == cfg.set_freeze == f0["manifest_sha256"]
+    e = r5env.R5Env(cfg, root=tmp_path)
+    first = e.describe()
+    assert e.tasks == ["stand", "walk_nominal"] and first["set_freeze"] == cfg.set_freeze
+    pin0 = dict(index=0, manifest_sha256=f0["manifest_sha256"])
+    assert first["set_freeze_started"] == first["set_freeze_now"] == pin0 == first["inputs"]["freeze"]
+    assert first["freeze_rule"] == r5env.FREEZE_RULE and "rule K4" in r5env.FREEZE_RULE
+    acts = noise(15, 12, 0.1, 3)
+    a = play(e, acts, seed=11, options=dict(task="walk_nominal", start="stance"))
+    e.close()
+    # the set is frozen again: one more walk, which no task of the table can use without its change
+    f1 = freeze_t0(tmp_path, refs=(("v0.4", "brisk"),))
+    assert f1["index"] == 1 and f1["manifest_sha256"] != f0["manifest_sha256"] and sorted(f1["manifest"]) == [
+        "nominal", "start", "v0.4"]
+    assert r5env.set_freeze(BODY, SET, tmp_path) == f1["manifest_sha256"]
+    e = r5env.R5Env(cfg, root=tmp_path)  # the stored settings, unchanged
+    later = e.describe()
+    assert later["config"] == first["config"] and later["config"]["set_freeze"] == f0["manifest_sha256"]
+    assert later["set_freeze_started"] == pin0
+    assert later["set_freeze_now"] == dict(index=1, manifest_sha256=f1["manifest_sha256"]) == later["inputs"]["freeze"]
+    assert later["inputs"]["files"] == first["inputs"]["files"] and later["tasks"] == first["tasks"]
+    assert later["absent"] == first["absent"] and e.tasks == ["stand", "walk_nominal"]
+    # of the description, the later freeze changes three keys (``LATER_FREEZE_KEYS``' first three) and no other
+    assert changed_keys(first, later) == ["inputs.freeze", "set_freeze", "set_freeze_now"]
+    assert later["set_freeze"] == f1["manifest_sha256"] != later["config"]["set_freeze"]
+    assert all(later[k] == first[k] for k in r5env.RESUME_KEYS)
+    same(a, play(e, acts, seed=11, options=dict(task="walk_nominal", start="stance")))  # ... and the same episode
+    e.close()
+    # settings that name the later freeze are that freeze's own
+    e = r5env.R5Env(frozen_cfg(f1), root=tmp_path)
+    assert e.describe()["set_freeze_started"] == e.describe()["set_freeze_now"] == dict(
+        index=1, manifest_sha256=f1["manifest_sha256"])
+    e.close()
+    # settings without a freeze take the one that is read
+    e = r5env.R5Env(dataclasses.replace(cfg, set_freeze=None), root=tmp_path)
+    assert e.freeze_started == e.freeze_now == dict(index=1, manifest_sha256=f1["manifest_sha256"])
+    e.close()
+
+
+@needs_run
+def test_a_later_freeze_that_changes_what_the_run_uses_is_refused_with_what_differs(tmp_path):
+    """Rule K4, the other way: a hash that is none of the set's freezes; a later freeze under which a task enters
+    the resolved table; a used entry whose hashed subset changed; a used file whose bytes changed.  Each refusal
+    names what differs."""
+    f0 = freeze_t0(tmp_path / "a", refs=(("nominal", "nominal"), ("v0.4", "brisk")), moves=(("start", "start"),))
+    cfg = frozen_cfg(f0)
+    r5env.R5Env(cfg, root=tmp_path / "a").close()
+    with pytest.raises(tune.InputError, match=r"0{12}\.\.\., which is none of the set's 1 \(the latest: index 0"):
+        r5env.R5Env(frozen_cfg(dict(manifest_sha256="0" * 64)), root=tmp_path / "a")
+    # the change into the 0.40 m/s walk is frozen later: walk_v0.4 enters the table
+    f1 = freeze_t0(tmp_path / "a", moves=((setio.change_name("nominal", "v0.4"), "nominal_to_brisk"),))
+    with pytest.raises(tune.InputError) as err:
+        r5env.R5Env(cfg, root=tmp_path / "a")
+    text = str(err.value)
+    assert "rule K4" in text and f"latest freeze is index 1 ({f1['manifest_sha256'][:12]}...)" in text
+    assert f"the settings name index 0 ({f0['manifest_sha256'][:12]}...)" in text
+    assert ("task walk_v0.4 is in the table now and was absent under freeze 0 (transitions/nominal_to_v0.4.npz not "
+            "in it)") in text
+    assert "refs/" not in text.split("rule K4")[1]  # (no file the run used changed: the table alone)
+    # settings that name their tasks are read for those tasks alone: their table is the same under both freezes
+    named = frozen_cfg(f0, tasks=("stand", "walk_nominal"))
+    e = r5env.R5Env(named, root=tmp_path / "a")
+    assert e.freeze_started["index"] == 0 and e.freeze_now["index"] == 1 and e.tasks == ["stand", "walk_nominal"]
+    e.close()
+    with pytest.raises(tune.InputError, match="task walk_v0.4 is in the table now and was absent under freeze 0"):
+        r5env.R5Env(frozen_cfg(f0, tasks=("walk_v0.4",)), root=tmp_path / "a")
+
+    # a used entry's hashed subset changes (its recorded duration) and the set is frozen again
+    f0 = freeze_t0(tmp_path / "b", refs=(("nominal", "nominal"),), moves=(("start", "start"),))
+
+    def longer(refs, trs, d):
+        trs["start"]["duration_s"] = trs["start"]["duration_s"] + 0.5
+
+    freeze_t0(tmp_path / "b", edit=longer)
+    with pytest.raises(tune.InputError, match=r"transitions/start\.npz: its entry's hashed subset is \w{12}\.\.\., "
+                                              r"freeze 0 held \w{12}\.\.\."):
+        r5env.R5Env(frozen_cfg(f0), root=tmp_path / "b")
+
+    # a used file's bytes change (another walk's arrays under the same name) and the set is frozen again
+    f0 = freeze_t0(tmp_path / "c", refs=(("nominal", "nominal"),), moves=(("start", "start"),))
+
+    def other_walk(refs, trs, d):
+        src = r5lib.s1_root(BODY) / BODY
+        shutil.copyfile(src / "refs" / "brisk.npz", d / "refs" / "nominal.npz")
+        refs["nominal"]["sha256"] = s2io.sha256_file(d / "refs" / "nominal.npz")
+
+    freeze_t0(tmp_path / "c", edit=other_walk)
+    with pytest.raises(tune.InputError, match=r"refs/nominal\.npz has sha256 \w{12}\.\.\., freeze 0 held "
+                                              r"\w{12}\.\.\."):
+        r5env.R5Env(frozen_cfg(f0), root=tmp_path / "c")
+    # the S1 view has no freeze to name
+    with pytest.raises(tune.InputError, match="the set has no freeze"):
+        r5env.R5Env(nominal(set_freeze="0" * 64))
+
+    # set.json's crouch, which no freeze covers, is edited (0.03 to 0.08: the track's LIPM frequency would change
+    # with it and no hash would) and the set is frozen again: the library refuses the set, with both values
+    f0 = freeze_t0(tmp_path / "d", refs=(("nominal", "nominal"),), moves=(("start", "start"),))
+    e = r5env.R5Env(frozen_cfg(f0), root=tmp_path / "d")
+    assert e.describe()["crouch_frac"] == 0.03 and e.describe()["crouch_rule"] == r5lib.CROUCH_RULE
+    e.close()
+    _edit(setio.set_dir(SET, BODY, tmp_path / "d") / "set.json", lambda doc: doc.update(crouch_frac=0.08))
+    for cfg in (frozen_cfg(f0), dataclasses.replace(frozen_cfg(f0), set_freeze=None)):  # (before any new freeze)
+        with pytest.raises(tune.InputError, match="set.json records crouch_frac 0.08, its walk entry 'nominal' "
+                                                  "records 0.03"):
+            r5env.R5Env(cfg, root=tmp_path / "d")
+    f1 = freeze_t0(tmp_path / "d", refs=(("v0.4", "brisk"),))
+    for cfg in (frozen_cfg(f0), frozen_cfg(f1)):
+        with pytest.raises(tune.InputError, match="set.json records crouch_frac 0.08, its walk entry 'nominal' "
+                                                  "records 0.03"):
+            r5env.R5Env(cfg, root=tmp_path / "d")
+
+
+@needs_run
+def test_the_task_table_is_compared_also_when_the_named_freeze_is_the_latest(tmp_path):
+    """``FREEZE_RULE``: a task is in the table under a freeze exactly when that freeze's manifest holds every file
+    of its plan.  A set's records can be edited after its latest freeze without a new one; settings that name that
+    freeze are then refused like any other whose table differs, with the task and its reason."""
+    f0 = freeze_t0(tmp_path / "a", refs=(("nominal", "nominal"), ("v0.4", "brisk")),
+                   moves=(("start", "start"), (CHANGE, "nominal_to_brisk")))
+    cfg = frozen_cfg(f0)
+    pin0 = dict(index=0, manifest_sha256=f0["manifest_sha256"])
+    e = r5env.R5Env(cfg, root=tmp_path / "a")
+    assert e.tasks == ["stand", "walk_nominal", "walk_v0.4"] and e.freeze_started == e.freeze_now == pin0
+    e.close()
+    # the change into the 0.40 m/s walk is withdrawn in transitions.json; the set is not frozen again
+    d = setio.set_dir(SET, BODY, tmp_path / "a")
+    _edit(d / "transitions.json", lambda doc: doc["transitions"][CHANGE].update(
+        available=False, reason="withdrawn after the freeze"))
+    assert len(s2io.read_json(d / "set.json")["freezes"]) == 1
+    assert r5env.set_freeze(BODY, SET, tmp_path / "a") == cfg.set_freeze
+    with pytest.raises(tune.InputError) as err:
+        r5env.R5Env(cfg, root=tmp_path / "a")
+    text = str(err.value)
+    assert f"the settings name the set's latest freeze, index 0 ({f0['manifest_sha256'][:12]}...)" in text
+    assert "is not what that freeze holds (rule K4): " in text
+    assert text.endswith("task walk_v0.4 was in the table under freeze 0 and is absent now "
+                         "(transitions/nominal_to_v0.4: withdrawn after the freeze)")
+    # settings that name their tasks are read for those tasks alone ...
+    e = r5env.R5Env(frozen_cfg(f0, tasks=("stand", "walk_nominal")), root=tmp_path / "a")
+    assert e.tasks == ["stand", "walk_nominal"] and e.freeze_started == e.freeze_now == pin0
+    e.close()
+    # ... and a named task that left the table is refused with the study's InputError, not a ValueError
+    with pytest.raises(tune.InputError, match=r"task walk_v0\.4 was in the table under freeze 0 and is absent now "
+                                              r"\(transitions/nominal_to_v0\.4: withdrawn after the freeze\)"):
+        r5env.R5Env(frozen_cfg(f0, tasks=("stand", "walk_v0.4")), root=tmp_path / "a")
+    # settings that name no freeze have nothing to be compared with: they take the table as it is read
+    e = r5env.R5Env(dataclasses.replace(cfg, set_freeze=None), root=tmp_path / "a")
+    assert e.tasks == ["stand", "walk_nominal"] and e.freeze_started == e.freeze_now == pin0
+    e.close()
+    # ... but a task they name must be there: the same InputError, with the set's reason
+    with pytest.raises(tune.InputError, match=r"the settings name tasks that are not available: walk_v0\.4 "
+                                              r"\(transitions/nominal_to_v0\.4: withdrawn after the freeze\)\.  "
+                                              r"Available: stand, walk_nominal$"):
+        r5env.R5Env(dataclasses.replace(frozen_cfg(f0, tasks=("walk_v0.4",)), set_freeze=None), root=tmp_path / "a")
+    with pytest.raises(ValueError, match=r"tasks \['walk'\] are not available \(stand, walk_nominal\)"):
+        r5env.R5Env(frozen_cfg(f0, tasks=("walk",)), root=tmp_path / "a")  # (no row of the table: a ValueError)
+
+    # the manifest that set.json holds for the named freeze is checked against its hash when it is the latest too
+    f0 = freeze_t0(tmp_path / "b", refs=(("nominal", "nominal"),), moves=(("start", "start"),))
+    d = setio.set_dir(SET, BODY, tmp_path / "b")
+    _edit(d / "set.json", lambda doc: doc["freezes"][0]["manifest"].update(
+        ghost=dict(kind="move", sha256="0" * 64, entry_sha256="0" * 64)))
+    with pytest.raises(tune.InputError, match="the settings name the set's latest freeze, index 0 .*: the manifest "
+                                              "that set.json holds for freeze 0 is not the one its hash names$"):
+        r5env.R5Env(frozen_cfg(f0), root=tmp_path / "b")
+
+
+@needs_run
+def test_a_task_that_leaves_the_table_under_a_later_freeze_is_refused(tmp_path):
+    """Rule K4: a task that was in the table under the freeze the settings name and is absent under the latest (its
+    change was withdrawn and the set frozen again) refuses the run, with the task and the set's reason; settings
+    that name their tasks without it are accepted, and settings that name it are refused the same way."""
+    sets = pytest.importorskip("designlab.stage2.sets")
+    f0 = freeze_t0(tmp_path, refs=(("nominal", "nominal"), ("v0.4", "brisk")),
+                   moves=(("start", "start"), (CHANGE, "nominal_to_brisk")))
+    f1 = freeze_t0(tmp_path, edit=lambda refs, trs, d: trs[CHANGE].update(available=False, reason="withdrawn"))
+    # the fixture's manifest lists the available entries only, as ``sets.manifest_of`` does
+    assert sorted(f0["manifest"]) == ["nominal", CHANGE, "start", "v0.4"]
+    assert sorted(f1["manifest"]) == ["nominal", "start", "v0.4"] and f1["index"] == 1
+    docs = setio.load(setio.set_dir(SET, BODY, tmp_path))
+    for entry in docs["refs.json"]["references"].values():
+        entry.setdefault("look_sha256", None)  # (a look set's key, which ``manifest_of`` reads; no fixture has it)
+    hashes = lambda m: {n: (r["sha256"], r["entry_sha256"]) for n, r in m.items()}  # noqa: E731
+    assert hashes(f1["manifest"]) == hashes(sets.manifest_of(docs))
+    with pytest.raises(tune.InputError) as err:
+        r5env.R5Env(frozen_cfg(f0), root=tmp_path)
+    text = str(err.value)
+    assert f"latest freeze is index 1 ({f1['manifest_sha256'][:12]}...)" in text
+    assert f"the settings name index 0 ({f0['manifest_sha256'][:12]}...)" in text
+    assert text.endswith("(rule K4): task walk_v0.4 was in the table under freeze 0 and is absent now "
+                         "(transitions/nominal_to_v0.4: withdrawn)")
+    e = r5env.R5Env(frozen_cfg(f0, tasks=("stand", "walk_nominal")), root=tmp_path)
+    assert (e.freeze_started["index"], e.freeze_now["index"], e.tasks) == (0, 1, ["stand", "walk_nominal"])
+    e.close()
+    with pytest.raises(tune.InputError, match=r"\(rule K4\): task walk_v0\.4 was in the table under freeze 0 and is "
+                                              r"absent now \(transitions/nominal_to_v0\.4: withdrawn\)$"):
+        r5env.R5Env(frozen_cfg(f0, tasks=("walk_v0.4",)), root=tmp_path)
+    # settings that name the later freeze: the task was never in its table, and a config that names it is refused
+    e = r5env.R5Env(frozen_cfg(f1), root=tmp_path)
+    assert e.tasks == ["stand", "walk_nominal"] and e.freeze_started == e.freeze_now
+    e.close()
+    with pytest.raises(tune.InputError, match=r"the settings name tasks that are not available: walk_v0\.4 "
+                                              r"\(transitions/nominal_to_v0\.4: withdrawn\)"):
+        r5env.R5Env(frozen_cfg(f1, tasks=("walk_v0.4",)), root=tmp_path)
+
+
+@needs_run
+def test_env_configs_name_their_tasks_so_a_later_freeze_that_adds_a_task_is_accepted(tmp_path):
+    """Rule K4's accepted case, reached by a resumed run: a job's env configs (``env_configs``) name the tasks the
+    set holds when the run starts.  When a later freeze makes a further task usable (the change into the 0.40 m/s
+    walk, frozen later), the stored configs build the same envs, which play the same episodes on the same tasks;
+    of the env description only ``LATER_FREEZE_KEYS`` change, and what a trainer compares (``RESUME_KEYS``) is
+    equal.  The same settings without the task names are refused, as rule K4 says to the letter."""
+    f0 = freeze_t0(tmp_path, refs=(("nominal", "nominal"), ("v0.4", "brisk")), moves=(("start", "start"),))
+    cfgs = r5env.env_configs("R5", BODY, SET, n_envs=5, overrides=QUIET, root=tmp_path)
+    cfg = cfgs[0]
+    assert all(c.tasks == ("stand", "walk_nominal") and c.set_freeze == f0["manifest_sha256"] for c in cfgs)
+    assert [c.floor for c in cfgs] == ["hard", "hard", "hard", "robot_floor_carpet", "hard"]
+    assert list(cfg.tasks) == r5lib.task_names(BODY, SET, tmp_path)
+    assert r5env.config_from(json.loads(json.dumps(cfg.describe()))) == cfg  # (a stored config, read back)
+    e = r5env.R5Env(cfg, root=tmp_path)
+    first = e.describe()
+    acts = noise(15, 12, 0.1, 3)
+    a = play(e, acts, seed=11)  # (the task is drawn)
+    e.close()
+    assert first["task_names"] == ["stand", "walk_nominal"] == first["config"]["tasks"] == list(first["tasks"])
+    assert sorted(first["task_files"]) == ["refs/nominal.npz", "transitions/start.npz"]
+    assert first["task_files"] == {f: first["inputs"]["files"][f] for f in first["task_files"]}
+    # a config that names no task builds the same env today
+    bare = dataclasses.replace(cfg, tasks=())
+    e = r5env.R5Env(bare, root=tmp_path)
+    assert changed_keys(first, e.describe()) == ["config"] and e.describe()["config"]["tasks"] == []
+    e.close()
+    # the change is frozen later: walk_v0.4 becomes usable, and the turns and the stop are absent for another reason
+    f1 = freeze_t0(tmp_path, moves=((CHANGE, "nominal_to_brisk"),))
+    assert r5lib.task_names(BODY, SET, tmp_path) == ["stand", "walk_nominal", "walk_v0.4"]
+    e = r5env.R5Env(cfg, root=tmp_path)  # the stored config: accepted
+    later = e.describe()
+    assert e.tasks == ["stand", "walk_nominal"]
+    for key in r5env.RESUME_KEYS:
+        assert later[key] == first[key], key
+    assert changed_keys(first, later) == sorted(r5env.LATER_FREEZE_KEYS)  # all five, and no other key
+    assert later["set_freeze_started"] == dict(index=0, manifest_sha256=f0["manifest_sha256"])
+    assert later["set_freeze_now"] == dict(index=1, manifest_sha256=f1["manifest_sha256"]) == later["inputs"]["freeze"]
+    assert "walk_v0.4" in first["absent"] and "walk_v0.4" not in later["absent"]
+    new = sorted(set(later["inputs"]["files"]) - set(first["inputs"]["files"]))
+    assert new == ["refs/v0.4.npz", f"transitions/{CHANGE}.npz"]  # the library reads the new task's files too
+    assert all(later["inputs"]["files"][f] == first["inputs"]["files"][f] for f in first["inputs"]["files"])
+    same(a, play(e, acts, seed=11))  # the same episode, the same task drawn
+    e.close()
+    with pytest.raises(tune.InputError, match="task walk_v0.4 is in the table now and was absent under freeze 0"):
+        r5env.R5Env(bare, root=tmp_path)  # without the names: refused
+    # a job that starts today names the three tasks and the later freeze
+    today = r5env.env_configs("R5", BODY, SET, n_envs=1, overrides=QUIET, root=tmp_path)[0]
+    assert today.tasks == ("stand", "walk_nominal", "walk_v0.4") and today.set_freeze == f1["manifest_sha256"]
+
+
+@needs_run
+def test_set_freeze_started_is_the_index_the_run_started_on(tmp_path):
+    """The settings hold the named freeze's manifest hash alone.  Where two freezes of a set hold the same manifest
+    (a fixture's: ``sets.freeze`` appends no such freeze), the description's ``set_freeze_started`` is the first of
+    them, the one a run that stored the hash then started on, and it does not move when the set is frozen again."""
+    f0 = freeze_t0(tmp_path / "a", refs=(("nominal", "nominal"),), moves=(("start", "start"),))
+    pin0 = dict(index=0, manifest_sha256=f0["manifest_sha256"])
+    cfg = frozen_cfg(f0)
+    e = r5env.R5Env(cfg, root=tmp_path / "a")
+    first = e.describe()
+    e.close()
+    f1 = freeze_t0(tmp_path / "a")  # frozen again with nothing changed: the same manifest under index 1
+    assert (f1["index"], f1["manifest_sha256"]) == (1, f0["manifest_sha256"])
+    e = r5env.R5Env(cfg, root=tmp_path / "a")
+    later = e.describe()
+    e.close()
+    assert later["set_freeze_started"] == first["set_freeze_started"] == pin0
+    assert later["set_freeze_now"] == dict(index=1, manifest_sha256=f0["manifest_sha256"])
+    assert changed_keys(first, later) == ["inputs.freeze", "set_freeze_now"]  # (the hash is the same: the index alone)
+    # three freezes: a used file changes under the second (refused there) and changes back under the third
+    src = r5lib.s1_root(BODY) / BODY
+    f0 = freeze_t0(tmp_path / "b", refs=(("nominal", "nominal"),), moves=(("start", "start"),))
+
+    def swap(name: str):
+        def edit(refs, trs, d):
+            shutil.copyfile(src / "refs" / f"{name}.npz", d / "refs" / "nominal.npz")
+            refs["nominal"]["sha256"] = s2io.sha256_file(d / "refs" / "nominal.npz")
+        return edit
+
+    f1 = freeze_t0(tmp_path / "b", edit=swap("brisk"))
+    assert f1["manifest_sha256"] != f0["manifest_sha256"]
+    with pytest.raises(tune.InputError, match=r"refs/nominal\.npz has sha256 \w{12}\.\.\., freeze 0 held"):
+        r5env.R5Env(frozen_cfg(f0), root=tmp_path / "b")
+    f2 = freeze_t0(tmp_path / "b", edit=swap("nominal"))
+    assert (f2["index"], f2["manifest_sha256"]) == (2, f0["manifest_sha256"])
+    e = r5env.R5Env(frozen_cfg(f0), root=tmp_path / "b")
+    assert e.freeze_started == dict(index=0, manifest_sha256=f0["manifest_sha256"])
+    assert e.freeze_now == dict(index=2, manifest_sha256=f0["manifest_sha256"])
+    e.close()
+
+
+# ------------------------------------------------------------------------------------------------
+# The wording handed to the rules draft (``stage2/design/CE_RULE_WORDING.md``; the review of the second fix round)
+# ------------------------------------------------------------------------------------------------
+WORDING = ROOT / "stage2" / "design" / "CE_RULE_WORDING.md"
+
+
+def wording_entry(heading: str) -> str:
+    """The part of the wording file under the heading line that starts with ``heading`` (``### 3a.``, ``## 8.``),
+    up to the next heading or rule line, whitespace folded.  The file is a working paper for the lead: a test that
+    reads it skips in a checkout that no longer holds it."""
+    if not WORDING.is_file():
+        pytest.skip(f"{WORDING.name} is not in this checkout")
+    lines = WORDING.read_text().splitlines()
+    start = next(i for i, x in enumerate(lines) if x.startswith(heading))
+    stop = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("#") or lines[i] == "---"), len(lines))
+    return " ".join(" ".join(lines[start:stop]).split())
+
+
+def proposed(entry: str) -> str:
+    """What an entry proposes first: from its first ``**New**`` to its next ``**New**`` or to its ``**Label``."""
+    rest = entry.split("**New**", 1)[1]
+    return min((rest.split(mark, 1)[0] for mark in ("**New**", "**Label")), key=len)
+
+
+@needs_run
+def test_of_what_a_resume_compares_a_change_of_the_task_weights_moves_the_weights_alone(e0):
+    """``RESUME_KEYS`` hold ``tasks``, the resolved table with the task weights in force, and those weights are run
+    state (rule K5; rule M4's fix changes them).  What a resume compares is therefore the description of the env as
+    built from its stored config, before any weight is set on it: a change of the weights moves ``tasks`` alone of
+    the whole description, and in it the weights alone.  ``describe``'s docstring says "as built", and so does the
+    sentence proposed for rule K4 (the wording file's entry 8)."""
+    built = e0.describe()
+    try:
+        e0.set_task_weights(dict(walk=4.0))  # rule M4's fix
+        fixed = e0.describe()
+    finally:
+        e0.set_task_weights([1.0, 2.0, 2.0, 2.0])
+    assert changed_keys(built, fixed) == ["tasks"] and changed_keys(built, e0.describe()) == []
+    assert [k for k in r5env.RESUME_KEYS if built[k] != fixed[k]] == ["tasks"]
+
+    def less_weights(tasks: dict) -> dict:
+        return {t: {k: v for k, v in row.items() if k != "weight"} for t, row in tasks.items()}
+
+    assert less_weights(built["tasks"]) == less_weights(fixed["tasks"])
+    assert [row["weight"] for row in built["tasks"].values()] == [1.0, 2.0, 2.0, 2.0]
+    assert [row["weight"] for row in fixed["tasks"].values()] == [1.0, 4.0, 2.0, 2.0]
+    assert "compare the description of the env as built" in " ".join(r5env.R5Env.describe.__doc__.split())
+    k4 = proposed(wording_entry("## 8."))
+    assert ("of the description of the envs as built, `config`, `task_names`, `tasks`, `task_files` and "
+            "`set_freeze_started` (`r5env.RESUME_KEYS`), not the description whole") in k4
+    assert "`tasks` holds the task weights in force, and those are run state (K5), which M4's fix changes" in k4
+
+
+def test_the_wording_for_w3_states_dutys_bounds_and_clearance_as_guard():
+    """The review of the second fix round, finding 3: the sentences proposed for rule W3 state the two bounds that
+    ``r5core.REWARD_RULE`` states (``tests/test_stage2_r5core.py`` pins them there and what the code does): duty's
+    stride is kept between 1 and 256 env steps, and clearance (a) is not read where T is not above zero."""
+    clearance, duty = proposed(wording_entry("### 3a.")), proposed(wording_entry("### 3b."))
+    assert "a track that plans no complete swing has its gait's, (1 - duty) x the stride period" in clearance
+    assert "Where `T` is not above zero, (a) is not read" in clearance
+    assert ("the last n env steps, `n = round(stride period / 1.05 / 20 ms)`, kept between 1 and 256 env steps: the "
+            "history the env keeps") in duty
+    assert "until n env steps of the episode have been played" in duty and "until that many" not in duty
+    assert r5core.HISTORY_STEPS == 256
+
+
+def test_the_wording_file_asks_no_paste_for_x1_which_the_draft_holds():
+    """The review of the second fix round, finding 2: the lead wrote X1's lifting into the rules draft, so the
+    sentence the wording file quoted as old is no longer in the draft as quoted.  Entry 9 quotes no old sentence and
+    proposes none; the file says against which commit of the draft its other old sentences were compared (the draft
+    is on another branch: that comparison is made by hand), and how many there are."""
+    x1 = wording_entry("## 9.")
+    assert "**Old**" not in x1 and "**New**" not in x1 and "**No wording change is asked.**" in x1
+    assert "`405c218` of `wt/prereg-b`" in x1
+    assert "(lifted for the frozen 75 cm sets on 16 Nov 2026, after the panels)" in x1
+    head = wording_entry("# Work package CE")
+    assert "`c4a0ff8` of `wt/prereg-b`" in head and "all 19 are there word for word" in head
+    assert WORDING.read_text().count("**Old** (") == 19
+
+
+# ------------------------------------------------------------------------------------------------
+# R6
+# ------------------------------------------------------------------------------------------------
+@needs_run
+@pytest.mark.parametrize("body", BODIES)
+def test_r6_steps_on_14_and_16_joints(body):
+    e = r5env.make("R6", cfg_of(body, mode="R6", interference="off"), seed=4)
+    nj = e.nj
+    assert isinstance(e, r5env.R6Env) and all(isinstance(tk, r5core.R6Tracker) for tk in e.trackers.values())
+    assert e.observation_space.shape == ((130,) if nj == 14 else (146,)) and e.action_space.shape == (nj + 1,)
+    np.testing.assert_array_equal(e.span, r5core.policy_span(e.p, [e.scripts[t].track for t in e.tasks]))
+    doc = e.describe()
+    assert doc["mode"] == "R6" and doc["core"]["span"] == [float(x) for x in e.span]
+    assert doc["core"]["span_rule"] == env.POLICY_ONLY_SPAN_RULE and np.all(e.span >= 0.10)
+    lo, hi = e.core.lo, e.core.hi
+    rng = np.random.default_rng(1)
+    steps = 0
+    for _ in range(3):
+        obs, info = e.reset()
+        for _ in range(15):
+            a = rng.uniform(-1.5, 1.5, nj + 1).astype(np.float32)
+            obs, r, term, trunc, info = e.step(a)
+            steps += 1
+            assert np.all(e.tk.q_target >= lo) and np.all(e.tk.q_target <= hi)  # targets inside the ranges
+            assert 0.75 <= e.tk.rate_factor <= 1.25 and np.all(np.isfinite(obs)) and math.isfinite(r)
+            if term or trunc:
+                break
+    assert steps > 20 and e.tk.residual is None
+    # a zero action holds the settled home pose (R6 has no reference controller)
+    e.reset(options=dict(task="walk", start="stance", factors=dict(r5env.NOMINAL_FACTORS)))
+    e.step(np.zeros(nj + 1, np.float32))
+    np.testing.assert_array_equal(e.tk.q_target, e.p.q_settled[e.p.qadr])
+    np.testing.assert_allclose(e.p.d.ctrl, e.p.G @ e.p.q_settled[e.p.qadr], atol=1e-12)
+    e.close()
+
+
+@needs_run
+def test_r6_mid_start_history():
+    """Design D8: after a mid-task start the three-action history and the filter hold the actions that give the
+    reference's joint targets, and the delay queue the reference's targets, so that after k steps the servos'
+    target is the reference's, not home."""
+    e = r5env.R6Env(nominal(mode="R6", interference="off"))
+    p, k, t = e.p, 3, 9.6
+    s = e.scripts["brisk"]
+    ctrl: list = []
+    _, info = e.reset(options=dict(task="brisk", start=t, seeds=dict(start=5, noise=6),
+                                   factors=dict(latency_steps=k)))
+    t0 = info["t_start"]
+    step = 0.002 * RATE
+    q_at = lambda x: s.track.joint(x)[:14]  # noqa: E731
+    acts = e.core.reference_actions(t0)
+    np.testing.assert_array_equal(e.core.hist, acts)
+    np.testing.assert_array_equal(e.core.a_f, acts[0])
+    obs = e._observation()
+    a, b = e.layout["blocks"]["prev_actions"]
+    np.testing.assert_allclose(obs[a:b], acts.ravel(), atol=1e-7)
+    np.testing.assert_allclose(e.p.q_settled[p.qadr] + acts[0, :14] * e.span, q_at(t0 - 0.02 * RATE), atol=1e-12)
+    np.testing.assert_allclose(p.d.ctrl, p.G @ q_at(t0 - k * step), atol=1e-12)  # the oldest of the queue
+    np.testing.assert_array_equal(e.tk.q_target, np.clip(q_at(t0), e.core.lo, e.core.hi))
+    e._step_hook = lambda pp: ctrl.append(pp.d.ctrl.copy())
+    try:
+        e.step(acts[0].astype(np.float64))  # the policy repeats its last action
+    finally:
+        e._step_hook = None
+    for j in range(k):  # the queue: the reference's joint targets of the k steps before the start
+        np.testing.assert_allclose(ctrl[j], p.G @ q_at(t0 - (k - j) * step), atol=1e-12)
+    # when the queue has run out the servos' target is the reference's of one env step before the start, not home
+    target = p.G @ q_at(t0 - 0.02 * RATE)
+    np.testing.assert_allclose(ctrl[k], target, atol=1e-9)
+    home = p.G @ e.p.q_settled[p.qadr]
+    assert np.max(np.abs(ctrl[k] - home)) > 0.1 and np.max(np.abs(ctrl[k] - target)) < 1e-9
+    # a stance start begins with an empty history
+    e.reset(options=dict(task="brisk", start="stance"))
+    assert not e.core.hist.any() and not e.core.a_f.any()
+    e.close()
+
+
+# ------------------------------------------------------------------------------------------------
+# The servo option (R5Config.servo; SERVO_MODEL_DESIGN.md 5.1, 5.5; package S2).  Simulation only: the servo
+# model's values are a model, none is measured.
+# ------------------------------------------------------------------------------------------------
+#: R5Config's keys before the servo option (the working branch at 4a9d2aad): ``describe`` with the option off.
+TODAY_CONFIG_KEYS = (
+    "body", "set", "mode", "floor", "rate", "max_seconds", "tasks", "task_weights", "mid_start", "randomize", "friction",
+    "mass", "kp", "latency_steps", "noise_scale", "joint_damping", "joint_friction", "push_prob", "push_walking",
+    "push_standing", "push_s", "head_events", "gaze_prob", "jaw_prob", "start_joint_noise",
+    "start_root_velocity_noise", "action_leg_rad", "action_other_rad", "action_rate", "filter_hz", "heading_input",
+    "reward", "interference", "set_freeze")
+#: Pinned with the env as it was before the servo option (``r5env.py`` at 4a9d2aad, loaded beside the new one in one
+#: process, every digest equal): the sha256 over every physics step's ``env._state_digest`` of two episodes on the
+#: S1 view, and of two configs' ``describe()``.  A later change elsewhere that moves these episodes moves the pins.
+TODAY_EPISODES = {
+    "quiet brisk mid k5": "371c9020556e5e5de852b7e475075bf2c0ccc707471dbefb8efbbd6c812bb3cd",
+    "default seed 7 first episode": "d208abed106acc2e9bad88a8f7438ded2a1a9fdd175aff652ce3dfde48660bb1",
+}
+TODAY_CONFIGS = {"quiet": "1c1df4df69d2557f1d979f6d5c7f8e668894ddba0b3b10e792c1b1b6aa6adfd5",
+                 "default": "71df9822ef86bece65ea87bb151b1392f886a14c49b5c30f242025c500b17a6d"}
+FIXED = dict(joint_damping=(1.0, 1.0), joint_friction=(1.0, 1.0))
+
+
+def _digest_sha(e, n_steps: int, sigma: float, act_seed: int, **reset) -> tuple[str, int]:
+    rows: list = []
+    e._step_hook = lambda p: rows.append(env._state_digest(p.d))
+    try:
+        e.reset(**reset)
+        rng = np.random.default_rng(act_seed)
+        for _ in range(n_steps):
+            _, _, term, trunc, _ = e.step((sigma * rng.standard_normal(e.layout["action_dim"])).astype(np.float32))
+            if term or trunc:
+                break
+    finally:
+        e._step_hook = None
+    h = hashlib.sha256()
+    for d in rows:
+        h.update(d)
+    return h.hexdigest(), len(rows)
+
+
+def _neutral(**kw) -> servo.ServoParams:
+    """``today`` with the named fields changed: the layer's gains alone (servo tests' form)."""
+    return dataclasses.replace(servo.setting("today"), name="test", **kw)
+
+
+@needs_run
+def test_the_option_off_is_todays_env_bit_for_bit():
+    """Default off: with the option absent every physics step's state of two episodes, and the config's description,
+    are today's (pinned on the env before the option); the plant keeps its own step and envelope throughout."""
+    assert r5env.R5Config(body=BODY).servo is None
+    quiet, full = nominal(), cfg_of()
+    for name, c in (("quiet", quiet), ("default", full)):
+        assert tuple(c.describe()) == TODAY_CONFIG_KEYS and "servo" not in c.describe()
+        assert s2io.sha256_json(c.describe()) == TODAY_CONFIGS[name]
+    e = r5env.R5Env(quiet)
+    got = _digest_sha(e, 30, 0.1, 1, options=dict(task="brisk", start=9.6, seeds=dict(start=5, noise=6),
+                                                  factors=dict(latency_steps=5)))
+    assert got == (TODAY_EPISODES["quiet brisk mid k5"], 300)
+    assert "step" not in e.p.__dict__ and type(e.p.envelope) is drive.Envelope and e.servo_layer is None
+    doc = e.describe()
+    assert "servo" not in doc and "servo" not in doc["config"]
+    assert (doc["factor_rule"], doc["reset_order"], doc["draw_order"]) == (r5env.FACTOR_RULE, r5env.RESET_ORDER,
+                                                                         r5env.DRAW_ORDER)
+    with pytest.raises(ValueError, match="option off"):
+        e.reset(options=dict(task="walk", servo="N"))
+    e.close()
+    e = r5env.R5Env(full)
+    assert _digest_sha(e, 25, 0.1, 10, seed=7) == (TODAY_EPISODES["default seed 7 first episode"], 250)
+    e.close()
+
+
+def test_t2_the_config_with_and_without_the_option():
+    """T2: ``describe`` drops ``servo`` when it is None (today's dictionary) and holds it last when set;
+    ``config_from`` gives back the same config either way, also across JSON."""
+    off = r5env.R5Config(body=BODY, set="S1")
+    assert tuple(off.describe()) == TODAY_CONFIG_KEYS
+    back = r5env.config_from(json.loads(json.dumps(off.describe())))
+    assert back == off and back.servo is None
+    for value in ("draw", "N", "M+", "D/3042"):
+        on = dataclasses.replace(off, servo=value, **FIXED)
+        doc = on.describe()
+        assert tuple(doc) == TODAY_CONFIG_KEYS + ("servo",) and doc["servo"] == value
+        assert r5env.config_from(json.loads(json.dumps(doc))) == on
+    # what a resume compares (rule K4): the config, which holds the option
+    assert r5env.RESUME_KEYS[0] == "config"
+
+
+def test_the_options_refusals_before_anything_is_built():
+    on = dict(set="S1", servo="draw", **FIXED)
+    with pytest.raises(ValueError, match="joint_damping"):
+        r5env.R5Env(r5env.R5Config(body=BODY, set="S1", servo="draw"))
+    with pytest.raises(ValueError, match=f"for {servo.BODY} only"):
+        r5env.R5Env(r5env.R5Config(body=BODY_X, **on))
+    with pytest.raises(ValueError, match="choose from"):
+        r5env.R5Env(r5env.R5Config(body=BODY, **dict(on, servo="nominal")))
+    with pytest.raises(ValueError, match="D/<seed>"):
+        r5env.R5Env(r5env.R5Config(body=BODY, **dict(on, servo="D")))
+    with pytest.raises(ValueError, match="whole number"):
+        r5env.R5Env(r5env.R5Config(body=BODY, **dict(on, servo="D/x")))
+    with pytest.raises(ValueError, match="None"):
+        r5env.R5Env(r5env.R5Config(body=BODY, **dict(on, servo="")))
+    # the parameters of a setting: one object for a name, the panel's set for D/<s>, the training draw by seed
+    assert r5env.servo_params("F+") is servo.setting("F+")
+    assert r5env.servo_params("D/3043") == servo.panel_draw(3043)
+    assert r5env.servo_params("draw", 77) == servo.training_draw(77)
+    with pytest.raises(ValueError, match="no seed"):
+        r5env.servo_params("draw", None)
+    p = servo.setting("P+")
+    assert r5env.servo_params(p) is p
+
+
+@needs_run
+def test_the_option_on_runs_the_layer_after_the_delay_and_leaves_it_first():
+    """SERVO_RULE: the layer is in from the reset (after the delay: both hooks on the plant), acts from the first
+    physics step, and is out at the next reset before anything else and at close; the env's description prints the
+    servo variants of its three rule texts with the table's sha256."""
+    e = r5env.R5Env(nominal(servo="N"))
+    p, nom = e.p, e.nominal_model
+    # an episode with factors of its own, then one without: the layer, which saved the first one's arrays at its
+    # entry, is out before the env restores the nominal arrays, so the second starts on the nominal model
+    e.reset(options=dict(task="walk", start="stance", servo="J+", factors=dict(latency_steps=3, kp=0.8, mass=1.1)))
+    e.step(np.zeros(15, np.float32))
+    _, info = e.reset(options=dict(task="walk", start="stance", servo="J+", factors=dict(latency_steps=3)))
+    assert info["servo"] == "J+" and e.servo_params is servo.setting("J+")
+    assert "command" in p.__dict__ and "step" in p.__dict__ and isinstance(p.envelope, servo.ServoEnvelope)
+    assert env.model_differences(p.m, nom) == []  # (nothing of the run before the first physics step)
+    lay = e.servo_layer
+    assert np.array_equal(p.kv, lay.kv_copy) and not np.array_equal(p.kv, lay.kv_copy0)  # the copies: at entry
+    e.step(np.zeros(15, np.float32))
+    assert "dof_armature" in env.model_differences(p.m, nom)
+    assert lay.readings()["physics_steps"] == 10
+    # the next reset leaves the layer first: today's model and copies before the next episode's layer acts
+    _, info = e.reset(options=dict(task="walk", start="stance"))
+    assert info["servo"] == "N" and e.servo_layer is not lay and env.model_differences(p.m, nom) == []
+    e.close()
+    assert "step" not in p.__dict__ and "command" not in p.__dict__ and type(p.envelope) is drive.Envelope
+    assert env.model_differences(p.m, nom) == [] and np.array_equal(p.kv, lay.kv_copy0)
+    assert e.servo_layer is None and e.servo_params is None
+    doc = e.describe()
+    assert doc["config"]["servo"] == "N" and doc["servo"]["table_sha256"] == servo.TABLE_SHA256
+    assert doc["servo"]["option"] == "N" and doc["servo"]["rule"] == r5env.SERVO_RULE
+    assert doc["servo"]["draw_rule"] == servo.DRAW_RULE and doc["servo"]["kind_counts"] == servo.kind_counts()
+    assert (doc["factor_rule"], doc["reset_order"], doc["draw_order"]) == (
+        r5env.SERVO_FACTOR_RULE, r5env.SERVO_RESET_ORDER, r5env.SERVO_DRAW_ORDER)
+    assert servo.TABLE_SHA256 in r5env.SERVO_DRAW_ORDER and r5env.SERVO_DRAW_ORDER.startswith(r5env.DRAW_ORDER)
+    assert r5env.SERVO_FACTOR_RULE.startswith(r5env.FACTOR_RULE)
+    assert r5env.SERVO_RESET_ORDER.startswith("0 the servo layer left") and "servo layer entered" in (
+        r5env.SERVO_RESET_ORDER)
+    # the other keys of the description are today's
+    off = r5env.R5Env(nominal()).describe()
+    assert sorted(set(doc) - set(off)) == ["servo"] and doc["config"] == dict(off["config"], servo="N")
+    assert all(doc[k] == off[k] for k in off if k not in ("config", "factor_rule", "reset_order", "draw_order"))
+
+
+@needs_run
+def test_the_option_draws_nothing_from_the_envs_stream():
+    """Design section 4 (T12's env part): the env's task, start, factors, push and seeds are the same with the option
+    on or off; a training draw is the episode seed's (``SeedSequence([e, 2])``); with options.seeds and no
+    episode_seed a draw is refused; the layer's factors are 1 and a named setting's trunk mass is the episode's."""
+    off = r5env.R5Env(cfg_of(**FIXED))
+    on = r5env.R5Env(cfg_of(servo="draw", **FIXED))
+    keys = ("task", "start", "t_start", "factors", "push", "seeds", "episode_seed", "n_steps", "head")
+    for e in (off, on):
+        e.reset(seed=5)
+    for _ in range(4):
+        _, a = off.reset()
+        _, b = on.reset()
+        assert {k: a[k] for k in keys} == {k: b[k] for k in keys}
+        assert b["servo"] == f"train/{b['episode_seed']}" and on.servo_params == servo.training_draw(b["episode_seed"])
+        assert b["factors"]["joint_damping"] == b["factors"]["joint_friction"] == 1.0
+    # the env's own early refusal (its message names SERVO_RULE; servo.draw's later one would not)
+    with pytest.raises(ValueError, match="SERVO_RULE"):
+        on.reset(options=dict(task="walk", seeds=dict(start=1, noise=2)))
+    _, info = on.reset(options=dict(task="walk", seeds=dict(start=1, noise=2), servo="F-"))  # a named setting runs
+    assert info["servo"] == "F-" and info["episode_seed"] is None
+    with pytest.raises(ValueError, match="joint_friction"):
+        on.reset(options=dict(task="walk", factors=dict(joint_friction=1.5)))
+    # a named setting's trunk mass factor is the episode's, in the place of the drawn one (the draw stays)
+    _, a = off.reset(seed=9)
+    _, b = on.reset(seed=9, options=dict(servo="M+"))
+    assert b["factors"] == dict(a["factors"], mass=1.1) and a["factors"]["mass"] != 1.1
+    p = on.p
+    assert p.m.body_mass[p.trunk] == 1.1 * on.nominal_model.body_mass[p.trunk]
+    with pytest.raises(ValueError, match="the setting's is the episode's"):
+        on.reset(options=dict(servo="M-", factors=dict(mass=1.0)))
+    off.close()
+    on.close()
+
+
+@needs_run
+@pytest.mark.parametrize("case", ["J+", "G5", "tail N"])
+def test_t14_a_mid_start_delay_queue_is_served_with_the_runs_gains(case):
+    """T14's case of the delay queue at a mid-task start (design 2d): the k commands the queue holds were folded with
+    the run's gain copies (the layer is entered before the fill), and at each of the first k physics steps the force
+    MuJoCo applies is kp (q* - q) + kv (q*' - q') + tau_ff with the run's gains, (q*, q*', tau_ff) the zero action's
+    command of that time.  Under J+ and for the tail at N (kv 3.59) the run's kv differs from today's; under G5 kp
+    and kv are capped."""
+    params = {"J+": _neutral(armature=servo.setting("J+").armature), "G5": _neutral(gain_cap=True),
+              "tail N": _neutral(armature=servo.setting("N").armature)}[case]
+    e = r5env.R5Env(nominal(servo="today"))
+    p, k, t = e.p, 5, 9.6
+    G, GinvT = p.G, np.linalg.inv(p.G.T)
+    seen: list = []
+    _, info = e.reset(options=dict(task="brisk", start=t, seeds=dict(start=5, noise=6),
+                                   factors=dict(latency_steps=k), servo=params))
+    lay, tk = e.servo_layer, e.tk
+    assert np.array_equal(p.kp, lay.kp_copy) and np.array_equal(p.kv, lay.kv_copy)
+    moved = lay.kv_copy != lay.kv_copy0
+    assert moved.any() and (case != "tail N" or np.flatnonzero(moved).tolist() == [1])
+    before = (p.d.qpos.copy(), p.d.qvel.copy())
+    e._step_hook = lambda pp: seen.append((pp.d.qpos.copy(), pp.d.qvel.copy(), pp.d.ctrl.copy(),
+                                           pp.d.actuator_force.copy(), pp.m.actuator_forcerange.copy()))
+    try:
+        e.step(np.zeros(15, np.float32))
+    finally:
+        e._step_hook = None
+    kp, kv = p.m.actuator_gainprm[:, 0].copy(), -p.m.actuator_biasprm[:, 2].copy()
+    assert np.array_equal(kp, lay.kp_model) and np.array_equal(kv, lay.kv_model)
+    assert np.array_equal(kp, lay.kp_copy) and np.array_equal(kv, lay.kv_copy)  # (no box-servo scale here)
+    step = 0.002 * RATE
+    gap = []
+    for j in range(k):  # physics step j + 1 serves the queue's j-th command: the zero action's at t0 - (k - j) step
+        qs, qds, tau = tk.zero_command(max(info["t_start"] - (k - j) * step, 0.0))
+        fold = G @ qs + (lay.kv_copy * (G @ qds) + GinvT @ tau) / lay.kp_copy
+        q, qd, ctrl, force, fr = seen[j]
+        np.testing.assert_allclose(ctrl, fold, rtol=0, atol=1e-12)
+        q0, qd0 = before if j == 0 else seen[j - 1][:2]
+        L, w = G @ q0[p.qadr], G @ qd0[p.dofs]
+        want = kp * (G @ qs - L) + kv * (G @ qds - w) + GinvT @ tau
+        np.testing.assert_allclose(force, np.clip(want, fr[:, 0], fr[:, 1]), rtol=0, atol=1e-9)
+        # what a queue folded with today's copies would have been served (the order this test guards)
+        today = G @ qs + (lay.kv_copy0 * (G @ qds) + GinvT @ tau) / lay.kp_copy0
+        gap.append(float(np.max(np.abs(kp * (today - fold)))))
+    assert max(gap) > 1e-3  # (the run's copies matter here: a fold with today's would serve other torques)
+    # the copies are today's again at the next reset and after close
+    e.reset(options=dict(task="walk", start="stance"))
+    assert np.array_equal(p.kp, lay.kp_copy0) and np.array_equal(p.kv, lay.kv_copy0)
+    e.close()
+    assert np.array_equal(p.kp, lay.kp_copy0) and np.array_equal(p.kv, lay.kv_copy0)
+
+
+#: The rule texts as package S2 left them (sha256 of each string): S3 adds a sentence and edits none of them.
+S2_RULE_TEXTS = {
+    "SERVO_RULE": "b606daa369940611bcec83e9f1ff32f2a34869aaaa358c0238e413ada682ae9e",
+    "SERVO_RESET_ORDER": "d6d79627a40e5c932533304722576b39cbc02433778d4ef94a98711a5b668444",
+    "SERVO_DRAW_ORDER": "4aa52bddc1f4d66927067463a9b8a3a7a5b6f67e1573ee0b7f02f0e5d6df8b29",
+    "SERVO_FACTOR_RULE": "57a7bd15e4a34eb72a756c792584f6fb82fd3a32184ffb8ecb9df63b498d125c",
+    "RESET_ORDER": "1393ffd5e5ad2a5a426faae23218e8fd6ffd377bf1fafa08edea4a8a3fdb0859",
+    "DRAW_ORDER": "7594df9b1797aa7fbbd69b16bbb2937c53bad9fef9d3cd41f66cc4279d12bcad",
+    "FACTOR_RULE": "52d20323826af08c99dac85a6030e6bf308ec9b941bae41050c3723695b9e475",
+    "MID_START_RULE": "ba2475794cec1356395ad79d65070d3939d8bfc3deb9272b4dff1c49ec34aa38",
+}
+
+
+def test_the_mid_start_forward_pass_has_its_own_sentence_and_no_old_text_moved():
+    """The lead's fourth list, the builder's (c): a new rule text says how the mid-start forward pass reads with the
+    option on; no existing string is edited (each as S2 left it), and the env prints the sentence beside SERVO_RULE
+    only when the option is on."""
+    for name, sha in S2_RULE_TEXTS.items():
+        assert hashlib.sha256(getattr(r5env, name).encode()).hexdigest() == sha, name
+    rule = r5env.SERVO_MID_START_RULE
+    assert "today's model's" in r5env.SERVO_RULE and "\"today's model's\" are read as the model arrays only" in rule
+    for words in ("once per episode", "forward pass runs on today's model arrays", "oldest queued command",
+                  "folded with the run's gain copies", "no command is served in that pass", "first physics step"):
+        assert words in rule, words
+
+
+@needs_run
+def test_the_sentence_is_printed_with_the_option_and_names_the_copies_it_moves():
+    """The env's description holds the sentence only with the option on; the settings it names are those whose
+    gain copies the layer moves (printed from ``servo.Layer`` on the env's plant)."""
+    on = r5env.R5Env(nominal(servo="N"))
+    assert on.describe()["servo"]["mid_start_rule"] == r5env.SERVO_MID_START_RULE
+    off = r5env.R5Env(nominal())
+    assert "servo" not in off.describe() and r5env.SERVO_MID_START_RULE not in json.dumps(off.describe())
+    p = on.p
+    moved = {}
+    for name in servo.NAMED[:-1] + ("D/3042", "train/7"):
+        prm = servo.training_draw(7) if name == "train/7" else servo.setting_params(name)
+        with servo.trunk_mass(p, prm.mass):
+            lay = servo.Layer(p, prm)
+        moved[name] = ({servo.ACTUATORS[i] for i in np.flatnonzero(lay.kp_copy != lay.kp_copy0)},
+                       {servo.ACTUATORS[i] for i in np.flatnonzero(lay.kv_copy != lay.kv_copy0)})
+    every, legs = set(servo.ACTUATORS), set(servo.LEG_DRIVES)
+    assert moved["today"] == (set(), set())
+    for name, (kp, kv) in moved.items():
+        if name in ("J+", "W1", "train/7"):
+            assert kp == set() and kv == every, name
+        elif name == "G5":
+            assert kp and kp <= legs and kv - {"tail_yaw_servo"} <= legs and "tail_yaw_servo" in kv, name
+        elif name != "today":
+            assert (kp, kv) == (set(), {"tail_yaw_servo"}), name
+    on.close()
+    off.close()

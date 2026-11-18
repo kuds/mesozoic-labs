@@ -1,5 +1,31 @@
 # Stage 2: the agility round, with character (simulation)
 
+**Note, 14 Nov 2026 (owner decisions, P30).** The owner has now taken four more of section 7's owner decisions
+(`DECISION_LOG.md` P30). **1:** gate L1's pick is V6, every look feature, and a feature may cost a speed rung
+(character first). **2:** the duty band is widened to 0.55–0.72 below 0.30 m/s; from 0.30 m/s up it stays 0.55–0.65
+(section 5). **7:** the owner's pick decides L1 now, and the scores of 3–5 viewers new to the project are added later
+as a labelled late reading. That changes A.5's order, in which the viewers' scores came with the pick: a change to
+the plan, taken by the owner before any Stage 2 run. **8:** the delay bench runs first, on both paths, as soon as its
+sheet is ready and before any compute purchase (section 7, decision 8). Also decided: the 75 cm + Jetson track comes
+first, with `60-N-T-10` kept in the plan and trained after (P29 unchanged); on that track the Jetson is studied as a
+refine case only, the compute choice comes after its screens and the delay bench test, and P14 (Raspberry Pi 5 + AI
+HAT+) stands meanwhile; the bar stays judged at 10 ms (S2-7), with 0, 2, 4, 6 and 8 ms reported beside it, never read
+as the verdict, and with the verdicts re-run at the bench value once it is measured (S2-7's own list of other delays,
+0, 5, 15 and 20 ms, is not rewritten by this note); F25's tuned walk with look feature F9's counter-phased tail and a
+small duty and lift margin is a labelled candidate reference for the 75 cm body, to be recorded, priced with the
+Stage 0 screen, run through the official panels and shown at L1 beside the look ladder with clips, where the owner
+picks (it is not chosen; V6 is the pick of 14 Nov); and the owner has confirmed the Colab plan's four assumptions
+(24 h sessions, background execution, High-RAM CPU runtimes, 3 runtimes at once). Every place below that still treats
+these as open is superseded by this note: the status line's "awaiting the owner's picks"; A.5 and section 7's
+deliverable 1, where the viewers' scores come with the pick; section 5's "if the owner widens the band (owner
+decision 2), else F3 starts at brisk"; section 6's "The owner confirms that the plan allows ..."; and "draft A17" in
+sections 5 and 8, now `DECISION_LOG.md` A17. Section 9 holds the amendments fixed before any run (S2-9 to S2-18); the
+75 cm track's detailed rules are in `STAGE2_75_PLAN.md`.
+
+**Note, 15 Nov 2026 (owner, P32).** Decision 8's timing changed: the owner does not expect to run the delay bench test
+before a 75 cm build works in simulation. No rule changes: the bar stays judged at the assumed 10 ms (S2-7), and S2-9's
+rule for a bench value applies whenever one exists.
+
 **Status (11 Nov 2026): the owner has taken decisions 3–6 below (P29). Track A's first phase is done: the look ladder (`stage2/look/`), its Stage 0 screen and renders, and the look review page for gate L1 (claude.ai artifact MG1yh5ztqJwVdFPs6GmkkY; the blind viewers' sheet QVktxN3pHsov2LTVs6d69c), awaiting the owner's picks. The expressive head (S2-2) is built and costed (`stage2/x/`). Nothing else has run.** Simulation only; it changes no body and adopts nothing
 without the owner (P24). Paths are relative to `hardware/trex_form_study/` unless they begin `environments/`,
 `notebooks/` or `docs/`. S1 and S1b are the Stage 1 and 1b reports (`stage1/runs/2026-11-08/STAGE1_PROBE.md`,
@@ -255,17 +281,25 @@ decision 20's lift test (for the neck and tail, never lifted: causing most of a 
 each checked by four printed lines; about $3 of compute on High-RAM CPU ($66 on L4); results in your Drive. Nothing is
 adopted without you.
 
-**Owner decisions** (3–6 taken on 11 Nov, P29; 1, 2 and 7 at the look review; 8 later):
-1. The look features (L1), and whether a feature may cost a speed rung (A.3).
-2. Duty: a fixed swing time puts the nominal walk at about 0.69 ([look] F3), over the spec's 0.65: widen the band to
-   0.72 below 0.30 m/s, or start F3 at brisk?
+**Owner decisions** (3–6 taken on 11 Nov, P29; 1, 2, 7 and 8 taken on 14 Nov, P30; until 14 Nov this line read
+"1, 2 and 7 at the look review; 8 later"):
+1. **Taken (14 Nov, P30):** V6, every look feature; a feature may cost a speed rung (character first). Asked: The
+   look features (L1), and whether a feature may cost a speed rung (A.3).
+2. **Taken (14 Nov, P30):** the band is widened to 0.55–0.72 below 0.30 m/s; from 0.30 m/s up it stays 0.55–0.65.
+   Asked: Duty: a fixed swing time puts the nominal walk at about 0.69 ([look] F3), over the spec's 0.65: widen the
+   band to 0.72 below 0.30 m/s, or start F3 at brisk?
 3. **Taken:** the 60 cm Hybrid is dropped; Colab trains `60-N-T-10` and `75-M-H-10` (S2-1).
 4. **Taken:** the expressive head as modelled (S2-2), in simulation only, jaw included (P2's deferral stands for the
    build).
 5. **Taken:** the bar's definitions as in section 5: the 90° turn within 2.0 s, both grips, judged at 10 ms (S2-7).
 6. **Taken:** Colab on High-RAM CPU runtimes, up to 3 at once, 24 h sessions, capped at 220 runtime-hours (section 6).
-7. Raters for L2, 3–5 new viewers for L1, and a private rating page.
-8. When the bench tests below run.
+7. **Taken (14 Nov, P30):** the owner's pick decides L1 now; the scores of 3–5 viewers new to the project are added
+   later as a labelled late reading (a change to A.5's order, taken before any Stage 2 run); L2's 12 raters come
+   with the closed-loop clips. Asked: Raters for L2, 3–5 new viewers for L1, and a private rating page.
+8. **Taken (14 Nov, P30):** the delay bench runs first, on both paths (the Teensy CAN loop, and a Jetson real-time
+   core with USB-CAN), as soon as its sheet (`JETSON_PLEM_REVIEW.md` §5 task 8) is ready and before any compute
+   purchase. The answer names the delay bench; it does not time the STS3215 tail servo's test at the speed walks'
+   loads (A1; section 8). Asked: When the bench tests below run.
 
 ## 8. Risks and what this round will not show
 
@@ -281,6 +315,144 @@ adopted without you.
   sizes above 75 cm; any adoption (P24).
 - **Bench tests outside the round:** each drive type's delay and stiffness (draft A17); the STS3215 tail at the speed
   walks' loads, with its joint friction (A1; S1b §8); tread grip on the owner's floors (P21).
+
+## 9. Amendments before any run (14 Nov 2026)
+
+Every item below is a rule fixed before any Stage 2 closed-loop episode, fit or training run: on 14 Nov 2026, but for
+the wording named at the end of this paragraph, which the study's lead settled on 15 Nov 2026. Each settles an open rule
+of `LESSONS_LEARNED.md` section 5.3, records an owner decision (`DECISION_LOG.md` P30), or adds a rule this round needs.
+Where an item changes the plan's own wording it says so. Numbering continues the plan's S2-n. Settled on 15 Nov 2026,
+after an independent review and still before any reference set was frozen and before any Stage 2 closed-loop episode
+(`STAGE2_75_PLAN.md`, last section, points 11 and 12): "or adds a rule this round needs" in this paragraph; the fourth
+bullet of the list below; in S2-9 the bar's delays with 2 and 8 ms, "the speed ladder's", the 75 cm track's bullet and
+the rule for a bench value; in S2-10 the gain's reading, the grip, the seeds and the record; in S2-11 what (b) asserts,
+what "with margin" means and the records of (a) and (c); in S2-15 how the candidate is shown; in S2-16 the parenthesis
+after "the look sets included"; in S2-17 the sentence on what R5, R6 and R2L edit.
+
+What had been run when these rules were fixed:
+
+- No Stage 2 closed-loop episode on any new reference, no fit, no training run.
+- Kinematic and Stage 0 scratch prototypes of references on `75-M-H-10` and `60-N-T-10` (thigh-twist screens of steady
+  turns, a prototype causal stop and quick turn of today's 0.40 m/s walk, their Stage 0 drive ratios). Constants marked
+  "(prototype)" in `STAGE2_75_PLAN.md` were set on these. They are prescribed-motion results, not records.
+- Reproductions of committed Stage 1 and 1b episodes from unchanged code, to check that this container reproduces the
+  first session's simulations: 160 of Stage 1b's 10 ms turn episodes of `60-N-T-10` (`R2s/42@10ms` and `R2@10ms`, four
+  turn conditions, 20 seeds each), each trace byte-identical to the sha256 in its committed episode record, and four of
+  Stage 1's 8 Nov episodes of `75-M-H-10`, also byte for byte. These add no result.
+- Known when these rules were fixed, and not run by this study: the PR's own closed-loop runs of its tuned walks on
+  `75-M-H-10` (simulation; "the PR" and JPS are explained under "Words, names and tags" in `STAGE2_75_PLAN.md`). Its
+  script recorded a 3-episode survival probe of the tuned walk with look feature F9's tail at 0.40 m/s under R2, on
+  seeds other than the panels': 3, 3, 3 and 1 of 3 stayed up at 0, 2, 6 and 10 ms
+  (`stage2/jetson_plem/jetson_plem_study.json`). JPS 2.3 gives a 20-episode table on seeds 3042–3061 under `R2/42` and
+  `R2/43`, for which no code or record exists (`JETSON_PLEM_REVIEW.md` section 1): as the PR claims it, the candidate
+  meets every limit at 0 and 2 ms and falls in every episode at 6 to 10 ms. Neither is a record of this study. Rules A3
+  and H4 of `STAGE2_75_PLAN.md` answer the table, and its C2 says what it leads one to expect.
+
+**S2-9. Delays come in whole physics steps.** The plant's servo delay is k physics steps of 2 ms (the env's and
+Stage 1b's delay queue). Every delay of this plan is therefore a multiple of 2 ms. Changes to the plan's wording:
+
+- judged delay: 10 ms (k = 5), unchanged (S2-7; owner decision of 14 Nov, P30);
+- "the bar also runs at 0, 5, 15 and 20 ms" becomes 0, 2, 4, 6, 8, 14, 16 and 20 ms: the plan's 5 and 15 ms are replaced
+  by their neighbours, and 2 and 8 ms are added because the owner's decision of 14 Nov, P30, reports 0 to 8 ms beside
+  the judged delay; nothing is read between delays;
+- the speed ladder's "also at 0 and 5 ms" becomes 0, 4 and 6 ms;
+- the G8b fallback's "bar at 0, 5 and 10 ms" becomes 0, 4, 6 and 10 ms;
+- training's randomised delay "0–25 ms" becomes k uniform on the integers 0 to 12 (0–24 ms);
+- R2L's mix keeps Stage 1b's k uniform on 0 to 5 (0–10 ms), with the fixed draws of S2-18;
+- the 75 cm track reads its walk at 0, 2, 4, 6, 8 and 10 ms and the rest of its bar at 0, 4, 6 and 10 ms
+  (`STAGE2_75_PLAN.md`).
+
+A bench value that is not a whole number of steps is judged at the next whole step above it, and the step below is run
+and reported beside it. No sub-step delay model is built.
+
+**S2-10. S2-4's reading point.** S2-4 trains R5 for 2,000,000 env steps (rounded up to a whole number of PPO rollouts;
+the count reached is recorded) on `75-M-H-10` with the current head, seed 42, with training's delay draw. The plan's
+2.5M-step monitor is never reached, so its reading is: section 6's monitor (the nominal and 0.40 m/s walks, the 90° turn
+to the left, the stop, and the forward and left nudges; 3 episodes each at 10 ms; 18 episodes) run on the run's final
+checkpoint and on R0L, on the same 18 episodes (the monitor's seeds are fixed in code before the run and recorded). A
+gain is section 6's: at least 2 more of the 18 episodes succeeding with the look (reading 1) than R0L, or a mean
+survival at least 1 s longer. The 18 episodes run at μ 0.9; their seeds are committed before the run starts; both rows'
+episodes, the two counts and the two mean survivals are written to one record in the run directory. The monitor at each
+earlier kept checkpoint is reported and decides nothing. A gain lets Colab start; no gain goes to the owner first. This
+is a go or no-go reading, not a verdict (`LESSONS_LEARNED.md` section 3, lesson 15): verdicts come from the 20-episode
+panels.
+
+**S2-11. G9's toe-clearance evidence.** The plan's G9 reads the own-swing toe clearance on "Stage 1b's 10 ms turn
+traces"; a fresh clone has none, and a stored 50 Hz trace lacks the 500 Hz contacts the reading needs. Amended: (a)
+Stage 1b's 10 ms turn episodes of `60-N-T-10` are re-run with the stock rows; a re-run episode counts only if its trace
+is byte-identical to the sha256 in its committed episode record (so it is Stage 1b's episode); the own-swing reading is
+taken on the live recorder and reported beside the reference-clock reading; only the trace identity is asserted. (b) For
+`75-M-H-10`, where Stage 1b ran nothing, the evidence is the bar's own 10 ms records, which hold both readings for every
+episode; (b) asserts only that every 10 ms bar record of `75-M-H-10` holds both readings for every episode. (c) Every
+frozen reference is played kinematically through the same readings and must pass its own bar item with margin (the
+plan's wording, unchanged); "with margin" means: played at the commanded clock (5 % fast) the reference passes its own
+item's readings, and the quick turn also reaches 80 degrees at the slowest commanded clock (`STAGE2_75_PLAN.md` A10).
+(a) and (c) each write one G9 record per body, whose path is fixed by the R5 build before G9 runs.
+
+**S2-12. How checkpoints trained on Colab are judged here.** The panels run here, in the study's venv
+(`tools/requirements-study.txt`). A checkpoint trained under other library versions is judged under a flagged
+cross-version rule:
+
+- every kept checkpoint is saved with a policy fingerprint: 256 raw observation vectors, drawn once from a seeded
+  generator and stored in the run, with the deterministic actions that the saved normalisation statistics and policy
+  give them at save time (float32);
+- here the checkpoint is loaded through the loader of S2-14 and must reproduce every fingerprint action within 1e-5
+  (absolute); a checkpoint that does not is not judged, and the owner is told;
+- every policy-row record then holds both version sets (trained under, judged under), the largest fingerprint difference
+  and `cross_version: true`;
+- torch's build label ("+cpu", "+cu...") is dropped on both sides before versions are compared; the version number is
+  compared.
+
+The tolerance is set now, before any Colab archive exists.
+
+**S2-13. Resuming a run across library versions.** A resume under library versions other than the run's last session's
+is refused unless `--allow-version-change` is given. With the flag, the session records both version sets and
+`version_change: true`, every later record of the run carries the flag, and the checkpoint resumed from must first
+reproduce its fingerprint (S2-12) under the new versions. The same holds for a changed source hash
+(`--allow-source-change`, as Stage 1). One REPO_REF and one run path are kept for a run's whole life.
+
+**S2-14. Archives that load across Python versions.** The learning-rate schedule (and the clip range) saved in a
+checkpoint is an instance of a module-level class, not a closure, so that the archive holds no bytecode; every load goes
+through one loader that passes the schedule objects explicitly. Stage 1's judged checkpoints, which hold a closure, are
+not touched and stay loadable only in Stage 1's PPO venv. The day-one smoke loads a Colab-saved archive here.
+
+**S2-15. Gate L1 (owner, 14 Nov, P30).** The frozen look reference is V6 (every look feature) on both bodies. A look
+feature may cost a speed rung: on `75-M-H-10` the V6 rung at the animal pace is over the knee's Stage 0 speed limit
+(1.012) and is not in the ladder. The duty band is 0.55–0.72 below 0.30 m/s and 0.55–0.65 from 0.30 m/s up. The owner's
+pick decided L1; the scores of 3–5 viewers new to the project are added later as a labelled late reading (a change to
+A.5's order, taken by the owner before any Stage 2 run). The tuned walk with the counter-phased tail and the duty and
+lift margin (set `F25F9cl` of `STAGE2_75_PLAN.md`) is a labelled candidate reference for the 75 cm body, priced with the
+Stage 0 screen, run through the official panels and shown to the owner beside the look ladder with clips (P30); until
+the owner decides otherwise the look reference for training is V6.
+
+**S2-16. Commanded moves are causal, and the bar's times are simulated seconds since the command.** For a stop and a
+turn the reference is the periodic walk, frame for frame, up to the command instant; nothing before it knows of the
+command; the command is given at a lift-off. This is stricter than Stage 1's convention (decision 18: command = the
+start of the reference's own speed ramp, by which time the reference's centre of mass has been leaving the walk for
+about half a second); decision 18's reading is kept in every stop record. "2.0 s after the command", "3 s of walking
+after" and "the last 10 s" are simulated seconds; the track is played 5 % fast, so the reference is read at 1.05 times
+that. The rules of `STAGE2_75_PLAN.md` sections A (references), B (episodes, rows, conditions), C (clocks and readings),
+H (verdicts) and R (records) apply to every body, head and reference set of Stage 2, the 60 cm body and the look sets
+included (with the judged controller's two seeds in place of `R2/42` and `R2/43`; rules A1 to A3, B5's crouch values,
+C2's headline for the three sets, H4, H6 and rule R4 are the 75 cm round's own), unless a later labelled amendment says
+otherwise. In particular: the quick turn's stride rule and its tail and neck amplitude rule (a look choice: inside a
+turn's quicker steps the tail's and the neck's swing amplitudes scale with the square of the step period), the
+two-touchdown stop, the own-swing toe clearance, the walk's 4.0 m and 0.25 m readings, the turn's heading readings, and
+the three readings (shown with the look, shown, shown but for A1) carried by every episode.
+
+**S2-17. Code states.** State A is the commit at which the 75 cm sets are frozen: the legacy check (Stage 1's 36
+transitions regenerated bit for bit by the new builder) and the closed-loop regression record both pass at it, and the
+one Stage 1 edit of this round (an optional key read by `control.Track.add_periodic`, default path unchanged) and the
+Jetson body's code are already in. From state A until the 75 cm panels are done no module that enters a record key
+changes. R5, R6 and R2L edit no module that enters a bar or panels record key: they subclass or wrap such modules in
+`designlab/stage2/`; B.4's extensions of `train.py`, which is in no such key, stand. If a module in a key must change
+after state A, the affected baseline rows are run again into a new directory and both are kept.
+
+**S2-18. Fixed delay draws in R2L's fit.** (`LESSONS_LEARNED.md` section 3, lesson 17.) In R2L's fit every episode kind
+runs at each delay of its mix in a fixed rotation over the generations (not a draw from the seed alone), every member of
+a generation runs the same episodes, and the selection (speed G5's kind) reads its validation episodes per delay, with
+the 10 ms cell decisive and the others reported. The rotation table is written into the fit's record before the first
+generation.
 
 *Research notes:* [look] `stage2/research/research_look.md`; [pipeline] `stage2/research/research_pipeline.md` (10 Nov;
 their scratch scripts were not kept).

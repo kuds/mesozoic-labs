@@ -513,7 +513,7 @@ def screen_rung(src: dict, speed: str, variant: str, e: dict, out_dir: Path = OU
     drive_over = [o for o in over if o["limit"].split()[0] in sizing.GROUPS]
     if over:
         rung = (f"over ({'; '.join(o['limit'] for o in over)}): keeps its features "
-                f"({', '.join(e['features']) or 'none'}) and loses {SPEED_LABEL[speed]} on {src['body']} unless the "
+                f"({', '.join(e['features']) or 'none'}) and loses {SPEED_LABEL.get(speed, speed)} on {src['body']} unless the "
                 "owner decides otherwise (plan 4 A.3)")
     else:
         rung = "within the Stage 0 limits: kept at this speed"

@@ -1,0 +1,100 @@
+{
+ "schema": "s2-collected-1",
+ "kind": "run",
+ "source": "/home/user/mesozoic-wt/wp-p42/hardware/trex_form_study/stage2/tb/work/local/s2-4",
+ "run_id": null,
+ "end": null,
+ "run_uuids": {
+  "R5-75-M-H-10-s42": "18d46b9903e34b958ee433c528e2d605"
+ },
+ "unfinished": [],
+ "files": {
+  "jobs/R5-75-M-H-10-s42/progress.json": {
+   "sha256": "a88f2fc8d28e870880cee2ab0ad470e8b67e52b95be73de8ab4d981c29728661",
+   "bytes": 735
+  },
+  "jobs/R5-75-M-H-10-s42/run.json": {
+   "sha256": "3a965ec9d6bf0470514657f0fbab43f559ac213beeb63761ed1f43fb6111de3a",
+   "bytes": 124511
+  },
+  "jobs/R5-75-M-H-10-s42/updates.jsonl": {
+   "sha256": "a6af8f0b3bc4f415cb62672afa56f8f204fe2bf1de73b5c952bab66167ea2c90",
+   "bytes": 100568
+  },
+  "jobs/R5-75-M-H-10-s42/checkpoints/checkpoint_1007616.json": {
+   "sha256": "87efe4f727c2af624382578efd03c9943dfce3511870dcd64a147777eaa55881",
+   "bytes": 5674
+  },
+  "jobs/R5-75-M-H-10-s42/checkpoints/checkpoint_1507328.json": {
+   "sha256": "5ed560f5931001b5545d3c17b827a81fd343ca3ea24ac93d3d615a222b1303f7",
+   "bytes": 7826
+  },
+  "jobs/R5-75-M-H-10-s42/checkpoints/checkpoint_1753088.json": {
+   "sha256": "16befc366016cd30592595256a2b63dad9ede89fc19799ebf641121dbfa6c0c6",
+   "bytes": 10113
+  },
+  "jobs/R5-75-M-H-10-s42/checkpoints/checkpoint_2007040.json": {
+   "sha256": "5031a705f6421e902b767e98ad6fe31f03d210b4643d7d18b9da14a644b7c554",
+   "bytes": 10113
+  },
+  "jobs/R5-75-M-H-10-s42/checkpoints/checkpoint_507904.json": {
+   "sha256": "5c04be6d68f2f80f925dd4adc35a7ebe91b57357e194e4d086f2ca789180051f",
+   "bytes": 3592
+  },
+  "jobs/R5-75-M-H-10-s42/gates/g8a.json": {
+   "sha256": "8d888483423ac8787f3c9bbf365ecbd2974d3312951d0a1a779a99184e8ff83c",
+   "bytes": 3926
+  },
+  "jobs/R5-75-M-H-10-s42/gates/rate.json": {
+   "sha256": "a15c65b99d6786490fd1200705fc05f1839b982f8ba5c9d4796118709aa83ecb",
+   "bytes": 1752
+  },
+  "jobs/R5-75-M-H-10-s42/monitor/monitor_1007616.json": {
+   "sha256": "bdb553fa79671bace9944bd4e0b01477a1d0f892fe7b74b015a293f19abaaef9",
+   "bytes": 72523
+  },
+  "jobs/R5-75-M-H-10-s42/monitor/monitor_1507328.json": {
+   "sha256": "996068cc20075418737f72c9aa8b2cb65c3ed0720e755ab81b4892507c5561e9",
+   "bytes": 75887
+  },
+  "jobs/R5-75-M-H-10-s42/monitor/monitor_2007040.json": {
+   "sha256": "b5141f2714c991376021c58568342ebb5ebcbbd4afb21ad2347e4d0b7a58f6c1",
+   "bytes": 82130
+  },
+  "jobs/R5-75-M-H-10-s42/monitor/monitor_507904.json": {
+   "sha256": "472698b9b80afdb114cef178ca428dd5a67c8152f1c27946135ae19c62894748",
+   "bytes": 72254
+  },
+  "jobs/R5-75-M-H-10-s42/monitor/r0l.json": {
+   "sha256": "eefeea924e8342b3f17349a5be99b6fad84f6507c3e5befc61f596b8573de5e3",
+   "bytes": 49196
+  }
+ },
+ "copied": [
+  "jobs/R5-75-M-H-10-s42/progress.json",
+  "jobs/R5-75-M-H-10-s42/run.json",
+  "jobs/R5-75-M-H-10-s42/updates.jsonl",
+  "jobs/R5-75-M-H-10-s42/checkpoints/checkpoint_1007616.json",
+  "jobs/R5-75-M-H-10-s42/checkpoints/checkpoint_1507328.json",
+  "jobs/R5-75-M-H-10-s42/checkpoints/checkpoint_1753088.json",
+  "jobs/R5-75-M-H-10-s42/checkpoints/checkpoint_2007040.json",
+  "jobs/R5-75-M-H-10-s42/checkpoints/checkpoint_507904.json",
+  "jobs/R5-75-M-H-10-s42/gates/g8a.json",
+  "jobs/R5-75-M-H-10-s42/gates/rate.json",
+  "jobs/R5-75-M-H-10-s42/monitor/monitor_1007616.json",
+  "jobs/R5-75-M-H-10-s42/monitor/monitor_1507328.json",
+  "jobs/R5-75-M-H-10-s42/monitor/monitor_2007040.json",
+  "jobs/R5-75-M-H-10-s42/monitor/monitor_507904.json",
+  "jobs/R5-75-M-H-10-s42/monitor/r0l.json"
+ ],
+ "left": [],
+ "collected_at": "2026-11-17T21:11:08Z",
+ "rule": "design D22: collect copies a finished job's text records (*.json, *.jsonl, *.txt; nothing under partial/, traces/, logs/ or work/; of checkpoints/ only checkpoint_<n>.json; never LIVE.json) to their committed place, verifies each copy by sha256 and writes COLLECTED.json; a source that is still running is refused (a LIVE.json that is fresh and not closed without DONE.json or HALT.json; a lock whose holder is alive; a run.json that reads running whose process is alive); a file already there with other bytes is refused",
+ "commit": "bbf707b87f5a470ba29f433779f026030ad5e410",
+ "dirty": true,
+ "modified": [],
+ "untracked": [
+  "?? hardware/trex_form_study/stage2/tb/runs/s2-4/jobs/"
+ ],
+ "sha256": "66887c00136a8897ce3bb55c573301a3b0a0522cbe3dad4d30d58eee2cc15043"
+}

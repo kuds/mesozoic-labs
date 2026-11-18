@@ -1,5 +1,45 @@
 # Prompt for the next working session
 
+## Note of 18 Nov 2026: the T. rex study is paused; a restart starts from RESUME.md
+
+The owner paused T. rex development on 18 Nov 2026 and moved the project to a Triceratops build (`DECISION_LOG.md`
+P47 to P50). To restart, read [RESUME.md](RESUME.md) first: what is kept and where, the restart's steps, and what was
+open. The notes and prompts below are earlier and are kept as they were written.
+
+## Note of 15 Nov 2026: the second session is paused, and this is how to resume it
+
+The second session (14–15 Nov, branch `claude/mesozoic-trex-stage2-refine-4jffre`) stopped at the owner's request
+before a tranche of work that would have taken the account over its weekly usage allocation. Its state is in
+`stage2/design/checkpoint/STATUS.md`.
+
+- **If that session is still open:** reply in it with the go-ahead and, if possible, the usage meter's reading.
+- **If its container is gone:** start a new session on kuds/mesozoic-labs with the environment "mesozoic-labs" and
+  paste the fence below. The prompt of 14 Nov further down was the second session's; its STANDING RULES block still
+  applies in full, and its goal and task lists are replaced by the checkpoint file.
+
+```text
+You are continuing the Mesozoic Labs robotic T. rex form study in kuds/mesozoic-labs, directory
+hardware/trex_form_study/. A second session paused on 15 Nov 2026 for the account's usage limit.
+
+READ FIRST, in this order: stage2/design/checkpoint/STATUS.md (where everything stands, the open rulings, how to
+restore the unmerged branches from the bundle, the order of work); LESSONS_LEARNED.md (the note of 15 Nov in section
+1, then sections 3 to 5); DECISION_LOG.md rows P30 to P33; STAGE2_75_PLAN.md; STAGE2_PLAN.md section 9;
+stage2/design/README.md and lead_notes.md. The STANDING RULES block of the 14 Nov prompt in NEXT_SESSION_PROMPT.md
+applies unchanged.
+
+GOAL: the owner's focus is a 75 cm build that works in simulation (P33). Take the 75 cm path of STATUS.md section 8
+first and send the owner a push notification when the 75 cm panel results are in. The training side follows.
+
+USAGE: the session cannot see the account's usage meter. Before the first workflow ask the owner for its reading and
+reset day, say what the next tranche is expected to cost (STATUS.md section 1 has the measured rate), and stop for
+the owner's go-ahead before any tranche that would take the account over its weekly allocation. Keep agents lean:
+set the effort of builders and fixers below the session's, give each brief only its package's part of the design,
+and use a second reviewer only for provenance or bit-identity.
+
+FIRST STEPS: restore the inputs and the study's venv as LESSONS_LEARNED.md section 4.1 says; run the full test suite;
+restore the bundle (STATUS.md section 7); then make the rulings of STATUS.md section 6 before any builder starts.
+```
+
 Written on 14 Nov 2026 at the end of the first long session. To start the next session, open a new Claude Code session
 on kuds/mesozoic-labs and paste everything inside the fence below.
 

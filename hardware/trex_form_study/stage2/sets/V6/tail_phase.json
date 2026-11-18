@@ -1,0 +1,802 @@
+{
+ "what": "F9's tail phases of the look sets' walks at the rungs the look ladder does not hold (stage2/look/tail_phase.json holds nominal and v0.4)",
+ "rule": "F9's tail phase is the look ladder's own rule at every speed: look.tail_check on the walk's V4 (the phase that minimises the single-support stance pad's yaw moment).  At the nominal speed and at 0.40 m/s it is the ladder's recorded value (stage2/look/tail_phase.json), so that the walk is the ladder's rung; at the other rungs it is read from stage2/sets/V6/tail_phase.json, made by python -m designlab.stage2.sets tail-phase on the pick.  V6noF5 and a head body take the pick's V6 phases",
+ "bodies": {
+  "75-M-H-10": {
+   "v0.3": {
+    "tail_phase_rad": -1.7366026057343578,
+    "speed_m_s": 0.3,
+    "body_model_sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c",
+    "source": "look.tail_check on this rung's V4 walk (designlab.stage2.sets make_tail_phases)",
+    "v4_spec": {
+     "froude": 0.018280854908240964,
+     "duty": 0.589432764116691,
+     "lift_frac": 0.10528361794165449,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "sway_gain": 1.0,
+     "stride_rel": 0.6002936719964644,
+     "crouch": 0.03,
+     "zmp_iters": 12,
+     "zmp_gain": 0.5,
+     "n": 160,
+     "bob": 0.012100285524485279,
+     "bob_phase": 0.0,
+     "bob_skew": 0.125,
+     "swing_time": 0.3560505473788646,
+     "lift_peak": 0.375,
+     "toe_off": 0.3,
+     "toe_off_start": 0.825,
+     "toe_off_margin": 0.005,
+     "toe_reach": 0.075,
+     "roll_amp": 0.026179938779914945,
+     "roll_phase": 0.0,
+     "zmp_inset_y": 0.0,
+     "tail_phase": 1.5707963267948966,
+     "head_mode": "nod",
+     "head_gain": 0.9,
+     "head_settle": 0.0,
+     "settle_lag": 0.075,
+     "strides": 1,
+     "phase_jitter": 0.0,
+     "asym": 0.0,
+     "gaze_var": 0.0,
+     "tail_var": 0.0,
+     "var_band": [
+      0.05,
+      0.2
+     ],
+     "noise_seed": 0,
+     "bob_drop": 0.1,
+     "toe_off_rate": 3.4,
+     "toe_off_accel": 220.0
+    },
+    "check": {
+     "amp_rad": 0.125,
+     "fit_max_residual_nm": 0.0015094531027886604,
+     "predicted_peak_nm": {
+      "today": 3.8929993941581884,
+      "flipped": 3.175122682089036,
+      "best": 3.1701890546845113
+     },
+     "confirmed": {
+      "peak_nm": 3.170733423157636,
+      "rms_nm": 1.7495519902884744,
+      "mu_req_max": 0.4160045948482855
+     },
+     "no_tail": {
+      "peak_nm": 3.5344398963118957,
+      "rms_nm": 1.823048324135861,
+      "mu_req_max": 0.45591273870309734
+     },
+     "best_phase_cycles_from_today": 0.4736111111111111
+    },
+    "built_by": {
+     "commit": "07347c77c178ed955d1fce0858c4b25d26dfc4a0",
+     "dirty": false,
+     "dirty_paths": [],
+     "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+     "stage2_modules": {
+      "designlab/stage2/sets.py": "21086c54fec70e7b7299ace04ecc53d063a1cd62cbe257fd9c9bd00004a7a5f0",
+      "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
+      "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16"
+     },
+     "versions": {
+      "python": "3.13.18",
+      "numpy": "2.5.4",
+      "mujoco": "3.10.0",
+      "scipy": "1.18.1"
+     },
+     "blas_threads": 1,
+     "accuracy": "r2",
+     "at": "2026-11-17T09:02:19Z"
+    }
+   },
+   "v0.35": {
+    "tail_phase_rad": -1.7366026057343578,
+    "speed_m_s": 0.35,
+    "body_model_sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c",
+    "source": "look.tail_check on this rung's V4 walk (designlab.stage2.sets make_tail_phases)",
+    "v4_spec": {
+     "froude": 0.024882274736216868,
+     "duty": 0.5801534791423731,
+     "lift_frac": 0.10992326042881341,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "sway_gain": 1.0,
+     "stride_rel": 0.6198695073600325,
+     "crouch": 0.03,
+     "zmp_iters": 12,
+     "zmp_gain": 0.5,
+     "n": 160,
+     "bob": 0.012499305711332877,
+     "bob_phase": 0.0,
+     "bob_skew": 0.125,
+     "swing_time": 0.3560505473788646,
+     "lift_peak": 0.375,
+     "toe_off": 0.3,
+     "toe_off_start": 0.825,
+     "toe_off_margin": 0.005,
+     "toe_reach": 0.075,
+     "roll_amp": 0.026179938779914945,
+     "roll_phase": 0.0,
+     "zmp_inset_y": 0.0,
+     "tail_phase": 1.5707963267948966,
+     "head_mode": "nod",
+     "head_gain": 0.9,
+     "head_settle": 0.0,
+     "settle_lag": 0.075,
+     "strides": 1,
+     "phase_jitter": 0.0,
+     "asym": 0.0,
+     "gaze_var": 0.0,
+     "tail_var": 0.0,
+     "var_band": [
+      0.05,
+      0.2
+     ],
+     "noise_seed": 0,
+     "bob_drop": 0.1,
+     "toe_off_rate": 3.4,
+     "toe_off_accel": 220.0
+    },
+    "check": {
+     "amp_rad": 0.125,
+     "fit_max_residual_nm": 0.0016450251830408824,
+     "predicted_peak_nm": {
+      "today": 5.315378621079843,
+      "flipped": 4.406190754691066,
+      "best": 4.399938127982492
+     },
+     "confirmed": {
+      "peak_nm": 4.400552570513838,
+      "rms_nm": 1.9205617989547548,
+      "mu_req_max": 0.5249147407597529
+     },
+     "no_tail": {
+      "peak_nm": 4.8613191507685,
+      "rms_nm": 2.034051578773964,
+      "mu_req_max": 0.5733499638830297
+     },
+     "best_phase_cycles_from_today": 0.4736111111111111
+    },
+    "built_by": {
+     "commit": "07347c77c178ed955d1fce0858c4b25d26dfc4a0",
+     "dirty": false,
+     "dirty_paths": [],
+     "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+     "stage2_modules": {
+      "designlab/stage2/sets.py": "21086c54fec70e7b7299ace04ecc53d063a1cd62cbe257fd9c9bd00004a7a5f0",
+      "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
+      "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16"
+     },
+     "versions": {
+      "python": "3.13.18",
+      "numpy": "2.5.4",
+      "mujoco": "3.10.0",
+      "scipy": "1.18.1"
+     },
+     "blas_threads": 1,
+     "accuracy": "r2",
+     "at": "2026-11-17T09:04:09Z"
+    }
+   },
+   "v0.45": {
+    "tail_phase_rad": -1.7715091907742444,
+    "speed_m_s": 0.45,
+    "body_model_sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c",
+    "source": "look.tail_check on this rung's V4 walk (designlab.stage2.sets make_tail_phases)",
+    "v4_spec": {
+     "froude": 0.04113192354354218,
+     "duty": 0.5663508335745321,
+     "lift_frac": 0.11,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "sway_gain": 1.0,
+     "stride_rel": 0.7477179799778302,
+     "crouch": 0.03,
+     "zmp_iters": 12,
+     "zmp_gain": 0.5,
+     "n": 160,
+     "bob": 0.017331904137365628,
+     "bob_phase": 0.0,
+     "bob_skew": 0.125,
+     "swing_time": 0.3560505473788646,
+     "lift_peak": 0.375,
+     "toe_off": 0.3,
+     "toe_off_start": 0.825,
+     "toe_off_margin": 0.005,
+     "toe_reach": 0.075,
+     "roll_amp": 0.026179938779914945,
+     "roll_phase": 0.0,
+     "zmp_inset_y": 0.0,
+     "tail_phase": 1.5707963267948966,
+     "head_mode": "nod",
+     "head_gain": 0.9,
+     "head_settle": 0.0,
+     "settle_lag": 0.075,
+     "strides": 1,
+     "phase_jitter": 0.0,
+     "asym": 0.0,
+     "gaze_var": 0.0,
+     "tail_var": 0.0,
+     "var_band": [
+      0.05,
+      0.2
+     ],
+     "noise_seed": 0,
+     "bob_drop": 0.1,
+     "toe_off_rate": 3.4,
+     "toe_off_accel": 220.0
+    },
+    "check": {
+     "amp_rad": 0.125,
+     "fit_max_residual_nm": 0.002011453530633478,
+     "predicted_peak_nm": {
+      "today": 6.379270979037564,
+      "flipped": 5.357713761024435,
+      "best": 5.3469902308420245
+     },
+     "confirmed": {
+      "peak_nm": 5.347661556376432,
+      "rms_nm": 2.2826037546104057,
+      "mu_req_max": 0.6118197064261646
+     },
+     "no_tail": {
+      "peak_nm": 5.86909088922205,
+      "rms_nm": 2.4406767185371208,
+      "mu_req_max": 0.6654447938853629
+     },
+     "best_phase_cycles_from_today": 0.46805555555555556
+    },
+    "built_by": {
+     "commit": "07347c77c178ed955d1fce0858c4b25d26dfc4a0",
+     "dirty": false,
+     "dirty_paths": [],
+     "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+     "stage2_modules": {
+      "designlab/stage2/sets.py": "21086c54fec70e7b7299ace04ecc53d063a1cd62cbe257fd9c9bd00004a7a5f0",
+      "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
+      "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16"
+     },
+     "versions": {
+      "python": "3.13.18",
+      "numpy": "2.5.4",
+      "mujoco": "3.10.0",
+      "scipy": "1.18.1"
+     },
+     "blas_threads": 1,
+     "accuracy": "r2",
+     "at": "2026-11-17T09:06:02Z"
+    }
+   },
+   "v0.5": {
+    "tail_phase_rad": -1.7715091907742444,
+    "speed_m_s": 0.5,
+    "body_model_sha256": "0517e4d3c00899bc49a044b0d89902c2b78b63dcf206e9ded8e0b9396e881c7c",
+    "source": "look.tail_check on this rung's V4 walk (designlab.stage2.sets make_tail_phases)",
+    "v4_spec": {
+     "froude": 0.05078015252289157,
+     "duty": 0.56,
+     "lift_frac": 0.11,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "sway_gain": 1.0,
+     "stride_rel": 0.8,
+     "crouch": 0.03,
+     "zmp_iters": 12,
+     "zmp_gain": 0.5,
+     "n": 160,
+     "bob": 0.019397938144329902,
+     "bob_phase": 0.0,
+     "bob_skew": 0.125,
+     "swing_time": 0.3560505473788646,
+     "lift_peak": 0.375,
+     "toe_off": 0.3,
+     "toe_off_start": 0.825,
+     "toe_off_margin": 0.005,
+     "toe_reach": 0.075,
+     "roll_amp": 0.026179938779914945,
+     "roll_phase": 0.0,
+     "zmp_inset_y": 0.0,
+     "tail_phase": 1.5707963267948966,
+     "head_mode": "nod",
+     "head_gain": 0.9,
+     "head_settle": 0.0,
+     "settle_lag": 0.075,
+     "strides": 1,
+     "phase_jitter": 0.0,
+     "asym": 0.0,
+     "gaze_var": 0.0,
+     "tail_var": 0.0,
+     "var_band": [
+      0.05,
+      0.2
+     ],
+     "noise_seed": 0,
+     "bob_drop": 0.1,
+     "toe_off_rate": 3.4,
+     "toe_off_accel": 220.0
+    },
+    "check": {
+     "amp_rad": 0.125,
+     "fit_max_residual_nm": 0.0025581459082437696,
+     "predicted_peak_nm": {
+      "today": 6.866530396898356,
+      "flipped": 5.767791184121129,
+      "best": 5.756234159439322
+     },
+     "confirmed": {
+      "peak_nm": 5.756881921460916,
+      "rms_nm": 2.4210456692804723,
+      "mu_req_max": 0.6615878100199789
+     },
+     "no_tail": {
+      "peak_nm": 6.317835919170377,
+      "rms_nm": 2.6108304721956888,
+      "mu_req_max": 0.7200961801673358
+     },
+     "best_phase_cycles_from_today": 0.46805555555555556
+    },
+    "built_by": {
+     "commit": "07347c77c178ed955d1fce0858c4b25d26dfc4a0",
+     "dirty": false,
+     "dirty_paths": [],
+     "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+     "stage2_modules": {
+      "designlab/stage2/sets.py": "21086c54fec70e7b7299ace04ecc53d063a1cd62cbe257fd9c9bd00004a7a5f0",
+      "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
+      "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16"
+     },
+     "versions": {
+      "python": "3.13.18",
+      "numpy": "2.5.4",
+      "mujoco": "3.10.0",
+      "scipy": "1.18.1"
+     },
+     "blas_threads": 1,
+     "accuracy": "r2",
+     "at": "2026-11-17T09:07:56Z"
+    }
+   }
+  },
+  "60-N-T-10": {
+   "v0.3": {
+    "tail_phase_rad": -1.7366026057343578,
+    "speed_m_s": 0.3,
+    "body_model_sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4",
+    "source": "look.tail_check on this rung's V4 walk (designlab.stage2.sets make_tail_phases)",
+    "v4_spec": {
+     "froude": 0.02267001918834017,
+     "duty": 0.5831082218000279,
+     "lift_frac": 0.10844588909998604,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "sway_gain": 1.0,
+     "stride_rel": 0.6161311119212288,
+     "crouch": 0.03,
+     "zmp_iters": 12,
+     "zmp_gain": 0.5,
+     "n": 160,
+     "bob": 0.012475103307925214,
+     "bob_phase": 0.0,
+     "bob_skew": 0.125,
+     "swing_time": 0.31973042487574765,
+     "lift_peak": 0.375,
+     "toe_off": 0.3,
+     "toe_off_start": 0.825,
+     "toe_off_margin": 0.005,
+     "toe_reach": 0.075,
+     "roll_amp": 0.026179938779914945,
+     "roll_phase": 0.0,
+     "zmp_inset_y": 0.0,
+     "tail_phase": 1.5707963267948966,
+     "head_mode": "nod",
+     "head_gain": 0.9,
+     "head_settle": 0.0,
+     "settle_lag": 0.075,
+     "strides": 1,
+     "phase_jitter": 0.0,
+     "asym": 0.0,
+     "gaze_var": 0.0,
+     "tail_var": 0.0,
+     "var_band": [
+      0.05,
+      0.2
+     ],
+     "noise_seed": 0,
+     "bob_drop": 0.1,
+     "toe_off_rate": 3.4,
+     "toe_off_accel": 220.0
+    },
+    "check": {
+     "amp_rad": 0.125,
+     "fit_max_residual_nm": 0.0009742732600559467,
+     "predicted_peak_nm": {
+      "today": 3.7619329340096925,
+      "flipped": 3.2575373997309054,
+      "best": 3.2540210495085047
+     },
+     "confirmed": {
+      "peak_nm": 3.2540055435801705,
+      "rms_nm": 1.3552196367652882,
+      "mu_req_max": 0.7247302646501961
+     },
+     "no_tail": {
+      "peak_nm": 3.5103094494533345,
+      "rms_nm": 1.4250617189190158,
+      "mu_req_max": 0.7779645701972391
+     },
+     "best_phase_cycles_from_today": 0.4736111111111111
+    },
+    "built_by": {
+     "commit": "c9b8819801f65d736777ff05ba38deeb697c17dd",
+     "dirty": true,
+     "dirty_paths": [
+      " M hardware/trex_form_study/designlab/stage2/moves_look.py",
+      " M hardware/trex_form_study/designlab/stage2/sets.py",
+      "D  hardware/trex_form_study/designlab/stage2/sets_look.py",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/SCREEN.md",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/refs.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/screen.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/set.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/transitions.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/SCREEN.md",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/refs.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/screen.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/set.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/transitions.json",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/SCREEN.md",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/refs.json",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/screen.json",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/set.json",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/transitions.json",
+      " M hardware/trex_form_study/tests/test_stage2_moves_look.py"
+     ],
+     "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+     "stage2_modules": {
+      "designlab/stage2/sets.py": "135acfadf0dd9ee41f58c168dcdcb44dbc42f04755ca70d170b297e3e25d54d9",
+      "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
+      "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16"
+     },
+     "versions": {
+      "python": "3.13.18",
+      "numpy": "2.5.4",
+      "mujoco": "3.10.0",
+      "scipy": "1.18.1"
+     },
+     "blas_threads": 1,
+     "accuracy": "r2",
+     "at": "2026-11-16T16:04:14Z"
+    }
+   },
+   "v0.35": {
+    "tail_phase_rad": -1.7715091907742444,
+    "speed_m_s": 0.35,
+    "body_model_sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4",
+    "source": "look.tail_check on this rung's V4 walk (designlab.stage2.sets make_tail_phases)",
+    "v4_spec": {
+     "froude": 0.030856415006351896,
+     "duty": 0.5746418453223869,
+     "lift_frac": 0.11,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "sway_gain": 1.0,
+     "stride_rel": 0.6726359637497984,
+     "crouch": 0.03,
+     "zmp_iters": 12,
+     "zmp_gain": 0.5,
+     "n": 160,
+     "bob": 0.014439568196160098,
+     "bob_phase": 0.0,
+     "bob_skew": 0.125,
+     "swing_time": 0.31973042487574765,
+     "lift_peak": 0.375,
+     "toe_off": 0.3,
+     "toe_off_start": 0.825,
+     "toe_off_margin": 0.005,
+     "toe_reach": 0.075,
+     "roll_amp": 0.026179938779914945,
+     "roll_phase": 0.0,
+     "zmp_inset_y": 0.0,
+     "tail_phase": 1.5707963267948966,
+     "head_mode": "nod",
+     "head_gain": 0.9,
+     "head_settle": 0.0,
+     "settle_lag": 0.075,
+     "strides": 1,
+     "phase_jitter": 0.0,
+     "asym": 0.0,
+     "gaze_var": 0.0,
+     "tail_var": 0.0,
+     "var_band": [
+      0.05,
+      0.2
+     ],
+     "noise_seed": 0,
+     "bob_drop": 0.1,
+     "toe_off_rate": 3.4,
+     "toe_off_accel": 220.0
+    },
+    "check": {
+     "amp_rad": 0.125,
+     "fit_max_residual_nm": 0.0011526817417883972,
+     "predicted_peak_nm": {
+      "today": 4.2476337376532936,
+      "flipped": 3.6781517566572717,
+      "best": 3.672111115594132
+     },
+     "confirmed": {
+      "peak_nm": 3.672064052148987,
+      "rms_nm": 1.4811281758627628,
+      "mu_req_max": 0.7953056447344797
+     },
+     "no_tail": {
+      "peak_nm": 3.9635612181670936,
+      "rms_nm": 1.57160115619865,
+      "mu_req_max": 0.8545677124405073
+     },
+     "best_phase_cycles_from_today": 0.46805555555555556
+    },
+    "built_by": {
+     "commit": "c9b8819801f65d736777ff05ba38deeb697c17dd",
+     "dirty": true,
+     "dirty_paths": [
+      " M hardware/trex_form_study/designlab/stage2/moves_look.py",
+      " M hardware/trex_form_study/designlab/stage2/sets.py",
+      "D  hardware/trex_form_study/designlab/stage2/sets_look.py",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/SCREEN.md",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/refs.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/screen.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/set.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/transitions.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/SCREEN.md",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/refs.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/screen.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/set.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/transitions.json",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/SCREEN.md",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/refs.json",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/screen.json",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/set.json",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/transitions.json",
+      " M hardware/trex_form_study/tests/test_stage2_moves_look.py"
+     ],
+     "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+     "stage2_modules": {
+      "designlab/stage2/sets.py": "135acfadf0dd9ee41f58c168dcdcb44dbc42f04755ca70d170b297e3e25d54d9",
+      "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
+      "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16"
+     },
+     "versions": {
+      "python": "3.13.18",
+      "numpy": "2.5.4",
+      "mujoco": "3.10.0",
+      "scipy": "1.18.1"
+     },
+     "blas_threads": 1,
+     "accuracy": "r2",
+     "at": "2026-11-16T16:07:11Z"
+    }
+   },
+   "v0.45": {
+    "tail_phase_rad": -1.7802358370342162,
+    "speed_m_s": 0.45,
+    "body_model_sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4",
+    "source": "look.tail_check on this rung's V4 walk (designlab.stage2.sets make_tail_phases)",
+    "v4_spec": {
+     "froude": 0.051007543173765386,
+     "duty": 0.56,
+     "lift_frac": 0.11,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "sway_gain": 1.0,
+     "stride_rel": 0.8,
+     "crouch": 0.03,
+     "zmp_iters": 12,
+     "zmp_gain": 0.5,
+     "n": 160,
+     "bob": 0.019397938144329902,
+     "bob_phase": 0.0,
+     "bob_skew": 0.125,
+     "swing_time": 0.31973042487574765,
+     "lift_peak": 0.375,
+     "toe_off": 0.3,
+     "toe_off_start": 0.825,
+     "toe_off_margin": 0.005,
+     "toe_reach": 0.075,
+     "roll_amp": 0.026179938779914945,
+     "roll_phase": 0.0,
+     "zmp_inset_y": 0.0,
+     "tail_phase": 1.5707963267948966,
+     "head_mode": "nod",
+     "head_gain": 0.9,
+     "head_settle": 0.0,
+     "settle_lag": 0.075,
+     "strides": 1,
+     "phase_jitter": 0.0,
+     "asym": 0.0,
+     "gaze_var": 0.0,
+     "tail_var": 0.0,
+     "var_band": [
+      0.05,
+      0.2
+     ],
+     "noise_seed": 0,
+     "bob_drop": 0.1,
+     "toe_off_rate": 3.4,
+     "toe_off_accel": 220.0
+    },
+    "check": {
+     "amp_rad": 0.125,
+     "fit_max_residual_nm": 0.001415257535072989,
+     "predicted_peak_nm": {
+      "today": 4.9899462850007055,
+      "flipped": 4.327397932389079,
+      "best": 4.320235088075227
+     },
+     "confirmed": {
+      "peak_nm": 4.3205923042597965,
+      "rms_nm": 1.7119428098442337,
+      "mu_req_max": 0.9287177548544587
+     },
+     "no_tail": {
+      "peak_nm": 4.659497850631092,
+      "rms_nm": 1.8398600907494826,
+      "mu_req_max": 0.9978142868806678
+     },
+     "best_phase_cycles_from_today": 0.4666666666666667
+    },
+    "built_by": {
+     "commit": "c9b8819801f65d736777ff05ba38deeb697c17dd",
+     "dirty": true,
+     "dirty_paths": [
+      " M hardware/trex_form_study/designlab/stage2/moves_look.py",
+      " M hardware/trex_form_study/designlab/stage2/sets.py",
+      "D  hardware/trex_form_study/designlab/stage2/sets_look.py",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/SCREEN.md",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/refs.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/screen.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/set.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/transitions.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/SCREEN.md",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/refs.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/screen.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/set.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/transitions.json",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/SCREEN.md",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/refs.json",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/screen.json",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/set.json",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/transitions.json",
+      " M hardware/trex_form_study/tests/test_stage2_moves_look.py"
+     ],
+     "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+     "stage2_modules": {
+      "designlab/stage2/sets.py": "135acfadf0dd9ee41f58c168dcdcb44dbc42f04755ca70d170b297e3e25d54d9",
+      "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
+      "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16"
+     },
+     "versions": {
+      "python": "3.13.18",
+      "numpy": "2.5.4",
+      "mujoco": "3.10.0",
+      "scipy": "1.18.1"
+     },
+     "blas_threads": 1,
+     "accuracy": "r2",
+     "at": "2026-11-16T16:10:16Z"
+    }
+   },
+   "v0.5": {
+    "tail_phase_rad": -1.7802358370342162,
+    "speed_m_s": 0.5,
+    "body_model_sha256": "993c5ac54a27d9b005deffc4018e754159d2fd5ca0bc9a8b47220aab29df43f4",
+    "source": "look.tail_check on this rung's V4 walk (designlab.stage2.sets make_tail_phases)",
+    "v4_spec": {
+     "froude": 0.06297227552316714,
+     "duty": 0.56,
+     "lift_frac": 0.11,
+     "head_amp": 0.05,
+     "tail_amp": 0.12,
+     "sway_gain": 1.0,
+     "stride_rel": 0.8,
+     "crouch": 0.03,
+     "zmp_iters": 12,
+     "zmp_gain": 0.5,
+     "n": 160,
+     "bob": 0.019397938144329902,
+     "bob_phase": 0.0,
+     "bob_skew": 0.125,
+     "swing_time": 0.31973042487574765,
+     "lift_peak": 0.375,
+     "toe_off": 0.3,
+     "toe_off_start": 0.825,
+     "toe_off_margin": 0.005,
+     "toe_reach": 0.075,
+     "roll_amp": 0.026179938779914945,
+     "roll_phase": 0.0,
+     "zmp_inset_y": 0.0,
+     "tail_phase": 1.5707963267948966,
+     "head_mode": "nod",
+     "head_gain": 0.9,
+     "head_settle": 0.0,
+     "settle_lag": 0.075,
+     "strides": 1,
+     "phase_jitter": 0.0,
+     "asym": 0.0,
+     "gaze_var": 0.0,
+     "tail_var": 0.0,
+     "var_band": [
+      0.05,
+      0.2
+     ],
+     "noise_seed": 0,
+     "bob_drop": 0.1,
+     "toe_off_rate": 3.4,
+     "toe_off_accel": 220.0
+    },
+    "check": {
+     "amp_rad": 0.125,
+     "fit_max_residual_nm": 0.0017857677363957158,
+     "predicted_peak_nm": {
+      "today": 6.003499939831315,
+      "flipped": 5.18560275415674,
+      "best": 5.176845376406334
+     },
+     "confirmed": {
+      "peak_nm": 5.176443072923659,
+      "rms_nm": 2.0422842303164614,
+      "mu_req_max": 1.0743490591328404
+     },
+     "no_tail": {
+      "peak_nm": 5.595800678845155,
+      "rms_nm": 2.2086389607593073,
+      "mu_req_max": 1.157808523070983
+     },
+     "best_phase_cycles_from_today": 0.4666666666666667
+    },
+    "built_by": {
+     "commit": "c9b8819801f65d736777ff05ba38deeb697c17dd",
+     "dirty": true,
+     "dirty_paths": [
+      " M hardware/trex_form_study/designlab/stage2/moves_look.py",
+      " M hardware/trex_form_study/designlab/stage2/sets.py",
+      "D  hardware/trex_form_study/designlab/stage2/sets_look.py",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/SCREEN.md",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/refs.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/screen.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/set.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/60-N-T-10/transitions.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/SCREEN.md",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/refs.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/screen.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/set.json",
+      "D  hardware/trex_form_study/stage2/sets/V6/75-M-H-10/transitions.json",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/SCREEN.md",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/refs.json",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/screen.json",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/set.json",
+      "D  hardware/trex_form_study/stage2/sets/V6noF5/75-M-H-10/transitions.json",
+      " M hardware/trex_form_study/tests/test_stage2_moves_look.py"
+     ],
+     "panel_sources_sha256": "c0027992de21067525cc4489b74acb157feb89f3a4c7618580addc2b341be1c1",
+     "stage2_modules": {
+      "designlab/stage2/sets.py": "135acfadf0dd9ee41f58c168dcdcb44dbc42f04755ca70d170b297e3e25d54d9",
+      "designlab/stage2/look.py": "306c5efa49a056dbee6ca8b4b8dd155e5ca52fda1fe31f61c51e8d8e60a484ee",
+      "designlab/stage2/s2io.py": "3122997e2fd56bfa4eb3cad7d95c71a31030c96970dd0701f0c8920faafdeb16"
+     },
+     "versions": {
+      "python": "3.13.18",
+      "numpy": "2.5.4",
+      "mujoco": "3.10.0",
+      "scipy": "1.18.1"
+     },
+     "blas_threads": 1,
+     "accuracy": "r2",
+     "at": "2026-11-16T16:13:27Z"
+    }
+   }
+  }
+ }
+}

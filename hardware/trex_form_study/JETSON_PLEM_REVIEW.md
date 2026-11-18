@@ -273,6 +273,32 @@ the owner may run.
 
 ## 6. Owner decisions it raises
 
+**Decided, 14 Nov 2026 (P30).** The owner answered all eight (`DECISION_LOG.md` P30):
+
+- 1, compute: study the Jetson as a refine case (a simulated Jetson body, with every round-two screen run on it); the
+  owner decides after those screens and the delay bench test; P14 (Raspberry Pi 5 + AI HAT+) stays adopted meanwhile;
+  no power mode is chosen.
+- 2, the real-time loop: the microcontroller baseline; the bench measures the alternatives before anything changes.
+- 3, the judged delay: 10 ms kept; 0, 2, 4, 6 and 8 ms are reported beside it, never read as the verdict; the verdicts
+  are re-run at the bench value once it is measured.
+- 4, the bench tests: the delay bench first, on both paths (the Teensy CAN loop, and a Jetson real-time core with
+  USB-CAN), as soon as the sheet is ready and before any compute purchase.
+- 5, references: yes, as a labelled candidate for the 75 cm body: to be recorded, priced with the Stage 0 screen, run
+  through the official panels and shown at L1 beside the look ladder with clips; the owner picks at L1 (it is not
+  chosen; the 14 Nov L1 pick is V6, P30).
+- 6, scope: 75 cm first; `60-N-T-10` is kept as P29 decided and trained after.
+- 7, the budget: decided after the rebuild at catalog prices.
+- 8, PR #668: kept open and unmerged; the owner is asked again once the records exist.
+
+**Changed, 14 Nov 2026 (P31).** Decision 7 no longer stands as answered: later the same day the owner set budget
+concerns aside at this point. Prices are documented and not weighed against P4, and the Jetson hardware is explored
+whatever its extra cost (`DECISION_LOG.md` P31; the prices are in `stage2/jetson75/BUDGET_75.md`).
+
+**Changed, 15 Nov 2026 (P32).** Decision 4's timing no longer stands as answered: the owner does not expect to run the
+delay bench test before a 75 cm build works in simulation (`DECISION_LOG.md` P32). The sheet stays as prepared
+(`stage2/jetson75/BENCH_SHEET.md`); the bar stays judged at the assumed 10 ms meanwhile, and the compute choice of
+decision 1 waits with the bench test.
+
 Recommended options come first.
 
 1. **Compute for the 75 cm build.**

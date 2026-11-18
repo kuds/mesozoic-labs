@@ -1,0 +1,1462 @@
+{
+ "schema": "s2-look-1",
+ "bar_record": {
+  "path": "V6/75-M-H-10/seeds3042/eval/R0L@10ms/nudge/right_mu0.54.json",
+  "sha256": "a41796eb818ded15681ae505c6346e8a480c18212b28788e0dec606a3379ab92",
+  "key_sha256": "860de5af7522a55b00537606764b8a144978736c8bb3d8210a78e7f79f0543df",
+  "status": "done"
+ },
+ "set": "V6",
+ "body": "75-M-H-10",
+ "block": "seeds3042",
+ "row": "R0L@10ms",
+ "condition": "nudge/right_mu0.54",
+ "behavior": "nudge",
+ "name": "right_mu0.54",
+ "judge": "bar_nudge",
+ "gated": true,
+ "look_set": true,
+ "look_sets": [
+  "V6",
+  "V6noF5"
+ ],
+ "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+ "bands": {
+  "bob_rel": 0.3,
+  "head_world_pitch_rms_deg": 1.5,
+  "tail_phase_cycles": 0.1,
+  "toe_off_rel": 0.7
+ },
+ "rules": {
+  "measures": "STAGE2_TRACKB_PLAN rule U1.  From 50 Hz poses of an episode: bob = the mean, over the robot's own steps wholly inside the window (a step runs from one touchdown of either foot to the next), of the range of the hip midpoint's height; head = the RMS about its mean of the head's pitch in the world, degrees; tail phase = the phase, in cycles, of the least-squares sinusoid of the tail-yaw joint's angle on the robot's own phase (zero at each of its left lift-offs); toe-off = the mean, over its lift-offs in the window, of the lifting foot's pitch at that instant.  Contact is the 2 % load rule with the 20 ms debounce (readings.contact_flags).  This module's own reading, which is not the rule's wording: all by kinematics on the plant's model.  The hip midpoint is the midpoint of the two hip-roll joints' anchors; a step's range is taken over the poses between its two touchdowns and the height interpolated at each of them.  The head's pitch is the elevation of the head body's x axis.  The tail's fit is tail = A sin(2 pi phi + psi) + c with the phase psi / (2 pi) and the amplitude A; phi is 0 at the robot's first left lift-off in the window, one more at each later one and linear in time between them, and the fit takes the poses between the window's first and last left lift-off.  A foot's pitch is the elevation of the foot body's x axis below the horizontal, toe down positive, interpolated between poses at the lift-off instant.  A lift-off or touchdown is the first physics step after the change.",
+  "window": "STAGE2_TRACKB_PLAN rule U2.  A walk item: its judged last 10 s.  A turn item: the 3 s after t_c + at_s (t_c the simulated time at which the reference clock reached the command, at_s the item's judged time).  Nudge and stop items are not read.  This module's own reading, which is not the rule's wording: a walk item's window is the one the bar judges: the 10 s before the trace's last update, of an episode that did not fall and whose trace reaches its planned end to within two updates; an episode that fell, also inside its last two updates, has none.  A turn item's window is read when the trace spans it.",
+  "bands": "STAGE2_TRACKB_PLAN rule U3.  Against the reference's own values: bob |own / reference - 1| <= 0.3; head pitch own <= 1.5 deg RMS (not relative); tail phase |own - reference| wrapped to half a cycle <= 0.1 cycle; toe-off own >= 0.7 x reference.  The tail term is not read when the reference's tail amplitude in the window is under 0.02 rad, the toe-off term when the reference's toe-off is under 0.02 rad; both then pass, labelled, and the reference's value and its side of the threshold are recorded.  The lead's ruling of 16 Nov 2026 (TRACKB_RULINGS5_16NOV, item 5): the tail term fails when the robot's fitted tail amplitude is under 0.02 rad while the reference's amplitude is read.  This module's own reading, which is not the rule's wording: a value of the robot's that cannot be computed fails its term.  The bob has no such threshold: against a reference without a bob the term fails.  The reference's amplitude is read when the tail term is: at or over 0.02 rad in the window.  The robot's amplitude is the amplitude of the same fit that gives its phase, compared without slack: exactly 0.02 rad is not under it, and an amplitude that cannot be computed fails the term.  Both amplitudes and their ratio are recorded; no band reads the ratio.",
+  "reference": "STAGE2_TRACKB_PLAN rule U5.  The reference's values are the same functions on a kinematic playback of the episode's own track over the window's reference times at the nominal commanded clock (1.05).  When that playback has at least 4 steps and 4 lift-offs in the window and the robot has fewer, the bob, tail and toe-off terms fail (too_few_steps); it is no error.  When the playback itself has fewer, it is an error of the definition (LookError).  This module's own reading, which is not the rule's wording: the playback is the files' poses placed in one world frame by bar._Played, with contact from the files' support flags.  It begins 0.1 s of simulated time before the window, or at the track's start, and only what lies inside the window is read, so that a lift-off or touchdown on the window's first physics step is counted as an episode's trace counts it.  A playback that lacks one of its own values (its bob, its tail amplitude, its tail phase where the tail is read, its toe-off) is the same error of the definition.",
+  "wrapper": "the row is its inner row with the look reading read beside it.  For a bar walk or turn item the built condition lends the episode a recorder with 50 Hz poses (metrics.Recorder(legs_every=tune.LEGS_EVERY), an instance attribute for the one episode, taken back whatever happens); the inner row runs unchanged and its (built condition, outcome, recorder) is returned as it is.  The reading is computed from the recorder afterwards, reads the plant's final state and changes nothing; a fault in it is recorded in the episode's block and never raised",
+  "reference_use": "STAGE2_TRACKB_PLAN rule U5: the reference's values are lookread.playback of the built track over lookread.window_ref of the built condition (the reference times rule U2's window covers at the nominal commanded clock), the same for every episode of the condition.  A walk or turn item whose track cannot be played, or whose playback holds too few steps or lacks a value, is a fault of the definition, never an item without a look reading: on a look set such an episode is an error",
+  "readings": "STAGE2_TRACKB_PLAN rule U4 with the lead's rulings of 16 Nov 2026.  Reading 1 counts on the sets V6 and V6noF5: a walk or turn episode succeeds with the look when the bar's succeeded holds and all four look terms do; for a nudge or stop item reading 1 is reading 2, labelled; printed beside, reading 3 with the four terms kept.  On any other set the look numbers are recorded, reading 1 is null and the companion's counts are the bar's own",
+  "on_command_at_stop": "STAGE2_TRACKB_PLAN rule U4: a stop item of a Track B row has the term on_command_at_stop: the CoM's mean forward speed over the stride before t_c at least 0.9 x the commanded speed.  This module's own reading, which is not the rule's wording: t_c is the simulated time at which the reference clock reached the command (the bar's own); the stride is the walk's commanded stride on the simulated clock; the mean speed is the CoM's displacement from t_c less one stride to t_c along the commanded heading (the home heading), over the stride, both positions interpolated between update rows (STAGE2_75_PLAN.md C6 reads stride means so); the commanded speed is the walk's target speed x the commanded clock rate, as the bar's stop reading takes it; compared without slack.  A trace that does not reach t_c, or begins less than one stride before it, fails the term.  On a look set an episode that fails it succeeds in no reading of the companion; on any other set it is recorded and decides nothing",
+  "clock": "the clock factor is the slope of the recorder's reference time against its simulated time at the update rows over the commanded clock rate (mean: over the whole trace; min: over one update interval); t_ref_reached is the reference clock at the episode's end (control.run's reference_time_s; the last update row's where an outcome holds none); t_ref_planned is the commanded clock rate x the planned seconds from the track's start, which is 0 for a bar row.  A mean factor below 1 - 1e-9 is below 1",
+  "air_runs": "contact is read literally (rule U1: the 2 % load rule with the 20 ms debounce), so any air run longer than the debounce is a lift-off and a touchdown of the look reading.  Recorded beside it, deciding nothing: how many complete air runs lie wholly inside the window and how many of them are shorter than the bar's air_gap_max_s of the condition (half the track's shortest planned swing on the simulated clock)",
+  "outcome": "rules U6 and M1: an episode ends read; fell; unread (the bar could not read it, bar.Unreadable, it did not fall and the row is a policy row: not succeeding in any reading, with the reason clock_behind when its mean clock factor is below 1, else unreadable, and the reference time reached); or error (an infrastructure fault; an unreadable episode of a row without a policy, for which STAGE2_75_PLAN.md C8 stands; on a look set, a walk or turn item whose look reading cannot be given).  An episode during which MuJoCo warned is a fall at its start, as tune.warned_fall has it (the lead's ruling 9 of 17 Nov 2026): its companion episode holds warned true, fall_time_s 0 and survival_s 0, so no survival is credited for it; the time simulated is kept as simulated_s, and the sidecar and the bar record keep theirs",
+  "counts": "rule U6: the readings' counts by the bar's own arithmetic (bar.counts) on the companion's episodes: read and unread episodes survived, an unread episode succeeded in none; a fell episode is a fall; an error episode is counted as the bar counts an episode that failed to run, and leaves the record unjudged.  On a set that is not a look set the counts are bar.counts on the bar record's own episodes and equal the bar record's.  A turn frozen with a1_over reads \"not read: a1_over\" in readings 1 and 2, as the bar's record does in reading 2",
+  "sidecar": "one file per episode, written by the row before it returns: steps, fell and survival_s must equal the bar record's episode and row_sha256 the hash of the record's controller less the delay wrapper's keys, or the record gets no companion (run that condition again so that record and sidecars are of one run).  A companion found at the refused record's path is moved aside to <companion>.superseded/<first 12 hex of the file's sha256>.json unless it names the bar record as it is (bar_record.sha256): that one was made of this bar record while its sidecars were there, and stays.  The summary lists every refused record with what became of its companion",
+  "look_sets": "the lead's rulings 16 and 31 of 17 Nov 2026, with STAGE2_TRACKB_PLAN rule X1: the bar's own set check (bar._check_rule, bar.RULES['checks']) lets only R0 rows run on a set that is none of the 75 cm round's three, and bar.py is not edited (its hash is in every bar record's key).  lookbar.look_set_rule is a context, entered by lookbar run and by lookbar.episodes, inside which a bar evaluation (bar.evaluate) of the context's set, body and set root, where the set is a look set (V6, V6noF5) or a version of one (the part of its name before the first dot; a version is a look set in the context, in episodes and in collect), lets its rows run when every one of them is among the rows the context was entered with and every one of those is R0L, R5/<seed>, R6/<seed>, R5G/<seed> or R2L-<set>/<seed> (the fit of that very set), each with or without a delay @<ms>ms, and only once that set's G9-ref has passed: the record stage2/tb/gates/<set>/<body>/g9_ref.json, of schema s2-gate-g9-ref-1 with its own sha256 intact, of that set and body, with pass_ true, made on the set's latest freeze (its set_freeze an object whose manifest_sha256 is that freeze's), read when the evaluation is checked by gates2.require_g9_ref itself; without it the evaluation is refused and nothing runs.  Every row that runs then carries that record's citation (path and sha256) into each episode's block and its companion record (g9_ref), and the set's turns and stop leave the walk at join rule J1's leave point (leave_point).  On a look set every row outside those families (R0@<ms>ms included) is refused inside the context and in lookbar.episodes, whoever calls the check.  Every other evaluation inside the context (another set, body or set root, or these rows beside one the context was not entered with) goes through the bar's own check unchanged, and so does every evaluation outside it (python -m designlab.stage2.bar run on a look set stays the bar's own: rule X1 forbids it and no step of the chain calls it).  lookbar.episodes, which does not go through the bar's runner, checks a look set's rows in the same way before it reads the set and runs inside the context; it checks nothing on any other set.  The context enforces X1's first clause only (what runs between G9-ref and S2-4's start stays with the chain).  The bar's check is put back when the context ends, also after an exception, where the context's own check is the one in place; otherwise LookBarError and nothing is put back",
+  "leave_point": "join rule J1 (STAGE2_TRACKB_PLAN.md section L, 'Windows.' and J1; the lead's ruling 21 of 17 Nov 2026): on a look set the bar counts its lead before a turn or the two-step stop (bar.TURN_LEAD_STRIDES, bar.STOP_LEAD_STRIDES: 2 strides of v0.4 before a left turn, 2.5 before a right turn and the stop) in whole windows of the walk's file, which on a look set are K strides each, so the move would start at a frame it was not built from.  Inside lookbar.look_set_rule, where the rule lets the rows run, a bar evaluation of that set places such a move whose transitions.json entry carries look.window_a and an a_phase where it was built: the walk plays m + a_windows windows of its file (a_windows = a_time_s / window_s, the move's own leave time; m whole windows, m x K + a_phase = the lead in strides) and the move starts at its first frame; every other item and set is the bar's own plan.  This module's phase check counts the lead's strides inside the window (a left command at a whole stride, a right one at a half) by the env's reading (r5lib.leave_point, r5lib.LEAVE_RULE), because bar.check_phase reads a lead modulo one stride.  The bar's planner piece BarPlanner._resolve is stood in front of while the context is open, as _check_rule is, and put back at its end (where it is the context's own); a spawned worker of the evaluation, which rebuilds its rows from their specs, holds the same placement for its life.  The record's plan, seconds and command (command.leave) are those of the placed move.  Outside the context the bar's own placement in whole windows stands.  lookbar.look_set_placement is the same placement without the row rule and without the G9-ref requirement (the lead's ruling 37 (b) of 17 Nov 2026), and look_set_rule places through it; on a look set G9-ref part (a) (its bar.refcheck), G8a, s2rows.equivalence_check and R2L's fit and selection (in process and in every pool worker) run inside it, and off the look sets it does nothing.  On entry either context lets the process's cached bar context of the set forget its built conditions, so that nothing built outside is played inside; at its end the look sets' rule gives every row it stamped back its earlier citation and placement.  The phase check also reads the walk's file: a_time_s must lie in the frame interval over which the file's own phase array passes a_phase (r5lib.leave_point; ruling 37 (c))"
+ },
+ "seeds": [
+  3042,
+  3043,
+  3044,
+  3045,
+  3046,
+  3047,
+  3048,
+  3049,
+  3050,
+  3051,
+  3052,
+  3053,
+  3054,
+  3055,
+  3056,
+  3057,
+  3058,
+  3059,
+  3060,
+  3061
+ ],
+ "a1_over": false,
+ "episodes": [
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3042,
+   "outcome": "fell",
+   "reason": null,
+   "unreadable": null,
+   "fell": true,
+   "warned": false,
+   "fall_time_s": 24.53399999999728,
+   "survival_s": 24.53399999999728,
+   "simulated_s": 24.53399999999728,
+   "planned_s": 29.474675087179687,
+   "steps": 12267,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999647,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 25.760699999996234,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 25.756499999996237,
+    "rate": 1.05,
+    "updates": 2454
+   },
+   "error": null,
+   "state_digest": "7fcc0860e65e2c0cbbedb67c72a9101dac4c6b45194297999d8a46fd803f1b27",
+   "policy_check": null,
+   "fall_cause": "tilt",
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "survived"
+    ],
+    "failed_terms_but_A1": [
+     "survived"
+    ],
+    "command_s": 22.342542715439432,
+    "window_reached": false,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3042.npz",
+     "sha256": "e9dc178ceb51031f806ce090a82726be1afcabaa223366728e70353b0f487723",
+     "rows": 1227,
+     "every_s": 0.02,
+     "updates": 2454,
+     "steps": 12267
+    },
+    "wall_s": 3.592649578000419
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3043,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 29.473999999994543,
+   "simulated_s": 29.473999999994543,
+   "planned_s": 29.474675087179687,
+   "steps": 14737,
+   "succeeded": true,
+   "succeeded_but_A1": true,
+   "succeeded_look": true,
+   "succeeded_but_A1_look": true,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [],
+   "failed_terms_but_A1": [],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999565,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 30.94769999999292,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 30.943499999992923,
+    "rate": 1.05,
+    "updates": 2948
+   },
+   "error": null,
+   "state_digest": "a1730c020cb0c36854e2c15a748ef8d4277972e23be87f91ce91e21921833301",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": true,
+    "succeeded_but_A1": true,
+    "failed_terms": [],
+    "failed_terms_but_A1": [],
+    "command_s": 22.888248884871416,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3043.npz",
+     "sha256": "d5960520a52f458b224e8fc003b57a55f0ee5fff23c398eb5cf85db411c55b7e",
+     "rows": 1474,
+     "every_s": 0.02,
+     "updates": 2948,
+     "steps": 14737
+    },
+    "wall_s": 4.519576464997954
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3044,
+   "outcome": "fell",
+   "reason": null,
+   "unreadable": null,
+   "fell": true,
+   "warned": false,
+   "fall_time_s": 24.98999999999703,
+   "survival_s": 24.98999999999703,
+   "simulated_s": 24.98999999999703,
+   "planned_s": 29.474675087179687,
+   "steps": 12495,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999636,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.239499999995928,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.228999999995935,
+    "rate": 1.05,
+    "updates": 2499
+   },
+   "error": null,
+   "state_digest": "d44dc81ad6a725ba8c393e5e23afc95f6182ea69b64ed742b3d10d7650e1f6b8",
+   "policy_check": null,
+   "fall_cause": "tilt",
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "survived"
+    ],
+    "failed_terms_but_A1": [
+     "survived"
+    ],
+    "command_s": 23.14173249726894,
+    "window_reached": false,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3044.npz",
+     "sha256": "c5819d6723a31d618bc9823dddcc173242bd840fa821d964f879d1e59211f11e",
+     "rows": 1250,
+     "every_s": 0.02,
+     "updates": 2499,
+     "steps": 12495
+    },
+    "wall_s": 2.4566548689981573
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3045,
+   "outcome": "fell",
+   "reason": null,
+   "unreadable": null,
+   "fell": true,
+   "warned": false,
+   "fall_time_s": 25.701999999996634,
+   "survival_s": 25.701999999996634,
+   "simulated_s": 25.701999999996634,
+   "planned_s": 29.474675087179687,
+   "steps": 12851,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999624,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.98709999999545,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.984999999995452,
+    "rate": 1.05,
+    "updates": 2571
+   },
+   "error": null,
+   "state_digest": "e8b521fe2828f7cf5337f097bfb6de0683d8b6027c31a725dc28d13c2db1078e",
+   "policy_check": null,
+   "fall_cause": "tilt",
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "survived"
+    ],
+    "failed_terms_but_A1": [
+     "survived"
+    ],
+    "command_s": 22.834962715456644,
+    "window_reached": false,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3045.npz",
+     "sha256": "d1426752b84ffecd37cf1da6ceb2ae53569dd9271df3b20e81252216896f4022",
+     "rows": 1286,
+     "every_s": 0.02,
+     "updates": 2571,
+     "steps": 12851
+    },
+    "wall_s": 2.67639563800185
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3046,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 29.473999999994543,
+   "simulated_s": 29.473999999994543,
+   "planned_s": 29.474675087179687,
+   "steps": 14737,
+   "succeeded": true,
+   "succeeded_but_A1": true,
+   "succeeded_look": true,
+   "succeeded_but_A1_look": true,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [],
+   "failed_terms_but_A1": [],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999565,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 30.94769999999292,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 30.943499999992923,
+    "rate": 1.05,
+    "updates": 2948
+   },
+   "error": null,
+   "state_digest": "96f015821daa74477b9c206374afcbfdadb2b8493146490d8a6b119107b8b241",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": true,
+    "succeeded_but_A1": true,
+    "failed_terms": [],
+    "failed_terms_but_A1": [],
+    "command_s": 22.678492115600562,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3046.npz",
+     "sha256": "e4d450e40b6d03ada8cb0e9c933019b32f757f3ed552dcc82cdf2dc78f2b4a30",
+     "rows": 1474,
+     "every_s": 0.02,
+     "updates": 2948,
+     "steps": 14737
+    },
+    "wall_s": 3.096911054002703
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3047,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 29.473999999994543,
+   "simulated_s": 29.473999999994543,
+   "planned_s": 29.474675087179687,
+   "steps": 14737,
+   "succeeded": true,
+   "succeeded_but_A1": true,
+   "succeeded_look": true,
+   "succeeded_but_A1_look": true,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [],
+   "failed_terms_but_A1": [],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999565,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 30.94769999999292,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 30.943499999992923,
+    "rate": 1.05,
+    "updates": 2948
+   },
+   "error": null,
+   "state_digest": "bb56b9b03352c99ca7640fb6af3f345c88d0546e7bcc51dc5d6e4044268b74e5",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": true,
+    "succeeded_but_A1": true,
+    "failed_terms": [],
+    "failed_terms_but_A1": [],
+    "command_s": 22.453201153428996,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3047.npz",
+     "sha256": "3e747e01da38713ce25ec3b7c8f37e7b00ec1e67675d20ecc08efa5dcb608726",
+     "rows": 1474,
+     "every_s": 0.02,
+     "updates": 2948,
+     "steps": 14737
+    },
+    "wall_s": 3.103492861002451
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3048,
+   "outcome": "fell",
+   "reason": null,
+   "unreadable": null,
+   "fell": true,
+   "warned": false,
+   "fall_time_s": 27.81999999999546,
+   "survival_s": 27.81999999999546,
+   "simulated_s": 27.81999999999546,
+   "planned_s": 29.474675087179687,
+   "steps": 13910,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999588,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 29.21099999999403,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 29.200499999994037,
+    "rate": 1.05,
+    "updates": 2782
+   },
+   "error": null,
+   "state_digest": "1299923644ae9044bbf61efb4038e8b31afd87e5db033a86db5bc2a0ac7c2d68",
+   "policy_check": null,
+   "fall_cause": "tilt",
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "survived"
+    ],
+    "failed_terms_but_A1": [
+     "survived"
+    ],
+    "command_s": 22.61723873126529,
+    "window_reached": false,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3048.npz",
+     "sha256": "59ce9a5a40d04972a09e9f35e6927704011c323478116ecd94fe3ee9ff0a5f22",
+     "rows": 1391,
+     "every_s": 0.02,
+     "updates": 2782,
+     "steps": 13910
+    },
+    "wall_s": 3.0200101509981323
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3049,
+   "outcome": "fell",
+   "reason": null,
+   "unreadable": null,
+   "fell": true,
+   "warned": false,
+   "fall_time_s": 25.09799999999697,
+   "survival_s": 25.09799999999697,
+   "simulated_s": 25.09799999999697,
+   "planned_s": 29.474675087179687,
+   "steps": 12549,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999634,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.352899999995856,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.34449999999586,
+    "rate": 1.05,
+    "updates": 2510
+   },
+   "error": null,
+   "state_digest": "089476b85780a989b60553e6e998aa49f1384213a97bd19dbc9fe44e24b2fbdc",
+   "policy_check": null,
+   "fall_cause": "tilt",
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "survived"
+    ],
+    "failed_terms_but_A1": [
+     "survived"
+    ],
+    "command_s": 23.12969855113,
+    "window_reached": false,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3049.npz",
+     "sha256": "62f9f9ff31058ec0cf1e71f1db347e1e28b6d0bfc0152698b75b74d6aa6cb4d9",
+     "rows": 1255,
+     "every_s": 0.02,
+     "updates": 2510,
+     "steps": 12549
+    },
+    "wall_s": 2.4266937950014835
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3050,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 29.473999999994543,
+   "simulated_s": 29.473999999994543,
+   "planned_s": 29.474675087179687,
+   "steps": 14737,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "recovered"
+   ],
+   "failed_terms_but_A1": [
+    "recovered"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999565,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 30.94769999999292,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 30.943499999992923,
+    "rate": 1.05,
+    "updates": 2948
+   },
+   "error": null,
+   "state_digest": "b2409d45ebd663a121dc9cc1359d04f588ee7c193b3a543f87d8caa721062ebb",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "recovered"
+    ],
+    "failed_terms_but_A1": [
+     "recovered"
+    ],
+    "command_s": 22.42672935344037,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3050.npz",
+     "sha256": "ed034be72ad0d4467de0fc14c5ac1d441ff1306044ce75754cd472607b1d6a15",
+     "rows": 1474,
+     "every_s": 0.02,
+     "updates": 2948,
+     "steps": 14737
+    },
+    "wall_s": 2.885584170995571
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3051,
+   "outcome": "fell",
+   "reason": null,
+   "unreadable": null,
+   "fell": true,
+   "warned": false,
+   "fall_time_s": 25.89199999999653,
+   "survival_s": 25.89199999999653,
+   "simulated_s": 25.89199999999653,
+   "planned_s": 29.474675087179687,
+   "steps": 12946,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999619,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 27.186599999995323,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 27.184499999995325,
+    "rate": 1.05,
+    "updates": 2590
+   },
+   "error": null,
+   "state_digest": "8671281e129a676d28bd4c6a043f8e2d851f837f6ef5d72b06149ead3f8b8719",
+   "policy_check": null,
+   "fall_cause": "tilt",
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "survived"
+    ],
+    "failed_terms_but_A1": [
+     "survived"
+    ],
+    "command_s": 22.806053091016434,
+    "window_reached": false,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3051.npz",
+     "sha256": "1cc049ba01f77dae2449df7a18cbe5e6c1bc17536ea664413e2f2be141fa6046",
+     "rows": 1295,
+     "every_s": 0.02,
+     "updates": 2590,
+     "steps": 12946
+    },
+    "wall_s": 2.5403519210012746
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3052,
+   "outcome": "fell",
+   "reason": null,
+   "unreadable": null,
+   "fell": true,
+   "warned": false,
+   "fall_time_s": 24.94799999999705,
+   "survival_s": 24.94799999999705,
+   "simulated_s": 24.94799999999705,
+   "planned_s": 29.474675087179687,
+   "steps": 12474,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999638,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.195399999995956,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.18699999999596,
+    "rate": 1.05,
+    "updates": 2495
+   },
+   "error": null,
+   "state_digest": "7d504b34c2961d55a0c97c4cfec9ea2fc85212a38fa68777baf878f064624b02",
+   "policy_check": null,
+   "fall_cause": "tilt",
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "survived"
+    ],
+    "failed_terms_but_A1": [
+     "survived"
+    ],
+    "command_s": 23.070853301863682,
+    "window_reached": false,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3052.npz",
+     "sha256": "9df58bb5a48ad3ec7dd1746f8a650553ee4ac1271cc4760fdd66121a5b131c36",
+     "rows": 1248,
+     "every_s": 0.02,
+     "updates": 2495,
+     "steps": 12474
+    },
+    "wall_s": 2.4602497999949264
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3053,
+   "outcome": "fell",
+   "reason": null,
+   "unreadable": null,
+   "fell": true,
+   "warned": false,
+   "fall_time_s": 25.985999999996476,
+   "survival_s": 25.985999999996476,
+   "simulated_s": 25.985999999996476,
+   "planned_s": 29.474675087179687,
+   "steps": 12993,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999619,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 27.28529999999526,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 27.278999999995264,
+    "rate": 1.05,
+    "updates": 2599
+   },
+   "error": null,
+   "state_digest": "a2060323cb94ff75a9024f98ed281a7964d5481b00cf2a9ee12ade2dd33b542e",
+   "policy_check": null,
+   "fall_cause": "tilt",
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "survived"
+    ],
+    "failed_terms_but_A1": [
+     "survived"
+    ],
+    "command_s": 22.634244098696566,
+    "window_reached": false,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3053.npz",
+     "sha256": "371ab2657babc4986426fde958af97ea66a33f741cb25f5fc487ee857343a536",
+     "rows": 1300,
+     "every_s": 0.02,
+     "updates": 2599,
+     "steps": 12993
+    },
+    "wall_s": 2.478912297003262
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3054,
+   "outcome": "fell",
+   "reason": null,
+   "unreadable": null,
+   "fell": true,
+   "warned": false,
+   "fall_time_s": 27.543999999995613,
+   "survival_s": 27.543999999995613,
+   "simulated_s": 27.543999999995613,
+   "planned_s": 29.474675087179687,
+   "steps": 13772,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999591,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 28.921199999994215,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 28.916999999994218,
+    "rate": 1.05,
+    "updates": 2755
+   },
+   "error": null,
+   "state_digest": "955baa56be93cda153f9a05346d620416b220ecca9753df0268dabce16bda3ea",
+   "policy_check": null,
+   "fall_cause": "tilt",
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "survived"
+    ],
+    "failed_terms_but_A1": [
+     "survived"
+    ],
+    "command_s": 22.88587068400241,
+    "window_reached": false,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3054.npz",
+     "sha256": "fb8594601843f3df0e9c1d7ea01fbe897003fa06be85c759acfdcbff813ce6c3",
+     "rows": 1378,
+     "every_s": 0.02,
+     "updates": 2755,
+     "steps": 13772
+    },
+    "wall_s": 2.858834522005054
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3055,
+   "outcome": "fell",
+   "reason": null,
+   "unreadable": null,
+   "fell": true,
+   "warned": false,
+   "fall_time_s": 26.469999999996208,
+   "survival_s": 26.469999999996208,
+   "simulated_s": 26.469999999996208,
+   "planned_s": 29.474675087179687,
+   "steps": 13235,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999611,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 27.793499999994935,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 27.782999999994942,
+    "rate": 1.05,
+    "updates": 2647
+   },
+   "error": null,
+   "state_digest": "d5cfb0b75eae92dc68565ab05a1bab15a00ef9dceebd899cca2aaee777130e0b",
+   "policy_check": null,
+   "fall_cause": "tilt",
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "survived"
+    ],
+    "failed_terms_but_A1": [
+     "survived"
+    ],
+    "command_s": 22.928787891186673,
+    "window_reached": false,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3055.npz",
+     "sha256": "2cdbfe55fc058a08d84dd8e5510b2a48c2338c08b557c469005063109044fa70",
+     "rows": 1324,
+     "every_s": 0.02,
+     "updates": 2647,
+     "steps": 13235
+    },
+    "wall_s": 2.5523550829966553
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3056,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 29.473999999994543,
+   "simulated_s": 29.473999999994543,
+   "planned_s": 29.474675087179687,
+   "steps": 14737,
+   "succeeded": true,
+   "succeeded_but_A1": true,
+   "succeeded_look": true,
+   "succeeded_but_A1_look": true,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [],
+   "failed_terms_but_A1": [],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999565,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 30.94769999999292,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 30.943499999992923,
+    "rate": 1.05,
+    "updates": 2948
+   },
+   "error": null,
+   "state_digest": "6acd29bf434f05bda3bb07b6a65bb22e697f0e2572053bc521b28974c66f0263",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": true,
+    "succeeded_but_A1": true,
+    "failed_terms": [],
+    "failed_terms_but_A1": [],
+    "command_s": 22.633260196922084,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3056.npz",
+     "sha256": "e4043340774eb95716495df1884a6e5f1ee8be437ed7b2b37dc803647a795699",
+     "rows": 1474,
+     "every_s": 0.02,
+     "updates": 2948,
+     "steps": 14737
+    },
+    "wall_s": 2.8948532520007575
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3057,
+   "outcome": "fell",
+   "reason": null,
+   "unreadable": null,
+   "fell": true,
+   "warned": false,
+   "fall_time_s": 25.63799999999667,
+   "survival_s": 25.63799999999667,
+   "simulated_s": 25.63799999999667,
+   "planned_s": 29.474675087179687,
+   "steps": 12819,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999626,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 26.919899999995494,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 26.9114999999955,
+    "rate": 1.05,
+    "updates": 2564
+   },
+   "error": null,
+   "state_digest": "85caf9380df3523256a91535d17a00b32ab935c39eb7c81e3dc7edaf523018ea",
+   "policy_check": null,
+   "fall_cause": "tilt",
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "survived"
+    ],
+    "failed_terms_but_A1": [
+     "survived"
+    ],
+    "command_s": 22.62267311905639,
+    "window_reached": false,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3057.npz",
+     "sha256": "6f494eeb945c306d172994d7951f252c0db1962f6a24914e602489d45ff1f357",
+     "rows": 1282,
+     "every_s": 0.02,
+     "updates": 2564,
+     "steps": 12819
+    },
+    "wall_s": 2.444285409997974
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3058,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 29.473999999994543,
+   "simulated_s": 29.473999999994543,
+   "planned_s": 29.474675087179687,
+   "steps": 14737,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "recovered"
+   ],
+   "failed_terms_but_A1": [
+    "recovered"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999565,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 30.94769999999292,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 30.943499999992923,
+    "rate": 1.05,
+    "updates": 2948
+   },
+   "error": null,
+   "state_digest": "702875e013669eccc2d914fcc6cf885632cca1115ad8e59032420627f5de1e2a",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "recovered"
+    ],
+    "failed_terms_but_A1": [
+     "recovered"
+    ],
+    "command_s": 22.670751452204104,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3058.npz",
+     "sha256": "bd9c5f6eaec50cbe7de8a1cd90253b47d27882771ffc992337c32f544bace62d",
+     "rows": 1474,
+     "every_s": 0.02,
+     "updates": 2948,
+     "steps": 14737
+    },
+    "wall_s": 3.1682245929987403
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3059,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 29.473999999994543,
+   "simulated_s": 29.473999999994543,
+   "planned_s": 29.474675087179687,
+   "steps": 14737,
+   "succeeded": true,
+   "succeeded_but_A1": true,
+   "succeeded_look": true,
+   "succeeded_but_A1_look": true,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [],
+   "failed_terms_but_A1": [],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999565,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 30.94769999999292,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 30.943499999992923,
+    "rate": 1.05,
+    "updates": 2948
+   },
+   "error": null,
+   "state_digest": "bfbd26fd196af8b82274eea005154c9377f96aea91760378002dd85276732102",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": true,
+    "succeeded_but_A1": true,
+    "failed_terms": [],
+    "failed_terms_but_A1": [],
+    "command_s": 22.678473695111098,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3059.npz",
+     "sha256": "a447285fd7f87bc1131d51792a354d676452f859494da29b24000cea9ce9b563",
+     "rows": 1474,
+     "every_s": 0.02,
+     "updates": 2948,
+     "steps": 14737
+    },
+    "wall_s": 3.300341832000413
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3060,
+   "outcome": "read",
+   "reason": null,
+   "unreadable": null,
+   "fell": false,
+   "warned": false,
+   "fall_time_s": null,
+   "survival_s": 29.473999999994543,
+   "simulated_s": 29.473999999994543,
+   "planned_s": 29.474675087179687,
+   "steps": 14737,
+   "succeeded": true,
+   "succeeded_but_A1": true,
+   "succeeded_look": true,
+   "succeeded_but_A1_look": true,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [],
+   "failed_terms_but_A1": [],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999565,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 30.94769999999292,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 30.943499999992923,
+    "rate": 1.05,
+    "updates": 2948
+   },
+   "error": null,
+   "state_digest": "de6b910a219d7e0d7e2a1dcb5cff50994e45bf589e169d64d736340bdb2c1553",
+   "policy_check": null,
+   "fall_cause": null,
+   "bar": {
+    "succeeded": true,
+    "succeeded_but_A1": true,
+    "failed_terms": [],
+    "failed_terms_but_A1": [],
+    "command_s": 22.674099225314556,
+    "window_reached": true,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3060.npz",
+     "sha256": "9162b02258ed06653b4aa8e7e1d179c22c472f1f60f3cee87d0bc4524a624f91",
+     "rows": 1474,
+     "every_s": 0.02,
+     "updates": 2948,
+     "steps": 14737
+    },
+    "wall_s": 3.100433774998237
+   }
+  },
+  {
+   "condition": "nudge/right_mu0.54",
+   "seed": 3061,
+   "outcome": "fell",
+   "reason": null,
+   "unreadable": null,
+   "fell": true,
+   "warned": false,
+   "fall_time_s": 25.90799999999652,
+   "survival_s": 25.90799999999652,
+   "simulated_s": 25.90799999999652,
+   "planned_s": 29.474675087179687,
+   "steps": 12954,
+   "succeeded": false,
+   "succeeded_but_A1": false,
+   "succeeded_look": false,
+   "succeeded_but_A1_look": false,
+   "reading_1": "reading 1 is reading 2 on this item (it is defined for walks and turns)",
+   "failed_terms": [
+    "survived"
+   ],
+   "failed_terms_but_A1": [
+    "survived"
+   ],
+   "look": null,
+   "look_ok": null,
+   "look_failed_terms": [],
+   "look_reason": "nudge and stop items are not read (rule U2)",
+   "look_fault": null,
+   "on_command_at_stop": null,
+   "clock": {
+    "mean_factor": 0.9999999999999619,
+    "min_factor": 0.9999999999990272,
+    "t_ref_reached": 27.203399999995312,
+    "t_ref_planned": 30.948408841538672,
+    "t_ref_start": 0.0,
+    "t_ref_last_update": 27.194999999995318,
+    "rate": 1.05,
+    "updates": 2591
+   },
+   "error": null,
+   "state_digest": "2cff79bea0b84466316e3652a045294540bacb1da7abddf54995e82a6c0a4fca",
+   "policy_check": null,
+   "fall_cause": "tilt",
+   "bar": {
+    "succeeded": false,
+    "succeeded_but_A1": false,
+    "failed_terms": [
+     "survived"
+    ],
+    "failed_terms_but_A1": [
+     "survived"
+    ],
+    "command_s": 23.06715879382363,
+    "window_reached": false,
+    "trace": {
+     "path": "R0L@10ms/nudge/right_mu0.54/3061.npz",
+     "sha256": "0af76e3c6001d49763f04b25fff554c0d50dbb79f7ef9965c191cd8486c2ef46",
+     "rows": 1296,
+     "every_s": 0.02,
+     "updates": 2591,
+     "steps": 12954
+    },
+    "wall_s": 2.7011950259984587
+   }
+  }
+ ],
+ "counts_look": {
+  "reading": "look",
+  "episodes": 20,
+  "survived": 8,
+  "succeeded": 6,
+  "falls": 12,
+  "errors": 0,
+  "survival_lcb": 0.21706858937007414,
+  "success_lcb": 0.13955374900238637,
+  "judged": true,
+  "pass_": false
+ },
+ "counts": {
+  "reading": "success",
+  "episodes": 20,
+  "survived": 8,
+  "succeeded": 6,
+  "falls": 12,
+  "errors": 0,
+  "survival_lcb": 0.21706858937007414,
+  "success_lcb": 0.13955374900238637,
+  "judged": true,
+  "pass_": false
+ },
+ "counts_but_A1": {
+  "reading": "but_A1",
+  "episodes": 20,
+  "survived": 8,
+  "succeeded": 6,
+  "falls": 12,
+  "errors": 0,
+  "survival_lcb": 0.21706858937007414,
+  "success_lcb": 0.13955374900238637,
+  "judged": true,
+  "pass_": false
+ },
+ "counts_but_A1_look": {
+  "reading": "but_A1_look",
+  "episodes": 20,
+  "survived": 8,
+  "succeeded": 6,
+  "falls": 12,
+  "errors": 0,
+  "survival_lcb": 0.21706858937007414,
+  "success_lcb": 0.13955374900238637,
+  "judged": true,
+  "pass_": false
+ },
+ "counts_look_reason": null,
+ "counts_equal_bar": null,
+ "outcomes": {
+  "read": 8,
+  "fell": 12,
+  "unread": 0,
+  "error": 0
+ },
+ "unread_reasons": {},
+ "failures_by_term": {
+  "recovered": 2,
+  "survived": 12
+ },
+ "look_failures_by_term": {},
+ "look_faults": [],
+ "short_air_runs": {
+  "episodes_read": 0,
+  "episodes_with_any": 0,
+  "total": 0
+ },
+ "policy": null,
+ "g9_ref": {
+  "path": "stage2/tb/gates/V6/75-M-H-10/g9_ref.json",
+  "sha256": "af627ba90a65ef83e5eb3009d36c44d4425c99be15f5d262ada8a24f58b4cfdc"
+ },
+ "sidecars": {
+  "root": "V6/75-M-H-10/seeds3042/look_partial",
+  "sha256": {
+   "3042": "30a2b77970db5f256fd2bb8461990d3b379e5e0b52320abd7c43a2e18029233c",
+   "3043": "e3f416fcbe52dc84ebb205ea4339aa1408265062c7e299083649dd377f6d2178",
+   "3044": "e6dfa34c71121f32e7874f90048ae286df82870b761d8a124ff5adbc47a790a4",
+   "3045": "b09eaf20b2d9d0432ed01710157717eb5de4907b9969ebb9843c7066cf132fe6",
+   "3046": "85a4de3560c613f0e741301be96c80252e283f6082f3d0f4ecfd4631433468a1",
+   "3047": "00a2efc64d611cfb2bad0255974b68063c4b7e5c7a0cbf00a8864539a4c894a5",
+   "3048": "d1b648fb9c109de598097404f02bbdd60af513bd76e74e8effee2a5bd8756e9f",
+   "3049": "66cdb9c6a3df9909c76a89c16b088496c0409516398a793e3c3ad9f36fe4b242",
+   "3050": "be6d7acb3ecfb5876c9792006f4dde9c2361d428a64805c7d025175daec5d2ec",
+   "3051": "b59a6de4499f8b50e993a959994b52f9f83ba097e99cb572e46baaa5ca09691f",
+   "3052": "fd2ab5b07d740a6975ffd63999a75c48995562420eefc128ef1744b5dbc84b2b",
+   "3053": "6c76dfadc969e83a9ae7cb91695542b9d13859be416c6dccb3ae443d693210a8",
+   "3054": "032426b125eb920543c547ab6ac747fa6faa4cd922d30b80b116da7ae728be1a",
+   "3055": "8bd218dacc644692565e4df6adc4e7cab39d39d22469d3f5df4c617ba510cf10",
+   "3056": "98cffc3cf3dd208ab26167837e0a1ba4dd7bdd4492fa826b08001f122600de56",
+   "3057": "03dee38494896f2aa7d8e40a8837621892d008686943bc484b86093260628806",
+   "3058": "5edc40dfeb1390fbc60ea26e918f4db821a0290e9c3a903652d4bc091b2d3783",
+   "3059": "9aced9606c24fbbdace728c311a8dda766b49aded03798fde867738d00261e18",
+   "3060": "74ea4c9fb707342f1102f44fe279e7674e75adc47589d0d919a969f51699b196",
+   "3061": "ad19c1ce54fccb33ceb7e5d304f9d03bd4567f8e2317759008aaff698b11e93f"
+  }
+ },
+ "sources": {
+  "designlab/stage2/lookbar.py": "6a7d59e4c116289b3ab0eaec2786a49e46d9d6a0072769e93aa3c0177e89ece4",
+  "designlab/stage2/lookread.py": "ff7b2e4e7836c25884ae1bae507febacd413c5efa3980dbddbb8568b66809c45",
+  "bar": "45719d030359ec7d5d3914af3814d837fdc05d77652ba45c64792b511027528d"
+ },
+ "inputs_sha256": "b953325a468164af63eb0e6cbe87283b05472352aca8423b01f0da08215b9633",
+ "provenance": {
+  "commit": "2b6e3b2a3daae53e4c601ae4de0f8c727ad068b0",
+  "dirty": false,
+  "dirty_paths": []
+ },
+ "versions": {
+  "python": "3.13.18",
+  "numpy": "2.5.4",
+  "mujoco": "3.10.0",
+  "scipy": "1.18.1"
+ },
+ "blas_threads": 1,
+ "at": "2026-11-17T17:47:26Z",
+ "sha256": "dcf2d9dab84ef3d832ea8ea76148aa82fa65c0ad72433fe59d28e15dc35c9b6d"
+}

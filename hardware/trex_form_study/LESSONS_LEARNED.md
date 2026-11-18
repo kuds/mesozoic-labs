@@ -30,6 +30,16 @@ The bodies are `60-N-T-10` (the 60 cm Tapered), `60-N-H-10` (the 60 cm Hybrid, d
 wait for the owner (§7). All of this is on the branch `claude/mesozoic-trex-design-iteration-azm2fs`, whose pull request
 is kuds/mesozoic-labs#667 (https://github.com/kuds/mesozoic-labs/pull/667).
 
+**Note of 15 Nov 2026 (second session).** A second session ran on 14–15 Nov on the branch
+`claude/mesozoic-trex-stage2-refine-4jffre` and paused for the account's usage limit before any Stage 2 run. What it
+did, what is merged, what is built but unmerged and what the lead still has to rule on are in
+`stage2/design/checkpoint/STATUS.md`; read that file first. In short: the owner's 14 Nov decisions are recorded (P30
+to P33); the rules of the 75 cm track are fixed (`STAGE2_75_PLAN.md`, `STAGE2_PLAN.md` section 9); the Jetson body
+`75-M-H-10-J` and the Jetson documents are done (`stage2/j/`, `stage2/jetson75/`); gate L1 is frozen at V6
+(`stage2/look/L1_FREEZE.json`); the tooling for references, the bar and training is partly built. No set is frozen
+and no panel, fit or training run has been made on a Stage 2 set. This file's sections 2 to 7 still describe the
+state of 14 Nov.
+
 ## 2. What the robot can and cannot do (in simulation)
 
 ### 2.1 The controllers
@@ -124,10 +134,11 @@ turn commands whose zero action is R0L, and R6, a policy alone. "Shown" means th
   - The `-X` jaw servo in the head would take the closed-loop nominal-walk load to about 0.93 of A1. That is an
     estimate scaled from Stage 0; the static hold goes from 0.75 to 0.84 (X_COSTS.md).
 - **Joint damping and friction dominate the tail's load**, and on `-X` the neck yaw's and the jaw's.
-  - On the 60 cm neck pitch they add about 7–12 % to what is mostly a gravity load.
+  - On the 60 cm neck pitch they add about 7–12 % to what is mostly a gravity load. (Note, 14 Nov 2026: that is on
+    look rungs V0–V4L; on V5–V6S, with the stabilised head, it is about 1–4 %, RMS, SCREEN.md §3b; A18 gives both.)
   - The values (damping 0.2 N·m·s/rad, friction loss 0.15 N·m) are `designlab/mjcf.py`'s defaults on every joint, legs
     included. They are unsourced, and no decision-log row records them: A16 is the carpet screen, and a draft row is
-    proposed in §7.
+    proposed in §7. (Since 14 Nov 2026: A18, P30.)
   - A bench measurement could move these loads more than any part change.
 - **Grip.**
   - Stance-foot spin, the pad's yaw moment, is the friction limit that binds (F21).
@@ -310,6 +321,23 @@ These were answered in conversation after the Stage 1b report; P28 and `STAGE2_P
       on it: one answer was a request for more time.
     - Send a push notification when long work finishes; the owner asked to be pinged four times.
     - "Help me think" means discussion, not new runs ("Don't do any big experiments", 10 Nov).
+19. **A report's tables are right long before its prose is** (the 75 cm report, 15 to 16 Nov).
+    Three rounds of independent checks recomputed every table cell from the records and found none wrong; they found
+    the lead's sentences wrong or too strong 50, 24 and 12 times (and the owner page's 10 times on its first check). What to do:
+    - Write the short answer last, from a list of facts each of which a script printed, and send exactly that part
+      to a reader who has seen no earlier review.
+    - Say *where* a failure happens before saying *why*. "It falls at 10 ms" was true; "the walk falls" was not (the
+      falls were in the start), and the correction "not in the walk" was not true either (the slow walk falls).
+    - A column that prints "the larger of two" needs its name in every sentence that quotes it (the neck servo's
+      0.69 was reported as the tail's).
+    - Name what a limit is a share of. "1.08 times its rating" was 1.08 times the study's planning limit, itself
+      0.57 of the maker's figure (A1), over a joint friction with no source (A18).
+    - Recompute a reviewer's proposed sentence before pasting it: one of them named a cell that was never run.
+    - An interpretation must list what speaks against it from the study's own log (F26, F27 here), not only what
+      speaks for it.
+    - When a rule's text is amended, check the amended sentence against the runner's code for every item it names:
+      the P34 amendment said "unchanged in C4 and C5" and was false for C4, which failed the candidate on one term
+      in every walk, push and stop.
 
 ## 4. Working in the cloud container
 
@@ -508,6 +536,34 @@ tests.
 - **Usage limits are real.**
   - The account's weekly usage limit ran out on 13 Nov, after 39 workflows with 271 agents in all (one audit used 76).
   - Size a workflow's fan-out to the question, and keep a reserve for the owner's own use.
+  - The session cannot see the account's meter; only the owner can. Ask for the reading (percent used and the reset
+    day) before the first large workflow and at each tranche boundary, and give the owner the session's own count
+    beside it.
+  - An agent's cost varies fourfold with how it is set up. In the second session (15 Nov) 80 transcripts (9.5 million
+    output tokens, 1.27 billion cached-context tokens read) took the meter through one reset from 99 % and on to 46 %:
+    up to about 1.8 % of a week per agent, against 0.4 % in the first session. Those agents ran at the session's
+    effort setting (`xhigh`) and each read a design document of 150 to 190 kB.
+  - The session can read its own cost: `get_session` (claude-code-remote) returns `external_metadata.usage.cost_usd`
+    and `rate_limit_info`. On 15 Nov one week of the owner's allocation was about 610 USD at those prices (46 % at
+    03:58 UTC, the limit at 07:36), and a builder with a 600,000-token context over 100 turns cost 30 to 45 USD,
+    mostly in cached-context reads. Track that figure; an estimate from token counts read 87 % when the limit was
+    hit.
+  - When the limit is hit every running agent fails at once and its workflow ends with what was done; resuming by
+    run id runs the cut-off agents again from the start. Have builders commit as they go, and run long CPU jobs
+    from the lead with `run_in_background`, not from an agent that waits and polls with its whole context.
+  - Resuming a workflow by run id replays only the unbroken prefix of finished agent calls. Every call after the
+    first one that has to run live runs again, finished or not: on 15 Nov a resume started two finished reviews over
+    and was stopped after two minutes. To finish a cut-off workflow, write a short follow-on script that runs only the
+    stages still owed and carries the recorded results (reviews, build reports) as literals.
+  - A fixer starts the moment the last review returns. Rulings the lead owes on reviewers' open points must be in
+    the brief before then, or the fixer decides them itself; on 15 Nov the set fixer was 25 minutes into its work
+    when the lead read the reviews. Have the script stop for the lead between review and fix when rulings are
+    likely (a second workflow call), or tell the fixer to leave "for the lead" findings untouched and list them.
+  - Before a fan-out, set what each agent runs at: the effort for builders and fixers, how much of the design a brief
+    carries, and one reviewer or two.
+  - Worktree branches may not be pushed, so an unmerged build is lost with the container. At a pause, merge what is
+    reviewed and fixed, and commit the rest as a `git bundle` with the reviewers' findings beside it
+    (`stage2/design/checkpoint/`).
 - **The repository's root rules drop or rewrite files silently.**
   - The root `.gitignore` ignores `logs/`, `models/`, `*.zip`, `*.pkl`, `*.npz` and `tensorboard/` at any depth. On 7
     Nov it dropped the round-one ledgers, kept in a `models/` folder, until it was renamed `mjcf/`.
@@ -678,7 +734,7 @@ This is `STAGE2_PLAN.md` §7 in order, with what a new session does first.
 - each drive type's command-to-motion delay and stiffness (draft A17);
 - the STS3215 tail servo at the speed walks' loads (A1);
 - the treads' grip on the owner's floors (P21);
-- the joints' friction and damping (the MJCF defaults, with no decision-log row yet).
+- the joints' friction and damping (the MJCF defaults, with no decision-log row yet; since 14 Nov 2026: A18).
 
 The delay matters most. At 10 ms every 60 cm walk but one falls under the fitted tracker (S1b §4). A measured delay above S1b
 N8's figures rules out that controller family, not every controller, and one below them still leaves grip and the
@@ -689,6 +745,16 @@ RMD-X4-P12-10-E (V4) as discontinued, against E6, though it is still sold. The o
 against its successor, the X4-10-L (S1 §6 item 11).
 
 ## 7. Waiting for the owner
+
+**Note, 14 Nov 2026 (second session).** The owner answered these on 14 Nov (`DECISION_LOG.md` P30): Stage 2's
+decisions 1, 2, 7 and 8, the Colab confirmation, the seven draft rows (now F26, F27, A1, A15, A16, A17 and A18 in
+`DECISION_LOG.md`) and PR kuds/mesozoic-labs#668's decisions. Still with the owner after these answers: P25; the
+compute choice, after the Jetson body's screens and the delay bench test (P14 stands meanwhile); the candidate
+reference for the 75 cm body, on which the owner picks at L1; the 75 cm budget, brought back after the rebuild; PR
+kuds/mesozoic-labs#668, kept open and unmerged, on which the owner is asked again once the records exist; and the
+3–5 viewers' scores, which the owner pastes when they exist. The list below is kept as it stood before those answers,
+and so is the wording of the earlier sections: "awaiting the owner's L1 picks" and "The draft decision-log rows wait
+for the owner" (§1) and "draft F26" and "draft A17" (§2, §6) predate them.
 
 - **Stage 2's open decisions** (`STAGE2_PLAN.md` §7):
   - 1: the look features, and whether one may cost a speed rung.
@@ -711,6 +777,10 @@ against its successor, the X4-10-L (S1 §6 item 11).
   - The jaw is modelled in simulation only; P2's deferral stands for the build (P29).
   - P4's prototype budget is $10–20k. The high estimates already exceed it: $20.5k for `60-N-T-10` and $25.7k for
     `75-M-H-10`, against nominals of $14.8k and $18.5k (their round-two records). Cost every hardware lever against it.
+    **Note, 14 Nov 2026 (second session):** the owner set budget concerns aside at this point (`DECISION_LOG.md`
+    P31): prices are documented, not weighed against P4, and a lever is priced for the record, not gated on cost.
+- **Note, 15 Nov 2026 (second session):** the owner does not expect to run the delay bench test before a 75 cm build
+  works in simulation (`DECISION_LOG.md` P32). The bench sheet is ready; the bar stays judged at the assumed 10 ms.
 - **PR kuds/mesozoic-labs#668's decisions** are listed in `JETSON_PLEM_REVIEW.md`.
 
 ## 8. Published pages
@@ -728,3 +798,6 @@ reports, and `designlab/stage2/look_page.py` with the clips for the look pages.
 | Stage 1b speed round | https://claude.ai/artifact/VbBcrpxuyxjF2YhoJqG4rn |
 | Stage 2 look review (gate L1) | https://claude.ai/artifact/MG1yh5ztqJwVdFPs6GmkkY |
 | Viewers' blind sheet (L1 ratings) | https://claude.ai/artifact/QVktxN3pHsov2LTVs6d69c |
+| Delay bench sheet (second session; carries the P32 note) | https://claude.ai/artifact/LePsAx8XM8q8hUTpZ3GqtJ |
+| 75 cm build prices (second session) | https://claude.ai/artifact/KDSuT1A1AsHad4KVVrzsfa |
+| 75 cm walk results (second session; `STAGE2_75_REPORT.md`, fourth version; sources in `stage2/runs/2026-11-15-75cm/report_src/`) | https://claude.ai/artifact/CeymkxuQuPpsoT8TTrbveZ |

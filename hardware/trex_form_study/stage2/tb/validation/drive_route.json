@@ -1,0 +1,35 @@
+{
+ "schema": "s2-drive-route-1",
+ "at": "2026-11-17T21:23:00Z",
+ "step": "V0b",
+ "rule": "D20 (the upload route; fallbacks in order)",
+ "connector": "Google Drive connector, file references",
+ "folder": "My Drive / mesozoic-labs / stage2 / route-test",
+ "files": [
+  {
+   "name": "route-170kB.bin",
+   "bytes": 174080,
+   "sha256": "8628d61d1423ff943ca5edd8632afc02b89f3ef9c975dba22114ae79dc2a98d8",
+   "uploaded": true,
+   "drive_size": 174080,
+   "size_equal": true,
+   "drive_id": "1MLc4zxYRdrsWN9sI3Ym7Y2q2-xmC2hU9"
+  },
+  {
+   "name": "route-5MB.tar",
+   "bytes": 5253120,
+   "sha256": "bc754ff0f954a291280b3016df88dda17412d6cc51a63abde05630579894d702",
+   "uploaded": false,
+   "refused": "over the 4.2 MB limit on each connector call (about 3.1 MB of file)"
+  },
+  {
+   "name": "route-20MB.tar",
+   "bytes": 20981760,
+   "sha256": "07c48aca0b698f10c930a199eb358529d02240878e336294013750eed12f27ca",
+   "uploaded": false,
+   "refused": "over the 10 MB limit for uploads from here"
+  }
+ ],
+ "re_download": "not made: the connector returns a download as text in the lead's context, which a file of this size cannot be; the size reported by Drive was compared instead",
+ "outcome": "the route carries files up to about 3.1 MB only; D20's fallbacks (1) 5 MB parts and the 20 MB parts both fail; the owner chose fallback (3), a data branch (DECISION_LOG.md P46)"
+}
