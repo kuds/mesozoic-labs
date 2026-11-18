@@ -1,22 +1,23 @@
 """Gymnasium environment: the 60 cm Triceratops build model walking forward at a commanded speed.
 
 Simulation only. The robot is ``../sim/generated/trike60_C_closed.xml`` (or its passive-roll-ankle variant), built
-by ``../sim/build_model60.py`` (about 12.7 kg in revision 2; everything here is read from the model file), 1 ms
-physics step, 12 position-servo leg drives plus four small head and tail servos. This module is standalone (it does not subclass ``environments.shared.base_env.BaseDinoEnv``); the
-README says why.
+by ``../sim/build_model60.py`` (model revision 3, about 12.7 kg; everything here is read from the model file), 1 ms
+physics step, 12 position-servo leg drives plus four small head and tail servos. This module is standalone (it does
+not subclass ``environments.shared.base_env.BaseDinoEnv``); the README says why.
 
 Task, per episode: walk forward along the heading the robot had at reset (+x of the robot frame), at a commanded
 speed drawn from ``[0, 0.27]`` m/s (the museum target is about 0.25 m/s), and hold that heading.
 
 Control: 50 Hz (``frame_skip`` 20 physics steps of 1 ms). The policy outputs 12 numbers in [-1, 1], one per leg
-drive (order: ``LEG_ACTUATORS``), read as residual joint targets around the neutral standing pose:
-``target = neutral + action * scale[axis]``, clipped to the actuator's ctrlrange. The neck and tail servos are held
-at their neutral target (0). The leg targets pass through a per-physics-step FIFO, so a new target reaches
-``data.ctrl`` exactly ``k`` physics steps (``k`` ms) after the policy set it; ``k`` is drawn per episode from
+drive (order: ``LEG_ACTUATORS``). They pass a first-order low-pass filter (``action_filter_hz``; part of the policy
+interface, to be run on the robot too) and are read as residual joint targets around the neutral standing pose:
+``target = neutral + filtered_action * scale[axis]``, clipped to the actuator's ctrlrange. The neck and tail servos
+are held at their neutral target (0). The leg targets pass through a per-physics-step FIFO, so a new target reaches
+``data.ctrl`` exactly ``k`` physics steps (``k`` ms) after it was set; ``k`` is drawn per episode from
 ``delay_steps_range`` or fixed by ``delay_steps_fixed``.
 
-Everything random (domain randomisation, delay, command, reset noise, observation noise) is drawn from the env's
-``np_random``, so an episode is a function of its reset seed.
+Everything random (domain randomisation, delay, command, reset noise, observation noise, heading drift) is drawn from
+the env's ``np_random``, so an episode is a function of its reset seed.
 """
 
 from __future__ import annotations
@@ -36,22 +37,23 @@ HERE = Path(__file__).resolve().parent
 MODEL_DIR = HERE.parent / "sim" / "generated"
 DEFAULT_MODEL = MODEL_DIR / "trike60_C_closed.xml"
 ANKLE_ROLL_MODEL = MODEL_DIR / "trike60_C_closed_ankleroll.xml"
+MODELS = {"trike60_C_closed": DEFAULT_MODEL, "trike60_C_closed_ankleroll": ANKLE_ROLL_MODEL}
 
 CORNERS = ("left_fore", "right_fore", "left_hind", "right_hind")
 AXES = ("roll", "pitch", "flexion")
 LEG_ACTUATORS = tuple(f"{c}_{a}" for c in CORNERS for a in AXES)
 MUSEUM_TARGET_SPEED_MPS = 0.25
 
-# Observation layout: (name, width). The order is the order in the vector. Built per config in TrikeEnv.obs_layout.
-_OBS_BASE = (
-    ("leg_joint_pos", 12),  # rad, relative to the neutral pose (noisy)
-    ("leg_joint_vel", 12),  # rad/s (noisy)
-)
+REWARD_TERMS = ("r_track", "r_track_linear", "r_alive", "r_upright", "r_height", "r_lateral", "r_yaw_rate",
+                "r_heading", "r_energy", "r_action_rate", "r_slip", "r_diagonal")
+REWARD_BONUSES = ("r_track", "r_alive")  # >= 0; r_diagonal may take either sign; every other term is <= 0
 
 
 @dataclass
 class TrikeEnvConfig:
-    """Every setting of the environment, with its default. All ranges are closed intervals ``(low, high)``."""
+    """Every setting of the environment, with its default. All ranges are closed intervals ``(low, high)``.
+
+    The reward weights, action scales and filter are untuned starting points, not results."""
 
     model_path: str = str(DEFAULT_MODEL)
 
@@ -68,6 +70,10 @@ class TrikeEnvConfig:
     action_scale_roll: float = 0.15
     action_scale_pitch: float = 0.40
     action_scale_flexion: float = 0.40
+    # First-order low-pass on the action before it becomes a target, cutoff in Hz (0: off). At 4 Hz a 1.5 Hz gait
+    # passes at 94 % amplitude while step-to-step jitter (25 Hz) is cut to about a sixth, so exploration noise alone
+    # cannot carry the robot. Part of the policy interface: run the same filter on the robot.
+    action_filter_hz: float = 4.0
 
     # --- servo delay (per-physics-step FIFO of the 12 leg targets) ---
     delay_steps_range: tuple[int, int] = (0, 10)  # physics steps (= ms at 1 ms), drawn uniformly per episode
@@ -87,6 +93,11 @@ class TrikeEnvConfig:
     noise_gyro: float = 0.02  # rad/s
     noise_orientation: float = 0.01  # per quaternion component, then renormalised (about 1 deg)
     noise_lin_vel: float = 0.02  # m/s, on the privileged base velocity
+    noise_foot_load: float = 0.02  # on the load / weight channels (2 % of body weight, about 2.5 N)
+    # The robot has no magnetometer (parts list), so its heading is a gyro-integrated estimate that drifts. The
+    # heading observation carries a random walk of this intensity, rad per sqrt(s) (0: off), reset to 0 each episode:
+    # about 2.6 deg standard deviation after 20 s. The heading REWARD uses the true yaw.
+    heading_drift_rw: float = 0.01
 
     # --- observation content ---
     obs_ankle_angles: bool = True  # the 4 passive ankle pitch angles (the model has jointpos sensors on them)
@@ -102,17 +113,18 @@ class TrikeEnvConfig:
     min_height_frac: float = 0.6  # of the nominal standing chassis height
     terminate_on_body_contact: bool = True  # any geom other than the four soles touching the floor
 
-    # --- reward weights (per control step) ---
-    w_track: float = 1.5  # exp(-(v_fwd - v_cmd)^2 / track_sigma^2)
-    track_sigma: float = 0.12  # m/s
-    w_alive: float = 0.2
+    # --- reward weights (per control step; untuned starting points) ---
+    w_track: float = 1.5  # x exp(-(v_fwd - v_cmd)^2 / track_sigma^2)
+    track_sigma: float = 0.06  # m/s (22 % of the command range)
+    w_track_linear: float = 0.8  # x |v_fwd - v_cmd|: a slope far from the command, where the exp term is flat
+    w_alive: float = 0.3
     w_upright: float = 1.0  # x (gx^2 + gy^2), gravity direction in the body frame
     w_height: float = 20.0  # x (z - z_nominal)^2, m^2
     w_lateral: float = 2.0  # x v_lat^2
     w_yaw_rate: float = 0.1  # x yaw_rate^2
-    w_heading: float = 0.5  # x heading_error^2 (rad^2)
+    w_heading: float = 0.5  # x heading_error^2 (rad^2, true yaw)
     w_energy: float = 0.001  # x mean over the step of sum |torque x joint speed| (W) of the 12 leg drives
-    w_action_rate: float = 0.02  # x sum (a - a_prev)^2
+    w_action_rate: float = 0.04  # x sum (a - a_prev)^2 of the raw policy outputs
     w_slip: float = 0.5  # x sum over feet in contact of the sole's horizontal speed^2 (m^2/s^2)
     w_diagonal: float = 0.0  # optional diagonal (trot) contact symmetry; off by default
     termination_penalty: float = 5.0
@@ -139,6 +151,41 @@ def _wrap(angle: float) -> float:
     return (angle + math.pi) % (2.0 * math.pi) - math.pi
 
 
+def diagonal_score(contact) -> float:
+    """+1 for a trot (diagonal pairs together, left and right apart), -1 for a bound (front pair and hind pair each
+    together, diagonals apart), 0 for a pace, a pronk, all four down or all four up. Order: ``CORNERS``."""
+    c = [bool(x) for x in contact]
+    return 0.5 * (float(c[0] == c[3]) + float(c[1] == c[2])) - 0.5 * (float(c[0] == c[1]) + float(c[2] == c[3]))
+
+
+def reward_terms(cfg: TrikeEnvConfig, *, v_fwd: float, v_cmd: float, v_lat: float, yaw_rate: float, yaw_err: float,
+                 grav_b, z: float, z_nominal: float, mean_power: float, action, prev_action, slip: float, contact,
+                 penalty_scale: float = 1.0) -> dict[str, float]:
+    """One control step's reward terms (``REWARD_TERMS``), a pure function of the measured quantities.
+
+    ``penalty_scale`` (0-1) multiplies the energy and slip penalties: train.py ramps it up over the first steps so
+    that early exploration is not punished into standing still."""
+    err = v_fwd - v_cmd
+    a, ap = np.asarray(action, dtype=np.float64), np.asarray(prev_action, dtype=np.float64)
+    terms = {
+        "r_track": cfg.w_track * math.exp(-((err / cfg.track_sigma) ** 2)),
+        "r_track_linear": -cfg.w_track_linear * abs(err),
+        "r_alive": cfg.w_alive,
+        "r_upright": -cfg.w_upright * float(grav_b[0] ** 2 + grav_b[1] ** 2),
+        "r_height": -cfg.w_height * (z - z_nominal) ** 2,
+        "r_lateral": -cfg.w_lateral * v_lat ** 2,
+        "r_yaw_rate": -cfg.w_yaw_rate * yaw_rate ** 2,
+        "r_heading": -cfg.w_heading * yaw_err ** 2,
+        "r_energy": -cfg.w_energy * penalty_scale * mean_power,
+        "r_action_rate": -cfg.w_action_rate * float(np.sum((a - ap) ** 2)),
+        "r_slip": -cfg.w_slip * penalty_scale * slip,
+        "r_diagonal": 0.0,
+    }
+    if cfg.w_diagonal and v_cmd > 0.05:
+        terms["r_diagonal"] = cfg.w_diagonal * diagonal_score(contact)
+    return terms
+
+
 class TrikeEnv(gym.Env):
     """The 60 cm Triceratops walking task. See the module docstring; settings in :class:`TrikeEnvConfig`."""
 
@@ -157,6 +204,9 @@ class TrikeEnv(gym.Env):
         self.physics_dt = float(m.opt.timestep)
         self.dt = self.physics_dt * cfg.frame_skip
         self.max_episode_steps = int(round(cfg.episode_seconds / self.dt))
+        self._filter_alpha = (1.0 - math.exp(-2.0 * math.pi * cfg.action_filter_hz * self.dt)
+                              if cfg.action_filter_hz > 0 else 1.0)
+        self.penalty_scale = 1.0  # see reward_terms; set by train.py through set_penalty_scale
 
         # --- ids ---
         self._leg_act = np.array([m.actuator(n).id for n in LEG_ACTUATORS], dtype=np.int64)
@@ -199,10 +249,12 @@ class TrikeEnv(gym.Env):
         self._ctrl_lo = m.actuator_ctrlrange[self._leg_act, 0].copy()
         self._ctrl_hi = m.actuator_ctrlrange[self._leg_act, 1].copy()
         self._ctrl_neutral = m.key_ctrl[self._key, self._leg_act].copy() if m.nkey else np.zeros(12)
-        self._other_neutral = m.key_ctrl[self._key, self._other_act].copy() if m.nkey else np.zeros(len(self._other_act))
+        self._other_neutral = (m.key_ctrl[self._key, self._other_act].copy() if m.nkey
+                               else np.zeros(len(self._other_act)))
         self._q_neutral = m.key_qpos[self._key, self._leg_qadr].copy() if m.nkey else np.zeros(12)
         leg_slice = (self._leg_act == np.arange(self._leg_act[0], self._leg_act[0] + 12)).all()
-        self._leg_ctrl_index: Any = slice(int(self._leg_act[0]), int(self._leg_act[0]) + 12) if leg_slice else self._leg_act
+        self._leg_ctrl_index: Any = (slice(int(self._leg_act[0]), int(self._leg_act[0]) + 12) if leg_slice
+                                     else self._leg_act)
 
         # --- nominal copies for domain randomisation ---
         self._nominal = {
@@ -235,16 +287,24 @@ class TrikeEnv(gym.Env):
     # ------------------------------------------------------------------ setup helpers
     def _obs_layout(self) -> tuple[tuple[str, int], ...]:
         cfg = self.cfg
-        parts = list(_OBS_BASE)
+        parts = [("leg_joint_pos", 12), ("leg_joint_vel", 12)]
         if cfg.obs_ankle_angles:
             parts.append(("ankle_pitch_pos", 4))
-        parts += [("gravity_body", 3), ("heading_error_sin_cos", 2), ("gyro", 3)]
+        parts += [("gravity_body", 3), ("heading_error_sin_cos_ESTIMATE", 2), ("gyro", 3)]
         if cfg.obs_privileged_lin_vel:
             parts.append(("base_lin_vel_body_PRIVILEGED", 3))
-        parts += [("foot_load_over_weight", 4), ("previous_action", 12), ("command_speed_mps", 1)]
+        parts += [("foot_load_over_weight", 4), ("previous_action_filtered", 12), ("command_speed_mps", 1)]
         if cfg.phase_clock_hz > 0:
             parts.append(("phase_sin_cos", 2))
         return tuple(parts)
+
+    def obs_slots(self, obs) -> dict[str, np.ndarray]:
+        """An observation split into its named slots (``obs_layout``)."""
+        out, i = {}, 0
+        for name, width in self.obs_layout:
+            out[name] = np.asarray(obs[i:i + width])
+            i += width
+        return out
 
     def _measure_standing_height(self) -> float:
         """Chassis height after 0.5 s standing at the neutral pose on the nominal model (ctrl at the keyframe's)."""
@@ -259,10 +319,17 @@ class TrikeEnv(gym.Env):
         self.delay_steps = int(delay)
         self._step_count = 0
         self._prev_action = np.zeros(12)
+        self._action_filtered = np.zeros(12)
         self._heading = 0.0
+        self._heading_drift = 0.0
+        self._distance = 0.0
         self._target = self._ctrl_neutral.copy()
         self._fifo: deque = deque([self._target] * self.delay_steps, maxlen=self.delay_steps + 1)
         self._badqacc0 = 0
+
+    def set_penalty_scale(self, scale: float) -> None:
+        """Scale (0-1) of the energy and slip penalties; train.py ramps it over the first training steps."""
+        self.penalty_scale = float(min(1.0, max(0.0, scale)))
 
     # ------------------------------------------------------------------ domain randomisation
     def _restore_nominal(self) -> None:
@@ -355,7 +422,12 @@ class TrikeEnv(gym.Env):
     def step(self, action):
         cfg, m, d = self.cfg, self.model, self.data
         a = np.clip(np.asarray(action, dtype=np.float64).reshape(12), -1.0, 1.0)
-        target = np.clip(self._ctrl_neutral + a * self._action_scale, self._ctrl_lo, self._ctrl_hi)
+        if cfg.action_filter_hz > 0:
+            self._action_filtered = self._action_filtered + self._filter_alpha * (a - self._action_filtered)
+        else:
+            self._action_filtered = a
+        target = np.clip(self._ctrl_neutral + self._action_filtered * self._action_scale, self._ctrl_lo,
+                         self._ctrl_hi)
         self._target = target
         xy0 = d.xpos[self._chassis, :2].copy()
 
@@ -382,6 +454,7 @@ class TrikeEnv(gym.Env):
         h = np.array([math.cos(self._heading), math.sin(self._heading)])
         v_fwd = float(disp @ h)
         v_lat = float(disp @ np.array([-h[1], h[0]]))
+        self._distance += v_fwd * self.dt
         yaw = math.atan2(R[1, 0], R[0, 0])
         yaw_err = _wrap(yaw - self._heading)
         yaw_rate = float((R @ d.qvel[3:6])[2])
@@ -396,24 +469,10 @@ class TrikeEnv(gym.Env):
             mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_GEOM, int(self._soles[i]), vel6, 0)
             slip += float(vel6[3] ** 2 + vel6[4] ** 2)
 
-        # --- reward ---
-        terms = {
-            "r_track": cfg.w_track * math.exp(-((v_fwd - self.command_speed) ** 2) / cfg.track_sigma ** 2),
-            "r_alive": cfg.w_alive,
-            "r_upright": -cfg.w_upright * float(grav_b[0] ** 2 + grav_b[1] ** 2),
-            "r_height": -cfg.w_height * (z - self.nominal_height) ** 2,
-            "r_lateral": -cfg.w_lateral * v_lat ** 2,
-            "r_yaw_rate": -cfg.w_yaw_rate * yaw_rate ** 2,
-            "r_heading": -cfg.w_heading * yaw_err ** 2,
-            "r_energy": -cfg.w_energy * mean_power,
-            "r_action_rate": -cfg.w_action_rate * float(np.sum((a - self._prev_action) ** 2)),
-            "r_slip": -cfg.w_slip * slip,
-            "r_diagonal": 0.0,
-        }
-        if cfg.w_diagonal and self.command_speed > 0.05:
-            c = contact
-            diag = 0.5 * (float(c[0] == c[3]) + float(c[1] == c[2])) - 0.5 * (float(c[0] == c[1]) + float(c[2] == c[3]))
-            terms["r_diagonal"] = cfg.w_diagonal * diag
+        terms = reward_terms(cfg, v_fwd=v_fwd, v_cmd=self.command_speed, v_lat=v_lat, yaw_rate=yaw_rate,
+                             yaw_err=yaw_err, grav_b=grav_b, z=z, z_nominal=self.nominal_height,
+                             mean_power=mean_power, action=a, prev_action=self._prev_action, slip=slip,
+                             contact=contact, penalty_scale=self.penalty_scale)
 
         # --- termination ---
         reason = ""
@@ -434,13 +493,18 @@ class TrikeEnv(gym.Env):
             reward -= cfg.termination_penalty
         self._prev_action = a
 
+        # heading estimate: a gyro-integrated yaw drifts (no magnetometer); a random walk on the observation
+        if cfg.observation_noise and cfg.heading_drift_rw > 0:
+            self._heading_drift += float(self.np_random.normal(0.0, cfg.heading_drift_rw * math.sqrt(self.dt)))
         obs = self._get_obs(noise=True)
+        t = self._step_count * self.dt
         info = dict(terms)
         info.update({
             "reward_total": reward, "forward_speed": v_fwd, "lateral_speed": v_lat, "command_speed": self.command_speed,
-            "yaw_error": yaw_err, "yaw_rate": yaw_rate, "tilt_deg": tilt, "height": z, "mean_power_w": mean_power,
-            "foot_contacts": contact.astype(np.int8), "delay_steps": self.delay_steps, "termination": reason,
-            "time_s": self._step_count * self.dt,
+            "episode_forward_speed": self._distance / t, "yaw_error": yaw_err, "yaw_rate": yaw_rate,
+            "tilt_deg": tilt, "height": z, "mean_power_w": mean_power, "foot_contacts": contact.astype(np.int8),
+            "delay_steps": self.delay_steps, "termination": reason, "time_s": t, "penalty_scale": self.penalty_scale,
+            "heading_drift": self._heading_drift,
         })
         return obs, reward, terminated, truncated, info
 
@@ -471,6 +535,7 @@ class TrikeEnv(gym.Env):
         ankle = d.qpos[self._ankle_qadr].copy()
         quat = d.sensordata[self._quat_adr:self._quat_adr + 4].copy()
         gyro = d.sensordata[self._gyro_adr:self._gyro_adr + 3].copy()
+        loads = d.sensordata[self._touch_adr] / self.nominal_weight
         R_true = d.xmat[self._chassis].reshape(3, 3)
         lin_vel = R_true.T @ d.qvel[0:3]
         if rng is not None:
@@ -480,28 +545,29 @@ class TrikeEnv(gym.Env):
             gyro = gyro + rng.normal(0.0, cfg.noise_gyro, 3)
             quat = quat + rng.normal(0.0, cfg.noise_orientation, 4)
             lin_vel = lin_vel + rng.normal(0.0, cfg.noise_lin_vel, 3)
+            loads = loads + rng.normal(0.0, cfg.noise_foot_load, 4)
         quat /= max(np.linalg.norm(quat), 1e-9)
         Rm = np.zeros(9)
         mujoco.mju_quat2Mat(Rm, quat)
         Rm = Rm.reshape(3, 3)
         grav_b = -Rm[2, :]
-        yaw_err = _wrap(math.atan2(Rm[1, 0], Rm[0, 0]) - self._heading)
+        yaw_err_est = _wrap(math.atan2(Rm[1, 0], Rm[0, 0]) + self._heading_drift - self._heading)
         parts = [q, qd]
         if cfg.obs_ankle_angles:
             parts.append(ankle)
-        parts += [grav_b, [math.sin(yaw_err), math.cos(yaw_err)], gyro]
+        parts += [grav_b, [math.sin(yaw_err_est), math.cos(yaw_err_est)], gyro]
         if cfg.obs_privileged_lin_vel:
             parts.append(lin_vel)
-        parts += [d.sensordata[self._touch_adr] / self.nominal_weight, self._prev_action, [self.command_speed]]
+        parts += [loads, self._action_filtered, [self.command_speed]]
         if cfg.phase_clock_hz > 0:
             ph = 2.0 * math.pi * cfg.phase_clock_hz * self._step_count * self.dt
             parts.append([math.sin(ph), math.cos(ph)])
         return np.concatenate([np.asarray(p, dtype=np.float64).ravel() for p in parts]).astype(np.float32)
 
     # ------------------------------------------------------------------ helpers for tests and tools
-    def leg_targets_for(self, action) -> np.ndarray:
-        """The leg ctrl targets an action maps to (before the delay FIFO)."""
-        a = np.clip(np.asarray(action, dtype=np.float64).reshape(12), -1.0, 1.0)
+    def leg_targets_for(self, filtered_action) -> np.ndarray:
+        """The leg ctrl targets a FILTERED action maps to (before the delay FIFO)."""
+        a = np.asarray(filtered_action, dtype=np.float64).reshape(12)
         return np.clip(self._ctrl_neutral + a * self._action_scale, self._ctrl_lo, self._ctrl_hi)
 
     def leg_ctrl(self) -> np.ndarray:
@@ -516,5 +582,5 @@ def make_env(config: TrikeEnvConfig | dict | None = None, monitor: bool = False)
     if monitor:
         from stable_baselines3.common.monitor import Monitor
 
-        env = Monitor(env, info_keywords=("forward_speed", "command_speed", "termination"))
+        env = Monitor(env, info_keywords=("episode_forward_speed", "command_speed", "termination"))
     return env

@@ -1,21 +1,32 @@
 """PPO training for the 60 cm Triceratops walking task (``trike_env.TrikeEnv``). Simulation only.
 
 Usage (from anywhere):
-  python hardware/triceratops_build/rl/train.py --out RUN_DIR --total-steps 20000000 --n-envs 8 [--seed 0]
-  python hardware/triceratops_build/rl/train.py --out RUN_DIR --total-steps 20000000 --n-envs 8 --resume
+  python hardware/triceratops_build/rl/train.py --out RUN_DIR --total-steps 2000000 --n-envs 8 [--seed 0]
+  python hardware/triceratops_build/rl/train.py --out RUN_DIR --total-steps 2000000 --n-envs 8 --resume
 
-``--total-steps`` is the run's TOTAL environment-step budget, not an increment: a resumed run continues from its
-newest intact checkpoint pair (``RUN_DIR/checkpoints/trike60_<steps>_steps.zip`` + ``trike60_vecnormalize_<steps>
-_steps.pkl``) with ``reset_num_timesteps=False`` and stops at the same total, so the learning-rate schedule and the
-step count line up whether or not the run was interrupted. A run that has already reached its total exits at once.
+``--total-steps`` is the run's TOTAL environment-step budget, not an increment. With ``--resume`` the run continues
+from its newest intact checkpoint pair (``RUN_DIR/checkpoints/trike60_<steps>_steps.zip`` and
+``trike60_vecnormalize_<steps>_steps.pkl``) with ``reset_num_timesteps=False`` and stops at the same total, so the
+learning-rate schedule and the step count carry on whether or not the run was interrupted. A run that has already
+reached its total exits at once. ``--resume`` on a folder with no checkpoint starts the run; on a folder whose
+checkpoints are all broken it moves them to ``checkpoints/broken_<time>/`` and starts again from step 0.
 
-Writes into RUN_DIR:
-  checkpoints/          periodic pairs (SB3 CheckpointCallback, save_vecnormalize=True), plus a pair at the end
-                        of every session (also on Ctrl-C / SIGTERM)
-  run_record.json       arguments, env config, PPO settings, package versions, commit, one entry per session with
-                        its measured env steps per second
-  monitor/session<k>/    SB3 Monitor CSVs (episode return, length, final forward speed, command, termination
-                        reason), one per env and session
+A run keeps its settings (model, env config, PPO settings, envs, seed, total steps, schedules): a resume with other
+values is refused unless ``--allow-changes`` is given, and then the changes are logged in run_record.json. The
+policy's shape (``--net``, ``--log-std-init``) never changes within a run. Changing ``--total-steps`` moves the
+learning-rate schedule (it is linear in steps / total): extend a finished run under a new run folder instead.
+
+Stopping: SIGINT or SIGTERM ends training; the first one saves a final pair (written under temporary names, then
+renamed) and the session's status, with both signals ignored while it saves; the exit code is then 130. The
+SubprocVecEnv workers ignore SIGINT (a terminal's Ctrl-C reaches the whole process group); the main process closes
+them. ``--exit-with-parent`` (Linux; the notebook sets it) turns the death of the parent process (a restarted
+notebook kernel) into a SIGTERM, so a training process never outlives its notebook.
+
+Writes into RUN_DIR (every JSON file written to a temporary name, then renamed):
+  checkpoints/                   pairs every --checkpoint-every steps and at the end of every session
+  run_record.json                settings, package versions, commit, one entry per session (status, steps, rate)
+  eval_during_training.jsonl     one line per periodic deterministic evaluation (fixed commands, 10 ms delay)
+  monitor/session<k>/            SB3 Monitor CSVs, one per env and session
 """
 
 from __future__ import annotations
@@ -23,7 +34,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import pickle
 import platform
+import shutil
 import signal
 import subprocess
 import sys
@@ -42,6 +55,9 @@ os.environ["PYTHONPATH"] = os.pathsep.join([str(HERE), str(REPO_ROOT)] + (
     [os.environ["PYTHONPATH"]] if os.environ.get("PYTHONPATH") else []))
 
 NAME_PREFIX = "trike60"
+FIXED_SETTINGS = ("net", "log_std_init")  # the policy's shape: a checkpoint cannot take another
+PPO_SETTINGS = ("n_steps", "batch_size", "n_epochs", "gamma", "gae_lambda", "clip_range", "ent_coef")
+EVAL_SEED = 900_000  # fixed episode seeds for the periodic evaluation, so evaluations compare across a run
 
 
 def parse_args(argv=None) -> argparse.Namespace:
@@ -50,10 +66,14 @@ def parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("--total-steps", type=int, required=True, help="total env steps of the run (not an increment)")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--n-envs", type=int, default=4)
-    ap.add_argument("--model", default=None, help="MJCF path (default: ../sim/generated/trike60_C_closed.xml)")
+    ap.add_argument("--model", default=None,
+                    help="MJCF path, or a model name: trike60_C_closed (default) or trike60_C_closed_ankleroll")
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--resume", action="store_true", help="continue from the newest intact checkpoint pair in --out")
-    ap.add_argument("--checkpoint-every", type=int, default=250_000, help="env steps between periodic checkpoints")
+    ap.add_argument("--allow-changes", action="store_true",
+                    help="on --resume, accept settings that differ from the run's (they are logged)")
+    ap.add_argument("--exit-with-parent", action="store_true", help="Linux: SIGTERM when the parent process dies")
+    ap.add_argument("--checkpoint-every", type=int, default=250_000, help="env steps between checkpoint pairs")
     ap.add_argument("--vec", choices=("auto", "subproc", "dummy"), default="auto",
                     help="auto: SubprocVecEnv when --n-envs > 1, else DummyVecEnv")
     ap.add_argument("--torch-threads", type=int, default=1, help="torch intra-op threads in the learner process")
@@ -67,13 +87,63 @@ def parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("--gae-lambda", type=float, default=0.95)
     ap.add_argument("--clip-range", type=float, default=0.2)
     ap.add_argument("--ent-coef", type=float, default=0.0)
-    ap.add_argument("--log-std-init", type=float, default=-1.0)
+    ap.add_argument("--log-std-init", type=float, default=-1.6,
+                    help="initial log std of the action noise (-1.6: std 0.2; with -1.0, std 0.37, a 300k-step probe "
+                         "moved only through its noise; README)")
     ap.add_argument("--net", default="256,256", help="hidden sizes of the policy and value MLPs")
+    # schedules and evaluation
+    ap.add_argument("--penalty-ramp-steps", type=int, default=2_000_000,
+                    help="env steps over which the energy and slip penalties ramp up to full weight (0: full at once)")
+    ap.add_argument("--penalty-ramp-start", type=float, default=0.1, help="their scale at step 0")
+    ap.add_argument("--eval-every", type=int, default=250_000,
+                    help="env steps between deterministic evaluations (0: none)")
+    ap.add_argument("--eval-commands", default="0,0.15,0.25", help="commanded speeds of those evaluations, m/s")
+    ap.add_argument("--eval-seconds", type=float, default=0.0, help="their episode length (0: the env's own)")
     # env
     ap.add_argument("--env-config", default=None, help="JSON file of TrikeEnvConfig fields to override")
-    ap.add_argument("--verbose", type=int, default=0, help="SB3's own logging (1: a table every rollout)")
     ap.add_argument("--log-every", type=int, default=100_000, help="env steps between one-line progress reports")
+    ap.add_argument("--verbose", type=int, default=0, help="SB3's own logging (1: a table every rollout)")
     return ap.parse_args(argv)
+
+
+# ---------------------------------------------------------------------------------------------------- small helpers
+def say(text: str) -> None:
+    """Print one line, flushed. If the reader of stdout is gone (a killed notebook kernel), stop printing instead of
+    failing: the save that follows a stop must not die on a broken pipe."""
+    try:
+        print(text, flush=True)
+    except (BrokenPipeError, OSError, ValueError):
+        try:
+            sys.stdout = open(os.devnull, "w")
+        except OSError:
+            pass
+
+
+def utc() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def write_json_atomic(path: Path, obj) -> None:
+    """Write JSON to a temporary name in the same folder, flush it to disk, then rename it over ``path``."""
+    path = Path(path)
+    tmp = path.with_name(path.name + ".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(obj, f, indent=1, default=str)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+
+
+def read_record(path: Path) -> tuple[dict, str | None]:
+    """run_record.json, or ``{}``; an unreadable file is moved aside (never a dead end) and the move is returned."""
+    if not path.exists():
+        return {}, None
+    try:
+        return json.loads(path.read_text(encoding="utf-8")), None
+    except (ValueError, UnicodeDecodeError) as exc:
+        aside = path.with_name(f"run_record.broken_{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}.json")
+        os.replace(path, aside)
+        return {}, f"{path.name} could not be read ({exc}); moved to {aside.name}; its settings are not checked"
 
 
 def versions() -> dict:
@@ -96,16 +166,27 @@ def git_state() -> dict:
         except (OSError, subprocess.CalledProcessError):
             return None
 
-    status = run("status", "--porcelain")
+    status = run("status", "--porcelain", "--untracked-files=no")
     return {"commit": run("rev-parse", "HEAD"), "dirty": None if status is None else bool(status)}
+
+
+def resolve_model(arg: str | None) -> str:
+    from trike_env import DEFAULT_MODEL, MODELS
+
+    if not arg:
+        return str(DEFAULT_MODEL)
+    if arg in MODELS:
+        return str(MODELS[arg])
+    path = Path(arg).resolve()
+    if not path.exists():
+        raise SystemExit(f"--model {arg}: no such file, and not one of {sorted(MODELS)}")
+    return str(path)
 
 
 def env_config(args):
     from trike_env import TrikeEnvConfig
 
-    cfg = TrikeEnvConfig()
-    if args.model:
-        cfg = cfg.replace(model_path=str(Path(args.model).resolve()))
+    cfg = TrikeEnvConfig(model_path=resolve_model(args.model))
     if args.env_config:
         with open(args.env_config, encoding="utf-8") as f:
             cfg = TrikeEnvConfig.from_dict({**cfg.to_dict(), **json.load(f)})
@@ -122,23 +203,84 @@ def comparable_config(d: dict) -> dict:
     return c
 
 
+def eval_commands(text: str) -> list[float]:
+    return [float(x) for x in str(text).split(",") if x.strip()]
+
+
+def run_settings(args, cfg) -> dict:
+    """What a run keeps across its sessions (JSON-shaped, so a recorded copy compares equal)."""
+    return json.loads(json.dumps({
+        "model": Path(cfg.model_path).name, "env_config": comparable_config(cfg.to_dict()), "n_envs": args.n_envs,
+        "seed": args.seed, "total_steps": args.total_steps, "checkpoint_every": args.checkpoint_every,
+        "n_steps": args.n_steps, "batch_size": min(args.batch_size, args.n_steps * args.n_envs),
+        "n_epochs": args.n_epochs, "lr_start": args.lr_start, "lr_end": args.lr_end, "gamma": args.gamma,
+        "gae_lambda": args.gae_lambda, "clip_range": args.clip_range, "ent_coef": args.ent_coef,
+        "log_std_init": args.log_std_init, "net": [int(x) for x in args.net.split(",") if x],
+        "penalty_ramp_steps": args.penalty_ramp_steps, "penalty_ramp_start": args.penalty_ramp_start,
+        "eval_every": args.eval_every, "eval_commands": eval_commands(args.eval_commands),
+        "eval_seconds": args.eval_seconds,
+    }, default=list))
+
+
+def settings_diff(old: dict, new: dict) -> dict:
+    keys = sorted(set(old) | set(new))
+    return {k: {"run": old.get(k), "now": new.get(k)} for k in keys if old.get(k) != new.get(k)}
+
+
+def penalty_scale_at(steps: int, ramp_steps: int, start: float) -> float:
+    if ramp_steps <= 0:
+        return 1.0
+    return start + (1.0 - start) * min(1.0, steps / ramp_steps)
+
+
+def actual_ppo(model) -> dict:
+    """The PPO settings the loaded or built model really uses (read back from it)."""
+    return {"n_steps": int(model.n_steps), "batch_size": int(model.batch_size), "n_epochs": int(model.n_epochs),
+            "gamma": float(model.gamma), "gae_lambda": float(model.gae_lambda),
+            "clip_range": float(model.clip_range(1.0)), "ent_coef": float(model.ent_coef),
+            "learning_rate": repr(model.learning_rate), "n_envs": int(model.n_envs),
+            "net": list(model.policy_kwargs.get("net_arch", {}).get("pi", [])),
+            "log_std_init": model.policy_kwargs.get("log_std_init")}
+
+
+def math_close(a, b) -> bool:
+    try:
+        return abs(float(a) - float(b)) <= 1e-12 * max(1.0, abs(float(b)))
+    except (TypeError, ValueError):
+        return a == b
+
+
+def exit_with_parent() -> None:
+    """Linux: ask the kernel to send SIGTERM to this process when its parent dies (PR_SET_PDEATHSIG)."""
+    if not sys.platform.startswith("linux"):
+        return
+    import ctypes
+
+    libc = ctypes.CDLL(None, use_errno=True)
+    libc.prctl(1, int(signal.SIGTERM), 0, 0, 0)  # 1 = PR_SET_PDEATHSIG
+
+
+# ---------------------------------------------------------------------------------------------------- envs, pairs
 def build_venv(cfg, args, monitor_dir: Path):
     from functools import partial
 
     from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
     monitor_dir.mkdir(parents=True, exist_ok=True)
-    fns = [partial(_monitored_env, cfg.to_dict(), str(monitor_dir / f"env{i}")) for i in range(args.n_envs)]
     use_subproc = args.vec == "subproc" or (args.vec == "auto" and args.n_envs > 1)
+    fns = [partial(_monitored_env, cfg.to_dict(), str(monitor_dir / f"env{i}"), use_subproc)
+           for i in range(args.n_envs)]
     return SubprocVecEnv(fns) if use_subproc else DummyVecEnv(fns)
 
 
-def _monitored_env(cfg_dict: dict, monitor_path: str):
+def _monitored_env(cfg_dict: dict, monitor_path: str, in_worker: bool):
     from stable_baselines3.common.monitor import Monitor
     from trike_env import make_env
 
+    if in_worker:  # a SubprocVecEnv worker: Ctrl-C is the main process's to handle; it closes the workers
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
     return Monitor(make_env(cfg_dict), filename=monitor_path,
-                   info_keywords=("forward_speed", "command_speed", "termination"))
+                   info_keywords=("episode_forward_speed", "command_speed", "termination"))
 
 
 def find_resume_pair(ckpt_dir: Path):
@@ -147,46 +289,163 @@ def find_resume_pair(ckpt_dir: Path):
     return newest_intact_periodic_pair(ckpt_dir, NAME_PREFIX)
 
 
-def progress_callback(every: int, total: int):
-    """A callback printing one line every ``every`` env steps: steps, rate, recent episode return/length/speed."""
-    from stable_baselines3.common.callbacks import BaseCallback
+def pair_names(steps: int) -> tuple[str, str]:
+    return f"{NAME_PREFIX}_{steps}_steps.zip", f"{NAME_PREFIX}_vecnormalize_{steps}_steps.pkl"
 
-    class Progress(BaseCallback):
+
+def save_pair(model, vecnorm, ckpt_dir: Path) -> str:
+    """The model and its VecNormalize statistics, each written to ``<name>.tmp``, flushed, then renamed: the
+    statistics first, so a zip under its final name always has its sidecar. Returns the zip's name."""
+    steps = int(model.num_timesteps)
+    zip_name, pkl_name = pair_names(steps)
+    zip_tmp, pkl_tmp = ckpt_dir / (zip_name + ".tmp"), ckpt_dir / (pkl_name + ".tmp")
+    with open(pkl_tmp, "wb") as f:
+        pickle.dump(vecnorm, f)  # what VecNormalize.save does
+        f.flush()
+        os.fsync(f.fileno())
+    with open(zip_tmp, "wb") as f:
+        model.save(f)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(pkl_tmp, ckpt_dir / pkl_name)
+    os.replace(zip_tmp, ckpt_dir / zip_name)
+    return zip_name
+
+
+def remove_tmp_files(ckpt_dir: Path) -> list[str]:
+    gone = []
+    for p in sorted(ckpt_dir.glob("*.tmp")):
+        p.unlink(missing_ok=True)
+        gone.append(p.name)
+    return gone
+
+
+def quarantine_broken(ckpt_dir: Path) -> tuple[Path, list[str]]:
+    """Move every trike60_* checkpoint file of ``ckpt_dir`` into ``ckpt_dir/broken_<time>/``."""
+    qdir = ckpt_dir / f"broken_{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}"
+    qdir.mkdir(parents=True, exist_ok=True)
+    moved = []
+    for p in sorted(ckpt_dir.glob(f"{NAME_PREFIX}_*")):
+        if p.is_file():
+            shutil.move(str(p), str(qdir / p.name))
+            moved.append(p.name)
+    return qdir, moved
+
+
+# ---------------------------------------------------------------------------------------------------- callbacks
+def make_callbacks(args, cfg, ckpt_dir: Path, out: Path, state: dict):
+    from stable_baselines3.common.callbacks import BaseCallback
+    from trike_env import TrikeEnv
+
+    def first_multiple_above(n: int, every: int) -> int:
+        return (n // every + 1) * every
+
+    class PairSaver(BaseCallback):
+        """A checkpoint pair at every multiple of --checkpoint-every steps (atomic; prints one line)."""
+
         def _on_training_start(self) -> None:
-            self.t0, self.n0, self.next = time.time(), self.model.num_timesteps, self.model.num_timesteps + every
+            self.next = first_multiple_above(self.model.num_timesteps, args.checkpoint_every)
 
         def _on_step(self) -> bool:
             n = self.model.num_timesteps
             if n >= self.next:
-                self.next += every
+                while self.next <= n:
+                    self.next += args.checkpoint_every
+                name = save_pair(self.model, self.model.get_vec_normalize_env(), ckpt_dir)
+                state["last_pair"] = name
+                say(f"Saved checkpoint pair at {n} steps: {name} and {pair_names(n)[1]}")
+            return True
+
+    class PenaltyRamp(BaseCallback):
+        """The energy and slip penalties' scale, set in every env before each rollout."""
+
+        def _on_rollout_start(self) -> None:
+            s = penalty_scale_at(self.model.num_timesteps, args.penalty_ramp_steps, args.penalty_ramp_start)
+            if s != state.get("penalty_scale"):
+                self.training_env.env_method("set_penalty_scale", s)
+                state["penalty_scale"] = s
+
+        def _on_step(self) -> bool:
+            return True
+
+    class Progress(BaseCallback):
+        """One line every --log-every steps: steps, rate, and the training rollouts' recent episodes."""
+
+        def _on_training_start(self) -> None:
+            self.t0, self.n0 = time.time(), self.model.num_timesteps
+            self.next = first_multiple_above(self.n0, args.log_every)
+
+        def _on_step(self) -> bool:
+            n = self.model.num_timesteps
+            if n >= self.next:
+                while self.next <= n:
+                    self.next += args.log_every
                 rate = (n - self.n0) / max(time.time() - self.t0, 1e-9)
                 eps = list(self.model.ep_info_buffer)
                 if eps:
-                    r = sum(e["r"] for e in eps) / len(eps)
-                    ln = sum(e["l"] for e in eps) / len(eps)
-                    v = sum(e.get("forward_speed", 0.0) for e in eps) / len(eps)
-                    ep = f"last {len(eps)} episodes: return {r:.1f}, length {ln:.0f} steps, final speed {v:.3f} m/s"
+                    def mean(key):
+                        return sum(float(e.get(key, 0.0)) for e in eps) / len(eps)
+
+                    ep = (f"last {len(eps)} episodes: return {mean('r'):.1f}, length {mean('l'):.0f} steps, speed "
+                          f"{mean('episode_forward_speed'):.3f} m/s at command {mean('command_speed'):.3f} m/s")
                 else:
                     ep = "no episode finished yet"
-                print(f"steps {n} of {total} ({100.0 * n / total:.1f}%), {rate:.0f} env steps/s; {ep}", flush=True)
+                say(f"steps {n} of {args.total_steps} ({100.0 * n / args.total_steps:.1f}%), {rate:.0f} env "
+                      f"steps/s, penalty scale {state.get('penalty_scale', 1.0):.2f}; training rollouts "
+                      f"(stochastic actions), {ep}")
             return True
 
-    return Progress()
+    class PeriodicEval(BaseCallback):
+        """Every --eval-every steps: one episode per fixed command, deterministic actions, randomisation on, servo
+        delay fixed at 10 ms, fixed seeds; one printed line and one JSON line in eval_during_training.jsonl."""
+
+        def _on_training_start(self) -> None:
+            seconds = args.eval_seconds or cfg.episode_seconds
+            self.env = TrikeEnv(cfg.replace(delay_steps_fixed=10, episode_seconds=seconds,
+                                            domain_randomization=True, observation_noise=True))
+            self.next = first_multiple_above(self.model.num_timesteps, args.eval_every)
+
+        def _on_step(self) -> bool:
+            n = self.model.num_timesteps
+            if n >= self.next:
+                while self.next <= n:
+                    self.next += args.eval_every
+                self.evaluate(n)
+            return True
+
+        def evaluate(self, n: int) -> None:
+            vn = self.model.get_vec_normalize_env()
+            rows = []
+            for i, c in enumerate(eval_commands(args.eval_commands)):
+                obs, _ = self.env.reset(seed=EVAL_SEED + i, options={"command_speed": c})
+                while True:
+                    a, _ = self.model.predict(vn.normalize_obs(obs[None, :]), deterministic=True)
+                    obs, _, term, trunc, info = self.env.step(a[0])
+                    if term or trunc:
+                        break
+                rows.append({"command_mps": c, "forward_speed_mps": info["episode_forward_speed"],
+                             "fell": bool(term), "termination": info["termination"], "length_s": info["time_s"]})
+            rec = {"steps": n, "time_utc": utc(), "deterministic": True, "delay_steps": 10, "episodes": rows}
+            with open(out / "eval_during_training.jsonl", "a", encoding="utf-8") as f:
+                f.write(json.dumps(rec) + "\n")
+            parts = ", ".join(f"{r['command_mps']:.2f} -> {r['forward_speed_mps']:.3f}" for r in rows)
+            falls = sum(r["fell"] for r in rows)
+            say(f"eval at {n} steps (deterministic, delay 10 ms): command -> speed m/s: {parts}; falls {falls} of "
+                  f"{len(rows)}")
+
+    cbs = [PairSaver(), PenaltyRamp(), Progress()]
+    if args.eval_every > 0:
+        cbs.append(PeriodicEval())
+    return cbs
 
 
-def save_pair(model, venv, ckpt_dir: Path) -> Path:
-    steps = int(model.num_timesteps)
-    zip_path = ckpt_dir / f"{NAME_PREFIX}_{steps}_steps.zip"
-    model.save(str(zip_path))
-    venv.save(str(ckpt_dir / f"{NAME_PREFIX}_vecnormalize_{steps}_steps.pkl"))
-    return zip_path
-
-
+# ---------------------------------------------------------------------------------------------------- main
 def main(argv=None) -> int:
     args = parse_args(argv)
+    if args.exit_with_parent:
+        exit_with_parent()
     import torch
     from stable_baselines3 import PPO
-    from stable_baselines3.common.callbacks import CheckpointCallback
     from stable_baselines3.common.vec_env import VecNormalize
 
     from environments.shared.curriculum.schedules import LinearSchedule
@@ -197,41 +456,68 @@ def main(argv=None) -> int:
     ckpt_dir = out / "checkpoints"
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     record_path = out / "run_record.json"
+    notes: list[str] = []
 
+    for name in remove_tmp_files(ckpt_dir):
+        notes.append(f"removed the unfinished temporary file {name}")
+        say(f"Note: removed the unfinished temporary file {name}")
     pair, skipped = find_resume_pair(ckpt_dir)
     for s in skipped:
-        print(f"WARNING: skipping checkpoint {s}", flush=True)
+        say(f"WARNING: skipping checkpoint {s}")
     if not args.resume and (pair is not None or skipped):
-        print(f"REFUSED: {ckpt_dir} already holds checkpoints; pass --resume to continue that run, or use another "
-              "--out. Nothing was changed.", flush=True)
+        say(f"REFUSED: {ckpt_dir} already holds checkpoints; pass --resume to continue that run, or use another "
+              "--out. Nothing was changed.")
         return 2
-    if args.resume and pair is None and skipped:
-        print("REFUSED: --resume found checkpoints but none is intact (see the warnings above). Nothing was "
-              "changed.", flush=True)
-        return 2
+    quarantine = None
+    if pair is None and skipped:  # with --resume: every checkpoint is broken; keep them, but out of the way
+        qdir, moved = quarantine_broken(ckpt_dir)
+        quarantine = {"time_utc": utc(), "folder": str(qdir.relative_to(out)), "files": moved, "reasons": skipped}
+        say(f"WARNING: no intact checkpoint pair; moved {len(moved)} broken file(s) to "
+              f"{qdir.relative_to(out)}/ and starting this run again from step 0.")
 
+    record, record_note = read_record(record_path)
+    if record_note:
+        notes.append(record_note)
+        say(f"WARNING: {record_note}")
     cfg = env_config(args)
-    record = json.loads(record_path.read_text()) if record_path.exists() else {}
-    if pair is not None and record.get("env_config") and (
-            comparable_config(record["env_config"]) != comparable_config(cfg.to_dict())):
-        print("REFUSED: the env config differs from the one this run was started with (run_record.json). "
-              "Nothing was changed.", flush=True)
-        return 2
+    settings = run_settings(args, cfg)
+    recorded = record.get("settings")
+    changes = settings_diff(recorded, settings) if recorded else {}
+    if changes:
+        listed = "; ".join(f"{k}: run {v['run']!r}, now {v['now']!r}" for k, v in changes.items() if k != "env_config")
+        if "env_config" in changes:
+            old, new = changes["env_config"]["run"] or {}, changes["env_config"]["now"] or {}
+            fields = sorted(k for k in set(old) | set(new) if old.get(k) != new.get(k))
+            listed = "; ".join(x for x in (listed, f"env_config fields {', '.join(fields)}") if x)
+        fixed = [k for k in changes if k in FIXED_SETTINGS]
+        if fixed:
+            say(f"REFUSED: the policy's shape ({', '.join(fixed)}) cannot change within a run ({listed}). Use a new "
+                  "run folder. Nothing was changed.")
+            return 2
+        if not args.allow_changes:
+            say(f"REFUSED: these settings differ from the run's (run_record.json): {listed}. Use the run's own "
+                  "values, a new run folder, or --allow-changes (logged). Nothing was changed.")
+            return 2
+        say(f"WARNING: --allow-changes: this session runs with changed settings: {listed}")
+        if "total_steps" in changes and pair is not None:
+            say("WARNING: total_steps changed: the learning rate follows steps / total_steps, so it jumps at this "
+                  "resume.")
 
-    if pair is not None:
-        steps0 = pair[0]
-        if steps0 >= args.total_steps:
-            print(f"Run already complete: newest checkpoint is at {steps0} steps >= --total-steps "
-                  f"{args.total_steps}. Nothing to do.", flush=True)
-            return 0
+    if pair is not None and pair[0] >= args.total_steps:
+        say(f"Run already complete: newest checkpoint is at {pair[0]} steps (target {args.total_steps}). "
+              "Nothing to do.")
+        return 0
 
-    net = [int(x) for x in args.net.split(",") if x]
+    cpu = os.cpu_count() or 1
+    say(f"Machine: {cpu} vCPUs; {args.n_envs} envs; Python {platform.python_version()}; torch {torch.__version__}"
+          + ("; WARNING: more envs than vCPUs, each env runs slower" if args.n_envs > cpu else ""))
     ppo_kwargs = dict(
-        n_steps=args.n_steps, batch_size=min(args.batch_size, args.n_steps * args.n_envs), n_epochs=args.n_epochs,
-        gamma=args.gamma, gae_lambda=args.gae_lambda, clip_range=args.clip_range, ent_coef=args.ent_coef,
-        vf_coef=0.5, max_grad_norm=1.0, learning_rate=LinearSchedule(args.lr_start, args.lr_end),
+        n_steps=settings["n_steps"], batch_size=settings["batch_size"], n_epochs=args.n_epochs, gamma=args.gamma,
+        gae_lambda=args.gae_lambda, clip_range=args.clip_range, ent_coef=args.ent_coef, vf_coef=0.5,
+        max_grad_norm=1.0, learning_rate=LinearSchedule(args.lr_start, args.lr_end),
     )
-    policy_kwargs = dict(net_arch=dict(pi=net, vf=net), activation_fn=torch.nn.ELU, log_std_init=args.log_std_init)
+    policy_kwargs = dict(net_arch=dict(pi=settings["net"], vf=settings["net"]), activation_fn=torch.nn.ELU,
+                         log_std_init=args.log_std_init)
 
     session_index = len(record.get("sessions", []))
     venv = build_venv(cfg, args, out / "monitor" / f"session{session_index}")  # Monitor would overwrite old CSVs
@@ -241,62 +527,86 @@ def main(argv=None) -> int:
         venv = VecNormalize(venv, norm_obs=True, norm_reward=True, clip_obs=10.0, gamma=args.gamma)
         model = PPO("MlpPolicy", venv, policy_kwargs=policy_kwargs, seed=args.seed, device=args.device,
                     verbose=args.verbose, **ppo_kwargs)
-        print(f"Starting a new run in {out} (0 of {args.total_steps} steps).", flush=True)
+        say(f"Starting a new run in {out} (0 of {args.total_steps} steps).")
     else:
         steps0, zip_path, vn_path = pair
         venv = VecNormalize.load(str(vn_path), venv)
         venv.training, venv.norm_reward = True, True
-        model = load_sb3_model(zip_path, algorithm="ppo", env=venv, device=args.device)
+        # Without --allow-changes nothing is passed and the archive's own settings apply (they equal the run's).
+        overrides = {k: ppo_kwargs[k] for k in PPO_SETTINGS if k in changes}
+        if "lr_start" in changes or "lr_end" in changes:
+            overrides["learning_rate"] = ppo_kwargs["learning_rate"]
+        model = load_sb3_model(zip_path, algorithm="ppo", env=venv, device=args.device, **overrides)
         model.verbose = args.verbose
         model.set_random_seed(session_seed)  # PPO.load re-seeds the envs with the run's first seed; draw anew
-        print(f"Resuming {out} from {zip_path.name} ({model.num_timesteps} of {args.total_steps} steps).",
-              flush=True)
+        say(f"Resuming {out} from {zip_path.name} ({model.num_timesteps} of {args.total_steps} steps).")
 
+    in_use = actual_ppo(model)
+    differs = [k for k in PPO_SETTINGS if not math_close(in_use[k], settings[k])]
+    if differs:  # cannot happen unless an archive was edited: say so rather than record the wrong values
+        say(f"WARNING: the model uses other PPO settings than recorded: "
+            f"{', '.join(f'{k} {in_use[k]!r} (recorded {settings[k]!r})' for k in differs)}")
     session = {
-        "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "argv": sys.argv[1:] if argv is None
-        else list(argv), "args": vars(args), "versions": versions(), "git": git_state(),
-        "cpu_count": os.cpu_count(), "resumed_from": None if pair is None else pair[1].name,
-        "steps_start": int(model.num_timesteps), "session_seed": session_seed,
+        "started_utc": utc(), "status": "running", "argv": sys.argv[1:] if argv is None else [str(a) for a in argv],
+        "args": vars(args), "settings": settings, "ppo_in_use": in_use, "changed_settings": changes or None,
+        "versions": versions(), "git": git_state(), "cpu_count": cpu,
+        "started_from": pair[1].name if pair is not None else "step 0", "steps_start": int(model.num_timesteps),
+        "session_seed": session_seed, "quarantined": quarantine, "notes": notes or None,
     }
     record.setdefault("created_utc", session["started_utc"])
-    record["env_config"] = cfg.to_dict()
-    record["ppo"] = {k: (repr(v) if k == "learning_rate" else v) for k, v in ppo_kwargs.items()}
-    record["policy_kwargs"] = {"net_arch": net, "activation_fn": "ELU", "log_std_init": args.log_std_init}
-    record["total_steps"] = args.total_steps
+    record["settings"] = settings
     record.setdefault("sessions", []).append(session)
-    record_path.write_text(json.dumps(record, indent=1, default=str))
+    if quarantine:
+        record.setdefault("quarantined", []).append(quarantine)
+    write_json_atomic(record_path, record)
 
-    ckpt_cb = CheckpointCallback(save_freq=max(1, args.checkpoint_every // args.n_envs), save_path=str(ckpt_dir),
-                                 name_prefix=NAME_PREFIX, save_vecnormalize=True, verbose=1)
-    callbacks = [ckpt_cb, progress_callback(args.log_every, args.total_steps)]
+    state: dict = {"stop": None, "last_pair": None}
 
-    def on_term(signum, frame):  # Colab's stop button / kill: end like Ctrl-C so the last pair is saved
+    def on_signal(signum, frame):  # the first SIGINT/SIGTERM ends training; any repeat is ignored
+        if state["stop"] is not None:
+            return
+        state["stop"] = signum
         raise KeyboardInterrupt(f"signal {signum}")
 
-    signal.signal(signal.SIGTERM, on_term)
+    signal.signal(signal.SIGINT, on_signal)
+    signal.signal(signal.SIGTERM, on_signal)
+    callbacks = make_callbacks(args, cfg, ckpt_dir, out, state)
     remaining = args.total_steps - int(model.num_timesteps)
     t0, n0 = time.time(), int(model.num_timesteps)
-    status = "completed"
+    status, code = "completed", 0
     try:
         model.learn(total_timesteps=remaining, callback=callbacks, reset_num_timesteps=pair is None,
                     progress_bar=False)
     except KeyboardInterrupt:
-        status = "interrupted"
-        print("Interrupted: saving a checkpoint pair before exiting.", flush=True)
+        signal.signal(signal.SIGINT, signal.SIG_IGN)  # nothing may cut the save below short
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        status, code = "interrupted", 130
+        say("Interrupted: saving a checkpoint pair before exiting.")
+    except Exception as exc:  # a crash: still try to keep what was learned
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        status, code = f"crashed: {exc!r}", 1
+        say(f"CRASHED: {exc!r}; saving a checkpoint pair before exiting.")
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
     wall = time.time() - t0
-    last = save_pair(model, venv, ckpt_dir)
-    session.update({"ended_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "status": status,
-                    "steps_end": int(model.num_timesteps), "wall_s": wall,
-                    "env_steps_per_s": (int(model.num_timesteps) - n0) / wall if wall > 0 else None,
-                    "last_checkpoint": last.name})
-    record_path.write_text(json.dumps(record, indent=1, default=str))
-    print(f"Session {status}: {session['steps_end']} of {args.total_steps} steps; "
-          f"{session['env_steps_per_s'] or 0:.0f} env steps/s over {wall:.0f} s; saved {last.name}", flush=True)
+    try:
+        last = save_pair(model, venv, ckpt_dir)
+    except Exception as exc:
+        last = f"(not saved: {exc!r})"
+        code = code or 1
+    n_end = int(model.num_timesteps)
+    rate = (n_end - n0) / wall if wall > 0 else None
+    session.update({"ended_utc": utc(), "status": status, "steps_end": n_end, "wall_s": wall,
+                    "env_steps_per_s": rate, "last_checkpoint": last})
+    write_json_atomic(record_path, record)
+    say(f"Session {status}: {n_end} steps (target {args.total_steps}); {rate or 0:.0f} env steps/s over "
+          f"{wall:.0f} s; last pair {last}")
     try:
         venv.close()
     except Exception as exc:  # workers already gone after an interrupt
-        print(f"(closing the envs: {exc!r})", flush=True)
-    return 0 if status == "completed" else 130
+        say(f"(closing the envs: {exc!r})")
+    return code
 
 
 if __name__ == "__main__":
