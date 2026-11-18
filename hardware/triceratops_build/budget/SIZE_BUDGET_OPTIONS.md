@@ -23,7 +23,9 @@ a lost signal makes the robot sit, then cut power. It is not certified; a certif
 host museum's risk assessment asks for one (+$2.45k of hardware net). **The chosen build is then $16.8k-$17.5k of
 hardware; $20.1k-$20.9k landed from Fremont stock; about $17.9k-$18.8k landed with half the bench gear counted against
 the T. rex and the spares bought later** (`size_budget_out.txt`, "Chosen build"). The figures below this paragraph
-keep the certified stop, as the options were compared.
+keep the certified stop, as the options were compared. The first demos are controlled, with no direct contact and a
+safe distance kept from people (P8); barriers are assumed to be the museum's (about $300 if the team brings its own,
+an estimate; A6).
 
 **Update, same day (the owner's duty information and the store pages):**
 with all drives shipped from MyActuator's Fremont stock (no duty) it is $23.0k-$23.9k landed; dispatched from the
