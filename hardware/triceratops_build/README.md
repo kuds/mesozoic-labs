@@ -56,3 +56,26 @@ python hardware/triceratops_build/pr669_review/stance_balance_check.py \
 8. A one-foreleg bench plan with pass and fail rules written first.
 9. Museum renders by 8 Dec 2026 (start by 1 Dec 2026), each labelled "simulation". *Stills done 18 Nov 2026; the
    clip waits for the owner's choice of where clips go.*
+
+## Next steps (18 Nov 2026)
+
+**For the owner**
+- PR #669: paste `pr669_review/ERRATA_README_SECTION.md` into its README, send `ERRATA_PDF_FOR_MAINTAINER.md` to the
+  PDF's maintainer, merge with a merge commit.
+- Round 1 decisions by 15 Dec 2026 (all still open; the first ask was declined): mass (D1), size (D2), compute (D3),
+  bus voltage (D4), chassis (D5), now including **the foot**: a sole that stays flat in roll is needed (F7); a passive
+  roll hinge is the first candidate but is not yet robust in simulation.
+- Send the drafted questions in `outreach/` to WIM Robotics and MyActuator (and the T. rex's five maker questions, if
+  not sent), and tell the session the date.
+
+**For the session (decided 18 Nov 2026: D9, D10)**
+- Task 5, the 0.30 m/s walk: a model-based controller first, in this container (CPU); the learned policy on Colab
+  later, after its own cost estimate. Verdict judged at 10 ms of servo delay. Pre-register before any judged run. Port
+  the T. rex delay queue (`designlab/stage1/speedfit.py`, `servo_delay`) and the parts of its servo model
+  (`designlab/stage2/servo.py`) that apply; check every result under at least one stiffer contact setting (the crawl's
+  lesson); measure sole slip and tilt separately from pin motion.
+- The foot: try a roll hinge whose spring centres the sole to the ground rather than to the leg, and re-test the crawl
+  under both contact settings.
+- Model: an angle-dependent ratio for the 1.3:1 pushrod (A5).
+- Renders: redo before 8 Dec 2026 if round-1 decisions change the build; walking clips go on the data branch
+  `claude/triceratops-build-clips`.
