@@ -784,3 +784,16 @@ and the chain's `--resume` on V10); the servo model's S1 low points and S2 (the 
   47: **C1 is the commit that holds ruling 47**; nothing is pushed to the working branch until the acceptance run
   has started, and the main checkout stays clean while it runs. Reports of the refused try: `roundC__{do,check}_accept2_17nov.md`.
 - Then: the acceptance run on C1, its check, C2 on wt/c2 and its check; merge, push, the sheet to the owner.
+
+## Update, 18 Nov 2026, ~00:40 UTC (handover): the day-one sheet sent
+
+- The acceptance run on C1 cc437b6a passed 36 of 36 (kill during the copy of checkpoint 2048 with 1024 whole on the
+  stand-in Drive; resumed from 1024). C2 = 52b441d9 (sheet, ACCEPTANCE.json, dev_episodes.json); banner 1b5686f6.
+- Pre-smoke check (`roundC__{do,check}_presmoke_18nov.md`): cell 4 with BUNDLE_SOURCE git:<data branch> from a fresh
+  clone at C1 printed line 2 OK, 19 of 19, content 9227d8a0bf0b (also through the notebook's own cells 1 to 4). The
+  first acceptance run is listed in dev_episodes.json (860755fd). **Never move the data branch before the smoke:**
+  cell 4 fetches it by name.
+- The steps sheet `stage2/tb/colab_steps.txt` was sent to the owner for day one: the smoke only (sections 1 to 3).
+  Waiting on the owner's smoke. After it: read SMOKE.json from Drive, fill the smoke fields (sheet-check without
+  --before-smoke), set BUDGET_STEPS and the table of launches, send the sheet again.
+- Meter: owner said 84 % at about $3,556 (00:13 UTC); 1 % is about $31; 95 % about $3,897.
