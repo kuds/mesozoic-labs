@@ -86,9 +86,9 @@ def main():
     note = (f"Simulation: MuJoCo model of the proposed 75 cm Triceratops robot, {mass:.0f} kg design, standing. "
             "Not hardware; nothing is built yet.")
     for name, lookat, dist, az, el in (
-            ("robot_three_quarter", (0.05, 0, 0.36), 2.3, 140, -14),
-            ("robot_side", (0.05, 0, 0.36), 2.4, 90, -4),
-            ("robot_head", (0.38, 0, 0.48), 1.05, 150, -10)):
+            ("robot_three_quarter", (0.05, 0, 0.36), 1.75, 140, -13),
+            ("robot_side", (0.0, 0, 0.36), 1.95, 90, -4),
+            ("robot_head", (0.40, 0, 0.47), 0.85, 150, -8)):
         img = label(shot(m, d, lookat, dist, az, el), "Triceratops robot, 75 cm to the frill: simulation", note)
         q, size = save(img, out / f"{name}.jpg")
         rows.append((name, q, size))
@@ -99,8 +99,8 @@ def main():
     note = ("Simulation: MuJoCo reconstruction of an adult Triceratops horridus, 7.3 m long, about 3.2 m at the frill. "
             "Estimated proportions and masses.")
     for name, lookat, dist, az, el in (
-            ("adult_three_quarter", (0.2, 0, 1.7), 11.0, 140, -12),
-            ("adult_side", (0.2, 0, 1.7), 11.5, 90, -3)):
+            ("adult_three_quarter", (0.2, 0, 1.6), 8.6, 140, -11),
+            ("adult_side", (0.0, 0, 1.6), 9.2, 90, -3)):
         img = label(shot(m, d, lookat, dist, az, el), "Adult Triceratops, the animal the robot is modelled on: simulation",
                     note)
         q, size = save(img, out / f"{name}.jpg")
