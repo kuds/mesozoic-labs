@@ -8,8 +8,15 @@ bought or measured; masses, loads and speeds are scaled from the checked parts l
 ([output](size_budget_out.txt)), where every rule and price source is stated.
 
 **Cost bases.** "Hardware" is the parts at list price. "T. rex way" adds 7.2 % for freight, duty and tax, the way the
-T. rex's $17.2k-$20.0k and the earlier $31.8k Triceratops figure were counted. "Landed" is the parts list's fuller rule:
+T. rex's $17.2k (self-built) and $20.0k (turnkey) and the earlier $31.8k Triceratops figure were counted. "Landed" is the parts list's fuller rule:
 freight 5 %, duty 25 % on the drives (an assumption), sales tax 7 %, then 7 % contingency.
+
+## Decision (owner, 18 Nov 2026)
+
+**Option C, 60 cm with the T. rex's drive set; the $20k ceiling counted landed, all-in; the wireless stop bought
+before any public demo; the full expression package.** On that basis the build is about $24.2k-$25.0k landed with
+contingency today, and near $19.9k-$20.8k if the four savings below come through, so the duty question to MyActuator
+and a quote for the wireless stop's receiver come first. Recorded in `../DECISION_LOG.md` (D1, D2, D12-D14).
 
 ## Answer
 
@@ -22,12 +29,13 @@ some prices come in lower (see "Getting a museum-ready 60 cm robot to $20k" belo
 - **$10k** does not buy a museum robot with industrial safety, painted shells and an expressive head; it buys the
   repository's $10k research-quadruped plan (owner-built frame, foam skin, passive tail; main's
   `docs/hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md`, section 4).
-- **No size is museum-ready under about $17.6k counted the T. rex way** (50 cm), because about $10k-$11k of every build
-  does not shrink much with size: drives, computer, safety chain, power, cooling, bench gear and tools.
-- **50 cm** saves about $1.4k over the budget 60 cm option and $2.6k over the recommended one, but walks slower
+- **No size is museum-ready under about $17.6k counted the T. rex way** (50 cm), because drives, computer, safety
+  chain, power, cooling, bench gear and tools hardly shrink with size: about $9k-$10k of hardware with the wired stop,
+  $12k-$12.5k museum-ready.
+- **50 cm** saves about $1.0k-$1.4k over the budget 60 cm option and $2.2k-$2.6k over the recommended one, but walks slower
   (0.17-0.23 m/s) and is a smaller animal.
 - **75 cm**, even lean and with mid-range choices, is about $22.9k of hardware museum-ready ($24.5k the T. rex way,
-  $28.6k landed): over the budget. About $1.0k of its gap to 60 cm is the bigger head and tail servos it needs.
+  $28.6k landed): over the budget. About $1.0k of its gap to 60 cm is the larger servos the parts list chose for the 75 cm head and tail.
 
 ## The options
 
@@ -71,11 +79,12 @@ labour, and PLEM.
 From option C's $23.9k-$24.7k landed:
 - **Duty:** if MyActuator's US store price is already landed (drafted question M4), about -$1.1k.
 - **Wireless stop:** if the kit includes its receiver, about -$1.0k landed; other makers' quotes may be lower.
-- **Bench gear:** the T. rex will reuse the $2.2k of bench gear (supply, torque rig, camera, gantry); counting half of
+- **Bench gear:** the T. rex will reuse the $2.2k of bench gear (supply, torque rig, CAN adapter, camera, gantry); counting half of
   it against the T. rex is about -$1.3k landed. A team-built catch gantry saves more.
 - **Spares:** buying the two spare drives after the first walk, about -$1.0k landed.
 
-With all four (about -$4.4k), C lands near $19.5k-$20.3k. Option B is $1.2k cheaper in hardware ($1.6k landed) but
+Taken together (about -$4.3k: the duty and spares savings overlap by $0.2k), C lands near $19.6k-$20.5k; with the
+full expression package, about $0.3k more. Option B is $1.2k cheaper in hardware ($1.6k landed) but
 has no heat margin at the elbows.
 
 **Price risk.** All drive prices are MyActuator's own US store (read 7 Nov 2026). At US reseller prices found on
@@ -123,6 +132,8 @@ $100-197 (typically $120-138), XL430-W250 about $45-70.
   session work. Simulation then confirms or corrects this document's scaled loads.
 - **Renders:** the December stills show the 75 cm robot; they would be redone at 60 cm before 8 Dec 2026.
 - **The parts list:** a new checked parts list for the chosen option replaces the T20 / T15 lists.
+- **The museum walk speed:** the decision log's 0.30 m/s (P1, P6) becomes about 0.25-0.27 m/s. At 0.30 m/s option
+  C's pitch drive would use 0.90 of the X4's 83 rpm cap with a smooth swing and 1.04 with PR #669's swing profile.
 - **The foot finding stays:** a sole rigid in roll tips onto its edges in a statically stable crawl, at any size.
 - **The T. rex:** option C uses the same drive types and counts as the T. rex's set (10 × X4 + 2 × X6), so the foreleg
   bench, spare types, firmware and test gear serve both; the T. rex still needs its own set. Putting the T. rex on the

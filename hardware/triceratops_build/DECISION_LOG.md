@@ -24,7 +24,7 @@ From `hardware/triceratops_kickoff/NEW_SESSION_PROMPT.md` and `CONSOLIDATION_PLA
 | P3 | The T. rex is paused and preserved (T. rex log P47-P51) and stays the flagship for end 2027 / early 2028. The outreach shows it as coming. This session does not change T. rex files or branches; shared hardware choices (X4 / X6 drive family, compute and CAN firmware, bench rig, safety stop, battery, neck servo) say when they affect it. | adopted |
 | P4 | Legit hardware: catalog drives with datasheets, industrial safety parts, named sensors. Spend in the T. rex's class, $17k-$32k. | adopted |
 | P5 | Propose, ask, record: nothing is adopted without the owner; decisions are asked with the question tool, at most four at a time, recommended option first. | adopted |
-| P6 | The museum walk is 0.30 m/s. 0.40 m/s is not a walking target. | adopted |
+| P6 | The museum walk is 0.30 m/s. 0.40 m/s is not a walking target. **Superseded 18 Nov 2026 by D2 (60 cm): the museum walk target becomes about 0.25-0.27 m/s** (Froude-similar to 0.30 m/s at 75 cm; the option the owner chose was described as walking 0.25-0.27 m/s), to be fixed in the 60 cm simulation. | superseded |
 | P7 | Owner, 18 Nov 2026, in chat: "30k is too much for me to afford"; the build should come in at $10k-$20k. Size and budget are to be settled first, with expressiveness (moving head and mouth) part of the budget. Supersedes the $17k-$32k spend class in P4 (the "legit hardware" part of P4 stands). | adopted |
 
 ## Engineering constraints carried in (E)
@@ -68,14 +68,17 @@ what the T. rex milestone shows, D7 a PLEM bench pilot, D8 the pull-request tria
 
 | ID | Decision | Options put | Owner's answer | Date | Status |
 |---|---|---|---|---|---|
-| D1 | Mass | | - | - | open |
-| D2 | Size | | - | - | open |
-| D3 | Compute | | - | - | open |
-| D4 | Bus voltage | | - | - | open |
-| D5 | Chassis | (to be asked; now also: a foot that stays flat in roll, F7. A passive roll hinge is the first candidate but not yet robust in simulation) | - | - | open |
+| D1 | Mass | 20 kg T20 / 15 kg T15 (first ask, declined); then, 18 Nov 2026, as part of the size options of `budget/SIZE_BUDGET_OPTIONS.md` | **About 12 kg** (follows from D2, option C; an estimate until the 60 cm parts list) | 18 Nov 2026, question tool | adopted |
+| D2 | Size and build | 60 cm with the T. rex's drive set (10 x X4 + 2 x X6, 12S), recommended: $23.9-24.7k landed museum-ready / 60 cm budget, all X4 on 6S: $22.3-23.1k / 50 cm: $20.6-21.9k / stay at 75 cm: $28.6k | **60 cm, the T. rex's drive set (option C)** | 18 Nov 2026, question tool | adopted |
+| D3 | Compute | (to be asked; the budget assumes a Jetson Orin Nano Super with a Teensy 4.1) | - | - | open |
+| D4 | Bus voltage | 48 V class 12S / 24 V 6S | **12S (48 V)**, implied by option C (the 6S alternative was option B, not chosen); to confirm with the 60 cm parts list | 18 Nov 2026 | adopted (implied) |
+| D5 | Chassis | (to be asked for the 60 cm robot; now also: a foot that stays flat in roll, F7. A passive roll hinge is the first candidate but not yet robust in simulation) | - | - | open |
 | D6 | What the T. rex milestone shows | | - | - | open |
 | D7 | PLEM bench pilot | | - | - | open |
 | D8 | Pull-request triage | | - | - | open |
 | D9 | Delay at which the 0.30 m/s walk's pass/fail verdict is judged until the foreleg bench measures it | 10 ms, as the T. rex (recommended; conservative, harder, replaced by the bench value) / 4 ms (PR #669's turn-stop-push delay; easier, may not survive the bench) / no verdict until the bench (no pass to show before spring 2027) | **10 ms** | 18 Nov 2026, question tool | adopted |
 | D10 | How the walk's two controllers start | Model-based first in this container (CPU, about 1-2 days of session work, about 2 CPU-hours of runs), learned policy on Colab later after its own cost estimate (recommended) / both in parallel / model-based only for now / wait for round-1 decisions | **Model-based first, learned later** | 18 Nov 2026, question tool | adopted |
 | D11 | Where simulation video clips go (2-6 MB each, over the 500 KB limit) | A never-merged data branch (recommended) / the owner's Google Drive (about 3 MB per file through the connector) / sent to the owner only | **A never-merged data branch** | 18 Nov 2026, question tool | adopted |
+| D12 | How the budget ceiling is counted | Landed, all-in: parts + shipping, duty, tax, 7 % contingency (recommended) / parts + about 7 % (the T. rex way) / parts only | **Landed, all-in: $20k** | 18 Nov 2026, question tool | adopted |
+| D13 | When to buy the handheld wireless safety stop (about $2.7k of parts with its receiver) | Before any public demo; wired stop and catch for bench and first walks (recommended) / from the start / leave it out | **Before any public demo** | 18 Nov 2026, question tool | adopted |
+| D14 | Head-and-tail expression package | Full, about $980: nod, turn to look at visitors, jaw with sound, tail sway, blinking, tail lift, frill lights (recommended) / core, about $750 | **Full** | 18 Nov 2026, question tool | adopted |
