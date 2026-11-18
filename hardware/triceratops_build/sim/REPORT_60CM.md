@@ -17,9 +17,9 @@ recheck of revision 2; earlier results stay on record under "Revision history".
   the X6's 10.8 N·m continuous at the joint; hind knee 3.2 N·m against 6.75; roll 0.8 and pitch 0.7 N·m against 7.5;
   neck 0.09 N·m against the XC430's 0.63 (estimate).
 - **The crawl: PR #669's foot fails; the roll-ankle foot passes, but only with the default contact model.** The roll
-  ankle passes the judged seeds and all four reported seeds, and fails both runs with the stiffer contact setting; with
-  a softer ankle spring (revision 2) it also failed one seed. PR #669's sole, rigid in roll, fails on every seed. The
-  foot (D5) is still the first design problem.
+  ankle passes both judged seeds (seeds 1-4, already seen at this spring stiffness in the reviewer's runs, also pass),
+  and fails both runs with the stiffer contact setting; with a softer ankle spring (revision 2) it also failed one
+  seed. PR #669's sole, rigid in roll, fails on every seed. The foot (D5) is still the first design problem.
 - **Two numbers to watch.** The model is **0.5 kg over** the budget's mass range (11.8-12.2 kg); see "Mass" below for
   where it comes from. At 12.69 kg the budget's own rule puts the **hind knees' continuous load at 1.00 of the X4's
   rating** (0.93 at 11.8 kg): at the limit, by estimate. The walk simulation (tasks 5 and 7) will measure it.
@@ -101,16 +101,18 @@ seeds 1-4 reported.
 | roll ankle, impratio 10 | 5, 6 (reported) | **fail on both** | fail on seed 5 | pass | 10.8 mm | |
 
 **Reading it:** with the spring scaled from PR #669's own model, the roll ankle holds its feet and shares the load on
-all six friction draws. But its result depends on the contact model (both stiffer-contact runs fail C4) and on the
+both judged friction draws, and on the four reported ones (which the reviewer had already run at this spring before it
+was chosen). But its result depends on the contact model (both stiffer-contact runs fail C4) and on the
 spring (with the softer revision 2 spring, 1.49 N·m/rad, one seed of four failed C4). So the roll ankle is the right
 direction for the foot, not a finished design. PR #669's roll-rigid sole fails at 60 cm as at 75 cm (F7).
 
-**Drive loads in the crawl (reported, not judged; judged runs, both feet).** Peak torques: roll 12.3 N·m and pitch
-20.6 N·m (limit 21 N·m), front elbow 11.8 N·m (limit 37.8), hind knee 10.5 N·m (limit 18.9). The pitch peak is one
-short spike on a front pitch joint in the roll-ankle run on seed 6: 98 % of the model's limit, 69 % of the drive's
-30 N·m peak; no sample saturated. RMS: roll 3.0 N·m, pitch 2.5, front elbow 4.5, hind knee 3.8, under the continuous
-ratings. Peak speeds: flexion 46 rpm, pitch 32, roll 7. A 0.02 m/s crawl does not test the walk's continuous load, so
-this does not clear the hind knee's estimate above; and the pitch spike is worth finding in the walk work.
+**Drive loads in the crawl (reported, not judged; judged runs, both feet; `crawl_peaks60.py`, output
+`results/crawl60_2026-11-18c/peaks_after_startup.json`).** After the first second: peak torques roll 12.3 N·m and pitch
+10.9 N·m (limit 21), front elbow 9.1 N·m (limit 37.8), hind knee 7.9 N·m (limit 18.9); RMS roll 3.0, pitch 2.5, front
+elbow 4.5, hind knee 3.8 N·m, under the continuous ratings; peak speeds flexion 46 rpm, pitch 32, roll 7. No sample
+saturated. The larger peaks in the crawl's own summary (up to 20.6 N·m on a front pitch joint, in the first 10 ms) are
+the servos pulling the joints back from the seed's random start offsets, not crawl loads; the recheck found this.
+A 0.02 m/s crawl does not test the walk's continuous load, so none of this clears the hind knee's estimate above.
 
 ## What this means
 
@@ -154,5 +156,9 @@ reproduced byte for byte; the 75 cm results unchanged).
 | 2 | Packaging check skipped the Pilz block ("contactor" matched "_contact"); it intersected the NVMe tray and the reserve block | rev. 3: proxies matched by suffix; parts moved; rechecked |
 | 2 | Report's reserve factor, mass attribution, 75 cm clearance comparison, drive-limit wording, spring wording | rev. 3: corrected here |
 | 2 | Tail-yaw servo outside the shells; electronics forward of the tray unsupported; check docstring overstated the sweep | rev. 3: noted above; docstring corrected |
+| 3 | The crawl's quoted peak torques were start-up transients from the seeds' joint offsets | Peaks after the first second, by `crawl_peaks60.py` (above) |
+| 3 | Only the two neck XC430 cases grow with the reserve (their basis says "EST"); the beak XC430, the XL430s and XL330s do not, though amendment 2 says "the servo cases" | Noted (about 0.014 kg); for the next revision: keep bought servos out of the growth set |
+| 3 | "Passes on all six seeds" overstated the new evidence | Reworded: two judged seeds; seeds 1-4 were seen at this spring before it was chosen |
 
-**Recheck of revision 3:** requested; its result will be added here.
+**Recheck of revision 3** (18 Nov 2026): no blockers; every result reproduced byte for byte; amendments 2 committed
+before any result file; the three findings above handled.

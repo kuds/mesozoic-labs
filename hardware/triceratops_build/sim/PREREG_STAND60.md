@@ -78,3 +78,7 @@ reserve's growth factor changes from × 1.2146 to × 1.2088 because the servo ca
 
 **Disclosure.** Before writing this, I had seen revision 3's generator printout (totals as above; centre of mass x
 +26.5 / +27.6 mm) and its packaging check (no intersections, Pilz block included). I had not simulated revision 3.
+
+**Note after the recheck of revision 3 (nothing above is changed):** "the servo cases now grow too" is inexact: only the
+two neck XC430 cases grow (their mass basis says "EST"); the beak XC430, the XL430s and the XL330s do not. The effect is
+about 0.014 kg. The next revision keeps bought servos out of the growth set.
