@@ -1,0 +1,14 @@
+# Pins for the Triceratops 60 cm RL notebook (trike60_training.ipynb), adapted from the T. rex form study's
+# hardware/trex_form_study/stage2/tb/requirements-colab.txt.  These are the versions this setup was tested with
+# locally on 18 Nov 2026 (Python 3.13.18, Linux, CPU only).  Differences from the T. rex list: numpy 2.5.5 (the
+# local test venv's; T. rex pins 2.5.4); scipy, pillow and PyOpenGL dropped (nothing here uses them).
+#
+# torch must be the CPU build.  The notebook's cell 3 installs it first, from https://download.pytorch.org/whl/cpu,
+# as torch==2.15.0+cpu whenever the installed torch is not exactly that (pip would take an installed 2.15.0+cu...
+# as satisfying ==2.15.0), then installs this file with `pip install -r`.  There is no unpinned fallback.
+mujoco==3.10.0
+numpy==2.5.5
+gymnasium==1.4.0
+stable-baselines3==2.9.2
+torch==2.15.0
+cloudpickle==3.1.2
