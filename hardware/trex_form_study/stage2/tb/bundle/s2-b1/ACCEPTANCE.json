@@ -1,0 +1,797 @@
+{
+ "schema": "s2-acceptance-1",
+ "ok": true,
+ "checks": {
+  "killed": true,
+  "line1": true,
+  "line2_ok": true,
+  "line3_pass": true,
+  "line4_after_resume": true,
+  "new_run_line": true,
+  "refused_live": true,
+  "resume_line": true,
+  "session1_done": true,
+  "refused_finished": true,
+  "session_files": true,
+  "status_schema": true,
+  "jobs_done": true,
+  "resumed_from_drive": true,
+  "checkpoints_copied": true,
+  "no_part_left": true,
+  "remedies_killed": true,
+  "remedies_faked": true,
+  "source_change_refused_by_the_trainer": true,
+  "source_change_refused_without_lead": true,
+  "version_change_refused_by_the_trainer": true,
+  "allow_source_change_reached_the_trainer": true,
+  "resumed_to_done_with_the_leads_remedies": true,
+  "version_change_recorded_by_the_trainer": true,
+  "head_is_ref": true,
+  "fresh_clones_hold_nothing_ignored": true,
+  "killed_during_a_copy": true,
+  "part_swept": true,
+  "content_hash": true,
+  "g8a_every_body": true,
+  "monitor_six_judged": true,
+  "gain_recorded": true,
+  "g8b_read": true,
+  "clip_made": true,
+  "r6_done": true,
+  "main_checkout_unchanged": true
+ },
+ "remote": "https://github.com/kuds/mesozoic-labs",
+ "ls_remote": [
+  "refs/heads/claude/mesozoic-trex-stage2-refine-4jffre"
+ ],
+ "ls_remote_sha": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+ "clone_source": "https://github.com/kuds/mesozoic-labs",
+ "ref": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+ "clone_head": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+ "clone_heads": {
+  "1": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+  "2": "cc437b6a44d575db63e89c63e2f9dc42c4424947"
+ },
+ "bundle_id": "s2-b1",
+ "content_sha256": "9227d8a0bf0bef46769404fe0a5a0443cd2512570bf7b307d2d1633b6527f9dc",
+ "files": 19,
+ "bodies": [
+  "75-M-H-10"
+ ],
+ "g8a": {
+  "75-M-H-10": {
+   "set": "V6",
+   "identical": 2,
+   "of": 2,
+   "steps": 40368,
+   "passes": true
+  }
+ },
+ "params": {
+  "REPO_REF": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+  "RUN_ID": "acceptance",
+  "QUEUE": [
+   "R5:75-M-H-10:42",
+   "R6:75-M-H-10:42"
+  ],
+  "BUNDLE_ID": "s2-b1",
+  "BUNDLE_SOURCE": "drive",
+  "RESUME": false,
+  "TAKEOVER": false,
+  "SMOKE": false,
+  "BUDGET_STEPS": 0,
+  "WORKERS": 2,
+  "CLIPS": true,
+  "USE_GOOGLE_DRIVE": false,
+  "AUTO_DISCONNECT": false,
+  "SET": "V6",
+  "TINY": true,
+  "DRIVE_DIR": "/home/user/mesozoic-wt/tb-accept/drive",
+  "LOCAL_DIR": "/home/user/mesozoic-wt/tb-accept/local",
+  "MONITOR_EVERY": null,
+  "MONITOR_ALSO_K": [],
+  "PERIOD_S": 2.0,
+  "BUDGET_BY": null,
+  "BUDGET_SET_ON": null,
+  "PREFLIGHT_BODIES": [
+   "75-M-H-10"
+  ],
+  "RETRY_CHECK": false,
+  "LR": null,
+  "CONFIG": null,
+  "IN_COLAB": false,
+  "SETUP_STARTED": null,
+  "SETUP_RECORD": null,
+  "STUDY_DIR": null,
+  "COPY_PAUSE_S": 0.5,
+  "ALLOW_VERSION_CHANGE": false,
+  "ALLOW_SOURCE_CHANGE": false
+ },
+ "kill": {
+  "at": "2026-11-17T23:33:13Z",
+  "after_s": 197.3,
+  "when": "model_2048.zip.part exists on the stand-in Drive (a copy in progress), and checkpoint 1024 of R5-75-M-H-10-s42 is whole there",
+  "progress": 1536,
+  "on_drive": [
+   1024
+  ],
+  "parts_on_drive": [
+   "jobs/R5-75-M-H-10-s42/checkpoints/model_2048.zip.part"
+  ]
+ },
+ "seconds": 1092.0,
+ "attempts": {
+  "session0": {
+   "exit_code": -9,
+   "killed": "model_2048.zip.part exists on the stand-in Drive (a copy in progress), and checkpoint 1024 of R5-75-M-H-10-s42 is whole there",
+   "seconds": 197.3,
+   "lines": {
+    "1": [
+     "S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes; checkout clean: yes)",
+     "S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes; checkout clean: yes)"
+    ],
+    "2": [
+     "S2 LINE 2/4 inputs: bundle s2-b1, manifest 9227d8a0bf0b, 19 of 19 files match their sha256: OK",
+     "S2 LINE 2/4 inputs: bundle s2-b1, manifest 9227d8a0bf0b, 19 of 19 files match their sha256: OK"
+    ],
+    "3": [
+     "S2 LINE 3/4 G8a 75-M-H-10 set V6: zero action = R0 at 0 ms and 10 ms, 2 of 2 episodes identical (40368 physics steps): PASS",
+     "S2 LINE 3/4 G8a 75-M-H-10 set V6: zero action = R0 at 0 ms and 10 ms, 2 of 2 episodes identical (40368 physics steps): PASS"
+    ],
+    "4": [
+     "S2 LINE 4/4 first rate R5-75-M-H-10-s42: 463 env steps/s (8 envs, 2 workers, 4 vCPUs); 0.004096M steps in about 0.0 h"
+    ],
+    "new": [
+     "Run directory: /home/user/mesozoic-wt/tb-accept/drive/runs/acceptance (new run)",
+     "Run directory: /home/user/mesozoic-wt/tb-accept/drive/runs/acceptance (new run)"
+    ]
+   }
+  },
+  "refused_live": {
+   "exit_code": 1,
+   "killed": null,
+   "seconds": 1.3,
+   "lines": {
+    "1": [
+     "S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes; checkout clean: yes)"
+    ],
+    "live": [
+     "Run directory: /home/user/mesozoic-wt/tb-accept/drive/runs/acceptance: still running (LIVE.json written 29 s ago); nothing to do"
+    ]
+   }
+  },
+  "session1": {
+   "exit_code": 0,
+   "killed": null,
+   "seconds": 476.3,
+   "lines": {
+    "1": [
+     "S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes; checkout clean: yes)",
+     "S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes; checkout clean: yes)"
+    ],
+    "2": [
+     "S2 LINE 2/4 inputs: bundle s2-b1, manifest 9227d8a0bf0b, 19 of 19 files match their sha256: OK",
+     "S2 LINE 2/4 inputs: bundle s2-b1, manifest 9227d8a0bf0b, 19 of 19 files match their sha256: OK"
+    ],
+    "3": [
+     "S2 LINE 3/4 G8a 75-M-H-10 set V6: zero action = R0 at 0 ms and 10 ms, 2 of 2 episodes identical (40368 physics steps): PASS",
+     "S2 LINE 3/4 G8a 75-M-H-10 set V6: zero action = R0 at 0 ms and 10 ms, 2 of 2 episodes identical (40368 physics steps): PASS"
+    ],
+    "4": [
+     "S2 LINE 4/4 first rate R5-75-M-H-10-s42: 484 env steps/s (8 envs, 2 workers, 4 vCPUs); 0.004096M steps in about 0.0 h",
+     "S2 LINE 4/4 first rate R6-75-M-H-10-s42: 488 env steps/s (8 envs, 2 workers, 4 vCPUs); 0.004096M steps in about 0.0 h"
+    ],
+    "resume": [
+     "Run directory: /home/user/mesozoic-wt/tb-accept/drive/runs/acceptance (resuming session 1: R5-75-M-H-10-s42 from 1024 steps; 0 jobs done)",
+     "Run directory: /home/user/mesozoic-wt/tb-accept/drive/runs/acceptance (resuming session 1: R5-75-M-H-10-s42 from 1024 steps; 0 jobs done)"
+    ]
+   }
+  },
+  "refused_finished": {
+   "exit_code": 1,
+   "killed": null,
+   "seconds": 1.3,
+   "lines": {
+    "1": [
+     "S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes; checkout clean: yes)"
+    ]
+   }
+  }
+ },
+ "sessions": [
+  {
+   "schema": "s2-session-2",
+   "run_id": "acceptance",
+   "session": 0,
+   "session_uuid": "fc3e3f1b73f74abf8d9d300b72c05a9f",
+   "started_at": "2026-11-17T23:29:57Z",
+   "last_status_at": "2026-11-17T23:33:13Z",
+   "resume": false,
+   "takeover": false,
+   "took_over": null,
+   "smoke": false,
+   "repo": {
+    "ref": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+    "commit": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+    "dirty": false,
+    "cell_ref": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+    "run_commit": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+    "modified": [],
+    "untracked": []
+   },
+   "runtime": {
+    "in_colab": false,
+    "vcpus": 4,
+    "affinity": [
+     0,
+     1,
+     2,
+     3
+    ],
+    "cpu_model": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "ram_gb": 15.71,
+    "disk_free_gb": 12.64,
+    "gpu": null,
+    "host": "vm"
+   },
+   "versions": {
+    "python": "3.13.18",
+    "mujoco": "3.10.0",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "gymnasium": "1.4.0",
+    "stable-baselines3": "2.9.2",
+    "torch": "2.15.0+cpu",
+    "cloudpickle": "3.1.2",
+    "pillow": "13.0.0",
+    "PyOpenGL": "3.1.10"
+   },
+   "torch_build": "cpu",
+   "pins": {
+    "mujoco": "3.10.0",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "gymnasium": "1.4.0",
+    "stable-baselines3": "2.9.2",
+    "torch": "2.15.0",
+    "cloudpickle": "3.1.2",
+    "pillow": "13.0.0",
+    "PyOpenGL": "3.1.10"
+   },
+   "pins_match": true,
+   "python_minor_matches": true,
+   "ffmpeg": "/usr/bin/ffmpeg",
+   "bundle": {
+    "id": "s2-b1",
+    "content_sha256": "9227d8a0bf0bef46769404fe0a5a0443cd2512570bf7b307d2d1633b6527f9dc",
+    "files_ok": 19,
+    "files": 19,
+    "source": "drive"
+   },
+   "queue": [
+    "R5:75-M-H-10:42",
+    "R6:75-M-H-10:42"
+   ],
+   "budget_steps": 0,
+   "workers": 2,
+   "allow_version_change": false,
+   "allow_source_change": false,
+   "retry_check": false,
+   "budget_by": null,
+   "budget_set_on": null,
+   "lead": null,
+   "halt_resumed": null,
+   "source_change": false,
+   "setup_seconds": 191.5,
+   "params": {
+    "REPO_REF": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+    "RUN_ID": "acceptance",
+    "QUEUE": [
+     "R5:75-M-H-10:42",
+     "R6:75-M-H-10:42"
+    ],
+    "BUNDLE_ID": "s2-b1",
+    "BUNDLE_SOURCE": "drive",
+    "RESUME": false,
+    "TAKEOVER": false,
+    "SMOKE": false,
+    "BUDGET_STEPS": 0,
+    "WORKERS": 2,
+    "CLIPS": true,
+    "USE_GOOGLE_DRIVE": false,
+    "AUTO_DISCONNECT": false,
+    "SET": "V6",
+    "TINY": true,
+    "DRIVE_DIR": "/home/user/mesozoic-wt/tb-accept/drive",
+    "LOCAL_DIR": "/home/user/mesozoic-wt/tb-accept/local",
+    "MONITOR_EVERY": null,
+    "MONITOR_ALSO_K": [],
+    "PERIOD_S": 2.0,
+    "BUDGET_BY": null,
+    "BUDGET_SET_ON": null,
+    "PREFLIGHT_BODIES": [
+     "75-M-H-10"
+    ],
+    "RETRY_CHECK": false,
+    "LR": null,
+    "CONFIG": null,
+    "IN_COLAB": false,
+    "SETUP_STARTED": 1794958196.376585,
+    "SETUP_RECORD": "/home/user/mesozoic-wt/tb-accept/logs/session0.params.json.resolved.json.setup.json",
+    "STUDY_DIR": "/home/user/mesozoic-wt/tb-accept/clone1/hardware/trex_form_study",
+    "COPY_PAUSE_S": 0.5,
+    "ALLOW_VERSION_CHANGE": false,
+    "ALLOW_SOURCE_CHANGE": false
+   },
+   "swept_parts": [],
+   "notes": [],
+   "setup": {
+    "started_epoch": 1794958196.376585,
+    "pip": [],
+    "apt_exit_code": null,
+    "versions_before": {
+     "python": "3.13.18",
+     "mujoco": "3.10.0",
+     "numpy": "2.5.4",
+     "scipy": "1.18.1",
+     "gymnasium": "1.4.0",
+     "stable-baselines3": "2.9.2",
+     "torch": "2.15.0+cpu",
+     "cloudpickle": "3.1.2",
+     "pillow": "13.0.0",
+     "PyOpenGL": "3.1.10"
+    }
+   },
+   "lines": [
+    "S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes; checkout clean: yes)",
+    "Run directory: /home/user/mesozoic-wt/tb-accept/drive/runs/acceptance (new run)",
+    "S2 LINE 2/4 inputs: bundle s2-b1, manifest 9227d8a0bf0b, 19 of 19 files match their sha256: OK",
+    "S2 LINE 3/4 G8a 75-M-H-10 set V6: zero action = R0 at 0 ms and 10 ms, 2 of 2 episodes identical (40368 physics steps): PASS",
+    "S2 LINE 4/4 first rate R5-75-M-H-10-s42: 463 env steps/s (8 envs, 2 workers, 4 vCPUs); 0.004096M steps in about 0.0 h"
+   ],
+   "seams": null,
+   "rules": {
+    "k6": "rule K6: a run keeps one RUN_ID, one bundle, one queue, one budget and one commit for its whole life.  A session is refused when its REPO_REF is not the 40 hex digits of the checkout's commit (a smoke may name a branch or a tag); when its RUN_ID has a run directory with QUEUE.json and RESUME is not set; when RESUME is set and there is no such run, or the run is a smoke; when RESUME comes with another queue, set, bundle or budget (or other trainer options) than QUEUE.json holds; when the checkout's commit is not QUEUE.json's, unless allow_source_change is given (LEAD.json, LEAD_RULE; recorded and noted).  On a resume REPO_REF is QUEUE.json's",
+    "k7": "rule K7: a session with RESUME is refused while LIVE.json is younger than 600 s and was not closed by the session that wrote it, unless TAKEOVER is set (recorded); a run that has DONE.json, or a HALT.json that is not marked resumable, is finished and is not resumed; a resumable HALT.json is resumed only with the lead's remedy (RESUMABLE_RULE)",
+    "lead": "the lead's remedies (ruling 2 of 17 Nov 2026): one small file the lead writes on Drive beside the run, runs/<run_id>/LEAD.json, which session reads and records in the session's record (lead, and the values in force): retry_check, allow_source_change and allow_version_change (true or false; passed to the trainer as --retry-check on a resume, --allow-source-change, --allow-version-change; retry_check only in the session that resumes the halt whose remedy names it, never at a later resume: the lead's ruling 12 of 17 Nov 2026), budget_by and budget_set_on (rule Y10: written to QUEUE.json when the run is made; budget_set_on a UTC time such as 2026-11-20T09:00:00Z), and resume_halt (the halt_id of the resumable halt a resume answers), with an optional note.  The owner is never asked to set these.  A file that cannot be read, a key it does not name here or a value of the wrong type refuses the session; nothing is changed",
+    "resumable": "what is final and what is resumable (the lead's ruling 2 of 17 Nov 2026): the trainer's exit code 4 (a refusal) writes no HALT.json: the session ends and LIVE.json is closed, as for an interruption.  The trainer's exit code 5 (a halt for the lead) and any error of the launcher itself write a HALT.json marked resumable, with its halt_id and the remedy it names: retry_check when the trainer's halt names --retry-check, allow_source_change when it names --allow-source-change, and in every case the lead's word (LEAD.json's resume_halt names the halt).  session accepts a resume of such a run only with that remedy in LEAD.json, and then keeps the old halt as HALT_<k>.json (k: the session that halted).  Only a job that crashed twice halts the run for good (resumable false)"
+   },
+   "preflight": {
+    "ok": true,
+    "archive": {
+     "exit_code": 0,
+     "ok": true
+    },
+    "policy": {
+     "exit_code": 0,
+     "ok": true,
+     "mujoco_gl": "disable",
+     "bytecode_members": [],
+     "fingerprint_max_abs_diff": 0.0
+    },
+    "envs": [
+     {
+      "mode": "R5",
+      "body": "75-M-H-10",
+      "floor": "hard",
+      "build_s": 14.58,
+      "obs_dim": 130,
+      "action_dim": 15
+     },
+     {
+      "mode": "R5",
+      "body": "75-M-H-10",
+      "floor": "robot_floor_carpet",
+      "build_s": 14.15,
+      "obs_dim": 130,
+      "action_dim": 15
+     },
+     {
+      "mode": "R6",
+      "body": "75-M-H-10",
+      "floor": "hard",
+      "build_s": 15.13,
+      "obs_dim": 130,
+      "action_dim": 15
+     },
+     {
+      "mode": "R6",
+      "body": "75-M-H-10",
+      "floor": "robot_floor_carpet",
+      "build_s": 15.6,
+      "obs_dim": 130,
+      "action_dim": 15
+     }
+    ],
+    "problems": [],
+    "g8a": {
+     "75-M-H-10": {
+      "passes": true,
+      "identical": 2,
+      "of": 2,
+      "steps": 40368,
+      "form": "bar",
+      "line": "S2 LINE 3/4 G8a 75-M-H-10 set V6: zero action = R0 at 0 ms and 10 ms, 2 of 2 episodes identical (40368 physics steps): PASS"
+     }
+    }
+   }
+  },
+  {
+   "schema": "s2-session-2",
+   "run_id": "acceptance",
+   "session": 1,
+   "session_uuid": "ebf508e5349643f38ff2ddeb6ef7b597",
+   "started_at": "2026-11-17T23:33:44Z",
+   "last_status_at": "2026-11-17T23:41:39Z",
+   "resume": true,
+   "takeover": true,
+   "took_over": {
+    "session": 0,
+    "session_uuid": "fc3e3f1b73f74abf8d9d300b72c05a9f",
+    "age_s": 31.17074990272522,
+    "host": "vm"
+   },
+   "smoke": false,
+   "repo": {
+    "ref": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+    "commit": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+    "dirty": false,
+    "cell_ref": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+    "run_commit": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+    "modified": [],
+    "untracked": []
+   },
+   "runtime": {
+    "in_colab": false,
+    "vcpus": 4,
+    "affinity": [
+     0,
+     1,
+     2,
+     3
+    ],
+    "cpu_model": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "ram_gb": 15.71,
+    "disk_free_gb": 12.63,
+    "gpu": null,
+    "host": "vm"
+   },
+   "versions": {
+    "python": "3.13.18",
+    "mujoco": "3.10.0",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "gymnasium": "1.4.0",
+    "stable-baselines3": "2.9.2",
+    "torch": "2.15.0+cpu",
+    "cloudpickle": "3.1.2",
+    "pillow": "13.0.0",
+    "PyOpenGL": "3.1.10"
+   },
+   "torch_build": "cpu",
+   "pins": {
+    "mujoco": "3.10.0",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "gymnasium": "1.4.0",
+    "stable-baselines3": "2.9.2",
+    "torch": "2.15.0",
+    "cloudpickle": "3.1.2",
+    "pillow": "13.0.0",
+    "PyOpenGL": "3.1.10"
+   },
+   "pins_match": true,
+   "python_minor_matches": true,
+   "ffmpeg": "/usr/bin/ffmpeg",
+   "bundle": {
+    "id": "s2-b1",
+    "content_sha256": "9227d8a0bf0bef46769404fe0a5a0443cd2512570bf7b307d2d1633b6527f9dc",
+    "files_ok": 19,
+    "files": 19,
+    "source": "drive"
+   },
+   "queue": [
+    "R5:75-M-H-10:42",
+    "R6:75-M-H-10:42"
+   ],
+   "budget_steps": 0,
+   "workers": 2,
+   "allow_version_change": false,
+   "allow_source_change": false,
+   "retry_check": false,
+   "budget_by": null,
+   "budget_set_on": null,
+   "lead": null,
+   "halt_resumed": null,
+   "source_change": false,
+   "setup_seconds": 163.7,
+   "params": {
+    "REPO_REF": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+    "RUN_ID": "acceptance",
+    "QUEUE": [
+     "R5:75-M-H-10:42",
+     "R6:75-M-H-10:42"
+    ],
+    "BUNDLE_ID": "s2-b1",
+    "BUNDLE_SOURCE": "drive",
+    "RESUME": true,
+    "TAKEOVER": true,
+    "SMOKE": false,
+    "BUDGET_STEPS": 0,
+    "WORKERS": 2,
+    "CLIPS": true,
+    "USE_GOOGLE_DRIVE": false,
+    "AUTO_DISCONNECT": false,
+    "SET": "V6",
+    "TINY": true,
+    "DRIVE_DIR": "/home/user/mesozoic-wt/tb-accept/drive",
+    "LOCAL_DIR": "/home/user/mesozoic-wt/tb-accept/local",
+    "MONITOR_EVERY": null,
+    "MONITOR_ALSO_K": [],
+    "PERIOD_S": 2.0,
+    "BUDGET_BY": null,
+    "BUDGET_SET_ON": null,
+    "PREFLIGHT_BODIES": [
+     "75-M-H-10"
+    ],
+    "RETRY_CHECK": false,
+    "LR": null,
+    "CONFIG": null,
+    "IN_COLAB": false,
+    "SETUP_STARTED": 1794958422.9909122,
+    "SETUP_RECORD": "/home/user/mesozoic-wt/tb-accept/logs/session1.params.json.resolved.json.setup.json",
+    "STUDY_DIR": "/home/user/mesozoic-wt/tb-accept/clone2/hardware/trex_form_study",
+    "COPY_PAUSE_S": 0.5,
+    "ALLOW_VERSION_CHANGE": false,
+    "ALLOW_SOURCE_CHANGE": false
+   },
+   "swept_parts": [
+    "jobs/R5-75-M-H-10-s42/checkpoints/model_2048.zip.part"
+   ],
+   "notes": [
+    "TAKEOVER: LIVE.json of session 0 was written 31 s ago"
+   ],
+   "setup": {
+    "started_epoch": 1794958422.9909122,
+    "pip": [],
+    "apt_exit_code": null,
+    "versions_before": {
+     "python": "3.13.18",
+     "mujoco": "3.10.0",
+     "numpy": "2.5.4",
+     "scipy": "1.18.1",
+     "gymnasium": "1.4.0",
+     "stable-baselines3": "2.9.2",
+     "torch": "2.15.0+cpu",
+     "cloudpickle": "3.1.2",
+     "pillow": "13.0.0",
+     "PyOpenGL": "3.1.10"
+    }
+   },
+   "lines": [
+    "S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes; checkout clean: yes)",
+    "Run directory: /home/user/mesozoic-wt/tb-accept/drive/runs/acceptance (resuming session 1: R5-75-M-H-10-s42 from 1024 steps; 0 jobs done)",
+    "S2 LINE 2/4 inputs: bundle s2-b1, manifest 9227d8a0bf0b, 19 of 19 files match their sha256: OK",
+    "S2 LINE 3/4 G8a 75-M-H-10 set V6: zero action = R0 at 0 ms and 10 ms, 2 of 2 episodes identical (40368 physics steps): PASS",
+    "S2 LINE 4/4 first rate R5-75-M-H-10-s42: 484 env steps/s (8 envs, 2 workers, 4 vCPUs); 0.004096M steps in about 0.0 h",
+    "S2 LINE 4/4 first rate R6-75-M-H-10-s42: 488 env steps/s (8 envs, 2 workers, 4 vCPUs); 0.004096M steps in about 0.0 h"
+   ],
+   "seams": null,
+   "rules": {
+    "k6": "rule K6: a run keeps one RUN_ID, one bundle, one queue, one budget and one commit for its whole life.  A session is refused when its REPO_REF is not the 40 hex digits of the checkout's commit (a smoke may name a branch or a tag); when its RUN_ID has a run directory with QUEUE.json and RESUME is not set; when RESUME is set and there is no such run, or the run is a smoke; when RESUME comes with another queue, set, bundle or budget (or other trainer options) than QUEUE.json holds; when the checkout's commit is not QUEUE.json's, unless allow_source_change is given (LEAD.json, LEAD_RULE; recorded and noted).  On a resume REPO_REF is QUEUE.json's",
+    "k7": "rule K7: a session with RESUME is refused while LIVE.json is younger than 600 s and was not closed by the session that wrote it, unless TAKEOVER is set (recorded); a run that has DONE.json, or a HALT.json that is not marked resumable, is finished and is not resumed; a resumable HALT.json is resumed only with the lead's remedy (RESUMABLE_RULE)",
+    "lead": "the lead's remedies (ruling 2 of 17 Nov 2026): one small file the lead writes on Drive beside the run, runs/<run_id>/LEAD.json, which session reads and records in the session's record (lead, and the values in force): retry_check, allow_source_change and allow_version_change (true or false; passed to the trainer as --retry-check on a resume, --allow-source-change, --allow-version-change; retry_check only in the session that resumes the halt whose remedy names it, never at a later resume: the lead's ruling 12 of 17 Nov 2026), budget_by and budget_set_on (rule Y10: written to QUEUE.json when the run is made; budget_set_on a UTC time such as 2026-11-20T09:00:00Z), and resume_halt (the halt_id of the resumable halt a resume answers), with an optional note.  The owner is never asked to set these.  A file that cannot be read, a key it does not name here or a value of the wrong type refuses the session; nothing is changed",
+    "resumable": "what is final and what is resumable (the lead's ruling 2 of 17 Nov 2026): the trainer's exit code 4 (a refusal) writes no HALT.json: the session ends and LIVE.json is closed, as for an interruption.  The trainer's exit code 5 (a halt for the lead) and any error of the launcher itself write a HALT.json marked resumable, with its halt_id and the remedy it names: retry_check when the trainer's halt names --retry-check, allow_source_change when it names --allow-source-change, and in every case the lead's word (LEAD.json's resume_halt names the halt).  session accepts a resume of such a run only with that remedy in LEAD.json, and then keeps the old halt as HALT_<k>.json (k: the session that halted).  Only a job that crashed twice halts the run for good (resumable false)"
+   },
+   "preflight": {
+    "ok": true,
+    "archive": {
+     "exit_code": 0,
+     "ok": true
+    },
+    "policy": {
+     "exit_code": 0,
+     "ok": true,
+     "mujoco_gl": "disable",
+     "bytecode_members": [],
+     "fingerprint_max_abs_diff": 0.0
+    },
+    "envs": [
+     {
+      "mode": "R5",
+      "body": "75-M-H-10",
+      "floor": "hard",
+      "build_s": 14.47,
+      "obs_dim": 130,
+      "action_dim": 15
+     },
+     {
+      "mode": "R5",
+      "body": "75-M-H-10",
+      "floor": "robot_floor_carpet",
+      "build_s": 14.96,
+      "obs_dim": 130,
+      "action_dim": 15
+     },
+     {
+      "mode": "R6",
+      "body": "75-M-H-10",
+      "floor": "hard",
+      "build_s": 15.5,
+      "obs_dim": 130,
+      "action_dim": 15
+     },
+     {
+      "mode": "R6",
+      "body": "75-M-H-10",
+      "floor": "robot_floor_carpet",
+      "build_s": 16.51,
+      "obs_dim": 130,
+      "action_dim": 15
+     }
+    ],
+    "problems": [],
+    "g8a": {
+     "75-M-H-10": {
+      "passes": true,
+      "identical": 2,
+      "of": 2,
+      "steps": 40368,
+      "form": "bar",
+      "line": "S2 LINE 3/4 G8a 75-M-H-10 set V6: zero action = R0 at 0 ms and 10 ms, 2 of 2 episodes identical (40368 physics steps): PASS"
+     }
+    }
+   },
+   "ended": {
+    "at": "2026-11-17T23:41:38Z",
+    "state": "done",
+    "reason": "the queue is finished"
+   },
+   "finishes": [
+    {
+     "at": "2026-11-17T23:41:39Z",
+     "state": "done",
+     "on_drive": true,
+     "not_on_drive": {}
+    }
+   ]
+  }
+ ],
+ "versions": {
+  "python": "3.13.18",
+  "mujoco": "3.10.0",
+  "numpy": "2.5.4",
+  "scipy": "1.18.1",
+  "gymnasium": "1.4.0",
+  "stable-baselines3": "2.9.2",
+  "torch": "2.15.0+cpu",
+  "cloudpickle": "3.1.2",
+  "pillow": "13.0.0",
+  "PyOpenGL": "3.1.10"
+ },
+ "takeover_note": "the resume ran with TAKEOVER: LIVE.json is fresh right after the kill, and the session before it, without TAKEOVER, was refused as rule K7 asks",
+ "remedies": {
+  "run_id": "acceptance-remedies",
+  "drive_run": "/home/user/mesozoic-wt/tb-accept/drive/runs/acceptance-remedies",
+  "kill": {
+   "at": "2026-11-17T23:43:14Z",
+   "after_s": 93.6,
+   "when": "checkpoint 1024 of R5-75-M-H-10-s42 is on the stand-in Drive",
+   "on_drive": [
+    1024
+   ]
+  },
+  "faked": {
+   "queue_commit": "0000000000000000000000000000000000000000",
+   "run_commit": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+   "version": {
+    "key": "numpy",
+    "was": "2.5.4",
+    "now": "0.0.0-faked-for-design-3.10-step-6"
+   },
+   "source": {
+    "file": "designlab/stage2/r5core.py",
+    "was": "a021696a36efbf63b6988714d729cf18e9dbd9e9dcd7e6a1049e20b9ae0e8755",
+    "now": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sha256_was": "063bb743b027820aa221e69fe9597d9c2c1e3116d37b317260c9aff93683fbb6",
+    "sha256_now": "f7f237016cfa79593d0940c412d194c1975c94cf1158bbf71ca3a7cd6e1843e4"
+   }
+  },
+  "checks": {
+   "remedies_killed": true,
+   "remedies_faked": true,
+   "source_change_refused_by_the_trainer": true,
+   "source_change_refused_without_lead": true,
+   "version_change_refused_by_the_trainer": true,
+   "allow_source_change_reached_the_trainer": true,
+   "resumed_to_done_with_the_leads_remedies": true,
+   "version_change_recorded_by_the_trainer": true
+  },
+  "attempts": {
+   "session0": {
+    "exit_code": -9,
+    "killed": "checkpoint 1024 of R5-75-M-H-10-s42 is on the stand-in Drive",
+    "seconds": 93.6,
+    "log": "/home/user/mesozoic-wt/tb-accept/logs/remedies-0.log",
+    "lines": {
+     "1": [
+      "S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes; checkout clean: yes)",
+      "S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes; checkout clean: yes)"
+     ],
+     "4": [
+      "S2 LINE 4/4 first rate R5-75-M-H-10-s42: 505 env steps/s (8 envs, 2 workers, 4 vCPUs); 0.004096M steps in about 0.0 h"
+     ],
+     "new": [
+      "Run directory: /home/user/mesozoic-wt/tb-accept/drive/runs/acceptance-remedies (new run)",
+      "Run directory: /home/user/mesozoic-wt/tb-accept/drive/runs/acceptance-remedies (new run)"
+     ]
+    }
+   },
+   "refused_by_the_source_check": {
+    "exit_code": 0,
+    "killed": null,
+    "seconds": 64.2,
+    "log": "/home/user/mesozoic-wt/tb-accept/logs/remedies-1-refused-by-the-trainers-source-check.log",
+    "lines": {
+     "1": [
+      "S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes; checkout clean: yes)",
+      "S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes; checkout clean: yes)"
+     ],
+     "resume": [
+      "Run directory: /home/user/mesozoic-wt/tb-accept/drive/runs/acceptance-remedies (resuming session 1: R5-75-M-H-10-s42 from 1024 steps; 0 jobs done)",
+      "Run directory: /home/user/mesozoic-wt/tb-accept/drive/runs/acceptance-remedies (resuming session 1: R5-75-M-H-10-s42 from 1024 steps; 0 jobs done)"
+     ]
+    }
+   },
+   "refused_source": {
+    "exit_code": 1,
+    "killed": null,
+    "seconds": 1.2,
+    "log": "/home/user/mesozoic-wt/tb-accept/logs/remedies-2-refused-source.log",
+    "lines": {
+     "1": [
+      "S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes; checkout clean: yes)"
+     ]
+    }
+   },
+   "refused_by_the_trainer": {
+    "exit_code": 0,
+    "killed": null,
+    "seconds": 65.1,
+    "log": "/home/user/mesozoic-wt/tb-accept/logs/remedies-3-refused-by-the-trainer.log",
+    "lines": {
+     "1": [
+      "S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes; checkout clean: yes)",
+      "S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes; checkout clean: yes)"
+     ],
+     "resume": [
+      "Run directory: /home/user/mesozoic-wt/tb-accept/drive/runs/acceptance-remedies (resuming session 2: R5-75-M-H-10-s42 from 1024 steps; 0 jobs done)",
+      "Run directory: /home/user/mesozoic-wt/tb-accept/drive/runs/acceptance-remedies (resuming session 2: R5-75-M-H-10-s42 from 1024 steps; 0 jobs done)"
+     ]
+    }
+   },
+   "done": {
+    "exit_code": 0,
+    "killed": null,
+    "seconds": 163.6,
+    "log": "/home/user/mesozoic-wt/tb-accept/logs/remedies-4-done.log",
+    "lines": {
+     "1": [
+      "S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes; checkout clean: yes)",
+      "S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes; checkout clean: yes)"
+     ],
+     "4": [
+      "S2 LINE 4/4 first rate R5-75-M-H-10-s42: 525 env steps/s (8 envs, 2 workers, 4 vCPUs); 0.004096M steps in about 0.0 h"
+     ],
+     "resume": [
+      "Run directory: /home/user/mesozoic-wt/tb-accept/drive/runs/acceptance-remedies (resuming session 3: R5-75-M-H-10-s42 from 1024 steps; 0 jobs done)",
+      "Run directory: /home/user/mesozoic-wt/tb-accept/drive/runs/acceptance-remedies (resuming session 3: R5-75-M-H-10-s42 from 1024 steps; 0 jobs done)"
+     ]
+    }
+   }
+  }
+ },
+ "step6_note": "design 3.10 step 6: a third session on the finished run refused (refused_finished), a second session while LIVE.json is fresh refused (refused_live), and the two remedies of rule K4 and K6 each exercised with a faked record, from LEAD.json (the lead's ruling 2 of 17 Nov 2026; remedies: its sessions run cells 1-3 and 7-8 in the second clone)",
+ "at": "2026-11-17T23:48:08Z",
+ "rule": "rule N5; design 3.10",
+ "sha256": "fb42991fb3866e2ecea86d0874ffb8c3cd6e04a3c8dc4487eed95c38a5cace71"
+}

@@ -80,6 +80,32 @@
    "listed_at": "2026-11-17T21:34:53Z",
    "commit": "9f644c0bf95be9d09d274e6614ec2b86cf40db3a",
    "done_at": "2026-11-17T21:47:29Z"
+  },
+  {
+   "step": "V12-acceptance-jobs",
+   "command": "/home/user/mesozoic-labs/hardware/trex_form_study/.venv/bin/python -m designlab.stage2.nb acceptance --ref cc437b6a44d575db63e89c63e2f9dc42c4424947 --parts /home/user/mesozoic-wt/tb-accept-bundle/stage2/tb/bundle/s2-b1/parts --scratch /home/user/mesozoic-wt/tb-accept --record /home/user/mesozoic-wt/tb-accept-bundle/stage2/tb/bundle/s2-b1/ACCEPTANCE.json",
+   "set": "V6",
+   "body": "75-M-H-10",
+   "rows_or_mode": "R5 and R6 training env steps (tiny jobs)",
+   "count": 14336,
+   "reason": "design 3.10's acceptance run on C1 (V12; D23): R5 and R6 at seed 42 in the run acceptance, and R5 at seed 42 in the run acceptance-remedies, 4096 steps each; each R5 was killed during its check at 2048 steps and resumed from 1024, so it ran 2048 + 3072 steps, and R6 ran 4096 (the jobs' logs); no record; listed after the run (the lead's ruling 45 of 17 Nov 2026), which ran from 2026-11-17T23:29:57Z to 2026-11-17T23:48:08Z; its record is stage2/tb/bundle/s2-b1/ACCEPTANCE.json",
+   "state": "done",
+   "listed_at": "2026-11-18T00:01:31Z",
+   "commit": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+   "done_at": "2026-11-17T23:48:08Z"
+  },
+  {
+   "step": "V12-acceptance-checks",
+   "command": "/home/user/mesozoic-labs/hardware/trex_form_study/.venv/bin/python -m designlab.stage2.nb acceptance --ref cc437b6a44d575db63e89c63e2f9dc42c4424947 --parts /home/user/mesozoic-wt/tb-accept-bundle/stage2/tb/bundle/s2-b1/parts --scratch /home/user/mesozoic-wt/tb-accept --record /home/user/mesozoic-wt/tb-accept-bundle/stage2/tb/bundle/s2-b1/ACCEPTANCE.json",
+   "set": "V6",
+   "body": "75-M-H-10",
+   "rows_or_mode": "check episodes: G8a (zero action and R0 at 0 and 10 ms), the R0L baseline, the monitor",
+   "count": 64,
+   "reason": "the same run's episodes besides training: line 3's G8a in the notebook's two sessions (2 x 2), the trainer's G8a short form at each job's start (3 x 2), the R0L baseline at each job's start (3 x 6) and the monitor at 2048 and 4096 steps of each job (6 x 6); not counted: the two checks at 2048 steps cut by the kills; the clips are drawn from the monitor's traces; no record; listed after the run (the lead's ruling 45 of 17 Nov 2026), which ran from 2026-11-17T23:29:57Z to 2026-11-17T23:48:08Z; its record is stage2/tb/bundle/s2-b1/ACCEPTANCE.json",
+   "state": "done",
+   "listed_at": "2026-11-18T00:01:31Z",
+   "commit": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
+   "done_at": "2026-11-17T23:48:08Z"
   }
  ]
 }

@@ -2,8 +2,9 @@ T. rex form study, Stage 2: training on Colab. The steps.
 =========================================================
 
 *** DRAFT of 17 Nov 2026. DO NOT START FROM THIS DRAFT. ***
-Every value written <<LIKE THIS>> is not known yet. I fill them in after the acceptance run (a full rehearsal on
-my side) and send you the final sheet. The list of what is still open is at the very end.
+Every value written <<LIKE THIS>> is not known yet. The values that the acceptance run (a full rehearsal on my
+side, 17 Nov 2026) gave are filled in. The rest come from the smoke, and I send you the sheet again with them.
+The list of what is still open is at the very end.
 
 Everything here is a simulation on Google's computers. Nothing touches a real robot.
 
@@ -18,18 +19,24 @@ Three rules for the whole sheet:
   - There is nothing to send me except the lines I ask for. I read all the files from your Drive.
 
 Some steps below are marked "(expected, not yet seen)". Only Colab shows them, and I have not seen them yet. I
-check each one at the acceptance run or, where only Colab can show it, at the smoke (section 3).
+check each one at the smoke (section 3).
 
 
 1. WHAT RUNS
 
    The code:    one fixed version of the repository, commit
-                  <<C1: THE 40 CHARACTERS OF THE LAUNCH COMMIT>>
-                This is REPO_REF in every step below. The same version is also marked with the tag s2-launch-1.
-   The inputs:  bundle <<BUNDLE_ID>>, manifest <<HASH12: FIRST 12 CHARACTERS OF THE CONTENT HASH>>,
-                <<N_FILES>> files in <<N_PARTS>> parts.
-   The rules:   fixed before any run, in <<RULES_FILE: THE COMMITTED RULES TEXT; TODAY STAGE2_TRACKB_PLAN.md>>,
-                sha256 <<RULES_SHA256>>.
+                  cc437b6a44d575db63e89c63e2f9dc42c4424947
+                This is REPO_REF in every step below. The address in 3.1 names the same 40 characters.
+   The inputs:  bundle s2-b1, manifest 9227d8a0bf0b, 19 files in 3 parts. They are on a branch of the
+                repository, claude/mesozoic-trex-stage2-bundle-s2-b1, and the notebook reads them from there.
+   The rules:   fixed before any run, in three texts of the repository (in hardware/trex_form_study), each
+                with its sha256 at the commit above:
+                  STAGE2_TRACKB_PLAN.md
+                    sha256 ba966378861e1b11664b338b1dae54e12d7da10e44bfb60260bde7c514e6d4a2
+                  stage2/design/ROUND_C_DESIGN.md
+                    sha256 93e041b9b33db2824e3045c7e28c51e0a7effbf1c033b6ef7c07d41adcf3540b
+                  stage2/design/ROUND_C_RULINGS_17NOV.md
+                    sha256 505991430a123c485cd5cf7f3e60cdd8dd5216d3397b91b9a8a6bf71c7a73764
    The machine: Runtime type "CPU" with "High-RAM" switched on. No GPU: this training runs on the processor,
                 and a GPU would cost more and add nothing.
                 If "High-RAM" is not offered to you: stop and tell me. The next choice costs about twenty times
@@ -37,21 +44,16 @@ check each one at the acceptance run or, where only Colab can show it, at the sm
    The limit:   all runs together stay under 220 hours of runtime. I keep the count.
 
 
-2. BEFORE DAY ONE (I do this; you only approve)
+2. BEFORE DAY ONE (nothing for you to do)
 
-   I put the input files on your Google Drive through the Drive connector:
-     <<N_PARTS>> files, <<TOTAL_MB>> MB in all, named
-       <<PART NAMES, ONE PER LINE>>
-     into the folder  My Drive / mesozoic-labs / stage2 / inputs / <<BUNDLE_ID>>
-   Each upload asks for your approval. Approve each one.
-   What to expect: afterwards that folder holds exactly those <<N_PARTS>> files.
-   If an upload fails or you are not asked: tell me. Do not upload anything yourself.
+   I have put the input files on a branch of the repository, claude/mesozoic-trex-stage2-bundle-s2-b1.
+   The notebook reads them from there by itself. There is nothing to upload, and nothing for you to approve.
 
 
 3. DAY ONE: THE SMOKE (a check of the machine; nothing is trained; one runtime; about <<SMOKE_TOTAL_MIN>> minutes)
 
    3.1  Open this address:
-          https://colab.research.google.com/github/kuds/mesozoic-labs/blob/s2-launch-1/hardware/trex_form_study/stage2/stage2_training.ipynb
+          https://colab.research.google.com/github/kuds/mesozoic-labs/blob/cc437b6a44d575db63e89c63e2f9dc42c4424947/hardware/trex_form_study/stage2/stage2_training.ipynb
         Expect: a notebook titled "Mesozoic Labs: T. rex form study, Stage 2 training (Track B)".
         If it does not open: tell me.
 
@@ -62,11 +64,11 @@ check each one at the acceptance run or, where only Colab can show it, at the sm
         If there is no High-RAM switch: stop and tell me.
 
    3.4  In the first grey box ("1. PARAMETERS") set exactly these values. Leave everything else as it is.
-          REPO_REF              <<C1>>
+          REPO_REF              cc437b6a44d575db63e89c63e2f9dc42c4424947
           RUN_ID                smoke-1
           QUEUE                 (leave it empty)
-          BUNDLE_ID             <<BUNDLE_ID>>
-          BUNDLE_SOURCE         drive
+          BUNDLE_ID             s2-b1
+          BUNDLE_SOURCE         git:claude/mesozoic-trex-stage2-bundle-s2-b1
           RESUME                not ticked
           TAKEOVER              not ticked
           SMOKE                 ticked
@@ -86,10 +88,13 @@ check each one at the acceptance run or, where only Colab can show it, at the sm
 
    3.6  Check these lines as they appear, in this order. They come within about <<MIN_SETUP>> minutes.
 
-        (a) Repository ref: <<C1>>; commit: <<C1>>                                     (expected, not yet seen)
+        (a) The repository's line (on screen it is one line):
+              Repository ref: cc437b6a44d575db63e89c63e2f9dc42c4424947;
+              commit: cc437b6a44d575db63e89c63e2f9dc42c4424947                         (expected, not yet seen)
 
-        (b) Line 1:
-              S2 LINE 1/4 commit: <<C1>> (REPO_REF is a commit: yes; checkout clean: yes)
+        (b) Line 1 (on screen it is one line):
+              S2 LINE 1/4 commit: cc437b6a44d575db63e89c63e2f9dc42c4424947 (REPO_REF is a commit: yes;
+              checkout clean: yes)
             Another commit, or a "no" anywhere in it: stop and tell me.
 
         (c) Google Drive mounted. Stage 2 files are under: /content/drive/MyDrive/mesozoic-labs/stage2
@@ -99,14 +104,14 @@ check each one at the acceptance run or, where only Colab can show it, at the sm
             If instead you read "S2 REFUSED session: ...": stop and tell me the line. Do not change RUN_ID.
 
         (e) Line 2 (on screen it is one line):
-              S2 LINE 2/4 inputs: bundle <<BUNDLE_ID>>, manifest <<HASH12>>, <<N_FILES>> of <<N_FILES>> files
+              S2 LINE 2/4 inputs: bundle s2-b1, manifest 9227d8a0bf0b, 19 of 19 files
               match their sha256: OK
             If it ends "FAILED (...)": the notebook stops by itself with an error under the box. Nothing was
-            trained. Tell me the whole line. (Usually one input file is missing or cut short; see 7.)
+            trained. Tell me the whole line. (Usually one input file could not be read from the branch; see 7.)
 
         (f) A few lines that begin "SB3 archive load preflight" and "S2 preflight:", then line 3 (one line):
               S2 LINE 3/4 G8a 75-M-H-10 set V6: zero action = R0 at 0 ms and 10 ms, 2 of 2 episodes identical
-              (<<G8A_STEPS>> physics steps): PASS
+              (40368 physics steps): PASS
             If it ends "FAIL (...)": the notebook stops by itself. Tell me the whole line.
 
         (g) Eight lines that begin "S2 SMOKE", one after another. Each ends OK, REPORTED or FAILED.
@@ -149,14 +154,14 @@ check each one at the acceptance run or, where only Colab can show it, at the sm
    4.1  Open the same address as in 3.1. File > Save a copy in Drive, named as in the table. Work in the copy.
    4.2  Runtime > Change runtime type: CPU, High-RAM on, as in 3.3.
    4.3  In the first grey box set:
-          REPO_REF              <<C1>>
+          REPO_REF              cc437b6a44d575db63e89c63e2f9dc42c4424947
           RUN_ID                from the table
           QUEUE                 from the table, exactly as it is written there, for example
                                   R5:75-M-H-10:42, R6:75-M-H-10:42
                                 (letters, digits, colons, dashes and commas only; no quotation marks, no
                                 brackets). Copying it from this sheet is safest.
-          BUNDLE_ID             <<BUNDLE_ID>>
-          BUNDLE_SOURCE         drive
+          BUNDLE_ID             s2-b1
+          BUNDLE_SOURCE         git:claude/mesozoic-trex-stage2-bundle-s2-b1
           RESUME                not ticked
           TAKEOVER              not ticked
           SMOKE                 not ticked
@@ -329,16 +334,16 @@ check each one at the acceptance run or, where only Colab can show it, at the sm
 
 7. FALLBACKS (only when I tell you to use one)
 
-   7.1  Line 2 said FAILED because an input file is missing or cut short. I upload that file again (you approve
-        the upload as in 2). Then I tell you how to run again: for a launch it is the same copy with RESUME
+   7.1  Line 2 said FAILED because an input file could not be read from the branch or is cut short. I put that
+        file right on the branch. Then I tell you how to run again: for a launch it is the same copy with RESUME
         ticked (5.4); for the smoke it is a new RUN_ID that I give you. Either way, in a copy that has run
         before, clear all outputs first (Edit > Clear all outputs, as in 5.4 (b)).
-   7.2  The uploads keep failing. Two other ways to get the inputs, each only on my word:
+   7.2  The branch keeps failing. One other way to get the inputs, only on my word:
           BUNDLE_SOURCE   rebuild          Only after the smoke's line Y8 ended with
                                            "the rebuild is an allowed fallback". The first launch then takes
                                            about <<MIN_REBUILD>> minutes longer; later launches reuse what it
-                                           built.
-          BUNDLE_SOURCE   git:<<DATA_REF>> Only if you agreed to the data branch.
+                                           built. Before it, I put the bundle's one small model file on your
+                                           Drive; there is nothing for you to do.
    7.3  A clip is not made ("clip ...: not made"): nothing to do.
    7.4  A software package does not install (the second grey box stops with "S2 FAILED setup"): stop and send
         me what that box printed. There is no other way around it.
@@ -346,23 +351,32 @@ check each one at the acceptance run or, where only Colab can show it, at the sm
 
 8. WHICH LINES WERE MEASURED, AND WHICH ARE EXPECTED BUT NOT YET SEEN
 
-   Measured: <<TO BE WRITTEN FROM THE ACCEPTANCE RUN'S RECORD (ACCEPTANCE.json): every line it printed is quoted
-   on this sheet from that record, with its values; the minutes of each smoke item come from the smoke itself
-   and are measured here only where they could be.>>
+   Measured: the acceptance run of 17 Nov 2026 (23:29 to 23:48 UTC, on my machine). It made a fresh copy of the
+   repository from GitHub at the commit of section 1, put the bundle's three files in a folder that stood in for
+   your Drive, and ran the notebook's own boxes: two very short jobs (R5 and R6 on the 75 cm body, 4,096 steps
+   each), a kill during a copy to that folder, a second fresh copy, and a resume to the end. All 36 of its
+   checks passed. Its record is stage2/tb/bundle/s2-b1/ACCEPTANCE.json, sha256
+   41d67f7f06f946ebfd18eea5a3c479ef266f2f5412a8ff501f176a1e9df2a2f8.
+   Lines 1, 2 and 3 of 3.6 (b), (e) and (f) are quoted from that record: it printed them with these values, in
+   both of its sessions. In those sessions line 4 read 463, 484 and 488 env steps/s (8 envs, 2 workers,
+   4 vCPUs) on my machine: that is not Colab's rate, so the rate, the hours and the minutes of 4.5 and 4.6 come
+   from the smoke. It did not measure the minutes of the smoke's items or of the setup (it ran no smoke, and its
+   software was installed already), and it did not read the inputs from the branch: it took the same three
+   files, byte for byte, from the folder that stood in for your Drive. The smoke reads them from the branch.
    Of the lines that begin "Run directory", the acceptance run printed "(new run)" in its first session. That
    session was then stopped by force while it copied a save to the folder that stood in for your Drive, after
    an earlier save had reached that folder whole. A second start made right after that printed "still running
-   (LIVE.json written <<LIVE_S>> s ago); nothing to do": nothing was running any more, but the stopped
+   (LIVE.json written 29 s ago); nothing to do": nothing was running any more, but the stopped
    session's LIVE.json was that recent. The start after it printed "(resuming session 1: R5-75-M-H-10-s42 from
-   <<RESUME_STEPS>> steps; 0 jobs done)" and went on from that save, copied back from the folder. That start
+   1024 steps; 0 jobs done)" and went on from that save, copied back from the folder. That start
    had TAKEOVER set, which only I set: you never set it, and wait ten minutes instead (5.6). The line it
    printed does not depend on TAKEOVER: you see the same one.
 
    In this draft, the wording of every line that begins "S2 LINE", "S2 SMOKE", "S2 FINISH", "S2 launch:",
    "S2 REFUSED" or "Run directory:" is the program's own (the same functions print it), and I have seen these
    lines printed on my machine in small rehearsals on 16 and 17 Nov 2026 (two very short jobs on an older
-   reference set, with a kill and a resume). Their values (the commit, the bundle, the counts, the rate, the
-   minutes) are not from those rehearsals: they are the <<...>> fields.
+   reference set, with a kill and a resume). Their values are not from those rehearsals: the commit, the bundle
+   and the counts are the acceptance run's (above); the rate and the minutes are the <<...>> fields.
 
    Expected, not yet seen (only Colab prints or shows them): everything marked "(expected, not yet seen)"
    above: the "Repository ref" line, when the Drive permission window comes and "Google Drive mounted", that a
@@ -371,15 +385,14 @@ check each one at the acceptance run or, where only Colab can show it, at the sm
    Drive again after "Google Drive's connection was lost", how soon a file written by the runtime shows in your
    Drive (the 10 minutes of 5.3), where your copy of the notebook is kept and what its tab shows under the
    last box when you open it again (5.3 (a) to (e)), how a box looks while it is still running (5.3 (e)), and
-   what Edit > Clear all outputs empties (5.4 (b)). I confirm each at the acceptance run or, where only Colab
-   can show it, at the smoke, and then remove its mark.
+   what Edit > Clear all outputs empties (5.4 (b)). The acceptance run ran on my machine and could not show
+   them; I confirm each at the smoke and then remove its mark.
 
 
 STILL OPEN IN THIS DRAFT (for me, not for you)
 
-   <<C1>> <<BUNDLE_ID>> <<HASH12>> <<N_FILES>> <<N_PARTS>> <<TOTAL_MB>> <<PART NAMES>> <<RULES_FILE>>
-   <<RULES_SHA256>> <<BACKGROUND>>
-   <<G8A_STEPS>> <<SMOKE_TOTAL_MIN>> <<MIN_SETUP>> <<MIN_Y1>> <<MIN_Y3>> <<MIN_Y5>> <<MIN_Y6>> <<MIN_Y8>>
+   <<BACKGROUND>>
+   <<SMOKE_TOTAL_MIN>> <<MIN_SETUP>> <<MIN_Y1>> <<MIN_Y3>> <<MIN_Y5>> <<MIN_Y6>> <<MIN_Y8>>
    <<TABLE OF LAUNCHES>> <<BUDGET_STEPS>> <<RATE>> <<W>> <<VCPUS>> <<BUDGET_M>> <<HOURS>> <<FLOOR>>
-   <<MIN_LINE4>> <<MIN_LINE4_LATE>> <<HOURS_PER_JOB>> <<MIN_REBUILD>> <<DATA_REF>> <<LIVE_S>> <<RESUME_STEPS>>
-   and section 8's first paragraph, and each "(expected, not yet seen)" mark.
+   <<MIN_LINE4>> <<MIN_LINE4_LATE>> <<HOURS_PER_JOB>> <<MIN_REBUILD>>
+   and each "(expected, not yet seen)" mark.
