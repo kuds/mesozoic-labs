@@ -221,8 +221,13 @@ def test_observation_slots_hold_the_named_quantities():
     env = TrikeEnv(TrikeEnvConfig(**QUIET))
     env.reset(seed=5, options={"command_speed": 0.2})
     a = np.linspace(-0.4, 0.4, 12)
-    for _ in range(3):
+    for _ in range(2):
         obs, *_ = env.step(a)
+    b = -a
+    seen_raw = env.obs_slots(obs)["previous_action_raw"].astype(np.float64)
+    obs, _, _, _, info = env.step(b)
+    # the action-rate penalty depends only on what the policy saw (its previous raw action) and its new action
+    assert info["r_action_rate"] == pytest.approx(-env.cfg.w_action_rate * np.sum((b - seen_raw) ** 2), rel=1e-6)
     o, d, m = env.obs_slots(obs), env.data, env.model
     assert sum(w for _, w in env.obs_layout) == obs.size
 
@@ -245,6 +250,7 @@ def test_observation_slots_hold_the_named_quantities():
     loads = [d.sensordata[m.sensor_adr[m.sensor(f"{c}_normal_load").id]] for c in CORNERS]
     assert close(o["foot_load_over_weight"], np.array(loads) / env.nominal_weight)
     assert close(o["previous_action_filtered"], env._action_filtered)
+    assert close(o["previous_action_raw"], b)
     assert close(o["command_speed_mps"], [0.2])
     ph = 2 * math.pi * env.cfg.phase_clock_hz * 3 * env.dt
     assert close(o["phase_sin_cos"], [math.sin(ph), math.cos(ph)])
@@ -717,3 +723,208 @@ def test_cell2_fetches_exactly_one_commit_shallowly(tmp_path):
     assert (target / "hardware" / "triceratops_build" / "rl" / "train.py").exists()
     got, clean = ns["checkout_commit"](target, f"file://{bare}", head)  # running the cell again is harmless
     assert got == head and clean
+
+
+# ======================================================================================== recheck items (N1-N8)
+def _copy_run(src: Path, dst: Path) -> Path:
+    shutil.copytree(src, dst)
+    return dst
+
+
+def _eio_zipfile(monkeypatch, fail_times: int | None):
+    """zipfile.ZipFile raising EIO (a Drive read error) ``fail_times`` times, or always when None."""
+    import errno
+    import zipfile
+
+    real = zipfile.ZipFile
+    calls = {"n": 0}
+
+    def flaky(*a, **kw):
+        calls["n"] += 1
+        if fail_times is None or calls["n"] <= fail_times:
+            raise OSError(errno.EIO, "Input/output error (simulated)")
+        return real(*a, **kw)
+
+    monkeypatch.setattr(zipfile, "ZipFile", flaky)
+    return calls
+
+
+def test_io_error_is_not_a_broken_checkpoint(trained_run, tmp_path, monkeypatch):
+    import trike_checkpoints as tc
+
+    ckpt = trained_run / "checkpoints"
+    with monkeypatch.context() as mp:
+        _eio_zipfile(mp, None)
+        with pytest.raises(OSError):
+            tc.pair_problem(ckpt / "trike60_1024_steps.zip", ckpt / "trike60_vecnormalize_1024_steps.pkl")
+        scan = tc.scan_pairs(ckpt, retries=2, wait_s=0, log=lambda s: None)
+        assert scan.io_error and scan.pair is None and not scan.skipped
+    with monkeypatch.context() as mp:  # a transient error: the re-read finds the pair
+        calls = _eio_zipfile(mp, 1)
+        scan = tc.scan_pairs(ckpt, retries=2, wait_s=0, log=lambda s: None)
+        assert scan.pair is not None and scan.pair[0] == 1024 and calls["n"] == 2
+
+    # train.py on an intact run whose files cannot be read: refuses, moves and writes nothing
+    import train
+
+    run = _copy_run(trained_run, tmp_path / "run")
+    before = {p.relative_to(run): p.read_bytes() for p in run.rglob("*") if p.is_file()}
+    with monkeypatch.context() as mp:
+        _eio_zipfile(mp, None)
+        code = train.main(["--out", str(run), *map(str, BASE_ARGS), "--eval-every", "0", "--total-steps", "2048",
+                           "--model", "trike60_C_closed_ankleroll", "--resume", "--io-retry-wait", "0"])
+    assert code == 2
+    after = {p.relative_to(run): p.read_bytes() for p in run.rglob("*") if p.is_file()}
+    assert after == before and not list((run / "checkpoints").glob("broken_*"))
+
+
+def test_saves_recorded_but_not_listed_are_refused(tmp_path):
+    import train
+
+    out = tmp_path / "run"
+    out.mkdir()
+    (out / "run_record.json").write_text(json.dumps({"sessions": [{"last_checkpoint": "trike60_1024_steps.zip"}]}))
+    code = train.main(["--out", str(out), "--total-steps", "2048", "--resume"])
+    assert code == 2 and not (out / "checkpoints").exists()
+
+
+def test_refusals_come_before_any_change(trained_run, tmp_path):
+    run = _copy_run(trained_run, tmp_path / "run")
+    ckpt = run / "checkpoints"
+    (ckpt / "trike60_2048_steps.zip.tmp").write_bytes(b"half a save")
+    p = _run(RL_DIR / "train.py", "--out", run, *BASE_ARGS, "--eval-every", 0, "--total-steps", 4096,
+             "--model", "trike60_C_closed_ankleroll", "--resume")  # total_steps differs: refused
+    assert p.returncode == 2 and "Nothing was changed" in p.stdout
+    assert (ckpt / "trike60_2048_steps.zip.tmp").exists()
+    # only broken saves, and a refused resume: they stay where they are
+    for f in ckpt.glob("trike60_*"):
+        f.write_bytes(b"")
+    p = _run(RL_DIR / "train.py", "--out", run, *BASE_ARGS, "--eval-every", 0, "--total-steps", 4096,
+             "--model", "trike60_C_closed_ankleroll", "--resume")
+    assert p.returncode == 2 and not list(ckpt.glob("broken_*"))
+    assert (ckpt / "trike60_1024_steps.zip").exists()
+
+
+def test_nonfinite_parameters_are_never_a_resume_candidate(trained_run, tmp_path):
+    import torch
+    import trike_checkpoints as tc
+    from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
+    from environments.shared.policy_loading import load_sb3_model
+
+    src = trained_run / "checkpoints"
+    model = load_sb3_model(src / "trike60_1024_steps.zip", algorithm="ppo", device="cpu")
+    vn = VecNormalize.load(str(src / "trike60_vecnormalize_1024_steps.pkl"),
+                           DummyVecEnv([lambda: TrikeEnv(TrikeEnvConfig(model_path=str(
+                               RL_DIR.parent / "sim" / "generated" / "trike60_C_closed_ankleroll.xml")))]))
+    ckpt = tmp_path / "checkpoints"
+    ckpt.mkdir()
+    name, finite = tc.save_pair(model, vn, ckpt)
+    assert finite and name == "trike60_1024_steps.zip"
+    with torch.no_grad():
+        next(model.policy.parameters()).fill_(float("nan"))
+    model.num_timesteps = 2048
+    name, finite = tc.save_pair(model, vn, ckpt)
+    assert not finite and name == "nonfinite/trike60_2048_steps.zip" and (ckpt / name).exists()
+    scan = tc.scan_pairs(ckpt, retries=0, wait_s=0)
+    assert scan.pair[0] == 1024 and scan.candidates == ["trike60_1024_steps.zip"]
+
+
+def _kernel_running_cell5(tmp_path: Path, fake_train: str) -> Path:
+    """A stand-in kernel that runs the notebook's own cell 5 (with cell 2's run_step) on a fake train.py; its
+    flush_drive() reports whether the fake had finished saving when the flush began."""
+    fake_dir = tmp_path / "fake_rl"
+    fake_dir.mkdir()
+    (fake_dir / "train.py").write_text(fake_train)
+    kernel = tmp_path / "kernel.py"
+    kernel.write_text(f"""
+import json, os, pathlib, signal, subprocess, sys
+code = ["".join(c["source"]) for c in json.load(open({str(NOTEBOOK)!r}))["cells"] if c["cell_type"] == "code"]
+ns = {{"subprocess": subprocess, "signal": signal, "os": os, "sys": sys, "pathlib": pathlib}}
+exec(code[1][code[1].index("def run_step"):code[1].index("def git(")], ns)
+MARK = pathlib.Path({str(tmp_path / 'saved')!r})
+def flush_drive():
+    print(f"FLUSH: the step had finished saving: {{MARK.exists()}}", flush=True)
+ns.update(ensure_drive=lambda: None, flush_drive=flush_drive, RL_DIR=pathlib.Path({str(fake_dir)!r}), RUN_DIR="run",
+          TOTAL_STEPS=1, N_ENVS=1, SEED=0, MODEL="m", REPO_DIR=".", STEP_ENV=dict(os.environ))
+try:
+    exec(code[4], ns)
+    print("KERNEL: cell 5 returned", flush=True)
+except KeyboardInterrupt:
+    print("KERNEL: cell 5 raised KeyboardInterrupt", flush=True)
+except RuntimeError as exc:
+    print(f"KERNEL: cell 5 raised RuntimeError: {{exc}}", flush=True)
+""")
+    return kernel
+
+
+def test_cell5_waits_for_the_save_through_a_second_stop_click(tmp_path):
+    mark = tmp_path / "saved"
+    kernel = _kernel_running_cell5(tmp_path, f"""
+import pathlib, signal, sys, time
+def stop(signum, frame):
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    print("Interrupted: saving (slowly)", flush=True)
+    time.sleep(2.0)
+    pathlib.Path({str(mark)!r}).write_text("saved")
+    print("Session interrupted", flush=True)
+    sys.exit(130)
+signal.signal(signal.SIGINT, stop)
+print("steps 1", flush=True)
+while True:
+    time.sleep(0.05)
+""")
+    proc, lines = _start_and_wait([sys.executable, "-u", kernel])
+    os.killpg(proc.pid, signal.SIGINT)  # the stop button
+    time.sleep(0.5)
+    os.killpg(proc.pid, signal.SIGINT)  # clicked again while the save runs
+    text = "".join(lines) + proc.communicate(timeout=60)[0]
+    assert "this click is ignored" in text
+    assert text.index("Session interrupted") < text.index("FLUSH: the step had finished saving: True") < text.index(
+        "KERNEL: cell 5 raised KeyboardInterrupt"), text
+
+
+def test_cell5_flushes_drive_after_a_failed_step(tmp_path):
+    mark = tmp_path / "saved"
+    kernel = _kernel_running_cell5(tmp_path, f"""
+import pathlib, sys
+print("steps 1", flush=True)
+pathlib.Path({str(mark)!r}).write_text("saved")
+sys.exit(3)
+""")
+    p = subprocess.run([sys.executable, "-u", str(kernel)], capture_output=True, text=True, timeout=60)
+    assert p.stdout.index("FLUSH: the step had finished saving: True") < p.stdout.index(
+        "KERNEL: cell 5 raised RuntimeError: train.py stopped with exit code 3"), p.stdout
+
+
+def test_exit_with_parent_refuses_when_the_parent_is_already_gone(tmp_path):
+    p = _run(RL_DIR / "train.py", "--out", tmp_path / "run", "--total-steps", 1024, "--exit-with-parent", 999_999)
+    assert p.returncode == 3 and "REFUSED: the parent process 999999 is gone" in p.stdout
+    assert not (tmp_path / "run").exists()
+
+
+def test_evaluate_with_an_unreadable_run_record(trained_run, tmp_path):
+    run = _copy_run(trained_run, tmp_path / "run")
+    (run / "run_record.json").write_text('{"settings": ')
+    p = _run(RL_DIR / "evaluate.py", "--run-dir", run, "--episodes", 1, "--seconds", 0.2)
+    assert p.returncode != 0 and "REFUSED" in p.stdout + p.stderr and "could not be read" in p.stdout
+    p = _run(RL_DIR / "evaluate.py", "--run-dir", run, "--episodes", 1, "--seconds", 0.2,
+             "--model", "trike60_C_closed_ankleroll")
+    assert p.returncode == 0, p.stdout + p.stderr
+
+
+def test_allowed_gamma_change_reaches_vecnormalize(trained_run, tmp_path):
+    import pickle
+
+    run = _copy_run(trained_run, tmp_path / "run")
+    p = _run(RL_DIR / "train.py", "--out", run, *BASE_ARGS, "--eval-every", 0, "--total-steps", 1024,
+             "--model", "trike60_C_closed_ankleroll", "--resume", "--allow-changes", "--gamma", 0.98)
+    assert p.returncode == 0 and "Run already complete" in p.stdout  # nothing to train, nothing changed
+    p = _run(RL_DIR / "train.py", "--out", run, *BASE_ARGS, "--eval-every", 0, "--total-steps", 1536,
+             "--model", "trike60_C_closed_ankleroll", "--resume", "--allow-changes", "--gamma", 0.98)
+    assert p.returncode == 0, p.stdout + p.stderr
+    assert "VecNormalize's gamma set to 0.98" in p.stdout
+    s = _record(run)["sessions"][-1]
+    assert s["vecnormalize_gamma"] == 0.98 and s["ppo_in_use"]["gamma"] == 0.98
+    with open(run / "checkpoints" / f"trike60_vecnormalize_{s['steps_end']}_steps.pkl", "rb") as f:
+        assert pickle.load(f).gamma == 0.98

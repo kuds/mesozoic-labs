@@ -31,9 +31,10 @@ Three rules for the whole sheet:
                   This is REPO_REF below. The notebook fetches only that commit (no history).
     The notebook: hardware/triceratops_build/rl/trike60_training.ipynb at that commit.
     The machine:  Runtime type "CPU" with "High-RAM" on (more processors). No GPU: it adds nothing here.
-    The length:   TOTAL_STEPS = 2000000 simulation steps. On my 4-processor machine training runs at about 800
-                  steps per second, so 2 million steps take about 42 minutes; with the installs, the checks during
-                  training and the final evaluation, about 50 minutes. Colab's speed is not known yet: the progress
+    The length:   TOTAL_STEPS = 2000000 simulation steps. On my 4-processor machine, with these settings (8 envs,
+                  the checks during training included), training runs at about 900 steps per second, so 2 million
+                  steps take about 37 minutes; with the installs and the final evaluation, about 45 minutes. Colab's
+                  speed is not known yet: the progress
                   lines print it (3.6 (f)).
     Drive:        everything goes into  My Drive / mesozoic-labs / triceratops60 / <RUN_ID> ; about 25 MB for the
                   pipeline test (a save is about 2 MB, one every 250,000 steps, plus one at every stop).
@@ -93,9 +94,10 @@ Three rules for the whole sheet:
              Run folder: /content/drive/MyDrive/mesozoic-labs/triceratops60/trike60-pipe1 (new run)
 
        (e) Under box 5 (each is one line on screen):
-             Running: train.py --out /content/drive/MyDrive/mesozoic-labs/triceratops60/trike60-pipe1 --total-steps 2000000 --n-envs 8 --seed 0 --model trike60_C_closed --resume --exit-with-parent
+             Running: train.py --out /content/drive/MyDrive/mesozoic-labs/triceratops60/trike60-pipe1 --total-steps 2000000 --n-envs 8 --seed 0 --model trike60_C_closed --resume --exit-with-parent <pid>
              Machine: <V> vCPUs; 8 envs; Python 3.<x>.<y>; torch 2.15.0+cpu
              Starting a new run in /content/drive/MyDrive/mesozoic-labs/triceratops60/trike60-pipe1 (0 of 2000000 steps).
+           <pid> is a number (the notebook's own process: train.py stops by itself if that process goes away).
            <V> is the number of processors Colab gave (8 expected with High-RAM).       (expected, not yet seen)
            If the Machine line ends "WARNING: more envs than vCPUs, each env runs slower": go on, and tell me <V>.
 
@@ -112,9 +114,12 @@ Three rules for the whole sheet:
            your Drive a little later.                                                   (expected, not yet seen)
 
   3.7  THE STOP TEST. Wait until you have seen the "Saved checkpoint pair" line for 500000 steps (two saves; about
-       11 minutes at 800 steps per second). Then click the stop button at the left of box 5 (the square in a
-       circle while it runs). Expect, in this order:
-             Stop requested: the step is asked to stop (train.py first saves a checkpoint pair)...
+       10 minutes at 900 steps per second). Then click the stop button at the left of box 5 (the square in a
+       circle while it runs) ONCE, and wait: do not click again until the line that begins "Session interrupted"
+       and the two Drive lines have appeared (a few seconds). A second click changes nothing; it only prints
+             (the step is still saving: this click is ignored; please wait)
+       Expect, in this order:
+             Stop requested: the step is asked to stop (train.py first saves a checkpoint pair). Wait for its last line; further clicks are ignored.
              Interrupted: saving a checkpoint pair before exiting.
              Session interrupted: <n> steps (target 2000000); <R> env steps/s over <T> s; last pair trike60_<n>_steps.zip
              Flushing Google Drive writes...
@@ -127,7 +132,7 @@ Three rules for the whole sheet:
        in 3.5.                                                                          (expected, not yet seen)
        Expect:
              Mounted at /content/drive                                                  (expected, not yet seen)
-             Running: train.py ... --resume --exit-with-parent
+             Running: train.py ... --resume --exit-with-parent <pid>
              Machine: <V> vCPUs; 8 envs; ...
              Resuming /content/drive/MyDrive/mesozoic-labs/triceratops60/trike60-pipe1 from trike60_<n>_steps.zip (<n> of 2000000 steps).
        <n> must be the number you wrote down in 3.7: the step count carries on. Then the progress lines go on from
@@ -198,12 +203,29 @@ Three rules for the whole sheet:
       RuntimeError: train.py stopped with exit code ...     (the reason is in the lines above it; send both)
       RuntimeError: evaluate.py stopped with exit code ...
       CRASHED: ...
+      WARNING: the parameters are not finite ... saved as checkpoints/nonfinite/...
+                                                           training diverged; that save is set aside and never
+                                                           resumed from (a resume uses the newest finite save)
+      REFUSED: the checkpoint files could not be read ...  Drive did not answer, also after three re-reads 20 s
+                                                           apart; nothing was moved or changed. Wait a few
+                                                           minutes, run box 5 once more; if it repeats, tell me
+      REFUSED: run_record.json says ... was saved, but ... holds no checkpoint ...
+                                                           Drive shows the run folder without its saves; nothing
+                                                           was changed. Wait, run box 5 once more; then tell me
+      REFUSED: the parent process ... is gone ...          should never appear; tell me
       Anything else in red, except pip's dependency warnings in box 3 and the KeyboardInterrupt after a stop (3.7).
+
+    Tell me, but leave the run going:
+      WARNING: no intact checkpoint pair; moved <k> broken file(s) to checkpoints/broken_<time>/ and starting this
+               run again from step 0.                       every save on Drive was damaged (not merely unreadable);
+                                                           they are kept in that folder, and the run started over
 
     These are fine and need nothing from you:
       WARNING: skipping checkpoint ...                     a save that had not fully reached Drive (3.9)
-      WARNING: no intact checkpoint pair; moved <k> broken file(s) to checkpoints/broken_<time>/ and starting this
-               run again from step 0.                       every save was cut short; they are kept, not deleted
+      WARNING: reading the checkpoints failed ...; trying again in 20 s
+                                                           a passing Drive hiccup; it reads again by itself
+      (the step is still saving: this click is ignored; please wait)
+                                                           a second click on the stop button (3.7)
       Note: removed the unfinished temporary file ...      a save that was being written when the machine went away
 
     After you have sent the line, you may let the machine go (Runtime > Disconnect and delete runtime). What the

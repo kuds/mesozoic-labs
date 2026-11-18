@@ -9,7 +9,11 @@ from its newest intact checkpoint pair (``RUN_DIR/checkpoints/trike60_<steps>_st
 ``trike60_vecnormalize_<steps>_steps.pkl``) with ``reset_num_timesteps=False`` and stops at the same total, so the
 learning-rate schedule and the step count carry on whether or not the run was interrupted. A run that has already
 reached its total exits at once. ``--resume`` on a folder with no checkpoint starts the run; on a folder whose
-checkpoints are all broken it moves them to ``checkpoints/broken_<time>/`` and starts again from step 0.
+checkpoints are all STRUCTURALLY broken (missing sidecar, not a zip, missing SB3 members, a pickle that does not load)
+it moves them to ``checkpoints/broken_<time>/`` and starts again from step 0. An I/O error while reading them is not
+a verdict on the files: the checkpoints are read again (``--io-retries`` times, ``--io-retry-wait`` s apart) and, if
+it persists, the run is refused (exit 2) with nothing moved. A run whose record names saves that the folder no
+longer lists is refused too. Every refusal comes before any file is moved, removed or written.
 
 A run keeps its settings (model, env config, PPO settings, envs, seed, total steps, schedules): a resume with other
 values is refused unless ``--allow-changes`` is given, and then the changes are logged in run_record.json. The
@@ -19,8 +23,10 @@ learning-rate schedule (it is linear in steps / total): extend a finished run un
 Stopping: SIGINT or SIGTERM ends training; the first one saves a final pair (written under temporary names, then
 renamed) and the session's status, with both signals ignored while it saves; the exit code is then 130. The
 SubprocVecEnv workers ignore SIGINT (a terminal's Ctrl-C reaches the whole process group); the main process closes
-them. ``--exit-with-parent`` (Linux; the notebook sets it) turns the death of the parent process (a restarted
-notebook kernel) into a SIGTERM, so a training process never outlives its notebook.
+them. ``--exit-with-parent [PID]`` (Linux; the notebook passes its kernel's PID) turns the death of the parent
+process (a restarted notebook kernel) into a SIGTERM, so a training process never outlives its notebook; it refuses
+to start (exit 3) if the parent is already gone. A pair whose parameters are not finite (a diverged run) is saved
+under ``checkpoints/nonfinite/`` and is never resumed from.
 
 Writes into RUN_DIR (every JSON file written to a temporary name, then renamed):
   checkpoints/                   pairs every --checkpoint-every steps and at the end of every session
@@ -34,9 +40,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import pickle
 import platform
-import shutil
 import signal
 import subprocess
 import sys
@@ -54,7 +58,17 @@ for p in (str(HERE), str(REPO_ROOT)):
 os.environ["PYTHONPATH"] = os.pathsep.join([str(HERE), str(REPO_ROOT)] + (
     [os.environ["PYTHONPATH"]] if os.environ.get("PYTHONPATH") else []))
 
-NAME_PREFIX = "trike60"
+from trike_checkpoints import (  # noqa: E402
+    CANDIDATE_RE,
+    files_present,
+    pair_names,
+    quarantine_broken,
+    remove_tmp_files,
+    save_pair,
+    scan_pairs,
+    write_json_atomic,
+)
+
 FIXED_SETTINGS = ("net", "log_std_init")  # the policy's shape: a checkpoint cannot take another
 PPO_SETTINGS = ("n_steps", "batch_size", "n_epochs", "gamma", "gae_lambda", "clip_range", "ent_coef")
 EVAL_SEED = 900_000  # fixed episode seeds for the periodic evaluation, so evaluations compare across a run
@@ -72,7 +86,11 @@ def parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("--resume", action="store_true", help="continue from the newest intact checkpoint pair in --out")
     ap.add_argument("--allow-changes", action="store_true",
                     help="on --resume, accept settings that differ from the run's (they are logged)")
-    ap.add_argument("--exit-with-parent", action="store_true", help="Linux: SIGTERM when the parent process dies")
+    ap.add_argument("--exit-with-parent", nargs="?", type=int, const=0, default=None, metavar="PID",
+                    help="Linux: SIGTERM when the parent process dies; with PID, refuse to start unless that "
+                         "process is still the parent (the notebook passes its own PID)")
+    ap.add_argument("--io-retries", type=int, default=3, help="re-reads of the checkpoints after an I/O error")
+    ap.add_argument("--io-retry-wait", type=float, default=20.0, help="seconds between those re-reads")
     ap.add_argument("--checkpoint-every", type=int, default=250_000, help="env steps between checkpoint pairs")
     ap.add_argument("--vec", choices=("auto", "subproc", "dummy"), default="auto",
                     help="auto: SubprocVecEnv when --n-envs > 1, else DummyVecEnv")
@@ -123,27 +141,15 @@ def utc() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
-def write_json_atomic(path: Path, obj) -> None:
-    """Write JSON to a temporary name in the same folder, flush it to disk, then rename it over ``path``."""
-    path = Path(path)
-    tmp = path.with_name(path.name + ".tmp")
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(obj, f, indent=1, default=str)
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(tmp, path)
-
-
 def read_record(path: Path) -> tuple[dict, str | None]:
-    """run_record.json, or ``{}``; an unreadable file is moved aside (never a dead end) and the move is returned."""
+    """run_record.json, or ``{}`` and why it could not be read. Changes nothing: main() moves an unreadable file
+    aside only once every refusal has been passed."""
     if not path.exists():
         return {}, None
     try:
         return json.loads(path.read_text(encoding="utf-8")), None
     except (ValueError, UnicodeDecodeError) as exc:
-        aside = path.with_name(f"run_record.broken_{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}.json")
-        os.replace(path, aside)
-        return {}, f"{path.name} could not be read ({exc}); moved to {aside.name}; its settings are not checked"
+        return {}, f"{path.name} could not be read ({exc})"
 
 
 def versions() -> dict:
@@ -250,14 +256,22 @@ def math_close(a, b) -> bool:
         return a == b
 
 
-def exit_with_parent() -> None:
-    """Linux: ask the kernel to send SIGTERM to this process when its parent dies (PR_SET_PDEATHSIG)."""
+def exit_with_parent(expected_parent: int) -> str | None:
+    """Linux: ask the kernel to send SIGTERM to this process when its parent dies (PR_SET_PDEATHSIG), then check
+    the parent is still ``expected_parent``: a parent that died before the request would never be signalled.
+    Returns why this process must not start, or None."""
     if not sys.platform.startswith("linux"):
-        return
+        say("Note: --exit-with-parent works on Linux only; ignored here.")
+        return None
     import ctypes
 
     libc = ctypes.CDLL(None, use_errno=True)
-    libc.prctl(1, int(signal.SIGTERM), 0, 0, 0)  # 1 = PR_SET_PDEATHSIG
+    if libc.prctl(1, int(signal.SIGTERM), 0, 0, 0) != 0:  # 1 = PR_SET_PDEATHSIG
+        say(f"WARNING: --exit-with-parent: prctl failed (errno {ctypes.get_errno()}); this process will not stop "
+            "with its parent")
+    if os.getppid() != expected_parent:
+        return f"the parent process {expected_parent} is gone (the parent is now {os.getppid()})"
+    return None
 
 
 # ---------------------------------------------------------------------------------------------------- envs, pairs
@@ -283,55 +297,6 @@ def _monitored_env(cfg_dict: dict, monitor_path: str, in_worker: bool):
                    info_keywords=("episode_forward_speed", "command_speed", "termination"))
 
 
-def find_resume_pair(ckpt_dir: Path):
-    from environments.shared.curriculum.checkpoints import newest_intact_periodic_pair
-
-    return newest_intact_periodic_pair(ckpt_dir, NAME_PREFIX)
-
-
-def pair_names(steps: int) -> tuple[str, str]:
-    return f"{NAME_PREFIX}_{steps}_steps.zip", f"{NAME_PREFIX}_vecnormalize_{steps}_steps.pkl"
-
-
-def save_pair(model, vecnorm, ckpt_dir: Path) -> str:
-    """The model and its VecNormalize statistics, each written to ``<name>.tmp``, flushed, then renamed: the
-    statistics first, so a zip under its final name always has its sidecar. Returns the zip's name."""
-    steps = int(model.num_timesteps)
-    zip_name, pkl_name = pair_names(steps)
-    zip_tmp, pkl_tmp = ckpt_dir / (zip_name + ".tmp"), ckpt_dir / (pkl_name + ".tmp")
-    with open(pkl_tmp, "wb") as f:
-        pickle.dump(vecnorm, f)  # what VecNormalize.save does
-        f.flush()
-        os.fsync(f.fileno())
-    with open(zip_tmp, "wb") as f:
-        model.save(f)
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(pkl_tmp, ckpt_dir / pkl_name)
-    os.replace(zip_tmp, ckpt_dir / zip_name)
-    return zip_name
-
-
-def remove_tmp_files(ckpt_dir: Path) -> list[str]:
-    gone = []
-    for p in sorted(ckpt_dir.glob("*.tmp")):
-        p.unlink(missing_ok=True)
-        gone.append(p.name)
-    return gone
-
-
-def quarantine_broken(ckpt_dir: Path) -> tuple[Path, list[str]]:
-    """Move every trike60_* checkpoint file of ``ckpt_dir`` into ``ckpt_dir/broken_<time>/``."""
-    qdir = ckpt_dir / f"broken_{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}"
-    qdir.mkdir(parents=True, exist_ok=True)
-    moved = []
-    for p in sorted(ckpt_dir.glob(f"{NAME_PREFIX}_*")):
-        if p.is_file():
-            shutil.move(str(p), str(qdir / p.name))
-            moved.append(p.name)
-    return qdir, moved
-
-
 # ---------------------------------------------------------------------------------------------------- callbacks
 def make_callbacks(args, cfg, ckpt_dir: Path, out: Path, state: dict):
     from stable_baselines3.common.callbacks import BaseCallback
@@ -351,9 +316,13 @@ def make_callbacks(args, cfg, ckpt_dir: Path, out: Path, state: dict):
             if n >= self.next:
                 while self.next <= n:
                     self.next += args.checkpoint_every
-                name = save_pair(self.model, self.model.get_vec_normalize_env(), ckpt_dir)
+                name, finite = save_pair(self.model, self.model.get_vec_normalize_env(), ckpt_dir)
                 state["last_pair"] = name
-                say(f"Saved checkpoint pair at {n} steps: {name} and {pair_names(n)[1]}")
+                if finite:
+                    say(f"Saved checkpoint pair at {n} steps: {name} and {pair_names(n)[1]}")
+                else:
+                    say(f"WARNING: the parameters are not finite at {n} steps: saved as checkpoints/{name}, which "
+                        "is never resumed from")
             return True
 
     class PenaltyRamp(BaseCallback):
@@ -441,9 +410,13 @@ def make_callbacks(args, cfg, ckpt_dir: Path, out: Path, state: dict):
 
 # ---------------------------------------------------------------------------------------------------- main
 def main(argv=None) -> int:
+    ppid0 = os.getppid()
     args = parse_args(argv)
-    if args.exit_with_parent:
-        exit_with_parent()
+    if args.exit_with_parent is not None:
+        problem = exit_with_parent(args.exit_with_parent or ppid0)
+        if problem:
+            say(f"REFUSED: {problem}. Nothing was started.")
+            return 3
     import torch
     from stable_baselines3 import PPO
     from stable_baselines3.common.vec_env import VecNormalize
@@ -454,31 +427,24 @@ def main(argv=None) -> int:
     torch.set_num_threads(max(1, args.torch_threads))
     out = Path(args.out).resolve()
     ckpt_dir = out / "checkpoints"
-    ckpt_dir.mkdir(parents=True, exist_ok=True)
     record_path = out / "run_record.json"
-    notes: list[str] = []
 
-    for name in remove_tmp_files(ckpt_dir):
-        notes.append(f"removed the unfinished temporary file {name}")
-        say(f"Note: removed the unfinished temporary file {name}")
-    pair, skipped = find_resume_pair(ckpt_dir)
-    for s in skipped:
-        say(f"WARNING: skipping checkpoint {s}")
-    if not args.resume and (pair is not None or skipped):
-        say(f"REFUSED: {ckpt_dir} already holds checkpoints; pass --resume to continue that run, or use another "
-              "--out. Nothing was changed.")
+    # ---- 1. Look, change nothing: every refusal comes before any file is moved, removed or written.
+    scan = scan_pairs(ckpt_dir, retries=args.io_retries, wait_s=args.io_retry_wait, log=say)
+    if scan.io_error:
+        say(f"REFUSED: the checkpoint files could not be read ({scan.io_error}), also after {args.io_retries} "
+            "re-reads; nothing was moved or changed. Run again later; if it repeats, the storage has a problem.")
         return 2
-    quarantine = None
-    if pair is None and skipped:  # with --resume: every checkpoint is broken; keep them, but out of the way
-        qdir, moved = quarantine_broken(ckpt_dir)
-        quarantine = {"time_utc": utc(), "folder": str(qdir.relative_to(out)), "files": moved, "reasons": skipped}
-        say(f"WARNING: no intact checkpoint pair; moved {len(moved)} broken file(s) to "
-              f"{qdir.relative_to(out)}/ and starting this run again from step 0.")
-
-    record, record_note = read_record(record_path)
-    if record_note:
-        notes.append(record_note)
-        say(f"WARNING: {record_note}")
+    pair = scan.pair
+    for s in scan.skipped:
+        say(f"WARNING: skipping checkpoint {s}")
+    if not args.resume and scan.candidates:
+        say(f"REFUSED: {ckpt_dir} already holds checkpoints; pass --resume to continue that run, or use another "
+            "--out. Nothing was changed.")
+        return 2
+    record, record_problem = read_record(record_path)
+    if record_problem:
+        say(f"WARNING: {record_problem}; its settings cannot be checked")
     cfg = env_config(args)
     settings = run_settings(args, cfg)
     recorded = record.get("settings")
@@ -492,21 +458,46 @@ def main(argv=None) -> int:
         fixed = [k for k in changes if k in FIXED_SETTINGS]
         if fixed:
             say(f"REFUSED: the policy's shape ({', '.join(fixed)}) cannot change within a run ({listed}). Use a new "
-                  "run folder. Nothing was changed.")
+                "run folder. Nothing was changed.")
             return 2
         if not args.allow_changes:
             say(f"REFUSED: these settings differ from the run's (run_record.json): {listed}. Use the run's own "
-                  "values, a new run folder, or --allow-changes (logged). Nothing was changed.")
+                "values, a new run folder, or --allow-changes (logged). Nothing was changed.")
             return 2
+    recorded_saves = {str(x.get("last_checkpoint")) for x in record.get("sessions", [])}
+    missing = sorted(n for n in recorded_saves if CANDIDATE_RE.fullmatch(n) and n not in files_present(ckpt_dir))
+    if not scan.candidates and missing:  # e.g. a storage that lists the folder empty for a while
+        say(f"REFUSED: run_record.json says {', '.join(missing)} was saved, but {ckpt_dir} holds no checkpoint "
+            "(nor any broken_* folder holds it). Nothing was changed; run again later.")
+        return 2
+    if pair is not None and pair[0] >= args.total_steps:
+        say(f"Run already complete: newest checkpoint is at {pair[0]} steps (target {args.total_steps}). "
+            "Nothing to do.")
+        return 0
+
+    # ---- 2. Act.
+    if changes:
         say(f"WARNING: --allow-changes: this session runs with changed settings: {listed}")
         if "total_steps" in changes and pair is not None:
             say("WARNING: total_steps changed: the learning rate follows steps / total_steps, so it jumps at this "
-                  "resume.")
-
-    if pair is not None and pair[0] >= args.total_steps:
-        say(f"Run already complete: newest checkpoint is at {pair[0]} steps (target {args.total_steps}). "
-              "Nothing to do.")
-        return 0
+                "resume.")
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
+    notes: list[str] = []
+    for name in remove_tmp_files(ckpt_dir):
+        notes.append(f"removed the unfinished temporary file {name}")
+        say(f"Note: removed the unfinished temporary file {name}")
+    if record_problem:
+        aside = record_path.with_name(f"run_record.broken_{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}.json")
+        os.replace(record_path, aside)
+        notes.append(f"{record_problem}; moved to {aside.name}")
+        say(f"WARNING: {record_path.name} moved to {aside.name}")
+    quarantine = None
+    if pair is None and scan.skipped:  # with --resume: every checkpoint is structurally broken; keep them aside
+        qdir, moved = quarantine_broken(ckpt_dir)
+        quarantine = {"time_utc": utc(), "folder": str(qdir.relative_to(out)), "files": moved,
+                      "reasons": scan.skipped}
+        say(f"WARNING: no intact checkpoint pair; moved {len(moved)} broken file(s) to "
+            f"{qdir.relative_to(out)}/ and starting this run again from step 0.")
 
     cpu = os.cpu_count() or 1
     say(f"Machine: {cpu} vCPUs; {args.n_envs} envs; Python {platform.python_version()}; torch {torch.__version__}"
@@ -532,6 +523,9 @@ def main(argv=None) -> int:
         steps0, zip_path, vn_path = pair
         venv = VecNormalize.load(str(vn_path), venv)
         venv.training, venv.norm_reward = True, True
+        if "gamma" in changes:  # the reward normaliser discounts with its own copy of gamma
+            venv.gamma = args.gamma
+            say(f"Note: --allow-changes: VecNormalize's gamma set to {args.gamma} as well")
         # Without --allow-changes nothing is passed and the archive's own settings apply (they equal the run's).
         overrides = {k: ppo_kwargs[k] for k in PPO_SETTINGS if k in changes}
         if "lr_start" in changes or "lr_end" in changes:
@@ -552,6 +546,7 @@ def main(argv=None) -> int:
         "versions": versions(), "git": git_state(), "cpu_count": cpu,
         "started_from": pair[1].name if pair is not None else "step 0", "steps_start": int(model.num_timesteps),
         "session_seed": session_seed, "quarantined": quarantine, "notes": notes or None,
+        "vecnormalize_gamma": float(venv.gamma),
     }
     record.setdefault("created_utc", session["started_utc"])
     record["settings"] = settings
@@ -590,15 +585,19 @@ def main(argv=None) -> int:
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
     wall = time.time() - t0
+    finite = None
     try:
-        last = save_pair(model, venv, ckpt_dir)
+        last, finite = save_pair(model, venv, ckpt_dir)
+        if not finite:
+            say(f"WARNING: the parameters are not finite: saved as checkpoints/{last}, which is never resumed from")
+            code = code or 1
     except Exception as exc:
         last = f"(not saved: {exc!r})"
         code = code or 1
     n_end = int(model.num_timesteps)
     rate = (n_end - n0) / wall if wall > 0 else None
     session.update({"ended_utc": utc(), "status": status, "steps_end": n_end, "wall_s": wall,
-                    "env_steps_per_s": rate, "last_checkpoint": last})
+                    "env_steps_per_s": rate, "last_checkpoint": last, "last_checkpoint_finite": finite})
     write_json_atomic(record_path, record)
     say(f"Session {status}: {n_end} steps (target {args.total_steps}); {rate or 0:.0f} env steps/s over "
           f"{wall:.0f} s; last pair {last}")

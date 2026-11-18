@@ -70,9 +70,11 @@ class TrikeEnvConfig:
     action_scale_roll: float = 0.15
     action_scale_pitch: float = 0.40
     action_scale_flexion: float = 0.40
-    # First-order low-pass on the action before it becomes a target, cutoff in Hz (0: off). At 4 Hz a 1.5 Hz gait
-    # passes at 94 % amplitude while step-to-step jitter (25 Hz) is cut to about a sixth, so exploration noise alone
-    # cannot carry the robot. Part of the policy interface: run the same filter on the robot.
+    # First-order low-pass on the action before it becomes a target (y += alpha * (a - y) every control step,
+    # alpha = 1 - exp(-2 pi f_c dt) = 0.395 at 4 Hz and 50 Hz), cutoff in Hz (0: off). A 1.5 Hz gait passes at 0.94
+    # of its amplitude but about 29 ms late, three times the 10 ms servo delay; step-to-step jitter (25 Hz) passes at
+    # 0.25, white noise at 0.50 of its standard deviation. Part of the policy interface: the robot must run this
+    # identical filter at the identical 50 Hz control rate.
     action_filter_hz: float = 4.0
 
     # --- servo delay (per-physics-step FIFO of the 12 leg targets) ---
@@ -293,7 +295,9 @@ class TrikeEnv(gym.Env):
         parts += [("gravity_body", 3), ("heading_error_sin_cos_ESTIMATE", 2), ("gyro", 3)]
         if cfg.obs_privileged_lin_vel:
             parts.append(("base_lin_vel_body_PRIVILEGED", 3))
-        parts += [("foot_load_over_weight", 4), ("previous_action_filtered", 12), ("command_speed_mps", 1)]
+        # both: the action-rate penalty is on the raw outputs, the targets follow the filtered ones
+        parts += [("foot_load_over_weight", 4), ("previous_action_filtered", 12), ("previous_action_raw", 12),
+                  ("command_speed_mps", 1)]
         if cfg.phase_clock_hz > 0:
             parts.append(("phase_sin_cos", 2))
         return tuple(parts)
@@ -558,7 +562,7 @@ class TrikeEnv(gym.Env):
         parts += [grav_b, [math.sin(yaw_err_est), math.cos(yaw_err_est)], gyro]
         if cfg.obs_privileged_lin_vel:
             parts.append(lin_vel)
-        parts += [loads, self._action_filtered, [self.command_speed]]
+        parts += [loads, self._action_filtered, self._prev_action, [self.command_speed]]
         if cfg.phase_clock_hz > 0:
             ph = 2.0 * math.pi * cfg.phase_clock_hz * self._step_count * self.dt
             parts.append([math.sin(ph), math.cos(ph)])

@@ -77,14 +77,16 @@ def resolve_checkpoint(args):
     if args.policy:
         return None, None, None, None
     if args.run_dir:
-        from environments.shared.curriculum.checkpoints import newest_intact_periodic_pair
+        from trike_checkpoints import scan_pairs
 
-        pair, skipped = newest_intact_periodic_pair(Path(args.run_dir) / "checkpoints", NAME_PREFIX)
-        for s in skipped:
+        scan = scan_pairs(Path(args.run_dir) / "checkpoints", retries=2, wait_s=10.0)
+        if scan.io_error:
+            raise SystemExit(f"REFUSED: the checkpoint files could not be read ({scan.io_error}); run again later")
+        for s in scan.skipped:
             print(f"WARNING: skipping checkpoint {s}", flush=True)
-        if pair is None:
+        if scan.pair is None:
             raise SystemExit(f"no intact checkpoint pair in {Path(args.run_dir) / 'checkpoints'}")
-        steps, zip_path, vn_path = pair
+        steps, zip_path, vn_path = scan.pair
         return zip_path, vn_path, steps, Path(args.run_dir)
     zip_path = Path(args.checkpoint)
     steps = None
@@ -101,10 +103,16 @@ def resolve_checkpoint(args):
 
 
 def run_env_config(run_dir: Path | None) -> dict | None:
-    """The env config a run trained with (from its run_record.json), or None."""
+    """The env config a run trained with (from its run_record.json), or None (no record, or an unreadable one:
+    then --model must name the model, and the rest of the config is the default)."""
     if run_dir is None or not (run_dir / "run_record.json").exists():
         return None
-    rec = json.loads((run_dir / "run_record.json").read_text(encoding="utf-8"))
+    try:
+        rec = json.loads((run_dir / "run_record.json").read_text(encoding="utf-8"))
+    except (ValueError, UnicodeDecodeError, OSError) as exc:
+        print(f"WARNING: {run_dir / 'run_record.json'} could not be read ({exc!r}); the run's env config is unknown",
+              flush=True)
+        return None
     return (rec.get("settings") or {}).get("env_config") or rec.get("env_config")
 
 
@@ -117,7 +125,7 @@ def env_config(args, run_dir: Path | None) -> TrikeEnvConfig:
     elif args.model:
         cfg = TrikeEnvConfig()
     else:
-        raise SystemExit("REFUSED: no run_record.json beside the checkpoint names the model; give --model "
+        raise SystemExit("REFUSED: no readable run_record.json beside the checkpoint names the model; give --model "
                          f"(one of {sorted(MODELS)} or a path)")
     if args.model:
         path = MODELS.get(args.model) or Path(args.model).resolve()
