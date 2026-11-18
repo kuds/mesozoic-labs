@@ -75,9 +75,11 @@ python hardware/triceratops_build/pr669_review/stance_balance_check.py \
 6. **Bench plan:** revise for the 60 cm foreleg (X4 roll and pitch, X6 elbow at 1:1).
 
 **For the owner**
-- **Price answers first:** send MyActuator question M4 (does the US store price include duty?) and ask for a quote on
-  the wireless stop's receiver (`outreach/`). With shared bench gear and later spares they decide whether the build
-  lands near $20k ($24.2k-$25.0k landed today, $19.9k-$20.8k if all four savings come through).
+- **Price answers first:** send MyActuator question M4 (`outreach/`: Fremont dispatch or duty-paid terms for the order,
+  which X6 ships, the educational discount). The chosen build is about $20.1k-$20.9k landed from Fremont stock, about
+  $17.9k-$18.8k with half the bench gear counted against the T. rex and the spares bought later.
+- **At the first museum contact:** ask what the museum's risk assessment and insurer require for a moving robot near
+  visitors, in particular whether a certified handheld stop is required (D15).
 - **PR #669:** paste the errata into its README and merge with a merge commit.
 - **Still open:** compute (D3; the budget assumes the Jetson Orin Nano Super), chassis and foot (D5), and round 2 (D6
   the T. rex milestone, D7 a PLEM pilot, D8 the pull-request triage) by 15 Jan 2027.

@@ -148,8 +148,8 @@ def neck_check(s, level):
     return head_kg, out
 
 
-ADDONS = [("Wireless safety stop, PL d, handler-held, with machine-side receiver", 1900 + 800,
-           "PL: Cattron $1,900 (WS); receiver EST $0-1,500; quote"),
+ADDONS = [("Certified wireless safety stop, PL d, handler-held, with receiver (only if a museum requires it; D15)",
+           1900 + 800 - 250, "PL: Cattron $1,900 (WS); receiver EST $0-1,500; quote; net of the radio stop it replaces"),
           ("Foot load cells x 4 + per-leg links (21-23 week lead)", 174.28 + 80, "PL"),
           ("Xsens MTi-3 IMU instead of BNO085", 417.06 - 24.95, "PL"),
           ("OAK-D Pro W instead of OAK-D Lite", 529 - 269, "PL/RC"),
@@ -231,6 +231,18 @@ def main():
     drives = sum(l[2] for l in bom(cfg, 0.0) if l[3])
     print(f"   if the store's 20 % educational / research discount applied to the drives (${drives:,.0f}): "
           f"-${0.2 * drives:,.0f} of hardware (eligibility not known)")
+    print("\n== Chosen build (owner, 18 Nov 2026): option C, full expression, fail-safe radio stop (~$250 EST) ==")
+    for ff, tag in ((0.0, "frame cost by area"), (0.5, "half the frame cost fixed")):
+        lines = bom(cfg, ff)
+        hw = sum(l[2] for l in lines) + expression("full", cfg[1])[1] + 250
+        duty_base = sum(l[2] for l in lines if l[3])
+        for label, rate, brok in DUTY_SCENARIOS:
+            trex, landed = overheads(hw, duty_base, rate, brok)
+            print(f"   [{tag}] hardware ${hw:,.0f}; T. rex way ${trex:,.0f}; {label:58s}: landed ${landed:,.0f}")
+        _, fremont = overheads(hw, duty_base, 0.0, 0.0)
+        saved = (2229 / 2 + 697) * 1.12 * 1.07
+        print(f"   [{tag}] Fremont stock, half the bench gear counted against the T. rex, spares bought later: "
+              f"landed ${fremont - saved:,.0f}")
     print("\n== Optional add-ons (hardware, before overheads) ==")
     for item, usd, note in ADDONS:
         print(f"   +${usd:,.0f}  {item}  [{note}]")

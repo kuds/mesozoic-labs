@@ -15,7 +15,17 @@ freight 5 %, duty 25 % on the drives (an assumption), sales tax 7 %, then 7 % co
 
 **Option C, 60 cm with the T. rex's drive set; the $20k ceiling counted landed, all-in; the wireless stop bought
 before any public demo; the full expression package.** On that basis the build is about $24.2k-$25.0k landed with
-contingency at the planning duty of 25 %. **Update, same day (the owner's duty information and the store pages):**
+contingency at the planning duty of 25 %.
+
+**Update, same day: the handheld stop (D15).** The owner judged the certified Cattron wireless stop overkill. The
+build now plans a fail-safe radio stop (about $250, an estimate) into the existing watchdog and Pilz relay: a press or
+a lost signal makes the robot sit, then cut power. It is not certified; a certified wireless stop is bought only if a
+host museum's risk assessment asks for one (+$2.45k of hardware net). **The chosen build is then $16.8k-$17.5k of
+hardware; $20.1k-$20.9k landed from Fremont stock; about $17.9k-$18.8k landed with half the bench gear counted against
+the T. rex and the spares bought later** (`size_budget_out.txt`, "Chosen build"). The figures below this paragraph
+keep the certified stop, as the options were compared.
+
+**Update, same day (the owner's duty information and the store pages):**
 with all drives shipped from MyActuator's Fremont stock (no duty) it is $23.0k-$23.9k landed; dispatched from the
 factory in China (about 41.5 % tariffs plus brokerage) $25.1k-$25.9k. With Fremont stock, the receiver included in
 the stop kit, half the bench gear counted against the T. rex and the spares bought later, about $19.9k-$20.7k; a 20 %
