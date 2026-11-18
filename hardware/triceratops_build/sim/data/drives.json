@@ -1,0 +1,41 @@
+{
+  "_about": "Drive and servo data for the Triceratops build model. Maker figures come from the T. rex study's catalog hardware/trex_form_study/designlab/data/actuators.json (maker datasheets read 7 Nov 2026) as summarised in hardware/triceratops_kickoff/PARTS_PREMIUM.md sections 2.1, 2.5 and 2.8 (18 Nov 2026). Nothing here is measured on this project's parts. 'armature_kgm2' is the catalog's estimate (T. rex rule A7: 2.5e-6 kg m^2 x (D / 55 mm)^4 x gear^2), reflected to the drive output; the maker's published inertia figures are ambiguous about the side of the gearbox (T. rex MAKER_QUESTIONS.md, question 1). 'thermal_eq_nm' is the maker's temperature-rise table value (90 min, motor reaching 100 C, open air). Rule set: design peak <= 0.70 x peak_nm; continuous <= thermal_eq_nm; speed <= 0.70 x no-load at 42 V for 48 V drives, and <= rated_rpm (83) for the 24 V X4 run above its rating (PARTS_PREMIUM.md F1, reseller text quoting the maker, to confirm).",
+  "leg_drives": {
+    "X4-36-L": {
+      "model": "MyActuator RMD-X4-P36-36-E-L (V4.1)",
+      "gear": 36, "peak_nm": 30, "stall_nm": 36, "rated_nm": 10.5, "thermal_eq_nm": 7.5,
+      "nominal_v": 24, "no_load_rpm_at_nominal": 111, "rated_rpm": 83,
+      "speed_rule": "rated_rpm cap above 24 V (F1)",
+      "mass_kg": 0.36, "diameter_m": 0.055, "length_m": 0.061, "armature_kgm2": 0.00324,
+      "price_usd": 269, "price_source": "myactuator.us list via repo catalog, read 7 Nov 2026"
+    },
+    "X6-60": {
+      "model": "MyActuator RMD-X6-P20-60-E (V4); store listing may ship the X6-50-L (bench question 1)",
+      "gear": 19.612, "peak_nm": 60, "stall_nm": null, "rated_nm": 20, "thermal_eq_nm": 12.0,
+      "thermal_eq_note": "X6-50-L table at 0 rpm used as a stand-in: the V4 X6-60 has no published table",
+      "nominal_v": 48, "no_load_rpm_at_nominal": 176, "rated_rpm": 153,
+      "speed_rule": "0.70 x no-load scaled to 42 V",
+      "mass_kg": 0.82, "diameter_m": 0.08, "length_m": 0.0675, "armature_kgm2": 0.004304,
+      "price_usd": 428, "price_source": "myactuator.us list via repo catalog, read 7 Nov 2026"
+    },
+    "X8-150": {
+      "model": "MyActuator RMD-X8-P20-150-E (V4.1, US SKU -03)",
+      "gear": 19.612, "peak_nm": 120, "stall_nm": 150, "rated_nm": 43, "thermal_eq_nm": 34.0,
+      "thermal_eq_note": "maker table: 34 / 38 / 36 / 20 N m at 0 / 10 / 30 / 127 rpm",
+      "nominal_v": 48, "no_load_rpm_at_nominal": 158, "rated_rpm": 127,
+      "speed_rule": "0.70 x no-load scaled to 42 V",
+      "mass_kg": 1.33, "diameter_m": 0.096, "length_m": 0.071, "armature_kgm2": 0.008925,
+      "price_usd": 725, "price_source": "myactuator.us list via repo catalog, read 7 Nov 2026"
+    }
+  },
+  "servos": {
+    "XM540-W270-R": {"rated_nm": 3.11, "peak_nm": 4.44, "mass_kg": 0.165, "price_usd": 494.39, "source": "PARTS_PREMIUM.md 2.8 and Appendix B (repo catalog from ROBOTIS data); price robotis.us, web search 18 Nov 2026"},
+    "XM540-W150-R": {"rated_nm": 2.14, "peak_nm": 3.06, "mass_kg": 0.165, "price_usd": 494.39, "source": "as above"},
+    "XM430-W350-R": {"rated_nm": 1.2, "peak_nm": 1.72, "mass_kg": 0.082, "price_usd": 333.39, "source": "as above"},
+    "XL330-M288-T": {"mass_kg": 0.018, "mass_note": "estimate: 2 x XL330 taken as 0.03 kg with mounts in the head budget", "price_usd": 27.49, "source": "robotis.us, web search 18 Nov 2026"}
+  },
+  "bus": {
+    "12S": {"min_v": 42.0, "max_in_use_v": 49.2, "clamp_v": 52.5, "note": "PARTS_PREMIUM.md section 1: 42.0-49.2 V in use, 4.10 V/cell charge ceiling"}
+  },
+  "transmission_efficiency": 0.90
+}

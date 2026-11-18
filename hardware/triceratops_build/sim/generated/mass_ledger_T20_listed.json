@@ -1,0 +1,1804 @@
+{
+ "build": "T20",
+ "variant": "listed",
+ "source": "PARTS_PREMIUM.md section 6.2 (18 Nov 2026) budgets; positions are this model's estimates",
+ "total_mass_kg": 18.831,
+ "budget_total_kg": 18.83,
+ "category_kg": {
+  "battery": 1.012,
+  "compute": 0.62,
+  "drives": 9.02,
+  "frame": 3.38,
+  "head": 1.51,
+  "power": 1.55,
+  "shells": 1.25,
+  "tail": 0.489
+ },
+ "budget_category_kg": {
+  "drives": 9.02,
+  "frame": 3.38,
+  "head": 1.51,
+  "tail": 0.49,
+  "shells": 1.25,
+  "compute": 0.62,
+  "battery": 1.01,
+  "power": 1.55
+ },
+ "com_world_m": [
+  0.0363,
+  -0.0004,
+  0.3583
+ ],
+ "front_share_static_estimate": 0.5558,
+ "front_share_note": "lever estimate (x_com + 325 mm) / 650 mm at the nominal hip stations; the standing check measures the actual foot loads",
+ "neck": {
+  "head_pitch_subtree_kg": 1.5100000000000002,
+  "head_com_from_pitch_pivot_m": [
+   0.0349,
+   -0.0,
+   0.0342
+  ],
+  "head_com_distance_m": 0.0488,
+  "gravity_moment_nm": -0.5171,
+  "spring_stiffness_nm_per_rad": 0.7,
+  "springref_deg": -29.629,
+  "spring_fraction": 0.7,
+  "spring_before_nm": -0.2443
+ },
+ "drives": {
+  "left_fore_roll": {
+   "drive": "X6-60",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 42.0,
+   "joint_thermal_eq_nm": 12.0,
+   "armature_joint_kgm2": 0.004304
+  },
+  "left_fore_pitch": {
+   "drive": "X4-36-L",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 21.0,
+   "joint_thermal_eq_nm": 7.5,
+   "armature_joint_kgm2": 0.00324
+  },
+  "left_fore_flexion": {
+   "drive": "X8-150",
+   "ratio": 1.0,
+   "eta": 0.9,
+   "joint_peak_limit_nm": 75.6,
+   "joint_thermal_eq_nm": 30.6,
+   "armature_joint_kgm2": 0.008925
+  },
+  "right_fore_roll": {
+   "drive": "X6-60",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 42.0,
+   "joint_thermal_eq_nm": 12.0,
+   "armature_joint_kgm2": 0.004304
+  },
+  "right_fore_pitch": {
+   "drive": "X4-36-L",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 21.0,
+   "joint_thermal_eq_nm": 7.5,
+   "armature_joint_kgm2": 0.00324
+  },
+  "right_fore_flexion": {
+   "drive": "X8-150",
+   "ratio": 1.0,
+   "eta": 0.9,
+   "joint_peak_limit_nm": 75.6,
+   "joint_thermal_eq_nm": 30.6,
+   "armature_joint_kgm2": 0.008925
+  },
+  "left_hind_roll": {
+   "drive": "X6-60",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 42.0,
+   "joint_thermal_eq_nm": 12.0,
+   "armature_joint_kgm2": 0.004304
+  },
+  "left_hind_pitch": {
+   "drive": "X4-36-L",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 21.0,
+   "joint_thermal_eq_nm": 7.5,
+   "armature_joint_kgm2": 0.00324
+  },
+  "left_hind_flexion": {
+   "drive": "X6-60",
+   "ratio": 1.3,
+   "eta": 0.9,
+   "joint_peak_limit_nm": 49.14,
+   "joint_thermal_eq_nm": 14.04,
+   "armature_joint_kgm2": 0.007274
+  },
+  "right_hind_roll": {
+   "drive": "X6-60",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 42.0,
+   "joint_thermal_eq_nm": 12.0,
+   "armature_joint_kgm2": 0.004304
+  },
+  "right_hind_pitch": {
+   "drive": "X4-36-L",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 21.0,
+   "joint_thermal_eq_nm": 7.5,
+   "armature_joint_kgm2": 0.00324
+  },
+  "right_hind_flexion": {
+   "drive": "X6-60",
+   "ratio": 1.3,
+   "eta": 0.9,
+   "joint_peak_limit_nm": 49.14,
+   "joint_thermal_eq_nm": 14.04,
+   "armature_joint_kgm2": 0.007274
+  },
+  "neck_pitch": {
+   "drive": "XM540-W270-R",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 3.108,
+   "joint_thermal_eq_nm": 3.11
+  },
+  "neck_yaw": {
+   "drive": "XM540-W150-R",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 2.142,
+   "joint_thermal_eq_nm": 2.14
+  },
+  "tail_yaw": {
+   "drive": "XM430-W350-R",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 1.204,
+   "joint_thermal_eq_nm": 1.2
+  },
+  "tail_pitch": {
+   "drive": "XM430-W350-R",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 1.204,
+   "joint_thermal_eq_nm": 1.2
+  }
+ },
+ "parts": [
+  {
+   "geom": "6061_left_rail",
+   "body": "chassis",
+   "category": "frame",
+   "mass_kg": 0.17,
+   "world_pos_m": [
+    0.0,
+    0.104,
+    0.385
+   ]
+  },
+  {
+   "geom": "6061_right_rail",
+   "body": "chassis",
+   "category": "frame",
+   "mass_kg": 0.17,
+   "world_pos_m": [
+    0.0,
+    -0.104,
+    0.385
+   ]
+  },
+  {
+   "geom": "shoulder_crossmember",
+   "body": "chassis",
+   "category": "frame",
+   "mass_kg": 0.1,
+   "world_pos_m": [
+    0.325,
+    0.0,
+    0.4
+   ]
+  },
+  {
+   "geom": "pelvic_crossmember",
+   "body": "chassis",
+   "category": "frame",
+   "mass_kg": 0.1,
+   "world_pos_m": [
+    -0.325,
+    0.0,
+    0.4
+   ]
+  },
+  {
+   "geom": "removable_service_tray",
+   "body": "chassis",
+   "category": "frame",
+   "mass_kg": 0.12,
+   "world_pos_m": [
+    -0.08,
+    0.0,
+    0.325
+   ]
+  },
+  {
+   "geom": "neck_cradle",
+   "body": "chassis",
+   "category": "frame",
+   "mass_kg": 0.1,
+   "world_pos_m": [
+    0.351,
+    0.0,
+    0.449
+   ]
+  },
+  {
+   "geom": "tray_stay_-0.255_1",
+   "body": "chassis",
+   "category": "frame",
+   "mass_kg": 0.03,
+   "world_pos_m": [
+    -0.255,
+    0.086,
+    0.355
+   ]
+  },
+  {
+   "geom": "tray_stay_-0.255_-1",
+   "body": "chassis",
+   "category": "frame",
+   "mass_kg": 0.03,
+   "world_pos_m": [
+    -0.255,
+    -0.086,
+    0.355
+   ]
+  },
+  {
+   "geom": "tray_stay_0.095_1",
+   "body": "chassis",
+   "category": "frame",
+   "mass_kg": 0.03,
+   "world_pos_m": [
+    0.095,
+    0.086,
+    0.355
+   ]
+  },
+  {
+   "geom": "tray_stay_0.095_-1",
+   "body": "chassis",
+   "category": "frame",
+   "mass_kg": 0.03,
+   "world_pos_m": [
+    0.095,
+    -0.086,
+    0.355
+   ]
+  },
+  {
+   "geom": "teensy41_4can_carrier",
+   "body": "chassis",
+   "category": "compute",
+   "mass_kg": 0.08,
+   "world_pos_m": [
+    0.13,
+    0.0,
+    0.352
+   ]
+  },
+  {
+   "geom": "oak_d_pro_w",
+   "body": "chassis",
+   "category": "compute",
+   "mass_kg": 0.091,
+   "world_pos_m": [
+    0.252,
+    0.0,
+    0.471
+   ]
+  },
+  {
+   "geom": "left_vl53l8cx",
+   "body": "chassis",
+   "category": "compute",
+   "mass_kg": 0.012,
+   "world_pos_m": [
+    0.292,
+    0.104,
+    0.375
+   ]
+  },
+  {
+   "geom": "right_vl53l8cx",
+   "body": "chassis",
+   "category": "compute",
+   "mass_kg": 0.012,
+   "world_pos_m": [
+    0.292,
+    -0.104,
+    0.375
+   ]
+  },
+  {
+   "geom": "trunk_imu",
+   "body": "chassis",
+   "category": "compute",
+   "mass_kg": 0.016,
+   "world_pos_m": [
+    0.0,
+    0.025,
+    0.394
+   ]
+  },
+  {
+   "geom": "io_and_sensor_carriers",
+   "body": "chassis",
+   "category": "compute",
+   "mass_kg": 0.105,
+   "world_pos_m": [
+    0.178,
+    -0.048,
+    0.355
+   ]
+  },
+  {
+   "geom": "power_board_diode_or_precharge_clamp",
+   "body": "chassis",
+   "category": "power",
+   "mass_kg": 0.25,
+   "world_pos_m": [
+    0.22,
+    0.035,
+    0.35
+   ]
+  },
+  {
+   "geom": "dc_dc_rails",
+   "body": "chassis",
+   "category": "power",
+   "mass_kg": 0.18,
+   "world_pos_m": [
+    0.096,
+    0.024,
+    0.4
+   ]
+  },
+  {
+   "geom": "left_can_and_power_loom",
+   "body": "chassis",
+   "category": "power",
+   "mass_kg": 0.15,
+   "world_pos_m": [
+    0.0015,
+    0.09,
+    0.378
+   ]
+  },
+  {
+   "geom": "right_can_and_power_loom",
+   "body": "chassis",
+   "category": "power",
+   "mass_kg": 0.15,
+   "world_pos_m": [
+    0.0015,
+    -0.09,
+    0.378
+   ]
+  },
+  {
+   "geom": "drive_bay_blowers_and_ducts",
+   "body": "chassis",
+   "category": "power",
+   "mass_kg": 0.14,
+   "world_pos_m": [
+    -0.018,
+    0.0,
+    0.403
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_1",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.25,
+    -0.1251,
+    0.3813
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_2",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.25,
+    -0.1251,
+    0.4227
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_3",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.25,
+    -0.106,
+    0.4608
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_4",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.25,
+    -0.0708,
+    0.4901
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_5",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.25,
+    -0.0249,
+    0.5059
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_6",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.25,
+    0.0249,
+    0.5059
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_7",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.25,
+    0.0708,
+    0.4901
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_8",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.25,
+    0.106,
+    0.4608
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_9",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.25,
+    0.1251,
+    0.4227
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_10",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.25,
+    0.1251,
+    0.3813
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_1",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.07,
+    -0.1251,
+    0.3813
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_2",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.07,
+    -0.1251,
+    0.4227
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_3",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.07,
+    -0.106,
+    0.4608
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_4",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.07,
+    -0.0708,
+    0.4901
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_5",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.07,
+    -0.0249,
+    0.5059
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_6",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.07,
+    0.0249,
+    0.5059
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_7",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.07,
+    0.0708,
+    0.4901
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_8",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.07,
+    0.106,
+    0.4608
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_9",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.07,
+    0.1251,
+    0.4227
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_10",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    -0.07,
+    0.1251,
+    0.3813
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_1",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.13,
+    -0.1251,
+    0.3813
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_2",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.13,
+    -0.1251,
+    0.4227
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_3",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.13,
+    -0.106,
+    0.4608
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_4",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.13,
+    -0.0708,
+    0.4901
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_5",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.13,
+    -0.0249,
+    0.5059
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_6",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.13,
+    0.0249,
+    0.5059
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_7",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.13,
+    0.0708,
+    0.4901
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_8",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.13,
+    0.106,
+    0.4608
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_9",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.13,
+    0.1251,
+    0.4227
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_10",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.13,
+    0.1251,
+    0.3813
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_1",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.255,
+    -0.1251,
+    0.3813
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_2",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.255,
+    -0.1251,
+    0.4227
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_3",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.255,
+    -0.106,
+    0.4608
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_4",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.255,
+    -0.0708,
+    0.4901
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_5",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.255,
+    -0.0249,
+    0.5059
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_6",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.255,
+    0.0249,
+    0.5059
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_7",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.255,
+    0.0708,
+    0.4901
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_8",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.255,
+    0.106,
+    0.4608
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_9",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.255,
+    0.1251,
+    0.4227
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_10",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.017895,
+   "world_pos_m": [
+    0.255,
+    0.1251,
+    0.3813
+   ]
+  },
+  {
+   "geom": "left_shell_seam",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.067105,
+   "world_pos_m": [
+    -0.005,
+    0.121,
+    0.372
+   ]
+  },
+  {
+   "geom": "right_shell_seam",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.067105,
+   "world_pos_m": [
+    -0.005,
+    -0.121,
+    0.372
+   ]
+  },
+  {
+   "geom": "jetson_orin_nano_super_kit",
+   "body": "chassis",
+   "category": "compute",
+   "mass_kg": 0.174,
+   "world_pos_m": [
+    -0.018,
+    0.0,
+    0.354
+   ]
+  },
+  {
+   "geom": "nvme_and_vibration_tray",
+   "body": "chassis",
+   "category": "compute",
+   "mass_kg": 0.1,
+   "world_pos_m": [
+    -0.018,
+    0.0,
+    0.333
+   ]
+  },
+  {
+   "geom": "oak_d_usb_c_lock_cable",
+   "body": "chassis",
+   "category": "compute",
+   "mass_kg": 0.03,
+   "world_pos_m": [
+    0.2,
+    0.0,
+    0.4275
+   ]
+  },
+  {
+   "geom": "gtech_6s_3300_1",
+   "body": "chassis",
+   "category": "battery",
+   "mass_kg": 0.506,
+   "world_pos_m": [
+    -0.2,
+    0.0215,
+    0.3515
+   ]
+  },
+  {
+   "geom": "gtech_6s_3300_2",
+   "body": "chassis",
+   "category": "battery",
+   "mass_kg": 0.506,
+   "world_pos_m": [
+    -0.2,
+    -0.0215,
+    0.3515
+   ]
+  },
+  {
+   "geom": "safety_relay_contactor_fuse_stop_rx",
+   "body": "chassis",
+   "category": "power",
+   "mass_kg": 0.33,
+   "world_pos_m": [
+    0.07,
+    -0.05,
+    0.35
+   ]
+  },
+  {
+   "geom": "orion_bms_jr2_and_current_sensor",
+   "body": "chassis",
+   "category": "power",
+   "mass_kg": 0.35,
+   "world_pos_m": [
+    -0.105,
+    0.0,
+    0.35
+   ]
+  },
+  {
+   "geom": "xm430_w350_r_tail_yaw_case",
+   "body": "chassis",
+   "category": "tail",
+   "mass_kg": 0.082,
+   "world_pos_m": [
+    -0.31,
+    0.0,
+    0.415
+   ]
+  },
+  {
+   "geom": "left_fore_x6_roll_stator",
+   "body": "chassis",
+   "category": "drives",
+   "mass_kg": 0.82,
+   "world_pos_m": [
+    0.325,
+    0.095,
+    0.4
+   ]
+  },
+  {
+   "geom": "right_fore_x6_roll_stator",
+   "body": "chassis",
+   "category": "drives",
+   "mass_kg": 0.82,
+   "world_pos_m": [
+    0.325,
+    -0.095,
+    0.4
+   ]
+  },
+  {
+   "geom": "left_hind_x6_roll_stator",
+   "body": "chassis",
+   "category": "drives",
+   "mass_kg": 0.82,
+   "world_pos_m": [
+    -0.325,
+    0.095,
+    0.4
+   ]
+  },
+  {
+   "geom": "right_hind_x6_roll_stator",
+   "body": "chassis",
+   "category": "drives",
+   "mass_kg": 0.82,
+   "world_pos_m": [
+    -0.325,
+    -0.095,
+    0.4
+   ]
+  },
+  {
+   "geom": "xm540_w270_r_pitch_case",
+   "body": "head",
+   "category": "head",
+   "mass_kg": 0.165,
+   "world_pos_m": [
+    0.388,
+    0.0,
+    0.481
+   ]
+  },
+  {
+   "geom": "neck_hub_and_skull_carrier",
+   "body": "head",
+   "category": "head",
+   "mass_kg": 0.202,
+   "world_pos_m": [
+    0.43,
+    0.0,
+    0.508
+   ]
+  },
+  {
+   "geom": "xm540_w150_r_yaw_case",
+   "body": "head",
+   "category": "head",
+   "mass_kg": 0.165,
+   "world_pos_m": [
+    0.44,
+    0.0,
+    0.532
+   ]
+  },
+  {
+   "geom": "neck_yaw_bearing",
+   "body": "head",
+   "category": "head",
+   "mass_kg": 0.04,
+   "world_pos_m": [
+    0.465,
+    0.0,
+    0.504
+   ]
+  },
+  {
+   "geom": "frill_pa11_panel",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.385,
+   "world_pos_m": [
+    0.377,
+    -0.0,
+    0.6081
+   ]
+  },
+  {
+   "geom": "hollow_skull_equivalent",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.3,
+   "world_pos_m": [
+    0.4892,
+    -0.0,
+    0.4913
+   ]
+  },
+  {
+   "geom": "left_brow_horn_tpu",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.038,
+   "world_pos_m": [
+    0.5404,
+    0.0681,
+    0.5624
+   ]
+  },
+  {
+   "geom": "left_eye",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.004,
+   "world_pos_m": [
+    0.505,
+    0.076,
+    0.514
+   ]
+  },
+  {
+   "geom": "right_brow_horn_tpu",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.038,
+   "world_pos_m": [
+    0.5404,
+    -0.0681,
+    0.5624
+   ]
+  },
+  {
+   "geom": "right_eye",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.004,
+   "world_pos_m": [
+    0.505,
+    -0.076,
+    0.514
+   ]
+  },
+  {
+   "geom": "nasal_horn_tpu",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.014,
+   "world_pos_m": [
+    0.5795,
+    -0.0,
+    0.5185
+   ]
+  },
+  {
+   "geom": "xm430_w350_r_beak_case",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.082,
+   "world_pos_m": [
+    0.535,
+    0.0,
+    0.488
+   ]
+  },
+  {
+   "geom": "beak_linkage_and_lights",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.043,
+   "world_pos_m": [
+    0.425,
+    0.0,
+    0.59
+   ]
+  },
+  {
+   "geom": "left_xl330_eyelid",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.015,
+   "world_pos_m": [
+    0.497,
+    0.07,
+    0.522
+   ]
+  },
+  {
+   "geom": "right_xl330_eyelid",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.015,
+   "world_pos_m": [
+    0.497,
+    -0.07,
+    0.522
+   ]
+  },
+  {
+   "geom": "tail_shell_and_flex_core",
+   "body": "tail",
+   "category": "tail",
+   "mass_kg": 0.325,
+   "world_pos_m": [
+    -0.4495,
+    -0.0,
+    0.3764
+   ]
+  },
+  {
+   "geom": "xm430_w350_r_tail_pitch_case",
+   "body": "tail",
+   "category": "tail",
+   "mass_kg": 0.082,
+   "world_pos_m": [
+    -0.355,
+    0.0,
+    0.4
+   ]
+  },
+  {
+   "geom": "left_fore_shoulder_yoke",
+   "body": "left_fore_roll_yoke",
+   "category": "frame",
+   "mass_kg": 0.035,
+   "world_pos_m": [
+    0.325,
+    0.135,
+    0.4
+   ]
+  },
+  {
+   "geom": "left_fore_x4_pitch_stator",
+   "body": "left_fore_roll_yoke",
+   "category": "drives",
+   "mass_kg": 0.36,
+   "world_pos_m": [
+    0.325,
+    0.175,
+    0.4
+   ]
+  },
+  {
+   "geom": "left_fore_upper_strut",
+   "body": "left_fore_upper_link",
+   "category": "frame",
+   "mass_kg": 0.125,
+   "world_pos_m": [
+    0.2499,
+    0.175,
+    0.3096
+   ]
+  },
+  {
+   "geom": "left_fore_x8_flexion_stator",
+   "body": "left_fore_upper_link",
+   "category": "drives",
+   "mass_kg": 1.33,
+   "world_pos_m": [
+    0.2675,
+    0.175,
+    0.3308
+   ]
+  },
+  {
+   "geom": "left_fore_drive_crank",
+   "body": "left_fore_upper_link",
+   "category": "frame",
+   "mass_kg": 0.068,
+   "world_pos_m": [
+    0.2675,
+    0.1332,
+    0.3308
+   ]
+  },
+  {
+   "geom": "left_fore_pushrod",
+   "body": "left_fore_upper_link",
+   "category": "frame",
+   "mass_kg": 0.051,
+   "world_pos_m": [
+    0.2481,
+    0.1332,
+    0.2526
+   ]
+  },
+  {
+   "geom": "left_fore_upper_limb_cover",
+   "body": "left_fore_upper_link",
+   "category": "shells",
+   "mass_kg": 0.06,
+   "world_pos_m": [
+    0.2499,
+    0.175,
+    0.3096
+   ]
+  },
+  {
+   "geom": "left_fore_elbow_axle",
+   "body": "left_fore_lower_link",
+   "category": "frame",
+   "mass_kg": 0.01,
+   "world_pos_m": [
+    0.1748,
+    0.155,
+    0.2192
+   ]
+  },
+  {
+   "geom": "left_fore_lower_strut",
+   "body": "left_fore_lower_link",
+   "category": "frame",
+   "mass_kg": 0.11,
+   "world_pos_m": [
+    0.2499,
+    0.175,
+    0.1321
+   ]
+  },
+  {
+   "geom": "left_fore_output_crank",
+   "body": "left_fore_lower_link",
+   "category": "frame",
+   "mass_kg": 0.051,
+   "world_pos_m": [
+    0.1748,
+    0.1332,
+    0.2192
+   ]
+  },
+  {
+   "geom": "left_fore_lower_limb_cover",
+   "body": "left_fore_lower_link",
+   "category": "shells",
+   "mass_kg": 0.04,
+   "world_pos_m": [
+    0.2499,
+    0.175,
+    0.1321
+   ]
+  },
+  {
+   "geom": "left_fore_ankle_hub",
+   "body": "left_fore_foot",
+   "category": "frame",
+   "mass_kg": 0.03,
+   "world_pos_m": [
+    0.325,
+    0.175,
+    0.032
+   ]
+  },
+  {
+   "geom": "left_fore_sole",
+   "body": "left_fore_foot",
+   "category": "frame",
+   "mass_kg": 0.1,
+   "world_pos_m": [
+    0.325,
+    0.175,
+    0.009
+   ]
+  },
+  {
+   "geom": "left_fore_load_cell_cartridge",
+   "body": "left_fore_foot",
+   "category": "frame",
+   "mass_kg": 0.045,
+   "world_pos_m": [
+    0.325,
+    0.175,
+    0.023
+   ]
+  },
+  {
+   "geom": "right_fore_shoulder_yoke",
+   "body": "right_fore_roll_yoke",
+   "category": "frame",
+   "mass_kg": 0.035,
+   "world_pos_m": [
+    0.325,
+    -0.135,
+    0.4
+   ]
+  },
+  {
+   "geom": "right_fore_x4_pitch_stator",
+   "body": "right_fore_roll_yoke",
+   "category": "drives",
+   "mass_kg": 0.36,
+   "world_pos_m": [
+    0.325,
+    -0.175,
+    0.4
+   ]
+  },
+  {
+   "geom": "right_fore_upper_strut",
+   "body": "right_fore_upper_link",
+   "category": "frame",
+   "mass_kg": 0.125,
+   "world_pos_m": [
+    0.2499,
+    -0.175,
+    0.3096
+   ]
+  },
+  {
+   "geom": "right_fore_x8_flexion_stator",
+   "body": "right_fore_upper_link",
+   "category": "drives",
+   "mass_kg": 1.33,
+   "world_pos_m": [
+    0.2675,
+    -0.175,
+    0.3308
+   ]
+  },
+  {
+   "geom": "right_fore_drive_crank",
+   "body": "right_fore_upper_link",
+   "category": "frame",
+   "mass_kg": 0.068,
+   "world_pos_m": [
+    0.2675,
+    -0.1332,
+    0.3308
+   ]
+  },
+  {
+   "geom": "right_fore_pushrod",
+   "body": "right_fore_upper_link",
+   "category": "frame",
+   "mass_kg": 0.051,
+   "world_pos_m": [
+    0.2481,
+    -0.1332,
+    0.2526
+   ]
+  },
+  {
+   "geom": "right_fore_upper_limb_cover",
+   "body": "right_fore_upper_link",
+   "category": "shells",
+   "mass_kg": 0.06,
+   "world_pos_m": [
+    0.2499,
+    -0.175,
+    0.3096
+   ]
+  },
+  {
+   "geom": "right_fore_elbow_axle",
+   "body": "right_fore_lower_link",
+   "category": "frame",
+   "mass_kg": 0.01,
+   "world_pos_m": [
+    0.1748,
+    -0.155,
+    0.2192
+   ]
+  },
+  {
+   "geom": "right_fore_lower_strut",
+   "body": "right_fore_lower_link",
+   "category": "frame",
+   "mass_kg": 0.11,
+   "world_pos_m": [
+    0.2499,
+    -0.175,
+    0.1321
+   ]
+  },
+  {
+   "geom": "right_fore_output_crank",
+   "body": "right_fore_lower_link",
+   "category": "frame",
+   "mass_kg": 0.051,
+   "world_pos_m": [
+    0.1748,
+    -0.1332,
+    0.2192
+   ]
+  },
+  {
+   "geom": "right_fore_lower_limb_cover",
+   "body": "right_fore_lower_link",
+   "category": "shells",
+   "mass_kg": 0.04,
+   "world_pos_m": [
+    0.2499,
+    -0.175,
+    0.1321
+   ]
+  },
+  {
+   "geom": "right_fore_ankle_hub",
+   "body": "right_fore_foot",
+   "category": "frame",
+   "mass_kg": 0.03,
+   "world_pos_m": [
+    0.325,
+    -0.175,
+    0.032
+   ]
+  },
+  {
+   "geom": "right_fore_sole",
+   "body": "right_fore_foot",
+   "category": "frame",
+   "mass_kg": 0.1,
+   "world_pos_m": [
+    0.325,
+    -0.175,
+    0.009
+   ]
+  },
+  {
+   "geom": "right_fore_load_cell_cartridge",
+   "body": "right_fore_foot",
+   "category": "frame",
+   "mass_kg": 0.045,
+   "world_pos_m": [
+    0.325,
+    -0.175,
+    0.023
+   ]
+  },
+  {
+   "geom": "left_hind_shoulder_yoke",
+   "body": "left_hind_roll_yoke",
+   "category": "frame",
+   "mass_kg": 0.035,
+   "world_pos_m": [
+    -0.325,
+    0.135,
+    0.4
+   ]
+  },
+  {
+   "geom": "left_hind_x4_pitch_stator",
+   "body": "left_hind_roll_yoke",
+   "category": "drives",
+   "mass_kg": 0.36,
+   "world_pos_m": [
+    -0.325,
+    0.175,
+    0.4
+   ]
+  },
+  {
+   "geom": "left_hind_upper_strut",
+   "body": "left_hind_upper_link",
+   "category": "frame",
+   "mass_kg": 0.125,
+   "world_pos_m": [
+    -0.2499,
+    0.175,
+    0.3096
+   ]
+  },
+  {
+   "geom": "left_hind_x6_flexion_stator",
+   "body": "left_hind_upper_link",
+   "category": "drives",
+   "mass_kg": 0.82,
+   "world_pos_m": [
+    -0.2675,
+    0.175,
+    0.3308
+   ]
+  },
+  {
+   "geom": "left_hind_drive_crank",
+   "body": "left_hind_upper_link",
+   "category": "frame",
+   "mass_kg": 0.068,
+   "world_pos_m": [
+    -0.2675,
+    0.1332,
+    0.3308
+   ]
+  },
+  {
+   "geom": "left_hind_pushrod",
+   "body": "left_hind_upper_link",
+   "category": "frame",
+   "mass_kg": 0.051,
+   "world_pos_m": [
+    -0.1967,
+    0.1332,
+    0.2953
+   ]
+  },
+  {
+   "geom": "left_hind_upper_limb_cover",
+   "body": "left_hind_upper_link",
+   "category": "shells",
+   "mass_kg": 0.06,
+   "world_pos_m": [
+    -0.2499,
+    0.175,
+    0.3096
+   ]
+  },
+  {
+   "geom": "left_hind_elbow_axle",
+   "body": "left_hind_lower_link",
+   "category": "frame",
+   "mass_kg": 0.01,
+   "world_pos_m": [
+    -0.1748,
+    0.155,
+    0.2192
+   ]
+  },
+  {
+   "geom": "left_hind_lower_strut",
+   "body": "left_hind_lower_link",
+   "category": "frame",
+   "mass_kg": 0.11,
+   "world_pos_m": [
+    -0.2499,
+    0.175,
+    0.1321
+   ]
+  },
+  {
+   "geom": "left_hind_output_crank",
+   "body": "left_hind_lower_link",
+   "category": "frame",
+   "mass_kg": 0.051,
+   "world_pos_m": [
+    -0.1748,
+    0.1332,
+    0.2192
+   ]
+  },
+  {
+   "geom": "left_hind_lower_limb_cover",
+   "body": "left_hind_lower_link",
+   "category": "shells",
+   "mass_kg": 0.04,
+   "world_pos_m": [
+    -0.2499,
+    0.175,
+    0.1321
+   ]
+  },
+  {
+   "geom": "left_hind_ankle_hub",
+   "body": "left_hind_foot",
+   "category": "frame",
+   "mass_kg": 0.03,
+   "world_pos_m": [
+    -0.325,
+    0.175,
+    0.032
+   ]
+  },
+  {
+   "geom": "left_hind_sole",
+   "body": "left_hind_foot",
+   "category": "frame",
+   "mass_kg": 0.1,
+   "world_pos_m": [
+    -0.325,
+    0.175,
+    0.009
+   ]
+  },
+  {
+   "geom": "left_hind_load_cell_cartridge",
+   "body": "left_hind_foot",
+   "category": "frame",
+   "mass_kg": 0.045,
+   "world_pos_m": [
+    -0.325,
+    0.175,
+    0.023
+   ]
+  },
+  {
+   "geom": "right_hind_shoulder_yoke",
+   "body": "right_hind_roll_yoke",
+   "category": "frame",
+   "mass_kg": 0.035,
+   "world_pos_m": [
+    -0.325,
+    -0.135,
+    0.4
+   ]
+  },
+  {
+   "geom": "right_hind_x4_pitch_stator",
+   "body": "right_hind_roll_yoke",
+   "category": "drives",
+   "mass_kg": 0.36,
+   "world_pos_m": [
+    -0.325,
+    -0.175,
+    0.4
+   ]
+  },
+  {
+   "geom": "right_hind_upper_strut",
+   "body": "right_hind_upper_link",
+   "category": "frame",
+   "mass_kg": 0.125,
+   "world_pos_m": [
+    -0.2499,
+    -0.175,
+    0.3096
+   ]
+  },
+  {
+   "geom": "right_hind_x6_flexion_stator",
+   "body": "right_hind_upper_link",
+   "category": "drives",
+   "mass_kg": 0.82,
+   "world_pos_m": [
+    -0.2675,
+    -0.175,
+    0.3308
+   ]
+  },
+  {
+   "geom": "right_hind_drive_crank",
+   "body": "right_hind_upper_link",
+   "category": "frame",
+   "mass_kg": 0.068,
+   "world_pos_m": [
+    -0.2675,
+    -0.1332,
+    0.3308
+   ]
+  },
+  {
+   "geom": "right_hind_pushrod",
+   "body": "right_hind_upper_link",
+   "category": "frame",
+   "mass_kg": 0.051,
+   "world_pos_m": [
+    -0.1967,
+    -0.1332,
+    0.2953
+   ]
+  },
+  {
+   "geom": "right_hind_upper_limb_cover",
+   "body": "right_hind_upper_link",
+   "category": "shells",
+   "mass_kg": 0.06,
+   "world_pos_m": [
+    -0.2499,
+    -0.175,
+    0.3096
+   ]
+  },
+  {
+   "geom": "right_hind_elbow_axle",
+   "body": "right_hind_lower_link",
+   "category": "frame",
+   "mass_kg": 0.01,
+   "world_pos_m": [
+    -0.1748,
+    -0.155,
+    0.2192
+   ]
+  },
+  {
+   "geom": "right_hind_lower_strut",
+   "body": "right_hind_lower_link",
+   "category": "frame",
+   "mass_kg": 0.11,
+   "world_pos_m": [
+    -0.2499,
+    -0.175,
+    0.1321
+   ]
+  },
+  {
+   "geom": "right_hind_output_crank",
+   "body": "right_hind_lower_link",
+   "category": "frame",
+   "mass_kg": 0.051,
+   "world_pos_m": [
+    -0.1748,
+    -0.1332,
+    0.2192
+   ]
+  },
+  {
+   "geom": "right_hind_lower_limb_cover",
+   "body": "right_hind_lower_link",
+   "category": "shells",
+   "mass_kg": 0.04,
+   "world_pos_m": [
+    -0.2499,
+    -0.175,
+    0.1321
+   ]
+  },
+  {
+   "geom": "right_hind_ankle_hub",
+   "body": "right_hind_foot",
+   "category": "frame",
+   "mass_kg": 0.03,
+   "world_pos_m": [
+    -0.325,
+    -0.175,
+    0.032
+   ]
+  },
+  {
+   "geom": "right_hind_sole",
+   "body": "right_hind_foot",
+   "category": "frame",
+   "mass_kg": 0.1,
+   "world_pos_m": [
+    -0.325,
+    -0.175,
+    0.009
+   ]
+  },
+  {
+   "geom": "right_hind_load_cell_cartridge",
+   "body": "right_hind_foot",
+   "category": "frame",
+   "mass_kg": 0.045,
+   "world_pos_m": [
+    -0.325,
+    -0.175,
+    0.023
+   ]
+  }
+ ]
+}
