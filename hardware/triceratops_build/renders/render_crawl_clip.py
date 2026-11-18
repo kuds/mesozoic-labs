@@ -47,6 +47,7 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--speed", type=float, default=2.0, help="playback speed-up, stated on every frame")
     ap.add_argument("--seconds", type=float, default=20.0, help="clip length in playback seconds")
+    ap.add_argument("--still-at", type=float, help="instead of a clip, save one JPEG still at this simulated time (s)")
     a = ap.parse_args()
     P = crawl.PARAMS
     model = mujoco.MjModel.from_xml_path(a.model)
@@ -68,6 +69,19 @@ def main():
     title = "Triceratops robot, 75 cm: statically stable crawl (simulation)"
     caption = (f"MuJoCo model, {mass:.0f} kg, {variant}. One foot at a time, 0.02 m/s. "
                f"Shown at {a.speed:g}x speed. Not hardware.")
+    if a.still_at is not None:
+        swing = next((p["leg"] for p in phases if p["swing_start"] <= a.still_at <= p["swing_end"]), None)
+        n = round(a.still_at / model.opt.timestep)
+        for k in range(n):
+            data.ctrl[act] = [np.interp(k * model.opt.timestep, times, targets[:, i]) for i in range(12)]
+            mujoco.mj_step(model, data)
+        r.update_scene(data, camera=cam)
+        what = f"the {swing.replace('_', ' ')} foot in swing" if swing else "four feet down, body shifting"
+        cap = (f"MuJoCo model, {mass:.0f} kg, {variant}; one foot at a time, 0.02 m/s; {what} "
+               f"(t = {a.still_at:g} s). Not hardware.")
+        Image.fromarray(overlay(r.render(), title, cap)).save(a.out, "JPEG", quality=88, optimize=True)
+        print(f"{a.out}: still at {a.still_at} s, {what}, {Path(a.out).stat().st_size / 1024:.0f} KB")
+        return
     sim_per_frame = a.speed / FPS
     n_frames = int(a.seconds * FPS)
     every = max(1, round(sim_per_frame / model.opt.timestep))
