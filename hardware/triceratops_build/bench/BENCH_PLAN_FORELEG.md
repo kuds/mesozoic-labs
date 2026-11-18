@@ -20,8 +20,8 @@ order in Q2 2027 (`CONSOLIDATION_PLAN.md`, section 5.3).
 | Elbow flexion | RMD-X8-P20-150-E through a 1:1 four-bar pushrod | RMD-X6-P20-60-E through a 1.3:1 four-bar pushrod |
 
 Parts: the parts list's first purchase, the T20 one-foreleg bench set, **about $7.1k of parts, $8.9k landed** (drive
-prices from MyActuator's own US store, read 7 Nov 2026; third-party US resellers were about twice that on
-18 Nov 2026, which would raise the drives' $1,422 to roughly $2.8k). It holds: the foreleg's drives $1,422, its linkage
+prices from MyActuator's own US store, read 7 Nov 2026; at the third-party US reseller prices found on 18 Nov 2026
+(X6 $741.84 and X4 $620 at RobotShop, X8 $645 at aifitlab) the drives' $1,422 becomes about $2.0k). It holds: the foreleg's drives $1,422, its linkage
 $120, a torque rig $700, a 60 V bench supply $400, a thermal camera $250, a PCAN-USB FD $379, two MCU carriers $300,
 and the full stop chain $3,526 (wireless stop, Pilz relay, e-stops, contactor, fuse, receiver estimate). The torque
 rig, supply, camera and PCAN serve the T. rex too.
