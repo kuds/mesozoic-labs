@@ -25,6 +25,7 @@ From `hardware/triceratops_kickoff/NEW_SESSION_PROMPT.md` and `CONSOLIDATION_PLA
 | P4 | Legit hardware: catalog drives with datasheets, industrial safety parts, named sensors. Spend in the T. rex's class, $17k-$32k. | adopted |
 | P5 | Propose, ask, record: nothing is adopted without the owner; decisions are asked with the question tool, at most four at a time, recommended option first. | adopted |
 | P6 | The museum walk is 0.30 m/s. 0.40 m/s is not a walking target. | adopted |
+| P7 | Owner, 18 Nov 2026, in chat: "30k is too much for me to afford"; the build should come in at $10k-$20k. Size and budget are to be settled first, with expressiveness (moving head and mouth) part of the budget. Supersedes the $17k-$32k spend class in P4 (the "legit hardware" part of P4 stands). | adopted |
 
 ## Engineering constraints carried in (E)
 
