@@ -53,7 +53,7 @@ def main():
     led = {v: json.loads((gen / f"mass_ledger_trike60_C_{v}.json").read_text()) for v in ("listed", "closed")}
     cfg = next(c for c in sb.CONFIGS if c[0].startswith("C:"))
     lines = sb.bom(cfg, frame_fixed=0.0)
-    stand = json.loads((ROOT / "sim" / "results" / "stand60_2026-11-18b" / "results.json").read_text())
+    stand = json.loads((ROOT / "sim" / "results" / "stand60_2026-11-18c" / "results.json").read_text())
     stand_front = next(r for r in stand["runs"] if r["variant"] == "closed" and r["seed"] == 1)["derived"]["front_share"]
     servos, expr_usd, _ = sb.expression("full", cfg[1])
     out = ["# Parts list, 60 cm Triceratops (option C)", "",
@@ -79,11 +79,12 @@ def main():
             f"{1000 * led['closed']['com_world_m'][2]:.0f} mm |", "",
             "The closed variant is the one used for the crawl and for training: the 10 % reserve is 0.15 kg of small "
             "parts on the chassis plus pro-rata growth of every part whose mass is an estimate. **It is about 0.5 kg "
-            "over the budget's estimate for option C** (11.8-12.2 kg): the budget counted the core expression package, "
-            "not the full one chosen (D14), and the model adds the safety block, linkages, limb covers, audio and a "
-            "second Teensy explicitly. At this mass the budget's rule puts the hind knees' continuous load at 1.00 of "
+            "over the budget's estimate for option C** (11.8-12.2 kg): against 12.2 kg, the limb covers +0.28 kg (the "
+            "budget has none), head and tail +0.17 kg (the full expression package's servos, the neck bearing and frill "
+            "lighting), the safety block +0.13 kg and compute, audio and the second Teensy +0.11 kg, less 0.20 kg on the "
+            "frame (`sim/REPORT_60CM.md`, \"Mass against the budget\"). At this mass the budget's rule puts the hind knees' continuous load at 1.00 of "
             "the X4's rating (an estimate; the walk simulation will measure it). In simulation the closed model stands "
-            f"with {100 * stand_front:.1f} % of its weight on the front feet (`sim/results/stand60_2026-11-18b/`).", "",
+            f"with {100 * stand_front:.1f} % of its weight on the front feet (`sim/results/stand60_2026-11-18c/`).", "",
             "## Parts by mass (closed variant)", "",
             "Position: x along the body (+ forward, from mid-body), height z above the floor, at the neutral standing "
             "pose; a range is given where the parts are spread along the body.", "",
@@ -121,11 +122,11 @@ def main():
             "T. rex.", "",
             "## Known gaps (to close before ordering)", "",
             "- **The foot.** PR #669's foot (pitch-only passive ankle, sole rigid in roll) fails the crawl at 60 cm as at "
-            "75 cm; a passive roll hinge passes its judged seeds but not robustly (`sim/REPORT_60CM.md`). Chassis and "
-            "foot decision D5 stays open.",
+            "75 cm; a passive roll hinge passes with the default contact model but not with stiffer contact "
+            "(`sim/REPORT_60CM.md`). Chassis and foot decision D5 stays open.",
             "- **Mass and the hind knees.** See the mass budget above: reconcile the budget with the full expression "
             "package; if the walk simulation puts the X4 knees over their continuous rating, the options are a 1.2:1 "
-            "crank ratio, X6 hind knees (about +$320 of hardware, +0.9 kg) or a lighter build.",
+            "crank ratio, X6 hind knees (+$318 of hardware, +0.92 kg) or a lighter build.",
             "- **Masses are estimates** from PR #669's parts scaled (structure × 0.8^2.5, head and tail × 0.8^3; the "
             "body shell at the parts list's 0.85 kg × 0.8^2) plus catalog masses for bought parts. Weigh the first "
             "parts as they arrive.",

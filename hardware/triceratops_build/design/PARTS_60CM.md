@@ -9,20 +9,20 @@ The owner's decisions behind it (`DECISION_LOG.md`): 60 cm option C (D2), full e
 | | Listed | Closed (10 % reserve) |
 |---|---|---|
 | battery | 1.012 kg | 1.012 kg |
-| compute and sensors | 0.649 kg | 0.732 kg |
+| compute and sensors | 0.649 kg | 0.729 kg |
 | drives | 5.240 kg | 5.240 kg |
-| frame and feet | 1.442 kg | 1.752 kg |
-| head | 0.724 kg | 0.829 kg |
-| leg transmissions | 0.330 kg | 0.401 kg |
-| power, safety, wiring, cooling | 1.062 kg | 1.290 kg |
+| frame and feet | 1.442 kg | 1.744 kg |
+| head | 0.724 kg | 0.854 kg |
+| leg transmissions | 0.330 kg | 0.399 kg |
+| power, safety, wiring, cooling | 1.062 kg | 1.284 kg |
 | reserve | 0.000 kg | 0.150 kg |
-| shells | 0.800 kg | 0.972 kg |
-| tail | 0.280 kg | 0.316 kg |
+| shells | 0.800 kg | 0.967 kg |
+| tail | 0.280 kg | 0.315 kg |
 | **Total** | **11.540 kg** | **12.694 kg** |
-| Centre of mass, x (forward of mid-body) | +26.5 mm | +27.7 mm |
-| Centre of mass, height | 287 mm | 286 mm |
+| Centre of mass, x (forward of mid-body) | +26.5 mm | +27.6 mm |
+| Centre of mass, height | 287 mm | 287 mm |
 
-The closed variant is the one used for the crawl and for training: the 10 % reserve is 0.15 kg of small parts on the chassis plus pro-rata growth of every part whose mass is an estimate. **It is about 0.5 kg over the budget's estimate for option C** (11.8-12.2 kg): the budget counted the core expression package, not the full one chosen (D14), and the model adds the safety block, linkages, limb covers, audio and a second Teensy explicitly. At this mass the budget's rule puts the hind knees' continuous load at 1.00 of the X4's rating (an estimate; the walk simulation will measure it). In simulation the closed model stands with 55.3 % of its weight on the front feet (`sim/results/stand60_2026-11-18b/`).
+The closed variant is the one used for the crawl and for training: the 10 % reserve is 0.15 kg of small parts on the chassis plus pro-rata growth of every part whose mass is an estimate. **It is about 0.5 kg over the budget's estimate for option C** (11.8-12.2 kg): against 12.2 kg, the limb covers +0.28 kg (the budget has none), head and tail +0.17 kg (the full expression package's servos, the neck bearing and frill lighting), the safety block +0.13 kg and compute, audio and the second Teensy +0.11 kg, less 0.20 kg on the frame (`sim/REPORT_60CM.md`, "Mass against the budget"). At this mass the budget's rule puts the hind knees' continuous load at 1.00 of the X4's rating (an estimate; the walk simulation will measure it). In simulation the closed model stands with 55.3 % of its weight on the front feet (`sim/results/stand60_2026-11-18c/`).
 
 ## Parts by mass (closed variant)
 
@@ -32,57 +32,57 @@ Position: x along the body (+ forward, from mid-body), height z above the floor,
 |---|---|---|---|---|---|---|
 | battery | gtech_6s | 2 | 1.012 kg | -160 | 286 | Gens ace G-Tech 6S 3300, 506 g, 138 x 42 x 43 mm (RC/PL) |
 | compute and sensors | jetson_orin_nano_super_kit | 1 | 0.174 kg | -30 | 290 | NVIDIA Jetson Orin Nano Super dev kit, 0.174 kg (RC) |
-| compute and sensors | teensy41_can_carriers_x2 | 1 | 0.121 kg | +80 | 320 | 2 x Teensy 4.1 + CAN carrier, as budgeted (EST); x 1.2146 reserve growth (closed variant) |
-| compute and sensors | audio_and_servo_bus_adapter | 1 | 0.121 kg | -100 | 320 | speaker, amplifier, microphone, U2D2 bus adapter, eyelid 5 V rail (EST); x 1.2146 reserve growth (closed variant) |
-| compute and sensors | io_and_sensor_carriers | 1 | 0.097 kg | -190 | 319 | I/O carriers, BNO085 (EST); x 1.2146 reserve growth (closed variant) |
-| compute and sensors | nvme_and_vibration_tray | 1 | 0.097 kg | -30 | 270 | NVMe + tray (EST); x 1.2146 reserve growth (closed variant) |
+| compute and sensors | teensy41_can_carriers_x2 | 1 | 0.121 kg | +80 | 320 | 2 x Teensy 4.1 + CAN carrier, as budgeted (EST); x 1.2088 reserve growth (closed variant) |
+| compute and sensors | audio_and_servo_bus_adapter | 1 | 0.121 kg | -100 | 320 | speaker, amplifier, microphone, U2D2 bus adapter, eyelid 5 V rail (EST); x 1.2088 reserve growth (closed variant) |
+| compute and sensors | io_and_sensor_carriers | 1 | 0.097 kg | -190 | 319 | I/O carriers, BNO085 (EST); x 1.2088 reserve growth (closed variant) |
+| compute and sensors | nvme_and_vibration_tray | 1 | 0.097 kg | -31 | 270 | NVMe + tray (EST); x 1.2088 reserve growth (closed variant) |
 | compute and sensors | oak_d_lite | 1 | 0.061 kg | +202 | 377 | Luxonis OAK-D Lite, 61 g (RC) |
-| compute and sensors | oak_d_usb_c_lock_cable | 1 | 0.030 kg | +155 | 360 | locking USB-C cable (EST); x 1.2146 reserve growth (closed variant) |
+| compute and sensors | oak_d_usb_c_lock_cable | 1 | 0.030 kg | +155 | 360 | locking USB-C cable (EST); x 1.2088 reserve growth (closed variant) |
 | compute and sensors | vl53l8cx | 2 | 0.024 kg | +234 | 280 | Pololu VL53L8CX carrier (RC) |
 | compute and sensors | trunk_imu | 1 | 0.005 kg | +0 | 315 | Adafruit BNO085 (MD) |
 | drives | x6_flexion_stator | 2 | 1.640 kg | +202 | 251 | MyActuator X6-60, catalog 0.82 kg (the store's X6 listing shows 0.78 kg, the X6-50-L; F9) |
 | drives | x4_roll_stator | 4 | 1.440 kg | -260 to +260 | 320 | MyActuator RMD-X4-P36-36-E-L, catalog 0.36 kg, 55 x 61 mm |
 | drives | x4_pitch_stator | 4 | 1.440 kg | -260 to +260 | 320 | MyActuator RMD-X4-P36-36-E-L, catalog |
 | drives | x4_flexion_stator | 2 | 0.720 kg | -202 | 251 | MyActuator X4-36-L, catalog 0.36 kg |
-| frame and feet | upper_strut | 4 | 0.348 kg | -200 to +200 | 248 | PR #669 part x 0.8^2.5 (EST); x 1.2146 reserve growth (closed variant) |
-| frame and feet | lower_strut | 4 | 0.306 kg | -200 to +200 | 106 | PR #669 part x 0.8^2.5 (EST); x 1.2146 reserve growth (closed variant) |
-| frame and feet | sole | 4 | 0.278 kg | -260 to +260 | 7 | PR #669 part x 0.8^2.5 (EST); x 1.2146 reserve growth (closed variant) |
-| frame and feet | 6061_left_rail | 1 | 0.118 kg | +0 | 308 | PR #669 part x 0.8^2.5 (EST); x 1.2146 reserve growth (closed variant) |
-| frame and feet | 6061_right_rail | 1 | 0.118 kg | +0 | 308 | PR #669 part x 0.8^2.5 (EST); x 1.2146 reserve growth (closed variant) |
-| frame and feet | shoulder_yoke | 4 | 0.097 kg | -260 to +260 | 320 | PR #669 part x 0.8^2.5 (EST); x 1.2146 reserve growth (closed variant) |
-| frame and feet | removable_service_tray | 1 | 0.083 kg | -64 | 260 | PR #669 part x 0.8^2.5 (EST); x 1.2146 reserve growth (closed variant) |
-| frame and feet | tray_stay | 4 | 0.083 kg | -204 to +76 | 284 | PR #669 part x 0.8^2.5 (EST); x 1.2146 reserve growth (closed variant) |
-| frame and feet | ankle_hub | 4 | 0.083 kg | -260 to +260 | 26 | PR #669 part x 0.8^2.5 (EST); x 1.2146 reserve growth (closed variant) |
-| frame and feet | shoulder_crossmember | 1 | 0.070 kg | +260 | 320 | PR #669 part x 0.8^2.5 (EST); x 1.2146 reserve growth (closed variant) |
-| frame and feet | pelvic_crossmember | 1 | 0.070 kg | -260 | 320 | PR #669 part x 0.8^2.5 (EST); x 1.2146 reserve growth (closed variant) |
-| frame and feet | neck_cradle | 1 | 0.070 kg | +281 | 359 | PR #669 part x 0.8^2.5 (EST); x 1.2146 reserve growth (closed variant) |
-| frame and feet | elbow_axle | 4 | 0.028 kg | -140 to +140 | 175 | PR #669 part x 0.8^2.5 (EST); x 1.2146 reserve growth (closed variant) |
-| head | hollow_skull_equivalent | 1 | 0.187 kg | +391 | 393 | PR #669 head part x 0.8^3 (EST); x 1.2146 reserve growth (closed variant) |
-| head | frill_pa11_panel | 1 | 0.146 kg | +302 | 486 | PR #669 head part x 0.8^3 (EST); x 1.2146 reserve growth (closed variant) |
-| head | neck_hub_and_skull_carrier | 1 | 0.126 kg | +344 | 406 | PR #669 head part x 0.8^3 (EST); x 1.2146 reserve growth (closed variant) |
-| head | xc430_w240_neck_pitch_case | 1 | 0.065 kg | +310 | 385 | ROBOTIS XC430-W240-T, 65 g (EST from the XC430 family) |
-| head | xc430_w240_neck_yaw_case | 1 | 0.065 kg | +352 | 426 | ROBOTIS XC430-W240-T (EST mass) |
+| frame and feet | upper_strut | 4 | 0.346 kg | -200 to +200 | 248 | PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant) |
+| frame and feet | lower_strut | 4 | 0.304 kg | -200 to +200 | 106 | PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant) |
+| frame and feet | sole | 4 | 0.277 kg | -260 to +260 | 7 | PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant) |
+| frame and feet | 6061_left_rail | 1 | 0.118 kg | +0 | 308 | PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant) |
+| frame and feet | 6061_right_rail | 1 | 0.118 kg | +0 | 308 | PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant) |
+| frame and feet | shoulder_yoke | 4 | 0.097 kg | -260 to +260 | 320 | PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant) |
+| frame and feet | removable_service_tray | 1 | 0.083 kg | -64 | 260 | PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant) |
+| frame and feet | tray_stay | 4 | 0.083 kg | -204 to +76 | 284 | PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant) |
+| frame and feet | ankle_hub | 4 | 0.083 kg | -260 to +260 | 26 | PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant) |
+| frame and feet | shoulder_crossmember | 1 | 0.069 kg | +260 | 320 | PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant) |
+| frame and feet | pelvic_crossmember | 1 | 0.069 kg | -260 | 320 | PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant) |
+| frame and feet | neck_cradle | 1 | 0.069 kg | +281 | 359 | PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant) |
+| frame and feet | elbow_axle | 4 | 0.028 kg | -140 to +140 | 175 | PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant) |
+| head | hollow_skull_equivalent | 1 | 0.186 kg | +391 | 393 | PR #669 head part x 0.8^3 (EST); x 1.2088 reserve growth (closed variant) |
+| head | frill_pa11_panel | 1 | 0.145 kg | +302 | 486 | PR #669 head part x 0.8^3 (EST); x 1.2088 reserve growth (closed variant) |
+| head | neck_hub_and_skull_carrier | 1 | 0.125 kg | +344 | 406 | PR #669 head part x 0.8^3 (EST); x 1.2088 reserve growth (closed variant) |
+| head | xc430_w240_neck_pitch_case | 1 | 0.079 kg | +310 | 385 | ROBOTIS XC430-W240-T, 65 g (EST from the XC430 family); x 1.2088 reserve growth (closed variant) |
+| head | xc430_w240_neck_yaw_case | 1 | 0.079 kg | +352 | 426 | ROBOTIS XC430-W240-T (EST mass); x 1.2088 reserve growth (closed variant) |
 | head | xc430_w240_beak_case | 1 | 0.065 kg | +428 | 390 | ROBOTIS XC430-W240-T, beak (mass only; no beak joint yet) |
-| head | brow_horn_tpu | 2 | 0.047 kg | +432 | 450 | PR #669 head part x 0.8^3 (EST); x 1.2146 reserve growth (closed variant) |
-| head | frill_lights_and_linkage | 1 | 0.043 kg | +340 | 472 | LEDs, diffusers, beak linkage (EST); x 1.2146 reserve growth (closed variant) |
-| head | neck_yaw_bearing | 1 | 0.036 kg | +372 | 403 | thin-section bearing, scaled (EST); x 1.2146 reserve growth (closed variant) |
+| head | brow_horn_tpu | 2 | 0.047 kg | +432 | 450 | PR #669 head part x 0.8^3 (EST); x 1.2088 reserve growth (closed variant) |
+| head | frill_lights_and_linkage | 1 | 0.042 kg | +340 | 472 | LEDs, diffusers, beak linkage (EST); x 1.2088 reserve growth (closed variant) |
+| head | neck_yaw_bearing | 1 | 0.036 kg | +372 | 403 | thin-section bearing, scaled (EST); x 1.2088 reserve growth (closed variant) |
 | head | xl330_eyelid | 2 | 0.036 kg | +398 | 418 | ROBOTIS XL330-M288-T, 18 g (PL) |
-| head | nasal_horn_tpu | 1 | 0.009 kg | +464 | 415 | PR #669 head part x 0.8^3 (EST); x 1.2146 reserve growth (closed variant) |
-| head | eye | 2 | 0.005 kg | +404 | 411 | PR #669 head part x 0.8^3 (EST); x 1.2146 reserve growth (closed variant) |
-| leg transmissions | drive_crank | 4 | 0.160 kg | -202 to +202 | 251 | 1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2146 reserve growth (closed variant) |
-| leg transmissions | pushrod | 4 | 0.120 kg | -150 to +193 | 213 | 1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2146 reserve growth (closed variant) |
-| leg transmissions | output_crank | 4 | 0.120 kg | -140 to +140 | 175 | 1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2146 reserve growth (closed variant) |
-| power, safety, wiring, cooling | pilz_relay_contactor_watchdog_radio_rx | 1 | 0.510 kg | +82 | 286 | Pilz PNOZ s5, Altran contactor, watchdog board, radio-stop receiver (EST); x 1.2146 reserve growth (closed variant) |
-| power, safety, wiring, cooling | power_board_diode_or_precharge_clamp | 1 | 0.267 kg | +185 | 290 | power board, ideal-diode OR, precharge, 52.5 V clamp + resistors, fuses (EST); x 1.2146 reserve growth (closed variant) |
-| power, safety, wiring, cooling | can_and_power_loom | 2 | 0.233 kg | +1 | 302 | harness, PR #669 x 0.8^2 (EST); x 1.2146 reserve growth (closed variant) |
-| power, safety, wiring, cooling | dc_dc_rails_and_pack_monitor | 1 | 0.158 kg | +185 | 320 | 2 x 12 V rails, 24 V safety rail, pack monitor (EST); x 1.2146 reserve growth (closed variant) |
-| power, safety, wiring, cooling | drive_bay_blowers_and_ducts | 1 | 0.121 kg | -14 | 327 | blowers, ducts, filters (EST); x 1.2146 reserve growth (closed variant) |
-| reserve | reserve_small_parts_est | 1 | 0.150 kg | +0 | 304 | reserve: connectors, brackets, fasteners added at build (EST) |
-| shells | PA11_rib | 40 | 0.556 kg | -200 to +204 | 362 | body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2146 reserve growth (closed variant) |
-| shells | upper_limb_cover | 4 | 0.187 kg | -200 to +200 | 248 | MJF limb cover, T20's scaled by area (EST); x 1.2146 reserve growth (closed variant) |
-| shells | lower_limb_cover | 4 | 0.124 kg | -200 to +200 | 106 | MJF limb cover, T20's scaled by area (EST); x 1.2146 reserve growth (closed variant) |
-| shells | shell_seam | 2 | 0.104 kg | -4 | 298 | body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2146 reserve growth (closed variant) |
-| tail | tail_shell_and_flex_core | 1 | 0.202 kg | -360 | 301 | PR #669 tail x 0.8^3 (EST); x 1.2146 reserve growth (closed variant) |
+| head | nasal_horn_tpu | 1 | 0.009 kg | +464 | 415 | PR #669 head part x 0.8^3 (EST); x 1.2088 reserve growth (closed variant) |
+| head | eye | 2 | 0.005 kg | +404 | 411 | PR #669 head part x 0.8^3 (EST); x 1.2088 reserve growth (closed variant) |
+| leg transmissions | drive_crank | 4 | 0.160 kg | -202 to +202 | 251 | 1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2088 reserve growth (closed variant) |
+| leg transmissions | pushrod | 4 | 0.120 kg | -150 to +193 | 213 | 1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2088 reserve growth (closed variant) |
+| leg transmissions | output_crank | 4 | 0.120 kg | -140 to +140 | 175 | 1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2088 reserve growth (closed variant) |
+| power, safety, wiring, cooling | pilz_relay_contactor_watchdog_radio_rx | 1 | 0.508 kg | +82 | 286 | Pilz PNOZ s5, Altran contactor, watchdog board, radio-stop receiver (EST); x 1.2088 reserve growth (closed variant) |
+| power, safety, wiring, cooling | power_board_diode_or_precharge_clamp | 1 | 0.266 kg | +185 | 290 | power board, ideal-diode OR, precharge, 52.5 V clamp + resistors, fuses (EST); x 1.2088 reserve growth (closed variant) |
+| power, safety, wiring, cooling | can_and_power_loom | 2 | 0.232 kg | +1 | 302 | harness, PR #669 x 0.8^2 (EST); x 1.2088 reserve growth (closed variant) |
+| power, safety, wiring, cooling | dc_dc_rails_and_pack_monitor | 1 | 0.157 kg | +185 | 320 | 2 x 12 V rails, 24 V safety rail, pack monitor (EST); x 1.2088 reserve growth (closed variant) |
+| power, safety, wiring, cooling | drive_bay_blowers_and_ducts | 1 | 0.121 kg | -14 | 327 | blowers, ducts, filters (EST); x 1.2088 reserve growth (closed variant) |
+| reserve | reserve_small_parts_est | 1 | 0.150 kg | -60 | 304 | reserve: connectors, brackets, fasteners added at build (EST) |
+| shells | PA11_rib | 40 | 0.554 kg | -200 to +204 | 362 | body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant) |
+| shells | upper_limb_cover | 4 | 0.186 kg | -200 to +200 | 248 | MJF limb cover, T20's scaled by area (EST); x 1.2088 reserve growth (closed variant) |
+| shells | lower_limb_cover | 4 | 0.124 kg | -200 to +200 | 106 | MJF limb cover, T20's scaled by area (EST); x 1.2088 reserve growth (closed variant) |
+| shells | shell_seam | 2 | 0.104 kg | -4 | 298 | body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant) |
+| tail | tail_shell_and_flex_core | 1 | 0.201 kg | -360 | 301 | PR #669 tail x 0.8^3 (EST); x 1.2088 reserve growth (closed variant) |
 | tail | xl430_w250_tail_yaw_case | 1 | 0.057 kg | -248 | 358 | ROBOTIS XL430-W250-T, 57 g (WS) |
 | tail | xl430_w250_tail_pitch_case | 1 | 0.057 kg | -284 | 320 | ROBOTIS XL430-W250-T (WS) |
 
@@ -129,8 +129,8 @@ This is the budget's chosen build with the frame cost scaled by area (`budget/si
 
 ## Known gaps (to close before ordering)
 
-- **The foot.** PR #669's foot (pitch-only passive ankle, sole rigid in roll) fails the crawl at 60 cm as at 75 cm; a passive roll hinge passes its judged seeds but not robustly (`sim/REPORT_60CM.md`). Chassis and foot decision D5 stays open.
-- **Mass and the hind knees.** See the mass budget above: reconcile the budget with the full expression package; if the walk simulation puts the X4 knees over their continuous rating, the options are a 1.2:1 crank ratio, X6 hind knees (about +$320 of hardware, +0.9 kg) or a lighter build.
+- **The foot.** PR #669's foot (pitch-only passive ankle, sole rigid in roll) fails the crawl at 60 cm as at 75 cm; a passive roll hinge passes with the default contact model but not with stiffer contact (`sim/REPORT_60CM.md`). Chassis and foot decision D5 stays open.
+- **Mass and the hind knees.** See the mass budget above: reconcile the budget with the full expression package; if the walk simulation puts the X4 knees over their continuous rating, the options are a 1.2:1 crank ratio, X6 hind knees (+$318 of hardware, +0.92 kg) or a lighter build.
 - **Masses are estimates** from PR #669's parts scaled (structure × 0.8^2.5, head and tail × 0.8^3; the body shell at the parts list's 0.85 kg × 0.8^2) plus catalog masses for bought parts. Weigh the first parts as they arrive.
 - **X6 variant.** The US store lists the X6 at 0.78 kg (the X6-50-L); the model uses the X6-60 catalog mass, 0.82 kg (F9). Question M4 asks which variant ships.
 - **TTL servos.** XC430 / XL430 are TTL-bus parts; keep the bus adapter in the head or add an RS-485 converter for the neck run.
