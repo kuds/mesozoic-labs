@@ -64,6 +64,7 @@ repository lacks (313 files, about 208.7 MB) are not kept either: a tool rebuild
 
 ## 2. How to restart, step by step
 
+**When to restart:** if the owner's end-2027 / early-2028 milestone is a built T. rex, restart the simulation by 1 Mar 2027 and order the drives (10 × X4 + 2 × X6) in Q2 2027, once the Triceratops foreleg bench has confirmed them; the dates (planning estimates) and what that bench gives the T. rex are in [CONSOLIDATION_PLAN.md, section 5.3](../triceratops_kickoff/CONSOLIDATION_PLAN.md).
 ### Step 0: check that the branches are there
 
 From any machine with git:
