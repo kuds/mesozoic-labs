@@ -1,10 +1,24 @@
 {
  "schema": "trex-frozen-sets-archive-1",
  "archive": "a1",
- "what": "The 52 arrays of the frozen Stage 2 reference sets V6 (on 75-M-H-10 and 75-M-H-10-X) and V6noF5 (on 75-M-H-10) that tools/restore_inputs.py lists in group sets and that bundle s2-b1 does not hold. Before this archive they existed only in worktrees of the cloud machine. Kept so that a restart needs no rebuild of these sets (owner's decision P49: the frozen T. rex arrays not in bundle s2-b1, about 120 MB).",
+ "what": "The 119 arrays of the frozen Stage 2 reference sets that tools/restore_inputs.py lists in group sets and that bundle s2-b1 does not hold: the 52 of V6 (on 75-M-H-10 and 75-M-H-10-X) and V6noF5 (on 75-M-H-10), and the 67 of V0, F25F9 and F25F9cl (on 75-M-H-10). With s2-b1's 17 V6 arrays they are all 136 that the tool lists in group sets. Kept so that a restart needs no rebuild of any frozen set (owner's decision P49). About 162 MB in all.",
  "made_at": "2026-11-18T04:24:50Z",
+ "updated_at": "2026-11-18T04:42:22Z",
+ "history": [
+  {
+   "commit": "9c2d2a52bd7d7c8c4661c49efaf76b23a44ff359",
+   "added": "the 52 V6 and V6noF5 arrays, parts frozen-01.tar to frozen-03.tar, 119,553,986 bytes",
+   "files_read_from": "the wp-p42 worktree (source)"
+  },
+  {
+   "commit": "the child of 9c2d2a52",
+   "added": "the 67 V0, F25F9 and F25F9cl arrays, parts frozen-04.tar, frozen-05.tar, 42,091,313 bytes; frozen-01.tar to frozen-03.tar unchanged",
+   "files_read_from": "the main checkout at 23bfbfcc (source_of_the_67)"
+  }
+ ],
  "branch": "claude/mesozoic-trex-stage2-archive-a1 (orphan, never merged)",
  "source": {
+  "files": "the 52 V6 and V6noF5 arrays (frozen-01.tar to frozen-03.tar)",
   "commit": "61ae6fa0e611cb44ca4f5cef88557911ee4a9ad6",
   "branch": "claude/mesozoic-trex-stage2-refine-4jffre",
   "lists": "tools/restore_inputs.py listed('sets') at this commit: the latest freeze of every stage2/sets/*/*/set.json (restore_inputs.agreement('sets') found no disagreement with the sets' own records)",
@@ -42,53 +56,99 @@
    ]
   }
  },
+ "source_of_the_67": {
+  "files": "the 67 V0, F25F9 and F25F9cl arrays (frozen-04.tar, frozen-05.tar)",
+  "commit": "23bfbfccda93633232d64d34d335a838d1e6799e",
+  "branch": "claude/mesozoic-trex-stage2-refine-4jffre",
+  "lists": "tools/restore_inputs.py listed('sets') at this commit (restore_inputs.agreement('sets') found no disagreement). git diff 61ae6fa0..23bfbfcc shows no change under hardware/trex_form_study/stage2/sets or in tools/restore_inputs.py, so these lists are those of 61ae6fa0.",
+  "files_read_from": {
+   "worktree": "/home/user/mesozoic-labs (the main checkout on the cloud machine), read only",
+   "commit": "23bfbfccda93633232d64d34d335a838d1e6799e",
+   "note": "Each file was read there and its sha256 compared with the tool's list before packing; all 67 matched."
+  },
+  "check_in_main_checkout": {
+   "command": "PYTHONPATH=. .venv/bin/python tools/restore_inputs.py check (main checkout at 23bfbfcc, which holds the 67 and lacks the 69 V6 arrays)",
+   "output": [
+    "group         files matching missing wrong  records",
+    "picks-models      6        6       0     0  agree   (the Stage 1 picks' round-two model files)",
+    "picks-arrays     84       84       0     0  agree   (the picks' Stage 1 arrays)",
+    "k                60       60       0     0  agree   (arm K's model files and arrays)",
+    "x                60       60       0     0  agree   (the -X bodies' model files and arrays)",
+    "j                30       30       0     0  agree   (the Jetson body's model files and arrays)",
+    "look             73       73       0     0  agree   (the Stage 2 look ladder's arrays)",
+    "sets            136       67      69     0  agree   (the frozen Stage 2 reference sets' arrays)",
+    "  sets missing: stage2/sets/V6/75-M-H-10-X/look/nominal.npz; stage2/sets/V6/75-M-H-10-X/look/v0.3.npz; stage2/sets/V6/75-M-H-10-X/look/v0.35.npz; stage2/sets/V6/75-M-H-10-X/look/v0.4.npz; stage2/sets/V6/75-M-H-10-X/look/v0.45.npz; stage2/sets/V6/75-M-H-10-X/look/v0.5.npz; ... 63 more",
+    "not all here: python tools/restore_inputs.py restore (or copy-from DIR)",
+    "not restored by this tool: PPO checkpoints and VecNormalize statistics; eval traces; the look clips' media; the round-one and round-two review MJCF and the sizing models no Stage 1 or 2 body reads (python tools/restore_inputs.py not-restored)",
+    "EXIT=1"
+   ]
+  }
+ },
  "paths_relative_to": "hardware/trex_form_study",
  "tar": {
   "format": "ustar, uncompressed",
   "member_paths": "relative to hardware/trex_form_study",
   "members": "regular files in path order; mtime 0, uid and gid 0, empty user and group names, mode 0644 (the tar rules of designlab/stage2/bundle.py)",
-  "split": "in path order, a new part starts when the next file would take the part past 41,000,000 bytes; every part is under 50,000,000 bytes"
+  "split": "frozen-01.tar to frozen-03.tar hold the 52 V6 and V6noF5 arrays, frozen-04.tar and frozen-05.tar the 67 V0, F25F9 and F25F9cl arrays; within each of these two runs, in path order, a new part starts when the next file would take the part past 41,000,000 bytes; every part is under 50,000,000 bytes"
  },
  "totals": {
-  "files": 52,
-  "bytes": 119553986,
-  "parts": 3,
-  "parts_bytes": 119613440
+  "files": 119,
+  "bytes": 161645299,
+  "parts": 5,
+  "parts_bytes": 161761280
  },
  "group_sets": {
   "listed": 136,
-  "in_this_archive": 52,
+  "in_this_archive": 119,
   "in_bundle_s2_b1": 17,
-  "rebuilt_by_restore": 67,
+  "rebuilt_by_restore": 0,
   "frozen_v6_arrays": {
    "listed": 69,
    "in_this_archive": 52,
    "in_bundle_s2_b1": 17
   },
+  "frozen_earlier_arrays": {
+   "sets": "V0, F25F9 and F25F9cl on 75-M-H-10",
+   "listed": 67,
+   "in_this_archive": 67,
+   "bytes": 42091313
+  },
   "by_set": {
    "F25F9 on 75-M-H-10": {
     "listed": 15,
-    "in_this_archive": 0,
-    "bytes_in_this_archive": 0,
+    "in_this_archive": 15,
+    "bytes_in_this_archive": 9726013,
     "in_bundle_s2_b1": 0,
-    "rebuilt_by_restore": 15,
-    "in_this_archive_by_kind": {}
+    "rebuilt_by_restore": 0,
+    "in_this_archive_by_kind": {
+     "look": 3,
+     "refs": 3,
+     "transitions": 9
+    }
    },
    "F25F9cl on 75-M-H-10": {
     "listed": 26,
-    "in_this_archive": 0,
-    "bytes_in_this_archive": 0,
+    "in_this_archive": 26,
+    "bytes_in_this_archive": 16020730,
     "in_bundle_s2_b1": 0,
-    "rebuilt_by_restore": 26,
-    "in_this_archive_by_kind": {}
+    "rebuilt_by_restore": 0,
+    "in_this_archive_by_kind": {
+     "look": 6,
+     "refs": 6,
+     "transitions": 14
+    }
    },
    "V0 on 75-M-H-10": {
     "listed": 26,
-    "in_this_archive": 0,
-    "bytes_in_this_archive": 0,
+    "in_this_archive": 26,
+    "bytes_in_this_archive": 16344570,
     "in_bundle_s2_b1": 0,
-    "rebuilt_by_restore": 26,
-    "in_this_archive_by_kind": {}
+    "rebuilt_by_restore": 0,
+    "in_this_archive_by_kind": {
+     "look": 6,
+     "refs": 6,
+     "transitions": 14
+    }
    },
    "V6 on 75-M-H-10": {
     "listed": 23,
@@ -157,6 +217,28 @@
    "content_bytes": 39136798,
    "sets": [
     "V6noF5 on 75-M-H-10"
+   ]
+  },
+  {
+   "name": "frozen-04.tar",
+   "bytes": 40263680,
+   "sha256": "b0d5b9af3eddf276200aad1e72ce44c54edf7b75d81dfad71b60f0dd46767276",
+   "files": 65,
+   "content_bytes": 40213745,
+   "sets": [
+    "F25F9 on 75-M-H-10",
+    "F25F9cl on 75-M-H-10",
+    "V0 on 75-M-H-10"
+   ]
+  },
+  {
+   "name": "frozen-05.tar",
+   "bytes": 1884160,
+   "sha256": "d30cc7fcb071392dcaa9ea4cd870febef74dfbd785869b037aac00a769c3a1ee",
+   "files": 2,
+   "content_bytes": 1877568,
+   "sets": [
+    "V0 on 75-M-H-10"
    ]
   }
  ],
@@ -628,6 +710,609 @@
    "bytes": 1222138,
    "sha256": "d108ada8c6632f86a188ce3477be72ab2a8cbd4dc2722250b605c4c42937a0f2",
    "part": "frozen-03.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9/75-M-H-10/look/v0.4.npz",
+   "set": "F25F9",
+   "body": "75-M-H-10",
+   "kind": "look",
+   "bytes": 265241,
+   "sha256": "b0b00d369f1b6c77844ebd3c7c2ae2f314bfd05405e05c2c5740fa52ed7b1dda",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9/75-M-H-10/look/v0.45.npz",
+   "set": "F25F9",
+   "body": "75-M-H-10",
+   "kind": "look",
+   "bytes": 265241,
+   "sha256": "70028a3982578954415ffbc3f7a4c8c6ead570a66af6a03b9e124ef087987e5a",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9/75-M-H-10/look/v0.5.npz",
+   "set": "F25F9",
+   "body": "75-M-H-10",
+   "kind": "look",
+   "bytes": 265241,
+   "sha256": "8bdd6bd3aaa7b813cd8447cab474022d1430f99fe07ddf4ab407207074e3f36d",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9/75-M-H-10/refs/v0.4.npz",
+   "set": "F25F9",
+   "body": "75-M-H-10",
+   "kind": "refs",
+   "bytes": 146918,
+   "sha256": "3ec832ccccace18cc2722686ae28d2464a7b3bbb260a78c5b21a292c1ed5ef28",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9/75-M-H-10/refs/v0.45.npz",
+   "set": "F25F9",
+   "body": "75-M-H-10",
+   "kind": "refs",
+   "bytes": 146918,
+   "sha256": "6af58219009932759515e232fbdfc2dbacd3eac3af5d1135eea50be0cafca40d",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9/75-M-H-10/refs/v0.5.npz",
+   "set": "F25F9",
+   "body": "75-M-H-10",
+   "kind": "refs",
+   "bytes": 146918,
+   "sha256": "99e22e614ab1722425eb176f41a155d53242eb0bff555979f90e6350e2dc0335",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9/75-M-H-10/transitions/start_v0.4.npz",
+   "set": "F25F9",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 817344,
+   "sha256": "1e72f9825f74269f9f94c834c34a119074de218c6b6d51b264d729e3e83ccdce",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9/75-M-H-10/transitions/stop1_v0.4.npz",
+   "set": "F25F9",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 817344,
+   "sha256": "43d1ae96cf262371a58ba04e4dbdf051f48a8774a55babb1671d4b867d2408cc",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9/75-M-H-10/transitions/stop2_v0.4.npz",
+   "set": "F25F9",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 574464,
+   "sha256": "ddf3eb083b8c4854babcd481b401921b132c14d32ffabf9d55d893c4fa7311bd",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9/75-M-H-10/transitions/turn90_0.35_left.npz",
+   "set": "F25F9",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 1141184,
+   "sha256": "7f5ea0c44acef8c67d81cd9bc770a73d60e95e80deac040254c3ff0fb3ef2ca2",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9/75-M-H-10/transitions/turn90_0.35_right.npz",
+   "set": "F25F9",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 1222144,
+   "sha256": "e27fd3d822e22e441193d0de080b105c874978340700dfdf2d895e0a6bc85c10",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9/75-M-H-10/transitions/turn90_0.5_left.npz",
+   "set": "F25F9",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 979264,
+   "sha256": "24ade72302e2170b484adf22df0fb1ad404c4d80d446a9763254ea488a9fad67",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9/75-M-H-10/transitions/turn90_0.5_right.npz",
+   "set": "F25F9",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 1060224,
+   "sha256": "564ffa6b2f7f2d65dae2c546e4880f01bc257a4008df4432118d6711cda8699a",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9/75-M-H-10/transitions/turn90_pi4_left.npz",
+   "set": "F25F9",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 979264,
+   "sha256": "040740666c165fdce75b9d600405dbe2eeb6f2d20d562cd2f2bf77aa3a950afa",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9/75-M-H-10/transitions/turn90_pi4_right.npz",
+   "set": "F25F9",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 898304,
+   "sha256": "90e6cf660b18b693d5e026777f5079be000b747cf7f469043bbde78e591ba099",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/look/nominal.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "look",
+   "bytes": 265241,
+   "sha256": "a755a4b0913e27ce86cde3568673c73e667dab4e6159047f7a65b3a87670c94c",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/look/v0.3.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "look",
+   "bytes": 265241,
+   "sha256": "c64af866bd4dc01333f6ab6f1271dd07c42abfed2ccca905a6e5c93d3bf3512f",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/look/v0.35.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "look",
+   "bytes": 265241,
+   "sha256": "3eec6863f94cc884974467e462c8718db35db88f54fd6dfd1e472aaa8e41dbab",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/look/v0.4.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "look",
+   "bytes": 265241,
+   "sha256": "995c8323d42292f8e49073c7c860862dbae573e8cb2a41c57b7b1abd9edefeac",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/look/v0.45.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "look",
+   "bytes": 265241,
+   "sha256": "2fdda4ec64930ed6d96286074d1b77d0922722f573205fe3d56bb93e6386f00f",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/look/v0.5.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "look",
+   "bytes": 265241,
+   "sha256": "92441edeec82f0f8a8529a7f68af0b092f10c48e3bd1816058e8706fe964ce53",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/refs/nominal.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "refs",
+   "bytes": 146918,
+   "sha256": "3dafd4c34dcd398fa04c254bdb0b3cd4dadaab00c8ab8880710222e2f7284e4d",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/refs/v0.3.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "refs",
+   "bytes": 146918,
+   "sha256": "c9953376c6a4c85cc2ee1dbd7145c7ab237b4d30cec6b5cc2023b9fd67eb348b",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/refs/v0.35.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "refs",
+   "bytes": 146918,
+   "sha256": "efc569f5f8b584a423081630dcb3061d3525ff6f733271b86c8c3a5eb740b2b8",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/refs/v0.4.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "refs",
+   "bytes": 146918,
+   "sha256": "e0034485466cb6375d985b7adef2989e58e46731091459b67945c85bab5a53cd",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/refs/v0.45.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "refs",
+   "bytes": 146918,
+   "sha256": "9ab67bb7e150b658230447889eed07fb14af5fab290d6d09ebe8b7f42552967d",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/refs/v0.5.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "refs",
+   "bytes": 146918,
+   "sha256": "c701053f9b98f3573cd732c5858308e97c1647536310691c28b8ff03ef30c2f1",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/nominal_to_v0.3.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 979264,
+   "sha256": "88ccdd831280e40a96808d8eab3212760f2d72ca9bc3ea13440a32f6d1fb8737",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/nominal_to_v0.35.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 979264,
+   "sha256": "9de11e8e55ccebf6c82cc9eaceeabd657a44c595bcaa9e1d488b09a8a7caf1bb",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/nominal_to_v0.4.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 979264,
+   "sha256": "61c799486b12f665eb44109c75b6f241a87572d7b325f5d87ccd612b2b94da41",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/nominal_to_v0.45.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 979264,
+   "sha256": "11056ac9e3b553541017292723e2c400fa71f585e58069a2016f8b06a85a787d",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/nominal_to_v0.5.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 979264,
+   "sha256": "3b972a362d963f3a3f742969312f5e57d9f09c9ecffd55b6b9219310e2cc8cfc",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/start.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 817344,
+   "sha256": "e6bd25b3e29d089739262d9c98906d2b126a2ca94ba17b14e4b4cbee6a66c63a",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/stop1_v0.4.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 817344,
+   "sha256": "d5921658805c4bee7dfc742f7c45ae3db89702b1ea58c19ff4742ca03ec542ca",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/stop2_v0.4.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 574464,
+   "sha256": "e9a94f9d77ce950cb71f6812c20e331343d9f3512daf31604c6cc392867210e2",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/turn90_0.35_left.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 1141184,
+   "sha256": "907912da2e6d4339bd7201138fe5980727f61960723931a32bd563efd74a4b62",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/turn90_0.35_right.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 1222144,
+   "sha256": "36cdc3f7e13c21fe7ce1d1d5fa291f38b94e172431323e28f1a3f4207fdecef0",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/turn90_0.5_left.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 979264,
+   "sha256": "770ddc5536c0fcf0bc39302c2ef94bfaffeb95a1469cf886686c60242c72a085",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/turn90_0.5_right.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 1060224,
+   "sha256": "2a899037256b6da171e19b3ec30aa563e90e31fa3dbc06c48c15422b5a8a172e",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/turn90_pi4_left.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 979264,
+   "sha256": "da01f1bf4ebf02a22e0b29a9d81d5fc309b2408bdbb4b60b830f374d09d8ebeb",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/turn90_pi4_right.npz",
+   "set": "F25F9cl",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 1060224,
+   "sha256": "ed8bb064d002cbbb7fbb6fda31e4c1fb68f60dd17e0309216b644aaa57c5a9cf",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/look/nominal.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "look",
+   "bytes": 265241,
+   "sha256": "e2bf5274af372c60754b0de6e987d5f427975be8ba1ed44ab9aace9bce9c0834",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/look/v0.3.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "look",
+   "bytes": 265241,
+   "sha256": "211ae682d8aedec31485b2735fd8071b397dc90b889d41359a8c768feab4effa",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/look/v0.35.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "look",
+   "bytes": 265241,
+   "sha256": "1b0c1cdb3a8e85f2a2cf345afb061d0f75723b68abdd5c148c681999edc5169a",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/look/v0.4.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "look",
+   "bytes": 265241,
+   "sha256": "4545bad61f5152b4ada1ce56519a8e62ef21d0da2a52a33746be0516df96a62d",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/look/v0.45.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "look",
+   "bytes": 265241,
+   "sha256": "daff2e38abbc7d1fdfdd266b392195de6b0e652ab6681295baeac39d026201a2",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/look/v0.5.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "look",
+   "bytes": 265241,
+   "sha256": "9a97ca2df902b71523baee6081a02a47c79e47cdcb8891a61c61f997551fdff5",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/refs/nominal.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "refs",
+   "bytes": 146918,
+   "sha256": "b767df97e07f979977f3cac1390281c44380df66fee628db484bf3f30edaec75",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/refs/v0.3.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "refs",
+   "bytes": 146918,
+   "sha256": "b936b5a4f17d88665082b0384aef2cf244208e1f80dd38b24f915e9e8c1b720d",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/refs/v0.35.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "refs",
+   "bytes": 146918,
+   "sha256": "aab4f616a2f079b61e15282c6bcce0939a234236637502270112533edf7537e2",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/refs/v0.4.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "refs",
+   "bytes": 146918,
+   "sha256": "91859c26bc0b24a9432a1fcc7150a50a4c4d7fb955df06937fd57a0d8e408e91",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/refs/v0.45.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "refs",
+   "bytes": 146918,
+   "sha256": "68e6318a4ea9458e17272699c1b5e4cfbbd564ae660dff60f7c536073af59542",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/refs/v0.5.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "refs",
+   "bytes": 146918,
+   "sha256": "9107e9e3ef9c454d0dd4a36806fe4806419a9a4f2c6e699c3c362b8f4db0d038",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/transitions/nominal_to_v0.3.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 979264,
+   "sha256": "4b8a3bde64a01af0864f6b7048fa07f662632e7cd5e73aaed8de879ff93ce68b",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/transitions/nominal_to_v0.35.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 979264,
+   "sha256": "d4229931cb561bedf63413ce8ad65590a2c396628c2e464acc1d3c98ba64a122",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/transitions/nominal_to_v0.4.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 979264,
+   "sha256": "c6193a95adb1c2f08f655cf7d8738b313c19886bdd255103f3f18bd6e1e24a97",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/transitions/nominal_to_v0.45.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 979264,
+   "sha256": "710f497f5e938bf1f2a98e52e2965a9b36d23915d4a573107865bb38f0e7243e",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/transitions/nominal_to_v0.5.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 979264,
+   "sha256": "ae1a36c07fb29022906fc86c6eb9e5692e97a044a60851c2814e3cae7b3f7749",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/transitions/start.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 817344,
+   "sha256": "11c76d011399ff44293057352f4cfaaae37746b7c9744d0ba9df7799e58375c3",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/transitions/stop1_v0.4.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 817344,
+   "sha256": "740bd81feb1f24bba48e74d3fc33ae6e6a53cc3c08d102b1c6312a1b1ad323ea",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/transitions/stop2_v0.4.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 574464,
+   "sha256": "e2174ce01868eba35e54284c4fd19bd1503833ddacd26091e0e37108c1511511",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/transitions/turn90_0.35_left.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 1303104,
+   "sha256": "fd66de5a03231a446032fddaed150d1eb0ccf24929012aa2e830d5a5273792df",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/transitions/turn90_0.35_right.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 1384064,
+   "sha256": "be0b6f674cfcaeae18c4946e16d058e3607154ef3b4d8670e31604aad3005fcd",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/transitions/turn90_0.5_left.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 1141184,
+   "sha256": "6228ae4547a588acb44c24521f4df256e8ac21db180c85b2ea2079e41841636e",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/transitions/turn90_0.5_right.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 1060224,
+   "sha256": "2ef5d2c52f2621b3d06776afe3a48581b057780575276a3efaa13a05b3714844",
+   "part": "frozen-04.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/transitions/turn90_pi4_left.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 979264,
+   "sha256": "e8ad177483b9f05319b010bedfc41fb7f0622fdf2a3a7962300976ae23edec91",
+   "part": "frozen-05.tar"
+  },
+  {
+   "path": "stage2/sets/V0/75-M-H-10/transitions/turn90_pi4_right.npz",
+   "set": "V0",
+   "body": "75-M-H-10",
+   "kind": "transitions",
+   "bytes": 898304,
+   "sha256": "83762a582d9d0438bd3973bee7d879790c09022aa2d2535a035d0931db6eb5f5",
+   "part": "frozen-05.tar"
   }
  ],
  "in_bundle_s2_b1": {
@@ -779,291 +1464,22 @@
   ]
  },
  "not_in_this_archive": {
-  "note": "Every other file of the seven restore_inputs.py groups is rebuilt from the committed records by restore_inputs.py restore, after this archive's and s2-b1's arrays are put in place with copy-from --group sets: picks-models (6), picks-arrays (84), k (60), x (60), j (30), look (73) and the 67 arrays of the three earlier frozen sets (V0, F25F9 and F25F9cl on 75-M-H-10), 380 files, 250,768,725 bytes in the main checkout at 61ae6fa0. check reports every group's list in agreement with the committed records (check_in_main_checkout). Timing: restore of five groups (picks-models, picks-arrays, k, x, look) took 151 min on 2 processes in a fresh worktree on 14 Nov (tools/README.md); j and sets were added on 15 Nov and their rebuild was not timed in a fresh worktree; restore --group sets has not been tried. picks-models needs at least 2 CPUs to reproduce its ledger JSON (restore_inputs.py SIZE_BLAS_THREADS).",
+  "note": "Group sets: none. Its 136 files are the 119 of this archive and the 17 of bundle s2-b1, all put in place by copy-from --group sets. Every file of the six other restore_inputs.py groups is rebuilt from the committed records by restore_inputs.py restore: picks-models (6), picks-arrays (84), k (60), x (60), j (30) and look (73), 313 files, 208,677,412 bytes in the main checkout at 23bfbfcc. check there reports every group's list in agreement with the committed records (source_of_the_67). restore finds every frozen set in place and rebuilds none. Timing: restore of five groups (picks-models, picks-arrays, k, x, look) took 151 min on 2 processes in a fresh worktree on 14 Nov (tools/README.md); j was added on 15 Nov and its rebuild was not timed in a fresh worktree. picks-models needs at least 2 CPUs to reproduce its ledger JSON (restore_inputs.py SIZE_BLAS_THREADS). restore --group sets has never been tried; with this archive and s2-b1 it is not needed.",
   "groups": {
    "picks-models": 6,
    "picks-arrays": 84,
    "k": 60,
    "x": 60,
    "j": 30,
-   "look": 73,
-   "sets (V0, F25F9, F25F9cl on 75-M-H-10)": 67
+   "look": 73
   },
-  "sets_files_rebuilt_by_restore": [
-   {
-    "path": "stage2/sets/F25F9/75-M-H-10/look/v0.4.npz",
-    "sha256": "b0b00d369f1b6c77844ebd3c7c2ae2f314bfd05405e05c2c5740fa52ed7b1dda"
-   },
-   {
-    "path": "stage2/sets/F25F9/75-M-H-10/look/v0.45.npz",
-    "sha256": "70028a3982578954415ffbc3f7a4c8c6ead570a66af6a03b9e124ef087987e5a"
-   },
-   {
-    "path": "stage2/sets/F25F9/75-M-H-10/look/v0.5.npz",
-    "sha256": "8bdd6bd3aaa7b813cd8447cab474022d1430f99fe07ddf4ab407207074e3f36d"
-   },
-   {
-    "path": "stage2/sets/F25F9/75-M-H-10/refs/v0.4.npz",
-    "sha256": "3ec832ccccace18cc2722686ae28d2464a7b3bbb260a78c5b21a292c1ed5ef28"
-   },
-   {
-    "path": "stage2/sets/F25F9/75-M-H-10/refs/v0.45.npz",
-    "sha256": "6af58219009932759515e232fbdfc2dbacd3eac3af5d1135eea50be0cafca40d"
-   },
-   {
-    "path": "stage2/sets/F25F9/75-M-H-10/refs/v0.5.npz",
-    "sha256": "99e22e614ab1722425eb176f41a155d53242eb0bff555979f90e6350e2dc0335"
-   },
-   {
-    "path": "stage2/sets/F25F9/75-M-H-10/transitions/start_v0.4.npz",
-    "sha256": "1e72f9825f74269f9f94c834c34a119074de218c6b6d51b264d729e3e83ccdce"
-   },
-   {
-    "path": "stage2/sets/F25F9/75-M-H-10/transitions/stop1_v0.4.npz",
-    "sha256": "43d1ae96cf262371a58ba04e4dbdf051f48a8774a55babb1671d4b867d2408cc"
-   },
-   {
-    "path": "stage2/sets/F25F9/75-M-H-10/transitions/stop2_v0.4.npz",
-    "sha256": "ddf3eb083b8c4854babcd481b401921b132c14d32ffabf9d55d893c4fa7311bd"
-   },
-   {
-    "path": "stage2/sets/F25F9/75-M-H-10/transitions/turn90_0.35_left.npz",
-    "sha256": "7f5ea0c44acef8c67d81cd9bc770a73d60e95e80deac040254c3ff0fb3ef2ca2"
-   },
-   {
-    "path": "stage2/sets/F25F9/75-M-H-10/transitions/turn90_0.35_right.npz",
-    "sha256": "e27fd3d822e22e441193d0de080b105c874978340700dfdf2d895e0a6bc85c10"
-   },
-   {
-    "path": "stage2/sets/F25F9/75-M-H-10/transitions/turn90_0.5_left.npz",
-    "sha256": "24ade72302e2170b484adf22df0fb1ad404c4d80d446a9763254ea488a9fad67"
-   },
-   {
-    "path": "stage2/sets/F25F9/75-M-H-10/transitions/turn90_0.5_right.npz",
-    "sha256": "564ffa6b2f7f2d65dae2c546e4880f01bc257a4008df4432118d6711cda8699a"
-   },
-   {
-    "path": "stage2/sets/F25F9/75-M-H-10/transitions/turn90_pi4_left.npz",
-    "sha256": "040740666c165fdce75b9d600405dbe2eeb6f2d20d562cd2f2bf77aa3a950afa"
-   },
-   {
-    "path": "stage2/sets/F25F9/75-M-H-10/transitions/turn90_pi4_right.npz",
-    "sha256": "90e6cf660b18b693d5e026777f5079be000b747cf7f469043bbde78e591ba099"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/look/nominal.npz",
-    "sha256": "a755a4b0913e27ce86cde3568673c73e667dab4e6159047f7a65b3a87670c94c"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/look/v0.3.npz",
-    "sha256": "c64af866bd4dc01333f6ab6f1271dd07c42abfed2ccca905a6e5c93d3bf3512f"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/look/v0.35.npz",
-    "sha256": "3eec6863f94cc884974467e462c8718db35db88f54fd6dfd1e472aaa8e41dbab"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/look/v0.4.npz",
-    "sha256": "995c8323d42292f8e49073c7c860862dbae573e8cb2a41c57b7b1abd9edefeac"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/look/v0.45.npz",
-    "sha256": "2fdda4ec64930ed6d96286074d1b77d0922722f573205fe3d56bb93e6386f00f"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/look/v0.5.npz",
-    "sha256": "92441edeec82f0f8a8529a7f68af0b092f10c48e3bd1816058e8706fe964ce53"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/refs/nominal.npz",
-    "sha256": "3dafd4c34dcd398fa04c254bdb0b3cd4dadaab00c8ab8880710222e2f7284e4d"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/refs/v0.3.npz",
-    "sha256": "c9953376c6a4c85cc2ee1dbd7145c7ab237b4d30cec6b5cc2023b9fd67eb348b"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/refs/v0.35.npz",
-    "sha256": "efc569f5f8b584a423081630dcb3061d3525ff6f733271b86c8c3a5eb740b2b8"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/refs/v0.4.npz",
-    "sha256": "e0034485466cb6375d985b7adef2989e58e46731091459b67945c85bab5a53cd"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/refs/v0.45.npz",
-    "sha256": "9ab67bb7e150b658230447889eed07fb14af5fab290d6d09ebe8b7f42552967d"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/refs/v0.5.npz",
-    "sha256": "c701053f9b98f3573cd732c5858308e97c1647536310691c28b8ff03ef30c2f1"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/nominal_to_v0.3.npz",
-    "sha256": "88ccdd831280e40a96808d8eab3212760f2d72ca9bc3ea13440a32f6d1fb8737"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/nominal_to_v0.35.npz",
-    "sha256": "9de11e8e55ccebf6c82cc9eaceeabd657a44c595bcaa9e1d488b09a8a7caf1bb"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/nominal_to_v0.4.npz",
-    "sha256": "61c799486b12f665eb44109c75b6f241a87572d7b325f5d87ccd612b2b94da41"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/nominal_to_v0.45.npz",
-    "sha256": "11056ac9e3b553541017292723e2c400fa71f585e58069a2016f8b06a85a787d"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/nominal_to_v0.5.npz",
-    "sha256": "3b972a362d963f3a3f742969312f5e57d9f09c9ecffd55b6b9219310e2cc8cfc"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/start.npz",
-    "sha256": "e6bd25b3e29d089739262d9c98906d2b126a2ca94ba17b14e4b4cbee6a66c63a"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/stop1_v0.4.npz",
-    "sha256": "d5921658805c4bee7dfc742f7c45ae3db89702b1ea58c19ff4742ca03ec542ca"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/stop2_v0.4.npz",
-    "sha256": "e9a94f9d77ce950cb71f6812c20e331343d9f3512daf31604c6cc392867210e2"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/turn90_0.35_left.npz",
-    "sha256": "907912da2e6d4339bd7201138fe5980727f61960723931a32bd563efd74a4b62"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/turn90_0.35_right.npz",
-    "sha256": "36cdc3f7e13c21fe7ce1d1d5fa291f38b94e172431323e28f1a3f4207fdecef0"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/turn90_0.5_left.npz",
-    "sha256": "770ddc5536c0fcf0bc39302c2ef94bfaffeb95a1469cf886686c60242c72a085"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/turn90_0.5_right.npz",
-    "sha256": "2a899037256b6da171e19b3ec30aa563e90e31fa3dbc06c48c15422b5a8a172e"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/turn90_pi4_left.npz",
-    "sha256": "da01f1bf4ebf02a22e0b29a9d81d5fc309b2408bdbb4b60b830f374d09d8ebeb"
-   },
-   {
-    "path": "stage2/sets/F25F9cl/75-M-H-10/transitions/turn90_pi4_right.npz",
-    "sha256": "ed8bb064d002cbbb7fbb6fda31e4c1fb68f60dd17e0309216b644aaa57c5a9cf"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/look/nominal.npz",
-    "sha256": "e2bf5274af372c60754b0de6e987d5f427975be8ba1ed44ab9aace9bce9c0834"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/look/v0.3.npz",
-    "sha256": "211ae682d8aedec31485b2735fd8071b397dc90b889d41359a8c768feab4effa"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/look/v0.35.npz",
-    "sha256": "1b0c1cdb3a8e85f2a2cf345afb061d0f75723b68abdd5c148c681999edc5169a"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/look/v0.4.npz",
-    "sha256": "4545bad61f5152b4ada1ce56519a8e62ef21d0da2a52a33746be0516df96a62d"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/look/v0.45.npz",
-    "sha256": "daff2e38abbc7d1fdfdd266b392195de6b0e652ab6681295baeac39d026201a2"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/look/v0.5.npz",
-    "sha256": "9a97ca2df902b71523baee6081a02a47c79e47cdcb8891a61c61f997551fdff5"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/refs/nominal.npz",
-    "sha256": "b767df97e07f979977f3cac1390281c44380df66fee628db484bf3f30edaec75"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/refs/v0.3.npz",
-    "sha256": "b936b5a4f17d88665082b0384aef2cf244208e1f80dd38b24f915e9e8c1b720d"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/refs/v0.35.npz",
-    "sha256": "aab4f616a2f079b61e15282c6bcce0939a234236637502270112533edf7537e2"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/refs/v0.4.npz",
-    "sha256": "91859c26bc0b24a9432a1fcc7150a50a4c4d7fb955df06937fd57a0d8e408e91"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/refs/v0.45.npz",
-    "sha256": "68e6318a4ea9458e17272699c1b5e4cfbbd564ae660dff60f7c536073af59542"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/refs/v0.5.npz",
-    "sha256": "9107e9e3ef9c454d0dd4a36806fe4806419a9a4f2c6e699c3c362b8f4db0d038"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/transitions/nominal_to_v0.3.npz",
-    "sha256": "4b8a3bde64a01af0864f6b7048fa07f662632e7cd5e73aaed8de879ff93ce68b"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/transitions/nominal_to_v0.35.npz",
-    "sha256": "d4229931cb561bedf63413ce8ad65590a2c396628c2e464acc1d3c98ba64a122"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/transitions/nominal_to_v0.4.npz",
-    "sha256": "c6193a95adb1c2f08f655cf7d8738b313c19886bdd255103f3f18bd6e1e24a97"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/transitions/nominal_to_v0.45.npz",
-    "sha256": "710f497f5e938bf1f2a98e52e2965a9b36d23915d4a573107865bb38f0e7243e"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/transitions/nominal_to_v0.5.npz",
-    "sha256": "ae1a36c07fb29022906fc86c6eb9e5692e97a044a60851c2814e3cae7b3f7749"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/transitions/start.npz",
-    "sha256": "11c76d011399ff44293057352f4cfaaae37746b7c9744d0ba9df7799e58375c3"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/transitions/stop1_v0.4.npz",
-    "sha256": "740bd81feb1f24bba48e74d3fc33ae6e6a53cc3c08d102b1c6312a1b1ad323ea"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/transitions/stop2_v0.4.npz",
-    "sha256": "e2174ce01868eba35e54284c4fd19bd1503833ddacd26091e0e37108c1511511"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/transitions/turn90_0.35_left.npz",
-    "sha256": "fd66de5a03231a446032fddaed150d1eb0ccf24929012aa2e830d5a5273792df"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/transitions/turn90_0.35_right.npz",
-    "sha256": "be0b6f674cfcaeae18c4946e16d058e3607154ef3b4d8670e31604aad3005fcd"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/transitions/turn90_0.5_left.npz",
-    "sha256": "6228ae4547a588acb44c24521f4df256e8ac21db180c85b2ea2079e41841636e"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/transitions/turn90_0.5_right.npz",
-    "sha256": "2ef5d2c52f2621b3d06776afe3a48581b057780575276a3efaa13a05b3714844"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/transitions/turn90_pi4_left.npz",
-    "sha256": "e8ad177483b9f05319b010bedfc41fb7f0622fdf2a3a7962300976ae23edec91"
-   },
-   {
-    "path": "stage2/sets/V0/75-M-H-10/transitions/turn90_pi4_right.npz",
-    "sha256": "83762a582d9d0438bd3973bee7d879790c09022aa2d2535a035d0931db6eb5f5"
-   }
-  ],
+  "files": 313,
+  "bytes_in_main_checkout": 208677412,
   "restore_order": [
    "fetch this branch and claude/mesozoic-trex-stage2-bundle-s2-b1",
-   "extract this archive's parts and s2-b1's two V6 parts into one empty directory",
-   "restore_inputs.py copy-from <that directory> --group sets  (puts the 69 V6 arrays in place)",
-   "restore_inputs.py restore  (rebuilds the other groups and the three earlier sets)",
+   "extract this archive's 5 parts and s2-b1's two V6 parts into one empty directory",
+   "restore_inputs.py copy-from <that directory> --group sets  (puts all 136 sets arrays in place: 119 from this archive, 17 from s2-b1)",
+   "restore_inputs.py restore  (rebuilds the six other groups; every frozen set is in place, so it rebuilds none)",
    "restore_inputs.py check  (must exit 0)"
   ]
  }
