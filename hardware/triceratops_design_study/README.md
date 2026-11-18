@@ -22,8 +22,12 @@ openscad -D 'height_mm=750' -o /tmp/triceratops-750.stl Triceratops-envelope.sca
 openscad -D 'height_mm=600' -o /tmp/triceratops-600.stl Triceratops-envelope.scad
 ```
 
+## MuJoCo models
+
+[Open the two MuJoCo scenes and their control guide](models/README.md). The adult anatomical reconstruction and the 75 cm robot each have a free base, working joints and a four-foot stance check. The robot scene includes the motor housings, belt transmissions, control electronics and sensors.
+
 ## Evidence and open questions
 
 The 75 cm T-Rex passed the full 0.30 m/s walking criteria in simulation at zero added delay. At 4 ms one of two controller fits passed. No tested speed passed at 10 ms. The corresponding Triceratops speed is a design target. [T-Rex Stage 2 results](https://github.com/kuds/mesozoic-labs/blob/42e6f5075193994edbd2d2441ae8933a5efde09a/hardware/trex_form_study/STAGE2_75_REPORT.md)
 
-The Triceratops study covers stationary packaging and planar inverse kinematics. Free-base walking, clearances throughout a stride, and physical performance remain unverified. The proposed 15 kg chassis puts 55% of its standing load on the front axle. The foreleg calculation calls for about 24.2 N·m briefly at the flexion motor. Verify the X6 drive and 1:1 belt under load on the intended 6S supply, including heating and command delay with both CAN buses carrying twelve drives’ traffic. [T-Rex bench protocol](https://github.com/kuds/mesozoic-labs/blob/42e6f5075193994edbd2d2441ae8933a5efde09a/hardware/trex_form_study/stage2/jetson75/BENCH_SHEET.md)
+The Triceratops study covers stationary packaging, planar inverse kinematics and free-base stance in MuJoCo. Free-base walking, clearances throughout a stride, and physical performance remain unverified. The proposed 15 kg chassis puts 55% of its standing load on the front axle. The foreleg calculation calls for about 24.2 N·m briefly at the flexion motor. Verify the X6 drive and 1:1 belt under load on the intended 6S supply, including heating and command delay with both CAN buses carrying twelve drives’ traffic. [T-Rex bench protocol](https://github.com/kuds/mesozoic-labs/blob/42e6f5075193994edbd2d2441ae8933a5efde09a/hardware/trex_form_study/stage2/jetson75/BENCH_SHEET.md)
