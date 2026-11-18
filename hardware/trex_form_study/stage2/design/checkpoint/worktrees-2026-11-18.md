@@ -8,8 +8,10 @@ machine held commits that were on no branch of `origin`. They are kept in one gi
 - Made with `git bundle create worktrees-2026-11-18.bundle wt/wp-l wt/wpc-ck wt/wpc-cb wt/wpc-ce --not b1d5e98e`.
 - It holds 4 heads and 77 commits. Its 22 prerequisites are all ancestors of the working branch's pushed tip
   `b1d5e98e` (`origin/claude/mesozoic-trex-stage2-refine-4jffre`), so a clone that has the working branch can read it.
-- These were the only local branches with commits not on `origin` on 18 Nov (`git rev-list --count <b> --not
-  --remotes=origin` was 0 for every other branch under `refs/heads`).
+- These were the only local branches with commits not on `origin` at 03:55 UTC 18 Nov (`git rev-list --count <b>
+  --not --remotes=origin` was 0 for every other branch under `refs/heads`). The archive branch
+  `claude/mesozoic-trex-stage2-archive-a1` came later and is not in this bundle: it goes to `origin` by its own push
+  (P49).
 
 ## What it holds
 
