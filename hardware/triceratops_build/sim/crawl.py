@@ -24,16 +24,18 @@ CORNERS = ("left_fore", "right_fore", "left_hind", "right_hind")
 ORDER = ("left_hind", "left_fore", "right_hind", "right_fore")
 AXES = ("roll", "pitch", "flexion")
 
-# Gait parameters. Frozen for the judged runs in the commit that runs them (PREREG_CRAWL.md).
+# Gait parameters, frozen 18 Nov 2026 after 48 development runs (PREREG_CRAWL.md, amendment 1).
 PARAMS = {
-    "stride_m": 0.15,      # each foot advances one stride per cycle; the body a quarter stride per step
+    "stride_m": 0.12,      # each foot advances one stride per cycle; the body a quarter stride per step
     "lift_m": 0.04,        # swing foot clearance
-    "shift_s": 0.50,       # four-foot body shift before each swing
+    "shift_s": 1.00,       # four-foot body shift before each swing
     "swing_s": 0.50,       # swing duration
-    "margin_plan_m": 0.045,
-    "body_y_max_m": 0.090,
-    "lift_frac": 0.25,     # fraction of the swing spent lifting, and again lowering
-    "stance_press_m": 0.004,  # planted feet commanded this far below the floor (contact preload)
+    "margin_plan_m": 0.065,  # planned static margin, ankle-pin basis (pre-registered: >= 30 mm)
+    "body_y_max_m": 0.100,
+    "body_dx_max_m": 0.080,  # fore-aft body adjustment allowed beyond the quarter stride
+    "cost_y_per_m": 3.0,     # sideways shift costs more than fore-aft: it leans the legs and rocks the soles
+    "lift_frac": 0.20,     # fraction of the swing spent lifting, and again lowering
+    "stance_press_m": 0.002,  # planted feet commanded this far below the floor (contact preload)
     "cycles": 8,
     "stand_s": 1.0,
     "control_dt": 0.010,
@@ -124,31 +126,36 @@ def plan(model, P):
     bx, by = 0.0, 0.0
     S = P["stride_m"]
     steps = []
-    for k in range(4 * P["cycles"]):
-        L = ORDER[k % 4]
-        bx_nom = bx + S / 4
+    # Gait start: two setup swings put the right feet into the steady stagger (right fore half a stride ahead, right
+    # hind a quarter), with no body advance; then the cycles. A setup step lands its foot at its current position
+    # plus `advance`; a cycle step lands it half a stride ahead of its hip.
+    sched = [("right_fore", S / 2, 0.0), ("right_hind", S / 4, 0.0)] + \
+            [(ORDER[k % 4], None, S / 4) for k in range(4 * P["cycles"])]
+    for k, (L, advance, body_adv) in enumerate(sched):
+        bx_nom = bx + body_adv
         best = None
-        for dx in (0.0, 0.01, -0.01, 0.02, -0.02, 0.03, -0.03):
-            for y in np.arange(-P["body_y_max_m"], P["body_y_max_m"] + 1e-9, 0.002):
+        for dx in np.arange(-P["body_dx_max_m"], P["body_dx_max_m"] + 1e-9, 0.01):
+            for y in np.arange(-P["body_y_max_m"], P["body_y_max_m"] + 1e-9, 0.004):
                 cx = bx_nom + dx
                 end = {c: feet[c].copy() for c in CORNERS}
-                end[L][0] = cx + hip_x[L] + S / 2
+                # land half a stride ahead of the hip on the body's steady path (bx_nom), not on the rocked body
+                # position, so later fore-aft rocking does not drive the passive ankle past its range
+                end[L][0] = feet[L][0] + advance if advance is not None else bx_nom + hip_x[L] + S / 2
                 q1, ok1, com1 = kin.pose(cx, y, feet, qg)
                 q2, ok2, com2 = kin.pose(cx, y, end, q1)
                 if not (ok1 and ok2):
                     continue
                 tri = np.array([feet[c][:2] for c in CORNERS if c != L])
                 mg = min(tri_margin(com1, tri), tri_margin(com2, tri))
-                cost = abs(y - by) + 2 * abs(dx)
+                cost = P["cost_y_per_m"] * abs(y) + abs(dx)
                 cand = (mg >= P["margin_plan_m"], -cost if mg >= P["margin_plan_m"] else mg, cx, y, end, q1, mg)
                 if best is None or cand[:2] > best[:2]:
                     best = cand
-            if best is not None and best[0]:
-                break
         if best is None:
             raise RuntimeError(f"step {k}: no reachable body position")
         ok, _, bx, by, end, q1, mg = best
-        steps.append({"k": k, "leg": L, "body": [bx, by], "from": feet[L].tolist(), "to": end[L].tolist(),
+        steps.append({"k": k, "leg": L, "setup": advance is not None, "body": [bx, by], "from": feet[L].tolist(),
+                      "to": end[L].tolist(),
                       "margin_plan_m": float(mg), "meets_plan": bool(ok)})
         feet = end
         qg = {c: q1[c] for c in CORNERS}
@@ -195,6 +202,17 @@ def trajectory(kin, steps, P):
         b = b1
         feet = dict(feet)
         feet[L] = p1
+    # final shift: body back to the centreline and to the middle of the feet (four feet down)
+    b1 = np.array([np.mean([feet[c][0] for c in CORNERS]), 0.0])
+    b0 = b.copy()
+    n_shift = round(P["shift_s"] / dt)
+    for i in range(1, n_shift + 1):
+        bb = b0 + min_jerk(i / n_shift) * (b1 - b0)
+        q, ok, _ = kin.pose(bb[0], bb[1], feet, qg)
+        qg = q
+        times.append(t + i * dt)
+        targets.append(np.concatenate([q[c] for c in CORNERS]))
+    t += P["shift_s"]
     times.append(t + P["stand_s"])
     targets.append(targets[-1].copy())
     return np.array(times), np.array(targets), phases

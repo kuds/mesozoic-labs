@@ -158,7 +158,7 @@ def leg_drive(build, corner, axis):
     return spec, 1.0
 
 
-def build(build_name, variant, battery_x=-0.200):
+def build(build_name, variant, battery_x=-0.200, ankle_roll=False):
     m = Model(BASE)
     r = m.root
     budget = BUDGET[build_name]
@@ -249,6 +249,19 @@ def build(build_name, variant, battery_x=-0.200):
                 twin = {k: v for k, v in g.attrib.items() if k in ("type", "fromto", "size", "pos")}
                 cls = cls_of_body.get(b.get("name"), "upper_collision")
                 m.add_geom(b, name=n + "_collision", mass="0", rgba="0 0 0 0", group="3", **{"class": cls}, **twin)
+
+    # 2c. Exploratory design variant (not the pre-registered models): a passive roll hinge at each ankle, with the
+    #     same spring, damping and armature as PR #669's passive pitch ankle, so the sole can stay flat when the leg
+    #     leans in roll.
+    if ankle_roll:
+        for c in CORNERS:
+            foot = m.body(f"{c}_foot")
+            aj = foot.find("joint")
+            rj = ET.Element("joint", {k: v for k, v in aj.attrib.items() if k not in ("name", "axis", "range")})
+            rj.set("name", f"{c}_ankle_roll")
+            rj.set("axis", "1 0 0")
+            rj.set("range", "-20 20")
+            foot.insert(list(foot).index(aj) + 1, rj)
 
     # 3. Shells: body shell to 0.85 kg in both builds (parts list 6.2; T20's extra 0.40 kg is the limb covers).
     shell_geoms = [g for b in r.iter("body") for g in b.findall("geom")
@@ -480,6 +493,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(HERE / "generated"))
     ap.add_argument("--battery-x", type=float, default=-0.200)
+    ap.add_argument("--ankle-roll", action="store_true",
+                    help="also write the exploratory passive-roll-ankle variants, trike_<BUILD>_closed_ankleroll.xml")
     args = ap.parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -503,6 +518,16 @@ def main():
                   f"from the pitch pivot, neck spring ref {neck['springref_deg']:.1f} deg")
             print("   categories:", {k: (led['category_kg'][k], led['budget_category_kg'][k])
                                      for k in led['budget_category_kg']})
+        if args.ankle_roll:
+            m, dt = build(b, "closed", args.battery_x, ankle_roll=True)
+            ET.indent(m.tree, space="  ")
+            ref, neck = set_neck_spring(ET.tostring(m.root, encoding="unicode"))
+            nj = next(j for j in m.root.iter("joint") if j.get("name") == "neck_pitch")
+            nj.set("stiffness", "0.70")
+            nj.set("springref", f"{math.degrees(ref):.3f}")
+            m.root.set("model", f"triceratops_75cm_{b}_closed_ankleroll")
+            (out / f"trike_{b}_closed_ankleroll.xml").write_text(ET.tostring(m.root, encoding="unicode") + "\n")
+            print(f"trike_{b}_closed_ankleroll.xml: exploratory variant with passive roll ankles")
 
 
 if __name__ == "__main__":
