@@ -27,6 +27,7 @@ From `hardware/triceratops_kickoff/NEW_SESSION_PROMPT.md` and `CONSOLIDATION_PLA
 | P6 | The museum walk is 0.30 m/s. 0.40 m/s is not a walking target. **Superseded 18 Nov 2026 by D2 (60 cm): the museum walk target becomes about 0.25-0.27 m/s** (Froude-similar to 0.30 m/s at 75 cm; the option the owner chose was described as walking 0.25-0.27 m/s), to be fixed in the 60 cm simulation. | superseded |
 | P7 | Owner, 18 Nov 2026, in chat: "30k is too much for me to afford"; the build should come in at $10k-$20k. Size and budget are to be settled first, with expressiveness (moving head and mouth) part of the budget. Supersedes the $17k-$32k spend class in P4 (the "legit hardware" part of P4 stands). | adopted |
 | P8 | Owner, 18 Nov 2026, in chat: the first round of museum demos takes place in a safe, controlled environment. The robot does not interact directly with children or adults; a safe distance is kept between it and any person. A wireless way to stop it is valuable (met by the fail-safe radio stop, D15). | adopted |
+| P9 | Owner, 18 Nov 2026, in chat: "Don't worry about cost of using Google Colab. I have a pro subscription and I am accounting for that cost." Colab's dollar cost is no longer estimated or asked about; run lengths are still stated so runs can be planned, and large multi-agent work in this session is still put to the owner first (the account's weekly usage limit). | adopted |
 
 ## Engineering constraints carried in (E)
 
