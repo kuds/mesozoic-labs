@@ -1,5 +1,11 @@
 # Prompt for the next working session
 
+## Note of 18 Nov 2026: the T. rex study is paused; a restart starts from RESUME.md
+
+The owner paused T. rex development on 18 Nov 2026 and moved the project to a Triceratops build (`DECISION_LOG.md`
+P47 to P50). To restart, read [RESUME.md](RESUME.md) first: what is kept and where, the restart's steps, and what was
+open. The notes and prompts below are earlier and are kept as they were written.
+
 ## Note of 15 Nov 2026: the second session is paused, and this is how to resume it
 
 The second session (14–15 Nov, branch `claude/mesozoic-trex-stage2-refine-4jffre`) stopped at the owner's request
