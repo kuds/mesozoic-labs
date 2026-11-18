@@ -3,6 +3,9 @@
 Written on 18 Nov 2026, when the study was paused. Section 1 is for the owner. Sections 2 to 4 are for whoever
 restarts the work. Paths are relative to `hardware/trex_form_study/`.
 
+**Paused, not dropped (P51).** The T. rex stays on the roadmap as the flagship, a milestone for end 2027 / early 2028.
+The Triceratops is the museum demo for Q3 2027, the near-term live demo of the museum outreach.
+
 ## 1. For the owner: why it stopped, what it reached, what is kept
 
 ### Why it is paused
@@ -13,9 +16,9 @@ adjusting real hardware, which needs equipment and time the project does not hav
 Triceratops: on four legs it can walk slowly with three feet on the ground, and it stays balanced without effort.
 
 The same day you added that the T. rex stays on the roadmap as the flagship, a milestone for end 2027 or early 2028,
-with the Triceratops as the nearer demo in the third quarter of 2027. It is paused, not dropped. That is decision P51;
-its row is in the decision log of the working branch from commit `c5274905` on, one commit after the pause record
-this file builds on.
+with the Triceratops as the nearer demo for the museum outreach in the third quarter of 2027. It is paused, not
+dropped. That is decision P51; its row is in the decision log of the working branch from commit `c5274905` on, one
+commit after the pause record this file builds on.
 
 ### What the study reached (all in a computer model: nothing was built or measured)
 
@@ -30,7 +33,7 @@ this file builds on.
   - the lifelike walk you chose (V6: hip bob, toe-off, body roll, a tail that swings against the body, small
     changes from step to step), with the plain head;
   - the same walk with the expressive head (a turning neck and a jaw);
-  - the same walk without the roll onto the middle claw (V6noF5).
+  - V6 without F5's toe-off (V6noF5), with the plain head.
 
   Three earlier walks (V0, F25F9 and F25F9cl) were frozen on 15 Nov.
 - **Training on Colab was ready to start.**
@@ -51,15 +54,13 @@ It is all in the GitHub repository `kuds/mesozoic-labs`. A *branch* there is a n
 | All the study's code, records, reports and decisions, and this file | the working branch `claude/mesozoic-trex-stage2-refine-4jffre` | It stays (P48). |
 | The same work in the repository's main line | a pull request into `main`, which the lead opens and you review and merge (P48) | It keeps the study easy to find. |
 | The input files for training the 75 cm robot on Colab (about 34 MB) | the data branch `claude/mesozoic-trex-stage2-bundle-s2-b1` | Never merged. The day-one sheet reads it by name, so it must not be changed (P50). |
-| The other input files a fresh copy of the repository lacks (380 files, about 251 MB) | the archive branch `claude/mesozoic-trex-stage2-archive-a1` | Never merged (P49). It saves a rebuild of about 2.5 hours. |
+| The files of the newest frozen walks that no other branch holds (52 files, about 120 MB: V6 with the expressive head, V6noF5, and the look files of V6 with the plain head) | the archive branch `claude/mesozoic-trex-stage2-archive-a1` | Never merged (P49). The other 17 files of these walks (V6 with the plain head) are in the data branch above. |
 | Four unfinished side lines of work (77 saved versions; the 60 cm walking styles among them) | one file in the working branch, `stage2/design/checkpoint/worktrees-2026-11-18.bundle` | Described in [worktrees-2026-11-18.md](stage2/design/checkpoint/worktrees-2026-11-18.md). |
 
 **Not kept:** the step-by-step traces of the simulation runs (about 2 GB, only for diagnosis, and rebuilt exactly
-from the records; P49) and the Python setup (rebuilt in about 2 minutes).
-
-**One gap.** 52 files of the newest frozen walks (V6 with both heads, and V6noF5) were only on the cloud machine when
-the archive was made (its first version, `be474190`), so that version does not hold them. They can be rebuilt from the
-records (not yet tried), or the lead adds them to the archive before the cloud machine is deleted.
+from the records; P49) and the Python setup (rebuilt in about 2 minutes). The other input files a fresh copy of the
+repository lacks (380 files, about 251 MB) are not kept either: a tool rebuilds them from the records in about
+2.5 hours (section 2, step 3).
 
 ## 2. How to restart, step by step
 
@@ -74,10 +75,10 @@ git ls-remote https://github.com/kuds/mesozoic-labs refs/heads/claude/mesozoic-t
 
 - Expect three lines.
 - The data branch must read `ecf95a81a6ebb43e0331b5c1db74bdea7e74aaed` (P50).
-- The archive's first version was `be47419033b8705e8943072bbea1ced2ed98b32a`. A later version may add the 52 missing
-  arrays; its README says what it holds.
-- If the archive branch is missing, it was not pushed before the cloud machine was deleted. Then step 3 falls back on
-  `restore_inputs.py restore`.
+- The archive branch should read `9c2d2a52bd7d7c8c4661c49efaf76b23a44ff359`, the commit that holds the 52 frozen
+  arrays. Its README says what it holds. An earlier build of it, `be474190`, held other files and was not pushed.
+- If the archive branch is missing, it was not pushed before the cloud machine was deleted. Then step 3's `restore`
+  rebuilds those 52 arrays as well, through `restore --group sets`, which has never been tried.
 
 ### Step 1: a fresh session on the working branch
 
@@ -109,41 +110,60 @@ TORCH=cpu bash tools/setup_venv.sh
   (`LESSONS_LEARNED.md` §4.5).
 - Run long jobs through `bash tools/lowprio.sh`, with the keep-alive of the README's step 3.
 
-### Step 3: the inputs, from the archive branch
+### Step 3: the inputs, from the archive branch, the data branch and a rebuild
 
-The archive's README gives the commands. It is `hardware/trex_form_study/stage2/archive/a1/README.md` on the archive
-branch, not on this one. From the clone's root:
+`tools/restore_inputs.py` lists 449 git-ignored input files in seven groups. They come from three places:
+
+1. **The archive branch: 52 files** (119,553,986 bytes in three tar parts). These are the frozen arrays that no other
+   branch holds: V6 on 75-M-H-10-X (23), V6noF5 on 75-M-H-10 (23) and the six `look` files of V6 on 75-M-H-10.
+2. **The data branch of bundle s2-b1: 17 files.** These are the other frozen V6 arrays, V6 on 75-M-H-10's `refs` (6)
+   and `transitions` (11), in the parts `V6-75-M-H-10-1.tar` and `V6-75-M-H-10-2.tar`.
+3. **A rebuild from the committed records: the other 380 files** (about 251 MB). `restore_inputs.py restore` makes
+   them: the groups `picks-models`, `picks-arrays`, `k`, `x`, `j` and `look`, and the 67 arrays of the three earlier
+   frozen sets (V0, F25F9 and F25F9cl).
+
+The archive's README gives the commands and what to expect. It is
+`hardware/trex_form_study/stage2/archive/a1/README.md` on the archive branch, not on this one. From the clone's root:
 
 ```bash
 ROOT=$(pwd)
+A=$(mktemp -d) B=$(mktemp -d) X=$(mktemp -d)
 git fetch origin claude/mesozoic-trex-stage2-archive-a1
-A=$(mktemp -d) X=$(mktemp -d)
 git archive FETCH_HEAD hardware/trex_form_study/stage2/archive/a1 | tar x -C "$A"
+git fetch origin claude/mesozoic-trex-stage2-bundle-s2-b1
+git archive FETCH_HEAD hardware/trex_form_study/stage2/tb/bundle/s2-b1/parts | tar x -C "$B"
 (cd "$A/hardware/trex_form_study/stage2/archive/a1" && sha256sum parts/*.tar)   # compare with MANIFEST.json "parts"
-for p in "$A"/hardware/trex_form_study/stage2/archive/a1/parts/inputs-*.tar; do tar xf "$p" -C "$X"; done
+for p in "$A"/hardware/trex_form_study/stage2/archive/a1/parts/frozen-*.tar \
+         "$B"/hardware/trex_form_study/stage2/tb/bundle/s2-b1/parts/V6-75-M-H-10-*.tar; do tar xf "$p" -C "$X"; done
 cd "$ROOT/hardware/trex_form_study"
-PYTHONPATH=. .venv/bin/python tools/restore_inputs.py copy-from "$X"
+PYTHONPATH=. .venv/bin/python tools/restore_inputs.py copy-from "$X" --group sets
+rm -rf "$A" "$B" "$X"
+PYTHONPATH=. .venv/bin/python tools/restore_inputs.py restore     # the other 380 files: about 2.5 h
 PYTHONPATH=. .venv/bin/python tools/restore_inputs.py check
-rm -rf "$A" "$X"
 ```
 
-**What `check` should print from the archive's first version alone** (as it did in a fresh clone on 18 Nov):
+**The order matters.** `copy-from` comes first, so that `restore` finds the 69 frozen V6 arrays in place. `restore`
+rebuilds only missing or wrong files, so it then leaves them alone. Run `restore` detached, with the keep-alive
+([tools/README.md](tools/README.md), "A fresh container, in order", steps 3 and 4). If it is stopped, run it again:
+files in place are kept.
 
-- every group matching and agreeing with the records;
-- `sets` with 67 files matching and 69 missing;
-- exit 1.
+**What to expect.** The commands up to `copy-from` were run in a fresh clone at `61ae6fa0` on 18 Nov, with the archive
+branch fetched from the cloud machine before its push and the main checkout's venv. `restore` was not run after them.
 
-**Completing `sets`:**
+- `sha256sum` prints the parts' sha256 that the archive's `MANIFEST.json` holds: `9baed6c2...` (`frozen-01.tar`),
+  `3ea1ab3b...` (`frozen-02.tar`) and `d2d3ca06...` (`frozen-03.tar`).
+- `copy-from` copies 69 files. Its `check` of `sets` then reads 136 files, 69 matching, 67 missing (those of V0,
+  F25F9 and F25F9cl, until `restore` has run), 0 wrong, records agree. It exits 1.
+- `restore` takes about 2.5 h: that is what it took on 2 processes on 14 Nov for the five groups of that day
+  (`picks-models`, `picks-arrays`, `k`, `x`, `look`; `tools/README.md`). The rebuild of group `j` and of the three
+  earlier sets has not been timed in a fresh worktree, so the whole may take longer, and `restore --group sets` has
+  never been tried.
+- The picks' model files need at least 2 CPUs to rebuild exactly (`SIZE_BLAS_THREADS` in
+  [tools/restore_inputs.py](tools/restore_inputs.py)). On one CPU, bring them in with `copy-from` instead; bundle
+  s2-b1's `models-75-M-H-10.tar` holds 75-M-H-10's two.
 
-- 17 of the 69 are the `refs` and `transitions` of V6 on 75-M-H-10. They are in bundle s2-b1's three parts on the
-  data branch, at `hardware/trex_form_study/stage2/tb/bundle/s2-b1/parts/*.tar`, with members at study paths.
-  Extract the parts into an empty directory and run `copy-from` on it with `--group sets`. **Not tried.**
-- The rest: `restore_inputs.py restore --group sets` rebuilds the frozen sets' arrays in place, and puts a file in
-  place only when its sha256 is the frozen one. **Not tried for these sets.** The set on `75-M-H-10-X` needs group
-  `x`, which the archive gives.
-
-**With no archive at all,** `restore_inputs.py restore` rebuilds everything from the records. That took about 2.5 h on
-2 processes on 14 Nov, for the five groups of that day (`tools/README.md`).
+**With no archive branch at all,** `restore_inputs.py restore` rebuilds the 52 arrays as well, from the records
+(the sets' rebuild has never been tried).
 
 `check` must exit 0 before any run that reads the inputs.
 
@@ -266,12 +286,11 @@ decision log.
 | **The carpet side-check** (P36) | Replaced by P37's fifth answer, "run a range, no verdict", which is item B above. The literature figures found so far are secondary only: no source document was read. | [carpet_sources_15nov.md](stage2/design/carpet_sources_15nov.md); P36, P37 |
 | **Leftover: G1 on an idle machine** | G1 (the step-rate gate) is provisional for the -X bodies and for the Jetson body 75-M-H-10-J. To finish it, run `PY=.venv/bin/python bash stage2/x/run_x.sh g1` and `PY=.venv/bin/python bash stage2/j/run_j.sh g1`, each on an otherwise idle machine. | [HEAD_X.md](stage2/x/HEAD_X.md) section 3; [JETSON_BODY.md](stage2/j/JETSON_BODY.md) section 9, item 1 |
 | **Leftover: J-vs-Pi panels** | Not run. The paired-seed panels compare the Jetson body with the Pi body. To pre-register them as an added tier. | [JETSON_BODY.md](stage2/j/JETSON_BODY.md) section 9, item 4; [lead_notes.md](stage2/design/lead_notes.md) (15 Nov 02:05 UTC) |
-| **Leftover: group j** | Done in code: `tools/restore_inputs.py` has group `j` since `f5a0bf5e`, 30 files, and all 30 are in the archive. Its rebuild (`restore --group j`) has not been timed in a fresh worktree. | [tools/README.md](tools/README.md) |
+| **Leftover: group j** | Done in code: `tools/restore_inputs.py` has group `j` since `f5a0bf5e`, 30 files. They are not in the archive: `restore` rebuilds them (section 2, step 3). Its rebuild (`restore --group j`) has not been timed in a fresh worktree. | [tools/README.md](tools/README.md) |
 | **Leftover: A19** | A draft row (the Jetson's power-mode budgets: 18.0 W and 28.0 W) that is not in the decision log and was not put to the owner. | [JETSON_BODY.md](stage2/j/JETSON_BODY.md) section 10 |
 | **The -X head's preconditions** (V0) | Two are left (ruling 44): G1 of both -X bodies on an idle machine (above), and the jaw cover decision, because the cover overhangs its hinge and trimming it changes every -X record. The set V6 on 75-M-H-10-X is frozen. The -X head is not in bundle s2-b1; a later bundle with its own id adds it (ruling 44). Its learning-rate probe is done (1e-5, in `stage2/tb/validation/lr_probe.json`), and it is run again if the jaw cover changes the -X records. | [ROUND_C_DESIGN.md](stage2/design/ROUND_C_DESIGN.md), run plan row V0; [HEAD_X.md](stage2/x/HEAD_X.md) sections 4 and 7; [ROUND_C_RULINGS_17NOV.md](stage2/design/ROUND_C_RULINGS_17NOV.md) ruling 44 |
 | **R2L fits** (V10) | Parked. The tool is merged; no fit is made (`stage2/tb/r2l/index.json` lists none). | [ROUND_C_DESIGN.md](stage2/design/ROUND_C_DESIGN.md), run plan row V10 |
 | **Questions awaiting the owner** | (1) The five questions for the maker of the leg drives. The owner sends them, and gate 1 is judged after the answers or two weeks after sending (P41); no sending is recorded. (2) Buy-gate condition 4 and the numbers of gates 2 and 3 (above). (3) The draft decision-log rows F28, F29 and E, and a row owed for the add-on's result (proposed F30). (4) A19 (above). (5) The compute choice (P14 against the Jetson), which waits for the delay bench test (P30, P32). (6) P25, still open. | [MAKER_QUESTIONS.md](stage2/design/servo_model/MAKER_QUESTIONS.md); [STAGE2_75_REPORT.md](STAGE2_75_REPORT.md) section 11; [STATUS.md](stage2/design/checkpoint/STATUS.md) (16 Nov 21:13 UTC, point 5); [DECISION_LOG.md](DECISION_LOG.md) |
-| **The archive's gap** | 69 frozen set arrays are not in the archive's first version. 17 of them are in bundle s2-b1. 52 (V6 with both heads, and V6noF5, on 75 cm) were only in worktrees of the cloud machine. | step 3 above; the archive's README on its branch |
 
 ## 4. What carries over to other builds
 
