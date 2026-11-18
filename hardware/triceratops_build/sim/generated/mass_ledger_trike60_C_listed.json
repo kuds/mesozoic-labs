@@ -1,24 +1,24 @@
 {
  "build": "60 cm option C",
  "variant": "listed",
- "total_mass_kg": 11.3102,
+ "total_mass_kg": 11.5398,
  "category_kg": {
   "frame and feet": 1.4425,
-  "compute and sensors": 0.529,
+  "compute and sensors": 0.649,
   "power, safety, wiring, cooling": 1.062,
-  "shells": 0.6208,
+  "shells": 0.8,
   "battery": 1.012,
   "tail": 0.2804,
   "drives": 5.24,
   "head": 0.7235,
-  "leg transmissions": 0.4
+  "leg transmissions": 0.3304
  },
  "com_world_m": [
-  0.0291,
-  -0.001,
-  0.287
+  0.0265,
+  0.0,
+  0.2869
  ],
- "front_share_static_estimate": 0.556,
+ "front_share_static_estimate": 0.551,
  "neck": {
   "head_pitch_subtree_kg": 0.72353,
   "head_com_from_pitch_pivot_m": [
@@ -31,7 +31,8 @@
   "spring_stiffness_nm_per_rad": 0.4,
   "springref_deg": -27.172,
   "spring_fraction": 0.7,
-  "spring_before_nm": -0.2443
+  "spring_at_neutral_nm": -0.1897,
+  "spring_basis": "0.40 N m/rad (EST): soft enough that over the +-20 deg neck range the spring's torque changes by 0.14 N m, under a quarter of the XC430's 0.63 N m continuous estimate"
  },
  "drives": {
   "left_fore_roll": {
@@ -257,15 +258,15 @@
    ]
   },
   {
-   "geom": "teensy41_4can_carrier",
+   "geom": "teensy41_can_carriers_x2",
    "body": "chassis",
    "category": "compute and sensors",
-   "mass_kg": 0.08,
-   "basis": "Teensy 4.1 + 4-bus CAN carrier (EST)",
+   "mass_kg": 0.1,
+   "basis": "2 x Teensy 4.1 + CAN carrier, as budgeted (EST)",
    "world_pos_m": [
-    0.104,
+    0.08,
     0.0,
-    0.2816
+    0.32
    ]
   },
   {
@@ -289,7 +290,7 @@
    "world_pos_m": [
     0.2336,
     0.0832,
-    0.3
+    0.28
    ]
   },
   {
@@ -301,7 +302,7 @@
    "world_pos_m": [
     0.2336,
     -0.0832,
-    0.3
+    0.28
    ]
   },
   {
@@ -323,9 +324,9 @@
    "mass_kg": 0.08,
    "basis": "I/O carriers, BNO085 (EST)",
    "world_pos_m": [
-    0.1424,
-    -0.0384,
-    0.284
+    -0.19,
+    0.0,
+    0.319
    ]
   },
   {
@@ -335,9 +336,9 @@
    "mass_kg": 0.22,
    "basis": "power board, ideal-diode OR, precharge, 52.5 V clamp + resistors, fuses (EST)",
    "world_pos_m": [
-    0.176,
-    0.028,
-    0.28
+    0.185,
+    0.0,
+    0.29
    ]
   },
   {
@@ -347,8 +348,8 @@
    "mass_kg": 0.13,
    "basis": "2 x 12 V rails, 24 V safety rail, pack monitor (EST)",
    "world_pos_m": [
-    0.0768,
-    0.0192,
+    0.185,
+    0.0,
     0.32
    ]
   },
@@ -385,15 +386,15 @@
    "world_pos_m": [
     -0.0144,
     0.0,
-    0.3224
+    0.3272
    ]
   },
   {
    "geom": "PA11_rib_1_1",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.2,
     -0.1,
@@ -404,8 +405,8 @@
    "geom": "PA11_rib_1_2",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.2,
     -0.1,
@@ -416,8 +417,8 @@
    "geom": "PA11_rib_1_3",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.2,
     -0.0848,
@@ -428,8 +429,8 @@
    "geom": "PA11_rib_1_4",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.2,
     -0.0567,
@@ -440,8 +441,8 @@
    "geom": "PA11_rib_1_5",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.2,
     -0.0199,
@@ -452,8 +453,8 @@
    "geom": "PA11_rib_1_6",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.2,
     0.0199,
@@ -464,8 +465,8 @@
    "geom": "PA11_rib_1_7",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.2,
     0.0567,
@@ -476,8 +477,8 @@
    "geom": "PA11_rib_1_8",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.2,
     0.0848,
@@ -488,8 +489,8 @@
    "geom": "PA11_rib_1_9",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.2,
     0.1,
@@ -500,8 +501,8 @@
    "geom": "PA11_rib_1_10",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.2,
     0.1,
@@ -512,8 +513,8 @@
    "geom": "PA11_rib_2_1",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.056,
     -0.1,
@@ -524,8 +525,8 @@
    "geom": "PA11_rib_2_2",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.056,
     -0.1,
@@ -536,8 +537,8 @@
    "geom": "PA11_rib_2_3",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.056,
     -0.0848,
@@ -548,8 +549,8 @@
    "geom": "PA11_rib_2_4",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.056,
     -0.0567,
@@ -560,8 +561,8 @@
    "geom": "PA11_rib_2_5",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.056,
     -0.0199,
@@ -572,8 +573,8 @@
    "geom": "PA11_rib_2_6",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.056,
     0.0199,
@@ -584,8 +585,8 @@
    "geom": "PA11_rib_2_7",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.056,
     0.0567,
@@ -596,8 +597,8 @@
    "geom": "PA11_rib_2_8",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.056,
     0.0848,
@@ -608,8 +609,8 @@
    "geom": "PA11_rib_2_9",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.056,
     0.1,
@@ -620,8 +621,8 @@
    "geom": "PA11_rib_2_10",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.056,
     0.1,
@@ -632,8 +633,8 @@
    "geom": "PA11_rib_3_1",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.104,
     -0.1,
@@ -644,8 +645,8 @@
    "geom": "PA11_rib_3_2",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.104,
     -0.1,
@@ -656,8 +657,8 @@
    "geom": "PA11_rib_3_3",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.104,
     -0.0848,
@@ -668,8 +669,8 @@
    "geom": "PA11_rib_3_4",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.104,
     -0.0567,
@@ -680,8 +681,8 @@
    "geom": "PA11_rib_3_5",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.104,
     -0.0199,
@@ -692,8 +693,8 @@
    "geom": "PA11_rib_3_6",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.104,
     0.0199,
@@ -704,8 +705,8 @@
    "geom": "PA11_rib_3_7",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.104,
     0.0567,
@@ -716,8 +717,8 @@
    "geom": "PA11_rib_3_8",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.104,
     0.0848,
@@ -728,8 +729,8 @@
    "geom": "PA11_rib_3_9",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.104,
     0.1,
@@ -740,8 +741,8 @@
    "geom": "PA11_rib_3_10",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.104,
     0.1,
@@ -752,8 +753,8 @@
    "geom": "PA11_rib_4_1",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.204,
     -0.1,
@@ -764,8 +765,8 @@
    "geom": "PA11_rib_4_2",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.204,
     -0.1,
@@ -776,8 +777,8 @@
    "geom": "PA11_rib_4_3",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.204,
     -0.0848,
@@ -788,8 +789,8 @@
    "geom": "PA11_rib_4_4",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.204,
     -0.0567,
@@ -800,8 +801,8 @@
    "geom": "PA11_rib_4_5",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.204,
     -0.0199,
@@ -812,8 +813,8 @@
    "geom": "PA11_rib_4_6",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.204,
     0.0199,
@@ -824,8 +825,8 @@
    "geom": "PA11_rib_4_7",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.204,
     0.0567,
@@ -836,8 +837,8 @@
    "geom": "PA11_rib_4_8",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.204,
     0.0848,
@@ -848,8 +849,8 @@
    "geom": "PA11_rib_4_9",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.204,
     0.1,
@@ -860,8 +861,8 @@
    "geom": "PA11_rib_4_10",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.00768,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.01145,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     0.204,
     0.1,
@@ -872,8 +873,8 @@
    "geom": "left_shell_seam",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.0288,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.04295,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.004,
     0.0968,
@@ -884,8 +885,8 @@
    "geom": "right_shell_seam",
    "body": "chassis",
    "category": "shells",
-   "mass_kg": 0.0288,
-   "basis": "PR #669 shell part x 0.8^2 (EST)",
+   "mass_kg": 0.04295,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST)",
    "world_pos_m": [
     -0.004,
     -0.0968,
@@ -899,9 +900,9 @@
    "mass_kg": 0.174,
    "basis": "NVIDIA Jetson Orin Nano Super dev kit, 0.174 kg (RC)",
    "world_pos_m": [
-    -0.014,
+    -0.03,
     0.0,
-    0.284
+    0.29
    ]
   },
   {
@@ -911,9 +912,9 @@
    "mass_kg": 0.08,
    "basis": "NVMe + tray (EST)",
    "world_pos_m": [
-    -0.014,
+    -0.03,
     0.0,
-    0.266
+    0.2695
    ]
   },
   {
@@ -923,9 +924,9 @@
    "mass_kg": 0.025,
    "basis": "locking USB-C cable (EST)",
    "world_pos_m": [
-    0.16,
+    0.155,
     0.0,
-    0.342
+    0.36
    ]
   },
   {
@@ -959,9 +960,21 @@
    "mass_kg": 0.42,
    "basis": "Pilz PNOZ s5, Altran contactor, watchdog board, radio-stop receiver (EST)",
    "world_pos_m": [
-    0.056,
-    -0.04,
-    0.28
+    0.082,
+    0.0,
+    0.2865
+   ]
+  },
+  {
+   "geom": "audio_and_servo_bus_adapter",
+   "body": "chassis",
+   "category": "compute and sensors",
+   "mass_kg": 0.1,
+   "basis": "speaker, amplifier, microphone, U2D2 bus adapter, eyelid 5 V rail (EST)",
+   "world_pos_m": [
+    -0.1,
+    0.0,
+    0.32
    ]
   },
   {
@@ -973,7 +986,7 @@
    "world_pos_m": [
     -0.248,
     0.0,
-    0.332
+    0.358
    ]
   },
   {
@@ -1271,33 +1284,33 @@
    "mass_kg": 0.82,
    "basis": "MyActuator X6-60, catalog 0.82 kg (the store's X6 listing shows 0.78 kg, the X6-50-L; F9)",
    "world_pos_m": [
-    0.214,
+    0.2025,
     0.14,
-    0.2646
+    0.2508
    ]
   },
   {
    "geom": "left_fore_drive_crank",
    "body": "left_fore_upper_link",
    "category": "leg transmissions",
-   "mass_kg": 0.04,
-   "basis": "1:1 parallelogram pushrod, 0.10 kg per leg (EST)",
+   "mass_kg": 0.033,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST)",
    "world_pos_m": [
-    0.214,
-    0.1066,
-    0.2646
+    0.2025,
+    0.0983,
+    0.2508
    ]
   },
   {
    "geom": "left_fore_pushrod",
    "body": "left_fore_upper_link",
    "category": "leg transmissions",
-   "mass_kg": 0.03,
-   "basis": "1:1 parallelogram pushrod, 0.10 kg per leg (EST)",
+   "mass_kg": 0.0248,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST)",
    "world_pos_m": [
-    0.1985,
-    0.1066,
-    0.2021
+    0.1927,
+    0.0983,
+    0.1952
    ]
   },
   {
@@ -1340,11 +1353,11 @@
    "geom": "left_fore_output_crank",
    "body": "left_fore_lower_link",
    "category": "leg transmissions",
-   "mass_kg": 0.03,
-   "basis": "1:1 parallelogram pushrod, 0.10 kg per leg (EST)",
+   "mass_kg": 0.0248,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST)",
    "world_pos_m": [
     0.1399,
-    0.1066,
+    0.0983,
     0.1754
    ]
   },
@@ -1427,33 +1440,33 @@
    "mass_kg": 0.82,
    "basis": "MyActuator X6-60, catalog 0.82 kg (the store's X6 listing shows 0.78 kg, the X6-50-L; F9)",
    "world_pos_m": [
-    0.214,
+    0.2025,
     -0.14,
-    0.2646
+    0.2508
    ]
   },
   {
    "geom": "right_fore_drive_crank",
    "body": "right_fore_upper_link",
    "category": "leg transmissions",
-   "mass_kg": 0.04,
-   "basis": "1:1 parallelogram pushrod, 0.10 kg per leg (EST)",
+   "mass_kg": 0.033,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST)",
    "world_pos_m": [
-    0.214,
-    -0.1066,
-    0.2646
+    0.2025,
+    -0.0983,
+    0.2508
    ]
   },
   {
    "geom": "right_fore_pushrod",
    "body": "right_fore_upper_link",
    "category": "leg transmissions",
-   "mass_kg": 0.03,
-   "basis": "1:1 parallelogram pushrod, 0.10 kg per leg (EST)",
+   "mass_kg": 0.0248,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST)",
    "world_pos_m": [
-    0.1985,
-    -0.1066,
-    0.2021
+    0.1927,
+    -0.0983,
+    0.1952
    ]
   },
   {
@@ -1496,11 +1509,11 @@
    "geom": "right_fore_output_crank",
    "body": "right_fore_lower_link",
    "category": "leg transmissions",
-   "mass_kg": 0.03,
-   "basis": "1:1 parallelogram pushrod, 0.10 kg per leg (EST)",
+   "mass_kg": 0.0248,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST)",
    "world_pos_m": [
     0.1399,
-    -0.1066,
+    -0.0983,
     0.1754
    ]
   },
@@ -1583,33 +1596,33 @@
    "mass_kg": 0.36,
    "basis": "MyActuator X4-36-L, catalog 0.36 kg",
    "world_pos_m": [
-    -0.214,
+    -0.2025,
     0.14,
-    0.2646
+    0.2508
    ]
   },
   {
    "geom": "left_hind_drive_crank",
    "body": "left_hind_upper_link",
    "category": "leg transmissions",
-   "mass_kg": 0.04,
-   "basis": "1:1 parallelogram pushrod, 0.10 kg per leg (EST)",
+   "mass_kg": 0.033,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST)",
    "world_pos_m": [
-    -0.214,
-    0.1066,
-    0.2646
+    -0.2025,
+    0.0983,
+    0.2508
    ]
   },
   {
    "geom": "left_hind_pushrod",
    "body": "left_hind_upper_link",
    "category": "leg transmissions",
-   "mass_kg": 0.03,
-   "basis": "1:1 parallelogram pushrod, 0.10 kg per leg (EST)",
+   "mass_kg": 0.0248,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST)",
    "world_pos_m": [
-    -0.1554,
-    0.1066,
-    0.2379
+    -0.1496,
+    0.0983,
+    0.231
    ]
   },
   {
@@ -1652,11 +1665,11 @@
    "geom": "left_hind_output_crank",
    "body": "left_hind_lower_link",
    "category": "leg transmissions",
-   "mass_kg": 0.03,
-   "basis": "1:1 parallelogram pushrod, 0.10 kg per leg (EST)",
+   "mass_kg": 0.0248,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST)",
    "world_pos_m": [
     -0.1399,
-    0.1066,
+    0.0983,
     0.1754
    ]
   },
@@ -1739,33 +1752,33 @@
    "mass_kg": 0.36,
    "basis": "MyActuator X4-36-L, catalog 0.36 kg",
    "world_pos_m": [
-    -0.214,
+    -0.2025,
     -0.14,
-    0.2646
+    0.2508
    ]
   },
   {
    "geom": "right_hind_drive_crank",
    "body": "right_hind_upper_link",
    "category": "leg transmissions",
-   "mass_kg": 0.04,
-   "basis": "1:1 parallelogram pushrod, 0.10 kg per leg (EST)",
+   "mass_kg": 0.033,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST)",
    "world_pos_m": [
-    -0.214,
-    -0.1066,
-    0.2646
+    -0.2025,
+    -0.0983,
+    0.2508
    ]
   },
   {
    "geom": "right_hind_pushrod",
    "body": "right_hind_upper_link",
    "category": "leg transmissions",
-   "mass_kg": 0.03,
-   "basis": "1:1 parallelogram pushrod, 0.10 kg per leg (EST)",
+   "mass_kg": 0.0248,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST)",
    "world_pos_m": [
-    -0.1554,
-    -0.1066,
-    0.2379
+    -0.1496,
+    -0.0983,
+    0.231
    ]
   },
   {
@@ -1808,11 +1821,11 @@
    "geom": "right_hind_output_crank",
    "body": "right_hind_lower_link",
    "category": "leg transmissions",
-   "mass_kg": 0.03,
-   "basis": "1:1 parallelogram pushrod, 0.10 kg per leg (EST)",
+   "mass_kg": 0.0248,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST)",
    "world_pos_m": [
     -0.1399,
-    -0.1066,
+    -0.0983,
     0.1754
    ]
   },

@@ -46,3 +46,27 @@ Per model, PASS if C1-C6 hold on both judged seeds, as in `PREREG_CRAWL.md`.
 ## What this does not show
 
 As at 75 cm: a crawl at about 0.02 m/s is not the museum walk; there is no delay, noise or sensor model.
+
+## Amendment 1 (18 Nov 2026, after the judged runs and the independent check)
+
+**Changed after a result.** The judged runs above (`results/crawl60_2026-11-18/`) used revision 1 of the models and
+failed. The independent check found that the planner's search grid did not scale with the parameters (its 10 mm and
+4 mm steps are fixed in `crawl.py`, so the fore-aft grid ran from -64 to +56 mm without zero, not ±64 mm), and errors in
+the models (see `PREREG_STAND60.md`, amendment 1). Because these are changes after a result, the repeat runs use **new
+judged seeds, 3 and 4** (the rule set out above for any later change), on revision 2 of the models, in
+`results/crawl60_2026-11-18b/`. Seeds 1 and 2 are rerun on revision 2 too and reported, not judged.
+
+**Disclosure.** Before writing this, I had seen the first run's results and my diagnostic of its C4 failures; the
+reviewer's sensitivity run with a scaled grid on revision 1 (verdicts unchanged; the base foot's failing swings fell
+from 16 to 2 of 34; the roll ankle's rose to 4-5); and revision 2's generator printout and packaging check. I had not
+run the crawl on revision 2.
+
+**Changed:**
+- `crawl.py` takes the grid steps as parameters (`grid_dx_m`, `grid_dy_m`), defaulting to the old 10 mm and 4 mm, so
+  the 75 cm runs are unchanged (rechecked byte for byte); `PARAMS60` sets them to 8 mm and 3.2 mm.
+- The models are revision 2. Among its changes, the ankle springs are scaled for similarity (stiffness 3 N·m/rad ×
+  (12.44 / 20) × 0.8 = 1.49 N·m/rad; damping also × √0.8); revision 1 kept the 75 cm springs, about twice as stiff
+  relative to the robot's weight.
+- The impratio-10 runs no longer leave model files in the system temporary folder; the results record the model's
+  name instead of a temporary path.
+- Rules C1-C6, their thresholds, the gait parameters other than the grid, and the verdict logic are unchanged.

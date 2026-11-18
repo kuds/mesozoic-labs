@@ -39,3 +39,30 @@ I had not simulated the 60 cm models.
 
 As in `PREREG_STAND.md`: walking, peak torques, speed limits, heat over time, delay and noise. The 60 cm part masses
 and positions are planning estimates; nothing here is measured.
+
+## Amendment 1 (18 Nov 2026, after the first run and the independent check): revision 2 of the models
+
+**Changed after a result.** The first run (above; `results/stand60_2026-11-18/`) judged revision 1 of the models
+(commit 6739087d). The independent check then found errors in the model and one rule that could not fail. Revision 2
+of `build_model60.py` changes the models as listed in its docstring and in `REPORT_60CM.md`. It is judged again here,
+in `results/stand60_2026-11-18b/`, by the same script with the changes below. The first run's verdicts stay on record;
+they describe revision 1.
+
+**Disclosure.** Before writing this amendment I had seen revision 2's generator printout: 11.540 kg listed and
+12.694 kg closed; centre of mass x +26.5 / +27.7 mm; lever estimate of the front share 55.1 % / 55.3 %. I had also
+seen its packaging check (`check_layout60.py`: no intersecting parts in the bay; flexion drives at least 17.5 mm from
+the other drives and 26.3 mm from the body proxy over the joint grid). I had not simulated revision 2.
+
+**Rules changed:**
+- **R1 becomes a regression check** (it compared the model with its own ledger, so it could not fail unless the
+  build is not repeatable): total mass equals the ledger, 11.540 / 12.694 kg, within ±0.01 kg.
+- **R1b, new flag (not a fail):** the closed total lies within the budget's option C estimate, 11.8-12.2 kg
+  (`budget/size_budget_out.txt`). Revision 2's 12.694 kg will flag; the report explains it.
+- **R5b's reference figures** scale with revision 2's closed mass: front flexion 8.1 × (12.694 / 20) × 0.8 = 4.11 N·m
+  and roll 4.3 × (12.694 / 20) × 0.8 = 2.18 N·m (× 1.15 as before); listed × 11.540 / 12.694.
+- Everything else is unchanged.
+
+**Corrections to the text above (no rule affected):** the disclosure's "soles start 7.2 mm above the floor" is the
+sole centres' height; the sole bottoms touch the floor at the start. The judged seeds settle to the same pose (to about
+1e-8), as at 75 cm, so they differ only in the first seconds; the two seeds test the transient, and the settled loads
+are in effect one result.

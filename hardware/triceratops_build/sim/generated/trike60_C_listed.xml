@@ -75,84 +75,85 @@
       <geom name="tray_stay_-0.255_-1" type="capsule" fromto="-0.204 -0.0544 -0.06 -0.204 -0.0832 -0.012" size="0.0048" material="rail" mass="0.01717" />
       <geom name="tray_stay_0.095_1" type="capsule" fromto="0.076 0.0544 -0.06 0.076 0.0832 -0.012" size="0.0048" material="rail" mass="0.01717" />
       <geom name="tray_stay_0.095_-1" type="capsule" fromto="0.076 -0.0544 -0.06 0.076 -0.0832 -0.012" size="0.0048" material="rail" mass="0.01717" />
-      <geom name="teensy41_4can_carrier" type="box" size="0.028 0.02 0.0096" pos="0.104 0 -0.0384" material="compute" mass="0.08" />
-      <geom name="oak_d_lite" type="box" size="0.012 0.0384 0.0112" pos="0.2016 0 0.0568" material="sensor" mass="0.061" />
+      <geom name="teensy41_can_carriers_x2" type="box" size="0.045 0.03 0.01" pos="0.08 0 0" material="compute" mass="0.1" />
+      <geom name="oak_d_lite" type="box" size="0.015 0.048 0.014" pos="0.2016 0 0.0568" material="sensor" mass="0.061" />
       <camera name="oak_d_lite_rgb" pos="0.216 0 0.0568" xyaxes="0 -1 0 0 0 1" fovy="54" />
-      <geom name="left_vl53l8cx" type="box" size="0.008 0.0064 0.0048" pos="0.2336 0.0832 -0.02" material="lens" mass="0.012" />
-      <site name="left_tof_ray" pos="0.244 0.0832 -0.0248" zaxis="0.692 0.147 -0.707" size="0.0024" rgba="0 .8 .9 .4" />
-      <geom name="right_vl53l8cx" type="box" size="0.008 0.0064 0.0048" pos="0.2336 -0.0832 -0.02" material="lens" mass="0.012" />
-      <site name="right_tof_ray" pos="0.244 -0.0832 -0.0248" zaxis="0.692 -0.147 -0.707" size="0.0024" rgba="0 .8 .9 .4" />
-      <geom name="trunk_imu" type="box" size="0.0088 0.0088 0.0032" pos="0 0.02 -0.0048" material="sensor" mass="0.005" />
+      <geom name="left_vl53l8cx" type="box" size="0.01 0.008 0.006" pos="0.2336 0.0832 -0.04" material="lens" mass="0.012" />
+      <site name="left_tof_ray" pos="0.244 0.0832 -0.0448" zaxis="0.692 0.147 -0.707" size="0.0024" rgba="0 .8 .9 .4" />
+      <geom name="right_vl53l8cx" type="box" size="0.01 0.008 0.006" pos="0.2336 -0.0832 -0.04" material="lens" mass="0.012" />
+      <site name="right_tof_ray" pos="0.244 -0.0832 -0.0448" zaxis="0.692 -0.147 -0.707" size="0.0024" rgba="0 .8 .9 .4" />
+      <geom name="trunk_imu" type="box" size="0.011 0.011 0.004" pos="0 0.02 -0.0048" material="sensor" mass="0.005" />
       <site name="imu" pos="0 0.02 -0.0048" size="0.0032" />
-      <geom name="io_and_sensor_carriers" type="box" size="0.04 0.0192 0.0096" pos="0.1424 -0.0384 -0.036" material="compute" mass="0.08" />
-      <geom name="power_board_diode_or_precharge_clamp" type="box" size="0.032 0.024 0.0144" pos="0.176 0.028 -0.04" material="power" mass="0.22" />
-      <geom name="dc_dc_rails_and_pack_monitor" type="box" size="0.0344 0.0224 0.012" pos="0.0768 0.0192 0" material="bracket" mass="0.13" />
+      <geom name="io_and_sensor_carriers" type="box" size="0.025 0.03 0.008" pos="-0.19 0 -0.001" material="compute" mass="0.08" />
+      <geom name="power_board_diode_or_precharge_clamp" type="box" size="0.04 0.035 0.012" pos="0.185 0 -0.03" material="power" mass="0.22" />
+      <geom name="dc_dc_rails_and_pack_monitor" type="box" size="0.03 0.035 0.012" pos="0.185 0 0" material="bracket" mass="0.13" />
       <geom name="left_can_and_power_loom" type="capsule" fromto="-0.224 0.072 -0.0176 0.2264 0.072 -0.0176" size="0.0032" material="harness" mass="0.0960" />
       <geom name="right_can_and_power_loom" type="capsule" fromto="-0.224 -0.072 -0.0176 0.2264 -0.072 -0.0176" size="0.0032" material="harness" mass="0.0960" />
-      <geom name="drive_bay_blowers_and_ducts" type="box" size="0.0248 0.0248 0.0056" pos="-0.0144 0 0.0024" material="bracket" mass="0.10" />
-      <geom name="PA11_rib_1_1" type="capsule" fromto="-0.2 -0.0960835 -0.0314638 -0.2 -0.104 0.0016" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_1_2" type="capsule" fromto="-0.2 -0.104 0.0016 -0.2 -0.0960835 0.0346638" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_1_3" type="capsule" fromto="-0.2 -0.0960835 0.0346638 -0.2 -0.0735391 0.062694" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_1_4" type="capsule" fromto="-0.2 -0.0735391 0.062694 -0.2 -0.0397991 0.0814232" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_1_5" type="capsule" fromto="-0.2 -0.0397991 0.0814232 -0.2 0 0.088" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_1_6" type="capsule" fromto="-0.2 0 0.088 -0.2 0.0397991 0.0814232" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_1_7" type="capsule" fromto="-0.2 0.0397991 0.0814232 -0.2 0.0735391 0.062694" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_1_8" type="capsule" fromto="-0.2 0.0735391 0.062694 -0.2 0.0960835 0.0346638" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_1_9" type="capsule" fromto="-0.2 0.0960835 0.0346638 -0.2 0.104 0.0016" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_1_10" type="capsule" fromto="-0.2 0.104 0.0016 -0.2 0.0960835 -0.0314638" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_2_1" type="capsule" fromto="-0.056 -0.0960835 -0.0314638 -0.056 -0.104 0.0016" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_2_2" type="capsule" fromto="-0.056 -0.104 0.0016 -0.056 -0.0960835 0.0346638" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_2_3" type="capsule" fromto="-0.056 -0.0960835 0.0346638 -0.056 -0.0735391 0.062694" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_2_4" type="capsule" fromto="-0.056 -0.0735391 0.062694 -0.056 -0.0397991 0.0814232" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_2_5" type="capsule" fromto="-0.056 -0.0397991 0.0814232 -0.056 0 0.088" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_2_6" type="capsule" fromto="-0.056 0 0.088 -0.056 0.0397991 0.0814232" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_2_7" type="capsule" fromto="-0.056 0.0397991 0.0814232 -0.056 0.0735391 0.062694" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_2_8" type="capsule" fromto="-0.056 0.0735391 0.062694 -0.056 0.0960835 0.0346638" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_2_9" type="capsule" fromto="-0.056 0.0960835 0.0346638 -0.056 0.104 0.0016" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_2_10" type="capsule" fromto="-0.056 0.104 0.0016 -0.056 0.0960835 -0.0314638" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_3_1" type="capsule" fromto="0.104 -0.0960835 -0.0314638 0.104 -0.104 0.0016" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_3_2" type="capsule" fromto="0.104 -0.104 0.0016 0.104 -0.0960835 0.0346638" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_3_3" type="capsule" fromto="0.104 -0.0960835 0.0346638 0.104 -0.0735391 0.062694" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_3_4" type="capsule" fromto="0.104 -0.0735391 0.062694 0.104 -0.0397991 0.0814232" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_3_5" type="capsule" fromto="0.104 -0.0397991 0.0814232 0.104 0 0.088" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_3_6" type="capsule" fromto="0.104 0 0.088 0.104 0.0397991 0.0814232" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_3_7" type="capsule" fromto="0.104 0.0397991 0.0814232 0.104 0.0735391 0.062694" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_3_8" type="capsule" fromto="0.104 0.0735391 0.062694 0.104 0.0960835 0.0346638" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_3_9" type="capsule" fromto="0.104 0.0960835 0.0346638 0.104 0.104 0.0016" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_3_10" type="capsule" fromto="0.104 0.104 0.0016 0.104 0.0960835 -0.0314638" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_4_1" type="capsule" fromto="0.204 -0.0960835 -0.0314638 0.204 -0.104 0.0016" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_4_2" type="capsule" fromto="0.204 -0.104 0.0016 0.204 -0.0960835 0.0346638" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_4_3" type="capsule" fromto="0.204 -0.0960835 0.0346638 0.204 -0.0735391 0.062694" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_4_4" type="capsule" fromto="0.204 -0.0735391 0.062694 0.204 -0.0397991 0.0814232" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_4_5" type="capsule" fromto="0.204 -0.0397991 0.0814232 0.204 0 0.088" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_4_6" type="capsule" fromto="0.204 0 0.088 0.204 0.0397991 0.0814232" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_4_7" type="capsule" fromto="0.204 0.0397991 0.0814232 0.204 0.0735391 0.062694" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_4_8" type="capsule" fromto="0.204 0.0735391 0.062694 0.204 0.0960835 0.0346638" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_4_9" type="capsule" fromto="0.204 0.0960835 0.0346638 0.204 0.104 0.0016" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="PA11_rib_4_10" type="capsule" fromto="0.204 0.104 0.0016 0.204 0.0960835 -0.0314638" size="0.0048" material="skin" mass="0.007680" />
-      <geom name="left_shell_seam" type="capsule" fromto="-0.208 0.0968 -0.0224 0.2 0.0968 -0.0224" size="0.0048" material="skin" mass="0.028800" />
-      <geom name="right_shell_seam" type="capsule" fromto="-0.208 -0.0968 -0.0224 0.2 -0.0968 -0.0224" size="0.0048" material="skin" mass="0.028800" />
+      <geom name="drive_bay_blowers_and_ducts" type="box" size="0.031 0.031 0.007" pos="-0.0144 0 0.0072" material="bracket" mass="0.10" />
+      <geom name="PA11_rib_1_1" type="capsule" fromto="-0.2 -0.0960835 -0.0314638 -0.2 -0.104 0.0016" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_1_2" type="capsule" fromto="-0.2 -0.104 0.0016 -0.2 -0.0960835 0.0346638" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_1_3" type="capsule" fromto="-0.2 -0.0960835 0.0346638 -0.2 -0.0735391 0.062694" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_1_4" type="capsule" fromto="-0.2 -0.0735391 0.062694 -0.2 -0.0397991 0.0814232" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_1_5" type="capsule" fromto="-0.2 -0.0397991 0.0814232 -0.2 0 0.088" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_1_6" type="capsule" fromto="-0.2 0 0.088 -0.2 0.0397991 0.0814232" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_1_7" type="capsule" fromto="-0.2 0.0397991 0.0814232 -0.2 0.0735391 0.062694" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_1_8" type="capsule" fromto="-0.2 0.0735391 0.062694 -0.2 0.0960835 0.0346638" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_1_9" type="capsule" fromto="-0.2 0.0960835 0.0346638 -0.2 0.104 0.0016" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_1_10" type="capsule" fromto="-0.2 0.104 0.0016 -0.2 0.0960835 -0.0314638" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_2_1" type="capsule" fromto="-0.056 -0.0960835 -0.0314638 -0.056 -0.104 0.0016" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_2_2" type="capsule" fromto="-0.056 -0.104 0.0016 -0.056 -0.0960835 0.0346638" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_2_3" type="capsule" fromto="-0.056 -0.0960835 0.0346638 -0.056 -0.0735391 0.062694" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_2_4" type="capsule" fromto="-0.056 -0.0735391 0.062694 -0.056 -0.0397991 0.0814232" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_2_5" type="capsule" fromto="-0.056 -0.0397991 0.0814232 -0.056 0 0.088" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_2_6" type="capsule" fromto="-0.056 0 0.088 -0.056 0.0397991 0.0814232" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_2_7" type="capsule" fromto="-0.056 0.0397991 0.0814232 -0.056 0.0735391 0.062694" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_2_8" type="capsule" fromto="-0.056 0.0735391 0.062694 -0.056 0.0960835 0.0346638" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_2_9" type="capsule" fromto="-0.056 0.0960835 0.0346638 -0.056 0.104 0.0016" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_2_10" type="capsule" fromto="-0.056 0.104 0.0016 -0.056 0.0960835 -0.0314638" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_3_1" type="capsule" fromto="0.104 -0.0960835 -0.0314638 0.104 -0.104 0.0016" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_3_2" type="capsule" fromto="0.104 -0.104 0.0016 0.104 -0.0960835 0.0346638" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_3_3" type="capsule" fromto="0.104 -0.0960835 0.0346638 0.104 -0.0735391 0.062694" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_3_4" type="capsule" fromto="0.104 -0.0735391 0.062694 0.104 -0.0397991 0.0814232" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_3_5" type="capsule" fromto="0.104 -0.0397991 0.0814232 0.104 0 0.088" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_3_6" type="capsule" fromto="0.104 0 0.088 0.104 0.0397991 0.0814232" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_3_7" type="capsule" fromto="0.104 0.0397991 0.0814232 0.104 0.0735391 0.062694" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_3_8" type="capsule" fromto="0.104 0.0735391 0.062694 0.104 0.0960835 0.0346638" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_3_9" type="capsule" fromto="0.104 0.0960835 0.0346638 0.104 0.104 0.0016" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_3_10" type="capsule" fromto="0.104 0.104 0.0016 0.104 0.0960835 -0.0314638" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_4_1" type="capsule" fromto="0.204 -0.0960835 -0.0314638 0.204 -0.104 0.0016" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_4_2" type="capsule" fromto="0.204 -0.104 0.0016 0.204 -0.0960835 0.0346638" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_4_3" type="capsule" fromto="0.204 -0.0960835 0.0346638 0.204 -0.0735391 0.062694" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_4_4" type="capsule" fromto="0.204 -0.0735391 0.062694 0.204 -0.0397991 0.0814232" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_4_5" type="capsule" fromto="0.204 -0.0397991 0.0814232 0.204 0 0.088" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_4_6" type="capsule" fromto="0.204 0 0.088 0.204 0.0397991 0.0814232" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_4_7" type="capsule" fromto="0.204 0.0397991 0.0814232 0.204 0.0735391 0.062694" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_4_8" type="capsule" fromto="0.204 0.0735391 0.062694 0.204 0.0960835 0.0346638" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_4_9" type="capsule" fromto="0.204 0.0960835 0.0346638 0.204 0.104 0.0016" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="PA11_rib_4_10" type="capsule" fromto="0.204 0.104 0.0016 0.204 0.0960835 -0.0314638" size="0.0048" material="skin" mass="0.011453" />
+      <geom name="left_shell_seam" type="capsule" fromto="-0.208 0.0968 -0.0224 0.2 0.0968 -0.0224" size="0.0048" material="skin" mass="0.042947" />
+      <geom name="right_shell_seam" type="capsule" fromto="-0.208 -0.0968 -0.0224 0.2 -0.0968 -0.0224" size="0.0048" material="skin" mass="0.042947" />
       <geom name="torso_contact" type="ellipsoid" size="0.24 0.0928 0.0792" pos="0 0 0.004" material="skin" mass="0" rgba="0 0 0 0" class="chassis_collision" />
       <geom name="service_tray_contact" type="box" size="0.1536 0.06 0.0048" pos="-0.064 0 -0.06" material="bracket" mass="0.00000" rgba="0 0 0 0" class="chassis_collision" />
       <geom name="left_fore_x4_roll_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="chassis_collision" type="cylinder" fromto="0.2295 0.076 0 0.2905 0.076 0" size="0.0275" />
       <geom name="right_fore_x4_roll_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="chassis_collision" type="cylinder" fromto="0.2295 -0.076 0 0.2905 -0.076 0" size="0.0275" />
       <geom name="left_hind_x4_roll_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="chassis_collision" type="cylinder" fromto="-0.2905 0.076 0 -0.2295 0.076 0" size="0.0275" />
       <geom name="right_hind_x4_roll_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="chassis_collision" type="cylinder" fromto="-0.2905 -0.076 0 -0.2295 -0.076 0" size="0.0275" />
-      <geom name="jetson_orin_nano_super_kit" type="box" pos="-0.014 0 -0.036" size="0.05 0.04 0.0175" material="compute" mass="0.174" />
-      <geom name="nvme_and_vibration_tray" type="box" pos="-0.014 0 -0.054" size="0.05 0.042 0.003" material="bracket" mass="0.08" />
-      <geom name="oak_d_usb_c_lock_cable" type="capsule" fromto="0.2 0 0.044 0.12 0 0" size="0.003" material="harness" mass="0.025" />
+      <geom name="jetson_orin_nano_super_kit" type="box" pos="-0.03 0 -0.03" size="0.05 0.04 0.0175" material="compute" mass="0.174" />
+      <geom name="nvme_and_vibration_tray" type="box" pos="-0.03 0 -0.0505" size="0.052 0.042 0.003" material="bracket" mass="0.08" />
+      <geom name="oak_d_usb_c_lock_cable" type="capsule" fromto="0.19 0 0.05 0.12 0 0.03" size="0.003" material="harness" mass="0.025" />
       <geom name="gtech_6s_3300_1" type="box" pos="-0.16 0.0215 -0.0345" size="0.069 0.021 0.0215" material="power" mass="0.506" />
       <geom name="gtech_6s_3300_2" type="box" pos="-0.16 -0.0215 -0.0345" size="0.069 0.021 0.0215" material="power" mass="0.506" />
-      <geom name="pilz_relay_contactor_watchdog_radio_rx" type="box" pos="0.056 -0.04 -0.04" size="0.03 0.022 0.018" material="power" mass="0.42" />
+      <geom name="pilz_relay_contactor_watchdog_radio_rx" type="box" pos="0.082 0 -0.0335" size="0.0605 0.05 0.0225" material="power" mass="0.42" />
+      <geom name="audio_and_servo_bus_adapter" type="box" pos="-0.1 0 0" size="0.025 0.03 0.01" material="compute" mass="0.10" />
       <body name="head" pos="0.324 0 0.08">
         <!-- The neck servo case moves with the 1.00 kg head package; its output flange is anchored to the cradle. The 0.70 Nm/rad spring represents a provisional counterbalance. -->
         <geom name="xc430_w240_neck_pitch_case" type="box" size="0.0143 0.017 0.0233" pos="-0.0136 0 -0.0152" material="rotor" mass="0.065" />
-        <joint name="neck_pitch" axis="0 1 0" range="-20 20" damping=".085" stiffness="0.40" springref="-27.172" armature=".00035" />
+        <joint name="neck_pitch" axis="0 1 0" range="-20 20" damping="0.04" stiffness="0.40" springref="-27.172" armature="0.0002" />
         <geom name="neck_hub_and_skull_carrier" type="box" size="0.036 0.032 0.02" pos="0.02 0 0.0064" material="bracket" mass="0.10342" />
         <geom name="xc430_w240_neck_yaw_case" type="box" pos="0.028 0 0.026" size="0.0143 0.017 0.0233" material="rotor" mass="0.065" />
         <geom name="neck_yaw_bearing" type="cylinder" fromto="0.048 0 0 0.048 0 0.006" size="0.024" material="bracket" mass="0.03" />
         <body name="head_yaw" pos="0 0 0">
-          <joint name="neck_yaw" axis="0 0 1" range="-35 35" damping=".04" armature=".0002" />
+          <joint name="neck_yaw" axis="0 0 1" range="-35 35" damping="0.04" armature="0.0002" />
           <geom name="frill_pa11_panel" type="mesh" mesh="frill_panel" material="crest" mass="0.12032" class="shell_collision" />
           <geom name="hollow_skull_equivalent" type="mesh" mesh="beaked_skull" material="skin" mass="0.15360" class="shell_collision" />
           <geom name="left_brow_horn_tpu" type="mesh" mesh="left_brow_horn" material="horn" mass="0.01946" class="shell_collision" />
@@ -164,15 +165,15 @@
           <geom name="nasal_horn_tpu" type="mesh" mesh="nasal_horn" material="horn" mass="0.00717" class="shell_collision" />
           <site name="frill_crown" pos="-0.065536 0 0.2" size="0.0024" rgba="1 .7 .2 0" />
           <geom name="xc430_w240_beak_case" type="box" pos="0.104 0 -0.01" size="0.0143 0.017 0.0233" material="rotor" mass="0.065" />
-          <geom name="left_xl330_eyelid" type="box" pos="0.074 0.056 0.018" size="0.010 0.0068 0.0101" material="rotor" mass="0.018" />
-          <geom name="right_xl330_eyelid" type="box" pos="0.074 -0.056 0.018" size="0.010 0.0068 0.0101" material="rotor" mass="0.018" />
+          <geom name="left_xl330_eyelid" type="box" pos="0.074 0.056 0.018" size="0.010 0.017 0.013" material="rotor" mass="0.018" />
+          <geom name="right_xl330_eyelid" type="box" pos="0.074 -0.056 0.018" size="0.010 0.017 0.013" material="rotor" mass="0.018" />
           <geom name="frill_lights_and_linkage" type="box" pos="0.016 0 0.072" size="0.016 0.024 0.008" material="compute" mass="0.035" />
         </body>
       </body>
-      <geom name="xl430_w250_tail_yaw_case" type="box" size="0.0143 0.017 0.0233" pos="-0.248 0 0.012" material="rotor" mass="0.057" />
+      <geom name="xl430_w250_tail_yaw_case" type="box" size="0.0143 0.017 0.0233" pos="-0.248 0 0.038" material="rotor" mass="0.057" />
       <body name="tail" pos="-0.26 0 0">
-        <joint name="tail_yaw" axis="0 0 1" range="-24 24" damping=".09" armature=".0003" />
-        <joint name="tail_pitch" axis="0 1 0" range="-15 15" damping=".05" armature=".0002" />
+        <joint name="tail_yaw" axis="0 0 1" range="-24 24" damping="0.04" armature="0.0002" />
+        <joint name="tail_pitch" axis="0 1 0" range="-15 15" damping="0.04" armature="0.0002" />
         <geom name="tail_shell_and_flex_core" type="mesh" mesh="tail_fairing" material="skin" mass="0.16640" class="shell_collision" />
         <site name="tail_tip" pos="-0.388 0 -0.072" size="0.0024" rgba="1 .7 .2 0" />
         <geom name="xl430_w250_tail_pitch_case" type="box" pos="-0.024 0 0" size="0.0143 0.017 0.0233" material="rotor" mass="0.057" />
@@ -182,27 +183,23 @@
         <joint name="left_fore_roll" axis="1 0 0" range="-18 24" armature="0.003240" />
         <geom name="left_fore_shoulder_yoke" type="capsule" fromto="0 0 0 0 0.064 0" size="0.0112" material="bracket" mass="0.02004" />
         <geom name="left_fore_x4_pitch_stator" type="cylinder" fromto="0 0.0335 0 0 0.0945 0" size="0.0275" material="rotor" mass="0.36" />
-        <geom name="left_fore_pitch_bearing_cap" type="cylinder" fromto="0 0.088 0 0 0.0896 0" size="0.0168" material="cap" mass="0" />
         <geom name="left_fore_x4_pitch_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="0 0.0335 0 0 0.0945 0" size="0.0275" />
         <body name="left_fore_upper_link" pos="0 0.064 0">
           <joint name="left_fore_pitch" axis="0 1 0" range="-38 38" armature="0.003240" />
           <geom name="left_fore_upper_strut" type="capsule" fromto="0 0 0 -0.120121 0 -0.14462" size="0.0112" material="rail" mass="0.07155" class="upper_collision" />
-          <geom name="left_fore_x6_flexion_stator" type="cylinder" fromto="-0.0460039 -0.03375 -0.0553863 -0.0460039 0.03375 -0.0553863" size="0.0400" material="rotor" mass="0.82" />
-          <geom name="left_fore_flexion_motor_cap" type="cylinder" fromto="-0.0460039 0.0252 -0.0553863 -0.0460039 0.0268 -0.0553863" size="0.0224" material="cap" mass="0" />
-          <geom name="left_fore_belt_guard_spine" type="capsule" fromto="-0.0460039 -0.0406 -0.0553863 -0.120121 -0.0406 -0.14462" size="0.0048" material="bracket" mass="0" />
-          <geom name="left_fore_adjustable_idler" type="cylinder" fromto="-0.0953707 -0.0398 -0.0897799 -0.0953707 -0.0302 -0.0897799" size="0.0064" material="pulley" mass="0" />
-          <geom name="left_fore_drive_crank" type="cylinder" fromto="-0.0460039 -0.0384 -0.0553863 -0.0460039 -0.0284 -0.0553863" size="0.0350" material="bracket" mass="0.0400" />
-          <geom name="left_fore_pushrod" type="capsule" fromto="-0.0244648 -0.0334 -0.0732767 -0.0985819 -0.0334 -0.16251" size="0.0045" material="rail" mass="0.0300" />
+          <geom name="left_fore_x6_flexion_stator" type="cylinder" fromto="-0.0575049 -0.03375 -0.0692329 -0.0575049 0.03375 -0.0692329" size="0.0400" material="rotor" mass="0.82" />
+          <geom name="left_fore_drive_crank" type="cylinder" fromto="-0.0575049 -0.04675 -0.0692329 -0.0575049 -0.03675 -0.0692329" size="0.0350" material="bracket" mass="0.0330" />
+          <geom name="left_fore_pushrod" type="capsule" fromto="-0.0359657 -0.04175 -0.0871232 -0.0985819 -0.04175 -0.16251" size="0.0045" material="rail" mass="0.0248" />
           <geom name="left_fore_upper_limb_cover" type="capsule" fromto="0 0 0 -0.120121 0 -0.14462" size="0.024" material="skin" mass="0.0384" rgba=".55 .50 .40 .35" />
-          <geom name="left_fore_x6_flexion_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="-0.0460039 -0.03375 -0.0553863 -0.0460039 0.03375 -0.0553863" size="0.0400" />
+          <geom name="left_fore_x6_flexion_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="-0.0575049 -0.03375 -0.0692329 -0.0575049 0.03375 -0.0692329" size="0.0400" />
           <body name="left_fore_lower_link" pos="-0.120121 0 -0.14462">
             <joint name="left_fore_flexion" axis="0 -1 0" range="-47 36" armature="0.004304" damping=".20" />
             <geom name="left_fore_elbow_axle" type="cylinder" fromto="0 -0.036 0 0 0.004 0" size="0.0064" material="cap" mass="0.00572" />
             <geom name="left_fore_lower_strut" type="capsule" fromto="0 0 0 0.120121 0 -0.13938" size="0.0096" material="carbon" mass="0.06297" class="distal_collision" />
-            <geom name="left_fore_output_crank" type="cylinder" fromto="0 -0.0384 0 0 -0.0284 0" size="0.0350" material="bracket" mass="0.0300" />
+            <geom name="left_fore_output_crank" type="cylinder" fromto="0 -0.04675 0 0 -0.03675 0" size="0.0350" material="bracket" mass="0.0248" />
             <geom name="left_fore_lower_limb_cover" type="capsule" fromto="0 0 0 0.120121 0 -0.13938" size="0.019" material="skin" mass="0.0256" rgba=".55 .50 .40 .35" />
             <body name="left_fore_foot" pos="0.120121 0 -0.13938">
-              <joint name="left_fore_ankle" axis="0 1 0" range="-22 22" stiffness="3" damping=".15" armature=".0002" />
+              <joint name="left_fore_ankle" axis="0 1 0" range="-22 22" stiffness="1.4928" damping="0.0668" armature=".0002" />
               <geom name="left_fore_ankle_hub" type="capsule" fromto="0 0 0 0 0 -0.0208" size="0.0096" material="bracket" mass="0.01717" />
               <geom name="left_fore_sole" type="box" size="0.044 0.032 0.0072" pos="0 0 -0.0288" material="pad" mass="0.05724" class="sole" />
               <site name="left_fore_load_cell" type="box" pos="0 0 -0.0288" size="0.04416 0.03216 0.0076" rgba="0 .7 .8 0" />
@@ -216,27 +213,23 @@
         <joint name="right_fore_roll" axis="-1 0 0" range="-18 24" armature="0.003240" />
         <geom name="right_fore_shoulder_yoke" type="capsule" fromto="0 0 0 0 -0.064 0" size="0.0112" material="bracket" mass="0.02004" />
         <geom name="right_fore_x4_pitch_stator" type="cylinder" fromto="0 -0.0945 0 0 -0.0335 0" size="0.0275" material="rotor" mass="0.36" />
-        <geom name="right_fore_pitch_bearing_cap" type="cylinder" fromto="0 -0.0896 0 0 -0.088 0" size="0.0168" material="cap" mass="0" />
         <geom name="right_fore_x4_pitch_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="0 -0.0945 0 0 -0.0335 0" size="0.0275" />
         <body name="right_fore_upper_link" pos="0 -0.064 0">
           <joint name="right_fore_pitch" axis="0 1 0" range="-38 38" armature="0.003240" />
           <geom name="right_fore_upper_strut" type="capsule" fromto="0 0 0 -0.120121 0 -0.14462" size="0.0112" material="rail" mass="0.07155" class="upper_collision" />
-          <geom name="right_fore_x6_flexion_stator" type="cylinder" fromto="-0.0460039 -0.03375 -0.0553863 -0.0460039 0.03375 -0.0553863" size="0.0400" material="rotor" mass="0.82" />
-          <geom name="right_fore_flexion_motor_cap" type="cylinder" fromto="-0.0460039 -0.0268 -0.0553863 -0.0460039 -0.0252 -0.0553863" size="0.0224" material="cap" mass="0" />
-          <geom name="right_fore_belt_guard_spine" type="capsule" fromto="-0.0460039 0.0406 -0.0553863 -0.120121 0.0406 -0.14462" size="0.0048" material="bracket" mass="0" />
-          <geom name="right_fore_adjustable_idler" type="cylinder" fromto="-0.0953707 0.0302 -0.0897799 -0.0953707 0.0398 -0.0897799" size="0.0064" material="pulley" mass="0" />
-          <geom name="right_fore_drive_crank" type="cylinder" fromto="-0.0460039 0.0284 -0.0553863 -0.0460039 0.0384 -0.0553863" size="0.0350" material="bracket" mass="0.0400" />
-          <geom name="right_fore_pushrod" type="capsule" fromto="-0.0244648 0.0334 -0.0732767 -0.0985819 0.0334 -0.16251" size="0.0045" material="rail" mass="0.0300" />
+          <geom name="right_fore_x6_flexion_stator" type="cylinder" fromto="-0.0575049 -0.03375 -0.0692329 -0.0575049 0.03375 -0.0692329" size="0.0400" material="rotor" mass="0.82" />
+          <geom name="right_fore_drive_crank" type="cylinder" fromto="-0.0575049 0.03675 -0.0692329 -0.0575049 0.04675 -0.0692329" size="0.0350" material="bracket" mass="0.0330" />
+          <geom name="right_fore_pushrod" type="capsule" fromto="-0.0359657 0.04175 -0.0871232 -0.0985819 0.04175 -0.16251" size="0.0045" material="rail" mass="0.0248" />
           <geom name="right_fore_upper_limb_cover" type="capsule" fromto="0 0 0 -0.120121 0 -0.14462" size="0.024" material="skin" mass="0.0384" rgba=".55 .50 .40 .35" />
-          <geom name="right_fore_x6_flexion_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="-0.0460039 -0.03375 -0.0553863 -0.0460039 0.03375 -0.0553863" size="0.0400" />
+          <geom name="right_fore_x6_flexion_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="-0.0575049 -0.03375 -0.0692329 -0.0575049 0.03375 -0.0692329" size="0.0400" />
           <body name="right_fore_lower_link" pos="-0.120121 0 -0.14462">
             <joint name="right_fore_flexion" axis="0 -1 0" range="-47 36" armature="0.004304" damping=".20" />
             <geom name="right_fore_elbow_axle" type="cylinder" fromto="0 -0.004 0 0 0.036 0" size="0.0064" material="cap" mass="0.00572" />
             <geom name="right_fore_lower_strut" type="capsule" fromto="0 0 0 0.120121 0 -0.13938" size="0.0096" material="carbon" mass="0.06297" class="distal_collision" />
-            <geom name="right_fore_output_crank" type="cylinder" fromto="0 0.0284 0 0 0.0384 0" size="0.0350" material="bracket" mass="0.0300" />
+            <geom name="right_fore_output_crank" type="cylinder" fromto="0 0.03675 0 0 0.04675 0" size="0.0350" material="bracket" mass="0.0248" />
             <geom name="right_fore_lower_limb_cover" type="capsule" fromto="0 0 0 0.120121 0 -0.13938" size="0.019" material="skin" mass="0.0256" rgba=".55 .50 .40 .35" />
             <body name="right_fore_foot" pos="0.120121 0 -0.13938">
-              <joint name="right_fore_ankle" axis="0 1 0" range="-22 22" stiffness="3" damping=".15" armature=".0002" />
+              <joint name="right_fore_ankle" axis="0 1 0" range="-22 22" stiffness="1.4928" damping="0.0668" armature=".0002" />
               <geom name="right_fore_ankle_hub" type="capsule" fromto="0 0 0 0 0 -0.0208" size="0.0096" material="bracket" mass="0.01717" />
               <geom name="right_fore_sole" type="box" size="0.044 0.032 0.0072" pos="0 0 -0.0288" material="pad" mass="0.05724" class="sole" />
               <site name="right_fore_load_cell" type="box" pos="0 0 -0.0288" size="0.04416 0.03216 0.0076" rgba="0 .7 .8 0" />
@@ -250,27 +243,23 @@
         <joint name="left_hind_roll" axis="1 0 0" range="-18 24" armature="0.003240" />
         <geom name="left_hind_shoulder_yoke" type="capsule" fromto="0 0 0 0 0.064 0" size="0.0112" material="bracket" mass="0.02004" />
         <geom name="left_hind_x4_pitch_stator" type="cylinder" fromto="0 0.0335 0 0 0.0945 0" size="0.0275" material="rotor" mass="0.36" />
-        <geom name="left_hind_pitch_bearing_cap" type="cylinder" fromto="0 0.088 0 0 0.0896 0" size="0.0168" material="cap" mass="0" />
         <geom name="left_hind_x4_pitch_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="0 0.0335 0 0 0.0945 0" size="0.0275" />
         <body name="left_hind_upper_link" pos="0 0.064 0">
           <joint name="left_hind_pitch" axis="0 1 0" range="-38 38" armature="0.003240" />
           <geom name="left_hind_upper_strut" type="capsule" fromto="0 0 0 0.120121 0 -0.14462" size="0.0112" material="rail" mass="0.07155" class="upper_collision" />
-          <geom name="left_hind_x4_flexion_stator" type="cylinder" fromto="0.0460039 -0.0305 -0.0553863 0.0460039 0.0305 -0.0553863" size="0.0275" material="rotor" mass="0.36" />
-          <geom name="left_hind_flexion_motor_cap" type="cylinder" fromto="0.0460039 0.0252 -0.0553863 0.0460039 0.0268 -0.0553863" size="0.0224" material="cap" mass="0" />
-          <geom name="left_hind_belt_guard_spine" type="capsule" fromto="0.0460039 -0.0406 -0.0553863 0.120121 -0.0406 -0.14462" size="0.0048" material="bracket" mass="0" />
-          <geom name="left_hind_adjustable_idler" type="cylinder" fromto="0.0707546 -0.0398 -0.110226 0.0707546 -0.0302 -0.110226" size="0.0064" material="pulley" mass="0" />
-          <geom name="left_hind_drive_crank" type="cylinder" fromto="0.0460039 -0.0384 -0.0553863 0.0460039 -0.0284 -0.0553863" size="0.0350" material="bracket" mass="0.0400" />
-          <geom name="left_hind_pushrod" type="capsule" fromto="0.067543 -0.0334 -0.0374959 0.14166 -0.0334 -0.12673" size="0.0045" material="rail" mass="0.0300" />
+          <geom name="left_hind_x4_flexion_stator" type="cylinder" fromto="0.0575049 -0.0305 -0.0692329 0.0575049 0.0305 -0.0692329" size="0.0275" material="rotor" mass="0.36" />
+          <geom name="left_hind_drive_crank" type="cylinder" fromto="0.0575049 -0.04675 -0.0692329 0.0575049 -0.03675 -0.0692329" size="0.0350" material="bracket" mass="0.0330" />
+          <geom name="left_hind_pushrod" type="capsule" fromto="0.079044 -0.04175 -0.0513425 0.14166 -0.04175 -0.12673" size="0.0045" material="rail" mass="0.0248" />
           <geom name="left_hind_upper_limb_cover" type="capsule" fromto="0 0 0 0.120121 0 -0.14462" size="0.024" material="skin" mass="0.0384" rgba=".55 .50 .40 .35" />
-          <geom name="left_hind_x4_flexion_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="0.0460039 -0.0305 -0.0553863 0.0460039 0.0305 -0.0553863" size="0.0275" />
+          <geom name="left_hind_x4_flexion_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="0.0575049 -0.0305 -0.0692329 0.0575049 0.0305 -0.0692329" size="0.0275" />
           <body name="left_hind_lower_link" pos="0.120121 0 -0.14462">
             <joint name="left_hind_flexion" axis="0 1 0" range="-47 36" armature="0.003240" damping=".20" />
             <geom name="left_hind_elbow_axle" type="cylinder" fromto="0 -0.036 0 0 0.004 0" size="0.0064" material="cap" mass="0.00572" />
             <geom name="left_hind_lower_strut" type="capsule" fromto="0 0 0 -0.120121 0 -0.13938" size="0.0096" material="carbon" mass="0.06297" class="distal_collision" />
-            <geom name="left_hind_output_crank" type="cylinder" fromto="0 -0.0384 0 0 -0.0284 0" size="0.0350" material="bracket" mass="0.0300" />
+            <geom name="left_hind_output_crank" type="cylinder" fromto="0 -0.04675 0 0 -0.03675 0" size="0.0350" material="bracket" mass="0.0248" />
             <geom name="left_hind_lower_limb_cover" type="capsule" fromto="0 0 0 -0.120121 0 -0.13938" size="0.019" material="skin" mass="0.0256" rgba=".55 .50 .40 .35" />
             <body name="left_hind_foot" pos="-0.120121 0 -0.13938">
-              <joint name="left_hind_ankle" axis="0 1 0" range="-22 22" stiffness="3" damping=".15" armature=".0002" />
+              <joint name="left_hind_ankle" axis="0 1 0" range="-22 22" stiffness="1.4928" damping="0.0668" armature=".0002" />
               <geom name="left_hind_ankle_hub" type="capsule" fromto="0 0 0 0 0 -0.0208" size="0.0096" material="bracket" mass="0.01717" />
               <geom name="left_hind_sole" type="box" size="0.044 0.032 0.0072" pos="0 0 -0.0288" material="pad" mass="0.05724" class="sole" />
               <site name="left_hind_load_cell" type="box" pos="0 0 -0.0288" size="0.04416 0.03216 0.0076" rgba="0 .7 .8 0" />
@@ -284,27 +273,23 @@
         <joint name="right_hind_roll" axis="-1 0 0" range="-18 24" armature="0.003240" />
         <geom name="right_hind_shoulder_yoke" type="capsule" fromto="0 0 0 0 -0.064 0" size="0.0112" material="bracket" mass="0.02004" />
         <geom name="right_hind_x4_pitch_stator" type="cylinder" fromto="0 -0.0945 0 0 -0.0335 0" size="0.0275" material="rotor" mass="0.36" />
-        <geom name="right_hind_pitch_bearing_cap" type="cylinder" fromto="0 -0.0896 0 0 -0.088 0" size="0.0168" material="cap" mass="0" />
         <geom name="right_hind_x4_pitch_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="0 -0.0945 0 0 -0.0335 0" size="0.0275" />
         <body name="right_hind_upper_link" pos="0 -0.064 0">
           <joint name="right_hind_pitch" axis="0 1 0" range="-38 38" armature="0.003240" />
           <geom name="right_hind_upper_strut" type="capsule" fromto="0 0 0 0.120121 0 -0.14462" size="0.0112" material="rail" mass="0.07155" class="upper_collision" />
-          <geom name="right_hind_x4_flexion_stator" type="cylinder" fromto="0.0460039 -0.0305 -0.0553863 0.0460039 0.0305 -0.0553863" size="0.0275" material="rotor" mass="0.36" />
-          <geom name="right_hind_flexion_motor_cap" type="cylinder" fromto="0.0460039 -0.0268 -0.0553863 0.0460039 -0.0252 -0.0553863" size="0.0224" material="cap" mass="0" />
-          <geom name="right_hind_belt_guard_spine" type="capsule" fromto="0.0460039 0.0406 -0.0553863 0.120121 0.0406 -0.14462" size="0.0048" material="bracket" mass="0" />
-          <geom name="right_hind_adjustable_idler" type="cylinder" fromto="0.0707546 0.0302 -0.110226 0.0707546 0.0398 -0.110226" size="0.0064" material="pulley" mass="0" />
-          <geom name="right_hind_drive_crank" type="cylinder" fromto="0.0460039 0.0284 -0.0553863 0.0460039 0.0384 -0.0553863" size="0.0350" material="bracket" mass="0.0400" />
-          <geom name="right_hind_pushrod" type="capsule" fromto="0.067543 0.0334 -0.0374959 0.14166 0.0334 -0.12673" size="0.0045" material="rail" mass="0.0300" />
+          <geom name="right_hind_x4_flexion_stator" type="cylinder" fromto="0.0575049 -0.0305 -0.0692329 0.0575049 0.0305 -0.0692329" size="0.0275" material="rotor" mass="0.36" />
+          <geom name="right_hind_drive_crank" type="cylinder" fromto="0.0575049 0.03675 -0.0692329 0.0575049 0.04675 -0.0692329" size="0.0350" material="bracket" mass="0.0330" />
+          <geom name="right_hind_pushrod" type="capsule" fromto="0.079044 0.04175 -0.0513425 0.14166 0.04175 -0.12673" size="0.0045" material="rail" mass="0.0248" />
           <geom name="right_hind_upper_limb_cover" type="capsule" fromto="0 0 0 0.120121 0 -0.14462" size="0.024" material="skin" mass="0.0384" rgba=".55 .50 .40 .35" />
-          <geom name="right_hind_x4_flexion_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="0.0460039 -0.0305 -0.0553863 0.0460039 0.0305 -0.0553863" size="0.0275" />
+          <geom name="right_hind_x4_flexion_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="upper_collision" type="cylinder" fromto="0.0575049 -0.0305 -0.0692329 0.0575049 0.0305 -0.0692329" size="0.0275" />
           <body name="right_hind_lower_link" pos="0.120121 0 -0.14462">
             <joint name="right_hind_flexion" axis="0 1 0" range="-47 36" armature="0.003240" damping=".20" />
             <geom name="right_hind_elbow_axle" type="cylinder" fromto="0 -0.004 0 0 0.036 0" size="0.0064" material="cap" mass="0.00572" />
             <geom name="right_hind_lower_strut" type="capsule" fromto="0 0 0 -0.120121 0 -0.13938" size="0.0096" material="carbon" mass="0.06297" class="distal_collision" />
-            <geom name="right_hind_output_crank" type="cylinder" fromto="0 0.0284 0 0 0.0384 0" size="0.0350" material="bracket" mass="0.0300" />
+            <geom name="right_hind_output_crank" type="cylinder" fromto="0 0.03675 0 0 0.04675 0" size="0.0350" material="bracket" mass="0.0248" />
             <geom name="right_hind_lower_limb_cover" type="capsule" fromto="0 0 0 -0.120121 0 -0.13938" size="0.019" material="skin" mass="0.0256" rgba=".55 .50 .40 .35" />
             <body name="right_hind_foot" pos="-0.120121 0 -0.13938">
-              <joint name="right_hind_ankle" axis="0 1 0" range="-22 22" stiffness="3" damping=".15" armature=".0002" />
+              <joint name="right_hind_ankle" axis="0 1 0" range="-22 22" stiffness="1.4928" damping="0.0668" armature=".0002" />
               <geom name="right_hind_ankle_hub" type="capsule" fromto="0 0 0 0 0 -0.0208" size="0.0096" material="bracket" mass="0.01717" />
               <geom name="right_hind_sole" type="box" size="0.044 0.032 0.0072" pos="0 0 -0.0288" material="pad" mass="0.05724" class="sole" />
               <site name="right_hind_load_cell" type="box" pos="0 0 -0.0288" size="0.04416 0.03216 0.0076" rgba="0 .7 .8 0" />

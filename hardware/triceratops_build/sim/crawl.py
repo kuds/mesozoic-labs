@@ -134,8 +134,8 @@ def plan(model, P):
     for k, (L, advance, body_adv) in enumerate(sched):
         bx_nom = bx + body_adv
         best = None
-        for dx in np.arange(-P["body_dx_max_m"], P["body_dx_max_m"] + 1e-9, 0.01):
-            for y in np.arange(-P["body_y_max_m"], P["body_y_max_m"] + 1e-9, 0.004):
+        for dx in np.arange(-P["body_dx_max_m"], P["body_dx_max_m"] + 1e-9, P.get("grid_dx_m", 0.01)):
+            for y in np.arange(-P["body_y_max_m"], P["body_y_max_m"] + 1e-9, P.get("grid_dy_m", 0.004)):
                 cx = bx_nom + dx
                 end = {c: feet[c].copy() for c in CORNERS}
                 # land half a stride ahead of the hip on the body's steady path (bx_nom), not on the rocked body
