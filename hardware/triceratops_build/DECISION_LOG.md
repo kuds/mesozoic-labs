@@ -44,6 +44,8 @@ From `hardware/triceratops_kickoff/NEW_SESSION_PROMPT.md` and `CONSOLIDATION_PLA
 | F4 | Standing check, all four build models (T20 and T15, listed and closed) pass every pre-registered rule on both judged seeds, in the first run and again on the corrected models (second run). Second run: T20 listed 55.6 % front (parts list 55.2 %), T20 at 20.00 kg front elbow 7.9 N·m, hind knee 6.2 N·m, pitch 1.3 N·m; T15 listed 54.2 % (parts list 53.6 %), T15 at 15.00 kg elbow 5.7 N·m, knee 4.7 N·m (joint side). One flag: T15 closed 54.6 % against a listed-parts reference. Simulation. | `sim/STAND_REPORT.md`, `sim/results/stand_2026-11-18b/` | adopted |
 | F5 | With the ankle a pitch hinge only, each sole is rigid in roll; in the standing model about 95 % of a forefoot's load sits on the sole's inner edge, and the roll drive held 0.5 N·m (first run) and 1.1 N·m (second run, stiffer gains) at 20 kg. Standing roll torque depends on where the centre of pressure sits across the sole (about 0.3-4.6 N·m at 20 kg); the parts list's 4.3 N·m stays the sizing case. Sole roll compliance is a design question for the foot. Simulation; force balance confirmed by the independent check. | `sim/STAND_REPORT.md` | adopted |
 | F6 | The neck's gravity moment in the rebuilt T20 head is 0.52 N·m (horizontal lever 34.9 mm; T15 40.7 mm), against the 1.63 N·m the parts list sized the neck servo for (1.51 kg at 110 mm), so that sizing is conservative. Model estimate. | `sim/STAND_REPORT.md`; independent check 18 Nov 2026 | adopted |
+| F7 | Scripted crawl (0.02 m/s, one foot at a time, planned margin 65 mm on the ankle-pin basis), judged seeds 1 and 2: with PR #669's foot (passive pitch ankle, sole rigid in roll) both builds FAIL (C4: the third support foot floats while two diagonal soles carry the robot on their edges; C5: sideways body shifts tip the soles onto their edges, pins move about 25 mm). With a passive roll hinge added at each ankle, both builds PASS every rule (pins 7-9 mm, margin at least 62 mm, tilt under 0.9°). Simulation. | `sim/CRAWL_REPORT.md`, `sim/results/crawl_2026-11-18/` | adopted |
+| F8 | PR #669's passive pitch ankle range (±22°) limits how far the body can move fore-aft over a planted foot; the crawl's development runs hit it (the sole tips, the pin moves). Simulation. | `sim/CRAWL_REPORT.md` | adopted |
 
 ## Assumptions (A)
 
@@ -69,7 +71,7 @@ what the T. rex milestone shows, D7 a PLEM bench pilot, D8 the pull-request tria
 | D2 | Size | | - | - | open |
 | D3 | Compute | | - | - | open |
 | D4 | Bus voltage | | - | - | open |
-| D5 | Chassis | | - | - | open |
+| D5 | Chassis | (to be asked; now also: add a passive roll hinge at each ankle, F7) | - | - | open |
 | D6 | What the T. rex milestone shows | | - | - | open |
 | D7 | PLEM bench pilot | | - | - | open |
 | D8 | Pull-request triage | | - | - | open |
