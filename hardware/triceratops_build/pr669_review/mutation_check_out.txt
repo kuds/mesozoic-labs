@@ -1,0 +1,6 @@
+# Mutation check of PR #669's check_models.py (review, 18 Nov 2026), mujoco 3.10.0
+# Copy of models/ with robot.xml geom 6s_5ah_pack mass="0.7" changed to mass="5.7"; command: python -I check_models.py
+anatomical: 26 actuators, 5936.00 kg, four settled foot loads [16492.2, 16492.2, 12645.2, 12645.2] N
+robot: 14 actuators, 20.00 kg, four settled foot loads [45.5, 45.3, 52.8, 52.6] N
+exit=0
+# Front share (45.5 + 45.3) / 196.2 N = 46.3 %: the script passes a 20 kg, rear-heavy model.

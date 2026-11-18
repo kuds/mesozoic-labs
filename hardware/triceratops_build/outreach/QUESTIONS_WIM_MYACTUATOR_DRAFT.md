@@ -77,7 +77,7 @@ Best regards,
 ```
 Subject: RMD-X4-P36-36-E-L, RMD-X6-P20-60-E, RMD-X8-P20-150-E: EtherCAT cycle time, sync modes and units
 
-Hello. I plan to run the RMD-X4-P36-36-E-L, RMD-X6-P20-60-E and RMD-X8-P20-150-E over EtherCAT.
+Hello. I am considering running the RMD-X4-P36-36-E-L, RMD-X6-P20-60-E and RMD-X8-P20-150-E over EtherCAT.
 (1) What is the shortest EtherCAT cycle each part supports, and which sync modes does it support: Free Run,
 SM-synchronous, DC SYNC0?
 (2) In CiA 402, in which units are the torque and position objects? Does 0x6064 (position actual value) count the
@@ -107,8 +107,8 @@ Thank you.
 Subject: RMD-X4-P36-36-E-L (V4.1) on a 42-50 V supply: speed and torque limits
 
 Hello. The RMD-X4-P36-36-E-L is rated at 24 V with a 20-55 V supply range. Reseller listings say that above its
-rated voltage the drive must not exceed its rated speed. I plan to run it from a 12-cell lithium battery,
-42-50 V.
+rated voltage the drive must not exceed its rated speed. I am considering running it from a 12-cell lithium
+battery, 42-50 V.
 (1) Does that rule apply to the V4.1 RMD-X4-P36-36-E-L, and is its rated speed 83 rpm at the output?
 (2) At 42 V and at 50 V, what are its continuous and peak torque, and its highest allowed output speed?
 (3) Does the drive limit the speed itself above 24 V, or must the controller do it?
@@ -144,6 +144,6 @@ Thank you.
 | WIM 6, M2 | The stop chain: whether a drive fault or a lost master ends in a hold or damped sit, not a drop |
 | WIM 7 | Pilot cost (not in any total yet) |
 | M3 | Whether 0.30 m/s is the X4's walking limit on 12S (E1); also the T. rex's X4 swing speeds if it moves to 12S |
-| M4 (1) | Whether an X6-80 can replace the front X8 and save about 1.0 kg per front leg (parts list, 2.5) |
+| M4 (1) | Whether an X6-80 can replace the front X8: 0.52 kg lighter per front leg, about 1.0 kg for the pair (parts list, 2.5) |
 | M4 (2) | The hind-knee and roll heat check, now judged against the X6-50-L's table as a stand-in |
 | M4 (3), (4) | Whether the totals' 25 % nominal duty applies; whether drive delivery (the critical path) fits T2 and T4 |
