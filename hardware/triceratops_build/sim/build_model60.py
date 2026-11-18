@@ -15,6 +15,10 @@ Masses are planning estimates, each with its basis in the ledger, not weighed pa
 reserve: 0.15 kg of small parts on the chassis, the rest spread pro rata over every part whose mass is an estimate
 (EST), not over catalog parts.
 
+Revision 3 (18 Nov 2026, after the recheck; changed after a result): ankle springs scaled from PR #669's own 15 kg
+model to 12.7 kg (revision 2 scaled from T20's 20 kg); the NVMe tray and the reserve block moved clear of the Pilz
+block; the reserve also grows the servo cases, whose masses are estimates.
+
 Revision 2 (18 Nov 2026, after the independent check; "changed after a result": the first standing and crawl runs used
 revision 1, commit 6739087d): flexion drive at 90 mm, crank lane unscaled, bought electronics at catalog size, body shell
 on the budget's 0.85 kg x s^2 basis, linkage mass on T15's four-bar basis, reserve spread over EST parts, ankle springs
@@ -53,10 +57,12 @@ LIMB_COVER_KG = (0.06 * S ** 2, 0.04 * S ** 2)   # upper / lower limb covers per
 BODY_SHELL_KG = 0.85 * S ** 2   # the checked parts list's body shell (6.2), scaled by area, as size_budget.py does
 LINKAGE_KG = 0.0825   # per leg: T15's 75 cm four-bar (build_model.py), not scaled down: the cranks carry the same torque
 FLEX_OFFSET_M = 0.090  # flexion drive axis along the upper link from the pitch axis (PR #669's OpenSCAD, both sizes)
-# Ankle springs scaled for similarity (torque per radian proportional to weight x length): 75 cm T20 (20 kg) values
-# stiffness 3 N m/rad, damping 0.15 N m s/rad; damping also x sqrt(s) for the time scale.
-ANKLE_K = 3.0 * (12.44 / 20.0) * S
-ANKLE_C = 0.15 * (12.44 / 20.0) * S * math.sqrt(S)
+# Ankle springs scaled for similarity (torque per radian proportional to weight x length) from PR #669's own model,
+# 15.0 kg at 75 cm with stiffness 3 N m/rad and damping 0.15 N m s/rad, to this design's closed mass, 12.7 kg, at 60 cm;
+# damping also x sqrt(s) for the time scale. (Revision 2 used T20's 20 kg and revision 1's mass: 1.49 N m/rad.)
+ANKLE_REF_KG, DESIGN_KG = 15.0, 12.7
+ANKLE_K = 3.0 * (DESIGN_KG / ANKLE_REF_KG) * S
+ANKLE_C = 0.15 * (DESIGN_KG / ANKLE_REF_KG) * S * math.sqrt(S)
 SERVO_JOINT = dict(damping="0.04", armature="0.0002")   # all four XC430 / XL430 joints (EST; one set for consistency)
 # Bought electronics: catalog-size boxes (half extents, m) and their chassis positions (m, chassis frame), laid out so
 # no two boxes intersect (revision 2; check_layout60.py). All sizes EST: the Jetson dev kit with its fan about 100 x 80 x
@@ -64,7 +70,7 @@ SERVO_JOINT = dict(damping="0.04", armature="0.0002")   # all four XC430 / XL430
 # contactor, watchdog board and radio-stop receiver in one 121 x 100 x 45 mm block.
 ELECTRONICS = {
     "jetson_orin_nano_super_kit": ((0.050, 0.040, 0.0175), (-0.030, 0.0, -0.030)),
-    "nvme_and_vibration_tray": ((0.052, 0.042, 0.003), (-0.030, 0.0, -0.0505)),
+    "nvme_and_vibration_tray": ((0.052, 0.042, 0.003), (-0.031, 0.0, -0.0505)),
     "pilz_relay_contactor_watchdog_radio_rx": ((0.0605, 0.050, 0.0225), (0.082, 0.0, -0.0335)),
     "teensy41_can_carriers_x2": ((0.045, 0.030, 0.010), (0.080, 0.0, 0.0)),
     "power_board_diode_or_precharge_clamp": ((0.040, 0.035, 0.012), (0.185, 0.0, -0.030)),
@@ -368,11 +374,11 @@ def build(variant, ankle_roll=False, battery_x=-0.200 * S):
     listed = sum(float(g.get("mass")) for g, _ in all_mass())
     if variant == "closed":
         reserve = 0.10 * listed
-        m.add_geom(chassis, name="reserve_small_parts_est", type="box", pos=[0.0, -0.055, -0.016],
+        m.add_geom(chassis, name="reserve_small_parts_est", type="box", pos=[-0.060, -0.055, -0.016],
                    size="0.032 0.01 0.008", material="harness", mass=f"{0.15:.3f}")
         note("reserve_small_parts_est", "reserve: connectors, brackets, fasteners added at build (EST)")
         rest = reserve - 0.15
-        growth = [g for g, _ in all_mass() if "(EST)" in ledger_notes.get(g.get("name"), "")
+        growth = [g for g, _ in all_mass() if "(EST" in ledger_notes.get(g.get("name"), "")
                   and g.get("name") != "reserve_small_parts_est"]
         gsum = sum(float(g.get("mass")) for g in growth)
         factor = (gsum + rest) / gsum
@@ -493,7 +499,8 @@ def main():
         neck.pop("spring_before_nm", None)   # it described PR #669's spring, not this one
         neck["spring_at_neutral_nm"] = round(0.40 * ref * 0.70 / 0.40, 4)
         neck["spring_basis"] = ("0.40 N m/rad (EST): soft enough that over the +-20 deg neck range the spring's torque "
-                                "changes by 0.14 N m, under a quarter of the XC430's 0.63 N m continuous estimate")
+                                "varies by +-0.14 N m (0.28 N m end to end), under half of the XC430's 0.63 N m "
+                                "continuous estimate")
         text = ET.tostring(m.root, encoding="unicode") + "\n"
         name = f"trike60_C_{variant}" + ("_ankleroll" if ar else "")
         (out / f"{name}.xml").write_text(text)

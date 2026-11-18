@@ -139,7 +139,7 @@
       <geom name="left_hind_x4_roll_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="chassis_collision" type="cylinder" fromto="-0.2905 0.076 0 -0.2295 0.076 0" size="0.0275" />
       <geom name="right_hind_x4_roll_stator_collision" mass="0" rgba="0 0 0 0" group="3" class="chassis_collision" type="cylinder" fromto="-0.2905 -0.076 0 -0.2295 -0.076 0" size="0.0275" />
       <geom name="jetson_orin_nano_super_kit" type="box" pos="-0.03 0 -0.03" size="0.05 0.04 0.0175" material="compute" mass="0.174" />
-      <geom name="nvme_and_vibration_tray" type="box" pos="-0.03 0 -0.0505" size="0.052 0.042 0.003" material="bracket" mass="0.08" />
+      <geom name="nvme_and_vibration_tray" type="box" pos="-0.031 0 -0.0505" size="0.052 0.042 0.003" material="bracket" mass="0.08" />
       <geom name="oak_d_usb_c_lock_cable" type="capsule" fromto="0.19 0 0.05 0.12 0 0.03" size="0.003" material="harness" mass="0.025" />
       <geom name="gtech_6s_3300_1" type="box" pos="-0.16 0.0215 -0.0345" size="0.069 0.021 0.0215" material="power" mass="0.506" />
       <geom name="gtech_6s_3300_2" type="box" pos="-0.16 -0.0215 -0.0345" size="0.069 0.021 0.0215" material="power" mass="0.506" />
@@ -199,7 +199,7 @@
             <geom name="left_fore_output_crank" type="cylinder" fromto="0 -0.04675 0 0 -0.03675 0" size="0.0350" material="bracket" mass="0.0248" />
             <geom name="left_fore_lower_limb_cover" type="capsule" fromto="0 0 0 0.120121 0 -0.13938" size="0.019" material="skin" mass="0.0256" rgba=".55 .50 .40 .35" />
             <body name="left_fore_foot" pos="0.120121 0 -0.13938">
-              <joint name="left_fore_ankle" axis="0 1 0" range="-22 22" stiffness="1.4928" damping="0.0668" armature=".0002" />
+              <joint name="left_fore_ankle" axis="0 1 0" range="-22 22" stiffness="2.0320" damping="0.0909" armature=".0002" />
               <geom name="left_fore_ankle_hub" type="capsule" fromto="0 0 0 0 0 -0.0208" size="0.0096" material="bracket" mass="0.01717" />
               <geom name="left_fore_sole" type="box" size="0.044 0.032 0.0072" pos="0 0 -0.0288" material="pad" mass="0.05724" class="sole" />
               <site name="left_fore_load_cell" type="box" pos="0 0 -0.0288" size="0.04416 0.03216 0.0076" rgba="0 .7 .8 0" />
@@ -229,7 +229,7 @@
             <geom name="right_fore_output_crank" type="cylinder" fromto="0 0.03675 0 0 0.04675 0" size="0.0350" material="bracket" mass="0.0248" />
             <geom name="right_fore_lower_limb_cover" type="capsule" fromto="0 0 0 0.120121 0 -0.13938" size="0.019" material="skin" mass="0.0256" rgba=".55 .50 .40 .35" />
             <body name="right_fore_foot" pos="0.120121 0 -0.13938">
-              <joint name="right_fore_ankle" axis="0 1 0" range="-22 22" stiffness="1.4928" damping="0.0668" armature=".0002" />
+              <joint name="right_fore_ankle" axis="0 1 0" range="-22 22" stiffness="2.0320" damping="0.0909" armature=".0002" />
               <geom name="right_fore_ankle_hub" type="capsule" fromto="0 0 0 0 0 -0.0208" size="0.0096" material="bracket" mass="0.01717" />
               <geom name="right_fore_sole" type="box" size="0.044 0.032 0.0072" pos="0 0 -0.0288" material="pad" mass="0.05724" class="sole" />
               <site name="right_fore_load_cell" type="box" pos="0 0 -0.0288" size="0.04416 0.03216 0.0076" rgba="0 .7 .8 0" />
@@ -259,7 +259,7 @@
             <geom name="left_hind_output_crank" type="cylinder" fromto="0 -0.04675 0 0 -0.03675 0" size="0.0350" material="bracket" mass="0.0248" />
             <geom name="left_hind_lower_limb_cover" type="capsule" fromto="0 0 0 -0.120121 0 -0.13938" size="0.019" material="skin" mass="0.0256" rgba=".55 .50 .40 .35" />
             <body name="left_hind_foot" pos="-0.120121 0 -0.13938">
-              <joint name="left_hind_ankle" axis="0 1 0" range="-22 22" stiffness="1.4928" damping="0.0668" armature=".0002" />
+              <joint name="left_hind_ankle" axis="0 1 0" range="-22 22" stiffness="2.0320" damping="0.0909" armature=".0002" />
               <geom name="left_hind_ankle_hub" type="capsule" fromto="0 0 0 0 0 -0.0208" size="0.0096" material="bracket" mass="0.01717" />
               <geom name="left_hind_sole" type="box" size="0.044 0.032 0.0072" pos="0 0 -0.0288" material="pad" mass="0.05724" class="sole" />
               <site name="left_hind_load_cell" type="box" pos="0 0 -0.0288" size="0.04416 0.03216 0.0076" rgba="0 .7 .8 0" />
@@ -289,7 +289,7 @@
             <geom name="right_hind_output_crank" type="cylinder" fromto="0 0.03675 0 0 0.04675 0" size="0.0350" material="bracket" mass="0.0248" />
             <geom name="right_hind_lower_limb_cover" type="capsule" fromto="0 0 0 -0.120121 0 -0.13938" size="0.019" material="skin" mass="0.0256" rgba=".55 .50 .40 .35" />
             <body name="right_hind_foot" pos="-0.120121 0 -0.13938">
-              <joint name="right_hind_ankle" axis="0 1 0" range="-22 22" stiffness="1.4928" damping="0.0668" armature=".0002" />
+              <joint name="right_hind_ankle" axis="0 1 0" range="-22 22" stiffness="2.0320" damping="0.0909" armature=".0002" />
               <geom name="right_hind_ankle_hub" type="capsule" fromto="0 0 0 0 0 -0.0208" size="0.0096" material="bracket" mass="0.01717" />
               <geom name="right_hind_sole" type="box" size="0.044 0.032 0.0072" pos="0 0 -0.0288" material="pad" mass="0.05724" class="sole" />
               <site name="right_hind_load_cell" type="box" pos="0 0 -0.0288" size="0.04416 0.03216 0.0076" rgba="0 .7 .8 0" />

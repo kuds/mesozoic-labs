@@ -70,3 +70,19 @@ run the crawl on revision 2.
 - The impratio-10 runs no longer leave model files in the system temporary folder; the results record the model's
   name instead of a temporary path.
 - Rules C1-C6, their thresholds, the gait parameters other than the grid, and the verdict logic are unchanged.
+
+## Amendment 2 (18 Nov 2026, after the recheck of revision 2): revision 3, new judged seeds 5 and 6
+
+**Changed after a result.** The recheck found the ankle springs scaled from the wrong reference: PR #669's 3 N·m/rad
+belongs to its own 15 kg model, not to T20's 20 kg, and revision 2 used revision 1's mass. Revision 3 scales from
+15 kg to the design's closed mass, 12.7 kg: stiffness 3 × (12.7 / 15) × 0.8 = 2.03 N·m/rad, damping 0.15 × (12.7 / 15)
+× 0.8 × √0.8 = 0.091 N·m·s/rad. It also moves the NVMe tray and the reserve block clear of the Pilz block (a 0.15 kg
+block moves 60 mm aft). Revision 2's crawl results (`results/crawl60_2026-11-18b/`) stay on record, and serve as the
+softer-spring sensitivity (1.49 N·m/rad).
+
+**Seeds.** Judged: **5 and 6** (new). Reported, not judged: 1-4, on revision 3. Sensitivity (reported): impratio 10 on
+seeds 5 and 6. Everything else as in amendment 1. Results in `results/crawl60_2026-11-18c/`.
+
+**Disclosure.** Before writing this, I had seen the reviewer's own runs on revision 2 with the spring set to
+2.03 N·m/rad (reviewer-only, not committed): the roll ankle passed C1-C6 on seeds 1-4 as built and failed C4 on all
+four under impratio 10. I had not run the crawl on revision 3.

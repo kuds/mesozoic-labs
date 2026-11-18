@@ -15,8 +15,8 @@ import crawl
 
 HERE = Path(__file__).resolve().parent
 MODELS = ("trike60_C_closed", "trike60_C_closed_ankleroll")
-SEEDS = (3, 4)          # amendment 1: new judged seeds for revision 2
-SEEDS_REPORTED = (1, 2)  # the first run's seeds, rerun on revision 2 and reported, not judged
+SEEDS = (5, 6)                # amendment 2: new judged seeds for revision 3
+SEEDS_REPORTED = (1, 2, 3, 4)  # earlier runs' seeds, rerun on revision 3 and reported, not judged
 S = 0.8
 LENGTHS = ("stride_m", "lift_m", "margin_plan_m", "body_y_max_m", "body_dx_max_m", "stance_press_m")
 TIMES = ("shift_s", "swing_s")
@@ -48,10 +48,10 @@ def one(job):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=str(HERE / "results" / "crawl60_2026-11-18b"))
+    ap.add_argument("--out", default=str(HERE / "results" / "crawl60_2026-11-18c"))
     out = Path(ap.parse_args().out)
     out.mkdir(parents=True, exist_ok=True)
-    jobs = [(m, s, imp) for imp in (False, True) for m in MODELS for s in SEEDS + SEEDS_REPORTED]
+    jobs = [(m, s, False) for m in MODELS for s in SEEDS + SEEDS_REPORTED] + [(m, s, True) for m in MODELS for s in SEEDS]
     rows, verdict, sens = [], {}, {}
     with ProcessPoolExecutor(max_workers=4) as ex:
         for name, seed, imp, rules, info, slim in ex.map(one, jobs):
@@ -63,9 +63,9 @@ def main():
                 d = sens if imp else verdict
                 d[name] = d.get(name, True) and all(rules.values())
     lines = ["# Crawl on the 60 cm models (simulation)", "",
-             "Rules: `PREREG_CRAWL60.md` with amendment 1 (C1-C6 of `PREREG_CRAWL.md`, thresholds unchanged; gait "
-             "parameters and the planner's grid scaled, no tuning; model revision 2). Judged seeds 3 and 4; seeds 1 "
-             "and 2 reported. Margin on the ankle-pin basis.", "",
+             "Rules: `PREREG_CRAWL60.md` with amendments 1 and 2 (C1-C6 of `PREREG_CRAWL.md`, thresholds unchanged; "
+             "gait parameters and the planner's grid scaled, no tuning; model revision 3). Judged seeds 5 and 6; seeds "
+             "1-4 reported. Margin on the ankle-pin basis.", "",
              f"Parameters: {json.dumps({k: round(v, 4) for k, v in PARAMS60.items()})}", "",
              "| Model | Contact | Seed | μ | C1 | C2 | C3 | C4 | C5 | C6 | Min margin mm | Max pin motion mm | Travel m | Max tilt ° | Speed m/s |",
              "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
@@ -75,8 +75,8 @@ def main():
                      " | ".join("pass" if rules[k] else "**FAIL**" for k in ("C1", "C2", "C3", "C4", "C5", "C6")) +
                      f" | {1000 * info['min_margin_measured_m']:.1f} | {1000 * info['max_planted_slip_m']:.1f} | "
                      f"{info['travel_m']:.3f} | {info['max_tilt_deg']:.2f} | {info['speed_mps']:.4f} |")
-    lines += ["", "Verdicts (judged seeds 3 and 4, as built):", ""] + [f"- {m}: **{'PASS' if v else 'FAIL'}**" for m, v in verdict.items()]
-    lines += ["", "Sensitivity, impratio 10, seeds 3 and 4 (reported, not judged):", ""]
+    lines += ["", "Verdicts (judged seeds 5 and 6, as built):", ""] + [f"- {m}: **{'PASS' if v else 'FAIL'}**" for m, v in verdict.items()]
+    lines += ["", "Sensitivity, impratio 10, seeds 5 and 6 (reported, not judged):", ""]
     lines += [f"- {m}: {'all rules hold' if v else 'rules fail'}" for m, v in sens.items()]
     (out / "RESULTS.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))

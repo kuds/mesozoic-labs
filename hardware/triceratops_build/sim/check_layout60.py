@@ -4,9 +4,10 @@
    harness looms or the collision proxies) is tested for intersection: box pairs by their exact gap in the chassis
    frame (all are axis-aligned), other pairs by mj_geomDistance; overlapping pairs are reported, else the closest.
    (mj_geomDistance returns 0 for separated box pairs in mujoco 3.10.0, so it is not used for those.)
-2. Leg drives: the minimum distance between each flexion drive's housing and its own leg's X4 pitch and roll housings,
-   the body contact proxy and the other legs' housings, over a grid of the leg's roll, pitch and flexion joint ranges
-   (7 x 7 x 7 per leg), with the other joints at neutral.
+2. Leg drives: the minimum distance between each flexion drive's housing and its own leg's X4 pitch and roll housings
+   and the body contact proxy, over a grid of the leg's roll and pitch ranges (7 x 7; the flexion joint is swept too,
+   but it does not move the flexion drive), with the other joints at neutral. Not checked: the drive cranks and the
+   other legs' housings.
 
 Usage: python check_layout60.py [--model generated/trike60_C_closed.xml]   Prints a table; writes nothing.
 """
@@ -19,7 +20,8 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 CORNERS = ("left_fore", "right_fore", "left_hind", "right_hind")
-SKIP = ("PA11_rib", "shell_seam", "loom", "_collision", "_contact", "oak_d_usb_c_lock_cable")
+SKIP = ("PA11_rib", "shell_seam", "loom", "oak_d_usb_c_lock_cable")
+PROXY_SUFFIXES = ("_collision", "_contact")   # collision proxies, matched by suffix ("contactor" must not match)
 # frame members and the drives bolted to them intersect by design (joints and mounts): pairs of these are skipped
 MOUNTED = ("6061_", "crossmember", "service_tray", "tray_stay", "neck_cradle", "_stator")
 
@@ -53,7 +55,8 @@ def main():
     mujoco.mj_resetDataKeyframe(m, d, 0)
     mujoco.mj_forward(m, d)
     ch = m.body("chassis").id
-    parts = [g for g in range(m.ngeom) if m.geom_bodyid[g] == ch and not any(k in m.geom(g).name for k in SKIP)]
+    parts = [g for g in range(m.ngeom) if m.geom_bodyid[g] == ch and not any(k in m.geom(g).name for k in SKIP)
+             and not m.geom(g).name.endswith(PROXY_SUFFIXES)]
     pairs = []
     for g1, g2 in itertools.combinations(parts, 2):
         if all(any(k in m.geom(g).name for k in MOUNTED) for g in (g1, g2)):

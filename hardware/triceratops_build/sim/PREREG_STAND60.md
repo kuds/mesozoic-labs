@@ -66,3 +66,15 @@ the other drives and 26.3 mm from the body proxy over the joint grid). I had not
 sole centres' height; the sole bottoms touch the floor at the start. The judged seeds settle to the same pose (to about
 1e-8), as at 75 cm, so they differ only in the first seconds; the two seeds test the transient, and the settled loads
 are in effect one result.
+
+## Amendment 2 (18 Nov 2026, after the recheck of revision 2): revision 3 of the models
+
+**Changed after a result.** The recheck found the ankle springs scaled from the wrong reference (T20's 20 kg, not PR
+#669's own 15 kg model) and the Pilz relay block intersecting two parts (the packaging check had skipped it). Revision
+3 corrects these (`build_model60.py` docstring). Revision 2's standing results (`results/stand60_2026-11-18b/`) stay on
+record. Revision 3 is judged by the same rules as amendment 1 (the totals are unchanged at 11.540 / 12.694 kg; the
+reserve's growth factor changes from × 1.2146 to × 1.2088 because the servo cases now grow too), in
+`results/stand60_2026-11-18c/`.
+
+**Disclosure.** Before writing this, I had seen revision 3's generator printout (totals as above; centre of mass x
++26.5 / +27.6 mm) and its packaging check (no intersections, Pilz block included). I had not simulated revision 3.
