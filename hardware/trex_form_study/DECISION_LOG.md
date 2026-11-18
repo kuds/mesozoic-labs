@@ -63,6 +63,7 @@ Status: `open` (awaiting review), `adopted` (used in round one, revisable), `sup
 | P48 | Owner, 18 Nov 2026, through the question tool: the paused study is kept findable by a pull request merging it into `main` (main had not moved since PR #667, so it merges cleanly); the owner reviews and merges. The working branch stays. | adopted |
 | P49 | Owner, 18 Nov 2026, through the question tool: the frozen T. rex arrays not in bundle s2-b1 (about 120 MB, git-ignored, only on the cloud machine) are packed as a second archive on a never-merged data branch, like P46, so a restart needs no rebuild; the lead may push that branch. Eval traces (about 2 GB, diagnostic, rebuilt bit for bit from the records) are not kept. | adopted |
 | P50 | Owner, 18 Nov 2026, through the question tool: the day-one Colab smoke is skipped. The sheet sent (`stage2/tb/colab_steps.txt` at 1b5686f6 and later) stays valid for a restart as long as C1 cc437b6a and the data branch `claude/mesozoic-trex-stage2-bundle-s2-b1` are not moved. | adopted |
+| P51 | Owner, 18 Nov 2026, in chat: the T. rex stays on the roadmap. The museum outreach (Field Museum, a natural history museum) shows the Triceratops as the near-term live demo (Q3 2027) and the T. rex as the coming flagship, a milestone for end 2027 / early 2028; the owner updates the pitch deck. The T. rex is paused, not dropped (P47): plans say when its work resumes so that milestone stays reachable, and shared hardware serves both robots where sound. | adopted |
 
 ## Engineering constraints and findings
 
