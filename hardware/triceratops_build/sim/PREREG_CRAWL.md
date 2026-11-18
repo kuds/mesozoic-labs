@@ -80,9 +80,9 @@ the owner (chassis decision D5), not an adopted change.
 ## Note after the independent check (18 Nov 2026; nothing above is changed)
 
 The independent check reproduced every judged result byte for byte and found the rules implemented as written. It
-found four descriptions in amendment 1 inexact (foot landing is relative to the previous, already shifted body
-position plus a quarter stride, not a "steady path"; the first second ramps to the pressed stance pose; 49
-development simulations, not 48; the planned margin's minimum was 61.6 mm where the sideways limit bound), and that the
-variant's pass does not hold under a stiffer friction model. These are recorded in `CRAWL_REPORT.md` ("Corrections" and
+found three descriptions in amendment 1 inexact (foot landing is relative to the previous, already shifted body
+position plus a quarter stride, not a "steady path"; the first second ramps to the pressed stance pose; the planned
+margin's minimum was 61.6 mm where the sideways limit bound), and that the variant's pass does not hold under a stiffer
+friction model. Separately, the development ledger written afterwards counts 49 simulations, not 48. These are recorded in `CRAWL_REPORT.md` ("Corrections" and
 "Contact-model sensitivity") and in `results/crawl_2026-11-18/DEV_LOG.md`. The verdicts above stand as judged; the
 report does not present the variant's pass as a recommendation.

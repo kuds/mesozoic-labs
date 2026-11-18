@@ -31,11 +31,12 @@ image shows hardware. Made ahead of the 8 Dec 2026 target, so they can be redone
 
 ## Clip (on a data branch)
 
-`render_crawl_clip.py` makes a 20 s clip of the crawl at 2× speed (1280 × 720, H.264, 5.6 MB), labelled on every frame
+`render_crawl_clip.py` makes a 20 s clip of the crawl at 2× speed (1280 × 720, H.264, 5.7 MB), labelled on every frame
 "SIMULATION", "design variant with passive roll ankles", "0.02 m/s", "shown at 2x speed", "Not hardware". Clips are
 over the repository's 500 KB limit, so, as the owner chose on 18 Nov 2026 (decision D11), they live on the
 never-merged data branch `claude/triceratops-build-clips`: `crawl_T20_ankleroll_2x.mp4` there. Fetch it with
-`git fetch origin claude/triceratops-build-clips` and `git show origin/claude/triceratops-build-clips:crawl_T20_ankleroll_2x.mp4 > clip.mp4`.
+`git fetch origin claude/triceratops-build-clips` and then `git show FETCH_HEAD:crawl_T20_ankleroll_2x.mp4 > clip.mp4`
+(works in single-branch clones too).
 
 ## Reproduce
 

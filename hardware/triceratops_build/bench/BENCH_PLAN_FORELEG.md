@@ -25,8 +25,8 @@ the foreleg's drives $1,422, its linkage $120, a torque rig $700, a 60 V bench s
 PCAN-USB FD $379, two MCU carriers $300, and the full stop chain $3,526 (wireless stop, Pilz relay, e-stops,
 contactor, fuse, receiver estimate). Drive prices are MyActuator's own US store, read 7 Nov 2026. At the US reseller
 prices found on 18 Nov 2026 the drives' $1,422 becomes **about $1.5k-$2.0k**: $1.5k at the backordered prices (X6
-$490, X4 $400, X8 $645, all backordered), $2.0k with RobotShop's in-stock, tariff-included X6 ($741.84) and its X4
-price ($620, quoted for the X4-P36-36-E; the -E-L was not found there).
+$490, X4 $400, X8 $645, all backordered), $2.0k with RobotShop's tariff-included X6 ($741.84) and X4 ($620, a listing
+for the X4-P36-36-E) and the backordered X8: not an in-stock basket.
 
 **Not in the $7.1k set, but the tests below need them** (parts list section 4 prices; estimates marked there):
 - the overhead catch gantry, $800 (B8, step 4);
@@ -35,9 +35,13 @@ price ($620, quoted for the X4-P36-36-E; the -E-L was not found there).
 - one limb shell section for the heat test (B3), not priced;
 - a 1.3:1 linkage for the ratio and crank-travel check (B6), $120 estimate, only if T15 or the hind knee is checked here;
 - for B5's Jetson path, one single-channel USB-CAN adapter per bus: three more PCAN-USB FD, $1,137 (the T. rex sheet
-  used two; this robot has four buses).
+  used two; this robot has four buses);
+- the spare drive the torque rig uses as a dynamometer (B1, B4, B7): the parts list counts it among the spares, not in
+  the bench set; an X8, $725 (an X6, $428, covers the roll and pitch tests only);
+- for B9: four TE FX29 foot cells, $174 (21-23-week lead; parts list), and a three-cell plate, about $150 (estimate).
 
-That is about **+$1.2k** without the extra adapters, **+$2.4k** with them, before freight, duty and tax.
+That is about **+$2.3k** without the extra adapters, **+$3.4k** with them (with the X8 as the dynamometer), before
+freight, duty and tax.
 
 The leg is mounted on a rigid stand at its shoulder; the foot either hangs free (speed, delay, play), presses on a
 load cell (torque, heat), or runs on the overhead catch with the foot on a floor sample (stop chain).
@@ -56,7 +60,7 @@ that beats its figure passes.
 | B4 | The X4 above 24 V | No-load speed and speed under load at 42 V and 49 V; does the drive cap itself at 83 rpm? | At the swing's pitch torque (about 7 N·m; parts list Appendix C estimates 6-7 N·m to swing the leg) the X4 reaches ≥ 69 rpm (1.15 × the 0.30 m/s walk's 60 rpm), and it runs ≥ 30 minutes at 49 V without a fault. (Stance torque at low speed is B1's job.) | The pitch drive moves to an X6 (+0.46 kg, +$159 each; parts list 2.4); the T. rex's 12S idea needs the same re-check | The 83 rpm cap (assumption, reseller text) |
 | B5 | Command-to-torque delay, p99 | The T. rex bench sheet's method, A17 (`hardware/trex_form_study/stage2/jetson75/BENCH_SHEET.md`, sections 1, 3, 4.1 and 5): tick to torque change by M1 coarse and fine and the piezo M2, **1,000 commands per row** plus the sheet's 300-command check, with the other drives' traffic replayed. Rows: **this robot**, 4 buses × 3 drives at 500 Hz and at 1 kHz, Teensy path and Jetson + USB-CAN path, computer idle and loaded; **the T. rex sheet's rows unchanged** for the X6-60 and X4-36-L: Teensy 2 buses idle and loaded and 3 buses loaded at 500 Hz, Jetson 2 buses idle and loaded at 500 Hz and 1 bus loaded at 250 Hz; and its five 30-minute soak runs (late cycles, replies that missed the next tick, frames lost or resent) | The reading (p99 of the delay plus the feedback age beyond 2 ms, rounded up to a whole 2 ms step) is **≤ 10 ms**, the delay at which the walk verdict is judged (owner's decision D9, 18 Nov 2026), on the path chosen for the robot; bus load ≤ 80 % at the chosen rate; and no frame lost in the soak runs | The walk is re-run at the measured step; if the reading is over 10 ms, the loop rate or the bus layout changes before four legs are ordered | The servo delay (0-10 ms swept; the verdict at 10 ms) |
 | B6 | Elbow transmission: play, stiffness, angles | Lost motion at the elbow under ±2 N·m reversals (drive backlash plus the four-bar's rod ends); torsional stiffness under 0-35 N·m; the transmission angle of the **1:1** four-bar over the full -47° to +36° flexion range. If a 1.3:1 linkage is built (T15, or the hind knee): its ratio over the range and its crank travel (simulation estimate 119°, parts list 108°) | Play ≤ 1.0° at the joint; stiffness ≥ 400 N·m/rad, which keeps the first mode of the lower leg on its drive at or above about 20 Hz (from the T20 model's 0.0236 kg·m² about the elbow: 0.0147 for the lower leg and foot plus 0.0089 of the X8's reflected inertia, a catalog estimate); transmission angle ≥ 40° everywhere | Rod ends, crank pins or the bearing pair change; the simulation adds play; for 1.3:1, the angle-dependent ratio goes into the model | The model's rigid pushrod; for 1.3:1, its constant ratio (assumption A5) |
-| B7 | Regen clamp, scaled to the robot | Bus voltage during (1) a hard stop of the leg from the walk's swing speed and (2) an injected regen pulse equal to the simulation's estimate for **twelve drives** in a hard sit (the spare drive back-driving the elbow through the torque rig, or a programmable load), with the ideal diodes blocking the pack; clamp resistor temperature | Bus ≤ 54 V (under the drives' 55 V maximum) in both, with the 52.5 V clamp; resistors under their rating after 10 twelve-drive pulses in a row | Clamp or resistors re-sized before the power board is ordered | None (not modelled; the twelve-drive energy estimate is a task for the walk simulation) |
+| B7 | Regen clamp, scaled to the robot | Bus voltage during (1) a hard stop of the leg from the walk's swing speed and (2) an injected regen pulse equal to the walk simulation's estimate for **twelve drives** in a hard sit, with the ideal diodes blocking the pack; clamp resistor temperature. The pulse comes from a source that can push energy into the bus: the dynamometer drive back-driving the elbow **from its own, separate supply**, a bidirectional (four-quadrant) supply, or a switched, pre-charged capacitor bank. Its energy and duration are computed in the walk simulation and committed before B7 runs | Bus ≤ 54 V (under the drives' 55 V maximum) in both, with the 52.5 V clamp; resistors under their rating after 10 twelve-drive pulses in a row | Clamp or resistors re-sized before the power board is ordered | None (not modelled; the twelve-drive energy estimate is a task for the walk simulation) |
 | B8 | Stop chain: sit, then cut | From a stop input (wireless stop, mushroom on the robot, pendant) to: the Teensy's damped-sit command, the leg reaching its sit pose on the catch rig, and the contactor opening (Pilz delayed contacts set between 0.5 and 1.5 s); 20 trials per input; the wireless stop's latency and range in a hall | In 20 of 20 trials the leg reaches the sit pose ≥ 0.2 s before power drops; no input fails to stop | The Pilz delay or the sit routine changes; never ship with a stop that drops the leg | The stop behaviour (not modelled yet) |
 | B9 | Foot cell and sole | FX29 reading against a reference load 0-445 N; I2C error rate on the leg harness with the drives running; the sole's roll behaviour under a ±80 mm sideways shift of the shoulder, measured with a three-cell plate under the sole (or pressure-mapping film) | Error ≤ 2 % of full scale; zero I2C errors in 30 minutes; the sole's centre of pressure stays within 10 mm of its centre through the shift if a roll-flat foot is fitted, and its tilt is recorded if not | Per-foot CAN node instead of I2C; foot redesign | The touch sensors' ideal readings; the sole's contact model |
 
@@ -88,7 +92,8 @@ Teensy CAN path and the PLEM path, with the other drives' bus traffic emulated a
 
 ## Time (estimate)
 
-About 3-5 bench days for steps 1-2 (B5 alone took the T. rex sheet 10.5-16.5 hours for its run 1), 1-2 days for step 3
+About 6-10 bench days for steps 1-2 (an estimate: B5 alone has 36 rows and five 30-minute soak runs, where the T. rex
+sheet estimates 10.5-16.5 hours for its own 12 leg-drive rows and soaks), 1-2 days for step 3
 (two 30-minute loops per room temperature plus cool-down), 1-2 days for steps 4-5; plus writing the test programs (the
 T. rex sheet's section 3.1 lists two for B5; the others need a torque-replay program, a regen pulse program and a
 stop-chain logger). None of this is written yet.

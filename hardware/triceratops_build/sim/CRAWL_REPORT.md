@@ -27,7 +27,7 @@ allows it). Full table: [results/crawl_2026-11-18/RESULTS.md](results/crawl_2026
 **Contact-model sensitivity (not a judged result;
 [results/crawl_2026-11-18/sensitivity_impratio10.txt](results/crawl_2026-11-18/sensitivity_impratio10.txt)).** The
 same eight runs repeated with a stiffer friction model (MuJoCo `impratio` 10): the roll-ankle variant fails C4 on 4 of
-4 runs and C5 on 3 of 4 (pins 10.9-12.4 mm); PR #669's foot still fails (24.1 mm). The independent check found the
+4 runs and C5 on 3 of 4 (pins 10.9-12.4 mm); PR #669's foot still fails (24.1-25.1 mm). The independent check found the
 same, and also a failure with `noslip_iterations` 20. Its explanation: the roll spring keeps the sole lined up with the
 leaning leg during the swing, so the sole lands up to about 15° tilted and then rolls flat on its edge, which swings
 the pin. **Until the variant passes under at least one stiffer contact setting, its pass is not a recommendation.**
@@ -40,7 +40,8 @@ ground, not to the leg) and re-test under both contact settings.
   planned was 61.6 mm (T20, a left-fore step with the body at its 100 mm sideways limit); the rule asked ≥ 30 mm. Open
   loop, joint targets from inverse kinematics, the model's position servos. 0.12 m stride, 6 s per cycle:
   **0.02 m/s**, a demonstration of static stability, not the 0.30 m/s museum walk.
-- **Measured margin** stayed at least 59 mm in every run, judged or sensitivity: the body shift works. What fails is the
+- **Measured margin** stayed at least 59 mm in every judged and `impratio` run (58.1-58.5 mm in the independent
+  check's `noslip` runs): the body shift works. What fails is the
   contact at the feet.
 
 ## What fails on PR #669's foot, and why
@@ -49,14 +50,15 @@ PR #669's ankle is a passive pitch hinge under a 110 × 80 mm sole, so each sole
 
 1. **The soles tip onto their edges (C5).** A sideways body shift over a planted foot leans the leg in roll, and a sole
    rigid in roll leans with it. In the judged runs the base soles were tilted more than 5° in about 75 % of loaded
-   stance samples (2-3 % with the roll hinge; the independent check's figures). The ankle pins therefore swing,
-   almost all sideways: median 16 mm, maximum 25.3 mm per stance (T20 seed 1). **The soles themselves slide only about
-   6-10 mm per stance, and about as much in both designs** (the independent check, integrating the contact slip
-   velocity): C5, which measures the pin, catches the tipping, not sliding.
+   stance samples (2-3 % with the roll hinge; the independent check's figures, seed 1). The ankle pins therefore swing,
+   almost all sideways: median 16 mm, maximum 25.3 mm per stance (T20 seed 1). **The soles themselves slide less: median
+   3-5 mm per stance, worst stance 6-11 mm, and no less with the roll hinge** (the independent check, integrating the
+   contact slip velocity, seed 1): C5, which measures the pin, mostly catches the tipping.
 2. **The third support foot's load dips at lift-off (C4).** In the judged runs (the independent check's analysis of
    them) the third foot carries a median 9-12 %
-   of the weight during a swing, but dips to 2.6-5.0 % for a moment 10-22 % of the way into the swing, as the lifted
-   foot's load moves to the others; T15 seed 1 fails on 17 of 34 swings, mostly by under 0.6 percentage points. At the
+   of the weight during a swing, but its minimum is 2.6-5.0 %, reached 14-42 % of the way into the swing (mostly 14-30 %),
+   and it stays under 5 % for 2-22 % of the window (up to about 0.11 s). T20 seed 1 fails on 32 of 34 swings; T15
+   seed 1 on 17 of 34, mostly by under 0.6 percentage points. At the
    smaller planned margins of the development runs (30-50 mm) the effect was larger: the robot balanced on a diagonal
    pair of soles' edges and the third foot rose off the floor (ledger rows 5-9, 15). The two diagonal soles can carry
    the centre of pressure up to about 61 mm off the diagonal line (the sole's half-extent across it, 60-62 mm).
@@ -65,14 +67,17 @@ PR #669's ankle is a passive pitch hinge under a 110 × 80 mm sole, so each sole
    independent check).
 
 The development runs ([results/crawl_2026-11-18/DEV_LOG.md](results/crawl_2026-11-18/DEV_LOG.md)) tried the other
-ways out within this foot: smaller and larger sideways shifts, fore-aft shifts instead, slower lifts, contact preload
-(0, 2 and 5 mm give identical judged results, per the independent check). None passed C4 and C5 together.
+ways out within this foot: smaller and larger sideways shifts, fore-aft shifts instead, a faster lift, contact preload
+(0, 2 and 5 mm gave the same rule results in the seed-1 runs the independent check made). None passed C4 and C5
+together. **The frozen parameters were then tuned on the roll-ankle variant** (ledger rows 17-39); PR #669's foot got
+rows 1-16 and the runs at the frozen settings.
 
 A cast urethane sole will not make the sole compliant enough in roll by itself: a 9 mm, 60A sole of this size is about
 2,000 N·m/rad (a rough estimate, E ≈ 4 MPa; a bonded pad would be stiffer).
 
-**For the owner (chassis decision D5):** a foot that stays flat in roll is needed whatever chassis is chosen, because a
-statically stable gait shifts the body sideways. A passive roll hinge is the first candidate; it is not yet shown to
+**For the owner (chassis decision D5):** for a statically stable gait like this crawl, which shifts the body sideways,
+a foot that stays flat in roll is needed whatever chassis is chosen; whether the 0.30 m/s walk needs it too is for the
+walk simulation to show. A passive roll hinge is the first candidate; it is not yet shown to
 work robustly in simulation, and it costs a second hinge per foot (mass and price not estimated).
 
 ## Report-only quantities (seed 1; `results/crawl_2026-11-18/extra.json`)
@@ -113,8 +118,8 @@ thermal-equilibrium torque at the joint; speed = 0.70 × no-load at 42 V for the
 
 - No servo delay, gear play, friction model, voltage sag or sensor noise (task 5 adds them, reusing the T. rex
   models); no turning; flat floors only; no feedback from the body's pose (open loop).
-- The swing foot's unloaded share (82-86 % of its window against the 80 % rule) and the soft contacts' 5-10 mm creep
-  per stance are close to the limits even at 0.02 m/s. The walk work will check contact-model sensitivity as a matter
+- The swing foot's unloaded share (82-86 % of its window against the 80 % rule) and the soft contacts' creep (median
+  3-5 mm, worst 6-11 mm per stance) are close to the limits even at 0.02 m/s. The walk work will check contact-model sensitivity as a matter
   of course and measure sole slip and tilt separately from pin motion.
 - The roll-ankle variant's hinge is an idealisation (frictionless, ±20°, 3 N·m/rad); a real design needs CAD, mass,
   sealing and a bench test.
