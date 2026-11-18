@@ -106,6 +106,19 @@
    "listed_at": "2026-11-18T00:01:31Z",
    "commit": "cc437b6a44d575db63e89c63e2f9dc42c4424947",
    "done_at": "2026-11-17T23:48:08Z"
+  },
+  {
+   "step": "V12-acceptance-b7527a66",
+   "command": "/home/user/mesozoic-labs/hardware/trex_form_study/.venv/bin/python -m designlab.stage2.nb acceptance --ref b7527a66528750746edf8f533c7f3b8a066aa1e3 --parts /home/user/mesozoic-wt/tb-accept-bundle/stage2/tb/bundle/s2-b1/parts --scratch /home/user/mesozoic-wt/tb-accept --record /home/user/mesozoic-wt/tb-accept-bundle/stage2/tb/bundle/s2-b1/ACCEPTANCE.json",
+   "set": "V6",
+   "body": "75-M-H-10",
+   "rows_or_mode": "R5 and R6 training env steps (tiny jobs; the run's check episodes are in the reason)",
+   "count": 15360,
+   "reason": "design 3.10's first acceptance run, on b7527a66 (V12; D23); it failed one check, resumed_from_drive (the kill-condition fault ruling 45 fixed): R5 and R6 at seed 42 in the run acceptance, and R5 at seed 42 in the run acceptance-remedies, 4096 steps each, counted as for the second run (V12-acceptance-jobs and V12-acceptance-checks) but from the record and the two reports (roundC__{do,check}_accept_17nov.md): this run's scratch logs were removed by the second run, so its two kill points are bounds. R5 in acceptance was killed while model_1024.zip was being copied to the stand-in Drive, no checkpoint whole there, after at least 1536 steps (the record's progress 1536 and session 0's line 4, printed at the end of the third rollout of 512 steps) and at most 2048 (the copy of checkpoint 1024 had only begun); session 1 restarted it from 0 steps (no checkpoint to resume), so it ran 1536 to 2048, then 4096. R5 in acceptance-remedies was killed once its checkpoint 1024 was whole on the stand-in Drive, after 1024 to 2048 steps, and its last session resumed it from 1024 (the sessions refused before it trained nothing), so it ran 1024 to 2048, then 3072; R6 ran 4096. The count is the upper bound, 2048 + 4096 + 4096 + 2048 + 3072 = 15360; the record shows at least 1536 + 4096 + 4096 + 1024 + 3072 = 13824. Besides training, 64 check episodes, counted as V12-acceptance-checks counts them: line 3's G8a in the notebook's two sessions (2 x 2), the trainer's G8a short form at each job's start (3 x 2), the R0L baseline at each job's start (3 x 6) and the monitor at 2048 and 4096 steps of each job (6 x 6); not counted: any check at 2048 steps cut by the two kills; not seen: whether R5's restart from 0 steps made G8a's short form or the R0L baseline again (at most 2 + 6 more). No record; listed after the run (the lead's ruling 45 of 17 Nov 2026), which ran from 2026-11-17T21:55:03Z to 2026-11-17T22:13:46Z; its record (ok false, 35 of 36 checks) is not in the repository: /home/user/mesozoic-wt/tb-accept-bundle/stage2/tb/bundle/s2-b1/ACCEPTANCE.v12-b7527a66.json",
+   "state": "done",
+   "listed_at": "2026-11-18T00:22:14Z",
+   "commit": "b7527a66528750746edf8f533c7f3b8a066aa1e3",
+   "done_at": "2026-11-17T22:13:46Z"
   }
  ]
 }
