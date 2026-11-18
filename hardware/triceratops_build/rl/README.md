@@ -187,7 +187,7 @@ delay fixed at 10 ms, fixed seeds; one printed line and one line in `eval_during
 
 ## What was tested (locally, CPU, 18 Nov 2026)
 
-`python -m pytest hardware/triceratops_build/rl/tests` (by hand): `TEST_LINE`. They cover:
+`python -m pytest hardware/triceratops_build/rl/tests` (by hand): `44 passed in 149.00s (0:02:29)`. They cover:
 
 - **Env:** shapes and finiteness; the reward is the sum of its terms; `check_env`; zero action stands 2 s; the delay
   FIFO is exact for k = 0, 3, 10; the action filter is first order and cuts alternating jitter.
