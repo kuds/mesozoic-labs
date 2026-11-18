@@ -54,12 +54,12 @@ It is all in the GitHub repository `kuds/mesozoic-labs`. A *branch* there is a n
 | All the study's code, records, reports and decisions, and this file | the working branch `claude/mesozoic-trex-stage2-refine-4jffre` | It stays (P48). |
 | The same work in the repository's main line | a pull request into `main`, which the lead opens and you review and merge (P48) | It keeps the study easy to find. |
 | The input files for training the 75 cm robot on Colab (about 34 MB) | the data branch `claude/mesozoic-trex-stage2-bundle-s2-b1` | Never merged. The day-one sheet reads it by name, so it must not be changed (P50). |
-| The files of the newest frozen walks that no other branch holds (52 files, about 120 MB: V6 with the expressive head, V6noF5, and the look files of V6 with the plain head) | the archive branch `claude/mesozoic-trex-stage2-archive-a1` | Never merged (P49). The other 17 files of these walks (V6 with the plain head) are in the data branch above. |
+| The files of the frozen walks that no other branch holds (119 files, about 162 MB: the three earlier walks V0, F25F9 and F25F9cl; V6 with the expressive head; V6noF5; and the look files of V6 with the plain head) | the archive branch `claude/mesozoic-trex-stage2-archive-a1` | Never merged (P49). The other 17 files of these walks (V6 with the plain head) are in the data branch above, so no frozen walk needs a rebuild. |
 | Four unfinished side lines of work (77 saved versions; the 60 cm walking styles among them) | one file in the working branch, `stage2/design/checkpoint/worktrees-2026-11-18.bundle` | Described in [worktrees-2026-11-18.md](stage2/design/checkpoint/worktrees-2026-11-18.md). |
 
 **Not kept:** the step-by-step traces of the simulation runs (about 2 GB, only for diagnosis, and rebuilt exactly
 from the records; P49) and the Python setup (rebuilt in about 2 minutes). The other input files a fresh copy of the
-repository lacks (380 files, about 251 MB) are not kept either: a tool rebuilds them from the records in about
+repository lacks (313 files, about 208.7 MB) are not kept either: a tool rebuilds them from the records in about
 2.5 hours (section 2, step 3).
 
 ## 2. How to restart, step by step
@@ -75,10 +75,13 @@ git ls-remote https://github.com/kuds/mesozoic-labs refs/heads/claude/mesozoic-t
 
 - Expect three lines.
 - The data branch must read `ecf95a81a6ebb43e0331b5c1db74bdea7e74aaed` (P50).
-- The archive branch should read `9c2d2a52bd7d7c8c4661c49efaf76b23a44ff359`, the commit that holds the 52 frozen
-  arrays. Its README says what it holds. An earlier build of it, `be474190`, held other files and was not pushed.
+- The archive branch should read `f71cba4bc3c14ae97ad29caedc5423f2a4e93e6a`, the commit that holds the 119 frozen
+  arrays. Its README says what it holds. Its parent, `9c2d2a52`, holds only the 52 of V6 and V6noF5. An earlier
+  build of the branch, `be474190`, held other files and was not pushed.
+- If the archive branch reads `9c2d2a52`, its second commit was not pushed. Then step 3's `restore` rebuilds the 67
+  arrays of V0, F25F9 and F25F9cl, through `restore --group sets`, which has never been tried.
 - If the archive branch is missing, it was not pushed before the cloud machine was deleted. Then step 3's `restore`
-  rebuilds those 52 arrays as well, through `restore --group sets`, which has never been tried.
+  rebuilds those 119 arrays as well, through `restore --group sets`.
 
 ### Step 1: a fresh session on the working branch
 
@@ -114,13 +117,15 @@ TORCH=cpu bash tools/setup_venv.sh
 
 `tools/restore_inputs.py` lists 449 git-ignored input files in seven groups. They come from three places:
 
-1. **The archive branch: 52 files** (119,553,986 bytes in three tar parts). These are the frozen arrays that no other
-   branch holds: V6 on 75-M-H-10-X (23), V6noF5 on 75-M-H-10 (23) and the six `look` files of V6 on 75-M-H-10.
+1. **The archive branch: 119 files** (161,645,299 bytes in five tar parts). These are the frozen arrays that no other
+   branch holds: V0 (26), F25F9 (15) and F25F9cl (26) on 75-M-H-10, V6 on 75-M-H-10-X (23), V6noF5 on 75-M-H-10 (23)
+   and the six `look` files of V6 on 75-M-H-10.
 2. **The data branch of bundle s2-b1: 17 files.** These are the other frozen V6 arrays, V6 on 75-M-H-10's `refs` (6)
    and `transitions` (11), in the parts `V6-75-M-H-10-1.tar` and `V6-75-M-H-10-2.tar`.
-3. **A rebuild from the committed records: the other 380 files** (about 251 MB). `restore_inputs.py restore` makes
-   them: the groups `picks-models`, `picks-arrays`, `k`, `x`, `j` and `look`, and the 67 arrays of the three earlier
-   frozen sets (V0, F25F9 and F25F9cl).
+3. **A rebuild from the committed records: the other 313 files** (about 208.7 MB). `restore_inputs.py restore` makes
+   them: the groups `picks-models`, `picks-arrays`, `k`, `x`, `j` and `look`.
+
+So the 136 files of group `sets`, every frozen set's arrays, are 119 + 17 from the two branches, and none is rebuilt.
 
 The archive's README gives the commands and what to expect. It is
 `hardware/trex_form_study/stage2/archive/a1/README.md` on the archive branch, not on this one. From the clone's root:
@@ -138,32 +143,35 @@ for p in "$A"/hardware/trex_form_study/stage2/archive/a1/parts/frozen-*.tar \
 cd "$ROOT/hardware/trex_form_study"
 PYTHONPATH=. .venv/bin/python tools/restore_inputs.py copy-from "$X" --group sets
 rm -rf "$A" "$B" "$X"
-PYTHONPATH=. .venv/bin/python tools/restore_inputs.py restore     # the other 380 files: about 2.5 h
+PYTHONPATH=. .venv/bin/python tools/restore_inputs.py restore     # the other 313 files: about 2.5 h
 PYTHONPATH=. .venv/bin/python tools/restore_inputs.py check
 ```
 
-**The order matters.** `copy-from` comes first, so that `restore` finds the 69 frozen V6 arrays in place. `restore`
-rebuilds only missing or wrong files, so it then leaves them alone. Run `restore` detached, with the keep-alive
-([tools/README.md](tools/README.md), "A fresh container, in order", steps 3 and 4). If it is stopped, run it again:
-files in place are kept.
+**The order matters.** `copy-from` comes first, so that `restore` finds all 136 frozen set arrays in place. `restore`
+rebuilds only missing or wrong files, so it then leaves them alone and rebuilds no set. Run `restore` detached, with
+the keep-alive ([tools/README.md](tools/README.md), "A fresh container, in order", steps 3 and 4). If it is stopped,
+run it again: files in place are kept.
 
-**What to expect.** The commands up to `copy-from` were run in a fresh clone at `61ae6fa0` on 18 Nov, with the archive
-branch fetched from the cloud machine before its push and the main checkout's venv. `restore` was not run after them.
+**What to expect.** The commands up to `copy-from` were run in a fresh clone at `23bfbfcc` on 18 Nov, with the archive
+branch at `f71cba4b` fetched from the cloud machine before its push and the main checkout's venv. `restore` was not
+run after them.
 
 - `sha256sum` prints the parts' sha256 that the archive's `MANIFEST.json` holds: `9baed6c2...` (`frozen-01.tar`),
-  `3ea1ab3b...` (`frozen-02.tar`) and `d2d3ca06...` (`frozen-03.tar`).
-- `copy-from` copies 69 files. Its `check` of `sets` then reads 136 files, 69 matching, 67 missing (those of V0,
-  F25F9 and F25F9cl, until `restore` has run), 0 wrong, records agree. It exits 1.
+  `3ea1ab3b...` (`frozen-02.tar`), `d2d3ca06...` (`frozen-03.tar`), `b0d5b9af...` (`frozen-04.tar`) and
+  `d30cc7fc...` (`frozen-05.tar`).
+- `copy-from` copies 136 files. Its `check` of `sets` then reads 136 files, 136 matching, 0 missing, 0 wrong, records
+  agree, and "all here with their listed sha256". It exits 0.
+- A full `check` at that point shows `sets` at 136 of 136 matching and the six other groups missing, until `restore`
+  has run. It exits 1.
 - `restore` takes about 2.5 h: that is what it took on 2 processes on 14 Nov for the five groups of that day
-  (`picks-models`, `picks-arrays`, `k`, `x`, `look`; `tools/README.md`). The rebuild of group `j` and of the three
-  earlier sets has not been timed in a fresh worktree, so the whole may take longer, and `restore --group sets` has
-  never been tried.
+  (`picks-models`, `picks-arrays`, `k`, `x`, `look`; `tools/README.md`). The rebuild of group `j` has not been timed
+  in a fresh worktree, so the whole may take longer.
 - The picks' model files need at least 2 CPUs to rebuild exactly (`SIZE_BLAS_THREADS` in
   [tools/restore_inputs.py](tools/restore_inputs.py)). On one CPU, bring them in with `copy-from` instead; bundle
   s2-b1's `models-75-M-H-10.tar` holds 75-M-H-10's two.
 
-**With no archive branch at all,** `restore_inputs.py restore` rebuilds the 52 arrays as well, from the records
-(the sets' rebuild has never been tried).
+**With no archive branch at all,** `restore_inputs.py restore` rebuilds the 119 arrays as well, from the records
+(the sets' rebuild, `restore --group sets`, has never been tried).
 
 `check` must exit 0 before any run that reads the inputs.
 
