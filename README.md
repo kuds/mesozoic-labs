@@ -6,4 +6,4 @@ is a simulation render, labelled "SIMULATION" on every frame.** Never merge this
 
 | File | What | Made by |
 |---|---|---|
-| `crawl_T20_ankleroll_2x.mp4` | 20 s at 2× speed, 1280 × 720, H.264, 5.6 MB: the 20 kg robot's scripted crawl (0.02 m/s), design variant with passive roll ankles, seed 1. The variant's pass is thin (fails under a stiffer friction model); see `hardware/triceratops_build/sim/CRAWL_REPORT.md` | `hardware/triceratops_build/renders/render_crawl_clip.py --model ../sim/generated/trike_T20_closed_ankleroll.xml --speed 2 --seconds 20` at build-branch commit 6247dc78 |
+| `crawl_T20_ankleroll_2x.mp4` | 20 s at 2× speed, 1280 × 720, H.264, 5.7 MB (5,721,193 bytes): the 20 kg robot's scripted crawl (0.02 m/s), design variant with passive roll ankles, seed 1. The variant's pass is thin (fails under a stiffer friction model); see `hardware/triceratops_build/sim/CRAWL_REPORT.md` | `hardware/triceratops_build/renders/render_crawl_clip.py --model ../sim/generated/trike_T20_closed_ankleroll.xml --speed 2 --seconds 20` at build-branch commit 6247dc78 |
