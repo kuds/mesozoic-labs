@@ -24,8 +24,6 @@
   --color-border-strong: #ffffff20;
   --color-on-primary: #0a0a0f;
   --color-grid: #00ff8810;
-  --hero-glow-a: #1a2a1a;
-  --hero-glow-b: #1a1a2a;
   --shadow-preview: 0 10px 40px rgba(0, 0, 0, 0.4);
   --glow-primary: 0 0 20px var(--color-primary-dim);
   --glow-accent: 0 0 30px var(--color-accent-dim);
@@ -53,8 +51,6 @@
   --color-border-strong: rgba(0, 0, 0, 0.18);
   --color-on-primary: #ffffff;
   --color-grid: rgba(0, 122, 61, 0.08);
-  --hero-glow-a: #dcebe0;
-  --hero-glow-b: #dfe6ee;
   --shadow-preview: 0 10px 40px rgba(0, 0, 0, 0.15);
 }
 
@@ -144,449 +140,182 @@
    ============================================================================= */
 
 .heroBanner {
-  position: relative;
-  min-height: 100vh;
-  display: flex;
+  background: var(--color-surface-tint-primary);
+  border-bottom: 1px solid var(--color-border-strong);
+}
+
+.heroSpread, .research {
+  width: min(100% - 3rem, 78rem);
+  margin-inline: auto;
+}
+
+.heroSpread {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
   align-items: center;
-  justify-content: center;
-  background:
-    radial-gradient(ellipse at 50% 0%, var(--hero-glow-a) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 80%, var(--hero-glow-b) 0%, transparent 40%),
-    var(--color-bg-deep);
-  overflow: hidden;
+  gap: clamp(2rem, 5vw, 5rem);
+  padding-block: clamp(3rem, 7vw, 7rem);
 }
 
-.heroOverlay {
-  position: absolute;
-  inset: 0;
-  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpattern id='grid' width='10' height='10' patternUnits='userSpaceOnUse'%3E%3Cpath d='M 10 0 L 0 0 0 10' fill='none' stroke='%2300ff8808' stroke-width='0.5'/%3E%3C/pattern%3E%3Crect width='100' height='100' fill='url(%23grid)'/%3E%3C/svg%3E");
-  opacity: 0.5;
+.kicker, .plateHeader, .researchHeader time {
+  font: 600 0.875rem/1.5 var(--ifm-font-family-monospace);
 }
 
-/* Data URIs can't reference CSS variables, so light mode swaps the whole
-   image (same grid, dark-green strokes) and softens the CRT scan lines. */
-[data-theme='light'] .heroOverlay {
-  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpattern id='grid' width='10' height='10' patternUnits='userSpaceOnUse'%3E%3Cpath d='M 10 0 L 0 0 0 10' fill='none' stroke='%23007a3d14' stroke-width='0.5'/%3E%3C/pattern%3E%3Crect width='100' height='100' fill='url(%23grid)'/%3E%3C/svg%3E");
-}
-
-.gridLines {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(90deg, transparent 49.5%, var(--color-grid) 49.5%, var(--color-grid) 50.5%, transparent 50.5%),
-    linear-gradient(0deg, transparent 49.5%, var(--color-grid) 49.5%, var(--color-grid) 50.5%, transparent 50.5%);
-  background-size: 100px 100px;
-}
-
-.scanLines {
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.1) 2px,
-    rgba(0, 0, 0, 0.1) 4px
-  );
-  pointer-events: none;
-}
-
-[data-theme='light'] .scanLines {
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.025) 2px,
-    rgba(0, 0, 0, 0.025) 4px
-  );
-}
-
-/* Floating particles */
-.heroParticles {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.particle {
-  position: absolute;
-  width: 3px;
-  height: 3px;
-  background: var(--color-primary);
-  border-radius: 50%;
-  opacity: 0;
-  animation: particleFloat 6s ease-in-out infinite;
-}
-
-@keyframes particleFloat {
-  0% { opacity: 0; transform: translateY(0) scale(0.5); }
-  20% { opacity: 0.8; }
-  80% { opacity: 0.4; }
-  100% { opacity: 0; transform: translateY(-80px) scale(1.5); }
-}
-
-.heroContent {
-  position: relative;
-  z-index: 10;
-  text-align: center;
-  padding: 2rem;
-  max-width: 900px;
-  animation: heroFadeIn 1s ease-out;
-}
-
-@keyframes heroFadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Logo */
-.logoContainer {
-  position: relative;
-  margin-bottom: 2rem;
-}
-
-.logoGlow {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 400px;
-  height: 150px;
-  background: radial-gradient(ellipse, var(--color-primary-dim) 0%, transparent 70%);
-  filter: blur(40px);
-  animation: pulse 4s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
-  50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.1); }
-}
-
-.logo {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.logoDino {
-  font-size: 4rem;
-  font-weight: 900;
-  letter-spacing: 0.3em;
+.kicker {
+  margin: 0 0 1rem;
   color: var(--color-primary);
-  text-shadow: var(--glow-primary);
-  font-family: 'Courier New', monospace;
 }
 
-.logoLabs {
-  font-size: 1.5rem;
-  font-weight: 300;
-  letter-spacing: 1em;
-  color: var(--color-text-dim);
-  margin-left: 1em;
-}
-
-/* Tagline */
-.taglineContainer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.circuitLine {
-  width: 60px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
-}
-
-.tagline {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-  letter-spacing: 0.2em;
-  color: var(--color-text-dim);
+.heroCopy h1 {
+  font-size: clamp(3.2rem, 6.6vw, 6rem);
+  font-weight: 650;
+  line-height: 0.98;
+  letter-spacing: -0.055em;
   margin: 0;
 }
 
-.taglineWord {
-  color: var(--color-accent);
+.heroCopy h1 em {
+  font-family: Georgia, serif;
+  font-weight: normal;
 }
 
-.taglineDivider {
-  color: var(--color-primary);
-  opacity: 0.5;
+.heroIntro, .notes article > p:not(.kicker) {
+  color: var(--color-text-dim);
+  line-height: 1.65;
 }
 
-/* Description */
-.description {
-  font-size: 1.25rem;
-  line-height: 1.8;
-  color: var(--color-text);
-  margin-bottom: 2.5rem;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
+.heroIntro {
+  max-width: 29rem;
+  font-size: 1.125rem;
+  margin: 1.5rem 0;
 }
 
-/* Hero Buttons */
-.heroButtons {
+.heroActions {
   display: flex;
-  gap: 1.25rem;
-  justify-content: center;
+  align-items: center;
   flex-wrap: wrap;
-  margin-bottom: 3rem;
+  gap: 1rem 1.75rem;
 }
 
-.heroPrimaryBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.9rem 2.2rem;
+.primaryLink {
   background: var(--color-primary);
   color: var(--color-on-primary);
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-decoration: none;
-  border: 2px solid var(--color-primary);
-  transition: all 0.3s ease;
-  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  padding: 0.85rem 1.2rem;
+  border-radius: 0.25rem;
+  font-weight: 650;
 }
 
-.heroPrimaryBtn:hover {
-  background: transparent;
-  color: var(--color-primary);
-  box-shadow: var(--glow-primary);
-  text-decoration: none;
+.primaryLink:hover {
+  color: var(--color-on-primary);
+  text-decoration: underline;
 }
 
-.heroSecondaryBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.9rem 2.2rem;
-  background: transparent;
-  color: var(--color-text-dim);
-  font-size: 0.95rem;
+.textLink, .plateCaption a {
+  color: inherit;
   font-weight: 600;
-  letter-spacing: 0.1em;
-  text-decoration: none;
-  border: 2px solid var(--color-text-dim);
-  transition: all 0.3s ease;
-  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
 }
 
-.heroSecondaryBtn:hover {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-  box-shadow: var(--glow-accent);
-  text-decoration: none;
+.studyPlate {
+  margin: 0;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
 }
 
-.btnArrow {
-  font-size: 1.1rem;
-  transition: transform 0.3s ease;
-}
-
-.heroPrimaryBtn:hover .btnArrow {
-  transform: translateX(4px);
-}
-
-/* Stats */
-.statsContainer {
+.plateHeader, .plateCaption, .researchHeader {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2rem;
+  gap: 0.6rem 1.25rem;
+  align-items: baseline;
   flex-wrap: wrap;
 }
 
-.statItem {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
+.plateHeader {
+  padding: 0 1rem;
 }
 
-.statNumber {
-  font-size: 2.5rem;
-  font-weight: 700;
+.plateHeader button {
+  font: inherit;
+  padding: 0.85rem 0.1rem;
+  color: var(--color-text-dim);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  cursor: pointer;
+}
+
+.plateHeader button[aria-pressed='true'] {
   color: var(--color-primary);
-  font-family: 'Courier New', monospace;
-  margin: 0;
+  border-color: currentColor;
 }
 
-.statLabel {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  color: var(--color-text-dim);
-  order: -1;
+.robotView {
+  aspect-ratio: 960 / 596;
+  background: #f5f4ec;
 }
 
-.statDivider {
-  width: 1px;
-  height: 50px;
-  background: linear-gradient(180deg, transparent, var(--color-primary-dim), transparent);
-}
-
-/* Scroll indicator */
-.heroScrollIndicator {
-  position: absolute;
-  bottom: 2rem;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-}
-
-/* On short laptop viewports the chevron overlapped the hero stats */
-@media (max-height: 750px) {
-  .heroScrollIndicator {
-    display: none;
-  }
-}
-
-.scrollChevron {
+.robotView img {
   display: block;
-  width: 20px;
-  height: 20px;
-  border-right: 2px solid var(--color-primary);
-  border-bottom: 2px solid var(--color-primary);
-  transform: rotate(45deg);
-  animation: scrollBounce 2s ease-in-out infinite;
-  opacity: 0.6;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
-@keyframes scrollBounce {
-  0%, 100% { transform: rotate(45deg) translateY(0); opacity: 0.6; }
-  50% { transform: rotate(45deg) translateY(8px); opacity: 1; }
+.plateCaption {
+  padding: 1rem;
+  justify-content: space-between;
+  font-size: 0.875rem;
 }
 
-/* =============================================================================
-   FEATURES SECTION
-   ============================================================================= */
-
-.featuresSection {
-  padding: 6rem 2rem;
-  background: var(--color-bg);
-  position: relative;
+.researchHeader {
+  justify-content: space-between;
 }
 
-.featuresGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
+.research {
+  scroll-margin-top: 5rem;
+  padding-block: clamp(3rem, 5vw, 5rem);
 }
 
-.featureCard {
-  position: relative;
-  background: var(--color-surface);
-  padding: 2rem;
-  border: 1px solid var(--color-border);
-  transition: all 0.4s ease;
+.researchHeader {
+  border-bottom: 1px solid var(--color-border-strong);
+  padding-bottom: 1.25rem;
 }
 
-.featureCard:hover {
-  border-color: var(--color-primary-dim);
-  transform: translateY(-5px);
-  box-shadow: var(--glow-primary);
-}
-
-.revealed .featureCard {
-  animation: cardSlideUp 0.45s ease-out both;
-}
-
-@keyframes cardSlideUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Staggered entrances — animation-delay only, so hover transitions stay
-   instant.  Same rhythm across features, pipeline, videos, roadmap. */
-.revealed .featureCard:nth-child(2) { animation-delay: 0.08s; }
-.revealed .featureCard:nth-child(3) { animation-delay: 0.16s; }
-.revealed .featureCard:nth-child(4) { animation-delay: 0.24s; }
-
-.revealed .pipelineStep {
-  animation: cardSlideUp 0.45s ease-out both;
-}
-
-.revealed .pipelineStep:nth-child(3) { animation-delay: 0.1s; }
-.revealed .pipelineStep:nth-child(4) { animation-delay: 0.2s; }
-
-.revealed .speciesVideoCard {
-  animation: cardSlideUp 0.45s ease-out both;
-}
-
-.revealed .speciesVideoCard:nth-child(2) { animation-delay: 0.08s; }
-.revealed .speciesVideoCard:nth-child(3) { animation-delay: 0.16s; }
-
-.revealed .timelineCard {
-  animation: cardSlideUp 0.45s ease-out both;
-}
-
-.revealed article.timelineItem:nth-of-type(2) .timelineCard { animation-delay: 0.06s; }
-.revealed article.timelineItem:nth-of-type(3) .timelineCard { animation-delay: 0.12s; }
-.revealed article.timelineItem:nth-of-type(4) .timelineCard { animation-delay: 0.18s; }
-.revealed article.timelineItem:nth-of-type(5) .timelineCard { animation-delay: 0.24s; }
-.revealed article.timelineItem:nth-of-type(6) .timelineCard { animation-delay: 0.3s; }
-
-.featureCardBorder {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 60px;
-  height: 3px;
-  background: var(--color-primary);
-}
-
-.featureIcon {
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-  background: rgba(var(--color-primary-rgb), 0.06);
-  border: 1px solid rgba(var(--color-primary-rgb), 0.15);
-  box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.15);
-  transition: box-shadow 0.3s ease, border-color 0.3s ease;
-}
-
-.featureCard:hover .featureIcon {
-  box-shadow: 0 0 16px rgba(var(--color-primary-rgb), 0.3);
-  border-color: rgba(var(--color-primary-rgb), 0.35);
-}
-
-.featureTitle {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--color-text);
-  margin: 0 0 0.75rem 0;
-}
-
-.featureDescription {
-  font-size: 0.95rem;
-  line-height: 1.7;
-  color: var(--color-text-dim);
+.researchHeader h2 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  letter-spacing: -0.04em;
   margin: 0;
 }
 
-.featureCorner {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 20px;
-  height: 20px;
-  border-right: 2px solid var(--color-primary-dim);
-  border-bottom: 2px solid var(--color-primary-dim);
+.researchHeader time {
+  color: var(--color-text-dim);
+}
+
+.notes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(1.5rem, 4vw, 4rem);
+  margin-top: 2rem;
+}
+
+.notes h3 {
+  font-size: 1.4rem;
+  letter-spacing: -0.025em;
+}
+
+.notes .kicker {
+  margin-bottom: 0.6rem;
+}
+
+@media (max-width: 800px) {
+  .heroSpread, .notes {
+    grid-template-columns: 1fr;
+  }
+
+  .notes article + article {
+    border-top: 1px solid var(--color-border-strong);
+    padding-top: 1.5rem;
+  }
 }
 
 /* =============================================================================
@@ -1318,38 +1047,6 @@
 }
 
 @media (max-width: 768px) {
-  .logoDino {
-    font-size: 2.5rem;
-    letter-spacing: 0.15em;
-  }
-
-  .logoLabs {
-    font-size: 1rem;
-    letter-spacing: 0.5em;
-  }
-
-  .tagline {
-    flex-direction: column;
-    gap: 0.25rem;
-    font-size: 0.75rem;
-  }
-
-  .taglineDivider {
-    display: none;
-  }
-
-  .circuitLine {
-    display: none;
-  }
-
-  .statsContainer {
-    gap: 1.5rem;
-  }
-
-  .statNumber {
-    font-size: 2rem;
-  }
-
   .sectionTitle {
     font-size: 1.75rem;
   }
@@ -1364,11 +1061,6 @@
   }
 
   .ctaButtons {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .heroButtons {
     flex-direction: column;
     align-items: center;
   }
