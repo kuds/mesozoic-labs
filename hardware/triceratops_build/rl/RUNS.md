@@ -45,3 +45,35 @@ rating, mean of episodes): front pitch joints 1.02 ×, left hind knee 1.10 × (w
 1.0; an asymmetric gait. It uses the full torque available (2-10 % of steps at each episode's randomised limit; at the
 nominal limit essentially only the left hind knee, 0.9 %). Slip ratio 0.23-0.29; 42 W of joint mechanical power. A working
 pipeline and a first gait, not a usable one; reward changes proposed in the report.
+
+## trike60-run2b-ankle: the roll-ankle run with the new reward (D17), 19 Nov 2026
+
+- **Run:** commit e92fd9ef (clean), model `trike60_C_closed_ankleroll` (revision 3), 8 envs, seed 0, 8,000,000 steps;
+  Colab CPU High-RAM, 8 vCPUs; the same package versions as pipe1. Reward: heat (w 0.3) and torque-limit (w 2.0)
+  penalties and the negative part of the air-time term on the late schedule (0 until 1 M steps, full at 3 M); energy
+  and slip ramped 0.1 to 1.0 over 2 M; phase clock off.
+- **Pipeline:** one session, 16:26:40 to 19:39:31 UTC, status `completed` at 8,003,584 steps (692 env steps/s); 33
+  checkpoint pairs; nothing quarantined; the last pair finite. A first attempt, `trike60-run2-ankle`, was started with
+  the default 2,000,000 steps and stopped by the owner at 16:24:59: it ended `interrupted` at 81,952 steps with an
+  intact, finite pair saved and recorded, the first stop on real Colab. Resume on Colab is still untested.
+- **Deterministic evaluation during training** (one 20 s episode per command, randomisation on, delay 10 ms; 32
+  evaluations, no falls in any); at the 0.25 m/s command, worst RMS torque / continuous rating per group:
+
+  | Steps | Speed at 0 / 0.15 / 0.25 m/s | Pitch | Front elbow | Hind knee | Worst slip ratio | Joint mech. power |
+  |---|---|---|---|---|---|---|
+  | 0.5 M | 0.000 / 0.117 / 0.208 | 1.00 | 1.00 | 1.00 | 0.45 | 31 W |
+  | 1 M | -0.004 / 0.140 / 0.232 | 1.08 | 1.01 | 0.98 | 0.39 | 45 W |
+  | 2 M | -0.001 / 0.143 / 0.238 | 0.82 | 0.86 | 0.96 | 0.20 | 35 W |
+  | 3 M | 0.001 / 0.142 / 0.242 | 0.77 | 0.77 | 0.90 | 0.14 | 34 W |
+  | 5 M | 0.000 / 0.149 / 0.241 | 0.69 | 0.68 | 0.81 | 0.10 | 27 W |
+  | 8 M | 0.000 / 0.148 / 0.243 | 0.66 | 0.61 | 0.70 | 0.08 | 22 W |
+
+- **Final sweep** (`eval/eval_8003584.json`; 5 episodes per command, seeds 100000-100004, randomisation on, delay
+  10 ms, deterministic): 0.001 / 0.098 / 0.195 / **0.244** / 0.263 m/s at 0 / 0.10 / 0.20 / **0.25** / 0.27 m/s; no
+  falls. At 0.25 m/s: worst RMS / rating left hind knee 0.76, right fore pitch 0.73, left fore elbow 0.64 (all under
+  1.0); left hind knee at its nominal limit 0.4 % of steps in the worst episode; slip ratio 0.05-0.09; 22 W of joint
+  mechanical power; sideways drift up to 0.26 m in 18 s.
+
+Against pipe1 (PR #669's foot, the first reward): about the same speed, but the drives run cooler (worst joint 0.76 ×
+against 1.10 ×), the feet slip about a quarter as much, and the joints do half the mechanical work. Simulation, one
+policy each: reported, not a verdict. The full analysis follows `analysis/PLAN_RUN2B.md`.
