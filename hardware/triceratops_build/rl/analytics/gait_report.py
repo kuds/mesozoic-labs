@@ -1,6 +1,6 @@
 """Gait-quality report of a trained 60 cm Triceratops policy. Simulation only; one policy is reported, not judged.
 
-Usage (from anywhere; CPU; about 3-4 minutes with 2 workers):
+Usage (from anywhere; CPU; about 70 s with 2 workers for 35 episodes):
   python hardware/triceratops_build/rl/analytics/gait_report.py --ckpt-dir DIR --run NAME [--out DIR] [--workers 2]
 DIR holds one SB3 checkpoint pair (``*_<steps>_steps.zip`` and ``*_vecnormalize_<steps>_steps.pkl``) and the run's
 ``run_record.json``. Writes ``results/<NAME>/`` beside this file: ``gait_report.json`` (every metric, per episode and
@@ -788,7 +788,8 @@ def find_pair(cdir: Path) -> tuple[Path, Path, int]:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--ckpt-dir", required=True)
-    ap.add_argument("--run", required=True, help="run name: the results folder and the label on every chart")
+    ap.add_argument("--run", required=True, help="run name: the results folder (and the chart label unless --label)")
+    ap.add_argument("--label", default=None, help="the run's name on the charts and in the Markdown (default: --run)")
     ap.add_argument("--out", default=None, help="output folder (default: results/<run> beside this file)")
     ap.add_argument("--workers", type=int, default=2)
     ap.add_argument("--date", default=time.strftime("%Y-%m-%d"))
@@ -811,14 +812,40 @@ def main(argv=None) -> int:
             Path(args.cache).write_text(json.dumps({"results": results, "payload": payload}))
     import gait_charts
 
+    results["label"] = args.label or results.get("label") or args.run
     results["charts"] = gait_charts.make_all(results, payload, out)
-    (out / "gait_report.json").write_text(json.dumps(results, indent=1, default=float) + "\n")
+    # The repository keeps files under 500 KB: gait_report.json holds every summary (per case and the sweep);
+    # the per-episode detail goes to gait_report_episodes.json.gz (gzip, written reproducibly with mtime 0).
+    full = _round(results)
+    summary = {k: v for k, v in full.items() if k != "cases"}
+    summary["cases"] = {name: {k: v for k, v in c.items() if k != "episodes"} for name, c in full["cases"].items()}
+    summary["episodes_file"] = "gait_report_episodes.json.gz"
+    (out / "gait_report.json").write_text(json.dumps(summary, indent=1, default=float) + "\n")
+    import gzip
+    episodes = {name: c.get("episodes") for name, c in full["cases"].items()}
+    with open(out / "gait_report_episodes.json.gz", "wb") as fh, gzip.GzipFile(fileobj=fh, mode="wb", mtime=0) as gz:
+        gz.write((json.dumps(episodes, default=float) + "\n").encode())
+    for f in ("gait_report.json", "gait_report_episodes.json.gz"):
+        assert (out / f).stat().st_size < 500 * 1024, (f, (out / f).stat().st_size)
     (out / "gait_report.md").write_text(markdown(results))
     for f in results["charts"]:
         size = (out / f).stat().st_size
         assert size < 500 * 1024, (f, size)
     print("wrote", out)
     return 0
+
+
+def _round(obj, digits: int = 6):
+    """Floats to ``digits`` significant digits for the written JSON (every comparison is made before)."""
+    if isinstance(obj, float):
+        return float(f"{obj:.{digits}g}") if math.isfinite(obj) else None
+    if isinstance(obj, dict):
+        return {k: _round(v, digits) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_round(v, digits) for v in obj]
+    if isinstance(obj, np.generic):
+        return _round(obj.item(), digits)
+    return obj
 
 
 def simulate(args) -> tuple[dict, dict]:
@@ -862,7 +889,9 @@ def simulate(args) -> tuple[dict, dict]:
                    "zip_sha256": gp.sha256(zp), "vecnormalize_sha256": gp.sha256(pk), "run_commit": commit,
                    "net": st["net"], "activation": "ELU", "loading": "torch.load(weights_only=True) into a fresh policy; "
                    "restricted unpickler for the normalisation statistics (rl/analysis/gait_pipe1.py)"},
-        "environment": {"trike_env_py": str(env_file), "trike_env_sha256": gp.sha256(env_file),
+        "environment": {"trike_env_py": (str(env_file.relative_to(REPO)) if env_file.is_relative_to(REPO)
+                                         else "TRIKE_ENV_DIR export: " + env_file.name),
+                        "trike_env_sha256": gp.sha256(env_file),
                         "run_commit_trike_env_sha256": git_blob_sha256(commit, RL / "trike_env.py"),
                         "from_TRIKE_ENV_DIR": bool(os.environ.get("TRIKE_ENV_DIR")),
                         "env_config": "the run record's settings.env_config, model path re-pointed to sim/generated",
@@ -925,7 +954,7 @@ def markdown(R: dict) -> str:
     T, Q, N = C["target_0.25"]["summary"], C["cmd_0.15"]["summary"], C["nominal_0.25"]["summary"]
     A = C["ankleroll_0.25"]["summary"]
     pol = R["policy"]
-    run = R["run"]
+    run = R.get("label") or R["run"]
     L = [f"# Gait quality of {run} (SIMULATION)", "",
          f"Written by `rl/analytics/gait_report.py` on {R['date']}. Policy `{pol['checkpoint']}` ({pol['steps']:,} steps; "
          f"sha256 {pol['zip_sha256'][:12]}...), trained at commit {pol['run_commit'][:8]}. Deterministic actions, servo "
@@ -969,11 +998,17 @@ def markdown(R: dict) -> str:
         return (f"| {C[key]['label']} | {s['speed']['forward_speed_mps']:.3f} | {s['falls']} | "
                 f"{s['footfall']['gait']['class']} | {s['footfall']['stride_frequency_hz_all_feet']:.2f} | "
                 f"{100 * s['footfall']['stride_length_m']['mean']:.1f} | {s['power']['mech_abs_w']:.1f} | "
-                f"{s['power']['electrical_w']:.1f} | {100 * s['balance']['com_margin_negative_fraction']:.0f} % |")
+                f"{s['power']['electrical_w']:.1f} | {100 * s['balance']['com_margin_negative_fraction']:.0f} % | "
+                f"{100 * max(v for v in s['footfall']['irregular_stride_fraction'].values() if v is not None):.0f} % | "
+                f"{sum(s['footfall']['contact_gaps'][c][b]['count'] for c in CORNERS for b in ('20-50 ms', '50-80 ms'))} |")
 
     L += ["## Cases (5 episodes each)", "",
-          "| Case | Speed, m/s | Falls | Gait | Stride, Hz | Stride, cm | Mech. power, W | Elec. est., W | CoM outside support |",
-          "|---|---|---|---|---|---|---|---|---|"] + [case_line(k) for k in C] + [""]
+          "| Case | Speed, m/s | Falls | Gait | Stride, Hz | Stride, cm | Mech. power, W | Elec. est., W | CoM outside support "
+          "| Irregular strides, worst foot | Contact gaps of 20-80 ms (all feet) |",
+          "|---|---|---|---|---|---|---|---|---|---|---|"] + [case_line(k) for k in C] + [
+          "", "Irregular strides: step-to-step periods more than 25 % off the median. Gaps of 20-80 ms lie between the "
+          "contact-solver rebounds (shorter, sole lift about 1 mm) and real swings (longer); many of them mean the feet "
+          "shuffle, and the 50 ms step rule splits them less cleanly (README).", ""]
     # a
     L += ["## a. Footfalls (`footfall.png`)", "",
           "Contact: touch load above 2 N (equal to the floor-truth sole force here). Steps: the env's 10 ms debounce, "
@@ -1104,7 +1139,7 @@ def markdown(R: dict) -> str:
     # cross check
     cc = R["cross_check"]
     L += ["## Cross-check against `rl/analysis/results/gait_pipe1_2026-11-19.json`", "",
-          f"Environment: `{Path(R['environment']['trike_env_py']).relative_to(REPO) if str(R['environment']['trike_env_py']).startswith(str(REPO)) else R['environment']['trike_env_py']}` "
+          f"Environment: `{R['environment']['trike_env_py']}` "
           f"(sha256 {R['environment']['trike_env_sha256'][:12]}...; the run commit's file: "
           f"{_f(R['environment']['run_commit_trike_env_sha256'], '{}')[:12]}...). This tool's log, passed through "
           "`gait_pipe1.measures`, against the committed per-episode figures:", "",

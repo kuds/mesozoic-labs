@@ -53,5 +53,14 @@ def frame(fig, title: str, subtitle: str, footer: str) -> None:
 
 
 def save(fig, path) -> None:
+    """Save as PNG; a file over 400 KB is re-saved with a 256-colour palette (the 500 KB limit per chart)."""
+    from pathlib import Path
+
     fig.savefig(path, dpi=DPI)
     plt.close(fig)
+    if Path(path).stat().st_size > 400 * 1024:
+        from PIL import Image
+
+        im = Image.open(path).convert("RGB").quantize(colors=256, method=Image.Quantize.MEDIANCUT,
+                                                      dither=Image.Dither.NONE)
+        im.save(path, optimize=True)

@@ -15,10 +15,11 @@ Definitions shared with the rest of the repository, reused rather than re-invent
   blips and works per control step; this module deliberately keeps the Triceratops env's rule so touchdown counts
   equal the training evaluation's;
 * steps: on top of the env's 10 ms rule, the shared library's ``events.debounce`` with a 50 ms window (unloaded
-  gaps shorter than 50 ms filled, then loaded blips shorter than 50 ms dropped; runs touching either end kept). The
-  env-debounced contact of the pipe1 policy still breaks for 10-40 ms inside a stance with the sole lifting under
-  1.5 mm (a contact-solver rebound), while its real swings last 80 ms or more and lift 8 mm or more; strides, phases,
-  swing clearance and touchdown impacts are measured on steps, touchdown counts also on the env's rule;
+  gaps shorter than 50 ms filled, then loaded blips shorter than 50 ms dropped; runs touching either end kept). At
+  0.25 m/s the env-debounced contact of the pipe1 policy still breaks for 10-50 ms inside a stance with the sole
+  lifting a median under 1.5 mm (a contact-solver rebound), while 95 % of its longer gaps (swings) lift 7 mm or more
+  (README: the split is less clean at 0.15 m/s); strides, phases, swing clearance and touchdown impacts are measured
+  on steps, touchdown counts also on the env's rule;
 * support polygon and margin: ``environments/shared/gait/stance_track.convex_hull`` and ``signed_margin`` (imported:
   + inside, the distance to the nearest edge; outside, minus the distance past the most violated edge line, which is
   the Euclidean distance except beyond a corner, where it is a lower bound).

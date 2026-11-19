@@ -210,7 +210,7 @@ def dashboard(name: str, parsed: dict, record: dict | None, out: Path, source: s
         ax.axhline(c, color=cs.INK2, ls="--", lw=0.8)
     ax.set_title("Forward speed per command")
     ax.set_ylabel("m/s (dashed: command)")
-    ax.legend(loc="lower right", fontsize=7.5)
+    ax.legend(loc="upper left", fontsize=7.5)
     # 2 falls
     ax = axes[1]
     x, y = _xy(steps, s["falls"])
@@ -251,7 +251,7 @@ def dashboard(name: str, parsed: dict, record: dict | None, out: Path, source: s
         _lines(ax, steps, s["gait"]["rms_over_continuous_worst"], {}, cs.SERIES[:4])
         ax.axhline(1.0, color=cs.INK, ls="--", lw=0.9)
         ax.set_ylabel("worst joint's RMS / rating")
-        ax.legend(loc="lower right", fontsize=7.5)
+        ax.legend(loc="best", fontsize=7.5)
     ax.set_title("Heat: RMS torque / continuous rating")
     # 6 at limit
     ax = axes[5]
@@ -261,7 +261,7 @@ def dashboard(name: str, parsed: dict, record: dict | None, out: Path, source: s
         _lines(ax, steps, {g: [None if v is None else 100 * v for v in vals]
                            for g, vals in s["gait"]["at_limit_nominal"].items()}, {}, cs.SERIES[:4], "{:.1f}")
         ax.set_ylabel("% of 1 ms steps at >= 99 % of the limit")
-        ax.legend(loc="upper right", fontsize=7.5)
+        ax.legend(loc="best", fontsize=7.5)
     ax.set_title("Time at the nominal torque limit")
     # 7 slip
     ax = axes[6]
@@ -270,7 +270,7 @@ def dashboard(name: str, parsed: dict, record: dict | None, out: Path, source: s
     else:
         _lines(ax, steps, s["gait"]["slip_ratio"], SHORT, cs.SERIES[:4])
         ax.set_ylabel("sole travel loaded / body travel")
-        ax.legend(loc="upper right", fontsize=7.5, ncol=2)
+        ax.legend(loc="best", fontsize=7.5, ncol=2)
     ax.set_title("Slip ratio per foot")
     # 8 touchdowns
     ax = axes[7]
@@ -279,7 +279,7 @@ def dashboard(name: str, parsed: dict, record: dict | None, out: Path, source: s
     else:
         _lines(ax, steps, s["gait"]["touchdowns_per_s"], SHORT, cs.SERIES[:4], "{:.1f}")
         ax.set_ylabel("per second (10 ms debounce)")
-        ax.legend(loc="upper right", fontsize=7.5, ncol=2)
+        ax.legend(loc="best", fontsize=7.5, ncol=2)
     ax.set_title("Debounced touchdowns per foot")
     # 9 drift
     ax = axes[8]
@@ -363,8 +363,10 @@ def compare(runs: list[tuple[str, dict, dict | None]], out: Path) -> str:
             axes[3].plot(x, y, color=col, lw=cs.LW, marker="o", ms=3.5, label=name)
     titles = ("Forward speed at the highest command", "Falls per evaluation", "Worst joint RMS / rating",
               "Slip ratio, mean of the feet")
-    for ax, t in zip(axes, titles):
+    ylabels = ("m/s", "falls", "RMS torque / continuous rating", "sole travel loaded / body travel")
+    for ax, t, yl in zip(axes, titles, ylabels):
         ax.set_title(t)
+        ax.set_ylabel(yl)
         ax.set_xlabel("training steps, millions")
         if ax.get_lines():
             ax.legend(fontsize=7.5, loc="best")

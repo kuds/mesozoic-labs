@@ -21,7 +21,7 @@ COP_COLOR, COM_COLOR = cs.SERIES[6], cs.SERIES[4]  # violet, magenta: validated 
 
 
 def _run_label(R) -> str:
-    return f"{R['run']} ({R['policy']['steps']:,} steps)"
+    return f"{R.get('label') or R['run']} ({R['policy']['steps']:,} steps)"
 
 
 def _footer(R, what: str) -> str:
@@ -49,7 +49,7 @@ def chart_footfall(R, P, out: Path) -> str:
     stp = np.asarray(tr["stp"], dtype=bool)
     deb = np.asarray(tr["deb"], dtype=bool)
     fig = plt.figure(figsize=(12.5, 6.6))
-    gs = fig.add_gridspec(1, 2, width_ratios=[2.1, 1.35], left=0.105, right=0.99, top=0.83, bottom=0.17, wspace=0.06)
+    gs = fig.add_gridspec(1, 2, width_ratios=[2.1, 1.35], left=0.105, right=0.99, top=0.83, bottom=0.21, wspace=0.06)
     ax = fig.add_subplot(gs[0])
     for j, c in enumerate(CORNERS):
         y = 3 - j
@@ -66,11 +66,11 @@ def chart_footfall(R, P, out: Path) -> str:
     ax.set_yticks([3, 2, 1, 0], [cs.FOOT_LABEL[c] for c in CORNERS])
     ax.set_ylim(-0.6, 4.0)
     ax.set_xlim(t[0], t[-1])
-    ax.grid(axis="y", visible=False)
+    ax.grid(False)
     ax.set_xlabel("time, s (nominal model, seed 100000)")
     ax.set_title("Stance per foot (bars); vertical lines: left-fore touchdowns")
     ax.tick_params(axis="y", length=0)
-    ax.text(0.0, -0.17, "Bars: stance at step level (contact breaks under 50 ms merged). White slivers inside a bar: "
+    ax.text(0.0, -0.12, "Bars: stance at step level (contact breaks under 50 ms merged). White slivers inside a bar: "
             "10-50 ms breaks that the env's\n10 ms debounce counts as touchdowns (the sole lifts under 1.5 mm).",
             transform=ax.transAxes, fontsize=7.8, color=cs.INK2, va="top")
 
@@ -223,8 +223,8 @@ def chart_balance(R, P, out: Path) -> str:
         hull = gc.convex_hull(frm(cxy[k][down[k]].reshape(-1, 2)))
         ax.add_patch(Polygon(hull, closed=True, fc="none", ec=cs.INK2, lw=1.0, ls="--", zorder=3))
         feet_k = "+".join(gc.SHORT[c] for c, d_ in zip(CORNERS, down[k]) if d_)
-        ax.annotate(f"support polygon at t = {t[k]:.2f} s ({feet_k})", hull[np.argmax(hull[:, 1])], xytext=(0, 12),
-                    textcoords="offset points", fontsize=7.8, color=cs.INK2, ha="center")
+        ax.annotate(f"dashed: support polygon at t = {t[k]:.2f} s ({feet_k} loaded)", hull[np.argmin(hull[:, 1])],
+                    xytext=(0, -14), textcoords="offset points", fontsize=7.8, color=cs.INK2, ha="left")
     pc, pm = frm(cop[sel]), frm(com[sel])
     ax.scatter(pc[::4, 0], pc[::4, 1], s=3, color=COP_COLOR, alpha=0.45, lw=0, zorder=4)
     ax.plot(pm[:, 0], pm[:, 1], color=COM_COLOR, lw=cs.LW, zorder=5)
@@ -235,7 +235,7 @@ def chart_balance(R, P, out: Path) -> str:
     ax.legend(handles=[Line2D([], [], ls="", marker="o", ms=4, color=COP_COLOR, label="centre of pressure (every 4 ms)"),
                        Line2D([], [], color=COM_COLOR, lw=cs.LW, label="centre of mass, ground projection"),
                        Patch(fc=cs.WASH, ec=cs.AXIS, label="sole at mid-stance")], loc="upper left",
-              bbox_to_anchor=(0, -0.1), ncol=2, fontsize=8)
+              bbox_to_anchor=(0, -0.14), ncol=2, fontsize=8)
     ax2 = fig.add_subplot(gs[0, 1])
     m2 = (t >= t0) & (t < t1)
     mc, mm = 1000 * _arr(tr["cop_margin"])[m2], 1000 * _arr(tr["com_margin"])[m2]
@@ -261,7 +261,8 @@ def chart_balance(R, P, out: Path) -> str:
     ax3.set_xlabel("time, s (nominal model, seed 100000)")
     cs.frame(fig, "Balance: centre of pressure and centre of mass against the feet on the ground",
              f"{_run_label(R)}. Support polygon: hull of the sole corners of every foot loaded above 2 N. Margin: distance "
-             "inside the nearest edge (negative outside).\n" + _balance_numbers(R), _footer(R, "Nominal model, 0.25 m/s"))
+             "inside the nearest edge (negative outside).\n" + _balance_numbers(R),
+             _footer(R, "Panels: nominal model, 0.25 m/s; figures in the subtitle: randomised, 5 episodes"))
     cs.save(fig, out / "balance.png")
     return "balance.png"
 
@@ -269,10 +270,10 @@ def chart_balance(R, P, out: Path) -> str:
 def _balance_numbers(R) -> str:
     S = R["cases"]["target_0.25"]["summary"]["balance"]
     N = R["cases"]["nominal_0.25"]["summary"]["balance"]
-    return (f"0.25 m/s, randomised: CoM outside the polygon {100 * S['com_margin_negative_fraction']:.0f} % of the time "
-            f"(nominal model {100 * N['com_margin_negative_fraction']:.0f} %), median CoM margin "
-            f"{S['com_margin_median_mm']:.0f} mm; CoP within 5 mm of the edge (the foot pivots) "
-            f"{100 * S['cop_near_edge_fraction']:.0f} %; CoP outside {100 * S['cop_margin_negative_fraction']:.1f} % (a check).")
+    return (f"0.25 m/s randomised: CoM outside {100 * S['com_margin_negative_fraction']:.0f} % of the time (nominal "
+            f"{100 * N['com_margin_negative_fraction']:.0f} %), median CoM margin {S['com_margin_median_mm']:.0f} mm; CoP "
+            f"within 5 mm of an edge {100 * S['cop_near_edge_fraction']:.0f} %; CoP outside "
+            f"{100 * S['cop_margin_negative_fraction']:.1f} % (a check).")
 
 
 # ---------------------------------------------------------------- d. drives
@@ -570,7 +571,7 @@ def chart_feet(R, P, out: Path) -> str:
         ax.set_yticks([3, 2, 1, 0], [gc.SHORT[c] for c in CORNERS])
         ax.set_xlim(-lim * 1.15, lim * 1.6)
         ax.set_ylim(-0.6, 4.6)
-        ax.set_xlabel("passive ankle roll angle, deg (+ = sole rolled about the foot's forward axis)")
+        ax.set_xlabel("passive ankle-roll joint angle, deg")
         ax.set_title("Roll-ankle angle range (roll-ankle model, 5 episodes)")
         ax.grid(axis="y", visible=False)
         ax.tick_params(axis="y", length=0)
