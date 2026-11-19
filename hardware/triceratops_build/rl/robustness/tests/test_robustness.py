@@ -238,3 +238,16 @@ def test_plan_shares_the_nominal_point_across_sweeps():
     uses = sum(r["key"] == nominal for f in fams for r in f["rows"])
     assert uses >= 6  # delay 0.25, friction, mass, payload, force, kp, push, step, ramp all share it
     assert all(p["randomise"] is False for p in points.values())
+
+
+def test_compact_json_keeps_every_episode_exactly():
+    import json
+
+    eps = [{"seed": 1, "forward_speed_mps": 0.23823557123456789, "heat": [0.5, None, 1.25], "push": {"x": [1, 2]}},
+           {"seed": 2, "fell": True, "termination": "tilt", "slip": [None, 0.3, 0.2, 0.1]}]
+    res = {"points": {"k": {"point": {"terrain": None}, "summary": {"speed_mps": 0.123456789123, "names": ["a b"]},
+                            "episodes": eps}}, "seeds": [200000, 200001], "label": "x  y"}
+    back = json.loads(sweep.compact_json(res))
+    assert back["points"]["k"]["episodes"] == eps
+    assert back["points"]["k"]["summary"] == {"speed_mps": 0.123457, "names": ["a b"]}
+    assert back["seeds"] == [200000, 200001] and back["label"] == "x  y"

@@ -69,6 +69,16 @@ def _dots(ax, pts, color):
         ax.scatter(x, y, s=9, color=color, alpha=0.35, lw=0, zorder=2)
 
 
+def _fall_labels(ax, rows, outward=False):
+    """'k/N' beside each point with a fall; pushed outward (away from x = 0) when ``outward``."""
+    for x, s, _ in rows:
+        if s["falls"]:
+            side = (1 if x > 0 else -1) if outward else 0
+            ax.annotate(f"{s['falls']}/{s['episodes']}", (x, 100 * s["fall_rate"]), textcoords="offset points",
+                        xytext=(7 * side, 7 if not side else -3), ha={1: "left", -1: "right", 0: "center"}[side],
+                        va="bottom" if not side else "top", fontsize=7.5, color=INK2)
+
+
 def _band(ax, rng, label=False):
     if rng is None:
         return
@@ -85,8 +95,15 @@ def _hline(ax, y, text, side="right"):
 
 
 def standard_panels(axes, series, band, xlabel, breaks_x=(), drop_lines=(), xticks=None, xticklabels=None):
-    """series: [(name, color, [(x, summary, episodes)], nominal_speed)]. Five panels."""
-    ax_v, ax_f, ax_d, ax_h, ax_s = axes
+    """series: [(name, color, [(x, summary, episodes)], nominal_speed)]. Five panels, or six with the feet's slip."""
+    ax_v, ax_f, ax_d, ax_h, ax_s = axes[:5]
+    if len(axes) > 5:
+        ax_p = axes[5]
+        ax_p.set_title("Slip ratio, worst foot", pad=14)
+        _band(ax_p, band)
+        for name, color, rows, _ in series:
+            _line(ax_p, [x for x, _, _ in rows], [s.get("slip_worst") for _, s, _ in rows], color)
+        ax_p.set_ylim(bottom=0)
     titles = ("Forward speed (m/s)", "Falls (% of episodes)", "Sideways drift, |m| over 18 s",
               "Heat: worst joint RMS / rating", "Worst joint, time at limit (%)")
     for ax, t in zip(axes, titles):
@@ -98,10 +115,7 @@ def standard_panels(axes, series, band, xlabel, breaks_x=(), drop_lines=(), xtic
         _dots(ax_v, [(x, e["forward_speed_mps"]) for x, _, eps in rows for e in eps
                      if not e["fell"] and "forward_speed_mps" in e], color)
         _line(ax_f, xs, [100 * s["fall_rate"] for _, s, _ in rows], color)
-        for x, s, _ in rows:
-            if s["falls"]:
-                ax_f.annotate(f"{s['falls']}/{s['episodes']}", (x, 100 * s["fall_rate"]), textcoords="offset points",
-                              xytext=(0, 7), ha="center", fontsize=7.5, color=INK2)
+        _fall_labels(ax_f, rows)
         _line(ax_d, xs, [s.get("drift_abs_mean_m") for _, s, _ in rows], color)
         _dots(ax_d, [(x, abs(e["sideways_drift_m"])) for x, _, eps in rows for e in eps
                      if not e["fell"] and "sideways_drift_m" in e], color)
@@ -180,7 +194,7 @@ def chart_delay(res, out):
         brk += _breaks_of(fam)
     xs = [r["x"] for r in fams[0]["rows"]]
     standard_panels(axes, series, res["settings"]["training_ranges"]["delay_ms"], "servo delay (ms)",
-                    breaks_x=sorted(set(brk)), drop_lines=drops, xticks=xs)
+                    breaks_x=sorted(set(brk)), drop_lines=drops, xticks=[x for x in xs if x != 2])
     for name, color, rows, _ in series:  # direct labels at the line ends (the two speeds stay apart)
         x, s, _ = rows[-1]
         if s.get("speed_mps") is not None:
@@ -195,14 +209,16 @@ def chart_delay(res, out):
 def chart_friction(res, out):
     fam = _fam(res, "friction")
     rows = series_from_family(res, fam, lambda x: 0.85 if x is None else x)
-    fig, axes = plt.subplots(1, 5, figsize=(17, 4.6))
+    fig, axes = plt.subplots(1, 6, figsize=(19, 4.6))
     standard_panels(axes, [("friction", SERIES[0], rows, fam["nominal_speed"])],
                     res["settings"]["training_ranges"]["friction"], "sliding friction, floor and soles",
                     breaks_x=[0.85 if x is None else x for x in _breaks_of(fam)],
                     drop_lines=[(0.8 * fam["nominal_speed"], "-20 % of nominal")] if fam["nominal_speed"] else (),
                     xticks=[x for x, _, _ in rows if x != 0.85])
     header(fig, res, "floor friction sweep",
-           _common_sub(res, "The model's own friction (floor 0.8, soles 0.85: 0.85 in contact) is the nominal point."))
+           _common_sub(res, "The model's own friction (floor 0.8, soles 0.85: 0.85 in contact) is the nominal point. "
+                            "Slip ratio: sole travel while loaded / body travel (gait_pipe1's definition), the foot "
+                            "with the highest mean."))
     fig.subplots_adjust(left=0.035, right=0.985, top=0.74, bottom=0.14, wspace=0.28)
     return _save(fig, out / f"{res['run']}_friction.png")
 
@@ -272,10 +288,7 @@ def chart_push(res, out):
     (a_f, a_v, a_c), (a_x, a_r, a_roll) = axes
     a_f.set_title("Falls (% of episodes)", pad=10)
     _line(a_f, xs, [100 * s["fall_rate"] for _, s, _ in rows], c)
-    for x, s, _ in rows:
-        if s["falls"]:
-            a_f.annotate(f"{s['falls']}/{s['episodes']}", (x, 100 * s["fall_rate"]), textcoords="offset points",
-                         xytext=(0, 7), ha="center", fontsize=7.5, color=INK2)
+    _fall_labels(a_f, rows, outward=True)
     a_f.set_ylim(-5, 112)
     a_v.set_title("Forward speed (m/s)", pad=10)
     _line(a_v, xs, [s.get("speed_mps") for _, s, _ in rows], c)

@@ -31,6 +31,7 @@ import json
 import math
 import multiprocessing as mp
 import os
+import re
 import sys
 import tempfile
 import time
@@ -323,7 +324,8 @@ def episode_record(arr: dict, p: dict, seed: int, pusher: Pusher | None) -> dict
                    heading_change_deg=_r(ms["heading_change_deg"]), power_w=_r(ms["power_w"]),
                    heat=[_r(ms["per_joint"][nm]["rms_over_thermal"], 4) for nm in arr["names"]],
                    at_nominal_limit=[_r(ms["per_joint"][nm]["sat_nominal"], 4) for nm in arr["names"]],
-                   at_point_limit=[_r(ms["per_joint"][nm]["sat_episode_limit"], 4) for nm in arr["names"]])
+                   at_point_limit=[_r(ms["per_joint"][nm]["sat_episode_limit"], 4) for nm in arr["names"]],
+                   slip=[_r(ms["stance_slip"][c]["slip_ratio"], 4) for c in G.CORNERS])
     rec["push"] = push_measures(arr, pusher)
     return rec
 
@@ -428,9 +430,14 @@ def summarise_point(p: dict, eps: list, names: list) -> dict:
                  at_nominal_limit_all=float(satn.mean()),
                  at_point_limit_worst_joint=names[int(pm.argmax())], at_point_limit_worst=float(pm.max()),
                  at_point_limit_all=float(satp.mean()))
-    pe = [e["push"] for e in eps if "lateral_peak_m" in e["push"]]  # episodes that reached the push time
+        slip = np.array([[np.nan if x is None else x for x in e.get("slip", [None] * 4)] for e in ok], dtype=float)
+        if np.isfinite(slip).any():
+            fm = np.array([np.nanmean(c) if np.isfinite(c).any() else -1.0 for c in slip.T])
+            s.update(slip_worst_foot=G.CORNERS[int(fm.argmax())], slip_worst=float(fm.max()),
+                     slip_mean_by_foot=dict(zip(G.CORNERS, map(float, fm))))
+    pe = [e["push"] for e in eps if "lateral_peak_m" in e.get("push", {})]  # episodes that reached the push time
     if pe:
-        okp = [e["push"] for e in eps if "lateral_peak_m" in e["push"] and not e["fell"]]
+        okp = [e["push"] for e in eps if "lateral_peak_m" in e.get("push", {}) and not e["fell"]]
         rec = [q["recovery_s"] for q in okp if q.get("recovery_s") is not None]
         ex = [q["lateral_extra_peak_m"] for q in pe if q.get("lateral_extra_peak_m") is not None]
         cv = [q["com_dv_achieved_mps"] for q in pe if q.get("com_dv_achieved_mps") is not None]
@@ -476,6 +483,10 @@ def pair_pushes(points: dict, results_eps: dict) -> None:
     for k in points:
         for e in results_eps[k]:
             e["push"].pop("_com_v_left_after", None)
+    for k, p in points.items():  # the push measures matter only for the push sweep and its unpushed baseline
+        if not p["push_dv"] and k != base_key:
+            for e in results_eps[k]:
+                e.pop("push", None)
 
 
 def find_breaks(fam_rows: list, nominal_x, nominal_speed: float | None) -> dict:
@@ -567,8 +578,8 @@ def markdown(res: dict) -> str:
                   "|---|---|---|---|---|---|---|---|---|"]
         else:
             L += ["| Point | Falls | Speed m/s, mean (min) | vs nominal | Speed error m/s | Sideways drift m, mean "
-                  "(worst) | Heat: worst joint RMS / rating | At nominal limit, worst joint | At this point's limit, "
-                  "worst joint |", "|---|---|---|---|---|---|---|---|---|"]
+                  "(worst) | Slip ratio, worst foot | Heat: worst joint RMS / rating | At nominal limit, worst joint | "
+                  "At this point's limit, worst joint |", "|---|---|---|---|---|---|---|---|---|---|"]
         for row in fam["rows"]:
             s = res["points"][row["key"]]["summary"]
             x = fmt_x(fam["x_key"], row["x"])
@@ -578,7 +589,7 @@ def markdown(res: dict) -> str:
                     q = s.get("push") or {}
                     L.append(f"| {x} | {q.get('force_n', 0):.0f} | | {falls} | all fell | | | | |")
                 else:
-                    L.append(f"| {x} | {falls} | all fell | | | | | | |")
+                    L.append(f"| {x} | {falls} | all fell | | | | | | | |")
                 continue
             rel = (f"{100 * (s['speed_mps'] / fam['nominal_speed'] - 1):+.1f} %" if fam.get("nominal_speed")
                    else "")
@@ -596,9 +607,17 @@ def markdown(res: dict) -> str:
             else:
                 L.append(f"| {x} | {falls} | {s['speed_mps']:.3f} ({s['speed_min_mps']:.3f}) | {rel} | "
                          f"{s['speed_error_mps']:+.3f} | {s['drift_abs_mean_m']:.3f} ({s['drift_abs_worst_m']:.3f}) | "
-                         f"{s['heat_worst']:.2f} ({s['heat_worst_joint']}) | {100 * s['at_nominal_limit_worst']:.1f} % "
+                         + (f"{s['slip_worst']:.2f} ({s['slip_worst_foot']}) | " if "slip_worst" in s else "| ")
+                         + f"{s['heat_worst']:.2f} ({s['heat_worst_joint']}) | {100 * s['at_nominal_limit_worst']:.1f} % "
                          f"({s['at_nominal_limit_worst_joint']}) | {100 * s['at_point_limit_worst']:.1f} % "
                          f"({s['at_point_limit_worst_joint']}) |")
+        if fam["x_key"] == "push_dv":
+            q0 = res["points"][point_key(make_point())]["summary"].get("push") or {}
+            if q0.get("recovery_s_max") is not None:
+                L += ["", f"Noise floor: the unpushed episodes, measured the same way from t = {PUSH_T:g} s, score a "
+                      f"recovery time of {q0['recovery_s_median']:.2f} s median and {q0['recovery_s_max']:.2f} s at "
+                      "most (the gait's own sideways sway can exceed the threshold), so recovery times below that are "
+                      "not distinguishable from walking unpushed."]
         terms = sorted({tt for row in fam["rows"] for tt in res["points"][row["key"]]["summary"]["fall_terminations"]})
         if terms:
             L += ["", "Fall terminations: " + ", ".join(f"`{tt}`" for tt in terms) + "."]
@@ -666,8 +685,36 @@ def rebuild(path: Path, charts_too: bool = True) -> dict:
     return res
 
 
+_NUM = r"(?:-?[0-9][0-9.eE+-]*|null|true|false)"
+_NUM_LIST = re.compile(rf"\[(\s*{_NUM}(?:\s*,\s*{_NUM})*\s*)\]")
+
+
+def _round(o, n=6):
+    if isinstance(o, float):
+        return float(f"{o:.{n}g}")
+    if isinstance(o, dict):
+        return {k: _round(v, n) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_round(v, n) for v in o]
+    return o
+
+
+def compact_json(res: dict) -> str:
+    """Indented JSON with each episode on one line, every list of numbers on one line, and the per-point summaries
+    rounded to 6 significant figures (the episodes keep their own precision)."""
+    out, eps = dict(res), []
+    out["points"] = {}
+    for k, v in res["points"].items():
+        out["points"][k] = {**v, "summary": _round(v["summary"]),
+                            "episodes": [f"@@EP{len(eps) + i}@@" for i in range(len(v["episodes"]))]}
+        eps += v["episodes"]
+    txt = _NUM_LIST.sub(lambda m: "[" + ", ".join(x.strip() for x in m.group(1).split(",")) + "]",
+                        json.dumps(out, indent=1))
+    return re.sub(r'"@@EP(\d+)@@"', lambda m: json.dumps(eps[int(m.group(1))]), txt)
+
+
 def write_outputs(res: dict, out: Path) -> None:
-    (out / f"sweep_{res['run']}.json").write_text(json.dumps(res, indent=1) + "\n")
+    (out / f"sweep_{res['run']}.json").write_text(compact_json(res) + "\n")
     (out / f"summary_{res['run']}.md").write_text(markdown(res))
 
 

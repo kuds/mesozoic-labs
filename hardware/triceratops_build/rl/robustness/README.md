@@ -12,6 +12,7 @@ Results for the first policy, trike60-pipe1, are in `results/pipe1/`: `summary_p
 
 ```
 python hardware/triceratops_build/rl/robustness/sweep.py --ckpt-dir DIR --run NAME [--seeds 8] [--workers 2]
+python hardware/triceratops_build/rl/robustness/sweep.py --from-json results/NAME/sweep_NAME.json  # re-summarise
 python hardware/triceratops_build/rl/robustness/charts.py results/NAME/sweep_NAME.json   # redraw the charts only
 python -m pytest hardware/triceratops_build/rl/robustness/tests -q
 ```
@@ -19,7 +20,8 @@ python -m pytest hardware/triceratops_build/rl/robustness/tests -q
 `DIR` holds the run's checkpoint zip (`*_<steps>_steps.zip`, the newest is used), its VecNormalize pickle
 (`*vecnormalize_<steps>_steps.pkl`) and `run_record.json`. Results go to `results/NAME/` unless `--out` says otherwise.
 `--sweeps delay friction mass drive push terrain` runs a subset; `--no-repro` skips the reproduction check;
-`--no-charts` skips the PNGs. Needs mujoco 3.10, numpy, torch (CPU), stable-baselines3, gymnasium and matplotlib.
+`--no-charts` skips the PNGs. `--from-json` rebuilds the summaries, the Markdown and the charts from the episodes in
+a finished run's JSON without simulating. Needs mujoco 3.10, numpy, torch (CPU), stable-baselines3, gymnasium and matplotlib.
 
 The pipe1 run: 70 points x 8 seeds plus 5 reproduction episodes (565 episodes of 20 s), about 13 minutes on 2 worker
 processes of a 4-vCPU machine (about 2.5 s of CPU per episode). Each worker uses one torch thread.
@@ -76,6 +78,9 @@ analysis's):
 - **Forward speed**: chassis travel along its heading at reset over the window, divided by the window's length.
   **Speed error**: the mean speed minus the command.
 - **Sideways drift**: chassis travel across that heading over the window (reported as |drift|).
+- **Slip ratio**: per foot, the sole's horizontal travel while loaded (over 2 N) divided by the chassis's forward
+  travel; the foot with the highest mean is reported. pipe1 slides its feet even at the nominal friction (about a
+  quarter of the distance travelled, as the gait report found), so speed alone says little about grip.
 - **Heat**: per leg drive, RMS torque over the window divided by its continuous rating at the joint (X4 roll and
   pitch 7.5 N·m, X6 front elbow 10.8 N·m, X4 hind knee through its 1:1 crank 6.75 N·m). Reported: the joint with the
   highest mean over episodes. RMS over 18 s stands in for steady walking; it is not a thermal simulation.
@@ -87,8 +92,9 @@ analysis's):
   **extra sideways displacement**, the largest of (the chassis's sideways travel along the push minus the same seed's
   unpushed episode's) within 3 s of the onset (the two episodes are identical until the push); the **recovery time**,
   from the onset to the first time after the push from which the chassis's 0.5 s-centred mean sideways speed stays
-  within 0.05 m/s for 1 s (0.1 s, the push's own length, is the floor: the unpushed episodes score it); the largest
-  body roll after the onset.
+  within 0.05 m/s for 1 s (0.1 s, the push's own length, is the floor). The unpushed episodes, measured the same way,
+  set the noise floor: the gait's own sway occasionally exceeds the threshold, and the summary states their worst
+  value; recovery times below it mean nothing. The largest body roll after the onset.
 
 Per point: falls out of N; the other measures are means over the episodes that did **not** fall (the JSON keeps every
 episode).
@@ -118,4 +124,5 @@ speed more than 20 % below the nominal point's at the same command. "None" means
   an episode; mass, friction, kp and force-limit scaling match the env's randomisation; the payload lands on the
   chassis only; the nominal model is restored exactly between points; the step and ramp have the intended shape and
   the floor's contact settings; the break rule.
-- `results/<run>/`: `sweep_<run>.json`, `summary_<run>.md`, `<run>_<sweep>.png`.
+- `results/<run>/`: `sweep_<run>.json` (settings, hashes, the reproduction check, per-point summaries rounded to 6
+  significant figures, and every episode on one line), `summary_<run>.md`, `<run>_<sweep>.png`.
