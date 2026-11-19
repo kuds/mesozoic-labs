@@ -1298,6 +1298,8 @@ def test_train_sets_both_schedules_in_every_env(tmp_path):
 
 # ======================================================================================== run 3: terrain, pushes
 RUN3 = RL_DIR / "configs" / "run3_terrain.json"
+# test_default_env_regression_digest: recorded from 83094f52's trike_env.py (before run 3), mujoco 3.10.0
+DEFAULT_DIGEST = "da65d3f8043450bc759f82233e111ee0c8cafb56d433a52995acee4c39186a29"
 
 
 def _rough(**kw):
@@ -1379,6 +1381,8 @@ def test_height_term_and_fall_test_use_the_terrain_under_the_chassis():
     z = float(e.data.xpos[e._chassis, 2])
     assert info["ground_height"] == pytest.approx(0.05)
     assert info["r_height"] == pytest.approx(-e.cfg.w_height * (z - 0.05 - e.nominal_height) ** 2)
+    assert e.ground_height(o + np.array([0.0, e.cfg.terrain_half_width_m + 0.1])) == 0.0  # beside the boxes
+    assert e.ground_height(o + np.array([0.0, e.cfg.terrain_half_width_m - 0.1])) == pytest.approx(0.05)
     e._ground = (o, np.array([1.0, 0.0]), np.array([-50.0, 50.0]), np.array([0.2, 0.2]))  # chassis 0.2 m "low"
     *_, term, _, info = e.step(np.zeros(12))
     assert term and info["termination"] == "height"
@@ -1473,3 +1477,79 @@ def test_parameters_cell_refuses_an_unknown_preset(tmp_path, monkeypatch):
     monkeypatch.setenv("TRIKE60_PARAMS", str(params))
     with pytest.raises(ValueError, match="ENV_PRESET"):
         exec(compile(code[0], "cell1", "exec"), {})
+
+
+def test_terrain_boxes_are_solid_far_from_their_compiled_bounds(monkeypatch):
+    """The robot stands on a box 1.2 m from the box's centre and 1.6 m to its side, far outside the 5 cm box it was
+    compiled as: _place_terrain must update the box's collision bounds (review M4; with a stale geom_aabb or
+    geom_rbound the robot falls through)."""
+    import trike_env
+
+    top = 0.06
+    layout = {"kind": "steps", "boxes": [(2.0, 0.5 * (top - 0.05), 1.5, 0.5 * (top + 0.05), 0.0)],
+              "profile": (np.array([0.5, 0.5 + 1e-6, 3.5, 3.5 + 1e-6]), np.array([0.0, top, top, 0.0]))}
+    monkeypatch.setattr(trike_env, "terrain_layout", lambda cfg, scale, u: layout)
+    e = _rough(push_prob=0.0, domain_randomization=False, observation_noise=False)
+    e.reset(seed=1, options={"command_speed": 0.0})
+    m, d = e.model, e.data
+    x0, y0, z0 = (float(v) for v in d.qpos[0:3])
+    d.qpos[0:3] = (x0 + 3.2, y0 + 1.6, z0 + top + 0.01)  # chassis over the box's far end and near its side
+    mujoco.mj_forward(m, d)
+    on_box = 0
+    for _ in range(50):  # 1 s
+        *_, term, _, info = e.step(np.zeros(12))
+        assert not term, info["termination"]
+        on_box += sum(1 for c in d.contact[:d.ncon] if c.geom1 in e._tgeom or c.geom2 in e._tgeom)
+    assert on_box > 0
+    assert float(d.xpos[e._chassis, 2]) == pytest.approx(top + e.nominal_height, abs=0.01)
+    assert info["ground_height"] == pytest.approx(top)
+
+
+def test_default_env_regression_digest():
+    """Guards bit-identity of the default env (every run-3 feature off) with the env before run 3 (83094f52): a
+    digest of 120 steps' observations, rewards and terminations, recorded from that commit's trike_env.py with
+    mujoco 3.10.0 on this container. Another mujoco build may differ in the last bits: then the test is skipped."""
+    import hashlib
+
+    if mujoco.__version__ != "3.10.0":
+        pytest.skip("digest recorded with mujoco 3.10.0")
+    from trike_env import ANKLE_ROLL_MODEL
+
+    h = hashlib.sha256()
+    for model in (TrikeEnvConfig().model_path, str(ANKLE_ROLL_MODEL)):
+        e = TrikeEnv(TrikeEnvConfig(model_path=model))
+        obs, _ = e.reset(seed=11)
+        h.update(obs.tobytes())
+        rng = np.random.default_rng(11)
+        for _ in range(60):
+            obs, r, term, trunc, _ = e.step(rng.uniform(-1, 1, 12))
+            h.update(obs.tobytes() + repr((r, term, trunc)).encode())
+            if term or trunc:
+                obs, _ = e.reset(seed=12)
+                h.update(obs.tobytes())
+    assert h.hexdigest() == DEFAULT_DIGEST
+
+
+def test_sweep_and_evaluate_build_flat_envs_from_a_run3_record(tmp_path):
+    sys.path.insert(0, str(RL_DIR / "robustness"))
+    import argparse
+
+    import evaluate
+    import sweep
+
+    ec = json.loads(json.dumps({**_rough().cfg.to_dict(), "model_path": "trike60_C_closed_ankleroll.xml"},
+                               default=list))
+    for terrain in (None, ("step", 0.02)):
+        env = sweep.build_env(ec, terrain)
+        assert env.cfg.terrain_boxes == 0 and env.model.nmocap == 0 and env.cfg.push_prob == 0.0
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "run_record.json").write_text(json.dumps({"settings": {"env_config": ec}}))
+    cfg = evaluate.env_config(argparse.Namespace(model=None, no_randomization=False, seconds=0.0), run)
+    assert (cfg.terrain_boxes, cfg.push_prob, cfg.friction_low_hard) == (0, 0.0, None)
+    assert cfg.w_lateral_drift == 100.0
+
+
+def test_terrain_box_count_is_bounded_by_the_draws():
+    with pytest.raises(ValueError, match="terrain_boxes must be at most 20"):
+        TrikeEnv(TrikeEnvConfig(terrain_boxes=21))

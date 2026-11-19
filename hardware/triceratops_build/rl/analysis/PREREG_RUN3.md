@@ -12,8 +12,9 @@ were chosen with run2b's weaknesses in view: its edges on steps and ramps, its s
 - **Code:** the reviewed commit that `runs/trike60-run3_STEPS.md` names (the notebook runs exactly that commit).
 - **Setup:**
   - Model: `trike60_C_closed_ankleroll.xml` (revision 3).
-  - Environment: `configs/run3_terrain.json` (ENV_PRESET `run3_terrain`): terrain boxes, pushes, friction low end
-    0.3 and the drift cost, all on the terrain schedule (0 until 1 M steps, full at 4 M).
+  - Environment: `configs/run3_terrain.json` (ENV_PRESET `run3_terrain`): terrain boxes, pushes and the friction
+    low end 0.3, on the terrain schedule (0 until 1 M steps, full at 4 M); the drift cost at full weight from the
+    first step.
   - Everything else as run2b: reward, the penalty and late schedules, PPO settings, 8 envs, evaluations every
     250,000 steps on the flat floor.
 - **Seeds and budget:** two runs, `trike60-run3-s0` (SEED 0) and `trike60-run3-s1` (SEED 1), 10,000,000 steps each.
@@ -21,7 +22,8 @@ were chosen with run2b's weaknesses in view: its edges on steps and ramps, its s
 - **Stop rules:**
   - A session that stops (Colab disconnect, the stop button) is resumed under the same RUN_ID.
   - A run that cannot be resumed (pipeline failure, non-finite parameters) is restarted once under a new RUN_ID with
-    the same seed. It is reported, and the first attempt's files are kept.
+    the same seed. It is reported, and the first attempt's files are kept. If the restart also fails, that seed has
+    no judged checkpoint: its rules are "not judged", and no rule can pass (a pass needs both seeds).
   - A run is never extended or shortened.
 - **What is judged:** the final checkpoint of each run (the last pair train.py writes at 10,0xx,xxx steps). It is not
   chosen among checkpoints.
@@ -39,12 +41,17 @@ sweep adds its own steps, ramps and pushes.
   - nominal model, observation noise on;
   - 8 episodes per point, seeds 200000-200007;
   - 0.25 m/s unless stated.
-- **Model export:** the run commit's `rl/` exported through TRIKE_ENV_DIR, as for run2b.
+- **Environment:** the run commit's `rl/`, in the tree if `rl/` is unchanged since the run commit, otherwise
+  exported through TRIKE_ENV_DIR (run2b was measured in the tree).
 
 ## Rules (each judged per seed)
 
-"Nominal speed" is that seed's own speed at the sweep's nominal point. Drift is the sweep's `drift_abs_mean_m`: the
-mean over 8 episodes of the absolute sideways displacement over 18 s.
+Fields (thresholds apply to the unrounded values in the tools' JSON):
+- **Gait report:** F1's mean speed is the target case's `speed.forward_speed_mps` (from 2 s on); falls are the case's
+  `falls`. F2 uses `drives.per_joint.<joint>.rms_over_continuous.mean`.
+- **Sweep:** "speed" is a point's `speed_mps` and "drift" its `drift_abs_mean_m`. Both are means over the episodes
+  that did not fall, so every terrain rule also requires no fall at its points; a point where every episode fell has
+  neither and fails. "Nominal speed" is that seed's `speed_mps` at the sweep's nominal point.
 
 | Rule | Measure | Pass when | run2b, for reference |
 |---|---|---|---|
@@ -52,8 +59,8 @@ mean over 8 episodes of the absolute sideways displacement over 18 s.
 | F2 flat heat | Same case | Every joint's RMS torque / continuous rating under 1.0 (mean of episodes) | worst 0.72 |
 | T1 steps | Sweep, 3 cm step up | No fall in 8, and speed at least 80 % of nominal | 0 falls, 46 % of nominal |
 | T2 ramps | Sweep, 8° ramp up | No fall in 8, and speed at least 80 % of nominal | 0 falls, 66 % |
-| T3 straight on terrain | Sweep, steps 2 and 3 cm, ramps 5 and 8° | Drift at most 0.30 m at each of the four points | 1.13, 1.15, 0.66, 0.87 m |
-| T4 slippery floor | Sweep, friction 0.3 | Drift at most 0.20 m, and speed at least 80 % of nominal | 0.32 m, 95 % |
+| T3 straight on terrain | Sweep, steps 2 and 3 cm, ramps 5 and 8° | No fall in 8 at each of the four points, and drift at most 0.30 m at each | 0 falls; 1.13, 1.15, 0.66, 0.87 m |
+| T4 slippery floor | Sweep, friction 0.3 | No fall in 8, drift at most 0.20 m, and speed at least 80 % of nominal | 0 falls, 0.32 m, 95 % |
 | T5 pushes | Sweep, sideways push, free-body dv | No fall at -1.0 or +1.0 m/s; at most 2 of 8 falls at each of -1.25 and +1.25 m/s | 0 and 0; 4 and 7 of 8 |
 
 ## Reading
@@ -69,6 +76,14 @@ mean over 8 episodes of the absolute sideways displacement over 18 s.
 
 - The policy observes the simulator's true velocity (`obs_privileged_lin_vel`).
 - The terrain is blind to the policy.
-- Training ranges and sweep ranges overlap in part (steps up to 4 cm and pushes up to 1.0 m/s in training), so T1,
-  T2 and the 1.0 m/s part of T5 test trained conditions. Only the 1.25 m/s pushes and friction below 0.3 test beyond
-  them.
+- Training ranges and sweep ranges overlap in part (steps up to 4 cm, ramps up to 10°, friction down to 0.3 and
+  pushes up to 1.0 m/s in training), so T1-T4 and the 1.0 m/s part of T5 test trained conditions. Only the 1.25 m/s
+  pushes, and the sweep's friction points below 0.3 (reported), test beyond them.
+
+## Revised before any run (after the independent review of 4bafe666; no run had started)
+
+- The drift cost was described as on the terrain schedule; in the code it is at full weight from the first step.
+  The text now says so.
+- T3 and T4 gained "no fall in 8"; the fields, unrounded thresholds and the all-fell case are named.
+- The environment line no longer says run2b was measured through TRIKE_ENV_DIR (it was measured in the tree).
+- Added: what happens if a restart also fails. Corrected: which rules test trained conditions.

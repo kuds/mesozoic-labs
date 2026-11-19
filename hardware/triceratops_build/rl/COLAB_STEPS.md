@@ -102,6 +102,9 @@ Three rules for the whole sheet:
            <pid> is a number (the notebook's own process: train.py stops by itself if that process goes away).
            <V> is the number of processors Colab gave (8 expected with High-RAM).       (expected, not yet seen)
            If the Machine line ends "WARNING: more envs than vCPUs, each env runs slower": go on, and tell me <V>.
+           With an ENV_PRESET, the Running line ends "... --exit-with-parent <pid> --env-config <the checkout>/
+           hardware/triceratops_build/rl/configs/<ENV_PRESET>.json", and every progress line in (f) has
+           ", terrain scale x.xx" after the late scale; the run's own sheet gives these lines in full.
 
        (f) Every 100,000 steps a progress line (one line on screen), the first one:
              steps 100000 of <<TOTAL_STEPS>> (<<P: 100000 AS A PERCENTAGE OF TOTAL_STEPS, ONE DECIMAL>>%), <R> env steps/s, penalty scale 0.14, late scale 0.00; training rollouts (stochastic actions), last <k> episodes: return ..., length ... steps, speed ... m/s at command ... m/s

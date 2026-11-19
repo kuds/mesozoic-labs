@@ -412,6 +412,8 @@ class TrikeEnv(gym.Env):
             raise ValueError("terrain_boxes must be at least 3 when slopes are on (ramp, plateau, ramp)")
         if not 0.0 <= cfg.terrain_prob_steps + cfg.terrain_prob_slopes <= 1.0:
             raise ValueError("terrain_prob_steps + terrain_prob_slopes must lie in [0, 1]")
+        if 2 + 3 * cfg.terrain_boxes > TERRAIN_DRAWS:  # steps use 2 + 3 draws per box
+            raise ValueError(f"terrain_boxes must be at most {(TERRAIN_DRAWS - 2) // 3}")
         self.model = (terrain_model(cfg.model_path, cfg.terrain_boxes, cfg.terrain_half_width_m)
                       if cfg.terrain_boxes > 0 else mujoco.MjModel.from_xml_path(str(cfg.model_path)))
         self.data = mujoco.MjData(self.model)
@@ -815,7 +817,7 @@ class TrikeEnv(gym.Env):
         })
         if self._ground is not None or self._push_start >= 0:
             info["ground_height"] = float(d.xpos[self._chassis, 2]) - z
-            info["push_active"] = bool(self._push_start <= self._phys_step < self._push_end)
+            info["push_active"] = bool(self._push_start <= self._phys_step - 1 < self._push_end)  # the last step
         return obs, reward, terminated, truncated, info
 
     # ------------------------------------------------------------------ pieces
@@ -876,10 +878,13 @@ class TrikeEnv(gym.Env):
                 d.mocap_pos[k] = [o[0], o[1], TERRAIN_PARKED_Z]
                 d.mocap_quat[k] = [1.0, 0.0, 0.0, 0.0]
                 size = np.array([0.05, 0.05, 0.05])
+            # the box's own collision bounds (MuJoCo misses a contact with a box whose geom_aabb or geom_rbound is
+            # stale), and its body's bounding-volume node's half-sizes (the node's centre stays as compiled; MuJoCo
+            # 3.10 does not use the node for a single-geom body, it is kept consistent)
             m.geom_size[g] = size
             m.geom_rbound[g] = float(np.linalg.norm(size))
             m.geom_aabb[g] = [0.0, 0.0, 0.0, *size]
-            m.bvh_aabb[bvh] = [0.0, 0.0, 0.0, *size]
+            m.bvh_aabb[bvh, 3:] = size
         self.terrain_kind = lay["kind"]
         self._ground = (o, h, lay["profile"][0], lay["profile"][1])
 
@@ -888,7 +893,10 @@ class TrikeEnv(gym.Env):
         if self._ground is None:
             return 0.0
         o, h, ps, pz = self._ground
-        return float(np.interp(float((np.asarray(xy)[:2] - o) @ h), ps, pz, left=0.0, right=0.0))
+        r = np.asarray(xy, dtype=np.float64)[:2] - o
+        if abs(float(r @ np.array([-h[1], h[0]]))) > self.cfg.terrain_half_width_m:
+            return 0.0  # beside the boxes: the floor
+        return float(np.interp(float(r @ h), ps, pz, left=0.0, right=0.0))
 
     def _get_obs(self, noise: bool) -> np.ndarray:
         cfg, d = self.cfg, self.data
