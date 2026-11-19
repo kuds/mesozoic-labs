@@ -2,6 +2,12 @@
  "policy_zip_sha256": "dc06d30105b201bfe11113ed85dc66011b593c927b6cee19bc68e2f815b35b69",
  "vecnormalize_sha256": "21b44428289b5c88d3d00cb2ccbcd49fdeca25a44b5d5ecb7d0b8bac1f343984",
  "run_commit": "6aa3a679761337d8035ff276de5c595adc5dc309",
+ "code_sha256": {
+  "trike_env.py": "4ffec806e7948acd6b5c95f7b8e47a09ba7f8cb87120a46302d1de3dd9971297",
+  "trike60_C_closed.xml": "65e2da45a60fd7798a115129ff2648cf355ee8ae1ad0040f5deeb59c51037d7e",
+  "trike60_C_closed_ankleroll.xml": "eea9c0d3684b786263bcd2d49c347d4c760aed770128fa7a67b6738af70b1987"
+ },
+ "note": "the environment is built from the run record's configuration, so the configuration check is a consistency check; that trike_env.py and the models are the trained ones rests on git (unchanged since the run's commit) and the hashes above",
  "delay_ms": 10,
  "seeds": [
   100000,
@@ -62,6 +68,179 @@
      "left_hind": 0.3187719363219974,
      "right_hind": 0.4335418040510018
     },
+    "sideways_drift_m_worst": 0.22682560256462186,
+    "sideways_drift_m_mean": 0.028629299946580367,
+    "heading_change_deg_worst": 5.330223462961298,
+    "per_joint": {
+     "left_fore_roll": {
+      "rms_over_thermal": {
+       "mean": 0.46715738764758036,
+       "worst": 0.519318471096935
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.0,
+       "worst": 0.0
+      }
+     },
+     "left_fore_pitch": {
+      "rms_over_thermal": {
+       "mean": 1.017532854315442,
+       "worst": 1.0877305342616308
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.0951111111111111,
+       "worst": 0.12577777777777777
+      }
+     },
+     "left_fore_flexion": {
+      "rms_over_thermal": {
+       "mean": 0.939380785728692,
+       "worst": 0.9685778327195238
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.042600000000000006,
+       "worst": 0.04594444444444445
+      }
+     },
+     "right_fore_roll": {
+      "rms_over_thermal": {
+       "mean": 0.5924629244781023,
+       "worst": 0.6532133009920856
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.0,
+       "worst": 0.0
+      }
+     },
+     "right_fore_pitch": {
+      "rms_over_thermal": {
+       "mean": 1.0175095963933867,
+       "worst": 1.1148061530824311
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.05427777777777777,
+       "worst": 0.07061111111111111
+      }
+     },
+     "right_fore_flexion": {
+      "rms_over_thermal": {
+       "mean": 0.9563077666873383,
+       "worst": 0.9929222256213287
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.0241,
+       "worst": 0.03172222222222222
+      }
+     },
+     "left_hind_roll": {
+      "rms_over_thermal": {
+       "mean": 0.7146976595845091,
+       "worst": 0.7833933090927012
+      },
+      "sat_nominal": {
+       "mean": 4.4444444444444447e-05,
+       "worst": 0.00022222222222222223
+      },
+      "sat_episode_limit": {
+       "mean": 0.0008888888888888889,
+       "worst": 0.001888888888888889
+      }
+     },
+     "left_hind_pitch": {
+      "rms_over_thermal": {
+       "mean": 0.8286405981070392,
+       "worst": 0.927157899089088
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.010844444444444445,
+       "worst": 0.016444444444444446
+      }
+     },
+     "left_hind_flexion": {
+      "rms_over_thermal": {
+       "mean": 1.1003980367379231,
+       "worst": 1.152343350963997
+      },
+      "sat_nominal": {
+       "mean": 0.009077777777777778,
+       "worst": 0.027666666666666666
+      },
+      "sat_episode_limit": {
+       "mean": 0.029155555555555556,
+       "worst": 0.03727777777777778
+      }
+     },
+     "right_hind_roll": {
+      "rms_over_thermal": {
+       "mean": 0.5768598685981634,
+       "worst": 0.6342257521881306
+      },
+      "sat_nominal": {
+       "mean": 0.0005777777777777778,
+       "worst": 0.001888888888888889
+      },
+      "sat_episode_limit": {
+       "mean": 0.003377777777777778,
+       "worst": 0.008
+      }
+     },
+     "right_hind_pitch": {
+      "rms_over_thermal": {
+       "mean": 0.6636428426248401,
+       "worst": 0.7694802268041117
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.008944444444444444,
+       "worst": 0.016944444444444446
+      }
+     },
+     "right_hind_flexion": {
+      "rms_over_thermal": {
+       "mean": 0.918271387752772,
+       "worst": 0.9390065076864291
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.043255555555555554,
+       "worst": 0.05372222222222222
+      }
+     }
+    },
     "roll_deg_rms": 1.154382771197675,
     "pitch_deg_rms": 1.0800086933588058,
     "drives": {
@@ -71,7 +250,8 @@
       "rms_over_thermal": 0.7833933090926971,
       "peak_nm": 20.93349576495133,
       "peak_over_limit": 0.9968331316643491,
-      "saturated_fraction": 0.0020555555555555557,
+      "saturated_fraction": 0.00047222222222222224,
+      "saturated_fraction_episode_limit": 0.0020555555555555557,
       "peak_rpm": 10.764018128297515,
       "rpm_over_allowance": 0.1296869654011749
      },
@@ -81,7 +261,8 @@
       "rms_over_thermal": 1.1148061530824438,
       "peak_nm": 20.52023155316465,
       "peak_over_limit": 0.9771538834840309,
-      "saturated_fraction": 0.05333333333333334,
+      "saturated_fraction": 0.0,
+      "saturated_fraction_episode_limit": 0.05333333333333334,
       "peak_rpm": 66.2998685265626,
       "rpm_over_allowance": 0.7987935967055736
      },
@@ -91,7 +272,8 @@
       "rms_over_thermal": 0.9929222256213251,
       "peak_nm": 37.10320280779375,
       "peak_over_limit": 0.9815662118463956,
-      "saturated_fraction": 0.03722222222222222,
+      "saturated_fraction": 0.0,
+      "saturated_fraction_episode_limit": 0.03722222222222222,
       "peak_rpm": 78.54882875588117,
       "rpm_over_allowance": 0.7273039699618628
      },
@@ -101,17 +283,16 @@
       "rms_over_thermal": 1.1523433509640049,
       "peak_nm": 18.83995164930482,
       "peak_over_limit": 0.9968228385875566,
-      "saturated_fraction": 0.04133333333333333,
+      "saturated_fraction": 0.013833333333333333,
+      "saturated_fraction_episode_limit": 0.04133333333333333,
       "peak_rpm": 67.24805169892974,
       "rpm_over_allowance": 0.8102174903485512
      }
     },
     "flags": [
      "heat: pitch RMS 8.36 N\u00b7m over its 7.5 N\u00b7m thermal rating",
-     "saturation: pitch at >= 99 % of its limit in 5.3 % of steps",
-     "saturation: front elbow at >= 99 % of its limit in 3.7 % of steps",
      "heat: hind knee RMS 7.78 N\u00b7m over its 6.75 N\u00b7m thermal rating",
-     "saturation: hind knee at >= 99 % of its limit in 4.1 % of steps",
+     "saturation: hind knee at >= 99 % of its nominal limit in 1.4 % of steps",
      "slip: left_fore slip ratio 0.26 (flag above 0.25)",
      "slip: left_hind slip ratio 0.29 (flag above 0.25)"
     ]
@@ -124,6 +305,7 @@
      "forward_speed_mps": 0.23823557078918378,
      "sideways_drift_m": 0.22682560256462186,
      "height_range_mm": 19.93015099541645,
+     "heading_change_deg": 5.330223462961298,
      "duty_factor": {
       "left_fore": 0.3816111111111111,
       "right_fore": 0.5733888888888888,
@@ -168,6 +350,80 @@
        "slip_ratio": 0.22554292995447217
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.300707640227034,
+       "rms_over_thermal": 0.4400943520302712,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 7.1196163239729335,
+       "rms_over_thermal": 0.9492821765297245,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.09383333333333334
+      },
+      "left_fore_flexion": {
+       "rms_nm": 10.453204609695407,
+       "rms_over_thermal": 0.9678893157125376,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.03927777777777778
+      },
+      "right_fore_roll": {
+       "rms_nm": 4.224622684161892,
+       "rms_over_thermal": 0.5632830245549189,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 7.429211917402257,
+       "rms_over_thermal": 0.9905615889869676,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04633333333333333
+      },
+      "right_fore_flexion": {
+       "rms_nm": 10.473460002381152,
+       "rms_over_thermal": 0.9697648150352918,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.03172222222222222
+      },
+      "left_hind_roll": {
+       "rms_nm": 5.283096737662782,
+       "rms_over_thermal": 0.7044128983550376,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0013333333333333333
+      },
+      "left_hind_pitch": {
+       "rms_nm": 6.181276622905583,
+       "rms_over_thermal": 0.8241702163874111,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.011888888888888888
+      },
+      "left_hind_flexion": {
+       "rms_nm": 7.6699212702480715,
+       "rms_over_thermal": 1.1362846326293439,
+       "sat_nominal": 0.027666666666666666,
+       "sat_episode_limit": 0.02811111111111111
+      },
+      "right_hind_roll": {
+       "rms_nm": 4.021946054982939,
+       "rms_over_thermal": 0.5362594739977252,
+       "sat_nominal": 0.001,
+       "sat_episode_limit": 0.0010555555555555555
+      },
+      "right_hind_pitch": {
+       "rms_nm": 4.690606519524036,
+       "rms_over_thermal": 0.6254142026032048,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0071111111111111115
+      },
+      "right_hind_flexion": {
+       "rms_nm": 6.287546642910241,
+       "rms_over_thermal": 0.9314883915422579,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.042277777777777775
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 5.283096737662759,
@@ -175,7 +431,8 @@
        "rms_over_thermal": 0.7044128983550345,
        "peak_nm": 20.796393647928685,
        "peak_over_limit": 0.9903044594251755,
-       "saturated_fraction": 0.0005972222222222222,
+       "saturated_fraction": 0.00025,
+       "saturated_fraction_episode_limit": 0.0005972222222222222,
        "peak_rpm": 7.895969191393223,
        "rpm_over_allowance": 0.09513215893244847
       },
@@ -185,7 +442,8 @@
        "rms_over_thermal": 0.9905615889869598,
        "peak_nm": 19.806243916781785,
        "peak_over_limit": 0.9431544722277041,
-       "saturated_fraction": 0.03979166666666667,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.03979166666666667,
        "peak_rpm": 60.8105549175849,
        "rpm_over_allowance": 0.7326572881636735
       },
@@ -195,7 +453,8 @@
        "rms_over_thermal": 0.9697648150352882,
        "peak_nm": 36.91403778592685,
        "peak_over_limit": 0.9765618461885411,
-       "saturated_fraction": 0.0355,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.0355,
        "peak_rpm": 78.54882875588117,
        "rpm_over_allowance": 0.7273039699618628
       },
@@ -205,7 +464,8 @@
        "rms_over_thermal": 1.1362846326293459,
        "peak_nm": 18.751178209392744,
        "peak_over_limit": 0.9921258311848014,
-       "saturated_fraction": 0.035194444444444445,
+       "saturated_fraction": 0.013833333333333333,
+       "saturated_fraction_episode_limit": 0.035194444444444445,
        "peak_rpm": 49.52350320043105,
        "rpm_over_allowance": 0.5966687132582055
       }
@@ -228,6 +488,7 @@
      "forward_speed_mps": 0.23791145023603827,
      "sideways_drift_m": 0.16871321582045182,
      "height_range_mm": 19.640338660063648,
+     "heading_change_deg": 3.2727943537811677,
      "duty_factor": {
       "left_fore": 0.39805555555555555,
       "right_fore": 0.5702777777777778,
@@ -272,6 +533,80 @@
        "slip_ratio": 0.2346249866421984
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.7456004445385167,
+       "rms_over_thermal": 0.49941339260513556,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 8.033770765569919,
+       "rms_over_thermal": 1.0711694354093226,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.12577777777777777
+      },
+      "left_fore_flexion": {
+       "rms_nm": 9.966076082996171,
+       "rms_over_thermal": 0.9227848224996454,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04544444444444445
+      },
+      "right_fore_roll": {
+       "rms_nm": 4.847327207466713,
+       "rms_over_thermal": 0.6463102943288951,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 8.258567833282749,
+       "rms_over_thermal": 1.1011423777710332,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.051055555555555555
+      },
+      "right_fore_flexion": {
+       "rms_nm": 10.536300664325793,
+       "rms_over_thermal": 0.9755833948449808,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.025555555555555557
+      },
+      "left_hind_roll": {
+       "rms_nm": 5.6092659196553285,
+       "rms_over_thermal": 0.7479021226207104,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.001888888888888889
+      },
+      "left_hind_pitch": {
+       "rms_nm": 6.751120507067186,
+       "rms_over_thermal": 0.9001494009422915,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0067777777777777775
+      },
+      "left_hind_flexion": {
+       "rms_nm": 7.542206122138882,
+       "rms_over_thermal": 1.1173638699465012,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.03727777777777778
+      },
+      "right_hind_roll": {
+       "rms_nm": 4.654478201944274,
+       "rms_over_thermal": 0.6205970935925699,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0035555555555555557
+      },
+      "right_hind_pitch": {
+       "rms_nm": 5.3853936842365675,
+       "rms_over_thermal": 0.7180524912315424,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.006333333333333333
+      },
+      "right_hind_flexion": {
+       "rms_nm": 6.235460212514648,
+       "rms_over_thermal": 0.9237718833355034,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.035388888888888886
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 5.609265919655318,
@@ -279,7 +614,8 @@
        "rms_over_thermal": 0.7479021226207091,
        "peak_nm": 20.177339149277934,
        "peak_over_limit": 0.9608256737751397,
-       "saturated_fraction": 0.0013611111111111111,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.0013611111111111111,
        "peak_rpm": 9.549880335614167,
        "rpm_over_allowance": 0.11505879922426708
       },
@@ -289,7 +625,8 @@
        "rms_over_thermal": 1.10114237777103,
        "peak_nm": 20.434116762566973,
        "peak_over_limit": 0.9730531791698558,
-       "saturated_fraction": 0.04748611111111111,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.04748611111111111,
        "peak_rpm": 61.97577937542329,
        "rpm_over_allowance": 0.7466961370532927
       },
@@ -299,7 +636,8 @@
        "rms_over_thermal": 0.9755833948449781,
        "peak_nm": 34.570921723531164,
        "peak_over_limit": 0.9145746487706657,
-       "saturated_fraction": 0.0355,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.0355,
        "peak_rpm": 74.44448634542745,
        "rpm_over_allowance": 0.6893007994946986
       },
@@ -309,7 +647,8 @@
        "rms_over_thermal": 1.1173638699464985,
        "peak_nm": 17.396554512169907,
        "peak_over_limit": 0.9204526196915295,
-       "saturated_fraction": 0.036333333333333336,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.036333333333333336,
        "peak_rpm": 56.92802827992809,
        "rpm_over_allowance": 0.6858798587943143
       }
@@ -332,6 +671,7 @@
      "forward_speed_mps": 0.2368659911589738,
      "sideways_drift_m": -0.16321923770962501,
      "height_range_mm": 23.182761789060315,
+     "heading_change_deg": -2.1451455579685983,
      "duty_factor": {
       "left_fore": 0.3915,
       "right_fore": 0.5672777777777778,
@@ -376,6 +716,80 @@
        "slip_ratio": 0.21733316671521216
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.8948885332270122,
+       "rms_over_thermal": 0.519318471096935,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 8.15797900696223,
+       "rms_over_thermal": 1.0877305342616308,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.10933333333333334
+      },
+      "left_fore_flexion": {
+       "rms_nm": 10.430809365115232,
+       "rms_over_thermal": 0.965815681955114,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0415
+      },
+      "right_fore_roll": {
+       "rms_nm": 4.899099757440642,
+       "rms_over_thermal": 0.6532133009920856,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 8.361046148118234,
+       "rms_over_thermal": 1.1148061530824311,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.07061111111111111
+      },
+      "right_fore_flexion": {
+       "rms_nm": 10.723560036710351,
+       "rms_over_thermal": 0.9929222256213287,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.025333333333333333
+      },
+      "left_hind_roll": {
+       "rms_nm": 5.875449818195259,
+       "rms_over_thermal": 0.7833933090927012,
+       "sat_nominal": 0.00022222222222222223,
+       "sat_episode_limit": 0.00022222222222222223
+      },
+      "left_hind_pitch": {
+       "rms_nm": 6.953684243168159,
+       "rms_over_thermal": 0.927157899089088,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.016444444444444446
+      },
+      "left_hind_flexion": {
+       "rms_nm": 7.77831761900698,
+       "rms_over_thermal": 1.152343350963997,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0335
+      },
+      "right_hind_roll": {
+       "rms_nm": 4.756693141410979,
+       "rms_over_thermal": 0.6342257521881306,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.008
+      },
+      "right_hind_pitch": {
+       "rms_nm": 5.771101701030838,
+       "rms_over_thermal": 0.7694802268041117,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.016944444444444446
+      },
+      "right_hind_flexion": {
+       "rms_nm": 6.338293926883397,
+       "rms_over_thermal": 0.9390065076864291,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04644444444444444
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 5.875449818195229,
@@ -383,7 +797,8 @@
        "rms_over_thermal": 0.7833933090926971,
        "peak_nm": 20.84549088866585,
        "peak_over_limit": 0.9926424232698023,
-       "saturated_fraction": 0.0020555555555555557,
+       "saturated_fraction": 5.555555555555556e-05,
+       "saturated_fraction_episode_limit": 0.0020555555555555557,
        "peak_rpm": 10.764018128297515,
        "rpm_over_allowance": 0.1296869654011749
       },
@@ -393,7 +808,8 @@
        "rms_over_thermal": 1.1148061530824438,
        "peak_nm": 19.962859942198577,
        "peak_over_limit": 0.9506123781999323,
-       "saturated_fraction": 0.05333333333333334,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.05333333333333334,
        "peak_rpm": 66.2998685265626,
        "rpm_over_allowance": 0.7987935967055736
       },
@@ -403,7 +819,8 @@
        "rms_over_thermal": 0.9929222256213251,
        "peak_nm": 35.12451653162624,
        "peak_over_limit": 0.9292200140641863,
-       "saturated_fraction": 0.033416666666666664,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.033416666666666664,
        "peak_rpm": 75.98637848387924,
        "rpm_over_allowance": 0.7035775785544374
       },
@@ -413,7 +830,8 @@
        "rms_over_thermal": 1.1523433509640049,
        "peak_nm": 17.963998951232817,
        "peak_over_limit": 0.9504761349858634,
-       "saturated_fraction": 0.03997222222222222,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.03997222222222222,
        "peak_rpm": 67.24805169892974,
        "rpm_over_allowance": 0.8102174903485512
       }
@@ -436,6 +854,7 @@
      "forward_speed_mps": 0.23919061649480852,
      "sideways_drift_m": 0.006993439379656502,
      "height_range_mm": 19.48477315617775,
+     "heading_change_deg": -0.46089208798891435,
      "duty_factor": {
       "left_fore": 0.3922777777777778,
       "right_fore": 0.5738888888888889,
@@ -480,6 +899,80 @@
        "slip_ratio": 0.24272519922972577
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.299650805114152,
+       "rms_over_thermal": 0.4399534406818869,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 7.297472252806512,
+       "rms_over_thermal": 0.9729963003742016,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.07566666666666666
+      },
+      "left_fore_flexion": {
+       "rms_nm": 10.460640593370858,
+       "rms_over_thermal": 0.9685778327195238,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04594444444444445
+      },
+      "right_fore_roll": {
+       "rms_nm": 4.242631649649332,
+       "rms_over_thermal": 0.5656842199532442,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 7.036696765377189,
+       "rms_over_thermal": 0.9382262353836253,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0515
+      },
+      "right_fore_flexion": {
+       "rms_nm": 10.289777709035395,
+       "rms_over_thermal": 0.952757195281055,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0285
+      },
+      "left_hind_roll": {
+       "rms_nm": 5.179356606477077,
+       "rms_over_thermal": 0.6905808808636102,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0002777777777777778
+      },
+      "left_hind_pitch": {
+       "rms_nm": 5.564329486090159,
+       "rms_over_thermal": 0.7419105981453545,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.006166666666666667
+      },
+      "left_hind_flexion": {
+       "rms_nm": 7.314343397731862,
+       "rms_over_thermal": 1.0836064292936092,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.028944444444444443
+      },
+      "right_hind_roll": {
+       "rms_nm": 4.296699466794706,
+       "rms_over_thermal": 0.5728932622392942,
+       "sat_nominal": 0.001888888888888889,
+       "sat_episode_limit": 0.001888888888888889
+      },
+      "right_hind_pitch": {
+       "rms_nm": 4.6450644928422555,
+       "rms_over_thermal": 0.6193419323789674,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.006611111111111111
+      },
+      "right_hind_flexion": {
+       "rms_nm": 6.157620635401384,
+       "rms_over_thermal": 0.9122400941335383,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.05372222222222222
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 5.1793566064770875,
@@ -487,7 +980,8 @@
        "rms_over_thermal": 0.6905808808636117,
        "peak_nm": 20.93349576495133,
        "peak_over_limit": 0.9968331316643491,
-       "saturated_fraction": 0.0005416666666666666,
+       "saturated_fraction": 0.00047222222222222224,
+       "saturated_fraction_episode_limit": 0.0005416666666666666,
        "peak_rpm": 8.638538697387306,
        "rpm_over_allowance": 0.10407877948659404
       },
@@ -497,7 +991,8 @@
        "rms_over_thermal": 0.9729963003742147,
        "peak_nm": 19.71030262819623,
        "peak_over_limit": 0.9385858394379157,
-       "saturated_fraction": 0.034986111111111114,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.034986111111111114,
        "peak_rpm": 62.810112114922866,
        "rpm_over_allowance": 0.7567483387340105
       },
@@ -507,7 +1002,8 @@
        "rms_over_thermal": 0.9685778327195312,
        "peak_nm": 35.99595594754654,
        "peak_over_limit": 0.9522739668663107,
-       "saturated_fraction": 0.03722222222222222,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.03722222222222222,
        "peak_rpm": 73.6246063364969,
        "rpm_over_allowance": 0.6817093179305268
       },
@@ -517,7 +1013,8 @@
        "rms_over_thermal": 1.0836064292936147,
        "peak_nm": 17.85226900293799,
        "peak_over_limit": 0.9445644975099466,
-       "saturated_fraction": 0.04133333333333333,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.04133333333333333,
        "peak_rpm": 46.09107776028352,
        "rpm_over_allowance": 0.5553141898829339
       }
@@ -540,6 +1037,7 @@
      "forward_speed_mps": 0.24022761721628202,
      "sideways_drift_m": -0.09616652032220328,
      "height_range_mm": 19.086379332536097,
+     "heading_change_deg": -2.102290776085952,
      "duty_factor": {
       "left_fore": 0.39655555555555555,
       "right_fore": 0.5852222222222222,
@@ -584,6 +1082,80 @@
        "slip_ratio": 0.24094292876199122
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.2775546136775495,
+       "rms_over_thermal": 0.43700728182367327,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 7.548643687517485,
+       "rms_over_thermal": 1.0064858250023314,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.07094444444444445
+      },
+      "left_fore_flexion": {
+       "rms_nm": 9.415831778171704,
+       "rms_over_thermal": 0.8718362757566391,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04083333333333333
+      },
+      "right_fore_roll": {
+       "rms_nm": 4.0036783692102595,
+       "rms_over_thermal": 0.533823782561368,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 7.071087200571579,
+       "rms_over_thermal": 0.9428116267428772,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.05188888888888889
+      },
+      "right_fore_flexion": {
+       "rms_nm": 9.617520988663586,
+       "rms_over_thermal": 0.8905112026540356,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.00938888888888889
+      },
+      "left_hind_roll": {
+       "rms_nm": 4.853993152428646,
+       "rms_over_thermal": 0.6471990869904861,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0007222222222222222
+      },
+      "left_hind_pitch": {
+       "rms_nm": 5.623611569782881,
+       "rms_over_thermal": 0.7498148759710508,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.012944444444444444
+      },
+      "left_hind_flexion": {
+       "rms_nm": 6.833645330779108,
+       "rms_over_thermal": 1.0123919008561642,
+       "sat_nominal": 0.017722222222222223,
+       "sat_episode_limit": 0.017944444444444443
+      },
+      "right_hind_roll": {
+       "rms_nm": 3.9024282072982253,
+       "rms_over_thermal": 0.5203237609730967,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0023888888888888887
+      },
+      "right_hind_pitch": {
+       "rms_nm": 4.394440200797804,
+       "rms_over_thermal": 0.5859253601063739,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.007722222222222222
+      },
+      "right_hind_flexion": {
+       "rms_nm": 5.972737918946379,
+       "rms_over_thermal": 0.8848500620661303,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.03844444444444445
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 4.853993152428643,
@@ -591,7 +1163,8 @@
        "rms_over_thermal": 0.6471990869904858,
        "peak_nm": 20.62246964649687,
        "peak_over_limit": 0.9820223641188986,
-       "saturated_fraction": 0.0007777777777777777,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.0007777777777777777,
        "peak_rpm": 9.096415844488597,
        "rpm_over_allowance": 0.10959537162034454
       },
@@ -601,7 +1174,8 @@
        "rms_over_thermal": 1.0064858250023312,
        "peak_nm": 20.52023155316465,
        "peak_over_limit": 0.9771538834840309,
-       "saturated_fraction": 0.035875,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.035875,
        "peak_rpm": 64.03589424103001,
        "rpm_over_allowance": 0.7715167980846989
       },
@@ -611,7 +1185,8 @@
        "rms_over_thermal": 0.8905112026540366,
        "peak_nm": 37.10320280779375,
        "peak_over_limit": 0.9815662118463956,
-       "saturated_fraction": 0.025111111111111112,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.025111111111111112,
        "peak_rpm": 74.63285681480698,
        "rpm_over_allowance": 0.691044970507472
       },
@@ -621,7 +1196,8 @@
        "rms_over_thermal": 1.0123919008561582,
        "peak_nm": 18.83995164930482,
        "peak_over_limit": 0.9968228385875566,
-       "saturated_fraction": 0.028194444444444446,
+       "saturated_fraction": 0.008861111111111111,
+       "saturated_fraction_episode_limit": 0.028194444444444446,
        "peak_rpm": 49.18349547434369,
        "rpm_over_allowance": 0.5925722346306468
       }
@@ -689,6 +1265,179 @@
      "left_hind": 0.28604706963383886,
      "right_hind": 0.38174590412970877
     },
+    "sideways_drift_m_worst": 0.15050777749811173,
+    "sideways_drift_m_mean": 0.004282986883615972,
+    "heading_change_deg_worst": 5.231293861910089,
+    "per_joint": {
+     "left_fore_roll": {
+      "rms_over_thermal": {
+       "mean": 0.38168174745785033,
+       "worst": 0.42395552565111083
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.0,
+       "worst": 0.0
+      }
+     },
+     "left_fore_pitch": {
+      "rms_over_thermal": {
+       "mean": 0.9486819121993045,
+       "worst": 1.036719372715843
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.06347777777777779,
+       "worst": 0.0918888888888889
+      }
+     },
+     "left_fore_flexion": {
+      "rms_over_thermal": {
+       "mean": 0.847583248658655,
+       "worst": 0.8853896758079748
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.020344444444444446,
+       "worst": 0.023777777777777776
+      }
+     },
+     "right_fore_roll": {
+      "rms_over_thermal": {
+       "mean": 0.44062585530728293,
+       "worst": 0.4931482020336466
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.0,
+       "worst": 0.0
+      }
+     },
+     "right_fore_pitch": {
+      "rms_over_thermal": {
+       "mean": 0.9022082684077176,
+       "worst": 1.0080183200751063
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.036699999999999997,
+       "worst": 0.051277777777777776
+      }
+     },
+     "right_fore_flexion": {
+      "rms_over_thermal": {
+       "mean": 0.863237781604923,
+       "worst": 0.9034607728219343
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.0109,
+       "worst": 0.013444444444444445
+      }
+     },
+     "left_hind_roll": {
+      "rms_over_thermal": {
+       "mean": 0.5644821133244495,
+       "worst": 0.625758978399926
+      },
+      "sat_nominal": {
+       "mean": 1.1111111111111112e-05,
+       "worst": 5.555555555555556e-05
+      },
+      "sat_episode_limit": {
+       "mean": 0.00016666666666666666,
+       "worst": 0.0006666666666666666
+      }
+     },
+     "left_hind_pitch": {
+      "rms_over_thermal": {
+       "mean": 0.783741608201147,
+       "worst": 0.8769469991552266
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.011566666666666666,
+       "worst": 0.016833333333333332
+      }
+     },
+     "left_hind_flexion": {
+      "rms_over_thermal": {
+       "mean": 0.9685625191276979,
+       "worst": 1.0230497600985546
+      },
+      "sat_nominal": {
+       "mean": 0.002688888888888889,
+       "worst": 0.007611111111111111
+      },
+      "sat_episode_limit": {
+       "mean": 0.010588888888888889,
+       "worst": 0.01561111111111111
+      }
+     },
+     "right_hind_roll": {
+      "rms_over_thermal": {
+       "mean": 0.49522780913453907,
+       "worst": 0.5539638925533082
+      },
+      "sat_nominal": {
+       "mean": 4.4444444444444447e-05,
+       "worst": 0.00016666666666666666
+      },
+      "sat_episode_limit": {
+       "mean": 0.0007555555555555555,
+       "worst": 0.0015
+      }
+     },
+     "right_hind_pitch": {
+      "rms_over_thermal": {
+       "mean": 0.7570866913942709,
+       "worst": 0.8527355330672688
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.015044444444444447,
+       "worst": 0.029333333333333333
+      }
+     },
+     "right_hind_flexion": {
+      "rms_over_thermal": {
+       "mean": 0.839101188697535,
+       "worst": 0.8604491671450846
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.010355555555555555,
+       "worst": 0.016277777777777776
+      }
+     }
+    },
     "roll_deg_rms": 0.8412919085016217,
     "pitch_deg_rms": 0.9162708773125102,
     "drives": {
@@ -698,7 +1447,8 @@
       "rms_over_thermal": 0.625758978399925,
       "peak_nm": 20.93349576495133,
       "peak_over_limit": 0.9968331316643491,
-      "saturated_fraction": 0.0004861111111111111,
+      "saturated_fraction": 4.1666666666666665e-05,
+      "saturated_fraction_episode_limit": 0.0004861111111111111,
       "peak_rpm": 9.75045117978964,
       "rpm_over_allowance": 0.11747531541915228
      },
@@ -708,7 +1458,8 @@
       "rms_over_thermal": 1.0367193727158452,
       "peak_nm": 20.52023155316465,
       "peak_over_limit": 0.9771538834840309,
-      "saturated_fraction": 0.04363888888888889,
+      "saturated_fraction": 0.0,
+      "saturated_fraction_episode_limit": 0.04363888888888889,
       "peak_rpm": 64.36924208363365,
       "rpm_over_allowance": 0.7755330371522127
      },
@@ -718,7 +1469,8 @@
       "rms_over_thermal": 0.9034607728219323,
       "peak_nm": 37.10320280779375,
       "peak_over_limit": 0.9815662118463956,
-      "saturated_fraction": 0.017777777777777778,
+      "saturated_fraction": 0.0,
+      "saturated_fraction_episode_limit": 0.017777777777777778,
       "peak_rpm": 62.888201566038695,
       "rpm_over_allowance": 0.5822981626485064
      },
@@ -728,17 +1480,15 @@
       "rms_over_thermal": 1.0230497600985566,
       "peak_nm": 18.83995164930482,
       "peak_over_limit": 0.9968228385875566,
-      "saturated_fraction": 0.012861111111111111,
+      "saturated_fraction": 0.0038055555555555555,
+      "saturated_fraction_episode_limit": 0.012861111111111111,
       "peak_rpm": 49.166686219634315,
       "rpm_over_allowance": 0.59236971348957
      }
     },
     "flags": [
      "heat: pitch RMS 7.78 N\u00b7m over its 7.5 N\u00b7m thermal rating",
-     "saturation: pitch at >= 99 % of its limit in 4.4 % of steps",
-     "saturation: front elbow at >= 99 % of its limit in 1.8 % of steps",
      "heat: hind knee RMS 6.91 N\u00b7m over its 6.75 N\u00b7m thermal rating",
-     "saturation: hind knee at >= 99 % of its limit in 1.3 % of steps",
      "slip: left_fore slip ratio 0.37 (flag above 0.25)",
      "slip: right_fore slip ratio 0.33 (flag above 0.25)",
      "slip: left_hind slip ratio 0.37 (flag above 0.25)",
@@ -753,6 +1503,7 @@
      "forward_speed_mps": 0.14506330467920733,
      "sideways_drift_m": 0.15050777749811173,
      "height_range_mm": 15.47858214592318,
+     "heading_change_deg": 5.231293861910089,
      "duty_factor": {
       "left_fore": 0.40505555555555556,
       "right_fore": 0.6013888888888889,
@@ -797,6 +1548,80 @@
        "slip_ratio": 0.3502353309096124
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 2.800921798607602,
+       "rms_over_thermal": 0.37345623981434695,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 6.491359397946377,
+       "rms_over_thermal": 0.8655145863928503,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.05577777777777778
+      },
+      "left_fore_flexion": {
+       "rms_nm": 9.297681469651142,
+       "rms_over_thermal": 0.8608964323751057,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.016833333333333332
+      },
+      "right_fore_roll": {
+       "rms_nm": 3.160603928931532,
+       "rms_over_thermal": 0.42141385719087093,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 6.340488602043717,
+       "rms_over_thermal": 0.8453984802724955,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.023444444444444445
+      },
+      "right_fore_flexion": {
+       "rms_nm": 9.321320360485014,
+       "rms_over_thermal": 0.8630852185634272,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.010722222222222222
+      },
+      "left_hind_roll": {
+       "rms_nm": 4.163693359502404,
+       "rms_over_thermal": 0.5551591146003205,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 5.555555555555556e-05
+      },
+      "left_hind_pitch": {
+       "rms_nm": 5.9756075502700075,
+       "rms_over_thermal": 0.7967476733693343,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.012833333333333334
+      },
+      "left_hind_flexion": {
+       "rms_nm": 6.69258211363359,
+       "rms_over_thermal": 0.9914936464642357,
+       "sat_nominal": 0.007611111111111111,
+       "sat_episode_limit": 0.0077777777777777776
+      },
+      "right_hind_roll": {
+       "rms_nm": 3.5486656838309254,
+       "rms_over_thermal": 0.47315542451079007,
+       "sat_nominal": 0.00016666666666666666,
+       "sat_episode_limit": 0.00022222222222222223
+      },
+      "right_hind_pitch": {
+       "rms_nm": 5.327517638243368,
+       "rms_over_thermal": 0.7103356850991157,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.009777777777777778
+      },
+      "right_hind_flexion": {
+       "rms_nm": 5.7650073980821235,
+       "rms_over_thermal": 0.8540751700862406,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.009777777777777778
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 4.163693359502395,
@@ -804,7 +1629,8 @@
        "rms_over_thermal": 0.5551591146003194,
        "peak_nm": 20.796393647928685,
        "peak_over_limit": 0.9903044594251755,
-       "saturated_fraction": 6.944444444444444e-05,
+       "saturated_fraction": 4.1666666666666665e-05,
+       "saturated_fraction_episode_limit": 6.944444444444444e-05,
        "peak_rpm": 6.705981399231144,
        "rpm_over_allowance": 0.08079495661724269
       },
@@ -814,7 +1640,8 @@
        "rms_over_thermal": 0.8655145863928594,
        "peak_nm": 19.806243916781785,
        "peak_over_limit": 0.9431544722277041,
-       "saturated_fraction": 0.025458333333333333,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.025458333333333333,
        "peak_rpm": 48.39571149564732,
        "rpm_over_allowance": 0.5830808613933411
       },
@@ -824,7 +1651,8 @@
        "rms_over_thermal": 0.8630852185634228,
        "peak_nm": 36.91403778592685,
        "peak_over_limit": 0.9765618461885411,
-       "saturated_fraction": 0.013777777777777778,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.013777777777777778,
        "peak_rpm": 61.47826568605709,
        "rpm_over_allowance": 0.5692432007968249
       },
@@ -834,7 +1662,8 @@
        "rms_over_thermal": 0.9914936464642368,
        "peak_nm": 18.751178209392744,
        "peak_over_limit": 0.9921258311848014,
-       "saturated_fraction": 0.008777777777777778,
+       "saturated_fraction": 0.0038055555555555555,
+       "saturated_fraction_episode_limit": 0.008777777777777778,
        "peak_rpm": 44.85765424699925,
        "rpm_over_allowance": 0.540453665626497
       }
@@ -857,6 +1686,7 @@
      "forward_speed_mps": 0.14549912095339898,
      "sideways_drift_m": 0.10857896787544034,
      "height_range_mm": 18.490044810807515,
+     "heading_change_deg": 2.0766771650017395,
      "duty_factor": {
       "left_fore": 0.4127222222222222,
       "right_fore": 0.5942222222222222,
@@ -901,6 +1731,80 @@
        "slip_ratio": 0.3494683013492893
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.1796664423833314,
+       "rms_over_thermal": 0.42395552565111083,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 7.675854572252613,
+       "rms_over_thermal": 1.0234472763003484,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0918888888888889
+      },
+      "left_fore_flexion": {
+       "rms_nm": 9.15862824910592,
+       "rms_over_thermal": 0.8480211341764741,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.023777777777777776
+      },
+      "right_fore_roll": {
+       "rms_nm": 3.5421730407703755,
+       "rms_over_thermal": 0.4722897387693834,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 7.14667681014585,
+       "rms_over_thermal": 0.95289024135278,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.03777777777777778
+      },
+      "right_fore_flexion": {
+       "rms_nm": 9.396416432341654,
+       "rms_over_thermal": 0.8700385585501531,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.011666666666666667
+      },
+      "left_hind_roll": {
+       "rms_nm": 4.504596074197911,
+       "rms_over_thermal": 0.6006128098930549,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0006666666666666666
+      },
+      "left_hind_pitch": {
+       "rms_nm": 6.04307621561914,
+       "rms_over_thermal": 0.8057434954158854,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.007666666666666666
+      },
+      "left_hind_flexion": {
+       "rms_nm": 6.588988079051379,
+       "rms_over_thermal": 0.9761463820816858,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.014277777777777778
+      },
+      "right_hind_roll": {
+       "rms_nm": 4.1547291941498115,
+       "rms_over_thermal": 0.5539638925533082,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0012777777777777779
+      },
+      "right_hind_pitch": {
+       "rms_nm": 6.274593936760366,
+       "rms_over_thermal": 0.836612524901382,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.01161111111111111
+      },
+      "right_hind_flexion": {
+       "rms_nm": 5.808031878229321,
+       "rms_over_thermal": 0.8604491671450846,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.011055555555555556
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 4.504596074197913,
@@ -908,7 +1812,8 @@
        "rms_over_thermal": 0.6006128098930551,
        "peak_nm": 20.177339149277934,
        "peak_over_limit": 0.9608256737751397,
-       "saturated_fraction": 0.0004861111111111111,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.0004861111111111111,
        "peak_rpm": 7.615295551189495,
        "rpm_over_allowance": 0.09175054880951199
       },
@@ -918,7 +1823,8 @@
        "rms_over_thermal": 1.0234472763003335,
        "peak_nm": 20.434116762566973,
        "peak_over_limit": 0.9730531791698558,
-       "saturated_fraction": 0.03723611111111111,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.03723611111111111,
        "peak_rpm": 57.12516355192747,
        "rpm_over_allowance": 0.688254982553343
       },
@@ -928,7 +1834,8 @@
        "rms_over_thermal": 0.8700385585501479,
        "peak_nm": 34.570921723531164,
        "peak_over_limit": 0.9145746487706657,
-       "saturated_fraction": 0.017722222222222223,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.017722222222222223,
        "peak_rpm": 60.001490277764056,
        "rpm_over_allowance": 0.5555693544237412
       },
@@ -938,7 +1845,8 @@
        "rms_over_thermal": 0.9761463820816826,
        "peak_nm": 17.396554512169907,
        "peak_over_limit": 0.9204526196915295,
-       "saturated_fraction": 0.012666666666666666,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.012666666666666666,
        "peak_rpm": 47.11984657823339,
        "rpm_over_allowance": 0.5677089949184746
       }
@@ -961,6 +1869,7 @@
      "forward_speed_mps": 0.14267726322184837,
      "sideways_drift_m": -0.1076452398161877,
      "height_range_mm": 19.275092525314175,
+     "heading_change_deg": -1.5509780218193892,
      "duty_factor": {
       "left_fore": 0.4052222222222222,
       "right_fore": 0.5888333333333333,
@@ -1005,6 +1914,80 @@
        "slip_ratio": 0.33667970319204
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.1174444642110815,
+       "rms_over_thermal": 0.41565926189481084,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 7.775395295368823,
+       "rms_over_thermal": 1.036719372715843,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.07711111111111112
+      },
+      "left_fore_flexion": {
+       "rms_nm": 9.562208498726129,
+       "rms_over_thermal": 0.8853896758079748,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.022111111111111113
+      },
+      "right_fore_roll": {
+       "rms_nm": 3.6986115152523498,
+       "rms_over_thermal": 0.4931482020336466,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 7.560137400563296,
+       "rms_over_thermal": 1.0080183200751063,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.051277777777777776
+      },
+      "right_fore_flexion": {
+       "rms_nm": 9.75737634647689,
+       "rms_over_thermal": 0.9034607728219343,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.013444444444444445
+      },
+      "left_hind_roll": {
+       "rms_nm": 4.693192337999445,
+       "rms_over_thermal": 0.625758978399926,
+       "sat_nominal": 5.555555555555556e-05,
+       "sat_episode_limit": 5.555555555555556e-05
+      },
+      "left_hind_pitch": {
+       "rms_nm": 6.577102493664199,
+       "rms_over_thermal": 0.8769469991552266,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.016833333333333332
+      },
+      "left_hind_flexion": {
+       "rms_nm": 6.905585880665244,
+       "rms_over_thermal": 1.0230497600985546,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.01561111111111111
+      },
+      "right_hind_roll": {
+       "rms_nm": 4.030051209912152,
+       "rms_over_thermal": 0.5373401613216202,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0015
+      },
+      "right_hind_pitch": {
+       "rms_nm": 6.395516498004516,
+       "rms_over_thermal": 0.8527355330672688,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.029333333333333333
+      },
+      "right_hind_flexion": {
+       "rms_nm": 5.669170851831289,
+       "rms_over_thermal": 0.8398771632342651,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.006944444444444444
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 4.693192337999437,
@@ -1012,7 +1995,8 @@
        "rms_over_thermal": 0.625758978399925,
        "peak_nm": 20.84549088866585,
        "peak_over_limit": 0.9926424232698023,
-       "saturated_fraction": 0.00038888888888888887,
+       "saturated_fraction": 1.388888888888889e-05,
+       "saturated_fraction_episode_limit": 0.00038888888888888887,
        "peak_rpm": 9.75045117978964,
        "rpm_over_allowance": 0.11747531541915228
       },
@@ -1022,7 +2006,8 @@
        "rms_over_thermal": 1.0367193727158452,
        "peak_nm": 19.962859942198577,
        "peak_over_limit": 0.9506123781999323,
-       "saturated_fraction": 0.04363888888888889,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.04363888888888889,
        "peak_rpm": 64.36924208363365,
        "rpm_over_allowance": 0.7755330371522127
       },
@@ -1032,7 +2017,8 @@
        "rms_over_thermal": 0.9034607728219323,
        "peak_nm": 35.12451653162624,
        "peak_over_limit": 0.9292200140641863,
-       "saturated_fraction": 0.017777777777777778,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.017777777777777778,
        "peak_rpm": 62.888201566038695,
        "rpm_over_allowance": 0.5822981626485064
       },
@@ -1042,7 +2028,8 @@
        "rms_over_thermal": 1.0230497600985566,
        "peak_nm": 17.963998951232817,
        "peak_over_limit": 0.9504761349858634,
-       "saturated_fraction": 0.011277777777777777,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.011277777777777777,
        "peak_rpm": 49.166686219634315,
        "rpm_over_allowance": 0.59236971348957
       }
@@ -1065,6 +2052,7 @@
      "forward_speed_mps": 0.14504976976228245,
      "sideways_drift_m": -0.020991456439495786,
      "height_range_mm": 14.70574417474413,
+     "heading_change_deg": 1.564649633406475,
      "duty_factor": {
       "left_fore": 0.40944444444444444,
       "right_fore": 0.5948333333333333,
@@ -1109,6 +2097,80 @@
        "slip_ratio": 0.3393898659741544
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 2.651459762050111,
+       "rms_over_thermal": 0.35352796827334815,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 6.658782443594902,
+       "rms_over_thermal": 0.8878376591459869,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04416666666666667
+      },
+      "left_fore_flexion": {
+       "rms_nm": 9.196062351949081,
+       "rms_over_thermal": 0.8514872548101,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.01877777777777778
+      },
+      "right_fore_roll": {
+       "rms_nm": 3.146400686347366,
+       "rms_over_thermal": 0.41952009151298214,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 6.306171034530402,
+       "rms_over_thermal": 0.8408228046040536,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.03088888888888889
+      },
+      "right_fore_flexion": {
+       "rms_nm": 9.231547544647539,
+       "rms_over_thermal": 0.854772920800698,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.011055555555555556
+      },
+      "left_hind_roll": {
+       "rms_nm": 4.0010223520093655,
+       "rms_over_thermal": 0.5334696469345821,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 5.555555555555556e-05
+      },
+      "left_hind_pitch": {
+       "rms_nm": 5.2918915246042735,
+       "rms_over_thermal": 0.7055855366139031,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.008055555555555555
+      },
+      "left_hind_flexion": {
+       "rms_nm": 6.414149716344364,
+       "rms_over_thermal": 0.9502444024213873,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.009444444444444445
+      },
+      "right_hind_roll": {
+       "rms_nm": 3.5018821220139795,
+       "rms_over_thermal": 0.4669176162685306,
+       "sat_nominal": 5.555555555555556e-05,
+       "sat_episode_limit": 5.555555555555556e-05
+      },
+      "right_hind_pitch": {
+       "rms_nm": 5.315528055332223,
+       "rms_over_thermal": 0.7087370740442964,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.011722222222222222
+      },
+      "right_hind_flexion": {
+       "rms_nm": 5.677260395543462,
+       "rms_over_thermal": 0.841075614154587,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.016277777777777776
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 4.001022352009371,
@@ -1116,7 +2178,8 @@
        "rms_over_thermal": 0.5334696469345828,
        "peak_nm": 20.93349576495133,
        "peak_over_limit": 0.9968331316643491,
-       "saturated_fraction": 2.777777777777778e-05,
+       "saturated_fraction": 1.388888888888889e-05,
+       "saturated_fraction_episode_limit": 2.777777777777778e-05,
        "peak_rpm": 6.987078445498299,
        "rpm_over_allowance": 0.0841816680180518
       },
@@ -1126,7 +2189,8 @@
        "rms_over_thermal": 0.8878376591459908,
        "peak_nm": 19.71030262819623,
        "peak_over_limit": 0.9385858394379157,
-       "saturated_fraction": 0.023708333333333335,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.023708333333333335,
        "peak_rpm": 49.84802532171061,
        "rpm_over_allowance": 0.6005786183338627
       },
@@ -1136,7 +2200,8 @@
        "rms_over_thermal": 0.8547729208007001,
        "peak_nm": 35.99595594754654,
        "peak_over_limit": 0.9522739668663107,
-       "saturated_fraction": 0.014916666666666667,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.014916666666666667,
        "peak_rpm": 59.10692337965079,
        "rpm_over_allowance": 0.5472863275893591
       },
@@ -1146,7 +2211,8 @@
        "rms_over_thermal": 0.9502444024213887,
        "peak_nm": 17.85226900293799,
        "peak_over_limit": 0.9445644975099466,
-       "saturated_fraction": 0.012861111111111111,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.012861111111111111,
        "peak_rpm": 37.805129752580484,
        "rpm_over_allowance": 0.4554834909949456
       }
@@ -1169,6 +2235,7 @@
      "forward_speed_mps": 0.1446573492509952,
      "sideways_drift_m": -0.10903511469978873,
      "height_range_mm": 16.38824503781772,
+     "heading_change_deg": -4.60917027296871,
      "duty_factor": {
       "left_fore": 0.40955555555555556,
       "right_fore": 0.6095,
@@ -1213,6 +2280,80 @@
        "slip_ratio": 0.35786643432456466
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 2.5635730624172623,
+       "rms_over_thermal": 0.341809741655635,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 6.974179998311207,
+       "rms_over_thermal": 0.9298906664414943,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04844444444444444
+      },
+      "left_fore_flexion": {
+       "rms_nm": 8.554914858135094,
+       "rms_over_thermal": 0.7921217461236197,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.02022222222222222
+      },
+      "right_fore_roll": {
+       "rms_nm": 2.9756804027214883,
+       "rms_over_thermal": 0.3967573870295318,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 6.47933621800615,
+       "rms_over_thermal": 0.8639114957341534,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04011111111111111
+      },
+      "right_fore_flexion": {
+       "rms_nm": 8.908179522714748,
+       "rms_over_thermal": 0.8248314372884026,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.007611111111111111
+      },
+      "left_hind_roll": {
+       "rms_nm": 3.80557512595773,
+       "rms_over_thermal": 0.507410016794364,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_hind_pitch": {
+       "rms_nm": 5.502632523385391,
+       "rms_over_thermal": 0.7336843364513855,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.012444444444444444
+      },
+      "left_hind_flexion": {
+       "rms_nm": 6.087679230865223,
+       "rms_over_thermal": 0.9018784045726256,
+       "sat_nominal": 0.005833333333333334,
+       "sat_episode_limit": 0.005833333333333334
+      },
+      "right_hind_roll": {
+       "rms_nm": 3.3357146326383456,
+       "rms_over_thermal": 0.44476195101844607,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0007222222222222222
+      },
+      "right_hind_pitch": {
+       "rms_nm": 5.077594798944684,
+       "rms_over_thermal": 0.6770126398592912,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.012777777777777779
+      },
+      "right_hind_flexion": {
+       "rms_nm": 5.400194594855615,
+       "rms_over_thermal": 0.8000288288674986,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.007722222222222222
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 3.8055751259577226,
@@ -1220,7 +2361,8 @@
        "rms_over_thermal": 0.507410016794363,
        "peak_nm": 18.654756366269666,
        "peak_over_limit": 0.8883217317271269,
-       "saturated_fraction": 0.00018055555555555555,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.00018055555555555555,
        "peak_rpm": 8.356244774962098,
        "rpm_over_allowance": 0.10067764789110961
       },
@@ -1230,7 +2372,8 @@
        "rms_over_thermal": 0.9298906664414949,
        "peak_nm": 20.52023155316465,
        "peak_over_limit": 0.9771538834840309,
-       "saturated_fraction": 0.028444444444444446,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.028444444444444446,
        "peak_rpm": 54.554832883612306,
        "rpm_over_allowance": 0.6572871431760519
       },
@@ -1240,7 +2383,8 @@
        "rms_over_thermal": 0.8248314372883978,
        "peak_nm": 37.10320280779375,
        "peak_over_limit": 0.9815662118463956,
-       "saturated_fraction": 0.013916666666666667,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.013916666666666667,
        "peak_rpm": 58.98188320457179,
        "rpm_over_allowance": 0.5461285481904795
       },
@@ -1250,7 +2394,8 @@
        "rms_over_thermal": 0.9018784045726245,
        "peak_nm": 18.83995164930482,
        "peak_over_limit": 0.9968228385875566,
-       "saturated_fraction": 0.0067777777777777775,
+       "saturated_fraction": 0.002916666666666667,
+       "saturated_fraction_episode_limit": 0.0067777777777777775,
        "peak_rpm": 42.47114474821485,
        "rpm_over_allowance": 0.5117005391351186
       }
@@ -1318,6 +2463,179 @@
      "left_hind": 0.3271495618376159,
      "right_hind": 0.4534672396694422
     },
+    "sideways_drift_m_worst": 0.20891544558466837,
+    "sideways_drift_m_mean": 0.026129231183249148,
+    "heading_change_deg_worst": 5.147674555132715,
+    "per_joint": {
+     "left_fore_roll": {
+      "rms_over_thermal": {
+       "mean": 0.4337650021383559,
+       "worst": 0.46888275946424424
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 1.1111111111111112e-05,
+       "worst": 5.555555555555556e-05
+      }
+     },
+     "left_fore_pitch": {
+      "rms_over_thermal": {
+       "mean": 1.0299589040206591,
+       "worst": 1.111528227549178
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.09912222222222222,
+       "worst": 0.12916666666666668
+      }
+     },
+     "left_fore_flexion": {
+      "rms_over_thermal": {
+       "mean": 0.9453619089957899,
+       "worst": 0.9753735488285619
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.044166666666666674,
+       "worst": 0.050333333333333334
+      }
+     },
+     "right_fore_roll": {
+      "rms_over_thermal": {
+       "mean": 0.5581707940766473,
+       "worst": 0.6046760760484875
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.0,
+       "worst": 0.0
+      }
+     },
+     "right_fore_pitch": {
+      "rms_over_thermal": {
+       "mean": 1.0320974587902898,
+       "worst": 1.1435513522820804
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.05688888888888889,
+       "worst": 0.07266666666666667
+      }
+     },
+     "right_fore_flexion": {
+      "rms_over_thermal": {
+       "mean": 0.9616356442716111,
+       "worst": 0.9978096773601574
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.023088888888888888,
+       "worst": 0.03161111111111111
+      }
+     },
+     "left_hind_roll": {
+      "rms_over_thermal": {
+       "mean": 0.67332635833152,
+       "worst": 0.7316040751800118
+      },
+      "sat_nominal": {
+       "mean": 8.888888888888889e-05,
+       "worst": 0.00044444444444444447
+      },
+      "sat_episode_limit": {
+       "mean": 0.0006666666666666668,
+       "worst": 0.001888888888888889
+      }
+     },
+     "left_hind_pitch": {
+      "rms_over_thermal": {
+       "mean": 0.8491507610564282,
+       "worst": 0.9690787611723013
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.011155555555555554,
+       "worst": 0.016666666666666666
+      }
+     },
+     "left_hind_flexion": {
+      "rms_over_thermal": {
+       "mean": 1.1078875173006022,
+       "worst": 1.1717607890492363
+      },
+      "sat_nominal": {
+       "mean": 0.008933333333333333,
+       "worst": 0.02738888888888889
+      },
+      "sat_episode_limit": {
+       "mean": 0.030100000000000005,
+       "worst": 0.03994444444444444
+      }
+     },
+     "right_hind_roll": {
+      "rms_over_thermal": {
+       "mean": 0.5417550026860648,
+       "worst": 0.5759027402967273
+      },
+      "sat_nominal": {
+       "mean": 0.0004666666666666667,
+       "worst": 0.0015
+      },
+      "sat_episode_limit": {
+       "mean": 0.002077777777777778,
+       "worst": 0.0035555555555555557
+      }
+     },
+     "right_hind_pitch": {
+      "rms_over_thermal": {
+       "mean": 0.6859035200842417,
+       "worst": 0.8070166746432137
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.009766666666666665,
+       "worst": 0.02238888888888889
+      }
+     },
+     "right_hind_flexion": {
+      "rms_over_thermal": {
+       "mean": 0.9264681785532203,
+       "worst": 0.9533482164834125
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.04424444444444444,
+       "worst": 0.05455555555555556
+      }
+     }
+    },
     "roll_deg_rms": 1.187930830533406,
     "pitch_deg_rms": 1.0688913248221605,
     "drives": {
@@ -1327,7 +2645,8 @@
       "rms_over_thermal": 0.7316040751800121,
       "peak_nm": 20.93349576495133,
       "peak_over_limit": 0.9968331316643491,
-      "saturated_fraction": 0.0010694444444444445,
+      "saturated_fraction": 0.000375,
+      "saturated_fraction_episode_limit": 0.0010694444444444445,
       "peak_rpm": 9.831267595187992,
       "rpm_over_allowance": 0.11844900717093966
      },
@@ -1337,7 +2656,8 @@
       "rms_over_thermal": 1.1435513522820915,
       "peak_nm": 20.52023155316465,
       "peak_over_limit": 0.9771538834840309,
-      "saturated_fraction": 0.05643055555555555,
+      "saturated_fraction": 0.0,
+      "saturated_fraction_episode_limit": 0.05643055555555555,
       "peak_rpm": 68.55283106422459,
       "rpm_over_allowance": 0.8259377236653566
      },
@@ -1347,7 +2667,8 @@
       "rms_over_thermal": 0.9978096773601556,
       "peak_nm": 37.10320280779375,
       "peak_over_limit": 0.9815662118463956,
-      "saturated_fraction": 0.03877777777777778,
+      "saturated_fraction": 0.0,
+      "saturated_fraction_episode_limit": 0.03877777777777778,
       "peak_rpm": 80.92939079777021,
       "rpm_over_allowance": 0.749346211090465
      },
@@ -1357,17 +2678,16 @@
       "rms_over_thermal": 1.1717607890492416,
       "peak_nm": 18.83995164930482,
       "peak_over_limit": 0.9968228385875566,
-      "saturated_fraction": 0.043305555555555555,
+      "saturated_fraction": 0.013694444444444445,
+      "saturated_fraction_episode_limit": 0.043305555555555555,
       "peak_rpm": 62.12427696619427,
       "rpm_over_allowance": 0.7484852646529431
      }
     },
     "flags": [
      "heat: pitch RMS 8.58 N\u00b7m over its 7.5 N\u00b7m thermal rating",
-     "saturation: pitch at >= 99 % of its limit in 5.6 % of steps",
-     "saturation: front elbow at >= 99 % of its limit in 3.9 % of steps",
      "heat: hind knee RMS 7.91 N\u00b7m over its 6.75 N\u00b7m thermal rating",
-     "saturation: hind knee at >= 99 % of its limit in 4.3 % of steps",
+     "saturation: hind knee at >= 99 % of its nominal limit in 1.4 % of steps",
      "slip: left_fore slip ratio 0.26 (flag above 0.25)",
      "slip: left_hind slip ratio 0.29 (flag above 0.25)",
      "slip: right_hind slip ratio 0.25 (flag above 0.25)"
@@ -1381,6 +2701,7 @@
      "forward_speed_mps": 0.23906681838751276,
      "sideways_drift_m": 0.20891544558466837,
      "height_range_mm": 19.79295747491755,
+     "heading_change_deg": 5.147674555132715,
      "duty_factor": {
       "left_fore": 0.3845,
       "right_fore": 0.5772777777777778,
@@ -1425,6 +2746,80 @@
        "slip_ratio": 0.21761539363327717
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.14471759173687,
+       "rms_over_thermal": 0.41929567889824937,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 7.005815759015655,
+       "rms_over_thermal": 0.934108767868754,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0895
+      },
+      "left_fore_flexion": {
+       "rms_nm": 10.32219009364714,
+       "rms_over_thermal": 0.9557583420043648,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.035166666666666666
+      },
+      "right_fore_roll": {
+       "rms_nm": 4.081051055677587,
+       "rms_over_thermal": 0.5441401407570117,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 7.463931891590226,
+       "rms_over_thermal": 0.9951909188786968,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04766666666666667
+      },
+      "right_fore_flexion": {
+       "rms_nm": 10.534026993983511,
+       "rms_over_thermal": 0.9753728698132881,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.02661111111111111
+      },
+      "left_hind_roll": {
+       "rms_nm": 5.015875842483922,
+       "rms_over_thermal": 0.668783445664523,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.00016666666666666666
+      },
+      "left_hind_pitch": {
+       "rms_nm": 6.258670395490111,
+       "rms_over_thermal": 0.8344893860653482,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.011
+      },
+      "left_hind_flexion": {
+       "rms_nm": 7.692469163612644,
+       "rms_over_thermal": 1.1396250612759473,
+       "sat_nominal": 0.02738888888888889,
+       "sat_episode_limit": 0.02788888888888889
+      },
+      "right_hind_roll": {
+       "rms_nm": 3.8642305382356543,
+       "rms_over_thermal": 0.5152307384314205,
+       "sat_nominal": 0.0008333333333333334,
+       "sat_episode_limit": 0.0008888888888888889
+      },
+      "right_hind_pitch": {
+       "rms_nm": 4.711156033467113,
+       "rms_over_thermal": 0.6281541377956151,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.005888888888888889
+      },
+      "right_hind_flexion": {
+       "rms_nm": 6.338461119002179,
+       "rms_over_thermal": 0.9390312768892117,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04533333333333334
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 5.015875842483911,
@@ -1432,7 +2827,8 @@
        "rms_over_thermal": 0.6687834456645215,
        "peak_nm": 20.796393647928685,
        "peak_over_limit": 0.9903044594251755,
-       "saturated_fraction": 0.00026388888888888886,
+       "saturated_fraction": 0.00020833333333333335,
+       "saturated_fraction_episode_limit": 0.00026388888888888886,
        "peak_rpm": 7.789278911383463,
        "rpm_over_allowance": 0.09384673387208992
       },
@@ -1442,7 +2838,8 @@
        "rms_over_thermal": 0.9951909188786872,
        "peak_nm": 19.806243916781785,
        "peak_over_limit": 0.9431544722277041,
-       "saturated_fraction": 0.03851388888888889,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.03851388888888889,
        "peak_rpm": 63.61159117961949,
        "rpm_over_allowance": 0.7664047130074637
       },
@@ -1452,7 +2849,8 @@
        "rms_over_thermal": 0.9753728698132841,
        "peak_nm": 36.91403778592685,
        "peak_over_limit": 0.9765618461885411,
-       "saturated_fraction": 0.03088888888888889,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.03088888888888889,
        "peak_rpm": 78.32839923036228,
        "rpm_over_allowance": 0.7252629558366878
       },
@@ -1462,7 +2860,8 @@
        "rms_over_thermal": 1.1396250612759455,
        "peak_nm": 18.751178209392744,
        "peak_over_limit": 0.9921258311848014,
-       "saturated_fraction": 0.03661111111111111,
+       "saturated_fraction": 0.013694444444444445,
+       "saturated_fraction_episode_limit": 0.03661111111111111,
        "peak_rpm": 61.58600261254471,
        "rpm_over_allowance": 0.7420000314764423
       }
@@ -1485,6 +2884,7 @@
      "forward_speed_mps": 0.23677229714044384,
      "sideways_drift_m": 0.1662133823761838,
      "height_range_mm": 21.52772675105291,
+     "heading_change_deg": 4.262541158910494,
      "duty_factor": {
       "left_fore": 0.39316666666666666,
       "right_fore": 0.5640555555555555,
@@ -1529,6 +2929,80 @@
        "slip_ratio": 0.23652565598475336
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.3361279378671216,
+       "rms_over_thermal": 0.44481705838228286,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 8.161029882029544,
+       "rms_over_thermal": 1.088137317603939,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.12916666666666668
+      },
+      "left_fore_flexion": {
+       "rms_nm": 10.09558319649853,
+       "rms_over_thermal": 0.934776221898012,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.050333333333333334
+      },
+      "right_fore_roll": {
+       "rms_nm": 4.477868070656052,
+       "rms_over_thermal": 0.5970490760874736,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 8.44832851236337,
+       "rms_over_thermal": 1.1264438016484493,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.06438888888888888
+      },
+      "right_fore_flexion": {
+       "rms_nm": 10.676414234395313,
+       "rms_over_thermal": 0.9885568735551216,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.026722222222222224
+      },
+      "left_hind_roll": {
+       "rms_nm": 5.21108452731381,
+       "rms_over_thermal": 0.694811270308508,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.001888888888888889
+      },
+      "left_hind_pitch": {
+       "rms_nm": 6.879630293763263,
+       "rms_over_thermal": 0.917284039168435,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.007555555555555556
+      },
+      "left_hind_flexion": {
+       "rms_nm": 7.613905875052566,
+       "rms_over_thermal": 1.1279860555633432,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.03994444444444444
+      },
+      "right_hind_roll": {
+       "rms_nm": 4.319270552225454,
+       "rms_over_thermal": 0.5759027402967273,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0023888888888888887
+      },
+      "right_hind_pitch": {
+       "rms_nm": 5.716403403958465,
+       "rms_over_thermal": 0.7621871205277952,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0057777777777777775
+      },
+      "right_hind_flexion": {
+       "rms_nm": 6.349068708372757,
+       "rms_over_thermal": 0.9406027716107788,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.03705555555555556
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 5.2110845273138064,
@@ -1536,7 +3010,8 @@
        "rms_over_thermal": 0.6948112703085075,
        "peak_nm": 20.177339149277934,
        "peak_over_limit": 0.9608256737751397,
-       "saturated_fraction": 0.0010694444444444445,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.0010694444444444445,
        "peak_rpm": 9.081833024404462,
        "rpm_over_allowance": 0.10941967499282484
       },
@@ -1546,7 +3021,8 @@
        "rms_over_thermal": 1.1264438016484448,
        "peak_nm": 20.434116762566973,
        "peak_over_limit": 0.9730531791698558,
-       "saturated_fraction": 0.051722222222222225,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.051722222222222225,
        "peak_rpm": 62.93453212780516,
        "rpm_over_allowance": 0.7582473750337971
       },
@@ -1556,7 +3032,8 @@
        "rms_over_thermal": 0.9885568735551207,
        "peak_nm": 34.570921723531164,
        "peak_over_limit": 0.9145746487706657,
-       "saturated_fraction": 0.03852777777777778,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.03852777777777778,
        "peak_rpm": 78.97631849481607,
        "rpm_over_allowance": 0.731262208285334
       },
@@ -1566,7 +3043,8 @@
        "rms_over_thermal": 1.1279860555633412,
        "peak_nm": 17.396554512169907,
        "peak_over_limit": 0.9204526196915295,
-       "saturated_fraction": 0.0385,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.0385,
        "peak_rpm": 47.963323374816774,
        "rpm_over_allowance": 0.5778713659616479
       }
@@ -1589,6 +3067,7 @@
      "forward_speed_mps": 0.23698283607037965,
      "sideways_drift_m": -0.17000767903579483,
      "height_range_mm": 20.411194416672775,
+     "heading_change_deg": -1.7226849257696961,
      "duty_factor": {
       "left_fore": 0.3937222222222222,
       "right_fore": 0.5685555555555556,
@@ -1633,6 +3112,80 @@
        "slip_ratio": 0.219610187854793
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.516620695981832,
+       "rms_over_thermal": 0.46888275946424424,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 8.336461706618834,
+       "rms_over_thermal": 1.111528227549178,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.114
+      },
+      "left_fore_flexion": {
+       "rms_nm": 10.497958238282148,
+       "rms_over_thermal": 0.97203317021131,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0425
+      },
+      "right_fore_roll": {
+       "rms_nm": 4.535070570363656,
+       "rms_over_thermal": 0.6046760760484875,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 8.576635142115602,
+       "rms_over_thermal": 1.1435513522820804,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.07266666666666667
+      },
+      "right_fore_flexion": {
+       "rms_nm": 10.7763445154897,
+       "rms_over_thermal": 0.9978096773601574,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.021388888888888888
+      },
+      "left_hind_roll": {
+       "rms_nm": 5.487030563850088,
+       "rms_over_thermal": 0.7316040751800118,
+       "sat_nominal": 0.00044444444444444447,
+       "sat_episode_limit": 0.0005
+      },
+      "left_hind_pitch": {
+       "rms_nm": 7.2680907087922595,
+       "rms_over_thermal": 0.9690787611723013,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.016666666666666666
+      },
+      "left_hind_flexion": {
+       "rms_nm": 7.9093853260823455,
+       "rms_over_thermal": 1.1717607890492363,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.03311111111111111
+      },
+      "right_hind_roll": {
+       "rms_nm": 4.304812654086139,
+       "rms_over_thermal": 0.5739750205448185,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0035555555555555557
+      },
+      "right_hind_pitch": {
+       "rms_nm": 6.052625059824103,
+       "rms_over_thermal": 0.8070166746432137,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.02238888888888889
+      },
+      "right_hind_flexion": {
+       "rms_nm": 6.435100461263034,
+       "rms_over_thermal": 0.9533482164834125,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04716666666666667
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 5.487030563850091,
@@ -1640,7 +3193,8 @@
        "rms_over_thermal": 0.7316040751800121,
        "peak_nm": 20.84549088866585,
        "peak_over_limit": 0.9926424232698023,
-       "saturated_fraction": 0.0010138888888888888,
+       "saturated_fraction": 0.00011111111111111112,
+       "saturated_fraction_episode_limit": 0.0010138888888888888,
        "peak_rpm": 8.67685418546572,
        "rpm_over_allowance": 0.10454041187308095
       },
@@ -1650,7 +3204,8 @@
        "rms_over_thermal": 1.1435513522820915,
        "peak_nm": 19.962859942198577,
        "peak_over_limit": 0.9506123781999323,
-       "saturated_fraction": 0.05643055555555555,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.05643055555555555,
        "peak_rpm": 65.24754295979477,
        "rpm_over_allowance": 0.7861149754192142
       },
@@ -1660,7 +3215,8 @@
        "rms_over_thermal": 0.9978096773601556,
        "peak_nm": 35.12451653162624,
        "peak_over_limit": 0.9292200140641863,
-       "saturated_fraction": 0.03194444444444444,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.03194444444444444,
        "peak_rpm": 80.92939079777021,
        "rpm_over_allowance": 0.749346211090465
       },
@@ -1670,7 +3226,8 @@
        "rms_over_thermal": 1.1717607890492416,
        "peak_nm": 17.963998951232817,
        "peak_over_limit": 0.9504761349858634,
-       "saturated_fraction": 0.04013888888888889,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.04013888888888889,
        "peak_rpm": 47.21229356527157,
        "rpm_over_allowance": 0.5688228140394166
       }
@@ -1693,6 +3250,7 @@
      "forward_speed_mps": 0.23850140183514815,
      "sideways_drift_m": 0.026585277622349263,
      "height_range_mm": 19.975486453272463,
+     "heading_change_deg": 0.3107743302311504,
      "duty_factor": {
       "left_fore": 0.38716666666666666,
       "right_fore": 0.5685,
@@ -1737,6 +3295,80 @@
        "slip_ratio": 0.24022402924189584
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.1218302812896015,
+       "rms_over_thermal": 0.4162440375052802,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 7.34435397949206,
+       "rms_over_thermal": 0.9792471972656079,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.08022222222222222
+      },
+      "left_fore_flexion": {
+       "rms_nm": 10.534034327348468,
+       "rms_over_thermal": 0.9753735488285619,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04594444444444445
+      },
+      "right_fore_roll": {
+       "rms_nm": 4.0464478306722915,
+       "rms_over_thermal": 0.5395263774229722,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 7.142237840318275,
+       "rms_over_thermal": 0.9522983787091034,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.050055555555555555
+      },
+      "right_fore_flexion": {
+       "rms_nm": 10.39182180713123,
+       "rms_over_thermal": 0.9622057228825212,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.03161111111111111
+      },
+      "left_hind_roll": {
+       "rms_nm": 4.923514761129366,
+       "rms_over_thermal": 0.6564686348172487,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.00022222222222222223
+      },
+      "left_hind_pitch": {
+       "rms_nm": 5.67539980908055,
+       "rms_over_thermal": 0.7567199745440732,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.006222222222222222
+      },
+      "left_hind_flexion": {
+       "rms_nm": 7.367235581797496,
+       "rms_over_thermal": 1.091442308414444,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.03205555555555555
+      },
+      "right_hind_roll": {
+       "rms_nm": 4.005591016837627,
+       "rms_over_thermal": 0.5340788022450169,
+       "sat_nominal": 0.0015,
+       "sat_episode_limit": 0.0016666666666666668
+      },
+      "right_hind_pitch": {
+       "rms_nm": 4.696400590955114,
+       "rms_over_thermal": 0.6261867454606819,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.006222222222222222
+      },
+      "right_hind_flexion": {
+       "rms_nm": 6.154906930528051,
+       "rms_over_thermal": 0.9118380637819334,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.05455555555555556
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 4.923514761129364,
@@ -1744,7 +3376,8 @@
        "rms_over_thermal": 0.6564686348172485,
        "peak_nm": 20.93349576495133,
        "peak_over_limit": 0.9968331316643491,
-       "saturated_fraction": 0.00047222222222222224,
+       "saturated_fraction": 0.000375,
+       "saturated_fraction_episode_limit": 0.00047222222222222224,
        "peak_rpm": 9.56212539879777,
        "rpm_over_allowance": 0.11520633010599723
       },
@@ -1754,7 +3387,8 @@
        "rms_over_thermal": 0.9792471972656216,
        "peak_nm": 19.71030262819623,
        "peak_over_limit": 0.9385858394379157,
-       "saturated_fraction": 0.035680555555555556,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.035680555555555556,
        "peak_rpm": 63.43183132086298,
        "rpm_over_allowance": 0.7642389315766625
       },
@@ -1764,7 +3398,8 @@
        "rms_over_thermal": 0.9753735488285714,
        "peak_nm": 35.99595594754654,
        "peak_over_limit": 0.9522739668663107,
-       "saturated_fraction": 0.03877777777777778,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.03877777777777778,
        "peak_rpm": 80.30601249092882,
        "rpm_over_allowance": 0.7435741897308225
       },
@@ -1774,7 +3409,8 @@
        "rms_over_thermal": 1.091442308414448,
        "peak_nm": 17.85226900293799,
        "peak_over_limit": 0.9445644975099466,
-       "saturated_fraction": 0.043305555555555555,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.043305555555555555,
        "peak_rpm": 62.12427696619427,
        "rpm_over_allowance": 0.7484852646529431
       }
@@ -1797,6 +3433,7 @@
      "forward_speed_mps": 0.23984690855215715,
      "sideways_drift_m": -0.10106027063116088,
      "height_range_mm": 19.58981058893888,
+     "heading_change_deg": -3.2055950503163024,
      "duty_factor": {
       "left_fore": 0.3928888888888889,
       "right_fore": 0.5813333333333334,
@@ -1841,6 +3478,80 @@
        "slip_ratio": 0.2519797941085848
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.146891073312921,
+       "rms_over_thermal": 0.41958547644172284,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 5.555555555555556e-05
+      },
+      "left_fore_pitch": {
+       "rms_nm": 7.775797573618628,
+       "rms_over_thermal": 1.036773009815817,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.08272222222222222
+      },
+      "left_fore_flexion": {
+       "rms_nm": 9.599777229996366,
+       "rms_over_thermal": 0.8888682620367006,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04688888888888889
+      },
+      "right_fore_roll": {
+       "rms_nm": 3.7909672505046883,
+       "rms_over_thermal": 0.5054623000672918,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 7.072521318248391,
+       "rms_over_thermal": 0.9430028424331188,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.049666666666666665
+      },
+      "right_fore_flexion": {
+       "rms_nm": 9.549717239667247,
+       "rms_over_thermal": 0.8842330777469672,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.009111111111111111
+      },
+      "left_hind_roll": {
+       "rms_nm": 4.612232742654811,
+       "rms_over_thermal": 0.6149643656873082,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0005555555555555556
+      },
+      "left_hind_pitch": {
+       "rms_nm": 5.761362332489873,
+       "rms_over_thermal": 0.7681816443319831,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.014333333333333333
+      },
+      "left_hind_flexion": {
+       "rms_nm": 6.808207762350266,
+       "rms_over_thermal": 1.0086233722000395,
+       "sat_nominal": 0.017277777777777777,
+       "sat_episode_limit": 0.0175
+      },
+      "right_hind_roll": {
+       "rms_nm": 3.8219078393425563,
+       "rms_over_thermal": 0.5095877119123409,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.001888888888888889
+      },
+      "right_hind_pitch": {
+       "rms_nm": 4.544796914954267,
+       "rms_over_thermal": 0.6059729219939023,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.008555555555555556
+      },
+      "right_hind_flexion": {
+       "rms_nm": 5.99076380700516,
+       "rms_over_thermal": 0.8875205640007644,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.03711111111111111
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 4.61223274265481,
@@ -1848,7 +3559,8 @@
        "rms_over_thermal": 0.6149643656873081,
        "peak_nm": 20.62246964649687,
        "peak_over_limit": 0.9820223641188986,
-       "saturated_fraction": 0.000625,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.000625,
        "peak_rpm": 9.831267595187992,
        "rpm_over_allowance": 0.11844900717093966
       },
@@ -1858,7 +3570,8 @@
        "rms_over_thermal": 1.0367730098158177,
        "peak_nm": 20.52023155316465,
        "peak_over_limit": 0.9771538834840309,
-       "saturated_fraction": 0.03881944444444444,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.03881944444444444,
        "peak_rpm": 68.55283106422459,
        "rpm_over_allowance": 0.8259377236653566
       },
@@ -1868,7 +3581,8 @@
        "rms_over_thermal": 0.8888682620367071,
        "peak_nm": 37.10320280779375,
        "peak_over_limit": 0.9815662118463956,
-       "saturated_fraction": 0.028,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.028,
        "peak_rpm": 80.17216359850454,
        "rpm_over_allowance": 0.7423348481343013
       },
@@ -1878,7 +3592,8 @@
        "rms_over_thermal": 1.0086233722000388,
        "peak_nm": 18.83995164930482,
        "peak_over_limit": 0.9968228385875566,
-       "saturated_fraction": 0.027305555555555555,
+       "saturated_fraction": 0.008638888888888889,
+       "saturated_fraction_episode_limit": 0.027305555555555555,
        "peak_rpm": 49.51883577586996,
        "rpm_over_allowance": 0.596612479227349
       }
@@ -1946,6 +3661,179 @@
      "left_hind": 0.4404397307727229,
      "right_hind": 0.4862527170016762
     },
+    "sideways_drift_m_worst": 0.4336662926038902,
+    "sideways_drift_m_mean": 0.20352873948970185,
+    "heading_change_deg_worst": 5.273689655388148,
+    "per_joint": {
+     "left_fore_roll": {
+      "rms_over_thermal": {
+       "mean": 0.41741207710893696,
+       "worst": 0.4744451612082155
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.0,
+       "worst": 0.0
+      }
+     },
+     "left_fore_pitch": {
+      "rms_over_thermal": {
+       "mean": 1.0336578590897891,
+       "worst": 1.1214010792356244
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.09773333333333334,
+       "worst": 0.13655555555555557
+      }
+     },
+     "left_fore_flexion": {
+      "rms_over_thermal": {
+       "mean": 0.9746403260566044,
+       "worst": 1.0090665707537987
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.047822222222222224,
+       "worst": 0.05277777777777778
+      }
+     },
+     "right_fore_roll": {
+      "rms_over_thermal": {
+       "mean": 0.5191734509030708,
+       "worst": 0.5863890103328532
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 5.5555555555555565e-05,
+       "worst": 0.00011111111111111112
+      }
+     },
+     "right_fore_pitch": {
+      "rms_over_thermal": {
+       "mean": 1.039415838074904,
+       "worst": 1.139041198831834
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.07045555555555556,
+       "worst": 0.08944444444444444
+      }
+     },
+     "right_fore_flexion": {
+      "rms_over_thermal": {
+       "mean": 1.0019354567672907,
+       "worst": 1.0284119949654607
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.03582222222222222,
+       "worst": 0.044833333333333336
+      }
+     },
+     "left_hind_roll": {
+      "rms_over_thermal": {
+       "mean": 0.6800623878457961,
+       "worst": 0.734358944514024
+      },
+      "sat_nominal": {
+       "mean": 0.00018888888888888888,
+       "worst": 0.0009444444444444445
+      },
+      "sat_episode_limit": {
+       "mean": 0.0021888888888888887,
+       "worst": 0.007388888888888889
+      }
+     },
+     "left_hind_pitch": {
+      "rms_over_thermal": {
+       "mean": 0.8637299070218228,
+       "worst": 0.9531857878949744
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.01277777777777778,
+       "worst": 0.018111111111111113
+      }
+     },
+     "left_hind_flexion": {
+      "rms_over_thermal": {
+       "mean": 1.1441791466083466,
+       "worst": 1.1848692388193147
+      },
+      "sat_nominal": {
+       "mean": 0.011422222222222222,
+       "worst": 0.036555555555555556
+      },
+      "sat_episode_limit": {
+       "mean": 0.036222222222222225,
+       "worst": 0.04805555555555555
+      }
+     },
+     "right_hind_roll": {
+      "rms_over_thermal": {
+       "mean": 0.547942697482976,
+       "worst": 0.6091925783537931
+      },
+      "sat_nominal": {
+       "mean": 0.0005888888888888889,
+       "worst": 0.0015
+      },
+      "sat_episode_limit": {
+       "mean": 0.0024111111111111113,
+       "worst": 0.004388888888888889
+      }
+     },
+     "right_hind_pitch": {
+      "rms_over_thermal": {
+       "mean": 0.7229925565915909,
+       "worst": 0.8501504169776377
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.013900000000000001,
+       "worst": 0.036222222222222225
+      }
+     },
+     "right_hind_flexion": {
+      "rms_over_thermal": {
+       "mean": 0.9190933910682265,
+       "worst": 0.9596898669508547
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.046544444444444444,
+       "worst": 0.06288888888888888
+      }
+     }
+    },
     "roll_deg_rms": 1.7586343689821171,
     "pitch_deg_rms": 1.317500244061192,
     "drives": {
@@ -1955,7 +3843,8 @@
       "rms_over_thermal": 0.7343589445140238,
       "peak_nm": 20.93349576495133,
       "peak_over_limit": 0.9968331316643491,
-      "saturated_fraction": 0.0025416666666666665,
+      "saturated_fraction": 0.000375,
+      "saturated_fraction_episode_limit": 0.0025416666666666665,
       "peak_rpm": 9.698595924269041,
       "rpm_over_allowance": 0.11685055330444627
      },
@@ -1965,7 +3854,8 @@
       "rms_over_thermal": 1.1390411988318474,
       "peak_nm": 20.52023155316465,
       "peak_over_limit": 0.9771538834840309,
-      "saturated_fraction": 0.0635,
+      "saturated_fraction": 0.0,
+      "saturated_fraction_episode_limit": 0.0635,
       "peak_rpm": 69.28868544382696,
       "rpm_over_allowance": 0.8348034390822526
      },
@@ -1975,7 +3865,8 @@
       "rms_over_thermal": 1.0284119949654589,
       "peak_nm": 37.10320280779375,
       "peak_over_limit": 0.9815662118463956,
-      "saturated_fraction": 0.04511111111111111,
+      "saturated_fraction": 0.0,
+      "saturated_fraction_episode_limit": 0.04511111111111111,
       "peak_rpm": 80.56847642824432,
       "rpm_over_allowance": 0.7460044113726326
      },
@@ -1985,18 +3876,17 @@
       "rms_over_thermal": 1.1848692388193238,
       "peak_nm": 18.83995164930482,
       "peak_over_limit": 0.9968228385875566,
-      "saturated_fraction": 0.05177777777777778,
+      "saturated_fraction": 0.018277777777777778,
+      "saturated_fraction_episode_limit": 0.05177777777777778,
       "peak_rpm": 51.90314098990553,
       "rpm_over_allowance": 0.6253390480711509
      }
     },
     "flags": [
      "heat: pitch RMS 8.54 N\u00b7m over its 7.5 N\u00b7m thermal rating",
-     "saturation: pitch at >= 99 % of its limit in 6.3 % of steps",
      "heat: front elbow RMS 11.11 N\u00b7m over its 10.8 N\u00b7m thermal rating",
-     "saturation: front elbow at >= 99 % of its limit in 4.5 % of steps",
      "heat: hind knee RMS 8.00 N\u00b7m over its 6.75 N\u00b7m thermal rating",
-     "saturation: hind knee at >= 99 % of its limit in 5.2 % of steps",
+     "saturation: hind knee at >= 99 % of its nominal limit in 1.8 % of steps",
      "slip: left_fore slip ratio 0.30 (flag above 0.25)",
      "slip: right_fore slip ratio 0.28 (flag above 0.25)",
      "slip: left_hind slip ratio 0.39 (flag above 0.25)",
@@ -2011,6 +3901,7 @@
      "forward_speed_mps": 0.2347514086929875,
      "sideways_drift_m": 0.4336662926038902,
      "height_range_mm": 18.82570271628836,
+     "heading_change_deg": 4.729148755946578,
      "duty_factor": {
       "left_fore": 0.3985,
       "right_fore": 0.5233333333333333,
@@ -2055,6 +3946,80 @@
        "slip_ratio": 0.25374437072899897
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 2.896836454301984,
+       "rms_over_thermal": 0.38624486057359786,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 7.0764782395737695,
+       "rms_over_thermal": 0.9435304319431693,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.08855555555555555
+      },
+      "left_fore_flexion": {
+       "rms_nm": 10.879336412745026,
+       "rms_over_thermal": 1.007345964143058,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04566666666666667
+      },
+      "right_fore_roll": {
+       "rms_nm": 3.779998869139393,
+       "rms_over_thermal": 0.5039998492185858,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.00011111111111111112
+      },
+      "right_fore_pitch": {
+       "rms_nm": 7.442725580066172,
+       "rms_over_thermal": 0.9923634106754896,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.058
+      },
+      "right_fore_flexion": {
+       "rms_nm": 11.007940432069752,
+       "rms_over_thermal": 1.019253743710162,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04455555555555556
+      },
+      "left_hind_roll": {
+       "rms_nm": 5.0813475275892515,
+       "rms_over_thermal": 0.6775130036785668,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0012222222222222222
+      },
+      "left_hind_pitch": {
+       "rms_nm": 6.50655337866609,
+       "rms_over_thermal": 0.867540450488812,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.015277777777777777
+      },
+      "left_hind_flexion": {
+       "rms_nm": 7.993970812076919,
+       "rms_over_thermal": 1.1842919721595435,
+       "sat_nominal": 0.036555555555555556,
+       "sat_episode_limit": 0.03772222222222222
+      },
+      "right_hind_roll": {
+       "rms_nm": 3.947321015204611,
+       "rms_over_thermal": 0.5263094686939481,
+       "sat_nominal": 0.0015,
+       "sat_episode_limit": 0.0016111111111111111
+      },
+      "right_hind_pitch": {
+       "rms_nm": 5.020218383156425,
+       "rms_over_thermal": 0.6693624510875232,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0085
+      },
+      "right_hind_flexion": {
+       "rms_nm": 6.255622248871682,
+       "rms_over_thermal": 0.9267588516846936,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.041833333333333333
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 5.081347527589231,
@@ -2062,7 +4027,8 @@
        "rms_over_thermal": 0.6775130036785642,
        "peak_nm": 20.796393647928685,
        "peak_over_limit": 0.9903044594251755,
-       "saturated_fraction": 0.0007361111111111111,
+       "saturated_fraction": 0.000375,
+       "saturated_fraction_episode_limit": 0.0007361111111111111,
        "peak_rpm": 8.348528956957113,
        "rpm_over_allowance": 0.10058468622839895
       },
@@ -2072,7 +4038,8 @@
        "rms_over_thermal": 0.99236341067548,
        "peak_nm": 19.806243916781785,
        "peak_over_limit": 0.9431544722277041,
-       "saturated_fraction": 0.042583333333333334,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.042583333333333334,
        "peak_rpm": 60.24140390884791,
        "rpm_over_allowance": 0.7258000470945531
       },
@@ -2082,7 +4049,8 @@
        "rms_over_thermal": 1.019253743710159,
        "peak_nm": 36.91403778592685,
        "peak_over_limit": 0.9765618461885411,
-       "saturated_fraction": 0.04511111111111111,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.04511111111111111,
        "peak_rpm": 78.62717354685246,
        "rpm_over_allowance": 0.7280293846930783
       },
@@ -2092,7 +4060,8 @@
        "rms_over_thermal": 1.1842919721595433,
        "peak_nm": 18.751178209392744,
        "peak_over_limit": 0.9921258311848014,
-       "saturated_fraction": 0.03977777777777778,
+       "saturated_fraction": 0.018277777777777778,
+       "saturated_fraction_episode_limit": 0.03977777777777778,
        "peak_rpm": 45.52816609257632,
        "rpm_over_allowance": 0.548532121597305
       }
@@ -2115,6 +4084,7 @@
      "forward_speed_mps": 0.2354268489685982,
      "sideways_drift_m": 0.2835098097356102,
      "height_range_mm": 19.836970421027665,
+     "heading_change_deg": 5.273689655388148,
      "duty_factor": {
       "left_fore": 0.4111111111111111,
       "right_fore": 0.5406666666666666,
@@ -2159,6 +4129,80 @@
        "slip_ratio": 0.26393083475983103
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.3944681855698344,
+       "rms_over_thermal": 0.4525957580759779,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 8.382343850756818,
+       "rms_over_thermal": 1.1176458467675758,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.13655555555555557
+      },
+      "left_fore_flexion": {
+       "rms_nm": 10.358820278824608,
+       "rms_over_thermal": 0.9591500258170932,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.05277777777777778
+      },
+      "right_fore_roll": {
+       "rms_nm": 4.397917577496399,
+       "rms_over_thermal": 0.5863890103328532,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 5.555555555555556e-05
+      },
+      "right_fore_pitch": {
+       "rms_nm": 8.459656485756684,
+       "rms_over_thermal": 1.1279541981008911,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.06944444444444445
+      },
+      "right_fore_flexion": {
+       "rms_nm": 10.917219705876116,
+       "rms_over_thermal": 1.0108536764700107,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.03327777777777778
+      },
+      "left_hind_roll": {
+       "rms_nm": 5.40283385793362,
+       "rms_over_thermal": 0.7203778477244828,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.007388888888888889
+      },
+      "left_hind_pitch": {
+       "rms_nm": 6.971833958608774,
+       "rms_over_thermal": 0.9295778611478365,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.009722222222222222
+      },
+      "left_hind_flexion": {
+       "rms_nm": 7.780339340456929,
+       "rms_over_thermal": 1.1526428652528784,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04805555555555555
+      },
+      "right_hind_roll": {
+       "rms_nm": 4.568944337653448,
+       "rms_over_thermal": 0.6091925783537931,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0027222222222222222
+      },
+      "right_hind_pitch": {
+       "rms_nm": 6.029235869994643,
+       "rms_over_thermal": 0.8038981159992857,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.008
+      },
+      "right_hind_flexion": {
+       "rms_nm": 6.423294122761046,
+       "rms_over_thermal": 0.9515991292979328,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0415
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 5.4028338579336195,
@@ -2166,7 +4210,8 @@
        "rms_over_thermal": 0.7203778477244825,
        "peak_nm": 20.293761736610467,
        "peak_over_limit": 0.9663696065052603,
-       "saturated_fraction": 0.0025416666666666665,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.0025416666666666665,
        "peak_rpm": 8.783455660631157,
        "rpm_over_allowance": 0.10582476699555611
       },
@@ -2176,7 +4221,8 @@
        "rms_over_thermal": 1.1279541981008847,
        "peak_nm": 20.434116762566973,
        "peak_over_limit": 0.9730531791698558,
-       "saturated_fraction": 0.05593055555555555,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.05593055555555555,
        "peak_rpm": 62.14098445397267,
        "rpm_over_allowance": 0.7486865596864177
       },
@@ -2186,7 +4232,8 @@
        "rms_over_thermal": 1.0108536764700065,
        "peak_nm": 34.570921723531164,
        "peak_over_limit": 0.9145746487706657,
-       "saturated_fraction": 0.043027777777777776,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.043027777777777776,
        "peak_rpm": 74.1550040865741,
        "rpm_over_allowance": 0.6866204082090194
       },
@@ -2196,7 +4243,8 @@
        "rms_over_thermal": 1.1526428652528784,
        "peak_nm": 17.396554512169907,
        "peak_over_limit": 0.9204526196915295,
-       "saturated_fraction": 0.04477777777777778,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.04477777777777778,
        "peak_rpm": 51.083423359140674,
        "rpm_over_allowance": 0.6154629320378394
       }
@@ -2219,6 +4267,7 @@
      "forward_speed_mps": 0.23597177571875638,
      "sideways_drift_m": -0.01842289563830908,
      "height_range_mm": 21.80391043551483,
+     "heading_change_deg": -1.751821469957637,
      "duty_factor": {
       "left_fore": 0.4172777777777778,
       "right_fore": 0.5213333333333333,
@@ -2263,6 +4312,80 @@
        "slip_ratio": 0.24132814976724942
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.558338709061616,
+       "rms_over_thermal": 0.4744451612082155,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 8.410508094267183,
+       "rms_over_thermal": 1.1214010792356244,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.11022222222222222
+      },
+      "left_fore_flexion": {
+       "rms_nm": 10.897918964141027,
+       "rms_over_thermal": 1.0090665707537987,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04683333333333333
+      },
+      "right_fore_roll": {
+       "rms_nm": 4.177425952746876,
+       "rms_over_thermal": 0.5569901270329167,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 8.542808991238756,
+       "rms_over_thermal": 1.139041198831834,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.08944444444444444
+      },
+      "right_fore_flexion": {
+       "rms_nm": 11.106849545626975,
+       "rms_over_thermal": 1.0284119949654607,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.034555555555555555
+      },
+      "left_hind_roll": {
+       "rms_nm": 5.507692083855179,
+       "rms_over_thermal": 0.734358944514024,
+       "sat_nominal": 0.0009444444444444445,
+       "sat_episode_limit": 0.0011111111111111111
+      },
+      "left_hind_pitch": {
+       "rms_nm": 7.148893409212309,
+       "rms_over_thermal": 0.9531857878949744,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.018111111111111113
+      },
+      "left_hind_flexion": {
+       "rms_nm": 7.997867362030374,
+       "rms_over_thermal": 1.1848692388193147,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04066666666666666
+      },
+      "right_hind_roll": {
+       "rms_nm": 4.476883102958806,
+       "rms_over_thermal": 0.5969177470611741,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.004388888888888889
+      },
+      "right_hind_pitch": {
+       "rms_nm": 6.376128127332283,
+       "rms_over_thermal": 0.8501504169776377,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.036222222222222225
+      },
+      "right_hind_flexion": {
+       "rms_nm": 6.477906601918269,
+       "rms_over_thermal": 0.9596898669508547,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.06288888888888888
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 5.507692083855178,
@@ -2270,7 +4393,8 @@
        "rms_over_thermal": 0.7343589445140238,
        "peak_nm": 20.84549088866585,
        "peak_over_limit": 0.9926424232698023,
-       "saturated_fraction": 0.001375,
+       "saturated_fraction": 0.00023611111111111112,
+       "saturated_fraction_episode_limit": 0.001375,
        "peak_rpm": 8.496979928962054,
        "rpm_over_allowance": 0.10237325215616933
       },
@@ -2280,7 +4404,8 @@
        "rms_over_thermal": 1.1390411988318474,
        "peak_nm": 19.962859942198577,
        "peak_over_limit": 0.9506123781999323,
-       "saturated_fraction": 0.0635,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.0635,
        "peak_rpm": 61.658193427206214,
        "rpm_over_allowance": 0.7428698003277857
       },
@@ -2290,7 +4415,8 @@
        "rms_over_thermal": 1.0284119949654589,
        "peak_nm": 35.12451653162624,
        "peak_over_limit": 0.9292200140641863,
-       "saturated_fraction": 0.04069444444444444,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.04069444444444444,
        "peak_rpm": 75.12379269501159,
        "rpm_over_allowance": 0.6955906731019591
       },
@@ -2300,7 +4426,8 @@
        "rms_over_thermal": 1.1848692388193238,
        "peak_nm": 17.963998951232817,
        "peak_over_limit": 0.9504761349858634,
-       "saturated_fraction": 0.05177777777777778,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.05177777777777778,
        "peak_rpm": 48.843988794814635,
        "rpm_over_allowance": 0.58848179270861
       }
@@ -2323,6 +4450,7 @@
      "forward_speed_mps": 0.23648809686344757,
      "sideways_drift_m": 0.2542340411214334,
      "height_range_mm": 20.542117213258436,
+     "heading_change_deg": 3.3427067239689845,
      "duty_factor": {
       "left_fore": 0.4102222222222222,
       "right_fore": 0.5265,
@@ -2367,6 +4495,80 @@
        "slip_ratio": 0.2600065310083448
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 2.9084838748663366,
+       "rms_over_thermal": 0.3877978499821782,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 7.193229286524437,
+       "rms_over_thermal": 0.9590972382032582,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.07277777777777777
+      },
+      "left_fore_flexion": {
+       "rms_nm": 10.64868049629516,
+       "rms_over_thermal": 0.9859889348421444,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.045
+      },
+      "right_fore_roll": {
+       "rms_nm": 3.696281586430915,
+       "rms_over_thermal": 0.4928375448574553,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.00011111111111111112
+      },
+      "right_fore_pitch": {
+       "rms_nm": 7.133103813316607,
+       "rms_over_thermal": 0.9510805084422143,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.06305555555555556
+      },
+      "right_fore_flexion": {
+       "rms_nm": 10.82192253897842,
+       "rms_over_thermal": 1.002029864720224,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.044833333333333336
+      },
+      "left_hind_roll": {
+       "rms_nm": 4.903394473372808,
+       "rms_over_thermal": 0.6537859297830411,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0005555555555555556
+      },
+      "left_hind_pitch": {
+       "rms_nm": 5.9659910554834505,
+       "rms_over_thermal": 0.7954654740644601,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.008777777777777778
+      },
+      "left_hind_flexion": {
+       "rms_nm": 7.629374115670801,
+       "rms_over_thermal": 1.1302776467660447,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.033777777777777775
+      },
+      "right_hind_roll": {
+       "rms_nm": 3.87598244897523,
+       "rms_over_thermal": 0.516797659863364,
+       "sat_nominal": 0.0014444444444444444,
+       "sat_episode_limit": 0.0014444444444444444
+      },
+      "right_hind_pitch": {
+       "rms_nm": 4.961817836981357,
+       "rms_over_thermal": 0.6615757115975143,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0077777777777777776
+      },
+      "right_hind_flexion": {
+       "rms_nm": 6.030702179323624,
+       "rms_over_thermal": 0.8934373598997962,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.05322222222222222
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 4.903394473372805,
@@ -2374,7 +4576,8 @@
        "rms_over_thermal": 0.6537859297830407,
        "peak_nm": 20.93349576495133,
        "peak_over_limit": 0.9968331316643491,
-       "saturated_fraction": 0.0005277777777777777,
+       "saturated_fraction": 0.0003611111111111111,
+       "saturated_fraction_episode_limit": 0.0005277777777777777,
        "peak_rpm": 9.166851079001578,
        "rpm_over_allowance": 0.11044398890363347
       },
@@ -2384,7 +4587,8 @@
        "rms_over_thermal": 0.9590972382032703,
        "peak_nm": 19.71030262819623,
        "peak_over_limit": 0.9385858394379157,
-       "saturated_fraction": 0.03809722222222222,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.03809722222222222,
        "peak_rpm": 61.34133444831078,
        "rpm_over_allowance": 0.7390522222688046
       },
@@ -2394,7 +4598,8 @@
        "rms_over_thermal": 1.002029864720226,
        "peak_nm": 35.99595594754654,
        "peak_over_limit": 0.9522739668663107,
-       "saturated_fraction": 0.04491666666666667,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.04491666666666667,
        "peak_rpm": 80.56847642824432,
        "rpm_over_allowance": 0.7460044113726326
       },
@@ -2404,7 +4609,8 @@
        "rms_over_thermal": 1.130277646766048,
        "peak_nm": 17.85226900293799,
        "peak_over_limit": 0.9445644975099466,
-       "saturated_fraction": 0.0435,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.0435,
        "peak_rpm": 46.424554897783544,
        "rpm_over_allowance": 0.5593319867202836
       }
@@ -2427,6 +4633,7 @@
      "forward_speed_mps": 0.23851879940358847,
      "sideways_drift_m": 0.06465644962588449,
      "height_range_mm": 19.390845682348502,
+     "heading_change_deg": -1.2596440142229843,
      "duty_factor": {
       "left_fore": 0.4101666666666667,
       "right_fore": 0.5501666666666667,
@@ -2471,6 +4678,80 @@
        "slip_ratio": 0.26764952800435854
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 2.8948256677853657,
+       "rms_over_thermal": 0.3859767557047154,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 7.6996102447448855,
+       "rms_over_thermal": 1.0266146992993181,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.08055555555555556
+      },
+      "left_fore_flexion": {
+       "rms_nm": 9.845821455050816,
+       "rms_over_thermal": 0.9116501347269274,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.04883333333333333
+      },
+      "right_fore_roll": {
+       "rms_nm": 3.417380423051572,
+       "rms_over_thermal": 0.45565072307354293,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 7.399799057430673,
+       "rms_over_thermal": 0.9866398743240897,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.07233333333333333
+      },
+      "right_fore_flexion": {
+       "rms_nm": 10.250582442882441,
+       "rms_over_thermal": 0.9491280039705964,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.02188888888888889
+      },
+      "left_hind_roll": {
+       "rms_nm": 4.607071601466495,
+       "rms_over_thermal": 0.614276213528866,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0006666666666666666
+      },
+      "left_hind_pitch": {
+       "rms_nm": 5.796599711347735,
+       "rms_over_thermal": 0.7728799615130313,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.012
+      },
+      "left_hind_flexion": {
+       "rms_nm": 7.214494567796675,
+       "rms_over_thermal": 1.0688140100439518,
+       "sat_nominal": 0.020555555555555556,
+       "sat_episode_limit": 0.020888888888888887
+      },
+      "right_hind_roll": {
+       "rms_nm": 3.6787202508195085,
+       "rms_over_thermal": 0.4904960334426011,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.001888888888888889
+      },
+      "right_hind_pitch": {
+       "rms_nm": 4.7248206547199505,
+       "rms_over_thermal": 0.6299760872959934,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.009
+      },
+      "right_hind_flexion": {
+       "rms_nm": 5.831876795678021,
+       "rms_over_thermal": 0.863981747507855,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.03327777777777778
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 4.607071601466493,
@@ -2478,7 +4759,8 @@
        "rms_over_thermal": 0.6142762135288657,
        "peak_nm": 20.62246964649687,
        "peak_over_limit": 0.9820223641188986,
-       "saturated_fraction": 0.0006388888888888889,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.0006388888888888889,
        "peak_rpm": 9.698595924269041,
        "rpm_over_allowance": 0.11685055330444627
       },
@@ -2488,7 +4770,8 @@
        "rms_over_thermal": 1.0266146992993201,
        "peak_nm": 20.52023155316465,
        "peak_over_limit": 0.9771538834840309,
-       "saturated_fraction": 0.043472222222222225,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.043472222222222225,
        "peak_rpm": 69.28868544382696,
        "rpm_over_allowance": 0.8348034390822526
       },
@@ -2498,7 +4781,8 @@
        "rms_over_thermal": 0.9491280039705956,
        "peak_nm": 37.10320280779375,
        "peak_over_limit": 0.9815662118463956,
-       "saturated_fraction": 0.035361111111111114,
+       "saturated_fraction": 0.0,
+       "saturated_fraction_episode_limit": 0.035361111111111114,
        "peak_rpm": 72.49140095708044,
        "rpm_over_allowance": 0.6712166755285226
       },
@@ -2508,7 +4792,8 @@
        "rms_over_thermal": 1.068814010043951,
        "peak_nm": 18.83995164930482,
        "peak_over_limit": 0.9968228385875566,
-       "saturated_fraction": 0.027083333333333334,
+       "saturated_fraction": 0.010277777777777778,
+       "saturated_fraction_episode_limit": 0.027083333333333334,
        "peak_rpm": 51.90314098990553,
        "rpm_over_allowance": 0.6253390480711509
       }
@@ -2579,6 +4864,179 @@
      "left_hind": 0.21990679511729586,
      "right_hind": 0.37395559951135604
     },
+    "sideways_drift_m_worst": 0.07301567820149767,
+    "sideways_drift_m_mean": -0.068681293559539,
+    "heading_change_deg_worst": 2.0038107313943527,
+    "per_joint": {
+     "left_fore_roll": {
+      "rms_over_thermal": {
+       "mean": 0.4975726045390264,
+       "worst": 0.5023751171978827
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.0,
+       "worst": 0.0
+      }
+     },
+     "left_fore_pitch": {
+      "rms_over_thermal": {
+       "mean": 1.0276148474687639,
+       "worst": 1.030589358888288
+      },
+      "sat_nominal": {
+       "mean": 0.07917777777777779,
+       "worst": 0.08033333333333334
+      },
+      "sat_episode_limit": {
+       "mean": 0.07917777777777779,
+       "worst": 0.08033333333333334
+      }
+     },
+     "left_fore_flexion": {
+      "rms_over_thermal": {
+       "mean": 0.9349904504077351,
+       "worst": 0.9379812387058626
+      },
+      "sat_nominal": {
+       "mean": 0.022122222222222224,
+       "worst": 0.023444444444444445
+      },
+      "sat_episode_limit": {
+       "mean": 0.022122222222222224,
+       "worst": 0.023444444444444445
+      }
+     },
+     "right_fore_roll": {
+      "rms_over_thermal": {
+       "mean": 0.7207695984399035,
+       "worst": 0.723391233917308
+      },
+      "sat_nominal": {
+       "mean": 0.0,
+       "worst": 0.0
+      },
+      "sat_episode_limit": {
+       "mean": 0.0,
+       "worst": 0.0
+      }
+     },
+     "right_fore_pitch": {
+      "rms_over_thermal": {
+       "mean": 1.0875545339931492,
+       "worst": 1.0940871107940893
+      },
+      "sat_nominal": {
+       "mean": 0.036444444444444446,
+       "worst": 0.03966666666666667
+      },
+      "sat_episode_limit": {
+       "mean": 0.036444444444444446,
+       "worst": 0.03966666666666667
+      }
+     },
+     "right_fore_flexion": {
+      "rms_over_thermal": {
+       "mean": 0.9814322758393036,
+       "worst": 0.9826666191389211
+      },
+      "sat_nominal": {
+       "mean": 0.01101111111111111,
+       "worst": 0.012722222222222222
+      },
+      "sat_episode_limit": {
+       "mean": 0.01101111111111111,
+       "worst": 0.012722222222222222
+      }
+     },
+     "left_hind_roll": {
+      "rms_over_thermal": {
+       "mean": 0.8387295263381626,
+       "worst": 0.8401955507215351
+      },
+      "sat_nominal": {
+       "mean": 4.4444444444444447e-05,
+       "worst": 5.555555555555556e-05
+      },
+      "sat_episode_limit": {
+       "mean": 4.4444444444444447e-05,
+       "worst": 5.555555555555556e-05
+      }
+     },
+     "left_hind_pitch": {
+      "rms_over_thermal": {
+       "mean": 0.8985597425896372,
+       "worst": 0.9007501323113621
+      },
+      "sat_nominal": {
+       "mean": 0.001688888888888889,
+       "worst": 0.0017777777777777779
+      },
+      "sat_episode_limit": {
+       "mean": 0.001688888888888889,
+       "worst": 0.0017777777777777779
+      }
+     },
+     "left_hind_flexion": {
+      "rms_over_thermal": {
+       "mean": 1.2023781267604727,
+       "worst": 1.20586540547759
+      },
+      "sat_nominal": {
+       "mean": 0.023344444444444445,
+       "worst": 0.025444444444444443
+      },
+      "sat_episode_limit": {
+       "mean": 0.023344444444444445,
+       "worst": 0.025444444444444443
+      }
+     },
+     "right_hind_roll": {
+      "rms_over_thermal": {
+       "mean": 0.5862825980778096,
+       "worst": 0.5895882066899336
+      },
+      "sat_nominal": {
+       "mean": 0.0010444444444444446,
+       "worst": 0.0011111111111111111
+      },
+      "sat_episode_limit": {
+       "mean": 0.0010444444444444446,
+       "worst": 0.0011111111111111111
+      }
+     },
+     "right_hind_pitch": {
+      "rms_over_thermal": {
+       "mean": 0.5382425594146386,
+       "worst": 0.5400496968494768
+      },
+      "sat_nominal": {
+       "mean": 7.777777777777778e-05,
+       "worst": 0.00016666666666666666
+      },
+      "sat_episode_limit": {
+       "mean": 7.777777777777778e-05,
+       "worst": 0.00016666666666666666
+      }
+     },
+     "right_hind_flexion": {
+      "rms_over_thermal": {
+       "mean": 0.9578793193189498,
+       "worst": 0.9603326605638771
+      },
+      "sat_nominal": {
+       "mean": 0.035588888888888885,
+       "worst": 0.036444444444444446
+      },
+      "sat_episode_limit": {
+       "mean": 0.035588888888888885,
+       "worst": 0.036444444444444446
+      }
+     }
+    },
     "roll_deg_rms": 1.0581496439536593,
     "pitch_deg_rms": 0.8898304455441879,
     "drives": {
@@ -2589,6 +5047,7 @@
       "peak_nm": 21.0,
       "peak_over_limit": 1.0,
       "saturated_fraction": 0.0002916666666666667,
+      "saturated_fraction_episode_limit": 0.0002916666666666667,
       "peak_rpm": 8.525679142253447,
       "rpm_over_allowance": 0.10271902581028249
      },
@@ -2599,6 +5058,7 @@
       "peak_nm": 21.0,
       "peak_over_limit": 1.0,
       "saturated_fraction": 0.030416666666666668,
+      "saturated_fraction_episode_limit": 0.030416666666666668,
       "peak_rpm": 60.04433510125185,
       "rpm_over_allowance": 0.7234257241114681
      },
@@ -2609,6 +5069,7 @@
       "peak_nm": 37.8,
       "peak_over_limit": 1.0,
       "saturated_fraction": 0.018083333333333333,
+      "saturated_fraction_episode_limit": 0.018083333333333333,
       "peak_rpm": 81.77185308798596,
       "rpm_over_allowance": 0.7571467878517218
      },
@@ -2619,16 +5080,17 @@
       "peak_nm": 18.9,
       "peak_over_limit": 1.0,
       "saturated_fraction": 0.030194444444444444,
+      "saturated_fraction_episode_limit": 0.030194444444444444,
       "peak_rpm": 49.407289486035786,
       "rpm_over_allowance": 0.5952685480245276
      }
     },
     "flags": [
      "heat: pitch RMS 8.21 N\u00b7m over its 7.5 N\u00b7m thermal rating",
-     "saturation: pitch at >= 99 % of its limit in 3.0 % of steps",
-     "saturation: front elbow at >= 99 % of its limit in 1.8 % of steps",
+     "saturation: pitch at >= 99 % of its nominal limit in 3.0 % of steps",
+     "saturation: front elbow at >= 99 % of its nominal limit in 1.8 % of steps",
      "heat: hind knee RMS 8.14 N\u00b7m over its 6.75 N\u00b7m thermal rating",
-     "saturation: hind knee at >= 99 % of its limit in 3.0 % of steps"
+     "saturation: hind knee at >= 99 % of its nominal limit in 3.0 % of steps"
     ]
    },
    "episodes": [
@@ -2639,6 +5101,7 @@
      "forward_speed_mps": 0.24027948369620936,
      "sideways_drift_m": -0.06361075385105336,
      "height_range_mm": 17.79105321752822,
+     "heading_change_deg": 1.70207087594299,
      "duty_factor": {
       "left_fore": 0.41605555555555557,
       "right_fore": 0.5989444444444444,
@@ -2683,6 +5146,80 @@
        "slip_ratio": 0.20374754122304356
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.742443276928846,
+       "rms_over_thermal": 0.4989924369238461,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 7.715039896054931,
+       "rms_over_thermal": 1.0286719861406575,
+       "sat_nominal": 0.0801111111111111,
+       "sat_episode_limit": 0.0801111111111111
+      },
+      "left_fore_flexion": {
+       "rms_nm": 10.130197378023317,
+       "rms_over_thermal": 0.9379812387058626,
+       "sat_nominal": 0.023444444444444445,
+       "sat_episode_limit": 0.023444444444444445
+      },
+      "right_fore_roll": {
+       "rms_nm": 5.423852908981294,
+       "rms_over_thermal": 0.7231803878641725,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 8.20565333095567,
+       "rms_over_thermal": 1.0940871107940893,
+       "sat_nominal": 0.03966666666666667,
+       "sat_episode_limit": 0.03966666666666667
+      },
+      "right_fore_flexion": {
+       "rms_nm": 10.607576061687668,
+       "rms_over_thermal": 0.982182968674784,
+       "sat_nominal": 0.012722222222222222,
+       "sat_episode_limit": 0.012722222222222222
+      },
+      "left_hind_roll": {
+       "rms_nm": 6.293839393770669,
+       "rms_over_thermal": 0.8391785858360892,
+       "sat_nominal": 5.555555555555556e-05,
+       "sat_episode_limit": 5.555555555555556e-05
+      },
+      "left_hind_pitch": {
+       "rms_nm": 6.749167824472819,
+       "rms_over_thermal": 0.8998890432630425,
+       "sat_nominal": 0.0017777777777777779,
+       "sat_episode_limit": 0.0017777777777777779
+      },
+      "left_hind_flexion": {
+       "rms_nm": 8.111327920145243,
+       "rms_over_thermal": 1.201678210391888,
+       "sat_nominal": 0.021833333333333333,
+       "sat_episode_limit": 0.021833333333333333
+      },
+      "right_hind_roll": {
+       "rms_nm": 4.417344877605714,
+       "rms_over_thermal": 0.5889793170140952,
+       "sat_nominal": 0.0011111111111111111,
+       "sat_episode_limit": 0.0011111111111111111
+      },
+      "right_hind_pitch": {
+       "rms_nm": 4.038059305331483,
+       "rms_over_thermal": 0.5384079073775311,
+       "sat_nominal": 0.00011111111111111112,
+       "sat_episode_limit": 0.00011111111111111112
+      },
+      "right_hind_flexion": {
+       "rms_nm": 6.4654146105590335,
+       "rms_over_thermal": 0.9578392015643012,
+       "sat_nominal": 0.036055555555555556,
+       "sat_episode_limit": 0.036055555555555556
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 6.29383939377067,
@@ -2691,6 +5228,7 @@
        "peak_nm": 21.0,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.0002916666666666667,
+       "saturated_fraction_episode_limit": 0.0002916666666666667,
        "peak_rpm": 8.525679142253447,
        "rpm_over_allowance": 0.10271902581028249
       },
@@ -2701,6 +5239,7 @@
        "peak_nm": 21.0,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.030416666666666668,
+       "saturated_fraction_episode_limit": 0.030416666666666668,
        "peak_rpm": 58.245002099748476,
        "rpm_over_allowance": 0.7017470132499817
       },
@@ -2711,6 +5250,7 @@
        "peak_nm": 37.8,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.018083333333333333,
+       "saturated_fraction_episode_limit": 0.018083333333333333,
        "peak_rpm": 81.26040514485229,
        "rpm_over_allowance": 0.7524111587486323
       },
@@ -2721,6 +5261,7 @@
        "peak_nm": 18.9,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.028944444444444443,
+       "saturated_fraction_episode_limit": 0.028944444444444443,
        "peak_rpm": 46.50084112150142,
        "rpm_over_allowance": 0.5602510978494147
       }
@@ -2743,6 +5284,7 @@
      "forward_speed_mps": 0.24027669925452377,
      "sideways_drift_m": -0.06905555443349713,
      "height_range_mm": 17.95659390512383,
+     "heading_change_deg": 1.594226471565502,
      "duty_factor": {
       "left_fore": 0.4118888888888889,
       "right_fore": 0.5993333333333334,
@@ -2787,6 +5329,80 @@
        "slip_ratio": 0.20059586368164053
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.7033997148942137,
+       "rms_over_thermal": 0.49378662865256184,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 7.696902514155199,
+       "rms_over_thermal": 1.0262536685540264,
+       "sat_nominal": 0.07722222222222222,
+       "sat_episode_limit": 0.07722222222222222
+      },
+      "left_fore_flexion": {
+       "rms_nm": 10.123720643836108,
+       "rms_over_thermal": 0.9373815410959359,
+       "sat_nominal": 0.022166666666666668,
+       "sat_episode_limit": 0.022166666666666668
+      },
+      "right_fore_roll": {
+       "rms_nm": 5.383407799686532,
+       "rms_over_thermal": 0.7177877066248709,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 8.145331457978763,
+       "rms_over_thermal": 1.0860441943971684,
+       "sat_nominal": 0.035333333333333335,
+       "sat_episode_limit": 0.035333333333333335
+      },
+      "right_fore_flexion": {
+       "rms_nm": 10.612799486700348,
+       "rms_over_thermal": 0.9826666191389211,
+       "sat_nominal": 0.011055555555555556,
+       "sat_episode_limit": 0.011055555555555556
+      },
+      "left_hind_roll": {
+       "rms_nm": 6.301466630411513,
+       "rms_over_thermal": 0.8401955507215351,
+       "sat_nominal": 5.555555555555556e-05,
+       "sat_episode_limit": 5.555555555555556e-05
+      },
+      "left_hind_pitch": {
+       "rms_nm": 6.715956899659486,
+       "rms_over_thermal": 0.8954609199545981,
+       "sat_nominal": 0.0014444444444444444,
+       "sat_episode_limit": 0.0014444444444444444
+      },
+      "left_hind_flexion": {
+       "rms_nm": 8.093668961399018,
+       "rms_over_thermal": 1.19906206835541,
+       "sat_nominal": 0.022333333333333334,
+       "sat_episode_limit": 0.022333333333333334
+      },
+      "right_hind_roll": {
+       "rms_nm": 4.403118321121238,
+       "rms_over_thermal": 0.5870824428161651,
+       "sat_nominal": 0.001,
+       "sat_episode_limit": 0.001
+      },
+      "right_hind_pitch": {
+       "rms_nm": 4.048965647969607,
+       "rms_over_thermal": 0.5398620863959476,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_hind_flexion": {
+       "rms_nm": 6.475279271546301,
+       "rms_over_thermal": 0.9593006328216741,
+       "sat_nominal": 0.035277777777777776,
+       "sat_episode_limit": 0.035277777777777776
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 6.301466630411505,
@@ -2795,6 +5411,7 @@
        "peak_nm": 21.0,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.00026388888888888886,
+       "saturated_fraction_episode_limit": 0.00026388888888888886,
        "peak_rpm": 8.12606939973412,
        "rpm_over_allowance": 0.09790445059920627
       },
@@ -2805,6 +5422,7 @@
        "peak_nm": 21.0,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.0285,
+       "saturated_fraction_episode_limit": 0.0285,
        "peak_rpm": 56.980253929345736,
        "rpm_over_allowance": 0.6865090834860932
       },
@@ -2815,6 +5433,7 @@
        "peak_nm": 37.8,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.01661111111111111,
+       "saturated_fraction_episode_limit": 0.01661111111111111,
        "peak_rpm": 81.77185308798596,
        "rpm_over_allowance": 0.7571467878517218
       },
@@ -2825,6 +5444,7 @@
        "peak_nm": 18.9,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.028805555555555556,
+       "saturated_fraction_episode_limit": 0.028805555555555556,
        "peak_rpm": 47.140328604191886,
        "rpm_over_allowance": 0.5679557663155649
       }
@@ -2847,6 +5467,7 @@
      "forward_speed_mps": 0.24065667575539307,
      "sideways_drift_m": -0.07301567820149767,
      "height_range_mm": 17.52354641362075,
+     "heading_change_deg": 1.5593770278927348,
      "duty_factor": {
       "left_fore": 0.4146666666666667,
       "right_fore": 0.6048333333333333,
@@ -2891,6 +5512,80 @@
        "slip_ratio": 0.19997749751473132
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.724693885560895,
+       "rms_over_thermal": 0.4966258514081193,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 7.729420191662159,
+       "rms_over_thermal": 1.030589358888288,
+       "sat_nominal": 0.07938888888888888,
+       "sat_episode_limit": 0.07938888888888888
+      },
+      "left_fore_flexion": {
+       "rms_nm": 10.08271389089968,
+       "rms_over_thermal": 0.9335846195277481,
+       "sat_nominal": 0.02288888888888889,
+       "sat_episode_limit": 0.02288888888888889
+      },
+      "right_fore_roll": {
+       "rms_nm": 5.42543425437981,
+       "rms_over_thermal": 0.723391233917308,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 8.164944130625411,
+       "rms_over_thermal": 1.0886592174167216,
+       "sat_nominal": 0.03805555555555556,
+       "sat_episode_limit": 0.03805555555555556
+      },
+      "right_fore_flexion": {
+       "rms_nm": 10.600102544438682,
+       "rms_over_thermal": 0.981490976336915,
+       "sat_nominal": 0.011333333333333334,
+       "sat_episode_limit": 0.011333333333333334
+      },
+      "left_hind_roll": {
+       "rms_nm": 6.292100309159229,
+       "rms_over_thermal": 0.8389467078878973,
+       "sat_nominal": 5.555555555555556e-05,
+       "sat_episode_limit": 5.555555555555556e-05
+      },
+      "left_hind_pitch": {
+       "rms_nm": 6.755625992335216,
+       "rms_over_thermal": 0.9007501323113621,
+       "sat_nominal": 0.0017777777777777779,
+       "sat_episode_limit": 0.0017777777777777779
+      },
+      "left_hind_flexion": {
+       "rms_nm": 8.139591486973732,
+       "rms_over_thermal": 1.20586540547759,
+       "sat_nominal": 0.025444444444444443,
+       "sat_episode_limit": 0.025444444444444443
+      },
+      "right_hind_roll": {
+       "rms_nm": 4.399074397249488,
+       "rms_over_thermal": 0.5865432529665984,
+       "sat_nominal": 0.0008888888888888889,
+       "sat_episode_limit": 0.0008888888888888889
+      },
+      "right_hind_pitch": {
+       "rms_nm": 4.050372726371076,
+       "rms_over_thermal": 0.5400496968494768,
+       "sat_nominal": 0.00016666666666666666,
+       "sat_episode_limit": 0.00016666666666666666
+      },
+      "right_hind_flexion": {
+       "rms_nm": 6.482245458806171,
+       "rms_over_thermal": 0.9603326605638771,
+       "sat_nominal": 0.034388888888888886,
+       "sat_episode_limit": 0.034388888888888886
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 6.292100309159223,
@@ -2899,6 +5594,7 @@
        "peak_nm": 21.0,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.00023611111111111112,
+       "saturated_fraction_episode_limit": 0.00023611111111111112,
        "peak_rpm": 8.315642263296999,
        "rpm_over_allowance": 0.1001884610035783
       },
@@ -2909,6 +5605,7 @@
        "peak_nm": 21.0,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.029847222222222223,
+       "saturated_fraction_episode_limit": 0.029847222222222223,
        "peak_rpm": 56.611437843943214,
        "rpm_over_allowance": 0.6820655161920869
       },
@@ -2919,6 +5616,7 @@
        "peak_nm": 37.8,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.01711111111111111,
+       "saturated_fraction_episode_limit": 0.01711111111111111,
        "peak_rpm": 81.29330845326533,
        "rpm_over_allowance": 0.752715819011716
       },
@@ -2929,6 +5627,7 @@
        "peak_nm": 18.9,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.029916666666666668,
+       "saturated_fraction_episode_limit": 0.029916666666666668,
        "peak_rpm": 48.196595472271376,
        "rpm_over_allowance": 0.5806818731598961
       }
@@ -2951,6 +5650,7 @@
      "forward_speed_mps": 0.2405459668580336,
      "sideways_drift_m": -0.07051558550831047,
      "height_range_mm": 18.19297040388973,
+     "heading_change_deg": 1.587448797745987,
      "duty_factor": {
       "left_fore": 0.4137777777777778,
       "right_fore": 0.6009444444444444,
@@ -2995,6 +5695,80 @@
        "slip_ratio": 0.20287782057469858
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.7206224138454136,
+       "rms_over_thermal": 0.4960829885127218,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 7.674332213237722,
+       "rms_over_thermal": 1.023244295098363,
+       "sat_nominal": 0.07883333333333334,
+       "sat_episode_limit": 0.07883333333333334
+      },
+      "left_fore_flexion": {
+       "rms_nm": 10.082380744984453,
+       "rms_over_thermal": 0.9335537726837456,
+       "sat_nominal": 0.021777777777777778,
+       "sat_episode_limit": 0.021777777777777778
+      },
+      "right_fore_roll": {
+       "rms_nm": 5.409584749217142,
+       "rms_over_thermal": 0.7212779665622856,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 8.134566770549247,
+       "rms_over_thermal": 1.0846089027398995,
+       "sat_nominal": 0.035222222222222224,
+       "sat_episode_limit": 0.035222222222222224
+      },
+      "right_fore_flexion": {
+       "rms_nm": 10.567676100296962,
+       "rms_over_thermal": 0.9784885278052742,
+       "sat_nominal": 0.010055555555555555,
+       "sat_episode_limit": 0.010055555555555555
+      },
+      "left_hind_roll": {
+       "rms_nm": 6.297921827386266,
+       "rms_over_thermal": 0.8397229103181688,
+       "sat_nominal": 5.555555555555556e-05,
+       "sat_episode_limit": 5.555555555555556e-05
+      },
+      "left_hind_pitch": {
+       "rms_nm": 6.746446530675445,
+       "rms_over_thermal": 0.8995262040900592,
+       "sat_nominal": 0.0016666666666666668,
+       "sat_episode_limit": 0.0016666666666666668
+      },
+      "left_hind_flexion": {
+       "rms_nm": 8.122421097305713,
+       "rms_over_thermal": 1.2033216440452907,
+       "sat_nominal": 0.023166666666666665,
+       "sat_episode_limit": 0.023166666666666665
+      },
+      "right_hind_roll": {
+       "rms_nm": 4.344148281766919,
+       "rms_over_thermal": 0.5792197709022558,
+       "sat_nominal": 0.0011111111111111111,
+       "sat_episode_limit": 0.0011111111111111111
+      },
+      "right_hind_pitch": {
+       "rms_nm": 4.01887958239204,
+       "rms_over_thermal": 0.5358506109856053,
+       "sat_nominal": 0.00011111111111111112,
+       "sat_episode_limit": 0.00011111111111111112
+      },
+      "right_hind_flexion": {
+       "rms_nm": 6.446897562893938,
+       "rms_over_thermal": 0.9550959352435463,
+       "sat_nominal": 0.035777777777777776,
+       "sat_episode_limit": 0.035777777777777776
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 6.297921827386264,
@@ -3003,6 +5777,7 @@
        "peak_nm": 21.0,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.0002916666666666667,
+       "saturated_fraction_episode_limit": 0.0002916666666666667,
        "peak_rpm": 7.9132832274234355,
        "rpm_over_allowance": 0.09534076177618597
       },
@@ -3013,6 +5788,7 @@
        "peak_nm": 21.0,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.028958333333333332,
+       "saturated_fraction_episode_limit": 0.028958333333333332,
        "peak_rpm": 58.364901621991535,
        "rpm_over_allowance": 0.7031915858071269
       },
@@ -3023,6 +5799,7 @@
        "peak_nm": 37.8,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.015916666666666666,
+       "saturated_fraction_episode_limit": 0.015916666666666666,
        "peak_rpm": 78.17787904656669,
        "rpm_over_allowance": 0.723869250431173
       },
@@ -3033,6 +5810,7 @@
        "peak_nm": 18.9,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.029472222222222223,
+       "saturated_fraction_episode_limit": 0.029472222222222223,
        "peak_rpm": 49.407289486035786,
        "rpm_over_allowance": 0.5952685480245276
       }
@@ -3055,6 +5833,7 @@
      "forward_speed_mps": 0.24051266290615356,
      "sideways_drift_m": -0.06720889580333636,
      "height_range_mm": 17.088207276246216,
+     "heading_change_deg": 2.0038107313943527,
      "duty_factor": {
       "left_fore": 0.41538888888888886,
       "right_fore": 0.5986666666666667,
@@ -3099,6 +5878,80 @@
        "slip_ratio": 0.20296755196839422
       }
      },
+     "per_joint": {
+      "left_fore_roll": {
+       "rms_nm": 3.767813378984121,
+       "rms_over_thermal": 0.5023751171978827,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_fore_pitch": {
+       "rms_nm": 7.719861964968628,
+       "rms_over_thermal": 1.0293149286624839,
+       "sat_nominal": 0.08033333333333334,
+       "sat_episode_limit": 0.08033333333333334
+      },
+      "left_fore_flexion": {
+       "rms_nm": 10.070471664274143,
+       "rms_over_thermal": 0.9324510800253836,
+       "sat_nominal": 0.02033333333333333,
+       "sat_episode_limit": 0.02033333333333333
+      },
+      "right_fore_roll": {
+       "rms_nm": 5.386580229231606,
+       "rms_over_thermal": 0.7182106972308807,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_fore_pitch": {
+       "rms_nm": 8.132799334634003,
+       "rms_over_thermal": 1.084373244617867,
+       "sat_nominal": 0.033944444444444444,
+       "sat_episode_limit": 0.033944444444444444
+      },
+      "right_fore_flexion": {
+       "rms_nm": 10.609188702198736,
+       "rms_over_thermal": 0.9823322872406236,
+       "sat_nominal": 0.009888888888888888,
+       "sat_episode_limit": 0.009888888888888888
+      },
+      "left_hind_roll": {
+       "rms_nm": 6.26702907695342,
+       "rms_over_thermal": 0.8356038769271226,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "left_hind_pitch": {
+       "rms_nm": 6.728793099968428,
+       "rms_over_thermal": 0.8971724133291237,
+       "sat_nominal": 0.0017777777777777779,
+       "sat_episode_limit": 0.0017777777777777779
+      },
+      "left_hind_flexion": {
+       "rms_nm": 8.113252312342247,
+       "rms_over_thermal": 1.2019633055321848,
+       "sat_nominal": 0.023944444444444445,
+       "sat_episode_limit": 0.023944444444444445
+      },
+      "right_hind_roll": {
+       "rms_nm": 4.421911550174502,
+       "rms_over_thermal": 0.5895882066899336,
+       "sat_nominal": 0.0011111111111111111,
+       "sat_episode_limit": 0.0011111111111111111
+      },
+      "right_hind_pitch": {
+       "rms_nm": 4.02781871598474,
+       "rms_over_thermal": 0.537042495464632,
+       "sat_nominal": 0.0,
+       "sat_episode_limit": 0.0
+      },
+      "right_hind_flexion": {
+       "rms_nm": 6.458590123209114,
+       "rms_over_thermal": 0.9568281664013503,
+       "sat_nominal": 0.036444444444444446,
+       "sat_episode_limit": 0.036444444444444446
+      }
+     },
      "drives": {
       "roll": {
        "rms_worst_nm": 6.267029076953424,
@@ -3107,6 +5960,7 @@
        "peak_nm": 21.0,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.0002777777777777778,
+       "saturated_fraction_episode_limit": 0.0002777777777777778,
        "peak_rpm": 8.175580189995925,
        "rpm_over_allowance": 0.09850096614452922
       },
@@ -3117,6 +5971,7 @@
        "peak_nm": 21.0,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.029013888888888888,
+       "saturated_fraction_episode_limit": 0.029013888888888888,
        "peak_rpm": 60.04433510125185,
        "rpm_over_allowance": 0.7234257241114681
       },
@@ -3127,6 +5982,7 @@
        "peak_nm": 37.8,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.015111111111111112,
+       "saturated_fraction_episode_limit": 0.015111111111111112,
        "peak_rpm": 79.04055982132545,
        "rpm_over_allowance": 0.731857035382643
       },
@@ -3137,6 +5993,7 @@
        "peak_nm": 18.9,
        "peak_over_limit": 1.0,
        "saturated_fraction": 0.030194444444444444,
+       "saturated_fraction_episode_limit": 0.030194444444444444,
        "peak_rpm": 49.14087532578232,
        "rpm_over_allowance": 0.5920587388648472
       }

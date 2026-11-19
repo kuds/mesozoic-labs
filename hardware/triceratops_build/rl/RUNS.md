@@ -38,8 +38,10 @@ estimate, F12), energy, behaviour with the stiffer contact setting, or the roll-
 the body's true velocity from the simulator (`obs_privileged_lin_vel`), which the robot would have to estimate. An
 earlier local probe of the same setup reached similar speeds with heavy sole slip.
 
-**Gait analysis (19 Nov 2026; `analysis/REPORT_GAIT_PIPE1.md`, plan committed first):** a quick diagonal, trot-like
-gait at 2.39 Hz (about 10 cm strides), no falls in 25 episodes including stiffer contact and the unseen roll-ankle foot;
-but RMS torque above the continuous rating on the pitch joints (1.11 ×) and hind knees (1.15 ×), drives at their limit
-in 4-5 % of steps, slip ratio 0.23-0.29, contact chatter in stance, 42 W (cost of transport 1.44). A working pipeline
-and a first gait, not a usable one; reward changes proposed in the report.
+**Gait analysis (19 Nov 2026, corrected after the independent review; `analysis/REPORT_GAIT_PIPE1.md`, plan committed
+first):** a quick diagonal, trot-like gait at about 2.4 Hz (about 10 cm strides); no falls in 25 episodes including
+stiffer contact and the unseen roll-ankle foot; sideways drift up to 0.23 m in 18 s. Heat (RMS torque / continuous
+rating, mean of episodes): front pitch joints 1.02 ×, left hind knee 1.10 × (worst episode 1.15 ×), the rest under
+1.0; an asymmetric gait. It uses the full torque available (2-10 % of steps at each episode's randomised limit; at the
+nominal limit only the left hind knee, 0.9 %). Slip ratio 0.23-0.29; 42 W of joint mechanical power. A working
+pipeline and a first gait, not a usable one; reward changes proposed in the report.

@@ -56,3 +56,11 @@ torques or power for this policy. An earlier local 300k-step probe of the same s
 
 `gait_pipe1.py` writes `results/gait_pipe1_<date>.json` and `.md` in this folder, plus two labelled stills (under
 500 KB each) of one 0.25 m/s episode; a clip, if made, goes on the clips data branch (D11).
+
+## Note after the independent review (19 Nov 2026; changed after a result)
+
+The first analysis measured the time at the torque limit against each episode's randomised limit, not the model's
+nominal limit this plan names; both are now reported and the flag uses the nominal one. Also added after the first
+results: per-joint heat, heading change and sideways drift (planned; drift had been computed but not reported), the
+Markdown output, and a stance-and-frequency diagnostic (`gait_freq_pipe1.py`). Details: `REPORT_GAIT_PIPE1.md`, last
+section.

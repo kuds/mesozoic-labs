@@ -9,6 +9,7 @@ built here, and the normalisation statistics through an unpickler restricted to 
 """
 import argparse
 import hashlib
+import os
 import io
 import json
 import math
@@ -23,7 +24,11 @@ import torch
 
 HERE = Path(__file__).resolve().parent
 RL = HERE.parent
-sys.path.insert(0, str(RL))
+# The environment the policy was trained in. TRIKE_ENV_DIR points at an exported copy of rl/ from the run's commit
+# (git archive 6aa3a679 hardware/triceratops_build/rl), so later edits to rl/trike_env.py cannot change the analysis.
+ENV_DIR = Path(os.environ.get("TRIKE_ENV_DIR", str(RL)))
+sys.path.insert(0, str(ENV_DIR))
+import trike_env  # noqa: E402
 from trike_env import CORNERS, TrikeEnv, TrikeEnvConfig  # noqa: E402
 
 GEN = RL.parent / "sim" / "generated"
@@ -105,7 +110,7 @@ def run_episode(env: TrikeEnv, policy, stats, seed, command, still_at=None, rend
     m, d = env.model, env.data
     idx = np.asarray(env._leg_act, dtype=np.int64)
     names = [m.actuator(int(i)).name for i in idx]
-    log = {k: [] for k in ("t", "tau", "omega", "load", "sole_v", "pos", "rp")}
+    log = {k: [] for k in ("t", "tau", "omega", "load", "sole_v", "pos", "rp", "yaw")}
     vel6 = np.zeros(6)
     lim_ep = m.actuator_forcerange[idx, 1].copy()   # this episode's (randomised) limits
 
@@ -122,6 +127,7 @@ def run_episode(env: TrikeEnv, policy, stats, seed, command, still_at=None, rend
         log["pos"].append(d.xpos[e._chassis].copy())
         R = d.xmat[e._chassis].reshape(3, 3)
         log["rp"].append((math.degrees(math.atan2(R[2, 1], R[2, 2])), math.degrees(math.asin(-max(-1, min(1, R[2, 0]))))))
+        log["yaw"].append(math.atan2(R[1, 0], R[0, 0]))
 
     env.substep_hook = hook
     frames, fell, term = {}, False, ""
@@ -149,6 +155,7 @@ def run_episode(env: TrikeEnv, policy, stats, seed, command, still_at=None, rend
         env.substep_hook = None
     arr = {k: np.asarray(v) for k, v in log.items()}
     arr["names"], arr["limit_ep"], arr["heading0"], arr["mass"] = names, lim_ep, heading0, float(m.body_mass.sum())
+    arr["limit_nominal"] = np.array([LIMIT[group_of(nm)] for nm in names])
     arr["fell"], arr["termination"], arr["contact_n"] = fell, term, env.cfg.contact_threshold_n
     return arr, frames
 
@@ -172,7 +179,9 @@ def measures(a, command):
     fwd = float(disp @ h)
     out = {"command_mps": command, "fell": a["fell"], "termination": a["termination"],
            "forward_speed_mps": fwd / T, "sideways_drift_m": float(disp @ np.array([-h[1], h[0]])),
-           "height_range_mm": float(1000 * (p[:, 2].max() - p[:, 2].min()))}
+           "height_range_mm": float(1000 * (p[:, 2].max() - p[:, 2].min())),
+           "heading_change_deg": float(math.degrees(math.atan2(math.sin(a["yaw"][w][-1] - a["yaw"][w][0]),
+                                                               math.cos(a["yaw"][w][-1] - a["yaw"][w][0]))))}
     load = a["load"][w]
     down = load > a["contact_n"]
     out["duty_factor"] = {c: float(down[:, i].mean()) for i, c in enumerate(CORNERS)}
@@ -196,16 +205,24 @@ def measures(a, command):
                    "slip_ratio": float(s.sum() * dt / fwd) if len(s) and fwd > 0.05 else None}
     out["stance_slip"] = slip
     tau, om = a["tau"][w], a["omega"][w]
+    rms_all = np.sqrt((tau ** 2).mean(0))
+    out["per_joint"] = {nm: {"rms_nm": float(rms_all[j]), "rms_over_thermal": float(rms_all[j] / THERMAL[group_of(nm)]),
+                             "sat_nominal": float((np.abs(tau[:, j]) >= 0.99 * a["limit_nominal"][j]).mean()),
+                             "sat_episode_limit": float((np.abs(tau[:, j]) >= 0.99 * a["limit_ep"][j]).mean())}
+                        for j, nm in enumerate(a["names"])}
     groups = {}
     for gname in THERMAL:
         cols = [i for i, nm in enumerate(a["names"]) if group_of(nm) == gname]
         rms = np.sqrt((tau[:, cols] ** 2).mean(0))
-        sat = (np.abs(tau[:, cols]) >= 0.99 * a["limit_ep"][cols]).mean()
+        # the plan: >= 99 % of the model's nominal limit; added after the review ("changed after a result"): the
+        # same against this episode's randomised limit (0.85-1.0 x nominal), reported separately
+        sat = (np.abs(tau[:, cols]) >= 0.99 * a["limit_nominal"][cols]).mean()
+        sat_ep = (np.abs(tau[:, cols]) >= 0.99 * a["limit_ep"][cols]).mean()
         groups[gname] = {"rms_worst_nm": float(rms.max()), "rms_mean_nm": float(rms.mean()),
                          "rms_over_thermal": float(rms.max() / THERMAL[gname]),
                          "peak_nm": float(np.abs(tau[:, cols]).max()),
                          "peak_over_limit": float(np.abs(tau[:, cols]).max() / LIMIT[gname]),
-                         "saturated_fraction": float(sat),
+                         "saturated_fraction": float(sat), "saturated_fraction_episode_limit": float(sat_ep),
                          "peak_rpm": float(np.abs(om[:, cols]).max() * 60 / (2 * math.pi)),
                          "rpm_over_allowance": float(np.abs(om[:, cols]).max() * 60 / (2 * math.pi) / RPM_ALLOW[gname])}
     out["drives"] = groups
@@ -232,6 +249,13 @@ def summarise(eps):
          "slip_ratio_worst": {c: max((e["stance_slip"][c]["slip_ratio"] or 0) for e in eps) for c in CORNERS},
          "slip_ratio_mean": {c: float(np.mean([(e["stance_slip"][c]["slip_ratio"] or 0) for e in eps])) for c in CORNERS},
          "stance_slip_p95_mps": {c: max((e["stance_slip"][c]["p95_mps"] or 0) for e in eps) for c in CORNERS},
+         "sideways_drift_m_worst": float(max(abs(e["sideways_drift_m"]) for e in eps)),
+         "sideways_drift_m_mean": float(np.mean([e["sideways_drift_m"] for e in eps])),
+         "heading_change_deg_worst": float(max(abs(e["heading_change_deg"]) for e in eps)),
+         "per_joint": {nm: {k: {"mean": float(np.mean([e["per_joint"][nm][k] for e in eps])),
+                                "worst": float(max(e["per_joint"][nm][k] for e in eps))}
+                            for k in ("rms_over_thermal", "sat_nominal", "sat_episode_limit")}
+                       for nm in eps[0]["per_joint"]},
          "roll_deg_rms": float(np.mean([e["roll_deg"]["rms"] for e in eps])),
          "pitch_deg_rms": float(np.mean([e["pitch_deg"]["rms"] for e in eps])),
          "drives": {}}
@@ -242,7 +266,7 @@ def summarise(eps):
         if v["rms_over_thermal"] > 1.0:
             flags.append(f"heat: {g} RMS {v['rms_worst_nm']:.2f} N·m over its {THERMAL[g]} N·m thermal rating")
         if v["saturated_fraction"] > 0.01:
-            flags.append(f"saturation: {g} at >= 99 % of its limit in {100 * v['saturated_fraction']:.1f} % of steps")
+            flags.append(f"saturation: {g} at >= 99 % of its nominal limit in {100 * v['saturated_fraction']:.1f} % of steps")
         if v["rpm_over_allowance"] > 1.0:
             flags.append(f"speed: {g} peak {v['peak_rpm']:.0f} rpm over its {RPM_ALLOW[g]:.0f} rpm allowance")
     for c, r in s["slip_ratio_worst"].items():
@@ -250,6 +274,29 @@ def summarise(eps):
             flags.append(f"slip: {c} slip ratio {r:.2f} (flag above {SLIP_FLAG})")
     s["flags"] = flags
     return s
+
+
+def markdown(results):
+    L = ["# Gait of the trike60-pipe1 policy: tool output (simulation)", "",
+         f"Written by `gait_pipe1.py`. Policy sha256 {results['policy_zip_sha256'][:16]}..., run commit "
+         f"{results['run_commit'][:8]}, delay {results['delay_ms']} ms, seeds {list(results['seeds'])}, window from "
+         f"{results['window_from_s']} s. Saturation is the fraction of 1 ms steps at >= 99 % of the nominal model limit "
+         "(the plan); the randomised-limit figure is labelled. Heat is RMS torque / continuous rating.", ""]
+    for label, c in results["cases"].items():
+        s = c["summary"]
+        L += [f"## {label}", "",
+              f"Speed {s['forward_speed_mps']:.3f} m/s; falls {s['falls']}; sideways drift mean "
+              f"{s['sideways_drift_m_mean']:+.3f} m, worst {s['sideways_drift_m_worst']:.3f} m; heading change worst "
+              f"{s['heading_change_deg_worst']:.1f} deg; joint mechanical power {s['power_w']:.1f} W.", "",
+              "| Joint | RMS / rating, mean | worst | At nominal limit, mean | worst | At episode limit, mean |",
+              "|---|---|---|---|---|---|"]
+        for nm, v in s["per_joint"].items():
+            L.append(f"| {nm} | {v['rms_over_thermal']['mean']:.2f} | {v['rms_over_thermal']['worst']:.2f} | "
+                     f"{100 * v['sat_nominal']['mean']:.1f} % | {100 * v['sat_nominal']['worst']:.1f} % | "
+                     f"{100 * v['sat_episode_limit']['mean']:.1f} % |")
+        L += ["", "Flags: " + ("; ".join(s["flags"]) if s["flags"] else "none"), ""]
+    L.append(f"Contact-sensitivity flag: {results['contact_sensitivity_flag']}")
+    return "\n".join(L) + "\n"
 
 
 def caption(img, text):
@@ -304,6 +351,12 @@ def main():
         print("no renderer:", exc)
 
     results = {"policy_zip_sha256": sha256(zp), "vecnormalize_sha256": sha256(pk), "run_commit": None,
+               "code_sha256": {"trike_env.py": sha256(Path(trike_env.__file__)),
+                               "trike60_C_closed.xml": sha256(GEN / "trike60_C_closed.xml"),
+                               "trike60_C_closed_ankleroll.xml": sha256(GEN / "trike60_C_closed_ankleroll.xml")},
+               "note": "the environment is built from the run record's configuration, so the configuration check is a "
+                       "consistency check; that trike_env.py and the models are the trained ones rests on git (unchanged "
+                       "since the run's commit) and the hashes above",
                "delay_ms": DELAY, "seeds": SEEDS, "window_from_s": WINDOW_S, "cases": {}}
     results["run_commit"] = record["sessions"][0]["git"]["commit"]
     cases = [("target 0.25 m/s", "trike60_C_closed.xml", {}, 0.25, None),
@@ -334,6 +387,7 @@ def main():
     results["contact_sensitivity_flag"] = bool(
         sens["falls"] > 0 or sens["forward_speed_mps"] < (1 - CONTACT_SENS_FLAG) * base["forward_speed_mps"])
     (out / f"gait_pipe1_{a.date}.json").write_text(json.dumps(results, indent=1, default=float) + "\n")
+    (out / f"gait_pipe1_{a.date}.md").write_text(markdown(results))
     for (tt, cam), img in sorted(frames_all.items()):
         im = caption(img, f"learned policy, pipeline test (2 M steps), 0.25 m/s command, 10 ms delay, t = {tt:.1f} s")
         p = out / f"gait_pipe1_{cam}_t{tt:.1f}.jpg"
