@@ -75,9 +75,10 @@ reason given below.
 ## Corrected after the judged run (no rule or threshold changed)
 
 - **The disclosure's torque-limit figure.** The disclosure above says development showed "the worst joint at its
-  torque limit in up to 2.2 % of steps in one episode". That understated it: the development tool printed
-  drive-group means. The worst single joint, the right fore pitch, was at 2.5-3.1 % (seeds 6-9, rerun by the
-  independent review with the frozen code). That measure was reported, not judged, so no rule depends on it.
+  torque limit in up to 2.2 % of steps in one episode". That understated it. 2.2 % is the right fore pitch in row
+  11's impratio-10 case on seed 8, not the worst across the development cases. Rerun with the frozen code by the
+  independent review, a front pitch drive (right or left) reached 3.0 % in row 11's grippy case (seeds 8-9) and
+  2.7 % on row 10's seed 6. That measure was reported, not judged, so no rule depends on it.
 - **The summary tool.** `judge_walk60.py`'s RESULTS.md gives only the worst joint and no touchdowns, though
   "Reported without a rule" lists per-joint limit time against the 1 % flag and touchdowns.
   `REPORT_WALK60.md` gives them from `results.json`.

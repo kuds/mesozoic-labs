@@ -26,11 +26,12 @@ and the judged run reproduced bit for bit.
 - **Power:** 24-30 W of joint mechanical power, against run2b's 22 W.
 - **What it does not do well (reported, no rule):**
   - **Extra front-foot touchdowns on grippy floors.** The front feet record 3.0-3.2 touchdowns per second on
-    average (up to 3.9 in one episode) against a stride of 1.43 per second, so about two per stride. In four
-    episodes the reviewer instrumented, about a third of them came late in the foot's own stance, while the other
-    diagonal pair landed, and the rest around the foot's own landing. On slippery floors it is 1.5 per second on
-    average, with single episodes up to 1.9. At the 0.15 m/s command it is worse: 4.4-4.7 per second on average,
-    5.9 at worst (about 3 per stride).
+    average (up to 3.9 in one episode) against a stride of 1.43 per second, so about two per stride. In the three
+    grippy-floor episodes the reviewer instrumented, about a quarter (11-33 % per episode) came late in the foot's
+    own stance, while the other diagonal pair landed; almost all the rest came around the foot's own landing. On
+    slippery floors it is 1.5 per second on average, with single episodes up to 1.9. At the 0.15 m/s command it is
+    worse: 4.4-4.7 per second on average, 5.9 at worst (about 3 per stride). There the extra touchdowns are
+    re-touches just after landing (about two thirds, in two instrumented episodes), not more in late stance.
   - **Time at the torque limit, against the 1 % flag used for the learned policies.**
     - On the nominal model, where randomised limits cannot hide it, the right fore pitch drive sits at its limit in
       2.9 % of steps and the left fore pitch in 1.9 %, in every episode. Run2b's worst joint on its nominal model
@@ -112,7 +113,8 @@ policies' are.
 - One controller with frozen parameters; the verdict covers ten episode seeds per condition.
 - Simulation of a model whose masses and contact are estimates.
 - The 100 Hz control rate is an assumption about the robot's controller.
-- Leg odometry cannot see foot slip.
+- Leg odometry cannot see foot slip. It is unbiased but noisy (in one instrumented episode the review found an RMS
+  error of 0.058 m/s), so the Raibert speed term mostly reacts to noise, moving touchdowns by about ±5 mm.
 - Heading and drift follow the simulated gyro drift. Holding a line over a museum floor needs an outside reference
   (vision or markers) on the robot.
 
@@ -120,8 +122,8 @@ policies' are.
 
 1. Run the walk through the robustness sweep (delay, friction, mass, payload, force limit, kp, pushes, steps,
    ramps), to set its edges against the learned policies'.
-2. Soften the front feet on grippy floors: the landing (the time at the front pitch drives' limit) and the extra
-   touchdowns late in stance, which are worse at 0.15 m/s.
+2. Soften the front feet on grippy floors: the landing (the time at the front pitch drives' limit, and the
+   re-touches just after landing, which are worse at 0.15 m/s) and the extra touchdowns late in stance.
 3. Use this walk for the museum render clips: it is deterministic and robust in these conditions.
 
 ## Revised after the independent review (19 Nov 2026; the verdict and every judged number unchanged)
@@ -129,8 +131,9 @@ policies' are.
 - Time at the torque limit was understated. The first version quoted 0.6 % at the nominal limit, which randomised
   limits mask, and gave neither the nominal model's 2.9 % nor the 1 % flag counts. Both are now in, and the run2b
   comparison gained this row and the touchdowns row.
-- The front feet's extra touchdowns were called "a bounce at landing". The reviewer's instrumented episodes show
-  about a third coming late in stance; the 0.15 m/s case, worse, is now reported.
+- The front feet's extra touchdowns were called "a bounce at landing". The reviewer's instrumented grippy-floor
+  episodes show about a quarter (11-33 % per episode) coming late in stance; the 0.15 m/s case, worse at landing,
+  is now reported.
 - Per-episode worst values (slip, touchdowns) and the action-range difference from the learned policy were added.
 - The summary tool's RESULTS.md gives only the worst joint and no touchdowns, though the pre-registration lists
   per-joint limit time against the 1 % flag and touchdowns: this report gives them from `results.json`.

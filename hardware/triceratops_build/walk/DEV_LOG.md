@@ -29,9 +29,11 @@ tried on that seed). Loads, slip and power are from 2 s on throughout.
 
 **Corrections from the independent review of the judged run (19 Nov 2026):**
 - **Torque-limit figures (rows 10-11).** The torque-limit numbers in rows 10-11 come from `gait_metrics.one_line`,
-  which prints each drive group's at-limit time averaged over its four joints. Rerun with the frozen code (seeds
-  6-9), the worst single joint, the right fore pitch, was at its episode's limit in 2.5-3.1 % of steps (3.0 % at
-  the nominal limit on seed 8, friction 1.0).
+  which prints each drive group's nominal-limit time averaged over its four joints. Rerun with the frozen code by
+  the review, the worst single joint, a front pitch drive (right or left), was at its episode's limit in up to
+  3.0 % of steps in row 11's grippy case (seeds 8-9; 3.0 % also at the nominal limit on seed 8) and 2.7 % on row
+  10's seed 6; 3.1 % in an impratio-10 case at friction 1.0 that the review added. Row 11's other cases were lower
+  (0.15 m/s 1.0-2.4 %, 0.27 m/s 1.0-1.4 %, 0 ms delay 1.3 %).
 - **Row 10's power and touchdowns** are per-case means. Per episode they were 23-28 W, with front feet up to
   2.9 touchdowns per second (seed 6).
 - **The `walk60.py` docstring** (its third paragraph) and the comment above the landing settings still describe
