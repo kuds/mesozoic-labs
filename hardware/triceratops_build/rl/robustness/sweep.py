@@ -14,7 +14,7 @@ point (seeds 200000, 200001, ...). Sweeps (README.md has the definitions; [..] =
 
 Usage:
   python sweep.py --ckpt-dir DIR --run pipe1 [--seeds 8] [--workers 2] [--out results/pipe1]
-  python sweep.py --from-json results/pipe1/sweep_pipe1.json   (summaries, Markdown, charts again; no simulation)
+  python sweep.py --from-json results/pipe1/sweep_pipe1.json.gz   (summaries, Markdown, charts again; no simulation)
 DIR holds the checkpoint zip, its VecNormalize pickle and run_record.json. The environment is imported through
 ``analysis/gait_pipe1.py``: rl/trike_env.py, or the copy of rl/ that TRIKE_ENV_DIR names (an export of the run's commit).
 Before the sweep, gait_pipe1's target case (randomisation on, delay 10 ms, seeds 100000-100004, 0.25 m/s) is re-run and
@@ -662,7 +662,11 @@ def _tuples(x):
 
 def rebuild(path: Path, charts_too: bool = True) -> dict:
     """Summaries, breaks, Markdown and charts again from the episodes in a finished run's JSON."""
-    res = json.loads(path.read_text())
+    if path.suffix == ".gz":
+        import gzip
+        res = json.loads(gzip.decompress(path.read_bytes()).decode())
+    else:
+        res = json.loads(path.read_text())
     for v in res["points"].values():
         v["point"]["terrain"] = _tuples(v["point"]["terrain"])
         v["summary"] = summarise_point(v["point"], v["episodes"], res["joint_names"])
@@ -714,7 +718,10 @@ def compact_json(res: dict) -> str:
 
 
 def write_outputs(res: dict, out: Path) -> None:
-    (out / f"sweep_{res['run']}.json").write_text(compact_json(res) + "\n")
+    # gzip (reproducible: mtime 0) keeps the per-episode file under the repository's 500 KB limit
+    import gzip
+    with open(out / f"sweep_{res['run']}.json.gz", "wb") as fh, gzip.GzipFile(fileobj=fh, mode="wb", mtime=0) as gz:
+        gz.write((compact_json(res) + "\n").encode())
     (out / f"summary_{res['run']}.md").write_text(markdown(res))
 
 

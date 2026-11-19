@@ -214,7 +214,7 @@ def chart_friction(res, out):
                     res["settings"]["training_ranges"]["friction"], "sliding friction, floor and soles",
                     breaks_x=[0.85 if x is None else x for x in _breaks_of(fam)],
                     drop_lines=[(0.8 * fam["nominal_speed"], "-20 % of nominal")] if fam["nominal_speed"] else (),
-                    xticks=[x for x, _, _ in rows if x != 0.85])
+                    xticks=[0.2, 0.4, 0.6, 0.8, 1.0, 1.2])
     header(fig, res, "floor friction sweep",
            _common_sub(res, "The model's own friction (floor 0.8, soles 0.85: 0.85 in contact) is the nominal point. "
                             "Slip ratio: sole travel while loaded / body travel (gait_pipe1's definition), the foot "

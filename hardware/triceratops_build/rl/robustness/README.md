@@ -6,7 +6,7 @@ breaks: servo delay, floor friction, mass, drive strength, sideways pushes, and 
 not a verdict on the robot or on the method.
 
 Results for the first policy, trike60-pipe1, are in `results/pipe1/`: `summary_pipe1.md` (read this first),
-`sweep_pipe1.json` (every episode), and one chart per sweep, `pipe1_<sweep>.png`.
+`sweep_pipe1.json.gz` (every episode; gzip), and one chart per sweep, `pipe1_<sweep>.png`.
 
 ## How to run
 
@@ -124,5 +124,5 @@ speed more than 20 % below the nominal point's at the same command. "None" means
   an episode; mass, friction, kp and force-limit scaling match the env's randomisation; the payload lands on the
   chassis only; the nominal model is restored exactly between points; the step and ramp have the intended shape and
   the floor's contact settings; the break rule.
-- `results/<run>/`: `sweep_<run>.json` (settings, hashes, the reproduction check, per-point summaries rounded to 6
+- `results/<run>/`: `sweep_<run>.json.gz` (gzip; settings, hashes, the reproduction check, per-point summaries rounded to 6
   significant figures, and every episode on one line), `summary_<run>.md`, `<run>_<sweep>.png`.
