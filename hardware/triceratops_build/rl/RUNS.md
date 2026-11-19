@@ -77,3 +77,10 @@ pipeline and a first gait, not a usable one; reward changes proposed in the repo
 Against pipe1 (PR #669's foot, the first reward): about the same speed, but the drives run cooler (worst joint 0.76 ×
 against 1.10 ×), the feet slip about a quarter as much, and the joints do half the mechanical work. Simulation, one
 policy each: reported, not a verdict. The full analysis follows `analysis/PLAN_RUN2B.md`.
+
+**Analysis (19 Nov 2026; `analysis/REPORT_RUN2B.md`, plan committed first):** a clean trot at 1.22 Hz with 20 cm
+strides; every joint under its continuous rating in every gait-report case (worst 0.72 ×, left hind knee); the front
+pitch drives' peak torque is now the tightest margin (at the nominal limit about 1 % of steps without randomisation);
+leg electrical estimate 40-50 W against pipe1's 106-123 W. Robustness edges at the same points as pipe1 but with larger
+slowdowns on a 3 cm step (-54 %) and an 8° ramp (-34 %), 7 of 8 falls from a 1.25 m/s push to the left, and sideways
+drift of 0.3-0.8 m in 18 s at friction 0.15-0.3. Proposals for the next run in the report.
