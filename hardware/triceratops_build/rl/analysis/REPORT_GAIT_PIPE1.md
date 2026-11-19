@@ -19,8 +19,9 @@ Tool output: `results/gait_pipe1_2026-11-19.json` and `.md`, `results/gait_freq_
     asymmetric. RMS over 18 s stands in for steady walking; it is not a thermal simulation.
   - **Torque limits:** the policy uses the full torque available. Against each episode's randomised limit (0.85-1.0 ×
     the model's) the fore pitch joints sit at their limit in 5-10 % of steps, the elbows and hind knees in 2-5 %;
-    against the model's nominal limit, which the randomised episodes rarely reach, only the left hind knee does (0.9 %
-    of steps); on the nominal model without randomisation, pitch, elbow and knee groups each reach it in 2-3 %.
+    against the model's nominal limit, which the randomised episodes rarely reach, only the left hind knee does more
+    than briefly (0.9 % of steps; the right hind roll 0.1 %); on the nominal model without randomisation, the pitch,
+    elbow and knee groups reach it in 3.0, 1.8 and 3.0 % of steps.
   - **Slip:** each loaded foot slides about a quarter of the distance the body travels (slip ratio 0.23-0.29 at
     0.25 m/s, 0.30-0.37 at 0.15 m/s).
   - **Power:** 42 W of joint mechanical power (sum of |torque × speed|, not electrical power) at 0.24 m/s.

@@ -43,5 +43,5 @@ first):** a quick diagonal, trot-like gait at about 2.4 Hz (about 10 cm strides)
 stiffer contact and the unseen roll-ankle foot; sideways drift up to 0.23 m in 18 s. Heat (RMS torque / continuous
 rating, mean of episodes): front pitch joints 1.02 ×, left hind knee 1.10 × (worst episode 1.15 ×), the rest under
 1.0; an asymmetric gait. It uses the full torque available (2-10 % of steps at each episode's randomised limit; at the
-nominal limit only the left hind knee, 0.9 %). Slip ratio 0.23-0.29; 42 W of joint mechanical power. A working
+nominal limit essentially only the left hind knee, 0.9 %). Slip ratio 0.23-0.29; 42 W of joint mechanical power. A working
 pipeline and a first gait, not a usable one; reward changes proposed in the report.
