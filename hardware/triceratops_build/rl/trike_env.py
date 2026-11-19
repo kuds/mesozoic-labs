@@ -109,7 +109,7 @@ class TrikeEnvConfig:
     # --- observation content ---
     obs_ankle_angles: bool = True  # the 4 passive ankle pitch angles (the model has jointpos sensors on them)
     obs_privileged_lin_vel: bool = True  # base linear velocity from qvel (simulation only; no sensor gives it)
-    # sin/cos gait clock in the observation (Hz); 0 removes it. Off by default since 20 Nov 2026: no reward term uses
+    # sin/cos gait clock in the observation (Hz); 0 removes it. Off by default since 19 Nov 2026: no reward term uses
     # it and the pipe1 policy ignored it (it stepped at 2.39 Hz against the clock's 1.5 Hz). Runs that trained with it
     # (trike60-pipe1: 1.5) keep it through the env config in their run_record.json, so their checkpoints still load.
     phase_clock_hz: float = 0.0

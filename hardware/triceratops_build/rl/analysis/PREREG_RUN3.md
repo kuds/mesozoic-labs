@@ -1,6 +1,6 @@
 # Pre-registration: run 3, terrain training on two seeds (written before either run starts)
 
-20 Nov 2026. Decision D18. Simulation only. Rules, seeds, budgets and stop rules are fixed here, before training.
+19 Nov 2026. Decision D18. Simulation only. Rules, seeds, budgets and stop rules are fixed here, before training.
 Any rule changed after a result will be labelled "changed after a result" and its first wording kept.
 
 **Disclosure.** The rules below were written after the run2b analysis (`REPORT_RUN2B.md`, F14), and their thresholds

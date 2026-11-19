@@ -1,6 +1,6 @@
 # Development log: the model-based trot (task 5, D10)
 
-19-20 Nov 2026. Simulation only. Development used episode seeds 1-9; judged seeds are kept for the pre-registered
+19 Nov 2026. Simulation only. Development used episode seeds 1-9; judged seeds are kept for the pre-registered
 runs (`PREREG_WALK60.md`). Plant: `walk60.plant_config`: the training env on the roll-ankle model, 100 Hz control,
 action filter off, delay 10 ms unless stated, randomisation and observation noise on unless stated. Measures:
 `rl/gait_metrics.py`, the same measures as the learned policies' training evaluations. The command is 0.25 m/s

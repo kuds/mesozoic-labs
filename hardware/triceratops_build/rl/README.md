@@ -134,7 +134,7 @@ gravity direction in the body frame (from the IMU quaternion); `heading_error_si
 it); 4 foot touch loads / nominal weight; `previous_action_filtered` (the filter state, i.e. what is commanded) and
 `previous_action_raw` (the policy's last output, which the action-rate penalty compares the next one with, so that
 penalty depends only on what the policy sees); the commanded speed (m/s); and, only if `phase_clock_hz` > 0, a gait
-clock (sin/cos; no reward uses it). The clock is **off by default** since the pipe1 gait analysis (20 Nov 2026): that
+clock (sin/cos; no reward uses it). The clock is **off by default** since the pipe1 gait analysis (19 Nov 2026): that
 policy stepped at 2.39 Hz and ignored its 1.5 Hz clock. Runs recorded with the clock (trike60-pipe1: 1.5 Hz, 70
 floats) keep it: `evaluate.py --run-dir` and `train.py --resume` rebuild the env from the run's `run_record.json`,
 whose env config names it, and fields added since take their defaults (tested).
@@ -221,7 +221,7 @@ observations (tested over 50 steps with randomisation and noise on).
 
 ## Rough terrain, pushes, low friction and a drift cost (run 3, decision D18)
 
-Added 19-20 Nov 2026 after the run2b analysis (`analysis/REPORT_RUN2B.md`: on steps, ramps and slippery floors that
+Added 19 Nov 2026 after the run2b analysis (`analysis/REPORT_RUN2B.md`: on steps, ramps and slippery floors that
 policy slowed sharply and drifted sideways up to 1.3 m in 18 s; it had only ever seen a flat floor). **Every new
 setting defaults to off**, and with them off the environment is bit-identical to the one before (checked against the
 previous commit's `trike_env.py`, both models, randomisation on and off), so pipe1's and run2b's recorded configs
@@ -414,7 +414,7 @@ start, `w_heat` and `w_saturation`; the review then measured why (above) and the
 during these probes: 1,062 env steps/s (closed,
 mostly standing) and 745 (roll ankle, walking, four more joints).
 
-**Two 300k-step probes with the reward before 20 Nov 2026** (4 envs, seed 0; one seed each, so evidence, not a
+**Two 300k-step probes with the reward before 19 Nov 2026** (4 envs, seed 0; one seed each, so evidence, not a
 result). With the initial action noise of the first version (`--log-std-init -1.0`, std 0.37) the training
 rollouts moved at 0.12 m/s against a mean command of 0.12 m/s, but the deterministic evaluation at 300k steps moved
 at 0.015-0.017 m/s at 0.15 and 0.25 m/s: the policy still moved through its noise (its std had barely shrunk, 0.365).

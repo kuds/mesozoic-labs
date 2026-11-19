@@ -1,6 +1,6 @@
 # Pre-registration: the model-based trot at 60 cm (task 5, D10), written before any judged run
 
-20 Nov 2026. Simulation only. The controller's parameters, the conditions, the seeds, the rules and the stop rules
+19 Nov 2026. Simulation only. The controller's parameters, the conditions, the seeds, the rules and the stop rules
 are fixed here. Any rule changed after a judged result will be labelled "changed after a result", with its first
 wording kept.
 
