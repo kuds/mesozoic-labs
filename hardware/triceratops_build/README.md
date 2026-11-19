@@ -57,6 +57,9 @@ python hardware/triceratops_build/pr669_review/stance_balance_check.py \
 4. A statically stable scripted crawl, margin pre-registered. *Done: fails with PR #669's foot, passes with a
    passive roll ankle (simulation; proposal for the owner).*
 5. A 0.30 m/s walk with 0-10 ms servo delay and noise, on grippy and slippery floors; two controllers.
+   *At 60 cm (0.25 m/s): the model-based trot passes its pre-registered rules on grippy and slippery floors under
+   both contact settings (19 Nov 2026, simulation; `walk/REPORT_WALK60.md`); the learned policies are the second
+   controller (`rl/RUNS.md`).*
 6. A short trot at 0.50-0.60 m/s.
 7. Actuator sizing confirmed in simulation against the parts list and each drive's limits.
 8. A one-foreleg bench plan with pass and fail rules written first.
