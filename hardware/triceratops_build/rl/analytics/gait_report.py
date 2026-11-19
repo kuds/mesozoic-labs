@@ -90,6 +90,21 @@ CASES = {  # key: (label, model file, config changes, command)
                      {"domain_randomization": False, "observation_noise": False}, 0.25),
     "ankleroll_0.25": ("0.25 m/s, roll-ankle model, randomised", ANKLEROLL_MODEL, {}, 0.25),
 }
+
+
+def run_cases(primary: str) -> dict:
+    """The cases for a run trained on ``primary``: the main cases and the sweep on the run's own model, plus one case
+    on the other foot. A run on PR #669's foot keeps the original keys (the other foot is the roll ankle,
+    ``ankleroll_0.25``); a run on the roll-ankle model gets ``otherfoot_0.25`` on PR #669's foot."""
+    if primary == DEFAULT_MODEL:
+        return dict(CASES)
+    other = DEFAULT_MODEL if primary == ANKLEROLL_MODEL else DEFAULT_MODEL
+    return {"target_0.25": (CASES["target_0.25"][0], primary, {}, 0.25),
+            "cmd_0.15": (CASES["cmd_0.15"][0], primary, {}, 0.15),
+            "nominal_0.25": (CASES["nominal_0.25"][0], primary, CASES["nominal_0.25"][2], 0.25),
+            "otherfoot_0.25": (f"0.25 m/s, other foot ({other}: PR #669's pitch-only ankle), randomised", other, {}, 0.25)}
+
+
 REFERENCE_CASES = {"target_0.25": "target 0.25 m/s", "cmd_0.15": "0.15 m/s",
                    "nominal_0.25": "sensitivity: nominal model, no randomisation or noise, 0.25 m/s",
                    "ankleroll_0.25": "sensitivity: roll-ankle model, 0.25 m/s"}
@@ -905,16 +920,18 @@ def simulate(args) -> tuple[dict, dict]:
     if args.quick:
         ec["episode_seconds"] = 10.0
     drives = drive_table()
+    primary = Path(ec["model_path"]).name
+    cases = run_cases(primary)
     jobs = []
-    for key, (label, model, changes, cmd) in CASES.items():
+    for key, (label, model, changes, cmd) in cases.items():
         for s in SEEDS:
             jobs.append({"case": key, "model": model, "changes": changes, "command": cmd, "seed": s, "full": True,
                          "trace": s == SEEDS[0]})
     for c in SWEEP:
-        if any(abs(c - CASES[k][3]) < 1e-9 for k in ("target_0.25", "cmd_0.15")):
+        if any(abs(c - cases[k][3]) < 1e-9 for k in ("target_0.25", "cmd_0.15")):
             continue  # reused from the full cases (same seeds, settings and command)
         for s in SWEEP_SEEDS:
-            jobs.append({"case": "sweep", "model": DEFAULT_MODEL, "changes": {}, "command": c, "seed": s, "full": False,
+            jobs.append({"case": "sweep", "model": primary, "changes": {}, "command": c, "seed": s, "full": False,
                          "trace": False})
     t0 = time.time()
     init = ({"zip": str(zp), "pkl": str(pk)}, ec, st["net"], st["log_std_init"])
@@ -952,7 +969,7 @@ def simulate(args) -> tuple[dict, dict]:
                      "hotel_range_w": list(HOTEL_RANGE_W), "wall_s": wall, "workers": args.workers},
         "drives": drives, "cases": {}, "sweep": {}}
     payload: dict = {"cases": {}}
-    for key, (label, model, changes, cmd) in CASES.items():
+    for key, (label, model, changes, cmd) in cases.items():
         rr = sorted([r for r in res if r["spec"]["case"] == key], key=lambda r: r["spec"]["seed"])
         eps = [r["metrics"] for r in rr]
         pays = [r["payload"] for r in rr]
@@ -977,7 +994,7 @@ def simulate(args) -> tuple[dict, dict]:
         rows = []
         for s in SWEEP_SEEDS:
             r = next((r for r in res if r["spec"]["seed"] == s and abs(r["spec"]["command"] - c) < 1e-9
-                      and r["spec"]["model"] == DEFAULT_MODEL and not r["spec"]["changes"]), None)
+                      and r["spec"]["model"] == primary and not r["spec"]["changes"]), None)
             if r is None:
                 continue
             wsp = r["metrics"]["speed"]["forward_speed_mps"] if r["spec"]["full"] else r["window_speed_steps_mps"]
@@ -988,7 +1005,11 @@ def simulate(args) -> tuple[dict, dict]:
                              "forward_speed_mps_mean": _mean([x["forward_speed_mps"] for x in rows])}
     results["sweep"] = sweep
     payload["sweep"] = sweep
-    results["cross_check"] = cross_check(results["cases"])
+    results["primary_model"] = primary
+    # the cross-check against gait_pipe1.py's committed results applies only to that policy
+    ref_sha = json.loads(REFERENCE_JSON.read_text()).get("policy_zip_sha256") if REFERENCE_JSON.exists() else None
+    results["cross_check"] = (cross_check(results["cases"]) if ref_sha and ref_sha == gp.sha256(zp)
+                              else {"available": False, "reason": "not the policy gait_pipe1.py analysed"})
     return results, payload
 
 
@@ -1000,7 +1021,9 @@ def _f(x, fmt="{:.2f}", none="-"):
 def markdown(R: dict) -> str:
     C = R["cases"]
     T, Q, N = C["target_0.25"]["summary"], C["cmd_0.15"]["summary"], C["nominal_0.25"]["summary"]
-    A = C["ankleroll_0.25"]["summary"]
+    A = (C.get("ankleroll_0.25") or C.get("otherfoot_0.25"))["summary"]
+    if "ankle_roll_deg" in T["feet"]:   # a run trained on the roll-ankle model: its own roll angles
+        A = T
     pol = R["policy"]
     run = R.get("label") or R["run"]
     L = [f"# Gait quality of {run} (SIMULATION)", "",

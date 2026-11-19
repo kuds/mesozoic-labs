@@ -400,7 +400,8 @@ def chart_power(R, P, out: Path) -> str:
     ax.legend(handles=[Line2D([], [], color=c, lw=cs.LW, label=f"{nm} (mean {np.mean(y):.0f} W)")
                        for nm, y, c in series], loc="upper left", ncol=2)
     ax2 = fig.add_subplot(gs[1])
-    keys = [k for k in ("target_0.25", "cmd_0.15", "nominal_0.25", "ankleroll_0.25") if k in R["cases"]]
+    keys = [k for k in ("target_0.25", "cmd_0.15", "nominal_0.25", "ankleroll_0.25", "otherfoot_0.25")
+            if k in R["cases"]]
     hotel = R["settings"]["hotel_w"]
     ys = np.arange(len(keys))[::-1]
     cols = [cs.SERIES[3], cs.SERIES[2], cs.MUTED]
@@ -573,8 +574,10 @@ def chart_feet(R, P, out: Path) -> str:
                               label=f"{gc.SHORT[c]}: slip ratio {S[c]['slip_ratio_mean']:.2f}") for c in CORNERS],
               loc="lower right", fontsize=8)
     ax = fig.add_subplot(gs[1, 1])
-    if "ankleroll_0.25" in R["cases"] and "ankle_roll_deg" in R["cases"]["ankleroll_0.25"]["summary"]["feet"]:
-        A = R["cases"]["ankleroll_0.25"]["summary"]["feet"]
+    roll_key = next((k for k in ("target_0.25", "ankleroll_0.25") if k in R["cases"]
+                     and "ankle_roll_deg" in R["cases"][k]["summary"]["feet"]), None)
+    if roll_key:
+        A = R["cases"][roll_key]["summary"]["feet"]
         lim = A["ankle_roll_limit_deg"]
         for j, c in enumerate(CORNERS):
             v = A["ankle_roll_deg"][c]
