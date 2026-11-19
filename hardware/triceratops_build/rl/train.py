@@ -123,6 +123,11 @@ def parse_args(argv=None) -> argparse.Namespace:
                     help="env steps before which the LATE penalties (heat, saturation, short air times) are off")
     ap.add_argument("--late-ramp-to", type=int, default=3_000_000,
                     help="env steps at which the late penalties reach full weight (linear from --late-ramp-from)")
+    ap.add_argument("--terrain-ramp-from", type=int, default=1_000_000,
+                    help="env steps until which the terrain, pushes and low friction stay at scale 0 (when the env "
+                         "config turns them on)")
+    ap.add_argument("--terrain-ramp-to", type=int, default=4_000_000,
+                    help="env steps at which they reach full scale (linear from --terrain-ramp-from)")
     ap.add_argument("--eval-every", type=int, default=250_000,
                     help="env steps between deterministic evaluations (0: none)")
     ap.add_argument("--eval-commands", default="0,0.15,0.25", help="commanded speeds of those evaluations, m/s")
@@ -234,9 +239,24 @@ def run_settings(args, cfg) -> dict:
         "log_std_init": args.log_std_init, "net": [int(x) for x in args.net.split(",") if x],
         "penalty_ramp_steps": args.penalty_ramp_steps, "penalty_ramp_start": args.penalty_ramp_start,
         "late_ramp_from": args.late_ramp_from, "late_ramp_to": args.late_ramp_to,
+        **({"terrain_ramp_from": args.terrain_ramp_from, "terrain_ramp_to": args.terrain_ramp_to}
+           if rough(cfg) else {}),
         "eval_every": args.eval_every, "eval_commands": eval_commands(args.eval_commands),
         "eval_seconds": args.eval_seconds,
     }, default=list))
+
+
+def rough(cfg) -> bool:
+    """Whether the env config turns on any of the terrain-scaled features (terrain, pushes, low friction)."""
+    return cfg.terrain_boxes > 0 or cfg.push_prob > 0 or cfg.friction_low_hard is not None
+
+
+def flat_eval_config(cfg):
+    """The env config of the evaluations during training: the run's own, with the terrain, pushes and low-friction
+    end off (an older run's config is unchanged), so every run's evaluations are on the same flat floor."""
+    from trike_env import flat_floor
+
+    return flat_floor(cfg)
 
 
 def settings_diff(old: dict, new: dict) -> dict:
@@ -389,8 +409,9 @@ def make_callbacks(args, cfg, ckpt_dir: Path, out: Path, state: dict):
             return True
 
     class PenaltyRamp(BaseCallback):
-        """Both schedules, set in every env before each rollout: the penalty scale (energy, slip) and the late scale
-        (heat, saturation, short air times)."""
+        """The schedules, set in every env before each rollout: the penalty scale (energy, slip), the late scale
+        (heat, saturation, short air times) and, when the env config uses them, the terrain scale (steps, slopes,
+        pushes, low friction; 0 until --terrain-ramp-from, as late_scale_at)."""
 
         def _on_rollout_start(self) -> None:
             n = self.model.num_timesteps
@@ -402,6 +423,11 @@ def make_callbacks(args, cfg, ckpt_dir: Path, out: Path, state: dict):
             if late != state.get("late_scale"):
                 self.training_env.env_method("set_late_scale", late)
                 state["late_scale"] = late
+            if rough(cfg):
+                ts = late_scale_at(n, args.terrain_ramp_from, args.terrain_ramp_to)
+                if ts != state.get("terrain_scale"):
+                    self.training_env.env_method("set_terrain_scale", ts)
+                    state["terrain_scale"] = ts
 
         def _on_step(self) -> bool:
             return True
@@ -431,18 +457,21 @@ def make_callbacks(args, cfg, ckpt_dir: Path, out: Path, state: dict):
                 state["record_progress"](n)  # in run_record.json before the line is printed
                 say(f"steps {n} of {args.total_steps} ({100.0 * n / args.total_steps:.1f}%), {rate:.0f} env "
                     f"steps/s, penalty scale {state.get('penalty_scale', 1.0):.2f}, late scale "
-                    f"{state.get('late_scale', 1.0):.2f}; training rollouts "
+                    f"{state.get('late_scale', 1.0):.2f}"
+                    + (f", terrain scale {state.get('terrain_scale', 0.0):.2f}" if rough(cfg) else "")
+                    + "; training rollouts "
                     f"(stochastic actions), {ep}")
             return True
 
     class PeriodicEval(BaseCallback):
         """Every --eval-every steps: one episode per fixed command, deterministic actions, randomisation on, servo
-        delay fixed at 10 ms, fixed seeds; one printed line and one JSON line in eval_during_training.jsonl."""
+        delay fixed at 10 ms, fixed seeds, on the flat floor (``flat_eval_config``); one printed line and one JSON
+        line in eval_during_training.jsonl."""
 
         def _on_training_start(self) -> None:
             seconds = args.eval_seconds or cfg.episode_seconds
-            self.env = TrikeEnv(cfg.replace(delay_steps_fixed=10, episode_seconds=seconds,
-                                            domain_randomization=True, observation_noise=True))
+            self.env = TrikeEnv(flat_eval_config(cfg).replace(delay_steps_fixed=10, episode_seconds=seconds,
+                                                              domain_randomization=True, observation_noise=True))
             self.next = first_multiple_above(self.model.num_timesteps, args.eval_every)
 
         def _on_step(self) -> bool:

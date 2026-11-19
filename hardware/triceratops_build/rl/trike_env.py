@@ -46,7 +46,7 @@ MUSEUM_TARGET_SPEED_MPS = 0.25
 
 REWARD_TERMS = ("r_track", "r_track_linear", "r_alive", "r_upright", "r_height", "r_lateral", "r_yaw_rate",
                 "r_heading", "r_energy", "r_action_rate", "r_slip", "r_diagonal", "r_heat", "r_saturation",
-                "r_air_time")
+                "r_air_time", "r_lateral_drift")
 REWARD_BONUSES = ("r_track", "r_alive")  # >= 0; r_diagonal and r_air_time may take either sign; every other is <= 0
 # Two schedules (train.py sets both in every env before each rollout):
 RAMPED_TERMS = ("r_energy", "r_slip")  # x penalty_scale: from the first steps (pipe1's schedule, 0.1 -> 1 over 2 M)
@@ -174,6 +174,38 @@ class TrikeEnvConfig:
     w_air_time: float = 1.0
     air_time_min_command: float = 0.05
 
+    # --- rough terrain, pushes, low friction and sideways drift (run 3; every default is OFF, so an older run's
+    # recorded config builds the identical model and draws the identical random stream) ---
+    # A pool of this many static boxes, each on its own mocap body (a box moved at runtime must be on a mocap body:
+    # MuJoCo's collision bounds of world-body geoms are fixed when the model is compiled), laid out at every reset
+    # ahead of the robot along its heading: flat floor, a run of small steps up and down, or a ramp up, a plateau and
+    # a ramp down. 0: no boxes, flat floor only (the model is then exactly the file's).
+    terrain_boxes: int = 0
+    terrain_prob_steps: float = 0.35  # the rest of the episodes are flat
+    terrain_prob_slopes: float = 0.35
+    terrain_step_max_m: float = 0.04  # each step's rise or drop: U(0.25, 1) x this x terrain scale
+    terrain_step_len_m: tuple[float, float] = (0.3, 1.0)  # plateau lengths along the heading
+    terrain_slope_max_deg: float = 10.0  # each ramp's angle: U(0.25, 1) x this x terrain scale
+    terrain_slope_len_m: tuple[float, float] = (0.8, 2.0)  # the up ramp's horizontal length
+    terrain_plateau_len_m: tuple[float, float] = (0.4, 1.5)  # the top between the two ramps
+    terrain_start_m: tuple[float, float] = (0.4, 0.8)  # first edge ahead of the chassis (front soles at ~0.28 m)
+    terrain_half_width_m: float = 2.0  # sideways extent each side of the start line
+    # Sideways pushes on the chassis: with this probability per episode, one push, starting at a time drawn from
+    # push_window_s and lasting push_duration_s, of impulse robot mass x dv along the chassis's left (+) or right (-)
+    # axis at onset; |dv| ~ U(0, push_dv_max_mps x terrain scale), a free-body velocity change (the feet absorb part).
+    push_prob: float = 0.0
+    push_dv_max_mps: float = 1.0
+    push_window_s: tuple[float, float] = (3.0, 17.0)
+    push_duration_s: float = 0.1
+    # Low friction on the same schedule: when set, the friction draw's lower bound moves from friction_range[0]
+    # towards this value with the terrain scale (one uniform draw either way). None: friction_range as given.
+    friction_low_hard: float | None = None
+    # x (sideways speed, low-passed with time constant lateral_drift_tau_s)^2, (m/s)^2: a cost on steady sideways
+    # drift that leaves the trot's step-to-step sway (which w_lateral already prices) almost free. The speed is along
+    # the reset heading's left axis, so a turned heading counts too.
+    w_lateral_drift: float = 0.0
+    lateral_drift_tau_s: float = 1.0
+
     def replace(self, **changes: Any) -> "TrikeEnvConfig":
         return dataclasses.replace(self, **changes)
 
@@ -210,6 +242,113 @@ def continuous_rating(cfg: "TrikeEnvConfig", actuator: str) -> float:
             "hind knee": cfg.cont_torque_hind_flexion}[drive_group(actuator)]
 
 
+TERRAIN_KINDS = ("flat", "steps", "slopes")
+TERRAIN_DRAWS = 64  # uniforms drawn per reset when terrain is on: a fixed count keeps the random stream aligned
+TERRAIN_THICKNESS_M = 0.05  # step boxes reach this far below the floor; ramp boxes are this thick
+TERRAIN_PARKED_Z = -2.0  # unused boxes wait here, under the floor, out of reach
+
+
+def terrain_layout(cfg: "TrikeEnvConfig", scale: float, u) -> dict:
+    """One episode's terrain, a pure function of ``TERRAIN_DRAWS`` uniforms ``u`` in [0, 1) and the terrain scale.
+
+    In the start frame (``s`` metres along the reset heading from the chassis, ``z`` up): ``kind``; ``boxes``, each
+    ``(s_centre, z_centre, half_length, half_height, pitch)`` with pitch the angle (rad) the box's long axis rises at;
+    and the ground profile ``(s_points, z_points)``, linear between points, 0 outside them. Every box spans
+    ``cfg.terrain_half_width_m`` to each side."""
+    s = min(1.0, max(0.0, float(scale)))
+    it = iter(np.asarray(u, dtype=np.float64))
+
+    def draw(lo: float = 0.0, hi: float = 1.0) -> float:
+        return lo + (hi - lo) * float(next(it))
+
+    r = draw()
+    kind = ("steps" if r < cfg.terrain_prob_steps else
+            "slopes" if r < cfg.terrain_prob_steps + cfg.terrain_prob_slopes else "flat")
+    start = draw(*cfg.terrain_start_m)
+    T = TERRAIN_THICKNESS_M
+    boxes: list[tuple[float, float, float, float, float]] = []
+    ps, pz = [start], [0.0]
+
+    def plateau(e0: float, e1: float, h: float) -> None:
+        if h > 1e-4:
+            boxes.append((0.5 * (e0 + e1), 0.5 * (h - T), 0.5 * (e1 - e0), 0.5 * (h + T), 0.0))
+
+    def ramp(s0: float, z0: float, s1: float, z1: float) -> None:
+        if abs(z1 - z0) > 1e-4:
+            th = math.atan2(z1 - z0, s1 - s0)
+            half_len = 0.5 * math.hypot(s1 - s0, z1 - z0)
+            # the top face runs from (s0, z0) to (s1, z1); the centre is half a thickness below it, along the normal
+            boxes.append((0.5 * (s0 + s1) + 0.5 * T * math.sin(th), 0.5 * (z0 + z1) - 0.5 * T * math.cos(th),
+                          half_len, 0.5 * T, th))
+
+    if kind == "steps":
+        hmax, h, edge = cfg.terrain_step_max_m * s, 0.0, start
+        for i in range(cfg.terrain_boxes):
+            rise = draw(0.25, 1.0) * hmax
+            up = draw() < 0.5 or i == 0
+            if not up and h - rise < 0.0:
+                up = True
+            if up and h + rise > 3.0 * hmax:
+                up = False
+            h_new = h + rise if up else h - rise
+            length = draw(*cfg.terrain_step_len_m) + (6.0 if i == cfg.terrain_boxes - 1 else 0.0)
+            plateau(edge, edge + length, h_new)
+            ps += [edge + 1e-6, edge + length]
+            pz += [h_new, h_new]
+            edge, h = edge + length, h_new
+        ps.append(edge + 1e-6)
+        pz.append(0.0)
+    elif kind == "slopes":
+        th_up = math.radians(draw(0.25, 1.0) * cfg.terrain_slope_max_deg * s)
+        th_dn = math.radians(draw(0.25, 1.0) * cfg.terrain_slope_max_deg * s)
+        run_up, top = draw(*cfg.terrain_slope_len_m), draw(*cfg.terrain_plateau_len_m)
+        H = run_up * math.tan(th_up)
+        run_dn = H / math.tan(th_dn) if th_dn > 0 else 0.0
+        a, b = start, start + run_up
+        c, d = b + top, b + top + run_dn
+        ramp(a, 0.0, b, H)
+        plateau(b, c, H)
+        ramp(c, H, d, 0.0)
+        ps += [b, c, d]
+        pz += [H, H, 0.0]
+    return {"kind": kind, "boxes": boxes, "profile": (np.array(ps), np.array(pz))}
+
+
+FLAT_FLOOR = {"terrain_boxes": 0, "push_prob": 0.0, "friction_low_hard": None}
+
+
+def flat_floor(cfg: "TrikeEnvConfig") -> "TrikeEnvConfig":
+    """``cfg`` with the training-only terrain, pushes and low-friction end off: what evaluations and the analysis
+    tools measure on (the robustness sweep adds its own steps, ramps and pushes). An older run's config is unchanged."""
+    return cfg.replace(**FLAT_FLOOR)
+
+
+def terrain_model(model_path: str, n_boxes: int, half_width: float) -> mujoco.MjModel:
+    """The model file plus ``n_boxes`` terrain boxes ``terrain_box_<i>``, each the only geom of its own massless
+    mocap body parked under the floor, with the floor's contact settings. Built in memory with MjSpec; nothing on
+    disk changes. The robot's bodies, joints, actuators and sensors keep their order and ids."""
+    spec = mujoco.MjSpec.from_file(str(model_path))
+    ref = mujoco.MjModel.from_xml_path(str(model_path))
+    fl = ref.geom("floor").id
+    for i in range(n_boxes):
+        b = spec.worldbody.add_body()
+        b.name = f"terrain_{i}"
+        b.mocap = True
+        b.pos = [0.0, 0.0, TERRAIN_PARKED_Z]
+        g = b.add_geom()
+        g.name = f"terrain_box_{i}"
+        g.type = mujoco.mjtGeom.mjGEOM_BOX
+        g.size = [0.05, min(0.05, half_width), 0.05]
+        g.density = 0.0
+        g.contype, g.conaffinity, g.group = int(ref.geom_contype[fl]), int(ref.geom_conaffinity[fl]), 0
+        g.condim, g.priority = int(ref.geom_condim[fl]), int(ref.geom_priority[fl])
+        g.friction = ref.geom_friction[fl].tolist()
+        g.solref, g.solimp = ref.geom_solref[fl].tolist(), ref.geom_solimp[fl].tolist()
+        g.solmix, g.margin, g.gap = float(ref.geom_solmix[fl]), float(ref.geom_margin[fl]), float(ref.geom_gap[fl])
+        g.material = "floor_mat"
+    return spec.compile()
+
+
 def diagonal_score(contact) -> float:
     """+1 for a trot (diagonal pairs together, left and right apart), -1 for a bound (front pair and hind pair each
     together, diagonals apart), 0 for a pace, a pronk, all four down or all four up. Order: ``CORNERS``."""
@@ -221,7 +360,7 @@ def reward_terms(cfg: TrikeEnvConfig, *, v_fwd: float, v_cmd: float, v_lat: floa
                  grav_b, z: float, z_nominal: float, mean_power: float, action, prev_action, slip: float, contact,
                  penalty_scale: float = 1.0, late_scale: float = 1.0, heat_index: float = 0.0,
                  saturated_fraction: float = 0.0, air_time_gain: float = 0.0,
-                 air_time_shortfall: float = 0.0) -> dict[str, float]:
+                 air_time_shortfall: float = 0.0, v_lat_slow: float = 0.0) -> dict[str, float]:
     """One control step's reward terms (``REWARD_TERMS``), a pure function of the measured quantities.
 
     ``penalty_scale`` (0-1) multiplies the energy and slip penalties (``RAMPED_TERMS``); ``late_scale`` (0-1) the heat
@@ -230,7 +369,8 @@ def reward_terms(cfg: TrikeEnvConfig, *, v_fwd: float, v_cmd: float, v_lat: floa
     ``heat_index``: mean of (torque / continuous rating)^2 over the leg drives and physics steps; ``saturated_fraction``:
     share of drive-physics-steps at or above ``saturation_frac`` of the episode's (randomised) force limit;
     ``air_time_gain`` (>= 0) and ``air_time_shortfall`` (<= 0): over this step's debounced touchdowns, the sums of the
-    positive and of the negative parts of min(air time, ``air_time_cap_s``) - ``air_time_target_s``."""
+    positive and of the negative parts of min(air time, ``air_time_cap_s``) - ``air_time_target_s``;
+    ``v_lat_slow``: the sideways speed low-passed with ``lateral_drift_tau_s`` (``r_lateral_drift``, 0 by default)."""
     err = v_fwd - v_cmd
     a, ap = np.asarray(action, dtype=np.float64), np.asarray(prev_action, dtype=np.float64)
     terms = {
@@ -250,6 +390,7 @@ def reward_terms(cfg: TrikeEnvConfig, *, v_fwd: float, v_cmd: float, v_lat: floa
         "r_saturation": -cfg.w_saturation * late_scale * saturated_fraction,
         "r_air_time": (cfg.w_air_time * (air_time_gain + late_scale * air_time_shortfall)
                        if v_cmd > cfg.air_time_min_command else 0.0),
+        "r_lateral_drift": -cfg.w_lateral_drift * v_lat_slow ** 2,
     }
     if cfg.w_diagonal and v_cmd > 0.05:
         terms["r_diagonal"] = cfg.w_diagonal * diagonal_score(contact)
@@ -267,7 +408,12 @@ class TrikeEnv(gym.Env):
         if overrides:
             cfg = cfg.replace(**overrides)
         self.cfg = cfg
-        self.model = mujoco.MjModel.from_xml_path(str(cfg.model_path))
+        if cfg.terrain_boxes > 0 and cfg.terrain_prob_slopes > 0 and cfg.terrain_boxes < 3:
+            raise ValueError("terrain_boxes must be at least 3 when slopes are on (ramp, plateau, ramp)")
+        if not 0.0 <= cfg.terrain_prob_steps + cfg.terrain_prob_slopes <= 1.0:
+            raise ValueError("terrain_prob_steps + terrain_prob_slopes must lie in [0, 1]")
+        self.model = (terrain_model(cfg.model_path, cfg.terrain_boxes, cfg.terrain_half_width_m)
+                      if cfg.terrain_boxes > 0 else mujoco.MjModel.from_xml_path(str(cfg.model_path)))
         self.data = mujoco.MjData(self.model)
         m = self.model
 
@@ -278,6 +424,10 @@ class TrikeEnv(gym.Env):
                               if cfg.action_filter_hz > 0 else 1.0)
         self.penalty_scale = 1.0  # see reward_terms; set by train.py through set_penalty_scale
         self.late_scale = 1.0  # see reward_terms; set by train.py through set_late_scale
+        self.terrain_scale = 1.0  # terrain, pushes and low friction (0-1); set by train.py through set_terrain_scale
+        self.terrain_kind = "flat"
+        self._ground = None  # (origin, heading, profile s, profile z) of the episode's terrain; None: flat floor
+        self._drift_alpha = 1.0 - math.exp(-self.dt / cfg.lateral_drift_tau_s) if cfg.lateral_drift_tau_s > 0 else 1.0
 
         # --- ids ---
         self._leg_act = np.array([m.actuator(n).id for n in LEG_ACTUATORS], dtype=np.int64)
@@ -296,13 +446,20 @@ class TrikeEnv(gym.Env):
         self._soles = np.array([m.geom(f"{c}_sole").id for c in CORNERS], dtype=np.int64)
         self._is_sole = np.zeros(m.ngeom, dtype=bool)
         self._is_sole[self._soles] = True
-        # Lookup table over contact pairs (g1 * ngeom + g2): True for floor with any geom but a sole. One matmul and
-        # one gather per physics step instead of half a dozen small-array numpy calls.
-        not_sole = ~self._is_sole
-        not_sole[self._floor] = False
+        # terrain boxes (none unless terrain_boxes > 0): geom, its mocap body and that body's collision-bound node
+        self._tgeom = np.array([m.geom(f"terrain_box_{i}").id for i in range(cfg.terrain_boxes)], dtype=np.int64)
+        tbody = m.geom_bodyid[self._tgeom]
+        self._tmocap = m.body_mocapid[tbody].astype(np.int64)
+        self._tbvh = m.body_bvhadr[tbody].astype(np.int64)
+        self._is_ground = np.zeros(m.ngeom, dtype=bool)
+        self._is_ground[self._floor] = True
+        self._is_ground[self._tgeom] = True
+        # Lookup table over contact pairs (g1 * ngeom + g2): True for the ground (floor or a terrain box) with any
+        # geom but a sole. One matmul and one gather per physics step instead of half a dozen small-array numpy calls.
+        not_sole = ~self._is_sole & ~self._is_ground
         table = np.zeros((m.ngeom, m.ngeom), dtype=bool)
-        table[self._floor, not_sole] = True
-        table[not_sole, self._floor] = True
+        table[np.ix_(self._is_ground, not_sole)] = True
+        table[np.ix_(not_sole, self._is_ground)] = True
         self._bad_pair = table.ravel()
         self._pair_weight = np.array([m.ngeom, 1], dtype=np.int32)
 
@@ -408,10 +565,19 @@ class TrikeEnv(gym.Env):
         self._loaded_once = np.zeros(4, dtype=bool)  # a foot lifts only after its first landing since reset
         self._unloaded = np.zeros(4, dtype=np.int64)  # consecutive physics steps each foot has been unloaded
         self.touchdowns = 0  # debounced touchdowns this episode (diagnostic)
+        self._v_lat_slow = 0.0  # sideways speed, low-passed (r_lateral_drift)
+        self._phys_step = 0  # physics steps since reset (the push's clock)
+        self._push_dv, self._push_start, self._push_end = 0.0, -1, -1  # no push unless reset draws one
+        self._push_force = np.zeros(3)
 
     def set_penalty_scale(self, scale: float) -> None:
         """Scale (0-1) of the energy and slip penalties (``RAMPED_TERMS``); train.py ramps it from the first steps."""
         self.penalty_scale = float(min(1.0, max(0.0, scale)))
+
+    def set_terrain_scale(self, scale: float) -> None:
+        """Scale (0-1) of the terrain's steps and slopes, the pushes and the low-friction end (from the next reset);
+        train.py ramps it from --terrain-ramp-from steps. No effect when terrain, pushes and friction_low_hard are off."""
+        self.terrain_scale = float(min(1.0, max(0.0, scale)))
 
     def set_late_scale(self, scale: float) -> None:
         """Scale (0-1) of the heat and saturation penalties (``LATE_TERMS``) and of short air times; train.py keeps it
@@ -431,8 +597,11 @@ class TrikeEnv(gym.Env):
     def _draw_factors(self, rng: np.random.Generator) -> dict[str, Any]:
         """One episode's physics factors (a fixed number of draws in a fixed order, whatever the config)."""
         cfg, m = self.cfg, self.model
+        lo, hi = cfg.friction_range
+        if cfg.friction_low_hard is not None:
+            lo = lo + self.terrain_scale * (cfg.friction_low_hard - lo)
         return {
-            "friction": float(rng.uniform(*cfg.friction_range)),
+            "friction": float(rng.uniform(lo, hi)),
             "mass_scale": rng.uniform(*cfg.mass_scale_range, size=m.nbody),
             "kp_scale": rng.uniform(*cfg.kp_scale_range, size=m.nu),
             "force_limit_scale": rng.uniform(*cfg.force_limit_scale_range, size=m.nu),
@@ -446,6 +615,7 @@ class TrikeEnv(gym.Env):
             mu = f["friction"]
             m.geom_friction[self._floor, 0] = mu
             m.geom_friction[self._soles, 0] = mu
+            m.geom_friction[self._tgeom, 0] = mu
             s = np.array(f["mass_scale"], dtype=np.float64)
             s[0] = 1.0  # the world body
             m.body_mass[:] = n["body_mass"] * s
@@ -490,6 +660,9 @@ class TrikeEnv(gym.Env):
         d.qpos[self._leg_qadr] += rng.uniform(-cfg.reset_joint_noise, cfg.reset_joint_noise, size=12)
         mujoco.mj_kinematics(m, d)
         d.qpos[2] += cfg.reset_sole_clearance - self._lowest_sole_z()
+        # 5. terrain (only when configured: TERRAIN_DRAWS uniforms, after every older draw), laid ahead of the chassis
+        if cfg.terrain_boxes > 0:
+            self._place_terrain(rng.random(TERRAIN_DRAWS))
         d.ctrl[:] = 0.0
         d.ctrl[self._other_act] = self._other_neutral
         d.ctrl[self._leg_ctrl_index] = self._ctrl_neutral
@@ -499,12 +672,24 @@ class TrikeEnv(gym.Env):
         R = d.xmat[self._chassis].reshape(3, 3)
         self._heading = math.atan2(R[1, 0], R[0, 0])
         self._badqacc0 = int(d.warning[mujoco.mjtWarning.mjWARN_BADQACC].number)
+        # 6. push (only when configured: 4 uniforms, after the terrain's)
+        if cfg.push_prob > 0:
+            on, when, size, side = rng.random(4)
+            if on < cfg.push_prob:
+                self._push_dv = (1.0 if side < 0.5 else -1.0) * size * cfg.push_dv_max_mps * self.terrain_scale
+                self._push_start = int(round((cfg.push_window_s[0] + when * (cfg.push_window_s[1] -
+                                                                           cfg.push_window_s[0])) / self.physics_dt))
+                self._push_end = self._push_start + max(1, int(round(cfg.push_duration_s / self.physics_dt)))
 
         obs = self._get_obs(noise=True)
         info = {"command_speed": self.command_speed, "delay_steps": self.delay_steps,
                 "domain_randomization": bool(self.factors)}
         if self.factors:
             info["friction"] = self.factors["friction"]
+        if cfg.terrain_boxes > 0 or cfg.push_prob > 0 or cfg.friction_low_hard is not None:
+            info.update({"terrain_kind": self.terrain_kind, "terrain_scale": self.terrain_scale,
+                         "push_dv": self._push_dv,
+                         "push_time_s": self._push_start * self.physics_dt if self._push_start >= 0 else None})
         return obs, info
 
     def step(self, action):
@@ -526,10 +711,14 @@ class TrikeEnv(gym.Env):
         floor_hit = -1
         inv_c2, sat_limit, touch_adr, thr = self._inv_cont2, self._sat_limit, self._touch_adr, cfg.contact_threshold_n
         n_db, dt_phys, t_air, t_cap = self._debounce_steps, self.physics_dt, cfg.air_time_target_s, cfg.air_time_cap_s
+        push = self._push_start >= 0
         for _ in range(cfg.frame_skip):
             fifo.append(target)
             d.ctrl[idx] = fifo[0]
+            if push:
+                self._apply_push()
             mujoco.mj_step(m, d)
+            self._phys_step += 1
             tau = d.actuator_force[idx]
             # |torque x joint speed| of the 12 leg drives (actuator_velocity = joint speed, gear 1)
             energy += float(np.abs(tau * d.actuator_velocity[idx]).sum())
@@ -570,7 +759,9 @@ class TrikeEnv(gym.Env):
         yaw_err = _wrap(yaw - self._heading)
         yaw_rate = float((R @ d.qvel[3:6])[2])
         grav_b = -R[2, :]
-        z = float(d.xpos[self._chassis, 2])
+        # chassis height above the terrain under it (the floor's 0 without terrain)
+        z = float(d.xpos[self._chassis, 2]) - (self.ground_height(xy1) if self._ground is not None else 0.0)
+        self._v_lat_slow += self._drift_alpha * (v_lat - self._v_lat_slow)
         tilt = math.degrees(math.acos(max(-1.0, min(1.0, float(R[2, 2])))))
         loads = d.sensordata[self._touch_adr]
         contact = loads > cfg.contact_threshold_n
@@ -585,7 +776,7 @@ class TrikeEnv(gym.Env):
                              mean_power=mean_power, action=a, prev_action=self._prev_action, slip=slip,
                              contact=contact, penalty_scale=self.penalty_scale, late_scale=self.late_scale,
                              heat_index=heat_index, saturated_fraction=saturated_fraction, air_time_gain=air_gain,
-                             air_time_shortfall=air_short)
+                             air_time_shortfall=air_short, v_lat_slow=self._v_lat_slow)
 
         # --- termination ---
         reason = ""
@@ -620,7 +811,11 @@ class TrikeEnv(gym.Env):
             "late_scale": self.late_scale,
             "heading_drift": self._heading_drift, "heat_index": heat_index, "saturated_fraction": saturated_fraction,
             "touchdowns": touchdowns, "air_time_gain": air_gain, "air_time_shortfall": air_short,
+            "lateral_speed_slow": self._v_lat_slow,
         })
+        if self._ground is not None or self._push_start >= 0:
+            info["ground_height"] = float(d.xpos[self._chassis, 2]) - z
+            info["push_active"] = bool(self._push_start <= self._phys_step < self._push_end)
         return obs, reward, terminated, truncated, info
 
     # ------------------------------------------------------------------ pieces
@@ -640,7 +835,60 @@ class TrikeEnv(gym.Env):
         if not hits.any():
             return -1
         g1, g2 = (int(x) for x in g[int(np.argmax(hits))])
-        return g2 if g1 == self._floor else g1
+        return g2 if self._is_ground[g1] else g1
+
+    def _apply_push(self) -> None:
+        """Before each physics step: the push's force on the chassis (at its centre of mass) from its first step to
+        its last, along the chassis's horizontal left axis at onset; zero after."""
+        n, d = self._phys_step, self.data
+        if n == self._push_start:
+            left = d.xmat[self._chassis].reshape(3, 3)[:, 1].copy()
+            left[2] = 0.0
+            left /= max(float(np.linalg.norm(left)), 1e-9)
+            mass = float(self.model.body_mass.sum())
+            self._push_force = left * mass * self._push_dv / ((self._push_end - self._push_start) * self.physics_dt)
+            d.xfrc_applied[self._chassis, :3] = self._push_force
+        elif n == self._push_end:
+            d.xfrc_applied[self._chassis, :3] = 0.0
+
+    def _place_terrain(self, u) -> None:
+        """Lays out one episode's terrain (``terrain_layout``) along the chassis's heading from its reset position:
+        each box's mocap pose, size and collision bounds; unused boxes parked under the floor."""
+        m, d = self.model, self.data
+        lay = terrain_layout(self.cfg, self.terrain_scale, u)
+        R = d.xmat[self._chassis].reshape(3, 3)
+        psi = math.atan2(R[1, 0], R[0, 0])
+        h = np.array([math.cos(psi), math.sin(psi)])
+        o = d.xpos[self._chassis, :2].copy()
+        qz = np.array([math.cos(psi / 2), 0.0, 0.0, math.sin(psi / 2)])
+        W = self.cfg.terrain_half_width_m
+        q = np.zeros(4)
+        for i in range(len(self._tgeom)):
+            g, k, bvh = int(self._tgeom[i]), int(self._tmocap[i]), int(self._tbvh[i])
+            if i < len(lay["boxes"]):
+                sc, zc, hx, hz, pitch = lay["boxes"][i]
+                d.mocap_pos[k] = [o[0] + sc * h[0], o[1] + sc * h[1], zc]
+                qy = np.array([math.cos(-pitch / 2), 0.0, math.sin(-pitch / 2), 0.0])  # rotation -pitch about y
+                mujoco.mju_mulQuat(q, qz, qy)
+                d.mocap_quat[k] = q
+                size = np.array([hx, W, hz])
+            else:
+                d.mocap_pos[k] = [o[0], o[1], TERRAIN_PARKED_Z]
+                d.mocap_quat[k] = [1.0, 0.0, 0.0, 0.0]
+                size = np.array([0.05, 0.05, 0.05])
+            m.geom_size[g] = size
+            m.geom_rbound[g] = float(np.linalg.norm(size))
+            m.geom_aabb[g] = [0.0, 0.0, 0.0, *size]
+            m.bvh_aabb[bvh] = [0.0, 0.0, 0.0, *size]
+        self.terrain_kind = lay["kind"]
+        self._ground = (o, h, lay["profile"][0], lay["profile"][1])
+
+    def ground_height(self, xy) -> float:
+        """Height of the terrain (0: the floor) under a world point ``xy``, from the episode's profile."""
+        if self._ground is None:
+            return 0.0
+        o, h, ps, pz = self._ground
+        return float(np.interp(float((np.asarray(xy)[:2] - o) @ h), ps, pz, left=0.0, right=0.0))
 
     def _get_obs(self, noise: bool) -> np.ndarray:
         cfg, d = self.cfg, self.data

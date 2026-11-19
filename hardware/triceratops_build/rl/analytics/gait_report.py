@@ -600,7 +600,8 @@ def _init(ckpt: dict, env_config: dict, net, log_std_init) -> None:
 def _env(model_file: str, changes: dict):
     key = (model_file, tuple(sorted(changes.items())))
     if key not in _W["envs"]:
-        cfg = gp.TrikeEnvConfig.from_dict({**_W["ec"], "model_path": str(GEN / model_file)}).replace(**changes)
+        cfg = gp.flat_floor(gp.TrikeEnvConfig.from_dict({**_W["ec"], "model_path": str(GEN / model_file)})).replace(
+            **changes)
         env = gp.TrikeEnv(cfg)
         assert _W["stats"][0].shape == env.observation_space.shape, (_W["stats"][0].shape, env.observation_space.shape)
         _W["envs"][key] = env

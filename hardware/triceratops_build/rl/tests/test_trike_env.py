@@ -877,7 +877,7 @@ MARK = pathlib.Path({str(tmp_path / 'saved')!r})
 def flush_drive():
     print(f"FLUSH: the step had finished saving: {{MARK.exists()}}", flush=True)
 ns.update(ensure_drive=lambda: None, flush_drive=flush_drive, RL_DIR=pathlib.Path({str(fake_dir)!r}), RUN_DIR="run",
-          TOTAL_STEPS=1, N_ENVS=1, SEED=0, MODEL="m", REPO_DIR=".", STEP_ENV=dict(os.environ))
+          TOTAL_STEPS=1, N_ENVS=1, SEED=0, MODEL="m", ENV_PRESET="", REPO_DIR=".", STEP_ENV=dict(os.environ))
 try:
     exec(code[4], ns)
     print("KERNEL: cell 5 returned", flush=True)
@@ -1294,3 +1294,182 @@ def test_train_sets_both_schedules_in_every_env(tmp_path):
              "--late-ramp-from", 0, "--late-ramp-to", 4096, "--penalty-ramp-start", 0.2, "--penalty-ramp-steps", 4096,
              "--resume")
     assert p.returncode == 2 and "late_ramp_to: run 2048, now 4096" in p.stdout  # a resume keeps the schedules
+
+
+# ======================================================================================== run 3: terrain, pushes
+RUN3 = RL_DIR / "configs" / "run3_terrain.json"
+
+
+def _rough(**kw):
+    from trike_env import ANKLE_ROLL_MODEL
+
+    cfg = TrikeEnvConfig.from_dict({**TrikeEnvConfig(model_path=str(ANKLE_ROLL_MODEL)).to_dict(),
+                                    **json.loads(RUN3.read_text())})
+    return TrikeEnv(cfg.replace(**kw))
+
+
+def test_rough_features_are_off_by_default():
+    """An older run's config (no terrain fields) builds exactly the file's model and draws nothing extra."""
+    cfg = TrikeEnvConfig()
+    assert (cfg.terrain_boxes, cfg.push_prob, cfg.friction_low_hard, cfg.w_lateral_drift) == (0, 0.0, None, 0.0)
+    e = TrikeEnv(cfg)
+    ref = mujoco.MjModel.from_xml_path(cfg.model_path)
+    assert (e.model.nbody, e.model.ngeom, e.model.nmocap) == (ref.nbody, ref.ngeom, 0)
+    obs, info = e.reset(seed=4)
+    assert "terrain_kind" not in info and e._ground is None
+    *_, info = e.step(np.zeros(12))
+    assert info["r_lateral_drift"] == 0.0 and "ground_height" not in info and "push_active" not in info
+    assert "r_lateral_drift" in REWARD_TERMS
+
+
+def test_run3_preset_loads_and_its_boxes_are_massless():
+    e = _rough()
+    assert e.cfg.terrain_boxes == 8 and e.model.nmocap == 8
+    ref = TrikeEnv(TrikeEnvConfig(model_path=e.cfg.model_path))
+    assert e.nominal_mass == pytest.approx(ref.nominal_mass, abs=1e-9)
+    assert e.nominal_height == ref.nominal_height and e.observation_space.shape == ref.observation_space.shape
+    assert e.model.nu == ref.model.nu and [e.model.actuator(i).name for i in range(e.model.nu)] == \
+        [ref.model.actuator(i).name for i in range(ref.model.nu)]
+
+
+def test_terrain_profile_matches_the_boxes_and_respects_its_limits():
+    """Rays cast down onto the floor and boxes hit the profile the reward uses; steps and slopes stay in range."""
+    from trike_env import TERRAIN_DRAWS, terrain_layout
+
+    e = _rough(push_prob=0.0)
+    m, d = e.model, e.data
+    kinds, worst = set(), 0.0
+    for seed in range(12):
+        _, info = e.reset(seed=seed)
+        mujoco.mj_forward(m, d)
+        kinds.add(info["terrain_kind"])
+        o, h, ps, pz = e._ground
+        lat = np.array([-h[1], h[0]])
+        for s in np.linspace(0.2, 8.0, 157):
+            for y in (-1.5, 0.3):
+                p = np.array([*(o + s * h + y * lat), 1.0])
+                gid = np.array([-1], dtype=np.int32)
+                dist = mujoco.mj_ray(m, d, p, np.array([0.0, 0.0, -1.0]), None, 1, e._chassis, gid)
+                if gid[0] >= 0 and e._is_ground[gid[0]]:
+                    worst = max(worst, abs((1.0 - dist) - e.ground_height(p[:2])))
+    assert kinds == {"flat", "steps", "slopes"} and worst < 1e-9
+    cfg, rng = e.cfg, np.random.default_rng(0)
+    for _ in range(300):
+        lay = terrain_layout(cfg, 1.0, rng.random(TERRAIN_DRAWS))
+        s_pts, z = lay["profile"]
+        if lay["kind"] == "steps":
+            assert z.min() >= 0 and z.max() <= 3 * cfg.terrain_step_max_m + 1e-12
+            # every step within reach is at most one step high; the last plateau's far end (back to the floor)
+            # lies beyond the farthest an episode can walk (0.27 m/s x 20 s from the start)
+            assert np.abs(np.diff(z[:-1])).max() <= cfg.terrain_step_max_m + 1e-12
+            assert s_pts[-1] > max(cfg.speed_range) * cfg.episode_seconds + 1.0
+        for (_, _, _, _, pitch) in lay["boxes"]:
+            assert abs(math.degrees(pitch)) <= cfg.terrain_slope_max_deg + 1e-9
+        assert len(lay["boxes"]) <= cfg.terrain_boxes
+    zero = terrain_layout(cfg, 0.0, rng.random(TERRAIN_DRAWS))
+    assert zero["boxes"] == [] and np.all(zero["profile"][1] == 0)  # scale 0: a flat floor
+
+
+def test_height_term_and_fall_test_use_the_terrain_under_the_chassis():
+    e = _rough(push_prob=0.0, domain_randomization=False, observation_noise=False)
+    e.reset(seed=2, options={"command_speed": 0.0})
+    o = e.data.xpos[e._chassis, :2].copy()
+    e._ground = (o, np.array([1.0, 0.0]), np.array([-50.0, 50.0]), np.array([0.05, 0.05]))  # 5 cm everywhere
+    *_, info = e.step(np.zeros(12))
+    z = float(e.data.xpos[e._chassis, 2])
+    assert info["ground_height"] == pytest.approx(0.05)
+    assert info["r_height"] == pytest.approx(-e.cfg.w_height * (z - 0.05 - e.nominal_height) ** 2)
+    e._ground = (o, np.array([1.0, 0.0]), np.array([-50.0, 50.0]), np.array([0.2, 0.2]))  # chassis 0.2 m "low"
+    *_, term, _, info = e.step(np.zeros(12))
+    assert term and info["termination"] == "height"
+
+
+def test_push_gives_the_drawn_impulse_sideways():
+    e = _rough(push_prob=1.0, push_window_s=(0.5, 0.5), terrain_boxes=3, terrain_prob_steps=0.0,
+               terrain_prob_slopes=0.0, domain_randomization=False)
+    _, info = e.reset(seed=5, options={"command_speed": 0.0})
+    assert info["push_time_s"] == pytest.approx(0.5) and 0 < abs(info["push_dv"]) <= e.cfg.push_dv_max_mps
+    forces = []
+    e.substep_hook = lambda env: forces.append(env.data.xfrc_applied[env._chassis, :3].copy())
+    active = [e.step(np.zeros(12))[4]["push_active"] for _ in range(40)]
+    F = np.array(forces)
+    on = np.linalg.norm(F, axis=1) > 0
+    assert on.sum() == 100 and np.flatnonzero(on)[0] == 500  # 0.1 s from 0.5 s, 1 ms steps
+    impulse = F[on].sum(axis=0) * e.physics_dt
+    assert np.linalg.norm(impulse) == pytest.approx(e.model.body_mass.sum() * abs(info["push_dv"]), rel=1e-9)
+    assert abs(impulse[2]) < 1e-12 and sum(active) >= 5
+    e.set_terrain_scale(0.0)
+    _, info = e.reset(seed=5)
+    assert info["push_dv"] == 0.0  # scale 0: no push size
+
+
+def test_friction_low_end_follows_the_terrain_scale():
+    e = _rough()
+    lows = {}
+    for s in (0.0, 1.0):
+        e.set_terrain_scale(s)
+        lows[s] = min(e.reset(seed=k)[1]["friction"] for k in range(300))
+    assert lows[0.0] >= e.cfg.friction_range[0] and lows[1.0] < 0.32
+
+
+def test_lateral_drift_cost_is_on_the_slow_sideways_speed():
+    from trike_env import TrikeEnvConfig as C
+
+    cfg = C(w_lateral_drift=100.0)
+    assert _terms(cfg, v_lat_slow=0.05)["r_lateral_drift"] == pytest.approx(-0.25)
+    e = _rough(push_prob=0.0, terrain_boxes=3, terrain_prob_steps=0.0, terrain_prob_slopes=0.0,
+               domain_randomization=False, observation_noise=False)
+    e.reset(seed=1, options={"command_speed": 0.0})
+    slow, a = 0.0, 1.0 - math.exp(-e.dt / e.cfg.lateral_drift_tau_s)
+    for _ in range(20):
+        *_, info = e.step(np.zeros(12))
+        slow += a * (info["lateral_speed"] - slow)
+        assert info["lateral_speed_slow"] == pytest.approx(slow, abs=1e-12)
+        assert info["r_lateral_drift"] == pytest.approx(-100.0 * slow ** 2)
+
+
+def test_tools_measure_on_the_flat_floor():
+    """train.py's evaluations, evaluate.py and the analysis tools turn the training-only features off."""
+    sys.path.insert(0, str(RL_DIR / "analysis"))
+    import gait_pipe1
+    from train import flat_eval_config
+    from trike_env import flat_floor
+
+    cfg = _rough().cfg
+    for f in (flat_floor, flat_eval_config, gait_pipe1.flat_floor):
+        c = f(cfg)
+        assert (c.terrain_boxes, c.push_prob, c.friction_low_hard) == (0, 0.0, None)
+        assert c.w_lateral_drift == cfg.w_lateral_drift and c.friction_range == cfg.friction_range
+    old = TrikeEnvConfig()
+    assert flat_floor(old) == old and gait_pipe1.flat_floor(old) == old
+
+
+def test_train_ramps_the_terrain_scale_and_evaluates_on_the_flat_floor(tmp_path):
+    out = tmp_path / "run"
+    p = _run(RL_DIR / "train.py", "--out", out, *BASE_ARGS, "--total-steps", 1024, "--env-config", RUN3,
+             "--model", "trike60_C_closed_ankleroll", "--terrain-ramp-from", 0, "--terrain-ramp-to", 2048)
+    assert p.returncode == 0, p.stdout + p.stderr
+    assert "late scale 0.00, terrain scale 0.00; training rollouts" in p.stdout
+    assert "late scale 0.00, terrain scale 0.25; training rollouts" in p.stdout
+    rec = _record(out)
+    assert (rec["settings"]["terrain_ramp_from"], rec["settings"]["terrain_ramp_to"]) == (0, 2048)
+    assert rec["settings"]["env_config"]["terrain_boxes"] == 8
+    assert "eval at 1024 steps" in p.stdout
+    p = _run(RL_DIR / "train.py", "--out", out, *BASE_ARGS, "--total-steps", 1024, "--env-config", RUN3,
+             "--model", "trike60_C_closed_ankleroll", "--terrain-ramp-from", 0, "--terrain-ramp-to", 4096, "--resume")
+    assert p.returncode == 2 and "terrain_ramp_to: run 2048, now 4096" in p.stdout
+
+
+def test_notebook_preset_parameter():
+    _, code = _cells()
+    assert 'ENV_PRESET = ""' in code[0] and '"--env-config", _preset' in code[4]
+    assert RUN3.exists()
+
+
+def test_parameters_cell_refuses_an_unknown_preset(tmp_path, monkeypatch):
+    _, code = _cells()
+    params = tmp_path / "params.json"
+    params.write_text(json.dumps({"REPO_REF": "a" * 40, "RUN_ID": "x", "ENV_PRESET": "run9"}))
+    monkeypatch.setenv("TRIKE60_PARAMS", str(params))
+    with pytest.raises(ValueError, match="ENV_PRESET"):
+        exec(compile(code[0], "cell1", "exec"), {})

@@ -79,6 +79,16 @@ class _RestrictedUnpickler(pickle.Unpickler):
         raise pickle.UnpicklingError(f"refused to load {module}.{name}")
 
 
+def flat_floor(cfg):
+    """``cfg`` with the training-only terrain, pushes and low-friction end off, for an env that has them (run 3 on);
+    an env exported from an older commit has none of these fields and is returned unchanged."""
+    import dataclasses
+
+    names = {f.name for f in dataclasses.fields(cfg)}
+    off = {k: v for k, v in (("terrain_boxes", 0), ("push_prob", 0.0), ("friction_low_hard", None)) if k in names}
+    return cfg.replace(**off) if off else cfg
+
+
 def load_obs_stats(pkl: Path):
     vn = _RestrictedUnpickler(io.BytesIO(pkl.read_bytes())).load()
     rms = vn.obs_rms

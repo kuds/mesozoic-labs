@@ -188,7 +188,8 @@ def terrain_xml(model_path: str, terrain) -> str:
 def build_env(env_config: dict, terrain=None, randomise=False) -> PointEnv:
     """The run's env (its run record's config) on the nominal model, randomisation off unless ``randomise``,
     observation noise as configured (on for pipe1)."""
-    cfg = TrikeEnvConfig.from_dict({**env_config, "model_path": str(G.GEN / Path(env_config["model_path"]).name)})
+    cfg = G.flat_floor(TrikeEnvConfig.from_dict({**env_config,
+                                                "model_path": str(G.GEN / Path(env_config["model_path"]).name)}))
     if not randomise:
         cfg = cfg.replace(domain_randomization=False)
     if terrain is None:

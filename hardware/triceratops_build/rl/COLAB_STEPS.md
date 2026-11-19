@@ -16,8 +16,8 @@ output. You compare a few lines with the ones written here, and send me the ones
 Three rules for the whole sheet:
   - If a line on screen differs from the line written here, stop and tell me. Send me the line (a screenshot is
     fine).
-  - Never change REPO_REF, RUN_ID, MODEL, TOTAL_STEPS, N_ENVS or SEED of a run because an error message seems to
-    suggest it. Never delete anything on your Drive. I tell you when something changes.
+  - Never change REPO_REF, RUN_ID, MODEL, TOTAL_STEPS, N_ENVS, SEED or ENV_PRESET of a run because an error message
+    seems to suggest it. Never delete anything on your Drive. I tell you when something changes.
   - A run keeps its settings. To train longer or differently later, I give you a NEW RUN_ID; a run is never
     extended (the program refuses a changed TOTAL_STEPS, and the learning rate would jump if forced).
 
@@ -64,6 +64,7 @@ Three rules for the whole sheet:
          TOTAL_STEPS        <<TOTAL_STEPS>>
          N_ENVS             8
          SEED               0
+         ENV_PRESET         (empty: the flat floor; <<ENV_PRESET>> when this sheet names one)
          EVAL_EPISODES      5
          USE_GOOGLE_DRIVE   ticked
          AUTO_DISCONNECT    ticked

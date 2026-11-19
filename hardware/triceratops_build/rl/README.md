@@ -219,6 +219,41 @@ the floor (checked every physics step), or a non-finite or diverging simulation.
 **Determinism:** every random draw comes from the env's `np_random`; the same reset seed gives identical
 observations (tested over 50 steps with randomisation and noise on).
 
+## Rough terrain, pushes, low friction and a drift cost (run 3, decision D18)
+
+Added 19-20 Nov 2026 after the run2b analysis (`analysis/REPORT_RUN2B.md`: on steps, ramps and slippery floors that
+policy slowed sharply and drifted sideways up to 1.3 m in 18 s; it had only ever seen a flat floor). **Every new
+setting defaults to off**, and with them off the environment is bit-identical to the one before (checked against the
+previous commit's `trike_env.py`, both models, randomisation on and off), so pipe1's and run2b's recorded configs
+load and measure as they did. `configs/run3_terrain.json` turns them on; the notebook's `ENV_PRESET` passes it to
+train.py as `--env-config`.
+
+- **Terrain** (`terrain_boxes`, `terrain_*`): a pool of boxes, each the only geom of its own massless mocap body
+  with the floor's contact settings, laid out at every reset along the robot's heading from 0.4-0.8 m ahead of the
+  chassis: flat (30 % of episodes), a run of small steps (35 %: plateaus 0.3-1.0 m long, each 1-4 cm up or down,
+  never below the floor or above 12 cm), or a ramp up (2.5-10°, 0.8-2.0 m), a plateau (0.4-1.5 m) and a ramp down
+  (35 %). The boxes span 2 m to each side. Why mocap bodies: a box on the world body cannot be moved at runtime,
+  because MuJoCo fixes the world body's collision bounds when the model is compiled (tried: a box moved and resized
+  at runtime was simply passed through). Mocap boxes, with their size and bounds updated, are hit exactly. The policy
+  does not see the terrain (no camera or height map in the observation); it must cope by feel.
+- **Height on terrain:** the height reward and the fall test use the chassis height above the terrain under it
+  (the episode's profile), not above the floor, so climbing a ramp costs nothing.
+- **Pushes** (`push_*`): in half the episodes, one sideways push on the chassis at a random time between 3 and 17 s,
+  0.1 s long, of impulse robot mass x dv with |dv| up to 1.0 m/s free-body (run2b fell at 1.25 m/s in the sweep).
+- **Low friction** (`friction_low_hard`): the friction draw's lower end moves from 0.6 to 0.3.
+- **Schedule:** terrain heights and slopes, push sizes and the friction low end all scale with one terrain scale,
+  0 until 1 M steps and full at 4 M (`--terrain-ramp-from`, `--terrain-ramp-to`), so the policy first learns to
+  walk on the flat as run2b did.
+- **Drift cost** (`w_lateral_drift` 100, `lateral_drift_tau_s` 1 s): x (sideways speed along the reset heading's
+  left axis, low-passed at 1 s)^2. It prices a steady sideways drift and leaves the trot's step-to-step sway almost
+  free (w_lateral already prices that). On run2b's policy it would cost 0.004 per step on the nominal floor and 0.09
+  at friction 0.2 (4 episodes each at 0.25 m/s, measured with this env), against a tracking reward of 1.2-1.45 per
+  step there; at w 40 the slippery case would have cost only 0.04, too little to matter.
+- **Evaluations stay on the flat floor:** train.py's evaluations during training, evaluate.py, the gait report and
+  the robustness sweep turn terrain, pushes and the low-friction end off (`flat_floor`), so run 3's numbers compare
+  with run2b's directly; the sweep adds its own steps, ramps and pushes.
+- **Cost:** about 3 % fewer env steps per second (378 against 390 in one process).
+
 ## What training prints and writes
 
 Every `--log-every` steps (100,000): steps, rate, the penalty scale, and the **training rollouts' (stochastic

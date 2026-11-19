@@ -45,7 +45,7 @@ for p in (str(HERE), str(REPO_ROOT)):
 
 import gait_metrics  # noqa: E402
 import numpy as np  # noqa: E402
-from trike_env import MODEL_DIR, MODELS, MUSEUM_TARGET_SPEED_MPS, TrikeEnv, TrikeEnvConfig  # noqa: E402
+from trike_env import MODEL_DIR, MODELS, MUSEUM_TARGET_SPEED_MPS, TrikeEnv, TrikeEnvConfig, flat_floor  # noqa: E402
 
 NAME_PREFIX = "trike60"
 SWEEP_DEFAULT = (0.0, 0.1, 0.2, 0.25, 0.27)
@@ -137,6 +137,7 @@ def env_config(args, run_dir: Path | None) -> TrikeEnvConfig:
     if not Path(cfg.model_path).exists():
         raise SystemExit(f"model file not found: {cfg.model_path}")
     cfg = cfg.replace(domain_randomization=not args.no_randomization, observation_noise=not args.no_randomization)
+    cfg = flat_floor(cfg)  # a run trained on terrain is evaluated on the flat floor, as every other run
     if args.seconds:
         cfg = cfg.replace(episode_seconds=args.seconds)
     return cfg
