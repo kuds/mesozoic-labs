@@ -251,3 +251,21 @@ def test_compact_json_keeps_every_episode_exactly():
     assert back["points"]["k"]["episodes"] == eps
     assert back["points"]["k"]["summary"] == {"speed_mps": 0.123457, "names": ["a b"]}
     assert back["seeds"] == [200000, 200001] and back["label"] == "x  y"
+
+
+# ---------------------------------------------------------------- a controller instead of a policy
+def test_run_episode_takes_a_controller_and_passes_it_every_observation():
+    """walk/sweep_walk60.py's path: ``controller`` (act(obs) -> action) replaces the policy; the episode is logged and
+    summarised as for a policy (a zero action holds the neutral pose: no fall). The policy path is unchanged
+    (checked separately by re-running part of run2b's sweep: 36 of 36 episodes identical)."""
+    env = nominal_env()
+    seen = []
+
+    def controller(obs):
+        seen.append(obs.shape)
+        return np.zeros(12)
+
+    rec = sweep.run_episode(env, None, None, sweep.SEED0, sweep.make_point(), controller=controller)
+    assert not rec["fell"] and len(seen) == env.max_episode_steps
+    assert seen[0] == env.observation_space.shape
+    assert abs(rec["forward_speed_mps"]) < 0.01

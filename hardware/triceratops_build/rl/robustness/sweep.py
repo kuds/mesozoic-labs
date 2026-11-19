@@ -246,11 +246,13 @@ class Pusher:
 
 
 # ---------------------------------------------------------------- one episode
-def run_episode(env: PointEnv, policy, stats, seed: int, p: dict) -> dict:
-    """One deterministic episode at point ``p``; logs like gait_pipe1.run_episode, then gait_pipe1.measures."""
+def run_episode(env: PointEnv, policy, stats, seed: int, p: dict, controller=None) -> dict:
+    """One deterministic episode at point ``p``; logs like gait_pipe1.run_episode, then gait_pipe1.measures.
+    ``controller``: an ``act(obs) -> action`` used instead of the policy (the model-based trot,
+    ``walk/sweep_walk60.py``); None for a policy, whose path is unchanged."""
     import torch
 
-    mean, var, clip, eps = stats
+    mean, var, clip, eps = stats if stats is not None else (None, None, None, None)
     env.point = p
     obs, _ = env.reset(seed=seed, options={"command_speed": p["command"], "delay_steps": p["delay_ms"]})
     m, d = env.model, env.data
@@ -292,10 +294,14 @@ def run_episode(env: PointEnv, policy, stats, seed: int, p: dict) -> dict:
     fell, term = False, ""
     try:
         while True:
-            o = np.clip((obs - mean) / np.sqrt(var + eps), -clip, clip).astype(np.float32)
-            with torch.no_grad():
-                act, _, _ = policy(torch.as_tensor(o[None]), deterministic=True)
-            obs, _, terminated, truncated, info = env.step(act.numpy()[0])
+            if controller is not None:
+                action = controller(obs)
+            else:
+                o = np.clip((obs - mean) / np.sqrt(var + eps), -clip, clip).astype(np.float32)
+                with torch.no_grad():
+                    act, _, _ = policy(torch.as_tensor(o[None]), deterministic=True)
+                action = act.numpy()[0]
+            obs, _, terminated, truncated, info = env.step(action)
             if hit["t"] is not None and not terminated:
                 terminated, info = True, {**info, "termination": f"terrain_contact:{hit['geom']}"}
             if terminated or truncated:
