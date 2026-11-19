@@ -49,7 +49,7 @@ Three rules for the whole sheet:
     Nothing to upload or install. Keep this sheet open next to the notebook.
 
 
-## 3. THE RUN, WITH THE STOP AND RESUME TESTS
+## 3. THE RUN
 
   3.1  Open this address:
          https://colab.research.google.com/github/kuds/mesozoic-labs/blob/f0a03c6e109e6e0723b0650b0c05df83e516ef1b/hardware/triceratops_build/rl/trike60_training.ipynb
@@ -143,7 +143,7 @@ Three rules for the whole sheet:
        me. (While train.py saves, the notebook ignores further clicks; a save takes seconds, so 5 minutes of silence
        means something is stuck. What was saved before is on your Drive; 3.9 resumes from it when I ask you to.)
 
-  3.8  THE RESUME TEST. SKIP IN THIS RUN (run s0 does it). Click the play button of box 5 (only box 5). If a window asks for Drive again, allow it as
+  3.8  RESUMING. SKIP IN THIS RUN, unless Colab stopped the run by itself; then do this step to resume it. Click the play button of box 5 (only box 5). If a window asks for Drive again, allow it as
        in 3.5.                                                                          (expected, not yet seen)
        Expect:
              Mounted at /content/drive                                                  (expected, not yet seen)
@@ -153,7 +153,8 @@ Three rules for the whole sheet:
        <n> must be the number you wrote down in 3.7: the step count carries on. Then the progress lines go on from
        there. If the Resuming line names another number, or says "Starting a new run": stop and tell me.
 
-  3.9  THE RECONNECT TEST. SKIP IN THIS RUN. After the next "Saved checkpoint pair" line, click Runtime > Disconnect and
+  3.9  RECONNECTING. SKIP IN THIS RUN, unless the machine went away by itself (a disconnect); then do
+       this step (from 'Edit > Clear all outputs') to resume it. After the next "Saved checkpoint pair" line, click Runtime > Disconnect and
        delete runtime. This throws the machine away without a stop. Then Edit > Clear all outputs, then Runtime >
        Run all with every value unchanged, and allow Drive. Box 3 installs again (a fresh machine). Expect:
              Run folder: /content/drive/MyDrive/mesozoic-labs/triceratops60/trike60-run3-s1 (resuming: <k> checkpoint(s) found)
@@ -192,7 +193,8 @@ Three rules for the whole sheet:
          - box 3's three lines (Python, Packages, All pins hold);
          - the "Machine:" line and the first two progress lines ("steps 100000 ..." and "steps 200000 ...");
          - every "Saved checkpoint pair" line;
-         - the stop lines of 3.7 and the "Resuming" line of 3.8 (and of 3.9 if you did it, with any WARNING lines);
+         - only if the run stopped or the machine went away by itself: the lines of that stop and the "Resuming"
+           line of 3.8 or 3.9, with any WARNING lines;
          - the "Session completed" line;
          - the file eval/eval_<e>.json from the run folder (download it from Drive and attach it, or tell me it is
            there and I read it).
