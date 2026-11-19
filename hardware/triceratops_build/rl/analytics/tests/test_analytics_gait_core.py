@@ -193,3 +193,27 @@ def test_stride_resample():
     assert prof.shape == (2, 11, 2)
     assert np.allclose(prof[0, :, 0], np.linspace(100, 200, 11))
     assert np.allclose(prof[1, :, 1], np.linspace(200, 400, 11))
+
+
+# ---------------------------------------------------------------- electrical estimate
+def test_copper_loss_uses_tau_over_eta_motoring_and_tau_times_eta_braking():
+    eta, kt, res = np.array([0.9]), np.array([1.8]), np.array([0.2])
+    mot = gc.electrical_power([[9.0]], [[1.0]], eta, kt, res)  # motoring: drive torque 10 N m
+    brk = gc.electrical_power([[9.0]], [[-1.0]], eta, kt, res)  # braking: drive torque 8.1 N m
+    assert mot["copper"][0, 0] == pytest.approx(3 * 0.2 * (10.0 / 1.8) ** 2)
+    assert brk["copper"][0, 0] == pytest.approx(3 * 0.2 * (8.1 / 1.8) ** 2)
+    assert mot["drive_mech"][0, 0] == pytest.approx(10.0) and brk["drive_mech"][0, 0] == pytest.approx(-8.1)
+    # standing still: copper only, the same in both bus models
+    hold = gc.electrical_power([[9.0]], [[0.0]], eta, kt, res)
+    assert hold["per_drive"][0] == pytest.approx(hold["shared_bus"][0]) == pytest.approx(hold["copper"][0, 0])
+
+
+def test_shared_bus_nets_braking_against_motoring_and_dumps_a_surplus():
+    eta, kt, res = np.ones(2), np.full(2, 1e6), np.zeros(2)  # no linkage loss, no copper: pure mechanical bookkeeping
+    # drive 1 motors at 30 W while drive 2 brakes at 20 W; then both brake
+    tau = np.array([[3.0, 2.0], [-1.0, 2.0]])
+    om = np.array([[10.0, -10.0], [10.0, -10.0]])
+    e = gc.electrical_power(tau, om, eta, kt, res)
+    assert e["per_drive"].tolist() == pytest.approx([30.0, 0.0])
+    assert e["shared_bus"].tolist() == pytest.approx([10.0, 0.0])  # 30 - 20; a net surplus counts 0, not negative
+    assert np.all(e["shared_bus"] <= e["per_drive"] + 1e-12)

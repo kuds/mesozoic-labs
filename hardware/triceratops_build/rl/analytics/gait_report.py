@@ -1,6 +1,6 @@
 """Gait-quality report of a trained 60 cm Triceratops policy. Simulation only; one policy is reported, not judged.
 
-Usage (from anywhere; CPU; about 70 s with 2 workers for 35 episodes):
+Usage (from anywhere; CPU; about 90 s with 2 workers for 35 episodes):
   python hardware/triceratops_build/rl/analytics/gait_report.py --ckpt-dir DIR --run NAME [--out DIR] [--workers 2]
 DIR holds one SB3 checkpoint pair (``*_<steps>_steps.zip`` and ``*_vecnormalize_<steps>_steps.pkl``) and the run's
 ``run_record.json``. Writes ``results/<NAME>/`` beside this file: ``gait_report.json`` (every metric, per episode and
@@ -440,12 +440,9 @@ def analyse(a: dict, command: float, drives: dict, trace: bool) -> tuple[dict, d
     eta = np.array([drives[gp.group_of(nm)]["transmission_efficiency"] for nm in a["names"]])
     kt = np.array([drives[gp.group_of(nm)]["kt_nm_per_a_rms"] for nm in a["names"]])
     res = np.array([drives[gp.group_of(nm)]["phase_resistance_ohm"] for nm in a["names"]])
-    motoring = p >= 0
-    tau_drive = np.where(motoring, tau / eta, tau * eta)
-    p_drive = np.where(motoring, p / eta, p * eta)
-    p_cu = 3.0 * res * (tau_drive / kt) ** 2
-    p_elec = (np.maximum(p_drive, 0) + p_cu).sum(1)  # per drive, no reuse
-    p_bus = np.maximum(0.0, (p_drive + p_cu).sum(1))  # shared bus
+    el = gc.electrical_power(tau, om, eta, kt, res)
+    p_drive, p_cu = el["drive_mech"], el["copper"]
+    p_elec, p_bus = el["per_drive"], el["shared_bus"]  # per drive with no reuse; shared bus
     v = pm["forward_speed_mps"]
     P = {"mech_abs_w": float(np.abs(p).sum(1).mean()), "mech_positive_w": float(np.maximum(p, 0).sum(1).mean()),
          "mech_negative_w": float(np.minimum(p, 0).sum(1).mean()), "copper_w": float(p_cu.sum(1).mean()),

@@ -205,7 +205,7 @@ def chart_balance(R, P, out: Path) -> str:
         return np.stack([d @ h, d @ lat], -1)
 
     fig = plt.figure(figsize=(12.5, 6.8))
-    gs = fig.add_gridspec(2, 2, width_ratios=[1.2, 1.3], height_ratios=[3.2, 1], left=0.06, right=0.985, top=0.8,
+    gs = fig.add_gridspec(2, 2, width_ratios=[1.2, 1.3], height_ratios=[3.2, 1], left=0.06, right=0.985, top=0.78,
                           bottom=0.1, wspace=0.17, hspace=0.12)
     ax = fig.add_subplot(gs[:, 0])
     for j, c in enumerate(CORNERS):
@@ -265,7 +265,7 @@ def chart_balance(R, P, out: Path) -> str:
     ax3.set_xlabel("time, s (nominal model, observation noise off, seed 100000)")
     cs.frame(fig, "Balance: centre of pressure and centre of mass against the feet on the ground",
              f"{_run_label(R)}. Support polygon: hull of the sole corners of the feet in stance (step contact, as the "
-             "footfalls). Margin: distance inside the nearest edge (negative outside).\n" + _balance_numbers(R),
+             "footfalls).\nMargin: distance inside the nearest edge (negative outside). " + _balance_numbers(R),
              _footer(R, "Panels: nominal model, noise off, 0.25 m/s; figures in the subtitle: randomised, 5 episodes"))
     cs.save(fig, out / "balance.png")
     return "balance.png"
@@ -276,7 +276,7 @@ def _balance_numbers(R) -> str:
     N = R["cases"]["nominal_0.25"]["summary"]["balance"]
     Rw = R["cases"]["target_0.25"]["summary"]["balance_raw_contact"]
     return (f"0.25 m/s randomised: CoM outside {100 * S['com_margin_negative_fraction']:.1f} % of the time (nominal "
-            f"{100 * N['com_margin_negative_fraction']:.1f} %), median CoM margin {S['com_margin_median_mm']:.0f} mm; CoP "
+            f"{100 * N['com_margin_negative_fraction']:.1f} %), median CoM margin {S['com_margin_median_mm']:.0f} mm;\nCoP "
             f"within 5 mm of an edge {100 * S['cop_near_edge_fraction']:.0f} %. Footnote: on raw 2 N contact, which counts "
             f"1-2 ms solver rebounds as lifts, the CoM reads outside {100 * Rw['com_margin_negative_fraction']:.0f} %.")
 
@@ -388,7 +388,7 @@ def chart_power(R, P, out: Path) -> str:
               ("copper loss", gc.moving_average(_arr(tr["p_cu"]), n), cs.SERIES[2]),
               ("positive mechanical work", gc.moving_average(_arr(tr["p_pos"]), n), cs.SERIES[3])]
     fig = plt.figure(figsize=(12.5, 7.4))
-    gs = fig.add_gridspec(2, 1, height_ratios=[1.5, 1], left=0.17, right=0.975, top=0.8, bottom=0.13, hspace=0.45)
+    gs = fig.add_gridspec(2, 1, height_ratios=[1.5, 1], left=0.17, right=0.975, top=0.78, bottom=0.13, hspace=0.45)
     ax = fig.add_subplot(gs[0])
     for name, y, col in series:
         ax.plot(t, y, color=col, lw=1.2)
@@ -410,9 +410,9 @@ def chart_power(R, P, out: Path) -> str:
         x0 = 0.0
         for v, col in zip(parts, cols):
             ax2.barh(yy, v - 1.0, left=x0 + 0.5, height=0.55, color=col)  # 1 W surface gap between segments
-            if v > 8:
+            if v > 8 and col != cs.MUTED:  # the hotel segment's value is in the legend
                 ax2.text(x0 + v / 2, yy, f"{v:.0f}", ha="center", va="center", fontsize=8,
-                         color=cs.INK if col in (cs.MUTED, cs.SERIES[3]) else "#ffffff")
+                         color=cs.INK if col == cs.SERIES[3] else "#ffffff")
             x0 += v
         bus = p["electrical_shared_bus_w"] + hotel
         ax2.plot([bus, bus], [yy - 0.38, yy + 0.38], color=cs.INK, lw=1.6)
@@ -435,10 +435,11 @@ def chart_power(R, P, out: Path) -> str:
     T = R["cases"]["target_0.25"]["summary"]["power"]
     cs.frame(fig, "Power and energy: what walking costs the battery",
              f"{_run_label(R)}. At 0.25 m/s: joint mechanical {T['mech_abs_w']:.0f} W (sum |torque x speed|), cost of "
-             f"transport {T['cost_of_transport_mech']:.2f} (mechanical). Electrical figures are estimates: unmodelled "
-             "gearbox, iron and\ndriver losses would raise them; the per-drive figure ignores bus-level reuse of braking "
-             "energy (which would lower it), the shared bus assumes it is all reused. Torque (copper loss) dominates.",
-             _footer(R, "Kt and phase resistance from the T. rex actuator catalog; braking energy never reaches the battery"))
+             f"transport {T['cost_of_transport_mech']:.2f} (mechanical).\nTorque (copper loss) dominates the electrical "
+             "figures. They are estimates: unmodelled gearbox, iron and driver losses would raise them;\nthe per-drive figure "
+             "ignores bus-level reuse of braking energy (which would lower it); the shared-bus figure assumes all of it is "
+             "reused at once.",
+             _footer(R, "Kt and phase resistance from the T. rex actuator catalog"))
     cs.save(fig, out / "power.png")
     return "power.png"
 

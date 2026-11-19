@@ -12,7 +12,7 @@ exactly where they overlap.
 | `gait_core.py` | The measures that need no simulator (debounced footfalls, steps, phase offsets, gait class, symmetry, support-polygon margins, stride resampling); unit-tested |
 | `gait_charts.py`, `chart_style.py` | The report's charts; the shared style (light surface, fixed categorical order, SIMULATION tag, run name, PNG under 500 KB) |
 | `training_dashboard.py` | Plots a run's `eval_during_training.jsonl` against training steps, with the penalty schedules from its `run_record.json` |
-| `tests/` | `pytest hardware/triceratops_build/rl/analytics/tests` (36 tests; about 5 s) |
+| `tests/` | `pytest hardware/triceratops_build/rl/analytics/tests` (38 tests; about 5 s) |
 | `results/pipe1/` | The report and training dashboard of trike60-pipe1 (2,007,040 steps) |
 
 ## How to run
@@ -21,7 +21,7 @@ exactly where they overlap.
 PY=python  # with mujoco 3.10, torch (CPU), stable-baselines3 2.9, gymnasium, numpy, matplotlib, pillow
 # a checkpoint folder: one *_<n>_steps.zip, its *_vecnormalize_<n>_steps.pkl, and the run's run_record.json
 $PY hardware/triceratops_build/rl/analytics/gait_report.py --ckpt-dir CKPT_DIR --run pipe1 --label trike60-pipe1
-#   --workers 2 (default; 35 episodes in about 65 s on 2 CPU workers), --out DIR, --cache FILE (keeps the chart
+#   --workers 2 (default; 35 episodes in about 90 s on 2 CPU workers), --out DIR, --cache FILE (keeps the chart
 #   payload) and --charts-from FILE (redraws charts and Markdown without simulating)
 $PY hardware/triceratops_build/rl/analytics/training_dashboard.py \
     --run trike60-pipe1 PATH/eval_during_training.jsonl PATH/run_record.json [--run NAME2 JSONL2 RECORD2] --out DIR

@@ -266,6 +266,27 @@ def margins_over_time(corners_xy, down, *points) -> list[np.ndarray]:
     return out
 
 
+# ---------------------------------------------------------------- electrical estimate
+def electrical_power(tau, omega, eta, kt, res) -> dict:
+    """Per 1 ms sample, the leg drives' electrical estimates (samples x drives in; W out).
+
+    ``tau``, ``omega``: joint torque (N m) and speed (rad/s); ``eta``: linkage efficiency per drive (1 for a direct
+    drive); ``kt``: output-side torque constant (N m per A rms); ``res``: per-phase resistance (ohm). While a drive
+    motors (tau x omega >= 0) its torque is tau / eta and its mechanical power p / eta; while it brakes, tau x eta and
+    p x eta. Copper loss 3 R (tau_drive / Kt)^2. Returns ``copper`` (per drive), ``per_drive`` (sum of positive
+    mechanical power at the drive + copper loss: braking energy lost) and ``shared_bus`` (max(0, sum of mechanical
+    power at the drive + copper loss): braking drives feed the others, a surplus is dumped)."""
+    tau, omega = np.asarray(tau, dtype=np.float64), np.asarray(omega, dtype=np.float64)
+    p = tau * omega
+    motoring = p >= 0
+    tau_drive = np.where(motoring, tau / eta, tau * eta)
+    p_drive = np.where(motoring, p / eta, p * eta)
+    copper = 3.0 * np.asarray(res) * (tau_drive / np.asarray(kt)) ** 2
+    return {"copper": copper, "drive_mech": p_drive,
+            "per_drive": (np.maximum(p_drive, 0.0) + copper).sum(-1),
+            "shared_bus": np.maximum(0.0, (p_drive + copper).sum(-1))}
+
+
 # ---------------------------------------------------------------- signals
 def lowpass_fft(x, dt: float, fc: float) -> np.ndarray:
     """Zero-phase brick-wall low-pass along axis 0 (FFT; the series' mean is kept)."""

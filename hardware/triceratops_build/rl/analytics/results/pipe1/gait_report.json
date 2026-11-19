@@ -68,7 +68,7 @@
    25.0,
    40.0
   ],
-  "wall_s": 64.7066,
+  "wall_s": 84.814,
   "workers": 2
  },
  "drives": {
@@ -1412,11 +1412,60 @@
      }
     },
     "balance": {
+     "support_defined_fraction": 1.0,
+     "no_foot_down_fraction": 0.0,
+     "cop_margin_negative_fraction": 0.0,
+     "cop_near_edge_fraction": 0.0687329,
+     "com_margin_negative_fraction": 0.0162333,
+     "contact": "step contact (env 10 ms debounce, then gaps and blips under 50 ms merged)",
+     "com_margin_median_mm": 34.3093,
+     "com_margin_p10_mm": 21.596,
+     "cop_margin_median_mm": 31.4741,
+     "com_margin_negative_fraction_by_feet": {
+      "1": 1.0,
+      "2": 0.0175544,
+      "3": 0.0,
+      "4": 0.0
+     },
+     "feet_down_fraction": {
+      "0": 0.0,
+      "1": 0.00154444,
+      "2": 0.838456,
+      "3": 0.131722,
+      "4": 0.0282778
+     }
+    },
+    "balance_env_debounce": {
+     "support_defined_fraction": 0.999922,
+     "no_foot_down_fraction": 7.77778e-05,
+     "cop_margin_negative_fraction": 0.0,
+     "cop_near_edge_fraction": 0.0708981,
+     "com_margin_negative_fraction": 0.0361919,
+     "contact": "env 10 ms debounce",
+     "com_margin_median_mm": 34.2109,
+     "com_margin_p10_mm": 20.785,
+     "cop_margin_median_mm": 31.25,
+     "com_margin_negative_fraction_by_feet": {
+      "1": 1.0,
+      "2": 0.0268584,
+      "3": 0.0,
+      "4": 0.0
+     },
+     "feet_down_fraction": {
+      "0": 7.77778e-05,
+      "1": 0.0135222,
+      "2": 0.845233,
+      "3": 0.116433,
+      "4": 0.0247333
+     }
+    },
+    "balance_raw_contact": {
      "support_defined_fraction": 0.994278,
-     "no_foot_loaded_fraction": 0.00572222,
+     "no_foot_down_fraction": 0.00572222,
      "cop_margin_negative_fraction": 0.0,
      "cop_near_edge_fraction": 0.0869829,
      "com_margin_negative_fraction": 0.115286,
+     "contact": "raw: sole load above 2 N at each 1 ms step (solver rebounds count as lifts)",
      "com_margin_median_mm": 33.2147,
      "com_margin_p10_mm": -117.519,
      "cop_margin_median_mm": 30.7084,
@@ -1426,7 +1475,7 @@
       "3": 0.0,
       "4": 0.0
      },
-     "feet_loaded_fraction": {
+     "feet_down_fraction": {
       "0": 0.00572222,
       "1": 0.0841778,
       "2": 0.799078,
@@ -1896,11 +1945,15 @@
      "mech_abs_w": 42.3962,
      "mech_positive_w": 23.0997,
      "mech_negative_w": -19.2964,
-     "copper_w": 105.874,
-     "electrical_w": 130.403,
+     "copper_w": 98.7613,
+     "electrical_per_drive_w": 123.291,
+     "electrical_shared_bus_w": 105.614,
+     "shared_bus_surplus_fraction": 0.0999111,
      "cost_of_transport_mech": 1.44152,
-     "cost_of_transport_electrical_with_hotel": 5.45312,
-     "electrical_peak_w": 1067.27,
+     "cost_of_transport_electrical_per_drive_with_hotel": 5.21173,
+     "cost_of_transport_electrical_shared_bus_with_hotel": 4.61055,
+     "electrical_per_drive_peak_w": 1033.94,
+     "electrical_shared_bus_peak_w": 1008.72,
      "by_group_w": {
       "roll": {
        "positive_mech": 0.67294,
@@ -1912,17 +1965,22 @@
       },
       "front elbow": {
        "positive_mech": 9.45674,
-       "copper": 36.1399
+       "copper": 31.6047
       },
       "hind knee": {
        "positive_mech": 3.41325,
-       "copper": 21.4262
+       "copper": 18.8492
       }
      },
-     "run_time_min": {
-      "hotel_25w": 45.5047,
-      "hotel_30w": 44.071,
-      "hotel_40w": 41.4596
+     "run_time_min_per_drive": {
+      "hotel_25w": 47.6993,
+      "hotel_30w": 46.126,
+      "hotel_40w": 43.2728
+     },
+     "run_time_min_shared_bus": {
+      "hotel_25w": 54.1468,
+      "hotel_30w": 52.1287,
+      "hotel_40w": 48.5145
      }
     },
     "body": {
@@ -1954,15 +2012,35 @@
      "acc_rms_mps2": 11.0883,
      "acc_peak_mps2": 37.3935,
      "acc_p99_mps2": 31.2546,
+     "acc_rms_le5hz_mps2": 5.9482,
+     "acc_peak_le5hz_mps2": 15.0793,
+     "acc_rms_5_20hz_mps2": 9.35716,
+     "acc_peak_5_20hz_mps2": 31.926,
      "acc_peak_unfiltered_mps2": 49.1025,
      "bob_mm_p1_p99": 41.5618,
      "sway_mm_p1_p99": 28.3722,
      "bob_dominant_hz": 2.38889,
+     "band_split_hz": [
+      5.0,
+      20.0
+     ],
      "acc_peak_mps2_worst": 39.1189,
+     "acc_peak_le5hz_mps2_worst": 17.8268,
+     "acc_peak_5_20hz_mps2_worst": 35.001,
      "acc_rms_by_axis_mps2": {
       "fore_aft": 2.17104,
       "lateral": 3.1672,
       "vertical": 10.4006
+     },
+     "acc_rms_le5hz_by_axis_mps2": {
+      "fore_aft": 1.06306,
+      "lateral": 1.90326,
+      "vertical": 5.53277
+     },
+     "acc_rms_5_20hz_by_axis_mps2": {
+      "fore_aft": 1.8924,
+      "lateral": 2.53076,
+      "vertical": 8.80598
      }
     },
     "feet": {
@@ -3072,11 +3150,60 @@
      }
     },
     "balance": {
+     "support_defined_fraction": 1.0,
+     "no_foot_down_fraction": 0.0,
+     "cop_margin_negative_fraction": 0.0,
+     "cop_near_edge_fraction": 0.0319329,
+     "com_margin_negative_fraction": 0.0106444,
+     "contact": "step contact (env 10 ms debounce, then gaps and blips under 50 ms merged)",
+     "com_margin_median_mm": 31.0775,
+     "com_margin_p10_mm": 20.9602,
+     "cop_margin_median_mm": 38.569,
+     "com_margin_negative_fraction_by_feet": {
+      "1": 1.0,
+      "2": 0.0149613,
+      "3": 0.0,
+      "4": 0.0
+     },
+     "feet_down_fraction": {
+      "0": 0.0,
+      "1": 0.000255556,
+      "2": 0.696711,
+      "3": 0.249856,
+      "4": 0.0531778
+     }
+    },
+    "balance_env_debounce": {
+     "support_defined_fraction": 0.9998,
+     "no_foot_down_fraction": 0.0002,
+     "cop_margin_negative_fraction": 0.0,
+     "cop_near_edge_fraction": 0.0365862,
+     "com_margin_negative_fraction": 0.0359083,
+     "contact": "env 10 ms debounce",
+     "com_margin_median_mm": 30.8358,
+     "com_margin_p10_mm": 19.7747,
+     "cop_margin_median_mm": 37.6769,
+     "com_margin_negative_fraction_by_feet": {
+      "1": 1.0,
+      "2": 0.0354327,
+      "3": 0.0,
+      "4": 0.0
+     },
+     "feet_down_fraction": {
+      "0": 0.0002,
+      "1": 0.00946667,
+      "2": 0.749367,
+      "3": 0.200211,
+      "4": 0.0407556
+     }
+    },
+    "balance_raw_contact": {
      "support_defined_fraction": 0.997644,
-     "no_foot_loaded_fraction": 0.00235556,
+     "no_foot_down_fraction": 0.00235556,
      "cop_margin_negative_fraction": 0.0,
      "cop_near_edge_fraction": 0.0615213,
      "com_margin_negative_fraction": 0.104665,
+     "contact": "raw: sole load above 2 N at each 1 ms step (solver rebounds count as lifts)",
      "com_margin_median_mm": 29.9333,
      "com_margin_p10_mm": -38.9077,
      "cop_margin_median_mm": 36.6321,
@@ -3086,7 +3213,7 @@
       "3": 0.0,
       "4": 0.0
      },
-     "feet_loaded_fraction": {
+     "feet_down_fraction": {
       "0": 0.00235556,
       "1": 0.0647778,
       "2": 0.747878,
@@ -3556,11 +3683,15 @@
      "mech_abs_w": 28.2584,
      "mech_positive_w": 15.6451,
      "mech_negative_w": -12.6133,
-     "copper_w": 86.4404,
-     "electrical_w": 103.035,
+     "copper_w": 80.1261,
+     "electrical_per_drive_w": 96.7211,
+     "electrical_shared_bus_w": 84.8353,
+     "shared_bus_surplus_fraction": 0.0279111,
      "cost_of_transport_mech": 1.58605,
-     "cost_of_transport_electrical_with_hotel": 7.46201,
-     "electrical_peak_w": 967.811,
+     "cost_of_transport_electrical_per_drive_with_hotel": 7.10839,
+     "cost_of_transport_electrical_shared_bus_with_hotel": 6.44129,
+     "electrical_per_drive_peak_w": 967.811,
+     "electrical_shared_bus_peak_w": 915.967,
      "by_group_w": {
       "roll": {
        "positive_mech": 0.471849,
@@ -3572,17 +3703,22 @@
       },
       "front elbow": {
        "positive_mech": 6.48742,
-       "copper": 29.4228
+       "copper": 25.5441
       },
       "hind knee": {
        "positive_mech": 2.06217,
-       "copper": 17.1283
+       "copper": 14.6927
       }
      },
-     "run_time_min": {
-      "hotel_25w": 55.2421,
-      "hotel_30w": 53.1433,
-      "hotel_40w": 49.3923
+     "run_time_min_per_drive": {
+      "hotel_25w": 58.1248,
+      "hotel_30w": 55.8053,
+      "hotel_40w": 51.6829
+     },
+     "run_time_min_shared_bus": {
+      "hotel_25w": 64.4068,
+      "hotel_30w": 61.5714,
+      "hotel_40w": 56.5919
      }
     },
     "body": {
@@ -3614,15 +3750,35 @@
      "acc_rms_mps2": 8.86838,
      "acc_peak_mps2": 31.6121,
      "acc_p99_mps2": 25.0645,
+     "acc_rms_le5hz_mps2": 3.05926,
+     "acc_peak_le5hz_mps2": 8.5788,
+     "acc_rms_5_20hz_mps2": 8.32182,
+     "acc_peak_5_20hz_mps2": 30.6972,
      "acc_peak_unfiltered_mps2": 49.3958,
      "bob_mm_p1_p99": 36.4675,
      "sway_mm_p1_p99": 23.5246,
      "bob_dominant_hz": 1.74444,
+     "band_split_hz": [
+      5.0,
+      20.0
+     ],
      "acc_peak_mps2_worst": 33.6332,
+     "acc_peak_le5hz_mps2_worst": 9.98893,
+     "acc_peak_5_20hz_mps2_worst": 33.5951,
      "acc_rms_by_axis_mps2": {
       "fore_aft": 2.09967,
       "lateral": 2.66386,
       "vertical": 8.19207
+     },
+     "acc_rms_le5hz_by_axis_mps2": {
+      "fore_aft": 0.585661,
+      "lateral": 1.23993,
+      "vertical": 2.73235
+     },
+     "acc_rms_5_20hz_by_axis_mps2": {
+      "fore_aft": 2.01556,
+      "lateral": 2.35748,
+      "vertical": 7.72041
      }
     },
     "feet": {
@@ -3800,7 +3956,7 @@
    }
   },
   "nominal_0.25": {
-   "label": "0.25 m/s, nominal model (no randomisation or noise)",
+   "label": "0.25 m/s, nominal model, observation noise off",
    "model": "trike60_C_closed.xml",
    "changes": {
     "domain_randomization": false,
@@ -4734,11 +4890,60 @@
      }
     },
     "balance": {
+     "support_defined_fraction": 1.0,
+     "no_foot_down_fraction": 0.0,
+     "cop_margin_negative_fraction": 0.0,
+     "cop_near_edge_fraction": 0.0315324,
+     "com_margin_negative_fraction": 0.00512222,
+     "contact": "step contact (env 10 ms debounce, then gaps and blips under 50 ms merged)",
+     "com_margin_median_mm": 34.1118,
+     "com_margin_p10_mm": 22.3034,
+     "cop_margin_median_mm": 33.4069,
+     "com_margin_negative_fraction_by_feet": {
+      "1": 1.0,
+      "2": 0.00578169,
+      "3": 0.0,
+      "4": 0.0
+     },
+     "feet_down_fraction": {
+      "0": 0.0,
+      "1": 0.000222222,
+      "2": 0.847489,
+      "3": 0.111,
+      "4": 0.0412889
+     }
+    },
+    "balance_env_debounce": {
+     "support_defined_fraction": 1.0,
+     "no_foot_down_fraction": 0.0,
+     "cop_margin_negative_fraction": 0.0,
+     "cop_near_edge_fraction": 0.0316772,
+     "com_margin_negative_fraction": 0.0059,
+     "contact": "env 10 ms debounce",
+     "com_margin_median_mm": 34.1118,
+     "com_margin_p10_mm": 22.2761,
+     "cop_margin_median_mm": 33.3945,
+     "com_margin_negative_fraction_by_feet": {
+      "1": 1.0,
+      "2": 0.00644351,
+      "3": 0.0,
+      "4": 0.0
+     },
+     "feet_down_fraction": {
+      "0": 0.0,
+      "1": 0.000433333,
+      "2": 0.848533,
+      "3": 0.110711,
+      "4": 0.0403222
+     }
+    },
+    "balance_raw_contact": {
      "support_defined_fraction": 0.996567,
-     "no_foot_loaded_fraction": 0.00343333,
+     "no_foot_down_fraction": 0.00343333,
      "cop_margin_negative_fraction": 0.0,
      "cop_near_edge_fraction": 0.0415314,
      "com_margin_negative_fraction": 0.0498155,
+     "contact": "raw: sole load above 2 N at each 1 ms step (solver rebounds count as lifts)",
      "com_margin_median_mm": 33.6309,
      "com_margin_p10_mm": 20.4323,
      "cop_margin_median_mm": 33.0309,
@@ -4748,7 +4953,7 @@
       "3": 0.0,
       "4": 0.0
      },
-     "feet_loaded_fraction": {
+     "feet_down_fraction": {
       "0": 0.00343333,
       "1": 0.0355444,
       "2": 0.834111,
@@ -5218,11 +5423,15 @@
      "mech_abs_w": 39.9701,
      "mech_positive_w": 22.3839,
      "mech_negative_w": -17.5862,
-     "copper_w": 115.164,
-     "electrical_w": 138.936,
+     "copper_w": 107.705,
+     "electrical_per_drive_w": 131.477,
+     "electrical_shared_bus_w": 114.998,
+     "shared_bus_surplus_fraction": 0.0517111,
      "cost_of_transport_mech": 1.33488,
-     "cost_of_transport_electrical_with_hotel": 5.64196,
-     "electrical_peak_w": 1163.67,
+     "cost_of_transport_electrical_per_drive_with_hotel": 5.39286,
+     "cost_of_transport_electrical_shared_bus_with_hotel": 4.84252,
+     "electrical_per_drive_peak_w": 1138.55,
+     "electrical_shared_bus_peak_w": 1119.55,
      "by_group_w": {
       "roll": {
        "positive_mech": 0.653613,
@@ -5234,17 +5443,22 @@
       },
       "front elbow": {
        "positive_mech": 8.90077,
-       "copper": 36.8985
+       "copper": 32.4029
       },
       "hind knee": {
        "positive_mech": 3.59443,
-       "copper": 24.6172
+       "copper": 21.654
       }
      },
-     "run_time_min": {
-      "hotel_25w": 42.895,
-      "hotel_30w": 41.6254,
-      "hotel_40w": 39.2991
+     "run_time_min_per_drive": {
+      "hotel_25w": 44.9397,
+      "hotel_30w": 43.5482,
+      "hotel_40w": 41.0086
+     },
+     "run_time_min_shared_bus": {
+      "hotel_25w": 50.2294,
+      "hotel_30w": 48.4973,
+      "hotel_40w": 45.3684
      }
     },
     "body": {
@@ -5276,15 +5490,35 @@
      "acc_rms_mps2": 9.52228,
      "acc_peak_mps2": 33.2688,
      "acc_p99_mps2": 26.9714,
+     "acc_rms_le5hz_mps2": 5.53947,
+     "acc_peak_le5hz_mps2": 12.4605,
+     "acc_rms_5_20hz_mps2": 7.74487,
+     "acc_peak_5_20hz_mps2": 25.1723,
      "acc_peak_unfiltered_mps2": 45.1574,
      "bob_mm_p1_p99": 36.4181,
      "sway_mm_p1_p99": 25.8719,
      "bob_dominant_hz": 4.72222,
+     "band_split_hz": [
+      5.0,
+      20.0
+     ],
      "acc_peak_mps2_worst": 34.8872,
+     "acc_peak_le5hz_mps2_worst": 13.3296,
+     "acc_peak_5_20hz_mps2_worst": 26.1121,
      "acc_rms_by_axis_mps2": {
       "fore_aft": 1.66624,
       "lateral": 2.78255,
       "vertical": 8.95287
+     },
+     "acc_rms_le5hz_by_axis_mps2": {
+      "fore_aft": 0.886498,
+      "lateral": 1.90031,
+      "vertical": 5.12718
+     },
+     "acc_rms_5_20hz_by_axis_mps2": {
+      "fore_aft": 1.41083,
+      "lateral": 2.03251,
+      "vertical": 7.33899
      }
     },
     "feet": {
@@ -6396,11 +6630,60 @@
      }
     },
     "balance": {
+     "support_defined_fraction": 1.0,
+     "no_foot_down_fraction": 0.0,
+     "cop_margin_negative_fraction": 0.0,
+     "cop_near_edge_fraction": 0.0335204,
+     "com_margin_negative_fraction": 0.0598556,
+     "contact": "step contact (env 10 ms debounce, then gaps and blips under 50 ms merged)",
+     "com_margin_median_mm": 33.5331,
+     "com_margin_p10_mm": 17.9141,
+     "cop_margin_median_mm": 44.3925,
+     "com_margin_negative_fraction_by_feet": {
+      "1": 1.0,
+      "2": 0.0726596,
+      "3": 0.0,
+      "4": 0.0
+     },
+     "feet_down_fraction": {
+      "0": 0.0,
+      "1": 0.00488889,
+      "2": 0.755411,
+      "3": 0.216456,
+      "4": 0.0232444
+     }
+    },
+    "balance_env_debounce": {
+     "support_defined_fraction": 0.999667,
+     "no_foot_down_fraction": 0.000333333,
+     "cop_margin_negative_fraction": 0.0,
+     "cop_near_edge_fraction": 0.0350547,
+     "com_margin_negative_fraction": 0.104302,
+     "contact": "env 10 ms debounce",
+     "com_margin_median_mm": 33.1707,
+     "com_margin_p10_mm": -53.5272,
+     "cop_margin_median_mm": 44.2682,
+     "com_margin_negative_fraction_by_feet": {
+      "1": 1.0,
+      "2": 0.0945764,
+      "3": 0.0,
+      "4": 0.0
+     },
+     "feet_down_fraction": {
+      "0": 0.000333333,
+      "1": 0.0309111,
+      "2": 0.775822,
+      "3": 0.175244,
+      "4": 0.0176889
+     }
+    },
+    "balance_raw_contact": {
      "support_defined_fraction": 0.994011,
-     "no_foot_loaded_fraction": 0.00598889,
+     "no_foot_down_fraction": 0.00598889,
      "cop_margin_negative_fraction": 0.0,
      "cop_near_edge_fraction": 0.0437061,
      "com_margin_negative_fraction": 0.188739,
+     "contact": "raw: sole load above 2 N at each 1 ms step (solver rebounds count as lifts)",
      "com_margin_median_mm": 31.731,
      "com_margin_p10_mm": -179.196,
      "cop_margin_median_mm": 43.9799,
@@ -6410,7 +6693,7 @@
       "3": 0.0,
       "4": 0.0
      },
-     "feet_loaded_fraction": {
+     "feet_down_fraction": {
       "0": 0.00598889,
       "1": 0.114589,
       "2": 0.7395,
@@ -6880,11 +7163,15 @@
      "mech_abs_w": 43.4867,
      "mech_positive_w": 24.1654,
      "mech_negative_w": -19.3213,
-     "copper_w": 110.249,
-     "electrical_w": 135.92,
+     "copper_w": 102.175,
+     "electrical_per_drive_w": 127.846,
+     "electrical_shared_bus_w": 110.071,
+     "shared_bus_surplus_fraction": 0.0890556,
      "cost_of_transport_mech": 1.49268,
-     "cost_of_transport_electrical_with_hotel": 5.69494,
-     "electrical_peak_w": 1107.89,
+     "cost_of_transport_electrical_per_drive_with_hotel": 5.41827,
+     "cost_of_transport_electrical_shared_bus_with_hotel": 4.80815,
+     "electrical_per_drive_peak_w": 1082.88,
+     "electrical_shared_bus_peak_w": 1058.93,
      "by_group_w": {
       "roll": {
        "positive_mech": 0.662393,
@@ -6896,17 +7183,22 @@
       },
       "front elbow": {
        "positive_mech": 10.0669,
-       "copper": 39.2775
+       "copper": 34.0463
       },
       "hind knee": {
        "positive_mech": 3.48151,
-       "copper": 22.4689
+       "copper": 19.626
       }
      },
-     "run_time_min": {
-      "hotel_25w": 43.9512,
-      "hotel_30w": 42.6121,
-      "hotel_40w": 40.1657
+     "run_time_min_per_drive": {
+      "hotel_25w": 46.2856,
+      "hotel_30w": 44.8026,
+      "hotel_40w": 42.1057
+     },
+     "run_time_min_shared_bus": {
+      "hotel_25w": 52.3674,
+      "hotel_30w": 50.4773,
+      "hotel_40w": 47.0806
      }
     },
     "body": {
@@ -6938,15 +7230,35 @@
      "acc_rms_mps2": 12.1889,
      "acc_peak_mps2": 39.0122,
      "acc_p99_mps2": 32.8258,
+     "acc_rms_le5hz_mps2": 4.77852,
+     "acc_peak_le5hz_mps2": 14.0503,
+     "acc_rms_5_20hz_mps2": 11.2121,
+     "acc_peak_5_20hz_mps2": 38.1358,
      "acc_peak_unfiltered_mps2": 54.2496,
      "bob_mm_p1_p99": 48.2072,
      "sway_mm_p1_p99": 25.0996,
      "bob_dominant_hz": 2.51111,
+     "band_split_hz": [
+      5.0,
+      20.0
+     ],
      "acc_peak_mps2_worst": 40.8789,
+     "acc_peak_le5hz_mps2_worst": 15.5294,
+     "acc_peak_5_20hz_mps2_worst": 41.9278,
      "acc_rms_by_axis_mps2": {
       "fore_aft": 2.55066,
       "lateral": 3.0917,
       "vertical": 11.5095
+     },
+     "acc_rms_le5hz_by_axis_mps2": {
+      "fore_aft": 1.08321,
+      "lateral": 1.28497,
+      "vertical": 4.47264
+     },
+     "acc_rms_5_20hz_by_axis_mps2": {
+      "fore_aft": 2.30839,
+      "lateral": 2.81154,
+      "vertical": 10.6038
      }
     },
     "feet": {
