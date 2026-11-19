@@ -37,3 +37,9 @@ down when, joint torques and heat against the drives' ratings (the hind knees ar
 estimate, F12), energy, behaviour with the stiffer contact setting, or the roll-ankle model. The policy also observes
 the body's true velocity from the simulator (`obs_privileged_lin_vel`), which the robot would have to estimate. An
 earlier local probe of the same setup reached similar speeds with heavy sole slip.
+
+**Gait analysis (19 Nov 2026; `analysis/REPORT_GAIT_PIPE1.md`, plan committed first):** a quick diagonal, trot-like
+gait at 2.39 Hz (about 10 cm strides), no falls in 25 episodes including stiffer contact and the unseen roll-ankle foot;
+but RMS torque above the continuous rating on the pitch joints (1.11 ×) and hind knees (1.15 ×), drives at their limit
+in 4-5 % of steps, slip ratio 0.23-0.29, contact chatter in stance, 42 W (cost of transport 1.44). A working pipeline
+and a first gait, not a usable one; reward changes proposed in the report.

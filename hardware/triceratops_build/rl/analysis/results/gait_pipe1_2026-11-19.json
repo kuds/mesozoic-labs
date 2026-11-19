@@ -1,0 +1,3159 @@
+{
+ "policy_zip_sha256": "dc06d30105b201bfe11113ed85dc66011b593c927b6cee19bc68e2f815b35b69",
+ "vecnormalize_sha256": "21b44428289b5c88d3d00cb2ccbcd49fdeca25a44b5d5ecb7d0b8bac1f343984",
+ "run_commit": "6aa3a679761337d8035ff276de5c595adc5dc309",
+ "delay_ms": 10,
+ "seeds": [
+  100000,
+  100001,
+  100002,
+  100003,
+  100004
+ ],
+ "window_from_s": 2.0,
+ "cases": {
+  "target 0.25 m/s": {
+   "model": "trike60_C_closed.xml",
+   "changes": {},
+   "impratio": 1.0,
+   "summary": {
+    "episodes": 5,
+    "falls": 0,
+    "forward_speed_mps": 0.23848624917905728,
+    "power_w": 42.396153725768315,
+    "cost_of_transport": 1.4415181454785864,
+    "duty_factor": {
+     "left_fore": 0.392,
+     "right_fore": 0.5740111111111111,
+     "left_hind": 0.6306666666666667,
+     "right_hind": 0.4359333333333334
+    },
+    "feet_down_fraction": {
+     "4": 0.01721111111111111,
+     "3": 0.09381111111111111,
+     "2 diagonal": 0.7686222222222223,
+     "2 same side": 0.017944444444444443,
+     "2 front": 0.0009777777777777777,
+     "2 hind": 0.011533333333333333,
+     "1": 0.08417777777777778,
+     "0": 0.005722222222222222
+    },
+    "touchdowns_per_s": {
+     "left_fore": 21.033333333331502,
+     "right_fore": 16.066666666665267,
+     "left_hind": 13.099999999998854,
+     "right_hind": 20.588888888887094
+    },
+    "slip_ratio_worst": {
+     "left_fore": 0.26060948453695876,
+     "right_fore": 0.24606836347748087,
+     "left_hind": 0.2902013604332317,
+     "right_hind": 0.24272519922972577
+    },
+    "slip_ratio_mean": {
+     "left_fore": 0.24187170284085485,
+     "right_fore": 0.22843684994657934,
+     "left_hind": 0.2550514126004537,
+     "right_hind": 0.23223384226071997
+    },
+    "stance_slip_p95_mps": {
+     "left_fore": 0.5867990836725473,
+     "right_fore": 0.3543295460639088,
+     "left_hind": 0.3187719363219974,
+     "right_hind": 0.4335418040510018
+    },
+    "roll_deg_rms": 1.154382771197675,
+    "pitch_deg_rms": 1.0800086933588058,
+    "drives": {
+     "roll": {
+      "rms_worst_nm": 5.875449818195229,
+      "rms_mean_nm": 4.8565328125684655,
+      "rms_over_thermal": 0.7833933090926971,
+      "peak_nm": 20.93349576495133,
+      "peak_over_limit": 0.9968331316643491,
+      "saturated_fraction": 0.0020555555555555557,
+      "peak_rpm": 10.764018128297515,
+      "rpm_over_allowance": 0.1296869654011749
+     },
+     "pitch": {
+      "rms_worst_nm": 8.361046148118328,
+      "rms_mean_nm": 7.31095277481987,
+      "rms_over_thermal": 1.1148061530824438,
+      "peak_nm": 20.52023155316465,
+      "peak_over_limit": 0.9771538834840309,
+      "saturated_fraction": 0.05333333333333334,
+      "peak_rpm": 66.2998685265626,
+      "rpm_over_allowance": 0.7987935967055736
+     },
+     "front elbow": {
+      "rms_worst_nm": 10.723560036710312,
+      "rms_mean_nm": 10.5771847009128,
+      "rms_over_thermal": 0.9929222256213251,
+      "peak_nm": 37.10320280779375,
+      "peak_over_limit": 0.9815662118463956,
+      "saturated_fraction": 0.03722222222222222,
+      "peak_rpm": 78.54882875588117,
+      "rpm_over_allowance": 0.7273039699618628
+     },
+     "hind knee": {
+      "rms_worst_nm": 7.778317619007033,
+      "rms_mean_nm": 7.058305772945208,
+      "rms_over_thermal": 1.1523433509640049,
+      "peak_nm": 18.83995164930482,
+      "peak_over_limit": 0.9968228385875566,
+      "saturated_fraction": 0.04133333333333333,
+      "peak_rpm": 67.24805169892974,
+      "rpm_over_allowance": 0.8102174903485512
+     }
+    },
+    "flags": [
+     "heat: pitch RMS 8.36 N\u00b7m over its 7.5 N\u00b7m thermal rating",
+     "saturation: pitch at >= 99 % of its limit in 5.3 % of steps",
+     "saturation: front elbow at >= 99 % of its limit in 3.7 % of steps",
+     "heat: hind knee RMS 7.78 N\u00b7m over its 6.75 N\u00b7m thermal rating",
+     "saturation: hind knee at >= 99 % of its limit in 4.1 % of steps",
+     "slip: left_fore slip ratio 0.26 (flag above 0.25)",
+     "slip: left_hind slip ratio 0.29 (flag above 0.25)"
+    ]
+   },
+   "episodes": [
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.23823557078918378,
+     "sideways_drift_m": 0.22682560256462186,
+     "height_range_mm": 19.93015099541645,
+     "duty_factor": {
+      "left_fore": 0.3816111111111111,
+      "right_fore": 0.5733888888888888,
+      "left_hind": 0.6444444444444445,
+      "right_hind": 0.43072222222222223
+     },
+     "feet_down_fraction": {
+      "4": 0.015333333333333332,
+      "3": 0.10238888888888889,
+      "2 diagonal": 0.7516111111111111,
+      "2 same side": 0.020944444444444446,
+      "2 front": 0.001,
+      "2 hind": 0.012944444444444444,
+      "1": 0.08866666666666667,
+      "0": 0.0071111111111111115
+     },
+     "touchdowns_per_s": {
+      "left_fore": 22.333333333331385,
+      "right_fore": 14.722222222220937,
+      "left_hind": 12.833333333332213,
+      "right_hind": 20.166666666664906
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.15866243413799425,
+       "p95_mps": 0.5540724005968786,
+       "slip_ratio": 0.2541490659115731
+      },
+      "right_fore": {
+       "mean_mps": 0.09943074001021114,
+       "p95_mps": 0.3543295460639088,
+       "slip_ratio": 0.23931137296996854
+      },
+      "left_hind": {
+       "mean_mps": 0.10728044495165523,
+       "p95_mps": 0.3187719363219974,
+       "slip_ratio": 0.2902013604332317
+      },
+      "right_hind": {
+       "mean_mps": 0.12474942290638788,
+       "p95_mps": 0.43240745683056075,
+       "slip_ratio": 0.22554292995447217
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 5.283096737662759,
+       "rms_mean_nm": 4.207593279258655,
+       "rms_over_thermal": 0.7044128983550345,
+       "peak_nm": 20.796393647928685,
+       "peak_over_limit": 0.9903044594251755,
+       "saturated_fraction": 0.0005972222222222222,
+       "peak_rpm": 7.895969191393223,
+       "rpm_over_allowance": 0.09513215893244847
+      },
+      "pitch": {
+       "rms_worst_nm": 7.429211917402198,
+       "rms_mean_nm": 6.355177845951217,
+       "rms_over_thermal": 0.9905615889869598,
+       "peak_nm": 19.806243916781785,
+       "peak_over_limit": 0.9431544722277041,
+       "saturated_fraction": 0.03979166666666667,
+       "peak_rpm": 60.8105549175849,
+       "rpm_over_allowance": 0.7326572881636735
+      },
+      "front elbow": {
+       "rms_worst_nm": 10.473460002381113,
+       "rms_mean_nm": 10.463332306038303,
+       "rms_over_thermal": 0.9697648150352882,
+       "peak_nm": 36.91403778592685,
+       "peak_over_limit": 0.9765618461885411,
+       "saturated_fraction": 0.0355,
+       "peak_rpm": 78.54882875588117,
+       "rpm_over_allowance": 0.7273039699618628
+      },
+      "hind knee": {
+       "rms_worst_nm": 7.669921270248084,
+       "rms_mean_nm": 6.978733956579176,
+       "rms_over_thermal": 1.1362846326293459,
+       "peak_nm": 18.751178209392744,
+       "peak_over_limit": 0.9921258311848014,
+       "saturated_fraction": 0.035194444444444445,
+       "peak_rpm": 49.52350320043105,
+       "rpm_over_allowance": 0.5966687132582055
+      }
+     },
+     "power_w": 41.921148310699,
+     "cost_of_transport": 1.36657941300168,
+     "roll_deg": {
+      "rms": 1.1890901959890483,
+      "peak": 3.0412778106324674
+     },
+     "pitch_deg": {
+      "rms": 1.1016442815978158,
+      "peak": 3.0782810181087306
+     }
+    },
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.23791145023603827,
+     "sideways_drift_m": 0.16871321582045182,
+     "height_range_mm": 19.640338660063648,
+     "duty_factor": {
+      "left_fore": 0.39805555555555555,
+      "right_fore": 0.5702777777777778,
+      "left_hind": 0.6205,
+      "right_hind": 0.4502777777777778
+     },
+     "feet_down_fraction": {
+      "4": 0.0195,
+      "3": 0.09205555555555556,
+      "2 diagonal": 0.7664444444444445,
+      "2 same side": 0.02033333333333333,
+      "2 front": 0.0011666666666666668,
+      "2 hind": 0.013111111111111112,
+      "1": 0.08283333333333333,
+      "0": 0.004555555555555556
+     },
+     "touchdowns_per_s": {
+      "left_fore": 20.33333333333156,
+      "right_fore": 15.333333333331996,
+      "left_hind": 12.944444444443315,
+      "right_hind": 20.555555555553763
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.1355279101440338,
+       "p95_mps": 0.477339389628508,
+       "slip_ratio": 0.22675511208953267
+      },
+      "right_fore": {
+       "mean_mps": 0.09009179604825021,
+       "p95_mps": 0.32276551503906026,
+       "slip_ratio": 0.2159515617908341
+      },
+      "left_hind": {
+       "mean_mps": 0.08835494870727226,
+       "p95_mps": 0.27663296077022204,
+       "slip_ratio": 0.23043971031431662
+      },
+      "right_hind": {
+       "mean_mps": 0.12396785626230916,
+       "p95_mps": 0.42876809633975893,
+       "slip_ratio": 0.2346249866421984
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 5.609265919655318,
+       "rms_mean_nm": 4.714167943401205,
+       "rms_over_thermal": 0.7479021226207091,
+       "peak_nm": 20.177339149277934,
+       "peak_over_limit": 0.9608256737751397,
+       "saturated_fraction": 0.0013611111111111111,
+       "peak_rpm": 9.549880335614167,
+       "rpm_over_allowance": 0.11505879922426708
+      },
+      "pitch": {
+       "rms_worst_nm": 8.258567833282726,
+       "rms_mean_nm": 7.107213197539085,
+       "rms_over_thermal": 1.10114237777103,
+       "peak_nm": 20.434116762566973,
+       "peak_over_limit": 0.9730531791698558,
+       "saturated_fraction": 0.04748611111111111,
+       "peak_rpm": 61.97577937542329,
+       "rpm_over_allowance": 0.7466961370532927
+      },
+      "front elbow": {
+       "rms_worst_nm": 10.536300664325765,
+       "rms_mean_nm": 10.25118837366096,
+       "rms_over_thermal": 0.9755833948449781,
+       "peak_nm": 34.570921723531164,
+       "peak_over_limit": 0.9145746487706657,
+       "saturated_fraction": 0.0355,
+       "peak_rpm": 74.44448634542745,
+       "rpm_over_allowance": 0.6893007994946986
+      },
+      "hind knee": {
+       "rms_worst_nm": 7.5422061221388645,
+       "rms_mean_nm": 6.888833167326747,
+       "rms_over_thermal": 1.1173638699464985,
+       "peak_nm": 17.396554512169907,
+       "peak_over_limit": 0.9204526196915295,
+       "saturated_fraction": 0.036333333333333336,
+       "peak_rpm": 56.92802827992809,
+       "rpm_over_allowance": 0.6858798587943143
+      }
+     },
+     "power_w": 45.386699832626,
+     "cost_of_transport": 1.6133997190134188,
+     "roll_deg": {
+      "rms": 1.1883267869815521,
+      "peak": 2.7653660034203367
+     },
+     "pitch_deg": {
+      "rms": 1.1177496184696691,
+      "peak": 3.232845803917617
+     }
+    },
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.2368659911589738,
+     "sideways_drift_m": -0.16321923770962501,
+     "height_range_mm": 23.182761789060315,
+     "duty_factor": {
+      "left_fore": 0.3915,
+      "right_fore": 0.5672777777777778,
+      "left_hind": 0.6298888888888889,
+      "right_hind": 0.43977777777777777
+     },
+     "feet_down_fraction": {
+      "4": 0.016444444444444446,
+      "3": 0.09438888888888888,
+      "2 diagonal": 0.7600555555555556,
+      "2 same side": 0.019555555555555555,
+      "2 front": 0.0006111111111111111,
+      "2 hind": 0.013833333333333333,
+      "1": 0.0913888888888889,
+      "0": 0.0037222222222222223
+     },
+     "touchdowns_per_s": {
+      "left_fore": 19.944444444442706,
+      "right_fore": 15.944444444443054,
+      "left_hind": 13.33333333333217,
+      "right_hind": 19.611111111109402
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.1300289156359635,
+       "p95_mps": 0.4492282620068192,
+       "slip_ratio": 0.21491612291991563
+      },
+      "right_fore": {
+       "mean_mps": 0.08518074205331586,
+       "p95_mps": 0.30797541594194716,
+       "slip_ratio": 0.20400202589246597
+      },
+      "left_hind": {
+       "mean_mps": 0.08386077296258912,
+       "p95_mps": 0.28278603972215105,
+       "slip_ratio": 0.2230078233025264
+      },
+      "right_hind": {
+       "mean_mps": 0.11705647385334675,
+       "p95_mps": 0.42451211901316294,
+       "slip_ratio": 0.21733316671521216
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 5.875449818195229,
+       "rms_mean_nm": 4.8565328125684655,
+       "rms_over_thermal": 0.7833933090926971,
+       "peak_nm": 20.84549088866585,
+       "peak_over_limit": 0.9926424232698023,
+       "saturated_fraction": 0.0020555555555555557,
+       "peak_rpm": 10.764018128297515,
+       "rpm_over_allowance": 0.1296869654011749
+      },
+      "pitch": {
+       "rms_worst_nm": 8.361046148118328,
+       "rms_mean_nm": 7.31095277481987,
+       "rms_over_thermal": 1.1148061530824438,
+       "peak_nm": 19.962859942198577,
+       "peak_over_limit": 0.9506123781999323,
+       "saturated_fraction": 0.05333333333333334,
+       "peak_rpm": 66.2998685265626,
+       "rpm_over_allowance": 0.7987935967055736
+      },
+      "front elbow": {
+       "rms_worst_nm": 10.723560036710312,
+       "rms_mean_nm": 10.5771847009128,
+       "rms_over_thermal": 0.9929222256213251,
+       "peak_nm": 35.12451653162624,
+       "peak_over_limit": 0.9292200140641863,
+       "saturated_fraction": 0.033416666666666664,
+       "peak_rpm": 75.98637848387924,
+       "rpm_over_allowance": 0.7035775785544374
+      },
+      "hind knee": {
+       "rms_worst_nm": 7.778317619007033,
+       "rms_mean_nm": 7.058305772945208,
+       "rms_over_thermal": 1.1523433509640049,
+       "peak_nm": 17.963998951232817,
+       "peak_over_limit": 0.9504761349858634,
+       "saturated_fraction": 0.03997222222222222,
+       "peak_rpm": 67.24805169892974,
+       "rpm_over_allowance": 0.8102174903485512
+      }
+     },
+     "power_w": 46.080947747153694,
+     "cost_of_transport": 1.5699395996795376,
+     "roll_deg": {
+      "rms": 1.2272665649409749,
+      "peak": 3.587233919071448
+     },
+     "pitch_deg": {
+      "rms": 1.1175080977553467,
+      "peak": 3.7616509982949355
+     }
+    },
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.23919061649480852,
+     "sideways_drift_m": 0.006993439379656502,
+     "height_range_mm": 19.48477315617775,
+     "duty_factor": {
+      "left_fore": 0.3922777777777778,
+      "right_fore": 0.5738888888888889,
+      "left_hind": 0.6325555555555555,
+      "right_hind": 0.4368888888888889
+     },
+     "feet_down_fraction": {
+      "4": 0.015,
+      "3": 0.09516666666666666,
+      "2 diagonal": 0.7793888888888889,
+      "2 same side": 0.014666666666666666,
+      "2 front": 0.0008333333333333334,
+      "2 hind": 0.011055555555555556,
+      "1": 0.07822222222222222,
+      "0": 0.005666666666666667
+     },
+     "touchdowns_per_s": {
+      "left_fore": 22.11111111110918,
+      "right_fore": 16.61111111110966,
+      "left_hind": 12.55555555555446,
+      "right_hind": 21.666666666664778
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.15890612928401518,
+       "p95_mps": 0.5867990836725473,
+       "slip_ratio": 0.26060948453695876
+      },
+      "right_fore": {
+       "mean_mps": 0.10255860446089643,
+       "p95_mps": 0.3323292378517414,
+       "slip_ratio": 0.24606836347748087
+      },
+      "left_hind": {
+       "mean_mps": 0.10157187327394357,
+       "p95_mps": 0.30201152778144746,
+       "slip_ratio": 0.2686136006050207
+      },
+      "right_hind": {
+       "mean_mps": 0.13288868524500333,
+       "p95_mps": 0.4335418040510018,
+       "slip_ratio": 0.24272519922972577
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 5.1793566064770875,
+       "rms_mean_nm": 4.25458463200882,
+       "rms_over_thermal": 0.6905808808636117,
+       "peak_nm": 20.93349576495133,
+       "peak_over_limit": 0.9968331316643491,
+       "saturated_fraction": 0.0005416666666666666,
+       "peak_rpm": 8.638538697387306,
+       "rpm_over_allowance": 0.10407877948659404
+      },
+      "pitch": {
+       "rms_worst_nm": 7.29747225280661,
+       "rms_mean_nm": 6.1358907492790316,
+       "rms_over_thermal": 0.9729963003742147,
+       "peak_nm": 19.71030262819623,
+       "peak_over_limit": 0.9385858394379157,
+       "saturated_fraction": 0.034986111111111114,
+       "peak_rpm": 62.810112114922866,
+       "rpm_over_allowance": 0.7567483387340105
+      },
+      "front elbow": {
+       "rms_worst_nm": 10.460640593370938,
+       "rms_mean_nm": 10.375209151203176,
+       "rms_over_thermal": 0.9685778327195312,
+       "peak_nm": 35.99595594754654,
+       "peak_over_limit": 0.9522739668663107,
+       "saturated_fraction": 0.03722222222222222,
+       "peak_rpm": 73.6246063364969,
+       "rpm_over_allowance": 0.6817093179305268
+      },
+      "hind knee": {
+       "rms_worst_nm": 7.3143433977319,
+       "rms_mean_nm": 6.735982016566602,
+       "rms_over_thermal": 1.0836064292936147,
+       "peak_nm": 17.85226900293799,
+       "peak_over_limit": 0.9445644975099466,
+       "saturated_fraction": 0.04133333333333333,
+       "peak_rpm": 46.09107776028352,
+       "rpm_over_allowance": 0.5553141898829339
+      }
+     },
+     "power_w": 40.60257125958968,
+     "cost_of_transport": 1.3392732978662947,
+     "roll_deg": {
+      "rms": 1.1322008336730671,
+      "peak": 2.8854722632322067
+     },
+     "pitch_deg": {
+      "rms": 1.0471062893176803,
+      "peak": 3.089354461452042
+     }
+    },
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.24022761721628202,
+     "sideways_drift_m": -0.09616652032220328,
+     "height_range_mm": 19.086379332536097,
+     "duty_factor": {
+      "left_fore": 0.39655555555555555,
+      "right_fore": 0.5852222222222222,
+      "left_hind": 0.6259444444444444,
+      "right_hind": 0.422
+     },
+     "feet_down_fraction": {
+      "4": 0.019777777777777776,
+      "3": 0.08505555555555555,
+      "2 diagonal": 0.7856111111111111,
+      "2 same side": 0.014222222222222223,
+      "2 front": 0.0012777777777777779,
+      "2 hind": 0.006722222222222222,
+      "1": 0.07977777777777778,
+      "0": 0.007555555555555556
+     },
+     "touchdowns_per_s": {
+      "left_fore": 20.44444444444266,
+      "right_fore": 17.722222222220676,
+      "left_hind": 13.833333333332126,
+      "right_hind": 20.944444444442617
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.15322056388077837,
+       "p95_mps": 0.5498271476581892,
+       "slip_ratio": 0.25292872874629413
+      },
+      "right_fore": {
+       "mean_mps": 0.09722483414390992,
+       "p95_mps": 0.3428264828646994,
+       "slip_ratio": 0.2368509256021473
+      },
+      "left_hind": {
+       "mean_mps": 0.10093317235358246,
+       "p95_mps": 0.30650322537284136,
+       "slip_ratio": 0.2629945683471733
+      },
+      "right_hind": {
+       "mean_mps": 0.13715911294222027,
+       "p95_mps": 0.4254060445474286,
+       "slip_ratio": 0.24094292876199122
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 4.853993152428643,
+       "rms_mean_nm": 4.009413585653671,
+       "rms_over_thermal": 0.6471990869904858,
+       "peak_nm": 20.62246964649687,
+       "peak_over_limit": 0.9820223641188986,
+       "saturated_fraction": 0.0007777777777777777,
+       "peak_rpm": 9.096415844488597,
+       "rpm_over_allowance": 0.10959537162034454
+      },
+      "pitch": {
+       "rms_worst_nm": 7.548643687517483,
+       "rms_mean_nm": 6.159445664667418,
+       "rms_over_thermal": 1.0064858250023312,
+       "peak_nm": 20.52023155316465,
+       "peak_over_limit": 0.9771538834840309,
+       "saturated_fraction": 0.035875,
+       "peak_rpm": 64.03589424103001,
+       "rpm_over_allowance": 0.7715167980846989
+      },
+      "front elbow": {
+       "rms_worst_nm": 9.617520988663596,
+       "rms_mean_nm": 9.516676383417689,
+       "rms_over_thermal": 0.8905112026540366,
+       "peak_nm": 37.10320280779375,
+       "peak_over_limit": 0.9815662118463956,
+       "saturated_fraction": 0.025111111111111112,
+       "peak_rpm": 74.63285681480698,
+       "rpm_over_allowance": 0.691044970507472
+      },
+      "hind knee": {
+       "rms_worst_nm": 6.833645330779067,
+       "rms_mean_nm": 6.403191624862728,
+       "rms_over_thermal": 1.0123919008561582,
+       "peak_nm": 18.83995164930482,
+       "peak_over_limit": 0.9968228385875566,
+       "saturated_fraction": 0.028194444444444446,
+       "peak_rpm": 49.18349547434369,
+       "rpm_over_allowance": 0.5925722346306468
+      }
+     },
+     "power_w": 37.989401478773225,
+     "cost_of_transport": 1.3183986978320004,
+     "roll_deg": {
+      "rms": 1.0350294744037332,
+      "peak": 2.5465942332216582
+     },
+     "pitch_deg": {
+      "rms": 1.0160351796535172,
+      "peak": 2.9176531293247727
+     }
+    }
+   ]
+  },
+  "0.15 m/s": {
+   "model": "trike60_C_closed.xml",
+   "changes": {},
+   "impratio": 1.0,
+   "summary": {
+    "episodes": 5,
+    "falls": 0,
+    "forward_speed_mps": 0.14458936157354646,
+    "power_w": 28.258393630679148,
+    "cost_of_transport": 1.5860459032205079,
+    "duty_factor": {
+     "left_fore": 0.4084,
+     "right_fore": 0.5977555555555555,
+     "left_hind": 0.6674444444444444,
+     "right_hind": 0.47029999999999994
+    },
+    "feet_down_fraction": {
+     "4": 0.0284,
+     "3": 0.15658888888888886,
+     "2 diagonal": 0.7082333333333334,
+     "2 same side": 0.023111111111111114,
+     "2 front": 0.002822222222222222,
+     "2 hind": 0.01371111111111111,
+     "1": 0.06477777777777778,
+     "0": 0.0023555555555555556
+    },
+    "touchdowns_per_s": {
+     "left_fore": 17.033333333331846,
+     "right_fore": 18.86666666666502,
+     "left_hind": 17.15555555555406,
+     "right_hind": 20.199999999998237
+    },
+    "slip_ratio_worst": {
+     "left_fore": 0.36826059918870996,
+     "right_fore": 0.3256953251830372,
+     "left_hind": 0.371331670228644,
+     "right_hind": 0.35786643432456466
+    },
+    "slip_ratio_mean": {
+     "left_fore": 0.3342116307165949,
+     "right_fore": 0.3026845557270195,
+     "left_hind": 0.3381916257077964,
+     "right_hind": 0.3467279271499321
+    },
+    "stance_slip_p95_mps": {
+     "left_fore": 0.47598308760718105,
+     "right_fore": 0.2848966093622661,
+     "left_hind": 0.28604706963383886,
+     "right_hind": 0.38174590412970877
+    },
+    "roll_deg_rms": 0.8412919085016217,
+    "pitch_deg_rms": 0.9162708773125102,
+    "drives": {
+     "roll": {
+      "rms_worst_nm": 4.693192337999437,
+      "rms_mean_nm": 3.884824881843752,
+      "rms_over_thermal": 0.625758978399925,
+      "peak_nm": 20.93349576495133,
+      "peak_over_limit": 0.9968331316643491,
+      "saturated_fraction": 0.0004861111111111111,
+      "peak_rpm": 9.75045117978964,
+      "rpm_over_allowance": 0.11747531541915228
+     },
+     "pitch": {
+      "rms_worst_nm": 7.775395295368839,
+      "rms_mean_nm": 7.077037921900216,
+      "rms_over_thermal": 1.0367193727158452,
+      "peak_nm": 20.52023155316465,
+      "peak_over_limit": 0.9771538834840309,
+      "saturated_fraction": 0.04363888888888889,
+      "peak_rpm": 64.36924208363365,
+      "rpm_over_allowance": 0.7755330371522127
+     },
+     "front elbow": {
+      "rms_worst_nm": 9.75737634647687,
+      "rms_mean_nm": 9.659792422601512,
+      "rms_over_thermal": 0.9034607728219323,
+      "peak_nm": 37.10320280779375,
+      "peak_over_limit": 0.9815662118463956,
+      "saturated_fraction": 0.017777777777777778,
+      "peak_rpm": 62.888201566038695,
+      "rpm_over_allowance": 0.5822981626485064
+     },
+     "hind knee": {
+      "rms_worst_nm": 6.905585880665257,
+      "rms_mean_nm": 6.28737836624828,
+      "rms_over_thermal": 1.0230497600985566,
+      "peak_nm": 18.83995164930482,
+      "peak_over_limit": 0.9968228385875566,
+      "saturated_fraction": 0.012861111111111111,
+      "peak_rpm": 49.166686219634315,
+      "rpm_over_allowance": 0.59236971348957
+     }
+    },
+    "flags": [
+     "heat: pitch RMS 7.78 N\u00b7m over its 7.5 N\u00b7m thermal rating",
+     "saturation: pitch at >= 99 % of its limit in 4.4 % of steps",
+     "saturation: front elbow at >= 99 % of its limit in 1.8 % of steps",
+     "heat: hind knee RMS 6.91 N\u00b7m over its 6.75 N\u00b7m thermal rating",
+     "saturation: hind knee at >= 99 % of its limit in 1.3 % of steps",
+     "slip: left_fore slip ratio 0.37 (flag above 0.25)",
+     "slip: right_fore slip ratio 0.33 (flag above 0.25)",
+     "slip: left_hind slip ratio 0.37 (flag above 0.25)",
+     "slip: right_hind slip ratio 0.36 (flag above 0.25)"
+    ]
+   },
+   "episodes": [
+    {
+     "command_mps": 0.15,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.14506330467920733,
+     "sideways_drift_m": 0.15050777749811173,
+     "height_range_mm": 15.47858214592318,
+     "duty_factor": {
+      "left_fore": 0.40505555555555556,
+      "right_fore": 0.6013888888888889,
+      "left_hind": 0.6796111111111112,
+      "right_hind": 0.4811111111111111
+     },
+     "feet_down_fraction": {
+      "4": 0.027944444444444445,
+      "3": 0.1705,
+      "2 diagonal": 0.7089444444444445,
+      "2 same side": 0.019,
+      "2 front": 0.0024444444444444444,
+      "2 hind": 0.01411111111111111,
+      "1": 0.05488888888888889,
+      "0": 0.0021666666666666666
+     },
+     "touchdowns_per_s": {
+      "left_fore": 16.833333333331865,
+      "right_fore": 18.222222222220633,
+      "left_hind": 16.61111111110966,
+      "right_hind": 21.22222222222037
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.11808250448870004,
+       "p95_mps": 0.4507938740388945,
+       "slip_ratio": 0.3297179432305326
+      },
+      "right_fore": {
+       "mean_mps": 0.07147539227802233,
+       "p95_mps": 0.2848966093622661,
+       "slip_ratio": 0.2963155074953288
+      },
+      "left_hind": {
+       "mean_mps": 0.07926091603676061,
+       "p95_mps": 0.28604706963383886,
+       "slip_ratio": 0.371331670228644
+      },
+      "right_hind": {
+       "mean_mps": 0.10560199784170143,
+       "p95_mps": 0.34149011718154704,
+       "slip_ratio": 0.3502353309096124
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 4.163693359502395,
+       "rms_mean_nm": 3.418471192718112,
+       "rms_over_thermal": 0.5551591146003194,
+       "peak_nm": 20.796393647928685,
+       "peak_over_limit": 0.9903044594251755,
+       "saturated_fraction": 6.944444444444444e-05,
+       "peak_rpm": 6.705981399231144,
+       "rpm_over_allowance": 0.08079495661724269
+      },
+      "pitch": {
+       "rms_worst_nm": 6.491359397946446,
+       "rms_mean_nm": 6.033743297125883,
+       "rms_over_thermal": 0.8655145863928594,
+       "peak_nm": 19.806243916781785,
+       "peak_over_limit": 0.9431544722277041,
+       "saturated_fraction": 0.025458333333333333,
+       "peak_rpm": 48.39571149564732,
+       "rpm_over_allowance": 0.5830808613933411
+      },
+      "front elbow": {
+       "rms_worst_nm": 9.321320360484966,
+       "rms_mean_nm": 9.309500915068078,
+       "rms_over_thermal": 0.8630852185634228,
+       "peak_nm": 36.91403778592685,
+       "peak_over_limit": 0.9765618461885411,
+       "saturated_fraction": 0.013777777777777778,
+       "peak_rpm": 61.47826568605709,
+       "rpm_over_allowance": 0.5692432007968249
+      },
+      "hind knee": {
+       "rms_worst_nm": 6.692582113633598,
+       "rms_mean_nm": 6.228794755857866,
+       "rms_over_thermal": 0.9914936464642368,
+       "peak_nm": 18.751178209392744,
+       "peak_over_limit": 0.9921258311848014,
+       "saturated_fraction": 0.008777777777777778,
+       "peak_rpm": 44.85765424699925,
+       "rpm_over_allowance": 0.540453665626497
+      }
+     },
+     "power_w": 26.746483463476206,
+     "cost_of_transport": 1.4319156425157733,
+     "roll_deg": {
+      "rms": 0.830879797341797,
+      "peak": 2.346023231622494
+     },
+     "pitch_deg": {
+      "rms": 0.8861379962511058,
+      "peak": 2.829740145934389
+     }
+    },
+    {
+     "command_mps": 0.15,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.14549912095339898,
+     "sideways_drift_m": 0.10857896787544034,
+     "height_range_mm": 18.490044810807515,
+     "duty_factor": {
+      "left_fore": 0.4127222222222222,
+      "right_fore": 0.5942222222222222,
+      "left_hind": 0.6643333333333333,
+      "right_hind": 0.48277777777777775
+     },
+     "feet_down_fraction": {
+      "4": 0.026722222222222224,
+      "3": 0.16494444444444445,
+      "2 diagonal": 0.703,
+      "2 same side": 0.024,
+      "2 front": 0.003777777777777778,
+      "2 hind": 0.014388888888888889,
+      "1": 0.062,
+      "0": 0.0011666666666666668
+     },
+     "touchdowns_per_s": {
+      "left_fore": 17.88888888888733,
+      "right_fore": 17.16666666666517,
+      "left_hind": 17.833333333331776,
+      "right_hind": 23.4444444444424
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.11565394534353919,
+       "p95_mps": 0.4204310230123941,
+       "slip_ratio": 0.3280635169351408
+      },
+      "right_fore": {
+       "mean_mps": 0.07243598196972874,
+       "p95_mps": 0.28113534569654075,
+       "slip_ratio": 0.2958304482724575
+      },
+      "left_hind": {
+       "mean_mps": 0.06645782376695027,
+       "p95_mps": 0.25579423871531454,
+       "slip_ratio": 0.30343927372117363
+      },
+      "right_hind": {
+       "mean_mps": 0.10532243402225143,
+       "p95_mps": 0.34937187083154375,
+       "slip_ratio": 0.3494683013492893
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 4.504596074197913,
+       "rms_mean_nm": 3.845291187875359,
+       "rms_over_thermal": 0.6006128098930551,
+       "peak_nm": 20.177339149277934,
+       "peak_over_limit": 0.9608256737751397,
+       "saturated_fraction": 0.0004861111111111111,
+       "peak_rpm": 7.615295551189495,
+       "rpm_over_allowance": 0.09175054880951199
+      },
+      "pitch": {
+       "rms_worst_nm": 7.675854572252501,
+       "rms_mean_nm": 6.7850503836944505,
+       "rms_over_thermal": 1.0234472763003335,
+       "peak_nm": 20.434116762566973,
+       "peak_over_limit": 0.9730531791698558,
+       "saturated_fraction": 0.03723611111111111,
+       "peak_rpm": 57.12516355192747,
+       "rpm_over_allowance": 0.688254982553343
+      },
+      "front elbow": {
+       "rms_worst_nm": 9.396416432341598,
+       "rms_mean_nm": 9.277522340723735,
+       "rms_over_thermal": 0.8700385585501479,
+       "peak_nm": 34.570921723531164,
+       "peak_over_limit": 0.9145746487706657,
+       "saturated_fraction": 0.017722222222222223,
+       "peak_rpm": 60.001490277764056,
+       "rpm_over_allowance": 0.5555693544237412
+      },
+      "hind knee": {
+       "rms_worst_nm": 6.588988079051357,
+       "rms_mean_nm": 6.198509978640345,
+       "rms_over_thermal": 0.9761463820816826,
+       "peak_nm": 17.396554512169907,
+       "peak_over_limit": 0.9204526196915295,
+       "saturated_fraction": 0.012666666666666666,
+       "peak_rpm": 47.11984657823339,
+       "rpm_over_allowance": 0.5677089949184746
+      }
+     },
+     "power_w": 30.57122515415174,
+     "cost_of_transport": 1.7769744770834088,
+     "roll_deg": {
+      "rms": 0.915232727072226,
+      "peak": 2.7459065200868746
+     },
+     "pitch_deg": {
+      "rms": 0.9689873116123471,
+      "peak": 3.3442945691066206
+     }
+    },
+    {
+     "command_mps": 0.15,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.14267726322184837,
+     "sideways_drift_m": -0.1076452398161877,
+     "height_range_mm": 19.275092525314175,
+     "duty_factor": {
+      "left_fore": 0.4052222222222222,
+      "right_fore": 0.5888333333333333,
+      "left_hind": 0.6843888888888889,
+      "right_hind": 0.4587777777777778
+     },
+     "feet_down_fraction": {
+      "4": 0.02988888888888889,
+      "3": 0.1605,
+      "2 diagonal": 0.6722777777777778,
+      "2 same side": 0.03388888888888889,
+      "2 front": 0.004611111111111111,
+      "2 hind": 0.017888888888888888,
+      "1": 0.07883333333333334,
+      "0": 0.002111111111111111
+     },
+     "touchdowns_per_s": {
+      "left_fore": 18.11111111110953,
+      "right_fore": 18.444444444442837,
+      "left_hind": 21.777777777775878,
+      "right_hind": 21.33333333333147
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.10908341458358663,
+       "p95_mps": 0.3969206297014744,
+       "slip_ratio": 0.30981126681978116
+      },
+      "right_fore": {
+       "mean_mps": 0.07172667318483472,
+       "p95_mps": 0.28345338628946365,
+       "slip_ratio": 0.29601812584992865
+      },
+      "left_hind": {
+       "mean_mps": 0.06701655869119243,
+       "p95_mps": 0.2533701763679548,
+       "slip_ratio": 0.32146248886549783
+      },
+      "right_hind": {
+       "mean_mps": 0.10470546081476037,
+       "p95_mps": 0.38174590412970877,
+       "slip_ratio": 0.33667970319204
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 4.693192337999437,
+       "rms_mean_nm": 3.884824881843752,
+       "rms_over_thermal": 0.625758978399925,
+       "peak_nm": 20.84549088866585,
+       "peak_over_limit": 0.9926424232698023,
+       "saturated_fraction": 0.00038888888888888887,
+       "peak_rpm": 9.75045117978964,
+       "rpm_over_allowance": 0.11747531541915228
+      },
+      "pitch": {
+       "rms_worst_nm": 7.775395295368839,
+       "rms_mean_nm": 7.077037921900216,
+       "rms_over_thermal": 1.0367193727158452,
+       "peak_nm": 19.962859942198577,
+       "peak_over_limit": 0.9506123781999323,
+       "saturated_fraction": 0.04363888888888889,
+       "peak_rpm": 64.36924208363365,
+       "rpm_over_allowance": 0.7755330371522127
+      },
+      "front elbow": {
+       "rms_worst_nm": 9.75737634647687,
+       "rms_mean_nm": 9.659792422601512,
+       "rms_over_thermal": 0.9034607728219323,
+       "peak_nm": 35.12451653162624,
+       "peak_over_limit": 0.9292200140641863,
+       "saturated_fraction": 0.017777777777777778,
+       "peak_rpm": 62.888201566038695,
+       "rpm_over_allowance": 0.5822981626485064
+      },
+      "hind knee": {
+       "rms_worst_nm": 6.905585880665257,
+       "rms_mean_nm": 6.28737836624828,
+       "rms_over_thermal": 1.0230497600985566,
+       "peak_nm": 17.963998951232817,
+       "peak_over_limit": 0.9504761349858634,
+       "saturated_fraction": 0.011277777777777777,
+       "peak_rpm": 49.166686219634315,
+       "rpm_over_allowance": 0.59236971348957
+      }
+     },
+     "power_w": 31.898051117134468,
+     "cost_of_transport": 1.8041541046984568,
+     "roll_deg": {
+      "rms": 0.944021796525583,
+      "peak": 2.8534653848718805
+     },
+     "pitch_deg": {
+      "rms": 1.0302715784168253,
+      "peak": 3.3471434477563444
+     }
+    },
+    {
+     "command_mps": 0.15,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.14504976976228245,
+     "sideways_drift_m": -0.020991456439495786,
+     "height_range_mm": 14.70574417474413,
+     "duty_factor": {
+      "left_fore": 0.40944444444444444,
+      "right_fore": 0.5948333333333333,
+      "left_hind": 0.6599444444444444,
+      "right_hind": 0.4677777777777778
+     },
+     "feet_down_fraction": {
+      "4": 0.028666666666666667,
+      "3": 0.14405555555555555,
+      "2 diagonal": 0.7283888888888889,
+      "2 same side": 0.018722222222222223,
+      "2 front": 0.0018333333333333333,
+      "2 hind": 0.012388888888888889,
+      "1": 0.0625,
+      "0": 0.0034444444444444444
+     },
+     "touchdowns_per_s": {
+      "left_fore": 15.166666666665343,
+      "right_fore": 19.666666666664952,
+      "left_hind": 14.277777777776532,
+      "right_hind": 17.333333333331822
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.11874964649925848,
+       "p95_mps": 0.46484083338718557,
+       "slip_ratio": 0.33520482740880964
+      },
+      "right_fore": {
+       "mean_mps": 0.07304835771441866,
+       "p95_mps": 0.26750205208016287,
+       "slip_ratio": 0.2995633718343453
+      },
+      "left_hind": {
+       "mean_mps": 0.07618780958609958,
+       "p95_mps": 0.276071633784355,
+       "slip_ratio": 0.3466377213361287
+      },
+      "right_hind": {
+       "mean_mps": 0.10523890671565661,
+       "p95_mps": 0.3403627418067035,
+       "slip_ratio": 0.3393898659741544
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 4.001022352009371,
+       "rms_mean_nm": 3.3251912306052027,
+       "rms_over_thermal": 0.5334696469345828,
+       "peak_nm": 20.93349576495133,
+       "peak_over_limit": 0.9968331316643491,
+       "saturated_fraction": 2.777777777777778e-05,
+       "peak_rpm": 6.987078445498299,
+       "rpm_over_allowance": 0.0841816680180518
+      },
+      "pitch": {
+       "rms_worst_nm": 6.658782443594931,
+       "rms_mean_nm": 5.893093264515461,
+       "rms_over_thermal": 0.8878376591459908,
+       "peak_nm": 19.71030262819623,
+       "peak_over_limit": 0.9385858394379157,
+       "saturated_fraction": 0.023708333333333335,
+       "peak_rpm": 49.84802532171061,
+       "rpm_over_allowance": 0.6005786183338627
+      },
+      "front elbow": {
+       "rms_worst_nm": 9.231547544647562,
+       "rms_mean_nm": 9.213804948298328,
+       "rms_over_thermal": 0.8547729208007001,
+       "peak_nm": 35.99595594754654,
+       "peak_over_limit": 0.9522739668663107,
+       "saturated_fraction": 0.014916666666666667,
+       "peak_rpm": 59.10692337965079,
+       "rpm_over_allowance": 0.5472863275893591
+      },
+      "hind knee": {
+       "rms_worst_nm": 6.414149716344374,
+       "rms_mean_nm": 6.0457050559439,
+       "rms_over_thermal": 0.9502444024213887,
+       "peak_nm": 17.85226900293799,
+       "peak_over_limit": 0.9445644975099466,
+       "saturated_fraction": 0.012861111111111111,
+       "peak_rpm": 37.805129752580484,
+       "rpm_over_allowance": 0.4554834909949456
+      }
+     },
+     "power_w": 25.958795367805823,
+     "cost_of_transport": 1.411975958564189,
+     "roll_deg": {
+      "rms": 0.7677192542492263,
+      "peak": 2.182332909008379
+     },
+     "pitch_deg": {
+      "rms": 0.8237807124988592,
+      "peak": 2.6783948577910057
+     }
+    },
+    {
+     "command_mps": 0.15,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.1446573492509952,
+     "sideways_drift_m": -0.10903511469978873,
+     "height_range_mm": 16.38824503781772,
+     "duty_factor": {
+      "left_fore": 0.40955555555555556,
+      "right_fore": 0.6095,
+      "left_hind": 0.6489444444444444,
+      "right_hind": 0.46105555555555555
+     },
+     "feet_down_fraction": {
+      "4": 0.028777777777777777,
+      "3": 0.14294444444444446,
+      "2 diagonal": 0.7285555555555555,
+      "2 same side": 0.019944444444444445,
+      "2 front": 0.0014444444444444444,
+      "2 hind": 0.009777777777777778,
+      "1": 0.06566666666666666,
+      "0": 0.0028888888888888888
+     },
+     "touchdowns_per_s": {
+      "left_fore": 17.16666666666517,
+      "right_fore": 20.833333333331517,
+      "left_hind": 15.277777777776445,
+      "right_hind": 17.666666666665126
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.1300717360309529,
+       "p95_mps": 0.47598308760718105,
+       "slip_ratio": 0.36826059918870996
+      },
+      "right_fore": {
+       "mean_mps": 0.07729979065533775,
+       "p95_mps": 0.28444708033966615,
+       "slip_ratio": 0.3256953251830372
+      },
+      "left_hind": {
+       "mean_mps": 0.0775926806289516,
+       "p95_mps": 0.2737512209935831,
+       "slip_ratio": 0.3480869743875378
+      },
+      "right_hind": {
+       "mean_mps": 0.11228150089836458,
+       "p95_mps": 0.35130896207698226,
+       "slip_ratio": 0.35786643432456466
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 3.8055751259577226,
+       "rms_mean_nm": 3.1701358059337066,
+       "rms_over_thermal": 0.507410016794363,
+       "peak_nm": 18.654756366269666,
+       "peak_over_limit": 0.8883217317271269,
+       "saturated_fraction": 0.00018055555555555555,
+       "peak_rpm": 8.356244774962098,
+       "rpm_over_allowance": 0.10067764789110961
+      },
+      "pitch": {
+       "rms_worst_nm": 6.974179998311212,
+       "rms_mean_nm": 6.008435884661844,
+       "rms_over_thermal": 0.9298906664414949,
+       "peak_nm": 20.52023155316465,
+       "peak_over_limit": 0.9771538834840309,
+       "saturated_fraction": 0.028444444444444446,
+       "peak_rpm": 54.554832883612306,
+       "rpm_over_allowance": 0.6572871431760519
+      },
+      "front elbow": {
+       "rms_worst_nm": 8.908179522714697,
+       "rms_mean_nm": 8.731547190424912,
+       "rms_over_thermal": 0.8248314372883978,
+       "peak_nm": 37.10320280779375,
+       "peak_over_limit": 0.9815662118463956,
+       "saturated_fraction": 0.013916666666666667,
+       "peak_rpm": 58.98188320457179,
+       "rpm_over_allowance": 0.5461285481904795
+      },
+      "hind knee": {
+       "rms_worst_nm": 6.0876792308652155,
+       "rms_mean_nm": 5.743936912860417,
+       "rms_over_thermal": 0.9018784045726245,
+       "peak_nm": 18.83995164930482,
+       "peak_over_limit": 0.9968228385875566,
+       "saturated_fraction": 0.0067777777777777775,
+       "peak_rpm": 42.47114474821485,
+       "rpm_over_allowance": 0.5117005391351186
+      }
+     },
+     "power_w": 26.11741305082752,
+     "cost_of_transport": 1.505209333240711,
+     "roll_deg": {
+      "rms": 0.7486059673192766,
+      "peak": 2.0629099994190816
+     },
+     "pitch_deg": {
+      "rms": 0.8721767877834135,
+      "peak": 2.641900749931269
+     }
+    }
+   ]
+  },
+  "sensitivity: impratio 10, 0.25 m/s": {
+   "model": "trike60_C_closed.xml",
+   "changes": {},
+   "impratio": 10.0,
+   "summary": {
+    "episodes": 5,
+    "falls": 0,
+    "forward_speed_mps": 0.2382340523971283,
+    "power_w": 42.44589545394498,
+    "cost_of_transport": 1.4452925796597609,
+    "duty_factor": {
+     "left_fore": 0.3902888888888889,
+     "right_fore": 0.5719444444444445,
+     "left_hind": 0.6234222222222222,
+     "right_hind": 0.4393111111111111
+    },
+    "feet_down_fraction": {
+     "4": 0.015366666666666667,
+     "3": 0.09494444444444446,
+     "2 diagonal": 0.7644222222222223,
+     "2 same side": 0.018000000000000002,
+     "2 front": 0.0010555555555555557,
+     "2 hind": 0.011344444444444445,
+     "1": 0.08902222222222222,
+     "0": 0.0058444444444444455
+    },
+    "touchdowns_per_s": {
+     "left_fore": 21.533333333331456,
+     "right_fore": 16.244444444443026,
+     "left_hind": 14.344444444443193,
+     "right_hind": 21.16666666666482
+    },
+    "slip_ratio_worst": {
+     "left_fore": 0.26198278694254185,
+     "right_fore": 0.24526617640394233,
+     "left_hind": 0.29413021171885373,
+     "right_hind": 0.2519797941085848
+    },
+    "slip_ratio_mean": {
+     "left_fore": 0.24723648023136774,
+     "right_fore": 0.22745988422546456,
+     "left_hind": 0.254681791215177,
+     "right_hind": 0.23319101216466084
+    },
+    "stance_slip_p95_mps": {
+     "left_fore": 0.6183026438641986,
+     "right_fore": 0.35907260736531915,
+     "left_hind": 0.3271495618376159,
+     "right_hind": 0.4534672396694422
+    },
+    "roll_deg_rms": 1.187930830533406,
+    "pitch_deg_rms": 1.0688913248221605,
+    "drives": {
+     "roll": {
+      "rms_worst_nm": 5.487030563850091,
+      "rms_mean_nm": 4.460883621070435,
+      "rms_over_thermal": 0.7316040751800121,
+      "peak_nm": 20.93349576495133,
+      "peak_over_limit": 0.9968331316643491,
+      "saturated_fraction": 0.0010694444444444445,
+      "peak_rpm": 9.831267595187992,
+      "rpm_over_allowance": 0.11844900717093966
+     },
+     "pitch": {
+      "rms_worst_nm": 8.576635142115686,
+      "rms_mean_nm": 7.558453154337701,
+      "rms_over_thermal": 1.1435513522820915,
+      "peak_nm": 20.52023155316465,
+      "peak_over_limit": 0.9771538834840309,
+      "saturated_fraction": 0.05643055555555555,
+      "peak_rpm": 68.55283106422459,
+      "rpm_over_allowance": 0.8259377236653566
+     },
+     "front elbow": {
+      "rms_worst_nm": 10.776344515489681,
+      "rms_mean_nm": 10.637151376885928,
+      "rms_over_thermal": 0.9978096773601556,
+      "peak_nm": 37.10320280779375,
+      "peak_over_limit": 0.9815662118463956,
+      "saturated_fraction": 0.03877777777777778,
+      "peak_rpm": 80.92939079777021,
+      "rpm_over_allowance": 0.749346211090465
+     },
+     "hind knee": {
+      "rms_worst_nm": 7.909385326082381,
+      "rms_mean_nm": 7.1722428936727,
+      "rms_over_thermal": 1.1717607890492416,
+      "peak_nm": 18.83995164930482,
+      "peak_over_limit": 0.9968228385875566,
+      "saturated_fraction": 0.043305555555555555,
+      "peak_rpm": 62.12427696619427,
+      "rpm_over_allowance": 0.7484852646529431
+     }
+    },
+    "flags": [
+     "heat: pitch RMS 8.58 N\u00b7m over its 7.5 N\u00b7m thermal rating",
+     "saturation: pitch at >= 99 % of its limit in 5.6 % of steps",
+     "saturation: front elbow at >= 99 % of its limit in 3.9 % of steps",
+     "heat: hind knee RMS 7.91 N\u00b7m over its 6.75 N\u00b7m thermal rating",
+     "saturation: hind knee at >= 99 % of its limit in 4.3 % of steps",
+     "slip: left_fore slip ratio 0.26 (flag above 0.25)",
+     "slip: left_hind slip ratio 0.29 (flag above 0.25)",
+     "slip: right_hind slip ratio 0.25 (flag above 0.25)"
+    ]
+   },
+   "episodes": [
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.23906681838751276,
+     "sideways_drift_m": 0.20891544558466837,
+     "height_range_mm": 19.79295747491755,
+     "duty_factor": {
+      "left_fore": 0.3845,
+      "right_fore": 0.5772777777777778,
+      "left_hind": 0.6445555555555555,
+      "right_hind": 0.42627777777777776
+     },
+     "feet_down_fraction": {
+      "4": 0.015833333333333335,
+      "3": 0.0971111111111111,
+      "2 diagonal": 0.7650555555555556,
+      "2 same side": 0.018222222222222223,
+      "2 front": 0.0008888888888888889,
+      "2 hind": 0.012611111111111111,
+      "1": 0.08438888888888889,
+      "0": 0.005888888888888889
+     },
+     "touchdowns_per_s": {
+      "left_fore": 21.22222222222037,
+      "right_fore": 15.777777777776402,
+      "left_hind": 14.833333333332039,
+      "right_hind": 19.888888888887156
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.14905378298423078,
+       "p95_mps": 0.5144089811809799,
+       "slip_ratio": 0.23972870824978934
+      },
+      "right_fore": {
+       "mean_mps": 0.09377880176073365,
+       "p95_mps": 0.3245340138483298,
+       "slip_ratio": 0.2264489009735201
+      },
+      "left_hind": {
+       "mean_mps": 0.10909342616196721,
+       "p95_mps": 0.3271495618376159,
+       "slip_ratio": 0.29413021171885373
+      },
+      "right_hind": {
+       "mean_mps": 0.12204394059496321,
+       "p95_mps": 0.4100437307831881,
+       "slip_ratio": 0.21761539363327717
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 5.015875842483911,
+       "rms_mean_nm": 4.0264687570335,
+       "rms_over_thermal": 0.6687834456645215,
+       "peak_nm": 20.796393647928685,
+       "peak_over_limit": 0.9903044594251755,
+       "saturated_fraction": 0.00026388888888888886,
+       "peak_rpm": 7.789278911383463,
+       "rpm_over_allowance": 0.09384673387208992
+      },
+      "pitch": {
+       "rms_worst_nm": 7.463931891590153,
+       "rms_mean_nm": 6.359893519890785,
+       "rms_over_thermal": 0.9951909188786872,
+       "peak_nm": 19.806243916781785,
+       "peak_over_limit": 0.9431544722277041,
+       "saturated_fraction": 0.03851388888888889,
+       "peak_rpm": 63.61159117961949,
+       "rpm_over_allowance": 0.7664047130074637
+      },
+      "front elbow": {
+       "rms_worst_nm": 10.534026993983469,
+       "rms_mean_nm": 10.428108543815334,
+       "rms_over_thermal": 0.9753728698132841,
+       "peak_nm": 36.91403778592685,
+       "peak_over_limit": 0.9765618461885411,
+       "saturated_fraction": 0.03088888888888889,
+       "peak_rpm": 78.32839923036228,
+       "rpm_over_allowance": 0.7252629558366878
+      },
+      "hind knee": {
+       "rms_worst_nm": 7.692469163612633,
+       "rms_mean_nm": 7.015465141307421,
+       "rms_over_thermal": 1.1396250612759455,
+       "peak_nm": 18.751178209392744,
+       "peak_over_limit": 0.9921258311848014,
+       "saturated_fraction": 0.03661111111111111,
+       "peak_rpm": 61.58600261254471,
+       "rpm_over_allowance": 0.7420000314764423
+      }
+     },
+     "power_w": 41.037528271394436,
+     "cost_of_transport": 1.3331229436477685,
+     "roll_deg": {
+      "rms": 1.1635035355630439,
+      "peak": 2.884922552583295
+     },
+     "pitch_deg": {
+      "rms": 1.077776539518998,
+      "peak": 3.205646068802073
+     }
+    },
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.23677229714044384,
+     "sideways_drift_m": 0.1662133823761838,
+     "height_range_mm": 21.52772675105291,
+     "duty_factor": {
+      "left_fore": 0.39316666666666666,
+      "right_fore": 0.5640555555555555,
+      "left_hind": 0.6132777777777778,
+      "right_hind": 0.45455555555555555
+     },
+     "feet_down_fraction": {
+      "4": 0.012444444444444444,
+      "3": 0.10455555555555555,
+      "2 diagonal": 0.7468333333333333,
+      "2 same side": 0.023444444444444445,
+      "2 front": 0.0005,
+      "2 hind": 0.012166666666666666,
+      "1": 0.09572222222222222,
+      "0": 0.004333333333333333
+     },
+     "touchdowns_per_s": {
+      "left_fore": 20.999999999998167,
+      "right_fore": 15.999999999998604,
+      "left_hind": 15.277777777776445,
+      "right_hind": 22.61111111110914
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.15224594364143013,
+       "p95_mps": 0.5731338778806642,
+       "slip_ratio": 0.25280841930382203
+      },
+      "right_fore": {
+       "mean_mps": 0.09335013242642233,
+       "p95_mps": 0.35907260736531915,
+       "slip_ratio": 0.2223852259866673
+      },
+      "left_hind": {
+       "mean_mps": 0.09342145349149704,
+       "p95_mps": 0.3013940818416199,
+       "slip_ratio": 0.24197637175450443
+      },
+      "right_hind": {
+       "mean_mps": 0.12320325253032102,
+       "p95_mps": 0.42628316516208564,
+       "slip_ratio": 0.23652565598475336
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 5.2110845273138064,
+       "rms_mean_nm": 4.336087772015602,
+       "rms_over_thermal": 0.6948112703085075,
+       "peak_nm": 20.177339149277934,
+       "peak_over_limit": 0.9608256737751397,
+       "saturated_fraction": 0.0010694444444444445,
+       "peak_rpm": 9.081833024404462,
+       "rpm_over_allowance": 0.10941967499282484
+      },
+      "pitch": {
+       "rms_worst_nm": 8.448328512363336,
+       "rms_mean_nm": 7.301348023028638,
+       "rms_over_thermal": 1.1264438016484448,
+       "peak_nm": 20.434116762566973,
+       "peak_over_limit": 0.9730531791698558,
+       "saturated_fraction": 0.051722222222222225,
+       "peak_rpm": 62.93453212780516,
+       "rpm_over_allowance": 0.7582473750337971
+      },
+      "front elbow": {
+       "rms_worst_nm": 10.676414234395304,
+       "rms_mean_nm": 10.385998715446913,
+       "rms_over_thermal": 0.9885568735551207,
+       "peak_nm": 34.570921723531164,
+       "peak_over_limit": 0.9145746487706657,
+       "saturated_fraction": 0.03852777777777778,
+       "peak_rpm": 78.97631849481607,
+       "rpm_over_allowance": 0.731262208285334
+      },
+      "hind knee": {
+       "rms_worst_nm": 7.613905875052553,
+       "rms_mean_nm": 6.9814872917126465,
+       "rms_over_thermal": 1.1279860555633412,
+       "peak_nm": 17.396554512169907,
+       "peak_over_limit": 0.9204526196915295,
+       "saturated_fraction": 0.0385,
+       "peak_rpm": 47.963323374816774,
+       "rpm_over_allowance": 0.5778713659616479
+      }
+     },
+     "power_w": 45.98919796529214,
+     "cost_of_transport": 1.642682626634061,
+     "roll_deg": {
+      "rms": 1.2899074289194803,
+      "peak": 3.3136397148183927
+     },
+     "pitch_deg": {
+      "rms": 1.1762502643385335,
+      "peak": 3.633408188120177
+     }
+    },
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.23698283607037965,
+     "sideways_drift_m": -0.17000767903579483,
+     "height_range_mm": 20.411194416672775,
+     "duty_factor": {
+      "left_fore": 0.3937222222222222,
+      "right_fore": 0.5685555555555556,
+      "left_hind": 0.6175,
+      "right_hind": 0.4436111111111111
+     },
+     "feet_down_fraction": {
+      "4": 0.01711111111111111,
+      "3": 0.09055555555555556,
+      "2 diagonal": 0.7631111111111111,
+      "2 same side": 0.018222222222222223,
+      "2 front": 0.0011666666666666668,
+      "2 hind": 0.012388888888888889,
+      "1": 0.0935,
+      "0": 0.003944444444444445
+     },
+     "touchdowns_per_s": {
+      "left_fore": 20.27777777777601,
+      "right_fore": 16.388888888887458,
+      "left_hind": 14.99999999999869,
+      "right_hind": 20.555555555553763
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.13251148550772102,
+       "p95_mps": 0.48214611159011533,
+       "slip_ratio": 0.22015398840345995
+      },
+      "right_fore": {
+       "mean_mps": 0.08461416439816953,
+       "p95_mps": 0.3215562007191263,
+       "slip_ratio": 0.2030014242591549
+      },
+      "left_hind": {
+       "mean_mps": 0.0832233084386047,
+       "p95_mps": 0.28210029742294424,
+       "slip_ratio": 0.21685280593724618
+      },
+      "right_hind": {
+       "mean_mps": 0.11731862400252764,
+       "p95_mps": 0.43140668505559165,
+       "slip_ratio": 0.219610187854793
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 5.487030563850091,
+       "rms_mean_nm": 4.460883621070435,
+       "rms_over_thermal": 0.7316040751800121,
+       "peak_nm": 20.84549088866585,
+       "peak_over_limit": 0.9926424232698023,
+       "saturated_fraction": 0.0010138888888888888,
+       "peak_rpm": 8.67685418546572,
+       "rpm_over_allowance": 0.10454041187308095
+      },
+      "pitch": {
+       "rms_worst_nm": 8.576635142115686,
+       "rms_mean_nm": 7.558453154337701,
+       "rms_over_thermal": 1.1435513522820915,
+       "peak_nm": 19.962859942198577,
+       "peak_over_limit": 0.9506123781999323,
+       "saturated_fraction": 0.05643055555555555,
+       "peak_rpm": 65.24754295979477,
+       "rpm_over_allowance": 0.7861149754192142
+      },
+      "front elbow": {
+       "rms_worst_nm": 10.776344515489681,
+       "rms_mean_nm": 10.637151376885928,
+       "rms_over_thermal": 0.9978096773601556,
+       "peak_nm": 35.12451653162624,
+       "peak_over_limit": 0.9292200140641863,
+       "saturated_fraction": 0.03194444444444444,
+       "peak_rpm": 80.92939079777021,
+       "rpm_over_allowance": 0.749346211090465
+      },
+      "hind knee": {
+       "rms_worst_nm": 7.909385326082381,
+       "rms_mean_nm": 7.1722428936727,
+       "rms_over_thermal": 1.1717607890492416,
+       "peak_nm": 17.963998951232817,
+       "peak_over_limit": 0.9504761349858634,
+       "saturated_fraction": 0.04013888888888889,
+       "peak_rpm": 47.21229356527157,
+       "rpm_over_allowance": 0.5688228140394166
+      }
+     },
+     "power_w": 45.89586731421319,
+     "cost_of_transport": 1.5628631098854793,
+     "roll_deg": {
+      "rms": 1.2175874392777384,
+      "peak": 3.4229809876198574
+     },
+     "pitch_deg": {
+      "rms": 1.0217486608953716,
+      "peak": 3.327515676684241
+     }
+    },
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.23850140183514815,
+     "sideways_drift_m": 0.026585277622349263,
+     "height_range_mm": 19.975486453272463,
+     "duty_factor": {
+      "left_fore": 0.38716666666666666,
+      "right_fore": 0.5685,
+      "left_hind": 0.6277222222222222,
+      "right_hind": 0.4413888888888889
+     },
+     "feet_down_fraction": {
+      "4": 0.01561111111111111,
+      "3": 0.09261111111111112,
+      "2 diagonal": 0.7693888888888889,
+      "2 same side": 0.018555555555555554,
+      "2 front": 0.0007777777777777777,
+      "2 hind": 0.011944444444444445,
+      "1": 0.08316666666666667,
+      "0": 0.007944444444444445
+     },
+     "touchdowns_per_s": {
+      "left_fore": 23.111111111109096,
+      "right_fore": 15.833333333331952,
+      "left_hind": 13.111111111109967,
+      "right_hind": 21.16666666666482
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.16138595422080285,
+       "p95_mps": 0.6183026438641986,
+       "slip_ratio": 0.26198278694254185
+      },
+      "right_fore": {
+       "mean_mps": 0.10076954550271533,
+       "p95_mps": 0.337297483907815,
+       "slip_ratio": 0.2401976935040382
+      },
+      "left_hind": {
+       "mean_mps": 0.10087046528353147,
+       "p95_mps": 0.3008483047326793,
+       "slip_ratio": 0.26548536879511153
+      },
+      "right_hind": {
+       "mean_mps": 0.12980337559678282,
+       "p95_mps": 0.42811662609483864,
+       "slip_ratio": 0.24022402924189584
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 4.923514761129364,
+       "rms_mean_nm": 4.024345972482216,
+       "rms_over_thermal": 0.6564686348172485,
+       "peak_nm": 20.93349576495133,
+       "peak_over_limit": 0.9968331316643491,
+       "saturated_fraction": 0.00047222222222222224,
+       "peak_rpm": 9.56212539879777,
+       "rpm_over_allowance": 0.11520633010599723
+      },
+      "pitch": {
+       "rms_worst_nm": 7.344353979492162,
+       "rms_mean_nm": 6.214598054961513,
+       "rms_over_thermal": 0.9792471972656216,
+       "peak_nm": 19.71030262819623,
+       "peak_over_limit": 0.9385858394379157,
+       "saturated_fraction": 0.035680555555555556,
+       "peak_rpm": 63.43183132086298,
+       "rpm_over_allowance": 0.7642389315766625
+      },
+      "front elbow": {
+       "rms_worst_nm": 10.534034327348571,
+       "rms_mean_nm": 10.462928067239904,
+       "rms_over_thermal": 0.9753735488285714,
+       "peak_nm": 35.99595594754654,
+       "peak_over_limit": 0.9522739668663107,
+       "saturated_fraction": 0.03877777777777778,
+       "peak_rpm": 80.30601249092882,
+       "rpm_over_allowance": 0.7435741897308225
+      },
+      "hind knee": {
+       "rms_worst_nm": 7.367235581797524,
+       "rms_mean_nm": 6.761071256162764,
+       "rms_over_thermal": 1.091442308414448,
+       "peak_nm": 17.85226900293799,
+       "peak_over_limit": 0.9445644975099466,
+       "saturated_fraction": 0.043305555555555555,
+       "peak_rpm": 62.12427696619427,
+       "rpm_over_allowance": 0.7484852646529431
+      }
+     },
+     "power_w": 41.01382974819107,
+     "cost_of_transport": 1.3567480287657827,
+     "roll_deg": {
+      "rms": 1.2019532304797689,
+      "peak": 3.2699575048594696
+     },
+     "pitch_deg": {
+      "rms": 1.073944720209993,
+      "peak": 3.2033764091878827
+     }
+    },
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.23984690855215715,
+     "sideways_drift_m": -0.10106027063116088,
+     "height_range_mm": 19.58981058893888,
+     "duty_factor": {
+      "left_fore": 0.3928888888888889,
+      "right_fore": 0.5813333333333334,
+      "left_hind": 0.6140555555555556,
+      "right_hind": 0.43072222222222223
+     },
+     "feet_down_fraction": {
+      "4": 0.015833333333333335,
+      "3": 0.0898888888888889,
+      "2 diagonal": 0.7777222222222222,
+      "2 same side": 0.011555555555555555,
+      "2 front": 0.0019444444444444444,
+      "2 hind": 0.007611111111111111,
+      "1": 0.08833333333333333,
+      "0": 0.0071111111111111115
+     },
+     "touchdowns_per_s": {
+      "left_fore": 22.05555555555363,
+      "right_fore": 17.22222222222072,
+      "left_hind": 13.499999999998822,
+      "right_hind": 21.611111111109224
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.15964311193555603,
+       "p95_mps": 0.5616982105864635,
+       "slip_ratio": 0.26150849825722566
+      },
+      "right_fore": {
+       "mean_mps": 0.10119208861738281,
+       "p95_mps": 0.3557051963392685,
+       "slip_ratio": 0.24526617640394233
+      },
+      "left_hind": {
+       "mean_mps": 0.09958769055566333,
+       "p95_mps": 0.3035790907044162,
+       "slip_ratio": 0.254964197870169
+      },
+      "right_hind": {
+       "mean_mps": 0.14031450321451966,
+       "p95_mps": 0.4534672396694422,
+       "slip_ratio": 0.2519797941085848
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 4.61223274265481,
+       "rms_mean_nm": 3.842999726453747,
+       "rms_over_thermal": 0.6149643656873081,
+       "peak_nm": 20.62246964649687,
+       "peak_over_limit": 0.9820223641188986,
+       "saturated_fraction": 0.000625,
+       "peak_rpm": 9.831267595187992,
+       "rpm_over_allowance": 0.11844900717093966
+      },
+      "pitch": {
+       "rms_worst_nm": 7.775797573618632,
+       "rms_mean_nm": 6.288619534827775,
+       "rms_over_thermal": 1.0367730098158177,
+       "peak_nm": 20.52023155316465,
+       "peak_over_limit": 0.9771538834840309,
+       "saturated_fraction": 0.03881944444444444,
+       "peak_rpm": 68.55283106422459,
+       "rpm_over_allowance": 0.8259377236653566
+      },
+      "front elbow": {
+       "rms_worst_nm": 9.599777229996437,
+       "rms_mean_nm": 9.574747234831843,
+       "rms_over_thermal": 0.8888682620367071,
+       "peak_nm": 37.10320280779375,
+       "peak_over_limit": 0.9815662118463956,
+       "saturated_fraction": 0.028,
+       "peak_rpm": 80.17216359850454,
+       "rpm_over_allowance": 0.7423348481343013
+      },
+      "hind knee": {
+       "rms_worst_nm": 6.808207762350262,
+       "rms_mean_nm": 6.39948578467771,
+       "rms_over_thermal": 1.0086233722000388,
+       "peak_nm": 18.83995164930482,
+       "peak_over_limit": 0.9968228385875566,
+       "saturated_fraction": 0.027305555555555555,
+       "peak_rpm": 49.51883577586996,
+       "rpm_over_allowance": 0.596612479227349
+      }
+     },
+     "power_w": 38.29305397063404,
+     "cost_of_transport": 1.3310461893657128,
+     "roll_deg": {
+      "rms": 1.0667025184269987,
+      "peak": 2.155136403088721
+     },
+     "pitch_deg": {
+      "rms": 0.9947364391479073,
+      "peak": 2.3761010969326195
+     }
+    }
+   ]
+  },
+  "sensitivity: roll-ankle model, 0.25 m/s": {
+   "model": "trike60_C_closed_ankleroll.xml",
+   "changes": {},
+   "impratio": 1.0,
+   "summary": {
+    "episodes": 5,
+    "falls": 0,
+    "forward_speed_mps": 0.23623138592947562,
+    "power_w": 43.48673058996087,
+    "cost_of_transport": 1.4926794539257926,
+    "duty_factor": {
+     "left_fore": 0.4094555555555556,
+     "right_fore": 0.5324,
+     "left_hind": 0.6710888888888888,
+     "right_hind": 0.4121777777777778
+    },
+    "feet_down_fraction": {
+     "4": 0.011766666666666667,
+     "3": 0.12815555555555555,
+     "2 diagonal": 0.6664777777777777,
+     "2 same side": 0.05414444444444444,
+     "2 front": 0.003088888888888889,
+     "2 hind": 0.015788888888888887,
+     "1": 0.11458888888888889,
+     "0": 0.005988888888888889
+    },
+    "touchdowns_per_s": {
+     "left_fore": 23.15555555555354,
+     "right_fore": 20.377777777776,
+     "left_hind": 23.055555555553546,
+     "right_hind": 22.55555555555359
+    },
+    "slip_ratio_worst": {
+     "left_fore": 0.29548135212468246,
+     "right_fore": 0.28384815776728084,
+     "left_hind": 0.3873146413013748,
+     "right_hind": 0.26764952800435854
+    },
+    "slip_ratio_mean": {
+     "left_fore": 0.2721901927698394,
+     "right_fore": 0.24781885254705016,
+     "left_hind": 0.33640620444272856,
+     "right_hind": 0.2573318828537566
+    },
+    "stance_slip_p95_mps": {
+     "left_fore": 0.6053645519472445,
+     "right_fore": 0.4191964545864109,
+     "left_hind": 0.4404397307727229,
+     "right_hind": 0.4862527170016762
+    },
+    "roll_deg_rms": 1.7586343689821171,
+    "pitch_deg_rms": 1.317500244061192,
+    "drives": {
+     "roll": {
+      "rms_worst_nm": 5.507692083855178,
+      "rms_mean_nm": 4.441040989663328,
+      "rms_over_thermal": 0.7343589445140238,
+      "peak_nm": 20.93349576495133,
+      "peak_over_limit": 0.9968331316643491,
+      "saturated_fraction": 0.0025416666666666665,
+      "peak_rpm": 9.698595924269041,
+      "rpm_over_allowance": 0.11685055330444627
+     },
+     "pitch": {
+      "rms_worst_nm": 8.542808991238855,
+      "rms_mean_nm": 7.619584655512639,
+      "rms_over_thermal": 1.1390411988318474,
+      "peak_nm": 20.52023155316465,
+      "peak_over_limit": 0.9771538834840309,
+      "saturated_fraction": 0.0635,
+      "peak_rpm": 69.28868544382696,
+      "rpm_over_allowance": 0.8348034390822526
+     },
+     "front elbow": {
+      "rms_worst_nm": 11.106849545626957,
+      "rms_mean_nm": 11.002384254884014,
+      "rms_over_thermal": 1.0284119949654589,
+      "peak_nm": 37.10320280779375,
+      "peak_over_limit": 0.9815662118463956,
+      "saturated_fraction": 0.04511111111111111,
+      "peak_rpm": 80.56847642824432,
+      "rpm_over_allowance": 0.7460044113726326
+     },
+     "hind knee": {
+      "rms_worst_nm": 7.997867362030435,
+      "rms_mean_nm": 7.2378869819743334,
+      "rms_over_thermal": 1.1848692388193238,
+      "peak_nm": 18.83995164930482,
+      "peak_over_limit": 0.9968228385875566,
+      "saturated_fraction": 0.05177777777777778,
+      "peak_rpm": 51.90314098990553,
+      "rpm_over_allowance": 0.6253390480711509
+     }
+    },
+    "flags": [
+     "heat: pitch RMS 8.54 N\u00b7m over its 7.5 N\u00b7m thermal rating",
+     "saturation: pitch at >= 99 % of its limit in 6.3 % of steps",
+     "heat: front elbow RMS 11.11 N\u00b7m over its 10.8 N\u00b7m thermal rating",
+     "saturation: front elbow at >= 99 % of its limit in 4.5 % of steps",
+     "heat: hind knee RMS 8.00 N\u00b7m over its 6.75 N\u00b7m thermal rating",
+     "saturation: hind knee at >= 99 % of its limit in 5.2 % of steps",
+     "slip: left_fore slip ratio 0.30 (flag above 0.25)",
+     "slip: right_fore slip ratio 0.28 (flag above 0.25)",
+     "slip: left_hind slip ratio 0.39 (flag above 0.25)",
+     "slip: right_hind slip ratio 0.27 (flag above 0.25)"
+    ]
+   },
+   "episodes": [
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.2347514086929875,
+     "sideways_drift_m": 0.4336662926038902,
+     "height_range_mm": 18.82570271628836,
+     "duty_factor": {
+      "left_fore": 0.3985,
+      "right_fore": 0.5233333333333333,
+      "left_hind": 0.6842222222222222,
+      "right_hind": 0.41155555555555556
+     },
+     "feet_down_fraction": {
+      "4": 0.009944444444444445,
+      "3": 0.13544444444444445,
+      "2 diagonal": 0.6483888888888889,
+      "2 same side": 0.0555,
+      "2 front": 0.002,
+      "2 hind": 0.01661111111111111,
+      "1": 0.1265,
+      "0": 0.005611111111111111
+     },
+     "touchdowns_per_s": {
+      "left_fore": 24.44444444444231,
+      "right_fore": 20.666666666664863,
+      "left_hind": 24.38888888888676,
+      "right_hind": 22.222222222220285
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.1720261239526896,
+       "p95_mps": 0.6041260568419335,
+       "slip_ratio": 0.29202129510876534
+      },
+      "right_fore": {
+       "mean_mps": 0.11298163050033855,
+       "p95_mps": 0.3971752567525873,
+       "slip_ratio": 0.25187092006971945
+      },
+      "left_hind": {
+       "mean_mps": 0.13288468965190217,
+       "p95_mps": 0.4404397307727229,
+       "slip_ratio": 0.3873146413013748
+      },
+      "right_hind": {
+       "mean_mps": 0.1447358629290063,
+       "p95_mps": 0.4618299380245658,
+       "slip_ratio": 0.25374437072899897
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 5.081347527589231,
+       "rms_mean_nm": 3.9263759665588025,
+       "rms_over_thermal": 0.6775130036785642,
+       "peak_nm": 20.796393647928685,
+       "peak_over_limit": 0.9903044594251755,
+       "saturated_fraction": 0.0007361111111111111,
+       "peak_rpm": 8.348528956957113,
+       "rpm_over_allowance": 0.10058468622839895
+      },
+      "pitch": {
+       "rms_worst_nm": 7.442725580066099,
+       "rms_mean_nm": 6.511493895365621,
+       "rms_over_thermal": 0.99236341067548,
+       "peak_nm": 19.806243916781785,
+       "peak_over_limit": 0.9431544722277041,
+       "saturated_fraction": 0.042583333333333334,
+       "peak_rpm": 60.24140390884791,
+       "rpm_over_allowance": 0.7258000470945531
+      },
+      "front elbow": {
+       "rms_worst_nm": 11.007940432069718,
+       "rms_mean_nm": 10.943638422407416,
+       "rms_over_thermal": 1.019253743710159,
+       "peak_nm": 36.91403778592685,
+       "peak_over_limit": 0.9765618461885411,
+       "saturated_fraction": 0.04511111111111111,
+       "peak_rpm": 78.62717354685246,
+       "rpm_over_allowance": 0.7280293846930783
+      },
+      "hind knee": {
+       "rms_worst_nm": 7.993970812076917,
+       "rms_mean_nm": 7.124796530474303,
+       "rms_over_thermal": 1.1842919721595433,
+       "peak_nm": 18.751178209392744,
+       "peak_over_limit": 0.9921258311848014,
+       "saturated_fraction": 0.03977777777777778,
+       "peak_rpm": 45.52816609257632,
+       "rpm_over_allowance": 0.548532121597305
+      }
+     },
+     "power_w": 43.02986766176645,
+     "cost_of_transport": 1.4235414364448213,
+     "roll_deg": {
+      "rms": 1.6973650588783271,
+      "peak": 4.210984096873353
+     },
+     "pitch_deg": {
+      "rms": 1.3238753200622155,
+      "peak": 4.2056236644724345
+     }
+    },
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.2354268489685982,
+     "sideways_drift_m": 0.2835098097356102,
+     "height_range_mm": 19.836970421027665,
+     "duty_factor": {
+      "left_fore": 0.4111111111111111,
+      "right_fore": 0.5406666666666666,
+      "left_hind": 0.6418333333333334,
+      "right_hind": 0.4292222222222222
+     },
+     "feet_down_fraction": {
+      "4": 0.011,
+      "3": 0.12438888888888888,
+      "2 diagonal": 0.6707777777777778,
+      "2 same side": 0.05711111111111111,
+      "2 front": 0.0034444444444444444,
+      "2 hind": 0.01561111111111111,
+      "1": 0.11177777777777778,
+      "0": 0.005888888888888889
+     },
+     "touchdowns_per_s": {
+      "left_fore": 23.111111111109096,
+      "right_fore": 18.94444444444279,
+      "left_hind": 22.944444444442443,
+      "right_hind": 23.722222222220154
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.14646975130541398,
+       "p95_mps": 0.5383276332697824,
+       "slip_ratio": 0.25577092191110556
+      },
+      "right_fore": {
+       "mean_mps": 0.09961073657993642,
+       "p95_mps": 0.36990368366299015,
+       "slip_ratio": 0.22875982559686073
+      },
+      "left_hind": {
+       "mean_mps": 0.10947240833753932,
+       "p95_mps": 0.3678680106931432,
+       "slip_ratio": 0.29844956537080713
+      },
+      "right_hind": {
+       "mean_mps": 0.1447651159613097,
+       "p95_mps": 0.46893879543630673,
+       "slip_ratio": 0.26393083475983103
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 5.4028338579336195,
+       "rms_mean_nm": 4.441040989663328,
+       "rms_over_thermal": 0.7203778477244825,
+       "peak_nm": 20.293761736610467,
+       "peak_over_limit": 0.9663696065052603,
+       "saturated_fraction": 0.0025416666666666665,
+       "peak_rpm": 8.783455660631157,
+       "rpm_over_allowance": 0.10582476699555611
+      },
+      "pitch": {
+       "rms_worst_nm": 8.459656485756636,
+       "rms_mean_nm": 7.460767541279218,
+       "rms_over_thermal": 1.1279541981008847,
+       "peak_nm": 20.434116762566973,
+       "peak_over_limit": 0.9730531791698558,
+       "saturated_fraction": 0.05593055555555555,
+       "peak_rpm": 62.14098445397267,
+       "rpm_over_allowance": 0.7486865596864177
+      },
+      "front elbow": {
+       "rms_worst_nm": 10.91721970587607,
+       "rms_mean_nm": 10.63801999235033,
+       "rms_over_thermal": 1.0108536764700065,
+       "peak_nm": 34.570921723531164,
+       "peak_over_limit": 0.9145746487706657,
+       "saturated_fraction": 0.043027777777777776,
+       "peak_rpm": 74.1550040865741,
+       "rpm_over_allowance": 0.6866204082090194
+      },
+      "hind knee": {
+       "rms_worst_nm": 7.78033934045693,
+       "rms_mean_nm": 7.101816731608986,
+       "rms_over_thermal": 1.1526428652528784,
+       "peak_nm": 17.396554512169907,
+       "peak_over_limit": 0.9204526196915295,
+       "saturated_fraction": 0.04477777777777778,
+       "peak_rpm": 51.083423359140674,
+       "rpm_over_allowance": 0.6154629320378394
+      }
+     },
+     "power_w": 46.46897304633155,
+     "cost_of_transport": 1.6693054096262119,
+     "roll_deg": {
+      "rms": 1.725177330596229,
+      "peak": 4.796330140066255
+     },
+     "pitch_deg": {
+      "rms": 1.330618611896473,
+      "peak": 4.430688896086052
+     }
+    },
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.23597177571875638,
+     "sideways_drift_m": -0.01842289563830908,
+     "height_range_mm": 21.80391043551483,
+     "duty_factor": {
+      "left_fore": 0.4172777777777778,
+      "right_fore": 0.5213333333333333,
+      "left_hind": 0.6653888888888889,
+      "right_hind": 0.41488888888888886
+     },
+     "feet_down_fraction": {
+      "4": 0.012388888888888889,
+      "3": 0.12688888888888888,
+      "2 diagonal": 0.6533888888888889,
+      "2 same side": 0.058944444444444445,
+      "2 front": 0.003277777777777778,
+      "2 hind": 0.018333333333333333,
+      "1": 0.12077777777777778,
+      "0": 0.006
+     },
+     "touchdowns_per_s": {
+      "left_fore": 20.555555555553763,
+      "right_fore": 18.77777777777614,
+      "left_hind": 24.222222222220108,
+      "right_hind": 22.61111111110914
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.12699336318015106,
+       "p95_mps": 0.45943470026260746,
+       "slip_ratio": 0.22456714672303574
+      },
+      "right_fore": {
+       "mean_mps": 0.09808269823786168,
+       "p95_mps": 0.38606058502453816,
+       "slip_ratio": 0.21669447483247206
+      },
+      "left_hind": {
+       "mean_mps": 0.09995784536713748,
+       "p95_mps": 0.3655368686701899,
+       "slip_ratio": 0.28185930059629244
+      },
+      "right_hind": {
+       "mean_mps": 0.13725754908505614,
+       "p95_mps": 0.4609781703716095,
+       "slip_ratio": 0.24132814976724942
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 5.507692083855178,
+       "rms_mean_nm": 4.4300849621556235,
+       "rms_over_thermal": 0.7343589445140238,
+       "peak_nm": 20.84549088866585,
+       "peak_over_limit": 0.9926424232698023,
+       "saturated_fraction": 0.001375,
+       "peak_rpm": 8.496979928962054,
+       "rpm_over_allowance": 0.10237325215616933
+      },
+      "pitch": {
+       "rms_worst_nm": 8.542808991238855,
+       "rms_mean_nm": 7.619584655512639,
+       "rms_over_thermal": 1.1390411988318474,
+       "peak_nm": 19.962859942198577,
+       "peak_over_limit": 0.9506123781999323,
+       "saturated_fraction": 0.0635,
+       "peak_rpm": 61.658193427206214,
+       "rpm_over_allowance": 0.7428698003277857
+      },
+      "front elbow": {
+       "rms_worst_nm": 11.106849545626957,
+       "rms_mean_nm": 11.002384254884014,
+       "rms_over_thermal": 1.0284119949654589,
+       "peak_nm": 35.12451653162624,
+       "peak_over_limit": 0.9292200140641863,
+       "saturated_fraction": 0.04069444444444444,
+       "peak_rpm": 75.12379269501159,
+       "rpm_over_allowance": 0.6955906731019591
+      },
+      "hind knee": {
+       "rms_worst_nm": 7.997867362030435,
+       "rms_mean_nm": 7.2378869819743334,
+       "rms_over_thermal": 1.1848692388193238,
+       "peak_nm": 17.963998951232817,
+       "peak_over_limit": 0.9504761349858634,
+       "saturated_fraction": 0.05177777777777778,
+       "peak_rpm": 48.843988794814635,
+       "rpm_over_allowance": 0.58848179270861
+      }
+     },
+     "power_w": 47.7183615227742,
+     "cost_of_transport": 1.631885613775722,
+     "roll_deg": {
+      "rms": 1.9290670378711101,
+      "peak": 4.4906001227222125
+     },
+     "pitch_deg": {
+      "rms": 1.348975379079757,
+      "peak": 4.568513641615614
+     }
+    },
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.23648809686344757,
+     "sideways_drift_m": 0.2542340411214334,
+     "height_range_mm": 20.542117213258436,
+     "duty_factor": {
+      "left_fore": 0.4102222222222222,
+      "right_fore": 0.5265,
+      "left_hind": 0.6831111111111111,
+      "right_hind": 0.4106111111111111
+     },
+     "feet_down_fraction": {
+      "4": 0.010666666666666666,
+      "3": 0.1277222222222222,
+      "2 diagonal": 0.6786111111111112,
+      "2 same side": 0.051277777777777776,
+      "2 front": 0.0031666666666666666,
+      "2 hind": 0.015666666666666666,
+      "1": 0.10716666666666666,
+      "0": 0.005722222222222222
+     },
+     "touchdowns_per_s": {
+      "left_fore": 24.27777777777566,
+      "right_fore": 20.38888888888711,
+      "left_hind": 20.999999999998167,
+      "right_hind": 22.222222222220285
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.1689744752023878,
+       "p95_mps": 0.5897262739969291,
+       "slip_ratio": 0.2931102479816079
+      },
+      "right_fore": {
+       "mean_mps": 0.11585036867882914,
+       "p95_mps": 0.3815517107565619,
+       "slip_ratio": 0.2579208844689178
+      },
+      "left_hind": {
+       "mean_mps": 0.1244533133597697,
+       "p95_mps": 0.40209268650774077,
+       "slip_ratio": 0.35949141753093905
+      },
+      "right_hind": {
+       "mean_mps": 0.14974862595377703,
+       "p95_mps": 0.4507985779529324,
+       "slip_ratio": 0.2600065310083448
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 4.903394473372805,
+       "rms_mean_nm": 3.846035595911325,
+       "rms_over_thermal": 0.6537859297830407,
+       "peak_nm": 20.93349576495133,
+       "peak_over_limit": 0.9968331316643491,
+       "saturated_fraction": 0.0005277777777777777,
+       "peak_rpm": 9.166851079001578,
+       "rpm_over_allowance": 0.11044398890363347
+      },
+      "pitch": {
+       "rms_worst_nm": 7.193229286524527,
+       "rms_mean_nm": 6.3135354980764795,
+       "rms_over_thermal": 0.9590972382032703,
+       "peak_nm": 19.71030262819623,
+       "peak_over_limit": 0.9385858394379157,
+       "saturated_fraction": 0.03809722222222222,
+       "peak_rpm": 61.34133444831078,
+       "rpm_over_allowance": 0.7390522222688046
+      },
+      "front elbow": {
+       "rms_worst_nm": 10.821922538978441,
+       "rms_mean_nm": 10.735301517636838,
+       "rms_over_thermal": 1.002029864720226,
+       "peak_nm": 35.99595594754654,
+       "peak_over_limit": 0.9522739668663107,
+       "saturated_fraction": 0.04491666666666667,
+       "peak_rpm": 80.56847642824432,
+       "rpm_over_allowance": 0.7460044113726326
+      },
+      "hind knee": {
+       "rms_worst_nm": 7.6293741156708235,
+       "rms_mean_nm": 6.830038147497193,
+       "rms_over_thermal": 1.130277646766048,
+       "peak_nm": 17.85226900293799,
+       "peak_over_limit": 0.9445644975099466,
+       "saturated_fraction": 0.0435,
+       "peak_rpm": 46.424554897783544,
+       "rpm_over_allowance": 0.5593319867202836
+      }
+     },
+     "power_w": 40.94058045360183,
+     "cost_of_transport": 1.3658547598189896,
+     "roll_deg": {
+      "rms": 1.8151840450008678,
+      "peak": 5.64803693741066
+     },
+     "pitch_deg": {
+      "rms": 1.313056633165473,
+      "peak": 4.78231317886408
+     }
+    },
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.23851879940358847,
+     "sideways_drift_m": 0.06465644962588449,
+     "height_range_mm": 19.390845682348502,
+     "duty_factor": {
+      "left_fore": 0.4101666666666667,
+      "right_fore": 0.5501666666666667,
+      "left_hind": 0.6808888888888889,
+      "right_hind": 0.39461111111111113
+     },
+     "feet_down_fraction": {
+      "4": 0.014833333333333334,
+      "3": 0.12633333333333333,
+      "2 diagonal": 0.6812222222222222,
+      "2 same side": 0.04788888888888889,
+      "2 front": 0.0035555555555555557,
+      "2 hind": 0.012722222222222222,
+      "1": 0.10672222222222222,
+      "0": 0.006722222222222222
+     },
+     "touchdowns_per_s": {
+      "left_fore": 23.38888888888685,
+      "right_fore": 23.111111111109096,
+      "left_hind": 22.72222222222024,
+      "right_hind": 21.99999999999808
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.1718273645386643,
+       "p95_mps": 0.6053645519472445,
+       "slip_ratio": 0.29548135212468246
+      },
+      "right_fore": {
+       "mean_mps": 0.12305929440215493,
+       "p95_mps": 0.4191964545864109,
+       "slip_ratio": 0.28384815776728084
+      },
+      "left_hind": {
+       "mean_mps": 0.12432889246057306,
+       "p95_mps": 0.3833521343569672,
+       "slip_ratio": 0.35491609741422936
+      },
+      "right_hind": {
+       "mean_mps": 0.161778120998154,
+       "p95_mps": 0.4862527170016762,
+       "slip_ratio": 0.26764952800435854
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 4.607071601466493,
+       "rms_mean_nm": 3.6494994857807366,
+       "rms_over_thermal": 0.6142762135288657,
+       "peak_nm": 20.62246964649687,
+       "peak_over_limit": 0.9820223641188986,
+       "saturated_fraction": 0.0006388888888888889,
+       "peak_rpm": 9.698595924269041,
+       "rpm_over_allowance": 0.11685055330444627
+      },
+      "pitch": {
+       "rms_worst_nm": 7.699610244744901,
+       "rms_mean_nm": 6.405207417060785,
+       "rms_over_thermal": 1.0266146992993201,
+       "peak_nm": 20.52023155316465,
+       "peak_over_limit": 0.9771538834840309,
+       "saturated_fraction": 0.043472222222222225,
+       "peak_rpm": 69.28868544382696,
+       "rpm_over_allowance": 0.8348034390822526
+      },
+      "front elbow": {
+       "rms_worst_nm": 10.250582442882433,
+       "rms_mean_nm": 10.04820194896666,
+       "rms_over_thermal": 0.9491280039705956,
+       "peak_nm": 37.10320280779375,
+       "peak_over_limit": 0.9815662118463956,
+       "saturated_fraction": 0.035361111111111114,
+       "peak_rpm": 72.49140095708044,
+       "rpm_over_allowance": 0.6712166755285226
+      },
+      "hind knee": {
+       "rms_worst_nm": 7.214494567796669,
+       "rms_mean_nm": 6.523185681737354,
+       "rms_over_thermal": 1.068814010043951,
+       "peak_nm": 18.83995164930482,
+       "peak_over_limit": 0.9968228385875566,
+       "saturated_fraction": 0.027083333333333334,
+       "peak_rpm": 51.90314098990553,
+       "rpm_over_allowance": 0.6253390480711509
+      }
+     },
+     "power_w": 39.27587026533031,
+     "cost_of_transport": 1.372810049963218,
+     "roll_deg": {
+      "rms": 1.6263783725640506,
+      "peak": 4.314855147306071
+     },
+     "pitch_deg": {
+      "rms": 1.270975276102041,
+      "peak": 3.808549711461387
+     }
+    }
+   ]
+  },
+  "sensitivity: nominal model, no randomisation or noise, 0.25 m/s": {
+   "model": "trike60_C_closed.xml",
+   "changes": {
+    "domain_randomization": false,
+    "observation_noise": false
+   },
+   "impratio": 1.0,
+   "summary": {
+    "episodes": 5,
+    "falls": 0,
+    "forward_speed_mps": 0.24045429769406268,
+    "power_w": 39.9701073364026,
+    "cost_of_transport": 1.3348828021310026,
+    "duty_factor": {
+     "left_fore": 0.41435555555555553,
+     "right_fore": 0.6005444444444444,
+     "left_hind": 0.6430222222222223,
+     "right_hind": 0.455188888888889
+    },
+    "feet_down_fraction": {
+     "4": 0.028611111111111108,
+     "3": 0.0983,
+     "2 diagonal": 0.8200111111111111,
+     "2 same side": 0.008611111111111111,
+     "2 front": 0.00012222222222222221,
+     "2 hind": 0.005366666666666667,
+     "1": 0.03554444444444445,
+     "0": 0.0034333333333333334
+    },
+    "touchdowns_per_s": {
+     "left_fore": 18.411111111109506,
+     "right_fore": 6.966666666666059,
+     "left_hind": 8.822222222221454,
+     "right_hind": 19.288888888887207
+    },
+    "slip_ratio_worst": {
+     "left_fore": 0.19025411404647188,
+     "right_fore": 0.16061210385673697,
+     "left_hind": 0.23978334833849402,
+     "right_hind": 0.20374754122304356
+    },
+    "slip_ratio_mean": {
+     "left_fore": 0.18805217680424952,
+     "right_fore": 0.15938677001557314,
+     "left_hind": 0.23824920743014277,
+     "right_hind": 0.20203325499250163
+    },
+    "stance_slip_p95_mps": {
+     "left_fore": 0.38709236432138394,
+     "right_fore": 0.23338931048240658,
+     "left_hind": 0.21990679511729586,
+     "right_hind": 0.37395559951135604
+    },
+    "roll_deg_rms": 1.0581496439536593,
+    "pitch_deg_rms": 0.8898304455441879,
+    "drives": {
+     "roll": {
+      "rms_worst_nm": 6.301466630411505,
+      "rms_mean_nm": 4.969370114321629,
+      "rms_over_thermal": 0.840195550721534,
+      "peak_nm": 21.0,
+      "peak_over_limit": 1.0,
+      "saturated_fraction": 0.0002916666666666667,
+      "peak_rpm": 8.525679142253447,
+      "rpm_over_allowance": 0.10271902581028249
+     },
+     "pitch": {
+      "rms_worst_nm": 8.205653330955677,
+      "rms_mean_nm": 6.676980089203733,
+      "rms_over_thermal": 1.0940871107940902,
+      "peak_nm": 21.0,
+      "peak_over_limit": 1.0,
+      "saturated_fraction": 0.030416666666666668,
+      "peak_rpm": 60.04433510125185,
+      "rpm_over_allowance": 0.7234257241114681
+     },
+     "front elbow": {
+      "rms_worst_nm": 10.612799486700329,
+      "rms_mean_nm": 10.368886719855466,
+      "rms_over_thermal": 0.9826666191389193,
+      "peak_nm": 37.8,
+      "peak_over_limit": 1.0,
+      "saturated_fraction": 0.018083333333333333,
+      "peak_rpm": 81.77185308798596,
+      "rpm_over_allowance": 0.7571467878517218
+     },
+     "hind knee": {
+      "rms_worst_nm": 8.13959148697376,
+      "rms_mean_nm": 7.3109184728899725,
+      "rms_over_thermal": 1.2058654054775941,
+      "peak_nm": 18.9,
+      "peak_over_limit": 1.0,
+      "saturated_fraction": 0.030194444444444444,
+      "peak_rpm": 49.407289486035786,
+      "rpm_over_allowance": 0.5952685480245276
+     }
+    },
+    "flags": [
+     "heat: pitch RMS 8.21 N\u00b7m over its 7.5 N\u00b7m thermal rating",
+     "saturation: pitch at >= 99 % of its limit in 3.0 % of steps",
+     "saturation: front elbow at >= 99 % of its limit in 1.8 % of steps",
+     "heat: hind knee RMS 8.14 N\u00b7m over its 6.75 N\u00b7m thermal rating",
+     "saturation: hind knee at >= 99 % of its limit in 3.0 % of steps"
+    ]
+   },
+   "episodes": [
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.24027948369620936,
+     "sideways_drift_m": -0.06361075385105336,
+     "height_range_mm": 17.79105321752822,
+     "duty_factor": {
+      "left_fore": 0.41605555555555557,
+      "right_fore": 0.5989444444444444,
+      "left_hind": 0.6420555555555556,
+      "right_hind": 0.45605555555555555
+     },
+     "feet_down_fraction": {
+      "4": 0.02638888888888889,
+      "3": 0.10277777777777777,
+      "2 diagonal": 0.8162777777777778,
+      "2 same side": 0.009277777777777777,
+      "2 front": 5.555555555555556e-05,
+      "2 hind": 0.006055555555555555,
+      "1": 0.03588888888888889,
+      "0": 0.003277777777777778
+     },
+     "touchdowns_per_s": {
+      "left_fore": 18.444444444442837,
+      "right_fore": 7.722222222221548,
+      "left_hind": 9.611111111110272,
+      "right_hind": 19.666666666664952
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.10972606346182262,
+       "p95_mps": 0.38387465779507685,
+       "slip_ratio": 0.18999598962948808
+      },
+      "right_fore": {
+       "mean_mps": 0.06401348667343919,
+       "p95_mps": 0.22469029209898175,
+       "slip_ratio": 0.15956635840387476
+      },
+      "left_hind": {
+       "mean_mps": 0.08938065948268901,
+       "p95_mps": 0.21876744310341673,
+       "slip_ratio": 0.2388358260858617
+      },
+      "right_hind": {
+       "mean_mps": 0.10734734707883843,
+       "p95_mps": 0.367679662583771,
+       "slip_ratio": 0.20374754122304356
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 6.29383939377067,
+       "rms_mean_nm": 4.969370114321629,
+       "rms_over_thermal": 0.8391785858360893,
+       "peak_nm": 21.0,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.0002916666666666667,
+       "peak_rpm": 8.525679142253447,
+       "rpm_over_allowance": 0.10271902581028249
+      },
+      "pitch": {
+       "rms_worst_nm": 8.205653330955677,
+       "rms_mean_nm": 6.676980089203733,
+       "rms_over_thermal": 1.0940871107940902,
+       "peak_nm": 21.0,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.030416666666666668,
+       "peak_rpm": 58.245002099748476,
+       "rpm_over_allowance": 0.7017470132499817
+      },
+      "front elbow": {
+       "rms_worst_nm": 10.607576061687649,
+       "rms_mean_nm": 10.368886719855466,
+       "rms_over_thermal": 0.9821829686747822,
+       "peak_nm": 37.8,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.018083333333333333,
+       "peak_rpm": 81.26040514485229,
+       "rpm_over_allowance": 0.7524111587486323
+      },
+      "hind knee": {
+       "rms_worst_nm": 8.111327920145246,
+       "rms_mean_nm": 7.288371265352142,
+       "rms_over_thermal": 1.2016782103918884,
+       "peak_nm": 18.9,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.028944444444444443,
+       "peak_rpm": 46.50084112150142,
+       "rpm_over_allowance": 0.5602510978494147
+      }
+     },
+     "power_w": 40.13729862432151,
+     "cost_of_transport": 1.3414391028711108,
+     "roll_deg": {
+      "rms": 1.0690872241206306,
+      "peak": 2.5826242974661207
+     },
+     "pitch_deg": {
+      "rms": 0.9003384077083818,
+      "peak": 2.803599641838386
+     }
+    },
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.24027669925452377,
+     "sideways_drift_m": -0.06905555443349713,
+     "height_range_mm": 17.95659390512383,
+     "duty_factor": {
+      "left_fore": 0.4118888888888889,
+      "right_fore": 0.5993333333333334,
+      "left_hind": 0.6443333333333333,
+      "right_hind": 0.4543333333333333
+     },
+     "feet_down_fraction": {
+      "4": 0.028833333333333332,
+      "3": 0.09627777777777778,
+      "2 diagonal": 0.8196111111111111,
+      "2 same side": 0.009833333333333333,
+      "2 front": 0.00011111111111111112,
+      "2 hind": 0.005222222222222222,
+      "1": 0.036166666666666666,
+      "0": 0.003944444444444445
+     },
+     "touchdowns_per_s": {
+      "left_fore": 18.166666666665083,
+      "right_fore": 6.833333333332737,
+      "left_hind": 8.888888888888113,
+      "right_hind": 19.777777777776052
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.11098534526145162,
+       "p95_mps": 0.38709236432138394,
+       "slip_ratio": 0.19025411404647188
+      },
+      "right_fore": {
+       "mean_mps": 0.06304031810332565,
+       "p95_mps": 0.22751217527958534,
+       "slip_ratio": 0.15724439406931404
+      },
+      "left_hind": {
+       "mean_mps": 0.08941699659852419,
+       "p95_mps": 0.21390809786182463,
+       "slip_ratio": 0.23978334833849402
+      },
+      "right_hind": {
+       "mean_mps": 0.1060862333298852,
+       "p95_mps": 0.3629311398560797,
+       "slip_ratio": 0.20059586368164053
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 6.301466630411505,
+       "rms_mean_nm": 4.947848116528368,
+       "rms_over_thermal": 0.840195550721534,
+       "peak_nm": 21.0,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.00026388888888888886,
+       "peak_rpm": 8.12606939973412,
+       "rpm_over_allowance": 0.09790445059920627
+      },
+      "pitch": {
+       "rms_worst_nm": 8.145331457978761,
+       "rms_mean_nm": 6.651789129940772,
+       "rms_over_thermal": 1.0860441943971681,
+       "peak_nm": 21.0,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.0285,
+       "peak_rpm": 56.980253929345736,
+       "rpm_over_allowance": 0.6865090834860932
+      },
+      "front elbow": {
+       "rms_worst_nm": 10.612799486700329,
+       "rms_mean_nm": 10.368260065268208,
+       "rms_over_thermal": 0.9826666191389193,
+       "peak_nm": 37.8,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.01661111111111111,
+       "peak_rpm": 81.77185308798596,
+       "rpm_over_allowance": 0.7571467878517218
+      },
+      "hind knee": {
+       "rms_worst_nm": 8.093668961399036,
+       "rms_mean_nm": 7.284474116472665,
+       "rms_over_thermal": 1.1990620683554127,
+       "peak_nm": 18.9,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.028805555555555556,
+       "peak_rpm": 47.140328604191886,
+       "rpm_over_allowance": 0.5679557663155649
+      }
+     },
+     "power_w": 40.02530600817481,
+     "cost_of_transport": 1.3377116703663898,
+     "roll_deg": {
+      "rms": 1.0807484587280556,
+      "peak": 2.6537544184071855
+     },
+     "pitch_deg": {
+      "rms": 0.9112137429212898,
+      "peak": 2.756784163371431
+     }
+    },
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.24065667575539307,
+     "sideways_drift_m": -0.07301567820149767,
+     "height_range_mm": 17.52354641362075,
+     "duty_factor": {
+      "left_fore": 0.4146666666666667,
+      "right_fore": 0.6048333333333333,
+      "left_hind": 0.6406666666666667,
+      "right_hind": 0.4552777777777778
+     },
+     "feet_down_fraction": {
+      "4": 0.029611111111111112,
+      "3": 0.09838888888888889,
+      "2 diagonal": 0.8214444444444444,
+      "2 same side": 0.006722222222222222,
+      "2 front": 0.0002777777777777778,
+      "2 hind": 0.004722222222222222,
+      "1": 0.0355,
+      "0": 0.0033333333333333335
+     },
+     "touchdowns_per_s": {
+      "left_fore": 18.11111111110953,
+      "right_fore": 7.3333333333326935,
+      "left_hind": 8.055555555554852,
+      "right_hind": 19.833333333331602
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.10697884923519982,
+       "p95_mps": 0.36544366435187925,
+       "slip_ratio": 0.18433132044621175
+      },
+      "right_fore": {
+       "mean_mps": 0.06365745242276616,
+       "p95_mps": 0.21981040628625925,
+       "slip_ratio": 0.15998787076863086
+      },
+      "left_hind": {
+       "mean_mps": 0.08785617621480694,
+       "p95_mps": 0.21438793154287764,
+       "slip_ratio": 0.2338872311974382
+      },
+      "right_hind": {
+       "mean_mps": 0.10570671824285152,
+       "p95_mps": 0.36582339423250687,
+       "slip_ratio": 0.19997749751473132
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 6.292100309159223,
+       "rms_mean_nm": 4.96032571158735,
+       "rms_over_thermal": 0.8389467078878964,
+       "peak_nm": 21.0,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.00023611111111111112,
+       "peak_rpm": 8.315642263296999,
+       "rpm_over_allowance": 0.1001884610035783
+      },
+      "pitch": {
+       "rms_worst_nm": 8.164944130625397,
+       "rms_mean_nm": 6.675090760248462,
+       "rms_over_thermal": 1.0886592174167196,
+       "peak_nm": 21.0,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.029847222222222223,
+       "peak_rpm": 56.611437843943214,
+       "rpm_over_allowance": 0.6820655161920869
+      },
+      "front elbow": {
+       "rms_worst_nm": 10.600102544438665,
+       "rms_mean_nm": 10.341408217669164,
+       "rms_over_thermal": 0.9814909763369133,
+       "peak_nm": 37.8,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.01711111111111111,
+       "peak_rpm": 81.29330845326533,
+       "rpm_over_allowance": 0.752715819011716
+      },
+      "hind knee": {
+       "rms_worst_nm": 8.13959148697376,
+       "rms_mean_nm": 7.3109184728899725,
+       "rms_over_thermal": 1.2058654054775941,
+       "peak_nm": 18.9,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.029916666666666668,
+       "peak_rpm": 48.196595472271376,
+       "rpm_over_allowance": 0.5806818731598961
+      }
+     },
+     "power_w": 39.83712580763524,
+     "cost_of_transport": 1.3293201749013153,
+     "roll_deg": {
+      "rms": 1.02212711231815,
+      "peak": 2.0731146485620497
+     },
+     "pitch_deg": {
+      "rms": 0.8702250085704857,
+      "peak": 2.3012877016307973
+     }
+    },
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.2405459668580336,
+     "sideways_drift_m": -0.07051558550831047,
+     "height_range_mm": 18.19297040388973,
+     "duty_factor": {
+      "left_fore": 0.4137777777777778,
+      "right_fore": 0.6009444444444444,
+      "left_hind": 0.6437222222222222,
+      "right_hind": 0.4558333333333333
+     },
+     "feet_down_fraction": {
+      "4": 0.028722222222222222,
+      "3": 0.0985,
+      "2 diagonal": 0.8216666666666667,
+      "2 same side": 0.0075,
+      "2 front": 0.00011111111111111112,
+      "2 hind": 0.005388888888888889,
+      "1": 0.034555555555555555,
+      "0": 0.0035555555555555557
+     },
+     "touchdowns_per_s": {
+      "left_fore": 19.388888888887198,
+      "right_fore": 6.499999999999433,
+      "left_hind": 8.388888888888157,
+      "right_hind": 18.499999999998387
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.1090087994118084,
+       "p95_mps": 0.3741041011998672,
+       "slip_ratio": 0.18751267945994377
+      },
+      "right_fore": {
+       "mean_mps": 0.06385389566044303,
+       "p95_mps": 0.2248305216526324,
+       "slip_ratio": 0.159523122979309
+      },
+      "left_hind": {
+       "mean_mps": 0.08929396031315344,
+       "p95_mps": 0.21990679511729586,
+       "slip_ratio": 0.2389585130634046
+      },
+      "right_hind": {
+       "mean_mps": 0.10705983510976488,
+       "p95_mps": 0.37395559951135604,
+       "slip_ratio": 0.20287782057469858
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 6.297921827386264,
+       "rms_mean_nm": 4.943069318053937,
+       "rms_over_thermal": 0.8397229103181686,
+       "peak_nm": 21.0,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.0002916666666666667,
+       "peak_rpm": 7.9132832274234355,
+       "rpm_over_allowance": 0.09534076177618597
+      },
+      "pitch": {
+       "rms_worst_nm": 8.134566770549272,
+       "rms_mean_nm": 6.643556274213619,
+       "rms_over_thermal": 1.0846089027399028,
+       "peak_nm": 21.0,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.028958333333333332,
+       "peak_rpm": 58.364901621991535,
+       "rpm_over_allowance": 0.7031915858071269
+      },
+      "front elbow": {
+       "rms_worst_nm": 10.56767610029696,
+       "rms_mean_nm": 10.325028422640694,
+       "rms_over_thermal": 0.9784885278052741,
+       "peak_nm": 37.8,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.015916666666666666,
+       "peak_rpm": 78.17787904656669,
+       "rpm_over_allowance": 0.723869250431173
+      },
+      "hind knee": {
+       "rms_worst_nm": 8.122421097305756,
+       "rms_mean_nm": 7.284659330099855,
+       "rms_over_thermal": 1.2033216440452972,
+       "peak_nm": 18.9,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.029472222222222223,
+       "peak_rpm": 49.407289486035786,
+       "rpm_over_allowance": 0.5952685480245276
+      }
+     },
+     "power_w": 39.84017750616706,
+     "cost_of_transport": 1.3300338599596564,
+     "roll_deg": {
+      "rms": 1.0449977252516423,
+      "peak": 2.380583329893417
+     },
+     "pitch_deg": {
+      "rms": 0.8853063092537995,
+      "peak": 2.631308366040866
+     }
+    },
+    {
+     "command_mps": 0.25,
+     "fell": false,
+     "termination": "",
+     "forward_speed_mps": 0.24051266290615356,
+     "sideways_drift_m": -0.06720889580333636,
+     "height_range_mm": 17.088207276246216,
+     "duty_factor": {
+      "left_fore": 0.41538888888888886,
+      "right_fore": 0.5986666666666667,
+      "left_hind": 0.6443333333333333,
+      "right_hind": 0.45444444444444443
+     },
+     "feet_down_fraction": {
+      "4": 0.0295,
+      "3": 0.09555555555555556,
+      "2 diagonal": 0.8210555555555555,
+      "2 same side": 0.009722222222222222,
+      "2 front": 5.555555555555556e-05,
+      "2 hind": 0.0054444444444444445,
+      "1": 0.035611111111111114,
+      "0": 0.0030555555555555557
+     },
+     "touchdowns_per_s": {
+      "left_fore": 17.94444444444288,
+      "right_fore": 6.444444444443882,
+      "left_hind": 9.166666666665867,
+      "right_hind": 18.666666666665037
+     },
+     "stance_slip": {
+      "left_fore": {
+       "mean_mps": 0.10894969664440793,
+       "p95_mps": 0.37874792585959954,
+       "slip_ratio": 0.1881667804391321
+      },
+      "right_fore": {
+       "mean_mps": 0.06452546457720121,
+       "p95_mps": 0.23338931048240658,
+       "slip_ratio": 0.16061210385673697
+      },
+      "left_hind": {
+       "mean_mps": 0.08950397617708483,
+       "p95_mps": 0.2196957171097721,
+       "slip_ratio": 0.23978111846551528
+      },
+      "right_hind": {
+       "mean_mps": 0.1074196571313548,
+       "p95_mps": 0.3618657862862499,
+       "slip_ratio": 0.20296755196839422
+      }
+     },
+     "drives": {
+      "roll": {
+       "rms_worst_nm": 6.267029076953424,
+       "rms_mean_nm": 4.960833558835912,
+       "rms_over_thermal": 0.8356038769271232,
+       "peak_nm": 21.0,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.0002777777777777778,
+       "peak_rpm": 8.175580189995925,
+       "rpm_over_allowance": 0.09850096614452922
+      },
+      "pitch": {
+       "rms_worst_nm": 8.132799334634006,
+       "rms_mean_nm": 6.6523182788889486,
+       "rms_over_thermal": 1.0843732446178675,
+       "peak_nm": 21.0,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.029013888888888888,
+       "peak_rpm": 60.04433510125185,
+       "rpm_over_allowance": 0.7234257241114681
+      },
+      "front elbow": {
+       "rms_worst_nm": 10.609188702198708,
+       "rms_mean_nm": 10.339830183236412,
+       "rms_over_thermal": 0.982332287240621,
+       "peak_nm": 37.8,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.015111111111111112,
+       "peak_rpm": 79.04055982132545,
+       "rpm_over_allowance": 0.731857035382643
+      },
+      "hind knee": {
+       "rms_worst_nm": 8.113252312342238,
+       "rms_mean_nm": 7.285921217775681,
+       "rms_over_thermal": 1.2019633055321834,
+       "peak_nm": 18.9,
+       "peak_over_limit": 1.0,
+       "saturated_fraction": 0.030194444444444444,
+       "peak_rpm": 49.14087532578232,
+       "rpm_over_allowance": 0.5920587388648472
+      }
+     },
+     "power_w": 40.0106287357144,
+     "cost_of_transport": 1.3359092025565407,
+     "roll_deg": {
+      "rms": 1.0737876993498188,
+      "peak": 2.092494766307119
+     },
+     "pitch_deg": {
+      "rms": 0.882068759266983,
+      "peak": 2.152312736489823
+     }
+    }
+   ]
+  }
+ },
+ "contact_sensitivity_flag": false
+}
