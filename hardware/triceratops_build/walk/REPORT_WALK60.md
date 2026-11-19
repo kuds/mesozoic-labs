@@ -112,8 +112,11 @@ policies' are.
 The learned policies' sweep (`rl/robustness/sweep.py`: same points, physics changes, push, terrain, measures and
 break rule) with the frozen trot as the source of the actions. Nominal model, observation noise on, no
 randomisation, 8 episodes per point (seeds 200000-200007), 0.25 m/s unless stated. Tool output
-`results/sweep_walk60/` (`walk/sweep_walk60.py` at 088ca493, clean, 560 episodes, 4 workers, 6.9 min). One trial
-episode per terrain point was run before the plan's commit, to check the driver. The charts' captions keep the
+`results/sweep_walk60/` (`walk/sweep_walk60.py` at 088ca493, clean, 560 episodes, 4 workers, 6.9 min). Before the
+plan's commit, a trial of the terrain family on seed 200000 (one episode per point) was run to check the driver;
+its episodes are identical to the sweep's seed-200000 terrain episodes, so 1 of the 8 terrain seeds was seen first
+(it showed the 3 cm step at -45 % and the 5° ramp at -27 %). The plan fixes nothing that could have been tuned on
+it: the points, seeds and break rule are the sweep's, the controller is frozen, and nothing is judged. The charts' captions keep the
 sweep's wording for policies ("one policy", "trained on a flat floor"); here they mean this controller.
 
 "Break": the first point outward from nominal with a fall, or a speed more than 20 % below the nominal point's.
@@ -127,9 +130,11 @@ sweep's wording for policies ("one policy", "trained on a flat floor"); here the
 | Force limit x0.4-1, kp x0.4-1.5 | none | none | none |
 | Sideways push, free-body dv | falls at ±1.5 m/s (8/8 each side); **none at ±1.25** | falls at ±1.25 (4/8 right, 7/8 left) | falls at ±1.25 (4/8 right, 1/8 left) |
 | Step up | 3 cm: 0.193 m/s, **-22 %** | 3 cm: -54 % | 3 cm: -39 % |
-| Ramp up | **5°: 0.179 m/s, -27 %** (3°: -18 %; 8°: -48 %) | 8°: -34 % (5°: -12 %) | 8°: -21 % (5°: -13 %) |
+| Ramp up | **5°: 0.179 m/s, -27 %** (3°: -18 %; 8°: -47 %) | 8°: -34 % (5°: -12 %) | 8°: -21 % (5°: -13 %) |
 
-Beyond the breaks (mean of 8 episodes; trot / run2b):
+Beyond the breaks (mean of the 8 episodes, over those that did not fall; trot / run2b). Run2b's +1.25 m/s push row
+is its one surviving episode. The trot's 3 cm step break sits just past the 20 % line, with single episodes from
+-6 % to -45 % (mean 0.193 ± 0.011 m/s, standard error, against run2b's 0.114 ± 0.014).
 
 | Point | Speed, m/s | Sideways drift | Worst joint RMS / rating | Worst joint at the nominal limit |
 |---|---|---|---|---|
@@ -143,19 +148,29 @@ Beyond the breaks (mean of 8 episodes; trot / run2b):
 | Push 1.25 m/s left | 0.230 / 0.227 (no falls / 7 of 8 fell) | 0.12 / 0.09 m | 0.73 / 0.72 | 2.8 / 0.9 % |
 
 **Reading:**
-- On almost every axis the trot's edges lie further out than the learned policies':
-  - **Delay:** it holds speed to 60 ms.
-  - **Slippery floors:** it holds its line where run2b drifted.
-  - **Pushes:** it survives the 1.25 m/s push that toppled both policies.
-  - **Steps:** it loses less speed on a 3 cm step.
-- **Ramps are its weak side.** It slows more than either policy from 3° on and breaks at 5°. Its hottest joint on a
-  ramp is a hind knee: 0.94 of rating at 3°, 0.99 at 5°, and on an 8° ramp above its continuous rating (1.09) and at
-  its torque limit 7.4 % of the time. That bears on F12: climbing, the X4 hind knees reach their rating with this
-  gait. Its fixed timing and chassis-locked leg targets do not adapt to a slope; the roll and pitch correction is
-  the only help.
-- **Torque limit:** across the sweep it spends more time at the nominal torque limit than run2b (2-4 % at most
-  points against about 1 %), as in the judged run.
-- **Drift:** about 0.12 m throughout, from the simulated gyro drift, where run2b's drift ranged from 0.05 to 1.15 m.
+- **Where its edges lie further out.**
+  - **Delay at 0.25 m/s:** it holds speed to 60 ms, where both policies broke. At 0.15 m/s it loses 17 % at 60 ms:
+    further out than run2b, which broke there, but not than pipe1, which lost 7 %.
+  - **Pushes:** it survives the 1.25 m/s push that toppled some episodes of both policies.
+- **Same break point, less speed lost:** on a 3 cm step all three break, and it loses less speed (-22 % against
+  -54 % and -39 %).
+- **Drift on slippery floors:** it drifts less than run2b (0.13 against 0.78 m at friction 0.15), though more than
+  pipe1 (0.05 m).
+- **No break for any controller:** friction, mass, payload, force limit and kp.
+- **Ramps are its weak side.** It slows more than either policy from 3° on and breaks at 5°. Its fixed timing and
+  chassis-locked leg targets do not adapt to a slope; the roll and pitch correction is the only help.
+  - With this controller the X4 hind knees reach 0.94 of their continuous rating at 3° and 0.99 at 5°. At 8° they
+    reach 1.09 (1.22 in the worst episode), and the knee is at its torque limit 7.4 % of the time; a hind pitch
+    drive, also an X4, is just over its rating too (1.006).
+  - Run2b climbs the same ramps with its hind knees at 0.66-0.74, its load shifted to the hind pitch drives.
+  - F12's estimate is for level walking, so this is a slope case in which one controller reaches the rating, not
+    a test of F12.
+- **Torque limit:** it spends more time at the nominal torque limit than run2b at 48 of the 64 points where that
+  measure works (all but the reduced force limits). The median is 2.1 % against 1.0 %, the maximum 7.4 %.
+  - Run2b is higher at long delays, on 2-3 cm steps, at kp x1.5 and on slippery floors (for example 13.0 against
+    5.2 % on a 3 cm step).
+- **Drift:** about 0.10-0.15 m at most points, from the simulated gyro drift. It grows on ramps (0.21 m at 5°,
+  0.42 m at 8°) and reaches 0.24 m at 60 ms delay at 0.15 m/s. Run2b's ranged from 0.03 to 1.15 m.
 - **Not a verdict.** These are controllers as built, differing in control rate, action range, velocity input and
   gait. One controller per side; simulation.
 
