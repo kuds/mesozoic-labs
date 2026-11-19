@@ -1,8 +1,10 @@
 # The model-based trot at 60 cm (task 5, D10): judged result (simulation)
 
 19 Nov 2026. Controller `walk/walk60.py`. Development log `DEV_LOG.md`. Rules `PREREG_WALK60.md`, committed before the
-judged run. Tool output `results/walk60_2026-11-19/` (`judge_walk60.py` at commit 0382ce56, clean; 114 s on 2
-processes). Simulation of a model whose masses and contact are estimates.
+judged run. Tool output `results/walk60_2026-11-19/` (`judge_walk60.py --workers 2` at commit 0382ce56, clean;
+114.5 s; the worker count is from the command line and is not recorded in the output). Simulation of a model whose
+masses and contact are estimates. Revised after the independent review (list at the end); the verdict is unchanged
+and the judged run reproduced bit for bit.
 
 ## Answer first
 
@@ -23,11 +25,24 @@ processes). Simulation of a model whose masses and contact are estimates.
     0.7-0.8 of rating. F12's warning describes neither, though neither settles the hardware.
 - **Power:** 24-30 W of joint mechanical power, against run2b's 22 W.
 - **What it does not do well (reported, no rule):**
-  - **Front-foot bounce on grippy floors.** The front feet record about 3 touchdowns per second against a stride of
-    1.43 per second: they bounce once at landing. On the slippery floor it is 1.5 per second, with no bounce.
-  - **Time at the torque limit.** The front pitch drives sit at their randomised torque limit in up to 3.4-3.5 % of
-    steps on grippy floors, at landing; the hind knees reach it in 1.1-1.5 % on slippery floors. At the nominal
-    limit the worst is 0.6 %.
+  - **Extra front-foot touchdowns on grippy floors.** The front feet record 3.0-3.2 touchdowns per second on
+    average (up to 3.9 in one episode) against a stride of 1.43 per second, so about two per stride. In four
+    episodes the reviewer instrumented, about a third of them came late in the foot's own stance, while the other
+    diagonal pair landed, and the rest around the foot's own landing. On slippery floors it is 1.5 per second on
+    average, with single episodes up to 1.9. At the 0.15 m/s command it is worse: 4.4-4.7 per second on average,
+    5.9 at worst (about 3 per stride).
+  - **Time at the torque limit, against the 1 % flag used for the learned policies.**
+    - On the nominal model, where randomised limits cannot hide it, the right fore pitch drive sits at its limit in
+      2.9 % of steps and the left fore pitch in 1.9 %, in every episode. Run2b's worst joint on its nominal model
+      was at 0.9 %.
+    - With randomisation, measured against each episode's own limit: the front pitch drives are over 1 % in 9-10
+      of 10 episodes on grippy floors (up to 3.5 %); the hind knees in 2-3 of 10 episodes on every floor (up to
+      1.5 %, the highest on a grippy floor).
+    - In the instrumented episodes the front pitch time came at landing, the hind knees' at lift-off and mid-swing.
+    - Measured against the nominal limit with randomisation on, the worst is 0.6 %. That measure cannot see a
+      drive whose limit was drawn lower (0.85-1.0 of nominal), so it understates.
+    - The model clamps each drive at 70 % of its maker's peak, so this is time at the model's clamp, not beyond
+      what the drive can give.
   - **Straightness.** Heading change is up to 5.9° and sideways drift up to 0.25 m over 18 s. Both follow the
     simulated drift of the gyro-integrated heading estimate, which the controller cannot see.
 - **What it means.** In simulation, a 60 cm Triceratops with this build's drives can trot at the museum's 0.25 m/s
@@ -51,18 +66,21 @@ Per condition (from `results.json`):
 | Highest mean RMS / rating, the four worst joints | hind pitch L 0.72, R 0.70; right fore pitch 0.67; left hind knee 0.65 | hind knees R 0.73, L 0.72; fore elbows 0.54, 0.53 | hind pitch L 0.82, R 0.76; fore pitch R 0.75, L 0.71 | hind knees 0.72, 0.72; fore elbows 0.54, 0.53 |
 | Touchdowns per s, LF / RF / LH / RH | 3.0 / 3.1 / 1.5 / 1.5 | 1.5 / 1.5 / 1.6 / 1.6 | 3.2 / 3.2 / 1.7 / 1.6 | 1.5 / 1.5 / 1.7 / 1.6 |
 | Slip ratio, LF / RF / LH / RH | 0.09 / 0.09 / 0.06 / 0.07 | 0.16 / 0.16 / 0.10 / 0.11 | 0.08 / 0.08 / 0.06 / 0.06 | 0.15 / 0.16 / 0.11 / 0.11 |
-| At the episode's torque limit, worst joint | right fore pitch 3.4 % | left hind knee 1.4 % | right fore pitch 3.5 % | left hind knee 1.5 % |
+| Touchdowns per s, worst episode, front / hind | 3.8 / 1.6 | 1.9 / 1.8 | 3.9 / 1.9 | 1.7 / 2.1 |
+| Slip ratio, worst single episode and foot | 0.11 | 0.20 | 0.09 | 0.19 |
+| At the episode's torque limit, worst joint, mean (worst episode) | right fore pitch 2.5 % (3.4 %) | left hind knee 0.7 % (1.4 %) | right fore pitch 2.6 % (3.5 %) | left hind knee 0.7 % (1.5 %) |
+| Joint-episodes over the 1 % flag, of 120 (joints) | 23 (both fore pitch, both hind knees) | 5 (hind knees) | 27 (both fore pitch, both hind pitch, both hind knees) | 5 (hind knees) |
 | Joint mechanical power | 28 W | 24 W | 30 W | 24 W |
 
 ## Reported cases (5 episodes each, seeds 101-105, no rule)
 
-| Case | Speed, m/s | Falls | Worst RMS / rating | Power |
-|---|---|---|---|---|
-| J1 at 0 ms delay | 0.246-0.250 | 0 | 0.75 | 28 W |
-| J2 at 0 ms delay | 0.250-0.253 | 0 | 0.76 | 24 W |
-| J1 at the 0.15 m/s command | 0.151-0.152 | 0 | 0.70 | 20 W |
-| J1 standing (0 m/s) | 0.000 | 0 | 0.52 | 1 W |
-| Nominal model, no randomisation or noise | 0.245-0.246 | 0 | 0.70 | 26 W |
+| Case | Speed, m/s | Falls | Worst RMS / rating | Front touchdowns per s, mean (worst episode) | At the episode's limit, worst joint, mean (worst) | Power |
+|---|---|---|---|---|---|---|
+| J1 at 0 ms delay | 0.246-0.250 | 0 | 0.75 | 2.7-2.9 (3.3) | right fore pitch 2.6 % (3.2 %) | 28 W |
+| J2 at 0 ms delay | 0.250-0.253 | 0 | 0.76 | 1.4-1.5 (1.5); left hind 1.9 | left hind knee 0.8 % (1.3 %) | 24 W |
+| J1 at the 0.15 m/s command | 0.151-0.152 | 0 | 0.70 | 4.4-4.7 (5.9) | left fore pitch 2.4 % (2.9 %) | 20 W |
+| J1 standing (0 m/s) | 0.000 | 0 | 0.52 | 0 | 0 % | 1 W |
+| Nominal model, no randomisation or noise | 0.245-0.246 | 0 | 0.70 | 3.1-3.5 (3.6) | right fore pitch 2.9 % (2.9 %), the same at the nominal limit | 26 W |
 
 The delay barely matters between 0 and 10 ms.
 
@@ -70,7 +88,8 @@ The delay barely matters between 0 and 10 ms.
 
 | | Model-based trot (J1, grippy) | Learned, run2b (gait report, 0.25 m/s) |
 |---|---|---|
-| Floor and randomisation | friction 1.0; mass, kp and force limits randomised | friction 0.6-1.0 randomised |
+| Floor and randomisation | friction 1.0; mass, kp and force limits randomised | friction 0.6-1.0, mass, kp and force limits randomised |
+| Joint target range around neutral, roll / pitch / flexion | ±0.45 / 0.70 / 0.85 rad (the joint ranges clip first) | ±0.15 / 0.40 / 0.40 rad (the policy's action scales) |
 | Control rate | 100 Hz | 50 Hz, 4 Hz action filter |
 | Velocity input | leg odometry | the simulator's true velocity (privileged) |
 | Speed | 0.248 m/s | 0.245 m/s |
@@ -79,10 +98,13 @@ The delay barely matters between 0 and 10 ms.
 | Slip ratio | 0.06-0.09 | 0.05-0.09 |
 | Joint mechanical power | 28 W | 22 W |
 | Sideways drift, worst, 18 s | 0.25 m | 0.23 m |
+| Front-foot touchdowns per s | 3.0 / 3.1 | 1.24 / 1.23 |
+| At the torque limit on the nominal model, worst joint | 2.9 % (right fore pitch) | 0.9 % (right fore pitch) |
 
-The two reach similar loads and slip by different gaits. The model-based trot uses more power (shorter, quicker
-strides) and has no privileged input. It has not been run through the robustness sweep (steps, ramps, pushes),
-so its edges are not known; the learned policies' are.
+The two reach similar heat and slip by different gaits. The model-based trot is clearly worse on time at the torque
+limit and on front-foot touchdowns, uses more power (shorter, quicker strides), and has no privileged input. It has
+not been run through the robustness sweep (steps, ramps, pushes), so its edges are not known; the learned
+policies' are.
 
 ## What this does not show
 
@@ -98,5 +120,17 @@ so its edges are not known; the learned policies' are.
 
 1. Run the walk through the robustness sweep (delay, friction, mass, payload, force limit, kp, pushes, steps,
    ramps), to set its edges against the learned policies'.
-2. Soften the front-foot landing on grippy floors (the remaining bounce and time at the torque limit).
+2. Soften the front feet on grippy floors: the landing (the time at the front pitch drives' limit) and the extra
+   touchdowns late in stance, which are worse at 0.15 m/s.
 3. Use this walk for the museum render clips: it is deterministic and robust in these conditions.
+
+## Revised after the independent review (19 Nov 2026; the verdict and every judged number unchanged)
+
+- Time at the torque limit was understated. The first version quoted 0.6 % at the nominal limit, which randomised
+  limits mask, and gave neither the nominal model's 2.9 % nor the 1 % flag counts. Both are now in, and the run2b
+  comparison gained this row and the touchdowns row.
+- The front feet's extra touchdowns were called "a bounce at landing". The reviewer's instrumented episodes show
+  about a third coming late in stance; the 0.15 m/s case, worse, is now reported.
+- Per-episode worst values (slip, touchdowns) and the action-range difference from the learned policy were added.
+- The summary tool's RESULTS.md gives only the worst joint and no touchdowns, though the pre-registration lists
+  per-joint limit time against the 1 % flag and touchdowns: this report gives them from `results.json`.
