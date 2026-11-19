@@ -256,6 +256,18 @@ train.py as `--env-config`.
   the robustness sweep turn terrain, pushes and the low-friction end off (`flat_floor`), so run 3's numbers compare
   with run2b's directly; the sweep adds its own steps, ramps and pushes.
 - **Cost:** about 3 % fewer env steps per second (378 against 390 in one process).
+- **Local probe (development, one seed, not judged; 19 Nov 2026):**
+  - Setup: the run-3 preset, 3 envs, seed 0, 1.5 M steps on a compressed schedule (terrain from 0.3 M to 1.2 M,
+    late penalties from 0.3 M to 0.9 M, energy and slip ramped over 0.6 M).
+  - The probe was stopped by a time limit at 1,000,002 steps; train.py saved and recorded the stop, and it resumed
+    from that pair.
+  - Flat-floor evaluations (one deterministic episode per command, 10 ms delay): no falls at any of them; at 0.25
+    m/s, 0.239 m/s at 0.5 M, 0.235 at 0.75 M, 0.236 at 1.25 M and 0.237 at 1.5 M (terrain at full scale from 1.2 M).
+  - Training rollouts kept their full 20 s length up to full terrain, and averaged 993 of 1000 steps at the end (a
+    few falls on terrain).
+  - The worst drive in the final flat evaluation was at 1.20 of its rating; run2b's evaluations peaked at 1.14 near
+    1.5 M before their late penalties brought it under 1.0.
+  - It shows that walking survives the terrain coming in; nothing about the final quality of a 10 M-step run.
 
 ## What training prints and writes
 
