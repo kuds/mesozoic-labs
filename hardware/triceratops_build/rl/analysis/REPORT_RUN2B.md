@@ -206,7 +206,7 @@ the same files). The sweep's break rule does not use it.
 
 Over the 68 points with figures, run2b drifts more than pipe1 (by more than 5 mm) at 37, less at 21 and within 5 mm at
 10. The largest gaps against run2b are on 2-3 cm steps (+1.04 m), friction 0.15-0.2 (+0.49 to +0.73 m) and ramps of 5-8°
-(+0.53 to +0.71 m); the largest in its favour are at 40 and 60 ms delay at 0.25 m/s (-0.26 and -0.28 m). Every other
+(+0.53 to +0.70 m); the largest in its favour are at 40 and 60 ms delay at 0.25 m/s (-0.26 and -0.28 m). Every other
 gap is 0.3 m or less. The 21 points where it drifts less: delays of 20, 40 and 60 ms at 0.25 m/s, force limits x0.4-0.7, payload 0.5-2 kg, kp x1.2-1.5, friction 0.6, 0.8 and 1.2, mass x1.1-1.2, and pushes of 0.4-1.25 m/s to the right. Drift of 1.1-1.3 m in
 18 s would take the robot out of a 1 m-wide lane started at its centre.
 
