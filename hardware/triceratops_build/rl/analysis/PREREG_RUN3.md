@@ -9,7 +9,8 @@ were chosen with run2b's weaknesses in view: its edges on steps and ramps, its s
 
 ## What is trained
 
-- **Code:** the reviewed commit that `runs/trike60-run3_STEPS.md` names (the notebook runs exactly that commit).
+- **Code:** the reviewed commit that the step sheets `runs/trike60-run3-s0_STEPS.md` and `runs/trike60-run3-s1_STEPS.md`
+  name (the notebook runs exactly that commit; both seeds run the same commit).
 - **Setup:**
   - Model: `trike60_C_closed_ankleroll.xml` (revision 3).
   - Environment: `configs/run3_terrain.json` (ENV_PRESET `run3_terrain`): terrain boxes, pushes and the friction
