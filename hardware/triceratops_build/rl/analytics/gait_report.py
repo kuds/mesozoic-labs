@@ -1246,6 +1246,10 @@ def markdown(R: dict) -> str:
           f"{_f(R['environment']['run_commit_trike_env_sha256'], '{}')[:12]}...). This tool's log, passed through "
           "`gait_pipe1.measures`, against the committed per-episode figures:", "",
           "| Case | Episodes | Speed now / then, m/s | Power now / then, W | Largest difference | Identical |", "|---|---|---|---|---|---|"]
+    if not cc.get("available", True):   # another policy: nothing to compare per episode
+        L[-4] = (f"Environment: `{R['environment']['trike_env_py']}` (sha256 {R['environment']['trike_env_sha256'][:12]}...; "
+                 f"the run commit's file: {_f(R['environment']['run_commit_trike_env_sha256'], '{}')[:12]}...).")
+        L[-3:] = ["", f"Not applicable: {cc.get('reason', 'the reference covers another policy')}."]
     for k, v in cc.get("cases", {}).items():
         big = max(v["max_abs_difference"].items(), key=lambda kv: kv[1]) if v["max_abs_difference"] else ("-", 0)
         L.append(f"| {C[k]['label']} | {v['episodes_compared']} | {v['this_speed_mps']:.4f} / {v['reference_speed_mps']:.4f} | "
