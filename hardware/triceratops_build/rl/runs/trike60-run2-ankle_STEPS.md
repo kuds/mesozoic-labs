@@ -4,8 +4,8 @@ Written 19 Nov 2026. The code the notebook runs is commit e92fd9ef; this file on
 
 # Triceratops 60 cm: a training run on Colab, with the stop and resume tests. The steps.
 
-*** DRAFT of 19 Nov 2026 for the next run. DO NOT START FROM THIS DRAFT. ***
-Every value written <<LIKE THIS>> is filled in when I send you the final sheet: above all the commit (e92fd9ef5ccdbca424a1a9dc017a3e9addfc2545), the
+*** FINAL SHEET for run trike60-run2-ankle, 19 Nov 2026. Start from this one. ***
+Every value is filled in: above all the commit (e92fd9ef5ccdbca424a1a9dc017a3e9addfc2545), the
 run's name (trike60-run2-ankle) and its length (8000000), and the numbers that follow from them. The pipeline test
 (trike60-pipe1, 19 Nov 2026) ran this notebook on Colab straight through; its stop test and resume test (3.7, 3.8)
 were not done, so this run does them. Every line quoted below is printed by the program itself (I checked the wording
