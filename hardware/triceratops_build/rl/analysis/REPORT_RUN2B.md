@@ -39,11 +39,12 @@ Sources (tool output, not retyped by hand except where a table says so):
   run2b slows more there: on a 3 cm step to 0.114 m/s (-54 %, pipe1 -39 %), on an 8° ramp to 0.162 m/s (-34 %, pipe1
   -21 %). At 0.15 m/s run2b also breaks at 60 ms delay (0.104 m/s, -29 %), where pipe1 does not (-7 %). Pushed to the
   left at 1.25 m/s (free-body; impulse 15.9 N·s), 7 of 8 episodes fell (pipe1 1 of 8); to the right 4 of 8 for both.
-- **It holds a straight line much worse than pipe1 once conditions differ from training.** Mean sideways drift over
+- **On steps, ramps and slippery floors it holds a straight line much worse than pipe1.** Mean sideways drift over
   18 s, against 0.08 m at the nominal point (pipe1 0.06 m): 1.13-1.15 m on 2-3 cm steps (pipe1 0.08-0.12), 0.66-0.87 m
   on 5-8° ramps (pipe1 0.13-0.16), 0.32-0.78 m at friction 0.3-0.15 (pipe1 0.12-0.05), 0.35 m at mass x0.8, 0.21-0.31 m
   at kp x0.6-0.8, 0.27 m at 15 ms delay; on the unseen foot 0.36 m mean, 0.77 m worst, with heading changes up to 12°.
-  It drifts less than pipe1 only at 40-60 ms delay. The sweep's break rule (a fall or a speed drop over 20 %) does not
+  It drifts less than pipe1 at 21 of the 68 sweep points: long delays (40-60 ms), reduced force limits, payload, kp
+  x1.2-1.5, friction 0.6-1.2, mass x1.1-1.2 and pushes to the right. The sweep's break rule (a fall or a speed drop over 20 %) does not
   count drift, so the sweep summary's headline lists friction, mass and kp as clean; for straightness they are not.
 - **Still asymmetric, and the slow gait is irregular.** The right-fore and left-hind diagonal carries 59 % of the
   weight and stands longer (duty factors 0.60 and 0.63 against 0.46 and 0.44), as in pipe1. At 0.15 m/s the gait is
@@ -203,7 +204,10 @@ the same files). The sweep's break rule does not use it.
 | Delay 40 / 60 ms | 0.47 / 0.36 m | 0.22 / 0.08 m |
 | Delay 0-15 ms at 0.15 m/s | 0.04 m | 0.06-0.12 m |
 
-Run2b drifts more than pipe1 at most points away from nominal and less only at long delays. Drift of 1.1-1.3 m in
+Over the 68 points with figures, run2b drifts more than pipe1 at 37, less (by more than 5 mm) at 21 and about the same
+at 10. The large differences are all on its side: steps, ramps of 5° and more, friction 0.15-0.3, mass x0.8, kp
+x0.6-0.8 and 15 ms delay; it drifts less at long delays, reduced force limits, with payload, at kp x1.2-1.5, friction
+0.6-1.2, mass x1.1-1.2 and under pushes to the right (by 0.01-0.28 m, the largest at 40-60 ms delay). Drift of 1.1-1.3 m in
 18 s would take the robot out of a 1 m-wide lane started at its centre.
 
 ## 9. The other foot (PR #669's pitch-only ankle, never seen in training)
@@ -240,6 +244,8 @@ Revised after the independent review (first version 6d7526b9; corrections only, 
 - Wording that went beyond the records was removed: that the reward changes "did what they were for" (reward, foot,
   training length, schedules and phase clock all differ); that F12 is "not reproduced"; that this is "a usable walking
   policy"; and in section 9 that it walks on the other foot "almost exactly as on its own".
+- The re-check found the drift comparison still too broad ("less only at long delays"; run2b drifts less at 21 of 68
+  points); restated with the counts, here and in F14 and RUNS.md.
 - Section 1's elbow-peak sentence, the other foot's worst episode, "same points" (true at 0.25 m/s only), "under-counted"
   (lower by definition) and pipe1's 3.7-22.5 % were corrected.
 
