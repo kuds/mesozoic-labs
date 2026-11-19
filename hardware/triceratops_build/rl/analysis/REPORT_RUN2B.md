@@ -43,9 +43,9 @@ Sources (tool output, not retyped by hand except where a table says so):
   18 s, against 0.08 m at the nominal point (pipe1 0.06 m): 1.13-1.15 m on 2-3 cm steps (pipe1 0.08-0.12), 0.66-0.87 m
   on 5-8° ramps (pipe1 0.13-0.16), 0.32-0.78 m at friction 0.3-0.15 (pipe1 0.12-0.05), 0.35 m at mass x0.8, 0.21-0.31 m
   at kp x0.6-0.8, 0.27 m at 15 ms delay; on the unseen foot 0.36 m mean, 0.77 m worst, with heading changes up to 12°.
-  It drifts less than pipe1 at 21 of the 68 sweep points: long delays (40-60 ms), reduced force limits, payload, kp
-  x1.2-1.5, friction 0.6-1.2, mass x1.1-1.2 and pushes to the right. The sweep's break rule (a fall or a speed drop over 20 %) does not
-  count drift, so the sweep summary's headline lists friction, mass and kp as clean; for straightness they are not.
+  It drifts less than pipe1 at 21 of the 68 sweep points, by 0.01-0.09 m except at 40 and 60 ms delay at 0.25 m/s
+  (0.26 and 0.28 m less); section 8 lists them. The sweep's break rule (a fall or a speed drop over 20 %) does not count
+  drift, so the sweep summary's headline lists friction, mass and kp as clean; for straightness they are not.
 - **Still asymmetric, and the slow gait is irregular.** The right-fore and left-hind diagonal carries 59 % of the
   weight and stands longer (duty factors 0.60 and 0.63 against 0.46 and 0.44), as in pipe1. At 0.15 m/s the gait is
   not classed as a trot and up to 51 % of one foot's strides are irregular.
@@ -204,10 +204,10 @@ the same files). The sweep's break rule does not use it.
 | Delay 40 / 60 ms | 0.47 / 0.36 m | 0.22 / 0.08 m |
 | Delay 0-15 ms at 0.15 m/s | 0.04 m | 0.06-0.12 m |
 
-Over the 68 points with figures, run2b drifts more than pipe1 at 37, less (by more than 5 mm) at 21 and about the same
-at 10. The large differences are all on its side: steps, ramps of 5° and more, friction 0.15-0.3, mass x0.8, kp
-x0.6-0.8 and 15 ms delay; it drifts less at long delays, reduced force limits, with payload, at kp x1.2-1.5, friction
-0.6-1.2, mass x1.1-1.2 and under pushes to the right (by 0.01-0.28 m, the largest at 40-60 ms delay). Drift of 1.1-1.3 m in
+Over the 68 points with figures, run2b drifts more than pipe1 (by more than 5 mm) at 37, less at 21 and within 5 mm at
+10. The largest gaps against run2b are on 2-3 cm steps (+1.04 m), friction 0.15-0.2 (+0.49 to +0.73 m) and ramps of 5-8°
+(+0.53 to +0.71 m); the largest in its favour are at 40 and 60 ms delay at 0.25 m/s (-0.26 and -0.28 m). Every other
+gap is 0.3 m or less. The 21 points where it drifts less: delays of 20, 40 and 60 ms at 0.25 m/s, force limits x0.4-0.7, payload 0.5-2 kg, kp x1.2-1.5, friction 0.6, 0.8 and 1.2, mass x1.1-1.2, and pushes of 0.4-1.25 m/s to the right. Drift of 1.1-1.3 m in
 18 s would take the robot out of a 1 m-wide lane started at its centre.
 
 ## 9. The other foot (PR #669's pitch-only ankle, never seen in training)
@@ -244,8 +244,11 @@ Revised after the independent review (first version 6d7526b9; corrections only, 
 - Wording that went beyond the records was removed: that the reward changes "did what they were for" (reward, foot,
   training length, schedules and phase clock all differ); that F12 is "not reproduced"; that this is "a usable walking
   policy"; and in section 9 that it walks on the other foot "almost exactly as on its own".
-- The re-check found the drift comparison still too broad ("less only at long delays"; run2b drifts less at 21 of 68
-  points); restated with the counts, here and in F14 and RUNS.md.
+- The first re-check found the drift comparison still too broad ("less only at long delays"; run2b drifts less at 21
+  of 68 points). The second found the list of those 21 points loose (it missed 20 ms at 0.25 m/s, and "friction
+  0.6-1.2", "payload" and "pushes to the right" each included points that go the other way) and "the large differences
+  are all on its side" contradicted by the 40-60 ms delay points. The list is now generated from the sweep files and
+  the counts are stated here and in F14; RUNS.md was narrowed to steps, ramps and slippery floors.
 - Section 1's elbow-peak sentence, the other foot's worst episode, "same points" (true at 0.25 m/s only), "under-counted"
   (lower by definition) and pipe1's 3.7-22.5 % were corrected.
 
