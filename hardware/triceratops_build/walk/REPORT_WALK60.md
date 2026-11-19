@@ -148,9 +148,11 @@ Beyond the breaks (mean of 8 episodes; trot / run2b):
   - **Slippery floors:** it holds its line where run2b drifted.
   - **Pushes:** it survives the 1.25 m/s push that toppled both policies.
   - **Steps:** it loses less speed on a 3 cm step.
-- **Ramps are its weak side.** It slows more than either policy from 3° on and breaks at 5°. On an 8° ramp its worst
-  joint (a pitch drive) runs above its continuous rating (1.09) and at its limit 7.4 % of the time. Its fixed timing
-  and chassis-locked leg targets do not adapt to a slope; the roll and pitch correction is the only help.
+- **Ramps are its weak side.** It slows more than either policy from 3° on and breaks at 5°. Its hottest joint on a
+  ramp is a hind knee: 0.94 of rating at 3°, 0.99 at 5°, and on an 8° ramp above its continuous rating (1.09) and at
+  its torque limit 7.4 % of the time. That bears on F12: climbing, the X4 hind knees reach their rating with this
+  gait. Its fixed timing and chassis-locked leg targets do not adapt to a slope; the roll and pitch correction is
+  the only help.
 - **Torque limit:** across the sweep it spends more time at the nominal torque limit than run2b (2-4 % at most
   points against about 1 %), as in the judged run.
 - **Drift:** about 0.12 m throughout, from the simulated gyro drift, where run2b's drift ranged from 0.05 to 1.15 m.
