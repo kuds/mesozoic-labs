@@ -44,7 +44,8 @@ angles: largest difference 2e-16), so the current file is used and the cross-che
 As `gait_pipe1.py`: deterministic actions (the policy mean), servo delay fixed at 10 ms, seeds 100000-100004,
 domain randomisation and observation noise on (friction, masses, gains, force limits, sensor noise, heading drift),
 20 s episodes, **measured over t >= 2 s** (18 s). Cases: 0.25 m/s (the museum target) and 0.15 m/s; 0.25 m/s on the
-nominal model (no randomisation, no noise), whose seed 100000 at t = 6-9 s gives the time-series charts; 0.25 m/s on
+nominal model with observation noise off (no randomisation, no sensor noise; the robustness sweep's
+nominal point keeps the noise on), whose seed 100000 at t = 6-9 s gives the time-series charts; 0.25 m/s on
 the roll-ankle model `trike60_C_closed_ankleroll.xml`; and a speed sweep 0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.27 m/s on
 seeds 100000-100002 (0.15 and 0.25 reuse the cases' episodes). Every physics step (1 ms) is logged through the env's
 `substep_hook`. Means are over episodes unless "worst" (the worst episode) or "pooled" (all strides or steps of the
@@ -102,15 +103,19 @@ case's episodes together) is stated.
 ### Balance (`balance.png`)
 
 - **Support polygon:** convex hull (shared `stance_track.convex_hull`) of the four bottom corners of each sole (box
-  88 x 64 mm) whose floor-truth load is above 2 N, at every 1 ms step.
-- **Centre of pressure (CoP):** the load-weighted mean of those soles' contact points.
+  88 x 64 mm) of the feet **in stance on the step contact** the footfalls use (the env's 10 ms debounce, then gaps and
+  blips under 50 ms merged), at every 1 ms step. Raw 2 N contact would count every 1-2 ms solver rebound of one foot
+  of a diagonal pair as a lift, leaving one foot "down" and the CoM about 0.2 m outside: it measures the contact
+  model, not the gait. The env-debounce (10 ms) and raw-contact figures are reported as labelled footnotes
+  (`balance_env_debounce`, `balance_raw_contact` in the JSON).
+- **Centre of pressure (CoP):** the load-weighted mean of the contact points of the soles in stance.
 - **Centre of mass (CoM):** the whole robot's (`subtree_com` of the free body), projected on the floor.
 - **Margin:** shared `stance_track.signed_margin`: + inside, the distance to the nearest edge; outside, minus the
-  distance past the most violated edge line (exact except beyond a corner, where it is a lower bound). A margin below
-  -1 um counts as outside. **Reported:** the fraction of the window with the CoM outside (a trot carries its CoM
-  outside the diagonal strip part of the time: by design a dynamic gait), split by the number of feet loaded; the
-  median CoM margin; the CoP within 5 mm of an edge (the foot pivots about that edge); the CoP outside (cannot happen
-  with this construction: a check); the fraction with no foot loaded.
+  distance past the most violated edge line (exact except beyond a corner, where it is a lower bound of the distance).
+  A margin below -1 um counts as outside. **Reported:** the fraction of the window with the CoM outside (a trot can
+  carry its CoM outside the diagonal strip part of the time), split by the number of feet in stance; the time with one
+  foot in stance; the median CoM margin; the CoP within 5 mm of an edge (the foot pivots about that edge); the CoP
+  outside (cannot happen with this construction: a check); the fraction with no foot in stance.
 
 ### Drives (`drive_envelopes.png`, `drive_loads.png`)
 
@@ -134,17 +139,25 @@ All at the joint, every 1 ms step of the window. The flexion joints work through
 
 - **Joint mechanical power:** mean of sum |torque x joint speed| over the 12 leg drives (`gait_pipe1.py`'s figure);
   positive work rate (sum of max(torque x speed, 0)) and negative (braking) separately.
-- **Electrical estimate (a lower bound):** sum over the 12 leg drives of max(torque x speed, 0) / linkage efficiency
-  + copper loss 3 R (tau_drive / Kt)^2, with tau_drive = joint torque / linkage efficiency, Kt the output-side torque
-  constant (N m per A rms) and R the per-phase (Y-equivalent) resistance from the T. rex actuator catalog
-  (`hardware/trex_form_study/designlab/data/actuators.json`: X4-36-L 1.8 N m/A, 0.20 ohm; X6-60 2.1 N m/A, 0.205 ohm;
-  `drives.json` cites that catalog but has no Kt). Braking work is not recovered (the power board's ideal diodes block
-  regeneration, `PARTS_PREMIUM.md`). Not modelled: gearbox friction, iron and driver losses, head and tail servos.
+- **Electrical estimates (two bus models):** each drive's torque is the joint torque / linkage efficiency while it
+  motors (torque x speed >= 0) and joint torque x efficiency while it brakes (0.90 on the flexion joints, 1 on roll and
+  pitch); the mechanical power at the drive likewise p / eta or p x eta; its copper loss is 3 R (tau_drive / Kt)^2,
+  with Kt the output-side torque constant (N m per A rms) and R the per-phase (Y-equivalent) resistance from the
+  T. rex actuator catalog (`hardware/trex_form_study/designlab/data/actuators.json`: X4-36-L 1.8 N m/A, 0.20 ohm; X6-60
+  2.1 N m/A, 0.205 ohm; `drives.json` cites that catalog but has no Kt). **Per drive, no reuse:** the mean of the sum
+  over the 12 drives of (positive mechanical power at the drive + copper loss); braking energy is lost. **Shared
+  bus:** the mean over time of max(0, sum over the drives of (mechanical power at the drive + copper loss)): braking
+  drives feed the others on the bus within the same 1 ms step, and a net surplus is dumped (the power board's ideal
+  diodes block regeneration to the battery, `PARTS_PREMIUM.md`). Both are estimates with biases both ways:
+  unmodelled gearbox, iron and driver losses would raise them; bus-level reuse of braking energy would lower the
+  per-drive figure, while the shared-bus figure assumes all of it is reused at once. Head and tail servos are not
+  included.
 - **Hotel load:** an assumption, 30 W (25-40 W reported): Jetson Orin Nano Super (7-25 W), OAK-D Pro W, Teensy and
   four CAN buses, IMU, safety MCU, drive standby, DC-DC losses. The parts list gives only a total walking estimate
   (150-280 W, mass-scaled from the PR), no per-item electrical figures.
 - **Cost of transport:** power / (m g v): mechanical (sum |torque x speed|), and electrical with the hotel load.
-- **Run time:** 146.5 Wh (two 6S 3300 packs) x 80 % usable / (leg electrical estimate + hotel load).
+- **Run time:** 146.5 Wh (two 6S 3300 packs) x 80 % usable / (leg electrical estimate + hotel load), for both
+  electrical estimates.
 
 ### Body and head (`steadiness.png`)
 
@@ -154,7 +167,8 @@ All at the joint, every 1 ms step of the window. The flexion joints work through
 - **Head:** the centre of mass of the head (`head_yaw` body: skull, frill and horns). Acceleration = the time
   derivative of its world velocity (`mj_objectVelocity`), low-passed at 20 Hz (zero phase, FFT), so gravity is not in
   it; RMS of the magnitude, per axis (fore-aft, lateral along the reset heading, vertical), peak (and the unfiltered
-  peak in the JSON). Bob and sway: vertical and lateral position after removing a 1 s moving average (the walk's own
+  peak in the JSON). **Split at 5 Hz:** at or below 5 Hz (the visible bob and sway at the stride's 2.4 Hz and its
+  second harmonic) and 5-20 Hz (the shake of the step impacts); the two bands' mean squares add to the 20 Hz figure. Bob and sway: vertical and lateral position after removing a 1 s moving average (the walk's own
   progress), 1st-99th percentile range (mm).
 
 ### Feet (`feet.png`)
@@ -198,7 +212,8 @@ it also draws `training_compare.png`. Each point is one episode: the curves are 
 ## What these tools do not show
 
 - Anything about the real robot: masses, contact, friction and drive models are estimates; nothing is measured on
-  parts. The electrical figure is a lower bound from a simple loss model and the hotel load is assumed.
+  parts. The electrical figures are estimates from a simple loss model (unmodelled gearbox, iron and driver losses
+  would raise them; bus-level reuse of braking energy would lower the per-drive one), and the hotel load is assumed.
 - A thermal result: RMS torque over 18 s stands in for steady walking.
 - A verdict on a policy or a design: one checkpoint of one training seed.
 - What visitors would see from a camera: the head figures are the head body's motion; the stills in

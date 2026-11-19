@@ -67,7 +67,7 @@ def chart_footfall(R, P, out: Path) -> str:
     ax.set_ylim(-0.6, 4.0)
     ax.set_xlim(t[0], t[-1])
     ax.grid(False)
-    ax.set_xlabel("time, s (nominal model, seed 100000)")
+    ax.set_xlabel("time, s (nominal model, observation noise off, seed 100000)")
     ax.set_title("Stance per foot (bars); vertical lines: left-fore touchdowns")
     ax.tick_params(axis="y", length=0)
     ax.text(0.0, -0.12, "Bars: stance at step level (contact breaks under 50 ms merged). White slivers inside a bar: "
@@ -122,7 +122,8 @@ def chart_footfall(R, P, out: Path) -> str:
             "Symmetry index: 100 |L - R| / mean (0 is symmetric).", transform=tx.transAxes, fontsize=7.6,
             color=cs.MUTED, va="top", linespacing=1.35)
     cs.frame(fig, "Footfalls: when each foot is on the ground",
-             f"{_run_label(R)}: the gait diagram (left) is the clean nominal-model episode; the numbers (right) are the "
+             f"{_run_label(R)}: the gait diagram (left) is the clean nominal-model episode (observation noise off); the "
+             "numbers (right) are the "
              "randomised 0.25 m/s case", _footer(R, "Contact = touch load > 2 N, debounced"))
     cs.save(fig, out / "footfall.png")
     return "footfall.png"
@@ -223,7 +224,7 @@ def chart_balance(R, P, out: Path) -> str:
         hull = gc.convex_hull(frm(cxy[k][down[k]].reshape(-1, 2)))
         ax.add_patch(Polygon(hull, closed=True, fc="none", ec=cs.INK2, lw=1.0, ls="--", zorder=3))
         feet_k = "+".join(gc.SHORT[c] for c, d_ in zip(CORNERS, down[k]) if d_)
-        ax.annotate(f"dashed: support polygon at t = {t[k]:.2f} s ({feet_k} loaded)", hull[np.argmin(hull[:, 1])],
+        ax.annotate(f"dashed: support polygon at t = {t[k]:.2f} s ({feet_k} in stance)", hull[np.argmin(hull[:, 1])],
                     xytext=(0, -14), textcoords="offset points", fontsize=7.8, color=cs.INK2, ha="left")
     pc, pm = frm(cop[sel]), frm(com[sel])
     ax.scatter(pc[::4, 0], pc[::4, 1], s=3, color=COP_COLOR, alpha=0.45, lw=0, zorder=4)
@@ -254,15 +255,18 @@ def chart_balance(R, P, out: Path) -> str:
     ax2.legend(handles=[Line2D([], [], color=COP_COLOR, lw=1.2, label="CoP"),
                         Line2D([], [], color=COM_COLOR, lw=cs.LW, label="CoM")], loc="upper right", ncol=2)
     ax3 = fig.add_subplot(gs[1, 1], sharex=ax2)
-    ax3.step(tt, down[m2].sum(1), where="post", color=cs.INK2, lw=1.0)
+    raw = np.asarray(tr["down_raw"], dtype=bool)
+    ax3.step(tt, raw[m2].sum(1), where="post", color=cs.AXIS, lw=0.8, label="raw 2 N contact")
+    ax3.step(tt, down[m2].sum(1), where="post", color=cs.INK2, lw=1.2, label="in stance (step contact)")
     ax3.set_yticks([0, 1, 2, 3, 4])
     ax3.set_ylim(-0.3, 4.3)
-    ax3.set_ylabel("feet loaded")
-    ax3.set_xlabel("time, s (nominal model, seed 100000)")
+    ax3.set_ylabel("feet")
+    ax3.legend(loc="lower right", ncol=2, fontsize=7.5)
+    ax3.set_xlabel("time, s (nominal model, observation noise off, seed 100000)")
     cs.frame(fig, "Balance: centre of pressure and centre of mass against the feet on the ground",
-             f"{_run_label(R)}. Support polygon: hull of the sole corners of every foot loaded above 2 N. Margin: distance "
-             "inside the nearest edge (negative outside).\n" + _balance_numbers(R),
-             _footer(R, "Panels: nominal model, 0.25 m/s; figures in the subtitle: randomised, 5 episodes"))
+             f"{_run_label(R)}. Support polygon: hull of the sole corners of the feet in stance (step contact, as the "
+             "footfalls). Margin: distance inside the nearest edge (negative outside).\n" + _balance_numbers(R),
+             _footer(R, "Panels: nominal model, noise off, 0.25 m/s; figures in the subtitle: randomised, 5 episodes"))
     cs.save(fig, out / "balance.png")
     return "balance.png"
 
@@ -270,10 +274,11 @@ def chart_balance(R, P, out: Path) -> str:
 def _balance_numbers(R) -> str:
     S = R["cases"]["target_0.25"]["summary"]["balance"]
     N = R["cases"]["nominal_0.25"]["summary"]["balance"]
-    return (f"0.25 m/s randomised: CoM outside {100 * S['com_margin_negative_fraction']:.0f} % of the time (nominal "
-            f"{100 * N['com_margin_negative_fraction']:.0f} %), median CoM margin {S['com_margin_median_mm']:.0f} mm; CoP "
-            f"within 5 mm of an edge {100 * S['cop_near_edge_fraction']:.0f} %; CoP outside "
-            f"{100 * S['cop_margin_negative_fraction']:.1f} % (a check).")
+    Rw = R["cases"]["target_0.25"]["summary"]["balance_raw_contact"]
+    return (f"0.25 m/s randomised: CoM outside {100 * S['com_margin_negative_fraction']:.1f} % of the time (nominal "
+            f"{100 * N['com_margin_negative_fraction']:.1f} %), median CoM margin {S['com_margin_median_mm']:.0f} mm; CoP "
+            f"within 5 mm of an edge {100 * S['cop_near_edge_fraction']:.0f} %. Footnote: on raw 2 N contact, which counts "
+            f"1-2 ms solver rebounds as lifts, the CoM reads outside {100 * Rw['com_margin_negative_fraction']:.0f} %.")
 
 
 # ---------------------------------------------------------------- d. drives
@@ -378,56 +383,62 @@ def chart_power(R, P, out: Path) -> str:
     tr = P["cases"]["nominal_0.25"]["trace"]
     t = _arr(tr["t"])
     n = 20
-    series = [("leg electrical estimate", gc.moving_average(_arr(tr["p_elec"]), n), cs.SERIES[0]),
-              ("copper loss", gc.moving_average(_arr(tr["p_cu"]), n), cs.SERIES[1]),
-              ("positive mechanical work", gc.moving_average(_arr(tr["p_pos"]), n), cs.SERIES[2])]
-    fig = plt.figure(figsize=(12.5, 7.2))
+    series = [("electrical, per drive (no reuse)", gc.moving_average(_arr(tr["p_elec"]), n), cs.SERIES[0]),
+              ("electrical, shared bus", gc.moving_average(_arr(tr["p_bus"]), n), cs.SERIES[1]),
+              ("copper loss", gc.moving_average(_arr(tr["p_cu"]), n), cs.SERIES[2]),
+              ("positive mechanical work", gc.moving_average(_arr(tr["p_pos"]), n), cs.SERIES[3])]
+    fig = plt.figure(figsize=(12.5, 7.4))
     gs = fig.add_gridspec(2, 1, height_ratios=[1.5, 1], left=0.17, right=0.975, top=0.8, bottom=0.13, hspace=0.45)
     ax = fig.add_subplot(gs[0])
     for name, y, col in series:
         ax.plot(t, y, color=col, lw=1.2)
     ax.set_xlim(t[0], t[-1])
     ax.set_ylim(0, None)
-    ax.set_xlabel("time, s (nominal model, seed 100000; 20 ms moving average)")
+    ax.set_xlabel("time, s (nominal model, observation noise off, seed 100000; 20 ms moving average)")
     ax.set_ylabel("power, W (12 leg drives)")
     ax.set_title("Leg power over three strides")
     ax.legend(handles=[Line2D([], [], color=c, lw=cs.LW, label=f"{nm} (mean {np.mean(y):.0f} W)")
-                       for nm, y, c in series], loc="upper left", ncol=3)
+                       for nm, y, c in series], loc="upper left", ncol=2)
     ax2 = fig.add_subplot(gs[1])
     keys = [k for k in ("target_0.25", "cmd_0.15", "nominal_0.25", "ankleroll_0.25") if k in R["cases"]]
     hotel = R["settings"]["hotel_w"]
     ys = np.arange(len(keys))[::-1]
-    cols = [cs.SERIES[2], cs.SERIES[1], cs.MUTED]
+    cols = [cs.SERIES[3], cs.SERIES[2], cs.MUTED]
     for yy, k in zip(ys, keys):
         p = R["cases"][k]["summary"]["power"]
-        parts = [p["electrical_w"] - p["copper_w"], p["copper_w"], hotel]
+        parts = [p["electrical_per_drive_w"] - p["copper_w"], p["copper_w"], hotel]
         x0 = 0.0
         for v, col in zip(parts, cols):
             ax2.barh(yy, v - 1.0, left=x0 + 0.5, height=0.55, color=col)  # 1 W surface gap between segments
             if v > 8:
                 ax2.text(x0 + v / 2, yy, f"{v:.0f}", ha="center", va="center", fontsize=8,
-                         color=cs.INK if col == cs.MUTED else "#ffffff")
+                         color=cs.INK if col in (cs.MUTED, cs.SERIES[3]) else "#ffffff")
             x0 += v
-        rt = p["run_time_min"][f"hotel_{int(hotel)}w"]
-        ax2.text(x0 + 3, yy, f"{x0:.0f} W  ->  {rt:.0f} min per battery set", va="center", fontsize=8.5, color=cs.INK)
-    ax2.set_yticks(ys, [R["cases"][k]["label"].replace(", randomised", "").replace(" (no randomisation or noise)", "")
+        bus = p["electrical_shared_bus_w"] + hotel
+        ax2.plot([bus, bus], [yy - 0.38, yy + 0.38], color=cs.INK, lw=1.6)
+        rt_d = p["run_time_min_per_drive"][f"hotel_{int(hotel)}w"]
+        rt_b = p["run_time_min_shared_bus"][f"hotel_{int(hotel)}w"]
+        ax2.text(x0 + 3, yy, f"per drive {x0:.0f} W -> {rt_d:.0f} min;  shared bus {bus:.0f} W -> {rt_b:.0f} min",
+                 va="center", fontsize=8.3, color=cs.INK)
+    ax2.set_yticks(ys, [R["cases"][k]["label"].replace(", randomised", "").replace(", observation noise off", ", noise off")
                         for k in keys])
-    ax2.set_xlim(0, max(R["cases"][k]["summary"]["power"]["electrical_w"] for k in keys) * 1.55 + hotel)
+    ax2.set_xlim(0, max(R["cases"][k]["summary"]["power"]["electrical_per_drive_w"] for k in keys) * 1.8 + hotel)
     ax2.set_xlabel("mean power, W")
     ax2.set_title("Energy budget while walking (5 episodes each) and run time on 146.5 Wh x 80 %")
     ax2.grid(axis="y", visible=False)
     ax2.tick_params(axis="y", length=0)
-    ax2.legend(handles=[Patch(fc=cs.SERIES[2], label="positive work / linkage efficiency"),
-                        Patch(fc=cs.SERIES[1], label="copper loss 3 R (torque / Kt)^2"),
-                        Patch(fc=cs.MUTED, label=f"hotel load, assumed {hotel:.0f} W")],
-               loc="upper left", ncol=3, fontsize=8, bbox_to_anchor=(-0.01, -0.3))
+    ax2.legend(handles=[Patch(fc=cs.SERIES[3], label="positive work at the drives"),
+                        Patch(fc=cs.SERIES[2], label="copper loss 3 R (torque / Kt)^2"),
+                        Patch(fc=cs.MUTED, label=f"hotel load, assumed {hotel:.0f} W"),
+                        Line2D([], [], color=cs.INK, lw=1.6, label="shared-bus total (tick)")],
+               loc="upper left", ncol=4, fontsize=8, bbox_to_anchor=(-0.01, -0.3))
     T = R["cases"]["target_0.25"]["summary"]["power"]
     cs.frame(fig, "Power and energy: what walking costs the battery",
              f"{_run_label(R)}. At 0.25 m/s: joint mechanical {T['mech_abs_w']:.0f} W (sum |torque x speed|), cost of "
-             f"transport {T['cost_of_transport_mech']:.2f} (mechanical) and {T['cost_of_transport_electrical_with_hotel']:.1f} "
-             "(electrical with hotel load).\nThe electrical figure is a lower bound: gearbox, iron and driver losses are "
-             "not modelled; holding torque (copper loss) dominates.",
-             _footer(R, "Kt and phase resistance from the T. rex actuator catalog; no regeneration"))
+             f"transport {T['cost_of_transport_mech']:.2f} (mechanical). Electrical figures are estimates: unmodelled "
+             "gearbox, iron and\ndriver losses would raise them; the per-drive figure ignores bus-level reuse of braking "
+             "energy (which would lower it), the shared bus assumes it is all reused. Torque (copper loss) dominates.",
+             _footer(R, "Kt and phase resistance from the T. rex actuator catalog; braking energy never reaches the battery"))
     cs.save(fig, out / "power.png")
     return "power.png"
 
@@ -450,14 +461,15 @@ def chart_steadiness(R, P, out: Path) -> str:
     ax2.set_ylabel("chassis height, mm")
     ax2.set_title("Chassis height")
     ax3 = fig.add_subplot(gs[2, 0], sharex=ax1)
-    acc = _arr(tr["head_acc"])
-    for i, (name, col) in enumerate((("fore-aft", cs.SERIES[0]), ("lateral", cs.SERIES[1]), ("vertical", cs.SERIES[2]))):
-        ax3.plot(t, acc[:, i], color=col, lw=1.0 if i < 2 else 1.3, label=name)
+    acc, acc_lo = _arr(tr["head_acc"]), _arr(tr["head_acc_le5hz"])
+    ax3.plot(t, acc[:, 2], color=cs.SERIES[2], lw=0.9, label="vertical, to 20 Hz")
+    ax3.plot(t, acc[:, 1], color=cs.SERIES[1], lw=0.9, label="lateral, to 20 Hz")
+    ax3.plot(t, acc_lo[:, 2], color=cs.SERIES[0], lw=cs.LW + 0.4, label="vertical, to 5 Hz (the visible bob)")
     ax3.axhline(0, color=cs.AXIS, lw=0.8)
     ax3.set_ylabel("head acceleration, m/s^2")
-    ax3.set_title(f"Head acceleration (low-passed at {R['settings']['head_lowpass_hz']:.0f} Hz, gravity excluded)")
-    ax3.legend(loc="upper right", ncol=3)
-    ax3.set_xlabel("time, s (nominal model, seed 100000)")
+    ax3.set_title("Head acceleration (gravity excluded): to 20 Hz, and the part at or below 5 Hz")
+    ax3.legend(loc="upper right", ncol=3, fontsize=7.8)
+    ax3.set_xlabel("time, s (nominal model, observation noise off, seed 100000)")
     ax3.set_xlim(t[0], t[-1])
     for a in (ax1, ax2):
         a.tick_params(labelbottom=False)
@@ -478,28 +490,32 @@ def chart_steadiness(R, P, out: Path) -> str:
               row("head bob, mm", lambda s: s["head"]["bob_mm_p1_p99"]),
               row("head sway, mm", lambda s: s["head"]["sway_mm_p1_p99"]),
               row("head acc RMS, m/s^2", lambda s: s["head"]["acc_rms_mps2"]),
-              row("  vertical", lambda s: s["head"]["acc_rms_by_axis_mps2"]["vertical"]),
-              row("  lateral", lambda s: s["head"]["acc_rms_by_axis_mps2"]["lateral"]),
-              row("head acc peak", lambda s: s["head"]["acc_peak_mps2_worst"])]
+              row("  <= 5 Hz (bob)", lambda s: s["head"]["acc_rms_le5hz_mps2"]),
+              row("  5-20 Hz (shake)", lambda s: s["head"]["acc_rms_5_20hz_mps2"]),
+              row("  vertical, all", lambda s: s["head"]["acc_rms_by_axis_mps2"]["vertical"]),
+              row("head acc peak", lambda s: s["head"]["acc_peak_mps2_worst"]),
+              row("  <= 5 Hz", lambda s: s["head"]["acc_peak_le5hz_mps2_worst"])]
     y = 0.99
     tx.text(0.0, y, "Mean of 5 episodes (peaks: worst episode)", transform=tx.transAxes, fontsize=9.5,
             fontweight="bold", color=cs.INK, va="top")
-    tx.text(0.0, y - 0.035, "r: randomised, n: nominal model; m/s command", transform=tx.transAxes, fontsize=7.8,
+    tx.text(0.0, y - 0.035, "r: randomised; n: nominal model, noise off; m/s command", transform=tx.transAxes, fontsize=7.8,
             color=cs.MUTED, va="top")
     y -= 0.03
     y -= 0.06
     for text, kw in lines:
         tx.text(0.0, y, text, transform=tx.transAxes, **kw)
-        y -= 0.045
+        y -= 0.041
     T = R["cases"]["target_0.25"]["summary"]
-    tx.text(0.0, y - 0.03, f"How it reads: the head bobs about {T['head']['bob_mm_p1_p99']:.0f} mm and sways\nabout "
+    tx.text(0.0, y - 0.02, f"How it reads: the head bobs about {T['head']['bob_mm_p1_p99']:.0f} mm and sways\nabout "
             f"{T['head']['sway_mm_p1_p99']:.0f} mm with every step (bob at {T['head']['bob_dominant_hz']:.1f} Hz): a brisk "
-            f"nod,\nnot a glide. Its RMS acceleration is {T['head']['acc_rms_mps2'] / 9.81:.2f} g, mostly vertical.\n"
+            f"nod,\nnot a glide. The visible part (<= 5 Hz) is {T['head']['acc_rms_le5hz_mps2'] / 9.81:.2f} g RMS; most\n"
+            f"of the {T['head']['acc_rms_mps2'] / 9.81:.2f} g to 20 Hz is a 5-20 Hz shake from the steps.\n"
             "The body itself is steady to about a degree.\n\nRanges: 1st-99th percentile. Bob and sway: after removing\n"
             "a 1 s moving average (the walk's own progress).", transform=tx.transAxes, fontsize=8.1, color=cs.INK2,
             va="top", linespacing=1.4)
     cs.frame(fig, "Body and head steadiness: how the walk looks to a visitor",
-             f"{_run_label(R)}. Time series: nominal model at 0.25 m/s. Head: centre of mass of the head (yaw) body.",
+             f"{_run_label(R)}. Time series: nominal model, observation noise off, 0.25 m/s. Head: centre of mass of the "
+             "head (yaw) body.",
              _footer(R, "Head acceleration = derivative of the head's velocity"))
     cs.save(fig, out / "steadiness.png")
     return "steadiness.png"

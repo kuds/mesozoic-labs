@@ -75,6 +75,7 @@ HOTEL_W, HOTEL_RANGE_W = 30.0, (25.0, 40.0)
 SWEEP = (0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.27)
 SWEEP_SEEDS = SEEDS[:3]
 HEAD_LOWPASS_HZ = 20.0
+HEAD_BOB_HZ = 5.0  # head acceleration is also split at 5 Hz: <= 5 Hz the visible bob, 5-20 Hz the step impacts' shake
 TRACE_T = (6.0, 9.0)
 NEAR_EDGE_M = 0.005
 LOAD_RATE_LAG_S, LOAD_RATE_SPAN_S, IMPACT_SPAN_S = 0.005, 0.030, 0.050
@@ -85,7 +86,7 @@ GAP_BINS_MS = ((0, 10), (10, 20), (20, 50), (50, 80), (80, 10000))
 CASES = {  # key: (label, model file, config changes, command)
     "target_0.25": ("0.25 m/s (target), randomised", DEFAULT_MODEL, {}, 0.25),
     "cmd_0.15": ("0.15 m/s, randomised", DEFAULT_MODEL, {}, 0.15),
-    "nominal_0.25": ("0.25 m/s, nominal model (no randomisation or noise)", DEFAULT_MODEL,
+    "nominal_0.25": ("0.25 m/s, nominal model, observation noise off", DEFAULT_MODEL,
                      {"domain_randomization": False, "observation_noise": False}, 0.25),
     "ankleroll_0.25": ("0.25 m/s, roll-ankle model, randomised", ANKLEROLL_MODEL, {}, 0.25),
 }
@@ -368,26 +369,39 @@ def analyse(a: dict, command: float, drives: dict, trace: bool) -> tuple[dict, d
     pay["stride_load_profiles"] = prof.astype(np.float32).tolist()
 
     # --- c. balance ---
+    # Headline: the support polygon of the feet in stance on the step contact the footfalls use (50 ms rule). Raw 2 N
+    # contact counts every 1-2 ms solver rebound of one foot of a diagonal pair as a lift, leaving one foot "down"
+    # and the CoM ~0.2 m outside; the raw and env-debounce (10 ms) figures are kept, labelled, for comparison.
     cxy = corners[..., :2]
-    down_ft = fn > thr
-    fsum = np.where(down_ft, fn, 0).sum(1)
-    with np.errstate(invalid="ignore", divide="ignore"):
-        cop = np.stack([np.where(down_ft, a["fpx"], 0).sum(1) / fsum, np.where(down_ft, a["fpy"], 0).sum(1) / fsum], 1)
-    cop[fsum <= 0] = np.nan
     com = a["com"][:, :2]
-    mc, mm = gc.margins_over_time(cxy[w], down_ft[w], cop[w], com[w])
-    sup = np.isfinite(mm)
-    nfeet = down_ft[w].sum(1)
-    met["balance"] = {
-        "support_defined_fraction": float(sup.mean()), "no_foot_loaded_fraction": float((nfeet == 0).mean()),
-        "cop_margin_negative_fraction": float(np.mean(mc[sup] < -gc.OUTSIDE_TOL_M)) if sup.any() else None,
-        "cop_near_edge_fraction": float(np.mean(mc[sup] < NEAR_EDGE_M)) if sup.any() else None,
-        "cop_margin_mm": gc.stats(1000 * mc), "com_margin_mm": gc.stats(1000 * mm),
-        "com_margin_negative_fraction": float(np.mean(mm[sup] < -gc.OUTSIDE_TOL_M)) if sup.any() else None,
-        "com_margin_negative_fraction_by_feet": {
-            str(k): (float(np.mean(mm[sup & (nfeet == k)] < -gc.OUTSIDE_TOL_M)) if (sup & (nfeet == k)).any() else None)
-            for k in (1, 2, 3, 4)},
-        "feet_loaded_fraction": {str(k): float((nfeet == k).mean()) for k in range(5)}}
+
+    def balance(down):
+        fsum = np.where(down, fn, 0).sum(1)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            cop_ = np.stack([np.where(down, a["fpx"], 0).sum(1) / fsum, np.where(down, a["fpy"], 0).sum(1) / fsum], 1)
+        cop_[fsum <= 0] = np.nan
+        mc_, mm_ = gc.margins_over_time(cxy[w], down[w], cop_[w], com[w])
+        sup = np.isfinite(mm_)
+        nfeet = down[w].sum(1)
+        bal = {
+            "support_defined_fraction": float(sup.mean()), "no_foot_down_fraction": float((nfeet == 0).mean()),
+            "cop_margin_negative_fraction": float(np.mean(mc_[np.isfinite(mc_)] < -gc.OUTSIDE_TOL_M))
+            if np.isfinite(mc_).any() else None,
+            "cop_near_edge_fraction": float(np.mean(mc_[np.isfinite(mc_)] < NEAR_EDGE_M)) if np.isfinite(mc_).any() else None,
+            "cop_margin_mm": gc.stats(1000 * mc_), "com_margin_mm": gc.stats(1000 * mm_),
+            "com_margin_negative_fraction": float(np.mean(mm_[sup] < -gc.OUTSIDE_TOL_M)) if sup.any() else None,
+            "com_margin_negative_fraction_by_feet": {
+                str(k): (float(np.mean(mm_[sup & (nfeet == k)] < -gc.OUTSIDE_TOL_M)) if (sup & (nfeet == k)).any() else None)
+                for k in (1, 2, 3, 4)},
+            "feet_down_fraction": {str(k): float((nfeet == k).mean()) for k in range(5)}}
+        return bal, cop_, mc_, mm_
+
+    met["balance"], cop, mc, mm = balance(stp)
+    met["balance"]["contact"] = "step contact (env 10 ms debounce, then gaps and blips under 50 ms merged)"
+    met["balance_env_debounce"] = balance(deb)[0]
+    met["balance_env_debounce"]["contact"] = "env 10 ms debounce"
+    met["balance_raw_contact"] = balance(fn > thr)[0]
+    met["balance_raw_contact"]["contact"] = "raw: sole load above 2 N at each 1 ms step (solver rebounds count as lifts)"
 
     # --- d. drives ---
     tau, om = a["tau"][w], a["omega"][w]
@@ -416,24 +430,38 @@ def analyse(a: dict, command: float, drives: dict, trace: bool) -> tuple[dict, d
     pay["drive_hist"] = hist
 
     # --- e. power ---
+    # Electrical ESTIMATES (README): copper loss from the drive torque, which is the joint torque / linkage efficiency
+    # while the drive motors (torque x speed >= 0) and joint torque x efficiency while it brakes; mechanical power at
+    # the drive likewise p / eta or p x eta. Two bus models: per drive with no reuse (each drive draws its positive
+    # power plus copper loss; braking energy is lost), and a shared bus (the 12 drives' net draw each 1 ms step, braking
+    # power feeding the others; a net surplus is dumped, since the ideal diodes block it from the battery). Unmodelled
+    # gearbox, iron and driver losses would raise both.
     p = tau * om
     eta = np.array([drives[gp.group_of(nm)]["transmission_efficiency"] for nm in a["names"]])
     kt = np.array([drives[gp.group_of(nm)]["kt_nm_per_a_rms"] for nm in a["names"]])
     res = np.array([drives[gp.group_of(nm)]["phase_resistance_ohm"] for nm in a["names"]])
-    p_cu = 3.0 * res * (tau / (eta * kt)) ** 2
-    p_elec = (np.maximum(p, 0) / eta + p_cu).sum(1)
+    motoring = p >= 0
+    tau_drive = np.where(motoring, tau / eta, tau * eta)
+    p_drive = np.where(motoring, p / eta, p * eta)
+    p_cu = 3.0 * res * (tau_drive / kt) ** 2
+    p_elec = (np.maximum(p_drive, 0) + p_cu).sum(1)  # per drive, no reuse
+    p_bus = np.maximum(0.0, (p_drive + p_cu).sum(1))  # shared bus
     v = pm["forward_speed_mps"]
     P = {"mech_abs_w": float(np.abs(p).sum(1).mean()), "mech_positive_w": float(np.maximum(p, 0).sum(1).mean()),
          "mech_negative_w": float(np.minimum(p, 0).sum(1).mean()), "copper_w": float(p_cu.sum(1).mean()),
-         "electrical_w": float(p_elec.mean()), "electrical_peak_w": float(p_elec.max())}
+         "electrical_per_drive_w": float(p_elec.mean()), "electrical_per_drive_peak_w": float(p_elec.max()),
+         "electrical_shared_bus_w": float(p_bus.mean()), "electrical_shared_bus_peak_w": float(p_bus.max()),
+         "shared_bus_surplus_fraction": float(np.mean((p_drive + p_cu).sum(1) < 0))}
     P["by_group_w"] = {g: {"positive_mech": float(np.maximum(p[:, cols], 0).sum(1).mean()),
                            "copper": float(p_cu[:, cols].sum(1).mean())}
                        for g in GROUPS for cols in [[j for j, nm in enumerate(a["names"]) if gp.group_of(nm) == g]]}
     weight = a["mass"] * a["gravity"]
     P["cost_of_transport_mech"] = P["mech_abs_w"] / (weight * v) if v > 0.02 else None
-    P["cost_of_transport_electrical_with_hotel"] = (P["electrical_w"] + HOTEL_W) / (weight * v) if v > 0.02 else None
-    P["run_time_min"] = {f"hotel_{int(hw)}w": 60.0 * BATTERY_WH * BATTERY_USABLE / (P["electrical_w"] + hw)
-                         for hw in (HOTEL_RANGE_W[0], HOTEL_W, HOTEL_RANGE_W[1])}
+    for model in ("per_drive", "shared_bus"):
+        e_w = P[f"electrical_{model}_w"]
+        P[f"cost_of_transport_electrical_{model}_with_hotel"] = (e_w + HOTEL_W) / (weight * v) if v > 0.02 else None
+        P[f"run_time_min_{model}"] = {f"hotel_{int(hw)}w": 60.0 * BATTERY_WH * BATTERY_USABLE / (e_w + hw)
+                                      for hw in (HOTEL_RANGE_W[0], HOTEL_W, HOTEL_RANGE_W[1])}
     met["power"] = P
 
     # --- f. body and head ---
@@ -453,8 +481,16 @@ def analyse(a: dict, command: float, drives: dict, trace: bool) -> tuple[dict, d
     hv = a["head_v"]
     acc_raw = np.gradient(hv, dt, axis=0)
     acc = gc.lowpass_fft(acc_raw[w], dt, HEAD_LOWPASS_HZ)
-    comp = np.stack([acc[:, :2] @ h, acc[:, :2] @ lat, acc[:, 2]], 1)  # fore-aft, lateral, vertical
+    acc_lo = gc.lowpass_fft(acc_raw[w], dt, HEAD_BOB_HZ)  # the visible bob and sway
+    acc_hi = acc - acc_lo  # HEAD_BOB_HZ-HEAD_LOWPASS_HZ: the step impacts' shake
+
+    def frame_axes(x):
+        return np.stack([x[:, :2] @ h, x[:, :2] @ lat, x[:, 2]], 1)  # fore-aft, lateral, vertical
+
+    comp, comp_lo, comp_hi = frame_axes(acc), frame_axes(acc_lo), frame_axes(acc_hi)
     mag = np.linalg.norm(acc, axis=1)
+    mag_lo, mag_hi = np.linalg.norm(acc_lo, axis=1), np.linalg.norm(acc_hi, axis=1)
+    axes3 = ("fore_aft", "lateral", "vertical")
     hp = a["head_p"][w]
     one_s = int(round(1.0 / dt))
     bob = hp[:, 2] - gc.moving_average(hp[:, 2], one_s)
@@ -463,8 +499,13 @@ def analyse(a: dict, command: float, drives: dict, trace: bool) -> tuple[dict, d
     met["head"] = {"lowpass_hz": HEAD_LOWPASS_HZ,
                    "acc_rms_mps2": float(np.sqrt((mag ** 2).mean())), "acc_peak_mps2": float(mag.max()),
                    "acc_p99_mps2": float(np.percentile(mag, 99)),
-                   "acc_rms_by_axis_mps2": {k: float(np.sqrt((comp[:, i] ** 2).mean()))
-                                            for i, k in enumerate(("fore_aft", "lateral", "vertical"))},
+                   "acc_rms_by_axis_mps2": {k: float(np.sqrt((comp[:, i] ** 2).mean())) for i, k in enumerate(axes3)},
+                   "band_split_hz": [HEAD_BOB_HZ, HEAD_LOWPASS_HZ],
+                   "acc_rms_le5hz_mps2": float(np.sqrt((mag_lo ** 2).mean())), "acc_peak_le5hz_mps2": float(mag_lo.max()),
+                   "acc_rms_5_20hz_mps2": float(np.sqrt((mag_hi ** 2).mean())), "acc_peak_5_20hz_mps2": float(mag_hi.max()),
+                   "acc_rms_le5hz_by_axis_mps2": {k: float(np.sqrt((comp_lo[:, i] ** 2).mean())) for i, k in enumerate(axes3)},
+                   "acc_rms_5_20hz_by_axis_mps2": {k: float(np.sqrt((comp_hi[:, i] ** 2).mean()))
+                                                   for i, k in enumerate(axes3)},
                    "acc_peak_unfiltered_mps2": float(np.linalg.norm(acc_raw[w], axis=1).max()),
                    "bob_mm_p1_p99": float(1000 * np.ptp(np.percentile(bob, [1, 99]))),
                    "sway_mm_p1_p99": float(1000 * np.ptp(np.percentile(sway, [1, 99]))),
@@ -520,12 +561,14 @@ def analyse(a: dict, command: float, drives: dict, trace: bool) -> tuple[dict, d
             "t": t[s].tolist(), "stp": stp[s].astype(int).tolist(), "deb": deb[s].astype(int).tolist(),
             "raw": raw[s].astype(int).tolist(),
             "load_bw": load_bw[s].tolist(), "cop": cop[s].tolist(), "com": com[s].tolist(),
-            "corners_xy": cxy[s].round(5).tolist(), "down_ft": down_ft[s].astype(int).tolist(),
+            "corners_xy": cxy[s].round(5).tolist(), "down_ft": stp[s].astype(int).tolist(),
+            "down_raw": (fn[s] > thr).astype(int).tolist(),
             "cop_margin": mc[sw_].tolist(), "com_margin": mm[sw_].tolist(),
             "p_pos": np.maximum(p, 0)[sw_].sum(1).tolist(), "p_abs": np.abs(p)[sw_].sum(1).tolist(),
-            "p_cu": p_cu[sw_].sum(1).tolist(), "p_elec": p_elec[sw_].tolist(),
+            "p_cu": p_cu[sw_].sum(1).tolist(), "p_elec": p_elec[sw_].tolist(), "p_bus": p_bus[sw_].tolist(),
             "roll": a["rp"][s, 0].tolist(), "pitch": a["rp"][s, 1].tolist(), "height_mm": (1000 * a["pos"][s, 2]).tolist(),
-            "head_acc": comp[sw_].tolist(), "head_bob_mm": (1000 * bob[sw_]).tolist(),
+            "head_acc": comp[sw_].tolist(), "head_acc_le5hz": comp_lo[sw_].tolist(),
+            "head_bob_mm": (1000 * bob[sw_]).tolist(),
             "heading": [float(h[0]), float(h[1])]}
     return met, pay
 
@@ -656,17 +699,19 @@ def summarise_case(eps: list[dict], pays: list[dict]) -> dict:
             "p10": np.percentile(prof[:, ::5, j], 10, axis=0).round(4).tolist(),
             "p90": np.percentile(prof[:, ::5, j], 90, axis=0).round(4).tolist()} for j, c in enumerate(CORNERS)}
     s["weight"] = wt
-    # balance
-    b = {k: _mean([e["balance"][k] for e in M]) for k in
-         ("support_defined_fraction", "no_foot_loaded_fraction", "cop_margin_negative_fraction",
-          "cop_near_edge_fraction", "com_margin_negative_fraction")}
-    b["com_margin_median_mm"] = _mean([e["balance"]["com_margin_mm"]["median"] for e in M])
-    b["com_margin_p10_mm"] = _mean([e["balance"]["com_margin_mm"]["p10"] for e in M])
-    b["cop_margin_median_mm"] = _mean([e["balance"]["cop_margin_mm"]["median"] for e in M])
-    b["com_margin_negative_fraction_by_feet"] = {
-        k: _mean([e["balance"]["com_margin_negative_fraction_by_feet"][k] for e in M]) for k in ("1", "2", "3", "4")}
-    b["feet_loaded_fraction"] = {k: _mean([e["balance"]["feet_loaded_fraction"][k] for e in M]) for k in "01234"}
-    s["balance"] = b
+    # balance: the headline on step contact, and the env-debounce and raw-contact variants
+    for key in ("balance", "balance_env_debounce", "balance_raw_contact"):
+        b = {k: _mean([e[key][k] for e in M]) for k in
+             ("support_defined_fraction", "no_foot_down_fraction", "cop_margin_negative_fraction",
+              "cop_near_edge_fraction", "com_margin_negative_fraction")}
+        b["contact"] = M[0][key]["contact"]
+        b["com_margin_median_mm"] = _mean([e[key]["com_margin_mm"]["median"] for e in M])
+        b["com_margin_p10_mm"] = _mean([e[key]["com_margin_mm"]["p10"] for e in M])
+        b["cop_margin_median_mm"] = _mean([e[key]["cop_margin_mm"]["median"] for e in M])
+        b["com_margin_negative_fraction_by_feet"] = {
+            k: _mean([e[key]["com_margin_negative_fraction_by_feet"][k] for e in M]) for k in ("1", "2", "3", "4")}
+        b["feet_down_fraction"] = {k: _mean([e[key]["feet_down_fraction"][k] for e in M]) for k in "01234"}
+        s[key] = b
     # drives
     names = list(M[0]["drives"]["per_joint"])
     s["drives"] = {"per_joint": {nm: {k: {"mean": _mean([e["drives"]["per_joint"][nm][k] for e in M]),
@@ -675,23 +720,29 @@ def summarise_case(eps: list[dict], pays: list[dict]) -> dict:
                                  for nm in names},
                    "groups": s["pipe1_summary"]["drives"]}
     # power
-    P = {k: _mean([e["power"][k] for e in M]) for k in
-         ("mech_abs_w", "mech_positive_w", "mech_negative_w", "copper_w", "electrical_w", "cost_of_transport_mech",
-          "cost_of_transport_electrical_with_hotel")}
-    P["electrical_peak_w"] = _max([e["power"]["electrical_peak_w"] for e in M])
+    keys = ("mech_abs_w", "mech_positive_w", "mech_negative_w", "copper_w", "electrical_per_drive_w",
+            "electrical_shared_bus_w", "shared_bus_surplus_fraction", "cost_of_transport_mech",
+            "cost_of_transport_electrical_per_drive_with_hotel", "cost_of_transport_electrical_shared_bus_with_hotel")
+    P = {k: _mean([e["power"][k] for e in M]) for k in keys}
+    P["electrical_per_drive_peak_w"] = _max([e["power"]["electrical_per_drive_peak_w"] for e in M])
+    P["electrical_shared_bus_peak_w"] = _max([e["power"]["electrical_shared_bus_peak_w"] for e in M])
     P["by_group_w"] = {g: {k: _mean([e["power"]["by_group_w"][g][k] for e in M]) for k in ("positive_mech", "copper")}
                        for g in GROUPS}
-    P["run_time_min"] = {k: _mean([e["power"]["run_time_min"][k] for e in M]) for k in M[0]["power"]["run_time_min"]}
+    for model in ("per_drive", "shared_bus"):
+        rk = f"run_time_min_{model}"
+        P[rk] = {k: _mean([e["power"][rk][k] for e in M]) for k in M[0]["power"][rk]}
     s["power"] = P
     # body and head
     s["body"] = {ax: {k: _mean([e["body"][ax][k] for e in M]) for k in M[0]["body"][ax]}
                  for ax in ("roll_deg", "pitch_deg", "height_mm")}
     s["body"]["roll_deg"]["peak_abs_worst"] = _max([e["body"]["roll_deg"]["peak_abs"] for e in M])
     s["body"]["pitch_deg"]["peak_abs_worst"] = _max([e["body"]["pitch_deg"]["peak_abs"] for e in M])
-    hd = {k: _mean([e["head"][k] for e in M]) for k in M[0]["head"] if k != "acc_rms_by_axis_mps2"}
-    hd["acc_peak_mps2_worst"] = _max([e["head"]["acc_peak_mps2"] for e in M])
-    hd["acc_rms_by_axis_mps2"] = {k: _mean([e["head"]["acc_rms_by_axis_mps2"][k] for e in M])
-                                  for k in ("fore_aft", "lateral", "vertical")}
+    hd = {k: _mean([e["head"][k] for e in M]) for k, v in M[0]["head"].items() if isinstance(v, (int, float))}
+    hd["band_split_hz"] = M[0]["head"]["band_split_hz"]
+    for k in ("acc_peak_mps2", "acc_peak_le5hz_mps2", "acc_peak_5_20hz_mps2"):
+        hd[k.replace("_mps2", "_mps2_worst")] = _max([e["head"][k] for e in M])
+    for k in ("acc_rms_by_axis_mps2", "acc_rms_le5hz_by_axis_mps2", "acc_rms_5_20hz_by_axis_mps2"):
+        hd[k] = {ax: _mean([e["head"][k][ax] for e in M]) for ax in ("fore_aft", "lateral", "vertical")}
     s["head"] = hd
     # feet: pooled
     ft: dict = {}
@@ -977,33 +1028,40 @@ def markdown(R: dict) -> str:
           f"{ff['phase_offset_after_LF']['right_fore']['mean_cycles']:.2f}, LH "
           f"{ff['phase_offset_after_LF']['left_hind']['mean_cycles']:.2f}, RH "
           f"{ff['phase_offset_after_LF']['right_hind']['mean_cycles']:.2f} of a stride.",
-          f"- **Balance:** the whole-robot centre of mass lies outside the support polygon "
-          f"{100 * T['balance']['com_margin_negative_fraction']:.0f} % of the time (a dynamic gait); the centre of "
-          f"pressure is within {NEAR_EDGE_M * 1000:.0f} mm of the polygon edge {100 * T['balance']['cop_near_edge_fraction']:.0f} % "
-          "of the time.",
+          f"- **Balance** (support polygon of the feet in stance, step contact): the whole-robot centre of mass lies "
+          f"outside it {100 * T['balance']['com_margin_negative_fraction']:.1f} % of the time; the centre of "
+          f"pressure is within {NEAR_EDGE_M * 1000:.0f} mm of its edge {100 * T['balance']['cop_near_edge_fraction']:.0f} % "
+          f"of the time. (Raw 2 N contact, which counts 1-2 ms solver rebounds as lifts, gives "
+          f"{100 * T['balance_raw_contact']['com_margin_negative_fraction']:.0f} %.)",
           f"- **Drives:** worst RMS torque / continuous rating {max(v['rms_over_continuous']['mean'] for v in T['drives']['per_joint'].values()):.2f} "
           f"(mean of episodes; {max(T['drives']['per_joint'], key=lambda n: T['drives']['per_joint'][n]['rms_over_continuous']['mean'])}).",
-          f"- **Power:** {T['power']['mech_abs_w']:.0f} W joint mechanical (sum |torque x speed|), "
-          f"{T['power']['electrical_w']:.0f} W electrical estimate for the legs; about "
-          f"{T['power']['run_time_min'][f'hotel_{int(HOTEL_W)}w']:.0f} min walking on one battery set with a "
-          f"{HOTEL_W:.0f} W hotel load (assumed).",
+          f"- **Power:** {T['power']['mech_abs_w']:.0f} W joint mechanical (sum |torque x speed|); leg electrical "
+          f"estimate {T['power']['electrical_shared_bus_w']:.0f} W on a shared bus to "
+          f"{T['power']['electrical_per_drive_w']:.0f} W per drive with no reuse of braking energy; about "
+          f"{T['power']['run_time_min_per_drive'][f'hotel_{int(HOTEL_W)}w']:.0f}-"
+          f"{T['power']['run_time_min_shared_bus'][f'hotel_{int(HOTEL_W)}w']:.0f} min walking on one battery set with a "
+          f"{HOTEL_W:.0f} W hotel load (assumed). Estimates: unmodelled gearbox, iron and driver losses would raise them.",
           f"- **Steadiness:** body roll {T['body']['roll_deg']['sd']:.1f} deg and pitch {T['body']['pitch_deg']['sd']:.1f} deg "
           f"SD, height {T['body']['height_mm']['range_p1_p99']:.0f} mm range; head bob "
           f"{T['head']['bob_mm_p1_p99']:.0f} mm and sway {T['head']['sway_mm_p1_p99']:.0f} mm (1-99 % range) at "
-          f"{T['head']['bob_dominant_hz']:.1f} Hz, head acceleration {T['head']['acc_rms_mps2']:.1f} m/s^2 RMS "
-          f"({T['head']['acc_rms_mps2'] / 9.81:.2f} g).", ""]
+          f"{T['head']['bob_dominant_hz']:.1f} Hz; head acceleration {T['head']['acc_rms_mps2']:.1f} m/s^2 RMS to 20 Hz, of "
+          f"which {T['head']['acc_rms_le5hz_mps2']:.1f} m/s^2 at or below 5 Hz (the visible bob, "
+          f"{T['head']['acc_rms_le5hz_mps2'] / 9.81:.2f} g) and {T['head']['acc_rms_5_20hz_mps2']:.1f} m/s^2 at 5-20 Hz "
+          "(the step impacts' shake).", ""]
 
     def case_line(key):
         s = C[key]["summary"]
         return (f"| {C[key]['label']} | {s['speed']['forward_speed_mps']:.3f} | {s['falls']} | "
                 f"{s['footfall']['gait']['class']} | {s['footfall']['stride_frequency_hz_all_feet']:.2f} | "
                 f"{100 * s['footfall']['stride_length_m']['mean']:.1f} | {s['power']['mech_abs_w']:.1f} | "
-                f"{s['power']['electrical_w']:.1f} | {100 * s['balance']['com_margin_negative_fraction']:.0f} % | "
+                f"{s['power']['electrical_shared_bus_w']:.0f}-{s['power']['electrical_per_drive_w']:.0f} | "
+                f"{100 * s['balance']['com_margin_negative_fraction']:.1f} % | "
                 f"{100 * max(v for v in s['footfall']['irregular_stride_fraction'].values() if v is not None):.0f} % | "
                 f"{sum(s['footfall']['contact_gaps'][c][b]['count'] for c in CORNERS for b in ('20-50 ms', '50-80 ms'))} |")
 
     L += ["## Cases (5 episodes each)", "",
-          "| Case | Speed, m/s | Falls | Gait | Stride, Hz | Stride, cm | Mech. power, W | Elec. est., W | CoM outside support "
+          "| Case | Speed, m/s | Falls | Gait | Stride, Hz | Stride, cm | Mech. power, W | Elec. est. (bus-per drive), W "
+          "| CoM outside support (step contact) "
           "| Irregular strides, worst foot | Contact gaps of 20-80 ms (all feet) |",
           "|---|---|---|---|---|---|---|---|---|---|---|"] + [case_line(k) for k in C] + [
           "", "Irregular strides: step-to-step periods more than 25 % off the median. Gaps of 20-80 ms lie between the "
@@ -1054,14 +1112,27 @@ def markdown(R: dict) -> str:
     # c
     b = T["balance"]
     L += ["## c. Balance (`balance.png`)", "",
-          f"Support polygon: hull of the sole corners of the feet loaded above 2 N; CoP from those soles' contact forces. "
-          f"CoM ground projection outside the polygon {100 * b['com_margin_negative_fraction']:.0f} % of the time (by feet "
-          "loaded: " + ", ".join(f"{k}: {_f(100 * v if v is not None else None, '{:.0f}')} %"
-                                 for k, v in b["com_margin_negative_fraction_by_feet"].items())
+          "Support polygon: hull of the sole corners of the feet in stance on the step contact the footfalls use (the "
+          "env's 10 ms debounce, then gaps and blips under 50 ms merged); CoP from those soles' contact forces. "
+          f"CoM ground projection outside the polygon {100 * b['com_margin_negative_fraction']:.1f} % of the time (by feet "
+          "in stance: " + ", ".join(f"{k}: {_f(100 * v if v is not None else None, '{:.0f}')} %"
+                                    for k, v in b["com_margin_negative_fraction_by_feet"].items())
+          + "; time with one foot in stance " + f"{100 * b['feet_down_fraction']['1']:.1f} %"
           + f"); CoM margin median {b['com_margin_median_mm']:.0f} mm. CoP outside: "
           f"{100 * b['cop_margin_negative_fraction']:.2f} % (it cannot leave the polygon by construction; a check); CoP "
           f"within 5 mm of the edge {100 * b['cop_near_edge_fraction']:.0f} %, median margin {b['cop_margin_median_mm']:.0f} mm. "
-          f"No foot loaded {100 * b['no_foot_loaded_fraction']:.1f} % of the time.", ""]
+          f"No foot in stance {100 * b['no_foot_down_fraction']:.1f} % of the time.", "",
+          "| Contact used for the polygon (0.25 m/s, randomised) | CoM outside | One foot down | CoP within 5 mm of an edge |",
+          "|---|---|---|---|"] + [
+          f"| {T[k]['contact']} | {100 * T[k]['com_margin_negative_fraction']:.1f} % | "
+          f"{100 * T[k]['feet_down_fraction']['1']:.1f} % | {100 * T[k]['cop_near_edge_fraction']:.0f} % |"
+          for k in ("balance", "balance_env_debounce", "balance_raw_contact")] + [
+          "", "Footnote: with the raw 2 N contact every 1-2 ms solver rebound of one foot of a diagonal pair leaves one foot "
+          "'down' and the CoM about 0.2 m outside; that figure (the first version of this report's headline) measures the "
+          "contact model, not the gait. Nominal model: " + ", ".join(
+              f"{C['nominal_0.25']['summary'][k]['contact'].split(' (')[0].split(':')[0]} "
+              f"{100 * C['nominal_0.25']['summary'][k]['com_margin_negative_fraction']:.1f} %"
+              for k in ("balance", "balance_env_debounce", "balance_raw_contact")) + ".", ""]
     # d
     L += ["## d. Drives (`drive_envelopes.png`, `drive_loads.png`)", "",
           "| Joint | RMS / continuous, mean (worst) | At nominal limit, mean (worst) | Peak, N m | Peak, rpm | Above maker rated |",
@@ -1076,35 +1147,46 @@ def markdown(R: dict) -> str:
         f"{v['maker_rated_nm']:.2f}, continuous {v['continuous_nm']:.2f}, speed allowance {v['speed_allowance_rpm']:.0f} rpm"
         for g, v in dr.items()) + ".", ""]
     # e
-    P = T["power"]
     L += ["## e. Power and energy (`power.png`)", "",
-          "| Case | Sum abs(torque x speed), W | Positive work, W | Copper loss, W | Leg electrical est., W | CoT (mech.) | CoT (elec. + hotel) | Run time, min (25 / 30 / 40 W hotel) |",
-          "|---|---|---|---|---|---|---|---|"]
+          "| Case | Sum abs(torque x speed), W | Positive work, W | Copper loss, W | Elec. est., shared bus / per drive, W "
+          "| CoT (mech.) | CoT (elec. + hotel), bus / per drive | Run time at 30 W hotel, min, bus / per drive "
+          "| Run time, per drive, 25 / 40 W hotel |", "|---|---|---|---|---|---|---|---|---|"]
     for k in C:
         p = C[k]["summary"]["power"]
-        rt = p["run_time_min"]
+        rb, rp_ = p["run_time_min_shared_bus"], p["run_time_min_per_drive"]
         L.append(f"| {C[k]['label']} | {p['mech_abs_w']:.1f} | {p['mech_positive_w']:.1f} | {p['copper_w']:.1f} | "
-                 f"{p['electrical_w']:.1f} | {_f(p['cost_of_transport_mech'])} | {_f(p['cost_of_transport_electrical_with_hotel'])} | "
-                 f"{rt['hotel_25w']:.0f} / {rt['hotel_30w']:.0f} / {rt['hotel_40w']:.0f} |")
-    L += ["", "Loss model (stated, simple): electrical = sum over the 12 leg drives of positive mechanical power / linkage "
-          "efficiency + copper loss 3 R (tau_drive / Kt)^2, with Kt (output side, N m per A rms) and the per-phase "
-          "resistance from the T. rex actuator catalog (X4-36-L 1.8 N m/A, 0.20 ohm; X6-60 2.1 N m/A, 0.205 ohm); "
-          "braking work is not recovered (the power board's ideal diodes block regeneration). Not modelled: gearbox "
-          "friction, iron and driver losses, the head and tail servos: the figure is a lower bound. Hotel load "
+                 f"{p['electrical_shared_bus_w']:.1f} / {p['electrical_per_drive_w']:.1f} | {_f(p['cost_of_transport_mech'])} | "
+                 f"{_f(p['cost_of_transport_electrical_shared_bus_with_hotel'])} / "
+                 f"{_f(p['cost_of_transport_electrical_per_drive_with_hotel'])} | {rb['hotel_30w']:.0f} / {rp_['hotel_30w']:.0f} | "
+                 f"{rp_['hotel_25w']:.0f} / {rp_['hotel_40w']:.0f} |")
+    L += ["", "Loss model (stated, simple). Each drive's torque is the joint torque / linkage efficiency (0.90 on the "
+          "flexion joints) while it motors and joint torque x efficiency while it brakes; its copper loss is "
+          "3 R (tau_drive / Kt)^2, with Kt (output side, N m per A rms) and the per-phase resistance from the T. rex "
+          "actuator catalog (X4-36-L 1.8 N m/A, 0.20 ohm; X6-60 2.1 N m/A, 0.205 ohm). **Per drive, no reuse:** each "
+          "drive draws its positive mechanical power plus its copper loss; braking energy is lost. **Shared bus:** the 12 "
+          "drives' net draw each 1 ms step, max(0, sum of mechanical power at the drive + copper loss), braking power "
+          "feeding the other drives and any surplus dumped (the power board's ideal diodes block it from the battery). "
+          + "Electrical figures are estimates: unmodelled gearbox, iron and driver losses would raise them; the per-drive figure ignores bus-level reuse of braking energy (which would lower it), the shared-bus figure assumes all of it is reused within the same 1 ms step." + " Not included: the head and tail servos. Hotel load "
           f"{HOTEL_W:.0f} W (range {HOTEL_RANGE_W[0]:.0f}-{HOTEL_RANGE_W[1]:.0f} W) is an assumption, not a parts-list "
           "figure: Jetson Orin Nano Super (7-25 W), OAK-D Pro W, Teensy and CAN, IMU, safety MCU, drive standby, DC-DC "
-          f"losses. Battery {BATTERY_WH} Wh x {BATTERY_USABLE:.0%} usable.", ""]
+          f"losses. Battery {BATTERY_WH} Wh x {BATTERY_USABLE:.0%} usable. Torque (copper loss) dominates the electrical "
+          "figures.", ""]
     # f
     L += ["## f. Body and head steadiness (`steadiness.png`)", "",
-          "| Case | Roll SD, deg | Pitch SD, deg | Height range, mm | Head bob, mm | Head sway, mm | Head acc. RMS, m/s^2 | Head acc. peak, m/s^2 |",
-          "|---|---|---|---|---|---|---|---|"]
+          "| Case | Roll SD, deg | Pitch SD, deg | Height range, mm | Head bob, mm | Head sway, mm | Head acc. RMS to 20 Hz, "
+          "m/s^2 | of which <= 5 Hz | of which 5-20 Hz | Head acc. peak, m/s^2 (<= 5 Hz) |",
+          "|---|---|---|---|---|---|---|---|---|---|"]
     for k in C:
         s = C[k]["summary"]
         L.append(f"| {C[k]['label']} | {s['body']['roll_deg']['sd']:.2f} | {s['body']['pitch_deg']['sd']:.2f} | "
                  f"{s['body']['height_mm']['range_p1_p99']:.1f} | {s['head']['bob_mm_p1_p99']:.1f} | "
-                 f"{s['head']['sway_mm_p1_p99']:.1f} | {s['head']['acc_rms_mps2']:.2f} | {s['head']['acc_peak_mps2_worst']:.1f} |")
+                 f"{s['head']['sway_mm_p1_p99']:.1f} | {s['head']['acc_rms_mps2']:.2f} | {s['head']['acc_rms_le5hz_mps2']:.2f} | "
+                 f"{s['head']['acc_rms_5_20hz_mps2']:.2f} | {s['head']['acc_peak_mps2_worst']:.1f} "
+                 f"({s['head']['acc_peak_le5hz_mps2_worst']:.1f}) |")
     L += ["", f"Head acceleration: the head's (head_yaw body) centre of mass, velocity differentiated, low-passed at "
-          f"{HEAD_LOWPASS_HZ:.0f} Hz, gravity excluded. Bob and sway: 1-99 % range after removing a 1 s moving average.", ""]
+          f"{HEAD_LOWPASS_HZ:.0f} Hz, gravity excluded, and split at {HEAD_BOB_HZ:.0f} Hz: at or below it the visible bob "
+          "and sway, above it the shake of the step impacts (the two bands' mean squares add). Bob and sway: 1-99 % range "
+          "after removing a 1 s moving average.", ""]
     # g
     ft = T["feet"]
     L += ["## g. Feet (`feet.png`)", "", "| | LF | RF | LH | RH |", "|---|---|---|---|---|",
@@ -1153,7 +1235,9 @@ def markdown(R: dict) -> str:
     L += ["## What this does not show", "",
           "Simulation only, of a model whose masses and contact are estimates; one policy at one checkpoint (a verdict "
           "needs two seeds or two controllers). RMS over 18 s stands in for steady walking, not a thermal simulation. "
-          "The electrical figure is a lower bound from a simple loss model, and the hotel load is assumed. Head "
+          "The electrical figures are estimates from a simple loss model (unmodelled gearbox, iron and driver losses would "
+          "raise them; the per-drive figure ignores bus-level reuse of braking energy, which would lower it), and the "
+          "hotel load is assumed. Head "
           "acceleration is the head body's, not a camera's or a visitor's view of it. Charts: " +
           ", ".join(f"`{c}`" for c in R.get("charts", [])) + ".", ""]
     return "\n".join(L)
