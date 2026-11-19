@@ -689,20 +689,20 @@ def main(argv=None) -> int:
     signal.signal(signal.SIGINT, on_signal)
     signal.signal(signal.SIGTERM, on_signal)
     callbacks = make_callbacks(args, cfg, ckpt_dir, out, state)
-    # The schedules' scales at this step, set before learn(): SB3 resets the envs before any callback runs, so
-    # without this every session's first episode in each env ran at the envs' default scales of 1 (review L1).
-    n_now = int(model.num_timesteps)
-    state["penalty_scale"] = penalty_scale_at(n_now, args.penalty_ramp_steps, args.penalty_ramp_start)
-    state["late_scale"] = late_scale_at(n_now, args.late_ramp_from, args.late_ramp_to)
-    venv.env_method("set_penalty_scale", state["penalty_scale"])
-    venv.env_method("set_late_scale", state["late_scale"])
-    if rough(cfg):
-        state["terrain_scale"] = late_scale_at(n_now, args.terrain_ramp_from, args.terrain_ramp_to)
-        venv.env_method("set_terrain_scale", state["terrain_scale"])
     remaining = args.total_steps - int(model.num_timesteps)
     t0, n0 = time.time(), int(model.num_timesteps)
     status, code = "completed", 0
     try:
+        # The schedules' scales at this step, set before learn(): SB3 resets the envs before any callback runs, so
+        # without this every session's first episode in each env ran at the envs' default scales of 1 (since
+        # 19 Nov 2026; earlier runs, pipe1 and run2b among them, trained their first episodes at scale 1).
+        state["penalty_scale"] = penalty_scale_at(n0, args.penalty_ramp_steps, args.penalty_ramp_start)
+        state["late_scale"] = late_scale_at(n0, args.late_ramp_from, args.late_ramp_to)
+        venv.env_method("set_penalty_scale", state["penalty_scale"])
+        venv.env_method("set_late_scale", state["late_scale"])
+        if rough(cfg):
+            state["terrain_scale"] = late_scale_at(n0, args.terrain_ramp_from, args.terrain_ramp_to)
+            venv.env_method("set_terrain_scale", state["terrain_scale"])
         model.learn(total_timesteps=remaining, callback=callbacks, reset_num_timesteps=pair is None,
                     progress_bar=False)
     except KeyboardInterrupt:

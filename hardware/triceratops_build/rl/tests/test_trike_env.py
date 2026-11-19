@@ -1299,7 +1299,7 @@ def test_train_sets_both_schedules_in_every_env(tmp_path):
 # ======================================================================================== run 3: terrain, pushes
 RUN3 = RL_DIR / "configs" / "run3_terrain.json"
 # test_default_env_regression_digest: recorded from 83094f52's trike_env.py (before run 3), mujoco 3.10.0
-DEFAULT_DIGEST = "da65d3f8043450bc759f82233e111ee0c8cafb56d433a52995acee4c39186a29"
+DEFAULT_DIGEST = "9afe6e4334d0b5042fba0399a82855f75c40e9d617dfe717509f9f1b5d0b19e4"
 
 
 def _rough(**kw):
@@ -1507,26 +1507,33 @@ def test_terrain_boxes_are_solid_far_from_their_compiled_bounds(monkeypatch):
 
 def test_default_env_regression_digest():
     """Guards bit-identity of the default env (every run-3 feature off) with the env before run 3 (83094f52): a
-    digest of 120 steps' observations, rewards and terminations, recorded from that commit's trike_env.py with
-    mujoco 3.10.0 on this container. Another mujoco build may differ in the last bits: then the test is skipped."""
+    digest of 2 x 160 steps' observations, rewards and terminations (random actions, then hard alternating ones that
+    make the roll-ankle model's tail touch the floor, so one episode ends and resets), recorded from that commit's
+    trike_env.py with mujoco 3.10.0 on this container (Linux x86-64). It is skipped for another mujoco version; the
+    same version built for another platform may differ in the last bits and fail: re-record it there from
+    83094f52's trike_env.py before trusting a failure."""
     import hashlib
 
     if mujoco.__version__ != "3.10.0":
         pytest.skip("digest recorded with mujoco 3.10.0")
     from trike_env import ANKLE_ROLL_MODEL
 
-    h = hashlib.sha256()
+    h, ended = hashlib.sha256(), 0
     for model in (TrikeEnvConfig().model_path, str(ANKLE_ROLL_MODEL)):
         e = TrikeEnv(TrikeEnvConfig(model_path=model))
         obs, _ = e.reset(seed=11)
         h.update(obs.tobytes())
-        rng = np.random.default_rng(11)
-        for _ in range(60):
-            obs, r, term, trunc, _ = e.step(rng.uniform(-1, 1, 12))
+        rng, n = np.random.default_rng(11), 0
+        for k in range(160):
+            a = rng.uniform(-1, 1, 12) if k < 60 else np.full(12, 1.0 if (k // 10) % 2 else -1.0)
+            obs, r, term, trunc, _ = e.step(a)
             h.update(obs.tobytes() + repr((r, term, trunc)).encode())
             if term or trunc:
-                obs, _ = e.reset(seed=12)
+                n += 1
+                obs, _ = e.reset(seed=12 + n)
                 h.update(obs.tobytes())
+        ended += n
+    assert ended >= 1  # the termination and reset path is covered
     assert h.hexdigest() == DEFAULT_DIGEST
 
 
@@ -1553,3 +1560,36 @@ def test_sweep_and_evaluate_build_flat_envs_from_a_run3_record(tmp_path):
 def test_terrain_box_count_is_bounded_by_the_draws():
     with pytest.raises(ValueError, match="terrain_boxes must be at most 20"):
         TrikeEnv(TrikeEnvConfig(terrain_boxes=21))
+
+
+def test_first_reset_of_a_session_uses_the_scheduled_scales(tmp_path, monkeypatch):
+    """SB3 resets the envs before any callback runs; train.py sets the three scales before learn(), so the first
+    episode of a fresh run and of a resume follows the schedules (review L1). In-process with DummyVecEnv."""
+    import train
+    import trike_env
+
+    seen = []
+    orig = trike_env.TrikeEnv.reset
+
+    def reset(self, *a, **k):
+        seen.append((round(self.penalty_scale, 3), round(self.late_scale, 3), round(self.terrain_scale, 3)))
+        return orig(self, *a, **k)
+
+    monkeypatch.setattr(trike_env.TrikeEnv, "reset", reset)
+    handlers = (signal.getsignal(signal.SIGINT), signal.getsignal(signal.SIGTERM))
+    common = ["--out", str(tmp_path / "run"), "--n-envs", "1", "--vec", "dummy", "--n-steps", "256",
+              "--batch-size", "256", "--checkpoint-every", "512", "--log-every", "100000", "--eval-every", "0",
+              "--seed", "3", "--penalty-ramp-steps", "2048", "--penalty-ramp-start", "0.2", "--late-ramp-from", "0",
+              "--late-ramp-to", "2048", "--terrain-ramp-from", "0", "--terrain-ramp-to", "2048",
+              "--model", "trike60_C_closed_ankleroll", "--env-config", str(RUN3), "--resume"]
+    try:
+        assert train.main(common + ["--total-steps", "512"]) == 0
+        first_fresh = seen[0]  # the reset learn() makes before the first rollout
+        seen.clear()
+        assert train.main(common + ["--total-steps", "1024", "--allow-changes"]) == 0
+        first_resume = seen[0]
+    finally:
+        signal.signal(signal.SIGINT, handlers[0])
+        signal.signal(signal.SIGTERM, handlers[1])
+    assert first_fresh == (0.2, 0.0, 0.0)
+    assert first_resume == (0.4, 0.25, 0.25)  # resumed at 512 steps: 0.2 + 0.8 x 512 / 2048, 512 / 2048

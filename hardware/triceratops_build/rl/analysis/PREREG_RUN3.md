@@ -43,11 +43,13 @@ sweep adds its own steps, ramps and pushes.
   - 8 episodes per point, seeds 200000-200007;
   - 0.25 m/s unless stated.
 - **Environment:** the run commit's `rl/`, in the tree if `rl/` is unchanged since the run commit, otherwise
-  exported through TRIKE_ENV_DIR (run2b was measured in the tree).
+  exported through TRIKE_ENV_DIR (run2b was measured in the tree). The model file
+  (`sim/generated/trike60_C_closed_ankleroll.xml`) must be the run commit's: the tools record its sha256, which is
+  checked against that commit's file before anything is judged.
 
 ## Rules (each judged per seed)
 
-Fields (thresholds apply to the unrounded values in the tools' JSON):
+Fields (thresholds apply to the values as stored in the tools' JSON, not to the rounded Markdown):
 - **Gait report:** F1's mean speed is the target case's `speed.forward_speed_mps` (from 2 s on); falls are the case's
   `falls`. F2 uses `drives.per_joint.<joint>.rms_over_continuous.mean`.
 - **Sweep:** "speed" is a point's `speed_mps` and "drift" its `drift_abs_mean_m`. Both are means over the episodes
@@ -66,7 +68,9 @@ Fields (thresholds apply to the unrounded values in the tools' JSON):
 
 ## Reading
 
-- A rule **passes** when both seeds pass it, **fails** when neither does, and is **mixed** when one does.
+- A rule **passes** when both seeds pass it, **fails** when neither does, and is **mixed** when one does. If a seed
+  has no judged checkpoint (the stop rules), every rule is **not judged** on that seed, no rule can pass, and the
+  report gives the other seed's results without a verdict.
 - The setup "handles small steps, ramps and pushes without losing flat walking" (simulation, this model) only if
   every rule passes on both seeds. Otherwise the report names the rules that pass, fail or are mixed.
 - Everything else from the two tools is reported against run2b, as in `REPORT_RUN2B.md`, without a verdict. That
@@ -88,3 +92,5 @@ Fields (thresholds apply to the unrounded values in the tools' JSON):
 - T3 and T4 gained "no fall in 8"; the fields, unrounded thresholds and the all-fell case are named.
 - The environment line no longer says run2b was measured through TRIKE_ENV_DIR (it was measured in the tree).
 - Added: what happens if a restart also fails. Corrected: which rules test trained conditions.
+- After the re-check of 3390483d (no run had started): the model file must be the run commit's; thresholds apply
+  to the values as stored; the outcome when a seed is not judged.

@@ -243,7 +243,10 @@ train.py as `--env-config`.
 - **Low friction** (`friction_low_hard`): the friction draw's lower end moves from 0.6 to 0.3.
 - **Schedule:** terrain heights and slopes, push sizes and the friction low end all scale with one terrain scale,
   0 until 1 M steps and full at 4 M (`--terrain-ramp-from`, `--terrain-ramp-to`), so the policy first learns to
-  walk on the flat as run2b did.
+  walk on the flat as run2b did. Since 19 Nov 2026 train.py sets all three schedules' scales before learning
+  starts: SB3 resets the envs before any callback runs, so until then each session's first episode in every env
+  ran at scale 1 (full penalties, and full terrain). This applies to every config, so a run2b-config run at this
+  commit no longer reproduces run2b's first episodes exactly (a negligible difference).
 - **Drift cost** (`w_lateral_drift` 100, `lateral_drift_tau_s` 1 s): x (sideways speed along the reset heading's
   left axis, low-passed at 1 s)^2. It prices a steady sideways drift and leaves the trot's step-to-step sway almost
   free (w_lateral already prices that). On run2b's policy it would cost 0.004 per step on the nominal floor and 0.09
