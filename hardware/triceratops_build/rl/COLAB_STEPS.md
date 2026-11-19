@@ -103,10 +103,11 @@ Three rules for the whole sheet:
            If the Machine line ends "WARNING: more envs than vCPUs, each env runs slower": go on, and tell me <V>.
 
        (f) Every 100,000 steps a progress line (one line on screen), the first one:
-             steps 100000 of <<TOTAL_STEPS>> (<<P: 100000 AS A PERCENTAGE OF TOTAL_STEPS, ONE DECIMAL>>%), <R> env steps/s, penalty scale 0.44; training rollouts (stochastic actions), last <k> episodes: return ..., length ... steps, speed ... m/s at command ... m/s
+             steps 100000 of <<TOTAL_STEPS>> (<<P: 100000 AS A PERCENTAGE OF TOTAL_STEPS, ONE DECIMAL>>%), <R> env steps/s, penalty scale 0.14, late scale 0.00; training rollouts (stochastic actions), last <k> episodes: return ..., length ... steps, speed ... m/s at command ... m/s
            <R> is the speed. "Stochastic actions" means these numbers come from the training's random exploration;
-           they say nothing about how the policy walks. The penalty scale (the weight of the energy, slip, heat and
-           torque-limit costs) rises from 0.30 to 1.00 over the first 500,000 steps and then stays at 1.00.
+           they say nothing about how the policy walks. The penalty scale (the weight of the energy and slip costs)
+           rises from 0.10 to 1.00 over the first 2,000,000 steps; the late scale (drive heat, torque limits, short
+           steps) stays at 0.00 until 1,000,000 steps and then rises to 1.00 at 3,000,000.
 
        (g) Every 250,000 steps three lines: a save, and a short check of the policy in two lines:
              Saved checkpoint pair at 250000 steps: trike60_250000_steps.zip and trike60_vecnormalize_250000_steps.pkl

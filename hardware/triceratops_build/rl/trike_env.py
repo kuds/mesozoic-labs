@@ -48,7 +48,9 @@ REWARD_TERMS = ("r_track", "r_track_linear", "r_alive", "r_upright", "r_height",
                 "r_heading", "r_energy", "r_action_rate", "r_slip", "r_diagonal", "r_heat", "r_saturation",
                 "r_air_time")
 REWARD_BONUSES = ("r_track", "r_alive")  # >= 0; r_diagonal and r_air_time may take either sign; every other is <= 0
-RAMPED_TERMS = ("r_energy", "r_slip", "r_heat", "r_saturation")  # scaled by penalty_scale (train.py's ramp)
+# Two schedules (train.py sets both in every env before each rollout):
+RAMPED_TERMS = ("r_energy", "r_slip")  # x penalty_scale: from the first steps (pipe1's schedule, 0.1 -> 1 over 2 M)
+LATE_TERMS = ("r_heat", "r_saturation")  # x late_scale, and so is the NEGATIVE part of r_air_time (0 until 1 M)
 DRIVE_GROUPS = ("roll", "pitch", "front elbow", "hind knee")
 
 
@@ -138,7 +140,7 @@ class TrikeEnvConfig:
     termination_penalty: float = 5.0
     contact_threshold_n: float = 2.0  # a foot is "in contact" above this touch load
 
-    # --- drive heat and torque limits (penalties ramped with energy and slip; see RAMPED_TERMS) ---
+    # --- drive heat and torque limits (penalties on the LATE schedule; see LATE_TERMS) ---
     # Continuous torque ratings at the joint, N m: the mass ledger's joint_thermal_eq_nm (X4 roll and pitch 7.5,
     # X6 front elbow 10.8, X4 hind knee through its 1:1 crank 6.75); a test holds them to the ledger.
     cont_torque_roll: float = 7.5
@@ -146,12 +148,14 @@ class TrikeEnvConfig:
     cont_torque_fore_flexion: float = 10.8
     cont_torque_hind_flexion: float = 6.75
     # x mean over the 12 leg drives and the step's physics steps of (torque / continuous rating)^2. Standing still
-    # scores about 0.06 (cost 0.03); the pipe1 gait about 0.9 (cost about 0.45); every drive exactly at its rating, 1.
-    w_heat: float = 0.5
+    # scores about 0.06 (cost 0.02); the pipe1 gait about 0.76 (cost 0.23; 3 episodes at 0.25 m/s), pipe1 with
+    # exploration noise (std 0.2) 0.99 (cost 0.30); every drive exactly at its rating, 1. 0.3 rather than 0.5 so that
+    # at full scale a noisy walking policy still beats standing by about 0.37 per step (README's reward table).
+    w_heat: float = 0.3
     saturation_frac: float = 0.95  # a drive "saturates" at this fraction of its (randomised) force limit
     # x fraction of the 12 drives x physics steps that saturate, against the EPISODE'S randomised force limit (that
     # is the limit the drive would hit; 0.85-1.0 x nominal under domain randomisation)
-    w_saturation: float = 5.0  # the pipe1 gait: 2.9 % saturated, cost about 0.14; standing still: 0
+    w_saturation: float = 2.0  # pipe1 gait: 3.0 % saturated (cost 0.06), with noise 7.1 % (0.14); standing still: 0
 
     # --- clean steps: debounced contact and air time at touchdown ---
     # A foot counts as lifted only after its load has stayed at or below contact_threshold_n for this long. The
@@ -159,11 +163,14 @@ class TrikeEnvConfig:
     # 0.03 mm above the floor, carrying about 0 N), not steps; debouncing merges them into the stance. They are not
     # penalised: that would train against the contact solver.
     contact_debounce_s: float = 0.010
-    # legged_gym-style air-time reward, at each debounced touchdown: + w_air_time x (air time - air_time_target_s),
-    # summed over feet, only when the command exceeds air_time_min_command. 0.20 s: at 0.25 m/s a stride of 10-12 cm
-    # takes about 0.45 s; with a trot's duty factor near 0.6 the swing lasts about 0.18 s (pipe1's real swings:
-    # 140-215 ms). Swings shorter than 0.2 s (shuffles, hops) cost, longer ones pay.
+    # legged_gym-style air-time reward, at each debounced touchdown, summed over feet, only when the command exceeds
+    # air_time_min_command: with d = min(air time, air_time_cap_s) - air_time_target_s, + w_air_time x d when d > 0,
+    # and w_air_time x late_scale x d when d < 0 (short swings cost only on the late schedule: exploration noise makes
+    # many short lifts). A foot's first landing after reset (the soles start 2 mm up) is not a touchdown. 0.20 s: at
+    # 0.25 m/s a stride of 10-12 cm takes about 0.45 s; with a trot's duty factor near 0.6 the swing lasts about
+    # 0.18 s (pipe1's real swings: 140-215 ms). The cap, 0.5 s, keeps long hops from paying more.
     air_time_target_s: float = 0.20
+    air_time_cap_s: float = 0.5
     w_air_time: float = 1.0
     air_time_min_command: float = 0.05
 
@@ -212,15 +219,18 @@ def diagonal_score(contact) -> float:
 
 def reward_terms(cfg: TrikeEnvConfig, *, v_fwd: float, v_cmd: float, v_lat: float, yaw_rate: float, yaw_err: float,
                  grav_b, z: float, z_nominal: float, mean_power: float, action, prev_action, slip: float, contact,
-                 penalty_scale: float = 1.0, heat_index: float = 0.0, saturated_fraction: float = 0.0,
-                 air_time_excess: float = 0.0) -> dict[str, float]:
+                 penalty_scale: float = 1.0, late_scale: float = 1.0, heat_index: float = 0.0,
+                 saturated_fraction: float = 0.0, air_time_gain: float = 0.0,
+                 air_time_shortfall: float = 0.0) -> dict[str, float]:
     """One control step's reward terms (``REWARD_TERMS``), a pure function of the measured quantities.
 
-    ``penalty_scale`` (0-1) multiplies the energy, slip, heat and saturation penalties (``RAMPED_TERMS``): train.py
-    ramps it up over the first steps so that early exploration is not punished into standing still.
+    ``penalty_scale`` (0-1) multiplies the energy and slip penalties (``RAMPED_TERMS``); ``late_scale`` (0-1) the heat
+    and saturation penalties (``LATE_TERMS``) and the negative part of the air-time term. train.py ramps both, the
+    late one from 1,000,000 steps on, so that early exploration is not punished into standing still.
     ``heat_index``: mean of (torque / continuous rating)^2 over the leg drives and physics steps; ``saturated_fraction``:
     share of drive-physics-steps at or above ``saturation_frac`` of the episode's (randomised) force limit;
-    ``air_time_excess``: sum over this step's debounced touchdowns of (air time - ``air_time_target_s``)."""
+    ``air_time_gain`` (>= 0) and ``air_time_shortfall`` (<= 0): over this step's debounced touchdowns, the sums of the
+    positive and of the negative parts of min(air time, ``air_time_cap_s``) - ``air_time_target_s``."""
     err = v_fwd - v_cmd
     a, ap = np.asarray(action, dtype=np.float64), np.asarray(prev_action, dtype=np.float64)
     terms = {
@@ -236,9 +246,10 @@ def reward_terms(cfg: TrikeEnvConfig, *, v_fwd: float, v_cmd: float, v_lat: floa
         "r_action_rate": -cfg.w_action_rate * float(np.sum((a - ap) ** 2)),
         "r_slip": -cfg.w_slip * penalty_scale * slip,
         "r_diagonal": 0.0,
-        "r_heat": -cfg.w_heat * penalty_scale * heat_index,
-        "r_saturation": -cfg.w_saturation * penalty_scale * saturated_fraction,
-        "r_air_time": cfg.w_air_time * air_time_excess if v_cmd > cfg.air_time_min_command else 0.0,
+        "r_heat": -cfg.w_heat * late_scale * heat_index,
+        "r_saturation": -cfg.w_saturation * late_scale * saturated_fraction,
+        "r_air_time": (cfg.w_air_time * (air_time_gain + late_scale * air_time_shortfall)
+                       if v_cmd > cfg.air_time_min_command else 0.0),
     }
     if cfg.w_diagonal and v_cmd > 0.05:
         terms["r_diagonal"] = cfg.w_diagonal * diagonal_score(contact)
@@ -266,6 +277,7 @@ class TrikeEnv(gym.Env):
         self._filter_alpha = (1.0 - math.exp(-2.0 * math.pi * cfg.action_filter_hz * self.dt)
                               if cfg.action_filter_hz > 0 else 1.0)
         self.penalty_scale = 1.0  # see reward_terms; set by train.py through set_penalty_scale
+        self.late_scale = 1.0  # see reward_terms; set by train.py through set_late_scale
 
         # --- ids ---
         self._leg_act = np.array([m.actuator(n).id for n in LEG_ACTUATORS], dtype=np.int64)
@@ -393,12 +405,18 @@ class TrikeEnv(gym.Env):
         self._fifo: deque = deque([self._target] * self.delay_steps, maxlen=self.delay_steps + 1)
         self._badqacc0 = 0
         self._lifted = np.zeros(4, dtype=bool)  # debounced: lifted only after contact_debounce_s unloaded
+        self._loaded_once = np.zeros(4, dtype=bool)  # a foot lifts only after its first landing since reset
         self._unloaded = np.zeros(4, dtype=np.int64)  # consecutive physics steps each foot has been unloaded
         self.touchdowns = 0  # debounced touchdowns this episode (diagnostic)
 
     def set_penalty_scale(self, scale: float) -> None:
-        """Scale (0-1) of the ramped penalties (``RAMPED_TERMS``); train.py ramps it over the first training steps."""
+        """Scale (0-1) of the energy and slip penalties (``RAMPED_TERMS``); train.py ramps it from the first steps."""
         self.penalty_scale = float(min(1.0, max(0.0, scale)))
+
+    def set_late_scale(self, scale: float) -> None:
+        """Scale (0-1) of the heat and saturation penalties (``LATE_TERMS``) and of short air times; train.py keeps it
+        at 0 until --late-ramp-from steps, then ramps it."""
+        self.late_scale = float(min(1.0, max(0.0, scale)))
 
     # ------------------------------------------------------------------ domain randomisation
     def _restore_nominal(self) -> None:
@@ -504,10 +522,10 @@ class TrikeEnv(gym.Env):
         fifo, idx, hook = self._fifo, self._leg_ctrl_index, self.substep_hook
         energy = heat = 0.0
         saturated = touchdowns = 0
-        air_excess = 0.0
+        air_gain = air_short = 0.0
         floor_hit = -1
         inv_c2, sat_limit, touch_adr, thr = self._inv_cont2, self._sat_limit, self._touch_adr, cfg.contact_threshold_n
-        n_db, dt_phys, t_air = self._debounce_steps, self.physics_dt, cfg.air_time_target_s
+        n_db, dt_phys, t_air, t_cap = self._debounce_steps, self.physics_dt, cfg.air_time_target_s, cfg.air_time_cap_s
         for _ in range(cfg.frame_skip):
             fifo.append(target)
             d.ctrl[idx] = fifo[0]
@@ -523,10 +541,13 @@ class TrikeEnv(gym.Env):
             down_now = raw & self._lifted
             if down_now.any():
                 touchdowns += int(down_now.sum())
-                air_excess += float((prev[down_now] * dt_phys - t_air).sum())
+                dev = np.minimum(prev[down_now] * dt_phys, t_cap) - t_air
+                air_gain += float(dev[dev > 0].sum())
+                air_short += float(dev[dev < 0].sum())
                 self._lifted &= ~down_now
+            self._loaded_once |= raw
             self._unloaded = np.where(raw, 0, prev + 1)
-            self._lifted |= self._unloaded >= n_db
+            self._lifted |= (self._unloaded >= n_db) & self._loaded_once
             if floor_hit < 0 and d.ncon:
                 floor_hit = self._non_foot_floor_contact()
             if hook is not None:
@@ -562,8 +583,9 @@ class TrikeEnv(gym.Env):
         terms = reward_terms(cfg, v_fwd=v_fwd, v_cmd=self.command_speed, v_lat=v_lat, yaw_rate=yaw_rate,
                              yaw_err=yaw_err, grav_b=grav_b, z=z, z_nominal=self.nominal_height,
                              mean_power=mean_power, action=a, prev_action=self._prev_action, slip=slip,
-                             contact=contact, penalty_scale=self.penalty_scale, heat_index=heat_index,
-                             saturated_fraction=saturated_fraction, air_time_excess=air_excess)
+                             contact=contact, penalty_scale=self.penalty_scale, late_scale=self.late_scale,
+                             heat_index=heat_index, saturated_fraction=saturated_fraction, air_time_gain=air_gain,
+                             air_time_shortfall=air_short)
 
         # --- termination ---
         reason = ""
@@ -595,8 +617,9 @@ class TrikeEnv(gym.Env):
             "episode_forward_speed": self._distance / t, "yaw_error": yaw_err, "yaw_rate": yaw_rate,
             "tilt_deg": tilt, "height": z, "mean_power_w": mean_power, "foot_contacts": contact.astype(np.int8),
             "delay_steps": self.delay_steps, "termination": reason, "time_s": t, "penalty_scale": self.penalty_scale,
+            "late_scale": self.late_scale,
             "heading_drift": self._heading_drift, "heat_index": heat_index, "saturated_fraction": saturated_fraction,
-            "touchdowns": touchdowns, "air_time_excess": air_excess,
+            "touchdowns": touchdowns, "air_time_gain": air_gain, "air_time_shortfall": air_short,
         })
         return obs, reward, terminated, truncated, info
 

@@ -116,10 +116,13 @@ def parse_args(argv=None) -> argparse.Namespace:
                          "moved only through its noise; README)")
     ap.add_argument("--net", default="256,256", help="hidden sizes of the policy and value MLPs")
     # schedules and evaluation
-    ap.add_argument("--penalty-ramp-steps", type=int, default=500_000,
-                    help="env steps over which the energy, slip, heat and saturation penalties ramp up to full weight "
-                         "(0: full at once); 2,000,000 from 0.1 until the pipe1 run")
-    ap.add_argument("--penalty-ramp-start", type=float, default=0.3, help="their scale at step 0")
+    ap.add_argument("--penalty-ramp-steps", type=int, default=2_000_000,
+                    help="env steps over which the energy and slip penalties ramp up to full weight (0: full at once)")
+    ap.add_argument("--penalty-ramp-start", type=float, default=0.1, help="their scale at step 0")
+    ap.add_argument("--late-ramp-from", type=int, default=1_000_000,
+                    help="env steps before which the LATE penalties (heat, saturation, short air times) are off")
+    ap.add_argument("--late-ramp-to", type=int, default=3_000_000,
+                    help="env steps at which the late penalties reach full weight (linear from --late-ramp-from)")
     ap.add_argument("--eval-every", type=int, default=250_000,
                     help="env steps between deterministic evaluations (0: none)")
     ap.add_argument("--eval-commands", default="0,0.15,0.25", help="commanded speeds of those evaluations, m/s")
@@ -230,6 +233,7 @@ def run_settings(args, cfg) -> dict:
         "gae_lambda": args.gae_lambda, "clip_range": args.clip_range, "ent_coef": args.ent_coef,
         "log_std_init": args.log_std_init, "net": [int(x) for x in args.net.split(",") if x],
         "penalty_ramp_steps": args.penalty_ramp_steps, "penalty_ramp_start": args.penalty_ramp_start,
+        "late_ramp_from": args.late_ramp_from, "late_ramp_to": args.late_ramp_to,
         "eval_every": args.eval_every, "eval_commands": eval_commands(args.eval_commands),
         "eval_seconds": args.eval_seconds,
     }, default=list))
@@ -241,9 +245,20 @@ def settings_diff(old: dict, new: dict) -> dict:
 
 
 def penalty_scale_at(steps: int, ramp_steps: int, start: float) -> float:
+    """The energy and slip penalties' scale: ``start`` at step 0, linear to 1 at ``ramp_steps``."""
     if ramp_steps <= 0:
         return 1.0
     return start + (1.0 - start) * min(1.0, steps / ramp_steps)
+
+
+def late_scale_at(steps: int, ramp_from: int, ramp_to: int) -> float:
+    """The late penalties' scale (heat, saturation, short air times): 0 until ``ramp_from``, linear to 1 at
+    ``ramp_to`` (a step at ``ramp_from`` when ``ramp_to`` <= ``ramp_from``)."""
+    if steps <= ramp_from:
+        return 0.0
+    if ramp_to <= ramp_from:
+        return 1.0
+    return min(1.0, (steps - ramp_from) / (ramp_to - ramp_from))
 
 
 def actual_ppo(model) -> dict:
@@ -374,13 +389,19 @@ def make_callbacks(args, cfg, ckpt_dir: Path, out: Path, state: dict):
             return True
 
     class PenaltyRamp(BaseCallback):
-        """The scale of the ramped penalties (energy, slip, heat, saturation), set in every env before each rollout."""
+        """Both schedules, set in every env before each rollout: the penalty scale (energy, slip) and the late scale
+        (heat, saturation, short air times)."""
 
         def _on_rollout_start(self) -> None:
-            s = penalty_scale_at(self.model.num_timesteps, args.penalty_ramp_steps, args.penalty_ramp_start)
+            n = self.model.num_timesteps
+            s = penalty_scale_at(n, args.penalty_ramp_steps, args.penalty_ramp_start)
             if s != state.get("penalty_scale"):
                 self.training_env.env_method("set_penalty_scale", s)
                 state["penalty_scale"] = s
+            late = late_scale_at(n, args.late_ramp_from, args.late_ramp_to)
+            if late != state.get("late_scale"):
+                self.training_env.env_method("set_late_scale", late)
+                state["late_scale"] = late
 
         def _on_step(self) -> bool:
             return True
@@ -409,7 +430,8 @@ def make_callbacks(args, cfg, ckpt_dir: Path, out: Path, state: dict):
                     ep = "no episode finished yet"
                 state["record_progress"](n)  # in run_record.json before the line is printed
                 say(f"steps {n} of {args.total_steps} ({100.0 * n / args.total_steps:.1f}%), {rate:.0f} env "
-                    f"steps/s, penalty scale {state.get('penalty_scale', 1.0):.2f}; training rollouts "
+                    f"steps/s, penalty scale {state.get('penalty_scale', 1.0):.2f}, late scale "
+                    f"{state.get('late_scale', 1.0):.2f}; training rollouts "
                     f"(stochastic actions), {ep}")
             return True
 

@@ -83,9 +83,10 @@ def record_episode(env: TrikeEnv, act, *, seed: int, command: float | None, dela
 
 
 def debounced_touchdowns(down: np.ndarray, debounce_steps: int, start: int = 0) -> np.ndarray:
-    """Touchdowns per foot counted at samples >= ``start``, with the env's rule: every foot starts loaded (as after
-    reset); it is lifted once unloaded for ``debounce_steps`` consecutive samples; a touchdown is the first loaded
-    sample after a lift. ``down``: (samples, feet) loaded flags."""
+    """Touchdowns per foot counted at samples >= ``start``, with the env's rule: a foot is lifted once unloaded for
+    ``debounce_steps`` consecutive samples, but only after it has been loaded at least once since reset (the soles
+    start 2 mm up, so the first landing is not a step); a touchdown is the first loaded sample after a lift.
+    ``down``: (samples, feet) loaded flags, from the first physics step after reset."""
     counts = np.zeros(down.shape[1], dtype=np.int64)
     for i in range(down.shape[1]):
         x = down[:, i]
@@ -94,7 +95,7 @@ def debounced_touchdowns(down: np.ndarray, debounce_steps: int, start: int = 0) 
         lengths = np.diff(np.r_[starts, len(x)])
         for s, n in zip(starts, lengths):
             ends_at = s + n  # the sample after the run: a touchdown if this was a long unloaded run
-            if not x[s] and n >= debounce_steps and ends_at < len(x) and ends_at >= start:
+            if s > 0 and not x[s] and n >= debounce_steps and ends_at < len(x) and ends_at >= start:
                 counts[i] += 1
     return counts
 

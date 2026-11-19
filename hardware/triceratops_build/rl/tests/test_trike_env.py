@@ -336,7 +336,8 @@ def test_reward_term_signs():
                    action=rng.uniform(-1, 1, 12), prev_action=rng.uniform(-1, 1, 12), slip=rng.uniform(0, 1),
                    contact=rng.integers(0, 2, 4), penalty_scale=rng.uniform(0, 1),
                    heat_index=rng.uniform(0, 3), saturated_fraction=rng.uniform(0, 1),
-                   air_time_excess=rng.normal(0, 0.3))
+                   air_time_gain=rng.uniform(0, 0.3), air_time_shortfall=-rng.uniform(0, 0.3),
+                   late_scale=rng.uniform(0, 1))
         assert set(t) == set(REWARD_TERMS)
         for k, v in t.items():
             if k in REWARD_BONUSES:
@@ -345,19 +346,24 @@ def test_reward_term_signs():
                 assert -cfg.w_diagonal <= v <= cfg.w_diagonal
             elif k != "r_air_time":  # air time: + for swings longer than the target, - for shorter ones
                 assert v <= 0, k
-    # the ramp scales exactly RAMPED_TERMS (energy, slip, heat, saturation)
-    from trike_env import RAMPED_TERMS
+    # two schedules: penalty_scale scales exactly RAMPED_TERMS (energy, slip); late_scale exactly LATE_TERMS (heat,
+    # saturation) and the negative part of the air-time term, never its positive part
+    from trike_env import LATE_TERMS, RAMPED_TERMS
 
     kw = dict(mean_power=100.0, slip=0.2, action=np.ones(12), v_lat=0.1, heat_index=0.8, saturated_fraction=0.05,
-              air_time_excess=0.1)
-    full, tenth = _terms(cfg, **kw), _terms(cfg, **kw, penalty_scale=0.1)
+              air_time_gain=0.1, air_time_shortfall=-0.3)
+    full = _terms(cfg, **kw)
+    tenth = _terms(cfg, **kw, penalty_scale=0.1)
+    late0 = _terms(cfg, **kw, late_scale=0.0)
     for k in REWARD_TERMS:
-        expected = 0.1 * full[k] if k in RAMPED_TERMS else full[k]
-        assert tenth[k] == pytest.approx(expected), k
+        assert tenth[k] == pytest.approx(0.1 * full[k] if k in RAMPED_TERMS else full[k]), k
+        if k != "r_air_time":
+            assert late0[k] == pytest.approx(0.0 if k in LATE_TERMS else full[k]), k
     assert full["r_heat"] == pytest.approx(-cfg.w_heat * 0.8)
     assert full["r_saturation"] == pytest.approx(-cfg.w_saturation * 0.05)
-    assert full["r_air_time"] == pytest.approx(cfg.w_air_time * 0.1)
-    assert _terms(cfg, air_time_excess=0.1, v_cmd=0.04)["r_air_time"] == 0.0  # not when (almost) standing
+    assert full["r_air_time"] == pytest.approx(cfg.w_air_time * (0.1 - 0.3))
+    assert late0["r_air_time"] == pytest.approx(cfg.w_air_time * 0.1)  # long swings pay from the start
+    assert _terms(cfg, air_time_gain=0.1, v_cmd=0.04)["r_air_time"] == 0.0  # not when (almost) standing
 
 
 def test_diagonal_score():
@@ -1113,8 +1119,8 @@ def test_heat_and_saturation_are_measured_every_physics_step():
         t = np.array(taus)
         assert info["heat_index"] == pytest.approx(np.mean((t / env.continuous_torque) ** 2), rel=1e-9)
         assert info["saturated_fraction"] == pytest.approx(np.mean(np.abs(t) >= 0.95 * limit), abs=1e-12)
-        assert info["r_heat"] == pytest.approx(-env.cfg.w_heat * env.penalty_scale * info["heat_index"])
-        assert info["r_saturation"] == pytest.approx(-env.cfg.w_saturation * env.penalty_scale
+        assert info["r_heat"] == pytest.approx(-env.cfg.w_heat * env.late_scale * info["heat_index"])
+        assert info["r_saturation"] == pytest.approx(-env.cfg.w_saturation * env.late_scale
                                                      * info["saturated_fraction"])
     assert info["saturated_fraction"] > 0
     # standing still costs little
@@ -1133,6 +1139,9 @@ def test_debounced_touchdowns_and_air_time(tmp_path):
     x[20:22] = x[50:59] = x[80:90] = x[120:160] = False
     assert debounced_touchdowns(x, 10).tolist() == [2]
     assert debounced_touchdowns(x, 10, start=100).tolist() == [1]
+    # the first landing after reset (the foot starts unloaded, 2 mm up) is not a step
+    x[:25] = False
+    assert debounced_touchdowns(x, 10).tolist() == [2]
 
     # the env's incremental count and air time against the same rule on its own logged loads
     env = TrikeEnv(TrikeEnvConfig(domain_randomization=False, observation_noise=False, delay_steps_fixed=0))
@@ -1141,26 +1150,31 @@ def test_debounced_touchdowns_and_air_time(tmp_path):
     for command in (0.2, 0.0):
         env.reset(seed=1, options={"command_speed": command})
         loads.clear()
-        n_td, air, r_air = 0, 0.0, 0.0
+        n_td, gain, short, r_air = 0, 0.0, 0.0, 0.0
         for k in range(150):
             ph = 2 * math.pi * 2.0 * k * env.dt
             a = np.concatenate([[0.0, 0.8 * math.sin(ph + o), 0.9 * math.sin(ph + o + 1.2)]
                                 for o in (0, math.pi, math.pi, 0)])
             *_, info = env.step(a)
             n_td += info["touchdowns"]
-            air += info["air_time_excess"]
+            gain += info["air_time_gain"]
+            short += info["air_time_shortfall"]
             r_air += info["r_air_time"]
         down = np.array(loads)
+        assert not down[0].any()  # the soles start 2 mm up: every foot's first landing comes later
         assert n_td == int(debounced_touchdowns(down, env._debounce_steps).sum()) == env.touchdowns > 0
-        expected = 0.0
-        for i in range(4):  # every unloaded run of 10+ samples that ends in a touchdown: air time - target
-            col, run = down[:, i], 0
+        exp_gain = exp_short = 0.0
+        for i in range(4):  # every unloaded run of 10+ samples after a first load that ends in a touchdown
+            col, run, loaded = down[:, i], 0, False
             for v in col:
-                if v and run >= env._debounce_steps:
-                    expected += run * env.physics_dt - env.cfg.air_time_target_s
+                if v and run >= env._debounce_steps and loaded:
+                    dev = min(run * env.physics_dt, env.cfg.air_time_cap_s) - env.cfg.air_time_target_s
+                    exp_gain, exp_short = exp_gain + max(dev, 0.0), exp_short + min(dev, 0.0)
+                loaded |= bool(v)
                 run = 0 if v else run + 1
-        assert air == pytest.approx(expected, abs=1e-9)
-        assert r_air == pytest.approx(env.cfg.w_air_time * air if command > env.cfg.air_time_min_command else 0.0)
+        assert gain == pytest.approx(exp_gain, abs=1e-9) and short == pytest.approx(exp_short, abs=1e-9)
+        expected_r = env.cfg.w_air_time * (gain + env.late_scale * short)
+        assert r_air == pytest.approx(expected_r if command > env.cfg.air_time_min_command else 0.0)
 
 
 def test_gait_measures_match_the_analysis_script():
@@ -1211,7 +1225,7 @@ def test_phase_clock_is_off_by_default_and_old_runs_keep_theirs():
     old = TrikeEnvConfig(phase_clock_hz=1.5, w_slip=0.5).to_dict()
     for k in ("cont_torque_roll", "cont_torque_pitch", "cont_torque_fore_flexion", "cont_torque_hind_flexion",
               "w_heat", "saturation_frac", "w_saturation", "contact_debounce_s", "air_time_target_s", "w_air_time",
-              "air_time_min_command"):
+              "air_time_min_command", "air_time_cap_s"):
         old.pop(k)
     env = TrikeEnv(TrikeEnvConfig.from_dict(old))
     assert env.observation_space.shape == (70,) and env.cfg.w_slip == 0.5
@@ -1221,10 +1235,62 @@ def test_penalty_ramp_defaults():
     import train
 
     args = train.parse_args(["--out", "x", "--total-steps", "1"])
-    assert (args.penalty_ramp_start, args.penalty_ramp_steps) == (0.3, 500_000)
-    assert train.penalty_scale_at(0, 500_000, 0.3) == 0.3
-    assert train.penalty_scale_at(250_000, 500_000, 0.3) == pytest.approx(0.65)
-    assert train.penalty_scale_at(500_000, 500_000, 0.3) == 1.0
-    from trike_env import RAMPED_TERMS
+    assert (args.penalty_ramp_start, args.penalty_ramp_steps) == (0.1, 2_000_000)  # pipe1's schedule
+    assert (args.late_ramp_from, args.late_ramp_to) == (1_000_000, 3_000_000)
+    assert train.penalty_scale_at(0, 2_000_000, 0.1) == pytest.approx(0.1)
+    assert train.penalty_scale_at(1_000_000, 2_000_000, 0.1) == pytest.approx(0.55)
+    assert train.penalty_scale_at(2_000_000, 2_000_000, 0.1) == 1.0
+    assert train.late_scale_at(0, 1_000_000, 3_000_000) == 0.0
+    assert train.late_scale_at(1_000_000, 1_000_000, 3_000_000) == 0.0
+    assert train.late_scale_at(1_500_000, 1_000_000, 3_000_000) == pytest.approx(0.25)
+    assert train.late_scale_at(5_000_000, 1_000_000, 3_000_000) == 1.0
+    assert train.late_scale_at(1_000_001, 1_000_000, 1_000_000) == 1.0  # a step when from == to
+    from trike_env import LATE_TERMS, RAMPED_TERMS
 
-    assert set(RAMPED_TERMS) == {"r_energy", "r_slip", "r_heat", "r_saturation"}
+    assert set(RAMPED_TERMS) == {"r_energy", "r_slip"} and set(LATE_TERMS) == {"r_heat", "r_saturation"}
+
+
+def test_late_scale_and_air_time_cap_in_the_env():
+    from trike_env import LATE_TERMS
+
+    env = TrikeEnv(TrikeEnvConfig(domain_randomization=False, observation_noise=False, delay_steps_fixed=0))
+    env.reset(seed=1, options={"command_speed": 0.2})
+    env.set_late_scale(0.0)
+    env.set_penalty_scale(0.1)
+    rows = []
+    for k in range(150):
+        ph = 2 * math.pi * 2.0 * k * env.dt
+        a = np.concatenate([[0.0, 0.8 * math.sin(ph + o), 0.9 * math.sin(ph + o + 1.2)]
+                            for o in (0, math.pi, math.pi, 0)])
+        *_, info = env.step(a)
+        rows.append(info)
+    assert all(r["late_scale"] == 0.0 and r["penalty_scale"] == 0.1 for r in rows)
+    assert all(r[k] == 0.0 for r in rows for k in LATE_TERMS)  # heat and saturation off on the late schedule
+    assert sum(r["heat_index"] for r in rows) > 0  # ... though measured
+    assert any(r["air_time_shortfall"] < 0 for r in rows)  # short swings happen ...
+    assert all(r["r_air_time"] == pytest.approx(env.cfg.w_air_time * r["air_time_gain"]) for r in rows)  # ... free
+    # the cap: a 0.8 s swing is scored as 0.5 s
+    from trike_env import reward_terms
+
+    cfg = env.cfg
+    capped = min(0.8, cfg.air_time_cap_s) - cfg.air_time_target_s
+    t = _terms(cfg, air_time_gain=capped)
+    assert capped == pytest.approx(0.3) and t["r_air_time"] == pytest.approx(cfg.w_air_time * 0.3)
+    assert reward_terms is not None
+
+
+def test_train_sets_both_schedules_in_every_env(tmp_path):
+    out = tmp_path / "run"
+    p = _run(RL_DIR / "train.py", "--out", out, *BASE_ARGS, "--eval-every", 0, "--total-steps", 1024,
+             "--late-ramp-from", 0, "--late-ramp-to", 2048, "--penalty-ramp-start", 0.2, "--penalty-ramp-steps", 4096)
+    assert p.returncode == 0, p.stdout + p.stderr
+    # the progress line at 512 steps names both scales, set at the start of that rollout (256 steps x 2 envs = 512)
+    assert "steps 512 of 1024 (50.0%)" in p.stdout and "penalty scale 0.20, late scale 0.00" in p.stdout
+    # the second rollout starts at 512 steps: penalty 0.2 + 0.8 x 512 / 4096 = 0.30, late 512 / 2048 = 0.25
+    assert "steps 1024 of 1024 (100.0%)" in p.stdout and "penalty scale 0.30, late scale 0.25" in p.stdout
+    rec = _record(out)
+    assert (rec["settings"]["late_ramp_from"], rec["settings"]["late_ramp_to"]) == (0, 2048)
+    p = _run(RL_DIR / "train.py", "--out", out, *BASE_ARGS, "--eval-every", 0, "--total-steps", 1024,
+             "--late-ramp-from", 0, "--late-ramp-to", 4096, "--penalty-ramp-start", 0.2, "--penalty-ramp-steps", 4096,
+             "--resume")
+    assert p.returncode == 2 and "late_ramp_to: run 2048, now 4096" in p.stdout  # a resume keeps the schedules

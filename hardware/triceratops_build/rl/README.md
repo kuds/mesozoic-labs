@@ -17,7 +17,7 @@ points. Colab itself is untested; the first Colab run is a one-hour pipeline tes
 | `COLAB_STEPS.md` | The owner's step sheet for the pipeline test (draft; the commit to fill in). |
 | `trike_checkpoints.py` | Checkpoint pairs: the check that tells a broken file from an I/O error, the scan (newest intact pair, re-reads on I/O errors), atomic saves (non-finite parameters set aside), setting broken files aside, atomic JSON. |
 | `gait_metrics.py` | The gait and drive measures of an evaluation episode (logged every physics step): RMS torque / continuous rating per drive, time at the force limit (nominal and episode limit), stance slip ratio, debounced touchdowns, power, drift and heading change; the definitions of `analysis/gait_pipe1.py`. |
-| `tests/test_trike_env.py`, `tests/conftest.py` | 54 pytest tests, **run by hand** (they are not in the repository's `testpaths` or CI). |
+| `tests/test_trike_env.py`, `tests/conftest.py` | 56 pytest tests, **run by hand** (they are not in the repository's `testpaths` or CI). |
 
 ## How to run locally
 
@@ -164,9 +164,9 @@ along and across that heading.
 | energy | -0.001 x ramp | mean over the step of sum \|torque x joint speed\| of the 12 leg drives (W) |
 | action rate | -0.04 | sum (a - a_prev)^2 of the raw policy outputs |
 | foot slip | -1.0 x ramp | sum over feet in contact (> 2 N) of the sole's horizontal speed^2 (0.5 until pipe1; doubled rather than normalised by stance, so a sliding stance costs twice as much whatever its length) |
-| drive heat | -0.5 x ramp | mean over the 12 leg drives and the step's 20 physics steps of (torque / continuous rating)^2; ratings at the joint from the mass ledger: X4 roll and pitch 7.5, X6 front elbow 10.8, X4 hind knee 6.75 N·m (tested against the ledger). Standing still scores about 0.06 (cost 0.03); the pipe1 gait 0.73 (cost 0.36); every drive exactly at its rating, 1 |
-| torque saturation | -5.0 x ramp | share of the 12 drives x 20 physics steps at >= 95 % of the episode's randomised force limit (the limit the drive would hit). Pipe1 gait: 2.9 % (cost 0.14); standing: 0 |
-| air time | +1.0 | at each debounced touchdown, (air time - 0.20 s), summed over feet, only when v_cmd > 0.05 m/s. 0.20 s: at 0.25 m/s a 10-12 cm stride takes about 0.45 s and a trot's swing (duty about 0.6) about 0.18 s; pipe1's real swings were 140-215 ms. Shorter swings (shuffles, hops) cost, longer ones pay |
+| drive heat | -0.3 x late | mean over the 12 leg drives and the step's 20 physics steps of (torque / continuous rating)^2; ratings at the joint from the mass ledger: X4 roll and pitch 7.5, X6 front elbow 10.8, X4 hind knee 6.75 N·m (tested against the ledger). Standing still scores about 0.06; the pipe1 gait 0.76, with exploration noise 0.99; every drive exactly at its rating, 1 |
+| torque saturation | -2.0 x late | share of the 12 drives x 20 physics steps at >= 95 % of the episode's randomised force limit (the limit the drive would hit). Pipe1 gait 3.0 %, with noise 7.1 %; standing 0 |
+| air time | +1.0 (gain), x late (shortfall) | at each debounced touchdown, d = min(air time, 0.5 s) - 0.20 s, summed over feet, only when v_cmd > 0.05 m/s: + d when positive, late x d when negative. 0.20 s: at 0.25 m/s a 10-12 cm stride takes about 0.45 s and a trot's swing (duty about 0.6) about 0.18 s; pipe1's real swings were 140-215 ms. The 0.5 s cap keeps long hops from paying more. A foot's first landing after reset (the soles start 2 mm up) is not a touchdown |
 | diagonal symmetry | 0 (off) | when v_cmd > 0.05: +1 for a trot (diagonal pairs together), -1 for a bound (front pair and hind pair each together), 0 for a pace, a pronk or all four down |
 | termination | -5 | once |
 
@@ -175,20 +175,40 @@ along and across that heading.
 review of the gait analysis: sole lowest corner median 0.03 mm above the floor, carrying about 0 N), not steps; the
 debounce merges them into the stance. They are **not penalised** (that would train against the contact solver).
 
-**Penalty ramp:** train.py scales the energy, slip, heat and saturation penalties (`RAMPED_TERMS`) from 0.3 at step 0
-to 1.0 at 500,000 steps (`--penalty-ramp-start`, `--penalty-ramp-steps`; until pipe1: 0.1 to 1.0 over 2,000,000, which
-left that policy under weak effort penalties for its whole run), set in every env before each rollout, so early
-exploration is not punished into standing still yet the costs bite early. Measured with this config:
+**Two schedules** (train.py sets both in every env before each rollout, records both in the run's settings, so a
+resume keeps them, and prints both on the progress line; both are in `info`):
 
-- Standing still (zero action; one 20 s episode per command, nominal model, no noise, delay 0) earns 1.77 per step at
-  a 0 m/s command, 0.98 at 0.05, 0.28 at 0.10, 0.11 at 0.20, 0.07 at 0.25 and 0.05 at 0.27 m/s (the heat term costs
-  it about 0.03), against about 1.8 minus the penalties for moving at the commanded speed. The pipe1 gait scored with
-  this reward at 0.25 m/s (2 episodes): heat -0.36, saturation -0.14, air time -0.01, total +0.93 per step.
-- Random actions (Gaussian, std 0.37, clipped; randomisation and noise on; full penalties) cost **-1.46 per step with
-  the command fixed at 0.25 m/s** (4 episodes, seeds 0-3, action noise from `default_rng(0)`; -3.59 without the
-  filter) and **-1.20 per step with the command drawn per episode** (3 episodes, seeds 0-2, `default_rng(1)`, the
-  reviewer's method; -3.49 without the filter), against -0.20 and +0.047 before the heat and saturation terms: jitter
-  drives the joints hard. At the ramp's start (0.3) it is about -0.24 per step.
+- the **penalty scale** (`RAMPED_TERMS`: energy, slip): 0.1 at step 0, linear to 1.0 at 2,000,000 steps
+  (`--penalty-ramp-start`, `--penalty-ramp-steps`), the schedule that trained pipe1;
+- the **late scale** (`LATE_TERMS`: heat, saturation, and the negative part of the air-time term): 0 until 1,000,000
+  steps, linear to 1.0 at 3,000,000 (`--late-ramp-from`, `--late-ramp-to`).
+
+Why: the review of the first heat and saturation reward (applied with energy and slip from 0.3 at step 0) found that
+it discouraged exploration. The initial policy's noise paid heat, saturation, slip and short-swing costs at once.
+Its probes stood still or barely walked at 300,000 steps, and the review's 1.25 M-step probes confirmed the slow start.
+The late schedule lets a gait form first, and the costs that shape it arrive afterwards.
+
+**Reward per step at three stages of training** (measured; the review's method: seeds 100000-100002, delay 10 ms,
+randomisation on; pipe1's policy, loaded with the gait analysis's safe loaders, in an env with pipe1's observation and
+today's reward; "noise" is the initial policy's, std 0.2 around zero; "pipe1 + noise", pipe1's gait with that noise;
+no falls in any case):
+
+| Stage | Standing | Noise | pipe1 | pipe1 + noise | pipe1 + noise - standing | noise - standing |
+|---|---|---|---|---|---|---|
+| **0.25 m/s**, step 0 (penalty 0.10, late 0.00) | +0.100 | +0.078 | +1.553 | +1.175 | +1.075 | -0.022 |
+| 1.5 M (penalty 0.78, late 0.25) | +0.095 | -0.118 | +1.401 | +0.882 | +0.787 | -0.213 |
+| >= 3 M (penalty 1.00, late 1.00) | +0.081 | -0.467 | +1.149 | +0.446 | **+0.366** | -0.548 |
+| **0.15 m/s**, step 0 | +0.183 | +0.375 | +1.562 | +1.191 | +1.008 | +0.192 |
+| 1.5 M | +0.178 | +0.172 | +1.444 | +0.925 | +0.747 | -0.006 |
+| >= 3 M | +0.163 | -0.182 | +1.238 | +0.510 | **+0.347** | -0.346 |
+
+At step 0 exploration noise earns about what standing does (-0.022 at 0.25 m/s, +0.192 at 0.15 m/s). At full scale a
+noisy walking policy still beats standing by 0.37 (0.25 m/s) and 0.35 (0.15 m/s) per step. The weights were chosen for
+that from the same measurement, linear in the weights. The table's three rows per command were also measured directly
+with the final defaults. At the first version's weights (heat 0.5, saturation 5.0) pipe1 + noise fell 0.03 below
+standing at full scale. With saturation 2.0 alone it led by 0.18, and with saturation 1.0 by 0.25. Heat 0.3 with
+saturation 2.0 meets the 0.3 margin, so those are the defaults. At full scale, noise around zero costs heat -0.22,
+saturation -0.08, slip -0.10, energy -0.03 and air-time shortfall -0.13 per step.
 
 Standing never pays less than falling at once (the step reward stays positive), so the policy has no reason to end
 episodes early.
@@ -223,7 +243,7 @@ episode and compares), logged every physics step:
 
 ## What was tested (locally, CPU, 18 Nov 2026)
 
-`python -m pytest hardware/triceratops_build/rl/tests` (by hand): `54 passed in 161.37s (0:02:41)`. They cover:
+`python -m pytest hardware/triceratops_build/rl/tests` (by hand): `56 passed in 160.01s (0:02:40)`. They cover:
 
 - **Env:** shapes and finiteness; the reward is the sum of its terms; `check_env`; zero action stands 2 s; the delay
   FIFO is exact for k = 0, 3, 10; the action filter is first order and cuts alternating jitter.
@@ -234,15 +254,19 @@ episode and compares), logged every physics step:
   size; the heading drift is a random walk, and off when configured off.
 - **Reward:** the tracking terms' shape (peak, value at one sigma, monotone, standing below moving for every command
   from 0.05 m/s, standing still positive); the sign of every term over 500 random inputs (heat and saturation never
-  positive; air time either sign, zero below 0.05 m/s); the penalty ramp touching exactly energy, slip, heat and
-  saturation, and its defaults (0.3 to 1.0 over 500,000 steps); the diagonal score; termination on tilt, body contact
+  positive; air time either sign, zero below 0.05 m/s); the two schedules: the penalty scale touching exactly energy
+  and slip, the late scale exactly heat, saturation and the air-time shortfall (never the gain), their defaults (0.1 to
+  1.0 over 2,000,000 steps; 0 until 1,000,000 then 1.0 at 3,000,000) and their values along the way; in the env, a
+  late scale of 0 zeroes heat and saturation (still measured) and leaves only the air-time gain; train.py setting both
+  in every env (the progress line's values at 512 and 1,024 steps) and a resume refusing a changed late schedule; the
+  diagonal score; termination on tilt, body contact
   and height; truncation; the ankle-roll model.
 - **Heat, saturation, steps:** the continuous ratings equal the mass ledger's `joint_thermal_eq_nm` for both models;
   the env's heat index and saturated share equal the values computed by hand from the torques logged every physics
   step (with hard pitch and flexion targets that do saturate), and standing still costs under 0.05 per step; the
-  debounce rule on a hand-made trace (2 and 9 ms gaps stay in the stance, 10 ms and longer are steps); the env's
-  incremental touchdown count and air-time sum equal the same rule applied to its logged loads, and the air-time
-  reward is zero at a zero command; the evaluation's measures equal `analysis/gait_pipe1.py`'s `measures` on the same
+  debounce rule on a hand-made trace (2 and 9 ms gaps stay in the stance, 10 ms and longer are steps, and a foot's
+  first landing after reset is not one); the env's incremental touchdown count and air-time gain and shortfall (with
+  the 0.5 s cap) equal the same rule applied to its logged loads, and the air-time reward is zero at a zero command; the evaluation's measures equal `analysis/gait_pipe1.py`'s `measures` on the same
   logged episode (speed, drift, power, raw touchdowns, slip ratios, RMS / rating per group, at-limit shares against the
   nominal and the episode limit); the clock off by default (68 floats) and an older run's config (clock 1.5 Hz, without
   the new fields) rebuilding its 70-float env.
@@ -314,8 +338,32 @@ per-step work overlaps with the workers'. The PPO update is about 5 % of the tim
 so `--torch-threads` defaults to 1. On this VM four processes step at about half the single-process speed each, so
 Colab's rate is known only when the first progress lines print it.
 
-**Two 300k-step probes with today's reward** (heat, saturation, air time, slip 1.0, clock off, ramp 0.3 to 1.0 over
-500,000 steps; 8 envs on these 4 vCPUs, seed 0, deterministic evaluation at 10 ms with randomisation on; one seed
+**A 1,000,000-step probe with today's defaults** (two schedules, heat 0.3, saturation 2.0; `trike60_C_closed_ankleroll`,
+8 envs on these 4 vCPUs, seed 0; one seed, so evidence, not a result; 808 env steps/s over 1,247 s). The late scale
+stays 0 throughout (its ramp starts at 1,000,000 steps), so this shows the exploration-friendly start only. Periodic
+deterministic evaluation (one 20 s episode per command, randomisation on, delay 10 ms):
+
+| Steps | 0 m/s | 0.15 m/s | 0.25 m/s | At 0.25: RMS / rating roll, pitch, elbow, knee | at >= 99 % nominal | slip ratio | touchdowns/s | power | drift, heading |
+|---|---|---|---|---|---|---|---|---|---|
+| 250k | 0.003 | 0.008 | 0.009 | 0.24, 0.47, 0.46, 0.76 | 0 % | (little travel) | 0.4-4.4 | 3 W | +0.01 m, +5.6° |
+| 500k | 0.002 | 0.019 | 0.163 | 0.56, 1.06, 0.91, 0.96 | 0 % | 0.35-0.62 | 2.2-3.9 | 31 W | -0.02 m, +0.7° |
+| 750k | 0.002 | 0.102 | 0.072 | 0.37, 0.92, 0.70, 0.69 | 0 % | 0.53-1.30 | 1.1-8.0 | 14 W | -0.24 m, -17.3° |
+| 1M | 0.004 | 0.042 | 0.228 | 0.53, 1.16, 1.03, 0.90 | 0 % | 0.29-0.42 | 4.3-5.9 | 41 W | -0.28 m, -5.4° |
+
+`evaluate.py --sweep` on the final checkpoint (3 episodes per command): 0.001 / 0.105 / 0.229 m/s at 0 / 0.15 /
+0.25 m/s, no falls. At 0.25 m/s:
+
+- RMS / rating (worst joint): roll 0.59, pitch 1.27 (right fore), elbow 1.11 (left fore), knee 0.97;
+- at >= 99 % of the nominal limit: 0.1 / 0 / 0 / 0.9 % (roll, pitch, elbow, knee);
+- slip ratio 0.24-0.37; 3.9-5.4 debounced touchdowns per foot per second; 42 W;
+- sideways drift -0.13 to -0.78 m over 18 s, heading -6.9° at worst.
+
+So by 1 M steps a gait reaches the target speed again, and its heat is about pipe1's. That is expected before the late
+costs begin. Whether the late schedule then lowers the pitch and elbow loads without losing the gait needs a run past
+3 M steps. The 0.15 m/s command is tracked poorly (0.105) and the drift is large.
+
+**Two 300k-step probes with the first version of the heat and saturation reward** (heat 0.5, saturation 5.0, both
+ramped with energy and slip from 0.3 to 1.0 over 500,000 steps; air time, slip 1.0, clock off; 8 envs on these 4 vCPUs, seed 0, deterministic evaluation at 10 ms with randomisation on; one seed
 each, so evidence, not a result; `evaluate.py --sweep`, 3 episodes per command, on the final checkpoints):
 
 | Model | 0.15 m/s | 0.25 m/s | falls | RMS / rating at 0.25 (worst) | at >= 99 % nominal limit | slip ratio | touchdowns per foot per s | power |
@@ -327,7 +375,8 @@ Both start more slowly than the earlier reward's probe below (0.239 m/s at 300k 
 rollouts moved (0.08-0.09 m/s at a mean command of 0.12) but the deterministic policies, under costs already at 0.3-0.7
 of full strength, mostly stood (closed) or began to walk (roll ankle; 0.124 m/s at its 300k evaluation). Whether this
 is only a slower start or a standstill that persists needs a longer run; if it persists, the levers are the ramp's
-start (`--penalty-ramp-start`), `w_heat` and `w_saturation`. Rates during these probes: 1,062 env steps/s (closed,
+start, `w_heat` and `w_saturation`; the review then measured why (above) and the two schedules replaced it. Rates
+during these probes: 1,062 env steps/s (closed,
 mostly standing) and 745 (roll ankle, walking, four more joints).
 
 **Two 300k-step probes with the reward before 20 Nov 2026** (4 envs, seed 0; one seed each, so evidence, not a
