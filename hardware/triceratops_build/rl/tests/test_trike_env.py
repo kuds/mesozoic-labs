@@ -465,6 +465,10 @@ def test_train_stop_resume_settings_and_broken_newest(tmp_path):
     for k in ("n_steps", "batch_size", "n_epochs", "gamma", "gae_lambda", "clip_range", "ent_coef"):
         assert s1["ppo_in_use"][k] == pytest.approx(rec["settings"][k]), k  # recorded = really used
     assert s1["ppo_in_use"]["learning_rate"] == "LinearSchedule(0.0003, 3e-05)"
+    # every periodic save is in the record as it happens, and the end
+    assert [x for x in s1["saves"] if x.startswith("trike60_")][:3] == [
+        "trike60_1024_steps.zip", "trike60_2048_steps.zip", "trike60_3072_steps.zip"]
+    assert s1["steps_reached"] == s1["steps_end"] == end and s1["saves"][-1] == f"trike60_{end}_steps.zip"
     evals = [json.loads(x) for x in (out / "eval_during_training.jsonl").read_text().splitlines()]
     assert [e["steps"] for e in evals] == [1024, 2048, 3072]
     assert all(e["deterministic"] and e["delay_steps"] == 10 and len(e["episodes"]) == 3 for e in evals)
@@ -928,3 +932,111 @@ def test_allowed_gamma_change_reaches_vecnormalize(trained_run, tmp_path):
     assert s["vecnormalize_gamma"] == 0.98 and s["ppo_in_use"]["gamma"] == 0.98
     with open(run / "checkpoints" / f"trike60_vecnormalize_{s['steps_end']}_steps.pkl", "rb") as f:
         assert pickle.load(f).gamma == 0.98
+
+
+# ======================================================================================== recheck 2 (R1)
+def _killed_run(tmp_path: Path, until: str) -> Path:
+    """A run whose only session is SIGKILLed (no stop, as a lost runtime) right after a line starting with ``until``."""
+    out = tmp_path / "run"
+    proc, _ = _start_and_wait([sys.executable, "-u", RL_DIR / "train.py", "--out", out, "--n-envs", 2,
+                               "--n-steps", 256, "--total-steps", 10_000_000, "--checkpoint-every", 1024,
+                               "--log-every", 512, "--eval-every", 0, "--resume"], pattern=until)
+    os.killpg(proc.pid, signal.SIGKILL)
+    proc.wait()
+    return out
+
+
+def _sha(path: Path) -> str:
+    import hashlib
+
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def test_a_killed_sessions_saves_are_never_overwritten(tmp_path, monkeypatch):
+    import errno
+
+    import train
+    import trike_checkpoints as tc
+
+    out = _killed_run(tmp_path, "Saved checkpoint pair at 1024")
+    ckpt = out / "checkpoints"
+    s = _record(out)["sessions"][0]
+    assert s["status"] == "running" and s["saves"] == ["trike60_1024_steps.zip"] and s["steps_reached"] == 1024
+    sha = _sha(ckpt / "trike60_1024_steps.zip")
+    args = ["--out", str(out), "--n-envs", "2", "--n-steps", "256", "--total-steps", "10000000",
+            "--checkpoint-every", "1024", "--log-every", "512", "--eval-every", "0", "--resume", "--io-retry-wait", "0"]
+
+    # the reviewer's case: isdir() answers False for the folder (a stat error on a mount). The scan does not ask
+    # isdir any more, finds the pair and resumes from it.
+    wrapper = tmp_path / "isdir_false.py"
+    wrapper.write_text(f"""
+import os, sys
+sys.path[:0] = [{str(RL_DIR)!r}, {str(REPO_ROOT)!r}]
+import train
+if __name__ == "__main__":  # SubprocVecEnv workers import this file again: they must not run it
+    ck = {str(ckpt)!r}
+    real = os.path.isdir
+    os.path.isdir = lambda p: False if os.path.abspath(str(p)) == ck else real(p)
+    sys.exit(train.main(sys.argv[1:]))
+""")
+    proc, lines = _start_and_wait([sys.executable, "-u", wrapper, *args], pattern="Resuming")
+    os.killpg(proc.pid, signal.SIGKILL)
+    proc.wait()
+    assert lines[-1].startswith(f"Resuming {out} from trike60_1024_steps.zip (1024 of 10000000 steps)"), lines
+    assert _sha(ckpt / "trike60_1024_steps.zip") == sha
+
+    before = {p.relative_to(out): p.read_bytes() for p in out.rglob("*") if p.is_file()}
+
+    # stat() of the folder fails with EIO: re-read, then refused, nothing changed
+    real_stat = tc.os.stat
+
+    def stat_eio(path, *a, **kw):
+        if os.fspath(path) == str(ckpt):
+            raise OSError(errno.EIO, "Input/output error (simulated)", os.fspath(path))
+        return real_stat(path, *a, **kw)
+
+    with monkeypatch.context() as mp:
+        mp.setattr(tc.os, "stat", stat_eio)
+        assert train.main(args) == 2
+
+    # the folder is not there at all (a storage that answers "no folder"): the record's saves forbid step 0
+    hidden = out / "checkpoints_hidden"
+    ckpt.rename(hidden)
+    assert train.main(args) == 2 and not ckpt.exists()
+    hidden.rename(ckpt)
+    after = {p.relative_to(out): p.read_bytes() for p in out.rglob("*") if p.is_file()}
+    assert after == before
+
+
+def test_a_session_killed_before_its_first_save_may_start_again(tmp_path):
+    out = _killed_run(tmp_path, "steps 512")
+    s = _record(out)["sessions"][0]
+    assert s["saves"] == [] and s["steps_reached"] == 512
+    p, lines = _start_and_wait([sys.executable, "-u", RL_DIR / "train.py", "--out", out, "--n-envs", 2,
+                                "--n-steps", 256, "--total-steps", 10_000_000, "--checkpoint-every", 1024,
+                                "--log-every", 512, "--eval-every", 0, "--resume"],
+                               pattern=("Starting", "REFUSED", "Resuming"))
+    os.killpg(p.pid, signal.SIGKILL)
+    p.wait()
+    assert lines[-1].startswith("Starting a new run"), lines
+
+
+def test_unaccounted_saves_rules(tmp_path):
+    from train import unaccounted_saves
+
+    ckpt = tmp_path / "checkpoints"
+    ended = {"saves": ["trike60_1024_steps.zip"], "last_checkpoint": "trike60_1024_steps.zip",
+             "ended_utc": "x", "steps_end": 1024}
+    assert "not there: trike60_1024_steps.zip" in unaccounted_saves({"sessions": [ended]}, ckpt, 250_000)
+    early = {"saves": [], "steps_reached": 800}
+    assert unaccounted_saves({"sessions": [early]}, ckpt, 1024) is None  # killed before its first save
+    far = {"saves": [], "steps_reached": 300_000}  # its save may not have been recorded: still refused
+    assert "reached 300000 steps" in unaccounted_saves({"sessions": [far]}, ckpt, 250_000)
+    legacy = {"status": "running", "last_checkpoint": None}  # older format, killed: unknown
+    assert "older record format" in unaccounted_saves({"sessions": [legacy]}, ckpt, 250_000)
+    # after a quarantine only the sessions from the quarantining one on count; their files went to broken_*
+    q = {"quarantined": {"files": ["trike60_1024_steps.zip"]}, "saves": [], "steps_reached": 300}
+    assert unaccounted_saves({"sessions": [ended, q]}, ckpt, 1024) is None
+    (ckpt / "broken_x").mkdir(parents=True)
+    (ckpt / "broken_x" / "trike60_1024_steps.zip").write_bytes(b"")
+    assert unaccounted_saves({"sessions": [ended]}, ckpt, 250_000) is None  # the file is kept, set aside

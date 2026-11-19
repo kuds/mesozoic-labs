@@ -12,8 +12,11 @@ reached its total exits at once. ``--resume`` on a folder with no checkpoint sta
 checkpoints are all STRUCTURALLY broken (missing sidecar, not a zip, missing SB3 members, a pickle that does not load)
 it moves them to ``checkpoints/broken_<time>/`` and starts again from step 0. An I/O error while reading them is not
 a verdict on the files: the checkpoints are read again (``--io-retries`` times, ``--io-retry-wait`` s apart) and, if
-it persists, the run is refused (exit 2) with nothing moved. A run whose record names saves that the folder no
-longer lists is refused too. Every refusal comes before any file is moved, removed or written.
+it persists, the run is refused (exit 2) with nothing moved. Each session records every save and how far it got in
+run_record.json as it goes (atomically), so a killed session still leaves that record; a step-0 start is refused
+when the folder lists no checkpoint but the record shows saves that are not there, a session that reached the first
+checkpoint interval, or an older-format session with no recorded end. Every refusal comes before any file is moved,
+removed or written.
 
 A run keeps its settings (model, env config, PPO settings, envs, seed, total steps, schedules): a resume with other
 values is refused unless ``--allow-changes`` is given, and then the changes are logged in run_record.json. The
@@ -297,6 +300,30 @@ def _monitored_env(cfg_dict: dict, monitor_path: str, in_worker: bool):
                    info_keywords=("episode_forward_speed", "command_speed", "termination"))
 
 
+def unaccounted_saves(record: dict, ckpt_dir: Path, checkpoint_every: int) -> str | None:
+    """Why starting at step 0 could overwrite this run's earlier saves, or None. Asked only when the checkpoint
+    folder lists no checkpoint. Sessions before the last quarantine do not count (their files were set aside).
+    Raises OSError if the folder cannot be listed."""
+    sessions = list(record.get("sessions") or [])
+    since = max((i for i, x in enumerate(sessions) if x.get("quarantined")), default=0)
+    names = set()
+    for x in sessions[since:]:
+        for n in [*(x.get("saves") or []), x.get("last_checkpoint"), x.get("started_from")]:
+            if isinstance(n, str) and CANDIDATE_RE.fullmatch(n):
+                names.add(n)
+    missing = sorted(names - files_present(ckpt_dir))
+    if missing:
+        return f"run_record.json names saves that are not there: {', '.join(missing[:4])}"
+    for i, x in enumerate(sessions[since:], start=since):
+        reached = max(int(x.get("steps_end") or 0), int(x.get("steps_reached") or 0))
+        if reached >= checkpoint_every:
+            return f"session {i} reached {reached} steps, past the first checkpoint at {checkpoint_every}"
+        if "saves" not in x and not x.get("ended_utc"):
+            return (f"session {i} has no record of its saves (an older record format) and no recorded end: it may have "
+                    "saved checkpoints")
+    return None
+
+
 # ---------------------------------------------------------------------------------------------------- callbacks
 def make_callbacks(args, cfg, ckpt_dir: Path, out: Path, state: dict):
     from stable_baselines3.common.callbacks import BaseCallback
@@ -318,6 +345,7 @@ def make_callbacks(args, cfg, ckpt_dir: Path, out: Path, state: dict):
                     self.next += args.checkpoint_every
                 name, finite = save_pair(self.model, self.model.get_vec_normalize_env(), ckpt_dir)
                 state["last_pair"] = name
+                state["record_progress"](n, save=name)  # in run_record.json before the line is printed
                 if finite:
                     say(f"Saved checkpoint pair at {n} steps: {name} and {pair_names(n)[1]}")
                 else:
@@ -359,9 +387,10 @@ def make_callbacks(args, cfg, ckpt_dir: Path, out: Path, state: dict):
                           f"{mean('episode_forward_speed'):.3f} m/s at command {mean('command_speed'):.3f} m/s")
                 else:
                     ep = "no episode finished yet"
+                state["record_progress"](n)  # in run_record.json before the line is printed
                 say(f"steps {n} of {args.total_steps} ({100.0 * n / args.total_steps:.1f}%), {rate:.0f} env "
-                      f"steps/s, penalty scale {state.get('penalty_scale', 1.0):.2f}; training rollouts "
-                      f"(stochastic actions), {ep}")
+                    f"steps/s, penalty scale {state.get('penalty_scale', 1.0):.2f}; training rollouts "
+                    f"(stochastic actions), {ep}")
             return True
 
     class PeriodicEval(BaseCallback):
@@ -464,12 +493,16 @@ def main(argv=None) -> int:
             say(f"REFUSED: these settings differ from the run's (run_record.json): {listed}. Use the run's own "
                 "values, a new run folder, or --allow-changes (logged). Nothing was changed.")
             return 2
-    recorded_saves = {str(x.get("last_checkpoint")) for x in record.get("sessions", [])}
-    missing = sorted(n for n in recorded_saves if CANDIDATE_RE.fullmatch(n) and n not in files_present(ckpt_dir))
-    if not scan.candidates and missing:  # e.g. a storage that lists the folder empty for a while
-        say(f"REFUSED: run_record.json says {', '.join(missing)} was saved, but {ckpt_dir} holds no checkpoint "
-            "(nor any broken_* folder holds it). Nothing was changed; run again later.")
-        return 2
+    if not scan.candidates and record.get("sessions"):  # a step-0 start of a run that has sessions already
+        try:
+            reason = unaccounted_saves(record, ckpt_dir, int((recorded or {}).get("checkpoint_every")
+                                                             or args.checkpoint_every))
+        except OSError as exc:
+            reason = f"the checkpoint folder could not be listed ({exc!r})"
+        if reason:  # e.g. a storage that answers "no folder" or lists it empty for a while
+            say(f"REFUSED: no checkpoint is listed in {ckpt_dir}, but {reason}. Starting at step 0 could overwrite "
+                "them. Nothing was changed; run again later. If those saves are really gone, use a new run folder.")
+            return 2
     if pair is not None and pair[0] >= args.total_steps:
         say(f"Run already complete: newest checkpoint is at {pair[0]} steps (target {args.total_steps}). "
             "Nothing to do.")
@@ -547,6 +580,7 @@ def main(argv=None) -> int:
         "started_from": pair[1].name if pair is not None else "step 0", "steps_start": int(model.num_timesteps),
         "session_seed": session_seed, "quarantined": quarantine, "notes": notes or None,
         "vecnormalize_gamma": float(venv.gamma),
+        "saves": [], "steps_reached": int(model.num_timesteps),  # updated at every save and progress line
     }
     record.setdefault("created_utc", session["started_utc"])
     record["settings"] = settings
@@ -555,7 +589,19 @@ def main(argv=None) -> int:
         record.setdefault("quarantined", []).append(quarantine)
     write_json_atomic(record_path, record)
 
-    state: dict = {"stop": None, "last_pair": None}
+    def record_progress(n: int, save: str | None = None) -> None:
+        """This session's progress, and every save, into run_record.json (atomically), so a session that is killed
+        still tells the next one how far it got and what it saved."""
+        session["steps_reached"] = int(n)
+        if save:
+            session["saves"].append(save)
+            session["last_checkpoint"] = save
+        try:
+            write_json_atomic(record_path, record)
+        except OSError as exc:
+            say(f"WARNING: run_record.json could not be updated ({exc!r}); training goes on")
+
+    state: dict = {"stop": None, "last_pair": None, "record_progress": record_progress}
 
     def on_signal(signum, frame):  # the first SIGINT/SIGTERM ends training; any repeat is ignored
         if state["stop"] is not None:
@@ -595,6 +641,9 @@ def main(argv=None) -> int:
         last = f"(not saved: {exc!r})"
         code = code or 1
     n_end = int(model.num_timesteps)
+    if finite is not None:
+        session["saves"].append(last)
+    session["steps_reached"] = n_end
     rate = (n_end - n0) / wall if wall > 0 else None
     session.update({"ended_utc": utc(), "status": status, "steps_end": n_end, "wall_s": wall,
                     "env_steps_per_s": rate, "last_checkpoint": last, "last_checkpoint_finite": finite})

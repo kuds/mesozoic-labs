@@ -17,6 +17,7 @@ import os
 import pickle
 import re
 import shutil
+import stat
 import time
 import zipfile
 from dataclasses import dataclass, field
@@ -71,8 +72,12 @@ class Scan:
 
 def _scan_once(ckpt_dir: Path) -> Scan:
     scan = Scan()
-    if not os.path.isdir(ckpt_dir):
-        return scan
+    try:
+        st = os.stat(ckpt_dir)  # not os.path.isdir: that answers False on any OSError, an EIO included
+    except FileNotFoundError:
+        return scan  # really no folder (a new run)
+    if not stat.S_ISDIR(st.st_mode):
+        raise NotADirectoryError(f"{ckpt_dir} is not a folder")
     found = []
     for name in os.listdir(ckpt_dir):  # listdir, not glob: glob drops listing errors silently
         m = CANDIDATE_RE.fullmatch(name)
@@ -121,9 +126,15 @@ def quarantine_broken(ckpt_dir: Path) -> tuple[Path, list[str]]:
 
 
 def files_present(ckpt_dir: Path) -> set[str]:
-    """Names of every file in ``ckpt_dir`` and its subfolders (broken_*, nonfinite)."""
+    """Names of every file in ``ckpt_dir`` and its subfolders (broken_*, nonfinite). A folder that does not exist
+    holds nothing; any other error while listing is RAISED (os.walk would skip it silently)."""
     out: set[str] = set()
-    for root, _, files in os.walk(ckpt_dir):
+
+    def fail(exc: OSError) -> None:
+        if not (isinstance(exc, FileNotFoundError) and Path(exc.filename or "") == Path(ckpt_dir)):
+            raise exc
+
+    for root, _, files in os.walk(ckpt_dir, onerror=fail):
         out.update(files)
     return out
 
@@ -171,9 +182,12 @@ def write_json_atomic(path: Path, obj) -> None:
 
 def remove_tmp_files(ckpt_dir: Path) -> list[str]:
     gone = []
-    if os.path.isdir(ckpt_dir):
-        for name in sorted(os.listdir(ckpt_dir)):
-            if name.endswith(".tmp"):
-                (ckpt_dir / name).unlink(missing_ok=True)
-                gone.append(name)
+    try:
+        names = sorted(os.listdir(ckpt_dir))
+    except FileNotFoundError:
+        return gone
+    for name in names:
+        if name.endswith(".tmp"):
+            (ckpt_dir / name).unlink(missing_ok=True)
+            gone.append(name)
     return gone

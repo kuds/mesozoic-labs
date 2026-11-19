@@ -16,7 +16,7 @@ points. Colab itself is untested; the first Colab run is a one-hour pipeline tes
 | `requirements-colab.txt` | The pins the notebook installs (torch as the CPU build). |
 | `COLAB_STEPS.md` | The owner's step sheet for the pipeline test (draft; the commit to fill in). |
 | `trike_checkpoints.py` | Checkpoint pairs: the check that tells a broken file from an I/O error, the scan (newest intact pair, re-reads on I/O errors), atomic saves (non-finite parameters set aside), setting broken files aside, atomic JSON. |
-| `tests/test_trike_env.py`, `tests/conftest.py` | 44 pytest tests, **run by hand** (they are not in the repository's `testpaths` or CI). |
+| `tests/test_trike_env.py`, `tests/conftest.py` | 47 pytest tests, **run by hand** (they are not in the repository's `testpaths` or CI). |
 
 ## How to run locally
 
@@ -38,15 +38,21 @@ From the repository root (the scripts put `rl/` and the repository root on `sys.
 `trike60_C_closed_ankleroll` or a path. `--env-config FILE.json` overrides any `TrikeEnvConfig` field.
 
 **Run folder rules (train.py).** Without `--resume`, a folder that already holds checkpoints is refused. With
-`--resume`: no checkpoint starts the run; an intact pair continues it; if every checkpoint is *structurally* broken
+`--resume`: no checkpoint starts the run at step 0 (unless the record forbids it, below); an intact pair continues it;
+if every checkpoint is *structurally* broken
 (missing sidecar, not a zip, missing SB3 members, a pickle that does not load) they are moved to
 `checkpoints/broken_<time>/` (kept, never deleted), recorded in `run_record.json`, and the run starts again from step
-0. An **I/O error** while reading them (an `OSError` such as EIO from a Drive mount) is not a verdict on the files:
-the whole folder is read again (`--io-retries` 3 times, `--io-retry-wait` 20 s apart) and if the error persists the
+0. An **I/O error** while reading them (an `OSError` such as EIO from a Drive mount, including on the folder
+itself: only "no such folder" counts as no folder) is not a verdict on the files: the whole folder is read again (`--io-retries` 3 times, `--io-retry-wait` 20 s apart) and if the error persists the
 run is refused with exit 2 and nothing moved. (The shared `checkpoint_pair_problem` reports both kinds alike, so
-`rl/` uses its own check, `trike_checkpoints.pair_problem`.) A run whose `run_record.json` names saves that the folder
-no longer lists (for example a storage that briefly lists an empty folder) is refused as well. **Every refusal comes
-before any change**: nothing is moved, removed or written by a refused run. A run keeps its settings (model, env config, PPO settings, envs, seed, total steps, penalty ramp, evaluation):
+`rl/` uses its own check, `trike_checkpoints.pair_problem`.) **A step-0 start never overwrites earlier saves:** every
+session records each save in `run_record.json` as it is made (`saves`, `last_checkpoint`) and how far it got
+(`steps_reached`, updated at every save and progress line), written atomically, so a session that is killed (a lost
+runtime) still leaves that record. When the folder lists no checkpoint but the run's sessions since its last
+quarantine recorded saves that are not there, reached the first checkpoint interval, or (an older record without
+`saves`) never recorded an end, train.py refuses (exit 2) instead of starting at step 0 and overwriting saves that a
+storage merely failed to show. A session killed before its first save leaves the run free to start again.
+**Every refusal comes before any change**: nothing is moved, removed or written by a refused run. A run keeps its settings (model, env config, PPO settings, envs, seed, total steps, penalty ramp, evaluation):
 a resume with other values is refused, or runs with `--allow-changes`, which logs every change in the session's
 entry and applies it (PPO settings are passed to the load). The policy's shape (`--net`, `--log-std-init`) never
 changes. Changing `--total-steps` moves the learning rate (linear in steps / total), so a run is extended under a new
@@ -216,6 +222,13 @@ delay fixed at 10 ms, fixed seeds; one printed line and one line in `eval_during
     transient error is re-read and the pair found, a persistent one makes train.py refuse (exit 2) with every file
     byte-identical and no `broken_*` folder;
   - a record naming saves the folder no longer lists: refused, nothing created;
+  - **the reviewer's overwrite scenario**: a session SIGKILLed right after its 1024-step save (its record lists the
+    save and 1024 steps reached); resumed through a wrapper where `os.path.isdir()` answers False for the folder,
+    train.py resumes from that save, whose bytes stay unchanged; with `os.stat` of the folder failing with EIO it is
+    re-read and refused; with the folder gone it is refused, nothing created; a session killed at 512 steps, before
+    its first save, may start again; the guard's rules (missing saves, steps past the first interval, older records,
+    quarantine) one by one;
+  - every periodic save and the final one listed in the session's record, `steps_reached` equal to `steps_end`;
   - refusals before any change: a refused resume leaves a `.tmp` file and broken checkpoints where they were;
   - non-finite parameters saved under `nonfinite/` and never found by the scan;
   - `--exit-with-parent` with a parent that is already gone: refused, exit 3, nothing created;
