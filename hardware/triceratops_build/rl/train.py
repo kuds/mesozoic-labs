@@ -113,9 +113,10 @@ def parse_args(argv=None) -> argparse.Namespace:
                          "moved only through its noise; README)")
     ap.add_argument("--net", default="256,256", help="hidden sizes of the policy and value MLPs")
     # schedules and evaluation
-    ap.add_argument("--penalty-ramp-steps", type=int, default=2_000_000,
-                    help="env steps over which the energy and slip penalties ramp up to full weight (0: full at once)")
-    ap.add_argument("--penalty-ramp-start", type=float, default=0.1, help="their scale at step 0")
+    ap.add_argument("--penalty-ramp-steps", type=int, default=500_000,
+                    help="env steps over which the energy, slip, heat and saturation penalties ramp up to full weight "
+                         "(0: full at once); 2,000,000 from 0.1 until the pipe1 run")
+    ap.add_argument("--penalty-ramp-start", type=float, default=0.3, help="their scale at step 0")
     ap.add_argument("--eval-every", type=int, default=250_000,
                     help="env steps between deterministic evaluations (0: none)")
     ap.add_argument("--eval-commands", default="0,0.15,0.25", help="commanded speeds of those evaluations, m/s")
@@ -354,7 +355,7 @@ def make_callbacks(args, cfg, ckpt_dir: Path, out: Path, state: dict):
             return True
 
     class PenaltyRamp(BaseCallback):
-        """The energy and slip penalties' scale, set in every env before each rollout."""
+        """The scale of the ramped penalties (energy, slip, heat, saturation), set in every env before each rollout."""
 
         def _on_rollout_start(self) -> None:
             s = penalty_scale_at(self.model.num_timesteps, args.penalty_ramp_steps, args.penalty_ramp_start)
@@ -412,24 +413,30 @@ def make_callbacks(args, cfg, ckpt_dir: Path, out: Path, state: dict):
             return True
 
         def evaluate(self, n: int) -> None:
+            import gait_metrics
+
             vn = self.model.get_vec_normalize_env()
+
+            def act(obs):
+                a, _ = self.model.predict(vn.normalize_obs(obs[None, :]), deterministic=True)
+                return a[0]
+
             rows = []
             for i, c in enumerate(eval_commands(args.eval_commands)):
-                obs, _ = self.env.reset(seed=EVAL_SEED + i, options={"command_speed": c})
-                while True:
-                    a, _ = self.model.predict(vn.normalize_obs(obs[None, :]), deterministic=True)
-                    obs, _, term, trunc, info = self.env.step(a[0])
-                    if term or trunc:
-                        break
-                rows.append({"command_mps": c, "forward_speed_mps": info["episode_forward_speed"],
-                             "fell": bool(term), "termination": info["termination"], "length_s": info["time_s"]})
+                log = gait_metrics.record_episode(self.env, act, seed=EVAL_SEED + i, command=c, delay_steps=10)
+                rows.append({"command_mps": c, "forward_speed_mps": log["episode_forward_speed"],
+                             "fell": log["fell"], "termination": log["termination"], "length_s": log["time_s"],
+                             "measures": gait_metrics.measures(log, c)})
             rec = {"steps": n, "time_utc": utc(), "deterministic": True, "delay_steps": 10, "episodes": rows}
             with open(out / "eval_during_training.jsonl", "a", encoding="utf-8") as f:
                 f.write(json.dumps(rec) + "\n")
             parts = ", ".join(f"{r['command_mps']:.2f} -> {r['forward_speed_mps']:.3f}" for r in rows)
             falls = sum(r["fell"] for r in rows)
             say(f"eval at {n} steps (deterministic, delay 10 ms): command -> speed m/s: {parts}; falls {falls} of "
-                  f"{len(rows)}")
+                f"{len(rows)}")
+            top = rows[-1]  # the highest command: its drive, slip and step figures on one line
+            say(f"eval at {n} steps, command {top['command_mps']:.2f} m/s: "
+                f"{gait_metrics.one_line(gait_metrics.summarise([top['measures']]))}")
 
     cbs = [PairSaver(), PenaltyRamp(), Progress()]
     if args.eval_every > 0:

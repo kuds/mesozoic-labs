@@ -43,6 +43,7 @@ for p in (str(HERE), str(REPO_ROOT)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
+import gait_metrics  # noqa: E402
 import numpy as np  # noqa: E402
 from trike_env import MODEL_DIR, MODELS, MUSEUM_TARGET_SPEED_MPS, TrikeEnv, TrikeEnvConfig  # noqa: E402
 
@@ -168,23 +169,14 @@ def make_policy(zip_path, vn_path, env, deterministic: bool):
 
 
 def run_episode(env: TrikeEnv, policy, seed: int, delay: int, command):
-    opts = {"delay_steps": delay}
-    if command is not None:
-        opts["command_speed"] = command
-    obs, info = env.reset(seed=seed, options=opts)
-    v_cmd = info["command_speed"]
-    errs, n = [], 0
-    while True:
-        obs, r, term, trunc, inf = env.step(policy(obs))
-        n += 1
-        errs.append(abs(inf["forward_speed"] - v_cmd))
-        if term or trunc:
-            break
-    v = inf["episode_forward_speed"]
+    """One episode, logged every physics step: speed figures plus the gait and drive measures (gait_metrics)."""
+    log = gait_metrics.record_episode(env, policy, seed=seed, command=command, delay_steps=delay)
+    v_cmd, v = log["command"], log["episode_forward_speed"]
     return {"seed": seed, "delay_steps": delay, "command_mps": v_cmd, "forward_speed_mps": v,
-            "abs_speed_error_mps": float(np.mean(errs)), "abs_avg_speed_error_mps": abs(v - v_cmd),
-            "fell": bool(term), "termination": inf["termination"], "length_s": n * env.dt,
-            "friction": info.get("friction")}
+            "abs_speed_error_mps": float(np.mean(np.abs(log["step_forward_speed"] - v_cmd))),
+            "abs_avg_speed_error_mps": abs(v - v_cmd), "fell": log["fell"], "termination": log["termination"],
+            "length_s": log["time_s"], "friction": log["reset_info"].get("friction"),
+            "measures": gait_metrics.measures(log, v_cmd)}
 
 
 def summarize(eps: list[dict]) -> dict:
@@ -195,7 +187,8 @@ def summarize(eps: list[dict]) -> dict:
     return {"episodes": len(eps), "mean_forward_speed_mps": mean("forward_speed_mps"),
             "mean_command_mps": mean("command_mps"), "mean_abs_speed_error_mps": mean("abs_speed_error_mps"),
             "mean_abs_avg_speed_error_mps": mean("abs_avg_speed_error_mps"), "falls": falls,
-            "fall_rate": falls / len(eps), "mean_episode_length_s": mean("length_s"), "per_episode": eps}
+            "fall_rate": falls / len(eps), "mean_episode_length_s": mean("length_s"),
+            "gait": gait_metrics.summarise([e["measures"] for e in eps]), "per_episode": eps}
 
 
 def line(label: str, s: dict) -> str:
@@ -229,6 +222,8 @@ def main(argv=None) -> int:
         if key in sweep:
             target = {k: v for k, v in sweep[key].items() if k != "per_episode"}
             print(line(f"TARGET {MUSEUM_TARGET_SPEED_MPS:.2f} m/s at 10 ms", sweep[key]), flush=True)
+            print(f"TARGET {MUSEUM_TARGET_SPEED_MPS:.2f} m/s at 10 ms, gait: {gait_metrics.one_line(sweep[key]['gait'])}",
+                  flush=True)
     report = {"checkpoint": str(zip_path) if zip_path else f"baseline:{args.policy}",
               "vecnormalize": str(vn_path) if vn_path else None, "steps": steps, "episodes": args.episodes,
               "seed": args.seed, "command": args.command, "deterministic": not args.stochastic,
