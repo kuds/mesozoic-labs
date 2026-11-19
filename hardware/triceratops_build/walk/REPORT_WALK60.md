@@ -107,9 +107,59 @@ limit and on front-foot touchdowns, uses more power (shorter, quicker strides), 
 not been run through the robustness sweep (steps, ramps, pushes), so its edges are not known; the learned
 policies' are.
 
+## Robustness sweep (reported, not judged; plan `PLAN_SWEEP_WALK60.md`, written first)
+
+The learned policies' sweep (`rl/robustness/sweep.py`: same points, physics changes, push, terrain, measures and
+break rule) with the frozen trot as the source of the actions. Nominal model, observation noise on, no
+randomisation, 8 episodes per point (seeds 200000-200007), 0.25 m/s unless stated. Tool output
+`results/sweep_walk60/` (`walk/sweep_walk60.py` at 088ca493, clean, 560 episodes, 4 workers, 6.9 min). One trial
+episode per terrain point was run before the plan's commit, to check the driver. The charts' captions keep the
+sweep's wording for policies ("one policy", "trained on a flat floor"); here they mean this controller.
+
+"Break": the first point outward from nominal with a fall, or a speed more than 20 % below the nominal point's.
+
+| Sweep | Trot (walk60) | Learned, run2b | Learned, pipe1 |
+|---|---|---|---|
+| Delay at 0.25 m/s (to 60 ms) | **none** (0.243 m/s at 60 ms) | 60 ms (0.171 m/s, -31 %) | 60 ms (-26 %) |
+| Delay at 0.15 m/s (to 60 ms) | none (0.124 m/s at 60 ms, -17 %) | 60 ms (-29 %) | none |
+| Friction 0.15-1.2 | none | none | none |
+| Mass x0.8-1.6, payload to +3 kg | none | none | none |
+| Force limit x0.4-1, kp x0.4-1.5 | none | none | none |
+| Sideways push, free-body dv | falls at ±1.5 m/s (8/8 each side); **none at ±1.25** | falls at ±1.25 (4/8 right, 7/8 left) | falls at ±1.25 (4/8 right, 1/8 left) |
+| Step up | 3 cm: 0.193 m/s, **-22 %** | 3 cm: -54 % | 3 cm: -39 % |
+| Ramp up | **5°: 0.179 m/s, -27 %** (3°: -18 %; 8°: -48 %) | 8°: -34 % (5°: -12 %) | 8°: -21 % (5°: -13 %) |
+
+Beyond the breaks (mean of 8 episodes; trot / run2b):
+
+| Point | Speed, m/s | Sideways drift | Worst joint RMS / rating | Worst joint at the nominal limit |
+|---|---|---|---|---|
+| Nominal | 0.246 / 0.246 | 0.12 / 0.08 m | 0.68 / 0.72 | 2.6 / 0.9 % |
+| Friction 0.15 | 0.260 / 0.223 | **0.13 / 0.78 m** | 0.80 / 0.76 | 0.1 / 2.2 % |
+| Delay 60 ms | 0.243 / 0.171 | 0.10 / 0.08 m | 0.74 / 1.19 | 3.7 / 10.2 % |
+| Mass x1.6 | 0.247 / 0.241 | 0.13 / 0.18 m | 0.88 / 1.06 | 3.6 / 4.5 % |
+| Step 3 cm | 0.193 / 0.114 | **0.11 / 1.15 m** | 0.94 / 1.40 | 5.2 / 13.0 % |
+| Ramp 5° | 0.179 / 0.218 | 0.21 / 0.66 m | 0.99 / 0.72 | 6.5 / 2.8 % |
+| Ramp 8° | 0.129 / 0.162 | 0.42 / 0.87 m | **1.09** / 0.78 | 7.4 / 2.5 % |
+| Push 1.25 m/s left | 0.230 / 0.227 (no falls / 7 of 8 fell) | 0.12 / 0.09 m | 0.73 / 0.72 | 2.8 / 0.9 % |
+
+**Reading:**
+- On almost every axis the trot's edges lie further out than the learned policies':
+  - **Delay:** it holds speed to 60 ms.
+  - **Slippery floors:** it holds its line where run2b drifted.
+  - **Pushes:** it survives the 1.25 m/s push that toppled both policies.
+  - **Steps:** it loses less speed on a 3 cm step.
+- **Ramps are its weak side.** It slows more than either policy from 3° on and breaks at 5°. On an 8° ramp its worst
+  joint (a pitch drive) runs above its continuous rating (1.09) and at its limit 7.4 % of the time. Its fixed timing
+  and chassis-locked leg targets do not adapt to a slope; the roll and pitch correction is the only help.
+- **Torque limit:** across the sweep it spends more time at the nominal torque limit than run2b (2-4 % at most
+  points against about 1 %), as in the judged run.
+- **Drift:** about 0.12 m throughout, from the simulated gyro drift, where run2b's drift ranged from 0.05 to 1.15 m.
+- **Not a verdict.** These are controllers as built, differing in control rate, action range, velocity input and
+  gait. One controller per side; simulation.
+
 ## What this does not show
 
-- Flat floor only: no steps, ramps, pushes or turns.
+- The judged rules cover the flat floor only; steps, ramps and pushes are in the reported sweep above. No turns.
 - One controller with frozen parameters; the verdict covers ten episode seeds per condition.
 - Simulation of a model whose masses and contact are estimates.
 - The 100 Hz control rate is an assumption about the robot's controller.
@@ -120,8 +170,8 @@ policies' are.
 
 ## Next (proposals)
 
-1. Run the walk through the robustness sweep (delay, friction, mass, payload, force limit, kp, pushes, steps,
-   ramps), to set its edges against the learned policies'.
+1. *Done: the robustness sweep above.* Next for the walk: slope adaptation (lean the stance targets with the
+   measured pitch on a ramp, or adjust the timing) to lift the ramp edge, judged against the same sweep.
 2. Soften the front feet on grippy floors: the landing (the time at the front pitch drives' limit, and the
    re-touches just after landing, which are worse at 0.15 m/s) and the extra touchdowns late in stance.
 3. Use this walk for the museum render clips: it is deterministic and robust in these conditions.
