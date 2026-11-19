@@ -48,6 +48,10 @@ factor but the swept one is at its **nominal** value: the model as built (no dom
 stay on, as in training. Seeds still change the reset pose, the observation noise and the heading drift. Points that
 share all settings are run once: the nominal point is in every sweep.
 
+The nominal point is therefore the **nominal model with observation noise on**. The gait report's "nominal model" case
+(`../analysis/REPORT_GAIT_PIPE1.md`) has the noise off, and its target case has randomisation on, so neither is
+directly comparable with this sweep's nominal point (pipe1: 0.239 m/s here, 0.240 and 0.238 m/s there).
+
 | Sweep | Values | How it is applied | Training range |
 |---|---|---|---|
 | Servo delay | 0, 2, 5, 10, 15, 20 ms; 30, 40, 60 ms beyond the requested set; at 0.25 and 0.15 m/s | `reset(options={"delay_steps": k})`: the env's per-physics-step FIFO, k ms | 0-10 ms |
@@ -56,7 +60,7 @@ share all settings are run once: the nominal point is in every sweep.
 | Payload | +0.5, +1.0 kg; +2, +3 kg beyond | added to the chassis at its centre of mass, the chassis inertia scaled by the same mass ratio (spread like the chassis) | none |
 | Force limit | x0.7, 0.85, 1.0; x0.4, 0.55 beyond | `actuator_forcerange` of the 12 leg drives x the factor | x0.85-1.0 |
 | Position gain kp | x0.8, 1.0, 1.2; x0.4, 0.6, 1.5 beyond | `gainprm[0]` and `biasprm[1]` of the 12 leg drives x the factor (the env's rule) | x0.9-1.1 |
-| Sideways push | 0.1-0.5 m/s each way; 0.75, 1.0, 1.25, 1.5 m/s beyond | a horizontal force on the chassis through `xfrc_applied` for the physics steps from t = 8.0 to 8.1 s (100 steps), along the chassis's left axis at the onset (negative: to the right). Size = robot mass x dv / 0.1 s, so dv is the velocity a free body would gain; the robot's feet resist, so the chassis gains less (the chart shows how much) | no pushes |
+| Sideways push | 0.1-0.5 m/s each way; 0.75, 1.0, 1.25, 1.5 m/s beyond | a horizontal force on the chassis through `xfrc_applied` for the physics steps from t = 8.0 to 8.1 s (100 steps), along the chassis's left axis at the onset (negative: to the right). Size = robot mass x dv / 0.1 s, so dv is the velocity a free body would gain. The summary and chart quote each push three ways: dv, the impulse (N s), and the velocity change the centre of mass actually got; the feet absorb the rest | no pushes |
 | Step up | 1, 2 cm; 3 cm beyond | a box added to the world in memory (MjSpec, written to a temporary file; nothing in the repository changes), its edge 0.6 m ahead of the chassis start, the floor's contact settings | flat floor |
 | Ramp up | 3, 5 deg; 8 deg beyond | a long tilted box whose top face starts at floor level 0.6 m ahead | flat floor |
 
@@ -86,7 +90,9 @@ analysis's):
   highest mean over episodes. RMS over 18 s stands in for steady walking; it is not a thermal simulation.
 - **Time at the nominal torque limit**: per drive, the fraction of 1 ms steps at or above 99 % of the model's nominal
   limit (21 / 21 / 37.8 / 18.9 N·m). **At this point's limit**: the same against the point's limit, which differs only
-  in the force-limit sweep (a drive at x0.7 cannot reach the nominal limit). The worst joint is reported.
+  in the force-limit sweep (a drive at x0.7 cannot reach the nominal limit). Reported: the **worst single joint**
+  (highest mean over episodes). The gait report's figures are per joint and per drive group (for example its 3.0 % for
+  the pitch group on the nominal model is over the four pitch joints), so they are not the same number.
 - **Push** (in the push sweep): the velocity change the push actually gave the robot's centre of mass along the push
   (centre-of-mass speed over the 10 ms after the push, minus the same seed's unpushed episode's at that time); the
   **extra sideways displacement**, the largest of (the chassis's sideways travel along the push minus the same seed's

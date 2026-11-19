@@ -158,10 +158,11 @@ def header(fig, res, title, subtitle, legend_handles=None):
 
 
 def _common_sub(res, extra=""):
-    return (f"{res['seeds_per_point']} episodes per point (20 s, deterministic actions, observation noise on), every "
-            f"other factor nominal: the model as built, {res['settings']['nominal_delay_ms']} ms servo delay, "
+    return (f"{res['seeds_per_point']} episodes per point (20 s, deterministic actions), every other factor at the "
+            f"nominal point: the nominal model with observation noise on (as built, no randomisation; not the gait "
+            f"report's noise-off nominal case), {res['settings']['nominal_delay_ms']} ms servo delay, "
             f"{res['settings']['command_mps']} m/s command. Lines: mean of the episodes that did not fall; dots: single "
-            f"episodes. {extra}")
+            f"episodes. Time at limit: the worst single joint. {extra}")
 
 
 def _handles(names_colors):
@@ -234,9 +235,10 @@ def chart_mass(res, out):
     brk = [x * nom for x in _breaks_of(fm)] + [nom + x for x in _breaks_of(fp)]
     standard_panels(axes, series, (0.9 * nom, 1.1 * nom), "robot mass (kg)", breaks_x=brk,
                     drop_lines=[(0.8 * fm["nominal_speed"], "-20 % of nominal")] if fm["nominal_speed"] else (),
-                    xticks=[round(x, 1) for x, _, _ in rows_m])
+                    xticks=list(range(int(rows_m[0][0]) // 2 * 2, int(rows_m[-1][0]) + 2, 2)))
     header(fig, res, "mass sweep",
-           _common_sub(res, f"Nominal {nom:.1f} kg. Payload +0.5 and +1.0 kg at the chassis's centre of mass. Shaded: "
+           _common_sub(res, f"Nominal {nom:.1f} kg. Payload +{fp['rows'][1]['x']:g} to +{fp['rows'][-1]['x']:g} kg at the "
+                            "chassis's centre of mass. Shaded: "
                             "x0.9-1.1, the per-body training range."),
            _handles([(n, c) for n, c, _, _ in series]))
     fig.subplots_adjust(left=0.035, right=0.985, top=0.74, bottom=0.14, wspace=0.28)
@@ -314,21 +316,39 @@ def chart_push(res, out):
     a_roll.set_title("Peak body roll after the push (deg), worst episode", pad=10)
     _line(a_roll, xs, [(s.get("push") or {}).get("roll_peak_deg_max") for _, s, _ in rows], c)
     a_roll.set_ylim(bottom=0)
+    by_x = {x: s for x, s, _ in rows}
+    mass = by_x[0.0]["mass_kg"]
     for bx in _breaks_of(fam):
         for ax in (a_f, a_v):
             ax.axvline(bx, color=INK2, lw=0.8, zorder=1)
+        q = by_x[bx].get("push") or {}
+        got = q.get("com_dv_achieved_mps_mean")
+        # in the speed panel's empty lower half, on the inner side of the line
+        a_v.annotate(f"falls start\n{q.get('impulse_ns', abs(bx) * mass):.1f} N s"
+                     + (f"\nCoM gained {got:.2f} m/s" if got is not None else ""), (bx, 0.3),
+                     xycoords=("data", "axes fraction"), textcoords="offset points", xytext=(-5 if bx > 0 else 5, 0),
+                     ha="right" if bx > 0 else "left", va="center", fontsize=7.5, color=INK2)
+    ticks = [-1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5]
     for ax in axes.ravel():
-        ax.set_xlabel("push, free-body velocity change (m/s); + to the robot's left")
-        ax.set_xticks([-1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5])
+        ax.set_xlabel("push: free-body velocity change (m/s) / impulse (N s); + to the robot's left")
+        ax.set_xticks(ticks)
+        ax.set_xticklabels([f"{t:g}\n{abs(t) * mass:.1f}" for t in ticks])
         ax.axvline(0, color=AXIS, lw=0.8, zorder=0)
     st = res["settings"]
+    rat = []  # achieved / free-body, pushes of 0.3 m/s and more (smaller ones are within the gait's own sway)
+    for x in xs:
+        got = (by_x[x].get("push") or {}).get("com_dv_achieved_mps_mean")
+        if abs(x) >= 0.3 and got is not None:
+            rat.append(got / abs(x))
+    absorb = (f" The feet absorb part of each push: the centre of mass gains {100 * min(rat):.0f}-{100 * max(rat):.0f} % "
+              "of the free-body velocity change (top right; against the same seed's unpushed episode)." if rat else "")
     header(fig, res, "sideways push",
            _common_sub(res, f"Push: a horizontal force on the chassis from t = {st['push_t_s']:g} s for "
-                            f"{st['push_duration_s']:g} s, impulse = robot mass x dv\n(the velocity a free body would "
-                            "gain). Extra displacement: against the same seed's unpushed episode. Recovery: the 0.5 s "
-                            f"mean sideways speed back within {st['recover_vlat_mps']:g} m/s and held for "
-                            f"{st['recover_hold_s']:g} s. No pushes in training."))
-    fig.subplots_adjust(left=0.04, right=0.985, top=0.80, bottom=0.08, wspace=0.22, hspace=0.45)
+                            f"{st['push_duration_s']:g} s, impulse = robot mass x dv (dv: the velocity a free body "
+                            f"would gain).{absorb} Extra displacement: against the same seed's unpushed episode. "
+                            f"Recovery: the 0.5 s mean sideways speed back within {st['recover_vlat_mps']:g} m/s and held "
+                            f"for {st['recover_hold_s']:g} s. No pushes in training."))
+    fig.subplots_adjust(left=0.04, right=0.985, top=0.79, bottom=0.10, wspace=0.22, hspace=0.55)
     return _save(fig, out / f"{res['run']}_push.png")
 
 

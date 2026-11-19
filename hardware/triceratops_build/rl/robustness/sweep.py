@@ -532,6 +532,81 @@ def fmt_x(fam_key, x):
     return f"x{x:g}"
 
 
+def push_desc(res: dict, dv: float) -> str:
+    """A push as the free-body velocity change, the impulse (N s) and the centre of mass's measured velocity change
+    (against the same seed's unpushed episode; the feet absorb the rest)."""
+    s = res["points"][point_key(make_point(push_dv=dv))]["summary"]
+    q = s.get("push") or {}
+    imp = q.get("impulse_ns") or abs(dv) * s["mass_kg"]
+    got = q.get("com_dv_achieved_mps_mean")
+    side = "left" if dv > 0 else "right"
+    return (f"{abs(dv):g} m/s free-body to the {side} (impulse {imp:.1f} N s"
+            + (f"; the centre of mass gained {got:.2f} m/s" if got is not None else "") + ")")
+
+
+def push_absorption(res: dict) -> tuple | None:
+    """Range over the push points of (centre-of-mass velocity change achieved) / (free-body dv), |dv| >= 0.3 m/s
+    (smaller pushes are within the gait's own sway)."""
+    r = []
+    for v in res["points"].values():
+        dv = v["point"]["push_dv"]
+        got = (v["summary"].get("push") or {}).get("com_dv_achieved_mps_mean")
+        if abs(dv) >= 0.3 and got is not None:
+            r.append(got / abs(dv))
+    return (min(r), max(r)) if r else None
+
+
+def headline(res: dict) -> list:
+    """Bullets for the top of the summary, from the breaks (no hand-written findings)."""
+    L, quiet = [], []
+    for fam in res["families"]:
+        b = fam["breaks"]
+        found = {side: v for side, v in b.items() if v}
+        if fam["x_key"] == "push_dv":
+            continue
+        if not found:
+            xs = [r["x"] for r in fam["rows"]]
+            quiet.append(f"{fam['family']} ({fmt_x(fam['x_key'], xs[0])} to {fmt_x(fam['x_key'], xs[-1])})")
+            continue
+        L.append(f"- **{fam['family']}**: " + "; ".join(
+            f"first break at {fmt_x(fam['x_key'], v['x'])} ({', '.join(v['reasons'])})" for v in found.values()) + ".")
+    if quiet:
+        L.insert(0, "- **No fall and no speed drop of more than 20 %** in: " + "; ".join(quiet) + ".")
+    pf = next((f for f in res["families"] if f["x_key"] == "push_dv"), None)
+    if pf:
+        def largest_ok(sign, brk):  # the largest push on one side with no fall, inside that side's first break
+            xs = [r["x"] for r in pf["rows"] if r["x"] * sign > 0 and not res["points"][r["key"]]["summary"]["falls"]
+                  and (brk is None or abs(r["x"]) < abs(brk["x"]))]
+            return max(xs, key=abs) if xs else None
+
+        def group(pushes):  # {dv: note}; pushes of the same size on both sides share one description
+            out = []
+            for size in sorted({abs(x) for x in pushes}):
+                xs = sorted((x for x in pushes if abs(x) == size), reverse=True)
+                q = [res["points"][point_key(make_point(push_dv=x))]["summary"].get("push") or {} for x in xs]
+                imp = q[0].get("impulse_ns") or size * res["points"][point_key(make_point())]["summary"]["mass_kg"]
+                got = [f"{v['com_dv_achieved_mps_mean']:.2f}" for v in q if v.get("com_dv_achieved_mps_mean") is not None]
+                got_s = "" if not got else (f"; the centre of mass gained {got[0]} m/s" if len(set(got)) == 1 else
+                                            f"; the centre of mass gained {' / '.join(got)} m/s")
+                sides = " and ".join(("left" if x > 0 else "right") + (f" ({pushes[x]})" if pushes[x] else "")
+                                     for x in xs)
+                out.append(f"{size:g} m/s free-body (impulse {imp:.1f} N s{got_s}), pushed to the {sides}")
+            return "; ".join(out)
+
+        brk = {v["x"]: ", ".join(v["reasons"]) for v in pf["breaks"].values() if v}
+        msg = "- **Sideways push**: " + (f"falls start at {group(brk)}" if brk else "no fall in the tested range")
+        ok = [x for x in (largest_ok(1, pf["breaks"].get("high")), largest_ok(-1, pf["breaks"].get("low")))
+              if x is not None]
+        if ok:
+            msg += f". Largest push with no fall: {group({x: '' for x in ok})}"
+        ab = push_absorption(res)
+        if ab:
+            msg += (f". The feet absorb part of every push: the centre of mass gains {100 * ab[0]:.0f}-"
+                    f"{100 * ab[1]:.0f} % of the free-body velocity change (pushes of 0.3 m/s and more)")
+        L.append(msg + ".")
+    return L
+
+
 def markdown(res: dict) -> str:
     L = [f"# Robustness sweep: {res['run_label']} (SIMULATION)", "",
          f"Written by `rl/robustness/sweep.py` on {res['date']}. One policy, so this is a report, not a verdict: "
@@ -540,9 +615,12 @@ def markdown(res: dict) -> str:
          f"{res['run_commit'][:8]}; environment `{res['env']['trike_env_path']}` (sha256 "
          f"{res['env']['trike_env_sha256'][:16]}...).",
          f"- Every point: {res['seeds_per_point']} episodes (seeds {res['seeds'][0]}-{res['seeds'][-1]}), 20 s, "
-         "deterministic actions, observation noise and heading drift on, no domain randomisation; nominal = the model "
-         f"as built, delay {NOMINAL_DELAY_MS} ms, 0.25 m/s command. Speeds, drift and drive figures are over the "
-         "episodes that did not fall, from t = 2 s.",
+         "deterministic actions, observation noise and heading drift on, no domain randomisation. The nominal point "
+         f"is the **nominal model with observation noise on** (the model as built, delay {NOMINAL_DELAY_MS} ms, "
+         "0.25 m/s command); the gait report's \"nominal model\" case has the noise off, so the two are not directly "
+         "comparable. Speeds, drift and drive figures are over the episodes that did not fall, from t = 2 s.",
+         "- \"At ... limit\" columns give the **worst single joint's** share of 1 ms steps at or above 99 % of the "
+         "limit; the gait report quotes per-joint and per-group figures.",
          f"- Wall time {res['wall_s'] / 60:.1f} min on {res['workers']} worker processes ({res['episodes_run']} "
          "episodes)."]
     rp = res.get("reproduction")
@@ -550,6 +628,7 @@ def markdown(res: dict) -> str:
         L.append(f"- Reproduction check (gait_pipe1's target case, randomisation on, seeds {rp['seeds'][0]}-"
                  f"{rp['seeds'][-1]}): mean speed {rp['speed_mps']:.4f} m/s against the analysis's "
                  f"{rp['reference_speed_mps']:.4f} m/s; per-episode speeds identical: {rp['identical']}.")
+    L += ["", "## Headline", ""] + headline(res)
     L += ["", "## Where it breaks", "",
           f"First point outward from nominal with a fall or a speed more than {100 * DROP:.0f} % below the nominal "
           "point's (same command). \"none\": no such point in the tested range.", "",
@@ -562,20 +641,27 @@ def markdown(res: dict) -> str:
                 return "(not tested)"
             if b[side] is None:
                 return "none"
+            if fam["x_key"] == "push_dv":
+                return f"**{push_desc(res, b[side]['x'])}**: " + "; ".join(b[side]["reasons"])
             return f"**{fmt_x(fam['x_key'], b[side]['x'])}**: " + "; ".join(b[side]["reasons"])
         lo = cell("low")
         hi = cell("high")
-        if fam["x_key"] == "push_dv":
-            lo, hi = "right: " + lo, "left: " + hi
         L.append(f"| {fam['family']} | {fmt_x(fam['x_key'], fam['nominal_x'])} | {lo} | {hi} |")
     L += ["", "Training ranges: delay 0-10 ms, friction 0.6-1.0, mass and inertia x0.9-1.1 per body (drawn per body, so "
           "the robot's total varied less), kp x0.9-1.1 and force limits x0.85-1.0 per drive; flat floor, no pushes.", ""]
     for fam in res["families"]:
         L += [f"## {fam['family']}", ""]
         if fam["x_key"] == "push_dv":
-            L += ["| Push (free-body dv) | Force N for 0.1 s | CoM dv achieved m/s | Falls | Speed m/s | Extra sideways "
-                  "displacement m, mean (max) | Recovery s, median (max) | Not recovered | Peak roll deg |",
-                  "|---|---|---|---|---|---|---|---|---|"]
+            ab = push_absorption(res)
+            L += ["Each push is quoted three ways: the free-body velocity change dv (the velocity the whole robot would "
+                  "gain if nothing resisted), the impulse (robot mass x dv, applied as a constant force for 0.1 s), "
+                  "and the velocity change its centre of mass actually got, measured against the same seed's unpushed "
+                  "episode (identical until the push). The feet's friction absorbs the rest"
+                  + (f": the centre of mass gains {100 * ab[0]:.0f}-{100 * ab[1]:.0f} % of dv for pushes of 0.3 m/s "
+                     "and more." if ab else "."), "",
+                  "| Push: free-body dv | Impulse N s | Force N for 0.1 s | CoM dv achieved m/s | Falls | Speed m/s | "
+                  "Extra sideways displacement m, mean (max) | Recovery s, median (max) | Not recovered | Peak roll deg |",
+                  "|---|---|---|---|---|---|---|---|---|---|"]
         else:
             L += ["| Point | Falls | Speed m/s, mean (min) | vs nominal | Speed error m/s | Sideways drift m, mean "
                   "(worst) | Slip ratio, worst foot | Heat: worst joint RMS / rating | At nominal limit, worst joint | "
@@ -587,7 +673,9 @@ def markdown(res: dict) -> str:
             if "speed_mps" not in s:
                 if fam["x_key"] == "push_dv":
                     q = s.get("push") or {}
-                    L.append(f"| {x} | {q.get('force_n', 0):.0f} | | {falls} | all fell | | | | |")
+                    cdv = "" if q.get("com_dv_achieved_mps_mean") is None else f"{q['com_dv_achieved_mps_mean']:.2f}"
+                    L.append(f"| {x} | {q.get('impulse_ns', 0):.1f} | {q.get('force_n', 0):.0f} | {cdv} | {falls} | "
+                             "all fell | | | | |")
                 else:
                     L.append(f"| {x} | {falls} | all fell | | | | | | | |")
                 continue
@@ -596,14 +684,14 @@ def markdown(res: dict) -> str:
             if fam["x_key"] == "push_dv":
                 q = s.get("push")
                 if q is None:
-                    L.append(f"| {x} | | | {falls} | {s['speed_mps']:.3f} | (fell before the push) | | | |")
+                    L.append(f"| {x} | | | | {falls} | {s['speed_mps']:.3f} | (fell before the push) | | | |")
                     continue
                 med = "" if q["recovery_s_median"] is None else f"{q['recovery_s_median']:.2f} ({q['recovery_s_max']:.2f})"
                 ext = ("(no push)" if q["lateral_extra_peak_m_mean"] is None else
                        f"{q['lateral_extra_peak_m_mean']:.3f} ({q['lateral_extra_peak_m_max']:.3f})")
                 cdv = "" if q["com_dv_achieved_mps_mean"] is None else f"{q['com_dv_achieved_mps_mean']:.2f}"
-                L.append(f"| {x} | {q['force_n']:.0f} | {cdv} | {falls} | {s['speed_mps']:.3f} | {ext} | {med} | "
-                         f"{q['not_recovered_upright']} | {q['roll_peak_deg_max']:.1f} |")
+                L.append(f"| {x} | {q['impulse_ns']:.1f} | {q['force_n']:.0f} | {cdv} | {falls} | {s['speed_mps']:.3f} | "
+                         f"{ext} | {med} | {q['not_recovered_upright']} | {q['roll_peak_deg_max']:.1f} |")
             else:
                 L.append(f"| {x} | {falls} | {s['speed_mps']:.3f} ({s['speed_min_mps']:.3f}) | {rel} | "
                          f"{s['speed_error_mps']:+.3f} | {s['drift_abs_mean_m']:.3f} ({s['drift_abs_worst_m']:.3f}) | "

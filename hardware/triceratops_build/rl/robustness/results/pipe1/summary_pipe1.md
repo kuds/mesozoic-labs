@@ -3,9 +3,18 @@
 Written by `rl/robustness/sweep.py` on 2026-11-19. One policy, so this is a report, not a verdict: a simulation of a model whose masses are estimates. Definitions in `rl/robustness/README.md`.
 
 - Policy `trike60_2007040_steps.zip` (sha256 dc06d30105b201bf...), run commit 6aa3a679; environment `hardware/triceratops_build/rl/trike_env.py` (sha256 a82a0c4d206fdfb7...).
-- Every point: 8 episodes (seeds 200000-200007), 20 s, deterministic actions, observation noise and heading drift on, no domain randomisation; nominal = the model as built, delay 10 ms, 0.25 m/s command. Speeds, drift and drive figures are over the episodes that did not fall, from t = 2 s.
+- Every point: 8 episodes (seeds 200000-200007), 20 s, deterministic actions, observation noise and heading drift on, no domain randomisation. The nominal point is the **nominal model with observation noise on** (the model as built, delay 10 ms, 0.25 m/s command); the gait report's "nominal model" case has the noise off, so the two are not directly comparable. Speeds, drift and drive figures are over the episodes that did not fall, from t = 2 s.
+- "At ... limit" columns give the **worst single joint's** share of 1 ms steps at or above 99 % of the limit; the gait report quotes per-joint and per-group figures.
 - Wall time 12.0 min on 2 worker processes (565 episodes).
 - Reproduction check (gait_pipe1's target case, randomisation on, seeds 100000-100004): mean speed 0.2385 m/s against the analysis's 0.2385 m/s; per-episode speeds identical: True.
+
+## Headline
+
+- **No fall and no speed drop of more than 20 %** in: delay, 0.15 m/s (0 ms to 60 ms); friction (0.15 to 1.2); mass, every body (x0.8 to x1.6); payload on the chassis (+0 kg to +3 kg); force limit (x0.4 to x1); position gain kp (x0.4 to x1.5).
+- **delay, 0.25 m/s**: first break at 60 ms (speed 0.177 m/s, 26 % below nominal).
+- **step up**: first break at step 3 cm (speed 0.145 m/s, 39 % below nominal).
+- **ramp up**: first break at ramp 8 deg (speed 0.188 m/s, 21 % below nominal).
+- **Sideways push**: falls start at 1.25 m/s free-body (impulse 15.9 N s; the centre of mass gained 0.68 m/s), pushed to the left (1/8 fell) and right (4/8 fell). Largest push with no fall: 1 m/s free-body (impulse 12.7 N s; the centre of mass gained 0.52 m/s), pushed to the left and right. The feet absorb part of every push: the centre of mass gains 46-58 % of the free-body velocity change (pushes of 0.3 m/s and more).
 
 ## Where it breaks
 
@@ -20,7 +29,7 @@ First point outward from nominal with a fall or a speed more than 20 % below the
 | payload on the chassis | +0 kg | (not tested) | none |
 | force limit | x1 | none | (not tested) |
 | position gain kp | x1 | none | none |
-| sideways push | none | right: **-1.25 m/s**: 4/8 fell | left: **+1.25 m/s**: 1/8 fell |
+| sideways push | none | **1.25 m/s free-body to the right (impulse 15.9 N s; the centre of mass gained 0.68 m/s)**: 4/8 fell | **1.25 m/s free-body to the left (impulse 15.9 N s; the centre of mass gained 0.68 m/s)**: 1/8 fell |
 | step up | flat | (not tested) | **step 3 cm**: speed 0.145 m/s, 39 % below nominal |
 | ramp up | flat | (not tested) | **ramp 8 deg**: speed 0.188 m/s, 21 % below nominal |
 
@@ -142,27 +151,29 @@ Chart: `pipe1_drive.png`.
 
 ## sideways push
 
-| Push (free-body dv) | Force N for 0.1 s | CoM dv achieved m/s | Falls | Speed m/s | Extra sideways displacement m, mean (max) | Recovery s, median (max) | Not recovered | Peak roll deg |
-|---|---|---|---|---|---|---|---|---|
-| -1.5 m/s | 190 | | 8/8 | all fell | | | | |
-| -1.25 m/s | 159 | 0.68 | 4/8 | 0.233 | 0.177 (0.228) | 0.91 (1.15) | 0 | 36.2 |
-| -1 m/s | 127 | 0.52 | 0/8 | 0.233 | 0.092 (0.134) | 0.84 (1.34) | 0 | 21.8 |
-| -0.75 m/s | 95 | 0.37 | 0/8 | 0.239 | 0.055 (0.073) | 0.56 (0.85) | 0 | 9.8 |
-| -0.5 m/s | 63 | 0.28 | 0/8 | 0.239 | 0.036 (0.052) | 0.16 (0.35) | 0 | 4.7 |
-| -0.4 m/s | 51 | 0.22 | 0/8 | 0.239 | 0.028 (0.044) | 0.10 (0.33) | 0 | 4.0 |
-| -0.3 m/s | 38 | 0.16 | 0/8 | 0.239 | 0.022 (0.031) | 0.10 (0.34) | 0 | 3.5 |
-| -0.2 m/s | 25 | 0.11 | 0/8 | 0.239 | 0.017 (0.027) | 0.10 (0.10) | 0 | 3.7 |
-| -0.1 m/s | 13 | 0.05 | 0/8 | 0.239 | 0.010 (0.016) | 0.10 (0.10) | 0 | 3.7 |
-| none | 0 |  | 0/8 | 0.239 | (no push) | 0.10 (0.81) | 0 | 3.6 |
-| +0.1 m/s | 13 | 0.05 | 0/8 | 0.239 | 0.014 (0.035) | 0.10 (0.10) | 0 | 3.3 |
-| +0.2 m/s | 25 | 0.09 | 0/8 | 0.239 | 0.023 (0.039) | 0.10 (0.10) | 0 | 3.6 |
-| +0.3 m/s | 38 | 0.14 | 0/8 | 0.239 | 0.031 (0.046) | 0.10 (0.10) | 0 | 3.9 |
-| +0.4 m/s | 51 | 0.19 | 0/8 | 0.239 | 0.037 (0.047) | 0.26 (1.34) | 0 | 4.1 |
-| +0.5 m/s | 63 | 0.23 | 0/8 | 0.239 | 0.044 (0.059) | 0.31 (0.63) | 0 | 4.4 |
-| +0.75 m/s | 95 | 0.37 | 0/8 | 0.239 | 0.063 (0.072) | 0.47 (0.81) | 0 | 6.1 |
-| +1 m/s | 127 | 0.52 | 0/8 | 0.238 | 0.097 (0.115) | 0.64 (0.98) | 0 | 11.5 |
-| +1.25 m/s | 159 | 0.68 | 1/8 | 0.227 | 0.173 (0.256) | 1.06 (2.06) | 0 | 35.6 |
-| +1.5 m/s | 190 | | 8/8 | all fell | | | | |
+Each push is quoted three ways: the free-body velocity change dv (the velocity the whole robot would gain if nothing resisted), the impulse (robot mass x dv, applied as a constant force for 0.1 s), and the velocity change its centre of mass actually got, measured against the same seed's unpushed episode (identical until the push). The feet's friction absorbs the rest: the centre of mass gains 46-58 % of dv for pushes of 0.3 m/s and more.
+
+| Push: free-body dv | Impulse N s | Force N for 0.1 s | CoM dv achieved m/s | Falls | Speed m/s | Extra sideways displacement m, mean (max) | Recovery s, median (max) | Not recovered | Peak roll deg |
+|---|---|---|---|---|---|---|---|---|---|
+| -1.5 m/s | 19.0 | 190 | 0.86 | 8/8 | all fell | | | | |
+| -1.25 m/s | 15.9 | 159 | 0.68 | 4/8 | 0.233 | 0.177 (0.228) | 0.91 (1.15) | 0 | 36.2 |
+| -1 m/s | 12.7 | 127 | 0.52 | 0/8 | 0.233 | 0.092 (0.134) | 0.84 (1.34) | 0 | 21.8 |
+| -0.75 m/s | 9.5 | 95 | 0.37 | 0/8 | 0.239 | 0.055 (0.073) | 0.56 (0.85) | 0 | 9.8 |
+| -0.5 m/s | 6.3 | 63 | 0.28 | 0/8 | 0.239 | 0.036 (0.052) | 0.16 (0.35) | 0 | 4.7 |
+| -0.4 m/s | 5.1 | 51 | 0.22 | 0/8 | 0.239 | 0.028 (0.044) | 0.10 (0.33) | 0 | 4.0 |
+| -0.3 m/s | 3.8 | 38 | 0.16 | 0/8 | 0.239 | 0.022 (0.031) | 0.10 (0.34) | 0 | 3.5 |
+| -0.2 m/s | 2.5 | 25 | 0.11 | 0/8 | 0.239 | 0.017 (0.027) | 0.10 (0.10) | 0 | 3.7 |
+| -0.1 m/s | 1.3 | 13 | 0.05 | 0/8 | 0.239 | 0.010 (0.016) | 0.10 (0.10) | 0 | 3.7 |
+| none | 0.0 | 0 |  | 0/8 | 0.239 | (no push) | 0.10 (0.81) | 0 | 3.6 |
+| +0.1 m/s | 1.3 | 13 | 0.05 | 0/8 | 0.239 | 0.014 (0.035) | 0.10 (0.10) | 0 | 3.3 |
+| +0.2 m/s | 2.5 | 25 | 0.09 | 0/8 | 0.239 | 0.023 (0.039) | 0.10 (0.10) | 0 | 3.6 |
+| +0.3 m/s | 3.8 | 38 | 0.14 | 0/8 | 0.239 | 0.031 (0.046) | 0.10 (0.10) | 0 | 3.9 |
+| +0.4 m/s | 5.1 | 51 | 0.19 | 0/8 | 0.239 | 0.037 (0.047) | 0.26 (1.34) | 0 | 4.1 |
+| +0.5 m/s | 6.3 | 63 | 0.23 | 0/8 | 0.239 | 0.044 (0.059) | 0.31 (0.63) | 0 | 4.4 |
+| +0.75 m/s | 9.5 | 95 | 0.37 | 0/8 | 0.239 | 0.063 (0.072) | 0.47 (0.81) | 0 | 6.1 |
+| +1 m/s | 12.7 | 127 | 0.52 | 0/8 | 0.238 | 0.097 (0.115) | 0.64 (0.98) | 0 | 11.5 |
+| +1.25 m/s | 15.9 | 159 | 0.68 | 1/8 | 0.227 | 0.173 (0.256) | 1.06 (2.06) | 0 | 35.6 |
+| +1.5 m/s | 19.0 | 190 | 0.87 | 8/8 | all fell | | | | |
 
 Noise floor: the unpushed episodes, measured the same way from t = 8 s, score a recovery time of 0.10 s median and 0.81 s at most (the gait's own sideways sway can exceed the threshold), so recovery times below that are not distinguishable from walking unpushed.
 
