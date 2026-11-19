@@ -78,9 +78,12 @@ Against pipe1 (PR #669's foot, the first reward): about the same speed, but the 
 against 1.10 ×), the feet slip about a quarter as much, and the joints do half the mechanical work. Simulation, one
 policy each: reported, not a verdict. The full analysis follows `analysis/PLAN_RUN2B.md`.
 
-**Analysis (19 Nov 2026; `analysis/REPORT_RUN2B.md`, plan committed first):** a clean trot at 1.22 Hz with 20 cm
-strides; every joint under its continuous rating in every gait-report case (worst 0.72 ×, left hind knee); the front
-pitch drives' peak torque is now the tightest margin (at the nominal limit about 1 % of steps without randomisation);
-leg electrical estimate 40-50 W against pipe1's 106-123 W. Robustness edges at the same points as pipe1 but with larger
-slowdowns on a 3 cm step (-54 %) and an 8° ramp (-34 %), 7 of 8 falls from a 1.25 m/s push to the left, and sideways
-drift of 0.3-0.8 m in 18 s at friction 0.15-0.3. Proposals for the next run in the report.
+**Analysis (19 Nov 2026, revised after the independent review; `analysis/REPORT_RUN2B.md`, plan committed first):** a
+clean trot at 1.22 Hz with 20 cm strides; every joint under its continuous rating in every gait-report case (worst
+0.72 × as a mean, left hind knee; 0.86 × in one episode on the unseen foot); time at the nominal torque limit about 1 %
+on several drives, which one depending on the condition (pipe1 3.7-22.5 %); leg electrical estimate 40-50 W against
+pipe1's 106-123 W. At 0.25 m/s it breaks at the same robustness points as pipe1 but slows more on a 3 cm step (-54 %)
+and an 8° ramp (-34 %), 7 of 8 episodes fall from a 1.25 m/s push to the left, and away from nominal it drifts
+sideways much more than pipe1 (about 1.1 m in 18 s on 2-3 cm steps, 0.7-0.9 m on 5-8° ramps, 0.3-0.8 m at friction
+0.3-0.15). Reward, foot, training length and schedules all differ from pipe1, so no single change gets the credit.
+Proposals for the next run in the report.

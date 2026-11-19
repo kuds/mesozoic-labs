@@ -16,47 +16,55 @@ Sources (tool output, not retyped by hand except where a table says so):
 
 ## Answer first
 
-- **The reward changes did what they were for, on the roll-ankle foot, at the same speed.** At the 0.25 m/s command
-  run2b walks at 0.245 m/s (pipe1 0.238) with no falls, in a clean trot: 1.22 strides per second of 20 cm each, against
-  pipe1's 2.39 Hz and 10 cm. Every drive stays under its continuous rating in every case of the gait report: the worst
-  is the left hind knee at 0.72 of its rating (mean of 5 episodes; 0.77 in the worst), against pipe1's 1.10 (1.15). The
-  feet slip about a quarter as much (slip ratio 0.05-0.09 against 0.23-0.29). The leg drives' electrical estimate
-  falls from 106-123 W to 40-50 W, so the estimated walking time on one battery set roughly doubles, from 46-52 to
-  88-101 min (30 W hotel load assumed). The head's shake at 5-20 Hz halves (4.4 against 9.4 m/s² RMS).
-- **The hind-knee warning (F12) is not reproduced by this gait:** 0.72 of the X4 knee's continuous rating, against the
-  budget's estimate of 1.00. The tightest margin has moved to the **front pitch drives' peak torque**: on the model as
-  built (no randomisation) the right fore pitch drive sits at its torque limit 0.9 % of the time, just under the plan's
-  1 % flag, and at 1.0-1.6 % at several sweep points inside or near the trained ranges (pipe1: 4-23 % at every point where the
-  nominal limit can be reached).
+- **Cooler, more efficient and steadier than the first policy, at the same speed.** At the 0.25 m/s command run2b walks
+  at 0.245 m/s (pipe1 0.238) with no falls, in a clean trot: 1.22 strides per second of 20 cm each, against pipe1's
+  2.39 Hz and 10 cm. Every drive stays under its continuous rating in every case of the gait report: the worst is the
+  left hind knee at 0.72 of its rating (mean of 5 episodes; 0.77 in the worst; 0.86 for the right fore pitch in the
+  worst episode on the other foot), against pipe1's 1.10 (1.15). The feet slip about a quarter as much (slip ratio
+  0.05-0.09 against 0.23-0.29). The leg drives' electrical estimate falls from 106-123 W to 40-50 W, so the estimated
+  walking time on one battery set roughly doubles, from 46-52 to 88-101 min (30 W hotel load assumed). The head's shake
+  at 5-20 Hz halves (4.4 against 9.4 m/s² RMS). Run2b differs from pipe1 in the reward, the foot, the training length
+  (8.0 M against 2.0 M steps), the penalty schedules and the phase clock (off), so these differences cannot be credited
+  to any one change.
+- **Hind knee (F12):** this policy loads the X4 hind knee to 0.72 of its continuous rating, below the budget's
+  average-load estimate of 1.00. One cooler policy reports a lower load; it does not settle F12.
+- **Time at the torque limit is now about 1 % on several drives, which one depending on the condition** (pipe1:
+  3.7-22.5 %). On the model as built (no randomisation) the right fore pitch drive is at its nominal limit 0.9 % of the
+  time, just under the plan's 1 % flag. In the sweep: the hind pitch drives under extra mass, payload, slopes, higher kp
+  and delays of 20 ms and more (1.1-11.7 %); the right hind knee on slippery floors (1.2-2.2 % at friction 0.15-0.3) and
+  at mass x0.8 (1.0 %); the right fore pitch at most other points (0.9-1.6 %, up to 13 % on a 3 cm step). This is a
+  different measure from heat: brief peaks at the limit, not sustained load.
 - **At the edges it is weaker than pipe1.** No sweep produced a fall except sideways pushes beyond the requested
-  range, as for pipe1, and both break at the same points (60 ms delay, 3 cm step, 8° ramp, 1.25 m/s push). But at those
-  points run2b slows more: on a 3 cm step to 0.114 m/s (-54 %, pipe1 -39 %), on an 8° ramp to 0.162 m/s (-34 %, pipe1
-  -21 %), at 60 ms delay and 0.15 m/s to 0.104 m/s (-29 %; pipe1 -7 %, no break). Pushed to the left at 1.25 m/s
-  (free-body; impulse 15.9 N·s), 7 of 8 episodes fell (pipe1 1 of 8); to the right 4 of 8 for both.
-- **New: it drifts sideways on slippery floors.** At friction 0.15, 0.2 and 0.3 it keeps its speed but drifts sideways
-  0.78, 0.56 and 0.32 m on average in 18 s (worst 0.99 m), against pipe1's 0.05-0.08 m and run2b's own 0.08 m at the
-  nominal friction. The sweep's break rule (a fall or a speed drop over 20 %) does not count drift, so the summary's
-  headline lists friction as clean; it is not.
+  range, as for pipe1. At 0.25 m/s both break at the same points (60 ms delay, 3 cm step, 8° ramp, 1.25 m/s push), but
+  run2b slows more there: on a 3 cm step to 0.114 m/s (-54 %, pipe1 -39 %), on an 8° ramp to 0.162 m/s (-34 %, pipe1
+  -21 %). At 0.15 m/s run2b also breaks at 60 ms delay (0.104 m/s, -29 %), where pipe1 does not (-7 %). Pushed to the
+  left at 1.25 m/s (free-body; impulse 15.9 N·s), 7 of 8 episodes fell (pipe1 1 of 8); to the right 4 of 8 for both.
+- **It holds a straight line much worse than pipe1 once conditions differ from training.** Mean sideways drift over
+  18 s, against 0.08 m at the nominal point (pipe1 0.06 m): 1.13-1.15 m on 2-3 cm steps (pipe1 0.08-0.12), 0.66-0.87 m
+  on 5-8° ramps (pipe1 0.13-0.16), 0.32-0.78 m at friction 0.3-0.15 (pipe1 0.12-0.05), 0.35 m at mass x0.8, 0.21-0.31 m
+  at kp x0.6-0.8, 0.27 m at 15 ms delay; on the unseen foot 0.36 m mean, 0.77 m worst, with heading changes up to 12°.
+  It drifts less than pipe1 only at 40-60 ms delay. The sweep's break rule (a fall or a speed drop over 20 %) does not
+  count drift, so the sweep summary's headline lists friction, mass and kp as clean; for straightness they are not.
 - **Still asymmetric, and the slow gait is irregular.** The right-fore and left-hind diagonal carries 59 % of the
   weight and stands longer (duty factors 0.60 and 0.63 against 0.46 and 0.44), as in pipe1. At 0.15 m/s the gait is
   not classed as a trot and up to 51 % of one foot's strides are irregular.
-- **What it means:** a usable walking policy for flat floors in simulation, cooler and more efficient than the first.
-  The next training run would need terrain (small steps and ramps), lower friction with a cost on sideways drift, and
-  attention to symmetry and to slow walking. On hardware, nothing here is a verdict: one policy, and the model-based
-  walk (task 5, D10) is still to be measured.
+- **What it means:** on flat ground at the trained conditions, in simulation, this policy walks cooler and more
+  efficiently than the first; away from them it slows more and wanders sideways. The proposals at the end (terrain,
+  lower friction with a cost on drift, symmetry, slow walking) follow from that. On hardware nothing here is a verdict:
+  one policy, and the model-based walk (task 5, D10) is still to be measured.
 
 ## Flags (from the plan; reported, not pass or fail)
 
 | Flag | Gait report cases (0.25 target, 0.15, nominal, other foot) | Robustness sweep (8 episodes per point, noise on, no randomisation) |
 |---|---|---|
 | Any joint's RMS / rating above 1.0 | **No.** Worst 0.72 / 0.65 / 0.71 / 0.72 | Yes, outside the trained ranges only: delay 40-60 ms (1.12-1.30), mass x1.6 (1.06), kp x1.5 (1.08), step 2-3 cm (1.17-1.40) |
-| Any joint at its nominal limit more than 1 % of steps | **No.** Worst 0.5 % in one episode (left hind knee, randomised); 0.9 % (right fore pitch) on the nominal model | **Yes**, by small margins at points inside or near the trained ranges: friction 1.0 (1.1 %), mass x1.2 (1.1 %), payload 0.5-3 kg (1.0-1.5 %), kp x1.2 (1.6 %), delay 15 ms (1.4 %), 1 cm step (1.2 %), pushes 0.5-1.25 m/s (1.0-1.3 %), ramps 3-8° (2.3-2.8 %); larger at the edges (up to 13 %). The nominal point: 0.9 %. pipe1: 3.7-22.5 % at every point where the nominal limit can be reached (not at the reduced force limits) |
+| Any joint at its nominal limit more than 1 % of steps | **No.** Worst 0.5 % in one episode (left hind knee, randomised); 0.9 % (right fore pitch) on the nominal model, 0.8-1.0 % per episode | **Yes**, at 36 of the 68 distinct points with drive figures (8 episodes per point pooled; the two 1.5 m/s push points, where every episode fell, have none). Right fore pitch: friction 1.0-1.2 (1.1-1.3 %), payload 0.5-2 kg (1.0 %), kp x1.2 (1.6 %), delay 15 ms (1.4 %), 1 cm step (1.2 %), 2-3 cm steps (6.0-13.0 %), pushes of -1.25 to -0.5 and +0.75 to +1.0 m/s (1.0-1.3 %). Hind pitch: delay 20-60 ms (1.8-11.7 %), mass x1.2-1.6 (1.1-4.5 %), payload 3 kg (1.5 %), kp x1.5 (6.1 %), ramps 3-8° (2.3-2.8 %). Right hind knee: friction 0.15-0.3 (1.2-2.2 %), mass x0.8 (1.0 %). The nominal point: 0.9 %. pipe1: 3.7-22.5 % at every point where the nominal limit can be reached (not at the reduced force limits) |
 | Any foot's slip ratio above 0.25 | **No.** Worst 0.09 | Yes, at the edges: friction 0.15 (0.30), delay 60 ms (0.35; 0.69 at 0.15 m/s), delay 40 ms at 0.15 m/s (0.35), 3 cm step (0.89), 8° ramp (0.27) |
 | CoM outside the step-contact support polygon more than 5 % of the time | **No.** 0.2 / 0.0 / 0.2 / 0.3 % | Not measured by the sweep |
 | Any fall in the requested robustness ranges | **No** | **No.** Falls only at pushes of 1.25 and 1.5 m/s free-body, beyond the requested ±0.5 m/s (added to find the edge) |
 
-The time at the nominal torque limit is under-counted whenever domain randomisation is on: each episode's force limit
-is drawn at 0.85-1.0 of nominal, so a drive saturating at its episode's limit rarely reaches the nominal one. That is
+The time at the nominal torque limit is lower by definition whenever domain randomisation is on: each episode's force
+limit is drawn at 0.85-1.0 of nominal, so a drive saturating at its episode's limit rarely reaches the nominal one. That is
 why the randomised gait-report cases show 0.2 % while the unrandomised nominal case and the sweep show about 1 %, and
 why the training evaluations (randomised) show 0 % throughout. The nominal case and the sweep are the better guide.
 
@@ -73,11 +81,13 @@ why the training evaluations (randomised) show 0 % throughout. The nominal case 
 
 Copied from the two gait reports' section d. Continuous ratings at the joint: X4 roll and pitch 7.5 N·m, hind knee
 6.75 N·m, X6 elbow 10.8 N·m. The hind knee's margin in this gait is 28 % (mean) or 23 % (worst episode). In the other
-cases the worst joint is 0.65 (0.15 m/s), 0.71 (nominal model) and 0.72 (other foot, right fore pitch). Time above the
-maker's rated torque: worst joint 5.6 % of steps (right hind pitch), against 22.8 % (pipe1's left hind knee). Peak
-torques are unchanged (the front elbows still reach 34.9 N·m with randomisation, 37.8 N·m, the model's limit, on the
-nominal model): the policy still uses its full torque briefly, but much less often. Peak speeds are lower (worst 65 rpm
-against 79). RMS over 18 s stands in for steady walking; it is not a thermal simulation.
+cases the worst joint is 0.65 (0.15 m/s), 0.71 (nominal model) and 0.72 (other foot, right fore pitch) as means of
+episodes; in the worst single episode 0.69, 0.72 and **0.86** (other foot, right fore pitch), the closest any joint in
+the gait report comes to 1.0. Time above the maker's rated torque: worst joint 5.6 % of steps (right hind pitch),
+against 22.8 % (pipe1's left hind knee). The front elbows still reach their torque limit briefly in both runs: their
+per-episode peaks equal each seed's randomised force limit (32.4-37.1 N·m; 37.8 N·m, the model's limit, on the nominal
+model), so the peak torque is set by the limit, not by the gait, and does not distinguish the two policies. Peak speeds
+are lower (worst 65 rpm against 79). RMS over 18 s stands in for steady walking; it is not a thermal simulation.
 
 In training, the worst joint passed 1.0 between about 0.5 M and 1.5 M steps (highest 1.15, hind knee, at 1.5 M), while
 the heat penalty was still switched off or ramping (it starts at 1 M and is at full strength at 3 M). It was under 1.0
@@ -163,7 +173,7 @@ investigated.
 |---|---|---|---|
 | Delay at 0.25 m/s (0-10 ms) | 60 ms: 0.177 m/s, -26 % | 60 ms: 0.171 m/s, -31 % | run2b equal or faster up to 40 ms |
 | Delay at 0.15 m/s | none to 60 ms (0.134 m/s, -7 %) | 60 ms: 0.104 m/s, -29 % | run2b heat 1.25-1.30 at 40-60 ms |
-| Friction (0.6-1.0) | none, 0.15-1.2 | none, 0.15-1.2 | run2b slows to 0.223 m/s at 0.15 (pipe1 0.242) and **drifts sideways 0.78 m mean, 0.99 m worst** (pipe1 0.05, 0.15 m) |
+| Friction (0.6-1.0) | none, 0.15-1.2 | none, 0.15-1.2 | run2b slows to 0.223 m/s at 0.15 (-9 %; pipe1 0.242) and **drifts sideways 0.78 m mean, 0.99 m worst** (pipe1 0.05, 0.15 m); see the drift table below |
 | Mass, every body (x0.9-1.1) | none, x0.8-1.6 | none, x0.8-1.6 | heat at x1.6: 1.06 against 1.64 |
 | Payload on the chassis | none, to +3 kg | none, to +3 kg | heat at +3 kg: 0.91 against 1.36 |
 | Force limit (x0.85-1.0) | none, x0.4-1 | none, x0.4-1 | run2b keeps 0.242 m/s at x0.4 (pipe1 0.225) |
@@ -178,13 +188,32 @@ the tool's summary are the correct ones. No sweep included terrain or pushes in 
 edges are of policies that have never seen them. One possible reason run2b gives way sooner on steps and ramps is that
 its torque and heat penalties make it reluctant to use the extra torque these need; that is a guess, not tested.
 
+**Sideways drift** (mean of the absolute sideways displacement over 18 s, 8 episodes; worst episode in brackets; from
+the same files). The sweep's break rule does not use it.
+
+| Point | pipe1 | run2b |
+|---|---|---|
+| Nominal (10 ms, friction 0.85, 0.25 m/s) | 0.06 (0.18) m | 0.08 (0.16) m |
+| Friction 0.15 / 0.2 / 0.3 | 0.05 / 0.07 / 0.12 m | **0.78 (0.99) / 0.56 / 0.32 m** |
+| Step 2 cm / 3 cm | 0.08 / 0.12 m | **1.13 (1.26) / 1.15 (1.33) m** |
+| Ramp 3° / 5° / 8° | 0.19 / 0.13 / 0.16 m | 0.22 / **0.66 / 0.87 (0.94) m** |
+| Mass x0.8 | 0.06 m | 0.35 m |
+| kp x0.6 / x0.8 | 0.08 / 0.06 m | 0.31 / 0.21 m |
+| Delay 15 ms | 0.08 m | 0.27 m |
+| Delay 40 / 60 ms | 0.47 / 0.36 m | 0.22 / 0.08 m |
+| Delay 0-15 ms at 0.15 m/s | 0.04 m | 0.06-0.12 m |
+
+Run2b drifts more than pipe1 at most points away from nominal and less only at long delays. Drift of 1.1-1.3 m in
+18 s would take the robot out of a 1 m-wide lane started at its centre.
+
 ## 9. The other foot (PR #669's pitch-only ankle, never seen in training)
 
-0.244 m/s, no falls, a trot at 1.25 Hz and 19 cm; worst joint 0.72 of its rating (right fore pitch); 43-54 W
-electrical; CoM outside the support polygon 0.3 %. It walks on the old foot almost exactly as on its own, whereas
-pipe1 on the unseen roll-ankle foot drifted 0.43 m and had the CoM outside 6 % of the time. In this model the roll
-ankle is not needed for this policy to walk on flat ground; F11's crawl results (where PR #669's foot fails) concern a
-slow scripted crawl, not a trot.
+0.244 m/s, no falls, a trot at 1.25 Hz and 19 cm; 43-54 W electrical; CoM outside the support polygon 0.3 % (one
+episode 1.2 %). Speed and gait hold, but it turns and drifts more than on its own foot: sideways drift per episode
+-0.04, -0.77, -0.40, -0.25 and -0.34 m (worst 0.77 m, against 0.23 m on its own foot and pipe1's 0.43 m on its unseen
+foot), heading change up to 12° (own foot 4°); worst joint 0.72 of its rating as a mean, 0.86 in the worst episode
+(right fore pitch). Five episodes: it walks on the old foot without falling, but not as well. F11's crawl results,
+where PR #669's foot fails, concern a slow scripted crawl, not a trot.
 
 ## What this does not show
 
@@ -199,7 +228,20 @@ slow scripted crawl, not a trot.
 
 None to the measures or the flags. The gait report's cases were switched to the run's own model before the analysis
 (committed with the plan, 97cbf038). Added while writing, from the tools' existing output and not in the plan's list:
-the sideways drift on low friction (section 8), which the sweep records but its break rule does not use.
+the sideways drift (section 8), which the sweep records but its break rule does not use.
+
+Revised after the independent review (first version 6d7526b9; corrections only, no tool re-run):
+
+- The first version called the front pitch drives' peak torque "the tightest margin". The sweep shows the drive at its
+  limit depends on the condition (hind pitch under load, delay and slope; right hind knee on low friction), and time at
+  the limit is a different measure from heat. Rewritten, and the flags table now lists every point over 1 %.
+- The first version reported drift only for low friction and misquoted pipe1's figure (0.05-0.08 m; it is
+  0.05-0.12 m). Drift is now reported across the sweep, where it is larger still on steps and ramps.
+- Wording that went beyond the records was removed: that the reward changes "did what they were for" (reward, foot,
+  training length, schedules and phase clock all differ); that F12 is "not reproduced"; that this is "a usable walking
+  policy"; and in section 9 that it walks on the other foot "almost exactly as on its own".
+- Section 1's elbow-peak sentence, the other foot's worst episode, "same points" (true at 0.25 m/s only), "under-counted"
+  (lower by definition) and pipe1's 3.7-22.5 % were corrected.
 
 ## Proposals for the next training run (for the owner; nothing started)
 
