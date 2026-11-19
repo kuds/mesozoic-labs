@@ -218,7 +218,7 @@ def test_same_seed_same_first_50_observations():
 
 def test_observation_slots_hold_the_named_quantities():
     """Every slot against the quantity it names (noise off), not only the names."""
-    env = TrikeEnv(TrikeEnvConfig(**QUIET))
+    env = TrikeEnv(TrikeEnvConfig(**QUIET, phase_clock_hz=1.5))  # the clock is off by default; checked here too
     env.reset(seed=5, options={"command_speed": 0.2})
     a = np.linspace(-0.4, 0.4, 12)
     for _ in range(2):
@@ -334,21 +334,30 @@ def test_reward_term_signs():
                    yaw_rate=rng.normal(0, 1), yaw_err=rng.normal(0, 1), grav_b=rng.normal(0, 1, 3),
                    z=rng.uniform(0.1, 0.4), z_nominal=0.32, mean_power=rng.uniform(0, 500),
                    action=rng.uniform(-1, 1, 12), prev_action=rng.uniform(-1, 1, 12), slip=rng.uniform(0, 1),
-                   contact=rng.integers(0, 2, 4), penalty_scale=rng.uniform(0, 1))
+                   contact=rng.integers(0, 2, 4), penalty_scale=rng.uniform(0, 1),
+                   heat_index=rng.uniform(0, 3), saturated_fraction=rng.uniform(0, 1),
+                   air_time_excess=rng.normal(0, 0.3))
         assert set(t) == set(REWARD_TERMS)
         for k, v in t.items():
             if k in REWARD_BONUSES:
                 assert v >= 0, k
             elif k == "r_diagonal":
                 assert -cfg.w_diagonal <= v <= cfg.w_diagonal
-            else:
+            elif k != "r_air_time":  # air time: + for swings longer than the target, - for shorter ones
                 assert v <= 0, k
-    # the ramp scales the energy and slip penalties only
-    full = _terms(cfg, mean_power=100.0, slip=0.2, action=np.ones(12), v_lat=0.1)
-    tenth = _terms(cfg, mean_power=100.0, slip=0.2, action=np.ones(12), v_lat=0.1, penalty_scale=0.1)
+    # the ramp scales exactly RAMPED_TERMS (energy, slip, heat, saturation)
+    from trike_env import RAMPED_TERMS
+
+    kw = dict(mean_power=100.0, slip=0.2, action=np.ones(12), v_lat=0.1, heat_index=0.8, saturated_fraction=0.05,
+              air_time_excess=0.1)
+    full, tenth = _terms(cfg, **kw), _terms(cfg, **kw, penalty_scale=0.1)
     for k in REWARD_TERMS:
-        expected = 0.1 * full[k] if k in ("r_energy", "r_slip") else full[k]
+        expected = 0.1 * full[k] if k in RAMPED_TERMS else full[k]
         assert tenth[k] == pytest.approx(expected), k
+    assert full["r_heat"] == pytest.approx(-cfg.w_heat * 0.8)
+    assert full["r_saturation"] == pytest.approx(-cfg.w_saturation * 0.05)
+    assert full["r_air_time"] == pytest.approx(cfg.w_air_time * 0.1)
+    assert _terms(cfg, air_time_excess=0.1, v_cmd=0.04)["r_air_time"] == 0.0  # not when (almost) standing
 
 
 def test_diagonal_score():
@@ -472,6 +481,14 @@ def test_train_stop_resume_settings_and_broken_newest(tmp_path):
     evals = [json.loads(x) for x in (out / "eval_during_training.jsonl").read_text().splitlines()]
     assert [e["steps"] for e in evals] == [1024, 2048, 3072]
     assert all(e["deterministic"] and e["delay_steps"] == 10 and len(e["episodes"]) == 3 for e in evals)
+    m = evals[0]["episodes"][-1]["measures"]  # the gait and drive measures of each evaluation episode
+    assert set(m["drive_groups"]) == {"roll", "pitch", "front elbow", "hind knee"} and len(m["drives"]) == 12
+    for key in ("slip_ratio", "touchdowns_per_s", "touchdowns_per_s_raw", "power_w", "sideways_drift_m",
+                "heading_change_deg"):
+        assert key in m
+    assert all(set(v) == {"rms_nm", "rms_over_continuous", "at_limit_nominal", "at_limit_episode"}
+               for v in m["drives"].values())
+    assert "eval at 1024 steps, command 0.25 m/s: RMS torque/rating roll " in p.stdout
     assert not list(out.rglob("*.tmp"))
 
     # a finished run resumes to nothing
@@ -609,7 +626,11 @@ def test_evaluate_sweep_and_the_runs_own_model(trained_run):
     for c, s in rep["results"]["sweep_delay_10ms"].items():
         assert all(e["delay_steps"] == 10 and e["command_mps"] == float(c) for e in s["per_episode"])
     assert rep["target"]["speed_mps"] == 0.25 and rep["target"]["summary"]["mean_command_mps"] == 0.25
-    assert "TARGET 0.25 m/s at 10 ms" in p.stdout
+    assert "TARGET 0.25 m/s at 10 ms" in p.stdout and "TARGET 0.25 m/s at 10 ms, gait: RMS torque/rating" in p.stdout
+    gait = rep["results"]["sweep_delay_10ms"]["0.25"]["gait"]
+    assert set(gait["drive_groups_worst"]) == {"roll", "pitch", "front elbow", "hind knee"}
+    assert {"at_limit_nominal", "at_limit_episode", "worst_joint"} <= set(gait["drive_groups_worst"]["pitch"])
+    assert len(gait["drives_worst"]) == 12 and "slip_ratio_mean" in gait and "heading_change_deg_worst" in gait
     assert rep["env_config"]["domain_randomization"] is True and rep["deterministic"] is True
 
 
@@ -1030,13 +1051,180 @@ def test_unaccounted_saves_rules(tmp_path):
     assert "not there: trike60_1024_steps.zip" in unaccounted_saves({"sessions": [ended]}, ckpt, 250_000)
     early = {"saves": [], "steps_reached": 800}
     assert unaccounted_saves({"sessions": [early]}, ckpt, 1024) is None  # killed before its first save
-    far = {"saves": [], "steps_reached": 300_000}  # its save may not have been recorded: still refused
-    assert "reached 300000 steps" in unaccounted_saves({"sessions": [far]}, ckpt, 250_000)
+    far = {"saves": [], "steps_reached": 300_000}  # this format lists its saves: none, so nothing to overwrite
+    assert unaccounted_saves({"sessions": [far]}, ckpt, 250_000) is None
     legacy = {"status": "running", "last_checkpoint": None}  # older format, killed: unknown
     assert "older record format" in unaccounted_saves({"sessions": [legacy]}, ckpt, 250_000)
-    # after a quarantine only the sessions from the quarantining one on count; their files went to broken_*
+    legacy_far = {"ended_utc": "x", "steps_end": 300_000}
+    assert "reached 300000 steps" in unaccounted_saves({"sessions": [legacy_far]}, ckpt, 250_000)
+    assert unaccounted_saves({"sessions": [{"ended_utc": "x", "steps_end": 512}]}, ckpt, 1024) is None
+    # after a quarantine only the sessions from the quarantining one on count: as a session field ...
     q = {"quarantined": {"files": ["trike60_1024_steps.zip"]}, "saves": [], "steps_reached": 300}
     assert unaccounted_saves({"sessions": [ended, q]}, ckpt, 1024) is None
+    # ... or as the run's own entry, written the moment the files are moved (session 1 never got recorded)
+    assert unaccounted_saves({"sessions": [ended], "quarantined": [{"session_index": 1}]}, ckpt, 1024) is None
+    nonfinite = {"saves": ["nonfinite/trike60_1024_steps.zip"], "ended_utc": "x", "steps_end": 1024}
+    assert "no finite checkpoint to resume from" in unaccounted_saves({"sessions": [nonfinite]}, ckpt, 1024)
     (ckpt / "broken_x").mkdir(parents=True)
     (ckpt / "broken_x" / "trike60_1024_steps.zip").write_bytes(b"")
     assert unaccounted_saves({"sessions": [ended]}, ckpt, 250_000) is None  # the file is kept, set aside
+
+
+def test_a_session_killed_right_after_its_quarantine_leaves_the_run_free(tmp_path):
+    """The reviewer's H3: the only save is broken, the resume moves it aside and is killed before its own session is
+    recorded. The quarantine is in run_record.json at once, so the next resume starts again (no permanent refusal)."""
+    out = _killed_run(tmp_path, "Saved checkpoint pair at 1024")
+    ckpt = out / "checkpoints"
+    (ckpt / "trike60_1024_steps.zip").write_bytes(b"PK\x03\x04junk")
+    args = [sys.executable, "-u", RL_DIR / "train.py", "--out", out, "--n-envs", 2, "--n-steps", 256,
+            "--total-steps", 10_000_000, "--checkpoint-every", 1024, "--log-every", 512, "--eval-every", 0, "--resume"]
+    p, lines = _start_and_wait(args, pattern=("Starting", "REFUSED", "Resuming"))
+    os.killpg(p.pid, signal.SIGKILL)
+    p.wait()
+    assert any("moved 2 broken file(s)" in x for x in lines) and lines[-1].startswith("Starting a new run"), lines
+    rec = _record(out)
+    assert len(rec["sessions"]) == 1 and rec["quarantined"][0]["session_index"] == 1
+    p, lines = _start_and_wait(args, pattern=("Starting", "REFUSED", "Resuming"))
+    os.killpg(p.pid, signal.SIGKILL)
+    p.wait()
+    assert lines[-1].startswith("Starting a new run"), lines
+
+
+# ======================================================================================== heat, saturation, steps
+def test_continuous_ratings_match_the_mass_ledger():
+    for model in ("trike60_C_closed", "trike60_C_closed_ankleroll"):
+        ledger = json.loads((RL_DIR.parent / "sim" / "generated" / f"mass_ledger_{model}.json").read_text())
+        env = TrikeEnv(TrikeEnvConfig(model_path=str(RL_DIR.parent / "sim" / "generated" / f"{model}.xml")))
+        for name, rating in zip(LEG_ACTUATORS, env.continuous_torque):
+            assert rating == ledger["drives"][name]["joint_thermal_eq_nm"], (model, name)
+
+
+def test_heat_and_saturation_are_measured_every_physics_step():
+    env = TrikeEnv(TrikeEnvConfig(domain_randomization=True, observation_noise=False, delay_steps_fixed=0,
+                                  action_filter_hz=0.0))
+    env.reset(seed=4)
+    taus = []
+    env.substep_hook = lambda e: taus.append(e.data.actuator_force[e._leg_act].copy())
+    limit = env.model.actuator_forcerange[env._leg_act, 1]  # this episode's randomised limits
+    a = np.tile([0.0, 1.0, -1.0], 4)  # hard pitch and flexion targets: some drives reach their limits
+    for _ in range(3):
+        taus.clear()
+        _, _, _, _, info = env.step(a)
+        t = np.array(taus)
+        assert info["heat_index"] == pytest.approx(np.mean((t / env.continuous_torque) ** 2), rel=1e-9)
+        assert info["saturated_fraction"] == pytest.approx(np.mean(np.abs(t) >= 0.95 * limit), abs=1e-12)
+        assert info["r_heat"] == pytest.approx(-env.cfg.w_heat * env.penalty_scale * info["heat_index"])
+        assert info["r_saturation"] == pytest.approx(-env.cfg.w_saturation * env.penalty_scale
+                                                     * info["saturated_fraction"])
+    assert info["saturated_fraction"] > 0
+    # standing still costs little
+    quiet = TrikeEnv(TrikeEnvConfig(**QUIET))
+    quiet.reset(seed=0)
+    for _ in range(50):
+        _, _, _, _, info = quiet.step(np.zeros(12))
+    assert info["saturated_fraction"] == 0 and 0 < -info["r_heat"] < 0.05
+
+
+def test_debounced_touchdowns_and_air_time(tmp_path):
+    from gait_metrics import debounced_touchdowns
+
+    # the rule on a hand-made trace: 2 ms and 9 ms unloaded gaps stay in the stance; 10 ms and longer are steps
+    x = np.ones((200, 1), dtype=bool)
+    x[20:22] = x[50:59] = x[80:90] = x[120:160] = False
+    assert debounced_touchdowns(x, 10).tolist() == [2]
+    assert debounced_touchdowns(x, 10, start=100).tolist() == [1]
+
+    # the env's incremental count and air time against the same rule on its own logged loads
+    env = TrikeEnv(TrikeEnvConfig(domain_randomization=False, observation_noise=False, delay_steps_fixed=0))
+    loads = []
+    env.substep_hook = lambda e: loads.append(e.data.sensordata[e._touch_adr] > e.cfg.contact_threshold_n)
+    for command in (0.2, 0.0):
+        env.reset(seed=1, options={"command_speed": command})
+        loads.clear()
+        n_td, air, r_air = 0, 0.0, 0.0
+        for k in range(150):
+            ph = 2 * math.pi * 2.0 * k * env.dt
+            a = np.concatenate([[0.0, 0.8 * math.sin(ph + o), 0.9 * math.sin(ph + o + 1.2)]
+                                for o in (0, math.pi, math.pi, 0)])
+            *_, info = env.step(a)
+            n_td += info["touchdowns"]
+            air += info["air_time_excess"]
+            r_air += info["r_air_time"]
+        down = np.array(loads)
+        assert n_td == int(debounced_touchdowns(down, env._debounce_steps).sum()) == env.touchdowns > 0
+        expected = 0.0
+        for i in range(4):  # every unloaded run of 10+ samples that ends in a touchdown: air time - target
+            col, run = down[:, i], 0
+            for v in col:
+                if v and run >= env._debounce_steps:
+                    expected += run * env.physics_dt - env.cfg.air_time_target_s
+                run = 0 if v else run + 1
+        assert air == pytest.approx(expected, abs=1e-9)
+        assert r_air == pytest.approx(env.cfg.w_air_time * air if command > env.cfg.air_time_min_command else 0.0)
+
+
+def test_gait_measures_match_the_analysis_script():
+    """The evaluation's measures against analysis/gait_pipe1.py's own measures() on the same logged episode."""
+    script = RL_DIR / "analysis" / "gait_pipe1.py"
+    if not script.exists():
+        pytest.skip("analysis/gait_pipe1.py is not in this checkout")
+    import importlib.util
+
+    import gait_metrics
+
+    spec = importlib.util.spec_from_file_location("gait_pipe1_for_test", script)
+    g = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(g)
+    env = TrikeEnv(TrikeEnvConfig(delay_steps_fixed=10))
+    step = [0]
+
+    def act(obs):
+        step[0] += 1
+        ph = 2 * math.pi * 2.0 * step[0] * env.dt
+        return np.concatenate([[0.0, 0.6 * math.sin(ph + o), 0.8 * math.sin(ph + o + 1.2)]
+                               for o in (0, math.pi, math.pi, 0)])
+
+    log = gait_metrics.record_episode(env, act, seed=3, command=0.2)
+    mine, theirs = gait_metrics.measures(log, 0.2), g.measures(log, 0.2)
+    assert mine["forward_speed_mps"] == pytest.approx(theirs["forward_speed_mps"])
+    assert mine["sideways_drift_m"] == pytest.approx(theirs["sideways_drift_m"])
+    assert mine["power_w"] == pytest.approx(theirs["power_w"])
+    assert mine["touchdowns_per_s_raw"] == pytest.approx(theirs["touchdowns_per_s"])
+    for c in CORNERS:
+        assert mine["slip_ratio"][c] == (pytest.approx(theirs["stance_slip"][c]["slip_ratio"])
+                                         if theirs["stance_slip"][c]["slip_ratio"] is not None else None)
+    for grp, v in mine["drive_groups"].items():
+        t = theirs["drives"][grp]
+        assert v["rms_over_continuous_worst"] == pytest.approx(t["rms_over_thermal"])
+        assert v["at_limit_nominal"] == pytest.approx(t["saturated_fraction"])
+        if "saturated_fraction_episode_limit" in t:
+            assert v["at_limit_episode"] == pytest.approx(t["saturated_fraction_episode_limit"])
+    assert len(mine["drives"]) == 12 and log["env_touchdowns"] == int(
+        gait_metrics.debounced_touchdowns(log["load"] > 2.0, log["debounce_steps"]).sum())
+
+
+def test_phase_clock_is_off_by_default_and_old_runs_keep_theirs():
+    assert TrikeEnvConfig().phase_clock_hz == 0.0
+    assert TrikeEnv().observation_space.shape == (68,)
+    # a run recorded before the new fields existed (as trike60-pipe1's run_record.json): the missing fields take
+    # their defaults, the recorded ones (the clock among them) stay, so its 70-float policy still fits
+    old = TrikeEnvConfig(phase_clock_hz=1.5, w_slip=0.5).to_dict()
+    for k in ("cont_torque_roll", "cont_torque_pitch", "cont_torque_fore_flexion", "cont_torque_hind_flexion",
+              "w_heat", "saturation_frac", "w_saturation", "contact_debounce_s", "air_time_target_s", "w_air_time",
+              "air_time_min_command"):
+        old.pop(k)
+    env = TrikeEnv(TrikeEnvConfig.from_dict(old))
+    assert env.observation_space.shape == (70,) and env.cfg.w_slip == 0.5
+
+
+def test_penalty_ramp_defaults():
+    import train
+
+    args = train.parse_args(["--out", "x", "--total-steps", "1"])
+    assert (args.penalty_ramp_start, args.penalty_ramp_steps) == (0.3, 500_000)
+    assert train.penalty_scale_at(0, 500_000, 0.3) == 0.3
+    assert train.penalty_scale_at(250_000, 500_000, 0.3) == pytest.approx(0.65)
+    assert train.penalty_scale_at(500_000, 500_000, 0.3) == 1.0
+    from trike_env import RAMPED_TERMS
+
+    assert set(RAMPED_TERMS) == {"r_energy", "r_slip", "r_heat", "r_saturation"}

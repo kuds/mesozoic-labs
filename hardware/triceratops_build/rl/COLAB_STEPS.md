@@ -33,8 +33,9 @@ Three rules for the whole sheet:
     The machine:  Runtime type "CPU" with "High-RAM" on (more processors). No GPU: it adds nothing here.
     The length:   TOTAL_STEPS = <<TOTAL_STEPS>> simulation steps. The pipeline test ran at about 850 steps per
                   second overall on this runtime (8 processors, the checks during training included), so this run
-                  trains for about <<HOURS>>, plus a few minutes for the installs and the final evaluation. The
-                  progress lines print the speed (3.6 (f)).
+                  trains for about <<HOURS>>, plus a few minutes for the installs and the final evaluation. (The
+                  reward has more to compute since then, so the speed may be somewhat lower.)
+                  The progress lines print the speed (3.6 (f)).
     Drive:        everything goes into  My Drive / mesozoic-labs / triceratops60 / <<RUN_ID>> ; about <<DRIVE_MB>> MB
                   (a save is about 2 MB, one every 250,000 steps, plus one at every stop).
 
@@ -102,15 +103,17 @@ Three rules for the whole sheet:
            If the Machine line ends "WARNING: more envs than vCPUs, each env runs slower": go on, and tell me <V>.
 
        (f) Every 100,000 steps a progress line (one line on screen), the first one:
-             steps 100000 of <<TOTAL_STEPS>> (<<P: 100000 AS A PERCENTAGE OF TOTAL_STEPS, ONE DECIMAL>>%), <R> env steps/s, penalty scale 0.14; training rollouts (stochastic actions), last <k> episodes: return ..., length ... steps, speed ... m/s at command ... m/s
+             steps 100000 of <<TOTAL_STEPS>> (<<P: 100000 AS A PERCENTAGE OF TOTAL_STEPS, ONE DECIMAL>>%), <R> env steps/s, penalty scale 0.44; training rollouts (stochastic actions), last <k> episodes: return ..., length ... steps, speed ... m/s at command ... m/s
            <R> is the speed. "Stochastic actions" means these numbers come from the training's random exploration;
-           they say nothing about how the policy walks. The penalty scale rises from 0.10 to 1.00 over the first
-           2,000,000 steps and then stays at 1.00.
+           they say nothing about how the policy walks. The penalty scale (the weight of the energy, slip, heat and
+           torque-limit costs) rises from 0.30 to 1.00 over the first 500,000 steps and then stays at 1.00.
 
-       (g) Every 250,000 steps two lines: a save, and a short check of the policy:
+       (g) Every 250,000 steps three lines: a save, and a short check of the policy in two lines:
              Saved checkpoint pair at 250000 steps: trike60_250000_steps.zip and trike60_vecnormalize_250000_steps.pkl
              eval at 250000 steps (deterministic, delay 10 ms): command -> speed m/s: 0.00 -> ..., 0.15 -> ..., 0.25 -> ...; falls ... of 3
-           (At 500,000 steps the progress line stands between them.) A "Saved" line means the file is written to
+             eval at 250000 steps, command 0.25 m/s: RMS torque/rating roll ... pitch ... elbow ... knee ... (worst ...); at >=99% nominal limit .../.../.../... %; slip ratio LF/RF/LH/RH .../.../.../...; touchdowns/s .../.../.../...; power ... W; drift ... m, heading ... deg
+           The third line is for me (drive heat, torque limits, foot slip, steps); nothing to judge.
+           (At 500,000 steps the progress line stands between the save and the check.) A "Saved" line means the file is written to
            the Drive folder as the runtime sees it; Drive uploads it to Google in the background, so it can reach
            your Drive a little later.                                                   (expected, not yet seen)
 
@@ -167,6 +170,7 @@ Three rules for the whole sheet:
              sweep, delay 10 ms, command 0.00 m/s: 5 episodes, ...
              (and the same for 0.10, 0.20, 0.25, 0.27)
              TARGET 0.25 m/s at 10 ms: 5 episodes, ...
+             TARGET 0.25 m/s at 10 ms, gait: RMS torque/rating roll ... pitch ... elbow ... knee ... (worst ...); at >=99% nominal limit ...; slip ratio ...; touchdowns/s ...; power ... W; drift ... m, heading ... deg
              Wrote /content/drive/MyDrive/mesozoic-labs/triceratops60/<<RUN_ID>>/eval/eval_<e>.json
        Nothing to judge here: I read the file.
 
@@ -219,6 +223,12 @@ Three rules for the whole sheet:
                                                            Drive shows the run folder without the saves an earlier
                                                            session made; nothing was changed. Wait a few minutes,
                                                            run box 5 once more; if it repeats, tell me
+      REFUSED: the checkpoint folder ... could not be listed ...
+                                                           the same, when Drive does not even list the folder
+      REFUSED: there is no finite checkpoint to resume from ...
+                                                           training diverged and every save since its last restart
+                                                           is non-finite; nothing was changed; tell me (a new run
+                                                           with other settings is needed)
       REFUSED: the parent process ... is gone ...          should never appear; tell me
       Anything else in red, except pip's dependency warnings in box 3 and the KeyboardInterrupt after a stop (3.7).
 
@@ -244,7 +254,7 @@ Three rules for the whole sheet:
     My Drive / mesozoic-labs / triceratops60 / <RUN_ID> /
       run_record.json              the settings, software versions, commit, and one entry per session
       checkpoints/                 trike60_<n>_steps.zip and trike60_vecnormalize_<n>_steps.pkl, in pairs
-      eval_during_training.jsonl   the short checks of 3.6 (g), one line each
+      eval_during_training.jsonl   the short checks of 3.6 (g), one line each, with every drive, slip and step measure
       monitor/session<k>/          one table per simulation with every finished training episode
       eval/eval_<e>.json           the final test (box 6)
 

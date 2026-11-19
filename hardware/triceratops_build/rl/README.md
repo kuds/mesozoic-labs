@@ -16,7 +16,8 @@ points. Colab itself is untested; the first Colab run is a one-hour pipeline tes
 | `requirements-colab.txt` | The pins the notebook installs (torch as the CPU build). |
 | `COLAB_STEPS.md` | The owner's step sheet for the pipeline test (draft; the commit to fill in). |
 | `trike_checkpoints.py` | Checkpoint pairs: the check that tells a broken file from an I/O error, the scan (newest intact pair, re-reads on I/O errors), atomic saves (non-finite parameters set aside), setting broken files aside, atomic JSON. |
-| `tests/test_trike_env.py`, `tests/conftest.py` | 47 pytest tests, **run by hand** (they are not in the repository's `testpaths` or CI). |
+| `gait_metrics.py` | The gait and drive measures of an evaluation episode (logged every physics step): RMS torque / continuous rating per drive, time at the force limit (nominal and episode limit), stance slip ratio, debounced touchdowns, power, drift and heading change; the definitions of `analysis/gait_pipe1.py`. |
+| `tests/test_trike_env.py`, `tests/conftest.py` | 54 pytest tests, **run by hand** (they are not in the repository's `testpaths` or CI). |
 
 ## How to run locally
 
@@ -48,10 +49,13 @@ run is refused with exit 2 and nothing moved. (The shared `checkpoint_pair_probl
 `rl/` uses its own check, `trike_checkpoints.pair_problem`.) **A step-0 start never overwrites earlier saves:** every
 session records each save in `run_record.json` as it is made (`saves`, `last_checkpoint`) and how far it got
 (`steps_reached`, updated at every save and progress line), written atomically, so a session that is killed (a lost
-runtime) still leaves that record. When the folder lists no checkpoint but the run's sessions since its last
-quarantine recorded saves that are not there, reached the first checkpoint interval, or (an older record without
-`saves`) never recorded an end, train.py refuses (exit 2) instead of starting at step 0 and overwriting saves that a
-storage merely failed to show. A session killed before its first save leaves the run free to start again.
+runtime) still leaves that record; a quarantine is recorded the moment its files are moved. When the folder lists
+no resumable checkpoint but, since the run's last quarantine, a session recorded saves that are nowhere under the
+checkpoint folder (`broken_*/` and `nonfinite/` included), train.py refuses (exit 2) instead of starting at step 0
+and overwriting saves that a storage merely failed to show; if all of them are non-finite it refuses with "there is
+no finite checkpoint to resume from" (a diverged run: use a new run folder with other settings); a session in the
+older record format (no `saves` list) must have recorded an end and stayed under the first checkpoint interval. A
+session killed before its first save, or right after a quarantine, leaves the run free to start again.
 **Every refusal comes before any change**: nothing is moved, removed or written by a refused run. A run keeps its settings (model, env config, PPO settings, envs, seed, total steps, penalty ramp, evaluation):
 a resume with other values is refused, or runs with `--allow-changes`, which logs every change in the session's
 entry and applies it (PPO settings are passed to the load). The policy's shape (`--net`, `--log-std-init`) never
@@ -122,15 +126,18 @@ after it was set (tested for k = 0, 3, 10). k is drawn uniformly from 0-10 per e
 The draws are made at every reset whether randomisation is on or off, so the rest of the episode's random stream
 does not shift when it is switched.
 
-**Observation** (70 floats; `env.obs_layout` names the slots, `env.obs_slots(obs)` splits one; a test checks every
+**Observation** (68 floats by default; `env.obs_layout` names the slots, `env.obs_slots(obs)` splits one; a test checks every
 slot against the quantity it names): 12 leg joint angles (relative to neutral) and 12 joint speeds; 4 passive ankle
 pitch angles (the model has jointpos sensors on them; the variant's roll ankles have none and are not observed);
 gravity direction in the body frame (from the IMU quaternion); `heading_error_sin_cos_ESTIMATE`; gyro;
 `base_lin_vel_body_PRIVILEGED` (from `qvel`: no sensor on the robot gives it; `obs_privileged_lin_vel=False` removes
 it); 4 foot touch loads / nominal weight; `previous_action_filtered` (the filter state, i.e. what is commanded) and
 `previous_action_raw` (the policy's last output, which the action-rate penalty compares the next one with, so that
-penalty depends only on what the policy sees); the commanded speed (m/s); a 1.5 Hz gait clock (sin/cos; a feature
-only, no reward uses it).
+penalty depends only on what the policy sees); the commanded speed (m/s); and, only if `phase_clock_hz` > 0, a gait
+clock (sin/cos; no reward uses it). The clock is **off by default** since the pipe1 gait analysis (20 Nov 2026): that
+policy stepped at 2.39 Hz and ignored its 1.5 Hz clock. Runs recorded with the clock (trike60-pipe1: 1.5 Hz, 70
+floats) keep it: `evaluate.py --run-dir` and `train.py --resume` rebuild the env from the run's `run_record.json`,
+whose env config names it, and fields added since take their defaults (tested).
 
 Observation noise (Gaussian std, every observation; `observation_noise=False` turns it all off): joint angle
 0.005 rad, joint speed 0.05 rad/s, gyro 0.02 rad/s, quaternion 0.01 per component (renormalised, about 1 deg), base
@@ -156,22 +163,32 @@ along and across that heading.
 | heading | -0.5 | heading_error^2 (true yaw) |
 | energy | -0.001 x ramp | mean over the step of sum \|torque x joint speed\| of the 12 leg drives (W) |
 | action rate | -0.04 | sum (a - a_prev)^2 of the raw policy outputs |
-| foot slip | -0.5 x ramp | sum over feet in contact (> 2 N) of the sole's horizontal speed^2 |
+| foot slip | -1.0 x ramp | sum over feet in contact (> 2 N) of the sole's horizontal speed^2 (0.5 until pipe1; doubled rather than normalised by stance, so a sliding stance costs twice as much whatever its length) |
+| drive heat | -0.5 x ramp | mean over the 12 leg drives and the step's 20 physics steps of (torque / continuous rating)^2; ratings at the joint from the mass ledger: X4 roll and pitch 7.5, X6 front elbow 10.8, X4 hind knee 6.75 N·m (tested against the ledger). Standing still scores about 0.06 (cost 0.03); the pipe1 gait 0.73 (cost 0.36); every drive exactly at its rating, 1 |
+| torque saturation | -5.0 x ramp | share of the 12 drives x 20 physics steps at >= 95 % of the episode's randomised force limit (the limit the drive would hit). Pipe1 gait: 2.9 % (cost 0.14); standing: 0 |
+| air time | +1.0 | at each debounced touchdown, (air time - 0.20 s), summed over feet, only when v_cmd > 0.05 m/s. 0.20 s: at 0.25 m/s a 10-12 cm stride takes about 0.45 s and a trot's swing (duty about 0.6) about 0.18 s; pipe1's real swings were 140-215 ms. Shorter swings (shuffles, hops) cost, longer ones pay |
 | diagonal symmetry | 0 (off) | when v_cmd > 0.05: +1 for a trot (diagonal pairs together), -1 for a bound (front pair and hind pair each together), 0 for a pace, a pronk or all four down |
 | termination | -5 | once |
 
-**Penalty ramp:** train.py scales the energy and slip penalties from 0.1 at step 0 to 1.0 at 2,000,000 steps
-(`--penalty-ramp-steps`, `--penalty-ramp-start`), set in every env before each rollout, so early exploration is not
-punished into standing still. Measured with this config:
+**Debounced contact.** A foot counts as lifted only after its load has stayed at or below 2 N for 10 ms
+(`contact_debounce_s`). The ~2 ms breaks inside pipe1's stances are a sub-millimetre contact-model rebound (the
+review of the gait analysis: sole lowest corner median 0.03 mm above the floor, carrying about 0 N), not steps; the
+debounce merges them into the stance. They are **not penalised** (that would train against the contact solver).
 
-- Standing still (zero action; one 20 s episode per command, nominal model, no noise, delay 0) earns 1.80 per step at
-  a 0 m/s command, 1.01 at 0.05, 0.31 at 0.10, 0.14 at 0.20, 0.10 at 0.25 and 0.08 at 0.27 m/s, against about 1.8
-  minus the penalties for moving at the commanded speed.
-- Random actions (Gaussian, std 0.37, clipped; randomisation and noise on; full penalties) earn **-0.20 per step with
-  the command fixed at 0.25 m/s** (4 episodes, seeds 0-3, action noise from `default_rng(0)`; -0.72 without the
-  filter) and **+0.047 per step with the command drawn per episode** (3 episodes, seeds 0-2, `default_rng(1)`, the
-  reviewer's method; -0.67 without the filter). The two differ by the commands drawn: at low commands the tracking
-  terms pay even a robot that barely moves.
+**Penalty ramp:** train.py scales the energy, slip, heat and saturation penalties (`RAMPED_TERMS`) from 0.3 at step 0
+to 1.0 at 500,000 steps (`--penalty-ramp-start`, `--penalty-ramp-steps`; until pipe1: 0.1 to 1.0 over 2,000,000, which
+left that policy under weak effort penalties for its whole run), set in every env before each rollout, so early
+exploration is not punished into standing still yet the costs bite early. Measured with this config:
+
+- Standing still (zero action; one 20 s episode per command, nominal model, no noise, delay 0) earns 1.77 per step at
+  a 0 m/s command, 0.98 at 0.05, 0.28 at 0.10, 0.11 at 0.20, 0.07 at 0.25 and 0.05 at 0.27 m/s (the heat term costs
+  it about 0.03), against about 1.8 minus the penalties for moving at the commanded speed. The pipe1 gait scored with
+  this reward at 0.25 m/s (2 episodes): heat -0.36, saturation -0.14, air time -0.01, total +0.93 per step.
+- Random actions (Gaussian, std 0.37, clipped; randomisation and noise on; full penalties) cost **-1.46 per step with
+  the command fixed at 0.25 m/s** (4 episodes, seeds 0-3, action noise from `default_rng(0)`; -3.59 without the
+  filter) and **-1.20 per step with the command drawn per episode** (3 episodes, seeds 0-2, `default_rng(1)`, the
+  reviewer's method; -3.49 without the filter), against -0.20 and +0.047 before the heat and saturation terms: jitter
+  drives the joints hard. At the ramp's start (0.3) it is about -0.24 per step.
 
 Standing never pays less than falling at once (the step reward stays positive), so the policy has no reason to end
 episodes early.
@@ -188,12 +205,25 @@ Every `--log-every` steps (100,000): steps, rate, the penalty scale, and the **t
 actions)** recent episodes. Those numbers come from exploration and can look like walking while the policy's mean
 stands still (the review's 300k-step probe did exactly that). The honest signal is the **deterministic evaluation**
 every `--eval-every` steps (250,000): one episode at each of 0, 0.15 and 0.25 m/s, policy mean, randomisation on,
-delay fixed at 10 ms, fixed seeds; one printed line and one line in `eval_during_training.jsonl`. Every
+delay fixed at 10 ms, fixed seeds; two printed lines (the speeds; then the drive, slip and step figures at the highest
+command) and one line in `eval_during_training.jsonl` with every measure for every command. Every
 `--checkpoint-every` steps (250,000): `Saved checkpoint pair at <n> steps: ...`.
+
+**Gait and drive measures** (`gait_metrics.py`, also in `evaluate.py`'s JSON for every episode and block): the
+definitions of `analysis/gait_pipe1.py` (window t >= 2 s; a test applies that script's `measures` to the same logged
+episode and compares), logged every physics step:
+
+- per leg drive (12): RMS torque and RMS / continuous rating; the share of physics steps at >= 99 % of its NOMINAL
+  force limit (21 / 21 / 37.8 / 18.9 N·m) and, separately labelled, of the EPISODE'S randomised limit (0.85-1.0 x);
+- per drive group (roll, pitch, front elbow, hind knee): the worst joint's RMS / rating and its name, and the group's
+  at-limit shares;
+- per foot: stance slip ratio (sole horizontal travel while loaded / chassis forward travel), debounced touchdowns
+  per second (and the raw count at 2 N, as the analysis counted it);
+- mean leg power and cost of transport; sideways drift (m) and heading change (deg) over the window.
 
 ## What was tested (locally, CPU, 18 Nov 2026)
 
-`python -m pytest hardware/triceratops_build/rl/tests` (by hand): `47 passed in 136.32s (0:02:16)`. They cover:
+`python -m pytest hardware/triceratops_build/rl/tests` (by hand): `54 passed in 161.37s (0:02:41)`. They cover:
 
 - **Env:** shapes and finiteness; the reward is the sum of its terms; `check_env`; zero action stands 2 s; the delay
   FIFO is exact for k = 0, 3, 10; the action filter is first order and cuts alternating jitter.
@@ -203,13 +233,24 @@ delay fixed at 10 ms, fixed seeds; one printed line and one line in `eval_during
   one computed from the observed raw action); its signs (forward speed, roll, yaw); foot-load noise of the configured
   size; the heading drift is a random walk, and off when configured off.
 - **Reward:** the tracking terms' shape (peak, value at one sigma, monotone, standing below moving for every command
-  from 0.05 m/s, standing still positive); the sign of every term over 500 random inputs; the penalty ramp touching
-  only energy and slip; the diagonal score; termination on tilt, body contact and height; truncation; the ankle-roll
-  model.
+  from 0.05 m/s, standing still positive); the sign of every term over 500 random inputs (heat and saturation never
+  positive; air time either sign, zero below 0.05 m/s); the penalty ramp touching exactly energy, slip, heat and
+  saturation, and its defaults (0.3 to 1.0 over 500,000 steps); the diagonal score; termination on tilt, body contact
+  and height; truncation; the ankle-roll model.
+- **Heat, saturation, steps:** the continuous ratings equal the mass ledger's `joint_thermal_eq_nm` for both models;
+  the env's heat index and saturated share equal the values computed by hand from the torques logged every physics
+  step (with hard pitch and flexion targets that do saturate), and standing still costs under 0.05 per step; the
+  debounce rule on a hand-made trace (2 and 9 ms gaps stay in the stance, 10 ms and longer are steps); the env's
+  incremental touchdown count and air-time sum equal the same rule applied to its logged loads, and the air-time
+  reward is zero at a zero command; the evaluation's measures equal `analysis/gait_pipe1.py`'s `measures` on the same
+  logged episode (speed, drift, power, raw touchdowns, slip ratios, RMS / rating per group, at-limit shares against the
+  nominal and the episode limit); the clock off by default (68 floats) and an older run's config (clock 1.5 Hz, without
+  the new fields) rebuilding its 70-float env.
 - **train.py, stop and resume:**
   - a SIGINT stop, then refusals without `--resume` and of changed settings and of a changed policy shape;
   - a resume with the step count carried over;
-  - save lines at 1,024, 2,048 and 3,072 steps and periodic deterministic evaluations, each logged;
+  - save lines at 1,024, 2,048 and 3,072 steps and periodic deterministic evaluations, each logged with the full
+    drive, slip and step measures and the second printed line;
   - `ppo_in_use` equal to the recorded settings;
   - an "already complete" finished run;
   - `--allow-changes` logged, with the learning-rate warning;
@@ -226,8 +267,11 @@ delay fixed at 10 ms, fixed seeds; one printed line and one line in `eval_during
     save and 1024 steps reached); resumed through a wrapper where `os.path.isdir()` answers False for the folder,
     train.py resumes from that save, whose bytes stay unchanged; with `os.stat` of the folder failing with EIO it is
     re-read and refused; with the folder gone it is refused, nothing created; a session killed at 512 steps, before
-    its first save, may start again; the guard's rules (missing saves, steps past the first interval, older records,
-    quarantine) one by one;
+    its first save, may start again; the guard's rules (missing saves, non-finite saves only, older records, a
+    quarantine as a session field or as the run's own entry) one by one;
+  - **the reviewer's H3**: the only save broken, the resume moves it aside and is killed at "Starting a new run",
+    before its own session is recorded; the quarantine is already in `run_record.json`, and the next resume starts
+    again instead of being refused for good;
   - every periodic save and the final one listed in the session's record, `steps_reached` equal to `steps_end`;
   - refusals before any change: a refused resume leaves a `.tmp` file and broken checkpoints where they were;
   - non-finite parameters saved under `nonfinite/` and never found by the scan;
@@ -235,7 +279,7 @@ delay fixed at 10 ms, fixed seeds; one printed line and one line in `eval_during
   - `--allow-changes --gamma 0.98`: the saved VecNormalize carries 0.98;
   - **the notebook's own cell 5** (with cell 2's `run_step`) on a stand-in train.py whose save takes 2 s: stop
     clicked twice, the second click ignored, Drive flushed only after the save (and after a failed exit too).
-- **evaluate.py:** the sweep and the target block; the model taken from the run record (a run trained on the
+- **evaluate.py:** the sweep and the target block, with the gait summary in the JSON and the TARGET gait line; the model taken from the run record (a run trained on the
   ankle-roll model is evaluated on it); VecNormalize in eval mode (training False, norm_reward False, statistics
   unchanged after 20 steps); refusal without a model; an unreadable `run_record.json` (refused without `--model`,
   evaluated with it).
@@ -270,7 +314,23 @@ per-step work overlaps with the workers'. The PPO update is about 5 % of the tim
 so `--torch-threads` defaults to 1. On this VM four processes step at about half the single-process speed each, so
 Colab's rate is known only when the first progress lines print it.
 
-**Two 300k-step probes** (4 envs, seed 0, this revision's reward, filter and ramp; one seed each, so evidence, not a
+**Two 300k-step probes with today's reward** (heat, saturation, air time, slip 1.0, clock off, ramp 0.3 to 1.0 over
+500,000 steps; 8 envs on these 4 vCPUs, seed 0, deterministic evaluation at 10 ms with randomisation on; one seed
+each, so evidence, not a result; `evaluate.py --sweep`, 3 episodes per command, on the final checkpoints):
+
+| Model | 0.15 m/s | 0.25 m/s | falls | RMS / rating at 0.25 (worst) | at >= 99 % nominal limit | slip ratio | touchdowns per foot per s | power |
+|---|---|---|---|---|---|---|---|---|
+| `trike60_C_closed` | 0.009 m/s | 0.015 m/s | 0 | knee 0.67 (left hind) | 0 % | 0.63-0.90 (on very little travel) | 0.7-5.7 | 3 W |
+| `trike60_C_closed_ankleroll` | 0.033 m/s | 0.094 m/s | 0 | pitch 0.92 (left hind) | 0-0.3 % | 0.26-0.34 | 2.7-4.4 | 11 W |
+
+Both start more slowly than the earlier reward's probe below (0.239 m/s at 300k on the closed model): the training
+rollouts moved (0.08-0.09 m/s at a mean command of 0.12) but the deterministic policies, under costs already at 0.3-0.7
+of full strength, mostly stood (closed) or began to walk (roll ankle; 0.124 m/s at its 300k evaluation). Whether this
+is only a slower start or a standstill that persists needs a longer run; if it persists, the levers are the ramp's
+start (`--penalty-ramp-start`), `w_heat` and `w_saturation`. Rates during these probes: 1,062 env steps/s (closed,
+mostly standing) and 745 (roll ankle, walking, four more joints).
+
+**Two 300k-step probes with the reward before 20 Nov 2026** (4 envs, seed 0; one seed each, so evidence, not a
 result). With the initial action noise of the first version (`--log-std-init -1.0`, std 0.37) the training
 rollouts moved at 0.12 m/s against a mean command of 0.12 m/s, but the deterministic evaluation at 300k steps moved
 at 0.015-0.017 m/s at 0.15 and 0.25 m/s: the policy still moved through its noise (its std had barely shrunk, 0.365).
@@ -292,8 +352,8 @@ stepping and sliding after 300k steps; it is not shown to be a gait, and nothing
 - **Any real training.** The longest run was 300,000 steps. Whether PPO learns to walk with these rewards, how many
   steps it needs, and whether the gait respects the drives' thermal limits are unknown.
 - The reward weights, action scales, filter, network size and PPO settings are untuned.
-- Rendering and videos (the env has no `render`); GPU training; the ankle-roll variant beyond loading, standing and
-  a 1,024-step training run.
+- Rendering and videos (the env has no `render`); GPU training; the ankle-roll variant beyond loading, standing, a
+  1,024-step training run and one 300k-step probe.
 - Transfer to the real robot: the privileged base velocity, the delay model, the heading drift and the randomisation
   ranges are simulation choices, not measured properties of the hardware.
 - Two runtimes writing one run folder at once (one runtime per run, as the step sheet says): there is no lock.

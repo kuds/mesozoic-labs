@@ -12,11 +12,13 @@ reached its total exits at once. ``--resume`` on a folder with no checkpoint sta
 checkpoints are all STRUCTURALLY broken (missing sidecar, not a zip, missing SB3 members, a pickle that does not load)
 it moves them to ``checkpoints/broken_<time>/`` and starts again from step 0. An I/O error while reading them is not
 a verdict on the files: the checkpoints are read again (``--io-retries`` times, ``--io-retry-wait`` s apart) and, if
-it persists, the run is refused (exit 2) with nothing moved. Each session records every save and how far it got in
-run_record.json as it goes (atomically), so a killed session still leaves that record; a step-0 start is refused
-when the folder lists no checkpoint but the record shows saves that are not there, a session that reached the first
-checkpoint interval, or an older-format session with no recorded end. Every refusal comes before any file is moved,
-removed or written.
+it persists, the run is refused (exit 2) with nothing moved. A quarantine is written to run_record.json the moment
+the files are moved. Each session records every save and how far it got in run_record.json as it goes (atomically),
+so a killed session still leaves that record. A step-0 start is refused when the folder lists no resumable
+checkpoint but, since the run's last quarantine, a session recorded saves that are nowhere under the checkpoint
+folder (broken_*/ and nonfinite/ included), all its saves are non-finite (nothing to resume from), or an older-format
+session (no list of saves) reached the first checkpoint interval or has no recorded end. Every refusal comes before
+any file is moved, removed or written.
 
 A run keeps its settings (model, env config, PPO settings, envs, seed, total steps, schedules): a resume with other
 values is refused unless ``--allow-changes`` is given, and then the changes are logged in run_record.json. The
@@ -63,6 +65,7 @@ os.environ["PYTHONPATH"] = os.pathsep.join([str(HERE), str(REPO_ROOT)] + (
 
 from trike_checkpoints import (  # noqa: E402
     CANDIDATE_RE,
+    NONFINITE_DIR,
     files_present,
     pair_names,
     quarantine_broken,
@@ -302,26 +305,42 @@ def _monitored_env(cfg_dict: dict, monitor_path: str, in_worker: bool):
 
 
 def unaccounted_saves(record: dict, ckpt_dir: Path, checkpoint_every: int) -> str | None:
-    """Why starting at step 0 could overwrite this run's earlier saves, or None. Asked only when the checkpoint
-    folder lists no checkpoint. Sessions before the last quarantine do not count (their files were set aside).
-    Raises OSError if the folder cannot be listed."""
+    """Why this run must not start at step 0 (a sentence for the refusal), or None. Asked only when the checkpoint
+    folder lists no resumable checkpoint. Raises OSError if the folder cannot be listed.
+
+    Sessions before the run's last quarantine do not count (their files were set aside; the quarantine is in
+    run_record.json from the moment the files are moved). A session that records its saves (``saves``, this
+    format) is accounted for when each of them is somewhere under the checkpoint folder (broken_*/ and nonfinite/
+    included); one whose saves are all non-finite leaves nothing to resume from. A session in the older format
+    (no ``saves``) is trusted only if it recorded an end and did not reach the first checkpoint interval."""
     sessions = list(record.get("sessions") or [])
-    since = max((i for i, x in enumerate(sessions) if x.get("quarantined")), default=0)
-    names = set()
-    for x in sessions[since:]:
-        for n in [*(x.get("saves") or []), x.get("last_checkpoint"), x.get("started_from")]:
-            if isinstance(n, str) and CANDIDATE_RE.fullmatch(n):
-                names.add(n)
-    missing = sorted(names - files_present(ckpt_dir))
-    if missing:
-        return f"run_record.json names saves that are not there: {', '.join(missing[:4])}"
+    since = max([0] + [int(q.get("session_index", 0)) for q in record.get("quarantined") or []]
+                + [i for i, x in enumerate(sessions) if x.get("quarantined")])
+    present = files_present(ckpt_dir)
+    missing, nonfinite = [], []
     for i, x in enumerate(sessions[since:], start=since):
-        reached = max(int(x.get("steps_end") or 0), int(x.get("steps_reached") or 0))
-        if reached >= checkpoint_every:
-            return f"session {i} reached {reached} steps, past the first checkpoint at {checkpoint_every}"
-        if "saves" not in x and not x.get("ended_utc"):
-            return (f"session {i} has no record of its saves (an older record format) and no recorded end: it may have "
-                    "saved checkpoints")
+        for n in [*(x.get("saves") or []), x.get("last_checkpoint"), x.get("started_from")]:
+            if not isinstance(n, str):
+                continue
+            if n.startswith(f"{NONFINITE_DIR}/"):
+                nonfinite.append(n)
+            elif CANDIDATE_RE.fullmatch(n) and n not in present:
+                missing.append(n)
+        if "saves" not in x:  # the older record format: what it saved is not known
+            reached = max(int(x.get("steps_end") or 0), int(x.get("steps_reached") or 0))
+            if reached >= checkpoint_every or not x.get("ended_utc"):
+                what = f"reached {reached} steps" if reached >= checkpoint_every else "has no recorded end"
+                return (f"no checkpoint is listed in {ckpt_dir}, but session {i} (an older record format, which does "
+                        f"not list its saves) {what} and may have saved checkpoints. Starting at step 0 could "
+                        "overwrite them. Run again later; if they are really gone, use a new run folder.")
+    if missing:
+        return (f"no checkpoint is listed in {ckpt_dir}, but run_record.json names saves that are not there: "
+                f"{', '.join(sorted(set(missing))[:4])}. Starting at step 0 could overwrite them. Run again later; "
+                "if they are really gone, use a new run folder.")
+    if nonfinite:
+        return (f"there is no finite checkpoint to resume from: this run's saves since its last restart are all "
+                f"non-finite (training diverged; they are kept in {ckpt_dir / NONFINITE_DIR}). Starting again at step 0 "
+                "with the same settings would likely diverge again: use a new run folder, with other settings.")
     return None
 
 
@@ -505,10 +524,10 @@ def main(argv=None) -> int:
             reason = unaccounted_saves(record, ckpt_dir, int((recorded or {}).get("checkpoint_every")
                                                              or args.checkpoint_every))
         except OSError as exc:
-            reason = f"the checkpoint folder could not be listed ({exc!r})"
+            reason = (f"the checkpoint folder {ckpt_dir} could not be listed ({exc!r}), so its saves cannot be "
+                      "checked. Run again later.")
         if reason:  # e.g. a storage that answers "no folder" or lists it empty for a while
-            say(f"REFUSED: no checkpoint is listed in {ckpt_dir}, but {reason}. Starting at step 0 could overwrite "
-                "them. Nothing was changed; run again later. If those saves are really gone, use a new run folder.")
+            say(f"REFUSED: {reason} Nothing was changed.")
             return 2
     if pair is not None and pair[0] >= args.total_steps:
         say(f"Run already complete: newest checkpoint is at {pair[0]} steps (target {args.total_steps}). "
@@ -535,7 +554,9 @@ def main(argv=None) -> int:
     if pair is None and scan.skipped:  # with --resume: every checkpoint is structurally broken; keep them aside
         qdir, moved = quarantine_broken(ckpt_dir)
         quarantine = {"time_utc": utc(), "folder": str(qdir.relative_to(out)), "files": moved,
-                      "reasons": scan.skipped}
+                      "reasons": scan.skipped, "session_index": len(record.get("sessions") or [])}
+        record.setdefault("quarantined", []).append(quarantine)
+        write_json_atomic(record_path, record)  # at once: a session killed now must not leave it unrecorded
         say(f"WARNING: no intact checkpoint pair; moved {len(moved)} broken file(s) to "
             f"{qdir.relative_to(out)}/ and starting this run again from step 0.")
 
@@ -592,8 +613,6 @@ def main(argv=None) -> int:
     record.setdefault("created_utc", session["started_utc"])
     record["settings"] = settings
     record.setdefault("sessions", []).append(session)
-    if quarantine:
-        record.setdefault("quarantined", []).append(quarantine)
     write_json_atomic(record_path, record)
 
     def record_progress(n: int, save: str | None = None) -> None:
