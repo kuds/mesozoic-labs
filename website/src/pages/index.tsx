@@ -1,774 +1,126 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
+import Link from '@docusaurus/Link';
+import useBrokenLinks from '@docusaurus/useBrokenLinks';
 import Layout from '@theme/Layout';
-import {
-  ALL_MODELS,
-  PROJECT_CAPABILITIES,
-  backendLabel,
-  headlineFor,
-  posterFor,
-  requireModel,
-  TOTAL_ACTUATORS,
-  TOTAL_TRAINED_STEPS,
-} from '@site/src/data/species';
 import styles from './index.module.css';
 
-/* =============================================================================
-   SCROLL ANIMATION HOOK
-   ============================================================================= */
+const study = 'https://github.com/kuds/mesozoic-labs/blob/7bfeef5334d0d7484e5428f1b77d2d1847d35c8c/hardware/triceratops_build';
+const walkingReport = study + '/walk/REPORT_WALK60.md';
 
-function useScrollReveal() {
-  const ref = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return;
-    // Sections are VISIBLE by default; the hidden "pending" state is added
-    // here (after first paint) and only for sections below the fold — so
-    // no-JS visitors, printing, and full-page rendering always see content.
-    if (el.getBoundingClientRect().top >= window.innerHeight) {
-      el.classList.add(styles.scrollRevealPending);
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          el.classList.remove(styles.scrollRevealPending);
-          el.classList.add(styles.revealed);
-          observer.unobserve(el);
-        }
-      },
-      // Pre-reveal 150px before the section enters so fast scrolling
-      // doesn't flash blank sections.
-      { threshold: 0.05, rootMargin: '0px 0px 150px 0px' },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-  return ref;
-}
-
-/* =============================================================================
-   HERO PARTICLES (deterministic)
-   ============================================================================= */
-
-// Seeded PRNG so the particle field is IDENTICAL on server and client —
-// Math.random() in render caused a hydration mismatch (React #418/#423)
-// and a full client re-render on every page load.
-function mulberry32(seed: number) {
-  return function () {
-    seed |= 0;
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-const particleRand = mulberry32(0x5eed);
-const PARTICLES = Array.from({ length: 20 }, () => ({
-  left: `${particleRand() * 100}%`,
-  top: `${particleRand() * 100}%`,
-  animationDelay: `${particleRand() * 6}s`,
-  animationDuration: `${4 + particleRand() * 4}s`,
-}));
-
-function formatStatus(status: string): string {
-  return status.replaceAll('_', ' ');
-}
-
-function capabilitySummary(id: string): string {
-  const capability = PROJECT_CAPABILITIES[id];
-  return `${capability.label} — ${formatStatus(capability.status)}`;
-}
-
-/* =============================================================================
-   HERO SECTION
-   ============================================================================= */
-
-function HeroSection() {
-  return (
-    <header className={styles.heroBanner}>
-      <div className={styles.heroOverlay} aria-hidden="true"></div>
-      <div className={styles.gridLines} aria-hidden="true"></div>
-      <div className={styles.scanLines} aria-hidden="true"></div>
-      <div className={styles.heroParticles} aria-hidden="true">
-        {PARTICLES.map((style, i) => (
-          <div key={i} className={styles.particle} style={style} />
-        ))}
-      </div>
-
-      <div className={styles.heroContent}>
-        <div className={styles.logoContainer}>
-          <div className={styles.logoGlow} aria-hidden="true"></div>
-          <div className={styles.logo} role="img" aria-label="Mesozoic Labs">
-            <span className={styles.logoDino}>MESOZOIC</span>
-            <span className={styles.logoLabs}>LABS</span>
-          </div>
-        </div>
-
-        <div className={styles.taglineContainer}>
-          <div className={styles.circuitLine} aria-hidden="true"></div>
-          <h2 className={styles.tagline}>
-            <span className={styles.taglineWord}>PREHISTORIC</span>
-            <span className={styles.taglineDivider} aria-hidden="true">//</span>
-            <span className={styles.taglineWord}>SIMULATED</span>
-            <span className={styles.taglineDivider} aria-hidden="true">//</span>
-            <span className={styles.taglineWord}>INTELLIGENCE</span>
-          </h2>
-          <div className={styles.circuitLine} aria-hidden="true"></div>
-        </div>
-
-        <p className={styles.description}>
-          Open-source platform for dinosaur-inspired locomotion research
-          <br />
-          powered by physics simulation and reinforcement learning
-        </p>
-
-        <div className={styles.heroButtons}>
-          <a href="/docs" className={styles.heroPrimaryBtn}>
-            GET STARTED
-            <span className={styles.btnArrow} aria-hidden="true">&rarr;</span>
-          </a>
-          <a
-            href="https://github.com/kuds/mesozoic-labs"
-            className={styles.heroSecondaryBtn}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            VIEW ON GITHUB
-            <span className="sr-only"> (opens in new tab)</span>
-          </a>
-        </div>
-
-        <dl className={styles.statsContainer}>
-          <div className={styles.statItem}>
-            <dt className={styles.statLabel}>MODELS</dt>
-            <dd className={styles.statNumber}>{ALL_MODELS.length}</dd>
-          </div>
-          <div className={styles.statDivider} aria-hidden="true"></div>
-          <div className={styles.statItem}>
-            <dt className={styles.statLabel}>ACTUATORS</dt>
-            <dd className={styles.statNumber}>{TOTAL_ACTUATORS}</dd>
-          </div>
-          <div className={styles.statDivider} aria-hidden="true"></div>
-          <div className={styles.statItem}>
-            <dt className={styles.statLabel}>PUBLISHED RUN STEPS</dt>
-            <dd className={styles.statNumber}>{Math.round(TOTAL_TRAINED_STEPS / 1e6)}M</dd>
-          </div>
-        </dl>
-      </div>
-
-      <div className={styles.heroScrollIndicator} aria-hidden="true">
-        <span className={styles.scrollChevron}></span>
-      </div>
-    </header>
-  );
-}
-
-/* =============================================================================
-   FEATURES SECTION
-   ============================================================================= */
-
-const FeatureIcons = {
-  physics: (
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="3" fill="var(--color-primary)" />
-      <rect x="11" y="1" width="2" height="3" rx="1" fill="var(--color-primary)" />
-      <rect x="11" y="20" width="2" height="3" rx="1" fill="var(--color-primary)" />
-      <rect x="1" y="11" width="3" height="2" rx="1" fill="var(--color-primary)" />
-      <rect x="20" y="11" width="3" height="2" rx="1" fill="var(--color-primary)" />
-      <rect x="4.93" y="4.22" width="2" height="3" rx="1" fill="var(--color-primary)" opacity="0.6" transform="rotate(-45 5.93 5.72)" />
-      <rect x="17.07" y="16.78" width="2" height="3" rx="1" fill="var(--color-primary)" opacity="0.6" transform="rotate(-45 18.07 18.28)" />
-      <rect x="4.93" y="16.78" width="2" height="3" rx="1" fill="var(--color-primary)" opacity="0.6" transform="rotate(45 5.93 18.28)" />
-      <rect x="17.07" y="4.22" width="2" height="3" rx="1" fill="var(--color-primary)" opacity="0.6" transform="rotate(45 18.07 5.72)" />
-    </svg>
-  ),
-  brain: (
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
-      <path d="M12 2C9.8 2 8 3.5 7.5 5.5C5.5 5.8 4 7.5 4 9.5c0 1.5.8 2.8 2 3.5C5.5 14.2 5 15.5 5 17c0 2.8 2.2 5 5 5h4c2.8 0 5-2.2 5-5 0-1.5-.5-2.8-1-4 1.2-.7 2-2 2-3.5 0-2-1.5-3.7-3.5-4C16 3.5 14.2 2 12 2z" fill="var(--color-primary)" opacity="0.2" />
-      <path d="M12 2C9.8 2 8 3.5 7.5 5.5C5.5 5.8 4 7.5 4 9.5c0 1.5.8 2.8 2 3.5C5.5 14.2 5 15.5 5 17c0 2.8 2.2 5 5 5h4c2.8 0 5-2.2 5-5 0-1.5-.5-2.8-1-4 1.2-.7 2-2 2-3.5 0-2-1.5-3.7-3.5-4C16 3.5 14.2 2 12 2z" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" />
-      <circle cx="9" cy="10" r="1.5" fill="var(--color-primary)" />
-      <circle cx="15" cy="10" r="1.5" fill="var(--color-primary)" />
-      <circle cx="12" cy="15" r="1.5" fill="var(--color-primary)" />
-      <line x1="9" y1="10" x2="15" y2="10" stroke="var(--color-primary)" strokeWidth="1" opacity="0.5" />
-      <line x1="9" y1="10" x2="12" y2="15" stroke="var(--color-primary)" strokeWidth="1" opacity="0.5" />
-      <line x1="15" y1="10" x2="12" y2="15" stroke="var(--color-primary)" strokeWidth="1" opacity="0.5" />
-    </svg>
-  ),
-  species: (
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
-      <path d="M17 4c-1 0-3 1-4 3l-1 2-2-1c-1.5 0-3 1-3.5 2.5L5 14l-2 1v4h3l2-2h4l3 2h3v-4l-1-3c0-1-.5-2-1.5-2.5L15 8l1-2c.5-1 .5-2 0-2z" fill="var(--color-primary)" opacity="0.2" />
-      <path d="M17 4c-1 0-3 1-4 3l-1 2-2-1c-1.5 0-3 1-3.5 2.5L5 14l-2 1v4h3l2-2h4l3 2h3v-4l-1-3c0-1-.5-2-1.5-2.5L15 8l1-2c.5-1 .5-2 0-2z" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" strokeLinejoin="round" />
-      <circle cx="16" cy="6" r="1" fill="var(--color-primary)" />
-    </svg>
-  ),
-  openSource: (
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
-      <rect x="3" y="3" width="18" height="18" rx="3" fill="var(--color-primary)" opacity="0.2" />
-      <rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" />
-      <path d="M9 8l-3 4 3 4" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M15 8l3 4-3 4" fill="none" stroke="var(--color-primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <line x1="13" y1="7" x2="11" y2="17" stroke="var(--color-primary)" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
-    </svg>
-  ),
-};
-
-const features = [
+const featured = [
   {
-    icon: FeatureIcons.physics,
-    title: 'MuJoCo Physics',
-    description:
-      'Physics-based articulated models inspired by dinosaur morphology, with contact dynamics and actuator models.',
+    href: '/animals/triceratops',
+    name: 'Triceratops',
+    description: 'From a horned quadruped to the first planned build.',
+    link: 'Explore the project',
   },
   {
-    icon: FeatureIcons.brain,
-    title: 'Reinforcement Learning',
-    description:
-      'PPO and SAC algorithms via Stable-Baselines3 with automated 3-stage curriculum learning.',
+    href: '/animals/compsognathus_longipes?version=robot',
+    name: 'Compsognathus',
+    description: 'A small biped and its twelve-servo robot model.',
+    link: 'Explore the robot model',
   },
   {
-    icon: FeatureIcons.species,
-    title: `${ALL_MODELS.length} Models`,
-    description: `${ALL_MODELS.map(
-      (model) => `${model.name}: ${model.actionDim} actuators`,
-    ).join('; ')}.`,
-  },
-  {
-    icon: FeatureIcons.openSource,
-    title: 'Open Source',
-    description:
-      'MIT licensed with TOML configs, Gymnasium registration and W&B tracking.',
+    href: '/animals/brachiosaurus_altithorax',
+    name: 'Brachiosaurus',
+    description: 'How does a long-necked quadruped reach for food?',
+    link: 'Explore the anatomy',
   },
 ];
 
-function FeaturesSection() {
-  const ref = useScrollReveal();
-  return (
-    <section
-      className={`${styles.featuresSection} ${styles.scrollReveal}`}
-      aria-labelledby="features-heading"
-      ref={ref}
-    >
-      <div className={styles.sectionHeader}>
-        <div className={styles.sectionIcon} aria-hidden="true">{'[ CAPABILITIES ]'}</div>
-        <h2 className={styles.sectionTitle} id="features-heading">Core Features</h2>
-      </div>
-      <div className={styles.featuresGrid} role="list">
-        {features.map((feature, idx) => (
-          <div className={styles.featureCard} key={idx} role="listitem">
-            <div className={styles.featureCardBorder} aria-hidden="true"></div>
-            <div className={styles.featureIcon} aria-hidden="true">{feature.icon}</div>
-            <h3 className={styles.featureTitle}>{feature.title}</h3>
-            <p className={styles.featureDescription}>{feature.description}</p>
-            <div className={styles.featureCorner} aria-hidden="true"></div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/* =============================================================================
-   HOW IT WORKS (Curriculum Pipeline)
-   ============================================================================= */
-
-// Stage colors reference the palette variables from index.module.css so
-// they follow the light/dark theme (hex literals here would not).
-const curriculumSteps = [
-  {
-    stage: 1,
-    title: 'Balance',
-    subtitle: 'Stand & Stabilize',
-    description: 'The agent learns to stand upright and maintain balance using proprioceptive feedback and joint torques.',
-    color: 'var(--color-primary)',
-    glow: 'var(--color-primary-dim)',
-  },
-  {
-    stage: 2,
-    title: 'Locomotion',
-    subtitle: 'Walk & Run',
-    description: 'Building on balance skills, the agent develops forward locomotion with coordinated movement patterns.',
-    color: 'var(--color-accent)',
-    glow: 'var(--color-accent-dim)',
-  },
-  {
-    stage: 3,
-    title: 'Behavior',
-    subtitle: 'Species-Specific Task',
-    description:
-      'Species-specific simulator tasks add sickle-claw contact, a fixed head-contact proxy, or head-tip target proximity.',
-    color: 'var(--color-secondary)',
-    glow: 'rgba(var(--color-secondary-rgb), 0.25)',
-  },
+const roadmap = [
+  ['Now', '60 cm Triceratops in simulation'],
+  ['Next', 'Single-foreleg bench tests'],
+  ['Q3 2027 target', 'Demonstrate the 60 cm Triceratops walking on hardware'],
+  ['2028 target', 'Build and test the 75 cm T. rex'],
 ];
 
-function HowItWorksSection() {
-  const ref = useScrollReveal();
+function SectionHeading({id, children}: {id: string; children: string}) {
+  useBrokenLinks().collectAnchor(id);
+  return <h2 id={id}>{children}</h2>;
+}
+
+function TriceratopsStudy() {
   return (
-    <section
-      className={`${styles.howItWorksSection} ${styles.scrollReveal}`}
-      aria-labelledby="howitworks-heading"
-      ref={ref}
-    >
-      <div className={styles.sectionHeader}>
-        <div className={styles.sectionIcon} aria-hidden="true">{'[ CURRICULUM ]'}</div>
-        <h2 className={styles.sectionTitle} id="howitworks-heading">How It Works</h2>
-        <p className={styles.sectionSubtitle}>
-          Each species learns through a 3-stage curriculum, progressively mastering more complex behaviors
-        </p>
+    <figure>
+      <div className={styles.plates}>
+        <figure>
+          <img
+            src="/img/animals/triceratops-anatomical.webp"
+            width={800}
+            height={400}
+            alt="Anatomical Triceratops with a broad frill, three horns and four weight-bearing legs"
+          />
+          <figcaption>Anatomical model</figcaption>
+        </figure>
+        <figure>
+          <img
+            src="/img/animals/triceratops-concept.webp"
+            width={800}
+            height={400}
+            alt="Earlier open-frame Triceratops robot design with jointed legs, a frill and horns"
+          />
+          <figcaption>Robot model · 75 cm concept</figcaption>
+        </figure>
       </div>
-      <div className={styles.pipelineContainer}>
-        <div className={styles.pipelineLine} aria-hidden="true"></div>
-        {curriculumSteps.map((step, idx) => (
-          <div className={styles.pipelineStep} key={idx}>
-            <div
-              className={styles.pipelineNode}
-              style={{ borderColor: step.color, boxShadow: `0 0 20px ${step.glow}` }}
-              aria-hidden="true"
-            >
-              <span style={{ color: step.color }}>{step.stage}</span>
-            </div>
-            <div className={styles.pipelineContent}>
-              <div className={styles.pipelineStage} style={{ color: step.color }}>
-                STAGE {step.stage}
-              </div>
-              <h3 className={styles.pipelineTitle}>{step.title}</h3>
-              <div className={styles.pipelineSubtitle}>{step.subtitle}</div>
-              <p className={styles.pipelineDescription}>{step.description}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
+      <figcaption className={styles.caption}>
+        <strong>Triceratops</strong>
+        <span>MuJoCo design study · Views scaled independently</span>
+      </figcaption>
+    </figure>
   );
 }
-
-/* =============================================================================
-   SIMULATION PREVIEW SECTION
-   ============================================================================= */
-
-/** The model the code sample creates; its observation width is printed from the catalog. */
-const VELOCIRAPTOR_MONGOLIENSIS_ANATOMICAL = requireModel('velociraptor_mongoliensis', 'anatomical');
-
-function SimulationSection() {
-  const ref = useScrollReveal();
-  return (
-    <section
-      className={`${styles.simulationSection} ${styles.scrollReveal}`}
-      aria-labelledby="simulation-heading"
-      ref={ref}
-    >
-      <div className={styles.sectionHeader}>
-        <div className={styles.sectionIcon} aria-hidden="true">{'[ SIMULATION ]'}</div>
-        <h2 className={styles.sectionTitle} id="simulation-heading">See It In Action</h2>
-      </div>
-      <div className={styles.simulationContainer}>
-        <div className={styles.simulationColumns}>
-          <div className={styles.terminalWindow} role="img" aria-label="Python code example showing how to create a Velociraptor environment with Gymnasium and run a training step">
-            <div className={styles.terminalHeader} aria-hidden="true">
-              <span className={styles.terminalDot} style={{ background: '#ff5f56' }}></span>
-              <span className={styles.terminalDot} style={{ background: '#ffbd2e' }}></span>
-              <span className={styles.terminalDot} style={{ background: '#27c93f' }}></span>
-              <span className={styles.terminalTitle}>mesozoic-labs</span>
-            </div>
-            <div className={styles.terminalBody} aria-hidden="true">
-              <div className={styles.codeLine}>
-                <span className={styles.codeComment}>{'# Create a Velociraptor environment'}</span>
-              </div>
-              <div className={styles.codeLine}>
-                <span className={styles.codeKeyword}>import </span>
-                <span>gymnasium </span>
-                <span className={styles.codeKeyword}>as </span>
-                <span>gym</span>
-              </div>
-              <div className={styles.codeLine}>
-                <span className={styles.codeKeyword}>import </span>
-                <span>environments</span>
-              </div>
-              <div className={styles.codeLine}>&nbsp;</div>
-              <div className={styles.codeLine}>
-                <span>env = gym.make(</span>
-              </div>
-              <div className={styles.codeLine}>
-                <span>{'    '}</span>
-                <span className={styles.codeString}>"MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0"</span>
-              </div>
-              <div className={styles.codeLine}>
-                <span>)</span>
-              </div>
-              <div className={styles.codeLine}>
-                <span>obs, info = env.reset()</span>
-              </div>
-              <div className={styles.codeLine}>&nbsp;</div>
-              <div className={styles.codeLine}>
-                <span className={styles.codeComment}>{'# Run a training step'}</span>
-              </div>
-              <div className={styles.codeLine}>
-                <span>action = env.action_space.sample()</span>
-              </div>
-              <div className={styles.codeLine}>
-                <span>obs, reward, done, trunc, info = env.step(action)</span>
-              </div>
-              <div className={styles.codeLine}>&nbsp;</div>
-              <div className={styles.codeLine}>
-                <span className={styles.codeKeyword}>print</span>
-                <span>(</span>
-                <span className={styles.codeString}>"Obs shape:"</span>
-                <span>, obs.shape)</span>
-              </div>
-              <div className={styles.codeLine}>
-                <span className={styles.codeOutput}>{`>>> Obs shape: (${VELOCIRAPTOR_MONGOLIENSIS_ANATOMICAL.observationDim},)`}</span>
-              </div>
-              <div className={styles.codeLine}>
-                <span className={styles.cursor}>_</span>
-              </div>
-            </div>
-          </div>
-          <figure className={styles.previewPane}>
-            <div className={styles.previewLabel}>PPO Stage 1 — Balance</div>
-            <img
-              src="/img/velociraptor_mongoliensis_anatomical_stance_ppo.gif"
-              alt="Velociraptor learning to balance using PPO reinforcement learning"
-              className={styles.previewGif}
-            />
-            <figcaption className={styles.previewCaption}>
-              Historical, unverified PPO / Stable-Baselines3 artifact; backend version not recorded. Not evidence for
-              the current model or configuration.
-            </figcaption>
-          </figure>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* =============================================================================
-   SPECIES SHOWCASE (Tabbed)
-   ============================================================================= */
-
-// Model/stage/video data lives in src/data/species.ts (shared with the
-// model docs pages so the two can't drift apart).
-
-/** A tab and panel id for a model, built from its species ID and embodiment (decision D-D33). */
-function modelKey(model: {species: string; embodiment: string}): string {
-  return `${model.species}-${model.embodiment}`;
-}
-
-function SpeciesShowcase() {
-  const [activeSpecies, setActiveSpecies] = useState(0);
-  const ref = useScrollReveal();
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const species = ALL_MODELS[activeSpecies];
-  const result = species.featuredResult;
-
-  // WAI-ARIA tabs keyboard support: arrows move + activate, Home/End jump.
-  const onTabKeyDown = (e: React.KeyboardEvent, idx: number) => {
-    const last = ALL_MODELS.length - 1;
-    let next: number | null = null;
-    if (e.key === 'ArrowRight') next = idx === last ? 0 : idx + 1;
-    else if (e.key === 'ArrowLeft') next = idx === 0 ? last : idx - 1;
-    else if (e.key === 'Home') next = 0;
-    else if (e.key === 'End') next = last;
-    if (next !== null) {
-      e.preventDefault();
-      setActiveSpecies(next);
-      tabRefs.current[next]?.focus();
-    }
-  };
-
-  return (
-    <section
-      className={`${styles.speciesSection} ${styles.scrollReveal}`}
-      aria-labelledby="species-heading"
-      ref={ref}
-    >
-      <div className={styles.sectionHeader}>
-        <div className={styles.sectionIcon} aria-hidden="true">{'[ SPECIES ]'}</div>
-        <h2 className={styles.sectionTitle} id="species-heading">Published Run Summaries</h2>
-        <p className={styles.sectionSubtitle}>
-          Provenance-labelled metrics and the curriculum videos currently available in the repository
-        </p>
-      </div>
-
-      <div className={styles.speciesTabs} role="tablist" aria-label="Select model">
-        {ALL_MODELS.map((sp, idx) => (
-          <button
-            key={modelKey(sp)}
-            ref={(el) => {
-              tabRefs.current[idx] = el;
-            }}
-            className={`${styles.speciesTab} ${idx === activeSpecies ? styles.speciesTabActive : ''}`}
-            onClick={() => setActiveSpecies(idx)}
-            onKeyDown={(e) => onTabKeyDown(e, idx)}
-            role="tab"
-            tabIndex={idx === activeSpecies ? 0 : -1}
-            aria-selected={idx === activeSpecies}
-            aria-controls={`species-panel-${modelKey(sp)}`}
-          >
-            <span className={styles.speciesTabName}>{sp.name}</span>
-            <span className={styles.speciesTabMeta}>{sp.actuators} actuators &middot; {sp.gait}</span>
-          </button>
-        ))}
-      </div>
-
-      <div
-        className={styles.speciesPanel}
-        role="tabpanel"
-        id={`species-panel-${modelKey(species)}`}
-        aria-label={species.name}
-      >
-        <div className={styles.speciesInfo}>
-          <span className={styles.speciesBadge}>{species.specialty}</span>
-          {result ? (
-            <>
-              <dl
-                className={styles.speciesStats}
-                aria-label={`${species.name} historical run summary (${result.algorithm}, ${result.date})`}
-              >
-                <div className={styles.speciesStat}>
-                  {/* A ladder summary headlines "Task success" exactly as before;
-                      a schema-4 result headlines its certified primary
-                      deliverable's gate-kind metric (decisions D-A9, D-A10). */}
-                  <dt>{headlineFor(result).label}</dt>
-                  <dd>{headlineFor(result).value}</dd>
-                </div>
-                <div className={styles.speciesStat}>
-                  <dt>Max reported avg. velocity</dt>
-                  <dd>
-                    {result.maxAverageForwardVelocity === null
-                      ? '—'
-                      : `${result.maxAverageForwardVelocity.toFixed(2)} m/s`}
-                  </dd>
-                </div>
-                <div className={styles.speciesStat}>
-                  <dt>Timesteps</dt>
-                  <dd>{Math.round(result.totalTimesteps / 1e6)}M</dd>
-                </div>
-                <div className={styles.speciesStat}>
-                  <dt>Run</dt>
-                  <dd>{result.algorithm} &middot; {backendLabel(result.backend)} &middot; {result.date}</dd>
-                </div>
-              </dl>
-              <p className={styles.speciesProvenance}>
-                {formatStatus(result.provenance.modelRevisionStatus)} model &middot;{' '}
-                {formatStatus(result.provenance.verificationStatus)} &middot;{' '}
-                {result.provenance.evaluationEpisodes === null
-                  ? 'evaluation episode count not recorded'
-                  : `${result.provenance.evaluationEpisodes} evaluation episodes`} &middot;{' '}
-                {result.backendVersion === null
-                  ? `${backendLabel(result.backend)} version not recorded`
-                  : `${backendLabel(result.backend)} ${result.backendVersion}`}. Metrics are retained experiment
-                records, not claims about the current model revision.
-              </p>
-            </>
-          ) : (
-            <p className={styles.speciesProvenance}>No run summary has been published for this model.</p>
-          )}
-        </div>
-
-        <div className={styles.speciesVideos}>
-          {/* Cards are keyed and labelled by the manifest stage id/label, never
-              the legacy number, which is null for a semantic-only stage such as
-              recovery and collided as a React key (decision D-A13). */}
-          {species.stages.map((stage) => (
-            <div className={styles.speciesVideoCard} key={stage.id}>
-              <div className={styles.speciesVideoHeader}>
-                <span className={styles.speciesStageLabel}>STAGE {stage.label.toUpperCase()}</span>
-                <span className={styles.speciesAlgoBadge}>
-                  {stage.video
-                    ? `${stage.video.algorithm} · ${backendLabel(stage.video.backend)} · ${stage.video.modelRevisionStatus}`
-                    : 'NO VIDEO'}
-                </span>
-              </div>
-              <h3 className={styles.speciesStageTitle}>{stage.title}</h3>
-              <p className={styles.speciesStageDesc}>{stage.description}</p>
-              {stage.video ? (
-                <>
-                  <p className={styles.speciesVideoProvenance}>
-                    {stage.video.verificationStatus} artifact;{' '}
-                    {stage.video.backendVersion === null
-                      ? 'backend version not recorded'
-                      : `${backendLabel(stage.video.backend)} ${stage.video.backendVersion}`}; not evidence for the
-                    current model or config.
-                  </p>
-                  <div className={styles.speciesVideoWrap}>
-                    <video
-                      src={stage.video.path}
-                      controls
-                      preload="none"
-                      poster={posterFor(stage.video.path)}
-                      className={styles.speciesVideoPlayer}
-                      aria-label={`${species.name} stage ${stage.label}: ${stage.title}`}
-                    />
-                  </div>
-                </>
-              ) : (
-                <div className={styles.speciesVideoUnavailable} role="status">
-                  No published video is available for this stage.
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* =============================================================================
-   ROADMAP SECTION (Timeline)
-   ============================================================================= */
-
-const milestones = [
-  {
-    phase: 'PHASE 0 — v0.2.0',
-    title: 'Clean Slate',
-    status: 'complete' as const,
-    statusLabel: 'COMPLETE',
-    items: ['TOML configs', 'Gymnasium registration', 'Developer tooling', 'Testing improvements'],
-  },
-  {
-    phase: 'PHASE 1 — v0.3.0',
-    title: 'First Steps',
-    status: 'active' as const,
-    statusLabel: 'IN PROGRESS',
-    items: ['Curriculum manager', 'W&B tracking', 'Locomotion metrics', 'Species training runs'],
-  },
-  {
-    phase: 'PHASE 2 — v0.4.0',
-    title: 'Into the Wild',
-    status: 'active' as const,
-    statusLabel: 'IN PROGRESS',
-    items: [capabilitySummary('domain_randomization'), 'Terrain diversity — piloted', 'Turning & steering — piloted'],
-  },
-  {
-    phase: 'PHASE 3 — v0.5.0',
-    title: 'Evolution',
-    status: 'active' as const,
-    statusLabel: 'IN PROGRESS',
-    items: ['Custom policy networks', 'New species — 2 of 4 delivered', 'Benchmark suite'],
-  },
-  {
-    phase: 'PHASE 4 — v0.6.0',
-    title: 'The Pack',
-    status: 'upcoming' as const,
-    statusLabel: 'PLANNED',
-    items: ['Multi-agent envs', 'Cooperative hunting', 'Predator-prey'],
-  },
-  {
-    phase: 'PHASE 6',
-    title: 'Sim-to-Real',
-    status: 'upcoming' as const,
-    statusLabel: 'PLANNED',
-    items: [
-      capabilitySummary('hardware_prototype'),
-      capabilitySummary('ros2_bridge'),
-      capabilitySummary('sim_to_real_validation'),
-    ],
-  },
-];
-
-function RoadmapSection() {
-  const ref = useScrollReveal();
-  return (
-    <section
-      className={`${styles.roadmapSection} ${styles.scrollReveal}`}
-      aria-labelledby="roadmap-heading"
-      ref={ref}
-    >
-      <div className={styles.sectionHeader}>
-        <div className={styles.sectionIcon} aria-hidden="true">{'[ ROADMAP ]'}</div>
-        <h2 className={styles.sectionTitle} id="roadmap-heading">Project Roadmap</h2>
-      </div>
-      <div className={styles.timelineContainer} role="list">
-        <div className={styles.timelineLine} aria-hidden="true"></div>
-        {milestones.map((milestone, idx) => (
-          <article
-            className={`${styles.timelineItem} ${styles[milestone.status]}`}
-            key={idx}
-            role="listitem"
-          >
-            <div
-              className={styles.timelineDot}
-              aria-hidden="true"
-            ></div>
-            <div className={styles.timelineCard}>
-              <div className={styles.milestonePhase}>{milestone.phase}</div>
-              <h3 className={styles.milestoneTitle}>{milestone.title}</h3>
-              <ul className={styles.milestoneItems} aria-label={`${milestone.title} items`}>
-                {milestone.items.map((item, i) => (
-                  <li key={i}>{item}</li>
-                ))}
-              </ul>
-              <span className={styles.milestoneStatus} aria-label={`Status: ${milestone.statusLabel}`}>
-                {milestone.statusLabel}
-              </span>
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/* =============================================================================
-   CTA SECTION
-   ============================================================================= */
-
-function CTASection() {
-  return (
-    <section className={styles.ctaSection} aria-labelledby="cta-heading">
-      <div className={styles.ctaDinoTrack} aria-hidden="true"></div>
-      <div className={styles.ctaContent}>
-        <h2 className={styles.ctaTitle} id="cta-heading">Ready to Train a Dinosaur-Inspired Agent?</h2>
-        <p className={styles.ctaDescription}>
-          Explore the docs, train your first model, or contribute to the project.
-        </p>
-        <div className={styles.ctaButtons}>
-          <a href="/docs" className={styles.ctaButton}>
-            GET STARTED
-            <span className={styles.btnArrow} aria-hidden="true">&rarr;</span>
-          </a>
-          <a
-            href="https://github.com/kuds/mesozoic-labs"
-            className={styles.ctaButtonSecondary}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            VIEW ON GITHUB
-            <span className="sr-only"> (opens in new tab)</span>
-          </a>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* =============================================================================
-   MAIN PAGE
-   ============================================================================= */
 
 export default function Home(): React.JSX.Element {
   return (
     <Layout
-      title="Dinosaur-Inspired Locomotion Research"
-      description="Mesozoic Labs - Open-source dinosaur-inspired locomotion research with MuJoCo simulation and reinforcement learning"
+      title="Building robots inspired by Mesozoic animals"
+      description="Explore Mesozoic animal models, follow a Triceratops robot from anatomy into simulation, and read the lab’s build journal."
     >
-      <a className="skip-nav" href="#main-content">
-        Skip to main content
-      </a>
-      <main className={styles.main} id="main-content">
-        <HeroSection />
-        <div className={styles.sectionDivider} aria-hidden="true"></div>
-        <FeaturesSection />
-        <div className={styles.sectionDivider} aria-hidden="true"></div>
-        <HowItWorksSection />
-        <div className={styles.sectionDivider} aria-hidden="true"></div>
-        <SimulationSection />
-        <div className={styles.sectionDivider} aria-hidden="true"></div>
-        <SpeciesShowcase />
-        <div className={styles.sectionDivider} aria-hidden="true"></div>
-        <RoadmapSection />
-        <div className={styles.sectionDivider} aria-hidden="true"></div>
-        <CTASection />
+      <main className={styles.page} id="main-content">
+        <header className={styles.intro}>
+          <h1>Building robots inspired by Mesozoic animals.</h1>
+          <div>
+            <p>We start with an animal’s anatomy. When there’s a path to a physical robot, we design one and test how it moves. Today, every trial takes place in simulation.</p>
+            <Link className={styles.primary} to="/animals/triceratops">Follow the Triceratops build</Link>
+          </div>
+        </header>
+
+        <TriceratopsStudy />
+
+        <section className={styles.featured} aria-labelledby="explore">
+          <div className={styles.sectionHeading}>
+            <SectionHeading id="explore">Explore the animals</SectionHeading>
+            <Link className={styles.textLink} to="/animals">All animals</Link>
+          </div>
+          <div className={styles.featureGrid}>
+            {featured.map(animal => (
+              <Link key={animal.href} to={animal.href} className={styles.feature}>
+                <h3>{animal.name}</h3>
+                <p>{animal.description}</p>
+                <span>{animal.link}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <div className={styles.research}>
+          <section aria-labelledby="journal">
+            <SectionHeading id="journal">Build journal</SectionHeading>
+            <div className={styles.metadata}><time dateTime="2026-11-19">19 November 2026</time> · Simulation</div>
+            <h3>Forty flat-floor trials</h3>
+            <p>The 60 cm Triceratops trotted through four simulated floor conditions without falling. On a 5° ramp, its speed dropped by 27%.</p>
+            <a href={walkingReport} className={styles.textLink}>See the trial results</a>
+          </section>
+          <section aria-labelledby="roadmap">
+            <SectionHeading id="roadmap">Build roadmap</SectionHeading>
+            <dl className={styles.roadmap}>
+              {roadmap.map(([when, milestone]) => (
+                <div key={when}><dt>{when}</dt><dd>{milestone}</dd></div>
+              ))}
+            </dl>
+          </section>
+        </div>
       </main>
     </Layout>
   );
