@@ -154,7 +154,7 @@ Small Bipedal Theropod. **Specialty:** Non-contact target reaching.
 | Action dimension / actuators | 14 |
 | Generalized coordinates / velocities | nq=24, nv=23 |
 | Compiled dynamic model mass | 1.0 kg |
-| Plant contract revisions | policy r5; physics r2; visual r2 ([details](PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r6; physics r3; visual r3 ([details](PLANT_CONTRACT.md)) |
 | Model | `environments/compsognathus_longipes/anatomical/assets/compsognathus_longipes_anatomical.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |

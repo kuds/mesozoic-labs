@@ -15,6 +15,13 @@ from pathlib import Path
 import numpy as np
 
 from environments.compsognathus_longipes import MODEL_PATHS
+from environments.compsognathus_longipes.scripts.anatomical_hindlimb import (
+    add_digital_flexor,
+    add_long_bone,
+    add_pes,
+    hindlimb_meshes,
+)
+from environments.compsognathus_longipes.scripts.anatomical_surface import axial_body
 from environments.compsognathus_longipes.scripts.standing_targets import write_gravity_targets
 from environments.compsognathus_longipes.scripts.styling import apply_styles
 
@@ -262,9 +269,6 @@ def build_anatomical(parameters):
     hip_z = -sum(d[2] for d in displacements) + 0.007
     pelvis = element(world, "body", name="pelvis", pos=fmt([0, 0, hip_z]))
     element(pelvis, "freejoint", name="root")
-    element(
-        pelvis, "geom", name="torso", type="ellipsoid", pos=".025 0 .025", size=".11 .038 .044", mass=p["torso_mass_kg"]
-    )
     actuator = element(root, "actuator")
 
     def hinge(body, name, axis, limits, kp=20, kv=0.2, cap=1.0, armature=None):
@@ -282,45 +286,7 @@ def build_anatomical(parameters):
             forcerange=fmt([-cap, cap]),
         )
 
-    neck = element(pelvis, "body", name="neck", pos=".105 0 .05")
-    hinge(neck, "neck_pitch", "0 1 0", [-0.55, 0.55], 8, 0.12, 0.4)
-    element(neck, "geom", name="neck_geom", type="capsule", fromto="0 0 0 .10 0 .065", size=".014", mass=".04")
-    skull = element(neck, "body", name="skull", pos=".13 0 .065")
-    element(skull, "geom", name="skull_geom", type="ellipsoid", pos=".02 0 0", size=".058 .019 .022", mass=".045")
-    jaw = element(skull, "body", name="jaw", pos="-.015 0 -.012")
-    hinge(jaw, "jaw_pitch", "0 1 0", [-0.04, 0.6], 0.3, 0.01, 0.04)
-    element(
-        jaw,
-        "geom",
-        name="jaw_geom",
-        type="capsule",
-        fromto="0 0 0 .079 0 0",
-        size=".005",
-        mass=".007",
-        rgba=".46 .61 .41 1",
-    )
-    for side in (-1, 1):
-        arm = element(pelvis, "body", name="l_arm" if side == 1 else "r_arm", pos=fmt([0.08, side * 0.035, 0.005]))
-        element(
-            arm,
-            "geom",
-            name=f"arm_geom_{side}",
-            type="capsule",
-            fromto=fmt([0, 0, 0, 0.025, side * 0.014, -0.038]),
-            size=".007",
-            mass=".008",
-        )
-        element(
-            arm,
-            "geom",
-            name=f"hand_visual_{side}",
-            type="capsule",
-            fromto=fmt([0.025, side * 0.014, -0.038, 0.05, side * 0.014, -0.024]),
-            size=".003",
-            mass="0",
-            contype="0",
-            conaffinity="0",
-        )
+    skull = axial_body(asset, pelvis, hinge, p)
     parent = pelvis
     for i, (length, mass) in enumerate(zip(p["tail_segment_lengths_m"], p["tail_segment_masses_kg"], strict=True)):
         tail = element(
@@ -347,6 +313,8 @@ def build_anatomical(parameters):
         )
         parent = tail
     element(parent, "site", name="tail_tip", pos=fmt([-p["tail_segment_lengths_m"][-1], 0, 0]), size=".003", group="4")
+    hindlimb_meshes(asset, p)
+    tendons = element(root, "tendon")
     for side, sign in (("r", -1), ("l", 1)):
         thigh = element(
             pelvis,
@@ -356,28 +324,12 @@ def build_anatomical(parameters):
         )
         hinge(thigh, f"{side}_hip_pitch", "0 1 0", [-0.6, 0.7])
         hinge(thigh, f"{side}_hip_roll", "1 0 0", [-0.35, 0.35])
-        element(
-            thigh,
-            "geom",
-            name=f"{side}_thigh_geom",
-            type="capsule",
-            fromto=fmt([0, 0, 0, *displacements[0]]),
-            size=".022",
-            mass=".078",
-        )
+        add_long_bone(thigh, f"{side}_thigh_geom", "thigh_surface", displacements[0], 0.078)
         tibia = element(thigh, "body", name=f"{side}_tibia", pos=fmt(displacements[0]))
         hinge(tibia, f"{side}_knee", "0 1 0", [-0.5, 1.0])
-        element(
-            tibia,
-            "geom",
-            name=f"{side}_tibia_geom",
-            type="capsule",
-            fromto=fmt([0, 0, 0, *displacements[1]]),
-            size=".012",
-            mass=".056",
-        )
+        add_long_bone(tibia, f"{side}_tibia_geom", "calf_surface", displacements[1], 0.056)
         meta = element(tibia, "body", name=f"{side}_metatarsus", pos=fmt(displacements[1]))
-        hinge(meta, f"{side}_ankle", "0 1 0", [-0.65, 0.65], 16, 0.2, 0.8)
+        hinge(meta, f"{side}_ankle", "0 1 0", [-0.65, 0.65], 12, 0.2, 0.8)
         # The collision capsule (also the drawn shank) stops
         # metatarsus_collision_inset_m short of the MTP joint, measured along
         # its own axis; the proximal end and the 18 g stay.  The metatarsal
@@ -400,58 +352,13 @@ def build_anatomical(parameters):
             mass=".018",
         )
         foot = element(meta, "body", name=f"{side}_foot", pos=fmt(displacements[2]))
-        # The MTP servo's cap holds one body weight on the digit-III tip, 61 mm
-        # ahead of the joint (0.594 N.m needed), so a single-support tiptoe is
-        # physically available.  Cutting it to 0.4 N.m removes that stance but
-        # also the push-off the digit plate can give; the cut waits on a
-        # measured walker toe-torque budget (D-D26), and is one number here.
-        # The 20 g foot plate alone gives the toe DOF 1.6e-5 kg m2, so at the
-        # default armature (5e-5) its kp-12 servo rings at 68 Hz, omega*dt 0.85 at
-        # the 2 ms step: the stiffest servo DOF in the model.  At home that numerical
-        # mode sustained a 19-21 Hz heel chatter on 15 of 40 settled statues (6 of
-        # 40 on r1) and failed 2 of 10 seeded validate_models holds; armature
-        # toe_armature_kg_m2 (2e-4) brings it to 37 Hz, omega*dt 0.47, and removes
-        # the chatter on 40 of 40 with no change to the statics or the preload.
+        # A bounded active MTP torque and a tension-only digital flexor act in
+        # parallel. Armature resolves the fast distal mode at the 2 ms step.
         hinge(
-            foot, f"{side}_toe", "0 1 0", [-0.4, 0.5], 12, 0.2, p["toe_forcerange_nm"], armature=p["toe_armature_kg_m2"]
+            foot, f"{side}_toe", "0 1 0", [-0.4, 0.5], 8, 0.18, p["toe_forcerange_nm"], armature=p["toe_armature_kg_m2"]
         )
-        element(
-            foot,
-            "geom",
-            name=f"{side}_plantar_pad",
-            type="box",
-            pos=".017 0 -.002",
-            size=".028 .016 .005",
-            mass=".008",
-            rgba=".35 .31 .22 1",
-        )
-        # Three load-bearing toes, all welded to this sensor's own body.  Digit
-        # II is medial on both feet: the right foot sits at -y, so its medial
-        # side is +y.  Physics r1 built both feet as left feet, with the right
-        # d2 tip lateral at world y -64.0 mm; the mirror is mechanically
-        # neutral (statue load R/L 0.502 / 0.498 BW, 0.501 / 0.500 with the mirror
-        # alone) but anatomical, and a foot-symmetry metric needs it.
-        for toe, y, length in ((2, -sign * 0.017, 0.049), (3, 0, 0.062), (4, sign * 0.017, 0.045)):
-            element(
-                foot,
-                "geom",
-                name=f"{side}_toe_d{toe}_geom",
-                type="capsule",
-                fromto=fmt([0, 0, -0.002, length, y, -0.002]),
-                size=".005",
-                mass=".004",
-                rgba=".38 .34 .23 1",
-            )
-        element(foot, "site", name=f"{side}_sole", pos=".017 0 -.007", size=".002", group="4")
-        element(
-            foot,
-            "site",
-            name=f"{side}_foot_touch_volume",
-            type="box",
-            pos=".027 0 -.002",
-            size=".045 .03 .007",
-            group="4",
-        )
+        add_pes(meta, foot, side, sign, displacements[2])
+        add_digital_flexor(tendons, side, p)
     sensors(root, pelvis, skull, "l_foot_touch_volume", "r_foot_touch_volume")
     # No ref-angle trick: geometry is authored in its flexed home pose.
     joint_count = len(root.findall(".//body/joint"))

@@ -629,12 +629,12 @@ def test_the_bar_admits_37_of_40_and_refuses_36(curriculum):
 def test_the_reward_rails_are_their_fractions_of_the_statue(curriculum):
     """min_avg_reward is 0.60 of the statue rounded to 10; the reference is pinned to the plant it was measured on.
 
-    The reference is the r2 statue's standing reward under the stance [env] (4570.4, 40 episodes, seeds
+    The reference is the r3 statue's standing reward under the stance [env] (4574.4, 40 episodes, seeds
     3042-3081); test_statue_constant_freshness.py checks the physics pin.  The collapse detector stays
     unarmed: the stage declares neither a floor nor a fraction of the reference.
     """
     reference = curriculum["collapse_peak_floor_reference"]
-    assert reference == STATUE.mean_reward and curriculum["statue_constants_physics_revision"] == 2
+    assert reference == 4574.4 and curriculum["statue_constants_physics_revision"] == 3
     assert curriculum["min_avg_reward"] == round(0.60 * reference, -1)
     assert curriculum["min_avg_reward_statue_ratio"] == 0.60
     assert "collapse_peak_floor" not in curriculum and "collapse_peak_floor_fraction" not in curriculum

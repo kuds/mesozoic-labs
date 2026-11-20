@@ -161,3 +161,20 @@ def test_anatomical_palette_and_major_proportions_follow_species_style():
     assert np.linalg.norm(model.body_pos[model.body("r_metatarsus").id]) > np.linalg.norm(
         model.body_pos[model.body("r_tibia").id]
     )
+
+
+def test_canjuers_skull_and_forelimb_proportions():
+    """Measure compiled geometry against the Canjuers proportions in Peyer (2006), table 1."""
+    model, data = load_model("anatomical")
+    femur = np.linalg.norm(model.body("l_tibia").pos)
+    skull = model.geom("cranial_skin").id
+    mesh = model.geom_dataid[skull]
+    start, count = model.mesh_vertadr[mesh], model.mesh_vertnum[mesh]
+    vertices = model.mesh_vert[start : start + count] @ data.geom_xmat[skull].reshape(3, 3).T
+    skull_length = np.ptp(vertices @ data.body("skull").xmat.reshape(3, 3)[:, 0])
+    assert skull_length / femur == pytest.approx(100 / 108.8, rel=0.015)
+    for side, sign in (("r", -1), ("l", 1)):
+        humerus = 2 * model.geom(f"arm_geom_{sign}").size[1]
+        ulna = 2 * model.geom(f"{side}_forearm").size[1]
+        assert 51.9 / 108.8 <= humerus / femur <= 56.3 / 108.8
+        assert ulna / femur == pytest.approx(46.4 / 108.8, rel=0.02)

@@ -12,6 +12,10 @@ export const MODEL = requireModel('compsognathus_longipes', 'anatomical');
 
 The anatomical proxy has a 1.0 kg assumed mass, 14 actuators, a long articulated tail, and 55 state observations (the last three are the Phase C body-relative command segment, zero under `command_mode = "none"`). Since policy interface r4 none of them reads the world heading: the policy sees the direction of gravity in its own body frame, its velocity relative to the way it faces and the target's direction relative to its body, so turning the whole scene changes nothing it observes.
 
+The reconstructed French-specimen proportions give a 95 mm femur, 114 mm tibia, 70 mm metatarsus and 87 mm skull. The MTP joint carries three loaded toes, and a short medial hallux sits above the floor. Bounded joint torque represents active muscle action. A passive digital flexor spanning ankle and MTP stores energy as it stretches and returns it during recoil. The settled mass projection lies 30.5 mm inside the two-foot support boundary and 20.9 mm outside either individual footprint. [Anatomical review and model comparison](https://github.com/kuds/mesozoic-labs/blob/main/environments/compsognathus_longipes/ANATOMY_AND_BALANCE.md)
+
+Training footage recorded before physics r3 documents the earlier anatomy and contact mechanics. Demonstrating a learned behavior on this reconstruction requires evaluating the policy on r3 and recording that rollout.
+
 The stance node certifies stance quality, not reward: since physics r2 its gate is `stance_quality/v2`, which judges
 every episode of a 40-episode panel on the floor's force under each foot (no hop or stomp at reset, no long two-foot
 flight or hard landing later, both feet planted, the pad and all three toes of each foot loaded, level pads not stood

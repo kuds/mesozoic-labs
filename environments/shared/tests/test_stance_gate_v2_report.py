@@ -1,7 +1,7 @@
 """The ``stance_quality/v2`` report end to end on a real plant: roll, score, write, judge, publish.
 
-A short floor-truth panel on compsognathus (the cheapest plant: 0.02 s
-steps, ~1.5 s per three 150-step episodes) under a v2 block at the floor map
+A short floor-truth panel on compsognathus (0.02 s steps, 200 settling
+steps followed by 100 scored steps) under a v2 block at the floor map
 §5.4 compsognathus bars, through ``build_stance_gate_report`` exactly as the
 post-stage pipeline calls it.  The "policy" is scripted -- the checkpoint
 loader is stubbed to return a fixed command, and the handoff pair is a pair
@@ -71,7 +71,8 @@ from environments.shared.species_registry import env_class as model_env_class
 from environments.shared.task_fingerprint import stage_task_fingerprint
 
 MODEL_ID = ModelId("compsognathus_longipes", "anatomical")
-HORIZON = 150
+SETTLE_STEPS = 200  # Give the revised feet the same settling interval as the stance recipe.
+HORIZON = SETTLE_STEPS + 100
 EPISODES = 3
 
 #: The floor map §5.4 compsognathus criteria, on a 3-episode panel (3/3 bounds at 0.368).
@@ -80,7 +81,7 @@ CURRICULUM: dict[str, Any] = {
     "gate_kind": STANCE_GATE_V2_KIND,
     "min_eval_episodes": EPISODES,
     "min_clean_stance_lcb": 0.3,
-    "settle_steps": 50,
+    "settle_steps": SETTLE_STEPS,
     "min_all_feet_support": 0.98,
     "max_touchdown_rate": 0.25,
     "max_window_displacement_m": 0.10,
@@ -172,7 +173,7 @@ class _PostSettleHop:
     SIGNS = {"r_knee_act": 1, "l_knee_act": 1, "r_ankle_act": -1, "l_ankle_act": -1, "r_hip_pitch_act": -1,
              "l_hip_pitch_act": -1}  # fmt: skip
 
-    def __init__(self, nu: int, *, settle: int, amplitude: float = 0.15, period: int = 5) -> None:
+    def __init__(self, nu: int, *, settle: int, amplitude: float = 0.17, period: int = 5) -> None:
         env = model_env_class(MODEL_ID)(**_stage_config()["env_kwargs"])
         try:
             self.pattern = np.zeros(nu)
@@ -270,7 +271,7 @@ class TestThePanel:
         assert report["task_sha256"] == json.loads((stage_dir / "task_fingerprint.json").read_text())["task_sha256"]
         assert report["checkpoint_plant_validated"] is True
         assert report["thresholds"] == gate_config_view(CURRICULUM)["thresholds"]
-        assert report["thresholds"]["settle_steps"] == 50  # unlike the v1 report
+        assert report["thresholds"]["settle_steps"] == SETTLE_STEPS
         assert report["measurement"]["constants"] == measurement_constants()
         assert ModelId.from_record(report["measurement"]) == MODEL_ID and report["measurement"]["frame_skip"] == 10
         assert report["handoff"] == {
@@ -318,10 +319,14 @@ class TestThePanel:
         reference the hack's.
         """
         command = np.zeros(nu)
+        policy = command
         if hack == "neck_at_limit":
             command[0] = 1.0  # neck_pitch_act: the animal keeps standing; only the actuation gives it away
         elif hack == "hip_rolled_out":
             command[10] = 1.0  # l_hip_roll_act: one foot swung off the floor
+            # Roll in the final second of settling so the impact and subsequent
+            # one-foot support are observed in their respective windows.
+            policy = _ramped(command, steps=1, horizon=HORIZON, start=SETTLE_STEPS - 50)
         else:
             command[:] = 1.0
         panels: list[bool] = []
@@ -332,11 +337,13 @@ class TestThePanel:
             return original(*args, **kwargs)
 
         monkeypatch.setattr(stance_report, "run_panel", counted)
-        report = _report(monkeypatch, tmp_path, command)
+        report = _report(monkeypatch, tmp_path, policy)
         assert report["passed"] is False and report["result"]["n_clean"] == 0
         for row in report["episode_evidence"]:
             assert row["clean"] is False
             assert expected <= _keys(row), row["reasons"]
+        if hack == "hip_rolled_out":
+            assert all(row["length"] == HORIZON for row in report["episode_evidence"])
         if hack == "neck_at_limit":
             assert all(_keys(row) == expected for row in report["episode_evidence"])
         assert panels == [True, True]
@@ -455,14 +462,14 @@ def _tyrannosaurus_rex_stage_config() -> dict[str, Any]:
     return _declared_stage_config(TYRANNOSAURUS_REX, TYRANNOSAURUS_REX_HORIZON)
 
 
-def _ramped(command: np.ndarray, *, steps: int, horizon: int) -> Any:
-    """*command* reached linearly over the first *steps* control steps of every *horizon*-step episode."""
+def _ramped(command: np.ndarray, *, steps: int, horizon: int, start: int = 0) -> Any:
+    """Ramp to *command* over *steps* control steps starting at *start* in each full-length episode."""
     calls = {"n": 0}
 
     def predict(_obs: np.ndarray) -> np.ndarray:
         step = calls["n"] % horizon
         calls["n"] += 1
-        return command * min(1.0, (step + 1) / steps)
+        return command * min(1.0, max(0.0, (step - start + 1) / steps))
 
     return predict
 
@@ -529,13 +536,13 @@ class TestThePadCentreOfPressure:
     def test_compsognathus_longipes_pads_leaned_onto_their_front_edges_fail_the_bar_alone(
         self, tmp_path, monkeypatch, nu
     ):
-        """Real physics on the compsognathus r2 plant, under its own stance block.
+        """Real physics on the compsognathus r3 plant, under its own stance block.
 
-        Both ankles, ramped to -0.573 (servo targets 0.15 rad below home under
-        the soft-cubic map) over the first 150 steps, lean the animal forward
+        Both ankle actions, ramped to -0.40 under the soft-cubic map over
+        the first 150 steps, lean the animal forward
         onto the front edges of both pads.  The pads stay level and the digits
         loaded, so the tilt, corner-lift, contact and support-geom bars admit
-        it, as they admit the whole 40-episode panel of this stance; the
+        it on all three tested starts. The
         centre-of-pressure bar is the one that refuses it, and the statue the
         same report rolls reads under it.
         """
@@ -547,7 +554,7 @@ class TestThePadCentreOfPressure:
         try:
             command = np.zeros(nu)
             for name in ("r_ankle_act", "l_ankle_act"):
-                command[env.model.actuator(name).id] = -0.573
+                command[env.model.actuator(name).id] = -0.40
         finally:
             env.close()
         predict = _ramped(command, steps=150, horizon=COMPSOGNATHUS_LONGIPES_HORIZON)
@@ -558,9 +565,9 @@ class TestThePadCentreOfPressure:
             assert row["min_support_geom_coverage"] == 1.0 and row["max_sole_tilt_deg"] < 0.1
             assert row["max_sole_cop_fore_aft"] > 0.85
             assert _keys(row) == {"max_sole_cop_fore_aft"}, row["reasons"]
-        # The statue stands on the heel side of its pads' centres (0.143-0.155 over 200 full-horizon episodes).
+        # The r3 standing control reads 0.273–0.287 on these three starts with the smaller cushion.
         statue_rows = report["statue"]["episode_evidence"]
-        assert all(row["max_sole_cop_fore_aft"] < 0.20 for row in statue_rows)
+        assert all(row["max_sole_cop_fore_aft"] < 0.32 for row in statue_rows)
         # The block's foot-share statue ratio reads the statue panel's own reference.
         reference = StatueReference.from_dict(report["statue"]["reference"])
         statue = _reclassified(
@@ -884,7 +891,7 @@ class TestPublication:
     @pytest.mark.parametrize(
         ("column", "message"),
         [
-            ("reached_horizon", "episode 0 claims reached_horizon=False but its length 150"),
+            ("reached_horizon", f"episode 0 claims reached_horizon=False but its length {HORIZON}"),
             ("clean", "episode 0 records clean=False but re-derives clean=True"),
             ("measurement_definition_sha256", "measured under definition sha256:0+, not this checkout's"),
         ],

@@ -703,14 +703,14 @@ def test_the_physics_r10_statue_whole_foot_cop_reading(envs):
 
 #: The most each statue's pads read of ``max_sole_cop_fore_aft`` on this episode (D-D28; seed 3042, steps 1 s
 #: to 1 s + 150): trex 0.349 on its r10 plant (0.441 on r9; 0.356 on r8, before the elliptic cone of D-D29),
-#: compsognathus 0.173 on its r2 plant (heel side; 0.464 on r1, before D-D26), its robot 0.319, dibothrosuchus
+#: compsognathus 0.293 on its shorter r3 metatarsal cushion (r2 0.173, r1 0.464), its robot 0.319, dibothrosuchus
 #: 0.758 on its r2 plant (0.699 on r1, its hind feet heel side on four contacts, before the elliptic cone of D-D30).
 #: None where the foot has no box sole, so the metric is unmeasured: velociraptor (no sole) and brachiosaurus
 #: (ellipsoids, whose one contact sits where the authored pitch puts it).
 STATUE_COP_FORE_AFT_CEILING = {
     TYRANNOSAURUS_REX: 0.47,
     VELOCIRAPTOR_MONGOLIENSIS: None,
-    COMPSOGNATHUS_LONGIPES: 0.20,
+    COMPSOGNATHUS_LONGIPES: 0.32,
     COMPSOGNATHUS_LONGIPES_ROBOT: 0.35,
     DIBOTHROSUCHUS_ELAPHROS: 0.78,
     BRACHIOSAURUS_ALTITHORAX: None,
