@@ -66,7 +66,7 @@ fields exist: a field is kept for a foot only when the foot has what it
 measures.  Only feet with a BOX sole are pad feet, the feet the gate's
 fore-aft CoP reads, and only a pad foot with digits has a digit share (the
 compsognathus robot's soles and the dibothrosuchus's pads have none).  The
-velociraptor's capsule feet and the brachiosaurus's ellipsoids have no pad,
+velociraptor's capsule feet and the brachiosaurus's ellipsoids have no box sole,
 so :meth:`PadLayout.from_morphology` gives them an empty layout and a caller
 records no pad field for them at all.  Only the T. rex declares a support
 span, so only its feet have the whole-foot fields, and only its digits are
@@ -93,9 +93,8 @@ The maximum over the feet of each IS the episode's ``max_sole_tilt_deg`` and
 boxes.  The fields follow the pad fields' rule, the box-soled feet: the
 T. rex, both Compsognathus embodiments and the Dibothrosuchus.  The
 Velociraptor's capsule feet have no sole.  The Brachiosaurus's ellipsoid
-soles have a tilt the gate would read, which includes the pitch they are
-authored at (16 to 19 degrees), and no corners; they are left out, as their
-pad fields are, because recording them would attach the recorder to every
+soles are level in the r6 home pose and their tilt can be measured during
+motion. They have no corners. Recording their tilt here would attach the recorder to every
 Brachiosaurus evaluation (45% more evaluation time, measured) for a bar no
 Brachiosaurus stage declares.
 

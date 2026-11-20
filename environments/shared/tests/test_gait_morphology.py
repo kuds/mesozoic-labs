@@ -2,8 +2,7 @@
 
 The anchors are the current plants (``61a3424``, mujoco 3.10.0): body weights
 840.91 / 147.15 (the velociraptor since its physics r5) / 9.81 / 15.55 / 84.86 / 1719.69 N, every sole frame normal
-``-z`` and forward ``+x``, brachiosaurus' authored sole tilt 19.22 degrees
-(fore) and 15.78 (hind).  The registry is explicit for all six models, and
+``-z`` and forward ``+x``, and the authored home soles lie flat.  The registry is explicit for all six models, and
 :data:`GENERIC_ONLY` / :data:`REGISTRY_ONLY` name every place it departs from
 the generic rule -- the test fails if a departure appears, or disappears,
 without this table changing with it.
@@ -248,10 +247,7 @@ def test_sole_frames_face_the_floor_and_point_forward(stance_env, model_id):
         assert (foot.sole_lateral_axis, foot.sole_lateral_sign) == (1, 1.0), foot.label
         assert foot.side == foot.label[-1].upper()
     tilts = [foot.home_sole_tilt_deg for foot in morphology.feet]
-    if model_id == BRACHIOSAURUS_ALTITHORAX:
-        assert tilts == pytest.approx([19.22, 19.22, 15.78, 15.78], abs=0.01)
-    else:
-        assert tilts == pytest.approx([0.0] * len(tilts), abs=1e-4)  # acos amplifies rounding near flat
+    assert tilts == pytest.approx([0.0] * len(tilts), abs=1e-4)  # acos amplifies rounding near flat
 
 
 @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")

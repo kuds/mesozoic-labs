@@ -21,12 +21,8 @@ class BrachiosaurusAltithoraxAnatomicalEnv(BrachiosaurusAltithoraxEnv):
     MODEL_PATH = ModelId("brachiosaurus_altithorax", "anatomical").asset_path(ENVIRONMENTS_ROOT)
     #: The floor-truth foot registry entry (``gait/morphology.py``): the geoms
     #: a flat, loaded foot stands on, the sole and the foot's reference site,
-    #: as name templates.  It drops ``{s}_meta_geom``, the metapodial capsule
-    #: in the touch group, which carries 0 load in the statue (at most 3.2e-4
-    #: of the floor load, grazing; 40-episode means, seeds 3042-3081).  Its
-    #: ellipsoid sole is authored tilted 19.2 degrees (fore) and 15.8 degrees
-    #: (hind), so its flatness keys must be the ``*_excess_*`` forms measured
-    #: against that keyframe tilt.
+    #: as name templates. The metapodial capsule can touch obstacles. On level
+    #: ground the flat manus and pes are supported by their sole ellipsoids.
     FOOT_SUPPORT = {
         "support": ("{s}_foot_geom",),
         "sole": "{s}_foot_geom",

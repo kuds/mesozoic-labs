@@ -115,3 +115,31 @@ class TestFoodReachCamera:
             assert env._camera_elevation == -8
         finally:
             env.close()
+
+
+def test_neck_support_reach_and_recovery(env):
+    """Hold the head up, lower it to browse, then recover without a large rebound."""
+    env.reset_noise_scale = 0.0
+    env.reset(seed=0)
+    head_tip = env.data.site("head_tip")
+    neck_root = env.data.body("neck_1")
+    home_height = head_tip.xpos[2] - neck_root.xpos[2]
+    pitch_actuators = [env.model.actuator(f"neck_{i}_pitch_act").id for i in range(1, 5)]
+
+    def sample_reach(command, seconds):
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        action[pitch_actuators] = command
+        heights = []
+        for _ in range(round(seconds / env.dt)):
+            _, _, terminated, truncated, _ = env.step(action)
+            assert not terminated and not truncated
+            heights.append(head_tip.xpos[2] - neck_root.xpos[2])
+        return np.asarray(heights)
+
+    standing = sample_reach(0.0, 2.0)
+    assert np.max(np.abs(standing - home_height)) < 0.05
+    browsing = sample_reach(0.65, 3.0)
+    assert home_height - browsing[-1] > 0.70
+    assert browsing.min() > browsing[-1] - 0.15
+    returned = sample_reach(0.0, 3.0)
+    assert np.max(np.abs(returned[round(2.0 / env.dt) :] - home_height)) < 0.08

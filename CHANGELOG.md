@@ -2659,6 +2659,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+
+- Reconstructed the anatomical *Brachiosaurus altithorax* with raised shoulders, a deeper trunk,
+  tapered neck and tail, distinct manus and pes, and corrected elbow and hind-knee mechanics.
+  The species guide records the fossil evidence and measured standing, walking and browsing
+  performance. A reference walk drives the normal actuators and reports floor contact, slip
+  and stride timing. The new plant uses physics revision 6, policy interface 10 and visual
+  revision 3. Earlier policies require retraining.
+
 - **The Velociraptor is rebuilt life size, of equivalent nature to the T. rex:
   IGM 100/986's proportions on the T. rex's topology, a level trunk, a
   separate neck and skull, welded passive arms, a didactyl foot on passive
