@@ -410,25 +410,26 @@ Deepen the RL capabilities and expand the species roster.
   - _Dependency: Phase 1 (use Velociraptor as template)_
 
 - [ ] **Stegosaurus (armored quadrupedal defender)**
-  - MJCF model: heavy quadruped with dorsal plates and thagomizer tail weapon
+  - The [standalone anatomical reference](../examples/stegosaurus_stenops/README.md) provides the
+    articulated MJCF, level-ground walking controller and measured foot contacts. Gymnasium
+    integration and the training curriculum are future work.
   - **First defensive species** — fundamentally different from all existing
     forward-attack species. Agent must orient its *rear* toward threats and
     swing the thagomizer, flipping the reward structure entirely.
   - **Unique biomechanics:**
-    - High center of mass from dorsal plates creates a harder balance problem
+    - A rearward center of mass increases the share of weight supported by the hindlimbs
     - Tail is the active weapon (unlike head-forward predators), requiring
       rotational/pivoting locomotion rather than linear sprinting
-    - Asymmetric mass distribution from plates affects turning inertia
+    - Tail mass contributes to turning inertia
     - Slow, deliberate quadrupedal gait — emphasis on stability over speed
   - **Curriculum (3 stages):**
-    1. **Balance** — learn stable stance with elevated CoM from dorsal plates
+    1. **Balance** — learn stable stance with a rear-biased load distribution
     2. **Locomotion** — slow quadrupedal walking with turning/pivoting emphasis
     3. **Tail Defense** — detect approaching threat, pivot to orient rear
        toward threat, swing thagomizer for contact (defensive strike bonus)
   - **What makes it different from Brachiosaurus:**
     - Brachiosaurus reaches *up* (neck); Stegosaurus strikes *behind* (tail)
     - Brachiosaurus moves toward food; Stegosaurus holds ground against threats
-    - Dorsal plates vs. long neck create opposite CoM challenges
     - Introduces rotational control as the primary locomotion objective
   - Reuses quadrupedal infrastructure from `BaseDinoEnv` and Brachiosaurus
   - _Dependency: Phase 1 (use Brachiosaurus as quadrupedal template)_

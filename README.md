@@ -42,6 +42,9 @@ The [species catalog](docs/SPECIES_CATALOG.md) holds each model's full entry: sp
 with their recipes, budgets and gates, success definitions and run summaries; each model page renders it too.
 <!-- END GENERATED: SPECIES -->
 
+The [Stegosaurus stance and walking reference](examples/stegosaurus_stenops/README.md) is a standalone
+MuJoCo reconstruction with specimen measurements and a repeatable four-foot contact audit.
+
 ## Getting started
 
 Python 3.11 or newer. Install from a clone:
