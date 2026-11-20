@@ -250,12 +250,14 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # the maintainer's decision of 2026-11-06): POLICY only, physics and visual unchanged.
     # The velociraptor's life-size plant (note 22, the maintainer's decision of
     # 2026-11-08): PHYSICS, POLICY and VISUAL.
+    # The reconstructed Compsognathus anatomy changes the hindlimb, foot
+    # contacts, passive flexor and home preload: physics/visual r3, policy r6.
     expected_policy_revisions = {
         VELOCIRAPTOR_MONGOLIENSIS: 14,
         TYRANNOSAURUS_REX: 15,
         BRACHIOSAURUS_ALTITHORAX: 9,
         DIBOTHROSUCHUS_ELAPHROS: 8,
-        COMPSOGNATHUS_LONGIPES: 5,
+        COMPSOGNATHUS_LONGIPES: 6,
         COMPSOGNATHUS_LONGIPES_ROBOT: 3,
     }
     expected_physics_revisions = {
@@ -271,7 +273,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         DIBOTHROSUCHUS_ELAPHROS: 1,
     }
     for revisions in (expected_physics_revisions, expected_visual_revisions):
-        revisions.update({COMPSOGNATHUS_LONGIPES: 2, COMPSOGNATHUS_LONGIPES_ROBOT: 1})
+        revisions.update({COMPSOGNATHUS_LONGIPES: 3, COMPSOGNATHUS_LONGIPES_ROBOT: 1})
     # Every table pins every model (review M4): a new model fails here, naming the table.
     for name, table in (
         ("expected_policy_revisions", expected_policy_revisions),
