@@ -1,0 +1,196 @@
+.page {
+  width: min(calc(100% - 4.5rem), 73.125rem);
+  margin: 0 auto;
+  padding: 1.375rem 0 2.375rem;
+  color: var(--museum-ink);
+}
+
+.breadcrumb,
+.classification,
+.caption,
+.meta,
+.specs dt,
+.result div p {
+  font: .8125rem/1.5 var(--museum-mono);
+  color: var(--museum-muted);
+}
+
+.breadcrumb a { text-decoration: none; }
+.breadcrumb a:hover { text-decoration: underline; }
+.breadcrumb span { padding-inline: .35rem; }
+
+.page h1,
+.page h2 {
+  color: var(--museum-ink);
+  font-family: var(--museum-serif);
+  font-weight: 400;
+  letter-spacing: -.045em;
+  line-height: 1.06;
+}
+
+.titleRow,
+.sectionHead,
+.caption {
+  display: flex;
+  justify-content: space-between;
+  gap: .5rem 1rem;
+}
+
+.titleRow {
+  margin: 1.35rem 0 1.15rem;
+  align-items: end;
+}
+
+.titleRow h1 {
+  margin: 0;
+  font-size: clamp(2.6rem, 6.2vw, 4.875rem);
+  overflow-wrap: anywhere;
+}
+
+.scientificName {
+  color: var(--museum-muted);
+  font: 1.3125rem/1.3 var(--museum-serif);
+  margin: .375rem 0 0;
+}
+
+.classification { margin: 0; }
+
+.specimen,
+.compactSpecimen { margin: 0; }
+
+.plate {
+  display: grid;
+  grid-template-columns: 1.38fr 1fr;
+  align-items: center;
+  background: var(--museum-panel);
+  border-block: 1px solid var(--museum-rule);
+}
+
+.specimenImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 20.625rem;
+  object-fit: contain;
+}
+
+.plateText { padding: 1.5rem 1.75rem; }
+
+.plateText h2 {
+  font-size: clamp(1.6875rem, 3vw, 2.375rem);
+  text-wrap: balance;
+  margin: .5rem 0;
+}
+
+.plateText p {
+  max-width: 43ch;
+  margin: 0;
+  color: var(--museum-muted);
+}
+
+.compactSpecimen .specimenImage { max-height: 13.4375rem; }
+.compactSpecimen .plateText { padding-block: 1.125rem; }
+.compactSpecimen .plateText h2 { font-size: 1.875rem; }
+
+.caption {
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin-top: .4rem;
+  font-size: .75rem;
+}
+
+.page a {
+  color: var(--museum-green);
+  text-underline-offset: .2em;
+}
+
+.caption a,
+.sectionHead a,
+.result a { text-decoration: underline; }
+
+.sectionHead {
+  flex-wrap: wrap;
+  align-items: baseline;
+  margin: 1.8rem 0 1rem;
+}
+
+.sectionHead h2 {
+  margin: 0;
+  font-size: clamp(1.875rem, 3.3vw, 2.75rem);
+}
+
+.sectionHead a,
+.result a { font-size: .875rem; }
+
+.studyGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15.5rem), 1fr));
+  gap: 1.375rem;
+}
+
+.specs {
+  margin: 1.375rem 0 0;
+  border-top: 1px solid var(--museum-rule);
+  padding-top: .875rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.specs dd {
+  margin: .25rem 0 0;
+  font-weight: 600;
+}
+
+.result {
+  margin-top: 1.5rem;
+  padding-block: 1rem .25rem;
+  border-top: 1px solid var(--museum-rule);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem 1.5rem;
+}
+
+.result h2 {
+  margin: 0 0 .25rem;
+  font-size: 1.625rem;
+}
+
+.result p { margin: 0; }
+
+.versions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .625rem;
+  margin-top: 1.5rem;
+}
+
+.versions a {
+  padding: .6rem .9rem;
+  border: 1px solid var(--museum-rule);
+  border-radius: .15rem;
+  text-decoration: none;
+}
+
+.versions a[aria-current='true'] {
+  background: var(--museum-green);
+  color: var(--museum-paper);
+  border-color: var(--museum-green);
+}
+
+.versions a:hover { text-decoration: underline; }
+
+@media (max-width: 740px) {
+  .page { width: calc(100% - 2.25rem); padding-top: 1rem; }
+  .titleRow { flex-direction: column; align-items: start; margin-block: .95rem; }
+  .plate, .studyGrid { grid-template-columns: 1fr; }
+  .plateText, .compactSpecimen .plateText { padding: 1.125rem; }
+  .specimenImage { max-height: 17.5rem; }
+  .sectionHead { margin-top: 1.375rem; }
+}
+
+@media (max-width: 440px) {
+  .specs { grid-template-columns: 1fr; }
+}
