@@ -1,0 +1,98 @@
+.page {
+  width: min(100%, 80rem);
+  margin-inline: auto;
+  padding: clamp(1.5rem, 4.5vw, 3.25rem) clamp(1rem, 3.2vw, 2.5rem) 3rem;
+  color: var(--museum-ink);
+}
+
+.intro {
+  display: grid;
+  grid-template-columns: 1.18fr 1fr;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: clamp(1.5rem, 4.5vw, 3.25rem);
+}
+
+.page h1,
+.page h2 {
+  margin: 0;
+  color: var(--museum-ink);
+  font-family: var(--museum-serif);
+  font-weight: 400;
+  line-height: 1.05;
+}
+
+.page h1 {
+  font-size: clamp(2.375rem, 6vw, 4.25rem);
+  letter-spacing: -.05em;
+}
+
+.page h2 {
+  font-size: clamp(1.45rem, 2.6vw, 2rem);
+  letter-spacing: -.035em;
+}
+
+.page p {
+  margin: 0;
+  max-width: 54ch;
+  color: var(--museum-muted);
+  line-height: 1.55;
+}
+
+.catalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 2.75rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.catalog li {
+  margin: 0;
+}
+
+.entry {
+  display: block;
+  color: var(--museum-ink);
+}
+
+.entry:hover {
+  color: var(--museum-green);
+  text-decoration: none;
+}
+
+.entry:hover h2,
+.entry:focus-visible h2 {
+  color: var(--museum-green);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: .14em;
+}
+
+.entry img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1.8;
+  object-fit: contain;
+  background: #f3f3eb;
+  border-bottom: 1px solid var(--museum-rule);
+}
+
+.label {
+  padding: .9rem 0 .5rem;
+}
+
+.label i {
+  display: block;
+  margin-top: .3rem;
+  color: var(--museum-muted);
+  font-family: var(--museum-serif);
+}
+
+@media (max-width: 720px) {
+  .intro {
+    grid-template-columns: 1fr;
+    gap: .875rem;
+  }
+}

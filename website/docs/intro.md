@@ -5,11 +5,11 @@ slug: /
 
 # Welcome to Mesozoic Labs
 
-**Mesozoic Labs** is an open-source research platform for dinosaur-inspired locomotion using physics simulation and reinforcement learning.
+**Mesozoic Labs** designs physical robots inspired by Mesozoic animals. We start with anatomy, then develop robot models where a build is feasible. All current movement trials take place in simulation.
 
 ## What is Mesozoic Labs?
 
-We use articulated MuJoCo models to study how reinforcement-learning agents can learn balance, locomotion, and species-inspired tasks. These models are engineering abstractions inspired by dinosaur morphology; they have not been validated as accurate reconstructions of dinosaur anatomy. Hardware transfer is a future research direction, and no sim-to-real or physical-robot results are currently published.
+These docs cover the simulation tools behind the [animal collection](/animals). We use articulated MuJoCo models to study balance, locomotion and species-specific behaviors. The anatomical models simplify body proportions and joints for these experiments. The [Triceratops project](/animals/triceratops) shows how an anatomical study informs a robot design.
 
 ## Key Features
 
@@ -45,7 +45,7 @@ current model revision and configs.
 ## Quick Links
 
 - [Getting Started](/docs/getting-started/installation) - Set up your development environment
-- [Models](/docs/models/tyrannosaurus_rex/anatomical) - Explore available species models
+- [Animals](/animals) - Explore anatomical models, robot designs and movement studies
 - [Behavior Recipes](/docs/training/recipes) - Train stance, walk and hunt on one certified trunk
 - [Training](/docs/training/ppo) - Learn how to train your own dinosaur
 - [GitHub](https://github.com/kuds/mesozoic-labs) - View the source code

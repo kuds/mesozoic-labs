@@ -2472,27 +2472,26 @@ def test_website_replication_formatter_mirrors_python() -> None:
     assert "(provisional, ${primary.replicationCount} of ${primary.certificationSeeds} seeds)" in headline_body
 
 
-def test_index_page_keys_video_cards_by_stage_id() -> None:
-    """The landing page keys and labels video cards by the manifest stage id/label, never the legacy number (D-A13).
+def test_animal_page_uses_catalog_stage_and_result_identity() -> None:
+    """Recovery has a stage ID and display label, but no legacy stage number (D-A13).
 
-    ``stage.number`` is null for a semantic-only stage (recovery), so a card
-    keyed by it collided with its siblings and read "STAGE null"; the
-    catalog's ``label`` is the canonical reference.  The hero headline comes
-    from ``headlineFor`` so a schema-4 result headlines its certified
-    primary deliverable and the ladder rows render exactly as before;
-    ``stage3SuccessRate`` is read nowhere outside the adapter.
+    The animal page lists studies for the selected model, including those without
+    a recording. Its player identifies the stage and reports the clip's provenance.
+    Result headlines come from the same schema-aware adapter as before.
     """
-    page = _website_source("pages/index.tsx")
-    assert "key={stage.number}" not in page
-    assert "STAGE {stage.number}" not in page
-    assert "stage ${stage.number}" not in page
+    page = _website_source("components/AnimalPage/index.tsx")
+    study = _website_source("components/AnimalPage/MovementStudy.tsx")
+    assert "stage.number" not in page
     assert "key={stage.id}" in page
-    assert "STAGE {stage.label.toUpperCase()}" in page
+    assert "label={stage.title}" in page
     assert "stage ${stage.label}: ${stage.title}" in page
+    assert "video.modelRevisionStatus" in page and "video.verificationStatus" in page
+    assert "aria-label={recording.label}" in study and "{recording.caption}" in study
 
-    import_block = page.split("from '@site/src/data/species';", 1)[0]
-    assert "headlineFor" in import_block
+    assert "model.featuredResult" in page
     assert "headlineFor(result)" in page
+    assert "headline.value" in page and "headline.label" in page
+    assert "result.provenance.modelRevisionStatus" in page and "result.provenance.verificationStatus" in page
 
     readers = sorted(
         path.relative_to(WEBSITE_SRC).as_posix()

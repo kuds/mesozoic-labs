@@ -1,347 +1,98 @@
-/**
- * Mesozoic Labs - Global Theme Customization
- * Theme: Prehistoric Cyberpunk / Dinosaur Robotics
- */
-
+/* Shared exhibit and documentation palette. */
 :root {
-  /* Primary Colors - Tech Green (circuits, accents) */
-  --ifm-color-primary: #00ff88;
-  --ifm-color-primary-dark: #00e67a;
-  --ifm-color-primary-darker: #00d973;
-  --ifm-color-primary-darkest: #00b35f;
-  --ifm-color-primary-light: #1aff96;
-  --ifm-color-primary-lighter: #33ffa3;
-  --ifm-color-primary-lightest: #66ffbb;
-
-  /* Background customization */
-  --ifm-background-color: #0a0a0f;
-  --ifm-background-surface-color: #12121a;
-
-  /* Font */
+  --museum-paper: #faf9f4;
+  --museum-panel: #f1f1e9;
+  --museum-ink: #192f27;
+  --museum-muted: #465d52;
+  --museum-rule: #b8c4b7;
+  --museum-green: #235842;
+  --museum-serif: Georgia, 'Times New Roman', serif;
+  --museum-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  --ifm-font-family-base: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ifm-heading-font-family: var(--museum-serif);
+  --ifm-font-family-monospace: var(--museum-mono);
   --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 255, 136, 0.1);
-
-  /* Navbar */
-  --ifm-navbar-background-color: #0a0a0fdd;
-  --ifm-navbar-shadow: 0 1px 0 0 rgba(0, 255, 136, 0.1);
-
-  /* Footer — WCAG AA contrast on #050508 background */
-  --ifm-footer-background-color: #050508;
-  --ifm-footer-color: #b0b0be;
-  --ifm-footer-link-color: #c8c8d4;
-  --ifm-footer-title-color: #00ff88;
 }
 
-/* Dark mode specific */
+:root, [data-theme='light'] {
+  --ifm-color-primary: var(--museum-green);
+  --ifm-color-primary-dark: #1c4c38;
+  --ifm-color-primary-darker: #174331;
+  --ifm-color-primary-darkest: #113526;
+  --ifm-color-primary-light: #29674d;
+  --ifm-color-primary-lighter: #2e7256;
+  --ifm-color-primary-lightest: #398365;
+  --ifm-background-color: var(--museum-paper);
+  --ifm-background-surface-color: var(--museum-paper);
+  --ifm-font-color-base: var(--museum-ink);
+  --ifm-heading-color: var(--museum-ink);
+  --ifm-navbar-background-color: var(--museum-paper);
+  --ifm-navbar-link-color: var(--museum-green);
+  --ifm-navbar-shadow: none;
+  --ifm-menu-color: var(--museum-muted);
+  --ifm-menu-color-background-active: var(--museum-panel);
+  --docusaurus-highlighted-code-line-bg: rgba(35, 88, 66, 0.10);
+}
+
 [data-theme='dark'] {
-  --ifm-background-color: #0a0a0f;
-  --ifm-background-surface-color: #12121a;
-  --ifm-color-primary: #00ff88;
-  --ifm-color-primary-dark: #00e67a;
-  --ifm-color-primary-darker: #00d973;
-  --ifm-color-primary-darkest: #00b35f;
-  --ifm-color-primary-light: #1aff96;
-  --ifm-color-primary-lighter: #33ffa3;
-  --ifm-color-primary-lightest: #66ffbb;
-  --ifm-navbar-background-color: #0a0a0fee;
-  --ifm-footer-background-color: #050508;
+  --museum-paper: #17221d;
+  --museum-panel: #222e27;
+  --museum-ink: #f1f1e7;
+  --museum-muted: #bdcbbf;
+  --museum-rule: #4e6054;
+  --museum-green: #a9d4b6;
+  --ifm-color-primary: var(--museum-green);
+  --ifm-color-primary-dark: #96cba6;
+  --ifm-color-primary-darker: #8bc49d;
+  --ifm-color-primary-darkest: #6eae85;
+  --ifm-color-primary-light: #bde0c8;
+  --ifm-color-primary-lighter: #c7e6d0;
+  --ifm-color-primary-lightest: #dcf1e1;
+  --ifm-background-color: var(--museum-paper);
+  --ifm-background-surface-color: var(--museum-panel);
+  --ifm-font-color-base: var(--museum-ink);
+  --ifm-heading-color: var(--museum-ink);
+  --ifm-navbar-background-color: var(--museum-paper);
+  --ifm-navbar-link-color: var(--museum-green);
+  --ifm-menu-color: var(--museum-muted);
+  --ifm-menu-color-background-active: var(--museum-panel);
+  --docusaurus-highlighted-code-line-bg: rgba(169, 212, 182, 0.13);
 }
 
-/* Light mode */
-[data-theme='light'] {
-  --ifm-background-color: #f5f5f5;
-  --ifm-background-surface-color: #ffffff;
-  --ifm-navbar-background-color: #ffffff;
-  --ifm-footer-background-color: #e8e8e8;
-  --ifm-footer-color: #444444;
-  --ifm-footer-link-color: #333333;
-  /* Darker than the light primary: 4.5:1 (WCAG AA) on the #e8e8e8 footer */
-  --ifm-footer-title-color: #006e37;
-  --ifm-color-primary: #00994d;
-  --ifm-color-primary-dark: #008a45;
-  --ifm-color-primary-darker: #008241;
-  --ifm-color-primary-darkest: #006b36;
-  --ifm-color-primary-light: #00a855;
-  --ifm-color-primary-lighter: #00b059;
-  --ifm-color-primary-lightest: #00c767;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 153, 77, 0.1);
-}
-
-/* Global text styling */
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-}
-
-/* Navbar customization */
 .navbar {
-  background-color: var(--ifm-navbar-background-color);
-  z-index: 200;
-}
-
-@supports (backdrop-filter: blur(10px)) {
-  .navbar {
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-  }
-}
-
-@supports not (backdrop-filter: blur(10px)) {
-  :root {
-    --ifm-navbar-background-color: #0a0a0f;
-  }
-  [data-theme='dark'] {
-    --ifm-navbar-background-color: #0a0a0f;
-  }
-}
-
-.navbar__brand {
-  align-items: center;
-}
-
-.navbar__logo {
-  height: 2rem;
-  width: 2rem;
-  margin-right: 0.5rem;
-  overflow: hidden;
-  flex-shrink: 0;
-  /* Prevent Safari from collapsing the logo container */
-  min-width: 2rem;
-  min-height: 2rem;
-}
-
-.navbar__logo img {
-  height: 100%;
-  width: 100%;
-  display: block;
-  object-fit: contain;
-  /* Force consistent rasterization across browsers */
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-  image-rendering: -webkit-optimize-contrast;
-}
-
-/* Dark mode logo is handled via srcDark in docusaurus.config.ts
-   instead of CSS filter: invert(1) for better cross-browser consistency */
-
-/* When the mobile sidebar is open, remove backdrop-filter from navbar
-   so the sidebar's position:fixed isn't trapped in the navbar's stacking context
-   (backdrop-filter creates a new containing block for fixed descendants) */
-.navbar-sidebar--show.navbar {
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
-
-/* Mobile navbar sidebar fixes */
-.navbar-sidebar {
-  background-color: var(--ifm-background-surface-color);
-  width: 80vw;
-  max-width: 350px;
-}
-
-.navbar-sidebar__backdrop {
-  background-color: rgba(0, 0, 0, 0.5);
-}
-
-.navbar-sidebar__brand {
-  align-items: center;
-  padding: 0.75rem 1rem;
-}
-
-.navbar-sidebar__brand .navbar__logo {
-  height: 2rem;
-  width: 2rem;
-  min-width: 2rem;
-  min-height: 2rem;
-}
-
-.navbar-sidebar .menu {
-  padding: 0.5rem 0;
-}
-
-.navbar-sidebar .menu__link {
-  padding: 0.75rem 1rem;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
+  padding-inline: max(var(--ifm-navbar-padding-horizontal), calc((100% - 73rem) / 2));
+  border-bottom: 1px solid var(--museum-rule);
 }
 
 .navbar__title {
-  font-weight: 700;
-  letter-spacing: 0.05em;
+  font-family: var(--museum-serif);
+  font-size: 1.5rem;
+  letter-spacing: -0.045em;
 }
 
-.navbar__link {
-  font-weight: 500;
-}
+.navbar__link { font-weight: 550; }
+.navbar-sidebar { background-color: var(--museum-paper); }
+.navbar-sidebar .menu__link { min-height: 44px; }
 
-.navbar__link--active {
-  color: var(--ifm-color-primary);
-}
-
-/* Hide default hero on homepage */
-.hero--primary {
-  display: none;
-}
-
-/* Footer customization */
 .footer {
-  border-top: 1px solid rgba(0, 255, 136, 0.1);
+  --ifm-footer-background-color: var(--museum-panel);
+  --ifm-footer-color: var(--museum-muted);
+  --ifm-footer-title-color: var(--museum-ink);
+  --ifm-footer-link-color: var(--museum-green);
+  --ifm-footer-link-hover-color: var(--museum-ink);
+  border-top: 1px solid var(--museum-rule);
 }
 
-[data-theme='light'] .footer {
-  border-top-color: rgba(0, 153, 77, 0.2);
-}
-
-/* The footer uses style: 'dark' (Infima's .footer--dark), which defines the
-   footer variables on the element itself — beating the theme values declared
-   above on :root in BOTH modes (the dark footer actually rendered Infima's
-   #303846, not the intended #050508).  Redefine them here per theme so the
-   footer follows the palette like the rest of the page. */
-[data-theme='dark'] .footer--dark {
-  --ifm-footer-background-color: #050508;
-  --ifm-footer-color: #b0b0be;
-  --ifm-footer-link-color: #c8c8d4;
-  --ifm-footer-title-color: #00ff88;
-}
-
-[data-theme='light'] .footer--dark {
-  --ifm-footer-background-color: #e8e8e8;
-  --ifm-footer-color: #444444;
-  --ifm-footer-link-color: #333333;
-  --ifm-footer-title-color: #006e37;
-}
-
-.footer__title {
-  color: var(--ifm-footer-title-color);
-  font-weight: 600;
-  letter-spacing: 0.05em;
-}
-
-.footer__link-item {
-  transition: color 0.2s ease;
-}
-
-.footer__link-item:hover {
-  color: var(--ifm-color-primary);
-}
-
-/* Documentation page styling */
-.markdown h1 {
-  color: var(--ifm-color-primary);
-}
+.footer__title { font-family: var(--museum-serif); font-size: 1.2rem; }
+.footer__copyright { font-size: 0.875rem; }
 
 .markdown h2 {
-  border-bottom: 1px solid rgba(0, 255, 136, 0.2);
-  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--museum-rule);
+  padding-bottom: 0.4rem;
 }
 
-[data-theme='light'] .markdown h2 {
-  border-bottom-color: rgba(0, 153, 77, 0.2);
-}
+.markdown a { text-underline-offset: 0.17em; }
 
-/* Code block styling */
-[data-theme='dark'] .prism-code {
-  background: #1a1a25 !important;
-  border: 1px solid rgba(0, 255, 136, 0.1);
-}
-
-[data-theme='light'] .prism-code {
-  background: #ffffff !important;
-  border: 1px solid #d0d7de;
-}
-
-/* Sidebar customization */
-.menu__link--active:not(.menu__link--sublist) {
-  background: rgba(0, 255, 136, 0.1);
-  border-left: 3px solid var(--ifm-color-primary);
-}
-
-[data-theme='light'] .menu__link--active:not(.menu__link--sublist) {
-  background: rgba(0, 153, 77, 0.1);
-}
-
-/* Table of contents */
-.table-of-contents__link--active {
-  color: var(--ifm-color-primary);
-}
-
-/* Admonition styling */
-.admonition {
-  border-left: 4px solid;
-}
-
-.admonition-note {
-  border-color: var(--ifm-color-primary);
-}
-
-/* Button styling */
-.button--primary {
-  background: var(--ifm-color-primary);
-  border-color: var(--ifm-color-primary);
-  color: #0a0a0f;
-}
-
-.button--primary:hover {
-  background: var(--ifm-color-primary-dark);
-  border-color: var(--ifm-color-primary-dark);
-}
-
-/* Search */
-.DocSearch-Button {
-  border: 1px solid rgba(0, 255, 136, 0.2) !important;
-}
-
-[data-theme='light'] .DocSearch-Button {
-  border: 1px solid rgba(0, 153, 77, 0.2) !important;
-}
-
-/* Selection */
-::selection {
-  background: rgba(0, 255, 136, 0.3);
-  color: #ffffff;
-}
-
-[data-theme='light'] ::selection {
-  background: rgba(0, 153, 77, 0.3);
-  color: #000000;
-}
-
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #12121a;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #2a2a35;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #3a3a45;
-}
-
-[data-theme='light'] ::-webkit-scrollbar-track {
-  background: #f0f0f0;
-}
-
-[data-theme='light'] ::-webkit-scrollbar-thumb {
-  background: #c0c0c0;
-}
-
-[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
-  background: #a0a0a0;
-}
-
-/* Screen reader only utility */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -354,48 +105,16 @@ body {
   border: 0;
 }
 
-/* Focus styles — WCAG 2.4.7 keyboard accessibility */
-*:focus-visible {
-  outline: 2px solid var(--ifm-color-primary);
-  outline-offset: 2px;
+:focus-visible {
+  outline: 2px solid var(--museum-green);
+  outline-offset: 3px;
 }
 
-/* Skip navigation link for keyboard users */
-.skip-nav {
-  position: absolute;
-  top: -100%;
-  left: 1rem;
-  z-index: 9999;
-  padding: 0.75rem 1.5rem;
-  background: var(--ifm-color-primary);
-  color: #0a0a0f;
-  font-weight: 700;
-  text-decoration: none;
-  border-radius: 0 0 4px 4px;
-}
-
-.skip-nav:focus {
-  top: 0;
-}
-
-/* Respect user motion preferences — WCAG 2.3.3 */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
   }
-}
-
-/* Animation utilities */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.6s ease-out forwards;
 }
