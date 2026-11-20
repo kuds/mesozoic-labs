@@ -40,11 +40,18 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
     classification: 'Late Cretaceous · Theropod',
     title: 'A claw held clear of the ground',
     anatomy: 'Each foot supports the body on a rounded pad and two toes. The sickle claw rides above them. The model can move that claw separately as it approaches prey.',
-    alt: 'Two-legged Velociraptor model with a level trunk, raised claws and a long tail',
+    alt: 'Feathered Velociraptor with a long, low snout, folded arms and a raised sickle claw on each foot',
     detailLabel: 'Tail control', detail: '4 actuators',
     studies: {
       stance: {title: 'Balance on two feet', description: 'The stance test checks how each foot bears weight when the same animal faces six different directions.'},
-      locomotion: {title: 'Move forward', description: 'The controller coordinates the hips, knees and ankles to carry the body forward on its hind limbs.'},
+      locomotion: {
+        title: 'Place each foot',
+        description: 'Watch the two long toes land as the sickle claw stays raised. The bars show when each foot carries weight.',
+        referenceRecording: {
+          path: '/videos/velociraptor_mongoliensis_anatomical_reference_walk.mp4',
+          caption: 'Scripted reference walk · Level ground · Measured speed 0.258 m/s',
+        },
+      },
       behavior: {title: 'Aim the sickle claw', description: 'Either raised claw can score a strike by touching the simulated prey.'},
     },
   },
