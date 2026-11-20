@@ -537,29 +537,13 @@ max_window_peak_floor_force_bw = 2.0     # The window's peak summed floor force,
                                          # of the statue): its floor_impact_* terms charge only above 2.5 BW, and
                                          # below it the airborne term and the legacy substep-MIN support gate
                                          # price the hop.
-min_avg_reward = 2740.0                  # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): 0.60 x the statue's
-                                         # standing reward under this [env] (collapse_peak_floor_reference below:
-                                         # 0.60 x 4570.4 = 2742.2 -> 2740, rounded to the nearest 10). The
-                                         # certified marches re-score at 0.610-0.612 of their own r1 statue
-                                         # (2780.5-2788.8 against 4558.9; their worst episodes 0.594-0.598): about
-                                         # at this rail, which does not refuse them by itself; the bars above do,
-                                         # with 8-10 failed criteria an episode. Was 1800 (0.60 x 2998.74) under
-                                         # the r1 [env].
-min_avg_reward_statue_ratio = 0.60       # The same 0.60 rail against the statue panel each report rolls for itself
-                                         # (zero action, this [env], the same seeds and recorder), so it re-derives
-                                         # itself when a reward weight or the plant moves.
-collapse_peak_floor_reference = 4570.4   # The zero-action statue's standing reward under this [env]: 4570.4 +/- 7.2,
-                                         # 40 episodes, seeds 3042-3081, on physics r2 with its toe armature
-                                         # (4565.8 on 7042-7081, 4570.4 on 9042-9081), measured with
-                                         # `zero_action_baseline.py --model-id compsognathus_longipes anatomical --episodes 40
-                                         # --seed 3042`.
-                                         # Declared for its provenance pin. Deliberately omit a collapse floor:
-                                         # with no collapse_peak_floor and no collapse_peak_floor_fraction the
-                                         # shared detector stays unarmed, as before, until this plant has a learning
-                                         # history to calibrate it. Re-measure this reference whenever a reward
-                                         # weight OR the plant changes.
-statue_constants_physics_revision = 2    # The compsognathus physics revision the statue-derived constants above
-                                         # (min_avg_reward and collapse_peak_floor_reference) were measured on.
+# Physics r3 zero-action stance: all 40 seeds (3042–3081) completed 1,000 steps.
+# Mean standing return 4574.4, SD 4.5. The fixed rail is 60% of this mean,
+# rounded to the nearest 10. The ratio rail uses each report's paired control.
+min_avg_reward = 2740.0
+min_avg_reward_statue_ratio = 0.60
+collapse_peak_floor_reference = 4574.4
+statue_constants_physics_revision = 3
                                          # test_statue_constant_freshness.py cross-checks this against the plant
                                          # manifest. Update it WITH the re-measurement, never alone.
 required_consecutive = 3                 # Scheduler hysteresis ONLY. Under the floor-truth kinds (stance_quality/v2

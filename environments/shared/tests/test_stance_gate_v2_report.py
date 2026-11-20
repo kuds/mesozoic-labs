@@ -529,13 +529,13 @@ class TestThePadCentreOfPressure:
     def test_compsognathus_longipes_pads_leaned_onto_their_front_edges_fail_the_bar_alone(
         self, tmp_path, monkeypatch, nu
     ):
-        """Real physics on the compsognathus r2 plant, under its own stance block.
+        """Real physics on the compsognathus r3 plant, under its own stance block.
 
-        Both ankles, ramped to -0.573 (servo targets 0.15 rad below home under
-        the soft-cubic map) over the first 150 steps, lean the animal forward
+        Both ankle actions, ramped to -0.40 under the soft-cubic map over
+        the first 150 steps, lean the animal forward
         onto the front edges of both pads.  The pads stay level and the digits
         loaded, so the tilt, corner-lift, contact and support-geom bars admit
-        it, as they admit the whole 40-episode panel of this stance; the
+        it on all three tested starts. The
         centre-of-pressure bar is the one that refuses it, and the statue the
         same report rolls reads under it.
         """
@@ -547,7 +547,7 @@ class TestThePadCentreOfPressure:
         try:
             command = np.zeros(nu)
             for name in ("r_ankle_act", "l_ankle_act"):
-                command[env.model.actuator(name).id] = -0.573
+                command[env.model.actuator(name).id] = -0.40
         finally:
             env.close()
         predict = _ramped(command, steps=150, horizon=COMPSOGNATHUS_LONGIPES_HORIZON)
@@ -558,9 +558,9 @@ class TestThePadCentreOfPressure:
             assert row["min_support_geom_coverage"] == 1.0 and row["max_sole_tilt_deg"] < 0.1
             assert row["max_sole_cop_fore_aft"] > 0.85
             assert _keys(row) == {"max_sole_cop_fore_aft"}, row["reasons"]
-        # The statue stands on the heel side of its pads' centres (0.143-0.155 over 200 full-horizon episodes).
+        # The r3 standing control reads 0.273–0.287 on these three starts with the smaller cushion.
         statue_rows = report["statue"]["episode_evidence"]
-        assert all(row["max_sole_cop_fore_aft"] < 0.20 for row in statue_rows)
+        assert all(row["max_sole_cop_fore_aft"] < 0.32 for row in statue_rows)
         # The block's foot-share statue ratio reads the statue panel's own reference.
         reference = StatueReference.from_dict(report["statue"]["reference"])
         statue = _reclassified(

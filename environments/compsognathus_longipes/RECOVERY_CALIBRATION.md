@@ -6,6 +6,19 @@ and a physical recovery judge separately for the two plants. It does not
 establish that a trained policy has learned recovery, and it makes no hardware
 claim. The robot's head and tail remain fixed and unpowered.
 
+## Anatomical physics r3
+
+Changing the feet, body mass distribution and ankle stiffness changed the response to a horizontal push.
+The r3 calibration used eight quiet starts to establish its standing reference, 32 independent starts per
+candidate to select the disturbance, and 40 held-out starts per controller. The first qualifying pulse was
+1.2 times the capture velocity, or 1.187 N for 0.20 s. In the held-out panel, both the zero-command and fixed-brace
+controllers recovered on 6/40 episodes. They completed the episode on 17/40 and 18/40, respectively. At 1.5 times
+capture velocity, both recovered on 0/40. These are fixed-controller results. The physical model also has a
+separate [static equilibrium audit](ANATOMY_AND_BALANCE.md#static-balance-on-a-level-floor).
+[Full r3 recovery evidence](data/recovery_calibration_anatomical_r3.json.gz) · [Current anatomical profile](../../configs/compsognathus_longipes/anatomical/recovery_calibration.json)
+
+The historical calibration records below refer to the earlier anatomy and the Rev B robot.
+
 ## What is implemented
 
 - Both environments expose the shared deterministic push scheduler. Pushes

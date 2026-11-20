@@ -1,4 +1,4 @@
-# Compsognathus Longipes: anatomical and Rev B robot models
+# *Compsognathus longipes* anatomical and Rev B robot models
 
 Two MuJoCo models, added September 7, 2026, with **SB3 training integration**. Both have a
 floating base, articulated legs, working ground contact, joint-angle servos,
@@ -7,20 +7,22 @@ a standing pose in forward dynamics. Both now have registered Gymnasium
 environments, PPO/SAC recipes, evaluation and checkpoint contracts.
 **A converged walking policy has not yet been demonstrated.**
 
+The anatomical reconstruction uses the French specimen at a 95 mm femur scale. Its anatomy review includes matched-scale renders, muscle-force estimates and a measured static balance comparison. [Anatomy and standing balance](ANATOMY_AND_BALANCE.md)
+
 ![MuJoCo renders of the authored home poses](data/model_preview.png)
 
 | Property | Anatomical proxy | Rev B robot |
 |---|---|---|
 | MJCF | `anatomical/assets/compsognathus_longipes_anatomical.xml` | `robot/assets/compsognathus_longipes_robot.xml` |
-| Home standing height | 38.4 cm | **35.3 cm** |
-| Nose-to-tail envelope | 85.8 cm | **47.1 cm** |
-| Maximum visual width | 13.8 cm | 25.8 cm, including leg hardware |
+| Home standing height | 39.3 cm | **35.3 cm** |
+| Nose-to-tail envelope | 112.3 cm | **47.1 cm** |
+| Maximum visual width | 12.3 cm | 25.8 cm, including leg hardware |
 | Pelvis-frame height | 24.4 cm | **21.8 cm** |
 | Model mass, excluding target | 1.000 kg, assumed | **1.5856 kg**, preserved Rev B allocation |
 | Actuators | 14 | **12, all in the legs** |
 | Tail | Two driven base axes and three passive distal hinges | **Fixed, 50 g allocation; no joint or motor** |
 | Head | Neck pitch and jaw pitch | Fixed, 45 g allocation |
-| Feet | Three toes and a small plantar pad | **100 × 90 × 8 mm** soles |
+| Feet | Three loaded digits, a metatarsal cushion and a raised hallux | **100 × 90 × 8 mm** soles |
 
 Dimensions are measured visual bounds at `home`, not manufacturing
 dimensions. The anatomical proxy has a longer tail and slimmer legs; the
@@ -95,8 +97,8 @@ decision D-D26) the anatomical model trains on `CompsognathusLongipesAnatomicalE
 whose ten leg residuals (hip pitch, hip roll, knee, ankle and toe) are
 shaped to `b = 0.1a + 0.9a³` before that scaling (mode
 `home-keyframe-residual-softcubic/v1`): zero is still the home pose and ±1
-still each servo's limit, but the slope at home is a tenth. Every leg servo
-saturates at 0.05 rad of position error, so the linear residual spent
+still each servo's limit, but the slope at home is a tenth. On physics r2 every leg servo
+saturated at 0.05 rad of position error, so the linear residual spent
 0.007–0.015 of action on the whole knee or ankle holding torque, and on the
 physics r1 plant the statue fell under PPO's initial exploration noise
 (σ 0.135) in a median of 12 steps; on r2 it reaches the horizon on 151 of
@@ -194,8 +196,8 @@ The robot's fixed stance reward rail is **1,800**: its 3,000-point stance
 ceiling (supported survival, posture, and height each contribute at most one
 point per step over 1,000 steps) times 0.60, following Tyrannosaurus Rex's
 former reference fraction (`2,100 / 3,495.2`); it still requires its own
-baseline evaluation. The anatomical rail is **2,740**, 0.60 × the r2 statue's
-4,570.4 under the stance-quality terms rounded to the nearest 10 (it was
+baseline evaluation. The anatomical rail is **2,740**, 0.60 × the r3 statue's
+4,574.4 under the stance-quality terms rounded to the nearest 10 (it was
 1,800, 0.60 × 2,998.74, before them), with a second rail at 0.60 × the
 statue panel each report rolls.
 The rail does not automatically normalize rewards by the baseline or change
@@ -328,14 +330,10 @@ parts and actual shells before treating this as a manufacturing model.
 
 ## Appearance and sensor layout
 
-Brown/tan body, belly, head and claw materials use the T-Rex asset's palette.
-The anatomical proxy uses rounded torso/neck forms, an elongated small skull,
-three functional toes, a tibia longer than the femur and a continuously
-tapered long tail. Colours express repository styling, not known fossil
-colouration. It remains an anatomy-inspired proxy rather than a specimen scan.
-The anatomical head has no eyes, teeth or lip rim. Its plain lower-jaw proxy
-blends inside the closed snout while preserving the articulated jaw and 7 g
-mass allocation.
+The anatomical model has a tapering rib cage and neck, a low 87 mm skull with an articulated jaw,
+folded inward-facing hands, and a reconstructed 690 mm tail. The 1 kg mass allocation, coloured
+surfaces and joint impedance are reconstruction choices. The primary measurements and the force
+interpretation are in the [anatomy review](ANATOMY_AND_BALANCE.md).
 
 The robot's v3 styling combines the silver/olive finish of the September 6
 **Mesozoic Labs Biped Robot Concept.png** with lessons from Microduck's visible
@@ -409,12 +407,12 @@ preload is kept unchanged in mass-growth trials. `standing_targets.py`
 reproduces it and rejects torque or control-limit violations.
 
 Robot damping was reduced from the original 0.4 to 0.2 to remove transient
-rocking in the reset trials. The anatomical leg actuators also use 0.2.
+rocking in the reset trials. The anatomical leg actuators use 0.2 N·m·s/rad, with 0.18 at the MTP.
 These are simulation tuning results, not measured motor responses. Contact
 time constants are 8 ms for the robot and 6 ms for the anatomical proxy,
 with a 50 µm contact margin; neither is a substitute for material testing.
 
-The caps are manufacturer **rated** torque multiplied by an assumed 11.5/12
+The **robot** caps are manufacturer **rated** torque multiplied by an assumed 11.5/12
 voltage factor and 0.9 derating: approximately **±1.3533 N·m at hip roll**
 and **±0.8458 N·m elsewhere**. They are not stall-torque allowances.
 
@@ -433,33 +431,21 @@ These exclusions prevent artificial forces at intended mechanical
 interfaces but preclude a full self-collision clearance claim. Convex mesh
 contacts do not establish cable, horn, connector, fastener or bracket fit.
 
-The anatomical proxy uses primitive geometry with normal parent/child
-filtering. All three toes and the plantar pad belong to their touch sensor's
-rigid foot body, so distal contact is captured. The pad and soft tissue are
-simulation approximations, not a fossil-fitted reconstruction. Since physics
-r2 (note 15, D-D26) the tail's 178 g is spread at one density over its tapered
-meshes (r1's tip was denser than bone), the metatarsus collision capsule stops
-4 mm short of the MTP joint, so the settled statue holds it 4.8 mm off the
-floor (r1 1.07 mm, where a 0 N touch ended upright episodes), digit II is
-medial on both feet, and the MTP joint's armature is 2e-4 kg·m²
-(`toe_armature_kg_m2`; at 5e-5, the default of the generator's joint class,
-the toe servo rang numerically in a 19–21 Hz heel chatter). The MTP servo
-keeps its 0.6 N·m cap (`toe_forcerange_nm`), which holds one body weight on
-the digit-III tip: a single-support tiptoe stays physically possible, and the
-stance reward and gate refuse it.
+The anatomical hindlimbs use bounded active moments and a passive digital flexor crossing each ankle and MTP.
+All three digital pads and the metatarsal cushion belong to the rigid foot body, so the touch sensor includes
+the entire supporting surface. The ankle and MTP active stiffnesses are 12 and 8 N·m/rad, respectively.
+Joint loads, the active torque caps and a comparative muscle-force calculation are in the
+[anatomy review](ANATOMY_AND_BALANCE.md#active-torque-muscle-force-and-passive-recoil).
 
 ## Validation scope
 
-`data/preflight_training_v1.json` records current model hashes and all 26
-standing-protocol trials after the diagnostic sensor correction. See
-[training validation](TRAINING_VALIDATION.md) for the training-specific checks.
-Regenerated on the anatomical physics r2 plant (note 15) it records
-`passed: true`. Without note 15's toe armature (e) two of the anatomical
-model's ten seeded holds (seeds 49 and 51) failed `supports_weight` with a
-5.4% ground-force error against the 3% bar, on a numerical 19–21 Hz heel
-chatter of the MTP servo; with it the worst of the ten is 0.31%, and
-`tests/test_balance.py` runs every seed unmarked. The robot's trials are
-unchanged.
+The static analysis evaluates all force and torque residuals at the authored pose and again after ten seconds
+at fixed targets. The detailed report records both foot contact hulls, the COM projection, individual contact
+forces and the contribution of each joint. [Static balance results](data/static_balance_r3.json)
+
+The 26-trial standing protocol passed on anatomical physics r3 and on the Rev B robot.
+`data/preflight_training_v1.json` retains the earlier r2 results. Previously certified anatomical policies used earlier dynamics. The push-recovery pilot was remeasured
+on r3. [Recovery measurements](RECOVERY_CALIBRATION.md#anatomical-physics-r3) [Current preflight](data/preflight_anatomical_r3.json)
 
 `data/preflight_v3.json` records the pre-training v3 model/validator hashes, dimensions,
 masses, contact loads, torque utilisation and explicit acceptance thresholds.
@@ -471,18 +457,13 @@ suite or the training stack was exercised.
 
 | Worst active-trial metric | Anatomical proxy | Robot |
 |---|---:|---:|
-| Pelvis tilt | 0.90° (r1 0.86°) | 1.00° |
-| Horizontal drift | 6.43 mm (r1 5.41 mm) | 3.54 mm |
-| Minimum settled COM support margin | 25.48 mm (r1 18.51 mm) | 34.82 mm |
-| Peak fraction of configured torque cap | 62.0% (r1 67.7%) | 85.9% |
+| Pelvis tilt | 0.98° | 1.00° |
+| Horizontal drift | 6.70 mm | 3.54 mm |
+| Minimum settled COM support margin | 14.87 mm | 34.82 mm |
+| Peak fraction of configured torque cap | 58.5% | 85.9% |
 
-These maxima/minima include the specified reset trials and mass-growth
-scenario; the anatomical column is physics r2's (note 15, its toe armature
-included). On the stance task the r2 statue's centre of mass sits 29.3 mm
-ahead of the plantar pad's rear edge after the settle (r1 19.6 mm), and it
-holds 0.1 s pelvis pushes of 0.275 / 0.20 / 0.45 body weights forward /
-backward / sideways (r1 0.225 / 0.125 / 0.45). Torque utilisation does not
-establish speed or thermal headroom.
+These extrema span the active trials, including perturbed starts and the mass-growth case.
+The nominal 1 kg anatomical stance settles to a 30.45 mm support margin on level ground.
 
 - Both stand for **ten seconds** with fixed angle targets, finite state,
   torque limits respected and support exclusively through their feet.

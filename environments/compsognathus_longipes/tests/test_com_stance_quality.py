@@ -14,13 +14,13 @@ not been selected, though the load split is the strongest lean signal here (the 
 under its 1 mm bar, but splits the load 64/36); the world yaw, the turn from the spawn and the foot travel only with
 a world pose estimate.  ``imu_lean_keys`` holds the scripted lean to its bar on the IMU's roll alone.
 
-Measured on 2026-10-28 (mujoco 3.10.0, the tests' own sampler): the scripted 1 deg hip-roll lean reaches 15.6x a lean
-bar on the anatomical model (window 3-20 s) and 13.8x on the robot (window 2-20 s; the lighter foot's share 0.344 and
-0.362; the robot's roll alone 4.8x), the 0.05 m g w yaw torque 12.5x and 8.6x the pivot bar, and the 4 % m g fore-aft
-rock at 0.75 Hz 6.8x and 4.5x a sway bar, all standing the full horizon.  What the noisy-spawn bars allow on the
-current plants (80 spawns each at reset noise 0.02): a turn from the spawn of up to 5.1 deg (anatomical) and 3.2 deg
-(robot), almost all before the window.  Ten of the robot's 280 measured spawns (held-out seeds 111 and 143, and 8 of
-seeds 200-399) end in a poor stance the bars fail: the robot buzzes on its feet and creeps backwards for the whole
+The anatomical r3 sampler ran on 2026-11-19 and the robot r1 sampler on 2026-10-28, both using MuJoCo 3.10.0.
+Both models stood for the full scripted episodes. The 1 deg hip-roll command exceeded a lean bar by 17.2x on the
+anatomical model (window 3–20 s) and 13.8x on the robot (window 2–20 s, IMU roll alone 4.8x). The yaw torque
+of 0.05 m g w exceeded the pivot bar by 17.3x and 8.6x respectively. A 4 % body-weight fore-aft force at 0.75 Hz
+exceeded a sway bar by 12.1x and 4.5x. In 80 noisy spawns per model, the spread bars admitted turns of up to
+5.8 deg on the anatomical model and 3.2 deg on the robot, almost all before the window.
+Ten of the robot's 280 measured spawns (held-out seeds 111 and 143, and 8 of seeds 200-399) end in a poor stance the bars fail: the robot buzzes on its feet and creeps backwards for the whole
 episode, 58 mm over 18 s on nine of them and 79 mm on seed 111
 (``test_known_poor_spawn_seed111_stays_within_the_calibrated_spread``, a strict expected failure).
 """
@@ -34,47 +34,46 @@ from environments.shared.tests.com_stance_helpers import ComStanceQualityBase, T
 class TestAnatomicalComStanceQuality(ComStanceQualityBase):
     model_id = ModelId("compsognathus_longipes", "anatomical")
     species_label = "Compsognathus"
-    physics_revision = 2
+    physics_revision = 3
     window_start_s = 3.0
-    # The noise-free statue's window values, physics r2, mujoco 3.10.0, read on 2026-10-28 with
+    # The noise-free statue's window values, physics r3, mujoco 3.10.0, read on 2026-11-19 with
     # com_stance_calibration and rounded to 0.01 mm and 1e-4 deg and of the load (under 1 % of a width).
     reference = {
-        "com_margin_min_m": 0.02932,
-        "xcom_margin_min_m": 0.02932,
-        "com_margin_lateral_min_m": 0.06352,
-        "xcom_margin_lateral_min_m": 0.06352,
-        "com_margin_fore_aft_min_m": 0.02932,
-        "xcom_margin_fore_aft_min_m": 0.02932,
-        "com_fore_aft_mean_m": -0.00868,
+        "com_margin_min_m": 0.03044,
+        "xcom_margin_min_m": 0.03044,
+        "com_margin_lateral_min_m": 0.05305,
+        "xcom_margin_lateral_min_m": 0.05305,
+        "com_margin_fore_aft_min_m": 0.03044,
+        "xcom_margin_fore_aft_min_m": 0.03044,
+        "com_fore_aft_mean_m": -0.00145,
         "com_fore_aft_drift_m": 0.0,
-        "root_pitch_mean_deg": 0.0073,
-        "com_height_mean_m": 0.22831,
+        "root_pitch_mean_deg": -0.0357,
+        "com_height_mean_m": 0.23437,
         "com_height_drift_m": 0.0,
         "foot_turn_max_deg": 0.0,
         "foot_turn_from_spawn_max_deg": 0.0,
         "foot_splay_change_max_deg": 0.0,
         "foot_travel_max_m": 0.0,
         "foot_travel_from_spawn_max_m": 0.0,
-        "com_speed_rms_mps": 0.0,
+        "com_speed_rms_mps": 1e-05,
         "com_speed_end_rms_mps": 0.0,
         "com_fore_aft_sd_m": 0.0,
         "com_height_sd_m": 0.0,
-        "root_pitch_sd_deg": 0.0001,
+        "root_pitch_sd_deg": 0.0004,
     }
     # Twice the worst of calibration seeds 0-29 at reset noise 0.02, never under twice the floor (SI, deg).
-    # Held-out seeds 100-149: none breaks a width; the largest use is 0.57 (foot_turn_max_deg, seed
-    # 111).
+    # Held-out seeds 100-149: none breaks a width; the largest use is 0.61 (foot_turn_max_deg, seed 145).
     spread_width = {
-        "com_margin_min_m": 0.0053,
-        "xcom_margin_min_m": 0.0054,
-        "com_margin_lateral_min_m": 0.045,
-        "xcom_margin_lateral_min_m": 0.045,
-        "com_margin_fore_aft_min_m": 0.0053,
-        "xcom_margin_fore_aft_min_m": 0.0054,
+        "com_margin_min_m": 0.001,
+        "xcom_margin_min_m": 0.001,
+        "com_margin_lateral_min_m": 0.031,
+        "xcom_margin_lateral_min_m": 0.031,
+        "com_margin_fore_aft_min_m": 0.001,
+        "xcom_margin_fore_aft_min_m": 0.001,
         "com_lateral_mean_m": 0.001,
         "root_roll_mean_deg": 0.1,
         "left_load_share_mean": 0.01,
-        "lightest_foot_share_min": 0.016,
+        "lightest_foot_share_min": 0.02,
         "com_lateral_drift_m": 0.001,
         "root_roll_drift_deg": 0.1,
         "com_fore_aft_mean_m": 0.001,
@@ -82,14 +81,14 @@ class TestAnatomicalComStanceQuality(ComStanceQualityBase):
         "root_pitch_mean_deg": 0.1,
         "com_height_mean_m": 0.001,
         "com_height_drift_m": 0.001,
-        "root_turn_deg": 0.39,
+        "root_turn_deg": 0.59,
         "root_turn_end_deg": 0.1,
-        "root_turn_from_spawn_deg": 11.0,
+        "root_turn_from_spawn_deg": 9.8,
         "root_minus_feet_yaw_from_spawn_deg": 0.1,
-        "foot_turn_max_deg": 0.39,
-        "foot_turn_from_spawn_max_deg": 11.0,
+        "foot_turn_max_deg": 0.59,
+        "foot_turn_from_spawn_max_deg": 9.8,
         "foot_splay_change_max_deg": 0.1,
-        "foot_travel_max_m": 0.0018,
+        "foot_travel_max_m": 0.0021,
         "foot_travel_from_spawn_max_m": 0.012,
         "com_speed_rms_mps": 0.001,
         "com_speed_end_rms_mps": 0.001,
@@ -100,25 +99,21 @@ class TestAnatomicalComStanceQuality(ComStanceQualityBase):
         "root_pitch_sd_deg": 0.1,
         "root_yaw_sd_deg": 0.1,
     }
-    # Held-out seeds: the largest turn from the spawn (-4.93 deg) and the largest lateral offset
-    # (-0.003 mm) among those holding every width; they use 0.45 and 0.57 of a width.
-    noisy_seeds = (145, 111)
-    # A 0.5 % m g push barely moves this small, stiff stance (0.85x): the rock is 4 % of the weight.
+    # Held-out seeds: the largest turn from the spawn (5.83 deg) and the largest lateral offset (-0.005 mm) among
+    # those holding every width; they use 0.60 and 0.61 of a width.
+    noisy_seeds = (112, 145)
+    # At 4 % of body weight the scripted rock exceeds the revised speed bar by 12.12x.
     rock_force_bw = 0.04
 
-    # Spawns the absolute targets read besides noisy_seeds: of the 80 spawns, the worst that misses a target both test
-    # seeds meet (measured 2026-10-29): 101 (foot_slip_after_landing); 124 (settled_by_2s).
-    target_seeds = (101, 124)
+    # Seed 24 has the largest foot slip, a target met by both held-out test seeds.
+    target_seeds = (24,)
 
     @pytest.mark.xfail(
         strict=True,
         raises=TargetMissed,
         reason=(
-            "physics r2 (2026-10-29): the turn read at the episode's end (the yaw at its end less at the spawn): "
-            "root_turn_from_spawn_deg seed 145 4.93 deg, seed 111 2.97 deg, seed 101 1.71 deg, seed 124 2.57 deg (52 "
-            "of the 80 spawns at reset noise 0.02 miss; worst 5.11 deg, seed 29; median 1.53 deg). Target: "
-            "|root_turn_from_spawn_deg| <= 1.00 deg. Strict: when a model change meets it this passes and so fails; "
-            "run com_stance_calibration, check the 80 spawns, then drop the mark (the target becomes a real bar)"
+            "Physics r3, 2026-11-19: 63 of 80 noisy spawns exceeded the 1 deg turn target. "
+            "Worst 5.83 deg (seed 112), median 2.09 deg. All 80 stood for 20 s."
         ),
     )
     def test_target_turn_from_spawn(self, statue):
@@ -129,10 +124,8 @@ class TestAnatomicalComStanceQuality(ComStanceQualityBase):
         strict=True,
         raises=TargetMissed,
         reason=(
-            "physics r2 (2026-10-29): settle_s seed 124 3 s (4 of the 80 spawns at reset noise 0.02 miss; worst 3 s, "
-            "seed 0; median 2 s). Target: |settle_s| <= 2 s. Strict: when a model change meets it this passes and so "
-            "fails; run com_stance_calibration, check the 80 spawns, then drop the mark (the target becomes a real "
-            "bar)"
+            "Physics r3, 2026-11-19: 17 of 80 noisy spawns settled at 3 s, including test seed 112. "
+            "The target and 80-spawn median are 2 s."
         ),
     )
     def test_target_settled_by_2s(self, statue):
@@ -143,11 +136,9 @@ class TestAnatomicalComStanceQuality(ComStanceQualityBase):
         strict=True,
         raises=TargetMissed,
         reason=(
-            "physics r2 (2026-10-29): foot_travel_max_m seed 101 2.21 mm (34 of the 80 spawns at reset noise 0.02 "
-            "miss; worst 2.21 mm, seed 101; median 0.88 mm). Target: |foot_travel_max_m| <= 1.00 mm: twice the 0.5 mm "
-            "floor, as a 1 deg turn about the feet's centre slides a foot only 0.82 mm here (the farthest foot 47.0 mm "
-            "from it). Strict: when a model change meets it this passes and so fails; run com_stance_calibration, "
-            "check the 80 spawns, then drop the mark (the target becomes a real bar)"
+            "Physics r3, 2026-11-19: 36 of 80 noisy spawns exceeded the 1 mm slip target. "
+            "Worst 2.295 mm (seed 24), median 0.965 mm. A 1 deg turn at the 37 mm foot radius "
+            "slides the foot 0.646 mm, so the existing 1 mm floor governs."
         ),
     )
     def test_target_foot_slip_after_landing(self, statue):
