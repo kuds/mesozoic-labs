@@ -22,6 +22,15 @@ The species has one model, the pair (species, embodiment) of
 | Configs | `configs/velociraptor_mongoliensis/anatomical/` |
 | Catalog | [Velociraptor Mongoliensis (Anatomical)](../../docs/SPECIES_CATALOG.md#velociraptor_mongoliensis-anatomical) |
 
+## Anatomical review and reference walk
+
+The [anatomical review](../../docs/reviews/VELOCIRAPTOR_ANATOMICAL_REFERENCE.md) compares the specimen and model dimensions, shows the revised feet and plumage, and reports measured balance, ground contact and foot placement. Run the audit from the repository root with the standard MuJoCo environment installed.
+
+```bash
+python -m environments.velociraptor_mongoliensis.scripts.audit_motion --mode stand
+python -m environments.velociraptor_mongoliensis.scripts.audit_motion --mode walk --seconds 30
+```
+
 ## Project Structure
 
 ```

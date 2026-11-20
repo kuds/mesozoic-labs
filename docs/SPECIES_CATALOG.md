@@ -26,7 +26,7 @@ Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 | Action dimension / actuators | 17 |
 | Generalized coordinates / velocities | nq=30, nv=29 |
 | Compiled dynamic model mass | 15.0 kg |
-| Plant contract revisions | policy r14; physics r5; visual r5 ([details](PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r14; physics r5; visual r6 ([details](PLANT_CONTRACT.md)) |
 | Model | `environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |

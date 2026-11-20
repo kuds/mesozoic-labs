@@ -267,7 +267,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         DIBOTHROSUCHUS_ELAPHROS: 3,
     }
     expected_visual_revisions = {
-        VELOCIRAPTOR_MONGOLIENSIS: 5,
+        VELOCIRAPTOR_MONGOLIENSIS: 6,
         TYRANNOSAURUS_REX: 4,
         BRACHIOSAURUS_ALTITHORAX: 3,
         DIBOTHROSUCHUS_ELAPHROS: 2,
