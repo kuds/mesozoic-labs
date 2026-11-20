@@ -256,7 +256,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         VELOCIRAPTOR_MONGOLIENSIS: 14,
         TYRANNOSAURUS_REX: 15,
         BRACHIOSAURUS_ALTITHORAX: 10,
-        DIBOTHROSUCHUS_ELAPHROS: 8,
+        DIBOTHROSUCHUS_ELAPHROS: 9,
         COMPSOGNATHUS_LONGIPES: 6,
         COMPSOGNATHUS_LONGIPES_ROBOT: 3,
     }
@@ -264,13 +264,13 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         VELOCIRAPTOR_MONGOLIENSIS: 5,
         TYRANNOSAURUS_REX: 10,
         BRACHIOSAURUS_ALTITHORAX: 6,
-        DIBOTHROSUCHUS_ELAPHROS: 2,
+        DIBOTHROSUCHUS_ELAPHROS: 3,
     }
     expected_visual_revisions = {
         VELOCIRAPTOR_MONGOLIENSIS: 5,
         TYRANNOSAURUS_REX: 4,
         BRACHIOSAURUS_ALTITHORAX: 3,
-        DIBOTHROSUCHUS_ELAPHROS: 1,
+        DIBOTHROSUCHUS_ELAPHROS: 2,
     }
     for revisions in (expected_physics_revisions, expected_visual_revisions):
         revisions.update({COMPSOGNATHUS_LONGIPES: 3, COMPSOGNATHUS_LONGIPES_ROBOT: 1})

@@ -65,12 +65,12 @@ The window is the gate's, ``[settle_steps, T)``.  One rule says which
 fields exist: a field is kept for a foot only when the foot has what it
 measures.  Only feet with a BOX sole are pad feet, the feet the gate's
 fore-aft CoP reads, and only a pad foot with digits has a digit share (the
-compsognathus robot's soles and the dibothrosuchus's pads have none).  The
+compsognathus robot's soles have none).  The
 velociraptor's capsule feet and the brachiosaurus's ellipsoids have no box sole,
 so :meth:`PadLayout.from_morphology` gives them an empty layout and a caller
 records no pad field for them at all.  Only the T. rex declares a support
 span, so only its feet have the whole-foot fields, and only its digits are
-hinged (the anatomical compsognathus's digits share the pad's body), so
+hinged (the anatomical compsognathus and dibothrosuchus carry rigid digital rays), so
 only they have a load position.  Absent therefore means "the model has no
 such thing", and NaN in a field that exists means "not measured this time".
 
