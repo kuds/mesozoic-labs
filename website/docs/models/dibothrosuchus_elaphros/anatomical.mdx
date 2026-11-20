@@ -3,6 +3,7 @@ sidebar_position: 1
 sidebar_label: Anatomical
 ---
 
+import useBaseUrl from '@docusaurus/useBaseUrl';
 import SpeciesCatalog from '@site/src/components/SpeciesCatalog';
 import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
 import {requireModel} from '@site/src/data/species';
@@ -17,24 +18,15 @@ A crocodylomorph-inspired quadrupedal simulation model with erect, gracile limbs
 
 ## Anatomy
 
-The Dibothrosuchus model includes:
+At its home pose the model spans 1.296 m from snout to tail, close to the published 1.3 m whole-animal estimate. The 164 mm skull has a narrow muzzle, lateral eyes and low frontal ridges. Eight pairs of dorsal osteoderms follow the trunk. [Wu and Chatterjee (1993)](https://doi.org/10.1080/02724634.1993.10011488) · [Zanno et al. (2015), skull length](https://www.nature.com/articles/srep09276) · [Ruebenstahl et al. (2022), cranial and postcranial anatomy](https://pmc.ncbi.nlm.nih.gov/articles/PMC9541040/)
 
-- **Trunk** — Level root frame with a nose-down sloping capsule and a low-slung belly
-- **Osteoderms** — Two paramedian rows of dorsal scutes (6 pairs), the "two troughs" the genus is named for. They carry mass but are collision-disabled
-- **Neck + Skull** — Long slender neck (pitch, yaw), narrow crested skull (head pitch), sagittal crest, and an elongate snout
-- **Snout** — Fixed contact geom used as a snap proxy; there is no articulated jaw
-- **Legs** — Four erect, parasagittal limbs with 5 joints each (hip pitch/roll, knee, ankle, toe) ending in a flat pad; an elliptic friction cone since physics r2, so every heading is physically identical
-- **Tail** — 4 segments, 3 actuated, carried clear of the ground in the high walk
+The 112.5 mm humerus and 97.5 mm radius follow measurements of specimen IVPP V7907. The elbows point back and the hind knees point forward. Each forefoot has four digital rays. The hindfoot has four supporting toes and a reduced outer fifth ray, reconstructed by comparison with *Terrestrisuchus*. [Bodenham et al. (2026), table 1](https://doi.org/10.1002/ar.70162) · [Ruebenstahl et al. (2022), fig. 33b](https://pmc.ncbi.nlm.nih.gov/articles/PMC9541040/) · [Spiekman et al. (2024), fig. 30](https://onlinelibrary.wiley.com/doi/full/10.1002/spp2.1577)
 
-## Unique Characteristics
+## Balance and reference walk
 
-Dibothrosuchus is the first non-dinosaur in the project, and the smallest species in it:
+At rest, the 8.65 kg model carries 27% of its weight on the forefeet and 73% on the hindfeet. Its center of mass projects 58 mm inside the support boundary. The reference walk advances through a left hind, left fore, right hind, right fore sequence. The replay shows the actual simulated contacts for each foot. The mass distribution and gait timing belong to the reconstruction. [Anatomical review and validation](https://github.com/kuds/mesozoic-labs/blob/main/environments/dibothrosuchus_elaphros/README.md#anatomical-review) · [Hutchinson et al. (2019), living crocodylian gait comparisons](https://www.nature.com/articles/s41598-019-55768-6)
 
-- **Erect crocodylomorph posture** rather than the sprawl of a modern crocodilian. The limb chains are authored vertical, and every hinge joint is 0 at the home keyframe
-- **Hindlimbs longer than forelimbs** — the reverse of Brachiosaurus, whose front legs are the longer pair
-- **8.7 kg and 1.24 m nose-to-tail**, an order of magnitude lighter than the T-Rex model
-- **Snout-referenced approach shaping** — the 0.16 m skull rides a mobile neck, so approach distance is measured from the snout tip rather than the trunk
-- **The smallest stage-3 target in the project** — a 0.06 m prey sphere, which makes aiming rather than approach the hard part of the behavior (hunt) node
+<video controls preload="metadata" width="100%" src={useBaseUrl('/videos/dibothrosuchus_elaphros_anatomical_reference_walk.mp4')} aria-label="Dibothrosuchus walking on level ground with measured contact for each foot" />
 
 ## Diagnostic Metrics (behavior node, hunt)
 
@@ -58,7 +50,10 @@ After each training stage the `eval` command reports:
 ## Usage
 
 ```bash
-# From the repository root. View the model
+# From the repository root. Measure the reference walk
+python -m environments.dibothrosuchus_elaphros.scripts.reference_walk
+
+# View the model
 python environments/dibothrosuchus_elaphros/scripts/view_model.py --embodiment anatomical
 
 # Train the stance node using its current TOML-configured budget

@@ -121,7 +121,7 @@ Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap task.
 | Action dimension / actuators | 27 |
 | Generalized coordinates / velocities | nq=35, nv=34 |
 | Compiled dynamic model mass | 8.7 kg |
-| Plant contract revisions | policy r8; physics r2; visual r1 ([details](PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r9; physics r3; visual r2 ([details](PLANT_CONTRACT.md)) |
 | Model | `environments/dibothrosuchus_elaphros/anatomical/assets/dibothrosuchus_elaphros_anatomical.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |

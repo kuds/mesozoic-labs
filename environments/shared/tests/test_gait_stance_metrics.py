@@ -244,7 +244,7 @@ def test_a_hop_shorter_than_half_a_step_reads_every_leg_down_but_fires_the_windo
 def test_a_reset_pop_inside_the_spawn_grace_fires_only_the_spawn_metrics():
     trace = statue_trace()
     airborne, peak = trace.feet_airborne_substeps.copy(), trace.total_floor_max.copy()
-    airborne[0] = 3  # every statue but trex pops off its reset pose; dibothrosuchus flies up to 9 substeps
+    airborne[0] = 3  # simulate the brief loss of support observed at reset
     peak[2] = 2.4 * BODY_WEIGHT  # the velociraptor statue's pop reaches 2.42 body weights
     result = metrics(edited(trace, feet_airborne_substeps=airborne, total_floor_max=peak))
     assert result.spawn_airborne_substeps == 3.0
