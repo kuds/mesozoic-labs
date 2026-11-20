@@ -101,11 +101,20 @@ def mesh(name, sections, slope=0.0, point_map=None):
         for side in range(SIDES):
             a = ring * SIDES + side
             b = ring * SIDES + (side + 1) % SIDES
-            row.extend((a, b, a + SIDES, b, b + SIDES, a + SIDES))
+            # Opposite flanks use reflected diagonals. Splitting every curved
+            # quad the same way skews the surface and its compiled inertia axes.
+            if (side + SIDES // 4) % SIDES < SIDES // 2:
+                row.extend((a, b, a + SIDES, b, b + SIDES, a + SIDES))
+            else:
+                row.extend((a, b, b + SIDES, a, b + SIDES, a + SIDES))
         faces.append(" ".join(map(str, row)))
     last = (len(sections) - 1) * SIDES
+    # Anchor each cap fan on the sagittal plane so its triangles also mirror.
+    midline = SIDES // 4
     for side in range(1, SIDES - 1):
-        faces.append(f"0 {side + 1} {side} {last} {last + side} {last + side + 1}")
+        a = (midline + side) % SIDES
+        b = (a + 1) % SIDES
+        faces.append(f"{midline} {b} {a} {last + midline} {last + a} {last + b}")
     vertices = "\n            ".join(rows)
     triangles = "\n          ".join(faces)
     return f'    <mesh name="{name}" smoothnormal="true"\n        vertex="{vertices}"\n        face="{triangles}"/>'
