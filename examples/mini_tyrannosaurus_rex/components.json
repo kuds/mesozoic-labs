@@ -1,0 +1,469 @@
+{
+  "schema_version": 1,
+  "prototype": "mini_tyrannosaurus_rex",
+  "revision": "silhouette_c_on_revision_10_mechanism",
+  "sources_checked_on": "2026-10-24",
+  "status": "unweighed_concept_not_fabrication_cad",
+  "target_total_mass_g": 800,
+  "active_servo_count": 14,
+  "actuator_allocation": {
+    "legs": 10,
+    "head_yaw_and_nod": 2,
+    "jaw": 1,
+    "shared_arms": 1
+  },
+  "limitations": [
+    "Reserved envelopes are requirements for future CAD, not verified free space or a simultaneous packing solution.",
+    "Mass allocations are a procurement target, not measured masses or a per-body MJCF inertial decomposition.",
+    "Cable exits, horn/idler travel, cooling, fasteners, wall thickness and service clearance require CAD verification.",
+    "No battery SKU or current-rated distribution circuit is selected.",
+    "Regulator headline current figures are not validated ratings inside this robot."
+  ],
+  "components": [
+    {
+      "id": "actuators",
+      "part": "ROBOTIS XL330-M288-T",
+      "quantity": 14,
+      "mass_budget_g": 252,
+      "unit_mass_g": 18,
+      "mass_basis": "manufacturer_bare_servo",
+      "part_dimensions_mm": [
+        20,
+        34,
+        26
+      ],
+      "dimension_basis": "manufacturer_case_dimensions_W_H_D",
+      "reserved_envelope_mm": null,
+      "location": "ten_leg_joints_three_head_jaw_joints_one_torso_arm_drive",
+      "source_urls": [
+        "https://robotis.us/products/dynamixel-xl330-m288-t",
+        "https://docs.robotis.com/docs/dxl/model_reference/x_series/xl_series/xl330-m288/"
+      ],
+      "electrical": {
+        "nominal_v": 5,
+        "allowed_input_v": [
+          3.7,
+          6
+        ],
+        "stall_current_a": 1.47,
+        "stall_torque_nm": 0.52,
+        "estimated_continuous_torque_nm": 0.1,
+        "continuous_torque_basis": "manufacturer_estimate_20_percent_stall_not_qualified_duty_rating"
+      }
+    },
+    {
+      "id": "computer",
+      "part": "Radxa ZERO 3W, microSD and cooling",
+      "quantity": 1,
+      "mass_budget_g": 35,
+      "mass_basis": "assembly_allowance",
+      "part_dimensions_mm": [
+        65,
+        30,
+        null
+      ],
+      "dimension_basis": "manufacturer_PCB_footprint_height_not_reconciled",
+      "reserved_envelope_mm": [
+        75,
+        40,
+        18
+      ],
+      "location": "torso_removable_electronics_carrier",
+      "source_urls": [
+        "https://docs.radxa.com/en/zero/zero3",
+        "https://docs.radxa.com/en/zero/zero3/getting-started/preparation"
+      ],
+      "electrical": {
+        "nominal_v": 5,
+        "minimum_recommended_supply_capability_a": 2,
+        "measured_consumption_a": null
+      }
+    },
+    {
+      "id": "servo_interface",
+      "part": "ROBOTIS U2D2",
+      "quantity": 1,
+      "mass_budget_g": 9,
+      "mass_basis": "manufacturer",
+      "part_dimensions_mm": [
+        48,
+        18,
+        14.9
+      ],
+      "dimension_basis": "manufacturer_manual_confirm_purchased_connector_revision",
+      "reserved_envelope_mm": [
+        60,
+        25,
+        20
+      ],
+      "location": "torso_service_carrier",
+      "source_urls": [
+        "https://docs.robotis.com/docs/parts/interface/u2d2/"
+      ],
+      "notes": [
+        "Communication converter only; does not supply motor power."
+      ]
+    },
+    {
+      "id": "imu_breakouts",
+      "part": "Adafruit ISM330DHCX product 4502",
+      "quantity": 2,
+      "mass_budget_g": 6,
+      "unit_mass_g": 3,
+      "mass_basis": "allowance_not_measured",
+      "part_dimensions_mm": null,
+      "dimension_basis": "not_reconciled",
+      "reserved_envelope_mm": [
+        30,
+        25,
+        8
+      ],
+      "envelope_applies_to": "each_board",
+      "location": "one_rigid_body_mount_one_optional_head_mount",
+      "source_urls": [
+        "https://www.adafruit.com/product/4502",
+        "https://learn.adafruit.com/lsm6dsox-and-ism330dhc-6-dof-imu/pinouts"
+      ],
+      "notes": [
+        "Both boards are budgeted; head board can be omitted without consuming the unused allowance elsewhere automatically."
+      ]
+    },
+    {
+      "id": "motor_regulator",
+      "part": "Pololu D24V90F5",
+      "selection_status": "candidate_requires_bench_qualification",
+      "quantity": 1,
+      "mass_budget_g": 4.8,
+      "mass_basis": "manufacturer_bare_board_excludes_hardware",
+      "part_dimensions_mm": [
+        40.6,
+        20.3,
+        7.6
+      ],
+      "dimension_basis": "manufacturer",
+      "reserved_envelope_mm": [
+        50,
+        30,
+        15
+      ],
+      "location": "ventilated_torso_power_carrier",
+      "source_urls": [
+        "https://www.pololu.com/product/2866",
+        "https://www.pololu.com/product/2866/specs"
+      ],
+      "electrical": {
+        "output_v": 5,
+        "advertised_current_a": 9,
+        "qualified_robot_continuous_current_a": null
+      },
+      "notes": [
+        "Manufacturer description also lists typical continuous 4-8 A and load-dependent dropout; input, airflow and thermal state govern available output."
+      ]
+    },
+    {
+      "id": "logic_regulator",
+      "part": "Pololu D24V22F5",
+      "selection_status": "candidate_requires_bench_qualification",
+      "quantity": 1,
+      "mass_budget_g": 2.3,
+      "mass_basis": "manufacturer_bare_board_excludes_headers",
+      "part_dimensions_mm": [
+        17.8,
+        17.8,
+        7.9
+      ],
+      "dimension_basis": "manufacturer_inches_converted_and_rounded",
+      "reserved_envelope_mm": [
+        25,
+        25,
+        12
+      ],
+      "location": "torso_power_carrier",
+      "source_urls": [
+        "https://www.pololu.com/product/2858/specs"
+      ],
+      "electrical": {
+        "output_v": 5,
+        "advertised_typical_current_a": 2.5,
+        "qualified_robot_continuous_current_a": null
+      },
+      "notes": [
+        "Validate at intended battery voltage and temperature with computer/peripheral load; headline current is input/thermal dependent."
+      ]
+    },
+    {
+      "id": "battery",
+      "part": null,
+      "selection_status": "UNSPECIFIED",
+      "quantity": 1,
+      "mass_budget_g": 70,
+      "mass_basis": "sourcing_constraint_not_selected_pack",
+      "part_dimensions_mm": null,
+      "reserved_envelope_mm": [
+        70,
+        35,
+        22
+      ],
+      "location": "low_torso_removable_battery_carrier",
+      "source_urls": [],
+      "requirements": [
+        "2S pack with matched charger",
+        "Documented discharge rating and connector ratings for measured input current",
+        "Appropriate low-voltage cutoff with converter dropout margin",
+        "Cable exit and restraint clearance in addition to raw pack envelope",
+        "Never connect full 2S voltage directly to XL330 motors"
+      ]
+    },
+    {
+      "id": "power_distribution",
+      "part": null,
+      "selection_status": "UNSPECIFIED",
+      "quantity": 1,
+      "mass_budget_g": 28,
+      "mass_basis": "allowance",
+      "part_dimensions_mm": null,
+      "reserved_envelope_mm": [
+        35,
+        25,
+        15
+      ],
+      "location": "torso_power_carrier",
+      "source_urls": [],
+      "notes": [
+        "Includes cutoff/fuse allowance; actual circuit, ratings and component selections remain open."
+      ]
+    },
+    {
+      "id": "wiring_connectors",
+      "part": null,
+      "quantity": 1,
+      "mass_budget_g": 35,
+      "mass_basis": "allowance",
+      "part_dimensions_mm": null,
+      "reserved_envelope_mm": null,
+      "location": "routed_branches",
+      "source_urls": []
+    },
+    {
+      "id": "structural_frames_linkages",
+      "part": null,
+      "quantity": 1,
+      "mass_budget_g": 160,
+      "mass_basis": "allowance",
+      "part_dimensions_mm": null,
+      "reserved_envelope_mm": null,
+      "location": "pelvis_spine_limbs_head_and_arm_transmission",
+      "source_urls": [],
+      "notes": [
+        "Includes load-bearing frames/carriers and arm transmission; excludes separately budgeted bearings/fasteners."
+      ]
+    },
+    {
+      "id": "body_head_shells_leg_guards",
+      "part": null,
+      "quantity": 1,
+      "mass_budget_g": 85,
+      "mass_basis": "allowance",
+      "part_dimensions_mm": null,
+      "reserved_envelope_mm": null,
+      "location": "removable_cosmetic_panels",
+      "source_urls": [],
+      "notes": [
+        "Excludes tail and arm/hand shells."
+      ]
+    },
+    {
+      "id": "fixed_tail_shell",
+      "part": null,
+      "quantity": 1,
+      "mass_budget_g": 15,
+      "mass_basis": "allowance",
+      "part_dimensions_mm": null,
+      "reserved_envelope_mm": null,
+      "location": "tail",
+      "source_urls": []
+    },
+    {
+      "id": "arm_hand_shells",
+      "part": null,
+      "quantity": 2,
+      "mass_budget_g": 20,
+      "unit_mass_g": 10,
+      "mass_basis": "allowance",
+      "part_dimensions_mm": null,
+      "reserved_envelope_mm": null,
+      "location": "left_and_right_arms",
+      "source_urls": []
+    },
+    {
+      "id": "bearings_fasteners_foot_material",
+      "part": null,
+      "quantity": 1,
+      "mass_budget_g": 40,
+      "mass_basis": "allowance",
+      "part_dimensions_mm": null,
+      "reserved_envelope_mm": null,
+      "location": "distributed",
+      "source_urls": []
+    },
+    {
+      "id": "character_electronics",
+      "part": null,
+      "quantity": 1,
+      "mass_budget_g": 10,
+      "mass_basis": "allowance",
+      "part_dimensions_mm": null,
+      "reserved_envelope_mm": null,
+      "location": "torso",
+      "source_urls": [],
+      "notes": [
+        "LEDs, speaker and buttons only; camera or Pico not included."
+      ]
+    },
+    {
+      "id": "integration_reserve",
+      "part": null,
+      "quantity": 1,
+      "mass_budget_g": 27.9,
+      "mass_basis": "unallocated_reserve_not_installed_component",
+      "part_dimensions_mm": null,
+      "reserved_envelope_mm": null,
+      "location": null,
+      "source_urls": []
+    }
+  ],
+  "power_budget": {
+    "reference_voltage_v": 5,
+    "simultaneous_stall_current_sum_a": 20.58,
+    "simultaneous_stall_power_sum_w": 102.9,
+    "stall_sum_interpretation": "arithmetic_fault_envelope_not_expected_walking_demand",
+    "measured_average_input_power_w": null,
+    "measured_peak_motor_current_a": null,
+    "approved_motor_rail_continuous_current_a": null,
+    "battery_runtime_minutes": null,
+    "motor_current_limits_verified": false,
+    "wiring_and_connector_ratings_verified": false,
+    "separate_logic_and_motor_rails": true
+  },
+  "optional_items_excluded_from_mass": [
+    "camera",
+    "Pico sensor/watchdog bridge",
+    "independent second arm drive"
+  ],
+  "budget_reconciliation": {
+    "mass_sum_g": 800,
+    "all_parts_weighed": false,
+    "cad_packaging_verified": false,
+    "hardware_power_test_passed": false
+  },
+  "mjcf_proxy_note": "Group 4 shows smaller raw/schematic part volumes, not the reserved CAD service envelopes. No simultaneous fit is verified.",
+  "mjcf_part_proxies": {
+    "computer_part_proxy": {
+      "dimensions_xyz_mm": [
+        8,
+        65,
+        30
+      ],
+      "basis": "PCB footprint with provisional height"
+    },
+    "u2d2_part_proxy": {
+      "dimensions_xyz_mm": [
+        14.9,
+        48,
+        18
+      ],
+      "basis": "manufacturer raw dimensions"
+    },
+    "motor_regulator_part_proxy": {
+      "dimensions_xyz_mm": [
+        40.64,
+        20.32,
+        7.62
+      ],
+      "basis": "raw board dimensions"
+    },
+    "logic_regulator_part_proxy": {
+      "dimensions_xyz_mm": [
+        17.78,
+        17.78,
+        7.87
+      ],
+      "basis": "raw board dimensions"
+    },
+    "schematic_battery_proxy": {
+      "dimensions_xyz_mm": [
+        55,
+        32,
+        18
+      ],
+      "basis": "drawing assumption, no selected pack"
+    }
+  },
+  "optional_tail_yaw": {
+    "status": "experimental_optional_variant_not_fabrication_approved",
+    "builder": "tail_option.py",
+    "added_mass_g": 25,
+    "target_total_mass_g": 825,
+    "active_servo_count": 15,
+    "integration_reserve_retained_g": 27.9,
+    "added_components": [
+      {
+        "id": "tail_servo",
+        "part": "ROBOTIS XL330-M288-T",
+        "quantity": 1,
+        "mass_budget_g": 18,
+        "mass_basis": "manufacturer_bare_servo"
+      },
+      {
+        "id": "tail_mount_bearing_wiring",
+        "part": null,
+        "quantity": 1,
+        "mass_budget_g": 7,
+        "mass_basis": "unmeasured_allowance"
+      }
+    ],
+    "geometry": {
+      "tail_scale_relative_to_base": 0.9,
+      "moving_tail_mass_g": 15,
+      "tail_pivot_torso_mm": [
+        -83,
+        0,
+        15
+      ],
+      "motor_center_torso_mm": [
+        -75.5,
+        0,
+        -29.5
+      ],
+      "battery_shift_forward_mm": 23,
+      "battery_mass_relocated_g": 70
+    },
+    "motion": {
+      "mechanical_yaw_limit_deg": 25,
+      "initial_character_amplitude_deg": 15,
+      "initial_character_frequency_hz": 0.5,
+      "simulated_torque_cap_Nm": 0.02
+    },
+    "power": {
+      "additional_motor_stall_current_a": 1.47,
+      "all_motor_stall_current_sum_a": 22.05,
+      "all_motor_stall_power_sum_w": 110.25,
+      "expected_operating_current_a": null,
+      "hardware_rail_margin_verified": false
+    },
+    "limitations": [
+      "The base ledger remains 800 g; this option adds mass rather than consuming the integration reserve.",
+      "Raw and reserved component boxes do not qualify complete CAD fit, shaft/bearing strength, collar clearance, cable routing or cooling.",
+      "Battery remains unspecified; its relocated assigned mass is a geometry assumption.",
+      "Camera is excluded; allow approximately 8\u201312 g more pending a selected assembly.",
+      "Tail motion is not a validated balance actuator or walking controller."
+    ]
+  },
+  "character_design": {
+    "generator": "head_design.py",
+    "head_inertia_allocation": "head_allocation.json",
+    "moving_yaw_subtree_mass_g": 91,
+    "added_mass_budget_g": 0,
+    "scope": "Reallocated unweighed head surface/hardware moments within retained body masses; no physical fit or wall thickness qualified."
+  }
+}

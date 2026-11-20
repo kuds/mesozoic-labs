@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "status": "incomplete",
+  "known_limits_passed": true,
+  "checks": [
+    {
+      "name": "continuous_closed_surface",
+      "status": "passed",
+      "connected_components": 1,
+      "connected_vertex_components": 1,
+      "nonmanifold_edges": 0,
+      "inconsistently_wound_edges": 0,
+      "unused_vertices": 0,
+      "degenerate_triangles": 0
+    },
+    {
+      "name": "torso_rear_shell_collision:rigid_frame",
+      "status": "passed"
+    },
+    {
+      "name": "torso_bridge_shell_collision:rigid_frame",
+      "status": "passed"
+    },
+    {
+      "name": "torso_shoulder_shell_collision:rigid_frame",
+      "status": "passed"
+    },
+    {
+      "name": "torso_front_shell_collision:rigid_frame",
+      "status": "passed"
+    },
+    {
+      "name": "visible_surface_collision_coverage",
+      "status": "passed",
+      "uncovered_triangles": 0,
+      "surface_triangles": 4736,
+      "criterion": "Every triangle lies in one declared convex collision section."
+    },
+    {
+      "name": "battery:outer_shell_containment",
+      "status": "passed",
+      "center_inside": true,
+      "inflated_box_intersects_surface": false,
+      "same_rigid_body": true,
+      "wall_allowance_m": 0.003
+    },
+    {
+      "name": "compute:outer_shell_containment",
+      "status": "passed",
+      "center_inside": true,
+      "inflated_box_intersects_surface": false,
+      "same_rigid_body": true,
+      "wall_allowance_m": 0.003
+    },
+    {
+      "name": "control:outer_shell_containment",
+      "status": "passed",
+      "center_inside": true,
+      "inflated_box_intersects_surface": false,
+      "same_rigid_body": true,
+      "wall_allowance_m": 0.003
+    },
+    {
+      "name": "power:outer_shell_containment",
+      "status": "passed",
+      "center_inside": true,
+      "inflated_box_intersects_surface": false,
+      "same_rigid_body": true,
+      "wall_allowance_m": 0.003
+    }
+  ],
+  "coverage": {
+    "shell_vertices": 2370,
+    "shell_triangles": 4736,
+    "convex_sections": 4,
+    "hardware_reserves": 4
+  },
+  "limitations": [
+    "Topology, collision coverage and containment use the compiled planning surface, not fabrication CAD.",
+    "The 3 mm inflated-box allowance is a geometric planning margin, not a manufactured shell-wall specification.",
+    "Mounting strength, shell thickness, tolerances, wiring and service-removal paths remain unqualified."
+  ],
+  "source_sha256": {
+    "docs/hardware/studies/trex_50cm/parts_budget.json": "a1c11f6af0e7059ffa50e4dfb1d0c84af2b068260124f1817b15960f60b6b43a",
+    "environments/shared/robot_building.py": "ad68f4f6bba8a37deff67bd42a3e6b1a095cdad63b897deaa11e0f9f81ba6a98",
+    "environments/shared/robot_clearance.py": "b4356d5bee7d54054c3c913cdc082060d84d1ccc36b86a34060a9e803dab980f",
+    "environments/shared/robot_design_spec.py": "196bee8e5ed9e74bd71ad6203d0135356b3d3ff29928edb8d1a67d4b5fc2f316",
+    "environments/shared/robot_design_validation.py": "745685e9c443b9b29f77364c27d3f162047f8eb20d45aa26778de1c6b53b6fee",
+    "environments/shared/robot_geometry.py": "62106479d324f374ff8d4e675a1564c053d02b003b7583d8d1b9972c6b965cd8",
+    "environments/shared/robot_rendering.py": "29d440e57dab2c6b2d3592ce99febde53c747a9b88ee393f599ed3561c5c1fff",
+    "environments/shared/robot_validation.py": "ed7cc8b9fde22b8a18bd41ad61b614767495d6c397d1c5c3ed2f141309c37e36",
+    "examples/tyrannosaurus_rex_50cm/__init__.py": "474271810f95215baf9e4dbba35b2e9c28a47a83a2f386d8fccc93834b2b8eee",
+    "examples/tyrannosaurus_rex_50cm/assets/rounded.obj": "92eba26caacd648c549217a682a3c11aed561e4506fa6cab35167754619092f8",
+    "examples/tyrannosaurus_rex_50cm/assets/soft.obj": "d38a96a068699f3bb62231062c259d58f30ff50342b6ca822d92df71f42eab29",
+    "examples/tyrannosaurus_rex_50cm/assets/tail.obj": "d58ae058f495e8b1595e5c64676f03268508fb7b880e0e5facd1ac681369a79e",
+    "examples/tyrannosaurus_rex_50cm/build_model.py": "354fe8197db60feb830d80bf7651e20579c46ba923da80ca7029cbb933836610",
+    "examples/tyrannosaurus_rex_50cm/components.json": "36ebf225354bee4f8dc8bdee584aaaceaeae22c1d6a1ae5db81b4489f477cb9d",
+    "examples/tyrannosaurus_rex_50cm/demo.py": "99b5934c324f821efd1cbc6fbae0b935b4c35db6932c271e34e4d96f9d391745",
+    "examples/tyrannosaurus_rex_50cm/hardware_checks.py": "0de9128b70cf6e1b91b2e6f410c6303f0c08c7a5fde897578bbe5a4f352ff4f5",
+    "examples/tyrannosaurus_rex_50cm/hardware_layout.py": "15ee6a1275b429a871caba032796a0baded638f8235961ae4d96780cb2e90201",
+    "examples/tyrannosaurus_rex_50cm/hardware_views.py": "a37f03dcd40ee7aaa5798a44e2e9dfe9df2bbf7d62869a122a3cb7fa032b17e5",
+    "examples/tyrannosaurus_rex_50cm/head_design.py": "1f0d3b31bf6853b7108568cccf0573c92a65e02ca146cd6725ee457657ab314e",
+    "examples/tyrannosaurus_rex_50cm/leg_load_screen.py": "0184bfdfd27e5c48e852e0f2e908a1f8bbc5e3c478e2d3d4fbbc2a6771d8014e",
+    "examples/tyrannosaurus_rex_50cm/long_body/assets/jaw.obj": "d6b1cca1621f2689faf1c2a54979c3f1edf5f0390e3c10fd78c0c2318db04923",
+    "examples/tyrannosaurus_rex_50cm/long_body/assets/rounded.obj": "92eba26caacd648c549217a682a3c11aed561e4506fa6cab35167754619092f8",
+    "examples/tyrannosaurus_rex_50cm/long_body/assets/skull.obj": "09f8c7b056ae7ca4e6bd09c10ac911f039567d2a42bd0878ab8fa4c611ec2543",
+    "examples/tyrannosaurus_rex_50cm/long_body/assets/soft.obj": "d38a96a068699f3bb62231062c259d58f30ff50342b6ca822d92df71f42eab29",
+    "examples/tyrannosaurus_rex_50cm/long_body/assets/tail.obj": "be3a180b56ede2c51f69fce8339198c45d3705a1e4bff457cf59d167932b9b83",
+    "examples/tyrannosaurus_rex_50cm/long_body/assets/torso_bridge.obj": "03231fdcebf731935d88e8e06c983e3eaff03db309dadd9336a2fb384e90c1ed",
+    "examples/tyrannosaurus_rex_50cm/long_body/assets/torso_continuous.obj": "60ff1424403f5c3f84597758943bbdbfaeea3c2039e935e00f05018be525c296",
+    "examples/tyrannosaurus_rex_50cm/long_body/assets/torso_front.obj": "6ca54628493e3ad0f6fcc581fbc701d69731fb543f4aaec0b3f0184e267bca7b",
+    "examples/tyrannosaurus_rex_50cm/long_body/assets/torso_rear.obj": "3f94dcec755e9db83b1b76abce8ac7be948439d2cde6d307d8bda91e5359acbd",
+    "examples/tyrannosaurus_rex_50cm/long_body/assets/torso_shoulder.obj": "49310ab97e454d0ccdfc8162ba26c66496d461ebc252532f43c8446000321902",
+    "examples/tyrannosaurus_rex_50cm/long_body/components.json": "cd9bfd46ef644c4246825ef4fc5082c4ba4008f8dc56dce67e7de50fa7d0858e",
+    "examples/tyrannosaurus_rex_50cm/long_body/model.xml": "0dff8aa24353e6b7e3dfc1cfdf10ef65cdc00fc90e22593398d4a0b43ea96b31",
+    "examples/tyrannosaurus_rex_50cm/long_body_hardware.json": "2c685e02d71b938c3dc7a2b1505987c39cd58f5b7b53e982aa6e32d7668a45cf",
+    "examples/tyrannosaurus_rex_50cm/mechanical_checks.py": "75429114902a4a41018aff5eca0e8593ea9472109bb8a7d20816776bcfd8aa6b",
+    "examples/tyrannosaurus_rex_50cm/model.xml": "d3b2331fa61063702d877ac148fbe757d72c4f568a34849d05fb58e1a1450a7c",
+    "examples/tyrannosaurus_rex_50cm/proportions.py": "0d6f21e3948440284881e4778edba4868ee265bca708c057f4122b4ae6cfecd3",
+    "examples/tyrannosaurus_rex_50cm/recovery_checks.py": "cc3ffa9598f5f16770a489699fb514166823864144b4b84423452a755d404cbb",
+    "examples/tyrannosaurus_rex_50cm/redesign.py": "a944b1811626f8d1698d50ba71020db41ea2abf104051e91e97b6220378c37f4",
+    "examples/tyrannosaurus_rex_50cm/redesign_review.py": "58aae684719bdc270b3e66ba3a32d783ffdafeb929424e7e682bc2573525c79d",
+    "examples/tyrannosaurus_rex_50cm/render_design.py": "5527c436947cb4bbb875843e3d249964c64fa07e98923dd7d4ca5faf684791bc",
+    "examples/tyrannosaurus_rex_50cm/torso_checks.py": "8bdd444711fe823ecdd17b4d215b3a71cd877b145e26317043bab8956dd19360",
+    "examples/tyrannosaurus_rex_50cm/torso_shell.py": "f719d0c5306f86d1dd43f6474570e475e9e74953299f13675995a6f3e5d105a3",
+    "examples/tyrannosaurus_rex_50cm/torso_structure.py": "ab2e40b25f66d5fd0806535da80abbc06376817ffe28ea41c3cf315346d66593",
+    "examples/tyrannosaurus_rex_50cm/validate.py": "3467d1b80a79301c4a6b974dba5fb8ac0f3500d9a2c39d69dfaced82a76ba6fd",
+    "pyproject.toml": "a78b7baadbe1e037fd4f15be4a4ed4262ea2cd133c593fa5a84608e6a26cfaf4"
+  },
+  "provenance": {
+    "command": [
+      "/tmp/pr635-venv/bin/python",
+      "-m",
+      "examples.tyrannosaurus_rex_50cm.redesign_review",
+      "--duration",
+      "10",
+      "--render"
+    ],
+    "source_paths_relative_to": "repository root",
+    "python_version": "3.12.14",
+    "mujoco_version": "3.10.0",
+    "numpy_version": "2.3.5"
+  }
+}

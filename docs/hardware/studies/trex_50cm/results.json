@@ -1,0 +1,432 @@
+{
+  "status": "analytical_screen_only_no_new_CAD_or_dynamic_simulation",
+  "reference": "Historical revision-10 20-second diagnostic slice; not the current silhouette-C plant or a qualified gait.",
+  "limitations": [
+    "Reference gait eventually falls and has ideal torque-limited motors; it is not a validated gait.",
+    "Similarity values assume proportional mass distribution and slower cadence; actual actuator placement changes both.",
+    "Reported applied peaks are clipped by the reference 0.20 Nm cap, not an unconstrained requirement or design maximum.",
+    "RMS and speed maxima need not occur simultaneously; no full torque-speed-duty trace is available here.",
+    "New ankle-roll joints have no corresponding reference loads and require fresh analysis.",
+    "Runtime, mass and non-motor costs are scenarios, not measured hardware results or vendor quotes."
+  ],
+  "source_sha256": {
+    "docs/hardware/studies/trex_50cm/inputs.json": "c2e91b0452f1e9881f0aa6ddece523272e2a15d6177e91c79bdb4de6e08a66b0",
+    "examples/mini_tyrannosaurus_rex/baseline_rev10/walking_validation.json": "88d662d0e36ff59866d89525ebb1d2d14019182464b82828a9b72e713742eb8b",
+    "docs/hardware/studies/trex_50cm/calculate.py": "2057928737b678cc2370c4a0f332cdf1d21467d78903c410d52b0398e077f3f7"
+  },
+  "scale_factor": 1.937984496124031,
+  "uniform_constant_density_mass_kg_from_825g": 6.004887060957595,
+  "similarity_period_s": 0.5026977123574451,
+  "architectures": {
+    "brushless_candidate": {
+      "actuator_count": 18,
+      "actuator_mass_kg": 3.38,
+      "total_mass_budget_including_reserve_kg": 5.91,
+      "actuator_cost_usd": 2601.54,
+      "project_cost_before_contingency_usd": [
+        4461.54,
+        6401.54
+      ],
+      "project_cost_with_contingency_usd": [
+        5576.93,
+        8001.93
+      ],
+      "similarity_torque_factor": 14.316860465116275,
+      "similarity_joint_screen": {
+        "left_hip_yaw_servo": {
+          "reference_rms_nm": 0.03474459476392228,
+          "similarity_rms_nm": 0.49743351515208484,
+          "similarity_applied_peak_nm": 2.1724906214684876,
+          "similarity_peak_speed_rpm": 3.7172401036281277
+        },
+        "left_hip_roll_servo": {
+          "reference_rms_nm": 0.12716267269002388,
+          "similarity_rms_nm": 1.8205702412743239,
+          "similarity_applied_peak_nm": 2.863372093023255,
+          "similarity_peak_speed_rpm": 24.91979017794339
+        },
+        "left_hip_pitch_servo": {
+          "reference_rms_nm": 0.09286221988973847,
+          "similarity_rms_nm": 1.3294954446423308,
+          "similarity_applied_peak_nm": 2.863372093023255,
+          "similarity_peak_speed_rpm": 35.90093871513499
+        },
+        "left_knee_servo": {
+          "reference_rms_nm": 0.14064469337334404,
+          "similarity_rms_nm": 2.01359045018523,
+          "similarity_applied_peak_nm": 2.863372093023255,
+          "similarity_peak_speed_rpm": 53.0337052570517
+        },
+        "left_ankle_servo": {
+          "reference_rms_nm": 0.1339875387515845,
+          "similarity_rms_nm": 1.918280896370795,
+          "similarity_applied_peak_nm": 2.863372093023255,
+          "similarity_peak_speed_rpm": 47.05595620775504
+        },
+        "right_hip_yaw_servo": {
+          "reference_rms_nm": 0.03597954690271752,
+          "similarity_rms_nm": 0.5151141526043131,
+          "similarity_applied_peak_nm": 2.163923553104901,
+          "similarity_peak_speed_rpm": 4.00185664436218
+        },
+        "right_hip_roll_servo": {
+          "reference_rms_nm": 0.12650275675900371,
+          "similarity_rms_nm": 1.811122316971201,
+          "similarity_applied_peak_nm": 2.863372093023255,
+          "similarity_peak_speed_rpm": 27.115196718311367
+        },
+        "right_hip_pitch_servo": {
+          "reference_rms_nm": 0.09367723644404238,
+          "similarity_rms_nm": 1.3411639229270598,
+          "similarity_applied_peak_nm": 2.863372093023255,
+          "similarity_peak_speed_rpm": 34.873511338328775
+        },
+        "right_knee_servo": {
+          "reference_rms_nm": 0.1409774246425117,
+          "similarity_rms_nm": 2.0183541173382844,
+          "similarity_applied_peak_nm": 2.863372093023255,
+          "similarity_peak_speed_rpm": 55.93441588871624
+        },
+        "right_ankle_servo": {
+          "reference_rms_nm": 0.13587437756460752,
+          "similarity_rms_nm": 1.9452945043770111,
+          "similarity_applied_peak_nm": 2.863372093023255,
+          "similarity_peak_speed_rpm": 47.5735471533601
+        }
+      },
+      "gravity_torque_at_offsets_nm": {
+        "20": 1.159542,
+        "30": 1.739313,
+        "50": 2.8988550000000006,
+        "80": 4.638168
+      }
+    },
+    "dynamixel_comparison": {
+      "actuator_count": 18,
+      "actuator_mass_kg": 2.05,
+      "total_mass_budget_including_reserve_kg": 4.58,
+      "actuator_cost_usd": 6180.42,
+      "project_cost_before_contingency_usd": [
+        8040.42,
+        9980.42
+      ],
+      "project_cost_with_contingency_usd": [
+        10050.53,
+        12475.53
+      ],
+      "similarity_torque_factor": 11.094961240310074,
+      "similarity_joint_screen": {
+        "left_hip_yaw_servo": {
+          "reference_rms_nm": 0.03474459476392228,
+          "similarity_rms_nm": 0.3854899322159981,
+          "similarity_applied_peak_nm": 1.6835883327116197,
+          "similarity_peak_speed_rpm": 3.7172401036281277
+        },
+        "left_hip_roll_servo": {
+          "reference_rms_nm": 0.12716267269002388,
+          "similarity_rms_nm": 1.4108649247100513,
+          "similarity_applied_peak_nm": 2.218992248062015,
+          "similarity_peak_speed_rpm": 24.91979017794339
+        },
+        "left_hip_pitch_servo": {
+          "reference_rms_nm": 0.09286221988973847,
+          "similarity_rms_nm": 1.0303027303657997,
+          "similarity_applied_peak_nm": 2.218992248062015,
+          "similarity_peak_speed_rpm": 35.90093871513499
+        },
+        "left_knee_servo": {
+          "reference_rms_nm": 0.14064469337334404,
+          "similarity_rms_nm": 1.5604474216325472,
+          "similarity_applied_peak_nm": 2.218992248062015,
+          "similarity_peak_speed_rpm": 53.0337052570517
+        },
+        "left_ankle_servo": {
+          "reference_rms_nm": 0.1339875387515845,
+          "similarity_rms_nm": 1.486586549133374,
+          "similarity_applied_peak_nm": 2.218992248062015,
+          "similarity_peak_speed_rpm": 47.05595620775504
+        },
+        "right_hip_yaw_servo": {
+          "reference_rms_nm": 0.03597954690271752,
+          "similarity_rms_nm": 0.39919167832956926,
+          "similarity_applied_peak_nm": 1.6769492171269793,
+          "similarity_peak_speed_rpm": 4.00185664436218
+        },
+        "right_hip_roll_servo": {
+          "reference_rms_nm": 0.12650275675900371,
+          "similarity_rms_nm": 1.4035431830335194,
+          "similarity_applied_peak_nm": 2.218992248062015,
+          "similarity_peak_speed_rpm": 27.115196718311367
+        },
+        "right_hip_pitch_servo": {
+          "reference_rms_nm": 0.09367723644404238,
+          "similarity_rms_nm": 1.0393453074460126,
+          "similarity_applied_peak_nm": 2.218992248062015,
+          "similarity_peak_speed_rpm": 34.873511338328775
+        },
+        "right_knee_servo": {
+          "reference_rms_nm": 0.1409774246425117,
+          "similarity_rms_nm": 1.5641390621674016,
+          "similarity_applied_peak_nm": 2.218992248062015,
+          "similarity_peak_speed_rpm": 55.93441588871624
+        },
+        "right_ankle_servo": {
+          "reference_rms_nm": 0.13587437756460752,
+          "similarity_rms_nm": 1.507520952630577,
+          "similarity_applied_peak_nm": 2.218992248062015,
+          "similarity_peak_speed_rpm": 47.5735471533601
+        }
+      },
+      "gravity_torque_at_offsets_nm": {
+        "20": 0.898596,
+        "30": 1.347894,
+        "50": 2.2464899999999997,
+        "80": 3.594384
+      }
+    },
+    "stronger_brushless_comparison": {
+      "actuator_count": 18,
+      "actuator_mass_kg": 4.196,
+      "total_mass_budget_including_reserve_kg": 6.725999999999999,
+      "actuator_cost_usd": 5518.74,
+      "project_cost_before_contingency_usd": [
+        7378.74,
+        9318.74
+      ],
+      "project_cost_with_contingency_usd": [
+        9223.43,
+        11648.43
+      ],
+      "similarity_torque_factor": 16.293604651162784,
+      "similarity_joint_screen": {
+        "left_hip_yaw_servo": {
+          "reference_rms_nm": 0.03474459476392228,
+          "similarity_rms_nm": 0.5661146908482102,
+          "similarity_applied_peak_nm": 2.472448717427588,
+          "similarity_peak_speed_rpm": 3.7172401036281277
+        },
+        "left_hip_roll_servo": {
+          "reference_rms_nm": 0.12716267269002388,
+          "similarity_rms_nm": 2.071938315196464,
+          "similarity_applied_peak_nm": 3.258720930232557,
+          "similarity_peak_speed_rpm": 24.91979017794339
+        },
+        "left_hip_pitch_servo": {
+          "reference_rms_nm": 0.09286221988973847,
+          "similarity_rms_nm": 1.513060297912744,
+          "similarity_applied_peak_nm": 3.258720930232557,
+          "similarity_peak_speed_rpm": 35.90093871513499
+        },
+        "left_knee_servo": {
+          "reference_rms_nm": 0.14064469337334404,
+          "similarity_rms_nm": 2.291609030109282,
+          "similarity_applied_peak_nm": 3.258720930232557,
+          "similarity_peak_speed_rpm": 53.0337052570517
+        },
+        "left_ankle_servo": {
+          "reference_rms_nm": 0.1339875387515845,
+          "similarity_rms_nm": 2.183139984600671,
+          "similarity_applied_peak_nm": 3.258720930232557,
+          "similarity_peak_speed_rpm": 47.05595620775504
+        },
+        "right_hip_yaw_servo": {
+          "reference_rms_nm": 0.03597954690271752,
+          "similarity_rms_nm": 0.5862365127608478,
+          "similarity_applied_peak_nm": 2.4626987848026336,
+          "similarity_peak_speed_rpm": 4.00185664436218
+        },
+        "right_hip_roll_servo": {
+          "reference_rms_nm": 0.12650275675900371,
+          "similarity_rms_nm": 2.061185905913417,
+          "similarity_applied_peak_nm": 3.258720930232557,
+          "similarity_peak_speed_rpm": 27.115196718311367
+        },
+        "right_hip_pitch_servo": {
+          "reference_rms_nm": 0.09367723644404238,
+          "similarity_rms_nm": 1.5263398554327248,
+          "similarity_applied_peak_nm": 3.258720930232557,
+          "similarity_peak_speed_rpm": 34.873511338328775
+        },
+        "right_knee_servo": {
+          "reference_rms_nm": 0.1409774246425117,
+          "similarity_rms_nm": 2.2970304218641795,
+          "similarity_applied_peak_nm": 3.258720930232557,
+          "similarity_peak_speed_rpm": 55.93441588871624
+        },
+        "right_ankle_servo": {
+          "reference_rms_nm": 0.13587437756460752,
+          "similarity_rms_nm": 2.2138833902605373,
+          "similarity_applied_peak_nm": 3.258720930232557,
+          "similarity_peak_speed_rpm": 47.5735471533601
+        }
+      },
+      "gravity_torque_at_offsets_nm": {
+        "20": 1.3196411999999997,
+        "30": 1.9794617999999995,
+        "50": 3.2991029999999997,
+        "80": 5.278564799999999
+      }
+    }
+  },
+  "single_support_sweep": [
+    {
+      "mass_kg": 4,
+      "offset_mm": 20,
+      "gravity_torque_nm": 0.7848
+    },
+    {
+      "mass_kg": 4,
+      "offset_mm": 30,
+      "gravity_torque_nm": 1.1772
+    },
+    {
+      "mass_kg": 4,
+      "offset_mm": 50,
+      "gravity_torque_nm": 1.962
+    },
+    {
+      "mass_kg": 4,
+      "offset_mm": 80,
+      "gravity_torque_nm": 3.1392
+    },
+    {
+      "mass_kg": 5,
+      "offset_mm": 20,
+      "gravity_torque_nm": 0.9810000000000001
+    },
+    {
+      "mass_kg": 5,
+      "offset_mm": 30,
+      "gravity_torque_nm": 1.4715000000000003
+    },
+    {
+      "mass_kg": 5,
+      "offset_mm": 50,
+      "gravity_torque_nm": 2.4525
+    },
+    {
+      "mass_kg": 5,
+      "offset_mm": 80,
+      "gravity_torque_nm": 3.9240000000000004
+    },
+    {
+      "mass_kg": 6,
+      "offset_mm": 20,
+      "gravity_torque_nm": 1.1772
+    },
+    {
+      "mass_kg": 6,
+      "offset_mm": 30,
+      "gravity_torque_nm": 1.7658
+    },
+    {
+      "mass_kg": 6,
+      "offset_mm": 50,
+      "gravity_torque_nm": 2.943
+    },
+    {
+      "mass_kg": 6,
+      "offset_mm": 80,
+      "gravity_torque_nm": 4.7088
+    },
+    {
+      "mass_kg": 7,
+      "offset_mm": 20,
+      "gravity_torque_nm": 1.3734000000000002
+    },
+    {
+      "mass_kg": 7,
+      "offset_mm": 30,
+      "gravity_torque_nm": 2.0601
+    },
+    {
+      "mass_kg": 7,
+      "offset_mm": 50,
+      "gravity_torque_nm": 3.4335
+    },
+    {
+      "mass_kg": 7,
+      "offset_mm": 80,
+      "gravity_torque_nm": 5.493600000000001
+    },
+    {
+      "mass_kg": 10,
+      "offset_mm": 20,
+      "gravity_torque_nm": 1.9620000000000002
+    },
+    {
+      "mass_kg": 10,
+      "offset_mm": 30,
+      "gravity_torque_nm": 2.9430000000000005
+    },
+    {
+      "mass_kg": 10,
+      "offset_mm": 50,
+      "gravity_torque_nm": 4.905
+    },
+    {
+      "mass_kg": 10,
+      "offset_mm": 80,
+      "gravity_torque_nm": 7.848000000000001
+    },
+    {
+      "mass_kg": 12,
+      "offset_mm": 20,
+      "gravity_torque_nm": 2.3544
+    },
+    {
+      "mass_kg": 12,
+      "offset_mm": 30,
+      "gravity_torque_nm": 3.5316
+    },
+    {
+      "mass_kg": 12,
+      "offset_mm": 50,
+      "gravity_torque_nm": 5.886
+    },
+    {
+      "mass_kg": 12,
+      "offset_mm": 80,
+      "gravity_torque_nm": 9.4176
+    },
+    {
+      "mass_kg": 14,
+      "offset_mm": 20,
+      "gravity_torque_nm": 2.7468000000000004
+    },
+    {
+      "mass_kg": 14,
+      "offset_mm": 30,
+      "gravity_torque_nm": 4.1202
+    },
+    {
+      "mass_kg": 14,
+      "offset_mm": 50,
+      "gravity_torque_nm": 6.867
+    },
+    {
+      "mass_kg": 14,
+      "offset_mm": 80,
+      "gravity_torque_nm": 10.987200000000001
+    }
+  ],
+  "battery": {
+    "nominal_wh": 66.6,
+    "usable_wh_assumption": 53.28,
+    "runtime_minutes_by_average_battery_w": {
+      "80": 39.959999999999994,
+      "120": 26.639999999999997,
+      "160": 19.979999999999997
+    }
+  },
+  "tail": {
+    "uniform_rod_inertia_kgm2": 0.001536,
+    "inertial_peak_nm": 0.003968803415078377,
+    "gravity_upper_bound_nm_at_lean": 0.03221008901783818,
+    "sum_with_friction_allowance_nm": 0.046178892432916556,
+    "root_weight_bending_nm": 0.09417600000000001
+  },
+  "arm_static_horizontal_nm_each": 0.014715,
+  "head_static_nm": 0.11772,
+  "can_utilization_per_bus": 0.48
+}
