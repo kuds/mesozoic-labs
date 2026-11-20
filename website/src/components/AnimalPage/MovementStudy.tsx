@@ -19,7 +19,7 @@ export type MovementStudyProps = {
   video?: Recording;
 };
 
-function StudyRecording({recording}: {recording: Recording}) {
+export function StudyRecording({recording}: {recording: Recording}) {
   const [failed, setFailed] = useState(false);
   const captionId = useId();
   const src = useBaseUrl(recording.src);
