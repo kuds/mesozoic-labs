@@ -31,8 +31,8 @@ const featured = [
 const roadmap = [
   ['Now', '60 cm Triceratops in simulation'],
   ['Next', 'Single-foreleg bench tests'],
-  ['Q3 2027 target', 'Live Triceratops museum demo'],
-  ['2028 target', '75 cm T. rex flagship'],
+  ['Q3 2027 target', 'Demonstrate the 60 cm Triceratops walking on hardware'],
+  ['2028 target', 'Build and test the 75 cm T. rex'],
 ];
 
 function SectionHeading({id, children}: {id: string; children: string}) {

@@ -7,7 +7,7 @@ import styles from '@site/src/components/AnimalPage/styles.module.css';
 
 export default function TriceratopsPage() {
   return (
-    <Layout title="Triceratops" description="Compare the adult Triceratops anatomical model, the 60 cm museum robot and the earlier 75 cm concept through their simulation studies.">
+    <Layout title="Triceratops" description="Compare the adult Triceratops anatomical model, the 60 cm robot design and the earlier 75 cm concept through their simulation studies.">
       <main className={styles.page}>
         <AnimalHeader
           compact

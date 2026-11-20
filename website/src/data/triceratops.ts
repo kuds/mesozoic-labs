@@ -9,10 +9,10 @@ export const triceratopsVersions: RobotVersionList = [
   {
     slug: '60-cm',
     label: '60 cm',
-    name: 'Museum design',
+    name: 'Current design',
     studyLabel: 'Current design · Walking trials',
-    title: 'The 60 cm museum robot',
-    description: 'The selected design stands 60 cm at the frill and measures 1.2 m from nose to tail. The lab is working toward a live museum demo in Q3 2027.',
+    title: 'The 60 cm Triceratops design',
+    description: 'The selected design stands 60 cm at the frill and measures 1.2 m from nose to tail. The Q3 2027 target is to assemble the four-legged robot and demonstrate a physical walk.',
     image: '/img/triceratops-gait.jpg',
     alt: 'A green-frilled Triceratops robot balancing on its legs over a checkerboard floor during a simulated gait trial',
     caption: 'Simulation still · Learned controller, 6 seconds into a gait trial',
@@ -21,7 +21,7 @@ export const triceratopsVersions: RobotVersionList = [
       {label: 'Target mass', value: 'About 12 kg.'},
       {label: 'Next physical test', value: 'One foreleg on the bench.'},
     ],
-    source: {label: 'Read the museum roadmap', href: `${build}/README.md`},
+    source: {label: 'Read the 60 cm model report', href: `${build}/sim/REPORT_60CM.md`},
     studies: [
       {
         label: 'Locomotion · Learned controller',
