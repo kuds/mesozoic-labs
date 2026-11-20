@@ -228,7 +228,7 @@ def test_the_digit_share_is_the_digits_window_force_over_the_whole_limbs():
 
 
 def test_a_foot_with_no_digit_has_no_digit_share_field_and_a_window_with_no_load_reads_nan():
-    """No digit declared (the compsognathus robot's sole, a dibothrosuchus pad): the field does not exist, rather
+    """No digit declared (for example, the compsognathus robot's sole): the field does not exist, rather
     than a 0 that would read as "the digits carry nothing".  NaN is kept for a field that exists but was not
     measured."""
     no_digits = PadLayout(feet=(PadFoot(0, "r", ()), PadFoot(1, "l", (5, 6, 7))))
@@ -446,7 +446,7 @@ PAD_FEET = {
     ModelId("tyrannosaurus_rex", "anatomical"): {"r": 3, "l": 3},
     ModelId("compsognathus_longipes", "anatomical"): {"r": 3, "l": 3},
     ModelId("compsognathus_longipes", "robot"): {"r": 0, "l": 0},
-    ModelId("dibothrosuchus_elaphros", "anatomical"): {"fr": 0, "fl": 0, "rr": 0, "rl": 0},
+    ModelId("dibothrosuchus_elaphros", "anatomical"): {"fr": 4, "fl": 4, "rr": 4, "rl": 4},
     ModelId("velociraptor_mongoliensis", "anatomical"): {},
     ModelId("brachiosaurus_altithorax", "anatomical"): {},
 }
@@ -492,7 +492,7 @@ def test_every_model_reads_its_pads_as_the_gate_does(model_id):
     assert {foot.label: len(foot.digit_support) for foot in layout.feet} == PAD_FEET[model_id]
     for foot in layout.feet:
         names = [trace.support_geom_names[index] for index in foot.digit_support]
-        assert all(name.startswith(f"{foot.label}_") and "toe" in name for name in names), names
+        assert all(name.startswith((f"{foot.label}_toe", f"{foot.label}_digit")) for name in names), names
     settle = 100
     result = episode_pad_telemetry(trace, layout, settle_steps=settle)
     gate = episode_stance_metrics(trace, settle_steps=settle).max_sole_cop_fore_aft

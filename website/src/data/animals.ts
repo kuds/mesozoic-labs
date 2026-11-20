@@ -39,6 +39,15 @@ for (const model of ALL_MODELS) {
   }
 }
 
+export const STEGOSAURUS: Animal = {
+  slug: 'stegosaurus',
+  name: 'Stegosaurus',
+  scientificName: 'Stegosaurus stenops',
+  summary: 'Watch a slow, four-beat walk and see how the short forefeet and long, cushioned hindfeet share the load.',
+  image: '/img/animals/stegosaurus_stenops-anatomical.webp',
+  models: [],
+};
+
 export const ANIMALS: Animal[] = [
   {
     slug: 'triceratops',
@@ -48,5 +57,6 @@ export const ANIMALS: Animal[] = [
     image: '/img/animals/triceratops-anatomical.webp',
     models: [],
   },
+  STEGOSAURUS,
   ...bySpecies.values(),
 ];

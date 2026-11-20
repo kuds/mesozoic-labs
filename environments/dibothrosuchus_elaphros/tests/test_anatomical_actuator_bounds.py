@@ -6,16 +6,15 @@ controls clipped 20-40% of leg torque under gait excitation and collapsed
 velociraptor and brachiosaurus locomotion (see
 docs/investigations/STAGE2_RECOMMENDATIONS.md).
 
-This plant is sized from that lesson rather than into it.  A 1.24 m animal
-strides fast relative to its body length, so all three stance joints -- hip
-pitch, knee, and ankle -- carry 1.5x-kp headroom on every leg, not just the
-hips.  The remaining actuators keep a 0.7x-kp spike cap.  Measured on the
-current model, clipping is 0.0% under home-control settling, a 1.5 Hz walk and
-a 2.5 Hz trot, and 0.5% worst-case under sprint-like 4 Hz full-amplitude
-excitation.
+Hip pitch, knee and ankle actuators carry 1.5 times their proportional gain
+as a torque limit. Other position actuators carry 0.7 times their gain.
+The quiet-stance and oscillatory tests exercise these caps at the seeded
+reset pose. The 4 Hz full-range stress excitation can fold the limbs into
+the body or tip the model over. The separate reference-walk test measures
+actual stepping and weight transfer.
 
-Run ``environments/shared/scripts/actuator_saturation_report.py
-dibothrosuchus`` for the full per-actuator numbers on the current model.
+Run ``python environments/shared/scripts/actuator_saturation_report.py
+--model-id dibothrosuchus_elaphros anatomical`` for per-actuator diagnostics.
 """
 
 import mujoco
@@ -68,7 +67,7 @@ class TestForceBoundsConfiguration(PositionActuatorConfigurationBase):
             expected = GAIT_HEADROOM_RATIO if _is_gait_critical(name) else SPIKE_CAP_RATIO
             assert fr / kp == pytest.approx(expected, abs=0.02), (
                 f"{name}: forcerange/kp = {fr / kp:.2f}, expected ~{expected}. If this changed "
-                "intentionally, update the ratios here and the saturation numbers in this module's docstring."
+                "intentionally, document the new sizing and update the expected ratio."
             )
 
     def test_every_leg_has_all_three_gait_critical_actuators(self, model):

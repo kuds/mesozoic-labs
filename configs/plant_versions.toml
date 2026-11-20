@@ -885,10 +885,14 @@ policy_interface_revision = 10
 visual_revision = 3
 observation_schema = "quadrupedal-target/v1"
 
+# The revised forelimbs, digital contacts and centered torso inertia change the
+# mechanics. The foot sensors and rear-knee coordinates change policy meaning
+# at the same 80 observation and 27 action dimensions. The body-bound skins
+# retain their visual and physical fingerprints across Linux x86-64 and macOS arm64.
 [plants.dibothrosuchus_elaphros.anatomical]
-physics_revision = 2
-policy_interface_revision = 8
-visual_revision = 1
+physics_revision = 3
+policy_interface_revision = 9
+visual_revision = 2
 observation_schema = "quadrupedal-target/v1"
 
 # Initial training interfaces for the anatomical and Rev B robot variants.

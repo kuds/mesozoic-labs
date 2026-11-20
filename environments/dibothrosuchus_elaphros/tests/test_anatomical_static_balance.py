@@ -12,6 +12,7 @@ with a 0.5 mm preload.
 """
 
 import mujoco
+import numpy as np
 import pytest
 
 from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
@@ -22,10 +23,9 @@ from environments.shared.tests.static_balance_helpers import (
     NeutralActionStabilityBase,
     body_group_mass,
     com_xy,
-    get_foot_contacts_xy,
 )
 
-FOOT_GEOM_NAMES = ["fr_foot_geom", "fl_foot_geom", "rr_foot_geom", "rl_foot_geom"]
+FEET = ("fr", "fl", "rr", "rl")
 ROOT_BODY = "torso"
 
 
@@ -41,16 +41,24 @@ class TestHomePoseCOM:
     """Verify the home keyframe COM and foot contact properties."""
 
     def test_all_four_feet_contact(self, env):
-        contacts = get_foot_contacts_xy(env.model, env.data, FOOT_GEOM_NAMES)
-        assert len(contacts) >= 4, (
-            f"Expected at least 4 pad-floor contacts at home pose, got {len(contacts)}. "
-            "The keyframe height may no longer place all four pads on the floor."
-        )
+        floor = env.model.geom("floor").id
+        contacts = [c for c in env.data.contact if floor in c.geom]
+        for leg in FEET:
+            support = {env.model.geom(name.format(s=leg)).id for name in env.FOOT_SUPPORT["support"]}
+            touch = env.model.site(f"{leg}_foot_contact")
+            center = env.data.site_xpos[touch.id]
+            rotation = env.data.site_xmat[touch.id].reshape(3, 3)
+            foot_contacts = [c for c in contacts if support.intersection(c.geom)]
+            assert {gid for c in foot_contacts for gid in c.geom if gid != floor} == support
+            for c in foot_contacts:
+                local = (c.pos - center) @ rotation
+                assert np.all(np.abs(local) <= touch.size), f"{leg} contact outside its touch volume"
+            assert env.data.sensor(f"{leg}_foot_touch").data[0] > 0
 
     def test_com_centered_laterally(self, env):
         com = com_xy(env.model, env.data, ROOT_BODY)
         assert abs(com[1]) < 0.02, (
-            f"COM Y ({com[1]:.4f}) is off-center by more than 2 cm on a 1.24 m animal. "
+            f"COM Y ({com[1]:.4f}) is off-center by more than 2 cm on a 1.30 m animal. "
             "The model may have asymmetric mass distribution."
         )
 
@@ -155,7 +163,7 @@ class TestMassDistribution(MassDistributionBase):
         )
 
     def test_paramedian_osteoderms_are_present_and_paired(self, env):
-        """The two dorsal scute rows are what the genus is named for."""
+        """The preserved anterior series includes eight pairs of paramedian osteoderms."""
         right = [
             name
             for i in range(env.model.ngeom)
@@ -166,7 +174,7 @@ class TestMassDistribution(MassDistributionBase):
             for i in range(env.model.ngeom)
             if (name := mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_GEOM, i)) and name.startswith("scute_l_")
         ]
-        assert len(right) == len(left) >= 5, f"Expected paired paramedian scute rows, got {right} / {left}"
+        assert len(right) == len(left) >= 8, f"Expected paired paramedian scute rows, got {right} / {left}"
         for name in right + left:
             gid = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, name)
             assert env.model.geom_contype[gid] == 0 and env.model.geom_conaffinity[gid] == 0, (
@@ -193,4 +201,42 @@ class TestHomeGeometry:
         snout_x = env.data.site_xpos[env.snout_tip_site_id, 0]
         tail_x = env.data.site_xpos[env.tail_tip_site_id, 0]
         length = float(snout_x - tail_x)
-        assert 1.15 < length < 1.35, f"Nose-to-tail length {length:.3f} m drifted from the documented 1.24 m."
+        assert length == pytest.approx(1.30, abs=0.015)
+
+    def test_skull_length_and_snap_contact_match_the_visible_snout(self, env):
+        # The visible skin vertices are in world coordinates after a scene update.
+        model = env.model
+        scene = mujoco.MjvScene(model, maxgeom=2 * model.ngeom)
+        mujoco.mjv_updateScene(
+            model, env.data, mujoco.MjvOption(), None, mujoco.MjvCamera(), mujoco.mjtCatBit.mjCAT_ALL, scene
+        )
+        skin = model.skin("cranial_skin").id
+        start, count = scene.skinvertadr[skin], scene.skinvertnum[skin]
+        x = scene.skinvert.reshape(-1, 3)[start : start + count, 0]
+        assert np.ptp(x) == pytest.approx(0.164, abs=0.002)
+        assert max(x) == pytest.approx(env.data.site("snout_tip").xpos[0], abs=0.001)
+        snap_front = env.data.geom("snout_snap").xpos[0] + env.model.geom("snout_snap").size[0]
+        assert snap_front == pytest.approx(max(x), abs=0.001)
+
+    @pytest.mark.parametrize("side", ["r", "l"])
+    def test_forelimb_proportions_and_opposed_joint_flexion(self, env, side):
+        humerus = env.model.body(f"f{side}_shin").pos
+        radius = env.model.body(f"f{side}_meta").pos
+        assert np.linalg.norm(humerus) == pytest.approx(0.1125, abs=0.001)
+        assert np.linalg.norm(radius) == pytest.approx(0.0975, abs=0.001)
+        assert humerus[0] < 0 < radius[0]  # elbow behind shoulder, carpus ahead of elbow
+        assert env.model.body(f"r{side}_shin").pos[0] > 0 > env.model.body(f"r{side}_meta").pos[0]
+
+    @pytest.mark.parametrize("leg", FEET)
+    def test_loaded_rays_have_a_medial_first_digit_and_long_third_digit(self, env, leg):
+        tips = []
+        for ray in range(1, 5):
+            name = f"{leg}_digit_{ray}"
+            geom = env.data.geom(name)
+            axis = geom.xmat.reshape(3, 3)[:, 2]
+            tip = geom.xpos + axis * np.sign(axis[0]) * env.model.geom(name).size[1]
+            tips.append(tip)
+        foot_y = env.data.body(f"{leg}_foot").xpos[1]
+        outward = 1 if leg.endswith("l") else -1
+        assert (tips[0][1] - foot_y) * outward < 0 < (tips[3][1] - foot_y) * outward
+        assert np.argmax([tip[0] for tip in tips]) == 2
