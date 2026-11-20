@@ -1,5 +1,7 @@
 # Velociraptor Plant Review — Anatomy and Mechanics
 
+The [November 2026 anatomical follow-up](VELOCIRAPTOR_ANATOMICAL_REFERENCE.md) reviews the specimen-scale model, its revised appearance, and measured foot placement in a free-root reference walk.
+
 **Date:** 2026-07-27
 **Scope:** `environments/velociraptor/assets/raptor.xml`, its Gymnasium env, and
 its MJX registration. Nothing was changed; this is a findings document.

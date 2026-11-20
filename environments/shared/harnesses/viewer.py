@@ -22,6 +22,8 @@ class ViewerConfig:
     height_label: str = "Pelvis height"
     camera_distance: float = 3.0
     camera_lookat_z: float = 0.5
+    animal_root: str | None = None
+    initial_keyframe: str | None = None
 
 
 def view_model(cfg: ViewerConfig) -> None:
@@ -30,6 +32,8 @@ def view_model(cfg: ViewerConfig) -> None:
 
     model = mujoco.MjModel.from_xml_path(str(cfg.model_path))
     data = mujoco.MjData(model)
+    if cfg.initial_keyframe is not None:
+        mujoco.mj_resetDataKeyframe(model, data, model.key(cfg.initial_keyframe).id)
 
     print(f"\n{'=' * 50}")
     print(f"Model: {cfg.species_name}")
@@ -39,7 +43,10 @@ def view_model(cfg: ViewerConfig) -> None:
     print(f"Actuators: {model.nu}")
     print(f"Sensors: {model.nsensor}")
     print(f"Total DOF: {model.nv}")
-    print(f"Total mass: {sum(model.body_mass):.2f} kg")
+    if cfg.animal_root is None:
+        print(f"Total mass: {sum(model.body_mass):.2f} kg")
+    else:
+        print(f"Animal mass: {model.body_subtreemass[model.body(cfg.animal_root).id]:.2f} kg")
     print(f"Timestep: {model.opt.timestep * 1000:.1f} ms")
     print(f"{'=' * 50}\n")
 
@@ -55,7 +62,7 @@ def view_model(cfg: ViewerConfig) -> None:
         print(f"  [{i:2d}] {act_name}")
 
     mujoco.mj_forward(model, data)
-    com = data.subtree_com[1].copy()
+    com = data.subtree_com[model.body(cfg.animal_root).id if cfg.animal_root is not None else 1]
     print(f"\nInitial CoM: x={com[0]:.3f}, y={com[1]:.3f}, z={com[2]:.3f}")
     print(f"{cfg.height_label}: {data.qpos[2]:.3f} m")
 

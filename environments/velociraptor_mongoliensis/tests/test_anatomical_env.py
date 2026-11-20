@@ -871,7 +871,7 @@ class TestCacheIdsFailsClosed:
     def _edited_env(tmp_path, edits):
         source = VelociraptorMongoliensisAnatomicalEnv.MODEL_PATH.read_text()
         for old, new in edits:
-            assert source.count(old) == 1, old
+            assert old in source, old
             source = source.replace(old, new)
         path = tmp_path / "velociraptor_mongoliensis_anatomical.xml"
         path.write_text(source)
@@ -887,7 +887,8 @@ class TestCacheIdsFailsClosed:
             ([('geom name="snout"', 'geom name="rostrum"')], "must define geom 'snout'"),
             ([('geom name="r_claw_geom"', 'geom name="r_ungual_geom"')], "must define geom 'r_claw_geom'"),
             (
-                [('body name="skull"', 'body name="cranium"'), ('body2="skull"', 'body2="cranium"')],
+                # Rename the body and every contact exclusion and skin bone that refers to it.
+                [('"skull"', '"cranium"')],
                 "must define body 'skull'",
             ),
             ([('touch name="r_toe_d3_touch"', 'touch name="r_d3_touch"')], "must define sensor 'r_toe_d3_touch'"),
