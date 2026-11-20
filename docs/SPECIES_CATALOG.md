@@ -90,12 +90,12 @@ Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
 | Action dimension / actuators | 30 |
 | Generalized coordinates / velocities | nq=38, nv=37 |
 | Compiled dynamic model mass | 175.3 kg |
-| Plant contract revisions | policy r9; physics r5; visual r2 ([details](PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r10; physics r6; visual r3 ([details](PLANT_CONTRACT.md)) |
 | Model | `environments/brachiosaurus_altithorax/anatomical/assets/brachiosaurus_altithorax_anatomical.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---|---|---:|---:|
-| 1 — Stance | stance (deliverable) | — | Learn to stand on four legs without falling | 6M | reward ≥ 1040; episode length ≥ 950; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 1 — Stance | stance (deliverable) | — | Learn to stand on four legs without falling | 6M | reward ≥ 1050; episode length ≥ 950; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 2 — Locomotion | walk (deliverable) | 1 — Stance | Learn coordinated quadrupedal walking | 16M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 0.75 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 3 — Food Reach | hunt (deliverable) | 2 — Locomotion | Move the head tip within the configured distance threshold of food | 12M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
 

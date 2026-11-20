@@ -510,8 +510,8 @@ def _sole_metrics(trace: "EpisodeTrace", window: slice) -> dict[str, float]:
 
     The fore-aft centre of pressure reads box soles only (a box's corner lift
     is finite on every step, an ellipsoid's never): on brachiosaurus'
-    ellipsoids the one tangent contact's position follows the pitch the foot
-    is authored at, a pose rather than a pressure distribution.
+    ellipsoids the single tangent contact follows the foot's instantaneous
+    orientation. It cannot resolve a pressure distribution across the pad.
     """
     tilt = trace.sole_tilt_deg[window]
     has_sole = np.isfinite(tilt).all(axis=0) & np.isfinite(trace.home_sole_tilt_deg)

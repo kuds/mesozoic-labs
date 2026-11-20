@@ -3,6 +3,7 @@ sidebar_position: 1
 sidebar_label: Anatomical
 ---
 
+import useBaseUrl from '@docusaurus/useBaseUrl';
 import SpeciesCatalog from '@site/src/components/SpeciesCatalog';
 import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
 import {requireModel} from '@site/src/data/species';
@@ -19,8 +20,9 @@ A sauropod-inspired quadrupedal simulation model designed for four-legged locomo
 
 - First quadrupedal species in the project
 - Articulated 4-segment neck with head control (6 actuators)
-- Front legs longer than rear, producing the model's raised-front posture
-- Simplified column-like legs for support, on ellipsoid feet with an elliptic friction cone since physics r5, so every heading is physically identical
+- A deep shoulder region and nearly equal-length humerus and femur, with the forelimbs gaining height through the forearm and metacarpus
+- Distinct forefeet and hindfeet with level, load-bearing soles, a padded hind heel and three medial hind claws
+- A tapered, supported neck and tail, with opposite flexion directions at the elbow and hind knee
 - Head-positioning behavior using neck articulation
 - Three published behaviors on one trunk (`configs/brachiosaurus_altithorax/anatomical/stages.toml`): stance (`stance`), walk (`locomotion`, warm-started from stance) and hunt (`behavior` — the food-reach task, warm-started from locomotion); see [Behavior Recipes](/docs/training/recipes)
 
@@ -45,7 +47,16 @@ After each training stage the `eval` command reports:
 | `success_rate` | Fraction of episodes where the head tip enters the configured distance threshold around the food target |
 | `min_prey_distance` | Closest approach to food (m, `head_food_distance`) |
 
-## Training Videos
+## Reference walk
+
+<video controls preload="metadata" width="100%" src={useBaseUrl('/videos/brachiosaurus_altithorax_anatomical_reference_walk.mp4')} aria-label="Revised Brachiosaurus reference walk with measured ground contact for each foot" />
+
+The reference controller drives the physics-revision-6 animal through the normal actuator interface. The bars show measured ground contact. In the six strides shown, the animal averaged 0.340 m/s, with at least two feet carrying weight throughout. The left hind, left fore, right hind and right fore landed in that order on each stride.
+
+## Historical training videos
+
+These PPO clips show earlier versions of the model. The revised animal's reference walk is shown above.
+
 
 <SpeciesVideoSection species={MODEL.name} stages={MODEL.stages} />
 

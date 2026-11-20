@@ -7,6 +7,7 @@ the assertions necessarily span source, policy, physics, and visual."""
 from __future__ import annotations
 
 import importlib
+import xml.etree.ElementTree as ET
 from dataclasses import replace
 
 import mujoco
@@ -151,14 +152,16 @@ def test_noncolliding_fluid_geom_changes_physics_fingerprint():
             GENERATED_MANIFEST_PATH.parent.parent
             / "environments/brachiosaurus_altithorax/anatomical/assets/brachiosaurus_altithorax_anatomical.xml"
         ).read_text()
-        option = '<option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast" cone="elliptic">'
-        base_source = source.replace(option, option[:-1] + ' density="1">', 1)
-        assert base_source != source  # the brachiosaurus's <option> as authored (elliptic since physics r5)
-        changed_source = base_source.replace(
-            'mass="8.0" material="body_mat" contype="0" conaffinity="0"/>',
-            'mass="8.0" material="body_mat" contype="0" conaffinity="0" fluidshape="ellipsoid" fluidcoef="1 1 1 1 1"/>',
-            1,
-        )
+        root = ET.fromstring(source)
+        option = root.find("option")
+        assert option is not None
+        option.set("density", "1")
+        base_source = ET.tostring(root, encoding="unicode")
+        geom = root.find(".//geom[@name='neck_1_geom']")
+        assert geom is not None and geom.get("contype") == geom.get("conaffinity") == "0"
+        geom.set("fluidshape", "ellipsoid")
+        geom.set("fluidcoef", "1 1 1 1 1")
+        changed_source = ET.tostring(root, encoding="unicode")
         version = PlantVersion(
             model_id=BRACHIOSAURUS_ALTITHORAX,
             physics_revision=1,

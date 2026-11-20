@@ -9,9 +9,7 @@ The Brachiosaurus is quadrupedal with front legs longer than rear legs
 servos to the XML ``home`` keyframe controls -- NOT to their control-range
 midpoints, which is what it did before plant_versions note 7 and is half of
 why the zero-action statue used to fall on every episode. Separate
-actuator-disabled tests characterize the truly passive plant. The front feet
-contact the ground at reset, but the rear feet may settle over the first few
-simulation steps.
+actuator-disabled tests characterize the truly passive plant. All four feet contact the ground in the noiseless home pose.
 """
 
 import mujoco
@@ -45,11 +43,24 @@ class TestHomePoseCOM:
     """Verify the home keyframe COM and foot contact properties."""
 
     def test_foot_contacts_exist(self, env):
-        contacts = get_foot_contacts_xy(env.model, env.data, FOOT_GEOM_NAMES)
-        assert len(contacts) >= 2, (
-            f"Expected at least 2 foot-floor contacts at home pose, got {len(contacts)}. "
-            "The Brachiosaurus may be floating or the keyframe places feet above the floor."
-        )
+        for name in FOOT_GEOM_NAMES:
+            assert len(get_foot_contacts_xy(env.model, env.data, [name])) == 1, name
+
+    def test_limb_proportions_and_stance(self, env):
+        model = env.model
+        # Opposing elbow/stifle flexion and a raised shoulder must come from
+        # the limb proportions and attachment heights in a level-footed pose.
+        assert env.data.body("fr_thigh").xpos[2] > env.data.body("rr_thigh").xpos[2] + 0.08
+        assert model.joint("fr_knee").axis @ model.joint("rr_knee").axis == pytest.approx(-1.0)
+        humerus = np.linalg.norm(model.body("fr_shin").pos)
+        femur = np.linalg.norm(model.body("rr_shin").pos)
+        radius = np.linalg.norm(model.body("fr_meta").pos)
+        metacarpus = np.linalg.norm(model.body("fr_foot").pos)
+        assert humerus / femur == pytest.approx(1, rel=0.05)
+        assert [humerus / metacarpus, radius / metacarpus] == pytest.approx([3.6, 2.4], rel=0.05)
+        manus = model.geom("fr_foot_geom").size
+        pes = model.geom("rr_foot_geom").size
+        assert manus[0] < manus[1] and pes[0] > pes[1]
 
     def test_com_centered_laterally(self, env):
         com = com_xy(env.model, env.data, ROOT_BODY)

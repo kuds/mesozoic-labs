@@ -627,7 +627,7 @@ def test_every_model_reads_its_roll_rails_as_the_gate_does(model_id):
     assert tuple(result) == layout.episode_keys()
     if not layout.feet:
         assert result == {}
-        # The brachiosaurus's ellipsoids have a tilt the gate reads (their authored pitch) and no corners.
+        # Brachiosaurus ellipsoids have a measurable tilt and no box corners.
         assert math.isfinite(metrics.max_sole_tilt_deg) == (model_id.species == "brachiosaurus_altithorax")
         assert math.isnan(metrics.max_sole_corner_lift_m)
         return

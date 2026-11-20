@@ -255,7 +255,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     expected_policy_revisions = {
         VELOCIRAPTOR_MONGOLIENSIS: 14,
         TYRANNOSAURUS_REX: 15,
-        BRACHIOSAURUS_ALTITHORAX: 9,
+        BRACHIOSAURUS_ALTITHORAX: 10,
         DIBOTHROSUCHUS_ELAPHROS: 8,
         COMPSOGNATHUS_LONGIPES: 6,
         COMPSOGNATHUS_LONGIPES_ROBOT: 3,
@@ -263,13 +263,13 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     expected_physics_revisions = {
         VELOCIRAPTOR_MONGOLIENSIS: 5,
         TYRANNOSAURUS_REX: 10,
-        BRACHIOSAURUS_ALTITHORAX: 5,
+        BRACHIOSAURUS_ALTITHORAX: 6,
         DIBOTHROSUCHUS_ELAPHROS: 2,
     }
     expected_visual_revisions = {
         VELOCIRAPTOR_MONGOLIENSIS: 5,
         TYRANNOSAURUS_REX: 4,
-        BRACHIOSAURUS_ALTITHORAX: 2,
+        BRACHIOSAURUS_ALTITHORAX: 3,
         DIBOTHROSUCHUS_ELAPHROS: 1,
     }
     for revisions in (expected_physics_revisions, expected_visual_revisions):
@@ -345,7 +345,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # airborne terms; 3091.3 on r4 with the 2026-11-06 terms, 2843.0 on r4
     # before them, 2842.8 on r3 with its stance-quality terms, 1745.8 on the r2 plant),
     # brachiosaurus 1739.1 (on
-    # the plant repaired by plant_versions notes 7-8; 1738.4 on physics r5),
+    # the plant repaired by plant_versions notes 7-8; 1749.6 on physics r6, 1738.4 on r5),
     # dibothrosuchus 2598.3 (2598.5 on physics r2); the elliptic cone of note
     # 17 moves none of the three rails.
     #
@@ -377,7 +377,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         # 0.60 x 3341.0 = 2004.6 -> 2000 nearest-10 (physics r5; 1850 on r4's 3091.3, 1710 on 2842.8 before the
         # 2026-11-06 [env], 1050 on the r2 plant).
         VELOCIRAPTOR_MONGOLIENSIS: 2000.0,
-        BRACHIOSAURUS_ALTITHORAX: 1040.0,
+        BRACHIOSAURUS_ALTITHORAX: 1050.0,
         DIBOTHROSUCHUS_ELAPHROS: 1560.0,
     }
 

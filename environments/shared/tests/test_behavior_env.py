@@ -212,13 +212,18 @@ def test_plane_and_terrain_free_behavior_env_score_identically(make_env, model_i
     accepted = set(inspect.signature(canonical).parameters) - {"command_mode", "command_config"}
     plane = canonical(**{key: value for key, value in env._task_env_kwargs.items() if key in accepted})
     try:
-        terminations = 0
         for seed in range(4):
             env.reset(seed=seed)
             plane.reset(seed=seed)
             rng = np.random.default_rng(seed)
             scale = 1.0 if seed % 2 else 0.3
-            for _ in range(150):
+            # Keep the random rollout, then exercise the height termination if the animal is still upright.
+            random_steps = 150
+            for step in range(random_steps + 1):
+                if step == random_steps:
+                    for candidate in (plane, env):
+                        candidate.data.qpos[2] = candidate.healthy_z_range[1] + 1.0
+                        mujoco.mj_forward(candidate.model, candidate.data)
                 action = rng.uniform(-scale, scale, env.action_space.shape)
                 _, reward, terminated, truncated, info = env.step(action)
                 _, plane_reward, plane_terminated, plane_truncated, plane_info = plane.step(action)
@@ -229,10 +234,11 @@ def test_plane_and_terrain_free_behavior_env_score_identically(make_env, model_i
                 assert reward - info["reward_tracking"] == pytest.approx(plane_reward, rel=0, abs=1e-9)
                 assert (terminated, truncated) == (plane_terminated, plane_truncated)
                 assert info.get("termination_reason") == plane_info.get("termination_reason")
-                if terminated or truncated:
-                    terminations += terminated
+                if step == random_steps:
+                    assert terminated and info["termination_reason"] == "too_high"
+                assert not truncated  # the horizon is longer than this replay
+                if terminated:
                     break
-        assert terminations  # the full-scale episodes exercise the termination chain
     finally:
         plane.close()
 

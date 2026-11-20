@@ -251,7 +251,7 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         self.head_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "head_tip")
         self.tail_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "tail_tip")
 
-        # Metatarsal geom IDs (digitigrade stance — metacarpus/metatarsus)
+        # Metapodial collision proxies: fore metacarpus and hind metatarsus.
         self.fr_meta_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "fr_meta_geom")
         self.fl_meta_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "fl_meta_geom")
         self.rr_meta_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "rr_meta_geom")
@@ -274,8 +274,8 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         self._sensor_rl_foot = 13
         # The pad sensors above see the foot-pad ellipsoid only: a touch
         # sensor sums contacts on geoms of its site's own body, and each
-        # metacarpus/metatarsus is the pad's PARENT body with its own floor
-        # contact.  The meta sensors are appended after the tail block, so
+        # metacarpus/metatarsus is the pad's parent body and can contact
+        # terrain independently of the sole.  The meta sensors are appended after the tail block, so
         # pad + meta is the force the leg actually transmits (see
         # FOOT_SENSOR_VERIFICATION.md §4 — before this repair all four feet
         # read exactly 0.0 N while carrying 98.8% of body weight).

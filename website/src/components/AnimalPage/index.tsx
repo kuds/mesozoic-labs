@@ -30,6 +30,11 @@ function MovementStudies({animal, model}: {animal: Animal; model: Species}) {
           {model.stages.map((stage) => {
             const label = study?.studies[stage.id];
             const video = stage.video;
+            const reference = label?.referenceRecording;
+            const path = reference?.path ?? video?.path;
+            const caption = reference?.caption ?? (video &&
+              `${video.algorithm} simulation · ${video.modelRevisionStatus} model · ${video.verificationStatus} recording`);
+
             return (
               <MovementStudy
                 key={stage.id}
@@ -38,12 +43,12 @@ function MovementStudies({animal, model}: {animal: Animal; model: Species}) {
                 description={label?.description ?? stage.description}
                 href={REPO + '/blob/main/' + stage.configPath}
                 linkLabel="Study settings"
-                video={video ? {
-                  src: video.path,
-                  poster: posterFor(video.path),
+                video={path && caption ? {
+                  src: path,
+                  poster: posterFor(path),
                   label: `${model.name} simulation, stage ${stage.label}: ${stage.title}`,
-                  caption: `${video.algorithm} simulation · ${video.modelRevisionStatus} model · ${video.verificationStatus} recording`,
-                  source: REPO + '/blob/main/website/static' + video.path,
+                  caption,
+                  source: REPO + '/blob/main/website/static' + path,
                 } : undefined}
               />
             );
