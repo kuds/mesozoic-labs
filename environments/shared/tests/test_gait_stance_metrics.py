@@ -365,7 +365,7 @@ def test_a_rolled_box_sole_fails_every_flatness_metric():
 
 
 def test_an_authored_tilt_counts_only_beyond_the_keyframe():
-    # Brachiosaurus authors its ellipsoid forefeet at 19.2 degrees; its statue reads 26-27 absolute.
+    # Exercise the pitched home soles used by earlier models, including Brachiosaurus r5.
     trace = statue_trace()
     tilt = np.full_like(trace.sole_tilt_deg, 20.0)
     lift = np.full_like(trace.sole_corner_lift, np.nan)  # an ellipsoid sole has no box corners

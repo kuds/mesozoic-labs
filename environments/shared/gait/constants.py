@@ -62,8 +62,8 @@ audit):
 * :data:`SATURATION_ABS` 0.99: ``|a_i| >= 0.99`` is a saturated command, the
   threshold of ``stance_report.saturated_actuator_indices``.
 * :data:`SOLE_ROLLED_DEG` 2.0 degrees: a sole tilted more than this BEYOND
-  its keyframe tilt is "rolled" (brachiosaurus authors its ellipsoid feet at
-  15.8-19.2 degrees, so the absolute tilt cannot be the measure).
+  its keyframe tilt is "rolled". This accommodates pitched home soles in
+  historical models as well as the level Brachiosaurus r6 soles.
 * :data:`SUPPORT_GEOM_DOWN_FRACTION` 0.5: a registered support geom is
   loaded on a step when its floor force exceeds 0.1 N on at least half of the
   substeps, the per-geom twin of :data:`DOWN_SUBSTEP_FRACTION`.

@@ -968,7 +968,9 @@ robustness, **LOW** = cosmetic / QoL.
   locomotion the pair (0.45 of its r4 statue's 796.00 ± 3.58) behind the
   D-B5 warm-up of 2.3M, replayed on the dibothrosuchus series scaled to that
   statue in `test_curriculum_early_stopping.py`. Still open: the
-  brachiosaurus and dibothrosuchus floors stay absolute.
+  brachiosaurus and dibothrosuchus floors stay absolute. On Brachiosaurus physics
+  r6 the stage-1 statue returned 1749.61 ± 0.15 over seeds 3042–3081. The
+  recalibrated minimum reward is 1050 and the absolute peak floor is 1310.
 - **LOW** — **an early stop by the collapse backstop is invisible in the run
   records (verified 2026-09-23).** Run `20260923_020654` stopped both nodes
   at 1,450,000 steps; `stage_config.json` keeps the budget in `run.timesteps`
@@ -1556,7 +1558,8 @@ robustness, **LOW** = cosmetic / QoL.
   ([gait audit](investigations/GAIT_AUDIT_2026_09.md) §3). Leaves with the
   brachiosaurus hunt's task revision (a paired comparison with the statue, or
   food spawned out of resting reach), which the gait plan does not schedule
-  ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §9).
+  ([gait plan](GAIT_QUALITY_PLAN_2026_09.md) §9). On physics r6, the untrained
+  statue reaches the target in 9 of the same 40 episodes (22.5%).
 
 - **MEDIUM** — **knee, shin and proximal-tail floor contact never ends an
   episode on T-Rex, velociraptor, brachiosaurus or dibothrosuchus (read from
@@ -2036,6 +2039,17 @@ any re-sizing with
 Neutral-action stability and truly actuator-disabled passive behavior are now
 separate test contracts. Layered policy, physics, visual, and source identities
 are documented in [PLANT_CONTRACT.md](PLANT_CONTRACT.md).
+
+### Brachiosaurus mesh fingerprints on macOS ARM64
+
+The anatomical Brachiosaurus uses the Linux x86-64 reference for visual revision 3.
+The symmetric mesh revision compiled from identical MJCF bytes on both platforms.
+With MuJoCo 3.10.0 the physics and policy digests matched. Native macOS ARM64 produced
+a different visual digest. A mesh-normal component differed by at most `1.79e-7`, and a
+mesh-centroid coordinate differed by at most `5.55e-17` model metres. The full plant verifier compares the visual digest and can reject
+a native macOS run as stale. Use Linux x86-64 for verified training and reference-file
+regeneration. The Gymnasium environment and reference walk also run on macOS ARM64.
+See [the plant contract](PLANT_CONTRACT.md).
 
 ### Foot touch sensors under-report on two species — fixed (July 2026 sensor audit); a substep under-read is open
 

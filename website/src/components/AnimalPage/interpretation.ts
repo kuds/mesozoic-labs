@@ -2,6 +2,7 @@
 interface StudyLabel {
   title: string;
   description: string;
+  referenceRecording?: {path: string; caption: string};
 }
 
 interface Interpretation {
@@ -19,12 +20,19 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
   brachiosaurus_altithorax: {
     classification: 'Late Jurassic · Sauropod',
     title: 'Reaching from a four-legged stance',
-    anatomy: 'Longer forelegs raise the shoulders. Four neck segments let the head reach for food while the legs support the body. In simulation, we can test how those movements work together.',
-    alt: 'Model in profile with a segmented tail, four legs, raised shoulders and an upward-reaching neck',
+    anatomy: 'The raised shoulders sit above compact forefeet. The hindfeet have padded heels and three claws. A four-beat walk transfers weight between them while the long neck holds the head above the chest.',
+    alt: 'Brachiosaurus in profile with a deep chest, raised shoulders, tapered tail and elevated neck',
     detailLabel: 'Head and neck control', detail: '6 actuators',
     studies: {
       stance: {title: 'Hold steady', description: 'Can the body keep its balance on four feet with the neck held high?'},
-      locomotion: {title: 'Coordinate a stride', description: 'How do the forelegs and hind legs share support as the animal moves forward?'},
+      locomotion: {
+        title: 'Coordinate a stride',
+        description: 'Watch the hindfoot land, followed by the forefoot on the same side. The bars show when each foot carries weight.',
+        referenceRecording: {
+          path: '/videos/brachiosaurus_altithorax_anatomical_reference_walk.mp4',
+          caption: 'Scripted reference walk · Physics revision 6 · Measured speed 0.34 m/s',
+        },
+      },
       behavior: {title: 'Guide the head', description: 'Food targets appear 2.0–3.5 m above the ground. A reach counts when the head tip comes within 0.8 m of the target.'},
     },
   },
