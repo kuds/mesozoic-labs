@@ -2045,8 +2045,8 @@ are documented in [PLANT_CONTRACT.md](PLANT_CONTRACT.md).
 The anatomical Brachiosaurus uses the Linux x86-64 reference for visual revision 3.
 The symmetric mesh revision compiled from identical MJCF bytes on both platforms.
 With MuJoCo 3.10.0 the physics and policy digests matched. Native macOS ARM64 produced
-a different visual digest. The largest observed differences in mesh-normal components
-and mesh-centroid coordinates were `1.79e-7` and `5.55e-17` model metres, respectively. The full plant verifier compares the visual digest and can reject
+a different visual digest. A mesh-normal component differed by at most `1.79e-7`, and a
+mesh-centroid coordinate differed by at most `5.55e-17` model metres. The full plant verifier compares the visual digest and can reject
 a native macOS run as stale. Use Linux x86-64 for verified training and reference-file
 regeneration. The Gymnasium environment and reference walk also run on macOS ARM64.
 See [the plant contract](PLANT_CONTRACT.md).
