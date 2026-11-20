@@ -24,9 +24,9 @@ maps (bodies, geoms, sites, joints, actuators, sensors, ``qpos``, ``qvel``,
 ``ctrl``) from the names (``r_``/``l_`` and the other side tokens of
 :data:`DEFAULT_PREFIX_RULES`) and the compiled geometry.  It refuses a pair whose
 positions, frames, axes, ranges, masses, inertias, gravity compensation, contact,
-fluid, joint, actuator or sensor parameters differ, a colliding mesh whose
+fluid, joint, fixed-tendon, actuator or sensor parameters differ, a colliding mesh whose
 vertices are not the mirror image of its partner's, a sensor type without a
-rule, and a feature it does not mirror (tendons, equality constraints,
+rule, and a feature it does not mirror (spatial tendons, equality constraints,
 explicit contact pairs, plugins, flexes, height fields, SDF geoms).  These are
 the model fields the plants use, not every field MuJoCo has, so a new species'
 map is accepted together with a paired-rollout equivariance test like the
@@ -355,6 +355,56 @@ def _mesh_mirror_error(model: mujoco.MjModel, g: int, p: int, to_partner: np.nda
     return worst / max(1.0, float(np.max(np.abs(partner))))
 
 
+def _verify_fixed_tendons(
+    m: mujoco.MjModel,
+    joint_map: np.ndarray,
+    joint_sign: np.ndarray,
+    rules: tuple[Sequence[tuple[str, str]], Sequence[tuple[str, str]]],
+) -> None:
+    """Check that fixed tendon length and its force law are invariant under reflection."""
+    if not m.ntendon:
+        return
+    if np.any(m.wrap_type != int(mujoco.mjtWrap.mjWRAP_JOINT)):
+        raise SymmetryError("spatial tendons are not mirrored here")
+
+    # A fixed tendon's length is the sum of its signed joint coordinates times their moment arms.
+    # Reflection changes the joint indices and, for roll/yaw for example, the sign of the moment arm.
+    paths = []
+    mirrors = []
+    for start, count in zip(m.tendon_adr, m.tendon_num, strict=True):
+        joints = m.wrap_objid[start : start + count]
+        arms = m.wrap_prm[start : start + count]
+        paths.append(sorted(zip(joints, arms, strict=True)))
+        mirrors.append(sorted(zip(joint_map[joints], joint_sign[joints] * arms, strict=True)))
+
+    def tendon_ok(t: int, p: int) -> bool:
+        return paths[p] == mirrors[t] and all(
+            np.array_equal(field[t], field[p])
+            for field in (
+                m.tendon_stiffness,
+                m.tendon_stiffnesspoly,
+                m.tendon_lengthspring,
+                m.tendon_damping,
+                m.tendon_dampingpoly,
+                m.tendon_armature,
+                m.tendon_frictionloss,
+                m.tendon_limited,
+                m.tendon_range,
+                m.tendon_margin,
+                m.tendon_actfrclimited,
+                m.tendon_actfrcrange,
+                m.tendon_solref_fri,
+                m.tendon_solimp_fri,
+                m.tendon_solref_lim,
+                m.tendon_solimp_lim,
+            )
+        )
+
+    _pair_objects(
+        m, _OBJ.mjOBJ_TENDON, np.full(m.ntendon, -1), rules, tendon_ok, lambda _: list(range(m.ntendon)), "tendon"
+    )
+
+
 def derive_model_mirror(  # noqa: C901 - one derivation, object kind by object kind
     model: mujoco.MjModel,
     *,
@@ -370,10 +420,10 @@ def derive_model_mirror(  # noqa: C901 - one derivation, object kind by object k
     """
     rules = (prefix_rules, suffix_rules)
     m = model
-    if m.ntendon or m.neq or m.npair or m.nplugin or m.na or m.nflex:
+    if m.neq or m.npair or m.nplugin or m.na or m.nflex:
         raise SymmetryError(
-            "tendons, equality constraints, explicit contact pairs, plugins, actuator activations and flexes are not "
-            f"mirrored here (ntendon={m.ntendon} neq={m.neq} npair={m.npair} nplugin={m.nplugin} na={m.na} "
+            "equality constraints, explicit contact pairs, plugins, actuator activations and flexes are not "
+            f"mirrored here (neq={m.neq} npair={m.npair} nplugin={m.nplugin} na={m.na} "
             f"nflex={m.nflex})"
         )
     _require("opt.gravity", float(np.max(np.abs(m.opt.gravity * POLAR - m.opt.gravity))), tol)
@@ -702,6 +752,8 @@ def derive_model_mirror(  # noqa: C901 - one derivation, object kind by object k
             ),
             0.0,
         )
+
+    _verify_fixed_tendons(m, joint_map, joint_sign, rules)
 
     # ---- actuators (joint transmissions only)
     for a in range(m.nu):

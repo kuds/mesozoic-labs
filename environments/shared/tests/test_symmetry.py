@@ -169,6 +169,22 @@ def test_an_asymmetric_pair_is_refused(model_id, edit, message):
         SY.derive_model_mirror(model)
 
 
+@pytest.mark.parametrize("field", ["wrap_prm", "tendon_stiffness", "tendon_lengthspring"])
+def test_a_unilateral_digital_flexor_change_is_refused(field):
+    model_id = ModelId("compsognathus_longipes", "anatomical")
+    model = mujoco.MjModel.from_xml_path(str(model_id.asset_path(SY.REPOSITORY_ROOT / "environments")))
+    getattr(model, field).flat[0] += 0.001
+    with pytest.raises(SY.SymmetryError, match="tendon 'r_digital_flexor': 0 mirror-consistent partners"):
+        SY.derive_model_mirror(model)
+
+
+def test_spatial_tendon_paths_require_a_separate_mirror_rule():
+    xml = """<mujoco><worldbody><site name="a"/><site name="b" pos="0 0 1"/></worldbody>
+      <tendon><spatial name="cable"><site site="a"/><site site="b"/></spatial></tendon></mujoco>"""
+    with pytest.raises(SY.SymmetryError, match="spatial tendons"):
+        SY.derive_model_mirror(mujoco.MjModel.from_xml_string(xml))
+
+
 def _rotation(axis, degrees: float) -> np.ndarray:
     quat = np.zeros(4)
     mujoco.mju_axisAngle2Quat(quat, np.asarray(axis, dtype=np.float64), math.radians(degrees))
@@ -254,6 +270,14 @@ def _cad_biped_xml(*, correct_the_left_knee: bool = True) -> str:
       <geom name="torso_geom" type="box" size="0.3 0.2 0.1"/>{side("r", False)}{side("l", True)}
     </body>
   </worldbody>
+  <tendon>
+    <fixed name="flexor_r" stiffness="5" damping="0.1">
+      <joint joint="hip_roll_r" coef="0.3"/><joint joint="knee_r" coef="0.1"/>
+    </fixed>
+    <fixed name="flexor_l" stiffness="5" damping="0.1">
+      <joint joint="knee_l" coef="0.1"/><joint joint="hip_roll_l" coef="-0.3"/>
+    </fixed>
+  </tendon>
   <actuator>{actuators}</actuator>
   <sensor>{sensors}</sensor>
 </mujoco>"""
