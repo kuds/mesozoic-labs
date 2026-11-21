@@ -25,13 +25,12 @@ already certified.
 | **Node** | One stage TOML (`[env]`, `[curriculum]`, `[ppo]`, `[sac]` and a `gate_kind`); one training run with one checkpoint and one gate verdict. Today's "stage". |
 | **Edge** (`warm_start_from`) | The declared parent a node initialises from, under `initialize_next_stage`, with lineage recorded. |
 | **Trunk** | The shared certified chain every behavior builds on: stance → (recovery) → locomotion. |
-| **Leaf** | A node with no children: today `behavior` (hunt). |
+| **Leaf** | A node with no children, such as `locomotion` on Allosaurus or `behavior` on a model with a hunting task. |
 | **Deliverable** | A node whose certified checkpoint is a published policy (`deliverable = true`). |
 | **Recipe** | A deliverable plus its ancestor chain, *derived* from the edges; the per-entry `recipe` label groups nodes under a behavior name. "stance" = stance alone, on every model; "recover" = stance → recovery where a recovery node exists; "walk" = stance → locomotion; "hunt" = stance → locomotion → behavior. |
 | **Certified** | A property of one checkpoint: the node's own gate passed *and* every ancestor's gate passed, with every piece of evidence hash-bound to the checkpoint it describes. |
 
-The hunting node keeps its id `behavior` for every model; its recipe
-label is `hunt`, and the task name (strike, bite proxy, food reach, snap,
+Models with a hunting task name the node `behavior`. Its recipe label is `hunt`, and the task name (strike, bite proxy, food reach, snap,
 target reach) comes from the stage TOML's `[stage] name`.
 
 Direction-following and terrain traversal exist today as a separate pilot
@@ -105,8 +104,7 @@ on every model that has it, so label resolution never surprises: `"stance"`
 resolves to `stance` on every model (it is both the stance node's id and its
 label), `"recover"` to `recovery` on the T-Rex and both Compsognathus models
 (chain `stance -> recovery`) and to nothing elsewhere, and `"hunt"` to
-`behavior` for every model, which is why the notebook's default works
-everywhere. A label may equal a stage id only when it resolves to that very
+`behavior` on models with a hunting task. For Allosaurus, select `stance` or `walk` in the notebook. A label may equal a stage id only when it resolves to that very
 stage, as `stance` does; the loader refuses any other overlap, so a label
 never shadows a different node's id. Until decision D-D35 (2026-10-16) the
 recovery node was labelled `stand` too, so `"stand"` resolved to `recovery`
@@ -289,7 +287,7 @@ refuses when the evidence is missing, and cannot backfill
 committed as:
 
 ```python
-BEHAVIOR = "hunt"  # a recipe label ("stance" | "recover" | "walk" | "hunt") or a deliverable's stage id
+BEHAVIOR = "auto"  # the model's final deliverable, a recipe label, or a deliverable's stage id
 TRUNK_FROM = "auto"  # "auto" (D-A25): the sibling run covering the most of the chain; a run id pins one; "" trains every node here
 RETRAIN_FROM = ""  # optional chain node to train here with every node below it (empty = off; D-A19)
 RUN_LABEL = ""  # optional free-text label recorded beside each trained node's hyperparameter digest (D-A21)
@@ -353,9 +351,10 @@ must not be this run — certified nodes of an earlier run come in through
 `TRUNK_FROM`, never by pointing `RUN_ID` at that run. `RETRAIN_FROM` must name
 a node on the chosen behavior's chain.
 
-The setup cell resolves the chain once: `TARGET_NODE =
-MANIFEST.resolve_behavior(BEHAVIOR)` and `CHAIN =
-MANIFEST.chain_for(TARGET_NODE.id)`. One `# ===== BEHAVIOR CHAIN LOOP =====`
+The setup cell resolves `"auto"` to the last deliverable in the model manifest.
+This selects `walk` for Allosaurus and `hunt` for the other models. Explicit
+recipe labels and stage IDs go through `MANIFEST.resolve_behavior(BEHAVIOR)`.
+The cell obtains the chain with `MANIFEST.chain_for(TARGET_NODE.id)`. One `# ===== BEHAVIOR CHAIN LOOP =====`
 cell then walks `CHAIN` root-first and, per node, reuses, judges or trains
 as described above. Reuse looks in this run first, then — for ancestors only
 — in the trunk. For a frozen-null gate kind (`recovery_quality/v1`, the

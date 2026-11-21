@@ -14,6 +14,7 @@ here via parametrization.
 import numpy as np
 import pytest
 
+from environments.allosaurus_fragilis.anatomical.env import AllosaurusFragilisAnatomicalEnv
 from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 from environments.dibothrosuchus_elaphros.anatomical.env import DibothrosuchusElaphrosAnatomicalEnv
 from environments.shared.config import load_all_stages, load_stage_config
@@ -23,6 +24,7 @@ from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatom
 from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+ALLOSAURUS_FRAGILIS = ModelId("allosaurus_fragilis", "anatomical")
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
@@ -32,10 +34,11 @@ DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
 #: registered horizon) is tested for both in environments/compsognathus_longipes/tests/test_training_env.py.
 EXEMPT = {ModelId("compsognathus_longipes", "anatomical"), ModelId("compsognathus_longipes", "robot")}
 
-# Parametrise across the four reward-shaped anatomical models
+# Parametrize the anatomical environments covered by the shared reward checks.
 MODEL_ENVS = [
     pytest.param(env_class, model_id, id=f"{model_id.species}-{model_id.embodiment}")
     for env_class, model_id in (
+        (AllosaurusFragilisAnatomicalEnv, ALLOSAURUS_FRAGILIS),
         (VelociraptorMongoliensisAnatomicalEnv, VELOCIRAPTOR_MONGOLIENSIS),
         (TyrannosaurusRexAnatomicalEnv, TYRANNOSAURUS_REX),
         (BrachiosaurusAltithoraxAnatomicalEnv, BRACHIOSAURUS_ALTITHORAX),
@@ -51,6 +54,7 @@ MODEL_ENVS = [
 # (note 22, 2026-11-08) to 71 (six per-site foot channels for two per-foot sums,
 # 23 joints for 24) and its action to 17.
 SPECIES_DIMS = {
+    ALLOSAURUS_FRAGILIS: {"obs": 45, "act": 10},
     VELOCIRAPTOR_MONGOLIENSIS: {"obs": 71, "act": 17},
     TYRANNOSAURUS_REX: {"obs": 63, "act": 15},
     BRACHIOSAURUS_ALTITHORAX: {"obs": 86, "act": 30},
@@ -59,6 +63,14 @@ SPECIES_DIMS = {
 
 # Expected reward component keys per species
 SPECIES_REWARD_KEYS = {
+    ALLOSAURUS_FRAGILIS: [
+        "reward_forward",
+        "reward_alive",
+        "reward_energy",
+        "reward_posture",
+        "reward_drift",
+        "reward_total",
+    ],
     VELOCIRAPTOR_MONGOLIENSIS: [
         "reward_forward",
         "reward_alive",
@@ -144,6 +156,7 @@ class TestGymnasiumRegistration:
     @pytest.mark.parametrize(
         "gym_id",
         [
+            "MesozoicLabs/AllosaurusFragilis-Anatomical-v0",
             "MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0",
             "MesozoicLabs/TyrannosaurusRex-Anatomical-v0",
             "MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0",
@@ -380,7 +393,7 @@ class TestRewardConsistency:
         assert info["reward_energy"] < 0
         env.close()
 
-    @pytest.mark.parametrize("env_class, model_id", MODEL_ENVS)
+    @pytest.mark.parametrize("env_class, model_id", [p for p in MODEL_ENVS if p.values[1] != ALLOSAURUS_FRAGILIS])
     def test_approach_reward_zero_on_first_step(self, env_class, model_id):
         """Approach reward should be zero on the first step (no prior distance)."""
         env = env_class()

@@ -414,3 +414,37 @@ backends = ["stable-baselines3"]
 key = "target_success"
 label = "Pelvis target-reaching success"
 definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
+
+[species.allosaurus_fragilis]
+display_order = 6
+display_name = "Allosaurus Fragilis"
+
+[species.allosaurus_fragilis.embodiments.anatomical]
+tagline = "Jurassic tridactyl theropod"
+gait = "Bipedal"
+specialty = "Level-ground stance and forward walking"
+env_entrypoint = "environments.allosaurus_fragilis.anatomical.env:AllosaurusFragilisAnatomicalEnv"
+model_path = "environments/allosaurus_fragilis/anatomical/assets/allosaurus_fragilis_anatomical.xml"
+training_backends = ["stable-baselines3"]
+training_notebooks = ["sb3_training"]
+result_summary_paths = []
+
+[[species.allosaurus_fragilis.embodiments.anatomical.success_metrics]]
+backends = ["stable-baselines3"]
+key = "course_complete"
+label = "Walking course completion"
+definition = "During the forward walking task, the pelvis reaches within 0.35 m of a target eight metres ahead while supported by at least one foot."
+
+[[species.allosaurus_fragilis.embodiments.anatomical.deliverable_metrics]]
+deliverable = "stance"
+backends = ["stable-baselines3"]
+key = "stance_quality"
+label = "Supported standing (stance_quality/v1)"
+definition = "At least 95% of standing trials last ten seconds. After a two-second settling period, the mean fraction of time on neither foot and its upper confidence bound each stay at or below 2%. Mean reward must reach 1,200 points."
+
+[[species.allosaurus_fragilis.embodiments.anatomical.deliverable_metrics]]
+deliverable = "walk"
+backends = ["stable-baselines3"]
+key = "forward_velocity_gate"
+label = "Gated forward velocity"
+definition = "The walking policy meets the configured forward-speed, reward and episode-length minima in successive evaluations."

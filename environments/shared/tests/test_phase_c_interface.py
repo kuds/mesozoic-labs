@@ -78,6 +78,7 @@ import mujoco
 import numpy as np
 import pytest
 
+from environments.allosaurus_fragilis.anatomical.env import AllosaurusFragilisAnatomicalEnv
 from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
 from environments.compsognathus_longipes.robot.env import CompsognathusLongipesRobotEnv
@@ -116,6 +117,7 @@ COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
 MODEL_ENVS = [
     pytest.param(env_class, model_id, id=f"{model_id.species}-{model_id.embodiment}")
     for env_class, model_id in (
+        (AllosaurusFragilisAnatomicalEnv, ModelId("allosaurus_fragilis", "anatomical")),
         (VelociraptorMongoliensisAnatomicalEnv, ModelId("velociraptor_mongoliensis", "anatomical")),
         (TyrannosaurusRexAnatomicalEnv, TYRANNOSAURUS_REX),
         (BrachiosaurusAltithoraxAnatomicalEnv, ModelId("brachiosaurus_altithorax", "anatomical")),

@@ -315,16 +315,7 @@ class TestBehaviorKnob:
         for name in ("WIDEN_FROM", "WIDEN_MAX_REVISION_GAP"):
             assert name not in assigns, f"{name} left the notebook with the widen cell (D-D14)"
         assert DEFAULT_MAX_REVISION_GAP == 1
-        # The default behavior resolves on every committed manifest to the
-        # terminal deliverable, so a Run-all still walks stance -> ... -> behavior.
-        behavior = assigns["BEHAVIOR"].value
-        assert behavior
-        assert MODELS_WITH_MANIFESTS
-        for model_id in MODELS_WITH_MANIFESTS:
-            manifest = load_stage_manifest(model_id)
-            assert manifest.resolve_behavior(behavior).id == "behavior", (
-                f"BEHAVIOR={behavior!r} must resolve to the terminal deliverable of {model_id}"
-            )
+        assert assigns["BEHAVIOR"].value == "auto"
 
     def test_run_recovery_stage_knob_is_gone(self):
         for index, src in enumerate(_all_cell_sources()):
@@ -397,7 +388,14 @@ class TestChainResolution:
         resolve_src = cells[_cell_index(cells, RESOLVE_CELL_MARKER)]
         assigns = _top_level_assigns(resolve_src)
         assert ast.unparse(assigns["MANIFEST"]) == "load_stage_manifest(MODEL_ID)"
-        assert ast.unparse(assigns["TARGET_NODE"]) == "MANIFEST.resolve_behavior(BEHAVIOR)"
+        target_expression = compile(ast.Expression(assigns["TARGET_NODE"]), "<resolve cell>", "eval")
+        for model_id in MODELS_WITH_MANIFESTS:
+            manifest = load_stage_manifest(model_id)
+            assert eval(target_expression, {"MANIFEST": manifest, "BEHAVIOR": "auto"}) == manifest.deliverables[-1]
+            for label in manifest.recipe_labels:
+                assert eval(target_expression, {"MANIFEST": manifest, "BEHAVIOR": label}) == manifest.resolve_behavior(
+                    label
+                )
         assert ast.unparse(assigns["CHAIN"]) == "MANIFEST.chain_for(TARGET_NODE.id)"
         # D-A19: RETRAIN_FROM is resolved beside the chain and must lie on it.
         assert ast.unparse(assigns["RETRAIN_NODE"]) == "MANIFEST.resolve(RETRAIN_FROM) if RETRAIN_FROM else None"
@@ -3939,7 +3937,7 @@ class TestNotebookWithoutTheDirectionTerrainMode:
 
         namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
         exec(_cell(CONFIG_CELL_MARKER), namespace)
-        assert namespace["BEHAVIOR"] == "hunt"
+        assert namespace["BEHAVIOR"] == "auto"
         assert (namespace["SPECIES"], namespace["EMBODIMENT"]) == ("velociraptor_mongoliensis", "anatomical")
         assert namespace["MODEL_ID"] == ModelId("velociraptor_mongoliensis", "anatomical")
         assert namespace["N_ENVS"] == 4 and namespace["SEED"] == 42
@@ -3951,6 +3949,20 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         exec(_cell("EnvClass = SPECIES_CFG.env_class"), namespace)
         assert namespace["TARGET_NODE"].id == "stance"
         assert [node.id for node in namespace["CHAIN"]] == ["stance"]
+
+    def test_allosaurus_defaults_to_walk_and_rejects_an_explicit_hunt(self):
+        from environments.shared.config import load_all_stages
+
+        namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
+        config = _cell(CONFIG_CELL_MARKER)
+        exec(config.replace('SPECIES = "velociraptor_mongoliensis"', 'SPECIES = "allosaurus_fragilis"'), namespace)
+        resolve = _cell("EnvClass = SPECIES_CFG.env_class")
+        exec(resolve, namespace)
+        assert namespace["TARGET_NODE"].recipe == "walk"
+        assert [node.id for node in namespace["CHAIN"]] == ["stance", "locomotion"]
+        namespace["BEHAVIOR"] = "hunt"
+        with pytest.raises(StageManifestError, match="has no behavior 'hunt'"):
+            exec(resolve, namespace)
 
     @staticmethod
     def _tyrannosaurus_rex_configuration():
@@ -3990,7 +4002,7 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         options, trailing = json.JSONDecoder().raw_decode(behavior_line.split("# @param ", 1)[1])
         # The four recipe labels (decisions D-D35 and D-D38): "recover" is the recovery stage's label,
         # and "stance", the stance stage's id and label, is the stance stage alone on every model.
-        assert options == ["stance", "recover", "walk", "hunt"]
+        assert options == ["auto", "stance", "recover", "walk", "hunt"]
         assert not set(options) & set(self.PILOT_BEHAVIORS), "the pilots have no notebook path until PR-11"
         assert json.loads(behavior_line.split("# @param ", 1)[1][trailing:].strip()) == {"allow-input": True}
         for source in (_cell("REPO_REF ="), config):

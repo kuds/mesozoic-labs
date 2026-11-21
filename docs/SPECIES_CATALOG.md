@@ -207,6 +207,35 @@ Twelve-Servo Biped Prototype. **Specialty:** Non-contact target reaching with fi
 - **hunt (3 — Target Reach) · Stable-Baselines3 — Pelvis target-reaching success:** While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden.
 
 [Full documentation →](../environments/compsognathus_longipes/README.md)
+
+<a id="allosaurus_fragilis-anatomical"></a>
+
+### Allosaurus Fragilis (Anatomical)
+
+Jurassic tridactyl theropod. **Specialty:** Level-ground stance and forward walking.
+
+| Generated specification | Value |
+|---|---|
+| Observation dimension | 45 |
+| Action dimension / actuators | 10 |
+| Generalized coordinates / velocities | nq=19, nv=18 |
+| Compiled dynamic model mass | 1482.2 kg |
+| Plant contract revisions | policy r1; physics r1; visual r1 ([details](PLANT_CONTRACT.md)) |
+| Model | `environments/allosaurus_fragilis/anatomical/assets/allosaurus_fragilis_anatomical.xml` |
+
+| Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
+|---|---|---|---|---:|---:|
+| 1 — Stance | stance (deliverable) | — | Hold an upright, foot-supported standing posture. | 3M | reward ≥ 1200; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
+| 2 — Locomotion | walk (deliverable) | 1 — Stance | Walk forward on the feet along an eight-metre course. | 6M | reward ≥ 900; episode length ≥ 550; avg. velocity ≥ 0.25 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
+
+**Backend-specific success semantics:**
+- **Stable-Baselines3 — Walking course completion:** During the forward walking task, the pelvis reaches within 0.35 m of a target eight metres ahead while supported by at least one foot.
+
+**Per-deliverable success semantics:**
+- **stance (1 — Stance) · Stable-Baselines3 — Supported standing (stance_quality/v1):** At least 95% of standing trials last ten seconds. After a two-second settling period, the mean fraction of time on neither foot and its upper confidence bound each stay at or below 2%. Mean reward must reach 1,200 points.
+- **walk (2 — Locomotion) · Stable-Baselines3 — Gated forward velocity:** The walking policy meets the configured forward-speed, reward and episode-length minima in successive evaluations.
+
+[Full documentation →](../environments/allosaurus_fragilis/README.md)
 <!-- END GENERATED: SPECIES -->
 
 ## Training Results

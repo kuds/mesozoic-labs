@@ -59,7 +59,10 @@ DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
 COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
 COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
 
+ALLOSAURUS_FRAGILIS = ModelId("allosaurus_fragilis", "anatomical")
+
 MODEL_IDS = (
+    ALLOSAURUS_FRAGILIS,
     TYRANNOSAURUS_REX,
     VELOCIRAPTOR_MONGOLIENSIS,
     COMPSOGNATHUS_LONGIPES,
@@ -708,6 +711,7 @@ def test_the_physics_r10_statue_whole_foot_cop_reading(envs):
 #: None where the foot has no box sole, so the metric is unmeasured: velociraptor (no sole) and brachiosaurus
 #: (ellipsoids, whose one contact sits where the authored pitch puts it).
 STATUE_COP_FORE_AFT_CEILING = {
+    ALLOSAURUS_FRAGILIS: None,
     TYRANNOSAURUS_REX: 0.47,
     VELOCIRAPTOR_MONGOLIENSIS: None,
     COMPSOGNATHUS_LONGIPES: 0.32,
@@ -724,15 +728,23 @@ def test_the_statue_tables_cover_every_model():
 
 
 @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
-def test_each_statue_stands_on_its_registered_support_geoms(envs, model_id):
+def test_each_standing_controller_loads_its_registered_support_geoms(envs, model_id):
     env = envs(model_id)
     settle = int(round(1.0 / env.dt))  # 1 s
     zero = np.zeros(env.model.nu)
     with SubstepContactRecorder(env, Morphology.from_env(env, model_id)) as recorder:
         env.reset(seed=3042)
+        # The Allosaurus has torque motors. Holding stance needs a feedback
+        # command even at the home angles. Its other peers have position servos.
+        controller = None
+        if model_id == ALLOSAURUS_FRAGILIS:
+            from environments.allosaurus_fragilis.scripts.reference_walk import ReferenceWalk
+
+            controller = ReferenceWalk(env.model, env.data, walking=False)
         for _ in range(settle + 150):
-            env.step(zero)
-            recorder.end_step(zero, 0.0)
+            action = zero if controller is None else controller.action(env.data)
+            env.step(action)
+            recorder.end_step(action, 0.0)
         trace = recorder.end_episode(truncated=True)
     result = episode_stance_metrics(trace, settle_steps=settle)
     assert result.nonfoot_load_fraction == 0.0
