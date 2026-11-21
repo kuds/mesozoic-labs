@@ -314,7 +314,9 @@ required_consecutive = 3                # Scheduler hysteresis ONLY, and inert f
 # zero, they also price the fore-aft foot stagger and the centre-of-pressure
 # excursions a recovery step makes (each up to 0.30 a step), which no
 # recovery run has trained with yet.
-collapse_peak_floor_reference = 1609.1  # Pushed-task statue reward, noise 0.05, 40 episodes, seeds
+# R11, seeds 3042-3081, 40 episodes. The zero-action animal completed 0/40 pushed horizons; this is the return over all trials.
+collapse_peak_floor_reference = 1613.2
+# Previous calibrations: Pushed-task statue reward, noise 0.05, 40 episodes, seeds
                                         # 3042-3081, physics r10 under the r10 LTSB stance terms
                                         # (the stance-landing decision of 2026-11-06, above); 1429.1 on
                                         # physics r10 before them. 1329.1 through r9: physics r8
@@ -322,14 +324,7 @@ collapse_peak_floor_reference = 1609.1  # Pushed-task statue reward, noise 0.05,
                                         # 1337.5 under the r8 task; 974.7 on r7 (first-runs record
                                         # §3/§6.5; reproduced exactly 2026-08-23, review §5.1).
 collapse_peak_floor_fraction = 0.45     # Same fraction as stance; the ratio, not the product, is what carries.
-statue_constants_physics_revision = 10  # The trex PHYSICS revision the 1609.1 reference was measured on
-                                        # (r10 above, as 1429.1 was; 1329.1 on r8, re-measured on r9). The 974.7 the r8
-                                        # value replaced was r7's: the 2026-08-23
-                                        # panel, review §5.1 — the same r7 plant as the frozen first-runs
-                                        # panels; the perturbation engine, plant_versions note 11, bumped only
-                                        # the POLICY interface. The freshness test holds this pin against
-                                        # the manifest so any real physics move forces a re-measure or a
-                                        # conscious update here.
+statue_constants_physics_revision = 11  # Re-measured with the r11 proportioned hindlimb (1613.2).
 collapse_peak_warmup_timesteps = 1000000 # Same arming delay as stance; 1/3 of this stage's 3M budget —
                                         # stale while the budget was 5M (commit 0836043), true again since
                                         # the reversal above — and inside the companion budget test's

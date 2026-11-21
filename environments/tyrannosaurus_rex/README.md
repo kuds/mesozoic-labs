@@ -4,7 +4,9 @@ A large dinosaur-inspired bipedal locomotion and head-contact environment built 
 
 ## Overview
 
-This Tyrannosaurus-inspired model has a heavy head, vestigial forelimbs, and a tail used as a counterbalance. The Stage 3 task retains the name "Bite," but the implemented success event is contact between a fixed `head_bite` geom and the prey. The model has neck/head actuators but no articulated or actuated jaw, so the metric should be read as a head-contact proxy rather than simulated biting biomechanics.
+The anatomical model represents adult proportions at simulation scale. It has a broad posterior skull, two-fingered forelimbs, a muscular counterbalancing tail and three load-bearing digits per foot. The hunting task detects contact between the fixed snout proxy and prey. The jaw is fixed.
+
+The [anatomy and walking review](../../docs/reviews/TREX_ANATOMICAL_REVIEW_2026_11.md) includes dimensions, a reproducible flat-ground walk and transfer trials with archived PPO checkpoints.
 
 ## Generated Specifications, Curriculum, and Results
 

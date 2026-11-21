@@ -149,12 +149,12 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
     # Settled tail pose for the tail_home_pose term, in tail_home_joint_names
     # order (tail_1_pitch, tail_1_yaw, tail_2_pitch, tail_3_pitch); see the
     # provenance comment in _cache_ids.
-    _TAIL_SETTLED_QPOS = (0.00002, 0.0, 0.00006, 0.00018)
+    _TAIL_SETTLED_QPOS = (0.00010, 0.0, 0.00013, 0.00024)
     # Settled neck pose for the neck_posture term under
     # neck_posture_reference = "settled", in neck_home_joint_names order
     # (neck_pitch, neck_yaw, head_pitch); see the provenance comment in
     # _cache_ids.
-    _NECK_SETTLED_QPOS = (0.21401, 0.0, 0.22054)
+    _NECK_SETTLED_QPOS = (0.21394, 0.0, 0.22048)
     _NECK_POSTURE_REFERENCES = ("keyframe", "settled")
     # Settled leg pose for the leg_home_pose term under leg_home_pose_reference
     # = "settled", in leg_home_joint_names order (r_hip_pitch, r_hip_roll,
@@ -175,17 +175,19 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
     # hip roll -/+0.42, knee -0.40, ankle +1.67 degrees); re-measured the same
     # way on r10 (plant_versions note 20, D-D44), whose level tail moves the
     # ankle most (+4.9 mrad).
+    # Physics r11 remeasures this same panel after the hindlimb proportion and
+    # toe-splay revision. The hip and metatarsal heads retain their home positions.
     # Re-measure whenever leg masses, springs, gains or the feet change (any
     # plant revision; test_the_settled_leg_pose_is_the_statues checks it).
     _LEG_SETTLED_QPOS = (
-        -0.09084374343772902,
-        -0.006823512801851125,
-        -0.43726937988410725,
-        1.3762339038992937,
-        -0.09084374343772902,
-        0.006823512801851125,
-        -0.43726937988410725,
-        1.3762339038992937,
+        -0.09084276725788445,
+        -0.006835729969570731,
+        -0.43722650066532204,
+        1.376189967490149,
+        -0.09084276725788445,
+        0.006835729969570731,
+        -0.43722650066532204,
+        1.376189967490149,
     )
     _LEG_HOME_POSE_REFERENCES = ("keyframe", "settled")
     #: Opt-in task options carved out of the task fingerprint and of the

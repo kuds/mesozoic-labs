@@ -1084,7 +1084,9 @@ collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot S
                                          # candidacy; past it a statue-level peak arms the floor legitimately, and
                                          # collapse_patience consecutive evaluations under half of it are a collapse
                                          # at either start. Untested on a full run at -1.5.
-collapse_peak_floor_reference = 4470.4   # The r10 LTSB stance recipe (the stance-landing decision of 2026-11-06):
+# R11, seeds 3042-3081, 40 episodes. The absolute stance rail stays at its published 2260; the live 0.60 statue ratio also applies.
+collapse_peak_floor_reference = 4470.6
+# Previous calibrations: The r10 LTSB stance recipe (the stance-landing decision of 2026-11-06):
                                          # the zero-action statue panel (zero_action_baseline.py, 40 episodes, seeds
                                          # 3042-3081, noise 0.05) on this config, physics r10: 4470.37 +/- 30.88,
                                          # 40/40 full horizon, +703.81 over the D-D27 task's 3766.56 (decomposed on
@@ -1115,13 +1117,7 @@ collapse_peak_floor_reference = 4470.4   # The r10 LTSB stance recipe (the stanc
                                          # carried (min_avg_reward above has the figures). Re-measured on physics
                                          # r10 (plant_versions note 20): 3766.56 +/- 16.21, 40/40, 3.8 standard
                                          # errors over 3756.8, so it moved to 3766.6 and the rail to 2260.
-statue_constants_physics_revision = 10   # The trex physics revision the statue-derived constants above
-                                         # (min_avg_reward, collapse_peak_floor_reference) were measured on.
-                                         # test_statue_constant_freshness.py cross-checks this against the
-                                         # plant manifest, so a plant revision bump that forgets to re-measure
-                                         # the statue fails CI instead of silently training against a rail and
-                                         # collapse floor calibrated on a plant that no longer exists. Update
-                                         # it WITH the re-measurement, never alone.
+statue_constants_physics_revision = 11  # Re-measured with the r11 proportioned hindlimb (4470.6).
 hop_watch_max_unsupported_duty = 0.05    # Opt-in hop watch (curriculum/hop_watch.py, D-D27): from
                                          # hop_watch_after_timesteps on, an evaluation whose unsupported duty
                                          # (gate_progress.npz) is above this logs a warning, writes hop_watch.json
