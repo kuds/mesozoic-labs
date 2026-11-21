@@ -18,10 +18,36 @@ import numpy as np
 
 from environments.shared.gait.biped_metrics import analyse, static_margin
 from environments.shared.gait.morphology import Morphology
-from environments.shared.gait.recorder import SubstepContactRecorder
+from environments.shared.gait.recorder import EpisodeTrace, SubstepContactRecorder
 from environments.shared.model_id import ModelId
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 from environments.tyrannosaurus_rex.scripts.reference_walk import ReferenceWalk
+
+
+def _actuator_metrics(model: mujoco.MjModel, trace: EpisodeTrace, angles: list[np.ndarray], start: int) -> dict:
+    """Compare solver forces and hinge positions to their physical limits and commands to ±1."""
+    assert trace.actuator_force_substep is not None
+    forces = trace.actuator_force_substep[start:].reshape(-1, model.nu)
+    lower, upper = model.actuator_forcerange.T
+    force_share = np.abs(forces) / np.where(forces < 0, -lower, upper)
+    joints = model.actuator_trnid[:, 0]
+    low_angle, high_angle = model.jnt_range[joints].T
+    qpos = np.asarray(angles)[start * trace.frame_skip :]
+    margin = np.minimum(qpos - low_angle, high_angle - qpos)
+    names = [model.actuator(i).name for i in range(model.nu)]
+
+    def per_actuator(values):
+        return dict(zip(names, values.tolist(), strict=True))
+
+    # A reading within 0.01% of the corresponding hard bound counts as at the limit.
+    threshold = 0.9999
+    return {
+        "samples": len(forces),
+        "abs_force_share_peak": per_actuator(force_share.max(axis=0)),
+        "fraction_at_force_limit": per_actuator((force_share >= threshold).mean(axis=0)),
+        "minimum_angular_margin_deg": per_actuator(np.rad2deg(margin.min(axis=0))),
+        "fraction_at_action_limit": per_actuator((np.abs(trace.action[start:]) >= threshold).mean(axis=0)),
+    }
 
 
 def run(
@@ -34,6 +60,7 @@ def run(
     env: TyrannosaurusRexAnatomicalEnv | None = None,
     predict: Callable[[np.ndarray], np.ndarray] | None = None,
     trace_path: Path | None = None,
+    actuators: bool = False,
 ) -> dict:
     """Use a supplied environment for policy replay. Its owner controls construction and closing."""
     if (predict is not None) != (mode == "policy") or mode not in {"walk", "stand", "policy"}:
@@ -56,6 +83,9 @@ def run(
         morphology = Morphology.from_env(env, ModelId("tyrannosaurus_rex", "anatomical"))
         recorder = SubstepContactRecorder(env, morphology, per_geom=True)
         recorder.record_slip()
+        recorder.record_actuators(actuators)
+        angle_samples: list[np.ndarray] = []
+        actuated_qpos = env.model.jnt_qposadr[env.model.actuator_trnid[:, 0]]
         recorder.record_sites([env.model.site(name).id for name in ("head_tip", "tail_tip")])
         groups = {}
         for side in morphology.labels:
@@ -64,9 +94,11 @@ def run(
             groups[f"{side}_shaft"] = [env.model.geom(f"{side}_metatarsus_geom").id]
         heights: dict[str, list[float]] = {label: [] for label in groups}
 
-        def sample_clearance():
+        def sample_substep():
             if previous_hook is not None:
                 previous_hook()
+            if actuators:
+                angle_samples.append(env.data.qpos[actuated_qpos])
             for name, geoms in groups.items():
                 heights[name].append(
                     min(
@@ -75,7 +107,7 @@ def run(
                     )
                 )
 
-        env._substep_probe_hook = sample_clearance
+        env._substep_probe_hook = sample_substep
         action = np.zeros(env.model.nu)
         qpos = []
         with recorder:
@@ -117,6 +149,10 @@ def run(
             )
         if start < trace.length:
             result.update(analyse(trace, clearance, start, env.model, pad_suffix="plantar_geom"))
+        if actuators:
+            result["actuators"] = (
+                _actuator_metrics(env.model, trace, angle_samples, start) if start < trace.length else None
+            )
         if mode == "stand":
             margin = static_margin(env)
             result["final_com_margin_inside_loaded_contacts_m"] = float(margin) if np.isfinite(margin) else None
@@ -137,6 +173,9 @@ def main():
     parser.add_argument("--noise", type=float, default=0.0)
     parser.add_argument("--seeds", nargs="+", type=int, default=[0])
     parser.add_argument("--trace", type=Path, help="Save the first seed’s qpos, foot forces and clearances as NPZ")
+    parser.add_argument(
+        "--actuators", action="store_true", help="Report post-warmup force limits, hinge margins and command clipping"
+    )
     args = parser.parse_args()
     if not 0 <= args.warmup < args.seconds or args.noise < 0:
         parser.error("require 0 <= warmup < seconds and noise >= 0")
@@ -149,6 +188,7 @@ def main():
             seconds=args.seconds,
             warmup=args.warmup,
             trace_path=args.trace if i == 0 else None,
+            actuators=args.actuators,
         )
         for i, s in enumerate(args.seeds)
     ]

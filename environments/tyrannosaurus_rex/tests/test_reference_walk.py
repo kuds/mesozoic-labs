@@ -35,7 +35,12 @@ def test_audit_restores_settings_and_preserves_existing_probe():
     with TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.02) as env:
         horizon = env.max_episode_steps
         env._substep_probe_hook = probe
-        run(seed=0, noise=0.0, seconds=0.10, warmup=0.0, mode="stand", env=env)
+        result = run(seed=0, noise=0.0, seconds=0.10, warmup=0.04, mode="stand", env=env, actuators=True)
+        motors = result["actuators"]
+        assert motors["samples"] == 6 * env.frame_skip
+        assert len(motors["minimum_angular_margin_deg"]) == env.model.nu
+        assert max(motors["fraction_at_action_limit"].values()) == 0.0
+        assert 0 < max(motors["abs_force_share_peak"].values()) <= 1.0
         assert len(samples) == 10 * env.frame_skip
         assert env._substep_probe_hook is probe
         assert env.max_episode_steps == horizon

@@ -46,6 +46,8 @@ On level ground the reference completed ten 30-second trials, one nominal start 
 | Body motion | Net sideways drift under 29 mm over each measurement window. The pelvis rolls about 15° each way during weight transfer. In the nominal trial its pitch ranged from 3.0° nose-down to 3.4° nose-up. |
 | Toe loading | All three forward digits carried measurable vertical impulse. The pads carried about 82% of vertical impulse overall. In the last fifth of stance the toes carried 17–21%, up from roughly 2% before the push-off adjustment. The pads and toes accounted for all floor load. |
 
+Over 13,000 physics substeps in the nominal walking window, all eight actuated leg hinges stayed at least 8.78° inside their joint limits. Peak actuator force reached 51.3% of its cap at the left hip roll. The tail base used its full yaw command on 60.3% of control steps and moved up to 0.22° past its nominal 8° range under the compliant joint limit. Its lateral swing is constrained by that joint.
+
 In the nominal walk the head-tip sensor ranged from 1.07 to 1.24 m above the floor and the tail-tip sensor from 0.83 to 0.96 m. Both moved freely as the pelvis advanced.
 
 ![Top-down touchdown locations and synchronized foot loads from the filmed gait](trex_2026_11/footfalls.png)
@@ -72,7 +74,7 @@ Run these commands in the repository root with the simulation dependencies insta
 
 ```bash
 python -m environments.tyrannosaurus_rex.scripts.audit_motion --mode stand --seconds 20 --warmup 9
-python -m environments.tyrannosaurus_rex.scripts.audit_motion --seconds 30 --warmup 4 --noise 0 --seeds 0
+python -m environments.tyrannosaurus_rex.scripts.audit_motion --seconds 30 --warmup 4 --noise 0 --seeds 0 --actuators
 python -m environments.tyrannosaurus_rex.scripts.audit_motion --seconds 30 --warmup 4 --noise .05 --seeds 1 2 3 4 5 6 7 8 9
 python -m pytest environments/tyrannosaurus_rex/tests
 ```
