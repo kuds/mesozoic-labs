@@ -789,10 +789,20 @@ observation_schema = "bipedal-target-heading-free/v1"
 #     physics revision), now names TyrannosaurusRexEnv._cache_ids, where the
 #     sensor indices have lived since; a comment, so only the source closure
 #     moves with it.
+# 21. The anatomical T. rex hindlimb and appearance review (November 2026).
+#     Lengthen the femur and shorten the tibia around the same hip, ankle and
+#     135-degree home knee. Broaden digits II and IV and recenter their touch
+#     volumes. The force-bearing joints, floor geometry and body inertias
+#     change. The recentered digital touch volumes move the site-position
+#     fingerprint to policy r16. The 63 observations and 15 residual actions
+#     retain their order and ranges.
+#     An articulated render skin replaces the visible collision primitives.
+#     See docs/reviews/TREX_ANATOMICAL_REVIEW_2026_11.md for stance, physical
+#     walking trials and evaluation-only transfers of archived r10 policies.
 [plants.tyrannosaurus_rex.anatomical]
-physics_revision = 10
-policy_interface_revision = 15
-visual_revision = 4
+physics_revision = 11
+policy_interface_revision = 16
+visual_revision = 5
 observation_schema = "bipedal-target-heading-free/v1"
 
 # 7. Brachiosaurus can stand: residual action mapping and load-bearing servos.

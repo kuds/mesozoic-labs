@@ -194,13 +194,13 @@ def test_golden_fixture_records_its_provenance():
 #: (plant_versions note 20, decision D-D44). The revised anatomical feet and recovery dynamics are captured
 #: on physics r3 / policy interface r6; the fixture records the measured deterministic root-height shift.
 RECAPTURED = {
-    (TYRANNOSAURUS_REX, "stance"): 10,
-    (TYRANNOSAURUS_REX, "recovery"): 10,
+    (TYRANNOSAURUS_REX, "stance"): 11,
+    (TYRANNOSAURUS_REX, "recovery"): 11,
     (COMPSOGNATHUS_LONGIPES, "recovery"): 3,
 }
 RECAPTURED_INTERFACES = {
-    (TYRANNOSAURUS_REX, "stance"): (15, "bipedal-target-heading-free/v1"),
-    (TYRANNOSAURUS_REX, "recovery"): (15, "bipedal-target-heading-free/v1"),
+    (TYRANNOSAURUS_REX, "stance"): (16, "bipedal-target-heading-free/v1"),
+    (TYRANNOSAURUS_REX, "recovery"): (16, "bipedal-target-heading-free/v1"),
     (COMPSOGNATHUS_LONGIPES, "recovery"): (6, "bipedal-target-heading-free/v1"),
 }
 

@@ -3,6 +3,7 @@ sidebar_position: 1
 sidebar_label: Anatomical
 ---
 
+import useBaseUrl from '@docusaurus/useBaseUrl';
 import SpeciesCatalog from '@site/src/components/SpeciesCatalog';
 import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
 import {requireModel} from '@site/src/data/species';
@@ -11,7 +12,7 @@ export const MODEL = requireModel('tyrannosaurus_rex', 'anatomical');
 
 # T-Rex Model
 
-A dinosaur-inspired bipedal simulation model with an oversized head and vestigial forelimbs. Its stage 3 task uses contact from a fixed head geom as a bite proxy; the model has no articulated jaw.
+This 85.7 kg simulation models a scaled adult *Tyrannosaurus rex*. Its hip stands 0.877 m above the floor at home. The tibia measures 91% of femur length. A broad posterior skull, two-fingered forelimbs and tapering tail follow the simulated skeleton. Each foot rests on a plantar pad and three independently hinged toes. The smaller first digit sits above the floor. The hunting task detects contact at the snout with a fixed jaw.
 
 Since policy interface r14 the T-Rex's observation reads no world heading: the policy sees the direction of gravity in its own body frame, its velocity relative to the way it faces and the prey's direction relative to its body, so turning the whole scene changes nothing it observes. T-Rex trains on Stable-Baselines3 only.
 
@@ -73,13 +74,11 @@ parent, and the video cards below are keyed by stage id. See
 
 ## Anatomy
 
-The T-Rex model includes:
-- **Torso** - Forward-leaning body (~30 deg from horizontal) with ribcage and belly
-- **Neck + Skull** - Short neck assembly with an elongated skull shape and brow-ridge geoms
-- **Head** - Fixed contact geom used as a bite proxy; there is no articulated jaw
-- **Legs** - Digitigrade-style hind limbs (hip pitch/roll, knee, ankle; 3 passive toe digits per leg since physics r7; hip-roll servos sized for the body mass since physics r8; an elliptic friction cone since physics r9, so every heading is physically identical)
-- **Arms** - Tiny vestigial forelimbs with 2-fingered hands (passive, not actuated)
-- **Tail** - 5-segment heavy counterbalance to skull (4 actuated segments; its pitch springs preloaded since physics r10, so the passive tail holds level instead of drooping onto the first joint's ventral stop)
+The 2.88 m surface follows the broad ribcage, neck and five tail bodies as the animal moves. The three proximal tail bodies articulate, while the distal pair moves together. The pelvis settles about one degree nose-down. The head and neck servos control carriage and the short arms carry two visible fingers apiece.
+
+The femur and tibia measure 0.368 m and 0.335 m. At home the knee has a 135° interior angle and the ankle stands about 0.228 m above the floor. Digit III projects farthest, digit IV turns slightly farther outward than digit II turns inward, and the small medial hallux sits above the weight-bearing toes. Each foot's load signal combines the plantar pad and three digital touch sensors.
+
+![Previous and revised T. rex at the same scale, with closer views of the three weight-bearing toes](../../../../docs/reviews/trex_2026_11/anatomy.png)
 
 ## Diagnostic Metrics (behavior node, hunt)
 
@@ -97,7 +96,19 @@ After each training stage the `eval` command reports:
 | `success_lcb` | One-sided 95% lower bound on that fraction over the selected checkpoint's 30-episode panel — the `task_success/v1` hunt gate statistic (bar 0.5, provisional), published as `selected_model_success_lcb` |
 | `min_prey_distance` | Closest approach to prey (m) |
 
-## Training Videos
+## Reference walk
+
+<video controls preload="metadata" width="100%" src={useBaseUrl('/videos/tyrannosaurus_rex_anatomical_reference_walk.mp4')} aria-label="Anatomical T. rex walking on level ground, with a synchronized close-up of its feet and measured foot loads" />
+
+The reference controller uses the model's 15 actuators. The two views show the same 16-second simulation on level ground. The force readouts beneath the feet are in body weights. In the final 12 seconds the animal averaged 0.638 m/s and made 23 alternating touchdowns. Both feet shared support for 21.5% of that interval.
+
+![Measured touchdown locations and left and right foot forces during the reference walk](../../../../docs/reviews/trex_2026_11/footfalls.png)
+
+The track is broad for its step length. Successive landings were a median 0.33 m apart forward and 0.27 m across. The plantar pads carried 82% of the vertical impulse and the three forward toes shared 18%.
+
+## Historical training videos
+
+These PPO recordings show earlier model revisions.
 
 <SpeciesVideoSection species={MODEL.name} stages={MODEL.stages} />
 
@@ -106,6 +117,9 @@ After each training stage the `eval` command reports:
 ```bash
 # From the repository root. View the model
 python environments/tyrannosaurus_rex/scripts/view_model.py --embodiment anatomical
+
+# Reproduce the filmed reference walk and its foot-contact measurements
+python -m environments.tyrannosaurus_rex.scripts.audit_motion --mode walk --seconds 16 --warmup 4 --noise 0.05 --seeds 0
 
 # Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical train --stage 1

@@ -96,7 +96,9 @@ min_avg_reward = 100.0
 # not shadowed: collapse_settings_from_config (curriculum/early_stopping.py)
 # lets an explicit collapse_peak_floor win over the pair, so leaving it in
 # place would silently keep the old floor.
-collapse_peak_floor_reference = 1092.6  # The zero-action locomotion statue's reward at noise 0.05:
+# R11, seeds 3042-3081, 40 episodes. All 40 trials reached the horizon.
+collapse_peak_floor_reference = 1092.7
+# Previous calibrations: The zero-action locomotion statue's reward at noise 0.05:
                                         # 1091.51 ± 5.46 over 40 episodes, 40/40 full horizon, measured
                                         # 2026-08-23 with environments/shared/scripts/
                                         # zero_action_baseline.py --model-id tyrannosaurus_rex anatomical
@@ -128,13 +130,7 @@ collapse_peak_floor_fraction = 0.45     # Same fraction as stance and recovery; 
                                         # so the backstop arms as soon as collapse_min_evals is met and
                                         # watches the rest of the run. The ratio, not the product, is what
                                         # carries across a reward change.
-statue_constants_physics_revision = 10  # The trex PHYSICS revision the 1092.6 reference was measured on
-                                        # (1091.5 measured 2026-08-23 on r7 and carried on r8 and r9;
-                                        # re-measured on r10 above).
-                                        # test_statue_constant_freshness.py holds this pin
-                                        # against the plant manifest, so a plant bump that forgets the
-                                        # re-measure fails CI instead of silently training against a
-                                        # backstop calibrated on a plant that no longer exists.
+statue_constants_physics_revision = 11  # Re-measured with the r11 proportioned hindlimb (1092.7).
 min_avg_episode_length = 750            # Reduce from 800: T-Rex best run reached 682, 800 is too strict
 min_avg_forward_vel = 1.0               # A firm walk, re-derived from this plant (2026-08 review §5.3
                                         # decision (b)). The previous 2.0 was a velociraptor copy: on this

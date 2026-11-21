@@ -72,6 +72,33 @@ class TestHomePoseCOM(HomePoseCOMBase):
         assert min(contact.dist for pad_contacts in contacts.values() for contact in pad_contacts) >= -0.001
 
 
+@pytest.mark.parametrize(("side", "medial"), [("r", 1), ("l", -1)])
+def test_adult_hindlimb_and_weight_bearing_digits(env, side, medial):
+    """Measure the compiled joint centres and collision capsules at home."""
+    data, model = env.data, env.model
+    hip, knee, ankle, ball = [data.body(f"{side}_{name}").xpos for name in ("thigh", "tibia", "metatarsus", "toe_d3")]
+    femur, tibia, metatarsus = np.linalg.norm(np.diff([hip, knee, ankle, ball], axis=0), axis=1)
+    assert 0.90 <= tibia / femur <= 0.92
+    assert 0.56 < metatarsus / femur < 0.60
+    knee_angle = np.rad2deg(np.arccos((hip - knee) @ (ankle - knee) / (femur * tibia)))
+    assert knee_angle == pytest.approx(135, abs=0.1)
+    assert ankle[2] > 0.22
+
+    angles = []
+    lengths = []
+    for digit in (2, 3, 4):
+        geom = model.geom(f"{side}_toe_d{digit}_geom")
+        direction = data.geom_xmat[geom.id].reshape(3, 3)[:, 2].copy()
+        if direction[0] < 0:
+            direction *= -1
+        lengths.append(2 * geom.size[1])
+        angles.append(np.rad2deg(np.arctan2(medial * direction[1], direction[0])))
+    assert lengths[1] > lengths[2] > lengths[0]
+    assert 0.0 < angles[0] < -angles[2]
+    assert angles[1] == pytest.approx(0, abs=0.01)
+    assert 24.0 < angles[0] - angles[2] < 27.0
+
+
 class TestNeutralActionStability(NeutralActionStabilityBase):
     species_name = "T-Rex"
     root_body_id_attr = "pelvis_id"

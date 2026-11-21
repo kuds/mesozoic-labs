@@ -259,7 +259,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     expected_policy_revisions = {
         ALLOSAURUS_FRAGILIS: 1,
         VELOCIRAPTOR_MONGOLIENSIS: 14,
-        TYRANNOSAURUS_REX: 15,
+        TYRANNOSAURUS_REX: 16,
         BRACHIOSAURUS_ALTITHORAX: 10,
         DIBOTHROSUCHUS_ELAPHROS: 9,
         COMPSOGNATHUS_LONGIPES: 6,
@@ -268,14 +268,14 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     expected_physics_revisions = {
         ALLOSAURUS_FRAGILIS: 1,
         VELOCIRAPTOR_MONGOLIENSIS: 5,
-        TYRANNOSAURUS_REX: 10,
+        TYRANNOSAURUS_REX: 11,
         BRACHIOSAURUS_ALTITHORAX: 6,
         DIBOTHROSUCHUS_ELAPHROS: 3,
     }
     expected_visual_revisions = {
         ALLOSAURUS_FRAGILIS: 1,
         VELOCIRAPTOR_MONGOLIENSIS: 6,
-        TYRANNOSAURUS_REX: 4,
+        TYRANNOSAURUS_REX: 5,
         BRACHIOSAURUS_ALTITHORAX: 3,
         DIBOTHROSUCHUS_ELAPHROS: 2,
     }
