@@ -1,0 +1,171 @@
+.comparison {
+  margin-block: 2rem;
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .75rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.heading h2 {
+  font-size: clamp(2rem, 3.4vw, 2.75rem);
+  margin: 0;
+}
+
+.selector {
+  display: inline-flex;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  border: 1px solid var(--museum-rule);
+  border-radius: .2rem;
+}
+
+.selector label {
+  position: relative;
+  display: flex;
+  margin: 0;
+  cursor: pointer;
+}
+
+.selector input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.selector span {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: .4rem .85rem;
+  color: var(--museum-green);
+  font-size: .9375rem;
+}
+
+.selector input:checked + span {
+  background: var(--museum-green);
+  color: var(--museum-paper);
+}
+
+.selector input:focus-visible + span {
+  outline: 2px solid var(--museum-green);
+  outline-offset: 3px;
+}
+
+.figure {
+  margin: 0;
+  border: 1px solid var(--museum-rule);
+}
+
+.plate {
+  padding: clamp(1rem, 3vw, 2.5rem);
+  background: var(--museum-turntable);
+}
+
+.actual,
+.matched {
+  display: grid;
+  align-items: end;
+  column-gap: clamp(.75rem, 3vw, 2.5rem);
+  max-width: 56rem;
+  margin: 0 auto;
+}
+
+/* Each fraction and the scale bar share the same physical unit of one metre. */
+.actual {
+  grid-template-columns: minmax(0, 7.3fr) minmax(0, 1.2fr);
+}
+
+.matched {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.adult,
+.robot {
+  grid-row: 1;
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.adult { grid-column: 1; }
+.robot { grid-column: 2; }
+
+.ground {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  height: 1px;
+  background: var(--museum-muted);
+}
+
+.ruler {
+  grid-column: 1;
+  grid-row: 3;
+  width: calc(100% / 7.3);
+  margin-top: .5rem;
+  color: var(--museum-ink);
+  text-align: center;
+  font: .8125rem/1.45 var(--museum-mono);
+  white-space: nowrap;
+}
+
+.ruler::before {
+  content: '';
+  display: block;
+  box-sizing: border-box;
+  height: .4rem;
+  margin-bottom: .15rem;
+  border: solid currentColor;
+  border-width: 0 1px 2px;
+}
+
+.caption {
+  border-top: 1px solid var(--museum-rule);
+  padding: 1rem clamp(1rem, 2vw, 1.75rem);
+}
+
+.labels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .75rem 1rem;
+}
+
+.labels > div {
+  display: grid;
+  align-content: start;
+  gap: .2rem;
+}
+
+.labels > div:last-child { text-align: right; }
+.labels span { color: var(--museum-muted); }
+
+.labels a,
+.milestone {
+  font-size: .9375rem;
+  text-decoration: underline;
+  text-underline-offset: .2em;
+}
+
+.modeNote {
+  margin: .85rem 0 0;
+  color: var(--museum-muted);
+}
+
+.milestone {
+  display: inline-block;
+  margin-top: .6rem;
+}
+
+@media (forced-colors: active) {
+  .selector input:checked + span { outline: 2px solid Highlight; }
+  .ground { background: CanvasText; }
+}

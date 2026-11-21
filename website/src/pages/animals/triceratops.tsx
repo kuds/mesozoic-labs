@@ -2,6 +2,7 @@ import React from 'react';
 import Layout from '@theme/Layout';
 import {AnimalHeader} from '@site/src/components/AnimalPage/AnimalHeader';
 import RobotVersions from '@site/src/components/RobotVersions';
+import TriceratopsScale from '@site/src/components/TriceratopsScale';
 import {anatomicalStudy, triceratopsVersions} from '@site/src/data/triceratops';
 import styles from '@site/src/components/AnimalPage/styles.module.css';
 
@@ -24,6 +25,7 @@ export default function TriceratopsPage() {
           source={anatomicalStudy}
           sourceLabel="Anatomy & model notes"
         />
+        <TriceratopsScale />
         <RobotVersions speciesPath="/animals/triceratops" versions={triceratopsVersions} />
       </main>
     </Layout>
