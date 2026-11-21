@@ -27,7 +27,7 @@ def static_margin(env):
     return signed_margin(convex_hull(points), env.data.subtree_com[env.pelvis_id])
 
 
-def analyse(trace, clearance, start, model, *, pad_suffix="mtp_pad"):
+def analyse(trace, clearance, start, model, *, pad_suffix="mtp_pad", forward_forces=None):
     """Touchdowns, support and slip are measured independently of controller phase."""
     out = {}
     window = slice(start, None)
@@ -42,6 +42,7 @@ def analyse(trace, clearance, start, model, *, pad_suffix="mtp_pad"):
         off = events.falling_edges(down[:, foot])
         swings, duties, advances = [], [], []
         pad_share = {"early": [], "late": []}
+        late_toe_positive, late_pad_positive, late_toe_signed, late_toe_vertical, late_toe_share = [], [], [], [], []
         support = trace.support_floor_mean[:, np.asarray(trace.support_geom_foot) == foot]
         pad = trace.support_floor_mean[:, trace.support_geom_names.index(f"{side}_{pad_suffix}")]
         foot_clear = np.minimum(clearance[f"{side}_walking_toes"], clearance[f"{side}_pad"])
@@ -53,6 +54,19 @@ def analyse(trace, clearance, start, model, *, pad_suffix="mtp_pad"):
                 load = support[segment].sum()
                 if load > 0:
                     pad_share[phase].append(pad[segment].sum() / load)
+            if forward_forces is not None:
+                late = slice(liftoff - fifth, liftoff)
+                # Groups are digits II-IV together, then the pad. Positive and braking
+                # forces on different digits cancel before rectifying each group.
+                forward = forward_forces[late, :, foot, :]
+                substep_dt = dt / trace.frame_skip
+                toe_j, pad_j = np.maximum(forward, 0).sum(axis=(0, 1)) * substep_dt
+                late_toe_positive.append(toe_j)
+                late_pad_positive.append(pad_j)
+                late_toe_signed.append(forward[:, :, 0].sum() * substep_dt)
+                late_toe_vertical.append((support[late].sum() - pad[late].sum()) * dt)
+                if toe_j + pad_j > 0:
+                    late_toe_share.append(toe_j / (toe_j + pad_j))
             swings.append(np.max(foot_clear[liftoff:t2]))
             advances.append(trace.foot_pos[t2, foot, 0] - trace.foot_pos[t1, foot, 0])
         for step in td:
@@ -74,6 +88,14 @@ def analyse(trace, clearance, start, model, *, pad_suffix="mtp_pad"):
             "loaded_patch_slip_mps_mean": float(loaded.mean()) if loaded.size else None,
             "loaded_patch_slip_mps_p95": float(np.percentile(loaded, 95)) if loaded.size else None,
         }
+        if forward_forces is not None:
+            feet[side].update(
+                late_toe_positive_forward_impulse_ns_median=median(late_toe_positive),
+                late_toe_signed_forward_impulse_ns_median=median(late_toe_signed),
+                late_toe_vertical_impulse_ns_median=median(late_toe_vertical),
+                late_pad_positive_forward_impulse_ns_median=median(late_pad_positive),
+                late_toe_positive_forward_impulse_share_median=median(late_toe_share),
+            )
     landings.sort()
     alternating = [(b[0] != a[0] and b[1] != a[1]) for a, b in zip(landings, landings[1:])]
     pace_angles = []

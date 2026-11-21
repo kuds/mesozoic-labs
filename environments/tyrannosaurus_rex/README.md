@@ -6,7 +6,7 @@ A large dinosaur-inspired bipedal locomotion and head-contact environment built 
 
 The anatomical model represents adult proportions at simulation scale. It has a broad posterior skull, two-fingered forelimbs, a muscular counterbalancing tail and three load-bearing digits per foot. The hunting task detects contact between the fixed snout proxy and prey. The jaw is fixed.
 
-The [anatomy and walking review](../../docs/reviews/TREX_ANATOMICAL_REVIEW_2026_11.md) includes dimensions, a reproducible flat-ground walk and transfer trials with archived PPO checkpoints.
+The [anatomy and walking review](../../docs/reviews/TREX_ANATOMICAL_REVIEW_2026_11.md) includes dimensions, a reproducible flat-ground walk and transfer trials with archived PPO checkpoints. The [walk refinement](../../docs/reviews/TREX_WALK_REFINEMENT_2026_11.md) measures track width, pelvic roll and the forward impulse from the toes on the current reference walk.
 
 ## Generated Specifications, Curriculum, and Results
 

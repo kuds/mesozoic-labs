@@ -68,6 +68,9 @@ class BipedReferenceWalk:
     def _speed(self, cycles):
         return self.stride / self.period
 
+    def _sway_amplitude(self, cycles):
+        return self.lateral_sway
+
     def _foot_pitch(self, phase, cycles):
         return np.zeros_like(phase)
 
@@ -88,18 +91,19 @@ class BipedReferenceWalk:
         feet[:, 0] += self.rocker_radius * (1 - np.cos(self.sole_pitch))
         feet[:, 2] += self.swing_height * np.sin(np.pi * swing) ** 2
         # Move each track medially over successive landings, beginning in
-        # the reset stance. Both anchors remain world-fixed during support.
+        # the reset stance. Keep these lateral targets fixed during support.
         before_width = np.clip((touchdown - 3) / 3, 0, 1)
         after_width = np.clip((touchdown - 2) / 3, 0, 1)
         feet[:, 1] += self.medial_step * np.array([1, -1]) * (before_width + blend * (after_width - before_width))
 
         ramp = min(time / self.start, 1.0)
         angle = 2 * np.pi * (cycles - self.stance_fraction / 2)
-        sway = -self.lateral_sway * np.cos(angle)
+        amplitude = self._sway_amplitude(cycles)
+        sway = -amplitude * np.cos(angle)
         root = self.key.qpos[:3] + [self._distance(cycles), sway * ramp, -self.walking_crouch * ramp]
         frequency = 2 * np.pi / self.period
         if time > self.start:
-            velocity = np.array([self._speed(cycles), self.lateral_sway * frequency * np.sin(angle), 0.0])
+            velocity = np.array([self._speed(cycles), amplitude * frequency * np.sin(angle), 0.0])
         else:
             velocity = np.array([0.0, sway / self.start, 0.0])
         lateral_accel = -self.lateral_accel_gain * frequency**2 * sway if time >= self.start else 0.0
