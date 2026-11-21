@@ -169,7 +169,7 @@ def test_the_off_path_scenario_restores_the_pre_landing_recipe_on_each_plant():
     from environments.shared.config import load_all_stages
     from environments.shared.task_fingerprint import stage_task_fingerprint
 
-    from .critic_phase_off_scenario import pre_landing_stance
+    from .critic_phase_off_scenario import archived_plant_identity, pre_landing_stance
 
     committed = load_all_stages(TYRANNOSAURUS_REX)
     configs = copy.deepcopy(committed)
@@ -179,11 +179,9 @@ def test_the_off_path_scenario_restores_the_pre_landing_recipe_on_each_plant():
         "sha256:9d1598a6b2a96a1f87412bb0398abb49d1f23430aa72462f03cbcd68ab5d7a2e"
     )
     # The critic-off golden captured physics r10 / policy interface r15 at 4c9d5e9b.
-    archived_plant = {
-        "physics_sha256": "sha256:6a47a0eb78164b9738752e2cf928aa0a6fd3ef98fc953eddc9bcb2eca366da4d",
-        "policy_interface_sha256": "sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8",
-    }
-    archived = stage_task_fingerprint(TYRANNOSAURUS_REX, 1, stage_config=stance, plant_identity=archived_plant)
+    archived = stage_task_fingerprint(
+        TYRANNOSAURUS_REX, 1, stage_config=stance, plant_identity=archived_plant_identity()
+    )
     assert archived["task_sha256"] == "sha256:533fff20288d02faea724721992c7d3efca65f7b2f3a6e06c4ad2e716b2bdfda"
     assert stage_task_fingerprint(TYRANNOSAURUS_REX, 1, stage_config=stance)["task_sha256"] == (
         "sha256:e9d349f82ea53e12ce43dbbb3bcf24aa91dfb466300be6d9d364147b5689ab2a"

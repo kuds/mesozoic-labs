@@ -151,6 +151,13 @@ def _record(model: Any, updates: list[dict[str, Any]], stage_dir: Path, final: s
     return {"digests": digests, "structure": structure}
 
 
+def archived_plant_identity() -> dict[str, Any]:
+    """The r10/r15 identity recorded by the T. rex stance training screen."""
+    record = Path(__file__).parent / "fixtures" / "ltsb_stance" / "stance7_r10LTSBpc_s42.json"
+    stage = json.loads(record.read_text(encoding="utf-8"))["stage_config"]
+    return dict(stage["plant_identity"])
+
+
 def use_archived_plant(work: Path, species: Any) -> None:
     """Select the measured r10 plant for this isolated trainer process. Every env is still validated in make_env."""
     import gzip
@@ -160,13 +167,12 @@ def use_archived_plant(work: Path, species: Any) -> None:
     from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
     fixture = Path(__file__).parent / "fixtures" / "critic_phase_off"
-    record = json.loads((fixture / "trex_r10.json").read_text(encoding="utf-8"))
     source = gzip.decompress((fixture / "trex_r10.xml.gz").read_bytes())
-    if hashlib.sha256(source).hexdigest() != record["source_sha256"]:
+    if hashlib.sha256(source).hexdigest() != "99fea80a993a2c6760ab4b32c00fd6993c44ee55bc74f0020f48fe2df41b9459":
         raise ValueError("archived r10 MJCF differs from its recorded source")
     model_path = work / "trex_r10.xml"
     model_path.write_bytes(source)
-    identity = PlantIdentity.from_mapping(record["plant_identity"])
+    identity = PlantIdentity.from_mapping(archived_plant_identity())
 
     class ArchivedTyrannosaurusRex(TyrannosaurusRexAnatomicalEnv):
         MODEL_PATH = model_path
