@@ -190,46 +190,31 @@ D-C13). The storage cell refuses any other `SEED` before it writes anything (D-C
 widened root before it consults any trunk (D-C13 as amended by cleanup ROW-4/6's decision 6 (b)).
 `docs/KNOWN_ISSUES.md` lists the pre-Phase-C checkpoints this applies to.
 
-## Backend parity and runtime binding
+## Training backend and runtime binding
 
 The policy fingerprint includes normalized executable code plus portable, quantized synthetic observation probes.
-Stable-Baselines3 is the only training, evaluation and evidence backend (decision D-D17). Two models (the anatomical
-brachiosaurus and dibothrosuchus) still declare the dual SB3/MJX backend, because their policy-interface
-digests hash the source tokens of a frozen MJX interface core (`build_mjx_observation` in `environments/shared/mjx_env.py`,
-`jax_setup.make_obs_fn`, the `mjx_utils` action-mapping and home-reset functions and the `obs_functions.py` observation
-builders), record each model's `environments/<species>/anatomical/mjx_config.py` registration (its module name and
-registered values) and record an MJX observation probe. For these
-models the canonical writer requires SB3 and MJX to produce the same ordered observation (the two Compsognathus plants,
-the velociraptor since its policy-interface revision 11 (decision D-D25) and the T-Rex since its revision 14 (decision
-D-D31) are SB3-only and report parity `None`: `backend_observation_equal` is computed only when the environment lists
-`jax-mjx` among its training backends). Since
-the Phase C interface revision (BEHAVIOR_RECIPES_PLAN §4.6) both probes inject the non-zero
-`COMMAND_PROBE_VECTOR = (0.25, -0.5, 0.75)` into the trailing 3-dim command segment — the SB3 probe
-sets `env._command` beside the model/data swap and the MJX probe passes `command=` to `build_mjx_observation` — so the
-parity assertion covers the appended slot rather than three zeros. The probe runs `build_mjx_observation` on NumPy
-data, so it needs no JAX install. It also requires the registration to map exactly one root body, the one the
-observation schema names (`torso` for `quadrupedal-target/v1`, otherwise `pelvis`), because `build_mjx_observation`
-roots on `torso` whenever one is registered. MJX registration values (root-body IDs, sensor offsets, action mapping
-and frame skip) are versioned alongside the SB3 interface.
+Stable-Baselines3 is the only training, evaluation and evidence backend (decision D-D17), and every model declares it
+alone: `supported_training_backends = ("stable-baselines3",)` on the environment and `training_backends =
+["stable-baselines3"]` on its embodiment table in `configs/species_manifest.toml`, which must agree. The plant contract,
+the species-manifest reader and the command frame refuse any other value, and refuse a declared `jax-mjx` by name.
+The policy payload records the declaration (`interface_implementations.supported_training_backends`) and hashes the
+environment's `_cache_ids` tokens (`interface_implementations.sb3_sensor_cache`), so a token edit there, reward-target
+setup included, is a policy-interface revision. Since the Phase C interface revision (BEHAVIOR_RECIPES_PLAN §4.6) the
+observation probe injects the non-zero `COMMAND_PROBE_VECTOR = (0.25, -0.5, 0.75)` into the trailing 3-dim command
+segment (it sets `env._command` beside the model/data swap), so a dropped or mis-ordered command slot hashes
+differently from three zeros.
 
-Nothing trains on the frozen core, and it is never edited, reformatted or moved: any token change moves those two
-models' policy-interface digests, which `plant_contract --check` reports and
-`environments/shared/tests/test_plant_contract_frozen_mjx.py` pins function by function. The two registrations moved
-once, into `environments/<species>/anatomical/`, when decision D-D33 renamed the species (their registered `species`
-value became the new ID; nothing else changed); their recorded module name moved with them, inside that decision's
-policy-interface bump (`configs/plant_versions.toml` note 19). A model leaves the core only
-by declaring itself SB3-only (`supported_training_backends = ("stable-baselines3",)` on the environment and
-`training_backends = ["stable-baselines3"]` on its embodiment table in `configs/species_manifest.toml`, which must
-agree) inside its next deliberate `policy_interface_revision` bump; once both have done so, the core and its pin test
-are deleted ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §4.1). The velociraptor did so at its policy-interface
-revision 11 (decision D-D25), whose summed foot touch sensors the frozen registration cannot mirror, and the T-Rex at
-its revision 14 (decision D-D31), whose heading-free observation the frozen builders cannot produce; each
-`mjx_config.py` was deleted. An SB3-only model's `_cache_ids` tokens then enter its policy digest
-(`interface_implementations.sb3_sensor_cache`), so on the T-Rex a token edit there, reward-target setup included, is a
-policy-interface revision. The T-Rex keeps its action low-pass filter in its interface
-(`interface_implementations.action_low_pass_filter` hashes the cutoff and `action_filter.py`'s two functions), which
-the pin test keeps pinning. A new species or embodiment declares SB3 only; the model-identity contract test allows
-`jax-mjx` on the two frozen anatomical registrations alone.
+The JAX/MJX runtime was retired by D-D17, but a frozen MJX interface core (`mjx_env.py`, `jax_setup.py`, `mjx_utils.py`
+and `obs_functions.py`, with one `mjx_config.py` registration per dual model) stayed while models still hashed its
+tokens into their policy-interface digests, with an MJX observation probe whose parity with SB3 the canonical writer
+required. Each model left it by declaring itself SB3-only inside a deliberate `policy_interface_revision` bump
+([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md) §4.1): the velociraptor at its revision 11 (decision D-D25), the
+T-Rex at its revision 14 (decision D-D31), and the brachiosaurus and dibothrosuchus, the last two, at their revisions 11
+and 10 (`configs/plant_versions.toml` note 23), when the core, both registrations and the backend itself were removed.
+The payload still carries the constant `jax_interface = {"supported": false, "backend": "jax-mjx"}` and
+`backend_observation_equal = null` that every SB3-only model recorded, so no other model's digest moved with the core.
+The T-Rex keeps its action low-pass filter in its interface (`interface_implementations.action_low_pass_filter` hashes
+the cutoff and `action_filter.py`'s two functions, whose tokens `test_action_filter.py` pins).
 
 ### The heading-free observation schema
 
@@ -247,13 +232,12 @@ interface 14, the maintainer's decision of 2026-11-08, note 22; no other model d
 moved), and it refuses a payload whose
 segment widths do not sum to the observation width or whose last segment is not the command. It hashes the helpers'
 function tokens beside `_get_obs` (`interface_implementations.heading_free_observation`), because `_get_obs` only calls
-them, and it refuses the schema on a model that declares `jax-mjx`. The legacy schemas' segment tables are
+them. The legacy schemas' segment tables are
 unchanged, so no other model's digest moved. The synthetic probe's non-unit quaternion is normalized like any other,
 so the probe still exercises a real tilt.
 
 Before any artifact is tagged, training validates the environment that actually runs: SB3 validates the concrete
-Gymnasium model and observation interface behind the VecEnv, and on the two dual models that validation also
-requires the backend parity above (`validate_environment_plant`). This prevents a stale runtime registry, alternate
+Gymnasium model and observation interface behind the VecEnv (`validate_environment_plant`). This prevents a stale runtime registry, alternate
 model path, or modified sensor/body mapping from being mislabeled with the canonical identity.
 
 `current_plant_identity` keeps one build per model for the life of the process (cleanup CU-14b). Every call still

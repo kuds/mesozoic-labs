@@ -1257,8 +1257,8 @@ closed, each with a comment) is the cleanup plan's §2 row 19, and G1..G4 are su
   code cell parses, as `.github/workflows/python-ci.yml` does; an edited notebook
   round-trips through `json.dump` with `indent=1`, the plan's §5 PR process); the
   SB3 job for trainer changes. The review container is a venv with SB3 2.9.0,
-  torch and mujoco 3.10.0, without JAX (since cleanup PR-B only the kept `jax`
-  parameter of `test_obs_functions.py` uses it, and it skips without JAX) and
+  torch and mujoco 3.10.0, without JAX (no test uses it since the frozen MJX
+  interface core was removed, `configs/plant_versions.toml` note 23) and
   without IPython (since the notebook-only PR-12 slice deleted
   `test_behavior_notebook.py` no test needs it).
 - Operational choices of 2026-09-20 (moved from section 5 by cleanup CU-17): the

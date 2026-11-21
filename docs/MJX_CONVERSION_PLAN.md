@@ -3,10 +3,10 @@
 > **Status:** Retired design record (D-D17, 2026-09-26). Cleanup PR-B removed
 > the JAX/MJX runtime this plan built (trainer, evaluator, stage writer,
 > notebook, `[jax]` extras and stage tables, CI job); it is recoverable from the
-> `0.3.8` tag (`afad625`) and git history. A frozen MJX interface core stays
-> because three species' policy-interface digests hash it (four until the
-> velociraptor declared itself SB3-only on 2026-10-06, D-D25)
-> ([PLANT_CONTRACT.md](PLANT_CONTRACT.md)). Sections 1–8 describe the original
+> `0.3.8` tag (`afad625`) and git history. The frozen MJX interface core it
+> kept for the species' policy-interface digests was removed once the last two
+> species declared themselves SB3-only (`configs/plant_versions.toml` note 23;
+> [PLANT_CONTRACT.md](PLANT_CONTRACT.md)). Sections 1–8 describe the original
 > target architecture, not current code.
 
 Detailed plan for adding MuJoCo MJX (JAX-accelerated GPU simulation) support to

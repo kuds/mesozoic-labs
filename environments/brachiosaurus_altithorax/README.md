@@ -28,6 +28,10 @@ The species has one model, the pair (species, embodiment) of
 
 ## Implementation Notes
 
+Stable-Baselines3 is the model's only training backend. It declared itself SB3-only at policy interface r11
+(`configs/plant_versions.toml` note 23), when the frozen MJX interface core and its `mjx_config.py` registration were
+removed; policy-interface r10 checkpoints fail its plant check, so they cannot seed a warm start or a trunk reuse.
+
 ### Anatomical review
 
 The original model placed both girdles at the same height and bent its elbows 45° to fit the forelimbs on the floor. Its elbows and hind knees folded in the same direction. Both pairs of feet stood on identical pads. Under the neutral command, the unsupported neck flexed to its joint stop and the snout lost 1.44 m of height in 20 s.
@@ -120,7 +124,6 @@ brachiosaurus_altithorax/
 ├── anatomical/
 │   ├── __init__.py
 │   ├── env.py                   # BrachiosaurusAltithoraxAnatomicalEnv and its body data
-│   ├── mjx_config.py            # frozen MJX registration (docs/PLANT_CONTRACT.md); never edited
 │   └── assets/
 │       └── brachiosaurus_altithorax_anatomical.xml   # MuJoCo MJCF model
 ├── scripts/
