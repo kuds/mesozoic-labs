@@ -127,7 +127,7 @@ Species notes:
   it ([KNOWN_ISSUES](../../docs/KNOWN_ISSUES.md); the amendment in
   [TRAINING_RECIPE_REVIEW.md](TRAINING_RECIPE_REVIEW.md) says how). The robot's stance passes on full-horizon and
   unsupported-duty bars.
-- **Exploration noise.** Keep the anatomical stance recipe's `log_std_init` at −2.0: the standing model survives that
+- **Exploration noise.** Keep the anatomical stance recipe's `log_std_init` at `-2.0`: the standing model survives that
   initial noise but falls under noise not far above it
   ([`tests/test_anatomical_noise_tolerance.py`](tests/test_anatomical_noise_tolerance.py)). Re-measure after any
   change to the MJCF or the action mapping.
@@ -157,10 +157,10 @@ The main reward groups:
   joint pose and a fall penalty.
 - **Progress:** forward velocity and progress toward the target, heading alignment and a target-reach bonus.
 - **Stability:** drift, sideways-velocity and spin penalties, and an optional gait-symmetry term.
-- **Effort:** energy and action smoothness.
 - **Stance quality** (anatomical stance and recovery): support under both feet, level pads and the settled stance
   width on loaded feet, the home leg pose and every support geom loaded, and penalties on floor impacts, airborne
   physics substeps, commands held at their limits and action jerk.
+- **Effort:** energy and action smoothness.
 
 The weights are the `CompsognathusLongipesEnv` constructor defaults in `base_env.py` and, for the stance-quality
 terms, the `CompsognathusLongipesAnatomicalEnv` defaults in `anatomical/env.py`, where they are off. The `[env]` table

@@ -133,9 +133,9 @@ layouts.
 
 The main reward groups:
 
-- **Progress:** forward velocity toward the prey, with optional backward, drift, sideways, spin and speed penalties.
 - **Survival and posture:** an alive bonus, a posture term centered on the settled pitch, an optional nosedive
   penalty, and a fall penalty.
+- **Progress:** forward velocity toward the prey, with optional backward, drift, sideways, spin and speed penalties.
 - **Strike:** approach shaping, optional proximity terms, and a bonus on claw contact.
 - **Stance quality** (stance stage only): support under both feet, the home leg, tail and neck poses, and penalties
   on floor impacts, airborne physics substeps, action jerk and commands held at their limits.

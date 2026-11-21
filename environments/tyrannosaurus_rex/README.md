@@ -141,9 +141,9 @@ controls: zero holds the standing pose, and -1 and +1 reach each actuator's limi
 
 The main reward groups:
 
-- **Progress:** forward velocity toward the prey, with optional backward, drift, sideways, spin and speed penalties.
 - **Survival and posture:** an alive bonus, posture, nosedive and height terms, head clearance and neck posture, and a
   fall penalty.
+- **Progress:** forward velocity toward the prey, with optional backward, drift, sideways, spin and speed penalties.
 - **Bite:** approach shaping, head-proximity shaping, and a bonus when the head-contact geom touches the prey.
 - **Stance quality** (stance and recovery): support and load balance between the feet, the home leg and tail poses,
   flat soles and a steady stance width, sideways lean, foot stagger, each foot's center of pressure, and penalties on

@@ -115,14 +115,13 @@ Species notes:
 
 ## Task and rewards
 
-The species task is food reach. At reset a food target appears ahead of and above the animal. Success is the
-head-tip site coming within a configured distance of the food; it is a distance test, and no food geom touches the
-head. The environment reports it as `food_reached` and, when the food-reach bonus is enabled (the food-reach stage),
-ends the episode.
+A food target spawns ahead of and above the animal at reset. The task is to bring the head-tip site within a
+configured distance of it; it is a distance test, and no food geom touches the head. The environment reports
+`food_reached` and, when the food-reach bonus is enabled (the food-reach stage), ends the episode.
 
 The observation holds the joint positions and velocities, the torso orientation quaternion, gyro, linear velocity and
-accelerometer, one touch channel per foot, the food direction and distance, and the command. Actions are residuals in
-[-1, 1] around the MJCF `home` controls, so zero action holds the home pose. The docstring of
+accelerometer, one touch channel per foot, the food direction and distance, and the command. Actions are offsets from
+the MJCF `home` controls: zero holds the standing pose, and -1 and +1 reach each actuator's limits. The docstring of
 [`base_env.py`](base_env.py) gives both layouts.
 
 The main reward groups:
@@ -131,13 +130,13 @@ The main reward groups:
   term.
 - **Progress:** forward velocity and heading toward the food, with penalties on backward, sideways and drifting
   motion, spin, speed above a threshold and standing idle.
+- **Food reach:** a large bonus on success, shaping on the head-to-food distance and a head-proximity term.
 - **Gait quality:** penalties on torso and tail-tip angular velocity and on jerky actions, and a reward for
   alternating diagonal foot pairs.
 - **Effort:** an energy penalty on actuator use.
-- **Food reach:** a large bonus on success, shaping on the head-to-food distance and a head-proximity term.
 
 The weights are the `BrachiosaurusAltithoraxEnv` constructor defaults in `base_env.py`, where most terms are off,
-overridden by the `[env]` tables of `stance.toml`, `locomotion.toml` and `food_reach.toml` in
+overridden by the `[env]` table of each stage TOML in
 [`configs/brachiosaurus_altithorax/anatomical/`](../../configs/brachiosaurus_altithorax/anatomical/). An episode ends
 when the torso height leaves its healthy range or the torso tilts too far, when the torso, belly, head or distal tail
 touches the floor, or when the food is reached. The thresholds are in `base_env.py`.
@@ -151,7 +150,7 @@ touches the floor, or when the food is reached. The thresholds are in `base_env.
 | [`anatomical/assets/`](anatomical/assets/) | The MJCF model |
 | [`data/`](data/) | The review's figure |
 | [`scripts/`](scripts/) | The viewer (`view_model.py`), the smoke test (`test_env.py`), the reference walk (`reference_walk.py`) and the soft-tissue mesh builder (`axial_surface.py` with `limb_surface.py`) that rewrites the skin meshes in the MJCF |
-| [`tests/`](tests/) | Environment, reward, actuator-bound, static-balance, standing-balance and reference-walk tests |
+| [`tests/`](tests/) | Environment, reward, actuator-bound, static-balance, stance-quality and reference-walk tests |
 
 ## Further reading
 

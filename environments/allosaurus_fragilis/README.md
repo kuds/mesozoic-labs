@@ -133,7 +133,7 @@ The main reward groups:
 - **Effort:** an energy penalty on the squared action.
 
 The weights are the `AllosaurusFragilisEnv` constructor defaults in [`base_env.py`](base_env.py), overridden by the
-`[env]` tables of `stance.toml` and `locomotion.toml` in
+`[env]` table of each stage TOML in
 [`configs/allosaurus_fragilis/anatomical/`](../../configs/allosaurus_fragilis/anatomical/). An episode ends on a
 non-finite state, a pelvis height out of range or excessive tilt, any body part other than the feet touching the floor,
 or a completed course. The thresholds are in `base_env.py`.

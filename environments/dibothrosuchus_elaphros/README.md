@@ -61,13 +61,6 @@ per foot, the share of load on the digits, track width, the fewest feet loaded a
 slip, and the motion of the trunk, snout and tail tip. `--strides` sets the total number of strides, and `--seed` with
 `--reset-noise` starts from a perturbed pose.
 
-Standing is checked with the do-nothing policy, which holds the MJCF `home` pose. This command runs the standing panel
-at the stage-1 reset noise and prints its reward, episode length and terminations:
-
-```bash
-python -m environments.shared.scripts.zero_action_baseline --model-id dibothrosuchus_elaphros anatomical --episodes 40 --seed 3082
-```
-
 [`tests/test_reference_walk.py`](tests/test_reference_walk.py) checks the walk,
 [`tests/test_com_stance_quality.py`](tests/test_com_stance_quality.py) checks standing balance, and the
 [walking replay](../../website/static/videos/dibothrosuchus_elaphros_anatomical_reference_walk.mp4) shows the default
@@ -125,13 +118,13 @@ Species notes:
 
 ## Task and rewards
 
-The species task is the snap. At reset a small prey sphere appears ahead of the animal, just above the ground.
-Success is contact between the fixed snout geom `snout_snap` and the prey; the model has no articulated jaw. The
-environment reports it as `snap_success` and, when the snap bonus is enabled (the snap stage), ends the episode.
+A small prey sphere spawns ahead of the animal at reset, just above the ground. The task is to touch it with the
+fixed snout geom `snout_snap`; the model has no articulated jaw. The environment reports `snap_success` and, when
+the snap bonus is enabled (the snap stage), ends the episode.
 
 The observation holds the joint positions and velocities, the trunk orientation quaternion, gyro, linear velocity and
-accelerometer, one touch channel per foot, the prey direction and distance, and the command. Actions are residuals in
-[-1, 1] around the MJCF `home` controls, so zero action holds the home pose. The docstring of
+accelerometer, one touch channel per foot, the prey direction and distance, and the command. Actions are offsets from
+the MJCF `home` controls: zero holds the standing pose, and -1 and +1 reach each actuator's limits. The docstring of
 [`base_env.py`](base_env.py) gives both layouts.
 
 The main reward groups:
@@ -140,15 +133,15 @@ The main reward groups:
   term.
 - **Progress:** forward velocity and heading toward the prey, with penalties on backward, sideways and drifting
   motion, spin, speed above a threshold and standing idle.
-- **Gait quality:** penalties on trunk and tail-tip angular velocity and on jerky actions, and a reward for
-  alternating diagonal foot pairs (front right with rear left, front left with rear right).
-- **Effort:** an energy penalty on actuator use.
 - **Snap:** a large bonus on contact, shaping on the snout-to-prey distance and a snout-proximity term for the last
   approach. The shaping is measured from the snout, not the trunk: the skull rides a mobile neck, so trunk-referenced
   shaping would keep paying after the snout had overshot the prey.
+- **Gait quality:** penalties on trunk and tail-tip angular velocity and on jerky actions, and a reward for
+  alternating diagonal foot pairs (front right with rear left, front left with rear right).
+- **Effort:** an energy penalty on actuator use.
 
 The weights are the `DibothrosuchusElaphrosEnv` constructor defaults in `base_env.py`, where several terms are off,
-overridden by the `[env]` tables of `stance.toml`, `locomotion.toml` and `snap.toml` in
+overridden by the `[env]` table of each stage TOML in
 [`configs/dibothrosuchus_elaphros/anatomical/`](../../configs/dibothrosuchus_elaphros/anatomical/). An episode ends
 when the trunk height leaves its healthy range (the lower bound catches a collapse into a sprawl), the trunk tilts or
 pitches nose-down too far, the snout tip drops to the floor, the skull, snout, trunk, belly or distal tail touches the
@@ -163,7 +156,7 @@ floor, or the snap succeeds. The thresholds are in `base_env.py`, and the review
 | [`anatomical/assets/`](anatomical/assets/) | The MJCF model |
 | [`data/`](data/) | The review's figure |
 | [`scripts/`](scripts/) | The viewer (`view_model.py`), the actuator sweep (`test_actuators.py`), the smoke test (`test_env.py`) and the reference walk (`reference_walk.py`) |
-| [`tests/`](tests/) | Environment, reward, actuator-bound, static-balance, standing-balance and reference-walk tests |
+| [`tests/`](tests/) | Environment, reward, actuator-bound, static-balance, stance-quality and reference-walk tests |
 
 ## Further reading
 
