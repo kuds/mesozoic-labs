@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from '@docusaurus/Link';
-import useBaseUrl from '@docusaurus/useBaseUrl';
+import {RotationButton, Turntable, useTurntableMotion} from './Turntable';
 import styles from './styles.module.css';
 
 interface AnimalHeaderProps {
@@ -23,6 +23,7 @@ export function AnimalHeader({
   name, scientificName, classification, collection, modelLabel, title, description,
   image, alt, caption, source, sourceLabel = 'Model source', compact = false,
 }: AnimalHeaderProps) {
+  const motion = useTurntableMotion();
   return (
     <>
       <div className={styles.breadcrumb}>
@@ -38,7 +39,7 @@ export function AnimalHeader({
       </div>
       <figure className={compact ? styles.compactSpecimen : styles.specimen}>
         <div className={styles.plate}>
-          <img className={styles.specimenImage} src={useBaseUrl(image)} alt={alt} width={1500} height={750} />
+          <Turntable key={image} className={styles.specimenImage} image={image} alt={alt} motion={motion} />
           <div className={styles.plateText}>
             <p className={styles.meta}>{modelLabel}</p>
             <h2>{title}</h2>
@@ -46,7 +47,10 @@ export function AnimalHeader({
           </div>
         </div>
         <figcaption className={styles.caption}>
-          <span>{caption}</span>
+          <span className={styles.captionControls}>
+            {caption} · Drag or swipe to rotate
+            <RotationButton motion={motion} />
+          </span>
           <a href={source}>{sourceLabel}</a>
         </figcaption>
       </figure>

@@ -4029,8 +4029,8 @@ class TestNotebookWithoutTheDirectionTerrainMode:
             (True, False, True, "local edits"),
             (False, True, True, "Restart"),
             (False, False, True, None),
-            # A clone whose first fetch failed: no index, HEAD already at the fetched commit, and
-            # every file staged as deleted. Setup checks it out instead of reporting an empty tree.
+            # A checkout whose first fetch failed: no index yet, so setup checks it out directly
+            # without running `git rev-parse HEAD` or `git status --porcelain`.
             (True, False, False, None),
         ],
     )
@@ -4046,15 +4046,7 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         (checkout / ".git").mkdir(parents=True)
         if indexed:
             (checkout / ".git" / "index").touch()
-        source = code_cell(path, "REPO_REF =")
-        tree = ast.parse(source)
-        colab_block = next(node for node in tree.body if isinstance(node, ast.If))
-        start = next(
-            i
-            for i, node in enumerate(colab_block.body)
-            if isinstance(node, ast.Import) and node.names[0].name == "pathlib"
-        )
-        body = colab_block.body[start:]
+        _, body = _colab_setup(path)
         for node in body:
             if (
                 isinstance(node, ast.Assign)
@@ -4070,8 +4062,10 @@ class TestNotebookWithoutTheDirectionTerrainMode:
             if command[1:3] == ["rev-parse", "FETCH_HEAD^{commit}"]:
                 return "new-commit\n"
             if command[1:3] == ["rev-parse", "HEAD"]:
-                return "old-commit\n" if indexed else "new-commit\n"
+                assert indexed, "must not run rev-parse HEAD when there is no index"
+                return "old-commit\n"
             if command[1:3] == ["status", "--porcelain"]:
+                assert indexed, "must not run status --porcelain when there is no index"
                 return " M notebook.ipynb\n" if dirty else ""
             raise AssertionError(command)
 
@@ -4081,7 +4075,6 @@ class TestNotebookWithoutTheDirectionTerrainMode:
             "Path": Path,
             "REPO_REF": "feature-branch",
             "sys": types.SimpleNamespace(modules={"environments": object()} if loaded else {}),
-            "importlib": types.SimpleNamespace(util=types.SimpleNamespace(find_spec=lambda name: object())),
         }
         code = compile(ast.fix_missing_locations(ast.Module(body=body, type_ignores=[])), "setup", "exec")
         if expected:
@@ -4091,8 +4084,49 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         else:
             exec(code, namespace)
             assert ["git", "checkout", "--detach", "new-commit"] in commands
-        assert commands[0] == ["git", "fetch", "origin", "feature-branch"]
+        assert commands[0] == ["git", "fetch", "--depth", "1", "origin", "feature-branch"]
         assert not any("--force" in command or "reset" in command or "clean" in command for command in commands)
+
+    @pytest.mark.parametrize("path", [NOTEBOOK_PATH, DRIVE_SUMMARY_PATH], ids=["sb3", "drive_summary"])
+    def test_colab_fresh_checkout_uses_shallow_fetch(self, tmp_path, monkeypatch, path):
+        """A fresh Colab runtime initializes and shallow-fetches only REPO_REF instead of cloning full history."""
+        import subprocess
+        import types
+
+        checkout = tmp_path / "fresh_checkout"
+        _, body = _colab_setup(path)
+        for node in body:
+            if (
+                isinstance(node, ast.Assign)
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == "repo_dir"
+            ):
+                node.value = ast.Call(
+                    func=ast.Name(id="Path", ctx=ast.Load()), args=[ast.Constant(str(checkout))], keywords=[]
+                )
+        commands = []
+
+        def fake_run(command, **kwargs):
+            assert kwargs.get("check") is True
+            commands.append(command)
+            if command[:2] == ["git", "init"]:
+                (checkout / ".git").mkdir(parents=True, exist_ok=True)
+
+        def fake_output(command, **kwargs):
+            if command[1:3] == ["rev-parse", "FETCH_HEAD^{commit}"]:
+                return "abc123\n"
+            raise AssertionError(f"unexpected check_output on fresh checkout: {command}")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        monkeypatch.setattr(subprocess, "check_output", fake_output)
+        namespace = {"Path": Path, "REPO_REF": "main", "sys": types.SimpleNamespace(modules={})}
+        exec(compile(ast.fix_missing_locations(ast.Module(body=body, type_ignores=[])), "setup", "exec"), namespace)
+        assert commands == [
+            ["git", "init", "-q"],
+            ["git", "remote", "add", "origin", "https://github.com/kuds/mesozoic-labs.git"],
+            ["git", "fetch", "--depth", "1", "origin", "main"],
+            ["git", "checkout", "--detach", "abc123"],
+        ]
 
 
 def _colab_setup(path: Path) -> tuple[ast.Assign, list[ast.stmt]]:
@@ -4111,12 +4145,21 @@ def _colab_setup(path: Path) -> tuple[ast.Assign, list[ast.stmt]]:
     return in_colab, body[start : end + 1]
 
 
+def _sb3_colab_install_block() -> list[ast.stmt]:
+    """The package-install statements that follow the Git checkout block inside ``sb3_training.ipynb``."""
+    tree = ast.parse(code_cell(NOTEBOOK_PATH, "REPO_REF ="))
+    (colab_block,) = [node for node in tree.body if isinstance(node, ast.If) and ast.unparse(node.test) == "IN_COLAB"]
+    body = colab_block.body
+    git_end = next(i for i, node in enumerate(body) if "Repository ref: " in ast.unparse(node))
+    return body[git_end + 1 :]
+
+
 def test_the_drive_summary_checks_out_repo_ref_with_the_sb3_notebooks_git_block():
     """The Drive summary's setup cell runs the SB3 setup cell's Git block statement for statement (CU-15).
 
     The block installs the package, so it cannot live in it; the two copies are pinned equal as ASTs
-    instead: the ``--no-checkout`` clone, the fetch of ``REPO_REF``, ``FETCH_HEAD^{commit}``, the
-    refusals after an import of the package or over local edits, and the detached checkout. Both cells
+    instead: the shallow ``git init`` + ``git fetch --depth 1`` of ``REPO_REF``, ``FETCH_HEAD^{commit}``,
+    the refusals after an import of the package or over local edits, and the detached checkout. Both cells
     declare ``REPO_REF = "main"`` and the same ``IN_COLAB``. The ref-change test above runs the block.
     """
     sb3_in_colab, sb3_block = _colab_setup(NOTEBOOK_PATH)
@@ -4129,6 +4172,162 @@ def test_the_drive_summary_checks_out_repo_ref_with_the_sb3_notebooks_git_block(
     assert ast.dump(drive_in_colab) == ast.dump(sb3_in_colab)
     for path in (NOTEBOOK_PATH, DRIVE_SUMMARY_PATH):
         assert 'REPO_REF = "main"  # @param {"type":"string"}' in code_cell(path, "REPO_REF =").splitlines()
+
+
+def test_sb3_colab_install_purges_only_present_legacy_packages_and_prefers_uv(tmp_path, monkeypatch, capsys):
+    """Purges present legacy/conflicting Colab packages (including dopamine-rl, skipping absent shimmy),
+    installs from checked-out notebooks/requirements-colab.txt with uv when available, and uses
+    ``--no-deps --no-build-isolation -e`` for the editable install."""
+    import importlib
+    import importlib.metadata
+    import importlib.util
+    import shutil
+    import subprocess
+    import sys
+
+    req_dir = tmp_path / "notebooks"
+    req_dir.mkdir()
+    req_file = req_dir / "requirements-colab.txt"
+    req_file.write_text((REPO_ROOT / "notebooks" / "requirements-colab.txt").read_text(encoding="utf-8"))
+
+    installed = {
+        "gym": "0.25.2",
+        "gym-notices": "0.0.8",
+        "dopamine-rl": "4.1.2",
+        "matplotlib": "3.10.0",
+        "scipy": "1.14.0",
+        "torch": "2.6.0+cu124",
+        "numpy": "2.1.0",
+    }
+    present_specs = {"setuptools", "wheel"}
+    commands = []
+
+    def fake_version(name):
+        if name not in installed:
+            raise importlib.metadata.PackageNotFoundError(name)
+        return installed[name]
+
+    def fake_find_spec(name, *args):
+        return object() if name in present_specs else None
+
+    def fake_run(cmd, **kwargs):
+        assert kwargs.get("check") is True
+        commands.append(cmd)
+        if "uninstall" in cmd:
+            for pkg in cmd[cmd.index("-q") + 1 :]:
+                installed.pop(pkg, None)
+        elif "-r" in cmd:
+            installed.update(
+                {
+                    "mujoco": "3.10.0",
+                    "gymnasium": "1.3.0",
+                    "stable-baselines3": "2.9.0",
+                    "mediapy": "1.2.2",
+                    "imageio": "2.36.0",
+                    "imageio-ffmpeg": "0.5.1",
+                }
+            )
+            present_specs.add("tensorboard")
+        elif "-e" in cmd:
+            present_specs.add("environments")
+
+    monkeypatch.setattr(importlib.metadata, "version", fake_version)
+    monkeypatch.setattr(importlib.util, "find_spec", fake_find_spec)
+    monkeypatch.setattr(shutil, "which", lambda name: "/usr/local/bin/uv" if name == "uv" else None)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    body = _sb3_colab_install_block()
+    ns = {"importlib": importlib, "subprocess": subprocess, "sys": sys, "repo_dir": tmp_path}
+    exec(compile(ast.fix_missing_locations(ast.Module(body=body, type_ignores=[])), "sb3_install", "exec"), ns)
+
+    assert commands == [
+        [sys.executable, "-m", "pip", "uninstall", "-y", "-q", "gym", "gym-notices", "dopamine-rl"],
+        ["/usr/local/bin/uv", "pip", "install", "--python", sys.executable, "-q", "-r", str(req_file)],
+        [sys.executable, "-m", "pip", "install", "-q", "--no-deps", "--no-build-isolation", "-e", str(tmp_path)],
+    ]
+    out = capsys.readouterr().out
+    assert "mujoco=3.10.0" in out and "stable-baselines3=2.9.0" in out
+    assert "Colab setup complete (EGL rendering enabled)." in out
+
+
+@pytest.mark.parametrize("mode", ["all_match", "wrong_version", "missing_req_file", "post_install_still_wrong"])
+def test_sb3_colab_install_version_guard_fallback_and_fail_fast(tmp_path, monkeypatch, mode):
+    """Skips reinstall when versions match, reinstalls on wrong preinstalled versions (with pip fallback),
+    falls back to embedded specs on older REPO_REF checkouts, and raises on post-install mismatch."""
+    import importlib
+    import importlib.metadata
+    import importlib.util
+    import shutil
+    import subprocess
+    import sys
+
+    if mode != "missing_req_file":
+        (tmp_path / "notebooks").mkdir()
+        (tmp_path / "notebooks" / "requirements-colab.txt").write_text(
+            (REPO_ROOT / "notebooks" / "requirements-colab.txt").read_text(encoding="utf-8")
+        )
+
+    matched = {
+        "mujoco": "3.10.0",
+        "gymnasium": "1.3.0",
+        "stable-baselines3": "2.9.0",
+        "mediapy": "1.2.2",
+        "matplotlib": "3.10.0",
+        "scipy": "1.14.0",
+        "imageio": "2.36.0",
+        "imageio-ffmpeg": "0.5.1",
+    }
+    installed = dict(matched)
+    if mode in ("wrong_version", "missing_req_file", "post_install_still_wrong"):
+        installed["stable-baselines3"] = "2.8.0"
+
+    present_specs = {"environments", "tensorboard", "setuptools", "wheel"}
+    commands = []
+
+    def fake_version(name):
+        if name not in installed:
+            raise importlib.metadata.PackageNotFoundError(name)
+        return installed[name]
+
+    def fake_run(cmd, **kwargs):
+        assert kwargs.get("check") is True
+        commands.append(cmd)
+        if mode != "post_install_still_wrong":
+            installed.update(matched)
+
+    monkeypatch.setattr(importlib.metadata, "version", fake_version)
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name, *a: object() if name in present_specs else None)
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    body = _sb3_colab_install_block()
+    code = compile(ast.fix_missing_locations(ast.Module(body=body, type_ignores=[])), "sb3_install", "exec")
+    ns = {"importlib": importlib, "subprocess": subprocess, "sys": sys, "repo_dir": tmp_path}
+
+    if mode == "post_install_still_wrong":
+        with pytest.raises(RuntimeError, match=r"Colab package verification failed:.*stable-baselines3"):
+            exec(code, ns)
+        assert len(commands) == 1
+    else:
+        exec(code, ns)
+        if mode == "all_match":
+            assert commands == []
+        elif mode == "wrong_version":
+            assert commands == [
+                [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "-q",
+                    "-r",
+                    str(tmp_path / "notebooks" / "requirements-colab.txt"),
+                ]
+            ]
+        elif mode == "missing_req_file":
+            assert len(commands) == 1
+            assert commands[0][:5] == [sys.executable, "-m", "pip", "install", "-q"]
+            assert "stable-baselines3[extra]==2.9.0" in commands[0]
 
 
 @pytest.mark.parametrize("path", [NOTEBOOK_PATH, DRIVE_SUMMARY_PATH], ids=["sb3", "drive_summary"])

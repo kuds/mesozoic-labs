@@ -38,7 +38,7 @@ export function StudyRecording({recording}: {recording: Recording}) {
           aria-describedby={captionId}
           onPlay={(event) => {
             const active = event.currentTarget;
-            active.closest('main')?.querySelectorAll('video').forEach((player) => {
+            active.closest('main')?.querySelectorAll<HTMLVideoElement>('video[controls]').forEach((player) => {
               if (player !== active && !player.paused) player.pause();
             });
           }}

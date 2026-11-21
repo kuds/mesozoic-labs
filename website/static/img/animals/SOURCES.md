@@ -17,3 +17,13 @@ The anatomical Tyrannosaurus plate shows the home pose of physics revision 11 an
 The anatomical Dibothrosuchus plate and the Compsognathus robot plate were rendered in MuJoCo 3.17.0. For each `<species>-<embodiment>.webp`, the corresponding MJCF is `environments/<species>/<embodiment>/assets/<species>_<embodiment>.xml` at the linked revision. The robot includes Open Duck Mini hardware meshes. [Source revision](https://github.com/kuds/mesozoic-labs/tree/4b86f5c6fec8d1b427ba86c1c9a7cc11855ec875/environments) · [Upstream license](https://github.com/kuds/mesozoic-labs/blob/4b86f5c6fec8d1b427ba86c1c9a7cc11855ec875/environments/compsognathus_longipes/robot/references/LICENSE_Open_Duck_Mini)
 
 The two Triceratops plates crop the anatomical and robot views from the lab’s design study. The robot view shows the 75 cm frill-height concept. [Original study figure](https://github.com/kuds/mesozoic-labs/blob/84a13e1e7729ff4e92f1376db6464975836b3bcc/hardware/triceratops_design_study/models/preview.png)
+
+## Rotating views
+
+The Animals collection and specimen pages use 30-second camera orbits rendered from each model’s standing pose in MuJoCo 3.10.0. Each orbit has a light and dark H.264 version and a transparent WebP poster made from the opening frame. A keyframe every half second keeps the video responsive when visitors drag to change the view. The anatomical and robot Compsognathus views use their respective models, including the robot hardware meshes credited above.
+
+To regenerate all views, install the repository’s rendering dependencies and an FFmpeg build with libx264. Download the [archived Triceratops anatomical XML](https://github.com/kuds/mesozoic-labs/blob/84a13e1e7729ff4e92f1376db6464975836b3bcc/hardware/triceratops_design_study/models/anatomical.xml), then run the following command from the repository root. The other models are loaded directly from the checkout.
+
+```sh
+python website/scripts/render_turntables.py --triceratops-xml /path/to/anatomical.xml
+```

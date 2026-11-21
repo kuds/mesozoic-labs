@@ -44,6 +44,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 PRE_COMMIT_CONFIG = REPOSITORY_ROOT / ".pre-commit-config.yaml"
 PYPROJECT = REPOSITORY_ROOT / "pyproject.toml"
 SB3_NOTEBOOK = REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb"
+COLAB_REQUIREMENTS = REPOSITORY_ROOT / "notebooks" / "requirements-colab.txt"
 COMPSOGNATHUS_LONGIPES_TRAINING = (
     REPOSITORY_ROOT / "environments" / "shared" / "tests" / "test_compsognathus_longipes_training.py"
 )
@@ -128,16 +129,29 @@ def test_dev_extra_pins_the_ci_versions() -> None:
 
 def test_sb3_job_pins_the_notebooks_stable_baselines3() -> None:
     code = "".join(code_cell_sources(SB3_NOTEBOOK))
+    assert "requirements-colab.txt" in code, "the SB3 notebook must load notebooks/requirements-colab.txt"
+    req_pins = set(_SB3_PIN.findall(COLAB_REQUIREMENTS.read_text(encoding="utf-8")))
     notebook_pins = set(_SB3_PIN.findall(code))
     ci_pins = set(_SB3_PIN.findall(ci_text()))
-    assert len(notebook_pins) == 1, f"the SB3 notebook pins stable-baselines3 as {notebook_pins}"
-    assert ci_pins == notebook_pins, f"python-ci.yml pins stable-baselines3 {ci_pins}, the notebook {notebook_pins}"
+    assert len(req_pins) == 1, f"{COLAB_REQUIREMENTS.name} pins stable-baselines3 as {req_pins}"
+    assert len(notebook_pins) == 1, f"the SB3 notebook fallback pins stable-baselines3 as {notebook_pins}"
+    assert ci_pins == req_pins == notebook_pins, (
+        f"python-ci.yml pins stable-baselines3 {ci_pins}, {COLAB_REQUIREMENTS.name} {req_pins}, "
+        f"the notebook fallback {notebook_pins}"
+    )
 
 
 def test_every_file_these_checks_read_triggers_the_workflow() -> None:
     filters = path_filters()
     assert len(filters) == 2, f"expected the push and pull_request path filters, found {len(filters)}"
-    for path in (CI_WORKFLOW, PRE_COMMIT_CONFIG, PYPROJECT, SB3_NOTEBOOK, COMPSOGNATHUS_LONGIPES_TRAINING):
+    for path in (
+        CI_WORKFLOW,
+        PRE_COMMIT_CONFIG,
+        PYPROJECT,
+        SB3_NOTEBOOK,
+        COLAB_REQUIREMENTS,
+        COMPSOGNATHUS_LONGIPES_TRAINING,
+    ):
         relative = path.relative_to(REPOSITORY_ROOT).as_posix()
         for patterns in filters:
             assert any(glob_matches(pattern, relative) for pattern in patterns), (
