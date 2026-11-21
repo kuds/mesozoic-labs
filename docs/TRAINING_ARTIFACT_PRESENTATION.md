@@ -1703,7 +1703,8 @@ and get none of these, nor `progress.json`.
 ## Compatibility and verification
 
 The display-name change kept run directories, replay filename IDs, semantic
-stage IDs, recipe labels, W&B resume IDs and filter tags, and checkpoint
+stage IDs, recipe labels, W&B resume IDs and filter tags (W&B has since been
+removed), and checkpoint
 loading contracts stable. Decision D-D33 later renamed the species IDs and
 added the embodiment to run directories, replay names and W&B IDs, so runs
 recorded under the old IDs no longer resolve. The Drive summary formats copies
@@ -1712,8 +1713,7 @@ embodiment IDs and recorded stage names. Existing
 completed bundles are not rewritten; re-rendering historical reports maps
 `balance` to Stance without changing their payloads or verdicts. A stage
 resumed after this change records the new stage name, `stance`, in its
-rewritten `stage_config.json` and in its W&B config's `stage_name`, which
-nothing functional reads.
+rewritten `stage_config.json`.
 
 The config-name change deliberately changes twelve config-view golden
 hashes: PPO and SAC for each of the six stance nodes. All other 637 lines of

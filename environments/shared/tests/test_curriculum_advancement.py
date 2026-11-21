@@ -60,7 +60,6 @@ class TestCallbackMethodsMocked:
         cb = object.__new__(CurriculumCallback)
         cb.curriculum_manager = MagicMock()
         cb.curriculum_manager.current_stage = 1
-        cb.num_timesteps = 1000
 
         mock_agg = {
             "mean_forward_velocity": 1.5,
