@@ -72,16 +72,17 @@ mypy environments/
 ```
 
 CI runs mypy twice: in the lint job, without Stable-Baselines3 or torch, and
-in the SB3 job, with both installed (`stable-baselines3[extra]==2.9.0` and the
-CPU `torch==2.13.0` wheel, on Python 3.12), where it must report no errors. The
-SB3 job is the authority. The `.[all]` install above only approximates it: it
-leaves SB3 and torch unpinned and on Python 3.11 resolves an older numpy, and
-either can change what mypy reports. To reproduce the SB3
+in the SB3 job, with both installed (`stable-baselines3==2.9.0` from
+`constraints.txt` and the CPU `torch==2.13.0` wheel, on Python 3.12), where it
+must report no errors. The SB3 job is the authority. The `.[all]` install above
+only approximates it: without `-c constraints.txt` it leaves SB3 unpinned, it
+leaves torch unpinned, and on Python 3.11 it resolves an older numpy; each can
+change what mypy reports. To reproduce the SB3
 job's check, use Python 3.12 and a fresh environment:
 
 ```bash
 pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.13.0"
-pip install -e ".[train,test,viz]" "stable-baselines3[extra]==2.9.0" "mypy==2.3.1"
+pip install -e ".[train,test,viz]" "mypy==2.3.1" -c constraints.txt
 mypy environments/ --ignore-missing-imports
 ```
 

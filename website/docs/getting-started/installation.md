@@ -29,6 +29,8 @@ pip install -e ".[train]"
 pip install -e ".[all]"
 ```
 
+For a reproducible install, add `-c constraints.txt`: it pins MuJoCo, Stable-Baselines3 and Gymnasium to the versions CI tests and Colab trains with (`pip install -e ".[train]" -c constraints.txt`). It leaves torch and numpy unpinned, so a CUDA torch you already have is kept.
+
 On Windows, the repository forces LF line endings on checkout (`.gitattributes`), because the plant contract hashes the checked-out MJCF and TOML bytes. A clone made before LF was forced (November 2026) must be re-cloned or re-checked out, or training and evaluation refuse with "generated plant manifest is stale". To re-check out, commit or stash your local edits first, since `git reset --hard` discards them, then run `git rm --cached -r . && git reset --hard`.
 
 ## Verify Installation
@@ -44,6 +46,8 @@ pytest environments/velociraptor_mongoliensis/tests/ -v
 ## Google Colab
 
 For the easiest setup, use the pre-configured Google Colab notebooks in the `notebooks/` directory. The training notebook selects the model with two dropdowns, `SPECIES` and `EMBODIMENT`, rather than separate files for each model, and it handles dependency installation automatically.
+
+The setup cell checks out `REPO_REF` (a branch, a tag or a full commit) into `/content/mesozoic-labs` as a sparse checkout: only `environments`, `configs`, `notebooks` and `results`, plus the files at the repository root, which keeps a fresh runtime's download to about 38 MB. It then runs that checkout's `notebooks/colab_install.py`, which installs the project with its `train` and `viz` extras under `constraints.txt`, keeps Colab's own torch, and stops with a list of any version that does not match.
 
 Available notebooks:
 
@@ -66,3 +70,5 @@ Optional training dependencies (`pip install -e ".[train]"`):
 |---------|---------|---------|
 | torch | >= 2.6 | Neural networks (2.6 fixes a `torch.load` safety bypass) |
 | stable-baselines3 | >= 2.9.0 | RL algorithms (PPO, SAC) |
+| tensorboard | >= 2.9.1 | Training logs |
+| tqdm, rich | any | SB3's progress bar |

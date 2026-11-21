@@ -59,7 +59,8 @@ pip install -e ".[train]"     # the environments plus PPO/SAC training
 ```
 
 `pip install -e .` installs only the environments (MuJoCo, Gymnasium and NumPy); `".[all]"` adds the visualization
-and developer tools to the training ones.
+and developer tools to the training ones. Add `-c constraints.txt` to any of these to get the MuJoCo,
+Stable-Baselines3 and Gymnasium versions CI tests and Colab trains with.
 
 Step a model with random actions. This needs no GPU and no display:
 
