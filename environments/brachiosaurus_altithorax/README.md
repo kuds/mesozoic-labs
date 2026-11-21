@@ -2,8 +2,8 @@
 
 A sauropod-inspired quadruped with a long, articulated neck, a tapering tail and shoulders that stand higher than its
 hips. It walks with a slow four-beat, lateral-sequence gait that keeps at least two feet on the ground. The model is
-for learning to stand, to walk, and to reach food: bringing the head tip to an elevated food target. It is a research abstraction at model scale, not
-a validated model of how the animal moved.
+for learning to stand, to walk, and to reach food: bringing the head tip to an elevated food target. It is a research
+abstraction at model scale, not a validated model of how the animal moved.
 
 ## Models
 
@@ -58,10 +58,10 @@ The walk runs nine strides and measures the six after startup. It prints a JSON 
 speed, stride period and length, duty factor, swing clearance and loaded elbow and knee flexion per foot, the fewest
 feet loaded at once, airborne substeps, contact slip, and the torso's bob, pitch and roll. The first command starts
 from a noise-free reset; `--seed` and `--reset-noise` start from a perturbed pose.
-[`tests/test_reference_walk.py`](tests/test_reference_walk.py) checks the walk, and
-[`tests/test_com_stance_quality.py`](tests/test_com_stance_quality.py) checks standing support margins and recovery
-over 20 s. The [walking replay](../../website/static/videos/brachiosaurus_altithorax_anatomical_reference_walk.mp4)
-shows the noise-free run with its measured contacts.
+[`tests/test_reference_walk.py`](tests/test_reference_walk.py) checks the walk,
+[`tests/test_com_stance_quality.py`](tests/test_com_stance_quality.py) checks standing balance, and the
+[walking replay](../../website/static/videos/brachiosaurus_altithorax_anatomical_reference_walk.mp4) shows the
+noise-free run with its measured contacts.
 
 ## Run the model
 
@@ -90,9 +90,9 @@ Every model trains from the repository root through one command:
 python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical curriculum --algorithm ppo
 ```
 
-It trains stance, then locomotion, then food reach, each warm-started from the stage before it and run with the budget
-of its stage config. The three stages publish the `stance`, `walk` and `hunt` behaviors. To reuse the certified stages
-of an earlier run and train only what is missing above them:
+It trains stance, then locomotion, then food reach, each warm-started from its parent in `stages.toml` and run with
+the budget of its stage config. To reuse the certified stance and walk of an earlier run and train only what is
+missing:
 
 ```bash
 python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical \
@@ -102,15 +102,16 @@ python -m environments.shared.train --species brachiosaurus_altithorax --embodim
 In [`notebooks/sb3_training.ipynb`](../../notebooks/sb3_training.ipynb), set `SPECIES = "brachiosaurus_altithorax"`,
 `EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"`, `"walk"` or `"hunt"`. The
 [behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes) covers stopping at a behavior, retraining a
-stage and the notebook settings.
+stage and the notebook settings; the [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) shows
+how to evaluate a checkpoint.
 
-Notes for this model:
+Species notes:
 
-- The published results and training clips predate physics revision 6, so a policy for the current model must be
-  trained and evaluated again. Checkpoints from policy interface r10 or earlier fail the plant check and cannot seed a
-  warm start or `--trunk-from` (`configs/plant_versions.toml`, note 23).
-- The reference walk is slower than the locomotion gate's minimum speed. It shows what the plant can do mechanically,
-  not a gait that would pass the gate.
+- **Published results.** The published results and training clips predate physics revision 6, so a policy for the
+  current model must be trained and evaluated again. Checkpoints from policy interface r10 or earlier fail the plant
+  check and cannot seed a warm start or `--trunk-from` (`configs/plant_versions.toml`, note 23).
+- **Reference walk speed.** The reference walk is slower than the locomotion gate's minimum speed. It shows what the
+  plant can do mechanically, not a gait that would pass the gate.
 
 ## Task and rewards
 
@@ -118,6 +119,11 @@ The species task is food reach. At reset a food target appears ahead of and abov
 head-tip site coming within a configured distance of the food; it is a distance test, and no food geom touches the
 head. The environment reports it as `food_reached` and, when the food-reach bonus is enabled (the food-reach stage),
 ends the episode.
+
+The observation holds the joint positions and velocities, the torso orientation quaternion, gyro, linear velocity and
+accelerometer, one touch channel per foot, the food direction and distance, and the command. Actions are residuals in
+[-1, 1] around the MJCF `home` controls, so zero action holds the home pose. The docstring of
+[`base_env.py`](base_env.py) gives both layouts.
 
 The main reward groups:
 
@@ -130,13 +136,11 @@ The main reward groups:
 - **Effort:** an energy penalty on actuator use.
 - **Food reach:** a large bonus on success, shaping on the head-to-food distance and a head-proximity term.
 
-The weights are the `BrachiosaurusAltithoraxEnv` constructor defaults in [`base_env.py`](base_env.py), overridden by
-the `[env]` tables of `stance.toml`, `locomotion.toml` and `food_reach.toml` in
-[`configs/brachiosaurus_altithorax/anatomical/`](../../configs/brachiosaurus_altithorax/anatomical/); most terms are
-off by default and switched on per stage. Actions are residuals in [-1, 1] around the MJCF `home` controls, so zero
-action holds the home pose; the `base_env.py` docstring lists the observation and action layout. An episode ends when
-the torso height leaves its healthy range or the torso tilts too far, when the torso, belly, head or distal tail
-touches the floor, or when the food is reached.
+The weights are the `BrachiosaurusAltithoraxEnv` constructor defaults in `base_env.py`, where most terms are off,
+overridden by the `[env]` tables of `stance.toml`, `locomotion.toml` and `food_reach.toml` in
+[`configs/brachiosaurus_altithorax/anatomical/`](../../configs/brachiosaurus_altithorax/anatomical/). An episode ends
+when the torso height leaves its healthy range or the torso tilts too far, when the torso, belly, head or distal tail
+touches the floor, or when the food is reached. The thresholds are in `base_env.py`.
 
 ## Files
 
@@ -146,12 +150,8 @@ touches the floor, or when the food is reached.
 | [`anatomical/env.py`](anatomical/env.py) | `BrachiosaurusAltithoraxAnatomicalEnv`, the registered model, with its foot contact geoms |
 | [`anatomical/assets/`](anatomical/assets/) | The MJCF model |
 | [`data/`](data/) | The review's figure |
-| [`scripts/`](scripts/) | The reference walk, the viewer, the smoke test (`test_env.py`), and the soft-tissue mesh builder (`axial_surface.py` with `limb_surface.py`) that rewrites the skin meshes in the MJCF |
+| [`scripts/`](scripts/) | The viewer (`view_model.py`), the smoke test (`test_env.py`), the reference walk (`reference_walk.py`) and the soft-tissue mesh builder (`axial_surface.py` with `limb_surface.py`) that rewrites the skin meshes in the MJCF |
 | [`tests/`](tests/) | Environment, reward, actuator-bound, static-balance, standing-balance and reference-walk tests |
-| [`requirements.txt`](requirements.txt) | An older dependency list with an unpinned MuJoCo; install with `pip install -e .` instead |
-
-The stage configs are in [`configs/brachiosaurus_altithorax/anatomical/`](../../configs/brachiosaurus_altithorax/anatomical/):
-`stance.toml`, `locomotion.toml`, `food_reach.toml`, `stages.toml` and the pilot behaviors in `behaviors/`.
 
 ## Further reading
 
@@ -163,7 +163,8 @@ The stage configs are in [`configs/brachiosaurus_altithorax/anatomical/`](../../
   an earlier plant.
 - [Training review](../../docs/investigations/TRAINING_REVIEW.md): the first Brachiosaurus runs (February–March 2026),
   with a stage-2 review.
-- [Direction following and terrain](../../docs/TRAIN_DIRECTION_AND_TERRAIN.md): the pilot behaviors. Their runner,
-  `python -m environments.shared.train_behaviors`, accepts this model.
-- [Plant contract](../../docs/PLANT_CONTRACT.md): how the model's physics, policy-interface and visual revisions are
-  tracked.
+- [Direction following and terrain](../../docs/TRAIN_DIRECTION_AND_TERRAIN.md): the pilot behaviors in
+  `configs/brachiosaurus_altithorax/anatomical/behaviors/`, trained by
+  `python -m environments.shared.train_behaviors`.
+- [Plant revisions](../../configs/plant_versions.toml): what changed in each physics, policy-interface and visual
+  revision of the model, tracked under the [plant contract](../../docs/PLANT_CONTRACT.md).

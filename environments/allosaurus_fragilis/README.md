@@ -55,12 +55,15 @@ python -m environments.allosaurus_fragilis.scripts.audit_motion --mode walk --se
 ```
 
 The audit starts from the MJCF `home` keyframe and steps the MJCF directly. `--mode stand` balances in place;
-`--mode walk` walks straight ahead. Each command prints a JSON report: touchdowns, duty, stride and swing clearance per
-foot, the floor load on each pad and digit, forward travel and speed, step length and track width, double support and
-time with no foot loaded, contact slip, peak floor load, and the motion of the pelvis, head and tail. `--warmup` sets how many initial seconds the report
-leaves out, `--trace FILE.npz` saves the poses, foot positions and loads for video replay, and `--skin-clearance`
-measures the visible skin above the floor. The review lists the exact runs behind its tables, and
-[`data/reference_validation.json`](data/reference_validation.json) holds its measured data.
+`--mode walk` walks straight ahead. Each command prints a JSON report: touchdowns, duty, stride and swing clearance
+per foot, the floor load on each pad and digit, forward travel and speed, step length and track width, double support
+and time with no foot loaded, contact slip, peak floor load, and the motion of the pelvis, head and tail. `--warmup`
+sets how many initial seconds the report leaves out, `--trace FILE.npz` saves the poses, foot positions and loads for
+video replay, and `--skin-clearance` measures the visible skin above the floor. The review lists the exact runs behind
+its tables, and [`data/reference_validation.json`](data/reference_validation.json) holds its measured data.
+[`tests/test_reference_walk.py`](tests/test_reference_walk.py) checks the stand and the walk, and the
+[walking replay](../../website/static/videos/allosaurus_fragilis_anatomical_reference_walk.mp4) shows the walk with
+its foot placement and measured foot loads.
 
 ## Run the model
 
@@ -71,21 +74,16 @@ pip install -e .              # the environments: MuJoCo, Gymnasium and NumPy
 pip install -e ".[train]"     # adds Stable-Baselines3 and PyTorch, for training
 pip install -e ".[test]"      # adds pytest, for the tests
 
+python -m mujoco.viewer --mjcf=environments/allosaurus_fragilis/anatomical/assets/allosaurus_fragilis_anatomical.xml
 pytest environments/allosaurus_fragilis/tests
 ```
 
-The species has no viewer or smoke-test script of its own. On a machine with a display, MuJoCo's standalone viewer
-opens the model:
-
-```bash
-python -m mujoco.viewer --mjcf=environments/allosaurus_fragilis/anatomical/assets/allosaurus_fragilis_anatomical.xml
-```
-
-The tests stand in for a smoke test. `tests/test_environment.py` resets and steps the registered environment, checks
-that zero action gives the home torques and -1 and +1 the motor limits, and checks that only a supported arrival
-completes the walking course. `tests/test_reference_walk.py` checks that the reference controller balances and walks
-the registered environment through its motors, and `tests/test_anatomy.py` checks the leg lengths, the foot layout and
-the visible tissue.
+The species has no viewer or smoke-test script of its own, so MuJoCo's standalone viewer opens the model. It needs a
+display; on macOS, run it with `mjpython` instead of `python`. The tests stand in for a smoke test.
+`tests/test_environment.py` resets and steps the registered environment, checks that zero action gives the home
+torques and -1 and +1 the motor limits, and checks that only a supported arrival completes the walking course.
+`tests/test_reference_walk.py` checks that the reference controller balances and walks the registered environment
+through its motors, and `tests/test_anatomy.py` checks the leg lengths, the foot layout and the visible tissue.
 
 ## Training
 
@@ -95,8 +93,8 @@ Every model trains from the repository root through one command:
 python -m environments.shared.train --species allosaurus_fragilis --embodiment anatomical curriculum --algorithm ppo
 ```
 
-It trains stance, then locomotion, warm-started from the stance, each with the budget of its stage config. To reuse
-the certified stance of an earlier run and train only the walk:
+It trains stance, then locomotion, each warm-started from its parent in `stages.toml` and run with the budget of its
+stage config. To reuse the certified stance of an earlier run and train only the walk:
 
 ```bash
 python -m environments.shared.train --species allosaurus_fragilis --embodiment anatomical \
@@ -109,8 +107,10 @@ In [`notebooks/sb3_training.ipynb`](../../notebooks/sb3_training.ipynb), set `SP
 stage and the notebook settings; the [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) shows
 how to evaluate a checkpoint.
 
-No trained policy has been published for this model yet. The motion on this page and on the model page comes from the
-scripted reference controller.
+Species notes:
+
+- **Published results.** No trained policy has been published for this model yet. The motion on this page and on the
+  model page comes from the scripted reference controller.
 
 ## Task and rewards
 
@@ -146,15 +146,14 @@ or a completed course. The thresholds are in `base_env.py`.
 | [`anatomical/env.py`](anatomical/env.py) | `AllosaurusFragilisAnatomicalEnv`, the registered model, with its foot contact geoms |
 | [`anatomical/assets/`](anatomical/assets/) | The MJCF model and its skin texture |
 | [`data/`](data/) | The reference trials' measured data and the review's figures |
-| [`scripts/`](scripts/) | The motion audit and reference walk, and the builder of the MJCF and its skin (`build_anatomy.py`, with `surface.py`) |
+| [`scripts/`](scripts/) | The reference walk and motion audit (`reference_walk.py`, `audit_motion.py`) and the builder of the MJCF and its skin (`build_anatomy.py`, with `surface.py`) |
 | [`tests/`](tests/) | Anatomy, environment and reference-walk tests |
 
 ## Further reading
 
 - [Anatomical review](../../docs/reviews/ALLOSAURUS_ANATOMICAL_REFERENCE.md): proportions, standing balance, the
   reference walk's measurements and the limits of the reconstruction.
-- [Direction following and terrain](../../docs/TRAIN_DIRECTION_AND_TERRAIN.md): the pilot behaviors. Their runner,
-  `python -m environments.shared.train_behaviors`, accepts this model, and its recipes are in
-  `configs/allosaurus_fragilis/anatomical/behaviors/`.
-- [Plant contract](../../docs/PLANT_CONTRACT.md): how the model's physics, policy-interface and visual revisions are
-  tracked.
+- [Direction following and terrain](../../docs/TRAIN_DIRECTION_AND_TERRAIN.md): the pilot behaviors in
+  `configs/allosaurus_fragilis/anatomical/behaviors/`, trained by `python -m environments.shared.train_behaviors`.
+- [Plant revisions](../../configs/plant_versions.toml): what changed in each physics, policy-interface and visual
+  revision of the model, tracked under the [plant contract](../../docs/PLANT_CONTRACT.md).

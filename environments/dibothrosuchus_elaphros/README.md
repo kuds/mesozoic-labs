@@ -40,7 +40,8 @@ them.
   reference walk covers one slow, straight walk on level ground.
 
 The full review, with measurements, sources, standing balance, the walking trials, actuator loads and the termination
-conditions, is [docs/reviews/DIBOTHROSUCHUS_ANATOMICAL_REFERENCE.md](../../docs/reviews/DIBOTHROSUCHUS_ANATOMICAL_REFERENCE.md).
+conditions, is
+[docs/reviews/DIBOTHROSUCHUS_ANATOMICAL_REFERENCE.md](../../docs/reviews/DIBOTHROSUCHUS_ANATOMICAL_REFERENCE.md).
 
 ## Reference walk
 
@@ -101,9 +102,8 @@ Every model trains from the repository root through one command:
 python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical curriculum --algorithm ppo
 ```
 
-It trains stance, then locomotion, then the snap, each warm-started from the stage before it and run with the budget
-of its stage config. The three stages publish the `stance`, `walk` and `hunt` behaviors. To reuse the certified
-stages of an earlier run and train only what is missing above them:
+It trains stance, then locomotion, then the snap, each warm-started from its parent in `stages.toml` and run with the
+budget of its stage config. To reuse the certified stance and walk of an earlier run and train only what is missing:
 
 ```bash
 python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical \
@@ -113,20 +113,26 @@ python -m environments.shared.train --species dibothrosuchus_elaphros --embodime
 In [`notebooks/sb3_training.ipynb`](../../notebooks/sb3_training.ipynb), set `SPECIES = "dibothrosuchus_elaphros"`,
 `EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"`, `"walk"` or `"hunt"`. The
 [behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes) covers stopping at a behavior, retraining a
-stage and the notebook settings.
+stage and the notebook settings; the [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) shows
+how to evaluate a checkpoint.
 
-Notes for this model:
+Species notes:
 
-- No trained policy has been published for this model yet. The motion on this page and on the model page comes from
-  the scripted reference controller.
-- Checkpoints from policy interface r9 or earlier fail the plant check and cannot seed a warm start or `--trunk-from`
-  (`configs/plant_versions.toml`, note 23).
+- **Published results.** No trained policy has been published for this model yet. The motion on this page and on the
+  model page comes from the scripted reference controller.
+- **Older checkpoints.** Checkpoints from policy interface r9 or earlier fail the plant check and cannot seed a warm
+  start or `--trunk-from` (`configs/plant_versions.toml`, note 23).
 
 ## Task and rewards
 
 The species task is the snap. At reset a small prey sphere appears ahead of the animal, just above the ground.
 Success is contact between the fixed snout geom `snout_snap` and the prey; the model has no articulated jaw. The
 environment reports it as `snap_success` and, when the snap bonus is enabled (the snap stage), ends the episode.
+
+The observation holds the joint positions and velocities, the trunk orientation quaternion, gyro, linear velocity and
+accelerometer, one touch channel per foot, the prey direction and distance, and the command. Actions are residuals in
+[-1, 1] around the MJCF `home` controls, so zero action holds the home pose. The docstring of
+[`base_env.py`](base_env.py) gives both layouts.
 
 The main reward groups:
 
@@ -141,12 +147,10 @@ The main reward groups:
   approach. The shaping is measured from the snout, not the trunk: the skull rides a mobile neck, so trunk-referenced
   shaping would keep paying after the snout had overshot the prey.
 
-The weights are the `DibothrosuchusElaphrosEnv` constructor defaults in [`base_env.py`](base_env.py), overridden by
-the `[env]` tables of `stance.toml`, `locomotion.toml` and `snap.toml` in
-[`configs/dibothrosuchus_elaphros/anatomical/`](../../configs/dibothrosuchus_elaphros/anatomical/); several terms are
-off by default and switched on per stage. Actions are residuals in [-1, 1] around the MJCF `home` controls, so zero
-action holds the home pose; the `base_env.py` docstring lists the observation and action layout. An episode ends when
-the trunk height leaves its healthy range (the lower bound catches a collapse into a sprawl), the trunk tilts or
+The weights are the `DibothrosuchusElaphrosEnv` constructor defaults in `base_env.py`, where several terms are off,
+overridden by the `[env]` tables of `stance.toml`, `locomotion.toml` and `snap.toml` in
+[`configs/dibothrosuchus_elaphros/anatomical/`](../../configs/dibothrosuchus_elaphros/anatomical/). An episode ends
+when the trunk height leaves its healthy range (the lower bound catches a collapse into a sprawl), the trunk tilts or
 pitches nose-down too far, the snout tip drops to the floor, the skull, snout, trunk, belly or distal tail touches the
 floor, or the snap succeeds. The thresholds are in `base_env.py`, and the review lists them.
 
@@ -158,11 +162,8 @@ floor, or the snap succeeds. The thresholds are in `base_env.py`, and the review
 | [`anatomical/env.py`](anatomical/env.py) | `DibothrosuchusElaphrosAnatomicalEnv`, the registered model, with its foot contact geoms |
 | [`anatomical/assets/`](anatomical/assets/) | The MJCF model |
 | [`data/`](data/) | The review's figure |
-| [`scripts/`](scripts/) | The reference walk, the viewer, the actuator sweep (`test_actuators.py`) and the smoke test (`test_env.py`) |
+| [`scripts/`](scripts/) | The viewer (`view_model.py`), the actuator sweep (`test_actuators.py`), the smoke test (`test_env.py`) and the reference walk (`reference_walk.py`) |
 | [`tests/`](tests/) | Environment, reward, actuator-bound, static-balance, standing-balance and reference-walk tests |
-
-The stage configs are in [`configs/dibothrosuchus_elaphros/anatomical/`](../../configs/dibothrosuchus_elaphros/anatomical/):
-`stance.toml`, `locomotion.toml`, `snap.toml`, `stages.toml` and the pilot behaviors in `behaviors/`.
 
 ## Further reading
 
@@ -174,7 +175,7 @@ The stage configs are in [`configs/dibothrosuchus_elaphros/anatomical/`](../../c
   three-legged stance of the certified checkpoints on an earlier plant.
 - [Raptor scaling and alternatives](../../docs/hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md): a custom
   Dibothrosuchus-inspired quadruped as the speed-focused tier of the running-robot plans.
-- [Direction following and terrain](../../docs/TRAIN_DIRECTION_AND_TERRAIN.md): the pilot behaviors. Their runner,
-  `python -m environments.shared.train_behaviors`, accepts this model.
-- [Plant contract](../../docs/PLANT_CONTRACT.md): how the model's physics, policy-interface and visual revisions are
-  tracked.
+- [Direction following and terrain](../../docs/TRAIN_DIRECTION_AND_TERRAIN.md): the pilot behaviors in
+  `configs/dibothrosuchus_elaphros/anatomical/behaviors/`, trained by `python -m environments.shared.train_behaviors`.
+- [Plant revisions](../../configs/plant_versions.toml): what changed in each physics, policy-interface and visual
+  revision of the model, tracked under the [plant contract](../../docs/PLANT_CONTRACT.md).

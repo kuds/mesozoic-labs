@@ -43,10 +43,10 @@ The full review, with the fossil measurements, joint torques, a muscle-force che
 
 ## Reference walk
 
-This species has no reference-walk script, and neither model has a demonstrated walking gait on its current plant.
-The [gait audit](../../docs/investigations/GAIT_AUDIT_2026_09.md) records the earlier certified walkers: an
-anatomical walker on physics r1, invalidated by the later anatomical revisions, and a robot locomotion policy that
-hops. What exists is standing validation. Run it from the repository root:
+This species has no reference-walk script, and neither model has a demonstrated walking gait on its current plant. The
+[gait audit](../../docs/investigations/GAIT_AUDIT_2026_09.md) covers the earlier certified walkers: an anatomical one
+on physics r1, invalidated by later revisions, and a robot policy that hops. What exists is standing validation. Run
+it from the repository root:
 
 ```bash
 python -m environments.compsognathus_longipes.scripts.validate_models --output /tmp/compsognathus_longipes-preflight.json
@@ -55,9 +55,8 @@ python -m environments.compsognathus_longipes.scripts.static_balance --embodimen
 
 `validate_models` runs the 26-trial standing protocol on both models: ten seconds at fixed joint targets, ten starts
 from perturbed joint angles, a 15% mass-growth case and a motors-off control that must fall. It writes a JSON report
-of every trial with an overall `passed` verdict; it needs the `test` extra for SciPy. `static_balance` checks force
-and torque balance at the authored `home` pose and again after the model settles, and writes each foot contact, the
-center-of-mass projection and each joint's load. The committed results are
+with an overall `passed` verdict and needs the `test` extra for SciPy. `static_balance` checks force and torque
+balance at `home` and again after the model settles. The committed results are
 [`data/preflight_anatomical_r3.json`](data/preflight_anatomical_r3.json) and
 [`data/static_balance_r3.json`](data/static_balance_r3.json); the anatomy review and the
 [robot design record](../../docs/reviews/COMPSOGNATHUS_ROBOT_DESIGN.md#validation-scope) explain them.
@@ -77,23 +76,14 @@ pytest environments/compsognathus_longipes/tests
 ```
 
 `view_model` opens MuJoCo's interactive viewer at `home`, holds the home joint targets and steps real physics.
-`--embodiment` has no default. `--motors-off` disables actuation, and `--mass-scale 1.15` scales body masses and
-inertias with the motor limits unchanged. The viewer needs a display; on macOS, run it with `mjpython` instead of
-`python`. With the `viz` extra (`pip install -e ".[viz]"`) it also renders pictures and videos:
+`--embodiment` has no default; `--motors-off` disables actuation, and `--mass-scale 1.15` scales body masses and
+inertias with the motor limits unchanged. It needs a display; on macOS, run it with `mjpython` instead of `python`.
+With the `viz` extra (`pip install -e ".[viz]"`), `--compare`, `--snapshot`, `--head-camera` and `--video` render
+images and videos instead, headless under `MUJOCO_GL=egl` or `MUJOCO_GL=osmesa`; `--help` shows examples.
 
-```bash
-python -m environments.compsognathus_longipes.scripts.view_model --compare /tmp/models.png
-python -m environments.compsognathus_longipes.scripts.view_model --embodiment robot --head-camera --snapshot /tmp/onboard.png
-python -m environments.compsognathus_longipes.scripts.view_model --embodiment robot --video /tmp/standing.mp4 --seconds 5
-```
-
-`--compare` renders both models side by side and takes no `--embodiment`; `--head-camera` renders the onboard camera.
-Headless rendering needs `MUJOCO_GL=egl` or `MUJOCO_GL=osmesa`; model loading and the physics tests need neither.
-
-This species has no `test_env` smoke script. `tests/test_training_env.py` checks both Gymnasium environments: the
-Gymnasium contract, resets and steps of every stage across seeds, a full episode at zero action, rejection of invalid
-actions and slow, upright target arrival. After editing a model
-generator in `scripts/`, `python -m environments.compsognathus_longipes.scripts.build_models` rewrites both MJCFs.
+The species has no smoke-test script of its own, so `tests/test_training_env.py` stands in for one: it checks both
+Gymnasium environments' contract, resets and steps of every stage across seeds, a full episode at zero action,
+rejection of invalid actions and slow, upright target arrival.
 
 ## Training
 
@@ -126,38 +116,24 @@ control latency, motor calibration and sim-to-real validation are future work.
 
 Species notes:
 
-- **Recovery.** `recovery` holds the certified stance against horizontal pushes calibrated separately for each
-  model. Nothing warm-starts from it, so `curriculum` skips it. Train it in the notebook with
-  `BEHAVIOR = "recover"`: the notebook reuses a certified stance from `RUN_DIR` or `TRUNK_FROM` (or trains one),
-  freezes the paired null panels before recovery trains, then rolls the policy panel and enforces the recovery
-  verdict. [RECOVERY_CALIBRATION.md](RECOVERY_CALIBRATION.md) gives the push, the judge and the pilot targets.
+- **Recovery.** `recovery` holds the certified stance against horizontal pushes calibrated for each model. Nothing
+  warm-starts from it, so `curriculum` skips it; train it in the notebook with `BEHAVIOR = "recover"`, which reuses or
+  trains a certified stance first. [RECOVERY_CALIBRATION.md](RECOVERY_CALIBRATION.md) gives the push, the judge and
+  the pilot targets.
 - **Stance.** The anatomical stance passes on a stance-quality check of the floor forces under each foot, rolled at
-  six headings after the stage ends (12 panels, about 21 minutes), not on reward. Its bars still admit a soft
-  two-foot bounce, a foot lifted for less than half a control step and a fast weight shuttle, so count a trained
-  stance's lift-offs by hand before using it ([KNOWN_ISSUES](../../docs/KNOWN_ISSUES.md); the amendment in
+  six headings after the stage ends, not on reward. Its bars still admit a soft two-foot bounce, a foot lifted for
+  less than half a control step and a fast weight shuttle, so count a trained stance's lift-offs by hand before using
+  it ([KNOWN_ISSUES](../../docs/KNOWN_ISSUES.md); the amendment in
   [TRAINING_RECIPE_REVIEW.md](TRAINING_RECIPE_REVIEW.md) says how). The robot's stance passes on full-horizon and
-  unsupported-duty bars; its report also writes a heading probe (`stance_heading_probe.txt`) that warns without
-  blocking.
-- **Exploration noise.** Keep the anatomical stance recipe's `log_std_init` at −2.0. The standing model survives
-  PPO's initial action noise but falls under noise not far above it
-  ([`tests/test_anatomical_noise_tolerance.py`](tests/test_anatomical_noise_tolerance.py)), so watch the learned
-  standard deviation and re-measure after any change to the MJCF or the action mapping.
-- **Zero-action baseline.** Zero action already stands. Measure it before reading a return improvement:
-
-  ```bash
-  python -m environments.shared.scripts.zero_action_baseline \
-      --model-id compsognathus_longipes anatomical --model-id compsognathus_longipes robot --episodes 20
-  ```
-
-- **Recipe.** PPO uses a small-update recipe (a low, decaying learning rate, KL early stopping and entropy decay);
-  SAC runs on the same budgets, but its learning is not validated. Automatic reward-collapse stopping stays off for
-  this species. The notebook trains each stage's full budget before its publication gate; `curriculum` can advance
-  early after consecutive passing evaluations.
-- **Checkpoints.** SB3 only. Each model has its own plant identity, so a checkpoint from one is refused by the
-  other. Keep each checkpoint with its matched VecNormalize file.
-- **Integration test.** `pytest environments/shared/tests/test_compsognathus_longipes_training.py` runs short CPU PPO
-  and SAC trainings of both models through the shared trainer's stages, the checkpoint handoffs and the notebook's
-  training function. It checks the plumbing, not learned behavior.
+  unsupported-duty bars.
+- **Exploration noise.** Keep the anatomical stance recipe's `log_std_init` at −2.0: the standing model survives that
+  initial noise but falls under noise not far above it
+  ([`tests/test_anatomical_noise_tolerance.py`](tests/test_anatomical_noise_tolerance.py)). Re-measure after any
+  change to the MJCF or the action mapping.
+- **Recipe.** PPO uses a small-update recipe (a low, decaying learning rate, KL early stopping and entropy decay) that
+  the [training recipe review](TRAINING_RECIPE_REVIEW.md) explains. SAC runs on the same budgets but is not validated,
+  and automatic reward-collapse stopping stays off for this species.
+- **Two plants.** Each model has its own plant identity, so a checkpoint from one is refused by the other.
 
 ## Task and rewards
 
@@ -167,14 +143,12 @@ the feet on the floor. The environment reports `target_success` and ends the epi
 bitten; the robot's head is fixed.
 
 The observation holds the joint positions and velocities, the pelvis gyro and accelerometer, the foot forces, the
-target's direction and distance, and a three-value command segment. The command is zero in the stage configs; only
-the direction-following and terrain pilots under `configs/compsognathus_longipes/<embodiment>/behaviors/` set it. The
-anatomical observation reads no world heading: it uses projected gravity, the pelvis velocity in a gravity-aligned
-heading frame and the target direction in pelvis coordinates. The robot reads the world-frame pelvis orientation,
-velocity and target direction. Actions are offsets from the `home` keyframe: zero holds the standing pose, and -1 and
-+1 reach each servo's limits. The anatomical model's ten leg actions are softened near home (a soft-cubic residual);
-its neck, jaw and tail, and every robot servo, map linearly. The docstrings of [`base_env.py`](base_env.py) and
-[`anatomical/env.py`](anatomical/env.py) give both layouts.
+target's direction and distance, and the command. The anatomical observation reads no world heading: it uses projected
+gravity, the pelvis velocity in a gravity-aligned heading frame and the target direction in pelvis coordinates. The
+robot reads the world-frame pelvis orientation, velocity and target direction. Actions are offsets from the `home`
+keyframe: zero holds the standing pose, and -1 and +1 reach each servo's limits. The anatomical model's ten leg
+actions are softened near home (a soft-cubic residual); its neck, jaw and tail, and every robot servo, map linearly.
+The docstrings of [`base_env.py`](base_env.py) and [`anatomical/env.py`](anatomical/env.py) give both layouts.
 
 The main reward groups:
 
@@ -187,11 +161,11 @@ The main reward groups:
   width on loaded feet, the home leg pose and every support geom loaded, and penalties on floor impacts, airborne
   physics substeps, commands held at their limits and action jerk.
 
-The weights are the `CompsognathusLongipesEnv` constructor defaults in `base_env.py` and, for the stance-quality terms,
-the `CompsognathusLongipesAnatomicalEnv` defaults in `anatomical/env.py`, where they are off. The `[env]` table of each
-stage TOML under `configs/compsognathus_longipes/<embodiment>/` overrides them. An episode ends on a non-finite state,
-a pelvis too low or too high, excessive tilt, any body part but the feet touching the floor, or a target reached.
-Time limits are truncations.
+The weights are the `CompsognathusLongipesEnv` constructor defaults in `base_env.py` and, for the stance-quality
+terms, the `CompsognathusLongipesAnatomicalEnv` defaults in `anatomical/env.py`, where they are off. The `[env]` table
+of each stage TOML under `configs/compsognathus_longipes/<embodiment>/` overrides them. An episode ends on a
+non-finite state, a pelvis too low or too high, excessive tilt, any body part but the feet touching the floor, or a
+target reached. The thresholds are in `base_env.py`.
 
 ## Robot embodiment
 
@@ -199,10 +173,9 @@ The robot model preserves the Rev B design of September 6, 2026: a twelve-servo 
 the Open Duck Mini v2, under a restyled casing. Each leg has hip yaw, hip roll, hip pitch, knee, ankle pitch and ankle
 roll servos; the candidates are two Feetech STS3250 hip-roll servos and ten STS3215 servos. The head and tail are
 fixed and unpowered. The robot carries one forward-facing RGB camera in the snout, an IMU in the core, joint encoders
-and optional foot-force sensing. `sensors.onboard_readings` returns what the hardware could measure, without
-simulator ground truth. The 1.5856 kg mass is an allocation, and the servo gains and torque caps are simulation
-assumptions, not identified hardware. `robot/references/` keeps the original Rev B MJCF and the Open Duck Mini
-license.
+and optional foot-force sensing. `sensors.onboard_readings` returns what the hardware could measure, without simulator
+ground truth. The 1.5856 kg mass is an allocation, and the servo gains and torque caps are simulation assumptions, not
+identified hardware.
 
 The full design record, with the mass budget, part candidates, sensor layout, actuation and contact assumptions,
 validation results and sources, is
@@ -222,14 +195,14 @@ feasibility and cost plans are in [docs/hardware/](../../docs/hardware/README.md
 | [`model.py`](model.py) | Model-only helpers for the viewer and validation: loading, motors off, visual bounds and floor contacts |
 | [`sensors.py`](sensors.py) | `onboard_readings`, the robot's measurable IMU, encoder and foot-force signals |
 | [`data/`](data/) | Model parameters, the sensor layout, preflight, static-balance, recovery-calibration and training-validation records, and figures |
-| [`scripts/`](scripts/) | The model generators (`build_models.py` and its helpers), the viewer, the standing validation, static balance, a casing-overlap screen, a style render and an early-PPO-update probe |
+| [`scripts/`](scripts/) | The viewer (`view_model.py`), the standing validation (`validate_models.py`), static balance (`static_balance.py`), the model generators (`build_models.py`, which rewrites both MJCFs, and its helpers), a casing-overlap screen (`validate_shells.py`), a style render (`render_style_comparison.py`) and an early-PPO-update probe (`probe_ppo_updates.py`) |
 | [`tests/`](tests/) | Model, environment, reward, noise-tolerance, foot, balance, static-balance, stance-quality, push-recovery, sensor and style tests |
 | [`ANATOMY_AND_BALANCE.md`](ANATOMY_AND_BALANCE.md), [`RECOVERY_CALIBRATION.md`](RECOVERY_CALIBRATION.md), [`TRAINING_RECIPE_REVIEW.md`](TRAINING_RECIPE_REVIEW.md), [`TRAINING_VALIDATION.md`](TRAINING_VALIDATION.md) | The species' review and training records (see Further reading) |
 
 ## Further reading
 
-- [Anatomy and standing balance](ANATOMY_AND_BALANCE.md): the fossil measurements, the earlier and revised anatomy,
-  joint torques and muscle forces, and static balance.
+- [Anatomical review](ANATOMY_AND_BALANCE.md): the fossil measurements, the earlier and revised anatomy, joint torques
+  and muscle forces, and static balance.
 - [Robot design record](../../docs/reviews/COMPSOGNATHUS_ROBOT_DESIGN.md): the Rev B mass budget, servos, sensors,
   actuation and contact assumptions, and the standing validation of both models.
 - [Push-recovery calibration](RECOVERY_CALIBRATION.md): the push, the physical judge, the measured fixed-command
@@ -237,11 +210,12 @@ feasibility and cost plans are in [docs/hardware/](../../docs/hardware/README.md
 - [Training recipe review](TRAINING_RECIPE_REVIEW.md): why the PPO settings and stage budgets are what they are, the
   next full-run protocol, and the amendment for the anatomical stance gate.
 - [Training validation](TRAINING_VALIDATION.md): the SB3 integration checks and the anatomical physics r2 measurements.
-- [Stance-hack audit](../../docs/investigations/STANCE_HACK_AUDIT_2026_10.md): the floor-truth stance gate, and in §11
-  its adoption on the anatomical model.
+- [Stance-hack audit, 2026-10](../../docs/investigations/STANCE_HACK_AUDIT_2026_10.md): the floor-truth stance gate,
+  and in §11 its adoption on the anatomical model.
 - [Heading-free observations](../../docs/HEADING_INVARIANCE_DESIGN_2026_10.md): the design of the anatomical
   observation and of the six-heading stance check.
-- [Plant revision notes](../../configs/plant_versions.toml): what changed in each physics and policy-interface
-  revision of both models.
 - [Direction following and terrain](../../docs/TRAIN_DIRECTION_AND_TERRAIN.md): the pilot behaviors in
-  `configs/compsognathus_longipes/<embodiment>/behaviors/`.
+  `configs/compsognathus_longipes/<embodiment>/behaviors/`, trained by
+  `python -m environments.shared.train_behaviors`.
+- [Plant revisions](../../configs/plant_versions.toml): what changed in each physics, policy-interface and visual
+  revision of both models, tracked under the [plant contract](../../docs/PLANT_CONTRACT.md).

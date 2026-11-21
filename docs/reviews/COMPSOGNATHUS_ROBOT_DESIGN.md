@@ -1,11 +1,13 @@
-# Compsognathus Longipes robot design (Rev B)
+# Compsognathus longipes robot design (Rev B)
 
-2026-11-21. This record was moved from the species README,
-[environments/compsognathus_longipes/README.md](../../environments/compsognathus_longipes/README.md), when that page
-was cut down to the shared species template. The text is the README's robot-design material as it stood at commit
-`c1feca12`, kept near-verbatim: the headings are the README's, links are rebased for this folder, and the few notes
-added on the move are marked *Note (2026-11-21)*. Several sections also cover the anatomical proxy, because the two
-models were built, styled and validated together. The anatomical reconstruction itself is reviewed in
+**November 21, 2026 · robot physics r1 · anatomical physics r3 · moved from the species README**
+
+Until 2026-11-21 this record was the robot-design material of
+[the species README](../../environments/compsognathus_longipes/README.md). It moved here on that date. The text is the
+README's as it stood at commit `c1feca12`, kept near-verbatim: the headings are the README's, links are rebased for
+this folder, file paths are written from the repository root, and the few notes added on the move are marked
+*Note (2026-11-21)*. Several sections also cover the anatomical proxy, because the two models were built, styled and
+validated together. The anatomical reconstruction itself is reviewed in
 [ANATOMY_AND_BALANCE.md](../../environments/compsognathus_longipes/ANATOMY_AND_BALANCE.md).
 
 ## Scope
@@ -21,7 +23,7 @@ The repository pins **MuJoCo 3.10.0**, used for these checks. The original Rev B
 
 | Property | Anatomical proxy | Rev B robot |
 |---|---|---|
-| MJCF | `anatomical/assets/compsognathus_longipes_anatomical.xml` | `robot/assets/compsognathus_longipes_robot.xml` |
+| MJCF | `environments/compsognathus_longipes/anatomical/assets/compsognathus_longipes_anatomical.xml` | `environments/compsognathus_longipes/robot/assets/compsognathus_longipes_robot.xml` |
 | Home standing height | 39.3 cm | **35.3 cm** |
 | Nose-to-tail envelope | 113.8 cm | **47.1 cm** |
 | Maximum visual width | 12.3 cm | 25.8 cm, including leg hardware |
@@ -42,13 +44,13 @@ given.
 
 ## Preserved robot design
 
-`robot/references/compsognathus_longipes_robot_rev_b.xml` preserves the original September 6 Rev B model. The
-generator verifies its SHA-256 and uses the original first double-support pose stored in
-`data/model_parameters.json`. Body transforms, joint signs/ranges and leg/core inertials remain unchanged. The head's
-45 g allocation uses the component COM and inertia established in v1. The v3 mechanical enclosures retain those
-aggregate mass proxies; their panel surfaces are not used to infer the mass of solid metal blocks. The tapered tail
-retains its conservative 50 g Rev B aggregate inertial allowance, including its attachment; this is not a
-uniform-density tail CAD.
+`environments/compsognathus_longipes/robot/references/compsognathus_longipes_robot_rev_b.xml` preserves the original
+September 6 Rev B model. The generator verifies its SHA-256 and uses the original first double-support pose stored in
+`environments/compsognathus_longipes/data/model_parameters.json`. Body transforms, joint signs/ranges and leg/core
+inertials remain unchanged. The head's 45 g allocation uses the component COM and inertia established in v1. The v3
+mechanical enclosures retain those aggregate mass proxies; their panel surfaces are not used to infer the mass of
+solid metal blocks. The tapered tail retains its conservative 50 g Rev B aggregate inertial allowance, including its
+attachment; this is not a uniform-density tail CAD.
 
 Each leg has hip yaw, hip roll, hip pitch, knee pitch, ankle pitch and ankle roll. **Both thigh and shin parallel
 shaft separations are 78.65 mm**. The ankle adapter adds 40 mm from pitch to roll and 38 mm from roll to sole. Home
@@ -87,8 +89,9 @@ are reconstruction choices. The primary measurements and the force interpretatio
 
 The robot's v3 styling combines the silver/olive finish of the September 6 **Mesozoic Labs Biped Robot Concept.png**
 with lessons from Microduck's visible mechanics and coordinated color accents. The core casing is now **155 mm long,
-130 mm wide and 74 mm high**, versus 120 × 130 × 80 mm in v2. Tapered ends and a raised belly preserve a distinct
-neck and reduce overlap near the hip mounts. Its six cross-sections are in `data/model_parameters.json`.
+130 mm wide and 74 mm high**, versus 120 × 130 × 80 mm in v2. Tapered ends and a raised belly preserve a distinct neck
+and reduce overlap near the hip mounts. Its six cross-sections are in
+`environments/compsognathus_longipes/data/model_parameters.json`.
 
 The original large leg covers remain present, visible and collision-enabled. They now have a graphite finish with
 narrow olive/silver color fields clipped to their surfaces. These are surface finishes with an 80 micrometer
@@ -115,7 +118,7 @@ python -m environments.compsognathus_longipes.scripts.render_style_comparison --
 python -m environments.compsognathus_longipes.scripts.validate_shells --reference /tmp/robot_v2.xml --output /tmp/shell-screen.json
 ```
 
-`data/sensor_layout.json` defines the mounting frames and signal contract:
+`environments/compsognathus_longipes/data/sensor_layout.json` defines the mounting frames and signal contract:
 
 | Signal | Baseline and mounting | Simulation limitations |
 |---|---|---|
@@ -137,7 +140,7 @@ The training integration also corrects `diagnostic_pelvis_quat` and `diagnostic_
 frame (`xbody`). The previous `body` quaternion reported the inertial principal axes, making the upright anatomical
 pelvis appear tilted by about 1.44 radians. Regression tests compare the quaternion sensor to the body axes at
 multiple orientations. This changes diagnostic sensor semantics, not the mass allocation or mechanism. The older
-`preflight_v3.json` remains historical model evidence.
+`environments/compsognathus_longipes/data/preflight_v3.json` remains historical model evidence.
 
 *Note (2026-11-21):* the paragraph above was in the README's Training section; it moved here beside the sensor
 contract it describes.
@@ -150,9 +153,10 @@ inside the torque clamp. Passive joint damping is only 0.005 N·m·s/rad; armatu
 
 Both `home` keyframes include **offline gravity preload**: nonnegative vertical foot loads balance weight and COM
 moments; contact Jacobians give the nominal joint torques, converted to `tau/kp` position-target offsets. Home joint
-angles stay unchanged. No external root force, weld, hidden ballast or online ground-truth balance feedback is
-added. This nominal preload is kept unchanged in mass-growth trials. `standing_targets.py` reproduces it and rejects
-torque or control-limit violations.
+angles stay unchanged. No external root force, weld, hidden ballast or online ground-truth balance feedback is added.
+This nominal preload is kept unchanged in mass-growth trials.
+`environments/compsognathus_longipes/scripts/standing_targets.py` reproduces it and rejects torque or control-limit
+violations.
 
 Robot damping was reduced from the original 0.4 to 0.2 to remove transient rocking in the reset trials. The
 anatomical leg actuators use 0.2 N·m·s/rad, with 0.18 at the MTP. These are simulation tuning results, not measured
@@ -188,16 +192,18 @@ and the contribution of each joint.
 [Static balance results](../../environments/compsognathus_longipes/data/static_balance_r3.json)
 
 The 26-trial standing protocol passed on anatomical physics r3 and on the Rev B robot.
-`data/preflight_training_v1.json` retains the earlier r2 results. Previously certified anatomical policies used
-earlier dynamics. The push-recovery pilot was remeasured on r3.
+`environments/compsognathus_longipes/data/preflight_training_v1.json` retains the earlier r2 results. Previously
+certified anatomical policies used earlier dynamics. The push-recovery pilot was remeasured on r3.
 [Recovery measurements](../../environments/compsognathus_longipes/RECOVERY_CALIBRATION.md#anatomical-physics-r3) ·
 [Current preflight](../../environments/compsognathus_longipes/data/preflight_anatomical_r3.json)
 
-`data/preflight_v3.json` records the pre-training v3 model/validator hashes, dimensions, masses, contact loads, torque
-utilization and explicit acceptance thresholds. `preflight_v0.json` through `preflight_v2.json` are historical
-evidence for earlier revisions. `data/validation_summary_v3.json` records **105 passing targeted tests**, including
-the existing T-Rex and raptor static-balance suites, plus all 26 preflight trials. This is not a claim that the entire
-repository test suite or the training stack was exercised.
+`environments/compsognathus_longipes/data/preflight_v3.json` records the pre-training v3 model/validator hashes,
+dimensions, masses, contact loads, torque utilization and explicit acceptance thresholds.
+`environments/compsognathus_longipes/data/preflight_v0.json` through
+`environments/compsognathus_longipes/data/preflight_v2.json` are historical evidence for earlier revisions.
+`environments/compsognathus_longipes/data/validation_summary_v3.json` records **105 passing targeted tests**,
+including the existing T-Rex and raptor static-balance suites, plus all 26 preflight trials. This is not a claim that
+the entire repository test suite or the training stack was exercised.
 
 | Worst active-trial metric | Anatomical proxy | Robot |
 |---|---:|---:|
@@ -228,12 +234,13 @@ anatomical stance settles to a 30.45 mm support margin on level ground.
   actuator disabling and restoration, per-foot touchdown sensing, IMU units, encoder order and 63 optical rays per
   camera.
 
-`data/shell_screen_v3.json` separately compares v2 and v3 at **113 local poses** against **80 original leg geoms**,
-using direct signed distances that ignore the core-leg contact masks. It finds no newly introduced overlap exceeding
-0.5 mm and no penetration worsened by more than 1 mm in this sample. At home, two existing solid-envelope overlaps
-with the upper hip-mount meshes reduce from approximately 11.5 mm to 2.7 mm. The casing is a convex solid proxy, so
-these results require interpretation against real hollow-shell and mount CAD. This is a discrete comparison around
-home, not a complete range-of-motion clearance proof, and it does not validate internal component packaging.
+`environments/compsognathus_longipes/data/shell_screen_v3.json` separately compares v2 and v3 at **113 local poses**
+against **80 original leg geoms**, using direct signed distances that ignore the core-leg contact masks. It finds no
+newly introduced overlap exceeding 0.5 mm and no penetration worsened by more than 1 mm in this sample. At home, two
+existing solid-envelope overlaps with the upper hip-mount meshes reduce from approximately 11.5 mm to 2.7 mm. The
+casing is a convex solid proxy, so these results require interpretation against real hollow-shell and mount CAD. This
+is a discrete comparison around home, not a complete range-of-motion clearance proof, and it does not validate
+internal component packaging.
 
 There is no demonstrated learned gait, deliberate push test, uneven terrain, battery-runtime result or
 fabrication-ready assembly. The earlier Rev B 341-pose clearance/load screen remains historical prescribed-motion

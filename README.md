@@ -5,7 +5,7 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
 [![Docs](https://img.shields.io/badge/docs-mesozoiclabs.com-blue.svg)](https://mesozoiclabs.com)
 
-Simulated dinosaurs that learn to move with reinforcement learning.
+Reinforcement-learning locomotion research on simulated dinosaurs.
 
 ![A simulated Velociraptor holding its balance](results/velociraptor_mongoliensis/anatomical/ppo/stance.gif)
 
@@ -22,9 +22,9 @@ Compsognathus also has a twelve-servo robot model. The models are simplified for
 anatomical reconstructions.
 
 Each model learns a few behaviors, such as stance (standing balance), walk and hunt (a species task such as a claw
-strike or a reach for food). Each behavior is a separate policy with its own pass/fail test, and it is published only
-once it passes. Training a behavior starts from the passed policy below it, so that policy is reused, not trained
-again.
+strike or a reach for food). Each behavior is a separate policy, judged against its own pass/fail test and published
+on its own. A behavior that passes its test is certified, and later stages start from it, so a certified policy is
+reused, not trained again.
 
 The goals are locomotion controllers for these bodies, predatory behaviors (hunting, striking and, later, pack
 coordination) and, in the long run, policies that run on real robots. All work so far is in simulation. Hardware
@@ -91,7 +91,7 @@ On a machine with a display, this opens the model in MuJoCo's interactive viewer
 of `python`):
 
 ```bash
-python environments/velociraptor_mongoliensis/scripts/view_model.py --embodiment anatomical
+python -m environments.velociraptor_mongoliensis.scripts.view_model --embodiment anatomical
 ```
 
 ### Train a policy
@@ -117,9 +117,9 @@ python -m environments.shared.train --species velociraptor_mongoliensis --embodi
 
 Every model trains through this one entry point. `--species` and `--embodiment` are required; for the robot, use
 `--species compsognathus_longipes --embodiment robot`. Running `python -m environments.shared.train` without them
-prints every model's IDs. The [behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes) covers stopping at one
-behavior (`--target`), reusing stages that passed in an earlier run, retraining a stage, the recovery stage and the
-notebook's settings.
+prints every model's IDs. The [behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes) covers
+stopping at one behavior (`--target`), reusing certified stages from an earlier run (`--trunk-from`), retraining a
+stage, the recovery stage and the notebook's settings.
 
 ## Repository layout
 
@@ -128,7 +128,7 @@ notebook's settings.
 | [`environments/`](environments) | The Gymnasium environments, one package per species; `shared/` holds training, evaluation and the catalog generator |
 | [`configs/`](configs) | The species manifest and each model's stage configs (`configs/<species>/<embodiment>/`) |
 | [`notebooks/`](notebooks) | Colab notebooks for training and for summarizing results |
-| [`results/`](results) | Published run summaries, metrics and GIFs |
+| [`results/`](results) | Published run summaries, metrics and GIFs, including historical, unverified ones |
 | [`docs/`](docs) | The generated species catalog, plans, design records, investigations and reviews |
 | [`website/`](website) | Source of [mesozoiclabs.com](https://mesozoiclabs.com) (Docusaurus) |
 | [`examples/`](examples) | The standalone Stegosaurus reference |
@@ -141,9 +141,9 @@ Start with the guides on [mesozoiclabs.com](https://mesozoiclabs.com) and the ge
 | To… | Read |
 |---|---|
 | Install, view a model, train, evaluate and override hyperparameters step by step | [Installation](https://mesozoiclabs.com/docs/getting-started/installation) and [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) |
-| Train stance, walk and hunt, reuse passed stages across runs and read a run directory; the training command's flags and the notebook's settings | [Behavior recipes](https://mesozoiclabs.com/docs/training/recipes) |
+| Train stance, walk and hunt, reuse certified stages across runs and read a run directory; the training command's flags and the notebook's settings | [Behavior recipes](https://mesozoiclabs.com/docs/training/recipes) |
 | Tune PPO, SAC and the stage configs | [Training guides](https://mesozoiclabs.com/docs/training/ppo) |
-| Look up one model: specifications, stages with their budgets and pass tests, success definitions, published run summaries | The generated [species catalog](docs/SPECIES_CATALOG.md), or the model's page on the site; both are linked from the [Species](#species) table |
+| Look up one model: specifications, stages with their budgets and pass/fail tests, success definitions, published run summaries | The generated [species catalog](docs/SPECIES_CATALOG.md), or the model's page on the site; both are linked from the [Species](#species) table |
 | Find the published run-summary files and when a summary counts as current | [results/README.md](results/README.md) |
 | Add a species or a robot, set up for development and run the tests | [Contributing](CONTRIBUTING.md) |
 | See what changed in each release | [Changelog](CHANGELOG.md) |

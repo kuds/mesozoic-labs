@@ -59,7 +59,10 @@ and toes, and the motion of the pelvis, head and tail. The stand report also giv
 inside the loaded contacts. `--noise` and `--seeds` repeat a trial from perturbed starts, `--actuators` adds force and
 joint-limit margins, and `--trace FILE.npz` saves the first seed's poses, foot forces and clearances. The review gives
 the exact runs behind its tables, and the command that replays archived PPO walking checkpoints on this model
-([`scripts/replay_walk.py`](scripts/replay_walk.py)).
+([`scripts/replay_walk.py`](scripts/replay_walk.py)). [`tests/test_reference_walk.py`](tests/test_reference_walk.py)
+checks the walk, [`tests/test_com_stance_quality.py`](tests/test_com_stance_quality.py) checks standing balance, and
+the [walking replay](../../website/static/videos/tyrannosaurus_rex_anatomical_reference_walk.mp4) shows a noisy
+walking trial with a close-up of the feet and their measured loads.
 
 ## Run the model
 
@@ -71,13 +74,16 @@ pip install -e ".[train]"     # adds Stable-Baselines3 and PyTorch, for training
 pip install -e ".[test]"      # adds pytest, for the tests
 
 python -m environments.tyrannosaurus_rex.scripts.view_model --embodiment anatomical
+python -m environments.tyrannosaurus_rex.scripts.test_actuators --embodiment anatomical
 python -m environments.tyrannosaurus_rex.scripts.test_env --embodiment anatomical
 pytest environments/tyrannosaurus_rex/tests
 ```
 
-`view_model` opens MuJoCo's interactive viewer. It needs a display; on macOS, run it with `mjpython` instead of
-`python`. `test_env` is a smoke test: it resets and steps the environment, checks the reward components, determinism
-and observation bounds over short random rollouts, and accepts `--render`.
+`view_model` prints the model's bodies, joints and actuators and opens MuJoCo's interactive viewer, and
+`test_actuators` opens the viewer with every actuator sweeping through its range. Both need a display; on macOS, run
+them with `mjpython` instead of `python`. `test_env` is a smoke test: it resets and steps the environment and checks
+the reward components, determinism and observation bounds over short random rollouts. `--render`, `--episodes` and
+`--steps` adjust it.
 
 ## Training
 
@@ -158,20 +164,20 @@ head, torso or tail touching the floor, or a bite. The thresholds are in `base_e
 | [`anatomical/env.py`](anatomical/env.py) | `TyrannosaurusRexAnatomicalEnv`, the registered model |
 | [`anatomical/assets/`](anatomical/assets/) | The MJCF model |
 | [`data/`](data/) | The review's measurements (`anatomical_review.json`) |
-| [`scripts/`](scripts/) | The viewer, an actuator sweep (`test_actuators.py`), the smoke test, the motion audit and reference walk, the PPO transfer replay (`replay_walk.py`), and the builders of the rendered surface (`build_integument.py`, `hindlimb_surface.py`) |
+| [`scripts/`](scripts/) | The viewer (`view_model.py`), the actuator sweep (`test_actuators.py`), the smoke test (`test_env.py`), the reference walk and motion audit (`reference_walk.py`, `audit_motion.py`), the PPO transfer replay (`replay_walk.py`) and the builders of the rendered surface (`build_integument.py`, `hindlimb_surface.py`) |
 | [`tests/`](tests/) | Environment, reward, actuator-bound, static-balance, lean and settled-leg, stance-stagger, center-of-pressure, stance-quality and reference-walk tests |
 
 ## Further reading
 
 - [Anatomical review](../../docs/reviews/TREX_ANATOMICAL_REVIEW_2026_11.md): proportions, balance, the reference walk
   and the transfer of archived PPO checkpoints.
-- [Stance-hack audit](../../docs/investigations/STANCE_HACK_AUDIT_2026_10.md): why the stance is judged on floor
-  forces; §9 and §10 cover the first stances it judged and the center-of-pressure bar.
+- [Stance-hack audit, 2026-10](../../docs/investigations/STANCE_HACK_AUDIT_2026_10.md): why the stance is judged on
+  floor forces; §9 and §10 cover the first stances it judged and the center-of-pressure bar.
 - [T. rex stance record](../../docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md): the symmetry, foot and
   tail work behind the current stance recipe.
 - [Recovery stage, first runs](../../docs/investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md) and the
   [stance and recovery split](../../docs/STAGE1_SPLIT_PLAN.md): the push schedule and the recovery gate.
-- [Plant revision notes](../../configs/plant_versions.toml): what changed in each physics and policy-interface
-  revision of the model.
 - [Direction following and terrain](../../docs/TRAIN_DIRECTION_AND_TERRAIN.md): the pilot behaviors in
-  `configs/tyrannosaurus_rex/anatomical/behaviors/`, trained by a separate runner.
+  `configs/tyrannosaurus_rex/anatomical/behaviors/`, trained by `python -m environments.shared.train_behaviors`.
+- [Plant revisions](../../configs/plant_versions.toml): what changed in each physics, policy-interface and visual
+  revision of the model, tracked under the [plant contract](../../docs/PLANT_CONTRACT.md).

@@ -60,6 +60,10 @@ the pad, digit III and digit IV, and the motion of the pelvis, head and tail. Th
 center of mass lies inside the loaded contacts. `--seeds` and `--noise` repeat a trial from perturbed starts, and
 `--skin-clearance` measures the rendered foot surface against the floor. The review lists the exact runs behind its
 tables, and [`data/reference_validation.json`](data/reference_validation.json) holds its measured data.
+[`tests/test_reference_walk.py`](tests/test_reference_walk.py) checks the walk,
+[`tests/test_com_stance_quality.py`](tests/test_com_stance_quality.py) checks standing balance, and the
+[walking replay](../../website/static/videos/velociraptor_mongoliensis_anatomical_reference_walk.mp4) shows the walk
+with its measured foot contacts.
 
 ## Run the model
 
@@ -71,14 +75,16 @@ pip install -e ".[train]"     # adds Stable-Baselines3 and PyTorch, for training
 pip install -e ".[test]"      # adds pytest, for the tests
 
 python -m environments.velociraptor_mongoliensis.scripts.view_model --embodiment anatomical
+python -m environments.velociraptor_mongoliensis.scripts.test_actuators --embodiment anatomical
 python -m environments.velociraptor_mongoliensis.scripts.test_env --embodiment anatomical
 pytest environments/velociraptor_mongoliensis/tests
 ```
 
-`view_model` opens MuJoCo's interactive viewer at the standing pose. It needs a display; on macOS, run it with
-`mjpython` instead of `python`. `test_env` is a smoke test: it resets and steps the environment, checks the reward
-components, determinism and observation bounds over short random rollouts, and accepts `--render`. Run every command
-from the repository root, after the install, or Python cannot find the `environments` package.
+`view_model` prints the model's bodies, joints and actuators and opens MuJoCo's interactive viewer, and
+`test_actuators` opens the viewer with every actuator sweeping through its range. Both need a display; on macOS, run
+them with `mjpython` instead of `python`. `test_env` is a smoke test: it resets and steps the environment and checks
+the reward components, determinism and observation bounds over short random rollouts. `--render`, `--episodes` and
+`--steps` adjust it.
 
 ## Training
 
@@ -105,12 +111,13 @@ how to evaluate a checkpoint.
 
 Species notes:
 
-- The stance passes on a stance-quality check of the floor forces under each foot, rolled at six headings after the
-  stage ends, not on reward. The catalog entry lists its bars.
-- Several stance constants are measured on the zero-action model: the settled pitch that the posture term centers on
-  (`natural_pitch`), the settled tail and neck poses, and the starting action noise (`log_std_init` in
-  `stance.toml`), set just below the noise the standing model survives
-  (`tests/test_anatomical_noise_tolerance.py`). Re-measure them after any change to the MJCF.
+- **Stance.** The stance passes on a stance-quality check of the floor forces under each foot, rolled at six headings
+  after the stage ends, not on reward. The catalog entry lists its bars.
+- **Measured constants.** Several stance constants are measured on the zero-action model: the settled pitch that the
+  posture term centers on (`natural_pitch`), the settled tail and neck poses, and the starting action noise.
+  `log_std_init = -2.30` in `stance.toml` gives σ 0.10, the edge of what the standing model survives: it holds 40/40
+  episodes up to σ 0.09 and 38/40 at σ 0.10 (`tests/test_anatomical_noise_tolerance.py`). Re-measure them after any
+  change to the MJCF.
 
 ## Task and rewards
 
@@ -135,9 +142,10 @@ The main reward groups:
 - **Effort:** energy, action smoothness and tail stability.
 
 The weights are the `VelociraptorMongoliensisEnv` constructor defaults in `base_env.py`, overridden by the `[env]`
-table of each stage TOML in [`configs/velociraptor_mongoliensis/anatomical/`](../../configs/velociraptor_mongoliensis/anatomical/).
-An episode ends on a fall or launch, excessive tilt or a nosedive, the head tip or skull dropping too low, the trunk,
-skull or distal tail touching the floor, or a strike. The thresholds are in `base_env.py`.
+table of each stage TOML in
+[`configs/velociraptor_mongoliensis/anatomical/`](../../configs/velociraptor_mongoliensis/anatomical/). An episode
+ends on a fall or launch, excessive tilt or a nosedive, the head tip or skull dropping too low, the trunk, skull or
+distal tail touching the floor, or a strike. The thresholds are in `base_env.py`.
 
 ## Files
 
@@ -147,7 +155,7 @@ skull or distal tail touching the floor, or a strike. The thresholds are in `bas
 | [`anatomical/env.py`](anatomical/env.py) | `VelociraptorMongoliensisAnatomicalEnv`, the registered model |
 | [`anatomical/assets/`](anatomical/assets/) | The MJCF model |
 | [`data/`](data/) | The reference trials' measured data and the review's figures |
-| [`scripts/`](scripts/) | The viewer, an actuator sweep (`test_actuators.py`), the smoke test, the motion audit and reference walk, an actuator saturation report, and the builder of the rendered surface (`build_integument.py`) |
+| [`scripts/`](scripts/) | The viewer (`view_model.py`), the actuator sweep (`test_actuators.py`), the smoke test (`test_env.py`), the reference walk and motion audit (`reference_walk.py`, `audit_motion.py`), an actuator saturation report (`actuator_saturation_report.py`) and the builder of the rendered surface (`build_integument.py`) |
 | [`tests/`](tests/) | Environment, reward, actuator-bound, static-balance, mirror-symmetry, noise-tolerance, stance-quality, viewer, motion-audit and reference-walk tests |
 
 ## Further reading
@@ -160,9 +168,8 @@ skull or distal tail touching the floor, or a strike. The thresholds are in `bas
   are offsets from the home keyframe and the posture term is centered on the natural lean.
 - [Heading-free observations](../../docs/HEADING_INVARIANCE_DESIGN_2026_10.md): the design of the observation and of
   the six-heading stance check.
-- [Plant revision notes](../../configs/plant_versions.toml): what changed in each physics and policy-interface
-  revision of the model.
 - [Direction following and terrain](../../docs/TRAIN_DIRECTION_AND_TERRAIN.md): the pilot behaviors in
-  `configs/velociraptor_mongoliensis/anatomical/behaviors/`.
-- [Hyperparameters](https://mesozoiclabs.com/docs/training/hyperparameters): how the stage configs are laid out and
-  tuned.
+  `configs/velociraptor_mongoliensis/anatomical/behaviors/`, trained by
+  `python -m environments.shared.train_behaviors`.
+- [Plant revisions](../../configs/plant_versions.toml): what changed in each physics, policy-interface and visual
+  revision of the model, tracked under the [plant contract](../../docs/PLANT_CONTRACT.md).
