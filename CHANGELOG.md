@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **A `LICENSE` file at the repository root** with the MIT text the project
+  already declared in `pyproject.toml`; it ships in the wheel and sdist. The
+  README's License section links it and points to the Apache-2.0 notice for
+  the Compsognathus robot meshes derived from Open Duck Mini v2.
 - **The r10 LTSB T. rex stance certified on `main` on two seeds, with its
   fresh-seed audit** (#665; the maintainer's stance-landing decision of 2026-11-06,
   cited by date: this records change keeps the date citation, and its number

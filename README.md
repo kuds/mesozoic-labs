@@ -136,4 +136,6 @@ If you use Mesozoic Labs in your research, please cite:
 
 ## License
 
-MIT, as declared in [`pyproject.toml`](pyproject.toml).
+MIT; see [LICENSE](LICENSE). The Compsognathus robot meshes and inherited leg data are third-party
+Apache-2.0 components from Open Duck Mini v2: see their
+[notice](environments/compsognathus_longipes/robot/references/NOTICE.md) and the upstream license beside it.
