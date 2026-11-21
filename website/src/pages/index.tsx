@@ -28,13 +28,6 @@ const featured = [
   },
 ];
 
-const roadmap = [
-  ['Now', '60 cm Triceratops in simulation'],
-  ['Next', 'Single-foreleg bench tests'],
-  ['Q3 2027 target', 'Demonstrate the 60 cm Triceratops walking on hardware'],
-  ['2028 target', 'Build and test the 75 cm T. rex'],
-];
-
 function SectionHeading({id, children}: {id: string; children: string}) {
   useBrokenLinks().collectAnchor(id);
   return <h2 id={id}>{children}</h2>;
@@ -66,6 +59,7 @@ function TriceratopsStudy() {
       <figcaption className={styles.caption}>
         <strong>Triceratops</strong>
         <span>MuJoCo design study · Views scaled independently</span>
+        <Link className={styles.textLink} to="/animals/triceratops#scale-comparison">Compare the adult and the 60 cm robot to scale</Link>
       </figcaption>
     </figure>
   );
@@ -114,11 +108,8 @@ export default function Home(): React.JSX.Element {
           </section>
           <section aria-labelledby="roadmap">
             <SectionHeading id="roadmap">Build roadmap</SectionHeading>
-            <dl className={styles.roadmap}>
-              {roadmap.map(([when, milestone]) => (
-                <div key={when}><dt>{when}</dt><dd>{milestone}</dd></div>
-              ))}
-            </dl>
+            <p>The next hardware test is a single Triceratops foreleg on the bench. The target for a walking demonstration of the 60 cm robot is Q3 2027.</p>
+            <Link className={styles.textLink} to="/timeline">Explore the project timeline</Link>
           </section>
         </div>
       </main>

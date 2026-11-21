@@ -110,7 +110,7 @@ const config: Config = {
       items: [
         {to: '/animals', label: 'Animals', position: 'right'},
         {href: '/#journal', label: 'Build journal', position: 'right'},
-        {href: '/#roadmap', label: 'Roadmap', position: 'right'},
+        {to: '/timeline', label: 'Timeline', position: 'right'},
         {type: 'docSidebar', sidebarId: 'docsSidebar', label: 'Docs', position: 'right'},
       ],
     },

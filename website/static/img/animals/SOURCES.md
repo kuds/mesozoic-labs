@@ -27,3 +27,7 @@ To regenerate all views, install the repository’s rendering dependencies and a
 ```sh
 python website/scripts/render_turntables.py --triceratops-xml /path/to/anatomical.xml
 ```
+
+## Triceratops scale comparison
+
+The two transparent profiles show neutral standing poses in a level, orthographic side view. Each image is cropped from the tip of the tail to the tip of the brow horn and from the lowest foot surface to the crown of the frill. The adult model spans 7.30 m. The selected 60 cm robot spans 1.20 m and its frill reaches 0.60 m above the soles. The rubber pads have a lighter studio finish so they remain visible on the dark background. [Adult reference model](https://github.com/kuds/mesozoic-labs/blob/84a13e1e7729ff4e92f1376db6464975836b3bcc/hardware/triceratops_design_study/models/anatomical.xml) · [60 cm option C model with roll ankles](https://github.com/kuds/mesozoic-labs/blob/7bfeef5334d0d7484e5428f1b77d2d1847d35c8c/hardware/triceratops_build/sim/generated/trike60_C_closed_ankleroll.xml) · [60 cm dimensions and build report](https://github.com/kuds/mesozoic-labs/blob/7bfeef5334d0d7484e5428f1b77d2d1847d35c8c/hardware/triceratops_build/sim/REPORT_60CM.md)

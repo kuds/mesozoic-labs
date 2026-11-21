@@ -12,7 +12,7 @@ export const triceratopsVersions: RobotVersionList = [
     name: 'Current design',
     studyLabel: 'Current design · Walking trials',
     title: 'The 60 cm Triceratops design',
-    description: 'The selected design stands 60 cm at the frill and measures 1.2 m from nose to tail. The Q3 2027 target is to assemble the four-legged robot and demonstrate a physical walk.',
+    description: 'The selected design stands 60 cm at the frill and measures 1.2 m from horn tip to tail tip. The Q3 2027 target is to assemble the four-legged robot and demonstrate a physical walk.',
     image: '/img/triceratops-gait.jpg',
     alt: 'A green-frilled Triceratops robot balancing on its legs over a checkerboard floor during a simulated gait trial',
     caption: 'Simulation still · Learned controller, 6 seconds into a gait trial',
