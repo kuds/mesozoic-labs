@@ -62,5 +62,5 @@ Optional training dependencies (`pip install -e ".[train]"`):
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| stable-baselines3 | >= 2.2.0 | RL algorithms (PPO, SAC) |
+| stable-baselines3 | >= 2.9.0 | RL algorithms (PPO, SAC) |
 | wandb | >= 0.16.0 | Experiment tracking |

@@ -5144,6 +5144,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `require_backend_parity`.
 
 ### Fixed
+- **T. rex stance training no longer fails on a fresh `pip install -e ".[train]"`**
+  (`environments/shared/mirror_kl_ppo.py`, `pyproject.toml`). The mirror-symmetric PPO
+  guard refused any stable-baselines3 but 2.9.0, though pip resolves 2.9.2, whose sources
+  are unchanged; it now checks the digests of the SB3 sources it depends on (`PPO.train`,
+  `RunningMeanStd`, `DiagGaussianDistribution.mode`) instead of the release number, and
+  the `train` extra requires stable-baselines3 >= 2.9.0.
 - **A comparison's run names sit at their lines' ends in the
   training-history report** (#644; report only;
   `environments/shared/reporting/training_history.py`). Each run's name at

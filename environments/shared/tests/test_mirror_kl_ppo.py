@@ -157,9 +157,36 @@ def test_an_equivariant_policy_pays_no_mirror_loss(mirror_map):
 def test_train_is_stock_ppo_train_plus_four_marked_lines():
     MK.check_sb3_pin()
     assert MK.stock_ppo_train_sha256() == MK.SB3_PPO_TRAIN_SHA256
+    assert MK.stock_source_sha256() == MK.SB3_SOURCE_SHA256
+    assert MK.SB3_SOURCE_SHA256["PPO.train"] == MK.SB3_PPO_TRAIN_SHA256
     diff = MK.train_source_diff()
     assert diff["removed"] == []
     assert len(diff["added"]) == 4 and all(MK.MIRROR_MARKER in line for line in diff["added"])
+
+
+def test_the_sb3_guard_reads_the_pinned_sources_not_the_release_number(monkeypatch, mirror_map):
+    """A fresh `pip install -e ".[train]"` resolves the latest SB3 patch release (2.9.2, whose pinned sources are
+    2.9.0's): the guard accepts it.  A release whose PPO.train or RunningMeanStd source differs is refused."""
+    import stable_baselines3
+
+    monkeypatch.setattr(stable_baselines3, "__version__", "2.9.2")
+    MK.check_sb3_pin()
+    assert MK.SB3_VERSION == "2.9.0"  # the record of the release the copy was made from
+
+    monkeypatch.setattr(MK, "stock_ppo_train_sha256", lambda: "0" * 64)
+    with pytest.raises(SY.SymmetryError) as refused:
+        MK.check_sb3_pin()
+    message = str(refused.value)
+    assert "2.9.2" in message and "2.9.0" in message
+    assert f"PPO.train: copied sha256 {MK.SB3_PPO_TRAIN_SHA256}, installed sha256 {'0' * 64}" in message
+    assert "RunningMeanStd" not in message
+    monkeypatch.undo()
+
+    monkeypatch.setitem(MK.SB3_SOURCE_SHA256, "RunningMeanStd", "f" * 64)
+    with pytest.raises(SY.SymmetryError, match="RunningMeanStd: copied sha256 f{64}, installed sha256"):
+        MK.check_sb3_pin()
+    with pytest.raises(SY.SymmetryError, match="RunningMeanStd"):
+        MK.enable_mirror_kl(_make(), SY.SymmetryConfig(), mirror_map)
 
 
 # ---------------------------------------------------------------------------------------------------- training
