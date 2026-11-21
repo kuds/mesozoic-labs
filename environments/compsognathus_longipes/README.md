@@ -78,8 +78,9 @@ pytest environments/compsognathus_longipes/tests
 `view_model` opens MuJoCo's interactive viewer at `home`, holds the home joint targets and steps real physics.
 `--embodiment` has no default; `--motors-off` disables actuation, and `--mass-scale 1.15` scales body masses and
 inertias with the motor limits unchanged. It needs a display; on macOS, run it with `mjpython` instead of `python`.
-With the `viz` extra (`pip install -e ".[viz]"`), `--compare`, `--snapshot`, `--head-camera` and `--video` render
-images and videos instead, headless under `MUJOCO_GL=egl` or `MUJOCO_GL=osmesa`; `--help` shows examples.
+With the `viz` extra (`pip install -e ".[viz]"`), `--compare`, `--snapshot` and `--video` render images and videos
+instead, headless under `MUJOCO_GL=egl` or `MUJOCO_GL=osmesa`; `--head-camera` views or renders through the 640 × 480
+snout camera, and `--help` shows examples.
 
 The species has no smoke-test script of its own, so `tests/test_training_env.py` stands in for one: it checks both
 Gymnasium environments' contract, resets and steps of every stage across seeds, a full episode at zero action,
