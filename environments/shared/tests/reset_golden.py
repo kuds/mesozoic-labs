@@ -42,8 +42,8 @@ Values are quantized like the plant contract's portable probe
 deliberately not stored so the fixture stays reviewable.
 
 Capture (the tree must be at the pre-bump commit, nothing under
-``environments/*/envs``, ``base_env.py``, ``obs_functions.py``,
-``mjx_env.py`` or ``jax_setup.py`` modified)::
+``environments/*/envs`` or ``base_env.py`` modified; at that commit the
+since-removed frozen MJX modules must be unmodified too)::
 
     PYTHONPATH=. python environments/shared/tests/reset_golden.py \\
         --out environments/shared/tests/fixtures/phase_c_reset_golden.json

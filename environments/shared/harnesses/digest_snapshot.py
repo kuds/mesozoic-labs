@@ -311,13 +311,15 @@ def _policy_lines(out: _Snapshot, model_id: ModelId, entrypoint: str, version: A
 
     env = _load_environment(entrypoint)(reset_noise_scale=0.0)
     try:
-        payload = _policy_interface_payload(env.model, env, version, require_backend_parity=True)
+        payload = _policy_interface_payload(env.model, env, version)
     finally:
         env.close()
     columns = (model_id.species, model_id.embodiment)
     out.emit("policy", *columns, "WHOLE", _semantic_digest(POLICY_INTERFACE_SCHEMA, payload))
     for key in sorted(payload):
         out.emit("policy", *columns, key, _semantic_digest("breakdown", _canonical_value(payload[key])))
+    # jax_interface is the constant record of the removed backend; its rows
+    # stay so every model's lines are unchanged.
     for group in ("interface_implementations", "jax_interface"):
         value = payload.get(group)
         if isinstance(value, dict):

@@ -95,7 +95,7 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
     studies: {
       stance: {title: 'Stand tall', description: 'The foot pads hold the body above the ground as the animal maintains its erect stance.'},
       locomotion: {title: 'Work in diagonal pairs', description: 'Each foreleg coordinates with the opposite hind leg as the model walks.'},
-      behavior: {title: 'Place the snout', description: 'The MuJoCo task scores a touch with the snout. The MJX version measures whether the snout tip comes within 12 cm of prey.'},
+      behavior: {title: 'Place the snout', description: 'The MuJoCo task scores a touch of the snout on the prey.'},
     },
   },
   compsognathus_longipes: {

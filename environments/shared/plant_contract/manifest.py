@@ -56,8 +56,6 @@ def fingerprint_model_layers(
     model: mujoco.MjModel,
     env: Any,
     version: PlantVersion,
-    *,
-    require_backend_parity: bool = False,
 ) -> dict[str, str]:
     """Fingerprint a compiled model's policy, physics, and visual layers.
 
@@ -67,12 +65,7 @@ def fingerprint_model_layers(
     return {
         "policy_interface_sha256": _semantic_digest(
             POLICY_INTERFACE_SCHEMA,
-            policy_layer._policy_interface_payload(
-                model,
-                env,
-                version,
-                require_backend_parity=require_backend_parity,
-            ),
+            policy_layer._policy_interface_payload(model, env, version),
         ),
         "physics_sha256": _semantic_digest(PHYSICS_SCHEMA, physics_layer._physics_payload(model, version)),
         "visual_sha256": _semantic_digest(VISUAL_SCHEMA, visual_layer._visual_payload(model, version)),
@@ -89,7 +82,7 @@ def _manifest_entry_for_identity(
     env_class = _load_environment(str(entry["env_entrypoint"]))
     env = env_class(reset_noise_scale=0.0)
     try:
-        implemented_backends = set(getattr(env, "supported_training_backends", ("stable-baselines3", "jax-mjx")))
+        implemented_backends = set(policy_layer.declared_training_backends(env, model_id))
         # Required on every species-manifest entry (review L5); None: a
         # bundled-manifest entry, which carries no declaration to check.
         declared = entry["training_backends"]
@@ -99,9 +92,9 @@ def _manifest_entry_for_identity(
         model = env.model
         source_payload = source_layer._source_payload(model_path)
         source_digest = _semantic_digest(SOURCE_SCHEMA, source_payload)
-        layer_digests = fingerprint_model_layers(model, env, version, require_backend_parity=True)
+        layer_digests = fingerprint_model_layers(model, env, version)
         declared_model = mujoco.MjModel.from_xml_path(str(model_path))
-        declared_digests = fingerprint_model_layers(declared_model, env, version, require_backend_parity=True)
+        declared_digests = fingerprint_model_layers(declared_model, env, version)
         if declared_digests != layer_digests:
             raise PlantContractError(
                 f"{model_id} environment model does not match the declared source {model_relative_path}"
@@ -434,19 +427,20 @@ def _is_committed_entry(model_id: ModelId, manifest_entry: Mapping[str, Any]) ->
 
 def _policy_interface_unchanged(entry: Mapping[str, Any], version: PlantVersion, identity: PlantIdentity) -> bool:
     """Re-run the cheap policy layer on a fresh env (Python code is not in the key)."""
-    default = ("stable-baselines3", "jax-mjx")
     declared = entry["training_backends"]
     try:
         env = _load_environment(str(entry["env_entrypoint"]))(reset_noise_scale=0.0)
     except Exception:
         return False
     try:
-        payload = policy_layer._policy_interface_payload(env.model, env, version, require_backend_parity=True)
+        payload = policy_layer._policy_interface_payload(env.model, env, version)
         return (
             _semantic_digest(POLICY_INTERFACE_SCHEMA, payload) == identity.policy_interface_sha256
             and int(np.prod(env.observation_space.shape)) == identity.observation_dim
             and int(np.prod(env.action_space.shape)) == identity.action_dim
-            and (declared is None or set(declared) == set(getattr(env, "supported_training_backends", default)))
+            and (
+                declared is None or set(declared) == set(policy_layer.declared_training_backends(env, version.model_id))
+            )
         )
     except Exception:
         return False

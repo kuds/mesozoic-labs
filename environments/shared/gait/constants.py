@@ -35,7 +35,7 @@ audit):
 
 * :data:`CONTACT_THRESHOLD_N` 0.1 N is the threshold every other contact
   reader already uses (``stance_diagnostics.derive_stance_info``,
-  ``metrics.py`` and the MJX per-foot sensor read), so floor truth and touch
+  ``metrics.py``), so floor truth and touch
   disagree only where the physics does.
 * :data:`DOWN_SUBSTEP_FRACTION` 0.5: a leg is down on a control step when
   its whole-limb floor force exceeds 0.1 N on at least half of the step's

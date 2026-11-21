@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **A `LICENSE` file at the repository root** with the MIT text the project
+  already declared in `pyproject.toml`; it ships in the wheel and sdist. The
+  README's License section links it and points to the Apache-2.0 notice for
+  the Compsognathus robot meshes derived from Open Duck Mini v2.
 - **The r10 LTSB T. rex stance certified on `main` on two seeds, with its
   fresh-seed audit** (#665; the maintainer's stance-landing decision of 2026-11-06,
   cited by date: this records change keeps the date citation, and its number
@@ -5076,6 +5080,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says.
 
 ### Removed
+- **The Weights & Biases integration**: `environments/shared/wandb_integration.py`,
+  the `--wandb` flag of `train` and `curriculum`, the `use_wandb` argument of
+  `train()` and `train_curriculum()`, and `wandb` in the `train` extra. Nothing
+  used it; TensorBoard stays the run logger, and `--label` is still recorded
+  beside each stage's hyperparameter digest. Drop `--wandb` from any scripts.
 - **The species aliases, selection by display name, and the per-species
   training wrappers** (D-D33):
   - the aliases `raptor`, `t-rex`, `brachio`, `dibo`, `compso` and
@@ -5131,8 +5140,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reset label `"certification_override"` is no longer written (a forced
   reset of a sampled env is `"evaluation_override"`; an env without a
   sampler writes no `terrain_sampling` record).
+- **The frozen MJX interface core and the `jax-mjx` backend** (D-D17's
+  exit): `environments/shared/{mjx_env,jax_setup,mjx_utils,obs_functions}.py`
+  and both `anatomical/mjx_config.py` registrations. Brachiosaurus and
+  Dibothrosuchus now declare Stable-Baselines3 only, moving their policy
+  interface to r11 and r10 (`configs/plant_versions.toml` note 23); r10 and
+  r9 checkpoints of those two models no longer pass the plant check, so they
+  cannot seed a warm start or a trunk reuse. Every other model's digests are
+  unchanged. An environment or species manifest that declares `jax-mjx` is
+  refused; archived JAX result bundles still read.
+  `plant_contract.fingerprint_model_layers` no longer takes
+  `require_backend_parity`.
 
 ### Fixed
+- **T. rex stance training no longer fails on a fresh `pip install -e ".[train]"`**
+  (`environments/shared/mirror_kl_ppo.py`, `pyproject.toml`). The mirror-symmetric PPO
+  guard refused any stable-baselines3 but 2.9.0, though pip resolves 2.9.2, whose sources
+  are unchanged; it now checks the digests of the SB3 sources it depends on (`PPO.train`,
+  `RunningMeanStd`, `DiagGaussianDistribution.mode` and `proba_distribution`) instead of
+  the release number, and the `train` extra requires stable-baselines3 >= 2.9.0. The
+  extra also requires torch >= 2.6: earlier releases have a known bypass of
+  `torch.load(weights_only=True)` (CVE-2025-32434).
+- **Windows checkouts no longer make every plant manifest stale.**
+  `.gitattributes` now sets `* text=auto eol=lf`, so `core.autocrlf=true`
+  (Git for Windows' default) checks the hashed MJCF and TOML files out with LF,
+  and a `plant-identity (windows)` CI job guards it. A Windows clone made before
+  this change must be re-cloned, or re-checked out after committing or stashing
+  local edits (`git rm --cached -r . && git reset --hard` discards them). No
+  digest changes.
+- **The curated `collected_results.csv` files agree with their summaries**
+  (results only; `environments/shared/tests/test_result_summaries.py`). The
+  Brachiosaurus PPO, T. rex PPO, Velociraptor PPO and Velociraptor SAC CSVs
+  are regenerated from their unchanged `summary.json` by the canonical
+  writer, and a test now fails on any summary/CSV contradiction or orphan CSV.
 - **A comparison's run names sit at their lines' ends in the
   training-history report** (#644; report only;
   `environments/shared/reporting/training_history.py`). Each run's name at

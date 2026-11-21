@@ -955,7 +955,6 @@ def _build_core_callbacks(
     save_freq: int,
     verbose: int,
     stage_config: dict[str, Any],
-    use_wandb: bool = False,
     local_tb_dir: Path | None = None,
     gcs_tb_path: Path | None = None,
     model_id: ModelId | None = None,
@@ -1005,7 +1004,6 @@ def _build_core_callbacks(
     from .policy_probe import build_policy_probe_callback
     from .rollout_ledger import build_training_ledger_callback
     from .tb_sync import PeriodicTbSyncCallback
-    from .wandb_integration import WandbCallback
 
     callbacks: list[Any] = []
 
@@ -1278,9 +1276,6 @@ def _build_core_callbacks(
     if progress_cb is not None:
         callbacks.append(progress_cb)
 
-    if use_wandb:
-        callbacks.append(WandbCallback())
-
     # Flush buffered TensorBoard events to the remote mount (GCS or Drive)
     # on the checkpoint cadence so a reclaimed Colab runtime (or any crashed
     # worker) doesn't lose the whole stage's logs.
@@ -1429,23 +1424,6 @@ def _save_final_and_sync_tb(
 # ── Single-stage training ────────────────────────────────────────────────
 
 
-def _wandb_run_tags(config: dict[str, Any], algorithm: str, label: str | None) -> list[str]:
-    """The W&B tags a trained node carries (decision D-A21).
-
-    ``hp:<12 hex>`` is the first twelve hex characters of the node's
-    :func:`~environments.shared.config.hyperparameters_sha256` — the same
-    digest ``stage_config.json`` records — so runs trained under one recipe
-    group in the W&B UI; ``label:<label>`` follows when a label was given.
-    """
-    from .config import hyperparameters_sha256
-
-    digest = hyperparameters_sha256(config, algorithm)
-    tags = [f"hp:{digest.removeprefix('sha256:')[:12]}"]
-    if isinstance(label, str) and label.strip():
-        tags.append(f"label:{label.strip()}")
-    return tags
-
-
 def eval_env_seed(seed: int) -> int:
     """The seed of a stage's evaluation environment: the run's ``seed`` plus 1000.
 
@@ -1496,9 +1474,7 @@ def _train_stage_body(
     use_subproc: bool,
     verbose: int,
     algorithm: str,
-    use_wandb: bool,
     use_tensorboard: bool,
-    label: str | None,
     plant_identity: PlantIdentity,
     task_fingerprint: dict[str, Any],
     parent_id: str | None,
@@ -1517,7 +1493,7 @@ def _train_stage_body(
 
     It builds the training and evaluation environments (the latter seeded
     :func:`eval_env_seed`), loads the VecNormalize statistics, builds the
-    algorithm kwargs, starts W&B, creates or loads the model, sets up a
+    algorithm kwargs, creates or loads the model, sets up a
     same-stage resume as a continuation, builds the callbacks, trains, and
     saves the final pair.  The stage directory (``log_path``), its
     ``stage_config.json`` and the declared-parent check are the caller's,
@@ -1547,8 +1523,6 @@ def _train_stage_body(
     K3 noise panel (:mod:`~environments.shared.k3_panel`) on its own env of
     the stage.
     """
-    from .wandb_integration import init_wandb
-
     config = stage_configs[stage]
 
     # Create environments
@@ -1625,16 +1599,6 @@ def _train_stage_body(
     if algorithm == "ppo" and pop_critic_phase(alg_kwargs):
         critic_phase = train_env.critic_phase
         logger.info("Critic phase: the critic also reads %s (the actor does not)", critic_phase.record())
-
-    wandb_run = None
-    if use_wandb:
-        wandb_run = init_wandb(
-            model_id=species_cfg.model_id,
-            stage=stage,
-            config=config,
-            run_dir=str(log_path),
-            tags=_wandb_run_tags(config, algorithm, label),
-        )
 
     model = _create_or_load_model(
         sb3,
@@ -1723,7 +1687,6 @@ def _train_stage_body(
         save_freq,
         verbose,
         config,
-        use_wandb,
         local_tb_dir=local_tb_dir,
         gcs_tb_path=gcs_tb_path,
         model_id=species_cfg.model_id,
@@ -1855,9 +1818,6 @@ def _train_stage_body(
                 f"{target_timesteps:,}",
             )
 
-    if wandb_run is not None:
-        wandb_run.finish()
-
     # Save the final checkpoint *before* anything evaluates it, so a failure
     # (or a second Ctrl-C) during train()'s ~80 serial post-training eval
     # episodes can't lose the model.
@@ -1946,7 +1906,6 @@ def train(
     use_subproc: bool = False,
     verbose: int = 1,
     algorithm: str = "ppo",
-    use_wandb: bool = False,
     output_dir: str | None = None,
     use_tensorboard: bool = True,
     allow_legacy_plant: bool = False,
@@ -2007,8 +1966,7 @@ def train(
 
     ``label`` is free text naming the run (``--label``); it is recorded in
     the stage config's ``run`` block beside the ``hyperparameters_sha256``
-    digest every stage records, and both reach the W&B run as tags
-    (``label:<label>``, ``hp:<digest prefix>``; decision D-A21).
+    digest every stage records.
 
     ``parent_run_id`` (a reused certified ancestor's run) is recorded with
     the load lineage; ``vecnorm_path`` names the loaded checkpoint's
@@ -2177,9 +2135,7 @@ def train(
         use_subproc=use_subproc,
         verbose=verbose,
         algorithm=algorithm,
-        use_wandb=use_wandb,
         use_tensorboard=use_tensorboard,
-        label=label,
         plant_identity=plant_identity,
         task_fingerprint=task_fingerprint,
         # Stage-entry shaping fires on the node's declared edge, never its position.
@@ -2887,7 +2843,6 @@ def train_curriculum(
     use_subproc: bool = False,
     verbose: int = 1,
     algorithm: str = "ppo",
-    use_wandb: bool = False,
     output_dir: str | None = None,
     use_tensorboard: bool = True,
     allow_fresh_vecnorm: bool = False,
@@ -3001,8 +2956,7 @@ def train_curriculum(
     duration, records no verdict for it and stops the curriculum.
 
     ``label`` (``--label``) is recorded in every trained node's ``run``
-    block beside its ``hyperparameters_sha256`` and both reach W&B as tags
-    (decision D-A21).  Reuse carries the ancestor's recorded recipe, not
+    block beside its ``hyperparameters_sha256``.  Reuse carries the ancestor's recorded recipe, not
     this run's: when a reused node's current algorithm block or shaping
     keys differ from the ancestor's ``stage_config.json`` a warning names
     the differing keys and points at ``--retrain-from`` — the edit is
@@ -3362,9 +3316,7 @@ def train_curriculum(
             use_subproc=use_subproc,
             verbose=verbose,
             algorithm=algorithm,
-            use_wandb=use_wandb,
             use_tensorboard=use_tensorboard,
-            label=label,
             plant_identity=plant_identity,
             task_fingerprint=task_fingerprint,
             # A node with an edge enters on its parent's promoted checkpoint —

@@ -2003,10 +2003,6 @@ robustness, **LOW** = cosmetic / QoL.
 2. CLI curriculum parity with the notebook: call `generate_stage_artifacts`
    per stage and run the quality eval so `metrics.json` exists on that path.
    (July §4)
-3. W&B: pass a render-capable eval env into `WandbCallback` (its video path
-   is dead code), log final metrics before `finish()`, upload
-   `best_model.zip` + vecnorm as W&B Artifacts, log the run URL into
-   `stage_config.json`. (July §4; June §6.6)
 
 ## MuJoCo models (July 2026 model review)
 

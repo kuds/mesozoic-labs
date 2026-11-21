@@ -104,14 +104,12 @@ def test_manifest_display_names_cover_every_model():
 
 def test_backend_specific_models_do_not_advertise_unimplemented_jax():
     assert model_ids(backend="stable-baselines3") == tuple(MODEL_DISPLAY_NAMES)
-    # Velociraptor left jax-mjx at its policy-interface revision 11 (plant_versions note 14),
-    # the T-Rex at its revision 14 (note 18, the heading-free observation).
-    assert model_ids(backend="jax-mjx") == (
-        ModelId("brachiosaurus_altithorax", "anatomical"),
-        ModelId("dibothrosuchus_elaphros", "anatomical"),
-    )
-    with pytest.raises(ValueError, match="Unknown training backend"):
-        model_ids(backend="unsupported")
+    # Velociraptor left jax-mjx at its policy-interface revision 11 (plant_versions note 14), the T-Rex at its
+    # revision 14 (note 18, the heading-free observation), and brachiosaurus and dibothrosuchus at revisions 11 and
+    # 10 (note 23), when the backend was removed: it is now an unknown backend.
+    for backend in ("jax-mjx", "unsupported"):
+        with pytest.raises(ValueError, match="Unknown training backend"):
+            model_ids(backend=backend)
 
 
 def test_an_unknown_species_is_refused_for_training_and_for_labels():

@@ -72,6 +72,13 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
     BEHAVIOR_SECTION_LABEL = "Food Reaching"
     SUCCESS_KEYS = ("food_reached",)
 
+    # SB3 only since policy interface r11 (configs/plant_versions.toml note
+    # 23): the frozen MJX interface core (D-D17) was removed with this
+    # declaration, as the velociraptor (note 14) and the T-Rex (note 18) left
+    # it.  The plant contract now hashes _cache_ids
+    # (interface_implementations.sb3_sensor_cache) as it does for every
+    # SB3-only species.
+    supported_training_backends = ("stable-baselines3",)
     action_mapping = "home-keyframe-residual/v1"
     _camera_distance = 5.0
     _camera_azimuth = 135
@@ -283,8 +290,8 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         self._sensor_fl_meta = 27
         self._sensor_rr_meta = 28
         self._sensor_rl_meta = 29
-        # Per-foot groups for the base class's substep MIN aggregation --
-        # mirrors mjx_config's sensor_foot_indices + sensor_foot_aux_indices.
+        # Per-foot groups for the base class's substep MIN aggregation: each
+        # foot's pad sensor and its appended meta sensor.
         self._foot_sensor_groups = (
             (self._sensor_fr_foot, self._sensor_fr_meta),
             (self._sensor_fl_foot, self._sensor_fl_meta),

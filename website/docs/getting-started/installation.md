@@ -29,6 +29,8 @@ pip install -e ".[train]"
 pip install -e ".[all]"
 ```
 
+On Windows, the repository forces LF line endings on checkout (`.gitattributes`), because the plant contract hashes the checked-out MJCF and TOML bytes. A clone made before LF was forced (November 2026) must be re-cloned or re-checked out, or training and evaluation refuse with "generated plant manifest is stale". To re-check out, commit or stash your local edits first, since `git reset --hard` discards them, then run `git rm --cached -r . && git reset --hard`.
+
 ## Verify Installation
 
 ```bash
@@ -62,5 +64,5 @@ Optional training dependencies (`pip install -e ".[train]"`):
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| stable-baselines3 | >= 2.2.0 | RL algorithms (PPO, SAC) |
-| wandb | >= 0.16.0 | Experiment tracking |
+| torch | >= 2.6 | Neural networks (2.6 fixes a `torch.load` safety bypass) |
+| stable-baselines3 | >= 2.9.0 | RL algorithms (PPO, SAC) |

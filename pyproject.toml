@@ -35,9 +35,9 @@ Issues = "https://github.com/kuds/mesozoic-labs/issues"
 
 [project.optional-dependencies]
 train = [
-    "torch>=2.0.0",
-    "stable-baselines3[extra]>=2.2.0",
-    "wandb>=0.16.0",
+    # 2.6 is the first release whose torch.load(weights_only=True) has no known bypass (CVE-2025-32434).
+    "torch>=2.6",
+    "stable-baselines3[extra]>=2.9.0",
 ]
 viz = [
     "mediapy>=1.1.0",
@@ -107,20 +107,6 @@ strict_equality = true
 [tool.ruff]
 line-length = 120
 target-version = "py311"
-# The frozen MJX interface core (D-D17): the plant contract hashes the source
-# tokens of its functions, so a formatter or autofix change would move two
-# species' policy-interface digests (docs/CLEANUP_PLAN_2026_09.md §4.3).
-# force-exclude also skips them when a path is named on the command line;
-# test_plant_contract_frozen_mjx.py checks this list.
-extend-exclude = [
-    "environments/shared/mjx_env.py",
-    "environments/shared/jax_setup.py",
-    "environments/shared/mjx_utils.py",
-    "environments/shared/obs_functions.py",
-    "environments/brachiosaurus_altithorax/anatomical/mjx_config.py",
-    "environments/dibothrosuchus_elaphros/anatomical/mjx_config.py",
-]
-force-exclude = true
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]

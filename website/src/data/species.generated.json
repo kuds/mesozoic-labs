@@ -886,13 +886,13 @@
         "nu": 30,
         "dynamic_mass_kg": 175.3,
         "plant_contract": {
-          "bundle_sha256": "sha256:117d619550da2bf2ef7504ef77a5085c61ce3babf1d0e0b7212fa3752f2b8bf8",
+          "bundle_sha256": "sha256:46b912439d34c86568f13c75456c36476b98d9ad94d787555a45d0dcbcad891f",
           "source_closure_sha256": "sha256:faea818fbd67e93c5f2e213829eece868b5c9614ff82def9fcecddefd181e10e",
           "policy_interface": {
             "schema": "mesozoic.policy-interface/v1",
-            "revision": 10,
+            "revision": 11,
             "observation_schema": "quadrupedal-target/v1",
-            "sha256": "sha256:30665d083504ffde533fa18efd91eb6e81c41f261b7c4b4133a85f8109926356"
+            "sha256": "sha256:ad46080324f297a501828c233899d932de48f767eed0c9594f92ca017e0a4cc9"
           },
           "physics": {
             "schema": "mesozoic.mujoco-physics/v1",
@@ -912,8 +912,7 @@
       "success_metrics": [
         {
           "backends": [
-            "stable-baselines3",
-            "jax-mjx"
+            "stable-baselines3"
           ],
           "key": "food_reached",
           "label": "Head-tip distance-threshold success",
@@ -945,8 +944,7 @@
           "deliverable": "hunt",
           "stage_id": "behavior",
           "backends": [
-            "stable-baselines3",
-            "jax-mjx"
+            "stable-baselines3"
           ],
           "key": "food_reached",
           "label": "Head-tip distance-threshold success",
@@ -1191,13 +1189,13 @@
         "nu": 27,
         "dynamic_mass_kg": 8.65,
         "plant_contract": {
-          "bundle_sha256": "sha256:56ef24c7e1533ace7c9ea7f3e7f55a1c56aa5fc28a8d2adc531fdcaf559a391b",
+          "bundle_sha256": "sha256:d844e170e4164ecfecdade84cabea4f6642032cc3be51686794822b2dd8858b1",
           "source_closure_sha256": "sha256:ea9a7611fd9ec1adc610cf736586e968582e4e380677917e68cfbde4d71f9ce3",
           "policy_interface": {
             "schema": "mesozoic.policy-interface/v1",
-            "revision": 9,
+            "revision": 10,
             "observation_schema": "quadrupedal-target/v1",
-            "sha256": "sha256:62c7f77f5b9d531148bcc452db24776087866eadadbbf43f2035d84f9daca7c5"
+            "sha256": "sha256:429fac0516e659fc2599f82d948555c04ac5e21f9aced7e0a25bc0c421044fd8"
           },
           "physics": {
             "schema": "mesozoic.mujoco-physics/v1",
@@ -1222,14 +1220,6 @@
           "key": "snap_success",
           "label": "Snout-contact snap proxy",
           "definition": "The snout snap geom contacts the prey geom while the snap reward is enabled; the model has no articulated jaw."
-        },
-        {
-          "backends": [
-            "jax-mjx"
-          ],
-          "key": "snap_proximity_success",
-          "label": "Snout-tip proximity snap proxy",
-          "definition": "The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw."
         }
       ],
       "deliverable_metrics": [
@@ -1262,16 +1252,6 @@
           "key": "snap_success",
           "label": "Snout-contact snap proxy",
           "definition": "The snout snap geom contacts the prey geom while the snap reward is enabled; the model has no articulated jaw."
-        },
-        {
-          "deliverable": "hunt",
-          "stage_id": "behavior",
-          "backends": [
-            "jax-mjx"
-          ],
-          "key": "snap_proximity_success",
-          "label": "Snout-tip proximity snap proxy",
-          "definition": "The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw."
         }
       ],
       "stages": [

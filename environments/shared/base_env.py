@@ -121,12 +121,10 @@ class BaseDinoEnv(gym.Env, ABC):
     _home_ground_clearance_m: float | None = None
 
     # Per-foot touch-sensor groups (sensordata indices), declared per species
-    # in _cache_ids; () means "no foot sensors".  Mirrors the frozen MJX
-    # registration's sensor_foot_indices + sensor_foot_aux_indices (D-D17), so
-    # the plant contract's MJX observation probe reads the same foot sensors.
-    # Each group lists the pad first: _foot_contact_forces adds group[0] to
-    # the running sum of the rest (the pinned order in the class docstring),
-    # so keep the pad first and leave no group empty.
+    # in _cache_ids; () means "no foot sensors".  Each group lists the pad
+    # first: _foot_contact_forces adds group[0] to the running sum of the rest
+    # (the pinned order in the class docstring), so keep the pad first and
+    # leave no group empty.
     _foot_sensor_groups: "tuple[tuple[int, ...], ...]" = ()
     # The observation's foot-contact channels, as touch-sensor groups
     # (sensordata addresses; each channel is its group's summed touch), for a

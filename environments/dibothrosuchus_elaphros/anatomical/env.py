@@ -3,8 +3,7 @@
 Everything the species' embodiments share is
 :class:`~environments.dibothrosuchus_elaphros.base_env.DibothrosuchusElaphrosEnv`;
 this class adds what is this model's own.  ``environments/__init__.py``
-registers it with Gymnasium from the species manifest, and the frozen MJX
-registration (D-D17) is ``mjx_config.py`` beside it.
+registers it with Gymnasium from the species manifest.
 """
 
 from __future__ import annotations

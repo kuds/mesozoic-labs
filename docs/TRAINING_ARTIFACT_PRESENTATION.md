@@ -7,7 +7,7 @@ display name followed by the embodiment label, such as "Tyrannosaurus Rex
 headings use `stage_display_name()`: the historical `balance` name is shown
 as **Stance**, and the six current stance configs record `name = "stance"`.
 This applies to CLI logs, text summaries, gate and probe reports, plot
-legends, notebook tables, the public catalog, and W&B run titles.
+legends, notebook tables and the public catalog.
 
 | Species ID | Embodiment | Model display name | Stance gate |
 |---|---|---|---|
@@ -57,12 +57,7 @@ Brachiosaurus uses a 9 m front view to include its tall neck.
 Playback uses `fps = 1 / env.dt`. The four 0.01 s models produce 100 fps
 videos; both Compsognathus embodiments use 0.02 s steps and 50 fps. A recording
 lasting 10 s in simulation lasts 10 s on playback. Historical videos used
-50 fps universally, making 0.01 s recordings play at half speed. The W&B
-callback's optional evaluation video uses the same `1 / dt`, read from its
-env (30 fps when the env reports no `dt`). wandb encodes it as a GIF, whose
-players clamp frame delays below 2 cs, so above 50 fps it keeps every n-th
-frame (every second at 0.01 s) and still plays in real time. The training
-entry points pass it no video env.
+50 fps universally, making 0.01 s recordings play at half speed.
 
 Each stance CSV has one row per frame, with `step`, elapsed `time_s`,
 `reward`, `terminated`, `truncated`, and common `root_*` position/orientation
@@ -883,7 +878,7 @@ rest of `diagnostics.npz`, the counts start again on a same-stage resume
 `diagnostics.npz` also gains `reward_action_jerk`, the action-jerk reward
 term every stance stage pays (`action_jerk_weight`): the env emitted it,
 but nothing recorded it. It reaches TensorBoard
-(`diagnostics/reward_action_jerk`), W&B and the post-training results CSV
+(`diagnostics/reward_action_jerk`) and the post-training results CSV
 (`eval_reward_action_jerk`) as the other reward terms do.
 
 ## The policy probe: `policy_probe.npz`
@@ -1708,7 +1703,8 @@ and get none of these, nor `progress.json`.
 ## Compatibility and verification
 
 The display-name change kept run directories, replay filename IDs, semantic
-stage IDs, recipe labels, W&B resume IDs and filter tags, and checkpoint
+stage IDs, recipe labels, W&B resume IDs and filter tags (W&B has since been
+removed), and checkpoint
 loading contracts stable. Decision D-D33 later renamed the species IDs and
 added the embodiment to run directories, replay names and W&B IDs, so runs
 recorded under the old IDs no longer resolve. The Drive summary formats copies
@@ -1717,8 +1713,7 @@ embodiment IDs and recorded stage names. Existing
 completed bundles are not rewritten; re-rendering historical reports maps
 `balance` to Stance without changing their payloads or verdicts. A stage
 resumed after this change records the new stage name, `stance`, in its
-rewritten `stage_config.json` and in its W&B config's `stage_name`, which
-nothing functional reads.
+rewritten `stage_config.json`.
 
 The config-name change deliberately changes twelve config-view golden
 hashes: PPO and SAC for each of the six stance nodes. All other 637 lines of
@@ -1727,7 +1722,7 @@ policy interfaces, task and gate digests, hyperparameters, behavior recipes,
 and reward captures. No physics or policy-interface revision is required.
 
 Regression coverage checks the display names through the
-summary writers, notebook displays/exports and W&B resume path; all six
+summary writers and notebook displays/exports; all six
 stance replay producers plus the three recovery nodes; snapshot collection
 without changing simulation state or fabricating quadruped support; on each
 biped, the stance width, foot position, pelvis-over-support and leg

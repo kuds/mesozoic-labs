@@ -820,7 +820,7 @@ class TestNeckHomePose:
         """The stance pays the term, so its training telemetry must keep it.
 
         ``DiagnosticsCallback.REWARD_KEYS`` is the list every consumer reads (the TensorBoard
-        ``diagnostics/*`` scalars, ``diagnostics.npz``, the W&B ``reward/*`` metrics,
+        ``diagnostics/*`` scalars, ``diagnostics.npz``,
         ``LocomotionMetrics`` and the reward-decomposition plot); a key the env emits that it
         does not list is dropped without a warning.  The plot shows the term on the stance by
         its weight.

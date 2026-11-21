@@ -54,6 +54,6 @@ current model revision and configs.
 ## Project Status
 
 The project is actively under development. Core infrastructure includes
-automated curriculum training, W&B experiment tracking, and evaluation metrics.
+automated curriculum training, TensorBoard logging, and evaluation metrics.
 See the repository roadmap for planned work, including hardware and sim-to-real
 experiments that have not yet been validated.

@@ -466,7 +466,7 @@ python -m environments.shared.train --species velociraptor_mongoliensis --embodi
   curriculum --algorithm ppo --trunk-from logs/<earlier_run> --retrain-from locomotion \
   --output-dir logs/<new_run>
 
-# Tag every trained node (recorded beside its hyperparameter digest; W&B tag label:<TEXT>)
+# Tag every trained node (recorded beside its hyperparameter digest)
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
   curriculum --algorithm ppo --label "lr-3e-4"
 

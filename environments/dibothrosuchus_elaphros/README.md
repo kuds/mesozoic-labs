@@ -35,6 +35,10 @@ The species has one model, the pair (species, embodiment) of
 
 ## Implementation Notes
 
+Stable-Baselines3 is the model's only training backend. It declared itself SB3-only at policy interface r10
+(`configs/plant_versions.toml` note 23), when the frozen MJX interface core and its `mjx_config.py` registration were
+removed; policy-interface r9 checkpoints fail its plant check, so they cannot seed a warm start or a trunk reuse.
+
 ### Anatomical review
 
 The original stood on four rectangular soles. Its forelimb folded in the same direction as the hindlimb, and the visible skull extended beyond the snout landmark. Revision 3 places the elbow behind the shoulder and the hind knee ahead of the hip. A tapered trunk and tail, a distinct lower jaw, lateral eyes and nares, low frontal ridges and paired dorsal osteoderms give the surface recognizable landmarks. The two profiles below share a camera and scale. [Original MJCF at c096090](https://github.com/kuds/mesozoic-labs/blob/c096090ebe51cf8529f62eb595a6b6659a696d65/environments/dibothrosuchus_elaphros/anatomical/assets/dibothrosuchus_elaphros_anatomical.xml) · [Revised geometry](anatomical/assets/dibothrosuchus_elaphros_anatomical.xml) · [Ruebenstahl et al. (2022), skull reconstructions and osteoderms](https://pmc.ncbi.nlm.nih.gov/articles/PMC9541040/)
@@ -155,7 +159,6 @@ dibothrosuchus_elaphros/
 ├── anatomical/
 │   ├── __init__.py
 │   ├── env.py                      # DibothrosuchusElaphrosAnatomicalEnv and its body data
-│   ├── mjx_config.py               # Frozen MJX registration (D-D17 digest input)
 │   └── assets/
 │       └── dibothrosuchus_elaphros_anatomical.xml   # MuJoCo MJCF model
 ├── scripts/

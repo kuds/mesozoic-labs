@@ -70,7 +70,8 @@ charismatic species. The honest summary:
 | Sim-to-real validation | **not_started** | `configs/species_manifest.toml:17-18` |
 
 The training codebase is mature (SB3 PPO/SAC, curriculum manager,
-W&B, a "plant contract" fingerprinting system). Everything downstream of
+TensorBoard logging, a "plant contract" fingerprinting system; the W&B
+integration was removed in November 2026). Everything downstream of
 training toward hardware is greenfield.
 
 Additional maturity caveats that matter for hardware:

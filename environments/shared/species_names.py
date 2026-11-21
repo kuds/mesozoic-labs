@@ -26,7 +26,9 @@ _MANIFEST_PATH = Path(__file__).resolve().parents[2] / "configs" / "species_mani
 #: The manifest schema this reader accepts; 3 since decision D-D33.
 SPECIES_MANIFEST_SCHEMA_VERSION = 3
 
-_TRAINING_BACKENDS = ("stable-baselines3", "jax-mjx")
+#: The one training backend.  ``jax-mjx`` was removed with the frozen MJX
+#: interface core (configs/plant_versions.toml note 23) and is refused here.
+_TRAINING_BACKENDS = ("stable-baselines3",)
 
 _SPECIES_KEYS = frozenset({"display_order", "display_name", "embodiments"})
 #: What the runtime readers need from every embodiment table: registration

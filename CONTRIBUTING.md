@@ -94,14 +94,7 @@ plant manifests, `plant_versions.toml` and the recovery calibrations): a
 whitespace fix there would move a digest. Every Python module stays under the
 hooks: no digest hashes a Python file's bytes, and the policy-interface digests
 hash the tokens of named functions only (not comments, docstrings or blank
-lines), which CI's pinned ruff keeps from changing. The one exception is
-the frozen MJX interface core (decision D-D17: `mjx_env.py`, `jax_setup.py`,
-`mjx_utils.py` and `obs_functions.py` in `environments/shared/`, and the two
-`<species>/anatomical/mjx_config.py` registrations): two models' policy-interface digests hash its
-function tokens, so `pyproject.toml`'s `[tool.ruff]` `extend-exclude`, with
-`force-exclude`, keeps every ruff run off it (the hooks, CI, and a file named
-on the command line), and `test_plant_contract_frozen_mjx.py` pins the list.
-Never edit those files.
+lines), which CI's pinned ruff keeps from changing.
 
 ## Running Tests
 
@@ -203,15 +196,10 @@ snake_case, and `<Species>` its PascalCase form. Follow this checklist:
 
 4. **Declare the species SB3-only** (`base_env.py`):
    - Set the class attribute `supported_training_backends = ("stable-baselines3",)`,
-     as `CompsognathusLongipesEnv` does. Stable-Baselines3 is the only training backend
-     (decision D-D17); without the attribute the plant contract treats the
-     model as dual-backend and fails with "cannot import MJX plant
-     registration"
-   - Do not add an `mjx_config.py`: the two that exist belong to the frozen
-     MJX interface core, which the policy-interface digests of the anatomical
-     Brachiosaurus and Dibothrosuchus hash and which is never
-     edited or extended (`docs/PLANT_CONTRACT.md`, "Backend parity and runtime
-     binding")
+     as every species base does. Stable-Baselines3 is the only training backend
+     (decision D-D17); the plant contract refuses any other value, `jax-mjx`
+     included: the JAX/MJX backend and its frozen interface core were removed
+     (`docs/PLANT_CONTRACT.md`, "Training backend and runtime binding")
    - A biped can take the heading-free observation schema
      `bipedal-target-heading-free/v1`, as the T-Rex, the anatomical
      Compsognathus and the Velociraptor do: build its root block with
