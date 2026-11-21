@@ -1,142 +1,169 @@
-# Brachiosaurus Altithorax Environment
+# Brachiosaurus Altithorax
 
-Quadrupedal dinosaur-inspired locomotion and target-reaching environment using MuJoCo and Gymnasium.
-
-## Overview
-
-This Brachiosaurus-inspired model has longer front legs than rear legs and a long articulated neck. The environment trains the agent to walk with a coordinated four-legged gait and move its head toward an elevated food target. "Food reach" succeeds when the head tip enters a configured distance threshold around the target; it does not require contact between physical food and head geoms.
-
-## Generated Specifications, Curriculum, and Results
-
-The authoritative public dimensions, current stage budgets, success criterion, and provenance-labelled historical
-results are in the generator-managed [Brachiosaurus Altithorax (Anatomical) catalog entry](../../docs/SPECIES_CATALOG.md#brachiosaurus_altithorax-anatomical). They are derived
-from the species manifest, executable environment, compiled MJCF, current TOML stage configs, and result summaries.
+A sauropod-inspired quadruped with a long, articulated neck, a tapering tail and shoulders that stand higher than its
+hips. It walks with a slow four-beat, lateral-sequence gait that keeps at least two feet on the ground. The model is
+for learning to stand, to walk, and to reach food: bringing the head tip to an elevated food target. It is a research abstraction at model scale, not
+a validated model of how the animal moved.
 
 ## Models
-
-The species has one model, the pair (species, embodiment) of
-[docs/SPECIES_NAMING.md](../../docs/SPECIES_NAMING.md):
 
 | | Anatomical |
 |---|---|
 | Species / embodiment | `brachiosaurus_altithorax` / `anatomical` |
-| Environment class | `BrachiosaurusAltithoraxAnatomicalEnv` (`anatomical/env.py`), on the species base `BrachiosaurusAltithoraxEnv` (`base_env.py`) |
 | Gymnasium ID | `MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0` |
-| MJCF | `anatomical/assets/brachiosaurus_altithorax_anatomical.xml` |
-| Configs | `configs/brachiosaurus_altithorax/anatomical/` |
-| Catalog | [Brachiosaurus Altithorax (Anatomical)](../../docs/SPECIES_CATALOG.md#brachiosaurus_altithorax-anatomical) |
+| Environment | [`BrachiosaurusAltithoraxAnatomicalEnv`](anatomical/env.py) |
+| MuJoCo model | [`brachiosaurus_altithorax_anatomical.xml`](anatomical/assets/brachiosaurus_altithorax_anatomical.xml) |
+| Stage configs | [`configs/brachiosaurus_altithorax/anatomical/stages.toml`](../../configs/brachiosaurus_altithorax/anatomical/stages.toml) |
+| Catalog entry | [Brachiosaurus Altithorax (Anatomical)](../../docs/SPECIES_CATALOG.md#brachiosaurus_altithorax-anatomical) |
+| Model page | [mesozoiclabs.com/docs/models/brachiosaurus_altithorax/anatomical](https://mesozoiclabs.com/docs/models/brachiosaurus_altithorax/anatomical) |
 
-## Implementation Notes
+Dimensions, stage budgets, gates and published results are generated in the catalog entry; this page does not repeat
+them.
 
-Stable-Baselines3 is the model's only training backend. It declared itself SB3-only at policy interface r11
-(`configs/plant_versions.toml` note 23), when the frozen MJX interface core and its `mjx_config.py` registration were
-removed; policy-interface r10 checkpoints fail its plant check, so they cannot seed a warm start or a trunk reuse.
+## Anatomical review
 
-### Anatomical review
+- **Proportions.** The humerus and femur are nearly equal in length, as the holotype supports. The humerus, radius
+  and metacarpus follow the ratio of the referred Potter Creek material, so the forelimb gains its extra height
+  through the forearm and metacarpus. The chest deepens toward the shoulders. The skull outline, browsing angle,
+  distal tail and skin contours draw on other brachiosaurids. Loads and speeds apply at model scale.
+- **Joints.** A free torso carries position servos at four neck pitch joints, a neck yaw joint and head pitch; at each
+  leg's hip pitch, hip roll, elbow or knee, wrist or ankle, and toe; and at the first three tail segments. The last
+  tail joint is a passive spring. The elbows and hind knees fold in opposite directions.
+- **Feet.** The compact forefoot carries weight through a near-vertical metacarpus. The longer hindfoot has an
+  inclined metatarsus, a fleshy heel and three claws on the inner digits. On level ground each foot stands on one
+  smooth sole ellipsoid, sized differently for forefoot and hindfoot. The claws and sculpted soft tissue are visual
+  only, so the model cannot show individual toe pressures.
+- **Neck and tail.** The neck holds the head up under the neutral command, and the snout lowers for browsing and
+  recovers when the command is released. The tail tapers from a fleshy base.
+- **Known limits.** The reference walk covers one slow speed on flat ground. A policy that stands still can earn a
+  high locomotion reward, so reward alone does not show walking. The published training results come from earlier
+  versions of the model.
 
-The original model placed both girdles at the same height and bent its elbows 45° to fit the forelimbs on the floor. Its elbows and hind knees folded in the same direction. Both pairs of feet stood on identical pads. Under the neutral command, the unsupported neck flexed to its joint stop and the snout lost 1.44 m of height in 20 s.
+The full review, with measurements, sources, standing balance, the walking trials and browsing, is
+[docs/reviews/BRACHIOSAURUS_ANATOMICAL_REFERENCE.md](../../docs/reviews/BRACHIOSAURUS_ANATOMICAL_REFERENCE.md).
 
-![Original and revised standing profiles at the same camera scale, with details of the skull, forefoot and hindfoot](data/anatomical_review.jpg)
+## Reference walk
 
-| Measurement on the scaled model | Original | Revised |
-| --- | ---: | ---: |
-| Humerus / femur length | 0.550 / 0.450 m | 0.540 / 0.535 m |
-| Shoulder / hip joint height at home | 1.000 / 1.000 m | 1.123 / 1.005 m |
-| Elbow flexion at home | 45° | 16° |
-| Neck / tail centreline length | 1.63 / 1.46 m | 2.10 / 2.05 m |
-| Snout height at home → after 20 s of standing | 2.550 → 1.112 m | 2.977 → 2.974 m |
-| Forelimb share of settled floor load | 37.4% | 56.2% |
-
-The holotype supports near-equal humerus and femur lengths and a long, deep trunk. The model uses those proportions and a humerus, radius and metacarpus of 0.54, 0.36 and 0.15 m, following the 3.6 to 2.4 to 1 ratio from the referred Potter Creek material. The reconstructed chest deepens toward the shoulders and the tail tapers from a fleshy base. The skull outline, browsing angle, distal tail and skin contours draw on comparisons with other brachiosaurids. The simulation preserves its original 175.3 kg animal mass. Its absolute loading and speed apply at model scale. [Taylor, 2009](https://www.miketaylor.org.uk/dino/pubs/taylor2009/Taylor2009-brachiosaurus-and-giraffatitan.pdf) · [D’Emic and Carrano, 2020](https://doi.org/10.1002/ar.24198)
-
-The compact forefoot (manus) carries weight through a near-vertical metacarpus with a shallow hollow at the back of the pad. The longer hindfoot (pes) has an inclined metatarsus, a fleshy heel and three outward-directed claws on the inner digits. The claws are mirrored between sides. Each foot has one smooth ellipsoid for sole contact. Its size differs between manus and pes. The sculpted soft tissue and claws are visual geometry, so individual toe pressures cannot be inferred from this model. [Bonnan, 2003](https://doc.rero.ch/record/15172/files/PAL_E2447.pdf) · [Jannel et al., 2022](https://doi.org/10.1126/sciadv.abm8280)
-
-### Balance, walking and browsing
-
-**Standing.** All four soles load at neutral stance. With the centre of mass projected onto the floor, its nearest lateral support edge is 0.300 m away and its nearest fore–aft edge is 0.505 m away. All 120 noisy resets in the stage-1 standing panel completed 1,000 control steps. A separate 80-reset stance calibration measured a worst post-landing foot travel of 20.6 mm and a worst turn of 1.8°. These recovery limits are tracked in the stance tests.
-
-**Walking.** The reference controller asks for a lateral-sequence walk with diagonal couplets. Each foot swings forward, then bears weight while the torso advances over it. Joint servos, gravity and contact forces determine the actual motion. The controller sends ordinary Gymnasium actions and measures each foot's floor force during the physics substeps. Sauropod trackways motivate the phase relationship. The trackmakers' species is uncertain. [Lallensack and Falkingham, 2022](https://pubmed.ncbi.nlm.nih.gov/35240050/)
-
-| Six measured strides after startup, level ground, noise-free reset | Result |
-| --- | ---: |
-| Touchdown order | Left hind → left fore → right hind → right fore |
-| Mean forward speed / median stride period | 0.340 m/s / 1.405 s |
-| Median time between same-side hind and fore touchdown | 34.4% of a stride |
-| Median stride length across the four individual feet | 0.476–0.484 m |
-| Fraction of time loaded, by foot | 62.1–68.0% |
-| Median elbow / hind-knee flexion under load | 15° / 21° |
-| Peak swing clearance, by foot | 45–51 mm |
-| Minimum feet loaded / airborne physics substeps | 2 / 0 |
-| 95th-percentile contact slip speed while loaded | 0.019 m/s |
-| Torso vertical excursion / maximum absolute roll | 6.5 mm / 2.02° |
-
-All 14 walk trials completed nine strides, including three resets at noise scale 0.01 (seeds 0–2) and ten at 0.05 (seeds 3–12). Each repeated the same four-foot order.
-
-Foot loads above 1% of body weight identify weight-bearing steps. A 50 ms debounce filters brief contact flicker for touchdown timing. Clearance is measured at the bottom of each oriented sole. Slip is the measured tangential contact speed. A quiet stance, a sliding foot and a lifted foot therefore give different readings. The [walking replay](../../website/static/videos/brachiosaurus_altithorax_anatomical_reference_walk.mp4) shows the same nominal run with its contact traces.
-
-**Browsing.** With the neck pitched forward by a 65% residual command for 4 s, the snout lowered from 2.97 to 1.95 m. After release it recovered to within 5 cm of its standing height relative to the neck base in 0.99 s. The eyes, bony narial arch, forward external nostrils and mouth are separate features. [Witmer, 2001](https://pubmed.ncbi.nlm.nih.gov/11486085/)
-
-The stage-2 stationary baseline can earn 2,282 reward points without advancing, so reward alone is insufficient evidence of walking. The flat-ground reference walk demonstrates the revised plant's mechanical capacity at one slow speed. The stage-2 PPO graduation threshold is 0.75 m/s. The historical training clips and scores belong to earlier plants, and a new policy requires training and evaluation on physics revision 6.
-
-### Reward Components
-- **Forward velocity** - Movement toward food target
-- **Alive bonus** - Survival reward
-- **Energy penalty** - Penalizes excessive actuator use
-- **Gait stability** - Penalizes excessive torso angular velocity
-- **Food reach bonus** - Large reward when the head tip enters the configured distance threshold around food
-
-## Quick Start
+A scripted controller ([`scripts/reference_walk.py`](scripts/reference_walk.py)) shows that the model can walk under
+its own servos. It asks for a lateral-sequence walk with diagonal couplets (left hind, left fore, right
+hind, right fore) and sends ordinary normalized actions; the joint servos, gravity and floor contact determine the
+motion. Run it from the repository root:
 
 ```bash
-# Install from the repository root
-pip install -e ".[all]"
-
-# Replay the reference walk and print measured contacts, clearance, slip and body motion
 python -m environments.brachiosaurus_altithorax.scripts.reference_walk
-
-# Run environment tests
-python -m pytest environments/brachiosaurus_altithorax/tests/ -v
-
-# Train stage 1 using its current TOML-configured budget
-python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical train --stage 1
-
-# Train the full chain (stance -> locomotion -> food reach), each stage
-# warm-started from its declared parent in configs/brachiosaurus_altithorax/anatomical/stages.toml
-python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical curriculum --algorithm ppo
-
-# Or reuse an earlier run's certified trunk and train only what is missing above it
-python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical \
-    curriculum --algorithm ppo --trunk-from <earlier-run-dir> --output-dir <new-run-dir>
-
-# View the model (requires display)
-python environments/brachiosaurus_altithorax/scripts/view_model.py --embodiment anatomical
+python -m environments.brachiosaurus_altithorax.scripts.reference_walk --seed 3 --reset-noise 0.05
 ```
 
-Stance, locomotion and food reach are each a published deliverable (`stance`,
-`walk`, `hunt`); see [docs/BEHAVIOR_RECIPES_PLAN.md](../../docs/BEHAVIOR_RECIPES_PLAN.md).
+The walk runs nine strides and measures the six after startup. It prints a JSON report: touchdown order, forward
+speed, stride period and length, duty factor, swing clearance and loaded elbow and knee flexion per foot, the fewest
+feet loaded at once, airborne substeps, contact slip, and the torso's bob, pitch and roll. The first command starts
+from a noise-free reset; `--seed` and `--reset-noise` start from a perturbed pose.
+[`tests/test_reference_walk.py`](tests/test_reference_walk.py) checks the walk, and
+[`tests/test_com_stance_quality.py`](tests/test_com_stance_quality.py) checks standing support margins and recovery
+over 20 s. The [walking replay](../../website/static/videos/brachiosaurus_altithorax_anatomical_reference_walk.mp4)
+shows the noise-free run with its measured contacts.
+
+## Run the model
+
+From the repository root:
+
+```bash
+pip install -e .              # the environments: MuJoCo, Gymnasium and NumPy
+pip install -e ".[train]"     # adds Stable-Baselines3 and PyTorch, for training
+pip install -e ".[test]"      # adds pytest, for the tests
+
+python -m environments.brachiosaurus_altithorax.scripts.view_model --embodiment anatomical
+python -m environments.brachiosaurus_altithorax.scripts.test_env --embodiment anatomical
+pytest environments/brachiosaurus_altithorax/tests
+```
+
+`view_model` prints the model's bodies, joints and actuators and opens MuJoCo's interactive viewer. It needs a
+display; on macOS, run it with `mjpython` instead of `python`. `test_env` is a smoke test: it resets and steps the
+environment and checks the reward components, determinism and observation bounds over short random rollouts.
+`--render`, `--episodes` and `--steps` adjust it.
+
+## Training
+
+Every model trains from the repository root through one command:
+
+```bash
+python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical curriculum --algorithm ppo
+```
+
+It trains stance, then locomotion, then food reach, each warm-started from the stage before it and run with the budget
+of its stage config. The three stages publish the `stance`, `walk` and `hunt` behaviors. To reuse the certified stages
+of an earlier run and train only what is missing above them:
+
+```bash
+python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical \
+    curriculum --algorithm ppo --trunk-from <earlier_run_dir> --output-dir <new_run_dir>
+```
+
+In [`notebooks/sb3_training.ipynb`](../../notebooks/sb3_training.ipynb), set `SPECIES = "brachiosaurus_altithorax"`,
+`EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"`, `"walk"` or `"hunt"`. The
+[behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes) covers stopping at a behavior, retraining a
+stage and the notebook settings.
+
+Notes for this model:
+
+- The published results and training clips predate physics revision 6, so a policy for the current model must be
+  trained and evaluated again. Checkpoints from policy interface r10 or earlier fail the plant check and cannot seed a
+  warm start or `--trunk-from` (`configs/plant_versions.toml`, note 23).
+- The reference walk is slower than the locomotion gate's minimum speed. It shows what the plant can do mechanically,
+  not a gait that would pass the gate.
+
+## Task and rewards
+
+The species task is food reach. At reset a food target appears ahead of and above the animal. Success is the
+head-tip site coming within a configured distance of the food; it is a distance test, and no food geom touches the
+head. The environment reports it as `food_reached` and, when the food-reach bonus is enabled (the food-reach stage),
+ends the episode.
+
+The main reward groups:
+
+- **Survival and posture:** an alive bonus, a fall penalty, and penalties on tilt and nosedive with a torso-height
+  term.
+- **Progress:** forward velocity and heading toward the food, with penalties on backward, sideways and drifting
+  motion, spin, speed above a threshold and standing idle.
+- **Gait quality:** penalties on torso and tail-tip angular velocity and on jerky actions, and a reward for
+  alternating diagonal foot pairs.
+- **Effort:** an energy penalty on actuator use.
+- **Food reach:** a large bonus on success, shaping on the head-to-food distance and a head-proximity term.
+
+The weights are the `BrachiosaurusAltithoraxEnv` constructor defaults in [`base_env.py`](base_env.py), overridden by
+the `[env]` tables of `stance.toml`, `locomotion.toml` and `food_reach.toml` in
+[`configs/brachiosaurus_altithorax/anatomical/`](../../configs/brachiosaurus_altithorax/anatomical/); most terms are
+off by default and switched on per stage. Actions are residuals in [-1, 1] around the MJCF `home` controls, so zero
+action holds the home pose; the `base_env.py` docstring lists the observation and action layout. An episode ends when
+the torso height leaves its healthy range or the torso tilts too far, when the torso, belly, head or distal tail
+touches the floor, or when the food is reached.
 
 ## Files
 
-```
-brachiosaurus_altithorax/
-├── __init__.py
-├── base_env.py                  # BrachiosaurusAltithoraxEnv, the species base class
-├── anatomical/
-│   ├── __init__.py
-│   ├── env.py                   # BrachiosaurusAltithoraxAnatomicalEnv and its body data
-│   └── assets/
-│       └── brachiosaurus_altithorax_anatomical.xml   # MuJoCo MJCF model
-├── scripts/
-│   ├── test_env.py              # Environment validation script
-│   └── view_model.py            # MuJoCo passive viewer
-├── tests/
-│   ├── test_anatomical_env.py      # Model-specific env tests
-│   ├── test_anatomical_rewards.py  # Model-specific reward tests
-│   ├── test_anatomical_actuator_bounds.py  # Actuator bound tests
-│   └── test_anatomical_static_balance.py   # Static balance tests
-├── requirements.txt
-└── README.md
-```
+| Path | Contents |
+|---|---|
+| [`base_env.py`](base_env.py) | `BrachiosaurusAltithoraxEnv`, the species base: task, observation, action mapping, rewards and termination |
+| [`anatomical/env.py`](anatomical/env.py) | `BrachiosaurusAltithoraxAnatomicalEnv`, the registered model, with its foot contact geoms |
+| [`anatomical/assets/`](anatomical/assets/) | The MJCF model |
+| [`data/`](data/) | The review's figure |
+| [`scripts/`](scripts/) | The reference walk, the viewer, the smoke test (`test_env.py`), and the soft-tissue mesh builder (`axial_surface.py` with `limb_surface.py`) that rewrites the skin meshes in the MJCF |
+| [`tests/`](tests/) | Environment, reward, actuator-bound, static-balance, standing-balance and reference-walk tests |
+| [`requirements.txt`](requirements.txt) | An older dependency list with an unpinned MuJoCo; install with `pip install -e .` instead |
 
-Hyperparameter configs are at `configs/brachiosaurus_altithorax/anatomical/` in the repo root
-(`stance.toml`, `locomotion.toml`, `food_reach.toml`, `stages.toml` and `behaviors/`).
+The stage configs are in [`configs/brachiosaurus_altithorax/anatomical/`](../../configs/brachiosaurus_altithorax/anatomical/):
+`stance.toml`, `locomotion.toml`, `food_reach.toml`, `stages.toml` and the pilot behaviors in `behaviors/`.
+
+## Further reading
+
+- [Anatomical review](../../docs/reviews/BRACHIOSAURUS_ANATOMICAL_REFERENCE.md): proportions, feet, standing balance,
+  the reference walk's measurements, browsing and limits.
+- [Gait audit, 2026-09](../../docs/investigations/GAIT_AUDIT_2026_09.md): replays of the July walker, a neck-pumping
+  bound on an earlier plant, and why the locomotion reward pays a standing statue.
+- [Stance-hack audit, 2026-10](../../docs/investigations/STANCE_HACK_AUDIT_2026_10.md), §3.6: the zero-action statue on
+  an earlier plant.
+- [Training review](../../docs/investigations/TRAINING_REVIEW.md): the first Brachiosaurus runs (February–March 2026),
+  with a stage-2 review.
+- [Direction following and terrain](../../docs/TRAIN_DIRECTION_AND_TERRAIN.md): the pilot behaviors. Their runner,
+  `python -m environments.shared.train_behaviors`, accepts this model.
+- [Plant contract](../../docs/PLANT_CONTRACT.md): how the model's physics, policy-interface and visual revisions are
+  tracked.

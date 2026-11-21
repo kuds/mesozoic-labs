@@ -100,9 +100,10 @@ anatomical model's ten seeded holds passes `supports_weight` (worst settled
 ground-force error 0.31% against the 3% bar), where the default armature's
 numerical 19–21 Hz heel chatter of the MTP servo failed seeds 49 and 51
 (5.4%). The new tests
-(`tests/test_biological_rewards.py`, `tests/test_noise_tolerance.py`, the
+(`environments/compsognathus_longipes/tests/test_anatomical_rewards.py`,
+`environments/compsognathus_longipes/tests/test_anatomical_noise_tolerance.py`, the
 additions to `tests/test_models.py` and `tests/test_training_env.py`, and
-`environments/shared/tests/test_compsognathus_stance_gate_config.py`) pin the
+`environments/shared/tests/test_compsognathus_longipes_stance_gate_config.py`) pin the
 plant, the interface, the reward terms, the noise cliff and the gate
 declaration. No r2 policy has been trained to convergence; the training
 recipe's appended amendment says what to run next.
