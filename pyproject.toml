@@ -56,8 +56,10 @@ test = [
     "pytest-cov>=4.0",
     "scipy>=1.10.0",
     "matplotlib>=3.7.0",
-    # The Drive summary notebook's reader, which test_drive_summary_notebook.py executes.
+    # The Drive summary notebook's reader, which test_drive_summary_notebook.py executes; its styled
+    # table (DataFrame.style) needs jinja2, which pandas does not require.
     "pandas",
+    "jinja2",
 ]
 dev = [
     "mesozoic-labs[test]",

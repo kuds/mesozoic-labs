@@ -2677,8 +2677,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replaces `notebooks/requirements-colab.txt`. The `train` extra now requires
   `stable-baselines3` with TensorBoard, tqdm and rich instead of
   `stable-baselines3[extra]`, which also pulled in OpenCV, pygame, ALE and psutil; the
-  `test` extra gains pandas, so CI's shared legs run the Drive summary reader test. A
-  new `colab-install` CI job runs the installer on a runtime set up like Colab's.
+  `test` extra gains pandas and jinja2, so CI's shared legs run the Drive summary reader
+  test. A new `colab-install` CI job runs the installer on a runtime set up like Colab's.
 
 - Reconstructed the anatomical *Brachiosaurus altithorax* with raised shoulders, a deeper trunk,
   tapered neck and tail, distinct manus and pes, and corrected elbow and hind-knee mechanics.
