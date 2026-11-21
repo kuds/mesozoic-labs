@@ -62,17 +62,25 @@ _STAGE_NAMES = [
 ]
 #: The lines of one stage's reward capture (CU-11), in order.
 _REWARD_NAMES = ["summary", "poses", "shape_sha256", "rounded_values_sha256"]
-#: The success reason each model's behavior stage ends the success probe with.
+#: Stages in which the model's success probe ends the episode, with its reason.
 _SUCCESS = {
-    ModelId("brachiosaurus_altithorax", "anatomical"): "food_reached",
-    ModelId("compsognathus_longipes", "anatomical"): "target_reached",
-    ModelId("compsognathus_longipes", "robot"): "target_reached",
-    ModelId("dibothrosuchus_elaphros", "anatomical"): "snap_success",
-    ModelId("tyrannosaurus_rex", "anatomical"): "bite_success",
-    ModelId("velociraptor_mongoliensis", "anatomical"): "strike_success",
+    ModelId("allosaurus_fragilis", "anatomical"): {"locomotion": "course_complete"},
+    ModelId("brachiosaurus_altithorax", "anatomical"): {"behavior": "food_reached"},
+    ModelId("compsognathus_longipes", "anatomical"): {"behavior": "target_reached"},
+    ModelId("compsognathus_longipes", "robot"): {"behavior": "target_reached"},
+    ModelId("dibothrosuchus_elaphros", "anatomical"): {"behavior": "snap_success"},
+    ModelId("tyrannosaurus_rex", "anatomical"): {"behavior": "bite_success"},
+    ModelId("velociraptor_mongoliensis", "anatomical"): {"behavior": "strike_success"},
 }
 #: The reasons each model's state probes reach (the union over its stages' poses line).
 _POSE_REASONS = {
+    ModelId("allosaurus_fragilis", "anatomical"): {
+        "fallen",
+        "too_high",
+        "excessive_tilt",
+        "body_contact",
+        "nonfinite_state",
+    },
     ModelId("brachiosaurus_altithorax", "anatomical"): {
         "fallen",
         "too_high",
@@ -265,8 +273,8 @@ def test_golden_reward_probes_reach_the_ends_they_probe() -> None:
         assert steps["roll"][1] not in ("-", "truncated"), f"{model_id} {stage}: the roll must end the episode"
         if pushes:  # zero action to the episode's end (a termination, or truncation at the horizon), past the pushes
             assert steps["zero"][1] != "-", f"{model_id} {stage}: the zero part must run to the episode's end"
-        success = [_SUCCESS[model_id] if stage == "behavior" else "-"]
-        assert steps["success"] == ["1", *success], (model_id, stage, steps["success"])
+        success = _SUCCESS[model_id].get(stage, "-")
+        assert steps["success"] == ["1", success], (model_id, stage, steps["success"])
         assert steps["too_high"] == ["1", "too_high"] and steps["high_tilt"] == ["1", "too_high"], steps
         assert steps["tilt"] == ["1", "excessive_tilt"] and steps["truncation"] == ["3", "truncated"], steps
 

@@ -17,6 +17,24 @@ interface Interpretation {
 }
 
 export const INTERPRETATIONS: Record<string, Interpretation> = {
+  allosaurus_fragilis: {
+    classification: 'Late Jurassic · Theropod',
+    title: 'Walking on three toes',
+    anatomy: 'The center toe reaches farthest. Two shorter toes spread to either side, and a small inner toe sits above the ground. Behind the hips, a long, tapering tail balances the trunk and crested skull.',
+    alt: 'Allosaurus with a crest ahead of each eye, bent hind limbs and a tapered tail held above the floor',
+    detailLabel: 'Weight-bearing toes', detail: 'Three on each foot',
+    studies: {
+      stance: {title: 'Share the load', description: 'The standing trial measures how much weight each foot carries and how far the center of mass lies inside the ground contacts.'},
+      locomotion: {
+        title: 'Follow a footfall',
+        description: 'Watch one foot swing while the other supports the body. The force readings come from contact with the simulated floor.',
+        referenceRecording: {
+          path: '/videos/allosaurus_fragilis_anatomical_reference_walk.mp4',
+          caption: 'Reference controller · Level ground · Real-time playback',
+        },
+      },
+    },
+  },
   brachiosaurus_altithorax: {
     classification: 'Late Jurassic · Sauropod',
     title: 'Reaching from a four-legged stance',

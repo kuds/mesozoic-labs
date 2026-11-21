@@ -1878,6 +1878,153 @@
         }
       ],
       "historical_results": []
+    },
+    {
+      "species": "allosaurus_fragilis",
+      "embodiment": "anatomical",
+      "species_display_name": "Allosaurus Fragilis",
+      "display_name": "Allosaurus Fragilis (Anatomical)",
+      "tagline": "Jurassic tridactyl theropod",
+      "gait": "Bipedal",
+      "specialty": "Level-ground stance and forward walking",
+      "environment": {
+        "entrypoint": "environments.allosaurus_fragilis.anatomical.env:AllosaurusFragilisAnatomicalEnv",
+        "observation_dim": 45,
+        "action_dim": 10
+      },
+      "model": {
+        "path": "environments/allosaurus_fragilis/anatomical/assets/allosaurus_fragilis_anatomical.xml",
+        "nq": 19,
+        "nv": 18,
+        "nu": 10,
+        "dynamic_mass_kg": 1482.2,
+        "plant_contract": {
+          "bundle_sha256": "sha256:daab663ab2bdbef209101543a6c8f53cb206d1274c82c2e79004fb6d36bd2ae4",
+          "source_closure_sha256": "sha256:600673f3515f2306e17cb14814941c34e41cdbe79612304bd536cd52d89ac99a",
+          "policy_interface": {
+            "schema": "mesozoic.policy-interface/v1",
+            "revision": 1,
+            "observation_schema": "bipedal-target-heading-free/v1",
+            "sha256": "sha256:885c3793d2204fc45545647a48ca9ae35cc38e7a7d79047b2b7fe4e849814521"
+          },
+          "physics": {
+            "schema": "mesozoic.mujoco-physics/v1",
+            "revision": 1,
+            "sha256": "sha256:3cbd8953404e8f2a7a4a1259cd7f8aece0219b8609050517ce6dde81e7d9e6b3"
+          },
+          "visual": {
+            "schema": "mesozoic.mujoco-visual/v1",
+            "revision": 1,
+            "sha256": "sha256:1afa43f454ee95d5ab6975c660d88871247b578fa78b071808c59f6c448f2fe8"
+          }
+        }
+      },
+      "training_notebooks": [
+        "sb3_training"
+      ],
+      "success_metrics": [
+        {
+          "backends": [
+            "stable-baselines3"
+          ],
+          "key": "course_complete",
+          "label": "Walking course completion",
+          "definition": "During the forward walking task, the pelvis reaches within 0.35 m of a target eight metres ahead while supported by at least one foot."
+        }
+      ],
+      "deliverable_metrics": [
+        {
+          "deliverable": "stance",
+          "stage_id": "stance",
+          "backends": [
+            "stable-baselines3"
+          ],
+          "key": "stance_quality",
+          "label": "Supported standing (stance_quality/v1)",
+          "definition": "At least 95% of standing trials last ten seconds. After a two-second settling period, the mean fraction of time on neither foot and its upper confidence bound each stay at or below 2%. Mean reward must reach 1,200 points."
+        },
+        {
+          "deliverable": "walk",
+          "stage_id": "locomotion",
+          "backends": [
+            "stable-baselines3"
+          ],
+          "key": "forward_velocity_gate",
+          "label": "Gated forward velocity",
+          "definition": "The walking policy meets the configured forward-speed, reward and episode-length minima in successive evaluations."
+        }
+      ],
+      "stages": [
+        {
+          "id": "stance",
+          "position": 1,
+          "number": 1,
+          "label": "1",
+          "name": "stance",
+          "title": "Stance",
+          "description": "Hold an upright, foot-supported standing posture.",
+          "config_path": "configs/allosaurus_fragilis/anatomical/stance.toml",
+          "timesteps": 3000000,
+          "deliverable": true,
+          "warm_start_from": null,
+          "recipe": "stance",
+          "certification_seeds": 1,
+          "advancement_gate": {
+            "gate_kind": "stance_quality/v1",
+            "pending_gate_kind": null,
+            "min_avg_reward": 1200.0,
+            "min_avg_episode_length": null,
+            "min_avg_forward_velocity": null,
+            "min_success_rate": null,
+            "min_full_horizon_fraction": 0.95,
+            "max_unsupported_duty": 0.02,
+            "max_unsupported_duty_ucb": 0.02,
+            "min_recovery_success_lcb": null,
+            "min_paired_success_delta_lcb": null,
+            "recovery_t_recover_steps": null,
+            "recovery_dwell_steps": null,
+            "min_success_lcb": null,
+            "min_eval_episodes": 40,
+            "required_consecutive": 3
+          },
+          "video": null
+        },
+        {
+          "id": "locomotion",
+          "position": 2,
+          "number": 2,
+          "label": "2",
+          "name": "locomotion",
+          "title": "Locomotion",
+          "description": "Walk forward on the feet along an eight-metre course.",
+          "config_path": "configs/allosaurus_fragilis/anatomical/locomotion.toml",
+          "timesteps": 6000000,
+          "deliverable": true,
+          "warm_start_from": "stance",
+          "recipe": "walk",
+          "certification_seeds": 1,
+          "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
+            "min_avg_reward": 900.0,
+            "min_avg_episode_length": 550,
+            "min_avg_forward_velocity": 0.25,
+            "min_success_rate": null,
+            "min_full_horizon_fraction": null,
+            "max_unsupported_duty": null,
+            "max_unsupported_duty_ucb": null,
+            "min_recovery_success_lcb": null,
+            "min_paired_success_delta_lcb": null,
+            "recovery_t_recover_steps": null,
+            "recovery_dwell_steps": null,
+            "min_success_lcb": null,
+            "min_eval_episodes": 10,
+            "required_consecutive": 3
+          },
+          "video": null
+        }
+      ],
+      "historical_results": []
     }
   ]
 }

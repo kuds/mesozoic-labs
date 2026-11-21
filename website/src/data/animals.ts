@@ -10,6 +10,7 @@ export interface Animal {
 }
 
 const summaries: Record<string, string> = {
+  allosaurus_fragilis: 'A long tail balances a crested skull as three forward toes spread the load on each foot.',
   velociraptor_mongoliensis: 'Balance on two feet, run, and aim a raised sickle claw at simulated prey.',
   tyrannosaurus_rex: 'A heavy tail balances the skull as the model stands, recovers from pushes, and advances on prey.',
   brachiosaurus_altithorax: 'Four supporting legs and a long, articulated neck work together to reach elevated food.',

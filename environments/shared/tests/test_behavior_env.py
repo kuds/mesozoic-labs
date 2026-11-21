@@ -32,6 +32,7 @@ from environments.shared.terrain import TerrainConfig, TerrainRealization, apply
 from environments.shared.terrain_sampling import TERRAIN_FAMILIES, TerrainSamplerConfig
 
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+ALLOSAURUS_FRAGILIS = ModelId("allosaurus_fragilis", "anatomical")
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
@@ -39,6 +40,7 @@ COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
 COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
 
 MODEL_IDS = (
+    ALLOSAURUS_FRAGILIS,
     TYRANNOSAURUS_REX,
     VELOCIRAPTOR_MONGOLIENSIS,
     BRACHIOSAURUS_ALTITHORAX,
@@ -47,6 +49,7 @@ MODEL_IDS = (
     COMPSOGNATHUS_LONGIPES_ROBOT,
 )
 SPEEDS = {
+    ALLOSAURUS_FRAGILIS: 0.35,
     VELOCIRAPTOR_MONGOLIENSIS: 2.1,
     BRACHIOSAURUS_ALTITHORAX: 0.75,
     DIBOTHROSUCHUS_ELAPHROS: 0.9,
@@ -103,7 +106,8 @@ def make_env():
 
 
 def terrain(**kwargs):
-    return TerrainConfig(extent=8.0, nrow=81, ncol=81, apron_radius=4.0, **kwargs)
+    # The flat spawn disk contains the Allosaurus from the hip to the tail tip.
+    return TerrainConfig(extent=10.0, nrow=101, ncol=101, apron_radius=5.5, **kwargs)
 
 
 def sampler(**weights):
@@ -793,7 +797,7 @@ def test_model_switch_closes_rendering_resources_bound_to_old_model(make_env):
 def test_surface_boundary_protects_complete_animal(make_env):
     env = make_env(BRACHIOSAURUS_ALTITHORAX, terrain=terrain(), reset_noise_scale=0.0)
     env.reset(seed=42)
-    env.data.qpos[0] = 7.0
+    env.data.qpos[0] = env.terrain.config.extent - 1.0
     mujoco.mj_forward(env.model, env.data)
     terminated, info = env._is_terminated()
     assert terminated

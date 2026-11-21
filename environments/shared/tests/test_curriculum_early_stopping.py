@@ -484,9 +484,8 @@ class TestCollapsePeakFloorIsDecoupledFromTheRewardGate:
         for those stage rows this assertion holds by the species-level
         exemption alone (follow-up: a maintainer config decision to add the
         pair or the unarmed statement there would let the exemption narrow
-        to per-stage statements).  Any other species' omission, and a
-        compsognathus omission whose stance TOML no longer records the
-        decision, still fails here.
+        to per-stage statements). The new Allosaurus stance and walk each
+        record the decision in their own TOML pending learned-policy runs.
         """
         from environments.shared.config import load_all_stages
         from environments.shared.species_names import model_ids
@@ -509,7 +508,14 @@ class TestCollapsePeakFloorIsDecoupledFromTheRewardGate:
             for stage, cfg in load_all_stages(model_id).items():
                 cur = cfg.get("curriculum_kwargs", {})
                 floor = collapse_settings_from_config(cur)["peak_floor"]
-                assert math.isfinite(floor) or model_id in unarmed_by_recorded_decision, (
+                unarmed = model_id in unarmed_by_recorded_decision
+                if model_id == ModelId("allosaurus_fragilis", "anatomical"):
+                    entry = resolve_stage_key(model_id, stage)
+                    stage_toml = model_id.path(_CONFIGS_DIR) / entry.config_file
+                    unarmed = entry.id in {"stance", "locomotion"} and "Deliberately omit a collapse floor" in (
+                        stage_toml.read_text(encoding="utf-8")
+                    )
+                assert math.isfinite(floor) or unarmed, (
                     f"{model_id} stage {stage} configures no collapse floor (neither collapse_peak_floor "
                     "nor the fraction/reference pair), so the backstop can never arm"
                 )

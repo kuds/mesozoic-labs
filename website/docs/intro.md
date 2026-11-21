@@ -15,8 +15,8 @@ These docs cover the simulation tools behind the [animal collection](/animals). 
 
 - **Physics-Based Models** - Articulated MuJoCo models inspired by dinosaur morphology
 - **Reinforcement Learning** - PPO and SAC algorithms for training locomotion
-- **Behavior Recipes** - Every model trains stance, walk and hunt (and recover, on the models with a recovery stage) as separately certified, separately published policies on one shared trunk, declared in `configs/<species>/<embodiment>/stages.toml`
-- **Six Models of Five Species** - The anatomical T-Rex, Velociraptor, Brachiosaurus, Dibothrosuchus and Compsognathus, and the Compsognathus robot; each model is a species and an embodiment (`anatomical` or `robot`)
+- **Behavior Recipes** - Models train the behaviors in their own stage graph, including stance and walk, declared in `configs/<species>/<embodiment>/stages.toml`
+- **Seven Models of Six Species** - Anatomical models of T-Rex, Velociraptor, Brachiosaurus, Dibothrosuchus, Compsognathus and Allosaurus, plus the Compsognathus robot. Each model has a species and an embodiment (`anatomical` or `robot`)
 - **Sim-to-Real Roadmap** - Planned hardware, system-identification, and transfer experiments; not yet validated
 - **Open Source** - Fully open codebase for research and education
 
@@ -35,6 +35,7 @@ gate kind certifies:
 - [Dibothrosuchus Elaphros (Anatomical)](/docs/models/dibothrosuchus_elaphros/anatomical)
 - [Compsognathus Longipes (Anatomical)](/docs/models/compsognathus_longipes/anatomical)
 - [Compsognathus Longipes (Robot)](/docs/models/compsognathus_longipes/robot)
+- [Allosaurus Fragilis (Anatomical)](/docs/models/allosaurus_fragilis/anatomical)
 
 The published result summaries describe historical ladder runs with no
 per-deliverable records. They are marked unverified because the original

@@ -55,6 +55,7 @@ from .notebook_cells import cell_sources, code_cell_sources
 
 GOLDEN_RESULTS_BLOCK = Path(__file__).parent / "fixtures" / "readme_results_block_2026_09_06.md"
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+ALLOSAURUS_FRAGILIS = ModelId("allosaurus_fragilis", "anatomical")
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
@@ -67,6 +68,7 @@ MODEL_IDS = (
     DIBOTHROSUCHUS_ELAPHROS,
     COMPSOGNATHUS_LONGIPES,
     COMPSOGNATHUS_LONGIPES_ROBOT,
+    ALLOSAURUS_FRAGILIS,
 )
 
 
@@ -107,6 +109,7 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         # note 21).  The velociraptor's life-size plant (note 22, the
         # maintainer's decision of 2026-11-08): 23 hinges, 17 servos, six
         # per-site foot channels, 15 kg (r4: 69, 22, 31, 30, 22, 13.5).
+        ALLOSAURUS_FRAGILIS: (45, 10, 19, 18, 10, 1482.2),
         VELOCIRAPTOR_MONGOLIENSIS: (71, 17, 30, 29, 17, 15.0),
         TYRANNOSAURUS_REX: (63, 15, 28, 27, 15, 85.72),
         BRACHIOSAURUS_ALTITHORAX: (86, 30, 38, 37, 30, 175.3),
@@ -186,6 +189,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "generated_with": {"mujoco": "3.10.0", "float_significant_digits": 12},
     }
     expected_observation_schemas = {
+        ALLOSAURUS_FRAGILIS: "bipedal-target-heading-free/v1",
         VELOCIRAPTOR_MONGOLIENSIS: "bipedal-target-heading-free/v1",
         TYRANNOSAURUS_REX: "bipedal-target-heading-free/v1",
         BRACHIOSAURUS_ALTITHORAX: "quadrupedal-target/v1",
@@ -253,6 +257,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # The reconstructed Compsognathus anatomy changes the hindlimb, foot
     # contacts, passive flexor and home preload: physics/visual r3, policy r6.
     expected_policy_revisions = {
+        ALLOSAURUS_FRAGILIS: 1,
         VELOCIRAPTOR_MONGOLIENSIS: 14,
         TYRANNOSAURUS_REX: 15,
         BRACHIOSAURUS_ALTITHORAX: 10,
@@ -261,12 +266,14 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         COMPSOGNATHUS_LONGIPES_ROBOT: 3,
     }
     expected_physics_revisions = {
+        ALLOSAURUS_FRAGILIS: 1,
         VELOCIRAPTOR_MONGOLIENSIS: 5,
         TYRANNOSAURUS_REX: 10,
         BRACHIOSAURUS_ALTITHORAX: 6,
         DIBOTHROSUCHUS_ELAPHROS: 3,
     }
     expected_visual_revisions = {
+        ALLOSAURUS_FRAGILIS: 1,
         VELOCIRAPTOR_MONGOLIENSIS: 6,
         TYRANNOSAURUS_REX: 4,
         BRACHIOSAURUS_ALTITHORAX: 3,
@@ -527,6 +534,16 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     }
 
     for model_id, entry in models.items():
+        if model_id == ALLOSAURUS_FRAGILIS:
+            assert [stage["id"] for stage in entry["stages"]] == ["stance", "locomotion"]
+            stance, walk = (stage["advancement_gate"] for stage in entry["stages"])
+            assert stance["gate_kind"] == "stance_quality/v1"
+            assert stance["min_full_horizon_fraction"] == 0.95
+            assert stance["max_unsupported_duty"] == stance["max_unsupported_duty_ucb"] == 0.02
+            assert stance["min_eval_episodes"] == 40
+            assert walk["gate_kind"] == "reward_and_length/v1"
+            assert stance["min_avg_forward_velocity"] is None and walk["min_avg_forward_velocity"] == 0.25
+            continue
         if model_id.species == "compsognathus_longipes":
             stages_by_id = {stage["id"]: stage for stage in entry["stages"]}
             first, second, third = (

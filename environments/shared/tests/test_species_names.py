@@ -32,6 +32,7 @@ SPECIES_DISPLAY_NAMES = {
     "brachiosaurus_altithorax": "Brachiosaurus Altithorax",
     "dibothrosuchus_elaphros": "Dibothrosuchus Elaphros",
     "compsognathus_longipes": "Compsognathus Longipes",
+    "allosaurus_fragilis": "Allosaurus Fragilis",
 }
 MODEL_DISPLAY_NAMES = {
     ModelId("velociraptor_mongoliensis", "anatomical"): "Velociraptor Mongoliensis (Anatomical)",
@@ -40,6 +41,7 @@ MODEL_DISPLAY_NAMES = {
     ModelId("dibothrosuchus_elaphros", "anatomical"): "Dibothrosuchus Elaphros (Anatomical)",
     ModelId("compsognathus_longipes", "anatomical"): "Compsognathus Longipes (Anatomical)",
     ModelId("compsognathus_longipes", "robot"): "Compsognathus Longipes (Robot)",
+    ModelId("allosaurus_fragilis", "anatomical"): "Allosaurus Fragilis (Anatomical)",
 }
 
 
@@ -51,6 +53,8 @@ def _selection_code(model_id):
     """The selection cell with ``SPECIES`` and ``EMBODIMENT`` set to *model_id*'s IDs through the AST."""
     tree = ast.parse(_notebook_cell("# ===== SPECIES SELECTION ====="))
     values = {"SPECIES": model_id.species, "EMBODIMENT": model_id.embodiment}
+    if model_id.species == "allosaurus_fragilis":
+        values["BEHAVIOR"] = "walk"
     assigned = set()
     for statement in tree.body:
         if (
@@ -125,7 +129,7 @@ def _selector_options(source, name):
 
 
 def test_colab_model_selectors_match_the_manifest():
-    """The notebook selects a model with two dropdowns: the five species IDs and the embodiments."""
+    """The notebook selects a model with two dropdowns: the species IDs and the embodiments."""
     for source in cell_sources(REPO_ROOT / "notebooks" / "sb3_training.ipynb"):
         species = _selector_options(source, "SPECIES")
         if species is not None:

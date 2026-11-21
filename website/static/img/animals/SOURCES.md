@@ -2,6 +2,8 @@
 
 The catalog model plates show each animal’s `home` keyframe with studio lighting. The framing scales each model independently.
 
+The Allosaurus plate shows its standing keyframe in MuJoCo 3.10.0. The walking video uses the same anatomical model with live floor contacts. [Model source](../../../../environments/allosaurus_fragilis/anatomical/assets/allosaurus_fragilis_anatomical.xml)
+
 The anatomical Compsognathus plate shows physics and visual revision 3, rendered in MuJoCo 3.10.0. [Source model](https://github.com/kuds/mesozoic-labs/blob/50208916d4e3266b58b005c972d2915ae8c89f08/environments/compsognathus_longipes/anatomical/assets/compsognathus_longipes_anatomical.xml)
 
 The anatomical Brachiosaurus plate shows physics revision 6, rendered in MuJoCo 3.10.0 from the standing keyframe. [Source model](https://github.com/kuds/mesozoic-labs/blob/fb42a60c1949a2d4a925b0e45096fa4280d07de8/environments/brachiosaurus_altithorax/anatomical/assets/brachiosaurus_altithorax_anatomical.xml)

@@ -32,6 +32,7 @@ from environments.shared.result_bundle.hashing import canonical_json_sha256
 from environments.shared.species_names import model_ids
 from environments.shared.species_registry import get_species_config
 
+ALLOSAURUS_FRAGILIS = ModelId("allosaurus_fragilis", "anatomical")
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
@@ -39,6 +40,7 @@ COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
 DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
 BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 MODEL_IDS = (
+    ALLOSAURUS_FRAGILIS,
     TYRANNOSAURUS_REX,
     VELOCIRAPTOR_MONGOLIENSIS,
     COMPSOGNATHUS_LONGIPES,
@@ -47,6 +49,7 @@ MODEL_IDS = (
     BRACHIOSAURUS_ALTITHORAX,
 )
 BODY_WEIGHT_N = {
+    ALLOSAURUS_FRAGILIS: 14540.38,
     TYRANNOSAURUS_REX: 840.91,
     VELOCIRAPTOR_MONGOLIENSIS: 147.15,  # 15.0 kg since physics r5 (r4 13.5 kg, 132.44 N)
     COMPSOGNATHUS_LONGIPES: 9.81,
@@ -55,6 +58,7 @@ BODY_WEIGHT_N = {
     BRACHIOSAURUS_ALTITHORAX: 1719.69,
 }
 FEET = {
+    ALLOSAURUS_FRAGILIS: ("r", "l"),
     TYRANNOSAURUS_REX: ("r", "l"),
     VELOCIRAPTOR_MONGOLIENSIS: ("r", "l"),
     COMPSOGNATHUS_LONGIPES: ("r", "l"),
@@ -63,6 +67,7 @@ FEET = {
     BRACHIOSAURUS_ALTITHORAX: ("fr", "fl", "rr", "rl"),
 }
 ROOT = {
+    ALLOSAURUS_FRAGILIS: "pelvis",
     TYRANNOSAURUS_REX: "pelvis",
     VELOCIRAPTOR_MONGOLIENSIS: "pelvis",
     COMPSOGNATHUS_LONGIPES: "pelvis",
@@ -73,6 +78,7 @@ ROOT = {
 
 #: Per foot, the support geoms the generic rule takes and the registry drops ...
 GENERIC_ONLY = {
+    ALLOSAURUS_FRAGILIS: (),
     TYRANNOSAURUS_REX: ("{s}_metatarsus_geom",),  # the capsule above the plantar box: 0 statue load
     # Since physics r5 the MTP pad shares the metatarsus body with the shaft capsule, which ends 8 mm short
     # of the condyle and stands 14.4 mm clear at home, and digit II's sickle claw hangs off that body (2/2
@@ -85,6 +91,7 @@ GENERIC_ONLY = {
 }
 #: ... and the ones the registry adds that the generic rule misses.
 REGISTRY_ONLY = {
+    ALLOSAURUS_FRAGILIS: (),
     TYRANNOSAURUS_REX: (),
     # Before physics r3 the toe_d3 site was the foot's only touch site, so the generic rule missed digit IV
     # and the metatarsus (0.18 and 0.26 of the r2 statue's foot load); the r3 sensors made it see both, and
@@ -96,6 +103,7 @@ REGISTRY_ONLY = {
     BRACHIOSAURUS_ALTITHORAX: (),
 }
 SOLE = {
+    ALLOSAURUS_FRAGILIS: "{s}_pad",
     TYRANNOSAURUS_REX: "{s}_plantar_geom",
     VELOCIRAPTOR_MONGOLIENSIS: None,
     COMPSOGNATHUS_LONGIPES: "{s}_plantar_pad",
@@ -109,6 +117,7 @@ SOLE = {
 #: sole's forward axis): only the T. rex declares them, its pad's own edges (pad centre 0.14 m ahead of the
 #: ankle, half-length 0.07), so its whole-foot centre of pressure reads in pad half-lengths.
 SUPPORT_SPAN = {
+    ALLOSAURUS_FRAGILIS: None,
     TYRANNOSAURUS_REX: ("{s}_ankle", 0.070, 0.210),
     VELOCIRAPTOR_MONGOLIENSIS: None,
     COMPSOGNATHUS_LONGIPES: None,
@@ -120,6 +129,7 @@ SUPPORT_SPAN = {
 #: joint), by support geom template -> joint template.  The anatomical compsognathus's digits share the pad's
 #: body, and the velociraptor has no sole, so only the T. rex has any.
 DIGIT_MTP = {
+    ALLOSAURUS_FRAGILIS: {},
     TYRANNOSAURUS_REX: {f"{{s}}_toe_{d}_geom": f"{{s}}_toe_{d}_joint" for d in ("d2", "d3", "d4")},
     VELOCIRAPTOR_MONGOLIENSIS: {},
     COMPSOGNATHUS_LONGIPES: {},

@@ -28,6 +28,7 @@ Regenerate the public catalog with
 | `dibothrosuchus_elaphros` | `anatomical` | Dibothrosuchus Elaphros (Anatomical) | `MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0` | [`/docs/models/dibothrosuchus_elaphros/anatomical`](../website/docs/models/dibothrosuchus_elaphros/anatomical.mdx) |
 | `compsognathus_longipes` | `anatomical` | Compsognathus Longipes (Anatomical) | `MesozoicLabs/CompsognathusLongipes-Anatomical-v0` | [`/docs/models/compsognathus_longipes/anatomical`](../website/docs/models/compsognathus_longipes/anatomical.mdx) |
 | `compsognathus_longipes` | `robot` | Compsognathus Longipes (Robot) | `MesozoicLabs/CompsognathusLongipes-Robot-v0` | [`/docs/models/compsognathus_longipes/robot`](../website/docs/models/compsognathus_longipes/robot.mdx) |
+| `allosaurus_fragilis` | `anatomical` | Allosaurus Fragilis (Anatomical) | `MesozoicLabs/AllosaurusFragilis-Anatomical-v0` | [`/docs/models/allosaurus_fragilis/anatomical`](../website/docs/models/allosaurus_fragilis/anatomical.mdx) |
 
 Each model has its own environment class, configs, plant revision counters,
 normalization statistics and checkpoint identity; the two Compsognathus models

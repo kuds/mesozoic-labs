@@ -68,6 +68,7 @@ include = ["environments*", "configs*"]
 
 [tool.setuptools.package-data]
 "*" = ["assets/*.xml", "assets/meshes/*.stl", "data/*.json", "references/*"]
+"environments.allosaurus_fragilis.anatomical" = ["assets/textures/*.png"]
 "environments.compsognathus_longipes" = ["data/recovery_calibration_anatomical_r3.json.gz"]
 "configs" = ["*.toml", "*.json", "*/*/*.toml", "*/*/*.json", "*/*/behaviors/*.toml"]
 
@@ -79,6 +80,7 @@ testpaths = [
     "environments/tyrannosaurus_rex/tests",
     "environments/dibothrosuchus_elaphros/tests",
     "environments/compsognathus_longipes/tests",
+    "environments/allosaurus_fragilis/tests",
 ]
 norecursedirs = [
     "scripts",

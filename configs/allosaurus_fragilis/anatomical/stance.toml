@@ -1,0 +1,33 @@
+[stage]
+name = "stance"
+description = "Hold an upright, foot-supported standing posture."
+
+[env]
+forward_vel_weight = 0.0
+drift_penalty_weight = 0.4
+max_episode_steps = 1000
+reset_noise_scale = 0.005
+
+[ppo]
+learning_rate = 0.0001
+n_steps = 2048
+batch_size = 128
+
+[sac]
+learning_rate = 0.0003
+batch_size = 256
+
+[curriculum]
+gate_schema_version = 1
+gate_kind = "stance_quality/v1"
+timesteps = 3000000
+# A 10 s trial has a maximum standing return of 2,000 points.
+min_avg_reward = 1200.0
+min_full_horizon_fraction = 0.95
+max_unsupported_duty = 0.02
+max_unsupported_duty_ucb = 0.02
+settle_steps = 200
+min_eval_episodes = 40
+required_consecutive = 3
+# Deliberately omit a collapse floor until learned-controller runs establish a baseline.
+stance_probe_spawn_yaw_deg = [-90.0, -45.0, 45.0, 90.0]

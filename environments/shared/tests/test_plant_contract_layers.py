@@ -461,6 +461,11 @@ def test_mjx_probe_rejects_a_registration_with_both_root_bodies(monkeypatch):
 #: class (the soft-cubic residual, D-D26; the heading-free observation, D-D31); the robot inherits all three.
 #: Values are double-entered on purpose: a qualname move is a policy revision.
 SB3_INTERFACE_QUALNAMES: dict[ModelId, dict[str, str]] = {
+    ModelId("allosaurus_fragilis", "anatomical"): {
+        "sb3_observation": "AllosaurusFragilisEnv._get_obs",
+        "sb3_action_mapping": "AllosaurusFragilisEnv._scale_action",
+        "sb3_sensor_cache": "AllosaurusFragilisEnv._cache_ids",
+    },
     VELOCIRAPTOR_MONGOLIENSIS: {
         "sb3_observation": "VelociraptorMongoliensisEnv._get_obs",
         "sb3_action_mapping": "VelociraptorMongoliensisEnv._scale_action",

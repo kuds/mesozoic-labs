@@ -5,6 +5,53 @@
     "mujoco": "3.10.0"
   },
   "plants": {
+    "allosaurus_fragilis": {
+      "anatomical": {
+        "bundle_sha256": "sha256:daab663ab2bdbef209101543a6c8f53cb206d1274c82c2e79004fb6d36bd2ae4",
+        "embodiment": "anatomical",
+        "env_entrypoint": "environments.allosaurus_fragilis.anatomical.env:AllosaurusFragilisAnatomicalEnv",
+        "model_path": "environments/allosaurus_fragilis/anatomical/assets/allosaurus_fragilis_anatomical.xml",
+        "physics": {
+          "nq": 19,
+          "nu": 10,
+          "nv": 18,
+          "revision": 1,
+          "schema": "mesozoic.mujoco-physics/v1",
+          "sha256": "sha256:3cbd8953404e8f2a7a4a1259cd7f8aece0219b8609050517ce6dde81e7d9e6b3"
+        },
+        "policy_interface": {
+          "action_dim": 10,
+          "observation_dim": 45,
+          "observation_schema": "bipedal-target-heading-free/v1",
+          "revision": 1,
+          "schema": "mesozoic.policy-interface/v1",
+          "sha256": "sha256:885c3793d2204fc45545647a48ca9ae35cc38e7a7d79047b2b7fe4e849814521"
+        },
+        "source": {
+          "closure_sha256": "sha256:600673f3515f2306e17cb14814941c34e41cdbe79612304bd536cd52d89ac99a",
+          "dependencies": [
+            {
+              "content_sha256": "sha256:ff9acf2789fc812433b7cab6a831c3427879e3b6e6ba322f64e8a1ff08e7673b",
+              "kind": "mjcf",
+              "logical_path": "environments/allosaurus_fragilis/anatomical/assets/allosaurus_fragilis_anatomical.xml"
+            },
+            {
+              "content_sha256": "sha256:7392886ee25e306710f0678282f6e349d629d34a00cc6af0f9005551ff2d0644",
+              "kind": "asset",
+              "logical_path": "environments/allosaurus_fragilis/anatomical/assets/textures/hide.png"
+            }
+          ],
+          "root": "environments/allosaurus_fragilis/anatomical/assets/allosaurus_fragilis_anatomical.xml",
+          "schema": "mesozoic.source-closure/v1"
+        },
+        "species": "allosaurus_fragilis",
+        "visual": {
+          "revision": 1,
+          "schema": "mesozoic.mujoco-visual/v1",
+          "sha256": "sha256:1afa43f454ee95d5ab6975c660d88871247b578fa78b071808c59f6c448f2fe8"
+        }
+      }
+    },
     "brachiosaurus_altithorax": {
       "anatomical": {
         "bundle_sha256": "sha256:117d619550da2bf2ef7504ef77a5085c61ce3babf1d0e0b7212fa3752f2b8bf8",
