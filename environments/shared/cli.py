@@ -288,7 +288,6 @@ def main(species_cfg):
         default="ppo",
         help="RL algorithm",
     )
-    train_parser.add_argument("--wandb", action="store_true", help="Enable W&B logging")
     train_parser.add_argument(
         "--override",
         nargs="*",
@@ -303,7 +302,7 @@ def main(species_cfg):
         default=None,
         metavar="TEXT",
         help="Free-text label for this run, recorded in the stage config's run block beside its "
-        "hyperparameters_sha256 digest and tagged onto the W&B run (label:<TEXT>)",
+        "hyperparameters_sha256 digest",
     )
     train_parser.add_argument(
         "--post-eval-episodes",
@@ -369,7 +368,6 @@ def main(species_cfg):
     cur_parser.add_argument("--subproc", action="store_true")
     cur_parser.add_argument("--verbose", type=int, choices=[0, 1, 2], default=1)
     cur_parser.add_argument("--algorithm", type=str, choices=["ppo", "sac"], default="ppo")
-    cur_parser.add_argument("--wandb", action="store_true")
     cur_parser.add_argument("--override", nargs="*", default=None, metavar="KEY=VALUE")
     cur_parser.add_argument(
         "--allow-fresh-vecnorm",
@@ -415,7 +413,7 @@ def main(species_cfg):
         default=None,
         metavar="TEXT",
         help="Free-text label for this run, recorded in every trained stage's run block beside its "
-        "hyperparameters_sha256 digest and tagged onto each W&B run (label:<TEXT>)",
+        "hyperparameters_sha256 digest",
     )
 
     # -- eval ----------------------------------------------------------
@@ -476,7 +474,6 @@ def main(species_cfg):
             args.subproc = False
             args.verbose = 1
             args.algorithm = "ppo"
-            args.wandb = False
             args.override = None
             args.output_dir = None
             args.post_eval_episodes = None
@@ -545,7 +542,6 @@ def main(species_cfg):
             use_subproc=args.subproc,
             verbose=args.verbose,
             algorithm=args.algorithm,
-            use_wandb=args.wandb,
             output_dir=args.output_dir,
             allow_legacy_plant=args.allow_legacy_plant,
             allow_fresh_vecnorm=getattr(args, "allow_fresh_vecnorm", False),
@@ -609,7 +605,6 @@ def main(species_cfg):
             use_subproc=args.subproc,
             verbose=args.verbose,
             algorithm=args.algorithm,
-            use_wandb=args.wandb,
             output_dir=args.output_dir,
         )
 

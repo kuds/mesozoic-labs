@@ -144,7 +144,7 @@ head-geom contact (the model has no articulated jaw), and Brachiosaurus
   - `thresholds_from_configs()` helper to extract thresholds from TOML
   - _Dependency: Phase 0 config externalization_
 
-- [x] **W&B experiment tracking integration**
+- [x] **W&B experiment tracking integration** (removed in November 2026: unused; TensorBoard remains the run logger)
   - Add `wandb` to optional dependencies
   - `WandbCallback` for SB3 logs per-component rewards and hyperparameters
   - Save git commit hash and full config snapshot per run
@@ -173,7 +173,6 @@ head-geom contact (the model has no articulated jaw), and Brachiosaurus
 - [x] **Vertex AI cloud training guide**
   - Step-by-step guide for single-stage and full curriculum training on GCP
   - GCS checkpoint persistence configuration
-  - W&B integration with Vertex AI
   - Parallel multi-species training job submission
   - Machine type recommendations and cost estimates
   - Spot/preemptible VM configuration for cost savings
@@ -336,7 +335,7 @@ critical bridge between "cool demo" and "transferable research."
     new decision under D-D17)
   - Sweep over learning rate, batch size, entropy coefficient, gamma
   - Run for Velociraptor first, then transfer best configs to other species
-  - _Dependency: Phase 1 W&B integration (for tracking sweep results)_
+  - _Dependency: an experiment tracker for sweep results (TensorBoard today)_
 
 **Exit criteria:** Policies can walk on rough terrain, handle noisy observations,
 recover from pushes, and chase moving prey (predefined paths in Stage 4,

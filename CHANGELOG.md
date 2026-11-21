@@ -5080,6 +5080,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says.
 
 ### Removed
+- **The Weights & Biases integration**: `environments/shared/wandb_integration.py`,
+  the `--wandb` flag of `train` and `curriculum`, the `use_wandb` argument of
+  `train()` and `train_curriculum()`, and `wandb` in the `train` extra. Nothing
+  used it; TensorBoard stays the run logger, and `--label` is still recorded
+  beside each stage's hyperparameter digest. Drop `--wandb` from any scripts.
 - **The species aliases, selection by display name, and the per-species
   training wrappers** (D-D33):
   - the aliases `raptor`, `t-rex`, `brachio`, `dibo`, `compso` and

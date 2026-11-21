@@ -13,7 +13,6 @@ import numpy as np
 
 from environments.shared.metrics import LocomotionMetrics, env_dt
 from environments.shared.stance_diagnostics import derive_stance_info
-from environments.shared.wandb_integration import log_eval_metrics
 
 from . import sb3_compat
 from .manager import CurriculumManager
@@ -334,8 +333,6 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
                 n_eps,
                 ", ".join(parts),
             )
-
-        log_eval_metrics(agg, stage, step=self.num_timesteps)
 
     def _on_step_with_eval_callback(self) -> bool:
         """Advancement check using EvalCallback results + supplementary eval."""

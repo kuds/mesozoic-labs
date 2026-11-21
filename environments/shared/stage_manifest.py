@@ -96,7 +96,7 @@ RESERVED_STAGE_IDS = ("stance", "recovery", "locomotion", "behavior")
 LEGACY_STAGE_IDS = {1: "stance", 2: "locomotion", 3: "behavior"}
 
 #: The open id vocabulary.  Lower-case, digits and underscores, so an id is
-#: a valid file prefix, directory suffix, TOML bare key and wandb run token.
+#: a valid file prefix, directory suffix and TOML bare key.
 STAGE_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 #: Ids of this shape are refused: they would collide with ``stage_label``'s
 #: integer form, ``find_stage_dir``'s exact ``stage{N}`` probe and
@@ -550,7 +550,7 @@ def stage_label(ref: "int | str") -> str:
     never the ``stage{N}`` shape): membership in a model's manifest is
     enforced by every caller's earlier resolution — ``train()`` and
     ``evaluate()`` resolve the stage through the manifest before any label
-    is written, and the reporting, wandb and notebook call sites are
+    is written, and the reporting and notebook call sites are
     reached only through them.
     """
     if isinstance(ref, bool) or not isinstance(ref, (int, str)):
