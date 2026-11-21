@@ -609,6 +609,7 @@ def test_the_rail_feet_are_the_pad_feet():
 
 #: Each model's box-soled feet, the roll rails' feet (``FOOT_SUPPORT``).
 RAIL_FEET = {
+    ModelId("allosaurus_fragilis", "anatomical"): (),
     ModelId("tyrannosaurus_rex", "anatomical"): ("r", "l"),
     ModelId("compsognathus_longipes", "anatomical"): ("r", "l"),
     ModelId("compsognathus_longipes", "robot"): ("r", "l"),
