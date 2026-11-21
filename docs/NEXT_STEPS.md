@@ -1217,7 +1217,7 @@ closed, each with a comment) is the cleanup plan's §2 row 19, and G1..G4 are su
    [section 2](#2-certified-checkpoints-on-drive) here (the survey stays frozen).
 4. Before any cleanup PR, read [CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md): §2 for the decisions,
    with the outcome of each one taken, §3 for the PR order and §3.5 for the KNOWN_ISSUES entries each PR
-   closes, §4 for the frozen MJX interface core and the retirement's acceptance checks, and §7 for the
+   closes, §4 for the retirement's acceptance checks (its frozen MJX interface core is deleted: see §4.1's last amendment), and §7 for the
    do-not-do list. On any change that claims to move no digest,
    run `python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --check`
    from the repository root, with the canonical MuJoCo: it compares the full
