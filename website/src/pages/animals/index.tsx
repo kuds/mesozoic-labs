@@ -1,5 +1,4 @@
 import React from 'react';
-import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
 import {RotationButton, Turntable, useTurntableMotion} from '@site/src/components/AnimalPage/Turntable';
 import {ANIMALS} from '@site/src/data/animals';
@@ -16,7 +15,7 @@ export default function Animals(): React.JSX.Element {
         <header className={styles.intro}>
           <h1>Animals</h1>
           <div className={styles.introTools}>
-            <p>Explore the anatomy of each animal, see how its models move, and follow the robot designs it inspired.</p>
+            <p>Drag or swipe an animal to turn it. Select it to explore its anatomy, movement, and robot designs.</p>
             <RotationButton motion={motion} plural />
           </div>
         </header>
@@ -24,13 +23,13 @@ export default function Animals(): React.JSX.Element {
           {ANIMALS.map(animal => (
             <li key={animal.slug}>
               <article>
-                <Link to={`/animals/${animal.slug}`} className={styles.entry}>
-                  <Turntable image={animal.image} alt="" className={styles.specimen} motion={motion} />
+                <Turntable image={animal.image} alt="" className={styles.specimen} motion={motion}
+                  catalogLink={{to: `/animals/${animal.slug}`, className: styles.entry}}>
                   <div className={styles.label}>
                     <h2>{animal.name}</h2>
                     <i>{animal.scientificName}</i>
                   </div>
-                </Link>
+                </Turntable>
                 <p>{animal.summary}</p>
               </article>
             </li>
