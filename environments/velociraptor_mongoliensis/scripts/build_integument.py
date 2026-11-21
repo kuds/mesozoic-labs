@@ -12,7 +12,9 @@ from scipy.interpolate import PchipInterpolator
 
 # Preserve invocation by filename from a source checkout.
 if __package__ in (None, ""):
-    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+    _repo_root = str(Path(__file__).resolve().parents[3])
+    if _repo_root not in sys.path:
+        sys.path.insert(0, _repo_root)
 
 from environments.shared.skin_builder import SkinBuilder  # noqa: E402
 

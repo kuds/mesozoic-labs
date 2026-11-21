@@ -1,14 +1,13 @@
 """The critic phase's off path is main's: with no ``[ppo] critic_phase`` key, the trainer computes what main computed
 at 4c9d5e9b, before the option existed.  Needs stable-baselines3 (the SB3 job).
 
-- One subprocess runs ``critic_phase_off_scenario.py`` on this repository: the T. rex stance from scratch, a
-  locomotion warm start across the node's edge, and a same-stage resume, through ``train_base.train``.
+- On the current T. rex, ``critic_phase_off_scenario.py`` trains stance from scratch, warm-starts locomotion, and
+  resumes the stance. The absent and explicitly disabled switch must produce identical training tensors.
   - Anywhere: the phase module is never imported, the stock classes are built, nothing new is recorded, and the
     structure (classes, ``stage_config.json`` key sets and recipe digests, the archives' ``data`` keys) equals the
     one main recorded (``fixtures/critic_phase_off/golden_4c9d5e9b.json``).
-  - In the environment the golden was made in (Python, platform, torch and its CPU capability, numpy, MuJoCo,
-    gymnasium, SB3): every rollout buffer, parameter, optimizer tensor, normaliser statistic and sidecar is bitwise
-    main's.  Elsewhere that comparison skips and names the fields that differ.
+- On the archived r10 plant under the golden's original runtime, every rollout buffer, parameter, optimizer tensor,
+  normaliser statistic and sidecar is compared bitwise to its capture. Other runtimes report the differing fields.
 - In process: the trainer's load path on a stock archive trains bitwise as ``PPO.load`` does.
 """
 
@@ -48,12 +47,11 @@ def golden() -> dict[str, Any]:
     return record
 
 
-@pytest.fixture(scope="module")
-def off_run(tmp_path_factory) -> dict[str, Any]:
+def _run_scenario(tmp_path_factory, *options: str) -> dict[str, Any]:
     out = tmp_path_factory.mktemp("critic_phase_off") / "head.json"
     env = {**os.environ, "OMP_NUM_THREADS": "1", "MKL_NUM_THREADS": "1"}
     completed = subprocess.run(
-        [sys.executable, "-I", "-B", str(SCENARIO), str(REPOSITORY), str(out)],
+        [sys.executable, "-I", "-B", str(SCENARIO), str(REPOSITORY), str(out), *options],
         env=env,
         capture_output=True,
         text=True,
@@ -63,6 +61,11 @@ def off_run(tmp_path_factory) -> dict[str, Any]:
     assert completed.returncode == 0, completed.stdout[-4000:] + completed.stderr[-4000:]
     result: dict[str, Any] = json.loads(out.read_text())
     return result
+
+
+@pytest.fixture(scope="module")
+def off_run(tmp_path_factory) -> dict[str, Any]:
+    return _run_scenario(tmp_path_factory)
 
 
 def test_the_golden_is_main_s_before_the_option_existed(golden):
@@ -99,7 +102,13 @@ def test_the_off_path_records_main_s_structure(off_run, golden):
         assert off_run["scenarios"][name]["structure"] == scenario["structure"], name
 
 
-def test_the_off_path_trains_bitwise_as_main_did(off_run, golden):
+def test_the_current_plant_trains_identically_with_the_switch_absent_or_false(off_run, tmp_path_factory):
+    explicit = _run_scenario(tmp_path_factory, "--explicit-off")
+    for name, result in off_run["scenarios"].items():
+        assert explicit["scenarios"][name]["digests"] == result["digests"], name
+
+
+def test_the_archived_plant_trains_bitwise_as_main_did(off_run, golden, tmp_path_factory):
     differing = sorted(key for key, value in golden["environment"].items() if off_run["environment"].get(key) != value)
     if differing:
         pytest.skip(
@@ -109,11 +118,12 @@ def test_the_off_path_trains_bitwise_as_main_did(off_run, golden):
                 for key in differing
             )
         )
+    archived = _run_scenario(tmp_path_factory, "--archived-r10")
     mismatched = {
         name: sorted(
             key
-            for key in set(scenario["digests"]) | set(off_run["scenarios"][name]["digests"])
-            if scenario["digests"].get(key) != off_run["scenarios"][name]["digests"].get(key)
+            for key in set(scenario["digests"]) | set(archived["scenarios"][name]["digests"])
+            if scenario["digests"].get(key) != archived["scenarios"][name]["digests"].get(key)
         )
         for name, scenario in golden["scenarios"].items()
     }
