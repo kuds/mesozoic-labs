@@ -5138,7 +5138,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   interface to r11 and r10 (`configs/plant_versions.toml` note 23); r10 and
   r9 checkpoints of those two models no longer pass the plant check, so they
   cannot seed a warm start or a trunk reuse. Every other model's digests are
-  unchanged. A declared `jax-mjx` backend is now refused everywhere.
+  unchanged. An environment or species manifest that declares `jax-mjx` is
+  refused; archived JAX result bundles still read.
+  `plant_contract.fingerprint_model_layers` no longer takes
+  `require_backend_parity`.
 
 ### Fixed
 - **A comparison's run names sit at their lines' ends in the

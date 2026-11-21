@@ -196,7 +196,8 @@ The policy fingerprint includes normalized executable code plus portable, quanti
 Stable-Baselines3 is the only training, evaluation and evidence backend (decision D-D17), and every model declares it
 alone: `supported_training_backends = ("stable-baselines3",)` on the environment and `training_backends =
 ["stable-baselines3"]` on its embodiment table in `configs/species_manifest.toml`, which must agree. The plant contract,
-the species-manifest reader and the command frame refuse any other value, and refuse a declared `jax-mjx` by name.
+the species-manifest reader and the command frame refuse any other value; the plant contract's refusal names a
+declared `jax-mjx`. Readers of archived result bundles still accept `jax-mjx` records.
 The policy payload records the declaration (`interface_implementations.supported_training_backends`) and hashes the
 environment's `_cache_ids` tokens (`interface_implementations.sb3_sensor_cache`), so a token edit there, reward-target
 setup included, is a policy-interface revision. Since the Phase C interface revision (BEHAVIOR_RECIPES_PLAN §4.6) the
