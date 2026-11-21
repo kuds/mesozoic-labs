@@ -7,11 +7,11 @@ and the live animal balances under its normal servos.
 
 import numpy as np
 
-from environments.shared.gait.biped_walk import BipedReferenceWalk
+from environments.shared.gait.biped_walk import FOOTFALL_PHASE, BipedReferenceWalk
 
 
 class ReferenceWalk(BipedReferenceWalk):
-    """Alternate ground-fixed foot targets with feedback from the loaded plantar surfaces."""
+    """Shift weight between alternating feet and roll the planted foot onto the passive toes."""
 
     settle = 0.3
     yaw_lead = 0.7
@@ -22,8 +22,8 @@ class ReferenceWalk(BipedReferenceWalk):
     stance_fraction = 0.65
     swing_height = 0.05
     walking_crouch = 0.05
-    lateral_sway = 0.06
-    medial_step = 0.02
+    lateral_sway = 0.04
+    medial_step = 0.055
     pad_suffix = "plantar_geom"
     cop_min = (-0.065, -0.035)
     cop_max = (0.105, 0.035)
@@ -36,13 +36,48 @@ class ReferenceWalk(BipedReferenceWalk):
     lateral_stiffness = 15.0
     lateral_damping = 4.0
     ramp_cycles = 0.65
-    rocker_radius = 0.06  # pivot anterior to the plantar pad centre, metres
+    rocker_radius = 0.05  # pivot anterior to the plantar pad centre, metres
+
+    def __init__(self, env):
+        super().__init__(env)
+        self.roll_gain_fraction = 0.0
+        self.hip_roll_dofs = np.array([self.model.joint(f"{side}_hip_roll").dofadr[0] for side in ("r", "l")])
+
+    def _sway_amplitude(self, cycles):
+        # The wide reset stance needs the larger initial weight shift.
+        progress = np.clip((cycles - 1.0) / 4.0, 0.0, 1.0)
+        return 0.06 + (self.lateral_sway - 0.06) * progress
 
     def _foot_pitch(self, phase, cycles):
-        # Build plantar flexion before liftoff, peaking as the measured
-        # trailing foot unloads. Release it smoothly during swing.
-        progress = np.clip((phase - self.stance_fraction + 0.16) / 0.42, 0.0, 1.0)
-        return 0.30 * np.sin(np.pi * progress) ** 2 * min(cycles, 1.0)
+        # Elevate the heel about the distal contact as the trailing foot unloads.
+        progress = np.clip((phase - self.stance_fraction + 0.08) / 0.42, 0.0, 1.0)
+        return 0.52 * np.sin(np.pi * progress) ** 2 * min(cycles, 1.0)
+
+    def _targets(self, time):
+        feet, root, velocity, lateral_accel, active = super()._targets(time)
+        cycles = max(0.0, (time - self.start) / self.period)
+        phase = np.remainder(cycles - FOOTFALL_PHASE, 1.0)
+        # Drive the trailing leg backward during toe loading. The subsequent
+        # swing releases the offset. Only the servo target follows this path.
+        rise = np.clip((phase - 0.54) / 0.105, 0.0, 1.0)
+        release = np.clip((phase - 0.7) / 0.2, 0.0, 1.0)
+        retraction = 0.5 * (1.0 - np.cos(np.pi * rise))
+        retraction *= 0.5 * (1.0 + np.cos(np.pi * release))
+        feet[:, 0] -= 0.1 * retraction * min(cycles, 1.0)
+        self.roll_gain_fraction = np.clip((cycles - 1.0) / 3.0, 0.0, 1.0)
+        return feet, root, velocity, lateral_accel, active
+
+    def _support(self, data, active, wrench):
+        support = super()._support(data, active, wrench)
+        loads = np.asarray(self.env._foot_contact_forces())
+        total = loads.sum()
+        if total > 12.0:  # N
+            # Apply the roll correction through hips in proportion to the
+            # measured support. Twice the quaternion x component approximates
+            # the small roll angle on this straight walk.
+            moment = 330.0 * (2.0 * data.qpos[4]) + 75.0 * data.qvel[3]
+            support[self.hip_roll_dofs] -= moment * (loads / total) * self.roll_gain_fraction
+        return support
 
     def _place_legs(self, data, feet, root, velocity):
         # Move the feet toward an incipient lateral fall. Twice the quaternion

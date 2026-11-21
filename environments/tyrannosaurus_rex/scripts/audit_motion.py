@@ -61,6 +61,7 @@ def run(
     predict: Callable[[np.ndarray], np.ndarray] | None = None,
     trace_path: Path | None = None,
     actuators: bool = False,
+    foot_mechanics: bool = False,
 ) -> dict:
     """Use a supplied environment for policy replay. Its owner controls construction and closing."""
     if (predict is not None) != (mode == "policy") or mode not in {"walk", "stand", "policy"}:
@@ -94,9 +95,47 @@ def run(
             groups[f"{side}_shaft"] = [env.model.geom(f"{side}_metatarsus_geom").id]
         heights: dict[str, list[float]] = {label: [] for label in groups}
 
+        forward_samples: list[np.ndarray] = []
+        foot_gaps: list[float] = []
+        feet = [groups[f"{side}_pad"] + groups[f"{side}_walking_toes"] for side in morphology.labels]
+        geom_group = {
+            geom: (side, int(index == 0)) for side, foot in enumerate(feet) for index, geom in enumerate(foot)
+        }
+        contact_force = np.zeros(6)
+
+        foot_ids = np.array(feet)
+        sizes = env.model.geom_size[foot_ids]
+        left, right = morphology.labels.index("l"), morphology.labels.index("r")
+
+        def sample_foot_mechanics():
+            forward = np.zeros((len(feet), 2))
+            for index, contact in enumerate(env.data.contact):
+                first, second = contact.geom
+                if first != env.floor_geom_id and second != env.floor_geom_id:
+                    continue
+                floor_first = first == env.floor_geom_id
+                group = geom_group.get(second if floor_first else first)
+                if group is not None:
+                    mujoco.mj_contactForce(env.model, env.data, index, contact_force)
+                    # The contact frame stores its world basis in rows. Force acts on geom 2.
+                    fx = contact.frame.reshape(3, 3)[:, 0] @ contact_force[:3]
+                    forward[group] += fx if floor_first else -fx
+            forward_samples.append(forward)
+            # Exact world-y projection of each support box and capsule. A positive
+            # gap proves lateral separation even as the feet pass one another.
+            lateral_basis = env.data.geom_xmat[foot_ids].reshape(len(feet), -1, 3, 3)[:, :, 1, :]
+            half_width = sizes[:, :, 0] + np.abs(lateral_basis[:, :, 2]) * sizes[:, :, 1]
+            half_width[:, 0] = (np.abs(lateral_basis[:, 0]) * sizes[:, 0]).sum(axis=1)
+            centers = env.data.geom_xpos[foot_ids, 1]
+            foot_gaps.append(
+                float((centers[left] - half_width[left]).min() - (centers[right] + half_width[right]).max())
+            )
+
         def sample_substep():
             if previous_hook is not None:
                 previous_hook()
+            if foot_mechanics:
+                sample_foot_mechanics()
             if actuators:
                 angle_samples.append(env.data.qpos[actuated_qpos])
             for name, geoms in groups.items():
@@ -148,7 +187,14 @@ def run(
                 pelvis=trace.root_pos,
             )
         if start < trace.length:
-            result.update(analyse(trace, clearance, start, env.model, pad_suffix="plantar_geom"))
+            forward_forces = None
+            if foot_mechanics:
+                forward_forces = np.asarray(forward_samples).reshape(trace.length, env.frame_skip, len(feet), 2)
+                result["min_lateral_foot_gap_m"] = min(foot_gaps[start * env.frame_skip :])
+                result["interleg_contact_substep_fraction"] = float(trace.interleg_substep_frac[start:].mean())
+            result.update(
+                analyse(trace, clearance, start, env.model, pad_suffix="plantar_geom", forward_forces=forward_forces)
+            )
         if actuators:
             result["actuators"] = (
                 _actuator_metrics(env.model, trace, angle_samples, start) if start < trace.length else None
@@ -176,6 +222,9 @@ def main():
     parser.add_argument(
         "--actuators", action="store_true", help="Report post-warmup force limits, hinge margins and command clipping"
     )
+    parser.add_argument(
+        "--foot-mechanics", action="store_true", help="Measure forward toe and pad impulses and closest foot approach"
+    )
     args = parser.parse_args()
     if not 0 <= args.warmup < args.seconds or args.noise < 0:
         parser.error("require 0 <= warmup < seconds and noise >= 0")
@@ -189,6 +238,7 @@ def main():
             warmup=args.warmup,
             trace_path=args.trace if i == 0 else None,
             actuators=args.actuators,
+            foot_mechanics=args.foot_mechanics,
         )
         for i, s in enumerate(args.seeds)
     ]

@@ -98,13 +98,13 @@ After each training stage the `eval` command reports:
 
 ## Reference walk
 
-<video controls preload="metadata" width="100%" src={useBaseUrl('/videos/tyrannosaurus_rex_anatomical_reference_walk.mp4')} aria-label="Anatomical T. rex walking on level ground, with a synchronized close-up of its feet and measured foot loads" />
+<video controls preload="metadata" width="100%" src={useBaseUrl('/videos/tyrannosaurus_rex_anatomical_walk_refinement.mp4')} aria-label="Previous and revised T. rex walks from the side and rear, with pelvic roll and foot loads" />
 
-The reference controller uses the model's 15 actuators. The two views show the same 16-second simulation on level ground. The force readouts beneath the feet are in body weights. In the final 12 seconds the animal averaged 0.638 m/s and made 23 alternating touchdowns. Both feet shared support for 21.5% of that interval.
+The side and rear views compare the same noisy reset on level ground. The revised controller steps closer to the midline and uses the loaded hip to limit pelvic roll. As the heel rises, the trailing leg presses backward through the three passive toes. The reference drives the model’s 15 joint actuators.
 
-![Measured touchdown locations and left and right foot forces during the reference walk](../../../../docs/reviews/trex_2026_11/footfalls.png)
+In the filmed trial, median track width fell from 27.2 to 19.9 cm and peak pelvic roll from 14.8° to 5.7°. The toes previously braked by 6.2–7.1 N·s in the last fifth of stance. With the revised walk they delivered 3.8–4.2 N·s of net forward impulse per foot.
 
-The track is broad for its step length. Successive landings were a median 0.33 m apart forward and 0.27 m across. The plantar pads carried 82% of the vertical impulse and the three forward toes shared 18%.
+![Previous and revised touchdown positions, pelvic roll and fore-aft ground reaction at the toes and plantar pads](../../../../docs/reviews/trex_2026_11/walk_refinement.png)
 
 ## Historical training videos
 
@@ -119,7 +119,7 @@ These PPO recordings show earlier model revisions.
 python environments/tyrannosaurus_rex/scripts/view_model.py --embodiment anatomical
 
 # Reproduce the filmed reference walk and its foot-contact measurements
-python -m environments.tyrannosaurus_rex.scripts.audit_motion --mode walk --seconds 16 --warmup 4 --noise 0.05 --seeds 0
+python -m environments.tyrannosaurus_rex.scripts.audit_motion --mode walk --seconds 16 --warmup 4 --noise 0.05 --seeds 0 --foot-mechanics
 
 # Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical train --stage 1
