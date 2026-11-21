@@ -24,7 +24,7 @@ export default function StegosaurusPage() {
           title="A low head and high hips"
           description="This 5.79 m reconstruction follows the proportions of Sophie, a young adult Stegosaurus. The short forelimbs end in broad pads. Each hindfoot has a long heel cushion and three blunt hooves."
           image={STEGOSAURUS.image}
-          alt="Side view of Stegosaurus showing the hips above the shoulders, staggered back plates and spikes near the tail tip"
+          alt="Stegosaurus with hips above the shoulders, staggered back plates and spikes near the tail tip"
           caption="MuJoCo · Standing pose"
           source={study}
           sourceLabel="Model and anatomical references"

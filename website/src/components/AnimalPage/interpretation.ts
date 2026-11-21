@@ -39,7 +39,7 @@ export const INTERPRETATIONS: Record<string, Interpretation> = {
     classification: 'Late Jurassic · Sauropod',
     title: 'Reaching from a four-legged stance',
     anatomy: 'The raised shoulders sit above compact forefeet. The hindfeet have padded heels and three claws. A four-beat walk transfers weight between them while the long neck holds the head above the chest.',
-    alt: 'Brachiosaurus in profile with a deep chest, raised shoulders, tapered tail and elevated neck',
+    alt: 'Brachiosaurus with a deep chest, raised shoulders, tapered tail and elevated neck',
     detailLabel: 'Head and neck control', detail: '6 actuators',
     studies: {
       stance: {title: 'Hold steady', description: 'Can the body keep its balance on four feet with the neck held high?'},
