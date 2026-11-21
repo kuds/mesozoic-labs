@@ -209,8 +209,12 @@ def test_a_failing_pip_exits_non_zero_and_says_which_command(ci, runtime, capsys
     del runtime.installed["gym"], runtime.installed["dopamine-rl"]
     runtime.failing.add(Path(sys.executable).name)
     assert ci.main(["--extras", "train"]) == 1
-    err = capsys.readouterr().err
-    assert err.startswith("colab_install: ") and "pip install" in err and "failed" in err
+    captured = capsys.readouterr()
+    assert captured.err.startswith("colab_install: ") and "pip install" in captured.err and "failed" in captured.err
+    # pip -q hides the resolver's explanation, so the failed install is re-run once without -q.
+    quiet, verbose = runtime.commands[-2:]
+    assert "-q" in quiet and verbose == [part for part in quiet if part != "-q"]
+    assert "without -q" in captured.out
 
 
 @pytest.mark.parametrize(

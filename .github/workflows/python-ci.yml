@@ -93,16 +93,16 @@ jobs:
       # (test_ci_tool_pins.py checks all three), so a tool release cannot turn
       # an unrelated pull request red, and pre-commit formats as CI checks.
       - name: Install tools
-        run: pip install "ruff==0.16.9" "mypy==2.3.1" gymnasium numpy
+        run: pip install "ruff==0.16.9" "mypy==2.3.1" gymnasium numpy -c constraints.txt
 
       - name: Ruff lint
-        run: ruff check environments/
+        run: ruff check environments/ notebooks/colab_install.py
 
       - name: Ruff format check
-        run: ruff format --check environments/
+        run: ruff format --check environments/ notebooks/colab_install.py
 
       - name: mypy
-        run: mypy environments/ --ignore-missing-imports
+        run: mypy environments/ notebooks/colab_install.py --ignore-missing-imports
 
       - name: Validate notebooks (parse every code cell)
         # notebooks/** triggers this workflow but nothing parsed them: a
@@ -267,7 +267,15 @@ jobs:
     runs-on: ubuntu-latest
     needs: lint
     steps:
+      # The cone the notebooks' setup cell checks out (plus the root files), so a
+      # dependency on anything outside it fails here as it would on Colab.
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            environments
+            configs
+            notebooks
+            results
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -279,6 +287,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.13.0"
           python -m pip install "gym==0.25.2"
+          # Colab ships uv, setuptools and wheel, so the installer takes its uv path
+          # with --no-build-isolation; install them so this job takes it too.
+          python -m pip install uv setuptools wheel
 
       - name: Run the Colab installer
         run: python notebooks/colab_install.py

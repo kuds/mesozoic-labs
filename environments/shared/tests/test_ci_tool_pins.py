@@ -115,15 +115,20 @@ def test_pre_commit_hooks_run_the_ci_versions() -> None:
 
 
 def test_pre_commit_ruff_hooks_cover_only_what_ci_checks() -> None:
-    # CI runs `ruff check environments/` and `ruff format --check environments/`.
+    # CI runs `ruff check` and `ruff format --check` on environments/ and the Colab
+    # installer notebooks/colab_install.py.
     # The pinned ruff also formats notebooks and Markdown code blocks, so an
     # unscoped hook would rewrite files CI never looks at.
-    assert "ruff check environments/" in ci_text()
-    assert "ruff format --check environments/" in ci_text()
+    assert "ruff check environments/ notebooks/colab_install.py" in ci_text()
+    assert "ruff format --check environments/ notebooks/colab_install.py" in ci_text()
     block = _pre_commit_block("ruff")
     hooks = re.findall(r"^\s*- id:\s*(\S+)", block, flags=re.MULTILINE)
-    scoped = re.findall(r"^\s*files:\s*\^environments/\s*$", block, flags=re.MULTILINE)
-    assert hooks and len(scoped) == len(hooks), f"each ruff hook ({hooks}) needs `files: ^environments/`"
+    scoped = re.findall(
+        r"^\s*files:\s*\^\(environments/\|notebooks/colab_install\\\.py\$\)\s*$", block, flags=re.MULTILINE
+    )
+    assert hooks and len(scoped) == len(hooks), (
+        rf"each ruff hook ({hooks}) needs `files: ^(environments/|notebooks/colab_install\.py$)`"
+    )
 
 
 def test_dev_extra_pins_the_ci_versions() -> None:

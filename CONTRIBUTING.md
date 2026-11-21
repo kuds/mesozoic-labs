@@ -56,7 +56,7 @@ We use **Ruff** for linting and formatting (configured in `pyproject.toml`):
 
 ```bash
 # Check for issues
-ruff check environments/
+ruff check environments/ notebooks/colab_install.py
 
 # Auto-fix issues
 ruff check --fix environments/
@@ -68,7 +68,7 @@ ruff format environments/
 We use **mypy** for static type checking:
 
 ```bash
-mypy environments/
+mypy environments/ notebooks/colab_install.py
 ```
 
 CI runs mypy twice: in the lint job, without Stable-Baselines3 or torch, and

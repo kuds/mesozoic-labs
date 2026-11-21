@@ -21,9 +21,9 @@ repos:
     hooks:
       - id: ruff-check
         args: [--fix]
-        files: ^environments/
+        files: ^(environments/|notebooks/colab_install\.py$)
       - id: ruff-format
-        files: ^environments/
+        files: ^(environments/|notebooks/colab_install\.py$)
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v2.3.1
@@ -32,7 +32,7 @@ repos:
         additional_dependencies: [gymnasium, numpy]
         args: [--ignore-missing-imports]
         pass_filenames: false
-        entry: mypy environments/
+        entry: mypy environments/ notebooks/colab_install.py
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

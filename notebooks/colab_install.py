@@ -139,6 +139,14 @@ def install(commands: Sequence[Sequence[str]], *, dry_run: bool) -> None:
             return
         except (subprocess.CalledProcessError, OSError) as error:
             if index + 1 == len(commands):
+                if "-q" in command:
+                    # pip -q hides the resolver's explanation of a conflict: show it before failing.
+                    print("Re-running pip without -q to show why it failed:", flush=True)
+                    try:
+                        _run([part for part in command if part != "-q"], dry_run=dry_run)
+                        return
+                    except (subprocess.CalledProcessError, OSError):
+                        pass
                 raise InstallError(f"{shlex.join(command)} failed: {error}") from error
             print(f"{Path(command[0]).name} failed ({error}); falling back to pip.", flush=True)
 
