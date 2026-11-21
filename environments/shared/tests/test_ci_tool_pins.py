@@ -24,6 +24,9 @@ test_compsognathus_longipes_training.py (decision 10 (a)), which the nightly sch
 manual dispatch and the ``full-ci`` label run. Every test file that skips without
 stable-baselines3 (``pytest.importorskip``) is named, by path or by glob, in a step of
 the SB3 job: the test matrix's ``test`` extra brings no SB3, so no other job runs it.
+A job on a real Windows checkout (``plant-identity (windows)``) loads every
+model's plant identity, and .gitattributes checks text out with LF, since the
+plant contract hashes checked-out bytes.
 """
 
 from __future__ import annotations
@@ -286,3 +289,18 @@ def test_every_test_file_that_skips_without_sb3_runs_in_the_sb3_job() -> None:
         ):
             unrun.append(relative)
     assert not unrun, f"these files skip without SB3 and no test-sb3 step runs them: {unrun}"
+
+
+def test_a_windows_checkout_keeps_lf_and_every_plant_identity() -> None:
+    # The plant contract hashes checked-out bytes: under Git for Windows' core.autocrlf=true a text=auto
+    # checkout wrote CRLF and made every model's manifest stale, so .gitattributes forces LF and a job on a
+    # real Windows checkout loads every model's plant identity.
+    gitattributes = (REPOSITORY_ROOT / ".gitattributes").read_text(encoding="utf-8").splitlines()
+    assert "* text=auto eol=lf" in gitattributes, ".gitattributes must check text out with LF on every platform"
+    job = job_block("plant-identity-windows")
+    assert "\n    name: plant-identity (windows)\n" in job, job
+    assert "\n    runs-on: windows-latest\n" in job, job
+    assert "\n    needs: lint\n" in job, job
+    assert "['canonical_mujoco_version']" in job and '"mujoco==${MUJOCO_VERSION}"' in job, job
+    assert "for model_id in model_ids():" in job, job
+    assert "current_plant_identity(model_id).model_id == model_id" in job, job

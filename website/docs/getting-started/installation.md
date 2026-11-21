@@ -29,6 +29,8 @@ pip install -e ".[train]"
 pip install -e ".[all]"
 ```
 
+On Windows, the repository forces LF line endings on checkout (`.gitattributes`), because the plant contract hashes the checked-out MJCF and TOML bytes; a clone made before this change must be re-checked out (`git rm --cached -r . && git reset --hard`) or re-cloned, or training and evaluation refuse with "generated plant manifest is stale".
+
 ## Verify Installation
 
 ```bash

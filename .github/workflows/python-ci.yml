@@ -204,6 +204,45 @@ jobs:
                   assert ModelId.from_record(read_recipe(recipe, model_id)[0]["behavior"]) == model_id, recipe
           PY
 
+  # A real Windows checkout, where Git for Windows defaults core.autocrlf to
+  # true: the plant contract hashes checked-out MJCF and TOML bytes, so a CRLF
+  # checkout made every model's manifest stale and training refused.
+  # .gitattributes forces LF (`* text=auto eol=lf`); this job keeps it so.
+  plant-identity-windows:
+    name: plant-identity (windows)
+    runs-on: windows-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Show the checkout's core.autocrlf
+        shell: bash
+        run: git config --get core.autocrlf || echo "core.autocrlf unset"
+
+      - name: Install canonical MuJoCo
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          MUJOCO_VERSION=$(python -c "import tomllib; print(tomllib.load(open('configs/plant_versions.toml', 'rb'))['canonical_mujoco_version'])")
+          python -m pip install -e . "mujoco==${MUJOCO_VERSION}"
+
+      - name: Verify every model's plant identity
+        shell: python
+        run: |
+          import environments
+          from environments.shared.plant_contract import current_plant_identity
+          from environments.shared.species_names import model_ids
+
+          assert model_ids(), "the manifest names no model"
+          for model_id in model_ids():
+              assert current_plant_identity(model_id).model_id == model_id, model_id
+              print("plant identity ok:", model_id)
+
   # One matrix of two suites per Python version (gap review ST1, then CU-14a):
   # the shared tests, and every species' tests directory in one pytest run (as
   # one job per species, they spent more time on setup than on tests). Each
