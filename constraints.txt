@@ -1,0 +1,14 @@
+# The versions CI and Google Colab must share, used as `pip install -e ".[...]" -c constraints.txt`.
+# Read by every project install in .github/workflows/python-ci.yml, by notebooks/colab_install.py
+# (which the SB3 notebook runs on Colab), and by environments/shared/tests/test_ci_tool_pins.py,
+# which keeps the pins below in agreement with the code that depends on them.
+#
+# torch and numpy are deliberately not pinned: Colab supplies its own CUDA torch and the numpy built
+# for it, and CI installs the CPU torch wheel separately. Pinning either would make Colab replace them.
+
+# The plant contract's MuJoCo: pyproject.toml's pin and configs/plant_versions.toml's canonical_mujoco_version.
+mujoco==3.10.0
+# The release environments/shared/mirror_kl_ppo.py copied PPO.train from (its SB3_VERSION).
+stable-baselines3==2.9.0
+# The Gymnasium Colab training runs on.
+gymnasium==1.3.0

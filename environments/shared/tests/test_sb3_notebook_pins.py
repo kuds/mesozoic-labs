@@ -4230,160 +4230,64 @@ def test_the_drive_summary_checks_out_repo_ref_with_the_sb3_notebooks_git_block(
         assert 'REPO_REF = "main"  # @param {"type":"string"}' in code_cell(path, "REPO_REF =").splitlines()
 
 
-def test_sb3_colab_install_purges_only_present_legacy_packages_and_prefers_uv(tmp_path, monkeypatch, capsys):
-    """Purges present legacy/conflicting Colab packages (including dopamine-rl, skipping absent shimmy),
-    installs from checked-out notebooks/requirements-colab.txt with uv when available, and uses
-    ``--no-deps --no-build-isolation -e`` for the editable install."""
+@pytest.mark.parametrize("checkout", ["installer", "requirements_file", "neither"])
+def test_sb3_colab_install_runs_the_checked_out_installer_or_an_old_refs_fallback(
+    tmp_path, monkeypatch, capsys, checkout
+):
+    """After the checkout, setup runs the checked-out ``notebooks/colab_install.py`` (tested by
+    test_colab_install.py). A REPO_REF older than it gets the earlier installs: pip -r of its
+    ``notebooks/requirements-colab.txt``, else the fixed pin list, then the project without its dependencies."""
     import importlib
-    import importlib.metadata
-    import importlib.util
-    import shutil
     import subprocess
     import sys
 
-    req_dir = tmp_path / "notebooks"
-    req_dir.mkdir()
-    req_file = req_dir / "requirements-colab.txt"
-    req_file.write_text((REPO_ROOT / "notebooks" / "requirements-colab.txt").read_text(encoding="utf-8"))
-
-    installed = {
-        "gym": "0.25.2",
-        "gym-notices": "0.0.8",
-        "dopamine-rl": "4.1.2",
-        "matplotlib": "3.10.0",
-        "scipy": "1.14.0",
-        "torch": "2.6.0+cu124",
-        "numpy": "2.1.0",
-    }
-    present_specs = {"setuptools", "wheel"}
+    notebooks = tmp_path / "notebooks"
+    notebooks.mkdir()
+    if checkout == "installer":
+        (notebooks / "colab_install.py").write_text("")
+    elif checkout == "requirements_file":
+        (notebooks / "requirements-colab.txt").write_text("mujoco==3.10.0\n")
     commands = []
+    invalidated = []
 
-    def fake_version(name):
-        if name not in installed:
-            raise importlib.metadata.PackageNotFoundError(name)
-        return installed[name]
-
-    def fake_find_spec(name, *args):
-        return object() if name in present_specs else None
-
-    def fake_run(cmd, **kwargs):
+    def fake_run(command, **kwargs):
         assert kwargs.get("check") is True
-        commands.append(cmd)
-        if "uninstall" in cmd:
-            for pkg in cmd[cmd.index("-q") + 1 :]:
-                installed.pop(pkg, None)
-        elif "-r" in cmd:
-            installed.update(
-                {
-                    "mujoco": "3.10.0",
-                    "gymnasium": "1.3.0",
-                    "stable-baselines3": "2.9.0",
-                    "mediapy": "1.2.2",
-                    "imageio": "2.36.0",
-                    "imageio-ffmpeg": "0.5.1",
-                }
-            )
-            present_specs.add("tensorboard")
-        elif "-e" in cmd:
-            present_specs.add("environments")
+        commands.append(command)
 
-    monkeypatch.setattr(importlib.metadata, "version", fake_version)
-    monkeypatch.setattr(importlib.util, "find_spec", fake_find_spec)
-    monkeypatch.setattr(shutil, "which", lambda name: "/usr/local/bin/uv" if name == "uv" else None)
     monkeypatch.setattr(subprocess, "run", fake_run)
-
+    monkeypatch.setattr(importlib, "invalidate_caches", lambda: invalidated.append(True))
     body = _sb3_colab_install_block()
     ns = {"importlib": importlib, "subprocess": subprocess, "sys": sys, "repo_dir": tmp_path}
     exec(compile(ast.fix_missing_locations(ast.Module(body=body, type_ignores=[])), "sb3_install", "exec"), ns)
 
-    assert commands == [
-        [sys.executable, "-m", "pip", "uninstall", "-y", "-q", "gym", "gym-notices", "dopamine-rl"],
-        ["/usr/local/bin/uv", "pip", "install", "--python", sys.executable, "-q", "-r", str(req_file)],
-        [sys.executable, "-m", "pip", "install", "-q", "--no-deps", "--no-build-isolation", "-e", str(tmp_path)],
-    ]
-    out = capsys.readouterr().out
-    assert "mujoco=3.10.0" in out and "stable-baselines3=2.9.0" in out
-    assert "Colab setup complete (EGL rendering enabled)." in out
-
-
-@pytest.mark.parametrize("mode", ["all_match", "wrong_version", "missing_req_file", "post_install_still_wrong"])
-def test_sb3_colab_install_version_guard_fallback_and_fail_fast(tmp_path, monkeypatch, mode):
-    """Skips reinstall when versions match, reinstalls on wrong preinstalled versions (with pip fallback),
-    falls back to embedded specs on older REPO_REF checkouts, and raises on post-install mismatch."""
-    import importlib
-    import importlib.metadata
-    import importlib.util
-    import shutil
-    import subprocess
-    import sys
-
-    if mode != "missing_req_file":
-        (tmp_path / "notebooks").mkdir()
-        (tmp_path / "notebooks" / "requirements-colab.txt").write_text(
-            (REPO_ROOT / "notebooks" / "requirements-colab.txt").read_text(encoding="utf-8")
-        )
-
-    matched = {
-        "mujoco": "3.10.0",
-        "gymnasium": "1.3.0",
-        "stable-baselines3": "2.9.0",
-        "mediapy": "1.2.2",
-        "matplotlib": "3.10.0",
-        "scipy": "1.14.0",
-        "imageio": "2.36.0",
-        "imageio-ffmpeg": "0.5.1",
-    }
-    installed = dict(matched)
-    if mode in ("wrong_version", "missing_req_file", "post_install_still_wrong"):
-        installed["stable-baselines3"] = "2.8.0"
-
-    present_specs = {"environments", "tensorboard", "setuptools", "wheel"}
-    commands = []
-
-    def fake_version(name):
-        if name not in installed:
-            raise importlib.metadata.PackageNotFoundError(name)
-        return installed[name]
-
-    def fake_run(cmd, **kwargs):
-        assert kwargs.get("check") is True
-        commands.append(cmd)
-        if mode != "post_install_still_wrong":
-            installed.update(matched)
-
-    monkeypatch.setattr(importlib.metadata, "version", fake_version)
-    monkeypatch.setattr(importlib.util, "find_spec", lambda name, *a: object() if name in present_specs else None)
-    monkeypatch.setattr(shutil, "which", lambda name: None)
-    monkeypatch.setattr(subprocess, "run", fake_run)
-
-    body = _sb3_colab_install_block()
-    code = compile(ast.fix_missing_locations(ast.Module(body=body, type_ignores=[])), "sb3_install", "exec")
-    ns = {"importlib": importlib, "subprocess": subprocess, "sys": sys, "repo_dir": tmp_path}
-
-    if mode == "post_install_still_wrong":
-        with pytest.raises(RuntimeError, match=r"Colab package verification failed:.*stable-baselines3"):
-            exec(code, ns)
-        assert len(commands) == 1
+    pip = [sys.executable, "-m", "pip", "install", "-q"]
+    if checkout == "installer":
+        assert commands == [[sys.executable, str(notebooks / "colab_install.py")]]
     else:
-        exec(code, ns)
-        if mode == "all_match":
-            assert commands == []
-        elif mode == "wrong_version":
-            assert commands == [
-                [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "-q",
-                    "-r",
-                    str(tmp_path / "notebooks" / "requirements-colab.txt"),
-                ]
+        purge = [sys.executable, "-m", "pip", "uninstall", "-y", "-q", "gym", "gym-notices", "shimmy", "dopamine-rl"]
+        if checkout == "requirements_file":
+            dependencies = [*pip, "-r", str(notebooks / "requirements-colab.txt")]
+        else:
+            dependencies = [
+                *pip,
+                "mujoco==3.10.0",
+                "gymnasium==1.3.0",
+                "stable-baselines3[extra]==2.9.0",
+                "mediapy",
+                "matplotlib",
+                "imageio-ffmpeg",
             ]
-        elif mode == "missing_req_file":
-            assert len(commands) == 1
-            assert commands[0][:5] == [sys.executable, "-m", "pip", "install", "-q"]
-            assert "stable-baselines3[extra]==2.9.0" in commands[0]
+        assert commands == [purge, dependencies, [*pip, "--no-deps", "-e", str(tmp_path)]]
+    assert invalidated, "setup must invalidate import caches after installing"
+    assert capsys.readouterr().out.rstrip().endswith("Colab setup complete (EGL rendering enabled).")
+
+
+def test_sb3_colab_install_checks_no_versions_itself():
+    """The version check is the installer's (with packaging, in colab_install.py), not a parser in the cell."""
+    source = ast.unparse(ast.Module(body=_sb3_colab_install_block(), type_ignores=[]))
+    for token in ("importlib.metadata", "_pin_mismatches", "_ver_tuple", "shutil.which"):
+        assert token not in source, f"the SB3 setup cell's install block still uses {token}"
+    assert len(source.splitlines()) <= 25, "the install block grew; the installer script is where steps belong"
 
 
 @pytest.mark.parametrize("path", [NOTEBOOK_PATH, DRIVE_SUMMARY_PATH], ids=["sb3", "drive_summary"])
