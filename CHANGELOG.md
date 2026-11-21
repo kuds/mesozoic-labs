@@ -5156,8 +5156,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `.gitattributes` now sets `* text=auto eol=lf`, so `core.autocrlf=true`
   (Git for Windows' default) checks the hashed MJCF and TOML files out with LF,
   and a `plant-identity (windows)` CI job guards it. A Windows clone made before
-  this change must be re-checked out (`git rm --cached -r . && git reset --hard`)
-  or re-cloned. No digest changes.
+  this change must be re-cloned, or re-checked out after committing or stashing
+  local edits (`git rm --cached -r . && git reset --hard` discards them). No
+  digest changes.
 - **A comparison's run names sit at their lines' ends in the
   training-history report** (#644; report only;
   `environments/shared/reporting/training_history.py`). Each run's name at

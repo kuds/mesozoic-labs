@@ -213,6 +213,12 @@ jobs:
     runs-on: windows-latest
     needs: lint
     steps:
+      # Set Git for Windows' default explicitly, so the job keeps exercising a
+      # CRLF-converting checkout even if the runner image's default changes.
+      - name: Force core.autocrlf=true
+        shell: bash
+        run: git config --global core.autocrlf true
+
       - uses: actions/checkout@v4
 
       - name: Setup Python
@@ -220,15 +226,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Show the checkout's core.autocrlf
+      - name: Check the checkout converted line endings
         shell: bash
-        run: git config --get core.autocrlf || echo "core.autocrlf unset"
+        run: test "$(git config --get core.autocrlf)" = true
 
+      # Windows Python writes \r\n to stdout and bash keeps the \r: strip it.
       - name: Install canonical MuJoCo
         shell: bash
         run: |
           python -m pip install --upgrade pip
-          MUJOCO_VERSION=$(python -c "import tomllib; print(tomllib.load(open('configs/plant_versions.toml', 'rb'))['canonical_mujoco_version'])")
+          MUJOCO_VERSION=$(python -c "import tomllib; print(tomllib.load(open('configs/plant_versions.toml', 'rb'))['canonical_mujoco_version'])" | tr -d '\r')
           python -m pip install -e . "mujoco==${MUJOCO_VERSION}"
 
       - name: Verify every model's plant identity
