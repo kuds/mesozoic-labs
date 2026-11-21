@@ -37,7 +37,12 @@ Issues = "https://github.com/kuds/mesozoic-labs/issues"
 train = [
     # 2.6 is the first release whose torch.load(weights_only=True) has no known bypass (CVE-2025-32434).
     "torch>=2.6",
-    "stable-baselines3[extra]>=2.9.0",
+    # SB3 without its [extra]: training logs to TensorBoard, and SB3's progress bar needs tqdm and rich.
+    # Nothing here imports the rest of [extra] (opencv, pygame, ale-py, psutil).
+    "stable-baselines3>=2.9.0",
+    "tensorboard>=2.9.1",
+    "tqdm",
+    "rich",
 ]
 viz = [
     "mediapy>=1.1.0",
@@ -51,6 +56,8 @@ test = [
     "pytest-cov>=4.0",
     "scipy>=1.10.0",
     "matplotlib>=3.7.0",
+    # The Drive summary notebook's reader, which test_drive_summary_notebook.py executes.
+    "pandas",
 ]
 dev = [
     "mesozoic-labs[test]",
