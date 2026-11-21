@@ -62,5 +62,6 @@ Optional training dependencies (`pip install -e ".[train]"`):
 
 | Package | Version | Purpose |
 |---------|---------|---------|
+| torch | >= 2.6 | Neural networks (2.6 fixes a `torch.load` safety bypass) |
 | stable-baselines3 | >= 2.9.0 | RL algorithms (PPO, SAC) |
 | wandb | >= 0.16.0 | Experiment tracking |

@@ -88,13 +88,15 @@ SB3_PPO_TRAIN_SHA256 = "7c8d09940123242f0ac401c5ec2cc858b8bf3339f571c222382f048f
 #: The other stock sources this module's own code depends on exactly, by the same digest of their source:
 #: ``RunningMeanStd``, which :class:`SymmetricRunningMeanStd` subclasses, whose ``update`` it reimplements, whose
 #: ``update_from_moments`` it feeds the union moments and whose constructor and state it pickles as; and
-#: ``DiagGaussianDistribution.mode``, which the mirror loss takes for the Gaussian's mean.  Everything else it calls
+#: ``DiagGaussianDistribution.mode`` with ``proba_distribution``, which builds the ``Normal(mean, exp(log_std))``
+#: whose mean ``mode`` returns and which the mirror loss takes for the Gaussian's mean.  Everything else it calls
 #: (``evaluate_actions``, ``get_distribution``, ``predict_values``, the rollout buffer, the logger) the copied
 #: ``PPO.train`` or stock PPO calls too, so a change there reaches the copy and the stock method alike.
 SB3_SOURCE_SHA256 = {
     "PPO.train": SB3_PPO_TRAIN_SHA256,
     "RunningMeanStd": "f24e277e5106011b2bb4ba4be3fbc2077b1e0b389be5da576bb957975e2afa3e",
     "DiagGaussianDistribution.mode": "adbe6d88ca17f78ecc81541dac37b527e3886fc36e3fcdac3500ac6270b8b5e7",
+    "DiagGaussianDistribution.proba_distribution": "ae7e9a25bc2f65d7d214b222f424ccf1833925da26292c986d04288d5c9b82d3",
 }
 #: Every line :meth:`MirrorKLPPO.train` adds to the stock source carries this marker.
 MIRROR_MARKER = "# [mirror]"
@@ -114,6 +116,7 @@ def stock_source_sha256() -> dict[str, str]:
         "PPO.train": stock_ppo_train_sha256(),
         "RunningMeanStd": _source_sha256(RunningMeanStd),
         "DiagGaussianDistribution.mode": _source_sha256(DiagGaussianDistribution.mode),
+        "DiagGaussianDistribution.proba_distribution": _source_sha256(DiagGaussianDistribution.proba_distribution),
     }
 
 
@@ -121,7 +124,8 @@ def check_sb3_pin() -> None:
     """Refuse an SB3 whose pinned sources (:data:`SB3_SOURCE_SHA256`) are not those :class:`MirrorKLPPO` was built on.
 
     The release number is not checked: a release whose ``PPO.train``, ``RunningMeanStd`` and
-    ``DiagGaussianDistribution.mode`` are unchanged runs the copy exactly as the release it was copied from.
+    ``DiagGaussianDistribution.mode`` / ``proba_distribution`` are unchanged runs the copy exactly as the release it
+    was copied from.
     """
     installed = stock_source_sha256()
     changed = [name for name, digest in SB3_SOURCE_SHA256.items() if installed[name] != digest]
