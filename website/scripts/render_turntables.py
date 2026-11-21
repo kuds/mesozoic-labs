@@ -107,6 +107,8 @@ def render_orbit(model, data, options, destination):
         "-an",
         "-c:v",
         "libx264",
+        "-g",
+        str(FPS // 2),  # Keep drag-to-rotate seeks within half a second of a keyframe.
         "-preset",
         "slow",
         "-crf",
