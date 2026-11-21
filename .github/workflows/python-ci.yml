@@ -154,8 +154,7 @@ jobs:
         run: python -m environments.shared.harnesses.digest_snapshot --block-optional-backends --check
 
       # No pytest step, and so no coverage upload (CU-14a): the
-      # test_plant_contract_*.py files and test_species_catalog.py, the
-      # frozen-core pin test_plant_contract_frozen_mjx.py among them, run in
+      # test_plant_contract_*.py files and test_species_catalog.py run in
       # the `test (<python>, shared)` legs on every Python version, which cover
       # every line this job's own run of them covered.
       # Every model of the manifest (decision D-D33), from the wheel: its plant

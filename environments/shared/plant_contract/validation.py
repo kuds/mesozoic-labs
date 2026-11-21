@@ -38,7 +38,7 @@ def validate_compiled_plant(
 ) -> None:
     """Prove that a backend's compiled model matches the tagged plant.
 
-    This is intentionally independent of Gymnasium and JAX.  It prevents a
+    This is intentionally independent of Gymnasium.  It prevents a
     backend from loading a different MJCF and then stamping checkpoints with
     the identity computed from the canonical species entrypoint.
     """
@@ -75,7 +75,7 @@ def validate_environment_plant(
     version = versions.get(current.model_id)
     if version is None:
         raise PlantCompatibilityError(f"{artifact} uses unknown model {current.model_id}")
-    layers = fingerprint_model_layers(model, env, version, require_backend_parity=True)
+    layers = fingerprint_model_layers(model, env, version)
     observation_dim = int(np.prod(env.observation_space.shape))
     action_dim = int(np.prod(env.action_space.shape))
     errors = []

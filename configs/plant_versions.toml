@@ -889,9 +889,38 @@ observation_schema = "bipedal-target-heading-free/v1"
 # Revised Brachiosaurus limb proportions, load-bearing feet and home stance.
 # Pad sites and home-residual targets change the policy interface at the
 # existing dimensions. The body, neck, tail and feet have new visual surfaces.
+#
+# 23. Brachiosaurus and dibothrosuchus declared SB3-only, and the frozen MJX
+#     interface core removed (the maintainer's request, November 2026).  The
+#     two anatomical quadrupeds were the last models declaring jax-mjx: their
+#     policy-interface digests hashed the tokens of the core (D-D17:
+#     mjx_env.build_mjx_observation, jax_setup.make_obs_fn, the mjx_utils
+#     action-mapping and home-reset functions and the obs_functions
+#     builders), their environments.<species>.anatomical.mjx_config
+#     registrations and an MJX observation probe.  Each now declares
+#     supported_training_backends = ("stable-baselines3",) and
+#     training_backends = ["stable-baselines3"] (its JAX success metrics
+#     removed), as the velociraptor did at note 14 and the T-Rex at note 18;
+#     the core and both registrations are deleted with their ruff
+#     exclusion, and the plant contract refuses a declared jax-mjx.  As for
+#     every SB3-only species, each model's _cache_ids tokens now enter its
+#     policy digest (sb3_sensor_cache), so a token edit there is a
+#     policy-interface revision.  (Both MJCF sensor comments still name the
+#     deleted registration: an MJCF edit would move the source closure, so
+#     they wait for each species' next physics revision.)
+#
+#     No observation, action, reset or dynamics change: the SB3 observation
+#     probe, segments, action mapping and spaces are unchanged.  Only the
+#     POLICY INTERFACE moves, brachiosaurus r10 -> r11 and dibothrosuchus
+#     r9 -> r10; PHYSICS, VISUAL and the source closures are unchanged, and
+#     every other model's digests are byte-identical (their payloads already
+#     recorded the SB3-only shape).  Every brachiosaurus policy-interface-r10
+#     and dibothrosuchus r9 checkpoint is invalidated (the plant check
+#     compares the interface digest), so neither can seed a warm start or a
+#     trunk reuse on the new revision.
 [plants.brachiosaurus_altithorax.anatomical]
 physics_revision = 6
-policy_interface_revision = 10
+policy_interface_revision = 11
 visual_revision = 3
 observation_schema = "quadrupedal-target/v1"
 
@@ -899,9 +928,13 @@ observation_schema = "quadrupedal-target/v1"
 # mechanics. The foot sensors and rear-knee coordinates change policy meaning
 # at the same 80 observation and 27 action dimensions. The body-bound skins
 # retain their visual and physical fingerprints across Linux x86-64 and macOS arm64.
+#
+# Dibothrosuchus policy interface r10: note 23, above
+# [plants.brachiosaurus_altithorax.anatomical] (SB3-only, the frozen MJX
+# interface core removed).
 [plants.dibothrosuchus_elaphros.anatomical]
 physics_revision = 3
-policy_interface_revision = 9
+policy_interface_revision = 10
 visual_revision = 2
 observation_schema = "quadrupedal-target/v1"
 

@@ -24,7 +24,9 @@ naming what is missing:
   ``configs/`` and ``environments/`` are the manifest's; nothing deeper is
   constrained, so a later ``configs/<species>/robot/hardware.toml`` needs no
   edit here;
-* only the two frozen MJX registrations declare ``jax-mjx`` (review L5);
+* every model trains on Stable-Baselines3 alone, and the manifest reader
+  refuses ``jax-mjx``, removed with the frozen MJX interface core (review L5;
+  ``configs/plant_versions.toml`` note 23);
 * the website's species folders and the intro's model list follow the
   manifest (review L9), and so do the hand-written model lists of
   ``docs/SPECIES_NAMING.md`` and the website's API overview.
@@ -67,11 +69,6 @@ def _model_label(model_id: ModelId) -> str:
     return f"{model_id.species}-{model_id.embodiment}"
 
 
-#: The two frozen D-D17 registrations, the only models that may declare jax-mjx (review L5).
-FROZEN_MJX_MODELS = {
-    ModelId("brachiosaurus_altithorax", "anatomical"),
-    ModelId("dibothrosuchus_elaphros", "anatomical"),
-}
 #: Species-level directories of ``environments/<species>/`` (plan section 1.1 placement rules): the species' data,
 #: scripts and tests.  Every other directory at that depth is an embodiment package.
 SPECIES_LEVEL_DIRECTORIES = frozenset({"data", "scripts", "tests"})
@@ -197,12 +194,32 @@ def test_directory_names_at_depth_one_and_two_are_the_manifests() -> None:
             assert (ENVIRONMENTS / name / embodiment / "__init__.py").is_file()
 
 
-def test_only_the_frozen_mjx_registrations_declare_jax() -> None:
-    declared = {model_id for model_id in MODEL_IDS if "jax-mjx" in model_entry(model_id)["training_backends"]}
-    assert declared == FROZEN_MJX_MODELS
-    assert set(model_ids(backend="jax-mjx")) == FROZEN_MJX_MODELS
-    for model_id in FROZEN_MJX_MODELS:
-        assert (ENVIRONMENTS / model_id.species / model_id.embodiment / "mjx_config.py").is_file()
+def test_every_model_trains_on_stable_baselines3_alone() -> None:
+    """The frozen MJX interface core and its two registrations left with the jax-mjx backend (note 23)."""
+    assert {model_id: model_entry(model_id)["training_backends"] for model_id in MODEL_IDS} == {
+        model_id: ["stable-baselines3"] for model_id in MODEL_IDS
+    }
+    assert model_ids(backend="stable-baselines3") == MODEL_IDS
+    with pytest.raises(ValueError, match="Unknown training backend: 'jax-mjx'"):
+        model_ids(backend="jax-mjx")
+    assert not list(ENVIRONMENTS.glob("**/mjx_config.py"))
+    assert not [
+        name
+        for name in ("mjx_env", "jax_setup", "mjx_utils", "obs_functions")
+        if (ENVIRONMENTS / "shared" / f"{name}.py").exists()
+    ]
+
+
+def test_the_manifest_reader_refuses_a_jax_mjx_declaration(tmp_path: Path) -> None:
+    from environments.shared.species_names import _read_manifest
+
+    text = (CONFIGS / "species_manifest.toml").read_text(encoding="utf-8")
+    declared = 'training_backends = ["stable-baselines3"]\n'
+    assert declared in text
+    manifest = tmp_path / "species_manifest.toml"
+    manifest.write_text(text.replace(declared, 'training_backends = ["stable-baselines3", "jax-mjx"]\n', 1))
+    with pytest.raises(ValueError, match="training_backends must be a non-empty subset of \\('stable-baselines3',\\)"):
+        _read_manifest(manifest)
 
 
 # ── the website follows the manifest (review L9) ──────────────────────────

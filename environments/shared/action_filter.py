@@ -5,15 +5,12 @@ cutoff changes what a policy's action *means* — the plant responds to the
 filtered command, so a checkpoint trained with the filter is incompatible
 with the unfiltered plant even though every tensor dimension matches
 (docs/PLANT_CONTRACT.md, "action meaning" rule).  Species therefore enable
-it through plant-level declarations only:
-
-- SB3: ``action_filter_cutoff_hz`` class attribute on the species env
-  (deliberately not an ``__init__`` kwarg, so stage TOMLs cannot set it);
-- the frozen MJX registration (D-D17): ``action_filter_cutoff_hz`` in the
-  species' ``register_species_mjx`` call, which no stage TOML reaches.
+it through a plant-level declaration only: the ``action_filter_cutoff_hz``
+class attribute on the species env (deliberately not an ``__init__`` kwarg,
+so stage TOMLs cannot set it).
 
 The plant contract fingerprints this module and records the cutoff when a
-species enables it, and asserts that the two declarations agree.
+species enables it.
 
 Why it exists: both 2026-08 trex stage-1 runs converged on poses that are
 not statically stable and survive only through 16.8–18.7 Hz command

@@ -9,9 +9,10 @@
 # aliases, and the model display name is derived ("Compsognathus Longipes
 # (Robot)"), never stored.  Models are ordered by the species display_order,
 # then by embodiment in model_id.EMBODIMENTS order.  training_backends is
-# required on every embodiment; only the two frozen MJX registrations
-# (brachiosaurus_altithorax and dibothrosuchus_elaphros anatomical, D-D17)
-# declare jax-mjx.  environments/shared/species_names.py is the one reader.
+# required on every embodiment and is ["stable-baselines3"]: jax-mjx was
+# removed with the frozen MJX interface core (configs/plant_versions.toml
+# note 23) and is refused.  environments/shared/species_names.py is the one
+# reader.
 #
 # Schema 2 (decision D-A8, 2026-09-12; BEHAVIOR_RECIPES_PLAN §4.3) added the
 # deliverable tables.  [[species.<species>.embodiments.<embodiment>.deliverable_metrics]]
@@ -220,12 +221,12 @@ gait = "Quadrupedal"
 specialty = "Head-to-food reaching"
 env_entrypoint = "environments.brachiosaurus_altithorax.anatomical.env:BrachiosaurusAltithoraxAnatomicalEnv"
 model_path = "environments/brachiosaurus_altithorax/anatomical/assets/brachiosaurus_altithorax_anatomical.xml"
-training_backends = ["stable-baselines3", "jax-mjx"]
+training_backends = ["stable-baselines3"]
 training_notebooks = ["sb3_training"]
 result_summary_paths = ["results/brachiosaurus_altithorax/anatomical/ppo/summary.json"]
 
 [[species.brachiosaurus_altithorax.embodiments.anatomical.success_metrics]]
-backends = ["stable-baselines3", "jax-mjx"]
+backends = ["stable-baselines3"]
 key = "food_reached"
 label = "Head-tip distance-threshold success"
 definition = "The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled."
@@ -246,7 +247,7 @@ definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: me
 
 [[species.brachiosaurus_altithorax.embodiments.anatomical.deliverable_metrics]]
 deliverable = "hunt"
-backends = ["stable-baselines3", "jax-mjx"]
+backends = ["stable-baselines3"]
 key = "food_reached"
 label = "Head-tip distance-threshold success"
 definition = "The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled."
@@ -279,7 +280,7 @@ gait = "Quadrupedal"
 specialty = "Snout-contact snap task"
 env_entrypoint = "environments.dibothrosuchus_elaphros.anatomical.env:DibothrosuchusElaphrosAnatomicalEnv"
 model_path = "environments/dibothrosuchus_elaphros/anatomical/assets/dibothrosuchus_elaphros_anatomical.xml"
-training_backends = ["stable-baselines3", "jax-mjx"]
+training_backends = ["stable-baselines3"]
 training_notebooks = ["sb3_training"]
 result_summary_paths = []
 
@@ -288,12 +289,6 @@ backends = ["stable-baselines3"]
 key = "snap_success"
 label = "Snout-contact snap proxy"
 definition = "The snout snap geom contacts the prey geom while the snap reward is enabled; the model has no articulated jaw."
-
-[[species.dibothrosuchus_elaphros.embodiments.anatomical.success_metrics]]
-backends = ["jax-mjx"]
-key = "snap_proximity_success"
-label = "Snout-tip proximity snap proxy"
-definition = "The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw."
 
 [[species.dibothrosuchus_elaphros.embodiments.anatomical.deliverable_metrics]]
 deliverable = "stance"
@@ -315,13 +310,6 @@ backends = ["stable-baselines3"]
 key = "snap_success"
 label = "Snout-contact snap proxy"
 definition = "The snout snap geom contacts the prey geom while the snap reward is enabled; the model has no articulated jaw."
-
-[[species.dibothrosuchus_elaphros.embodiments.anatomical.deliverable_metrics]]
-deliverable = "hunt"
-backends = ["jax-mjx"]
-key = "snap_proximity_success"
-label = "Snout-tip proximity snap proxy"
-definition = "The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw."
 
 [species.compsognathus_longipes]
 display_order = 5

@@ -107,20 +107,6 @@ strict_equality = true
 [tool.ruff]
 line-length = 120
 target-version = "py311"
-# The frozen MJX interface core (D-D17): the plant contract hashes the source
-# tokens of its functions, so a formatter or autofix change would move two
-# species' policy-interface digests (docs/CLEANUP_PLAN_2026_09.md §4.3).
-# force-exclude also skips them when a path is named on the command line;
-# test_plant_contract_frozen_mjx.py checks this list.
-extend-exclude = [
-    "environments/shared/mjx_env.py",
-    "environments/shared/jax_setup.py",
-    "environments/shared/mjx_utils.py",
-    "environments/shared/obs_functions.py",
-    "environments/brachiosaurus_altithorax/anatomical/mjx_config.py",
-    "environments/dibothrosuchus_elaphros/anatomical/mjx_config.py",
-]
-force-exclude = true
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]

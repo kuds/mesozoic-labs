@@ -4,8 +4,11 @@ The filter is a plant-interface feature (see action_filter.py): trex enables
 it at 10 Hz, every other species leaves it off and must keep the exact legacy
 step arithmetic.  The SB3 implementation shares the alpha formula with the
 stance-gate probe filter, so probe cutoffs and plant cutoffs are directly
-comparable.  The frozen MJX registration's cutoff is checked against the SB3
-env's by the plant contract (``policy_layer``), not here.
+comparable.  The T-Rex's policy-interface digest hashes both functions' tokens
+(``interface_implementations.action_low_pass_filter``); the token pins below
+name what moved when ``plant_contract --check`` reports a stale manifest.
+They came from the frozen-MJX-core pins, removed with that core
+(configs/plant_versions.toml note 23).
 """
 
 from __future__ import annotations
@@ -13,8 +16,26 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from environments.shared import action_filter
 from environments.shared.action_filter import apply_low_pass, low_pass_alpha
+from environments.shared.plant_contract.digests import _callable_semantics
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+
+#: ``_callable_semantics(...)["tokens_sha256"]`` of the two hashed functions, unchanged since f850815.
+ACTION_FILTER_TOKEN_DIGESTS = {
+    "low_pass_alpha": "f32bb3f1cda4b52493b8bbd4c61fff9c86231f705ddcf9d462900f97af7f0908",
+    "apply_low_pass": "8c619d7021723c3f74bfc3d5ccb45c27738c931d176c487a3a76a18b1affaa19",
+}
+
+
+@pytest.mark.parametrize("name", list(ACTION_FILTER_TOKEN_DIGESTS))
+def test_the_filter_keeps_its_hashed_tokens(name: str) -> None:
+    expected = {"qualname": name, "tokens_sha256": f"sha256:{ACTION_FILTER_TOKEN_DIGESTS[name]}"}
+    assert _callable_semantics(getattr(action_filter, name)) == expected, (
+        f"environments/shared/action_filter.py: {name} was edited, reformatted or moved. Its tokens are part of "
+        "the T-Rex's policy-interface digest (the low-pass filter): change it only inside a T-Rex "
+        "policy_interface_revision bump and update this pin, otherwise revert the change."
+    )
 
 
 class TestLowPassPrimitives:

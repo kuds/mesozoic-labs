@@ -6,7 +6,6 @@ the assertions necessarily span source, policy, physics, and visual."""
 
 from __future__ import annotations
 
-import importlib
 import xml.etree.ElementTree as ET
 from dataclasses import replace
 
@@ -26,7 +25,7 @@ from environments.shared.plant_contract import (
     load_plant_versions,
 )
 from environments.shared.plant_contract.physics_layer import _option_payload
-from environments.shared.plant_contract.policy_layer import _jax_policy_interface_payload, _policy_interface_payload
+from environments.shared.plant_contract.policy_layer import _policy_interface_payload
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
@@ -253,25 +252,20 @@ def test_biped_policy_contract_records_home_residual_action_mapping(env_class, m
     env = env_class(reset_noise_scale=0.0)
     try:
         version = load_plant_versions()[1][model_id]
-        payload = _policy_interface_payload(env.model, env, version, require_backend_parity=True)
+        payload = _policy_interface_payload(env.model, env, version)
         mapping = payload["action_mapping"]
 
         assert mapping["mode"] == "home-keyframe-residual/v1"
         assert mapping["origin"]["keyframe"] == "home"
         np.testing.assert_allclose(mapping["origin"]["ctrl"], env.model.key_ctrl[env.home_keyframe_id])
         implementations = payload["interface_implementations"]
-        if "jax-mjx" in getattr(env, "supported_training_backends", ("stable-baselines3", "jax-mjx")):
-            assert set(implementations["jax_action_mapping"]) == {"scale_action_around_nominal_jax"}
-            assert set(implementations["home_reset"]["jax"]) == {"reset_mujoco_data_to_home"}
-            assert payload["jax_interface"]["action_mapping"] == "home-keyframe-residual/v1"
-        else:
-            # Velociraptor is SB3-only since policy-interface revision 11 and the
-            # T-Rex since revision 14 (the heading-free observation): the payload
-            # declares the missing backend instead of probing it.
-            assert payload["jax_interface"] == {"supported": False, "backend": "jax-mjx"}
-            assert "jax_action_mapping" not in implementations
-            assert set(implementations["home_reset"]) == {"sb3"}
-            assert implementations["supported_training_backends"] == ["stable-baselines3"]
+        # Velociraptor is SB3-only since policy-interface revision 11 and the
+        # T-Rex since revision 14 (the heading-free observation): the payload
+        # declares the removed backend instead of probing it.
+        assert payload["jax_interface"] == {"supported": False, "backend": "jax-mjx"}
+        assert "jax_action_mapping" not in implementations
+        assert set(implementations["home_reset"]) == {"sb3"}
+        assert implementations["supported_training_backends"] == ["stable-baselines3"]
     finally:
         env.close()
 
@@ -292,15 +286,15 @@ def test_brachiosaurus_altithorax_records_home_residual_action_mapping():
     env = BrachiosaurusAltithoraxAnatomicalEnv(reset_noise_scale=0.0)
     try:
         version = load_plant_versions()[1][BRACHIOSAURUS_ALTITHORAX]
-        payload = _policy_interface_payload(env.model, env, version, require_backend_parity=True)
+        payload = _policy_interface_payload(env.model, env, version)
         mapping = payload["action_mapping"]
 
         assert mapping["mode"] == "home-keyframe-residual/v1"
         assert mapping["origin"]["keyframe"] == "home"
         np.testing.assert_allclose(mapping["origin"]["ctrl"], env.model.key_ctrl[env.home_keyframe_id])
-        assert set(payload["interface_implementations"]["jax_action_mapping"]) == {"scale_action_around_nominal_jax"}
-        assert set(payload["interface_implementations"]["home_reset"]["jax"]) == {"reset_mujoco_data_to_home"}
-        assert payload["jax_interface"]["action_mapping"] == "home-keyframe-residual/v1"
+        # SB3-only since policy-interface revision 11 (plant_versions note 23): reset is hashed through SB3 alone.
+        assert set(payload["interface_implementations"]["home_reset"]) == {"sb3"}
+        assert payload["jax_interface"] == {"supported": False, "backend": "jax-mjx"}
     finally:
         env.close()
 
@@ -311,7 +305,7 @@ def test_compsognathus_longipes_records_its_soft_cubic_leg_residual():
     The ten leg residuals are shaped to ``b = s*a + (1 - s)*a**3`` before the home-keyframe span, so the slope at
     home and the shaped mask are part of what an action means: each moves the policy-interface digest and nothing
     else, a slope outside (0, 1] or a mask that is not one boolean per actuator is refused, and so is a jax-mjx
-    declaration, since the mode has no JAX implementation.  Reset stays fingerprinted through home_reset.
+    declaration, as on every model since the backend was removed.  Reset stays fingerprinted through home_reset.
     """
     env = CompsognathusLongipesAnatomicalEnv(reset_noise_scale=0.0)
     try:
@@ -365,7 +359,7 @@ def test_compsognathus_longipes_records_its_soft_cubic_leg_residual():
                 setattr(env, attribute, saved)
 
         env.supported_training_backends = ("stable-baselines3", "jax-mjx")
-        with pytest.raises(PlantContractError, match="no JAX implementation"):
+        with pytest.raises(PlantContractError, match="jax-mjx training backend, which was removed"):
             _policy_interface_payload(env.model, env, version)
     finally:
         env.close()
@@ -419,42 +413,6 @@ def test_human_revision_counters_do_not_change_semantic_fingerprints(velocirapto
     assert revised == original
 
 
-def test_mjx_probe_rejects_a_registration_with_both_root_bodies(monkeypatch):
-    """The MJX probe requires exactly one registered root body.
-
-    ``build_mjx_observation`` (frozen core) roots on ``torso`` whenever one is
-    registered, while the probe takes the root from the observation schema.  A
-    registration that maps both a ``torso`` and a ``pelvis`` body must fail the
-    probe rather than build its MJX observation from a root the schema did not
-    name.  Runs on the brachiosaurus: no biped is registered with the frozen
-    core since the T-Rex left it (policy interface r14), so the quadruped's
-    registration gains the extra ``pelvis`` here.
-    """
-    interface = BrachiosaurusAltithoraxAnatomicalEnv(reset_noise_scale=0.0)
-    try:
-        source = (
-            GENERATED_MANIFEST_PATH.parent.parent
-            / "environments/brachiosaurus_altithorax/anatomical/assets/brachiosaurus_altithorax_anatomical.xml"
-        ).read_text()
-        version = load_plant_versions()[1][BRACHIOSAURUS_ALTITHORAX]
-        changed_source = source.replace("</worldbody>", '  <body name="pelvis" pos="0.3 0 1.5"/>\n  </worldbody>', 1)
-        assert changed_source != source
-        model = mujoco.MjModel.from_xml_string(changed_source)
-        registration_module = importlib.import_module("environments.brachiosaurus_altithorax.anatomical.mjx_config")
-        registry = importlib.import_module("environments.shared.mjx_env")._SPECIES_CONFIGS
-        if version.model_id.species not in registry:
-            importlib.reload(registration_module)
-        registration = dict(registry[version.model_id.species])
-        pelvis_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "pelvis")
-        registration["body_ids"] = {**registration["body_ids"], "pelvis": pelvis_id}
-        monkeypatch.setitem(registry, version.model_id.species, registration)
-
-        with pytest.raises(PlantContractError, match="exactly one root body, 'torso'"):
-            _jax_policy_interface_payload(model, interface, version)
-    finally:
-        interface.close()
-
-
 #: Where each model's hashed SB3 interface methods sit, by qualname (plant_versions note 19, decision D-D33;
 #: review H1).  The four species define them on the species base ``<Species>Env``, so a later robot of the species
 #: moves none of the anatomical plant's qualnames.  The anatomical Compsognathus overrides two on its embodiment
@@ -479,10 +437,12 @@ SB3_INTERFACE_QUALNAMES: dict[ModelId, dict[str, str]] = {
     BRACHIOSAURUS_ALTITHORAX: {
         "sb3_observation": "BrachiosaurusAltithoraxEnv._get_obs",
         "sb3_action_mapping": "BrachiosaurusAltithoraxEnv._scale_action",
+        "sb3_sensor_cache": "BrachiosaurusAltithoraxEnv._cache_ids",
     },
     ModelId("dibothrosuchus_elaphros", "anatomical"): {
         "sb3_observation": "DibothrosuchusElaphrosEnv._get_obs",
         "sb3_action_mapping": "DibothrosuchusElaphrosEnv._scale_action",
+        "sb3_sensor_cache": "DibothrosuchusElaphrosEnv._cache_ids",
     },
     COMPSOGNATHUS_LONGIPES: {
         "sb3_observation": "CompsognathusLongipesAnatomicalEnv._get_obs",

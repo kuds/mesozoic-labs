@@ -31,8 +31,6 @@ COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
 COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
 
 CANONICAL_MUJOCO_VERSION = load_plant_versions()[0]
-#: The two dual-backend models (the frozen MJX registrations, D-D17).
-DUAL_BACKEND = frozenset(model_ids(backend="jax-mjx"))
 
 # Per-model pins, keyed by the model (review M4); each names the models it leaves out and why, and
 # test_the_per_model_tables_cover_every_model fails on a model in neither.  Widths carry the Phase C 3-dim command
@@ -41,22 +39,27 @@ DUAL_BACKEND = frozenset(model_ids(backend="jax-mjx"))
 # heading-free observation (64 -> 63), which also took the anatomical compsognathus from 56 to 55 (projected gravity
 # replaces the 4-wide quaternion), and the velociraptor from 70 to 69 at revision 13 (2026-11-06) and to 71 at
 # revision 14, the life-size plant (note 22, 2026-11-08: six per-site foot channels; its action 22 -> 17).
-#: Each SB3-only model's observation width.  Exempt: DUAL_BACKEND, which does claim MJX parity.
+# Brachiosaurus and dibothrosuchus, the last two, left it at revisions 11 and 10 (note 23), when the core was
+# removed: every model is SB3-only.
+#: Each SB3-only model's observation width.
 SB3_ONLY_OBSERVATION_WIDTH = {
     ALLOSAURUS_FRAGILIS: 45,
     COMPSOGNATHUS_LONGIPES: 55,
     COMPSOGNATHUS_LONGIPES_ROBOT: 46,
     VELOCIRAPTOR_MONGOLIENSIS: 71,
     TYRANNOSAURUS_REX: 63,
+    BRACHIOSAURUS_ALTITHORAX: 86,
+    DIBOTHROSUCHUS_ELAPHROS: 80,
 }
-#: Each SB3-only model's action width, resolved from the bundled manifest alone.  Exempt: DUAL_BACKEND: the
-#: bundled manifest records no training backends, and the default the fallback assumes is theirs.
+#: Each SB3-only model's action width, resolved from the bundled manifest alone.
 BUNDLED_ACTION_DIM = {
     ALLOSAURUS_FRAGILIS: 10,
     VELOCIRAPTOR_MONGOLIENSIS: 17,
     TYRANNOSAURUS_REX: 15,
     COMPSOGNATHUS_LONGIPES: 14,
     COMPSOGNATHUS_LONGIPES_ROBOT: 12,
+    BRACHIOSAURUS_ALTITHORAX: 30,
+    DIBOTHROSUCHUS_ELAPHROS: 27,
 }
 #: (observation_dim, action_dim) of the identity generated from each executable environment.  Exempt: both
 #: Compsognathus models, whose widths SB3_ONLY_OBSERVATION_WIDTH and BUNDLED_ACTION_DIM pin.
@@ -68,8 +71,8 @@ IDENTITY_DIMS = {
     DIBOTHROSUCHUS_ELAPHROS: (80, 27),
 }
 _TABLES = {
-    "SB3_ONLY_OBSERVATION_WIDTH": (SB3_ONLY_OBSERVATION_WIDTH, DUAL_BACKEND),
-    "BUNDLED_ACTION_DIM": (BUNDLED_ACTION_DIM, DUAL_BACKEND),
+    "SB3_ONLY_OBSERVATION_WIDTH": (SB3_ONLY_OBSERVATION_WIDTH, frozenset()),
+    "BUNDLED_ACTION_DIM": (BUNDLED_ACTION_DIM, frozenset()),
     "IDENTITY_DIMS": (IDENTITY_DIMS, frozenset({COMPSOGNATHUS_LONGIPES, COMPSOGNATHUS_LONGIPES_ROBOT})),
 }
 
@@ -116,34 +119,58 @@ def _readable(value: object) -> str | None:
 
 
 @pytest.mark.parametrize("model_id", list(SB3_ONLY_OBSERVATION_WIDTH), ids=lambda m: f"{m.species}-{m.embodiment}")
-def test_sb3_only_species_do_not_claim_mjx_parity(model_id, monkeypatch):
+def test_sb3_only_species_do_not_claim_mjx_parity(model_id):
     from environments.shared.plant_contract import policy_layer
     from environments.shared.species_registry import get_species_config
 
-    def unexpected_mjx(*args, **kwargs):
-        pytest.fail("An explicitly SB3-only model attempted an MJX interface probe")
-
-    monkeypatch.setattr(policy_layer, "_jax_policy_interface_payload", unexpected_mjx)
+    assert not hasattr(policy_layer, "_jax_policy_interface_payload")
     with get_species_config(model_id).env_class() as env:
-        payload = policy_layer._policy_interface_payload(
-            env.model,
-            env,
-            load_plant_versions()[1][model_id],
-            require_backend_parity=True,
-        )
+        assert env.supported_training_backends == ("stable-baselines3",)
+        payload = policy_layer._policy_interface_payload(env.model, env, load_plant_versions()[1][model_id])
+    # The constant record of the removed backend, kept so no SB3-only digest moved with the core (note 23).
     assert payload["jax_interface"] == {"supported": False, "backend": "jax-mjx"}
     assert payload["backend_observation_equal"] is None
+    implementations = payload["interface_implementations"]
+    assert implementations["supported_training_backends"] == ["stable-baselines3"]
+    assert "sb3_sensor_cache" in implementations
+    assert not {"backend_neutral_observation", "jax_action_mapping", "jax_observation_callers"} & set(implementations)
+    assert set(implementations.get("home_reset", {"sb3": None})) == {"sb3"}
     assert payload["observation"]["shape"] == [SB3_ONLY_OBSERVATION_WIDTH[model_id]]
+
+
+@pytest.mark.parametrize("model_id", list(SB3_ONLY_OBSERVATION_WIDTH), ids=lambda m: f"{m.species}-{m.embodiment}")
+@pytest.mark.parametrize("backends", [("stable-baselines3", "jax-mjx"), ("jax-mjx",)], ids=["dual", "mjx-only"])
+def test_a_declared_jax_mjx_backend_is_refused(model_id, backends, monkeypatch):
+    """jax-mjx left with the frozen MJX interface core (plant_versions note 23): no layer accepts it."""
+    from environments.shared.plant_contract import policy_layer
+    from environments.shared.species_registry import get_species_config
+
+    with get_species_config(model_id).env_class() as env:
+        monkeypatch.setattr(env, "supported_training_backends", backends, raising=False)
+        with pytest.raises(PlantContractError, match="declares the jax-mjx training backend, which was removed"):
+            policy_layer._policy_interface_payload(env.model, env, load_plant_versions()[1][model_id])
+        with pytest.raises(PlantContractError, match="jax-mjx"):
+            plant_contract.fingerprint_model_layers(env.model, env, load_plant_versions()[1][model_id])
+
+
+def test_any_backend_but_stable_baselines3_is_refused():
+    from types import SimpleNamespace
+
+    from environments.shared.plant_contract.policy_layer import declared_training_backends
+
+    assert declared_training_backends(SimpleNamespace(), VELOCIRAPTOR_MONGOLIENSIS) == ("stable-baselines3",)
+    for backends in ((), ("torchrl",), ("stable-baselines3", "stable-baselines3")):
+        with pytest.raises(PlantContractError, match="invalid training backends"):
+            declared_training_backends(SimpleNamespace(supported_training_backends=backends), VELOCIRAPTOR_MONGOLIENSIS)
 
 
 @pytest.mark.parametrize(("model_id", "action_dim"), list(BUNDLED_ACTION_DIM.items()), ids=_readable)
 def test_runtime_identity_falls_back_to_bundled_manifest(model_id, action_dim, monkeypatch, tmp_path):
-    """The bundled manifest resolves dual-backend and SB3-only species alike.
+    """The bundled manifest resolves every model.
 
-    It records no training backends, so an SB3-only species (both
-    compsognathus plants, velociraptor since policy-interface revision 11 and
-    trex since revision 14) must not be checked against the dual-backend
-    default it never declared.
+    It records no training backends, so each model is checked against the
+    environment's own supported_training_backends (Stable-Baselines3 alone
+    on every model since plant_versions note 23).
     """
     monkeypatch.setattr(plant_contract.constants, "SPECIES_MANIFEST_PATH", tmp_path / "missing-species.toml")
     monkeypatch.setattr(plant_contract.constants, "PLANT_VERSIONS_PATH", tmp_path / "missing-versions.toml")
@@ -161,7 +188,6 @@ def test_runtime_identity_falls_back_to_bundled_manifest(model_id, action_dim, m
     ids=_readable,
 )
 def test_current_identity_matches_each_executable_environment(model_id, observation_dim, action_dim):
-    # Identity generation requires exact SB3/MJX observation parity on the dual-backend species.
     identity = current_plant_identity(model_id, verify_generated=False)
 
     assert identity.observation_dim == observation_dim

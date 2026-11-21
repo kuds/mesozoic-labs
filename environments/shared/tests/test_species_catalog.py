@@ -256,12 +256,15 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # 2026-11-08): PHYSICS, POLICY and VISUAL.
     # The reconstructed Compsognathus anatomy changes the hindlimb, foot
     # contacts, passive flexor and home preload: physics/visual r3, policy r6.
+    # Brachiosaurus and dibothrosuchus declared SB3-only when the frozen MJX
+    # interface core was removed (plant_versions note 23): POLICY only,
+    # physics and visual unchanged.
     expected_policy_revisions = {
         ALLOSAURUS_FRAGILIS: 1,
         VELOCIRAPTOR_MONGOLIENSIS: 14,
         TYRANNOSAURUS_REX: 16,
-        BRACHIOSAURUS_ALTITHORAX: 10,
-        DIBOTHROSUCHUS_ELAPHROS: 9,
+        BRACHIOSAURUS_ALTITHORAX: 11,
+        DIBOTHROSUCHUS_ELAPHROS: 10,
         COMPSOGNATHUS_LONGIPES: 6,
         COMPSOGNATHUS_LONGIPES_ROBOT: 3,
     }
@@ -714,23 +717,20 @@ def test_catalog_scopes_success_semantics_to_training_backends() -> None:
     catalog = build_catalog()
     models = _models(catalog)
 
-    # Velociraptor is SB3-only since policy-interface revision 11 and the
-    # T-Rex since revision 14, so each catalog carries the contact semantics
-    # alone; brachiosaurus and dibothrosuchus still declare both backends and
-    # keep one metric per backend.
-    for sb3_only in (VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX):
+    # Velociraptor is SB3-only since policy-interface revision 11, the T-Rex
+    # since revision 14, and brachiosaurus and dibothrosuchus since revisions
+    # 11 and 10 (plant_versions note 23, the frozen MJX core removed), so each
+    # catalog carries its SB3 semantics alone: the proximity proxies the MJX
+    # path scored are gone with it.
+    for sb3_only in (VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX, DIBOTHROSUCHUS_ELAPHROS):
         metrics = models[sb3_only]["success_metrics"]
         assert [metric["backends"] for metric in metrics] == [["stable-baselines3"]], sb3_only
         assert "contacts the prey geom" in metrics[0]["definition"], sb3_only
-        assert all(metric["backends"] == ["stable-baselines3"] for metric in models[sb3_only]["deliverable_metrics"]), (
-            sb3_only
+    for model_id in model_ids():
+        assert all(metric["backends"] == ["stable-baselines3"] for metric in models[model_id]["success_metrics"])
+        assert all(metric["backends"] == ["stable-baselines3"] for metric in models[model_id]["deliverable_metrics"]), (
+            model_id
         )
-
-    brachiosaurus_altithorax_metrics = models[BRACHIOSAURUS_ALTITHORAX]["success_metrics"]
-    assert {backend for metric in brachiosaurus_altithorax_metrics for backend in metric["backends"]} == {
-        "stable-baselines3",
-        "jax-mjx",
-    }
 
 
 def test_manifest_covers_all_curated_results_and_implemented_models() -> None:
@@ -847,9 +847,11 @@ def test_missing_manifest_path_is_rejected(tmp_path: Path) -> None:
         build_catalog(broken_manifest)
 
 
-def test_catalog_refuses_the_sb3_notebook_for_a_species_that_does_not_train_on_sb3(tmp_path: Path) -> None:
+def test_catalog_refuses_a_species_that_does_not_train_on_sb3(tmp_path: Path) -> None:
     # Velociraptor declares itself SB3-only (policy-interface revision 11), so
     # the broken copy flips that declaration rather than adding a second one.
+    # The manifest reader refuses jax-mjx before the catalog's sb3_training
+    # check is reached: the backend was removed (plant_versions note 23).
     declaration = 'model_path = "environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml"\ntraining_backends = ["stable-baselines3"]\n'
     manifest_text = DEFAULT_MANIFEST_PATH.read_text(encoding="utf-8")
     assert manifest_text.count(declaration) == 1
@@ -860,7 +862,9 @@ def test_catalog_refuses_the_sb3_notebook_for_a_species_that_does_not_train_on_s
     )
 
     with pytest.raises(
-        CatalogError, match="velociraptor_mongoliensis/anatomical advertises unsupported notebook sb3_training"
+        CatalogError,
+        match=r"velociraptor_mongoliensis/anatomical training_backends must be a non-empty subset of "
+        r"\('stable-baselines3',\)",
     ):
         build_catalog(broken_manifest)
 
