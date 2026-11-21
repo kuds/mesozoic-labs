@@ -4047,15 +4047,7 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         if indexed:
             (checkout / ".git" / "index").touch()
         _, body = _colab_setup(path)
-        for node in body:
-            if (
-                isinstance(node, ast.Assign)
-                and isinstance(node.targets[0], ast.Name)
-                and node.targets[0].id == "repo_dir"
-            ):
-                node.value = ast.Call(
-                    func=ast.Name(id="Path", ctx=ast.Load()), args=[ast.Constant(str(checkout))], keywords=[]
-                )
+        _point_repo_dir_at(body, checkout)
         commands = []
 
         def fake_output(command, **kwargs):
@@ -4084,26 +4076,70 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         else:
             exec(code, namespace)
             assert ["git", "checkout", "--detach", "new-commit"] in commands
-        assert commands[0] == ["git", "fetch", "--depth", "1", "origin", "feature-branch"]
+        fetch = ["git", "fetch", "--depth", "1", "--filter=blob:none", "origin", "feature-branch"]
+        if indexed:
+            # Sparse settings are never applied to a checkout that has an index: on a full checkout they
+            # would delete every clean file outside the cone.
+            assert commands[0] == fetch
+            assert not any(command[1] == "sparse-checkout" for command in commands)
+        else:
+            assert commands[:3] == [*_SPARSE_SETUP, fetch]
+        # Nothing here may discard work: no reset, no clean, and --force only in the rollback after a failed
+        # checkout (test_colab_failed_checkout_rolls_back_only_an_indexed_tree), which this fake never triggers.
         assert not any("--force" in command or "reset" in command or "clean" in command for command in commands)
+
+    @pytest.mark.parametrize("indexed", [True, False], ids=["indexed", "no_index"])
+    @pytest.mark.parametrize("path", [NOTEBOOK_PATH, DRIVE_SUMMARY_PATH], ids=["sb3", "drive_summary"])
+    def test_colab_failed_checkout_rolls_back_only_an_indexed_tree(self, tmp_path, monkeypatch, path, indexed):
+        """A checkout that fails part-way (it downloads file contents lazily) is re-raised; on an indexed tree it
+        first puts back the clean commit verified before, so a rerun is not refused as "local edits"."""
+        import subprocess
+        import types
+
+        checkout = tmp_path / "checkout"
+        (checkout / ".git").mkdir(parents=True)
+        if indexed:
+            (checkout / ".git" / "index").touch()
+        _, body = _colab_setup(path)
+        _point_repo_dir_at(body, checkout)
+        calls = []
+
+        def fake_run(command, **kwargs):
+            calls.append((command, kwargs.get("check")))
+            if command[1:3] == ["checkout", "--detach"]:
+                raise subprocess.CalledProcessError(128, command)
+
+        def fake_output(command, **kwargs):
+            if command[1:3] == ["rev-parse", "FETCH_HEAD^{commit}"]:
+                return "new-commit\n"
+            if command[1:3] == ["rev-parse", "HEAD"] and indexed:
+                return "old-commit\n"
+            if command[1:3] == ["status", "--porcelain"] and indexed:
+                return ""
+            raise AssertionError(command)
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        monkeypatch.setattr(subprocess, "check_output", fake_output)
+        namespace = {"Path": Path, "REPO_REF": "feature-branch", "sys": types.SimpleNamespace(modules={})}
+        code = compile(ast.fix_missing_locations(ast.Module(body=body, type_ignores=[])), "setup", "exec")
+        with pytest.raises(subprocess.CalledProcessError):
+            exec(code, namespace)
+        checkouts = [(command, check) for command, check in calls if command[1] == "checkout"]
+        attempt = (["git", "checkout", "--detach", "new-commit"], True)
+        # The rollback passes check=False on purpose: its own failure must not hide the checkout's error.
+        rollback = (["git", "checkout", "--force", "--detach", "old-commit"], False)
+        assert checkouts == ([attempt, rollback] if indexed else [attempt])
 
     @pytest.mark.parametrize("path", [NOTEBOOK_PATH, DRIVE_SUMMARY_PATH], ids=["sb3", "drive_summary"])
     def test_colab_fresh_checkout_uses_shallow_fetch(self, tmp_path, monkeypatch, path):
-        """A fresh Colab runtime initializes and shallow-fetches only REPO_REF instead of cloning full history."""
+        """A fresh Colab runtime sets up a sparse cone before a blobless shallow fetch of REPO_REF only, instead of
+        cloning full history (every command checked; the rollback's check=False is never reached here)."""
         import subprocess
         import types
 
         checkout = tmp_path / "fresh_checkout"
         _, body = _colab_setup(path)
-        for node in body:
-            if (
-                isinstance(node, ast.Assign)
-                and isinstance(node.targets[0], ast.Name)
-                and node.targets[0].id == "repo_dir"
-            ):
-                node.value = ast.Call(
-                    func=ast.Name(id="Path", ctx=ast.Load()), args=[ast.Constant(str(checkout))], keywords=[]
-                )
+        _point_repo_dir_at(body, checkout)
         commands = []
 
         def fake_run(command, **kwargs):
@@ -4124,9 +4160,28 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         assert commands == [
             ["git", "init", "-q"],
             ["git", "remote", "add", "origin", "https://github.com/kuds/mesozoic-labs.git"],
-            ["git", "fetch", "--depth", "1", "origin", "main"],
+            *_SPARSE_SETUP,
+            ["git", "fetch", "--depth", "1", "--filter=blob:none", "origin", "main"],
             ["git", "checkout", "--detach", "abc123"],
         ]
+
+
+#: The sparse cone a checkout with no index gets before its first fetch: `init --cone` then `set`, because git 2.34
+#: (Colab's Ubuntu 22.04) has no `set --cone` and would read it as a pattern. `results` is in the cone for the Drive
+#: summary's offline-judgement ledger; the files at the repository root are always checked out.
+_SPARSE_SETUP = [
+    ["git", "sparse-checkout", "init", "--cone"],
+    ["git", "sparse-checkout", "set", "environments", "configs", "notebooks", "results"],
+]
+
+
+def _point_repo_dir_at(body: list[ast.stmt], checkout: Path) -> None:
+    """Rewrite the Git block's ``repo_dir = ...`` to ``repo_dir = Path(<checkout>)``."""
+    for node in body:
+        if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name) and node.targets[0].id == "repo_dir":
+            node.value = ast.Call(
+                func=ast.Name(id="Path", ctx=ast.Load()), args=[ast.Constant(str(checkout))], keywords=[]
+            )
 
 
 def _colab_setup(path: Path) -> tuple[ast.Assign, list[ast.stmt]]:
@@ -4158,8 +4213,9 @@ def test_the_drive_summary_checks_out_repo_ref_with_the_sb3_notebooks_git_block(
     """The Drive summary's setup cell runs the SB3 setup cell's Git block statement for statement (CU-15).
 
     The block installs the package, so it cannot live in it; the two copies are pinned equal as ASTs
-    instead: the shallow ``git init`` + ``git fetch --depth 1`` of ``REPO_REF``, ``FETCH_HEAD^{commit}``,
-    the refusals after an import of the package or over local edits, and the detached checkout. Both cells
+    instead: ``git init``, the sparse cone of a checkout with no index, the blobless
+    ``git fetch --depth 1 --filter=blob:none`` of ``REPO_REF``, ``FETCH_HEAD^{commit}``, the refusals after an
+    import of the package or over local edits, and the detached checkout with its rollback. Both cells
     declare ``REPO_REF = "main"`` and the same ``IN_COLAB``. The ref-change test above runs the block.
     """
     sb3_in_colab, sb3_block = _colab_setup(NOTEBOOK_PATH)
