@@ -5163,6 +5163,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   this change must be re-cloned, or re-checked out after committing or stashing
   local edits (`git rm --cached -r . && git reset --hard` discards them). No
   digest changes.
+- **The curated `collected_results.csv` files agree with their summaries**
+  (results only; `environments/shared/tests/test_result_summaries.py`). The
+  Brachiosaurus PPO, T. rex PPO, Velociraptor PPO and Velociraptor SAC CSVs
+  are regenerated from their unchanged `summary.json` by the canonical
+  writer, and a test now fails on any summary/CSV contradiction or orphan CSV.
 - **A comparison's run names sit at their lines' ends in the
   training-history report** (#644; report only;
   `environments/shared/reporting/training_history.py`). Each run's name at

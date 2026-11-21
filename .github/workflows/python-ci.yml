@@ -21,6 +21,9 @@ on:
       - "docs/**"
       - "notebooks/**"
       - "results/**/summary.json"
+      # test_result_summaries.py checks each CSV agrees with its summary.json,
+      # so a PR editing only a CSV must run that check.
+      - "results/**/collected_results.csv"
       # test_reporting_runs_summary.py validates the offline-judgement ledger,
       # so a records PR that only adds rows to it must run that check.
       - "results/offline_judgements.csv"

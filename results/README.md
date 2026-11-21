@@ -73,9 +73,11 @@ every stage, and writes an artifact manifest last. See
 
 Files are promoted into this curated directory deliberately rather than by
 every notebook automatically. The catalog consumes `summary.json`; CSV and
-documentation are derived views and must agree with it. Legacy artifacts that
-predate bundles remain historical/unverified and may be reported as conflicting
-instead of being silently rewritten.
+documentation are derived views and must agree with it, and
+`environments/shared/tests/test_result_summaries.py` fails on any
+`collected_results.csv` that contradicts its `summary.json`. Legacy artifacts
+that predate bundles remain historical/unverified and may be reported as
+conflicting instead of being silently rewritten.
 
 ## Offline judgements (`offline_judgements.csv`)
 
