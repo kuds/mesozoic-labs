@@ -190,7 +190,7 @@ def use_archived_plant(work: Path, species: Any) -> None:
             1.3762339038992937,
         )
 
-    def archived_identity(model_id):
+    def archived_identity(model_id, *, verify_generated: bool = True) -> PlantIdentity:
         if model_id != identity.model_id:
             raise ValueError(f"no archived plant for {model_id}")
         return identity
