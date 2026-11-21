@@ -4059,6 +4059,9 @@ class TestNotebookWithoutTheDirectionTerrainMode:
             if command[1:3] == ["status", "--porcelain"]:
                 assert indexed, "must not run status --porcelain when there is no index"
                 return " M notebook.ipynb\n" if dirty else ""
+            if command[1:] == ["ls-files", "--deleted"]:
+                assert not expected, "the completeness check runs only after a checkout"
+                return ""
             raise AssertionError(command)
 
         monkeypatch.setattr(subprocess, "check_output", fake_output)
@@ -4088,18 +4091,22 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         # checkout (test_colab_failed_checkout_rolls_back_only_an_indexed_tree), which this fake never triggers.
         assert not any("--force" in command or "reset" in command or "clean" in command for command in commands)
 
+    @pytest.mark.parametrize("failure", ["exits_nonzero", "files_missing"])
     @pytest.mark.parametrize("indexed", [True, False], ids=["indexed", "no_index"])
     @pytest.mark.parametrize("path", [NOTEBOOK_PATH, DRIVE_SUMMARY_PATH], ids=["sb3", "drive_summary"])
-    def test_colab_failed_checkout_rolls_back_only_an_indexed_tree(self, tmp_path, monkeypatch, path, indexed):
-        """A checkout that fails part-way (it downloads file contents lazily) is re-raised; on an indexed tree it
-        first puts back the clean commit verified before, so a rerun is not refused as "local edits"."""
+    def test_colab_failed_checkout_rolls_back_only_an_indexed_tree(self, tmp_path, monkeypatch, path, indexed, failure):
+        """A checkout that fails part-way (it downloads file contents lazily) is re-raised. Git 2.43 exits non-zero;
+        Colab's git 2.34 exits 0 and leaves the files missing, which ``git ls-files --deleted`` catches. On an indexed
+        tree setup first puts back the clean commit verified before, so a rerun is not refused as "local edits"; with
+        no tree before, it drops the index the checkout wrote, so the rerun takes the fresh path again."""
         import subprocess
         import types
 
         checkout = tmp_path / "checkout"
+        index = checkout / ".git" / "index"
         (checkout / ".git").mkdir(parents=True)
         if indexed:
-            (checkout / ".git" / "index").touch()
+            index.touch()
         _, body = _colab_setup(path)
         _point_repo_dir_at(body, checkout)
         calls = []
@@ -4107,7 +4114,9 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         def fake_run(command, **kwargs):
             calls.append((command, kwargs.get("check")))
             if command[1:3] == ["checkout", "--detach"]:
-                raise subprocess.CalledProcessError(128, command)
+                index.touch()  # as git 2.34 does even when the downloads fail
+                if failure == "exits_nonzero":
+                    raise subprocess.CalledProcessError(128, command)
 
         def fake_output(command, **kwargs):
             if command[1:3] == ["rev-parse", "FETCH_HEAD^{commit}"]:
@@ -4116,19 +4125,26 @@ class TestNotebookWithoutTheDirectionTerrainMode:
                 return "old-commit\n"
             if command[1:3] == ["status", "--porcelain"] and indexed:
                 return ""
+            if command[1:] == ["ls-files", "--deleted"] and failure == "files_missing":
+                return "pyproject.toml\nnotebooks/colab_install.py\n"
             raise AssertionError(command)
 
         monkeypatch.setattr(subprocess, "run", fake_run)
         monkeypatch.setattr(subprocess, "check_output", fake_output)
         namespace = {"Path": Path, "REPO_REF": "feature-branch", "sys": types.SimpleNamespace(modules={})}
         code = compile(ast.fix_missing_locations(ast.Module(body=body, type_ignores=[])), "setup", "exec")
-        with pytest.raises(subprocess.CalledProcessError):
-            exec(code, namespace)
+        if failure == "exits_nonzero":
+            with pytest.raises(subprocess.CalledProcessError):
+                exec(code, namespace)
+        else:
+            with pytest.raises(RuntimeError, match="checkout is incomplete"):
+                exec(code, namespace)
         checkouts = [(command, check) for command, check in calls if command[1] == "checkout"]
         attempt = (["git", "checkout", "--detach", "new-commit"], True)
         # The rollback passes check=False on purpose: its own failure must not hide the checkout's error.
         rollback = (["git", "checkout", "--force", "--detach", "old-commit"], False)
         assert checkouts == ([attempt, rollback] if indexed else [attempt])
+        assert index.exists() is indexed, "a failed first checkout must leave no index behind"
 
     @pytest.mark.parametrize("path", [NOTEBOOK_PATH, DRIVE_SUMMARY_PATH], ids=["sb3", "drive_summary"])
     def test_colab_fresh_checkout_uses_shallow_fetch(self, tmp_path, monkeypatch, path):
@@ -4151,6 +4167,8 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         def fake_output(command, **kwargs):
             if command[1:3] == ["rev-parse", "FETCH_HEAD^{commit}"]:
                 return "abc123\n"
+            if command[1:] == ["ls-files", "--deleted"]:
+                return ""
             raise AssertionError(f"unexpected check_output on fresh checkout: {command}")
 
         monkeypatch.setattr(subprocess, "run", fake_run)
@@ -4215,8 +4233,9 @@ def test_the_drive_summary_checks_out_repo_ref_with_the_sb3_notebooks_git_block(
     The block installs the package, so it cannot live in it; the two copies are pinned equal as ASTs
     instead: ``git init``, the sparse cone of a checkout with no index, the blobless
     ``git fetch --depth 1 --filter=blob:none`` of ``REPO_REF``, ``FETCH_HEAD^{commit}``, the refusals after an
-    import of the package or over local edits, and the detached checkout with its rollback. Both cells
-    declare ``REPO_REF = "main"`` and the same ``IN_COLAB``. The ref-change test above runs the block.
+    import of the package or over local edits, and the detached checkout with its completeness check and
+    rollback. Both cells declare ``REPO_REF = "main"`` and the same ``IN_COLAB``. The ref-change test above
+    runs the block.
     """
     sb3_in_colab, sb3_block = _colab_setup(NOTEBOOK_PATH)
     drive_in_colab, drive_block = _colab_setup(DRIVE_SUMMARY_PATH)
