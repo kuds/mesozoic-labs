@@ -29,7 +29,7 @@ repos:
     rev: v2.3.1
     hooks:
       - id: mypy
-        additional_dependencies: [gymnasium, numpy]
+        additional_dependencies: [gymnasium, numpy, packaging]
         args: [--ignore-missing-imports]
         pass_filenames: false
         entry: mypy environments/ notebooks/colab_install.py

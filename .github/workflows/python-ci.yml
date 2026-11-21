@@ -93,7 +93,7 @@ jobs:
       # (test_ci_tool_pins.py checks all three), so a tool release cannot turn
       # an unrelated pull request red, and pre-commit formats as CI checks.
       - name: Install tools
-        run: pip install "ruff==0.16.9" "mypy==2.3.1" gymnasium numpy -c constraints.txt
+        run: pip install "ruff==0.16.9" "mypy==2.3.1" gymnasium numpy packaging -c constraints.txt
 
       - name: Ruff lint
         run: ruff check environments/ notebooks/colab_install.py
