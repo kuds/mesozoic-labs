@@ -62,10 +62,10 @@ unchanged.
 
 ```bash
 python -m pip install -e ".[train,test,viz]"
-pytest environments/compsognathus/tests environments/shared/tests/test_compsognathus_training.py
+pytest environments/compsognathus_longipes/tests environments/shared/tests/test_compsognathus_longipes_training.py
 python -m environments.shared.plant_contract --check
 python -m environments.shared.species_catalog --check
-python -m environments.compsognathus.scripts.validate_models --output /tmp/compsognathus-preflight.json
+python -m environments.compsognathus_longipes.scripts.validate_models --output /tmp/compsognathus_longipes-preflight.json
 ```
 
 Run full training next, comparing learned behavior with the zero-action
@@ -100,9 +100,11 @@ anatomical model's ten seeded holds passes `supports_weight` (worst settled
 ground-force error 0.31% against the 3% bar), where the default armature's
 numerical 19–21 Hz heel chatter of the MTP servo failed seeds 49 and 51
 (5.4%). The new tests
-(`tests/test_biological_rewards.py`, `tests/test_noise_tolerance.py`, the
-additions to `tests/test_models.py` and `tests/test_training_env.py`, and
-`environments/shared/tests/test_compsognathus_stance_gate_config.py`) pin the
+(`environments/compsognathus_longipes/tests/test_anatomical_rewards.py`,
+`environments/compsognathus_longipes/tests/test_anatomical_noise_tolerance.py`, the
+additions to `environments/compsognathus_longipes/tests/test_models.py` and
+`environments/compsognathus_longipes/tests/test_training_env.py`, and
+`environments/shared/tests/test_compsognathus_longipes_stance_gate_config.py`) pin the
 plant, the interface, the reward terms, the noise cliff and the gate
 declaration. No r2 policy has been trained to convergence; the training
 recipe's appended amendment says what to run next.

@@ -45,4 +45,4 @@ Actions are residual joint-position commands around a preloaded standing pose. T
 
 The initial configurations and short integration runs establish training compatibility. They do not establish learned walking, behavior convergence or hardware readiness. The zero-action standing baseline should be measured before tuning. Every node is judged on its own and its verdict written to `gate_verdict.json` beside the handoff checkpoint; a later run reuses it only under the reuse rule (a passed verdict, the same task digest and plant, chained by the parent's checkpoint digest) — see [Behavior Recipes](/docs/training/recipes).
 
-See the [model and training guide](https://github.com/kuds/mesozoic-labs/blob/main/environments/compsognathus_longipes/README.md) for mechanical assumptions, sensor details and validation commands.
+See the [model README](https://github.com/kuds/mesozoic-labs/blob/main/environments/compsognathus_longipes/README.md) for validation commands, and [Anatomy and standing balance](https://github.com/kuds/mesozoic-labs/blob/main/environments/compsognathus_longipes/ANATOMY_AND_BALANCE.md) for the reconstruction, joint torques and static balance.

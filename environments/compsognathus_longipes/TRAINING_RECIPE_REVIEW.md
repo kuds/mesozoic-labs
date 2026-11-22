@@ -240,8 +240,8 @@ Reproduce the eight-cycle probe from a Git checkout containing the pinned
 baseline commit, with the training dependencies installed:
 
 ```bash
-python -m environments.compsognathus.scripts.probe_ppo_updates --output /tmp/compso-probe
-pytest environments/shared/tests/test_compsognathus_training.py
+python -m environments.compsognathus_longipes.scripts.probe_ppo_updates --output /tmp/compso-probe
+pytest environments/shared/tests/test_compsognathus_longipes_training.py
 ```
 
 The reusable CLI was refactored from the executed probe, preserving its training
@@ -257,7 +257,7 @@ Decision D-D26 revised the anatomical model (physics r1 → r2, policy interface
 r2 → r3; `configs/plant_versions.toml` note 15): the tail's mass at one
 density, a metatarsus that clears the floor, digit II medial on both feet,
 toe-joint armature against a numerical heel chatter of the MTP servo, and
-`CompsognathusBiologicalEnv`, whose soft-cubic leg residual lets the statue
+`CompsognathusBiologicalEnv` (now `CompsognathusLongipesAnatomicalEnv`), whose soft-cubic leg residual lets the statue
 survive this recipe's initial exploration noise (above). Its stance task
 gains the stance-quality reward terms, which recovery inherits, and its
 stance certifies under `stance_quality/v2`, judged after the stage on the

@@ -8,7 +8,8 @@ has been built. `hardware_prototype` is still `planned` in
 **Compsognathus model update (2026-09-07):** an
 [anatomical proxy and Rev B robot prototype](../../environments/compsognathus_longipes/README.md)
 now load and stand in MuJoCo. The robot preserves the later twelve-leg-axis,
-1.5856 kg design with a fixed passive tail. Use that page for current
+1.5856 kg design with a fixed passive tail. Use the
+[Rev B robot design record](../reviews/COMPSOGNATHUS_ROBOT_DESIGN.md) for current
 geometry and validation limits; the older cost figures below are not an
 updated bill of materials for Rev B. Neither prototype has demonstrated walking.
 In the repository a robot is the `robot` embodiment of its species
