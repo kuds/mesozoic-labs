@@ -5104,6 +5104,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says.
 
 ### Removed
+- **The species `requirements.txt` files** of the Velociraptor, the T. rex and the
+  Brachiosaurus. They asked for `mujoco>=3.0.0` and `stable-baselines3[extra]>=2.2.0`,
+  against the package's `mujoco==3.10.0` and `train` extra, so an install from one got a
+  MuJoCo the plant contract refuses. Install with `pip install -e ".[train]"`, adding
+  `-c constraints.txt` for the CI and Colab versions.
 - **The Weights & Biases integration**: `environments/shared/wandb_integration.py`,
   the `--wandb` flag of `train` and `curriculum`, the `use_wandb` argument of
   `train()` and `train_curriculum()`, and `wandb` in the `train` extra. Nothing

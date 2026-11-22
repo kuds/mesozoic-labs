@@ -1976,23 +1976,20 @@ robustness, **LOW** = cosmetic / QoL.
   `validate_evaluation_evidence`. Fix: catch `ValueError` in these
   handlers too, and give `initialize_result_bundle`'s read its own
   refusal; no cleanup PR owns it yet. (2026-10 CU-8c review)
-- **LOW** — **the species `requirements.txt` files take any MuJoCo from
-  3.0.0, and the stale-manifest error does not name the version (read from
-  the code 2026-09-30).** `environments/tyrannosaurus_rex/requirements.txt:2`,
-  `environments/velociraptor_mongoliensis/requirements.txt:2` and
-  `environments/brachiosaurus_altithorax/requirements.txt:1` ask for `mujoco>=3.0.0`,
-  while the package pins `mujoco==3.10.0` (`pyproject.toml:25`), the version
-  the plant digests are built on. An install from one of them gets a newer
-  MuJoCo, and training then stops in `current_plant_identity` with
-  "generated plant manifest is stale for <species>/<embodiment>; run the plant-contract
-  check before training" (`plant_contract/manifest.py:487-492`); only the
-  check it points to names the cause ("plant manifest generation requires
-  MuJoCo 3.10.0", :176-179). In the review's reproduction (MuJoCo 3.12.0)
-  training stopped before its first step, so the cost is a two-step
-  diagnosis, not a wrong result. Fix: pin or delete the three files
-  (`pip install -e ".[train]"` is the documented install) and name the
-  MuJoCo version in the stale-manifest error. No cleanup PR owns it.
-  (2026-08 gap review OP9)
+- **LOW** — **the stale-manifest error does not name the MuJoCo version
+  (read from the code 2026-09-30).** The package pins `mujoco==3.10.0`
+  (`pyproject.toml:25`), the version the plant digests are built on. An
+  install that gets another MuJoCo stops training in
+  `current_plant_identity` with "generated plant manifest is stale for
+  <species>/<embodiment>; run the plant-contract check before training"
+  (`plant_contract/manifest.py:484-486`); only the check it points to names
+  the cause ("plant manifest generation requires MuJoCo 3.10.0", :169-171).
+  In the review's reproduction (MuJoCo 3.12.0) training stopped before its
+  first step, so the cost is a two-step diagnosis, not a wrong result. Fix:
+  name the MuJoCo version in the stale-manifest error. No cleanup PR owns
+  it. (2026-08 gap review OP9; its other half, the species
+  `requirements.txt` files that took any MuJoCo from 3.0.0, was fixed by
+  deleting them.)
 
 ## Post-training artifacts (recommended additions)
 
