@@ -188,7 +188,9 @@ All at the joint, every 1 ms step of the window. The flexion joints work through
 - **Robustness:** for a policy that does not step, stride measures are undefined (None). An episode that ends before
   3.5 s (`MIN_ANALYSED_S` past the 2 s window start) is counted in its case's episodes and falls, listed under
   `short_episodes`, and left out of the gait measures. A chart that cannot be drawn is named in `charts` instead, and
-  the Markdown falls back to a short note (the error is printed); `gait_report.json` is always complete.
+  the Markdown falls back to a short note (the error is printed); `gait_report.json` is always complete. With short
+  episodes, chart captions' episode counts still include them, and the charts drawn from seed 100000's trace are not
+  drawn if that episode is short.
 - **Roll-ankle angle** (roll-ankle model only): the passive ankle-roll joint angle, 1st-99th percentile and
   min-max, the stance-only range and the time within 2 % of its +-20 deg limit. The ankle pitch range is reported for
   every case.

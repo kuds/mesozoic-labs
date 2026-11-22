@@ -107,8 +107,10 @@ Changed after the foot study's result (`sim/REPORT_FEET60.md`, F17) and the owne
   - This is my engineering choice, made with the move; the owner chose the foot (D19), not this.
 - **Tools:** the gait report computes swing clearance and the support polygon from each sole shape's own lowest
   points (a capsule's two contact-line ends), and adds the stance slip at the contacts beside the slip at the
-  origin; it records the run's model's sha256. The judged fields (F1's speed and falls, F2's RMS torque) and the
-  sweep's speed, drift and falls are unchanged in definition. The sweep's slip, reported only, stays at the sole's
+  origin; it records the run's model's sha256. The sweep's speed, drift and falls are unchanged in definition. So
+  are the gait report's judged fields (F1's speed and falls, F2's RMS torque), with one exception, stated below: an
+  episode that ends before 3.5 s counts as a fall, and is left out of F1's speed and F2's means. The sweep's slip,
+  reported only, stays at the sole's
   origin, which counts a rolling capsule as moving. The revised gait report on run2b's checkpoint (8,003,584 steps)
   reproduces every stored value of `analytics/results/run2b/gait_report.json`; it only adds the new fields.
 - **The run2b column is no longer a one-change comparison.** Run2b trained on the roll-ankle foot with the slip cost
@@ -124,7 +126,7 @@ Changed after the foot study's result (`sim/REPORT_FEET60.md`, F17) and the owne
   - train.py's evaluation lines and `eval_during_training.jsonl`;
   - evaluate.py;
   - the training dashboard;
-  - the notebook's last cell.
+  - the notebook's evaluation cell (cell 6).
   On the capsule these count rolling as slip. None of them is judged. The gait report gives both forms.
 - **Two tool faults found by an end-to-end check, fixed before any run.** The check was a short capsule training, then
   both tools on its checkpoint and on run2b's policy placed on the capsule model; it is not a result.
@@ -141,12 +143,18 @@ Changed after the foot study's result (`sim/REPORT_FEET60.md`, F17) and the owne
       - a chart that cannot be drawn is named instead of drawn;
       - if the Markdown summary cannot be written, a short note replaces it and the error is printed.
     - So F1's falls count every episode, and F1's speed and F2's RMS torque are means over the analysed episodes.
+      An episode ending between 3.0 and 3.5 s was analysed before this change and is not now.
     - A seed whose final policy stands still or falls fails F1 instead of going unmeasured.
+    - **Rule added before any run:** if no target-case episode lasts 3.5 s, F2 has no value, and it fails on that
+      seed.
+    - Charts in that case: their episode counts include the short episodes. If seed 100000 is short, the charts drawn
+      from its trace are listed as not drawn. Charts are not judged.
     - Checked end to end with scripted policies: falling at about 1 s, at 3.2-3.4 s and just after 3.5 s, and
       standing still.
 - **Expected cost:** about 3 hours per seed (4.1 at run2b's speed).
-  - In one local train.py check (4 envs, 24,576 steps per model, full terrain scale, untrained policy), training ran
-    1.44x as fast on the capsule model as on the roll-ankle model (763 against 529 env steps/s at the end).
+  - In one local train.py check (4 envs, 24,576 steps per model, the terrain ramped to full over the first 8,192
+    steps, an untrained policy), training ran 1.43x as fast on the capsule model as on the roll-ankle model: 754.0
+    against 525.6 env steps/s, from the run records.
   - The review's single-process check with a walking policy gave 1.34-1.51x.
 
 ## Revised before any run (after the independent review of 4bafe666; no run had started)
