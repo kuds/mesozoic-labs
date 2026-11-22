@@ -1,4 +1,4 @@
-# Allosaurus Fragilis
+# Allosaurus fragilis
 
 A reconstruction of *Allosaurus fragilis*, a large Late Jurassic theropod, at adult size. It stands and walks on two
 digitigrade feet, each with three forward weight-bearing toes, a pad under the toe joints and a raised inner toe. The
@@ -15,7 +15,7 @@ walking speed are reconstruction choices.
 | Environment | [`AllosaurusFragilisAnatomicalEnv`](anatomical/env.py) |
 | MuJoCo model | [`allosaurus_fragilis_anatomical.xml`](anatomical/assets/allosaurus_fragilis_anatomical.xml) |
 | Stage configs | [`configs/allosaurus_fragilis/anatomical/stages.toml`](../../configs/allosaurus_fragilis/anatomical/stages.toml) |
-| Catalog entry | [Allosaurus Fragilis (Anatomical)](../../docs/SPECIES_CATALOG.md#allosaurus_fragilis-anatomical) |
+| Catalog entry | [Allosaurus fragilis (Anatomical)](../../docs/SPECIES_CATALOG.md#allosaurus_fragilis-anatomical) |
 | Model page | [mesozoiclabs.com/docs/models/allosaurus_fragilis/anatomical](https://mesozoiclabs.com/docs/models/allosaurus_fragilis/anatomical) |
 
 Dimensions, stage budgets, gates and published results are generated in the catalog entry; this page does not repeat

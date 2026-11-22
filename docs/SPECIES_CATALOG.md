@@ -16,7 +16,7 @@ gates shown are for the Stable-Baselines3 curriculum path. Do not edit the gener
 
 <a id="velociraptor_mongoliensis-anatomical"></a>
 
-### Velociraptor Mongoliensis (Anatomical)
+### Velociraptor mongoliensis (Anatomical)
 
 Swift Bipedal Predator. **Specialty:** Sickle-claw contact attack.
 
@@ -47,7 +47,7 @@ Swift Bipedal Predator. **Specialty:** Sickle-claw contact attack.
 
 <a id="tyrannosaurus_rex-anatomical"></a>
 
-### Tyrannosaurus Rex (Anatomical)
+### Tyrannosaurus rex (Anatomical)
 
 Apex Predator. **Specialty:** Head-contact attack.
 
@@ -80,7 +80,7 @@ Apex Predator. **Specialty:** Head-contact attack.
 
 <a id="brachiosaurus_altithorax-anatomical"></a>
 
-### Brachiosaurus Altithorax (Anatomical)
+### Brachiosaurus altithorax (Anatomical)
 
 Gentle Giant Herbivore. **Specialty:** Head-to-food reach.
 
@@ -111,7 +111,7 @@ Gentle Giant Herbivore. **Specialty:** Head-to-food reach.
 
 <a id="dibothrosuchus_elaphros-anatomical"></a>
 
-### Dibothrosuchus Elaphros (Anatomical)
+### Dibothrosuchus elaphros (Anatomical)
 
 Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap.
 
@@ -142,7 +142,7 @@ Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap.
 
 <a id="compsognathus_longipes-anatomical"></a>
 
-### Compsognathus Longipes (Anatomical)
+### Compsognathus longipes (Anatomical)
 
 Small Bipedal Theropod. **Specialty:** Non-contact target reach.
 
@@ -175,7 +175,7 @@ Small Bipedal Theropod. **Specialty:** Non-contact target reach.
 
 <a id="compsognathus_longipes-robot"></a>
 
-### Compsognathus Longipes (Robot)
+### Compsognathus longipes (Robot)
 
 Twelve-Servo Biped Prototype. **Specialty:** Non-contact target reach with fixed head and tail.
 
@@ -208,7 +208,7 @@ Twelve-Servo Biped Prototype. **Specialty:** Non-contact target reach with fixed
 
 <a id="allosaurus_fragilis-anatomical"></a>
 
-### Allosaurus Fragilis (Anatomical)
+### Allosaurus fragilis (Anatomical)
 
 Jurassic Tridactyl Theropod. **Specialty:** Level-ground walk to a target.
 
@@ -243,7 +243,7 @@ The summaries below are historical experiment records generated from the version
 `results/`. They are not evidence for the current model revision unless provenance is marked both current
 and verified. Current stage budgets may therefore differ from the steps reported here.
 
-### Velociraptor Mongoliensis (Anatomical) (PPO · Stable-Baselines3) — 2026-03-15
+### Velociraptor mongoliensis (Anatomical) (PPO · Stable-Baselines3) — 2026-03-15
 
 **Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 11:25:15. [Source summary](../results/velociraptor_mongoliensis/anatomical/ppo/summary.json).
 
@@ -255,7 +255,7 @@ and verified. Current stage budgets may therefore differ from the steps reported
 
 **Current Stable-Baselines3 catalog definition for this task label:** A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled.
 
-### Velociraptor Mongoliensis (Anatomical) (SAC · Stable-Baselines3) — 2026-03-21
+### Velociraptor mongoliensis (Anatomical) (SAC · Stable-Baselines3) — 2026-03-21
 
 **Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 22:59:18. [Source summary](../results/velociraptor_mongoliensis/anatomical/sac/summary.json).
 
@@ -267,7 +267,7 @@ and verified. Current stage budgets may therefore differ from the steps reported
 
 **Current Stable-Baselines3 catalog definition for this task label:** A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled.
 
-### Tyrannosaurus Rex (Anatomical) (PPO · Stable-Baselines3) — 2026-03-18
+### Tyrannosaurus rex (Anatomical) (PPO · Stable-Baselines3) — 2026-03-18
 
 **Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 13:02:32. [Source summary](../results/tyrannosaurus_rex/anatomical/ppo/summary.json).
 
@@ -279,7 +279,7 @@ and verified. Current stage budgets may therefore differ from the steps reported
 
 **Current Stable-Baselines3 catalog definition for this task label:** The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw.
 
-### Brachiosaurus Altithorax (Anatomical) (PPO · Stable-Baselines3) — 2026-07-18
+### Brachiosaurus altithorax (Anatomical) (PPO · Stable-Baselines3) — 2026-07-18
 
 **Provenance:** Historical model; unverified; 30 evaluation episodes; Stable-Baselines3 (version not recorded). **Run total:** 34.0214M steps; 19:46:16. [Source summary](../results/brachiosaurus_altithorax/anatomical/ppo/summary.json).
 

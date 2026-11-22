@@ -1,22 +1,22 @@
-# Compsognathus Longipes training recipe review
+# Compsognathus longipes training recipe review
 
 September 8, 2026. Applies separately to the anatomical and robot variants.
 Reviewed against repository revision `21dfa4521b0822f0bee60be927893c2099c139c7`
 and Stable-Baselines3 2.9.0. This is an experimental recipe update, not a
 claim of learned balance, walking, or recovery.
 The current stance protocol below includes the subsequent alignment with
-Tyrannosaurus Rex's mechanical gate; the September 8 evidence retains its
+Tyrannosaurus rex's mechanical gate; the September 8 evidence retains its
 original captured criteria.
 
 ## Evidence and reference choice
 
-Tyrannosaurus Rex is the project's successful reference for the updated
-training workflow. Successful older Velociraptor Mongoliensis and
-Brachiosaurus Altithorax runs are historical context; their recipes have not
+Tyrannosaurus rex is the project's successful reference for the updated
+training workflow. Successful older Velociraptor mongoliensis and
+Brachiosaurus altithorax runs are historical context; their recipes have not
 been qualified on the updated code base. Package version alone is insufficient:
 compare captured commit, plant identity, task, and gate configuration.
 
-The August 21 Tyrannosaurus Rex run `20260821_142144` trained stance for
+The August 21 Tyrannosaurus rex run `20260821_142144` trained stance for
 11,001,856 steps in 13h 7m 9s and passed its independent stance evaluation.
 Its first numerical screening pass was at 6.75M steps, with three consecutive
 qualifying evaluations by 6.85M. These are different milestones from the full
@@ -35,7 +35,7 @@ There is no corresponding full robot training result in this review.
 
 The earlier proposed 6M budget was not established by compatible successful
 Compsognathus runs. The revised **11M stance ceiling** gives the experiment
-the same sample allowance as the current Tyrannosaurus Rex reference, including
+the same sample allowance as the current Tyrannosaurus rex reference, including
 time beyond its first stance pass. It is not a predicted time to learn.
 The **notebook's stage cells normally train the full allowance**, then apply
 the publication gate; a passing screening evaluation does not stop that
@@ -89,7 +89,7 @@ evaluate a 7M entropy schedule.
 - **Schedules:** SB3 accepts learning rates expressed in remaining training
   progress; the repository already constructs these schedules and its separate
   entropy callback. The endpoints and duration are project hypotheses informed
-  by Tyrannosaurus Rex, not universal PPO prescriptions. See
+  by Tyrannosaurus rex, not universal PPO prescriptions. See
   [learning-rate schedules](https://stable-baselines3.readthedocs.io/en/v2.9.0/guide/examples.html#learning-rate-schedule).
 - **Exploration and capacity:** the PPO paper's MuJoCo experiments do not
   imply that every biped needs a large network or a positive entropy bonus.
@@ -111,14 +111,14 @@ evaluate a 7M entropy schedule.
   the statue fell at σ 0.135 in a median of 12 steps, which is why both
   certified r1 stances learned a noise-robust march instead.
 - **Physical scale:** Compsognathus acts at 50 Hz while the reference Tyrannosaurus
-  Rex environment acts at 100 Hz. Do not copy discount factors, force thresholds,
+  rex environment acts at 100 Hz. Do not copy discount factors, force thresholds,
   noise, joint residual magnitudes, or reward coefficients without checking
   their meaning on this plant. Those settings and both MJCF models are preserved.
 - **Stopping:** leave automatic reward-collapse stopping unarmed for this first
   qualification experiment. The shared resolver uses an infinite floor when
   no floor is specified. A statue reward alone cannot calibrate the timing of
   healthy exploration dips. Baseline reporting remains advisory and advancement
-  gates remain enforced. Do not copy Tyrannosaurus Rex's measured statue constants.
+  gates remain enforced. Do not copy Tyrannosaurus rex's measured statue constants.
 
 This changes several update controls together. A better result would support
 the combined recipe, not identify which individual change caused it.
@@ -126,10 +126,10 @@ the combined recipe, not identify which individual change caused it.
 ## Next full-run protocol
 
 1. Use an updated checkout and a fresh runtime/run directory. Select
-   `Compsognathus Longipes`, `ALGORITHM="ppo"`, `N_ENVS=4`, `SEED=42`, and
+   `Compsognathus longipes`, `ALGORITHM="ppo"`, `N_ENVS=4`, `SEED=42`, and
    `QUICK_TEST=False` in the SB3 notebook. Start with the stance stage. Its
    existing loader reads the revised TOMLs; no additional notebook section is
-   needed. Repeat separately for `Compsognathus Longipes (Robot)`.
+   needed. Repeat separately for `Compsognathus longipes (Robot)`.
 2. Capture the zero-action baseline and preserve run provenance, stage config,
    evaluation/gate histories, diagnostics, and each policy's matching
    VecNormalize sidecar. Zero action already supports standing; approaching
@@ -154,17 +154,17 @@ the combined recipe, not identify which individual change caused it.
    supports multiple seeds, separate evaluation, and environment-specific tuning.
 
 Both variants take their mechanical gate settings from
-[Tyrannosaurus Rex's stance configuration](../../configs/tyrannosaurus_rex/anatomical/stance.toml),
+[Tyrannosaurus rex's stance configuration](../../configs/tyrannosaurus_rex/anatomical/stance.toml),
 including the 200-step settling window and 40-episode panel. The window is
 20% of each 1,000-step horizon: **4 seconds** at Compsognathus's 50 Hz control
-rate and **2 seconds** at Tyrannosaurus Rex's 100 Hz rate. The control rates,
+rate and **2 seconds** at Tyrannosaurus rex's 100 Hz rate. The control rates,
 horizons, models, and reward functions are unchanged. Locomotion and target
 reaching retain their 20-episode minimum; all three advancing stages require
 three consecutive passing checkpoint evaluations.
 
 The fixed reward rail of 1,800 is 60% of both variants' 3,000-point stance
 ceiling and approximately 60% of the anatomical zero-command baseline
-(2,998.74), matching the fraction used by Tyrannosaurus Rex's fixed threshold
+(2,998.74), matching the fraction used by Tyrannosaurus rex's fixed threshold
 (`2,100 / 3,495.2`). The robot's
 baseline and learned performance must still be evaluated independently.
 This rail does not automatically normalize rewards by the baseline. Archived
@@ -193,7 +193,7 @@ perturbations; seeded evaluation panels; a measured zero-action/held-action
 comparison; and a physical recovery judge measured separately on each variant.
 It uses the shared task/provenance and frozen gate machinery, while learned
 policy qualification remains outstanding and recovery remains non-advancing.
-Copying Tyrannosaurus Rex's shove forces or declaring a recovery stage alone
+Copying Tyrannosaurus rex's shove forces or declaring a recovery stage alone
 would not supply that evidence. The robot's head and tail remain fixed and unpowered.
 
 ## Original September 8 optimizer validation

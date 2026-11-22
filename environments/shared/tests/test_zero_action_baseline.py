@@ -168,8 +168,8 @@ zero-action baseline — stage 1, 4 episodes, seed 7
 
 model                                         reward  mean-std  standing  full-hz     gate  verdict
 ---------------------------------------------------------------------------------------------------
-Tyrannosaurus Rex (Anatomical)                 850.0     590.2    1000.0     75%     5000  OK
-Velociraptor Mongoliensis (Anatomical)         150.0     100.0         —      0%        —  NO GATE
+Tyrannosaurus rex (Anatomical)                 850.0     590.2    1000.0     75%     5000  OK
+Velociraptor mongoliensis (Anatomical)         150.0     100.0         —      0%        —  NO GATE
 
 A trained stage-1 policy must beat 'reward', 'mean-std' AND 'full-hz' to have
 learned to balance at all, and 'standing' to have learned more than 'do not fall'."""

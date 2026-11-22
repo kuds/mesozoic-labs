@@ -1,4 +1,4 @@
-# Dibothrosuchus Elaphros
+# Dibothrosuchus elaphros
 
 *Dibothrosuchus elaphros* was a small, lightly built crocodylomorph from the Early Jurassic of Yunnan, China. The
 model is a quadruped with an upright stance, gracile limbs, hindlimbs longer than its forelimbs, and a mobile neck,
@@ -14,7 +14,7 @@ snout. It is a research abstraction: the jaws form one rigid body, and the mass 
 | Environment | [`DibothrosuchusElaphrosAnatomicalEnv`](anatomical/env.py) |
 | MuJoCo model | [`dibothrosuchus_elaphros_anatomical.xml`](anatomical/assets/dibothrosuchus_elaphros_anatomical.xml) |
 | Stage configs | [`configs/dibothrosuchus_elaphros/anatomical/stages.toml`](../../configs/dibothrosuchus_elaphros/anatomical/stages.toml) |
-| Catalog entry | [Dibothrosuchus Elaphros (Anatomical)](../../docs/SPECIES_CATALOG.md#dibothrosuchus_elaphros-anatomical) |
+| Catalog entry | [Dibothrosuchus elaphros (Anatomical)](../../docs/SPECIES_CATALOG.md#dibothrosuchus_elaphros-anatomical) |
 | Model page | [mesozoiclabs.com/docs/models/dibothrosuchus_elaphros/anatomical](https://mesozoiclabs.com/docs/models/dibothrosuchus_elaphros/anatomical) |
 
 Dimensions, stage budgets, gates and published results are generated in the catalog entry; this page does not repeat

@@ -2,8 +2,8 @@
 
 Human-facing training output uses the model display names from
 `configs/species_manifest.toml`, through `model_display_name()`: the species
-display name followed by the embodiment label, such as "Tyrannosaurus Rex
-(Anatomical)" or "Compsognathus Longipes (Robot)" (decision D-D33). Stage
+display name followed by the embodiment label, such as "Tyrannosaurus rex
+(Anatomical)" or "Compsognathus longipes (Robot)" (decision D-D33). Stage
 headings use `stage_display_name()`: the historical `balance` name is shown
 as **Stance**, and the six current stance configs record `name = "stance"`.
 This applies to CLI logs, text summaries, gate and probe reports, plot
@@ -11,17 +11,17 @@ legends, notebook tables and the public catalog.
 
 | Species ID | Embodiment | Model display name | Stance gate |
 |---|---|---|---|
-| `velociraptor_mongoliensis` | `anatomical` | Velociraptor Mongoliensis (Anatomical) | `stance_quality_heading/v1` |
-| `tyrannosaurus_rex` | `anatomical` | Tyrannosaurus Rex (Anatomical) | `stance_quality_heading/v1` |
-| `brachiosaurus_altithorax` | `anatomical` | Brachiosaurus Altithorax (Anatomical) | `reward_and_length/v1` |
-| `dibothrosuchus_elaphros` | `anatomical` | Dibothrosuchus Elaphros (Anatomical) | `reward_and_length/v1` |
-| `compsognathus_longipes` | `anatomical` | Compsognathus Longipes (Anatomical) | `stance_quality_heading/v1` |
-| `compsognathus_longipes` | `robot` | Compsognathus Longipes (Robot) | `stance_quality/v1` |
+| `velociraptor_mongoliensis` | `anatomical` | Velociraptor mongoliensis (Anatomical) | `stance_quality_heading/v1` |
+| `tyrannosaurus_rex` | `anatomical` | Tyrannosaurus rex (Anatomical) | `stance_quality_heading/v1` |
+| `brachiosaurus_altithorax` | `anatomical` | Brachiosaurus altithorax (Anatomical) | `reward_and_length/v1` |
+| `dibothrosuchus_elaphros` | `anatomical` | Dibothrosuchus elaphros (Anatomical) | `reward_and_length/v1` |
+| `compsognathus_longipes` | `anatomical` | Compsognathus longipes (Anatomical) | `stance_quality_heading/v1` |
+| `compsognathus_longipes` | `robot` | Compsognathus longipes (Robot) | `stance_quality/v1` |
 
 Consistent presentation does not imply identical anatomy or certification
 criteria. The gate kind remains visible in each report. `stance` and `recover`
 are **recipes**: `stance`, the stance stage's id and its label, resolves to the
-stance stage on every model, and `recover`, on the anatomical Tyrannosaurus Rex
+stance stage on every model, and `recover`, on the anatomical Tyrannosaurus rex
 and both Compsognathus embodiments, through stance and recovery (decision D-D35;
 before it the stance label, then `stand`, resolved through both there). The
 stance label was `stand` until decision D-D38, which refuses `stand` naming
@@ -51,7 +51,7 @@ checkpoint, rather than silently replayed with unnormalized observations.
 The default, side, and front cameras record **one rollout**, with one
 policy prediction and physics step per frame. Side/front views share fixed
 angles and preserve each species' tracking body and default camera distance.
-Tyrannosaurus Rex keeps its historical 3.4 m side/front framing;
+Tyrannosaurus rex keeps its historical 3.4 m side/front framing;
 Brachiosaurus uses a 9 m front view to include its tall neck.
 
 Playback uses `fps = 1 / env.dt`. The four 0.01 s models produce 100 fps
@@ -127,13 +127,13 @@ on a step the limb carries nothing. The column is absent, not empty, on a
 foot that declares no digits (the Compsognathus robot's sole and every
 Dibothrosuchus foot).
 
-The pad columns cover the four box-soled models: Tyrannosaurus Rex, both
+The pad columns cover the four box-soled models: Tyrannosaurus rex, both
 Compsognathus embodiments and Dibothrosuchus. The Velociraptor's capsule feet
 and the Brachiosaurus's ellipsoids have no box pad, so their CSVs have no pad
 column, just as their gates have no fore-aft CoP.
 
 A pad foot whose `FOOT_SUPPORT` entry declares its ankle and a support span
-(`ankle`, `heel_line`, `toe_line`; only the Tyrannosaurus Rex, whose span is
+(`ankle`, `heel_line`, `toe_line`; only the Tyrannosaurus rex, whose span is
 its pad's own heel and toe edges, 0.070 and 0.210 m ahead of the ankle) also
 has the whole-foot columns, and every pad foot with digits has per-digit
 columns, named by the digit's geom less the foot label and `_geom`
@@ -145,7 +145,7 @@ columns, named by the digit's geom less the foot label and `_geom`
 | `<label>_foot_cop_fore_aft` | The step's signed WHOLE-FOOT centre of pressure: every floor contact of the limb (pad, digits, any other leg geom), force-weighted along the pad's forward axis from the ankle axis, in half-lengths of the declared span (`-1` the heel line, `+1` the toe line, beyond `+1` past it on the digits) |
 | `<label>_toe_margin_nm`, `<label>_heel_margin_nm` | The floor-load moment left before that CoP reaches the toe line, `F (toe_line - x)`, and the heel line, `F (x - heel_line)`, in N m, with `F` the limb's floor force; negative past the line |
 | `<label>_<digit>_load_share` | The step's floor force on that digit over the whole limb's |
-| `<label>_<digit>_load_pos` | Where along the digit its floor load sits, force-weighted: 0 at the MTP joint's axis, 1 at the tip. Only on a digit with its own MTP joint (the Tyrannosaurus Rex's; the anatomical Compsognathus's digits share the pad's body) |
+| `<label>_<digit>_load_pos` | Where along the digit its floor load sits, force-weighted: 0 at the MTP joint's axis, 1 at the tip. Only on a digit with its own MTP joint (the Tyrannosaurus rex's; the anatomical Compsognathus's digits share the pad's body) |
 
 The whole-foot cells are empty on a step the limb carries nothing above
 0.1 N, so the per-foot whole-foot statistic over any window is again the
@@ -157,9 +157,9 @@ position is empty on a step its digit carries nothing.
 
 | Model | Foot site (`r_`/`l_` columns) | Leg joints |
 |---|---|---|
-| Velociraptor Mongoliensis (Anatomical), Tyrannosaurus Rex (Anatomical) | `r_foot`, `l_foot` | `r_*`, `l_*` |
-| Compsognathus Longipes (Anatomical) | `r_foot_touch_volume`, `l_foot_touch_volume` | `r_*`, `l_*` |
-| Compsognathus Longipes (Robot) | `right_foot_touch_volume`, `left_foot_touch_volume` | `right_*`, `left_*` |
+| Velociraptor mongoliensis (Anatomical), Tyrannosaurus rex (Anatomical) | `r_foot`, `l_foot` | `r_*`, `l_*` |
+| Compsognathus longipes (Anatomical) | `r_foot_touch_volume`, `l_foot_touch_volume` | `r_*`, `l_*` |
+| Compsognathus longipes (Robot) | `right_foot_touch_volume`, `left_foot_touch_volume` | `right_*`, `left_*` |
 
 The foot site is the `foot_site` of the embodiment class's `FOOT_SUPPORT`
 (`environments/<species>/<embodiment>/env.py`, read through
@@ -263,17 +263,17 @@ columns:
 
 - A field exists for a foot only if the foot has what the field measures.
   The CoP keys exist for every foot whose `FOOT_SUPPORT` sole is a box: the
-  Tyrannosaurus Rex, both Compsognathus embodiments and the Dibothrosuchus.
+  Tyrannosaurus rex, both Compsognathus embodiments and the Dibothrosuchus.
 - The digit share exists only on a box-soled foot with digits: the Tyrannosaurus
-  Rex and the anatomical Compsognathus.
+  rex and the anatomical Compsognathus.
 - The Velociraptor and the Brachiosaurus have no pad key: they have no box pad.
 - The `max_sole_cop_fore_aft_*` keys follow the pad keys, and the bar
   fraction exists only where the stage declares the bar.
 - The whole-foot keys, and `max_foot_cop_fore_aft_mean`, exist only on a foot
   whose `FOOT_SUPPORT` entry declares its ankle and support span: the
-  Tyrannosaurus Rex. The per-digit load share exists on every box-soled foot
+  Tyrannosaurus rex. The per-digit load share exists on every box-soled foot
   with digits; the load position only on a digit with its own MTP joint (the
-  Tyrannosaurus Rex's three per foot).
+  Tyrannosaurus rex's three per foot).
 - NaN in a key that exists means the value could not be measured at that
   evaluation. That happens when no episode reached the horizon or the
   evaluation could not be recorded. It also happens when no full-horizon
@@ -419,12 +419,12 @@ before.
 
 - `com_fore_aft_mean_m`, `root_pitch_mean_deg`, `xcom_fore_aft_max_m`, the
   Hof terms, the achieved leg offsets and the force keys but the ankle's:
-  the four box-soled models (the Tyrannosaurus Rex, both Compsognathus
+  the four box-soled models (the Tyrannosaurus rex, both Compsognathus
   embodiments and the Dibothrosuchus).
 - The toe and heel margins, `xcom_past_toe_fraction`, `time_to_toe_min_s`,
   `fall_xcom_toe_lead_s` and the ankle moment arm need a declared support
   span and ankle, and the tip margin needs hinged digits: the
-  Tyrannosaurus Rex only.
+  Tyrannosaurus rex only.
 - The Velociraptor and the Brachiosaurus have none of them: no box pad, no
   recorder.
 - `leg_dc_<left>_<right>_mean_<joint>_deg` follows the left-minus-right leg
@@ -675,13 +675,13 @@ leg without a hip roll hinge. Where the recorder runs:
 
 | Model | Head tip | Neck pitch | Head pitch | Hip roll |
 |---|---|---|---|---|
-| Tyrannosaurus Rex | `head_tip` | `neck_pitch` | `head_pitch` | `r`, `l` |
-| Compsognathus Longipes (Anatomical) | `head_tip` | `neck_pitch` | `nan` (the head turns on the neck alone) | `r`, `l` |
-| Compsognathus Longipes (Robot) | `head_tip` | `nan` (no neck hinge) | `nan` | `r`, `l` (`right_hip_roll`, `left_hip_roll`) |
-| Dibothrosuchus Elaphros | `snout_tip` | `neck_pitch` | `head_pitch` | `fr`, `fl`, `rr`, `rl` |
+| Tyrannosaurus rex | `head_tip` | `neck_pitch` | `head_pitch` | `r`, `l` |
+| Compsognathus longipes (Anatomical) | `head_tip` | `neck_pitch` | `nan` (the head turns on the neck alone) | `r`, `l` |
+| Compsognathus longipes (Robot) | `head_tip` | `nan` (no neck hinge) | `nan` | `r`, `l` (`right_hip_roll`, `left_hip_roll`) |
+| Dibothrosuchus elaphros | `snout_tip` | `neck_pitch` | `head_pitch` | `fr`, `fl`, `rr`, `rl` |
 
-The Velociraptor Mongoliensis (Anatomical) (no head-tip site, no neck
-hinge; hip rolls on both legs) and the Brachiosaurus Altithorax
+The Velociraptor mongoliensis (Anatomical) (no head-tip site, no neck
+hinge; hip rolls on both legs) and the Brachiosaurus altithorax
 (Anatomical) (`head_tip`, `neck_1_pitch` to `neck_4_pitch`,
 `head_pitch`, four hip rolls) have no box pad, so their evaluations run no
 recorder and their ledgers hold none of the recorder's columns, these
@@ -755,10 +755,10 @@ Where the recorder runs, what each model reads (measured from the MJCF on
 
 | Model | Groups (legs/tail/neck_head) | Tail hinges | Stops | Bases | Head body | Reads `nan` |
 |---|---|---|---|---|---|---|
-| Tyrannosaurus Rex | 8 / 4 / 3 | 4 | 12 | `tail_1_pitch`, `neck_pitch` | `skull` | nothing |
-| Compsognathus Longipes (Anatomical) | 10 / 2 / 2 | 5 | 15 | `tail_1_pitch`, `neck_pitch` | `skull` | the eight margins (no foot declares a support span) |
-| Compsognathus Longipes (Robot) | 12 / 0 / 0 | 0 | 12 | none | `fixed_head` | the tail and neck_head groups, the chord, the margins, both bases (no tail or neck joint) |
-| Dibothrosuchus Elaphros | 20 / 4 / 3 | 5 | 25 | `tail_1_pitch`, `neck_pitch` | `skull` | the eight margins |
+| Tyrannosaurus rex | 8 / 4 / 3 | 4 | 12 | `tail_1_pitch`, `neck_pitch` | `skull` | nothing |
+| Compsognathus longipes (Anatomical) | 10 / 2 / 2 | 5 | 15 | `tail_1_pitch`, `neck_pitch` | `skull` | the eight margins (no foot declares a support span) |
+| Compsognathus longipes (Robot) | 12 / 0 / 0 | 0 | 12 | none | `fixed_head` | the tail and neck_head groups, the chord, the margins, both bases (no tail or neck joint) |
+| Dibothrosuchus elaphros | 20 / 4 / 3 | 5 | 25 | `tail_1_pitch`, `neck_pitch` | `skull` | the eight margins |
 
 The Velociraptor and the Brachiosaurus run no recorder, so they have no
 body columns either (the documented gap, as for the posture columns).
@@ -1156,7 +1156,7 @@ step at 0.99 with a median of 216
 checkpoint, offline and report-only:
 
 ```bash
-python environments/shared/scripts/episode_trace_report.py \
+python -m environments.shared.scripts.episode_trace_report \
     --species tyrannosaurus_rex --embodiment anatomical \
     --model RUN/01_stance/models/stage1_2097152_steps.zip \
     --vecnorm RUN/01_stance/models/stage1_vecnormalize_2097152_steps.pkl \
@@ -1279,7 +1279,7 @@ latest row. To see how one run's feet, balance, asymmetry, saturation, head
 posture and hip roll moved over its training, or to overlay several runs,
 draw them from the ledgers above:
 
-    python environments/shared/scripts/plot_training_history.py STAGE_DIR [STAGE_DIR ...] --out DIR \
+    python -m environments.shared.scripts.plot_training_history STAGE_DIR [STAGE_DIR ...] --out DIR \
         [--labels ...] [--groups ...] [--mark-steps 4194304 ... final] [--title ...] \
         [--reference-band LOWER UPPER PAD_LOWER PAD_UPPER] [--judged JUDGED_DIR ...] [--gait-evaluations K]
 
@@ -1685,12 +1685,12 @@ terms split by outcome, the mirror-even leg DC, and, on PPO,
 
 | Model | Balance and force keys | Span, tip and ankle keys | In-training screen | Touch shares | Probe ankle pairs |
 |---|---|---|---|---|---|
-| Tyrannosaurus Rex | yes | yes | yes | `pad`, `toe_d2`, `toe_d3`, `toe_d4`, `digits` per foot | 1 |
-| Compsognathus Longipes (Anatomical) | yes | no | yes | no | 1 |
-| Compsognathus Longipes (Robot) | yes | no | no (`stance_quality/v1`) | no | 1 |
-| Dibothrosuchus Elaphros | yes | no | no (`reward_and_length/v1`) | no | 2 |
-| Velociraptor Mongoliensis | no (no box pad) | no | no (no recorder) | no | 1 |
-| Brachiosaurus Altithorax | no (no box pad) | no | no | no | 2 |
+| Tyrannosaurus rex | yes | yes | yes | `pad`, `toe_d2`, `toe_d3`, `toe_d4`, `digits` per foot | 1 |
+| Compsognathus longipes (Anatomical) | yes | no | yes | no | 1 |
+| Compsognathus longipes (Robot) | yes | no | no (`stance_quality/v1`) | no | 1 |
+| Dibothrosuchus elaphros | yes | no | no (`reward_and_length/v1`) | no | 2 |
+| Velociraptor mongoliensis | no (no box pad) | no | no (no recorder) | no | 1 |
+| Brachiosaurus altithorax | no (no box pad) | no | no | no | 2 |
 
 The in-run K3 noise panel (`k3_panel.csv`, `k3_panel.json`) is written only
 where the launch enabled it, and only on the stance stage; its arithmetic

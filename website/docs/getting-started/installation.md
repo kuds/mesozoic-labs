@@ -35,12 +35,16 @@ On Windows, the repository forces LF line endings on checkout (`.gitattributes`)
 
 ## Verify Installation
 
-```bash
-# View a model (requires display)
-python environments/velociraptor_mongoliensis/scripts/view_model.py --embodiment anatomical
+Run these from the repository root. Scripts run as modules, so they need no package install; the tests need the
+`test` extra:
 
-# Run environment tests
-pytest environments/velociraptor_mongoliensis/tests/ -v
+```bash
+# View a model (requires a display; on macOS, use mjpython instead of python)
+python -m environments.velociraptor_mongoliensis.scripts.view_model --embodiment anatomical
+
+# Run the species' tests; pytest comes with the test extra
+pip install -e ".[test]"
+pytest environments/velociraptor_mongoliensis/tests
 ```
 
 ## Google Colab
@@ -51,7 +55,7 @@ The setup cell checks out `REPO_REF` (a branch, a tag or a full commit) into `/c
 
 Available notebooks:
 
-- `notebooks/sb3_training.ipynb` - Trains one behavior (`BEHAVIOR = "hunt"` by default; `"stance"`, `"recover"`, `"walk"` or a deliverable's stage id) with SB3. Select `stance` or `walk` for Allosaurus. To reuse certified ancestors, set `TRUNK_FROM` as described in [Behavior Recipes](/docs/training/recipes)
+- `notebooks/sb3_training.ipynb` - Trains one behavior (`BEHAVIOR = "auto"` by default, the model's last deliverable; `"stance"`, `"recover"`, `"walk"` or a deliverable's stage id) with SB3. Select `stance` or `walk` for Allosaurus. To reuse certified ancestors, set `TRUNK_FROM` as described in [Behavior Recipes](/docs/training/recipes)
 - `notebooks/google_drive_summary.ipynb` - Training-run summaries and comparisons
 
 ## Dependencies

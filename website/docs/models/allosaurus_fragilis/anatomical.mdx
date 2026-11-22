@@ -31,3 +31,19 @@ In a separate standing trial the feet shared the load equally. The center of mas
 <SpeciesCatalog species={MODEL} />
 
 Select `allosaurus_fragilis`, the `anatomical` embodiment and either `stance` or `walk` in the training notebook. The recording above uses a deterministic controller. The site lists trained checkpoints separately when they become available.
+
+## Usage
+
+```bash
+# From the repository root. View the model (requires a display; on macOS, use mjpython instead of python)
+python -m mujoco.viewer --mjcf=environments/allosaurus_fragilis/anatomical/assets/allosaurus_fragilis_anatomical.xml
+
+# Reproduce the reference stand and walk and print their measured loads, touchdowns, slip and trunk motion
+python -m environments.allosaurus_fragilis.scripts.audit_motion --mode stand --seconds 20
+python -m environments.allosaurus_fragilis.scripts.audit_motion --mode walk --seconds 30
+
+# Train stance, then walk, each stage with its TOML-configured budget
+python -m environments.shared.train --species allosaurus_fragilis --embodiment anatomical curriculum --algorithm ppo
+```
+
+See [Behavior Recipes](/docs/training/recipes) for the notebook workflow.

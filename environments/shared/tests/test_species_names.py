@@ -27,21 +27,21 @@ from .notebook_cells import cell_sources, first_code_cell
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SPECIES_DISPLAY_NAMES = {
-    "velociraptor_mongoliensis": "Velociraptor Mongoliensis",
-    "tyrannosaurus_rex": "Tyrannosaurus Rex",
-    "brachiosaurus_altithorax": "Brachiosaurus Altithorax",
-    "dibothrosuchus_elaphros": "Dibothrosuchus Elaphros",
-    "compsognathus_longipes": "Compsognathus Longipes",
-    "allosaurus_fragilis": "Allosaurus Fragilis",
+    "velociraptor_mongoliensis": "Velociraptor mongoliensis",
+    "tyrannosaurus_rex": "Tyrannosaurus rex",
+    "brachiosaurus_altithorax": "Brachiosaurus altithorax",
+    "dibothrosuchus_elaphros": "Dibothrosuchus elaphros",
+    "compsognathus_longipes": "Compsognathus longipes",
+    "allosaurus_fragilis": "Allosaurus fragilis",
 }
 MODEL_DISPLAY_NAMES = {
-    ModelId("velociraptor_mongoliensis", "anatomical"): "Velociraptor Mongoliensis (Anatomical)",
-    ModelId("tyrannosaurus_rex", "anatomical"): "Tyrannosaurus Rex (Anatomical)",
-    ModelId("brachiosaurus_altithorax", "anatomical"): "Brachiosaurus Altithorax (Anatomical)",
-    ModelId("dibothrosuchus_elaphros", "anatomical"): "Dibothrosuchus Elaphros (Anatomical)",
-    ModelId("compsognathus_longipes", "anatomical"): "Compsognathus Longipes (Anatomical)",
-    ModelId("compsognathus_longipes", "robot"): "Compsognathus Longipes (Robot)",
-    ModelId("allosaurus_fragilis", "anatomical"): "Allosaurus Fragilis (Anatomical)",
+    ModelId("velociraptor_mongoliensis", "anatomical"): "Velociraptor mongoliensis (Anatomical)",
+    ModelId("tyrannosaurus_rex", "anatomical"): "Tyrannosaurus rex (Anatomical)",
+    ModelId("brachiosaurus_altithorax", "anatomical"): "Brachiosaurus altithorax (Anatomical)",
+    ModelId("dibothrosuchus_elaphros", "anatomical"): "Dibothrosuchus elaphros (Anatomical)",
+    ModelId("compsognathus_longipes", "anatomical"): "Compsognathus longipes (Anatomical)",
+    ModelId("compsognathus_longipes", "robot"): "Compsognathus longipes (Robot)",
+    ModelId("allosaurus_fragilis", "anatomical"): "Allosaurus fragilis (Anatomical)",
 }
 
 
