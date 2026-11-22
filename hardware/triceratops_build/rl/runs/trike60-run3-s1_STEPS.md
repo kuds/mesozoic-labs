@@ -185,7 +185,7 @@ Three rules for the whole sheet:
              TARGET 0.25 m/s at 10 ms: 5 episodes, ...
              TARGET 0.25 m/s at 10 ms, gait: RMS torque/rating roll ... pitch ... elbow ... knee ... (worst ...); at >=99% nominal limit ...; slip ratio ...; touchdowns/s ...; power ... W; drift ... m, heading ... deg
              Wrote /content/drive/MyDrive/mesozoic-labs/triceratops60/trike60-run3-s1/eval/eval_<e>.json
-       Nothing to judge here: I read the file.
+       Nothing to judge here: I read the file. (Its slip ratio, too, is taken at the centre of each sole.)
 
        Box 7 prints
              Run trike60-run3-s1 is finished; its files are in /content/drive/MyDrive/mesozoic-labs/triceratops60/trike60-run3-s1.
