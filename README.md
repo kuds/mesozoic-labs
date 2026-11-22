@@ -1,27 +1,34 @@
 # Mesozoic Labs
 
-Dinosaur-inspired locomotion research using reinforcement learning and MuJoCo physics simulation.
+[![Python CI](https://github.com/kuds/mesozoic-labs/actions/workflows/python-ci.yml/badge.svg)](https://github.com/kuds/mesozoic-labs/actions/workflows/python-ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
+[![Docs](https://img.shields.io/badge/docs-mesozoiclabs.com-blue.svg)](https://mesozoiclabs.com)
+
+Reinforcement-learning locomotion research on simulated dinosaurs.
 
 ![A simulated Velociraptor holding its balance](results/velociraptor_mongoliensis/anatomical/ppo/stance.gif)
 
-*Velociraptor balance policy trained with PPO. Historical, unverified Stable-Baselines3 artifact (backend version
-not recorded); not evidence for the current model or configuration.*
+*Velociraptor balance from a historical, unverified PPO run. It is not evidence for the current model.*
 
 Mesozoic Labs is a set of [Gymnasium](https://gymnasium.farama.org) environments built on
-[MuJoCo](https://mujoco.org), with a pipeline that trains agents in them with PPO or SAC from
-[Stable-Baselines3](https://stable-baselines3.readthedocs.io). A model is a species in one embodiment: `anatomical`,
-the animal-proportioned body, or `robot`, a buildable robot of the species. Most of the species are dinosaurs; one is
-the crocodylomorph Dibothrosuchus, whose erect, long-limbed posture is a different locomotion problem from the sprawl
-of a modern crocodilian, and Compsognathus also has a twelve-servo robot. The models are research abstractions rather
-than validated anatomical reconstructions.
+[MuJoCo](https://mujoco.org), plus a pipeline that trains agents in them with PPO or SAC from
+[Stable-Baselines3](https://stable-baselines3.readthedocs.io).
 
-Each model learns a small set of behaviors, such as stance, walk and hunt (a species task such as a claw strike or a
-reach for food). Each behavior is a policy of its own, checked against its own gate and published on its own, and it
-builds on the certified policies beneath it instead of training them again. The goals are locomotion controllers for
-these bodies, predatory behaviors (hunting, striking and, later, pack coordination) and the groundwork for moving
-policies onto robots. Hardware transfer is future work; no sim-to-real results are published.
+A *model* is one species in one embodiment: `anatomical`, a body with the animal's proportions, or `robot`, a design
+for a buildable robot of that species. Most species are dinosaurs. Dibothrosuchus is a crocodylomorph, an early
+relative of crocodiles; its upright, long-legged posture moves differently from the sprawl of a modern crocodile.
+Compsognathus also has a twelve-servo robot model. The models are simplified for research; they are not validated
+anatomical reconstructions.
 
-**Documentation:** [mesozoiclabs.com](https://mesozoiclabs.com)
+Each model learns a few behaviors, such as stance (standing balance), walk and hunt (a species task such as a claw
+strike or a reach for food). Each behavior is a separate policy, judged against its own pass/fail test and published
+on its own. A behavior that passes its test is certified, and later stages start from it, so a certified policy is
+reused, not trained again.
+
+The goals are locomotion controllers for these bodies, predatory behaviors (hunting, striking and, later, pack
+coordination) and, in the long run, policies that run on real robots. All work so far is in simulation. Hardware
+transfer is future work, and no sim-to-real results are published.
 
 ## Species
 
@@ -31,24 +38,26 @@ and the executable environments; do not edit by hand. -->
 
 | Model | Description | Gait | Task | Observation / action dim. | Details |
 |---|---|---|---|---:|---|
-| <a id="velociraptor_mongoliensis-anatomical"></a>**Velociraptor Mongoliensis (Anatomical)** | Swift Bipedal Predator | Bipedal | Sickle-claw contact attacks | 71 / 17 | [README](environments/velociraptor_mongoliensis/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#velociraptor_mongoliensis-anatomical) · [model page](https://mesozoiclabs.com/docs/models/velociraptor_mongoliensis/anatomical) |
-| <a id="tyrannosaurus_rex-anatomical"></a>**Tyrannosaurus Rex (Anatomical)** | Apex Predator | Bipedal | Head-contact attack task | 63 / 15 | [README](environments/tyrannosaurus_rex/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#tyrannosaurus_rex-anatomical) · [model page](https://mesozoiclabs.com/docs/models/tyrannosaurus_rex/anatomical) |
-| <a id="brachiosaurus_altithorax-anatomical"></a>**Brachiosaurus Altithorax (Anatomical)** | Gentle Giant Herbivore | Quadrupedal | Head-to-food reaching | 86 / 30 | [README](environments/brachiosaurus_altithorax/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#brachiosaurus_altithorax-anatomical) · [model page](https://mesozoiclabs.com/docs/models/brachiosaurus_altithorax/anatomical) |
-| <a id="dibothrosuchus_elaphros-anatomical"></a>**Dibothrosuchus Elaphros (Anatomical)** | Gracile Erect-Limbed Crocodylomorph | Quadrupedal | Snout-contact snap task | 80 / 27 | [README](environments/dibothrosuchus_elaphros/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#dibothrosuchus_elaphros-anatomical) · [model page](https://mesozoiclabs.com/docs/models/dibothrosuchus_elaphros/anatomical) |
-| <a id="compsognathus_longipes-anatomical"></a>**Compsognathus Longipes (Anatomical)** | Small Bipedal Theropod | Bipedal | Non-contact target reaching | 55 / 14 | [README](environments/compsognathus_longipes/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#compsognathus_longipes-anatomical) · [model page](https://mesozoiclabs.com/docs/models/compsognathus_longipes/anatomical) |
-| <a id="compsognathus_longipes-robot"></a>**Compsognathus Longipes (Robot)** | Twelve-Servo Biped Prototype | Bipedal | Non-contact target reaching with fixed head and tail | 46 / 12 | [README](environments/compsognathus_longipes/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#compsognathus_longipes-robot) · [model page](https://mesozoiclabs.com/docs/models/compsognathus_longipes/robot) |
-| <a id="allosaurus_fragilis-anatomical"></a>**Allosaurus Fragilis (Anatomical)** | Jurassic tridactyl theropod | Bipedal | Level-ground stance and forward walking | 45 / 10 | [README](environments/allosaurus_fragilis/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#allosaurus_fragilis-anatomical) · [model page](https://mesozoiclabs.com/docs/models/allosaurus_fragilis/anatomical) |
+| <a id="velociraptor_mongoliensis-anatomical"></a>**Velociraptor Mongoliensis (Anatomical)** | Swift Bipedal Predator | Bipedal | Sickle-claw contact attack | 71 / 17 | [README](environments/velociraptor_mongoliensis/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#velociraptor_mongoliensis-anatomical) · [model page](https://mesozoiclabs.com/docs/models/velociraptor_mongoliensis/anatomical) |
+| <a id="tyrannosaurus_rex-anatomical"></a>**Tyrannosaurus Rex (Anatomical)** | Apex Predator | Bipedal | Head-contact attack | 63 / 15 | [README](environments/tyrannosaurus_rex/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#tyrannosaurus_rex-anatomical) · [model page](https://mesozoiclabs.com/docs/models/tyrannosaurus_rex/anatomical) |
+| <a id="brachiosaurus_altithorax-anatomical"></a>**Brachiosaurus Altithorax (Anatomical)** | Gentle Giant Herbivore | Quadrupedal | Head-to-food reach | 86 / 30 | [README](environments/brachiosaurus_altithorax/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#brachiosaurus_altithorax-anatomical) · [model page](https://mesozoiclabs.com/docs/models/brachiosaurus_altithorax/anatomical) |
+| <a id="dibothrosuchus_elaphros-anatomical"></a>**Dibothrosuchus Elaphros (Anatomical)** | Gracile Erect-Limbed Crocodylomorph | Quadrupedal | Snout-contact snap | 80 / 27 | [README](environments/dibothrosuchus_elaphros/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#dibothrosuchus_elaphros-anatomical) · [model page](https://mesozoiclabs.com/docs/models/dibothrosuchus_elaphros/anatomical) |
+| <a id="compsognathus_longipes-anatomical"></a>**Compsognathus Longipes (Anatomical)** | Small Bipedal Theropod | Bipedal | Non-contact target reach | 55 / 14 | [README](environments/compsognathus_longipes/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#compsognathus_longipes-anatomical) · [model page](https://mesozoiclabs.com/docs/models/compsognathus_longipes/anatomical) |
+| <a id="compsognathus_longipes-robot"></a>**Compsognathus Longipes (Robot)** | Twelve-Servo Biped Prototype | Bipedal | Non-contact target reach with fixed head and tail | 46 / 12 | [README](environments/compsognathus_longipes/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#compsognathus_longipes-robot) · [model page](https://mesozoiclabs.com/docs/models/compsognathus_longipes/robot) |
+| <a id="allosaurus_fragilis-anatomical"></a>**Allosaurus Fragilis (Anatomical)** | Jurassic Tridactyl Theropod | Bipedal | Level-ground walk to a target | 45 / 10 | [README](environments/allosaurus_fragilis/README.md) · [catalog entry](docs/SPECIES_CATALOG.md#allosaurus_fragilis-anatomical) · [model page](https://mesozoiclabs.com/docs/models/allosaurus_fragilis/anatomical) |
 
 The [species catalog](docs/SPECIES_CATALOG.md) holds each model's full entry: specifications, current stages
 with their recipes, budgets and gates, success definitions and run summaries; each model page renders it too.
 <!-- END GENERATED: SPECIES -->
 
-The [Stegosaurus stance and walking reference](examples/stegosaurus_stenops/README.md) is a standalone
-MuJoCo reconstruction with specimen measurements and a repeatable four-foot contact audit.
+Outside the table, the [Stegosaurus reference](examples/stegosaurus_stenops/README.md) is a standalone MuJoCo
+reconstruction built from specimen measurements. It stands and walks with a scripted controller, not a trained
+policy. To watch it on a machine with a display, run `python -m examples.stegosaurus_stenops` from the repository
+root.
 
 ## Getting started
 
-Python 3.11 or newer. Install from a clone:
+You need Python 3.11 or newer. Install from a clone and run the commands below from the repository root:
 
 ```bash
 git clone https://github.com/kuds/mesozoic-labs.git
@@ -58,9 +67,9 @@ source venv/bin/activate      # Windows: venv\Scripts\activate
 pip install -e ".[train]"     # the environments plus PPO/SAC training
 ```
 
-`pip install -e .` installs only the environments (MuJoCo, Gymnasium and NumPy); `".[all]"` adds the visualization
-and developer tools to the training ones. Add `-c constraints.txt` to any of these to get the MuJoCo,
-Stable-Baselines3 and Gymnasium versions CI tests and Colab trains with.
+The other install options are `pip install -e .` for the environments only (MuJoCo, Gymnasium and NumPy) and
+`pip install -e ".[all]"` for training plus the visualization and developer tools. Add `-c constraints.txt` to any of
+these to get the MuJoCo, Stable-Baselines3 and Gymnasium versions CI tests and Colab trains with.
 
 Step a model with random actions. This needs no GPU and no display:
 
@@ -79,12 +88,18 @@ for _ in range(500):
 env.close()
 ```
 
-On a machine with a display, `python environments/velociraptor_mongoliensis/scripts/view_model.py --embodiment
-anatomical` opens the model in MuJoCo's interactive viewer (on macOS, run it with `mjpython` instead of `python`).
+On a machine with a display, this opens the model in MuJoCo's interactive viewer (on macOS, use `mjpython` instead
+of `python`):
 
-To train a policy, the easiest route is the training notebook, which installs its own dependencies:
-[open `notebooks/sb3_training.ipynb` in Colab](https://colab.research.google.com/github/kuds/mesozoic-labs/blob/main/notebooks/sb3_training.ipynb),
-pick a species, its embodiment and a behavior, and set `QUICK_TEST = True` for a short pipeline check first.
+```bash
+python -m environments.velociraptor_mongoliensis.scripts.view_model --embodiment anatomical
+```
+
+### Train a policy
+
+The easiest route is the training notebook, which installs its own dependencies:
+[open `notebooks/sb3_training.ipynb` in Colab](https://colab.research.google.com/github/kuds/mesozoic-labs/blob/main/notebooks/sb3_training.ipynb).
+Pick a species, its embodiment and a behavior, and set `QUICK_TEST = True` first for a short pipeline check.
 
 <!-- BEGIN GENERATED: NOTEBOOKS -->
 | Notebook | Description |
@@ -93,32 +108,47 @@ pick a species, its embodiment and a behavior, and set `QUICK_TEST = True` for a
 | [`notebooks/google_drive_summary.ipynb`](notebooks/google_drive_summary.ipynb) | Collect and summarize training artifacts from Google Drive. |
 <!-- END GENERATED: NOTEBOOKS -->
 
-On the command line, one command trains a model from balance up to its task, each stage with the budget and
-hyperparameters of its stage config. Stages run for millions of steps, so a full run takes hours:
+On the command line, one command trains a model through its stages, from stance up to its task. Each stage uses the
+budget and hyperparameters in its stage config. Stages run for millions of steps, so a full run takes hours:
 
 ```bash
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
     curriculum --algorithm ppo
 ```
 
-Every model trains from the repository root through this one entry point: `--species` and `--embodiment` are both
-required and take the IDs of the table above (`--species compsognathus_longipes --embodiment robot` for the robot).
-Reusing certified stages from an earlier run, stopping at a behavior, retraining a stage, the recovery stage and the
-notebook's settings are covered in the [behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes).
+Every model trains through this one entry point. `--species` and `--embodiment` are required; for the robot, use
+`--species compsognathus_longipes --embodiment robot`. Running `python -m environments.shared.train` without them
+prints every model's IDs. The [behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes) covers
+stopping at one behavior (`--target`), reusing certified stages from an earlier run (`--trunk-from`), retraining a
+stage, the recovery stage and the notebook's settings.
+
+## Repository layout
+
+| Path | Contents |
+|---|---|
+| [`environments/`](environments) | The Gymnasium environments, one package per species; `shared/` holds training, evaluation and the catalog generator |
+| [`configs/`](configs) | The species manifest and each model's stage configs (`configs/<species>/<embodiment>/`) |
+| [`notebooks/`](notebooks) | Colab notebooks for training and for summarizing results |
+| [`results/`](results) | Published run summaries, metrics and GIFs, including historical, unverified ones |
+| [`docs/`](docs) | The generated species catalog, plans, design records, investigations and reviews |
+| [`website/`](website) | Source of [mesozoiclabs.com](https://mesozoiclabs.com) (Docusaurus) |
+| [`examples/`](examples) | The standalone Stegosaurus reference |
+| [`hardware/`](hardware) | Robot design studies and build plans; no hardware results are published yet |
 
 ## Documentation
+
+Start with the guides on [mesozoiclabs.com](https://mesozoiclabs.com) and the generated species catalog.
 
 | To… | Read |
 |---|---|
 | Install, view a model, train, evaluate and override hyperparameters step by step | [Installation](https://mesozoiclabs.com/docs/getting-started/installation) and [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) |
-| Train stance, walk and hunt, reuse certified stages across runs and read a run directory; the curriculum's command-line flags and the notebook's settings | [Behavior recipes](https://mesozoiclabs.com/docs/training/recipes) |
+| Train stance, walk and hunt, reuse certified stages across runs and read a run directory; the training command's flags and the notebook's settings | [Behavior recipes](https://mesozoiclabs.com/docs/training/recipes) |
 | Tune PPO, SAC and the stage configs | [Training guides](https://mesozoiclabs.com/docs/training/ppo) |
-| Look up one model: specifications, stages with their budgets and gates, success definitions, published run summaries | The generated [species catalog](docs/SPECIES_CATALOG.md), or the model's page; both are linked from the table above |
-| Find the published run-summary files and the rules for when a summary counts as current | [results/README.md](results/README.md) |
-| See what is done, what comes next and the known open problems | [Roadmap](docs/ROADMAP.md), [next steps](docs/NEXT_STEPS.md) and [known issues](docs/KNOWN_ISSUES.md) |
-| Find the plans, design records and investigations | [Documentation map](docs/README.md) |
+| Look up one model: specifications, stages with their budgets and pass/fail tests, success definitions, published run summaries | The generated [species catalog](docs/SPECIES_CATALOG.md), or the model's page on the site; both are linked from the [Species](#species) table |
+| Find the published run-summary files and when a summary counts as current | [results/README.md](results/README.md) |
+| Add a species or a robot, set up for development and run the tests | [Contributing](CONTRIBUTING.md) |
 | See what changed in each release | [Changelog](CHANGELOG.md) |
-| Set up for development, find your way around the repository, run the tests, add a species or a robot | [Contributing](CONTRIBUTING.md) |
+| Check project status, plans, design records and open problems | [Documentation map](docs/README.md) |
 | Read how the project started | [From Zero to Dino-Roar](https://www.findingtheta.com/blog/from-zero-to-dino-roar-teaching-a-t-rex-to-walk-with-mujoco-and-reinforcement-learning) (blog post) |
 
 ## Citation

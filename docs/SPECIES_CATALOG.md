@@ -18,7 +18,7 @@ gates shown are for the Stable-Baselines3 curriculum path. Do not edit the gener
 
 ### Velociraptor Mongoliensis (Anatomical)
 
-Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
+Swift Bipedal Predator. **Specialty:** Sickle-claw contact attack.
 
 | Generated specification | Value |
 |---|---|
@@ -49,7 +49,7 @@ Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 
 ### Tyrannosaurus Rex (Anatomical)
 
-Apex Predator. **Specialty:** Head-contact attack task.
+Apex Predator. **Specialty:** Head-contact attack.
 
 | Generated specification | Value |
 |---|---|
@@ -82,7 +82,7 @@ Apex Predator. **Specialty:** Head-contact attack task.
 
 ### Brachiosaurus Altithorax (Anatomical)
 
-Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
+Gentle Giant Herbivore. **Specialty:** Head-to-food reach.
 
 | Generated specification | Value |
 |---|---|
@@ -113,7 +113,7 @@ Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
 
 ### Dibothrosuchus Elaphros (Anatomical)
 
-Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap task.
+Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap.
 
 | Generated specification | Value |
 |---|---|
@@ -144,7 +144,7 @@ Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap task.
 
 ### Compsognathus Longipes (Anatomical)
 
-Small Bipedal Theropod. **Specialty:** Non-contact target reaching.
+Small Bipedal Theropod. **Specialty:** Non-contact target reach.
 
 | Generated specification | Value |
 |---|---|
@@ -177,7 +177,7 @@ Small Bipedal Theropod. **Specialty:** Non-contact target reaching.
 
 ### Compsognathus Longipes (Robot)
 
-Twelve-Servo Biped Prototype. **Specialty:** Non-contact target reaching with fixed head and tail.
+Twelve-Servo Biped Prototype. **Specialty:** Non-contact target reach with fixed head and tail.
 
 | Generated specification | Value |
 |---|---|
@@ -210,7 +210,7 @@ Twelve-Servo Biped Prototype. **Specialty:** Non-contact target reaching with fi
 
 ### Allosaurus Fragilis (Anatomical)
 
-Jurassic tridactyl theropod. **Specialty:** Level-ground stance and forward walking.
+Jurassic Tridactyl Theropod. **Specialty:** Level-ground walk to a target.
 
 | Generated specification | Value |
 |---|---|

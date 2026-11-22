@@ -150,6 +150,21 @@ findings are in KNOWN_ISSUES),
 [CODE_REVIEW.md](reviews/CODE_REVIEW.md) (superseded). Open findings live in
 [KNOWN_ISSUES.md](KNOWN_ISSUES.md), not here.
 
+Per-species model references, each linked from its species README:
+
+| Document | Date | One-liner |
+|---|---|---|
+| [VELOCIRAPTOR_ANATOMICAL_REFERENCE.md](reviews/VELOCIRAPTOR_ANATOMICAL_REFERENCE.md) | 2026-11-20 | Velociraptor proportions, feet, plumage evidence, standing balance, reference walk and repeatability (physics r5, visual r6) |
+| [TREX_ANATOMICAL_REVIEW_2026_11.md](reviews/TREX_ANATOMICAL_REVIEW_2026_11.md) | 2026-11-21 | T. rex proportions and foot, balance and foot placement, the reference walk, and how three archived physics-r10 PPO checkpoints replay on the revised model (physics r11, visual r5) |
+| [BRACHIOSAURUS_ANATOMICAL_REFERENCE.md](reviews/BRACHIOSAURUS_ANATOMICAL_REFERENCE.md) | 2026-11-21 | Brachiosaurus proportions, feet, standing balance, reference walk and browsing (physics r6); moved from the species README |
+| [DIBOTHROSUCHUS_ANATOMICAL_REFERENCE.md](reviews/DIBOTHROSUCHUS_ANATOMICAL_REFERENCE.md) | 2026-11-21 | Dibothrosuchus proportions, feet, standing balance, reference walk, actuator loads and termination (physics r3); moved from the species README |
+| [COMPSOGNATHUS_ROBOT_DESIGN.md](reviews/COMPSOGNATHUS_ROBOT_DESIGN.md) | 2026-11-21 | Design record of the Rev B Compsognathus robot (`compsognathus_longipes` / `robot`): mass budget, servo candidates, sensor layout, actuation and contact assumptions, and the standing validation of both Compsognathus models; moved from the species README |
+| [ALLOSAURUS_ANATOMICAL_REFERENCE.md](reviews/ALLOSAURUS_ANATOMICAL_REFERENCE.md) | 2026-11-21 | Allosaurus proportions, feet, balance, reference walk, limits of the reconstruction and training-environment checks (physics r1) |
+
+The anatomical Compsognathus model is reviewed in
+[ANATOMY_AND_BALANCE.md](../environments/compsognathus_longipes/ANATOMY_AND_BALANCE.md), kept with the species
+package.
+
 ## Conventions
 
 - New run analysis or root-cause doc → `investigations/`, dated in the header,
