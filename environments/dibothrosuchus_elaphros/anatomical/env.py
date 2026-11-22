@@ -14,7 +14,7 @@ from environments.shared.paths import ENVIRONMENTS_ROOT
 
 
 class DibothrosuchusElaphrosAnatomicalEnv(DibothrosuchusElaphrosEnv):
-    """Dibothrosuchus Elaphros, the anatomical model."""
+    """Dibothrosuchus elaphros, the anatomical model."""
 
     embodiment = "anatomical"
     MODEL_PATH = ModelId("dibothrosuchus_elaphros", "anatomical").asset_path(ENVIRONMENTS_ROOT)

@@ -302,7 +302,7 @@ def test_the_reader_cells_read_todays_layout(tmp_path, monkeypatch, capsys, stab
     assert [record["run_path"] for record in namespace["QUARANTINED_RUNS"]] == [interrupted, conflict]
     assert records[interrupted]["errors"] == ["canonical bundle is missing artifact_manifest.json"]
     assert len(displayed) == 3, "cell 12 shows the audits, the quarantined runs and the run identities"
-    assert set(displayed[-1]["species"]) == {"Tyrannosaurus Rex", "Velociraptor Mongoliensis"}
+    assert set(displayed[-1]["species"]) == {"Tyrannosaurus rex", "Velociraptor mongoliensis"}
 
     # Section 7's example names a run as <algorithm>/<run_id>; its stage directory is found by reference.
     exec(compile(code_cell(DRIVE_SUMMARY_PATH, "def show_full_config("), "show_full_config", "exec"), namespace)
@@ -473,7 +473,7 @@ def test_the_export_cell_saves_the_table_with_the_offline_judgements(
     else:
         assert f"Offline judgements: 2 row(s) from {ledger_path}" in out
         assert list(displayed[0]["verdict"]) == ["PASS", "MIXED"]
-        assert set(displayed[0]["species"]) == {"Tyrannosaurus Rex"}  # display labels; the file keeps the IDs
+        assert set(displayed[0]["species"]) == {"Tyrannosaurus rex"}  # display labels; the file keeps the IDs
     if expected is None:
         assert ("Logs directory not found" in out) == (not logs) and ("No data to export." in out) == logs
         assert not combined.exists() and logs_dir.exists() == logs

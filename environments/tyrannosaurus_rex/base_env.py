@@ -1,5 +1,5 @@
 """
-Tyrannosaurus Rex Gymnasium Environment
+Tyrannosaurus rex Gymnasium Environment
 
 A large bipedal predator with a massive skull and vestigial forelimbs.
 The Stage 3 task uses contact between a fixed head geom and prey as a
@@ -110,7 +110,7 @@ from environments.shared.reward_functions import (
 
 
 class TyrannosaurusRexEnv(BaseDinoEnv):
-    """Tyrannosaurus Rex bipedal locomotion and bite-attack environment.
+    """Tyrannosaurus rex bipedal locomotion and bite-attack environment.
 
     The species base (decision D-D33): the task, the rewards and the hashed
     policy-interface methods (``_get_obs``, ``_scale_action``,

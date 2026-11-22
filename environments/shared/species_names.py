@@ -6,7 +6,7 @@ table ``[species.<species>]`` holds the species-level fields and one table
 binomial snake_case (``tyrannosaurus_rex``) and embodiments come from
 :data:`~environments.shared.model_id.EMBODIMENTS`; both are matched as exact
 strings, with no alias, display name, case or separator variant.  The model
-display name is derived (``"Tyrannosaurus Rex (Anatomical)"``), never stored.
+display name is derived (``"Tyrannosaurus rex (Anatomical)"``), never stored.
 """
 
 from __future__ import annotations
@@ -160,12 +160,12 @@ def model_entry(model_id: ModelId) -> dict[str, Any]:
 
 
 def species_display_name(species: str) -> str:
-    """The species' display name (``"Tyrannosaurus Rex"``); an unknown species raises."""
+    """The species' display name (``"Tyrannosaurus rex"``); an unknown species raises."""
     return str(_species_table(species)["display_name"])
 
 
 def model_display_name(model_id: ModelId) -> str:
-    """``"<species display name> (<Embodiment>)"``, e.g. ``"Compsognathus Longipes (Robot)"``.
+    """``"<species display name> (<Embodiment>)"``, e.g. ``"Compsognathus longipes (Robot)"``.
 
     A model the manifest lacks raises.
     """

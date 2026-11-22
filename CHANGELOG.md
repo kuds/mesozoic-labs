@@ -2664,6 +2664,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Species display names are written in scientific form**: "Tyrannosaurus rex",
+  "Velociraptor mongoliensis", "Brachiosaurus altithorax", "Dibothrosuchus elaphros",
+  "Compsognathus longipes" and "Allosaurus fragilis" (genus capitalized, epithet
+  lowercase), so model display names read "Tyrannosaurus rex (Anatomical)". The
+  manifest's six `display_name` values, the generated catalog, README and website data,
+  the species READMEs, docs, website pages and notebook prose follow; species IDs, model
+  IDs, Gymnasium IDs, class names and anchors are unchanged, and no digest moves.
+
 - **Colab setup is lighter and installs from one set of pins.** The notebooks' setup cells
   check out `REPO_REF` blobless and sparse (only `environments`, `configs`, `notebooks`
   and `results`, plus the root files): a fresh runtime downloads about 38 MB instead of

@@ -1977,9 +1977,10 @@ def test_readme_results_block_preserves_ladder_history_with_stance_labels() -> N
     Decision D-D33 moved the four summaries to ``results/<species>/<embodiment>/``
     and heads each section with the model display name.  The fixture is
     unchanged: its four headings and four source links are normalised here
-    from the catalog's own records (the species display name becomes the
-    model's, each link the recorded ``summary_path``), and every other byte
-    must still match.
+    from the catalog's own records (the species display name, which the
+    fixture spells in its earlier Title Case, becomes the model's display
+    name, each link the recorded ``summary_path``), and every other byte must
+    still match.
     """
     golden = GOLDEN_RESULTS_BLOCK.read_text(encoding="utf-8").replace("1 — Balance", "1 — Stance")
     assert golden.count("### ") == 4
@@ -1991,7 +1992,7 @@ def test_readme_results_block_preserves_ladder_history_with_stance_labels() -> N
     for index, line in enumerate(lines):
         if line.startswith("### "):
             entry, _ = next(sections)
-            heading = f"### {entry['species_display_name']} ("
+            heading = f"### {entry['species_display_name'].title()} ("
             assert line.startswith(heading), line
             lines[index] = f"### {entry['display_name']} (" + line[len(heading) :]
     golden = "".join(lines)
@@ -2206,9 +2207,9 @@ def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monke
     assert rendered.count("**Deliverables:**") == 1
     # The other models' sections are untouched by the new line (headed by the model display name, D-D33).
     for heading in (
-        "### Velociraptor Mongoliensis (Anatomical) (PPO",
-        "### Velociraptor Mongoliensis (Anatomical) (SAC",
-        "### Brachiosaurus Altithorax (Anatomical)",
+        "### Velociraptor mongoliensis (Anatomical) (PPO",
+        "### Velociraptor mongoliensis (Anatomical) (SAC",
+        "### Brachiosaurus altithorax (Anatomical)",
     ):
         section = lambda text: text.split(heading, 1)[1].split("\n### ", 1)[0]  # noqa: E731
         assert section(rendered) == section(baseline)

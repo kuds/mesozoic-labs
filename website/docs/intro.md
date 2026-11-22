@@ -29,13 +29,13 @@ whether it is a published deliverable, and the parent it warm-starts from;
 published results list one row per deliverable, headlined by the metric its
 gate kind certifies:
 
-- [Velociraptor Mongoliensis (Anatomical)](/docs/models/velociraptor_mongoliensis/anatomical)
-- [Tyrannosaurus Rex (Anatomical)](/docs/models/tyrannosaurus_rex/anatomical)
-- [Brachiosaurus Altithorax (Anatomical)](/docs/models/brachiosaurus_altithorax/anatomical)
-- [Dibothrosuchus Elaphros (Anatomical)](/docs/models/dibothrosuchus_elaphros/anatomical)
-- [Compsognathus Longipes (Anatomical)](/docs/models/compsognathus_longipes/anatomical)
-- [Compsognathus Longipes (Robot)](/docs/models/compsognathus_longipes/robot)
-- [Allosaurus Fragilis (Anatomical)](/docs/models/allosaurus_fragilis/anatomical)
+- [Velociraptor mongoliensis (Anatomical)](/docs/models/velociraptor_mongoliensis/anatomical)
+- [Tyrannosaurus rex (Anatomical)](/docs/models/tyrannosaurus_rex/anatomical)
+- [Brachiosaurus altithorax (Anatomical)](/docs/models/brachiosaurus_altithorax/anatomical)
+- [Dibothrosuchus elaphros (Anatomical)](/docs/models/dibothrosuchus_elaphros/anatomical)
+- [Compsognathus longipes (Anatomical)](/docs/models/compsognathus_longipes/anatomical)
+- [Compsognathus longipes (Robot)](/docs/models/compsognathus_longipes/robot)
+- [Allosaurus fragilis (Anatomical)](/docs/models/allosaurus_fragilis/anatomical)
 
 The published result summaries describe historical ladder runs with no
 per-deliverable records. They are marked unverified because the original

@@ -1,4 +1,4 @@
-# Tyrannosaurus Rex
+# Tyrannosaurus rex
 
 A scaled-down reconstruction of an adult *Tyrannosaurus rex*: a heavy biped with a broad skull, two-fingered arms and
 a long counterbalancing tail. It stands on a plantar pad and three forward toes per foot. The model is for learning to
@@ -14,7 +14,7 @@ is a head-contact proxy, and the model is a research abstraction, not a validate
 | Environment | [`TyrannosaurusRexAnatomicalEnv`](anatomical/env.py) |
 | MuJoCo model | [`tyrannosaurus_rex_anatomical.xml`](anatomical/assets/tyrannosaurus_rex_anatomical.xml) |
 | Stage configs | [`configs/tyrannosaurus_rex/anatomical/stages.toml`](../../configs/tyrannosaurus_rex/anatomical/stages.toml) |
-| Catalog entry | [Tyrannosaurus Rex (Anatomical)](../../docs/SPECIES_CATALOG.md#tyrannosaurus_rex-anatomical) |
+| Catalog entry | [Tyrannosaurus rex (Anatomical)](../../docs/SPECIES_CATALOG.md#tyrannosaurus_rex-anatomical) |
 | Model page | [mesozoiclabs.com/docs/models/tyrannosaurus_rex/anatomical](https://mesozoiclabs.com/docs/models/tyrannosaurus_rex/anatomical) |
 
 Dimensions, stage budgets, gates and published results are generated in the catalog entry; this page does not repeat
