@@ -34,7 +34,7 @@ on the picture itself, with a badge top left and another bottom right. The floor
     (`../sim/REPORT_FEET60.md`).
 
 **Clip, on the data branch (D11):** `walk60_capsule_trot_0.25_1x.mp4`, 20 s shown at actual speed, 1280 × 720,
-H.264.
+H.264, 5.8 MB (data-branch commit a7efa5ce).
 - **What it shows:** the model-based trot (`../walk/walk60.py`, frozen) on the capsule feet, at the 0.25 m/s
   planned walking speed. Frames are taken from the 1 ms physics steps at each 1/30 s of simulated time.
 - **The controller on this foot:** the trot was developed and judged on the roll-ankle variant
