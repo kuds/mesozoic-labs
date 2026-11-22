@@ -64,8 +64,8 @@ python hardware/triceratops_build/pr669_review/stance_balance_check.py \
 7. Actuator sizing confirmed in simulation against the parts list and each drive's limits.
 8. A one-foreleg bench plan with pass and fail rules written first.
 9. Museum renders by 8 Dec 2026 (start by 1 Dec 2026), each labelled "simulation". *75 cm stills and crawl clip
-   18 Nov 2026; 60 cm stills and the model-based trot clip 22 Nov 2026 (`renders/README.md`; clips on the data
-   branch, D11).*
+   18 Nov 2026; 60 cm stills and the model-based trot clip 22 Nov 2026, redone the same day on the capsule feet the
+   owner chose (D19; `renders/README.md`; clips on the data branch, D11).*
 
 ## Next steps (18 Nov 2026, after the size decision)
 
@@ -76,7 +76,8 @@ python hardware/triceratops_build/pr669_review/stance_balance_check.py \
 2. **Training setup for 60 cm** (environment, training script with resume, Colab notebook): in progress; a cost
    estimate goes to the owner before any Colab run.
 3. **Renders at 60 cm** before 8 Dec 2026 (start by 1 Dec); clips on the data branch. *Done 22 Nov 2026: stills and
-   the model-based trot clip (`renders/README.md`); more clips if the owner wants them.*
+   the model-based trot clip (`renders/README.md`), redone on the capsule feet (D19); more clips if the owner wants
+   them.*
 4. **Task 5, the walk:** a model-based controller first (D10), judged at 10 ms of delay (D9), at the new speed target;
    check every result under a stiffer contact setting too.
 5. **The foot:** a sole that stays flat in roll (F7); try a roll hinge that centres the sole to the ground.

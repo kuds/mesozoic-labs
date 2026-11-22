@@ -83,6 +83,9 @@ def label(img, title, caption, second_badge=False):
         d.rounded_rectangle([x1, y1, x1 + bw, y1 + 38], radius=8, fill=(200, 40, 40))
         d.text((x1 + 14, y1 + 6), badge, font=fs, fill=(255, 255, 255))
     y0 = H - BAND
+    for text, font in ((title, fb), (caption, f)):  # one line each: refuse rather than clip at the right edge
+        if d.textlength(text, font=font) > W - 48:
+            raise SystemExit(f"caption line too wide for the {W} px picture; nothing written: {text!r}")
     d.text((24, y0 + 12), title, font=fb, fill=(240, 240, 240))
     d.text((24, y0 + 54), caption, font=f, fill=(190, 196, 204))
     return out
@@ -121,6 +124,9 @@ def main():
     feet = " with passive roll ankles (a design variant)" if "ankleroll" in a.robot else ""
     note = (f"Simulation: MuJoCo model of the proposed {a.size} cm Triceratops robot, {kg} kg design{feet}, standing. "
             "Not hardware; nothing is built yet.")
+    if "capsule" in Path(a.robot).name:  # the foot chosen on 22 Nov 2026 (D19); worded to fit the caption band
+        note = (f"Simulation: MuJoCo model of the proposed {a.size} cm Triceratops robot ({kg} kg, capsule feet), "
+                "standing. Not hardware; nothing is built yet.")
     s = a.scale
     for name, lookat, dist, az, el in (
             ("robot_three_quarter", (0.05, 0, 0.36), 1.75, 140, -13),
