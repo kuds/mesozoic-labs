@@ -1,11 +1,12 @@
 <!-- Filled-in copy of rl/COLAB_STEPS.md for run trike60-run3-s0 (decisions D18; rules rl/analysis/PREREG_RUN3.md):
-every placeholder replaced; MODEL the roll-ankle model; SEED 0; ENV_PRESET run3_terrain. Written 19 Nov 2026.
-The code the notebook runs is commit f0a03c6e; this file only fills in the sheet. -->
+every placeholder replaced; MODEL the capsule-foot model (D19); SEED 0; ENV_PRESET run3_terrain. Written 19 Nov 2026; moved to the capsule foot 22 Nov 2026 (D19).
+The code the notebook runs is commit efd1e1c7; this file only fills in the sheet. -->
 
 # Triceratops 60 cm: a training run on Colab, with the stop and resume tests. The steps.
 
-*** FINAL SHEET for run trike60-run3-s0 (one of two: seeds 0 and 1), 19 Nov 2026. Start from this one. ***
-Every value is filled in: above all the commit (f0a03c6e109e6e0723b0650b0c05df83e516ef1b), the
+*** FINAL SHEET for run trike60-run3-s0 (one of two: seeds 0 and 1), 22 Nov 2026. Start from this one. ***
+*** It replaces the sheet of 19 Nov (the roll-ankle foot, commit f0a03c6e): do not use that one. ***
+Every value is filled in: above all the commit (efd1e1c7d391062c96880b539f76bbc99d30b48c), the
 run's name (trike60-run3-s0) and its length (10000000), and the numbers that follow from them. Run2b ran this notebook on
 Colab straight through; its first attempt tested the stop button, but a resume on Colab has never been tested, so this run does the stop and resume tests (3.7, 3.8). Every line quoted below is printed by the program itself (I checked the
 wording against the code and a local run); lines marked "(expected, not yet seen)" come from Colab and I have not
@@ -27,17 +28,19 @@ Three rules for the whole sheet:
 
 ## 1. WHAT RUNS
 
-    The purpose:  train the roll-ankle 60 cm model for 10 million steps on rough ground (small steps, ramps, sideways pushes and slippery floors, phased in between 1 and 4 million steps) with a cost on sideways drift, seed 0 of two, to see whether it keeps its flat walking and copes with what run2b could not. On the way it tests the stop button (3.7) and the resume (3.8).
+    The purpose:  train the 60 cm model on the capsule foot you chose (D19) for 10 million steps on rough ground (small steps, ramps, sideways pushes and slippery floors, phased in between 1 and 4 million steps) with a cost on sideways drift, seed 0 of two, to see whether it keeps its flat walking and copes with what run2b could not. On the way it tests the stop button (3.7) and the resume (3.8).
                   The rules it is judged by are fixed in rl/analysis/PREREG_RUN3.md; nothing is judged until I
                   have read the results of both seeds.
     The code:     one fixed commit of the repository,
-                    f0a03c6e109e6e0723b0650b0c05df83e516ef1b
+                    efd1e1c7d391062c96880b539f76bbc99d30b48c
                   This is REPO_REF below. The notebook fetches only that commit (no history).
     The notebook: hardware/triceratops_build/rl/trike60_training.ipynb at that commit.
     The machine:  Runtime type "CPU" with "High-RAM" on (more processors). No GPU: it adds nothing here.
     The length:   TOTAL_STEPS = 10000000 simulation steps. Run2b ran at about 692 steps per second
-                  overall on this runtime (8 processors, the checks during training included), and the terrain costs
-                  about 3 % more, so this run trains for about 4.1 hours, plus a few minutes for the installs and the final evaluation. (If Colab lets you
+                  overall on this runtime (8 processors, the checks during training included); at that speed this
+                  run would take about 4.1 hours. The capsule foot simulates faster (in one local check, training
+                  ran 1.43 times as fast as on the roll-ankle foot), so expect about 3 hours, plus a few minutes
+                  for the installs and the final evaluation. (If Colab lets you
                   open a second runtime, the two seeds can run at the same time, each in its own notebook copy.)
                   The progress lines print the speed (3.6 (f)).
     Drive:        everything goes into  My Drive / mesozoic-labs / triceratops60 / trike60-run3-s0 ; about 90 MB
@@ -52,7 +55,7 @@ Three rules for the whole sheet:
 ## 3. THE RUN, WITH THE STOP AND RESUME TESTS
 
   3.1  Open this address:
-         https://colab.research.google.com/github/kuds/mesozoic-labs/blob/f0a03c6e109e6e0723b0650b0c05df83e516ef1b/hardware/triceratops_build/rl/trike60_training.ipynb
+         https://colab.research.google.com/github/kuds/mesozoic-labs/blob/efd1e1c7d391062c96880b539f76bbc99d30b48c/hardware/triceratops_build/rl/trike60_training.ipynb
        Expect: a notebook titled "Mesozoic Labs: Triceratops 60 cm, walking-policy training (simulation only)".
        Opening it runs nothing.
 
@@ -62,9 +65,9 @@ Three rules for the whole sheet:
   3.3  Menu Runtime > Change runtime type. Choose CPU. Switch High-RAM on. Save.
 
   3.4  In the first grey box ("1. PARAMETERS") set exactly:
-         REPO_REF           f0a03c6e109e6e0723b0650b0c05df83e516ef1b
+         REPO_REF           efd1e1c7d391062c96880b539f76bbc99d30b48c
          RUN_ID             trike60-run3-s0
-         MODEL              trike60_C_closed_ankleroll
+         MODEL              trike60_C_closed_capsule
          TOTAL_STEPS        10000000
          N_ENVS             8
          SEED               0
@@ -83,7 +86,7 @@ Three rules for the whole sheet:
        (a) Under box 1:  Parameters of this session:   and your values, one per line.
 
        (b) Under box 2 (one line):
-             Repository commit: f0a03c6e109e6e0723b0650b0c05df83e516ef1b (matches REPO_REF: yes; checkout clean: yes)
+             Repository commit: efd1e1c7d391062c96880b539f76bbc99d30b48c (matches REPO_REF: yes; checkout clean: yes)
            Another commit, or a "NO": stop and tell me.
 
        (c) Under box 3:
@@ -100,7 +103,7 @@ Three rules for the whole sheet:
              Run folder: /content/drive/MyDrive/mesozoic-labs/triceratops60/trike60-run3-s0 (new run)
 
        (e) Under box 5 (each is one line on screen):
-             Running: train.py --out /content/drive/MyDrive/mesozoic-labs/triceratops60/trike60-run3-s0 --total-steps 10000000 --n-envs 8 --seed 0 --model trike60_C_closed_ankleroll --resume --exit-with-parent <pid> --env-config /content/mesozoic-labs/hardware/triceratops_build/rl/configs/run3_terrain.json
+             Running: train.py --out /content/drive/MyDrive/mesozoic-labs/triceratops60/trike60-run3-s0 --total-steps 10000000 --n-envs 8 --seed 0 --model trike60_C_closed_capsule --resume --exit-with-parent <pid> --env-config /content/mesozoic-labs/hardware/triceratops_build/rl/configs/run3_terrain.json
              Machine: <V> vCPUs; 8 envs; Python 3.<x>.<y>; torch 2.15.0+cpu
              Starting a new run in /content/drive/MyDrive/mesozoic-labs/triceratops60/trike60-run3-s0 (0 of 10000000 steps).
            <pid> is a number (the notebook's own process: train.py stops by itself if that process goes away).
@@ -120,13 +123,14 @@ Three rules for the whole sheet:
              Saved checkpoint pair at 250000 steps: trike60_250000_steps.zip and trike60_vecnormalize_250000_steps.pkl
              eval at 250000 steps (deterministic, delay 10 ms): command -> speed m/s: 0.00 -> ..., 0.15 -> ..., 0.25 -> ...; falls ... of 3
              eval at 250000 steps, command 0.25 m/s: RMS torque/rating roll ... pitch ... elbow ... knee ... (worst ...); at >=99% nominal limit .../.../.../... %; slip ratio LF/RF/LH/RH .../.../.../...; touchdowns/s .../.../.../...; power ... W; drift ... m, heading ... deg
-           The third line is for me (drive heat, torque limits, foot slip, steps); nothing to judge.
+           The third line is for me (drive heat, torque limits, foot slip, steps); nothing to judge. Its slip ratio is
+           taken at the centre of each sole, so it counts the capsule foot's rocking as slip.
            (At 500,000 steps the progress line stands between the save and the check.) A "Saved" line means the file is written to
            the Drive folder as the runtime sees it; Drive uploads it to Google in the background, so it can reach
            your Drive a little later.                                                   (expected, not yet seen)
 
   3.7  THE STOP TEST. Wait until you have seen the "Saved checkpoint pair" line for 500000 steps (two saves; about
-       13 minutes at 670 steps per second). Then click the stop button at the left of box 5 (the square in a
+       9 minutes; 13 at run2b's speed). Then click the stop button at the left of box 5 (the square in a
        circle while it runs) ONCE, and wait: do not click again until the line that begins "Session interrupted"
        and the two Drive lines have appeared (a few seconds). A second click changes nothing; it only prints
              (the step is still saving: this click is ignored; please wait)
