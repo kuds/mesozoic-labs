@@ -14,7 +14,10 @@ Episodes (as ``rl/analysis/gait_pipe1.py``, whose definitions this extends): det
   * 0.25 m/s on the roll-ankle model ``trike60_C_closed_ankleroll.xml`` (for the roll-ankle angle range);
   * a speed sweep 0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.27 m/s on seeds 100000-100002 (0.15 and 0.25 reuse the
     episodes above).
-Every physics step (1 ms) is logged through the env's ``substep_hook``.
+Every physics step (1 ms) is logged through the env's ``substep_hook``. Sole shapes: box soles (PR #669's foot, the
+roll ankle), the capsule sole (D19) and ball soles; clearance and the support polygon use each shape's own lowest
+points (``gait_core.sole_bottom_points``), and the stance slip is given at the sole's origin (as before) and at its
+contacts (``stance_slip_at_contact``: a rolling sole moves its origin without sliding).
 
 Safety: nothing stored in the checkpoint runs. The policy weights load with ``torch.load(weights_only=True)`` into a
 freshly built ELU 256-256 policy, the normalisation statistics through a restricted unpickler; both loaders are
@@ -68,6 +71,7 @@ REFERENCE_JSON = RL / "analysis" / "results" / "gait_pipe1_2026-11-19.json"
 DEFAULT_MODEL = "trike60_C_closed.xml"
 ANKLEROLL_MODEL = "trike60_C_closed_ankleroll.xml"
 
+SOLE_POINTS = {"box": "sole corners", "capsule": "capsule soles' contact-line ends", "sphere": "ball soles' lowest points"}
 GROUP_DRIVE = {"roll": "X4-36-L", "pitch": "X4-36-L", "front elbow": "X6-60", "hind knee": "X4-36-L"}
 CATALOG_ID = {"X4-36-L": "myactuator_rmd_x4_p36_36_e_l", "X6-60": "myactuator_rmd_x6_p20_60_e"}
 BATTERY_WH, BATTERY_USABLE = 146.5, 0.80
@@ -154,7 +158,8 @@ def run_episode(env, policy, stats, seed: int, command: float, full: bool = True
         A = {k: np.zeros((N,) + s) for k, s in (
             ("t", ()), ("tau", (12,)), ("omega", (12,)), ("load", (4,)), ("fn", (4,)), ("fpx", (4,)), ("fpy", (4,)),
             ("sole_p", (4, 3)), ("sole_m", (4, 9)), ("sole_vel", (4, 3)), ("pos", (3,)), ("xmat", (9,)),
-            ("com", (3,)), ("head_p", (3,)), ("head_v", (3,)), ("ankle", (4,)), ("ankle_roll", (4,)))}
+            ("com", (3,)), ("head_p", (3,)), ("head_v", (3,)), ("ankle", (4,)), ("ankle_roll", (4,)),
+            ("sole_vel_c", (4, 3)))}
         floor, soles, touch = int(env._floor), np.asarray(env._soles, dtype=np.int64), np.asarray(env._touch_adr)
         geom_foot = np.full(m.ngeom, -1, dtype=np.int64)
         geom_foot[soles] = np.arange(4)
@@ -166,6 +171,11 @@ def run_episode(env, policy, stats, seed: int, command: float, full: bool = True
         if ankr is not None:
             log["ankle_roll_limit_deg"] = float(np.degrees(m.jnt_range[roll_ids[0], 1]))
         log["sole_size"] = m.geom_size[soles[0]].copy()
+        kinds = {int(mujoco.mjtGeom.mjGEOM_BOX): "box", int(mujoco.mjtGeom.mjGEOM_CAPSULE): "capsule",
+                 int(mujoco.mjtGeom.mjGEOM_SPHERE): "sphere"}
+        types = {int(m.geom_type[g]) for g in soles}
+        assert len(types) == 1 and np.allclose(m.geom_size[soles], m.geom_size[soles[0]]), "four soles alike"
+        log["sole_kind"] = kinds[types.pop()]
         v6 = np.zeros(6)
         k = [0]
         OBJ_GEOM, OBJ_BODY = mujoco.mjtObj.mjOBJ_GEOM, mujoco.mjtObj.mjOBJ_BODY
@@ -194,9 +204,14 @@ def run_episode(env, policy, stats, seed: int, command: float, full: bool = True
                     A["fpy"][i] = np.bincount(ft, fn * ps[:, 1], 4)
             A["sole_p"][i] = d.geom_xpos[soles]
             A["sole_m"][i] = d.geom_xmat[soles]
+            cg, cp = d.contact.geom, d.contact.pos
             for j in range(4):
                 objvel(m, d, OBJ_GEOM, int(soles[j]), v6, 0)
                 A["sole_vel"][i, j] = v6[3:]
+                # the sole's velocity at the mean point of its contacts (gait_metrics' slip_at_contact)
+                hit = (cg[:, 0] == soles[j]) | (cg[:, 1] == soles[j]) if d.ncon else None
+                A["sole_vel_c"][i, j] = (v6[3:] + np.cross(v6[:3], cp[hit].mean(axis=0) - d.geom_xpos[soles[j]])
+                                         if hit is not None and hit.any() else v6[3:])
             A["pos"][i] = d.xpos[ch]
             A["xmat"][i] = d.xmat[ch]
             A["com"][i] = d.subtree_com[ch]
@@ -238,6 +253,7 @@ def run_episode(env, policy, stats, seed: int, command: float, full: bool = True
                               np.degrees(np.arcsin(-np.clip(R[:, 2, 0], -1, 1)))], axis=1)
         log["yaw"] = np.arctan2(R[:, 1, 0], R[:, 0, 0])
         log["sole_v"] = np.hypot(log["sole_vel"][..., 0], log["sole_vel"][..., 1])
+        log["sole_v_contact"] = np.hypot(log["sole_vel_c"][..., 0], log["sole_vel_c"][..., 1])
     return log
 
 
@@ -321,8 +337,10 @@ def analyse(a: dict, command: float, drives: dict, trace: bool) -> tuple[dict, d
         ff["swing_ms"][c] = gc.stats(swing_ms[c])
         ff["stance_travel_m"][c] = gc.stats(travel[c])
         ff["mean_load_bw"][c] = float(a["fn"][w, j].mean() / bw)
-    corners = gc.sole_bottom_corners(a["sole_p"], a["sole_m"], a["sole_size"])  # samples x 4 x 4 x 3
-    low_z = corners[..., 2].min(axis=2)  # samples x 4: each sole's lowest corner height above the floor (z = 0)
+    # samples x 4 x k x 3: a box sole's 4 bottom corners, a capsule's 2 contact-line ends, a ball's lowest point
+    corners = gc.sole_bottom_points(a["sole_p"], a["sole_m"], a["sole_size"], a.get("sole_kind", "box"))
+    met["sole_kind"] = a.get("sole_kind", "box")
+    low_z = corners[..., 2].min(axis=2)  # samples x 4: each sole's lowest point's height above the floor (z = 0)
     for j, c in enumerate(CORNERS):  # raw unloaded gaps by length, with how far the sole rose in them
         gaps = [(n, 1000 * low_z[s:s + n, j].max()) for v, s, n in gc.runs(raw[:, j])
                 if not v and s >= i0 and s + n < n_all]
@@ -525,7 +543,10 @@ def analyse(a: dict, command: float, drives: dict, trace: bool) -> tuple[dict, d
 
     # --- g. feet ---
     feet: dict = {"swing_clearance_mm": {}, "scuff_fraction": {}, "touchdown_speed_mps": {}, "peak_load_rate_bw_per_s": {},
-                  "impact_peak_bw": {}, "stance_slip": {}, "ankle_pitch_deg_p1_p99": {}}
+                  "impact_peak_bw": {}, "stance_slip": {}, "stance_slip_at_contact": {}, "ankle_pitch_deg_p1_p99": {}}
+    # the same stance-slip measure (gait_pipe1's, exact reuse) with the soles' speed taken at their contacts: a
+    # rolling capsule or ball moves its origin without sliding (the foot study, D19); a box sole's tipping likewise
+    pm_c = gp.measures({**a, "sole_v": a["sole_v_contact"]}, command)
     clear, tdv, rate, imp = {}, {}, {}, {}
     lag, span, ispan = (int(round(x / dt)) for x in (LOAD_RATE_LAG_S, LOAD_RATE_SPAN_S, IMPACT_SPAN_S))
     for j, c in enumerate(CORNERS):
@@ -542,6 +563,9 @@ def analyse(a: dict, command: float, drives: dict, trace: bool) -> tuple[dict, d
         feet["impact_peak_bw"][c] = gc.stats(imp[c])
         sl = pm["stance_slip"][c]
         feet["stance_slip"][c] = {"mean_mps": sl["mean_mps"], "p95_mps": sl["p95_mps"], "slip_ratio": sl["slip_ratio"]}
+        sc = pm_c["stance_slip"][c]
+        feet["stance_slip_at_contact"][c] = {"mean_mps": sc["mean_mps"], "p95_mps": sc["p95_mps"],
+                                             "slip_ratio": sc["slip_ratio"]}
         feet["ankle_pitch_deg_p1_p99"][c] = [float(x) for x in np.percentile(np.degrees(a["ankle"][w, j]), [1, 99])]
     if a["has_ankle_roll"]:
         q = np.degrees(a["ankle_roll"][w])
@@ -770,6 +794,13 @@ def summarise_case(eps: list[dict], pays: list[dict]) -> dict:
                              "slip_ratio_mean": _mean([e["feet"]["stance_slip"][c]["slip_ratio"] for e in M]),
                              "slip_ratio_worst": _max([e["feet"]["stance_slip"][c]["slip_ratio"] for e in M])}
                          for c in CORNERS}
+    ft["stance_slip_at_contact"] = {
+        c: {"mean_mps": _mean([e["feet"]["stance_slip_at_contact"][c]["mean_mps"] for e in M]),
+            "p95_mps_worst": _max([e["feet"]["stance_slip_at_contact"][c]["p95_mps"] for e in M]),
+            "slip_ratio_mean": _mean([e["feet"]["stance_slip_at_contact"][c]["slip_ratio"] for e in M]),
+            "slip_ratio_worst": _max([e["feet"]["stance_slip_at_contact"][c]["slip_ratio"] for e in M])}
+        for c in CORNERS}
+    s["sole_kind"] = M[0]["sole_kind"]
     ft["ankle_pitch_deg_p1_p99"] = {c: [_mean([e["feet"]["ankle_pitch_deg_p1_p99"][c][0] for e in M]),
                                         _mean([e["feet"]["ankle_pitch_deg_p1_p99"][c][1] for e in M])] for c in CORNERS}
     if "ankle_roll_deg" in M[0]["feet"]:
@@ -961,7 +992,7 @@ def simulate(args) -> tuple[dict, dict]:
                         "run_commit_trike_env_sha256": git_blob_sha256(commit, RL / "trike_env.py"),
                         "from_TRIKE_ENV_DIR": bool(os.environ.get("TRIKE_ENV_DIR")),
                         "env_config": "the run record's settings.env_config, model path re-pointed to sim/generated",
-                        "model_sha256": {f: gp.sha256(GEN / f) for f in (DEFAULT_MODEL, ANKLEROLL_MODEL)}},
+                        "model_sha256": {f: gp.sha256(GEN / f) for f in sorted({DEFAULT_MODEL, ANKLEROLL_MODEL, primary})}},
         "settings": {"seeds": list(SEEDS), "delay_ms": DELAY, "window_from_s": WINDOW_S, "deterministic": True,
                      "episode_s": ec.get("episode_seconds", 20.0), "contact_threshold_n": ec.get("contact_threshold_n"),
                      "debounce_ms": 10, "sweep_commands": list(SWEEP), "sweep_seeds": list(SWEEP_SEEDS),
@@ -1133,7 +1164,8 @@ def markdown(R: dict) -> str:
     # c
     b = T["balance"]
     L += ["## c. Balance (`balance.png`)", "",
-          "Support polygon: hull of the sole corners of the feet in stance on the step contact the footfalls use (the "
+          f"Support polygon: hull of the {SOLE_POINTS[T.get('sole_kind', 'box')]} of the feet in stance on the step "
+          "contact the footfalls use (the "
           "env's 10 ms debounce, then gaps and blips under 50 ms merged); CoP from those soles' contact forces. "
           f"CoM ground projection outside the polygon {100 * b['com_margin_negative_fraction']:.1f} % of the time (by feet "
           "in stance: " + ", ".join(f"{k}: {_f(100 * v if v is not None else None, '{:.0f}')} %"
@@ -1220,10 +1252,13 @@ def markdown(R: dict) -> str:
           "| Peak load rate, body weights/s, median (95th) | " + " | ".join(
               f"{_f(ft['peak_load_rate_bw_per_s'][c]['median'], '{:.0f}')} ({_f(ft['peak_load_rate_bw_per_s'][c]['p95'], '{:.0f}')})"
               for c in CORNERS) + " |",
-          "| Stance slip speed, mean / 95th pct worst, m/s | " + " | ".join(
+          "| Stance slip speed at the sole's origin, mean / 95th pct worst, m/s | " + " | ".join(
               f"{_f(ft['stance_slip'][c]['mean_mps'])} / {_f(ft['stance_slip'][c]['p95_mps_worst'])}" for c in CORNERS) + " |",
-          "| Slip ratio, mean (worst) | " + " | ".join(
-              f"{_f(ft['stance_slip'][c]['slip_ratio_mean'])} ({_f(ft['stance_slip'][c]['slip_ratio_worst'])})" for c in CORNERS) + " |"]
+          "| Slip ratio at the sole's origin, mean (worst) | " + " | ".join(
+              f"{_f(ft['stance_slip'][c]['slip_ratio_mean'])} ({_f(ft['stance_slip'][c]['slip_ratio_worst'])})" for c in CORNERS) + " |",
+          "| Slip ratio at the sole's contacts, mean (worst) | " + " | ".join(
+              f"{_f(ft['stance_slip_at_contact'][c]['slip_ratio_mean'])} ({_f(ft['stance_slip_at_contact'][c]['slip_ratio_worst'])})"
+              for c in CORNERS) + " |"]
     if "ankle_roll_deg" in A["feet"]:
         ar = A["feet"]["ankle_roll_deg"]
         L += [f"| Roll-ankle angle, deg, min / max (roll-ankle model; limit +-{A['feet']['ankle_roll_limit_deg']:.0f}) | "

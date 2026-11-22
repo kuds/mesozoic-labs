@@ -12,10 +12,12 @@ were chosen with run2b's weaknesses in view: its edges on steps and ramps, its s
 - **Code:** the reviewed commit that the step sheets `runs/trike60-run3-s0_STEPS.md` and `runs/trike60-run3-s1_STEPS.md`
   name (the notebook runs exactly that commit; both seeds run the same commit).
 - **Setup:**
-  - Model: `trike60_C_closed_ankleroll.xml` (revision 3).
+  - Model: `trike60_C_closed_capsule.xml` (revision 3 with the capsule sole the owner chose, D19: the foot study's
+    `capsule_r24`, byte for byte).
   - Environment: `configs/run3_terrain.json` (ENV_PRESET `run3_terrain`): terrain boxes, pushes and the friction
     low end 0.3, on the terrain schedule (0 until 1 M steps, full at 4 M); the drift cost at full weight from the
-    first step.
+    first step; the slip cost taken at the soles' contacts (`slip_at_contact`), so a rolling capsule is not charged
+    for rolling.
   - Everything else as run2b: reward, the penalty and late schedules, PPO settings, 8 envs, evaluations every
     250,000 steps on the flat floor.
 - **Seeds and budget:** two runs, `trike60-run3-s0` (SEED 0) and `trike60-run3-s1` (SEED 1), 10,000,000 steps each.
@@ -44,7 +46,7 @@ sweep adds its own steps, ramps and pushes.
   - 0.25 m/s unless stated.
 - **Environment:** the run commit's `rl/`, in the tree if `rl/` is unchanged since the run commit, otherwise
   exported through TRIKE_ENV_DIR (run2b was measured in the tree). The model file
-  (`sim/generated/trike60_C_closed_ankleroll.xml`) must be the run commit's: the tools record its sha256, which is
+  (`sim/generated/trike60_C_closed_capsule.xml`) must be the run commit's: the tools record its sha256, which is
   checked against that commit's file before anything is judged.
 
 ## Rules (each judged per seed)
@@ -80,10 +82,30 @@ Fields (thresholds apply to the values as stored in the tools' JSON, not to the 
 ## Not judged here
 
 - The policy observes the simulator's true velocity (`obs_privileged_lin_vel`).
+- The foot's real rubber, its wear and its grip: the capsule is a rigid shape in the simulation (`sim/REPORT_FEET60.md`).
 - The terrain is blind to the policy.
 - Training ranges and sweep ranges overlap in part (steps up to 4 cm, ramps up to 10°, friction down to 0.3 and
   pushes up to 1.0 m/s in training), so T1-T4 and the 1.0 m/s part of T5 test trained conditions. Only the 1.25 m/s
   pushes, and the sweep's friction points below 0.3 (reported), test beyond them.
+
+## Revised before any run: the capsule foot (22 Nov 2026, D19; no run had started)
+
+Changed after the foot study's result (`sim/REPORT_FEET60.md`, F17) and the owner's choice of the capsule sole
+(D19), before either seed started. No rule, threshold, seed, budget or stop rule changed.
+- **Model:** the capsule-sole model in place of the roll-ankle model. The policy interface (observation and action)
+  is the same.
+- **Slip cost at the contacts** (`slip_at_contact`, in `configs/run3_terrain.json`). Measured at the sole's origin,
+  the slip cost would charge a rolling capsule for rolling. In the frozen model-based trot (two episodes per foot),
+  the origin's cost is 3.6x the contacts' on the capsule, against 1.1-1.2x on the box soles.
+- **Tools:** the gait report computes swing clearance and the support polygon from each sole shape's own lowest
+  points (a capsule's two contact-line ends), and adds the stance slip at the contacts beside the slip at the
+  origin; it records the run's model's sha256. The judged fields (F1's speed and falls, F2's RMS torque) and the
+  sweep's speed, drift and falls are unchanged in definition. The sweep's slip, reported only, stays at the sole's
+  origin, which counts a rolling capsule as moving. (Check pending: the revised gait report on run2b's checkpoint.)
+- **The run2b column is no longer a one-change comparison.** Run2b trained on the roll-ankle foot with the slip cost
+  at the origin. Run 3 differs also in the foot and the slip cost, so a difference from run2b cannot be put down to
+  the terrain training alone.
+- **Expected cost:** see the step sheets (the env's speed on the capsule model was measured again).
 
 ## Revised before any run (after the independent review of 4bafe666; no run had started)
 

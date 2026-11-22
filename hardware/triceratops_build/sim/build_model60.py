@@ -25,8 +25,9 @@ on the budget's 0.85 kg x s^2 basis, linkage mass on T15's four-bar basis, reser
 scaled for similarity, servo joint parameters made consistent, leftover belt parts removed, audio / bus adapter / second
 Teensy added. Details: REPORT_60CM.md.
 
-Usage: python build_model60.py [--out generated] [--ankle-roll]
-Writes trike60_C_listed.xml, trike60_C_closed.xml (+ _ankleroll variants with --ankle-roll) and their mass ledgers.
+Usage: python build_model60.py [--out generated] [--ankle-roll] [--capsule-foot]
+Writes trike60_C_listed.xml, trike60_C_closed.xml (+ _ankleroll variants with --ankle-roll, + trike60_C_closed_capsule.xml
+with --capsule-foot) and their mass ledgers.
 """
 
 import argparse
@@ -482,6 +483,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(HERE / "generated"))
     ap.add_argument("--ankle-roll", action="store_true")
+    ap.add_argument("--capsule-foot", action="store_true",
+                    help="also write trike60_C_closed_capsule.xml: the closed model with the foot study's capsule sole "
+                         "(build_feet60 capsule_r24, the owner's foot, D19), and its mass ledger")
     a = ap.parse_args()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -510,6 +514,16 @@ def main():
               f"y {1000 * led['com_world_m'][1]:+.1f} mm; front share (lever estimate) "
               f"{100 * led['front_share_static_estimate']:.1f} %")
         print("   categories:", led["category_kg"])
+        if a.capsule_foot and variant == "closed" and not ar:
+            import build_feet60  # the foot study's edit, applied to the file just written (only the feet change)
+
+            cname = "trike60_C_closed_capsule"
+            ctext = build_feet60.edit("capsule_r24", base=out / f"{name}.xml")
+            (out / f"{cname}.xml").write_text(ctext)
+            cled = ledger(ctext, variant, dt, neck, notes)
+            cled["foot"] = "capsule sole, build_feet60 capsule_r24 (D19; sim/REPORT_FEET60.md)"
+            (out / f"mass_ledger_{cname}.json").write_text(json.dumps(cled, indent=1) + "\n")
+            print(f"{cname}.xml: {cled['total_mass_kg']:.3f} kg (the closed model, capsule soles)")
 
 
 if __name__ == "__main__":

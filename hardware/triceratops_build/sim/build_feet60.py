@@ -32,8 +32,8 @@ SITE_PAD = 0.0004  # the load cell site's margin around the contact geometry, as
 CANDIDATES = ("pitch", "roll_k2.032", "capsule_r24", "ball_r30")  # the judged set (PREREG_FEET60.md)
 
 
-def edit(variant: str) -> str:
-    tree = ET.parse(BASE)
+def edit(variant: str, base: Path = BASE) -> str:
+    tree = ET.parse(base)
     root = tree.getroot()
     root.set("model", root.get("model") + f"_foot_{variant}")
     bodies = {b.get("name"): b for b in root.iter("body")}

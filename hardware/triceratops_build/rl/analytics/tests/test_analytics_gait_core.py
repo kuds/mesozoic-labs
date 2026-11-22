@@ -132,6 +132,32 @@ def test_sole_corners_and_margins_over_time_for_two_diagonal_feet():
     assert math.isnan(m_com[2])
 
 
+def test_sole_bottom_points_by_shape():
+    size = np.array([0.044, 0.032, 0.0072])
+    eye = np.eye(3).ravel()
+    centre = np.array([0.1, -0.2, 0.0072])
+    assert np.array_equal(gc.sole_bottom_points(centre, eye, size), gc.sole_bottom_corners(centre, eye, size))
+    # the foot study's capsule: radius 24 mm, half-length 20 mm, its axis (the geom's local z) along the world x
+    r, hl = 0.024, 0.020
+    for th in (0.0, 0.3, -0.5):  # pitched by th about the world y axis
+        c, s = math.cos(th), math.sin(th)
+        R = np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]], dtype=float)  # local z -> world x
+        R = np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]]) @ R
+        p = gc.sole_bottom_points(np.array([0.0, 0.0, 0.05]), R.ravel(), np.array([r, hl, 0.0]), "capsule")
+        assert p.shape == (2, 3)
+        assert np.allclose(np.sort(p[:, 0]), np.sort([hl * c, -hl * c])) and np.allclose(p[:, 1], 0.0)
+        assert p[:, 2].min() == pytest.approx(0.05 - hl * abs(s) - r)
+    # rolled about its own axis: the contact line does not move
+    roll = np.array([[1, 0, 0], [0, 0.8, -0.6], [0, 0.6, 0.8]]) @ np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]], dtype=float)
+    p = gc.sole_bottom_points(np.zeros(3), roll.ravel(), np.array([r, hl, 0.0]), "capsule")
+    assert np.allclose(np.sort(p[:, 0]), [-hl, hl]) and np.allclose(p[:, 1:], [[0.0, -r]] * 2)
+    b = gc.sole_bottom_points(np.array([[0.0, 0.0, 0.03], [1.0, 1.0, 0.03]]), np.tile(eye, (2, 1)), np.array([0.03]),
+                              "sphere")
+    assert b.shape == (2, 1, 3) and np.allclose(b[:, 0], [[0, 0, 0], [1, 1, 0]])
+    with pytest.raises(ValueError):
+        gc.sole_bottom_points(centre, eye, size, "cylinder")
+
+
 # ---------------------------------------------------------------- debounced footfalls
 def test_debounce_fills_short_gaps_only_after_first_landing():
     raw = np.array([0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0], dtype=bool)

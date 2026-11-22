@@ -37,7 +37,9 @@ HERE = Path(__file__).resolve().parent
 MODEL_DIR = HERE.parent / "sim" / "generated"
 DEFAULT_MODEL = MODEL_DIR / "trike60_C_closed.xml"
 ANKLE_ROLL_MODEL = MODEL_DIR / "trike60_C_closed_ankleroll.xml"
-MODELS = {"trike60_C_closed": DEFAULT_MODEL, "trike60_C_closed_ankleroll": ANKLE_ROLL_MODEL}
+CAPSULE_MODEL = MODEL_DIR / "trike60_C_closed_capsule.xml"  # the owner's foot (D19): the foot study's capsule sole
+MODELS = {"trike60_C_closed": DEFAULT_MODEL, "trike60_C_closed_ankleroll": ANKLE_ROLL_MODEL,
+          "trike60_C_closed_capsule": CAPSULE_MODEL}
 
 CORNERS = ("left_fore", "right_fore", "left_hind", "right_hind")
 AXES = ("roll", "pitch", "flexion")
@@ -135,7 +137,7 @@ class TrikeEnvConfig:
     w_heading: float = 0.5  # x heading_error^2 (rad^2, true yaw)
     w_energy: float = 0.001  # x mean over the step of sum |torque x joint speed| (W) of the 12 leg drives
     w_action_rate: float = 0.04  # x sum (a - a_prev)^2 of the raw policy outputs
-    w_slip: float = 1.0  # x sum over feet in contact of the sole's horizontal speed^2 (m^2/s^2); 0.5 until pipe1
+    w_slip: float = 1.0  # x sum over feet in contact of the sole's horizontal speed^2 (m^2/s^2; slip_at_contact); 0.5 until pipe1
     w_diagonal: float = 0.0  # optional diagonal (trot) contact symmetry; off by default
     termination_penalty: float = 5.0
     contact_threshold_n: float = 2.0  # a foot is "in contact" above this touch load
@@ -205,6 +207,12 @@ class TrikeEnvConfig:
     # the reset heading's left axis, so a turned heading counts too.
     w_lateral_drift: float = 0.0
     lateral_drift_tau_s: float = 1.0
+    # Where w_slip takes a sole's speed: False (every run up to run2b) at the sole geom's origin; True at the mean
+    # point of the sole's contacts (the origin's velocity plus omega x r, as gait_metrics' slip_at_contact), so a
+    # rounded sole that rolls without sliding is not charged for rolling. In the frozen trot (two episodes per foot)
+    # the cost at the capsule sole's origin is 3.6x the cost at its contacts; the box soles' 1.1-1.2x (D19,
+    # rl/analysis/PREREG_RUN3.md).
+    slip_at_contact: bool = False
 
     def replace(self, **changes: Any) -> "TrikeEnvConfig":
         return dataclasses.replace(self, **changes)
@@ -770,7 +778,13 @@ class TrikeEnv(gym.Env):
         slip = 0.0
         vel6 = np.zeros(6)
         for i in np.flatnonzero(contact):
-            mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_GEOM, int(self._soles[i]), vel6, 0)
+            g = int(self._soles[i])
+            mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_GEOM, g, vel6, 0)
+            if cfg.slip_at_contact and d.ncon:
+                gg = d.contact.geom[:d.ncon]
+                hit = (gg[:, 0] == g) | (gg[:, 1] == g)
+                if hit.any():  # else (a touch load without a contact) the origin's speed, as without the option
+                    vel6[3:] += np.cross(vel6[:3], d.contact.pos[:d.ncon][hit].mean(axis=0) - d.geom_xpos[g])
             slip += float(vel6[3] ** 2 + vel6[4] ** 2)
 
         terms = reward_terms(cfg, v_fwd=v_fwd, v_cmd=self.command_speed, v_lat=v_lat, yaw_rate=yaw_rate,

@@ -432,6 +432,77 @@ def test_ankle_roll_model_loads():
     assert len(LEG_ACTUATORS) == 12
 
 
+def test_capsule_model_is_the_foot_studys_and_resets_on_its_lowest_point():
+    """The owner's foot (D19): the foot study's judged capsule sole, byte for byte; the reset stands it on the
+    capsules' real lowest points (not on box corners)."""
+    from trike_env import CAPSULE_MODEL, MODELS
+
+    assert MODELS["trike60_C_closed_capsule"] == CAPSULE_MODEL
+    assert CAPSULE_MODEL.read_bytes() == (RL_DIR.parent / "sim" / "feet60" / "trike60_foot_capsule_r24.xml").read_bytes()
+    env = TrikeEnv(TrikeEnvConfig(model_path=str(CAPSULE_MODEL), **QUIET))
+    m, d = env.model, env.data
+    assert all(m.geom_type[g] == mujoco.mjtGeom.mjGEOM_CAPSULE for g in env._soles)
+    obs, _ = env.reset(seed=0)
+    assert obs.shape == TrikeEnv().observation_space.shape  # the same policy interface on every foot
+    lowest = min(float(d.geom_xpos[g, 2] - abs(d.geom_xmat[g, 8]) * m.geom_size[g, 1] - m.geom_size[g, 0])
+                 for g in env._soles)
+    assert lowest == pytest.approx(env.cfg.reset_sole_clearance, abs=1e-9)
+    for _ in range(25):
+        _, _, term, _, info = env.step(np.zeros(12))
+        assert not term, info["termination"]
+
+
+def test_slip_at_contact_changes_only_the_slip_cost():
+    """slip_at_contact (D19, run 3): the same trajectory; only r_slip changes, to the soles' speed at their mean
+    contact point. Off by default (the regression digest covers that)."""
+    from trike_env import CAPSULE_MODEL
+
+    assert TrikeEnvConfig().slip_at_contact is False
+    rows = {}
+    for flag in (False, True):
+        env = TrikeEnv(TrikeEnvConfig(model_path=str(CAPSULE_MODEL), slip_at_contact=flag))
+        env.reset(seed=5)
+        rng = np.random.default_rng(1)
+        rows[flag] = []
+        for k in range(80):
+            obs, _, term, _, info = env.step(0.4 * np.sin(0.3 * k + np.arange(12)) + rng.normal(0, 0.05, 12))
+            rows[flag].append((obs.copy(), dict(info)))
+            if term:
+                break
+        if flag:  # the last step's cost, from the contacts directly
+            m, d = env.model, env.data
+            loads = d.sensordata[env._touch_adr]
+            v6, want = np.zeros(6), 0.0
+            for i in np.flatnonzero(loads > env.cfg.contact_threshold_n):
+                g = int(env._soles[i])
+                mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_GEOM, g, v6, 0)
+                pts = [d.contact.pos[c] for c in range(d.ncon) if g in d.contact.geom[c]]
+                v = v6[3:] + np.cross(v6[:3], np.mean(pts, axis=0) - d.geom_xpos[g]) if pts else v6[3:]
+                want += v[0] ** 2 + v[1] ** 2
+            assert info["r_slip"] == pytest.approx(-env.cfg.w_slip * env.penalty_scale * want, rel=1e-9, abs=1e-12)
+    assert len(rows[False]) == len(rows[True])
+    differ = 0
+    for (o0, i0), (o1, i1) in zip(rows[False], rows[True]):
+        assert np.array_equal(o0, o1)
+        assert set(i0) == set(i1)
+        assert [k for k in i0 if k not in ("r_slip", "reward_total") and not np.array_equal(i0[k], i1[k])] == []
+        assert i1["reward_total"] - i0["reward_total"] == pytest.approx(i1["r_slip"] - i0["r_slip"], abs=1e-9)
+        differ += i0["r_slip"] != i1["r_slip"]
+    assert differ > 10
+
+
+def test_run3_trains_on_the_capsule_foot_with_slip_at_contact(tmp_path):
+    assert json.loads(RUN3.read_text())["slip_at_contact"] is True
+    out = tmp_path / "run"
+    p = _run(RL_DIR / "train.py", "--out", out, *BASE_ARGS, "--total-steps", 1024, "--eval-every", 0,
+             "--env-config", RUN3, "--model", "trike60_C_closed_capsule")
+    assert p.returncode == 0, p.stdout + p.stderr
+    rec = _record(out)
+    assert rec["settings"]["model"] == "trike60_C_closed_capsule.xml"
+    assert rec["settings"]["env_config"]["slip_at_contact"] is True
+    assert rec["settings"]["env_config"]["model_path"] == "trike60_C_closed_capsule.xml"
+
+
 # ======================================================================================== train.py
 BASE_ARGS = ["--n-envs", 2, "--n-steps", 256, "--batch-size", 512, "--checkpoint-every", 1024, "--log-every", 512,
              "--seed", 3, "--eval-every", 1024, "--eval-seconds", 0.5]
@@ -1098,7 +1169,7 @@ def test_a_session_killed_right_after_its_quarantine_leaves_the_run_free(tmp_pat
 
 # ======================================================================================== heat, saturation, steps
 def test_continuous_ratings_match_the_mass_ledger():
-    for model in ("trike60_C_closed", "trike60_C_closed_ankleroll"):
+    for model in ("trike60_C_closed", "trike60_C_closed_ankleroll", "trike60_C_closed_capsule"):
         ledger = json.loads((RL_DIR.parent / "sim" / "generated" / f"mass_ledger_{model}.json").read_text())
         env = TrikeEnv(TrikeEnvConfig(model_path=str(RL_DIR.parent / "sim" / "generated" / f"{model}.xml")))
         for name, rating in zip(LEG_ACTUATORS, env.continuous_torque):
@@ -1544,11 +1615,14 @@ def test_sweep_and_evaluate_build_flat_envs_from_a_run3_record(tmp_path):
     import evaluate
     import sweep
 
-    ec = json.loads(json.dumps({**_rough().cfg.to_dict(), "model_path": "trike60_C_closed_ankleroll.xml"},
-                               default=list))
-    for terrain in (None, ("step", 0.02)):
-        env = sweep.build_env(ec, terrain)
-        assert env.cfg.terrain_boxes == 0 and env.model.nmocap == 0 and env.cfg.push_prob == 0.0
+    for foot in ("trike60_C_closed_capsule.xml", "trike60_C_closed_ankleroll.xml"):  # run 3's foot last (below)
+        ec = json.loads(json.dumps({**_rough().cfg.to_dict(), "model_path": foot}, default=list))
+        for terrain in (None, ("step", 0.02)):
+            env = sweep.build_env(ec, terrain)
+            assert env.cfg.terrain_boxes == 0 and env.model.nmocap == 0 and env.cfg.push_prob == 0.0
+            assert Path(env.cfg.model_path).name.startswith(foot[:-4]) or terrain is not None
+            env.reset(seed=0)
+            assert env._lowest_sole_z() == pytest.approx(env.cfg.reset_sole_clearance, abs=1e-6)
     run = tmp_path / "run"
     run.mkdir()
     (run / "run_record.json").write_text(json.dumps({"settings": {"env_config": ec}}))

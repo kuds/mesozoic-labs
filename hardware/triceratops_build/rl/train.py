@@ -87,7 +87,8 @@ def parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--n-envs", type=int, default=4)
     ap.add_argument("--model", default=None,
-                    help="MJCF path, or a model name: trike60_C_closed (default) or trike60_C_closed_ankleroll")
+                    help="MJCF path, or a model name: trike60_C_closed (default), trike60_C_closed_ankleroll or "
+                         "trike60_C_closed_capsule")
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--resume", action="store_true", help="continue from the newest intact checkpoint pair in --out")
     ap.add_argument("--allow-changes", action="store_true",

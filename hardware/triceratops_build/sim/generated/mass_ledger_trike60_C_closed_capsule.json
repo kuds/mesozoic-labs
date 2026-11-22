@@ -1,0 +1,1883 @@
+{
+ "build": "60 cm option C",
+ "variant": "closed",
+ "total_mass_kg": 12.6938,
+ "category_kg": {
+  "frame and feet": 1.7436,
+  "compute and sensors": 0.7294,
+  "power, safety, wiring, cooling": 1.2837,
+  "shells": 0.967,
+  "battery": 1.012,
+  "reserve": 0.15,
+  "tail": 0.3151,
+  "drives": 5.24,
+  "head": 0.8535,
+  "leg transmissions": 0.3994
+ },
+ "com_world_m": [
+  0.0276,
+  -0.0006,
+  0.287
+ ],
+ "front_share_static_estimate": 0.5532,
+ "neck": {
+  "head_pitch_subtree_kg": 0.853502,
+  "head_com_from_pitch_pivot_m": [
+   0.0368,
+   -0.0,
+   0.0218
+  ],
+  "head_com_distance_m": 0.0428,
+  "gravity_moment_nm": -0.3083,
+  "spring_stiffness_nm_per_rad": 0.4,
+  "springref_deg": -30.91,
+  "spring_fraction": 0.7,
+  "spring_at_neutral_nm": -0.2158,
+  "spring_basis": "0.40 N m/rad (EST): soft enough that over the +-20 deg neck range the spring's torque varies by +-0.14 N m (0.28 N m end to end), under half of the XC430's 0.63 N m continuous estimate"
+ },
+ "drives": {
+  "left_fore_roll": {
+   "drive": "X4-36-L",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 21.0,
+   "joint_thermal_eq_nm": 7.5
+  },
+  "left_fore_pitch": {
+   "drive": "X4-36-L",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 21.0,
+   "joint_thermal_eq_nm": 7.5
+  },
+  "left_fore_flexion": {
+   "drive": "X6-60",
+   "ratio": 1.0,
+   "eta": 0.9,
+   "joint_peak_limit_nm": 37.8,
+   "joint_thermal_eq_nm": 10.8
+  },
+  "right_fore_roll": {
+   "drive": "X4-36-L",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 21.0,
+   "joint_thermal_eq_nm": 7.5
+  },
+  "right_fore_pitch": {
+   "drive": "X4-36-L",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 21.0,
+   "joint_thermal_eq_nm": 7.5
+  },
+  "right_fore_flexion": {
+   "drive": "X6-60",
+   "ratio": 1.0,
+   "eta": 0.9,
+   "joint_peak_limit_nm": 37.8,
+   "joint_thermal_eq_nm": 10.8
+  },
+  "left_hind_roll": {
+   "drive": "X4-36-L",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 21.0,
+   "joint_thermal_eq_nm": 7.5
+  },
+  "left_hind_pitch": {
+   "drive": "X4-36-L",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 21.0,
+   "joint_thermal_eq_nm": 7.5
+  },
+  "left_hind_flexion": {
+   "drive": "X4-36-L",
+   "ratio": 1.0,
+   "eta": 0.9,
+   "joint_peak_limit_nm": 18.9,
+   "joint_thermal_eq_nm": 6.75
+  },
+  "right_hind_roll": {
+   "drive": "X4-36-L",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 21.0,
+   "joint_thermal_eq_nm": 7.5
+  },
+  "right_hind_pitch": {
+   "drive": "X4-36-L",
+   "ratio": 1.0,
+   "eta": 1.0,
+   "joint_peak_limit_nm": 21.0,
+   "joint_thermal_eq_nm": 7.5
+  },
+  "right_hind_flexion": {
+   "drive": "X4-36-L",
+   "ratio": 1.0,
+   "eta": 0.9,
+   "joint_peak_limit_nm": 18.9,
+   "joint_thermal_eq_nm": 6.75
+  },
+  "neck_pitch": {
+   "drive": "XC430-W240-T",
+   "joint_peak_limit_nm": 1.33
+  },
+  "neck_yaw": {
+   "drive": "XC430-W240-T",
+   "joint_peak_limit_nm": 1.33
+  },
+  "tail_yaw": {
+   "drive": "XL430-W250-T",
+   "joint_peak_limit_nm": 1.05
+  },
+  "tail_pitch": {
+   "drive": "XL430-W250-T",
+   "joint_peak_limit_nm": 1.05
+  }
+ },
+ "parts": [
+  {
+   "geom": "6061_left_rail",
+   "body": "chassis",
+   "category": "frame and feet",
+   "mass_kg": 0.11763,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.0,
+    0.0832,
+    0.308
+   ]
+  },
+  {
+   "geom": "6061_right_rail",
+   "body": "chassis",
+   "category": "frame and feet",
+   "mass_kg": 0.11763,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.0,
+    -0.0832,
+    0.308
+   ]
+  },
+  {
+   "geom": "shoulder_crossmember",
+   "body": "chassis",
+   "category": "frame and feet",
+   "mass_kg": 0.06919,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.26,
+    0.0,
+    0.32
+   ]
+  },
+  {
+   "geom": "pelvic_crossmember",
+   "body": "chassis",
+   "category": "frame and feet",
+   "mass_kg": 0.06919,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.26,
+    0.0,
+    0.32
+   ]
+  },
+  {
+   "geom": "removable_service_tray",
+   "body": "chassis",
+   "category": "frame and feet",
+   "mass_kg": 0.08303,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.064,
+    0.0,
+    0.26
+   ]
+  },
+  {
+   "geom": "neck_cradle",
+   "body": "chassis",
+   "category": "frame and feet",
+   "mass_kg": 0.06919,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.2808,
+    0.0,
+    0.3592
+   ]
+  },
+  {
+   "geom": "tray_stay_-0.255_1",
+   "body": "chassis",
+   "category": "frame and feet",
+   "mass_kg": 0.02075,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.204,
+    0.0688,
+    0.284
+   ]
+  },
+  {
+   "geom": "tray_stay_-0.255_-1",
+   "body": "chassis",
+   "category": "frame and feet",
+   "mass_kg": 0.02075,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.204,
+    -0.0688,
+    0.284
+   ]
+  },
+  {
+   "geom": "tray_stay_0.095_1",
+   "body": "chassis",
+   "category": "frame and feet",
+   "mass_kg": 0.02075,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.076,
+    0.0688,
+    0.284
+   ]
+  },
+  {
+   "geom": "tray_stay_0.095_-1",
+   "body": "chassis",
+   "category": "frame and feet",
+   "mass_kg": 0.02075,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.076,
+    -0.0688,
+    0.284
+   ]
+  },
+  {
+   "geom": "teensy41_can_carriers_x2",
+   "body": "chassis",
+   "category": "compute and sensors",
+   "mass_kg": 0.12088,
+   "basis": "2 x Teensy 4.1 + CAN carrier, as budgeted (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.08,
+    0.0,
+    0.32
+   ]
+  },
+  {
+   "geom": "oak_d_lite",
+   "body": "chassis",
+   "category": "compute and sensors",
+   "mass_kg": 0.061,
+   "basis": "Luxonis OAK-D Lite, 61 g (RC)",
+   "world_pos_m": [
+    0.2016,
+    0.0,
+    0.3768
+   ]
+  },
+  {
+   "geom": "left_vl53l8cx",
+   "body": "chassis",
+   "category": "compute and sensors",
+   "mass_kg": 0.012,
+   "basis": "Pololu VL53L8CX carrier (RC)",
+   "world_pos_m": [
+    0.2336,
+    0.0832,
+    0.28
+   ]
+  },
+  {
+   "geom": "right_vl53l8cx",
+   "body": "chassis",
+   "category": "compute and sensors",
+   "mass_kg": 0.012,
+   "basis": "Pololu VL53L8CX carrier (RC)",
+   "world_pos_m": [
+    0.2336,
+    -0.0832,
+    0.28
+   ]
+  },
+  {
+   "geom": "trunk_imu",
+   "body": "chassis",
+   "category": "compute and sensors",
+   "mass_kg": 0.005,
+   "basis": "Adafruit BNO085 (MD)",
+   "world_pos_m": [
+    0.0,
+    0.02,
+    0.3152
+   ]
+  },
+  {
+   "geom": "io_and_sensor_carriers",
+   "body": "chassis",
+   "category": "compute and sensors",
+   "mass_kg": 0.0967,
+   "basis": "I/O carriers, BNO085 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.19,
+    0.0,
+    0.319
+   ]
+  },
+  {
+   "geom": "power_board_diode_or_precharge_clamp",
+   "body": "chassis",
+   "category": "power, safety, wiring, cooling",
+   "mass_kg": 0.26593,
+   "basis": "power board, ideal-diode OR, precharge, 52.5 V clamp + resistors, fuses (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.185,
+    0.0,
+    0.29
+   ]
+  },
+  {
+   "geom": "dc_dc_rails_and_pack_monitor",
+   "body": "chassis",
+   "category": "power, safety, wiring, cooling",
+   "mass_kg": 0.15714,
+   "basis": "2 x 12 V rails, 24 V safety rail, pack monitor (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.185,
+    0.0,
+    0.32
+   ]
+  },
+  {
+   "geom": "left_can_and_power_loom",
+   "body": "chassis",
+   "category": "power, safety, wiring, cooling",
+   "mass_kg": 0.11604,
+   "basis": "harness, PR #669 x 0.8^2 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.0012,
+    0.072,
+    0.3024
+   ]
+  },
+  {
+   "geom": "right_can_and_power_loom",
+   "body": "chassis",
+   "category": "power, safety, wiring, cooling",
+   "mass_kg": 0.11604,
+   "basis": "harness, PR #669 x 0.8^2 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.0012,
+    -0.072,
+    0.3024
+   ]
+  },
+  {
+   "geom": "drive_bay_blowers_and_ducts",
+   "body": "chassis",
+   "category": "power, safety, wiring, cooling",
+   "mass_kg": 0.12088,
+   "basis": "blowers, ducts, filters (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.0144,
+    0.0,
+    0.3272
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_1",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.2,
+    -0.1,
+    0.3051
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_2",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.2,
+    -0.1,
+    0.3381
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_3",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.2,
+    -0.0848,
+    0.3687
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_4",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.2,
+    -0.0567,
+    0.3921
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_5",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.2,
+    -0.0199,
+    0.4047
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_6",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.2,
+    0.0199,
+    0.4047
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_7",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.2,
+    0.0567,
+    0.3921
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_8",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.2,
+    0.0848,
+    0.3687
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_9",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.2,
+    0.1,
+    0.3381
+   ]
+  },
+  {
+   "geom": "PA11_rib_1_10",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.2,
+    0.1,
+    0.3051
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_1",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.056,
+    -0.1,
+    0.3051
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_2",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.056,
+    -0.1,
+    0.3381
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_3",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.056,
+    -0.0848,
+    0.3687
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_4",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.056,
+    -0.0567,
+    0.3921
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_5",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.056,
+    -0.0199,
+    0.4047
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_6",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.056,
+    0.0199,
+    0.4047
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_7",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.056,
+    0.0567,
+    0.3921
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_8",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.056,
+    0.0848,
+    0.3687
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_9",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.056,
+    0.1,
+    0.3381
+   ]
+  },
+  {
+   "geom": "PA11_rib_2_10",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.056,
+    0.1,
+    0.3051
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_1",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.104,
+    -0.1,
+    0.3051
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_2",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.104,
+    -0.1,
+    0.3381
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_3",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.104,
+    -0.0848,
+    0.3687
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_4",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.104,
+    -0.0567,
+    0.3921
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_5",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.104,
+    -0.0199,
+    0.4047
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_6",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.104,
+    0.0199,
+    0.4047
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_7",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.104,
+    0.0567,
+    0.3921
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_8",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.104,
+    0.0848,
+    0.3687
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_9",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.104,
+    0.1,
+    0.3381
+   ]
+  },
+  {
+   "geom": "PA11_rib_3_10",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.104,
+    0.1,
+    0.3051
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_1",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.204,
+    -0.1,
+    0.3051
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_2",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.204,
+    -0.1,
+    0.3381
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_3",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.204,
+    -0.0848,
+    0.3687
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_4",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.204,
+    -0.0567,
+    0.3921
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_5",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.204,
+    -0.0199,
+    0.4047
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_6",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.204,
+    0.0199,
+    0.4047
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_7",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.204,
+    0.0567,
+    0.3921
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_8",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.204,
+    0.0848,
+    0.3687
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_9",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.204,
+    0.1,
+    0.3381
+   ]
+  },
+  {
+   "geom": "PA11_rib_4_10",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.01384,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.204,
+    0.1,
+    0.3051
+   ]
+  },
+  {
+   "geom": "left_shell_seam",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.05191,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.004,
+    0.0968,
+    0.2976
+   ]
+  },
+  {
+   "geom": "right_shell_seam",
+   "body": "chassis",
+   "category": "shells",
+   "mass_kg": 0.05191,
+   "basis": "body shell 0.85 kg (parts list 6.2) x 0.8^2, pro rata over PR #669's shell parts (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.004,
+    -0.0968,
+    0.2976
+   ]
+  },
+  {
+   "geom": "jetson_orin_nano_super_kit",
+   "body": "chassis",
+   "category": "compute and sensors",
+   "mass_kg": 0.174,
+   "basis": "NVIDIA Jetson Orin Nano Super dev kit, 0.174 kg (RC)",
+   "world_pos_m": [
+    -0.03,
+    0.0,
+    0.29
+   ]
+  },
+  {
+   "geom": "nvme_and_vibration_tray",
+   "body": "chassis",
+   "category": "compute and sensors",
+   "mass_kg": 0.0967,
+   "basis": "NVMe + tray (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.031,
+    0.0,
+    0.2695
+   ]
+  },
+  {
+   "geom": "oak_d_usb_c_lock_cable",
+   "body": "chassis",
+   "category": "compute and sensors",
+   "mass_kg": 0.03022,
+   "basis": "locking USB-C cable (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.155,
+    0.0,
+    0.36
+   ]
+  },
+  {
+   "geom": "gtech_6s_3300_1",
+   "body": "chassis",
+   "category": "battery",
+   "mass_kg": 0.506,
+   "basis": "Gens ace G-Tech 6S 3300, 506 g, 138 x 42 x 43 mm (RC/PL)",
+   "world_pos_m": [
+    -0.16,
+    0.0215,
+    0.2855
+   ]
+  },
+  {
+   "geom": "gtech_6s_3300_2",
+   "body": "chassis",
+   "category": "battery",
+   "mass_kg": 0.506,
+   "basis": "Gens ace G-Tech 6S 3300, 506 g, 138 x 42 x 43 mm (RC/PL)",
+   "world_pos_m": [
+    -0.16,
+    -0.0215,
+    0.2855
+   ]
+  },
+  {
+   "geom": "pilz_relay_contactor_watchdog_radio_rx",
+   "body": "chassis",
+   "category": "power, safety, wiring, cooling",
+   "mass_kg": 0.50769,
+   "basis": "Pilz PNOZ s5, Altran contactor, watchdog board, radio-stop receiver (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.082,
+    0.0,
+    0.2865
+   ]
+  },
+  {
+   "geom": "audio_and_servo_bus_adapter",
+   "body": "chassis",
+   "category": "compute and sensors",
+   "mass_kg": 0.12088,
+   "basis": "speaker, amplifier, microphone, U2D2 bus adapter, eyelid 5 V rail (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.1,
+    0.0,
+    0.32
+   ]
+  },
+  {
+   "geom": "reserve_small_parts_est",
+   "body": "chassis",
+   "category": "reserve",
+   "mass_kg": 0.15,
+   "basis": "reserve: connectors, brackets, fasteners added at build (EST)",
+   "world_pos_m": [
+    -0.06,
+    -0.055,
+    0.304
+   ]
+  },
+  {
+   "geom": "xl430_w250_tail_yaw_case",
+   "body": "chassis",
+   "category": "tail",
+   "mass_kg": 0.057,
+   "basis": "ROBOTIS XL430-W250-T, 57 g (WS)",
+   "world_pos_m": [
+    -0.248,
+    0.0,
+    0.358
+   ]
+  },
+  {
+   "geom": "left_fore_x4_roll_stator",
+   "body": "chassis",
+   "category": "drives",
+   "mass_kg": 0.36,
+   "basis": "MyActuator RMD-X4-P36-36-E-L, catalog 0.36 kg, 55 x 61 mm",
+   "world_pos_m": [
+    0.26,
+    0.076,
+    0.32
+   ]
+  },
+  {
+   "geom": "right_fore_x4_roll_stator",
+   "body": "chassis",
+   "category": "drives",
+   "mass_kg": 0.36,
+   "basis": "MyActuator RMD-X4-P36-36-E-L, catalog 0.36 kg, 55 x 61 mm",
+   "world_pos_m": [
+    0.26,
+    -0.076,
+    0.32
+   ]
+  },
+  {
+   "geom": "left_hind_x4_roll_stator",
+   "body": "chassis",
+   "category": "drives",
+   "mass_kg": 0.36,
+   "basis": "MyActuator RMD-X4-P36-36-E-L, catalog 0.36 kg, 55 x 61 mm",
+   "world_pos_m": [
+    -0.26,
+    0.076,
+    0.32
+   ]
+  },
+  {
+   "geom": "right_hind_x4_roll_stator",
+   "body": "chassis",
+   "category": "drives",
+   "mass_kg": 0.36,
+   "basis": "MyActuator RMD-X4-P36-36-E-L, catalog 0.36 kg, 55 x 61 mm",
+   "world_pos_m": [
+    -0.26,
+    -0.076,
+    0.32
+   ]
+  },
+  {
+   "geom": "xc430_w240_neck_pitch_case",
+   "body": "head",
+   "category": "head",
+   "mass_kg": 0.07857,
+   "basis": "ROBOTIS XC430-W240-T, 65 g (EST from the XC430 family); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.3104,
+    0.0,
+    0.3848
+   ]
+  },
+  {
+   "geom": "neck_hub_and_skull_carrier",
+   "body": "head",
+   "category": "head",
+   "mass_kg": 0.12501,
+   "basis": "PR #669 head part x 0.8^3 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.344,
+    0.0,
+    0.4064
+   ]
+  },
+  {
+   "geom": "xc430_w240_neck_yaw_case",
+   "body": "head",
+   "category": "head",
+   "mass_kg": 0.07857,
+   "basis": "ROBOTIS XC430-W240-T (EST mass); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.352,
+    0.0,
+    0.426
+   ]
+  },
+  {
+   "geom": "neck_yaw_bearing",
+   "body": "head",
+   "category": "head",
+   "mass_kg": 0.03626,
+   "basis": "thin-section bearing, scaled (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.372,
+    0.0,
+    0.403
+   ]
+  },
+  {
+   "geom": "frill_pa11_panel",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.14544,
+   "basis": "PR #669 head part x 0.8^3 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.3016,
+    -0.0,
+    0.4865
+   ]
+  },
+  {
+   "geom": "hollow_skull_equivalent",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.18567,
+   "basis": "PR #669 head part x 0.8^3 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.3914,
+    -0.0,
+    0.3931
+   ]
+  },
+  {
+   "geom": "left_brow_horn_tpu",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.02352,
+   "basis": "PR #669 head part x 0.8^3 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.4323,
+    0.0545,
+    0.4499
+   ]
+  },
+  {
+   "geom": "left_eye",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.00248,
+   "basis": "PR #669 head part x 0.8^3 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.404,
+    0.0608,
+    0.4112
+   ]
+  },
+  {
+   "geom": "right_brow_horn_tpu",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.02352,
+   "basis": "PR #669 head part x 0.8^3 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.4323,
+    -0.0545,
+    0.4499
+   ]
+  },
+  {
+   "geom": "right_eye",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.00248,
+   "basis": "PR #669 head part x 0.8^3 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.404,
+    -0.0608,
+    0.4112
+   ]
+  },
+  {
+   "geom": "nasal_horn_tpu",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.00867,
+   "basis": "PR #669 head part x 0.8^3 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.4636,
+    -0.0,
+    0.4148
+   ]
+  },
+  {
+   "geom": "xc430_w240_beak_case",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.065,
+   "basis": "ROBOTIS XC430-W240-T, beak (mass only; no beak joint yet)",
+   "world_pos_m": [
+    0.428,
+    0.0,
+    0.39
+   ]
+  },
+  {
+   "geom": "left_xl330_eyelid",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.018,
+   "basis": "ROBOTIS XL330-M288-T, 18 g (PL)",
+   "world_pos_m": [
+    0.398,
+    0.056,
+    0.418
+   ]
+  },
+  {
+   "geom": "right_xl330_eyelid",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.018,
+   "basis": "ROBOTIS XL330-M288-T, 18 g (PL)",
+   "world_pos_m": [
+    0.398,
+    -0.056,
+    0.418
+   ]
+  },
+  {
+   "geom": "frill_lights_and_linkage",
+   "body": "head_yaw",
+   "category": "head",
+   "mass_kg": 0.04231,
+   "basis": "LEDs, diffusers, beak linkage (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.34,
+    0.0,
+    0.472
+   ]
+  },
+  {
+   "geom": "tail_shell_and_flex_core",
+   "body": "tail",
+   "category": "tail",
+   "mass_kg": 0.20114,
+   "basis": "PR #669 tail x 0.8^3 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.3596,
+    -0.0,
+    0.3011
+   ]
+  },
+  {
+   "geom": "xl430_w250_tail_pitch_case",
+   "body": "tail",
+   "category": "tail",
+   "mass_kg": 0.057,
+   "basis": "ROBOTIS XL430-W250-T (WS)",
+   "world_pos_m": [
+    -0.284,
+    0.0,
+    0.32
+   ]
+  },
+  {
+   "geom": "left_fore_shoulder_yoke",
+   "body": "left_fore_roll_yoke",
+   "category": "frame and feet",
+   "mass_kg": 0.02422,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.26,
+    0.108,
+    0.32
+   ]
+  },
+  {
+   "geom": "left_fore_x4_pitch_stator",
+   "body": "left_fore_roll_yoke",
+   "category": "drives",
+   "mass_kg": 0.36,
+   "basis": "MyActuator RMD-X4-P36-36-E-L, catalog",
+   "world_pos_m": [
+    0.26,
+    0.14,
+    0.32
+   ]
+  },
+  {
+   "geom": "left_fore_upper_strut",
+   "body": "left_fore_upper_link",
+   "category": "frame and feet",
+   "mass_kg": 0.08649,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.1999,
+    0.14,
+    0.2477
+   ]
+  },
+  {
+   "geom": "left_fore_x6_flexion_stator",
+   "body": "left_fore_upper_link",
+   "category": "drives",
+   "mass_kg": 0.82,
+   "basis": "MyActuator X6-60, catalog 0.82 kg (the store's X6 listing shows 0.78 kg, the X6-50-L; F9)",
+   "world_pos_m": [
+    0.2025,
+    0.14,
+    0.2508
+   ]
+  },
+  {
+   "geom": "left_fore_drive_crank",
+   "body": "left_fore_upper_link",
+   "category": "leg transmissions",
+   "mass_kg": 0.03989,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.2025,
+    0.0983,
+    0.2508
+   ]
+  },
+  {
+   "geom": "left_fore_pushrod",
+   "body": "left_fore_upper_link",
+   "category": "leg transmissions",
+   "mass_kg": 0.02998,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.1927,
+    0.0983,
+    0.1952
+   ]
+  },
+  {
+   "geom": "left_fore_upper_limb_cover",
+   "body": "left_fore_upper_link",
+   "category": "shells",
+   "mass_kg": 0.04642,
+   "basis": "MJF limb cover, T20's scaled by area (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.1999,
+    0.14,
+    0.2477
+   ]
+  },
+  {
+   "geom": "left_fore_elbow_axle",
+   "body": "left_fore_lower_link",
+   "category": "frame and feet",
+   "mass_kg": 0.00691,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.1399,
+    0.124,
+    0.1754
+   ]
+  },
+  {
+   "geom": "left_fore_lower_strut",
+   "body": "left_fore_lower_link",
+   "category": "frame and feet",
+   "mass_kg": 0.07612,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.1999,
+    0.14,
+    0.1057
+   ]
+  },
+  {
+   "geom": "left_fore_output_crank",
+   "body": "left_fore_lower_link",
+   "category": "leg transmissions",
+   "mass_kg": 0.02998,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.1399,
+    0.0983,
+    0.1754
+   ]
+  },
+  {
+   "geom": "left_fore_lower_limb_cover",
+   "body": "left_fore_lower_link",
+   "category": "shells",
+   "mass_kg": 0.03095,
+   "basis": "MJF limb cover, T20's scaled by area (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.1999,
+    0.14,
+    0.1057
+   ]
+  },
+  {
+   "geom": "left_fore_ankle_hub",
+   "body": "left_fore_foot",
+   "category": "frame and feet",
+   "mass_kg": 0.02075,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.26,
+    0.14,
+    0.0256
+   ]
+  },
+  {
+   "geom": "left_fore_sole",
+   "body": "left_fore_foot",
+   "category": "frame and feet",
+   "mass_kg": 0.06919,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.26,
+    0.14,
+    0.024
+   ]
+  },
+  {
+   "geom": "right_fore_shoulder_yoke",
+   "body": "right_fore_roll_yoke",
+   "category": "frame and feet",
+   "mass_kg": 0.02422,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.26,
+    -0.108,
+    0.32
+   ]
+  },
+  {
+   "geom": "right_fore_x4_pitch_stator",
+   "body": "right_fore_roll_yoke",
+   "category": "drives",
+   "mass_kg": 0.36,
+   "basis": "MyActuator RMD-X4-P36-36-E-L, catalog",
+   "world_pos_m": [
+    0.26,
+    -0.14,
+    0.32
+   ]
+  },
+  {
+   "geom": "right_fore_upper_strut",
+   "body": "right_fore_upper_link",
+   "category": "frame and feet",
+   "mass_kg": 0.08649,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.1999,
+    -0.14,
+    0.2477
+   ]
+  },
+  {
+   "geom": "right_fore_x6_flexion_stator",
+   "body": "right_fore_upper_link",
+   "category": "drives",
+   "mass_kg": 0.82,
+   "basis": "MyActuator X6-60, catalog 0.82 kg (the store's X6 listing shows 0.78 kg, the X6-50-L; F9)",
+   "world_pos_m": [
+    0.2025,
+    -0.14,
+    0.2508
+   ]
+  },
+  {
+   "geom": "right_fore_drive_crank",
+   "body": "right_fore_upper_link",
+   "category": "leg transmissions",
+   "mass_kg": 0.03989,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.2025,
+    -0.0983,
+    0.2508
+   ]
+  },
+  {
+   "geom": "right_fore_pushrod",
+   "body": "right_fore_upper_link",
+   "category": "leg transmissions",
+   "mass_kg": 0.02998,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.1927,
+    -0.0983,
+    0.1952
+   ]
+  },
+  {
+   "geom": "right_fore_upper_limb_cover",
+   "body": "right_fore_upper_link",
+   "category": "shells",
+   "mass_kg": 0.04642,
+   "basis": "MJF limb cover, T20's scaled by area (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.1999,
+    -0.14,
+    0.2477
+   ]
+  },
+  {
+   "geom": "right_fore_elbow_axle",
+   "body": "right_fore_lower_link",
+   "category": "frame and feet",
+   "mass_kg": 0.00691,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.1399,
+    -0.124,
+    0.1754
+   ]
+  },
+  {
+   "geom": "right_fore_lower_strut",
+   "body": "right_fore_lower_link",
+   "category": "frame and feet",
+   "mass_kg": 0.07612,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.1999,
+    -0.14,
+    0.1057
+   ]
+  },
+  {
+   "geom": "right_fore_output_crank",
+   "body": "right_fore_lower_link",
+   "category": "leg transmissions",
+   "mass_kg": 0.02998,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.1399,
+    -0.0983,
+    0.1754
+   ]
+  },
+  {
+   "geom": "right_fore_lower_limb_cover",
+   "body": "right_fore_lower_link",
+   "category": "shells",
+   "mass_kg": 0.03095,
+   "basis": "MJF limb cover, T20's scaled by area (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.1999,
+    -0.14,
+    0.1057
+   ]
+  },
+  {
+   "geom": "right_fore_ankle_hub",
+   "body": "right_fore_foot",
+   "category": "frame and feet",
+   "mass_kg": 0.02075,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.26,
+    -0.14,
+    0.0256
+   ]
+  },
+  {
+   "geom": "right_fore_sole",
+   "body": "right_fore_foot",
+   "category": "frame and feet",
+   "mass_kg": 0.06919,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    0.26,
+    -0.14,
+    0.024
+   ]
+  },
+  {
+   "geom": "left_hind_shoulder_yoke",
+   "body": "left_hind_roll_yoke",
+   "category": "frame and feet",
+   "mass_kg": 0.02422,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.26,
+    0.108,
+    0.32
+   ]
+  },
+  {
+   "geom": "left_hind_x4_pitch_stator",
+   "body": "left_hind_roll_yoke",
+   "category": "drives",
+   "mass_kg": 0.36,
+   "basis": "MyActuator RMD-X4-P36-36-E-L, catalog",
+   "world_pos_m": [
+    -0.26,
+    0.14,
+    0.32
+   ]
+  },
+  {
+   "geom": "left_hind_upper_strut",
+   "body": "left_hind_upper_link",
+   "category": "frame and feet",
+   "mass_kg": 0.08649,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.1999,
+    0.14,
+    0.2477
+   ]
+  },
+  {
+   "geom": "left_hind_x4_flexion_stator",
+   "body": "left_hind_upper_link",
+   "category": "drives",
+   "mass_kg": 0.36,
+   "basis": "MyActuator X4-36-L, catalog 0.36 kg",
+   "world_pos_m": [
+    -0.2025,
+    0.14,
+    0.2508
+   ]
+  },
+  {
+   "geom": "left_hind_drive_crank",
+   "body": "left_hind_upper_link",
+   "category": "leg transmissions",
+   "mass_kg": 0.03989,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.2025,
+    0.0983,
+    0.2508
+   ]
+  },
+  {
+   "geom": "left_hind_pushrod",
+   "body": "left_hind_upper_link",
+   "category": "leg transmissions",
+   "mass_kg": 0.02998,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.1496,
+    0.0983,
+    0.231
+   ]
+  },
+  {
+   "geom": "left_hind_upper_limb_cover",
+   "body": "left_hind_upper_link",
+   "category": "shells",
+   "mass_kg": 0.04642,
+   "basis": "MJF limb cover, T20's scaled by area (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.1999,
+    0.14,
+    0.2477
+   ]
+  },
+  {
+   "geom": "left_hind_elbow_axle",
+   "body": "left_hind_lower_link",
+   "category": "frame and feet",
+   "mass_kg": 0.00691,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.1399,
+    0.124,
+    0.1754
+   ]
+  },
+  {
+   "geom": "left_hind_lower_strut",
+   "body": "left_hind_lower_link",
+   "category": "frame and feet",
+   "mass_kg": 0.07612,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.1999,
+    0.14,
+    0.1057
+   ]
+  },
+  {
+   "geom": "left_hind_output_crank",
+   "body": "left_hind_lower_link",
+   "category": "leg transmissions",
+   "mass_kg": 0.02998,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.1399,
+    0.0983,
+    0.1754
+   ]
+  },
+  {
+   "geom": "left_hind_lower_limb_cover",
+   "body": "left_hind_lower_link",
+   "category": "shells",
+   "mass_kg": 0.03095,
+   "basis": "MJF limb cover, T20's scaled by area (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.1999,
+    0.14,
+    0.1057
+   ]
+  },
+  {
+   "geom": "left_hind_ankle_hub",
+   "body": "left_hind_foot",
+   "category": "frame and feet",
+   "mass_kg": 0.02075,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.26,
+    0.14,
+    0.0256
+   ]
+  },
+  {
+   "geom": "left_hind_sole",
+   "body": "left_hind_foot",
+   "category": "frame and feet",
+   "mass_kg": 0.06919,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.26,
+    0.14,
+    0.024
+   ]
+  },
+  {
+   "geom": "right_hind_shoulder_yoke",
+   "body": "right_hind_roll_yoke",
+   "category": "frame and feet",
+   "mass_kg": 0.02422,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.26,
+    -0.108,
+    0.32
+   ]
+  },
+  {
+   "geom": "right_hind_x4_pitch_stator",
+   "body": "right_hind_roll_yoke",
+   "category": "drives",
+   "mass_kg": 0.36,
+   "basis": "MyActuator RMD-X4-P36-36-E-L, catalog",
+   "world_pos_m": [
+    -0.26,
+    -0.14,
+    0.32
+   ]
+  },
+  {
+   "geom": "right_hind_upper_strut",
+   "body": "right_hind_upper_link",
+   "category": "frame and feet",
+   "mass_kg": 0.08649,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.1999,
+    -0.14,
+    0.2477
+   ]
+  },
+  {
+   "geom": "right_hind_x4_flexion_stator",
+   "body": "right_hind_upper_link",
+   "category": "drives",
+   "mass_kg": 0.36,
+   "basis": "MyActuator X4-36-L, catalog 0.36 kg",
+   "world_pos_m": [
+    -0.2025,
+    -0.14,
+    0.2508
+   ]
+  },
+  {
+   "geom": "right_hind_drive_crank",
+   "body": "right_hind_upper_link",
+   "category": "leg transmissions",
+   "mass_kg": 0.03989,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.2025,
+    -0.0983,
+    0.2508
+   ]
+  },
+  {
+   "geom": "right_hind_pushrod",
+   "body": "right_hind_upper_link",
+   "category": "leg transmissions",
+   "mass_kg": 0.02998,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.1496,
+    -0.0983,
+    0.231
+   ]
+  },
+  {
+   "geom": "right_hind_upper_limb_cover",
+   "body": "right_hind_upper_link",
+   "category": "shells",
+   "mass_kg": 0.04642,
+   "basis": "MJF limb cover, T20's scaled by area (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.1999,
+    -0.14,
+    0.2477
+   ]
+  },
+  {
+   "geom": "right_hind_elbow_axle",
+   "body": "right_hind_lower_link",
+   "category": "frame and feet",
+   "mass_kg": 0.00691,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.1399,
+    -0.124,
+    0.1754
+   ]
+  },
+  {
+   "geom": "right_hind_lower_strut",
+   "body": "right_hind_lower_link",
+   "category": "frame and feet",
+   "mass_kg": 0.07612,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.1999,
+    -0.14,
+    0.1057
+   ]
+  },
+  {
+   "geom": "right_hind_output_crank",
+   "body": "right_hind_lower_link",
+   "category": "leg transmissions",
+   "mass_kg": 0.02998,
+   "basis": "1:1 parallelogram pushrod, 0.0825 kg per leg: T15's 75 cm four-bar, not scaled (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.1399,
+    -0.0983,
+    0.1754
+   ]
+  },
+  {
+   "geom": "right_hind_lower_limb_cover",
+   "body": "right_hind_lower_link",
+   "category": "shells",
+   "mass_kg": 0.03095,
+   "basis": "MJF limb cover, T20's scaled by area (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.1999,
+    -0.14,
+    0.1057
+   ]
+  },
+  {
+   "geom": "right_hind_ankle_hub",
+   "body": "right_hind_foot",
+   "category": "frame and feet",
+   "mass_kg": 0.02075,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.26,
+    -0.14,
+    0.0256
+   ]
+  },
+  {
+   "geom": "right_hind_sole",
+   "body": "right_hind_foot",
+   "category": "frame and feet",
+   "mass_kg": 0.06919,
+   "basis": "PR #669 part x 0.8^2.5 (EST); x 1.2088 reserve growth (closed variant)",
+   "world_pos_m": [
+    -0.26,
+    -0.14,
+    0.024
+   ]
+  }
+ ],
+ "foot": "capsule sole, build_feet60 capsule_r24 (D19; sim/REPORT_FEET60.md)"
+}

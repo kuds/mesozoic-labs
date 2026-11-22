@@ -36,7 +36,7 @@ From the repository root (the scripts put `rl/` and the repository root on `sys.
     venv/bin/python -m pytest hardware/triceratops_build/rl/tests          # about 2.5 minutes, by hand
 
 `--total-steps` is the run's total, not an increment. `--model` takes `trike60_C_closed` (default),
-`trike60_C_closed_ankleroll` or a path. `--env-config FILE.json` overrides any `TrikeEnvConfig` field.
+`trike60_C_closed_ankleroll`, `trike60_C_closed_capsule` (the capsule sole, D19) or a path. `--env-config FILE.json` overrides any `TrikeEnvConfig` field.
 
 **Run folder rules (train.py).** Without `--resume`, a folder that already holds checkpoints is refused. With
 `--resume`: no checkpoint starts the run at step 0 (unless the record forbids it, below); an intact pair continues it;
@@ -252,6 +252,12 @@ train.py as `--env-config`.
   free (w_lateral already prices that). On run2b's policy it would cost 0.004 per step on the nominal floor and 0.09
   at friction 0.2 (4 episodes each at 0.25 m/s, measured with this env), against a tracking reward of 1.2-1.45 per
   step there; at w 40 the slippery case would have cost only 0.04, too little to matter.
+- **The capsule foot and the slip cost** (D19, 22 Nov 2026; `slip_at_contact`): run 3 trains on the capsule-sole
+  model `trike60_C_closed_capsule` (the foot study's `capsule_r24`, byte for byte; `sim/REPORT_FEET60.md`). The slip
+  cost takes each loaded sole's speed at the mean point of its contacts instead of at the sole's origin, so a sole
+  that rolls without sliding is not charged for rolling. In the frozen model-based trot (two episodes per foot) the
+  cost at the capsule's origin is 3.6x the cost at its contacts, against 1.1-1.2x for the box soles: at the origin,
+  about 70 % of the capsule's slip cost would be rolling. Default off, so earlier runs load and train as before.
 - **Evaluations stay on the flat floor:** train.py's evaluations during training, evaluate.py, the gait report and
   the robustness sweep turn terrain, pushes and the low-friction end off (`flat_floor`), so run 3's numbers compare
   with run2b's directly; the sweep adds its own steps, ramps and pushes.

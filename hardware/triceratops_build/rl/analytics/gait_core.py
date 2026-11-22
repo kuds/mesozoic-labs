@@ -239,6 +239,29 @@ def sole_bottom_corners(xpos, xmat, size) -> np.ndarray:
     return xpos[..., None, :] + np.einsum("...ij,kj->...ki", R, local)
 
 
+def sole_bottom_points(xpos, xmat, size, kind: str = "box") -> np.ndarray:
+    """World positions of the points a sole stands on, by the sole's shape; the lowest of them is its lowest point.
+
+    - ``"box"``: the four bottom-face corners (``sole_bottom_corners``; ``size`` the half sizes).
+    - ``"capsule"``: the lowest points of its two end spheres, the ends of its straight contact line (``size`` =
+      radius, half-length along the geom's local z axis; the foot study's capsule sole, D19).
+    - ``"sphere"``: its lowest point (``size[0]`` = radius).
+
+    ``xpos`` (..., 3) geom centres, ``xmat`` (..., 9) geom rotation matrices (row-major). Returns (..., k, 3) with
+    k = 4, 2, 1."""
+    if kind == "box":
+        return sole_bottom_corners(xpos, xmat, size)
+    xpos = np.asarray(xpos, dtype=np.float64)
+    down = np.array([0.0, 0.0, float(size[0])])
+    if kind == "sphere":
+        return (xpos - down)[..., None, :]
+    if kind == "capsule":
+        R = np.asarray(xmat, dtype=np.float64).reshape(xpos.shape[:-1] + (3, 3))
+        half = R[..., :, 2] * float(size[1])  # the local z axis in the world, times the half-length
+        return np.stack([xpos + half - down, xpos - half - down], axis=-2)
+    raise ValueError(f"unknown sole shape {kind!r}")
+
+
 def support_margin(points_xy, p_xy) -> float:
     """Signed distance of ``p_xy`` inside the convex hull of ``points_xy`` (shared ``signed_margin``; NaN when the
     points span no area)."""
