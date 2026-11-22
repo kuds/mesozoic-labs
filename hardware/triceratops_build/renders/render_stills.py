@@ -121,7 +121,7 @@ def main():
     if abs(100 * top - a.size) > 2.0:
         raise SystemExit(f"--size {a.size} cm, but the model's frill top stands at {100 * top:.1f} cm; nothing written")
     kg = f"{mass:.0f}" if abs(mass - round(mass)) < 0.05 else f"{mass:.1f}"
-    feet = " with passive roll ankles (a design variant)" if "ankleroll" in a.robot else ""
+    feet = " with passive roll ankles (a design variant)" if "ankleroll" in Path(a.robot).name else ""
     note = (f"Simulation: MuJoCo model of the proposed {a.size} cm Triceratops robot, {kg} kg design{feet}, standing. "
             "Not hardware; nothing is built yet.")
     if "capsule" in Path(a.robot).name:  # the foot chosen on 22 Nov 2026 (D19); worded to fit the caption band

@@ -32,6 +32,9 @@ on the picture itself, with a badge top left and another bottom right. The floor
   - The body and legs are shown as frame, drives and ribs; the head, frill and tail as shells.
   - The capsule is drawn as a full rigid capsule. A real foot would be a moulded rubber rocker under the ankle
     (`../sim/REPORT_FEET60.md`).
+- **Shadow:** the clip and the trot frame are rendered with the shadow range widened (`--shadow-clip 6`). The
+  model's light casts shadows only within about 0.9 m of the start, so the earlier clip lost the robot's ground
+  shadow after about 6 s, and the robot looked as if it hovered. Rendering only; the physics is unchanged.
 
 **Clip, on the data branch (D11):** `walk60_capsule_trot_0.25_1x.mp4`, 20 s shown at actual speed, 1280 × 720,
 H.264, 5.8 MB (data-branch commit a7efa5ce).
@@ -52,7 +55,8 @@ H.264, 5.8 MB (data-branch commit a7efa5ce).
   - sideways drift 0.07 m and heading change 2.1° over 18 s;
   - slip ratio at the contacts 0.04-0.06;
   - **two weak points, visible here too:**
-    - the right fore pitch drive is at its torque limit in 2.0 % of steps (the flag is 1 %);
+    - the right fore pitch drive is at its torque limit in 2.0 % of steps (1.8-2.1 % over seeds 101-110; the flag
+      is 1 %);
     - the front feet touch down 4.2 times per second against 1.4 strides per second. Each front foot rocks and
       touches down about three times per stride, so repeated touches after landing may be seen. That is more than
       on the roll-ankle variant (F17).
@@ -64,8 +68,8 @@ H.264, 5.8 MB (data-branch commit a7efa5ce).
     ramps; the robustness sweep has not been run on the capsule feet.
   - Holding a line across a museum floor needs an outside reference on the robot (vision or floor markers). In
     simulation its heading drifts with the simulated gyro.
-  - The learned walking policy (run 3) is training on this foot; the clip shows the model-based trot, not that
-    policy.
+  - The learned walking policy (run 3) trains on this foot: the owner reported starting it on 22 Nov 2026. The clip
+    shows the model-based trot, not that policy.
 
 **Reproduce** (mujoco 3.10.0, numpy 2.5.5, gymnasium 1.4.0, Pillow 13.0.0, imageio 2.38.2, ffmpeg 6.1.1;
 byte-for-byte output needs the same Pillow and ffmpeg):
@@ -75,10 +79,11 @@ MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa python render_stills.py \
   --robot ../sim/generated/trike60_C_closed_capsule.xml --size 60 --scale 0.8 --no-reflection --second-badge \
   --out stills_60cm_capsule_2026-11-22
 MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa python render_walk_clip.py \
-  --model ../sim/generated/trike60_C_closed_capsule.xml --out stills_60cm_capsule_2026-11-22/robot_trot_frame.jpg \
-  --still-at 8.0
+  --model ../sim/generated/trike60_C_closed_capsule.xml --shadow-clip 6 \
+  --out stills_60cm_capsule_2026-11-22/robot_trot_frame.jpg --still-at 8.0
 IMAGEIO_FFMPEG_EXE=/usr/bin/ffmpeg MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa python render_walk_clip.py \
-  --model ../sim/generated/trike60_C_closed_capsule.xml --out walk60_capsule_trot_0.25_1x.mp4 --seconds 20
+  --model ../sim/generated/trike60_C_closed_capsule.xml --shadow-clip 6 --out walk60_capsule_trot_0.25_1x.mp4 \
+  --seconds 20
 ```
 
 ## At 60 cm, earlier feet (22 Nov 2026; superseded by the capsule set above: do not show)
@@ -131,8 +136,8 @@ top left and another bottom right, so a crop around the robot keeps one. The flo
   museum conversation will reach:
   - It has only walked straight ahead, on a flat floor: no turns yet. Its weak side is ramps
     (`../walk/REPORT_WALK60.md`, robustness sweep).
-  - It has only been run on the design variant with passive roll ankles, which is not adopted: the foot is still
-    an open decision (D5). It has never walked on the as-designed foot shown in the standing stills.
+  - It has only been run on the design variant with passive roll ankles, which is not adopted: the foot was then
+    an open decision (D5; since decided: the capsule, D19). It has never walked on the as-designed foot shown in the standing stills.
   - Holding a line across a museum floor needs an outside reference on the robot (vision or floor markers). In
     simulation its heading drifts with the simulated gyro.
 

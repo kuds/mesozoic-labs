@@ -80,7 +80,8 @@ python hardware/triceratops_build/pr669_review/stance_balance_check.py \
    them.*
 4. **Task 5, the walk:** a model-based controller first (D10), judged at 10 ms of delay (D9), at the new speed target;
    check every result under a stiffer contact setting too.
-5. **The foot:** a sole that stays flat in roll (F7); try a roll hinge that centres the sole to the ground.
+5. **The foot:** a sole that stays flat in roll (F7). *Decided 22 Nov 2026: the capsule sole (D19, after the foot
+   study `sim/REPORT_FEET60.md`, F17); run 3 trains on it.*
 6. **Bench plan:** revise for the 60 cm foreleg (X4 roll and pitch, X6 elbow at 1:1).
 
 **For the owner**
@@ -92,5 +93,5 @@ python hardware/triceratops_build/pr669_review/stance_balance_check.py \
   stop) and ask what the museum's risk assessment and insurer require, in particular whether a certified handheld
   stop is required (D15).
 - **PR #669:** paste the errata into its README and merge with a merge commit.
-- **Still open:** compute (D3; the budget assumes the Jetson Orin Nano Super), chassis and foot (D5), and round 2 (D6
+- **Still open:** compute (D3; the budget assumes the Jetson Orin Nano Super), the chassis (D5; its foot is decided, D19), and round 2 (D6
   the T. rex milestone, D7 a PLEM pilot, D8 the pull-request triage) by 15 Jan 2027.

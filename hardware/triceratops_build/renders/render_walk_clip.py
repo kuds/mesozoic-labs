@@ -1,11 +1,13 @@
 """Museum-contact clip (task 9) at 60 cm: the model-based trot in simulation, labelled on every frame.
 
 Runs the frozen model-based trot (../walk/walk60.py, the controller judged in ../walk/REPORT_WALK60.md) on its
-plant, the training env's roll-ankle model by default, or the model ``--model`` names (the capsule foot chosen on
-22 Nov 2026: ../sim/generated/trike60_C_closed_capsule.xml): 10 ms servo delay and sensor noise on, no
-randomisation, the 0.25 m/s museum command. It renders frames at 30 per second of simulated time (so the clip plays in real time unless
---speed says otherwise) with a "SIMULATION" badge and a caption, and writes an H.264 MP4. Rendering only reads the
-simulation; the episode is the same as without it.
+plant: the training env's roll-ankle model by default, or the model ``--model`` names (the capsule foot chosen on
+22 Nov 2026 is ../sim/generated/trike60_C_closed_capsule.xml). 10 ms servo delay and sensor noise on, no
+randomisation, the 0.25 m/s museum command. ``--shadow-clip 6`` keeps the ground shadow over the whole 20 s walk:
+the model's directional light casts shadows only within its shadowclip x extent of the origin (about 0.9 m).
+It renders frames at 30 per second of simulated time (so the clip plays in real time unless --speed says otherwise)
+with a "SIMULATION" badge and a caption, and writes an H.264 MP4. Rendering only reads the simulation; the episode
+is the same as without it.
 
 Usage:
   IMAGEIO_FFMPEG_EXE=/usr/bin/ffmpeg MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa python render_walk_clip.py \
@@ -31,6 +33,17 @@ FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 FONT_B = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 W, H, BAND, FPS = 1280, 720, 96, 30
 MAX_STILL_BYTES = 500 * 1024
+
+
+def foot_label(model_name: str) -> str:
+    """The caption's words for the robot's feet, from the model file's name."""
+    if "ankleroll" in model_name or "roll_k" in model_name:
+        return "design variant with passive roll ankles"
+    if "capsule" in model_name:
+        return "capsule feet (the foot chosen on 22 Nov 2026)"
+    if "ball" in model_name:
+        return "ball feet (a foot-study variant, not chosen)"
+    return "as designed"
 
 
 def overlay(frame, title, lines):
@@ -67,6 +80,8 @@ def main():
     ap.add_argument("--elevation", type=float, default=-12.0)
     ap.add_argument("--distance", type=float, default=1.5)
     ap.add_argument("--model", default=None, help="the robot model (default: the plant's roll-ankle model)")
+    ap.add_argument("--shadow-clip", type=float, default=None,
+                    help="the model's vis.map.shadowclip for the render (default: the model's own, 1)")
     a = ap.parse_args()
 
     plant = dict(domain_randomization=False, observation_noise=True)
@@ -74,11 +89,12 @@ def main():
         plant["model_path"] = str(Path(a.model).resolve())
     env = walk60.TrikeEnv(walk60.plant_config(**plant))
     model_name = Path(env.cfg.model_path).name
-    feet = ("design variant with passive roll ankles" if "ankleroll" in model_name
-            else "capsule feet (the foot chosen on 22 Nov 2026)" if "capsule" in model_name else "as designed")
+    feet = foot_label(model_name)
     ctrl = walk60.TrotController(env, walk60.WalkParams())
     m, d = env.model, env.data
     m.vis.global_.offwidth, m.vis.global_.offheight = W, H
+    if a.shadow_clip is not None:  # rendering only: the physics does not read it
+        m.vis.map.shadowclip = a.shadow_clip
     r = mujoco.Renderer(m, H - BAND, W)
     cam = mujoco.MjvCamera()
     cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
