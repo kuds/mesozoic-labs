@@ -2664,6 +2664,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Colab setup is lighter and installs from one set of pins.** The notebooks' setup cells
+  check out `REPO_REF` blobless and sparse (only `environments`, `configs`, `notebooks`
+  and `results`, plus the root files): a fresh runtime downloads about 38 MB instead of
+  about 170 MiB, and a checkout that fails part-way while switching `REPO_REF` is rolled
+  back so a rerun is not refused. The SB3 notebook then runs the checked-out
+  `notebooks/colab_install.py`, which removes legacy gym packages, installs the project
+  with its `train` and `viz` extras in one resolver pass (uv, else pip) and checks the
+  installed versions, keeping Colab's own torch. The new root `constraints.txt` pins
+  MuJoCo 3.10.0, Stable-Baselines3 2.9.0 and Gymnasium 1.3.0 for Colab and every CI
+  install (`pip install -e ".[train]" -c constraints.txt` reproduces them locally); it
+  replaces `notebooks/requirements-colab.txt`. The `train` extra now requires
+  `stable-baselines3` with TensorBoard, tqdm, rich and matplotlib instead of
+  `stable-baselines3[extra]`, which also pulled in OpenCV, pygame, ALE, psutil and pandas; the
+  `test` extra gains pandas and jinja2, so CI's shared legs run the Drive summary reader
+  test. A new `colab-install` CI job runs the installer on a runtime set up like Colab's.
+
 - Reconstructed the anatomical *Brachiosaurus altithorax* with raised shoulders, a deeper trunk,
   tapered neck and tail, distinct manus and pes, and corrected elbow and hind-knee mechanics.
   The species guide records the fossil evidence and measured standing, walking and browsing

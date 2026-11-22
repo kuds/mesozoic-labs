@@ -4,9 +4,12 @@ Wherever ruff and mypy are pinned, they name the same versions: the CI lint
 job (both tools), the SB3 job's mypy step (mypy), .pre-commit-config.yaml and
 pyproject.toml's ``dev`` extra (both). Otherwise pre-commit formats what CI
 rejects (it did, with ruff 0.4.4 against CI's unpinned ruff), or a tool
-release turns an unrelated pull request red. The SB3 job's stable-baselines3
-pin is the SB3 notebook's, so its mypy step checks the SB3 the notebook trains
-with. Every file read here is in both of the workflow's path filters, so a PR
+release turns an unrelated pull request red. The versions CI and Colab must
+share are pinned once, in constraints.txt (mujoco as the plant contract and
+pyproject.toml pin it, stable-baselines3 as the release MirrorKLPPO was copied
+from, gymnasium as Colab trains with; never torch or numpy, which Colab
+supplies): every CI install of the project and the SB3 notebook's installer,
+notebooks/colab_install.py, take it. Every file read here is in both of the workflow's path filters, so a PR
 that edits only one of them still runs these checks. Pre-commit's hooks never
 touch the digest data files (the MJCF plant sources and meshes the plant
 manifest records, the recipe TOMLs, the plant manifests, plant_versions.toml,
@@ -37,14 +40,19 @@ import re
 import tomllib
 from pathlib import Path
 
-from .ci_workflow_helpers import CI_WORKFLOW, ci_text, glob_matches, job_block, job_steps, path_filters
+from packaging.requirements import Requirement
+
+from .ci_workflow_helpers import CI_WORKFLOW, ci_code, ci_text, glob_matches, job_block, job_steps, path_filters
 from .notebook_cells import code_cell_sources
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 PRE_COMMIT_CONFIG = REPOSITORY_ROOT / ".pre-commit-config.yaml"
 PYPROJECT = REPOSITORY_ROOT / "pyproject.toml"
 SB3_NOTEBOOK = REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb"
-COLAB_REQUIREMENTS = REPOSITORY_ROOT / "notebooks" / "requirements-colab.txt"
+CONSTRAINTS = REPOSITORY_ROOT / "constraints.txt"
+COLAB_INSTALL = REPOSITORY_ROOT / "notebooks" / "colab_install.py"
+PLANT_VERSIONS = REPOSITORY_ROOT / "configs" / "plant_versions.toml"
+MIRROR_KL_PPO = REPOSITORY_ROOT / "environments" / "shared" / "mirror_kl_ppo.py"
 COMPSOGNATHUS_LONGIPES_TRAINING = (
     REPOSITORY_ROOT / "environments" / "shared" / "tests" / "test_compsognathus_longipes_training.py"
 )
@@ -53,7 +61,6 @@ _HOOK_REPOS = {
     "ruff": "https://github.com/astral-sh/ruff-pre-commit",
     "mypy": "https://github.com/pre-commit/mirrors-mypy",
 }
-_SB3_PIN = re.compile(r"stable-baselines3\[extra\]==([0-9][0-9.]*)")
 PLANT_MANIFEST = REPOSITORY_ROOT / "configs" / "plant_manifest.generated.json"
 #: Digest data files besides the plant sources (which come from the committed
 #: plant manifest): recipe_sha256's TOMLs, the manifests, plant_versions.toml
@@ -108,15 +115,20 @@ def test_pre_commit_hooks_run_the_ci_versions() -> None:
 
 
 def test_pre_commit_ruff_hooks_cover_only_what_ci_checks() -> None:
-    # CI runs `ruff check environments/` and `ruff format --check environments/`.
+    # CI runs `ruff check` and `ruff format --check` on environments/ and the Colab
+    # installer notebooks/colab_install.py.
     # The pinned ruff also formats notebooks and Markdown code blocks, so an
     # unscoped hook would rewrite files CI never looks at.
-    assert "ruff check environments/" in ci_text()
-    assert "ruff format --check environments/" in ci_text()
+    assert "ruff check environments/ notebooks/colab_install.py" in ci_text()
+    assert "ruff format --check environments/ notebooks/colab_install.py" in ci_text()
     block = _pre_commit_block("ruff")
     hooks = re.findall(r"^\s*- id:\s*(\S+)", block, flags=re.MULTILINE)
-    scoped = re.findall(r"^\s*files:\s*\^environments/\s*$", block, flags=re.MULTILINE)
-    assert hooks and len(scoped) == len(hooks), f"each ruff hook ({hooks}) needs `files: ^environments/`"
+    scoped = re.findall(
+        r"^\s*files:\s*\^\(environments/\|notebooks/colab_install\\\.py\$\)\s*$", block, flags=re.MULTILINE
+    )
+    assert hooks and len(scoped) == len(hooks), (
+        rf"each ruff hook ({hooks}) needs `files: ^(environments/|notebooks/colab_install\.py$)`"
+    )
 
 
 def test_dev_extra_pins_the_ci_versions() -> None:
@@ -127,18 +139,74 @@ def test_dev_extra_pins_the_ci_versions() -> None:
         assert f"{tool}=={ci_version}" in dev, f"pyproject.toml's dev extra must pin {tool}=={ci_version}: {dev}"
 
 
-def test_sb3_job_pins_the_notebooks_stable_baselines3() -> None:
-    code = "".join(code_cell_sources(SB3_NOTEBOOK))
-    assert "requirements-colab.txt" in code, "the SB3 notebook must load notebooks/requirements-colab.txt"
-    req_pins = set(_SB3_PIN.findall(COLAB_REQUIREMENTS.read_text(encoding="utf-8")))
-    notebook_pins = set(_SB3_PIN.findall(code))
-    ci_pins = set(_SB3_PIN.findall(ci_text()))
-    assert len(req_pins) == 1, f"{COLAB_REQUIREMENTS.name} pins stable-baselines3 as {req_pins}"
-    assert len(notebook_pins) == 1, f"the SB3 notebook fallback pins stable-baselines3 as {notebook_pins}"
-    assert ci_pins == req_pins == notebook_pins, (
-        f"python-ci.yml pins stable-baselines3 {ci_pins}, {COLAB_REQUIREMENTS.name} {req_pins}, "
-        f"the notebook fallback {notebook_pins}"
+def _constraints() -> dict[str, str]:
+    """constraints.txt as ``{name: pinned version}``: every line is one exact pin, with no marker or extra."""
+    pins: dict[str, str] = {}
+    for line in CONSTRAINTS.read_text(encoding="utf-8").splitlines():
+        line = re.sub(r"(^|\s)#.*$", "", line).strip()
+        if not line:
+            continue
+        requirement = Requirement(line)
+        (specifier,) = requirement.specifier
+        assert specifier.operator == "==" and not requirement.extras and requirement.marker is None, line
+        assert requirement.name not in pins, f"constraints.txt pins {requirement.name} twice"
+        pins[requirement.name] = specifier.version
+    return pins
+
+
+def test_constraints_pin_what_ci_and_colab_share_and_agree_with_the_code() -> None:
+    pins = _constraints()
+    assert set(pins) == {"mujoco", "stable-baselines3", "gymnasium"}, pins
+    # Colab supplies its own CUDA torch and the numpy built for it; a pin would make Colab replace them.
+    assert not {"torch", "numpy"} & set(pins)
+    with PYPROJECT.open("rb") as handle:
+        project = tomllib.load(handle)["project"]
+    with PLANT_VERSIONS.open("rb") as handle:
+        canonical_mujoco = tomllib.load(handle)["canonical_mujoco_version"]
+    assert f"mujoco=={pins['mujoco']}" in project["dependencies"], project["dependencies"]
+    assert pins["mujoco"] == canonical_mujoco, (
+        f"constraints.txt pins mujoco {pins['mujoco']}, the plant contract {canonical_mujoco}"
     )
+    (sb3_version,) = [
+        str(node.value.value)
+        for node in ast.parse(MIRROR_KL_PPO.read_text(encoding="utf-8")).body
+        if isinstance(node, ast.Assign)
+        and [ast.unparse(target) for target in node.targets] == ["SB3_VERSION"]
+        and isinstance(node.value, ast.Constant)
+    ]
+    assert pins["stable-baselines3"] == sb3_version, (
+        f"constraints.txt pins stable-baselines3 {pins['stable-baselines3']}; MirrorKLPPO was copied from {sb3_version}"
+    )
+    # Each pin is inside the range pyproject.toml declares for the package, so a constrained install resolves.
+    declared = [Requirement(text) for text in project["dependencies"]]
+    declared += [Requirement(text) for extra in project["optional-dependencies"].values() for text in extra]
+    for name, version in pins.items():
+        ranges = [requirement.specifier for requirement in declared if requirement.name == name]
+        assert ranges, f"pyproject.toml does not declare {name}, which constraints.txt pins"
+        assert all(specifier.contains(version) for specifier in ranges), (name, version, ranges)
+
+
+def test_every_ci_install_of_the_project_takes_the_constraints() -> None:
+    installs = [line.strip() for line in ci_code().splitlines() if "pip install" in line and re.search(r"\s-e\s", line)]
+    # plant-contract, plant-identity (windows), the test matrix and test-sb3.
+    assert len(installs) >= 4, installs
+    for line in installs:
+        assert line.endswith(" -c constraints.txt"), (
+            f"python-ci.yml installs the project without the constraints: {line}"
+        )
+    pip_lines = [line for line in ci_code().splitlines() if "pip install" in line]
+    assert not any("stable-baselines3" in line for line in pip_lines), "constraints.txt pins stable-baselines3 for CI"
+
+
+def test_the_sb3_notebook_and_ci_run_the_colab_installer() -> None:
+    code = "".join(code_cell_sources(SB3_NOTEBOOK))
+    assert 'install_script = repo_dir / "notebooks" / "colab_install.py"' in code
+    assert "subprocess.run([sys.executable, str(install_script)], check=True)" in code
+    job = job_block("colab-install")
+    assert "\n    needs: lint\n" in job, job
+    assert "\n        run: python notebooks/colab_install.py\n" in job, job
+    assert '"gym==0.25.2"' in job and '"torch==2.13.0"' in job, job
+    assert "current_plant_identity(model_id).model_id == model_id" in job, job
 
 
 def test_every_file_these_checks_read_triggers_the_workflow() -> None:
@@ -149,7 +217,10 @@ def test_every_file_these_checks_read_triggers_the_workflow() -> None:
         PRE_COMMIT_CONFIG,
         PYPROJECT,
         SB3_NOTEBOOK,
-        COLAB_REQUIREMENTS,
+        CONSTRAINTS,
+        COLAB_INSTALL,
+        PLANT_VERSIONS,
+        MIRROR_KL_PPO,
         COMPSOGNATHUS_LONGIPES_TRAINING,
     ):
         relative = path.relative_to(REPOSITORY_ROOT).as_posix()

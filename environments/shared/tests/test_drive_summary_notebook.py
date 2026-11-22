@@ -19,8 +19,8 @@ Section 9's cell (24) saves the table to ``runs_summary.csv`` with the repositor
 cell with runs and a ledger, with each alone, with neither, and with no logs directory.
 
 Cell 5 pip-installs pandas when it cannot import it, so the reader and export tests skip without
-pandas: the SB3 job, which lists this module, has it through ``stable-baselines3[extra]``, and the
-shared matrix installs only the ``test`` extra. The setup and install cell tests need neither.
+pandas; the ``test`` extra declares it (and jinja2, which the styled table's ``DataFrame.style``
+needs), so every shared leg of CI runs them. The setup and install cell tests need no pandas.
 """
 
 from __future__ import annotations
