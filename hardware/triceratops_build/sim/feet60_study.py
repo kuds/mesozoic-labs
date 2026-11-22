@@ -4,9 +4,10 @@ seeds and are not judged).
 
 - Stand: check_stand.run (the 60 cm standing check's code path, model swapped) and check_stand60.judge.
 - Crawl: crawl.run with crawl_judged60.PARAMS60 (the 60 cm crawl, no tuning) and crawl.judge (C1-C6). C5 measures the
-  ankle pin's travel, which a rolling foot moves without sliding, so the study adds C5c: each foot's sliding at its
-  contacts (the sole's velocity at the mean contact point, horizontal, integrated) between 0.10 s after touchdown and
-  lift-off, at most 10 mm, the same window and limit as C5.
+  ankle pin's travel, which a rolling foot moves without sliding, so the study adds C5c: each foot's net sliding at its
+  contacts (the sole's horizontal velocity at the mean contact point, integrated as a vector) at most 10 mm from where
+  it stood 0.10 s after touchdown, until lift-off: C5's window, limit and form with the sliding in place of the pin.
+  (Integrating the sliding speed instead counted every millisecond's contact jitter; tried in development.)
 - Trot: the frozen model-based trot (walk/walk60.py) on the variant, the walk's four judged conditions (friction 1.0
   and 0.4, each under both contact settings), 10 ms delay, noise and randomisation on, rules W1-W4 of
   walk/PREREG_WALK60.md, with slip measured at the contacts (gait_metrics.record_episode slip_at_contact=True).
@@ -77,14 +78,16 @@ def stand_job(args):
 
 # ------------------------------------------------------------------------------------------------ crawl
 class Slider:
-    """After every physics step: each sole's horizontal sliding speed at its contacts, integrated (m)."""
+    """After every physics step: each sole's horizontal sliding velocity at its contacts, integrated as a vector (m),
+    and its speed integrated (path length, reported only)."""
 
     def __init__(self, model):
         import mujoco
         self.mj = mujoco
         self.soles = [model.geom(f"{c}_sole").id for c in CORNERS]
-        self.cum = np.zeros(4)
-        self.t, self.hist = [], []
+        self.cum = np.zeros((4, 2))
+        self.path = np.zeros(4)
+        self.t, self.hist, self.phist = [], [], []
         self.vel6 = np.zeros(6)
 
     def __call__(self, m, d):
@@ -97,9 +100,11 @@ class Slider:
                     self.mj.mj_objectVelocity(m, d, self.mj.mjtObj.mjOBJ_GEOM, g, self.vel6, 0)
                     r = d.contact.pos[:d.ncon][hit].mean(axis=0) - d.geom_xpos[g]
                     v = self.vel6[3:] + np.cross(self.vel6[:3], r)
-                    self.cum[i] += math.hypot(v[0], v[1]) * dt
+                    self.cum[i] += v[:2] * dt
+                    self.path[i] += math.hypot(v[0], v[1]) * dt
         self.t.append(d.time)
         self.hist.append(self.cum.copy())
+        self.phist.append(self.path.copy())
 
 
 def crawl_job(args):
@@ -112,23 +117,25 @@ def crawl_job(args):
         slider = Slider(mujoco.MjModel.from_xml_path(str(path)))
         r = crawl.run(path, seed, cj.PARAMS60, step_hook=slider)
     rules, info = crawl.judge(r)
-    t, hist = np.array(slider.t), np.array(slider.hist)
+    t, hist, phist = np.array(slider.t), np.array(slider.hist), np.array(slider.phist)
     windows = {i: [(0.0, None)] for i in range(4)}
     for ph in r["phases"]:
         L = ph["leg_index"]
         windows[L][-1] = (windows[L][-1][0], ph["swing_start"])
         windows[L].append((ph["swing_end"], None))
-    slides = []
+    slides, paths = [], []
     for i in range(4):
         windows[i][-1] = (windows[i][-1][0], t[-1])
         for td_, lo in windows[i]:
             a, b = np.searchsorted(t, td_ + 0.10), np.searchsorted(t, lo, side="right") - 1
             if b > a:
-                slides.append(float(hist[b, i] - hist[a, i]))
+                dxy = hist[a:b + 1, i] - hist[a, i]
+                slides.append(float(np.max(np.linalg.norm(dxy, axis=1))))
+                paths.append(float(phist[b, i] - phist[a, i]))
     rules = {k: bool(v) for k, v in rules.items()}
     rules["C5c"] = max(slides) <= SLIDE_LIMIT
     out = {"rules": rules, "slide_max_m": max(slides), "slide_median_m": float(np.median(slides)),
-           "info": _jsonable(info)}
+           "slide_path_max_m": max(paths), "info": _jsonable(info)}
     return ("crawl", variant, imp, seed, out)
 
 
