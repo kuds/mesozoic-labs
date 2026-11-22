@@ -3,9 +3,12 @@
 Renders MuJoCo scenes offscreen (MUJOCO_GL=osmesa on a headless machine), adds a caption band that says
 "SIMULATION", and writes JPEGs under the repository's 500 KB limit.
 
-Usage:
+Usage (75 cm, 18 Nov 2026):
   MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa python render_stills.py \
       --robot ../sim/generated/trike_T20_closed.xml --anatomical PATH/TO/anatomical.xml --out stills_2026-11-18
+Usage (60 cm; robot only, the adult stills are unchanged):
+  MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa python render_stills.py --robot ../sim/generated/trike60_C_closed.xml \
+      --size 60 --scale 0.8 --out stills_60cm_<date>
 The anatomical model is PR #669's models/anatomical.xml (on main once PR #669 merges).
 """
 
@@ -72,8 +75,10 @@ def save(img, path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--robot", required=True)
-    ap.add_argument("--anatomical", required=True)
+    ap.add_argument("--anatomical", help="also render the adult reconstruction (PR #669's models/anatomical.xml)")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--size", type=int, default=75, help="the robot's size to the frill, cm, for the captions")
+    ap.add_argument("--scale", type=float, default=1.0, help="camera targets and distances x this (0.8 for 60 cm)")
     a = ap.parse_args()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -83,16 +88,24 @@ def main():
     d = mujoco.MjData(m)
     settle(m, d, 2.0)
     mass = m.body_mass.sum()
-    note = (f"Simulation: MuJoCo model of the proposed 75 cm Triceratops robot, {mass:.0f} kg design, standing. "
+    kg = f"{mass:.0f}" if a.size == 75 else f"{mass:.1f}"
+    feet = " with passive roll ankles (a design variant)" if "ankleroll" in a.robot else ""
+    note = (f"Simulation: MuJoCo model of the proposed {a.size} cm Triceratops robot, {kg} kg design{feet}, standing. "
             "Not hardware; nothing is built yet.")
+    s = a.scale
     for name, lookat, dist, az, el in (
             ("robot_three_quarter", (0.05, 0, 0.36), 1.75, 140, -13),
             ("robot_side", (0.0, 0, 0.36), 1.95, 90, -4),
             ("robot_head", (0.40, 0, 0.47), 0.85, 150, -8)):
-        img = label(shot(m, d, lookat, dist, az, el), "Triceratops robot, 75 cm to the frill: simulation", note)
+        img = label(shot(m, d, tuple(s * v for v in lookat), s * dist, az, el),
+                    f"Triceratops robot, {a.size} cm to the frill: simulation", note)
         q, size = save(img, out / f"{name}.jpg")
         rows.append((name, q, size))
 
+    if not a.anatomical:
+        for name, q, size in rows:
+            print(f"{name}.jpg  JPEG quality {q}  {size / 1024:.0f} KB")
+        return
     m = mujoco.MjModel.from_xml_path(a.anatomical)
     d = mujoco.MjData(m)
     settle(m, d, 1.0)

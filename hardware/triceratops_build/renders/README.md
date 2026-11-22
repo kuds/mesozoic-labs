@@ -8,6 +8,43 @@ image shows hardware. Made ahead of the 8 Dec 2026 target, so they can be redone
 > The Triceratops is the near-term live demonstration (Q3 2027); the T. rex is the flagship, coming at end 2027 /
 > early 2028.
 
+## At 60 cm (22 Nov 2026; the build chosen on 18 Nov, D2)
+
+**Every image and clip is a simulation render**, labelled "SIMULATION" on the picture itself.
+
+Stills ([stills_60cm_2026-11-22/](stills_60cm_2026-11-22/), JPEG, each under 500 KB):
+
+| File | Shows | Caption |
+|---|---|---|
+| `robot_three_quarter.jpg` | The 60 cm robot standing, three-quarter view | Triceratops robot, 60 cm to the frill: simulation. MuJoCo model of the proposed 60 cm robot, 12.7 kg design, standing. Not hardware; nothing is built yet. |
+| `robot_side.jpg` | The same, side view | as above |
+| `robot_head.jpg` | Head, frill and horns, close | as above |
+| `robot_trot_frame.jpg` | The model-based trot at 0.25 m/s, 8.0 s into the episode | Triceratops robot, 60 cm: trotting at the museum speed (simulation). Design variant with passive roll ankles; 10 ms servo delay and sensor noise simulated. Not hardware. |
+
+The adult reconstruction stills below are unchanged (the animal does not depend on the robot's size).
+
+Clip, on the data branch (D11): `walk60_trot_0.25_1x.mp4`, 20 s in real time, 1280 × 720, H.264.
+- **What it shows:** the model-based trot (`../walk/walk60.py`, frozen, the controller that passed its
+  pre-registered rules in `../walk/REPORT_WALK60.md`), on the design variant with passive roll ankles, at the
+  0.25 m/s museum command.
+- **Conditions:** 10 ms servo delay and sensor noise on, no randomisation, episode seed 101. Labelled on every
+  frame.
+- **How to show it:** as a trot developed and tested in simulation on a flat floor. Its weak side is ramps
+  (`../walk/REPORT_WALK60.md`, robustness sweep). It is not a demonstration of the robot.
+
+Reproduce:
+
+```sh
+MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa python render_stills.py --robot ../sim/generated/trike60_C_closed.xml \
+  --size 60 --scale 0.8 --out stills_60cm_2026-11-22
+MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa python render_walk_clip.py \
+  --out stills_60cm_2026-11-22/robot_trot_frame.jpg --still-at 8.0
+IMAGEIO_FFMPEG_EXE=/usr/bin/ffmpeg MUJOCO_GL=osmesa PYOPENGL_PLATFORM=osmesa python render_walk_clip.py \
+  --out walk60_trot_0.25_1x.mp4 --seconds 20
+```
+
+## At 75 cm (18 Nov 2026, before the size decision)
+
 ## Stills ([stills_2026-11-18/](stills_2026-11-18/), JPEG, each under 500 KB)
 
 | File | Shows | Caption |
