@@ -119,6 +119,11 @@ A bench test of one moulded rocker belongs in the bench plan: its rolling, its w
 
 ## Consequences if D5 is the capsule
 
+*Since done (22 Nov 2026, after the owner chose the capsule, D19): run 3 moved onto the capsule model with the
+slip cost taken at the contacts and the tools made sole-shape aware (`../rl/analysis/PREREG_RUN3.md`, reviewed);
+new step sheets at commit efd1e1c7; the owner reported starting run 3 the same day. The museum renders were redone
+on the capsule (`../renders/README.md`). The text below is as written before the decision.*
+
 - **Run 3** (step sheets ready, not yet started) trains on the roll-ankle model. It needs the capsule model added to
   the training setup, the analysis tools made sole-shape aware, and new step sheets, all reviewed. The training
   reward's slip cost also measures at the sole's origin, which would charge a rolling capsule for rolling: in the

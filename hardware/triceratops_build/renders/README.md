@@ -137,7 +137,9 @@ top left and another bottom right, so a crop around the robot keeps one. The flo
   - It has only walked straight ahead, on a flat floor: no turns yet. Its weak side is ramps
     (`../walk/REPORT_WALK60.md`, robustness sweep).
   - It has only been run on the design variant with passive roll ankles, which is not adopted: the foot was then
-    an open decision (D5; since decided: the capsule, D19). It has never walked on the as-designed foot shown in the standing stills.
+    an open decision (D5; since decided: the capsule, D19). This clip shows the roll-ankle variant only; the trot has
+    since also passed the foot study's walking rules on the as-designed foot and on the capsule
+    (`../sim/REPORT_FEET60.md`).
   - Holding a line across a museum floor needs an outside reference on the robot (vision or floor markers). In
     simulation its heading drifts with the simulated gyro.
 
