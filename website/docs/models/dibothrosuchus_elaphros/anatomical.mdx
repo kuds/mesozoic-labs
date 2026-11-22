@@ -53,8 +53,8 @@ After each training stage the `eval` command reports:
 # From the repository root. Measure the reference walk
 python -m environments.dibothrosuchus_elaphros.scripts.reference_walk
 
-# View the model
-python environments/dibothrosuchus_elaphros/scripts/view_model.py --embodiment anatomical
+# View the model (requires a display)
+python -m environments.dibothrosuchus_elaphros.scripts.view_model --embodiment anatomical
 
 # Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical train --stage 1

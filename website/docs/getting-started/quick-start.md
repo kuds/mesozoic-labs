@@ -10,7 +10,7 @@ Train your first dinosaur-inspired simulated agent.
 
 Open the unified training notebook in the `notebooks/` directory:
 
-- `notebooks/sb3_training.ipynb` - PPO or SAC training of one behavior with Stable-Baselines3. Pick a model with two dropdowns, `SPECIES` (`velociraptor_mongoliensis`, `tyrannosaurus_rex`, `brachiosaurus_altithorax`, `dibothrosuchus_elaphros` or `compsognathus_longipes`) and `EMBODIMENT` (`anatomical`, or `robot` for the Compsognathus robot), set `BEHAVIOR = "hunt"` (a recipe label `"stance"`, `"recover"`, `"walk"` or `"hunt"`, or a deliverable's stage id) and, optionally, `TRUNK_FROM` (an earlier run whose certified stance and walk are reused), `RETRAIN_FROM` and `RUN_LABEL`. One chain-loop cell then walks the behavior's ancestor chain root-first, reusing, judging or training each node. See [Behavior Recipes](/docs/training/recipes).
+- `notebooks/sb3_training.ipynb` - PPO or SAC training of one behavior with Stable-Baselines3. Pick a model with two dropdowns, `SPECIES` (`velociraptor_mongoliensis`, `tyrannosaurus_rex`, `brachiosaurus_altithorax`, `dibothrosuchus_elaphros`, `compsognathus_longipes` or `allosaurus_fragilis`) and `EMBODIMENT` (`anatomical`, or `robot` for the Compsognathus robot), set `BEHAVIOR = "hunt"` (a recipe label `"stance"`, `"recover"`, `"walk"` or `"hunt"`, or a deliverable's stage id; Allosaurus trains `"stance"` or `"walk"`) and, optionally, `TRUNK_FROM` (an earlier run whose certified stance and walk are reused), `RETRAIN_FROM` and `RUN_LABEL`. One chain-loop cell then walks the behavior's ancestor chain root-first, reusing, judging or training each node. See [Behavior Recipes](/docs/training/recipes).
 
 The notebook handles dependency installation automatically.
 
@@ -30,8 +30,10 @@ pip install -e ".[train]"
 
 ### View the Model
 
+From the repository root, on a machine with a display (on macOS, use `mjpython` instead of `python`):
+
 ```bash
-python environments/velociraptor_mongoliensis/scripts/view_model.py --embodiment anatomical
+python -m environments.velociraptor_mongoliensis.scripts.view_model --embodiment anatomical
 ```
 
 ### Train with Curriculum Learning
@@ -103,8 +105,10 @@ budgets for every model and stage.
 
 ```bash
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
-  eval logs/<stage_dir>/models/stage1_final.zip --algorithm ppo
+  eval logs/<stage_dir>/models/stage1_final.zip --algorithm ppo --no-render
 ```
+
+`--no-render` scores the episodes without a window; drop it to watch them on a machine with a display.
 
 ### Override Hyperparameters
 
@@ -116,8 +120,11 @@ python -m environments.shared.train --species velociraptor_mongoliensis --embodi
 
 ### Run Tests
 
+pytest comes with the test extra:
+
 ```bash
-pytest -v
+pip install -e ".[test]"
+pytest environments/velociraptor_mongoliensis/tests
 ```
 
 ## Basic Training Loop (Python)

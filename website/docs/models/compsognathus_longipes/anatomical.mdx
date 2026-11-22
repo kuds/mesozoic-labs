@@ -33,12 +33,12 @@ exploration noise PPO starts with no longer topples the standing animal.
 Set `SPECIES = "compsognathus_longipes"` and `EMBODIMENT = "anatomical"` in the SB3 training notebook. Its manifest (`configs/compsognathus_longipes/anatomical/stages.toml`) declares four nodes, all published deliverables: `stance` (stance), `recovery` (recover, warm-started from stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the non-contact target-reach task, warm-started from locomotion). The notebook's `BEHAVIOR = "hunt"` default resolves to the behavior node here as for every model; `BEHAVIOR = "stance"` trains the stance alone and `BEHAVIOR = "recover"` trains stance then push recovery (decision D-D35; before it the stance label, then `"stand"`, meant that chain here; since decision D-D38 `"stand"` is refused with a pointer to `"stance"`). The final task requires an upright, slow arrival within 8 cm of the target, measured at the pelvis in the ground plane.
 
 ```bash
-python -m pip install -e ".[train]"
+pip install -e ".[train]"
 python -m environments.shared.train --species compsognathus_longipes --embodiment anatomical train --stage 1
 
 # The advancing stages in manifest order; reuse an earlier run's certified stance and walk
-python -m environments.shared.train --species compsognathus_longipes --embodiment anatomical curriculum \
-  --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
+python -m environments.shared.train --species compsognathus_longipes --embodiment anatomical \
+  curriculum --algorithm ppo --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```
 
 Actions are residual joint-position commands around a preloaded standing pose. The control rate is 50 Hz and the default episode horizon is 20 seconds. Simulator state and target coordinates are privileged MLP inputs; the RGB camera is available separately for rendering. These policies are not onboard camera controllers.

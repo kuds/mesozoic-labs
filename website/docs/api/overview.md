@@ -143,13 +143,15 @@ Or use the shared training CLI from the repository root, which takes the model a
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
   curriculum --algorithm ppo --n-envs 4
 
-# Or control stages individually; each command reads its budget from TOML
+# Or control stages individually; each command reads its budget from TOML, and a
+# later stage enters from its parent's handoff under initialize_next_stage
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
-  train --stage 1 --algorithm ppo
+  train --stage 1 --algorithm ppo --output-dir logs/<run>/01_stance
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
-  train --stage 2 --algorithm ppo --load logs/stage1/models/stage1_final.zip
+  train --stage 2 --algorithm ppo --output-dir logs/<run>/02_locomotion \
+  --load logs/<run>/01_stance/models/robust_best_model.zip --load-mode initialize_next_stage
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
-  eval logs/stage2/models/stage2_final.zip --algorithm ppo --stage 2
+  eval logs/<run>/02_locomotion/models/robust_best_model.zip --algorithm ppo --stage 2 --no-render
 
 # Use SAC instead
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \

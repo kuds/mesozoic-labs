@@ -35,12 +35,15 @@ On Windows, the repository forces LF line endings on checkout (`.gitattributes`)
 
 ## Verify Installation
 
-```bash
-# View a model (requires display)
-python environments/velociraptor_mongoliensis/scripts/view_model.py --embodiment anatomical
+Run these from the repository root. Each script runs as a module, which needs no further install:
 
-# Run environment tests
-pytest environments/velociraptor_mongoliensis/tests/ -v
+```bash
+# View a model (requires a display; on macOS, use mjpython instead of python)
+python -m environments.velociraptor_mongoliensis.scripts.view_model --embodiment anatomical
+
+# Run the species' tests; pytest comes with the test extra
+pip install -e ".[test]"
+pytest environments/velociraptor_mongoliensis/tests
 ```
 
 ## Google Colab

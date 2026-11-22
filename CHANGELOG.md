@@ -2672,6 +2672,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the species READMEs, docs, website pages and notebook prose follow; species IDs, model
   IDs, Gymnasium IDs, class names and anchors are unchanged, and no digest moves.
 
+- **The website's commands match the READMEs'.** Scripts run as modules from the repository
+  root (`python -m environments.<species>.scripts.view_model --embodiment anatomical`,
+  `python -m environments.shared.scripts.plot_gate_progress`), since the script-path form
+  fails without an install; the test commands install the `test` extra that brings pytest
+  first; the evaluation examples pass `--no-render`, so they run without a display; the
+  API overview's hand-chained stage 2 loads stage 1's handoff with
+  `--load-mode initialize_next_stage`; the Compsognathus pages install and run the
+  curriculum as the README does; and the quick start lists `allosaurus_fragilis`.
+
 - **Colab setup is lighter and installs from one set of pins.** The notebooks' setup cells
   check out `REPO_REF` blobless and sparse (only `environments`, `configs`, `notebooks`
   and `results`, plus the root files): a fresh runtime downloads about 38 MB instead of
