@@ -107,7 +107,8 @@ Disclosures this file should have made before the run:
 - **Ten variants, not eight,** were developed: the ten listed above.
 - **Why the 24 mm capsule and not the 16 mm one.** Both passed every rule in development. On the 16 mm capsule the
   trot came closer to its limits:
-  - one episode at 0.227 m/s and one at 0.233 m/s;
-  - the worst joint at up to 0.97 of its rating (W3 needs under 1.0).
-  The 24 mm capsule's development trots ran at 0.245-0.260 m/s, with the worst joint at up to 0.87. The larger radius
-  was taken for margin.
+  - in the first development run (dev1, before the env's placement fix, which moves this capsule's start by only
+    0.38 mm): one episode at 0.227 m/s and the worst joint at up to 0.97 of its rating (W3 needs under 1.0);
+  - after the fix (dev2): its slowest episodes at 0.233-0.235 m/s and the worst joint at 0.92.
+  The 24 mm capsule's development trots (dev2) ran at 0.245-0.260 m/s, with the worst joint at up to 0.87. The larger
+  radius was taken for margin.

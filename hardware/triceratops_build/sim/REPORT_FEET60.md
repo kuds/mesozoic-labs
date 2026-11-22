@@ -23,15 +23,18 @@ rigid floor, on a model whose masses are estimates. Revised after the independen
     four seeds. Under the model's contact it passes, but narrowly: C5c is 9.85-9.87 mm on two seeds against the 10 mm
     limit. In development, softer and stiffer springs failed C4 under both settings.
   - **The 30 mm ball** fails C5c under the model's contact, narrowly and because of the contact model.
-    - Its worst stance on each seed moves 10.9-11.0 mm (limit 10 mm); its other stances move 8.7-10.0 mm.
+    - Its worst stance on each seed moves 10.9-11.0 mm (limit 10 mm). In steady stepping its front feet move
+      9.7-10.0 mm per stance and its hind feet 8.1-8.7 mm (the review's check of every stance), so several stances
+      per seed sit within 0.1 mm under the limit.
     - This is creep in MuJoCo's soft contact, not the foot breaking loose. The review found its stance forces well
       inside the friction cone: tangential over normal force has a median of 0.08 and a 95th percentile of 0.27,
       against a floor friction of 0.6-1.0.
-    - A soft contact creeps in proportion to 1 / (impratio × contacts per sole). The ball has one contact, the
-      capsule two and the flat box four.
+    - In the review's single-foot test (a steady sideways load, rotation locked), the creep scaled as
+      1 / (impratio × contacts per sole): the ball has one contact, the capsule two and the flat box four. The
+      crawl does not follow that rule exactly (below), but the ball, with one contact, is the foot most affected.
     - In the same follow-up check the ball passes at impratio 2 (8.3 mm) and 4 (5.8 mm). It passes C4 under both
       settings.
-    - Under the registered rule it fails. On the crawl it is a close second, not a clear fail.
+    - Under the registered rule it fails, narrowly. Its pin travel (27 mm, from rolling) is the largest of the four.
 - **Every foot passes the trot's rules, but the trot changes with the foot.**
   - Front touchdowns on grippy floors go from 1.5-1.6 per second on the as-built foot to 6.2-6.3 on the ball.
   - Joint power at friction 1.0 goes from 27-30 W to 37 W.
@@ -39,8 +42,8 @@ rigid floor, on a model whose masses are estimates. Revised after the independen
 - **Recommendation for D5 (the owner decides): the capsule sole.**
   - It is the only foot that passes every rule, with margin under both settings.
   - It needs no extra joint: four fewer joints, springs and end stops than the roll hinge.
-  - Its costs are listed below. Above all, it makes the trot touch down about three times per front stride, as the
-    roll hinge does.
+  - Its costs are listed below. Above all, the trot's front feet touch down about 3.0 times per 0.70 s stride on
+    it, against about 2.6-2.7 on the roll hinge and about one on the as-built foot.
 
 ## Results (4 crawl seeds, 2 stand seeds, 5 trot seeds per condition; both contact settings)
 
@@ -60,7 +63,7 @@ The crawl in detail. "Pin travel" is C5, reported only: a rolling foot moves its
 | `capsule_r24` | 4.8-7.0 / 2.7-4.7 mm | 1.3 / 0.9-1.0 mm | 18.9 / 19.7 mm (rolling) |
 | `ball_r30` | **10.9-11.0** / 3.0-5.3 mm | 8.7 / 2.4-2.5 mm | 27.3 / 24.5 mm (rolling) |
 
-The capsule's worst stance on each seed is its first, which includes the start-up settling. Its later stances move
+The capsule's worst stance on each seed comes in the gait's start-up (ending by 7.3 s); every later stance moves
 4.9 mm or less (from the review).
 
 The trot in detail (5 episodes per condition; slip taken at the contacts). J1 and J3 are friction 1.0, J2 and J4
@@ -84,8 +87,8 @@ friction 0.4. J1 and J2 use the model's contact, J3 and J4 impratio 10.
     1.4-1.9 per second, against 3.4-4.1 for the roll hinge. The ranges do not overlap.
   - So the front-foot "bounce" of `../walk/REPORT_WALK60.md` (F15) comes largely from the roll hinge, not from the
     controller alone.
-  - The capsule touches down about three times per front stride in all ten grippy episodes, and the ball more often
-    still.
+  - The capsule touches down about 3.0 times per front stride (0.70 s) in all ten grippy episodes, the roll hinge
+    about 2.6-2.7 and the ball about 4.3-4.4.
 - **The ball** overruns the command on slippery floors (0.275 m/s).
 - **The torque limit:** the ball (1.8-1.9 %) and the capsule in J3 (1.2 %) exceed the 1 % flag used for the learned
   policies (not a rule here).
@@ -117,7 +120,10 @@ A bench test of one moulded rocker belongs in the bench plan: its rolling, its w
 ## Consequences if D5 is the capsule
 
 - **Run 3** (step sheets ready, not yet started) trains on the roll-ankle model. It needs the capsule model added to
-  the training setup, the analysis tools made sole-shape aware, and new step sheets, all reviewed.
+  the training setup, the analysis tools made sole-shape aware, and new step sheets, all reviewed. The training
+  reward's slip cost also measures at the sole's origin, which would charge a rolling capsule for rolling: in the
+  review's check (J1, seed 401) the capsule's front-foot slip ratio was 0.12 at the origin against 0.06 at the
+  contacts.
 - **The model-based trot** passes on the capsule untuned. Its judged result (F15) is on the roll-ankle foot. On the
   capsule it touches down more often in front, uses more power in J3, and spends more time at the torque limit.
 - **The 60 cm model** (`generated/`) would gain the capsule as its foot.
@@ -146,6 +152,9 @@ A bench test of one moulded rocker belongs in the bench plan: its rolling, its w
   power and time at the torque limit. Two slow J3 episodes, not one.
 - **The front-touchdown column** now traces to results.json: the mean of the two front feet. The first version gave
   ranges that matched neither foot's mean.
+- **After the re-check** (no High or Medium findings): the ball's steady-stance figures, the capsule's worst
+  stance, the creep rule credited to the review's single-foot test, touchdowns per stride, and the ball no longer
+  ranked "second".
 - **Also corrected:**
   - the roll hinge's narrow C5c pass;
   - the capsule's 40 mm contact line;
