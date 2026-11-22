@@ -101,7 +101,8 @@ Changed after the foot study's result (`sim/REPORT_FEET60.md`, F17) and the owne
   points (a capsule's two contact-line ends), and adds the stance slip at the contacts beside the slip at the
   origin; it records the run's model's sha256. The judged fields (F1's speed and falls, F2's RMS torque) and the
   sweep's speed, drift and falls are unchanged in definition. The sweep's slip, reported only, stays at the sole's
-  origin, which counts a rolling capsule as moving. (Check pending: the revised gait report on run2b's checkpoint.)
+  origin, which counts a rolling capsule as moving. The revised gait report on run2b's checkpoint (8,003,584 steps)
+  reproduces every stored value of `analytics/results/run2b/gait_report.json`; it only adds the new fields.
 - **The run2b column is no longer a one-change comparison.** Run2b trained on the roll-ankle foot with the slip cost
   at the origin. Run 3 differs also in the foot and the slip cost, so a difference from run2b cannot be put down to
   the terrain training alone.
