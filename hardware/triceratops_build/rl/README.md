@@ -255,9 +255,11 @@ train.py as `--env-config`.
 - **The capsule foot and the slip cost** (D19, 22 Nov 2026; `slip_at_contact`): run 3 trains on the capsule-sole
   model `trike60_C_closed_capsule` (the foot study's `capsule_r24`, byte for byte; `sim/REPORT_FEET60.md`). The slip
   cost takes each loaded sole's speed at the mean point of its contacts instead of at the sole's origin, so a sole
-  that rolls without sliding is not charged for rolling. In the frozen model-based trot (two episodes per foot) the
-  cost at the capsule's origin is 3.6x the cost at its contacts, against 1.1-1.2x for the box soles: at the origin,
-  about 70 % of the capsule's slip cost would be rolling. Default off, so earlier runs load and train as before.
+  that rolls without sliding is not charged for rolling. In the frozen model-based trot (two episodes per foot,
+  friction 1.0) the cost at the capsule's origin is 3.6x the cost at its contacts, against 1.1-1.2x for the box
+  soles. The ratio is smaller on slippery floors and on terrain (1.3x at friction 0.3; 1.1x with terrain and pushes
+  at full scale, with run2b's policy on the capsule): the option matters most on grippy flat floors. Default off, so
+  earlier runs load and train as before. Training-time evaluations still take slip at the sole's origin.
 - **Evaluations stay on the flat floor:** train.py's evaluations during training, evaluate.py, the gait report and
   the robustness sweep turn terrain, pushes and the low-friction end off (`flat_floor`), so run 3's numbers compare
   with run2b's directly; the sweep adds its own steps, ramps and pushes.

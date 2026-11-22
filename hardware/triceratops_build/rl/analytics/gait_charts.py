@@ -549,7 +549,7 @@ def chart_feet(R, P, out: Path) -> str:
     fig = plt.figure(figsize=(12.5, 8.0))
     gs = fig.add_gridspec(2, 2, left=0.07, right=0.985, top=0.85, bottom=0.08, hspace=0.38, wspace=0.17)
     ax = fig.add_subplot(gs[0, 0])
-    _strip(ax, pool("clearance_mm"), "highest point of the sole's lowest corner, mm", "Swing clearance (per step)",
+    _strip(ax, pool("clearance_mm"), "highest point of the sole's lowest point, mm", "Swing clearance (per step)",
            "{:.0f} mm")
     ax.set_ylim(0, None)
     ax = fig.add_subplot(gs[0, 1])
@@ -565,14 +565,16 @@ def chart_feet(R, P, out: Path) -> str:
         p95 = float(np.interp(0.95, cdf, edges[1:]))
         ax.plot([p95], [0.95], "o", ms=5, color=cs.FOOT_COLOR[c], mec=cs.SURFACE, mew=1.5)
     S = R["cases"]["target_0.25"]["summary"]["feet"]["stance_slip"]
+    R_c = R["cases"]["target_0.25"]["summary"]["feet"].get("stance_slip_at_contact")  # absent in older payloads
     ax.axhline(0.95, color=cs.AXIS, lw=0.8)
     ax.set_xlim(0, 0.8)
     ax.set_ylim(0, 1.02)
-    ax.set_xlabel("sole horizontal speed while loaded, m/s")
+    ax.set_xlabel("sole horizontal speed while loaded, at the sole's origin, m/s")
     ax.set_ylabel("fraction of loaded time below")
     ax.set_title("Slip in stance (dots: 95th percentile)")
     ax.legend(handles=[Line2D([], [], color=cs.FOOT_COLOR[c], lw=cs.LW,
-                              label=f"{gc.SHORT[c]}: slip ratio {S[c]['slip_ratio_mean']:.2f}") for c in CORNERS],
+                              label=f"{gc.SHORT[c]}: slip ratio {S[c]['slip_ratio_mean']:.2f}"
+                              + (f" ({R_c[c]['slip_ratio_mean']:.2f} at the contacts)" if R_c else "")) for c in CORNERS],
               loc="lower right", fontsize=8)
     ax = fig.add_subplot(gs[1, 1])
     roll_key = next((k for k in ("target_0.25", "ankleroll_0.25") if k in R["cases"]
@@ -604,7 +606,7 @@ def chart_feet(R, P, out: Path) -> str:
         ax.text(0.5, 0.5, "no roll-ankle case", ha="center", color=cs.MUTED)
     cs.frame(fig, "Feet: clearance, impact, slip and the passive roll ankle",
              f"{_run_label(R)}, 0.25 m/s, randomised, 5 episodes (steps: contact breaks under 50 ms merged). Lines: "
-             "medians.", _footer(R, "Sole kinematics from the box sole geoms; slip as in rl/analysis/gait_pipe1.py"))
+             "medians.", _footer(R, "Sole kinematics from the sole geoms; slip as in rl/analysis/gait_pipe1.py, at the sole's origin"))
     cs.save(fig, out / "feet.png")
     return "feet.png"
 

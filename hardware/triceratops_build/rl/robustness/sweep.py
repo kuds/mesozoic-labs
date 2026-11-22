@@ -64,6 +64,17 @@ REPRO_SEEDS = G.SEEDS  # gait_pipe1's target case
 TRAINING = {"delay_ms": (0, 10), "friction": (0.6, 1.0), "mass_scale": (0.9, 1.1), "kp_scale": (0.9, 1.1),
             "force_scale": (0.85, 1.0)}
 
+def training_ranges(env_config: dict) -> dict:
+    """TRAINING with the friction range the run trained on (shaded in the charts): the record's friction_range, its
+    low end moved to friction_low_hard when set (run 3: 0.3-1.0). An older record gives TRAINING's 0.6-1.0."""
+    tr = dict(TRAINING)
+    fr = env_config.get("friction_range")
+    if fr:
+        low = env_config.get("friction_low_hard")
+        tr["friction"] = (float(low if low is not None else fr[0]), float(fr[1]))
+    return tr
+
+
 DEFAULT_POINT = {"command": COMMAND, "delay_ms": NOMINAL_DELAY_MS, "friction": None, "mass_scale": 1.0,
                  "payload_kg": 0.0, "force_scale": 1.0, "kp_scale": 1.0, "push_dv": 0.0, "terrain": None,
                  "randomise": False}
@@ -923,7 +934,7 @@ def main(argv=None):
                         "push_duration_s": PUSH_S, "push_look_s": PUSH_LOOK_S, "recover_vlat_mps": RECOVER_VLAT,
                         "recover_window_s": RECOVER_WIN_S, "recover_hold_s": RECOVER_HOLD_S,
                         "terrain_edge_m": TERRAIN_EDGE_M, "speed_drop_break": DROP, "window_from_s": G.WINDOW_S,
-                        "continuous_rating_nm": G.THERMAL, "nominal_limit_nm": G.LIMIT, "training_ranges": TRAINING},
+                        "continuous_rating_nm": G.THERMAL, "nominal_limit_nm": G.LIMIT, "training_ranges": training_ranges(ec)},
            "joint_names": names, "points": {}, "families": []}
     pair_pushes(points, results_eps)
     for k, p in points.items():

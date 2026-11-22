@@ -46,7 +46,8 @@ domain randomisation and observation noise on (friction, masses, gains, force li
 20 s episodes, **measured over t >= 2 s** (18 s). Cases: 0.25 m/s (the museum target) and 0.15 m/s; 0.25 m/s on the
 nominal model with observation noise off (no randomisation, no sensor noise; the robustness sweep's
 nominal point keeps the noise on), whose seed 100000 at t = 6-9 s gives the time-series charts; 0.25 m/s on
-the roll-ankle model `trike60_C_closed_ankleroll.xml`; and a speed sweep 0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.27 m/s on
+the other foot (`ankleroll_0.25`, the roll-ankle model, for a run on PR #669's foot; `otherfoot_0.25`, PR #669's foot
+`trike60_C_closed.xml`, for a run on the roll-ankle or the capsule model); and a speed sweep 0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.27 m/s on
 seeds 100000-100002 (0.15 and 0.25 reuse the cases' episodes). Every physics step (1 ms) is logged through the env's
 `substep_hook`. Means are over episodes unless "worst" (the worst episode) or "pooled" (all strides or steps of the
 case's episodes together) is stated.
@@ -184,8 +185,10 @@ All at the joint, every 1 ms step of the window. The flexion joints work through
   sole's origin (`stance_slip`, as before) and at the mean point of its contacts (`stance_slip_at_contact`, added
   22 Nov 2026): a capsule or ball that rolls without sliding moves its origin, and a box sole tipping on an edge
   does too. On run2b's policy the two agree within 0.03.
-- **Robustness:** for a policy that does not step, stride measures are undefined (None), a chart that cannot be drawn
-  is named in `charts` instead, and the Markdown falls back to a short note; `gait_report.json` is always complete.
+- **Robustness:** for a policy that does not step, stride measures are undefined (None). An episode that ends before
+  3.5 s (`MIN_ANALYSED_S` past the 2 s window start) is counted in its case's episodes and falls, listed under
+  `short_episodes`, and left out of the gait measures. A chart that cannot be drawn is named in `charts` instead, and
+  the Markdown falls back to a short note (the error is printed); `gait_report.json` is always complete.
 - **Roll-ankle angle** (roll-ankle model only): the passive ankle-roll joint angle, 1st-99th percentile and
   min-max, the stance-only range and the time within 2 % of its +-20 deg limit. The ankle pitch range is reported for
   every case.

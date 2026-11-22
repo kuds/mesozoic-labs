@@ -95,8 +95,16 @@ Changed after the foot study's result (`sim/REPORT_FEET60.md`, F17) and the owne
 - **Model:** the capsule-sole model in place of the roll-ankle model. The policy interface (observation and action)
   is the same.
 - **Slip cost at the contacts** (`slip_at_contact`, in `configs/run3_terrain.json`). Measured at the sole's origin,
-  the slip cost would charge a rolling capsule for rolling. In the frozen model-based trot (two episodes per foot),
-  the origin's cost is 3.6x the contacts' on the capsule, against 1.1-1.2x on the box soles.
+  the slip cost would charge a rolling capsule for rolling.
+  - In the frozen model-based trot (two episodes per foot, friction 1.0), the origin's cost is 3.6x the contacts' on
+    the capsule, against 1.1-1.2x on the box soles.
+  - The ratio falls with friction and on terrain: 1.5x at friction 0.6 and 1.3x at 0.3 in the same trot.
+  - With run2b's policy on the capsule in run 3's env it is 2.2x on the flat floor with randomisation, 1.3x at
+    friction 0.3, and 1.1x with terrain and pushes at full scale (the independent review's check).
+  - So the option matters most on grippy flat floors. Over the 6 M steps at full terrain scale it changes the slip
+    cost by about a tenth.
+  - Nothing else in the reward changes: the trajectory is identical, and only `r_slip` differs (tested).
+  - This is my engineering choice, made with the move; the owner chose the foot (D19), not this.
 - **Tools:** the gait report computes swing clearance and the support polygon from each sole shape's own lowest
   points (a capsule's two contact-line ends), and adds the stance slip at the contacts beside the slip at the
   origin; it records the run's model's sha256. The judged fields (F1's speed and falls, F2's RMS torque) and the
@@ -106,18 +114,40 @@ Changed after the foot study's result (`sim/REPORT_FEET60.md`, F17) and the owne
 - **The run2b column is no longer a one-change comparison.** Run2b trained on the roll-ankle foot with the slip cost
   at the origin. Run 3 differs also in the foot and the slip cost, so a difference from run2b cannot be put down to
   the terrain training alone.
+- **Balance figures cannot be compared with run2b's.**
+  - A capsule stands on a line, so its support polygon is far narrower than a box sole's. Run2b's own policy,
+    placed on the capsule model, has its centre of mass outside the polygon 54.7 % of the time, against 0.2 % on
+    its own foot.
+  - A single capsule in stance gives no polygon at all; that is about 0.1 % of the time.
+  - Run 3's balance numbers ("everything else ... against run2b") are therefore reported, not compared.
+- **Slip in the training-time evaluations stays at the sole's origin.** That covers:
+  - train.py's evaluation lines and `eval_during_training.jsonl`;
+  - evaluate.py;
+  - the training dashboard;
+  - the notebook's last cell.
+  On the capsule these count rolling as slip. None of them is judged. The gait report gives both forms.
 - **Two tool faults found by an end-to-end check, fixed before any run.** The check was a short capsule training, then
   both tools on its checkpoint and on run2b's policy placed on the capsule model; it is not a result.
   - **The sweep refused every run-3 checkpoint.** Its check that the measuring env matches the run record did not
     allow for the flat-floor reduction (terrain, pushes and the low-friction end off), so it stopped with "environment
     config differs from the run record". The check now expects those three fields at their flat values and still
     catches any other difference (tested). This fault was in the run-3 setup as first reviewed.
-  - **The gait report stopped on a policy that does not walk.** It stopped at undefined stride measures. It now
-    writes `gait_report.json` in full: F1's speed and falls and F2's RMS torque are defined for any policy that runs.
-    A chart that cannot be drawn is named instead of drawn. If the Markdown summary cannot be written, a short note
-    replaces it. A seed whose final policy does not walk therefore fails F1 rather than going unmeasured.
-- **Expected cost:** about 3 to 4.1 hours per seed (the step sheets). In a local check with 4 envs, training ran 1.35-1.45
-  times as fast on the capsule model as on the roll-ankle model.
+  - **The gait report stopped on a policy that does not walk, or that falls early.**
+    - It stopped at undefined stride measures, and (found by the review) at any fully logged episode that ended
+      before about 3 s.
+    - It now writes `gait_report.json` in full for any policy:
+      - an episode that ends before 3.5 s (`MIN_ANALYSED_S`) is too short to analyse. It is counted in its case's
+        episodes and falls, listed under `short_episodes`, and left out of the gait measures;
+      - a chart that cannot be drawn is named instead of drawn;
+      - if the Markdown summary cannot be written, a short note replaces it and the error is printed.
+    - So F1's falls count every episode, and F1's speed and F2's RMS torque are means over the analysed episodes.
+    - A seed whose final policy stands still or falls fails F1 instead of going unmeasured.
+    - Checked end to end with scripted policies: falling at about 1 s, at 3.2-3.4 s and just after 3.5 s, and
+      standing still.
+- **Expected cost:** about 3 hours per seed (4.1 at run2b's speed).
+  - In one local train.py check (4 envs, 24,576 steps per model, full terrain scale, untrained policy), training ran
+    1.44x as fast on the capsule model as on the roll-ankle model (763 against 529 env steps/s at the end).
+  - The review's single-process check with a walking policy gave 1.34-1.51x.
 
 ## Revised before any run (after the independent review of 4bafe666; no run had started)
 

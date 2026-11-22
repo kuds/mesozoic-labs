@@ -1616,7 +1616,7 @@ def test_sweep_and_evaluate_build_flat_envs_from_a_run3_record(tmp_path):
     import sweep
     import trike_env
 
-    for foot in ("trike60_C_closed_capsule.xml", "trike60_C_closed_ankleroll.xml"):  # run 3's foot last (below)
+    for foot in ("trike60_C_closed_ankleroll.xml", "trike60_C_closed_capsule.xml"):  # run 3's foot last (below)
         ec = json.loads(json.dumps({**_rough().cfg.to_dict(), "model_path": foot}, default=list))
         for terrain in (None, ("step", 0.02)):
             env = sweep.build_env(ec, terrain)
@@ -1629,6 +1629,8 @@ def test_sweep_and_evaluate_build_flat_envs_from_a_run3_record(tmp_path):
         assert sweep.FLAT_FLOOR == trike_env.FLAT_FLOOR and sweep.config_diffs(ec, env.cfg) == {}
         assert sweep.config_diffs(ec, env.cfg.replace(w_slip=0.5)) == {"w_slip": (0.5, ec["w_slip"])}
         assert sweep.config_diffs(ec, env.cfg.replace(terrain_boxes=8)) == {"terrain_boxes": (8, 0)}
+        assert sweep.training_ranges(ec)["friction"] == (0.3, 1.0)  # run 3 trains down to 0.3
+        assert sweep.training_ranges(TrikeEnvConfig().to_dict())["friction"] == sweep.TRAINING["friction"]
     run = tmp_path / "run"
     run.mkdir()
     (run / "run_record.json").write_text(json.dumps({"settings": {"env_config": ec}}))

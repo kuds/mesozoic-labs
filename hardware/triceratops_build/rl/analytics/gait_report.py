@@ -62,6 +62,10 @@ CORNERS = gc.CORNERS
 SEEDS = gp.SEEDS
 DELAY = gp.DELAY
 WINDOW_S = gp.WINDOW_S
+# An episode is analysed (every gait measure) only if it lasts at least WINDOW_S + this: a shorter one (a fall within
+# about the first 3.5 s) leaves too little of the window for the measures (the 1 s head-bob average needs > 1 s). It is
+# counted in the case's episodes and falls, listed under "short_episodes", and left out of the gait means.
+MIN_ANALYSED_S = 1.5
 THERMAL, LIMIT, RPM_ALLOW = gp.THERMAL, gp.LIMIT, gp.RPM_ALLOW
 GROUPS = tuple(THERMAL)
 GEN = BUILD / "sim" / "generated"
@@ -643,8 +647,10 @@ def _job(spec: dict) -> dict:
     out = {"spec": spec, "fell": log["fell"], "termination": log["termination"], "length_s": log["length_s"],
            "episode_forward_speed_mps": log["episode_forward_speed"], "window_speed_steps_mps": window_speed_from_steps(log),
            "friction": log["friction"]}
-    if spec["full"]:
+    if spec["full"] and log["length_s"] >= WINDOW_S + MIN_ANALYSED_S:
         out["metrics"], out["payload"] = analyse(log, spec["command"], _W["drives"], trace=spec["trace"])
+    elif spec["full"]:
+        out["metrics"], out["payload"] = None, None  # too short to analyse: counted (falls), not measured
     out["wall_s"] = time.time() - t0
     return out
 
@@ -930,9 +936,13 @@ def main(argv=None) -> int:
     try:
         md = markdown(results)
     except Exception as exc:  # e.g. a policy that never steps leaves gait measures undefined; the JSON holds them all
+        import traceback
+
         md = (f"# Gait report: {results['label']} (simulation)\n\nThe Markdown summary could not be written "
-              f"({type(exc).__name__}: {exc}), most likely because the policy does not walk and some gait measures "
-              "are undefined. Every number is in `gait_report.json` and `gait_report_episodes.json.gz`.\n")
+              f"({type(exc).__name__}: {exc}). Every number is in `gait_report.json` and "
+              "`gait_report_episodes.json.gz`. A policy that does not walk leaves some gait measures undefined; for a "
+              "policy that walks, this is a fault in the report's Markdown (traceback printed by the tool).\n")
+        traceback.print_exc()
         print(f"WARNING: Markdown summary not written ({type(exc).__name__}: {exc}); gait_report.json is complete")
     (out / "gait_report.md").write_text(md)
     for f in results["charts"]:
@@ -1017,10 +1027,20 @@ def simulate(args) -> tuple[dict, dict]:
     payload: dict = {"cases": {}}
     for key, (label, model, changes, cmd) in cases.items():
         rr = sorted([r for r in res if r["spec"]["case"] == key], key=lambda r: r["spec"]["seed"])
+        short = [{"seed": r["spec"]["seed"], "fell": r["fell"], "termination": r["termination"],
+                  "length_s": r["length_s"]} for r in rr if r["metrics"] is None]
+        rr = [r for r in rr if r["metrics"] is not None]
         eps = [r["metrics"] for r in rr]
         pays = [r["payload"] for r in rr]
+        summary = summarise_case(eps, pays) if eps else {"falls": 0}
+        # every episode counts in the case's episodes and falls, the short ones included (MIN_ANALYSED_S)
+        summary.update(episodes=len(eps) + len(short), episodes_analysed=len(eps),
+                       falls=summary["falls"] + sum(x["fell"] for x in short), short_episodes=short)
         results["cases"][key] = {"label": label, "model": model, "changes": changes, "command_mps": cmd,
-                                 "summary": summarise_case(eps, pays), "episodes": eps}
+                                 "summary": summary, "episodes": eps}
+        if not pays:
+            payload["cases"][key] = None  # nothing to chart (named in results["charts"])
+            continue
         payload["cases"][key] = {"trace": pays[0].get("trace"), "step_t": pays[0]["step_t"], "step_v": pays[0]["step_v"],
                                  "stride_load_profiles": [p["stride_load_profiles"] for p in pays],
                                  "drive_hist": pays, "clearance_mm": [p["clearance_mm"] for p in pays],
@@ -1043,7 +1063,8 @@ def simulate(args) -> tuple[dict, dict]:
                       and r["spec"]["model"] == primary and not r["spec"]["changes"]), None)
             if r is None:
                 continue
-            wsp = r["metrics"]["speed"]["forward_speed_mps"] if r["spec"]["full"] else r["window_speed_steps_mps"]
+            full = r["spec"]["full"] and r["metrics"] is not None
+            wsp = r["metrics"]["speed"]["forward_speed_mps"] if full else r["window_speed_steps_mps"]
             rows.append({"seed": s, "forward_speed_mps": wsp, "episode_forward_speed_mps": r["episode_forward_speed_mps"],
                          "fell": r["fell"], "termination": r["termination"], "length_s": r["length_s"],
                          "friction": r["friction"], "source": "full case" if r["spec"]["full"] else "sweep"})
@@ -1079,6 +1100,12 @@ def markdown(R: dict) -> str:
          f"randomisation and observation noise on unless stated, 20 s episodes measured from t = "
          f"{R['settings']['window_from_s']:.0f} s. One policy: every figure is reported, not judged. Definitions: "
          "`rl/analytics/README.md`. Everything is simulation of a model whose masses are estimates.", ""]
+    short = [(k, x) for k, c in C.items() for x in c["summary"].get("short_episodes", [])]
+    if short:
+        L += [f"**Episodes too short to analyse** (ended before {WINDOW_S + MIN_ANALYSED_S:.1f} s; counted in their "
+              "case's falls, left out of its gait measures): "
+              + "; ".join(f"{k} seed {x['seed']} at {x['length_s']:.2f} s ({x['termination'] or 'not a fall'})"
+                          for k, x in short) + ".", ""]
     ff = T["footfall"]
     g = ff["gait"]
     dtm = ff.get("diagonal_timing") or {}
@@ -1270,9 +1297,9 @@ def markdown(R: dict) -> str:
               f"{_f(ft['stance_slip'][c]['mean_mps'])} / {_f(ft['stance_slip'][c]['p95_mps_worst'])}" for c in CORNERS) + " |",
           "| Slip ratio at the sole's origin, mean (worst) | " + " | ".join(
               f"{_f(ft['stance_slip'][c]['slip_ratio_mean'])} ({_f(ft['stance_slip'][c]['slip_ratio_worst'])})" for c in CORNERS) + " |",
-          "| Slip ratio at the sole's contacts, mean (worst) | " + " | ".join(
+          ] + (["| Slip ratio at the sole's contacts, mean (worst) | " + " | ".join(
               f"{_f(ft['stance_slip_at_contact'][c]['slip_ratio_mean'])} ({_f(ft['stance_slip_at_contact'][c]['slip_ratio_worst'])})"
-              for c in CORNERS) + " |"]
+              for c in CORNERS) + " |"] if "stance_slip_at_contact" in ft else [])  # absent from older cached payloads
     if "ankle_roll_deg" in A["feet"]:
         ar = A["feet"]["ankle_roll_deg"]
         L += [f"| Roll-ankle angle, deg, min / max (roll-ankle model; limit +-{A['feet']['ankle_roll_limit_deg']:.0f}) | "

@@ -209,9 +209,9 @@ class TrikeEnvConfig:
     lateral_drift_tau_s: float = 1.0
     # Where w_slip takes a sole's speed: False (every run up to run2b) at the sole geom's origin; True at the mean
     # point of the sole's contacts (the origin's velocity plus omega x r, as gait_metrics' slip_at_contact), so a
-    # rounded sole that rolls without sliding is not charged for rolling. In the frozen trot (two episodes per foot)
-    # the cost at the capsule sole's origin is 3.6x the cost at its contacts; the box soles' 1.1-1.2x (D19,
-    # rl/analysis/PREREG_RUN3.md).
+    # rounded sole that rolls without sliding is not charged for rolling. In the frozen trot (two episodes per foot,
+    # friction 1.0) the cost at the capsule sole's origin is 3.6x the cost at its contacts, the box soles' 1.1-1.2x;
+    # less on slippery floors and terrain (D19, rl/analysis/PREREG_RUN3.md).
     slip_at_contact: bool = False
 
     def replace(self, **changes: Any) -> "TrikeEnvConfig":
