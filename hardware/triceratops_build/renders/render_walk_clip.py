@@ -32,6 +32,7 @@ MAX_STILL_BYTES = 500 * 1024
 
 
 def overlay(frame, title, lines):
+    """The frame with a SIMULATION badge top left and bottom right of the picture, and the caption band."""
     img = Image.new("RGB", (W, H), (24, 28, 32))
     img.paste(Image.fromarray(frame), (0, 0))
     d = ImageDraw.Draw(img)
@@ -40,6 +41,9 @@ def overlay(frame, title, lines):
     bw = d.textlength(badge, font=fs) + 24
     d.rounded_rectangle([16, 16, 16 + bw, 50], radius=7, fill=(200, 40, 40))
     d.text((28, 21), badge, font=fs, fill=(255, 255, 255))
+    x1, y1 = W - 16 - bw, H - BAND - 50
+    d.rounded_rectangle([x1, y1, x1 + bw, y1 + 34], radius=7, fill=(200, 40, 40))
+    d.text((x1 + 12, y1 + 5), badge, font=fs, fill=(255, 255, 255))
     d.text((20, H - BAND + 8), title, font=fb, fill=(240, 240, 240))
     for i, line in enumerate(lines):
         d.text((20, H - BAND + 40 + 24 * i), line, font=f, fill=(190, 196, 204))
@@ -69,22 +73,30 @@ def main():
     cam.trackbodyid = env._chassis
     cam.distance, cam.azimuth, cam.elevation = a.distance, a.azimuth, a.elevation
     mass = env.nominal_mass
-    title = "Triceratops robot, 60 cm: trotting at the museum speed (simulation)"
-    pace = "real time" if a.speed == 1 else f"shown at {a.speed:g}x speed"
-    caption = [f"MuJoCo model, {mass:.1f} kg, design variant with passive roll ankles. Model-based trot at "
-               f"{a.command:g} m/s, {pace}.",
+    title = f"Triceratops robot, 60 cm: trotting at its planned walking speed, {a.command:g} m/s (simulation)"
+    pace = "shown at actual speed (1x)" if a.speed == 1 else f"shown at {a.speed:g}x speed"
+    caption = [f"MuJoCo model, {mass:.1f} kg, design variant with passive roll ankles. Model-based trot, {pace}.",
                "10 ms servo delay and sensor noise simulated. Not hardware; nothing is built yet."]
 
     obs, _ = env.reset(seed=a.seed, options={"command_speed": a.command, "delay_steps": 10})
-    sim_per_frame = a.speed / FPS
+    n_frames = int(a.seconds * FPS)
     t_end = a.still_at if a.still_at is not None else a.seconds * a.speed
     t_end = min(t_end, env.cfg.episode_seconds)
-    frames, next_t, fell = [], 0.0, ""
+    frames, fell = [], ""
+
+    def grab():
+        r.update_scene(d, camera=cam)
+        r.scene.flags[mujoco.mjtRndFlag.mjRND_REFLECTION] = 0  # no mirror image under the floor
+        return r.render()
+
+    def hook(e):  # after every 1 ms physics step: a frame at each 1/30 s of playback (reads the state only)
+        if a.still_at is None and len(frames) < n_frames and d.time + 1e-9 >= len(frames) * a.speed / FPS:
+            frames.append(overlay(grab(), title, caption))
+
+    if a.still_at is None:
+        frames.append(overlay(grab(), title, caption))  # t = 0
+        env.substep_hook = hook
     while True:
-        while a.still_at is None and next_t <= d.time + 1e-9 and len(frames) < int(a.seconds * FPS):
-            r.update_scene(d, camera=cam)
-            frames.append(overlay(r.render(), title, caption))
-            next_t += sim_per_frame
         if d.time >= t_end - 1e-9:
             break
         obs, _, terminated, truncated, info = env.step(ctrl.act(obs))
@@ -95,10 +107,11 @@ def main():
             break
     if fell:
         raise SystemExit(f"the episode ended early ({fell}) at {d.time:.2f} s; nothing written")
+    env.substep_hook = None
     if a.still_at is not None:
-        r.update_scene(d, camera=cam)
-        cap = [caption[0], f"t = {d.time:.1f} s. " + caption[1]]
-        img = Image.fromarray(overlay(r.render(), title, cap))
+        cap = [f"MuJoCo model, {mass:.1f} kg, design variant with passive roll ankles. Model-based trot, "
+               f"{d.time:.1f} s into the episode.", caption[1]]
+        img = Image.fromarray(overlay(grab(), title, cap))
         out = Path(a.out)
         for q in (90, 85, 80, 75):
             img.save(out, "JPEG", quality=q, optimize=True, progressive=True)

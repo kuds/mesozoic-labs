@@ -75,7 +75,8 @@ python hardware/triceratops_build/pr669_review/stance_balance_check.py \
    crawl confirms the foot problem at 60 cm (F11); the hind knees are at their continuous limit by estimate (F12).
 2. **Training setup for 60 cm** (environment, training script with resume, Colab notebook): in progress; a cost
    estimate goes to the owner before any Colab run.
-3. **Renders at 60 cm** before 8 Dec 2026 (start by 1 Dec); clips on the data branch.
+3. **Renders at 60 cm** before 8 Dec 2026 (start by 1 Dec); clips on the data branch. *Done 22 Nov 2026: stills and
+   the model-based trot clip (`renders/README.md`); more clips if the owner wants them.*
 4. **Task 5, the walk:** a model-based controller first (D10), judged at 10 ms of delay (D9), at the new speed target;
    check every result under a stiffer contact setting too.
 5. **The foot:** a sole that stays flat in roll (F7); try a roll hinge that centres the sole to the ground.
