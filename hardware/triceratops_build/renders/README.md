@@ -29,6 +29,12 @@ Clip, on the data branch (D11): `walk60_trot_0.25_1x.mp4`, 20 s in real time, 12
   0.25 m/s museum command.
 - **Conditions:** 10 ms servo delay and sensor noise on, no randomisation, episode seed 101. Labelled on every
   frame.
+- **The episode itself** (the same simulation run without rendering, `walk60.run_episode`, measured from 2 s):
+  - no fall; 0.246 m/s;
+  - worst drive at 0.67 of its continuous rating;
+  - sideways drift 0.07 m and heading change 2.9° over 18 s.
+- **Where it is:** on the data branch since commit b5bb8269 of `claude/triceratops-build-clips`. Fetch it with
+  `git fetch origin claude/triceratops-build-clips` and then `git show FETCH_HEAD:walk60_trot_0.25_1x.mp4 > clip.mp4`.
 - **How to show it:** as a trot developed and tested in simulation on a flat floor. Its weak side is ramps
   (`../walk/REPORT_WALK60.md`, robustness sweep). It is not a demonstration of the robot.
 
