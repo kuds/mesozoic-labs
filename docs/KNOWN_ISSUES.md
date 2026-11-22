@@ -2360,12 +2360,6 @@ note 15 and the stance-hack audit's §11). What it leaves open:
 
 ## Testing / CI
 
-- **LOW** — `hw_chassis_study.py`'s excitation drives hip pitch and knee in
-  phase, unlike a real trot where knee flexion leads swing. This contributes to
-  the knee pinning at its 22 N·m cap in all 18 runs, so that column is reported
-  as "not a configuration discriminator"; the ab/ad conclusions are unaffected
-  (that joint is driven at 0.25x and does discriminate).
-  (2026-07 Dibothrosuchus review)
 - TOML→env round-trip test: construct each env with each stage's
   `env_kwargs`, assert no unknown/unused keys. (June §6.8)
 - **LOW** — **the site deploy waits on nothing but its own build (read from

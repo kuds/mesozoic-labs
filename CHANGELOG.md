@@ -5123,6 +5123,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `train()` and `train_curriculum()`, and `wandb` in the `train` extra. Nothing
   used it; TensorBoard stays the run logger, and `--label` is still recorded
   beside each stage's hyperparameter digest. Drop `--wandb` from any scripts.
+- **The top-level `hardware/` folder** (the T. rex robot form study and the
+  Triceratops kickoff: about 3,800 files of design code, simulation records,
+  reviews and plans), with `docs/hardware/HARDWARE_BOM.md`,
+  `docs/hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md` and
+  `environments/shared/scripts/hw_chassis_study.py`. This repository now holds
+  simulation only; the physical build will get its own repository. Four short
+  pages in `docs/hardware/` replace them: `README.md` (status and the robot
+  concepts at a glance), `PARTS_AND_COSTS.md`, `SIZES.md` and
+  `LESSONS_LEARNED.md`. Their links to the detailed records are pinned to
+  commits, and the removed files stay in git history. `SIM_TO_REAL_PLAN.md`
+  and `REFERENCE_MICRODUCK_2026_10.md` stay as they were.
 - **The species aliases, selection by display name, and the per-species
   training wrappers** (D-D33):
   - the aliases `raptor`, `t-rex`, `brachio`, `dibo`, `compso` and

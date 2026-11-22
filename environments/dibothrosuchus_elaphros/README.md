@@ -166,8 +166,8 @@ floor, or the snap succeeds. The thresholds are in `base_env.py`, and the review
   and the failed walk were both the zero-action statue, and a re-run skidded on three legs.
 - [Stance-hack audit, 2026-10](../../docs/investigations/STANCE_HACK_AUDIT_2026_10.md), §3.5: the statue and the
   three-legged stance of the certified checkpoints on an earlier plant.
-- [Raptor scaling and alternatives](../../docs/hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md): a custom
-  Dibothrosuchus-inspired quadruped as the speed-focused tier of the running-robot plans.
+- [Hardware notes](../../docs/hardware/PARTS_AND_COSTS.md#dibothrosuchus-inspired-quadruped): a custom
+  Dibothrosuchus-inspired quadruped, a paper concept of July 2026, as the near-$10k tier of the running-robot plans.
 - [Direction following and terrain](../../docs/TRAIN_DIRECTION_AND_TERRAIN.md): the pilot behaviors in
   `configs/dibothrosuchus_elaphros/anatomical/behaviors/`, trained by `python -m environments.shared.train_behaviors`.
 - [Plant revisions](../../configs/plant_versions.toml): what changed in each physics, policy-interface and visual

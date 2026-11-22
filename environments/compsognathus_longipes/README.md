@@ -180,8 +180,9 @@ identified hardware.
 
 The full design record, with the mass budget, part candidates, sensor layout, actuation and contact assumptions,
 validation results and sources, is
-[docs/reviews/COMPSOGNATHUS_ROBOT_DESIGN.md](../../docs/reviews/COMPSOGNATHUS_ROBOT_DESIGN.md). Hardware
-feasibility and cost plans are in [docs/hardware/](../../docs/hardware/README.md).
+[docs/reviews/COMPSOGNATHUS_ROBOT_DESIGN.md](../../docs/reviews/COMPSOGNATHUS_ROBOT_DESIGN.md). The hardware
+notes, with the sizes tried for every robot concept and the parts and costs of those priced so far, are in
+[docs/hardware/](../../docs/hardware/README.md).
 
 ## Files
 

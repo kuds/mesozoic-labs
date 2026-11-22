@@ -130,10 +130,9 @@ stage, the recovery stage and the notebook's settings.
 | [`configs/`](configs) | The species manifest and each model's stage configs (`configs/<species>/<embodiment>/`) |
 | [`notebooks/`](notebooks) | Colab notebooks for training and for summarizing results |
 | [`results/`](results) | Published run summaries, metrics and GIFs, including historical, unverified ones |
-| [`docs/`](docs) | The generated species catalog, plans, design records, investigations and reviews |
+| [`docs/`](docs) | The generated species catalog, plans, design records, investigations, reviews and hardware notes |
 | [`website/`](website) | Source of [mesozoiclabs.com](https://mesozoiclabs.com) (Docusaurus) |
 | [`examples/`](examples) | The standalone Stegosaurus reference |
-| [`hardware/`](hardware) | Robot design studies and build plans; no hardware results are published yet |
 
 ## Documentation
 
@@ -149,6 +148,7 @@ Start with the guides on [mesozoiclabs.com](https://mesozoiclabs.com) and the ge
 | Add a species or a robot, set up for development and run the tests | [Contributing](CONTRIBUTING.md) |
 | See what changed in each release | [Changelog](CHANGELOG.md) |
 | Check project status, plans, design records and open problems | [Documentation map](docs/README.md) |
+| Read the robot hardware notes: parts and costs, sizes tried, lessons learned and the first planned build | [docs/hardware](docs/hardware/README.md) |
 | Read how the project started | [From Zero to Dino-Roar](https://www.findingtheta.com/blog/from-zero-to-dino-roar-teaching-a-t-rex-to-walk-with-mujoco-and-reinforcement-learning) (blog post) |
 
 ## Citation
