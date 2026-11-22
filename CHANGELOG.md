@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **A `LICENSE` file at the repository root** with the MIT text the project
+  already declared in `pyproject.toml`; it ships in the wheel and sdist. The
+  README's License section links it and points to the Apache-2.0 notice for
+  the Compsognathus robot meshes derived from Open Duck Mini v2.
 - **The r10 LTSB T. rex stance certified on `main` on two seeds, with its
   fresh-seed audit** (#665; the maintainer's stance-landing decision of 2026-11-06,
   cited by date: this records change keeps the date citation, and its number
@@ -2659,6 +2663,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+
+- **Species display names are written in scientific form**: "Tyrannosaurus rex",
+  "Velociraptor mongoliensis", "Brachiosaurus altithorax", "Dibothrosuchus elaphros",
+  "Compsognathus longipes" and "Allosaurus fragilis" (genus capitalized, epithet
+  lowercase), so model display names read "Tyrannosaurus rex (Anatomical)". The
+  manifest's six `display_name` values, the generated catalog, README and website data,
+  the species READMEs, docs, website pages and notebook prose follow; species IDs, model
+  IDs, Gymnasium IDs, class names and anchors are unchanged, and no digest moves.
+
+- **The website's commands match the READMEs'.** Scripts run as modules from the repository
+  root (`python -m environments.<species>.scripts.view_model --embodiment anatomical`,
+  `python -m environments.shared.scripts.plot_gate_progress`), since the script-path form
+  fails without an install; the test commands install the `test` extra that brings pytest
+  first; the evaluation examples pass `--no-render`, so they run without a display; the
+  API overview's hand-chained stage 2 loads stage 1's handoff with
+  `--load-mode initialize_next_stage`; the Compsognathus pages install and run the
+  curriculum as the README does; and the quick start lists `allosaurus_fragilis`.
+
+- **Colab setup is lighter and installs from one set of pins.** The notebooks' setup cells
+  check out `REPO_REF` blobless and sparse (only `environments`, `configs`, `notebooks`
+  and `results`, plus the root files): a fresh runtime downloads about 38 MB instead of
+  about 170 MiB, and a checkout that fails part-way while switching `REPO_REF` is rolled
+  back so a rerun is not refused. The SB3 notebook then runs the checked-out
+  `notebooks/colab_install.py`, which removes legacy gym packages, installs the project
+  with its `train` and `viz` extras in one resolver pass (uv, else pip) and checks the
+  installed versions, keeping Colab's own torch. The new root `constraints.txt` pins
+  MuJoCo 3.10.0, Stable-Baselines3 2.9.0 and Gymnasium 1.3.0 for Colab and every CI
+  install (`pip install -e ".[train]" -c constraints.txt` reproduces them locally); it
+  replaces `notebooks/requirements-colab.txt`. The `train` extra now requires
+  `stable-baselines3` with TensorBoard, tqdm, rich and matplotlib instead of
+  `stable-baselines3[extra]`, which also pulled in OpenCV, pygame, ALE, psutil and pandas; the
+  `test` extra gains pandas and jinja2, so CI's shared legs run the Drive summary reader
+  test. A new `colab-install` CI job runs the installer on a runtime set up like Colab's.
+
+- Reconstructed the anatomical *Brachiosaurus altithorax* with raised shoulders, a deeper trunk,
+  tapered neck and tail, distinct manus and pes, and corrected elbow and hind-knee mechanics.
+  The species guide records the fossil evidence and measured standing, walking and browsing
+  performance. A reference walk drives the normal actuators and reports floor contact, slip
+  and stride timing. The new plant uses physics revision 6, policy interface 10 and visual
+  revision 3. Earlier policies require retraining.
+
 - **The Velociraptor is rebuilt life size, of equivalent nature to the T. rex:
   IGM 100/986's proportions on the T. rex's topology, a level trunk, a
   separate neck and skull, welded passive arms, a didactyl foot on passive
@@ -5068,6 +5113,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says.
 
 ### Removed
+- **The species `requirements.txt` files** of the Velociraptor, the T. rex and the
+  Brachiosaurus. They asked for `mujoco>=3.0.0` and `stable-baselines3[extra]>=2.2.0`,
+  against the package's `mujoco==3.10.0` and `train` extra, so an install from one got a
+  MuJoCo the plant contract refuses. Install with `pip install -e ".[train]"`, adding
+  `-c constraints.txt` for the CI and Colab versions.
+- **The Weights & Biases integration**: `environments/shared/wandb_integration.py`,
+  the `--wandb` flag of `train` and `curriculum`, the `use_wandb` argument of
+  `train()` and `train_curriculum()`, and `wandb` in the `train` extra. Nothing
+  used it; TensorBoard stays the run logger, and `--label` is still recorded
+  beside each stage's hyperparameter digest. Drop `--wandb` from any scripts.
 - **The species aliases, selection by display name, and the per-species
   training wrappers** (D-D33):
   - the aliases `raptor`, `t-rex`, `brachio`, `dibo`, `compso` and
@@ -5123,8 +5178,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reset label `"certification_override"` is no longer written (a forced
   reset of a sampled env is `"evaluation_override"`; an env without a
   sampler writes no `terrain_sampling` record).
+- **The frozen MJX interface core and the `jax-mjx` backend** (D-D17's
+  exit): `environments/shared/{mjx_env,jax_setup,mjx_utils,obs_functions}.py`
+  and both `anatomical/mjx_config.py` registrations. Brachiosaurus and
+  Dibothrosuchus now declare Stable-Baselines3 only, moving their policy
+  interface to r11 and r10 (`configs/plant_versions.toml` note 23); r10 and
+  r9 checkpoints of those two models no longer pass the plant check, so they
+  cannot seed a warm start or a trunk reuse. Every other model's digests are
+  unchanged. An environment or species manifest that declares `jax-mjx` is
+  refused; archived JAX result bundles still read.
+  `plant_contract.fingerprint_model_layers` no longer takes
+  `require_backend_parity`.
 
 ### Fixed
+- **T. rex stance training no longer fails on a fresh `pip install -e ".[train]"`**
+  (`environments/shared/mirror_kl_ppo.py`, `pyproject.toml`). The mirror-symmetric PPO
+  guard refused any stable-baselines3 but 2.9.0, though pip resolves 2.9.2, whose sources
+  are unchanged; it now checks the digests of the SB3 sources it depends on (`PPO.train`,
+  `RunningMeanStd`, `DiagGaussianDistribution.mode` and `proba_distribution`) instead of
+  the release number, and the `train` extra requires stable-baselines3 >= 2.9.0. The
+  extra also requires torch >= 2.6: earlier releases have a known bypass of
+  `torch.load(weights_only=True)` (CVE-2025-32434).
+- **Windows checkouts no longer make every plant manifest stale.**
+  `.gitattributes` now sets `* text=auto eol=lf`, so `core.autocrlf=true`
+  (Git for Windows' default) checks the hashed MJCF and TOML files out with LF,
+  and a `plant-identity (windows)` CI job guards it. A Windows clone made before
+  this change must be re-cloned, or re-checked out after committing or stashing
+  local edits (`git rm --cached -r . && git reset --hard` discards them). No
+  digest changes.
+- **The curated `collected_results.csv` files agree with their summaries**
+  (results only; `environments/shared/tests/test_result_summaries.py`). The
+  Brachiosaurus PPO, T. rex PPO, Velociraptor PPO and Velociraptor SAC CSVs
+  are regenerated from their unchanged `summary.json` by the canonical
+  writer, and a test now fails on any summary/CSV contradiction or orphan CSV.
 - **A comparison's run names sit at their lines' ends in the
   training-history report** (#644; report only;
   `environments/shared/reporting/training_history.py`). Each run's name at

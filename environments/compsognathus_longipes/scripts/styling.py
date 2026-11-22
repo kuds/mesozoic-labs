@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 
-import mujoco
 import numpy as np
 
+from environments.compsognathus_longipes.scripts.anatomical_surface import longitudinal_mesh
 from environments.compsognathus_longipes.scripts.robot_shells import robot_casings
 
 
@@ -122,8 +122,6 @@ def apply_styles(root, embodiment, parameters):
     default_geom.attrib.pop("rgba", None)
     default_geom.set("material", "body_mat")
     pelvis = root.find("worldbody/body[@name='pelvis']")
-    for geom in pelvis.iter("geom"):
-        set_material(geom, "body_mat")
     if embodiment == "robot":
         for geom in pelvis.iter("geom"):
             set_material(geom, "servo_mat" if "wj-wk" in geom.get("mesh", "") else "frame_mat")
@@ -158,92 +156,20 @@ def apply_styles(root, embodiment, parameters):
         camera_pos = parameters["robot"]["camera_pos_m"]
         tip_pos = [0.040, 0, -0.003]
     else:
-        torso = pelvis.find("geom[@name='torso']")
-        torso.attrib.pop("pos")
-        torso.attrib.update(
-            type="capsule",
-            fromto="-.050 0 .015 .100 0 .035",
-            size=".035",
-            mass=str(parameters["anatomical"]["torso_mass_kg"] - 0.04),
-        )
-        add(
-            pelvis,
-            "geom",
-            name="belly_geom",
-            type="ellipsoid",
-            pos=".025 0 .012",
-            size=".07 .029 .023",
-            mass=".04",
-            material="belly_mat",
-        )
-        neck = pelvis.find("body[@name='neck']")
-        neck.find("geom[@name='neck_geom']").attrib.update(fromto="0 0 0 .043 0 .046", size=".014", mass=".025")
-        add(
-            neck,
-            "geom",
-            name="upper_neck_geom",
-            type="capsule",
-            fromto=".043 0 .046 .102 0 .065",
-            size=".012",
-            mass=".015",
-            material="body_mat",
-        )
-        head = neck.find("body[@name='skull']")
-        skull = head.find("geom[@name='skull_geom']")
-        skull.attrib.update(pos=".002 0 .003", size=".036 .019 .022", mass=".030", material="head_mat")
-        add(
-            head,
-            "geom",
-            name="muzzle_geom",
-            type="ellipsoid",
-            pos=".045 0 -.002",
-            size=".033 .011 .011",
-            mass=".015",
-            material="head_mat",
-        )
-        jaw = head.find("body[@name='jaw']")
-        # A plain lower-jaw proxy blends into the closed head without a lip
-        # rim. Preserve the previous 7 g capsule's COM/inertia explicitly:
-        # this is a visual revision, not a change to the articulated plant.
-        jaw_geom = jaw.find("geom")
-        mass_reference = ET.Element("mujoco")
-        ref_body = add(add(mass_reference, "worldbody"), "body", name="jaw")
-        add(
-            ref_body,
-            "geom",
-            type="capsule",
-            fromto=jaw_geom.get("fromto"),
-            size=jaw_geom.get("size"),
-            mass=jaw_geom.get("mass"),
-        )
-        compiled = mujoco.MjModel.from_xml_string(ET.tostring(mass_reference, encoding="unicode"))
-        add(
-            jaw,
-            "inertial",
-            mass=compiled.body_mass[1],
-            pos=numbers(compiled.body_ipos[1]),
-            quat=numbers(compiled.body_iquat[1]),
-            diaginertia=numbers(compiled.body_inertia[1]),
-        )
-        jaw_geom.attrib.pop("fromto")
-        jaw_geom.attrib.update(type="ellipsoid", pos=".045 0 .008", size=".040 .009 .006")
-        set_material(jaw_geom, "head_mat")
-        radii = [0.019, 0.014, 0.009, 0.0045, 0.0015]
+        head = pelvis.find("body[@name='neck']/body[@name='skull']")
+        radii = parameters["anatomical"]["tail_section_radii_m"]
         for i, length in enumerate(parameters["anatomical"]["tail_segment_lengths_m"]):
             name = f"tail_{i + 1}_taper"
-            tapered_mesh(asset, name, 0.012 if i == 0 else 0, -length, radii[i], radii[i + 1])
+            radius, tip = radii[i], radii[i + 1]
+            longitudinal_mesh(asset, name, [(-length, 0, tip, tip), (0.008 if i == 0 else 0, 0, radius, radius)])
             geom = pelvis.find(f".//geom[@name='tail_{i + 1}_geom']")
             geom.attrib.pop("fromto")
             geom.attrib.pop("size")
-            geom.attrib.update(type="mesh", mesh=name, material="body_mat")
+            geom.attrib.update(type="mesh", mesh=name, material="hide_mat")
         for geom in pelvis.iter("geom"):
-            if (
-                "toe_d" in geom.get("name", "")
-                or "plantar" in geom.get("name", "")
-                or "hand_visual" in geom.get("name", "")
-            ):
-                set_material(geom, "claw_mat")
-        camera_pos, tip_pos = [0.080, 0, 0.002], [0.078, 0, -0.002]
+            if geom.get("material") is None:
+                set_material(geom, "body_mat")
+        camera_pos, tip_pos = [0.069, 0, 0.001], [0.067, 0, -0.0006]
     camera = head.find("camera[@name='head_camera']")
     camera.attrib.update(pos=numbers(camera_pos), resolution="640 480")
     head.find("site[@name='head_tip']").set("pos", numbers(tip_pos))

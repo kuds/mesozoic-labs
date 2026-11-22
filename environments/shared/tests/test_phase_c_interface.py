@@ -31,7 +31,8 @@ contract code:
   observation schema it was taken under.  The trex captures were re-taken
   again for physics r10 (note 20, D-D44: the tail pitch springs preloaded):
   their reset halves were unchanged again, and only their observation and
-  trajectory halves moved.
+  trajectory halves moved. The anatomical r3 feet change the deterministic floor-seating correction in
+  root z. The sampled pose before that correction, reset RNG state and push schedules still reproduce.
 * The command hook itself is pinned directly: under ``command_mode =
   "none"`` it touches ``np_random`` not at all, and it runs after every
   reset draw (the push schedule included) and before ``_get_obs``.
@@ -49,24 +50,23 @@ contract code:
   exactly when the mode is live (amendment A9, as PR-9 carried it out).
 * The recovery-calibration restamp tool is idempotent and refuses a physics
   change; the committed compsognathus calibrations load (decision D-C2).  The
-  robot's still carries its Phase C restamp; the anatomical one was
-  re-measured on compsognathus physics r2 (D-D26), the physics change a
-  restamp refuses, and carries one interface restamp since: the heading-free
-  policy interface r4 (plant_versions note 18, D-D31), an interface-only
-  revision on the physics it was measured on.  Both then carry the identity
-  migration of decision D-D33 (``--migrate-identity``, plant_versions note
-  19), which the tool reproduces byte for byte from the schema-v1 profile.
+  robot preserves its Phase C restamp and the D-D33 identity migration. The
+  anatomical r3 profile is measured on the revised animal. Its calibration
+  evidence records the quiet posture, safe-set thresholds and push screen.
 
 Nothing here imports stable_baselines3, torch or jax, so the module runs in
 full in the shared legs of the test matrix (``.[test]`` only); the SB3 job
 does not repeat it (CU-14a).
-The dual-backend probe parity pin lives in ``test_plant_contract_phase_c.py``;
-the MJX runtime half left with the JAX runtime (D-D17).
+The plant-contract probe pin lives in ``test_plant_contract_phase_c.py``; its
+SB3/MJX parity half left with the frozen MJX interface core
+(configs/plant_versions.toml note 23).
 """
 
 from __future__ import annotations
 
 import copy
+import gzip
+import hashlib
 import inspect
 import json
 import re
@@ -79,6 +79,7 @@ import mujoco
 import numpy as np
 import pytest
 
+from environments.allosaurus_fragilis.anatomical.env import AllosaurusFragilisAnatomicalEnv
 from environments.brachiosaurus_altithorax.anatomical.env import BrachiosaurusAltithoraxAnatomicalEnv
 from environments.compsognathus_longipes.anatomical.env import CompsognathusLongipesAnatomicalEnv
 from environments.compsognathus_longipes.robot.env import CompsognathusLongipesRobotEnv
@@ -117,6 +118,7 @@ COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
 MODEL_ENVS = [
     pytest.param(env_class, model_id, id=f"{model_id.species}-{model_id.embodiment}")
     for env_class, model_id in (
+        (AllosaurusFragilisAnatomicalEnv, ModelId("allosaurus_fragilis", "anatomical")),
         (VelociraptorMongoliensisAnatomicalEnv, ModelId("velociraptor_mongoliensis", "anatomical")),
         (TyrannosaurusRexAnatomicalEnv, TYRANNOSAURUS_REX),
         (BrachiosaurusAltithoraxAnatomicalEnv, ModelId("brachiosaurus_altithorax", "anatomical")),
@@ -190,16 +192,17 @@ def test_golden_fixture_records_its_provenance():
 #: recapture, plant_versions note 18's heading-free observation, an interface-only revision).  Re-pinned 14, 14,
 #: 4 -> 15, 15, 5 by the identity migration (plant_versions note 19, decision D-D33), which refreshed each
 #: recapture's interface revision; no capture was re-taken.  The trex captures were re-taken on physics r10
-#: (plant_versions note 20, decision D-D44), so their physics revision moved 9 -> 10.
+#: (plant_versions note 20, decision D-D44). The revised anatomical feet and recovery dynamics are captured
+#: on physics r3 / policy interface r6; the fixture records the measured deterministic root-height shift.
 RECAPTURED = {
-    (TYRANNOSAURUS_REX, "stance"): 10,
-    (TYRANNOSAURUS_REX, "recovery"): 10,
-    (COMPSOGNATHUS_LONGIPES, "recovery"): 2,
+    (TYRANNOSAURUS_REX, "stance"): 11,
+    (TYRANNOSAURUS_REX, "recovery"): 11,
+    (COMPSOGNATHUS_LONGIPES, "recovery"): 3,
 }
 RECAPTURED_INTERFACES = {
-    (TYRANNOSAURUS_REX, "stance"): (15, "bipedal-target-heading-free/v1"),
-    (TYRANNOSAURUS_REX, "recovery"): (15, "bipedal-target-heading-free/v1"),
-    (COMPSOGNATHUS_LONGIPES, "recovery"): (5, "bipedal-target-heading-free/v1"),
+    (TYRANNOSAURUS_REX, "stance"): (16, "bipedal-target-heading-free/v1"),
+    (TYRANNOSAURUS_REX, "recovery"): (16, "bipedal-target-heading-free/v1"),
+    (COMPSOGNATHUS_LONGIPES, "recovery"): (6, "bipedal-target-heading-free/v1"),
 }
 
 
@@ -783,22 +786,8 @@ def test_a_record_written_before_pr9_rebuilds_its_stage_once_the_retired_keys_ar
 # ---------------------------------------------------------------------------
 
 CALIBRATED_MODELS = (COMPSOGNATHUS_LONGIPES, COMPSOGNATHUS_LONGIPES_ROBOT)
-#: Every committed profile carries two restamps.  The first is its interface restamp: the robot's is the Phase C
-#: restamp; the anatomical profile was re-measured on compsognathus physics r2 (D-D26; ``calibrate_recovery.py``),
-#: a physics change being exactly what a restamp refuses, and restamped once since, for its heading-free policy
-#: interface r4 (plant_versions note 18, D-D31), an interface-only revision on the physics it was measured on.  The
-#: second is the identity migration of decision D-D33 (plant_versions note 19, ``--migrate-identity``): an
-#: interface-only revision that also renamed the profile's model, so its entry records the identity it replaced.
-RESTAMPED_MODELS = (COMPSOGNATHUS_LONGIPES, COMPSOGNATHUS_LONGIPES_ROBOT)
-#: Each first restamp's reason (the tool's default is the Phase C one).
-RESTAMP_REASONS = {
-    COMPSOGNATHUS_LONGIPES: (
-        "compsognathus policy interface r3 -> r4 (configs/plant_versions.toml note 18, D-D31): heading-free "
-        "observations bipedal-target-heading-free/v1; physics r2 and the recovery [env] block unchanged; the "
-        "fixed-command nulls do not read the observation and the reset draw stream is unchanged "
-        "(tests/fixtures/phase_c_reset_golden.json)"
-    ),
-}
+#: The robot preserves the Phase C restamp and D-D33 migration; r3 anatomy was freshly measured.
+RESTAMPED_MODELS = (COMPSOGNATHUS_LONGIPES_ROBOT,)
 #: The identity migration's recorded reason, and the one schema it migrated from (decision D-D33).
 IDENTITY_MIGRATION_REASON = "plant_versions note 19 (D-D33)"
 PRE_D_D33_PROFILE_SCHEMA = "mesozoic.recovery-calibration/v1"
@@ -894,7 +883,7 @@ def test_committed_recovery_calibrations_load_and_record_their_two_restamps(mode
     assert profile["plant_identity"] == identity.to_dict()
     interface, migration = profile["restamp_history"]
     assert interface["previous_policy_interface_revision"] == identity.policy_interface_revision - 2
-    assert interface["reason"] == RESTAMP_REASONS.get(model_id, RESTAMP_REASON)
+    assert interface["reason"] == RESTAMP_REASON
     assert "previous_identity" not in interface
     # The identity migration (decision D-D33): one interface revision, the replaced identity recorded whole.
     assert migration["previous_policy_interface_revision"] == identity.policy_interface_revision - 1
@@ -913,30 +902,43 @@ def test_committed_recovery_calibrations_load_and_record_their_two_restamps(mode
         assert re.fullmatch(r"[0-9a-f]{40}", entry["restamped_at_commit"])
 
 
-def test_the_anatomical_recovery_calibration_is_a_physics_r2_measurement_with_one_heading_interface_restamp(
-    tmp_path,
-):
-    """Measured on the current physics, then restamped once for the heading-free interface and once for the
-    identity migration (decision D-D33): it loads, names the physics it was measured on, measured the committed
-    recovery [env] block, carries the restamp from policy interface r3, and the restamp tool leaves it
-    byte-identical."""
+def test_anatomical_recovery_profile_agrees_with_its_r3_measurements(tmp_path):
     from environments.shared.recovery_calibration import load_recovery_calibration
     from environments.shared.scripts import restamp_recovery_calibration as tool
 
-    calibration = load_recovery_calibration(COMPSOGNATHUS_LONGIPES)
-    _, text, profile = _committed_profile(COMPSOGNATHUS_LONGIPES)
-    identity = current_plant_identity(COMPSOGNATHUS_LONGIPES, verify_generated=False)
+    model_id = COMPSOGNATHUS_LONGIPES
+    _, text, profile = _committed_profile(model_id)
+    assert load_recovery_calibration(model_id).profile == profile
+    identity = current_plant_identity(model_id)
     assert profile["plant_identity"] == identity.to_dict()
-    assert profile["plant_identity"]["physics_revision"] == 2
-    entry, migration = calibration.profile["restamp_history"]
-    # Re-pinned (decision D-D33): r3 -> r4 heading-free, then r4 -> r5 for the identity migration.
-    assert (entry["previous_policy_interface_revision"], identity.policy_interface_revision) == (3, 5)
-    assert migration["previous_policy_interface_revision"] == 4
-    assert "heading-free" in entry["reason"] and "note 18" in entry["reason"]
-    measured_env = json.loads(json.dumps(load_stage_config(COMPSOGNATHUS_LONGIPES, "recovery")["env_kwargs"]))
+    assert (identity.physics_revision, identity.policy_interface_revision) == (3, 6)
+    assert not profile.get("restamp_history")
+    provenance = profile["provenance"]
+    raw = gzip.decompress((CONFIGS_ROOT.parent / provenance["measurement_artifact"]).read_bytes())
+    assert "sha256:" + hashlib.sha256(raw).hexdigest() == provenance["measurement_uncompressed_sha256"]
+    evidence = json.loads(raw)
+    assert evidence["schema_version"] == 2 and ModelId.from_record(evidence) == model_id
+    asset_path = profile["plant_identity"]["model_path"]
+    assert (
+        evidence["provenance"]["source_sha256"][asset_path]
+        == hashlib.sha256((CONFIGS_ROOT.parent / asset_path).read_bytes()).hexdigest()
+    )
+    quiet = evidence["quiet_calibration"]
+    assert profile["safe_set"] == quiet["safe_set"]
+    assert profile["height_reference_m"] == quiet["height_reference_m"]
+    qualified = [
+        panel["perturbation"]["capture_velocity_multiple"]
+        for panel in evidence["selection_panels"]
+        if panel["summary"]["episode_success_fraction"] <= 0.5 and panel["summary"]["full_horizon_fraction"] >= 0.25
+    ]
+    assert evidence["selected_capture_velocity_multiple"] == min(qualified)
+    assert (
+        profile["derived_push_manifest"]["capture_velocity_multiple"] == evidence["selected_capture_velocity_multiple"]
+    )
+    measured_env = json.loads(json.dumps(load_stage_config(model_id, "recovery")["env_kwargs"]))
     assert profile["recovery_env_kwargs"] == measured_env
-    path = _committed_copy(COMPSOGNATHUS_LONGIPES, tmp_path / "configs")
-    assert tool.restamp_recovery_calibration(COMPSOGNATHUS_LONGIPES, path=path) is False
+    path = _committed_copy(model_id, tmp_path / "configs")
+    assert tool.restamp_recovery_calibration(model_id, path=path) is False
     assert path.read_text(encoding="utf-8") == text
 
 
@@ -1015,12 +1017,12 @@ def test_restamp_refuses_the_other_embodiments_profile_and_one_that_names_half_i
     with pytest.raises(tool.RestampError, match="does not name its model.*embodiment"):
         tool.restamp_recovery_calibration(COMPSOGNATHUS_LONGIPES, path=path)
     # A schema-v1 profile is the migration's, never a plain restamp's.
-    path, _ = _pre_migration_copy(COMPSOGNATHUS_LONGIPES, tmp_path / "v1")
+    path, _ = _pre_migration_copy(COMPSOGNATHUS_LONGIPES_ROBOT, tmp_path / "v1")
     with pytest.raises(tool.RestampError, match="--migrate-identity migrates it"):
-        tool.restamp_recovery_calibration(COMPSOGNATHUS_LONGIPES, path=path)
+        tool.restamp_recovery_calibration(COMPSOGNATHUS_LONGIPES_ROBOT, path=path)
 
 
-@pytest.mark.parametrize("model_id", CALIBRATED_MODELS, ids=lambda m: f"{m.species}-{m.embodiment}")
+@pytest.mark.parametrize("model_id", RESTAMPED_MODELS, ids=lambda m: f"{m.species}-{m.embodiment}")
 def test_migrate_identity_reproduces_the_committed_profile_from_its_schema_v1_form(model_id, tmp_path):
     """``--migrate-identity`` (decision D-D33, plan section 3.5) rebuilds the committed profile byte for byte from
     the schema-v1 profile it found, and a second run is a byte no-op."""
@@ -1053,24 +1055,24 @@ def test_migrate_identity_refuses_another_models_profile_and_a_changed_plant_or_
     # the measured task and the physics digest, so the other embodiment's profile is refused (review H3).
     path, _ = _pre_migration_copy(COMPSOGNATHUS_LONGIPES_ROBOT, tmp_path / "robot")
     refused(COMPSOGNATHUS_LONGIPES, path, "recovery_env_kwargs differ|not this model's")
-    path, _ = _pre_migration_copy(COMPSOGNATHUS_LONGIPES, tmp_path / "physics")
+    path, _ = _pre_migration_copy(COMPSOGNATHUS_LONGIPES_ROBOT, tmp_path / "physics")
     profile = json.loads(path.read_text(encoding="utf-8"))
     profile["plant_identity"]["physics_sha256"] = "sha256:" + "0" * 64
     path.write_text(_render(profile), encoding="utf-8")
-    refused(COMPSOGNATHUS_LONGIPES, path, "not this model's")
-    path, _ = _pre_migration_copy(COMPSOGNATHUS_LONGIPES, tmp_path / "task")
+    refused(COMPSOGNATHUS_LONGIPES_ROBOT, path, "not this model's")
+    path, _ = _pre_migration_copy(COMPSOGNATHUS_LONGIPES_ROBOT, tmp_path / "task")
     profile = json.loads(path.read_text(encoding="utf-8"))
     profile["recovery_env_kwargs"]["perturbation_interval"] = 99.0
     path.write_text(_render(profile), encoding="utf-8")
-    refused(COMPSOGNATHUS_LONGIPES, path, "recovery_env_kwargs differ")
+    refused(COMPSOGNATHUS_LONGIPES_ROBOT, path, "recovery_env_kwargs differ")
     # A schema-v1 profile that already names an embodiment is not guessed at.
-    path, _ = _pre_migration_copy(COMPSOGNATHUS_LONGIPES, tmp_path / "half")
+    path, _ = _pre_migration_copy(COMPSOGNATHUS_LONGIPES_ROBOT, tmp_path / "half")
     profile = json.loads(path.read_text(encoding="utf-8"))
-    path.write_text(_render({**profile, "embodiment": "anatomical"}), encoding="utf-8")
-    refused(COMPSOGNATHUS_LONGIPES, path, "already records an embodiment")
+    path.write_text(_render({**profile, "embodiment": "robot"}), encoding="utf-8")
+    refused(COMPSOGNATHUS_LONGIPES_ROBOT, path, "already records an embodiment")
     # A current-schema profile is migrated only when it is already the model's current one (a byte no-op).
-    path, _ = _pre_restamp_copy(COMPSOGNATHUS_LONGIPES, tmp_path / "behind")
-    refused(COMPSOGNATHUS_LONGIPES, path, "only a schema-v1 profile")
+    path, _ = _pre_restamp_copy(COMPSOGNATHUS_LONGIPES_ROBOT, tmp_path / "behind")
+    refused(COMPSOGNATHUS_LONGIPES_ROBOT, path, "only a schema-v1 profile")
     # The CLI mode records its own reason, never the Phase C default.
     with pytest.raises(SystemExit) as usage:
         tool.main(["--migrate-identity", "--configs-root", str(tmp_path / "robot")])

@@ -217,12 +217,12 @@ copying an existing pair:
 ```toml
 [species.custom_dino]
 display_order = 7
-display_name = "Custom Dino"
+display_name = "Custom dino"
 
 [species.custom_dino.embodiments.anatomical]
 tagline = "Small Bipedal Theropod"
 gait = "Bipedal"
-specialty = "Non-contact target reaching"
+specialty = "Non-contact target reach"
 env_entrypoint = "environments.custom_dino.anatomical.env:CustomDinoAnatomicalEnv"
 model_path = "environments/custom_dino/anatomical/assets/custom_dino_anatomical.xml"
 training_backends = ["stable-baselines3"]

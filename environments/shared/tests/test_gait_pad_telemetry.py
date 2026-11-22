@@ -228,7 +228,7 @@ def test_the_digit_share_is_the_digits_window_force_over_the_whole_limbs():
 
 
 def test_a_foot_with_no_digit_has_no_digit_share_field_and_a_window_with_no_load_reads_nan():
-    """No digit declared (the compsognathus robot's sole, a dibothrosuchus pad): the field does not exist, rather
+    """No digit declared (for example, the compsognathus robot's sole): the field does not exist, rather
     than a 0 that would read as "the digits carry nothing".  NaN is kept for a field that exists but was not
     measured."""
     no_digits = PadLayout(feet=(PadFoot(0, "r", ()), PadFoot(1, "l", (5, 6, 7))))
@@ -434,6 +434,7 @@ def test_the_step_columns_reproduce_the_episode_values():
 #: Per model: whether its pad feet declare a support span (the whole-foot fields), and how many of each foot's
 #: digits are hinged (the load position).  Only the T. rex has either.
 WHOLE_FOOT = {
+    ModelId("allosaurus_fragilis", "anatomical"): (False, 0),
     ModelId("tyrannosaurus_rex", "anatomical"): (True, 3),
     ModelId("compsognathus_longipes", "anatomical"): (False, 0),
     ModelId("compsognathus_longipes", "robot"): (False, 0),
@@ -443,10 +444,11 @@ WHOLE_FOOT = {
 }
 #: Each model's pad feet and digit count per foot (the box soles of FOOT_SUPPORT; digits = its support less its sole).
 PAD_FEET = {
+    ModelId("allosaurus_fragilis", "anatomical"): {},  # ellipsoid MTP pads and capsule digit pads
     ModelId("tyrannosaurus_rex", "anatomical"): {"r": 3, "l": 3},
     ModelId("compsognathus_longipes", "anatomical"): {"r": 3, "l": 3},
     ModelId("compsognathus_longipes", "robot"): {"r": 0, "l": 0},
-    ModelId("dibothrosuchus_elaphros", "anatomical"): {"fr": 0, "fl": 0, "rr": 0, "rl": 0},
+    ModelId("dibothrosuchus_elaphros", "anatomical"): {"fr": 4, "fl": 4, "rr": 4, "rl": 4},
     ModelId("velociraptor_mongoliensis", "anatomical"): {},
     ModelId("brachiosaurus_altithorax", "anatomical"): {},
 }
@@ -492,7 +494,7 @@ def test_every_model_reads_its_pads_as_the_gate_does(model_id):
     assert {foot.label: len(foot.digit_support) for foot in layout.feet} == PAD_FEET[model_id]
     for foot in layout.feet:
         names = [trace.support_geom_names[index] for index in foot.digit_support]
-        assert all(name.startswith(f"{foot.label}_") and "toe" in name for name in names), names
+        assert all(name.startswith((f"{foot.label}_toe", f"{foot.label}_digit")) for name in names), names
     settle = 100
     result = episode_pad_telemetry(trace, layout, settle_steps=settle)
     gate = episode_stance_metrics(trace, settle_steps=settle).max_sole_cop_fore_aft
@@ -607,6 +609,7 @@ def test_the_rail_feet_are_the_pad_feet():
 
 #: Each model's box-soled feet, the roll rails' feet (``FOOT_SUPPORT``).
 RAIL_FEET = {
+    ModelId("allosaurus_fragilis", "anatomical"): (),
     ModelId("tyrannosaurus_rex", "anatomical"): ("r", "l"),
     ModelId("compsognathus_longipes", "anatomical"): ("r", "l"),
     ModelId("compsognathus_longipes", "robot"): ("r", "l"),
@@ -627,7 +630,7 @@ def test_every_model_reads_its_roll_rails_as_the_gate_does(model_id):
     assert tuple(result) == layout.episode_keys()
     if not layout.feet:
         assert result == {}
-        # The brachiosaurus's ellipsoids have a tilt the gate reads (their authored pitch) and no corners.
+        # Brachiosaurus ellipsoids have a measurable tilt and no box corners.
         assert math.isfinite(metrics.max_sole_tilt_deg) == (model_id.species == "brachiosaurus_altithorax")
         assert math.isnan(metrics.max_sole_corner_lift_m)
         return

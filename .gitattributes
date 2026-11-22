@@ -1,5 +1,9 @@
-# Auto-detect text files and normalise line endings
-* text=auto
+# Auto-detect text files and normalise line endings. eol=lf checks text out
+# with LF on every platform, core.autocrlf=true (Git for Windows) included:
+# the plant contract and the digest snapshot hash checked-out bytes, so a
+# CRLF checkout made every model's plant manifest stale. The per-type lines
+# below inherit eol=lf.
+* text=auto eol=lf
 
 # Source
 *.py text

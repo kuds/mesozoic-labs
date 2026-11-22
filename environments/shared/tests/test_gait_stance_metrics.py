@@ -244,7 +244,7 @@ def test_a_hop_shorter_than_half_a_step_reads_every_leg_down_but_fires_the_windo
 def test_a_reset_pop_inside_the_spawn_grace_fires_only_the_spawn_metrics():
     trace = statue_trace()
     airborne, peak = trace.feet_airborne_substeps.copy(), trace.total_floor_max.copy()
-    airborne[0] = 3  # every statue but trex pops off its reset pose; dibothrosuchus flies up to 9 substeps
+    airborne[0] = 3  # simulate the brief loss of support observed at reset
     peak[2] = 2.4 * BODY_WEIGHT  # the velociraptor statue's pop reaches 2.42 body weights
     result = metrics(edited(trace, feet_airborne_substeps=airborne, total_floor_max=peak))
     assert result.spawn_airborne_substeps == 3.0
@@ -365,7 +365,7 @@ def test_a_rolled_box_sole_fails_every_flatness_metric():
 
 
 def test_an_authored_tilt_counts_only_beyond_the_keyframe():
-    # Brachiosaurus authors its ellipsoid forefeet at 19.2 degrees; its statue reads 26-27 absolute.
+    # Exercise the pitched home soles used by earlier models, including Brachiosaurus r5.
     trace = statue_trace()
     tilt = np.full_like(trace.sole_tilt_deg, 20.0)
     lift = np.full_like(trace.sole_corner_lift, np.nan)  # an ellipsoid sole has no box corners
@@ -1042,17 +1042,15 @@ def test_the_gait_package_imports_neither_curriculum_nor_reporting():
 def test_no_species_env_module_imports_the_gait_package():
     """An import line would change an env module's bytes, and with them its identity (and digests)."""
     environments = REPO_ROOT / "environments"
-    # Each species' base class, each embodiment's class and the two frozen MJX registrations (decision D-D33),
-    # built from the manifest; the globs only check that nothing on disk is left out.
+    # Each species' base class and each embodiment's class (decision D-D33), built from the manifest; the globs
+    # only check that nothing on disk is left out.
     models = model_ids()
     assert models
     modules = sorted({environments / model_id.species / "base_env.py" for model_id in models})
     modules += sorted(environments / model_id.species / model_id.embodiment / "env.py" for model_id in models)
-    jax = model_ids(backend="jax-mjx")
-    modules += sorted(environments / model_id.species / model_id.embodiment / "mjx_config.py" for model_id in jax)
-    modules += [environments / "shared" / name for name in ("base_env.py", "behavior_env.py", "mjx_env.py")]
+    modules += [environments / "shared" / name for name in ("base_env.py", "behavior_env.py")]
     on_disk = {*environments.glob("*/base_env.py"), *environments.glob("*/*/env.py")}
-    assert set(modules) >= on_disk | set(environments.glob("*/*/mjx_config.py"))
+    assert set(modules) >= on_disk
     assert all(path.is_file() for path in modules)
     offenders = [
         path.relative_to(REPO_ROOT).as_posix()

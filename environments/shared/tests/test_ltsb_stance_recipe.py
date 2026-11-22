@@ -7,9 +7,9 @@ committed stance with what one of those runs RECORDED (``fixtures/ltsb_stance/st
 its ``01_stance/stage_config.json`` and its verdict's gate digest): the task fingerprint and its env block, the
 recipe digest with the critic-phase launch switch on (the notebook's ``CRITIC_PHASE = True`` writes ``[ppo]
 critic_phase = true``) and with it off, the gate digest, the plant identity, and the reward weights,
-hyperparameters and curriculum ``save_stage_config`` records.  The only recorded differences are the screens'
-evaluation and checkpoint cadence keys, which main does not take (it trains at its production cadence) and which
-enter no digest.  The screen runs themselves never count (``run_exclusions.py``).
+hyperparameters and curriculum ``save_stage_config`` records.  The screens used their own evaluation and checkpoint cadence.
+The r11 plant changes the physical, interface and visual identities. Its remeasured statue floor and calibration
+revision are the two further curriculum differences. The screen runs themselves never count (``run_exclusions.py``).
 """
 
 from __future__ import annotations
@@ -38,8 +38,16 @@ NOTEBOOK = REPO_ROOT / "notebooks" / "sb3_training.ipynb"
 SCREEN_SEEDS = {42, 60, 80}
 #: The recipe the three switch-off screens recorded (stance7_r10LTSBoff_*): the same stance without the critic phase.
 SWITCH_OFF_RECIPE = "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
-#: The screens' evaluation and checkpoint cadence, which main does not take.
-SCREEN_CADENCE_KEYS = {"eval_freq", "eval_episodes", "checkpoint_freq", "max_checkpoints"}
+#: The r11 proportions, digital touch volumes, visible surface and corresponding model source.
+R11_PLANT_CHANGES = {
+    "physics_revision": 11,
+    "physics_sha256": "sha256:e07c514e678aba61e22647c54e59a5d58f535c43cba5647a465a1f9b590c7ec3",
+    "policy_interface_revision": 16,
+    "policy_interface_sha256": "sha256:a0c18d5cd178bd112715198878f75f247f86e248f8ab0da94e149d6b8568ee37",
+    "visual_revision": 5,
+    "visual_sha256": "sha256:dcbad93e52379759b742e2263af8bd80d08969cb88755ffe37f63b28fdc7ff9f",
+    "source_closure_sha256": "sha256:8929880a44987b82ea4fa24b1cc4051241331ef3638d264ef75079c8d671648e",
+}
 
 
 @pytest.fixture(scope="module")
@@ -60,12 +68,18 @@ def _switched_on(stance: dict[str, Any]) -> dict[str, Any]:
     return config
 
 
-def test_the_committed_stance_is_the_recorded_task(recorded):
-    fingerprint = stage_task_fingerprint(TYRANNOSAURUS_REX, "stance")
-    want = recorded["stage_config"]["task_fingerprint"]
-    assert fingerprint["task_sha256"] == want["task_sha256"]
-    assert fingerprint["task_sha256"].startswith("sha256:1e5964b6")
-    assert fingerprint["env"] == want["env"]
+def test_the_task_fingerprint_changes_only_with_the_plant(recorded):
+    screen = recorded["stage_config"]
+    want = screen["task_fingerprint"]
+    assert want["task_sha256"].startswith("sha256:1e5964b6")
+    # Reproduce the entire original task, including its digest, by supplying the training plant.
+    assert stage_task_fingerprint(TYRANNOSAURUS_REX, "stance", plant_identity=screen["plant_identity"]) == want
+    plant = {key: R11_PLANT_CHANGES[key] for key in ("physics_sha256", "policy_interface_sha256")}
+    assert stage_task_fingerprint(TYRANNOSAURUS_REX, "stance") == {
+        **want,
+        "plant": {**want["plant"], **plant},
+        "task_sha256": "sha256:433d4add0fc6e165e9f0125abf09912898d4cb2c5a4f58d2e17c40a8ebb79ec2",
+    }
 
 
 def test_with_the_critic_phase_switch_the_recipe_is_the_recorded_recipe(recorded, stance):
@@ -81,13 +95,15 @@ def test_the_gate_is_the_recorded_gate(recorded, stance):
     assert recorded["gate_sha256"].startswith("sha256:d26c34e6")
 
 
-def test_the_plant_is_the_recorded_plant(recorded):
+def test_the_revised_plant_preserves_the_remaining_screen_identity(recorded):
     from environments.shared.plant_contract import current_plant_identity
 
-    assert current_plant_identity(TYRANNOSAURUS_REX).to_dict() == recorded["stage_config"]["plant_identity"]
+    old = recorded["stage_config"]["plant_identity"]
+    assert (old["physics_revision"], old["policy_interface_revision"], old["visual_revision"]) == (10, 15, 4)
+    assert current_plant_identity(TYRANNOSAURUS_REX).to_dict() == {**old, **R11_PLANT_CHANGES}
 
 
-def test_the_recorded_blocks_are_the_screens_but_for_the_cadence(tmp_path, recorded, stance):
+def test_the_recorded_blocks_match_the_screens_with_r11_calibration_and_production_cadence(tmp_path, recorded, stance):
     from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
 
     path = save_stage_config(
@@ -102,17 +118,18 @@ def test_the_recorded_blocks_are_the_screens_but_for_the_cadence(tmp_path, recor
     want = recorded["stage_config"]
     assert written["reward_weights"] == want["reward_weights"]
     assert written["hyperparameters"] == want["hyperparameters"]
-    differing = {
-        key
-        for key in set(written["curriculum"]) | set(want["curriculum"])
-        if written["curriculum"].get(key) != want["curriculum"].get(key)
-    }
-    assert differing <= SCREEN_CADENCE_KEYS
-    assert {key: want["curriculum"][key] for key in differing} == {
-        "eval_freq": 131072,
-        "eval_episodes": 10,
-        "checkpoint_freq": 262144,
-        "max_checkpoints": 0,
+    expected = dict(want["curriculum"])
+    # The archived run supplied three explicit cadence overrides. Main uses its default schedule.
+    assert expected.pop("eval_freq") == 131072
+    assert expected.pop("eval_episodes") == 10
+    assert expected.pop("checkpoint_freq") == 262144
+    assert expected["max_checkpoints"] == 0
+    assert (expected["statue_constants_physics_revision"], expected["collapse_peak_floor_reference"]) == (10, 4470.4)
+    assert written["curriculum"] == {
+        **expected,
+        "max_checkpoints": 5,
+        "statue_constants_physics_revision": 11,
+        "collapse_peak_floor_reference": 4470.6,
     }
 
 

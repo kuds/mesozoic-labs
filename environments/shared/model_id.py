@@ -32,7 +32,7 @@ from typing import Any, Mapping
 
 #: The closed vocabulary of embodiments, in model order within a species.
 EMBODIMENTS = ("anatomical", "robot")
-#: Display labels, for model display names such as "Tyrannosaurus Rex (Anatomical)".
+#: Display labels, for model display names such as "Tyrannosaurus rex (Anatomical)".
 EMBODIMENT_LABELS = {"anatomical": "Anatomical", "robot": "Robot"}
 
 # Binomial snake_case: genus, then epithet (and any further lower-case words).

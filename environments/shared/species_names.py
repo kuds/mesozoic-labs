@@ -6,7 +6,7 @@ table ``[species.<species>]`` holds the species-level fields and one table
 binomial snake_case (``tyrannosaurus_rex``) and embodiments come from
 :data:`~environments.shared.model_id.EMBODIMENTS`; both are matched as exact
 strings, with no alias, display name, case or separator variant.  The model
-display name is derived (``"Tyrannosaurus Rex (Anatomical)"``), never stored.
+display name is derived (``"Tyrannosaurus rex (Anatomical)"``), never stored.
 """
 
 from __future__ import annotations
@@ -26,7 +26,9 @@ _MANIFEST_PATH = Path(__file__).resolve().parents[2] / "configs" / "species_mani
 #: The manifest schema this reader accepts; 3 since decision D-D33.
 SPECIES_MANIFEST_SCHEMA_VERSION = 3
 
-_TRAINING_BACKENDS = ("stable-baselines3", "jax-mjx")
+#: The one training backend.  ``jax-mjx`` was removed with the frozen MJX
+#: interface core (configs/plant_versions.toml note 23) and is refused here.
+_TRAINING_BACKENDS = ("stable-baselines3",)
 
 _SPECIES_KEYS = frozenset({"display_order", "display_name", "embodiments"})
 #: What the runtime readers need from every embodiment table: registration
@@ -158,12 +160,12 @@ def model_entry(model_id: ModelId) -> dict[str, Any]:
 
 
 def species_display_name(species: str) -> str:
-    """The species' display name (``"Tyrannosaurus Rex"``); an unknown species raises."""
+    """The species' display name (``"Tyrannosaurus rex"``); an unknown species raises."""
     return str(_species_table(species)["display_name"])
 
 
 def model_display_name(model_id: ModelId) -> str:
-    """``"<species display name> (<Embodiment>)"``, e.g. ``"Compsognathus Longipes (Robot)"``.
+    """``"<species display name> (<Embodiment>)"``, e.g. ``"Compsognathus longipes (Robot)"``.
 
     A model the manifest lacks raises.
     """

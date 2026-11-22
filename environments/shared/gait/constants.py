@@ -35,7 +35,7 @@ audit):
 
 * :data:`CONTACT_THRESHOLD_N` 0.1 N is the threshold every other contact
   reader already uses (``stance_diagnostics.derive_stance_info``,
-  ``metrics.py`` and the MJX per-foot sensor read), so floor truth and touch
+  ``metrics.py``), so floor truth and touch
   disagree only where the physics does.
 * :data:`DOWN_SUBSTEP_FRACTION` 0.5: a leg is down on a control step when
   its whole-limb floor force exceeds 0.1 N on at least half of the step's
@@ -49,11 +49,10 @@ audit):
   the plan's "in seconds" rule rather than a 2-step rule that would mean
   40 ms on the 0.02 s species.
 * :data:`SPAWN_GRACE_S` 0.10 s: the reset transient is a PLANT property,
-  not a policy one.  Every statue but trex pops off its reset pose at 1.4-3.1
-  body weights (velociraptor 1.67-2.42, brachiosaurus up to 3.05) and the
-  dibothrosuchus, robot and compsognathus statues are fully airborne for up
-  to 9, 3 and 1 substeps at spawn; on every statue that pop is over by
-  t = 0.04 s (step 0-4).  The settle-window hop and impact checks therefore
+  not a policy one.  The calibration statues peaked at 1.4-3.1 body weights
+  during reset (velociraptor 1.67-2.42, brachiosaurus up to 3.05). In the
+  40-seed Dibothrosuchus r3 stance panel the feet are airborne for up to
+  17 substeps at spawn (34 ms in total).  The settle-window hop and impact checks therefore
   start at 0.1 s, where every statue is at or below 1.52 body weights with 0
   airborne substeps, and the trex hacks' hops -- which begin inside the
   grace -- still fail every episode after it.
@@ -62,8 +61,8 @@ audit):
 * :data:`SATURATION_ABS` 0.99: ``|a_i| >= 0.99`` is a saturated command, the
   threshold of ``stance_report.saturated_actuator_indices``.
 * :data:`SOLE_ROLLED_DEG` 2.0 degrees: a sole tilted more than this BEYOND
-  its keyframe tilt is "rolled" (brachiosaurus authors its ellipsoid feet at
-  15.8-19.2 degrees, so the absolute tilt cannot be the measure).
+  its keyframe tilt is "rolled". This accommodates pitched home soles in
+  historical models as well as the level Brachiosaurus r6 soles.
 * :data:`SUPPORT_GEOM_DOWN_FRACTION` 0.5: a registered support geom is
   loaded on a step when its floor force exceeds 0.1 N on at least half of the
   substeps, the per-geom twin of :data:`DOWN_SUBSTEP_FRACTION`.

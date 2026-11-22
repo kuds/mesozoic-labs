@@ -235,7 +235,7 @@ def required_paired_nulls(resolution: Mapping[str, Any], *, legacy_null: str = "
     ):
         raise GateResolutionError("evaluation_spec must declare unique known required_paired_nulls")
     # The one deliberate species-level rule (decision D-D33): it holds for
-    # every embodiment of Compsognathus Longipes.
+    # every embodiment of Compsognathus longipes.
     if judge.get("species") == "compsognathus_longipes" and set(required) != {"zero_action", "brace"}:
         raise GateResolutionError(
             "Compsognathus recovery requires paired comparisons against both zero_action and brace"

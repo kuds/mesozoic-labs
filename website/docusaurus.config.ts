@@ -7,7 +7,7 @@ const GA_MEASUREMENT_ID = process.env.GA_MEASUREMENT_ID || 'G-GGSQ47QSJN';
 
 const config: Config = {
   title: 'Mesozoic Labs',
-  tagline: 'Dinosaur-inspired locomotion research with simulation and reinforcement learning',
+  tagline: 'Building robots inspired by Mesozoic animals',
   favicon: 'img/favicon.ico',
 
   // Production site URL - used for sitemap, canonical URLs, and social sharing
@@ -73,6 +73,8 @@ const config: Config = {
   // client module).
   clientModules: ['./src/clientModules/gtag.ts'],
 
+  plugins: [require.resolve('./plugins/animal-pages.cjs')],
+
   presets: [
     [
       'classic',
@@ -105,28 +107,15 @@ const config: Config = {
     // Social card image for Open Graph - add 'img/mesozoic-labs-social-card.png' when available
     navbar: {
       title: 'Mesozoic Labs',
-      logo: {
-        alt: 'Mesozoic Labs Logo',
-        src: 'img/logo.svg',
-        srcDark: 'img/logo-dark.svg',
-      },
       items: [
-        {
-          type: 'docSidebar',
-          sidebarId: 'docsSidebar',
-          position: 'left',
-          label: 'Documentation',
-        },
-        {to: '/blog', label: 'Blog', position: 'left'},
-        {
-          href: 'https://github.com/kuds/mesozoic-labs',
-          label: 'GitHub',
-          position: 'right',
-        },
+        {to: '/animals', label: 'Animals', position: 'right'},
+        {href: '/#journal', label: 'Build journal', position: 'right'},
+        {to: '/timeline', label: 'Timeline', position: 'right'},
+        {type: 'docSidebar', sidebarId: 'docsSidebar', label: 'Docs', position: 'right'},
       ],
     },
     footer: {
-      style: 'dark',
+      style: 'light',
       links: [
         {
           title: 'Docs',
@@ -136,8 +125,8 @@ const config: Config = {
               to: '/docs',
             },
             {
-              label: 'Models',
-              to: '/docs/models/tyrannosaurus_rex/anatomical',
+              label: 'Animal collection',
+              to: '/animals',
             },
             {
               label: 'Training',
@@ -179,7 +168,7 @@ const config: Config = {
       darkTheme: prismThemes.dracula,
     },
     colorMode: {
-      defaultMode: 'dark',
+      defaultMode: 'light',
       disableSwitch: false,
       respectPrefersColorScheme: true,
     },

@@ -106,9 +106,10 @@ ALIASES = (
     "compso-robot",
     "compsognathus",
     "compsognathus_robot",
+    "Tyrannosaurus rex",
+    "Velociraptor mongoliensis",
+    "Compsognathus longipes (Robot)",
     "Tyrannosaurus Rex",
-    "Velociraptor Mongoliensis",
-    "Compsognathus Longipes (Robot)",
     "Tyrannosaurus_Rex",
     "TYRANNOSAURUS_REX",
     "tyrannosaurus-rex",
@@ -286,9 +287,14 @@ def test_no_recovery_calibration_names_a_retired_identifier_outside_its_recorded
         if retired_names(text)
     ]
     assert not hits, "these calibration entries name a model by a retired identifier (D-D33)\n" + "\n".join(hits)
-    # The recorded history is what is exempt, and it does record the old identities.
-    histories = [json.loads(path.read_text(encoding="utf-8"))["restamp_history"] for path in paths]
-    assert all(any(retired_names(json.dumps(entry)) for entry in history) for history in histories)
+    # Only the robot needed a migration. The current anatomical profile was measured under its binomial.
+    anatomy, robot = (json.loads(path.read_text(encoding="utf-8")) for path in paths)
+    assert not anatomy.get("restamp_history")
+    assert any(
+        retired_names(json.dumps(entry["previous_identity"]))
+        for entry in robot["restamp_history"]
+        if "previous_identity" in entry
+    )
 
 
 def test_the_pattern_catches_a_retired_identifier_at_any_boundary_and_spares_the_binomials() -> None:

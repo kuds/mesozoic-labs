@@ -95,7 +95,7 @@ def animal(request):
 def test_heading_free_payload_records_segments_frames_and_helper(animal):
     model_id, env = animal
     assert load_plant_versions()[1][model_id].observation_schema == HEADING_FREE_OBSERVATION_SCHEMA
-    payload = _payload(model_id, env, require_backend_parity=True)
+    payload = _payload(model_id, env)
     assert payload["observation_schema"] == HEADING_FREE_OBSERVATION_SCHEMA
     segments = {segment["name"]: segment for segment in payload["observation_segments"]}
     assert list(segments)[-1] == COMMAND_SEGMENT_NAME
@@ -172,10 +172,9 @@ def test_editing_a_heading_helper_moves_the_policy_digest(animal, monkeypatch):
 def test_heading_free_schema_refuses_the_jax_backend(animal, monkeypatch):
     model_id, env = animal
     monkeypatch.setattr(env, "supported_training_backends", ("stable-baselines3", "jax-mjx"), raising=False)
-    # The compsognathus's soft-cubic mapping has no JAX implementation, which is refused first; on the linear
-    # home-residual mapping (the T-Rex's) the schema is what is refused.
+    # Refused on every schema and mapping since the backend was removed (plant_versions note 23).
     monkeypatch.setattr(env, "action_mapping", "home-keyframe-residual/v1", raising=False)
-    with pytest.raises(PlantContractError, match="has no MJX builder"):
+    with pytest.raises(PlantContractError, match="declares the jax-mjx training backend, which was removed"):
         _payload(model_id, env)
 
 

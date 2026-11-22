@@ -1,263 +1,175 @@
-# Velociraptor Mongoliensis Environment
+# Velociraptor mongoliensis
 
-A bipedal dinosaur locomotion and predatory strike environment built with MuJoCo and Gymnasium.
-
-## Generated Specifications, Curriculum, and Results
-
-The authoritative public dimensions, current stage budgets, success criterion, and provenance-labelled historical
-results are in the generator-managed [Velociraptor Mongoliensis (Anatomical) catalog entry](../../docs/SPECIES_CATALOG.md#velociraptor_mongoliensis-anatomical). They are derived from
-the species manifest, executable environment, compiled MJCF, current TOML stage configs, and result summaries.
+A life-size reconstruction of *Velociraptor mongoliensis*, a small feathered theropod. It walks on two weight-bearing
+toes per foot and carries a raised sickle claw on each foot. The model is for learning to stand, to walk, and to run
+down a prey target and strike it with a sickle claw. It is a research abstraction built on measured bones, not a
+validated model of how the animal moved.
 
 ## Models
-
-The species has one model, the pair (species, embodiment) of
-[docs/SPECIES_NAMING.md](../../docs/SPECIES_NAMING.md):
 
 | | Anatomical |
 |---|---|
 | Species / embodiment | `velociraptor_mongoliensis` / `anatomical` |
-| Environment class | `VelociraptorMongoliensisAnatomicalEnv` (`anatomical/env.py`), on the species base `VelociraptorMongoliensisEnv` (`base_env.py`) |
 | Gymnasium ID | `MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0` |
-| MJCF | `anatomical/assets/velociraptor_mongoliensis_anatomical.xml` |
-| Configs | `configs/velociraptor_mongoliensis/anatomical/` |
-| Catalog | [Velociraptor Mongoliensis (Anatomical)](../../docs/SPECIES_CATALOG.md#velociraptor_mongoliensis-anatomical) |
+| Environment | [`VelociraptorMongoliensisAnatomicalEnv`](anatomical/env.py) |
+| MuJoCo model | [`velociraptor_mongoliensis_anatomical.xml`](anatomical/assets/velociraptor_mongoliensis_anatomical.xml) |
+| Stage configs | [`configs/velociraptor_mongoliensis/anatomical/stages.toml`](../../configs/velociraptor_mongoliensis/anatomical/stages.toml) |
+| Catalog entry | [Velociraptor mongoliensis (Anatomical)](../../docs/SPECIES_CATALOG.md#velociraptor_mongoliensis-anatomical) |
+| Model page | [mesozoiclabs.com/docs/models/velociraptor_mongoliensis/anatomical](https://mesozoiclabs.com/docs/models/velociraptor_mongoliensis/anatomical) |
 
-## Project Structure
+Dimensions, stage budgets, gates and published results are generated in the catalog entry; this page does not repeat
+them.
 
-```
-velociraptor_mongoliensis/
-├── __init__.py
-├── base_env.py                 # VelociraptorMongoliensisEnv, the species base class
-├── anatomical/
-│   ├── __init__.py
-│   ├── env.py                  # VelociraptorMongoliensisAnatomicalEnv and its body data
-│   └── assets/
-│       └── velociraptor_mongoliensis_anatomical.xml   # MJCF model definition
-├── scripts/
-│   ├── view_model.py           # Passive viewer for MJCF iteration
-│   ├── test_actuators.py       # Test joint movements
-│   ├── test_env.py             # Verify environment works
-│   └── actuator_saturation_report.py   # Actuator saturation report
-├── tests/
-│   ├── test_anatomical_env.py      # Model-specific env tests
-│   ├── test_anatomical_rewards.py  # Model-specific reward tests
-│   ├── test_anatomical_actuator_bounds.py  # Actuator bound tests
-│   ├── test_anatomical_static_balance.py  # Static balance and plant acceptance tests
-│   ├── test_anatomical_mirror.py   # Mirror symmetry of the home pose and of paired rollouts
-│   ├── test_anatomical_noise_tolerance.py  # The statue's action-noise cliff
-│   └── test_com_stance_quality.py  # Centre-of-mass stance pins
-├── requirements.txt
-└── README.md
-```
+## Anatomical review
 
-Hyperparameter configs are at `configs/velociraptor_mongoliensis/anatomical/` in the repo root
-(`stance.toml`, `locomotion.toml`, `strike.toml`, `stages.toml` and `behaviors/`).
+- **Proportions.** The femur, tibia and metatarsus follow the measured specimen IGM 100/986, set in a crouched,
+  bird-like leg posture under a level trunk. The skull follows GIN 100/25, so the leg and skull come from different
+  animals. The mass distribution is reconstructed.
+- **Joints.** Position servos drive neck pitch and yaw, head pitch, each leg's hip pitch, hip roll, knee and ankle,
+  each sickle claw, and four tail joints. The home keyframe is the standing equilibrium: the leg springs rest there and
+  the home controls carry the body's weight, so zero action holds the stance.
+- **Feet.** Each foot stands on a rounded pad under the metatarsophalangeal (MTP) joint and on digits III and IV,
+  which are passive sprung hinges. Digit II rides raised on its own sprung hinge. Its claw is a force-limited servo
+  that only the prey collides with. The pad, digit III and digit IV each have a touch sensor and their own
+  observation channel. The friction cone is elliptic, as on every species.
+- **Tail, neck and arms.** Spring preloads carry the weight of the five-segment tail, and its distal end is rigid. The
+  neck and skull are separate bodies; the skull collides with the floor and the neck does not. The feathered arms are
+  welded to the trunk and do not collide.
+- **Known limits.** The ankle bends only fore and aft, and the toes do not flex joint by joint. In the reference walk
+  the feet land farther apart across than they step forward, unlike the narrow trackways of related animals. The
+  plumage, color and soft-tissue outlines are reconstruction choices.
 
-## Installation
+The full review, with specimen comparisons, standing balance, walking measurements and sources, is
+[docs/reviews/VELOCIRAPTOR_ANATOMICAL_REFERENCE.md](../../docs/reviews/VELOCIRAPTOR_ANATOMICAL_REFERENCE.md).
 
-```bash
-# Install from the repository root
-pip install -e ".[all]"
-```
+## Reference walk
 
-## Quick Start
-
-Run the commands in this section from the species directory:
+A scripted controller ([`scripts/reference_walk.py`](scripts/reference_walk.py)) shows that the model can stand and
+walk under its own servos. It sends normalized actions through the ordinary Gym step, uses the measured pelvis motion
+for feedback, plans alternate footholds and shifts support to the stance leg. MuJoCo computes the root motion, the
+passive toes and every ground contact. Run it from the repository root:
 
 ```bash
-cd environments/velociraptor_mongoliensis
+python -m environments.velociraptor_mongoliensis.scripts.audit_motion --mode stand
+python -m environments.velociraptor_mongoliensis.scripts.audit_motion --mode walk --seconds 35
 ```
 
-### 1. View the Model
+`--mode stand` holds the home controls on level ground. `--mode walk` walks slowly straight ahead. Each command prints
+a JSON report: touchdowns, stance duty, stride, swing clearance and contact slip per foot, the share of floor load on
+the pad, digit III and digit IV, and the motion of the pelvis, head and tail. The stand report also gives how far the
+center of mass lies inside the loaded contacts. `--seeds` and `--noise` repeat a trial from perturbed starts, and
+`--skin-clearance` measures the rendered foot surface against the floor. The review lists the exact runs behind its
+tables, and [`data/reference_validation.json`](data/reference_validation.json) holds its measured data.
+[`tests/test_reference_walk.py`](tests/test_reference_walk.py) checks the walk,
+[`tests/test_com_stance_quality.py`](tests/test_com_stance_quality.py) checks standing balance, and the
+[walking replay](../../website/static/videos/velociraptor_mongoliensis_anatomical_reference_walk.mp4) shows the walk
+with its measured foot contacts.
 
-First, verify the MJCF loads correctly:
+## Run the model
+
+From the repository root:
 
 ```bash
-python scripts/view_model.py --embodiment anatomical
+pip install -e .              # the environments: MuJoCo, Gymnasium and NumPy
+pip install -e ".[train]"     # adds Stable-Baselines3 and PyTorch, for training
+pip install -e ".[test]"      # adds pytest, for the tests
+
+python -m environments.velociraptor_mongoliensis.scripts.view_model --embodiment anatomical
+python -m environments.velociraptor_mongoliensis.scripts.test_actuators --embodiment anatomical
+python -m environments.velociraptor_mongoliensis.scripts.test_env --embodiment anatomical
+pytest environments/velociraptor_mongoliensis/tests
 ```
 
-This opens a passive viewer. Check that:
-- The raptor settles into a stable stance, trunk level, each foot on its MTP pad and digits III and IV
-- No body parts explode or clip through each other (the welded arms do not collide, so a hand may pass visually
-  through a shank swung far forward)
-- The tail and head hold their pose
+`view_model` prints the model's bodies, joints and actuators and opens MuJoCo's interactive viewer, and
+`test_actuators` opens the viewer with every actuator sweeping through its range. Both need a display; on macOS, run
+them with `mjpython` instead of `python`. `test_env` is a smoke test: it resets and steps the environment and checks
+the reward components, determinism and observation bounds over short random rollouts. `--render`, `--episodes` and
+`--steps` adjust it.
 
-### 2. Test Actuators
+## Training
 
-See all joints move through their ranges:
-
-```bash
-python scripts/test_actuators.py --embodiment anatomical
-```
-
-### 3. Test Environment
-
-Run the environment test suite:
-
-```bash
-python scripts/test_env.py --embodiment anatomical
-python scripts/test_env.py --embodiment anatomical --render  # With visualization
-```
-
-### 4. Train with Curriculum Learning
-
-Training runs from the repository root through the shared CLI. Run the three
-advancing stages — each warm-started from its declared parent
-(`configs/velociraptor_mongoliensis/anatomical/stages.toml`: stance → locomotion → behavior, all
-published deliverables) — using the current TOML-configured budgets:
+Every model trains from the repository root through one command:
 
 ```bash
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical curriculum --algorithm ppo
 ```
 
-To reuse the certified stance and locomotion of an earlier run and train only
-the strike leaf (the notebook's `TRUNK_FROM`):
+It trains stance, then locomotion, then the strike, each warm-started from its parent in `stages.toml` and run with
+the budget of its stage config. To reuse the certified stance and walk of an earlier run and train only what is
+missing:
 
 ```bash
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
     curriculum --algorithm ppo --trunk-from <earlier_run_dir> --output-dir <new_run_dir>
 ```
 
-See [docs/BEHAVIOR_RECIPES_PLAN.md](../../docs/BEHAVIOR_RECIPES_PLAN.md) for
-the behavior recipes and the reuse rule.
+In [`notebooks/sb3_training.ipynb`](../../notebooks/sb3_training.ipynb), set `SPECIES = "velociraptor_mongoliensis"`,
+`EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"`, `"walk"` or `"hunt"`. The
+[behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes) covers stopping at a behavior, retraining a
+stage and the notebook settings; the [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) shows
+how to evaluate a checkpoint.
 
-### 5. Evaluate Trained Policy
+Species notes:
 
-```bash
-python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical \
-    eval <run_dir>/03_behavior/models/stage3_final.zip
-```
+- **Stance.** The stance passes on a stance-quality check of the floor forces under each foot, rolled at six headings
+  after the stage ends, not on reward. The catalog entry lists its bars.
+- **Measured constants.** Several stance constants are measured on the zero-action model: the settled pitch that the
+  posture term centers on (`natural_pitch`), the settled tail and neck poses, and the starting action noise.
+  `log_std_init = -2.30` in `stance.toml` gives σ 0.10, the edge of what the standing model survives: it holds 40/40
+  episodes up to σ 0.09 and 38/40 at σ 0.10 (`tests/test_anatomical_noise_tolerance.py`). Re-measure them after any
+  change to the MJCF.
 
-## Environment Details
+## Task and rewards
 
-Observation and action totals are generated in the catalog entry linked above. The source of the observation layout and
-action-to-actuator mapping is `environments/velociraptor_mongoliensis/base_env.py`. Actions are normalized residuals around the named XML `home`
-keyframe: zero commands the standing pose, while -1 and +1 still reach each actuator's lower and upper limits through
-piecewise-linear interpolation. The evidence and compatibility rationale are in the
-[Stage-1 basin investigation](../../docs/investigations/VELOCIRAPTOR_STAGE1_BASIN_INVESTIGATION.md).
+A prey sphere spawns ahead of the animal at a random distance and side offset. The task is to reach it and touch it
+with a sickle claw. The environment reports `strike_success` when a sickle-claw geom contacts the prey while the
+strike reward is on; that contact ends the episode.
 
-Since physics r3 (`configs/plant_versions.toml` note 14, decision D-D25) the home keyframe is the standing equilibrium:
-every leg spring is anchored at it (`springref`), the ankle and toes put the toes flat at 0.5 mm of floor contact, and
-the home controls carry the gravity preload, so the nominal leg servos hold the stance (0.2-5.8% of their forcerange)
-with or without the springs, and on r3 and r4 the statue settled at a 0.35 rad natural lean. On r3 and r4 each foot's
-contact observation was the sum of three touch sensors, on the middle toe, the outer toe and the metatarsus, and equalled
-the floor force under the foot. Because the frozen MJX registration cannot mirror that sum, the velociraptor is SB3-only since its policy
-interface revision 11; it has no `mjx_config.py`. Since physics r4 (note 17, decision D-D30) the friction cone is
-elliptic, the one friction model of every species: the capsule feet were already heading-invariant under MuJoCo's
-default pyramidal cone, and the elliptic cone keeps any foot shape so. Since policy interface r13 (note 21, the maintainer's decision of 2026-11-06) the observation reads no world heading, as the T-Rex's and the anatomical Compsognathus's do: projected gravity,
-the root velocity in the gravity-aligned heading frame and the prey direction in pelvis coordinates replace the world
-quaternion, velocity and prey direction, so turning the whole scene about vertical leaves the observation unchanged.
+The observation reads no world heading: it uses projected gravity, the root velocity in a gravity-aligned heading frame
+and the prey direction in pelvis coordinates, beside the joint state, the pelvis gyro and accelerometer, one channel per
+foot touch sensor, the prey distance and the command. Actions are offsets from the MJCF `home` keyframe: zero holds the
+standing pose, and -1 and +1 reach each actuator's limits. The docstring of [`base_env.py`](base_env.py) gives both
+layouts.
 
-Since physics r5 and policy interface r14 (note 22, the maintainer's decision of 2026-11-08) the plant is the animal at
-life size, of equivalent nature to the T-Rex: 15.0 kg, IGM 100/986's femur, tibia and metatarsus (238 / 255 / 99 mm)
-on a 0.549 m hip in Bishop et al. 2018's paravian leg posture, the trunk authored level, and the T-Rex's topology and
-conventions. The neck (`neck_pitch`, `neck_yaw`) and the skull (`head_pitch`) are separate bodies under the T-Rex's
-names; the neck capsules do not collide and the skull does. The tail's gravity torque is carried by spring preloads on
-its three pitch joints, so its servos hold nothing at home; the neck and head servos carry theirs in the home control,
-so the statue holds its head up. The arms are welded and non-colliding, with no joints or actuators, as the T-Rex's
-are. Each foot stands on a rounded MTP pad and on digits III and IV, which are passive sprung hinges with no actions;
-digit II rides raised on a passive sprung hinge, and the sickle claw is a position servo bounded at 4 N.m that only the
-prey collides with. The action is 17 position servos (neck 3, per leg hip pitch, hip roll, knee, ankle and claw, tail
-4), and the observation (71) carries one foot channel per touch sensor (each foot's pad, digit III and digit IV), each
-equal to the floor's force on its geom; the rewards and info keys keep the per-foot sums. The zero-action statue stands
-on 40/40 seeds, also with its hip, knee and ankle springs deleted, settles within 0.0032 deg of the keyframe and 0.134
-deg nose-down, and carries 0.300 / 0.357 / 0.343 of each foot's load on its pad, digit III and digit IV.
+The main reward groups:
 
-### Stance gate
-The stance stage certifies under the six-heading certificate `stance_quality_heading/v1` (the maintainer's decision of 2026-11-06; the
-`stance_quality/v2` block of D-D25, judged at every heading): the 40 seeds of the certification panel (3042-3081)
-are rolled with the whole scene turned -90, -45, 0, 45, 90 and 180 degrees, each episode is classified on floor
-truth, the floor's normal force under each leg on every physics substep, and the stance passes when every heading
-passes the v2 decision and the one-sided 95% lower bound on seeds clean at every heading reaches 0.80 (37 of 40). An
-episode is clean when it reaches the horizon with no hop or stomp in the settle window and at most one re-plant there,
-both feet down and loaded, every support geom of each foot (since physics r5 the MTP pad, digit III and digit IV) loaded, no splay,
-drift, turn or chatter and no actuator held at its limit, and no panel may hold more than one hop or fall; the bars
-and their measured provenance are in `configs/velociraptor_mongoliensis/anatomical/stance.toml`. The verdict is the
-post-stage `stance_heading_report.json` on the handoff checkpoint pair, never an in-training evaluation, and a stance
-stays provisional until two seeds certify (`certification_seeds = 2`). Judge its final and archived checkpoints too,
-and re-judge it on the fresh seeds 7042-7081 (`docs/NEXT_STEPS.md`).
+- **Survival and posture:** an alive bonus, a posture term centered on the settled pitch, an optional nosedive
+  penalty, and a fall penalty.
+- **Progress:** forward velocity toward the prey, with optional backward, drift, sideways, spin and speed penalties.
+- **Strike:** approach shaping, optional proximity terms, and a bonus on claw contact.
+- **Stance quality** (stance stage only): support under both feet, the home leg, tail and neck poses, and penalties
+  on floor impacts, airborne physics substeps, action jerk and commands held at their limits.
+- **Effort:** energy, action smoothness and tail stability.
 
-### Exploration
-The stance starts at action std 0.10 (`log_std_init = -2.30`; std 0.07 on physics r4, the maintainer's decision of
-2026-11-06, moved with the cliff on r5): the zero-action r5 statue survives white command noise to about that sigma
-(40/40 seeds to 0.09, 38/40 at 0.10) and falls past it (19/40 at 0.135, 0/40 from 0.20;
-`tests/test_anatomical_noise_tolerance.py`). At SB3's default std 1.0 the noise itself is a hop. Move
-`log_std_init` with the cliff if the plant changes.
+The weights are the `VelociraptorMongoliensisEnv` constructor defaults in `base_env.py`, overridden by the `[env]`
+table of each stage TOML in
+[`configs/velociraptor_mongoliensis/anatomical/`](../../configs/velociraptor_mongoliensis/anatomical/). An episode
+ends on a fall or launch, excessive tilt or a nosedive, the head tip or skull dropping too low, the trunk, skull or
+distal tail touching the floor, or a strike. The thresholds are in `base_env.py`.
 
-### Reward Components
+## Files
 
-Reward weights vary by stage. The `[env]` section of each stage file in
-`configs/velociraptor_mongoliensis/anatomical/*.toml` is authoritative; this README does not
-copy numeric weights. Components include locomotion, survival, posture, energy,
-tail stability, approach shaping, target contact, and fall penalties. Posture
-shaping is direction-aware and centred on the statue's settled pitch (`natural_pitch`, 0.002 rad since physics r5);
-absolute tilt remains the safety signal for termination. The stance stage also
-pays bilateral support (the weaker-loaded foot), retention of the home leg pose,
-and charges commands parked at their limits and command chatter (action jerk),
-with part of the alive bonus conditioned on support; since the maintainer's decision of 2026-11-06 it also
-pays the tail's settled pose and charges fully airborne substeps and floor
-impacts (the T-Rex's terms; above 3.0 body weights since physics r5, whose
-reset pop reaches 2.56), and since the maintainer's decision of 2026-11-08 it
-pays the neck and head's settled pose too. Each is a
-`VelociraptorMongoliensisEnv` kwarg that is inert at its default and set in
-`configs/velociraptor_mongoliensis/anatomical/stance.toml`.
+| Path | Contents |
+|---|---|
+| [`base_env.py`](base_env.py) | `VelociraptorMongoliensisEnv`, the species base: task, observation, action mapping, rewards and termination |
+| [`anatomical/env.py`](anatomical/env.py) | `VelociraptorMongoliensisAnatomicalEnv`, the registered model |
+| [`anatomical/assets/`](anatomical/assets/) | The MJCF model |
+| [`data/`](data/) | The reference trials' measured data and the review's figures |
+| [`scripts/`](scripts/) | The viewer (`view_model.py`), the actuator sweep (`test_actuators.py`), the smoke test (`test_env.py`), the reference walk and motion audit (`reference_walk.py`, `audit_motion.py`), an actuator saturation report (`actuator_saturation_report.py`) and the builder of the rendered surface (`build_integument.py`) |
+| [`tests/`](tests/) | Environment, reward, actuator-bound, static-balance, mirror-symmetry, noise-tolerance, stance-quality, viewer, motion-audit and reference-walk tests |
 
-### Termination Conditions
-- Pelvis height < 0.33 m (fallen) or > 1.09 m (launched into air), or excessive tilt or a nosedive
-- Head tip below 0.07 m (`head_contact`) or skull below 0.28 m (`skull_low`), checked at every physics substep
-  (since physics r5, the T-Rex's thresholds at the same fraction of the home height)
-- Torso, belly, ribcage, skull or distal tail (tail_3 to tail_5) contacts the ground
-- Episode length > max_episode_steps
+## Further reading
 
-## Tuning Guide
-
-### MJCF Model (`anatomical/assets/velociraptor_mongoliensis_anatomical.xml`)
-
-**If the raptor falls immediately:**
-- Increase `damping` on leg joints
-- Adjust initial pose (qpos0) to more stable crouch
-- Check CoM is over the feet
-
-**If movements are jerky:**
-- Reduce actuator `kp` gains
-- Increase `damping`
-- Reduce control frequency (increase `frame_skip`)
-
-**If the tail flops around:**
-- Increase tail joint `stiffness` and `damping`
-- Reduce tail joint `range`
-
-### Reward Weights (`environments/velociraptor_mongoliensis/base_env.py`)
-
-**If it doesn't learn to walk:**
-- Increase `forward_vel_weight`
-- Decrease `energy_penalty_weight`
-- Check that alive_bonus isn't dominating
-
-**If it walks but falls a lot:**
-- Inspect the episode-length distribution and termination mix before changing weights
-- Check whether `forward_z` tracks the settled pitch; re-measure `natural_pitch` on the statue after any plant change
-- Lower reset noise only if a controlled probe isolates reset perturbations as the failure source
-
-**If it ignores the prey:**
-- Add proximity reward (bonus for getting closer)
-- Reduce `prey_distance_range` to spawn prey closer
-
-## Troubleshooting
-
-**"No module named 'environments'"**
-Install the package from the repository root (`pip install -e ".[all]"`), then
-run the species scripts from the species directory:
-`cd environments/velociraptor_mongoliensis && python scripts/test_env.py --embodiment anatomical`.
-
-**Viewer doesn't open**
-Install a display backend: `pip install glfw` or run with `MUJOCO_GL=egl` for headless.
-
-**Training is slow**
-- Use more parallel envs: `--n-envs 8`
-- Use subprocess vectorization: `--subproc`
-- Reduce evaluation frequency: `--eval-freq 50000`
-
-**NaN in observations**
-- Physics is exploding; reduce timestep or actuator gains
-- Check for division by zero in reward computation
+- [Anatomical review](../../docs/reviews/VELOCIRAPTOR_ANATOMICAL_REFERENCE.md): specimen comparisons, standing balance
+  and the reference walk's measurements.
+- [Plant review](../../docs/reviews/VELOCIRAPTOR_PLANT_REVIEW.md): the anatomy and mechanics findings on the earlier
+  model, with a status note on which are closed.
+- [Stage 1 basin investigation](../../docs/investigations/VELOCIRAPTOR_STAGE1_BASIN_INVESTIGATION.md): why actions
+  are offsets from the home keyframe and the posture term is centered on the natural lean.
+- [Heading-free observations](../../docs/HEADING_INVARIANCE_DESIGN_2026_10.md): the design of the observation and of
+  the six-heading stance check.
+- [Direction following and terrain](../../docs/TRAIN_DIRECTION_AND_TERRAIN.md): the pilot behaviors in
+  `configs/velociraptor_mongoliensis/anatomical/behaviors/`, trained by
+  `python -m environments.shared.train_behaviors`.
+- [Plant revisions](../../configs/plant_versions.toml): what changed in each physics, policy-interface and visual
+  revision of the model, tracked under the [plant contract](../../docs/PLANT_CONTRACT.md).

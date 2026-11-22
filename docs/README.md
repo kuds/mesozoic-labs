@@ -48,7 +48,7 @@ past a couple of files get their own subdirectory (`investigations/`,
 | [RECOMMENDATIONS.md](RECOMMENDATIONS.md) | 2026-03-25 | Dated snapshot — the codebase-wide improvement backlog as of 2026-03-25 (one item added 2026-07-27, §6.1 reworded 2026-07-13), not maintained; ROADMAP.md holds the phased plan and KNOWN_ISSUES.md the open problems, and D-D17 retired the JAX/MJX migration it recommends |
 | [RL_TRAINING_PLAN.md](RL_TRAINING_PLAN.md) | 2026-03-26 | Dated planning snapshot (update notes 2026-04-18, 2026-09-13 and 2026-09-27) — trial list for the remaining SAC/PPO runs; its notebook setup predates the behavior chain loop (`BEHAVIOR`) and the id-named T-Rex stage configs, which the 2026-09-13 note maps; its trials 2 and 4 were Ray Tune sweeps, retired by D-D17 (the notebook and sweep JSONs are recoverable from the `0.3.8` tag) |
 | [TREX_LEG_FLEXING_PLAN.md](TREX_LEG_FLEXING_PLAN.md) | 2026-07-27 | Option 1 (stance correction) implemented; options 2–4 open, step 5 (port to the raptor) withdrawn — see the raptor review |
-| [MJX_CONVERSION_PLAN.md](MJX_CONVERSION_PLAN.md) | 2026-07-13 | Retired design record (D-D17) — cleanup PR-B removed the JAX/MJX runtime it built; a frozen MJX interface core stays for three species' policy-interface digests (four until the velociraptor declared itself SB3-only, D-D25) ([PLANT_CONTRACT.md](PLANT_CONTRACT.md)) |
+| [MJX_CONVERSION_PLAN.md](MJX_CONVERSION_PLAN.md) | 2026-07-13 | Retired design record (D-D17) — cleanup PR-B removed the JAX/MJX runtime it built; the frozen MJX interface core it kept for the policy-interface digests was removed once the last two species declared themselves SB3-only (`configs/plant_versions.toml` note 23; [PLANT_CONTRACT.md](PLANT_CONTRACT.md)) |
 | [WEBSITE_PLAN.md](WEBSITE_PLAN.md) | — | **Complete** (2026-09-30) — Docusaurus site improvements; of its two remaining items, the unused apex GIFs stay (maintainer decision, 2026-09-30) and the logo size went to KNOWN_ISSUES.md |
 | [BALANCE_REWARD_METRICS.md](BALANCE_REWARD_METRICS.md) | 2026-03-16 | Withdrawn: Ray Tune retired (D-D17) — composite ASHA metric for stage-1 sweeps, never implemented |
 | [PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md](PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md) | 2026-07-31 | Active — **read before any stage-1 work.** Why every reset was geometrically invalid, why the stage-1 objective's optimum is the zero-action policy, and what replaces the reward gate |
@@ -149,6 +149,21 @@ appendix B records what became of every finding as of 2026-09-30, and its open
 findings are in KNOWN_ISSUES),
 [CODE_REVIEW.md](reviews/CODE_REVIEW.md) (superseded). Open findings live in
 [KNOWN_ISSUES.md](KNOWN_ISSUES.md), not here.
+
+Per-species model references, each linked from its species README:
+
+| Document | Date | One-liner |
+|---|---|---|
+| [VELOCIRAPTOR_ANATOMICAL_REFERENCE.md](reviews/VELOCIRAPTOR_ANATOMICAL_REFERENCE.md) | 2026-11-20 | Velociraptor proportions, feet, plumage evidence, standing balance, reference walk and repeatability (physics r5, visual r6) |
+| [TREX_ANATOMICAL_REVIEW_2026_11.md](reviews/TREX_ANATOMICAL_REVIEW_2026_11.md) | 2026-11-21 | T. rex proportions and foot, balance and foot placement, the reference walk, and how three archived physics-r10 PPO checkpoints replay on the revised model (physics r11, visual r5) |
+| [BRACHIOSAURUS_ANATOMICAL_REFERENCE.md](reviews/BRACHIOSAURUS_ANATOMICAL_REFERENCE.md) | 2026-11-21 | Brachiosaurus proportions, feet, standing balance, reference walk and browsing (physics r6); moved from the species README |
+| [DIBOTHROSUCHUS_ANATOMICAL_REFERENCE.md](reviews/DIBOTHROSUCHUS_ANATOMICAL_REFERENCE.md) | 2026-11-21 | Dibothrosuchus proportions, feet, standing balance, reference walk, actuator loads and termination (physics r3); moved from the species README |
+| [COMPSOGNATHUS_ROBOT_DESIGN.md](reviews/COMPSOGNATHUS_ROBOT_DESIGN.md) | 2026-11-21 | Design record of the Rev B Compsognathus robot (`compsognathus_longipes` / `robot`): mass budget, servo candidates, sensor layout, actuation and contact assumptions, and the standing validation of both Compsognathus models; moved from the species README |
+| [ALLOSAURUS_ANATOMICAL_REFERENCE.md](reviews/ALLOSAURUS_ANATOMICAL_REFERENCE.md) | 2026-11-21 | Allosaurus proportions, feet, balance, reference walk, limits of the reconstruction and training-environment checks (physics r1) |
+
+The anatomical Compsognathus model is reviewed in
+[ANATOMY_AND_BALANCE.md](../environments/compsognathus_longipes/ANATOMY_AND_BALANCE.md), kept with the species
+package.
 
 ## Conventions
 

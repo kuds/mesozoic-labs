@@ -33,7 +33,7 @@ _ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL = "home-keyframe-residual/v1"
 # home-keyframe-residual/v1 with the clipped residual of selected actuators
 # shaped to b = s*a + (1 - s)*a**3 before the same piecewise-affine span: the
 # origin (b(0) = 0) and both ctrlrange endpoints (b(+-1) = +-1) are unchanged
-# and the slope at home is s.  SB3-only (no JAX implementation); the species
+# and the slope at home is s.  The species
 # declares s as ``residual_linear_slope`` and the shaped actuators as the
 # per-actuator boolean ``_shaped_residual_mask`` (compsognathus, D-D26).
 _ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL_SOFTCUBIC = "home-keyframe-residual-softcubic/v1"

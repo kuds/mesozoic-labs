@@ -8,9 +8,13 @@ import {requireModel} from '@site/src/data/species';
 
 export const MODEL = requireModel('compsognathus_longipes', 'anatomical');
 
-# Compsognathus Longipes (Anatomical)
+# Compsognathus longipes (Anatomical)
 
 The anatomical proxy has a 1.0 kg assumed mass, 14 actuators, a long articulated tail, and 55 state observations (the last three are the Phase C body-relative command segment, zero under `command_mode = "none"`). Since policy interface r4 none of them reads the world heading: the policy sees the direction of gravity in its own body frame, its velocity relative to the way it faces and the target's direction relative to its body, so turning the whole scene changes nothing it observes.
+
+The reconstructed French-specimen proportions give a 95 mm femur, 114 mm tibia, 70 mm metatarsus and 87 mm skull. The MTP joint carries three loaded toes, and a short medial hallux sits above the floor. Bounded joint torque represents active muscle action. A passive digital flexor spanning ankle and MTP stores energy as it stretches and returns it during recoil. The settled mass projection lies 30.5 mm inside the two-foot support boundary and 20.9 mm outside either individual footprint. [Anatomical review and model comparison](https://github.com/kuds/mesozoic-labs/blob/main/environments/compsognathus_longipes/ANATOMY_AND_BALANCE.md)
+
+Training footage recorded before physics r3 documents the earlier anatomy and contact mechanics. Demonstrating a learned behavior on this reconstruction requires evaluating the policy on r3 and recording that rollout.
 
 The stance node certifies stance quality, not reward: since physics r2 its gate is `stance_quality/v2`, which judges
 every episode of a 40-episode panel on the floor's force under each foot (no hop or stomp at reset, no long two-foot
@@ -26,19 +30,24 @@ exploration noise PPO starts with no longer topples the standing animal.
 
 ## Training
 
-Set `SPECIES = "compsognathus_longipes"` and `EMBODIMENT = "anatomical"` in the SB3 training notebook. Its manifest (`configs/compsognathus_longipes/anatomical/stages.toml`) declares four nodes, all published deliverables: `stance` (stance), `recovery` (recover, warm-started from stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the non-contact target-reach task, warm-started from locomotion). The notebook's `BEHAVIOR = "hunt"` default resolves to the behavior node here as for every model; `BEHAVIOR = "stance"` trains the stance alone and `BEHAVIOR = "recover"` trains stance then push recovery (decision D-D35; before it the stance label, then `"stand"`, meant that chain here; since decision D-D38 `"stand"` is refused with a pointer to `"stance"`). The final task requires an upright, slow arrival within 8 cm of the target, measured at the pelvis in the ground plane.
+Set `SPECIES = "compsognathus_longipes"` and `EMBODIMENT = "anatomical"` in the SB3 training notebook. Its manifest (`configs/compsognathus_longipes/anatomical/stages.toml`) declares four nodes, all published deliverables: `stance` (stance), `recovery` (recover, warm-started from stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the non-contact target-reach task, warm-started from locomotion). The notebook's default, `BEHAVIOR = "auto"`, resolves to the behavior node here; `BEHAVIOR = "stance"` trains the stance alone and `BEHAVIOR = "recover"` trains stance then push recovery (decision D-D35; before it the stance label, then `"stand"`, meant that chain here; since decision D-D38 `"stand"` is refused with a pointer to `"stance"`). The final task requires an upright, slow arrival within 8 cm of the target, measured at the pelvis in the ground plane.
 
 ```bash
-python -m pip install -e ".[train]"
+pip install -e ".[train]"
+
+# View the model (requires a display; on macOS, use mjpython instead of python)
+python -m environments.compsognathus_longipes.scripts.view_model --embodiment anatomical
+
+# Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species compsognathus_longipes --embodiment anatomical train --stage 1
 
 # The advancing stages in manifest order; reuse an earlier run's certified stance and walk
-python -m environments.shared.train --species compsognathus_longipes --embodiment anatomical curriculum \
-  --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
+python -m environments.shared.train --species compsognathus_longipes --embodiment anatomical \
+  curriculum --algorithm ppo --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```
 
 Actions are residual joint-position commands around a preloaded standing pose. The control rate is 50 Hz and the default episode horizon is 20 seconds. Simulator state and target coordinates are privileged MLP inputs; the RGB camera is available separately for rendering. These policies are not onboard camera controllers.
 
 The initial configurations and short integration runs establish training compatibility. They do not establish learned walking, behavior convergence or hardware readiness. The zero-action standing baseline should be measured before tuning. Every node is judged on its own and its verdict written to `gate_verdict.json` beside the handoff checkpoint; a later run reuses it only under the reuse rule (a passed verdict, the same task digest and plant, chained by the parent's checkpoint digest) — see [Behavior Recipes](/docs/training/recipes).
 
-See the [model and training guide](https://github.com/kuds/mesozoic-labs/blob/main/environments/compsognathus_longipes/README.md) for mechanical assumptions, sensor details and validation commands.
+See the [model README](https://github.com/kuds/mesozoic-labs/blob/main/environments/compsognathus_longipes/README.md) for validation commands, and [Anatomy and standing balance](https://github.com/kuds/mesozoic-labs/blob/main/environments/compsognathus_longipes/ANATOMY_AND_BALANCE.md) for the reconstruction, joint torques and static balance.

@@ -315,16 +315,7 @@ class TestBehaviorKnob:
         for name in ("WIDEN_FROM", "WIDEN_MAX_REVISION_GAP"):
             assert name not in assigns, f"{name} left the notebook with the widen cell (D-D14)"
         assert DEFAULT_MAX_REVISION_GAP == 1
-        # The default behavior resolves on every committed manifest to the
-        # terminal deliverable, so a Run-all still walks stance -> ... -> behavior.
-        behavior = assigns["BEHAVIOR"].value
-        assert behavior
-        assert MODELS_WITH_MANIFESTS
-        for model_id in MODELS_WITH_MANIFESTS:
-            manifest = load_stage_manifest(model_id)
-            assert manifest.resolve_behavior(behavior).id == "behavior", (
-                f"BEHAVIOR={behavior!r} must resolve to the terminal deliverable of {model_id}"
-            )
+        assert assigns["BEHAVIOR"].value == "auto"
 
     def test_run_recovery_stage_knob_is_gone(self):
         for index, src in enumerate(_all_cell_sources()):
@@ -397,7 +388,14 @@ class TestChainResolution:
         resolve_src = cells[_cell_index(cells, RESOLVE_CELL_MARKER)]
         assigns = _top_level_assigns(resolve_src)
         assert ast.unparse(assigns["MANIFEST"]) == "load_stage_manifest(MODEL_ID)"
-        assert ast.unparse(assigns["TARGET_NODE"]) == "MANIFEST.resolve_behavior(BEHAVIOR)"
+        target_expression = compile(ast.Expression(assigns["TARGET_NODE"]), "<resolve cell>", "eval")
+        for model_id in MODELS_WITH_MANIFESTS:
+            manifest = load_stage_manifest(model_id)
+            assert eval(target_expression, {"MANIFEST": manifest, "BEHAVIOR": "auto"}) == manifest.deliverables[-1]
+            for label in manifest.recipe_labels:
+                assert eval(target_expression, {"MANIFEST": manifest, "BEHAVIOR": label}) == manifest.resolve_behavior(
+                    label
+                )
         assert ast.unparse(assigns["CHAIN"]) == "MANIFEST.chain_for(TARGET_NODE.id)"
         # D-A19: RETRAIN_FROM is resolved beside the chain and must lie on it.
         assert ast.unparse(assigns["RETRAIN_NODE"]) == "MANIFEST.resolve(RETRAIN_FROM) if RETRAIN_FROM else None"
@@ -3939,7 +3937,7 @@ class TestNotebookWithoutTheDirectionTerrainMode:
 
         namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
         exec(_cell(CONFIG_CELL_MARKER), namespace)
-        assert namespace["BEHAVIOR"] == "hunt"
+        assert namespace["BEHAVIOR"] == "auto"
         assert (namespace["SPECIES"], namespace["EMBODIMENT"]) == ("velociraptor_mongoliensis", "anatomical")
         assert namespace["MODEL_ID"] == ModelId("velociraptor_mongoliensis", "anatomical")
         assert namespace["N_ENVS"] == 4 and namespace["SEED"] == 42
@@ -3951,6 +3949,20 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         exec(_cell("EnvClass = SPECIES_CFG.env_class"), namespace)
         assert namespace["TARGET_NODE"].id == "stance"
         assert [node.id for node in namespace["CHAIN"]] == ["stance"]
+
+    def test_allosaurus_defaults_to_walk_and_rejects_an_explicit_hunt(self):
+        from environments.shared.config import load_all_stages
+
+        namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
+        config = _cell(CONFIG_CELL_MARKER)
+        exec(config.replace('SPECIES = "velociraptor_mongoliensis"', 'SPECIES = "allosaurus_fragilis"'), namespace)
+        resolve = _cell("EnvClass = SPECIES_CFG.env_class")
+        exec(resolve, namespace)
+        assert namespace["TARGET_NODE"].recipe == "walk"
+        assert [node.id for node in namespace["CHAIN"]] == ["stance", "locomotion"]
+        namespace["BEHAVIOR"] = "hunt"
+        with pytest.raises(StageManifestError, match="has no behavior 'hunt'"):
+            exec(resolve, namespace)
 
     @staticmethod
     def _tyrannosaurus_rex_configuration():
@@ -3990,7 +4002,7 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         options, trailing = json.JSONDecoder().raw_decode(behavior_line.split("# @param ", 1)[1])
         # The four recipe labels (decisions D-D35 and D-D38): "recover" is the recovery stage's label,
         # and "stance", the stance stage's id and label, is the stance stage alone on every model.
-        assert options == ["stance", "recover", "walk", "hunt"]
+        assert options == ["auto", "stance", "recover", "walk", "hunt"]
         assert not set(options) & set(self.PILOT_BEHAVIORS), "the pilots have no notebook path until PR-11"
         assert json.loads(behavior_line.split("# @param ", 1)[1][trailing:].strip()) == {"allow-input": True}
         for source in (_cell("REPO_REF ="), config):
@@ -4017,8 +4029,8 @@ class TestNotebookWithoutTheDirectionTerrainMode:
             (True, False, True, "local edits"),
             (False, True, True, "Restart"),
             (False, False, True, None),
-            # A clone whose first fetch failed: no index, HEAD already at the fetched commit, and
-            # every file staged as deleted. Setup checks it out instead of reporting an empty tree.
+            # A checkout whose first fetch failed: no index yet, so setup checks it out directly
+            # without running `git rev-parse HEAD` or `git status --porcelain`.
             (True, False, False, None),
         ],
     )
@@ -4034,33 +4046,22 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         (checkout / ".git").mkdir(parents=True)
         if indexed:
             (checkout / ".git" / "index").touch()
-        source = code_cell(path, "REPO_REF =")
-        tree = ast.parse(source)
-        colab_block = next(node for node in tree.body if isinstance(node, ast.If))
-        start = next(
-            i
-            for i, node in enumerate(colab_block.body)
-            if isinstance(node, ast.Import) and node.names[0].name == "pathlib"
-        )
-        body = colab_block.body[start:]
-        for node in body:
-            if (
-                isinstance(node, ast.Assign)
-                and isinstance(node.targets[0], ast.Name)
-                and node.targets[0].id == "repo_dir"
-            ):
-                node.value = ast.Call(
-                    func=ast.Name(id="Path", ctx=ast.Load()), args=[ast.Constant(str(checkout))], keywords=[]
-                )
+        _, body = _colab_setup(path)
+        _point_repo_dir_at(body, checkout)
         commands = []
 
         def fake_output(command, **kwargs):
             if command[1:3] == ["rev-parse", "FETCH_HEAD^{commit}"]:
                 return "new-commit\n"
             if command[1:3] == ["rev-parse", "HEAD"]:
-                return "old-commit\n" if indexed else "new-commit\n"
+                assert indexed, "must not run rev-parse HEAD when there is no index"
+                return "old-commit\n"
             if command[1:3] == ["status", "--porcelain"]:
+                assert indexed, "must not run status --porcelain when there is no index"
                 return " M notebook.ipynb\n" if dirty else ""
+            if command[1:] == ["ls-files", "--deleted"]:
+                assert not expected, "the completeness check runs only after a checkout"
+                return ""
             raise AssertionError(command)
 
         monkeypatch.setattr(subprocess, "check_output", fake_output)
@@ -4069,7 +4070,6 @@ class TestNotebookWithoutTheDirectionTerrainMode:
             "Path": Path,
             "REPO_REF": "feature-branch",
             "sys": types.SimpleNamespace(modules={"environments": object()} if loaded else {}),
-            "importlib": types.SimpleNamespace(util=types.SimpleNamespace(find_spec=lambda name: object())),
         }
         code = compile(ast.fix_missing_locations(ast.Module(body=body, type_ignores=[])), "setup", "exec")
         if expected:
@@ -4079,8 +4079,127 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         else:
             exec(code, namespace)
             assert ["git", "checkout", "--detach", "new-commit"] in commands
-        assert commands[0] == ["git", "fetch", "origin", "feature-branch"]
+        fetch = ["git", "fetch", "--depth", "1", "--filter=blob:none", "origin", "feature-branch"]
+        if indexed:
+            # Sparse settings are never applied to a checkout that has an index: on a full checkout they
+            # would delete every clean file outside the cone.
+            assert commands[0] == fetch
+            assert not any(command[1] == "sparse-checkout" for command in commands)
+        else:
+            assert commands[:3] == [*_SPARSE_SETUP, fetch]
+        # Nothing here may discard work: no reset, no clean, and --force only in the rollback after a failed
+        # checkout (test_colab_failed_checkout_rolls_back_only_an_indexed_tree), which this fake never triggers.
         assert not any("--force" in command or "reset" in command or "clean" in command for command in commands)
+
+    @pytest.mark.parametrize("failure", ["exits_nonzero", "files_missing"])
+    @pytest.mark.parametrize("indexed", [True, False], ids=["indexed", "no_index"])
+    @pytest.mark.parametrize("path", [NOTEBOOK_PATH, DRIVE_SUMMARY_PATH], ids=["sb3", "drive_summary"])
+    def test_colab_failed_checkout_rolls_back_only_an_indexed_tree(self, tmp_path, monkeypatch, path, indexed, failure):
+        """A checkout that fails part-way (it downloads file contents lazily) is re-raised. Git 2.43 exits non-zero;
+        Colab's git 2.34 exits 0 and leaves the files missing, which ``git ls-files --deleted`` catches. On an indexed
+        tree setup first puts back the clean commit verified before, so a rerun is not refused as "local edits"; with
+        no tree before, it drops the index the checkout wrote, so the rerun takes the fresh path again."""
+        import subprocess
+        import types
+
+        checkout = tmp_path / "checkout"
+        index = checkout / ".git" / "index"
+        (checkout / ".git").mkdir(parents=True)
+        if indexed:
+            index.touch()
+        _, body = _colab_setup(path)
+        _point_repo_dir_at(body, checkout)
+        calls = []
+
+        def fake_run(command, **kwargs):
+            calls.append((command, kwargs.get("check")))
+            if command[1:3] == ["checkout", "--detach"]:
+                index.touch()  # as git 2.34 does even when the downloads fail
+                if failure == "exits_nonzero":
+                    raise subprocess.CalledProcessError(128, command)
+
+        def fake_output(command, **kwargs):
+            if command[1:3] == ["rev-parse", "FETCH_HEAD^{commit}"]:
+                return "new-commit\n"
+            if command[1:3] == ["rev-parse", "HEAD"] and indexed:
+                return "old-commit\n"
+            if command[1:3] == ["status", "--porcelain"] and indexed:
+                return ""
+            if command[1:] == ["ls-files", "--deleted"] and failure == "files_missing":
+                return "pyproject.toml\nnotebooks/colab_install.py\n"
+            raise AssertionError(command)
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        monkeypatch.setattr(subprocess, "check_output", fake_output)
+        namespace = {"Path": Path, "REPO_REF": "feature-branch", "sys": types.SimpleNamespace(modules={})}
+        code = compile(ast.fix_missing_locations(ast.Module(body=body, type_ignores=[])), "setup", "exec")
+        if failure == "exits_nonzero":
+            with pytest.raises(subprocess.CalledProcessError):
+                exec(code, namespace)
+        else:
+            with pytest.raises(RuntimeError, match="checkout is incomplete"):
+                exec(code, namespace)
+        checkouts = [(command, check) for command, check in calls if command[1] == "checkout"]
+        attempt = (["git", "checkout", "--detach", "new-commit"], True)
+        # The rollback passes check=False on purpose: its own failure must not hide the checkout's error.
+        rollback = (["git", "checkout", "--force", "--detach", "old-commit"], False)
+        assert checkouts == ([attempt, rollback] if indexed else [attempt])
+        assert index.exists() is indexed, "a failed first checkout must leave no index behind"
+
+    @pytest.mark.parametrize("path", [NOTEBOOK_PATH, DRIVE_SUMMARY_PATH], ids=["sb3", "drive_summary"])
+    def test_colab_fresh_checkout_uses_shallow_fetch(self, tmp_path, monkeypatch, path):
+        """A fresh Colab runtime sets up a sparse cone before a blobless shallow fetch of REPO_REF only, instead of
+        cloning full history (every command checked; the rollback's check=False is never reached here)."""
+        import subprocess
+        import types
+
+        checkout = tmp_path / "fresh_checkout"
+        _, body = _colab_setup(path)
+        _point_repo_dir_at(body, checkout)
+        commands = []
+
+        def fake_run(command, **kwargs):
+            assert kwargs.get("check") is True
+            commands.append(command)
+            if command[:2] == ["git", "init"]:
+                (checkout / ".git").mkdir(parents=True, exist_ok=True)
+
+        def fake_output(command, **kwargs):
+            if command[1:3] == ["rev-parse", "FETCH_HEAD^{commit}"]:
+                return "abc123\n"
+            if command[1:] == ["ls-files", "--deleted"]:
+                return ""
+            raise AssertionError(f"unexpected check_output on fresh checkout: {command}")
+
+        monkeypatch.setattr(subprocess, "run", fake_run)
+        monkeypatch.setattr(subprocess, "check_output", fake_output)
+        namespace = {"Path": Path, "REPO_REF": "main", "sys": types.SimpleNamespace(modules={})}
+        exec(compile(ast.fix_missing_locations(ast.Module(body=body, type_ignores=[])), "setup", "exec"), namespace)
+        assert commands == [
+            ["git", "init", "-q"],
+            ["git", "remote", "add", "origin", "https://github.com/kuds/mesozoic-labs.git"],
+            *_SPARSE_SETUP,
+            ["git", "fetch", "--depth", "1", "--filter=blob:none", "origin", "main"],
+            ["git", "checkout", "--detach", "abc123"],
+        ]
+
+
+#: The sparse cone a checkout with no index gets before its first fetch: `init --cone` then `set`, because git 2.34
+#: (Colab's Ubuntu 22.04) has no `set --cone` and would read it as a pattern. `results` is in the cone for the Drive
+#: summary's offline-judgement ledger; the files at the repository root are always checked out.
+_SPARSE_SETUP = [
+    ["git", "sparse-checkout", "init", "--cone"],
+    ["git", "sparse-checkout", "set", "environments", "configs", "notebooks", "results"],
+]
+
+
+def _point_repo_dir_at(body: list[ast.stmt], checkout: Path) -> None:
+    """Rewrite the Git block's ``repo_dir = ...`` to ``repo_dir = Path(<checkout>)``."""
+    for node in body:
+        if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name) and node.targets[0].id == "repo_dir":
+            node.value = ast.Call(
+                func=ast.Name(id="Path", ctx=ast.Load()), args=[ast.Constant(str(checkout))], keywords=[]
+            )
 
 
 def _colab_setup(path: Path) -> tuple[ast.Assign, list[ast.stmt]]:
@@ -4099,13 +4218,24 @@ def _colab_setup(path: Path) -> tuple[ast.Assign, list[ast.stmt]]:
     return in_colab, body[start : end + 1]
 
 
+def _sb3_colab_install_block() -> list[ast.stmt]:
+    """The package-install statements that follow the Git checkout block inside ``sb3_training.ipynb``."""
+    tree = ast.parse(code_cell(NOTEBOOK_PATH, "REPO_REF ="))
+    (colab_block,) = [node for node in tree.body if isinstance(node, ast.If) and ast.unparse(node.test) == "IN_COLAB"]
+    body = colab_block.body
+    git_end = next(i for i, node in enumerate(body) if "Repository ref: " in ast.unparse(node))
+    return body[git_end + 1 :]
+
+
 def test_the_drive_summary_checks_out_repo_ref_with_the_sb3_notebooks_git_block():
     """The Drive summary's setup cell runs the SB3 setup cell's Git block statement for statement (CU-15).
 
     The block installs the package, so it cannot live in it; the two copies are pinned equal as ASTs
-    instead: the ``--no-checkout`` clone, the fetch of ``REPO_REF``, ``FETCH_HEAD^{commit}``, the
-    refusals after an import of the package or over local edits, and the detached checkout. Both cells
-    declare ``REPO_REF = "main"`` and the same ``IN_COLAB``. The ref-change test above runs the block.
+    instead: ``git init``, the sparse cone of a checkout with no index, the blobless
+    ``git fetch --depth 1 --filter=blob:none`` of ``REPO_REF``, ``FETCH_HEAD^{commit}``, the refusals after an
+    import of the package or over local edits, and the detached checkout with its completeness check and
+    rollback. Both cells declare ``REPO_REF = "main"`` and the same ``IN_COLAB``. The ref-change test above
+    runs the block.
     """
     sb3_in_colab, sb3_block = _colab_setup(NOTEBOOK_PATH)
     drive_in_colab, drive_block = _colab_setup(DRIVE_SUMMARY_PATH)
@@ -4117,6 +4247,66 @@ def test_the_drive_summary_checks_out_repo_ref_with_the_sb3_notebooks_git_block(
     assert ast.dump(drive_in_colab) == ast.dump(sb3_in_colab)
     for path in (NOTEBOOK_PATH, DRIVE_SUMMARY_PATH):
         assert 'REPO_REF = "main"  # @param {"type":"string"}' in code_cell(path, "REPO_REF =").splitlines()
+
+
+@pytest.mark.parametrize("checkout", ["installer", "requirements_file", "neither"])
+def test_sb3_colab_install_runs_the_checked_out_installer_or_an_old_refs_fallback(
+    tmp_path, monkeypatch, capsys, checkout
+):
+    """After the checkout, setup runs the checked-out ``notebooks/colab_install.py`` (tested by
+    test_colab_install.py). A REPO_REF older than it gets the earlier installs: pip -r of its
+    ``notebooks/requirements-colab.txt``, else the fixed pin list, then the project without its dependencies."""
+    import importlib
+    import subprocess
+    import sys
+
+    notebooks = tmp_path / "notebooks"
+    notebooks.mkdir()
+    if checkout == "installer":
+        (notebooks / "colab_install.py").write_text("")
+    elif checkout == "requirements_file":
+        (notebooks / "requirements-colab.txt").write_text("mujoco==3.10.0\n")
+    commands = []
+    invalidated = []
+
+    def fake_run(command, **kwargs):
+        assert kwargs.get("check") is True
+        commands.append(command)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(importlib, "invalidate_caches", lambda: invalidated.append(True))
+    body = _sb3_colab_install_block()
+    ns = {"importlib": importlib, "subprocess": subprocess, "sys": sys, "repo_dir": tmp_path}
+    exec(compile(ast.fix_missing_locations(ast.Module(body=body, type_ignores=[])), "sb3_install", "exec"), ns)
+
+    pip = [sys.executable, "-m", "pip", "install", "-q"]
+    if checkout == "installer":
+        assert commands == [[sys.executable, str(notebooks / "colab_install.py")]]
+    else:
+        purge = [sys.executable, "-m", "pip", "uninstall", "-y", "-q", "gym", "gym-notices", "shimmy", "dopamine-rl"]
+        if checkout == "requirements_file":
+            dependencies = [*pip, "-r", str(notebooks / "requirements-colab.txt")]
+        else:
+            dependencies = [
+                *pip,
+                "mujoco==3.10.0",
+                "gymnasium==1.3.0",
+                "stable-baselines3[extra]==2.9.0",
+                "mediapy",
+                "matplotlib",
+                "imageio-ffmpeg",
+            ]
+        assert commands == [purge, dependencies, [*pip, "--no-deps", "-e", str(tmp_path)]]
+    assert invalidated, "setup must invalidate import caches after installing"
+    assert capsys.readouterr().out.rstrip().endswith("Colab setup complete (EGL rendering enabled).")
+
+
+def test_sb3_colab_install_checks_no_versions_itself():
+    """The version check is the installer's (with packaging, in colab_install.py), not a parser in the cell."""
+    source = ast.unparse(ast.Module(body=_sb3_colab_install_block(), type_ignores=[]))
+    for token in ("importlib.metadata", "_pin_mismatches", "_ver_tuple", "shutil.which"):
+        assert token not in source, f"the SB3 setup cell's install block still uses {token}"
+    assert len(source.splitlines()) <= 25, "the install block grew; the installer script is where steps belong"
 
 
 @pytest.mark.parametrize("path", [NOTEBOOK_PATH, DRIVE_SUMMARY_PATH], ids=["sb3", "drive_summary"])

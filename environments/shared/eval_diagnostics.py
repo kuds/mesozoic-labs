@@ -2277,7 +2277,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
     def _record_stance_scalars(self, index: int, panel: Any | None) -> None:
         """Emit the quantities the stance gate actually decides on.
 
-        All three gating numbers used to be absent from TensorBoard and W&B
+        All three gating numbers used to be absent from TensorBoard
         entirely — only a raw all-episode duty mean was published — so a
         stance-gated stage gave no way to tell whether it was blocked on the
         mean or on panel variance driving the bound, which is the single most
@@ -2299,7 +2299,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         # substitute the TRAINING-rollout duty from `diagnostics.npz`, which is
         # contaminated by exploration noise; it happened to agree to three
         # decimals there, but that was luck, not a property worth relying on.
-        # Also to the SB3 logger, so TensorBoard and W&B carry them live
+        # Also to the SB3 logger, so TensorBoard carries them live
         # rather than only the npz. A diagnostic that exists solely in a file
         # nobody opens mid-run is how the stance gate criteria stayed invisible
         # for the whole of run 20260804_143747.

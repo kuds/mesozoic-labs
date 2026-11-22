@@ -3,6 +3,7 @@ sidebar_position: 1
 sidebar_label: Anatomical
 ---
 
+import useBaseUrl from '@docusaurus/useBaseUrl';
 import SpeciesCatalog from '@site/src/components/SpeciesCatalog';
 import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
 import {requireModel} from '@site/src/data/species';
@@ -11,7 +12,7 @@ export const MODEL = requireModel('velociraptor_mongoliensis', 'anatomical');
 
 # Velociraptor Model
 
-A dinosaur-inspired bipedal simulation model with actuated sickle-claw geoms, trained for locomotion and target-contact tasks. Its manifest (`configs/velociraptor_mongoliensis/anatomical/stages.toml`) declares three published behaviors on one trunk: `stance` (stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the strike task, warm-started from locomotion). See [Behavior Recipes](/docs/training/recipes).
+This 15 kg reconstruction of *Velociraptor mongoliensis* has a long, narrow snout, feathered forelimbs and a raised sickle claw on each foot. It simulates bipedal locomotion and target-contact tasks. Its manifest (`configs/velociraptor_mongoliensis/anatomical/stages.toml`) declares three published behaviors on one trunk: `stance` (stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the strike task, warm-started from locomotion). See [Behavior Recipes](/docs/training/recipes).
 
 The stance node certifies stance quality, not reward: since physics r3 its gate judges every episode of a 40-episode
 panel on the floor's force under each foot (no hop at reset, both feet planted, every support of each foot loaded, no
@@ -30,6 +31,8 @@ retrains on this plant.
 <SpeciesCatalog species={MODEL} />
 
 ## Anatomy
+
+The feathered surface follows the articulated skeleton. Its colour, feather lengths and soft-tissue outlines are reconstructions. The high first toe points toward the front of the foot. Digits III and IV share the ground load with the pad at their base.
 
 - **Torso** - Level trunk (dorsal torso, low belly and ribcage capsules), 7.1 of the animal's 15 kg
 - **Neck and head** - Separate neck and skull bodies with neck pitch, neck yaw and head pitch servos, which hold the head up at the standing pose; the neck does not collide, the skull does
@@ -54,15 +57,27 @@ After each training stage the `eval` command reports:
 | `success_rate` | Fraction of episodes with successful sickle-claw target contact |
 | `min_prey_distance` | Closest approach to prey (m) |
 
-## Training Videos
+## Reference walk
+
+<video controls preload="metadata" width="100%" src={useBaseUrl('/videos/velociraptor_mongoliensis_anatomical_reference_walk.mp4')} aria-label="Anatomical Velociraptor walking on level ground with measured left and right foot contact" />
+
+On level ground, the reference controller advanced at 0.258 m/s over a 33-second measurement window and recorded 47 alternating landings per foot. The median step was 9.0 cm forward and the track was 15.3 cm wide. It uses the 17 normal actuator commands. The two contact bars show when the measured force under each foot exceeds 5 N. The folded arms move with the trunk, and the proximal tail joints respond as weight transfers from one foot to the other.
+
+## Historical training videos
+
+These PPO recordings come from earlier model revisions.
 
 <SpeciesVideoSection species={MODEL.name} stages={MODEL.stages} />
 
 ## Usage
 
 ```bash
-# From the repository root. View the model
-python environments/velociraptor_mongoliensis/scripts/view_model.py --embodiment anatomical
+# From the repository root. View the model (requires a display)
+python -m environments.velociraptor_mongoliensis.scripts.view_model --embodiment anatomical
+
+# Measure standing balance or the reference walk on the level floor
+python -m environments.velociraptor_mongoliensis.scripts.audit_motion --mode stand
+python -m environments.velociraptor_mongoliensis.scripts.audit_motion --mode walk --seconds 35
 
 # Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species velociraptor_mongoliensis --embodiment anatomical train --stage 1

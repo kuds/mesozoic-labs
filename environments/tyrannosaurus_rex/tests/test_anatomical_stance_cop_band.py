@@ -615,25 +615,27 @@ def test_on_the_env_loads_no_gait_curriculum_or_registry_module_at_run_time():
 #: on its feet.  The same rollout on r10 still reads 2 lifted, 12 light and 1 off-pad foot-steps (guard 0), pays its
 #: 50 open steps and puts 22 foot-steps on the load guard's ramp (16 on r9).  The 6-decimal digests do not see a 1-ulp
 #: change: the 300-step test pins the env's values to the pure functions byte for byte.
+#: On r11, redistributing hindlimb length and widening the lateral digits alters the contact moments and
+#: measured limb loads. All band keys move. The same 60 steps cover 20 ramp foot-steps and 50 paid steps.
 GOLDEN_MUJOCO = "3.10.0"
 GOLDEN_STEPS = 60
 GOLDEN = {
-    "l_cop_band_counted": "cc88401e67155807cef60fe7102aff654d9bf1e3ef7232dd25e92cabc57c3473",
-    "l_cop_band_digit_share": "051882b8bedb62c1a4584ff338698e4543d39577de7ad993c2b0021ba4606e4d",
-    "l_cop_band_foot_cop": "776c9ece54c8cffe28531f815fa778532bea9fbc34af44bbddc990a68b1b4c4a",
-    "l_cop_band_guard": "209eaf36a5b7fd3324aeb031b3843a02044e713c58d72319920371835a8ffc9e",
-    "l_cop_band_load_share": "7a1587ce0b2119450f9407bd1e000a82869a51f634586efbc51f2c4d00e7e792",
-    "l_cop_band_pad_cop": "45fbdc44b87566e926ad078c33b7ed631faf0db7b33bd2f7ac5b870e672a1b14",
-    "l_cop_band_quality": "017893271384dc42e97a7d9b5b88d24c19e0fa7c5b607064f93113dd85a09805",
-    "r_cop_band_counted": "e188e7ab94d000c1041c00fec10c7a126c164e85d002786bab57271a39b51552",
-    "r_cop_band_digit_share": "3c1ae8d1a02d221c45132591433d122a34353bf4651c123a464dd9d3646cde49",
-    "r_cop_band_foot_cop": "47a1df1794b724d79567343db0531d5e4593d69bc18bf2b46560214adcebba41",
-    "r_cop_band_guard": "1f6df42a4eeefd0cf740f55752a69d5a57dfdf2aeda1ab3a067be1107f4c28cd",
-    "r_cop_band_load_share": "d500ddb9d3ed5fa0244ad6a8643415a31864bd55bfc4c1856ce0d937af5f72dc",
-    "r_cop_band_pad_cop": "37995751d19ea0aafa61605b7ee9153a06e3540754c7616939f90cae98fe5dbe",
-    "r_cop_band_quality": "6d173cb5031faf91c6176f84e3275940d4576d7b01399215fc6977e609f7bbff",
-    "reward_stance_cop_band": "30ded0ad977663bc6d454b71f37767730d351e7d52223da4548d3e03eb3f8b6e",
-    "stance_cop_band_quality": "a9b29bb778a6ed7c8a9d5da9dc23bb7fb9d7bb742af75dd08c33c28612ff856f",
+    "l_cop_band_counted": "180b48735f6487974b9ada3609b1564309fc76d41bb20680c87832cac73fdf0f",
+    "l_cop_band_digit_share": "ac99d108e72c185ea3b0f8357d6ef069592e0dc16873304a7fe749625855cb25",
+    "l_cop_band_foot_cop": "4dca3bc7a2706d43b8ce2c6516d2dec7b68b9fc819bec9c3057989c443d91dfb",
+    "l_cop_band_guard": "45a0b365895a23b5a3565c18356246b37e2bcdb90b82f786ba4fe6dd10d8aea1",
+    "l_cop_band_load_share": "6078f2882c061e11c7d5a128ebdf8e363bb0ff25a653112c6c79a0d4a74ade2c",
+    "l_cop_band_pad_cop": "3d6ff25de91bd7486bafce04b15d4da5f63bb36d2016f1f77cccf8b35a161479",
+    "l_cop_band_quality": "ad83250c3043446bbb7def7c1988317f0f48adf0296bbe93966aa032176b8eab",
+    "r_cop_band_counted": "a9c84afa603695a5aa9b72c9ded275d12015c80b174db528e96b8199daf8b583",
+    "r_cop_band_digit_share": "abaac9f7dba6ba8a1f1a65e1c63d928ed6a81870fd7dae29a8a7abb71941fec7",
+    "r_cop_band_foot_cop": "3500b580a794be9acab0a6e30fd5fbd8a24c6e97ddf6e9dabc8d8aabbad5ccf5",
+    "r_cop_band_guard": "db269b2ab5f794ca8a7dc611e7194b6a2c101edc30d3333319b7eb99a6f4c484",
+    "r_cop_band_load_share": "79aab64a12110f397ffe9eea4f0437d915052f2248a9f85eea027139a249549a",
+    "r_cop_band_pad_cop": "8dbdd7572ea63e3479521f54d3172c7854c277c0fe4bc34ddd8ff09df7e6e195",
+    "r_cop_band_quality": "3300670ee64d8c19f8d828fa66087a4786c79a84dde6eddac612433d03e6dda8",
+    "reward_stance_cop_band": "ab7584d969c96baa576ff2fea8575794795be3f66943ef22aa546e08f3a43668",
+    "stance_cop_band_quality": "c4bb0621fcc18e5a9887eeea3ac8ab8904aa177896bd69ef100a6c2fbfc21f14",
 }
 
 
@@ -673,7 +675,7 @@ def test_the_shared_reduction_is_pinned_by_a_golden_band_on_rollout(off_kwargs):
     quality = np.array([[row["r_cop_band_quality"], row["l_cop_band_quality"]] for row in rows])
     assert (counted == 0.0).any() and ((quality > 0.0) & (quality < 1.0)).any()  # guards and the slope both read
     guard = np.array([[row["r_cop_band_guard"], row["l_cop_band_guard"]] for row in rows])
-    assert ((guard > 0.0) & (guard < 1.0)).sum() == 22  # the load guard's ramp too (16 on physics r9)
+    assert ((guard > 0.0) & (guard < 1.0)).sum() == 20  # the load guard's ramp on r11 (22 on r10)
     digests = _golden_digests(rows)
     moved = sorted(key for key in GOLDEN.keys() | digests.keys() if GOLDEN.get(key) != digests.get(key))
     assert moved == [], f"the band's readings moved ({moved}): {digests}"
@@ -1030,15 +1032,13 @@ def test_guard_2_a_foot_off_its_pad_pays_the_maximum(off_kwargs):
 
 
 def test_guard_2_the_pad_band_prices_load_moved_onto_the_digits(off_kwargs):
-    """The right ankle opened 0.08 rad and the right toes extended 0.4 rad: about 38% of the right foot's load moves
-    onto its digits near their MTP joints, which pulls the whole-foot CoP back inside the band (+0.05; +0.23 with the
-    ankle opened alone) while the pad itself sits toe-loaded (+0.59).  The whole-foot band alone pays nothing; the
-    pad band prices the pad's own excursion (here with its upper edge at 0.5 to show it binding; the default 0.65
-    sits just past this pose).  Physics r10 (D-D44; re-calibrated by the r10 round's decision D19 (a)): its settled
-    stance stands further back on its feet, so the toes alone leave the pad at +0.33 at most, and the ankle opening
-    first moves the right foot's load forward; on physics r9 the toes extended 0.6 rad alone did this (whole foot
-    +0.03, pad +0.63, digits about 40%)."""
-    toes = {"r_ankle": 0.08, **{f"r_toe_d{d}_joint": -0.4 for d in (2, 3, 4)}}
+    """Open the ankle and extend the toes to load both the pad and digits. On physics r11 the
+    ankle alone puts the right whole-foot CoP at +0.19. Extending the digits transfers 43% of
+    the right load to them and brings its whole-foot CoP to -0.03, with pad CoP still +0.59.
+    Both default bands are free at this pose. Tightening only the pad edge to +0.50 must charge
+    the pad's excursion. The wider digits need 0.055 rad of ankle opening (0.08 rad on r10).
+    """
+    toes = {"r_ankle": 0.055, **{f"r_toe_d{d}_joint": -0.4 for d in (2, 3, 4)}}
     env, base = _settled({**off_kwargs, **ON})
     try:
         info = _pose(env, base, toes)

@@ -1,0 +1,34 @@
+# Allosaurus Fragilis: heading, speed, stop and restart
+# Supported SB3/PPO behavior. Parent resolves through ../stages.toml.
+# The 0.35 m/s cruise matches the level-ground reference walk.
+[behavior]
+name = "follow_direction_speed"
+species = "allosaurus_fragilis"
+embodiment = "anatomical"
+parent = "locomotion"
+timesteps = 3000000
+
+[commands]
+cruise_speed = 0.35
+speed_scale = 0.5
+lateral_speed_scale = 0.5
+yaw_rate_scale = 0.6
+speed_range = [0.175, 0.35]
+stop_probability = 0.15
+turn_increment_max = 0.5235987756
+yaw_rate_max = 0.3
+switch_interval_s = 6.0
+switch_jitter_s = 1.0
+straight_probability = 0.25
+
+[terrain]
+enabled = false
+
+[env]
+max_episode_steps = 2500 # 25 seconds at this species control timestep
+course_distance = 8.0 # Radial progress diagnostic
+
+[ppo]
+learning_rate = 0.00005
+ent_coef = 0.005
+target_kl = 0.03

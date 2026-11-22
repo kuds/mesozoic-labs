@@ -1,158 +1,174 @@
-# Dibothrosuchus Elaphros Environment
+# Dibothrosuchus elaphros
 
-A small, gracile crocodylomorph locomotion and snout-contact environment built with MuJoCo and Gymnasium.
-
-## Overview
-
-*Dibothrosuchus elaphros* is a sphenosuchian crocodylomorph from the Early Jurassic Lower Lufeng Formation of Yunnan,
-and it is the first non-dinosaur in this repository. It is the counterexample to the usual crocodilian picture: a
-long-legged terrestrial animal that carried its limbs under its body in an erect, parasagittal posture rather than in
-a sprawl, with hindlimbs noticeably longer than its forelimbs. The species name means "light" or "nimble"; the genus
-name means "two-trough crocodile", after the paired paramedian rows of dorsal osteoderms.
-
-The Stage 3 task is named "Snap", but the implemented success event is contact between a fixed `snout_snap` geom and
-the prey. The model has neck and head actuators but no articulated or actuated jaw, so the metric should be read as a
-snout-contact proxy rather than simulated bite biomechanics. The prey sphere is 0.06 m across — the smallest stage-3
-target in the repository — which makes the aiming gradients, not the approach, the hard part of the stage.
-
-The model is a research abstraction, not a validated reconstruction.
-
-## Generated Specifications, Curriculum, and Results
-
-The authoritative public dimensions, current stage budgets, success criterion, and provenance-labelled historical
-results are in the generator-managed [Dibothrosuchus Elaphros (Anatomical) catalog entry](../../docs/SPECIES_CATALOG.md#dibothrosuchus_elaphros-anatomical). They are derived
-from the species manifest, executable environment, compiled MJCF, current TOML stage configs, and result summaries.
-
-No training runs have been published for this species yet, so the catalog entry carries no results table.
+*Dibothrosuchus elaphros* was a small, lightly built crocodylomorph from the Early Jurassic of Yunnan, China. The
+model is a quadruped with an upright stance, gracile limbs, hindlimbs longer than its forelimbs, and a mobile neck,
+head and tail. It is for learning to stand, to walk, and to snap: closing on small prey and touching it with the
+snout. It is a research abstraction: the jaws form one rigid body, and the mass and soft tissue are modeling choices.
 
 ## Models
-
-The species has one model, the pair (species, embodiment) of
-[docs/SPECIES_NAMING.md](../../docs/SPECIES_NAMING.md):
 
 | | Anatomical |
 |---|---|
 | Species / embodiment | `dibothrosuchus_elaphros` / `anatomical` |
-| Environment class | `DibothrosuchusElaphrosAnatomicalEnv` (`anatomical/env.py`), on the species base `DibothrosuchusElaphrosEnv` (`base_env.py`) |
 | Gymnasium ID | `MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0` |
-| MJCF | `anatomical/assets/dibothrosuchus_elaphros_anatomical.xml` |
-| Configs | `configs/dibothrosuchus_elaphros/anatomical/` |
-| Catalog | [Dibothrosuchus Elaphros (Anatomical)](../../docs/SPECIES_CATALOG.md#dibothrosuchus_elaphros-anatomical) |
+| Environment | [`DibothrosuchusElaphrosAnatomicalEnv`](anatomical/env.py) |
+| MuJoCo model | [`dibothrosuchus_elaphros_anatomical.xml`](anatomical/assets/dibothrosuchus_elaphros_anatomical.xml) |
+| Stage configs | [`configs/dibothrosuchus_elaphros/anatomical/stages.toml`](../../configs/dibothrosuchus_elaphros/anatomical/stages.toml) |
+| Catalog entry | [Dibothrosuchus elaphros (Anatomical)](../../docs/SPECIES_CATALOG.md#dibothrosuchus_elaphros-anatomical) |
+| Model page | [mesozoiclabs.com/docs/models/dibothrosuchus_elaphros/anatomical](https://mesozoiclabs.com/docs/models/dibothrosuchus_elaphros/anatomical) |
 
-## Implementation Notes
+Dimensions, stage budgets, gates and published results are generated in the catalog entry; this page does not repeat
+them.
 
-### Body Structure
-- **Trunk**: A level root frame with a nose-down sloping capsule, a low-slung belly, and two paramedian rows of
-  collision-disabled dorsal scutes (6 pairs) that carry mass but never collide
-- **Neck/Skull**: Long slender neck (pitch, yaw), a narrow crested skull (head pitch), a sagittal crest, and an
-  elongate snout carrying the fixed snap contact geom
-- **Legs**: Four erect limbs, 5 joints each (hip pitch/roll, knee, ankle, toe) ending in a flat pad. The acetabulum
-  sits 22 mm below the trunk frame and the glenoid 72 mm below it, so the forelimb chain spans 0.242 m of ground
-  clearance against the hindlimb's 0.292 m
-- **Tail**: 4 segments, 3 actuated (pitch 1, yaw 1, pitch 2, pitch 3 — segment 4 is passive), carried clear of the
-  ground in the high walk
-- **Contacts**: an elliptic friction cone since physics r2 (`configs/plant_versions.toml` note 17, decision D-D30), so
-  the box pads, whose contact frames stay on the world axes, grip the same in every direction and every world heading
-  is physically identical; under MuJoCo's default pyramidal cone a 45° turn changed the physics slightly
+## Anatomical review
 
-### Home Pose
-Unlike the other species, the stance geometry is authored into the body offsets rather than into joint references:
-**every hinge joint is 0 at the home keyframe**, and so is the home control vector. Holding that control for 1500
-steps leaves the trunk at 0.3132 m (0.3 mm of settle; 0.3129 m on physics r1) with forward_z +0.002 and tilt 0.002
-rad, so `natural_pitch` is 0 and both the posture and nosedive rewards keep their world-vertical reference. The four
-pads carry the full 84.9 N of weight, split 71/29 rear/front.
+- **Proportions.** The humerus and radius match measurements of the specimen IVPP V7907, and the skull matches a
+  published cranial length. The snout-to-tail span is close to the published whole-animal estimate; the tail is
+  reconstructed.
+- **Joints.** A free trunk carries position servos at neck pitch, neck yaw and head pitch; at each leg's hip pitch,
+  hip roll, elbow or knee, wrist or ankle, and toe; and at the first three tail segments. The last tail joint is a
+  passive spring. The elbows sit behind the shoulders and the hind knees ahead of the hips, so each joint folds in its
+  anatomical direction.
+- **Feet.** Each forefoot has four compact digital rays on one toe hinge beside a small central sole, and the fossil
+  hand supports the absence of a fifth digit. Each hindfoot has four supporting rays and a small, raised fifth ray,
+  arranged by comparison with *Terrestrisuchus*. The sole and each digital ray are separate floor contacts, and one
+  touch sensor per foot feeds the observation.
+- **Head and surface.** A tapered trunk and tail, a distinct lower jaw, lateral eyes and nares, low frontal ridges and
+  paired dorsal osteoderms give the surface recognizable landmarks. The snap uses a fixed contact geom at the snout.
+- **Known limits.** The incomplete hindlimb leaves the hindfoot's dimensions uncertain. The walk's footfall sequence,
+  cadence, tail carriage and toe-off timing are assumptions; living crocodylians use several footfall patterns. The
+  reference walk covers one slow, straight walk on level ground.
 
-### Reward Components
-- **Forward velocity** — Movement toward the prey target
-- **Alive bonus** — Survival reward
-- **Energy penalty** — Penalizes excessive actuator use
-- **Gait stability** — Penalizes trunk angular velocity
-- **Gait symmetry** — Rewards diagonal-pair (FR+RL / FL+RR) touchdown alternation
-- **Tail stability** — Penalizes tail-tip angular velocity
-- **Snap bonus** — Large reward when the fixed snout contact geom touches prey
-- **Approach shaping** — Reward for closing **snout**-to-prey distance. Measured from the snout rather than the trunk:
-  the 0.16 m skull rides a mobile neck, so trunk-referenced shaping would keep paying out after the snout had
-  already overshot
-- **Snout proximity** — Continuous last-mile aiming gradient for snout placement
+The full review, with measurements, sources, standing balance, the walking trials, actuator loads and the termination
+conditions, is
+[docs/reviews/DIBOTHROSUCHUS_ANATOMICAL_REFERENCE.md](../../docs/reviews/DIBOTHROSUCHUS_ANATOMICAL_REFERENCE.md).
 
-## Quick Start
+## Reference walk
+
+A scripted controller ([`scripts/reference_walk.py`](scripts/reference_walk.py)) shows that the model can walk under
+its own servos. It places the left hind foot, left forefoot, right hind foot and right forefoot in
+sequence, each foot rolling forward over its digits before lifting, and it sends ordinary normalized actions to a
+freely moving body. Run it from the repository root:
 
 ```bash
-# Install from the repository root
-pip install -e ".[all]"
-
-# Run environment tests
-python -m pytest environments/dibothrosuchus_elaphros/tests/ -v
-
-# Train stage 1 using its current TOML-configured budget
-python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical train --stage 1
-
-# Train the full chain (stance -> locomotion -> snap), each stage warm-started
-# from its declared parent in configs/dibothrosuchus_elaphros/anatomical/stages.toml
-python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical curriculum --algorithm ppo
-
-# Or reuse an earlier run's certified trunk and train only what is missing above it
-python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical \
-    curriculum --algorithm ppo --trunk-from <earlier-run-dir> --output-dir <new-run-dir>
-
-# View the model (requires display)
-python environments/dibothrosuchus_elaphros/scripts/view_model.py --embodiment anatomical
+python -m environments.dibothrosuchus_elaphros.scripts.reference_walk
+python -m environments.dibothrosuchus_elaphros.scripts.reference_walk --strides 36 --seed 3 --reset-noise 0.05
 ```
 
-Stance, locomotion and snap are each a published deliverable (`stance`,
-`walk`, `hunt`); see [docs/BEHAVIOR_RECIPES_PLAN.md](../../docs/BEHAVIOR_RECIPES_PLAN.md).
+By default the walk runs nine strides from a neutral start and measures the six after startup. It prints a JSON
+report: touchdown order, forward speed, stride period and length, duty factor, swing clearance and loaded heel rise
+per foot, the share of load on the digits, track width, the fewest feet loaded at once, airborne substeps, contact
+slip, and the motion of the trunk, snout and tail tip. `--strides` sets the total number of strides, and `--seed` with
+`--reset-noise` starts from a perturbed pose.
 
-## Environment Details
+[`tests/test_reference_walk.py`](tests/test_reference_walk.py) checks the walk,
+[`tests/test_com_stance_quality.py`](tests/test_com_stance_quality.py) checks standing balance, and the
+[walking replay](../../website/static/videos/dibothrosuchus_elaphros_anatomical_reference_walk.mp4) shows the default
+run with its measured contacts.
 
-Observation and action totals are generated in the catalog entry linked above. The source of the observation layout
-and action-to-actuator mapping is `environments/dibothrosuchus_elaphros/base_env.py`; actions are normalized to [-1, 1] residuals, where
-zero commands the complete XML `home` control and the endpoints retain access to the full actuator ranges.
+## Run the model
 
-### Termination Conditions
-- Trunk height outside the healthy range (0.18 m–0.55 m by default; the lower bound is the sprawl-collapse gate)
-- Excessive tilt angle
-- Nosedive (forward pitch exceeds the measured level neutral plus a threshold)
-- Snout tip below 0.04 m (catches snout-propping that geom contact detection can miss)
-- Skull, snout, trunk, belly, or distal tail contacts the ground
-- Snap success (fixed `snout_snap` geom contacts prey; no jaw articulation)
-- Episode length > max_episode_steps
+From the repository root:
 
-### Plant Characterization
-The zero-action baseline
-(`python environments/shared/scripts/zero_action_baseline.py --model-id dibothrosuchus_elaphros anatomical --sweep-noise`) is what calibrates the
-Stage 1 reset noise: at `reset_noise_scale=0.05` a do-nothing policy reaches the full horizon in 100% of episodes, so
-the stage would reward a statue. The committed 0.14 leaves 62%, with failures dominated by real balance losses.
+```bash
+pip install -e .              # the environments: MuJoCo, Gymnasium and NumPy
+pip install -e ".[train]"     # adds Stable-Baselines3 and PyTorch, for training
+pip install -e ".[test]"      # adds pytest, for the tests
 
-Actuator `forcerange` is sized from the repository's documented stage-2 failure mode: hip pitch, knee, and ankle carry
-1.5x-kp headroom on **every** leg (a 1.24 m animal strides fast relative to its body length, so all three stance
-joints see gait-scale torque), and everything else keeps a 0.7x-kp spike cap. Measured clipping is 0.0% under
-home-control settling, a 1.5 Hz walk, and a 2.5 Hz trot, and 0.5% worst-case under sprint-like 4 Hz full-amplitude
-excitation. Run `python environments/shared/scripts/actuator_saturation_report.py --model-id dibothrosuchus_elaphros anatomical`
-for the current per-actuator numbers.
+python -m environments.dibothrosuchus_elaphros.scripts.view_model --embodiment anatomical
+python -m environments.dibothrosuchus_elaphros.scripts.test_actuators --embodiment anatomical
+python -m environments.dibothrosuchus_elaphros.scripts.test_env --embodiment anatomical
+pytest environments/dibothrosuchus_elaphros/tests
+```
+
+`view_model` prints the model's bodies, joints and actuators and opens MuJoCo's interactive viewer, and
+`test_actuators` opens the viewer with every actuator sweeping through its range. Both need a display; on macOS, run
+them with `mjpython` instead of `python`. `test_env` is a smoke test: it resets and steps the environment and checks
+the reward components, determinism and observation bounds over short random rollouts. `--render`, `--episodes` and
+`--steps` adjust it.
+
+## Training
+
+Every model trains from the repository root through one command:
+
+```bash
+python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical curriculum --algorithm ppo
+```
+
+It trains stance, then locomotion, then the snap, each warm-started from its parent in `stages.toml` and run with the
+budget of its stage config. To reuse the certified stance and walk of an earlier run and train only what is missing:
+
+```bash
+python -m environments.shared.train --species dibothrosuchus_elaphros --embodiment anatomical \
+    curriculum --algorithm ppo --trunk-from <earlier_run_dir> --output-dir <new_run_dir>
+```
+
+In [`notebooks/sb3_training.ipynb`](../../notebooks/sb3_training.ipynb), set `SPECIES = "dibothrosuchus_elaphros"`,
+`EMBODIMENT = "anatomical"` and `BEHAVIOR` to `"stance"`, `"walk"` or `"hunt"`. The
+[behavior recipes guide](https://mesozoiclabs.com/docs/training/recipes) covers stopping at a behavior, retraining a
+stage and the notebook settings; the [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) shows
+how to evaluate a checkpoint.
+
+Species notes:
+
+- **Published results.** No trained policy has been published for this model yet. The motion on this page and on the
+  model page comes from the scripted reference controller.
+- **Older checkpoints.** Checkpoints from policy interface r9 or earlier fail the plant check and cannot seed a warm
+  start or `--trunk-from` (`configs/plant_versions.toml`, note 23).
+
+## Task and rewards
+
+A small prey sphere spawns ahead of the animal at reset, just above the ground. The task is to touch it with the
+fixed snout geom `snout_snap`; the model has no articulated jaw. The environment reports `snap_success` and, when
+the snap bonus is enabled (the snap stage), ends the episode.
+
+The observation holds the joint positions and velocities, the trunk orientation quaternion, gyro, linear velocity and
+accelerometer, one touch channel per foot, the prey direction and distance, and the command. Actions are offsets from
+the MJCF `home` controls: zero holds the standing pose, and -1 and +1 reach each actuator's limits. The docstring of
+[`base_env.py`](base_env.py) gives both layouts.
+
+The main reward groups:
+
+- **Survival and posture:** an alive bonus, a fall penalty, and penalties on tilt and nosedive with a trunk-height
+  term.
+- **Progress:** forward velocity and heading toward the prey, with penalties on backward, sideways and drifting
+  motion, spin, speed above a threshold and standing idle.
+- **Snap:** a large bonus on contact, shaping on the snout-to-prey distance and a snout-proximity term for the last
+  approach. The shaping is measured from the snout, not the trunk: the skull rides a mobile neck, so trunk-referenced
+  shaping would keep paying after the snout had overshot the prey.
+- **Gait quality:** penalties on trunk and tail-tip angular velocity and on jerky actions, and a reward for
+  alternating diagonal foot pairs (front right with rear left, front left with rear right).
+- **Effort:** an energy penalty on actuator use.
+
+The weights are the `DibothrosuchusElaphrosEnv` constructor defaults in `base_env.py`, where several terms are off,
+overridden by the `[env]` table of each stage TOML in
+[`configs/dibothrosuchus_elaphros/anatomical/`](../../configs/dibothrosuchus_elaphros/anatomical/). An episode ends
+when the trunk height leaves its healthy range (the lower bound catches a collapse into a sprawl), the trunk tilts or
+pitches nose-down too far, the snout tip drops to the floor, the skull, snout, trunk, belly or distal tail touches the
+floor, or the snap succeeds. The thresholds are in `base_env.py`, and the review lists them.
 
 ## Files
 
-```
-dibothrosuchus_elaphros/
-├── __init__.py
-├── base_env.py                     # DibothrosuchusElaphrosEnv, the species base class
-├── anatomical/
-│   ├── __init__.py
-│   ├── env.py                      # DibothrosuchusElaphrosAnatomicalEnv and its body data
-│   ├── mjx_config.py               # Frozen MJX registration (D-D17 digest input)
-│   └── assets/
-│       └── dibothrosuchus_elaphros_anatomical.xml   # MuJoCo MJCF model
-├── scripts/
-│   ├── view_model.py               # MuJoCo passive viewer
-│   ├── test_actuators.py           # Test joint movements
-│   └── test_env.py                 # Environment validation script
-├── tests/
-│   ├── test_anatomical_env.py      # Model-specific env tests
-│   ├── test_anatomical_rewards.py  # Model-specific reward tests
-│   ├── test_anatomical_static_balance.py          # Home-pose and mass-distribution tests
-│   └── test_anatomical_actuator_bounds.py         # Bounded-actuator plant characterization
-└── README.md
-```
+| Path | Contents |
+|---|---|
+| [`base_env.py`](base_env.py) | `DibothrosuchusElaphrosEnv`, the species base: task, observation, action mapping, rewards and termination |
+| [`anatomical/env.py`](anatomical/env.py) | `DibothrosuchusElaphrosAnatomicalEnv`, the registered model, with its foot contact geoms |
+| [`anatomical/assets/`](anatomical/assets/) | The MJCF model |
+| [`data/`](data/) | The review's figure |
+| [`scripts/`](scripts/) | The viewer (`view_model.py`), the actuator sweep (`test_actuators.py`), the smoke test (`test_env.py`) and the reference walk (`reference_walk.py`) |
+| [`tests/`](tests/) | Environment, reward, actuator-bound, static-balance, stance-quality and reference-walk tests |
 
-Hyperparameter configs are at `configs/dibothrosuchus_elaphros/anatomical/` in the repo root
-(`stance.toml`, `locomotion.toml`, `snap.toml`, `stages.toml` and `behaviors/`).
+## Further reading
+
+- [Anatomical review](../../docs/reviews/DIBOTHROSUCHUS_ANATOMICAL_REFERENCE.md): proportions, feet, standing balance,
+  the reference walk's measurements, actuator loads and termination conditions.
+- [Gait audit, 2026-09](../../docs/investigations/GAIT_AUDIT_2026_09.md): on an earlier plant, the certified stance
+  and the failed walk were both the zero-action statue, and a re-run skidded on three legs.
+- [Stance-hack audit, 2026-10](../../docs/investigations/STANCE_HACK_AUDIT_2026_10.md), §3.5: the statue and the
+  three-legged stance of the certified checkpoints on an earlier plant.
+- [Raptor scaling and alternatives](../../docs/hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md): a custom
+  Dibothrosuchus-inspired quadruped as the speed-focused tier of the running-robot plans.
+- [Direction following and terrain](../../docs/TRAIN_DIRECTION_AND_TERRAIN.md): the pilot behaviors in
+  `configs/dibothrosuchus_elaphros/anatomical/behaviors/`, trained by `python -m environments.shared.train_behaviors`.
+- [Plant revisions](../../configs/plant_versions.toml): what changed in each physics, policy-interface and visual
+  revision of the model, tracked under the [plant contract](../../docs/PLANT_CONTRACT.md).

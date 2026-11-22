@@ -1,0 +1,24 @@
+.walk {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 1.25rem 2rem;
+}
+
+.walk figure { margin: 0; }
+.walk video { aspect-ratio: 8 / 5; }
+.walk a { font-size: .875rem; text-decoration: underline; }
+.walk p { max-width: 43ch; }
+
+.measurements { margin: 1rem 0 0; }
+.measurements div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: .5rem;
+  border-top: 1px solid var(--museum-rule);
+}
+.measurements dd { margin: 0; font-weight: 600; white-space: nowrap; }
+
+@media (max-width: 740px) {
+  .walk { grid-template-columns: 1fr; }
+}

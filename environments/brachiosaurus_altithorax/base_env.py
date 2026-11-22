@@ -72,6 +72,13 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
     BEHAVIOR_SECTION_LABEL = "Food Reaching"
     SUCCESS_KEYS = ("food_reached",)
 
+    # SB3 only since policy interface r11 (configs/plant_versions.toml note
+    # 23): the frozen MJX interface core (D-D17) was removed with this
+    # declaration, as the velociraptor (note 14) and the T-Rex (note 18) left
+    # it.  The plant contract now hashes _cache_ids
+    # (interface_implementations.sb3_sensor_cache) as it does for every
+    # SB3-only species.
+    supported_training_backends = ("stable-baselines3",)
     action_mapping = "home-keyframe-residual/v1"
     _camera_distance = 5.0
     _camera_azimuth = 135
@@ -251,7 +258,7 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         self.head_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "head_tip")
         self.tail_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "tail_tip")
 
-        # Metatarsal geom IDs (digitigrade stance — metacarpus/metatarsus)
+        # Metapodial collision proxies: fore metacarpus and hind metatarsus.
         self.fr_meta_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "fr_meta_geom")
         self.fl_meta_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "fl_meta_geom")
         self.rr_meta_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "rr_meta_geom")
@@ -274,8 +281,8 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         self._sensor_rl_foot = 13
         # The pad sensors above see the foot-pad ellipsoid only: a touch
         # sensor sums contacts on geoms of its site's own body, and each
-        # metacarpus/metatarsus is the pad's PARENT body with its own floor
-        # contact.  The meta sensors are appended after the tail block, so
+        # metacarpus/metatarsus is the pad's parent body and can contact
+        # terrain independently of the sole.  The meta sensors are appended after the tail block, so
         # pad + meta is the force the leg actually transmits (see
         # FOOT_SENSOR_VERIFICATION.md §4 — before this repair all four feet
         # read exactly 0.0 N while carrying 98.8% of body weight).
@@ -283,8 +290,8 @@ class BrachiosaurusAltithoraxEnv(BaseDinoEnv):
         self._sensor_fl_meta = 27
         self._sensor_rr_meta = 28
         self._sensor_rl_meta = 29
-        # Per-foot groups for the base class's substep MIN aggregation --
-        # mirrors mjx_config's sensor_foot_indices + sensor_foot_aux_indices.
+        # Per-foot groups for the base class's substep MIN aggregation: each
+        # foot's pad sensor and its appended meta sensor.
         self._foot_sensor_groups = (
             (self._sensor_fr_foot, self._sensor_fr_meta),
             (self._sensor_fl_foot, self._sensor_fl_meta),

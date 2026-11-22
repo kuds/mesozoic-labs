@@ -1,8 +1,3 @@
-/* Cookie Consent — compact corner card, theme-aware.
-   Previously a full-width bottom slab that covered the hero stats on first
-   visit and the bottom fifth of every docs page, hard-coded to the dark
-   palette even in light mode. */
-
 .cookieBanner {
   position: fixed;
   bottom: 1rem;
@@ -10,16 +5,11 @@
   z-index: 1000;
   max-width: 360px;
   background: var(--ifm-background-surface-color);
-  border: 1px solid rgba(0, 255, 136, 0.35);
-  border-radius: 10px;
+  border: 1px solid var(--museum-rule);
+  border-radius: 5px;
   padding: 1rem 1.25rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 8px 28px rgba(16, 36, 26, 0.16);
   animation: slideUp 0.3s ease-out;
-}
-
-:global([data-theme='light']) .cookieBanner {
-  border-color: rgba(0, 153, 77, 0.45);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
 }
 
 .cookieBanner.closing {
@@ -55,28 +45,6 @@
   gap: 0.75rem;
 }
 
-.iconContainer {
-  flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 255, 136, 0.1);
-  border: 1px solid rgba(0, 255, 136, 0.25);
-  border-radius: 8px;
-}
-
-:global([data-theme='light']) .iconContainer {
-  background: rgba(0, 153, 77, 0.08);
-  border-color: rgba(0, 153, 77, 0.3);
-}
-
-.cookieIcon {
-  font-size: 1.25rem;
-  line-height: 1;
-}
-
 .textContent {
   flex: 1;
   min-width: 200px;
@@ -92,7 +60,7 @@
 
 .description {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   line-height: 1.45;
   color: var(--ifm-font-color-base);
   opacity: 0.85;
@@ -109,7 +77,7 @@
 .declineButton {
   flex: 1;
   padding: 0.5rem 0.9rem;
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   font-weight: 600;
   letter-spacing: 0.03em;
   border-radius: 6px;
@@ -149,7 +117,7 @@
 }
 
 .link {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--ifm-color-primary);
   text-decoration: underline;
   text-underline-offset: 2px;

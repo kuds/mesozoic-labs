@@ -1,5 +1,6 @@
 """Tests for environments.shared.curriculum.advancement."""
 
+import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -54,12 +55,11 @@ class TestCallbackMethodsMocked:
         cb = object.__new__(CurriculumCallback)
         cb._log_locomotion_metrics([])  # should not raise
 
-    def test_log_locomotion_metrics_with_data(self):
-        """_log_locomotion_metrics aggregates and logs metrics."""
+    def test_log_locomotion_metrics_with_data(self, caplog):
+        """_log_locomotion_metrics aggregates the reports and logs the metrics and terminations."""
         cb = object.__new__(CurriculumCallback)
         cb.curriculum_manager = MagicMock()
         cb.curriculum_manager.current_stage = 1
-        cb.num_timesteps = 1000
 
         mock_agg = {
             "mean_forward_velocity": 1.5,
@@ -68,14 +68,18 @@ class TestCallbackMethodsMocked:
             "termination_counts": {"timeout": 3, "fall": 1},
         }
 
+        reports = [{"some": "report"}]
         with (
             patch("environments.shared.curriculum.advancement.LocomotionMetrics") as MockMetrics,
-            patch("environments.shared.curriculum.advancement.log_eval_metrics") as mock_log,
+            caplog.at_level(logging.INFO, logger="environments.shared.curriculum.advancement"),
         ):
             MockMetrics.aggregate_episodes.return_value = mock_agg
-            cb._log_locomotion_metrics([{"some": "report"}])
+            cb._log_locomotion_metrics(reports)
 
-        mock_log.assert_called_once_with(mock_agg, 1, step=1000)
+        MockMetrics.aggregate_episodes.assert_called_once_with(reports)
+        messages = [record.getMessage() for record in caplog.records]
+        assert "Stage 1 locomotion: forward_velocity=1.500, total_distance=10.000, cost_of_transport=0.300" in messages
+        assert "Stage 1 terminations (1 eps): fall=1, timeout=3" in messages
 
     def test_success_samples_are_na_when_stage_has_no_success_gate(self):
         cb = object.__new__(CurriculumCallback)

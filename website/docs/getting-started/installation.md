@@ -29,23 +29,33 @@ pip install -e ".[train]"
 pip install -e ".[all]"
 ```
 
+For a reproducible install, add `-c constraints.txt`: it pins MuJoCo, Stable-Baselines3 and Gymnasium to the versions CI tests and Colab trains with (`pip install -e ".[train]" -c constraints.txt`). It leaves torch and numpy unpinned, so a CUDA torch you already have is kept.
+
+On Windows, the repository forces LF line endings on checkout (`.gitattributes`), because the plant contract hashes the checked-out MJCF and TOML bytes. A clone made before LF was forced (November 2026) must be re-cloned or re-checked out, or training and evaluation refuse with "generated plant manifest is stale". To re-check out, commit or stash your local edits first, since `git reset --hard` discards them, then run `git rm --cached -r . && git reset --hard`.
+
 ## Verify Installation
 
-```bash
-# View a model (requires display)
-python environments/velociraptor_mongoliensis/scripts/view_model.py --embodiment anatomical
+Run these from the repository root. Scripts run as modules, so they need no package install; the tests need the
+`test` extra:
 
-# Run environment tests
-pytest environments/velociraptor_mongoliensis/tests/ -v
+```bash
+# View a model (requires a display; on macOS, use mjpython instead of python)
+python -m environments.velociraptor_mongoliensis.scripts.view_model --embodiment anatomical
+
+# Run the species' tests; pytest comes with the test extra
+pip install -e ".[test]"
+pytest environments/velociraptor_mongoliensis/tests
 ```
 
 ## Google Colab
 
 For the easiest setup, use the pre-configured Google Colab notebooks in the `notebooks/` directory. The training notebook selects the model with two dropdowns, `SPECIES` and `EMBODIMENT`, rather than separate files for each model, and it handles dependency installation automatically.
 
+The setup cell checks out `REPO_REF` (a branch, a tag or a full commit) into `/content/mesozoic-labs` as a sparse checkout: only `environments`, `configs`, `notebooks` and `results`, plus the files at the repository root, which keeps a fresh runtime's download to about 38 MB. It then runs that checkout's `notebooks/colab_install.py`, which installs the project with its `train` and `viz` extras under `constraints.txt`, keeps Colab's own torch, and stops with a list of any version that does not match.
+
 Available notebooks:
 
-- `notebooks/sb3_training.ipynb` - Trains one behavior (`BEHAVIOR = "hunt"` by default; `"stance"`, `"recover"`, `"walk"` or a deliverable's stage id) for any of the six models with SB3, reusing a trunk run's certified ancestors through `TRUNK_FROM`; see [Behavior Recipes](/docs/training/recipes)
+- `notebooks/sb3_training.ipynb` - Trains one behavior (`BEHAVIOR = "auto"` by default, the model's last deliverable; `"stance"`, `"recover"`, `"walk"` or a deliverable's stage id) with SB3. Select `stance` or `walk` for Allosaurus. To reuse certified ancestors, set `TRUNK_FROM` as described in [Behavior Recipes](/docs/training/recipes)
 - `notebooks/google_drive_summary.ipynb` - Training-run summaries and comparisons
 
 ## Dependencies
@@ -62,5 +72,7 @@ Optional training dependencies (`pip install -e ".[train]"`):
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| stable-baselines3 | >= 2.2.0 | RL algorithms (PPO, SAC) |
-| wandb | >= 0.16.0 | Experiment tracking |
+| torch | >= 2.6 | Neural networks (2.6 fixes a `torch.load` safety bypass) |
+| stable-baselines3 | >= 2.9.0 | RL algorithms (PPO, SAC) |
+| tensorboard | >= 2.9.1 | Training logs |
+| tqdm, rich | any | SB3's progress bar |

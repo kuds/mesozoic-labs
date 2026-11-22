@@ -501,10 +501,12 @@ canonical_mujoco_version = "3.10.0"
 #     1850 -> 2000); the walk's statue 796.0 -> 796.6 and its gate, cap and
 #     the behaviours' speeds Froude-matched to the hip height (x 1.042:
 #     2.0 -> 2.1 m/s).
+# Visual r6 adds the articulated feathered body surface, differentiated digits
+# and recurved unguals over the specimen-scale r5 mechanical model.
 [plants.velociraptor_mongoliensis.anatomical]
 physics_revision = 5
 policy_interface_revision = 14
-visual_revision = 5
+visual_revision = 6
 observation_schema = "bipedal-target-heading-free/v1"
 
 # 4. The T-Rex theropod stance correction.  The home keyframe stood the animal
@@ -787,10 +789,20 @@ observation_schema = "bipedal-target-heading-free/v1"
 #     physics revision), now names TyrannosaurusRexEnv._cache_ids, where the
 #     sensor indices have lived since; a comment, so only the source closure
 #     moves with it.
+# 21. The anatomical T. rex hindlimb and appearance review (November 2026).
+#     Lengthen the femur and shorten the tibia around the same hip, ankle and
+#     135-degree home knee. Broaden digits II and IV and recenter their touch
+#     volumes. The force-bearing joints, floor geometry and body inertias
+#     change. The recentered digital touch volumes move the site-position
+#     fingerprint to policy r16. The 63 observations and 15 residual actions
+#     retain their order and ranges.
+#     An articulated render skin replaces the visible collision primitives.
+#     See docs/reviews/TREX_ANATOMICAL_REVIEW_2026_11.md for stance, physical
+#     walking trials and evaluation-only transfers of archived r10 policies.
 [plants.tyrannosaurus_rex.anatomical]
-physics_revision = 10
-policy_interface_revision = 15
-visual_revision = 4
+physics_revision = 11
+policy_interface_revision = 16
+visual_revision = 5
 observation_schema = "bipedal-target-heading-free/v1"
 
 # 7. Brachiosaurus can stand: residual action mapping and load-bearing servos.
@@ -874,16 +886,56 @@ observation_schema = "bipedal-target-heading-free/v1"
 # Brachiosaurus physics r5 and dibothrosuchus physics r2: note 17, above
 # [plants.velociraptor_mongoliensis.anatomical] (the elliptic friction cone,
 # D-D30).
+# Revised Brachiosaurus limb proportions, load-bearing feet and home stance.
+# Pad sites and home-residual targets change the policy interface at the
+# existing dimensions. The body, neck, tail and feet have new visual surfaces.
+#
+# 23. Brachiosaurus and dibothrosuchus declared SB3-only, and the frozen MJX
+#     interface core removed (the maintainer's request, November 2026).  The
+#     two anatomical quadrupeds were the last models declaring jax-mjx: their
+#     policy-interface digests hashed the tokens of the core (D-D17:
+#     mjx_env.build_mjx_observation, jax_setup.make_obs_fn, the mjx_utils
+#     action-mapping and home-reset functions and the obs_functions
+#     builders), their environments.<species>.anatomical.mjx_config
+#     registrations and an MJX observation probe.  Each now declares
+#     supported_training_backends = ("stable-baselines3",) and
+#     training_backends = ["stable-baselines3"] (its JAX success metrics
+#     removed), as the velociraptor did at note 14 and the T-Rex at note 18;
+#     the core and both registrations are deleted with their ruff
+#     exclusion, and the plant contract refuses a declared jax-mjx.  As for
+#     every SB3-only species, each model's _cache_ids tokens now enter its
+#     policy digest (sb3_sensor_cache), so a token edit there is a
+#     policy-interface revision.  (Both MJCF sensor comments still name the
+#     deleted registration: an MJCF edit would move the source closure, so
+#     they wait for each species' next physics revision.)
+#
+#     No observation, action, reset or dynamics change: the SB3 observation
+#     probe, segments, action mapping and spaces are unchanged.  Only the
+#     POLICY INTERFACE moves, brachiosaurus r10 -> r11 and dibothrosuchus
+#     r9 -> r10; PHYSICS, VISUAL and the source closures are unchanged, and
+#     every other model's digests are byte-identical (their payloads already
+#     recorded the SB3-only shape).  Every brachiosaurus policy-interface-r10
+#     and dibothrosuchus r9 checkpoint is invalidated (the plant check
+#     compares the interface digest), so neither can seed a warm start or a
+#     trunk reuse on the new revision.
 [plants.brachiosaurus_altithorax.anatomical]
-physics_revision = 5
-policy_interface_revision = 9
-visual_revision = 2
+physics_revision = 6
+policy_interface_revision = 11
+visual_revision = 3
 observation_schema = "quadrupedal-target/v1"
 
+# The revised forelimbs, digital contacts and centered torso inertia change the
+# mechanics. The foot sensors and rear-knee coordinates change policy meaning
+# at the same 80 observation and 27 action dimensions. The body-bound skins
+# retain their visual and physical fingerprints across Linux x86-64 and macOS arm64.
+#
+# Dibothrosuchus policy interface r10: note 23, above
+# [plants.brachiosaurus_altithorax.anatomical] (SB3-only, the frozen MJX
+# interface core removed).
 [plants.dibothrosuchus_elaphros.anatomical]
-physics_revision = 2
-policy_interface_revision = 8
-visual_revision = 1
+physics_revision = 3
+policy_interface_revision = 10
+visual_revision = 2
 observation_schema = "quadrupedal-target/v1"
 
 # Initial training interfaces for the anatomical and Rev B robot variants.
@@ -986,10 +1038,12 @@ observation_schema = "quadrupedal-target/v1"
 #
 # Compsognathus policy interface r4: note 18, above
 # [plants.tyrannosaurus_rex.anatomical] (the heading-free observation, D-D31).
+# Fossil-scaled limb and skull proportions, revised mass geometry, loaded toe pads
+# and paired passive flexors. New gravity-preload targets change the action mapping.
 [plants.compsognathus_longipes.anatomical]
-physics_revision = 2
-policy_interface_revision = 5
-visual_revision = 2
+physics_revision = 3
+policy_interface_revision = 6
+visual_revision = 3
 observation_schema = "bipedal-target-heading-free/v1"
 
 [plants.compsognathus_longipes.robot]
@@ -997,3 +1051,9 @@ physics_revision = 1
 policy_interface_revision = 3
 visual_revision = 1
 observation_schema = "bipedal-target/v1"
+
+[plants.allosaurus_fragilis.anatomical]
+physics_revision = 1
+policy_interface_revision = 1
+visual_revision = 1
+observation_schema = "bipedal-target-heading-free/v1"

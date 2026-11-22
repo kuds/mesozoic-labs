@@ -170,26 +170,23 @@ def test_pad_running_stats_appends_a_reseeded_slice_and_carries_count():
     np.testing.assert_array_equal(padded.var, before[1])
 
 
-@pytest.mark.parametrize("backend", ["stable-baselines3", "jax-mjx"])
 @pytest.mark.parametrize("mode", list(COMMAND_MODES) + ["bogus"])
-def test_validate_command_mode_accepts_every_mode_on_sb3_and_only_none_on_mjx(backend, mode):
+def test_validate_command_mode_accepts_every_mode_on_sb3(mode):
     if mode not in COMMAND_MODES:
         with pytest.raises(ValueError, match=r"is not one of \('none', 'heading', 'heading_and_speed'\)"):
-            validate_command_mode(mode, backend=backend)
+            validate_command_mode(mode, backend="stable-baselines3")
         return
-    if mode == "none" or backend == "stable-baselines3":
-        # Phase D (consolidation PR-9) deleted only the SB3 branch: both live modes are implemented there.
-        assert validate_command_mode(mode, backend=backend) == mode
-        return
-    with pytest.raises(ValueError, match="not implemented on the jax-mjx backend") as excinfo:
-        validate_command_mode(mode, backend=backend)
-    assert repr(mode) in str(excinfo.value)
+    # Phase D (consolidation PR-9) implemented both live modes on SB3.
+    assert validate_command_mode(mode, backend="stable-baselines3") == mode
     assert not hasattr(command_frame, "SB3_COMMAND_REFUSAL")
 
 
-def test_validate_command_mode_refuses_an_unknown_backend():
+@pytest.mark.parametrize("backend", ["torchrl", "jax-mjx"])
+def test_validate_command_mode_refuses_an_unknown_backend(backend):
+    # jax-mjx was removed with the frozen MJX interface core (plant_versions note 23).
     with pytest.raises(ValueError, match="unknown training backend"):
-        validate_command_mode("none", backend="torchrl")
+        validate_command_mode("none", backend=backend)
+    assert not hasattr(command_frame, "MJX_COMMAND_REFUSAL")
 
 
 def test_load_vecnorm_stats_reseeds_command_slice_on_train_and_eval_envs(tmp_path):

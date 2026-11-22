@@ -34,7 +34,8 @@ def camera_for(model, data, *, side=False, shared=False):
     low, high = model_bounds(model, data)
     camera = mujoco.MjvCamera()
     camera.lookat[:] = (low + high) / 2
-    camera.distance = 0.9 if shared else max(0.65, float(np.max(high - low)) * 1.45)
+    # The equal-scale comparison also has to frame the 1.138 m animal obliquely.
+    camera.distance = 1.18 if shared else max(0.65, float(np.max(high - low)) * 1.45)
     camera.azimuth = 90 if side else 125
     camera.elevation = 0 if side else -18
     return camera
@@ -45,10 +46,13 @@ def comparison(path):
 
     canvas = Image.new("RGB", (1440, 1040), "#131d26")
     draw = ImageDraw.Draw(canvas)
-    try:
-        title = ImageFont.truetype("DejaVuSans.ttf", 30)
-        body = ImageFont.truetype("DejaVuSans.ttf", 18)
-    except OSError:
+    for family in ("DejaVuSans.ttf", "Arial.ttf"):
+        try:
+            title, body = (ImageFont.truetype(family, size) for size in (30, 18))
+            break
+        except OSError:
+            continue
+    else:
         title = body = ImageFont.load_default()
     draw.text((32, 18), "MESOZOIC LABS  /  COMPSOGNATHUS", font=title, fill="#f3f0e8")
     draw.text(

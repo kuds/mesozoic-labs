@@ -1,0 +1,20 @@
+extends = { stage = "stance", tables = ["env", "ppo", "sac"] }
+
+[stage]
+name = "locomotion"
+description = "Walk forward on the feet along an eight-metre course."
+
+[env]
+max_episode_steps = 3000
+forward_vel_weight = 1.5
+drift_penalty_weight = 0.0
+
+[curriculum]
+gate_schema_version = 1
+gate_kind = "reward_and_length/v1"
+timesteps = 6000000
+min_avg_reward = 900.0
+min_avg_episode_length = 550
+min_avg_forward_vel = 0.25
+required_consecutive = 3
+# Deliberately omit a collapse floor until learned-controller runs establish a baseline.

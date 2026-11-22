@@ -162,16 +162,14 @@ def test_the_recipe_digest_records_the_switch_when_a_table_writes_it():
     assert digests["on"] == "sha256:c64211e8f84782e97a38141d3d2b6a7cc8f0e455b1a0524a32afb6b4a137a954"
 
 
-def test_the_off_path_scenario_trains_the_stance_as_it_was_before_the_ltsb_landing():
-    """critic_phase_off_scenario.py compares main's off path with a golden written at 4c9d5e9b, before the r10 LTSB
-    stance recipe (the stance-landing decision of 2026-11-06): it sets the stance back, and the result is main's
-    pre-landing stance task and recipe exactly (its stage 2 is untouched)."""
+def test_the_off_path_scenario_restores_the_pre_landing_recipe_on_each_plant():
+    """The same pre-LTSB stance settings identify distinct tasks on the archived and current plants."""
     import copy
 
     from environments.shared.config import load_all_stages
     from environments.shared.task_fingerprint import stage_task_fingerprint
 
-    from .critic_phase_off_scenario import pre_landing_stance
+    from .critic_phase_off_scenario import archived_plant_identity, pre_landing_stance
 
     committed = load_all_stages(TYRANNOSAURUS_REX)
     configs = copy.deepcopy(committed)
@@ -180,8 +178,13 @@ def test_the_off_path_scenario_trains_the_stance_as_it_was_before_the_ltsb_landi
     assert hyperparameters_sha256(stance, "PPO") == (
         "sha256:9d1598a6b2a96a1f87412bb0398abb49d1f23430aa72462f03cbcd68ab5d7a2e"
     )
+    # The critic-off golden captured physics r10 / policy interface r15 at 4c9d5e9b.
+    archived = stage_task_fingerprint(
+        TYRANNOSAURUS_REX, 1, stage_config=stance, plant_identity=archived_plant_identity()
+    )
+    assert archived["task_sha256"] == "sha256:533fff20288d02faea724721992c7d3efca65f7b2f3a6e06c4ad2e716b2bdfda"
     assert stage_task_fingerprint(TYRANNOSAURUS_REX, 1, stage_config=stance)["task_sha256"] == (
-        "sha256:533fff20288d02faea724721992c7d3efca65f7b2f3a6e06c4ad2e716b2bdfda"
+        "sha256:e9d349f82ea53e12ce43dbbb3bcf24aa91dfb466300be6d9d364147b5689ab2a"
     )
     assert stance["curriculum_kwargs"]["collapse_peak_floor_reference"] == 3766.6
     assert configs[2] == committed[2]

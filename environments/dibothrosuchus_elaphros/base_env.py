@@ -78,6 +78,13 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
     BEHAVIOR_SECTION_LABEL = "Hunting"
     SUCCESS_KEYS = ("snap_success",)
 
+    # SB3 only since policy interface r10 (configs/plant_versions.toml note
+    # 23): the frozen MJX interface core (D-D17) was removed with this
+    # declaration, as the velociraptor (note 14) and the T-Rex (note 18) left
+    # it.  The plant contract now hashes _cache_ids
+    # (interface_implementations.sb3_sensor_cache) as it does for every
+    # SB3-only species.
+    supported_training_backends = ("stable-baselines3",)
     action_mapping = "home-keyframe-residual/v1"
     _camera_distance = 1.6
     _camera_azimuth = 135
@@ -291,8 +298,8 @@ class DibothrosuchusElaphrosEnv(BaseDinoEnv):
         self._sensor_fl_foot = 11
         self._sensor_rr_foot = 12
         self._sensor_rl_foot = 13
-        # Per-foot groups for the base class's substep MIN aggregation --
-        # mirrors mjx_config's sensor_foot_indices (no aux sensors here).
+        # Per-foot groups for the base class's substep MIN aggregation: one
+        # touch sensor per foot (no meta sensors on this plant).
         self._foot_sensor_groups = (
             (self._sensor_fr_foot,),
             (self._sensor_fl_foot,),

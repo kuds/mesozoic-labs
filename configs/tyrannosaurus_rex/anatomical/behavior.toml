@@ -119,7 +119,9 @@ required_consecutive = 3                # Scheduler hysteresis ONLY (CurriculumM
 # not shadowed: collapse_settings_from_config (curriculum/early_stopping.py)
 # lets an explicit collapse_peak_floor win over the pair, so leaving it in
 # place would silently keep the old floor.
-collapse_peak_floor_reference = 602.0   # The zero-action hunting statue's reward at noise 0.05 ([env]
+# R11, seeds 3042-3081, 40 episodes. The rounded 0.60 reward rail is 361.
+collapse_peak_floor_reference = 601.1
+# Previous calibrations: The zero-action hunting statue's reward at noise 0.05 ([env]
                                         # reset_noise_scale above): 602.13 +/- 175.35 over 40 episodes,
                                         # 40/40 full horizon (episode length 1000.0 of 1000, terminations
                                         # {'truncated': 40}), measured 2026-09-13 with
@@ -154,15 +156,7 @@ collapse_peak_floor_reference = 602.0   # The zero-action hunting statue's rewar
 collapse_peak_floor_fraction = 0.45     # Same fraction as stance, locomotion and recovery; floor = 0.45 x
                                         # 602.0 = 270.9. The ratio, not the product, is what carries across
                                         # a reward change.
-statue_constants_physics_revision = 10  # The trex PHYSICS revision the 602.0 reference and the 361 rail
-                                        # were measured on (2026-09-13 on r7, re-measured on r8, r9 and r10 above;
-                                        # configs/plant_manifest.generated.json
-                                        # plants.tyrannosaurus_rex.anatomical.physics.revision).
-                                        # test_statue_constant_freshness.py
-                                        # holds this pin against the plant manifest, so a plant bump that
-                                        # forgets the re-measure fails CI instead of silently training
-                                        # against a backstop calibrated on a plant that no longer exists.
-                                        # Update it WITH the re-measurement, never alone.
+statue_constants_physics_revision = 11  # Re-measured with the r11 proportioned hindlimb (601.1).
 collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot SET the peak (decision D-B5).
                                         # NOT measured: no behavior-stage evaluation series under this
                                         # config exists to replay as stance's 20260803_012355 series was

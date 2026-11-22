@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 
 from environments.shared.model_id import ModelId
+from environments.shared.result_bundle import compare_summary_to_csv
 from environments.shared.result_schema import (
     RESULT_SCHEMA_VERSION,
     ResultSchemaError,
@@ -17,6 +18,7 @@ from environments.shared.result_schema import (
     validate_result_summary,
 )
 
+from .ci_workflow_helpers import glob_matches, path_filters
 from .result_bundle_helpers import (
     REPOSITORY_ROOT,
     _canonical_summary,
@@ -27,6 +29,8 @@ from .result_bundle_helpers import (
 
 #: results/<species>/<embodiment>/<algorithm>/summary.json (decision D-D33).
 RESULT_SUMMARIES = tuple(sorted((REPOSITORY_ROOT / "results").glob("*/*/*/summary.json")))
+#: Every curated ``collected_results.csv``, wherever it sits under results/.
+RESULT_CSVS = tuple(sorted((REPOSITORY_ROOT / "results").rglob("collected_results.csv")))
 
 
 def test_result_summaries_are_discovered() -> None:
@@ -47,6 +51,37 @@ def test_result_summary_schema_and_provenance(summary_path: Path) -> None:
     )
 
     assert validated is summary
+
+
+def test_every_collected_results_csv_has_a_sibling_summary() -> None:
+    """A curated CSV is a derived view of the ``summary.json`` beside it; one without it has nothing to agree with."""
+    assert RESULT_CSVS, "no results/**/collected_results.csv files were found"
+    orphans = [
+        str(path.relative_to(REPOSITORY_ROOT)) for path in RESULT_CSVS if not path.with_name("summary.json").is_file()
+    ]
+    assert orphans == []
+
+
+def test_every_summary_and_csv_triggers_python_ci() -> None:
+    """A PR that edits only a summary or only a CSV must still run the agreement check below."""
+    for path in (*RESULT_SUMMARIES, *RESULT_CSVS):
+        relative = path.relative_to(REPOSITORY_ROOT).as_posix()
+        for patterns in path_filters():
+            assert any(glob_matches(pattern, relative) for pattern in patterns), (
+                f"{relative} is missing from a python-ci.yml paths filter, so a PR editing only it skips this check"
+            )
+
+
+@pytest.mark.parametrize(
+    "summary_path",
+    [path for path in RESULT_SUMMARIES if path.with_name("collected_results.csv").is_file()],
+    ids=lambda path: str(path.relative_to(REPOSITORY_ROOT)),
+)
+def test_collected_results_csv_agrees_with_its_summary(summary_path: Path) -> None:
+    """``summary.json`` is canonical (the catalog and website read only it), so the CSV beside it must not
+    contradict it: same stages, same metrics, same verdicts and identity (results/README.md)."""
+    summary = _load_summary(summary_path)
+    assert compare_summary_to_csv(summary, summary_path.with_name("collected_results.csv")) == []
 
 
 def test_a_summary_of_one_embodiment_is_refused_for_the_other() -> None:

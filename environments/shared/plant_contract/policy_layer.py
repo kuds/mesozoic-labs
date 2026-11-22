@@ -1,14 +1,15 @@
 """Policy-interface layer: ordered observations, actions, sensors, controls.
 
 This is the layer a trained policy is actually coupled to, so it also captures
-the observation-builder and action-mapping *semantics* for both the SB3 and
-JAX/MJX backends and asserts that the two agree.  A species on the
-``bipedal-target-heading-free/v1`` schema is SB3-only and also hashes the frame
-helpers its observation calls (``environments/shared/heading_observation.py``)."""
+the observation-builder and action-mapping *semantics* of the one training
+backend, Stable-Baselines3.  A model on the ``bipedal-target-heading-free/v1``
+schema also hashes the frame helpers its observation calls
+(``environments/shared/heading_observation.py``).  The ``jax-mjx`` backend and
+the frozen MJX interface core that served it were removed (configs/plant_versions.toml
+note 23); a model that still declares it is refused."""
 
 from __future__ import annotations
 
-import importlib
 from typing import Any, Mapping
 
 import mujoco
@@ -27,15 +28,42 @@ from .errors import PlantContractError
 from .identity import PlantVersion
 from .introspection import _fields, _names
 
+#: The training backends a model may declare (``supported_training_backends``
+#: on its environment, ``training_backends`` in configs/species_manifest.toml).
+SUPPORTED_TRAINING_BACKENDS = ("stable-baselines3",)
 
-def _action_mapping_contract(
-    model: mujoco.MjModel,
-    env: Any,
-) -> tuple[str | dict[str, Any], tuple[str, ...]]:
-    """Describe the species' normalized-action mapping and JAX implementation."""
+#: The payload's ``jax_interface`` value.  It has been this literal on every
+#: SB3-only model since the velociraptor's policy interface r11 and is kept so
+#: their policy-interface digests stay byte-identical; it names the removed
+#: backend as unsupported, never a supported one.
+_REMOVED_JAX_INTERFACE = {"supported": False, "backend": "jax-mjx"}
+
+
+def declared_training_backends(env: Any, model_id: Any) -> tuple[str, ...]:
+    """The env's ``supported_training_backends``, refused unless it is exactly Stable-Baselines3.
+
+    An env that declares nothing trains on Stable-Baselines3.  ``jax-mjx`` is
+    refused by name: the frozen MJX interface core that served it was removed
+    (configs/plant_versions.toml note 23).
+    """
+    backends = tuple(getattr(env, "supported_training_backends", SUPPORTED_TRAINING_BACKENDS))
+    if "jax-mjx" in backends:
+        raise PlantContractError(
+            f"{model_id} declares the jax-mjx training backend, which was removed with the frozen MJX interface "
+            "core (configs/plant_versions.toml note 23): declare supported_training_backends = ('stable-baselines3',)"
+        )
+    if backends != SUPPORTED_TRAINING_BACKENDS:
+        raise PlantContractError(
+            f"invalid training backends for {model_id}: {backends}; the only backend is {SUPPORTED_TRAINING_BACKENDS}"
+        )
+    return backends
+
+
+def _action_mapping_contract(model: mujoco.MjModel, env: Any) -> str | dict[str, Any]:
+    """Describe the species' normalized-action mapping."""
     mode = str(getattr(env, "action_mapping", _ACTION_MAPPING_MIDPOINT))
     if mode == _ACTION_MAPPING_MIDPOINT:
-        return _MIDPOINT_ACTION_MAPPING_DESCRIPTION, ("scale_action_jax",)
+        return _MIDPOINT_ACTION_MAPPING_DESCRIPTION
     if mode not in _HOME_KEYFRAME_ACTION_MAPPINGS:
         raise PlantContractError(f"unsupported action mapping mode: {mode!r}")
 
@@ -63,11 +91,9 @@ def _action_mapping_contract(
         "interpolation": "piecewise-affine/v1",
     }
     if mode == _ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL:
-        return description, ("scale_action_around_nominal_jax",)
+        return description
     description["residual_shaping"] = _soft_cubic_residual_shaping(model, env, mode)
-    # No JAX implementation: _policy_interface_payload refuses this mode on a
-    # species that declares the jax-mjx backend.
-    return description, ()
+    return description
 
 
 def _soft_cubic_residual_shaping(model: mujoco.MjModel, env: Any, mode: str) -> dict[str, Any]:
@@ -161,8 +187,8 @@ def _observation_probe(model: mujoco.MjModel, env: Any) -> dict[str, Any]:
     try:
         env.model = model
         env.data = probe_data
-        # A NON-ZERO command so the probe exercises the appended slot and the
-        # SB3/MJX parity below is not vacuous (BEHAVIOR_RECIPES_PLAN §4.6).
+        # A NON-ZERO command so the probe exercises the appended slot
+        # (BEHAVIOR_RECIPES_PLAN §4.6).
         env._command = np.asarray(COMMAND_PROBE_VECTOR, dtype=np.float32)
         observation = np.asarray(env._get_obs())
     finally:
@@ -182,163 +208,6 @@ def _observation_probe(model: mujoco.MjModel, env: Any) -> dict[str, Any]:
         "quantization_decimals": 6,
         "values": _portable_probe_values(observation),
     }
-
-
-def _jax_policy_interface_payload(
-    model: mujoco.MjModel,
-    env: Any,
-    version: PlantVersion,
-) -> dict[str, Any]:
-    """Resolve the MJX observation/control ABI without requiring JAX.
-
-    Species registration modules only populate ordinary Python data.  Running
-    their observation builder with NumPy catches stale numeric body IDs and
-    sensor offsets while keeping the canonical contract usable in CPU-only CI.
-    """
-    # The model's frozen registration module (D-D17), beside its env module;
-    # the registry inside it stays keyed by species (register_species_mjx).
-    module_name = f"{version.model_id.package}.mjx_config"
-    try:
-        registration_module = importlib.import_module(module_name)
-        mjx_env_module = importlib.import_module("environments.shared.mjx_env")
-    except ImportError as exc:
-        raise PlantContractError(f"cannot import MJX plant registration {module_name}: {exc}") from exc
-
-    registry = getattr(mjx_env_module, "_SPECIES_CONFIGS", {})
-    if version.model_id.species not in registry:
-        # A test or embedding process may have cleared the registry after the
-        # module's first import.  Reloading deterministically re-registers it.
-        importlib.reload(registration_module)
-    raw_config = getattr(mjx_env_module, "_SPECIES_CONFIGS", {}).get(version.model_id.species)
-    if not isinstance(raw_config, Mapping):
-        raise PlantContractError(f"MJX plant registration is missing for {version.model_id}")
-
-    from ..obs_functions import SensorLayout
-
-    body_ids = {str(name): int(body_id) for name, body_id in dict(raw_config.get("body_ids", {})).items()}
-    if not body_ids:
-        raise PlantContractError(f"MJX plant registration has no root body mapping for {version.model_id}")
-    resolved_bodies: dict[str, dict[str, Any]] = {}
-    for body_name, registered_id in body_ids.items():
-        resolved_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, body_name)
-        if resolved_id < 0:
-            raise PlantContractError(f"MJX root body {body_name!r} does not exist for {version.model_id}")
-        if registered_id != resolved_id:
-            raise PlantContractError(
-                f"MJX root body ID for {body_name!r} is stale: registered={registered_id}, resolved={resolved_id}"
-            )
-        resolved_bodies[body_name] = {"registered_id": registered_id, "resolved_id": resolved_id}
-
-    root_name = "torso" if version.observation_schema == "quadrupedal-target/v1" else "pelvis"
-    if root_name not in body_ids:
-        raise PlantContractError(f"MJX plant registration lacks required {root_name!r} body mapping")
-    # build_mjx_observation picks its root by ``"torso" in body_ids``, not by
-    # the schema: exactly one root keeps the two in agreement.
-    registered_roots = sorted({"torso", "pelvis"}.intersection(body_ids))
-    if registered_roots != [root_name]:
-        raise PlantContractError(
-            f"MJX plant registration for {version.model_id} must map exactly one root body, {root_name!r} "
-            f"(observation schema {version.observation_schema!r}); it maps {registered_roots}"
-        )
-
-    sensor_layout = SensorLayout(
-        gyro_start=int(raw_config.get("sensor_gyro_start", 0)),
-        accel_start=int(raw_config.get("sensor_accel_start", 3)),
-        quat_start=int(raw_config.get("sensor_quat_start", 6)),
-        foot_indices=tuple(int(index) for index in raw_config.get("sensor_foot_indices", ())),
-        foot_aux_indices=tuple(
-            tuple(int(index) for index in group) for group in raw_config.get("sensor_foot_aux_indices", ())
-        ),
-    )
-    if len(sensor_layout.foot_aux_indices) > len(sensor_layout.foot_indices):
-        raise PlantContractError(
-            f"MJX sensor layout for {version.model_id} declares more aux foot sensor groups "
-            f"({len(sensor_layout.foot_aux_indices)}) than feet ({len(sensor_layout.foot_indices)})"
-        )
-    used_sensor_indices = (
-        *range(sensor_layout.gyro_start, sensor_layout.gyro_start + 3),
-        *range(sensor_layout.accel_start, sensor_layout.accel_start + 3),
-        *range(sensor_layout.quat_start, sensor_layout.quat_start + 4),
-        *sensor_layout.foot_indices,
-        *(index for group in sensor_layout.foot_aux_indices for index in group),
-    )
-    if any(index < 0 or index >= model.nsensordata for index in used_sensor_indices):
-        raise PlantContractError(
-            f"MJX sensor layout for {version.model_id} indexes outside nsensordata={model.nsensordata}"
-        )
-
-    registered_frame_skip = int(raw_config.get("frame_skip", -1))
-    if registered_frame_skip <= 0:
-        raise PlantContractError(f"MJX frame_skip must be positive for {version.model_id}")
-    registered_action_mapping = str(raw_config.get("action_mapping", _ACTION_MAPPING_MIDPOINT))
-    sb3_action_mapping = str(getattr(env, "action_mapping", _ACTION_MAPPING_MIDPOINT))
-    if registered_action_mapping != sb3_action_mapping:
-        raise PlantContractError(
-            f"SB3 and MJX action mappings diverge for {version.model_id}: "
-            f"sb3={sb3_action_mapping!r}, mjx={registered_action_mapping!r}"
-        )
-    registered_filter_cutoff = float(raw_config.get("action_filter_cutoff_hz", 0.0))
-    sb3_filter_cutoff = float(getattr(env, "action_filter_cutoff_hz", 0.0))
-    if registered_filter_cutoff != sb3_filter_cutoff:
-        raise PlantContractError(
-            f"SB3 and MJX action filter cutoffs diverge for {version.model_id}: "
-            f"sb3={sb3_filter_cutoff!r}, mjx={registered_filter_cutoff!r}"
-        )
-
-    probe_data = _deterministic_probe_data(model)
-    target_pos = probe_data.mocap_pos[0] if model.nmocap else np.array([1.25, -0.45, 0.8])
-    observation = np.asarray(
-        mjx_env_module.build_mjx_observation(
-            probe_data,
-            target_pos,
-            {
-                "species": version.model_id.species,
-                "body_ids": body_ids,
-                "sensor_gyro_start": sensor_layout.gyro_start,
-                "sensor_accel_start": sensor_layout.accel_start,
-                "sensor_quat_start": sensor_layout.quat_start,
-                "sensor_foot_indices": sensor_layout.foot_indices,
-                "sensor_foot_aux_indices": sensor_layout.foot_aux_indices,
-            },
-            command=np.asarray(COMMAND_PROBE_VECTOR, dtype=np.float32),
-        )
-    )
-    expected_shape = tuple(env.observation_space.shape)
-    if observation.shape != expected_shape or not np.all(np.isfinite(observation)):
-        raise PlantContractError(
-            f"MJX observation probe produced invalid output: shape={observation.shape}, expected={expected_shape}"
-        )
-
-    payload = {
-        "registration_module": module_name,
-        "frame_skip": registered_frame_skip,
-        "control_timestep": model.opt.timestep * registered_frame_skip,
-        "body_ids": resolved_bodies,
-        "sensor_layout": {
-            "gyro_start": sensor_layout.gyro_start,
-            "accel_start": sensor_layout.accel_start,
-            "quat_start": sensor_layout.quat_start,
-            "foot_indices": sensor_layout.foot_indices,
-            "foot_aux_indices": sensor_layout.foot_aux_indices,
-        },
-        "observation_builder": (
-            "build_quadruped_obs" if version.observation_schema == "quadrupedal-target/v1" else "build_bipedal_obs"
-        ),
-        "observation_probe": {
-            "schema": "mesozoic.mjx-observation-probe/v1",
-            "dtype": str(observation.dtype),
-            "shape": list(observation.shape),
-            "quantization_decimals": 6,
-            "values": _portable_probe_values(observation),
-        },
-    }
-    if registered_action_mapping != _ACTION_MAPPING_MIDPOINT:
-        payload["action_mapping"] = registered_action_mapping
-    if registered_filter_cutoff > 0.0:
-        # Conditional so filter-free species keep their payload (and thus
-        # their policy fingerprint) byte-identical.
-        payload["action_filter_cutoff_hz"] = _canonical_float(registered_filter_cutoff)
-    return payload
 
 
 def _mocap_target_name(model: mujoco.MjModel) -> str:
@@ -466,8 +335,6 @@ def _policy_interface_payload(
     model: mujoco.MjModel,
     env: Any,
     version: PlantVersion,
-    *,
-    require_backend_parity: bool = False,
 ) -> dict[str, Any]:
     touch_sensor_names = [
         name
@@ -475,15 +342,10 @@ def _policy_interface_payload(
         if int(model.sensor_type[index]) == int(mujoco.mjtSensor.mjSENS_TOUCH)
     ]
     # Segment labels come from the plant itself rather than a species
-    # allow-list: the root follows the declared observation schema (as the MJX
-    # payload already does) and the target follows the MJCF mocap body name.
+    # allow-list: the root follows the declared observation schema and the
+    # target follows the MJCF mocap body name.
     root_label = "torso" if version.observation_schema == "quadrupedal-target/v1" else "pelvis"
     target_label = _mocap_target_name(model)
-    observation_functions = (
-        ("_array_mod", "build_bipedal_obs", "build_quadruped_obs")
-        if version.observation_schema == "quadrupedal-target/v1"
-        else ("_array_mod", "build_bipedal_obs")
-    )
     heading_free = version.observation_schema == HEADING_FREE_OBSERVATION_SCHEMA
     if heading_free:
         observation_segments = _heading_free_observation_segments(model, env, root_label, target_label)
@@ -511,23 +373,8 @@ def _policy_interface_payload(
         ]
     collision_ids = np.flatnonzero((model.geom_contype != 0) | (model.geom_conaffinity != 0))
     sb3_observation_probe = _observation_probe(model, env)
-    action_mapping, jax_action_functions = _action_mapping_contract(model, env)
-    backends = tuple(getattr(env, "supported_training_backends", ("stable-baselines3", "jax-mjx")))
-    if "stable-baselines3" not in backends or set(backends) - {"stable-baselines3", "jax-mjx"}:
-        raise PlantContractError(f"invalid training backends for {version.model_id}: {backends}")
-    supports_jax = "jax-mjx" in backends
-    if supports_jax and not jax_action_functions:
-        raise PlantContractError(
-            f"{version.model_id} declares the jax-mjx backend, but its action mapping "
-            f"{getattr(env, 'action_mapping', _ACTION_MAPPING_MIDPOINT)!r} has no JAX implementation"
-        )
-    if supports_jax and heading_free:
-        # The frozen MJX builders (D-D17) emit the legacy world-frame layout;
-        # a parity claim against them would be false.
-        raise PlantContractError(
-            f"{version.model_id} declares the jax-mjx backend, but the {HEADING_FREE_OBSERVATION_SCHEMA} "
-            "observation has no MJX builder: declare supported_training_backends = ('stable-baselines3',)"
-        )
+    action_mapping = _action_mapping_contract(model, env)
+    backends = declared_training_backends(env, version.model_id)
     interface_implementations: dict[str, Any] = {
         "sb3_observation": _callable_semantics(env._get_obs),
         "sb3_action_mapping": _callable_semantics(env._scale_action),
@@ -539,49 +386,11 @@ def _policy_interface_payload(
             "environments.shared.heading_observation",
             HEADING_FREE_FUNCTIONS,
         )
-    backend_observation_equal: bool | None = None
-    if supports_jax:
-        jax_interface = _jax_policy_interface_payload(model, env, version)
-        mjx_env_module = importlib.import_module("environments.shared.mjx_env")
-        jax_setup_module = importlib.import_module("environments.shared.jax_setup")
-        backend_observation_equal = bool(
-            np.array_equal(sb3_observation_probe["values"], jax_interface["observation_probe"]["values"])
-        )
-        if require_backend_parity and not backend_observation_equal:
-            raise PlantContractError(
-                f"SB3 and MJX observation probes diverge for {version.model_id}; "
-                "check cached body IDs, sensor offsets, and observation builders"
-            )
-        interface_implementations.update(
-            {
-                "backend_neutral_observation": _module_function_semantics(
-                    "environments.shared.obs_functions",
-                    observation_functions,
-                ),
-                "jax_action_mapping": _module_function_semantics(
-                    "environments.shared.mjx_utils",
-                    jax_action_functions,
-                ),
-                "jax_observation_callers": {
-                    "training_reset_and_step": _callable_semantics(mjx_env_module.build_mjx_observation),
-                    "cpu_evaluation": _callable_semantics(jax_setup_module.make_obs_fn),
-                },
-            }
-        )
-    else:
-        # Explicit capability declaration, never an import-error fallback.
-        # Existing dual-backend species retain their exact payload/digests.
-        jax_interface = {"supported": False, "backend": "jax-mjx"}
-        interface_implementations["supported_training_backends"] = list(backends)
-        interface_implementations["sb3_sensor_cache"] = _callable_semantics(env._cache_ids)
+    # Explicit capability declaration, never an import-error fallback.
+    interface_implementations["supported_training_backends"] = list(backends)
+    interface_implementations["sb3_sensor_cache"] = _callable_semantics(env._cache_ids)
     if str(getattr(env, "action_mapping", _ACTION_MAPPING_MIDPOINT)) in _HOME_KEYFRAME_ACTION_MAPPINGS:
-        home_reset = {"sb3": _callable_semantics(env.reset)}
-        if supports_jax:
-            home_reset["jax"] = _module_function_semantics(
-                "environments.shared.mjx_utils",
-                ("reset_mujoco_data_to_home",),
-            )
-        interface_implementations["home_reset"] = home_reset
+        interface_implementations["home_reset"] = {"sb3": _callable_semantics(env.reset)}
     action_filter_cutoff = float(getattr(env, "action_filter_cutoff_hz", 0.0))
     if action_filter_cutoff > 0.0:
         # Conditional: species without the filter keep their fingerprint.
@@ -603,8 +412,9 @@ def _policy_interface_payload(
         "action": _space_payload(env.action_space),
         "action_mapping": action_mapping,
         "interface_implementations": interface_implementations,
-        "jax_interface": jax_interface,
-        "backend_observation_equal": backend_observation_equal,
+        # Both kept for digest stability (see _REMOVED_JAX_INTERFACE).
+        "jax_interface": dict(_REMOVED_JAX_INTERFACE),
+        "backend_observation_equal": None,
         "frame_skip": int(env.frame_skip),
         "physics_timestep": model.opt.timestep,
         "control_timestep": model.opt.timestep * int(env.frame_skip),

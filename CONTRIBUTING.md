@@ -56,7 +56,7 @@ We use **Ruff** for linting and formatting (configured in `pyproject.toml`):
 
 ```bash
 # Check for issues
-ruff check environments/
+ruff check environments/ notebooks/colab_install.py
 
 # Auto-fix issues
 ruff check --fix environments/
@@ -68,20 +68,21 @@ ruff format environments/
 We use **mypy** for static type checking:
 
 ```bash
-mypy environments/
+mypy environments/ notebooks/colab_install.py
 ```
 
 CI runs mypy twice: in the lint job, without Stable-Baselines3 or torch, and
-in the SB3 job, with both installed (`stable-baselines3[extra]==2.9.0` and the
-CPU `torch==2.13.0` wheel, on Python 3.12), where it must report no errors. The
-SB3 job is the authority. The `.[all]` install above only approximates it: it
-leaves SB3 and torch unpinned and on Python 3.11 resolves an older numpy, and
-either can change what mypy reports. To reproduce the SB3
+in the SB3 job, with both installed (`stable-baselines3==2.9.0` from
+`constraints.txt` and the CPU `torch==2.13.0` wheel, on Python 3.12), where it
+must report no errors. The SB3 job is the authority. The `.[all]` install above
+only approximates it: without `-c constraints.txt` it leaves SB3 unpinned, it
+leaves torch unpinned, and on Python 3.11 it resolves an older numpy; each can
+change what mypy reports. To reproduce the SB3
 job's check, use Python 3.12 and a fresh environment:
 
 ```bash
 pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.13.0"
-pip install -e ".[train,test,viz]" "stable-baselines3[extra]==2.9.0" "mypy==2.3.1"
+pip install -e ".[train,test,viz]" "mypy==2.3.1" -c constraints.txt
 mypy environments/ --ignore-missing-imports
 ```
 
@@ -94,14 +95,7 @@ plant manifests, `plant_versions.toml` and the recovery calibrations): a
 whitespace fix there would move a digest. Every Python module stays under the
 hooks: no digest hashes a Python file's bytes, and the policy-interface digests
 hash the tokens of named functions only (not comments, docstrings or blank
-lines), which CI's pinned ruff keeps from changing. The one exception is
-the frozen MJX interface core (decision D-D17: `mjx_env.py`, `jax_setup.py`,
-`mjx_utils.py` and `obs_functions.py` in `environments/shared/`, and the two
-`<species>/anatomical/mjx_config.py` registrations): two models' policy-interface digests hash its
-function tokens, so `pyproject.toml`'s `[tool.ruff]` `extend-exclude`, with
-`force-exclude`, keeps every ruff run off it (the hooks, CI, and a file named
-on the command line), and `test_plant_contract_frozen_mjx.py` pins the list.
-Never edit those files.
+lines), which CI's pinned ruff keeps from changing.
 
 ## Running Tests
 
@@ -203,15 +197,10 @@ snake_case, and `<Species>` its PascalCase form. Follow this checklist:
 
 4. **Declare the species SB3-only** (`base_env.py`):
    - Set the class attribute `supported_training_backends = ("stable-baselines3",)`,
-     as `CompsognathusLongipesEnv` does. Stable-Baselines3 is the only training backend
-     (decision D-D17); without the attribute the plant contract treats the
-     model as dual-backend and fails with "cannot import MJX plant
-     registration"
-   - Do not add an `mjx_config.py`: the two that exist belong to the frozen
-     MJX interface core, which the policy-interface digests of the anatomical
-     Brachiosaurus and Dibothrosuchus hash and which is never
-     edited or extended (`docs/PLANT_CONTRACT.md`, "Backend parity and runtime
-     binding")
+     as every species base does. Stable-Baselines3 is the only training backend
+     (decision D-D17); the plant contract refuses any other value, `jax-mjx`
+     included: the JAX/MJX backend and its frozen interface core were removed
+     (`docs/PLANT_CONTRACT.md`, "Training backend and runtime binding")
    - A biped can take the heading-free observation schema
      `bipedal-target-heading-free/v1`, as the T-Rex, the anatomical
      Compsognathus and the Velociraptor do: build its root block with
@@ -227,7 +216,7 @@ snake_case, and `<Species>` its PascalCase form. Follow this checklist:
      `[behavior] species = "<species>"` and `embodiment = "anatomical"`
    - Follow the TOML structure from an existing species
    - Calibrate `reset_noise_scale` for stage 1 against
-     `python environments/shared/scripts/zero_action_baseline.py --model-id <species> anatomical --sweep-noise`:
+     `python -m environments.shared.scripts.zero_action_baseline --model-id <species> anatomical --sweep-noise`:
      a level at which a do-nothing policy reaches the full horizon in nearly
      every episode makes the stage reward a statue
 

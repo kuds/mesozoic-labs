@@ -20,7 +20,7 @@ species (dibothrosuchus switched to the pyramidal cone in memory, compsognathus 
   independent probe of every limb contact, with the ankle's own world
   anchor, reproduces it), is the vertical-load moment about the ankle axis
   over the limb's floor force within a tolerance stated from the sole's tilt,
-  and its reading of the T. rex physics-r10 statue (seed 3042) is pinned; each
+  and its reading of the T. rex physics-r11 statue (seed 3042) is pinned; each
   hinged digit's load position is reproduced the same way.
 
 The six-statue registry evidence (GAIT_QUALITY_PLAN_2026_09.md §3.1: the
@@ -59,7 +59,10 @@ DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
 COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
 COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
 
+ALLOSAURUS_FRAGILIS = ModelId("allosaurus_fragilis", "anatomical")
+
 MODEL_IDS = (
+    ALLOSAURUS_FRAGILIS,
     TYRANNOSAURUS_REX,
     VELOCIRAPTOR_MONGOLIENSIS,
     COMPSOGNATHUS_LONGIPES,
@@ -71,7 +74,7 @@ MODEL_IDS = (
 #: decodes stay covered.  Every plant has declared the elliptic cone since D-D30 (plant_versions note 17;
 #: test_friction_cone.py guards it), so none exercises the pyramidal decode -- the sum of a contact's 2 * (condim - 1)
 #: pyramid edge forces -- any more, yet the recorder still serves any model that declares no cone, MuJoCo's
-#: default.  dibothrosuchus (box feet, four contacts each) therefore runs with its model's cone switched to
+#: default.  Dibothrosuchus (metapodial cushion and digital contacts) runs with its model's cone switched to
 #: pyramidal in memory, before any reset or recorder attach; compsognathus runs as built.
 CONE_CASES = {
     "pyramidal": (DIBOTHROSUCHUS_ELAPHROS, mujoco.mjtCone.mjCONE_PYRAMIDAL),
@@ -666,10 +669,12 @@ def test_a_foot_that_declares_no_ankle_has_no_whole_foot_cop(envs):
     assert math.isnan(episode_stance_metrics(trace, settle_steps=10).max_foot_cop_fore_aft)
 
 
-def test_the_physics_r10_statue_whole_foot_cop_reading(envs):
+def test_the_physics_r11_statue_whole_foot_cop_reading(envs):
     """Seed 3042 of the T. rex statue panel, the full 1,000 steps: the whole-foot reading on the span 0.070-0.210 m.
 
-    On physics r10 (the tail pitch springs preloaded, D-D44) this test's own reading is 0.0624 (right foot) and
+    On physics r11 the wider toe contact pattern brings the seed-3042 magnitudes to 0.0617 (right) and 0.1806
+    (left); the signed right reading is -0.0312. The right CoP averages 0.13781 m ahead of the ankle.
+    On physics r10 (the tail pitch springs preloaded, D-D44) this test's reading was 0.0624 (right foot) and
     0.1821 (left), signed -0.0324 and -0.1821, with the whole-foot CoP 0.138 m ahead of the right ankle on
     average, so the left foot is the episode's metric; over the 40 full-horizon episodes of 3042-3081 the repo's
     panel reads a median of 0.169 (0.106 to 0.266).  On physics r9 an independent per-substep probe of this panel
@@ -690,11 +695,11 @@ def test_the_physics_r10_statue_whole_foot_cop_reading(envs):
             recorder.end_step(zero, 0.0)
         trace = recorder.end_episode(truncated=True)
     pads = episode_pad_telemetry(trace, PadLayout.from_morphology(morphology), settle_steps=200)
-    assert pads["r_foot_cop_fore_aft_gate"] == pytest.approx(0.0623825454631951, abs=1e-6)
-    assert pads["l_foot_cop_fore_aft_gate"] == pytest.approx(0.1820624852139161, abs=1e-6)
-    assert pads["r_foot_cop_fore_aft"] == pytest.approx(-0.0324325485492992, abs=1e-6)
-    assert pads["l_foot_cop_fore_aft"] == pytest.approx(-0.1820624852139161, abs=1e-6)
-    assert np.mean(trace.foot_cop[200:, 0]) == pytest.approx(0.1377297216015491, abs=1e-6)
+    assert pads["r_foot_cop_fore_aft_gate"] == pytest.approx(0.0616838401129263, abs=1e-6)
+    assert pads["l_foot_cop_fore_aft_gate"] == pytest.approx(0.1806102140058762, abs=1e-6)
+    assert pads["r_foot_cop_fore_aft"] == pytest.approx(-0.0312326515967270, abs=1e-6)
+    assert pads["l_foot_cop_fore_aft"] == pytest.approx(-0.1806102140058762, abs=1e-6)
+    assert np.mean(trace.foot_cop[200:, 0]) == pytest.approx(0.1378137143882291, abs=1e-6)
     assert episode_stance_metrics(trace, settle_steps=200).max_foot_cop_fore_aft == pads["l_foot_cop_fore_aft_gate"]
 
 
@@ -703,16 +708,17 @@ def test_the_physics_r10_statue_whole_foot_cop_reading(envs):
 
 #: The most each statue's pads read of ``max_sole_cop_fore_aft`` on this episode (D-D28; seed 3042, steps 1 s
 #: to 1 s + 150): trex 0.349 on its r10 plant (0.441 on r9; 0.356 on r8, before the elliptic cone of D-D29),
-#: compsognathus 0.173 on its r2 plant (heel side; 0.464 on r1, before D-D26), its robot 0.319, dibothrosuchus
-#: 0.758 on its r2 plant (0.699 on r1, its hind feet heel side on four contacts, before the elliptic cone of D-D30).
+#: compsognathus 0.293 on its shorter r3 metatarsal cushion (r2 0.173, r1 0.464), its robot 0.319, dibothrosuchus
+#: 0.618 on its r3 cushions (0.758 on the wider r2 pads).
 #: None where the foot has no box sole, so the metric is unmeasured: velociraptor (no sole) and brachiosaurus
 #: (ellipsoids, whose one contact sits where the authored pitch puts it).
 STATUE_COP_FORE_AFT_CEILING = {
+    ALLOSAURUS_FRAGILIS: None,
     TYRANNOSAURUS_REX: 0.47,
     VELOCIRAPTOR_MONGOLIENSIS: None,
-    COMPSOGNATHUS_LONGIPES: 0.20,
+    COMPSOGNATHUS_LONGIPES: 0.32,
     COMPSOGNATHUS_LONGIPES_ROBOT: 0.35,
-    DIBOTHROSUCHUS_ELAPHROS: 0.78,
+    DIBOTHROSUCHUS_ELAPHROS: 0.65,
     BRACHIOSAURUS_ALTITHORAX: None,
 }
 
@@ -724,15 +730,23 @@ def test_the_statue_tables_cover_every_model():
 
 
 @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
-def test_each_statue_stands_on_its_registered_support_geoms(envs, model_id):
+def test_each_standing_controller_loads_its_registered_support_geoms(envs, model_id):
     env = envs(model_id)
     settle = int(round(1.0 / env.dt))  # 1 s
     zero = np.zeros(env.model.nu)
     with SubstepContactRecorder(env, Morphology.from_env(env, model_id)) as recorder:
         env.reset(seed=3042)
+        # The Allosaurus has torque motors. Holding stance needs a feedback
+        # command even at the home angles. Its other peers have position servos.
+        controller = None
+        if model_id == ALLOSAURUS_FRAGILIS:
+            from environments.allosaurus_fragilis.scripts.reference_walk import ReferenceWalk
+
+            controller = ReferenceWalk(env.model, env.data, walking=False)
         for _ in range(settle + 150):
-            env.step(zero)
-            recorder.end_step(zero, 0.0)
+            action = zero if controller is None else controller.action(env.data)
+            env.step(action)
+            recorder.end_step(action, 0.0)
         trace = recorder.end_episode(truncated=True)
     result = episode_stance_metrics(trace, settle_steps=settle)
     assert result.nonfoot_load_fraction == 0.0
@@ -752,7 +766,7 @@ def test_each_statue_stands_on_its_registered_support_geoms(envs, model_id):
 @pytest.mark.parametrize(
     ("model_id", "seed", "airborne"),
     [
-        (DIBOTHROSUCHUS_ELAPHROS, 3045, 8.0),
+        (DIBOTHROSUCHUS_ELAPHROS, 3056, 17.0),
         (COMPSOGNATHUS_LONGIPES_ROBOT, 3052, 3.0),
         (COMPSOGNATHUS_LONGIPES, 3045, 0.0),
     ],
@@ -763,10 +777,8 @@ def test_the_spawn_pop_is_counted_substep_by_substep(envs, model_id, seed, airbo
 
     Every leg's floor force at or below ``CONTACT_THRESHOLD_N`` on a substep
     is one airborne substep: the first two statues leave the floor entirely
-    for 8 and 3 substeps after the reset (the largest counts their 40-episode
-    panels record, seeds 3042-3081; the dibothrosuchus's was 9 before the
-    elliptic cone of its physics r2, D-D30) and never inside the settle
-    window.
+    for 17 and 3 substeps after the reset (the largest counts their 40-episode
+    panels record, seeds 3042-3081) and never inside the settle window.
     Exact, because the count IS the threshold's meaning: read at 1.0 N
     instead of 0.1 N, the anatomical compsognathus's one-substep pop on
     physics r1 (seed 3045) counted 2.  Its physics r2 toe armature removed

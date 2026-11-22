@@ -10,11 +10,14 @@ A **model** is the pair (species, embodiment); in code it is a `ModelId`
 interfaces accept the canonical IDs only.
 
 `configs/species_manifest.toml` owns the species, their embodiments and the
-display names. Title-case labels name the animal inspiring each simplified
-model; they do not certify specimen-level anatomical accuracy. A model's
-display name is always the species display name followed by the embodiment
-label, as in "Tyrannosaurus Rex (Anatomical)". It labels logs, reports, plots,
-W&B titles, the model rows of the README and the species catalog, and the
+display names. A species display name is the binomial in scientific form:
+the genus capitalized, the epithet lowercase ("Tyrannosaurus rex",
+"Compsognathus longipes"), plain text in the manifest, never capitalized
+again by the code that shows it. It names the animal inspiring each
+simplified model; it does not certify specimen-level anatomical accuracy. A
+model's display name is always the species display name followed by the
+embodiment label, as in "Tyrannosaurus rex (Anatomical)". It labels logs,
+reports, plots, the model rows of the README and the species catalog, and the
 catalog's results headings; the species display name labels the species itself
 (the website's species category, the species READMEs, notebook prose).
 Regenerate the public catalog with
@@ -22,12 +25,13 @@ Regenerate the public catalog with
 
 | Species ID | Embodiment | Display name | Gymnasium ID | Model page |
 |---|---|---|---|---|
-| `velociraptor_mongoliensis` | `anatomical` | Velociraptor Mongoliensis (Anatomical) | `MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0` | [`/docs/models/velociraptor_mongoliensis/anatomical`](../website/docs/models/velociraptor_mongoliensis/anatomical.mdx) |
-| `tyrannosaurus_rex` | `anatomical` | Tyrannosaurus Rex (Anatomical) | `MesozoicLabs/TyrannosaurusRex-Anatomical-v0` | [`/docs/models/tyrannosaurus_rex/anatomical`](../website/docs/models/tyrannosaurus_rex/anatomical.mdx) |
-| `brachiosaurus_altithorax` | `anatomical` | Brachiosaurus Altithorax (Anatomical) | `MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0` | [`/docs/models/brachiosaurus_altithorax/anatomical`](../website/docs/models/brachiosaurus_altithorax/anatomical.mdx) |
-| `dibothrosuchus_elaphros` | `anatomical` | Dibothrosuchus Elaphros (Anatomical) | `MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0` | [`/docs/models/dibothrosuchus_elaphros/anatomical`](../website/docs/models/dibothrosuchus_elaphros/anatomical.mdx) |
-| `compsognathus_longipes` | `anatomical` | Compsognathus Longipes (Anatomical) | `MesozoicLabs/CompsognathusLongipes-Anatomical-v0` | [`/docs/models/compsognathus_longipes/anatomical`](../website/docs/models/compsognathus_longipes/anatomical.mdx) |
-| `compsognathus_longipes` | `robot` | Compsognathus Longipes (Robot) | `MesozoicLabs/CompsognathusLongipes-Robot-v0` | [`/docs/models/compsognathus_longipes/robot`](../website/docs/models/compsognathus_longipes/robot.mdx) |
+| `velociraptor_mongoliensis` | `anatomical` | Velociraptor mongoliensis (Anatomical) | `MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0` | [`/docs/models/velociraptor_mongoliensis/anatomical`](../website/docs/models/velociraptor_mongoliensis/anatomical.mdx) |
+| `tyrannosaurus_rex` | `anatomical` | Tyrannosaurus rex (Anatomical) | `MesozoicLabs/TyrannosaurusRex-Anatomical-v0` | [`/docs/models/tyrannosaurus_rex/anatomical`](../website/docs/models/tyrannosaurus_rex/anatomical.mdx) |
+| `brachiosaurus_altithorax` | `anatomical` | Brachiosaurus altithorax (Anatomical) | `MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0` | [`/docs/models/brachiosaurus_altithorax/anatomical`](../website/docs/models/brachiosaurus_altithorax/anatomical.mdx) |
+| `dibothrosuchus_elaphros` | `anatomical` | Dibothrosuchus elaphros (Anatomical) | `MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0` | [`/docs/models/dibothrosuchus_elaphros/anatomical`](../website/docs/models/dibothrosuchus_elaphros/anatomical.mdx) |
+| `compsognathus_longipes` | `anatomical` | Compsognathus longipes (Anatomical) | `MesozoicLabs/CompsognathusLongipes-Anatomical-v0` | [`/docs/models/compsognathus_longipes/anatomical`](../website/docs/models/compsognathus_longipes/anatomical.mdx) |
+| `compsognathus_longipes` | `robot` | Compsognathus longipes (Robot) | `MesozoicLabs/CompsognathusLongipes-Robot-v0` | [`/docs/models/compsognathus_longipes/robot`](../website/docs/models/compsognathus_longipes/robot.mdx) |
+| `allosaurus_fragilis` | `anatomical` | Allosaurus fragilis (Anatomical) | `MesozoicLabs/AllosaurusFragilis-Anatomical-v0` | [`/docs/models/allosaurus_fragilis/anatomical`](../website/docs/models/allosaurus_fragilis/anatomical.mdx) |
 
 Each model has its own environment class, configs, plant revision counters,
 normalization statistics and checkpoint identity; the two Compsognathus models
@@ -57,7 +61,6 @@ Every machine identifier is built from the pair by one rule. `<Species>` and
 | Model page | `website/docs/models/<species>/<embodiment>.mdx`, served at `/docs/models/<species>/<embodiment>` | `/docs/models/tyrannosaurus_rex/anatomical` | `/docs/models/compsognathus_longipes/robot` |
 | Catalog anchor | `<species>-<embodiment>` | `tyrannosaurus_rex-anatomical` | `compsognathus_longipes-robot` |
 | Replay and stage videos | `<species>_<embodiment>_<algo>_stage<N>_<label>.mp4` | `tyrannosaurus_rex_anatomical_ppo_stage1_best.mp4` | `compsognathus_longipes_robot_ppo_stage1_best.mp4` |
-| W&B run | ID `<species>-<embodiment>-s<stage>-<timestamp>`, tags `[species, embodiment, stage]` | `tyrannosaurus_rex-anatomical-s1-<timestamp>` | `compsognathus_longipes-robot-s1-<timestamp>` |
 | Recovery calibration ID | `<species>-<embodiment>-fixed-command-recovery-<date>-v<N>` | `tyrannosaurus_rex-anatomical-fixed-command-recovery-<date>-v<N>` | `compsognathus_longipes-robot-fixed-command-recovery-2026-09-v1` |
 | Notebook | `SPECIES` and `EMBODIMENT` dropdowns, `MODEL_ID = require_model_id(SPECIES, EMBODIMENT)` | `SPECIES = "tyrannosaurus_rex"`, `EMBODIMENT = "anatomical"` | `SPECIES = "compsognathus_longipes"`, `EMBODIMENT = "robot"` |
 | Records | `"species"` and `"embodiment"`, two fields | `{"species": "tyrannosaurus_rex", "embodiment": "anatomical"}` | `{"species": "compsognathus_longipes", "embodiment": "robot"}` |

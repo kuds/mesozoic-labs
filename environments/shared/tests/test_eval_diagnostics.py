@@ -1649,7 +1649,10 @@ REAL_FOOT_FIELDS = {
         (("toe_d2", False), ("toe_d3", False), ("toe_d4", False)),
     ),
     ModelId("compsognathus_longipes", "robot"): (False, ()),
-    ModelId("dibothrosuchus_elaphros", "anatomical"): (False, ()),
+    ModelId("dibothrosuchus_elaphros", "anatomical"): (
+        False,
+        (("digit_1", False), ("digit_2", False), ("digit_3", False), ("digit_4", False)),
+    ),
     ModelId("velociraptor_mongoliensis", "anatomical"): (False, ()),
     ModelId("brachiosaurus_altithorax", "anatomical"): (False, ()),
 }
@@ -1659,7 +1662,7 @@ REAL_TELEMETRY = {
     ModelId("tyrannosaurus_rex", "anatomical"): (("r", "l"), True, (("l", "r"),)),
     ModelId("compsognathus_longipes", "anatomical"): (("r", "l"), True, (("l", "r"),)),
     ModelId("compsognathus_longipes", "robot"): (("r", "l"), False, (("l", "r"),)),
-    ModelId("dibothrosuchus_elaphros", "anatomical"): (("fr", "fl", "rr", "rl"), False, (("fl", "fr"), ("rl", "rr"))),
+    ModelId("dibothrosuchus_elaphros", "anatomical"): (("fr", "fl", "rr", "rl"), True, (("fl", "fr"), ("rl", "rr"))),
     ModelId("velociraptor_mongoliensis", "anatomical"): ((), False, (("l", "r"),)),
     ModelId("brachiosaurus_altithorax", "anatomical"): ((), False, (("fl", "fr"), ("rl", "rr"))),
 }
@@ -1826,6 +1829,10 @@ def test_a_real_evaluation_records_each_models_pads_and_leg_dc(model_id, tmp_pat
     (episodes,) = callback.evaluations_foot_pad
     assert set(episodes) == set(pad_keys) | set(rail_keys) | set(balance_keys)
     assert all(len(values) == 2 for values in episodes.values())
+    if digits:
+        for foot in pad_feet:
+            shares = [episodes[f"{foot}_{name}_load_share"] for name, _hinged in digits]
+            np.testing.assert_allclose(np.sum(shares, axis=0), episodes[f"{foot}_digit_share"])
     assert len(traces) == (2 if pad_feet else 0)  # a pad-less model attaches no recorder at all
     gates = [episode_stance_metrics(trace, settle_steps=settle).max_sole_cop_fore_aft for trace in traces]
     for number, gate in enumerate(gates):

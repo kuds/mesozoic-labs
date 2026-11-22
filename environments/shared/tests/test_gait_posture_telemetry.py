@@ -34,6 +34,12 @@ SETTLE = 100
 #: Every manifest model: its head-tip site, neck pitch hinges, head pitch hinge and hip roll hinge per foot with the
 #: abduction sign (None: not read).  Measured from the models' MJCF on 2026-10-25 (physics r10 for the T. rex).
 EXPECTED = {
+    ModelId("allosaurus_fragilis", "anatomical"): (
+        "head_tip",
+        (),
+        None,
+        {"r": ("r_hip_roll", -1.0), "l": ("l_hip_roll", 1.0)},
+    ),
     ModelId("tyrannosaurus_rex", "anatomical"): (
         "head_tip",
         ("neck_pitch",),

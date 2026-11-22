@@ -44,6 +44,7 @@ from environments.shared.stage_manifest import (
 
 from .notebook_cells import REPO_ROOT, code_cells, strip_magics
 
+ALLOSAURUS_FRAGILIS = ModelId("allosaurus_fragilis", "anatomical")
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
@@ -558,9 +559,10 @@ class TestManifestV2Edges:
         # Every committed manifest, the Compsognathus pair included: root-first chains, no unknown label.
         for model_id in MODEL_IDS:
             manifest = load_stage_manifest(model_id)
-            assert manifest.resolve_behavior("hunt").id == "behavior", model_id
+            leaf_label, leaf_id = ("walk", "locomotion") if model_id == ALLOSAURUS_FRAGILIS else ("hunt", "behavior")
+            assert manifest.resolve_behavior(leaf_label).id == leaf_id, model_id
             assert manifest.resolve_behavior("stance").id == "stance", model_id
-            assert manifest.chain_for("behavior")[0].id == "stance", model_id
+            assert manifest.chain_for(leaf_id)[0].id == "stance", model_id
             with pytest.raises(StageManifestError):
                 manifest.resolve_behavior("sprint")
         pilot = load_stage_manifest(PROBE, configs_dir=_write_manifest(tmp_path, PROBE, OPEN_ID_BODY))
@@ -678,6 +680,7 @@ class TestRecipeLabels:
     def test_recipe_labels_per_model(self):
         expected = {model_id: ("stance", "walk", "hunt") for model_id in INTEGER_MODELS}
         expected.update({model_id: ("stance", "recover", "walk", "hunt") for model_id in RECOVERY_MODELS})
+        expected[ALLOSAURUS_FRAGILIS] = ("stance", "walk")
         assert set(expected) == set(MODEL_IDS)
         assert {model_id: load_stage_manifest(model_id).recipe_labels for model_id in MODEL_IDS} == expected
         labelled = {
@@ -685,7 +688,9 @@ class TestRecipeLabels:
             for model_id in MODEL_IDS
         }
         for model_id, recipes in labelled.items():
-            assert recipes["stance"] == "stance" and recipes["locomotion"] == "walk" and recipes["behavior"] == "hunt"
+            assert recipes["stance"] == "stance" and recipes["locomotion"] == "walk"
+            if "hunt" in expected[model_id]:
+                assert recipes["behavior"] == "hunt"
             assert recipes.get("recovery", "recover") == "recover", model_id
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
@@ -761,12 +766,16 @@ class TestCommittedManifestsAreV2:
         manifest = load_stage_manifest(model_id)
         assert manifest.schema == STAGE_MANIFEST_SCHEMA_V2
         assert all(entry.deliverable for entry in manifest.stages)
-        assert manifest.recipe_labels == (
-            ("stance", "recover", "walk", "hunt") if model_id in RECOVERY_MODELS else ("stance", "walk", "hunt")
-        )
+        expected_labels = ["stance", "recover", "walk"] if model_id in RECOVERY_MODELS else ["stance", "walk"]
+        if model_id != ALLOSAURUS_FRAGILIS:
+            expected_labels.append("hunt")
+        assert manifest.recipe_labels == tuple(expected_labels)
         for entry in manifest.stages:
             assert (model_id.path(_CONFIGS_DIR) / entry.config_file).is_file()
-        assert [entry.id for entry in manifest.advancing_stages] == ["stance", "locomotion", "behavior"]
+        expected_chain = ["stance", "locomotion"]
+        if model_id != ALLOSAURUS_FRAGILIS:
+            expected_chain.append("behavior")
+        assert [entry.id for entry in manifest.advancing_stages] == expected_chain
 
     def test_tyrannosaurus_rex_declares_edges_deliverables_and_labels(self):
         manifest = load_stage_manifest(ModelId("tyrannosaurus_rex", "anatomical"))
@@ -802,7 +811,8 @@ class TestCommittedManifestsAreV2:
             COMPSOGNATHUS_LONGIPES: ["01_stance", "02_recovery", "03_locomotion", "04_behavior"],
             COMPSOGNATHUS_LONGIPES_ROBOT: ["01_stance", "02_recovery", "03_locomotion", "04_behavior"],
         }
-        assert set(pre_phase_a) == set(MODEL_IDS)
+        # Allosaurus joined after the v2 migration.
+        assert set(pre_phase_a) == set(MODEL_IDS) - {ALLOSAURUS_FRAGILIS}
         for model_id, names in pre_phase_a.items():
             manifest = load_stage_manifest(model_id)
             assert [stage_dirname(model_id, entry.reference) for entry in manifest.stages] == names

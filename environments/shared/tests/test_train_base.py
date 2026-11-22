@@ -960,7 +960,6 @@ class TestTrainCurriculumWalksTheManifest:
         retrain_from=None,
         output_dir=None,
         label=None,
-        use_wandb=False,
         task_sha256=None,
         plant=None,
         target=None,
@@ -978,7 +977,7 @@ class TestTrainCurriculumWalksTheManifest:
         from environments.shared import ancestors as ancestors_module
         from environments.shared import config as config_module
         from environments.shared import curriculum as curriculum_module
-        from environments.shared import plant_contract, result_bundle, task_fingerprint, train_base, wandb_integration
+        from environments.shared import plant_contract, result_bundle, task_fingerprint, train_base
         from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import stage_label
 
@@ -990,7 +989,6 @@ class TestTrainCurriculumWalksTheManifest:
             "parent_run_ids": [],
             "ancestors": [],
             "labels": [],
-            "wandb_tags": [],
             "managers": [],
             "seeds": [],
             "durations": [],
@@ -1053,12 +1051,6 @@ class TestTrainCurriculumWalksTheManifest:
             record["durations"].append((Path(stage_dir).name, duration_seconds))
             return Path(stage_dir) / "stage_config.json"
 
-        def init_wandb(**kwargs):
-            # Records the tags and reports W&B as unavailable (None), which
-            # is the path the loop takes on a headless worker.
-            record["wandb_tags"].append((kwargs["stage"], kwargs.get("tags")))
-            return None
-
         def shaping(config, **kwargs):
             record["parents"].append(kwargs["parent_id"])
             return []
@@ -1086,7 +1078,6 @@ class TestTrainCurriculumWalksTheManifest:
         monkeypatch.setattr(train_base, "_record_stage_result", lambda *args, **kwargs: None)
         monkeypatch.setattr(config_module, "save_stage_config", save_config)
         monkeypatch.setattr(config_module, "record_stage_duration", record_duration)
-        monkeypatch.setattr(wandb_integration, "init_wandb", init_wandb)
         monkeypatch.setattr(curriculum_module, "CurriculumCallback", lambda **kwargs: MagicMock(ready_to_advance=True))
         # A stance_quality_heading/v1 node (the trex stance since D-D32, the velociraptor stance since the
         # maintainer's decision of 2026-11-06) is judged after its budget from the floor-truth report on its
@@ -1131,7 +1122,6 @@ class TestTrainCurriculumWalksTheManifest:
                 trunk_from=trunk_from,
                 retrain_from=retrain_from,
                 label=label,
-                use_wandb=use_wandb,
                 target=target,
             )
         return record
@@ -2225,26 +2215,14 @@ class TestTrainCurriculumWalksTheManifest:
         assert [stage for stage, _, _ in record["saved"]] == [2, 3]
         assert not [r for r in caplog.records if "heading probe" in r.message]
 
-    def test_the_label_reaches_every_trained_nodes_config_and_the_wandb_tags(self, tmp_path, monkeypatch, caplog):
-        """Decision D-A21: ``label`` is handed to ``save_stage_config`` for every trained node and
-        every W&B run is tagged ``hp:<12 hex of the node's digest>`` plus ``label:<label>``; without a
-        label the config gets ``None`` (nothing recorded) and only the ``hp:`` tag is set."""
-        from environments.shared.config import hyperparameters_sha256, load_all_stages
-
-        configs = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)
-        expected_hp = {
-            stage: "hp:" + hyperparameters_sha256(configs[stage], "ppo").removeprefix("sha256:")[:12]
-            for stage in (1, 2, 3)
-        }
-        assert all(len(tag) == len("hp:") + 12 for tag in expected_hp.values())
-
-        record = self._run(VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, label="lr-sweep-a", use_wandb=True)
+    def test_the_label_reaches_every_trained_nodes_config(self, tmp_path, monkeypatch, caplog):
+        """Decision D-A21: ``label`` is handed to ``save_stage_config`` for every trained node;
+        without a label the config gets ``None`` (nothing recorded)."""
+        record = self._run(VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch, caplog, label="lr-sweep-a")
         assert record["labels"] == [(1, "lr-sweep-a"), (2, "lr-sweep-a"), (3, "lr-sweep-a")]
-        assert record["wandb_tags"] == [(stage, [expected_hp[stage], "label:lr-sweep-a"]) for stage in (1, 2, 3)]
 
-        record = self._run(VELOCIRAPTOR_MONGOLIENSIS, tmp_path / "unlabelled", monkeypatch, caplog, use_wandb=True)
+        record = self._run(VELOCIRAPTOR_MONGOLIENSIS, tmp_path / "unlabelled", monkeypatch, caplog)
         assert record["labels"] == [(1, None), (2, None), (3, None)]
-        assert record["wandb_tags"] == [(stage, [expected_hp[stage]]) for stage in (1, 2, 3)]
 
 
 class TestTrainRecordsTheLabel:
@@ -2291,16 +2269,6 @@ class TestTrainRecordsTheLabel:
         recorded = self._save_config_kwargs(tmp_path, monkeypatch, parent_run_id="20260901_120000")
         assert recorded["parent_run_id"] == "20260901_120000"
         assert self._save_config_kwargs(tmp_path, monkeypatch)["parent_run_id"] is None
-
-    def test_the_wandb_tags_carry_the_digest_prefix_and_the_label(self):
-        from environments.shared.config import hyperparameters_sha256, load_all_stages
-        from environments.shared.train_base import _wandb_run_tags
-
-        config = load_all_stages(VELOCIRAPTOR_MONGOLIENSIS)[1]
-        hp_tag = "hp:" + hyperparameters_sha256(config, "ppo").removeprefix("sha256:")[:12]
-        assert _wandb_run_tags(config, "ppo", None) == [hp_tag]
-        assert _wandb_run_tags(config, "ppo", "  ") == [hp_tag]
-        assert _wandb_run_tags(config, "ppo", "lr-sweep-a") == [hp_tag, "label:lr-sweep-a"]
 
 
 class TestTrainDerivesTheTaskThroughTheStageHelper:

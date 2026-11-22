@@ -5,7 +5,7 @@ integer stage reference silently dropped it: figure generation crashed
 inside stage_artifacts' broad try/except (F9), the CLI raised a raw
 KeyError before its friendly unknown-stage error (F10), eval stage
 detection misread recovery checkpoints and its --stage could not override
-the misread (F11), and the W&B run name minted "trex-stagerecovery" (F13).
+the misread (F11). (F13, the W&B run name, went with the W&B integration.)
 These tests pin the restored behavior for BOTH generations of stage
 references: legacy integers keep their exact historical behavior, and
 semantic ids work everywhere integers do.
@@ -299,26 +299,3 @@ class TestCliStageResolution:
         ):
             main(species_cfg)
         mock_eval.assert_not_called()
-
-
-class TestWandbRunName:
-    """Readable titles remain separate from resume identities and filter tags."""
-
-    @pytest.fixture
-    def mock_wandb(self):
-        with patch("environments.shared.wandb_integration.wandb") as mock:
-            yield mock
-
-    def test_integer_stage_has_full_model_and_stance_title(self, mock_wandb):
-        from environments.shared.wandb_integration import init_wandb
-
-        init_wandb(TYRANNOSAURUS_REX, 1, {"name": "stance"})
-        assert mock_wandb.init.call_args.kwargs["name"] == "Tyrannosaurus Rex (Anatomical) / Stance"
-        assert mock_wandb.init.call_args.kwargs["tags"] == ["tyrannosaurus_rex", "anatomical", "stage1"]
-
-    def test_semantic_stage_named_by_id(self, mock_wandb):
-        from environments.shared.wandb_integration import init_wandb
-
-        init_wandb(TYRANNOSAURUS_REX, "recovery", {"name": "recovery"})
-        assert mock_wandb.init.call_args.kwargs["name"] == "Tyrannosaurus Rex (Anatomical) / Recovery"
-        assert mock_wandb.init.call_args.kwargs["tags"] == ["tyrannosaurus_rex", "anatomical", "recovery"]

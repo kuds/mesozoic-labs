@@ -28,7 +28,9 @@ policy with four additions, all confined to training; a checkpoint is still a st
 Everything else is stock: the rollout, GAE, the clipped surrogate on the original rows, the entropy term, the
 ``target_kl`` early stop, the gradient clip and the Adam step.  :meth:`MirrorKLPPO.train` is SB3 2.9.0's
 ``PPO.train`` with four added lines, each marked ``# [mirror]`` (:func:`train_source_diff`); the copied source is
-pinned by its digest (:data:`SB3_PPO_TRAIN_SHA256`), and another SB3 refuses to enable the class.  With
+pinned by its digest (:data:`SB3_PPO_TRAIN_SHA256`), with the two other stock sources this module depends on
+exactly (:data:`SB3_SOURCE_SHA256`), and an SB3 whose pinned sources differ refuses to enable the class (another
+release with the same sources, such as 2.9.2, is accepted: :func:`check_sb3_pin`).  With
 ``kappa = 0`` and the mirrored critic off it trains bit for bit as stock PPO with the same statistics and tie.
 
 Why not mirror augmentation.  The usual method (Yu, Turk and Liu 2018; Mittal et al. 2024) adds the mirrored
@@ -49,11 +51,13 @@ which trained them with the lean term and the settled leg target of ``Tyrannosau
 steps gave mirror-symmetric policies (every joint group's median mirror asymmetry under 0.1 degree) that did not
 fall in the 120 final (6M) evaluation episodes and passed ``stance_quality/v2`` on two of three seeds at the panel's
 single heading (the stage's six-heading certificate, ``stance_quality_heading/v1``, was not run), but not the
-screen's pad centre-of-pressure and action-noise robustness criteria; so no stage enables it.  A stage that does
-writes all four ``[ppo]`` symmetry keys (:data:`~environments.shared.symmetry.SYMMETRY_KEYS`), so its
-``hyperparameters_sha256`` pins every setting.  :func:`enable_mirror_kl` turns a constructed or loaded
-stock ``PPO`` into a :class:`MirrorKLPPO` in place (``train_base`` does, when a stage's ``[ppo]`` table carries the
-symmetry keys), and records the settings in the checkpoint attribute ``mesozoic_symmetry``.
+screen's pad centre-of-pressure and action-noise robustness criteria.  The T. rex stance enables it at those
+defaults since the r10 LTSB recipe (the stance-landing decision of 2026-11-06), and its recovery stage inherits it;
+no other stage does.  A stage that enables it writes all four ``[ppo]`` symmetry keys
+(:data:`~environments.shared.symmetry.SYMMETRY_KEYS`), so its ``hyperparameters_sha256`` pins every setting.
+:func:`enable_mirror_kl` turns a constructed or loaded stock ``PPO`` into a :class:`MirrorKLPPO` in place
+(``train_base`` does, when a stage's ``[ppo]`` table carries the symmetry keys), and records the settings in the
+checkpoint attribute ``mesozoic_symmetry``.
 """
 
 from __future__ import annotations
@@ -76,23 +80,64 @@ from torch.nn import functional as F
 
 from .symmetry import CHECKPOINT_ATTRIBUTE, MirrorMap, SignedPermutation, SymmetryConfig, SymmetryError
 
-#: The SB3 release whose ``PPO.train`` :meth:`MirrorKLPPO.train` copies, and the digest of that method's source.
+#: The SB3 release :meth:`MirrorKLPPO.train` was copied from (a record: the guard reads the digests below, so another
+#: release whose pinned sources are unchanged, such as 2.9.2, is accepted).
 SB3_VERSION = "2.9.0"
+#: The sha256 of ``inspect.getsource(PPO.train)`` in that release: the method :meth:`MirrorKLPPO.train` copies.
 SB3_PPO_TRAIN_SHA256 = "7c8d09940123242f0ac401c5ec2cc858b8bf3339f571c222382f048ffd8306ae"
+#: The other stock sources this module's own code depends on exactly, by the same digest of their source:
+#: ``RunningMeanStd``, which :class:`SymmetricRunningMeanStd` subclasses, whose ``update`` it reimplements, whose
+#: ``update_from_moments`` it feeds the union moments and whose constructor and state it pickles as; and
+#: ``DiagGaussianDistribution.mode`` with ``proba_distribution``, which builds the ``Normal(mean, exp(log_std))``
+#: whose mean ``mode`` returns and which the mirror loss takes for the Gaussian's mean.  Everything else it calls
+#: (``evaluate_actions``, ``get_distribution``, ``predict_values``, the rollout buffer, the logger) the copied
+#: ``PPO.train`` or stock PPO calls too, so a change there reaches the copy and the stock method alike.
+SB3_SOURCE_SHA256 = {
+    "PPO.train": SB3_PPO_TRAIN_SHA256,
+    "RunningMeanStd": "f24e277e5106011b2bb4ba4be3fbc2077b1e0b389be5da576bb957975e2afa3e",
+    "DiagGaussianDistribution.mode": "adbe6d88ca17f78ecc81541dac37b527e3886fc36e3fcdac3500ac6270b8b5e7",
+    "DiagGaussianDistribution.proba_distribution": "ae7e9a25bc2f65d7d214b222f424ccf1833925da26292c986d04288d5c9b82d3",
+}
 #: Every line :meth:`MirrorKLPPO.train` adds to the stock source carries this marker.
 MIRROR_MARKER = "# [mirror]"
 
 
+def _source_sha256(source_object: Any) -> str:
+    return hashlib.sha256(inspect.getsource(source_object).encode("utf-8")).hexdigest()
+
+
 def stock_ppo_train_sha256() -> str:
-    return hashlib.sha256(inspect.getsource(PPO.train).encode("utf-8")).hexdigest()
+    return _source_sha256(PPO.train)
+
+
+def stock_source_sha256() -> dict[str, str]:
+    """The installed SB3's digests of the sources :data:`SB3_SOURCE_SHA256` pins, under the same names."""
+    return {
+        "PPO.train": stock_ppo_train_sha256(),
+        "RunningMeanStd": _source_sha256(RunningMeanStd),
+        "DiagGaussianDistribution.mode": _source_sha256(DiagGaussianDistribution.mode),
+        "DiagGaussianDistribution.proba_distribution": _source_sha256(DiagGaussianDistribution.proba_distribution),
+    }
 
 
 def check_sb3_pin() -> None:
-    """Refuse an SB3 whose ``PPO.train`` is not the one :meth:`MirrorKLPPO.train` copies."""
-    if stable_baselines3.__version__ != SB3_VERSION or stock_ppo_train_sha256() != SB3_PPO_TRAIN_SHA256:
+    """Refuse an SB3 whose pinned sources (:data:`SB3_SOURCE_SHA256`) are not those :class:`MirrorKLPPO` was built on.
+
+    The release number is not checked: a release whose ``PPO.train``, ``RunningMeanStd`` and
+    ``DiagGaussianDistribution.mode`` / ``proba_distribution`` are unchanged runs the copy exactly as the release it
+    was copied from.
+    """
+    installed = stock_source_sha256()
+    changed = [name for name, digest in SB3_SOURCE_SHA256.items() if installed[name] != digest]
+    if changed:
+        details = "; ".join(
+            f"{name}: copied sha256 {SB3_SOURCE_SHA256[name]}, installed sha256 {installed[name]}" for name in changed
+        )
         raise SymmetryError(
-            f"MirrorKLPPO copies stable-baselines3 {SB3_VERSION}'s PPO.train (source sha256 {SB3_PPO_TRAIN_SHA256}); "
-            f"this is {stable_baselines3.__version__} (sha256 {stock_ppo_train_sha256()})"
+            f"MirrorKLPPO was copied from stable-baselines3 {SB3_VERSION}; the installed stable-baselines3 "
+            f"{stable_baselines3.__version__} changed the source it depends on ({details}). Install "
+            f"stable-baselines3=={SB3_VERSION}, or re-copy PPO.train and re-pin SB3_SOURCE_SHA256 after reviewing "
+            "the change"
         )
 
 

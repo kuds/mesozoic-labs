@@ -2,9 +2,9 @@
 
 Species-generic by construction: nothing here names a species, a backend
 array library, or a learning framework.  The module is importable with
-numpy alone (amendment A3) — the plant contract, the MJX kernels and the
-checkpoint tooling all read these constants, and none of them may pull
-stable_baselines3, torch or jax in as a side effect.
+numpy alone (amendment A3) — the plant contract and the checkpoint tooling
+read these constants, and neither may pull stable_baselines3 or torch in as
+a side effect.
 
 Design contract:
 
@@ -21,10 +21,11 @@ Design contract:
   segment is constant zero, no RNG is drawn, and every trajectory is
   identical to the pre-Phase-C environment (the seeded draw stream is
   pinned by ``tests/fixtures/phase_c_reset_golden.json``).
-* **MJX fails closed.**  The MJX backend refuses any live mode until its
-  command path lands (invariant 9).  The SB3 backend implements both live
-  modes since Phase D (consolidation PR-9), which deleted only the SB3
-  branch of :func:`validate_command_mode`.
+* **One backend.**  Stable-Baselines3 implements both live modes since
+  Phase D (consolidation PR-9).  The jax-mjx backend, which refused every
+  live mode (invariant 9), was removed with the frozen MJX interface core
+  (configs/plant_versions.toml note 23), so :func:`validate_command_mode`
+  refuses it as an unknown backend.
 """
 
 from __future__ import annotations
@@ -59,37 +60,29 @@ RETIRED_COMMAND_ENV_KEYS = (
     "command_switch_interval",
     "command_switch_jitter",
 )
-#: Injected into the plant-contract observation probes on BOTH backends so
-#: SB3/MJX parity is asserted on a non-zero command (decision D-C4).
+#: Injected into the plant-contract observation probe so it exercises the
+#: appended slot on a non-zero command (decision D-C4).
 COMMAND_PROBE_VECTOR = (0.25, -0.5, 0.75)
 
-COMMAND_BACKENDS = ("stable-baselines3", "jax-mjx")
-
-MJX_COMMAND_REFUSAL = (
-    "command_mode={mode!r} is not implemented on the jax-mjx backend; only 'none' is accepted until the MJX "
-    "command path lands (BEHAVIOR_RECIPES_PLAN §4.6, A7: SB3 is the evidence backend and MJX fails closed on "
-    "command-mode configs)"
-)
+COMMAND_BACKENDS = ("stable-baselines3",)
 
 
 def zero_command(xp: Any = np) -> Any:
-    """The inert command: ``COMMAND_WIDTH`` float32 zeros on *xp* (numpy or jax.numpy)."""
+    """The inert command: ``COMMAND_WIDTH`` float32 zeros on the array module *xp* (numpy by default)."""
     return xp.zeros(COMMAND_WIDTH, dtype=xp.float32)
 
 
 def validate_command_mode(mode: str, *, backend: str) -> str:
     """Return *mode* when *backend* implements it; raise ``ValueError`` otherwise.
 
-    An unknown mode is refused on every backend, naming the valid set.  The
-    jax-mjx backend refuses every live mode (:data:`MJX_COMMAND_REFUSAL`);
-    the stable-baselines3 backend accepts them all.
+    An unknown mode is refused, naming the valid set, and so is any backend
+    but :data:`COMMAND_BACKENDS` (the removed jax-mjx included); the
+    stable-baselines3 backend accepts every mode.
     """
     if mode not in COMMAND_MODES:
         raise ValueError(f"command_mode={mode!r} is not one of {COMMAND_MODES}")
     if backend not in COMMAND_BACKENDS:
         raise ValueError(f"unknown training backend {backend!r} for command_mode validation; known: {COMMAND_BACKENDS}")
-    if mode != COMMAND_MODE_NONE and backend == "jax-mjx":
-        raise ValueError(MJX_COMMAND_REFUSAL.format(mode=mode))
     return mode
 
 

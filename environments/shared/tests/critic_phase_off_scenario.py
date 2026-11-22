@@ -1,6 +1,7 @@
 """The critic phase's off path, run on a code tree: what main's trainer computes with no ``[ppo] critic_phase`` key.
 
-usage: python -I -B critic_phase_off_scenario.py TREE OUT_JSON [--write GOLDEN --source-commit SHA]
+usage: python -I -B critic_phase_off_scenario.py TREE OUT_JSON [--archived-r10 | --explicit-off]
+       [--write GOLDEN --source-commit SHA]
 
 Not a test module (pytest does not collect it): ``test_critic_phase_off_path.py`` runs it in a subprocess on the
 repository root and compares its output with ``fixtures/critic_phase_off/golden_4c9d5e9b.json``, which this same
@@ -59,8 +60,7 @@ def pre_landing_stance(configs: dict[Any, Any]) -> None:
     """Set the T. rex stance (``configs[1]``, as ``load_all_stages`` keys it) back to its values before the r10 LTSB
     stance recipe (the stance-landing decision of 2026-11-06), in place: no stance options, ``leg_home_pose``
     0.5 / 0.10, stock PPO and the collapse reference 3766.6.  The golden was written at 4c9d5e9b, before it, and on a
-    tree before it this changes nothing (test_critic_phase.py pins that the result digests to main's pre-landing task
-    and recipe)."""
+    tree before it this changes nothing (test_critic_phase.py pins the pre-landing recipe and each plant's task fingerprint)."""
     stance = configs[1]
     for key in LTSB_ENV_KEYS:
         stance["env_kwargs"].pop(key, None)
@@ -151,7 +151,55 @@ def _record(model: Any, updates: list[dict[str, Any]], stage_dir: Path, final: s
     return {"digests": digests, "structure": structure}
 
 
-def run(tree: Path, work: Path) -> dict[str, Any]:
+def archived_plant_identity() -> dict[str, Any]:
+    """The r10/r15 identity recorded by the T. rex stance training screen."""
+    record = Path(__file__).parent / "fixtures" / "ltsb_stance" / "stance7_r10LTSBpc_s42.json"
+    stage = json.loads(record.read_text(encoding="utf-8"))["stage_config"]
+    return dict(stage["plant_identity"])
+
+
+def use_archived_plant(work: Path, species: Any) -> None:
+    """Select the measured r10 plant for this isolated trainer process. Every env is still validated in make_env."""
+    import gzip
+
+    from environments.shared import train_base
+    from environments.shared.plant_contract import PlantIdentity
+    from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+
+    fixture = Path(__file__).parent / "fixtures" / "critic_phase_off"
+    source = gzip.decompress((fixture / "tyrannosaurus_rex_anatomical_r10.xml.gz").read_bytes())
+    if hashlib.sha256(source).hexdigest() != "99fea80a993a2c6760ab4b32c00fd6993c44ee55bc74f0020f48fe2df41b9459":
+        raise ValueError("archived r10 MJCF differs from its recorded source")
+    model_path = work / "tyrannosaurus_rex_anatomical_r10.xml"
+    model_path.write_bytes(source)
+    identity = PlantIdentity.from_mapping(archived_plant_identity())
+
+    class ArchivedTyrannosaurusRex(TyrannosaurusRexAnatomicalEnv):
+        MODEL_PATH = model_path
+        # Measured r10 reward reference poses at 4c9d5e9b.
+        _TAIL_SETTLED_QPOS = (0.00002, 0.0, 0.00006, 0.00018)
+        _NECK_SETTLED_QPOS = (0.21401, 0.0, 0.22054)
+        _LEG_SETTLED_QPOS = (
+            -0.09084374343772902,
+            -0.006823512801851125,
+            -0.43726937988410725,
+            1.3762339038992937,
+            -0.09084374343772902,
+            0.006823512801851125,
+            -0.43726937988410725,
+            1.3762339038992937,
+        )
+
+    def archived_identity(model_id, *, verify_generated: bool = True) -> PlantIdentity:
+        if model_id != identity.model_id:
+            raise ValueError(f"no archived plant for {model_id}")
+        return identity
+
+    species.env_class = ArchivedTyrannosaurusRex
+    train_base.current_plant_identity = archived_identity
+
+
+def run(tree: Path, work: Path, *, archived_r10: bool = False, explicit_off: bool = False) -> dict[str, Any]:
     sys.path.insert(0, str(tree))
     import numpy as np
     import torch
@@ -167,10 +215,16 @@ def run(tree: Path, work: Path) -> dict[str, Any]:
     torch.set_num_threads(1)
     model_id = ModelId("tyrannosaurus_rex", "anatomical")
     species = get_species_config(model_id)
+    if archived_r10:
+        use_archived_plant(work, species)
     committed = load_all_stages(model_id)
     configs = copy.deepcopy(committed)
     pre_landing_stance(configs)
+    if archived_r10:
+        configs[2]["curriculum_kwargs"]["collapse_peak_floor_reference"] = 1092.6
     for stage in (1, 2):
+        if explicit_off:
+            configs[stage]["ppo_kwargs"]["critic_phase"] = False
         configs[stage]["ppo_kwargs"].update(n_steps=256, batch_size=128)
 
     updates: list[dict[str, Any]] = []
@@ -244,7 +298,7 @@ def main(argv: list[str]) -> int:
     if work.exists():
         shutil.rmtree(work)
     work.mkdir(parents=True)
-    result = run(tree, work)
+    result = run(tree, work, archived_r10="--archived-r10" in argv, explicit_off="--explicit-off" in argv)
     out.write_text(json.dumps(result, indent=1, sort_keys=True) + "\n")
     if "--write" in argv:
         golden = Path(argv[argv.index("--write") + 1])

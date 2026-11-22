@@ -28,20 +28,16 @@ function VideoCard({ species, stage }: { species: string; stage: SpeciesStage })
             : `version ${stage.video.backendVersion}`}. It is not evidence for the current model or stage config.
         </p>
       )}
-      <div className={styles.videoContainer}>
-        {stage.video ? (
-          <video
-            src={stage.video.path}
-            controls
-            preload="none"
-            poster={posterFor(stage.video.path)}
-            className={styles.videoPlayer}
-            aria-label={`${species} stage ${stage.label}: ${stage.title}`}
-          />
-        ) : (
-          <p className={styles.videoUnavailable}>No published video is available for this stage.</p>
-        )}
-      </div>
+      {stage.video && (
+        <video
+          src={stage.video.path}
+          controls
+          preload="none"
+          poster={posterFor(stage.video.path)}
+          className={styles.videoPlayer}
+          aria-label={`${species} stage ${stage.label}: ${stage.title}`}
+        />
+      )}
     </div>
   );
 }

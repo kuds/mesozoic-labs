@@ -477,7 +477,7 @@ class TestThresholdsFromConfigs:
         # Every model, both Compsognathus embodiments included: D-B14 keeps
         # them on reward_and_length/v1, and the loop must see them so a kind
         # drift there fails here too.
-        assert len(model_ids()) == 6
+        assert len(model_ids()) == 7
         for model_id in model_ids():
             stages = load_all_stages(model_id)
             chain = {stage: cfg for stage, cfg in stages.items() if isinstance(stage, int)}
@@ -498,10 +498,10 @@ class TestThresholdsFromConfigs:
         # The six-heading certificate since D-D32, stance_quality/v2 from physics r8 (D-D24) and
         # stance_quality/v1 before it: a stance kind every time.
         assert curriculum["gate_kind"] == "stance_quality_heading/v1"
-        # The statue scores 4470.4 at 1000.0 steps on the r10 LTSB stance task (the stance-landing decision of
+        # The statue scores 4470.6 at 1000.0 steps on the r11 plant under the LTSB stance task (the stance-landing decision of
         # 2026-11-06; 3766.6 on the D-D27 task and physics r10, 3756.8 through r9, 3766.1 on the r8 task, 3271.8 when
         # the reward gate was retired), so the retired reward and length criteria were both cleared by doing nothing.
-        assert curriculum["min_avg_reward"] < curriculum["collapse_peak_floor_reference"] == 4470.4, (
+        assert curriculum["min_avg_reward"] < curriculum["collapse_peak_floor_reference"] == 4470.6, (
             "reward must be a rail below the statue, not a gate"
         )
         assert "min_avg_episode_length" not in curriculum

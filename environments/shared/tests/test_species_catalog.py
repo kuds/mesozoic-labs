@@ -55,6 +55,7 @@ from .notebook_cells import cell_sources, code_cell_sources
 
 GOLDEN_RESULTS_BLOCK = Path(__file__).parent / "fixtures" / "readme_results_block_2026_09_06.md"
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
+ALLOSAURUS_FRAGILIS = ModelId("allosaurus_fragilis", "anatomical")
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
@@ -67,6 +68,7 @@ MODEL_IDS = (
     DIBOTHROSUCHUS_ELAPHROS,
     COMPSOGNATHUS_LONGIPES,
     COMPSOGNATHUS_LONGIPES_ROBOT,
+    ALLOSAURUS_FRAGILIS,
 )
 
 
@@ -107,6 +109,7 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         # note 21).  The velociraptor's life-size plant (note 22, the
         # maintainer's decision of 2026-11-08): 23 hinges, 17 servos, six
         # per-site foot channels, 15 kg (r4: 69, 22, 31, 30, 22, 13.5).
+        ALLOSAURUS_FRAGILIS: (45, 10, 19, 18, 10, 1482.2),
         VELOCIRAPTOR_MONGOLIENSIS: (71, 17, 30, 29, 17, 15.0),
         TYRANNOSAURUS_REX: (63, 15, 28, 27, 15, 85.72),
         BRACHIOSAURUS_ALTITHORAX: (86, 30, 38, 37, 30, 175.3),
@@ -186,6 +189,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "generated_with": {"mujoco": "3.10.0", "float_significant_digits": 12},
     }
     expected_observation_schemas = {
+        ALLOSAURUS_FRAGILIS: "bipedal-target-heading-free/v1",
         VELOCIRAPTOR_MONGOLIENSIS: "bipedal-target-heading-free/v1",
         TYRANNOSAURUS_REX: "bipedal-target-heading-free/v1",
         BRACHIOSAURUS_ALTITHORAX: "quadrupedal-target/v1",
@@ -250,28 +254,36 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # the maintainer's decision of 2026-11-06): POLICY only, physics and visual unchanged.
     # The velociraptor's life-size plant (note 22, the maintainer's decision of
     # 2026-11-08): PHYSICS, POLICY and VISUAL.
+    # The reconstructed Compsognathus anatomy changes the hindlimb, foot
+    # contacts, passive flexor and home preload: physics/visual r3, policy r6.
+    # Brachiosaurus and dibothrosuchus declared SB3-only when the frozen MJX
+    # interface core was removed (plant_versions note 23): POLICY only,
+    # physics and visual unchanged.
     expected_policy_revisions = {
+        ALLOSAURUS_FRAGILIS: 1,
         VELOCIRAPTOR_MONGOLIENSIS: 14,
-        TYRANNOSAURUS_REX: 15,
-        BRACHIOSAURUS_ALTITHORAX: 9,
-        DIBOTHROSUCHUS_ELAPHROS: 8,
-        COMPSOGNATHUS_LONGIPES: 5,
+        TYRANNOSAURUS_REX: 16,
+        BRACHIOSAURUS_ALTITHORAX: 11,
+        DIBOTHROSUCHUS_ELAPHROS: 10,
+        COMPSOGNATHUS_LONGIPES: 6,
         COMPSOGNATHUS_LONGIPES_ROBOT: 3,
     }
     expected_physics_revisions = {
+        ALLOSAURUS_FRAGILIS: 1,
         VELOCIRAPTOR_MONGOLIENSIS: 5,
-        TYRANNOSAURUS_REX: 10,
-        BRACHIOSAURUS_ALTITHORAX: 5,
-        DIBOTHROSUCHUS_ELAPHROS: 2,
+        TYRANNOSAURUS_REX: 11,
+        BRACHIOSAURUS_ALTITHORAX: 6,
+        DIBOTHROSUCHUS_ELAPHROS: 3,
     }
     expected_visual_revisions = {
-        VELOCIRAPTOR_MONGOLIENSIS: 5,
-        TYRANNOSAURUS_REX: 4,
-        BRACHIOSAURUS_ALTITHORAX: 2,
-        DIBOTHROSUCHUS_ELAPHROS: 1,
+        ALLOSAURUS_FRAGILIS: 1,
+        VELOCIRAPTOR_MONGOLIENSIS: 6,
+        TYRANNOSAURUS_REX: 5,
+        BRACHIOSAURUS_ALTITHORAX: 3,
+        DIBOTHROSUCHUS_ELAPHROS: 2,
     }
     for revisions in (expected_physics_revisions, expected_visual_revisions):
-        revisions.update({COMPSOGNATHUS_LONGIPES: 2, COMPSOGNATHUS_LONGIPES_ROBOT: 1})
+        revisions.update({COMPSOGNATHUS_LONGIPES: 3, COMPSOGNATHUS_LONGIPES_ROBOT: 1})
     # Every table pins every model (review M4): a new model fails here, naming the table.
     for name, table in (
         ("expected_policy_revisions", expected_policy_revisions),
@@ -343,7 +355,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # airborne terms; 3091.3 on r4 with the 2026-11-06 terms, 2843.0 on r4
     # before them, 2842.8 on r3 with its stance-quality terms, 1745.8 on the r2 plant),
     # brachiosaurus 1739.1 (on
-    # the plant repaired by plant_versions notes 7-8; 1738.4 on physics r5),
+    # the plant repaired by plant_versions notes 7-8; 1749.6 on physics r6, 1738.4 on r5),
     # dibothrosuchus 2598.3 (2598.5 on physics r2); the elliptic cone of note
     # 17 moves none of the three rails.
     #
@@ -375,7 +387,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         # 0.60 x 3341.0 = 2004.6 -> 2000 nearest-10 (physics r5; 1850 on r4's 3091.3, 1710 on 2842.8 before the
         # 2026-11-06 [env], 1050 on the r2 plant).
         VELOCIRAPTOR_MONGOLIENSIS: 2000.0,
-        BRACHIOSAURUS_ALTITHORAX: 1040.0,
+        BRACHIOSAURUS_ALTITHORAX: 1050.0,
         DIBOTHROSUCHUS_ELAPHROS: 1560.0,
     }
 
@@ -525,6 +537,16 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     }
 
     for model_id, entry in models.items():
+        if model_id == ALLOSAURUS_FRAGILIS:
+            assert [stage["id"] for stage in entry["stages"]] == ["stance", "locomotion"]
+            stance, walk = (stage["advancement_gate"] for stage in entry["stages"])
+            assert stance["gate_kind"] == "stance_quality/v1"
+            assert stance["min_full_horizon_fraction"] == 0.95
+            assert stance["max_unsupported_duty"] == stance["max_unsupported_duty_ucb"] == 0.02
+            assert stance["min_eval_episodes"] == 40
+            assert walk["gate_kind"] == "reward_and_length/v1"
+            assert stance["min_avg_forward_velocity"] is None and walk["min_avg_forward_velocity"] == 0.25
+            continue
         if model_id.species == "compsognathus_longipes":
             stages_by_id = {stage["id"]: stage for stage in entry["stages"]}
             first, second, third = (
@@ -695,23 +717,20 @@ def test_catalog_scopes_success_semantics_to_training_backends() -> None:
     catalog = build_catalog()
     models = _models(catalog)
 
-    # Velociraptor is SB3-only since policy-interface revision 11 and the
-    # T-Rex since revision 14, so each catalog carries the contact semantics
-    # alone; brachiosaurus and dibothrosuchus still declare both backends and
-    # keep one metric per backend.
-    for sb3_only in (VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX):
+    # Velociraptor is SB3-only since policy-interface revision 11, the T-Rex
+    # since revision 14, and brachiosaurus and dibothrosuchus since revisions
+    # 11 and 10 (plant_versions note 23, the frozen MJX core removed), so each
+    # catalog carries its SB3 semantics alone: the proximity proxies the MJX
+    # path scored are gone with it.
+    for sb3_only in (VELOCIRAPTOR_MONGOLIENSIS, TYRANNOSAURUS_REX, DIBOTHROSUCHUS_ELAPHROS):
         metrics = models[sb3_only]["success_metrics"]
         assert [metric["backends"] for metric in metrics] == [["stable-baselines3"]], sb3_only
         assert "contacts the prey geom" in metrics[0]["definition"], sb3_only
-        assert all(metric["backends"] == ["stable-baselines3"] for metric in models[sb3_only]["deliverable_metrics"]), (
-            sb3_only
+    for model_id in model_ids():
+        assert all(metric["backends"] == ["stable-baselines3"] for metric in models[model_id]["success_metrics"])
+        assert all(metric["backends"] == ["stable-baselines3"] for metric in models[model_id]["deliverable_metrics"]), (
+            model_id
         )
-
-    brachiosaurus_altithorax_metrics = models[BRACHIOSAURUS_ALTITHORAX]["success_metrics"]
-    assert {backend for metric in brachiosaurus_altithorax_metrics for backend in metric["backends"]} == {
-        "stable-baselines3",
-        "jax-mjx",
-    }
 
 
 def test_manifest_covers_all_curated_results_and_implemented_models() -> None:
@@ -828,9 +847,11 @@ def test_missing_manifest_path_is_rejected(tmp_path: Path) -> None:
         build_catalog(broken_manifest)
 
 
-def test_catalog_refuses_the_sb3_notebook_for_a_species_that_does_not_train_on_sb3(tmp_path: Path) -> None:
+def test_catalog_refuses_a_species_that_does_not_train_on_sb3(tmp_path: Path) -> None:
     # Velociraptor declares itself SB3-only (policy-interface revision 11), so
     # the broken copy flips that declaration rather than adding a second one.
+    # The manifest reader refuses jax-mjx before the catalog's sb3_training
+    # check is reached: the backend was removed (plant_versions note 23).
     declaration = 'model_path = "environments/velociraptor_mongoliensis/anatomical/assets/velociraptor_mongoliensis_anatomical.xml"\ntraining_backends = ["stable-baselines3"]\n'
     manifest_text = DEFAULT_MANIFEST_PATH.read_text(encoding="utf-8")
     assert manifest_text.count(declaration) == 1
@@ -841,7 +862,9 @@ def test_catalog_refuses_the_sb3_notebook_for_a_species_that_does_not_train_on_s
     )
 
     with pytest.raises(
-        CatalogError, match="velociraptor_mongoliensis/anatomical advertises unsupported notebook sb3_training"
+        CatalogError,
+        match=r"velociraptor_mongoliensis/anatomical training_backends must be a non-empty subset of "
+        r"\('stable-baselines3',\)",
     ):
         build_catalog(broken_manifest)
 
@@ -1954,9 +1977,10 @@ def test_readme_results_block_preserves_ladder_history_with_stance_labels() -> N
     Decision D-D33 moved the four summaries to ``results/<species>/<embodiment>/``
     and heads each section with the model display name.  The fixture is
     unchanged: its four headings and four source links are normalised here
-    from the catalog's own records (the species display name becomes the
-    model's, each link the recorded ``summary_path``), and every other byte
-    must still match.
+    from the catalog's own records (the species display name, which the
+    fixture spells in its earlier Title Case, becomes the model's display
+    name, each link the recorded ``summary_path``), and every other byte must
+    still match.
     """
     golden = GOLDEN_RESULTS_BLOCK.read_text(encoding="utf-8").replace("1 — Balance", "1 — Stance")
     assert golden.count("### ") == 4
@@ -1968,7 +1992,7 @@ def test_readme_results_block_preserves_ladder_history_with_stance_labels() -> N
     for index, line in enumerate(lines):
         if line.startswith("### "):
             entry, _ = next(sections)
-            heading = f"### {entry['species_display_name']} ("
+            heading = f"### {entry['species_display_name'].title()} ("
             assert line.startswith(heading), line
             lines[index] = f"### {entry['display_name']} (" + line[len(heading) :]
     golden = "".join(lines)
@@ -2183,9 +2207,9 @@ def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monke
     assert rendered.count("**Deliverables:**") == 1
     # The other models' sections are untouched by the new line (headed by the model display name, D-D33).
     for heading in (
-        "### Velociraptor Mongoliensis (Anatomical) (PPO",
-        "### Velociraptor Mongoliensis (Anatomical) (SAC",
-        "### Brachiosaurus Altithorax (Anatomical)",
+        "### Velociraptor mongoliensis (Anatomical) (PPO",
+        "### Velociraptor mongoliensis (Anatomical) (SAC",
+        "### Brachiosaurus altithorax (Anatomical)",
     ):
         section = lambda text: text.split(heading, 1)[1].split("\n### ", 1)[0]  # noqa: E731
         assert section(rendered) == section(baseline)
@@ -2472,27 +2496,26 @@ def test_website_replication_formatter_mirrors_python() -> None:
     assert "(provisional, ${primary.replicationCount} of ${primary.certificationSeeds} seeds)" in headline_body
 
 
-def test_index_page_keys_video_cards_by_stage_id() -> None:
-    """The landing page keys and labels video cards by the manifest stage id/label, never the legacy number (D-A13).
+def test_animal_page_uses_catalog_stage_and_result_identity() -> None:
+    """Recovery has a stage ID and display label, but no legacy stage number (D-A13).
 
-    ``stage.number`` is null for a semantic-only stage (recovery), so a card
-    keyed by it collided with its siblings and read "STAGE null"; the
-    catalog's ``label`` is the canonical reference.  The hero headline comes
-    from ``headlineFor`` so a schema-4 result headlines its certified
-    primary deliverable and the ladder rows render exactly as before;
-    ``stage3SuccessRate`` is read nowhere outside the adapter.
+    The animal page lists studies for the selected model, including those without
+    a recording. Its player identifies the stage and reports the clip's provenance.
+    Result headlines come from the same schema-aware adapter as before.
     """
-    page = _website_source("pages/index.tsx")
-    assert "key={stage.number}" not in page
-    assert "STAGE {stage.number}" not in page
-    assert "stage ${stage.number}" not in page
+    page = _website_source("components/AnimalPage/index.tsx")
+    study = _website_source("components/AnimalPage/MovementStudy.tsx")
+    assert "stage.number" not in page
     assert "key={stage.id}" in page
-    assert "STAGE {stage.label.toUpperCase()}" in page
+    assert "label={stage.title}" in page
     assert "stage ${stage.label}: ${stage.title}" in page
+    assert "video.modelRevisionStatus" in page and "video.verificationStatus" in page
+    assert "aria-label={recording.label}" in study and "{recording.caption}" in study
 
-    import_block = page.split("from '@site/src/data/species';", 1)[0]
-    assert "headlineFor" in import_block
+    assert "model.featuredResult" in page
     assert "headlineFor(result)" in page
+    assert "headline.value" in page and "headline.label" in page
+    assert "result.provenance.modelRevisionStatus" in page and "result.provenance.verificationStatus" in page
 
     readers = sorted(
         path.relative_to(WEBSITE_SRC).as_posix()

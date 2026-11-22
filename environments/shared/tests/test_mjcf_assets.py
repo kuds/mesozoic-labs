@@ -25,6 +25,7 @@ ENVIRONMENTS_DIR = Path(__file__).resolve().parents[2]
 
 #: One pin per model, keyed by the model (review M4); its MJCF is ``ModelId.asset_path`` (decision D-D33).
 EXPECTED_MODELS = {
+    ModelId("allosaurus_fragilis", "anatomical"): ModelExpectations(19, 18, 10, 1482.2),
     ModelId("brachiosaurus_altithorax", "anatomical"): ModelExpectations(38, 37, 30, 175.3),
     ModelId("compsognathus_longipes", "anatomical"): ModelExpectations(24, 23, 14, 1.0),
     ModelId("compsognathus_longipes", "robot"): ModelExpectations(19, 18, 12, 1.5856),

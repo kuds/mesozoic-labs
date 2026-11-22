@@ -296,6 +296,7 @@ SYS_PATH_BOOTSTRAPS = {
     "environments/shared/train.py",
     "environments/tyrannosaurus_rex/scripts/test_env.py",
     "environments/velociraptor_mongoliensis/scripts/actuator_saturation_report.py",
+    "environments/velociraptor_mongoliensis/scripts/build_integument.py",
     "environments/velociraptor_mongoliensis/scripts/test_env.py",
 }
 

@@ -484,9 +484,8 @@ class TestCollapsePeakFloorIsDecoupledFromTheRewardGate:
         for those stage rows this assertion holds by the species-level
         exemption alone (follow-up: a maintainer config decision to add the
         pair or the unarmed statement there would let the exemption narrow
-        to per-stage statements).  Any other species' omission, and a
-        compsognathus omission whose stance TOML no longer records the
-        decision, still fails here.
+        to per-stage statements). The new Allosaurus stance and walk each
+        record the decision in their own TOML pending learned-policy runs.
         """
         from environments.shared.config import load_all_stages
         from environments.shared.species_names import model_ids
@@ -509,7 +508,14 @@ class TestCollapsePeakFloorIsDecoupledFromTheRewardGate:
             for stage, cfg in load_all_stages(model_id).items():
                 cur = cfg.get("curriculum_kwargs", {})
                 floor = collapse_settings_from_config(cur)["peak_floor"]
-                assert math.isfinite(floor) or model_id in unarmed_by_recorded_decision, (
+                unarmed = model_id in unarmed_by_recorded_decision
+                if model_id == ModelId("allosaurus_fragilis", "anatomical"):
+                    entry = resolve_stage_key(model_id, stage)
+                    stage_toml = model_id.path(_CONFIGS_DIR) / entry.config_file
+                    unarmed = entry.id in {"stance", "locomotion"} and "Deliberately omit a collapse floor" in (
+                        stage_toml.read_text(encoding="utf-8")
+                    )
+                assert math.isfinite(floor) or unarmed, (
                     f"{model_id} stage {stage} configures no collapse floor (neither collapse_peak_floor "
                     "nor the fraction/reference pair), so the backstop can never arm"
                 )
@@ -991,8 +997,8 @@ class TestTyrannosaurusRexBehaviorCollapseFloor:
         assert "collapse_peak_floor" not in cur
         settings = collapse_settings_from_config(cur)
         assert settings["peak_floor"] == pytest.approx(0.45 * cur["collapse_peak_floor_reference"])
-        assert cur["collapse_peak_floor_reference"] == pytest.approx(602.0)
-        assert settings["peak_floor"] == pytest.approx(270.9)
+        assert cur["collapse_peak_floor_reference"] == pytest.approx(601.1)
+        assert settings["peak_floor"] == pytest.approx(0.45 * 601.1)
         # D-B5: a judgment, not a replay -- bounded by the 600k entry window
         # below and the half-budget pin above.
         assert settings["peak_warmup_timesteps"] == 1_000_000
@@ -1000,11 +1006,11 @@ class TestTyrannosaurusRexBehaviorCollapseFloor:
         # Explicit, at locomotion's tuned values rather than the 12/8/0.4 defaults.
         assert (settings["min_evals"], settings["patience"], settings["drop_fraction"]) == (20, 10, 0.5)
         # The freshness pin that lets test_statue_constant_freshness.py guard it.
-        assert cur["statue_constants_physics_revision"] == 10
+        assert cur["statue_constants_physics_revision"] == 11
 
     def test_tyrannosaurus_rex_behavior_rail_sits_below_the_statue(self):
         """D-B4: the rail is round(0.6 x reference); a statue must clear it, a collapse must not."""
         cur = self._behavior_curriculum()
         assert 0 < cur["min_avg_reward"] < cur["collapse_peak_floor_reference"]
-        assert cur["min_avg_reward"] == round(0.6 * 602.13) == round(0.6 * 601.94)
+        assert cur["min_avg_reward"] == round(0.6 * cur["collapse_peak_floor_reference"])
         assert cur["min_avg_reward"] == 361

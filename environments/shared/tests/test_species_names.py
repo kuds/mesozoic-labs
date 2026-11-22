@@ -27,19 +27,21 @@ from .notebook_cells import cell_sources, first_code_cell
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SPECIES_DISPLAY_NAMES = {
-    "velociraptor_mongoliensis": "Velociraptor Mongoliensis",
-    "tyrannosaurus_rex": "Tyrannosaurus Rex",
-    "brachiosaurus_altithorax": "Brachiosaurus Altithorax",
-    "dibothrosuchus_elaphros": "Dibothrosuchus Elaphros",
-    "compsognathus_longipes": "Compsognathus Longipes",
+    "velociraptor_mongoliensis": "Velociraptor mongoliensis",
+    "tyrannosaurus_rex": "Tyrannosaurus rex",
+    "brachiosaurus_altithorax": "Brachiosaurus altithorax",
+    "dibothrosuchus_elaphros": "Dibothrosuchus elaphros",
+    "compsognathus_longipes": "Compsognathus longipes",
+    "allosaurus_fragilis": "Allosaurus fragilis",
 }
 MODEL_DISPLAY_NAMES = {
-    ModelId("velociraptor_mongoliensis", "anatomical"): "Velociraptor Mongoliensis (Anatomical)",
-    ModelId("tyrannosaurus_rex", "anatomical"): "Tyrannosaurus Rex (Anatomical)",
-    ModelId("brachiosaurus_altithorax", "anatomical"): "Brachiosaurus Altithorax (Anatomical)",
-    ModelId("dibothrosuchus_elaphros", "anatomical"): "Dibothrosuchus Elaphros (Anatomical)",
-    ModelId("compsognathus_longipes", "anatomical"): "Compsognathus Longipes (Anatomical)",
-    ModelId("compsognathus_longipes", "robot"): "Compsognathus Longipes (Robot)",
+    ModelId("velociraptor_mongoliensis", "anatomical"): "Velociraptor mongoliensis (Anatomical)",
+    ModelId("tyrannosaurus_rex", "anatomical"): "Tyrannosaurus rex (Anatomical)",
+    ModelId("brachiosaurus_altithorax", "anatomical"): "Brachiosaurus altithorax (Anatomical)",
+    ModelId("dibothrosuchus_elaphros", "anatomical"): "Dibothrosuchus elaphros (Anatomical)",
+    ModelId("compsognathus_longipes", "anatomical"): "Compsognathus longipes (Anatomical)",
+    ModelId("compsognathus_longipes", "robot"): "Compsognathus longipes (Robot)",
+    ModelId("allosaurus_fragilis", "anatomical"): "Allosaurus fragilis (Anatomical)",
 }
 
 
@@ -51,6 +53,8 @@ def _selection_code(model_id):
     """The selection cell with ``SPECIES`` and ``EMBODIMENT`` set to *model_id*'s IDs through the AST."""
     tree = ast.parse(_notebook_cell("# ===== SPECIES SELECTION ====="))
     values = {"SPECIES": model_id.species, "EMBODIMENT": model_id.embodiment}
+    if model_id.species == "allosaurus_fragilis":
+        values["BEHAVIOR"] = "walk"
     assigned = set()
     for statement in tree.body:
         if (
@@ -100,14 +104,12 @@ def test_manifest_display_names_cover_every_model():
 
 def test_backend_specific_models_do_not_advertise_unimplemented_jax():
     assert model_ids(backend="stable-baselines3") == tuple(MODEL_DISPLAY_NAMES)
-    # Velociraptor left jax-mjx at its policy-interface revision 11 (plant_versions note 14),
-    # the T-Rex at its revision 14 (note 18, the heading-free observation).
-    assert model_ids(backend="jax-mjx") == (
-        ModelId("brachiosaurus_altithorax", "anatomical"),
-        ModelId("dibothrosuchus_elaphros", "anatomical"),
-    )
-    with pytest.raises(ValueError, match="Unknown training backend"):
-        model_ids(backend="unsupported")
+    # Velociraptor left jax-mjx at its policy-interface revision 11 (plant_versions note 14), the T-Rex at its
+    # revision 14 (note 18, the heading-free observation), and brachiosaurus and dibothrosuchus at revisions 11 and
+    # 10 (note 23), when the backend was removed: it is now an unknown backend.
+    for backend in ("jax-mjx", "unsupported"):
+        with pytest.raises(ValueError, match="Unknown training backend"):
+            model_ids(backend=backend)
 
 
 def test_an_unknown_species_is_refused_for_training_and_for_labels():
@@ -125,7 +127,7 @@ def _selector_options(source, name):
 
 
 def test_colab_model_selectors_match_the_manifest():
-    """The notebook selects a model with two dropdowns: the five species IDs and the embodiments."""
+    """The notebook selects a model with two dropdowns: the species IDs and the embodiments."""
     for source in cell_sources(REPO_ROOT / "notebooks" / "sb3_training.ipynb"):
         species = _selector_options(source, "SPECIES")
         if species is not None:
