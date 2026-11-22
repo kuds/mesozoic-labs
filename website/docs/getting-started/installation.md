@@ -35,7 +35,8 @@ On Windows, the repository forces LF line endings on checkout (`.gitattributes`)
 
 ## Verify Installation
 
-Run these from the repository root. Each script runs as a module, which needs no further install:
+Run these from the repository root. Scripts run as modules, so they need no package install; the tests need the
+`test` extra:
 
 ```bash
 # View a model (requires a display; on macOS, use mjpython instead of python)
@@ -54,7 +55,7 @@ The setup cell checks out `REPO_REF` (a branch, a tag or a full commit) into `/c
 
 Available notebooks:
 
-- `notebooks/sb3_training.ipynb` - Trains one behavior (`BEHAVIOR = "hunt"` by default; `"stance"`, `"recover"`, `"walk"` or a deliverable's stage id) with SB3. Select `stance` or `walk` for Allosaurus. To reuse certified ancestors, set `TRUNK_FROM` as described in [Behavior Recipes](/docs/training/recipes)
+- `notebooks/sb3_training.ipynb` - Trains one behavior (`BEHAVIOR = "auto"` by default, the model's last deliverable; `"stance"`, `"recover"`, `"walk"` or a deliverable's stage id) with SB3. Select `stance` or `walk` for Allosaurus. To reuse certified ancestors, set `TRUNK_FROM` as described in [Behavior Recipes](/docs/training/recipes)
 - `notebooks/google_drive_summary.ipynb` - Training-run summaries and comparisons
 
 ## Dependencies

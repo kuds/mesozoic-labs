@@ -1156,7 +1156,7 @@ step at 0.99 with a median of 216
 checkpoint, offline and report-only:
 
 ```bash
-python environments/shared/scripts/episode_trace_report.py \
+python -m environments.shared.scripts.episode_trace_report \
     --species tyrannosaurus_rex --embodiment anatomical \
     --model RUN/01_stance/models/stage1_2097152_steps.zip \
     --vecnorm RUN/01_stance/models/stage1_vecnormalize_2097152_steps.pkl \
@@ -1279,7 +1279,7 @@ latest row. To see how one run's feet, balance, asymmetry, saturation, head
 posture and hip roll moved over its training, or to overlay several runs,
 draw them from the ledgers above:
 
-    python environments/shared/scripts/plot_training_history.py STAGE_DIR [STAGE_DIR ...] --out DIR \
+    python -m environments.shared.scripts.plot_training_history STAGE_DIR [STAGE_DIR ...] --out DIR \
         [--labels ...] [--groups ...] [--mark-steps 4194304 ... final] [--title ...] \
         [--reference-band LOWER UPPER PAD_LOWER PAD_UPPER] [--judged JUDGED_DIR ...] [--gait-evaluations K]
 

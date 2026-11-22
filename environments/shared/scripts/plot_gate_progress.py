@@ -13,8 +13,8 @@ nearest ancestor of STAGE_DIR holding ``provenance.json``) is refused.
 
 Usage::
 
-    python environments/shared/scripts/plot_gate_progress.py RUN/01_stance
-    python environments/shared/scripts/plot_gate_progress.py RUN/01_stance --out /tmp/s60.png
+    python -m environments.shared.scripts.plot_gate_progress RUN/01_stance
+    python -m environments.shared.scripts.plot_gate_progress RUN/01_stance --out /tmp/s60.png
 """
 
 from __future__ import annotations

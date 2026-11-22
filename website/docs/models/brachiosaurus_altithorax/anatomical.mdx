@@ -66,6 +66,9 @@ These PPO clips show earlier versions of the model. The revised animal's referen
 # From the repository root. View the model (requires a display)
 python -m environments.brachiosaurus_altithorax.scripts.view_model --embodiment anatomical
 
+# Replay the reference walk and print its measured contacts, clearance, slip and body motion
+python -m environments.brachiosaurus_altithorax.scripts.reference_walk
+
 # Train the stance node using its current TOML-configured budget
 python -m environments.shared.train --species brachiosaurus_altithorax --embodiment anatomical train --stage 1
 
