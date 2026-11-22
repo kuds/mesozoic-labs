@@ -95,3 +95,19 @@ These rules are therefore not blind to which feet tend to pass; the judged seeds
 - Simulation of rigid feet on a rigid floor; the rubber of a real pad is not modelled.
 - No terrain, no turning, no learned policy on the new feet (run 3 trains on the roll-ankle foot).
 - The crawl's planner assumes contact under the ankle pin; for the rounded feet the contact rolls a little.
+
+## Added after the judged result (22 Nov, after the independent review; no rule, seed or verdict changed)
+
+Disclosures this file should have made before the run:
+- **The C5c redefinition changed which feet pass.** On development seeds 1-4, the first C5c (the integrated sliding
+  speed) failed every foot under the model's contact: as built 13.4 mm, roll hinges 16.4-17.2, capsules 14.6-14.8,
+  balls 17.0-19.7. The net form (the same seeds: as built 4.9, roll 9.9, capsule r24 6.9, balls 11.0-13.1) is what
+  lets any foot pass C5c under the model's contact, the recommended one included. The net form copies C5's own form
+  (the largest distance from where the foot stood 0.10 s after touchdown), with the sliding in place of the pin.
+- **Ten variants, not eight,** were developed: the ten listed above.
+- **Why the 24 mm capsule and not the 16 mm one.** Both passed every rule in development. On the 16 mm capsule the
+  trot came closer to its limits:
+  - one episode at 0.227 m/s and one at 0.233 m/s;
+  - the worst joint at up to 0.97 of its rating (W3 needs under 1.0).
+  The 24 mm capsule's development trots ran at 0.245-0.260 m/s, with the worst joint at up to 0.87. The larger radius
+  was taken for margin.
