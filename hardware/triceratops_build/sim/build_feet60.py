@@ -29,7 +29,7 @@ CORNERS = ("left_fore", "right_fore", "left_hind", "right_hind")
 SOLE_BOTTOM = -0.036  # the as-built sole's lowest point below the ankle pin, m (pos z -0.0288, half height 0.0072)
 SOLE_HALF_LEN = 0.044
 SITE_PAD = 0.0004  # the load cell site's margin around the contact geometry, as built (0.04416 vs 0.044)
-CANDIDATES = ("pitch", "roll_k2.032", "roll_k8", "roll_k20", "capsule_r16", "ball_r30")
+CANDIDATES = ("pitch", "roll_k2.032", "capsule_r24", "ball_r30")  # the judged set (PREREG_FEET60.md)
 
 
 def edit(variant: str) -> str:
