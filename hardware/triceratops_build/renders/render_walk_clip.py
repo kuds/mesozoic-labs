@@ -73,7 +73,8 @@ def main():
     cam.trackbodyid = env._chassis
     cam.distance, cam.azimuth, cam.elevation = a.distance, a.azimuth, a.elevation
     mass = env.nominal_mass
-    title = f"Triceratops robot, 60 cm: trotting at its planned walking speed, {a.command:g} m/s (simulation)"
+    pace_title = "at its planned walking speed, 0.25 m/s" if a.command == 0.25 else f"at {a.command:g} m/s"
+    title = f"Triceratops robot, 60 cm: trotting {pace_title} (simulation)"
     pace = "shown at actual speed (1x)" if a.speed == 1 else f"shown at {a.speed:g}x speed"
     caption = [f"MuJoCo model, {mass:.1f} kg, design variant with passive roll ankles. Model-based trot, {pace}.",
                "10 ms servo delay and sensor noise simulated. Not hardware; nothing is built yet."]

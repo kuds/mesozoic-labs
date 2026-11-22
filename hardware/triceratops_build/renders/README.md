@@ -43,7 +43,7 @@ top left and another bottom right, so a crop around the robot keeps one. The flo
   - sideways drift 0.07 m and heading change 2.9° over 18 s;
   - slip ratio 0.06-0.10;
   - the report's two weak points are visible here too: the right fore pitch drive is at its torque limit in 2.4 %
-    of steps (the flag is 1 %), and the front feet touch down 3.4 times per second against 1.4 strides, so a
+    of steps (the flag is 1 %), and the front feet touch down 3.4 times per second against 1.4 strides per second, so a
     second touch after landing may be seen.
 - **Where it is:** on the data branch `claude/triceratops-build-clips` (the latest commit there replaces the first
   render of 22 Nov). Fetch it with `git fetch origin claude/triceratops-build-clips`, then
