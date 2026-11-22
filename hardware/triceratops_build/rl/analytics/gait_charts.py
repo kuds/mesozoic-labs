@@ -264,7 +264,8 @@ def chart_balance(R, P, out: Path) -> str:
     ax3.legend(loc="lower right", ncol=2, fontsize=7.5)
     ax3.set_xlabel("time, s (nominal model, observation noise off, seed 100000)")
     cs.frame(fig, "Balance: centre of pressure and centre of mass against the feet on the ground",
-             f"{_run_label(R)}. Support polygon: hull of the sole corners of the feet in stance (step contact, as the "
+             f"{_run_label(R)}. Support polygon: hull of the "
+             f"{gc.SOLE_POINTS[R['cases']['nominal_0.25']['summary'].get('sole_kind', 'box')]} of the feet in stance (step contact, as the "
              "footfalls).\nMargin: distance inside the nearest edge (negative outside). " + _balance_numbers(R),
              _footer(R, "Panels: nominal model, noise off, 0.25 m/s; figures in the subtitle: randomised, 5 episodes"))
     cs.save(fig, out / "balance.png")
@@ -682,5 +683,13 @@ def chart_speed(R, P, out: Path) -> str:
 def make_all(R: dict, P: dict, out: Path) -> list[str]:
     cs.setup()
     out = Path(out)
-    return [f(R, P, out) for f in (chart_footfall, chart_weight, chart_balance, chart_drive_envelopes, chart_drive_loads,
-                                   chart_power, chart_steadiness, chart_feet, chart_speed)]
+    made = []
+    for f in (chart_footfall, chart_weight, chart_balance, chart_drive_envelopes, chart_drive_loads, chart_power,
+              chart_steadiness, chart_feet, chart_speed):
+        try:
+            made.append(f(R, P, out))
+        except Exception as exc:  # a chart that cannot be drawn (e.g. a policy that never steps) is named, not fatal:
+            plt.close("all")      # the numbers in gait_report.json do not depend on the charts
+            made.append(f"{f.__name__}: not drawn ({type(exc).__name__}: {exc})")
+            print(f"WARNING: {made[-1]}")
+    return made

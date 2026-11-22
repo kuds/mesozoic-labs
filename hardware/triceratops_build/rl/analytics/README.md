@@ -103,7 +103,7 @@ case's episodes together) is stated.
 ### Balance (`balance.png`)
 
 - **Support polygon:** convex hull (shared `stance_track.convex_hull`) of the four bottom corners of each sole (box
-  88 x 64 mm) of the feet **in stance on the step contact** the footfalls use (the env's 10 ms debounce, then gaps and
+  88 x 64 mm; for the capsule sole of D19 the two ends of its straight contact line, `gait_core.sole_bottom_points`) of the feet **in stance on the step contact** the footfalls use (the env's 10 ms debounce, then gaps and
   blips under 50 ms merged), at every 1 ms step. Raw 2 N contact would count every 1-2 ms solver rebound of one foot
   of a diagonal pair as a lift, leaving one foot "down" and the CoM about 0.2 m outside: it measures the contact
   model, not the gait. The env-debounce (10 ms) and raw-contact figures are reported as labelled footnotes
@@ -173,13 +173,19 @@ All at the joint, every 1 ms step of the window. The flexion joints work through
 
 ### Feet (`feet.png`)
 
-- **Swing clearance:** in each complete step-level swing, the highest point reached by the sole's lowest bottom corner
-  above the floor (mm); swings under 5 mm counted as scuffs.
+- **Swing clearance:** in each complete step-level swing, the highest point reached by the sole's lowest point (a box
+  sole's lowest bottom corner, a capsule's or ball's true lowest point) above the floor (mm); swings under 5 mm
+  counted as scuffs.
 - **Touchdown impact:** the sole's downward speed at the sample before each step touchdown (m/s); peak load rate, the
   largest 5 ms rise of that foot's load in the first 30 ms after touchdown (body weights per second); peak load in the
   first 50 ms (body weights).
 - **Slip in stance:** the sole's horizontal speed while loaded (raw 2 N contact, as `gait_pipe1.py`): mean, 95th
-  percentile, and the **slip ratio**, the sole's travel while loaded / the chassis's forward travel.
+  percentile, and the **slip ratio**, the sole's travel while loaded / the chassis's forward travel. Taken at the
+  sole's origin (`stance_slip`, as before) and at the mean point of its contacts (`stance_slip_at_contact`, added
+  22 Nov 2026): a capsule or ball that rolls without sliding moves its origin, and a box sole tipping on an edge
+  does too. On run2b's policy the two agree within 0.03.
+- **Robustness:** for a policy that does not step, stride measures are undefined (None), a chart that cannot be drawn
+  is named in `charts` instead, and the Markdown falls back to a short note; `gait_report.json` is always complete.
 - **Roll-ankle angle** (roll-ankle model only): the passive ankle-roll joint angle, 1st-99th percentile and
   min-max, the stance-only range and the time within 2 % of its +-20 deg limit. The ankle pitch range is reported for
   every case.

@@ -185,6 +185,18 @@ def terrain_xml(model_path: str, terrain) -> str:
     return spec.to_xml()
 
 
+FLAT_FLOOR = {"terrain_boxes": 0, "push_prob": 0.0, "friction_low_hard": None}  # gait_pipe1.flat_floor's fields
+
+
+def config_diffs(env_config: dict, cfg) -> dict:
+    """The run record's env-config fields that the measuring env's config ``cfg`` does not reproduce, as
+    {field: (env's, expected)}. The flat-floor fields (run 3's training terrain, pushes and low-friction end) are
+    expected at their flat values, since every measurement here is on the flat floor (``build_env``)."""
+    mine = json.loads(json.dumps(cfg.to_dict()))
+    want = {**env_config, **{k: v for k, v in FLAT_FLOOR.items() if k in env_config}}
+    return {k: (mine.get(k), v) for k, v in want.items() if k != "model_path" and mine.get(k) != v}
+
+
 def build_env(env_config: dict, terrain=None, randomise=False) -> PointEnv:
     """The run's env (its run record's config) on the nominal model, randomisation off unless ``randomise``,
     observation noise as configured (on for pipe1)."""
@@ -867,8 +879,7 @@ def main(argv=None):
 
     # consistency checks, as gait_pipe1 does
     env = build_env(ec, randomise=True)
-    mine = json.loads(json.dumps(env.cfg.to_dict()))
-    diffs = {k: (mine.get(k), v) for k, v in ec.items() if k != "model_path" and mine.get(k) != v}
+    diffs = config_diffs(ec, env.cfg)  # run 3's record: its terrain, pushes and low-friction end are off here
     assert not diffs, f"environment config differs from the run record: {diffs}"
     stats = G.load_obs_stats(pk)
     assert stats[0].shape == env.observation_space.shape, (stats[0].shape, env.observation_space.shape)

@@ -239,6 +239,9 @@ def sole_bottom_corners(xpos, xmat, size) -> np.ndarray:
     return xpos[..., None, :] + np.einsum("...ij,kj->...ki", R, local)
 
 
+SOLE_POINTS = {"box": "sole corners", "capsule": "capsule soles' contact-line ends", "sphere": "ball soles' lowest points"}
+
+
 def sole_bottom_points(xpos, xmat, size, kind: str = "box") -> np.ndarray:
     """World positions of the points a sole stands on, by the sole's shape; the lowest of them is its lowest point.
 

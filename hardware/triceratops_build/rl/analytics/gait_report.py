@@ -71,7 +71,6 @@ REFERENCE_JSON = RL / "analysis" / "results" / "gait_pipe1_2026-11-19.json"
 DEFAULT_MODEL = "trike60_C_closed.xml"
 ANKLEROLL_MODEL = "trike60_C_closed_ankleroll.xml"
 
-SOLE_POINTS = {"box": "sole corners", "capsule": "capsule soles' contact-line ends", "sphere": "ball soles' lowest points"}
 GROUP_DRIVE = {"roll": "X4-36-L", "pitch": "X4-36-L", "front elbow": "X6-60", "hind knee": "X4-36-L"}
 CATALOG_ID = {"X4-36-L": "myactuator_rmd_x4_p36_36_e_l", "X6-60": "myactuator_rmd_x6_p20_60_e"}
 BATTERY_WH, BATTERY_USABLE = 146.5, 0.80
@@ -656,6 +655,11 @@ def _mean(vals):
     return float(np.mean(v)) if v else None
 
 
+def _add(a, b):
+    """a + b, or None when either is undefined (a foot that never stood in the window)."""
+    return None if a is None or b is None else a + b
+
+
 def _max(vals):
     v = [x for x in vals if x is not None and math.isfinite(x)]
     return float(max(v)) if v else None
@@ -713,8 +717,8 @@ def summarise_case(eps: list[dict], pays: list[dict]) -> dict:
     load = lambda c: ff["mean_load_bw"][c]  # noqa: E731
     ff["symmetry_index_pct"] = {
         name: {"fore (LF vs RF)": si("left_fore", "right_fore", f), "hind (LH vs RH)": si("left_hind", "right_hind", f),
-               "sides (LF+LH vs RF+RH)": gc.symmetry_index(f("left_fore") + f("left_hind"),
-                                                           f("right_fore") + f("right_hind"))}
+               "sides (LF+LH vs RF+RH)": gc.symmetry_index(_add(f("left_fore"), f("left_hind")),
+                                                           _add(f("right_fore"), f("right_hind")))}
         for name, f in (("duty_factor", duty), ("stance_duration", sms), ("stance_length", stl), ("load", load))}
     ff["touchdowns_equal_training_eval"] = all(e["footfall"]["touchdowns_equal_training_eval"] for e in M) \
         if all(e["footfall"]["touchdowns_equal_training_eval"] is not None for e in M) else None
@@ -732,9 +736,10 @@ def summarise_case(eps: list[dict], pays: list[dict]) -> dict:
     prof = np.concatenate([np.asarray(p["stride_load_profiles"]).reshape(-1, 101, 4) for p in pays])
     wt["strides"] = int(prof.shape[0])
     wt["stride_profile_every_5pct"] = {
-        c: {"mean": prof[:, ::5, j].mean(0).round(4).tolist(),
-            "p10": np.percentile(prof[:, ::5, j], 10, axis=0).round(4).tolist(),
-            "p90": np.percentile(prof[:, ::5, j], 90, axis=0).round(4).tolist()} for j, c in enumerate(CORNERS)}
+        c: ({"mean": prof[:, ::5, j].mean(0).round(4).tolist(),
+             "p10": np.percentile(prof[:, ::5, j], 10, axis=0).round(4).tolist(),
+             "p90": np.percentile(prof[:, ::5, j], 90, axis=0).round(4).tolist()} if prof.shape[0] else None)
+        for j, c in enumerate(CORNERS)}  # None: no complete stride in any episode (a policy that does not step)
     s["weight"] = wt
     # balance: the headline on step contact, and the env-debounce and raw-contact variants
     for key in ("balance", "balance_env_debounce", "balance_raw_contact"):
@@ -922,8 +927,17 @@ def main(argv=None) -> int:
         gz.write((json.dumps(episodes, default=float) + "\n").encode())
     for f in ("gait_report.json", "gait_report_episodes.json.gz"):
         assert (out / f).stat().st_size < 500 * 1024, (f, (out / f).stat().st_size)
-    (out / "gait_report.md").write_text(markdown(results))
+    try:
+        md = markdown(results)
+    except Exception as exc:  # e.g. a policy that never steps leaves gait measures undefined; the JSON holds them all
+        md = (f"# Gait report: {results['label']} (simulation)\n\nThe Markdown summary could not be written "
+              f"({type(exc).__name__}: {exc}), most likely because the policy does not walk and some gait measures "
+              "are undefined. Every number is in `gait_report.json` and `gait_report_episodes.json.gz`.\n")
+        print(f"WARNING: Markdown summary not written ({type(exc).__name__}: {exc}); gait_report.json is complete")
+    (out / "gait_report.md").write_text(md)
     for f in results["charts"]:
+        if not (out / f).exists():
+            continue  # a chart that could not be drawn (named in results["charts"])
         size = (out / f).stat().st_size
         assert size < 500 * 1024, (f, size)
     print("wrote", out)
@@ -1164,7 +1178,7 @@ def markdown(R: dict) -> str:
     # c
     b = T["balance"]
     L += ["## c. Balance (`balance.png`)", "",
-          f"Support polygon: hull of the {SOLE_POINTS[T.get('sole_kind', 'box')]} of the feet in stance on the step "
+          f"Support polygon: hull of the {gc.SOLE_POINTS[T.get('sole_kind', 'box')]} of the feet in stance on the step "
           "contact the footfalls use (the "
           "env's 10 ms debounce, then gaps and blips under 50 ms merged); CoP from those soles' contact forces. "
           f"CoM ground projection outside the polygon {100 * b['com_margin_negative_fraction']:.1f} % of the time (by feet "

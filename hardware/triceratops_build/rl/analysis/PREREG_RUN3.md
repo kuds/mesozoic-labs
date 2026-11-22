@@ -106,7 +106,18 @@ Changed after the foot study's result (`sim/REPORT_FEET60.md`, F17) and the owne
 - **The run2b column is no longer a one-change comparison.** Run2b trained on the roll-ankle foot with the slip cost
   at the origin. Run 3 differs also in the foot and the slip cost, so a difference from run2b cannot be put down to
   the terrain training alone.
-- **Expected cost:** see the step sheets (the env's speed on the capsule model was measured again).
+- **Two tool faults found by an end-to-end check, fixed before any run.** The check was a short capsule training, then
+  both tools on its checkpoint and on run2b's policy placed on the capsule model; it is not a result.
+  - **The sweep refused every run-3 checkpoint.** Its check that the measuring env matches the run record did not
+    allow for the flat-floor reduction (terrain, pushes and the low-friction end off), so it stopped with "environment
+    config differs from the run record". The check now expects those three fields at their flat values and still
+    catches any other difference (tested). This fault was in the run-3 setup as first reviewed.
+  - **The gait report stopped on a policy that does not walk.** It stopped at undefined stride measures. It now
+    writes `gait_report.json` in full: F1's speed and falls and F2's RMS torque are defined for any policy that runs.
+    A chart that cannot be drawn is named instead of drawn. If the Markdown summary cannot be written, a short note
+    replaces it. A seed whose final policy does not walk therefore fails F1 rather than going unmeasured.
+- **Expected cost:** about 3 to 4.1 hours per seed (the step sheets). In a local check with 4 envs, training ran 1.35-1.45
+  times as fast on the capsule model as on the roll-ankle model.
 
 ## Revised before any run (after the independent review of 4bafe666; no run had started)
 

@@ -1614,6 +1614,7 @@ def test_sweep_and_evaluate_build_flat_envs_from_a_run3_record(tmp_path):
 
     import evaluate
     import sweep
+    import trike_env
 
     for foot in ("trike60_C_closed_capsule.xml", "trike60_C_closed_ankleroll.xml"):  # run 3's foot last (below)
         ec = json.loads(json.dumps({**_rough().cfg.to_dict(), "model_path": foot}, default=list))
@@ -1623,6 +1624,11 @@ def test_sweep_and_evaluate_build_flat_envs_from_a_run3_record(tmp_path):
             assert Path(env.cfg.model_path).name.startswith(foot[:-4]) or terrain is not None
             env.reset(seed=0)
             assert env._lowest_sole_z() == pytest.approx(env.cfg.reset_sole_clearance, abs=1e-6)
+        # sweep.main's consistency check accepts a run-3 record (its terrain fields flat), and still catches a change
+        env = sweep.build_env(ec, randomise=True)
+        assert sweep.FLAT_FLOOR == trike_env.FLAT_FLOOR and sweep.config_diffs(ec, env.cfg) == {}
+        assert sweep.config_diffs(ec, env.cfg.replace(w_slip=0.5)) == {"w_slip": (0.5, ec["w_slip"])}
+        assert sweep.config_diffs(ec, env.cfg.replace(terrain_boxes=8)) == {"terrain_boxes": (8, 0)}
     run = tmp_path / "run"
     run.mkdir()
     (run / "run_record.json").write_text(json.dumps({"settings": {"env_config": ec}}))
