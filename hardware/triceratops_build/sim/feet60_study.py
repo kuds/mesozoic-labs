@@ -28,7 +28,8 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 WALK = HERE.parent / "walk"
-for p in (HERE, WALK):
+RL = HERE.parent / "rl"
+for p in (HERE, WALK, RL):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
