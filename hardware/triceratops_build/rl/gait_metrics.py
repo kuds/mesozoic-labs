@@ -33,9 +33,13 @@ WINDOW_S = 2.0
 AT_LIMIT = 0.99
 
 
-def record_episode(env: TrikeEnv, act, *, seed: int, command: float | None, delay_steps: int = 10) -> dict:
+def record_episode(env: TrikeEnv, act, *, seed: int, command: float | None, delay_steps: int = 10,
+                   slip_at_contact: bool = False) -> dict:
     """Run one episode with ``act(obs) -> action`` and log every physics step; returns the log (``measures`` input).
-    The log's keys and shapes follow ``analysis/gait_pipe1.run_episode``. ``command`` None: drawn as in training."""
+    The log's keys and shapes follow ``analysis/gait_pipe1.run_episode``. ``command`` None: drawn as in training.
+    ``slip_at_contact``: a sole's horizontal speed is taken at its contacts (their mean point) instead of at the
+    sole's own origin, so a ball or capsule rolling without sliding counts as not slipping (the foot study,
+    sim/build_feet60.py); with no contact it is the origin's speed, as by default."""
     options = {"delay_steps": delay_steps}
     if command is not None:
         options["command_speed"] = command
@@ -54,6 +58,14 @@ def record_episode(env: TrikeEnv, act, *, seed: int, command: float | None, dela
         sv = []
         for g in e._soles:
             mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_GEOM, int(g), vel6, 0)
+            if slip_at_contact and d.ncon:
+                gg = d.contact.geom[:d.ncon]
+                hit = (gg[:, 0] == g) | (gg[:, 1] == g)
+                if hit.any():
+                    r = d.contact.pos[:d.ncon][hit].mean(axis=0) - d.geom_xpos[g]
+                    v = vel6[3:] + np.cross(vel6[:3], r)
+                    sv.append(math.hypot(v[0], v[1]))
+                    continue
             sv.append(math.hypot(vel6[3], vel6[4]))
         log["sole_v"].append(sv)
         log["pos"].append(d.xpos[e._chassis].copy())

@@ -822,12 +822,21 @@ class TrikeEnv(gym.Env):
 
     # ------------------------------------------------------------------ pieces
     def _lowest_sole_z(self) -> float:
+        """Lowest point of the four soles: a box sole's bottom corners (the as-built foot), or, for the foot study's
+        variants (sim/build_feet60.py), a sphere's or a capsule's lowest surface point."""
         d, lowest = self.data, np.inf
         signs = np.array([[sx, sy, -1.0] for sx in (-1.0, 1.0) for sy in (-1.0, 1.0)])
         for g in self._soles:
             R = d.geom_xmat[g].reshape(3, 3)
-            pts = d.geom_xpos[g] + (signs * self.model.geom_size[g]) @ R.T
-            lowest = min(lowest, float(pts[:, 2].min()))
+            size, kind = self.model.geom_size[g], int(self.model.geom_type[g])
+            if kind == mujoco.mjtGeom.mjGEOM_SPHERE:
+                z = float(d.geom_xpos[g, 2] - size[0])
+            elif kind == mujoco.mjtGeom.mjGEOM_CAPSULE:  # axis along the geom's z, half length size[1]
+                z = float(d.geom_xpos[g, 2] - abs(R[2, 2]) * size[1] - size[0])
+            else:
+                pts = d.geom_xpos[g] + (signs * size) @ R.T
+                z = float(pts[:, 2].min())
+            lowest = min(lowest, z)
         return lowest
 
     def _non_foot_floor_contact(self) -> int:

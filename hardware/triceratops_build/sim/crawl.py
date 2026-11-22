@@ -232,7 +232,9 @@ def apply_seed(model, data, seed):
     return mu
 
 
-def run(model_path, seed, P=PARAMS, video=None):
+def run(model_path, seed, P=PARAMS, video=None, step_hook=None):
+    """One crawl. ``step_hook(model, data)``, if given, is called after every physics step and only reads the
+    simulation (the foot study's contact-point measures, build_feet60.py); without it the run is unchanged."""
     model = mujoco.MjModel.from_xml_path(str(model_path))
     kin, steps = plan(model, P)
     times, targets, phases = trajectory(kin, steps, P)
@@ -267,6 +269,8 @@ def run(model_path, seed, P=PARAMS, video=None):
         t = k * model.opt.timestep
         data.ctrl[act] = [np.interp(t, times, targets[:, i]) for i in range(12)]
         mujoco.mj_step(model, data)
+        if step_hook is not None:
+            step_hook(model, data)
         if not (np.isfinite(data.qpos).all() and np.isfinite(data.qvel).all()):
             log["nan"] = True
             break
