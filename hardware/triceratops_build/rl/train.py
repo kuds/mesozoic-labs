@@ -133,6 +133,11 @@ def parse_args(argv=None) -> argparse.Namespace:
                     help="env steps between deterministic evaluations (0: none)")
     ap.add_argument("--eval-commands", default="0,0.15,0.25", help="commanded speeds of those evaluations, m/s")
     ap.add_argument("--eval-seconds", type=float, default=0.0, help="their episode length (0: the env's own)")
+    ap.add_argument("--checks-every", type=int, default=0,
+                    help="every this many steps, the periodic checks (telemetry/checks.py; 0: off): a few "
+                         "deterministic episodes at each of --checks, one JSON line in checks_during_training.jsonl")
+    ap.add_argument("--checks", default=",".join(CHECK_POINTS),
+                    help=f"the checks' points, from {', '.join(CHECK_POINTS)}")
     # env
     ap.add_argument("--env-config", default=None, help="JSON file of TrikeEnvConfig fields to override")
     ap.add_argument("--log-every", type=int, default=100_000, help="env steps between one-line progress reports")
@@ -225,6 +230,21 @@ def comparable_config(d: dict) -> dict:
     return c
 
 
+# The periodic checks' points (robustness-sweep points, rl/robustness/sweep.py) and seeds: the sweep's own conditions
+# run 3 is judged on, a few seeds each, so terrain, push and slippery-floor skill can be watched while it appears.
+CHECK_POINTS = {"step_3cm": {"terrain": ("step", 0.03)}, "ramp_8deg": {"terrain": ("ramp", 8.0)},
+                "friction_0.3": {"friction": 0.3}, "push_1.0": {"push_dv": 1.0}}
+CHECK_SEEDS = (300_000, 300_001)
+
+
+def check_points(text: str) -> dict:
+    names = [x.strip() for x in str(text).split(",") if x.strip()]
+    unknown = [n for n in names if n not in CHECK_POINTS]
+    if unknown:
+        raise SystemExit(f"--checks: unknown point(s) {unknown}; known: {sorted(CHECK_POINTS)}")
+    return {n: CHECK_POINTS[n] for n in names}
+
+
 def eval_commands(text: str) -> list[float]:
     return [float(x) for x in str(text).split(",") if x.strip()]
 
@@ -244,6 +264,8 @@ def run_settings(args, cfg) -> dict:
            if rough(cfg) else {}),
         "eval_every": args.eval_every, "eval_commands": eval_commands(args.eval_commands),
         "eval_seconds": args.eval_seconds,
+        **({"checks_every": args.checks_every, "checks": sorted(check_points(args.checks))}
+           if args.checks_every > 0 else {}),
     }, default=list))
 
 
@@ -509,10 +531,42 @@ def make_callbacks(args, cfg, ckpt_dir: Path, out: Path, state: dict):
             say(f"eval at {n} steps, command {top['command_mps']:.2f} m/s: "
                 f"{gait_metrics.one_line(gait_metrics.summarise([top['measures']]))}")
 
-    cbs = [PairSaver(), PenaltyRamp(), Progress()]
+    from telemetry.health import TrainingHealth
+
+    cbs = [PairSaver(), PenaltyRamp(), Progress(), TrainingHealth(out / "train_health.jsonl", say=say)]
     if args.eval_every > 0:
         cbs.append(PeriodicEval())
+    if args.checks_every > 0:
+        cbs.append(make_checks(args, cfg, out))
     return cbs
+
+
+def make_checks(args, cfg, out: Path):
+    """The periodic checks (telemetry/checks.py) at robustness-sweep points on the run's own config (the sweep
+    builds a flat-floor env from it and adds its own step, ramp, push or friction): nominal model, noise as
+    configured, 10 ms delay, 0.25 m/s, deterministic actions."""
+    for sub in ("robustness", "analysis"):
+        if str(HERE / sub) not in sys.path:
+            sys.path.insert(0, str(HERE / sub))
+    import sweep
+    from telemetry.checks import PeriodicChecks
+
+    ec = json.loads(json.dumps(cfg.to_dict(), default=list))
+    envs: dict = {}
+
+    def run_point(name, spec, seed, act):
+        p = sweep.make_point(**spec)
+        if name not in envs:
+            envs[name] = sweep.build_env(ec, p["terrain"])
+        return sweep.run_episode(envs[name], None, None, seed, p, controller=act)
+
+    def summarise(name, eps):
+        ok = [e["forward_speed_mps"] for e in eps if not e["fell"] and e.get("forward_speed_mps") is not None]
+        sp = f", {sum(ok) / len(ok):.3f} m/s" if ok else ""
+        return f"{name} falls {sum(e['fell'] for e in eps)}/{len(eps)}{sp}"
+
+    return PeriodicChecks(out / "checks_during_training.jsonl", args.checks_every, check_points(args.checks),
+                          run_point, seeds=CHECK_SEEDS, say=say, summarise=summarise)
 
 
 # ---------------------------------------------------------------------------------------------------- main

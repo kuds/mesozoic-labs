@@ -17,6 +17,7 @@ points. Colab itself is untested; the first Colab run is a one-hour pipeline tes
 | `COLAB_STEPS.md` | The owner's step sheet for the pipeline test (draft; the commit to fill in). |
 | `trike_checkpoints.py` | Checkpoint pairs: the check that tells a broken file from an I/O error, the scan (newest intact pair, re-reads on I/O errors), atomic saves (non-finite parameters set aside), setting broken files aside, atomic JSON. |
 | `gait_metrics.py` | The gait and drive measures of an evaluation episode (logged every physics step): RMS torque / continuous rating per drive, time at the force limit (nominal and episode limit), stance slip ratio, debounced touchdowns, power, drift and heading change; the definitions of `analysis/gait_pipe1.py`. |
+| `telemetry/` | Generic training and hardware telemetry (decision D21; plan `PLAN_STEERING_AND_TELEMETRY.md`), robot-agnostic so a T. rex or larger Triceratops env can use it: `health.py` (training health, `train_health.jsonl`), `checks.py` (periodic checks at named points), `health_dashboard.py` (their charts). Tests: `tests/test_telemetry.py`, on a toy env. |
 | `tests/test_trike_env.py`, `tests/conftest.py` | 56 pytest tests, **run by hand** (they are not in the repository's `testpaths` or CI). |
 
 ## How to run locally
@@ -298,6 +299,26 @@ episode and compares), logged every physics step:
 - per foot: stance slip ratio (sole horizontal travel while loaded / chassis forward travel), debounced touchdowns
   per second (and the raw count at 2 N, as the analysis counted it);
 - mean leg power and cost of transport; sideways drift (m) and heading change (deg) over the window.
+
+**Training health** (`telemetry/health.py`, since 23 Nov 2026; always on, reading only: a test shows the same seed
+trains to the same parameters with and without it): one line per rollout in `train_health.jsonl` with the update
+that followed it. It records:
+- SB3's own diagnostics: approx. KL, clip fraction, entropy, explained variance, value and policy losses, learning
+  rate, action std;
+- the gradient norm after PPO's clipping;
+- the per-step mean of every `r_*` reward term and `reward_total`;
+- how many episodes ended, and why (`termination`, or `time_limit`);
+- VecNormalize's observation and return variances.
+
+**Periodic checks** (`telemetry/checks.py`, off unless `--checks-every N`): every N steps, two deterministic episodes
+(seeds 300000-300001) at each robustness-sweep point named by `--checks`. The points are `step_3cm`, `ramp_8deg`,
+`friction_0.3` and `push_1.0`, on the run's own config at the nominal model, 0.25 m/s and 10 ms. Each check writes
+one line in `checks_during_training.jsonl` and prints one line. These are progress readings, not a verdict, and
+cost about 20 s per check on one process. With checks off, the run's settings carry no checks keys, so earlier
+records resume unchanged.
+
+**Charts:** `python telemetry/health_dashboard.py --label NAME --health RUN/train_health.jsonl --checks
+RUN/checks_during_training.jsonl --out DIR` draws `training_health_NAME.png` and `training_checks_NAME.png`.
 
 ## What was tested (locally, CPU, 18 Nov 2026)
 
