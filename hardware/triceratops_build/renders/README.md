@@ -3,6 +3,10 @@
 18 Nov 2026. **Every image is a simulation render**, labelled "SIMULATION" on the image. Nothing has been built; no
 image shows hardware. Made ahead of the 8 Dec 2026 target, so they can be redone if the build decisions change.
 
+## Full dinosaur exterior for Option C
+
+[Build the covered model and render its motion](full_exterior/README.md). The design fits the visual surface to the current joint locations. The [mechanical and gait review](../FULL_EXTERIOR_REVIEW.md) records the limitations of that geometry and the checks needed for a physical enclosure.
+
 ## Roadmap line (for the pitch)
 
 > The Triceratops is the near-term live demonstration (Q3 2027); the T. rex is the flagship, coming at end 2027 /
