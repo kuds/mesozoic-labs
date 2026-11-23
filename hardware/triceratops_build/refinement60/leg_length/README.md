@@ -1,6 +1,6 @@
 # Which foreleg for the 60 cm Triceratops?
 
-Keep the **128 mm upper link for the first foreleg bench**. It gives the exhibit leg a lower shoulder, matches a measured Triceratops upper-limb proportion, reduces modeled elbow effort on the slow four-beat walk and already has a motor mount with positive modeled clearance. The **188 mm assembly** has two practical advantages on this chassis. It gives the ankle more travel, and all three matched right pivots produced lower peak loads. Those advantages make it worth reconsidering if physical foot-load or reach measurements limit the 128 mm leg.
+Of the 128 and 188 mm assemblies evaluated here, the 128 mm upper link was the first bench choice. A subsequent [matched 160 mm study](../mid160/README.md) selected the middle length for the first article. It gives the exhibit leg a lower shoulder, matches a measured Triceratops upper-limb proportion, reduces modeled elbow effort on the slow four-beat walk and already has a motor mount with positive modeled clearance. The **188 mm assembly** has two practical advantages on this chassis. It gives the ankle more travel, and all three matched right pivots produced lower peak loads. Those advantages make it worth reconsidering if physical foot-load or reach measurements limit the 128 mm leg.
 
 ![Neutral side elevations of the 128 mm and 188 mm left forelegs at the same scale](forelegs.png)
 

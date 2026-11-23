@@ -160,9 +160,16 @@ def walk(a, path):
         three_or_four_support_pct=100 * np.mean(np.sum(load > 0.05 * w, axis=1) >= 3),
         **leg_metrics(load, sig[ss0, 4:16], sig[ss0, 16:28], sig[ss0, 28:30], w),
     )
+    if len(load) >= round(0.010 / m.opt.timestep):
+        result["force_transients"] = force_transients(sig[ss0, 30], load, legs, m.opt.timestep, None)
     if a.record:
         keys = ("t", "qpos", "foot_load_N", "body_xyz_m", "feet_xyz_m", "com_xyz_m")
-        np.savez_compressed(a.out.with_suffix(".npz"), **dict(zip(keys, map(np.array, zip(*frames)))))
+        np.savez_compressed(
+            a.out.with_suffix(".npz"),
+            **dict(zip(keys, map(np.array, zip(*frames)))),
+            physics_t_s=sig[:, 30],
+            physics_foot_load_N=sig[:, :4],
+        )
     return result
 
 
@@ -200,6 +207,7 @@ def force_transients(time, force, legs, timestep, csv_path):
         "raw_peak_all_feet_N": force[raw_row].tolist(),
         "mean_10ms_peak_N": means[mean_start, mean_leg],
         "mean_10ms_peak_foot": legs[mean_leg],
+        "mean_10ms_peak_by_foot_N": means.max(axis=0).tolist(),
         "mean_10ms_first_sample_s": time[mean_start],
         "mean_10ms_last_sample_s": time[mean_end],
         "mean_sample_count": count,

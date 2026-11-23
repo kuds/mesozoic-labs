@@ -30,7 +30,7 @@ jobs:
           cache-dependency-path: hardware/triceratops_build/refinement60/requirements.txt
       - name: Install simulation dependencies
         run: python -m pip install -r requirements.txt
-      - name: Check stand, four-beat walk, pivots and heading course
+      - name: Check 128 and 160 mm models, walking, pivot loads and heading acquisition
         run: python verify.py "$RUNNER_TEMP/triceratops60"
       - name: Preserve measured outputs
         if: always()

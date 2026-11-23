@@ -1,10 +1,16 @@
 # 60 cm open-rib Triceratops
 
-This is the first foreleg mock-up candidate for the museum demonstrator. Frill crown height is 600 mm, shoulder and hip pivots are 280 and 320 mm above the floor in the neutral pose, and modeled mass is 12.844 kg. The forelegs use X4 roll, X4 pitch and X6 flexion through a 1:1 linkage. Each hind leg uses three X4 drives.
+The 128 mm model below established the gait and shoulder packaging for the 60 cm museum demonstrator. Frill crown height is 600 mm, shoulder and hip pivots are 280 and 320 mm above the floor in the neutral pose, and modeled mass is 12.844 kg. The forelegs use X4 roll, X4 pitch and X6 flexion through a 1:1 linkage. Each hind leg uses three X4 drives.
 
 ![Previous and revised forelegs at the same scale, with side and front views of the motor placement](media/placement.jpg)
 
 [Four-beat walk, with four foot loads](media/walk.mp4) · [Moving turns, with requested and actual headings](media/steering.mp4) · [Printable design sheet](media/design-sheet.pdf) · [Foreleg bench plan](../bench/BENCH_PLAN_FORELEG.md)
+
+## Recommended configuration for the first build
+
+Select the **160 mm upper foreleg**, 184 mm lower foreleg, X4/X4/X6 drives and gentle steering within the same 600 mm open-rib envelope. Over twelve matched moving courses the greatest foot impact fell from 424 to 303 N with every requested heading acquired on both lengths. Across six pivots the peak fell from 302 to 224 N. The walk had essentially the same speed and support margin. The 160 mm elbow needed 24% more RMS torque during that walk, and its moving rod clears the guard by 3.30 mm in the ideal geometry. Build and instrument one leg before authorizing a full chassis. The existing 128 mm model is the baseline and thermal fallback.
+
+[Matched walking and turning films, motor close-up and build decision](mid160/README.md) · [160 mm dressed model](models/mid160/triceratops.xml) · [Updated foreleg bench plan](../bench/BENCH_PLAN_FORELEG.md)
 
 ## Gentler steering on the same robot
 
@@ -49,13 +55,15 @@ The geometric margin measures the horizontal centre of mass against the ankle tr
 
 With the original steering profile, both designs acquired all six in-place pivots. A right pivot at seed 102 put **580 N on the right forefoot** of the revised plant versus **572 N** on the reference. This is the largest instantaneous modeled load across the tested routines. The largest 10 ms mean was 400 N versus 404 N. Include the [1 kHz revised pivot trace](evidence/pivot-right-102-refined.csv) in the guarded foreleg test. The simulations covered level ground. The shoulder opening needs physical guarding, and actual heading, traction and stopping require a caught test on the venue floor.
 
-## Run the selected model
+## Run either foreleg model
 
-From this directory, use Python 3.14 and the pinned dependencies. The default walk in the refinement runner uses the selected gait.
+From this directory, use Python 3.14 and the pinned dependencies. The default runner retains the 128 mm baseline. Pass the physical model path to exercise the recommended 160 mm assembly.
 
 ```sh
 python -m pip install -r requirements.txt
 python verify.py /tmp/triceratops-refinement-check
+python motion/run.py walk --model models/mid160/physics.xml --seed 11 --record --out /tmp/160-walk
+python motion/run.py pivot-right --model models/mid160/physics.xml --turn-profile gentle --seed 102 --out /tmp/160-pivot
 python motion/run.py walk --model models/refined/physics.xml --seed 11 --record --out /tmp/refined-walk
 python motion/run.py course --model models/refined/physics.xml --seed 103 --turn-profile gentle --record --out /tmp/refined-course
 python motion/run.py six-headings --seed 103 --random --turn-profile gentle --out /tmp/refined-six
