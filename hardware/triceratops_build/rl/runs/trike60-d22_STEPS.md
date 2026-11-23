@@ -1,11 +1,11 @@
 <!-- Step sheet for the foreleg comparison's eight runs (decisions D22, D23, D24; rules rl/analysis/PREREG_FORELEG_D22.md).
 Built from run 3's sheets (runs/trike60-run3-s1_STEPS.md); the notebook and train.py are the same; only MODEL, RUN_ID and SEED
-change between runs. The code the notebook runs is commit REPO_REF_PLACEHOLDER; this file only fills in the sheet. -->
+change between runs. The code the notebook runs is commit f84a6919dda31c39f1a56967b1f57b759c31da5c; this file only fills in the sheet. -->
 
 # Triceratops 60 cm: the foreleg comparison on Colab. The steps.
 
 *** FINAL SHEET for the eight runs of the foreleg comparison (D22), 23 Nov 2026. ***
-Every value is filled in: the commit (REPO_REF_PLACEHOLDER), and for each run its name, model and seed (the table
+Every value is filled in: the commit (f84a6919dda31c39f1a56967b1f57b759c31da5c), and for each run its name, model and seed (the table
 in 1). The steps are run 3's: you ran them twice already. Lines marked "(seen in run 3)" appeared on your screen then;
 the rest are printed by the program itself and checked against the code.
 
@@ -25,7 +25,7 @@ Three rules for the whole sheet (as before):
                   seeds each, to compare foot loads, falls and drive heat (D22, D23, D24). The rules are fixed in
                   rl/analysis/PREREG_FORELEG_D22.md; nothing is judged until I have read all eight runs.
     The code:     one fixed commit of the repository,
-                    REPO_REF_PLACEHOLDER
+                    f84a6919dda31c39f1a56967b1f57b759c31da5c
                   This is REPO_REF below, the same for all eight runs.
     The machine:  Runtime type "CPU" with "High-RAM" on. No GPU.
     The length:   TOTAL_STEPS = 10000000 per run. Run 3's two runs took 3.05 and 5.05 hours (909 and 550 steps per
@@ -52,7 +52,7 @@ Three rules for the whole sheet (as before):
 ## 2. EACH RUN (do this once per row of the table)
 
   2.1  Open this address:
-         https://colab.research.google.com/github/kuds/mesozoic-labs/blob/REPO_REF_PLACEHOLDER/hardware/triceratops_build/rl/trike60_training.ipynb
+         https://colab.research.google.com/github/kuds/mesozoic-labs/blob/f84a6919dda31c39f1a56967b1f57b759c31da5c/hardware/triceratops_build/rl/trike60_training.ipynb
        Expect a notebook titled "Mesozoic Labs: Triceratops 60 cm, walking-policy training (simulation only)".
 
   2.2  Menu File > Save a copy in Drive. Name the copy "trike60 <RUN_ID>". Work in that copy, and use the same copy
@@ -61,7 +61,7 @@ Three rules for the whole sheet (as before):
   2.3  Menu Runtime > Change runtime type. Choose CPU. Switch High-RAM on. Save.
 
   2.4  In the first grey box ("1. PARAMETERS") set exactly, with this row's RUN_ID, MODEL and SEED:
-         REPO_REF           REPO_REF_PLACEHOLDER
+         REPO_REF           f84a6919dda31c39f1a56967b1f57b759c31da5c
          RUN_ID             <RUN_ID>
          MODEL              <MODEL>          (the menu now offers both fore128 and fore160)
          TOTAL_STEPS        10000000
@@ -76,7 +76,7 @@ Three rules for the whole sheet (as before):
 
   2.6  Check these lines as they appear:
        (a) Under box 2:
-             Repository commit: REPO_REF_PLACEHOLDER (matches REPO_REF: yes; checkout clean: yes)      (seen in run 3)
+             Repository commit: f84a6919dda31c39f1a56967b1f57b759c31da5c (matches REPO_REF: yes; checkout clean: yes)      (seen in run 3)
        (b) Under box 3:
              Packages: mujoco 3.10.0, numpy 2.5.5, gymnasium 1.4.0, stable-baselines3 2.9.2, torch 2.15.0+cpu, cloudpickle 3.1.2
              All pins hold: yes                                                                  (seen in run 3)
