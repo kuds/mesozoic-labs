@@ -1,5 +1,17 @@
 # One-foreleg bench plan for the 60 cm Triceratops
 
+## Current open-rib test article
+
+Use the revised 60 cm foreleg in the [model and run package](../refinement60/README.md) for the first physical mock-up. The [design sheet](../refinement60/media/design-sheet.pdf) and [placement drawing](../refinement60/media/placement.jpg) identify this revision. The 128 mm upper and 184 mm lower pivot spans, X4/X4/X6 drive set and passive rocker foot carry forward. The simulated motor shift and altered guards supersede the earlier placement figures below for this article.
+
+| Fixture or replay detail | Current reference |
+|---|---|
+| Fore X6 location | From the prior centre, move 20 mm aft, 6 mm up and 5 mm outward on each side, in neutral upper-link coordinates. The 3 mm backing plate is a packaging concept. Use the actual drive, plug, relief, clamp, fasteners and cable bend radius for the sweep and deflection tests. |
+| Elbow pushrod | 28 mm crank radii at both ends, 81.50 mm neutral pin-to-pin spacing and calculated minimum 43° transmission angle. The drive and driven crank planes both move outward. Check rod-end articulation, rod travel and force under test load. |
+| Clearances to measure | The modeled minimum mount-plate-to-frame-rail clearance is 4.68 mm, housing-to-frame-rail 7.68 mm and housing-to-upper-strut 8.70 mm. The ideal moving rod passes the X6 housing by 3.50 mm. The exterior mesh screen gives about 4.97 mm from the forward sculpted rib to the X6. These are sampled nominal gaps. Record worst-case manufactured, wired and loaded gaps on the assembled article. |
+| Exterior and controls | The 114 mm forearm sculpt blends into a cuff on the existing rigid lower link. Weigh the printed forequarter, test ankle travel and confirm both downward-facing sensor windows see the floor when the dressed leg and neck move. |
+| Walk and turn replays | Four-beat plan with a 96 mm stride, 26 mm swing lift, 1.073 s between lifts and lateral target at 74.8% of the original support plan. The highest single-foot load across 16 slow-walk trials was 87.76 N. The separate 0.25 m/s moving-heading course reached 354.83 N over six trials. A separate nominal right pivot (seed 102) put 580.23 N on the right forefoot, versus 571.88 N on the reference. Both peaks occurred at 3.631 s. The largest 10 ms mean was 399.82 N on the revised build and 404.02 N on the reference. Include this pivot when selecting the fixture load and comparing the raw and 10 ms force traces. Run the existing protocol below for trace selection, fixture rating, thermal testing, independent stop and CAN measurements. Also retain the earlier challenging load traces as separate conditions. |
+
 **Decision to be made.** Can the 60 cm Option C foreleg carry the intended duty cycle, stop onto a support and meet the walking controller’s timing budget? The first purchase decision is one instrumented foreleg. A full-set order follows a review of the results and a rerun of the simulation with the measured parameters. This is a test plan. No order, bench reading or approval is recorded here.
 
 ## Test article and loads

@@ -247,10 +247,13 @@ class TrotController:
 
         # --- commands for this step
         t_walk = self.t - P.stand_s
-        walking = t_walk >= 0.0 and command > 0.0
+        # A steering environment supplies its bounded body-frame yaw rate in the shared command slot.
+        # A zero-forward turn still needs the alternating support clock and ordinary actuator contacts.
+        yaw_request = (float(s["command"][2]) * env.cfg.cmd_yaw_rate_scale) if "command" in s else None
+        walking = t_walk >= 0.0 and (command > 0.0 or (yaw_request is not None and yaw_request != 0.0))
         v_cmd = command * min(1.0, max(0.0, t_walk / P.ramp_s)) if walking else 0.0
         v_side = -P.k_drift * self.drift if walking else 0.0
-        turn = -P.k_heading * heading_err if walking else 0.0
+        turn = (-P.k_heading * heading_err if yaw_request is None else yaw_request) if walking else 0.0
         phase = (t_walk / P.period_s) % 1.0 if walking else None
         T_st = P.duty * P.period_s
 

@@ -1,0 +1,47 @@
+{
+  "program": "pivot-right",
+  "seed": 102,
+  "domain_randomization": false,
+  "command_deg": -40,
+  "command_time_s": 3,
+  "scoring_window": "after 2.0 s, through the end of the 12 s episode",
+  "calculation": "Per-foot normal force recorded at each 1 ms physics step. The 10 ms peak is the largest mean across every consecutive group of 10 samples, evaluated on each foot independently. CSVs contain 25 ms of context either side of the raw maximum and 10-sample peak window.",
+  "conditions": {
+    "reference": {
+      "trace": "pivot-right-102-reference.csv",
+      "sample_period_ms": 1.0,
+      "raw_peak_N": 571.8842870404401,
+      "raw_peak_foot": "right_fore",
+      "raw_peak_t_s": 3.630999999999711,
+      "raw_peak_all_feet_N": [
+        0.0,
+        571.8842870404401,
+        0.0,
+        38.621706344317815
+      ],
+      "mean_10ms_peak_N": 404.0175706034776,
+      "mean_10ms_peak_foot": "right_fore",
+      "mean_10ms_first_sample_s": 3.6279999999997115,
+      "mean_10ms_last_sample_s": 3.6369999999997105,
+      "mean_sample_count": 10
+    },
+    "refined": {
+      "trace": "pivot-right-102-refined.csv",
+      "sample_period_ms": 1.0,
+      "raw_peak_N": 580.2288589605437,
+      "raw_peak_foot": "right_fore",
+      "raw_peak_t_s": 3.630999999999711,
+      "raw_peak_all_feet_N": [
+        0.0,
+        580.2288589605437,
+        0.0,
+        43.03147682015897
+      ],
+      "mean_10ms_peak_N": 399.8158318498657,
+      "mean_10ms_peak_foot": "right_fore",
+      "mean_10ms_first_sample_s": 3.6279999999997115,
+      "mean_10ms_last_sample_s": 3.6369999999997105,
+      "mean_sample_count": 10
+    }
+  }
+}
