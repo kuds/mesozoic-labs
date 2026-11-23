@@ -63,6 +63,23 @@ def _safe_legend(ax, **kwargs) -> None:
         ax.legend(**kwargs)
 
 
+def _has_finite(diag, key: str) -> bool:
+    """Return True if *diag* holds *key* with at least one finite value.
+
+    Presence is not evidence: DiagnosticsCallback saves EVERY info key for
+    every species, so a key the environment never emits is an all-NaN series
+    (a biped's rr/rl_foot_contact, allosaurus's heading_alignment). Keying a
+    layout off ``key in diag`` rendered an empty "diagonal pair" panel for
+    bipeds (narrow-tolerance postmortem, item 6).
+    """
+    import numpy as np
+
+    if key not in diag:
+        return False
+    arr = np.asarray(diag[key], dtype=float)
+    return arr.size > 0 and bool(np.isfinite(arr).any())
+
+
 def _smooth(values, window: int = 50):
     """Apply a rolling-mean smoothing filter to *values*.
 
@@ -277,15 +294,23 @@ def plot_diagnostics_graphs(
 ) -> "tuple":
     """Create two diagnostic figures tracking advanced training metrics.
 
-    Figure 1 -- Locomotion Health (``locomotion_health.png``, 2x2):
-      - Termination Breakdown, Cost of Transport,
-        Pelvis Height, Reward Decomposition
+    Figure 1 -- Locomotion Health (``locomotion_health.png``):
+      - Termination Breakdown, Pelvis Height,
+        Reward Decomposition across the bottom row
 
-    Figure 2 -- Behavioral Metrics (``behavioral_metrics.png``, 3x2):
-      - Gait Symmetry + Stride Frequency, Heading Alignment,
-        Prey Distance, Strike Success Rate,
-        Distance Traveled (cumulative path length),
-        Drift Distance (displacement from spawn)
+    Figure 2 -- Behavioral Metrics (``behavioral_metrics.png``):
+      - Distance Traveled (cumulative path length) across the top row,
+        Heading Alignment, Drift Distance (displacement from spawn),
+        and, when any stage recorded a finite prey distance, strike
+        success or bite success, Prey Distance and Strike Success Rate.
+        A panel no stage recorded (allosaurus emits no heading
+        alignment) reads "No data recorded" instead of drawing blank.
+
+    Neither figure draws a cost of transport or a gait symmetry:
+    ``diagnostics.npz`` holds rollout means of the action penalty
+    (``reward_energy``) and of each foot's contact force, which
+    measure neither (an in-phase hop and an alternating walk give
+    equal left and right means).
 
     Returns ``(fig1, fig2)``.  When *show* is ``False``, figures are
     closed after saving (headless usage, e.g. ``generate_stage_artifacts``).
@@ -308,9 +333,13 @@ def plot_diagnostics_graphs(
         return any(abs(env_kw.get(wk, 0.0)) > 0 for wk in weight_keys)
 
     # -----------------------------------------------------------
-    # Figure 1: Locomotion Health Metrics
+    # Figure 1: Locomotion Health Metrics (the reward decomposition,
+    # the densest panel, takes the whole bottom row)
     # -----------------------------------------------------------
-    fig1, axes1 = plt.subplots(2, 2, figsize=(14, 10))
+    fig1, axes1 = plt.subplot_mosaic(
+        [["termination", "pelvis_height"], ["rewards", "rewards"]],
+        figsize=(14, 10),
+    )
     fig1.suptitle(
         f"{model_title} {algorithm} \u2013 Locomotion Health",
         fontsize=14,
@@ -334,25 +363,19 @@ def plot_diagnostics_graphs(
         style_idx = _stage_style_index(stage_num, model_id)
         color = _reward_colors[style_idx % 10]
 
-        # [0,0] Collect termination breakdown per stage
+        # Termination breakdown, collected per stage
         _term_keys = termination_fraction_keys(diag.files)
         if _term_keys:
             _all_term_data[label] = {k[5:]: float(np.mean(diag[k])) for k in _term_keys}
 
-        # [0,1] Cost of Transport
-        if "reward_energy" in diag and "forward_vel" in diag:
-            _energy = np.abs(diag["reward_energy"])
-            _fwd = np.maximum(diag["forward_vel"], 0.01)
-            axes1[0, 1].plot(ts, _smooth(_energy / _fwd), label=label, color=color)
-
-        # [1,0] Pelvis Height
+        # Pelvis Height
         if "pelvis_height" in diag:
-            axes1[1, 0].plot(ts, _smooth(diag["pelvis_height"]), label=label, color=color)
+            axes1["pelvis_height"].plot(ts, _smooth(diag["pelvis_height"]), label=label, color=color)
 
-        # [1,1] Reward Decomposition — only signals with non-zero weight
+        # Reward Decomposition — only signals with non-zero weight
         for _ci, _rkey in enumerate(_REWARD_COMPONENTS):
             if _rkey in diag and _signal_active(_rkey, stage_num):
-                axes1[1, 1].plot(
+                axes1["rewards"].plot(
                     ts,
                     _smooth(diag[_rkey]),
                     label=f"S{stage_num} {_rkey.replace('reward_', '')}",
@@ -361,7 +384,7 @@ def plot_diagnostics_graphs(
                 )
 
     # Render termination breakdown as grouped bar chart
-    _ax_term = axes1[0, 0]
+    _ax_term = axes1["termination"]
     if _all_term_data:
         _all_reasons = sorted({r for d in _all_term_data.values() for r in d})
         _x = np.arange(len(_all_term_data))
@@ -393,23 +416,17 @@ def plot_diagnostics_graphs(
     _ax_term.set_ylabel("Mean Fraction")
     _ax_term.grid(True, alpha=0.3)
 
-    axes1[0, 1].set_xlabel("Timesteps")
-    axes1[0, 1].set_ylabel("Cost of Transport (energy / speed)")
-    axes1[0, 1].set_title(f"{model_title} {algorithm} \u2013 Cost of Transport")
-    _safe_legend(axes1[0, 1], fontsize=8)
-    axes1[0, 1].grid(True, alpha=0.3)
+    axes1["pelvis_height"].set_xlabel("Timesteps")
+    axes1["pelvis_height"].set_ylabel("Pelvis Height (m)")
+    axes1["pelvis_height"].set_title(f"{model_title} {algorithm} \u2013 Pelvis Height")
+    _safe_legend(axes1["pelvis_height"])
+    axes1["pelvis_height"].grid(True, alpha=0.3)
 
-    axes1[1, 0].set_xlabel("Timesteps")
-    axes1[1, 0].set_ylabel("Pelvis Height (m)")
-    axes1[1, 0].set_title(f"{model_title} {algorithm} \u2013 Pelvis Height")
-    _safe_legend(axes1[1, 0])
-    axes1[1, 0].grid(True, alpha=0.3)
-
-    axes1[1, 1].set_xlabel("Timesteps")
-    axes1[1, 1].set_ylabel("Mean Reward Component")
-    axes1[1, 1].set_title(f"{model_title} {algorithm} \u2013 Reward Decomposition")
-    _safe_legend(axes1[1, 1], fontsize=7, loc="upper left")
-    axes1[1, 1].grid(True, alpha=0.3)
+    axes1["rewards"].set_xlabel("Timesteps")
+    axes1["rewards"].set_ylabel("Mean Reward Component")
+    axes1["rewards"].set_title(f"{model_title} {algorithm} \u2013 Reward Decomposition")
+    _safe_legend(axes1["rewards"], fontsize=7, loc="upper left")
+    axes1["rewards"].grid(True, alpha=0.3)
 
     fig1.tight_layout()
     if save_dir is not None:
@@ -420,21 +437,30 @@ def plot_diagnostics_graphs(
         plt.close(fig1)
 
     # -----------------------------------------------------------
-    # Figure 2: Behavioral Metrics (2x2, or 3x2 when hunting data present)
+    # Figure 2: Behavioral Metrics (distance traveled, which every
+    # species records, across the top row, then two rows of two
+    # panels, or one without hunting data)
     # -----------------------------------------------------------
-    # Pre-scan: check if any stage has hunting/food data (prey_distance,
-    # strike_success, bite_success).  If so, add a third row for those.
+    # Pre-scan: check if any stage has finite hunting/food data
+    # (prey_distance, strike_success, bite_success).  If so, add a third
+    # row for those.  DiagnosticsCallback saves all three for every
+    # species, all-NaN when never emitted, so key presence proves nothing.
     _has_hunting_data = False
     for _, _sd in stage_dirs:
         _dl = Path(_sd) / "diagnostics.npz"
         if _dl.exists():
             _d = np.load(_dl)
-            if any(k in _d for k in ("prey_distance", "strike_success", "bite_success")):
+            if any(_has_finite(_d, k) for k in ("prey_distance", "strike_success", "bite_success")):
                 _has_hunting_data = True
                 break
 
     _n_rows = 3 if _has_hunting_data else 2
-    fig2, axes2 = plt.subplots(_n_rows, 2, figsize=(14, 5 * _n_rows))
+    fig2, axes2 = plt.subplot_mosaic(
+        [["distance", "distance"], ["heading", "drift"], ["prey", "success"]]
+        if _has_hunting_data
+        else [["distance", "distance"], ["heading", "drift"]],
+        figsize=(14, 5 * _n_rows),
+    )
     fig2.suptitle(
         f"{model_title} {algorithm} \u2013 Behavioral Metrics",
         fontsize=14,
@@ -453,35 +479,13 @@ def plot_diagnostics_graphs(
             continue
         color = plt.cm.tab10(_stage_style_index(stage_num, model_id) % 10)
 
-        # [0,0] Gait Symmetry + Stride Frequency proxy
-        if "l_foot_contact" in diag and "r_foot_contact" in diag:
-            _l = diag["l_foot_contact"]
-            _r = diag["r_foot_contact"]
-            _gait_sym = 1.0 - np.abs(_l - _r) / (_l + _r + 1e-8)
-            _stride_proxy = (_l + _r) / 2.0
-            axes2[0, 0].plot(
-                ts,
-                _smooth(_gait_sym),
-                label=f"{label} \u2013 gait sym",
-                color=color,
-                linestyle="-",
-            )
-            axes2[0, 0].plot(
-                ts,
-                _smooth(_stride_proxy),
-                label=f"{label} \u2013 stride freq",
-                color=color,
-                linestyle="--",
-                alpha=0.7,
-            )
-
-        # [0,1] Heading Alignment (with std band to reveal spinning)
-        if "heading_alignment" in diag:
+        # Heading Alignment (with std band to reveal spinning)
+        if _has_finite(diag, "heading_alignment"):
             ha = _smooth(diag["heading_alignment"])
-            axes2[0, 1].plot(ts, ha, label=label, color=color)
+            axes2["heading"].plot(ts, ha, label=label, color=color)
             if "heading_alignment_std" in diag:
                 ha_std = _smooth(diag["heading_alignment_std"])
-                axes2[0, 1].fill_between(
+                axes2["heading"].fill_between(
                     ts,
                     ha - ha_std,
                     ha + ha_std,
@@ -489,62 +493,69 @@ def plot_diagnostics_graphs(
                     color=color,
                 )
 
-        # [1,0] Distance Traveled (cumulative XY path length)
-        if "distance_traveled" in diag:
-            axes2[1, 0].plot(ts, _smooth(diag["distance_traveled"]), label=label, color=color)
+        # Distance Traveled (cumulative XY path length)
+        if _has_finite(diag, "distance_traveled"):
+            axes2["distance"].plot(ts, _smooth(diag["distance_traveled"]), label=label, color=color)
 
-        # [1,1] Drift Distance (displacement from spawn)
-        if "drift_distance" in diag:
-            axes2[1, 1].plot(ts, _smooth(diag["drift_distance"]), label=label, color=color)
+        # Drift Distance (displacement from spawn)
+        if _has_finite(diag, "drift_distance"):
+            axes2["drift"].plot(ts, _smooth(diag["drift_distance"]), label=label, color=color)
 
-        # Row 3 (only when hunting data present)
+        # Last row (only when hunting data present)
         if _has_hunting_data:
-            # [2,0] Prey / Food Distance
-            if "prey_distance" in diag:
-                axes2[2, 0].plot(ts, _smooth(diag["prey_distance"]), label=label, color=color)
+            # Prey / Food Distance
+            if _has_finite(diag, "prey_distance"):
+                axes2["prey"].plot(ts, _smooth(diag["prey_distance"]), label=label, color=color)
 
-            # [2,1] Strike / Bite / Food Success Rate
-            if "strike_success" in diag:
-                axes2[2, 1].plot(ts, _smooth(diag["strike_success"]), label=label, color=color)
-            if "bite_success" in diag:
-                axes2[2, 1].plot(ts, _smooth(diag["bite_success"]), label=label, color=color)
+            # Strike / Bite / Food Success Rate
+            if _has_finite(diag, "strike_success"):
+                axes2["success"].plot(ts, _smooth(diag["strike_success"]), label=label, color=color)
+            if _has_finite(diag, "bite_success"):
+                axes2["success"].plot(ts, _smooth(diag["bite_success"]), label=label, color=color)
 
-    axes2[0, 0].set_xlabel("Timesteps")
-    axes2[0, 0].set_ylabel("Gait Symmetry (\u2013) / Stride Freq proxy (--)")
-    axes2[0, 0].set_title(f"{model_title} {algorithm} \u2013 Gait Symmetry + Stride Frequency")
-    _safe_legend(axes2[0, 0], fontsize=8)
-    axes2[0, 0].grid(True, alpha=0.3)
+    axes2["heading"].set_xlabel("Timesteps")
+    axes2["heading"].set_ylabel("Heading Alignment (cos \u03b8)")
+    axes2["heading"].set_title(f"{model_title} {algorithm} \u2013 Heading Alignment")
+    _safe_legend(axes2["heading"])
+    axes2["heading"].grid(True, alpha=0.3)
 
-    axes2[0, 1].set_xlabel("Timesteps")
-    axes2[0, 1].set_ylabel("Heading Alignment (cos \u03b8)")
-    axes2[0, 1].set_title(f"{model_title} {algorithm} \u2013 Heading Alignment")
-    _safe_legend(axes2[0, 1])
-    axes2[0, 1].grid(True, alpha=0.3)
+    axes2["distance"].set_xlabel("Timesteps")
+    axes2["distance"].set_ylabel("Distance Traveled (m)")
+    axes2["distance"].set_title(f"{model_title} {algorithm} \u2013 Distance Traveled (path length)")
+    _safe_legend(axes2["distance"])
+    axes2["distance"].grid(True, alpha=0.3)
 
-    axes2[1, 0].set_xlabel("Timesteps")
-    axes2[1, 0].set_ylabel("Distance Traveled (m)")
-    axes2[1, 0].set_title(f"{model_title} {algorithm} \u2013 Distance Traveled (path length)")
-    _safe_legend(axes2[1, 0])
-    axes2[1, 0].grid(True, alpha=0.3)
-
-    axes2[1, 1].set_xlabel("Timesteps")
-    axes2[1, 1].set_ylabel("Drift Distance (m)")
-    axes2[1, 1].set_title(f"{model_title} {algorithm} \u2013 Drift Distance (displacement from spawn)")
-    _safe_legend(axes2[1, 1])
-    axes2[1, 1].grid(True, alpha=0.3)
+    axes2["drift"].set_xlabel("Timesteps")
+    axes2["drift"].set_ylabel("Drift Distance (m)")
+    axes2["drift"].set_title(f"{model_title} {algorithm} \u2013 Drift Distance (displacement from spawn)")
+    _safe_legend(axes2["drift"])
+    axes2["drift"].grid(True, alpha=0.3)
 
     if _has_hunting_data:
-        axes2[2, 0].set_xlabel("Timesteps")
-        axes2[2, 0].set_ylabel("Prey Distance (m)")
-        axes2[2, 0].set_title(f"{model_title} {algorithm} \u2013 Prey Distance")
-        _safe_legend(axes2[2, 0])
-        axes2[2, 0].grid(True, alpha=0.3)
+        axes2["prey"].set_xlabel("Timesteps")
+        axes2["prey"].set_ylabel("Prey Distance (m)")
+        axes2["prey"].set_title(f"{model_title} {algorithm} \u2013 Prey Distance")
+        _safe_legend(axes2["prey"])
+        axes2["prey"].grid(True, alpha=0.3)
 
-        axes2[2, 1].set_xlabel("Timesteps")
-        axes2[2, 1].set_ylabel("Strike Success Rate")
-        axes2[2, 1].set_title(f"{model_title} {algorithm} \u2013 Strike Success Rate")
-        _safe_legend(axes2[2, 1])
-        axes2[2, 1].grid(True, alpha=0.3)
+        axes2["success"].set_xlabel("Timesteps")
+        axes2["success"].set_ylabel("Strike Success Rate")
+        axes2["success"].set_title(f"{model_title} {algorithm} \u2013 Strike Success Rate")
+        _safe_legend(axes2["success"])
+        axes2["success"].grid(True, alpha=0.3)
+
+    for _ax in axes2.values():
+        if not _ax.get_lines():
+            _ax.text(
+                0.5,
+                0.5,
+                "No data recorded",
+                transform=_ax.transAxes,
+                ha="center",
+                va="center",
+                fontsize=12,
+                color="gray",
+            )
 
     fig2.tight_layout()
     if save_dir is not None:
@@ -588,19 +599,9 @@ def plot_foot_contacts(
 
     model_title = model_display_name(model_id)
 
-    def _has_finite(diag, key: str) -> bool:
-        # Presence is not evidence: DiagnosticsCallback saves EVERY info key
-        # for every species, so a biped's diagnostics.npz contains
-        # rr/rl_foot_contact as all-NaN series. Keying the quadruped layout
-        # off `key in diag` rendered an empty "diagonal pair" panel for
-        # bipeds (narrow-tolerance postmortem, item 6) and routed their R/L
-        # lines through the four-foot branch under FR/FL labels.
-        if key not in diag:
-            return False
-        arr = np.asarray(diag[key], dtype=float)
-        return arr.size > 0 and bool(np.isfinite(arr).any())
-
-    # Detect whether any stage has quadrupedal data
+    # Detect whether any stage has quadrupedal data (an all-NaN rr/rl series
+    # would also route a biped's R/L lines through the four-foot branch
+    # under FR/FL labels)
     is_quadruped = False
     for _, stage_dir in stage_dirs:
         diag_log = Path(stage_dir) / "diagnostics.npz"

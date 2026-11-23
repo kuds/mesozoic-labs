@@ -5137,6 +5137,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says.
 
 ### Removed
+- **The training figures' cost-of-transport and gait-symmetry panels.**
+  `plot_diagnostics_graphs` no longer draws "Cost of Transport" in
+  `locomotion_health.png` or "Gait Symmetry + Stride Frequency" in
+  `behavioral_metrics.png`. Like `LocomotionMetrics`' versions, they measured
+  the wrong thing. The first divided the action penalty `|reward_energy|` by
+  forward speed floored at 0.01 m/s, so it scaled with each stage's penalty
+  weight. The second compared rollout-mean left and right contact forces: a
+  statue, an in-phase hop and an alternating walk all scored about 1.0, and
+  its "stride frequency" was a mean force in newtons. In
+  `locomotion_health.png`, the reward decomposition now takes the whole bottom
+  row. In `behavioral_metrics.png`, distance traveled, which every species
+  records, takes the whole top row, above heading alignment and drift. The
+  prey-distance and strike-success row is drawn only when a stage recorded a
+  finite value, not whenever `diagnostics.npz` carries the keys (it always
+  does, all-NaN when unused). A panel no stage recorded, such as the
+  Allosaurus's heading alignment, reads "No data recorded" instead of drawing
+  blank. File names are unchanged. No gate, digest or result bundle read
+  either panel.
 - `website/static/img/velociraptor_mongoliensis_anatomical_stance_ppo.gif`
   (2,427,423 B). Nothing has referenced it since the homepage rewrite of
   2026-11-20, and `results/velociraptor_mongoliensis/anatomical/ppo/stance.gif`
