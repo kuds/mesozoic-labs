@@ -61,3 +61,10 @@ def test_verdicts_combine_across_seeds():
     assert set(j.verdict({"s0": p, "s1": f}).values()) == {"MIXED"}
     assert set(j.verdict({"s0": f, "s1": f}).values()) == {"FAIL"}
     assert all(v.startswith("NOT JUDGED") for v in j.verdict({"s0": p, "s1": None}).values())
+
+
+def test_a_policy_that_does_not_walk_at_nominal_fails_the_share_rules(stored):
+    g, w = copy.deepcopy(stored[0]), copy.deepcopy(stored[1])
+    w["points"][j.NOMINAL]["summary"]["speed_mps"] = 0.0
+    r = j.judge_seed(g, w)
+    assert not r["T1"]["pass"] and not r["T2"]["pass"] and not r["T4"]["pass"] and r["nominal_speed_mps"] is None

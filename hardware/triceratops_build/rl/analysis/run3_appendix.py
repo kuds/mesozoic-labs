@@ -17,9 +17,12 @@ RUNS = {"run 3 seed 0": "run3-s0", "run 3 seed 1": "run3-s1", "run2b": "run2b"}
 FEET = ("left_fore", "right_fore", "left_hind", "right_hind")
 
 
-def gait(run):
-    return json.loads((RL / "analytics" / "results" / run / "gait_report.json").read_text())["cases"]["target_0.25"][
-        "summary"]
+def gait_all(run):
+    return json.loads((RL / "analytics" / "results" / run / "gait_report.json").read_text())
+
+
+def gait(run, case="target_0.25"):
+    return gait_all(run)["cases"][case]["summary"]
 
 
 def sweep(run):
@@ -42,12 +45,12 @@ def gait_tables(rows):
     row("forward speed, m/s", lambda t: f(t["speed"]["forward_speed_mps"], 3))
     row("sideways drift, worst episode, m", lambda t: f(t["speed"]["sideways_drift_m_worst"], 2))
     row("heading change, worst episode, deg", lambda t: f(t["speed"]["heading_change_deg_worst"], 1))
-    out.append("\n**Drive heat (RMS torque / continuous rating, mean of episodes) and torque limits**\n\n"
-               + head.rstrip("\n"))
+    out.append("\n**Drive heat (RMS torque / continuous rating, mean of episodes) and torque limits (time at the "
+               "episode's limit: the worst episode, averaged over the group's four drives)**\n\n" + head.rstrip("\n"))
     for j in g["run2b"]["drives"]["per_joint"]:
         row(j, lambda t, j=j: f(t["drives"]["per_joint"][j]["rms_over_continuous"]["mean"], 2))
     for grp in g["run2b"]["drives"]["groups"]:
-        row(f"{grp}: time at the episode's torque limit, %",
+        row(f"{grp}: time at the episode's torque limit, worst episode, mean of the group's drives, %",
             lambda t, grp=grp: f(100 * t["drives"]["groups"][grp]["saturated_fraction_episode_limit"], 1))
     out.append("\n**Gait**\n\n" + head.rstrip("\n"))
     row("pattern", lambda t: t["footfall"]["gait"]["class"])
@@ -65,26 +68,52 @@ def gait_tables(rows):
         lambda t: f(t["power"]["run_time_min_shared_bus"]["hotel_30w"], 0))
     out.append("\n**Feet and body**\n\n" + head.rstrip("\n"))
     row("impact peak, median, worst foot, body weights", lambda t: f(max(t["feet"]["impact_peak_bw_median"].values()), 2))
-    row("stance slip ratio at the sole's origin, worst foot",
+    row("stance slip ratio at the sole's origin, worst foot (on the capsule this counts rolling as slip; "
+        "PREREG_RUN3.md)",
         lambda t: f(max(v["slip_ratio_mean"] for v in t["feet"]["stance_slip"].values()), 3))
     row("stance slip ratio at the contacts, worst foot",
         lambda t: f(max(v["slip_ratio_mean"] for v in t["feet"].get("stance_slip_at_contact", {}).values())
                     if t["feet"].get("stance_slip_at_contact") else None, 3))
-    row("body roll, RMS, deg", lambda t: f(t["body"]["roll_deg"]["rms"], 2))
-    row("body pitch, RMS, deg", lambda t: f(t["body"]["pitch_deg"]["rms"], 2))
+    row("body roll: mean, deg / SD, deg", lambda t: f"{f(t['body']['roll_deg']['mean'], 2)} / "
+                                                     f"{f(t['body']['roll_deg']['sd'], 2)}")
+    row("body pitch: mean (negative: nose down), deg / SD, deg", lambda t: f"{f(t['body']['pitch_deg']['mean'], 2)} / "
+                                                                          f"{f(t['body']['pitch_deg']['sd'], 2)}")
     out.append("\n**Balance (reported, not compared: the capsule stands on a line, run2b's box sole on an area)**\n\n"
                + head.rstrip("\n"))
     out.append(f"| centre of mass outside the support polygon, % of time | "
                f"{f(100 * g['run 3 seed 0']['balance']['com_margin_negative_fraction'], 1)} | "
                f"{f(100 * g['run 3 seed 1']['balance']['com_margin_negative_fraction'], 1)} | not compared |")
+    labels = gait_all("run2b")["cases"]
+    out.append("\n**The gait report's other cases** (5 episodes each)\n\n| case | measure | " + " | ".join(RUNS)
+               + " |\n|---|---|" + "---|" * len(RUNS))
+    for case in ("cmd_0.15", "nominal_0.25", "otherfoot_0.25"):
+        c = {k: gait(v, case) for k, v in RUNS.items()}
+        name = labels[case]["label"]
+        for label, fn in (
+                ("falls of 5", lambda t: str(t["falls"])),
+                ("forward speed, m/s", lambda t: f((t.get("speed") or {}).get("forward_speed_mps"), 3)),
+                ("pattern, stride frequency Hz", lambda t: f"{t['footfall']['gait']['class']}, "
+                                                           f"{f(t['footfall']['stride_frequency_hz_all_feet'], 2)}"),
+                ("irregular strides, worst foot, %",
+                 lambda t: f(100 * max(t["footfall"]["irregular_stride_fraction"].values()), 0)),
+                ("worst joint RMS / continuous rating",
+                 lambda t: f(max(d["rms_over_continuous"]["mean"] for d in t["drives"]["per_joint"].values()), 2))):
+            out.append(f"| {name} | {label} | " + " | ".join(fn(c[k]) for k in RUNS) + " |")
+    sw = {k: gait_all(v)["sweep"] for k, v in RUNS.items()}
+    out.append("\n**The gait report's command sweep** (falls; mean forward speed m/s)\n\n| command, m/s | "
+               + " | ".join(RUNS) + " |\n|---|" + "---|" * len(RUNS))
+    for cmd in sw["run2b"]:
+        out.append(f"| {cmd} | " + " | ".join(f"{sw[k][cmd]['falls']}; {f(sw[k][cmd].get('forward_speed_mps_mean'), 3)}"
+                                             for k in RUNS) + " |")
     rows.extend(out)
 
 
 def sweep_tables(rows):
     s = {k: sweep(v) for k, v in RUNS.items()}
     out = ["\n## B. Every sweep point (nominal model, noise on, 8 episodes, 0.25 m/s unless stated)\n",
-           "Each cell: falls of 8; speed m/s; sideways drift, mean, m; worst joint RMS / continuous rating; worst "
-           "joint's time at the nominal torque limit, %. Speed, drift and heat are over the episodes that did not "
+           "Each cell: falls of 8; speed m/s; sideways drift, mean, m; worst joint RMS / continuous rating; the "
+           "largest share of time any joint spent at the nominal torque limit, % (that joint may differ from the "
+           "hottest). Speed, drift and heat are over the episodes that did not "
            "fall; \"all fell\" has none.\n"]
     for fam in s["run2b"]["families"]:
         out.append(f"**{fam['family']}** ({fam['x_key']})\n")

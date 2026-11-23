@@ -2,8 +2,9 @@
 
 23 Nov 2026. Simulation only, on the 60 cm model with the capsule sole and the 188 mm upper foreleg. Rules:
 `PREREG_RUN3.md` (written before either run). Judged by `judge_run3.py`, from the gait report and the sweep run at the
-run commit. Everything the pre-registration asks to be reported without a verdict is in `REPORT_RUN3_APPENDIX.md`
-(generated from the tools' stored output by `run3_appendix.py`). Nothing here is measured on a robot.
+run commit. What the pre-registration asks to be reported without a verdict (the gait report's four cases and its
+command sweep, every sweep point) is in `REPORT_RUN3_APPENDIX.md`, generated from the tools' stored output by
+`run3_appendix.py`. Nothing here is measured on a robot.
 
 Revised after its independent review (23 Nov): the appendix added; the push wording corrected for seed 1; the drive
 and flat-walking statements narrowed to what was measured; the causes and the limits completed.
@@ -21,13 +22,17 @@ setup handles small steps, ramps and pushes without losing flat walking" does **
   not at -1.0. Both fall 8 of 8 at +-1.25 m/s, where run2b fell 4 and 7 of 8. Pushes up to 0.75 m/s either way
   caused no falls.
 - **Flat walking changed, though F1 and F2 pass** (appendix A): a slower, longer stride (0.70 and 0.86 Hz against
-  run2b's 1.22), about half the strides irregular on the worst foot (53 % and 51 % against 0 %), more sideways drift
-  and body pitch, more time at the torque limit (pitch drives 2.8 % and 1.5 % against 1.0 %), and about 20-35 % more
-  estimated electrical power (49-54 W against 40 W on the shared bus), so 84-89 min of walking per pack against
+  run2b's 1.22); seed 0 trots, seed 1's pattern is not a locked trot ("other"); about half the strides irregular on
+  the worst foot at 0.25 m/s (53 % and 51 % against 0 %) and about four in five at 0.15 m/s (79 % and 80 % against
+  51 %); more sideways drift; a steady nose-down lean of 3.6-3.9 deg (run2b 0.6 deg nose up) and more pitch sway
+  (SD 2.65 and 1.64 deg against 0.87); more time at the torque limit (the worst episode, averaged over the four pitch
+  drives: 2.8 % and 1.5 % against 1.0 %; the worst single drive 5.1 % and 2.3 % against 1.7 %); and about 20-35 %
+  more estimated electrical power (49-54 W against 40 W on the shared bus), so 84-89 min of walking per pack against
   101 min.
 - **Drives beyond F2's case** (appendix B): at 20 ms of delay or more, the worst joint runs at 1.20-1.50 of its
   continuous rating on both seeds, at 0.25 and at 0.15 m/s (run2b stays under 1.0 up to 30 ms); seed 0 exceeds 1.0 also at mass x1.2-1.6
-  and with a 2-3 kg payload (1.01-1.35), seed 1 at mass x1.4-1.6 (1.03-1.11).
+  and with a 2-3 kg payload (1.01-1.35), seed 1 at mass x1.4-1.6 (1.03-1.11); both at position gain x1.5 (1.16 and
+  1.02; run2b 1.08).
 
 | Rule | Pass when | Seed 0 | Seed 1 | Verdict | run2b (reference) |
 |---|---|---|---|---|---|
@@ -65,8 +70,9 @@ The independent review re-checked these and re-ran three sweep points with the r
   verdicts and values are identical before and after).
 - The pre-registration calls the gait report's 3.5 s cut `MIN_ANALYSED_S`; in the code that constant is 1.5 s after
   the 2 s analysis window, which gives the same 3.5 s. No target episode was short here.
-- Neither run was stopped, so the notebook's stop and resume path on Colab is still untested (the owner skipped the
-  step sheets' stop and resume tests).
+- Neither run was stopped, so the notebook's stop and resume path on Colab is still untested: seed 0's step sheet
+  asked for the stop and resume tests and its record shows no stop (the owner chose to skip them); seed 1's sheet
+  left them out by design.
 
 ## What the result can and cannot be put down to
 
@@ -78,10 +84,12 @@ terrain, push and low-friction training. The design cannot separate them:
 - the push falls may come from the training (1.0 m/s was the top of the trained push range) or from the foot: the
   capsule stands on a line, and the centre of mass lies outside the support polygon 65 % and 46 % of the time
   (reported, not compared; appendix A);
-- T1-T4 and the 1.0 m/s pushes test conditions that run 3 trained on and run2b did not, so run 3's lead there is
-  expected, not a sign of generality. Only the 1.25 m/s pushes and the friction points below 0.3 lie beyond run 3's
-  training: at friction 0.15 and 0.2 both seeds stay upright, drifting 0.32-0.35 m (seed 0) and 0.04-0.13 m
-  (seed 1), against run2b's 0.56-0.78 m.
+- T1-T4 test conditions that run 3 trained on and run2b did not, so run 3's lead there is expected, not a sign of
+  generality. At 1.0 m/s pushes, also within run 3's training and not run2b's, run 3 trails: it falls where run2b
+  does not. Of the conditions only run 3 trained on, the 1.25 m/s pushes and the friction points below 0.3 lie
+  beyond its training: at friction 0.15 and 0.2 both seeds stay upright, drifting 0.32-0.35 m (seed 0) and
+  0.04-0.13 m (seed 1), against run2b's 0.56-0.78 m. (Delays of 15-60 ms, the mass, payload, force-limit and gain
+  points outside x0.9-1.1 and x0.85-1.0, friction 1.2 and the 1.5 m/s pushes lie beyond both runs' training.)
 
 Also not covered here, as the pre-registration says: the policy observes the simulator's true velocity, the capsule
 is a rigid shape, and the terrain is blind to the policy.

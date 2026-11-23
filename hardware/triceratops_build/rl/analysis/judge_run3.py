@@ -2,8 +2,10 @@
 
 Each rule is judged per seed on the values as stored (no rounding), then across seeds: PASS when both seeds pass,
 FAIL when neither does, MIXED when one does, NOT JUDGED for a seed without its tools' output (and then no rule can
-pass). Before judging, the checks the pre-registration asks for: the model's and trike_env.py's sha256 as the tools
-recorded them against the run commit's files, the judged checkpoint is the run's final pair, and the run commit.
+pass). Before judging, the checks the pre-registration asks for, as far as the tools' JSON allows: the model's and trike_env.py's sha256 as
+the tools recorded them against the run commit's files, the gait report's checkpoint in the run's final block of
+steps, the same checkpoint pair in both tools, and the run commit. It does not read the run records (sessions,
+clean tree, seeds, the last checkpoint): those are checked by hand and reported.
 
 Usage:
   python hardware/triceratops_build/rl/analysis/judge_run3.py --seed s0 GAIT_JSON SWEEP_JSON[.gz] \\
@@ -87,6 +89,8 @@ def judge_seed(gait: dict, sweep: dict) -> dict:
         return pts[k]["summary"]
 
     nominal = pt(NOMINAL).get("speed_mps")
+    if nominal is not None and nominal <= 0.0:
+        nominal = None  # a policy that does not walk at the nominal point: the share rules fail, never divide by 0
     share = lambda sp: None if sp is None or nominal is None else sp / nominal  # noqa: E731
     out = {}
     # F1: mean speed (analysed episodes) >= 0.225 and no falls in 5 (short episodes count as falls)
