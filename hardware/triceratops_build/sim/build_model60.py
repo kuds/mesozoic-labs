@@ -488,7 +488,7 @@ def main():
     ap.add_argument("--capsule-foot", action="store_true",
                     help="also write trike60_C_closed_capsule.xml: the closed model with the foot study's capsule sole "
                          "(build_feet60 capsule_r24, the owner's foot, D19), and its mass ledger")
-    ap.add_argument("--foreleg", type=int, nargs="*", default=[], choices=(128, 160),
+    ap.add_argument("--foreleg", type=int, nargs="+", default=[], choices=(128, 160),
                     help="with --capsule-foot, also write trike60_C_closed_capsule_fore<N>.xml: PR #697's repackaged "
                          "forelegs at an N mm upper link (build_foreleg60.py; F18, D22), and their mass ledgers")
     a = ap.parse_args()

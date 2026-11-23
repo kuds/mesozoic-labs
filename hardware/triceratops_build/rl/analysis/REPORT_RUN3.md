@@ -71,8 +71,8 @@ The independent review re-checked these and re-ran three sweep points with the r
 - The pre-registration calls the gait report's 3.5 s cut `MIN_ANALYSED_S`; in the code that constant is 1.5 s after
   the 2 s analysis window, which gives the same 3.5 s. No target episode was short here.
 - Neither run was stopped, so the notebook's stop and resume path on Colab is still untested: seed 0's step sheet
-  asked for the stop and resume tests and its record shows no stop (the owner chose to skip them); seed 1's sheet
-  left them out by design.
+  asked for the stop and resume tests and its record shows no stop (the owner said on 22 Nov, in the session, that
+  they were not worried about testing stop and resume at this point); seed 1's sheet left them out by design.
 
 ## What the result can and cannot be put down to
 

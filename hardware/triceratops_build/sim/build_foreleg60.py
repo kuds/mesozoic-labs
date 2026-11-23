@@ -109,14 +109,15 @@ def _fromto_len(el) -> float:
     return ((v[3] - v[0]) ** 2 + (v[4] - v[1]) ** 2 + (v[5] - v[2]) ** 2) ** 0.5
 
 
-CONSISTENT = ("upper_strut", "upper_limb_cover", "pushrod")
+CONSISTENT = ("upper_strut", "upper_limb_cover", "pushrod", "elbow_axle")
 
 
 def consistent_masses(root, base_root) -> list[dict]:
     """A recorded deviation from PR #697 (the review of 23 Nov): the 128 mm model keeps the 188 mm parts' masses for
     the upper strut, upper limb cover and pushrod, and the 160 mm model scales those by its own length ratios to
-    128 mm, so its strut came out heavier than the 188 mm one. Here each of the three is the 188 mm part's mass times
-    its length over the 188 mm part's length (same section). Edits ``root`` in place; returns what changed."""
+    128 mm, so its strut came out heavier than the 188 mm one. Here each of them, and the elbow axle (40 mm long in
+    the 188 mm model, 45 mm in PR #697's with its mass unchanged), is the 188 mm part's mass times its length over
+    the 188 mm part's length (same section). Edits ``root`` in place; returns what changed."""
     b = _named(base_root)
     out = []
     for c in ("left_fore", "right_fore"):
@@ -367,6 +368,7 @@ def main(argv=None) -> int:
         if p:
             return 1
     if a.packaging is not None:
+        ZERO_RETRIES.clear()
         files = [Path(f) for f in a.packaging] or [HERE / "generated" / f"trike60_C_closed_capsule_fore{n}.xml"
                                                    for n in LENGTHS]
         for f in files:
@@ -379,6 +381,8 @@ def main(argv=None) -> int:
                     print(f"     overlaps, {kind} against the 188 mm model:",
                           {k: (round(1000 * v["m"], 1), [round(a) for a in v["at_roll_pitch_flexion_deg"]])
                            for k, v in ov[c][kind].items()} or "none")
+        print("distances that read exactly 0 even after the nudge (a failed solve, not a measurement):",
+              ZERO_RETRIES or "none")
     return 0
 
 

@@ -36,11 +36,17 @@ def test_generator_reproduces_the_committed_variants(tmp_path):
     ("left_fore_x6_flexion_stator", "mass", "0.78"),
 ])
 def test_edit_refuses_any_change_to_the_base(tmp_path, element, attr, value):
-    root = ET.parse(bf.BASE).getroot()
-    el = next(e for e in root.iter() if e.get("name") == element)
-    el.set(attr, value)
+    import re
+
+    text = bf.BASE.read_text()
+    same = tmp_path / "same.xml"
+    same.write_text(text)
+    bf.edit(128, base=same)  # the unchanged bytes are accepted
+    pat = re.compile(r'(<[^>]*name="' + re.escape(element) + r'"[^>]*\b' + attr + r'=")([^"]*)(")')
+    assert len(pat.findall(text)) == 1
     stale = tmp_path / "stale.xml"
-    stale.write_text(ET.tostring(root, encoding="unicode"))
+    stale.write_text(pat.sub(lambda mm: mm.group(1) + value + mm.group(3), text))  # one attribute, nothing else
+    assert stale.read_text() != text and len(stale.read_text()) - len(text) == len(value) - len(pat.search(text).group(2))
     with pytest.raises(SystemExit, match="re-run --extract"):
         bf.edit(128, base=stale)
 
@@ -60,9 +66,13 @@ def test_consistent_masses_scale_the_188_mm_parts_by_length():
         assert ledger["total_mass_kg"] == pytest.approx(sum(ledger["category_kg"].values()), abs=2e-3)
 
 
-# Overlaps the variants keep from the 188 mm model: the shoulder yoke around its own roll drive (the mount), and the
-# schematic shoulder crossmember through the shoulder (F19); nothing else of the front legs may touch the chassis.
-KNOWN = ("shoulder_yoke | {c}_x4_roll_stator", "| shoulder_crossmember")
+# Overlaps the variants keep from the 188 mm model, each with its depth bound (m): the shoulder yoke around its own
+# roll drive (the mount), and the schematic shoulder crossmember through the shoulder (F19). Nothing else of the
+# front legs may touch the chassis, and these may not get deeper.
+KNOWN = {"{c}_shoulder_yoke | {c}_x4_roll_stator": 0.0390, "{c}_shoulder_yoke | {c}_x4_roll_stator_collision": 0.0390,
+         "{c}_x4_pitch_stator | shoulder_crossmember": 0.0370, "{c}_x4_pitch_stator_collision | shoulder_crossmember":
+         0.0370, "{c}_upper_limb_cover | shoulder_crossmember": 0.0300, "{c}_shoulder_yoke | shoulder_crossmember":
+         0.0170, "{c}_upper_strut | shoulder_crossmember": 0.0170}
 
 
 def test_packaging_clears_at_128_and_160_and_not_at_188():
@@ -74,8 +84,8 @@ def test_packaging_clears_at_128_and_160_and_not_at_188():
             named = {k: v["m"] for k, v in side["named"].items()}
             assert named["x6_to_upper_strut"] > 0.005 and named["x6_to_chassis"] > 0.005
             assert named["offset_motor_mount_to_chassis"] > 0.004  # PR #697: plate to rail 4.68 mm
-            bad = [k for k, v in side["pairs"].items() if v["m"] < 0
-                   and not any(s.format(c=c) in k for s in KNOWN)]
+            known = {k.format(c=c): depth for k, depth in KNOWN.items()}
+            bad = [k for k, v in side["pairs"].items() if v["m"] < 0 and not (k in known and -v["m"] <= known[k])]
             assert bad == [], bad
     assert bf.ZERO_RETRIES == []
 

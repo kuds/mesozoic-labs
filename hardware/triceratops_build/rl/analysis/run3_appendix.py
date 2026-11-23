@@ -30,7 +30,10 @@ def sweep(run):
 
 
 def f(x, nd=2, unit=""):
-    return "-" if x is None else f"{x:.{nd}f}{unit}"
+    if x is None:
+        return "-"
+    s = f"{x:.{nd}f}{unit}"
+    return s[1:] if s.startswith("-") and float(s.rstrip(unit)) == 0 else s  # no "-0.000"
 
 
 def gait_tables(rows):
@@ -49,6 +52,8 @@ def gait_tables(rows):
                "episode's limit: the worst episode, averaged over the group's four drives)**\n\n" + head.rstrip("\n"))
     for j in g["run2b"]["drives"]["per_joint"]:
         row(j, lambda t, j=j: f(t["drives"]["per_joint"][j]["rms_over_continuous"]["mean"], 2))
+    row("worst single drive: time at the episode's torque limit, worst episode, %", lambda t: f(100 * max(
+        d["at_episode_limit"]["worst"] for d in t["drives"]["per_joint"].values()), 1))
     for grp in g["run2b"]["drives"]["groups"]:
         row(f"{grp}: time at the episode's torque limit, worst episode, mean of the group's drives, %",
             lambda t, grp=grp: f(100 * t["drives"]["groups"][grp]["saturated_fraction_episode_limit"], 1))
@@ -100,7 +105,8 @@ def gait_tables(rows):
                  lambda t: f(max(d["rms_over_continuous"]["mean"] for d in t["drives"]["per_joint"].values()), 2))):
             out.append(f"| {name} | {label} | " + " | ".join(fn(c[k]) for k in RUNS) + " |")
     sw = {k: gait_all(v)["sweep"] for k, v in RUNS.items()}
-    out.append("\n**The gait report's command sweep** (falls; mean forward speed m/s)\n\n| command, m/s | "
+    out.append("\n**The gait report's command sweep** (3 episodes per command, seeds 100000-100002: falls of 3; "
+               "mean forward speed m/s)\n\n| command, m/s | "
                + " | ".join(RUNS) + " |\n|---|" + "---|" * len(RUNS))
     for cmd in sw["run2b"]:
         out.append(f"| {cmd} | " + " | ".join(f"{sw[k][cmd]['falls']}; {f(sw[k][cmd].get('forward_speed_mps_mean'), 3)}"
