@@ -711,6 +711,25 @@ def test_evaluate_sweep_and_the_runs_own_model(trained_run):
     assert rep["env_config"]["domain_randomization"] is True and rep["deterministic"] is True
 
 
+def test_foot_loads_on_a_trained_checkpoint(trained_run, tmp_path):
+    """analysis/foot_loads.py end to end: five 20 s episodes, 1 ms foot forces, the 10 ms window, provenance."""
+    sys.path.insert(0, str(RL_DIR / "analysis"))
+    import foot_loads
+
+    ck = tmp_path / "ck"
+    shutil.copytree(trained_run / "checkpoints", ck)
+    shutil.copy(trained_run / "run_record.json", ck / "run_record.json")
+    res = foot_loads.run(ck)
+    assert len(res["episodes"]) == 5 and res["provenance"]["model"] == "trike60_C_closed_ankleroll.xml"
+    assert res["provenance"]["steps"] == 1024 and len(res["provenance"]["zip_sha256"]) == 64
+    for e in res["episodes"]:
+        if e["samples"]:
+            assert e["window_s"] == pytest.approx(0.010)
+            for f in e["feet"].values():
+                if f["window_max_n"] is not None:
+                    assert f["window_max_n"] <= f["raw_max_n"] + 1e-9 and f["window_p99_n"] <= f["window_max_n"]
+
+
 def test_evaluate_uses_vecnormalize_in_eval_mode(trained_run):
     import evaluate
 
@@ -1169,7 +1188,8 @@ def test_a_session_killed_right_after_its_quarantine_leaves_the_run_free(tmp_pat
 
 # ======================================================================================== heat, saturation, steps
 def test_continuous_ratings_match_the_mass_ledger():
-    for model in ("trike60_C_closed", "trike60_C_closed_ankleroll", "trike60_C_closed_capsule"):
+    for model in ("trike60_C_closed", "trike60_C_closed_ankleroll", "trike60_C_closed_capsule",
+                  "trike60_C_closed_capsule_fore128", "trike60_C_closed_capsule_fore160"):
         ledger = json.loads((RL_DIR.parent / "sim" / "generated" / f"mass_ledger_{model}.json").read_text())
         env = TrikeEnv(TrikeEnvConfig(model_path=str(RL_DIR.parent / "sim" / "generated" / f"{model}.xml")))
         for name, rating in zip(LEG_ACTUATORS, env.continuous_torque):

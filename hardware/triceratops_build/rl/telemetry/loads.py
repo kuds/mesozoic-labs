@@ -78,7 +78,10 @@ class LoadRecorder:
                         fn[k] += abs(self._f6[0])
             self.foot.append(fn.tolist())
 
-    def summary(self, weight_n: float) -> dict:
+    def summary(self, weight_n: float, physics_dt: float | None = None, window_s: float = 0.010) -> dict:
+        """Percentiles and maxima. With ``physics_dt`` (s) and every-step sampling, each foot also gets its normal
+        force averaged over a moving ``window_s`` window (``normal_window_n``; default 10 ms, the window PR #697's
+        fixture figures use), which smooths single-sample contact spikes."""
         def stats(x):
             x = np.asarray(x, dtype=np.float64)
             if not x.size or not np.isfinite(x).any():
@@ -95,6 +98,13 @@ class LoadRecorder:
                                 "shares_body_with": self.shared[n]}
         if self.foot:
             P = np.asarray(self.foot)
+            k = None
+            if physics_dt:
+                k = max(1, int(round(window_s / (physics_dt * self.every))))
+                out["window_s"] = k * physics_dt * self.every
             for i, n in enumerate(self.foot_names):
                 out["feet"][n] = {"normal_n": stats(P[:, i]), "normal_bw": stats(P[:, i] / weight_n)}
+                if k and P.shape[0] >= k:
+                    w = np.convolve(P[:, i], np.ones(k) / k, mode="valid")
+                    out["feet"][n]["normal_window_n"] = stats(w)
         return out
