@@ -117,8 +117,9 @@ def _labelled_lines(ax, x, series: dict, w: int):
         ok = np.isfinite(y)
         if not ok.any():
             continue
-        sparse = int(ok.sum()) <= 40  # checks come every few hundred thousand steps: show each one
-        ax.plot(x[ok] / 1e6, y[ok], color=cs.SERIES[i], lw=cs.LW, label=name,
+        sparse = int(ok.sum()) <= 40  # checks come every few hundred thousand steps: show each one, with a gap
+        px, py = (x / 1e6, y) if sparse else (x[ok] / 1e6, y[ok])  # where a reading is missing (a NaN breaks the line)
+        ax.plot(px, py, color=cs.SERIES[i], lw=cs.LW, label=name,
                 marker="o" if sparse else None, ms=6, markeredgecolor=cs.SURFACE,
                 markeredgewidth=1.5)
         ends.append((name, x[ok][-1] / 1e6, y[ok][-1]))
@@ -184,11 +185,12 @@ def checks_series(rows: list[dict]) -> dict:
     names = list(dict.fromkeys(n for r in rows for n in r["points"]))
     s = {"steps": steps, "points": {}}
     for n in names:
-        falls, speed = [], []
+        falls, speed, fall_counts = [], [], []
         s["points"][n] = {"failed_episodes": sum(1 for r in rows for e in (r["points"].get(n) or []) if "error" in e)}
         for r in rows:
             eps = [e for e in (r["points"].get(n) or []) if "error" not in e]
             falls.append(sum(bool(e.get("fell")) for e in eps) / len(eps) if eps else None)
+            fall_counts.append((sum(bool(e.get("fell")) for e in eps), len(eps)))
             ok = [e["forward_speed_mps"] for e in eps if not e.get("fell") and e.get("forward_speed_mps") is not None]
             speed.append(float(np.mean(ok)) if ok else None)
         heading = []
@@ -197,7 +199,7 @@ def checks_series(rows: list[dict]) -> dict:
             h = [e["heading_error_at_settle_deg_median"] for e in eps
                  if e.get("heading_error_at_settle_deg_median") is not None]
             heading.append(float(np.mean(h)) if h else None)
-        s["points"][n].update(fall_share=falls, speed_mps=speed, heading_error_deg=heading,
+        s["points"][n].update(fall_share=falls, fall_counts=fall_counts, speed_mps=speed, heading_error_deg=heading,
                               course=any("heading_error_at_settle_deg_median" in e for r in rows
                                          for e in (r["points"].get(n) or [])))
     return s
@@ -213,7 +215,7 @@ def checks_figure(rows: list[dict], label: str, out: Path) -> str:
     ncol = 3 if courses else 2
     fig, axes = plt.subplots(1, ncol, figsize=(7 * ncol, 6.2))
     fig.subplots_adjust(left=0.05, right=0.92, top=0.8, bottom=0.12, wspace=0.3)
-    fall_names = (names + courses)[:4]  # the courses' falls too, when there is room
+    fall_names = names or courses[:4]  # the courses' falls are marked on their own panel
     _labelled_lines(axes[0], x, {n: s["points"][n]["fall_share"] for n in fall_names}, 1)
     axes[0].set_title("Falls at each check point")
     axes[0].set_ylabel("share of the check's episodes that fell")
@@ -222,9 +224,23 @@ def checks_figure(rows: list[dict], label: str, out: Path) -> str:
     axes[1].set_title("Speed at each check point (episodes that did not fall)")
     axes[1].set_ylabel("forward speed, m/s")
     if courses:
-        _labelled_lines(axes[2], x, {n: s["points"][n]["heading_error_deg"] for n in courses[:4]}, 1)
-        axes[2].set_title("Steering courses: heading error 3 s after a request")
-        axes[2].set_ylabel("degrees, mean of the check's episodes")
+        ax = axes[2]
+        _labelled_lines(ax, x, {n: s["points"][n]["heading_error_deg"] for n in courses[:4]}, 1)
+        # a course that fell: its heading error leaves the fallen request out, so mark the fall where it happened
+        fell = [(x[i], s["points"][n]["heading_error_deg"][i], k, m, n) for n in courses[:4]
+                for i, (k, m) in enumerate(s["points"][n]["fall_counts"]) if k]
+        if fell:
+            if not ax.lines:
+                ax.set_ylim(0, 180)
+            top = ax.get_ylim()[1]
+            for xi, h, k, m, n in fell:
+                y = top if h is None else h
+                ax.scatter([xi / 1e6], [y], marker="X", s=90, color=cs.CRITICAL, edgecolors=cs.SURFACE,
+                           linewidths=1.5, zorder=6, clip_on=False)
+                ax.annotate(f"{n} fell {k}/{m}", (xi / 1e6, y), xytext=(6, -12), textcoords="offset points",
+                            fontsize=8, color=cs.INK2)
+        ax.set_title("Steering courses: heading error 3 s after a request\n(X: a check where the course fell)")
+        ax.set_ylabel("degrees, mean of the check's episodes (falls left out)")
     for ax in axes:
         ax.set_xlabel("training steps, millions")
     extra = (f" (falls and speed: the first four non-course points of {len(pts)}; the JSON has all)"

@@ -248,17 +248,21 @@ class TrikeEnvConfig:
     cmd_min_turn_speed_fraction: float = 0.25
     cmd_turn_in_place: bool = True
     cmd_turn_in_place_deadband: float = math.radians(5.0)
-    # Steering reward (revised after the review of 23 Nov, before any steering run):
+    # Steering reward (revised after the reviews of 23 Nov, before any steering run):
     # - r_track is the shared contract's gaussian_tracking_reward x w_track: exp(-(e_v / track_sigma)^2 -
-    #   (e_yaw / track_yaw_sigma)^2), with e_v the planar speed error against (forward command, 0) and e_yaw the
-    #   turn-rate error. One Gaussian, so standing during a walk or a turn request earns about nothing (a separate
-    #   turn bonus paid standing still more than the straight task did);
+    #   (e_yaw / track_yaw_sigma)^2), with e_v the forward speed error (as the straight task's r_track) and e_yaw the
+    #   turn-rate error averaged over about one stride (low-passed with track_yaw_tau_s). One Gaussian, so standing
+    #   during a walk or a turn request earns about nothing (a separate turn bonus paid standing still). The trot's
+    #   step-to-step sideways sway and yaw wobble stay out of it, as in the straight task (r_lateral and r_yaw_rate
+    #   price them per step): with the per-step planar error and turn rate, two trained straight gaits scored 0.86 and
+    #   0.41 instead of their straight-task 1.44 and 1.32; with these, 1.42 and 1.29;
     # - r_track_linear on the forward error, as in the straight task; r_yaw_rate -w_yaw_rate x e_yaw^2;
     # - r_heading 0: the adapter closes the heading loop (the plan's heading term was dropped before any run);
     # - stepping (r_air_time, r_diagonal) counts when the command asks to walk OR to turn faster than
     #   air_time_min_turn_rate, so turning on the spot is a stepping task too.
     # Speeds are taken along the robot's own heading, not the reset heading.
     track_yaw_sigma: float = 0.2  # rad/s; about twice a trained trot's yaw wobble (run2b: SD 0.09 rad/s)
+    track_yaw_tau_s: float = 0.5  # s; the turn-rate error's averaging for r_track (about one stride of a slow trot)
     air_time_min_turn_rate: float = 0.1  # rad/s
 
     def replace(self, **changes: Any) -> "TrikeEnvConfig":
@@ -427,7 +431,7 @@ def reward_terms(cfg: TrikeEnvConfig, *, v_fwd: float, v_cmd: float, v_lat: floa
                  penalty_scale: float = 1.0, late_scale: float = 1.0, heat_index: float = 0.0,
                  saturated_fraction: float = 0.0, air_time_gain: float = 0.0,
                  air_time_shortfall: float = 0.0, v_lat_slow: float = 0.0,
-                 yaw_rate_cmd: float | None = None) -> dict[str, float]:
+                 yaw_rate_cmd: float | None = None, yaw_err_slow: float | None = None) -> dict[str, float]:
     """One control step's reward terms (``REWARD_TERMS``), a pure function of the measured quantities.
 
     ``penalty_scale`` (0-1) multiplies the energy and slip penalties (``RAMPED_TERMS``); ``late_scale`` (0-1) the heat
@@ -439,8 +443,9 @@ def reward_terms(cfg: TrikeEnvConfig, *, v_fwd: float, v_cmd: float, v_lat: floa
     positive and of the negative parts of min(air time, ``air_time_cap_s``) - ``air_time_target_s``;
     ``v_lat_slow``: the sideways speed low-passed with ``lateral_drift_tau_s`` (``r_lateral_drift``, 0 by default).
     ``yaw_rate_cmd``: the steering command's turn rate (a steering ``command_mode``; None for the straight task):
-    ``r_track`` becomes the shared contract's Gaussian on the planar speed error and the turn-rate error together,
-    ``r_yaw_rate`` penalises the turn-rate error, ``r_heading`` is 0, and stepping counts while turning too."""
+    ``r_track`` becomes the shared contract's Gaussian on the forward speed error and the turn-rate error together
+    (``yaw_err_slow``, the error low-passed with ``track_yaw_tau_s``; the per-step error if None), ``r_yaw_rate``
+    penalises the per-step turn-rate error, ``r_heading`` is 0, and stepping counts while turning too."""
     err = v_fwd - v_cmd
     a, ap = np.asarray(action, dtype=np.float64), np.asarray(prev_action, dtype=np.float64)
     terms = {
@@ -467,9 +472,11 @@ def reward_terms(cfg: TrikeEnvConfig, *, v_fwd: float, v_cmd: float, v_lat: floa
         from environments.shared.direction_commands import gaussian_tracking_reward
 
         e_yaw = yaw_rate - yaw_rate_cmd
-        terms["r_track"] = cfg.w_track * gaussian_tracking_reward(math.hypot(err, v_lat), abs(e_yaw),
+        e_track = e_yaw if yaw_err_slow is None else yaw_err_slow
+        finite = math.isfinite(err) and math.isfinite(e_track)  # the shared function refuses non-finite input
+        terms["r_track"] = cfg.w_track * gaussian_tracking_reward(abs(err), abs(e_track),
                                                                   velocity_sigma=cfg.track_sigma,
-                                                                  yaw_rate_sigma=cfg.track_yaw_sigma)
+                                                                  yaw_rate_sigma=cfg.track_yaw_sigma) if finite else 0.0
         terms["r_yaw_rate"] = -cfg.w_yaw_rate * e_yaw ** 2
         terms["r_heading"] = 0.0
     if cfg.w_diagonal and (v_cmd > 0.05 or (yaw_rate_cmd is not None and abs(yaw_rate_cmd) >
@@ -530,6 +537,7 @@ class TrikeEnv(gym.Env):
         self.terrain_kind = "flat"
         self._ground = None  # (origin, heading, profile s, profile z) of the episode's terrain; None: flat floor
         self._drift_alpha = 1.0 - math.exp(-self.dt / cfg.lateral_drift_tau_s) if cfg.lateral_drift_tau_s > 0 else 1.0
+        self._yaw_alpha = 1.0 - math.exp(-self.dt / cfg.track_yaw_tau_s) if cfg.track_yaw_tau_s > 0 else 1.0
 
         # --- ids ---
         self._leg_act = np.array([m.actuator(n).id for n in LEG_ACTUATORS], dtype=np.int64)
@@ -673,6 +681,7 @@ class TrikeEnv(gym.Env):
         self._unloaded = np.zeros(4, dtype=np.int64)  # consecutive physics steps each foot has been unloaded
         self.touchdowns = 0  # debounced touchdowns this episode (diagnostic)
         self._v_lat_slow = 0.0  # sideways speed, low-passed (r_lateral_drift)
+        self._yaw_err_slow = 0.0  # steering: turn-rate error, low-passed (r_track)
         self._phys_step = 0  # physics steps since reset (the push's clock)
         self._push_dv, self._push_start, self._push_end = 0.0, -1, -1  # no push unless reset draws one
         self._push_force = np.zeros(3)
@@ -885,6 +894,9 @@ class TrikeEnv(gym.Env):
         # chassis height above the terrain under it (the floor's 0 without terrain)
         z = float(d.xpos[self._chassis, 2]) - (self.ground_height(xy1) if self._ground is not None else 0.0)
         self._v_lat_slow += self._drift_alpha * (v_lat - self._v_lat_slow)
+        if self._steer:  # against the command this step ran under
+            e_now = yaw_rate - float(self._cmd_exec["physical"][2])
+            self._yaw_err_slow += self._yaw_alpha * (e_now - self._yaw_err_slow)
         tilt = math.degrees(math.acos(max(-1.0, min(1.0, float(R[2, 2])))))
         loads = d.sensordata[self._touch_adr]
         contact = loads > cfg.contact_threshold_n
@@ -908,7 +920,8 @@ class TrikeEnv(gym.Env):
                              contact=contact, penalty_scale=self.penalty_scale, late_scale=self.late_scale,
                              heat_index=heat_index, saturated_fraction=saturated_fraction, air_time_gain=air_gain,
                              air_time_shortfall=air_short, v_lat_slow=self._v_lat_slow,
-                             yaw_rate_cmd=float(self._cmd_exec["physical"][2]) if self._steer else None)
+                             yaw_rate_cmd=float(self._cmd_exec["physical"][2]) if self._steer else None,
+                             yaw_err_slow=self._yaw_err_slow if self._steer else None)
 
         # --- termination ---
         reason = ""
@@ -958,6 +971,7 @@ class TrikeEnv(gym.Env):
                 "base_x": float(d.xpos[self._chassis, 0]), "base_y": float(d.xpos[self._chassis, 1]),
                 "tracking_error_v": float(math.hypot(v_fwd - executed["physical"][0], v_lat - executed["physical"][1])),
                 "tracking_error_yaw": abs(yaw_rate - float(executed["physical"][2])),
+                "yaw_rate_error_slow": self._yaw_err_slow,
                 "tracking_error_heading": abs(err_h)})
         if self._ground is not None or self._push_start >= 0:
             info["ground_height"] = float(d.xpos[self._chassis, 2]) - z

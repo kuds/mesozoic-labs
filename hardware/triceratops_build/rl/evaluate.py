@@ -210,6 +210,12 @@ def main(argv=None) -> int:
     args = parse_args(argv)
     zip_path, vn_path, steps, run_dir = resolve_checkpoint(args)
     cfg = env_config(args, run_dir)
+    if getattr(cfg, "command_mode", "none") != "none":  # a steering env refuses requests above its command scale
+        asked = [c for c in (list(args.sweep or []) or (list(SWEEP_DEFAULT) if args.sweep is not None else []))
+                 + ([args.command] if args.command is not None else []) if c > cfg.cmd_speed_scale]
+        if asked:
+            raise SystemExit(f"a steering run takes requests up to cmd_speed_scale = {cfg.cmd_speed_scale} m/s; "
+                             f"asked for {', '.join(f'{c:g}' for c in asked)}")
     env = TrikeEnv(cfg)
     policy = make_policy(zip_path, vn_path, env, deterministic=not args.stochastic)
     results: dict = {}

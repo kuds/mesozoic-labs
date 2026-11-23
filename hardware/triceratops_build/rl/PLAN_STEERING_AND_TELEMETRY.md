@@ -70,8 +70,9 @@ The thermal time constant is no longer an open guess: the maker's overload figur
   `"heading"` or `"heading_and_speed"`, with one `DirectionCommandConfig` scaled to 60 cm. The cruise speed is
   0.25 m/s. The turn rates and heading-change sizes are set from what the model-based trot and run 3 show.
 - **Observation:** the shared 3-input command segment, appended last. Under `"none"` the observation is unchanged.
-- **Reward** (as built, revised after the review of 23 Nov): one shared Gaussian of the speed error (sideways speed
-  included) and the turn-rate error, so standing still while asked to move earns about nothing. The
+- **Reward** (as built, revised after the reviews of 23 Nov): one shared Gaussian of the forward speed error and the
+  stride-averaged turn-rate error, so standing still while asked to move earns about nothing, while the trot's
+  step-to-step sway and wobble stay priced per step as in the straight task. The
   requested-heading term planned here was dropped before any run (`r_heading` is 0): the command adapter closes the
   heading loop. The stepping terms also count when the command asks to turn. The heat, torque-limit, slip and drift
   costs stay.
@@ -83,7 +84,8 @@ The thermal time constant is no longer an open guess: the maker's overload figur
   - turning on the spot: rate and drift.
   As built, these are `steer_eval.py`'s schedule and courses and the checks' course points; the gait report and the
   sweep stay straight-line (a steering policy walks them on a straight request).
-- **Training:** a new preset, rules pre-registered after run 3's results, and step sheets. The notebook gains the
+- **Training:** a new preset, rules pre-registered after run 3's results, and step sheets. Run 3's terrain is laid
+  along the reset heading, so the steering preset needs terrain around the start, or none. The notebook gains the
   preset in its list. It may also gain an option to start from an earlier run's policy (train.py has none today);
   that is decided with the pre-registration.
 

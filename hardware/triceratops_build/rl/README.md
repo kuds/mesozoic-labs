@@ -296,12 +296,15 @@ edited.
 - **Turning on the spot** (this env's extension): the shared contract stops turning at zero speed. With
   `cmd_turn_in_place`, a stop whose requested heading differs from the estimate by more than 5° turns on the spot,
   at the same bounded rate.
-- **Reward** (revised after the review of 23 Nov 2026, before any steering run):
+- **Reward** (revised after the reviews of 23 Nov 2026, before any steering run):
   - speeds are taken along the robot's own heading, not the reset heading;
-  - `r_track` is the shared contract's `gaussian_tracking_reward` times `w_track`: one Gaussian of the planar speed
-    error (forward error and sideways speed, `track_sigma`) and the turn-rate error (`track_yaw_sigma`, 0.2 rad/s).
-    Being one Gaussian, standing still while asked to walk or turn earns about nothing (a separate turn bonus, the
-    first design, paid standing still);
+  - `r_track` is the shared contract's `gaussian_tracking_reward` times `w_track`: one Gaussian of the forward speed
+    error (`track_sigma`, as the straight task's) and the turn-rate error averaged over about one stride (low-passed
+    with `track_yaw_tau_s`, 0.5 s; `track_yaw_sigma`, 0.2 rad/s). Being one Gaussian, standing still while asked to
+    walk or turn earns about nothing (a separate turn bonus, the first design, paid standing still). The trot's
+    step-to-step sideways sway and yaw wobble stay out of it, priced per step by `r_lateral` and `r_yaw_rate` as in
+    the straight task: with the per-step sideways speed and turn rate in it, two trained straight gaits (run2b,
+    pipe1) scored 0.86 and 0.41 per step instead of their straight-task 1.44 and 1.32; as built, 1.42 and 1.29;
   - `r_yaw_rate` penalises the error against the commanded turn rate;
   - `r_heading` is 0, because holding the heading is the adapter's job;
   - the stepping terms (`r_air_time`, `r_diagonal`) count when the command asks to walk or to turn faster than
@@ -317,7 +320,7 @@ edited.
   - `options={"command_target": (heading offset, speed)}` holds another request;
   - `set_command_target(heading, speed)` is an operator's request mid-episode.
 - **`steer_eval.py`:** a steering policy on its own request schedule, and on scripted courses (90° turns while
-  walking, a stop with a 179° turn on the spot, standing; 179°, because a half turn sits on the angle wrap where
+  walking, a stop with a 170° turn on the spot, standing; 170°, because a half turn sits on the angle wrap where
   noise picks the direction). It reports the generic measures of `telemetry/steering.py` with the 60 cm tolerances
   (0.05 m/s, 0.1 rad/s, 10°):
   - speed and turn-rate tracking judged on 0.5 s means (about one stride) after the first second, since the per-step
@@ -326,13 +329,17 @@ edited.
   - turn radius over the steps turning the commanded way, net drift per turn on the spot, and speed while standing.
   Each course gets a top view and a heading-against-time chart.
 - **`evaluate.py` on a steering run:** each episode walks one straight request (a seeded speed, or a stop), so its
-  numbers compare with the straight task's; the steering behaviour itself is `steer_eval.py`'s.
+  numbers compare with the straight task's in distribution; the speed is drawn from its own seeded generator, so
+  episode by episode the speeds differ from a straight run's at the same seed. Speeds above `cmd_speed_scale` are
+  refused before anything runs. The steering behaviour itself is `steer_eval.py`'s.
 - **Checks:** with `--checks-every`, a steering run's checks add the courses `turns_walking` and `turn_on_the_spot`,
   about 10 s more per check; the checks chart gives them a third panel (heading error 3 s after a request).
 - **Provenance:** the gait report records the shared direction-command module's sha256 beside the run commit's, so a
   run's exported `trike_env.py` used with a newer shared module shows.
 - **Not yet decided:** the settings above are starting points, set before any steering run. The steering run's
-  rules, its preset and step sheets come after run 3's results (D20).
+  rules, its preset and step sheets come after run 3's results (D20). One known point for that preset: run 3's
+  terrain (`configs/run3_terrain.json`) is laid along the reset heading, so a robot that turns walks off it; a
+  steering preset needs terrain around the start, or none.
 
 ## Heat, battery and loads over a demo (decision D21; `demo_course.py`)
 

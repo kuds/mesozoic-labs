@@ -1777,9 +1777,9 @@ def test_steering_observation_carries_the_command_its_step_is_judged_by():
         assert np.allclose(seen["command"], np.clip(cmd / scales, -1, 1), atol=1e-6)
         assert seen["command_speed_mps"][0] == pytest.approx(info["command_speed"], abs=1e-6)
         assert info["command_speed"] == pytest.approx(info["command_v_x"])  # the executed speed, not the request
-        e_v = math.hypot(info["forward_speed"] - info["command_v_x"], info["lateral_speed"])
+        e_v = abs(info["forward_speed"] - info["command_v_x"])  # forward only: the sway is r_lateral's
         assert info["r_track"] == pytest.approx(env.cfg.w_track * gaussian_tracking_reward(
-            e_v, abs(info["yaw_rate"] - info["command_yaw_rate"]), velocity_sigma=env.cfg.track_sigma,
+            e_v, abs(info["yaw_rate_error_slow"]), velocity_sigma=env.cfg.track_sigma,
             yaw_rate_sigma=env.cfg.track_yaw_sigma))
         if k == 300:
             assert info["desired_speed"] == pytest.approx(0.15)
@@ -1897,8 +1897,16 @@ def test_steer_eval_main_loads_the_newest_pair_and_writes_its_record(steering_ru
     import gait_report
 
     ckpt = steering_run / "checkpoints"
-    zp, _, _ = gait_report.find_pair(ckpt)
+    zp, pk, n = gait_report.find_pair(ckpt)
     shutil.copy(steering_run / "run_record.json", ckpt / "run_record.json")  # as a downloaded checkpoint folder has it
+    # an older decoy pair that sorts FIRST by name ("100" < "1024" < "512"), with the 512 pair sorting last: taking
+    # either end of a name sort would pick an older pair; only the step count finds the newest
+    old_zip = sorted(ckpt.glob("*_512_steps.zip"))[0]
+    old_pkl = sorted(ckpt.glob("*_vecnormalize_512_steps.pkl"))[0]
+    shutil.copy(old_zip, ckpt / old_zip.name.replace("_512_", "_100_"))
+    shutil.copy(old_pkl, ckpt / old_pkl.name.replace("_512_", "_100_"))
+    names = sorted(z.name for z in ckpt.glob("*_steps.zip"))
+    assert n == 1024 and names[0] != zp.name and names[-1] != zp.name
     out = tmp_path / "steer"
     p = _run(RL_DIR / "steer_eval.py", "--ckpt-dir", ckpt, "--out", out, "--episodes", 1, timeout=900)
     assert p.returncode == 0, p.stdout + p.stderr
@@ -1909,6 +1917,57 @@ def test_steer_eval_main_loads_the_newest_pair_and_writes_its_record(steering_ru
     assert sorted(rec["charts"]) == sorted(f"steer_course_{n}.png" for n in steer_eval.COURSES)
     assert all((out / c).stat().st_size > 10_000 for c in rec["charts"])
     assert "course turn_on_the_spot" in p.stdout
+
+
+def test_steering_reward_tracks_forward_error_and_the_stride_averaged_turn_rate():
+    """r_track under steering: the forward error (sideways sway stays r_lateral's, as in the straight task) and the
+    turn-rate error low-passed over about a stride; stepping counts while turning on the spot."""
+    from environments.shared.direction_commands import gaussian_tracking_reward
+    from trike_env import reward_terms
+
+    cfg = TrikeEnvConfig(command_mode="heading")
+    base = dict(v_fwd=0.25, v_cmd=0.25, v_lat=0.05, yaw_rate=0.3, yaw_err=0.0, grav_b=np.array([0.0, 0.0, -1.0]),
+                z=0.3, z_nominal=0.3, mean_power=0.0, action=np.zeros(12), prev_action=np.zeros(12), slip=0.0,
+                contact=np.ones(4, dtype=bool))
+    terms = reward_terms(cfg, **base, yaw_rate_cmd=0.0, yaw_err_slow=0.02)
+    assert terms["r_track"] == pytest.approx(cfg.w_track * gaussian_tracking_reward(
+        0.0, 0.02, velocity_sigma=cfg.track_sigma, yaw_rate_sigma=cfg.track_yaw_sigma))  # sway and wobble: free
+    assert terms["r_lateral"] == pytest.approx(-cfg.w_lateral * 0.05 ** 2)
+    assert terms["r_yaw_rate"] == pytest.approx(-cfg.w_yaw_rate * 0.3 ** 2)  # the per-step wobble is priced here
+    nan = reward_terms(cfg, **{**base, "v_fwd": float("nan")}, yaw_rate_cmd=0.0, yaw_err_slow=0.0)
+    assert nan["r_track"] == 0.0
+    # stepping: a turn on the spot (no forward command) above air_time_min_turn_rate counts, a slower one does not
+    stand = {**base, "v_cmd": 0.0, "v_fwd": 0.0}
+    turn = reward_terms(cfg, **stand, yaw_rate_cmd=0.3, yaw_err_slow=0.0, air_time_gain=0.1)
+    slow = reward_terms(cfg, **stand, yaw_rate_cmd=0.05, yaw_err_slow=0.0, air_time_gain=0.1)
+    assert turn["r_air_time"] > 0.0 and slow["r_air_time"] == 0.0
+    if cfg.w_diagonal:
+        assert slow["r_diagonal"] == 0.0
+
+
+def test_turn_on_the_spot_has_hysteresis():
+    """A stop turns on the spot beyond the deadband (5 deg) and keeps turning until within half of it."""
+    from types import SimpleNamespace
+
+    env = _steer_env(observation_noise=False)
+    env.reset(seed=1, options={"command_target": (0.0, 0.0)})
+
+    def at(err_deg):
+        e = math.radians(err_deg)
+        env._set_command(SimpleNamespace(physical=(0.0, 0.0, 0.0), heading_active=False, heading_error=e,
+                                         desired_heading=e, current_heading=0.0, desired_speed=0.0, event_id=1))
+        return env._cmd_exec["turn_in_place"]
+
+    assert not at(4.0) and at(6.0)  # starts beyond 5 deg
+    assert at(4.0) and at(3.0)  # keeps going inside it
+    assert not at(2.0)  # stops within 2.5 deg
+    assert not at(4.0)  # and does not restart until beyond 5 deg again
+
+
+def test_evaluate_refuses_speeds_a_steering_env_cannot_take(steering_run):
+    p = _run(RL_DIR / "evaluate.py", "--run-dir", steering_run, "--episodes", 1, "--sweep", 0.25, 0.35,
+             "--seconds", 0.5)
+    assert p.returncode != 0 and "cmd_speed_scale" in (p.stdout + p.stderr) and "Traceback" not in p.stderr
 
 
 def test_steer_eval_courses_apply_requests_on_time():
@@ -1924,8 +1983,8 @@ def test_steer_eval_courses_apply_requests_on_time():
     path = m["path"]
     assert len(path) == round((course["rows"][-1][0] + course["hold_s"]) / env.dt)
     h0 = path[0][3]
-    half = math.radians(179.0)  # the course's half turn stays off the angle wrap
-    assert [r[1] for r in course["rows"]] == [0, 0, 179, 179]
+    half = math.radians(170.0)  # the course's turn-around stays clear of the angle wrap
+    assert [r[1] for r in course["rows"]] == [0, 0, 170, 170]
     want = {0.0: (0.0, 0.25), 5.0: (0.0, 0.0), 7.0: (half, 0.0), 16.0: (half, 0.25)}
     for t0, (off, v) in want.items():  # the request the first step at or after t0 ran under
         k = int(round(t0 / env.dt))

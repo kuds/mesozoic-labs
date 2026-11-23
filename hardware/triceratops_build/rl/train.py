@@ -597,6 +597,8 @@ def make_checks(args, cfg, out: Path):
             m = steer_eval.run_episode(envs[name], act, seed, course=course)
             return {"fell": m["fell"], "termination": m["termination"],
                     "heading_error_at_settle_deg_median": m["events_summary"]["heading_error_at_settle_deg"]["median"],
+                    "turns": m["events_summary"]["n_turns"],
+                    "turns_failed_by_fall": m["events_summary"]["turns_failed_by_fall"],
                     "speed_error_mps_mean": m["tracking"]["speed_error_mps"]["mean"],
                     "yaw_rate_error_radps_mean": m["tracking"]["yaw_rate_error_radps"]["mean"],
                     "share_in_tolerance": m["tracking"]["share_in_tolerance"]}
@@ -609,8 +611,10 @@ def make_checks(args, cfg, out: Path):
         if name in CHECK_COURSES:
             h = [e["heading_error_at_settle_deg_median"] for e in eps if e.get("heading_error_at_settle_deg_median")
                  is not None]
+            failed = sum(e.get("turns_failed_by_fall", 0) for e in eps)
             return (f"{name} falls {sum(e['fell'] for e in eps)}/{len(eps)}"
-                    + (f", heading error {sum(h) / len(h):.0f} deg" if h else ""))
+                    + (f", turns failed by a fall {failed}" if failed else "")
+                    + (f", heading error {sum(h) / len(h):.0f} deg (falls left out)" if h else ""))
         ok = [e["forward_speed_mps"] for e in eps if not e["fell"] and e.get("forward_speed_mps") is not None]
         sp = f", {sum(ok) / len(ok):.3f} m/s" if ok else ""
         return f"{name} falls {sum(e['fell'] for e in eps)}/{len(eps)}{sp}"

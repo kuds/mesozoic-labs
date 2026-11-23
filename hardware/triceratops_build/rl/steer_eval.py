@@ -37,8 +37,9 @@ COURSE_SEED = 600_000
 # until the next; the episode runs to the last row's time plus the hold.
 COURSES = {
     "turns_walking": {"rows": [(0.0, 0, 0.25), (5.0, 90, 0.25), (14.0, 0, 0.25), (23.0, -90, 0.25)], "hold_s": 9.0},
-    # 179 deg, not 180: a half turn sits on the angle wrap, where noise would choose the direction
-    "turn_on_the_spot": {"rows": [(0.0, 0, 0.25), (5.0, 0, 0.0), (7.0, 179, 0.0), (16.0, 179, 0.25)],
+    # 170 deg, not 180: a half turn sits on the angle wrap, and the robot stands up to about 5 deg off its heading
+    # when the request comes, so anything nearer 180 lets the sway choose the direction (179 still flipped)
+    "turn_on_the_spot": {"rows": [(0.0, 0, 0.25), (5.0, 0, 0.0), (7.0, 170, 0.0), (16.0, 170, 0.25)],
                          "hold_s": 5.0},
     "stand": {"rows": [(0.0, 0, 0.0)], "hold_s": 10.0},
 }
@@ -144,9 +145,12 @@ def course_chart(name: str, rec: dict, out: Path, label: str) -> str:
     ax.set_title("Top view")
     ax.legend(loc="upper left", fontsize=8)
     t = p[:, 5]
-    unwrap = lambda a: np.degrees(np.unwrap(a))  # noqa: E731
-    ax2.plot(t, unwrap(p[:, 3]), color=cs.SERIES[1], lw=cs.LW, label="requested heading")
-    ax2.plot(t, unwrap(p[:, 2]), color=cs.SERIES[0], lw=cs.LW, label="actual heading")
+    # the actual heading unwrapped, and the request drawn at its wrapped error from it, so a turn that reaches the
+    # request the other way round is not drawn 360 deg off
+    actual = np.unwrap(p[:, 2])
+    requested = actual + (p[:, 3] - p[:, 2] + np.pi) % (2 * np.pi) - np.pi
+    ax2.plot(t, np.degrees(requested), color=cs.SERIES[1], lw=cs.LW, label="requested heading")
+    ax2.plot(t, np.degrees(actual), color=cs.SERIES[0], lw=cs.LW, label="actual heading")
     ax2.set_xlabel("time, s")
     ax2.set_ylabel("heading, deg (unwrapped)")
     ax2.set_title("Heading against time")

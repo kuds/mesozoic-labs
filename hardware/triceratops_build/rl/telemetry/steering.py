@@ -21,8 +21,10 @@ Measures (revised after the review of 23 Nov):
   its settle time is the time until the error came within tolerance and stayed there for ``hold_s``. An event that
   ends in a fall counts, as failed (``fell_during``), however short; other events shorter than ``settle_s`` are
   skipped;
-- ``turning``: while the robot was asked to turn while walking, the median turn radius (|forward speed| / |turn
-  rate|, over steps turning the commanded way) and the median ratio of achieved to commanded turn rate;
+- ``turning``: while the robot was asked to turn while walking, over ``average_s`` windows: the median turn radius
+  (mean forward speed / |mean turn rate|) over the windows that turned the commanded way at ``min_turn_ratio`` or
+  more of the commanded rate while moving at ``min_turn_speed`` or more (None if none did: a robot that stands has
+  no radius), how many windows qualified, and the achieved-over-commanded turn-rate ratios of all turn windows;
 - ``turn_in_place``: per turn on the spot, the net displacement over its duration (m/s; the sway of the steps is
   not drift), when the step info carries the base position (``position_keys``), and the median ratio of achieved to
   commanded turn rate;
@@ -50,7 +52,8 @@ def _stats(x) -> dict:
 def episode_measures(infos: list[dict], *, velocity_tolerance: float = 0.2, yaw_rate_tolerance: float = 0.15,
                      heading_tolerance: float = math.pi / 12.0, settle_s: float = 3.0, hold_s: float = 0.5,
                      skip_s: float = 1.0, average_s: float = 0.5, turn_threshold_deg: float = 20.0,
-                     turn_rate_threshold: float = 0.1, speed_key: str = "forward_speed",
+                     turn_rate_threshold: float = 0.1, min_turn_ratio: float = 0.5, min_turn_speed: float = 0.05,
+                     speed_key: str = "forward_speed",
                      lateral_key: str = "lateral_speed", yaw_rate_key: str = "yaw_rate", time_key: str = "time_s",
                      position_keys: tuple[str, str] = ("base_x", "base_y")) -> dict:
     if not infos:
@@ -119,16 +122,21 @@ def episode_measures(infos: list[dict], *, velocity_tolerance: float = 0.2, yaw_
                                                if r["heading_error_at_settle_rad"] is not None]),
         "settled_share_of_turns": (sum(r["settle_time_s"] is not None for r in turns) / len(turns)) if turns else None,
         "settle_time_s_of_turns": _stats([r["settle_time_s"] for r in turns])}
-    # turning while walking: radius over steps turning the commanded way
+    # turning while walking: per window, the radius of a window that really turned and moved
     walk_turn = w & ~tip & (np.abs(cy) > turn_rate_threshold) & (cv > 0.05)
-    same_way = np.sign(yr) == np.sign(cy)
     with np.errstate(invalid="ignore", divide="ignore"):
-        radius = np.abs(v) / np.abs(yr)
         ratio = yr / cy
-    rad = radius[walk_turn & same_way & (np.abs(yr) > 1e-3)]
-    out["turning"] = {"steps": int(walk_turn.sum()),
-                      "radius_m_median": float(np.median(rad)) if rad.size else None,
-                      "achieved_over_commanded": _stats(ratio[walk_turn])}
+    radii, win_ratio = [], []
+    for s in wins:
+        if not walk_turn[s].all():
+            continue
+        r = float(yr[s].mean() / cy[s].mean())
+        win_ratio.append(r)
+        if r >= min_turn_ratio and v[s].mean() >= min_turn_speed:
+            radii.append(float(v[s].mean() / abs(yr[s].mean())))
+    out["turning"] = {"steps": int(walk_turn.sum()), "windows": len(win_ratio), "windows_turning": len(radii),
+                      "radius_m_median": float(np.median(radii)) if radii else None,
+                      "achieved_over_commanded": _stats(win_ratio)}
     # turning on the spot: net displacement per turn
     spins = []
     tip_w = w & tip

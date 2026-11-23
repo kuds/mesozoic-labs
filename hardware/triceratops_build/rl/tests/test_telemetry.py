@@ -308,6 +308,11 @@ def test_steering_measures_do_not_flatter():
     turns = [r for r in m["events"] if r["is_turn"]]
     assert len(turns) == 1 and turns[0]["settle_time_s"] is None  # the return to 0 is not a turn, not a success
     assert m["events_summary"]["settled_share_of_turns"] == 0.0
+    # standing, or walking straight, under a turn request has no turn radius (it once read a plausible 0.8 m)
+    assert m["turning"]["windows"] > 0 and m["turning"]["windows_turning"] == 0
+    assert m["turning"]["radius_m_median"] is None
+    straight = _steer_infos([(6.0, math.pi / 2, 0.25, lambda s: 0.0, 0.2, 0.0004, 0.2, 0.4, False)])
+    assert episode_measures(straight, **tol)["turning"]["radius_m_median"] is None
     fall = _steer_infos([(4.0, 0.0, 0.25, lambda s: 0.0, 0.25, 0.0, 0.25, 0.0, False),
                          (4.0, math.pi / 2, 0.25, lambda s: 0.3 * s, 0.2, 0.3, 0.2, 0.4, False)], fall_at=5.0)
     m = episode_measures(fall, **tol)
@@ -491,6 +496,42 @@ def test_loads_two_hinges_on_one_body_are_a_serial_gimbal():
                                             '<geom type="sphere" size="0.1" mass="1"/></body></worldbody></mujoco>')
     with pytest.raises(ValueError, match="free joint"):
         LoadRecorder(free_m, ["base"])
+
+
+def test_loads_serial_gimbal_both_ways():
+    """Mass offset along x and y, both hinges servo-held: each bearing carries the OTHER drive's torque as bending
+    (pitch bearing: the roll servo's 1.962 N m; roll bearing: the pitch servo's 0.981 N m), on one body with two
+    hinges and on the explicit yoke-body gimbal alike."""
+    import mujoco
+
+    from telemetry.loads import LoadRecorder
+
+    mass = '<geom type="sphere" size="0.01" pos="0.05 0.1 0" mass="2"/>'
+    servos = ('<actuator><position joint="pitch" kp="4000"/><position joint="roll" kp="4000"/></actuator>')
+    one = (f'<mujoco><option gravity="0 0 -9.81" timestep="0.001"/><worldbody><body name="base" pos="0 0 1">'
+           f'<geom type="sphere" size="0.02" pos="0.3 0 0" mass="10"/><body name="link">'
+           f'<joint name="pitch" type="hinge" axis="0 1 0" damping="5"/>'
+           f'<joint name="roll" type="hinge" axis="1 0 0" damping="5"/>{mass}</body></body></worldbody>{servos}'
+           f'</mujoco>')
+    two = (f'<mujoco><option gravity="0 0 -9.81" timestep="0.001"/><worldbody><body name="base" pos="0 0 1">'
+           f'<geom type="sphere" size="0.02" pos="0.3 0 0" mass="10"/><body name="yoke">'
+           f'<joint name="pitch" type="hinge" axis="0 1 0" damping="5"/>'
+           f'<inertial pos="0 0 0" mass="1e-4" diaginertia="1e-8 1e-8 1e-8"/><body name="thigh">'
+           f'<joint name="roll" type="hinge" axis="1 0 0" damping="5"/>{mass}</body></body></body></worldbody>'
+           f'{servos}</mujoco>')
+    got = []
+    for xml in (one, two):
+        m = mujoco.MjModel.from_xml_string(xml)
+        d = mujoco.MjData(m)
+        for _ in range(4000):
+            mujoco.mj_step(m, d)
+        rec = LoadRecorder(m, ["pitch", "roll"])
+        rec(m, d)
+        assert abs(d.actuator_force[0]) == pytest.approx(0.981, rel=0.03)  # pitch servo: m g x
+        assert abs(d.actuator_force[1]) == pytest.approx(1.962, rel=0.03)  # roll servo: m g y
+        assert rec.moment[0][0] == pytest.approx(1.962, rel=0.03) and rec.moment[0][1] == pytest.approx(0.981, rel=0.03)
+        got.append(rec.moment[0])
+    assert got[0] == pytest.approx(got[1], abs=0.01)
 
 
 def test_loads_hook_does_not_change_the_simulation():
