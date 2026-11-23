@@ -304,7 +304,12 @@ edited.
     walk or turn earns about nothing (a separate turn bonus, the first design, paid standing still). The trot's
     step-to-step sideways sway and yaw wobble stay out of it, priced per step by `r_lateral` and `r_yaw_rate` as in
     the straight task: with the per-step sideways speed and turn rate in it, two trained straight gaits (run2b,
-    pipe1) scored 0.86 and 0.41 per step instead of their straight-task 1.44 and 1.32; as built, 1.42 and 1.29;
+    pipe1) scored 0.86 and 0.41 per step instead of their straight-task 1.44 and 1.32; as built, 1.42 and 1.29
+    with a zero turn command. In the steering env on a straight request they score 0.90 and 0.99: they sit about
+    5° off heading and cannot see the adapter's 0.10-0.14 rad/s corrections, as policies never trained on a turn
+    command would. The averaged turn-rate error is not in the observation, so r_track depends on about 0.5 s of
+    history the critic cannot see; after a request has been ignored, credit takes about 0.7 s to recover once the
+    robot tracks. Worth knowing if steering training is noisy;
   - `r_yaw_rate` penalises the error against the commanded turn rate;
   - `r_heading` is 0, because holding the heading is the adapter's job;
   - the stepping terms (`r_air_time`, `r_diagonal`) count when the command asks to walk or to turn faster than

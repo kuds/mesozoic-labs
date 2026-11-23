@@ -255,7 +255,7 @@ class TrikeEnvConfig:
     #   during a walk or a turn request earns about nothing (a separate turn bonus paid standing still). The trot's
     #   step-to-step sideways sway and yaw wobble stay out of it, as in the straight task (r_lateral and r_yaw_rate
     #   price them per step): with the per-step planar error and turn rate, two trained straight gaits scored 0.86 and
-    #   0.41 instead of their straight-task 1.44 and 1.32; with these, 1.42 and 1.29;
+    #   0.41 instead of their straight-task 1.44 and 1.32; with these, 1.42 and 1.29 (at a zero turn command);
     # - r_track_linear on the forward error, as in the straight task; r_yaw_rate -w_yaw_rate x e_yaw^2;
     # - r_heading 0: the adapter closes the heading loop (the plan's heading term was dropped before any run);
     # - stepping (r_air_time, r_diagonal) counts when the command asks to walk OR to turn faster than
