@@ -142,6 +142,7 @@ def _apply_overrides(configs: dict, overrides: list | None, model_id: "ModelId |
     """
     if not overrides:
         return
+    from .config import _RETIRED_CURRICULUM_TABLE
 
     def is_section(token: str) -> bool:
         return any(_kwargs_key(token) in cfg for cfg in configs.values())
@@ -169,6 +170,14 @@ def _apply_overrides(configs: dict, overrides: list | None, model_id: "ModelId |
             section, path = parts[0], parts[1:]
         if not path:
             raise ValueError(f"--override {key!r} names no key; write section.key=value or STAGE.section.key=value")
+        if section == "curriculum" and path[0] == _RETIRED_CURRICULUM_TABLE:
+            # The loader refuses this table in a stage TOML; an override sets the same key after loading,
+            # where the single-stage ``train`` path runs no gate schema, so it is refused here for every path.
+            raise ValueError(
+                f"--override {key!r} sets [curriculum.{_RETIRED_CURRICULUM_TABLE}], which is refused: it overrode "
+                "the shared [curriculum] thresholds for the JAX/MJX trainer, which D-D17 retired, so nothing would "
+                "enforce it."
+            )
         if section == "env" and len(path) == 1 and isinstance(value, list):
             value = tuple(value)
         # Every target stage is checked before any is written, so a refused

@@ -5150,13 +5150,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read them. The website's metric tables and its list of `eval` output
   sections no longer include them.
 - **The retired `[curriculum.jax]` override table and the JAX array
-  dispatch.** Where the gate schema runs (CLI curriculum training, through
-  `thresholds_from_configs`), it now refuses a `[curriculum.jax]` sub-table by
-  name, whatever `advancement_enabled` is set to. Only the JAX/MJX trainer
-  applied that table, and D-D17 retired it. Unlike a top-level `[jax]`, which
-  the stage loader refuses on every path, the table is not refused at load
-  time, so the SB3 notebook, which never runs the gate schema, still loads
-  one. Its validation code is gone (`BACKEND_OVERRIDE_TABLES`,
+  dispatch.** A `[curriculum.jax]` sub-table is refused by name on every path:
+  `load_stage_config` refuses it in a stage TOML, as it refuses a top-level
+  `[jax]` (the SB3 notebook included), the CLI refuses an `--override
+  curriculum.jax=...` on every subcommand, and the gate schema refuses it in a
+  `curriculum_kwargs` mapping built in memory, whatever `advancement_enabled`
+  is set to. Only the JAX/MJX trainer applied that table, and D-D17 retired
+  it. Its validation code is gone (`BACKEND_OVERRIDE_TABLES`,
   `BACKEND_OVERRIDABLE_KEYS`, `_validate_backend_override_table`). No
   committed stage config held the table, and `gate_config_view` never
   projected it, so no gate digest moves. `reward_functions.py` and

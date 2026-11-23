@@ -370,12 +370,15 @@ _SCHEMA_KEYS = frozenset({"gate_schema_version", "gate_kind"})
 #: The retired per-backend override sub-table, ``[curriculum.jax]`` in TOML
 #: (``curriculum_kwargs["jax"]`` once loaded).  It let a stage state a
 #: JAX-calibrated scalar bar beside the shared one, which only the JAX/MJX
-#: trainer applied.  D-D17 retired that trainer, so :func:`validate_gate_config`
-#: refuses the table by name.  The refusal reaches only the paths that run this
-#: schema (CLI curriculum training, through ``thresholds_from_configs``): the
-#: stage loader passes ``[curriculum]`` through whole, so unlike a top-level
-#: ``[jax]``, which ``config.py`` refuses on every path, the table still loads
-#: in the SB3 notebook, which never runs the schema.
+#: trainer applied.  D-D17 retired that trainer.  ``config.load_stage_config``
+#: refuses the TOML table, as it does a top-level ``[jax]``, so it stops every
+#: path that reads a stage file, the CLI and the SB3 notebook alike, and
+#: ``cli._apply_overrides`` refuses an ``--override curriculum.jax=...``.
+#: Where this schema runs (CLI ``curriculum`` training, through
+#: ``thresholds_from_configs``), :func:`validate_gate_config` refuses the key
+#: by name as well, for a ``curriculum_kwargs`` mapping built in memory, which
+#: would otherwise get the unknown-key refusal and its advice to add the key
+#: to this module.
 _RETIRED_BACKEND_TABLE = "jax"
 
 #: Every threshold key any gate kind knows about, used to tell "belongs to a
@@ -393,9 +396,9 @@ def gate_config_view(curriculum: Mapping[str, Any]) -> dict[str, Any]:
     are in it (``none/v1`` consumes nothing), while schedule, collapse,
     diagnostic, retention, provenance and publication keys
     (``certification_seeds``, decision D-B9) and the retired
-    ``[curriculum.jax]`` override table, which :func:`validate_gate_config`
-    refuses, are not (the JAX path that applied it wrote no verdict, decision
-    D-A5).  A null kind (a stage that
+    ``[curriculum.jax]`` override table, which the stage loader and
+    :func:`validate_gate_config` refuse, are not (the JAX path that applied
+    it wrote no verdict, decision D-A5).  A null kind (a stage that
     declares no gate; ``stage_artifacts`` records it as null) or an
     unregistered one projects through :data:`_ALL_THRESHOLD_KEYS` instead, so
     it hashes deterministically rather than raising.  Hash it with

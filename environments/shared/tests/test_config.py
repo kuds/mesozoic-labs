@@ -638,6 +638,31 @@ class TestLoadStageConfigTableValidation:
         with pytest.raises(ValueError, match=r"unknown top-level table\(s\) \['jax'\]"):
             load_stage_config("ignored", 1, config_path=str(path))
 
+    @pytest.mark.parametrize(
+        "spelling",
+        [
+            "\n[curriculum.jax]\nmin_avg_reward = 40.0\n",
+            "jax = { min_avg_reward = 40.0 }\n",
+            "jax.min_avg_reward = 40.0\n",
+            "jax = 40.0\n",
+        ],
+        ids=["sub-table", "inline-table", "dotted-key", "scalar"],
+    )
+    def test_a_retired_curriculum_jax_table_is_rejected(self, tmp_path, spelling):
+        """The JAX gate override went with the trainer that applied it (D-D17); the loader refuses it on every
+        path, the SB3 notebook's ``load_all_stages`` included, however the TOML spells it."""
+        path = self._write(
+            tmp_path,
+            '[stage]\nname = "x"\n\n[env]\nalive_bonus = 1.0\n\n[ppo]\nlearning_rate = 1e-4\n\n'
+            '[curriculum]\ngate_schema_version = 1\ngate_kind = "reward_and_length/v1"\nmin_avg_reward = 100.0\n'
+            + spelling,
+        )
+        with pytest.raises(ValueError) as excinfo:
+            load_stage_config("ignored", 1, config_path=str(path))
+        message = str(excinfo.value)
+        assert message.startswith(f"{path}: [curriculum.jax] is refused")
+        assert "D-D17 retired" in message
+
     def test_empty_env_table_warns(self, tmp_path, caplog):
         path = self._write(tmp_path, '[stage]\nname = "x"\n\n[ppo]\nlearning_rate = 1e-4\n')
         with caplog.at_level(logging.WARNING, logger="environments.shared.config"):
